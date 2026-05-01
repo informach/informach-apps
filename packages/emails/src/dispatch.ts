@@ -3,7 +3,10 @@ import { join } from "node:path";
 import type { Database } from "@informach/db";
 import { emailDeliveries } from "@informach/db/schema";
 import { and, eq, inArray, sql } from "drizzle-orm";
+import { ZodError } from "zod";
+import type { Logger } from "./logger";
 import { classifySendgridError, nextAttemptDelaySeconds, type SendgridErrorLike } from "./retry";
+import { SendEmailInputSchema } from "./schemas";
 
 export type EmailCategory =
   | "auth.verify-email"
@@ -35,17 +38,42 @@ export type SendgridMessage = {
   html?: string;
   headers?: Record<string, string>;
   customArgs?: Record<string, string>;
+  categories?: string[];
 };
 
 export type SendFn = (msg: SendgridMessage) => Promise<{ messageId?: string }>;
 
+export type DispatchMode = "live" | "sandbox" | "memory";
+
+export type MemoryOutboxEntry = {
+  id: string;
+  to: string;
+  from: string;
+  subject: string;
+  category: EmailCategory;
+  messageKey: string;
+  userId?: string;
+  headers: Record<string, string>;
+  customArgs: Record<string, string>;
+  categories: string[];
+  html?: string;
+  text?: string;
+};
+
+export type MemoryOutbox = {
+  push: (entry: MemoryOutboxEntry) => void;
+  list: () => readonly MemoryOutboxEntry[];
+  clear: () => void;
+};
+
 export type DispatchDeps = {
   db: Database;
   defaultFrom: EmailAddress;
-  mode: "live" | "sandbox";
+  mode: DispatchMode;
   sandboxDir: string;
   send: SendFn;
-  logger?: { error: (msg: string, ctx?: object) => void };
+  outbox?: MemoryOutbox;
+  logger?: Logger;
   /** Sleep used between retry attempts (injectable for tests). */
   sleep?: (ms: number) => Promise<void>;
   /** RNG for jitter (injectable for tests). */
@@ -99,14 +127,17 @@ export async function dispatchEmail(
   deps: DispatchDeps,
   input: DispatchInput,
 ): Promise<DispatchResult> {
-  if (!input.html && !input.text) {
-    throw new Error("dispatchEmail: at least one of `html` or `text` must be provided");
-  }
-  if (!input.messageKey) {
-    throw new Error("dispatchEmail: messageKey is required");
-  }
-  if (!input.category) {
-    throw new Error("dispatchEmail: category is required");
+  try {
+    SendEmailInputSchema.parse(input);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      const issue = error.issues[0];
+      const path = issue?.path.join(".") || "input";
+      throw new Error(`dispatchEmail: invalid ${path}: ${issue?.message ?? "validation error"}`, {
+        cause: error,
+      });
+    }
+    throw error;
   }
 
   const sleep = deps.sleep ?? defaultSleep;
@@ -124,6 +155,8 @@ export async function dispatchEmail(
       category: input.category,
       messageKey: input.messageKey,
       subject: input.subject,
+      html: input.html ?? null,
+      text: input.text ?? null,
       status: "pending",
       userId: input.userId,
       createdAt: now,
@@ -184,6 +217,11 @@ export async function dispatchEmail(
 
   const fromAddress = input.from ?? deps.defaultFrom;
   const headers = buildListUnsubscribeHeaders(input.unsubscribeUrl, input.unsubscribeMailto);
+  const customArgs: Record<string, string> = {
+    delivery_id: delivery.id,
+    category: input.category,
+    ...(input.userId ? { user_id: input.userId } : {}),
+  };
 
   if (deps.mode === "sandbox") {
     await writeSandboxFile(deps.sandboxDir, delivery, input, fromAddress, headers);
@@ -200,6 +238,34 @@ export async function dispatchEmail(
     return { ok: true, status: "sent", deliveryId: delivery.id };
   }
 
+  if (deps.mode === "memory") {
+    deps.outbox?.push({
+      id: delivery.id,
+      to: input.to,
+      from: fromAddress,
+      subject: input.subject,
+      category: input.category,
+      messageKey: input.messageKey,
+      ...(input.userId ? { userId: input.userId } : {}),
+      headers,
+      customArgs,
+      categories: [input.category],
+      ...(input.html ? { html: input.html } : {}),
+      ...(input.text ? { text: input.text } : {}),
+    });
+    await deps.db
+      .update(emailDeliveries)
+      .set({
+        status: "sent",
+        providerAccepted: true,
+        providerMessageId: `memory-${delivery.id}`,
+        sentAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(emailDeliveries.id, delivery.id));
+    return { ok: true, status: "sent", deliveryId: delivery.id };
+  }
+
   const message: SendgridMessage = {
     to: input.to,
     from: fromAddress,
@@ -207,11 +273,8 @@ export async function dispatchEmail(
     ...(input.text ? { text: input.text } : {}),
     ...(input.html ? { html: input.html } : {}),
     headers,
-    customArgs: {
-      delivery_id: delivery.id,
-      category: input.category,
-      ...(input.userId ? { user_id: input.userId } : {}),
-    },
+    customArgs,
+    categories: [input.category],
   };
 
   let lastError: string | undefined;
@@ -237,7 +300,7 @@ export async function dispatchEmail(
       lastError = errLike.message ?? `SendGrid error (status ${errLike.response?.statusCode})`;
 
       if (lastClassification === "permanent") {
-        deps.logger?.error("Email delivery permanently failed", {
+        deps.logger?.error?.("Email delivery permanently failed", {
           deliveryId: delivery.id,
           attempt,
           status: errLike.response?.statusCode,
@@ -245,6 +308,13 @@ export async function dispatchEmail(
         });
         break;
       }
+
+      deps.logger?.debug?.("Email delivery transient failure", {
+        deliveryId: delivery.id,
+        attempt,
+        status: errLike.response?.statusCode,
+        reason: lastError,
+      });
 
       if (attempt < inlineAttempts) {
         const delayMs = nextAttemptDelaySeconds(attempt, rng) * 1000;

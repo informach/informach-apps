@@ -156,11 +156,7 @@ type CapturedBetterAuthOptions = {
     };
     account?: {
       create?: {
-        after?: (account: {
-          id: string;
-          userId: string;
-          providerId: string;
-        }) => Promise<void>;
+        after?: (account: { id: string; userId: string; providerId: string }) => Promise<void>;
       };
     };
   };
@@ -179,6 +175,7 @@ function captureConfig(): CapturedBetterAuthOptions {
 function makeConfig(
   overrides: {
     sendEmail?: ReturnType<typeof vi.fn>;
+    renderTemplate?: ReturnType<typeof vi.fn>;
     disableSignup?: boolean;
     cookieCacheMaxAge?: number;
     organizationsEnabled?: boolean;
@@ -187,11 +184,41 @@ function makeConfig(
     twoFactor?: { enabled: boolean; issuer?: string };
   } = {},
 ) {
+  const renderTemplate =
+    overrides.renderTemplate ??
+    vi.fn(
+      async (
+        category: string,
+        props: {
+          appName: string;
+          url?: string;
+          unsubscribeUrl?: string;
+          inviterName?: string;
+          organizationName?: string;
+        },
+      ) => {
+        const fragments = [
+          `<html><body>${category} for ${props.appName}`,
+          props.url ? ` <a href="${props.url}">${props.url}</a>` : "",
+          props.inviterName ? ` from ${props.inviterName}` : "",
+          props.organizationName ? ` to ${props.organizationName}` : "",
+          category === "auth.account-deletion" ? " (irreversível)" : "",
+          props.unsubscribeUrl ? ` <a href="${props.unsubscribeUrl}">Cancele a assinatura</a>` : "",
+          "</body></html>",
+        ];
+        return {
+          subject: `${props.appName} — ${category}`,
+          html: fragments.join(""),
+          text: fragments.join("").replace(/<[^>]+>/g, " "),
+        };
+      },
+    );
   return {
     appName: "Test App",
     baseUrl: "https://test.example.com",
     secret: "0123456789abcdef0123456789abcdef",
     sendEmail: overrides.sendEmail ?? vi.fn().mockResolvedValue({ ok: true, status: "sent" }),
+    renderTemplate,
     buildUnsubscribeUrl: vi.fn(
       (id: string, cat: string) => `https://test.example.com/api/email/unsubscribe?t=${id}-${cat}`,
     ),
@@ -376,9 +403,7 @@ describe("createAuth — observability hooks", () => {
   it("invokes onSecurityEvent when middleware sees a 429 status", async () => {
     const onSecurityEvent = vi.fn();
     createAuth({ ...makeConfig(), observability: { onSecurityEvent } });
-    const handler = mockedAuthMiddleware.mock.calls.at(-1)?.[0] as (
-      ctx: unknown,
-    ) => Promise<void>;
+    const handler = mockedAuthMiddleware.mock.calls.at(-1)?.[0] as (ctx: unknown) => Promise<void>;
     await handler({
       path: "/sign-in/email",
       context: { session: null, returned: { status: 429 } },
@@ -852,9 +877,7 @@ describe("createAuth — organization plugin (opt-in)", () => {
 
   it("hooks.after for /organization/create logs org.created", async () => {
     createAuth(makeConfig({ organizationsEnabled: true }));
-    const handler = mockedAuthMiddleware.mock.calls.at(-1)?.[0] as (
-      ctx: unknown,
-    ) => Promise<void>;
+    const handler = mockedAuthMiddleware.mock.calls.at(-1)?.[0] as (ctx: unknown) => Promise<void>;
     await handler({
       path: "/organization/create",
       context: { session: { user: { id: "u1" } } },
@@ -867,9 +890,7 @@ describe("createAuth — organization plugin (opt-in)", () => {
 
   it("hooks.after for /organization/accept-invitation logs org.member_added", async () => {
     createAuth(makeConfig({ organizationsEnabled: true }));
-    const handler = mockedAuthMiddleware.mock.calls.at(-1)?.[0] as (
-      ctx: unknown,
-    ) => Promise<void>;
+    const handler = mockedAuthMiddleware.mock.calls.at(-1)?.[0] as (ctx: unknown) => Promise<void>;
     await handler({
       path: "/organization/accept-invitation",
       context: { session: { user: { id: "u2" } } },
@@ -882,9 +903,7 @@ describe("createAuth — organization plugin (opt-in)", () => {
 
   it("hooks.after for /organization/remove-member logs org.member_removed", async () => {
     createAuth(makeConfig({ organizationsEnabled: true }));
-    const handler = mockedAuthMiddleware.mock.calls.at(-1)?.[0] as (
-      ctx: unknown,
-    ) => Promise<void>;
+    const handler = mockedAuthMiddleware.mock.calls.at(-1)?.[0] as (ctx: unknown) => Promise<void>;
     await handler({
       path: "/organization/remove-member",
       context: { session: { user: { id: "u3" } } },

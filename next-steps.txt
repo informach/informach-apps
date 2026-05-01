@@ -15,20 +15,21 @@
      https://<app>.informach.com.br/api/webhooks/sendgrid, ativar todos os
      eventos exceto open/click. Habilitar Signed Event Webhook, copiar a public
      key para SENDGRID_WEBHOOK_PUBLIC_KEY por app.
-     2. Railway Scheduler por app, três jobs:
+     2. Railway Scheduler por app, três jobs (todos os 3 sweepers já existem
+        em @informach/emails/sweepers — falta só wirar a rota POST por app):
        - email-retry: a cada 5 min. curl -H "Authorization: Bearer $CRON_SECRET"
-     https://<app>/api/jobs/email-retry.
-       - email-recover-stale: a cada 30 min. Idem.
-       - email-suppression-sync: 1x por dia (não mensal — Akita usa diário no The
-      M).
+         https://<app>/api/jobs/email-retry. (sweeper: retryFailedDeliveries)
+       - email-recover-stale: a cada 30 min. (sweeper: recoverStaleDeliveries)
+       - email-suppression-sync: 1x por dia (não mensal — Akita usa diário no
+         The M). (sweeper: syncSendgridSuppressions)
      3. Domínio: subdomínio dedicado para envio (mail.informach.com.br) com
      DKIM/SPF/DMARC configurados. SendGrid Domain Authentication ativada. Single
      Sender desativado.
 
 
-Consulte as fontes do  meu segundo cérebro   C:\Users\tocha\projects\vibe-coding-vault  e analise como podemos melhorar o package auth.
+Consulte as fontes do  meu segundo cérebro C:\Users\tocha\projects\vibe-coding-vault e analise como podemos melhorar o package auth.
 
-Use o mcp do context7 para consultar a documentação atualizada e use as skills do projeto.
+Também use o mcp do context7 para consultar a documentação atualizada e use as skills do projeto.
 
 Faça um arquivo CLAUDE.md na raiz do package documentando esse package com propósito, como funciona, todas as funcionalidades, como os apps devem usá-lo, sua arquitetura, design, regras.
 

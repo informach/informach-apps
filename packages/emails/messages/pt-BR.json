@@ -1,0 +1,49 @@
+{
+  "common": {
+    "footer": {
+      "unsubscribePrefix": "Não quer mais receber este tipo de email?",
+      "unsubscribeLink": "Cancele a assinatura",
+      "mailtoPrefix": "Ou envie um email para"
+    }
+  },
+  "verification": {
+    "subject": "{appName} — verifique seu email",
+    "preheader": "Confirme seu email para acessar o {appName}.",
+    "title": "Verifique seu email",
+    "body": "Obrigado por se cadastrar no <strong>{appName}</strong>.",
+    "instruction": "Confirme seu email clicando no botão abaixo. O link é de uso único e expira em breve.",
+    "cta": "Confirmar email"
+  },
+  "passwordReset": {
+    "subject": "{appName} — recuperação de senha",
+    "preheader": "Recuperação de senha no {appName}.",
+    "title": "Recuperação de senha",
+    "body": "Recebemos uma solicitação para redefinir sua senha no <strong>{appName}</strong>.",
+    "instruction": "Se foi você, defina uma nova senha clicando no botão abaixo. Caso contrário, ignore este email.",
+    "cta": "Definir nova senha"
+  },
+  "magicLink": {
+    "subject": "{appName} — seu link de acesso",
+    "preheader": "Seu link de acesso para o {appName}.",
+    "title": "Seu link de acesso",
+    "body": "Use o link abaixo para entrar no <strong>{appName}</strong>. O link é de uso único e expira em breve.",
+    "cta": "Entrar"
+  },
+  "invitation": {
+    "subject": "{appName} — convite para {organizationName}",
+    "preheader": "{inviterName} convidou você para {organizationName} no {appName}.",
+    "title": "Convite para {organizationName}",
+    "body": "<strong>{inviterName}</strong> convidou você para participar de <strong>{organizationName}</strong> no {appName}.",
+    "instruction": "Aceite o convite clicando no botão abaixo. O link expira em breve.",
+    "cta": "Aceitar convite"
+  },
+  "accountDeletion": {
+    "subject": "{appName} — confirme a exclusão da conta",
+    "preheader": "Confirme a exclusão da sua conta no {appName}.",
+    "title": "Confirme a exclusão da sua conta",
+    "body": "Recebemos uma solicitação para excluir sua conta no <strong>{appName}</strong>.",
+    "warning": "<strong>Esta ação é irreversível.</strong> Todos os seus dados serão removidos permanentemente.",
+    "instruction": "Se foi você, confirme clicando no botão abaixo. O link expira em breve. Se não foi você, ignore este email — sua conta permanece ativa.",
+    "cta": "Confirmar exclusão"
+  }
+}

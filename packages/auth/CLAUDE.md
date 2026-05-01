@@ -1,6 +1,6 @@
 # `@informach/auth` — package guide
 
-> Documentação primária do package para humanos e agentes. Para checklist de produção (Railway, CSP, Redis, cron), ver [`PRODUCTION.md`](./PRODUCTION.md). Para validação de templates de email, ver [`EMAILS.md`](./EMAILS.md).
+> Documentação primária do package para humanos e agentes. Para checklist de produção (Railway, CSP, Redis, cron), ver [`PRODUCTION.md`](./PRODUCTION.md). Para validação de templates de email, ver [`@informach/emails/EMAILS.md`](../emails/EMAILS.md) (templates moved).
 
 ---
 
@@ -43,9 +43,10 @@ apps/<app>/src/proxy.ts (Next 16; não middleware.ts)
   ├── helpers.ts        ← buildHelpers (getCurrentUser, requireRole, ...)
   ├── permissions.ts    ← ROLES, PERMISSIONS, roleHasPermission
   ├── audit.ts          ← logAuditEvent → audit.events table
-  ├── observability.ts  ← AuthAuditEvent / AuthSecurityEvent types
-  └── templates.ts      ← *EmailHtml/Text + EmailLayout
+  └── observability.ts  ← AuthAuditEvent / AuthSecurityEvent types
 ```
+
+> Templates de email viviam em `templates.ts` neste package; foram migrados para `@informach/emails/src/templates/*.tsx` (componentes React Email). Auth recebe `renderTemplate` na config e chama por categoria.
 
 Schema das tabelas usadas (FK e índices):
 
@@ -152,14 +153,16 @@ Cada `logAuditEvent(eventType, actorId, payload)` insere em `audit.events` e dis
 
 ### 3.7 Email templates
 
-Funções HTML+text em `templates.ts`, todas via `EmailLayout` reutilizável (preheader oculto, footer com unsubscribe):
-- `verificationEmail*` — categoria `auth.verify-email`
-- `passwordResetEmail*` — categoria `auth.password-reset`
-- `magicLinkEmail*` — categoria `auth.magic-link`
-- `invitationEmail*` — categoria `auth.invitation` (organizations)
-- `accountDeletionEmail*` — categoria `auth.account-deletion`
+Templates vivem em `@informach/emails/src/templates/*.tsx` como componentes React Email. O package auth é apenas **caller**: recebe `renderTemplate` na config e chama `await renderTemplate("auth.verify-email", { appName, url, unsubscribeUrl?, unsubscribeMailto? })` no callback de cada feature do Better Auth.
 
-Todos cobertos por inline snapshots em `__tests__/templates.test.ts`. Validação visual manual em clientes reais é mandatória — ver `EMAILS.md`.
+Categorias e componentes:
+- `VerificationEmail` — categoria `auth.verify-email`
+- `PasswordResetEmail` — categoria `auth.password-reset`
+- `MagicLinkEmail` — categoria `auth.magic-link`
+- `InvitationEmail` — categoria `auth.invitation` (organizations)
+- `AccountDeletionEmail` — categoria `auth.account-deletion`
+
+Snapshots, preview server e checklist visual: `packages/emails/EMAILS.md`.
 
 ### 3.8 Maintenance (cron-friendly)
 
@@ -241,6 +244,7 @@ export const authResult = createAuth({
   secret: env.BETTER_AUTH_SECRET,
   trustedOrigins: [env.NEXT_PUBLIC_APP_URL],
   sendEmail: emails.sendEmail,
+  renderTemplate: emails.renderTemplate,
   buildUnsubscribeUrl: (id, category) => {
     const t = buildUnsubscribeToken(env.BETTER_AUTH_SECRET, id, category);
     return `${env.NEXT_PUBLIC_APP_URL}/api/email/unsubscribe?t=${t}`;
@@ -375,7 +379,8 @@ Wiring real em `apps/<app>/src/lib/env.ts` (`@t3-oss/env-nextjs`).
 | `server.test.ts` | RSC helpers + redirect flow |
 | `server-actions.test.ts` | Action builder: schema parse, auth, rate limit, audit, errors |
 | `maintenance.test.ts` | Cleanup queries (mocks de drizzle) |
-| `templates.test.ts` | Inline snapshots de cada template HTML |
+
+Snapshots dos templates de email vivem em `@informach/emails/src/__tests__/templates.test.tsx` (foram movidos junto com a migração para React Email).
 
 Apps **não rodam estes testes** — fica isolado no package. Para teste E2E real (sign-up + verify), usar Playwright nos apps (`apps/<app>/e2e/`).
 
@@ -405,7 +410,7 @@ Itens validados como possíveis evoluções, sem compromisso de prioridade:
 - UI de auth nos apps (sign-in/sign-up/reset-password/verify-email pages — hoje só os endpoints existem).
 - `hasAccessToProduct(userId, productId)` está stubbed com `NotImplementedError` — esperando o package `@informach/billing` materializar.
 - Helpers SSO cross-subdomain (depende de domínio custom + cookie domain config).
-- I18n dos templates de email (hoje PT-BR hardcoded).
+- I18n dos templates de email — infra pronta em `@informach/emails` (default `pt-BR`); falta apenas adicionar locales adicionais em `messages/<locale>.json` quando o produto pedir.
 - Plugin `admin()` oficial (se algum dia precisar de impersonation com UI pronta).
 
 Para retomar trabalho de fase, perguntar ao usuário qual fase está autorizada — cada fase é entregável independente. Histórico de fases entregues vive na memory (`auth_roadmap.md`).

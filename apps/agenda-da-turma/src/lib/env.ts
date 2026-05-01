@@ -13,7 +13,7 @@ export const env = createEnv({
     SENDGRID_API_KEY: z.string().min(1),
     SENDGRID_FROM: z.string().email(),
     SENDGRID_WEBHOOK_PUBLIC_KEY: z.string().min(1).optional(),
-    EMAIL_SANDBOX_MODE: z.enum(["live", "sandbox"]).default("live"),
+    EMAIL_SANDBOX_MODE: z.enum(["live", "sandbox", "memory"]).default("live"),
     EMAIL_SANDBOX_DIR: z.string().default("./tmp/integration_emails"),
     CRON_SECRET: z.string().min(32),
     GOOGLE_CLIENT_ID: z.string().min(1).optional(),

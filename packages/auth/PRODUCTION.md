@@ -318,16 +318,21 @@ Hooks são `try/catch`-ed internamente — se sua APM cair, o auth não cai junt
 
 ---
 
-## 9. Email validation manual
+## 9. Email pipeline (deploy + validation)
 
-Templates HTML (`*EmailHtml`) são minimalistas e estão cobertos por inline snapshots em `templates.test.ts`. Antes de promover qualquer mudança para produção, validar visualmente em pelo menos:
+A operação completa do pipeline de email (Domain Authentication DKIM/SPF/DMARC, Signed Event Webhook, smoke test E2E, monitoramento, lista pré-deploy) está em [`@informach/emails/PRODUCTION.md`](../emails/PRODUCTION.md). A doc cobre:
 
-- Gmail (web + mobile)
-- Outlook (Windows desktop, web)
-- Apple Mail
-- Modo escuro de cada cliente
+- Configuração de DNS no apex `informach.com.br` para autenticar o subdomínio de envio.
+- Setup do Signed Event Webhook + onde obter `SENDGRID_WEBHOOK_PUBLIC_KEY`.
+- Wiring dos 3 cron jobs (`email-retry`, `email-recover-stale`, `email-suppression-sync`).
+- Smoke test pós-deploy com curl + queries SQL de health.
+- Rollback de pipeline quebrado (toggle para `EMAIL_SANDBOX_MODE=sandbox`).
 
-Ferramentas recomendadas: [Litmus](https://litmus.com), [Email on Acid](https://www.emailonacid.com), ou contas pessoais de teste. Veja `EMAILS.md` para o checklist completo.
+Validação visual de templates é responsabilidade separada — checklist em [`packages/emails/EMAILS.md`](../emails/EMAILS.md). Iteração local:
+
+```bash
+pnpm --filter @informach/emails preview   # http://localhost:4080
+```
 
 ---
 

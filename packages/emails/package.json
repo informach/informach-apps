@@ -9,21 +9,32 @@
     ".": "./src/index.ts",
     "./webhook": "./src/webhook.ts",
     "./sweepers": "./src/sweepers.ts",
-    "./unsubscribe": "./src/unsubscribe.ts"
+    "./unsubscribe": "./src/unsubscribe.ts",
+    "./templates": "./src/templates/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "preview": "email dev --port 4080 --dir src/templates"
   },
   "dependencies": {
     "@informach/config": "workspace:*",
     "@informach/db": "workspace:*",
+    "@react-email/components": "^0.0.36",
+    "@react-email/render": "^1.0.5",
     "@sendgrid/eventwebhook": "^8.0.0",
     "@sendgrid/mail": "^8.1.4",
-    "drizzle-orm": "^0.45.2"
+    "drizzle-orm": "^0.45.2",
+    "next-intl": "^4.11.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "^20.17.10",
+    "@types/react": "^19.2.3",
+    "@types/react-dom": "^19.2.3",
+    "react-email": "^3.0.6",
     "typescript": "^5.6.3",
     "vitest": "^2.1.9"
   }

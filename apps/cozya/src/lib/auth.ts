@@ -19,6 +19,7 @@ export const authResult = createAuth({
   secret: env.BETTER_AUTH_SECRET,
   trustedOrigins: [env.NEXT_PUBLIC_APP_URL],
   sendEmail: emails.sendEmail,
+  renderTemplate: emails.renderTemplate,
   buildUnsubscribeUrl: (identifier, category) => {
     const token = buildUnsubscribeToken(env.BETTER_AUTH_SECRET, identifier, category);
     return `${env.NEXT_PUBLIC_APP_URL}/api/email/unsubscribe?t=${token}`;
@@ -38,5 +39,9 @@ export const {
   assertPermission,
 } = authResult;
 
-export const { getServerSession, getCurrentUserServer, requireUserServer, redirectIfUnauthenticated } =
-  createServerHelpers(authResult);
+export const {
+  getServerSession,
+  getCurrentUserServer,
+  requireUserServer,
+  redirectIfUnauthenticated,
+} = createServerHelpers(authResult);

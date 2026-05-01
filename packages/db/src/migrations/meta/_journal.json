@@ -50,6 +50,13 @@
       "when": 1777664488074,
       "tag": "0006_foamy_hex",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1777666898257,
+      "tag": "0007_chief_blob",
+      "breakpoints": true
     }
   ]
 }

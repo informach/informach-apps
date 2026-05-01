@@ -201,6 +201,8 @@ export const emailDeliveries = core.table(
     category: text("category").notNull(),
     messageKey: text("message_key").notNull(),
     subject: text("subject").notNull(),
+    html: text("html"),
+    text: text("text"),
     provider: text("provider").notNull().default("sendgrid"),
     providerMessageId: text("provider_message_id"),
     status: text("status").notNull().default("pending"),

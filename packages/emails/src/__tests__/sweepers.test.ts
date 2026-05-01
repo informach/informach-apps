@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { recoverStaleDeliveries, syncSendgridSuppressions } from "../sweepers";
+import type { SendFn } from "../dispatch";
+import {
+  recoverStaleDeliveries,
+  retryFailedDeliveries,
+  syncSendgridSuppressions,
+} from "../sweepers";
 import { createFakeDb } from "./_fake-db";
 
 describe("recoverStaleDeliveries", () => {
@@ -96,5 +101,155 @@ describe("syncSendgridSuppressions", () => {
     await expect(syncSendgridSuppressions({ db: db as never, apiKey: "" })).rejects.toThrow(
       /apiKey is required/,
     );
+  });
+});
+
+describe("retryFailedDeliveries", () => {
+  const baseRow = {
+    id: "row-1",
+    recipient: "user@example.com",
+    category: "auth.verify-email",
+    messageKey: "key-1",
+    subject: "Hello",
+    html: "<p>Hi</p>",
+    text: "Hi",
+    sendAttempts: 1,
+    updatedAt: new Date(Date.now() - 24 * 3600 * 1000), // 1 day ago — past any backoff
+    userId: "user-1",
+  };
+
+  const buildUnsubscribeUrl = vi.fn(
+    (id: string, cat: string) => `https://app.example.com/api/email/unsubscribe?t=${id}-${cat}`,
+  );
+
+  it("re-claims and re-sends rows in status='failed' that are past the backoff window", async () => {
+    const { db } = createFakeDb({
+      selectResult: [baseRow],
+      updateResult: [{ id: baseRow.id }],
+    });
+    const send: SendFn = vi.fn().mockResolvedValue({ messageId: "mid-retry" });
+
+    const result = await retryFailedDeliveries({
+      db: db as never,
+      defaultFrom: "noreply@example.com",
+      send,
+      buildUnsubscribeUrl,
+      unsubscribeMailto: "unsubscribe@example.com",
+      rng: () => 0.5,
+    });
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(result.retried).toBe(1);
+    expect(result.recovered).toBe(1);
+    expect(result.failed).toBe(0);
+    expect(result.skipped).toBe(0);
+
+    const msg = (send as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as {
+      headers: Record<string, string>;
+      customArgs: Record<string, string>;
+    };
+    expect(msg.headers["List-Unsubscribe"]).toContain(
+      "https://app.example.com/api/email/unsubscribe?t=user@example.com-auth.verify-email",
+    );
+    expect(msg.headers["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
+    expect(msg.customArgs.delivery_id).toBe(baseRow.id);
+    expect(msg.customArgs.user_id).toBe(baseRow.userId);
+  });
+
+  it("skips rows above MAX_ATTEMPTS without sending", async () => {
+    const { db } = createFakeDb({
+      selectResult: [{ ...baseRow, sendAttempts: 8 }], // MAX_ATTEMPTS = 8
+      updateResult: [{ id: baseRow.id }],
+    });
+    const send: SendFn = vi.fn();
+
+    const result = await retryFailedDeliveries({
+      db: db as never,
+      defaultFrom: "noreply@example.com",
+      send,
+      buildUnsubscribeUrl,
+    });
+
+    expect(send).not.toHaveBeenCalled();
+    expect(result.skipped).toBe(1);
+    expect(result.retried).toBe(0);
+  });
+
+  it("skips rows whose backoff window has not elapsed", async () => {
+    const { db } = createFakeDb({
+      selectResult: [{ ...baseRow, updatedAt: new Date() }], // updated just now
+      updateResult: [{ id: baseRow.id }],
+    });
+    const send: SendFn = vi.fn();
+
+    const result = await retryFailedDeliveries({
+      db: db as never,
+      defaultFrom: "noreply@example.com",
+      send,
+      buildUnsubscribeUrl,
+      rng: () => 0.5,
+    });
+
+    expect(send).not.toHaveBeenCalled();
+    expect(result.skipped).toBe(1);
+  });
+
+  it("skips rows with no persisted body (cannot rebuild without html/text)", async () => {
+    const { db } = createFakeDb({
+      selectResult: [{ ...baseRow, html: null, text: null }],
+      updateResult: [{ id: baseRow.id }],
+    });
+    const send: SendFn = vi.fn();
+
+    const result = await retryFailedDeliveries({
+      db: db as never,
+      defaultFrom: "noreply@example.com",
+      send,
+      buildUnsubscribeUrl,
+    });
+
+    expect(send).not.toHaveBeenCalled();
+    expect(result.skipped).toBe(1);
+  });
+
+  it("marks back to failed when send raises and counts the failure", async () => {
+    const { db } = createFakeDb({
+      selectResult: [baseRow],
+      updateResult: [{ id: baseRow.id }],
+    });
+    const sendError = Object.assign(new Error("rate limit"), {
+      response: { statusCode: 429 },
+    });
+    const send: SendFn = vi.fn().mockRejectedValue(sendError);
+
+    const result = await retryFailedDeliveries({
+      db: db as never,
+      defaultFrom: "noreply@example.com",
+      send,
+      buildUnsubscribeUrl,
+    });
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(result.retried).toBe(1);
+    expect(result.failed).toBe(1);
+    expect(result.recovered).toBe(0);
+  });
+
+  it("counts as skipped when claim returns no rows (raced by another sweeper)", async () => {
+    const { db } = createFakeDb({
+      selectResult: [baseRow],
+      updateResult: [], // claim matched 0 rows
+    });
+    const send: SendFn = vi.fn();
+
+    const result = await retryFailedDeliveries({
+      db: db as never,
+      defaultFrom: "noreply@example.com",
+      send,
+      buildUnsubscribeUrl,
+    });
+
+    expect(send).not.toHaveBeenCalled();
+    expect(result.skipped).toBe(1);
   });
 });

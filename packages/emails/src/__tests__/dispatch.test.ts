@@ -2,8 +2,26 @@ import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type DispatchInput, dispatchEmail, type SendFn } from "../dispatch";
+import {
+  type DispatchInput,
+  dispatchEmail,
+  type MemoryOutbox,
+  type MemoryOutboxEntry,
+  type SendFn,
+} from "../dispatch";
 import { createFakeDb } from "./_fake-db";
+
+function createTestOutbox(): MemoryOutbox & { entries: MemoryOutboxEntry[] } {
+  const entries: MemoryOutboxEntry[] = [];
+  return {
+    entries,
+    push: (entry) => entries.push(entry),
+    list: () => entries,
+    clear: () => {
+      entries.length = 0;
+    },
+  };
+}
 
 function makeInput(overrides: Partial<DispatchInput> = {}): DispatchInput {
   return {
@@ -161,6 +179,7 @@ describe("dispatchEmail live mode", () => {
     expect((msg.customArgs as Record<string, string>).delivery_id).toBe("fake-id");
     expect((msg.customArgs as Record<string, string>).category).toBe("auth.verify-email");
     expect((msg.customArgs as Record<string, string>).user_id).toBe("user-1");
+    expect(msg.categories).toEqual(["auth.verify-email"]);
   });
 
   it("does NOT retry on a permanent error and marks failed", async () => {
@@ -249,5 +268,40 @@ describe("dispatchEmail live mode", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.status).toBe("sent");
+  });
+});
+
+describe("dispatchEmail memory mode", () => {
+  it("collects the message in the in-memory outbox and never calls send", async () => {
+    const { db } = createFakeDb({
+      insertResult: [{ id: "fake-id", status: "pending", sendAttempts: 0 }],
+      updateResult: [{ id: "fake-id", status: "sending", sendAttempts: 1 }],
+    });
+    const sendMock: SendFn = vi.fn();
+    const outbox = createTestOutbox();
+
+    const result = await dispatchEmail(
+      {
+        db: db as never,
+        defaultFrom: "noreply@example.com",
+        mode: "memory",
+        sandboxDir: "./tmp",
+        send: sendMock,
+        outbox,
+      },
+      makeInput(),
+    );
+
+    expect(result).toEqual({ ok: true, status: "sent", deliveryId: "fake-id" });
+    expect(sendMock).not.toHaveBeenCalled();
+    expect(outbox.entries).toHaveLength(1);
+    const entry = outbox.entries[0];
+    expect(entry?.to).toBe("user@example.com");
+    expect(entry?.category).toBe("auth.verify-email");
+    expect(entry?.headers["List-Unsubscribe"]).toContain(
+      "<https://app.example.com/api/email/unsubscribe?t=abc>",
+    );
+    expect(entry?.categories).toEqual(["auth.verify-email"]);
+    expect(entry?.customArgs.delivery_id).toBe("fake-id");
   });
 });

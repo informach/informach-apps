@@ -11,7 +11,7 @@ import {
   users,
   verifications,
 } from "@informach/db/schema";
-import type { EmailCategory, SendEmail } from "@informach/emails";
+import type { EmailCategory, RenderTemplate, SendEmail } from "@informach/emails";
 import { type BetterAuthPlugin, betterAuth, type SecondaryStorage } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createAuthMiddleware } from "better-auth/api";
@@ -33,18 +33,6 @@ import type {
   ObservabilityHooks,
 } from "./observability";
 import { isRole, type Permission, ROLES, type Role } from "./permissions";
-import {
-  accountDeletionEmailHtml,
-  accountDeletionEmailText,
-  invitationEmailHtml,
-  invitationEmailText,
-  magicLinkEmailHtml,
-  magicLinkEmailText,
-  passwordResetEmailHtml,
-  passwordResetEmailText,
-  verificationEmailHtml,
-  verificationEmailText,
-} from "./templates";
 
 export {
   ForbiddenError,
@@ -137,6 +125,7 @@ export type CreateAuthConfig = {
   baseUrl: string;
   appName: string;
   sendEmail: SendEmail;
+  renderTemplate: RenderTemplate;
   buildUnsubscribeUrl: BuildUnsubscribeUrl;
   unsubscribeMailto?: string;
   /**
@@ -193,20 +182,21 @@ function buildMagicLinkPlugin(config: CreateAuthConfig) {
   return magicLink({
     sendMagicLink: async ({ email, url, token }) => {
       const unsubscribeUrl = config.buildUnsubscribeUrl(email, "auth.magic-link");
+      const { html, text, subject } = await config.renderTemplate("auth.magic-link", {
+        appName: config.appName,
+        url,
+        unsubscribeUrl,
+        unsubscribeMailto: config.unsubscribeMailto,
+      });
       await config.sendEmail({
         to: email,
         category: "auth.magic-link",
         messageKey: token,
         unsubscribeUrl,
         unsubscribeMailto: config.unsubscribeMailto,
-        subject: `${config.appName} — seu link de acesso`,
-        text: magicLinkEmailText({ appName: config.appName, url }),
-        html: magicLinkEmailHtml({
-          appName: config.appName,
-          url,
-          unsubscribeUrl,
-          unsubscribeMailto: config.unsubscribeMailto,
-        }),
+        subject,
+        text,
+        html,
       });
     },
   });
@@ -218,27 +208,23 @@ function buildOrganizationPlugin(config: CreateAuthConfig) {
     async sendInvitationEmail(data) {
       const unsubscribeUrl = config.buildUnsubscribeUrl(data.email, "auth.invitation");
       const url = `${config.baseUrl}/accept-invitation/${data.id}`;
+      const { html, text, subject } = await config.renderTemplate("auth.invitation", {
+        appName: config.appName,
+        inviterName: data.inviter.user.name,
+        organizationName: data.organization.name,
+        url,
+        unsubscribeUrl,
+        unsubscribeMailto: config.unsubscribeMailto,
+      });
       await config.sendEmail({
         to: data.email,
         category: "auth.invitation",
         messageKey: data.id,
         unsubscribeUrl,
         unsubscribeMailto: config.unsubscribeMailto,
-        subject: `${config.appName} — convite para ${data.organization.name}`,
-        text: invitationEmailText({
-          appName: config.appName,
-          inviterName: data.inviter.user.name,
-          organizationName: data.organization.name,
-          url,
-        }),
-        html: invitationEmailHtml({
-          appName: config.appName,
-          inviterName: data.inviter.user.name,
-          organizationName: data.organization.name,
-          url,
-          unsubscribeUrl,
-          unsubscribeMailto: config.unsubscribeMailto,
-        }),
+        subject,
+        text,
+        html,
       });
       await logAuditEvent("org.invitation_sent", data.inviter.user.id, {
         invitationId: data.id,
@@ -382,6 +368,15 @@ function createAuthInstance(config: CreateAuthConfig) {
                         data.user.email,
                         "auth.account-deletion",
                       );
+                      const { html, text, subject } = await config.renderTemplate(
+                        "auth.account-deletion",
+                        {
+                          appName: config.appName,
+                          url: data.url,
+                          unsubscribeUrl,
+                          unsubscribeMailto: config.unsubscribeMailto,
+                        },
+                      );
                       await config.sendEmail({
                         to: data.user.email,
                         category: "auth.account-deletion",
@@ -389,17 +384,9 @@ function createAuthInstance(config: CreateAuthConfig) {
                         userId: data.user.id,
                         unsubscribeUrl,
                         unsubscribeMailto: config.unsubscribeMailto,
-                        subject: `${config.appName} — confirme a exclusão da conta`,
-                        text: accountDeletionEmailText({
-                          appName: config.appName,
-                          url: data.url,
-                        }),
-                        html: accountDeletionEmailHtml({
-                          appName: config.appName,
-                          url: data.url,
-                          unsubscribeUrl,
-                          unsubscribeMailto: config.unsubscribeMailto,
-                        }),
+                        subject,
+                        text,
+                        html,
                       });
                     },
                   }
@@ -431,6 +418,12 @@ function createAuthInstance(config: CreateAuthConfig) {
       revokeSessionsOnPasswordReset: true,
       sendResetPassword: async ({ user, url, token }) => {
         const unsubscribeUrl = config.buildUnsubscribeUrl(user.email, "auth.password-reset");
+        const { html, text, subject } = await config.renderTemplate("auth.password-reset", {
+          appName: config.appName,
+          url,
+          unsubscribeUrl,
+          unsubscribeMailto: config.unsubscribeMailto,
+        });
         await config.sendEmail({
           to: user.email,
           category: "auth.password-reset",
@@ -438,14 +431,9 @@ function createAuthInstance(config: CreateAuthConfig) {
           userId: user.id,
           unsubscribeUrl,
           unsubscribeMailto: config.unsubscribeMailto,
-          subject: `${config.appName} — recuperação de senha`,
-          text: passwordResetEmailText({ appName: config.appName, url }),
-          html: passwordResetEmailHtml({
-            appName: config.appName,
-            url,
-            unsubscribeUrl,
-            unsubscribeMailto: config.unsubscribeMailto,
-          }),
+          subject,
+          text,
+          html,
         });
       },
     },
@@ -454,6 +442,12 @@ function createAuthInstance(config: CreateAuthConfig) {
       autoSignInAfterVerification: true,
       sendVerificationEmail: async ({ user, url, token }) => {
         const unsubscribeUrl = config.buildUnsubscribeUrl(user.email, "auth.verify-email");
+        const { html, text, subject } = await config.renderTemplate("auth.verify-email", {
+          appName: config.appName,
+          url,
+          unsubscribeUrl,
+          unsubscribeMailto: config.unsubscribeMailto,
+        });
         await config.sendEmail({
           to: user.email,
           category: "auth.verify-email",
@@ -461,14 +455,9 @@ function createAuthInstance(config: CreateAuthConfig) {
           userId: user.id,
           unsubscribeUrl,
           unsubscribeMailto: config.unsubscribeMailto,
-          subject: `${config.appName} — verifique seu email`,
-          text: verificationEmailText({ appName: config.appName, url }),
-          html: verificationEmailHtml({
-            appName: config.appName,
-            url,
-            unsubscribeUrl,
-            unsubscribeMailto: config.unsubscribeMailto,
-          }),
+          subject,
+          text,
+          html,
         });
       },
     },
@@ -515,9 +504,8 @@ function createAuthInstance(config: CreateAuthConfig) {
           ...(cacheRoleOnSession
             ? {
                 before: async (session: { userId: string }, ctx: unknown) => {
-                  const adapter = (
-                    ctx as { context?: { adapter?: AuthAdapterFindOne } } | null
-                  )?.context?.adapter;
+                  const adapter = (ctx as { context?: { adapter?: AuthAdapterFindOne } } | null)
+                    ?.context?.adapter;
                   const user = await adapter?.findOne?.<{ role?: string }>({
                     model: "user",
                     where: [{ field: "id", value: session.userId }],
@@ -620,9 +608,8 @@ function createAuthInstance(config: CreateAuthConfig) {
           return;
         }
         if (path === "/two-factor/verify-totp") {
-          const status = (
-            ctx.context as { returned?: { status?: number } } | undefined
-          )?.returned?.status;
+          const status = (ctx.context as { returned?: { status?: number } } | undefined)?.returned
+            ?.status;
           if (status && status >= 400) {
             emitSecurityEvent(config, {
               type: "two_factor_failed",
@@ -635,9 +622,8 @@ function createAuthInstance(config: CreateAuthConfig) {
           return;
         }
         if (path === "/two-factor/verify-backup-code") {
-          const verifyStatus = (
-            ctx.context as { returned?: { status?: number } } | undefined
-          )?.returned?.status;
+          const verifyStatus = (ctx.context as { returned?: { status?: number } } | undefined)
+            ?.returned?.status;
           if (verifyStatus && verifyStatus >= 400) {
             emitSecurityEvent(config, {
               type: "two_factor_failed",
@@ -650,9 +636,8 @@ function createAuthInstance(config: CreateAuthConfig) {
           return;
         }
 
-        const status = (
-          ctx.context as { returned?: { status?: number } } | undefined
-        )?.returned?.status;
+        const status = (ctx.context as { returned?: { status?: number } } | undefined)?.returned
+          ?.status;
         if (status === 429) {
           emitSecurityEvent(config, {
             type: "rate_limit_hit",
@@ -694,9 +679,7 @@ export type CreateAuthResult = {
   getActiveOrganization: (
     headers: Headers,
   ) => Promise<{ id: string; name?: string; slug?: string } | null>;
-  getActiveMember: (
-    headers: Headers,
-  ) => Promise<{
+  getActiveMember: (headers: Headers) => Promise<{
     id: string;
     userId?: string;
     organizationId?: string;
