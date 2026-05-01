@@ -1,0 +1,1 @@
+ALTER TABLE "core"."sessions" ADD COLUMN "role" text;

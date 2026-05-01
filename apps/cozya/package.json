@@ -7,9 +7,13 @@
     "dev": "next dev -p 3002",
     "build": "next build",
     "start": "next start -p 3002",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
+    "e2e:install": "playwright install chromium"
   },
   "dependencies": {
+    "@better-auth/redis-storage": "^1.6.9",
     "@hookform/resolvers": "^3.9.1",
     "@informach/ai-core": "workspace:*",
     "@informach/auth": "workspace:*",
@@ -19,6 +23,7 @@
     "@informach/emails": "workspace:*",
     "@informach/ui": "workspace:*",
     "@t3-oss/env-nextjs": "^0.13.11",
+    "ioredis": "^5.10.1",
     "next": "^16.2.4",
     "pino": "^9.5.0",
     "react": "^19.2.5",
@@ -27,6 +32,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.49.1",
     "@tailwindcss/postcss": "^4.2.4",
     "@types/node": "^20.17.10",
     "@types/react": "^19.0.0",

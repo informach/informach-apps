@@ -1,0 +1,35 @@
+ Próximos passos manuais (cabem ao operador):
+
+
+  1. Subir Postgres local (docker compose up -d).
+  2. Popular apps/agenda-da-turma/.env.local e apps/cozya/.env.local com
+  BETTER_AUTH_SECRET (openssl rand -base64 32), SENDGRID_API_KEY e SENDGRID_FROM
+  (remetente verificado no SendGrid).
+  3. Rodar pnpm db:migrate para aplicar a migration.
+  4. pnpm dev:agenda-da-turma e/ou pnpm dev:cozya, e validar os fluxos com curl
+  nos endpoints /api/auth/sign-up/email, /api/auth/sign-in/email,
+  /api/auth/sign-in/magic-link, /api/auth/forget-password (conforme o plano).
+
+
+1. SendGrid Event Webhook: registrar URL
+     https://<app>.informach.com.br/api/webhooks/sendgrid, ativar todos os
+     eventos exceto open/click. Habilitar Signed Event Webhook, copiar a public
+     key para SENDGRID_WEBHOOK_PUBLIC_KEY por app.
+     2. Railway Scheduler por app, três jobs:
+       - email-retry: a cada 5 min. curl -H "Authorization: Bearer $CRON_SECRET"
+     https://<app>/api/jobs/email-retry.
+       - email-recover-stale: a cada 30 min. Idem.
+       - email-suppression-sync: 1x por dia (não mensal — Akita usa diário no The
+      M).
+     3. Domínio: subdomínio dedicado para envio (mail.informach.com.br) com
+     DKIM/SPF/DMARC configurados. SendGrid Domain Authentication ativada. Single
+     Sender desativado.
+
+
+Consulte as fontes do  meu segundo cérebro   C:\Users\tocha\projects\vibe-coding-vault  e analise como podemos melhorar o package auth.
+
+Use o mcp do context7 para consultar a documentação atualizada e use as skills do projeto.
+
+Faça um arquivo CLAUDE.md na raiz do package documentando esse package com propósito, como funciona, todas as funcionalidades, como os apps devem usá-lo, sua arquitetura, design, regras.
+
+Pesquise sobre o deploy no Railway e atualize no que for necessário o arquivo PRODUCTION.md, pois o deploy vai ser feito no railway e não na vercel.

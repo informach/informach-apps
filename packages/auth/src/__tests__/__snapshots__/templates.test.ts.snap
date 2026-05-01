@@ -1,0 +1,116 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`template snapshots (regression guard) > accountDeletionEmailHtml produces a stable HTML output 1`] = `
+"<!doctype html>
+<html lang="pt-BR">
+  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#f5f5f5; padding:24px; margin:0;">
+    <div style="display:none; font-size:1px; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden; mso-hide:all;">Confirme a exclusão da sua conta no Cozya.</div>
+    <div style="max-width:520px; margin:0 auto; background:#ffffff; border-radius:12px; padding:32px;">
+      <header style="margin-bottom:24px;">
+        <p style="font-size:13px; font-weight:600; color:#374151; letter-spacing:0.04em; text-transform:uppercase; margin:0;">Cozya</p>
+      </header>
+      <h1 style="font-size:20px; margin:0 0 16px;">Confirme a exclusão da sua conta</h1>
+      <p>Recebemos uma solicitação para excluir sua conta no <strong>Cozya</strong>.</p>
+<p><strong>Esta ação é irreversível.</strong> Todos os seus dados serão removidos permanentemente.</p>
+<p>Se foi você, confirme clicando no botão abaixo. O link expira em breve. Se não foi você, ignore este email — sua conta permanece ativa.</p>
+      <p style="margin:24px 0;">
+        <a href="https://app.example.com/verify?token=abc" style="display:inline-block; background:#111827; color:#ffffff; text-decoration:none; padding:12px 20px; border-radius:8px;">Confirmar exclusão</a>
+      </p>
+      <footer style="margin-top:32px; padding-top:16px; border-top:1px solid #e5e7eb;"><p style="font-size:12px; color:#6b7280; margin:0 0 8px;">Cozya</p>
+<p style="font-size:12px; color:#6b7280; margin:0 0 8px;">Não quer mais receber este tipo de email? <a href="https://app.example.com/api/email/unsubscribe?t=tok" style="color:#6b7280; text-decoration:underline;">Cancele a assinatura</a>.</p>
+<p style="font-size:11px; color:#9ca3af; margin:0;">Ou envie um email para <a href="mailto:unsubscribe@cozya.test" style="color:#9ca3af; text-decoration:underline;">unsubscribe@cozya.test</a>.</p></footer>
+    </div>
+  </body>
+</html>"
+`;
+
+exports[`template snapshots (regression guard) > invitationEmailHtml produces a stable HTML output 1`] = `
+"<!doctype html>
+<html lang="pt-BR">
+  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#f5f5f5; padding:24px; margin:0;">
+    <div style="display:none; font-size:1px; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden; mso-hide:all;">Helena convidou você para EM Anchieta no Agenda da Turma.</div>
+    <div style="max-width:520px; margin:0 auto; background:#ffffff; border-radius:12px; padding:32px;">
+      <header style="margin-bottom:24px;">
+        <p style="font-size:13px; font-weight:600; color:#374151; letter-spacing:0.04em; text-transform:uppercase; margin:0;">Agenda da Turma</p>
+      </header>
+      <h1 style="font-size:20px; margin:0 0 16px;">Convite para EM Anchieta</h1>
+      <p><strong>Helena</strong> convidou você para participar de <strong>EM Anchieta</strong> no Agenda da Turma.</p>
+<p>Aceite o convite clicando no botão abaixo. O link expira em breve.</p>
+      <p style="margin:24px 0;">
+        <a href="https://app.example.com/accept-invitation/inv1" style="display:inline-block; background:#111827; color:#ffffff; text-decoration:none; padding:12px 20px; border-radius:8px;">Aceitar convite</a>
+      </p>
+      <footer style="margin-top:32px; padding-top:16px; border-top:1px solid #e5e7eb;"><p style="font-size:12px; color:#6b7280; margin:0 0 8px;">Agenda da Turma</p>
+<p style="font-size:12px; color:#6b7280; margin:0 0 8px;">Não quer mais receber este tipo de email? <a href="https://app.example.com/api/email/unsubscribe?t=tok" style="color:#6b7280; text-decoration:underline;">Cancele a assinatura</a>.</p>
+<p style="font-size:11px; color:#9ca3af; margin:0;">Ou envie um email para <a href="mailto:unsubscribe@cozya.test" style="color:#9ca3af; text-decoration:underline;">unsubscribe@cozya.test</a>.</p></footer>
+    </div>
+  </body>
+</html>"
+`;
+
+exports[`template snapshots (regression guard) > magicLinkEmailHtml produces a stable HTML output 1`] = `
+"<!doctype html>
+<html lang="pt-BR">
+  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#f5f5f5; padding:24px; margin:0;">
+    <div style="display:none; font-size:1px; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden; mso-hide:all;">Seu link de acesso para o Cozya.</div>
+    <div style="max-width:520px; margin:0 auto; background:#ffffff; border-radius:12px; padding:32px;">
+      <header style="margin-bottom:24px;">
+        <p style="font-size:13px; font-weight:600; color:#374151; letter-spacing:0.04em; text-transform:uppercase; margin:0;">Cozya</p>
+      </header>
+      <h1 style="font-size:20px; margin:0 0 16px;">Seu link de acesso</h1>
+      <p>Use o link abaixo para entrar no <strong>Cozya</strong>. O link é de uso único e expira em breve.</p>
+      <p style="margin:24px 0;">
+        <a href="https://app.example.com/verify?token=abc" style="display:inline-block; background:#111827; color:#ffffff; text-decoration:none; padding:12px 20px; border-radius:8px;">Entrar</a>
+      </p>
+      <footer style="margin-top:32px; padding-top:16px; border-top:1px solid #e5e7eb;"><p style="font-size:12px; color:#6b7280; margin:0 0 8px;">Cozya</p>
+<p style="font-size:12px; color:#6b7280; margin:0 0 8px;">Não quer mais receber este tipo de email? <a href="https://app.example.com/api/email/unsubscribe?t=tok" style="color:#6b7280; text-decoration:underline;">Cancele a assinatura</a>.</p>
+<p style="font-size:11px; color:#9ca3af; margin:0;">Ou envie um email para <a href="mailto:unsubscribe@cozya.test" style="color:#9ca3af; text-decoration:underline;">unsubscribe@cozya.test</a>.</p></footer>
+    </div>
+  </body>
+</html>"
+`;
+
+exports[`template snapshots (regression guard) > passwordResetEmailHtml produces a stable HTML output 1`] = `
+"<!doctype html>
+<html lang="pt-BR">
+  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#f5f5f5; padding:24px; margin:0;">
+    <div style="display:none; font-size:1px; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden; mso-hide:all;">Recuperação de senha no Cozya.</div>
+    <div style="max-width:520px; margin:0 auto; background:#ffffff; border-radius:12px; padding:32px;">
+      <header style="margin-bottom:24px;">
+        <p style="font-size:13px; font-weight:600; color:#374151; letter-spacing:0.04em; text-transform:uppercase; margin:0;">Cozya</p>
+      </header>
+      <h1 style="font-size:20px; margin:0 0 16px;">Recuperação de senha</h1>
+      <p>Recebemos uma solicitação para redefinir sua senha no <strong>Cozya</strong>.</p>
+<p>Se foi você, defina uma nova senha clicando no botão abaixo. Caso contrário, ignore este email.</p>
+      <p style="margin:24px 0;">
+        <a href="https://app.example.com/verify?token=abc" style="display:inline-block; background:#111827; color:#ffffff; text-decoration:none; padding:12px 20px; border-radius:8px;">Definir nova senha</a>
+      </p>
+      <footer style="margin-top:32px; padding-top:16px; border-top:1px solid #e5e7eb;"><p style="font-size:12px; color:#6b7280; margin:0 0 8px;">Cozya</p>
+<p style="font-size:12px; color:#6b7280; margin:0 0 8px;">Não quer mais receber este tipo de email? <a href="https://app.example.com/api/email/unsubscribe?t=tok" style="color:#6b7280; text-decoration:underline;">Cancele a assinatura</a>.</p>
+<p style="font-size:11px; color:#9ca3af; margin:0;">Ou envie um email para <a href="mailto:unsubscribe@cozya.test" style="color:#9ca3af; text-decoration:underline;">unsubscribe@cozya.test</a>.</p></footer>
+    </div>
+  </body>
+</html>"
+`;
+
+exports[`template snapshots (regression guard) > verificationEmailHtml produces a stable HTML output 1`] = `
+"<!doctype html>
+<html lang="pt-BR">
+  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#f5f5f5; padding:24px; margin:0;">
+    <div style="display:none; font-size:1px; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden; mso-hide:all;">Confirme seu email para acessar o Cozya.</div>
+    <div style="max-width:520px; margin:0 auto; background:#ffffff; border-radius:12px; padding:32px;">
+      <header style="margin-bottom:24px;">
+        <p style="font-size:13px; font-weight:600; color:#374151; letter-spacing:0.04em; text-transform:uppercase; margin:0;">Cozya</p>
+      </header>
+      <h1 style="font-size:20px; margin:0 0 16px;">Verifique seu email</h1>
+      <p>Obrigado por se cadastrar no <strong>Cozya</strong>.</p>
+<p>Confirme seu email clicando no botão abaixo. O link é de uso único e expira em breve.</p>
+      <p style="margin:24px 0;">
+        <a href="https://app.example.com/verify?token=abc" style="display:inline-block; background:#111827; color:#ffffff; text-decoration:none; padding:12px 20px; border-radius:8px;">Confirmar email</a>
+      </p>
+      <footer style="margin-top:32px; padding-top:16px; border-top:1px solid #e5e7eb;"><p style="font-size:12px; color:#6b7280; margin:0 0 8px;">Cozya</p>
+<p style="font-size:12px; color:#6b7280; margin:0 0 8px;">Não quer mais receber este tipo de email? <a href="https://app.example.com/api/email/unsubscribe?t=tok" style="color:#6b7280; text-decoration:underline;">Cancele a assinatura</a>.</p>
+<p style="font-size:11px; color:#9ca3af; margin:0;">Ou envie um email para <a href="mailto:unsubscribe@cozya.test" style="color:#9ca3af; text-decoration:underline;">unsubscribe@cozya.test</a>.</p></footer>
+    </div>
+  </body>
+</html>"
+`;

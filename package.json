@@ -13,6 +13,7 @@
     "check": "biome check .",
     "lint": "biome lint .",
     "format": "biome format --write .",
+    "test": "turbo test",
     "dev:agenda-da-turma": "pnpm --filter @informach/agenda-da-turma dev",
     "build:agenda-da-turma": "turbo build --filter=@informach/agenda-da-turma",
     "start:agenda-da-turma": "pnpm --filter @informach/agenda-da-turma start",
@@ -27,6 +28,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.4.13",
     "turbo": "^2.9.6",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.9"
   }
 }
