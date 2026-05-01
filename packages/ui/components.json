@@ -1,0 +1,21 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "default",
+  "rsc": true,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/styles.css",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "iconLibrary": "lucide",
+  "aliases": {
+    "components": "@informach/ui/components",
+    "utils": "@informach/ui/lib/utils",
+    "ui": "@informach/ui/components",
+    "lib": "@informach/ui/lib",
+    "hooks": "@informach/ui/hooks"
+  }
+}

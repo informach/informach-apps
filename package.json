@@ -1,0 +1,32 @@
+{
+  "name": "informach-platform",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "typecheck": "turbo typecheck",
+    "check": "biome check .",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "dev:agenda-da-turma": "pnpm --filter @informach/agenda-da-turma dev",
+    "build:agenda-da-turma": "turbo build --filter=@informach/agenda-da-turma",
+    "start:agenda-da-turma": "pnpm --filter @informach/agenda-da-turma start",
+    "dev:cozya": "pnpm --filter @informach/cozya dev",
+    "build:cozya": "turbo build --filter=@informach/cozya",
+    "start:cozya": "pnpm --filter @informach/cozya start",
+    "db:generate": "pnpm --filter @informach/db db:generate",
+    "db:migrate": "pnpm --filter @informach/db db:migrate",
+    "db:studio": "pnpm --filter @informach/db db:studio",
+    "db:push": "pnpm --filter @informach/db db:push"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.13",
+    "turbo": "^2.9.6",
+    "typescript": "^5.6.3"
+  }
+}

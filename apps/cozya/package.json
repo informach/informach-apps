@@ -1,0 +1,37 @@
+{
+  "name": "@informach/cozya",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -p 3002",
+    "build": "next build",
+    "start": "next start -p 3002",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^3.9.1",
+    "@informach/ai-core": "workspace:*",
+    "@informach/auth": "workspace:*",
+    "@informach/billing": "workspace:*",
+    "@informach/config": "workspace:*",
+    "@informach/db": "workspace:*",
+    "@informach/emails": "workspace:*",
+    "@informach/ui": "workspace:*",
+    "@t3-oss/env-nextjs": "^0.13.11",
+    "next": "^16.2.4",
+    "pino": "^9.5.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "react-hook-form": "^7.54.2",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.4",
+    "@types/node": "^20.17.10",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "tailwindcss": "^4.2.4",
+    "typescript": "^5.6.3"
+  }
+}
