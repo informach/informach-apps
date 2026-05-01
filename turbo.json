@@ -3,7 +3,24 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"],
+      "env": [
+        "NODE_ENV",
+        "DATABASE_URL",
+        "BETTER_AUTH_SECRET",
+        "BETTER_AUTH_URL",
+        "SENDGRID_API_KEY",
+        "SENDGRID_FROM",
+        "SENDGRID_WEBHOOK_PUBLIC_KEY",
+        "EMAIL_SANDBOX_MODE",
+        "EMAIL_SANDBOX_DIR",
+        "CRON_SECRET",
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
+        "REDIS_URL",
+        "SENTRY_DSN",
+        "NEXT_PUBLIC_APP_URL"
+      ]
     },
     "typecheck": {
       "dependsOn": ["^build"]
