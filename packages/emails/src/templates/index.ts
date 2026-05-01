@@ -7,17 +7,17 @@ import { MagicLinkEmail, type MagicLinkEmailProps } from "./magicLink";
 import { PasswordResetEmail, type PasswordResetEmailProps } from "./passwordReset";
 import { VerificationEmail, type VerificationEmailProps } from "./verification";
 
-export { EmailLayout } from "./EmailLayout";
 export { AccountDeletionEmail } from "./accountDeletion";
-export { InvitationEmail } from "./invitation";
-export { MagicLinkEmail } from "./magicLink";
-export { PasswordResetEmail } from "./passwordReset";
-export { VerificationEmail } from "./verification";
+export { EmailLayout } from "./EmailLayout";
 export {
   DEFAULT_LOCALE,
   type Locale,
   SUPPORTED_LOCALES,
 } from "./i18n";
+export { InvitationEmail } from "./invitation";
+export { MagicLinkEmail } from "./magicLink";
+export { PasswordResetEmail } from "./passwordReset";
+export { VerificationEmail } from "./verification";
 export type {
   AccountDeletionEmailProps,
   InvitationEmailProps,

@@ -25,13 +25,13 @@ export type {
   SendFn,
   SendgridMessage,
 } from "./dispatch";
-
-export type { Logger } from "./logger";
 export { dispatchEmail } from "./dispatch";
 export {
   buildUnsubscribeToken,
   verifyUnsubscribeToken,
 } from "./list-unsubscribe";
+export type { Logger } from "./logger";
+export { EMAIL_CATEGORIES, EmailCategorySchema, SendEmailInputSchema } from "./schemas";
 export {
   DEFAULT_LOCALE,
   type Locale,
@@ -41,7 +41,6 @@ export {
   renderTemplate,
   SUPPORTED_LOCALES,
 } from "./templates";
-export { EMAIL_CATEGORIES, EmailCategorySchema, SendEmailInputSchema } from "./schemas";
 
 export class EmailDeliveryError extends Error {
   readonly statusCode?: number;

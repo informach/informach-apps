@@ -1111,10 +1111,10 @@ describe("createAuth — cacheRoleOnSession (opt-in)", () => {
 
   it("session.create.before populates role from the user when cacheRoleOnSession is true", async () => {
     createAuth({ ...makeConfig(), cacheRoleOnSession: true });
-    const before = captureConfig().databaseHooks?.session?.create?.before;
-    expect(before).toBeTypeOf("function");
+    const beforeHook = captureConfig().databaseHooks?.session?.create?.before;
+    if (typeof beforeHook !== "function") throw new Error("session.create.before not registered");
     const findOne = vi.fn().mockResolvedValue({ role: "admin" });
-    const result = await before!({ userId: "u1" }, { context: { adapter: { findOne } } });
+    const result = await beforeHook({ userId: "u1" }, { context: { adapter: { findOne } } });
     expect(findOne).toHaveBeenCalledWith({
       model: "user",
       where: [{ field: "id", value: "u1" }],
@@ -1124,9 +1124,10 @@ describe("createAuth — cacheRoleOnSession (opt-in)", () => {
 
   it("session.create.before handles missing user gracefully", async () => {
     createAuth({ ...makeConfig(), cacheRoleOnSession: true });
-    const before = captureConfig().databaseHooks?.session?.create?.before;
+    const beforeHook = captureConfig().databaseHooks?.session?.create?.before;
+    if (typeof beforeHook !== "function") throw new Error("session.create.before not registered");
     const findOne = vi.fn().mockResolvedValue(null);
-    const result = await before!({ userId: "u1" }, { context: { adapter: { findOne } } });
+    const result = await beforeHook({ userId: "u1" }, { context: { adapter: { findOne } } });
     expect(result.data).toMatchObject({ role: null });
   });
 

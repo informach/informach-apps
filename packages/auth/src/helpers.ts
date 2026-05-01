@@ -66,10 +66,7 @@ export type Helpers<TUser, TSession> = {
   getActiveOrganization: (headers: Headers) => Promise<OrganizationLike | null>;
   getActiveMember: (headers: Headers) => Promise<MemberLike | null>;
   listUserOrganizations: (headers: Headers) => Promise<OrganizationLike[]>;
-  requireOrgMember: (
-    headers: Headers,
-    role?: string,
-  ) => Promise<RequireOrgMemberResult<TUser>>;
+  requireOrgMember: (headers: Headers, role?: string) => Promise<RequireOrgMemberResult<TUser>>;
 };
 
 function readRole(user: unknown): Role | null {

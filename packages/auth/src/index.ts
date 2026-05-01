@@ -1,3 +1,4 @@
+import { passkey } from "@better-auth/passkey";
 import { db } from "@informach/db";
 import {
   accounts,
@@ -15,9 +16,8 @@ import type { EmailCategory, RenderTemplate, SendEmail } from "@informach/emails
 import { type BetterAuthPlugin, betterAuth, type SecondaryStorage } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createAuthMiddleware } from "better-auth/api";
-import { eq } from "drizzle-orm";
-import { passkey } from "@better-auth/passkey";
 import { magicLink, organization, twoFactor } from "better-auth/plugins";
+import { eq } from "drizzle-orm";
 import { configureObservability, logAuditEvent } from "./audit";
 import {
   buildHelpers,
@@ -26,23 +26,10 @@ import {
   OrganizationsDisabledError,
   UnauthorizedError,
 } from "./helpers";
-import type {
-  AuthAuditEvent,
-  AuthSecurityEvent,
-  AuthSecurityEventType,
-  ObservabilityHooks,
-} from "./observability";
+import type { AuthSecurityEvent, ObservabilityHooks } from "./observability";
 import { isRole, type Permission, ROLES, type Role } from "./permissions";
 
-export {
-  ForbiddenError,
-  NotImplementedError,
-  OrganizationsDisabledError,
-  type Permission,
-  type Role,
-  ROLES,
-  UnauthorizedError,
-};
+export type { SecondaryStorage } from "better-auth";
 export type { AuditEventType } from "./audit";
 export type {
   AuthAuditEvent,
@@ -51,7 +38,15 @@ export type {
   ObservabilityHooks,
 } from "./observability";
 export { PERMISSIONS, roleHasPermission } from "./permissions";
-export type { SecondaryStorage } from "better-auth";
+export {
+  ForbiddenError,
+  NotImplementedError,
+  OrganizationsDisabledError,
+  type Permission,
+  ROLES,
+  type Role,
+  UnauthorizedError,
+};
 
 const DEFAULT_COOKIE_CACHE_MAX_AGE_SECONDS = 300;
 

@@ -42,9 +42,7 @@ export function createServerHelpers<TUser, TSession>(
     async redirectIfUnauthenticated(next?: string) {
       const user = await helpers.getCurrentUser(await getRequestHeaders());
       if (!user) {
-        const target = next
-          ? `${signInPath}?${nextParam}=${encodeURIComponent(next)}`
-          : signInPath;
+        const target = next ? `${signInPath}?${nextParam}=${encodeURIComponent(next)}` : signInPath;
         redirect(target);
       }
       return user;

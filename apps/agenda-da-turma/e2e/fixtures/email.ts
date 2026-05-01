@@ -1,4 +1,4 @@
-import { readFile, readdir } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 export type SandboxEmail = {
@@ -58,9 +58,7 @@ export async function waitForEmail(opts: WaitForEmailOptions): Promise<SandboxEm
 
   while (Date.now() < deadline) {
     const all = await listEmails(dir);
-    const match = all.find(
-      (email) => email.to === opts.to && email.category === opts.category,
-    );
+    const match = all.find((email) => email.to === opts.to && email.category === opts.category);
     if (match) return match;
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
   }

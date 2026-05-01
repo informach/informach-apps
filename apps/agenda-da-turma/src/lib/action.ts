@@ -1,6 +1,6 @@
 import { createActionFactory } from "@informach/auth/server-actions";
-import { logger } from "./logger";
 import { authResult } from "./auth";
+import { logger } from "./logger";
 
 const factory = createActionFactory({
   helpers: authResult,

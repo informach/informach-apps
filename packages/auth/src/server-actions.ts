@@ -116,11 +116,7 @@ export async function enforceRateLimit(input: ActionRateLimitConfig): Promise<vo
 
 export type ActionFactoryHelpers<TUser, TSession> = Pick<
   Helpers<TUser, TSession>,
-  | "getCurrentUser"
-  | "requireUser"
-  | "assertRole"
-  | "assertPermission"
-  | "requireOrgMember"
+  "getCurrentUser" | "requireUser" | "assertRole" | "assertPermission" | "requireOrgMember"
 >;
 
 export type ActionFactoryConfig<TUser, TSession> = {
@@ -193,17 +189,19 @@ class ActionBuilder<TUser, TSession, TSchema extends z.ZodTypeAny> {
       const requestHeaders = auth && auth.require !== "none" ? await getRequestHeaders() : null;
 
       let actor: TUser | null = null;
-      if (auth?.require === "user") {
-        actor = await factory.helpers.requireUser(requestHeaders!);
-      } else if (auth?.require === "role") {
-        actor = await factory.helpers.requireUser(requestHeaders!);
-        if (auth.role) factory.helpers.assertRole(actor, auth.role);
-        if (auth.permission) factory.helpers.assertPermission(actor, auth.permission);
-      } else if (auth?.require === "member-of-org") {
-        const result = await factory.helpers.requireOrgMember(requestHeaders!, auth.orgRole);
-        actor = result.user;
-      } else if (requestHeaders) {
-        actor = await factory.helpers.getCurrentUser(requestHeaders);
+      if (requestHeaders) {
+        if (auth?.require === "user") {
+          actor = await factory.helpers.requireUser(requestHeaders);
+        } else if (auth?.require === "role") {
+          actor = await factory.helpers.requireUser(requestHeaders);
+          if (auth.role) factory.helpers.assertRole(actor, auth.role);
+          if (auth.permission) factory.helpers.assertPermission(actor, auth.permission);
+        } else if (auth?.require === "member-of-org") {
+          const result = await factory.helpers.requireOrgMember(requestHeaders, auth.orgRole);
+          actor = result.user;
+        } else {
+          actor = await factory.helpers.getCurrentUser(requestHeaders);
+        }
       }
 
       if (rateLimit) {
@@ -232,10 +230,7 @@ export function createActionFactory<TUser, TSession>(
   config: ActionFactoryConfig<TUser, TSession>,
   getRequestHeaders: RequestHeadersProvider = defaultRequestHeaders,
 ) {
-  const action = new ActionBuilder<TUser, TSession, z.ZodTypeAny>(
-    config,
-    getRequestHeaders,
-  );
+  const action = new ActionBuilder<TUser, TSession, z.ZodTypeAny>(config, getRequestHeaders);
   return {
     action,
     ok,

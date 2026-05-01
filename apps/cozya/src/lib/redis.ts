@@ -1,6 +1,6 @@
-import IORedis from "ioredis";
 import { redisStorage } from "@better-auth/redis-storage";
 import type { SecondaryStorage } from "@informach/auth";
+import IORedis from "ioredis";
 import { env } from "./env";
 
 export const redis = env.REDIS_URL

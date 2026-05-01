@@ -3,10 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 vi.mock("next/server", () => {
-  class FakeNextResponse {
-    static next = vi.fn(() => ({ kind: "next" }));
-    static redirect = vi.fn((url: URL) => ({ kind: "redirect", url }));
-  }
+  const FakeNextResponse = {
+    next: vi.fn(() => ({ kind: "next" })),
+    redirect: vi.fn((url: URL) => ({ kind: "redirect", url })),
+  };
   return { NextResponse: FakeNextResponse };
 });
 

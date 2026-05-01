@@ -115,9 +115,7 @@ describe("buildHelpers.hasRole", () => {
   function makeHelpers(user: TestUser | null) {
     const getSessionMock = vi
       .fn()
-      .mockResolvedValue(
-        user ? { user, session: { id: "s1", expiresAt: new Date() } } : null,
-      );
+      .mockResolvedValue(user ? { user, session: { id: "s1", expiresAt: new Date() } } : null);
     return buildHelpers<TestUser, TestSession>(makeAuth(getSessionMock));
   }
 
@@ -163,9 +161,7 @@ describe("buildHelpers.requireRole / requireAdmin", () => {
   function helpersWithUser(user: TestUser | null) {
     const getSessionMock = vi
       .fn()
-      .mockResolvedValue(
-        user ? { user, session: { id: "s1", expiresAt: new Date() } } : null,
-      );
+      .mockResolvedValue(user ? { user, session: { id: "s1", expiresAt: new Date() } } : null);
     return buildHelpers<TestUser, TestSession>(makeAuth(getSessionMock));
   }
 
@@ -187,7 +183,7 @@ describe("buildHelpers.requireRole / requireAdmin", () => {
     );
   });
 
-  it("requireAdmin is a shorthand for requireRole(\"admin\")", async () => {
+  it('requireAdmin is a shorthand for requireRole("admin")', async () => {
     const user: TestUser = { id: "u1", email: "u@x", role: "admin" };
     await expect(helpersWithUser(user).requireAdmin(new Headers())).resolves.toEqual(user);
   });
@@ -280,8 +276,6 @@ describe("buildHelpers — organization helpers", () => {
 
   it("requireOrgMember throws UnauthorizedError when there is no session", async () => {
     const helpers = buildHelpers<TestUser, TestSession>(makeOrgAuth({}));
-    await expect(helpers.requireOrgMember(new Headers())).rejects.toBeInstanceOf(
-      UnauthorizedError,
-    );
+    await expect(helpers.requireOrgMember(new Headers())).rejects.toBeInstanceOf(UnauthorizedError);
   });
 });

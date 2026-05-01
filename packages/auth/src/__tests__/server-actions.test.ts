@@ -40,11 +40,7 @@ vi.mock("next/headers", () => ({
 }));
 
 import { ForbiddenError, UnauthorizedError } from "../helpers";
-import {
-  createActionFactory,
-  parseWindowSeconds,
-  RateLimitError,
-} from "../server-actions";
+import { createActionFactory, parseWindowSeconds, RateLimitError } from "../server-actions";
 
 type TestUser = { id: string; role?: string };
 type TestSession = { id: string };
@@ -181,9 +177,7 @@ describe("createActionFactory — auth.require: 'member-of-org'", () => {
       member: { id: "m1", role: "owner" },
     });
     const { action } = createActionFactory<TestUser, TestSession>({ helpers });
-    const fn = action
-      .auth({ require: "member-of-org", orgRole: "owner" })
-      .run(async () => "ok");
+    const fn = action.auth({ require: "member-of-org", orgRole: "owner" }).run(async () => "ok");
     await fn({});
     expect(helpers.requireOrgMember).toHaveBeenCalledWith(expect.anything(), "owner");
   });
@@ -216,9 +210,7 @@ describe("createActionFactory — auth.require: 'role'", () => {
   it("calls assertPermission when permission is set", async () => {
     const helpers = makeHelpers({ currentUser: { id: "u1", role: "admin" } });
     const { action } = createActionFactory<TestUser, TestSession>({ helpers });
-    const fn = action
-      .auth({ require: "role", permission: "users.list" })
-      .run(async () => "ok");
+    const fn = action.auth({ require: "role", permission: "users.list" }).run(async () => "ok");
     await fn({});
     expect(helpers.assertPermission).toHaveBeenCalledWith(
       { id: "u1", role: "admin" },
@@ -236,9 +228,7 @@ describe("createActionFactory — rate limit", () => {
   it("inserts a new rate-limit row when key is unknown", async () => {
     const helpers = makeHelpers({});
     const { action } = createActionFactory<TestUser, TestSession>({ helpers });
-    const fn = action
-      .rateLimit({ key: "test", max: 3, window: "1m" })
-      .run(async () => "ok");
+    const fn = action.rateLimit({ key: "test", max: 3, window: "1m" }).run(async () => "ok");
     await fn({});
     expect(dbInsertChain.values).toHaveBeenCalledTimes(1);
   });
@@ -247,38 +237,26 @@ describe("createActionFactory — rate limit", () => {
     dbSelectChain.rows = [{ key: "test", count: 1, lastRequest: Date.now() }];
     const helpers = makeHelpers({});
     const { action } = createActionFactory<TestUser, TestSession>({ helpers });
-    const fn = action
-      .rateLimit({ key: "test", max: 3, window: "1m" })
-      .run(async () => "ok");
+    const fn = action.rateLimit({ key: "test", max: 3, window: "1m" }).run(async () => "ok");
     await fn({});
-    expect(dbUpdateChain.set).toHaveBeenCalledWith(
-      expect.objectContaining({ count: 2 }),
-    );
+    expect(dbUpdateChain.set).toHaveBeenCalledWith(expect.objectContaining({ count: 2 }));
   });
 
   it("throws RateLimitError when the request exceeds max within the window", async () => {
     dbSelectChain.rows = [{ key: "test", count: 5, lastRequest: Date.now() }];
     const helpers = makeHelpers({});
     const { action } = createActionFactory<TestUser, TestSession>({ helpers });
-    const fn = action
-      .rateLimit({ key: "test", max: 5, window: "1m" })
-      .run(async () => "ok");
+    const fn = action.rateLimit({ key: "test", max: 5, window: "1m" }).run(async () => "ok");
     await expect(fn({})).rejects.toBeInstanceOf(RateLimitError);
   });
 
   it("resets count when last request is outside the window", async () => {
-    dbSelectChain.rows = [
-      { key: "test", count: 99, lastRequest: Date.now() - 10 * 60 * 1000 },
-    ];
+    dbSelectChain.rows = [{ key: "test", count: 99, lastRequest: Date.now() - 10 * 60 * 1000 }];
     const helpers = makeHelpers({});
     const { action } = createActionFactory<TestUser, TestSession>({ helpers });
-    const fn = action
-      .rateLimit({ key: "test", max: 3, window: "1m" })
-      .run(async () => "ok");
+    const fn = action.rateLimit({ key: "test", max: 3, window: "1m" }).run(async () => "ok");
     await fn({});
-    expect(dbUpdateChain.set).toHaveBeenCalledWith(
-      expect.objectContaining({ count: 1 }),
-    );
+    expect(dbUpdateChain.set).toHaveBeenCalledWith(expect.objectContaining({ count: 1 }));
   });
 });
 
