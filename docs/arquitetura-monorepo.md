@@ -44,7 +44,7 @@ Proibidos por escolha: ESLint, Prettier, Tailwind v3, Vercel como default, Prism
 ├── .github/workflows/ci.yml
 ├── docs/adr/                   # Architecture Decision Records
 ├── biome.json
-├── docker-compose.yml          # Postgres local apenas
+├── docker-compose.yml          # Postgres + Redis local
 ├── package.json                # workspaces + scripts root
 ├── pnpm-workspace.yaml
 ├── tsconfig.base.json
@@ -309,11 +309,11 @@ informach-platform/
 │   └── cozya/                  # @informach/cozya
 └── packages/
     ├── db/                     # @informach/db (drizzle, schemas core/agenda/cozya/audit/ai)
-    ├── auth/                   # @informach/auth (placeholder até implementação real)
-    ├── billing/                # @informach/billing (placeholder)
+    ├── auth/                   # @informach/auth (Better Auth: RBAC, passkeys, organizations)
+    ├── billing/                # @informach/billing (Stripe: subscriptions + credit ledger)
     ├── ui/                     # @informach/ui (shadcn + Tailwind v4 tokens)
     ├── config/                 # @informach/config (constantes)
-    ├── emails/                 # @informach/emails (placeholder)
+    ├── emails/                 # @informach/emails (SendGrid + React Email + sweepers)
     └── ai-core/                # @informach/ai-core (primitivas IA)
 ```
 
