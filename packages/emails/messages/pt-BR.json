@@ -14,6 +14,33 @@
     "instruction": "Confirme seu email clicando no botão abaixo. O link é de uso único e expira em breve.",
     "cta": "Confirmar email"
   },
+  "verifyEmailOtp": {
+    "subject": "Seu código de verificação para {appName}",
+    "preheader": "Use o código abaixo para confirmar seu email no {appName}.",
+    "title": "Confirme seu email",
+    "body": "Obrigado por se cadastrar no <strong>{appName}</strong>.",
+    "instruction": "Use o código abaixo na tela de cadastro para confirmar seu email.",
+    "otpLabel": "Seu código",
+    "expiresIn": "O código expira em {minutes} minutos. Se não foi você que solicitou, ignore este email."
+  },
+  "signInEmailOtp": {
+    "subject": "Seu código de acesso para {appName}",
+    "preheader": "Use o código abaixo para entrar no {appName}.",
+    "title": "Seu código de acesso",
+    "body": "Recebemos uma tentativa de entrar no <strong>{appName}</strong>.",
+    "instruction": "Use o código abaixo para concluir o login.",
+    "otpLabel": "Código de acesso",
+    "expiresIn": "O código expira em {minutes} minutos. Se não foi você que solicitou, ignore este email."
+  },
+  "forgetPasswordEmailOtp": {
+    "subject": "Seu código para redefinir a senha em {appName}",
+    "preheader": "Use o código abaixo para redefinir sua senha no {appName}.",
+    "title": "Redefinição de senha",
+    "body": "Recebemos uma solicitação para redefinir sua senha no <strong>{appName}</strong>.",
+    "instruction": "Use o código abaixo para definir uma nova senha. Se não foi você, ignore este email.",
+    "otpLabel": "Código de redefinição",
+    "expiresIn": "O código expira em {minutes} minutos."
+  },
   "passwordReset": {
     "subject": "{appName} — recuperação de senha",
     "preheader": "Recuperação de senha no {appName}.",

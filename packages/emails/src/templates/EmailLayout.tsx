@@ -17,7 +17,8 @@ export type EmailLayoutProps = {
   appName: string;
   preheader?: string;
   title: string;
-  cta: { href: string; label: string };
+  /** Optional CTA button. Omit for templates that need no action (e.g., OTP code). */
+  cta?: { href: string; label: string };
   children: ReactNode;
   unsubscribeUrl?: string;
   unsubscribeMailto?: string;
@@ -115,11 +116,13 @@ export function EmailLayout({
             {title}
           </Heading>
           {children}
-          <Section style={{ margin: "24px 0" }}>
-            <Button href={cta.href} style={buttonStyle}>
-              {cta.label}
-            </Button>
-          </Section>
+          {cta ? (
+            <Section style={{ margin: "24px 0" }}>
+              <Button href={cta.href} style={buttonStyle}>
+                {cta.label}
+              </Button>
+            </Section>
+          ) : null}
           <Section style={footerWrapperStyle}>
             <Text style={footerTextStyle}>{appName}</Text>
             {unsubscribeUrl ? (

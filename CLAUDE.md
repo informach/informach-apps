@@ -45,6 +45,7 @@ Each package exposes its surface via `package.json` `exports` pointing at `src/`
 - Apps use `src/proxy.ts` (Next 16's replacement for `middleware.ts`) calling `createAuthProxy(authResult, { publicPaths, requireAuth })` — see `apps/agenda-da-turma/src/proxy.ts` and `apps/cozya/src/proxy.ts`. New routing-level guards go through proxy.ts; consult context7 before touching Next routing primitives.
 - Cookie cache 5 min by default; role changes invalidate sessions immediately.
 - `agenda-da-turma` has organizations enabled; `cozya` does not.
+- **Email plugin choice is per-app via `config.email`** in `createAuth`/`createInformachAuthClient`: `verification: "otp" | "link"` (default `"otp"`), `signIn: { magicLink: bool, otp: bool }` (defaults `true`/`false`), `forgetPassword: "link" | "otp"` (default `"link"`). The package conditionally loads `magicLink`/`emailOTP` plugins and registers link callbacks (`sendVerificationEmail`/`sendResetPassword`) only when needed. **Cozya is OTP-only** (verification + sign-in + forget-password); `agenda-da-turma` uses defaults (OTP signup + magic-link sign-in + link reset). See `packages/auth/CLAUDE.md` §3.2.
 - Account deletion (LGPD) calls `billing.cancelBillingForSubject` via the auth `onBeforeDelete` hook.
 - Audit is typed through `AuditEventType`; packages emit through app-wired `onAudit` callbacks and persistence failures are reported via `observability.onAuditPersistenceFailure`.
 

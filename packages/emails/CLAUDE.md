@@ -113,6 +113,9 @@ Mapeamento `EmailCategory → componente React Email`:
 | Categoria | Componente | Props específicos |
 |---|---|---|
 | `auth.verify-email` | `VerificationEmail` | `appName, url` |
+| `auth.verify-email-otp` | `VerifyEmailOtp` | `appName, otp, expiresInMinutes` |
+| `auth.sign-in-otp` | `SignInEmailOtp` | `appName, otp, expiresInMinutes` |
+| `auth.forget-password-otp` | `ForgetPasswordEmailOtp` | `appName, otp, expiresInMinutes` |
 | `auth.password-reset` | `PasswordResetEmail` | `appName, url` |
 | `auth.magic-link` | `MagicLinkEmail` | `appName, url` |
 | `auth.invitation` | `InvitationEmail` | `appName, inviterName, organizationName, url` |

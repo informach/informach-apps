@@ -32,6 +32,13 @@ export const authResult = createAuth({
   socialProviders: googleProvider ? { google: googleProvider } : undefined,
   secondaryStorage: authSecondaryStorage,
   observability: authObservability,
+  // Cozya é OTP-only: signup, sign-in passwordless e forget-password todos
+  // entregam código de 6 dígitos. Magic link desabilitado.
+  email: {
+    verification: "otp",
+    signIn: { magicLink: false, otp: true },
+    forgetPassword: "otp",
+  },
   // LGPD: when an account is deleted, cancel any active subscriptions and
   // free credit balances for the user immediately. Ledger rows stay (fiscal).
   accountDeletion: {

@@ -16,7 +16,7 @@ import type { EmailCategory, RenderTemplate, SendEmail } from "@informach/emails
 import { type BetterAuthPlugin, betterAuth, type SecondaryStorage } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createAuthMiddleware } from "better-auth/api";
-import { magicLink, organization, twoFactor } from "better-auth/plugins";
+import { emailOTP, magicLink, organization, twoFactor } from "better-auth/plugins";
 import { eq } from "drizzle-orm";
 import { configureObservability, logAuditEvent } from "./audit";
 import {
@@ -94,6 +94,49 @@ export type CreateAuthTwoFactorConfig = {
   issuer?: string;
 };
 
+/**
+ * Configures how email-based flows are delivered. Defaults preserve the cozya
+ * setup: OTP verification on signup + magic-link sign-in + link password reset.
+ */
+export type CreateAuthEmailConfig = {
+  /**
+   * Mechanism for email verification on signup and email-change.
+   * - `"otp"`: 6-digit code via Better Auth's `emailOTP` plugin (overrides the
+   *   default link-based verification system-wide).
+   * - `"link"`: traditional verification link via `emailVerification.sendVerificationEmail`
+   *   (template `auth.verify-email`).
+   * Default: `"otp"`.
+   */
+  verification?: "otp" | "link";
+  /**
+   * Passwordless sign-in methods to enable. Both default to safe values for
+   * backwards compatibility (`magicLink: true`, `otp: false`).
+   */
+  signIn?: {
+    /**
+     * Enables `signIn.magicLink({ email })` (Better Auth `magicLink` plugin).
+     * Template: `auth.magic-link`. Default: `true`.
+     */
+    magicLink?: boolean;
+    /**
+     * Enables `signIn.emailOtp({ email })` (Better Auth `emailOTP` plugin
+     * sign-in flow). Template: `auth.sign-in-otp`. Default: `false`.
+     */
+    otp?: boolean;
+  };
+  /**
+   * Mechanism for password reset (forget-password flow).
+   * - `"link"`: traditional reset link via `emailAndPassword.sendResetPassword`
+   *   (template `auth.password-reset`).
+   * - `"otp"`: OTP-based reset via `forgetPassword.emailOtp({ email })` +
+   *   `emailOtp.resetPassword({ email, otp, password })` (template
+   *   `auth.forget-password-otp`). The link callback is NOT registered when
+   *   this is `"otp"`.
+   * Default: `"link"`.
+   */
+  forgetPassword?: "link" | "otp";
+};
+
 export type CreateAuthAccountDeletionConfig = {
   enabled: boolean;
   /** When true, the user gets a confirmation email before deletion. Default: true. */
@@ -130,6 +173,8 @@ export const DEFAULT_RATE_LIMIT_RULES = {
   "/sign-in/magic-link": { window: 600, max: 5 },
   "/verify-email": { window: 60, max: 10 },
   "/reset-password": { window: 3600, max: 5 },
+  "/email-otp/send-verification-otp": { window: 60, max: 5 },
+  "/email-otp/verify-email": { window: 60, max: 10 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type CreateAuthConfig = {
@@ -156,6 +201,11 @@ export type CreateAuthConfig = {
   socialProviders?: CreateAuthSocialProvidersConfig;
   passkey?: CreateAuthPasskeyConfig;
   twoFactor?: CreateAuthTwoFactorConfig;
+  /**
+   * Per-app choice of email-based flows: verification, passwordless sign-in,
+   * password reset. See {@link CreateAuthEmailConfig} for defaults.
+   */
+  email?: CreateAuthEmailConfig;
   accountDeletion?: CreateAuthAccountDeletionConfig;
   /**
    * When true, denormalizes `users.role` into `sessions.role` so it travels
@@ -204,6 +254,85 @@ function buildMagicLinkPlugin(config: CreateAuthConfig) {
         to: email,
         category: "auth.magic-link",
         messageKey: token,
+        unsubscribeUrl,
+        unsubscribeMailto: config.unsubscribeMailto,
+        subject,
+        text,
+        html,
+      });
+    },
+  });
+}
+
+const EMAIL_OTP_EXPIRES_IN_SECONDS = 600;
+const EMAIL_OTP_LENGTH = 6;
+const EMAIL_OTP_ALLOWED_ATTEMPTS = 3;
+
+type EmailFlowSelection = {
+  verificationOtp: boolean;
+  signInOtp: boolean;
+  forgetPasswordOtp: boolean;
+};
+
+function resolveEmailFlows(config: CreateAuthConfig): EmailFlowSelection {
+  return {
+    verificationOtp: (config.email?.verification ?? "otp") === "otp",
+    signInOtp: config.email?.signIn?.otp === true,
+    forgetPasswordOtp: config.email?.forgetPassword === "otp",
+  };
+}
+
+function magicLinkSignInEnabled(config: CreateAuthConfig): boolean {
+  return config.email?.signIn?.magicLink !== false;
+}
+
+function emailOtpPluginRequired(flows: EmailFlowSelection): boolean {
+  return flows.verificationOtp || flows.signInOtp || flows.forgetPasswordOtp;
+}
+
+const EMAIL_OTP_CATEGORY_BY_TYPE = {
+  "email-verification": "auth.verify-email-otp",
+  "sign-in": "auth.sign-in-otp",
+  "forget-password": "auth.forget-password-otp",
+} as const satisfies Record<string, EmailCategory>;
+
+type EmailOtpType = keyof typeof EMAIL_OTP_CATEGORY_BY_TYPE;
+
+/**
+ * Builds the Better Auth `emailOTP` plugin with a `sendVerificationOTP`
+ * callback that fans out to the right template per OTP type. The plugin only
+ * sends an email when the corresponding flow is enabled in `config.email` —
+ * otherwise the call is a silent no-op (defensive even if the endpoint is hit).
+ */
+function buildEmailOtpPlugin(config: CreateAuthConfig, flows: EmailFlowSelection) {
+  return emailOTP({
+    otpLength: EMAIL_OTP_LENGTH,
+    expiresIn: EMAIL_OTP_EXPIRES_IN_SECONDS,
+    allowedAttempts: EMAIL_OTP_ALLOWED_ATTEMPTS,
+    sendVerificationOnSignUp: flows.verificationOtp,
+    overrideDefaultEmailVerification: flows.verificationOtp,
+    sendVerificationOTP: async ({ email, otp, type }) => {
+      const otpType = type as EmailOtpType;
+      if (otpType === "email-verification" && !flows.verificationOtp) return;
+      if (otpType === "sign-in" && !flows.signInOtp) return;
+      if (otpType === "forget-password" && !flows.forgetPasswordOtp) return;
+
+      const category = EMAIL_OTP_CATEGORY_BY_TYPE[otpType];
+      if (!category) return;
+
+      const unsubscribeUrl = config.buildUnsubscribeUrl(email, category);
+      const { html, text, subject } = await config.renderTemplate(category, {
+        appName: config.appName,
+        otp,
+        expiresInMinutes: Math.round(EMAIL_OTP_EXPIRES_IN_SECONDS / 60),
+        unsubscribeUrl,
+        unsubscribeMailto: config.unsubscribeMailto,
+      });
+      await config.sendEmail({
+        to: email,
+        category,
+        // OTP value differs per request; idempotent dedup via UNIQUE on the row.
+        messageKey: `otp_${otpType}_${email}_${otp}`,
         unsubscribeUrl,
         unsubscribeMailto: config.unsubscribeMailto,
         subject,
@@ -271,8 +400,14 @@ function buildTwoFactorPlugin(config: CreateAuthConfig) {
   });
 }
 
-function buildPlugins(config: CreateAuthConfig): BetterAuthPlugin[] {
-  const plugins: BetterAuthPlugin[] = [buildMagicLinkPlugin(config)];
+function buildPlugins(config: CreateAuthConfig, flows: EmailFlowSelection): BetterAuthPlugin[] {
+  const plugins: BetterAuthPlugin[] = [];
+  if (magicLinkSignInEnabled(config)) {
+    plugins.push(buildMagicLinkPlugin(config));
+  }
+  if (emailOtpPluginRequired(flows)) {
+    plugins.push(buildEmailOtpPlugin(config, flows));
+  }
   if (config.organizations?.enabled) {
     plugins.push(buildOrganizationPlugin(config));
   }
@@ -309,7 +444,8 @@ function createAuthInstance(config: CreateAuthConfig) {
   const passkeyEnabled = config.passkey?.enabled === true;
   const twoFactorEnabled = config.twoFactor?.enabled === true;
   const cacheRoleOnSession = config.cacheRoleOnSession === true;
-  const plugins = buildPlugins(config);
+  const flows = resolveEmailFlows(config);
+  const plugins = buildPlugins(config, flows);
 
   return betterAuth({
     appName: config.appName,
@@ -461,50 +597,65 @@ function createAuthInstance(config: CreateAuthConfig) {
       disableSignUp: config.disableSignup ?? false,
       requireEmailVerification: true,
       revokeSessionsOnPasswordReset: true,
-      sendResetPassword: async ({ user, url, token }) => {
-        const unsubscribeUrl = config.buildUnsubscribeUrl(user.email, "auth.password-reset");
-        const { html, text, subject } = await config.renderTemplate("auth.password-reset", {
-          appName: config.appName,
-          url,
-          unsubscribeUrl,
-          unsubscribeMailto: config.unsubscribeMailto,
-        });
-        await config.sendEmail({
-          to: user.email,
-          category: "auth.password-reset",
-          messageKey: token,
-          userId: user.id,
-          unsubscribeUrl,
-          unsubscribeMailto: config.unsubscribeMailto,
-          subject,
-          text,
-          html,
-        });
-      },
+      // Link reset is the default; opt-out by setting `email.forgetPassword: "otp"`.
+      // When opted-out, the OTP plugin handles reset via `forgetPassword.emailOtp`.
+      ...(flows.forgetPasswordOtp
+        ? {}
+        : {
+            sendResetPassword: async ({ user, url, token }) => {
+              const unsubscribeUrl = config.buildUnsubscribeUrl(user.email, "auth.password-reset");
+              const { html, text, subject } = await config.renderTemplate("auth.password-reset", {
+                appName: config.appName,
+                url,
+                unsubscribeUrl,
+                unsubscribeMailto: config.unsubscribeMailto,
+              });
+              await config.sendEmail({
+                to: user.email,
+                category: "auth.password-reset",
+                messageKey: token,
+                userId: user.id,
+                unsubscribeUrl,
+                unsubscribeMailto: config.unsubscribeMailto,
+                subject,
+                text,
+                html,
+              });
+            },
+          }),
     },
     emailVerification: {
+      // `sendOnSignUp` + `autoSignInAfterVerification` are always set so Better
+      // Auth fires a verification flow at signup and auto-creates a session
+      // after `/email-otp/verify-email` or `/verify-email` returns OK.
+      // The actual delivery is link-based when `email.verification === "link"`,
+      // OTP-based otherwise (overrideDefaultEmailVerification on the OTP plugin).
       sendOnSignUp: true,
       autoSignInAfterVerification: true,
-      sendVerificationEmail: async ({ user, url, token }) => {
-        const unsubscribeUrl = config.buildUnsubscribeUrl(user.email, "auth.verify-email");
-        const { html, text, subject } = await config.renderTemplate("auth.verify-email", {
-          appName: config.appName,
-          url,
-          unsubscribeUrl,
-          unsubscribeMailto: config.unsubscribeMailto,
-        });
-        await config.sendEmail({
-          to: user.email,
-          category: "auth.verify-email",
-          messageKey: token,
-          userId: user.id,
-          unsubscribeUrl,
-          unsubscribeMailto: config.unsubscribeMailto,
-          subject,
-          text,
-          html,
-        });
-      },
+      ...(flows.verificationOtp
+        ? {}
+        : {
+            sendVerificationEmail: async ({ user, url, token }) => {
+              const unsubscribeUrl = config.buildUnsubscribeUrl(user.email, "auth.verify-email");
+              const { html, text, subject } = await config.renderTemplate("auth.verify-email", {
+                appName: config.appName,
+                url,
+                unsubscribeUrl,
+                unsubscribeMailto: config.unsubscribeMailto,
+              });
+              await config.sendEmail({
+                to: user.email,
+                category: "auth.verify-email",
+                messageKey: token,
+                userId: user.id,
+                unsubscribeUrl,
+                unsubscribeMailto: config.unsubscribeMailto,
+                subject,
+                text,
+                html,
+              });
+            },
+          }),
     },
     plugins,
     databaseHooks: {

@@ -2,6 +2,9 @@ import { z } from "zod";
 
 export const EMAIL_CATEGORIES = [
   "auth.verify-email",
+  "auth.verify-email-otp",
+  "auth.sign-in-otp",
+  "auth.forget-password-otp",
   "auth.password-reset",
   "auth.magic-link",
   "auth.invitation",

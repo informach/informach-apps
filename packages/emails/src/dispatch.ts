@@ -21,6 +21,9 @@ import { SendEmailInputSchema } from "./schemas";
 
 export type EmailCategory =
   | "auth.verify-email"
+  | "auth.verify-email-otp"
+  | "auth.sign-in-otp"
+  | "auth.forget-password-otp"
   | "auth.password-reset"
   | "auth.magic-link"
   | "auth.invitation"

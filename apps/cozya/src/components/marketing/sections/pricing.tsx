@@ -7,43 +7,20 @@ import { Tabs, TabsList, TabsTrigger } from "@informach/ui/components/tabs";
 import { Check, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import {
+  type BillingCycle,
+  FREE_FEATURES,
+  PRICING,
+  PRO_FEATURES,
+} from "@/features/onboarding/plans-content";
 
-type Cycle = "mensal" | "anual";
-
-type PlanFeature = { label: string; included: boolean };
-
-const FREE_FEATURES: PlanFeature[] = [
-  { label: "Cadastro manual de receitas", included: true },
-  { label: "Busca por nome e favoritos", included: true },
-  { label: "Compartilhar pelo WhatsApp", included: true },
-  { label: "PWA instalável e modo offline", included: true },
-  { label: "Limite mensal de receitas salvas", included: true },
-  { label: "Importação por imagem, câmera e voz", included: false },
-  { label: "Geração de receita por título com IA", included: false },
-];
-
-const PRO_FEATURES: PlanFeature[] = [
-  { label: "Tudo do plano Free", included: true },
-  { label: "Receitas ilimitadas", included: true },
-  { label: "Importação por imagem, texto e câmera", included: true },
-  { label: "Geração por título com IA", included: true },
-  { label: "Ditado por voz", included: true },
-  { label: "Créditos de IA renovados todo mês", included: true },
-  { label: "Compre créditos extras avulsos quando precisar", included: true },
-];
-
-/* TODO: trocar pelos preços reais quando definidos pelo time de billing */
-const PRICING = {
-  mensal: { price: "R$ 19", period: "/mês", note: "cobrado mensalmente" },
-  anual: {
-    price: "R$ 15",
-    period: "/mês",
-    note: "R$ 180/ano — economize ~20%",
-  },
-} as const;
+const QUERY_CYCLE: Record<BillingCycle, string> = {
+  monthly: "mensal",
+  annual: "anual",
+};
 
 export function Pricing() {
-  const [cycle, setCycle] = useState<Cycle>("anual");
+  const [cycle, setCycle] = useState<BillingCycle>("annual");
   const proPlan = PRICING[cycle];
 
   return (
@@ -58,13 +35,13 @@ export function Pricing() {
         </p>
 
         <div className="mt-8 flex justify-center">
-          <Tabs value={cycle} onValueChange={(value) => setCycle(value as Cycle)}>
+          <Tabs value={cycle} onValueChange={(value) => setCycle(value as BillingCycle)}>
             <TabsList>
-              <TabsTrigger value="mensal" className="px-5">
-                Mensal
+              <TabsTrigger value="monthly" className="px-5">
+                {PRICING.monthly.tabLabel}
               </TabsTrigger>
-              <TabsTrigger value="anual" className="px-5">
-                Anual
+              <TabsTrigger value="annual" className="px-5">
+                {PRICING.annual.tabLabel}
                 <Badge variant="secondary" className="ml-2 rounded-full px-2 py-0 text-[10px]">
                   -20%
                 </Badge>
@@ -143,7 +120,7 @@ export function Pricing() {
             </ul>
             <div className="space-y-3">
               <Button size="lg" className="w-full" asChild>
-                <Link href={`/signup?plan=pro&cycle=${cycle}`}>Assinar Pro</Link>
+                <Link href={`/signup?plan=pro&cycle=${QUERY_CYCLE[cycle]}`}>Assinar Pro</Link>
               </Button>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Quando os créditos do mês acabam, recursos de IA pausam até a renovação ou compra

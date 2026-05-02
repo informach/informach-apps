@@ -2,12 +2,14 @@ import { render } from "@react-email/render";
 import { createElement, type ReactElement } from "react";
 import { AccountDeletionEmail, type AccountDeletionEmailProps } from "./accountDeletion";
 import { CreditsPurchasedEmail, type CreditsPurchasedEmailProps } from "./creditsPurchased";
+import { ForgetPasswordEmailOtp, type ForgetPasswordEmailOtpProps } from "./forgetPasswordEmailOtp";
 import { DEFAULT_LOCALE, getTranslator, type Locale } from "./i18n";
 import { InvitationEmail, type InvitationEmailProps } from "./invitation";
 import { MagicLinkEmail, type MagicLinkEmailProps } from "./magicLink";
 import { PasswordResetEmail, type PasswordResetEmailProps } from "./passwordReset";
 import { PaymentFailedEmail, type PaymentFailedEmailProps } from "./paymentFailed";
 import { PaymentSuccessEmail, type PaymentSuccessEmailProps } from "./paymentSuccess";
+import { SignInEmailOtp, type SignInEmailOtpProps } from "./signInEmailOtp";
 import {
   SubscriptionCanceledEmail,
   type SubscriptionCanceledEmailProps,
@@ -17,10 +19,12 @@ import {
   type SubscriptionRenewedEmailProps,
 } from "./subscriptionRenewed";
 import { VerificationEmail, type VerificationEmailProps } from "./verification";
+import { VerifyEmailOtp, type VerifyEmailOtpProps } from "./verifyEmailOtp";
 
 export { AccountDeletionEmail } from "./accountDeletion";
 export { CreditsPurchasedEmail } from "./creditsPurchased";
 export { EmailLayout } from "./EmailLayout";
+export { ForgetPasswordEmailOtp } from "./forgetPasswordEmailOtp";
 export {
   DEFAULT_LOCALE,
   type Locale,
@@ -31,24 +35,32 @@ export { MagicLinkEmail } from "./magicLink";
 export { PasswordResetEmail } from "./passwordReset";
 export { PaymentFailedEmail } from "./paymentFailed";
 export { PaymentSuccessEmail } from "./paymentSuccess";
+export { SignInEmailOtp } from "./signInEmailOtp";
 export { SubscriptionCanceledEmail } from "./subscriptionCanceled";
 export { SubscriptionRenewedEmail } from "./subscriptionRenewed";
 export { VerificationEmail } from "./verification";
+export { VerifyEmailOtp } from "./verifyEmailOtp";
 export type {
   AccountDeletionEmailProps,
   CreditsPurchasedEmailProps,
+  ForgetPasswordEmailOtpProps,
   InvitationEmailProps,
   MagicLinkEmailProps,
   PasswordResetEmailProps,
   PaymentFailedEmailProps,
   PaymentSuccessEmailProps,
+  SignInEmailOtpProps,
   SubscriptionCanceledEmailProps,
   SubscriptionRenewedEmailProps,
   VerificationEmailProps,
+  VerifyEmailOtpProps,
 };
 
 export type EmailCategory =
   | "auth.verify-email"
+  | "auth.verify-email-otp"
+  | "auth.sign-in-otp"
+  | "auth.forget-password-otp"
   | "auth.password-reset"
   | "auth.magic-link"
   | "auth.invitation"
@@ -61,6 +73,9 @@ export type EmailCategory =
 
 export type RenderTemplatePropsByCategory = {
   "auth.verify-email": VerificationEmailProps;
+  "auth.verify-email-otp": VerifyEmailOtpProps;
+  "auth.sign-in-otp": SignInEmailOtpProps;
+  "auth.forget-password-otp": ForgetPasswordEmailOtpProps;
   "auth.password-reset": PasswordResetEmailProps;
   "auth.magic-link": MagicLinkEmailProps;
   "auth.invitation": InvitationEmailProps;
@@ -85,6 +100,9 @@ export type RenderTemplate = <Category extends EmailCategory>(
 
 type SubjectNamespace =
   | "verification"
+  | "verifyEmailOtp"
+  | "signInEmailOtp"
+  | "forgetPasswordEmailOtp"
   | "passwordReset"
   | "magicLink"
   | "invitation"
@@ -107,6 +125,21 @@ const CATEGORY_REGISTRY: {
   "auth.verify-email": {
     component: VerificationEmail,
     subjectNamespace: "verification",
+    subjectValues: ({ appName }) => ({ appName }),
+  },
+  "auth.verify-email-otp": {
+    component: VerifyEmailOtp,
+    subjectNamespace: "verifyEmailOtp",
+    subjectValues: ({ appName }) => ({ appName }),
+  },
+  "auth.sign-in-otp": {
+    component: SignInEmailOtp,
+    subjectNamespace: "signInEmailOtp",
+    subjectValues: ({ appName }) => ({ appName }),
+  },
+  "auth.forget-password-otp": {
+    component: ForgetPasswordEmailOtp,
+    subjectNamespace: "forgetPasswordEmailOtp",
     subjectValues: ({ appName }) => ({ appName }),
   },
   "auth.password-reset": {

@@ -1,3 +1,9 @@
+import { SignupForm } from "@/features/onboarding/components/signup-form";
+
+export const metadata = {
+  title: "Criar conta — Cozya",
+};
+
 export default function SignupPage() {
-  return <div className="p-8">signup placeholder</div>;
+  return <SignupForm />;
 }

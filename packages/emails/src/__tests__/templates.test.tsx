@@ -3,14 +3,17 @@ import { describe, expect, it } from "vitest";
 import { renderTemplate } from "../templates";
 import { AccountDeletionEmail } from "../templates/accountDeletion";
 import { CreditsPurchasedEmail } from "../templates/creditsPurchased";
+import { ForgetPasswordEmailOtp } from "../templates/forgetPasswordEmailOtp";
 import { InvitationEmail } from "../templates/invitation";
 import { MagicLinkEmail } from "../templates/magicLink";
 import { PasswordResetEmail } from "../templates/passwordReset";
 import { PaymentFailedEmail } from "../templates/paymentFailed";
 import { PaymentSuccessEmail } from "../templates/paymentSuccess";
+import { SignInEmailOtp } from "../templates/signInEmailOtp";
 import { SubscriptionCanceledEmail } from "../templates/subscriptionCanceled";
 import { SubscriptionRenewedEmail } from "../templates/subscriptionRenewed";
 import { VerificationEmail } from "../templates/verification";
+import { VerifyEmailOtp } from "../templates/verifyEmailOtp";
 
 const baseProps = {
   appName: "Test App",
@@ -29,6 +32,50 @@ describe("renderTemplate", () => {
     expect(result.html).toContain("Cancele a assinatura");
     expect(result.text).toContain("Test App");
     expect(result.text).toContain(baseProps.url);
+  });
+
+  it("returns html, text and subject for sign-in-otp", async () => {
+    const result = await renderTemplate("auth.sign-in-otp", {
+      appName: "Test App",
+      otp: "987654",
+      expiresInMinutes: 10,
+      unsubscribeUrl: baseProps.unsubscribeUrl,
+      unsubscribeMailto: baseProps.unsubscribeMailto,
+    });
+    expect(result.subject).toBe("Seu código de acesso para Test App");
+    expect(result.html).toContain("Seu código de acesso");
+    expect(result.html).toContain("987654");
+    expect(result.text).toContain("987654");
+  });
+
+  it("returns html, text and subject for forget-password-otp", async () => {
+    const result = await renderTemplate("auth.forget-password-otp", {
+      appName: "Test App",
+      otp: "111222",
+      expiresInMinutes: 10,
+      unsubscribeUrl: baseProps.unsubscribeUrl,
+      unsubscribeMailto: baseProps.unsubscribeMailto,
+    });
+    expect(result.subject).toBe("Seu código para redefinir a senha em Test App");
+    expect(result.html).toContain("Redefinição de senha");
+    expect(result.html).toContain("111222");
+  });
+
+  it("returns html, text and subject for verify-email-otp", async () => {
+    const result = await renderTemplate("auth.verify-email-otp", {
+      appName: "Test App",
+      otp: "123456",
+      expiresInMinutes: 10,
+      unsubscribeUrl: baseProps.unsubscribeUrl,
+      unsubscribeMailto: baseProps.unsubscribeMailto,
+    });
+    expect(result.subject).toBe("Seu código de verificação para Test App");
+    expect(result.html).toContain("Confirme seu email");
+    expect(result.html).toContain("123456");
+    expect(result.html).toContain("10 minutos");
+    expect(result.text).toContain("123456");
+    // OTP template has no CTA button
+    expect(result.html).not.toContain("Confirmar email");
   });
 
   it("returns html, text and subject for password-reset", async () => {
@@ -160,6 +207,59 @@ describe("template snapshots", () => {
   it("VerificationEmail plain text matches snapshot", async () => {
     const text = await render(<VerificationEmail {...baseProps} />, { plainText: true });
     expect(text).toMatchSnapshot();
+  });
+
+  it("VerifyEmailOtp HTML matches snapshot", async () => {
+    const html = await render(
+      <VerifyEmailOtp
+        appName="Test App"
+        otp="123456"
+        expiresInMinutes={10}
+        unsubscribeUrl={baseProps.unsubscribeUrl}
+        unsubscribeMailto={baseProps.unsubscribeMailto}
+      />,
+    );
+    expect(html).toMatchSnapshot();
+  });
+
+  it("VerifyEmailOtp plain text matches snapshot", async () => {
+    const text = await render(
+      <VerifyEmailOtp
+        appName="Test App"
+        otp="123456"
+        expiresInMinutes={10}
+        unsubscribeUrl={baseProps.unsubscribeUrl}
+        unsubscribeMailto={baseProps.unsubscribeMailto}
+      />,
+      { plainText: true },
+    );
+    expect(text).toMatchSnapshot();
+  });
+
+  it("SignInEmailOtp HTML matches snapshot", async () => {
+    const html = await render(
+      <SignInEmailOtp
+        appName="Test App"
+        otp="987654"
+        expiresInMinutes={10}
+        unsubscribeUrl={baseProps.unsubscribeUrl}
+        unsubscribeMailto={baseProps.unsubscribeMailto}
+      />,
+    );
+    expect(html).toMatchSnapshot();
+  });
+
+  it("ForgetPasswordEmailOtp HTML matches snapshot", async () => {
+    const html = await render(
+      <ForgetPasswordEmailOtp
+        appName="Test App"
+        otp="111222"
+        expiresInMinutes={10}
+        unsubscribeUrl={baseProps.unsubscribeUrl}
+        unsubscribeMailto={baseProps.unsubscribeMailto}
+      />,
+    );
+    expect(html).toMatchSnapshot();
   });
 
   it("PasswordResetEmail HTML matches snapshot", async () => {

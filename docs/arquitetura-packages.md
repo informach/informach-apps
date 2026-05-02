@@ -146,7 +146,7 @@ export const db = drizzle(client, { schema });
 
 Wrappers de integrações externas atrás de uma interface estável. Apps consomem a interface; troca de provider é problema interno.
 
-- **`auth`**: `createAuth`, helpers server/RSC/proxy/server-actions, RBAC, organizations opt-in, `logAuditEvent` e `ObservabilityHooks`. Provider atual: Better Auth; apps nunca importam Better Auth diretamente.
+- **`auth`**: `createAuth`, helpers server/RSC/proxy/server-actions, RBAC, organizations opt-in, escolha por app de plugin de email (`config.email.{verification, signIn, forgetPassword}` — OTP vs link/magic-link), `logAuditEvent` e `ObservabilityHooks`. Provider atual: Better Auth; apps nunca importam Better Auth diretamente.
 - **`billing`**: `createBillingService`, Checkout/Portal Stripe, subscriptions, credit ledger, reserve/commit/release, webhooks e sweepers. Audit entra por `config.onAudit`, wireado pelo app para `@informach/auth.logAuditEvent`.
 - **`emails`**: `createEmailService`, `sendEmail`, `renderTemplate`, SendGrid webhook, unsubscribe, sweepers e `onAudit` opcional para eventos `email.*`. Provider atual: SendGrid.
 

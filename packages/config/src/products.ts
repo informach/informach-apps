@@ -28,7 +28,36 @@ export type Product = {
   stripePriceId: ProductPriceMap;
 };
 
-export const PRODUCTS: readonly Product[] = [] as const;
+// NOTE: stripePriceId placeholders. Substituir pelos IDs reais do Stripe (test+live)
+// antes de habilitar Pro em produção. Free não tem entrada — é ausência de subscription.
+export const PRODUCTS: readonly Product[] = [
+  {
+    id: "cozya_pro_monthly",
+    app: "cozya",
+    kind: "subscription",
+    name: "Cozya Pro",
+    tier: "pro",
+    interval: "month",
+    bonusCreditsPerMonth: 100,
+    stripePriceId: {
+      dev: "price_TODO_cozya_pro_monthly_dev",
+      prod: "price_TODO_cozya_pro_monthly_prod",
+    },
+  },
+  {
+    id: "cozya_pro_annual",
+    app: "cozya",
+    kind: "subscription",
+    name: "Cozya Pro (Anual)",
+    tier: "pro",
+    interval: "year",
+    bonusCreditsPerMonth: 100,
+    stripePriceId: {
+      dev: "price_TODO_cozya_pro_annual_dev",
+      prod: "price_TODO_cozya_pro_annual_prod",
+    },
+  },
+] as const;
 
 export type StripeMode = "dev" | "prod";
 

@@ -68,9 +68,10 @@ Todas as colunas declaradas em `packages/db/src/schema/core.ts` (source of truth
 | Feature | Detalhe |
 |---|---|
 | Email + password | `emailAndPassword.enabled = true`, com `requireEmailVerification: true` |
-| Email verification | `sendOnSignUp: true`, `autoSignInAfterVerification: true`, template `auth.verify-email` |
-| Password reset | `revokeSessionsOnPasswordReset: true`, template `auth.password-reset` |
-| Magic link | Plugin `magicLink`, template `auth.magic-link` (cria user na primeira ocorrência — limitação Better Auth 1.x documentada) |
+| Email verification (default = OTP) | Plugin `emailOTP` por default ativo com `overrideDefaultEmailVerification: true`, `sendVerificationOnSignUp: true`, OTP 6 dígitos / 10min / 3 tentativas, template `auth.verify-email-otp`. App pode trocar para link via `email.verification: "link"` (callback `sendVerificationEmail` é registrado e o template `auth.verify-email` é usado). `autoSignInAfterVerification: true` cria sessão após `/email-otp/verify-email` ou `/verify-email`. |
+| Password reset | `revokeSessionsOnPasswordReset: true`. Default link (template `auth.password-reset`). App pode trocar para OTP via `email.forgetPassword: "otp"` (callback `sendResetPassword` NÃO é registrado; OTP plugin assume com template `auth.forget-password-otp`). |
+| Magic link (login passwordless) | Plugin `magicLink` carregado por default. Template `auth.magic-link` (cria user na primeira ocorrência — limitação Better Auth 1.x). App pode desabilitar via `email.signIn.magicLink: false`. |
+| OTP sign-in (login passwordless) | OPT-IN via `email.signIn.otp: true`. Habilita `signIn.emailOtp({ email })` com template `auth.sign-in-otp`. |
 | Cookie session cache | Default 300s (`session.cookieCache.maxAge`); override por config |
 | Rate limit | Defaults endurecidos contra enumeration (ver tabela em §3.4) |
 | Audit log | 36 `AuditEventType` tipados → `audit.events` |
@@ -80,6 +81,10 @@ Todas as colunas declaradas em `packages/db/src/schema/core.ts` (source of truth
 | Feature | Config | Tabelas extras |
 |---|---|---|
 | `disableSignup` | `disableSignup: true` | — |
+| Verificação de email por link (em vez de OTP) | `email: { verification: "link" }` (default `"otp"`) — registra `sendVerificationEmail` callback (template `auth.verify-email`); plugin OTP só carrega se outro flow OTP estiver ativo | — |
+| Login passwordless por OTP | `email: { signIn: { otp: true } }` (default `false`) — habilita `signIn.emailOtp({ email })` (template `auth.sign-in-otp`) | — |
+| Desligar magic link | `email: { signIn: { magicLink: false } }` (default `true`) — plugin `magicLink` não carrega; `signIn.magicLink` indisponível | — |
+| Forget-password por OTP | `email: { forgetPassword: "otp" }` (default `"link"`) — `sendResetPassword` callback NÃO registrado; usa `forgetPassword.emailOtp({ email })` + `emailOtp.resetPassword({ email, otp, password })` (template `auth.forget-password-otp`) | — |
 | Organizations (multi-tenant) | `organizations: { enabled: true, allowUserToCreateOrganization? }` | `organizations`, `members`, `invitations` |
 | Google OAuth | `socialProviders: { google: { clientId, clientSecret, redirectURI? } }` | — |
 | Passkey (WebAuthn) | `passkey: { enabled: true, rpName?, rpID?, origin? }` | `passkeys` |
@@ -125,6 +130,8 @@ Manipulação de role/ban dispara `databaseHooks.user.update.before` que loga `u
 | `/sign-in/magic-link` | 10min | 5 |
 | `/verify-email` | 60s | 10 |
 | `/reset-password` | 1h | 5 |
+| `/email-otp/send-verification-otp` | 60s | 5 |
+| `/email-otp/verify-email` | 60s | 10 |
 
 Defaults globais Better Auth: `window: 60, max: 100`. Storage automático: `database` (tabela `core.rate_limit`) ou `secondary-storage` quando Redis fornecido. Override via `rateLimitRules: { ... }` na config.
 
@@ -183,9 +190,12 @@ Nos apps, `authObservability.onSecurityEvent` loga warning no pino e envia `auth
 Templates vivem em `@informach/emails/src/templates/*.tsx` como componentes React Email. O package auth é apenas **caller**: recebe `renderTemplate` na config e chama `await renderTemplate("auth.verify-email", { appName, url, unsubscribeUrl?, unsubscribeMailto? })` no callback de cada feature do Better Auth.
 
 Categorias e componentes:
-- `VerificationEmail` — categoria `auth.verify-email`
-- `PasswordResetEmail` — categoria `auth.password-reset`
-- `MagicLinkEmail` — categoria `auth.magic-link`
+- `VerifyEmailOtp` — categoria `auth.verify-email-otp` **(default em uso pelo plugin emailOTP para verificação de signup)**
+- `VerificationEmail` — categoria `auth.verify-email` (link-based; usado quando o app passa `email.verification: "link"`)
+- `SignInEmailOtp` — categoria `auth.sign-in-otp` (usado quando o app passa `email.signIn.otp: true`)
+- `ForgetPasswordEmailOtp` — categoria `auth.forget-password-otp` (usado quando o app passa `email.forgetPassword: "otp"`)
+- `PasswordResetEmail` — categoria `auth.password-reset` (default para forget-password link)
+- `MagicLinkEmail` — categoria `auth.magic-link` (login passwordless via magic link)
 - `InvitationEmail` — categoria `auth.invitation` (organizations)
 - `AccountDeletionEmail` — categoria `auth.account-deletion`
 
@@ -405,6 +415,11 @@ Wiring real em `apps/<app>/src/lib/env.ts` (`@t3-oss/env-nextjs`).
 7. **`server-only` em proxy/server/server-actions.** Garante que importação de Client Component falha em build.
 8. **Audit pipeline try/catch'ed.** Falha em `observability.onAuditEvent`/`onSecurityEvent` ou em INSERT no `audit.events` não pode quebrar fluxo de auth — todos os emits estão dentro de try/catch. Falha de INSERT deve chamar `onAuditPersistenceFailure` com erro sanitizado.
 9. **Cadastro público continua aberto.** `requireEmailVerification: true` é o gate. `disableSignup` está exposto na config como infraestrutura para o futuro. Magic-link cria users na primeira ocorrência (limitação 1.x, comentada em `index.ts`).
+10. **Apps escolhem qual plugin envia cada email via `config.email`.** O package suporta 3 escolhas independentes (defaults entre parênteses):
+   - `email.verification: "otp" | "link"` (default `"otp"`) — verificação no signup/email-change.
+   - `email.signIn: { magicLink: boolean (default true), otp: boolean (default false) }` — login passwordless.
+   - `email.forgetPassword: "link" | "otp"` (default `"link"`) — reset de senha.
+   Plugins do Better Auth são carregados conditional: `magicLink` só se `signIn.magicLink: true`; `emailOTP` só se algum dos flows OTP estiver ativo. Callbacks `sendVerificationEmail` (link) e `sendResetPassword` (link) são registrados só quando os flows correspondentes usam link. Defaults preservam a UX OTP-first do cozya, mas qualquer app pode opt-out por feature. Adicionar template novo OTP: ver `@informach/emails/CLAUDE.md` §7.3.
 
 ### 5.2 Sub-paths do package (`exports` em `package.json`)
 

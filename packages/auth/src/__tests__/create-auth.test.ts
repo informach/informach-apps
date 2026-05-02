@@ -2,7 +2,7 @@ import { passkey } from "@better-auth/passkey";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createAuthMiddleware } from "better-auth/api";
-import { magicLink, organization, twoFactor } from "better-auth/plugins";
+import { emailOTP, magicLink, organization, twoFactor } from "better-auth/plugins";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createAuth } from "../index";
 
@@ -24,6 +24,7 @@ vi.mock("better-auth/api", () => ({
 
 vi.mock("better-auth/plugins", () => ({
   magicLink: vi.fn((config: unknown) => ({ id: "magic-link", _config: config })),
+  emailOTP: vi.fn((config: unknown) => ({ id: "email-otp", _config: config })),
   organization: vi.fn((config: unknown) => ({ id: "organization", _config: config })),
   twoFactor: vi.fn((config: unknown) => ({ id: "two-factor", _config: config })),
 }));
@@ -67,6 +68,7 @@ vi.mock("@informach/db/schema", () => ({
 const mockedBetterAuth = vi.mocked(betterAuth);
 const mockedDrizzleAdapter = vi.mocked(drizzleAdapter);
 const mockedMagicLink = vi.mocked(magicLink);
+const mockedEmailOtp = vi.mocked(emailOTP);
 const mockedOrganization = vi.mocked(organization);
 const mockedTwoFactor = vi.mocked(twoFactor);
 const mockedPasskey = vi.mocked(passkey);
@@ -275,6 +277,14 @@ describe("createAuth — Better Auth wiring", () => {
     expect(cfg.emailVerification?.autoSignInAfterVerification).toBe(true);
   });
 
+  it("does NOT register a link-based sendVerificationEmail callback (OTP plugin owns verification)", () => {
+    createAuth(makeConfig());
+    const cfg = captureConfig();
+    // The OTP plugin's overrideDefaultEmailVerification:true takes over.
+    // Leaving sendVerificationEmail defined would be dead code.
+    expect(cfg.emailVerification).not.toHaveProperty("sendVerificationEmail");
+  });
+
   it("registers the Drizzle adapter with the auth tables", () => {
     createAuth(makeConfig());
     expect(mockedDrizzleAdapter).toHaveBeenCalledTimes(1);
@@ -294,6 +304,184 @@ describe("createAuth — Better Auth wiring", () => {
   it("registers the magic link plugin", () => {
     createAuth(makeConfig());
     expect(mockedMagicLink).toHaveBeenCalledTimes(1);
+  });
+
+  it("registers the emailOTP plugin by default (verification: 'otp')", () => {
+    createAuth(makeConfig());
+    expect(mockedEmailOtp).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("createAuth — email plugin selection (config.email)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("default config: emailOTP loaded with overrideDefaultEmailVerification + sendVerificationOnSignUp", () => {
+    createAuth(makeConfig());
+    const otpCall = mockedEmailOtp.mock.calls[0]?.[0] as {
+      overrideDefaultEmailVerification: boolean;
+      sendVerificationOnSignUp: boolean;
+    };
+    expect(otpCall.overrideDefaultEmailVerification).toBe(true);
+    expect(otpCall.sendVerificationOnSignUp).toBe(true);
+  });
+
+  it("verification: 'link' — emailOTP NOT loaded, sendVerificationEmail callback IS defined", async () => {
+    const sendEmail = vi.fn().mockResolvedValue({ ok: true, status: "sent" });
+    createAuth({ ...makeConfig({ sendEmail }), email: { verification: "link" } });
+    expect(mockedEmailOtp).not.toHaveBeenCalled();
+    const cfg = captureConfig();
+    expect(typeof cfg.emailVerification?.sendVerificationEmail).toBe("function");
+
+    await cfg.emailVerification?.sendVerificationEmail?.({
+      user: { id: "u1", email: "verify@example.com" },
+      url: "https://test.example.com/verify?token=abc",
+      token: "tok-abc",
+    });
+    const payload = sendEmail.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(payload.category).toBe("auth.verify-email");
+    expect(payload.messageKey).toBe("tok-abc");
+  });
+
+  it("verification: 'link' + signIn.otp: true — emailOTP loaded WITHOUT override, send-on-signup off", () => {
+    createAuth({
+      ...makeConfig(),
+      email: { verification: "link", signIn: { otp: true } },
+    });
+    const otpCall = mockedEmailOtp.mock.calls[0]?.[0] as {
+      overrideDefaultEmailVerification: boolean;
+      sendVerificationOnSignUp: boolean;
+    };
+    expect(mockedEmailOtp).toHaveBeenCalledTimes(1);
+    expect(otpCall.overrideDefaultEmailVerification).toBe(false);
+    expect(otpCall.sendVerificationOnSignUp).toBe(false);
+  });
+
+  it("signIn.magicLink: false — magicLink plugin NOT loaded", () => {
+    createAuth({ ...makeConfig(), email: { signIn: { magicLink: false } } });
+    expect(mockedMagicLink).not.toHaveBeenCalled();
+  });
+
+  it("signIn.magicLink defaults to true (preserves backwards compat)", () => {
+    createAuth(makeConfig());
+    expect(mockedMagicLink).toHaveBeenCalledTimes(1);
+  });
+
+  it("forgetPassword: 'link' (default) — sendResetPassword callback IS defined", () => {
+    createAuth(makeConfig());
+    const cfg = captureConfig();
+    expect(typeof cfg.emailAndPassword?.sendResetPassword).toBe("function");
+  });
+
+  it("forgetPassword: 'otp' — sendResetPassword callback NOT defined, emailOTP loaded", () => {
+    createAuth({ ...makeConfig(), email: { forgetPassword: "otp" } });
+    const cfg = captureConfig();
+    expect(cfg.emailAndPassword?.sendResetPassword).toBeUndefined();
+    expect(mockedEmailOtp).toHaveBeenCalledTimes(1);
+  });
+
+  it("OTP callback dispatches auth.sign-in-otp email when signIn.otp is enabled", async () => {
+    const sendEmail = vi.fn().mockResolvedValue({ ok: true, status: "sent" });
+    createAuth({
+      ...makeConfig({ sendEmail }),
+      email: { verification: "link", signIn: { otp: true } },
+    });
+    const otpConfig = mockedEmailOtp.mock.calls[0]?.[0] as {
+      sendVerificationOTP: (input: {
+        email: string;
+        otp: string;
+        type: "sign-in" | "email-verification" | "forget-password";
+      }) => Promise<void>;
+    };
+
+    await otpConfig.sendVerificationOTP({
+      email: "user@example.com",
+      otp: "987654",
+      type: "sign-in",
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const payload = sendEmail.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(payload.category).toBe("auth.sign-in-otp");
+    expect(payload.messageKey).toBe("otp_sign-in_user@example.com_987654");
+  });
+
+  it("OTP callback dispatches auth.forget-password-otp email when forgetPassword is 'otp'", async () => {
+    const sendEmail = vi.fn().mockResolvedValue({ ok: true, status: "sent" });
+    createAuth({
+      ...makeConfig({ sendEmail }),
+      email: { verification: "link", forgetPassword: "otp" },
+    });
+    const otpConfig = mockedEmailOtp.mock.calls[0]?.[0] as {
+      sendVerificationOTP: (input: {
+        email: string;
+        otp: string;
+        type: "sign-in" | "email-verification" | "forget-password";
+      }) => Promise<void>;
+    };
+
+    await otpConfig.sendVerificationOTP({
+      email: "user@example.com",
+      otp: "111222",
+      type: "forget-password",
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const payload = sendEmail.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(payload.category).toBe("auth.forget-password-otp");
+    expect(payload.messageKey).toBe("otp_forget-password_user@example.com_111222");
+  });
+
+  it("OTP callback no-ops for sign-in type when signIn.otp is false", async () => {
+    const sendEmail = vi.fn().mockResolvedValue({ ok: true, status: "sent" });
+    createAuth({
+      ...makeConfig({ sendEmail }),
+      email: { verification: "otp", signIn: { otp: false } },
+    });
+    const otpConfig = mockedEmailOtp.mock.calls[0]?.[0] as {
+      sendVerificationOTP: (input: {
+        email: string;
+        otp: string;
+        type: "sign-in" | "email-verification" | "forget-password";
+      }) => Promise<void>;
+    };
+    await otpConfig.sendVerificationOTP({
+      email: "user@example.com",
+      otp: "999000",
+      type: "sign-in",
+    });
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("OTP callback no-ops for forget-password type when forgetPassword is 'link'", async () => {
+    const sendEmail = vi.fn().mockResolvedValue({ ok: true, status: "sent" });
+    createAuth({
+      ...makeConfig({ sendEmail }),
+      email: { verification: "otp", forgetPassword: "link" },
+    });
+    const otpConfig = mockedEmailOtp.mock.calls[0]?.[0] as {
+      sendVerificationOTP: (input: {
+        email: string;
+        otp: string;
+        type: "sign-in" | "email-verification" | "forget-password";
+      }) => Promise<void>;
+    };
+    await otpConfig.sendVerificationOTP({
+      email: "user@example.com",
+      otp: "999000",
+      type: "forget-password",
+    });
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("verification: 'link' + signIn.magicLink: false + forgetPassword: 'link' — neither OTP nor magicLink loaded", () => {
+    createAuth({
+      ...makeConfig(),
+      email: {
+        verification: "link",
+        signIn: { magicLink: false, otp: false },
+        forgetPassword: "link",
+      },
+    });
+    expect(mockedEmailOtp).not.toHaveBeenCalled();
+    expect(mockedMagicLink).not.toHaveBeenCalled();
   });
 });
 
@@ -353,6 +541,8 @@ describe("createAuth — rate limit", () => {
     expect(rules["/sign-in/magic-link"]).toEqual({ window: 600, max: 5 });
     expect(rules["/verify-email"]).toEqual({ window: 60, max: 10 });
     expect(rules["/reset-password"]).toEqual({ window: 3600, max: 5 });
+    expect(rules["/email-otp/send-verification-otp"]).toEqual({ window: 60, max: 5 });
+    expect(rules["/email-otp/verify-email"]).toEqual({ window: 60, max: 10 });
   });
 
   it("respects rateLimitRules overrides per endpoint", () => {
@@ -458,48 +648,6 @@ describe("createAuth — observability hooks", () => {
 describe("createAuth — email callbacks", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("sendVerificationEmail passes category, messageKey, unsubscribeUrl, userId", async () => {
-    const sendEmail = vi.fn().mockResolvedValue({ ok: true, status: "sent" });
-    const config = makeConfig({ sendEmail });
-    createAuth(config);
-    const cfg = captureConfig();
-
-    await cfg.emailVerification?.sendVerificationEmail?.({
-      user: { id: "u1", email: "verify@example.com" },
-      url: "https://test.example.com/verify?token=abc",
-      token: "tok-abc",
-    });
-
-    expect(sendEmail).toHaveBeenCalledTimes(1);
-    const payload = sendEmail.mock.calls[0]?.[0] as Record<string, unknown>;
-    expect(payload.to).toBe("verify@example.com");
-    expect(payload.category).toBe("auth.verify-email");
-    expect(payload.messageKey).toBe("tok-abc");
-    expect(payload.userId).toBe("u1");
-    expect(payload.unsubscribeUrl).toBe(
-      "https://test.example.com/api/email/unsubscribe?t=verify@example.com-auth.verify-email",
-    );
-    expect(payload.unsubscribeMailto).toBe("unsubscribe@test.example.com");
-    expect(payload.subject).toContain("Test App");
-  });
-
-  it("verification HTML embeds the same unsubscribeUrl visible in the footer", async () => {
-    const sendEmail = vi.fn().mockResolvedValue({ ok: true, status: "sent" });
-    createAuth(makeConfig({ sendEmail }));
-    const cfg = captureConfig();
-
-    await cfg.emailVerification?.sendVerificationEmail?.({
-      user: { id: "u1", email: "verify@example.com" },
-      url: "https://test.example.com/verify?token=abc",
-      token: "tok-abc",
-    });
-
-    const payload = sendEmail.mock.calls[0]?.[0] as Record<string, unknown>;
-    const html = String(payload.html);
-    expect(html).toContain(String(payload.unsubscribeUrl));
-    expect(html).toContain("Cancele a assinatura");
-  });
-
   it("sendResetPassword uses the auth.password-reset category", async () => {
     const sendEmail = vi.fn().mockResolvedValue({ ok: true, status: "sent" });
     createAuth(makeConfig({ sendEmail }));
@@ -515,6 +663,74 @@ describe("createAuth — email callbacks", () => {
     expect(payload.category).toBe("auth.password-reset");
     expect(payload.messageKey).toBe("tok-xyz");
     expect(payload.userId).toBe("u2");
+  });
+
+  it("emailOTP.sendVerificationOTP uses auth.verify-email-otp category for email-verification type", async () => {
+    const sendEmail = vi.fn().mockResolvedValue({ ok: true, status: "sent" });
+    createAuth(makeConfig({ sendEmail }));
+
+    const otpConfig = mockedEmailOtp.mock.calls[0]?.[0] as {
+      otpLength: number;
+      expiresIn: number;
+      allowedAttempts: number;
+      sendVerificationOnSignUp: boolean;
+      overrideDefaultEmailVerification: boolean;
+      sendVerificationOTP: (input: {
+        email: string;
+        otp: string;
+        type: "sign-in" | "email-verification" | "forget-password";
+      }) => Promise<void>;
+    };
+
+    expect(otpConfig.otpLength).toBe(6);
+    expect(otpConfig.expiresIn).toBe(600);
+    expect(otpConfig.allowedAttempts).toBe(3);
+    expect(otpConfig.sendVerificationOnSignUp).toBe(true);
+    expect(otpConfig.overrideDefaultEmailVerification).toBe(true);
+
+    await otpConfig.sendVerificationOTP({
+      email: "verify@example.com",
+      otp: "123456",
+      type: "email-verification",
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const payload = sendEmail.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(payload.to).toBe("verify@example.com");
+    expect(payload.category).toBe("auth.verify-email-otp");
+    expect(payload.messageKey).toBe("otp_email-verification_verify@example.com_123456");
+    expect(payload.unsubscribeUrl).toBe(
+      "https://test.example.com/api/email/unsubscribe?t=verify@example.com-auth.verify-email-otp",
+    );
+    expect(payload.unsubscribeMailto).toBe("unsubscribe@test.example.com");
+    expect(payload.subject).toContain("Test App");
+    expect(String(payload.html)).toContain("Cancele a assinatura");
+  });
+
+  it("emailOTP.sendVerificationOTP no-ops for sign-in / forget-password types (V1 scope)", async () => {
+    const sendEmail = vi.fn().mockResolvedValue({ ok: true, status: "sent" });
+    createAuth(makeConfig({ sendEmail }));
+
+    const otpConfig = mockedEmailOtp.mock.calls[0]?.[0] as {
+      sendVerificationOTP: (input: {
+        email: string;
+        otp: string;
+        type: "sign-in" | "email-verification" | "forget-password";
+      }) => Promise<void>;
+    };
+
+    await otpConfig.sendVerificationOTP({
+      email: "u@x.com",
+      otp: "999111",
+      type: "sign-in",
+    });
+    await otpConfig.sendVerificationOTP({
+      email: "u@x.com",
+      otp: "999222",
+      type: "forget-password",
+    });
+
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 
   it("magicLink.sendMagicLink uses email as identifier (no userId required)", async () => {

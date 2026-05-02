@@ -14,6 +14,9 @@ const MESSAGES: Record<Locale, Messages> = {
 export type EmailNamespace =
   | "common"
   | "verification"
+  | "verifyEmailOtp"
+  | "signInEmailOtp"
+  | "forgetPasswordEmailOtp"
   | "passwordReset"
   | "magicLink"
   | "invitation"
