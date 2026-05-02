@@ -110,6 +110,24 @@ describe("createSubscriptionCheckout", () => {
     );
   });
 
+  it("rejects placeholder Stripe price ids before calling the provider", async () => {
+    const placeholderProduct: Product = {
+      ...SUBSCRIPTION_PRODUCT,
+      stripePriceId: { dev: "price_TODO_agenda_pro_dev", prod: "price_TODO_agenda_pro_prod" },
+    };
+    const deps = buildDeps({ products: [placeholderProduct] });
+
+    await expect(
+      createSubscriptionCheckout(deps, {
+        subject: { type: "organization", id: "org-1" },
+        productId: placeholderProduct.id,
+        successUrl: "https://app.example.com/s",
+        cancelUrl: "https://app.example.com/c",
+      }),
+    ).rejects.toThrow(/not configured/);
+    expect(deps.providerClient.createCheckoutSession).not.toHaveBeenCalled();
+  });
+
   it("forwards trialDays to the provider", async () => {
     const deps = buildDeps();
     await createSubscriptionCheckout(deps, {

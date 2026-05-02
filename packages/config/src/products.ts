@@ -61,12 +61,21 @@ export const PRODUCTS: readonly Product[] = [
 
 export type StripeMode = "dev" | "prod";
 
+const STRIPE_PRICE_ID_PATTERN = /^price_[A-Za-z0-9_]+$/;
+const STRIPE_PRICE_ID_PLACEHOLDER_PREFIX = "price_TODO";
+
 /**
  * Resolves the Stripe Price ID for a product given the runtime environment.
  * Apps inject `mode` based on env (e.g., NODE_ENV).
  */
 export function getStripePriceId(product: Product, mode: StripeMode): string {
   return product.stripePriceId[mode];
+}
+
+export function isStripePriceIdConfigured(priceId: string): boolean {
+  return (
+    STRIPE_PRICE_ID_PATTERN.test(priceId) && !priceId.startsWith(STRIPE_PRICE_ID_PLACEHOLDER_PREFIX)
+  );
 }
 
 export function findProduct(productId: ProductId): Product | undefined {

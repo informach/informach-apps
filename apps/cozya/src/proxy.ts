@@ -9,7 +9,7 @@ import { AUTH_PROTECTED_PATHS, AUTH_PUBLIC_PATHS, AUTH_SIGN_IN_PATH } from "./li
  * Keep non-page entry points public because they authenticate by their own
  * signature/token mechanisms.
  *
- *   /login, /signup, /verify-email, /reset-password — auth UI
+ *   /login, /signup — auth UI
  *   /api/auth        — Better Auth handler (manages its own session lifecycle)
  *   /api/webhooks    — Stripe + SendGrid; auth via HMAC/ECDSA signature
  *   /api/jobs        — cron routes; auth via `Authorization: Bearer ${CRON_SECRET}`

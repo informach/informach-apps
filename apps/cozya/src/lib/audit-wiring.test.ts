@@ -40,6 +40,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 type AuthConfig = {
+  unsubscribeMailto?: string;
   observability?: {
     onAuditEvent?: unknown;
     onAuditPersistenceFailure?: unknown;
@@ -137,6 +138,7 @@ describe("audit wiring", () => {
 
     const createAuthCalls = mocks.createAuth.mock.calls as unknown as Array<[AuthConfig]>;
     const authConfig = createAuthCalls[0]?.[0];
+    expect(authConfig?.unsubscribeMailto).toBe("unsubscribe@cozya.example.com");
     expect(authConfig?.observability?.onAuditEvent).toBeTypeOf("function");
     expect(authConfig?.observability?.onAuditPersistenceFailure).toBeTypeOf("function");
 
@@ -169,5 +171,17 @@ describe("audit wiring", () => {
     expect(mocks.logAuditEvent).toHaveBeenCalledWith("email.delivery_sent", "user-1", {
       deliveryId: "delivery-1",
     });
+  });
+
+  it("uses the sender domain for unsubscribe mailto when app URL is localhost", async () => {
+    vi.stubEnv("BETTER_AUTH_URL", "http://localhost:3002");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "http://localhost:3002");
+    vi.stubEnv("SENDGRID_FROM", "noreply@cozya.example.com");
+
+    await import("./auth");
+
+    const createAuthCalls = mocks.createAuth.mock.calls as unknown as Array<[AuthConfig]>;
+    const authConfig = createAuthCalls[0]?.[0];
+    expect(authConfig?.unsubscribeMailto).toBe("unsubscribe@cozya.example.com");
   });
 });

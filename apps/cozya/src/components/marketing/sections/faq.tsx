@@ -25,8 +25,8 @@ const QUESTIONS = [
     a: "Sim. Cancela direto na sua conta, sem fidelidade. Você mantém acesso ao plano Pro até o fim do ciclo já pago e depois volta automaticamente para o Free.",
   },
   {
-    q: "O Cozya funciona offline?",
-    a: "É um PWA — depois de instalar no celular, o Cozya abre e mostra receitas já carregadas mesmo sem internet. Você cozinha em qualquer cozinha, com ou sem sinal.",
+    q: "Preciso instalar pela loja de apps?",
+    a: "Não. O Cozya abre direto no navegador do celular. Quando a versão instalável estiver pronta, isso será comunicado no produto.",
   },
   {
     q: "Minhas receitas ficam privadas?",
@@ -38,7 +38,7 @@ const QUESTIONS = [
   },
   {
     q: "Tem app pra Android e iPhone?",
-    a: "O Cozya é um PWA — abre no navegador e instala como app nativo nos dois sistemas. Sem precisar de loja, sem ocupar espaço como app tradicional.",
+    a: "O Cozya abre no navegador em iPhone e Android. Você não precisa passar por loja de apps para começar a organizar receitas.",
   },
 ] as const;
 

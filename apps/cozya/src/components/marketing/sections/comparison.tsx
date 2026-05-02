@@ -15,7 +15,7 @@ const ROWS = [
   },
   {
     old: "Sem internet = sem receita",
-    new: "PWA com cache offline, abre na cozinha sempre",
+    new: "Abre no navegador do celular, sem depender de loja de apps",
   },
   {
     old: "Achar receita perdida em 5 lugares",

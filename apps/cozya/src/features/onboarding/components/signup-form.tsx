@@ -34,7 +34,11 @@ type Step = { kind: "form" } | { kind: "otp"; email: string; name: string };
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
-export function SignupForm() {
+export function SignupForm({
+  verifiedRedirectTo = "/choose-plan",
+}: {
+  verifiedRedirectTo?: string;
+}) {
   const router = useRouter();
   const [step, setStep] = useState<Step>({ kind: "form" });
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -88,7 +92,7 @@ export function SignupForm() {
               email={step.email}
               resendCooldown={resendCooldown}
               onResendStarted={() => setResendCooldown(RESEND_COOLDOWN_SECONDS)}
-              onVerified={() => router.push("/choose-plan")}
+              onVerified={() => router.push(verifiedRedirectTo)}
               onBack={() => setStep({ kind: "form" })}
             />
           )}
@@ -97,7 +101,10 @@ export function SignupForm() {
         {step.kind === "form" && (
           <CardFooter className="justify-center pt-2 text-sm text-muted-foreground">
             Já tem conta?{" "}
-            <Link href="/login" className="ml-1 font-medium text-primary hover:underline">
+            <Link
+              href={`/login?next=${encodeURIComponent(verifiedRedirectTo)}`}
+              className="ml-1 font-medium text-primary hover:underline"
+            >
               Entrar
             </Link>
           </CardFooter>

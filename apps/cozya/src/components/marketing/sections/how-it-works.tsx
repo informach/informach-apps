@@ -20,8 +20,7 @@ const STEPS = [
   {
     number: "04",
     title: "Cozinhe e compartilhe",
-    description:
-      "Abre rápido no celular, mesmo offline. Manda por WhatsApp em 1 toque, com texto formatado.",
+    description: "Abre rápido no celular e manda por WhatsApp em 1 toque, com texto formatado.",
   },
 ] as const;
 

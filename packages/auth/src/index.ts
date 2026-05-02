@@ -318,6 +318,7 @@ function buildEmailOtpPlugin(config: CreateAuthConfig, flows: EmailFlowSelection
     otpLength: EMAIL_OTP_LENGTH,
     expiresIn: EMAIL_OTP_EXPIRES_IN_SECONDS,
     allowedAttempts: EMAIL_OTP_ALLOWED_ATTEMPTS,
+    disableSignUp: true,
     sendVerificationOnSignUp: flows.verificationOtp,
     overrideDefaultEmailVerification: flows.verificationOtp,
     sendVerificationOTP: async ({ email, otp, type }) => {

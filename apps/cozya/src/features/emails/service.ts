@@ -19,6 +19,15 @@ import { emailDb } from "./repository";
 
 const APP_HOSTNAME = new URL(env.NEXT_PUBLIC_APP_URL).hostname;
 
+function resolveMailDomain(): string {
+  const hostname = APP_HOSTNAME.toLowerCase();
+  if (hostname !== "localhost" && hostname.includes(".")) {
+    return hostname;
+  }
+
+  return env.SENDGRID_FROM.split("@")[1] ?? hostname;
+}
+
 export function emailAudit(event: EmailAuditEvent): void {
   logAuditEvent(event.eventType, event.actorId, event.payload).catch((err) => {
     packageLogger.error?.("email.audit.persist_failed", {
@@ -44,7 +53,7 @@ export function buildEmailUnsubscribeUrl(identifier: string, category: EmailCate
 }
 
 export function getEmailUnsubscribeMailto(): string {
-  return `unsubscribe@${APP_HOSTNAME}`;
+  return `unsubscribe@${resolveMailDomain()}`;
 }
 
 export async function processEmailUnsubscribe(token: string) {

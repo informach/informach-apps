@@ -80,3 +80,12 @@ export function extractFirstUrl(email: SandboxEmail, hint?: string): string {
   if (matches[0]) return matches[0];
   throw new Error(`extractFirstUrl: no URL found in email ${email.id}`);
 }
+
+export function extractOtp(email: SandboxEmail): string {
+  const haystack = `${email.text ?? ""}\n${email.html ?? ""}`;
+  const match = haystack.match(/\b(\d{6})\b/);
+  if (!match?.[1]) {
+    throw new Error(`extractOtp: no 6-digit OTP found in email ${email.id}`);
+  }
+  return match[1];
+}

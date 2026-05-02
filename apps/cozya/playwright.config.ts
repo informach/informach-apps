@@ -1,7 +1,14 @@
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig, devices } from "@playwright/test";
 
-const PORT = 3002;
+const APP_DIR = dirname(fileURLToPath(import.meta.url));
+const PORT = Number(process.env.E2E_PORT ?? 3102);
 const BASE_URL = process.env.E2E_BASE_URL ?? `http://localhost:${PORT}`;
+const EMAIL_SANDBOX_DIR =
+  process.env.EMAIL_SANDBOX_DIR ?? resolve(APP_DIR, "tmp", "integration_emails");
+
+process.env.EMAIL_SANDBOX_DIR = EMAIL_SANDBOX_DIR;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -18,13 +25,17 @@ export default defineConfig({
   webServer: process.env.E2E_SKIP_WEBSERVER
     ? undefined
     : {
-        command: "pnpm dev",
+        command: `pnpm exec next dev -p ${PORT}`,
         url: BASE_URL,
-        reuseExistingServer: !process.env.CI,
+        reuseExistingServer: process.env.E2E_REUSE_EXISTING_SERVER === "1",
         timeout: 120_000,
         env: {
+          BETTER_AUTH_URL: BASE_URL,
           EMAIL_SANDBOX_MODE: "sandbox",
-          EMAIL_SANDBOX_DIR: "./tmp/integration_emails",
+          EMAIL_SANDBOX_DIR,
+          E2E_RELAX_AUTH_RATE_LIMITS: "1",
+          NEXT_PUBLIC_APP_URL: BASE_URL,
+          REDIS_URL: "",
         },
       },
   projects: [

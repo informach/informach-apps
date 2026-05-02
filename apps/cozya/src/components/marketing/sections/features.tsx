@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@informach/ui/components/card";
-import { Camera, ImagePlus, type LucideIcon, Mic, Send, Sparkles, WifiOff } from "lucide-react";
+import { Camera, ImagePlus, type LucideIcon, Mic, Send, Smartphone, Sparkles } from "lucide-react";
 
 type Feature = {
   icon: LucideIcon;
@@ -39,10 +39,9 @@ const FEATURES: Feature[] = [
       "Texto já formatado, com ingredientes e preparo. Um toque e tá no chat de quem você quiser.",
   },
   {
-    icon: WifiOff,
-    title: "PWA com modo offline",
-    description:
-      "Instala como app no celular. Abre receitas já carregadas mesmo sem internet — pra cozinhar onde for.",
+    icon: Smartphone,
+    title: "Feito para o celular",
+    description: "Abre no navegador, organiza receitas e facilita o uso na cozinha.",
   },
 ];
 

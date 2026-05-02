@@ -38,7 +38,7 @@ export function Hero() {
         </div>
 
         <p className="text-sm text-muted-foreground">
-          Grátis pra começar. Sem cartão. PWA que funciona offline.
+          Grátis pra começar. Sem cartão. Feito para abrir rápido no celular.
         </p>
       </div>
 

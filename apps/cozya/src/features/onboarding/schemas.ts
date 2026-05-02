@@ -17,6 +17,12 @@ export const signupSchema = z
 
 export type SignupInput = z.infer<typeof signupSchema>;
 
+export const loginSchema = z.object({
+  email: z.string().trim().email("Informe um email válido."),
+});
+
+export type LoginInput = z.infer<typeof loginSchema>;
+
 export const otpSchema = z.object({
   email: z.string().email(),
   otp: z

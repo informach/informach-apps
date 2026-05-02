@@ -1,4 +1,9 @@
-import { getStripePriceId, type Product, type StripeMode } from "@informach/config";
+import {
+  getStripePriceId,
+  isStripePriceIdConfigured,
+  type Product,
+  type StripeMode,
+} from "@informach/config";
 import { getOrCreateCustomer } from "./customers";
 import { InvalidProductError } from "./errors";
 import { type Logger, safeLog } from "./logger";
@@ -57,6 +62,12 @@ export async function createSubscriptionCheckout(
   );
 
   const priceId = getStripePriceId(product, deps.stripeMode);
+  if (!isStripePriceIdConfigured(priceId)) {
+    throw new InvalidProductError(
+      input.productId,
+      `stripe price id for mode '${deps.stripeMode}' is not configured`,
+    );
+  }
   const idempotencyKey = buildIdempotencyKey({
     operation: "checkout_sub",
     subject: input.subject,
@@ -123,6 +134,12 @@ export async function createCreditPackCheckout(
   );
 
   const priceId = getStripePriceId(product, deps.stripeMode);
+  if (!isStripePriceIdConfigured(priceId)) {
+    throw new InvalidProductError(
+      input.productId,
+      `stripe price id for mode '${deps.stripeMode}' is not configured`,
+    );
+  }
   const idempotencyKey = buildIdempotencyKey({
     operation: "checkout_credit",
     subject: input.subject,

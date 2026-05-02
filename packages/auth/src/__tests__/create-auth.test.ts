@@ -344,9 +344,11 @@ describe("createAuth — email plugin selection (config.email)", () => {
     const otpCall = mockedEmailOtp.mock.calls[0]?.[0] as {
       overrideDefaultEmailVerification: boolean;
       sendVerificationOnSignUp: boolean;
+      disableSignUp: boolean;
     };
     expect(otpCall.overrideDefaultEmailVerification).toBe(true);
     expect(otpCall.sendVerificationOnSignUp).toBe(true);
+    expect(otpCall.disableSignUp).toBe(true);
   });
 
   it("verification: 'link' — emailOTP NOT loaded, sendVerificationEmail callback IS defined", async () => {

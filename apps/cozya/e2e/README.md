@@ -1,6 +1,6 @@
 # E2E — Cozya
 
-Playwright cobre os fluxos de auth (signup → verify → sign-in, magic-link) usando o sandbox de email do `@informach/emails` em vez do SendGrid real.
+Playwright cobre os fluxos OTP do Cozya (signup -> verificação por código -> sessão e sign-in por código) usando o sandbox de email do `@informach/emails` em vez do SendGrid real.
 
 ## Pré-requisitos
 
@@ -16,6 +16,7 @@ Playwright cobre os fluxos de auth (signup → verify → sign-in, magic-link) u
    - `EMAIL_SANDBOX_MODE=sandbox`
    - `EMAIL_SANDBOX_DIR=./tmp/integration_emails`
    - `CRON_SECRET` (qualquer string ≥ 32 chars)
+   - `REDIS_URL` vazio ou um Redis local ativo. A config do Playwright força vazio para usar Postgres nos testes.
 4. Browsers do Playwright: `pnpm e2e:install` (uma vez).
 
 ## Comandos
@@ -29,7 +30,7 @@ A `playwright.config.ts` sobe `pnpm dev` automaticamente (`webServer`). Para rod
 
 ## Como funciona o sandbox de email
 
-Quando `EMAIL_SANDBOX_MODE=sandbox`, o `@informach/emails` grava cada email em `./tmp/integration_emails/<delivery-id>.json` (+ `.html`) em vez de chamar o SendGrid. A fixture `e2e/fixtures/email.ts` faz polling do diretório, casa por `to + category` e extrai a URL de verify/magic-link via regex.
+Quando `EMAIL_SANDBOX_MODE=sandbox`, o `@informach/emails` grava cada email em `./tmp/integration_emails/<delivery-id>.json` (+ `.html`) em vez de chamar o SendGrid. A fixture `e2e/fixtures/email.ts` faz polling do diretório, casa por `to + category` e extrai o OTP de 6 dígitos do conteúdo renderizado.
 
 ## Limpeza entre runs
 

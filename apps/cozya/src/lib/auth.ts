@@ -3,18 +3,26 @@ import { createServerHelpers } from "@informach/auth/server";
 import { APPS } from "@informach/config";
 import { buildUnsubscribeToken } from "@informach/emails";
 import { billing } from "@/features/billing/service";
-import { emails } from "@/features/emails/service";
+import { emails, getEmailUnsubscribeMailto } from "@/features/emails/service";
 import { AUTH_SIGN_IN_PATH } from "./auth-routing";
 import { env } from "./env";
 import { logger } from "./logger";
 import { authObservability } from "./observability";
 import { authSecondaryStorage } from "./redis";
 
-const APP_HOSTNAME = new URL(env.NEXT_PUBLIC_APP_URL).hostname;
-
 const googleProvider =
   env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
     ? { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET }
+    : undefined;
+
+const e2eRateLimitRules =
+  env.E2E_RELAX_AUTH_RATE_LIMITS === "1"
+    ? {
+        "/email-otp/send-verification-otp": { window: 60, max: 100 },
+        "/email-otp/verify-email": { window: 60, max: 100 },
+        "/sign-in/email-otp": { window: 60, max: 100 },
+        "/sign-up/email": { window: 60, max: 100 },
+      }
     : undefined;
 
 export const authResult = createAuth({
@@ -28,10 +36,11 @@ export const authResult = createAuth({
     const token = buildUnsubscribeToken(env.BETTER_AUTH_SECRET, identifier, category);
     return `${env.NEXT_PUBLIC_APP_URL}/api/email/unsubscribe?t=${token}`;
   },
-  unsubscribeMailto: `unsubscribe@${APP_HOSTNAME}`,
+  unsubscribeMailto: getEmailUnsubscribeMailto(),
   socialProviders: googleProvider ? { google: googleProvider } : undefined,
   secondaryStorage: authSecondaryStorage,
   observability: authObservability,
+  rateLimitRules: e2eRateLimitRules,
   // Cozya é OTP-only: signup, sign-in passwordless e forget-password todos
   // entregam código de 6 dígitos. Magic link desabilitado.
   email: {
