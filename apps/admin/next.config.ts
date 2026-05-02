@@ -4,15 +4,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: path.join(__dirname, "../../"),
-  transpilePackages: [
-    "@informach/ai-core",
-    "@informach/auth",
-    "@informach/billing",
-    "@informach/config",
-    "@informach/db",
-    "@informach/emails",
-    "@informach/ui",
-  ],
+  transpilePackages: ["@informach/ui"],
   typedRoutes: true,
 };
 

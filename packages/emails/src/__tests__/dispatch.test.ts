@@ -154,6 +154,7 @@ describe("dispatchEmail live mode", () => {
       updateResult: [{ id: "fake-id" }],
     });
     const send: SendFn = vi.fn().mockResolvedValue({ messageId: "mid-123" });
+    const onAudit = vi.fn();
 
     const result = await dispatchEmail(
       {
@@ -162,6 +163,7 @@ describe("dispatchEmail live mode", () => {
         mode: "live",
         sandboxDir: "./tmp",
         send,
+        onAudit,
       },
       makeInput(),
     );
@@ -171,6 +173,16 @@ describe("dispatchEmail live mode", () => {
     if (result.ok) throw new Error("unreachable");
     expect(result.status).toBe("skipped");
     expect(result.reason).toContain("suppressed");
+    expect(onAudit).toHaveBeenCalledWith({
+      eventType: "email.delivery_skipped",
+      actorId: "user-1",
+      payload: {
+        deliveryId: "fake-id",
+        category: "auth.verify-email",
+        messageKey: expect.stringMatching(/^key-/),
+        reason: "recipient suppressed: bounce",
+      },
+    });
   });
 
   it("skips non-auth categories when the user unsubscribed", async () => {
@@ -205,6 +217,7 @@ describe("dispatchEmail live mode", () => {
       updateResult: [{ id: "fake-id", status: "sending", sendAttempts: 1 }],
     });
     const send: SendFn = vi.fn().mockResolvedValue({ messageId: "mid-123" });
+    const onAudit = vi.fn();
 
     const result = await dispatchEmail(
       {
@@ -213,6 +226,7 @@ describe("dispatchEmail live mode", () => {
         mode: "live",
         sandboxDir: "./tmp",
         send,
+        onAudit,
       },
       makeInput(),
     );
@@ -232,6 +246,17 @@ describe("dispatchEmail live mode", () => {
     expect((msg.customArgs as Record<string, string>).category).toBe("auth.verify-email");
     expect((msg.customArgs as Record<string, string>).user_id).toBe("user-1");
     expect(msg.categories).toEqual(["auth.verify-email"]);
+    expect(onAudit).toHaveBeenCalledWith({
+      eventType: "email.delivery_sent",
+      actorId: "user-1",
+      payload: {
+        deliveryId: "fake-id",
+        category: "auth.verify-email",
+        messageKey: expect.stringMatching(/^key-/),
+        providerMessageId: "mid-123",
+        mode: "live",
+      },
+    });
   });
 
   it("does NOT retry on a permanent error and marks failed", async () => {
@@ -243,6 +268,7 @@ describe("dispatchEmail live mode", () => {
       response: { statusCode: 401 },
     });
     const send: SendFn = vi.fn().mockRejectedValue(sendError);
+    const onAudit = vi.fn();
 
     const result = await dispatchEmail(
       {
@@ -252,6 +278,7 @@ describe("dispatchEmail live mode", () => {
         sandboxDir: "./tmp",
         send,
         sleep: async () => {},
+        onAudit,
       },
       makeInput(),
     );
@@ -267,6 +294,17 @@ describe("dispatchEmail live mode", () => {
       ?.chain.find((entry) => entry.method === "set")?.args[0] as Record<string, unknown>;
     expect(finalUpdate.sendAttempts).toBe(8);
     expect(finalUpdate.nextAttemptAt).toBeNull();
+    expect(onAudit).toHaveBeenCalledWith({
+      eventType: "email.delivery_failed",
+      actorId: "user-1",
+      payload: {
+        deliveryId: "fake-id",
+        category: "auth.verify-email",
+        messageKey: expect.stringMatching(/^key-/),
+        classification: "permanent",
+        reason: "rejected",
+      },
+    });
   });
 
   it("retries up to inlineRetryAttempts times on transient errors and marks failed at the end", async () => {

@@ -6,6 +6,16 @@ export type AuthAuditEvent = {
   payload: AuditPayload;
 };
 
+export type AuthAuditPersistenceFailureEvent = {
+  eventType: AuditEventType;
+  actorId: string | null;
+  payloadKeys: string[];
+  error: {
+    name: string;
+    message: string;
+  };
+};
+
 export type AuthSecurityEventType =
   | "rate_limit_hit"
   | "role_mismatch"
@@ -21,5 +31,6 @@ export type AuthSecurityEvent = {
 
 export type ObservabilityHooks = {
   onAuditEvent?: (event: AuthAuditEvent) => void;
+  onAuditPersistenceFailure?: (event: AuthAuditPersistenceFailureEvent) => void;
   onSecurityEvent?: (event: AuthSecurityEvent) => void;
 };

@@ -5,6 +5,7 @@ import {
   SENDGRID_TIMESTAMP_HEADER,
   verifySendgridSignature,
 } from "@informach/emails/webhook";
+import { emailAudit } from "@/lib/emails";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { packageLogger } from "@/lib/observability";
@@ -34,7 +35,10 @@ export async function POST(request: Request): Promise<Response> {
     return new Response("Invalid payload", { status: 400 });
   }
 
-  const result = await handleSendgridEvents({ db, logger: packageLogger }, parsed.events);
+  const result = await handleSendgridEvents(
+    { db, logger: packageLogger, onAudit: emailAudit },
+    parsed.events,
+  );
   if (result.failed > 0) {
     logger.error(result, "email.webhook.sendgrid.partial_failure");
     return Response.json({ ok: false, ...result }, { status: 500 });

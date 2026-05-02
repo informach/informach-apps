@@ -20,7 +20,7 @@ O package **não** lê env vars próprias, **não** decide UI, **não** expõe r
 1. Validar env (`SENDGRID_API_KEY`, `SENDGRID_FROM`, `EMAIL_SANDBOX_MODE`, etc.) com Zod.
 2. Instanciar via `createEmailService(config)` em `apps/<app>/src/lib/emails.ts`.
 3. Injetar `emails.sendEmail` e `emails.renderTemplate` no `createAuth({...})` (e em outros call-sites futuros).
-4. Expor as 4 rotas operacionais: webhook SendGrid, unsubscribe, e os 3 cron jobs.
+4. Expor as 5 rotas operacionais: webhook SendGrid, unsubscribe, e os 3 cron jobs.
 
 ---
 
@@ -29,7 +29,7 @@ O package **não** lê env vars próprias, **não** decide UI, **não** expõe r
 ```
 apps/<app>/src/lib/
   ├── env.ts               ← Zod-validated env vars (SENDGRID_*, EMAIL_SANDBOX_*)
-  ├── emails.ts            ← createEmailService({ apiKey, defaultFrom, db, mode, ... })
+  ├── emails.ts            ← createEmailService({ apiKey, defaultFrom, db, mode, onAudit, ... })
   ├── observability.ts     ← packageLogger/authObservability app-level
   └── auth.ts              ← createAuth({ sendEmail, renderTemplate, buildUnsubscribeUrl, ... })
 
@@ -43,6 +43,7 @@ apps/<app>/src/app/api/
 
 @informach/emails source
   ├── index.ts             ← createEmailService factory + EmailDeliveryError + tipos
+  ├── audit.ts             ← tipos `email.*`, hashing de email e emit best-effort
   ├── dispatch.ts          ← dispatchEmail (idempotency + claim + retry + sandbox)
   ├── retry.ts             ← MAX_ATTEMPTS, classifySendgridError, nextAttemptDelaySeconds
   ├── sweepers.ts          ← recoverStaleDeliveries, retryFailedDeliveries, syncSendgridSuppressions
@@ -90,6 +91,7 @@ Retorna `{ sendEmail, renderTemplate, getOutbox?, clearOutbox? }`.
 | `mode` | `"live" \| "sandbox" \| "memory"` | `"live"` | Ver §3.6. |
 | `sandboxDir` | `string` | `"./tmp/integration_emails"` | Só para `mode='sandbox'`. |
 | `logger` | `Logger` | no-op | Ver §3.7. |
+| `onAudit` | `(event) => void \| Promise<void>` | — | Hook opcional para app persistir `email.*` via `@informach/auth.logAuditEvent`. Best-effort; não quebra envio/webhook. |
 
 ### 3.2 `sendEmail(input)` — despacho idempotente
 Fluxo (linhas em `dispatch.ts`):
@@ -101,8 +103,9 @@ Fluxo (linhas em `dispatch.ts`):
 5. **Memory** (`mode='memory'`) — mete `{ id, to, subject, html, text, headers, customArgs }` em outbox em-memória. Marca `status='sent'`.
 6. **Live** — chama `sgMail.send(msg)` com `headers: List-Unsubscribe + List-Unsubscribe-Post: One-Click`, `customArgs: { delivery_id, category, user_id }`, `categories: [input.category]`.
 7. **Retry** — em erro `transient` (408/425/429/5xx): backoff polinomial `attempt^4 + 2s ±15%` (de `retry.ts:11`), até `inlineRetryAttempts` (default 3). Em erro `permanent` (400/401/403/413): aborta no primeiro fail.
-8. Em sucesso: `status='sent'`, `providerMessageId = headers['x-message-id']`.
-9. Em falha após retries: `status='failed'`, `lastError` populado. `retryFailedDeliveries` (sweeper) reativará depois.
+8. Em sucesso: `status='sent'`, `providerMessageId = headers['x-message-id']`, audit `email.delivery_sent`.
+9. Em falha após retries: `status='failed'`, `lastError` populado, audit `email.delivery_failed`. `retryFailedDeliveries` (sweeper) reativará depois.
+10. Bloqueios por suppression/unsubscribe emitem `email.delivery_skipped`.
 
 ### 3.3 `renderTemplate(category, props, opts?)` — renderização de templates
 Mapeamento `EmailCategory → componente React Email`:
@@ -147,15 +150,15 @@ Backoff sample (sem jitter): `3, 18, 83, 258, 627, 1298, 2403, 4098` segundos. `
 
 `handleSendgridEvents(deps, events[])` itera com try/catch por evento (1 falha não derruba o batch). Eventos suportados:
 
-| Event | Ação no DB |
-|---|---|
-| `processed` / `delivered` | marca `providerAccepted=true`. Não sobrescreve `status='sent'` para `delivered` (decisão atual — `sent` significa "aceito pelo SendGrid"; `delivered` agrega no provider, não no nosso state machine). |
-| `deferred` | só log warn |
-| `bounce` / `blocked` | `status='bounced'` + insere em `email_suppressions` |
-| `dropped` | `status='dropped'` + insere em `email_suppressions` |
-| `spamreport` | `status='complained'` + insere em `email_suppressions` |
-| `unsubscribe` / `group_unsubscribe` | insere em `email_unsubscribes` (resolve `userId` via `event.user_id` ou lookup por email) |
-| `open` / `click` | desabilitar no painel SendGrid (não rastreamos — `next-steps.txt:14-17`) |
+| Event | Ação no DB | Audit |
+|---|---|---|
+| `processed` / `delivered` | marca `providerAccepted=true`. Não sobrescreve `status='sent'` para `delivered` (decisão atual — `sent` significa "aceito pelo SendGrid"; `delivered` agrega no provider, não no nosso state machine). | — |
+| `deferred` | só log warn | — |
+| `bounce` / `blocked` | `status='bounced'` + insere em `email_suppressions` | `email.suppression_recorded` |
+| `dropped` | `status='dropped'` + insere em `email_suppressions` | `email.suppression_recorded` |
+| `spamreport` | `status='complained'` + insere em `email_suppressions` | `email.suppression_recorded` |
+| `unsubscribe` / `group_unsubscribe` | insere em `email_unsubscribes` (resolve `userId` via `event.user_id` ou lookup por email) | `email.unsubscribe_recorded` |
+| `open` / `click` | desabilitar no painel SendGrid (não rastreamos — `next-steps.txt:14-17`) | — |
 
 ### 3.6 Modos de operação
 
@@ -203,10 +206,15 @@ Apps expõem rotas POST protegidas por `Authorization: Bearer ${CRON_SECRET}` qu
 
 ```ts
 // apps/<app>/src/lib/emails.ts
+import { logAuditEvent } from "@informach/auth";
 import { db } from "@informach/db";
-import { createEmailService } from "@informach/emails";
+import { createEmailService, type EmailAuditEvent } from "@informach/emails";
 import { env } from "./env";
 import { packageLogger } from "./observability";
+
+export function emailAudit(event: EmailAuditEvent): void {
+  logAuditEvent(event.eventType, event.actorId, event.payload).catch(() => undefined);
+}
 
 export const emails = createEmailService({
   apiKey: env.SENDGRID_API_KEY,
@@ -215,6 +223,7 @@ export const emails = createEmailService({
   mode: env.EMAIL_SANDBOX_MODE,           // "live" | "sandbox" | "memory"
   sandboxDir: env.EMAIL_SANDBOX_DIR,
   logger: packageLogger,
+  onAudit: emailAudit,
 });
 ```
 
@@ -247,6 +256,10 @@ import {
   handleSendgridEvents,
   verifySendgridSignature,
 } from "@informach/emails/webhook";
+import { db } from "@informach/db";
+import { emailAudit } from "@/lib/emails";
+import { env } from "@/lib/env";
+import { packageLogger } from "@/lib/observability";
 
 export async function POST(req: Request) {
   const raw = await req.text();              // raw body, NÃO json()
@@ -256,7 +269,7 @@ export async function POST(req: Request) {
     return new Response("forbidden", { status: 403 });
   }
   const events = JSON.parse(raw);
-  const result = await handleSendgridEvents({ db, logger: packageLogger }, events);
+  const result = await handleSendgridEvents({ db, logger: packageLogger, onAudit: emailAudit }, events);
   return Response.json(result);
 }
 ```
@@ -310,7 +323,7 @@ Crons seguem o mesmo padrão (Bearer + invoke da função do `./sweepers`).
 | `@informach/emails` | `createEmailService`, `EmailDeliveryError`, `dispatchEmail` raw, tipos, `buildUnsubscribeToken/verifyUnsubscribeToken` | `apps/<app>/src/lib/emails.ts`, `apps/<app>/src/lib/auth.ts` |
 | `@informach/emails/webhook` | `verifySendgridSignature`, `handleSendgridEvents`, header constants | `app/api/webhooks/sendgrid/route.ts` |
 | `@informach/emails/sweepers` | `recoverStaleDeliveries`, `retryFailedDeliveries`, `syncSendgridSuppressions` | `app/api/jobs/*/route.ts` |
-| `@informach/emails/unsubscribe` | (existe; verificar conteúdo atual ao implementar) | `app/api/email/unsubscribe/route.ts` |
+| `@informach/emails/unsubscribe` | `processUnsubscribe` | `app/api/email/unsubscribe/route.ts` |
 | `@informach/emails/templates` | `renderTemplate` direto + componentes React Email para preview server | preview server, testes |
 
 ---
@@ -321,11 +334,11 @@ Vitest 2.1.9 em `src/__tests__/`:
 
 | Arquivo | Cobertura |
 |---|---|
-| `dispatch.test.ts` | Validação Zod, sandbox/memory mode, live, idempotência, retry/permanent classification |
-| `webhook.test.ts` | Signed verification, parsing de eventos, transições de status |
+| `dispatch.test.ts` | Validação Zod, sandbox/memory mode, live, idempotência, retry/permanent classification, audit sent/skipped/failed |
+| `webhook.test.ts` | Signed verification, parsing de eventos, transições de status, audit suppression/unsubscribe |
 | `retry.test.ts` | `nextAttemptDelaySeconds`, `classifySendgridError` |
-| `sweepers.test.ts` | `recoverStaleDeliveries`, `retryFailedDeliveries`, `syncSendgridSuppressions` |
-| `unsubscribe.test.ts` | HMAC build/verify, timing-safe, casos de erro |
+| `sweepers.test.ts` | `recoverStaleDeliveries`, `retryFailedDeliveries`, `syncSendgridSuppressions`, audit retry/suppression |
+| `unsubscribe.test.ts` | HMAC build/verify, timing-safe, casos de erro, audit sem email bruto |
 | `templates.test.tsx` | Snapshot inline de cada template (HTML + text) |
 
 DB nos testes: `_fake-db.ts` mocka Drizzle (não toca Postgres). Para integração real → Playwright nos apps com `mode='memory'` ou `mode='sandbox'`.
@@ -359,6 +372,8 @@ pnpm --filter @informach/emails preview     # preview server React Email em :408
 9. **`unsubscribeUrl` deve passar pelo `buildUnsubscribeToken`.** Não fabricar URLs manualmente.
 
 10. **Adicionar dep nova?** Conferir que ela suporta Node 20+, ESM, e não puxa Next.js (o package não tem dependência de Next).
+
+11. **Novo caminho que muta delivery/suppression/unsubscribe?** Emitir `email.*` via `emitEmailAudit`, sem email bruto no payload. Use `emailHash`/`emailDomain` para destinatario e veja [`docs/audit-payload-policy.md`](../../docs/audit-payload-policy.md).
 
 ---
 

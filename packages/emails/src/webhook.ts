@@ -2,6 +2,7 @@ import type { Database } from "@informach/db";
 import { emailDeliveries, emailSuppressions, emailUnsubscribes, users } from "@informach/db/schema";
 import { EventWebhook, EventWebhookHeader } from "@sendgrid/eventwebhook";
 import { eq } from "drizzle-orm";
+import { type EmailAuditHook, emailAddressAuditPayload, emitEmailAudit } from "./audit";
 import { type Logger, safeLog } from "./logger";
 
 export const SENDGRID_SIGNATURE_HEADER = EventWebhookHeader.SIGNATURE();
@@ -23,6 +24,7 @@ export type SendgridEvent = {
 export type WebhookDeps = {
   db: Database;
   logger?: Pick<Logger, "warn" | "error">;
+  onAudit?: EmailAuditHook;
 };
 
 export function verifySendgridSignature(
@@ -88,7 +90,10 @@ async function upsertSuppression(db: Database, email: string, reason: string): P
     .onConflictDoNothing({ target: emailSuppressions.email });
 }
 
-async function recordUnsubscribe(db: Database, event: SendgridEvent): Promise<void> {
+async function recordUnsubscribe(
+  db: Database,
+  event: SendgridEvent,
+): Promise<{ userId: string; category: string } | null> {
   let userId = event.user_id;
   if (!userId) {
     const [user] = await db
@@ -96,12 +101,13 @@ async function recordUnsubscribe(db: Database, event: SendgridEvent): Promise<vo
       .from(users)
       .where(eq(users.email, event.email.toLowerCase()))
       .limit(1);
-    if (!user) return;
+    if (!user) return null;
     userId = user.id;
   }
 
   const category = event.category ?? "marketing.all";
   await db.insert(emailUnsubscribes).values({ userId, category }).onConflictDoNothing();
+  return { userId, category };
 }
 
 export async function handleSendgridEvent(deps: WebhookDeps, event: SendgridEvent): Promise<void> {
@@ -129,6 +135,18 @@ export async function handleSendgridEvent(deps: WebhookDeps, event: SendgridEven
         await markDeliveryStatus(deps.db, delivery.id, "bounced", event.reason ?? null);
       }
       await upsertSuppression(deps.db, event.email, event.reason ?? "bounce");
+      emitEmailAudit(deps, {
+        eventType: "email.suppression_recorded",
+        actorId: null,
+        payload: {
+          ...emailAddressAuditPayload(event.email),
+          deliveryId: delivery?.id ?? null,
+          category: event.category ?? delivery?.category ?? null,
+          providerEvent: event.event,
+          reason: event.reason ?? "bounce",
+          source: "sendgrid",
+        },
+      });
       return;
     }
     case "dropped": {
@@ -136,6 +154,18 @@ export async function handleSendgridEvent(deps: WebhookDeps, event: SendgridEven
         await markDeliveryStatus(deps.db, delivery.id, "dropped", event.reason ?? null);
       }
       await upsertSuppression(deps.db, event.email, event.reason ?? "dropped");
+      emitEmailAudit(deps, {
+        eventType: "email.suppression_recorded",
+        actorId: null,
+        payload: {
+          ...emailAddressAuditPayload(event.email),
+          deliveryId: delivery?.id ?? null,
+          category: event.category ?? delivery?.category ?? null,
+          providerEvent: event.event,
+          reason: event.reason ?? "dropped",
+          source: "sendgrid",
+        },
+      });
       return;
     }
     case "spamreport": {
@@ -143,11 +173,35 @@ export async function handleSendgridEvent(deps: WebhookDeps, event: SendgridEven
         await markDeliveryStatus(deps.db, delivery.id, "complained", "spamreport");
       }
       await upsertSuppression(deps.db, event.email, "spamreport");
+      emitEmailAudit(deps, {
+        eventType: "email.suppression_recorded",
+        actorId: null,
+        payload: {
+          ...emailAddressAuditPayload(event.email),
+          deliveryId: delivery?.id ?? null,
+          category: event.category ?? delivery?.category ?? null,
+          providerEvent: event.event,
+          reason: "spamreport",
+          source: "sendgrid",
+        },
+      });
       return;
     }
     case "unsubscribe":
     case "group_unsubscribe": {
-      await recordUnsubscribe(deps.db, event);
+      const recorded = await recordUnsubscribe(deps.db, event);
+      if (recorded) {
+        emitEmailAudit(deps, {
+          eventType: "email.unsubscribe_recorded",
+          actorId: recorded.userId,
+          payload: {
+            ...emailAddressAuditPayload(event.email),
+            category: recorded.category,
+            providerEvent: event.event,
+            source: "sendgrid",
+          },
+        });
+      }
       return;
     }
     default:

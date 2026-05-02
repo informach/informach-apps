@@ -1,6 +1,7 @@
 import type { Database } from "@informach/db";
 import { emailUnsubscribes, users } from "@informach/db/schema";
 import { eq } from "drizzle-orm";
+import { type EmailAuditHook, emailAddressAuditPayload, emitEmailAudit } from "./audit";
 import { verifyUnsubscribeToken } from "./list-unsubscribe";
 
 export type ProcessUnsubscribeResult =
@@ -8,7 +9,7 @@ export type ProcessUnsubscribeResult =
   | { ok: false; reason: "invalid-token" };
 
 export async function processUnsubscribe(
-  deps: { db: Database; secret: string },
+  deps: { db: Database; secret: string; onAudit?: EmailAuditHook },
   token: string,
 ): Promise<ProcessUnsubscribeResult> {
   const verified = verifyUnsubscribeToken(deps.secret, token);
@@ -37,6 +38,15 @@ export async function processUnsubscribe(
 
   if (userId) {
     await deps.db.insert(emailUnsubscribes).values({ userId, category }).onConflictDoNothing();
+    emitEmailAudit(deps, {
+      eventType: "email.unsubscribe_recorded",
+      actorId: userId,
+      payload: {
+        category,
+        identifierKind: identifier.includes("@") ? "email" : "userId",
+        ...(identifier.includes("@") ? emailAddressAuditPayload(identifier) : {}),
+      },
+    });
   }
 
   return { ok: true, identifier, category, userId };

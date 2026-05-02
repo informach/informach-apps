@@ -168,11 +168,11 @@ curl -X POST https://agenda.informach.com.br/api/auth/sign-up/email \
 #    Inspeciona o email-source: deve ter "DKIM-Signature" + "spf=pass" + "dmarc=pass".
 
 # 3. No DB:
-#    SELECT id, status, provider_message_id, send_attempts FROM core.email_deliveries
+#    SELECT id, status, provider_message_id, provider_accepted, send_attempts FROM core.email_deliveries
 #    WHERE recipient = 'voce+test@gmail.com' ORDER BY created_at DESC LIMIT 1;
-#    Esperado: status='sent' (após sgMail.send) → 'delivered' (após webhook).
+#    Esperado: status='sent' e provider_accepted=true após webhook processed/delivered.
 
-# 4. Clicar no link de verify-email → confere `status='delivered'` no DB.
+# 4. Clicar no link de verify-email → confere fluxo de auth concluído.
 
 # 5. Clicar no link de unsubscribe do footer → página confirma.
 #    SELECT * FROM core.email_unsubscribes WHERE category = 'auth.verify-email';
@@ -180,6 +180,17 @@ curl -X POST https://agenda.informach.com.br/api/auth/sign-up/email \
 
 # 6. Forçar bounce: cadastrar email inexistente (ex.: voce+nope@invalid-domain-xyz.com).
 #    SendGrid bate webhook com event=bounce → status='bounced' + email vai para core.email_suppressions.
+
+# 6b. Conferir auditoria operacional sem email bruto no payload:
+SELECT event_type, actor_id, payload
+FROM audit.events
+WHERE event_type IN (
+  'email.delivery_sent',
+  'email.unsubscribe_recorded',
+  'email.suppression_recorded'
+)
+ORDER BY created_at DESC LIMIT 5;
+# Esperado: payload usa emailHash/emailDomain quando referencia destinatario.
 
 # 7. Disparar manualmente cada cron (com Bearer):
 curl -X POST -H "Authorization: Bearer $CRON_SECRET" \
@@ -226,16 +237,24 @@ GROUP BY reason;
 `createEmailService(config)` aceita `logger: Logger`, mas o package não importa Sentry. Nos apps, use o adapter app-level:
 
 ```ts
-import { createEmailService } from "@informach/emails";
+import { logAuditEvent } from "@informach/auth";
+import { createEmailService, type EmailAuditEvent } from "@informach/emails";
 import { packageLogger } from "./observability";
+
+function emailAudit(event: EmailAuditEvent): void {
+  logAuditEvent(event.eventType, event.actorId, event.payload).catch(() => undefined);
+}
 
 createEmailService({
   // ...
   logger: packageLogger,
+  onAudit: emailAudit,
 });
 ```
 
 `packageLogger` mantém logs estruturados no pino e duplica `warn`/`error` sanitizados para `Sentry.captureMessage`. `debug`/`info` ficam só nos logs estruturados. Configure `SENTRY_DSN`, `enableLogs` e `tracesSampleRate` no app quando quiser logs/spans no Sentry.
+
+`onAudit` persiste eventos `email.*` em `audit.events` via `@informach/auth.logAuditEvent`. O package não grava auditoria direto no DB para evitar acoplamento com auth; a persistência continua best-effort. Falhas de insert aparecem como `auth.audit.persist_failed` na observabilidade do app. Payloads de email não devem conter email bruto; use `emailHash`/`emailDomain` conforme [`docs/audit-payload-policy.md`](../../docs/audit-payload-policy.md).
 
 ---
 
@@ -296,6 +315,7 @@ Checklist final antes do primeiro envio de produção:
 - [ ] `pnpm db:migrate` aplicado (incluindo `0007_chief_blob.sql` que adiciona `html`/`text` em `email_deliveries`).
 - [ ] Smoke test E2E §5 passou completamente.
 - [x] Adapter app-level de Sentry plugado no logger do `createEmailService`; confirmar `SENTRY_DSN` e alertas no ambiente desejado.
+- [x] `onAudit` app-level plugado no `createEmailService` para persistir `email.*` em `audit.events`.
 - [ ] DMARC reports (`rua`) chegando em caixa monitorada.
 
 ---
@@ -305,5 +325,6 @@ Checklist final antes do primeiro envio de produção:
 - **Auth deploy** (Railway services, CSP, Redis, cron pattern genérico): `@informach/auth/PRODUCTION.md`.
 - **Validação visual de templates:** `@informach/emails/EMAILS.md`.
 - **Arquitetura interna do package:** `@informach/emails/CLAUDE.md`.
+- **Política de payload de auditoria:** `docs/audit-payload-policy.md`.
 - **Lista de pendências do operador atualizada:** `next-steps.txt` na raiz do monorepo.
 - **Padrões de produção (Akita Chronicles, "Enviando emails sem spammar"):** `vibe-coding-vault/90-Fontes/Akita-Chronicles/artigos/2026-02-17-enviando-emails-sem-spammar*.md` no segundo cérebro do usuário.

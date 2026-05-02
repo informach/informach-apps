@@ -61,16 +61,31 @@ describe("verifySendgridSignature", () => {
 describe("handleSendgridEvent", () => {
   it("marks bounced and inserts a suppression on `bounce`", async () => {
     const { db, calls } = createFakeDb({
-      selectQueue: [[{ id: "delivery-1" }]],
+      selectQueue: [[{ id: "delivery-1", category: "auth.verify-email" }]],
       updateResult: [],
       insertResult: [],
     });
+    const onAudit = vi.fn();
     await handleSendgridEvent(
-      { db: db as never },
+      { db: db as never, onAudit },
       makeEvent({ event: "bounce", reason: "550 mailbox full" }),
     );
     expect(calls.some((c) => c.mode === "update")).toBe(true);
     expect(calls.some((c) => c.mode === "insert")).toBe(true);
+    expect(onAudit).toHaveBeenCalledWith({
+      eventType: "email.suppression_recorded",
+      actorId: null,
+      payload: {
+        emailHash: expect.any(String),
+        emailDomain: "example.com",
+        deliveryId: "delivery-1",
+        category: "auth.verify-email",
+        providerEvent: "bounce",
+        reason: "550 mailbox full",
+        source: "sendgrid",
+      },
+    });
+    expect(JSON.stringify(onAudit.mock.calls[0]?.[0])).not.toContain("user@example.com");
   });
 
   it("marks dropped and inserts a suppression on `dropped`", async () => {

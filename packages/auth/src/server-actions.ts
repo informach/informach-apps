@@ -4,6 +4,7 @@ import { rateLimit as rateLimitTable } from "@informach/db/schema";
 import { sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import type { z } from "zod";
+import type { AuditEventType } from "./audit";
 import { logAuditEvent } from "./audit";
 import {
   ForbiddenError,
@@ -114,14 +115,14 @@ export type ActionFactoryHelpers<TUser, TSession> = Pick<
 export type ActionFactoryConfig<TUser, TSession> = {
   helpers: ActionFactoryHelpers<TUser, TSession>;
   /** Logger called for `audit("event")`. Receives the event type and serialized actor id. */
-  onAudit?: (input: { eventType: string; actorId: string | null }) => void;
+  onAudit?: (input: { eventType: AuditEventType; actorId: string | null }) => void;
 };
 
 type ActionConfig<TSchema extends z.ZodTypeAny> = {
   schema?: TSchema;
   auth?: ActionAuthConfig;
   rateLimit?: ActionRateLimitConfig;
-  audit?: string;
+  audit?: AuditEventType;
 };
 
 type RequestHeadersProvider = () => Promise<Headers>;
@@ -159,7 +160,7 @@ class ActionBuilder<TUser, TSession, TSchema extends z.ZodTypeAny> {
     });
   }
 
-  audit(eventType: string): ActionBuilder<TUser, TSession, TSchema> {
+  audit(eventType: AuditEventType): ActionBuilder<TUser, TSession, TSchema> {
     return new ActionBuilder(this.factory, this.getRequestHeaders, {
       ...this.config,
       audit: eventType,
@@ -202,7 +203,7 @@ class ActionBuilder<TUser, TSession, TSchema extends z.ZodTypeAny> {
 
       if (audit) {
         const actorId = actorIdOf(actor);
-        await logAuditEvent(audit as never, actorId, {});
+        await logAuditEvent(audit, actorId, {});
         factory.onAudit?.({ eventType: audit, actorId });
       }
 

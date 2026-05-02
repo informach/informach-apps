@@ -83,7 +83,7 @@ Cinco grupos consolidados. Cada novo package se encaixa em uma dessas categorias
 Único package que conhece o schema completo do banco.
 
 - ORM: **Drizzle**. Driver: **postgres-js** (`drizzle-orm/postgres-js`). Mais leve que `pg` em Node.
-- Schemas SQL nativos por domínio via `pgSchema("nome").table(...)`. Exemplos: `core`, `<dominio_app_1>`, `<dominio_app_2>`, `audit`, `ai`.
+- Schemas SQL nativos por domínio via `pgSchema("nome").table(...)`. Exemplos atuais: `core`, `billing`, `audit`, `ai`, `agenda`, `cozya`.
 - Client singleton em `src/client.ts` com guard no `globalThis` para sobreviver a hot reload.
 - `drizzle.config.ts` com `dialect: "postgresql"`, `schema: "./src/schema/index.ts"`, `out: "./src/migrations"`, `schemaFilter: ["core","<dominio_app_1>",...]` para que o `drizzle-kit` só toque nas schemas geridas.
 - Migrations geradas por `drizzle-kit generate`, aplicadas por `drizzle-kit migrate` ou script `migrate.ts` (chamado manualmente ou por job dedicado, **nunca** no start de um app).
@@ -146,9 +146,9 @@ export const db = drizzle(client, { schema });
 
 Wrappers de integrações externas atrás de uma interface estável. Apps consomem a interface; troca de provider é problema interno.
 
-- **`auth`**: `getCurrentUser`, `requireUser`, `hasAccessToProduct`, `hasRole`, `assertPermission`. Implementação real (Better-Auth, Auth.js, Clerk, Keycloak) plugada por dentro. Apps nunca veem o provider.
-- **`billing`**: `createCheckout`, `handleBillingWebhook`, `getUserSubscription`, `grantProductAccess`, `revokeProductAccess`, `syncBillingCustomer`. Tipos: `ProductId`, `CheckoutInput`, `CheckoutResult`, `SubscriptionStatus`, `BillingProvider`, `PaymentStatus`. Depende de `db`.
-- **`emails`**: `sendEmail`, `sendWelcomeEmail`, `sendPaymentConfirmationEmail`, `sendAccessGrantedEmail`. Provider real (Resend, SendGrid) plugado por dentro.
+- **`auth`**: `createAuth`, helpers server/RSC/proxy/server-actions, RBAC, organizations opt-in, `logAuditEvent` e `ObservabilityHooks`. Provider atual: Better Auth; apps nunca importam Better Auth diretamente.
+- **`billing`**: `createBillingService`, Checkout/Portal Stripe, subscriptions, credit ledger, reserve/commit/release, webhooks e sweepers. Audit entra por `config.onAudit`, wireado pelo app para `@informach/auth.logAuditEvent`.
+- **`emails`**: `createEmailService`, `sendEmail`, `renderTemplate`, SendGrid webhook, unsubscribe, sweepers e `onAudit` opcional para eventos `email.*`. Provider atual: SendGrid.
 
 Padrão de "placeholder primeiro": ao criar o package, as funções públicas existem com tipos certos mas lançam `NotImplementedError` ou retornam mock controlado. Ponto de integração pronto, contrato fixado, implementação real entra depois sem mexer nos consumidores.
 
@@ -210,7 +210,7 @@ Pequenos packages ou contratos sem dependência externa pesada, expõem tipos e 
 
 - **`result`**: `Result<T, E>`, `ok(value)`, `err(error)`, helpers `unwrap`, `map`, `flatMap`. Tipo de retorno padrão dos services.
 - **`errors`**: classes-base (`DomainError`, `InfraError`) e erros comuns (`ForbiddenError`, `NotFoundError`, `ConflictError`).
-- **Observabilidade**: hoje é app-owned. Packages expõem contratos (`Logger`, `ObservabilityHooks`, callbacks como `onAudit`) e os apps adaptam isso em `apps/<app>/src/lib/observability.ts`. Sentry, pino, sampling e logs são configuração do app, não dependência de package. Só criar `packages/observability` se houver um segundo consumidor real para helpers provider-neutral de tracing/logger.
+- **Observabilidade**: hoje é app-owned. Packages expõem contratos (`Logger`, `ObservabilityHooks`, callbacks como `onAudit` e `onAuditPersistenceFailure`) e os apps adaptam isso em `apps/<app>/src/lib/observability.ts`. Sentry, pino, sampling e logs são configuração do app, não dependência de package. Só criar `packages/observability` se houver um segundo consumidor real para helpers provider-neutral de tracing/logger.
 
 ### 5. Constantes — `config`
 
@@ -263,9 +263,9 @@ Tipos: `AppName`, `AgentName`, `AgentRunStatus`, `TokenUsage`, `AiRuntimeConfig`
 
 Declaradas em `package.json` com `"workspace:*"`. Exemplos típicos:
 
-- `auth` → `db`, `emails`. (Erros declarados inline até existir um segundo consumidor — ver §"Quando NÃO criar um package".)
-- `billing` → `db`, `auth`, `emails`, `config`. Observabilidade entra por `logger`/`onAudit` injetados pelo app. (Quando `billing` precisar das mesmas classes-base de erro de `auth`, é o momento certo de extrair `packages/errors/`.)
-- `emails` → `db`.
+- `auth` → `db`, `emails`. Expõe `AuditEventType`/`logAuditEvent`, mas os apps continuam donos do wiring e da observabilidade.
+- `billing` → `db`, `auth`, `emails`, `config`. Observabilidade entra por `logger`/`onAudit` injetados pelo app. O package emite `billing.*`, mas quem persiste em `audit.events` é o app.
+- `emails` → `db`. Audit é opcional via `onAudit`; o package emite `email.*` sem acoplar runtime ao `auth`.
 - `ui` → (sem deps internas).
 - `ai-core` → `db` (para `agent_runs`, `messages`, `tool_calls`, `usage_logs` em `schema/ai`) e `billing` (para o ciclo reserve/commit/release de créditos). Telemetria permanece provider-neutral; exportar para APM é responsabilidade do app.
 
@@ -309,6 +309,7 @@ Quebras de contrato são consertadas no PR que as introduz, **em todos os apps c
 - Package "utils" que cresce sem dono. Se virar lixeira, divide ou mata.
 - Acoplar package a um framework de teste específico. Package de domínio não deveria saber se vai ser testado com Vitest ou Jest.
 - Versão diferente de uma mesma dependência em packages diferentes. Centralize via `pnpm.overrides` na raiz quando preciso.
+- Payload de audit com PII/secrets fora da política em [`audit-payload-policy.md`](./audit-payload-policy.md).
 
 ---
 

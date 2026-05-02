@@ -256,9 +256,16 @@ ORDER BY created_at DESC LIMIT 5;
 # Esperado: status='active', period_end ~30d a frente
 
 # 4. Verificar email de payment-success (se SENDGRID config OK):
-SELECT category, status, recipient FROM core.email_deliveries
+SELECT category, status, recipient, provider_accepted FROM core.email_deliveries
 WHERE category = 'billing.payment-success' ORDER BY created_at DESC LIMIT 3;
-# Esperado: status='sent' ou 'delivered'
+# Esperado: status='sent'; provider_accepted=true quando webhook SendGrid processar delivered/processed.
+
+# 4b. Verificar auditoria billing.*:
+SELECT event_type, actor_id, payload
+FROM audit.events
+WHERE event_type LIKE 'billing.%'
+ORDER BY created_at DESC LIMIT 10;
+# Esperado: eventos de checkout/subscription/payment/credits com IDs Stripe, sem payload bruto do webhook.
 
 # 5. Customer Portal: clicar "Gerenciar plano" no UI → abre billing.stripe.com → cancelar → voltar.
 #    Esperado: webhook customer.subscription.updated chega com cancel_at_period_end=true.
@@ -346,16 +353,24 @@ WHERE status='paid' AND paid_at >= date_trunc('month', NOW());
 `createBillingService` aceita `logger: Logger`, mas o package não importa Sentry. Nos apps, use o adapter app-level:
 
 ```ts
-import { createBillingService } from "@informach/billing";
+import { logAuditEvent } from "@informach/auth";
+import { createBillingService, type BillingAuditEvent } from "@informach/billing";
 import { packageLogger } from "./observability";
+
+function billingAudit(event: BillingAuditEvent): void {
+  logAuditEvent(event.eventType, event.actorId, event.payload).catch(() => undefined);
+}
 
 createBillingService({
   // ...
   logger: packageLogger,
+  onAudit: billingAudit,
 });
 ```
 
 `packageLogger` mantém logs estruturados no pino e duplica `warn`/`error` sanitizados para `Sentry.captureMessage`. `debug`/`info` ficam só nos logs estruturados. Configure `SENTRY_DSN`, `enableLogs` e `tracesSampleRate` no app quando quiser logs/spans no Sentry.
+
+`onAudit` persiste eventos `billing.*` em `audit.events` via `@informach/auth.logAuditEvent`. O package não grava auditoria direto no DB para evitar acoplamento com auth; a persistência continua best-effort. Falhas de insert aparecem como `auth.audit.persist_failed` na observabilidade do app. Payload de auditoria deve registrar IDs, status e valores necessários para rastreabilidade, nunca payload bruto Stripe, tokens, secrets ou dados de cartão; ver [`docs/audit-payload-policy.md`](../../docs/audit-payload-policy.md).
 
 Eventos críticos a alertar:
 - `billing.webhook.handler_error` — webhook handler levantou exception (Stripe vai retentar; se persistente, bug)
@@ -405,7 +420,7 @@ INSERT INTO billing.credit_ledger
   (owner_type, owner_id, entry_type, amount, metadata)
 VALUES ('user', '<id>', 'adjustment', -<amount>,
         '{"reason":"duplicate_grant_correction","duplicateLedgerId":"<id>"}'::jsonb);
--- Audit no auth.events:
+-- Audit em audit.events com payload minimo; sem payload bruto Stripe:
 INSERT INTO audit.events (event_type, actor_id, payload)
 VALUES ('billing.credits_refunded', NULL,
         '{"reason":"manual_duplicate_correction","amount":<amount>}'::jsonb);
@@ -492,6 +507,7 @@ Checklist final antes do primeiro pagamento real:
 - [ ] 4 cron-runners por app criados (`billing-release-reservations`, `billing-dunning`, `billing-reconcile`, `billing-expire-bonus`), cada um com Cron Schedule.
 - [ ] `pnpm db:migrate` aplicado em prod (incluindo `0008_daffy_colleen_wing.sql` que cria schema `billing`).
 - [ ] Custom domain (opcional mas recomendado) para Checkout: `checkout.informach.com.br` validado.
+- [x] `onAudit` app-level plugado no `createBillingService` para persistir `billing.*` em `audit.events`.
 
 ### Validação
 - [ ] Smoke test E2E §7 passou em test mode.
@@ -550,6 +566,7 @@ stripe subscriptions retrieve sub_xxx
 - **Auth deploy** (Railway services, CSP, Redis, cron pattern genérico): `@informach/auth/PRODUCTION.md`.
 - **Email pipeline production:** `@informach/emails/PRODUCTION.md`.
 - **Arquitetura interna do package:** `@informach/billing/CLAUDE.md`.
+- **Política de payload de auditoria:** `docs/audit-payload-policy.md`.
 - **Stripe API changelog (Basil → Dahlia):** memory `stripe_api_basil_changes.md`.
 - **Stripe Dashboard:** <https://dashboard.stripe.com>
 - **Stripe CLI:** <https://stripe.com/docs/stripe-cli>

@@ -1,6 +1,7 @@
 import { db } from "@informach/db";
 import { buildUnsubscribeToken, createSendGridSend, type EmailCategory } from "@informach/emails";
 import { retryFailedDeliveries } from "@informach/emails/sweepers";
+import { emailAudit } from "@/lib/emails";
 import { env } from "@/lib/env";
 import { packageLogger } from "@/lib/observability";
 
@@ -24,6 +25,7 @@ export async function POST(request: Request): Promise<Response> {
     },
     unsubscribeMailto: `unsubscribe@${APP_HOSTNAME}`,
     logger: packageLogger,
+    onAudit: emailAudit,
   });
   return Response.json(result);
 }

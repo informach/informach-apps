@@ -4,6 +4,7 @@ import type { Database } from "@informach/db";
 import { emailDeliveries } from "@informach/db/schema";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { ZodError } from "zod";
+import { type EmailAuditHook, emitEmailAudit } from "./audit";
 import {
   describeDeliveryBlockReason,
   findDeliveryBlockReason,
@@ -89,6 +90,7 @@ export type DispatchDeps = {
   send: SendFn;
   outbox?: MemoryOutbox;
   logger?: Logger;
+  onAudit?: EmailAuditHook;
   /** Sleep used between retry attempts (injectable for tests). */
   sleep?: (ms: number) => Promise<void>;
   /** RNG for jitter (injectable for tests). */
@@ -219,6 +221,18 @@ export async function dispatchEmail(
   if (block) {
     const reason = describeDeliveryBlockReason(block);
     const marked = await markDeliveryBlocked(deps.db, delivery.id, block, ["pending", "failed"]);
+    if (marked) {
+      emitEmailAudit(deps, {
+        eventType: "email.delivery_skipped",
+        actorId: input.userId ?? null,
+        payload: {
+          deliveryId: delivery.id,
+          category: input.category,
+          messageKey: input.messageKey,
+          reason,
+        },
+      });
+    }
     return {
       ok: false,
       status: "skipped",
@@ -276,6 +290,17 @@ export async function dispatchEmail(
         updatedAt: new Date(),
       })
       .where(eq(emailDeliveries.id, delivery.id));
+    emitEmailAudit(deps, {
+      eventType: "email.delivery_sent",
+      actorId: input.userId ?? null,
+      payload: {
+        deliveryId: delivery.id,
+        category: input.category,
+        messageKey: input.messageKey,
+        providerMessageId: `sandbox-${delivery.id}`,
+        mode: "sandbox",
+      },
+    });
     return { ok: true, status: "sent", deliveryId: delivery.id };
   }
 
@@ -306,6 +331,17 @@ export async function dispatchEmail(
         updatedAt: new Date(),
       })
       .where(eq(emailDeliveries.id, delivery.id));
+    emitEmailAudit(deps, {
+      eventType: "email.delivery_sent",
+      actorId: input.userId ?? null,
+      payload: {
+        deliveryId: delivery.id,
+        category: input.category,
+        messageKey: input.messageKey,
+        providerMessageId: `memory-${delivery.id}`,
+        mode: "memory",
+      },
+    });
     return { ok: true, status: "sent", deliveryId: delivery.id };
   }
 
@@ -338,6 +374,17 @@ export async function dispatchEmail(
           updatedAt: new Date(),
         })
         .where(eq(emailDeliveries.id, delivery.id));
+      emitEmailAudit(deps, {
+        eventType: "email.delivery_sent",
+        actorId: input.userId ?? null,
+        payload: {
+          deliveryId: delivery.id,
+          category: input.category,
+          messageKey: input.messageKey,
+          providerMessageId: messageId ?? null,
+          mode: "live",
+        },
+      });
       return { ok: true, status: "sent", deliveryId: delivery.id };
     } catch (error: unknown) {
       const errLike = error as SendgridErrorLike;
@@ -381,6 +428,18 @@ export async function dispatchEmail(
       updatedAt: new Date(),
     })
     .where(eq(emailDeliveries.id, delivery.id));
+
+  emitEmailAudit(deps, {
+    eventType: "email.delivery_failed",
+    actorId: input.userId ?? null,
+    payload: {
+      deliveryId: delivery.id,
+      category: input.category,
+      messageKey: input.messageKey,
+      classification: lastClassification,
+      reason: lastError ?? "unknown send failure",
+    },
+  });
 
   return {
     ok: false,

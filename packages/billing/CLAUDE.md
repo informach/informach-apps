@@ -226,6 +226,8 @@ billing.credits_refunded
 Apps wireiam `config.onAudit` para chamar `logAuditEvent(event.eventType, event.actorId, event.payload)` (re-exportado de `@informach/auth`). Pattern: fire-and-forget com `.catch` para logger — audit emit nunca bloqueia o billing call.
 Nos apps atuais, erros/warnings desses emit-points passam pelo `packageLogger` de `src/lib/observability.ts`, que mantém pino e duplica `warn`/`error` sanitizados para Sentry.
 
+Payloads seguem [`docs/audit-payload-policy.md`](../../docs/audit-payload-policy.md): preferir IDs internos/Stripe, status e reason; não gravar payload bruto de webhook, tokens, secrets ou dados de cartão.
+
 ### 3.10 LGPD/Account deletion hook
 
 `cancelBillingForSubject(subject)` é chamado pelo `accountDeletion.onBeforeDelete` do auth (configurado nos apps). Cancela TODAS as subs ativas do subject IMMEDIATELY. Rows NÃO deletadas — `subjectId` retido para retenção fiscal/NF-e. PII anonymization é responsabilidade do app (em outras tabelas).
@@ -447,7 +449,7 @@ Todos os errors: `BillingError`, `NotImplementedError`, `InvalidProductError`, `
 - **`stripe@^22.1.0`** (PIN literal `'2026-04-22.dahlia'`) — bumpar major exige re-validar literal e re-testar handlers contra novo payload shape
 - **`drizzle-orm@^0.45.2`** — para SELECT/INSERT/UPDATE typed + `db.execute(sql\`...\`)` para advisory lock e raw SQL de balance
 - **`@informach/db`** — schema source of truth e Drizzle client
-- **`@informach/auth`** — `logAuditEvent` (apps wireiam) + `AuditEventType` (8 `billing.*` adicionados)
+- **`@informach/auth`** — `logAuditEvent` (apps wireiam) + `AuditEventType` (inclui os 8 `billing.*`)
 - **`@informach/emails`** — `SendEmail`, `RenderTemplate`, `EmailCategory` (estendido com 5 `billing.*`); `buildUnsubscribeToken` para apps construírem o builder
 - **`@informach/config`** — `Product`, `PRODUCTS`, `getStripePriceId`, `findProductByPriceId`
 
@@ -511,7 +513,7 @@ Para integração real → Stripe CLI test mode + Playwright nos apps em `mode: 
 
 13. **Adicionar novo provider (Asaas)?** (a) Implementar `BillingProviderClient` em `providers/asaas.ts`. (b) Adicionar `"asaas"` ao `BillingProvider` union (já está). (c) `buildProviderClient` em `index.ts` ramifica por `config.provider`. (d) Tests com fake provider. (e) Webhook handlers podem precisar abstrair shape de payload (Asaas envia formato diferente — talvez camada de normalization no `verifyWebhookSignature`).
 
-14. **Mudanças nos audit event types `billing.*`** exigem atualização em `@informach/auth/src/audit.ts` (union estrita) + tabela em `@informach/auth/CLAUDE.md` §3.5.
+14. **Mudanças nos audit event types `billing.*`** exigem atualização em `@informach/auth/src/audit.ts` (union estrita) + tabela em `@informach/auth/CLAUDE.md` §3.5 + revisão da política de payload em `docs/audit-payload-policy.md`.
 
 ---
 

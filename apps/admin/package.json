@@ -13,24 +13,10 @@
     "e2e:install": "playwright install chromium"
   },
   "dependencies": {
-    "@better-auth/redis-storage": "^1.6.9",
-    "@hookform/resolvers": "^3.9.1",
-    "@informach/ai-core": "workspace:*",
-    "@informach/auth": "workspace:*",
-    "@informach/billing": "workspace:*",
-    "@informach/config": "workspace:*",
-    "@informach/db": "workspace:*",
-    "@informach/emails": "workspace:*",
     "@informach/ui": "workspace:*",
-    "@t3-oss/env-nextjs": "^0.13.11",
-    "drizzle-orm": "^0.45.2",
-    "ioredis": "^5.10.1",
     "next": "^16.2.4",
-    "pino": "^9.5.0",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5",
-    "react-hook-form": "^7.54.2",
-    "zod": "^3.24.1"
+    "react-dom": "^19.2.5"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.1",

@@ -101,6 +101,27 @@ export const authObservability: ObservabilityHooks = {
       },
     });
   },
+  onAuditPersistenceFailure: (event) => {
+    const message = "auth.audit.persist_failed";
+    const context = {
+      eventType: event.eventType,
+      actorId: event.actorId,
+      payloadKeys: event.payloadKeys,
+      error: event.error,
+    };
+
+    logger.error(context, message);
+    Sentry.captureMessage(message, {
+      level: "error",
+      tags: {
+        auditEventType: event.eventType,
+        source: "auth-observability",
+      },
+      extra: {
+        context: sanitizeForSentry(context),
+      },
+    });
+  },
   onSecurityEvent: (event) => {
     const message = `auth.security.${event.type}`;
     const context = {

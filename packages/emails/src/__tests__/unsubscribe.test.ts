@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { buildUnsubscribeToken } from "../list-unsubscribe";
 import { processUnsubscribe } from "../unsubscribe";
 import { createFakeDb } from "./_fake-db";
@@ -19,8 +19,9 @@ describe("processUnsubscribe", () => {
       selectResult: [{ id: "user-1" }],
       insertResult: [],
     });
+    const onAudit = vi.fn();
 
-    const result = await processUnsubscribe({ db: db as never, secret: SECRET }, token);
+    const result = await processUnsubscribe({ db: db as never, secret: SECRET, onAudit }, token);
     expect(result).toEqual({
       ok: true,
       identifier: "user@example.com",
@@ -29,6 +30,17 @@ describe("processUnsubscribe", () => {
     });
     expect(calls.filter((c) => c.mode === "select").length).toBe(1);
     expect(calls.filter((c) => c.mode === "insert").length).toBe(1);
+    expect(onAudit).toHaveBeenCalledWith({
+      eventType: "email.unsubscribe_recorded",
+      actorId: "user-1",
+      payload: {
+        category: "auth.verify-email",
+        identifierKind: "email",
+        emailHash: expect.any(String),
+        emailDomain: "example.com",
+      },
+    });
+    expect(JSON.stringify(onAudit.mock.calls[0]?.[0])).not.toContain("user@example.com");
   });
 
   it("does not insert when no matching user is found", async () => {

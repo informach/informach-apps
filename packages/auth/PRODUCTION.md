@@ -294,7 +294,9 @@ createAuth({
 });
 ```
 
-`authObservability` adiciona breadcrumb `auth.audit` com `actorId` e `payloadKeys`, e captura `auth.security.<type>` como warning sanitizado no Sentry. A configuração do Sentry continua no app (`instrumentation-client.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`).
+`authObservability` adiciona breadcrumb `auth.audit` com `actorId` e `payloadKeys`, captura `auth.security.<type>` como warning sanitizado e captura `auth.audit.persist_failed` como error quando `logAuditEvent` não consegue inserir em `audit.events`. A configuração do Sentry continua no app (`instrumentation-client.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`).
+
+Regra de payload: Sentry/APM recebe chaves e erro sanitizado, não payload bruto. A política completa fica em [`docs/audit-payload-policy.md`](../../docs/audit-payload-policy.md).
 
 Eventos atualmente emitidos:
 - `session_revoked` em `databaseHooks.session.delete.after`.

@@ -436,12 +436,22 @@ describe("createAuth — observability hooks", () => {
   });
 
   it("does not break auth hooks when audit persistence fails", async () => {
+    const onAuditPersistenceFailure = vi.fn();
     dbInsertChain.values.mockRejectedValueOnce(new Error("audit db down"));
-    createAuth(makeConfig());
+    createAuth({ ...makeConfig(), observability: { onAuditPersistenceFailure } });
     const cfg = captureConfig();
     await expect(
       cfg.databaseHooks?.user?.create?.after?.({ id: "u1", email: "u@x.com" }),
     ).resolves.not.toThrow();
+    expect(onAuditPersistenceFailure).toHaveBeenCalledWith({
+      eventType: "user.created",
+      actorId: "u1",
+      payloadKeys: ["email"],
+      error: {
+        name: "Error",
+        message: "audit db down",
+      },
+    });
   });
 });
 

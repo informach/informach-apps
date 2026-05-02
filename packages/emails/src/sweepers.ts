@@ -1,6 +1,7 @@
 import type { Database } from "@informach/db";
 import { emailDeliveries, emailSuppressions } from "@informach/db/schema";
 import { and, asc, eq, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { type EmailAuditHook, emailAddressAuditPayload, emitEmailAudit } from "./audit";
 import {
   describeDeliveryBlockReason,
   findDeliveryBlockReason,
@@ -93,6 +94,7 @@ export async function syncSendgridSuppressions(deps: {
   apiKey: string;
   fetch?: typeof fetch;
   types?: SuppressionType[];
+  onAudit?: EmailAuditHook;
 }): Promise<SyncSuppressionsResult> {
   if (!deps.apiKey) {
     throw new Error("syncSendgridSuppressions: apiKey is required");
@@ -123,6 +125,16 @@ export async function syncSendgridSuppressions(deps: {
           source: "sendgrid",
         })
         .onConflictDoNothing({ target: emailSuppressions.email });
+      emitEmailAudit(deps, {
+        eventType: "email.suppression_recorded",
+        actorId: null,
+        payload: {
+          ...emailAddressAuditPayload(item.email),
+          providerSuppressionType: type,
+          reason: item.reason ?? SUPPRESSION_TYPE_TO_REASON[type],
+          source: "sendgrid",
+        },
+      });
       synced += 1;
       byType[type] += 1;
     }
@@ -148,6 +160,7 @@ export type RetryFailedDeps = {
   batchSize?: number;
   rng?: () => number;
   logger?: Pick<Logger, "info" | "warn" | "error">;
+  onAudit?: EmailAuditHook;
 };
 
 function buildListUnsubscribeHeaders(url: string, mailto?: string): Record<string, string> {
@@ -222,6 +235,18 @@ export async function retryFailedDeliveries(deps: RetryFailedDeps): Promise<Retr
           updatedAt: new Date(),
         })
         .where(eq(emailDeliveries.id, row.id));
+      emitEmailAudit(deps, {
+        eventType: "email.delivery_failed",
+        actorId: row.userId,
+        payload: {
+          deliveryId: row.id,
+          category: row.category,
+          messageKey: row.messageKey,
+          classification: "permanent",
+          reason: `invalid email category: ${row.category}`,
+          source: "retry",
+        },
+      });
       skipped += 1;
       safeLog(deps.logger, "warn", "Skipping retry: invalid category", {
         deliveryId: row.id,
@@ -238,11 +263,25 @@ export async function retryFailedDeliveries(deps: RetryFailedDeps): Promise<Retr
     });
     if (block) {
       const marked = await markDeliveryBlocked(deps.db, row.id, block, ["failed"]);
+      const reason = marked ? describeDeliveryBlockReason(block) : "claimed by another process";
+      if (marked) {
+        emitEmailAudit(deps, {
+          eventType: "email.delivery_skipped",
+          actorId: row.userId,
+          payload: {
+            deliveryId: row.id,
+            category,
+            messageKey: row.messageKey,
+            reason,
+            source: "retry",
+          },
+        });
+      }
       skipped += 1;
       safeLog(deps.logger, "info", "Email retry skipped by delivery policy", {
         deliveryId: row.id,
         category,
-        reason: marked ? describeDeliveryBlockReason(block) : "claimed by another process",
+        reason,
       });
       continue;
     }
@@ -299,6 +338,17 @@ export async function retryFailedDeliveries(deps: RetryFailedDeps): Promise<Retr
         .where(eq(emailDeliveries.id, row.id));
       retried += 1;
       recovered += 1;
+      emitEmailAudit(deps, {
+        eventType: "email.delivery_sent",
+        actorId: row.userId,
+        payload: {
+          deliveryId: row.id,
+          category,
+          messageKey: row.messageKey,
+          providerMessageId: messageId ?? null,
+          source: "retry",
+        },
+      });
       safeLog(deps.logger, "info", "Email retry succeeded", {
         deliveryId: row.id,
         category,
@@ -326,6 +376,18 @@ export async function retryFailedDeliveries(deps: RetryFailedDeps): Promise<Retr
 
       retried += 1;
       failed += 1;
+      emitEmailAudit(deps, {
+        eventType: "email.delivery_failed",
+        actorId: row.userId,
+        payload: {
+          deliveryId: row.id,
+          category,
+          messageKey: row.messageKey,
+          classification,
+          reason: lastError,
+          source: "retry",
+        },
+      });
 
       safeLog(deps.logger, "warn", "Email retry failed", {
         deliveryId: row.id,

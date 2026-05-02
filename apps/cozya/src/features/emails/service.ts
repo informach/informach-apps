@@ -1,7 +1,9 @@
+import { logAuditEvent } from "@informach/auth";
 import {
   buildUnsubscribeToken,
   createEmailService,
   createSendGridSend,
+  type EmailAuditEvent,
   type EmailCategory,
 } from "@informach/emails";
 import {
@@ -17,6 +19,15 @@ import { emailDb } from "./repository";
 
 const APP_HOSTNAME = new URL(env.NEXT_PUBLIC_APP_URL).hostname;
 
+export function emailAudit(event: EmailAuditEvent): void {
+  logAuditEvent(event.eventType, event.actorId, event.payload).catch((err) => {
+    packageLogger.error?.("email.audit.persist_failed", {
+      eventType: event.eventType,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  });
+}
+
 export const emails = createEmailService({
   apiKey: env.SENDGRID_API_KEY,
   defaultFrom: env.SENDGRID_FROM,
@@ -24,6 +35,7 @@ export const emails = createEmailService({
   mode: env.EMAIL_SANDBOX_MODE,
   sandboxDir: env.EMAIL_SANDBOX_DIR,
   logger: packageLogger,
+  onAudit: emailAudit,
 });
 
 export function buildEmailUnsubscribeUrl(identifier: string, category: EmailCategory): string {
@@ -36,11 +48,14 @@ export function getEmailUnsubscribeMailto(): string {
 }
 
 export async function processEmailUnsubscribe(token: string) {
-  return processUnsubscribe({ db: emailDb, secret: env.BETTER_AUTH_SECRET }, token);
+  return processUnsubscribe(
+    { db: emailDb, secret: env.BETTER_AUTH_SECRET, onAudit: emailAudit },
+    token,
+  );
 }
 
 export async function handleValidatedSendgridEvents(events: SendgridEvent[]) {
-  return handleSendgridEvents({ db: emailDb, logger: packageLogger }, events);
+  return handleSendgridEvents({ db: emailDb, logger: packageLogger, onAudit: emailAudit }, events);
 }
 
 export async function recoverStaleEmailDeliveries() {
@@ -48,7 +63,11 @@ export async function recoverStaleEmailDeliveries() {
 }
 
 export async function syncEmailSuppressions() {
-  return syncSendgridSuppressions({ db: emailDb, apiKey: env.SENDGRID_API_KEY });
+  return syncSendgridSuppressions({
+    db: emailDb,
+    apiKey: env.SENDGRID_API_KEY,
+    onAudit: emailAudit,
+  });
 }
 
 export async function retryAppFailedDeliveries() {
@@ -61,5 +80,6 @@ export async function retryAppFailedDeliveries() {
     buildUnsubscribeUrl: buildEmailUnsubscribeUrl,
     unsubscribeMailto: getEmailUnsubscribeMailto(),
     logger: packageLogger,
+    onAudit: emailAudit,
   });
 }

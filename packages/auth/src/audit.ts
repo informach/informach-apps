@@ -22,6 +22,11 @@ export type AuditEventType =
   | "auth.two_factor_verified"
   | "auth.backup_code_used"
   | "email.verified"
+  | "email.delivery_sent"
+  | "email.delivery_failed"
+  | "email.delivery_skipped"
+  | "email.unsubscribe_recorded"
+  | "email.suppression_recorded"
   | "org.created"
   | "org.member_added"
   | "org.member_removed"
@@ -61,7 +66,30 @@ export async function logAuditEvent(
       actorId,
       payload,
     });
-  } catch {
+  } catch (error) {
+    try {
+      observability?.onAuditPersistenceFailure?.({
+        eventType,
+        actorId,
+        payloadKeys: Object.keys(payload),
+        error: sanitizeAuditError(error),
+      });
+    } catch {
+      // observability hooks must not break the audit pipeline
+    }
     // audit persistence must not break auth flows
   }
+}
+
+function sanitizeAuditError(error: unknown): { name: string; message: string } {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+    };
+  }
+  return {
+    name: "UnknownError",
+    message: String(error),
+  };
 }

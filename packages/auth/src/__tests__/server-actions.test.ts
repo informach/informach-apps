@@ -280,15 +280,15 @@ describe("createActionFactory — audit", () => {
     const { action } = createActionFactory<TestUser, TestSession>({ helpers, onAudit });
     const fn = action
       .auth({ require: "user" })
-      .audit("user.action_invoked")
+      .audit("user.banned")
       .run(async () => "ok");
     await fn({});
     expect(onAudit).toHaveBeenCalledWith({
-      eventType: "user.action_invoked",
+      eventType: "user.banned",
       actorId: "u1",
     });
     expect(dbInsertChain.values).toHaveBeenCalledWith(
-      expect.objectContaining({ eventType: "user.action_invoked", actorId: "u1" }),
+      expect.objectContaining({ eventType: "user.banned", actorId: "u1" }),
     );
   });
 
@@ -298,11 +298,11 @@ describe("createActionFactory — audit", () => {
     const { action } = createActionFactory<TestUser, TestSession>({ helpers, onAudit });
     const fn = action
       .auth({ require: "none" })
-      .audit("anonymous.event")
+      .audit("auth.forget_password_requested")
       .run(async () => "ok");
     await fn({});
     expect(onAudit).toHaveBeenCalledWith({
-      eventType: "anonymous.event",
+      eventType: "auth.forget_password_requested",
       actorId: null,
     });
   });

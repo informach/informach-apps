@@ -1,5 +1,6 @@
 import type { Database } from "@informach/db";
 import sgMail from "@sendgrid/mail";
+import type { EmailAuditHook } from "./audit";
 import {
   type DispatchInput,
   type DispatchMode,
@@ -14,6 +15,16 @@ import {
 import type { Logger } from "./logger";
 import { type RenderTemplate, renderTemplate as renderTemplateImpl } from "./templates";
 
+export type {
+  EmailAuditEvent,
+  EmailAuditEventType,
+  EmailAuditHook,
+  EmailAuditPayload,
+} from "./audit";
+export {
+  emailAddressAuditPayload,
+  emitEmailAudit,
+} from "./audit";
 export type {
   DispatchInput,
   DispatchMode,
@@ -94,6 +105,7 @@ export type EmailServiceConfig = {
   mode?: DispatchMode;
   sandboxDir?: string;
   logger?: Logger;
+  onAudit?: EmailAuditHook;
 };
 
 export type EmailService = {
@@ -154,6 +166,7 @@ export function createEmailService(config: EmailServiceConfig): EmailService {
     send,
     outbox,
     logger: config.logger,
+    onAudit: config.onAudit,
   } as const;
 
   const sendEmail: SendEmail = (input: DispatchInput) => dispatchEmail(deps, input);

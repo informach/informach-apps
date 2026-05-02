@@ -93,7 +93,7 @@ Toda mutação passa por uma Server Action. Toda Server Action passa por um wrap
 1. Parse Zod do input.
 2. Resolve auth (`getCurrentUser`, membership, role).
 3. Aplica rate-limit.
-4. Audit log (event_type + actor + payload).
+4. Audit log (event_type + actor + payload minimo; PII segue [`audit-payload-policy.md`](./audit-payload-policy.md)).
 5. Chama o service.
 6. Captura no Sentry se o service retornar erro de infra.
 
@@ -105,7 +105,7 @@ export const inviteMemberAction = action
   .input(inviteSchema)
   .auth({ require: "member-of-org" })
   .rateLimit({ key: "invite", max: 10, window: "1m" })
-  .audit("member.invite")
+  .audit("org.invitation_sent")
   .run(async ({ input, ctx }) => {
     const r = await inviteMember(input, ctx.actor);
     if (!r.ok) return { error: serializeError(r.error) };
@@ -212,7 +212,7 @@ Zod em toda fronteira:
 
 - **Logger**: `pino`, instanciado em `lib/logger.ts`. Estruturado (JSON em produção). Nunca `console.log`.
 - **Sentry SDK Next.js**: configurado em `instrumentation-client.ts`, `sentry.server.config.ts` e `sentry.edge.config.ts` com `enabled` baseado em DSN, `enableLogs` ligado quando Sentry está ativo e `tracesSampleRate` explícito (1.0 em dev, 0.1 em produção).
-- **Adapter app-level**: `lib/observability.ts` é o único lugar onde os packages encostam em Sentry. Exporta `packageLogger` para `@informach/billing`/`@informach/emails` (mantém pino e duplica `warn`/`error` sanitizados para `Sentry.captureMessage`) e `authObservability` para `@informach/auth` (breadcrumbs de audit + security events). Contextos enviados ao Sentry passam por sanitização de chaves sensíveis.
+- **Adapter app-level**: `lib/observability.ts` é o único lugar onde os packages encostam em Sentry. Exporta `packageLogger` para `@informach/billing`/`@informach/emails` (mantém pino e duplica `warn`/`error` sanitizados para `Sentry.captureMessage`) e `authObservability` para `@informach/auth` (breadcrumbs de audit, `onAuditPersistenceFailure` e security events). Contextos enviados ao Sentry passam por sanitização de chaves sensíveis.
 - **Errors**: Sentry SDK Next.js. Captura em `error.tsx`, `global-error.tsx` e dentro do wrapper `lib/action.ts` quando o service retorna erro de infra.
 - **Source maps**: subidos para Sentry no CI.
 - **Health endpoint**: `app/api/health/route.ts` retornando 200 com timestamp + commit SHA. Provider usa para healthcheck.
@@ -231,6 +231,8 @@ Não-negociáveis. CI quebra PR em queda de cobertura.
 | E2E | Playwright | smoke dos fluxos críticos | contra `next start` com DB seedado. Stripe em test mode. Login → ação principal → resultado. |
 
 Pipeline de CI: `lint → typecheck → unit → integration → e2e → build`. Falha rápido.
+
+Apps que wireiam packages compartilhados devem ter testes pequenos de contrato para provar que `createAuth({ observability })`, `createBillingService({ onAudit })` e `createEmailService({ onAudit })` continuam conectados. `agenda-da-turma` e `cozya` já têm esse teste; `admin` só deve ganhar um quando virar app real.
 
 ---
 

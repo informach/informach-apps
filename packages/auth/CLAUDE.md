@@ -73,7 +73,7 @@ Todas as colunas declaradas em `packages/db/src/schema/core.ts` (source of truth
 | Magic link | Plugin `magicLink`, template `auth.magic-link` (cria user na primeira ocorrência — limitação Better Auth 1.x documentada) |
 | Cookie session cache | Default 300s (`session.cookieCache.maxAge`); override por config |
 | Rate limit | Defaults endurecidos contra enumeration (ver tabela em §3.4) |
-| Audit log | 21 `AuditEventType` tipados → `audit.events` |
+| Audit log | 36 `AuditEventType` tipados → `audit.events` |
 | ID generator | `crypto.randomUUID()` para todas as tabelas |
 
 ### 3.2 Opt-in (passe na config para ativar)
@@ -87,7 +87,7 @@ Todas as colunas declaradas em `packages/db/src/schema/core.ts` (source of truth
 | Account deletion (LGPD) | `accountDeletion: { enabled: true, sendDeleteEmail?, onBeforeDelete?, onAfterDelete? }` | — |
 | Cache role on session | `cacheRoleOnSession: true` | reaproveita `sessions.role` |
 | Secondary storage (Redis/KV) | `secondaryStorage: SecondaryStorage` | — |
-| Observability | `observability: { onAuditEvent?, onSecurityEvent? }` | — |
+| Observability | `observability: { onAuditEvent?, onAuditPersistenceFailure?, onSecurityEvent? }` | — |
 | Rate-limit overrides | `rateLimitRules: { "/path": { window, max } }` | — |
 
 ### 3.3 RBAC custom (não usa plugin `admin`)
@@ -145,15 +145,19 @@ user.deleted            auth.two_factor_enabled
                         auth.two_factor_verified
                         auth.backup_code_used
 
+email.delivery_sent     email.unsubscribe_recorded
+email.delivery_failed   email.suppression_recorded
+email.delivery_skipped
+
 billing.subscription_created    billing.payment_succeeded   billing.credits_consumed
 billing.subscription_updated    billing.payment_failed      billing.credits_refunded
 billing.subscription_canceled   billing.credits_granted
 ```
 
-Cada `logAuditEvent(eventType, actorId, payload)` insere em `audit.events` e dispara `observability.onAuditEvent`. **Hooks são try/catch-ados internamente** — falha em APM não derruba o auth.
+Cada `logAuditEvent(eventType, actorId, payload)` insere em `audit.events` e dispara `observability.onAuditEvent`. Se o INSERT falhar, o fluxo continua e `observability.onAuditPersistenceFailure` recebe `{ eventType, actorId, payloadKeys, error }` sanitizado. **Hooks são try/catch-ados internamente** — falha em APM ou no banco de audit não derruba o auth.
 Nos apps atuais, `authObservability` em `src/lib/observability.ts` transforma audit em breadcrumbs Sentry usando `payloadKeys` em vez de payload bruto.
 
-A função `logAuditEvent` é **re-exportada do root** (`import { logAuditEvent } from "@informach/auth"`) para que outros packages do monorepo (notavelmente `@informach/billing`) possam wirar `config.onAudit` callback sem importar de sub-paths internos. Apps tipicamente fazem:
+A função `logAuditEvent` é **re-exportada do root** (`import { logAuditEvent } from "@informach/auth"`) para que outros packages do monorepo (`@informach/billing`, `@informach/emails`) possam wirar `config.onAudit` callback sem importar de sub-paths internos. Apps tipicamente fazem:
 
 ```ts
 // apps/<app>/src/lib/billing.ts
@@ -165,7 +169,9 @@ createBillingService({
 });
 ```
 
-Os 8 audit types `billing.*` são gerenciados pelo package `@informach/billing` mas declarados aqui na union `AuditEventType` — qualquer novo tipo precisa ser adicionado a `audit.ts` E à tabela acima.
+Os audit types `billing.*` e `email.*` são gerenciados pelos packages `@informach/billing` e `@informach/emails`, mas declarados aqui na union `AuditEventType` — qualquer novo tipo precisa ser adicionado a `audit.ts` E à tabela acima.
+
+Politica de payload/PII: [`docs/audit-payload-policy.md`](../../docs/audit-payload-policy.md). Regra curta: payload minimo, sem secrets/tokens/raw webhooks; eventos `email.*` usam `emailHash`/`emailDomain` em vez de email bruto.
 
 ### 3.6 Security events (observability)
 
@@ -225,7 +231,7 @@ Apps são responsáveis por expor essas funções via route handler `POST` prote
 
 ### 3.10 Action factory (server actions)
 
-`createActionFactory({ helpers, onAudit? })` retorna `{ action, ok, err, *Error }`. O builder `action` é chainable:
+`createActionFactory({ helpers, onAudit? })` retorna `{ action, ok, err, *Error }`. O builder `action` é chainable; `.audit(...)` aceita somente `AuditEventType`, não string livre:
 
 ```ts
 export const banUser = action
@@ -397,7 +403,7 @@ Wiring real em `apps/<app>/src/lib/env.ts` (`@t3-oss/env-nextjs`).
 5. **Cookie cache 5min default.** Balanceia performance (evita DB hit por request) com latência de revogação aceitável. Para revogação imediata após ban/role-change, chamar `auth.api.signOutAllSessions({ userId })` manualmente. Apps com necessidade de tempo real passam `session.cookieCache.maxAge` menor.
 6. **`proxy.ts` (Next 16), não `middleware.ts`.** Next 16 deprecated middleware em favor de proxy (runtime Node.js). Codename do package: `createAuthProxy` em `@informach/auth/proxy`.
 7. **`server-only` em proxy/server/server-actions.** Garante que importação de Client Component falha em build.
-8. **Audit pipeline try/catch'ed.** Falha em `observability.onAuditEvent`/`onSecurityEvent` ou em INSERT no `audit.events` não pode quebrar fluxo de auth — todos os emits estão dentro de try/catch.
+8. **Audit pipeline try/catch'ed.** Falha em `observability.onAuditEvent`/`onSecurityEvent` ou em INSERT no `audit.events` não pode quebrar fluxo de auth — todos os emits estão dentro de try/catch. Falha de INSERT deve chamar `onAuditPersistenceFailure` com erro sanitizado.
 9. **Cadastro público continua aberto.** `requireEmailVerification: true` é o gate. `disableSignup` está exposto na config como infraestrutura para o futuro. Magic-link cria users na primeira ocorrência (limitação 1.x, comentada em `index.ts`).
 
 ### 5.2 Sub-paths do package (`exports` em `package.json`)
@@ -433,7 +439,7 @@ Wiring real em `apps/<app>/src/lib/env.ts` (`@t3-oss/env-nextjs`).
 
 Snapshots dos templates de email vivem em `@informach/emails/src/__tests__/templates.test.tsx` (foram movidos junto com a migração para React Email).
 
-Apps **não rodam estes testes** — fica isolado no package. Para teste E2E real (sign-up + verify), usar Playwright nos apps (`apps/<app>/e2e/`).
+Apps **não rodam estes testes** — fica isolado no package. Para teste E2E real (sign-up + verify), usar Playwright nos apps (`apps/<app>/e2e/`). Além disso, apps que conectam auth/billing/emails mantêm testes próprios de wiring para travar `observability` e `onAudit`.
 
 ---
 

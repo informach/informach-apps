@@ -42,10 +42,12 @@ describe("syncSendgridSuppressions", () => {
     });
 
     const { db, calls } = createFakeDb({ insertResult: [] });
+    const onAudit = vi.fn();
     const result = await syncSendgridSuppressions({
       db: db as never,
       apiKey: "SG.test",
       fetch: fetchMock as unknown as typeof fetch,
+      onAudit,
     });
 
     expect(result.synced).toBe(4);
@@ -57,6 +59,19 @@ describe("syncSendgridSuppressions", () => {
     });
     const insertCalls = calls.filter((c) => c.mode === "insert");
     expect(insertCalls.length).toBe(4);
+    expect(onAudit).toHaveBeenCalledTimes(4);
+    expect(onAudit).toHaveBeenCalledWith({
+      eventType: "email.suppression_recorded",
+      actorId: null,
+      payload: {
+        emailHash: expect.any(String),
+        emailDomain: "x.com",
+        providerSuppressionType: expect.any(String),
+        reason: expect.any(String),
+        source: "sendgrid",
+      },
+    });
+    expect(JSON.stringify(onAudit.mock.calls[0]?.[0])).not.toContain("a@x.com");
   });
 
   it("paginates while a page returns the full limit (500)", async () => {
@@ -128,6 +143,7 @@ describe("retryFailedDeliveries", () => {
       updateResult: [{ id: baseRow.id }],
     });
     const send: SendFn = vi.fn().mockResolvedValue({ messageId: "mid-retry" });
+    const onAudit = vi.fn();
 
     const result = await retryFailedDeliveries({
       db: db as never,
@@ -136,6 +152,7 @@ describe("retryFailedDeliveries", () => {
       buildUnsubscribeUrl,
       unsubscribeMailto: "unsubscribe@example.com",
       rng: () => 0.5,
+      onAudit,
     });
 
     expect(send).toHaveBeenCalledTimes(1);
@@ -156,6 +173,17 @@ describe("retryFailedDeliveries", () => {
     expect(msg.customArgs.delivery_id).toBe(baseRow.id);
     expect(msg.customArgs.user_id).toBe(baseRow.userId);
     expect(msg.categories).toEqual(["auth.verify-email"]);
+    expect(onAudit).toHaveBeenCalledWith({
+      eventType: "email.delivery_sent",
+      actorId: "user-1",
+      payload: {
+        deliveryId: "row-1",
+        category: "auth.verify-email",
+        messageKey: "key-1",
+        providerMessageId: "mid-retry",
+        source: "retry",
+      },
+    });
   });
 
   it("skips suppressed recipients before retrying", async () => {

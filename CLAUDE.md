@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 `informach-platform` is a pnpm + Turborepo monorepo (pnpm@9.15.0, turbo@2.9.6, TypeScript 5.6, Node ≥20, Biome 2.4 for lint+format).
 
 - **Apps** (`apps/`):
-  - `admin` (port 3003) — scaffold, no features yet.
+  - `admin` (port 3003) — scaffold, no auth/billing/db wiring yet; keep dependencies minimal until it becomes a real app.
   - `agenda-da-turma` (port 3001) — multi-tenant (Better Auth organizations enabled), Sentry, Vitest + Playwright.
   - `cozya` (port 3002) — single-user (no organizations), Sentry, Vitest + Playwright.
 - **Packages** (`packages/`, scope `@informach/*`): `db`, `auth`, `billing`, `emails`, `ai-core`, `config`, `ui`. All consumed as TypeScript source — none have a build step.
@@ -18,7 +18,7 @@ Per-package deep guides exist and should be consulted before non-trivial changes
 - `packages/emails/CLAUDE.md`
 - `packages/ai-core/CLAUDE.md`
 
-Cross-cutting docs in `docs/`: `arquitetura-monorepo.md`, `arquitetura-apps.md`, `arquitetura-packages.md`, `adr/0001-uso-de-monorepo.md`.
+Cross-cutting docs in `docs/`: `arquitetura-monorepo.md`, `arquitetura-apps.md`, `arquitetura-packages.md`, `audit-payload-policy.md`, `adr/0001-uso-de-monorepo.md`.
 
 ## Commands
 
@@ -38,7 +38,7 @@ Cross-cutting docs in `docs/`: `arquitetura-monorepo.md`, `arquitetura-apps.md`,
 ## Architecture pillars
 
 ### Packages are consumed as TypeScript source
-Each package exposes its surface via `package.json` `exports` pointing at `src/`. Apps add every `@informach/*` to `transpilePackages` in `next.config.ts`. **Never add a build step to a shared package** — see `docs/arquitetura-packages.md`.
+Each package exposes its surface via `package.json` `exports` pointing at `src/`. Apps add every consumed `@informach/*` to `transpilePackages` in `next.config.ts`. **Never add a build step to a shared package** — see `docs/arquitetura-packages.md`.
 
 ### Auth and the Next 16 proxy
 - Better Auth 1.6.9 wrapped by `@informach/auth`. RBAC is custom (4 roles: owner/admin/member/guest, 8 permissions) — *not* the Better Auth admin plugin.
@@ -46,6 +46,7 @@ Each package exposes its surface via `package.json` `exports` pointing at `src/`
 - Cookie cache 5 min by default; role changes invalidate sessions immediately.
 - `agenda-da-turma` has organizations enabled; `cozya` does not.
 - Account deletion (LGPD) calls `billing.cancelBillingForSubject` via the auth `onBeforeDelete` hook.
+- Audit is typed through `AuditEventType`; packages emit through app-wired `onAudit` callbacks and persistence failures are reported via `observability.onAuditPersistenceFailure`.
 
 ### Billing — Stripe Dahlia + reserve/commit credits
 - `stripe@^22.1.0` pinned with `apiVersion: '2026-04-22.dahlia'` (literal). Note Basil/Dahlia changes: `current_period_*` lives on `items.data[i]`, `checkout.session.completed` fires *before* the subscription event, `total_count` is removed, monetary math uses `Stripe.Decimal`.
@@ -61,10 +62,12 @@ Each package exposes its surface via `package.json` `exports` pointing at `src/`
 - Three modes: `live` (SendGrid), `sandbox` (disk), `memory` (E2E tests).
 - Webhook handler must preserve `rawBody` **before** `JSON.parse` (ECDSA verification).
 - Sweepers: recover-stale (30min), retry-failed (5min), sync-suppressions (1d).
+- Email audit events (`email.delivery_*`, `email.unsubscribe_recorded`, `email.suppression_recorded`) are optional via `onAudit`; payloads use `emailHash`/`emailDomain`, never raw recipient email.
 
 ### Database — Drizzle is the source of truth
 - All schema lives in `@informach/db` (no Better Auth CLI, no hand-written SQL). Postgres schemas: `core`, `billing`, `audit`, `ai`, `agenda`, `cozya`.
 - Schema changes flow through `pnpm db:generate` → `pnpm db:migrate`.
+- `audit.events` is append-only operational/compliance logging. Payload rules and LGPD/PII limits are documented in `docs/audit-payload-policy.md`.
 - **Exception**: Mastra owns the `ai_mastra` schema (tables `mastra_threads`, `mastra_messages`, `mastra_traces`, `mastra_scorers`, `mastra_evals`, `mastra_workflow_snapshot`, `mastra_resources`). It auto-creates them on first call. `ai_mastra` is intentionally absent from `drizzle.config.ts` `schemaFilter` so `db:generate` never proposes DROP. Migration `0010_create_ai_mastra_schema.sql` only runs `CREATE SCHEMA IF NOT EXISTS`.
 
 ### AI agents — Mastra base in `@informach/ai-core`

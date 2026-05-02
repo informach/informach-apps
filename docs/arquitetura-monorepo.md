@@ -200,10 +200,10 @@ Overrides ficam em `overrides[]` (ex: `noConsole: "off"` em `scripts/**`).
 
 ## Banco de dados central com schemas SQL por domínio
 
-**Recomendado**: um Postgres compartilhado, schemas SQL nativos por domínio (`core`, `<dominio_app>`, `audit`, `ai`...). O package `db` declara via `pgSchema("nome").table(...)` e mantém migrations sob versão.
+**Recomendado**: um Postgres compartilhado, schemas SQL nativos por domínio (`core`, `billing`, `audit`, `ai`, `agenda`, `cozya`...). O package `db` declara via `pgSchema("nome").table(...)` e mantém migrations sob versão.
 
 Por quê:
-- Auth, billing e telemetria (esquemas `core` e `audit`) servem todos os apps. Compartilhar tabelas é o caso de uso.
+- Auth, billing, emails e auditoria (schemas `core`, `billing` e `audit`) servem os apps reais. Compartilhar tabelas é o caso de uso; o app `admin` ainda é só scaffold e não deve declarar deps internas enquanto não tiver wiring.
 - Schemas SQL dão isolamento lógico e permissões por role. Se um app só precisa ler `core` e escrever em `<dominio_app>`, dá pra restringir.
 - Migrations centralizadas evitam corrida de migrations entre apps que sobem em paralelo.
 - Backup e operação ficam em uma fonte só.
@@ -304,11 +304,11 @@ Como a referência se materializa em um caso real (org `informach`):
 ```
 informach-platform/
 ├── apps/
-│   ├── admin/                  # @informach/admin
+│   ├── admin/                  # @informach/admin (scaffold; sem auth/billing/db por enquanto)
 │   ├── agenda-da-turma/        # @informach/agenda-da-turma
 │   └── cozya/                  # @informach/cozya
 └── packages/
-    ├── db/                     # @informach/db (drizzle, schemas core/agenda/cozya/audit/ai)
+    ├── db/                     # @informach/db (drizzle, schemas core/billing/agenda/cozya/audit/ai)
     ├── auth/                   # @informach/auth (Better Auth: RBAC, passkeys, organizations)
     ├── billing/                # @informach/billing (Stripe: subscriptions + credit ledger)
     ├── ui/                     # @informach/ui (shadcn + Tailwind v4 tokens)
@@ -317,7 +317,7 @@ informach-platform/
     └── ai-core/                # @informach/ai-core (primitivas IA)
 ```
 
-Três apps independentes no Railway, cada um com seu domínio (`admin.informach.com.br`, etc.), todos consumindo `@informach/db` (Postgres único, schemas separados). Substitua `informach` por qualquer outra org e a estrutura permanece.
+Três apps independentes no Railway, cada um com seu domínio (`admin.informach.com.br`, etc.). `agenda-da-turma` e `cozya` consomem `@informach/db`/auth/billing/emails; `admin` só deve entrar nesse grupo quando tiver rota `/api/auth`, observabilidade e wiring próprios. Substitua `informach` por qualquer outra org e a estrutura permanece.
 
 ---
 

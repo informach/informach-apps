@@ -1,5 +1,6 @@
 import { db } from "@informach/db";
 import { processUnsubscribe } from "@informach/emails/unsubscribe";
+import { emailAudit } from "@/lib/emails";
 import { env } from "@/lib/env";
 
 export const runtime = "nodejs";
@@ -8,7 +9,10 @@ async function handle(token: string | null): Promise<Response> {
   if (!token) {
     return new Response("Missing token", { status: 400 });
   }
-  const result = await processUnsubscribe({ db, secret: env.BETTER_AUTH_SECRET }, token);
+  const result = await processUnsubscribe(
+    { db, secret: env.BETTER_AUTH_SECRET, onAudit: emailAudit },
+    token,
+  );
   if (!result.ok) {
     return new Response("Invalid token", { status: 400 });
   }
@@ -40,6 +44,9 @@ export async function POST(request: Request): Promise<Response> {
   if (!token) {
     return new Response(null, { status: 400 });
   }
-  const result = await processUnsubscribe({ db, secret: env.BETTER_AUTH_SECRET }, token);
+  const result = await processUnsubscribe(
+    { db, secret: env.BETTER_AUTH_SECRET, onAudit: emailAudit },
+    token,
+  );
   return new Response(null, { status: result.ok ? 200 : 400 });
 }
