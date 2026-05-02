@@ -63,6 +63,15 @@ Use o logger do package de observabilidade do org (ou um parâmetro opcional). P
 
 Package não importa de Next.js. Acopla a Next quando não precisa. Server Actions moram no app que as roteia, não no package.
 
+**Exceção: adapters Next em sub-paths `server-only`.** Packages de domain integration podem precisar oferecer wrappers para RSC, route handlers, `proxy.ts` (Next 16) ou factories de server actions. Quando isso acontece, é aceitável importar de `next/*` desde que **todas** as condições abaixo sejam respeitadas:
+
+- O arquivo afetado vive em um sub-path declarado em `exports` (ex: `./server`, `./proxy`, `./server-actions`) — nunca no root (`.`).
+- O arquivo começa com `import "server-only"` para falhar em build se importado de Client Component.
+- `next` é declarado como `peerDependency` opcional (`peerDependenciesMeta.next.optional: true`), não como `dependency` direta.
+- O sub-path expõe uma **factory** ou helper, não Server Actions concretas — Server Actions continuam morando no app que as roteia.
+
+Exemplo real: `@informach/auth/proxy` (`createAuthProxy`), `@informach/auth/server` (`createServerHelpers`), `@informach/auth/server-actions` (`createActionFactory`). Root `@informach/auth` permanece Next-free.
+
 ---
 
 ## Categorias de packages
@@ -254,9 +263,9 @@ Tipos: `AppName`, `AgentName`, `AgentRunStatus`, `TokenUsage`, `AiRuntimeConfig`
 
 Declaradas em `package.json` com `"workspace:*"`. Exemplos típicos:
 
-- `auth` → `db`, `errors`.
-- `billing` → `db`, `auth`, `errors`, `observability`.
-- `emails` → `config`, `errors`.
+- `auth` → `db`, `emails`. (Erros declarados inline até existir um segundo consumidor — ver §"Quando NÃO criar um package".)
+- `billing` → `db`, `auth`, `observability`. (Quando `billing` materializar e precisar das mesmas classes-base de erro de `auth`, é o momento certo de extrair `packages/errors/`.)
+- `emails` → `config`.
 - `ui` → (sem deps internas).
 - `ai-core` → `db` (para `agent_runs`, `messages`, `tool_calls`, `usage_logs` em `schema/ai`), `observability`.
 
