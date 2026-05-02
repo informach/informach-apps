@@ -1,13 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
-import { type CreditAwareBillingClient, computeCreditsFromUsage, withCredits } from "../billing";
+import {
+  type CreditAwareBillingClient,
+  CreditValidationError,
+  computeCreditsFromUsage,
+  withCredits,
+} from "../billing";
 
 const owner = { type: "user" as const, id: "user-1" };
 const futureExpiry = new Date(Date.now() + 60_000);
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function makeBilling(overrides: Partial<CreditAwareBillingClient> = {}): CreditAwareBillingClient {
   return {
     reserveCredits: vi.fn(async (input) => ({
-      id: "res-1",
+      id: input.reservationId ?? "res-1",
       ownerType: input.owner.type,
       ownerId: input.owner.id,
       estimatedAmount: input.estimatedAmount,
@@ -46,18 +52,45 @@ describe("withCredits", () => {
     expect(out.estimatedAmount).toBe(200);
     expect(out.actualAmount).toBe(11); // ceil(100/1000*30 + 50/1000*150) = ceil(3 + 7.5) = 11
     expect(out.ledgerEntryId).toBe("ledger-1");
-    expect(out.reservationId).toBe("res-1");
+    expect(out.reservationId).toMatch(uuidPattern);
     expect(billing.reserveCredits).toHaveBeenCalledWith(
       expect.objectContaining({
+        reservationId: expect.stringMatching(uuidPattern),
+        runId: expect.stringMatching(uuidPattern),
         estimatedAmount: 200,
         feature: "llm.text",
         model: "claude-sonnet-4-6",
       }),
     );
     expect(billing.commitReservation).toHaveBeenCalledWith(
-      expect.objectContaining({ reservationId: "res-1", actualAmount: 11 }),
+      expect.objectContaining({
+        reservationId: expect.stringMatching(uuidPattern),
+        actualAmount: 11,
+      }),
     );
     expect(billing.releaseReservation).not.toHaveBeenCalled();
+  });
+
+  it("uses an explicit runId as the reservation id for cross-schema correlation", async () => {
+    const billing = makeBilling();
+    const runId = "11111111-1111-4111-8111-111111111111";
+    const out = await withCredits({
+      billing,
+      owner,
+      app: "cozya",
+      feature: "llm.text",
+      runId,
+      estimateCost: () => ({ estimatedAmount: 200 }),
+      call: async () => "ok",
+      computeActualCost: () => ({ actualAmount: 100 }),
+    });
+    expect(out.reservationId).toBe(runId);
+    expect(billing.reserveCredits).toHaveBeenCalledWith(
+      expect.objectContaining({ reservationId: runId, runId }),
+    );
+    expect(billing.commitReservation).toHaveBeenCalledWith(
+      expect.objectContaining({ reservationId: runId }),
+    );
   });
 
   it("releases the reservation with reason 'llm_error' when call() throws", async () => {
@@ -77,7 +110,7 @@ describe("withCredits", () => {
       }),
     ).rejects.toThrow(error);
     expect(billing.releaseReservation).toHaveBeenCalledWith({
-      reservationId: "res-1",
+      reservationId: expect.stringMatching(uuidPattern),
       reason: "llm_error",
     });
     expect(billing.commitReservation).not.toHaveBeenCalled();
@@ -101,7 +134,7 @@ describe("withCredits", () => {
       }),
     ).rejects.toThrow(abort);
     expect(billing.releaseReservation).toHaveBeenCalledWith({
-      reservationId: "res-1",
+      reservationId: expect.stringMatching(uuidPattern),
       reason: "timeout",
     });
   });
@@ -122,9 +155,46 @@ describe("withCredits", () => {
       }),
     ).rejects.toThrow(/bad usage shape/);
     expect(billing.releaseReservation).toHaveBeenCalledWith({
-      reservationId: "res-1",
+      reservationId: expect.stringMatching(uuidPattern),
       reason: "validation_failed",
     });
+  });
+
+  it("releases with reason 'validation_failed' when computeActualCost returns an invalid amount", async () => {
+    const billing = makeBilling();
+    await expect(
+      withCredits({
+        billing,
+        owner,
+        app: "cozya",
+        feature: "llm.text",
+        estimateCost: () => ({ estimatedAmount: 100 }),
+        call: async () => "ok",
+        computeActualCost: () => ({ actualAmount: 0 }),
+      }),
+    ).rejects.toThrow(CreditValidationError);
+    expect(billing.releaseReservation).toHaveBeenCalledWith({
+      reservationId: expect.stringMatching(uuidPattern),
+      reason: "validation_failed",
+    });
+    expect(billing.commitReservation).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid explicit runId before reserving credits", async () => {
+    const billing = makeBilling();
+    await expect(
+      withCredits({
+        billing,
+        owner,
+        app: "cozya",
+        feature: "llm.text",
+        runId: "run-1",
+        estimateCost: () => ({ estimatedAmount: 100 }),
+        call: async () => "ok",
+        computeActualCost: () => ({ actualAmount: 100 }),
+      }),
+    ).rejects.toThrow("runId must be a UUID");
+    expect(billing.reserveCredits).not.toHaveBeenCalled();
   });
 
   it("propagates the original error even if releaseReservation also fails", async () => {
@@ -219,5 +289,23 @@ describe("computeCreditsFromUsage", () => {
         { promptCostPer1k: 0, completionCostPer1k: 0 },
       ),
     ).toBe(1);
+  });
+
+  it("rejects inconsistent token usage", () => {
+    expect(() =>
+      computeCreditsFromUsage(
+        { promptTokens: 100, completionTokens: 50, totalTokens: 10 },
+        { promptCostPer1k: 1, completionCostPer1k: 1 },
+      ),
+    ).toThrow(CreditValidationError);
+  });
+
+  it("rejects negative pricing", () => {
+    expect(() =>
+      computeCreditsFromUsage(
+        { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
+        { promptCostPer1k: -1, completionCostPer1k: 1 },
+      ),
+    ).toThrow(CreditValidationError);
   });
 });

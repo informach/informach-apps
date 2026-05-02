@@ -21,12 +21,13 @@ const baseReserveInput = {
   app: "agenda-da-turma",
   feature: "llm.text",
   model: "claude-sonnet-4-6",
-  runId: "run-1",
+  runId: "11111111-1111-4111-8111-111111111111",
 };
 
 describe("reserveCredits", () => {
   it("creates a reservation when balance is sufficient", async () => {
-    const { db } = createFakeDb({
+    const reservationId = "22222222-2222-4222-8222-222222222222";
+    const { db, calls } = createFakeDb({
       // execute() returns balance row: total=1000, reserved_other=300 → available=700
       executeResult: [{ total: "1000", reserved_other: "300" }],
       insertResult: [
@@ -36,10 +37,51 @@ describe("reserveCredits", () => {
         },
       ],
     });
-    const handle = await reserveCredits({ db: db as never }, baseReserveInput);
+    const handle = await reserveCredits(
+      { db: db as never },
+      { ...baseReserveInput, reservationId },
+    );
     expect(handle.id).toBe("res-1");
     expect(handle.estimatedAmount).toBe(200);
     expect(handle.ownerType).toBe("user");
+    expect(calls).toContainEqual(
+      expect.objectContaining({
+        mode: "values",
+        args: [
+          expect.objectContaining({
+            id: reservationId,
+            runId: baseReserveInput.runId,
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("uses the reservation UUID as runId when caller does not pass runId", async () => {
+    const reservationId = "33333333-3333-4333-8333-333333333333";
+    const { db, calls } = createFakeDb({
+      executeResult: [{ total: "1000", reserved_other: "0" }],
+      insertResult: [{ id: reservationId, expiresAt: new Date("2026-05-01T20:00:00Z") }],
+    });
+    await reserveCredits(
+      { db: db as never },
+      {
+        ...baseReserveInput,
+        reservationId,
+        runId: undefined,
+      },
+    );
+    expect(calls).toContainEqual(
+      expect.objectContaining({
+        mode: "values",
+        args: [
+          expect.objectContaining({
+            id: reservationId,
+            runId: reservationId,
+          }),
+        ],
+      }),
+    );
   });
 
   it("throws InsufficientCreditsError when available < estimatedAmount", async () => {

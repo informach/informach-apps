@@ -189,9 +189,19 @@ Benefício: trocar provider de billing, ORM ou auth vira um problema do package,
 
 ## Pasta `src/ai/`
 
-Cada app tem sua pasta `ai/` para agentes, workflows e lógica IA específica daquele produto. A primitiva compartilhada (tipos `AppName`, `TokenUsage`, `ToolContext`, helpers de telemetria) vem de `@<org>/ai-core`. Os agentes em si — prompts, tools, fluxos — são código do app, não do package, porque são acoplados ao domínio do produto.
+Cada app tem sua pasta `ai/` para agentes, workflows e lógica IA específica daquele produto. A primitiva compartilhada vem de `@<org>/ai-core`: tipos (`AppName`, `TokenUsage`, `ToolContext`), billing (`withCredits`), telemetria (`createAgentRunRecorder`), factories Mastra (`@<org>/ai-core/mastra`), providers AI SDK (`@<org>/ai-core/providers`) e logger (`@<org>/ai-core/logger`).
 
-`ai/README.md` inicial documenta o contrato esperado (que primitivas usar, como nomear runs, como logar usage).
+Os agentes em si — prompts, tools, workflows e regras de produto — são código do app, não do package, porque são acoplados ao domínio do produto. O package só padroniza a fundação.
+
+Contrato para qualquer rota/action que invoque LLM:
+
+- Código em `src/ai/` começa com `import "server-only"` e roda em Node, nunca Edge.
+- `DATABASE_URL`, `OPENAI_API_KEY`/`ANTHROPIC_API_KEY` e `MASTRA_LOG_LEVEL` são lidos no `lib/env.ts` do app e injetados nas factories. `@<org>/ai-core` não lê `process.env`.
+- Toda chamada paga usa `withCredits`; o `reservation.id` vira o `runId` passado para `agent.generate({ runId })` e para `recorder.start/finish`.
+- Usage vindo do provider é normalizado para `TokenUsage` antes de persistir ou calcular créditos. Se o provider retornar `inputTokens`/`outputTokens`, o app mapeia para `promptTokens`/`completionTokens`.
+- `recorder.finish` só recebe status terminal: `succeeded`, `failed` ou `canceled`.
+
+`ai/README.md` inicial documenta o contrato esperado do app específico: nomes de agentes, features cobradas, modelos permitidos, pricing por 1k tokens e quais tools podem acessar dados sensíveis.
 
 ---
 

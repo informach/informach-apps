@@ -1,6 +1,17 @@
 import { vi } from "vitest";
 
-type Mode = "select" | "insert" | "update" | "delete" | "execute" | "transaction";
+type Mode =
+  | "select"
+  | "insert"
+  | "update"
+  | "delete"
+  | "execute"
+  | "transaction"
+  | "values"
+  | "set"
+  | "where"
+  | "returning"
+  | "limit";
 
 export type FakeDbCall = {
   mode: Mode;
@@ -35,7 +46,10 @@ export function createFakeDb(config: FakeDbConfig = {}) {
   const buildChain = (terminate: () => Promise<unknown[]>) => {
     const chain: Record<string, unknown> = {};
     const noop = (name: string) => {
-      chain[name] = vi.fn(() => chain);
+      chain[name] = vi.fn((...args: unknown[]) => {
+        calls.push({ mode: name as Mode, args });
+        return chain;
+      });
     };
     noop("values");
     noop("onConflictDoNothing");
@@ -53,8 +67,14 @@ export function createFakeDb(config: FakeDbConfig = {}) {
     noop("offset");
     noop("for");
 
-    chain.returning = vi.fn(() => terminate());
-    chain.limit = vi.fn(() => terminate());
+    chain.returning = vi.fn((...args: unknown[]) => {
+      calls.push({ mode: "returning", args });
+      return terminate();
+    });
+    chain.limit = vi.fn((...args: unknown[]) => {
+      calls.push({ mode: "limit", args });
+      return terminate();
+    });
     // biome-ignore lint/suspicious/noThenProperty: required to make Drizzle chain await-able
     chain.then = (
       onFulfilled?: (value: unknown[]) => unknown,

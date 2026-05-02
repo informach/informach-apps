@@ -1,5 +1,16 @@
+import { randomUUID } from "node:crypto";
 import type { CreditOwner, ReservationHandle } from "@informach/billing";
 import type { AppName, TokenUsage } from "./types";
+
+const UUID_V4_OR_COMPATIBLE_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export class CreditValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CreditValidationError";
+  }
+}
 
 /**
  * Minimal slice of `BillingService` used by this wrapper. Importing the
@@ -8,6 +19,7 @@ import type { AppName, TokenUsage } from "./types";
  */
 export type CreditAwareBillingClient = {
   reserveCredits(input: {
+    reservationId?: string;
     owner: CreditOwner;
     estimatedAmount: number;
     app: string;
@@ -50,6 +62,10 @@ export type WithCreditsInput<TResult> = {
   app: AppName;
   feature: string;
   model?: string;
+  /**
+   * Optional preallocated UUID used as both reservation id and run id. Omit it
+   * to let `withCredits` create one before reserving credits.
+   */
   runId?: string;
   requestId?: string;
   ttlSeconds?: number;
@@ -101,13 +117,19 @@ export async function withCredits<TResult>(
   input: WithCreditsInput<TResult>,
 ): Promise<WithCreditsResult<TResult>> {
   const estimate = await input.estimateCost();
+  assertPositiveInteger(estimate.estimatedAmount, "estimatedAmount");
+
+  const runId = input.runId ?? randomUUID();
+  assertUuid(runId, "runId");
+
   const reservation = await input.billing.reserveCredits({
+    reservationId: runId,
     owner: input.owner,
     estimatedAmount: estimate.estimatedAmount,
     app: input.app,
     feature: input.feature,
     model: input.model,
-    runId: input.runId,
+    runId,
     requestId: input.requestId,
     ttlSeconds: input.ttlSeconds,
     metadata: input.reserveMetadata,
@@ -124,6 +146,7 @@ export async function withCredits<TResult>(
   let actual: CostActual;
   try {
     actual = await input.computeActualCost(result);
+    assertPositiveInteger(actual.actualAmount, "actualAmount");
   } catch (err) {
     // Computing the actual cost failed — release the reservation and surface the error.
     await safeRelease(input.billing, reservation.id, "validation_failed");
@@ -156,6 +179,15 @@ export function computeCreditsFromUsage(
   usage: TokenUsage,
   pricing: { promptCostPer1k: number; completionCostPer1k: number },
 ): number {
+  assertNonNegativeInteger(usage.promptTokens, "usage.promptTokens");
+  assertNonNegativeInteger(usage.completionTokens, "usage.completionTokens");
+  assertNonNegativeInteger(usage.totalTokens, "usage.totalTokens");
+  if (usage.totalTokens !== usage.promptTokens + usage.completionTokens) {
+    throw new CreditValidationError("usage.totalTokens must equal promptTokens + completionTokens");
+  }
+  assertNonNegativeFinite(pricing.promptCostPer1k, "pricing.promptCostPer1k");
+  assertNonNegativeFinite(pricing.completionCostPer1k, "pricing.completionCostPer1k");
+
   const promptCredits = (usage.promptTokens / 1000) * pricing.promptCostPer1k;
   const completionCredits = (usage.completionTokens / 1000) * pricing.completionCostPer1k;
   return Math.max(1, Math.ceil(promptCredits + completionCredits));
@@ -168,6 +200,30 @@ function classifyReleaseReason(
   const name = (err as { name?: string }).name;
   if (name === "AbortError" || name === "TimeoutError") return "timeout";
   return "llm_error";
+}
+
+function assertUuid(value: string, field: string): void {
+  if (!UUID_V4_OR_COMPATIBLE_RE.test(value)) {
+    throw new CreditValidationError(`${field} must be a UUID`);
+  }
+}
+
+function assertPositiveInteger(value: number, field: string): void {
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new CreditValidationError(`${field} must be a positive integer`);
+  }
+}
+
+function assertNonNegativeInteger(value: number, field: string): void {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new CreditValidationError(`${field} must be a non-negative integer`);
+  }
+}
+
+function assertNonNegativeFinite(value: number, field: string): void {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new CreditValidationError(`${field} must be a non-negative finite number`);
+  }
 }
 
 async function safeRelease(

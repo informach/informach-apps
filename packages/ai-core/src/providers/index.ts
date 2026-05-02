@@ -16,7 +16,7 @@ export type OpenAIProviderConfig = {
 };
 
 /**
- * Cria um provider Anthropic do AI SDK v5 com `apiKey` explícito.
+ * Cria um provider Anthropic do AI SDK compatível com Mastra v1 com `apiKey` explícito.
  *
  * Diferente do `import { anthropic } from "@ai-sdk/anthropic"`, este wrapper
  * NÃO depende de `process.env.ANTHROPIC_API_KEY` — o app injeta via
@@ -37,7 +37,7 @@ export function createAnthropic(config: AnthropicProviderConfig) {
 }
 
 /**
- * Cria um provider OpenAI do AI SDK v5 com `apiKey` explícito.
+ * Cria um provider OpenAI do AI SDK compatível com Mastra v1 com `apiKey` explícito.
  *
  * Mesma motivação de `createAnthropic` — apiKey injetado, sem `process.env`.
  */

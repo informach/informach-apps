@@ -3,6 +3,8 @@ import { schema } from "@informach/db";
 import { eq } from "drizzle-orm";
 import type { AgentName, AgentRunStatus, AppName, TokenUsage } from "../types";
 
+export type AgentRunTerminalStatus = Extract<AgentRunStatus, "succeeded" | "failed" | "canceled">;
+
 /**
  * Backend de persistência da camada de auditoria nossa (`ai.agent_runs` /
  * `ai.usage_logs`). Distinta de `ai_mastra.mastra_traces` (que o framework
@@ -22,7 +24,7 @@ export type AgentRunStore = {
   }): Promise<void>;
   updateRun(input: {
     runId: string;
-    status: AgentRunStatus;
+    status: AgentRunTerminalStatus;
     finishedAt: Date;
     metadata?: Record<string, unknown>;
   }): Promise<void>;
@@ -80,7 +82,7 @@ export type AgentRunRecorder = {
    */
   finish(input: {
     runId: string;
-    status: AgentRunStatus;
+    status: AgentRunTerminalStatus;
     usage?: TokenUsage;
     metadata?: Record<string, unknown>;
   }): Promise<void>;
@@ -121,6 +123,7 @@ export function createAgentRunRecorder(deps: { store: AgentRunStore }): AgentRun
       });
     },
     async finish(input) {
+      assertTerminalStatus(input.status);
       await deps.store.updateRun({
         runId: input.runId,
         status: input.status,
@@ -132,6 +135,12 @@ export function createAgentRunRecorder(deps: { store: AgentRunStore }): AgentRun
       }
     },
   };
+}
+
+function assertTerminalStatus(status: AgentRunStatus): asserts status is AgentRunTerminalStatus {
+  if (status !== "succeeded" && status !== "failed" && status !== "canceled") {
+    throw new Error("Agent run finish status must be terminal");
+  }
 }
 
 /** Soma `promptTokens + completionTokens` num `TokenUsage` consistente. */

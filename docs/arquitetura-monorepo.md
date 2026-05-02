@@ -20,6 +20,7 @@ Versões estáveis atuais, todas confirmadas via Context7:
 |---|---|---|
 | Workspace manager | **pnpm 9+** | Hardlinks, lockfile determinístico, suporte nativo a workspaces, compatível com Turborepo. |
 | Task runner | **Turborepo 2** | Cache local + remoto, grafo de dependências, paralelismo. Chave do config é `tasks` (não `pipeline`). |
+| Runtime | **Node.js 22.13+** | Requisito do Mastra v1 usado por `@informach/ai-core`; dev, CI e produção devem usar a mesma linha. |
 | Linguagem | **TypeScript 5+** | Estendido por `tsconfig.base.json` na raiz. |
 | Lint + format | **Biome 2** | Único binário substitui ESLint + Prettier. Schema atual: `https://biomejs.dev/schemas/2.0.0/schema.json`. |
 | Estilo | **Tailwind CSS v4** | CSS-first via `@import "tailwindcss"`, tokens em `@theme`, escaneamento extra com `@source`. Sem `tailwind.config.js`. |
@@ -244,7 +245,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.13.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check

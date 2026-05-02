@@ -247,15 +247,26 @@ packages/ai-core/
 └── src/
     ├── index.ts
     ├── types.ts
-    ├── models/index.ts
-    ├── memory/index.ts
     ├── tools/index.ts
-    ├── guardrails/index.ts
+    ├── billing.ts
     ├── telemetry/index.ts
-    └── prompts/index.ts
+    ├── logger.ts
+    ├── providers/index.ts
+    └── mastra/index.ts
 ```
 
-Tipos: `AppName`, `AgentName`, `AgentRunStatus`, `TokenUsage`, `AiRuntimeConfig`, `ToolContext`. Helpers: `getDefaultModelConfig`, `createAppMemoryConfig`, `createToolContext`, `traceAgentRun`, `calculateTokenUsage`, `createAgentRunLogger`.
+Tipos: `AppName`, `AgentName`, `AgentRunStatus`, `AgentRunTerminalStatus`, `TokenUsage`, `AiRuntimeConfig`, `ToolContext`. Helpers: `withCredits`, `computeCreditsFromUsage`, `createToolContext`, `createAgentRunRecorder`, `createDrizzleAgentRunStore`, `calculateTokenUsage`, `createDefaultLogger`, `createAnthropic`, `createOpenAI`, `createMastra`, `createPostgresStore`, `createSharedMemory`.
+
+`withCredits` prealoca um UUID e o usa como `credit_reservations.id`, `billing.credit_ledger.run_id`, `ai.agent_runs.id` e `agent.generate({ runId })`. Esse é o contrato de correlação cross-schema; chamadas LLM não devem criar outro identificador paralelo.
+
+Contratos fixos:
+
+- Runtime mínimo: **Node.js 22.13+**, alinhado ao Mastra v1.
+- Root export (`@<org>/ai-core`) é frame-agnostic e não importa Mastra nem providers. Mastra fica só no sub-path `@<org>/ai-core/mastra`, com `server-only`.
+- `createPostgresStore` usa `PostgresStore` do Mastra com `id` fixo e schema `ai_mastra`; Drizzle continua dono apenas do schema `ai`.
+- `createAnthropic`/`createOpenAI` recebem `apiKey` por parâmetro. Apps validam env em `lib/env.ts`; package compartilhado não lê `process.env`.
+- Token usage persistido/cobrado sempre usa o tipo interno `TokenUsage` (`promptTokens`, `completionTokens`, `totalTokens`). Se o provider expuser `inputTokens`/`outputTokens`, o app normaliza antes de chamar `computeCreditsFromUsage`.
+- `AgentRunRecorder.finish` aceita apenas status terminal (`succeeded`, `failed`, `canceled`); `running` é estado de abertura via `start`.
 
 ---
 
@@ -267,7 +278,7 @@ Declaradas em `package.json` com `"workspace:*"`. Exemplos típicos:
 - `billing` → `db`, `auth`, `emails`, `config`. Observabilidade entra por `logger`/`onAudit` injetados pelo app. O package emite `billing.*`, mas quem persiste em `audit.events` é o app.
 - `emails` → `db`. Audit é opcional via `onAudit`; o package emite `email.*` sem acoplar runtime ao `auth`.
 - `ui` → (sem deps internas).
-- `ai-core` → `db` (para `agent_runs`, `messages`, `tool_calls`, `usage_logs` em `schema/ai`) e `billing` (para o ciclo reserve/commit/release de créditos). Telemetria permanece provider-neutral; exportar para APM é responsabilidade do app.
+- `ai-core` → `db` (para `agent_runs` e `usage_logs` em `schema/ai`), `billing` (para o ciclo reserve/commit/release de créditos), Mastra (`@mastra/*`) e AI SDK providers (`@ai-sdk/*`). Telemetria permanece provider-neutral; exportar para APM é responsabilidade do app.
 
 Ciclos proibidos. Turborepo detecta na build.
 

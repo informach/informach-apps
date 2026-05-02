@@ -26,6 +26,7 @@ export const portalSessionInputSchema = z.object({
 });
 
 export const reserveCreditsInputSchema = z.object({
+  reservationId: z.string().uuid().optional(),
   owner: subjectRefSchema,
   estimatedAmount: z.number().int().positive(),
   app: z.string().min(1),

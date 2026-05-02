@@ -127,7 +127,7 @@ Padrão **PaymentIntent-style** para débito atômico em chamadas LLM:
 
 ```ts
 const reservation = await billing.reserveCredits({
-  owner, estimatedAmount: 200, app: "cozya", feature: "llm.text", model, runId, ttlSeconds: 600,
+  owner, estimatedAmount: 200, app: "cozya", feature: "llm.text", model, ttlSeconds: 600,
 });
 try {
   const result = await callLLM(...);
@@ -142,7 +142,7 @@ try {
 
 **Atomicidade:** todas as 3 operações dentro de `db.transaction({ isolationLevel: "read committed" })` + `pg_advisory_xact_lock(hashtext("${ownerType}:${ownerId}"))`. Lock é O(1), escopo de transação (auto-released no COMMIT/ROLLBACK), serializa apenas operações do MESMO owner — diferentes owners nunca bloqueiam-se.
 
-**`reserveCredits`** check de saldo: `total - reserved_active_others ≥ estimatedAmount`. Throw `InsufficientCreditsError(available, requested)` se insuficiente.
+**`reserveCredits`** check de saldo: `total - reserved_active_others ≥ estimatedAmount`. Throw `InsufficientCreditsError(available, requested)` se insuficiente. Aceita `reservationId` opcional para callers que precisam prealocar o UUID; se omitido, o billing gera um UUID e usa esse mesmo valor como `runId` default.
 
 **`commitReservation`** TOCTOU guard: re-SELECT status após lock. Throw `ReservationAlreadyResolvedError` ou `ReservationExpiredError` (e marca como expired atomicamente). Caso normal: UPDATE `status='committed'` + INSERT ledger consumption com `reservationId` ligado.
 
@@ -150,7 +150,7 @@ try {
 
 **`consumeCredits({ owner, amount, app, feature, model?, runId? })`** — atalho síncrono que faz lock+check+insert numa transaction (sem criar row de reservation). Retorna union: `{ ok: true, ledgerEntryId, balanceAfter } | { ok: false, code: "INSUFFICIENT_BALANCE", balance }`.
 
-Use o **wrapper `withCredits` em `@informach/ai-core/billing`** para o ciclo completo — esconde a complexidade de orquestrar reserve/commit/release.
+Use o **wrapper `withCredits` em `@informach/ai-core`** (ou sub-path `@informach/ai-core/billing`) para o ciclo completo — ele prealoca o UUID, valida os amounts e esconde a complexidade de orquestrar reserve/commit/release.
 
 ### 3.6 Webhook handling — `verifyWebhookSignature` + `handleStripeEvent`
 
@@ -291,6 +291,8 @@ export const billing = createBillingService({
   },
 });
 ```
+
+Quando `runId` não é passado, `reserveCredits` usa o próprio UUID da reserva como `runId`. O wrapper `withCredits` de `@informach/ai-core` prealoca esse UUID e o envia como `reservationId` + `runId`, mantendo `billing.credit_ledger.run_id` alinhado com `ai.agent_runs.id` e `agent.generate({ runId })`.
 
 ```ts
 // apps/<app>/src/lib/auth.ts — LGPD hook

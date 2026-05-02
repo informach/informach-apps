@@ -59,6 +59,16 @@ describe("AgentRunRecorder", () => {
     expect(store.insertUsage).not.toHaveBeenCalled();
   });
 
+  it("finish() rejeita status não terminal antes de gravar finishedAt", async () => {
+    const store = makeStore();
+    const recorder = createAgentRunRecorder({ store });
+    await expect(
+      Reflect.apply(recorder.finish, recorder, [{ runId: "run-1", status: "running" }]),
+    ).rejects.toThrow("Agent run finish status must be terminal");
+    expect(store.updateRun).not.toHaveBeenCalled();
+    expect(store.insertUsage).not.toHaveBeenCalled();
+  });
+
   it("finish() preenche finishedAt com Date atual", async () => {
     const store = makeStore();
     const recorder = createAgentRunRecorder({ store });

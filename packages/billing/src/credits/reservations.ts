@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { Database } from "@informach/db";
 import { creditLedger, creditReservations } from "@informach/db/schema";
 import { and, eq, sql } from "drizzle-orm";
@@ -26,8 +27,16 @@ import type {
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
 const DEFAULT_TTL_SECONDS = 600;
+const UUID_V4_OR_COMPATIBLE_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export type ReserveCreditsInput = {
+  /**
+   * Optional preallocated reservation UUID. When omitted, billing generates one.
+   * `runId` defaults to this same UUID so ledger rows can be correlated with
+   * ai.agent_runs and Mastra traces.
+   */
+  reservationId?: string;
   owner: CreditOwner;
   estimatedAmount: number;
   app: string;
@@ -94,6 +103,12 @@ function assertPositiveInteger(value: number, field: string): void {
   }
 }
 
+function assertUuid(value: string, field: string): void {
+  if (!UUID_V4_OR_COMPATIBLE_RE.test(value)) {
+    throw new BillingError(`${field} must be a UUID`);
+  }
+}
+
 /**
  * Acquires a Postgres advisory lock scoped to (owner_type, owner_id) for the
  * lifetime of the current transaction. Released automatically on COMMIT/ROLLBACK.
@@ -153,6 +168,9 @@ export async function reserveCredits(
 ): Promise<ReservationHandle> {
   assertPositiveInteger(input.estimatedAmount, "estimatedAmount");
   const ttlSeconds = clampTtl(input.ttlSeconds);
+  const reservationId = input.reservationId ?? randomUUID();
+  assertUuid(reservationId, "reservationId");
+
   return deps.db.transaction(
     async (tx) => {
       await lockOwnerForTx(tx, input.owner);
@@ -172,6 +190,7 @@ export async function reserveCredits(
       const inserted = await tx
         .insert(creditReservations)
         .values({
+          id: reservationId,
           ownerType: input.owner.type,
           ownerId: input.owner.id,
           estimatedAmount: input.estimatedAmount,
@@ -179,7 +198,7 @@ export async function reserveCredits(
           app: input.app,
           feature: input.feature,
           model: input.model ?? null,
-          runId: input.runId ?? null,
+          runId: input.runId ?? reservationId,
           requestId: input.requestId ?? null,
           expiresAt,
           metadata: input.metadata ?? {},
