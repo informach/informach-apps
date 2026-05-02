@@ -1,13 +1,15 @@
-import { billing } from "@/lib/billing";
-import { env } from "@/lib/env";
+import { expireBillingMonthlyBonusCredits } from "@/features/billing/service";
+import { rejectUnauthorizedCron } from "@/lib/cron";
 
 export const runtime = "nodejs";
 
 /** Cron sweeper — recommended cadence: ~daily. Expires monthly bonus credits. */
 export async function POST(request: Request): Promise<Response> {
-  if (request.headers.get("authorization") !== `Bearer ${env.CRON_SECRET}`) {
-    return new Response("Unauthorized", { status: 401 });
+  const unauthorized = rejectUnauthorizedCron(request);
+  if (unauthorized) {
+    return unauthorized;
   }
-  const result = await billing.expireMonthlyBonusCredits();
+
+  const result = await expireBillingMonthlyBonusCredits();
   return Response.json(result);
 }

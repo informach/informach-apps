@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
 
 export default function GlobalError({
@@ -10,24 +11,19 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error(error);
+    Sentry.captureException(error);
   }, [error]);
 
   return (
     <html lang="pt-BR">
       <body>
-        <div
-          style={{
-            minHeight: "100vh",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 12,
-          }}
-        >
-          <h2>Erro fatal.</h2>
-          <button type="button" onClick={reset}>
+        <div className="flex min-h-screen flex-col items-center justify-center gap-3">
+          <h2 className="text-xl font-semibold">Erro fatal.</h2>
+          <button
+            type="button"
+            onClick={reset}
+            className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm"
+          >
             Recarregar
           </button>
         </div>

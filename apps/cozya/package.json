@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start -p 3002",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
     "e2e:install": "playwright install chromium"
@@ -22,8 +23,8 @@
     "@informach/db": "workspace:*",
     "@informach/emails": "workspace:*",
     "@informach/ui": "workspace:*",
+    "@sentry/nextjs": "^10.51.0",
     "@t3-oss/env-nextjs": "^0.13.11",
-    "drizzle-orm": "^0.45.2",
     "ioredis": "^5.10.1",
     "next": "^16.2.4",
     "pino": "^9.5.0",
@@ -39,6 +40,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "tailwindcss": "^4.2.4",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.9"
   }
 }

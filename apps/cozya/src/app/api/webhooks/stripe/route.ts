@@ -3,7 +3,7 @@ import {
   STRIPE_SIGNATURE_HEADER,
   WebhookSignatureError,
 } from "@informach/billing";
-import { billing } from "@/lib/billing";
+import { billing } from "@/features/billing/service";
 import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";

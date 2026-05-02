@@ -76,6 +76,41 @@
       }
     },
     {
+      "includes": ["apps/cozya/src/**/*.{ts,tsx}"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "error"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/cozya/src/app/api/**/route.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@informach/db": "Route handlers must call feature services instead of importing the database directly.",
+                  "@informach/db/schema": "Route handlers must call feature services instead of importing database schema directly.",
+                  "drizzle-orm": "Route handlers must call feature services instead of importing Drizzle directly."
+                },
+                "patterns": [
+                  {
+                    "group": ["drizzle-orm/*"],
+                    "message": "Route handlers must call feature services instead of importing Drizzle directly."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": [
         "apps/*/src/app/**/{page,layout,error,global-error,loading,not-found}.tsx",
         "apps/*/src/features/**/components/**/*.{ts,tsx}"

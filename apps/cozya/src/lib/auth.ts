@@ -2,8 +2,9 @@ import { createAuth } from "@informach/auth";
 import { createServerHelpers } from "@informach/auth/server";
 import { APPS } from "@informach/config";
 import { buildUnsubscribeToken } from "@informach/emails";
-import { billing } from "./billing";
-import { emails } from "./emails";
+import { billing } from "@/features/billing/service";
+import { emails } from "@/features/emails/service";
+import { AUTH_SIGN_IN_PATH } from "./auth-routing";
 import { env } from "./env";
 import { logger } from "./logger";
 import { authSecondaryStorage } from "./redis";
@@ -64,4 +65,4 @@ export const {
   getCurrentUserServer,
   requireUserServer,
   redirectIfUnauthenticated,
-} = createServerHelpers(authResult);
+} = createServerHelpers(authResult, { signInPath: AUTH_SIGN_IN_PATH });

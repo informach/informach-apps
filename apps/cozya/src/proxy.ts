@@ -1,16 +1,15 @@
 import { createAuthProxy } from "@informach/auth/proxy";
 import { authResult } from "./lib/auth";
+import { AUTH_PROTECTED_PATHS, AUTH_PUBLIC_PATHS, AUTH_SIGN_IN_PATH } from "./lib/auth-routing";
 
 /**
  * Paths exempted from session-cookie authentication. Matched as path PREFIXES
  * (so `/api/webhooks` covers `/api/webhooks/stripe`, `/api/webhooks/sendgrid`...).
  *
- * Defensive whitelist: today the proxy only redirects when a path matches
- * `requireAuth` (currently empty), so these would pass anyway. But adding them
- * here means a future `requireAuth: ["/"]` catch-all wouldn't break webhook /
- * cron / email-link / probe traffic that already authenticates by other means.
+ * Keep non-page entry points public because they authenticate by their own
+ * signature/token mechanisms.
  *
- *   /sign-in, /sign-up, /verify-email, /reset-password — auth UI
+ *   /login, /signup, /verify-email, /reset-password — auth UI
  *   /api/auth        — Better Auth handler (manages its own session lifecycle)
  *   /api/webhooks    — Stripe + SendGrid; auth via HMAC/ECDSA signature
  *   /api/jobs        — cron routes; auth via `Authorization: Bearer ${CRON_SECRET}`
@@ -18,17 +17,9 @@ import { authResult } from "./lib/auth";
  *   /api/health      — Railway liveness probe; no auth needed
  */
 export const proxy = createAuthProxy(authResult, {
-  publicPaths: [
-    "/sign-in",
-    "/sign-up",
-    "/verify-email",
-    "/reset-password",
-    "/api/auth",
-    "/api/webhooks",
-    "/api/jobs",
-    "/api/email",
-    "/api/health",
-  ],
+  requireAuth: [...AUTH_PROTECTED_PATHS],
+  signInPath: AUTH_SIGN_IN_PATH,
+  publicPaths: [...AUTH_PUBLIC_PATHS],
 });
 
 export const config = {

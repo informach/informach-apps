@@ -1,14 +1,14 @@
-import { db } from "@informach/db";
-import { recoverStaleDeliveries } from "@informach/emails/sweepers";
-import { env } from "@/lib/env";
+import { recoverStaleEmailDeliveries } from "@/features/emails/service";
+import { rejectUnauthorizedCron } from "@/lib/cron";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request): Promise<Response> {
-  const auth = request.headers.get("authorization");
-  if (auth !== `Bearer ${env.CRON_SECRET}`) {
-    return new Response("Unauthorized", { status: 401 });
+  const unauthorized = rejectUnauthorizedCron(request);
+  if (unauthorized) {
+    return unauthorized;
   }
-  const result = await recoverStaleDeliveries({ db });
+
+  const result = await recoverStaleEmailDeliveries();
   return Response.json(result);
 }
