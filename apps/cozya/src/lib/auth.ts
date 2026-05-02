@@ -7,6 +7,7 @@ import { emails } from "@/features/emails/service";
 import { AUTH_SIGN_IN_PATH } from "./auth-routing";
 import { env } from "./env";
 import { logger } from "./logger";
+import { authObservability } from "./observability";
 import { authSecondaryStorage } from "./redis";
 
 const APP_HOSTNAME = new URL(env.NEXT_PUBLIC_APP_URL).hostname;
@@ -30,6 +31,7 @@ export const authResult = createAuth({
   unsubscribeMailto: `unsubscribe@${APP_HOSTNAME}`,
   socialProviders: googleProvider ? { google: googleProvider } : undefined,
   secondaryStorage: authSecondaryStorage,
+  observability: authObservability,
   // LGPD: when an account is deleted, cancel any active subscriptions and
   // free credit balances for the user immediately. Ledger rows stay (fiscal).
   accountDeletion: {

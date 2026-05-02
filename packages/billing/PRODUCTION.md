@@ -343,19 +343,19 @@ WHERE status='paid' AND paid_at >= date_trunc('month', NOW());
 
 ### Sentry (quando ativo)
 
-`createBillingService` aceita `logger: Logger`. Wirar logger pra Sentry no app:
+`createBillingService` aceita `logger: Logger`, mas o package não importa Sentry. Nos apps, use o adapter app-level:
 
 ```ts
+import { createBillingService } from "@informach/billing";
+import { packageLogger } from "./observability";
+
 createBillingService({
   // ...
-  logger: {
-    error: (msg, ctx) => Sentry.captureMessage(msg, { level: "error", extra: ctx }),
-    warn: (msg, ctx) => Sentry.captureMessage(msg, { level: "warning", extra: ctx }),
-    info: () => {},  // ruidoso pra Sentry; pino captura em logs estruturados
-    debug: () => {},
-  },
+  logger: packageLogger,
 });
 ```
+
+`packageLogger` mantém logs estruturados no pino e duplica `warn`/`error` sanitizados para `Sentry.captureMessage`. `debug`/`info` ficam só nos logs estruturados. Configure `SENTRY_DSN`, `enableLogs` e `tracesSampleRate` no app quando quiser logs/spans no Sentry.
 
 Eventos críticos a alertar:
 - `billing.webhook.handler_error` — webhook handler levantou exception (Stripe vai retentar; se persistente, bug)
@@ -506,7 +506,7 @@ Checklist final antes do primeiro pagamento real:
 - [ ] Backup Postgres com retenção ≥ 5 anos configurado.
 - [ ] LGPD hook `accountDeletion.onBeforeDelete` wirado em ambos apps.
 - [ ] Terms + Privacy menciona billing/cancelamento/refund.
-- [ ] Sentry (opcional) plugado no logger de `createBillingService`.
+- [x] Adapter app-level de Sentry plugado no logger de `createBillingService`; confirmar `SENTRY_DSN` e alertas no ambiente desejado.
 
 ---
 

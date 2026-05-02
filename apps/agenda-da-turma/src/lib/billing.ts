@@ -7,6 +7,7 @@ import { buildUnsubscribeToken } from "@informach/emails";
 import { emails } from "./emails";
 import { env } from "./env";
 import { logger } from "./logger";
+import { packageLogger } from "./observability";
 
 const APP_HOSTNAME = new URL(env.NEXT_PUBLIC_APP_URL).hostname;
 const stripeMode = env.STRIPE_MODE ?? (env.NODE_ENV === "production" ? "prod" : "dev");
@@ -60,7 +61,7 @@ export const billing = createBillingService({
   organizationsEnabled: true,
   stripeMode,
   resolveSubjectEmail,
-  logger,
+  logger: packageLogger,
   // Email integration: webhook handlers fire transactional billing.* emails.
   // The dunning sweeper (`api/jobs/billing-dunning`) does its own send for
   // `billing.payment-failed`; the 4 handlers here cover payment-success,

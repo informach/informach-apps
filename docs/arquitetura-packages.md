@@ -57,7 +57,7 @@ Tudo que é público sai por `src/index.ts`. Subpastas (`src/components/`, `src/
 
 ### Sem `console.log`
 
-Use o logger do package de observabilidade do org (ou um parâmetro opcional). Package nunca grita no stdout dos consumidores.
+Use `logger`/hooks opcionais definidos pelo contrato do próprio package quando houver emit-points. Package nunca grita no stdout dos consumidores e não importa Sentry/pino; o app decide como encaminhar logs.
 
 ### Sem `next/*`
 
@@ -204,13 +204,13 @@ packages/ui/
         └── empty-state.tsx
 ```
 
-### 4. Cross-cutting infra — `result`, `errors`, `observability`
+### 4. Cross-cutting infra — `result`, `errors`, adapters de observabilidade
 
-Pequenos packages sem dependência externa pesada, expõem tipos e helpers usados em toda parte.
+Pequenos packages ou contratos sem dependência externa pesada, expõem tipos e helpers usados em toda parte.
 
 - **`result`**: `Result<T, E>`, `ok(value)`, `err(error)`, helpers `unwrap`, `map`, `flatMap`. Tipo de retorno padrão dos services.
 - **`errors`**: classes-base (`DomainError`, `InfraError`) e erros comuns (`ForbiddenError`, `NotFoundError`, `ConflictError`).
-- **`observability`**: `createLogger(name)` retornando pino configurado, helper `withSpan` para tracing, util de captura para Sentry. Apps e packages usam o mesmo.
+- **Observabilidade**: hoje é app-owned. Packages expõem contratos (`Logger`, `ObservabilityHooks`, callbacks como `onAudit`) e os apps adaptam isso em `apps/<app>/src/lib/observability.ts`. Sentry, pino, sampling e logs são configuração do app, não dependência de package. Só criar `packages/observability` se houver um segundo consumidor real para helpers provider-neutral de tracing/logger.
 
 ### 5. Constantes — `config`
 
@@ -264,10 +264,10 @@ Tipos: `AppName`, `AgentName`, `AgentRunStatus`, `TokenUsage`, `AiRuntimeConfig`
 Declaradas em `package.json` com `"workspace:*"`. Exemplos típicos:
 
 - `auth` → `db`, `emails`. (Erros declarados inline até existir um segundo consumidor — ver §"Quando NÃO criar um package".)
-- `billing` → `db`, `auth`, `observability`. (Quando `billing` materializar e precisar das mesmas classes-base de erro de `auth`, é o momento certo de extrair `packages/errors/`.)
-- `emails` → `config`.
+- `billing` → `db`, `auth`, `emails`, `config`. Observabilidade entra por `logger`/`onAudit` injetados pelo app. (Quando `billing` precisar das mesmas classes-base de erro de `auth`, é o momento certo de extrair `packages/errors/`.)
+- `emails` → `db`.
 - `ui` → (sem deps internas).
-- `ai-core` → `db` (para `agent_runs`, `messages`, `tool_calls`, `usage_logs` em `schema/ai`), `observability`.
+- `ai-core` → `db` (para `agent_runs`, `messages`, `tool_calls`, `usage_logs` em `schema/ai`) e `billing` (para o ciclo reserve/commit/release de créditos). Telemetria permanece provider-neutral; exportar para APM é responsabilidade do app.
 
 Ciclos proibidos. Turborepo detecta na build.
 

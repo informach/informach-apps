@@ -282,32 +282,19 @@ Se já há `secondaryStorage` (Redis), o `cleanupStaleRateLimit` vira no-op — 
 
 ## 8. Observability
 
-Plug seu APM via `observability` callbacks:
+Plug seu APM via `observability` callbacks no app. Não copie payload bruto para Sentry; payloads de auth podem conter PII ou tokens.
 
 ```ts
-import * as Sentry from "@sentry/nextjs";
+import { createAuth } from "@informach/auth";
+import { authObservability } from "./observability";
 
 createAuth({
   // ...
-  observability: {
-    onAuditEvent(event) {
-      // Sentry breadcrumbs, OpenTelemetry span, etc.
-      Sentry.addBreadcrumb({
-        category: "auth.audit",
-        message: event.eventType,
-        data: { actorId: event.actorId, ...event.payload },
-        level: "info",
-      });
-    },
-    onSecurityEvent(event) {
-      Sentry.captureMessage(`auth.security.${event.type}`, {
-        level: "warning",
-        extra: { userId: event.userId, ...event.metadata },
-      });
-    },
-  },
+  observability: authObservability,
 });
 ```
+
+`authObservability` adiciona breadcrumb `auth.audit` com `actorId` e `payloadKeys`, e captura `auth.security.<type>` como warning sanitizado no Sentry. A configuração do Sentry continua no app (`instrumentation-client.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`).
 
 Eventos atualmente emitidos:
 - `session_revoked` em `databaseHooks.session.delete.after`.

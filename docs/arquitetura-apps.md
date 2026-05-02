@@ -53,6 +53,7 @@ apps/<app>/
     │   ├── action.ts            # wrapper de Server Action
     │   ├── env.ts               # t3-env do app
     │   ├── logger.ts            # pino instanciado para o app
+    │   ├── observability.ts     # adapters app-level para Sentry + packages
     │   └── ...
     └── ai/                      # agentes/workflows IA específicos do app
         └── README.md
@@ -210,6 +211,8 @@ Zod em toda fronteira:
 ## Observabilidade
 
 - **Logger**: `pino`, instanciado em `lib/logger.ts`. Estruturado (JSON em produção). Nunca `console.log`.
+- **Sentry SDK Next.js**: configurado em `instrumentation-client.ts`, `sentry.server.config.ts` e `sentry.edge.config.ts` com `enabled` baseado em DSN, `enableLogs` ligado quando Sentry está ativo e `tracesSampleRate` explícito (1.0 em dev, 0.1 em produção).
+- **Adapter app-level**: `lib/observability.ts` é o único lugar onde os packages encostam em Sentry. Exporta `packageLogger` para `@informach/billing`/`@informach/emails` (mantém pino e duplica `warn`/`error` sanitizados para `Sentry.captureMessage`) e `authObservability` para `@informach/auth` (breadcrumbs de audit + security events). Contextos enviados ao Sentry passam por sanitização de chaves sensíveis.
 - **Errors**: Sentry SDK Next.js. Captura em `error.tsx`, `global-error.tsx` e dentro do wrapper `lib/action.ts` quando o service retorna erro de infra.
 - **Source maps**: subidos para Sentry no CI.
 - **Health endpoint**: `app/api/health/route.ts` retornando 200 com timestamp + commit SHA. Provider usa para healthcheck.

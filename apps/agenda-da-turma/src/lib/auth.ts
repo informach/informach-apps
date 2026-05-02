@@ -6,6 +6,7 @@ import { billing } from "./billing";
 import { emails } from "./emails";
 import { env } from "./env";
 import { logger } from "./logger";
+import { authObservability } from "./observability";
 import { authSecondaryStorage } from "./redis";
 
 const APP_HOSTNAME = new URL(env.NEXT_PUBLIC_APP_URL).hostname;
@@ -30,6 +31,7 @@ export const authResult = createAuth({
   organizations: { enabled: true },
   socialProviders: googleProvider ? { google: googleProvider } : undefined,
   secondaryStorage: authSecondaryStorage,
+  observability: authObservability,
   // LGPD: when an account is deleted, cancel any active subscriptions for the
   // user immediately. Personal credit balances stay intact (fiscal retention).
   // For org subscriptions: an org owner deleting their personal account does

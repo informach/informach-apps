@@ -223,16 +223,19 @@ GROUP BY reason;
 ```
 
 ### Sentry (quando ativo)
-Plugar logger do `createEmailService(config)` para emitir `error` events:
+`createEmailService(config)` aceita `logger: Logger`, mas o package não importa Sentry. Nos apps, use o adapter app-level:
+
 ```ts
+import { createEmailService } from "@informach/emails";
+import { packageLogger } from "./observability";
+
 createEmailService({
   // ...
-  logger: {
-    error: (msg, ctx) => Sentry.captureMessage(msg, { level: "error", extra: ctx }),
-    warn: (msg, ctx) => Sentry.captureMessage(msg, { level: "warning", extra: ctx }),
-  },
+  logger: packageLogger,
 });
 ```
+
+`packageLogger` mantém logs estruturados no pino e duplica `warn`/`error` sanitizados para `Sentry.captureMessage`. `debug`/`info` ficam só nos logs estruturados. Configure `SENTRY_DSN`, `enableLogs` e `tracesSampleRate` no app quando quiser logs/spans no Sentry.
 
 ---
 
@@ -292,7 +295,7 @@ Checklist final antes do primeiro envio de produção:
 - [ ] 3 cron-runners por app criados, cada um com sua Cron Schedule.
 - [ ] `pnpm db:migrate` aplicado (incluindo `0007_chief_blob.sql` que adiciona `html`/`text` em `email_deliveries`).
 - [ ] Smoke test E2E §5 passou completamente.
-- [ ] Sentry (opcional) plugado no logger do `createEmailService`.
+- [x] Adapter app-level de Sentry plugado no logger do `createEmailService`; confirmar `SENTRY_DSN` e alertas no ambiente desejado.
 - [ ] DMARC reports (`rua`) chegando em caixa monitorada.
 
 ---

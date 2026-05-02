@@ -1,6 +1,7 @@
 import { db } from "@informach/db";
 import { createEmailService } from "@informach/emails";
 import { env } from "./env";
+import { packageLogger } from "./observability";
 
 export const emails = createEmailService({
   apiKey: env.SENDGRID_API_KEY,
@@ -8,4 +9,5 @@ export const emails = createEmailService({
   db,
   mode: env.EMAIL_SANDBOX_MODE,
   sandboxDir: env.EMAIL_SANDBOX_DIR,
+  logger: packageLogger,
 });

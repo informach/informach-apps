@@ -25,6 +25,7 @@ apps/<app>/src/lib/
   ├── emails.ts         ← createEmailService de @informach/emails
   ├── auth.ts           ← createAuth({...}) → authResult
   ├── auth-client.ts    ← createInformachAuthClient({...}) (browser)
+  ├── observability.ts  ← authObservability/packageLogger app-level
   └── action.ts         ← createActionFactory({ helpers: authResult })
 
 apps/<app>/src/app/api/auth/[...all]/route.ts
@@ -150,6 +151,7 @@ billing.subscription_canceled   billing.credits_granted
 ```
 
 Cada `logAuditEvent(eventType, actorId, payload)` insere em `audit.events` e dispara `observability.onAuditEvent`. **Hooks são try/catch-ados internamente** — falha em APM não derruba o auth.
+Nos apps atuais, `authObservability` em `src/lib/observability.ts` transforma audit em breadcrumbs Sentry usando `payloadKeys` em vez de payload bruto.
 
 A função `logAuditEvent` é **re-exportada do root** (`import { logAuditEvent } from "@informach/auth"`) para que outros packages do monorepo (notavelmente `@informach/billing`) possam wirar `config.onAudit` callback sem importar de sub-paths internos. Apps tipicamente fazem:
 
@@ -168,6 +170,7 @@ Os 8 audit types `billing.*` são gerenciados pelo package `@informach/billing` 
 ### 3.6 Security events (observability)
 
 `AuthSecurityEventType`: `rate_limit_hit`, `role_mismatch`, `banned_user_signin_attempt`, `two_factor_failed`, `session_revoked`. Atualmente emitidos em runtime: `rate_limit_hit` (status 429 no middleware), `two_factor_failed` (verify-totp/verify-backup-code com status ≥ 400), `session_revoked` (delete em `databaseHooks.session.delete.after`). Os demais types existem para uso futuro.
+Nos apps, `authObservability.onSecurityEvent` loga warning no pino e envia `auth.security.<type>` sanitizado para `Sentry.captureMessage`.
 
 ### 3.7 Email templates
 
@@ -283,6 +286,7 @@ import { APPS } from "@informach/config";
 import { buildUnsubscribeToken } from "@informach/emails";
 import { emails } from "./emails";
 import { env } from "./env";
+import { authObservability } from "./observability";
 
 export const authResult = createAuth({
   appName: APPS.<app>.name,
@@ -296,6 +300,7 @@ export const authResult = createAuth({
     return `${env.NEXT_PUBLIC_APP_URL}/api/email/unsubscribe?t=${t}`;
   },
   unsubscribeMailto: `unsubscribe@${new URL(env.NEXT_PUBLIC_APP_URL).hostname}`,
+  observability: authObservability,
   // opt-ins por app:
   organizations: { enabled: true },               // só agenda-da-turma
   socialProviders: googleProvider ? { google: googleProvider } : undefined,

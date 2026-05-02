@@ -30,6 +30,7 @@ O package **não** lê env vars próprias, **não** decide UI, **não** expõe r
 apps/<app>/src/lib/
   ├── env.ts               ← Zod-validated env vars (SENDGRID_*, EMAIL_SANDBOX_*)
   ├── emails.ts            ← createEmailService({ apiKey, defaultFrom, db, mode, ... })
+  ├── observability.ts     ← packageLogger/authObservability app-level
   └── auth.ts              ← createAuth({ sendEmail, renderTemplate, buildUnsubscribeUrl, ... })
 
 apps/<app>/src/app/api/
@@ -166,7 +167,7 @@ Backoff sample (sem jitter): `3, 18, 83, 258, 627, 1298, 2403, 4098` segundos. `
 
 ### 3.7 Logger
 
-`Logger = { debug?(msg, ctx?), info?(msg, ctx?), warn?(msg, ctx?), error?(msg, ctx?) }`. Todos os métodos opcionais. Default: no-op. Apps tipicamente passam pino/console-wrapper. Pontos que emitem:
+`Logger = { debug?(msg, ctx?), info?(msg, ctx?), warn?(msg, ctx?), error?(msg, ctx?) }`. Todos os métodos opcionais. Default: no-op. Apps devem passar `packageLogger` de `apps/<app>/src/lib/observability.ts`, que escreve no pino e duplica `warn`/`error` sanitizados para Sentry. Pontos que emitem:
 
 - `dispatch.ts`: `error` em permanent fail; `debug` em retry attempt.
 - `sweepers.ts`: `info` em rows tocadas; `error` em erro de fetch SendGrid.
@@ -205,7 +206,7 @@ Apps expõem rotas POST protegidas por `Authorization: Bearer ${CRON_SECRET}` qu
 import { db } from "@informach/db";
 import { createEmailService } from "@informach/emails";
 import { env } from "./env";
-import { logger } from "./logger";
+import { packageLogger } from "./observability";
 
 export const emails = createEmailService({
   apiKey: env.SENDGRID_API_KEY,
@@ -213,7 +214,7 @@ export const emails = createEmailService({
   db,
   mode: env.EMAIL_SANDBOX_MODE,           // "live" | "sandbox" | "memory"
   sandboxDir: env.EMAIL_SANDBOX_DIR,
-  logger,
+  logger: packageLogger,
 });
 ```
 
@@ -255,7 +256,7 @@ export async function POST(req: Request) {
     return new Response("forbidden", { status: 403 });
   }
   const events = JSON.parse(raw);
-  const result = await handleSendgridEvents({ db, logger }, events);
+  const result = await handleSendgridEvents({ db, logger: packageLogger }, events);
   return Response.json(result);
 }
 ```

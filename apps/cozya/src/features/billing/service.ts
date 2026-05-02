@@ -8,6 +8,7 @@ import {
 } from "@/features/emails/service";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { packageLogger } from "@/lib/observability";
 import { billingDb, findUserEmailById, resolveSubjectEmail } from "./repository";
 
 const stripeMode = env.STRIPE_MODE ?? (env.NODE_ENV === "production" ? "prod" : "dev");
@@ -24,7 +25,7 @@ export const billing = createBillingService({
   organizationsEnabled: false,
   stripeMode,
   resolveSubjectEmail,
-  logger,
+  logger: packageLogger,
   sendEmail: emails.sendEmail,
   renderTemplate: emails.renderTemplate,
   manageBillingUrl: `${env.NEXT_PUBLIC_APP_URL}/settings/billing`,

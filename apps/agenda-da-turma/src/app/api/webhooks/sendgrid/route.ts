@@ -7,14 +7,10 @@ import {
 } from "@informach/emails/webhook";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { packageLogger } from "@/lib/observability";
 import { parseSendgridWebhookPayload } from "@/lib/sendgrid-webhook";
 
 export const runtime = "nodejs";
-
-const emailWebhookLogger = {
-  warn: (message: string, ctx?: object) => logger.warn(ctx, message),
-  error: (message: string, ctx?: object) => logger.error(ctx, message),
-};
 
 export async function POST(request: Request): Promise<Response> {
   if (!env.SENDGRID_WEBHOOK_PUBLIC_KEY) {
@@ -38,7 +34,7 @@ export async function POST(request: Request): Promise<Response> {
     return new Response("Invalid payload", { status: 400 });
   }
 
-  const result = await handleSendgridEvents({ db, logger: emailWebhookLogger }, parsed.events);
+  const result = await handleSendgridEvents({ db, logger: packageLogger }, parsed.events);
   if (result.failed > 0) {
     logger.error(result, "email.webhook.sendgrid.partial_failure");
     return Response.json({ ok: false, ...result }, { status: 500 });

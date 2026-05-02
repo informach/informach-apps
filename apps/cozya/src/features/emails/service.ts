@@ -12,7 +12,7 @@ import {
 import { processUnsubscribe } from "@informach/emails/unsubscribe";
 import { handleSendgridEvents, type SendgridEvent } from "@informach/emails/webhook";
 import { env } from "@/lib/env";
-import { logger } from "@/lib/logger";
+import { packageLogger } from "@/lib/observability";
 import { emailDb } from "./repository";
 
 const APP_HOSTNAME = new URL(env.NEXT_PUBLIC_APP_URL).hostname;
@@ -23,7 +23,7 @@ export const emails = createEmailService({
   db: emailDb,
   mode: env.EMAIL_SANDBOX_MODE,
   sandboxDir: env.EMAIL_SANDBOX_DIR,
-  logger,
+  logger: packageLogger,
 });
 
 export function buildEmailUnsubscribeUrl(identifier: string, category: EmailCategory): string {
@@ -40,7 +40,7 @@ export async function processEmailUnsubscribe(token: string) {
 }
 
 export async function handleValidatedSendgridEvents(events: SendgridEvent[]) {
-  return handleSendgridEvents({ db: emailDb, logger }, events);
+  return handleSendgridEvents({ db: emailDb, logger: packageLogger }, events);
 }
 
 export async function recoverStaleEmailDeliveries() {
@@ -60,6 +60,6 @@ export async function retryAppFailedDeliveries() {
     send,
     buildUnsubscribeUrl: buildEmailUnsubscribeUrl,
     unsubscribeMailto: getEmailUnsubscribeMailto(),
-    logger,
+    logger: packageLogger,
   });
 }

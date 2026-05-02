@@ -28,6 +28,7 @@ apps/<app>/src/lib/
   ├── env.ts            ← Zod-validated STRIPE_*
   ├── emails.ts         ← createEmailService de @informach/emails
   ├── auth.ts           ← createAuth({ accountDeletion.onBeforeDelete → billing.cancelBillingForSubject })
+  ├── observability.ts  ← packageLogger/authObservability app-level
   └── billing.ts        ← createBillingService({...}) → exporta `billing`
 
 apps/<app>/src/app/api/
@@ -223,6 +224,7 @@ billing.credits_refunded
 ```
 
 Apps wireiam `config.onAudit` para chamar `logAuditEvent(event.eventType, event.actorId, event.payload)` (re-exportado de `@informach/auth`). Pattern: fire-and-forget com `.catch` para logger — audit emit nunca bloqueia o billing call.
+Nos apps atuais, erros/warnings desses emit-points passam pelo `packageLogger` de `src/lib/observability.ts`, que mantém pino e duplica `warn`/`error` sanitizados para Sentry.
 
 ### 3.10 LGPD/Account deletion hook
 
@@ -245,7 +247,7 @@ import { buildUnsubscribeToken } from "@informach/emails";
 import { eq } from "drizzle-orm";
 import { emails } from "./emails";
 import { env } from "./env";
-import { logger } from "./logger";
+import { packageLogger } from "./observability";
 
 const APP_HOSTNAME = new URL(env.NEXT_PUBLIC_APP_URL).hostname;
 const stripeMode = env.STRIPE_MODE ?? (env.NODE_ENV === "production" ? "prod" : "dev");
@@ -266,7 +268,7 @@ export const billing = createBillingService({
   organizationsEnabled: true /* false em cozya */,
   stripeMode,
   resolveSubjectEmail,
-  logger,
+  logger: packageLogger,
   // Email integration:
   sendEmail: emails.sendEmail,
   renderTemplate: emails.renderTemplate,
@@ -279,7 +281,10 @@ export const billing = createBillingService({
   // Audit:
   onAudit: (event) => {
     logAuditEvent(event.eventType, event.actorId, event.payload).catch((err) => {
-      logger.error({ eventType: event.eventType, error: String(err) }, "billing.audit.persist_failed");
+      packageLogger.error("billing.audit.persist_failed", {
+        eventType: event.eventType,
+        error: String(err),
+      });
     });
   },
 });
@@ -288,6 +293,7 @@ export const billing = createBillingService({
 ```ts
 // apps/<app>/src/lib/auth.ts — LGPD hook
 import { billing } from "./billing";
+import { packageLogger } from "./observability";
 
 createAuth({
   // ... outros campos
@@ -296,7 +302,7 @@ createAuth({
     onBeforeDelete: async (user) => {
       const result = await billing.cancelBillingForSubject({ type: "user", id: user.id });
       if (result.failed > 0) {
-        logger.error({ userId: user.id, ...result }, "auth.account_deletion.billing_partial");
+        packageLogger.error("auth.account_deletion.billing_partial", { userId: user.id, ...result });
       }
     },
   },
@@ -514,7 +520,7 @@ Para integração real → Stripe CLI test mode + Playwright nos apps em `mode: 
 - **UI pages** `/admin/billing` (agenda) e `/settings/billing` (cozya) — saldo, history paginado, botão "Comprar créditos" / "Assinar" / "Gerenciar plano" → server actions.
 - **Admin UI para `creditPricing`** — atualizar preços per-feature/per-model sem deploy. Hoje é só seed inicial.
 - **Asaas provider** — adicionar Pix/Boleto via segunda implementação de `BillingProviderClient`.
-- **Métricas observability** — emitir eventos para Datadog/Sentry no `onAudit` (já é o ponto de extensão).
+- **Métricas/alertas avançados** — o logger básico já duplica `warn`/`error` para Sentry no adapter do app; para métricas, spans ou dashboards, usar `onAudit` como ponto de extensão para Datadog/OTel/Sentry.
 - **Multi-currency** — hoje hardcoded BRL, expandir quando produto pedir.
 - **Usage-based billing** — Stripe metered billing para subscriptions com tier baseado em consumo (alternativa ao credit pack model).
 - **Dashboard de receita/MRR** — view materializada agregando `subscriptions.status` + `oneTimePayments.amount_cents` por dia/mês.
