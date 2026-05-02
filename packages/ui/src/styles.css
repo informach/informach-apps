@@ -2,7 +2,6 @@
  * biome-ignore-all lint/complexity/noImportantStyles: required to override sonner's inline CSS-in-JS and to hide native password reveal/auto-fill buttons (Edge / WebKit), where the browser stylesheet has higher specificity.
  */
 
-@import "tailwindcss";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
@@ -24,6 +23,7 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-overlay: var(--overlay);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -96,6 +96,7 @@
 
   --destructive: oklch(0.5783 0.2301 28.5639);
   --destructive-foreground: oklch(1 0 0);
+  --overlay: oklch(0 0 0 / 0.8);
 
   --border: oklch(0.9461 0 0);
   --input: oklch(0.7889 0 0);
@@ -169,6 +170,7 @@
 
   --destructive: oklch(0.5783 0.2301 28.5639);
   --destructive-foreground: oklch(1 0 0);
+  --overlay: oklch(0 0 0 / 0.8);
 
   --border: oklch(0.1822 0 0);
   --input: oklch(0.4495 0 0);

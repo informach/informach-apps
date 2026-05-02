@@ -159,7 +159,7 @@ import { Dialog, DialogContent } from "@informach/ui/components/dialog";
 import { ModeToggle } from "@informach/ui/components/mode-toggle";
 ```
 
-`src/index.ts` só exporta `cn`. Subpaths `./components/*`, `./hooks/*`, `./lib/utils` e `./styles.css` estão declarados em `exports`.
+`src/index.ts` só exporta `cn`. Subpaths `./components/*`, `./lib/utils` e `./styles.css` estão declarados em `exports`.
 
 Os apps adicionam `@informach/ui` em `transpilePackages` no `next.config.ts` — necessário porque o package é consumido como TypeScript source.
 

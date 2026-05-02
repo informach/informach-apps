@@ -15,7 +15,6 @@
     "components": "@informach/ui/components",
     "utils": "@informach/ui/lib/utils",
     "ui": "@informach/ui/components",
-    "lib": "@informach/ui/lib",
-    "hooks": "@informach/ui/hooks"
+    "lib": "@informach/ui/lib"
   }
 }
