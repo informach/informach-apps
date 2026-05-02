@@ -4,8 +4,18 @@ import type { Database } from "@informach/db";
 import { emailDeliveries } from "@informach/db/schema";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { ZodError } from "zod";
-import type { Logger } from "./logger";
-import { classifySendgridError, nextAttemptDelaySeconds, type SendgridErrorLike } from "./retry";
+import {
+  describeDeliveryBlockReason,
+  findDeliveryBlockReason,
+  markDeliveryBlocked,
+} from "./delivery-policy";
+import { type Logger, safeLog } from "./logger";
+import {
+  classifySendgridError,
+  MAX_ATTEMPTS,
+  nextAttemptDelaySeconds,
+  type SendgridErrorLike,
+} from "./retry";
 import { SendEmailInputSchema } from "./schemas";
 
 export type EmailCategory =
@@ -191,6 +201,30 @@ export async function dispatchEmail(
     if (delivery.status === "sent") {
       return { ok: true, status: "already-sent", deliveryId: delivery.id };
     }
+    if (delivery.status === "dropped" || delivery.status === "skipped") {
+      return {
+        ok: false,
+        status: "skipped",
+        deliveryId: delivery.id,
+        reason: delivery.lastError ?? "delivery already skipped",
+      };
+    }
+  }
+
+  const block = await findDeliveryBlockReason(deps.db, {
+    recipient: input.to,
+    category: input.category,
+    userId: input.userId,
+  });
+  if (block) {
+    const reason = describeDeliveryBlockReason(block);
+    const marked = await markDeliveryBlocked(deps.db, delivery.id, block, ["pending", "failed"]);
+    return {
+      ok: false,
+      status: "skipped",
+      deliveryId: delivery.id,
+      reason: marked ? reason : "claimed by another process",
+    };
   }
 
   const claimed = await deps.db
@@ -236,6 +270,8 @@ export async function dispatchEmail(
         status: "sent",
         providerAccepted: true,
         providerMessageId: `sandbox-${delivery.id}`,
+        lastError: null,
+        nextAttemptAt: null,
         sentAt: new Date(),
         updatedAt: new Date(),
       })
@@ -264,6 +300,8 @@ export async function dispatchEmail(
         status: "sent",
         providerAccepted: true,
         providerMessageId: `memory-${delivery.id}`,
+        lastError: null,
+        nextAttemptAt: null,
         sentAt: new Date(),
         updatedAt: new Date(),
       })
@@ -294,6 +332,8 @@ export async function dispatchEmail(
           status: "sent",
           providerAccepted: true,
           providerMessageId: messageId ?? null,
+          lastError: null,
+          nextAttemptAt: null,
           sentAt: new Date(),
           updatedAt: new Date(),
         })
@@ -305,7 +345,7 @@ export async function dispatchEmail(
       lastError = errLike.message ?? `SendGrid error (status ${errLike.response?.statusCode})`;
 
       if (lastClassification === "permanent") {
-        deps.logger?.error?.("Email delivery permanently failed", {
+        safeLog(deps.logger, "error", "Email delivery permanently failed", {
           deliveryId: delivery.id,
           attempt,
           status: errLike.response?.statusCode,
@@ -314,7 +354,7 @@ export async function dispatchEmail(
         break;
       }
 
-      deps.logger?.debug?.("Email delivery transient failure", {
+      safeLog(deps.logger, "debug", "Email delivery transient failure", {
         deliveryId: delivery.id,
         attempt,
         status: errLike.response?.statusCode,
@@ -332,7 +372,12 @@ export async function dispatchEmail(
     .update(emailDeliveries)
     .set({
       status: "failed",
+      ...(lastClassification === "permanent" ? { sendAttempts: MAX_ATTEMPTS } : {}),
       lastError: lastError ?? "unknown send failure",
+      nextAttemptAt:
+        lastClassification === "transient"
+          ? new Date(Date.now() + nextAttemptDelaySeconds(delivery.sendAttempts || 1, rng) * 1000)
+          : null,
       updatedAt: new Date(),
     })
     .where(eq(emailDeliveries.id, delivery.id));

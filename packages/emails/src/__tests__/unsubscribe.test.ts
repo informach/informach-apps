@@ -45,15 +45,33 @@ describe("processUnsubscribe", () => {
     expect(calls.filter((c) => c.mode === "insert").length).toBe(0);
   });
 
-  it("uses the identifier as userId when it does not look like an email", async () => {
+  it("inserts for a direct user id only when that user exists", async () => {
     const token = buildUnsubscribeToken(SECRET, "user-direct-id", "marketing.weekly");
-    const { db, calls } = createFakeDb({ insertResult: [] });
+    const { db, calls } = createFakeDb({
+      selectResult: [{ id: "user-direct-id" }],
+      insertResult: [],
+    });
 
     const result = await processUnsubscribe({ db: db as never, secret: SECRET }, token);
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.userId).toBe("user-direct-id");
-    expect(calls.filter((c) => c.mode === "select").length).toBe(0);
+    expect(calls.filter((c) => c.mode === "select").length).toBe(1);
     expect(calls.filter((c) => c.mode === "insert").length).toBe(1);
+  });
+
+  it("does not insert for unknown non-email identifiers", async () => {
+    const token = buildUnsubscribeToken(SECRET, "organization-slug", "billing.payment-failed");
+    const { db, calls } = createFakeDb({ selectResult: [], insertResult: [] });
+
+    const result = await processUnsubscribe({ db: db as never, secret: SECRET }, token);
+
+    expect(result).toEqual({
+      ok: true,
+      identifier: "organization-slug",
+      category: "billing.payment-failed",
+      userId: null,
+    });
+    expect(calls.filter((c) => c.mode === "insert").length).toBe(0);
   });
 });

@@ -1,13 +1,20 @@
 import type { Database } from "@informach/db";
 import { emailDeliveries, emailSuppressions } from "@informach/db/schema";
-import { and, eq, lt, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, lt, lte, or, sql } from "drizzle-orm";
+import {
+  describeDeliveryBlockReason,
+  findDeliveryBlockReason,
+  markDeliveryBlocked,
+} from "./delivery-policy";
 import type { EmailAddress, EmailCategory, SendFn, SendgridMessage } from "./dispatch";
+import { type Logger, safeLog } from "./logger";
 import {
   classifySendgridError,
   MAX_ATTEMPTS,
   nextAttemptDelaySeconds,
   type SendgridErrorLike,
 } from "./retry";
+import { EmailCategorySchema } from "./schemas";
 
 const STALE_AFTER_MS = 30 * 60 * 1000;
 
@@ -21,7 +28,7 @@ export async function recoverStaleDeliveries(deps: {
 
   const recovered = await deps.db
     .update(emailDeliveries)
-    .set({ status: "unknown", updatedAt: new Date() })
+    .set({ status: "unknown", nextAttemptAt: null, updatedAt: new Date() })
     .where(and(eq(emailDeliveries.status, "sending"), lt(emailDeliveries.sendingStartedAt, cutoff)))
     .returning({ id: emailDeliveries.id });
 
@@ -140,11 +147,7 @@ export type RetryFailedDeps = {
   /** Limit how many rows to process in a single sweep. Default: 50. */
   batchSize?: number;
   rng?: () => number;
-  logger?: {
-    info?: (msg: string, ctx?: object) => void;
-    warn?: (msg: string, ctx?: object) => void;
-    error?: (msg: string, ctx?: object) => void;
-  };
+  logger?: Pick<Logger, "info" | "warn" | "error">;
 };
 
 function buildListUnsubscribeHeaders(url: string, mailto?: string): Record<string, string> {
@@ -166,12 +169,19 @@ function buildListUnsubscribeHeaders(url: string, mailto?: string): Record<strin
 export async function retryFailedDeliveries(deps: RetryFailedDeps): Promise<RetryFailedResult> {
   const batchSize = Math.max(1, deps.batchSize ?? 50);
   const rng = deps.rng ?? Math.random;
-  const now = Date.now();
+  const now = new Date();
 
   const candidates = await deps.db
     .select()
     .from(emailDeliveries)
-    .where(eq(emailDeliveries.status, "failed"))
+    .where(
+      and(
+        eq(emailDeliveries.status, "failed"),
+        lt(emailDeliveries.sendAttempts, MAX_ATTEMPTS),
+        or(isNull(emailDeliveries.nextAttemptAt), lte(emailDeliveries.nextAttemptAt, now)),
+      ),
+    )
+    .orderBy(asc(emailDeliveries.nextAttemptAt), asc(emailDeliveries.updatedAt))
     .limit(batchSize);
 
   let retried = 0;
@@ -179,39 +189,61 @@ export async function retryFailedDeliveries(deps: RetryFailedDeps): Promise<Retr
   let failed = 0;
   let skipped = 0;
 
-  for (const row of candidates as Array<{
-    id: string;
-    recipient: string;
-    category: string;
-    messageKey: string;
-    subject: string;
-    html: string | null;
-    text: string | null;
-    sendAttempts: number;
-    updatedAt: Date | string;
-    userId: string | null;
-  }>) {
+  for (const row of candidates) {
     if (row.sendAttempts >= MAX_ATTEMPTS) {
       skipped += 1;
       continue;
     }
 
-    const updatedAtMs =
-      typeof row.updatedAt === "string"
-        ? new Date(row.updatedAt).getTime()
-        : row.updatedAt.getTime();
-    const minWaitMs = nextAttemptDelaySeconds(row.sendAttempts || 1, rng) * 1000;
-    if (now - updatedAtMs < minWaitMs) {
+    const nextAttemptAtMs = row.nextAttemptAt ? new Date(row.nextAttemptAt).getTime() : 0;
+    if (nextAttemptAtMs > Date.now()) {
       skipped += 1;
       continue;
     }
 
     if (!row.html && !row.text) {
-      deps.logger?.warn?.("Skipping retry: no body persisted", {
+      safeLog(deps.logger, "warn", "Skipping retry: no body persisted", {
         deliveryId: row.id,
         category: row.category,
       });
       skipped += 1;
+      continue;
+    }
+
+    const parsedCategory = EmailCategorySchema.safeParse(row.category);
+    if (!parsedCategory.success) {
+      await deps.db
+        .update(emailDeliveries)
+        .set({
+          status: "failed",
+          sendAttempts: MAX_ATTEMPTS,
+          lastError: `invalid email category: ${row.category}`,
+          nextAttemptAt: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(emailDeliveries.id, row.id));
+      skipped += 1;
+      safeLog(deps.logger, "warn", "Skipping retry: invalid category", {
+        deliveryId: row.id,
+        category: row.category,
+      });
+      continue;
+    }
+    const category = parsedCategory.data;
+
+    const block = await findDeliveryBlockReason(deps.db, {
+      recipient: row.recipient,
+      category,
+      userId: row.userId,
+    });
+    if (block) {
+      const marked = await markDeliveryBlocked(deps.db, row.id, block, ["failed"]);
+      skipped += 1;
+      safeLog(deps.logger, "info", "Email retry skipped by delivery policy", {
+        deliveryId: row.id,
+        category,
+        reason: marked ? describeDeliveryBlockReason(block) : "claimed by another process",
+      });
       continue;
     }
 
@@ -221,17 +253,19 @@ export async function retryFailedDeliveries(deps: RetryFailedDeps): Promise<Retr
         status: "sending",
         sendingStartedAt: new Date(),
         sendAttempts: sql`${emailDeliveries.sendAttempts} + 1`,
+        nextAttemptAt: null,
         updatedAt: new Date(),
       })
       .where(and(eq(emailDeliveries.id, row.id), eq(emailDeliveries.status, "failed")))
       .returning();
 
-    if ((claimed as unknown[]).length === 0) {
+    const claimedRow = claimed[0];
+    if (!claimedRow) {
       skipped += 1;
       continue;
     }
 
-    const unsubscribeUrl = deps.buildUnsubscribeUrl(row.recipient, row.category as EmailCategory);
+    const unsubscribeUrl = deps.buildUnsubscribeUrl(row.recipient, category);
     const headers = buildListUnsubscribeHeaders(unsubscribeUrl, deps.unsubscribeMailto);
 
     const message: SendgridMessage = {
@@ -243,9 +277,10 @@ export async function retryFailedDeliveries(deps: RetryFailedDeps): Promise<Retr
       headers,
       customArgs: {
         delivery_id: row.id,
-        category: row.category,
+        category,
         ...(row.userId ? { user_id: row.userId } : {}),
       },
+      categories: [category],
     };
 
     try {
@@ -256,27 +291,35 @@ export async function retryFailedDeliveries(deps: RetryFailedDeps): Promise<Retr
           status: "sent",
           providerAccepted: true,
           providerMessageId: messageId ?? null,
+          lastError: null,
+          nextAttemptAt: null,
           sentAt: new Date(),
           updatedAt: new Date(),
         })
         .where(eq(emailDeliveries.id, row.id));
       retried += 1;
       recovered += 1;
-      deps.logger?.info?.("Email retry succeeded", {
+      safeLog(deps.logger, "info", "Email retry succeeded", {
         deliveryId: row.id,
-        category: row.category,
+        category,
       });
     } catch (error: unknown) {
       const errLike = error as SendgridErrorLike;
       const classification = classifySendgridError(errLike);
       const lastError =
         errLike.message ?? `SendGrid error (status ${errLike.response?.statusCode})`;
+      const attempts = claimedRow.sendAttempts || row.sendAttempts + 1;
 
       await deps.db
         .update(emailDeliveries)
         .set({
           status: "failed",
+          ...(classification === "permanent" ? { sendAttempts: MAX_ATTEMPTS } : {}),
           lastError,
+          nextAttemptAt:
+            classification === "transient"
+              ? new Date(Date.now() + nextAttemptDelaySeconds(attempts, rng) * 1000)
+              : null,
           updatedAt: new Date(),
         })
         .where(eq(emailDeliveries.id, row.id));
@@ -284,9 +327,9 @@ export async function retryFailedDeliveries(deps: RetryFailedDeps): Promise<Retr
       retried += 1;
       failed += 1;
 
-      deps.logger?.warn?.("Email retry failed", {
+      safeLog(deps.logger, "warn", "Email retry failed", {
         deliveryId: row.id,
-        category: row.category,
+        category,
         classification,
         reason: lastError,
       });

@@ -147,6 +147,58 @@ describe("dispatchEmail sandbox mode", () => {
 });
 
 describe("dispatchEmail live mode", () => {
+  it("skips suppressed recipients before sending", async () => {
+    const { db } = createFakeDb({
+      insertResult: [{ id: "fake-id", status: "pending", sendAttempts: 0 }],
+      selectQueue: [[{ reason: "bounce" }]],
+      updateResult: [{ id: "fake-id" }],
+    });
+    const send: SendFn = vi.fn().mockResolvedValue({ messageId: "mid-123" });
+
+    const result = await dispatchEmail(
+      {
+        db: db as never,
+        defaultFrom: "noreply@example.com",
+        mode: "live",
+        sandboxDir: "./tmp",
+        send,
+      },
+      makeInput(),
+    );
+
+    expect(send).not.toHaveBeenCalled();
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.status).toBe("skipped");
+    expect(result.reason).toContain("suppressed");
+  });
+
+  it("skips non-auth categories when the user unsubscribed", async () => {
+    const { db } = createFakeDb({
+      insertResult: [{ id: "fake-id", status: "pending", sendAttempts: 0 }],
+      selectQueue: [[], [{ userId: "user-1" }]],
+      updateResult: [{ id: "fake-id" }],
+    });
+    const send: SendFn = vi.fn().mockResolvedValue({ messageId: "mid-123" });
+
+    const result = await dispatchEmail(
+      {
+        db: db as never,
+        defaultFrom: "noreply@example.com",
+        mode: "live",
+        sandboxDir: "./tmp",
+        send,
+      },
+      makeInput({ category: "billing.payment-failed" }),
+    );
+
+    expect(send).not.toHaveBeenCalled();
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.status).toBe("skipped");
+    expect(result.reason).toContain("unsubscribed");
+  });
+
   it("calls send with the right payload, headers and customArgs on success", async () => {
     const { db } = createFakeDb({
       insertResult: [{ id: "fake-id", status: "pending", sendAttempts: 0 }],
@@ -183,7 +235,7 @@ describe("dispatchEmail live mode", () => {
   });
 
   it("does NOT retry on a permanent error and marks failed", async () => {
-    const { db } = createFakeDb({
+    const { db, calls } = createFakeDb({
       insertResult: [{ id: "fake-id", status: "pending", sendAttempts: 0 }],
       updateResult: [{ id: "fake-id", status: "sending", sendAttempts: 1 }],
     });
@@ -209,10 +261,16 @@ describe("dispatchEmail live mode", () => {
     if (result.ok) throw new Error("unreachable");
     expect(result.status).toBe("failed");
     expect(result.reason).toContain("rejected");
+    const finalUpdate = calls
+      .filter((call) => call.mode === "update")
+      .at(-1)
+      ?.chain.find((entry) => entry.method === "set")?.args[0] as Record<string, unknown>;
+    expect(finalUpdate.sendAttempts).toBe(8);
+    expect(finalUpdate.nextAttemptAt).toBeNull();
   });
 
   it("retries up to inlineRetryAttempts times on transient errors and marks failed at the end", async () => {
-    const { db } = createFakeDb({
+    const { db, calls } = createFakeDb({
       insertResult: [{ id: "fake-id", status: "pending", sendAttempts: 0 }],
       updateResult: [{ id: "fake-id", status: "sending", sendAttempts: 1 }],
     });
@@ -238,6 +296,11 @@ describe("dispatchEmail live mode", () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.status).toBe("failed");
+    const finalUpdate = calls
+      .filter((call) => call.mode === "update")
+      .at(-1)
+      ?.chain.find((entry) => entry.method === "set")?.args[0] as Record<string, unknown>;
+    expect(finalUpdate.nextAttemptAt).toBeInstanceOf(Date);
   });
 
   it("eventually succeeds when a transient error resolves on a later retry", async () => {
@@ -268,6 +331,38 @@ describe("dispatchEmail live mode", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.status).toBe("sent");
+  });
+
+  it("does not let logger failures break dispatch failure handling", async () => {
+    const { db } = createFakeDb({
+      insertResult: [{ id: "fake-id", status: "pending", sendAttempts: 0 }],
+      updateResult: [{ id: "fake-id", status: "sending", sendAttempts: 1 }],
+    });
+    const sendError = Object.assign(new Error("rejected"), {
+      response: { statusCode: 401 },
+    });
+    const send: SendFn = vi.fn().mockRejectedValue(sendError);
+
+    const result = await dispatchEmail(
+      {
+        db: db as never,
+        defaultFrom: "noreply@example.com",
+        mode: "live",
+        sandboxDir: "./tmp",
+        send,
+        sleep: async () => {},
+        logger: {
+          error: () => {
+            throw new Error("logger down");
+          },
+        },
+      },
+      makeInput(),
+    );
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.status).toBe("failed");
   });
 });
 

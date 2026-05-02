@@ -5,6 +5,7 @@ type Mode = "select" | "insert" | "update";
 export type FakeDbCall = {
   mode: Mode;
   args: unknown[];
+  chain: Array<{ method: string; args: unknown[] }>;
 };
 
 export type FakeDbConfig = {
@@ -42,19 +43,29 @@ export function createFakeDb(config: FakeDbConfig = {}) {
     return fallback ?? [];
   };
 
-  const buildChain = (terminate: () => Promise<unknown[]>) => {
+  const buildChain = (call: FakeDbCall, terminate: () => Promise<unknown[]>) => {
     const chain: Record<string, unknown> = {};
     const noop = (name: string) => {
-      chain[name] = vi.fn(() => chain);
+      chain[name] = vi.fn((...args: unknown[]) => {
+        call.chain.push({ method: name, args });
+        return chain;
+      });
     };
     noop("values");
     noop("onConflictDoNothing");
     noop("from");
     noop("where");
     noop("set");
+    noop("orderBy");
 
-    chain.returning = vi.fn(() => terminate());
-    chain.limit = vi.fn(() => terminate());
+    chain.returning = vi.fn((...args: unknown[]) => {
+      call.chain.push({ method: "returning", args });
+      return terminate();
+    });
+    chain.limit = vi.fn((...args: unknown[]) => {
+      call.chain.push({ method: "limit", args });
+      return terminate();
+    });
     // biome-ignore lint/suspicious/noThenProperty: required to make Drizzle chain await-able without `.returning()`
     chain.then = (
       onFulfilled?: (value: unknown[]) => unknown,
@@ -65,16 +76,25 @@ export function createFakeDb(config: FakeDbConfig = {}) {
 
   const db = {
     select: vi.fn((...args: unknown[]) => {
-      calls.push({ mode: "select", args });
-      return buildChain(() => Promise.resolve(dequeue(config.selectQueue, config.selectResult)));
+      const call: FakeDbCall = { mode: "select", args, chain: [] };
+      calls.push(call);
+      return buildChain(call, () =>
+        Promise.resolve(dequeue(config.selectQueue, config.selectResult)),
+      );
     }),
     insert: vi.fn((...args: unknown[]) => {
-      calls.push({ mode: "insert", args });
-      return buildChain(() => Promise.resolve(dequeue(config.insertQueue, config.insertResult)));
+      const call: FakeDbCall = { mode: "insert", args, chain: [] };
+      calls.push(call);
+      return buildChain(call, () =>
+        Promise.resolve(dequeue(config.insertQueue, config.insertResult)),
+      );
     }),
     update: vi.fn((...args: unknown[]) => {
-      calls.push({ mode: "update", args });
-      return buildChain(() => Promise.resolve(dequeue(config.updateQueue, config.updateResult)));
+      const call: FakeDbCall = { mode: "update", args, chain: [] };
+      calls.push(call);
+      return buildChain(call, () =>
+        Promise.resolve(dequeue(config.updateQueue, config.updateResult)),
+      );
     }),
   };
 

@@ -124,7 +124,7 @@ describe("retryFailedDeliveries", () => {
 
   it("re-claims and re-sends rows in status='failed' that are past the backoff window", async () => {
     const { db } = createFakeDb({
-      selectResult: [baseRow],
+      selectQueue: [[baseRow], []],
       updateResult: [{ id: baseRow.id }],
     });
     const send: SendFn = vi.fn().mockResolvedValue({ messageId: "mid-retry" });
@@ -147,6 +147,7 @@ describe("retryFailedDeliveries", () => {
     const msg = (send as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as {
       headers: Record<string, string>;
       customArgs: Record<string, string>;
+      categories: string[];
     };
     expect(msg.headers["List-Unsubscribe"]).toContain(
       "https://app.example.com/api/email/unsubscribe?t=user@example.com-auth.verify-email",
@@ -154,6 +155,46 @@ describe("retryFailedDeliveries", () => {
     expect(msg.headers["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
     expect(msg.customArgs.delivery_id).toBe(baseRow.id);
     expect(msg.customArgs.user_id).toBe(baseRow.userId);
+    expect(msg.categories).toEqual(["auth.verify-email"]);
+  });
+
+  it("skips suppressed recipients before retrying", async () => {
+    const { db } = createFakeDb({
+      selectQueue: [[baseRow], [{ reason: "bounce" }]],
+      updateResult: [{ id: baseRow.id }],
+    });
+    const send: SendFn = vi.fn();
+
+    const result = await retryFailedDeliveries({
+      db: db as never,
+      defaultFrom: "noreply@example.com",
+      send,
+      buildUnsubscribeUrl,
+    });
+
+    expect(send).not.toHaveBeenCalled();
+    expect(result.skipped).toBe(1);
+    expect(result.retried).toBe(0);
+  });
+
+  it("skips non-auth categories when the user unsubscribed before retrying", async () => {
+    const row = { ...baseRow, category: "billing.payment-failed" };
+    const { db } = createFakeDb({
+      selectQueue: [[row], [], [{ userId: row.userId }]],
+      updateResult: [{ id: row.id }],
+    });
+    const send: SendFn = vi.fn();
+
+    const result = await retryFailedDeliveries({
+      db: db as never,
+      defaultFrom: "noreply@example.com",
+      send,
+      buildUnsubscribeUrl,
+    });
+
+    expect(send).not.toHaveBeenCalled();
+    expect(result.skipped).toBe(1);
+    expect(result.retried).toBe(0);
   });
 
   it("skips rows above MAX_ATTEMPTS without sending", async () => {
@@ -177,7 +218,7 @@ describe("retryFailedDeliveries", () => {
 
   it("skips rows whose backoff window has not elapsed", async () => {
     const { db } = createFakeDb({
-      selectResult: [{ ...baseRow, updatedAt: new Date() }], // updated just now
+      selectResult: [{ ...baseRow, nextAttemptAt: new Date(Date.now() + 60_000) }],
       updateResult: [{ id: baseRow.id }],
     });
     const send: SendFn = vi.fn();
@@ -213,8 +254,8 @@ describe("retryFailedDeliveries", () => {
   });
 
   it("marks back to failed when send raises and counts the failure", async () => {
-    const { db } = createFakeDb({
-      selectResult: [baseRow],
+    const { db, calls } = createFakeDb({
+      selectQueue: [[baseRow], []],
       updateResult: [{ id: baseRow.id }],
     });
     const sendError = Object.assign(new Error("rate limit"), {
@@ -233,11 +274,16 @@ describe("retryFailedDeliveries", () => {
     expect(result.retried).toBe(1);
     expect(result.failed).toBe(1);
     expect(result.recovered).toBe(0);
+    const finalUpdate = calls
+      .filter((call) => call.mode === "update")
+      .at(-1)
+      ?.chain.find((entry) => entry.method === "set")?.args[0] as Record<string, unknown>;
+    expect(finalUpdate.nextAttemptAt).toBeInstanceOf(Date);
   });
 
   it("counts as skipped when claim returns no rows (raced by another sweeper)", async () => {
     const { db } = createFakeDb({
-      selectResult: [baseRow],
+      selectQueue: [[baseRow], []],
       updateResult: [], // claim matched 0 rows
     });
     const send: SendFn = vi.fn();

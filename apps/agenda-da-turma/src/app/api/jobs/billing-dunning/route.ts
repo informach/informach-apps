@@ -68,7 +68,7 @@ export async function POST(request: Request): Promise<Response> {
 
 type DunningRecipient = {
   email: string;
-  /** Identifier used to build the unsubscribe HMAC token (email for users, slug for orgs). */
+  /** Identifier used to build the unsubscribe HMAC token. */
   unsubscribeIdentifier: string;
 };
 
@@ -87,9 +87,10 @@ async function resolveDunningRecipient(subject: {
     return { email: row.email, unsubscribeIdentifier: row.email };
   }
   // Organization subject — billing email is the customer.email persisted at
-  // checkout time. Joined with organizations.slug for the unsubscribe identifier.
+  // checkout time. The unsubscribe token uses that email so the package can
+  // resolve the preference through the users table when possible.
   const rows = await db
-    .select({ email: customers.email, slug: organizations.slug })
+    .select({ email: customers.email })
     .from(customers)
     .innerJoin(organizations, eq(organizations.id, customers.subjectId))
     .where(
@@ -102,7 +103,7 @@ async function resolveDunningRecipient(subject: {
     .limit(1);
   const row = rows[0];
   if (!row) return null;
-  return { email: row.email, unsubscribeIdentifier: row.slug };
+  return { email: row.email, unsubscribeIdentifier: row.email };
 }
 
 function buildUnsubscribeUrlFor(identifier: string): string {

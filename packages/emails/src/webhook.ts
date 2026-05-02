@@ -2,6 +2,7 @@ import type { Database } from "@informach/db";
 import { emailDeliveries, emailSuppressions, emailUnsubscribes, users } from "@informach/db/schema";
 import { EventWebhook, EventWebhookHeader } from "@sendgrid/eventwebhook";
 import { eq } from "drizzle-orm";
+import { type Logger, safeLog } from "./logger";
 
 export const SENDGRID_SIGNATURE_HEADER = EventWebhookHeader.SIGNATURE();
 export const SENDGRID_TIMESTAMP_HEADER = EventWebhookHeader.TIMESTAMP();
@@ -21,10 +22,7 @@ export type SendgridEvent = {
 
 export type WebhookDeps = {
   db: Database;
-  logger?: {
-    warn?: (msg: string, ctx?: object) => void;
-    error?: (msg: string, ctx?: object) => void;
-  };
+  logger?: Pick<Logger, "warn" | "error">;
 };
 
 export function verifySendgridSignature(
@@ -118,7 +116,7 @@ export async function handleSendgridEvent(deps: WebhookDeps, event: SendgridEven
       return;
     }
     case "deferred": {
-      deps.logger?.warn?.("SendGrid deferred", {
+      safeLog(deps.logger, "warn", "SendGrid deferred", {
         deliveryId: delivery?.id,
         email: event.email,
         reason: event.reason,
@@ -169,7 +167,7 @@ export async function handleSendgridEvents(
       processed += 1;
     } catch (error) {
       failed += 1;
-      deps.logger?.error?.("Failed to process SendGrid event", {
+      safeLog(deps.logger, "error", "Failed to process SendGrid event", {
         event: event.event,
         email: event.email,
         error: (error as Error).message,

@@ -119,7 +119,8 @@ function createMemoryOutbox(): MemoryOutbox {
 }
 
 export function createEmailService(config: EmailServiceConfig): EmailService {
-  if (!config.apiKey && config.mode === "live") {
+  const mode: DispatchMode = config.mode ?? "live";
+  if (!config.apiKey && mode === "live") {
     throw new Error("createEmailService: apiKey is required when mode is 'live'");
   }
   if (!config.defaultFrom) {
@@ -129,7 +130,6 @@ export function createEmailService(config: EmailServiceConfig): EmailService {
     throw new Error("createEmailService: db is required");
   }
 
-  const mode: DispatchMode = config.mode ?? "live";
   const sandboxDir = config.sandboxDir ?? "./tmp/integration_emails";
 
   if (mode === "live") {

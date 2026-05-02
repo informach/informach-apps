@@ -19,6 +19,29 @@ function makeEvent(overrides: Partial<SendgridEvent>): SendgridEvent {
 }
 
 describe("verifySendgridSignature", () => {
+  it("returns true for a valid signed SendGrid payload", () => {
+    const publicKey =
+      "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE83T4O/n84iotIvIW4mdBgQ/7dAfSmpqIM8kF9mN1flpVKS3GRqe62gw+2fNNRaINXvVpiglSI8eNEc6wEA3F+g==";
+    const signature =
+      "MEUCIGHQVtGj+Y3LkG9fLcxf3qfI10QysgDWmMOVmxG0u6ZUAiEAyBiXDWzM+uOe5W0JuG+luQAbPIqHh89M15TluLtEZtM=";
+    const timestamp = "1600112502";
+    const payload = `${JSON.stringify([
+      {
+        email: "hello@world.com",
+        event: "dropped",
+        reason: "Bounced Address",
+        sg_event_id: "ZHJvcC0xMDk5NDkxOS1MUnpYbF9OSFN0T0doUTRrb2ZTbV9BLTA",
+        sg_message_id: "LRzXl_NHStOGhQ4kofSm_A.filterdrecv-p3mdw1-756b745b58-kmzbl-18-5F5FC76C-9.0",
+        "smtp-id": "<LRzXl_NHStOGhQ4kofSm_A@ismtpd0039p1iad1.sendgrid.net>",
+        timestamp: 1600112492,
+      },
+    ])}\r\n`;
+
+    expect(verifySendgridSignature(publicKey, Buffer.from(payload), signature, timestamp)).toBe(
+      true,
+    );
+  });
+
   it("returns false when signature is missing", () => {
     expect(verifySendgridSignature("PUBKEY", Buffer.from("body"), null, "1700000000")).toBe(false);
   });

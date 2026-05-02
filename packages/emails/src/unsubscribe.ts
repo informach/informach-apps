@@ -27,7 +27,12 @@ export async function processUnsubscribe(
       .limit(1);
     userId = user?.id ?? null;
   } else {
-    userId = identifier;
+    const [user] = await deps.db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.id, identifier))
+      .limit(1);
+    userId = user?.id ?? null;
   }
 
   if (userId) {
