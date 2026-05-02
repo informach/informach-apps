@@ -37,6 +37,6 @@ Pesquise sobre o deploy no Railway e crie o arquivo PRODUCTION.md com todos os d
 
 Pode seguir para a fase 10. Também use o mcp do context7 para consultar a documentação atualizada e use as skills do projeto.
 
-Faça um full code review no package billing. Também use o mcp do context7 para consultar a documentação atualizada e use as skills do projeto.
+Faça um full code review no package billing. Também use o mcp do context7 para consultar a documentação atualizada e use as skills do projeto. Também confira se o package está em conformidade com C:\Users\tocha\projects\casaldevgames-platform\docs\arquitetura-packages.md
 
-Confira se o package billing está em conformidade com C:\Users\tocha\projects\casaldevgames-platform\docs\arquitetura-packages.md
+Faça um full code review no app cozya. Também use o mcp do context7 para consultar a documentação atualizada e use as skills do projeto. Também confira se o app está em conformidade com C:\Users\tocha\projects\casaldevgames-platform\docs\arquitetura-apps.md

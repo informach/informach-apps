@@ -69,4 +69,4 @@ export const {
   getCurrentUserServer,
   requireUserServer,
   redirectIfUnauthenticated,
-} = createServerHelpers(authResult);
+} = createServerHelpers(authResult, { signInPath: "/login" });

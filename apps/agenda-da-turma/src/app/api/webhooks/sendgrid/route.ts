@@ -3,12 +3,18 @@ import {
   handleSendgridEvents,
   SENDGRID_SIGNATURE_HEADER,
   SENDGRID_TIMESTAMP_HEADER,
-  type SendgridEvent,
   verifySendgridSignature,
 } from "@informach/emails/webhook";
 import { env } from "@/lib/env";
+import { logger } from "@/lib/logger";
+import { parseSendgridWebhookPayload } from "@/lib/sendgrid-webhook";
 
 export const runtime = "nodejs";
+
+const emailWebhookLogger = {
+  warn: (message: string, ctx?: object) => logger.warn(ctx, message),
+  error: (message: string, ctx?: object) => logger.error(ctx, message),
+};
 
 export async function POST(request: Request): Promise<Response> {
   if (!env.SENDGRID_WEBHOOK_PUBLIC_KEY) {
@@ -23,17 +29,20 @@ export async function POST(request: Request): Promise<Response> {
     return new Response("Invalid signature", { status: 403 });
   }
 
-  let events: SendgridEvent[];
-  try {
-    events = JSON.parse(rawBody.toString("utf8")) as SendgridEvent[];
-  } catch {
+  const parsed = parseSendgridWebhookPayload(rawBody);
+  if (!parsed.ok) {
+    logger.warn(
+      { reason: parsed.reason, issues: parsed.issues },
+      "email.webhook.sendgrid.invalid_payload",
+    );
     return new Response("Invalid payload", { status: 400 });
   }
 
-  if (!Array.isArray(events)) {
-    return new Response("Expected array", { status: 400 });
+  const result = await handleSendgridEvents({ db, logger: emailWebhookLogger }, parsed.events);
+  if (result.failed > 0) {
+    logger.error(result, "email.webhook.sendgrid.partial_failure");
+    return Response.json({ ok: false, ...result }, { status: 500 });
   }
 
-  const result = await handleSendgridEvents({ db }, events);
   return Response.json({ ok: true, ...result });
 }

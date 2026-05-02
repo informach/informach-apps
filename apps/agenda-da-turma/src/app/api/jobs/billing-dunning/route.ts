@@ -1,9 +1,8 @@
 import { APPS } from "@informach/config";
-import { db } from "@informach/db";
+import { and, db, eq } from "@informach/db";
 import { customers, organizations, users } from "@informach/db/schema";
 import { buildUnsubscribeToken } from "@informach/emails";
 import { renderTemplate } from "@informach/emails/templates";
-import { and, eq } from "drizzle-orm";
 import { billing } from "@/lib/billing";
 import { emails } from "@/lib/emails";
 import { env } from "@/lib/env";

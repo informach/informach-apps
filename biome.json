@@ -64,6 +64,97 @@
           }
         }
       }
+    },
+    {
+      "includes": ["apps/agenda-da-turma/src/**/*.{ts,tsx}"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "error"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "apps/*/src/app/**/{page,layout,error,global-error,loading,not-found}.tsx",
+        "apps/*/src/features/**/components/**/*.{ts,tsx}"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@informach/db": "UI routes and components must not import the database directly. Move data access to a feature repository/service.",
+                  "@informach/db/schema": "UI routes and components must not import database schema directly. Move data access to a feature repository/service.",
+                  "drizzle-orm": "UI routes and components must not import Drizzle directly. Move data access to a feature repository/service."
+                },
+                "patterns": [
+                  {
+                    "group": ["drizzle-orm/*"],
+                    "message": "UI routes and components must not import Drizzle directly. Move data access to a feature repository/service."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/*/src/features/**/actions.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@informach/db": "Server Actions must call feature services instead of the database directly.",
+                  "@informach/db/schema": "Server Actions must call feature services instead of database schema directly.",
+                  "drizzle-orm": "Server Actions must call feature services instead of Drizzle directly."
+                },
+                "patterns": [
+                  {
+                    "group": ["drizzle-orm/*"],
+                    "message": "Server Actions must call feature services instead of Drizzle directly."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/*/src/features/**/service.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "next/headers": "Feature services must stay Next-free. Pass request-derived values from the action layer.",
+                  "next/cache": "Feature services must stay Next-free. Revalidate from the action layer.",
+                  "react": "Feature services must not import React.",
+                  "@informach/db": "Feature services must use repository.ts instead of direct database access.",
+                  "@informach/db/schema": "Feature services must use repository.ts instead of direct database schema access.",
+                  "drizzle-orm": "Feature services must use repository.ts instead of direct Drizzle access."
+                },
+                "patterns": [
+                  {
+                    "group": ["next/*", "drizzle-orm/*"],
+                    "message": "Feature services must stay framework-free and access persistence through repository.ts."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   ]
 }

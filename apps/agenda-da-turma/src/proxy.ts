@@ -10,7 +10,7 @@ import { authResult } from "./lib/auth";
  * here means a future `requireAuth: ["/"]` catch-all wouldn't break webhook /
  * cron / email-link / probe traffic that already authenticates by other means.
  *
- *   /sign-in, /sign-up, /verify-email, /reset-password — auth UI
+ *   /login, /signup, /verify-email, /reset-password — auth UI/callbacks
  *   /api/auth        — Better Auth handler (manages its own session lifecycle)
  *   /api/webhooks    — Stripe + SendGrid; auth via HMAC/ECDSA signature
  *   /api/jobs        — cron routes; auth via `Authorization: Bearer ${CRON_SECRET}`
@@ -18,11 +18,15 @@ import { authResult } from "./lib/auth";
  *   /api/health      — Railway liveness probe; no auth needed
  */
 export const proxy = createAuthProxy(authResult, {
+  requireAuth: ["/dashboard"],
+  signInPath: "/login",
   publicPaths: [
-    "/sign-in",
-    "/sign-up",
+    "/login",
+    "/signup",
     "/verify-email",
     "/reset-password",
+    "/magic-link",
+    "/accept-invitation",
     "/api/auth",
     "/api/webhooks",
     "/api/jobs",

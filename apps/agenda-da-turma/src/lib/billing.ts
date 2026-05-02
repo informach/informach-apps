@@ -1,10 +1,9 @@
 import { logAuditEvent } from "@informach/auth";
 import { createBillingService, type SubjectRef } from "@informach/billing";
 import { APPS, PRODUCTS } from "@informach/config";
-import { db } from "@informach/db";
+import { db, eq } from "@informach/db";
 import { organizations, users } from "@informach/db/schema";
 import { buildUnsubscribeToken } from "@informach/emails";
-import { eq } from "drizzle-orm";
 import { emails } from "./emails";
 import { env } from "./env";
 import { logger } from "./logger";
