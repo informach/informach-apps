@@ -27,7 +27,10 @@
         "STRIPE_SECRET_KEY",
         "STRIPE_WEBHOOK_SECRET",
         "STRIPE_PUBLISHABLE_KEY",
-        "STRIPE_MODE"
+        "STRIPE_MODE",
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "MASTRA_LOG_LEVEL"
       ]
     },
     "typecheck": {

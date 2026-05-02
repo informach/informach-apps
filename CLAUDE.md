@@ -16,6 +16,7 @@ Per-package deep guides exist and should be consulted before non-trivial changes
 - `packages/auth/CLAUDE.md`
 - `packages/billing/CLAUDE.md`
 - `packages/emails/CLAUDE.md`
+- `packages/ai-core/CLAUDE.md`
 
 Cross-cutting docs in `docs/`: `arquitetura-monorepo.md`, `arquitetura-apps.md`, `arquitetura-packages.md`, `adr/0001-uso-de-monorepo.md`.
 
@@ -64,6 +65,13 @@ Each package exposes its surface via `package.json` `exports` pointing at `src/`
 ### Database — Drizzle is the source of truth
 - All schema lives in `@informach/db` (no Better Auth CLI, no hand-written SQL). Postgres schemas: `core`, `billing`, `audit`, `ai`, `agenda`, `cozya`.
 - Schema changes flow through `pnpm db:generate` → `pnpm db:migrate`.
+- **Exception**: Mastra owns the `ai_mastra` schema (tables `mastra_threads`, `mastra_messages`, `mastra_traces`, `mastra_scorers`, `mastra_evals`, `mastra_workflow_snapshot`, `mastra_resources`). It auto-creates them on first call. `ai_mastra` is intentionally absent from `drizzle.config.ts` `schemaFilter` so `db:generate` never proposes DROP. Migration `0010_create_ai_mastra_schema.sql` only runs `CREATE SCHEMA IF NOT EXISTS`.
+
+### AI agents — Mastra base in `@informach/ai-core`
+- `@mastra/core@^1.31` + `@mastra/pg` + `@mastra/loggers` + `@mastra/memory` + AI SDK v5 providers (`@ai-sdk/anthropic`, `@ai-sdk/openai`).
+- Apps consume factories: `createMastra`, `createPostgresStore` (default `schemaName: "ai_mastra"`), `createSharedMemory`, `createAnthropic`/`createOpenAI`, `createDefaultLogger`. Agents themselves live in `apps/<app>/src/ai/`, never in the package.
+- `runId` UUID is the cross-schema link: `withCredits` `reservation.id` ≡ `agent.generate({ runId })` ≡ `ai.agent_runs.id` ≡ `ai_mastra.mastra_traces.runId`. Always pass it through.
+- See `packages/ai-core/CLAUDE.md` for the full contract.
 
 ## Build & CI conventions
 

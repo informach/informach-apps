@@ -71,6 +71,13 @@
       "when": 1777685624304,
       "tag": "0009_dapper_mole_man",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1777727429199,
+      "tag": "0010_create_ai_mastra_schema",
+      "breakpoints": true
     }
   ]
 }

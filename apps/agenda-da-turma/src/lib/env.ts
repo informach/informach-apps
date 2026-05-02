@@ -32,6 +32,9 @@ export const env = createEnv({
      * to test prod prices in staging or vice-versa.
      */
     STRIPE_MODE: z.enum(["dev", "prod"]).optional(),
+    OPENAI_API_KEY: z.string().min(1).optional(),
+    ANTHROPIC_API_KEY: z.string().min(1).optional(),
+    MASTRA_LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   },
   client: {
     NEXT_PUBLIC_APP_URL: z.string().url(),
@@ -58,6 +61,9 @@ export const env = createEnv({
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
     STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY,
     STRIPE_MODE: process.env.STRIPE_MODE,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    MASTRA_LOG_LEVEL: process.env.MASTRA_LOG_LEVEL,
   },
   emptyStringAsUndefined: true,
 });

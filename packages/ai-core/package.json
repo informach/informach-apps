@@ -8,13 +8,12 @@
   "exports": {
     ".": "./src/index.ts",
     "./types": "./src/types.ts",
-    "./models": "./src/models/index.ts",
-    "./memory": "./src/memory/index.ts",
+    "./billing": "./src/billing.ts",
     "./tools": "./src/tools/index.ts",
-    "./guardrails": "./src/guardrails/index.ts",
     "./telemetry": "./src/telemetry/index.ts",
-    "./prompts": "./src/prompts/index.ts",
-    "./billing": "./src/billing.ts"
+    "./logger": "./src/logger.ts",
+    "./providers": "./src/providers/index.ts",
+    "./mastra": "./src/mastra/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -22,9 +21,20 @@
   },
   "dependencies": {
     "@informach/billing": "workspace:*",
-    "@informach/db": "workspace:*"
+    "@informach/db": "workspace:*",
+    "@mastra/core": "^1.31.0",
+    "@mastra/loggers": "^1.1.1",
+    "@mastra/memory": "^1.17.4",
+    "@mastra/pg": "^1.9.4",
+    "@ai-sdk/anthropic": "^3.0.74",
+    "@ai-sdk/openai": "^3.0.58",
+    "drizzle-orm": "^0.45.2",
+    "server-only": "^0.0.1",
+    "zod": "^3.25.0"
   },
   "devDependencies": {
+    "@types/node": "^20.17.10",
+    "pino": "^10.3.1",
     "typescript": "^5.6.3",
     "vitest": "^2.1.9"
   }
