@@ -3,8 +3,9 @@
 import { Button } from "@informach/ui/components/button";
 import { ModeToggle } from "@informach/ui/components/mode-toggle";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@informach/ui/components/sheet";
-import { ChefHat, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import Link from "next/link";
+import { CozyaLogo } from "@/components/brand/cozya-logo";
 
 const NAV_LINKS = [
   { href: "#como-funciona", label: "Como funciona" },
@@ -29,15 +30,8 @@ export function SiteHeader({ variant = "marketing" }: SiteHeaderProps) {
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link
-          href="/"
-          className="flex items-center gap-2 font-semibold tracking-tight"
-          aria-label="Cozya — início"
-        >
-          <span className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <ChefHat className="size-5" aria-hidden />
-          </span>
-          <span className="text-lg">Cozya</span>
+        <Link href="/" className="flex items-center" aria-label="Cozya — início">
+          <CozyaLogo className="h-8 w-auto text-secondary dark:text-foreground" />
         </Link>
 
         {!isAuth && (
