@@ -2,3 +2,58 @@
 @import "@informach/ui/styles.css";
 
 @source "../../../../packages/ui/src/**/*.{ts,tsx}";
+
+/* Fonte local via next/font toma precedência sobre o fallback do tema. */
+:root {
+  --font-sans: var(--font-jakarta), "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jakarta), "Plus Jakarta Sans", ui-monospace, monospace;
+}
+
+/* ============================================================
+   APP OVERRIDES — Cozya
+   Identidade do brand book: Laranja Principal #FF7A3D + Navy
+   #173247. Cream/Surface/Border permanecem como o package
+   (escala de cinza compartilhada).
+   ============================================================ */
+:root {
+  /* Laranja Principal #FF7A3D */
+  --primary: oklch(0.7212 0.1772 41.3);
+  --primary-foreground: oklch(1 0 0);
+
+  /* Navy #173247 */
+  --secondary: oklch(0.2701 0.0432 248.6);
+  --secondary-foreground: oklch(1 0 0);
+
+  --ring: oklch(0.7212 0.1772 41.3);
+
+  --chart-1: oklch(0.7212 0.1772 41.3); /* laranja */
+  --chart-2: oklch(0.2701 0.0432 248.6); /* navy */
+  --chart-3: oklch(0.82 0.105 50); /* peach */
+  --chart-4: oklch(0.45 0.08 245); /* navy claro */
+  --chart-5: oklch(0.7 0.015 50); /* warm gray */
+
+  --sidebar-primary: oklch(0.7212 0.1772 41.3);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-ring: oklch(0.7212 0.1772 41.3);
+}
+
+.dark {
+  --primary: oklch(0.7212 0.1772 41.3);
+  --primary-foreground: oklch(0.1591 0 0);
+
+  /* Navy levantado pra ganhar contraste contra fundo escuro. */
+  --secondary: oklch(0.6 0.08 245);
+  --secondary-foreground: oklch(0.1591 0 0);
+
+  --ring: oklch(0.7212 0.1772 41.3);
+
+  --chart-1: oklch(0.78 0.16 45);
+  --chart-2: oklch(0.65 0.08 245);
+  --chart-3: oklch(0.85 0.1 50);
+  --chart-4: oklch(0.55 0.1 245);
+  --chart-5: oklch(0.7 0.015 50);
+
+  --sidebar-primary: oklch(0.7212 0.1772 41.3);
+  --sidebar-primary-foreground: oklch(0.1591 0 0);
+  --sidebar-ring: oklch(0.7212 0.1772 41.3);
+}
