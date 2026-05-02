@@ -98,7 +98,7 @@ export const rateLimit = core.table(
     count: integer("count").notNull().default(0),
     lastRequest: bigint("last_request", { mode: "number" }),
   },
-  (t) => [index("rate_limit_key_idx").on(t.key)],
+  (t) => [uniqueIndex("rate_limit_key_idx").on(t.key)],
 );
 
 export const organizations = core.table(

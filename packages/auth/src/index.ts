@@ -22,6 +22,7 @@ import { configureObservability, logAuditEvent } from "./audit";
 import {
   buildHelpers,
   ForbiddenError,
+  isUserBanned,
   NotImplementedError,
   OrganizationsDisabledError,
   UnauthorizedError,
@@ -288,6 +289,17 @@ function mergeRateLimitRules(
   return { ...DEFAULT_RATE_LIMIT_RULES, ...(overrides ?? {}) } as Record<string, RateLimitRule>;
 }
 
+function returnedStatus(ctx: unknown): number | undefined {
+  const returned = (ctx as { context?: { returned?: unknown } }).context?.returned;
+  if (typeof returned !== "object" || returned === null) return undefined;
+  const status = (returned as { status?: unknown }).status;
+  return typeof status === "number" ? status : undefined;
+}
+
+function returnedSuccessfully(status: number | undefined): boolean {
+  return status === undefined || status < 400;
+}
+
 function createAuthInstance(config: CreateAuthConfig) {
   configureObservability(config.observability);
 
@@ -527,6 +539,9 @@ function createAuthInstance(config: CreateAuthConfig) {
                     ? ((data as { banReason?: unknown }).banReason ?? null)
                     : null,
               });
+              if (isUserBanned(data) && targetId) {
+                await db.delete(sessions).where(eq(sessions.userId, targetId));
+              }
             }
             return { data };
           },
@@ -534,20 +549,32 @@ function createAuthInstance(config: CreateAuthConfig) {
       },
       session: {
         create: {
-          ...(cacheRoleOnSession
-            ? {
-                before: async (session: { userId: string }, ctx: unknown) => {
-                  const adapter = (ctx as { context?: { adapter?: AuthAdapterFindOne } } | null)
-                    ?.context?.adapter;
-                  const user = await adapter?.findOne?.<{ role?: string }>({
-                    model: "user",
-                    where: [{ field: "id", value: session.userId }],
-                  });
-                  const role = user?.role ?? null;
-                  return { data: { ...session, role } };
-                },
-              }
-            : {}),
+          before: async (session: { userId: string }, ctx: unknown) => {
+            const adapter = (ctx as { context?: { adapter?: AuthAdapterFindOne } } | null)?.context
+              ?.adapter;
+            const user = await adapter?.findOne?.<{
+              role?: string | null;
+              banned?: boolean | null;
+              banExpiresAt?: Date | string | number | null;
+            }>({
+              model: "user",
+              where: [{ field: "id", value: session.userId }],
+            });
+            if (isUserBanned(user)) {
+              emitSecurityEvent(config, {
+                type: "banned_user_signin_attempt",
+                userId: session.userId,
+                metadata: { banExpiresAt: user?.banExpiresAt ?? null },
+              });
+              return false;
+            }
+            return {
+              data: {
+                ...session,
+                ...(cacheRoleOnSession ? { role: user?.role ?? null } : {}),
+              },
+            };
+          },
           after: async (session) => {
             await logAuditEvent("session.created", session.userId, {
               sessionId: session.id,
@@ -585,9 +612,19 @@ function createAuthInstance(config: CreateAuthConfig) {
         const path = ctx.path;
         const session = ctx.context.session;
         const userId = session?.user?.id ?? null;
+        const status = returnedStatus(ctx);
+        const succeeded = returnedSuccessfully(status);
+
+        if (status === 429) {
+          emitSecurityEvent(config, {
+            type: "rate_limit_hit",
+            userId: userId ?? undefined,
+            metadata: { path },
+          });
+        }
 
         if (path === "/sign-out") {
-          await logAuditEvent("auth.sign_out", userId, {});
+          if (succeeded) await logAuditEvent("auth.sign_out", userId, {});
           return;
         }
         if (path === "/forget-password") {
@@ -601,15 +638,15 @@ function createAuthInstance(config: CreateAuthConfig) {
           return;
         }
         if (path === "/reset-password") {
-          await logAuditEvent("auth.password_reset_completed", userId, {});
+          if (succeeded) await logAuditEvent("auth.password_reset_completed", userId, {});
           return;
         }
         if (path === "/verify-email") {
-          await logAuditEvent("email.verified", userId, {});
+          if (succeeded) await logAuditEvent("email.verified", userId, {});
           return;
         }
         if (path === "/change-password") {
-          await logAuditEvent("user.password_changed", userId, {});
+          if (succeeded) await logAuditEvent("user.password_changed", userId, {});
           return;
         }
         if (path === "/change-email") {
@@ -617,32 +654,30 @@ function createAuthInstance(config: CreateAuthConfig) {
             typeof ctx.body === "object" && ctx.body && "newEmail" in ctx.body
               ? String((ctx.body as { newEmail?: unknown }).newEmail ?? "")
               : null;
-          await logAuditEvent("user.email_changed", userId, { newEmail });
+          if (succeeded) await logAuditEvent("user.email_changed", userId, { newEmail });
           return;
         }
         if (path === "/organization/create") {
-          await logAuditEvent("org.created", userId, {});
+          if (succeeded) await logAuditEvent("org.created", userId, {});
           return;
         }
         if (path === "/organization/accept-invitation") {
-          await logAuditEvent("org.member_added", userId, {});
+          if (succeeded) await logAuditEvent("org.member_added", userId, {});
           return;
         }
         if (path === "/organization/remove-member") {
-          await logAuditEvent("org.member_removed", userId, {});
+          if (succeeded) await logAuditEvent("org.member_removed", userId, {});
           return;
         }
         if (path === "/two-factor/enable") {
-          await logAuditEvent("auth.two_factor_enabled", userId, {});
+          if (succeeded) await logAuditEvent("auth.two_factor_enabled", userId, {});
           return;
         }
         if (path === "/two-factor/disable") {
-          await logAuditEvent("auth.two_factor_disabled", userId, {});
+          if (succeeded) await logAuditEvent("auth.two_factor_disabled", userId, {});
           return;
         }
         if (path === "/two-factor/verify-totp") {
-          const status = (ctx.context as { returned?: { status?: number } } | undefined)?.returned
-            ?.status;
           if (status && status >= 400) {
             emitSecurityEvent(config, {
               type: "two_factor_failed",
@@ -655,28 +690,16 @@ function createAuthInstance(config: CreateAuthConfig) {
           return;
         }
         if (path === "/two-factor/verify-backup-code") {
-          const verifyStatus = (ctx.context as { returned?: { status?: number } } | undefined)
-            ?.returned?.status;
-          if (verifyStatus && verifyStatus >= 400) {
+          if (status && status >= 400) {
             emitSecurityEvent(config, {
               type: "two_factor_failed",
               userId: userId ?? undefined,
-              metadata: { method: "backup_code", status: verifyStatus },
+              metadata: { method: "backup_code", status },
             });
           } else {
             await logAuditEvent("auth.backup_code_used", userId, {});
           }
           return;
-        }
-
-        const status = (ctx.context as { returned?: { status?: number } } | undefined)?.returned
-          ?.status;
-        if (status === 429) {
-          emitSecurityEvent(config, {
-            type: "rate_limit_hit",
-            userId: userId ?? undefined,
-            metadata: { path },
-          });
         }
       }),
     },

@@ -32,19 +32,27 @@ vi.mock("@better-auth/passkey", () => ({
   passkey: vi.fn((config: unknown) => ({ id: "passkey", _config: config })),
 }));
 
+vi.mock("drizzle-orm", () => ({
+  eq: vi.fn((field: unknown, value: unknown) => ({ field, value })),
+}));
+
 const dbInsertChain = {
   values: vi.fn(async (_value: Record<string, unknown>) => undefined),
+};
+const dbDeleteChain = {
+  where: vi.fn(async () => undefined),
 };
 
 vi.mock("@informach/db", () => ({
   db: {
     insert: vi.fn(() => dbInsertChain),
+    delete: vi.fn(() => dbDeleteChain),
   },
 }));
 
 vi.mock("@informach/db/schema", () => ({
   users: { __mock: "users" },
-  sessions: { __mock: "sessions" },
+  sessions: { __mock: "sessions", userId: "sessions.user_id" },
   accounts: { __mock: "accounts" },
   verifications: { __mock: "verifications" },
   rateLimit: { __mock: "rateLimit" },
@@ -142,7 +150,7 @@ type CapturedBetterAuthOptions = {
         before?: (
           session: { userId: string },
           ctx?: unknown,
-        ) => Promise<{ data: Record<string, unknown> }>;
+        ) => Promise<{ data: Record<string, unknown> } | false>;
         after?: (session: {
           id: string;
           userId: string;
@@ -426,6 +434,15 @@ describe("createAuth — observability hooks", () => {
       cfg.databaseHooks?.user?.create?.after?.({ id: "u1", email: "u@x.com" }),
     ).resolves.not.toThrow();
   });
+
+  it("does not break auth hooks when audit persistence fails", async () => {
+    dbInsertChain.values.mockRejectedValueOnce(new Error("audit db down"));
+    createAuth(makeConfig());
+    const cfg = captureConfig();
+    await expect(
+      cfg.databaseHooks?.user?.create?.after?.({ id: "u1", email: "u@x.com" }),
+    ).resolves.not.toThrow();
+  });
 });
 
 describe("createAuth — email callbacks", () => {
@@ -608,6 +625,18 @@ describe("createAuth — audit hooks", () => {
     expect(args.actorId).toBe("u1");
   });
 
+  it("hooks.after does not log success audit events for failed responses", async () => {
+    createAuth(makeConfig());
+    const handler = mockedAuthMiddleware.mock.calls.at(-1)?.[0] as (ctx: unknown) => Promise<void>;
+    const before = dbInsertChain.values.mock.calls.length;
+    await handler({
+      path: "/reset-password",
+      context: { session: { user: { id: "u1" } }, returned: { status: 400 } },
+      body: {},
+    });
+    expect(dbInsertChain.values.mock.calls.length).toBe(before);
+  });
+
   it("hooks.after for /verify-email logs email.verified", async () => {
     createAuth(makeConfig());
     const handler = mockedAuthMiddleware.mock.calls.at(-1)?.[0] as (ctx: unknown) => Promise<void>;
@@ -776,6 +805,16 @@ describe("createAuth — role/ban audit hook (user.update.before)", () => {
     expect(args.eventType).toBe("user.banned");
     expect(args.actorId).toBe("actor1");
     expect((args.payload as Record<string, unknown>).reason).toBe("spam");
+    expect(dbDeleteChain.where).toHaveBeenCalledWith({ field: "sessions.user_id", value: "u1" });
+  });
+
+  it("does not revoke sessions when the ban update is already expired", async () => {
+    const hook = getHook();
+    await hook(
+      { id: "u1", banned: true, banExpiresAt: new Date(Date.now() - 60_000) },
+      { context: { session: { user: { id: "actor1" } } } },
+    );
+    expect(dbDeleteChain.where).not.toHaveBeenCalled();
   });
 
   it("emits user.unbanned when banned=false", async () => {
@@ -1176,6 +1215,7 @@ describe("createAuth — cacheRoleOnSession (opt-in)", () => {
     if (typeof beforeHook !== "function") throw new Error("session.create.before not registered");
     const findOne = vi.fn().mockResolvedValue({ role: "admin" });
     const result = await beforeHook({ userId: "u1" }, { context: { adapter: { findOne } } });
+    if (result === false) throw new Error("session.create.before unexpectedly blocked session");
     expect(findOne).toHaveBeenCalledWith({
       model: "user",
       where: [{ field: "id", value: "u1" }],
@@ -1189,12 +1229,42 @@ describe("createAuth — cacheRoleOnSession (opt-in)", () => {
     if (typeof beforeHook !== "function") throw new Error("session.create.before not registered");
     const findOne = vi.fn().mockResolvedValue(null);
     const result = await beforeHook({ userId: "u1" }, { context: { adapter: { findOne } } });
+    if (result === false) throw new Error("session.create.before unexpectedly blocked session");
     expect(result.data).toMatchObject({ role: null });
   });
 
-  it("does not register session.create.before when cacheRoleOnSession is false", () => {
+  it("registers session.create.before by default to allow ban checks", () => {
     createAuth(makeConfig());
-    expect(captureConfig().databaseHooks?.session?.create?.before).toBeUndefined();
+    expect(captureConfig().databaseHooks?.session?.create?.before).toBeTypeOf("function");
+  });
+
+  it("session.create.before blocks active banned users and emits a security event", async () => {
+    const onSecurityEvent = vi.fn();
+    createAuth({ ...makeConfig(), observability: { onSecurityEvent } });
+    const beforeHook = captureConfig().databaseHooks?.session?.create?.before;
+    if (typeof beforeHook !== "function") throw new Error("session.create.before not registered");
+    const banExpiresAt = new Date(Date.now() + 60_000);
+    const findOne = vi.fn().mockResolvedValue({ banned: true, banExpiresAt });
+    const result = await beforeHook({ userId: "u1" }, { context: { adapter: { findOne } } });
+    expect(result).toBe(false);
+    expect(onSecurityEvent).toHaveBeenCalledWith({
+      type: "banned_user_signin_attempt",
+      userId: "u1",
+      metadata: { banExpiresAt },
+    });
+  });
+
+  it("session.create.before allows expired bans", async () => {
+    createAuth(makeConfig());
+    const beforeHook = captureConfig().databaseHooks?.session?.create?.before;
+    if (typeof beforeHook !== "function") throw new Error("session.create.before not registered");
+    const findOne = vi.fn().mockResolvedValue({
+      banned: true,
+      banExpiresAt: new Date(Date.now() - 60_000),
+    });
+    const result = await beforeHook({ userId: "u1" }, { context: { adapter: { findOne } } });
+    if (result === false) throw new Error("session.create.before unexpectedly blocked session");
+    expect(result.data).toEqual({ userId: "u1" });
   });
 });
 

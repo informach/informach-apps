@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@informach/db";
 import { rateLimit as rateLimitTable } from "@informach/db/schema";
-import { eq } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import type { z } from "zod";
 import { logAuditEvent } from "./audit";
@@ -76,42 +76,34 @@ export function parseWindowSeconds(window: number | string): number {
 
 export async function enforceRateLimit(input: ActionRateLimitConfig): Promise<void> {
   const windowSeconds = parseWindowSeconds(input.window);
+  if (!Number.isFinite(input.max) || input.max <= 0) {
+    throw new Error(`Invalid rateLimit max: ${input.max}`);
+  }
   const now = Date.now();
   const windowStart = now - windowSeconds * 1000;
 
-  const existing = await db
-    .select()
-    .from(rateLimitTable)
-    .where(eq(rateLimitTable.key, input.key))
-    .limit(1);
-
-  const row = existing[0];
-
-  if (!row) {
-    await db.insert(rateLimitTable).values({
+  const [row] = await db
+    .insert(rateLimitTable)
+    .values({
       id: crypto.randomUUID(),
       key: input.key,
       count: 1,
       lastRequest: now,
+    })
+    .onConflictDoUpdate({
+      target: rateLimitTable.key,
+      set: {
+        count: sql<number>`case when ${rateLimitTable.lastRequest} > ${windowStart} then ${rateLimitTable.count} + 1 else 1 end`,
+        lastRequest: now,
+      },
+    })
+    .returning({
+      count: rateLimitTable.count,
     });
-    return;
-  }
 
-  if (row.lastRequest && row.lastRequest > windowStart) {
-    if (row.count >= input.max) {
-      throw new RateLimitError(input.key);
-    }
-    await db
-      .update(rateLimitTable)
-      .set({ count: row.count + 1, lastRequest: now })
-      .where(eq(rateLimitTable.key, input.key));
-    return;
+  if (row && row.count > input.max) {
+    throw new RateLimitError(input.key);
   }
-
-  await db
-    .update(rateLimitTable)
-    .set({ count: 1, lastRequest: now })
-    .where(eq(rateLimitTable.key, input.key));
 }
 
 export type ActionFactoryHelpers<TUser, TSession> = Pick<

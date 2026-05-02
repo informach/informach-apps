@@ -1,4 +1,10 @@
-import { type Permission, type Role, roleHasPermission } from "./permissions";
+import {
+  isRole,
+  type Permission,
+  type Role,
+  roleHasPermission,
+  roleSatisfies,
+} from "./permissions";
 
 export class UnauthorizedError extends Error {
   constructor() {
@@ -33,6 +39,10 @@ export class OrganizationsDisabledError extends Error {
 export type { Permission, Role } from "./permissions";
 
 type UserWithRole = { role?: Role | string | null };
+type UserWithBanState = {
+  banned?: boolean | null;
+  banExpiresAt?: Date | string | number | null;
+};
 type MemberLike = { id: string; userId?: string; organizationId?: string; role?: string };
 type OrganizationLike = { id: string; name?: string; slug?: string };
 
@@ -72,7 +82,19 @@ export type Helpers<TUser, TSession> = {
 function readRole(user: unknown): Role | null {
   if (typeof user !== "object" || user === null) return null;
   const role = (user as UserWithRole).role;
-  return typeof role === "string" ? (role as Role) : null;
+  return isRole(role) ? role : null;
+}
+
+export function isUserBanned(user: unknown, now = Date.now()): boolean {
+  if (typeof user !== "object" || user === null) return false;
+  const { banned, banExpiresAt } = user as UserWithBanState;
+  if (!banned) return false;
+  if (!banExpiresAt) return true;
+
+  const expiresAt =
+    banExpiresAt instanceof Date ? banExpiresAt.getTime() : new Date(banExpiresAt).getTime();
+  if (Number.isNaN(expiresAt)) return true;
+  return expiresAt > now;
 }
 
 export function buildHelpers<TUser, TSession>(
@@ -80,6 +102,9 @@ export function buildHelpers<TUser, TSession>(
 ): Helpers<TUser, TSession> {
   async function getSession(headers: Headers) {
     const session = await auth.api.getSession({ headers });
+    if (isUserBanned(session?.user)) {
+      return null;
+    }
     return session ?? null;
   }
 
@@ -97,7 +122,8 @@ export function buildHelpers<TUser, TSession>(
   }
 
   function hasRole(user: TUser, role: Role): boolean {
-    return readRole(user) === role;
+    const currentRole = readRole(user);
+    return currentRole ? roleSatisfies(currentRole, role) : false;
   }
 
   function assertRole(user: TUser, role: Role): void {

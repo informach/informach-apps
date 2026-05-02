@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isRole, PERMISSIONS, ROLES, roleHasPermission } from "../permissions";
+import { isRole, PERMISSIONS, ROLES, roleHasPermission, roleSatisfies } from "../permissions";
 
 describe("ROLES", () => {
   it("exposes the four expected roles", () => {
@@ -54,5 +54,17 @@ describe("roleHasPermission", () => {
     expect(roleHasPermission("member", "billing.manage")).toBe(false);
     expect(roleHasPermission("guest", "users.list")).toBe(false);
     expect(roleHasPermission("admin", "billing.manage")).toBe(false);
+  });
+});
+
+describe("roleSatisfies", () => {
+  it("treats owner as satisfying admin/member requirements", () => {
+    expect(roleSatisfies("owner", "admin")).toBe(true);
+    expect(roleSatisfies("owner", "member")).toBe(true);
+  });
+
+  it("does not let lower-privilege roles satisfy higher requirements", () => {
+    expect(roleSatisfies("admin", "owner")).toBe(false);
+    expect(roleSatisfies("member", "admin")).toBe(false);
   });
 });

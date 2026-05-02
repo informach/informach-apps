@@ -8,7 +8,7 @@ import {
 } from "../helpers";
 import type { Role } from "../permissions";
 
-type TestUser = { id: string; email: string; role?: Role };
+type TestUser = { id: string; email: string; role?: Role; banned?: boolean; banExpiresAt?: Date };
 type TestSession = { id: string; expiresAt: Date };
 
 function makeAuth(getSessionImpl: ReturnType<typeof vi.fn>) {
@@ -68,6 +68,32 @@ describe("buildHelpers.getSession", () => {
     const helpers = buildHelpers<TestUser, TestSession>(makeAuth(getSessionMock));
 
     await expect(helpers.getSession(new Headers())).resolves.toBeNull();
+  });
+
+  it("treats an actively banned user as unauthenticated", async () => {
+    getSessionMock.mockResolvedValue({
+      user: { id: "u1", email: "u@example.com", banned: true },
+      session: { id: "s1", expiresAt: new Date() },
+    });
+    const helpers = buildHelpers<TestUser, TestSession>(makeAuth(getSessionMock));
+
+    await expect(helpers.getSession(new Headers())).resolves.toBeNull();
+  });
+
+  it("keeps the session when a temporary ban has expired", async () => {
+    const session = {
+      user: {
+        id: "u1",
+        email: "u@example.com",
+        banned: true,
+        banExpiresAt: new Date(Date.now() - 1000),
+      },
+      session: { id: "s1", expiresAt: new Date() },
+    };
+    getSessionMock.mockResolvedValue(session);
+    const helpers = buildHelpers<TestUser, TestSession>(makeAuth(getSessionMock));
+
+    await expect(helpers.getSession(new Headers())).resolves.toEqual(session);
   });
 });
 
@@ -129,6 +155,11 @@ describe("buildHelpers.hasRole", () => {
     expect(helpers.hasRole({ id: "u1", email: "u@x", role: "member" }, "admin")).toBe(false);
   });
 
+  it("returns true when the user role is higher than the required role", () => {
+    const helpers = makeHelpers({ id: "u1", email: "u@x", role: "owner" });
+    expect(helpers.hasRole({ id: "u1", email: "u@x", role: "owner" }, "admin")).toBe(true);
+  });
+
   it("returns false when the user has no role attribute", () => {
     const helpers = makeHelpers({ id: "u1", email: "u@x" });
     expect(helpers.hasRole({ id: "u1", email: "u@x" }, "admin")).toBe(false);
@@ -170,6 +201,11 @@ describe("buildHelpers.requireRole / requireAdmin", () => {
     await expect(helpersWithUser(user).requireRole(new Headers(), "admin")).resolves.toEqual(user);
   });
 
+  it("requireRole returns the user when role is higher than required", async () => {
+    const user: TestUser = { id: "u1", email: "u@x", role: "owner" };
+    await expect(helpersWithUser(user).requireRole(new Headers(), "admin")).resolves.toEqual(user);
+  });
+
   it("requireRole throws ForbiddenError when role differs", async () => {
     const user: TestUser = { id: "u1", email: "u@x", role: "member" };
     await expect(helpersWithUser(user).requireRole(new Headers(), "admin")).rejects.toBeInstanceOf(
@@ -183,9 +219,11 @@ describe("buildHelpers.requireRole / requireAdmin", () => {
     );
   });
 
-  it('requireAdmin is a shorthand for requireRole("admin")', async () => {
+  it("requireAdmin accepts admin and owner roles", async () => {
     const user: TestUser = { id: "u1", email: "u@x", role: "admin" };
     await expect(helpersWithUser(user).requireAdmin(new Headers())).resolves.toEqual(user);
+    const owner: TestUser = { id: "u2", email: "owner@x", role: "owner" };
+    await expect(helpersWithUser(owner).requireAdmin(new Headers())).resolves.toEqual(owner);
   });
 });
 

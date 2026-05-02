@@ -72,6 +72,14 @@ describe("createAuthProxy", () => {
     expect(mockedNext).toHaveBeenCalledTimes(1);
   });
 
+  it("passes through when authenticated role is higher than required", async () => {
+    const proxy = createAuthProxy(makeHelpers({ id: "u1", role: "owner" }), {
+      requireRole: [{ prefix: "/admin", role: "admin" }],
+    });
+    await proxy(makeRequest("/admin/users"));
+    expect(mockedNext).toHaveBeenCalledTimes(1);
+  });
+
   it("redirects authenticated user without required role to forbiddenPath", async () => {
     const proxy = createAuthProxy(makeHelpers({ id: "u1", role: "member" }), {
       requireRole: [{ prefix: "/admin", role: "admin" }],

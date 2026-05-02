@@ -54,10 +54,14 @@ export async function logAuditEvent(
   } catch {
     // observability hooks must not break the audit pipeline
   }
-  await db.insert(auditEvents).values({
-    id: crypto.randomUUID(),
-    eventType,
-    actorId,
-    payload,
-  });
+  try {
+    await db.insert(auditEvents).values({
+      id: crypto.randomUUID(),
+      eventType,
+      actorId,
+      payload,
+    });
+  } catch {
+    // audit persistence must not break auth flows
+  }
 }

@@ -18,6 +18,10 @@ export function isRole(value: unknown): value is Role {
   return typeof value === "string" && (ROLES as readonly string[]).includes(value);
 }
 
+export function roleSatisfies(role: Role, requiredRole: Role): boolean {
+  return ROLES.indexOf(role) <= ROLES.indexOf(requiredRole);
+}
+
 export function roleHasPermission(role: Role, permission: Permission): boolean {
   return (PERMISSIONS[permission] as readonly Role[]).includes(role);
 }

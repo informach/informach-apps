@@ -1,7 +1,7 @@
 import "server-only";
 import { type NextRequest, NextResponse } from "next/server";
 import type { Helpers } from "./helpers";
-import { isRole, type Role } from "./permissions";
+import { isRole, type Role, roleSatisfies } from "./permissions";
 
 export type AuthProxyConfig = {
   /** Path prefixes that require authentication (e.g. ["/dashboard"]). */
@@ -61,7 +61,7 @@ export function createAuthProxy<TUser, TSession>(
 
     if (protectedByRole) {
       const role = (user as { role?: unknown }).role;
-      if (!isRole(role) || role !== protectedByRole.role) {
+      if (!isRole(role) || !roleSatisfies(role, protectedByRole.role)) {
         const url = request.nextUrl.clone();
         url.pathname = forbiddenPath;
         url.search = "";

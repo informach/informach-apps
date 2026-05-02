@@ -3,35 +3,32 @@ import { z } from "zod";
 
 vi.mock("server-only", () => ({}));
 
-const dbInsertChain = {
-  values: vi.fn(async () => undefined),
-};
-const dbUpdateChain = {
-  set: vi.fn(() => dbUpdateChain),
-  where: vi.fn(async () => undefined),
-};
-const dbSelectChain: {
-  rows: Array<{ key: string; count: number; lastRequest: number }>;
-  from: ReturnType<typeof vi.fn>;
-  where: ReturnType<typeof vi.fn>;
-  limit: ReturnType<typeof vi.fn>;
+const dbInsertChain: {
+  rows: Array<{ count: number }>;
+  values: ReturnType<typeof vi.fn>;
+  onConflictDoUpdate: ReturnType<typeof vi.fn>;
+  returning: ReturnType<typeof vi.fn>;
 } = {
   rows: [],
-  from: vi.fn(() => dbSelectChain),
-  where: vi.fn(() => dbSelectChain),
-  limit: vi.fn(async () => dbSelectChain.rows),
+  values: vi.fn(() => dbInsertChain),
+  onConflictDoUpdate: vi.fn(() => dbInsertChain),
+  returning: vi.fn(async () => dbInsertChain.rows),
 };
 
 vi.mock("@informach/db", () => ({
   db: {
     insert: vi.fn(() => dbInsertChain),
-    update: vi.fn(() => dbUpdateChain),
-    select: vi.fn(() => dbSelectChain),
   },
 }));
 
 vi.mock("@informach/db/schema", () => ({
-  rateLimit: { __mock: "rateLimit" },
+  rateLimit: {
+    __mock: "rateLimit",
+    id: "rate_limit.id",
+    key: "rate_limit.key",
+    count: "rate_limit.count",
+    lastRequest: "rate_limit.last_request",
+  },
   events: { __mock: "events" },
 }));
 
@@ -103,7 +100,7 @@ describe("parseWindowSeconds", () => {
 describe("createActionFactory — basic flow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    dbSelectChain.rows = [];
+    dbInsertChain.rows = [];
   });
 
   it("validates input through the zod schema", async () => {
@@ -129,7 +126,7 @@ describe("createActionFactory — basic flow", () => {
 describe("createActionFactory — auth.require: 'user'", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    dbSelectChain.rows = [];
+    dbInsertChain.rows = [];
   });
 
   it("attaches the actor when authenticated", async () => {
@@ -150,7 +147,7 @@ describe("createActionFactory — auth.require: 'user'", () => {
 describe("createActionFactory — auth.require: 'member-of-org'", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    dbSelectChain.rows = [];
+    dbInsertChain.rows = [];
   });
 
   it("attaches the actor when user has active membership", async () => {
@@ -186,7 +183,7 @@ describe("createActionFactory — auth.require: 'member-of-org'", () => {
 describe("createActionFactory — auth.require: 'role'", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    dbSelectChain.rows = [];
+    dbInsertChain.rows = [];
   });
 
   it("calls assertRole when role is set", async () => {
@@ -222,48 +219,59 @@ describe("createActionFactory — auth.require: 'role'", () => {
 describe("createActionFactory — rate limit", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    dbSelectChain.rows = [];
+    dbInsertChain.rows = [];
   });
 
   it("inserts a new rate-limit row when key is unknown", async () => {
+    dbInsertChain.rows = [{ count: 1 }];
     const helpers = makeHelpers({});
     const { action } = createActionFactory<TestUser, TestSession>({ helpers });
     const fn = action.rateLimit({ key: "test", max: 3, window: "1m" }).run(async () => "ok");
     await fn({});
     expect(dbInsertChain.values).toHaveBeenCalledTimes(1);
+    expect(dbInsertChain.onConflictDoUpdate).toHaveBeenCalledTimes(1);
+    expect(dbInsertChain.returning).toHaveBeenCalledTimes(1);
   });
 
-  it("increments count when within the window and below max", async () => {
-    dbSelectChain.rows = [{ key: "test", count: 1, lastRequest: Date.now() }];
+  it("allows the action when the upserted count is below max", async () => {
+    dbInsertChain.rows = [{ count: 2 }];
     const helpers = makeHelpers({});
     const { action } = createActionFactory<TestUser, TestSession>({ helpers });
     const fn = action.rateLimit({ key: "test", max: 3, window: "1m" }).run(async () => "ok");
-    await fn({});
-    expect(dbUpdateChain.set).toHaveBeenCalledWith(expect.objectContaining({ count: 2 }));
+    await expect(fn({})).resolves.toBe("ok");
   });
 
-  it("throws RateLimitError when the request exceeds max within the window", async () => {
-    dbSelectChain.rows = [{ key: "test", count: 5, lastRequest: Date.now() }];
+  it("throws RateLimitError when the atomic upserted count exceeds max", async () => {
+    dbInsertChain.rows = [{ count: 6 }];
     const helpers = makeHelpers({});
     const { action } = createActionFactory<TestUser, TestSession>({ helpers });
     const fn = action.rateLimit({ key: "test", max: 5, window: "1m" }).run(async () => "ok");
     await expect(fn({})).rejects.toBeInstanceOf(RateLimitError);
   });
 
-  it("resets count when last request is outside the window", async () => {
-    dbSelectChain.rows = [{ key: "test", count: 99, lastRequest: Date.now() - 10 * 60 * 1000 }];
+  it("rejects invalid max values", async () => {
+    const helpers = makeHelpers({});
+    const { action } = createActionFactory<TestUser, TestSession>({ helpers });
+    const fn = action.rateLimit({ key: "test", max: 0, window: "1m" }).run(async () => "ok");
+    await expect(fn({})).rejects.toThrow(/Invalid rateLimit max/);
+  });
+
+  it("uses a single upsert for concurrent-safe counting", async () => {
+    dbInsertChain.rows = [{ count: 1 }];
     const helpers = makeHelpers({});
     const { action } = createActionFactory<TestUser, TestSession>({ helpers });
     const fn = action.rateLimit({ key: "test", max: 3, window: "1m" }).run(async () => "ok");
     await fn({});
-    expect(dbUpdateChain.set).toHaveBeenCalledWith(expect.objectContaining({ count: 1 }));
+    expect(dbInsertChain.onConflictDoUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ target: "rate_limit.key" }),
+    );
   });
 });
 
 describe("createActionFactory — audit", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    dbSelectChain.rows = [];
+    dbInsertChain.rows = [];
   });
 
   it("calls onAudit and writes audit event with actor id", async () => {
