@@ -67,6 +67,7 @@ export async function getOrCreateCustomer(
     email: input.email,
     subject: input.subject,
     metadata: input.metadata,
+    idempotencyKey: `customer:${deps.provider}:${input.subject.type}:${input.subject.id}`,
   });
 
   const inserted = await deps.db

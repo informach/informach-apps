@@ -2,6 +2,7 @@ import type { Database } from "@informach/db";
 import { creditLedger, creditReservations } from "@informach/db/schema";
 import { and, eq, sql } from "drizzle-orm";
 import {
+  BillingError,
   InsufficientCreditsError,
   ReservationAlreadyResolvedError,
   ReservationExpiredError,
@@ -81,7 +82,16 @@ function ownerKey(owner: CreditOwner): string {
 
 function clampTtl(seconds?: number): number {
   const ttl = seconds ?? DEFAULT_TTL_SECONDS;
+  if (!Number.isInteger(ttl) || ttl <= 0) {
+    throw new BillingError("ttlSeconds must be a positive integer");
+  }
   return Math.min(Math.max(ttl, 60), 3600);
+}
+
+function assertPositiveInteger(value: number, field: string): void {
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new BillingError(`${field} must be a positive integer`);
+  }
 }
 
 /**
@@ -141,6 +151,7 @@ export async function reserveCredits(
   deps: ReservationsDeps,
   input: ReserveCreditsInput,
 ): Promise<ReservationHandle> {
+  assertPositiveInteger(input.estimatedAmount, "estimatedAmount");
   const ttlSeconds = clampTtl(input.ttlSeconds);
   return deps.db.transaction(
     async (tx) => {
@@ -213,6 +224,7 @@ export async function commitReservation(
   deps: ReservationsDeps,
   input: CommitReservationInput,
 ): Promise<CommitReservationResult> {
+  assertPositiveInteger(input.actualAmount, "actualAmount");
   return deps.db.transaction(
     async (tx) => {
       const found = await tx
@@ -372,6 +384,7 @@ export async function consumeCredits(
   deps: ReservationsDeps,
   input: ConsumeCreditsInput,
 ): Promise<ConsumeCreditsResult> {
+  assertPositiveInteger(input.amount, "amount");
   // Single transaction: reserve + commit in one shot. Same advisory lock holds
   // for both phases since they share the tx.
   return deps.db.transaction(

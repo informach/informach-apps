@@ -22,7 +22,7 @@ export type PaymentWebhookDeps = {
   onAudit?: (event: BillingAuditEvent) => void;
   emails?: BillingEmailDeps;
   /** Product catalog — used for productName resolution in receipts. */
-  products?: readonly Product[];
+  products: readonly Product[];
 };
 
 export type PaymentWebhookResult = {
@@ -70,21 +70,54 @@ export async function handlePaymentIntentSucceeded(
     });
     return { processed: false, reason: "invalid_subject_type" };
   }
-  if (!creditAmountRaw) {
-    safeLog(deps.logger, "debug", "billing.webhook.payment.not_a_credit_pack", {
+  const product = deps.products.find((p) => p.id === productId);
+  if (!product) {
+    safeLog(deps.logger, "warn", "billing.webhook.payment.product_not_in_catalog", {
       paymentIntentId: paymentIntent.id,
       productId,
     });
+    return { processed: false, reason: "product_not_in_catalog" };
+  }
+  if (product.kind !== "credit_pack") {
+    safeLog(deps.logger, "debug", "billing.webhook.payment.not_a_credit_pack", {
+      paymentIntentId: paymentIntent.id,
+      productId,
+      kind: product.kind,
+    });
     return { processed: false, reason: "not_a_credit_pack" };
   }
-  const creditAmount = Number.parseInt(creditAmountRaw, 10);
-  if (!Number.isFinite(creditAmount) || creditAmount <= 0) {
+  if (!product.creditAmount || product.creditAmount <= 0) {
+    safeLog(deps.logger, "warn", "billing.webhook.payment.invalid_product_credit_amount", {
+      paymentIntentId: paymentIntent.id,
+      productId,
+      configuredCreditAmount: product.creditAmount,
+    });
+    return { processed: false, reason: "invalid_product_credit_amount" };
+  }
+  if (!creditAmountRaw) {
+    safeLog(deps.logger, "warn", "billing.webhook.payment.missing_credit_amount", {
+      paymentIntentId: paymentIntent.id,
+      productId,
+    });
+    return { processed: false, reason: "missing_credit_amount" };
+  }
+  const normalizedCreditAmountRaw = creditAmountRaw.trim();
+  const metadataCreditAmount = /^\d+$/.test(normalizedCreditAmountRaw)
+    ? Number(normalizedCreditAmountRaw)
+    : Number.NaN;
+  if (
+    !Number.isInteger(metadataCreditAmount) ||
+    metadataCreditAmount <= 0 ||
+    metadataCreditAmount !== product.creditAmount
+  ) {
     safeLog(deps.logger, "warn", "billing.webhook.payment.invalid_credit_amount", {
       paymentIntentId: paymentIntent.id,
       creditAmountRaw,
+      configuredCreditAmount: product.creditAmount,
     });
     return { processed: false, reason: "invalid_credit_amount" };
   }
+  const creditAmount = product.creditAmount;
 
   const subjectType = subjectTypeRaw as SubjectType;
   const providerCustomerId = extractCustomerId(paymentIntent.customer);
@@ -96,7 +129,12 @@ export async function handlePaymentIntentSucceeded(
   }
 
   const customerRows = await deps.db
-    .select({ id: customers.id, email: customers.email })
+    .select({
+      id: customers.id,
+      email: customers.email,
+      subjectType: customers.subjectType,
+      subjectId: customers.subjectId,
+    })
     .from(customers)
     .where(
       and(
@@ -112,6 +150,17 @@ export async function handlePaymentIntentSucceeded(
       providerCustomerId,
     });
     return { processed: false, reason: "customer_not_found" };
+  }
+  if (customer.subjectType !== subjectType || customer.subjectId !== subjectId) {
+    safeLog(deps.logger, "warn", "billing.webhook.payment.customer_subject_mismatch", {
+      paymentIntentId: paymentIntent.id,
+      providerCustomerId,
+      metadataSubjectType: subjectType,
+      metadataSubjectId: subjectId,
+      customerSubjectType: customer.subjectType,
+      customerSubjectId: customer.subjectId,
+    });
+    return { processed: false, reason: "customer_subject_mismatch" };
   }
 
   const latestChargeId =

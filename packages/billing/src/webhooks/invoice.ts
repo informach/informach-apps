@@ -8,7 +8,13 @@ import { and, eq } from "drizzle-orm";
 import { type BillingEmailDeps, sendBillingEmail } from "./../billing-emails";
 import { grantBonusCredits } from "./../credits/grant";
 import { type Logger, safeLog } from "./../logger";
-import type { BillingAuditEvent, BillingProvider, SubjectType } from "./../types";
+import type { BillingProviderClient } from "./../providers";
+import type {
+  BillingAuditEvent,
+  BillingProvider,
+  SubjectType,
+  SubscriptionStatus,
+} from "./../types";
 
 /**
  * Default expiry for subscription_monthly bonus credits — they should not
@@ -36,6 +42,7 @@ type StripeInvoiceLike = {
 export type InvoiceWebhookDeps = {
   db: Database;
   provider: BillingProvider;
+  providerClient: BillingProviderClient;
   emails?: BillingEmailDeps;
   /** Resolved product catalog for THIS app — used to look up bonusCreditsPerMonth. */
   products: readonly Product[];
@@ -81,7 +88,7 @@ export async function handleInvoicePaid(
     return { processed: false, reason: "no_subscription" };
   }
 
-  const local = await loadLocalSubscriptionWithSubject(deps, subscriptionId);
+  const local = await loadOrRecoverLocalSubscriptionWithSubject(deps, subscriptionId);
   if (!local) {
     safeLog(deps.logger, "warn", "billing.webhook.invoice.subscription_not_local", {
       invoiceId: invoice.id,
@@ -192,7 +199,7 @@ export async function handleInvoicePaymentFailed(
   if (!subscriptionId) {
     return { processed: false, reason: "no_subscription" };
   }
-  const local = await loadLocalSubscriptionWithSubject(deps, subscriptionId);
+  const local = await loadOrRecoverLocalSubscriptionWithSubject(deps, subscriptionId);
   if (!local) {
     safeLog(deps.logger, "warn", "billing.webhook.invoice.payment_failed_no_local", {
       invoiceId: invoice.id,
@@ -307,6 +314,138 @@ async function loadLocalSubscriptionWithSubject(
     currentPeriodEnd: row.currentPeriodEnd,
     metadata: row.metadata,
   };
+}
+
+async function loadOrRecoverLocalSubscriptionWithSubject(
+  deps: InvoiceWebhookDeps,
+  providerSubscriptionId: string,
+): Promise<LocalSubWithSubject | null> {
+  const existing = await loadLocalSubscriptionWithSubject(deps, providerSubscriptionId);
+  if (existing) return existing;
+  return recoverLocalSubscriptionFromProvider(deps, providerSubscriptionId);
+}
+
+async function recoverLocalSubscriptionFromProvider(
+  deps: InvoiceWebhookDeps,
+  providerSubscriptionId: string,
+): Promise<LocalSubWithSubject | null> {
+  if (!deps.providerClient.retrieveSubscriptionDetails) return null;
+  const details = await deps.providerClient.retrieveSubscriptionDetails(providerSubscriptionId);
+  if (!details) return null;
+  if (!details.providerPriceId) {
+    safeLog(deps.logger, "warn", "billing.webhook.invoice.recover_missing_price", {
+      providerSubscriptionId,
+    });
+    return null;
+  }
+
+  const customerRows = await deps.db
+    .select({
+      id: customersTable.id,
+      email: customersTable.email,
+      subjectType: customersTable.subjectType,
+      subjectId: customersTable.subjectId,
+    })
+    .from(customersTable)
+    .where(
+      and(
+        eq(customersTable.provider, deps.provider),
+        eq(customersTable.providerCustomerId, details.providerCustomerId),
+      ),
+    )
+    .limit(1);
+  const customer = customerRows[0];
+  if (!customer) {
+    safeLog(deps.logger, "warn", "billing.webhook.invoice.recover_customer_not_found", {
+      providerSubscriptionId,
+      providerCustomerId: details.providerCustomerId,
+    });
+    return null;
+  }
+
+  const product = details.productId
+    ? deps.products.find((p) => p.id === details.productId)
+    : findProductInCatalogByPriceId(deps.products, details.providerPriceId);
+  if (!product) {
+    safeLog(deps.logger, "warn", "billing.webhook.invoice.recover_product_not_in_catalog", {
+      providerSubscriptionId,
+      providerPriceId: details.providerPriceId,
+      productId: details.productId,
+    });
+    return null;
+  }
+  const productId = product.id;
+  const currentPeriodStart = details.currentPeriodStart ?? new Date();
+  const currentPeriodEnd = details.currentPeriodEnd ?? new Date();
+  const cancelAtPeriodEnd = details.cancelAtPeriodEnd ? currentPeriodEnd : null;
+
+  await deps.db
+    .insert(subscriptionsTable)
+    .values({
+      customerId: customer.id,
+      provider: deps.provider,
+      providerSubscriptionId: details.id,
+      productId,
+      providerPriceId: details.providerPriceId,
+      status: normalizeStatus(details.status),
+      currentPeriodStart,
+      currentPeriodEnd,
+      cancelAtPeriodEnd,
+      canceledAt: details.canceledAt,
+      trialEnd: details.trialEnd,
+      metadata: details.metadata,
+    })
+    .onConflictDoUpdate({
+      target: [subscriptionsTable.provider, subscriptionsTable.providerSubscriptionId],
+      set: {
+        status: normalizeStatus(details.status),
+        productId,
+        providerPriceId: details.providerPriceId,
+        currentPeriodStart,
+        currentPeriodEnd,
+        cancelAtPeriodEnd,
+        canceledAt: details.canceledAt,
+        trialEnd: details.trialEnd,
+        metadata: details.metadata,
+        updatedAt: new Date(),
+      },
+    });
+
+  safeLog(deps.logger, "info", "billing.webhook.invoice.subscription_recovered", {
+    providerSubscriptionId,
+    productId,
+  });
+
+  return {
+    id: details.id,
+    productId,
+    subjectType: customer.subjectType as SubjectType,
+    subjectId: customer.subjectId,
+    customerEmail: customer.email,
+    currentPeriodEnd,
+    metadata: details.metadata,
+  };
+}
+
+function findProductInCatalogByPriceId(
+  products: readonly Product[],
+  priceId: string,
+): Product | undefined {
+  return products.find((p) => p.stripePriceId.dev === priceId || p.stripePriceId.prod === priceId);
+}
+
+function normalizeStatus(raw: string): SubscriptionStatus {
+  const valid = [
+    "active",
+    "trialing",
+    "past_due",
+    "canceled",
+    "incomplete",
+    "incomplete_expired",
+    "unpaid",
+    "paused",
+  ] as const;
+  return (valid as readonly string[]).includes(raw) ? (raw as SubscriptionStatus) : "incomplete";
 }
 
 function formatBrlAmount(amountCents: number, currency: string): string {

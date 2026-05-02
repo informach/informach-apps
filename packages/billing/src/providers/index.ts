@@ -8,6 +8,7 @@ export type {
   ProviderCustomer,
   ProviderPortalInput,
   ProviderPortalSession,
+  ProviderSubscriptionDetails,
   ProviderSubscriptionSummary,
   ProviderUpdateSubscriptionInput,
   ProviderWebhookEvent,

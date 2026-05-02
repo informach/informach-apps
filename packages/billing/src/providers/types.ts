@@ -46,6 +46,16 @@ export type ProviderSubscriptionSummary = {
   currentPeriodEnd: Date | null;
 };
 
+export type ProviderSubscriptionDetails = ProviderSubscriptionSummary & {
+  providerCustomerId: string;
+  providerPriceId: string | null;
+  productId: string | null;
+  currentPeriodStart: Date | null;
+  canceledAt: Date | null;
+  trialEnd: Date | null;
+  metadata: Record<string, string>;
+};
+
 export type ProviderCancelSubscriptionInput = {
   providerSubscriptionId: string;
   /** When true, schedules cancel at period end (default). False = immediate cancel. */
@@ -69,6 +79,7 @@ export interface BillingProviderClient {
     email: string;
     subject: SubjectRef;
     metadata?: Record<string, string>;
+    idempotencyKey?: string;
   }): Promise<ProviderCustomer>;
 
   retrieveCustomer(customerId: string): Promise<ProviderCustomer | null>;
@@ -86,6 +97,14 @@ export interface BillingProviderClient {
    * was deleted/never existed. Used by reconcile sweeper to detect drift.
    */
   retrieveSubscription(providerSubscriptionId: string): Promise<ProviderSubscriptionSummary | null>;
+
+  /**
+   * Returns enough provider state to reconstruct a missing local subscription row
+   * when Stripe delivers invoice events before subscription events.
+   */
+  retrieveSubscriptionDetails?(
+    providerSubscriptionId: string,
+  ): Promise<ProviderSubscriptionDetails | null>;
 
   verifyWebhookSignature(rawBody: string, signature: string | null): ProviderWebhookEvent;
 }

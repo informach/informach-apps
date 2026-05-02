@@ -2,6 +2,29 @@ import { describe, expect, it, vi } from "vitest";
 import { handlePaymentIntentSucceeded } from "../webhooks/payment";
 import { createFakeDb } from "./_fake-db";
 
+const CREDIT_PRODUCT = {
+  id: "cozya_credits_5000",
+  app: "cozya",
+  kind: "credit_pack" as const,
+  name: "Pacote 5000 Créditos",
+  creditAmount: 5000,
+  stripePriceId: { dev: "price_dev_credits", prod: "price_prod_credits" },
+};
+
+const SUBSCRIPTION_PRODUCT = {
+  id: "cozya_subscription",
+  app: "cozya",
+  kind: "subscription" as const,
+  name: "Cozya Pro",
+  tier: "pro",
+  interval: "month" as const,
+  stripePriceId: { dev: "price_dev_sub", prod: "price_prod_sub" },
+};
+
+function depsWithProducts(db: unknown, overrides: Record<string, unknown> = {}) {
+  return { db: db as never, provider: "stripe" as const, products: [CREDIT_PRODUCT], ...overrides };
+}
+
 const baseIntent = {
   id: "pi_test_1",
   customer: "cus_test_1",
@@ -21,13 +44,13 @@ describe("handlePaymentIntentSucceeded", () => {
     const onAudit = vi.fn();
     const { db } = createFakeDb({
       // SELECT customer
-      selectQueue: [[{ id: "customer-row-1" }]],
+      selectQueue: [[{ id: "customer-row-1", subjectType: "user", subjectId: "user-1" }]],
       // INSERT one_time_payments → returning row
       // INSERT credit_ledger → returning row
       insertQueue: [[{ id: "payment-row-1" }], [{ id: "ledger-row-1" }]],
     });
     const result = await handlePaymentIntentSucceeded(
-      { db: db as never, provider: "stripe", onAudit },
+      depsWithProducts(db, { onAudit }),
       baseIntent,
       "evt_payment_1",
     );
@@ -49,7 +72,7 @@ describe("handlePaymentIntentSucceeded", () => {
     const onAudit = vi.fn();
     const { db } = createFakeDb({
       selectQueue: [
-        [{ id: "customer-row-1" }],
+        [{ id: "customer-row-1", subjectType: "user", subjectId: "user-1" }],
         // re-read ledger after conflict
         [{ id: "ledger-existing-1" }],
       ],
@@ -61,7 +84,7 @@ describe("handlePaymentIntentSucceeded", () => {
       ],
     });
     const result = await handlePaymentIntentSucceeded(
-      { db: db as never, provider: "stripe", onAudit },
+      depsWithProducts(db, { onAudit }),
       baseIntent,
       "evt_payment_1",
     );
@@ -76,7 +99,7 @@ describe("handlePaymentIntentSucceeded", () => {
   it("re-reads payment row when both inserts conflict (full replay)", async () => {
     const { db } = createFakeDb({
       selectQueue: [
-        [{ id: "customer-row-1" }],
+        [{ id: "customer-row-1", subjectType: "user", subjectId: "user-1" }],
         // re-read payment row after conflict
         [{ id: "payment-existing-1" }],
         // re-read ledger row after conflict
@@ -85,7 +108,7 @@ describe("handlePaymentIntentSucceeded", () => {
       insertQueue: [[], []],
     });
     const result = await handlePaymentIntentSucceeded(
-      { db: db as never, provider: "stripe" },
+      depsWithProducts(db),
       baseIntent,
       "evt_payment_1",
     );
@@ -95,7 +118,7 @@ describe("handlePaymentIntentSucceeded", () => {
   it("skips when subject metadata is missing", async () => {
     const { db, calls } = createFakeDb();
     const result = await handlePaymentIntentSucceeded(
-      { db: db as never, provider: "stripe" },
+      depsWithProducts(db),
       { ...baseIntent, metadata: {} },
       "evt_payment_2",
     );
@@ -106,7 +129,7 @@ describe("handlePaymentIntentSucceeded", () => {
   it("skips when product is not a credit pack (no credit_amount)", async () => {
     const { db } = createFakeDb();
     const result = await handlePaymentIntentSucceeded(
-      { db: db as never, provider: "stripe" },
+      depsWithProducts(db, { products: [SUBSCRIPTION_PRODUCT] }),
       {
         ...baseIntent,
         metadata: {
@@ -117,15 +140,41 @@ describe("handlePaymentIntentSucceeded", () => {
       },
       "evt_payment_3",
     );
+    expect(result).toEqual({ processed: false, reason: "product_not_in_catalog" });
+  });
+
+  it("skips when product exists but is not a credit pack", async () => {
+    const { db } = createFakeDb();
+    const result = await handlePaymentIntentSucceeded(
+      depsWithProducts(db, { products: [SUBSCRIPTION_PRODUCT] }),
+      {
+        ...baseIntent,
+        metadata: {
+          ...baseIntent.metadata,
+          product_id: "cozya_subscription",
+        },
+      },
+      "evt_payment_3b",
+    );
     expect(result).toEqual({ processed: false, reason: "not_a_credit_pack" });
   });
 
   it("rejects invalid credit_amount metadata", async () => {
     const { db } = createFakeDb();
     const result = await handlePaymentIntentSucceeded(
-      { db: db as never, provider: "stripe" },
+      depsWithProducts(db),
       { ...baseIntent, metadata: { ...baseIntent.metadata, credit_amount: "not-a-number" } },
       "evt_payment_4",
+    );
+    expect(result).toEqual({ processed: false, reason: "invalid_credit_amount" });
+  });
+
+  it("rejects partially numeric credit_amount metadata", async () => {
+    const { db } = createFakeDb();
+    const result = await handlePaymentIntentSucceeded(
+      depsWithProducts(db),
+      { ...baseIntent, metadata: { ...baseIntent.metadata, credit_amount: "5000abc" } },
+      "evt_payment_4b",
     );
     expect(result).toEqual({ processed: false, reason: "invalid_credit_amount" });
   });
@@ -133,7 +182,7 @@ describe("handlePaymentIntentSucceeded", () => {
   it("rejects invalid subject_type", async () => {
     const { db } = createFakeDb();
     const result = await handlePaymentIntentSucceeded(
-      { db: db as never, provider: "stripe" },
+      depsWithProducts(db),
       { ...baseIntent, metadata: { ...baseIntent.metadata, subject_type: "team" } },
       "evt_payment_5",
     );
@@ -145,17 +194,29 @@ describe("handlePaymentIntentSucceeded", () => {
       selectQueue: [[]], // customer lookup empty
     });
     const result = await handlePaymentIntentSucceeded(
-      { db: db as never, provider: "stripe" },
+      depsWithProducts(db),
       baseIntent,
       "evt_payment_6",
     );
     expect(result).toEqual({ processed: false, reason: "customer_not_found" });
   });
 
+  it("rejects payment metadata that points to a different subject than the customer row", async () => {
+    const { db } = createFakeDb({
+      selectQueue: [[{ id: "customer-row-1", subjectType: "user", subjectId: "user-2" }]],
+    });
+    const result = await handlePaymentIntentSucceeded(
+      depsWithProducts(db),
+      baseIntent,
+      "evt_payment_6b",
+    );
+    expect(result).toEqual({ processed: false, reason: "customer_subject_mismatch" });
+  });
+
   it("returns 'missing_customer' when payment intent has no customer", async () => {
     const { db } = createFakeDb();
     const result = await handlePaymentIntentSucceeded(
-      { db: db as never, provider: "stripe" },
+      depsWithProducts(db),
       { ...baseIntent, customer: null },
       "evt_payment_7",
     );

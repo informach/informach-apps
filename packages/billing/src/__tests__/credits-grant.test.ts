@@ -56,6 +56,14 @@ describe("grantBonusCredits", () => {
     ).rejects.toThrow(/schema invariant broken/);
   });
 
+  it("rejects non-positive grant amounts before touching the DB", async () => {
+    const { db, calls } = createFakeDb();
+    await expect(
+      grantBonusCredits({ db: db as never }, { owner, amount: -1, reason: "promo" }),
+    ).rejects.toThrow("amount must be a positive integer");
+    expect(calls).toEqual([]);
+  });
+
   it("maps reason to the correct entry_type via metadata", async () => {
     const { db, calls } = createFakeDb({ insertResult: [{ id: "ledger-2" }] });
     await grantBonusCredits({ db: db as never }, { owner, amount: 50, reason: "compensation" });
@@ -127,5 +135,22 @@ describe("refundCredits", () => {
         },
       ),
     ).resolves.toBeDefined();
+  });
+
+  it("rejects non-positive refund amounts before touching the DB", async () => {
+    const { db, calls } = createFakeDb();
+    await expect(
+      refundCredits(
+        { db: db as never },
+        {
+          owner,
+          originalLedgerEntryId: "ledger-purchase-1",
+          amount: 0,
+          stripeEventId: "evt_refund_bad",
+          reason: "refund",
+        },
+      ),
+    ).rejects.toThrow("amount must be a positive integer");
+    expect(calls).toEqual([]);
   });
 });

@@ -4,7 +4,7 @@ import {
   type Subscription as SubscriptionRow,
   subscriptions as subscriptionsTable,
 } from "@informach/db/schema";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { CustomerNotFoundError, OrganizationsDisabledError } from "./errors";
 import { type Logger, safeLog } from "./logger";
 import type { BillingProviderClient } from "./providers";
@@ -54,6 +54,7 @@ export async function getSubscription(
         inArray(subscriptionsTable.status, ["active", "trialing", "past_due"]),
       ),
     )
+    .orderBy(desc(subscriptionsTable.createdAt), desc(subscriptionsTable.id))
     .limit(1);
   return rows[0] ?? null;
 }

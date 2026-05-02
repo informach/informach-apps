@@ -50,7 +50,9 @@ export const releaseReservationInputSchema = z.object({
 export const consumeCreditsInputSchema = z.object({
   owner: subjectRefSchema,
   amount: z.number().int().positive(),
-  reason: z.string().min(1),
+  app: z.string().min(1),
+  feature: z.string().min(1),
+  model: z.string().min(1).optional(),
   runId: z.string().min(1).optional(),
   metadata: z.record(z.unknown()).optional(),
 });
@@ -70,6 +72,7 @@ export const refundCreditsInputSchema = z.object({
   amount: z.number().int().positive(),
   stripeEventId: z.string().min(1),
   reason: z.string().min(1),
+  metadata: z.record(z.unknown()).optional(),
 });
 
 export const getOrCreateCustomerInputSchema = z.object({

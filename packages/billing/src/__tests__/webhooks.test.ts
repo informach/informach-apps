@@ -3,6 +3,17 @@ import { handleStripeEvent, type StripeWebhookDeps } from "../webhooks";
 import { createFakeDb } from "./_fake-db";
 import { createFakeProvider } from "./_fake-provider";
 
+const SUBSCRIPTION_PRODUCT = {
+  id: "agenda_pro_monthly",
+  app: "agenda-da-turma",
+  kind: "subscription" as const,
+  name: "Agenda Pro Mensal",
+  tier: "pro",
+  interval: "month" as const,
+  bonusCreditsPerMonth: 1000,
+  stripePriceId: { dev: "price_dev_sub", prod: "price_prod_sub" },
+};
+
 function makeDeps(
   overrides: Partial<StripeWebhookDeps> & { dbConfig?: Parameters<typeof createFakeDb>[0] } = {},
 ) {
@@ -14,7 +25,8 @@ function makeDeps(
     db: fake.db as never,
     provider: "stripe",
     providerClient: provider,
-    products: [],
+    webhookScope: "test-app",
+    products: [SUBSCRIPTION_PRODUCT],
     onAudit,
     ...rest,
   };
@@ -43,9 +55,14 @@ const SUBSCRIPTION_PAYLOAD = {
 };
 
 describe("handleStripeEvent (idempotency)", () => {
-  it("returns deduped=true when webhook_events insert returns 0 rows (already processed)", async () => {
+  it("returns deduped=true when an existing webhook row is already processed", async () => {
     const { deps } = makeDeps({
-      dbConfig: { insertResult: [] },
+      dbConfig: {
+        insertQueue: [[]],
+        selectQueue: [
+          [{ processedAt: new Date("2026-01-01T00:00:00Z"), error: null, attempts: 0 }],
+        ],
+      },
     });
     const event = {
       id: "evt_dup",
@@ -54,6 +71,32 @@ describe("handleStripeEvent (idempotency)", () => {
     };
     const out = await handleStripeEvent(deps, event);
     expect(out).toEqual({ processed: false, deduped: true, reason: "already_processed" });
+  });
+
+  it("retries an existing webhook row that failed before processedAt was set", async () => {
+    const { deps } = makeDeps({
+      dbConfig: {
+        insertQueue: [
+          [], // webhook_events conflict
+          [{ id: "sub-row" }], // subscription upsert
+        ],
+        selectQueue: [
+          [{ processedAt: null, error: "transient db error", attempts: 1 }],
+          [{ id: "customer-row-1", email: "buyer@example.com" }],
+        ],
+      },
+    });
+    const event = {
+      id: "evt_retry",
+      type: "customer.subscription.created",
+      payload: { data: { object: SUBSCRIPTION_PAYLOAD } },
+    };
+    const out = await handleStripeEvent(deps, event);
+    expect(out).toEqual({
+      processed: true,
+      deduped: false,
+      reason: "subscription_upserted",
+    });
   });
 
   it("processes a customer.subscription.created event and dispatches", async () => {
@@ -67,7 +110,7 @@ describe("handleStripeEvent (idempotency)", () => {
           [{ id: "wh-row-1" }], // webhook_events insert
           [{ id: "sub-row" }], // subscriptions upsert returning (drizzle insert result)
         ],
-        selectQueue: [[{ id: "customer-row-1" }]],
+        selectQueue: [[{ id: "customer-row-1", email: "buyer@example.com" }]],
       },
     });
     const event = {
@@ -94,7 +137,7 @@ describe("handleStripeEvent (idempotency)", () => {
     const { deps, onAudit } = makeDeps({
       dbConfig: {
         insertQueue: [[{ id: "wh-row-1" }], [{ id: "sub-row" }]],
-        selectQueue: [[{ id: "customer-row-1" }]],
+        selectQueue: [[{ id: "customer-row-1", email: "buyer@example.com" }]],
       },
     });
     const event = {

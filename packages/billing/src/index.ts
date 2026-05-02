@@ -309,6 +309,7 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
     db: config.db,
     provider: config.provider,
     providerClient,
+    webhookScope: config.appName,
     products: config.products,
     logger: config.logger,
     onAudit: config.onAudit,

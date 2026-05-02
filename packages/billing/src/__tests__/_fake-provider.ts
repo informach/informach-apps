@@ -8,6 +8,7 @@ import type {
   ProviderCustomer,
   ProviderPortalInput,
   ProviderPortalSession,
+  ProviderSubscriptionDetails,
   ProviderSubscriptionSummary,
   ProviderUpdateSubscriptionInput,
   ProviderWebhookEvent,
@@ -24,6 +25,7 @@ export type FakeProviderConfig = {
   failVerify?: boolean;
   /** Return values for cancel/update subscription. */
   subscriptionSummary?: ProviderSubscriptionSummary;
+  subscriptionDetails?: ProviderSubscriptionDetails | null;
 };
 
 export function createFakeProvider(config: FakeProviderConfig = {}) {
@@ -96,6 +98,25 @@ export function createFakeProvider(config: FakeProviderConfig = {}) {
           currentPeriodEnd: new Date(Date.now() + 30 * 86_400_000),
         }
       );
+    }),
+
+    retrieveSubscriptionDetails: vi.fn(async (providerSubscriptionId: string) => {
+      if ("subscriptionDetails" in config) {
+        return config.subscriptionDetails ?? null;
+      }
+      return {
+        id: providerSubscriptionId,
+        providerCustomerId: "cus_test_1",
+        providerPriceId: "price_dev_sub",
+        productId: "agenda_pro_monthly",
+        status: "active",
+        cancelAtPeriodEnd: false,
+        currentPeriodStart: new Date(Date.now() - 86_400_000),
+        currentPeriodEnd: new Date(Date.now() + 30 * 86_400_000),
+        canceledAt: null,
+        trialEnd: null,
+        metadata: { product_id: "agenda_pro_monthly" },
+      } satisfies ProviderSubscriptionDetails;
     }),
 
     verifyWebhookSignature: vi.fn((rawBody, _signature) => {

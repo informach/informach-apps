@@ -2,6 +2,7 @@ import type { Product } from "@informach/config";
 import { describe, expect, it, vi } from "vitest";
 import { handleInvoicePaid, handleInvoicePaymentFailed } from "../webhooks/invoice";
 import { createFakeDb } from "./_fake-db";
+import { createFakeProvider } from "./_fake-provider";
 
 const SUBSCRIPTION_PRODUCT: Product = {
   id: "agenda_pro_monthly",
@@ -32,6 +33,10 @@ function paidInvoice(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function providerClient() {
+  return createFakeProvider().provider;
+}
+
 describe("handleInvoicePaid", () => {
   it("grants monthly bonus on a fresh subscription_cycle invoice", async () => {
     const onAudit = vi.fn();
@@ -55,6 +60,7 @@ describe("handleInvoicePaid", () => {
       {
         db: db as never,
         provider: "stripe",
+        providerClient: providerClient(),
         products: [SUBSCRIPTION_PRODUCT],
         onAudit,
       },
@@ -95,6 +101,7 @@ describe("handleInvoicePaid", () => {
       {
         db: db as never,
         provider: "stripe",
+        providerClient: providerClient(),
         products: [SUBSCRIPTION_PRODUCT],
       },
       paidInvoice(),
@@ -109,6 +116,7 @@ describe("handleInvoicePaid", () => {
       {
         db: db as never,
         provider: "stripe",
+        providerClient: providerClient(),
         products: [SUBSCRIPTION_PRODUCT],
       },
       paidInvoice({ billing_reason: "manual" }),
@@ -122,7 +130,12 @@ describe("handleInvoicePaid", () => {
   it("skips when invoice has no subscription parent", async () => {
     const { db } = createFakeDb();
     const result = await handleInvoicePaid(
-      { db: db as never, provider: "stripe", products: [SUBSCRIPTION_PRODUCT] },
+      {
+        db: db as never,
+        provider: "stripe",
+        providerClient: providerClient(),
+        products: [SUBSCRIPTION_PRODUCT],
+      },
       paidInvoice({ parent: null }),
       "evt_invoice_1",
     );
@@ -144,7 +157,12 @@ describe("handleInvoicePaid", () => {
       ],
     });
     const result = await handleInvoicePaid(
-      { db: db as never, provider: "stripe", products: [NO_BONUS_PRODUCT] },
+      {
+        db: db as never,
+        provider: "stripe",
+        providerClient: providerClient(),
+        products: [NO_BONUS_PRODUCT],
+      },
       paidInvoice(),
       "evt_invoice_1",
     );
@@ -166,17 +184,73 @@ describe("handleInvoicePaid", () => {
       ],
     });
     const result = await handleInvoicePaid(
-      { db: db as never, provider: "stripe", products: [SUBSCRIPTION_PRODUCT] },
+      {
+        db: db as never,
+        provider: "stripe",
+        providerClient: providerClient(),
+        products: [SUBSCRIPTION_PRODUCT],
+      },
       paidInvoice(),
       "evt_invoice_1",
     );
     expect(result).toEqual({ processed: false, reason: "product_not_in_catalog" });
   });
 
+  it("recovers a missing local subscription before granting invoice credits", async () => {
+    const { provider } = createFakeProvider({
+      subscriptionDetails: {
+        id: "sub_test_1",
+        providerCustomerId: "cus_test_1",
+        providerPriceId: "price_dev_sub",
+        productId: "agenda_pro_monthly",
+        status: "active",
+        cancelAtPeriodEnd: false,
+        currentPeriodStart: new Date("2026-01-01T00:00:00Z"),
+        currentPeriodEnd: new Date("2026-02-01T00:00:00Z"),
+        canceledAt: null,
+        trialEnd: null,
+        metadata: { product_id: "agenda_pro_monthly" },
+      },
+    });
+    const { db } = createFakeDb({
+      selectQueue: [
+        [], // initial local subscription lookup
+        [
+          {
+            id: "customer-row-1",
+            email: "owner@example.com",
+            subjectType: "organization",
+            subjectId: "org-1",
+          },
+        ],
+      ],
+      insertQueue: [
+        [], // recovered subscription upsert
+        [{ id: "ledger-bonus-1" }],
+      ],
+    });
+    const result = await handleInvoicePaid(
+      {
+        db: db as never,
+        provider: "stripe",
+        providerClient: provider,
+        products: [SUBSCRIPTION_PRODUCT],
+      },
+      paidInvoice(),
+      "evt_invoice_1",
+    );
+    expect(result).toEqual({ processed: true, reason: "bonus_granted" });
+  });
+
   it("skips when local subscription row is missing", async () => {
     const { db } = createFakeDb({ selectQueue: [[]] });
     const result = await handleInvoicePaid(
-      { db: db as never, provider: "stripe", products: [SUBSCRIPTION_PRODUCT] },
+      {
+        db: db as never,
+        provider: "stripe",
+        providerClient: providerClient(),
+        products: [SUBSCRIPTION_PRODUCT],
+      },
       paidInvoice(),
       "evt_invoice_1",
     );
@@ -204,6 +278,7 @@ describe("handleInvoicePaymentFailed", () => {
       {
         db: db as never,
         provider: "stripe",
+        providerClient: providerClient(),
         products: [SUBSCRIPTION_PRODUCT],
         onAudit,
       },
@@ -223,7 +298,12 @@ describe("handleInvoicePaymentFailed", () => {
   it("skips when invoice has no subscription", async () => {
     const { db, calls } = createFakeDb();
     const result = await handleInvoicePaymentFailed(
-      { db: db as never, provider: "stripe", products: [SUBSCRIPTION_PRODUCT] },
+      {
+        db: db as never,
+        provider: "stripe",
+        providerClient: providerClient(),
+        products: [SUBSCRIPTION_PRODUCT],
+      },
       paidInvoice({ parent: null }),
       "evt_invoice_failed_1",
     );

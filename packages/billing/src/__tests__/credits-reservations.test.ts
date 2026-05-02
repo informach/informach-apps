@@ -61,6 +61,14 @@ describe("reserveCredits", () => {
     ).resolves.toBeDefined();
     // We don't snapshot the exact expiresAt since it's wall-clock; we just confirm no throw.
   });
+
+  it("rejects non-positive estimated amounts before opening a transaction", async () => {
+    const { db, calls } = createFakeDb();
+    await expect(
+      reserveCredits({ db: db as never }, { ...baseReserveInput, estimatedAmount: 0 }),
+    ).rejects.toThrow("estimatedAmount must be a positive integer");
+    expect(calls).toEqual([]);
+  });
 });
 
 describe("commitReservation", () => {
@@ -162,6 +170,14 @@ describe("commitReservation", () => {
     // Confirm we called UPDATE to mark it expired before throwing
     expect(calls.some((c) => c.mode === "update")).toBe(true);
   });
+
+  it("rejects non-positive actual amounts before loading the reservation", async () => {
+    const { db, calls } = createFakeDb();
+    await expect(
+      commitReservation({ db: db as never }, { reservationId: "res-1", actualAmount: -1 }),
+    ).rejects.toThrow("actualAmount must be a positive integer");
+    expect(calls).toEqual([]);
+  });
 });
 
 describe("releaseReservation", () => {
@@ -231,5 +247,21 @@ describe("consumeCredits (reserve+commit shortcut)", () => {
       balance: 50,
     });
     expect(calls.some((c) => c.mode === "insert")).toBe(false);
+  });
+
+  it("rejects non-positive direct consumption amounts before opening a transaction", async () => {
+    const { db, calls } = createFakeDb();
+    await expect(
+      consumeCredits(
+        { db: db as never },
+        {
+          owner,
+          amount: -250,
+          app: "cozya",
+          feature: "llm.text",
+        },
+      ),
+    ).rejects.toThrow("amount must be a positive integer");
+    expect(calls).toEqual([]);
   });
 });

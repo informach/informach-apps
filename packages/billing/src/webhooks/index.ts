@@ -23,6 +23,11 @@ export type StripeWebhookDeps = {
   db: Database;
   provider: BillingProvider;
   providerClient: BillingProviderClient;
+  /**
+   * Dedupe scope for this app/webhook endpoint. Stripe event IDs are global to
+   * the Stripe account, but this monorepo has one endpoint per app.
+   */
+  webhookScope?: string;
   /** Catalog for THIS app — used by invoice handler to look up bonusCreditsPerMonth. */
   products: readonly Product[];
   logger?: Logger;
@@ -47,19 +52,21 @@ export function verifyStripeSignature(
 
 /**
  * Idempotently handles a Stripe webhook event. Inserts in `webhook_events` first
- * (UNIQUE on provider+providerEventId); if conflict, returns deduped=true.
- * Otherwise dispatches to the appropriate handler. On success, updates
- * processedAt; on error, updates error+attempts and rethrows so Stripe retries.
+ * (UNIQUE on provider+providerEventId). Conflicts with processed rows are
+ * deduped; conflicts with unprocessed/error rows are retried. On success,
+ * updates processedAt; on error, updates error+attempts and rethrows so Stripe
+ * retries.
  */
 export async function handleStripeEvent(
   deps: StripeWebhookDeps,
   event: ParsedWebhookEvent,
 ): Promise<WebhookHandlerResult> {
+  const providerEventKey = buildProviderEventKey(deps, event.id);
   const inserted = await deps.db
     .insert(webhookEvents)
     .values({
       provider: deps.provider,
-      providerEventId: event.id,
+      providerEventId: providerEventKey,
       eventType: event.type,
       payload: event.payload,
     })
@@ -69,20 +76,54 @@ export async function handleStripeEvent(
     .returning({ id: webhookEvents.id });
 
   if (inserted.length === 0) {
-    safeLog(deps.logger, "debug", "billing.webhook.deduped", {
-      providerEventId: event.id,
-      eventType: event.type,
-    });
-    return { processed: false, deduped: true, reason: "already_processed" };
+    const existingRows = await deps.db
+      .select({
+        processedAt: webhookEvents.processedAt,
+        error: webhookEvents.error,
+        attempts: webhookEvents.attempts,
+      })
+      .from(webhookEvents)
+      .where(
+        and(
+          eq(webhookEvents.provider, deps.provider),
+          eq(webhookEvents.providerEventId, providerEventKey),
+        ),
+      )
+      .limit(1);
+    const existing = existingRows[0];
+    if (!existing) {
+      throw new Error(
+        `@informach/billing: webhook_events conflict but row not found for '${providerEventKey}'`,
+      );
+    }
+    if (!existing.processedAt) {
+      safeLog(deps.logger, "warn", "billing.webhook.retrying_unprocessed", {
+        providerEventId: event.id,
+        providerEventKey,
+        eventType: event.type,
+        attempts: existing.attempts,
+        previousError: existing.error,
+      });
+    } else {
+      safeLog(deps.logger, "debug", "billing.webhook.deduped", {
+        providerEventId: event.id,
+        providerEventKey,
+        eventType: event.type,
+      });
+      return { processed: false, deduped: true, reason: "already_processed" };
+    }
   }
 
   try {
     const reason = await dispatchEvent(deps, event);
     await deps.db
       .update(webhookEvents)
-      .set({ processedAt: new Date() })
+      .set({ processedAt: new Date(), error: null })
       .where(
-        and(eq(webhookEvents.provider, deps.provider), eq(webhookEvents.providerEventId, event.id)),
+        and(
+          eq(webhookEvents.provider, deps.provider),
+          eq(webhookEvents.providerEventId, providerEventKey),
+        ),
       );
     return { processed: true, deduped: false, reason };
   } catch (err) {
@@ -94,15 +135,24 @@ export async function handleStripeEvent(
         attempts: sql`${webhookEvents.attempts} + 1`,
       })
       .where(
-        and(eq(webhookEvents.provider, deps.provider), eq(webhookEvents.providerEventId, event.id)),
+        and(
+          eq(webhookEvents.provider, deps.provider),
+          eq(webhookEvents.providerEventId, providerEventKey),
+        ),
       );
     safeLog(deps.logger, "error", "billing.webhook.dispatch_error", {
       providerEventId: event.id,
+      providerEventKey,
       eventType: event.type,
       error: message,
     });
     throw err;
   }
+}
+
+function buildProviderEventKey(deps: StripeWebhookDeps, providerEventId: string): string {
+  const scope = deps.webhookScope?.trim();
+  return scope ? `${scope}:${providerEventId}` : providerEventId;
 }
 
 async function dispatchEvent(deps: StripeWebhookDeps, event: ParsedWebhookEvent): Promise<string> {
@@ -159,6 +209,7 @@ async function dispatchEvent(deps: StripeWebhookDeps, event: ParsedWebhookEvent)
         {
           db: deps.db,
           provider: deps.provider,
+          providerClient: deps.providerClient,
           products: deps.products,
           logger: deps.logger,
           onAudit: deps.onAudit,
@@ -177,6 +228,7 @@ async function dispatchEvent(deps: StripeWebhookDeps, event: ParsedWebhookEvent)
         {
           db: deps.db,
           provider: deps.provider,
+          providerClient: deps.providerClient,
           products: deps.products,
           logger: deps.logger,
           onAudit: deps.onAudit,

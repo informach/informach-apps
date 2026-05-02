@@ -1,5 +1,4 @@
 import type { Product } from "@informach/config";
-import { findProductByPriceId } from "@informach/config";
 import type { Database } from "@informach/db";
 import { customers, subscriptions } from "@informach/db/schema";
 import { and, eq } from "drizzle-orm";
@@ -144,8 +143,16 @@ export async function handleSubscriptionLifecycle(
     return { upserted: false, reason: "missing_price" };
   }
 
-  const productId =
-    subscription.metadata?.product_id ?? findProductByPriceId(priceId)?.id ?? "unknown";
+  const product = resolveProductForApp(options.products ?? [], priceId, subscription.metadata);
+  if (!product) {
+    safeLog(deps.logger, "warn", "billing.webhook.subscription.product_not_in_catalog", {
+      subscriptionId: subscription.id,
+      priceId,
+      metadataProductId: subscription.metadata?.product_id,
+    });
+    return { upserted: false, reason: "product_not_in_catalog" };
+  }
+  const productId = product.id;
   const isDeletion = eventType === "customer.subscription.deleted";
   const status: SubscriptionStatus = isDeletion ? "canceled" : normalizeStatus(subscription.status);
 
@@ -219,8 +226,7 @@ export async function handleSubscriptionLifecycle(
   const isCancellation =
     isDeletion || (eventType === "customer.subscription.updated" && Boolean(cancelAtPeriodEnd));
   if (isCancellation && deps.emails && customerRow.email) {
-    const product = options.products?.find((p) => p.id === productId);
-    const productName = product?.name ?? productId;
+    const productName = product.name;
     const accessUntil = formatDatePtBR(cancelAtPeriodEnd ?? periodEnd);
     await sendBillingEmail(deps.emails, {
       category: "billing.subscription-canceled",
@@ -240,6 +246,18 @@ export async function handleSubscriptionLifecycle(
   }
 
   return { upserted: true };
+}
+
+function resolveProductForApp(
+  products: readonly Product[],
+  priceId: string,
+  metadata: Record<string, string> | undefined,
+): Product | undefined {
+  const metadataProductId = metadata?.product_id;
+  if (metadataProductId) {
+    return products.find((p) => p.id === metadataProductId);
+  }
+  return products.find((p) => p.stripePriceId.dev === priceId || p.stripePriceId.prod === priceId);
 }
 
 function formatDatePtBR(date: Date): string {

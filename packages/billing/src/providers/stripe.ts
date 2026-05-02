@@ -9,6 +9,7 @@ import type {
   ProviderCustomer,
   ProviderPortalInput,
   ProviderPortalSession,
+  ProviderSubscriptionDetails,
   ProviderSubscriptionSummary,
   ProviderUpdateSubscriptionInput,
   ProviderWebhookEvent,
@@ -54,10 +55,13 @@ export function createStripeProvider(config: StripeProviderConfig): BillingProvi
     name: "stripe",
 
     async createCustomer(input): Promise<ProviderCustomer> {
-      const customer = await stripe.customers.create({
-        email: input.email,
-        metadata: buildSubjectMetadata(input.subject, input.metadata),
-      });
+      const customer = await stripe.customers.create(
+        {
+          email: input.email,
+          metadata: buildSubjectMetadata(input.subject, input.metadata),
+        },
+        input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : undefined,
+      );
       return {
         id: customer.id,
         email: customer.email ?? input.email,
@@ -145,6 +149,23 @@ export function createStripeProvider(config: StripeProviderConfig): BillingProvi
       }
     },
 
+    async retrieveSubscriptionDetails(
+      providerSubscriptionId: string,
+    ): Promise<ProviderSubscriptionDetails | null> {
+      try {
+        const subscription = await stripe.subscriptions.retrieve(providerSubscriptionId);
+        return detailSubscription(subscription);
+      } catch (err) {
+        if (
+          err instanceof Stripe.errors.StripeInvalidRequestError &&
+          err.code === "resource_missing"
+        ) {
+          return null;
+        }
+        throw err;
+      }
+    },
+
     async updateSubscription(
       input: ProviderUpdateSubscriptionInput,
     ): Promise<ProviderSubscriptionSummary> {
@@ -200,5 +221,24 @@ function summarizeSubscription(subscription: Stripe.Subscription): ProviderSubsc
     status: subscription.status,
     cancelAtPeriodEnd: subscription.cancel_at_period_end,
     currentPeriodEnd: periodEnd ? new Date(periodEnd * 1000) : null,
+  };
+}
+
+function detailSubscription(subscription: Stripe.Subscription): ProviderSubscriptionDetails {
+  const firstItem = subscription.items.data[0];
+  const summary = summarizeSubscription(subscription);
+  const customer =
+    typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
+  return {
+    ...summary,
+    providerCustomerId: customer,
+    providerPriceId: firstItem?.price?.id ?? null,
+    productId: subscription.metadata.product_id ?? null,
+    currentPeriodStart: firstItem?.current_period_start
+      ? new Date(firstItem.current_period_start * 1000)
+      : null,
+    canceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null,
+    trialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1000) : null,
+    metadata: normalizeMetadata(subscription.metadata),
   };
 }

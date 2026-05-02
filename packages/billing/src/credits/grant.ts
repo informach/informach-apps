@@ -1,6 +1,7 @@
 import type { Database } from "@informach/db";
 import { creditLedger } from "@informach/db/schema";
 import { and, eq } from "drizzle-orm";
+import { BillingError } from "./../errors";
 import { type Logger, safeLog } from "./../logger";
 import type { BillingAuditEvent, CreditOwner, LedgerEntryType } from "./../types";
 
@@ -60,6 +61,7 @@ export async function grantBonusCredits(
   deps: CreditGrantDeps,
   input: GrantBonusCreditsInput,
 ): Promise<GrantBonusCreditsResult> {
+  assertPositiveInteger(input.amount, "amount");
   const entryType = REASON_TO_ENTRY_TYPE[input.reason];
   const expiresAt = input.expiresAt ?? null;
 
@@ -130,6 +132,10 @@ export async function refundCredits(
   deps: CreditGrantDeps,
   input: RefundCreditsInput,
 ): Promise<RefundCreditsResult> {
+  assertPositiveInteger(input.amount, "amount");
+  if (!input.stripeEventId.trim()) {
+    throw new BillingError("stripeEventId is required for refundCredits");
+  }
   const inserted = await deps.db
     .insert(creditLedger)
     .values({
@@ -187,6 +193,12 @@ export async function refundCredits(
   throw new Error(
     `@informach/billing: refundCredits insert returned 0 rows but no row found for stripeEventId='${input.stripeEventId}'`,
   );
+}
+
+function assertPositiveInteger(value: number, field: string): void {
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new BillingError(`${field} must be a positive integer`);
+  }
 }
 
 function emitAudit(
