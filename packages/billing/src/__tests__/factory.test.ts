@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { createBillingService, type BillingServiceConfig } from "../index";
 import { BillingError, WebhookSignatureError } from "../errors";
+import { type BillingServiceConfig, createBillingService } from "../index";
 import { createFakeDb } from "./_fake-db";
 import { createFakeProvider } from "./_fake-provider";
 

@@ -1,12 +1,8 @@
 import type { Database } from "@informach/db";
 import { creditLedger } from "@informach/db/schema";
 import { and, eq } from "drizzle-orm";
-import { safeLog, type Logger } from "./../logger";
-import type {
-  BillingAuditEvent,
-  CreditOwner,
-  LedgerEntryType,
-} from "./../types";
+import { type Logger, safeLog } from "./../logger";
+import type { BillingAuditEvent, CreditOwner, LedgerEntryType } from "./../types";
 
 export type GrantBonusCreditsInput = {
   owner: CreditOwner;

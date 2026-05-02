@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import { WebhookSignatureError } from "../errors";
+import type { SubjectRef } from "../types";
 import type {
   BillingProviderClient,
   ProviderCancelSubscriptionInput,
@@ -12,7 +13,6 @@ import type {
   ProviderUpdateSubscriptionInput,
   ProviderWebhookEvent,
 } from "./types";
-import type { SubjectRef } from "../types";
 
 export type StripeProviderConfig = {
   secretKey: string;

@@ -45,7 +45,5 @@ export function findProduct(productId: ProductId): Product | undefined {
 }
 
 export function findProductByPriceId(priceId: string): Product | undefined {
-  return PRODUCTS.find(
-    (p) => p.stripePriceId.dev === priceId || p.stripePriceId.prod === priceId,
-  );
+  return PRODUCTS.find((p) => p.stripePriceId.dev === priceId || p.stripePriceId.prod === priceId);
 }

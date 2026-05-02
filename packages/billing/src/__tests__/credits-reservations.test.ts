@@ -46,9 +46,9 @@ describe("reserveCredits", () => {
     const { db } = createFakeDb({
       executeResult: [{ total: "100", reserved_other: "50" }],
     });
-    await expect(
-      reserveCredits({ db: db as never }, baseReserveInput),
-    ).rejects.toThrow(InsufficientCreditsError);
+    await expect(reserveCredits({ db: db as never }, baseReserveInput)).rejects.toThrow(
+      InsufficientCreditsError,
+    );
   });
 
   it("clamps ttlSeconds below 60 to 60", async () => {
@@ -109,10 +109,7 @@ describe("commitReservation", () => {
   it("throws ReservationNotFoundError when reservation id is unknown", async () => {
     const { db } = createFakeDb({ selectQueue: [[]] });
     await expect(
-      commitReservation(
-        { db: db as never },
-        { reservationId: "missing-id", actualAmount: 100 },
-      ),
+      commitReservation({ db: db as never }, { reservationId: "missing-id", actualAmount: 100 }),
     ).rejects.toThrow(ReservationNotFoundError);
   });
 
@@ -136,10 +133,7 @@ describe("commitReservation", () => {
       ],
     });
     await expect(
-      commitReservation(
-        { db: db as never },
-        { reservationId: "res-1", actualAmount: 100 },
-      ),
+      commitReservation({ db: db as never }, { reservationId: "res-1", actualAmount: 100 }),
     ).rejects.toThrow(ReservationAlreadyResolvedError);
   });
 
@@ -163,10 +157,7 @@ describe("commitReservation", () => {
       ],
     });
     await expect(
-      commitReservation(
-        { db: db as never },
-        { reservationId: "res-1", actualAmount: 100 },
-      ),
+      commitReservation({ db: db as never }, { reservationId: "res-1", actualAmount: 100 }),
     ).rejects.toThrow(ReservationExpiredError);
     // Confirm we called UPDATE to mark it expired before throwing
     expect(calls.some((c) => c.mode === "update")).toBe(true);
@@ -179,20 +170,14 @@ describe("releaseReservation", () => {
       updateResult: [{ id: "res-1" }],
     });
     await expect(
-      releaseReservation(
-        { db: db as never },
-        { reservationId: "res-1", reason: "user_cancel" },
-      ),
+      releaseReservation({ db: db as never }, { reservationId: "res-1", reason: "user_cancel" }),
     ).resolves.toBeUndefined();
   });
 
   it("is idempotent: no error when already-released (UPDATE touches 0 rows)", async () => {
     const { db } = createFakeDb({ updateResult: [] });
     await expect(
-      releaseReservation(
-        { db: db as never },
-        { reservationId: "res-1", reason: "timeout" },
-      ),
+      releaseReservation({ db: db as never }, { reservationId: "res-1", reason: "timeout" }),
     ).resolves.toBeUndefined();
   });
 });

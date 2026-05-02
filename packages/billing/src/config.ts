@@ -1,5 +1,5 @@
-import type { Database } from "@informach/db";
 import type { StripeMode } from "@informach/config";
+import type { Database } from "@informach/db";
 import type { RenderTemplate, SendEmail } from "@informach/emails";
 import type { BillingEmailCategory } from "./billing-emails";
 import type { Logger } from "./logger";

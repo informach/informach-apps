@@ -2,7 +2,7 @@ import type { Database } from "@informach/db";
 import { customers as customersTable } from "@informach/db/schema";
 import { and, eq } from "drizzle-orm";
 import { CustomerNotFoundError, OrganizationsDisabledError } from "./errors";
-import { safeLog, type Logger } from "./logger";
+import { type Logger, safeLog } from "./logger";
 import type { BillingProviderClient } from "./providers";
 import type { BillingProvider, PortalSessionInput } from "./types";
 

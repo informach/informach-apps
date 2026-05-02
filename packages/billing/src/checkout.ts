@@ -1,7 +1,7 @@
 import { getStripePriceId, type Product, type StripeMode } from "@informach/config";
 import { getOrCreateCustomer } from "./customers";
 import { InvalidProductError } from "./errors";
-import { safeLog, type Logger } from "./logger";
+import { type Logger, safeLog } from "./logger";
 import type { BillingProviderClient } from "./providers";
 import type {
   BillingProvider,
@@ -35,7 +35,10 @@ export async function createSubscriptionCheckout(
 ): Promise<CheckoutResult> {
   const product = resolveProduct(deps.products, input.productId);
   if (product.kind !== "subscription") {
-    throw new InvalidProductError(input.productId, `expected kind='subscription', got '${product.kind}'`);
+    throw new InvalidProductError(
+      input.productId,
+      `expected kind='subscription', got '${product.kind}'`,
+    );
   }
 
   const email = await deps.resolveSubjectEmail(input.subject);
@@ -95,7 +98,10 @@ export async function createCreditPackCheckout(
 ): Promise<CheckoutResult> {
   const product = resolveProduct(deps.products, input.productId);
   if (product.kind !== "credit_pack") {
-    throw new InvalidProductError(input.productId, `expected kind='credit_pack', got '${product.kind}'`);
+    throw new InvalidProductError(
+      input.productId,
+      `expected kind='credit_pack', got '${product.kind}'`,
+    );
   }
   if (!product.creditAmount || product.creditAmount <= 0) {
     throw new InvalidProductError(input.productId, "credit_pack must define creditAmount > 0");

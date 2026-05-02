@@ -1,6 +1,6 @@
 import type { Database } from "@informach/db";
-import { creditLedger, type CreditLedgerEntry } from "@informach/db/schema";
-import { and, desc, eq, gte, inArray, lte, lt, or, sql } from "drizzle-orm";
+import { type CreditLedgerEntry, creditLedger } from "@informach/db/schema";
+import { and, desc, eq, gte, inArray, lt, lte, or, sql } from "drizzle-orm";
 import type { CreditOwner, LedgerEntryType } from "./../types";
 
 export type LedgerHistoryFilters = {
@@ -34,10 +34,7 @@ export async function getCreditHistory(
   filters: LedgerHistoryFilters = {},
 ): Promise<LedgerHistoryPage> {
   const limit = Math.min(Math.max(filters.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
-  const conditions = [
-    eq(creditLedger.ownerType, owner.type),
-    eq(creditLedger.ownerId, owner.id),
-  ];
+  const conditions = [eq(creditLedger.ownerType, owner.type), eq(creditLedger.ownerId, owner.id)];
   if (filters.from) conditions.push(gte(creditLedger.createdAt, filters.from));
   if (filters.to) conditions.push(lte(creditLedger.createdAt, filters.to));
   if (filters.entryTypes && filters.entryTypes.length > 0) {

@@ -1,13 +1,13 @@
+import type { Product } from "@informach/config";
 import type { Database } from "@informach/db";
 import {
   customers as customersTable,
   subscriptions as subscriptionsTable,
 } from "@informach/db/schema";
-import type { Product } from "@informach/config";
 import { and, eq } from "drizzle-orm";
-import { sendBillingEmail, type BillingEmailDeps } from "./../billing-emails";
+import { type BillingEmailDeps, sendBillingEmail } from "./../billing-emails";
 import { grantBonusCredits } from "./../credits/grant";
-import { safeLog, type Logger } from "./../logger";
+import { type Logger, safeLog } from "./../logger";
 import type { BillingAuditEvent, BillingProvider, SubjectType } from "./../types";
 
 /**

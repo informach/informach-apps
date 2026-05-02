@@ -57,9 +57,7 @@ describe("getOrCreateCustomer", () => {
       providerCustomerId: "cus_new_1",
       isNew: true,
     });
-    expect(createCustomerCalls).toEqual([
-      { email: "new@example.com", subject: userSubject },
-    ]);
+    expect(createCustomerCalls).toEqual([{ email: "new@example.com", subject: userSubject }]);
     expect(calls.filter((c) => c.mode === "insert")).toHaveLength(1);
   });
 

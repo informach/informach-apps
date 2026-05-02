@@ -1,14 +1,10 @@
-import type { Database } from "@informach/db";
 import type { Product } from "@informach/config";
+import type { Database } from "@informach/db";
 import { creditLedger, customers, oneTimePayments } from "@informach/db/schema";
 import { and, eq, sql } from "drizzle-orm";
-import { sendBillingEmail, type BillingEmailDeps } from "./../billing-emails";
-import { safeLog, type Logger } from "./../logger";
-import type {
-  BillingAuditEvent,
-  BillingProvider,
-  SubjectType,
-} from "./../types";
+import { type BillingEmailDeps, sendBillingEmail } from "./../billing-emails";
+import { type Logger, safeLog } from "./../logger";
+import type { BillingAuditEvent, BillingProvider, SubjectType } from "./../types";
 
 type StripePaymentIntentLike = {
   id: string;

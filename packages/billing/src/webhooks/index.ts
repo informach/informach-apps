@@ -1,9 +1,9 @@
+import type { Product } from "@informach/config";
 import type { Database } from "@informach/db";
 import { webhookEvents } from "@informach/db/schema";
-import type { Product } from "@informach/config";
 import { and, eq, sql } from "drizzle-orm";
 import type { BillingEmailDeps } from "./../billing-emails";
-import { safeLog, type Logger } from "./../logger";
+import { type Logger, safeLog } from "./../logger";
 import type { BillingProviderClient } from "./../providers";
 import type { BillingAuditEvent, BillingProvider } from "./../types";
 import { handleCheckoutSessionCompleted } from "./checkout";
@@ -82,10 +82,7 @@ export async function handleStripeEvent(
       .update(webhookEvents)
       .set({ processedAt: new Date() })
       .where(
-        and(
-          eq(webhookEvents.provider, deps.provider),
-          eq(webhookEvents.providerEventId, event.id),
-        ),
+        and(eq(webhookEvents.provider, deps.provider), eq(webhookEvents.providerEventId, event.id)),
       );
     return { processed: true, deduped: false, reason };
   } catch (err) {
@@ -97,10 +94,7 @@ export async function handleStripeEvent(
         attempts: sql`${webhookEvents.attempts} + 1`,
       })
       .where(
-        and(
-          eq(webhookEvents.provider, deps.provider),
-          eq(webhookEvents.providerEventId, event.id),
-        ),
+        and(eq(webhookEvents.provider, deps.provider), eq(webhookEvents.providerEventId, event.id)),
       );
     safeLog(deps.logger, "error", "billing.webhook.dispatch_error", {
       providerEventId: event.id,

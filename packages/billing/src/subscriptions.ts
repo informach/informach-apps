@@ -1,12 +1,12 @@
 import type { Database } from "@informach/db";
 import {
   customers as customersTable,
-  subscriptions as subscriptionsTable,
   type Subscription as SubscriptionRow,
+  subscriptions as subscriptionsTable,
 } from "@informach/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { CustomerNotFoundError, OrganizationsDisabledError } from "./errors";
-import { safeLog, type Logger } from "./logger";
+import { type Logger, safeLog } from "./logger";
 import type { BillingProviderClient } from "./providers";
 import type { BillingAuditEvent, BillingProvider, SubjectRef } from "./types";
 

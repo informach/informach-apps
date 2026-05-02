@@ -1,10 +1,10 @@
-import type { Database } from "@informach/db";
 import type { Product } from "@informach/config";
+import { findProductByPriceId } from "@informach/config";
+import type { Database } from "@informach/db";
 import { customers, subscriptions } from "@informach/db/schema";
 import { and, eq } from "drizzle-orm";
-import { findProductByPriceId } from "@informach/config";
-import { sendBillingEmail, type BillingEmailDeps } from "./../billing-emails";
-import { safeLog, type Logger } from "./../logger";
+import { type BillingEmailDeps, sendBillingEmail } from "./../billing-emails";
+import { type Logger, safeLog } from "./../logger";
 import type { BillingAuditEvent, BillingProvider, SubscriptionStatus } from "./../types";
 
 type StripeSubscriptionItemLike = {
@@ -78,9 +78,10 @@ function extractPriceId(items: StripeSubscriptionLike["items"]): string | null {
  * Subscription root. Multi-item subscriptions with mixed periods fall outside
  * this contract — we treat the first item as canonical.
  */
-function extractCurrentPeriod(
-  items: StripeSubscriptionLike["items"],
-): { start: Date | null; end: Date | null } {
+function extractCurrentPeriod(items: StripeSubscriptionLike["items"]): {
+  start: Date | null;
+  end: Date | null;
+} {
   const firstItem = items?.data?.[0];
   return {
     start: unixToDate(firstItem?.current_period_start),
@@ -96,7 +97,10 @@ function extractCurrentPeriod(
 export async function handleSubscriptionLifecycle(
   deps: SubscriptionWebhookDeps,
   subscription: StripeSubscriptionLike,
-  eventType: "customer.subscription.created" | "customer.subscription.updated" | "customer.subscription.deleted",
+  eventType:
+    | "customer.subscription.created"
+    | "customer.subscription.updated"
+    | "customer.subscription.deleted",
   options: SubscriptionLifecycleOptions = {},
 ): Promise<{ upserted: boolean; reason?: string }> {
   const providerCustomerId = extractCustomerId(subscription.customer);
@@ -140,7 +144,8 @@ export async function handleSubscriptionLifecycle(
     return { upserted: false, reason: "missing_price" };
   }
 
-  const productId = subscription.metadata?.product_id ?? findProductByPriceId(priceId)?.id ?? "unknown";
+  const productId =
+    subscription.metadata?.product_id ?? findProductByPriceId(priceId)?.id ?? "unknown";
   const isDeletion = eventType === "customer.subscription.deleted";
   const status: SubscriptionStatus = isDeletion ? "canceled" : normalizeStatus(subscription.status);
 
@@ -148,10 +153,10 @@ export async function handleSubscriptionLifecycle(
   const periodStart = period.start ?? new Date();
   const periodEnd = period.end ?? new Date();
   const cancelAtPeriodEnd = subscription.cancel_at_period_end
-    ? unixToDate(subscription.cancel_at) ?? periodEnd
+    ? (unixToDate(subscription.cancel_at) ?? periodEnd)
     : null;
   const canceledAt = isDeletion
-    ? unixToDate(subscription.canceled_at) ?? new Date()
+    ? (unixToDate(subscription.canceled_at) ?? new Date())
     : unixToDate(subscription.canceled_at);
   const trialEnd = unixToDate(subscription.trial_end);
 

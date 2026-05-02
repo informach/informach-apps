@@ -52,19 +52,13 @@ describe("grantBonusCredits", () => {
   it("throws when insert returns 0 rows without a stripeEventId (broken invariant)", async () => {
     const { db } = createFakeDb({ insertResult: [] });
     await expect(
-      grantBonusCredits(
-        { db: db as never },
-        { owner, amount: 100, reason: "promo" },
-      ),
+      grantBonusCredits({ db: db as never }, { owner, amount: 100, reason: "promo" }),
     ).rejects.toThrow(/schema invariant broken/);
   });
 
   it("maps reason to the correct entry_type via metadata", async () => {
     const { db, calls } = createFakeDb({ insertResult: [{ id: "ledger-2" }] });
-    await grantBonusCredits(
-      { db: db as never },
-      { owner, amount: 50, reason: "compensation" },
-    );
+    await grantBonusCredits({ db: db as never }, { owner, amount: 50, reason: "compensation" });
     expect(calls.find((c) => c.mode === "insert")).toBeDefined();
   });
 });

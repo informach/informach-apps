@@ -1,4 +1,10 @@
-export type { Product, ProductId, ProductKind, ProductPriceMap, StripeMode } from "@informach/config";
+export type {
+  Product,
+  ProductId,
+  ProductKind,
+  ProductPriceMap,
+  StripeMode,
+} from "@informach/config";
 
 export type BillingProvider = "stripe" | "asaas";
 

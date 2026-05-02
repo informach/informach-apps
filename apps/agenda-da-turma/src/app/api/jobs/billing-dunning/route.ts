@@ -34,17 +34,18 @@ export async function POST(request: Request): Promise<Response> {
       }
       const unsubscribeUrl = buildUnsubscribeUrlFor(recipient.unsubscribeIdentifier);
       const updatePaymentUrl = `${env.NEXT_PUBLIC_APP_URL}/admin/billing`;
-      const { html, text, subject: emailSubject } = await renderTemplate(
-        "billing.payment-failed",
-        {
-          appName: APPS.agendaDaTurma.name,
-          attempt,
-          maxAttempts: MAX_DUNNING_ATTEMPTS,
-          updatePaymentUrl,
-          unsubscribeUrl,
-          unsubscribeMailto: `unsubscribe@${APP_HOSTNAME}`,
-        },
-      );
+      const {
+        html,
+        text,
+        subject: emailSubject,
+      } = await renderTemplate("billing.payment-failed", {
+        appName: APPS.agendaDaTurma.name,
+        attempt,
+        maxAttempts: MAX_DUNNING_ATTEMPTS,
+        updatePaymentUrl,
+        unsubscribeUrl,
+        unsubscribeMailto: `unsubscribe@${APP_HOSTNAME}`,
+      });
       await emails.sendEmail({
         to: recipient.email,
         category: "billing.payment-failed",

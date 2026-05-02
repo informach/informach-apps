@@ -3,7 +3,9 @@ import { handleStripeEvent, type StripeWebhookDeps } from "../webhooks";
 import { createFakeDb } from "./_fake-db";
 import { createFakeProvider } from "./_fake-provider";
 
-function makeDeps(overrides: Partial<StripeWebhookDeps> & { dbConfig?: Parameters<typeof createFakeDb>[0] } = {}) {
+function makeDeps(
+  overrides: Partial<StripeWebhookDeps> & { dbConfig?: Parameters<typeof createFakeDb>[0] } = {},
+) {
   const { dbConfig, ...rest } = overrides;
   const fake = createFakeDb(dbConfig);
   const { provider } = createFakeProvider();
@@ -98,7 +100,9 @@ describe("handleStripeEvent (idempotency)", () => {
     const event = {
       id: "evt_del_1",
       type: "customer.subscription.deleted",
-      payload: { data: { object: { ...SUBSCRIPTION_PAYLOAD, status: "active", canceled_at: 1702592000 } } },
+      payload: {
+        data: { object: { ...SUBSCRIPTION_PAYLOAD, status: "active", canceled_at: 1702592000 } },
+      },
     };
     await handleStripeEvent(deps, event);
     expect(onAudit).toHaveBeenCalledWith(

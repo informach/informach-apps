@@ -1,3 +1,4 @@
+export { createStripeProvider, type StripeProviderConfig } from "./stripe";
 export type {
   BillingProviderClient,
   ProviderCancelSubscriptionInput,
@@ -11,4 +12,3 @@ export type {
   ProviderUpdateSubscriptionInput,
   ProviderWebhookEvent,
 } from "./types";
-export { createStripeProvider, type StripeProviderConfig } from "./stripe";

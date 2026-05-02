@@ -5,8 +5,8 @@ import {
   cancelSubscription,
   getSubscription,
   listSubscriptions,
-  updateSubscription,
   type SubscriptionsDeps,
+  updateSubscription,
 } from "../subscriptions";
 import { createFakeDb } from "./_fake-db";
 import { createFakeProvider } from "./_fake-provider";
@@ -55,10 +55,7 @@ describe("getSubscription / listSubscriptions", () => {
 
   it("returns the active-ish subscription when present", async () => {
     const { db } = createFakeDb({
-      selectQueue: [
-        [{ id: "customer-row-1" }],
-        [sampleSubRow],
-      ],
+      selectQueue: [[{ id: "customer-row-1" }], [sampleSubRow]],
     });
     const deps = makeDeps({ db: db as never });
     const result = await getSubscription(deps, userSubject);
@@ -119,9 +116,9 @@ describe("cancelSubscription", () => {
   it("throws when subscription row is not found locally", async () => {
     const { db } = createFakeDb({ selectQueue: [[]] });
     const deps = makeDeps({ db: db as never });
-    await expect(
-      cancelSubscription(deps, { subscriptionId: "missing" }),
-    ).rejects.toThrow(CustomerNotFoundError);
+    await expect(cancelSubscription(deps, { subscriptionId: "missing" })).rejects.toThrow(
+      CustomerNotFoundError,
+    );
   });
 });
 

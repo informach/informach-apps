@@ -1,5 +1,5 @@
 import type { RenderTemplate, SendEmail } from "@informach/emails";
-import { safeLog, type Logger } from "./logger";
+import { type Logger, safeLog } from "./logger";
 
 /**
  * 4 of the 5 `billing.*` email categories. `billing.payment-failed` is sent

@@ -60,9 +60,7 @@ export class ReservationAlreadyResolvedError extends BillingError {
 
 export class OrganizationsDisabledError extends BillingError {
   constructor() {
-    super(
-      "subject of type 'organization' is not allowed when organizationsEnabled is false",
-    );
+    super("subject of type 'organization' is not allowed when organizationsEnabled is false");
     this.name = "OrganizationsDisabledError";
   }
 }

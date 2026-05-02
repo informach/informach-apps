@@ -1,56 +1,57 @@
+import type { Subscription as SubscriptionRow } from "@informach/db/schema";
 import { createCreditPackCheckout, createSubscriptionCheckout } from "./checkout";
 import type { BillingServiceConfig } from "./config";
-import { createPortalSession } from "./portal";
 import {
-  cancelBillingForSubject,
-  cancelSubscription,
-  getSubscription,
-  listSubscriptions,
-  updateSubscription,
-  type CancelSubscriptionInput,
-  type UpdateSubscriptionInput,
-} from "./subscriptions";
-import {
-  expireMonthlyBonusCredits,
-  reconcileSubscriptionStatuses,
-  releaseExpiredReservations,
-  retryFailedDunningEmails,
-  type DunningSendFn,
-  type ExpireMonthlyBonusResult,
-  type ReconcileSubscriptionsResult,
-  type ReleaseExpiredReservationsResult,
-  type RetryDunningEmailsResult,
-} from "./sweepers";
-import {
-  commitReservation,
-  consumeCredits,
-  getBalance,
-  getCreditHistory,
-  grantBonusCredits,
-  refundCredits,
-  releaseReservation,
-  reserveCredits,
   type CommitReservationInput,
   type CommitReservationResult,
   type ConsumeCreditsInput,
   type ConsumeCreditsResult,
+  commitReservation,
+  consumeCredits,
   type GrantBonusCreditsInput,
   type GrantBonusCreditsResult,
+  getBalance,
+  getCreditHistory,
+  grantBonusCredits,
   type LedgerHistoryFilters,
   type LedgerHistoryPage,
   type RefundCreditsInput,
   type RefundCreditsResult,
   type ReleaseReservationInput,
   type ReserveCreditsInput,
+  refundCredits,
+  releaseReservation,
+  reserveCredits,
 } from "./credits";
 import {
-  getOrCreateCustomer,
   type GetOrCreateCustomerInput,
   type GetOrCreateCustomerResult,
+  getOrCreateCustomer,
 } from "./customers";
 import { BillingError } from "./errors";
+import { createPortalSession } from "./portal";
 import { createStripeProvider } from "./providers/stripe";
 import type { BillingProviderClient } from "./providers/types";
+import {
+  type CancelSubscriptionInput,
+  cancelBillingForSubject,
+  cancelSubscription,
+  getSubscription,
+  listSubscriptions,
+  type UpdateSubscriptionInput,
+  updateSubscription,
+} from "./subscriptions";
+import {
+  type DunningSendFn,
+  type ExpireMonthlyBonusResult,
+  expireMonthlyBonusCredits,
+  type ReconcileSubscriptionsResult,
+  type ReleaseExpiredReservationsResult,
+  type RetryDunningEmailsResult,
+  reconcileSubscriptionStatuses,
+  releaseExpiredReservations,
+  retryFailedDunningEmails,
+} from "./sweepers";
 import type {
   CheckoutResult,
   CreditBalance,
@@ -60,14 +61,32 @@ import type {
   SubjectRef,
   SubscriptionCheckoutInput,
 } from "./types";
-import type { Subscription as SubscriptionRow } from "@informach/db/schema";
 import {
   handleStripeEvent,
-  verifyStripeSignature,
   type ParsedWebhookEvent,
+  verifyStripeSignature,
   type WebhookHandlerResult,
 } from "./webhooks";
 
+export type { BillingServiceConfig } from "./config";
+export type {
+  CommitReservationInput,
+  CommitReservationResult,
+  ConsumeCreditsInput,
+  ConsumeCreditsResult,
+  GrantBonusCreditsInput,
+  GrantBonusCreditsResult,
+  LedgerHistoryFilters,
+  LedgerHistoryPage,
+  RefundCreditsInput,
+  RefundCreditsResult,
+  ReleaseReservationInput,
+  ReserveCreditsInput,
+} from "./credits";
+export type {
+  GetOrCreateCustomerInput,
+  GetOrCreateCustomerResult,
+} from "./customers";
 export {
   BillingError,
   CustomerNotFoundError,
@@ -80,7 +99,17 @@ export {
   ReservationNotFoundError,
   WebhookSignatureError,
 } from "./errors";
-
+export type { Logger } from "./logger";
+export type { BillingProviderClient } from "./providers/types";
+export type { CancelSubscriptionInput, UpdateSubscriptionInput } from "./subscriptions";
+export type {
+  DunningPayload,
+  DunningSendFn,
+  ExpireMonthlyBonusResult,
+  ReconcileSubscriptionsResult,
+  ReleaseExpiredReservationsResult,
+  RetryDunningEmailsResult,
+} from "./sweepers";
 export type {
   BillingAuditEvent,
   BillingAuditEventType,
@@ -103,39 +132,8 @@ export type {
   SubscriptionCheckoutInput,
   SubscriptionStatus,
 } from "./types";
-
-export type { BillingServiceConfig } from "./config";
-export type { Logger } from "./logger";
-export type { BillingProviderClient } from "./providers/types";
-export type {
-  GetOrCreateCustomerInput,
-  GetOrCreateCustomerResult,
-} from "./customers";
-export type {
-  CommitReservationInput,
-  CommitReservationResult,
-  ConsumeCreditsInput,
-  ConsumeCreditsResult,
-  GrantBonusCreditsInput,
-  GrantBonusCreditsResult,
-  LedgerHistoryFilters,
-  LedgerHistoryPage,
-  RefundCreditsInput,
-  RefundCreditsResult,
-  ReleaseReservationInput,
-  ReserveCreditsInput,
-} from "./credits";
 export type { ParsedWebhookEvent, WebhookHandlerResult } from "./webhooks";
 export { STRIPE_SIGNATURE_HEADER } from "./webhooks";
-export type { CancelSubscriptionInput, UpdateSubscriptionInput } from "./subscriptions";
-export type {
-  DunningPayload,
-  DunningSendFn,
-  ExpireMonthlyBonusResult,
-  ReconcileSubscriptionsResult,
-  ReleaseExpiredReservationsResult,
-  RetryDunningEmailsResult,
-} from "./sweepers";
 
 export type SubscriptionCheckoutOptions = SubscriptionCheckoutInput & {
   idempotencyNonce?: string;
@@ -237,9 +235,15 @@ export type BillingService = {
   /** Cron sweeper: reconcile local subscription rows with provider state. */
   reconcileSubscriptions(opts?: { batchSize?: number }): Promise<ReconcileSubscriptionsResult>;
   /** Cron sweeper: insert `expiration` ledger entries for vencidos. */
-  expireMonthlyBonusCredits(opts?: { now?: Date; batchSize?: number }): Promise<ExpireMonthlyBonusResult>;
+  expireMonthlyBonusCredits(opts?: {
+    now?: Date;
+    batchSize?: number;
+  }): Promise<ExpireMonthlyBonusResult>;
   /** Cron sweeper: free reservation rows whose `expiresAt` passed. */
-  releaseExpiredReservations(opts?: { now?: Date; batchSize?: number }): Promise<ReleaseExpiredReservationsResult>;
+  releaseExpiredReservations(opts?: {
+    now?: Date;
+    batchSize?: number;
+  }): Promise<ReleaseExpiredReservationsResult>;
   /**
    * Cron sweeper: re-attempt dunning emails for `past_due` subs. `send` is
    * required to actually deliver — when omitted, the run is a dry-run.

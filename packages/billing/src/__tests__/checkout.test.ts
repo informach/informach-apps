@@ -1,6 +1,10 @@
 import type { Product } from "@informach/config";
 import { describe, expect, it, vi } from "vitest";
-import { createCreditPackCheckout, createSubscriptionCheckout, type CheckoutDeps } from "../checkout";
+import {
+  type CheckoutDeps,
+  createCreditPackCheckout,
+  createSubscriptionCheckout,
+} from "../checkout";
 import { InvalidProductError } from "../errors";
 import { createFakeDb } from "./_fake-db";
 import { createFakeProvider } from "./_fake-provider";

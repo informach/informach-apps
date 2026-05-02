@@ -44,17 +44,18 @@ export async function POST(request: Request): Promise<Response> {
       }
       const unsubscribeUrl = buildUnsubscribeUrlFor(user.email);
       const updatePaymentUrl = `${env.NEXT_PUBLIC_APP_URL}/settings/billing`;
-      const { html, text, subject: emailSubject } = await renderTemplate(
-        "billing.payment-failed",
-        {
-          appName: APPS.cozya.name,
-          attempt,
-          maxAttempts: MAX_DUNNING_ATTEMPTS,
-          updatePaymentUrl,
-          unsubscribeUrl,
-          unsubscribeMailto: `unsubscribe@${APP_HOSTNAME}`,
-        },
-      );
+      const {
+        html,
+        text,
+        subject: emailSubject,
+      } = await renderTemplate("billing.payment-failed", {
+        appName: APPS.cozya.name,
+        attempt,
+        maxAttempts: MAX_DUNNING_ATTEMPTS,
+        updatePaymentUrl,
+        unsubscribeUrl,
+        unsubscribeMailto: `unsubscribe@${APP_HOSTNAME}`,
+      });
       await emails.sendEmail({
         to: user.email,
         category: "billing.payment-failed",

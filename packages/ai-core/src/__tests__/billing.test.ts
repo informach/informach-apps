@@ -1,9 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  computeCreditsFromUsage,
-  withCredits,
-  type CreditAwareBillingClient,
-} from "../billing";
+import { type CreditAwareBillingClient, computeCreditsFromUsage, withCredits } from "../billing";
 
 const owner = { type: "user" as const, id: "user-1" };
 const futureExpiry = new Date(Date.now() + 60_000);
@@ -36,7 +32,10 @@ describe("withCredits", () => {
       feature: "llm.text",
       model: "claude-sonnet-4-6",
       estimateCost: () => ({ estimatedAmount: 200 }),
-      call: async () => ({ text: "hi", usage: { promptTokens: 100, completionTokens: 50, totalTokens: 150 } }),
+      call: async () => ({
+        text: "hi",
+        usage: { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
+      }),
       computeActualCost: (r) => ({
         actualAmount: computeCreditsFromUsage(r.usage, {
           promptCostPer1k: 30,
@@ -151,7 +150,9 @@ describe("withCredits", () => {
   });
 
   it("propagates InsufficientCreditsError from reserveCredits without calling LLM", async () => {
-    const insufficient = Object.assign(new Error("insufficient"), { name: "InsufficientCreditsError" });
+    const insufficient = Object.assign(new Error("insufficient"), {
+      name: "InsufficientCreditsError",
+    });
     const billing = makeBilling({
       reserveCredits: vi.fn(async () => {
         throw insufficient;

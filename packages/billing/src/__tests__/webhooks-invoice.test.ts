@@ -1,9 +1,6 @@
 import type { Product } from "@informach/config";
 import { describe, expect, it, vi } from "vitest";
-import {
-  handleInvoicePaid,
-  handleInvoicePaymentFailed,
-} from "../webhooks/invoice";
+import { handleInvoicePaid, handleInvoicePaymentFailed } from "../webhooks/invoice";
 import { createFakeDb } from "./_fake-db";
 
 const SUBSCRIPTION_PRODUCT: Product = {

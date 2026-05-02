@@ -1,4 +1,8 @@
-import { STRIPE_SIGNATURE_HEADER, WebhookSignatureError } from "@informach/billing";
+import {
+  type ParsedWebhookEvent,
+  STRIPE_SIGNATURE_HEADER,
+  WebhookSignatureError,
+} from "@informach/billing";
 import { billing } from "@/lib/billing";
 import { logger } from "@/lib/logger";
 
@@ -10,7 +14,7 @@ export async function POST(request: Request): Promise<Response> {
   const signature = request.headers.get(STRIPE_SIGNATURE_HEADER);
   const rawBody = await request.text();
 
-  let event;
+  let event: ParsedWebhookEvent;
   try {
     event = billing.verifyWebhookSignature(rawBody, signature);
   } catch (err) {

@@ -1,5 +1,5 @@
-import { handleSubscriptionLifecycle, type SubscriptionWebhookDeps } from "./subscription";
 import { safeLog } from "./../logger";
+import { handleSubscriptionLifecycle, type SubscriptionWebhookDeps } from "./subscription";
 
 type StripeCheckoutSessionLike = {
   id: string;
@@ -24,9 +24,7 @@ export async function handleCheckoutSessionCompleted(
     safeLog(deps.logger, "info", "billing.webhook.checkout.subscription_completed", {
       sessionId: session.id,
       subscriptionRef:
-        typeof session.subscription === "string"
-          ? session.subscription
-          : session.subscription?.id,
+        typeof session.subscription === "string" ? session.subscription : session.subscription?.id,
     });
     // The subscription row will be upserted by `customer.subscription.created`
     // (or `customer.subscription.updated`) which Stripe emits in the same flow.

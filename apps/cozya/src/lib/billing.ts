@@ -10,8 +10,7 @@ import { env } from "./env";
 import { logger } from "./logger";
 
 const APP_HOSTNAME = new URL(env.NEXT_PUBLIC_APP_URL).hostname;
-const stripeMode =
-  env.STRIPE_MODE ?? (env.NODE_ENV === "production" ? "prod" : "dev");
+const stripeMode = env.STRIPE_MODE ?? (env.NODE_ENV === "production" ? "prod" : "dev");
 
 /**
  * Cozya is single-user, so subjects are always users. Resolves email from

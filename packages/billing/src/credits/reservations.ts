@@ -7,7 +7,7 @@ import {
   ReservationExpiredError,
   ReservationNotFoundError,
 } from "./../errors";
-import { safeLog, type Logger } from "./../logger";
+import { type Logger, safeLog } from "./../logger";
 import type {
   BillingAuditEvent,
   CreditOwner,
@@ -351,10 +351,7 @@ export async function releaseReservation(
       metadata: sql`${creditReservations.metadata} || ${{ release_reason: input.reason }}::jsonb`,
     })
     .where(
-      and(
-        eq(creditReservations.id, input.reservationId),
-        eq(creditReservations.status, "active"),
-      ),
+      and(eq(creditReservations.id, input.reservationId), eq(creditReservations.status, "active")),
     )
     .returning({ id: creditReservations.id });
 

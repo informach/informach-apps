@@ -31,6 +31,10 @@ Consulte as fontes do  meu segundo cérebro C:\Users\tocha\projects\vibe-coding-
 
 Também use o mcp do context7 para consultar a documentação atualizada e use as skills do projeto.
 
-Faça um arquivo CLAUDE.md na raiz do package documentando esse package com propósito, como funciona, todas as funcionalidades, como os apps devem usá-lo, sua arquitetura, design, regras.
+Faça um arquivo CLAUDE.md na raiz do package documentando esse package com propósito, como funciona, todas as funcionalidades, como os apps devem usá-lo, sua arquitetura, design, regras. Atualize a documentação também dos outros packages que foram afetados por esse package aqui.
 
-Pesquise sobre o deploy no Railway e atualize no que for necessário o arquivo PRODUCTION.md, pois o deploy vai ser feito no railway e não na vercel.
+Pesquise sobre o deploy no Railway e crie o arquivo PRODUCTION.md com todos os detalhes para produção, com deploy no Railway.
+
+Pode seguir para a fase 10. Também use o mcp do context7 para consultar a documentação atualizada e use as skills do projeto.
+
+Faça um full code review no package emails. Também use o mcp do context7 para consultar a documentação atualizada e use as skills do projeto.

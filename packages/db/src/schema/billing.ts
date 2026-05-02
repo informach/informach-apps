@@ -140,11 +140,7 @@ export const creditPricing = billing.table(
     metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
   },
   (t) => [
-    index("credit_pricing_feature_model_effective_idx").on(
-      t.feature,
-      t.model,
-      t.effectiveFrom,
-    ),
+    index("credit_pricing_feature_model_effective_idx").on(t.feature, t.model, t.effectiveFrom),
     uniqueIndex("credit_pricing_active_uniq")
       .on(t.feature, t.model)
       .where(sql`${t.effectiveTo} IS NULL`),
@@ -179,10 +175,7 @@ export const creditReservations = billing.table(
     index("credit_reservations_active_expires_idx")
       .on(t.expiresAt)
       .where(sql`${t.status} = 'active'`),
-    check(
-      "credit_reservations_amount_positive_chk",
-      sql`${t.estimatedAmount} > 0`,
-    ),
+    check("credit_reservations_amount_positive_chk", sql`${t.estimatedAmount} > 0`),
   ],
 );
 

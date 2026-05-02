@@ -1,12 +1,11 @@
 import type { Database } from "@informach/db";
 import {
-  creditLedger,
   customers as customersTable,
   subscriptions as subscriptionsTable,
 } from "@informach/db/schema";
 import { and, eq, inArray, lte, sql } from "drizzle-orm";
-import { safeLog, type Logger } from "./logger";
-import type { BillingProviderClient } from "./providers";
+import { type Logger, safeLog } from "./logger";
+import type { BillingProviderClient, ProviderSubscriptionSummary } from "./providers";
 import type { BillingProvider, SubscriptionStatus } from "./types";
 
 export type ExpireMonthlyBonusDeps = {
@@ -345,7 +344,7 @@ export async function reconcileSubscriptionStatuses(
   let errors = 0;
 
   for (const local of candidates) {
-    let summary;
+    let summary: ProviderSubscriptionSummary | null;
     try {
       summary = await deps.providerClient.retrieveSubscription(local.providerSubscriptionId);
     } catch (err) {
@@ -394,8 +393,7 @@ export async function reconcileSubscriptionStatuses(
       summary.currentPeriodEnd.getTime() !== local.currentPeriodEnd.getTime();
     const statusChanged = remoteStatus !== local.status;
     const cancelAtChanged =
-      (remoteCancelAtPeriodEnd?.getTime() ?? null) !==
-      (local.cancelAtPeriodEnd?.getTime() ?? null);
+      (remoteCancelAtPeriodEnd?.getTime() ?? null) !== (local.cancelAtPeriodEnd?.getTime() ?? null);
 
     if (!statusChanged && !cancelAtChanged && !periodEndChanged) {
       continue;

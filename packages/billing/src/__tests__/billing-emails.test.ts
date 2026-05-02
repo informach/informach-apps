@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { sendBillingEmail, type BillingEmailDeps } from "../billing-emails";
+import { type BillingEmailDeps, sendBillingEmail } from "../billing-emails";
 
 const recipient = { email: "user@example.com", userId: "user-1" };
 

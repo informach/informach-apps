@@ -103,7 +103,7 @@ export function createFakeProvider(config: FakeProviderConfig = {}) {
         throw new WebhookSignatureError("forced failure");
       }
       const map = config.webhookEvents;
-      if (map && map.has(rawBody)) {
+      if (map?.has(rawBody)) {
         const ev = map.get(rawBody);
         if (ev) return ev;
       }
