@@ -16,13 +16,17 @@ import type { EmailCategory, RenderTemplate, SendEmail } from "@informach/emails
 import { type BetterAuthPlugin, betterAuth, type SecondaryStorage } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createAuthMiddleware } from "better-auth/api";
-import { emailOTP, magicLink, organization, twoFactor } from "better-auth/plugins";
+import { emailOTP } from "better-auth/plugins/email-otp";
+import { magicLink } from "better-auth/plugins/magic-link";
+import { organization } from "better-auth/plugins/organization";
+import { twoFactor } from "better-auth/plugins/two-factor";
 import { eq } from "drizzle-orm";
 import { configureObservability, logAuditEvent } from "./audit";
 import {
   buildHelpers,
   ForbiddenError,
   isUserBanned,
+  NotFoundError,
   NotImplementedError,
   OrganizationsDisabledError,
   UnauthorizedError,
@@ -42,6 +46,7 @@ export type {
 export { PERMISSIONS, roleHasPermission } from "./permissions";
 export {
   ForbiddenError,
+  NotFoundError,
   NotImplementedError,
   OrganizationsDisabledError,
   type Permission,
@@ -168,11 +173,15 @@ export type RateLimitRule = { window: number; max: number };
  */
 export const DEFAULT_RATE_LIMIT_RULES = {
   "/sign-in/email": { window: 60, max: 5 },
+  "/sign-in/email-otp": { window: 600, max: 5 },
   "/sign-up/email": { window: 3600, max: 5 },
   "/forget-password": { window: 3600, max: 3 },
+  "/forget-password/email-otp": { window: 3600, max: 3 },
   "/sign-in/magic-link": { window: 600, max: 5 },
   "/verify-email": { window: 60, max: 10 },
   "/reset-password": { window: 3600, max: 5 },
+  "/email-otp/request-password-reset": { window: 3600, max: 3 },
+  "/email-otp/reset-password": { window: 3600, max: 5 },
   "/email-otp/send-verification-otp": { window: 60, max: 5 },
   "/email-otp/verify-email": { window: 60, max: 10 },
 } as const satisfies Record<string, RateLimitRule>;
@@ -212,7 +221,7 @@ export type CreateAuthConfig = {
    * inside the cached cookie session (Better Auth does NOT cache
    * `user.additionalFields`). Trade-off: when an admin changes a user's role,
    * existing sessions must be revoked to refresh the cache. The package does
-   * that automatically via `databaseHooks.user.update.after`.
+   * that automatically when role changes go through `setUserRole`.
    *
    * Default: `false` — `getCurrentUser` continues to hit `core.users` per call.
    */
@@ -433,6 +442,19 @@ function returnedStatus(ctx: unknown): number | undefined {
 
 function returnedSuccessfully(status: number | undefined): boolean {
   return status === undefined || status < 400;
+}
+
+function bodyField(ctx: unknown, field: string): string | null {
+  const body = (ctx as { body?: unknown }).body;
+  if (typeof body !== "object" || body === null || !(field in body)) return null;
+  const value = (body as Record<string, unknown>)[field];
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function userIdOf(user: unknown): string | null {
+  if (typeof user !== "object" || user === null) return null;
+  const id = (user as { id?: unknown }).id;
+  return typeof id === "string" ? id : null;
 }
 
 function createAuthInstance(config: CreateAuthConfig) {
@@ -665,38 +687,6 @@ function createAuthInstance(config: CreateAuthConfig) {
             await logAuditEvent("user.created", user.id, { email: user.email });
           },
         },
-        update: {
-          before: async (data, ctx) => {
-            const targetId =
-              typeof data === "object" && data !== null && "id" in data
-                ? String((data as { id?: unknown }).id ?? "")
-                : "";
-            const actorId = ctx?.context?.session?.user?.id ?? null;
-            if ("role" in data && isRole((data as { role?: unknown }).role)) {
-              await logAuditEvent("user.role_changed", actorId, {
-                targetId,
-                newRole: (data as { role: Role }).role,
-              });
-              if (cacheRoleOnSession && targetId) {
-                await db.delete(sessions).where(eq(sessions.userId, targetId));
-              }
-            }
-            if ("banned" in data) {
-              const banned = Boolean((data as { banned?: unknown }).banned);
-              await logAuditEvent(banned ? "user.banned" : "user.unbanned", actorId, {
-                targetId,
-                reason:
-                  "banReason" in data
-                    ? ((data as { banReason?: unknown }).banReason ?? null)
-                    : null,
-              });
-              if (isUserBanned(data) && targetId) {
-                await db.delete(sessions).where(eq(sessions.userId, targetId));
-              }
-            }
-            return { data };
-          },
-        },
       },
       session: {
         create: {
@@ -778,21 +768,42 @@ function createAuthInstance(config: CreateAuthConfig) {
           if (succeeded) await logAuditEvent("auth.sign_out", userId, {});
           return;
         }
-        if (path === "/forget-password") {
-          const email =
-            typeof ctx.body === "object" && ctx.body && "email" in ctx.body
-              ? String((ctx.body as { email?: unknown }).email ?? "")
-              : null;
+        if (
+          path === "/forget-password" ||
+          path === "/email-otp/request-password-reset" ||
+          path === "/forget-password/email-otp"
+        ) {
+          const email = bodyField(ctx, "email");
           await logAuditEvent("auth.forget_password_requested", null, {
             email: email ?? null,
           });
           return;
         }
-        if (path === "/reset-password") {
-          if (succeeded) await logAuditEvent("auth.password_reset_completed", userId, {});
+        if (path === "/email-otp/send-verification-otp") {
+          const email = bodyField(ctx, "email");
+          const type = bodyField(ctx, "type");
+          if (type === "forget-password") {
+            await logAuditEvent("auth.forget_password_requested", null, {
+              email: email ?? null,
+            });
+          }
+          if (type === "sign-in") {
+            await logAuditEvent("auth.sign_in_otp_requested", null, {
+              email: email ?? null,
+            });
+          }
           return;
         }
-        if (path === "/verify-email") {
+        if (path === "/reset-password" || path === "/email-otp/reset-password") {
+          if (succeeded) {
+            const email = bodyField(ctx, "email");
+            await logAuditEvent("auth.password_reset_completed", userId, {
+              ...(email ? { email } : {}),
+            });
+          }
+          return;
+        }
+        if (path === "/verify-email" || path === "/email-otp/verify-email") {
           if (succeeded) await logAuditEvent("email.verified", userId, {});
           return;
         }
@@ -903,14 +914,77 @@ export type CreateAuthResult = {
     member: { id: string; userId?: string; organizationId?: string; role?: string };
     organization: { id: string; name?: string; slug?: string } | null;
   }>;
+  setUserRole: (headers: Headers, targetUserId: string, role: Role) => Promise<void>;
+  setUserBanState: (headers: Headers, input: SetUserBanStateInput) => Promise<void>;
+};
+
+export type SetUserBanStateInput = {
+  userId: string;
+  banned: boolean;
+  banReason?: string | null;
+  banExpiresAt?: Date | null;
 };
 
 export function createAuth(config: CreateAuthConfig): CreateAuthResult {
   const auth = createAuthInstance(config);
   const helpers = buildHelpers<User, Session>(auth);
 
+  async function setUserRole(headers: Headers, targetUserId: string, role: Role): Promise<void> {
+    const actor = await helpers.requireUser(headers);
+    helpers.assertPermission(actor, "users.set_role");
+    if (!targetUserId) throw new ForbiddenError("target user id is required");
+    if (!isRole(role)) throw new ForbiddenError(`unknown role "${role}"`);
+
+    const [updated] = await db
+      .update(users)
+      .set({ role, updatedAt: new Date() })
+      .where(eq(users.id, targetUserId))
+      .returning({ id: users.id });
+
+    if (!updated) throw new NotFoundError("target user");
+
+    await logAuditEvent("user.role_changed", userIdOf(actor), {
+      targetId: targetUserId,
+      newRole: role,
+    });
+    if (config.cacheRoleOnSession === true) {
+      await db.delete(sessions).where(eq(sessions.userId, targetUserId));
+    }
+  }
+
+  async function setUserBanState(headers: Headers, input: SetUserBanStateInput): Promise<void> {
+    const actor = await helpers.requireUser(headers);
+    helpers.assertPermission(actor, "users.ban");
+    if (!input.userId) throw new ForbiddenError("target user id is required");
+
+    const banState = {
+      banned: input.banned,
+      banReason: input.banned ? (input.banReason ?? null) : null,
+      banExpiresAt: input.banned ? (input.banExpiresAt ?? null) : null,
+      updatedAt: new Date(),
+    };
+
+    const [updated] = await db
+      .update(users)
+      .set(banState)
+      .where(eq(users.id, input.userId))
+      .returning({ id: users.id });
+
+    if (!updated) throw new NotFoundError("target user");
+
+    await logAuditEvent(input.banned ? "user.banned" : "user.unbanned", userIdOf(actor), {
+      targetId: input.userId,
+      reason: input.banned ? (input.banReason ?? null) : null,
+    });
+    if (isUserBanned(banState)) {
+      await db.delete(sessions).where(eq(sessions.userId, input.userId));
+    }
+  }
+
   return {
     auth,
     ...helpers,
+    setUserRole,
+    setUserBanState,
   };
 }

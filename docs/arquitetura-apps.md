@@ -101,6 +101,8 @@ Toda mutação passa por uma Server Action. Toda Server Action passa por um wrap
 5. Chama o service.
 6. Captura no Sentry se o service retornar erro de infra.
 
+No wrapper compartilhado de auth, `.rateLimit({ key })` usa escopo automático: usuário autenticado vira `key:user:<id>` e fluxo pré-auth vira `key:ip:<client-ip>`. Só use escopo global quando a intenção for limitar todos os usuários juntos.
+
 Esquema:
 
 ```ts

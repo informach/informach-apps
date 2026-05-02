@@ -20,6 +20,13 @@ export class ForbiddenError extends Error {
   }
 }
 
+export class NotFoundError extends Error {
+  constructor(resource: string) {
+    super(`@informach/auth: ${resource} not found`);
+    this.name = "NotFoundError";
+  }
+}
+
 export class NotImplementedError extends Error {
   constructor(feature: string) {
     super(`@informach/auth: ${feature} is not implemented yet`);

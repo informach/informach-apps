@@ -146,11 +146,17 @@ Os defaults do package já são endurecidos contra enumeration:
 | Endpoint | Window | Max |
 |---|---|---|
 | `/sign-in/email` | 60s | 5 |
+| `/sign-in/email-otp` | 10min | 5 |
 | `/sign-up/email` | 1h | 5 |
 | `/forget-password` | 1h | 3 |
+| `/forget-password/email-otp` | 1h | 3 |
 | `/sign-in/magic-link` | 10min | 5 |
 | `/verify-email` | 60s | 10 |
 | `/reset-password` | 1h | 5 |
+| `/email-otp/request-password-reset` | 1h | 3 |
+| `/email-otp/reset-password` | 1h | 5 |
+| `/email-otp/send-verification-otp` | 60s | 5 |
+| `/email-otp/verify-email` | 60s | 10 |
 
 Para afrouxar em dev/test (ex.: rodar Playwright sem pegar 429 em forget-password):
 
@@ -301,7 +307,9 @@ Regra de payload: Sentry/APM recebe chaves e erro sanitizado, não payload bruto
 Eventos atualmente emitidos:
 - `session_revoked` em `databaseHooks.session.delete.after`.
 - `rate_limit_hit` quando middleware vê status 429 retornado.
-- (Reservado para futuro: `role_mismatch`, `banned_user_signin_attempt`, `two_factor_failed`.)
+- `banned_user_signin_attempt` em `databaseHooks.session.create.before`.
+- `two_factor_failed` quando `/two-factor/verify-*` retorna status >= 400.
+- (Reservado para futuro: `role_mismatch`.)
 
 Hooks são `try/catch`-ed internamente — se sua APM cair, o auth não cai junto.
 

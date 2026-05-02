@@ -52,7 +52,7 @@ apps/<app>/src/proxy.ts (Next 16; não middleware.ts)
 Schema das tabelas usadas (FK e índices):
 
 - `core.users` — adiciona `role`, `banned`, `banReason`, `banExpiresAt`, `twoFactorEnabled` ao schema padrão Better Auth.
-- `core.sessions` — coluna `role` adicional para `cacheRoleOnSession`. FK cascade para `users`.
+- `core.sessions` — colunas `activeOrganizationId`/`activeTeamId` exigidas pelo plugin `organization`, mais `role` adicional para `cacheRoleOnSession`. FK cascade para `users`.
 - `core.accounts`, `core.verifications`, `core.rate_limit` — schema Better Auth padrão.
 - `core.organizations`, `core.members`, `core.invitations` — só usados quando `organizations.enabled`. `members` tem `uniqueIndex(userId, organizationId)`.
 - `core.passkeys`, `core.two_factors` — só usados quando `passkey.enabled`/`twoFactor.enabled`.
@@ -74,7 +74,7 @@ Todas as colunas declaradas em `packages/db/src/schema/core.ts` (source of truth
 | OTP sign-in (login passwordless) | OPT-IN via `email.signIn.otp: true`. Habilita `signIn.emailOtp({ email })` com template `auth.sign-in-otp`. |
 | Cookie session cache | Default 300s (`session.cookieCache.maxAge`); override por config |
 | Rate limit | Defaults endurecidos contra enumeration (ver tabela em §3.4) |
-| Audit log | 36 `AuditEventType` tipados → `audit.events` |
+| Audit log | `AuditEventType` tipados → `audit.events` |
 | ID generator | `crypto.randomUUID()` para todas as tabelas |
 
 ### 3.2 Opt-in (passe na config para ativar)
@@ -118,18 +118,22 @@ Helpers expostos pelo `createAuth()` result:
 - `requireRole(headers, role): Promise<User>` (joga `UnauthorizedError` ou `ForbiddenError`)
 - `requireAdmin(headers): Promise<User>` (atalho para `requireRole(_, "admin")`)
 
-Manipulação de role/ban dispara `databaseHooks.user.update.before` que loga `user.role_changed` / `user.banned` / `user.unbanned` no audit. Quando `cacheRoleOnSession: true`, mudar role também invalida sessions ativas via `db.delete(sessions).where(eq(userId, target))` para forçar refresh.
+Manipulação de role/ban deve passar pelos helpers explícitos `setUserRole(headers, targetUserId, role)` e `setUserBanState(headers, input)`. Eles aplicam `users.set_role` / `users.ban`, atualizam `core.users`, logam `user.role_changed` / `user.banned` / `user.unbanned` e revogam sessões quando necessário. Não use `databaseHooks.user.update.*` para esse side effect: o hook do Better Auth recebe os dados do update, não o alvo confiável da alteração.
 
 ### 3.4 Rate limits default
 
 | Endpoint | Window | Max |
 |---|---|---|
 | `/sign-in/email` | 60s | 5 |
+| `/sign-in/email-otp` | 10min | 5 |
 | `/sign-up/email` | 1h | 5 |
 | `/forget-password` | 1h | 3 |
+| `/forget-password/email-otp` | 1h | 3 |
 | `/sign-in/magic-link` | 10min | 5 |
 | `/verify-email` | 60s | 10 |
 | `/reset-password` | 1h | 5 |
+| `/email-otp/request-password-reset` | 1h | 3 |
+| `/email-otp/reset-password` | 1h | 5 |
 | `/email-otp/send-verification-otp` | 60s | 5 |
 | `/email-otp/verify-email` | 60s | 10 |
 
@@ -145,9 +149,10 @@ user.email_changed      session.revoked        org.member_added
 user.password_changed   account.linked         org.member_removed
 user.role_changed       email.verified         org.invitation_sent
 user.banned             auth.sign_out
-user.unbanned           auth.forget_password_requested
-user.deletion_requested auth.password_reset_completed
-user.deleted            auth.two_factor_enabled
+user.unbanned           auth.sign_in_otp_requested
+user.deletion_requested auth.forget_password_requested
+user.deleted            auth.password_reset_completed
+                        auth.two_factor_enabled
                         auth.two_factor_disabled
                         auth.two_factor_verified
                         auth.backup_code_used
@@ -251,12 +256,17 @@ export const banUser = action
   .audit("user.banned")
   .run(async ({ input, ctx }) => {
     // ctx.actor é o admin autenticado
-    await db.update(users).set({ banned: true, banReason: input.reason }).where(eq(users.id, input.userId));
+    if (!ctx.headers) throw new UnauthorizedError();
+    await authResult.setUserBanState(ctx.headers, {
+      userId: input.userId,
+      banned: true,
+      banReason: input.reason,
+    });
     return ok(null);
   });
 ```
 
-Ordem de execução: `schema.parse(input) → require* → rateLimit → audit → handler`. `auth.require` aceita `"none" | "user" | "role" | "member-of-org"` (último exige `organizations.enabled`).
+Ordem de execução: `schema.parse(input) → require* → rateLimit → audit → handler`. `auth.require` aceita `"none" | "user" | "role" | "member-of-org"` (último exige `organizations.enabled`). `.rateLimit(...)` usa `scope: "auto"` por default: usuário autenticado vira chave `key:user:<id>`, fluxo pré-auth cai para `key:ip:<client-ip>`. Use `scope: "global"` só quando o throttle realmente deve ser compartilhado por todos.
 
 `Result<T, E>` é o tipo discriminado retornado pelo handler — `{ ok: true, value }` ou `{ ok: false, error }`. Erros tipados disponíveis: `UnauthorizedError`, `ForbiddenError`, `OrganizationsDisabledError`, `RateLimitError`.
 
@@ -410,7 +420,7 @@ Wiring real em `apps/<app>/src/lib/env.ts` (`@t3-oss/env-nextjs`).
 2. **RBAC custom, não plugin `admin()`.** O plugin oficial expõe endpoints `/admin/*` (impersonate, ban, list-users) que não foram pedidos como produto e expandem superfície de ataque. Implementação custom em `permissions.ts` + `helpers.ts` cobre o caso atual.
 3. **Multi-tenancy via `organization` é opt-in por app, não global.** `agenda-da-turma` ativa (escola → professores). `cozya` não ativa (single-user). Forçar plugin no client/schema dos dois custaria 3 tabelas e middleware sem ganho.
 4. **Schema source of truth é Drizzle (`packages/db/src/schema/core.ts`), não Better Auth CLI.** Misturar `npx better-auth migrate` com `drizzle-kit generate` causa conflitos. Quando Better Auth 1.x adiciona `additionalFields` ou plugin novo, declaramos manualmente em `core.ts` e mapeamos via `schema:` no `drizzleAdapter`.
-5. **Cookie cache 5min default.** Balanceia performance (evita DB hit por request) com latência de revogação aceitável. Para revogação imediata após ban/role-change, chamar `auth.api.signOutAllSessions({ userId })` manualmente. Apps com necessidade de tempo real passam `session.cookieCache.maxAge` menor.
+5. **Cookie cache 5min default.** Balanceia performance (evita DB hit por request) com latência de revogação aceitável. Para revogação imediata após ban/role-change, use `setUserRole` / `setUserBanState`, que revogam as sessões afetadas. Apps com necessidade de tempo real passam `session.cookieCache.maxAge` menor.
 6. **`proxy.ts` (Next 16), não `middleware.ts`.** Next 16 deprecated middleware em favor de proxy (runtime Node.js). Codename do package: `createAuthProxy` em `@informach/auth/proxy`.
 7. **`server-only` em proxy/server/server-actions.** Garante que importação de Client Component falha em build.
 8. **Audit pipeline try/catch'ed.** Falha em `observability.onAuditEvent`/`onSecurityEvent` ou em INSERT no `audit.events` não pode quebrar fluxo de auth — todos os emits estão dentro de try/catch. Falha de INSERT deve chamar `onAuditPersistenceFailure` com erro sanitizado.

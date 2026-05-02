@@ -33,7 +33,9 @@ vi.mock("@informach/db/schema", () => ({
 }));
 
 vi.mock("next/headers", () => ({
-  headers: vi.fn(async () => new Headers({ cookie: "session=abc" })),
+  headers: vi.fn(
+    async () => new Headers({ cookie: "session=abc", "x-forwarded-for": "203.0.113.10" }),
+  ),
 }));
 
 import { ForbiddenError, UnauthorizedError } from "../helpers";
@@ -231,6 +233,55 @@ describe("createActionFactory — rate limit", () => {
     expect(dbInsertChain.values).toHaveBeenCalledTimes(1);
     expect(dbInsertChain.onConflictDoUpdate).toHaveBeenCalledTimes(1);
     expect(dbInsertChain.returning).toHaveBeenCalledTimes(1);
+  });
+
+  it("scopes rate limits to the authenticated actor by default", async () => {
+    dbInsertChain.rows = [{ count: 1 }];
+    const helpers = makeHelpers({ currentUser: { id: "u1" } });
+    const { action } = createActionFactory<TestUser, TestSession>({ helpers });
+    const fn = action
+      .auth({ require: "user" })
+      .rateLimit({ key: "test", max: 3, window: "1m" })
+      .run(async () => "ok");
+    await fn({});
+    expect(dbInsertChain.values).toHaveBeenCalledWith(
+      expect.objectContaining({ key: "test:user:u1" }),
+    );
+  });
+
+  it("scopes unauthenticated rate limits to client IP by default", async () => {
+    dbInsertChain.rows = [{ count: 1 }];
+    const helpers = makeHelpers({ currentUser: null });
+    const { action } = createActionFactory<TestUser, TestSession>({ helpers });
+    const fn = action.rateLimit({ key: "test", max: 3, window: "1m" }).run(async () => "ok");
+    await fn({});
+    expect(helpers.getCurrentUser).toHaveBeenCalled();
+    expect(dbInsertChain.values).toHaveBeenCalledWith(
+      expect.objectContaining({ key: "test:ip:203.0.113.10" }),
+    );
+  });
+
+  it("keeps the configured key unchanged when scope is global", async () => {
+    dbInsertChain.rows = [{ count: 1 }];
+    const helpers = makeHelpers({ currentUser: { id: "u1" } });
+    const { action } = createActionFactory<TestUser, TestSession>({ helpers });
+    const fn = action
+      .rateLimit({ key: "test", max: 3, window: "1m", scope: "global" })
+      .run(async () => "ok");
+    await fn({});
+    expect(helpers.getCurrentUser).not.toHaveBeenCalled();
+    expect(dbInsertChain.values).toHaveBeenCalledWith(expect.objectContaining({ key: "test" }));
+  });
+
+  it("requires an actor when scope is user", async () => {
+    dbInsertChain.rows = [{ count: 1 }];
+    const helpers = makeHelpers({ currentUser: null });
+    const { action } = createActionFactory<TestUser, TestSession>({ helpers });
+    const fn = action
+      .rateLimit({ key: "test", max: 3, window: "1m", scope: "user" })
+      .run(async () => "ok");
+    await expect(fn({})).rejects.toBeInstanceOf(UnauthorizedError);
+    expect(dbInsertChain.values).not.toHaveBeenCalled();
   });
 
   it("allows the action when the upserted count is below max", async () => {

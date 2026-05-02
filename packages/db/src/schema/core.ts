@@ -42,6 +42,8 @@ export const sessions = core.table(
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
+    activeOrganizationId: text("active_organization_id"),
+    activeTeamId: text("active_team_id"),
     role: text("role"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -49,6 +51,7 @@ export const sessions = core.table(
   (t) => [
     index("sessions_user_id_idx").on(t.userId),
     index("sessions_expires_at_idx").on(t.expiresAt),
+    index("sessions_active_organization_id_idx").on(t.activeOrganizationId),
   ],
 );
 

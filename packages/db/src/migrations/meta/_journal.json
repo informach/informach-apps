@@ -78,6 +78,13 @@
       "when": 1777727429199,
       "tag": "0010_create_ai_mastra_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1777744552631,
+      "tag": "0011_third_red_hulk",
+      "breakpoints": true
     }
   ]
 }

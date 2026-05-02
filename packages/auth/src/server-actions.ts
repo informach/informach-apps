@@ -41,10 +41,16 @@ export type ActionRateLimitConfig = {
   max: number;
   /** Window in seconds, or short form like "30s", "1m", "5m", "1h". */
   window: number | string;
+  /**
+   * `auto` scopes to the authenticated actor when available, otherwise client IP.
+   * Use `global` only for deliberate process-wide throttles.
+   */
+  scope?: "auto" | "global" | "user" | "ip";
 };
 
 export type ActionContext<TUser> = {
   actor: TUser | null;
+  headers: Headers | null;
 };
 
 export type ActionHandler<TInput, TUser, TOutput> = (args: {
@@ -179,7 +185,11 @@ class ActionBuilder<TUser, TSession, TSchema extends z.ZodTypeAny> {
         ? (schema.parse(rawInput) as z.infer<TSchema>)
         : (rawInput as z.infer<TSchema>);
 
-      const requestHeaders = auth && auth.require !== "none" ? await getRequestHeaders() : null;
+      const rateLimitScope = rateLimit?.scope ?? "auto";
+      const needsAuthHeaders = auth !== undefined && auth.require !== "none";
+      const needsRateLimitHeaders = rateLimit !== undefined && rateLimitScope !== "global";
+      const requestHeaders =
+        needsAuthHeaders || needsRateLimitHeaders ? await getRequestHeaders() : null;
 
       let actor: TUser | null = null;
       if (requestHeaders) {
@@ -192,13 +202,22 @@ class ActionBuilder<TUser, TSession, TSchema extends z.ZodTypeAny> {
         } else if (auth?.require === "member-of-org") {
           const result = await factory.helpers.requireOrgMember(requestHeaders, auth.orgRole);
           actor = result.user;
-        } else {
+        } else if (
+          rateLimit &&
+          (rateLimitScope === "auto" || rateLimitScope === "user") &&
+          auth?.require !== "none"
+        ) {
           actor = await factory.helpers.getCurrentUser(requestHeaders);
+        } else {
+          actor = null;
         }
       }
 
       if (rateLimit) {
-        await enforceRateLimit(rateLimit);
+        await enforceRateLimit({
+          ...rateLimit,
+          key: resolveRateLimitKey(rateLimit, actor, requestHeaders),
+        });
       }
 
       if (audit) {
@@ -207,7 +226,7 @@ class ActionBuilder<TUser, TSession, TSchema extends z.ZodTypeAny> {
         factory.onAudit?.({ eventType: audit, actorId });
       }
 
-      const ctx: ActionContext<TUser> = { actor };
+      const ctx: ActionContext<TUser> = { actor, headers: requestHeaders };
       return handler({ input, ctx });
     };
   }
@@ -217,6 +236,40 @@ function actorIdOf(actor: unknown): string | null {
   if (typeof actor !== "object" || actor === null) return null;
   const id = (actor as { id?: unknown }).id;
   return typeof id === "string" ? id : null;
+}
+
+function clientIpOf(headers: Headers | null): string {
+  const forwardedFor = headers?.get("x-forwarded-for")?.split(",")[0]?.trim();
+  if (forwardedFor) return forwardedFor;
+
+  const realIp = headers?.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
+
+  const cloudflareIp = headers?.get("cf-connecting-ip")?.trim();
+  if (cloudflareIp) return cloudflareIp;
+
+  return "unknown";
+}
+
+function resolveRateLimitKey(
+  config: ActionRateLimitConfig,
+  actor: unknown,
+  headers: Headers | null,
+): string {
+  const scope = config.scope ?? "auto";
+  if (scope === "global") return config.key;
+
+  const actorId = actorIdOf(actor);
+  if (scope === "user") {
+    if (!actorId) throw new UnauthorizedError();
+    return `${config.key}:user:${actorId}`;
+  }
+
+  if (scope === "auto" && actorId) {
+    return `${config.key}:user:${actorId}`;
+  }
+
+  return `${config.key}:ip:${clientIpOf(headers)}`;
 }
 
 export function createActionFactory<TUser, TSession>(

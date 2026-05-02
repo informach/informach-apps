@@ -2,7 +2,10 @@ import { passkey } from "@better-auth/passkey";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createAuthMiddleware } from "better-auth/api";
-import { emailOTP, magicLink, organization, twoFactor } from "better-auth/plugins";
+import { emailOTP } from "better-auth/plugins/email-otp";
+import { magicLink } from "better-auth/plugins/magic-link";
+import { organization } from "better-auth/plugins/organization";
+import { twoFactor } from "better-auth/plugins/two-factor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createAuth } from "../index";
 
@@ -22,10 +25,19 @@ vi.mock("better-auth/api", () => ({
   createAuthMiddleware: vi.fn((handler: unknown) => ({ __middleware: true, handler })),
 }));
 
-vi.mock("better-auth/plugins", () => ({
+vi.mock("better-auth/plugins/magic-link", () => ({
   magicLink: vi.fn((config: unknown) => ({ id: "magic-link", _config: config })),
+}));
+
+vi.mock("better-auth/plugins/email-otp", () => ({
   emailOTP: vi.fn((config: unknown) => ({ id: "email-otp", _config: config })),
+}));
+
+vi.mock("better-auth/plugins/organization", () => ({
   organization: vi.fn((config: unknown) => ({ id: "organization", _config: config })),
+}));
+
+vi.mock("better-auth/plugins/two-factor", () => ({
   twoFactor: vi.fn((config: unknown) => ({ id: "two-factor", _config: config })),
 }));
 
@@ -43,16 +55,28 @@ const dbInsertChain = {
 const dbDeleteChain = {
   where: vi.fn(async () => undefined),
 };
+const dbUpdateChain: {
+  rows: Array<Record<string, unknown>>;
+  set: ReturnType<typeof vi.fn>;
+  where: ReturnType<typeof vi.fn>;
+  returning: ReturnType<typeof vi.fn>;
+} = {
+  rows: [],
+  set: vi.fn(() => dbUpdateChain),
+  where: vi.fn(() => dbUpdateChain),
+  returning: vi.fn(async () => dbUpdateChain.rows),
+};
 
 vi.mock("@informach/db", () => ({
   db: {
     insert: vi.fn(() => dbInsertChain),
     delete: vi.fn(() => dbDeleteChain),
+    update: vi.fn(() => dbUpdateChain),
   },
 }));
 
 vi.mock("@informach/db/schema", () => ({
-  users: { __mock: "users" },
+  users: { __mock: "users", id: "users.id", role: "users.role" },
   sessions: { __mock: "sessions", userId: "sessions.user_id" },
   accounts: { __mock: "accounts" },
   verifications: { __mock: "verifications" },
@@ -536,11 +560,15 @@ describe("createAuth — rate limit", () => {
     createAuth(makeConfig());
     const rules = captureConfig().rateLimit?.customRules ?? {};
     expect(rules["/sign-in/email"]).toEqual({ window: 60, max: 5 });
+    expect(rules["/sign-in/email-otp"]).toEqual({ window: 600, max: 5 });
     expect(rules["/sign-up/email"]).toEqual({ window: 3600, max: 5 });
     expect(rules["/forget-password"]).toEqual({ window: 3600, max: 3 });
+    expect(rules["/forget-password/email-otp"]).toEqual({ window: 3600, max: 3 });
     expect(rules["/sign-in/magic-link"]).toEqual({ window: 600, max: 5 });
     expect(rules["/verify-email"]).toEqual({ window: 60, max: 10 });
     expect(rules["/reset-password"]).toEqual({ window: 3600, max: 5 });
+    expect(rules["/email-otp/request-password-reset"]).toEqual({ window: 3600, max: 3 });
+    expect(rules["/email-otp/reset-password"]).toEqual({ window: 3600, max: 5 });
     expect(rules["/email-otp/send-verification-otp"]).toEqual({ window: 60, max: 5 });
     expect(rules["/email-otp/verify-email"]).toEqual({ window: 60, max: 10 });
   });
@@ -838,6 +866,48 @@ describe("createAuth — audit hooks", () => {
     expect((args.payload as Record<string, unknown>).email).toBe("forget@x.com");
   });
 
+  it("hooks.after for OTP password-reset requests logs the email and a null actor", async () => {
+    createAuth(makeConfig());
+    const handler = mockedAuthMiddleware.mock.calls.at(-1)?.[0] as (ctx: unknown) => Promise<void>;
+    await handler({
+      path: "/email-otp/request-password-reset",
+      context: { session: null },
+      body: { email: "forget-otp@x.com" },
+    });
+    const args = dbInsertChain.values.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(args.eventType).toBe("auth.forget_password_requested");
+    expect(args.actorId).toBeNull();
+    expect((args.payload as Record<string, unknown>).email).toBe("forget-otp@x.com");
+  });
+
+  it("hooks.after for /email-otp/send-verification-otp audits sign-in OTP requests", async () => {
+    createAuth(makeConfig());
+    const handler = mockedAuthMiddleware.mock.calls.at(-1)?.[0] as (ctx: unknown) => Promise<void>;
+    await handler({
+      path: "/email-otp/send-verification-otp",
+      context: { session: null },
+      body: { email: "signin@x.com", type: "sign-in" },
+    });
+    const args = dbInsertChain.values.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(args.eventType).toBe("auth.sign_in_otp_requested");
+    expect(args.actorId).toBeNull();
+    expect((args.payload as Record<string, unknown>).email).toBe("signin@x.com");
+  });
+
+  it("hooks.after for /email-otp/send-verification-otp audits forget-password OTP requests", async () => {
+    createAuth(makeConfig());
+    const handler = mockedAuthMiddleware.mock.calls.at(-1)?.[0] as (ctx: unknown) => Promise<void>;
+    await handler({
+      path: "/email-otp/send-verification-otp",
+      context: { session: null },
+      body: { email: "forget-via-send@x.com", type: "forget-password" },
+    });
+    const args = dbInsertChain.values.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(args.eventType).toBe("auth.forget_password_requested");
+    expect(args.actorId).toBeNull();
+    expect((args.payload as Record<string, unknown>).email).toBe("forget-via-send@x.com");
+  });
+
   it("hooks.after for /reset-password logs auth.password_reset_completed", async () => {
     createAuth(makeConfig());
     const handler = mockedAuthMiddleware.mock.calls.at(-1)?.[0] as (ctx: unknown) => Promise<void>;
@@ -849,6 +919,20 @@ describe("createAuth — audit hooks", () => {
     const args = dbInsertChain.values.mock.calls.at(-1)?.[0] as Record<string, unknown>;
     expect(args.eventType).toBe("auth.password_reset_completed");
     expect(args.actorId).toBe("u1");
+  });
+
+  it("hooks.after for /email-otp/reset-password logs auth.password_reset_completed with email", async () => {
+    createAuth(makeConfig());
+    const handler = mockedAuthMiddleware.mock.calls.at(-1)?.[0] as (ctx: unknown) => Promise<void>;
+    await handler({
+      path: "/email-otp/reset-password",
+      context: { session: null },
+      body: { email: "reset-otp@x.com" },
+    });
+    const args = dbInsertChain.values.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(args.eventType).toBe("auth.password_reset_completed");
+    expect(args.actorId).toBeNull();
+    expect((args.payload as Record<string, unknown>).email).toBe("reset-otp@x.com");
   });
 
   it("hooks.after does not log success audit events for failed responses", async () => {
@@ -868,6 +952,19 @@ describe("createAuth — audit hooks", () => {
     const handler = mockedAuthMiddleware.mock.calls.at(-1)?.[0] as (ctx: unknown) => Promise<void>;
     await handler({
       path: "/verify-email",
+      context: { session: { user: { id: "u1" } } },
+      body: {},
+    });
+    const args = dbInsertChain.values.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(args.eventType).toBe("email.verified");
+    expect(args.actorId).toBe("u1");
+  });
+
+  it("hooks.after for /email-otp/verify-email logs email.verified", async () => {
+    createAuth(makeConfig());
+    const handler = mockedAuthMiddleware.mock.calls.at(-1)?.[0] as (ctx: unknown) => Promise<void>;
+    await handler({
+      path: "/email-otp/verify-email",
       context: { session: { user: { id: "u1" } } },
       body: {},
     });
@@ -991,78 +1088,125 @@ describe("createAuth — additional user fields", () => {
   });
 });
 
-describe("createAuth — role/ban audit hook (user.update.before)", () => {
-  beforeEach(() => vi.clearAllMocks());
+describe("createAuth — role/ban management helpers", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    dbUpdateChain.rows = [{ id: "target1" }];
+  });
 
-  function getHook() {
-    createAuth(makeConfig());
-    const hook = captureConfig().databaseHooks?.user?.update?.before;
-    if (!hook) throw new Error("user.update.before hook not registered");
-    return hook;
+  function mockCurrentSession(user: { id: string; role: string }) {
+    const authInstance = mockedBetterAuth.mock.results.at(-1)?.value as {
+      api: { getSession: ReturnType<typeof vi.fn> };
+    };
+    authInstance.api.getSession.mockResolvedValue({ user, session: { id: "s1" } });
   }
 
-  it("emits user.role_changed with actor and target ids when role is set to a known role", async () => {
-    const hook = getHook();
-    await hook(
-      { id: "target1", role: "admin" },
-      { context: { session: { user: { id: "actor1" } } } },
+  it("does not rely on user.update database hooks for role/ban side effects", () => {
+    createAuth(makeConfig());
+    expect(captureConfig().databaseHooks?.user?.update).toBeUndefined();
+  });
+
+  it("setUserRole updates the target, audits actor/target, and revokes cached role sessions", async () => {
+    const result = createAuth({ ...makeConfig(), cacheRoleOnSession: true });
+    mockCurrentSession({ id: "actor1", role: "owner" });
+
+    await result.setUserRole(new Headers(), "target1", "admin");
+
+    expect(dbUpdateChain.set).toHaveBeenCalledWith(
+      expect.objectContaining({ role: "admin", updatedAt: expect.any(Date) }),
     );
+    expect(dbUpdateChain.where).toHaveBeenCalledWith({ field: "users.id", value: "target1" });
     const args = dbInsertChain.values.mock.calls.at(-1)?.[0] as Record<string, unknown>;
     expect(args.eventType).toBe("user.role_changed");
     expect(args.actorId).toBe("actor1");
     expect((args.payload as Record<string, unknown>).targetId).toBe("target1");
     expect((args.payload as Record<string, unknown>).newRole).toBe("admin");
+    expect(dbDeleteChain.where).toHaveBeenCalledWith({
+      field: "sessions.user_id",
+      value: "target1",
+    });
   });
 
-  it("ignores role updates with unknown roles", async () => {
-    const hook = getHook();
-    const before = dbInsertChain.values.mock.calls.length;
-    await hook({ id: "u1", role: "root" }, { context: { session: null } });
-    expect(dbInsertChain.values.mock.calls.length).toBe(before);
+  it("setUserRole rejects callers without users.set_role permission", async () => {
+    const result = createAuth(makeConfig());
+    mockCurrentSession({ id: "actor1", role: "admin" });
+
+    await expect(result.setUserRole(new Headers(), "target1", "owner")).rejects.toThrow(
+      /permission "users\.set_role" denied/,
+    );
+    expect(dbUpdateChain.set).not.toHaveBeenCalled();
   });
 
-  it("emits user.banned with reason when banned=true", async () => {
-    const hook = getHook();
-    await hook(
-      { id: "u1", banned: true, banReason: "spam" },
-      { context: { session: { user: { id: "actor1" } } } },
+  it("setUserBanState audits active bans and revokes the target sessions", async () => {
+    const result = createAuth(makeConfig());
+    mockCurrentSession({ id: "actor1", role: "admin" });
+
+    await result.setUserBanState(new Headers(), {
+      userId: "target1",
+      banned: true,
+      banReason: "spam",
+    });
+
+    expect(dbUpdateChain.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        banned: true,
+        banReason: "spam",
+        banExpiresAt: null,
+        updatedAt: expect.any(Date),
+      }),
     );
     const args = dbInsertChain.values.mock.calls.at(-1)?.[0] as Record<string, unknown>;
     expect(args.eventType).toBe("user.banned");
     expect(args.actorId).toBe("actor1");
+    expect((args.payload as Record<string, unknown>).targetId).toBe("target1");
     expect((args.payload as Record<string, unknown>).reason).toBe("spam");
-    expect(dbDeleteChain.where).toHaveBeenCalledWith({ field: "sessions.user_id", value: "u1" });
+    expect(dbDeleteChain.where).toHaveBeenCalledWith({
+      field: "sessions.user_id",
+      value: "target1",
+    });
   });
 
-  it("does not revoke sessions when the ban update is already expired", async () => {
-    const hook = getHook();
-    await hook(
-      { id: "u1", banned: true, banExpiresAt: new Date(Date.now() - 60_000) },
-      { context: { session: { user: { id: "actor1" } } } },
-    );
+  it("setUserBanState does not revoke sessions for already-expired bans", async () => {
+    const result = createAuth(makeConfig());
+    mockCurrentSession({ id: "actor1", role: "admin" });
+
+    await result.setUserBanState(new Headers(), {
+      userId: "target1",
+      banned: true,
+      banExpiresAt: new Date(Date.now() - 60_000),
+    });
+
     expect(dbDeleteChain.where).not.toHaveBeenCalled();
   });
 
-  it("emits user.unbanned when banned=false", async () => {
-    const hook = getHook();
-    await hook({ id: "u1", banned: false }, { context: { session: null } });
+  it("setUserBanState clears ban metadata when unbanning", async () => {
+    const result = createAuth(makeConfig());
+    mockCurrentSession({ id: "actor1", role: "admin" });
+
+    await result.setUserBanState(new Headers(), { userId: "target1", banned: false });
+
+    expect(dbUpdateChain.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        banned: false,
+        banReason: null,
+        banExpiresAt: null,
+        updatedAt: expect.any(Date),
+      }),
+    );
     const args = dbInsertChain.values.mock.calls.at(-1)?.[0] as Record<string, unknown>;
     expect(args.eventType).toBe("user.unbanned");
-    expect(args.actorId).toBeNull();
+    expect(args.actorId).toBe("actor1");
+    expect(dbDeleteChain.where).not.toHaveBeenCalled();
   });
 
-  it("returns the data object unchanged so the update can proceed", async () => {
-    const hook = getHook();
-    const data = { id: "u1", name: "Foo" };
-    const result = await hook(data, { context: { session: null } });
-    expect(result).toEqual({ data });
-  });
+  it("throws NotFoundError when the target user does not exist", async () => {
+    dbUpdateChain.rows = [];
+    const result = createAuth(makeConfig());
+    mockCurrentSession({ id: "actor1", role: "owner" });
 
-  it("does nothing for updates that do not touch role or banned", async () => {
-    const hook = getHook();
-    const before = dbInsertChain.values.mock.calls.length;
-    await hook({ id: "u1", name: "Foo" }, { context: { session: null } });
-    expect(dbInsertChain.values.mock.calls.length).toBe(before);
+    await expect(result.setUserRole(new Headers(), "missing", "admin")).rejects.toThrow(
+      /target user not found/,
+    );
   });
 });
 
@@ -1509,5 +1653,7 @@ describe("createAuth — return shape", () => {
     expect(typeof result.assertRole).toBe("function");
     expect(typeof result.assertPermission).toBe("function");
     expect(typeof result.hasAccessToProduct).toBe("function");
+    expect(typeof result.setUserRole).toBe("function");
+    expect(typeof result.setUserBanState).toBe("function");
   });
 });

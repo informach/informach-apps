@@ -15,6 +15,7 @@ export type AuditEventType =
   | "session.revoked"
   | "account.linked"
   | "auth.sign_out"
+  | "auth.sign_in_otp_requested"
   | "auth.forget_password_requested"
   | "auth.password_reset_completed"
   | "auth.two_factor_enabled"
