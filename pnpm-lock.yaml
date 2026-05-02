@@ -381,9 +381,6 @@ importers:
 
   packages/emails:
     dependencies:
-      '@informach/config':
-        specifier: workspace:*
-        version: link:../config
       '@informach/db':
         specifier: workspace:*
         version: link:../db
