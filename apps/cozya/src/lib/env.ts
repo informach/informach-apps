@@ -19,6 +19,17 @@ export const env = createEnv({
     GOOGLE_CLIENT_ID: z.string().min(1).optional(),
     GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
     REDIS_URL: z.string().url().optional(),
+    STRIPE_SECRET_KEY: z
+      .string()
+      .startsWith("sk_", "STRIPE_SECRET_KEY must start with 'sk_test_' or 'sk_live_'"),
+    STRIPE_WEBHOOK_SECRET: z
+      .string()
+      .startsWith("whsec_", "STRIPE_WEBHOOK_SECRET must start with 'whsec_'"),
+    STRIPE_PUBLISHABLE_KEY: z.string().startsWith("pk_").optional(),
+    /**
+     * Selects which Price ID column to use from `Product.stripePriceId.{dev,prod}`.
+     */
+    STRIPE_MODE: z.enum(["dev", "prod"]).optional(),
   },
   client: {
     NEXT_PUBLIC_APP_URL: z.string().url(),
@@ -39,6 +50,10 @@ export const env = createEnv({
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
     REDIS_URL: process.env.REDIS_URL,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+    STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY,
+    STRIPE_MODE: process.env.STRIPE_MODE,
   },
   emptyStringAsUndefined: true,
 });

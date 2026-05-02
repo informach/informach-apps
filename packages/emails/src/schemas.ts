@@ -6,6 +6,11 @@ export const EMAIL_CATEGORIES = [
   "auth.magic-link",
   "auth.invitation",
   "auth.account-deletion",
+  "billing.payment-success",
+  "billing.payment-failed",
+  "billing.subscription-renewed",
+  "billing.subscription-canceled",
+  "billing.credits-purchased",
 ] as const;
 
 export const EmailCategorySchema = z.enum(EMAIL_CATEGORIES);

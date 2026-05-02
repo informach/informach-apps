@@ -31,6 +31,7 @@ import { isRole, type Permission, ROLES, type Role } from "./permissions";
 
 export type { SecondaryStorage } from "better-auth";
 export type { AuditEventType } from "./audit";
+export { logAuditEvent } from "./audit";
 export type {
   AuthAuditEvent,
   AuthSecurityEvent,
@@ -96,6 +97,21 @@ export type CreateAuthAccountDeletionConfig = {
   enabled: boolean;
   /** When true, the user gets a confirmation email before deletion. Default: true. */
   sendDeleteEmail?: boolean;
+  /**
+   * Optional async hook executed BEFORE the user is deleted from `core.users`.
+   * Used by apps to clean up cross-package state (cancel billing subscriptions,
+   * notify external systems, anonymize PII in app-owned tables).
+   *
+   * Failures here ARE logged but do NOT abort the deletion — fiscal/compliance
+   * cleanup must be best-effort to keep the LGPD right-to-be-forgotten honored.
+   * Audit log captures the failure for ops to follow up.
+   */
+  onBeforeDelete?: (user: { id: string; email: string }) => Promise<void>;
+  /**
+   * Optional async hook executed AFTER the user is deleted. Same failure model
+   * as `onBeforeDelete` — best-effort, errors logged.
+   */
+  onAfterDelete?: (user: { id: string; email: string }) => Promise<void>;
 };
 
 export type RateLimitRule = { window: number; max: number };
@@ -390,9 +406,31 @@ function createAuthInstance(config: CreateAuthConfig) {
                 await logAuditEvent("user.deletion_requested", user.id, {
                   email: user.email,
                 });
+                if (config.accountDeletion?.onBeforeDelete) {
+                  try {
+                    await config.accountDeletion.onBeforeDelete(user);
+                  } catch (err) {
+                    await logAuditEvent("user.deletion_requested", user.id, {
+                      email: user.email,
+                      hookError: err instanceof Error ? err.message : String(err),
+                      stage: "onBeforeDelete",
+                    });
+                  }
+                }
               },
               afterDelete: async (user: { id: string; email: string }) => {
                 await logAuditEvent("user.deleted", null, { email: user.email });
+                if (config.accountDeletion?.onAfterDelete) {
+                  try {
+                    await config.accountDeletion.onAfterDelete(user);
+                  } catch (err) {
+                    await logAuditEvent("user.deleted", null, {
+                      email: user.email,
+                      hookError: err instanceof Error ? err.message : String(err),
+                      stage: "onAfterDelete",
+                    });
+                  }
+                }
               },
             },
           }

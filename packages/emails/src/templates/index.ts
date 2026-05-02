@@ -1,13 +1,25 @@
 import { render } from "@react-email/render";
 import { createElement, type ReactElement } from "react";
 import { AccountDeletionEmail, type AccountDeletionEmailProps } from "./accountDeletion";
+import { CreditsPurchasedEmail, type CreditsPurchasedEmailProps } from "./creditsPurchased";
 import { DEFAULT_LOCALE, getTranslator, type Locale } from "./i18n";
 import { InvitationEmail, type InvitationEmailProps } from "./invitation";
 import { MagicLinkEmail, type MagicLinkEmailProps } from "./magicLink";
 import { PasswordResetEmail, type PasswordResetEmailProps } from "./passwordReset";
+import { PaymentFailedEmail, type PaymentFailedEmailProps } from "./paymentFailed";
+import { PaymentSuccessEmail, type PaymentSuccessEmailProps } from "./paymentSuccess";
+import {
+  SubscriptionCanceledEmail,
+  type SubscriptionCanceledEmailProps,
+} from "./subscriptionCanceled";
+import {
+  SubscriptionRenewedEmail,
+  type SubscriptionRenewedEmailProps,
+} from "./subscriptionRenewed";
 import { VerificationEmail, type VerificationEmailProps } from "./verification";
 
 export { AccountDeletionEmail } from "./accountDeletion";
+export { CreditsPurchasedEmail } from "./creditsPurchased";
 export { EmailLayout } from "./EmailLayout";
 export {
   DEFAULT_LOCALE,
@@ -17,12 +29,21 @@ export {
 export { InvitationEmail } from "./invitation";
 export { MagicLinkEmail } from "./magicLink";
 export { PasswordResetEmail } from "./passwordReset";
+export { PaymentFailedEmail } from "./paymentFailed";
+export { PaymentSuccessEmail } from "./paymentSuccess";
+export { SubscriptionCanceledEmail } from "./subscriptionCanceled";
+export { SubscriptionRenewedEmail } from "./subscriptionRenewed";
 export { VerificationEmail } from "./verification";
 export type {
   AccountDeletionEmailProps,
+  CreditsPurchasedEmailProps,
   InvitationEmailProps,
   MagicLinkEmailProps,
   PasswordResetEmailProps,
+  PaymentFailedEmailProps,
+  PaymentSuccessEmailProps,
+  SubscriptionCanceledEmailProps,
+  SubscriptionRenewedEmailProps,
   VerificationEmailProps,
 };
 
@@ -31,7 +52,12 @@ export type EmailCategory =
   | "auth.password-reset"
   | "auth.magic-link"
   | "auth.invitation"
-  | "auth.account-deletion";
+  | "auth.account-deletion"
+  | "billing.payment-success"
+  | "billing.payment-failed"
+  | "billing.subscription-renewed"
+  | "billing.subscription-canceled"
+  | "billing.credits-purchased";
 
 export type RenderTemplatePropsByCategory = {
   "auth.verify-email": VerificationEmailProps;
@@ -39,6 +65,11 @@ export type RenderTemplatePropsByCategory = {
   "auth.magic-link": MagicLinkEmailProps;
   "auth.invitation": InvitationEmailProps;
   "auth.account-deletion": AccountDeletionEmailProps;
+  "billing.payment-success": PaymentSuccessEmailProps;
+  "billing.payment-failed": PaymentFailedEmailProps;
+  "billing.subscription-renewed": SubscriptionRenewedEmailProps;
+  "billing.subscription-canceled": SubscriptionCanceledEmailProps;
+  "billing.credits-purchased": CreditsPurchasedEmailProps;
 };
 
 export type RenderTemplateResult = {
@@ -57,7 +88,12 @@ type SubjectNamespace =
   | "passwordReset"
   | "magicLink"
   | "invitation"
-  | "accountDeletion";
+  | "accountDeletion"
+  | "paymentSuccess"
+  | "paymentFailed"
+  | "subscriptionRenewed"
+  | "subscriptionCanceled"
+  | "creditsPurchased";
 
 type CategoryEntry<Category extends EmailCategory> = {
   component: (props: RenderTemplatePropsByCategory[Category]) => ReactElement;
@@ -94,6 +130,31 @@ const CATEGORY_REGISTRY: {
   "auth.account-deletion": {
     component: AccountDeletionEmail,
     subjectNamespace: "accountDeletion",
+    subjectValues: ({ appName }) => ({ appName }),
+  },
+  "billing.payment-success": {
+    component: PaymentSuccessEmail,
+    subjectNamespace: "paymentSuccess",
+    subjectValues: ({ appName }) => ({ appName }),
+  },
+  "billing.payment-failed": {
+    component: PaymentFailedEmail,
+    subjectNamespace: "paymentFailed",
+    subjectValues: ({ appName }) => ({ appName }),
+  },
+  "billing.subscription-renewed": {
+    component: SubscriptionRenewedEmail,
+    subjectNamespace: "subscriptionRenewed",
+    subjectValues: ({ appName, productName }) => ({ appName, productName }),
+  },
+  "billing.subscription-canceled": {
+    component: SubscriptionCanceledEmail,
+    subjectNamespace: "subscriptionCanceled",
+    subjectValues: ({ appName, productName }) => ({ appName, productName }),
+  },
+  "billing.credits-purchased": {
+    component: CreditsPurchasedEmail,
+    subjectNamespace: "creditsPurchased",
     subjectValues: ({ appName }) => ({ appName }),
   },
 };

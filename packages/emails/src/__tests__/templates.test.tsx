@@ -2,9 +2,14 @@ import { render } from "@react-email/render";
 import { describe, expect, it } from "vitest";
 import { renderTemplate } from "../templates";
 import { AccountDeletionEmail } from "../templates/accountDeletion";
+import { CreditsPurchasedEmail } from "../templates/creditsPurchased";
 import { InvitationEmail } from "../templates/invitation";
 import { MagicLinkEmail } from "../templates/magicLink";
 import { PasswordResetEmail } from "../templates/passwordReset";
+import { PaymentFailedEmail } from "../templates/paymentFailed";
+import { PaymentSuccessEmail } from "../templates/paymentSuccess";
+import { SubscriptionCanceledEmail } from "../templates/subscriptionCanceled";
+import { SubscriptionRenewedEmail } from "../templates/subscriptionRenewed";
 import { VerificationEmail } from "../templates/verification";
 
 const baseProps = {
@@ -70,6 +75,80 @@ describe("renderTemplate", () => {
       ),
     ).rejects.toThrow(/unknown category/);
   });
+
+  it("returns html, text and subject for billing.payment-success", async () => {
+    const result = await renderTemplate("billing.payment-success", {
+      appName: "Test App",
+      productName: "Pro Mensal",
+      amountFormatted: "R$ 49,90",
+      manageBillingUrl: "https://app.example.com/billing",
+      unsubscribeUrl: baseProps.unsubscribeUrl,
+      unsubscribeMailto: baseProps.unsubscribeMailto,
+    });
+    expect(result.subject).toBe("Test App — pagamento confirmado");
+    expect(result.html).toContain("R$ 49,90");
+    expect(result.html).toContain("Pro Mensal");
+    expect(result.html).toContain("https://app.example.com/billing");
+  });
+
+  it("returns html, text and subject for billing.payment-failed", async () => {
+    const result = await renderTemplate("billing.payment-failed", {
+      appName: "Test App",
+      attempt: 2,
+      maxAttempts: 3,
+      updatePaymentUrl: "https://app.example.com/billing/portal",
+      unsubscribeUrl: baseProps.unsubscribeUrl,
+      unsubscribeMailto: baseProps.unsubscribeMailto,
+    });
+    expect(result.subject).toBe("Test App — falha na cobrança");
+    expect(result.html).toContain("tentativa");
+    expect(result.html).toContain("2");
+    expect(result.html).toContain("3");
+    expect(result.html).toContain("Atualizar pagamento");
+  });
+
+  it("returns html, text and subject for billing.subscription-renewed", async () => {
+    const result = await renderTemplate("billing.subscription-renewed", {
+      appName: "Test App",
+      productName: "Pro Mensal",
+      nextBillingDate: "01/06/2026",
+      manageBillingUrl: "https://app.example.com/billing",
+      unsubscribeUrl: baseProps.unsubscribeUrl,
+      unsubscribeMailto: baseProps.unsubscribeMailto,
+    });
+    expect(result.subject).toBe("Test App — assinatura renovada");
+    expect(result.html).toContain("01/06/2026");
+    expect(result.html).toContain("Pro Mensal");
+  });
+
+  it("returns html, text and subject for billing.subscription-canceled", async () => {
+    const result = await renderTemplate("billing.subscription-canceled", {
+      appName: "Test App",
+      productName: "Pro Mensal",
+      accessUntil: "30/05/2026",
+      reactivateUrl: "https://app.example.com/billing",
+      unsubscribeUrl: baseProps.unsubscribeUrl,
+      unsubscribeMailto: baseProps.unsubscribeMailto,
+    });
+    expect(result.subject).toBe("Test App — assinatura cancelada");
+    expect(result.html).toContain("30/05/2026");
+    expect(result.html).toContain("Reativar assinatura");
+  });
+
+  it("returns html, text and subject for billing.credits-purchased", async () => {
+    const result = await renderTemplate("billing.credits-purchased", {
+      appName: "Test App",
+      creditAmount: 5000,
+      balanceAfter: 12500,
+      dashboardUrl: "https://app.example.com/dashboard",
+      unsubscribeUrl: baseProps.unsubscribeUrl,
+      unsubscribeMailto: baseProps.unsubscribeMailto,
+    });
+    expect(result.subject).toBe("Test App — créditos adicionados");
+    // Locale-aware thousands separator (pt-BR uses dot)
+    expect(result.html).toContain("5.000");
+    expect(result.html).toContain("12.500");
+  });
 });
 
 describe("template snapshots", () => {
@@ -102,6 +181,76 @@ describe("template snapshots", () => {
 
   it("AccountDeletionEmail HTML matches snapshot", async () => {
     const html = await render(<AccountDeletionEmail {...baseProps} />);
+    expect(html).toMatchSnapshot();
+  });
+
+  it("PaymentSuccessEmail HTML matches snapshot", async () => {
+    const html = await render(
+      <PaymentSuccessEmail
+        appName="Test App"
+        productName="Pro Mensal"
+        amountFormatted="R$ 49,90"
+        manageBillingUrl="https://app.example.com/billing"
+        unsubscribeUrl={baseProps.unsubscribeUrl}
+        unsubscribeMailto={baseProps.unsubscribeMailto}
+      />,
+    );
+    expect(html).toMatchSnapshot();
+  });
+
+  it("PaymentFailedEmail HTML matches snapshot", async () => {
+    const html = await render(
+      <PaymentFailedEmail
+        appName="Test App"
+        attempt={2}
+        maxAttempts={3}
+        updatePaymentUrl="https://app.example.com/billing/portal"
+        unsubscribeUrl={baseProps.unsubscribeUrl}
+        unsubscribeMailto={baseProps.unsubscribeMailto}
+      />,
+    );
+    expect(html).toMatchSnapshot();
+  });
+
+  it("SubscriptionRenewedEmail HTML matches snapshot", async () => {
+    const html = await render(
+      <SubscriptionRenewedEmail
+        appName="Test App"
+        productName="Pro Mensal"
+        nextBillingDate="01/06/2026"
+        manageBillingUrl="https://app.example.com/billing"
+        unsubscribeUrl={baseProps.unsubscribeUrl}
+        unsubscribeMailto={baseProps.unsubscribeMailto}
+      />,
+    );
+    expect(html).toMatchSnapshot();
+  });
+
+  it("SubscriptionCanceledEmail HTML matches snapshot", async () => {
+    const html = await render(
+      <SubscriptionCanceledEmail
+        appName="Test App"
+        productName="Pro Mensal"
+        accessUntil="30/05/2026"
+        reactivateUrl="https://app.example.com/billing"
+        unsubscribeUrl={baseProps.unsubscribeUrl}
+        unsubscribeMailto={baseProps.unsubscribeMailto}
+      />,
+    );
+    expect(html).toMatchSnapshot();
+  });
+
+  it("CreditsPurchasedEmail HTML matches snapshot", async () => {
+    const html = await render(
+      <CreditsPurchasedEmail
+        appName="Test App"
+        creditAmount={5000}
+        balanceAfter={12500}
+        dashboardUrl="https://app.example.com/dashboard"
+        unsubscribeUrl={baseProps.unsubscribeUrl}
+        unsubscribeMailto={baseProps.unsubscribeMailto}
+      />,
+    );
     expect(html).toMatchSnapshot();
   });
 });

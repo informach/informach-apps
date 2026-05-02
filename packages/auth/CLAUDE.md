@@ -83,7 +83,7 @@ Todas as colunas declaradas em `packages/db/src/schema/core.ts` (source of truth
 | Google OAuth | `socialProviders: { google: { clientId, clientSecret, redirectURI? } }` | — |
 | Passkey (WebAuthn) | `passkey: { enabled: true, rpName?, rpID?, origin? }` | `passkeys` |
 | 2FA TOTP + backup codes | `twoFactor: { enabled: true, issuer? }` | `two_factors` |
-| Account deletion (LGPD) | `accountDeletion: { enabled: true, sendDeleteEmail? }` | — |
+| Account deletion (LGPD) | `accountDeletion: { enabled: true, sendDeleteEmail?, onBeforeDelete?, onAfterDelete? }` | — |
 | Cache role on session | `cacheRoleOnSession: true` | reaproveita `sessions.role` |
 | Secondary storage (Redis/KV) | `secondaryStorage: SecondaryStorage` | — |
 | Observability | `observability: { onAuditEvent?, onSecurityEvent? }` | — |
@@ -143,9 +143,27 @@ user.deleted            auth.two_factor_enabled
                         auth.two_factor_disabled
                         auth.two_factor_verified
                         auth.backup_code_used
+
+billing.subscription_created    billing.payment_succeeded   billing.credits_consumed
+billing.subscription_updated    billing.payment_failed      billing.credits_refunded
+billing.subscription_canceled   billing.credits_granted
 ```
 
 Cada `logAuditEvent(eventType, actorId, payload)` insere em `audit.events` e dispara `observability.onAuditEvent`. **Hooks são try/catch-ados internamente** — falha em APM não derruba o auth.
+
+A função `logAuditEvent` é **re-exportada do root** (`import { logAuditEvent } from "@informach/auth"`) para que outros packages do monorepo (notavelmente `@informach/billing`) possam wirar `config.onAudit` callback sem importar de sub-paths internos. Apps tipicamente fazem:
+
+```ts
+// apps/<app>/src/lib/billing.ts
+createBillingService({
+  // ...
+  onAudit: (event) => {
+    logAuditEvent(event.eventType, event.actorId, event.payload).catch(/* fire-and-forget */);
+  },
+});
+```
+
+Os 8 audit types `billing.*` são gerenciados pelo package `@informach/billing` mas declarados aqui na union `AuditEventType` — qualquer novo tipo precisa ser adicionado a `audit.ts` E à tabela acima.
 
 ### 3.6 Security events (observability)
 
@@ -164,7 +182,35 @@ Categorias e componentes:
 
 Snapshots, preview server e checklist visual: `packages/emails/EMAILS.md`.
 
-### 3.8 Maintenance (cron-friendly)
+### 3.8 Account deletion (LGPD) — hooks `onBeforeDelete` / `onAfterDelete`
+
+Quando `accountDeletion: { enabled: true }`, Better Auth ativa o flow de deletion (com email de confirmação se `sendDeleteEmail !== false`). Em adição ao audit log automático (`user.deletion_requested` antes, `user.deleted` depois), apps podem injetar callbacks assíncronos para limpar estado cross-package:
+
+```ts
+createAuth({
+  // ...
+  accountDeletion: {
+    enabled: true,
+    onBeforeDelete: async (user) => {
+      // Cancel billing subscriptions IMEDIATAMENTE (rows ficam por NF-e)
+      await billing.cancelBillingForSubject({ type: "user", id: user.id });
+      // Anonimizar PII em outras tabelas app-owned, etc.
+    },
+    onAfterDelete: async (user) => {
+      // Notificar sistemas externos, queue jobs de cleanup, etc.
+    },
+  },
+});
+```
+
+**Failure handling:** ambos callbacks são try/catch'ed. Erros são gravados em audit (`user.deletion_requested` / `user.deleted` com `payload.{hookError, stage}`) mas NÃO abortam a deletion — LGPD right-to-be-forgotten precisa ser best-effort. Apps que precisam de hard-fail (ex: legal compliance que exija cleanup garantido) devem chamar a operação sensível ANTES de invocar `auth.api.deleteUser`, não no hook.
+
+Casos típicos:
+- **`@informach/billing`**: `billing.cancelBillingForSubject` cancela subs ativas (subscription rows + ledger ficam para retenção fiscal).
+- **App-owned tables**: anonimizar/deletar registros que referenciam `userId` mas não devem cascatear via FK (preserva dados agregados/históricos sem PII).
+- **External systems**: revogar tokens em integrações 3rd-party (Slack, Stripe customer não-billing, etc).
+
+### 3.9 Maintenance (cron-friendly)
 
 `@informach/auth/maintenance` expõe três funções idempotentes que retornam contagem de rows tocadas:
 
@@ -174,7 +220,7 @@ Snapshots, preview server e checklist visual: `packages/emails/EMAILS.md`.
 
 Apps são responsáveis por expor essas funções via route handler `POST` protegido por `Authorization: Bearer ${CRON_SECRET}` — pattern em `PRODUCTION.md` §7.
 
-### 3.9 Action factory (server actions)
+### 3.10 Action factory (server actions)
 
 `createActionFactory({ helpers, onAudit? })` retorna `{ action, ok, err, *Error }`. O builder `action` é chainable:
 
@@ -195,7 +241,7 @@ Ordem de execução: `schema.parse(input) → require* → rateLimit → audit �
 
 `Result<T, E>` é o tipo discriminado retornado pelo handler — `{ ok: true, value }` ou `{ ok: false, error }`. Erros tipados disponíveis: `UnauthorizedError`, `ForbiddenError`, `OrganizationsDisabledError`, `RateLimitError`.
 
-### 3.10 Server helpers (RSC)
+### 3.11 Server helpers (RSC)
 
 `createServerHelpers(authResult, { signInPath?, nextParam? })` envolve `helpers.*` lendo `headers()` do Next:
 
@@ -206,7 +252,7 @@ Ordem de execução: `schema.parse(input) → require* → rateLimit → audit �
 
 Importa `server-only` — falha em build se importado de Client Component.
 
-### 3.11 Auth proxy (Next 16 `proxy.ts`)
+### 3.12 Auth proxy (Next 16 `proxy.ts`)
 
 `createAuthProxy(authResult, { requireAuth?, requireRole?, publicPaths?, signInPath?, nextParam?, forbiddenPath? })` retorna função compatível com Next 16 `proxy.ts` (substitui `middleware.ts`). Faz redirect para sign-in quando user ausente, ou para `forbiddenPath` quando role não bate.
 

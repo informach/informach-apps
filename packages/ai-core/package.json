@@ -13,15 +13,19 @@
     "./tools": "./src/tools/index.ts",
     "./guardrails": "./src/guardrails/index.ts",
     "./telemetry": "./src/telemetry/index.ts",
-    "./prompts": "./src/prompts/index.ts"
+    "./prompts": "./src/prompts/index.ts",
+    "./billing": "./src/billing.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@informach/billing": "workspace:*",
     "@informach/db": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.9"
   }
 }

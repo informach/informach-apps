@@ -1091,6 +1091,67 @@ describe("createAuth — account deletion (opt-in)", () => {
     expect(args.eventType).toBe("user.deleted");
     expect(args.actorId).toBeNull();
   });
+
+  it("beforeDelete invokes onBeforeDelete hook (LGPD cross-package cleanup)", async () => {
+    const onBeforeDelete = vi.fn(async () => undefined);
+    createAuth({
+      ...makeConfig(),
+      accountDeletion: { enabled: true, onBeforeDelete },
+    });
+    const cfg = captureConfig();
+    await cfg.user?.deleteUser?.beforeDelete?.({ id: "u1", email: "del@x" });
+    expect(onBeforeDelete).toHaveBeenCalledWith({ id: "u1", email: "del@x" });
+  });
+
+  it("afterDelete invokes onAfterDelete hook", async () => {
+    const onAfterDelete = vi.fn(async () => undefined);
+    createAuth({
+      ...makeConfig(),
+      accountDeletion: { enabled: true, onAfterDelete },
+    });
+    const cfg = captureConfig();
+    await cfg.user?.deleteUser?.afterDelete?.({ id: "u1", email: "del@x" });
+    expect(onAfterDelete).toHaveBeenCalledWith({ id: "u1", email: "del@x" });
+  });
+
+  it("onBeforeDelete failure is captured in audit, deletion proceeds", async () => {
+    const onBeforeDelete = vi.fn(async () => {
+      throw new Error("billing api down");
+    });
+    createAuth({
+      ...makeConfig(),
+      accountDeletion: { enabled: true, onBeforeDelete },
+    });
+    const cfg = captureConfig();
+    await expect(
+      cfg.user?.deleteUser?.beforeDelete?.({ id: "u1", email: "del@x" }),
+    ).resolves.toBeUndefined();
+    // The second insert call should be the failure-capture audit event
+    const lastInsert = dbInsertChain.values.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(lastInsert.eventType).toBe("user.deletion_requested");
+    const payload = lastInsert.payload as Record<string, unknown>;
+    expect(payload.hookError).toBe("billing api down");
+    expect(payload.stage).toBe("onBeforeDelete");
+  });
+
+  it("onAfterDelete failure is captured in audit, does not throw", async () => {
+    const onAfterDelete = vi.fn(async () => {
+      throw new Error("downstream cleanup failed");
+    });
+    createAuth({
+      ...makeConfig(),
+      accountDeletion: { enabled: true, onAfterDelete },
+    });
+    const cfg = captureConfig();
+    await expect(
+      cfg.user?.deleteUser?.afterDelete?.({ id: "u1", email: "del@x" }),
+    ).resolves.toBeUndefined();
+    const lastInsert = dbInsertChain.values.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(lastInsert.eventType).toBe("user.deleted");
+    const payload = lastInsert.payload as Record<string, unknown>;
+    expect(payload.hookError).toBe("downstream cleanup failed");
+    expect(payload.stage).toBe("onAfterDelete");
+  });
 });
 
 describe("createAuth — cacheRoleOnSession (opt-in)", () => {

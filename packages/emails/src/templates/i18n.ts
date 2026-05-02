@@ -17,7 +17,12 @@ export type EmailNamespace =
   | "passwordReset"
   | "magicLink"
   | "invitation"
-  | "accountDeletion";
+  | "accountDeletion"
+  | "paymentSuccess"
+  | "paymentFailed"
+  | "subscriptionRenewed"
+  | "subscriptionCanceled"
+  | "creditsPurchased";
 
 export function getTranslator(namespace: EmailNamespace, locale: Locale = DEFAULT_LOCALE) {
   const messages = MESSAGES[locale] ?? MESSAGES[DEFAULT_LOCALE];

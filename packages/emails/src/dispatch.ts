@@ -13,7 +13,12 @@ export type EmailCategory =
   | "auth.password-reset"
   | "auth.magic-link"
   | "auth.invitation"
-  | "auth.account-deletion";
+  | "auth.account-deletion"
+  | "billing.payment-success"
+  | "billing.payment-failed"
+  | "billing.subscription-renewed"
+  | "billing.subscription-canceled"
+  | "billing.credits-purchased";
 
 export type EmailAddress = string;
 

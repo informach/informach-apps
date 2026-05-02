@@ -57,6 +57,13 @@
       "when": 1777666898257,
       "tag": "0007_chief_blob",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1777673677952,
+      "tag": "0008_daffy_colleen_wing",
+      "breakpoints": true
     }
   ]
 }

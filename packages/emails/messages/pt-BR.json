@@ -45,5 +45,46 @@
     "warning": "<strong>Esta ação é irreversível.</strong> Todos os seus dados serão removidos permanentemente.",
     "instruction": "Se foi você, confirme clicando no botão abaixo. O link expira em breve. Se não foi você, ignore este email — sua conta permanece ativa.",
     "cta": "Confirmar exclusão"
+  },
+  "paymentSuccess": {
+    "subject": "{appName} — pagamento confirmado",
+    "preheader": "Seu pagamento de {amountFormatted} foi confirmado.",
+    "title": "Pagamento confirmado",
+    "body": "Recebemos seu pagamento de <strong>{amountFormatted}</strong> referente a <strong>{productName}</strong> no {appName}.",
+    "instruction": "Você pode visualizar suas faturas e gerenciar a forma de pagamento a qualquer momento clicando no botão abaixo.",
+    "cta": "Gerenciar cobrança"
+  },
+  "paymentFailed": {
+    "subject": "{appName} — falha na cobrança",
+    "preheader": "Não conseguimos processar sua cobrança no {appName}.",
+    "title": "Não conseguimos processar sua cobrança",
+    "body": "Tentamos cobrar sua assinatura no <strong>{appName}</strong>, mas a operação falhou. Esta é a tentativa <strong>{attempt} de {maxAttempts}</strong>.",
+    "instruction": "Para evitar a interrupção do serviço, atualize sua forma de pagamento clicando no botão abaixo.",
+    "warning": "Se nenhuma das próximas tentativas tiver sucesso, sua assinatura será cancelada automaticamente.",
+    "cta": "Atualizar pagamento"
+  },
+  "subscriptionRenewed": {
+    "subject": "{appName} — assinatura renovada",
+    "preheader": "Sua assinatura {productName} foi renovada com sucesso.",
+    "title": "Assinatura renovada",
+    "body": "Sua assinatura <strong>{productName}</strong> no {appName} foi renovada com sucesso.",
+    "instruction": "Próxima cobrança em <strong>{nextBillingDate}</strong>. Você pode gerenciar a assinatura a qualquer momento.",
+    "cta": "Gerenciar assinatura"
+  },
+  "subscriptionCanceled": {
+    "subject": "{appName} — assinatura cancelada",
+    "preheader": "Sua assinatura {productName} foi cancelada.",
+    "title": "Assinatura cancelada",
+    "body": "Sua assinatura <strong>{productName}</strong> no {appName} foi cancelada.",
+    "instruction": "Você continua com acesso até <strong>{accessUntil}</strong>. Se mudar de ideia, é possível reativar a assinatura clicando no botão abaixo.",
+    "cta": "Reativar assinatura"
+  },
+  "creditsPurchased": {
+    "subject": "{appName} — créditos adicionados",
+    "preheader": "{creditAmount} créditos foram adicionados à sua conta.",
+    "title": "Créditos adicionados",
+    "body": "Adicionamos <strong>{creditAmount} créditos</strong> à sua conta no {appName}.",
+    "instruction": "Seu novo saldo é de <strong>{balanceAfter} créditos</strong>. Eles ficam disponíveis imediatamente para uso.",
+    "cta": "Ver dashboard"
   }
 }

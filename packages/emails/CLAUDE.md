@@ -106,17 +106,26 @@ Fluxo (linhas em `dispatch.ts`):
 ### 3.3 `renderTemplate(category, props, opts?)` — renderização de templates
 Mapeamento `EmailCategory → componente React Email`:
 
-| Categoria | Componente | Props |
+| Categoria | Componente | Props específicos |
 |---|---|---|
 | `auth.verify-email` | `VerificationEmail` | `appName, url` |
 | `auth.password-reset` | `PasswordResetEmail` | `appName, url` |
 | `auth.magic-link` | `MagicLinkEmail` | `appName, url` |
 | `auth.invitation` | `InvitationEmail` | `appName, inviterName, organizationName, url` |
 | `auth.account-deletion` | `AccountDeletionEmail` | `appName, url` |
+| `billing.payment-success` | `PaymentSuccessEmail` | `appName, productName, amountFormatted, manageBillingUrl` |
+| `billing.payment-failed` | `PaymentFailedEmail` | `appName, attempt, maxAttempts, updatePaymentUrl` |
+| `billing.subscription-renewed` | `SubscriptionRenewedEmail` | `appName, productName, nextBillingDate, manageBillingUrl` |
+| `billing.subscription-canceled` | `SubscriptionCanceledEmail` | `appName, productName, accessUntil, reactivateUrl` |
+| `billing.credits-purchased` | `CreditsPurchasedEmail` | `appName, creditAmount, balanceAfter, dashboardUrl` |
 
 Todos aceitam `unsubscribeUrl?`, `unsubscribeMailto?`, `preheader?` e `locale?` (default `"pt-BR"`).
 
 Retorna `{ html: string; text: string; subject: string }`. Internamente usa `render()` e `render(..., { plainText: true })` do `@react-email/render`.
+
+**Categorias `billing.*`** são consumidas por `@informach/billing` (4 via webhook handlers — `payment-success` / `subscription-renewed` / `subscription-canceled` / `credits-purchased`) e pelo dunning sweeper das apps (`payment-failed`). Strings PT-BR vivem em `messages/pt-BR.json` sob namespaces `paymentSuccess`/`paymentFailed`/`subscriptionRenewed`/`subscriptionCanceled`/`creditsPurchased`. Ver `@informach/billing/CLAUDE.md` §3.8 para o ciclo completo.
+
+> **`EmailCategory` está declarado em DOIS lugares:** (a) como Zod enum em `schemas.ts:EMAIL_CATEGORIES`, usado por `dispatchEmail` validation; (b) como string union em `templates/index.ts`, usado por `renderTemplate`. Adicionar nova categoria exige atualizar AMBOS — TypeScript pega o segundo, mas o primeiro é runtime check do `dispatch`. Ver §7 regra 3.
 
 ### 3.4 Tabela de retry (de `retry.ts`)
 
@@ -334,7 +343,7 @@ pnpm --filter @informach/emails preview     # preview server React Email em :408
 
 2. **Schema novo em `email_deliveries`/`email_suppressions`/`email_unsubscribes`?** Editar `packages/db/src/schema/core.ts`, gerar migration via `pnpm db:generate`, validar localmente com `pnpm db:migrate`. Atualizar tipo `NewEmailDelivery` automaticamente vem via `$inferInsert`.
 
-3. **Adicionar nova `EmailCategory`?** (a) Editar union em `dispatch.ts`. (b) Adicionar em `EMAIL_CATEGORIES` array no `schemas.ts`. (c) Criar componente em `templates/<name>.tsx`. (d) Adicionar mapeamento em `templates/index.ts`. (e) Adicionar strings PT-BR em `messages/pt-BR.json`. (f) Snapshot test. (g) Atualizar tabela em §3.3 deste doc.
+3. **Adicionar nova `EmailCategory`?** (a) Editar union em `dispatch.ts`. (b) Adicionar em `EMAIL_CATEGORIES` array no `schemas.ts`. (c) Editar union em `templates/index.ts:EmailCategory`. (d) Adicionar entry em `RenderTemplatePropsByCategory` e `CATEGORY_REGISTRY` (com `subjectNamespace` + `subjectValues`). (e) Criar componente em `templates/<name>.tsx` com `PreviewProps`. (f) Adicionar `EmailNamespace` em `i18n.ts`. (g) Adicionar strings PT-BR em `messages/pt-BR.json` (subject/preheader/title/body/instruction/cta — warning opcional). (h) Snapshot test. (i) Atualizar tabela em §3.3 deste doc. **Para categorias `billing.*`** atualizar também `BillingEmailCategory` em `@informach/billing/billing-emails.ts` se for disparada por webhook handler.
 
 4. **Mudanças em retry/backoff** afetam recovery jobs — testar com `nextAttemptDelaySeconds(N)` para vários N. `MAX_ATTEMPTS=8` é o teto absoluto.
 

@@ -25,7 +25,15 @@ export type AuditEventType =
   | "org.created"
   | "org.member_added"
   | "org.member_removed"
-  | "org.invitation_sent";
+  | "org.invitation_sent"
+  | "billing.subscription_created"
+  | "billing.subscription_updated"
+  | "billing.subscription_canceled"
+  | "billing.payment_succeeded"
+  | "billing.payment_failed"
+  | "billing.credits_granted"
+  | "billing.credits_consumed"
+  | "billing.credits_refunded";
 
 export type AuditPayload = Record<string, unknown>;
 
