@@ -49,6 +49,8 @@ apps/<app>/
     │       ├── schemas.ts
     │       ├── types.ts
     │       └── __tests__/
+    ├── components/              # áreas pré-auth puramente visuais (marketing, legal)
+    │   └── <area>/              # ex.: marketing/site-header.tsx, marketing/sections/hero.tsx
     ├── lib/                     # cross-cutting do app (não compartilhado)
     │   ├── action.ts            # wrapper de Server Action
     │   ├── env.ts               # t3-env do app
@@ -68,6 +70,8 @@ apps/<app>/
 A pasta `features/` é organizada por **fatia de domínio**, não por tipo de arquivo. Tudo de "convidar membro" mora em `features/members/` (componentes, action, service, repository, schemas, testes). Não em `components/InviteForm.tsx` + `actions/inviteMember.ts` + `services/membersService.ts` espalhados.
 
 Por quê: uma mudança shippable (UI + DB + teste) sai num PR que toca uma pasta. Diff focado. Renomear/mover/excluir uma feature é uma operação. Layout flat (`components/` + `lib/` + `hooks/` + `services/`) parece organizado no início e apodrece em volume.
+
+**Exceção: áreas puramente visuais.** Marketing, landing, páginas legais e similares não têm action/service/repository — só JSX e tokens. Para esses, `src/components/<area>/` (sibling de `features/`) é o lar correto. Exemplo concreto: a landing pública de `cozya` mora em `apps/cozya/src/app/(marketing)/page.tsx` e compõe componentes de `apps/cozya/src/components/marketing/` (header, footer, hero, seções). Quando uma página marketing começar a precisar de Server Action ou data fetching além de pura composição, ela vira feature de verdade — promova para `features/<area>/`.
 
 ---
 
