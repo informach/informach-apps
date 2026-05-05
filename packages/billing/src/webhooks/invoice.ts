@@ -22,6 +22,8 @@ import type {
  * with a small buffer for clock skew between Stripe and our DB.
  */
 const MONTHLY_BONUS_TTL_DAYS = 31;
+/** Drip cadence for annual plans: 30 days between monthly grants. */
+const ANNUAL_DRIP_INTERVAL_MS = 30 * 86_400_000;
 
 type StripeInvoiceLike = {
   id: string;
@@ -66,12 +68,20 @@ export async function handleInvoicePaid(
   eventId: string,
 ): Promise<InvoiceWebhookResult> {
   const billingReason = invoice.billing_reason ?? "";
-  // We only grant bonuses for actual subscription cycles. `manual` / `quote_accept`
-  // / `subscription_threshold` / one-off invoice items don't qualify.
-  const isCycle =
-    billingReason === "subscription_cycle" ||
-    billingReason === "subscription_create" ||
-    billingReason === "subscription_update";
+  // We grant the monthly bonus on TWO billing events only:
+  //   - `subscription_create` — the very first invoice of a sub (initial activation)
+  //   - `subscription_cycle`  — periodic renewal (monthly cycle, or annual rollover)
+  //
+  // `subscription_update` is a mid-cycle change (plan swap, quantity change,
+  // proration). It is NOT a renewal — the user already received the bonus for
+  // the current month at create time. Granting on update would either
+  // double-credit the same month (monthly→monthly swap) or hand the user a
+  // bonus they aren't due (monthly→annual upgrade, where the next monthly
+  // batch is owned by the drip sweeper and anchored 30d out).
+  //
+  // Same reasoning excludes `manual`, `quote_accept`, `subscription_threshold`,
+  // one-off invoice items, etc.
+  const isCycle = billingReason === "subscription_cycle" || billingReason === "subscription_create";
   if (!isCycle) {
     safeLog(deps.logger, "debug", "billing.webhook.invoice.skip_non_cycle", {
       invoiceId: invoice.id,
@@ -97,11 +107,18 @@ export async function handleInvoicePaid(
     return { processed: false, reason: "subscription_not_local" };
   }
 
-  const product = deps.products.find((p) => p.id === local.productId);
+  // PriceId is the SOURCE OF TRUTH for which plan the customer is paying for.
+  // Webhooks can race with our optimistic local UPDATE in switchPlan: when
+  // `subscriptions.update` swaps the price, Stripe emits both
+  // `customer.subscription.updated` and `invoice.paid` in close succession.
+  // If the invoice handler runs first and reads `local.productId`, it would
+  // still see the OLD product. Resolving through priceId avoids that.
+  const product = resolveProductByPriceId(deps.products, local.providerPriceId, local.productId);
   if (!product) {
     safeLog(deps.logger, "warn", "billing.webhook.invoice.product_not_in_catalog", {
       invoiceId: invoice.id,
-      productId: local.productId,
+      providerPriceId: local.providerPriceId,
+      localProductId: local.productId,
     });
     return { processed: false, reason: "product_not_in_catalog" };
   }
@@ -112,6 +129,103 @@ export async function handleInvoicePaid(
       productId: product.id,
     });
     return { processed: false, reason: "no_bonus_for_product" };
+  }
+
+  // Annual plans pay once a year but should drip credits monthly. Instead of
+  // granting 12× the bonus up front (or worse, only 1× a year):
+  //   - on subscription_create: grant the first batch immediately AND anchor
+  //     next_credit_grant_at to drip 30d later (see grantPendingMonthlyBonusCredits).
+  //   - on subscription_cycle (yearly renewal): only reset the anchor — do NOT
+  //     re-grant, otherwise the user would receive both an immediate batch and
+  //     the next sweeper batch ~30d later.
+  // (subscription_update was already filtered out by the isCycle check above.)
+  if (product.interval === "year") {
+    const next = new Date(Date.now() + ANNUAL_DRIP_INTERVAL_MS);
+    if (billingReason === "subscription_create") {
+      const result = await grantBonusCredits(
+        {
+          db: deps.db,
+          logger: deps.logger,
+          onAudit: deps.onAudit,
+        },
+        {
+          owner: { type: local.subjectType, id: local.subjectId },
+          amount: bonus,
+          reason: "subscription_monthly",
+          expiresAt: new Date(Date.now() + MONTHLY_BONUS_TTL_DAYS * 86_400_000),
+          stripeEventId: eventId,
+          metadata: {
+            invoiceId: invoice.id,
+            productId: product.id,
+            billingReason,
+            interval: "year",
+            grantKind: "annual_initial",
+          },
+        },
+      );
+      await deps.db
+        .update(subscriptionsTable)
+        .set({ nextCreditGrantAt: next, updatedAt: new Date() })
+        .where(eq(subscriptionsTable.id, local.id));
+      safeLog(
+        deps.logger,
+        "info",
+        result.alreadyProcessed
+          ? "billing.webhook.invoice.annual_initial_replay"
+          : "billing.webhook.invoice.annual_initial_granted",
+        {
+          invoiceId: invoice.id,
+          subscriptionId: local.id,
+          productId: product.id,
+          bonus,
+          nextCreditGrantAt: next.toISOString(),
+        },
+      );
+      if (!result.alreadyProcessed && deps.emails && local.customerEmail) {
+        const amountFormatted = formatBrlAmount(
+          invoice.amount_paid ?? 0,
+          invoice.currency ?? "brl",
+        );
+        await sendBillingEmail(deps.emails, {
+          category: "billing.payment-success",
+          recipient: {
+            email: local.customerEmail,
+            userId: local.subjectType === "user" ? local.subjectId : undefined,
+          },
+          messageKey: `payment_success_${invoice.id}`,
+          productName: product.name,
+          amountFormatted,
+        });
+      }
+      return {
+        processed: true,
+        reason: result.alreadyProcessed ? "annual_initial_replay" : "annual_initial_granted",
+      };
+    }
+    // billingReason === "subscription_cycle" (annual renewal)
+    await deps.db
+      .update(subscriptionsTable)
+      .set({ nextCreditGrantAt: next, updatedAt: new Date() })
+      .where(eq(subscriptionsTable.id, local.id));
+    if (deps.emails && local.customerEmail) {
+      await sendBillingEmail(deps.emails, {
+        category: "billing.subscription-renewed",
+        recipient: {
+          email: local.customerEmail,
+          userId: local.subjectType === "user" ? local.subjectId : undefined,
+        },
+        messageKey: `subscription_renewed_${invoice.id}`,
+        productName: product.name,
+        nextBillingDate: formatDatePtBR(local.currentPeriodEnd),
+      });
+    }
+    safeLog(deps.logger, "info", "billing.webhook.invoice.annual_renewal_anchor_reset", {
+      invoiceId: invoice.id,
+      subscriptionId: local.id,
+      productId: product.id,
+      nextCreditGrantAt: next.toISOString(),
+    });
+    return { processed: true, reason: "annual_renewal_anchor_reset" };
   }
 
   const result = await grantBonusCredits(
@@ -273,6 +387,7 @@ function extractSubscriptionId(invoice: StripeInvoiceLike): string | null {
 type LocalSubWithSubject = {
   id: string;
   productId: string;
+  providerPriceId: string;
   subjectType: SubjectType;
   subjectId: string;
   customerEmail: string;
@@ -288,6 +403,7 @@ async function loadLocalSubscriptionWithSubject(
     .select({
       id: subscriptionsTable.id,
       productId: subscriptionsTable.productId,
+      providerPriceId: subscriptionsTable.providerPriceId,
       currentPeriodEnd: subscriptionsTable.currentPeriodEnd,
       metadata: subscriptionsTable.metadata,
       subjectType: customersTable.subjectType,
@@ -308,12 +424,30 @@ async function loadLocalSubscriptionWithSubject(
   return {
     id: row.id,
     productId: row.productId,
+    providerPriceId: row.providerPriceId,
     subjectType: row.subjectType as SubjectType,
     subjectId: row.subjectId,
     customerEmail: row.customerEmail,
     currentPeriodEnd: row.currentPeriodEnd,
     metadata: row.metadata,
   };
+}
+
+/**
+ * Resolves a Product from the catalog using the priceId as the source of
+ * truth. Falls back to a last-known productId only when the price isn't in
+ * our catalog (typically a misconfigured product).
+ */
+function resolveProductByPriceId(
+  products: readonly Product[],
+  priceId: string,
+  fallbackProductId: string,
+): Product | undefined {
+  const byPrice = products.find(
+    (p) => p.stripePriceId.dev === priceId || p.stripePriceId.prod === priceId,
+  );
+  if (byPrice) return byPrice;
+  return products.find((p) => p.id === fallbackProductId);
 }
 
 async function loadOrRecoverLocalSubscriptionWithSubject(
@@ -419,6 +553,7 @@ async function recoverLocalSubscriptionFromProvider(
   return {
     id: details.id,
     productId,
+    providerPriceId: details.providerPriceId,
     subjectType: customer.subjectType as SubjectType,
     subjectId: customer.subjectId,
     customerEmail: customer.email,

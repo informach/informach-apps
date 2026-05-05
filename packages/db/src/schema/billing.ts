@@ -89,6 +89,14 @@ export const subscriptions = billing.table(
     cancelAtPeriodEnd: timestamp("cancel_at_period_end", { withTimezone: true }),
     canceledAt: timestamp("canceled_at", { withTimezone: true }),
     trialEnd: timestamp("trial_end", { withTimezone: true }),
+    // Drip mensal de créditos no plano anual: o sweeper diário concede o bônus
+    // quando next_credit_grant_at <= now() e a subscription ainda está ativa.
+    // NULL para planos mensais (que recebem grant via invoice.paid) e para Free.
+    nextCreditGrantAt: timestamp("next_credit_grant_at", { withTimezone: true }),
+    // Intent: produto/preço Stripe que deve substituir esta sub no fim do período
+    // (downgrade agendado). Aplicado pelo handler de customer.subscription.deleted.
+    pendingProductId: text("pending_product_id"),
+    pendingPriceId: text("pending_price_id"),
     metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -97,6 +105,9 @@ export const subscriptions = billing.table(
     uniqueIndex("subscriptions_provider_id_uniq").on(t.provider, t.providerSubscriptionId),
     index("subscriptions_customer_status_idx").on(t.customerId, t.status),
     index("subscriptions_period_end_idx").on(t.currentPeriodEnd),
+    index("subscriptions_next_grant_idx")
+      .on(t.nextCreditGrantAt)
+      .where(sql`${t.nextCreditGrantAt} IS NOT NULL`),
   ],
 );
 
@@ -206,9 +217,7 @@ export const creditLedger = billing.table(
     index("credit_ledger_owner_expires_idx")
       .on(t.ownerType, t.ownerId, t.expiresAt)
       .where(sql`${t.expiresAt} IS NOT NULL`),
-    uniqueIndex("credit_ledger_stripe_event_uniq")
-      .on(t.stripeEventId)
-      .where(sql`${t.stripeEventId} IS NOT NULL`),
+    uniqueIndex("credit_ledger_stripe_event_uniq").on(t.stripeEventId),
     index("credit_ledger_reservation_idx")
       .on(t.reservationId)
       .where(sql`${t.reservationId} IS NOT NULL`),

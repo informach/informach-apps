@@ -1,12 +1,21 @@
+import type { Product } from "@informach/config";
 import type { Database } from "@informach/db";
 import {
   customers as customersTable,
   subscriptions as subscriptionsTable,
 } from "@informach/db/schema";
 import { and, eq, inArray, lte, sql } from "drizzle-orm";
+import { grantBonusCredits } from "./credits/grant";
 import { type Logger, safeLog } from "./logger";
 import type { BillingProviderClient, ProviderSubscriptionSummary } from "./providers";
-import type { BillingProvider, SubscriptionStatus } from "./types";
+import type { BillingAuditEvent, BillingProvider, SubscriptionStatus } from "./types";
+
+/**
+ * Drip cadence and TTL for monthly grants on annual plans. Mirrors the values
+ * used by webhooks/invoice.ts so the credits feel identical on both flows.
+ */
+const ANNUAL_DRIP_INTERVAL_MS = 30 * 86_400_000;
+const MONTHLY_BONUS_TTL_DAYS = 31;
 
 export type ExpireMonthlyBonusDeps = {
   db: Database;
@@ -459,3 +468,168 @@ function normalizeStatus(raw: string): SubscriptionStatus {
 // Suppress unused-import warning when only types used.
 void lte;
 void and;
+
+export type GrantMonthlyBonusDeps = {
+  db: Database;
+  /** Catalog used to resolve `bonusCreditsPerMonth` per product. */
+  products: readonly Product[];
+  logger?: Logger;
+  onAudit?: (event: BillingAuditEvent) => void;
+  /** Override "now" for tests / replay. Defaults to new Date(). */
+  now?: Date;
+  /** Hard cap on subscriptions processed per run. Default 200. */
+  batchSize?: number;
+};
+
+export type GrantMonthlyBonusResult = {
+  scanned: number;
+  granted: number;
+  skipped: number;
+  totalCredits: number;
+};
+
+/**
+ * Daily cron. For every annual subscription whose `next_credit_grant_at` has
+ * arrived, grants the monthly bonus and advances the anchor by 30 days. The
+ * candidate query already excludes:
+ *   - canceled subscriptions (status filter)
+ *   - subscriptions whose drip would land AFTER cancel_at_period_end (the
+ *     period the user has already paid for) — they keep dripping until the
+ *     boundary, then stop.
+ *
+ * Idempotency comes from `creditLedger.stripe_event_id` UNIQUE — the synthetic
+ * id `drip:<subscriptionId>:<YYYY-MM-DD>` makes each (sub, day) pair unique.
+ * Replays in the same day are no-ops; re-running tomorrow lets the next
+ * scheduled drip in.
+ */
+export async function grantPendingMonthlyBonusCredits(
+  deps: GrantMonthlyBonusDeps,
+): Promise<GrantMonthlyBonusResult> {
+  const now = deps.now ?? new Date();
+  const batchSize = deps.batchSize ?? 200;
+
+  const candidates = await deps.db
+    .select({
+      id: subscriptionsTable.id,
+      providerSubscriptionId: subscriptionsTable.providerSubscriptionId,
+      productId: subscriptionsTable.productId,
+      nextCreditGrantAt: subscriptionsTable.nextCreditGrantAt,
+      currentPeriodEnd: subscriptionsTable.currentPeriodEnd,
+      cancelAtPeriodEnd: subscriptionsTable.cancelAtPeriodEnd,
+      subjectType: customersTable.subjectType,
+      subjectId: customersTable.subjectId,
+    })
+    .from(subscriptionsTable)
+    .innerJoin(customersTable, eq(subscriptionsTable.customerId, customersTable.id))
+    .where(
+      and(
+        sql`${subscriptionsTable.nextCreditGrantAt} IS NOT NULL`,
+        lte(subscriptionsTable.nextCreditGrantAt, now),
+        inArray(subscriptionsTable.status, ["active", "trialing"]),
+      ),
+    )
+    .limit(batchSize);
+
+  let granted = 0;
+  let skipped = 0;
+  let totalCredits = 0;
+
+  for (const row of candidates) {
+    if (!row.nextCreditGrantAt) {
+      skipped++;
+      continue;
+    }
+    const product = deps.products.find((p) => p.id === row.productId);
+    if (!product) {
+      safeLog(deps.logger, "warn", "billing.sweeper.drip.product_not_in_catalog", {
+        subscriptionId: row.id,
+        productId: row.productId,
+      });
+      skipped++;
+      continue;
+    }
+    const bonus = product.bonusCreditsPerMonth ?? 0;
+    if (bonus <= 0 || product.interval !== "year") {
+      // Defensive: shouldn't have anchor for non-annual / no-bonus products.
+      // Clear it so we stop scanning this row.
+      await deps.db
+        .update(subscriptionsTable)
+        .set({ nextCreditGrantAt: null, updatedAt: new Date() })
+        .where(eq(subscriptionsTable.id, row.id));
+      skipped++;
+      continue;
+    }
+
+    // If the period the user paid for is about to end (cancel_at_period_end set
+    // and we'd grant past it), stop dripping. The user keeps what they have
+    // until the boundary, then status flips to canceled via webhook.
+    if (row.cancelAtPeriodEnd && row.nextCreditGrantAt > row.cancelAtPeriodEnd) {
+      await deps.db
+        .update(subscriptionsTable)
+        .set({ nextCreditGrantAt: null, updatedAt: new Date() })
+        .where(eq(subscriptionsTable.id, row.id));
+      skipped++;
+      continue;
+    }
+
+    const anchor = row.nextCreditGrantAt;
+    const day = anchor.toISOString().slice(0, 10); // YYYY-MM-DD
+    const syntheticEventId = `drip:${row.id}:${day}`;
+
+    const result = await grantBonusCredits(
+      {
+        db: deps.db,
+        logger: deps.logger,
+        onAudit: deps.onAudit,
+      },
+      {
+        owner: { type: row.subjectType, id: row.subjectId },
+        amount: bonus,
+        reason: "subscription_monthly",
+        expiresAt: new Date(anchor.getTime() + MONTHLY_BONUS_TTL_DAYS * 86_400_000),
+        stripeEventId: syntheticEventId,
+        metadata: {
+          subscriptionId: row.id,
+          providerSubscriptionId: row.providerSubscriptionId,
+          productId: row.productId,
+          interval: "year",
+          grantKind: "annual_drip",
+          anchor: anchor.toISOString(),
+        },
+      },
+    );
+
+    const nextAnchor = new Date(anchor.getTime() + ANNUAL_DRIP_INTERVAL_MS);
+    // If the next drip would fall after the user's paid period (or after a
+    // scheduled cancellation), null the anchor so we stop.
+    const stop =
+      (row.cancelAtPeriodEnd && nextAnchor > row.cancelAtPeriodEnd) ||
+      nextAnchor > row.currentPeriodEnd;
+    await deps.db
+      .update(subscriptionsTable)
+      .set({
+        nextCreditGrantAt: stop ? null : nextAnchor,
+        updatedAt: new Date(),
+      })
+      .where(eq(subscriptionsTable.id, row.id));
+
+    if (!result.alreadyProcessed) {
+      granted++;
+      totalCredits += bonus;
+    } else {
+      skipped++;
+    }
+  }
+
+  if (granted > 0 || skipped > 0) {
+    safeLog(deps.logger, "info", "billing.sweeper.drip.summary", {
+      scanned: candidates.length,
+      granted,
+      skipped,
+      totalCredits,
+      asOf: now.toISOString(),
+    });
+  }
+
+  return { scanned: candidates.length, granted, skipped, totalCredits };
+}

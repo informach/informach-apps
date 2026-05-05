@@ -6,9 +6,14 @@ import type {
   ProviderCancelSubscriptionInput,
   ProviderCheckoutInput,
   ProviderCheckoutSession,
+  ProviderCreateSubscriptionInput,
   ProviderCustomer,
+  ProviderInvoicePreview,
+  ProviderInvoiceSummary,
   ProviderPortalInput,
   ProviderPortalSession,
+  ProviderPreviewInvoiceInput,
+  ProviderReactivateSubscriptionInput,
   ProviderSubscriptionDetails,
   ProviderSubscriptionSummary,
   ProviderUpdateSubscriptionInput,
@@ -177,11 +182,84 @@ export function createStripeProvider(config: StripeProviderConfig): BillingProvi
           `@informach/billing: subscription ${input.providerSubscriptionId} has no items`,
         );
       }
+      // Expand `latest_invoice` so callers can detect an upgrade that landed on
+      // an unpaid invoice (no default payment method, SCA, declined card, etc.)
+      // and redirect the user to the hosted invoice page to complete payment.
       const updated = await stripe.subscriptions.update(input.providerSubscriptionId, {
         items: [{ id: firstItem.id, price: input.newPriceId }],
         proration_behavior: input.prorationBehavior ?? "create_prorations",
+        expand: ["latest_invoice"],
       });
       return summarizeSubscription(updated);
+    },
+
+    async createSubscription(
+      input: ProviderCreateSubscriptionInput,
+    ): Promise<ProviderSubscriptionDetails> {
+      const subscription = await stripe.subscriptions.create(
+        {
+          customer: input.customerId,
+          items: [{ price: input.priceId }],
+          metadata: input.metadata ?? {},
+          // Default behavior: charge the customer's default payment method.
+          // Stripe throws "subscription_payment_intent_requires_action" if the
+          // card needs SCA — caller should catch and surface a "update card" CTA.
+          payment_behavior: "error_if_incomplete",
+        },
+        input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : undefined,
+      );
+      return detailSubscription(subscription);
+    },
+
+    async reactivateSubscription(
+      input: ProviderReactivateSubscriptionInput,
+    ): Promise<ProviderSubscriptionSummary> {
+      const updated = await stripe.subscriptions.update(input.providerSubscriptionId, {
+        cancel_at_period_end: false,
+      });
+      return summarizeSubscription(updated);
+    },
+
+    async previewInvoice(input: ProviderPreviewInvoiceInput): Promise<ProviderInvoicePreview> {
+      // Dahlia/Basil migrated retrieveUpcoming → createPreview. Caller passes the
+      // existing subscription id and the new price; Stripe returns the invoice
+      // that would be generated as if we had called updateSubscription.
+      const current = await stripe.subscriptions.retrieve(input.providerSubscriptionId);
+      const firstItem = current.items.data[0];
+      if (!firstItem) {
+        throw new Error(
+          `@informach/billing: subscription ${input.providerSubscriptionId} has no items`,
+        );
+      }
+      const preview = await stripe.invoices.createPreview({
+        customer: input.customerId,
+        subscription: input.providerSubscriptionId,
+        subscription_details: {
+          items: [{ id: firstItem.id, price: input.newPriceId }],
+          proration_behavior: input.prorationBehavior ?? "always_invoice",
+        },
+      });
+      const lines = preview.lines?.data ?? [];
+      const subtotalCents = lines.reduce((sum, line) => {
+        const amount = typeof line.amount === "number" ? line.amount : 0;
+        return amount > 0 ? sum + amount : sum;
+      }, 0);
+      const prorationCreditCents = lines.reduce((sum, line) => {
+        const amount = typeof line.amount === "number" ? line.amount : 0;
+        return amount < 0 ? sum + amount : sum;
+      }, 0);
+      const nextChargeAt = preview.next_payment_attempt
+        ? new Date(preview.next_payment_attempt * 1000)
+        : firstItem.current_period_end
+          ? new Date(firstItem.current_period_end * 1000)
+          : null;
+      return {
+        subtotalCents,
+        prorationCreditCents,
+        amountDueCents: typeof preview.amount_due === "number" ? preview.amount_due : 0,
+        currency: (preview.currency ?? "brl").toUpperCase(),
+        nextChargeAt,
+      };
     },
 
     verifyWebhookSignature(rawBody, signature): ProviderWebhookEvent {
@@ -221,6 +299,23 @@ function summarizeSubscription(subscription: Stripe.Subscription): ProviderSubsc
     status: subscription.status,
     cancelAtPeriodEnd: subscription.cancel_at_period_end,
     currentPeriodEnd: periodEnd ? new Date(periodEnd * 1000) : null,
+    latestInvoice: extractLatestInvoice(subscription.latest_invoice),
+  };
+}
+
+function extractLatestInvoice(
+  latest: Stripe.Subscription["latest_invoice"],
+): ProviderInvoiceSummary | null {
+  // When `expand: ["latest_invoice"]` was NOT requested, this is a string id
+  // (or null). We can't tell the status without a separate retrieve, so we
+  // return null and let callers fall back to "assume paid".
+  if (!latest || typeof latest === "string") return null;
+  return {
+    id: latest.id ?? "",
+    status: latest.status ?? "draft",
+    hostedUrl: latest.hosted_invoice_url ?? null,
+    amountDueCents: typeof latest.amount_due === "number" ? latest.amount_due : 0,
+    currency: (latest.currency ?? "brl").toUpperCase(),
   };
 }
 

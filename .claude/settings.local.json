@@ -3,7 +3,34 @@
     "allow": [
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs",
+      "Bash(pnpm --filter @informach/db db:generate --name add_subscription_drip_and_pending)",
+      "Bash(pnpm --filter @informach/db typecheck)",
+      "Bash(pnpm --filter @informach/billing typecheck)",
+      "Bash(pnpm --filter @informach/billing test --run)",
+      "Bash(pnpm --filter @informach/billing test)",
+      "Bash(pnpm --filter @informach/billing test -- plan-changes)",
+      "Bash(pnpm --filter @informach/billing test -- sweepers-drip)",
+      "Bash(pnpm --filter @informach/billing test -- webhooks-invoice-annual)",
+      "Bash(pnpm --filter @informach/billing test -- webhooks-subscription-pending)",
+      "Bash(pnpm --filter @informach/cozya typecheck)",
+      "Bash(pnpm --filter @informach/config typecheck)",
+      "Bash(pnpm typecheck *)",
+      "Bash(pnpm test *)",
+      "Bash(pnpm check *)",
+      "Bash(pnpm format *)",
+      "Bash(pnpm exec *)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(pnpm db:migrate)",
+      "Bash(pnpm --filter @informach/cozya exec tsx scripts/billing-status.ts tochaeluz@gmail.com)",
+      "Bash(pnpm --filter @informach/db exec tsx ../../apps/cozya/scripts/billing-status.ts tochaeluz@gmail.com)",
+      "Bash(grep -E \"^\\(tsx|dotenv|postgres\\)$\")",
+      "Bash(pnpm install *)",
+      "Bash(pnpm --filter @informach/db exec tsx src/billing-status-tmp.ts tochaeluz@gmail.com)",
+      "Bash(DRY_RUN=1 pnpm --filter @informach/db exec tsx src/restore-monthly-tmp.ts tochaeluz@gmail.com)",
+      "Bash(pnpm --filter @informach/db exec tsx src/restore-monthly-tmp.ts tochaeluz@gmail.com)"
     ]
   }
 }

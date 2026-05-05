@@ -40,7 +40,7 @@ export const PRODUCTS: readonly Product[] = [
     interval: "month",
     bonusCreditsPerMonth: 100,
     stripePriceId: {
-      dev: "price_TODO_cozya_pro_monthly_dev",
+      dev: "price_1TTR6VCvOctqao30J41KCiYi",
       prod: "price_TODO_cozya_pro_monthly_prod",
     },
   },
@@ -53,8 +53,47 @@ export const PRODUCTS: readonly Product[] = [
     interval: "year",
     bonusCreditsPerMonth: 100,
     stripePriceId: {
-      dev: "price_TODO_cozya_pro_annual_dev",
+      dev: "price_1TTR7ECvOctqao30h2pkeyqP",
       prod: "price_TODO_cozya_pro_annual_prod",
+    },
+  },
+  // Credit packs: top-ups avulsos, sem expiração. Os Stripe Price IDs ficam
+  // como `price_TODO_*` até o time de billing configurá-los — a UI esconde
+  // packs com placeholder em produção via `isStripePriceIdConfigured`.
+  {
+    id: "cozya_credits_100",
+    app: "cozya",
+    kind: "credit_pack",
+    name: "100 créditos",
+    description: "Pacote inicial para experimentar a IA do Cozya.",
+    creditAmount: 100,
+    stripePriceId: {
+      dev: "price_TODO_cozya_credits_100_dev",
+      prod: "price_TODO_cozya_credits_100_prod",
+    },
+  },
+  {
+    id: "cozya_credits_500",
+    app: "cozya",
+    kind: "credit_pack",
+    name: "500 créditos",
+    description: "Recarga padrão — combina com uso regular de IA.",
+    creditAmount: 500,
+    stripePriceId: {
+      dev: "price_TODO_cozya_credits_500_dev",
+      prod: "price_TODO_cozya_credits_500_prod",
+    },
+  },
+  {
+    id: "cozya_credits_1500",
+    app: "cozya",
+    kind: "credit_pack",
+    name: "1500 créditos",
+    description: "Volume — para quem usa muito e quer melhor preço por crédito.",
+    creditAmount: 1500,
+    stripePriceId: {
+      dev: "price_TODO_cozya_credits_1500_dev",
+      prod: "price_TODO_cozya_credits_1500_prod",
     },
   },
 ] as const;

@@ -1,4 +1,4 @@
-import { InvalidProductError } from "@informach/billing";
+import { AlreadySubscribedError, InvalidProductError } from "@informach/billing";
 import { billing } from "@/features/billing/service";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
@@ -9,7 +9,10 @@ const PRO_PRODUCT_ID_BY_CYCLE: Record<BillingCycle, string> = {
   annual: "cozya_pro_annual",
 };
 
-export type StartProCheckoutError = { code: "PRO_NOT_CONFIGURED" } | { code: "CHECKOUT_FAILED" };
+export type StartProCheckoutError =
+  | { code: "PRO_NOT_CONFIGURED" }
+  | { code: "ALREADY_SUBSCRIBED" }
+  | { code: "CHECKOUT_FAILED" };
 
 export type StartProCheckoutResult =
   | { ok: true; value: { url: string } }
@@ -29,6 +32,13 @@ export async function startProCheckout(input: {
     });
     return { ok: true, value: { url: result.url } };
   } catch (error) {
+    if (error instanceof AlreadySubscribedError) {
+      logger.info(
+        { userId: input.userId, productId, cycle: input.cycle },
+        "onboarding.checkout.already_subscribed",
+      );
+      return { ok: false, error: { code: "ALREADY_SUBSCRIBED" } };
+    }
     if (error instanceof InvalidProductError) {
       logger.warn({ productId, cycle: input.cycle }, "onboarding.checkout.pro_not_configured");
       return { ok: false, error: { code: "PRO_NOT_CONFIGURED" } };

@@ -34,22 +34,25 @@ apps/<app>/src/lib/
 apps/<app>/src/app/api/
   ├── webhooks/stripe/route.ts          ← billing.verifyWebhookSignature + billing.handleStripeEvent
   └── jobs/
-      ├── billing-reconcile/route.ts    ← billing.reconcileSubscriptions (1×/dia)
-      ├── billing-expire-bonus/route.ts ← billing.expireMonthlyBonusCredits (1×/dia)
+      ├── billing-reconcile/route.ts        ← billing.reconcileSubscriptions (1×/dia)
+      ├── billing-expire-bonus/route.ts     ← billing.expireMonthlyBonusCredits (1×/dia)
+      ├── billing-grant-monthly/route.ts    ← billing.grantPendingMonthlyBonusCredits (1×/dia, drip anual)
       ├── billing-release-reservations/route.ts ← billing.releaseExpiredReservations (a cada 5 min)
-      └── billing-dunning/route.ts      ← billing.retryDunningEmails (a cada 6h, com send fn próprio)
+      └── billing-dunning/route.ts          ← billing.retryDunningEmails (a cada 6h, com send fn próprio)
 
 @informach/billing source
   ├── index.ts                  ← createBillingService factory + BillingService type
   ├── config.ts                 ← BillingServiceConfig
-  ├── errors.ts                 ← BillingError + 9 subclasses
+  ├── errors.ts                 ← BillingError + 11 subclasses
   ├── types.ts                  ← SubjectRef, BillingProvider, CreditOwner, audit types
+  ├── access.ts                 ← PRO_STATUSES + getProSubscription/hasProSubscription (Pro entitlement gate)
   ├── customers.ts              ← getOrCreateCustomer (idempotent + race-safe)
-  ├── checkout.ts               ← createSubscriptionCheckout, createCreditPackCheckout
+  ├── checkout.ts               ← createSubscriptionCheckout (single-sub guard), createCreditPackCheckout (Pro gate)
   ├── portal.ts                 ← createPortalSession
   ├── subscriptions.ts          ← get/list/cancel/update + cancelBillingForSubject (LGPD)
+  ├── plan-changes.ts           ← switchPlan (immediate/scheduled), reactivateSubscription, previewPlanChange
   ├── billing-emails.ts         ← sendBillingEmail (4 categorias billing.*)
-  ├── sweepers.ts               ← reconcile + expire + release + retryDunning
+  ├── sweepers.ts               ← reconcile + expire + release + retryDunning + grantPendingMonthlyBonus
   ├── credits/
   │   ├── balance.ts            ← getBalance (single round-trip)
   │   ├── history.ts            ← getCreditHistory (keyset pagination)
@@ -58,8 +61,8 @@ apps/<app>/src/app/api/
   ├── webhooks/
   │   ├── index.ts              ← verifyStripeSignature + handleStripeEvent (dispatcher)
   │   ├── checkout.ts           ← handleCheckoutSessionCompleted
-  │   ├── subscription.ts       ← handleSubscriptionLifecycle
-  │   ├── invoice.ts            ← handleInvoicePaid + handleInvoicePaymentFailed
+  │   ├── subscription.ts       ← handleSubscriptionLifecycle (priceId-first; aplica pending intent em deleted)
+  │   ├── invoice.ts            ← handleInvoicePaid (cycle-only grant; annual drip anchor) + handleInvoicePaymentFailed
   │   └── payment.ts            ← handlePaymentIntentSucceeded
   └── providers/
       ├── types.ts              ← interface BillingProviderClient
@@ -72,6 +75,9 @@ apps/<app>/src/app/api/
 
 - **`customers`** — mapping `(provider, subjectType, subjectId) → providerCustomerId`. UNIQUE `(provider, subjectType, subjectId)` e `(provider, providerCustomerId)`.
 - **`subscriptions`** — cache local da subscription Stripe (status, periodos, cancel_at_period_end). UNIQUE `(provider, providerSubscriptionId)`. Source of truth = Stripe; reconcile sweeper recupera drift.
+  - `next_credit_grant_at` (timestamptz NULL) — drip mensal de créditos no plano anual; sweeper diário concede bonus quando vence. NULL para mensais (recebem grant via `invoice.paid`) e Free.
+  - `pending_product_id` / `pending_price_id` (text NULL) — intent armazenada por `switchPlan(mode='schedule_at_period_end')`; aplicada quando o webhook `customer.subscription.deleted` chega (downgrade no fim do período).
+  - Índice parcial `subscriptions_next_grant_idx` em `next_credit_grant_at WHERE NOT NULL` — permite varredura O(N candidatos), não O(N total).
 - **`oneTimePayments`** — pagamentos pontuais (compras de credit pack). UNIQUE `(provider, providerPaymentId)`.
 - **`creditLedger`** — append-only, fonte da verdade do saldo. `entryType` enum (purchase/bonus_grant/promo_grant/consumption/refund/expiration/adjustment), `amount` positivo ou negativo conforme tipo. UNIQUE parcial `stripeEventId WHERE NOT NULL` (idempotência fina). Check constraint de sinal.
 - **`creditReservations`** — soft-lock de saldo. Status active/committed/released/expired, `expiresAt`, `pricingId` para snapshot de preço.
@@ -98,21 +104,36 @@ Idempotente: SELECT por `(provider, subject)`; se não existe, chama `provider.c
 
 ### 3.2 Checkout — Stripe Hosted
 
-- **`createSubscriptionCheckout({ subject, productId, successUrl, cancelUrl, trialDays? })`** — valida product `kind='subscription'`, resolve email via `config.resolveSubjectEmail`, faz `getOrCreateCustomer`, chama `stripe.checkout.sessions.create({ mode: "subscription", customer, line_items, subscription_data: { metadata } }, { idempotencyKey })`. Metadata propagada: `subject_type`, `subject_id`, `product_id`.
-- **`createCreditPackCheckout({ subject, productId, successUrl, cancelUrl })`** — valida `kind='credit_pack'` + `creditAmount > 0`. `mode: "payment"` + `payment_intent_data.metadata` com `credit_amount` (string-encoded, payload do webhook).
+- **`createSubscriptionCheckout({ subject, productId, successUrl, cancelUrl, trialDays? })`** — valida product `kind='subscription'`, **rejeita com `AlreadySubscribedError` se já existe sub `active`/`trialing`/`past_due` para o subject** (single-subscription invariant — apps devem rotear o user para `switchPlan` em vez de criar paralela). Resolve email, faz `getOrCreateCustomer`, chama `stripe.checkout.sessions.create({ mode: "subscription", ... })`. Metadata propagada: `subject_type`, `subject_id`, `product_id`.
+- **`createCreditPackCheckout({ subject, productId, successUrl, cancelUrl })`** — valida `kind='credit_pack'` + `creditAmount > 0`. **Pro-only gate**: chama `getProSubscription` antes de qualquer outra coisa; se subject não tem sub `active`/`trialing`, lança `SubscriptionRequiredError("credit packs")`. `mode: "payment"` + `payment_intent_data.metadata` com `credit_amount` (string-encoded, payload do webhook).
 
-`idempotencyKey` formato: `${operation}:${subjectType}:${subjectId}:${productId}:${nonce}` — Stripe TTL 24h.
+`idempotencyKey` formato: `${operation}:${subjectType}:${subjectId}:${productId}:${nonce}`. Quando `nonce` é omitido, o helper deriva `auto:${floor(now/300_000)}` — chave estável por janela de 5min (cobre double-click / refresh sem bloquear retries legítimos da próxima sessão). Stripe TTL 24h.
 
 ### 3.3 Subscriptions
 
 | Método | Descrição |
 |---|---|
-| `getSubscription(subject)` | Primeira sub com status IN (active, trialing, past_due) |
+| `getSubscription(subject)` | Primeira sub com status IN (active, trialing, past_due). **NÃO usar para feature gating** — esse é só o lookup para exibir status na UI ("Pagamento pendente" etc). |
+| `hasProSubscription(subject)` | **Single source of truth para "é Pro agora?"** — `true` apenas quando status ∈ `PRO_STATUSES` (`active` ou `trialing`). Ver §3.11. |
 | `listSubscriptions(subject)` | Todas (qualquer status) |
 | `cancelSubscription({ subscriptionId, atPeriodEnd? })` | Default `atPeriodEnd: true`; false = immediate. UPDATE local otimisticamente, webhook reconcilia. |
-| `updateSubscription({ subscriptionId, newPriceId, prorationBehavior? })` | Stripe.subscriptions.retrieve para pegar item id, depois update. Default `prorationBehavior: "create_prorations"`. |
+| `updateSubscription({ subscriptionId, newPriceId, prorationBehavior? })` | Low-level price swap (raw — `switchPlan` é o caminho preferido). |
 | `createPortalSession({ subject, returnUrl })` | Gera URL do Stripe Billing Portal. Throw `CustomerNotFoundError` se subject sem customer. |
 | `cancelBillingForSubject(subject)` | **LGPD hook**. Cancela TODAS as subs ativas IMMEDIATELY; rows ficam (NF-e/fiscal). Try/catch por sub — falha não aborta loop. Retorna `{ canceled, failed }`. |
+
+#### Plan changes (`plan-changes.ts`)
+
+UX-aware wrappers acima de `updateSubscription`/`cancelSubscription`. Apps usam estes em vez do raw quando o usuário clica "Trocar de plano" / "Reativar".
+
+| Método | Descrição |
+|---|---|
+| `switchPlan({ subscriptionId, newProductId, mode })` | `mode: "immediate"` chama `updateSubscription` com `proration_behavior: "always_invoice"` (cobra agora). `mode: "schedule_at_period_end"` marca `cancel_at_period_end` e grava `pending_product_id`/`pending_price_id` — quando o webhook `subscription.deleted` chega no fim do período, o handler cria a nova sub via `provider.createSubscription`. Retorna `{ subscription, appliedImmediately, paymentActionUrl }`. |
+| `reactivateSubscription({ subscriptionId })` | Stripe `subscriptions.update({ cancel_at_period_end: false })`. UPDATE local clear `cancel_at_period_end` + `pending_product_id`/`pending_price_id`. |
+| `previewPlanChange({ subject, subscriptionId, newProductId })` | Usa `stripe.invoices.createPreview` (Dahlia/Basil — substitui `retrieveUpcoming`). Retorna `{ subtotalCents, prorationCreditCents, amountDueCents, currency, nextChargeAt }` para a UI mostrar "R$180 − R$57 = R$123 agora". |
+
+`switchPlan(immediate).paymentActionUrl`: quando o `updateSubscription` deixa a invoice em `status='open'` (cliente sem default payment method, SCA, cartão recusado), o helper retorna a `hosted_invoice_url` para a UI redirecionar — Stripe cobra silenciosamente quando o cartão funciona; nunca confiar em "success" sem verificar.
+
+Quando `switchPlan(immediate)` muda para um plano anual com `bonusCreditsPerMonth`, o `next_credit_grant_at` é seedado em `now + 30d` (drip mensal arranca 30 dias após o upgrade — não 12 grants imediatos).
 
 ### 3.4 Credits — Balance + History + Grant
 
@@ -166,14 +187,16 @@ Eventos roteados:
 |---|---|---|
 | `checkout.session.completed` (mode=subscription) | `webhooks/checkout.ts` | Loga apenas — sub vem via `customer.subscription.created` |
 | `checkout.session.completed` (mode=payment) | `webhooks/checkout.ts` | Loga — credits granted via `payment_intent.succeeded` |
-| `customer.subscription.created` | `webhooks/subscription.ts` | UPSERT subscription row, audit `billing.subscription_created` |
+| `customer.subscription.created` | `webhooks/subscription.ts` | UPSERT subscription row (productId resolvido via priceId, ver abaixo), audit `billing.subscription_created` |
 | `customer.subscription.updated` | `webhooks/subscription.ts` | UPSERT; se `cancel_at_period_end` set → email `billing.subscription-canceled` |
-| `customer.subscription.deleted` | `webhooks/subscription.ts` | status='canceled', audit + email `billing.subscription-canceled` |
+| `customer.subscription.deleted` | `webhooks/subscription.ts` | status='canceled' + clear `next_credit_grant_at`. Se `pending_product_id` setado, **aplica intent**: chama `provider.createSubscription` para o pending price, persiste a nova sub local; em falha (cartão expirado etc.), grava `metadata.pendingPlanError` e clear pending. Audit + email `billing.subscription-canceled`. |
 | `payment_intent.succeeded` | `webhooks/payment.ts` | Para credit pack: INSERT `oneTimePayments` + `creditLedger purchase`, email `billing.credits-purchased` |
-| `invoice.paid` | `webhooks/invoice.ts` | Para subscription_create → email `billing.payment-success`; subscription_cycle → `grantBonusCredits` (mensal) + email `billing.subscription-renewed` |
+| `invoice.paid` | `webhooks/invoice.ts` | Cycle-only grant: **`subscription_update` é EXPLICITAMENTE excluído** de `isCycle` (mid-cycle changes não são renovação — granting aqui dobraria os créditos do mês). Para mensal: `subscription_create`/`subscription_cycle` → `grantBonusCredits` + emails. Para anual: `subscription_create` → grant + anchor `next_credit_grant_at = now + 30d`; `subscription_cycle` (renovação anual) → só reseta o anchor (não re-grant). |
 | `invoice.payment_failed` | `webhooks/invoice.ts` | status='past_due', metadata.dunning.pending=true. Email enviado pelo sweeper depois |
 
 Outros eventos retornam `reason: "ignored"` sem efeito.
+
+**Resolução de produto via `priceId` (autoritativo)**: Stripe metadata é setado uma vez no checkout e NÃO migra quando `subscriptions.update` swap o price (ex: upgrade mensal→anual). Por isso `webhooks/subscription.ts` e `webhooks/invoice.ts` resolvem o `productId` do catálogo via `stripePriceId.{dev,prod}` primeiro, com fallback para `metadata.product_id` apenas quando o priceId não está no catálogo. Drift entre os dois é logado como warn.
 
 ### 3.7 Sweepers (cron-friendly)
 
@@ -183,6 +206,7 @@ Todos idempotentes, async, retornam contagens. Expostos como métodos do `Billin
 |---|---|---|
 | `reconcileSubscriptions(opts?)` | 1×/dia | Para cada local sub não-terminal: `provider.retrieveSubscription`. Se Stripe null → marca canceled. Se status/period diverge → UPDATE local. Recupera webhook perdido. |
 | `expireMonthlyBonusCredits(opts?)` | 1×/dia | INSERT entries `expiration` negativos para bonus/promo/purchase com `expires_at <= now()` e SEM entry compensatória ainda (anti-join `NOT EXISTS metadata->>'originalEntryId'`). |
+| `grantPendingMonthlyBonusCredits(opts?)` | 1×/dia | **Drip mensal de créditos no plano anual.** Para cada sub `active`/`trialing` com `next_credit_grant_at <= now()` e o anchor não ultrapassa `cancel_at_period_end`/`current_period_end`: chama `grantBonusCredits` com `stripeEventId='drip:<subId>:<YYYY-MM-DD>'` (idempotência por dia) e avança o anchor 30d. Quando o próximo drip cairia depois do fim do período pago, clear o anchor. |
 | `releaseExpiredReservations(opts?)` | 5 min | UPDATE reservations `status='active' AND expires_at <= now()` para `'expired'`. Libera lock soft de saldo. |
 | `retryDunningEmails({ send, maxAttempts?, cooldownHours? })` | 6h | Scan past_due subs, throttle por `metadata.dunning.{attempts, lastSentAt}`, chama `send({...})` (app fornece). Sem `send` = dry-run. |
 
@@ -231,6 +255,31 @@ Payloads seguem [`docs/audit-payload-policy.md`](../../docs/audit-payload-policy
 ### 3.10 LGPD/Account deletion hook
 
 `cancelBillingForSubject(subject)` é chamado pelo `accountDeletion.onBeforeDelete` do auth (configurado nos apps). Cancela TODAS as subs ativas do subject IMMEDIATELY. Rows NÃO deletadas — `subjectId` retido para retenção fiscal/NF-e. PII anonymization é responsabilidade do app (em outras tabelas).
+
+### 3.11 Pro entitlement (`access.ts`) — single source of truth
+
+Toda decisão de "esse subject é Pro agora?" passa por `getProSubscription` / `hasProSubscription` em `src/access.ts`. Existe uma constante única:
+
+```ts
+export const PRO_STATUSES = ["active", "trialing"] as const;
+```
+
+**O que conta como Pro:**
+- `active` — pagamento confirmado. Inclui o caso "cancelado at-period-end": Stripe mantém `status='active'` enquanto `cancel_at_period_end=true` e o período pago não acabou; só vira `canceled` no webhook `customer.subscription.deleted` na virada. Logo, **se o user cancelou mas ainda tem dias pagos, continua Pro até o período expirar — automaticamente coberto**.
+- `trialing` — período concedido explicitamente pelo produto (decisão do time, duração configurável via `trialDays` no checkout).
+
+**O que NÃO conta:**
+- `past_due` — cobrança falhou. Dunning sweeper recupera (volta para `active`) ou desiste (vira `canceled`). Sem acesso enquanto isso.
+- `unpaid`, `incomplete`, `incomplete_expired`, `paused`, `canceled` — todos negativos.
+
+**Para mudar a regra**: editar `PRO_STATUSES` em `access.ts`. Cada feature gate (credit pack, IA, importação por imagem, etc.) já consome esse helper, então uma única linha propaga para todo lugar. Por exemplo, adicionar grace period em past_due viraria `["active", "trialing", "past_due"]`.
+
+**API:**
+- `BillingService.hasProSubscription(subject): Promise<boolean>` — para gates simples em RSC/server actions.
+- `getProSubscription(deps, subject)` (export raw) — quando o caller precisa da row em si (nome do plano, etc.).
+- `PRO_STATUSES` (constante exportada) — caller direto via SQL custom.
+
+**Anti-pattern:** inline `subscription.status === "active"` ou `inArray(status, ["active", "trialing"])` em features. Sempre passar pelo helper, mesmo quando parece trivial — a regra muda; a indireção mantém isso barato.
 
 ---
 
@@ -426,6 +475,18 @@ Server side, simples: `const balance = await billing.getBalance({ type: "user", 
 
 13. **`runtime: "nodejs"` obrigatório no webhook route.** Stripe signature usa Node crypto, falha em Edge runtime.
 
+14. **Pro entitlement = `["active", "trialing"]`, definido uma única vez em `access.ts`.** Trialing entra (concessão explícita do produto); past_due NÃO (dinheiro não entrou). A regra muda só editando `PRO_STATUSES`. Features novas chamam `hasProSubscription` — nunca inline status check.
+
+15. **Drip mensal no plano anual (não 12× upfront).** Anual cobra 1×/ano mas o sweeper diário concede 100 créditos a cada 30d em quem está `active`/`trialing`. A primeira leva entra no `subscription_create` (junto com seed do anchor); as renovações anuais (`subscription_cycle`) só resetam o anchor — não re-grant. `subscription_update` (mid-cycle change) é IGNORADO pelo invoice handler.
+
+16. **`priceId` é fonte da verdade sobre `metadata.product_id`.** Stripe metadata é setado uma vez e não migra em swap de price (`subscriptions.update`). Resolver pelo priceId catálogo evita state divergente após upgrade. Drift é logado.
+
+17. **Single-subscription invariant.** `createSubscriptionCheckout` rejeita com `AlreadySubscribedError` se já existe sub `active`/`trialing`/`past_due` — apps roteiam para `switchPlan`. Evita o caso "double-click cria 2 paid subs paralelas" e mantém o modelo single-sub-per-subject que a UI espera.
+
+18. **Pending plan intent (downgrade scheduling).** `switchPlan(mode='schedule_at_period_end')` grava `pending_product_id`/`pending_price_id` no row local + `cancel_at_period_end=true`. O webhook `subscription.deleted` aplica a intent: cria a nova sub via `provider.createSubscription` reusando o customer + default payment method. Falha (cartão expirado) grava `metadata.pendingPlanError` e clear pending; não retenta automaticamente.
+
+19. **Idempotency key determinístico em janela curta.** Se caller não passa `idempotencyNonce`, o helper deriva `auto:${floor(now/300_000)}` — 5min por janela. Cobre double-click/refresh sem virar lock permanente entre sessões. Stripe TTL idempotency = 24h.
+
 ### 5.2 Sub-paths exportados (`exports` em `package.json`)
 
 | Sub-path | Conteúdo | Quem importa |
@@ -444,7 +505,13 @@ Para a maioria dos call-sites, importar de `@informach/billing` raiz é suficien
 
 `SubjectRef`, `SubjectType`, `CreditOwner` (alias de SubjectRef), `BillingProvider`, `Product` (re-exportado de `@informach/config`), `SubscriptionStatus`, `PaymentStatus`, `LedgerEntryType`, `ReservationStatus`, `CreditBalance`, `ReservationHandle`, `BillingAuditEvent`, `BillingAuditEventType`, `CheckoutResult`, `*CheckoutInput`, `PortalSessionInput`, `BillingService`, `BillingServiceConfig`.
 
-Todos os errors: `BillingError`, `NotImplementedError`, `InvalidProductError`, `WebhookSignatureError`, `InsufficientCreditsError`, `ReservationNotFoundError`, `ReservationExpiredError`, `ReservationAlreadyResolvedError`, `OrganizationsDisabledError`, `CustomerNotFoundError`.
+Plan changes (`./plan-changes`): `PlanChangeMode`, `SwitchPlanInput`, `SwitchPlanResult`, `ReactivateSubscriptionInput`, `PreviewPlanChangeInput`, `PreviewPlanChangeResult`.
+
+Sweepers (`./sweepers`): `ReconcileSubscriptionsResult`, `ExpireMonthlyBonusResult`, `GrantMonthlyBonusResult`, `ReleaseExpiredReservationsResult`, `RetryDunningEmailsResult`, `DunningPayload`, `DunningSendFn`.
+
+Access (`./access`): `PRO_STATUSES` (constante), `getProSubscription`, `hasProSubscription` (funções raw — `BillingService.hasProSubscription` é o caminho preferido).
+
+Todos os errors: `BillingError`, `NotImplementedError`, `InvalidProductError`, `WebhookSignatureError`, `InsufficientCreditsError`, `ReservationNotFoundError`, `ReservationExpiredError`, `ReservationAlreadyResolvedError`, `OrganizationsDisabledError`, `CustomerNotFoundError`, `AlreadySubscribedError`, `SubscriptionRequiredError`.
 
 ### 5.4 Deps relevantes
 
@@ -459,23 +526,29 @@ Todos os errors: `BillingError`, `NotImplementedError`, `InvalidProductError`, `
 
 ## 6. Testes
 
-107 tests em `src/__tests__/` rodando via `pnpm --filter @informach/billing test` (todos com vitest + fakes em vez de Postgres real):
+161 tests em `src/__tests__/` rodando via `pnpm --filter @informach/billing test` (todos com vitest + fakes em vez de Postgres real):
 
 | Arquivo | Cobertura |
 |---|---|
+| `access.test.ts` | `PRO_STATUSES` shape; `getProSubscription` retorna row para active/trialing, null para past_due/unpaid/incomplete/canceled/paused; `hasProSubscription` boolean. |
 | `customers.test.ts` | getOrCreateCustomer: existing, new, race resolution, OrganizationsDisabled |
 | `factory.test.ts` | createBillingService: missing secrets, unknown provider, injected client, webhook delegation |
-| `checkout.test.ts` | sub/credit-pack happy paths, wrong kind, missing product, stripeMode prod |
+| `checkout.test.ts` | sub/credit-pack happy paths, wrong kind, missing product, stripeMode prod, `AlreadySubscribedError` em subscription, **`SubscriptionRequiredError` em credit pack para Free user**. |
 | `subscriptions.test.ts` | get/list, cancel default+immediate, update, cancelBillingForSubject (LGPD partial fail) |
+| `plan-changes.test.ts` | switchPlan immediate (anchor anual seedado, cobrança imediata), schedule_at_period_end (pending_* setado), reactivateSubscription (clear cancel/pending), previewPlanChange (subtotal+credit+amountDue), `paymentActionUrl` quando invoice fica unpaid. |
 | `portal.test.ts` | sucesso, customer not found, OrgsDisabled |
 | `webhooks.test.ts` | dispatcher: dedup, subscription event, ignored event, checkout.session log |
 | `webhooks-payment.test.ts` | credit pack: fresh grant, replay (parcial/total), invalid metadata, customer not found |
 | `webhooks-invoice.test.ts` | invoice.paid: fresh, replay, non-cycle skip, no bonus, missing local; payment_failed |
+| `webhooks-invoice-annual.test.ts` | annual `subscription_create` → grant + anchor; `subscription_cycle` → anchor reset (sem grant); `subscription_update` → short-circuit `non_cycle`; race guard (priceId override sobre stale productId). |
+| `webhooks-subscription-pending.test.ts` | `subscription.deleted` aplica `pending_product_id` (cria nova sub via provider); falha de cartão grava `metadata.pendingPlanError` + clear pending; sem pending não faz nada. |
+| `webhooks-subscription-product-drift.test.ts` | priceId-first resolution: anual com metadata stale (`product_id="cozya_pro_monthly"`) grava productId correto pelo price; fallback para metadata quando priceId desconhecido. |
 | `credits-balance.test.ts` | zero, total/reserved/available, bigint coerce, ISO timestamps |
 | `credits-history.test.ts` | empty, paginated, cursor encode/decode, invalid cursor swallowed |
 | `credits-grant.test.ts` | grantBonus fresh+replay+broken invariant; refund fresh+replay+positive→negative |
 | `credits-reservations.test.ts` | reserve+commit+release+consume; insufficient; reservation expired; TOCTOU |
 | `sweepers.test.ts` | expireMonthlyBonus; releaseExpiredReservations; dunning (send+dry-run+throttle+error swallow) |
+| `sweepers-drip.test.ts` | grantPendingMonthlyBonusCredits: anchor advance 30d, idempotência via stripeEventId, stop quando next drip > cancel_at_period_end, skip non-annual. |
 | `sweepers-reconcile.test.ts` | aligned (no-op); status drift; deleted in Stripe; cancel scheduled; per-row error |
 | `billing-emails.test.ts` | sendBillingEmail: 4 categorias happy + 4 graceful fails + identifier=email default |
 
@@ -517,18 +590,31 @@ Para integração real → Stripe CLI test mode + Playwright nos apps em `mode: 
 
 14. **Mudanças nos audit event types `billing.*`** exigem atualização em `@informach/auth/src/audit.ts` (union estrita) + tabela em `@informach/auth/CLAUDE.md` §3.5 + revisão da política de payload em `docs/audit-payload-policy.md`.
 
+15. **Feature gate Pro? Sempre `hasProSubscription`.** Nunca inline `subscription.status === "active"` ou `inArray(status, [...])` — a regra muda (vide §3.11), e o helper centraliza. Ele já cobre o grace period pós-cancel-at-period-end e exclui past_due automaticamente.
+
+16. **Webhook handler resolvendo `productId`?** Sempre via `priceId` no catálogo (`stripePriceId.{dev,prod}` match), nunca diretamente via `subscription.metadata.product_id`. Stripe metadata fica stale após `subscriptions.update` swap de price. Quando os dois divergem, logar warn `metadata_product_drift`.
+
+17. **Adicionar `bonusCreditsPerMonth` a um plano anual?** Garantir o flow drip: (a) `next_credit_grant_at` é anchored em `subscription_create` (`now + 30d`); (b) `subscription_cycle` (renovação anual) só reseta o anchor — sem grant; (c) `subscription_update` (mid-cycle) é IGNORADO pelo invoice handler. NUNCA grant 12× upfront — isso quebra a expectativa "saldo do mês expira ao fim do mês".
+
+18. **Adicionar nova feature gate Pro-only?** (a) Adicionar checkpoint via `billing.hasProSubscription(subject)` ou `getProSubscription(...)`. (b) Lançar `SubscriptionRequiredError("nome-da-feature")` no backend. (c) Esconder a UI quando não-Pro (RSC com Suspense). (d) Defesa em profundidade: client tratar code de erro com mensagem clara ("Disponível só para assinantes Pro").
+
 ---
 
 ## 8. Próximos passos potenciais (fora do escopo atual)
 
-- **UI pages** `/admin/billing` (agenda) e `/settings/billing` (cozya) — saldo, history paginado, botão "Comprar créditos" / "Assinar" / "Gerenciar plano" → server actions.
+Já entregues recentemente (não estão mais aqui): UI `/settings/billing` no Cozya com plan card + switch dialog + cancel/reactivate + credit packs Pro-only; helpers `switchPlan`/`reactivateSubscription`/`previewPlanChange`; drip mensal anual via sweeper diário; `hasProSubscription` como single source of truth.
+
+Pendências:
+
+- **UI `/admin/billing` no agenda-da-turma** — backend está 100% pronto e o catálogo cozya foi feito; replicar plan card / switch dialog / credit packs com subject = `organization`.
 - **Admin UI para `creditPricing`** — atualizar preços per-feature/per-model sem deploy. Hoje é só seed inicial.
 - **Asaas provider** — adicionar Pix/Boleto via segunda implementação de `BillingProviderClient`.
 - **Métricas/alertas avançados** — o logger básico já duplica `warn`/`error` para Sentry no adapter do app; para métricas, spans ou dashboards, usar `onAudit` como ponto de extensão para Datadog/OTel/Sentry.
 - **Multi-currency** — hoje hardcoded BRL, expandir quando produto pedir.
 - **Usage-based billing** — Stripe metered billing para subscriptions com tier baseado em consumo (alternativa ao credit pack model).
 - **Dashboard de receita/MRR** — view materializada agregando `subscriptions.status` + `oneTimePayments.amount_cents` por dia/mês.
-- **Subscription tiers que liberam features** — hoje `bonusCreditsPerMonth` é o único benefício; expandir para feature flags via `tier` no Product.
+- **Subscription tiers que liberam features** — hoje `bonusCreditsPerMonth` é o único benefício; expandir para feature flags via `tier` no Product. `hasProSubscription` já está pronto para receber `tier?` opcional como segundo parâmetro.
 - **Refunds via UI** — hoje só programático. Admin action que dispara `refundCredits` + Stripe refund correspondente.
+- **Atualizar `subscription.metadata.product_id` no Stripe pós-`switchPlan(immediate)`** — hoje o package usa priceId como autoridade (ver §5.1 #16), mas atualizar metadata via `stripe.subscriptions.update({ metadata })` deixaria o estado externo limpo também. Hygiene, não correção.
 
 Para retomar trabalho de fase, perguntar ao usuário qual fase está autorizada — cada fase é entregável independente. Histórico de fases entregues vive na memory (`billing_architecture.md`).

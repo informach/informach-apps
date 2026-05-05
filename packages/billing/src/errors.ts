@@ -71,3 +71,41 @@ export class CustomerNotFoundError extends BillingError {
     this.name = "CustomerNotFoundError";
   }
 }
+
+/**
+ * Thrown by `createSubscriptionCheckout` when the subject already has an
+ * active-ish subscription (active, trialing, or past_due). Apps should catch
+ * this and route the user to the in-app plan management screen (where they
+ * can switch plans via `switchPlan` instead of creating a new subscription).
+ *
+ * Stripe technically allows multiple subscriptions per customer, but our
+ * domain model is "one subscription per subject" — concurrent subs lead to
+ * double billing and confused state in our local row.
+ */
+export class AlreadySubscribedError extends BillingError {
+  readonly existingSubscriptionId: string;
+  readonly existingProductId: string;
+  constructor(input: { subscriptionId: string; productId: string }) {
+    super(
+      `subject already has an active subscription (id=${input.subscriptionId}, productId=${input.productId})`,
+    );
+    this.name = "AlreadySubscribedError";
+    this.existingSubscriptionId = input.subscriptionId;
+    this.existingProductId = input.productId;
+  }
+}
+
+/**
+ * Thrown when an action requires an active Pro subscription but the subject
+ * doesn't have one. Used by `createCreditPackCheckout` and any future feature
+ * gate that checks `hasProSubscription`. The `feature` field carries a
+ * human-readable label for the UI to surface ("credit packs", etc).
+ */
+export class SubscriptionRequiredError extends BillingError {
+  readonly feature: string;
+  constructor(feature = "this feature") {
+    super(`an active Pro subscription is required to use ${feature}`);
+    this.name = "SubscriptionRequiredError";
+    this.feature = feature;
+  }
+}

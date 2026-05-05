@@ -147,7 +147,7 @@ export const db = drizzle(client, { schema });
 Wrappers de integrações externas atrás de uma interface estável. Apps consomem a interface; troca de provider é problema interno.
 
 - **`auth`**: `createAuth`, helpers server/RSC/proxy/server-actions, RBAC, organizations opt-in, escolha por app de plugin de email (`config.email.{verification, signIn, forgetPassword}` — OTP vs link/magic-link), `logAuditEvent` e `ObservabilityHooks`. Provider atual: Better Auth; apps nunca importam Better Auth diretamente.
-- **`billing`**: `createBillingService`, Checkout/Portal Stripe, subscriptions, credit ledger, reserve/commit/release, webhooks e sweepers. Audit entra por `config.onAudit`, wireado pelo app para `@informach/auth.logAuditEvent`.
+- **`billing`**: `createBillingService`, Checkout/Portal Stripe, subscriptions, plan changes (`switchPlan`/`reactivateSubscription`/`previewPlanChange`), Pro entitlement gate (`hasProSubscription` — single source of truth), credit ledger Pro-only com reserve/commit/release, drip mensal de créditos no plano anual via sweeper, webhooks (priceId-first resolution) e sweepers (reconcile, expire-bonus, grant-monthly, release-reservations, dunning). Audit entra por `config.onAudit`, wireado pelo app para `@informach/auth.logAuditEvent`.
 - **`emails`**: `createEmailService`, `sendEmail`, `renderTemplate`, SendGrid webhook, unsubscribe, sweepers e `onAudit` opcional para eventos `email.*`. Provider atual: SendGrid.
 
 Padrão de "placeholder primeiro": ao criar o package, as funções públicas existem com tipos certos mas lançam `NotImplementedError` ou retornam mock controlado. Ponto de integração pronto, contrato fixado, implementação real entra depois sem mexer nos consumidores.

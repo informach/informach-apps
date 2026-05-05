@@ -50,12 +50,18 @@ Each package exposes its surface via `package.json` `exports` pointing at `src/`
 - Audit is typed through `AuditEventType`; packages emit through app-wired `onAudit` callbacks and persistence failures are reported via `observability.onAuditPersistenceFailure`.
 
 ### Billing — Stripe Dahlia + reserve/commit credits
-- `stripe@^22.1.0` pinned with `apiVersion: '2026-04-22.dahlia'` (literal). Note Basil/Dahlia changes: `current_period_*` lives on `items.data[i]`, `checkout.session.completed` fires *before* the subscription event, `total_count` is removed, monetary math uses `Stripe.Decimal`.
+- `stripe@^22.1.0` pinned with `apiVersion: '2026-04-22.dahlia'` (literal). Note Basil/Dahlia changes: `current_period_*` lives on `items.data[i]`, `checkout.session.completed` fires *before* the subscription event, `total_count` is removed, monetary math uses `Stripe.Decimal`. `invoices.retrieveUpcoming` was replaced by `invoices.createPreview` (used by `previewPlanChange`).
 - Two models in one API: subscriptions + credit packs for AI usage.
+- **Pro entitlement** lives in `packages/billing/src/access.ts`: `PRO_STATUSES = ["active", "trialing"]` + `hasProSubscription(subject)`. Single source of truth for every feature gate — never inline `status === "active"`. `past_due` is NOT Pro (card declined).
+- **Plan changes** (`switchPlan`/`reactivateSubscription`/`previewPlanChange`): immediate upgrades charge proration via `always_invoice`; downgrades schedule via `pending_product_id`/`pending_price_id` columns, applied by the `subscription.deleted` webhook handler. `paymentActionUrl` returned when invoice ends up unpaid (no default PM, SCA, decline).
 - **Reserve → commit/release** with a Postgres advisory lock per owner. Concurrent LLM calls must never debit balance directly.
+- **Credit packs are Pro-only** — `createCreditPackCheckout` rejects with `SubscriptionRequiredError` when subject lacks active Pro. UI hides the section for Free users.
+- **Single-subscription invariant** — `createSubscriptionCheckout` rejects with `AlreadySubscribedError` if the subject already has any active-ish row (active/trialing/past_due). Apps should route to `switchPlan`.
+- **Annual plans drip credits monthly** — annual `invoice.paid` does NOT grant 12× upfront; it seeds `next_credit_grant_at = now + 30d`, and the daily sweeper `grantPendingMonthlyBonusCredits` releases 100 every 30d. `subscription_update` invoices are excluded from cycle-grant logic.
+- **`priceId` is authoritative over `metadata.product_id`** in webhooks — Stripe metadata doesn't migrate when `subscriptions.update` swaps prices, so the package resolves products via `stripePriceId.{dev,prod}` first.
 - Owner subject is `org` for agenda-da-turma, `user` for cozya.
-- Idempotence in 3 layers: `webhookEvents` UNIQUE, table-level UNIQUE, `creditLedger.stripeEventId` UNIQUE.
-- Sweepers: reconcile (1d), expire-bonus (1d), release-reservations (5min), dunning-retry (6h).
+- Idempotence in 3 layers: `webhookEvents` UNIQUE, table-level UNIQUE, `creditLedger.stripeEventId` UNIQUE. Idempotency keys for checkouts default to a 5-minute window when no nonce is supplied.
+- Sweepers: reconcile (1d), expire-bonus (1d), grant-monthly (1d, annual drip), release-reservations (5min), dunning-retry (6h).
 
 ### Emails — idempotent SendGrid pipeline
 - React Email + `next-intl`. Idempotency keyed by `(category, messageKey)` UNIQUE; atomic claim via `UPDATE … WHERE status IN ('pending','failed')`.

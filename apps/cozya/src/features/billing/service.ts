@@ -52,6 +52,10 @@ export function expireBillingMonthlyBonusCredits() {
   return billing.expireMonthlyBonusCredits();
 }
 
+export function grantPendingBillingMonthlyBonusCredits() {
+  return billing.grantPendingMonthlyBonusCredits();
+}
+
 export function releaseBillingExpiredReservations() {
   return billing.releaseExpiredReservations();
 }

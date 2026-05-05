@@ -159,6 +159,7 @@ async function dispatchEvent(deps: StripeWebhookDeps, event: ParsedWebhookEvent)
   const subscriptionDeps = {
     db: deps.db,
     provider: deps.provider,
+    providerClient: deps.providerClient,
     logger: deps.logger,
     onAudit: deps.onAudit,
     emails: deps.emails,

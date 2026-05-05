@@ -1,4 +1,5 @@
 import type { Subscription as SubscriptionRow } from "@informach/db/schema";
+import { hasProSubscription } from "./access";
 import { createCreditPackCheckout, createSubscriptionCheckout } from "./checkout";
 import type { BillingServiceConfig } from "./config";
 import {
@@ -29,6 +30,16 @@ import {
   getOrCreateCustomer,
 } from "./customers";
 import { BillingError } from "./errors";
+import {
+  type PreviewPlanChangeInput,
+  type PreviewPlanChangeResult,
+  previewPlanChange,
+  type ReactivateSubscriptionInput,
+  reactivateSubscription,
+  type SwitchPlanInput,
+  type SwitchPlanResult,
+  switchPlan,
+} from "./plan-changes";
 import { createPortalSession } from "./portal";
 import { createStripeProvider } from "./providers/stripe";
 import type { BillingProviderClient } from "./providers/types";
@@ -45,6 +56,8 @@ import {
   type DunningSendFn,
   type ExpireMonthlyBonusResult,
   expireMonthlyBonusCredits,
+  type GrantMonthlyBonusResult,
+  grantPendingMonthlyBonusCredits,
   type ReconcileSubscriptionsResult,
   type ReleaseExpiredReservationsResult,
   type RetryDunningEmailsResult,
@@ -68,6 +81,7 @@ import {
   type WebhookHandlerResult,
 } from "./webhooks";
 
+export { getProSubscription, hasProSubscription, PRO_STATUSES } from "./access";
 export type { BillingServiceConfig } from "./config";
 export type {
   CommitReservationInput,
@@ -88,6 +102,7 @@ export type {
   GetOrCreateCustomerResult,
 } from "./customers";
 export {
+  AlreadySubscribedError,
   BillingError,
   CustomerNotFoundError,
   InsufficientCreditsError,
@@ -97,15 +112,25 @@ export {
   ReservationAlreadyResolvedError,
   ReservationExpiredError,
   ReservationNotFoundError,
+  SubscriptionRequiredError,
   WebhookSignatureError,
 } from "./errors";
 export type { Logger } from "./logger";
+export type {
+  PlanChangeMode,
+  PreviewPlanChangeInput,
+  PreviewPlanChangeResult,
+  ReactivateSubscriptionInput,
+  SwitchPlanInput,
+  SwitchPlanResult,
+} from "./plan-changes";
 export type { BillingProviderClient } from "./providers/types";
 export type { CancelSubscriptionInput, UpdateSubscriptionInput } from "./subscriptions";
 export type {
   DunningPayload,
   DunningSendFn,
   ExpireMonthlyBonusResult,
+  GrantMonthlyBonusResult,
   ReconcileSubscriptionsResult,
   ReleaseExpiredReservationsResult,
   RetryDunningEmailsResult,
@@ -207,9 +232,17 @@ export type BillingService = {
   handleStripeEvent(event: ParsedWebhookEvent): Promise<WebhookHandlerResult>;
   /**
    * Returns the first active-ish (active|trialing|past_due) subscription row
-   * for the subject, or null if none.
+   * for the subject, or null if none. Used for UI display (status badge,
+   * "Pagamento pendente" label, etc) — NOT for feature gating.
    */
   getSubscription(subject: SubjectRef): Promise<SubscriptionRow | null>;
+  /**
+   * Single source of truth for "is this subject Pro right now?" — `true`
+   * only when status ∈ PRO_STATUSES (`active` or `trialing`). Use this for
+   * EVERY feature gate (credit pack purchase, AI feature unlock, etc.) so
+   * the rule lives in one place (`access.ts`).
+   */
+  hasProSubscription(subject: SubjectRef): Promise<boolean>;
   /** All subscription rows (any status) for the subject. */
   listSubscriptions(subject: SubjectRef): Promise<SubscriptionRow[]>;
   /**
@@ -223,6 +256,20 @@ export type BillingService = {
    * "create_prorations"` (Stripe default).
    */
   updateSubscription(input: UpdateSubscriptionInput): Promise<SubscriptionRow>;
+  /**
+   * Switch the subscription's plan, immediately (with proration invoice) or
+   * scheduled at the period end (downgrade flow).
+   */
+  switchPlan(input: SwitchPlanInput): Promise<SwitchPlanResult>;
+  /**
+   * Clears `cancel_at_period_end` so the subscription continues renewing.
+   */
+  reactivateSubscription(input: ReactivateSubscriptionInput): Promise<SubscriptionRow>;
+  /**
+   * Returns a Stripe invoice preview for the proration that would result from
+   * switching to a new plan. Used by UI to show "you'll be charged X now".
+   */
+  previewPlanChange(input: PreviewPlanChangeInput): Promise<PreviewPlanChangeResult>;
   /**
    * Generates a Stripe Billing Portal session URL for the subject.
    */
@@ -239,6 +286,14 @@ export type BillingService = {
     now?: Date;
     batchSize?: number;
   }): Promise<ExpireMonthlyBonusResult>;
+  /**
+   * Cron sweeper: drips monthly bonus credits to annual subscriptions whose
+   * `next_credit_grant_at` has arrived. Idempotent via synthetic event id.
+   */
+  grantPendingMonthlyBonusCredits(opts?: {
+    now?: Date;
+    batchSize?: number;
+  }): Promise<GrantMonthlyBonusResult>;
   /** Cron sweeper: free reservation rows whose `expiresAt` passed. */
   releaseExpiredReservations(opts?: {
     now?: Date;
@@ -331,6 +386,17 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
     onAudit: config.onAudit,
   };
 
+  const planChangesDeps = {
+    db: config.db,
+    provider: config.provider,
+    providerClient,
+    organizationsEnabled: config.organizationsEnabled,
+    products: config.products,
+    stripeMode: config.stripeMode,
+    logger: config.logger,
+    onAudit: config.onAudit,
+  };
+
   return {
     getOrCreateCustomer(input) {
       return getOrCreateCustomer(
@@ -383,6 +449,9 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
     getSubscription(subject) {
       return getSubscription(subscriptionsDeps, subject);
     },
+    hasProSubscription(subject) {
+      return hasProSubscription({ db: config.db, provider: config.provider }, subject);
+    },
     listSubscriptions(subject) {
       return listSubscriptions(subscriptionsDeps, subject);
     },
@@ -391,6 +460,15 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
     },
     updateSubscription(input) {
       return updateSubscription(subscriptionsDeps, input);
+    },
+    switchPlan(input) {
+      return switchPlan(planChangesDeps, input);
+    },
+    reactivateSubscription(input) {
+      return reactivateSubscription(planChangesDeps, input);
+    },
+    previewPlanChange(input) {
+      return previewPlanChange(planChangesDeps, input);
     },
     createPortalSession(input) {
       return createPortalSession(
@@ -420,6 +498,16 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
       return expireMonthlyBonusCredits({
         db: config.db,
         logger: config.logger,
+        now: opts?.now,
+        batchSize: opts?.batchSize,
+      });
+    },
+    grantPendingMonthlyBonusCredits(opts) {
+      return grantPendingMonthlyBonusCredits({
+        db: config.db,
+        products: config.products,
+        logger: config.logger,
+        onAudit: config.onAudit,
         now: opts?.now,
         batchSize: opts?.batchSize,
       });

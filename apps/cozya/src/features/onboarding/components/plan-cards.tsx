@@ -54,6 +54,13 @@ export function PlanCards({ initialCycle = "monthly" }: PlanCardsProps) {
           });
           return;
         }
+        if (result.error.code === "ALREADY_SUBSCRIBED") {
+          toast("Você já tem o Pro ativo.", {
+            description: "Indo para a tela de plano para você gerenciar a assinatura.",
+          });
+          router.push("/settings/billing");
+          return;
+        }
         if (result.error.code === "UNAUTHORIZED") {
           router.push("/login");
           return;
@@ -125,10 +132,10 @@ export function PlanCards({ initialCycle = "monthly" }: PlanCardsProps) {
           </CardContent>
         </Card>
 
-        <Card className="group relative flex flex-col overflow-hidden border-2 border-primary/40 bg-card shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-xl">
+        <Card className="group relative flex flex-col border-2 border-primary/40 bg-card shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-xl">
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent"
+            className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent"
           />
           <Badge className="absolute -top-3 left-6 gap-1">
             <Sparkles className="size-3" aria-hidden />

@@ -4,8 +4,14 @@ import {
   type Product,
   type StripeMode,
 } from "@informach/config";
+import {
+  customers as customersTable,
+  subscriptions as subscriptionsTable,
+} from "@informach/db/schema";
+import { and, eq, inArray } from "drizzle-orm";
+import { getProSubscription } from "./access";
 import { getOrCreateCustomer } from "./customers";
-import { InvalidProductError } from "./errors";
+import { AlreadySubscribedError, InvalidProductError, SubscriptionRequiredError } from "./errors";
 import { type Logger, safeLog } from "./logger";
 import type { BillingProviderClient } from "./providers";
 import type {
@@ -44,6 +50,25 @@ export async function createSubscriptionCheckout(
       input.productId,
       `expected kind='subscription', got '${product.kind}'`,
     );
+  }
+
+  // Single-subscription invariant: refuse to start a checkout when the subject
+  // already has an active-ish row. Apps should route the user to the plan
+  // management screen (switchPlan) instead of creating a parallel sub. Without
+  // this guard, a stray double-click on "Subscribe" creates two paid subs.
+  const existing = await findActiveSubscriptionForSubject(deps, input.subject);
+  if (existing) {
+    safeLog(deps.logger, "warn", "billing.checkout.subscription.already_subscribed", {
+      subjectType: input.subject.type,
+      subjectId: input.subject.id,
+      existingSubscriptionId: existing.id,
+      existingProductId: existing.productId,
+      attemptedProductId: input.productId,
+    });
+    throw new AlreadySubscribedError({
+      subscriptionId: existing.id,
+      productId: existing.productId,
+    });
   }
 
   const email = await deps.resolveSubjectEmail(input.subject);
@@ -118,6 +143,21 @@ export async function createCreditPackCheckout(
     throw new InvalidProductError(input.productId, "credit_pack must define creditAmount > 0");
   }
 
+  // Pro-only entitlement gate. Credit packs are top-ups for users who already
+  // have an active Pro plan and are running low on monthly bonus credits —
+  // there's no point letting a Free user buy them, since the AI features that
+  // consume credits are themselves gated behind Pro. The single source of
+  // truth is `PRO_STATUSES` in `./access.ts`.
+  const proSub = await getProSubscription({ db: deps.db, provider: deps.provider }, input.subject);
+  if (!proSub) {
+    safeLog(deps.logger, "warn", "billing.checkout.credit_pack.no_pro_sub", {
+      subjectType: input.subject.type,
+      subjectId: input.subject.id,
+      productId: input.productId,
+    });
+    throw new SubscriptionRequiredError("credit packs");
+  }
+
   const email = await deps.resolveSubjectEmail(input.subject);
   const customer = await getOrCreateCustomer(
     {
@@ -187,6 +227,33 @@ function buildIdempotencyKey(input: {
   productId: string;
   nonce?: string;
 }): string {
-  const nonce = input.nonce ?? crypto.randomUUID();
+  // When no caller-supplied nonce is provided, derive a deterministic 5-minute
+  // window key. Stripe's idempotency window is 24h; this short window catches
+  // double-click / page-refresh duplicates without permanently locking out a
+  // legitimate retry from the next session.
+  const nonce = input.nonce ?? `auto:${Math.floor(Date.now() / 300_000)}`;
   return `${input.operation}:${input.subject.type}:${input.subject.id}:${input.productId}:${nonce}`;
+}
+
+async function findActiveSubscriptionForSubject(
+  deps: Pick<CheckoutDeps, "db" | "provider">,
+  subject: SubjectRef,
+): Promise<{ id: string; productId: string } | null> {
+  const rows = await deps.db
+    .select({
+      id: subscriptionsTable.id,
+      productId: subscriptionsTable.productId,
+    })
+    .from(subscriptionsTable)
+    .innerJoin(customersTable, eq(subscriptionsTable.customerId, customersTable.id))
+    .where(
+      and(
+        eq(customersTable.provider, deps.provider),
+        eq(customersTable.subjectType, subject.type),
+        eq(customersTable.subjectId, subject.id),
+        inArray(subscriptionsTable.status, ["active", "trialing", "past_due"]),
+      ),
+    )
+    .limit(1);
+  return rows[0] ?? null;
 }

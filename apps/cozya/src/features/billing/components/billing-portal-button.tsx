@@ -2,11 +2,19 @@
 
 import { Button } from "@informach/ui/components/button";
 import { toast } from "@informach/ui/components/sonner";
-import { ExternalLink, Loader2 } from "lucide-react";
+import { CreditCard, Loader2 } from "lucide-react";
 import { useTransition } from "react";
 import { createBillingPortalSessionAction } from "../actions";
 
-export function BillingPortalButton() {
+type Props = {
+  label?: string;
+  variant?: "default" | "outline" | "secondary" | "ghost";
+};
+
+export function BillingPortalButton({
+  label = "Atualizar cartão / faturas",
+  variant = "outline",
+}: Props = {}) {
   const [pending, startTransition] = useTransition();
 
   const handleClick = () => {
@@ -29,13 +37,13 @@ export function BillingPortalButton() {
   };
 
   return (
-    <Button type="button" onClick={handleClick} disabled={pending}>
+    <Button type="button" onClick={handleClick} disabled={pending} variant={variant}>
       {pending ? (
         <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
       ) : (
-        <ExternalLink className="mr-2 size-4" aria-hidden />
+        <CreditCard className="mr-2 size-4" aria-hidden />
       )}
-      Gerenciar no Stripe
+      {label}
     </Button>
   );
 }
