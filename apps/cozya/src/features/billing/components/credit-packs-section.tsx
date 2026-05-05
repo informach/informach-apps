@@ -67,21 +67,22 @@ function PackCard({ pack }: { pack: Product }) {
   };
 
   const credits = pack.creditAmount ?? 0;
+  const priceLabel = pack.listPrice ? formatPrice(pack.listPrice) : null;
   const isLoading = pending && activeId === pack.id;
 
   return (
     <Card className="border-border/60">
+      {/* Header carries the pack identity (e.g. "20 créditos"). Body focuses
+          on the single figure the user needs to decide: total price. Button
+          stays a plain CTA — the price is right above it. */}
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{pack.name}</CardTitle>
         <Sparkles className="size-4 text-muted-foreground" aria-hidden />
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="text-2xl font-semibold tabular-nums tracking-tight">
-          +{new Intl.NumberFormat("pt-BR").format(credits)} créditos
+        <div className="text-3xl font-semibold tabular-nums tracking-tight">
+          {priceLabel ?? `+${new Intl.NumberFormat("pt-BR").format(credits)} créditos`}
         </div>
-        {pack.description ? (
-          <p className="text-xs text-muted-foreground">{pack.description}</p>
-        ) : null}
         <Button type="button" size="sm" onClick={buy} disabled={pending} className="w-full">
           {isLoading ? (
             <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
@@ -93,4 +94,11 @@ function PackCard({ pack }: { pack: Product }) {
       </CardContent>
     </Card>
   );
+}
+
+function formatPrice(price: NonNullable<Product["listPrice"]>): string {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: price.currency,
+  }).format(price.amountCents / 100);
 }

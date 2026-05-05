@@ -2,11 +2,12 @@ import { findProduct, isStripePriceIdConfigured, PRODUCTS } from "@informach/con
 import { Button } from "@informach/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@informach/ui/components/card";
 import { Skeleton } from "@informach/ui/components/skeleton";
-import { ArrowLeft, Sparkles, WalletCards } from "lucide-react";
+import { ArrowLeft, WalletCards } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { BillingFlash } from "@/features/billing/components/billing-flash";
 import { BillingPortalButton } from "@/features/billing/components/billing-portal-button";
+import { CreditBalanceCard } from "@/features/billing/components/credit-balance-card";
 import { CreditPacksSection } from "@/features/billing/components/credit-packs-section";
 import { PlanCard } from "@/features/billing/components/plan-card";
 import { ReactivateBanner } from "@/features/billing/components/reactivate-banner";
@@ -57,7 +58,7 @@ export default async function BillingSettingsPage() {
           <PlanCardSlot subject={subject} />
         </Suspense>
         <Suspense fallback={<BalanceCardSkeleton />}>
-          <BalanceCard subject={subject} />
+          <BalanceCardSlot subject={subject} />
         </Suspense>
         <Suspense fallback={<ExpiringCardSkeleton />}>
           <ExpiringCard subject={subject} />
@@ -120,25 +121,22 @@ async function PlanCardSlot({ subject }: SubjectArg) {
   );
 }
 
-async function BalanceCard({ subject }: SubjectArg) {
-  const balance = await billing.getBalance(subject);
+async function BalanceCardSlot({ subject }: SubjectArg) {
+  // Parallel fetch: balance is the source of truth for credit accounting,
+  // subscription provides the monthly cap (denominator for the progress bar).
+  const [balance, subscription] = await Promise.all([
+    billing.getBalance(subject),
+    billing.getSubscription(subject),
+  ]);
+  const product = subscription ? findProduct(subscription.productId) : undefined;
+  const monthlyCap = product?.bonusCreditsPerMonth ?? 0;
   return (
-    <Card className="border-border/60">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          Créditos disponíveis
-        </CardTitle>
-        <Sparkles className="size-4 text-muted-foreground" aria-hidden />
-      </CardHeader>
-      <CardContent className="space-y-2">
-        <div className="text-3xl font-semibold tabular-nums tracking-tight">
-          {formatNumber(balance.available)}
-        </div>
-        <p className="text-xs text-muted-foreground">
-          {formatNumber(balance.reserved)} reservados de {formatNumber(balance.total)} totais.
-        </p>
-      </CardContent>
-    </Card>
+    <CreditBalanceCard
+      available={balance.available}
+      total={balance.total}
+      reserved={balance.reserved}
+      monthlyCap={monthlyCap}
+    />
   );
 }
 

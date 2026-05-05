@@ -25,7 +25,8 @@ export type EmailNamespace =
   | "paymentFailed"
   | "subscriptionRenewed"
   | "subscriptionCanceled"
-  | "creditsPurchased";
+  | "creditsPurchased"
+  | "billingCreditsWarning";
 
 export function getTranslator(namespace: EmailNamespace, locale: Locale = DEFAULT_LOCALE) {
   const messages = MESSAGES[locale] ?? MESSAGES[DEFAULT_LOCALE];

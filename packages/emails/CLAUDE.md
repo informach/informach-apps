@@ -125,12 +125,13 @@ Mapeamento `EmailCategory → componente React Email`:
 | `billing.subscription-renewed` | `SubscriptionRenewedEmail` | `appName, productName, nextBillingDate, manageBillingUrl` |
 | `billing.subscription-canceled` | `SubscriptionCanceledEmail` | `appName, productName, accessUntil, reactivateUrl` |
 | `billing.credits-purchased` | `CreditsPurchasedEmail` | `appName, creditAmount, balanceAfter, dashboardUrl` |
+| `billing.credits-warning` | `BillingCreditsWarningEmail` | `appName, remaining, total, threshold (50\|80\|100), ctaUrl` |
 
 Todos aceitam `unsubscribeUrl?`, `unsubscribeMailto?`, `preheader?` e `locale?` (default `"pt-BR"`).
 
 Retorna `{ html: string; text: string; subject: string }`. Internamente usa `render()` e `render(..., { plainText: true })` do `@react-email/render`.
 
-**Categorias `billing.*`** são consumidas por `@informach/billing` (4 via webhook handlers — `payment-success` / `subscription-renewed` / `subscription-canceled` / `credits-purchased`) e pelo dunning sweeper das apps (`payment-failed`). Strings PT-BR vivem em `messages/pt-BR.json` sob namespaces `paymentSuccess`/`paymentFailed`/`subscriptionRenewed`/`subscriptionCanceled`/`creditsPurchased`. Ver `@informach/billing/CLAUDE.md` §3.8 para o ciclo completo.
+**Categorias `billing.*`** são consumidas por `@informach/billing` (4 via webhook handlers — `payment-success` / `subscription-renewed` / `subscription-canceled` / `credits-purchased`) e pelo dunning sweeper das apps (`payment-failed`). `billing.credits-warning` é disparada por trigger app-side (sweeper diário ou pós-`commitReservation`) para notificar 50%/80%/100% do cap mensal — disparo é responsabilidade do app, package só fornece o template. Strings PT-BR vivem em `messages/pt-BR.json` sob namespaces `paymentSuccess`/`paymentFailed`/`subscriptionRenewed`/`subscriptionCanceled`/`creditsPurchased`/`billingCreditsWarning`. Ver `@informach/billing/CLAUDE.md` §3.8 para o ciclo completo.
 
 > **`EmailCategory` está declarado em DOIS lugares:** (a) como Zod enum em `schemas.ts:EMAIL_CATEGORIES`, usado por `dispatchEmail` validation; (b) como string union em `templates/index.ts`, usado por `renderTemplate`. Adicionar nova categoria exige atualizar AMBOS — TypeScript pega o segundo, mas o primeiro é runtime check do `dispatch`. Ver §7 regra 3.
 

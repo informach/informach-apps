@@ -10,13 +10,15 @@
     "./checkout": "./src/checkout.ts",
     "./credits": "./src/credits/index.ts",
     "./portal": "./src/portal.ts",
+    "./seeds": "./src/seeds/index.ts",
     "./subscriptions": "./src/subscriptions.ts",
     "./sweepers": "./src/sweepers.ts",
     "./webhooks": "./src/webhooks/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
     "@informach/auth": "workspace:*",
@@ -28,6 +30,9 @@
   },
   "devDependencies": {
     "@types/node": "^20.17.10",
+    "dotenv": "^16.4.7",
+    "postgres": "^3.4.5",
+    "tsx": "^4.19.2",
     "typescript": "^5.6.3",
     "vitest": "^2.1.9",
     "zod": "^3.24.1"

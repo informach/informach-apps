@@ -1,6 +1,10 @@
 import { render } from "@react-email/render";
 import { createElement, type ReactElement } from "react";
 import { AccountDeletionEmail, type AccountDeletionEmailProps } from "./accountDeletion";
+import {
+  BillingCreditsWarningEmail,
+  type BillingCreditsWarningEmailProps,
+} from "./billingCreditsWarning";
 import { CreditsPurchasedEmail, type CreditsPurchasedEmailProps } from "./creditsPurchased";
 import { ForgetPasswordEmailOtp, type ForgetPasswordEmailOtpProps } from "./forgetPasswordEmailOtp";
 import { DEFAULT_LOCALE, getTranslator, type Locale } from "./i18n";
@@ -22,6 +26,10 @@ import { VerificationEmail, type VerificationEmailProps } from "./verification";
 import { VerifyEmailOtp, type VerifyEmailOtpProps } from "./verifyEmailOtp";
 
 export { AccountDeletionEmail } from "./accountDeletion";
+export {
+  BillingCreditsWarningEmail,
+  type CreditsWarningThreshold,
+} from "./billingCreditsWarning";
 export { CreditsPurchasedEmail } from "./creditsPurchased";
 export { EmailLayout } from "./EmailLayout";
 export { ForgetPasswordEmailOtp } from "./forgetPasswordEmailOtp";
@@ -42,6 +50,7 @@ export { VerificationEmail } from "./verification";
 export { VerifyEmailOtp } from "./verifyEmailOtp";
 export type {
   AccountDeletionEmailProps,
+  BillingCreditsWarningEmailProps,
   CreditsPurchasedEmailProps,
   ForgetPasswordEmailOtpProps,
   InvitationEmailProps,
@@ -69,7 +78,8 @@ export type EmailCategory =
   | "billing.payment-failed"
   | "billing.subscription-renewed"
   | "billing.subscription-canceled"
-  | "billing.credits-purchased";
+  | "billing.credits-purchased"
+  | "billing.credits-warning";
 
 export type RenderTemplatePropsByCategory = {
   "auth.verify-email": VerificationEmailProps;
@@ -85,6 +95,7 @@ export type RenderTemplatePropsByCategory = {
   "billing.subscription-renewed": SubscriptionRenewedEmailProps;
   "billing.subscription-canceled": SubscriptionCanceledEmailProps;
   "billing.credits-purchased": CreditsPurchasedEmailProps;
+  "billing.credits-warning": BillingCreditsWarningEmailProps;
 };
 
 export type RenderTemplateResult = {
@@ -111,7 +122,8 @@ type SubjectNamespace =
   | "paymentFailed"
   | "subscriptionRenewed"
   | "subscriptionCanceled"
-  | "creditsPurchased";
+  | "creditsPurchased"
+  | "billingCreditsWarning";
 
 type CategoryEntry<Category extends EmailCategory> = {
   component: (props: RenderTemplatePropsByCategory[Category]) => ReactElement;
@@ -189,6 +201,15 @@ const CATEGORY_REGISTRY: {
     component: CreditsPurchasedEmail,
     subjectNamespace: "creditsPurchased",
     subjectValues: ({ appName }) => ({ appName }),
+  },
+  "billing.credits-warning": {
+    component: BillingCreditsWarningEmail,
+    subjectNamespace: "billingCreditsWarning",
+    subjectValues: ({ appName, remaining, total }) => ({
+      appName,
+      remaining: String(remaining),
+      total: String(total),
+    }),
   },
 };
 

@@ -32,7 +32,8 @@ export type EmailCategory =
   | "billing.payment-failed"
   | "billing.subscription-renewed"
   | "billing.subscription-canceled"
-  | "billing.credits-purchased";
+  | "billing.credits-purchased"
+  | "billing.credits-warning";
 
 export type EmailAddress = string;
 

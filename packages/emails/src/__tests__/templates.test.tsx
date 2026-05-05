@@ -2,6 +2,7 @@ import { render } from "@react-email/render";
 import { describe, expect, it } from "vitest";
 import { renderTemplate } from "../templates";
 import { AccountDeletionEmail } from "../templates/accountDeletion";
+import { BillingCreditsWarningEmail } from "../templates/billingCreditsWarning";
 import { CreditsPurchasedEmail } from "../templates/creditsPurchased";
 import { ForgetPasswordEmailOtp } from "../templates/forgetPasswordEmailOtp";
 import { InvitationEmail } from "../templates/invitation";
@@ -196,6 +197,50 @@ describe("renderTemplate", () => {
     expect(result.html).toContain("5.000");
     expect(result.html).toContain("12.500");
   });
+
+  it("returns html, text and subject for billing.credits-warning at 50%", async () => {
+    const result = await renderTemplate("billing.credits-warning", {
+      appName: "Test App",
+      remaining: 15,
+      total: 30,
+      threshold: 50,
+      ctaUrl: "https://app.example.com/settings/billing",
+      unsubscribeUrl: baseProps.unsubscribeUrl,
+      unsubscribeMailto: baseProps.unsubscribeMailto,
+    });
+    expect(result.subject).toBe("Test App — 15 de 30 créditos restantes");
+    expect(result.html).toContain("Metade dos créditos do mês usados");
+    expect(result.html).toContain("Comprar créditos extras");
+  });
+
+  it("returns html, text and subject for billing.credits-warning at 80%", async () => {
+    const result = await renderTemplate("billing.credits-warning", {
+      appName: "Test App",
+      remaining: 6,
+      total: 30,
+      threshold: 80,
+      ctaUrl: "https://app.example.com/settings/billing",
+      unsubscribeUrl: baseProps.unsubscribeUrl,
+      unsubscribeMailto: baseProps.unsubscribeMailto,
+    });
+    expect(result.html).toContain("Seus créditos estão acabando");
+    expect(result.html).toContain("80%");
+  });
+
+  it("returns html, text and subject for billing.credits-warning at 100%", async () => {
+    const result = await renderTemplate("billing.credits-warning", {
+      appName: "Test App",
+      remaining: 0,
+      total: 30,
+      threshold: 100,
+      ctaUrl: "https://app.example.com/settings/billing",
+      unsubscribeUrl: baseProps.unsubscribeUrl,
+      unsubscribeMailto: baseProps.unsubscribeMailto,
+    });
+    expect(result.html).toContain("Seus créditos do mês acabaram");
+    // Empty-state CTA differs from 50/80%
+    expect(result.html).toContain("Comprar créditos agora");
+  });
 });
 
 describe("template snapshots", () => {
@@ -347,6 +392,21 @@ describe("template snapshots", () => {
         creditAmount={5000}
         balanceAfter={12500}
         dashboardUrl="https://app.example.com/dashboard"
+        unsubscribeUrl={baseProps.unsubscribeUrl}
+        unsubscribeMailto={baseProps.unsubscribeMailto}
+      />,
+    );
+    expect(html).toMatchSnapshot();
+  });
+
+  it("BillingCreditsWarningEmail HTML matches snapshot", async () => {
+    const html = await render(
+      <BillingCreditsWarningEmail
+        appName="Test App"
+        remaining={6}
+        total={30}
+        threshold={80}
+        ctaUrl="https://app.example.com/settings/billing"
         unsubscribeUrl={baseProps.unsubscribeUrl}
         unsubscribeMailto={baseProps.unsubscribeMailto}
       />,

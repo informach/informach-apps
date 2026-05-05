@@ -36,6 +36,8 @@ Use email bruto apenas nos eventos de auth em que a identidade da conta é o pr�
 
 Eventos de billing devem registrar o ator quando a ação veio de usuário autenticado e usar payloads transacionais. `billing.checkout_started` deve incluir `checkoutSessionId`, `productId`, `subjectType`, `subjectId` e `mode`; compras de créditos podem incluir `creditAmount`. Motivos de cancelamento devem vir de enum controlado, não de texto livre.
 
+`billing.credits_warning_sent` (notificações 50%/80%/100% do cap mensal): payload deve conter `subjectType`, `subjectId`, `threshold` (50|80|100), `remaining`, `total`, `periodStart` (ISO date) e `messageKey` para correlação com `email_deliveries`. Não gravar email bruto — usar `emailHash`/`emailDomain` se necessário (mesma regra de `email.*`).
+
 ## Observabilidade
 
 - Sentry/APM deve receber `payloadKeys`, `eventType`, `actorId` e erro sanitizado, não o payload completo.

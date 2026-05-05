@@ -26,7 +26,8 @@
     "db:generate": "pnpm --filter @informach/db db:generate",
     "db:migrate": "pnpm --filter @informach/db db:migrate",
     "db:studio": "pnpm --filter @informach/db db:studio",
-    "db:push": "pnpm --filter @informach/db db:push"
+    "db:push": "pnpm --filter @informach/db db:push",
+    "db:seed": "pnpm --filter @informach/billing seed"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.13",

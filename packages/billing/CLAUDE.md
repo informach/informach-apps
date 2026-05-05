@@ -488,6 +488,38 @@ Server side, simples: `const balance = await billing.getBalance({ type: "user", 
 
 19. **Idempotency key determinístico em janela curta.** Se caller não passa `idempotencyNonce`, o helper deriva `auto:${floor(now/300_000)}` — 5min por janela. Cobre double-click/refresh sem virar lock permanente entre sessões. Stripe TTL idempotency = 24h.
 
+20. **`Product.listPrice` é display-only; Stripe é source-of-truth de cobrança.** UI (cards, plan picker) renderiza a partir de `Product.listPrice.amountCents` para responder "quanto vou pagar?" antes do checkout. **Mismatch entre `listPrice` e Stripe Price é bug** — atualizar os dois lados juntos. Não derivar UI a partir de chamada Stripe (lento, sem cache, opaco em build).
+
+### 5.5 Modelo econômico Cozya
+
+Cozya consome este package em modo **single-user** (`subject.type: "user"`, `organizationsEnabled: false`) e segue um modelo econômico fixo, validado com a usuária:
+
+| Item | Valor |
+|---|---|
+| Pro mensal | R$ 14,90/mês (`cozya_pro_monthly`, `bonusCreditsPerMonth: 30`) |
+| Pro anual | R$ 149/ano (`cozya_pro_annual`, drip mensal de 30) |
+| Regra de débito | **1 chamada à API de IA = 1 crédito** (`flatCost: 1` em `creditPricing`) |
+| Modelo default texto/URL/geração/refino | OpenAI GPT-4o-mini |
+| Modelo default vision (foto) | OpenAI GPT-4o (`imageDetail: 'low'` no caller) |
+| Free | sem IA — gate em `hasProSubscription` |
+| Rate limit | 10 chamadas/hora por user (defesa anti-script no app cozya) |
+
+**Por que cobrar por chamada e não por cadastro salvo:** se o débito acontecesse só ao salvar, usuário podia gerar/refinar várias vezes sem salvar — cada chamada paga OpenAI sem cobrar nada do usuário. `withCredits` reserva ANTES da chamada, commita SE ok, libera SE falha. Custo OpenAI sempre coberto.
+
+**Pacotes extras** (Pro-only via `getProSubscription` gate em `createCreditPackCheckout`): premium de 20-40% per-credit sobre o plano (R$ 0,497/crédito). Sinaliza "assinatura é o melhor valor". Volume cap em 30 (= 1 mês completo) — não vendemos volumes maiores que o cap mensal.
+
+| Pack | Créditos | Preço | R$/crédito | Premium vs plano |
+|---|---|---|---|---|
+| `cozya_credits_10` | 10 | R$ 6,90 | R$ 0,69 | +39% |
+| `cozya_credits_20` | 20 | R$ 12,90 | R$ 0,645 | +30% |
+| `cozya_credits_30` | 30 | R$ 17,90 | R$ 0,597 | +20% |
+
+**Seed de pricing:** `pnpm db:seed` invoca `seedCozyaCreditPricing` (`packages/billing/src/seeds/credit-pricing.ts`) com 5 features (1 vision GPT-4o + 4 mini). Idempotente — só insere quando não há row ativa para `(feature, model)`. Para trocar modelo: insira nova row + set `effective_to = now()` na antiga.
+
+**Custo unitário esperado** (mix realista): ~R$ 0,02/chamada → 30 créditos = ~R$ 0,60 custo IA por user/mês → margem bruta ~96%. Pós-beta, comparar `SUM(usage_logs.tokens × custo_modelo)` vs receita por user e ajustar se margem < 90%.
+
+Detalhes operacionais em `apps/cozya/CLAUDE.md` §2-7.
+
 ### 5.2 Sub-paths exportados (`exports` em `package.json`)
 
 | Sub-path | Conteúdo | Quem importa |
@@ -496,6 +528,7 @@ Server side, simples: `const balance = await billing.getBalance({ type: "user", 
 | `@informach/billing/checkout` | `createSubscriptionCheckout`, `createCreditPackCheckout` (raw) | raramente — service já expõe |
 | `@informach/billing/credits` | `getBalance`, `reserveCredits`, `commitReservation`, `releaseReservation`, `consumeCredits`, `getCreditHistory`, `grantBonusCredits`, `refundCredits` (raw) | `@informach/ai-core/billing` (wrapper) |
 | `@informach/billing/portal` | `createPortalSession` (raw) | raramente |
+| `@informach/billing/seeds` | `seedCozyaCreditPricing`, `COZYA_PRICING_SEED` — wired no script `pnpm db:seed` (delega para `pnpm --filter @informach/billing seed`) | `packages/billing/scripts/seed.ts`, futuras admin routes |
 | `@informach/billing/subscriptions` | `getSubscription`, `listSubscriptions`, etc (raw) | raramente |
 | `@informach/billing/sweepers` | `reconcileSubscriptionStatuses`, `expireMonthlyBonusCredits`, `grantPendingMonthlyBonusCredits`, `releaseExpiredReservations`, `retryFailedDunningEmails` (raw) | apps que querem chamar diretamente sem passar pela service |
 | `@informach/billing/webhooks` | `verifyStripeSignature`, `handleStripeEvent`, types | apps' `webhooks/stripe/route.ts` |

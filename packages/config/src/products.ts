@@ -7,6 +7,13 @@ export type ProductPriceMap = {
   prod: string;
 };
 
+export type ProductListPrice = {
+  /** Amount in the smallest currency unit (cents for BRL/USD, etc). */
+  amountCents: number;
+  /** ISO 4217 currency code (e.g., "BRL"). */
+  currency: string;
+};
+
 export type Product = {
   id: ProductId;
   app: string;
@@ -26,10 +33,22 @@ export type Product = {
   creditAmount?: number;
   /** Stripe Price ID, mapped per environment. */
   stripePriceId: ProductPriceMap;
+  /**
+   * Display-only price shown in the UI (cards, plan picker, checkout previews).
+   * Stripe remains the source of truth for actual charging — this value must
+   * stay in sync with the Stripe Dashboard price (any mismatch is a config bug).
+   */
+  listPrice?: ProductListPrice;
 };
 
 // NOTE: stripePriceId placeholders. Substituir pelos IDs reais do Stripe (test+live)
 // antes de habilitar Pro em produção. Free não tem entrada — é ausência de subscription.
+//
+// Modelo econômico Cozya (ver `packages/billing/CLAUDE.md` §5.5):
+// - Pro: R$ 14,90/mês ou R$ 149/ano (~17% desc), 30 créditos/mês
+// - 1 crédito = 1 chamada à API de IA (independente de salvar)
+// - Custo médio por chamada ~R$ 0,02 (mix GPT-4o-mini + GPT-4o vision)
+// - Free: sem IA (só cadastro manual com limite de receitas)
 export const PRODUCTS: readonly Product[] = [
   {
     id: "cozya_pro_monthly",
@@ -38,11 +57,12 @@ export const PRODUCTS: readonly Product[] = [
     name: "Cozya Pro",
     tier: "pro",
     interval: "month",
-    bonusCreditsPerMonth: 100,
+    bonusCreditsPerMonth: 30,
     stripePriceId: {
       dev: "price_1TTR6VCvOctqao30J41KCiYi",
       prod: "price_TODO_cozya_pro_monthly_prod",
     },
+    listPrice: { amountCents: 1490, currency: "BRL" },
   },
   {
     id: "cozya_pro_annual",
@@ -51,50 +71,60 @@ export const PRODUCTS: readonly Product[] = [
     name: "Cozya Pro (Anual)",
     tier: "pro",
     interval: "year",
-    bonusCreditsPerMonth: 100,
+    bonusCreditsPerMonth: 30,
     stripePriceId: {
       dev: "price_1TTR7ECvOctqao30h2pkeyqP",
       prod: "price_TODO_cozya_pro_annual_prod",
     },
+    listPrice: { amountCents: 14900, currency: "BRL" },
   },
   // Credit packs: top-ups avulsos, sem expiração. Os Stripe Price IDs ficam
   // como `price_TODO_*` até o time de billing configurá-los — a UI esconde
   // packs com placeholder em produção via `isStripePriceIdConfigured`.
+  //
+  // Pricing regra (alinhada com Anthropic/OpenAI/Cursor): TODO pack custa
+  // mais per-credit que o plano mensal — Pro = R$ 0,497/crédito (R$ 14,90 /
+  // 30). Packs ficam em R$ 0,60-0,70/crédito (+20-40% premium), com desconto
+  // progressivo por volume. Sinaliza "a assinatura é o melhor valor; pacotes
+  // são para quando o cap mensal não chega".
+  //
+  // Volume cap em 30 (= 1 mês completo) mantém coerência com a regra "30
+  // chamadas de IA por ciclo do plano".
   {
-    id: "cozya_credits_100",
+    id: "cozya_credits_10",
     app: "cozya",
     kind: "credit_pack",
-    name: "100 créditos",
-    description: "Pacote inicial para experimentar a IA do Cozya.",
-    creditAmount: 100,
+    name: "10 créditos",
+    creditAmount: 10,
     stripePriceId: {
-      dev: "price_TODO_cozya_credits_100_dev",
-      prod: "price_TODO_cozya_credits_100_prod",
+      dev: "price_TODO_cozya_credits_10_dev",
+      prod: "price_TODO_cozya_credits_10_prod",
     },
+    listPrice: { amountCents: 690, currency: "BRL" },
   },
   {
-    id: "cozya_credits_500",
+    id: "cozya_credits_20",
     app: "cozya",
     kind: "credit_pack",
-    name: "500 créditos",
-    description: "Recarga padrão — combina com uso regular de IA.",
-    creditAmount: 500,
+    name: "20 créditos",
+    creditAmount: 20,
     stripePriceId: {
-      dev: "price_TODO_cozya_credits_500_dev",
-      prod: "price_TODO_cozya_credits_500_prod",
+      dev: "price_TODO_cozya_credits_20_dev",
+      prod: "price_TODO_cozya_credits_20_prod",
     },
+    listPrice: { amountCents: 1290, currency: "BRL" },
   },
   {
-    id: "cozya_credits_1500",
+    id: "cozya_credits_30",
     app: "cozya",
     kind: "credit_pack",
-    name: "1500 créditos",
-    description: "Volume — para quem usa muito e quer melhor preço por crédito.",
-    creditAmount: 1500,
+    name: "30 créditos",
+    creditAmount: 30,
     stripePriceId: {
-      dev: "price_TODO_cozya_credits_1500_dev",
-      prod: "price_TODO_cozya_credits_1500_prod",
+      dev: "price_TODO_cozya_credits_30_dev",
+      prod: "price_TODO_cozya_credits_30_prod",
     },
+    listPrice: { amountCents: 1790, currency: "BRL" },
   },
 ] as const;
 

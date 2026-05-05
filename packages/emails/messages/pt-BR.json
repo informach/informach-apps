@@ -113,5 +113,18 @@
     "body": "Adicionamos <strong>{creditAmount} créditos</strong> à sua conta no {appName}.",
     "instruction": "Seu novo saldo é de <strong>{balanceAfter} créditos</strong>. Eles ficam disponíveis imediatamente para uso.",
     "cta": "Ver dashboard"
+  },
+  "billingCreditsWarning": {
+    "subject": "{appName} — {remaining} de {total} créditos restantes",
+    "preheader": "Você usou parte dos créditos do mês ({remaining} de {total} restantes).",
+    "title50": "Metade dos créditos do mês usados",
+    "title80": "Seus créditos estão acabando",
+    "title100": "Seus créditos do mês acabaram",
+    "body50": "Você ainda tem <strong>{remaining} de {total} créditos</strong> de IA neste ciclo no {appName}.",
+    "body80": "Você ainda tem <strong>{remaining} de {total} créditos</strong> de IA neste ciclo no {appName} — apenas {threshold}% do plano restante.",
+    "body100": "Você usou todos os <strong>{total} créditos</strong> de IA do seu plano no {appName} neste ciclo.",
+    "instruction": "Você pode comprar um pacote extra de créditos a qualquer momento ou aguardar a renovação automática do plano.",
+    "cta": "Comprar créditos extras",
+    "cta100": "Comprar créditos agora"
   }
 }

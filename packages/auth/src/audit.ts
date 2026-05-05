@@ -40,7 +40,8 @@ export type AuditEventType =
   | "billing.payment_failed"
   | "billing.credits_granted"
   | "billing.credits_consumed"
-  | "billing.credits_refunded";
+  | "billing.credits_refunded"
+  | "billing.credits_warning_sent";
 
 export type AuditPayload = Record<string, unknown>;
 

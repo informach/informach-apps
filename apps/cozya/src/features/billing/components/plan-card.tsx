@@ -46,6 +46,8 @@ export function PlanCard({
   const isAnnual = currentProduct?.interval === "year";
   const switchMode: "upgrade" | "downgrade" = isAnnual ? "downgrade" : "upgrade";
   const switchLabel = isAnnual ? "Trocar para mensal" : "Trocar para anual";
+  const priceLabel = currentProduct?.listPrice ? formatPrice(currentProduct.listPrice) : null;
+  const intervalLabel = isAnnual ? "/ano" : "/mês";
 
   return (
     <Card className="border-border/60">
@@ -56,6 +58,12 @@ export function PlanCard({
       <CardContent className="space-y-3">
         <div className="space-y-2">
           <div className="text-2xl font-semibold tracking-tight">{productName}</div>
+          {priceLabel ? (
+            <div className="text-sm text-muted-foreground tabular-nums">
+              {priceLabel}
+              <span className="ml-0.5">{intervalLabel}</span>
+            </div>
+          ) : null}
           <StatusBadge status={status} cancelAt={cancelAt} />
           {pendingProduct ? (
             <p className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -146,4 +154,11 @@ function formatDate(value: Date): string {
     month: "short",
     year: "numeric",
   }).format(value);
+}
+
+function formatPrice(price: NonNullable<Product["listPrice"]>): string {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: price.currency,
+  }).format(price.amountCents / 100);
 }

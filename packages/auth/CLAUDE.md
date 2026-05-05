@@ -165,7 +165,7 @@ email.delivery_skipped
 
 billing.checkout_started        billing.payment_succeeded   billing.credits_consumed
 billing.subscription_created    billing.payment_failed      billing.credits_refunded
-billing.subscription_updated    billing.credits_granted
+billing.subscription_updated    billing.credits_granted     billing.credits_warning_sent
 billing.subscription_canceled
 ```
 
