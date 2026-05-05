@@ -22,12 +22,15 @@ export type SubscriptionsDeps = {
 export type CancelSubscriptionInput = {
   /** Local subscription row id (uuid PK in `billing.subscriptions`). */
   subscriptionId: string;
+  actorId?: string | null;
+  reason?: string;
   /** Default true (graceful at-period-end). False = immediate cancel. */
   atPeriodEnd?: boolean;
 };
 
 export type UpdateSubscriptionInput = {
   subscriptionId: string;
+  actorId?: string | null;
   newPriceId: string;
   prorationBehavior?: "create_prorations" | "none" | "always_invoice";
 };
@@ -101,10 +104,11 @@ export async function cancelSubscription(
     .returning();
   const updatedRow = updated[0] ?? row;
 
-  emitAudit(deps, "billing.subscription_canceled", {
+  emitAudit(deps, input.actorId ?? null, "billing.subscription_canceled", {
     subscriptionId: row.id,
     providerSubscriptionId: row.providerSubscriptionId,
     atPeriodEnd: !isImmediate,
+    ...(input.reason ? { reason: input.reason } : {}),
   });
   safeLog(deps.logger, "info", "billing.subscription.cancel", {
     subscriptionId: row.id,
@@ -137,7 +141,7 @@ export async function updateSubscription(
     .returning();
   const updatedRow = updated[0] ?? row;
 
-  emitAudit(deps, "billing.subscription_updated", {
+  emitAudit(deps, input.actorId ?? null, "billing.subscription_updated", {
     subscriptionId: row.id,
     providerSubscriptionId: row.providerSubscriptionId,
     oldPriceId: row.providerPriceId,
@@ -206,7 +210,7 @@ export async function cancelBillingForSubject(
     }
   }
 
-  emitAudit(deps, "billing.subscription_canceled", {
+  emitAudit(deps, null, "billing.subscription_canceled", {
     reason: "lgpd_account_deletion",
     subjectType: subject.type,
     subjectId: subject.id,
@@ -274,6 +278,7 @@ function normalizeStatus(raw: string): SubscriptionRow["status"] {
 
 function emitAudit(
   deps: SubscriptionsDeps,
+  actorId: string | null,
   eventType: BillingAuditEvent["eventType"],
   payload: Record<string, unknown>,
 ): void {
@@ -281,7 +286,7 @@ function emitAudit(
   try {
     deps.onAudit({
       eventType,
-      actorId: null,
+      actorId,
       payload,
       timestamp: new Date(),
     });

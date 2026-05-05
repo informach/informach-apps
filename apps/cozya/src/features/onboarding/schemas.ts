@@ -17,11 +17,24 @@ export const signupSchema = z
 
 export type SignupInput = z.infer<typeof signupSchema>;
 
+export const passwordLoginSchema = z.object({
+  email: z.string().trim().email("Informe um email válido."),
+  password: z.string().min(1, "Informe sua senha."),
+});
+
+export type PasswordLoginInput = z.infer<typeof passwordLoginSchema>;
+
 export const loginSchema = z.object({
   email: z.string().trim().email("Informe um email válido."),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().trim().email("Informe um email válido."),
+});
+
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 
 export const otpSchema = z.object({
   email: z.string().email(),
@@ -32,6 +45,26 @@ export const otpSchema = z.object({
 });
 
 export type OtpInput = z.infer<typeof otpSchema>;
+
+export const resetPasswordSchema = z
+  .object({
+    email: z.string().trim().email("Informe um email válido."),
+    otp: z
+      .string()
+      .length(6, "O código tem 6 dígitos.")
+      .regex(/^\d{6}$/, "O código deve conter apenas números."),
+    password: z
+      .string()
+      .min(8, "A senha deve ter pelo menos 8 caracteres.")
+      .max(72, "A senha pode ter no máximo 72 caracteres."),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "As senhas não coincidem.",
+  });
+
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 
 export const proCheckoutSchema = z.object({
   cycle: z.enum(["monthly", "annual"]),

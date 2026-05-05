@@ -32,6 +32,7 @@ export type AuditEventType =
   | "org.member_added"
   | "org.member_removed"
   | "org.invitation_sent"
+  | "billing.checkout_started"
   | "billing.subscription_created"
   | "billing.subscription_updated"
   | "billing.subscription_canceled"

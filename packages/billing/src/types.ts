@@ -47,6 +47,7 @@ export type CheckoutResult = {
 
 export type SubscriptionCheckoutInput = {
   subject: SubjectRef;
+  actorId?: string | null;
   productId: string;
   successUrl: string;
   cancelUrl: string;
@@ -55,6 +56,7 @@ export type SubscriptionCheckoutInput = {
 
 export type CreditPackCheckoutInput = {
   subject: SubjectRef;
+  actorId?: string | null;
   productId: string;
   successUrl: string;
   cancelUrl: string;
@@ -66,6 +68,7 @@ export type PortalSessionInput = {
 };
 
 export type BillingAuditEventType =
+  | "billing.checkout_started"
   | "billing.subscription_created"
   | "billing.subscription_updated"
   | "billing.subscription_canceled"

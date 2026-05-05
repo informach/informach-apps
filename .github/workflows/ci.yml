@@ -9,6 +9,40 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://ci:ci@localhost:5432/ci
+      BETTER_AUTH_SECRET: ci-build-placeholder-not-a-real-secret-xxxx
+      BETTER_AUTH_URL: http://localhost:3000
+      SENDGRID_API_KEY: ci-build-placeholder
+      SENDGRID_FROM: ci@example.com
+      CRON_SECRET: ci-build-placeholder-not-a-real-secret-xxxx
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      STRIPE_SECRET_KEY: sk_test_ci_build_placeholder
+      STRIPE_WEBHOOK_SECRET: whsec_ci_build_placeholder
+      REDIS_URL: redis://localhost:6379
     steps:
       - uses: actions/checkout@v4
 
@@ -27,19 +61,16 @@ jobs:
 
       - run: pnpm test
 
+      - run: pnpm --filter @informach/db db:migrate
+
+      - run: pnpm --filter @informach/cozya exec playwright install --with-deps chromium
+
+      - run: pnpm --filter @informach/cozya e2e
+
       - run: pnpm build
         env:
-          DATABASE_URL: postgres://ci:ci@localhost:5432/ci
-          BETTER_AUTH_SECRET: ci-build-placeholder-not-a-real-secret-xxxx
-          BETTER_AUTH_URL: http://localhost:3000
-          SENDGRID_API_KEY: ci-build-placeholder
-          SENDGRID_FROM: ci@example.com
-          CRON_SECRET: ci-build-placeholder-not-a-real-secret-xxxx
-          NEXT_PUBLIC_APP_URL: http://localhost:3000
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          STRIPE_SECRET_KEY: sk_test_ci_build_placeholder
-          STRIPE_WEBHOOK_SECRET: whsec_ci_build_placeholder

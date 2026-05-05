@@ -1,6 +1,6 @@
 # E2E — Cozya
 
-Playwright cobre os fluxos OTP do Cozya (signup -> verificação por código -> sessão e sign-in por código) usando o sandbox de email do `@informach/emails` em vez do SendGrid real.
+Playwright cobre os fluxos de auth por email do Cozya que dependem de OTP: signup -> verificação por código -> sessão e sign-in opcional por código. Login por email/senha continua habilitado no app; quando houver spec dedicado, ele deve coexistir com esses fluxos OTP. A suíte usa o sandbox de email do `@informach/emails` em vez do SendGrid real.
 
 ## Pré-requisitos
 
@@ -17,7 +17,7 @@ Playwright cobre os fluxos OTP do Cozya (signup -> verificação por código -> 
    - `EMAIL_SANDBOX_DIR=./tmp/integration_emails`
    - `CRON_SECRET` (qualquer string ≥ 32 chars)
    - `REDIS_URL` vazio ou um Redis local ativo. A config do Playwright força vazio para usar Postgres nos testes.
-4. Browsers do Playwright: `pnpm e2e:install` (uma vez).
+4. Browsers do Playwright: `pnpm e2e:install` (uma vez). Em CI Linux, use `pnpm --filter @informach/cozya exec playwright install --with-deps chromium`.
 
 ## Comandos
 

@@ -9,11 +9,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@informach/ui/components/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@informach/ui/components/select";
 import { toast } from "@informach/ui/components/sonner";
-import { Textarea } from "@informach/ui/components/textarea";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { CANCEL_REASON_LABELS, CANCEL_REASONS, type CancelReason } from "../cancel-reasons";
 import { cancelSubscriptionAction } from "../plan-actions";
 
 type Props = {
@@ -27,7 +34,7 @@ type Props = {
 
 export function CancelPlanDialog({ open, onOpenChange, accessUntil, productName }: Props) {
   const router = useRouter();
-  const [reason, setReason] = useState("");
+  const [reason, setReason] = useState<CancelReason | "">("");
   const [submitting, startSubmit] = useTransition();
 
   const formattedDate = accessUntil
@@ -39,7 +46,7 @@ export function CancelPlanDialog({ open, onOpenChange, accessUntil, productName 
   const confirm = () => {
     startSubmit(async () => {
       const result = await cancelSubscriptionAction({
-        reason: reason.trim() || undefined,
+        reason: reason || undefined,
       });
       if (!result.ok) {
         toast.error("Não foi possível cancelar.", {
@@ -84,14 +91,18 @@ export function CancelPlanDialog({ open, onOpenChange, accessUntil, productName 
           <label htmlFor="cancel-reason" className="text-xs font-medium text-muted-foreground">
             Conta pra gente o motivo (opcional, ajuda a melhorar o Cozya)
           </label>
-          <Textarea
-            id="cancel-reason"
-            placeholder="Ex: estou usando outra ferramenta, preço, …"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            maxLength={500}
-            rows={3}
-          />
+          <Select value={reason} onValueChange={(value) => setReason(value as CancelReason)}>
+            <SelectTrigger id="cancel-reason">
+              <SelectValue placeholder="Selecionar motivo" />
+            </SelectTrigger>
+            <SelectContent>
+              {CANCEL_REASONS.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {CANCEL_REASON_LABELS[value]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <DialogFooter>

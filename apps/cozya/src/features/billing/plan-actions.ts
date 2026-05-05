@@ -11,6 +11,7 @@ import { z } from "zod";
 import { action, err, ok } from "@/lib/action";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { CANCEL_REASONS } from "./cancel-reasons";
 import { billing } from "./service";
 
 const planProductSchema = z.object({
@@ -61,7 +62,6 @@ export const switchToPlanAction = action
   .input(planProductSchema)
   .auth({ require: "user" })
   .rateLimit({ key: "billing-switch-plan", max: 5, window: "5m" })
-  .audit("billing.subscription_updated")
   .run(async ({ input, ctx }) => {
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);
@@ -89,6 +89,7 @@ export const switchToPlanAction = action
     try {
       const result = await billing.switchPlan({
         subscriptionId: subscription.id,
+        actorId: userId,
         newProductId: target.id,
         mode,
       });
@@ -117,14 +118,13 @@ export const switchToPlanAction = action
   });
 
 const cancelSchema = z.object({
-  reason: z.string().max(500).optional(),
+  reason: z.enum(CANCEL_REASONS).optional(),
 });
 
 export const cancelSubscriptionAction = action
   .input(cancelSchema)
   .auth({ require: "user" })
   .rateLimit({ key: "billing-cancel", max: 5, window: "10m" })
-  .audit("billing.subscription_canceled")
   .run(async ({ input, ctx }) => {
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);
@@ -136,6 +136,8 @@ export const cancelSubscriptionAction = action
     try {
       const updated = await billing.cancelSubscription({
         subscriptionId: subscription.id,
+        actorId: userId,
+        reason: input.reason,
         atPeriodEnd: true,
       });
       logger.info(
@@ -158,7 +160,6 @@ export const reactivateSubscriptionAction = action
   .input(z.object({}))
   .auth({ require: "user" })
   .rateLimit({ key: "billing-reactivate", max: 5, window: "10m" })
-  .audit("billing.subscription_updated")
   .run(async ({ ctx }) => {
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);
@@ -168,7 +169,7 @@ export const reactivateSubscriptionAction = action
     if (!subscription) return err({ code: "NO_SUBSCRIPTION" } as const);
 
     try {
-      await billing.reactivateSubscription({ subscriptionId: subscription.id });
+      await billing.reactivateSubscription({ subscriptionId: subscription.id, actorId: userId });
       return ok({ ok: true } as const);
     } catch (error) {
       if (error instanceof BillingError) {
@@ -203,6 +204,7 @@ export const purchaseCreditPackAction = action
     try {
       const result = await billing.createCreditPackCheckout({
         subject: { type: "user", id: userId },
+        actorId: userId,
         productId: product.id,
         successUrl: `${env.NEXT_PUBLIC_APP_URL}/settings/billing?credits=success`,
         cancelUrl: `${env.NEXT_PUBLIC_APP_URL}/settings/billing?credits=canceled`,

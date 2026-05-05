@@ -77,6 +77,8 @@ Todas as colunas declaradas em `packages/db/src/schema/core.ts` (source of truth
 | Audit log | `AuditEventType` tipados → `audit.events` |
 | ID generator | `crypto.randomUUID()` para todas as tabelas |
 
+Apps podem combinar email/senha com OTP no mesmo produto. Ativar `email.signIn.otp` adiciona login sem senha como opção; não desliga `signIn.email` nem muda `emailAndPassword.enabled`.
+
 ### 3.2 Opt-in (passe na config para ativar)
 | Feature | Config | Tabelas extras |
 |---|---|---|
@@ -161,9 +163,10 @@ email.delivery_sent     email.unsubscribe_recorded
 email.delivery_failed   email.suppression_recorded
 email.delivery_skipped
 
-billing.subscription_created    billing.payment_succeeded   billing.credits_consumed
-billing.subscription_updated    billing.payment_failed      billing.credits_refunded
-billing.subscription_canceled   billing.credits_granted
+billing.checkout_started        billing.payment_succeeded   billing.credits_consumed
+billing.subscription_created    billing.payment_failed      billing.credits_refunded
+billing.subscription_updated    billing.credits_granted
+billing.subscription_canceled
 ```
 
 Cada `logAuditEvent(eventType, actorId, payload)` insere em `audit.events` e dispara `observability.onAuditEvent`. Se o INSERT falhar, o fluxo continua e `observability.onAuditPersistenceFailure` recebe `{ eventType, actorId, payloadKeys, error }` sanitizado. **Hooks são try/catch-ados internamente** — falha em APM ou no banco de audit não derruba o auth.

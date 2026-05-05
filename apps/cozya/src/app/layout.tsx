@@ -20,7 +20,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="pt-BR" suppressHydrationWarning>
       <body className={jakarta.variable} suppressHydrationWarning>
         <ThemeProvider>
-          <main>{children}</main>
+          {children}
           <Toaster />
         </ThemeProvider>
       </body>

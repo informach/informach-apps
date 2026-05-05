@@ -26,6 +26,7 @@ export async function startProCheckout(input: {
   try {
     const result = await billing.createSubscriptionCheckout({
       subject: { type: "user", id: input.userId },
+      actorId: input.userId,
       productId,
       successUrl: `${env.NEXT_PUBLIC_APP_URL}/dashboard?welcome=1`,
       cancelUrl: `${env.NEXT_PUBLIC_APP_URL}/choose-plan?cycle=${input.cycle === "annual" ? "anual" : "mensal"}`,

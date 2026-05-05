@@ -75,8 +75,10 @@ export function SwitchPlanDialog({
       return;
     }
     setPreview({ kind: "loading" });
+    let canceled = false;
     void (async () => {
       const result = await previewPlanChangeAction({ productId: targetProductId });
+      if (canceled) return;
       if (!result.ok) {
         setPreview({
           kind: "error",
@@ -96,6 +98,9 @@ export function SwitchPlanDialog({
         nextChargeAt: result.value.nextChargeAt,
       });
     })();
+    return () => {
+      canceled = true;
+    };
   }, [open, mode, targetProductId]);
 
   // After we hit `done`, hold for a moment so the success state is readable,
@@ -147,10 +152,6 @@ export function SwitchPlanDialog({
       // it doesn't unmount this component, so our progress state survives.
       setSubmit({ phase: "applying" });
       router.refresh();
-      // Give the webhook + RSC re-fetch a small budget. ~700ms covers the
-      // happy path; if it's longer the user still sees the "Aplicando…"
-      // state and the page is already correct when the dialog closes.
-      await new Promise((r) => setTimeout(r, 700));
       setSubmit({
         phase: "done",
         mode: result.value.appliedImmediately ? "immediate" : "scheduled",

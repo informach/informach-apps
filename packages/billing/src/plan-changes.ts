@@ -34,6 +34,7 @@ export type PlanChangeMode = "immediate" | "schedule_at_period_end";
 
 export type SwitchPlanInput = {
   subscriptionId: string;
+  actorId?: string | null;
   /** Catalog product the user wants to move to. */
   newProductId: string;
   /**
@@ -135,7 +136,7 @@ export async function switchPlan(
       .returning();
     const updatedRow = updated[0] ?? row;
 
-    emitAudit(deps, "billing.subscription_updated", {
+    emitAudit(deps, input.actorId ?? null, "billing.subscription_updated", {
       subscriptionId: row.id,
       providerSubscriptionId: row.providerSubscriptionId,
       oldProductId: row.productId,
@@ -169,7 +170,7 @@ export async function switchPlan(
     .returning();
   const updatedRow = updated[0] ?? row;
 
-  emitAudit(deps, "billing.subscription_updated", {
+  emitAudit(deps, input.actorId ?? null, "billing.subscription_updated", {
     subscriptionId: row.id,
     providerSubscriptionId: row.providerSubscriptionId,
     oldProductId: row.productId,
@@ -187,6 +188,7 @@ export async function switchPlan(
 
 export type ReactivateSubscriptionInput = {
   subscriptionId: string;
+  actorId?: string | null;
 };
 
 export async function reactivateSubscription(
@@ -214,7 +216,7 @@ export async function reactivateSubscription(
     .returning();
   const updatedRow = updated[0] ?? row;
 
-  emitAudit(deps, "billing.subscription_updated", {
+  emitAudit(deps, input.actorId ?? null, "billing.subscription_updated", {
     subscriptionId: row.id,
     providerSubscriptionId: row.providerSubscriptionId,
     reason: "reactivated",
@@ -308,6 +310,7 @@ async function loadSubscriptionRow(
 
 function emitAudit(
   deps: PlanChangesDeps,
+  actorId: string | null,
   eventType: BillingAuditEvent["eventType"],
   payload: Record<string, unknown>,
 ): void {
@@ -315,7 +318,7 @@ function emitAudit(
   try {
     deps.onAudit({
       eventType,
-      actorId: null,
+      actorId,
       payload,
       timestamp: new Date(),
     });

@@ -15,6 +15,7 @@ import { AlreadySubscribedError, InvalidProductError, SubscriptionRequiredError 
 import { type Logger, safeLog } from "./logger";
 import type { BillingProviderClient } from "./providers";
 import type {
+  BillingAuditEvent,
   BillingProvider,
   CheckoutResult,
   CreditPackCheckoutInput,
@@ -31,6 +32,7 @@ export type CheckoutDeps = {
   publicAppUrl: string;
   stripeMode: StripeMode;
   logger?: Logger;
+  onAudit?: (event: BillingAuditEvent) => void;
   /** Resolves the customer's email from a subject. Provided by the app. */
   resolveSubjectEmail: (subject: SubjectRef) => Promise<string>;
 };
@@ -121,6 +123,13 @@ export async function createSubscriptionCheckout(
     subjectId: input.subject.id,
     sessionId: session.id,
   });
+  emitAudit(deps, input.actorId ?? null, {
+    checkoutSessionId: session.id,
+    productId: product.id,
+    subjectType: input.subject.type,
+    subjectId: input.subject.id,
+    mode: "subscription",
+  });
 
   return { url: session.url, sessionId: session.id };
 }
@@ -209,8 +218,34 @@ export async function createCreditPackCheckout(
     creditAmount: product.creditAmount,
     sessionId: session.id,
   });
+  emitAudit(deps, input.actorId ?? null, {
+    checkoutSessionId: session.id,
+    productId: product.id,
+    subjectType: input.subject.type,
+    subjectId: input.subject.id,
+    creditAmount: product.creditAmount,
+    mode: "payment",
+  });
 
   return { url: session.url, sessionId: session.id };
+}
+
+function emitAudit(
+  deps: CheckoutDeps,
+  actorId: string | null,
+  payload: Record<string, unknown>,
+): void {
+  if (!deps.onAudit) return;
+  try {
+    deps.onAudit({
+      eventType: "billing.checkout_started",
+      actorId,
+      payload,
+      timestamp: new Date(),
+    });
+  } catch {
+    // audit must never break checkout
+  }
 }
 
 function resolveProduct(products: readonly Product[], productId: string): Product {

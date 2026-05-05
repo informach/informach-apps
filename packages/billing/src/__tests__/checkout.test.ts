@@ -88,9 +88,11 @@ function buildDeps(overrides: Partial<CheckoutDeps> = {}): CheckoutDeps {
 
 describe("createSubscriptionCheckout", () => {
   it("creates a subscription checkout session for a valid product", async () => {
-    const deps = buildDeps();
+    const onAudit = vi.fn();
+    const deps = buildDeps({ onAudit });
     const result = await createSubscriptionCheckout(deps, {
       subject: { type: "organization", id: "org-1" },
+      actorId: "user-1",
       productId: SUBSCRIPTION_PRODUCT.id,
       successUrl: "https://app.example.com/billing/success",
       cancelUrl: "https://app.example.com/billing/cancel",
@@ -106,6 +108,19 @@ describe("createSubscriptionCheckout", () => {
           subject_type: "organization",
           subject_id: "org-1",
           product_id: SUBSCRIPTION_PRODUCT.id,
+        }),
+      }),
+    );
+    expect(onAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "billing.checkout_started",
+        actorId: "user-1",
+        payload: expect.objectContaining({
+          checkoutSessionId: "cs_test_1",
+          productId: SUBSCRIPTION_PRODUCT.id,
+          subjectType: "organization",
+          subjectId: "org-1",
+          mode: "subscription",
         }),
       }),
     );
@@ -229,9 +244,11 @@ describe("createCreditPackCheckout", () => {
   }
 
   it("creates a payment-mode checkout session with credit_amount metadata when subject is Pro", async () => {
-    const deps = buildProDeps();
+    const onAudit = vi.fn();
+    const deps = buildProDeps({ onAudit });
     const result = await createCreditPackCheckout(deps, {
       subject: { type: "user", id: "user-1" },
+      actorId: "user-1",
       productId: CREDIT_PACK_PRODUCT.id,
       successUrl: "https://app.example.com/s",
       cancelUrl: "https://app.example.com/c",
@@ -244,6 +261,20 @@ describe("createCreditPackCheckout", () => {
         metadata: expect.objectContaining({
           credit_amount: "5000",
           product_id: CREDIT_PACK_PRODUCT.id,
+        }),
+      }),
+    );
+    expect(onAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "billing.checkout_started",
+        actorId: "user-1",
+        payload: expect.objectContaining({
+          checkoutSessionId: "cs_test_1",
+          productId: CREDIT_PACK_PRODUCT.id,
+          subjectType: "user",
+          subjectId: "user-1",
+          creditAmount: 5000,
+          mode: "payment",
         }),
       }),
     );

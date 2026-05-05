@@ -97,11 +97,13 @@ Toda mutação passa por uma Server Action. Toda Server Action passa por um wrap
 1. Parse Zod do input.
 2. Resolve auth (`getCurrentUser`, membership, role).
 3. Aplica rate-limit.
-4. Audit log (event_type + actor + payload minimo; PII segue [`audit-payload-policy.md`](./audit-payload-policy.md)).
+4. Audit log quando o evento/payload já é conhecido antes do handler.
 5. Chama o service.
 6. Captura no Sentry se o service retornar erro de infra.
 
 No wrapper compartilhado de auth, `.rateLimit({ key })` usa escopo automático: usuário autenticado vira `key:user:<id>` e fluxo pré-auth vira `key:ip:<client-ip>`. Só use escopo global quando a intenção for limitar todos os usuários juntos.
+
+Use `.audit(...)` para mutações simples cujo payload mínimo já existe antes do service rodar. Integrações que só ganham IDs transacionais depois do provider/package responder, como billing checkout/subscription, devem emitir via `config.onAudit` do package com `actorId` e payload real. PII segue [`audit-payload-policy.md`](./audit-payload-policy.md).
 
 Esquema:
 
@@ -244,9 +246,9 @@ Não-negociáveis. CI quebra PR em queda de cobertura.
 |---|---|---|---|
 | Unit | Vitest | services e funções puras | mock da interface do repository, não do driver de DB. ≥85% nos `service.ts`. |
 | Integration | Vitest + testcontainers | repository → service → action | Postgres real subido pelo testcontainers, cada teste em transação com rollback. |
-| E2E | Playwright | smoke dos fluxos críticos | contra `next start` com DB seedado. Stripe em test mode. Login → ação principal → resultado. |
+| E2E | Playwright | smoke dos fluxos críticos | contra o `webServer` do app com DB migrado/seedado. Stripe em test mode. Login → ação principal → resultado. |
 
-Pipeline de CI: `lint → typecheck → unit → integration → e2e → build`. Falha rápido.
+Pipeline de CI: `lint → typecheck → unit → db:migrate → e2e → build`. Testes de integração/coverage entram como gates quando a suíte do app/package existir.
 
 Apps que wireiam packages compartilhados devem ter testes pequenos de contrato para provar que `createAuth({ observability })`, `createBillingService({ onAudit })` e `createEmailService({ onAudit })` continuam conectados. `agenda-da-turma` e `cozya` já têm esse teste; `admin` só deve ganhar um quando virar app real.
 

@@ -342,6 +342,7 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
     publicAppUrl: config.publicAppUrl,
     stripeMode: config.stripeMode,
     logger: config.logger,
+    onAudit: config.onAudit,
     resolveSubjectEmail: config.resolveSubjectEmail,
   };
 

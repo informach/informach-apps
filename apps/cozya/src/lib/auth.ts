@@ -41,8 +41,8 @@ export const authResult = createAuth({
   secondaryStorage: authSecondaryStorage,
   observability: authObservability,
   rateLimitRules: e2eRateLimitRules,
-  // Cozya é OTP-only: signup, sign-in passwordless e forget-password todos
-  // entregam código de 6 dígitos. Magic link desabilitado.
+  // Cozya mantém login por e-mail/senha. OTP cobre fluxos que exigem
+  // confirmação por e-mail e também o login opcional sem senha.
   email: {
     verification: "otp",
     signIn: { magicLink: false, otp: true },

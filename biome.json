@@ -142,7 +142,7 @@
       }
     },
     {
-      "includes": ["apps/*/src/features/**/actions.ts"],
+      "includes": ["apps/*/src/features/**/actions.ts", "apps/*/src/features/**/*-actions.ts"],
       "linter": {
         "rules": {
           "style": {

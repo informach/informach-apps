@@ -268,6 +268,7 @@ FROM audit.events
 WHERE event_type LIKE 'billing.%'
 ORDER BY created_at DESC LIMIT 10;
 # Esperado: eventos de checkout/subscription/payment/credits com IDs Stripe, sem payload bruto do webhook.
+# `billing.checkout_started` deve ter actor_id quando iniciado por usuário autenticado.
 
 # 5. Customer Portal: clicar "Gerenciar plano" no UI → abre billing.stripe.com → cancelar → voltar.
 #    Esperado: webhook customer.subscription.updated chega com cancel_at_period_end=true.
@@ -373,7 +374,7 @@ createBillingService({
 
 `packageLogger` mantém logs estruturados no pino e duplica `warn`/`error` sanitizados para `Sentry.captureMessage`. `debug`/`info` ficam só nos logs estruturados. Configure `SENTRY_DSN`, `enableLogs` e `tracesSampleRate` no app quando quiser logs/spans no Sentry.
 
-`onAudit` persiste eventos `billing.*` em `audit.events` via `@informach/auth.logAuditEvent`. O package não grava auditoria direto no DB para evitar acoplamento com auth; a persistência continua best-effort. Falhas de insert aparecem como `auth.audit.persist_failed` na observabilidade do app. Payload de auditoria deve registrar IDs, status e valores necessários para rastreabilidade, nunca payload bruto Stripe, tokens, secrets ou dados de cartão; ver [`docs/audit-payload-policy.md`](../../docs/audit-payload-policy.md).
+`onAudit` persiste eventos `billing.*` em `audit.events` via `@informach/auth.logAuditEvent`. O package não grava auditoria direto no DB para evitar acoplamento com auth; a persistência continua best-effort. Falhas de insert aparecem como `auth.audit.persist_failed` na observabilidade do app. Payload de auditoria deve registrar IDs, status e valores necessários para rastreabilidade, nunca payload bruto Stripe, tokens, secrets, dados de cartão ou motivo de cancelamento em texto livre; ver [`docs/audit-payload-policy.md`](../../docs/audit-payload-policy.md).
 
 Eventos críticos a alertar:
 - `billing.webhook.dispatch_error` — webhook handler levantou exception (Stripe vai retentar; se persistente, bug)

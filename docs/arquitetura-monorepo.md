@@ -240,6 +240,28 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports: ["5432:5432"]
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+    env:
+      DATABASE_URL: postgres://ci:ci@localhost:5432/ci
+      BETTER_AUTH_SECRET: ci-build-placeholder-not-a-real-secret-xxxx
+      BETTER_AUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      SENDGRID_API_KEY: ci-build-placeholder
+      SENDGRID_FROM: ci@example.com
+      CRON_SECRET: ci-build-placeholder-not-a-real-secret-xxxx
+      STRIPE_SECRET_KEY: sk_test_ci_build_placeholder
+      STRIPE_WEBHOOK_SECRET: whsec_ci_build_placeholder
+      REDIS_URL: redis://localhost:6379
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -250,10 +272,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm --filter @informach/db db:migrate
+      - run: pnpm --filter @informach/cozya exec playwright install --with-deps chromium
+      - run: pnpm --filter @informach/cozya e2e
       - run: pnpm build
 ```
 
-CI **não** faz deploy. CI valida; CD é problema do provider.
+CI **não** faz deploy. CI valida lint, tipos, testes unitários, migrations, E2E dos apps com suíte Playwright e build; CD é problema do provider.
 
 ---
 

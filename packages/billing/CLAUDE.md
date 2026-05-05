@@ -104,8 +104,8 @@ Idempotente: SELECT por `(provider, subject)`; se não existe, chama `provider.c
 
 ### 3.2 Checkout — Stripe Hosted
 
-- **`createSubscriptionCheckout({ subject, productId, successUrl, cancelUrl, trialDays? })`** — valida product `kind='subscription'`, **rejeita com `AlreadySubscribedError` se já existe sub `active`/`trialing`/`past_due` para o subject** (single-subscription invariant — apps devem rotear o user para `switchPlan` em vez de criar paralela). Resolve email, faz `getOrCreateCustomer`, chama `stripe.checkout.sessions.create({ mode: "subscription", ... })`. Metadata propagada: `subject_type`, `subject_id`, `product_id`.
-- **`createCreditPackCheckout({ subject, productId, successUrl, cancelUrl })`** — valida `kind='credit_pack'` + `creditAmount > 0`. **Pro-only gate**: chama `getProSubscription` antes de qualquer outra coisa; se subject não tem sub `active`/`trialing`, lança `SubscriptionRequiredError("credit packs")`. `mode: "payment"` + `payment_intent_data.metadata` com `credit_amount` (string-encoded, payload do webhook).
+- **`createSubscriptionCheckout({ subject, actorId?, productId, successUrl, cancelUrl, trialDays? })`** — valida product `kind='subscription'`, **rejeita com `AlreadySubscribedError` se já existe sub `active`/`trialing`/`past_due` para o subject** (single-subscription invariant — apps devem rotear o user para `switchPlan` em vez de criar paralela). Resolve email, faz `getOrCreateCustomer`, chama `stripe.checkout.sessions.create({ mode: "subscription", ... })`. Metadata propagada: `subject_type`, `subject_id`, `product_id`. Emite `billing.checkout_started` com `checkoutSessionId`, `productId`, `subjectType`, `subjectId`, `mode: "subscription"` e `actorId` quando recebido.
+- **`createCreditPackCheckout({ subject, actorId?, productId, successUrl, cancelUrl })`** — valida `kind='credit_pack'` + `creditAmount > 0`. **Pro-only gate**: chama `getProSubscription` antes de qualquer outra coisa; se subject não tem sub `active`/`trialing`, lança `SubscriptionRequiredError("credit packs")`. `mode: "payment"` + `payment_intent_data.metadata` com `credit_amount` (string-encoded, payload do webhook). Emite `billing.checkout_started` com `mode: "payment"` e `creditAmount`.
 
 `idempotencyKey` formato: `${operation}:${subjectType}:${subjectId}:${productId}:${nonce}`. Quando `nonce` é omitido, o helper deriva `auto:${floor(now/300_000)}` — chave estável por janela de 5min (cobre double-click / refresh sem bloquear retries legítimos da próxima sessão). Stripe TTL 24h.
 
@@ -116,7 +116,7 @@ Idempotente: SELECT por `(provider, subject)`; se não existe, chama `provider.c
 | `getSubscription(subject)` | Primeira sub com status IN (active, trialing, past_due). **NÃO usar para feature gating** — esse é só o lookup para exibir status na UI ("Pagamento pendente" etc). |
 | `hasProSubscription(subject)` | **Single source of truth para "é Pro agora?"** — `true` apenas quando status ∈ `PRO_STATUSES` (`active` ou `trialing`). Ver §3.11. |
 | `listSubscriptions(subject)` | Todas (qualquer status) |
-| `cancelSubscription({ subscriptionId, atPeriodEnd? })` | Default `atPeriodEnd: true`; false = immediate. UPDATE local otimisticamente, webhook reconcilia. |
+| `cancelSubscription({ subscriptionId, actorId?, reason?, atPeriodEnd? })` | Default `atPeriodEnd: true`; false = immediate. UPDATE local otimisticamente, webhook reconcilia. `reason` deve ser enum controlado pelo app, nunca texto livre. |
 | `updateSubscription({ subscriptionId, newPriceId, prorationBehavior? })` | Low-level price swap (raw — `switchPlan` é o caminho preferido). |
 | `createPortalSession({ subject, returnUrl })` | Gera URL do Stripe Billing Portal. Throw `CustomerNotFoundError` se subject sem customer. |
 | `cancelBillingForSubject(subject)` | **LGPD hook**. Cancela TODAS as subs ativas IMMEDIATELY; rows ficam (NF-e/fiscal). Try/catch por sub — falha não aborta loop. Retorna `{ canceled, failed }`. |
@@ -127,8 +127,8 @@ UX-aware wrappers acima de `updateSubscription`/`cancelSubscription`. Apps usam 
 
 | Método | Descrição |
 |---|---|
-| `switchPlan({ subscriptionId, newProductId, mode })` | `mode: "immediate"` chama `updateSubscription` com `proration_behavior: "always_invoice"` + `payment_behavior: "pending_if_incomplete"` (cobra agora sem aplicar localmente se a invoice ficar aberta). `mode: "schedule_at_period_end"` marca `cancel_at_period_end` e grava `pending_product_id`/`pending_price_id` — quando o webhook `subscription.deleted` chega no fim do período, o handler cria a nova sub via `provider.createSubscription`. Retorna `{ subscription, appliedImmediately, paymentActionUrl }`. |
-| `reactivateSubscription({ subscriptionId })` | Stripe `subscriptions.update({ cancel_at_period_end: false })`. UPDATE local clear `cancel_at_period_end` + `pending_product_id`/`pending_price_id`. |
+| `switchPlan({ subscriptionId, actorId?, newProductId, mode })` | `mode: "immediate"` chama `updateSubscription` com `proration_behavior: "always_invoice"` + `payment_behavior: "pending_if_incomplete"` (cobra agora sem aplicar localmente se a invoice ficar aberta). `mode: "schedule_at_period_end"` marca `cancel_at_period_end` e grava `pending_product_id`/`pending_price_id` — quando o webhook `subscription.deleted` chega no fim do período, o handler cria a nova sub via `provider.createSubscription`. Retorna `{ subscription, appliedImmediately, paymentActionUrl }`. |
+| `reactivateSubscription({ subscriptionId, actorId? })` | Stripe `subscriptions.update({ cancel_at_period_end: false })`. UPDATE local clear `cancel_at_period_end` + `pending_product_id`/`pending_price_id`. |
 | `previewPlanChange({ subject, subscriptionId, newProductId })` | Usa `stripe.invoices.createPreview` (Dahlia/Basil — substitui `retrieveUpcoming`). Retorna `{ subtotalCents, prorationCreditCents, amountDueCents, currency, nextChargeAt }` para a UI mostrar "R$180 − R$57 = R$123 agora". |
 
 `switchPlan(immediate).paymentActionUrl`: quando o `updateSubscription` deixa a invoice em `status='open'`/`uncollectible` (cliente sem default payment method, SCA, cartão recusado), o helper retorna a `hosted_invoice_url` para a UI redirecionar e mantém a subscription local no plano antigo. Só quando a invoice já veio paga o helper atualiza produto/preço local e seed do drip anual.
@@ -234,9 +234,10 @@ Helper `sendBillingEmail` em `src/billing-emails.ts` valida deps, monta `unsubsc
 
 ### 3.9 Audit log (em `audit.events` via `@informach/auth`)
 
-8 audit event types declarados em `@informach/auth/audit.ts`:
+9 audit event types declarados em `@informach/auth/audit.ts`:
 
 ```
+billing.checkout_started
 billing.subscription_created
 billing.subscription_updated
 billing.subscription_canceled
@@ -250,7 +251,7 @@ billing.credits_refunded
 Apps wireiam `config.onAudit` para chamar `logAuditEvent(event.eventType, event.actorId, event.payload)` (re-exportado de `@informach/auth`). Pattern: fire-and-forget com `.catch` para logger — audit emit nunca bloqueia o billing call.
 Nos apps atuais, erros/warnings desses emit-points passam pelo `packageLogger` de `src/lib/observability.ts`, que mantém pino e duplica `warn`/`error` sanitizados para Sentry.
 
-Payloads seguem [`docs/audit-payload-policy.md`](../../docs/audit-payload-policy.md): preferir IDs internos/Stripe, status e reason; não gravar payload bruto de webhook, tokens, secrets ou dados de cartão.
+Payloads seguem [`docs/audit-payload-policy.md`](../../docs/audit-payload-policy.md): preferir IDs internos/Stripe, status e reason; não gravar payload bruto de webhook, tokens, secrets, dados de cartão ou motivo de cancelamento em texto livre.
 
 ### 3.10 LGPD/Account deletion hook
 
@@ -429,10 +430,10 @@ import { z } from "zod";
 export const startSubscriptionCheckout = action
   .input(z.object({ productId: z.string(), orgId: z.string() }))
   .auth({ require: "role", role: "owner", permission: "billing.manage" })
-  .audit("billing.subscription_created")
-  .run(async ({ input }) => {
+  .run(async ({ input, ctx }) => {
     const result = await billing.createSubscriptionCheckout({
       subject: { type: "organization", id: input.orgId },
+      actorId: ctx.actor?.id ?? null,
       productId: input.productId,
       successUrl: `${env.NEXT_PUBLIC_APP_URL}/admin/billing?success=1`,
       cancelUrl: `${env.NEXT_PUBLIC_APP_URL}/admin/billing?canceled=1`,
@@ -518,7 +519,7 @@ Todos os errors: `BillingError`, `NotImplementedError`, `InvalidProductError`, `
 - **`stripe@^22.1.0`** (PIN literal `'2026-04-22.dahlia'`) — bumpar major exige re-validar literal e re-testar handlers contra novo payload shape
 - **`drizzle-orm@^0.45.2`** — para SELECT/INSERT/UPDATE typed + `db.execute(sql\`...\`)` para advisory lock e raw SQL de balance
 - **`@informach/db`** — schema source of truth e Drizzle client
-- **`@informach/auth`** — `logAuditEvent` (apps wireiam) + `AuditEventType` (inclui os 8 `billing.*`)
+- **`@informach/auth`** — `logAuditEvent` (apps wireiam) + `AuditEventType` (inclui os 9 `billing.*`)
 - **`@informach/emails`** — `SendEmail`, `RenderTemplate`, `EmailCategory` (estendido com 5 `billing.*`); `buildUnsubscribeToken` para apps construírem o builder
 - **`@informach/config`** — `Product`, `PRODUCTS`, `getStripePriceId`, `findProductByPriceId`
 
