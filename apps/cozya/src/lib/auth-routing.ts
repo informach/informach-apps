@@ -1,7 +1,12 @@
 export const AUTH_SIGN_IN_PATH = "/login";
 export const AUTH_SIGN_UP_PATH = "/signup";
 
-export const AUTH_PROTECTED_PATHS = ["/dashboard", "/choose-plan", "/settings"] as const;
+export const AUTH_PROTECTED_PATHS = [
+  "/dashboard",
+  "/choose-plan",
+  "/settings",
+  "/upgrade",
+] as const;
 
 // Cozya is OTP-only (no magic-link, no link-based verification or password
 // reset, no organizations). The legacy `/verify-email`, `/reset-password`,

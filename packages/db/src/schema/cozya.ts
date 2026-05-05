@@ -1,4 +1,5 @@
-import { pgSchema, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, pgSchema, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { users } from "./core";
 
 export const cozya = pgSchema("cozya");
 
@@ -7,3 +8,27 @@ export const cozyaPlaceholderEntries = cozya.table("placeholder_entries", {
   title: text("title").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+export const cozyaRecipes = cozya.table(
+  "recipes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    ingredients: text("ingredients").notNull(),
+    preparation: text("preparation").notNull(),
+    finishing: text("finishing"),
+    isFavorite: boolean("is_favorite").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("cozya_recipes_user_created_idx").on(t.userId, t.createdAt),
+    index("cozya_recipes_user_favorite_idx").on(t.userId, t.isFavorite),
+  ],
+);
+
+export type CozyaRecipe = typeof cozyaRecipes.$inferSelect;
+export type NewCozyaRecipe = typeof cozyaRecipes.$inferInsert;

@@ -12,7 +12,7 @@ import {
   FREE_FEATURES,
   PRICING,
   PRO_FEATURES,
-} from "@/features/onboarding/plans-content";
+} from "@/features/billing/plans-content";
 
 const QUERY_CYCLE: Record<BillingCycle, string> = {
   monthly: "mensal",

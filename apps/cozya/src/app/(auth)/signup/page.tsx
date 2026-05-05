@@ -1,5 +1,5 @@
+import { parseCycleQueryParam } from "@/features/billing/plans-content";
 import { SignupForm } from "@/features/onboarding/components/signup-form";
-import { parseCycleQueryParam } from "@/features/onboarding/plans-content";
 
 export const metadata = {
   title: "Criar conta — Cozya",

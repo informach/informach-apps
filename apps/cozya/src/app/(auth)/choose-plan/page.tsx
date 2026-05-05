@@ -1,5 +1,5 @@
-import { PlanCards } from "@/features/onboarding/components/plan-cards";
-import { parseCycleQueryParam } from "@/features/onboarding/plans-content";
+import { PlanCards } from "@/features/billing/components/plan-cards";
+import { parseCycleQueryParam } from "@/features/billing/plans-content";
 import { redirectIfUnauthenticated } from "@/lib/auth";
 
 export const metadata = {

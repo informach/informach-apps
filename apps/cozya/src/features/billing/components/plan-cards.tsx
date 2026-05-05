@@ -9,7 +9,8 @@ import { cn } from "@informach/ui/lib/utils";
 import { Check, Loader2, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { selectFreePlanAction, startProCheckoutAction } from "../actions";
+import { selectFreePlanAction, startProCheckoutAction } from "@/features/onboarding/actions";
+import { OnboardingStepper } from "@/features/onboarding/components/onboarding-stepper";
 import {
   type BillingCycle,
   FREE_FEATURES,
@@ -17,13 +18,28 @@ import {
   PRICING,
   PRO_FEATURES,
 } from "../plans-content";
-import { OnboardingStepper } from "./onboarding-stepper";
 
 export type PlanCardsProps = {
   initialCycle?: BillingCycle;
+  /**
+   * Mostra o stepper "Conta → Verificação → Plano" do onboarding pós-signup.
+   * Default `true` mantém o uso histórico em /choose-plan; passe `false` em
+   * /upgrade (usuário já está dentro do app).
+   */
+  showStepper?: boolean;
+  /**
+   * Mostra o card do plano Free. Default `true` para o onboarding. Passe
+   * `false` em /upgrade — usuário Free clicando "Seja Pro" não precisa
+   * reescolher Free; só faz sentido oferecer o upgrade.
+   */
+  showFreePlan?: boolean;
 };
 
-export function PlanCards({ initialCycle = "monthly" }: PlanCardsProps) {
+export function PlanCards({
+  initialCycle = "monthly",
+  showStepper = true,
+  showFreePlan = true,
+}: PlanCardsProps) {
   const router = useRouter();
   const [cycle, setCycle] = useState<BillingCycle>(initialCycle);
   const [isFreePending, startFreeTransition] = useTransition();
@@ -76,7 +92,7 @@ export function PlanCards({ initialCycle = "monthly" }: PlanCardsProps) {
 
   return (
     <div className="w-full max-w-5xl space-y-8">
-      <OnboardingStepper currentStep={3} />
+      {showStepper && <OnboardingStepper currentStep={3} />}
 
       <header className="space-y-3 text-center">
         <h1 className="text-balance text-2xl font-semibold tracking-tight md:text-3xl">
@@ -103,34 +119,36 @@ export function PlanCards({ initialCycle = "monthly" }: PlanCardsProps) {
         </Tabs>
       </div>
 
-      <div className="grid gap-5 md:grid-cols-2">
-        <Card className="group relative flex flex-col border-border/60 bg-card/80 backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:border-border hover:shadow-md">
-          <CardHeader className="space-y-3 pb-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Cozya Free
-            </p>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-4xl font-semibold tracking-tight">R$ 0</span>
-              <span className="text-sm text-muted-foreground">para sempre</span>
-            </div>
-            <CardTitle className="text-base font-normal text-muted-foreground">
-              Pra quem quer começar a organizar receitas sem custo.
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-1 flex-col justify-between gap-6">
-            <FeatureList features={FREE_FEATURES} />
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={handleFree}
-              disabled={anyPending}
-              className="w-full"
-            >
-              {isFreePending && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
-              Começar grátis
-            </Button>
-          </CardContent>
-        </Card>
+      <div className={cn("grid gap-5", showFreePlan ? "md:grid-cols-2" : "mx-auto max-w-md")}>
+        {showFreePlan && (
+          <Card className="group relative flex flex-col border-border/60 bg-card/80 backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:border-border hover:shadow-md">
+            <CardHeader className="space-y-3 pb-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Cozya Free
+              </p>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-4xl font-semibold tracking-tight">R$ 0</span>
+                <span className="text-sm text-muted-foreground">para sempre</span>
+              </div>
+              <CardTitle className="text-base font-normal text-muted-foreground">
+                Pra quem quer começar a organizar receitas sem custo.
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-1 flex-col justify-between gap-6">
+              <FeatureList features={FREE_FEATURES} />
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={handleFree}
+                disabled={anyPending}
+                className="w-full"
+              >
+                {isFreePending && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
+                Começar grátis
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="group relative flex flex-col border-2 border-primary/40 bg-card shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-xl">
           <span

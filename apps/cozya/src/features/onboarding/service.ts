@@ -1,8 +1,8 @@
 import { AlreadySubscribedError, InvalidProductError } from "@informach/billing";
+import type { BillingCycle } from "@/features/billing/plans-content";
 import { billing } from "@/features/billing/service";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
-import type { BillingCycle } from "./plans-content";
 
 const PRO_PRODUCT_ID_BY_CYCLE: Record<BillingCycle, string> = {
   monthly: "cozya_pro_monthly",
