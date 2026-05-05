@@ -121,12 +121,12 @@ Stripe retransmite webhooks em backoff exponencial até **3 dias** (default) se 
 1. Stripe Dashboard → Webhooks → endpoint → **Send test webhook** → escolher `payment_intent.succeeded`. Resposta deve ser `200 OK` no log do Railway.
 2. SQL no DB:
    ```sql
-   SELECT id, event_type, processed_at, attempts, error
+   SELECT id, event_type, processed_at, processing_started_at, attempts, error
    FROM billing.webhook_events
    WHERE provider = 'stripe'
    ORDER BY created_at DESC LIMIT 10;
    ```
-   Esperado: `processed_at` populado, `error` null, `attempts` = 0 (eventos novos).
+   Esperado: `processed_at` populado, `processing_started_at` null, `error` null, `attempts` = 1 (eventos novos).
 
 ---
 
@@ -157,7 +157,7 @@ Em test mode: criar uma subscription test, em UI do app clicar "Gerenciar plano"
 
 ---
 
-## 5. Cron jobs (4 sweepers)
+## 5. Cron jobs (5 sweepers)
 
 Pattern Railway documentado em `@informach/auth/PRODUCTION.md` §7. Resumo dos jobs deste package:
 
@@ -167,14 +167,15 @@ Pattern Railway documentado em `@informach/auth/PRODUCTION.md` §7. Resumo dos j
 | `billing-dunning` | `0 */6 * * *` | `/api/jobs/billing-dunning` | `retryDunningEmails` |
 | `billing-reconcile` | `0 3 * * *` | `/api/jobs/billing-reconcile` | `reconcileSubscriptions` |
 | `billing-expire-bonus` | `30 3 * * *` | `/api/jobs/billing-expire-bonus` | `expireMonthlyBonusCredits` |
+| `billing-grant-monthly` | `45 3 * * *` | `/api/jobs/billing-grant-monthly` | `grantPendingMonthlyBonusCredits` |
 
-Todos os 4 endpoints já existem em `apps/agenda-da-turma/src/app/api/jobs/` e `apps/cozya/src/app/api/jobs/`. Cada um:
+Todos os 5 endpoints já existem em `apps/agenda-da-turma/src/app/api/jobs/` e `apps/cozya/src/app/api/jobs/`. Cada um:
 - Aceita `POST` apenas.
 - Valida `Authorization: Bearer ${CRON_SECRET}`.
 - Chama o método correspondente em `billing.*`.
 - Retorna `Response.json(result)` com contagens.
 
-Start command no Railway `cron-runner-billing-*` (1 service por job × 2 apps = 8 services):
+Start command no Railway `cron-runner-billing-*` (1 service por job × 2 apps = 10 services):
 ```sh
 curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" \
   "https://${APP_URL}/api/jobs/billing-reconcile"
@@ -182,16 +183,17 @@ curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" \
 
 Configurar **Service → Settings → Cron Schedule** com a expressão da tabela.
 
-### 5.1 Por que 4 jobs separados (e em horários distintos)?
+### 5.1 Por que 5 jobs separados (e em horários distintos)?
 
 - **`release-reservations` (5min):** reservations de chamadas LLM tem TTL curto (default 600s). Limpar rápido evita "fantasma" de saldo reservado para chamadas que travaram.
 - **`dunning` (6h):** balanceia urgência (cliente precisa resolver pagamento) com não-spam. Stripe Smart Retries cobra 4× em 14 dias por padrão — nosso dunning email anuncia isso.
 - **`reconcile` (1×/dia, 03h UTC = 00h BRT):** detecta drift Stripe↔DB (webhook perdido, sub deletada manualmente no Dashboard). Roda fora do pico para não competir por DB.
 - **`expire-bonus` (1×/dia, 03h30 UTC):** rodar 30min depois do reconcile garante que sub-statuses estão atualizadas antes de expirar bônus mensais.
+- **`grant-monthly` (1×/dia, 03h45 UTC):** concede o drip mensal de planos anuais quando `next_credit_grant_at` vence. Fica depois do expire-bonus para manter a leitura operacional em ordem.
 
 ### 5.2 Custo Railway
 
-8 cron-runners (4 jobs × 2 apps), cada um imagem `alpine` + `curl`. Custo: ~$0/mês cada (sleep mode entre execuções). Total: $0–$2/mês.
+10 cron-runners (5 jobs × 2 apps), cada um imagem `alpine` + `curl`. Custo: ~$0/mês cada (sleep mode entre execuções). Total: $0–$2/mês.
 
 ---
 
@@ -278,6 +280,7 @@ ORDER BY created_at DESC LIMIT 1;
 # Esperado: paid, credit_amount = N
 SELECT SUM(amount) AS balance FROM billing.credit_ledger
 WHERE owner_type='user' AND owner_id='<user-id>'
+  AND entry_type <> 'expiration'
   AND (expires_at IS NULL OR expires_at > now());
 # Esperado: balance = N (créditos disponíveis)
 
@@ -296,11 +299,11 @@ curl -X POST -H "Authorization: Bearer $CRON_SECRET" \
 # 8. Idempotência: Resend o mesmo evento via Stripe Dashboard (Webhooks → endpoint → recent events → resend).
 #    Esperado: Response 200, log "billing.webhook.deduped", sem efeito colateral duplicado.
 
-# 9. Reconcile: Deletar manualmente uma sub do DB (apenas em test):
-DELETE FROM billing.subscriptions WHERE id='<row-id>';
+# 9. Reconcile: alterar manualmente uma sub local para status divergente (apenas em test):
+UPDATE billing.subscriptions SET status='incomplete' WHERE id='<row-id>';
 curl -X POST -H "Authorization: Bearer $CRON_SECRET" \
   https://agenda.informach.com.br/api/jobs/billing-reconcile
-# Esperado: { scanned: N, reconciled: 1, mismatches: 1 } (sub recriada via retrieve do Stripe).
+# Esperado: { scanned: N, reconciled: 1, mismatches: 1 } (row local realinhada via retrieve do Stripe).
 
 # 10. Em LIVE mode, repetir #1 com cartão real próprio + valor de R$ 1,00 (criar Price one-shot temporário).
 #     Cancelar imediatamente após pagamento, refund manual via Dashboard.
@@ -373,7 +376,7 @@ createBillingService({
 `onAudit` persiste eventos `billing.*` em `audit.events` via `@informach/auth.logAuditEvent`. O package não grava auditoria direto no DB para evitar acoplamento com auth; a persistência continua best-effort. Falhas de insert aparecem como `auth.audit.persist_failed` na observabilidade do app. Payload de auditoria deve registrar IDs, status e valores necessários para rastreabilidade, nunca payload bruto Stripe, tokens, secrets ou dados de cartão; ver [`docs/audit-payload-policy.md`](../../docs/audit-payload-policy.md).
 
 Eventos críticos a alertar:
-- `billing.webhook.handler_error` — webhook handler levantou exception (Stripe vai retentar; se persistente, bug)
+- `billing.webhook.dispatch_error` — webhook handler levantou exception (Stripe vai retentar; se persistente, bug)
 - `billing.webhook.invalid_signature` — sinal de tentativa de spoof OU `STRIPE_WEBHOOK_SECRET` errado
 - `billing.subscription.lgpd_cancel_error` — falha no cancel quando user deletou conta (compliance issue)
 - `auth.account_deletion.billing_partial` (do app) — cancel parcial em LGPD delete
@@ -480,7 +483,7 @@ Não atingimos hoje (usuário cria 1 checkout por click, webhooks são event-dri
 
 - **App service:** dimensionar conforme tráfego (Hobby Plan US$5/mês cobre staging; Pro a partir de US$20/mês).
 - **Postgres:** tabelas de billing são pequenas (subscriptions/payments com poucos rows; ledger cresce mas índices em `owner_type+owner_id+created_at` mantêm queries rápidas mesmo com milhões de rows).
-- **8 cron-runners** (4 jobs × 2 apps): ~$0–$2/mês total (sleep mode).
+- **10 cron-runners** (5 jobs × 2 apps): ~$0–$2/mês total (sleep mode).
 
 ---
 
@@ -504,8 +507,8 @@ Checklist final antes do primeiro pagamento real:
 - [ ] `STRIPE_WEBHOOK_SECRET` (live, **per-app**) setada — diferente para cada service.
 - [ ] `STRIPE_MODE` = `prod` (ou ausente — default infere).
 - [ ] `CRON_SECRET` setado (mesmo já usado para email crons).
-- [ ] 4 cron-runners por app criados (`billing-release-reservations`, `billing-dunning`, `billing-reconcile`, `billing-expire-bonus`), cada um com Cron Schedule.
-- [ ] `pnpm db:migrate` aplicado em prod (incluindo `0008_daffy_colleen_wing.sql` que cria schema `billing`).
+- [ ] 5 cron-runners por app criados (`billing-release-reservations`, `billing-dunning`, `billing-reconcile`, `billing-expire-bonus`, `billing-grant-monthly`), cada um com Cron Schedule.
+- [ ] `pnpm db:migrate` aplicado em prod (incluindo migrations do schema `billing`, até `0014_robust_skaar.sql`).
 - [ ] Custom domain (opcional mas recomendado) para Checkout: `checkout.informach.com.br` validado.
 - [x] `onAudit` app-level plugado no `createBillingService` para persistir `billing.*` em `audit.events`.
 

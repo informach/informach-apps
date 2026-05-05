@@ -94,23 +94,54 @@ describe("grantPendingMonthlyBonusCredits", () => {
     expect(advanced.toISOString()).toBe("2026-05-31T00:00:00.000Z");
   });
 
-  it("clears anchor when next drip would land after cancel_at_period_end", async () => {
+  it("skips and clears anchor when next drip would land after cancel_at_period_end", async () => {
     const cancelingSub = {
       ...baseAnnualSub,
       cancelAtPeriodEnd: new Date("2026-05-20T00:00:00Z"),
     };
     const { db, calls } = createFakeDb({
-      selectQueue: [[cancelingSub], [{ total: 0 }]],
-      insertQueue: [[{ id: "ledger-1", entryType: "bonus_grant", amount: 100 }]],
+      selectQueue: [[cancelingSub]],
     });
     const deps = makeDeps({ db: db as never, now });
 
     const result = await grantPendingMonthlyBonusCredits(deps);
 
-    expect(result.granted).toBe(1);
+    expect(result.granted).toBe(0);
+    expect(result.skipped).toBe(1);
+    const grantInsert = calls.find(
+      (c) =>
+        c.mode === "values" &&
+        typeof (c.args[0] as Record<string, unknown>)?.stripeEventId === "string",
+    );
+    expect(grantInsert).toBeUndefined();
     const updateSets = calls.filter((c) => c.mode === "set");
     const lastUpdate = updateSets[updateSets.length - 1]?.args[0] as Record<string, unknown>;
     // Next drip would be 2026-05-31, past the boundary 2026-05-20 → null anchor.
+    expect(lastUpdate.nextCreditGrantAt).toBeNull();
+  });
+
+  it("skips and clears anchor when next drip would land after currentPeriodEnd", async () => {
+    const finalAnchorSub = {
+      ...baseAnnualSub,
+      currentPeriodEnd: new Date("2026-05-20T00:00:00Z"),
+    };
+    const { db, calls } = createFakeDb({
+      selectQueue: [[finalAnchorSub]],
+    });
+    const deps = makeDeps({ db: db as never, now });
+
+    const result = await grantPendingMonthlyBonusCredits(deps);
+
+    expect(result.granted).toBe(0);
+    expect(result.skipped).toBe(1);
+    const grantInsert = calls.find(
+      (c) =>
+        c.mode === "values" &&
+        typeof (c.args[0] as Record<string, unknown>)?.stripeEventId === "string",
+    );
+    expect(grantInsert).toBeUndefined();
+    const updateSets = calls.filter((c) => c.mode === "set");
+    const lastUpdate = updateSets[updateSets.length - 1]?.args[0] as Record<string, unknown>;
     expect(lastUpdate.nextCreditGrantAt).toBeNull();
   });
 

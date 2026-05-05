@@ -234,6 +234,7 @@ export const webhookEvents = billing.table(
     eventType: text("event_type").notNull(),
     payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
     processedAt: timestamp("processed_at", { withTimezone: true }),
+    processingStartedAt: timestamp("processing_started_at", { withTimezone: true }),
     error: text("error"),
     attempts: integer("attempts").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -241,6 +242,9 @@ export const webhookEvents = billing.table(
   (t) => [
     uniqueIndex("webhook_events_provider_event_uniq").on(t.provider, t.providerEventId),
     index("webhook_events_processed_idx").on(t.processedAt),
+    index("webhook_events_processing_idx")
+      .on(t.processingStartedAt)
+      .where(sql`${t.processingStartedAt} IS NOT NULL`),
     index("webhook_events_event_type_idx").on(t.eventType),
   ],
 );

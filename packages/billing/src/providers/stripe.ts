@@ -185,11 +185,15 @@ export function createStripeProvider(config: StripeProviderConfig): BillingProvi
       // Expand `latest_invoice` so callers can detect an upgrade that landed on
       // an unpaid invoice (no default payment method, SCA, declined card, etc.)
       // and redirect the user to the hosted invoice page to complete payment.
-      const updated = await stripe.subscriptions.update(input.providerSubscriptionId, {
+      const params: Stripe.SubscriptionUpdateParams = {
         items: [{ id: firstItem.id, price: input.newPriceId }],
         proration_behavior: input.prorationBehavior ?? "create_prorations",
         expand: ["latest_invoice"],
-      });
+      };
+      if (input.paymentBehavior) {
+        params.payment_behavior = input.paymentBehavior;
+      }
+      const updated = await stripe.subscriptions.update(input.providerSubscriptionId, params);
       return summarizeSubscription(updated);
     },
 

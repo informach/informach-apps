@@ -60,7 +60,14 @@ describe("handleStripeEvent (idempotency)", () => {
       dbConfig: {
         insertQueue: [[]],
         selectQueue: [
-          [{ processedAt: new Date("2026-01-01T00:00:00Z"), error: null, attempts: 0 }],
+          [
+            {
+              processedAt: new Date("2026-01-01T00:00:00Z"),
+              processingStartedAt: null,
+              error: null,
+              attempts: 0,
+            },
+          ],
         ],
       },
     });
@@ -73,6 +80,32 @@ describe("handleStripeEvent (idempotency)", () => {
     expect(out).toEqual({ processed: false, deduped: true, reason: "already_processed" });
   });
 
+  it("returns deduped=true when an existing webhook row is already being processed", async () => {
+    const { deps, onAudit } = makeDeps({
+      dbConfig: {
+        insertQueue: [[]],
+        selectQueue: [
+          [
+            {
+              processedAt: null,
+              processingStartedAt: new Date(),
+              error: null,
+              attempts: 1,
+            },
+          ],
+        ],
+      },
+    });
+    const event = {
+      id: "evt_processing",
+      type: "customer.subscription.created",
+      payload: { data: { object: SUBSCRIPTION_PAYLOAD } },
+    };
+    const out = await handleStripeEvent(deps, event);
+    expect(out).toEqual({ processed: false, deduped: true, reason: "already_processing" });
+    expect(onAudit).not.toHaveBeenCalled();
+  });
+
   it("retries an existing webhook row that failed before processedAt was set", async () => {
     const { deps } = makeDeps({
       dbConfig: {
@@ -81,8 +114,18 @@ describe("handleStripeEvent (idempotency)", () => {
           [{ id: "sub-row" }], // subscription upsert
         ],
         selectQueue: [
-          [{ processedAt: null, error: "transient db error", attempts: 1 }],
+          [
+            {
+              processedAt: null,
+              processingStartedAt: null,
+              error: "transient db error",
+              attempts: 1,
+            },
+          ],
           [{ id: "customer-row-1", email: "buyer@example.com" }],
+        ],
+        updateQueue: [
+          [{ id: "wh-row-claim" }], // claim failed webhook for retry
         ],
       },
     });

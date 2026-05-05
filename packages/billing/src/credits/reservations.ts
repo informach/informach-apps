@@ -142,6 +142,7 @@ async function readBalanceForOwner(
         FROM billing.credit_ledger
         WHERE owner_type = ${owner.type}
           AND owner_id = ${owner.id}
+          AND entry_type <> 'expiration'
           AND (expires_at IS NULL OR expires_at > now())
       ), 0) AS total,
       COALESCE((

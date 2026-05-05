@@ -38,6 +38,7 @@ function annualInvoice(overrides: Record<string, unknown> = {}) {
 const localSubRow = {
   id: "sub-row-annual",
   productId: "cozya_pro_annual",
+  providerPriceId: "price_dev_annual",
   metadata: {},
   subjectType: "user",
   subjectId: "user-1",

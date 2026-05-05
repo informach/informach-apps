@@ -15,6 +15,14 @@ const SUBSCRIPTION_PRODUCT: Product = {
   stripePriceId: { dev: "price_dev_sub", prod: "price_prod_sub" },
 };
 
+const ANNUAL_SUBSCRIPTION_PRODUCT: Product = {
+  ...SUBSCRIPTION_PRODUCT,
+  id: "agenda_pro_annual",
+  name: "Agenda Pro Anual",
+  interval: "year",
+  stripePriceId: { dev: "price_dev_annual", prod: "price_prod_annual" },
+};
+
 const NO_BONUS_PRODUCT: Product = {
   ...SUBSCRIPTION_PRODUCT,
   id: "agenda_starter",
@@ -212,6 +220,7 @@ describe("handleInvoicePaid", () => {
         metadata: { product_id: "agenda_pro_monthly" },
       },
     });
+    const recoveredCurrentPeriodEnd = new Date("2026-02-01T00:00:00Z");
     const { db } = createFakeDb({
       selectQueue: [
         [], // initial local subscription lookup
@@ -225,7 +234,13 @@ describe("handleInvoicePaid", () => {
         ],
       ],
       insertQueue: [
-        [], // recovered subscription upsert
+        [
+          {
+            id: "sub-row-recovered",
+            currentPeriodEnd: recoveredCurrentPeriodEnd,
+            metadata: { product_id: "agenda_pro_monthly" },
+          },
+        ], // recovered subscription upsert
         [{ id: "ledger-bonus-1" }],
       ],
     });
@@ -240,6 +255,64 @@ describe("handleInvoicePaid", () => {
       "evt_invoice_1",
     );
     expect(result).toEqual({ processed: true, reason: "bonus_granted" });
+  });
+
+  it("recovers missing local subscription using provider priceId before stale productId", async () => {
+    const { provider } = createFakeProvider({
+      subscriptionDetails: {
+        id: "sub_test_1",
+        providerCustomerId: "cus_test_1",
+        providerPriceId: "price_dev_annual",
+        productId: "agenda_pro_monthly",
+        status: "active",
+        cancelAtPeriodEnd: false,
+        currentPeriodStart: new Date("2026-01-01T00:00:00Z"),
+        currentPeriodEnd: new Date("2027-01-01T00:00:00Z"),
+        canceledAt: null,
+        trialEnd: null,
+        metadata: { product_id: "agenda_pro_monthly" },
+      },
+    });
+    const { db, calls } = createFakeDb({
+      selectQueue: [
+        [], // initial local subscription lookup
+        [
+          {
+            id: "customer-row-1",
+            email: "owner@example.com",
+            subjectType: "organization",
+            subjectId: "org-1",
+          },
+        ],
+      ],
+      insertQueue: [
+        [
+          {
+            id: "sub-row-recovered",
+            currentPeriodEnd: new Date("2027-01-01T00:00:00Z"),
+            metadata: { product_id: "agenda_pro_monthly" },
+          },
+        ],
+      ],
+    });
+
+    const result = await handleInvoicePaid(
+      {
+        db: db as never,
+        provider: "stripe",
+        providerClient: provider,
+        products: [SUBSCRIPTION_PRODUCT, ANNUAL_SUBSCRIPTION_PRODUCT],
+      },
+      paidInvoice({ billing_reason: "subscription_cycle" }),
+      "evt_invoice_annual_cycle",
+    );
+
+    expect(result).toEqual({ processed: true, reason: "annual_renewal_anchor_reset" });
+    const subscriptionValues = calls.find((c) => {
+      const values = c.args[0] as Record<string, unknown> | undefined;
+      return c.mode === "values" && values?.providerSubscriptionId === "sub_test_1";
+    })?.args[0] as Record<string, unknown>;
+    expect(subscriptionValues.productId).toBe("agenda_pro_annual");
   });
 
   it("skips when local subscription row is missing", async () => {

@@ -116,6 +116,7 @@ describe("switchPlan(immediate)", () => {
         providerSubscriptionId: "sub_test_1",
         newPriceId: "price_dev_annual",
         prorationBehavior: "always_invoice",
+        paymentBehavior: "pending_if_incomplete",
       }),
     );
     expect(result.appliedImmediately).toBe(true);
@@ -137,9 +138,8 @@ describe("switchPlan(immediate)", () => {
 
   it("returns paymentActionUrl when latest invoice is unpaid (open/uncollectible)", async () => {
     const periodEnd = new Date("2027-04-01T00:00:00Z");
-    const { db } = createFakeDb({
+    const { db, calls } = createFakeDb({
       selectQueue: [[baseSubRow]],
-      updateQueue: [[baseSubRow]],
     });
     const { provider } = createFakeProvider({
       subscriptionSummary: {
@@ -165,6 +165,9 @@ describe("switchPlan(immediate)", () => {
     });
 
     expect(result.paymentActionUrl).toBe("https://invoice.stripe.com/pay/in_open_1");
+    expect(result.appliedImmediately).toBe(true);
+    expect(result.subscription.productId).toBe("cozya_pro_monthly");
+    expect(calls.find((c) => c.mode === "set")).toBeUndefined();
   });
 
   it("returns paymentActionUrl null when invoice is already paid", async () => {

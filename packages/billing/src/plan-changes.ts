@@ -86,7 +86,31 @@ export async function switchPlan(
       // For upgrades we want Stripe to invoice the proration immediately so the
       // user is charged the difference now, matching the UX of "switch to annual".
       prorationBehavior: "always_invoice",
+      // Keep the current Stripe subscription item active until the invoice is
+      // paid. Without this, local/webhook state can grant the new plan while the
+      // hosted invoice is still open.
+      paymentBehavior: "pending_if_incomplete",
     });
+    const invoice = summary.latestInvoice;
+    const needsAction = invoice ? invoice.status !== "paid" && invoice.status !== "void" : false;
+    if (needsAction) {
+      if (!invoice?.hostedUrl) {
+        throw new BillingError(
+          `payment action is required for subscription '${row.providerSubscriptionId}' but provider did not return a hosted invoice URL`,
+        );
+      }
+      safeLog(deps.logger, "info", "billing.plan_change.payment_required", {
+        subscriptionId: row.id,
+        invoiceId: invoice.id,
+        invoiceStatus: invoice.status,
+      });
+      return {
+        subscription: row,
+        appliedImmediately: true,
+        paymentActionUrl: invoice.hostedUrl,
+      };
+    }
+
     const periodEnd = summary.currentPeriodEnd ?? row.currentPeriodEnd;
     const updated = await deps.db
       .update(subscriptionsTable)
@@ -123,23 +147,7 @@ export async function switchPlan(
       newProductId: newProduct.id,
     });
 
-    // Stripe charges the customer's default payment method silently for upgrades
-    // with `always_invoice`. If the customer has no PM, the card was declined, or
-    // SCA is required, the latest_invoice ends up unpaid (status='open' or
-    // similar). We surface the hosted invoice URL so the UI redirects the user
-    // to complete payment instead of showing a misleading "success" toast.
-    const invoice = summary.latestInvoice;
-    const needsAction = invoice ? invoice.status !== "paid" && invoice.status !== "void" : false;
-    const paymentActionUrl = needsAction ? (invoice?.hostedUrl ?? null) : null;
-    if (paymentActionUrl) {
-      safeLog(deps.logger, "info", "billing.plan_change.payment_required", {
-        subscriptionId: row.id,
-        invoiceId: invoice?.id,
-        invoiceStatus: invoice?.status,
-      });
-    }
-
-    return { subscription: updatedRow, appliedImmediately: true, paymentActionUrl };
+    return { subscription: updatedRow, appliedImmediately: true, paymentActionUrl: null };
   }
 
   // schedule_at_period_end: cancel current subscription at the period boundary

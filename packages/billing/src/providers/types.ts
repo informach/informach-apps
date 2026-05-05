@@ -88,6 +88,15 @@ export type ProviderUpdateSubscriptionInput = {
   providerSubscriptionId: string;
   newPriceId: string;
   prorationBehavior?: "create_prorations" | "none" | "always_invoice";
+  /**
+   * Stripe payment behavior for updates that generate an invoice. `pending_if_incomplete`
+   * keeps the existing subscription items in force until the invoice is paid.
+   */
+  paymentBehavior?:
+    | "allow_incomplete"
+    | "default_incomplete"
+    | "pending_if_incomplete"
+    | "error_if_incomplete";
 };
 
 export type ProviderCreateSubscriptionInput = {

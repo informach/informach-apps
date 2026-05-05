@@ -12,7 +12,7 @@ type BalanceRow = {
 /**
  * Returns the current balance for an owner in a single Postgres round-trip.
  *
- *   total      = SUM(ledger.amount) WHERE expires_at IS NULL OR expires_at > now()
+ *   total      = SUM(ledger.amount) WHERE entry_type != expiration AND not expired
  *   reserved   = SUM(reservations.estimated_amount) WHERE status='active' AND expires_at > now()
  *   available  = total - reserved
  *   expiringSoon.amount         = SUM(positive ledger entries) expiring within next 7 days
@@ -33,6 +33,7 @@ export async function getBalance(
         FROM billing.credit_ledger
         WHERE owner_type = ${owner.type}
           AND owner_id = ${owner.id}
+          AND entry_type <> 'expiration'
           AND (expires_at IS NULL OR expires_at > now())
       ), 0) AS total,
       COALESCE((

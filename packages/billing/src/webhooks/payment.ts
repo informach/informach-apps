@@ -339,6 +339,7 @@ async function readOwnerBalanceAfter(
     FROM billing.credit_ledger
     WHERE owner_type = ${ownerType}
       AND owner_id = ${ownerId}
+      AND entry_type <> 'expiration'
       AND (expires_at IS NULL OR expires_at > now())
   `);
   const rows = result as unknown as Array<{ total: number | string | null }>;

@@ -42,6 +42,8 @@ export type WebhookHandlerResult = {
   reason?: string;
 };
 
+const WEBHOOK_PROCESSING_STALE_MS = 5 * 60_000;
+
 export function verifyStripeSignature(
   providerClient: BillingProviderClient,
   rawBody: string,
@@ -51,17 +53,19 @@ export function verifyStripeSignature(
 }
 
 /**
- * Idempotently handles a Stripe webhook event. Inserts in `webhook_events` first
- * (UNIQUE on provider+providerEventId). Conflicts with processed rows are
- * deduped; conflicts with unprocessed/error rows are retried. On success,
- * updates processedAt; on error, updates error+attempts and rethrows so Stripe
- * retries.
+ * Idempotently handles a Stripe webhook event. The row in `webhook_events` is
+ * claimed before dispatch so duplicate deliveries cannot process concurrently.
+ * Processed rows are deduped; failed or stale in-progress rows are retried. On
+ * success, updates processedAt; on error, clears the claim, records the error,
+ * and rethrows so Stripe retries.
  */
 export async function handleStripeEvent(
   deps: StripeWebhookDeps,
   event: ParsedWebhookEvent,
 ): Promise<WebhookHandlerResult> {
   const providerEventKey = buildProviderEventKey(deps, event.id);
+  const now = new Date();
+  const staleBefore = new Date(now.getTime() - WEBHOOK_PROCESSING_STALE_MS);
   const inserted = await deps.db
     .insert(webhookEvents)
     .values({
@@ -69,6 +73,8 @@ export async function handleStripeEvent(
       providerEventId: providerEventKey,
       eventType: event.type,
       payload: event.payload,
+      processingStartedAt: now,
+      attempts: 1,
     })
     .onConflictDoNothing({
       target: [webhookEvents.provider, webhookEvents.providerEventId],
@@ -79,6 +85,7 @@ export async function handleStripeEvent(
     const existingRows = await deps.db
       .select({
         processedAt: webhookEvents.processedAt,
+        processingStartedAt: webhookEvents.processingStartedAt,
         error: webhookEvents.error,
         attempts: webhookEvents.attempts,
       })
@@ -96,15 +103,7 @@ export async function handleStripeEvent(
         `@informach/billing: webhook_events conflict but row not found for '${providerEventKey}'`,
       );
     }
-    if (!existing.processedAt) {
-      safeLog(deps.logger, "warn", "billing.webhook.retrying_unprocessed", {
-        providerEventId: event.id,
-        providerEventKey,
-        eventType: event.type,
-        attempts: existing.attempts,
-        previousError: existing.error,
-      });
-    } else {
+    if (existing.processedAt) {
       safeLog(deps.logger, "debug", "billing.webhook.deduped", {
         providerEventId: event.id,
         providerEventKey,
@@ -112,13 +111,68 @@ export async function handleStripeEvent(
       });
       return { processed: false, deduped: true, reason: "already_processed" };
     }
+
+    const isActivelyProcessing =
+      !existing.error &&
+      existing.processingStartedAt !== null &&
+      existing.processingStartedAt > staleBefore;
+    if (isActivelyProcessing) {
+      safeLog(deps.logger, "debug", "billing.webhook.deduped_in_progress", {
+        providerEventId: event.id,
+        providerEventKey,
+        eventType: event.type,
+        attempts: existing.attempts,
+      });
+      return { processed: false, deduped: true, reason: "already_processing" };
+    }
+
+    const claimed = await deps.db
+      .update(webhookEvents)
+      .set({
+        eventType: event.type,
+        payload: event.payload,
+        processingStartedAt: now,
+        error: null,
+        attempts: sql`${webhookEvents.attempts} + 1`,
+      })
+      .where(
+        and(
+          eq(webhookEvents.provider, deps.provider),
+          eq(webhookEvents.providerEventId, providerEventKey),
+          sql`${webhookEvents.processedAt} IS NULL`,
+          sql`(
+            ${webhookEvents.error} IS NOT NULL
+            OR ${webhookEvents.processingStartedAt} IS NULL
+            OR ${webhookEvents.processingStartedAt} <= ${staleBefore}
+          )`,
+        ),
+      )
+      .returning({ id: webhookEvents.id });
+
+    if (claimed.length === 0) {
+      safeLog(deps.logger, "debug", "billing.webhook.deduped_in_progress", {
+        providerEventId: event.id,
+        providerEventKey,
+        eventType: event.type,
+        attempts: existing.attempts,
+      });
+      return { processed: false, deduped: true, reason: "already_processing" };
+    }
+
+    safeLog(deps.logger, "warn", "billing.webhook.retrying_unprocessed", {
+      providerEventId: event.id,
+      providerEventKey,
+      eventType: event.type,
+      attempts: existing.attempts,
+      previousError: existing.error,
+    });
   }
 
   try {
     const reason = await dispatchEvent(deps, event);
     await deps.db
       .update(webhookEvents)
-      .set({ processedAt: new Date(), error: null })
+      .set({ processedAt: new Date(), processingStartedAt: null, error: null })
       .where(
         and(
           eq(webhookEvents.provider, deps.provider),
@@ -132,7 +186,7 @@ export async function handleStripeEvent(
       .update(webhookEvents)
       .set({
         error: message,
-        attempts: sql`${webhookEvents.attempts} + 1`,
+        processingStartedAt: null,
       })
       .where(
         and(

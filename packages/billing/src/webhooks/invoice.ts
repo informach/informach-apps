@@ -497,9 +497,9 @@ async function recoverLocalSubscriptionFromProvider(
     return null;
   }
 
-  const product = details.productId
-    ? deps.products.find((p) => p.id === details.productId)
-    : findProductInCatalogByPriceId(deps.products, details.providerPriceId);
+  const product =
+    findProductInCatalogByPriceId(deps.products, details.providerPriceId) ??
+    (details.productId ? deps.products.find((p) => p.id === details.productId) : undefined);
   if (!product) {
     safeLog(deps.logger, "warn", "billing.webhook.invoice.recover_product_not_in_catalog", {
       providerSubscriptionId,
@@ -513,7 +513,7 @@ async function recoverLocalSubscriptionFromProvider(
   const currentPeriodEnd = details.currentPeriodEnd ?? new Date();
   const cancelAtPeriodEnd = details.cancelAtPeriodEnd ? currentPeriodEnd : null;
 
-  await deps.db
+  const recoveredRows = await deps.db
     .insert(subscriptionsTable)
     .values({
       customerId: customer.id,
@@ -543,7 +543,16 @@ async function recoverLocalSubscriptionFromProvider(
         metadata: details.metadata,
         updatedAt: new Date(),
       },
+    })
+    .returning({
+      id: subscriptionsTable.id,
+      currentPeriodEnd: subscriptionsTable.currentPeriodEnd,
+      metadata: subscriptionsTable.metadata,
     });
+  const recovered = recoveredRows[0];
+  if (!recovered) {
+    throw new Error("@informach/billing: recovered subscription upsert returned 0 rows");
+  }
 
   safeLog(deps.logger, "info", "billing.webhook.invoice.subscription_recovered", {
     providerSubscriptionId,
@@ -551,14 +560,14 @@ async function recoverLocalSubscriptionFromProvider(
   });
 
   return {
-    id: details.id,
+    id: recovered.id,
     productId,
     providerPriceId: details.providerPriceId,
     subjectType: customer.subjectType as SubjectType,
     subjectId: customer.subjectId,
     customerEmail: customer.email,
-    currentPeriodEnd,
-    metadata: details.metadata,
+    currentPeriodEnd: recovered.currentPeriodEnd,
+    metadata: recovered.metadata,
   };
 }
 

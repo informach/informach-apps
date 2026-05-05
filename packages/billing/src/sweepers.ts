@@ -33,9 +33,12 @@ export type ExpireMonthlyBonusResult = {
 
 /**
  * Daily cron. Finds bonus_grant / promo_grant / purchase ledger rows whose
- * `expires_at <= now()` AND for which we have NOT already inserted a
- * compensating `expiration` entry, then inserts one negative `expiration` row
- * per source.
+ * `expires_at <= now()` AND for which we have NOT already inserted a historical
+ * `expiration` entry, then inserts one negative `expiration` row per source.
+ *
+ * Balance queries already ignore expired positive rows by `expires_at`, so
+ * `expiration` entries are audit/history only and are excluded from active
+ * balance math.
  *
  * The dedup uses `metadata->>'originalEntryId' = source.id` on the new
  * `expiration` rows. INSERT ... SELECT keeps it atomic and idempotent — running
@@ -53,12 +56,13 @@ export async function expireMonthlyBonusCredits(
   // second query.
   const result = await deps.db.execute<{ amount: number | string }>(sql`
     INSERT INTO billing.credit_ledger
-      (owner_type, owner_id, entry_type, amount, metadata)
+      (owner_type, owner_id, entry_type, amount, expires_at, metadata)
     SELECT
       src.owner_type,
       src.owner_id,
       'expiration',
       -src.amount,
+      src.expires_at,
       jsonb_build_object(
         'originalEntryId', src.id::text,
         'originalExpiresAt', src.expires_at,
@@ -491,11 +495,10 @@ export type GrantMonthlyBonusResult = {
 /**
  * Daily cron. For every annual subscription whose `next_credit_grant_at` has
  * arrived, grants the monthly bonus and advances the anchor by 30 days. The
- * candidate query already excludes:
+ * handler skips/clears anchors when the next drip would fall outside the paid
+ * period. The candidate query already excludes:
  *   - canceled subscriptions (status filter)
- *   - subscriptions whose drip would land AFTER cancel_at_period_end (the
- *     period the user has already paid for) — they keep dripping until the
- *     boundary, then stop.
+ *   - non-ready anchors via `next_credit_grant_at <= now()`
  *
  * Idempotency comes from `creditLedger.stripe_event_id` UNIQUE — the synthetic
  * id `drip:<subscriptionId>:<YYYY-MM-DD>` makes each (sub, day) pair unique.
@@ -560,10 +563,13 @@ export async function grantPendingMonthlyBonusCredits(
       continue;
     }
 
-    // If the period the user paid for is about to end (cancel_at_period_end set
-    // and we'd grant past it), stop dripping. The user keeps what they have
-    // until the boundary, then status flips to canceled via webhook.
-    if (row.cancelAtPeriodEnd && row.nextCreditGrantAt > row.cancelAtPeriodEnd) {
+    const anchor = row.nextCreditGrantAt;
+    const nextAnchor = new Date(anchor.getTime() + ANNUAL_DRIP_INTERVAL_MS);
+    const paidUntil = row.cancelAtPeriodEnd ?? row.currentPeriodEnd;
+    // Do not mint the final "extra" batch: if advancing by one drip interval
+    // would land past the period the user has paid for, this anchor is the stop
+    // boundary, not an earned new grant.
+    if (nextAnchor > paidUntil) {
       await deps.db
         .update(subscriptionsTable)
         .set({ nextCreditGrantAt: null, updatedAt: new Date() })
@@ -572,7 +578,6 @@ export async function grantPendingMonthlyBonusCredits(
       continue;
     }
 
-    const anchor = row.nextCreditGrantAt;
     const day = anchor.toISOString().slice(0, 10); // YYYY-MM-DD
     const syntheticEventId = `drip:${row.id}:${day}`;
 
@@ -599,16 +604,10 @@ export async function grantPendingMonthlyBonusCredits(
       },
     );
 
-    const nextAnchor = new Date(anchor.getTime() + ANNUAL_DRIP_INTERVAL_MS);
-    // If the next drip would fall after the user's paid period (or after a
-    // scheduled cancellation), null the anchor so we stop.
-    const stop =
-      (row.cancelAtPeriodEnd && nextAnchor > row.cancelAtPeriodEnd) ||
-      nextAnchor > row.currentPeriodEnd;
     await deps.db
       .update(subscriptionsTable)
       .set({
-        nextCreditGrantAt: stop ? null : nextAnchor,
+        nextCreditGrantAt: nextAnchor,
         updatedAt: new Date(),
       })
       .where(eq(subscriptionsTable.id, row.id));

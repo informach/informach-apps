@@ -1,0 +1,2 @@
+ALTER TABLE "billing"."webhook_events" ADD COLUMN "processing_started_at" timestamp with time zone;--> statement-breakpoint
+CREATE INDEX "webhook_events_processing_idx" ON "billing"."webhook_events" USING btree ("processing_started_at") WHERE "billing"."webhook_events"."processing_started_at" IS NOT NULL;
