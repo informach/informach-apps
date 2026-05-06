@@ -7,7 +7,7 @@ const optionalTextSchema = z
   .nullish()
   .transform((v) => (v && v.length > 0 ? v : null));
 
-export const recipeInputSchema = z.object({
+const recipeBaseSchema = z.object({
   name: z.string().trim().min(1, "Informe um nome").max(120, "No máximo 120 caracteres"),
   ingredients: z
     .string()
@@ -20,8 +20,33 @@ export const recipeInputSchema = z.object({
     .min(1, "Descreva o preparo")
     .max(5000, "No máximo 5000 caracteres"),
   finishing: optionalTextSchema,
+});
+
+export const recipeInputSchema = recipeBaseSchema.extend({
   isFavorite: z.boolean().default(false),
 });
 
 export type RecipeFormValues = z.input<typeof recipeInputSchema>;
 export type RecipeInput = z.output<typeof recipeInputSchema>;
+
+export const recipeIdSchema = z.object({
+  id: z.string().uuid("Identificador inválido"),
+});
+
+export const updateRecipeInputSchema = recipeBaseSchema.extend({
+  id: z.string().uuid("Identificador inválido"),
+  isFavorite: z.boolean(),
+});
+
+export type UpdateRecipeFormValues = z.input<typeof updateRecipeInputSchema>;
+export type UpdateRecipeInput = z.output<typeof updateRecipeInputSchema>;
+
+export const toggleFavoriteInputSchema = z.object({
+  id: z.string().uuid("Identificador inválido"),
+  isFavorite: z.boolean(),
+});
+
+export type ToggleFavoriteInput = z.output<typeof toggleFavoriteInputSchema>;
+
+export const deleteRecipeInputSchema = recipeIdSchema;
+export type DeleteRecipeInput = z.output<typeof deleteRecipeInputSchema>;

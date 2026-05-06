@@ -26,39 +26,99 @@ import { Textarea } from "@informach/ui/components/textarea";
 import { Loader2, Lock } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useEffect, useTransition } from "react";
 import { useForm } from "react-hook-form";
-import { createRecipeAction } from "../actions";
+import { createRecipeAction, updateRecipeAction } from "../actions";
 import { FREE_RECIPE_LIMIT } from "../limits";
+import type { Recipe } from "../repository";
 import { type RecipeFormValues, recipeInputSchema } from "../schemas";
+import { catchActionResult, isActionRejected } from "./action-errors";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   isPro: boolean;
   currentCount: number;
+  recipe?: Recipe;
 };
 
-export function RecipeFormDialog({ open, onOpenChange, isPro, currentCount }: Props) {
+const EMPTY_DEFAULTS: RecipeFormValues = {
+  name: "",
+  ingredients: "",
+  preparation: "",
+  finishing: "",
+  isFavorite: false,
+};
+
+function defaultsFromRecipe(recipe: Recipe): RecipeFormValues {
+  return {
+    name: recipe.name,
+    ingredients: recipe.ingredients,
+    preparation: recipe.preparation,
+    finishing: recipe.finishing ?? "",
+    isFavorite: recipe.isFavorite,
+  };
+}
+
+export function RecipeFormDialog({ open, onOpenChange, isPro, currentCount, recipe }: Props) {
   const router = useRouter();
   const [submitting, startSubmit] = useTransition();
-  const limitReached = !isPro && currentCount >= FREE_RECIPE_LIMIT;
+  const isEdit = recipe !== undefined;
+  const limitReached = !isEdit && !isPro && currentCount >= FREE_RECIPE_LIMIT;
 
   const form = useForm<RecipeFormValues>({
     resolver: zodResolver(recipeInputSchema),
-    defaultValues: {
-      name: "",
-      ingredients: "",
-      preparation: "",
-      finishing: "",
-      isFavorite: false,
-    },
+    defaultValues: recipe ? defaultsFromRecipe(recipe) : EMPTY_DEFAULTS,
   });
+
+  useEffect(() => {
+    if (open) {
+      form.reset(recipe ? defaultsFromRecipe(recipe) : EMPTY_DEFAULTS);
+    }
+  }, [open, recipe, form]);
 
   const onSubmit = form.handleSubmit((values) => {
     startSubmit(async () => {
-      const result = await createRecipeAction(values);
+      if (isEdit && recipe) {
+        const result = await catchActionResult(() =>
+          updateRecipeAction({ id: recipe.id, ...values }),
+        );
+        if (!result.ok) {
+          if (isActionRejected(result.error)) {
+            toast.error("Não foi possível salvar as alterações.", {
+              description: "Atualize a página e tente novamente.",
+            });
+            router.refresh();
+            return;
+          }
+          if (result.error.code === "NOT_FOUND") {
+            toast.error("Receita não encontrada", {
+              description: "Ela pode ter sido removida em outra aba.",
+            });
+            onOpenChange(false);
+            router.refresh();
+            return;
+          }
+          toast.error("Não foi possível salvar as alterações.", {
+            description: "Tente novamente em instantes.",
+          });
+          return;
+        }
+        toast.success("Receita atualizada");
+        onOpenChange(false);
+        router.refresh();
+        return;
+      }
+
+      const result = await catchActionResult(() => createRecipeAction(values));
       if (!result.ok) {
+        if (isActionRejected(result.error)) {
+          toast.error("Não foi possível salvar a receita.", {
+            description: "Atualize a página e tente novamente.",
+          });
+          router.refresh();
+          return;
+        }
         if (result.error.code === "PLAN_LIMIT_REACHED") {
           toast.error("Limite do plano Free atingido", {
             description: `Você já cadastrou ${result.error.current} de ${result.error.limit} receitas. Atualize para Pro pra cadastrar receitas ilimitadas.`,
@@ -72,14 +132,16 @@ export function RecipeFormDialog({ open, onOpenChange, isPro, currentCount }: Pr
         return;
       }
       toast.success("Receita criada");
-      form.reset();
+      form.reset(EMPTY_DEFAULTS);
       onOpenChange(false);
       router.refresh();
     });
   });
 
   const handleOpenChange = (next: boolean) => {
-    if (!next) form.reset();
+    if (!next) {
+      form.reset(recipe ? defaultsFromRecipe(recipe) : EMPTY_DEFAULTS);
+    }
     onOpenChange(next);
   };
 
@@ -87,9 +149,11 @@ export function RecipeFormDialog({ open, onOpenChange, isPro, currentCount }: Pr
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Nova receita</DialogTitle>
+          <DialogTitle>{isEdit ? "Editar receita" : "Nova receita"}</DialogTitle>
           <DialogDescription>
-            Salve sua receita no Cozya com ingredientes, preparo e finalização.
+            {isEdit
+              ? "Atualize ingredientes, preparo ou finalização da sua receita."
+              : "Salve sua receita no Cozya com ingredientes, preparo e finalização."}
           </DialogDescription>
         </DialogHeader>
 
@@ -230,7 +294,7 @@ export function RecipeFormDialog({ open, onOpenChange, isPro, currentCount }: Pr
                 </Button>
                 <Button type="submit" disabled={submitting}>
                   {submitting ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden /> : null}
-                  Salvar
+                  {isEdit ? "Salvar alterações" : "Salvar"}
                 </Button>
               </DialogFooter>
             </form>

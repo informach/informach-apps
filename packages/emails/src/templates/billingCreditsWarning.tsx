@@ -51,17 +51,14 @@ export function BillingCreditsWarningEmail({
   // Title and body strings vary by threshold (50/80/100) — picked from the
   // i18n bundle. Keeping them as separate keys instead of dynamic
   // interpolation avoids subtle plural/agreement issues in PT-BR.
-  const titleKey =
-    threshold === 100 ? "title100" : threshold === 80 ? "title80" : "title50";
+  const titleKey = threshold === 100 ? "title100" : threshold === 80 ? "title80" : "title50";
   const bodyKey = threshold === 100 ? "body100" : threshold === 80 ? "body80" : "body50";
   const ctaKey = threshold === 100 ? "cta100" : "cta";
 
   return (
     <EmailLayout
       appName={appName}
-      preheader={
-        preheader ?? t("preheader", { remaining: remainingStr, total: totalStr })
-      }
+      preheader={preheader ?? t("preheader", { remaining: remainingStr, total: totalStr })}
       title={t(titleKey, { remaining: remainingStr, total: totalStr })}
       cta={{ href: ctaUrl, label: t(ctaKey) }}
       unsubscribeUrl={unsubscribeUrl}

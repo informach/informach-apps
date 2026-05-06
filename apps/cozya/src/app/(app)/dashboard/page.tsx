@@ -1,18 +1,11 @@
 import { Alert, AlertDescription, AlertTitle } from "@informach/ui/components/alert";
-import { Button } from "@informach/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@informach/ui/components/card";
-import { BookOpen, CreditCard, Sparkles, Star } from "lucide-react";
-import Link from "next/link";
+import { Sparkles } from "lucide-react";
 import { billing } from "@/features/billing/service";
-import { NewRecipeButton } from "@/features/recipes/components/new-recipe-button";
-import { RecipesGrid } from "@/features/recipes/components/recipes-grid";
-import { FREE_RECIPE_LIMIT } from "@/features/recipes/limits";
-import {
-  countUserFavorites,
-  countUserRecipes,
-  listRecipesForUser,
-} from "@/features/recipes/service";
+import { RecipesSection } from "@/features/recipes/components/recipes-section";
+import { countUserRecipes, listRecipesForUser } from "@/features/recipes/service";
 import { requireUserServer } from "@/lib/auth";
+
+const RECIPE_PAGE_SIZE = 50;
 
 export default async function DashboardPage({
   searchParams,
@@ -21,27 +14,21 @@ export default async function DashboardPage({
 }) {
   const params = await searchParams;
   const showWelcome = params.welcome === "1";
+  const recipeSearch = parseSingleParam(params.q).trim().slice(0, 120);
+  const recipePage = parsePositiveInt(parseSingleParam(params.page)) ?? 1;
 
   const user = await requireUserServer();
   const subject = { type: "user" as const, id: user.id };
 
-  const [recipeCount, favoriteCount, isPro, recipes] = await Promise.all([
+  const [recipeCount, isPro, recipesPage] = await Promise.all([
     countUserRecipes(user.id),
-    countUserFavorites(user.id),
     billing.hasProSubscription(subject),
-    listRecipesForUser(user.id, 50),
+    listRecipesForUser(user.id, {
+      search: recipeSearch,
+      page: recipePage,
+      limit: RECIPE_PAGE_SIZE,
+    }),
   ]);
-
-  const recipesSubtext = isPro
-    ? recipeCount > 0
-      ? "Total de receitas cadastradas."
-      : "Comece criando sua primeira receita."
-    : `${recipeCount} de ${FREE_RECIPE_LIMIT} no plano Free.`;
-
-  const favoritesSubtext =
-    favoriteCount > 0
-      ? "Receitas marcadas como favoritas."
-      : "Marque uma receita como favorita ao salvar.";
 
   return (
     <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8 md:px-8">
@@ -55,63 +42,32 @@ export default async function DashboardPage({
         </Alert>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Minhas receitas</h1>
-          <p className="text-sm text-muted-foreground">
-            Comece salvando receitas e acompanhe seus créditos do Pro.
-          </p>
-        </div>
-        <NewRecipeButton isPro={isPro} currentCount={recipeCount} />
+      <div className="mx-auto w-full max-w-3xl">
+        <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Minhas receitas</h1>
+        <p className="text-sm text-muted-foreground">
+          Busque, salve e compartilhe suas receitas favoritas.
+        </p>
       </div>
 
-      <section className="grid gap-4 md:grid-cols-3">
-        <Card className="border-border/60">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Receitas</CardTitle>
-            <BookOpen className="size-4 text-muted-foreground" aria-hidden />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-semibold tabular-nums tracking-tight">{recipeCount}</div>
-            <p className="text-xs text-muted-foreground">{recipesSubtext}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/60">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Favoritas</CardTitle>
-            <Star className="size-4 text-muted-foreground" aria-hidden />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-semibold tabular-nums tracking-tight">
-              {favoriteCount}
-            </div>
-            <p className="text-xs text-muted-foreground">{favoritesSubtext}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/60">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Plano e créditos
-            </CardTitle>
-            <CreditCard className="size-4 text-muted-foreground" aria-hidden />
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Veja assinatura, portal de cobrança e histórico de créditos.
-            </p>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/settings/billing">Abrir billing</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold tracking-tight">Suas receitas</h2>
-        <RecipesGrid recipes={recipes} />
-      </section>
+      <RecipesSection
+        recipes={recipesPage.recipes}
+        isPro={isPro}
+        currentCount={recipeCount}
+        query={recipeSearch}
+        page={recipesPage.page}
+        hasNextPage={recipesPage.hasNextPage}
+      />
     </main>
   );
+}
+
+function parseSingleParam(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value[0] ?? "";
+  return value ?? "";
+}
+
+function parsePositiveInt(value: string): number | null {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) return null;
+  return parsed;
 }

@@ -6,20 +6,27 @@ import { FREE_RECIPE_LIMIT } from "./limits";
 import {
   countFavoritesByUser,
   countRecipesByUser,
-  findRecipesByUser,
+  deleteRecipeForUser,
+  findRecipesPageByUser,
   insertRecipe,
   insertRecipeWithinFreeLimit,
   type Recipe,
+  type RecipeListOptions,
+  type RecipeListPage,
+  setRecipeFavoriteForUser,
+  updateRecipeForUser,
 } from "./repository";
 import type { RecipeInput } from "./schemas";
 
-export type { Recipe } from "./repository";
+export type { Recipe, RecipeListPage } from "./repository";
 
 export type CreateRecipeError = {
   code: "PLAN_LIMIT_REACHED";
   limit: number;
   current: number;
 };
+
+export type RecipeNotFoundError = { code: "NOT_FOUND" };
 
 export async function createRecipe(
   userId: string,
@@ -51,8 +58,46 @@ export async function createRecipe(
   return ok(row);
 }
 
-export async function listRecipesForUser(userId: string, limit = 50): Promise<Recipe[]> {
-  return findRecipesByUser(userId, limit);
+export async function listRecipesForUser(
+  userId: string,
+  options: RecipeListOptions = {},
+): Promise<RecipeListPage> {
+  return findRecipesPageByUser(userId, options);
+}
+
+export async function updateRecipe(
+  userId: string,
+  id: string,
+  input: RecipeInput,
+): Promise<Result<Recipe, RecipeNotFoundError>> {
+  const row = await updateRecipeForUser(userId, id, {
+    name: input.name,
+    ingredients: input.ingredients,
+    preparation: input.preparation,
+    finishing: input.finishing,
+    isFavorite: input.isFavorite,
+  });
+  if (!row) return err({ code: "NOT_FOUND" });
+  return ok(row);
+}
+
+export async function deleteRecipe(
+  userId: string,
+  id: string,
+): Promise<Result<true, RecipeNotFoundError>> {
+  const removed = await deleteRecipeForUser(userId, id);
+  if (!removed) return err({ code: "NOT_FOUND" });
+  return ok(true);
+}
+
+export async function toggleRecipeFavorite(
+  userId: string,
+  id: string,
+  isFavorite: boolean,
+): Promise<Result<Recipe, RecipeNotFoundError>> {
+  const row = await setRecipeFavoriteForUser(userId, id, isFavorite);
+  if (!row) return err({ code: "NOT_FOUND" });
+  return ok(row);
 }
 
 export async function countUserRecipes(userId: string): Promise<number> {

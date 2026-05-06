@@ -49,8 +49,8 @@ export function CreditBalanceCard({ available, total, reserved, monthlyCap }: Pr
                 </button>
               </TooltipTrigger>
               <TooltipContent className="max-w-xs">
-                Cada vez que a IA é usada (gerar, extrair, refinar) consome 1 crédito —
-                independente de você salvar a receita ou não.
+                Cada vez que a IA é usada (gerar, extrair, refinar) consome 1 crédito — independente
+                de você salvar a receita ou não.
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

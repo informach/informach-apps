@@ -30,7 +30,13 @@ vi.mock("./logger", () => ({
   },
 }));
 
-import { aiInvokeKey, COZYA_RATE_LIMITS, RateLimitedError, checkRateLimit, enforceRateLimit } from "./rate-limit";
+import {
+  aiInvokeKey,
+  COZYA_RATE_LIMITS,
+  checkRateLimit,
+  enforceRateLimit,
+  RateLimitedError,
+} from "./rate-limit";
 
 beforeEach(() => {
   counter = 0;
