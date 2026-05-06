@@ -7,7 +7,7 @@ export const FREE_FEATURES: PlanFeature[] = [
   { label: "Busca por nome e favoritos", included: true },
   { label: "Compartilhar pelo WhatsApp", included: true },
   { label: "Uso direto no navegador do celular", included: true },
-  { label: "Limite mensal de receitas salvas", included: true },
+  { label: "Limite vitalício de 15 receitas salvas", included: true },
   { label: "Importação por imagem, câmera e voz", included: false },
   { label: "Geração de receita por título com IA", included: false },
 ];

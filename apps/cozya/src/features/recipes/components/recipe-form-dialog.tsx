@@ -30,7 +30,7 @@ import { useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { createRecipeAction } from "../actions";
 import { FREE_RECIPE_LIMIT } from "../limits";
-import { type RecipeInput, recipeInputSchema } from "../schemas";
+import { type RecipeFormValues, recipeInputSchema } from "../schemas";
 
 type Props = {
   open: boolean;
@@ -44,7 +44,7 @@ export function RecipeFormDialog({ open, onOpenChange, isPro, currentCount }: Pr
   const [submitting, startSubmit] = useTransition();
   const limitReached = !isPro && currentCount >= FREE_RECIPE_LIMIT;
 
-  const form = useForm<RecipeInput>({
+  const form = useForm<RecipeFormValues>({
     resolver: zodResolver(recipeInputSchema),
     defaultValues: {
       name: "",
@@ -113,7 +113,7 @@ export function RecipeFormDialog({ open, onOpenChange, isPro, currentCount }: Pr
               </Button>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                 Fechar
               </Button>
             </DialogFooter>
@@ -213,7 +213,7 @@ export function RecipeFormDialog({ open, onOpenChange, isPro, currentCount }: Pr
                       </FormDescription>
                     </div>
                     <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      <Switch checked={Boolean(field.value)} onCheckedChange={field.onChange} />
                     </FormControl>
                   </FormItem>
                 )}
@@ -223,7 +223,7 @@ export function RecipeFormDialog({ open, onOpenChange, isPro, currentCount }: Pr
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => onOpenChange(false)}
+                  onClick={() => handleOpenChange(false)}
                   disabled={submitting}
                 >
                   Cancelar

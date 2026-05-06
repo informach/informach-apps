@@ -8,6 +8,7 @@ import {
   countRecipesByUser,
   findRecipesByUser,
   insertRecipe,
+  insertRecipeWithinFreeLimit,
   type Recipe,
 } from "./repository";
 import type { RecipeInput } from "./schemas";
@@ -24,22 +25,29 @@ export async function createRecipe(
   userId: string,
   input: RecipeInput,
 ): Promise<Result<Recipe, CreateRecipeError>> {
-  const isPro = await billing.hasProSubscription({ type: "user", id: userId });
-  if (!isPro) {
-    const current = await countRecipesByUser(userId);
-    if (current >= FREE_RECIPE_LIMIT) {
-      return err({ code: "PLAN_LIMIT_REACHED", limit: FREE_RECIPE_LIMIT, current });
-    }
-  }
-
-  const row = await insertRecipe({
+  const payload = {
     userId,
     name: input.name,
     ingredients: input.ingredients,
     preparation: input.preparation,
     finishing: input.finishing,
     isFavorite: input.isFavorite,
-  });
+  };
+
+  const isPro = await billing.hasProSubscription({ type: "user", id: userId });
+  if (!isPro) {
+    const limitedInsert = await insertRecipeWithinFreeLimit(payload, FREE_RECIPE_LIMIT);
+    if (!limitedInsert.ok) {
+      return err({
+        code: "PLAN_LIMIT_REACHED",
+        limit: FREE_RECIPE_LIMIT,
+        current: limitedInsert.current,
+      });
+    }
+    return ok(limitedInsert.recipe);
+  }
+
+  const row = await insertRecipe(payload);
   return ok(row);
 }
 
