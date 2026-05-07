@@ -13,13 +13,17 @@ import { toast } from "@informach/ui/components/sonner";
 import { SpeechInput } from "@informach/ui/components/speech-input";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
+import { handleAiHttpError } from "./_ai-http-errors";
 
-export type VoiceRecipeFields = {
+export type ParsedRecipeFields = {
   name: string;
   ingredients: string;
   preparation: string;
   finishing: string;
 };
+
+// Legacy alias kept for callers that already imported the voice-specific name.
+export type VoiceRecipeFields = ParsedRecipeFields;
 
 type Props = {
   open: boolean;
@@ -56,7 +60,7 @@ export function VoiceRecipeDialog({ open, onOpenChange, onParsed }: Props) {
       method: "POST",
       body: transcribeForm,
     });
-    if (!handleHttpError(tRes)) {
+    if (!handleAiHttpError(tRes)) {
       setStage("idle");
       return "";
     }
@@ -81,7 +85,7 @@ export function VoiceRecipeDialog({ open, onOpenChange, onParsed }: Props) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ transcript }),
     });
-    if (!handleHttpError(pRes)) {
+    if (!handleAiHttpError(pRes)) {
       setStage("idle");
       return transcript;
     }
@@ -184,32 +188,4 @@ export function VoiceRecipeDialog({ open, onOpenChange, onParsed }: Props) {
       </DialogContent>
     </Dialog>
   );
-}
-
-/**
- * Returns true if the response is OK (or non-special error). Returns false if
- * a known-special error (rate-limit/forbidden/unavailable) was handled and the
- * caller should stop the flow without showing a generic toast.
- */
-function handleHttpError(response: Response): boolean {
-  if (response.ok) return true;
-  if (response.status === 429) {
-    response
-      .json()
-      .catch(() => null)
-      .then((data: { retryAfter?: number } | null) => {
-        const wait = data?.retryAfter ? ` Tente novamente em ~${data.retryAfter}s.` : "";
-        toast.error(`Aguarde alguns minutos antes de usar a IA novamente.${wait}`);
-      });
-    return false;
-  }
-  if (response.status === 403) {
-    toast.error("Esta funcionalidade é apenas para assinantes Pro.");
-    return false;
-  }
-  if (response.status === 503) {
-    toast.error("Indisponível no momento. Tente novamente em instantes.");
-    return false;
-  }
-  return true; // generic error — caller falls through to its own toast
 }

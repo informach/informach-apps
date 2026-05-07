@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@informach/ui/components/dialog";
 import { cn } from "@informach/ui/lib/utils";
-import { Lock, Mic, Pencil } from "lucide-react";
+import { ClipboardPaste, Lock, Mic, Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 type Props = {
@@ -18,6 +18,7 @@ type Props = {
   isPro: boolean;
   onPickManual: () => void;
   onPickVoice: () => void;
+  onPickText: () => void;
 };
 
 export function NewRecipeMethodDialog({
@@ -26,12 +27,13 @@ export function NewRecipeMethodDialog({
   isPro,
   onPickManual,
   onPickVoice,
+  onPickText,
 }: Props) {
   const router = useRouter();
 
-  const handleVoiceClick = () => {
+  const handleProClick = (callback: () => void) => () => {
     if (isPro) {
-      onPickVoice();
+      callback();
       return;
     }
     onOpenChange(false);
@@ -40,13 +42,13 @@ export function NewRecipeMethodDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Como adicionar a receita?</DialogTitle>
           <DialogDescription>Escolha uma forma de cadastrar sua nova receita.</DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <MethodCard
             icon={<Pencil className="size-5" aria-hidden />}
             title="Manual"
@@ -57,7 +59,17 @@ export function NewRecipeMethodDialog({
             icon={<Mic className="size-5" aria-hidden />}
             title="Por voz"
             description={isPro ? "Fale a receita e a IA preenche pra você." : "Disponível no Pro."}
-            onClick={handleVoiceClick}
+            onClick={handleProClick(onPickVoice)}
+            badge="Pro"
+            locked={!isPro}
+          />
+          <MethodCard
+            icon={<ClipboardPaste className="size-5" aria-hidden />}
+            title="Colar texto"
+            description={
+              isPro ? "Cole o texto de uma receita e a IA preenche pra você." : "Disponível no Pro."
+            }
+            onClick={handleProClick(onPickText)}
             badge="Pro"
             locked={!isPro}
           />
@@ -67,7 +79,7 @@ export function NewRecipeMethodDialog({
           <p className="pt-1 text-center text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <Lock className="size-3" aria-hidden />
-              Por voz é uma funcionalidade Pro —{" "}
+              Por voz e colar texto são funcionalidades Pro —{" "}
               <button
                 type="button"
                 className="underline underline-offset-2"

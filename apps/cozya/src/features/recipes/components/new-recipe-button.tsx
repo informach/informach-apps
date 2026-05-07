@@ -6,14 +6,15 @@ import { useState } from "react";
 import type { RecipeFormValues } from "../schemas";
 import { NewRecipeMethodDialog } from "./new-recipe-method-dialog";
 import { RecipeFormDialog } from "./recipe-form-dialog";
-import { VoiceRecipeDialog, type VoiceRecipeFields } from "./voice-recipe-dialog";
+import { TextRecipeDialog } from "./text-recipe-dialog";
+import { type ParsedRecipeFields, VoiceRecipeDialog } from "./voice-recipe-dialog";
 
 type Props = {
   isPro: boolean;
   currentCount: number;
 };
 
-type View = "closed" | "picker" | "voice" | "manual";
+type View = "closed" | "picker" | "voice" | "text" | "manual";
 
 export function NewRecipeButton({ isPro, currentCount }: Props) {
   const [view, setView] = useState<View>("closed");
@@ -28,7 +29,11 @@ export function NewRecipeButton({ isPro, currentCount }: Props) {
     setView("voice");
   };
 
-  const handleParsedFromVoice = (recipe: VoiceRecipeFields) => {
+  const handlePickText = () => {
+    setView("text");
+  };
+
+  const handleParsedFromVoice = (recipe: ParsedRecipeFields) => {
     setDefaultValues({
       name: recipe.name,
       ingredients: recipe.ingredients,
@@ -40,10 +45,36 @@ export function NewRecipeButton({ isPro, currentCount }: Props) {
     setView("manual");
   };
 
+  const handleParsedFromText = (recipe: ParsedRecipeFields) => {
+    setDefaultValues({
+      name: recipe.name,
+      ingredients: recipe.ingredients,
+      preparation: recipe.preparation,
+      finishing: recipe.finishing,
+      isFavorite: false,
+      creationMethod: "text",
+    });
+    setView("manual");
+  };
+
   const handleClose = () => {
     setView("closed");
     setDefaultValues(null);
   };
+
+  const prefilledOrigin = defaultValues?.creationMethod;
+  const formTitle =
+    prefilledOrigin === "voice"
+      ? "Revisar receita por voz"
+      : prefilledOrigin === "text"
+        ? "Revisar receita colada"
+        : undefined;
+  const formDescription =
+    prefilledOrigin === "voice"
+      ? "Confira o que entendi do seu áudio e ajuste se precisar antes de salvar."
+      : prefilledOrigin === "text"
+        ? "Confira o que entendi do texto e ajuste se precisar antes de salvar."
+        : undefined;
 
   return (
     <>
@@ -60,6 +91,7 @@ export function NewRecipeButton({ isPro, currentCount }: Props) {
         isPro={isPro}
         onPickManual={handlePickManual}
         onPickVoice={handlePickVoice}
+        onPickText={handlePickText}
       />
 
       <VoiceRecipeDialog
@@ -70,6 +102,14 @@ export function NewRecipeButton({ isPro, currentCount }: Props) {
         onParsed={handleParsedFromVoice}
       />
 
+      <TextRecipeDialog
+        open={view === "text"}
+        onOpenChange={(open) => {
+          if (!open) handleClose();
+        }}
+        onParsed={handleParsedFromText}
+      />
+
       <RecipeFormDialog
         open={view === "manual"}
         onOpenChange={(open) => {
@@ -78,12 +118,8 @@ export function NewRecipeButton({ isPro, currentCount }: Props) {
         isPro={isPro}
         currentCount={currentCount}
         defaultValues={defaultValues ?? undefined}
-        title={defaultValues ? "Revisar receita por voz" : undefined}
-        description={
-          defaultValues
-            ? "Confira o que entendi do seu áudio e ajuste se precisar antes de salvar."
-            : undefined
-        }
+        title={formTitle}
+        description={formDescription}
       />
     </>
   );
