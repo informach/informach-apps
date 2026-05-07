@@ -39,10 +39,11 @@ export const recipeParserSchema = z.object({
     ),
   finishing: z
     .string()
+    .min(1)
     .max(5000)
     .nullish()
     .describe(
-      "Etapa de finalização (cobertura, decoração, servir) quando explicitamente mencionada pelo usuário. Null quando não houver.",
+      "Etapa de finalização (cobertura, decoração, servir) quando explicitamente mencionada pelo usuário. Null quando não houver — não retorne string vazia.",
     ),
 });
 

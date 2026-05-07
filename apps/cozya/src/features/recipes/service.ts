@@ -7,6 +7,7 @@ import {
   countFavoritesByUser,
   countRecipesByUser,
   deleteRecipeForUser,
+  findRecipeByIdForUser,
   findRecipesPageByUser,
   insertRecipe,
   insertRecipeWithinFreeLimit,
@@ -17,7 +18,7 @@ import {
 import type { RecipeInput } from "./schemas";
 import type { Recipe, RecipeListPage } from "./types";
 
-export type { Recipe, RecipeListPage } from "./types";
+export type { Recipe, RecipeListPage, RecipeSummary } from "./types";
 
 export type CreateRecipeError = {
   code: "PLAN_LIMIT_REACHED";
@@ -63,6 +64,15 @@ export async function listRecipesForUser(
   options: RecipeListOptions = {},
 ): Promise<RecipeListPage> {
   return findRecipesPageByUser(userId, options);
+}
+
+export async function getRecipeForUser(
+  userId: string,
+  id: string,
+): Promise<Result<Recipe, RecipeNotFoundError>> {
+  const row = await findRecipeByIdForUser(userId, id);
+  if (!row) return err({ code: "NOT_FOUND" });
+  return ok(row);
 }
 
 export async function updateRecipe(

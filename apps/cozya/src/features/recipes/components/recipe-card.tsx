@@ -7,16 +7,16 @@ import { cn } from "@informach/ui/lib/utils";
 import { Loader2, Pencil, Star, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { toggleRecipeFavoriteAction } from "../actions";
+import { getRecipeAction, toggleRecipeFavoriteAction } from "../actions";
 import { countIngredients } from "../share";
-import type { Recipe } from "../types";
+import type { Recipe, RecipeSummary } from "../types";
 import { catchActionResult, isActionRejected } from "./action-errors";
 import { DeleteRecipeDialog } from "./delete-recipe-dialog";
 import { RecipeFormDialog } from "./recipe-form-dialog";
 import { RecipeViewDialog } from "./recipe-view-dialog";
 
 type Props = {
-  recipe: Recipe;
+  recipe: RecipeSummary;
   isPro: boolean;
   currentCount: number;
 };
@@ -29,9 +29,44 @@ export function RecipeCard({ recipe, isPro, currentCount }: Props) {
   const [viewOpen, setViewOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [fullRecipe, setFullRecipe] = useState<Recipe | null>(null);
+  const [detailLoading, setDetailLoading] = useState<"view" | "edit" | null>(null);
   const [favPending, startFavTransition] = useTransition();
 
   const ingredientsCount = countIngredients(recipe.ingredients);
+
+  // Detail/edit dialogs need `preparation` and `finishing`, which the list
+  // projection drops. Lazy-load via `getRecipeAction` on the first open and
+  // cache for the lifetime of the card. Refresh discards the cache.
+  const ensureFullRecipe = async (): Promise<Recipe | null> => {
+    if (fullRecipe && fullRecipe.id === recipe.id) return fullRecipe;
+    const result = await catchActionResult(() => getRecipeAction({ id: recipe.id }));
+    if (!result.ok) {
+      if (isActionRejected(result.error) || result.error.code !== "NOT_FOUND") {
+        toast.error("Não foi possível carregar a receita.");
+      } else {
+        toast.error("Receita não encontrada.");
+        router.refresh();
+      }
+      return null;
+    }
+    setFullRecipe(result.value);
+    return result.value;
+  };
+
+  const openView = async () => {
+    setDetailLoading("view");
+    const full = await ensureFullRecipe();
+    setDetailLoading(null);
+    if (full) setViewOpen(true);
+  };
+
+  const openEdit = async () => {
+    setDetailLoading("edit");
+    const full = await ensureFullRecipe();
+    setDetailLoading(null);
+    if (full) setEditOpen(true);
+  };
 
   const handleToggleFavorite = (event: React.MouseEvent) => {
     event.stopPropagation();
@@ -67,8 +102,9 @@ export function RecipeCard({ recipe, isPro, currentCount }: Props) {
         <CardContent className="flex items-center justify-between gap-3 p-4">
           <button
             type="button"
-            onClick={() => setViewOpen(true)}
-            className="flex-1 cursor-pointer rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={openView}
+            disabled={detailLoading !== null}
+            className="flex-1 cursor-pointer rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait"
             aria-label={`Ver detalhes de ${recipe.name}`}
           >
             <p className="text-base font-semibold leading-tight text-foreground">{recipe.name}</p>
@@ -109,11 +145,16 @@ export function RecipeCard({ recipe, isPro, currentCount }: Props) {
               className="size-9 rounded-full text-muted-foreground hover:text-foreground"
               onClick={(event) => {
                 event.stopPropagation();
-                setEditOpen(true);
+                void openEdit();
               }}
+              disabled={detailLoading !== null}
               aria-label="Editar receita"
             >
-              <Pencil className="size-4" aria-hidden />
+              {detailLoading === "edit" ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : (
+                <Pencil className="size-4" aria-hidden />
+              )}
             </Button>
 
             <Button
@@ -133,16 +174,16 @@ export function RecipeCard({ recipe, isPro, currentCount }: Props) {
         </CardContent>
       </Card>
 
-      {viewOpen ? (
-        <RecipeViewDialog open={viewOpen} onOpenChange={setViewOpen} recipe={recipe} />
+      {viewOpen && fullRecipe ? (
+        <RecipeViewDialog open={viewOpen} onOpenChange={setViewOpen} recipe={fullRecipe} />
       ) : null}
-      {editOpen ? (
+      {editOpen && fullRecipe ? (
         <RecipeFormDialog
           open={editOpen}
           onOpenChange={setEditOpen}
           isPro={isPro}
           currentCount={currentCount}
-          recipe={recipe}
+          recipe={fullRecipe}
         />
       ) : null}
       {deleteOpen ? (

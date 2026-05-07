@@ -6,13 +6,13 @@ import { Input } from "@informach/ui/components/input";
 import { ChefHat, ChevronLeft, ChevronRight, Loader2, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
-import type { Recipe } from "../types";
+import type { RecipeSummary } from "../types";
 import { NewRecipeButton } from "./new-recipe-button";
 import { RecipeCard } from "./recipe-card";
 import { RecipeVoiceSearch } from "./recipe-voice-search";
 
 type Props = {
-  recipes: Recipe[];
+  recipes: RecipeSummary[];
   isPro: boolean;
   currentCount: number;
   query: string;

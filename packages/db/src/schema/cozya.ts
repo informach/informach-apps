@@ -29,7 +29,14 @@ export const cozyaRecipes = cozya.table(
   },
   (t) => [
     index("cozya_recipes_user_created_idx").on(t.userId, t.createdAt),
-    index("cozya_recipes_user_favorite_idx").on(t.userId, t.isFavorite),
+    // Matches the ORDER BY of the dashboard list query
+    // (`isFavorite DESC, createdAt DESC`). Lets Postgres serve the page from
+    // an index scan instead of falling back to a runtime Sort.
+    index("cozya_recipes_user_fav_created_idx").on(
+      t.userId,
+      t.isFavorite.desc(),
+      t.createdAt.desc(),
+    ),
   ],
 );
 

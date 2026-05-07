@@ -4,11 +4,18 @@ import { action, err, ok } from "@/lib/action";
 import { logger } from "@/lib/logger";
 import {
   deleteRecipeInputSchema,
+  recipeIdSchema,
   recipeInputSchema,
   toggleFavoriteInputSchema,
   updateRecipeInputSchema,
 } from "./schemas";
-import { createRecipe, deleteRecipe, toggleRecipeFavorite, updateRecipe } from "./service";
+import {
+  createRecipe,
+  deleteRecipe,
+  getRecipeForUser,
+  toggleRecipeFavorite,
+  updateRecipe,
+} from "./service";
 
 export const createRecipeAction = action
   .input(recipeInputSchema)
@@ -67,6 +74,19 @@ export const deleteRecipeAction = action
 
     logger.info({ userId, recipeId: input.id }, "cozya.recipe_deleted");
     return ok({ id: input.id } as const);
+  });
+
+export const getRecipeAction = action
+  .input(recipeIdSchema)
+  .auth({ require: "user" })
+  .rateLimit({ key: "recipes-get", max: 240, window: "1h" })
+  .run(async ({ input, ctx }) => {
+    const userId = ctx.actor?.id;
+    if (!userId) return err({ code: "UNAUTHORIZED" } as const);
+
+    const result = await getRecipeForUser(userId, input.id);
+    if (!result.ok) return err(result.error);
+    return ok(result.value);
   });
 
 export const toggleRecipeFavoriteAction = action

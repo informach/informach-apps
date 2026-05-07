@@ -127,6 +127,13 @@
       "when": 1778148375469,
       "tag": "0017_enable_unaccent",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1778177306250,
+      "tag": "0018_red_steel_serpent",
+      "breakpoints": true
     }
   ]
 }

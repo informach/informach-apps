@@ -13,8 +13,15 @@ export type Recipe = {
   updatedAt: Date;
 };
 
+/**
+ * Lightweight projection used by the dashboard list. Drops `preparation` and
+ * `finishing` (the largest text fields) — the card only renders name, count
+ * and the favorite flag. Detail/edit dialogs lazy-load the full row.
+ */
+export type RecipeSummary = Omit<Recipe, "preparation" | "finishing">;
+
 export type RecipeListPage = {
-  recipes: Recipe[];
+  recipes: RecipeSummary[];
   page: number;
   limit: number;
   hasNextPage: boolean;

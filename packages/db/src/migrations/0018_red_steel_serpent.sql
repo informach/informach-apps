@@ -1,0 +1,2 @@
+DROP INDEX "cozya"."cozya_recipes_user_favorite_idx";--> statement-breakpoint
+CREATE INDEX "cozya_recipes_user_fav_created_idx" ON "cozya"."recipes" USING btree ("user_id","is_favorite" DESC NULLS LAST,"created_at" DESC NULLS LAST);

@@ -23,10 +23,15 @@ Regras gerais:
 - Tudo em texto plano, sem caracteres especiais decorativos.
 - Quando o usuário falar/escrever quantidades em jeito coloquial ("uma xícara", "meia colher"), preserve o jeito coloquial.`;
 
-export function createRecipeParserAgent(opts: { model: AgentModel; memory: Memory }): Agent {
+export function createRecipeParserAgent(opts: {
+  model: AgentModel;
+  memory: Memory;
+  id?: string;
+  name?: string;
+}): Agent {
   return new Agent({
-    id: "recipeParser",
-    name: "recipeParser",
+    id: opts.id ?? "recipeParser",
+    name: opts.name ?? "recipeParser",
     instructions: INSTRUCTIONS,
     model: opts.model,
     memory: opts.memory,

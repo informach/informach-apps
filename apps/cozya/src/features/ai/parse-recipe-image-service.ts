@@ -1,11 +1,12 @@
 import "server-only";
 
 import { withCredits } from "@informach/ai-core";
-import { mastra } from "@/ai";
+import { getMastra } from "@/ai";
 import { agentRunRecorder as recorder } from "@/ai/agent-run-recorder";
 import { type RecipeParserOutput, recipeParserSchema } from "@/ai/recipe-parser/schema";
 import { billing } from "@/features/billing/service";
 import { env } from "@/lib/env";
+import { normalizeUsage } from "./_shared";
 
 export type ParseRecipeFromImageInput = {
   userId: string;
@@ -32,34 +33,38 @@ export async function parseRecipeFromImage(
       await recorder.start({
         runId: reservation.id,
         app: "cozya",
-        agent: "recipeParserImage",
+        agent: "recipeParserVision",
       });
       try {
-        const response = await mastra.getAgent("recipeParser").generate(
-          [
+        // Vision agent (gpt-4o) — see apps/cozya/src/ai/index.ts. Other parse
+        // flows reuse the cheaper recipeParser (gpt-4o-mini).
+        const response = await getMastra()
+          .getAgent("recipeParserVision")
+          .generate(
+            [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: "Extraia a receita desta imagem.",
+                  },
+                  {
+                    type: "image",
+                    image: input.imageDataUrl,
+                    providerOptions: { openai: { imageDetail: "low" } },
+                  },
+                ],
+              },
+            ],
             {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: "Extraia a receita desta imagem.",
-                },
-                {
-                  type: "image",
-                  image: input.imageDataUrl,
-                  providerOptions: { openai: { imageDetail: "low" } },
-                },
-              ],
+              runId: reservation.id,
+              structuredOutput: {
+                schema: recipeParserSchema,
+                errorStrategy: "strict",
+              },
             },
-          ],
-          {
-            runId: reservation.id,
-            structuredOutput: {
-              schema: recipeParserSchema,
-              errorStrategy: "strict",
-            },
-          },
-        );
+          );
         const usage = normalizeUsage(response.usage);
         await recorder.finish({
           runId: reservation.id,
@@ -78,20 +83,4 @@ export async function parseRecipeFromImage(
     },
   });
   return out.result;
-}
-
-function normalizeUsage(raw: unknown): {
-  promptTokens: number;
-  completionTokens: number;
-  totalTokens: number;
-} {
-  const u = (raw ?? {}) as Record<string, unknown>;
-  const promptTokens = numberOr(u.inputTokens ?? u.promptTokens, 0);
-  const completionTokens = numberOr(u.outputTokens ?? u.completionTokens, 0);
-  const totalTokens = numberOr(u.totalTokens, promptTokens + completionTokens);
-  return { promptTokens, completionTokens, totalTokens };
-}
-
-function numberOr(v: unknown, fallback: number): number {
-  return typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.floor(v) : fallback;
 }

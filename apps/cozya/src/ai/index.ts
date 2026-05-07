@@ -6,17 +6,42 @@ import { createOpenAI } from "@informach/ai-core/providers";
 import { env } from "@/lib/env";
 import { createRecipeParserAgent } from "./recipe-parser/agent";
 
-const openai = createOpenAI({ apiKey: env.OPENAI_API_KEY ?? "" });
-const storage = createPostgresStore({ connectionString: env.DATABASE_URL });
-const memory = createSharedMemory({ storage });
+type Mastra = ReturnType<typeof createMastra>;
 
-const recipeParser = createRecipeParserAgent({
-  model: openai("gpt-4o-mini"),
-  memory,
-});
+let cached: Mastra | null = null;
 
-export const mastra = createMastra({
-  agents: { recipeParser },
-  storage,
-  logger: createDefaultLogger({ name: "cozya", level: env.MASTRA_LOG_LEVEL }),
-});
+/**
+ * Lazy Mastra factory. Postpones the Postgres pool + provider instantiation
+ * until the first AI call instead of opening it at module import time. Cached
+ * after the first call so subsequent invocations are zero-cost.
+ *
+ * Two parser agents share the same instructions/schema but differ in the
+ * underlying model. Vision flow uses gpt-4o (per cozya/CLAUDE.md §2 +
+ * credit_pricing seed); text/voice/url flows use the cheaper gpt-4o-mini.
+ */
+export function getMastra(): Mastra {
+  if (cached) return cached;
+
+  const openai = createOpenAI({ apiKey: env.OPENAI_API_KEY ?? "" });
+  const storage = createPostgresStore({ connectionString: env.DATABASE_URL });
+  const memory = createSharedMemory({ storage });
+
+  const recipeParser = createRecipeParserAgent({
+    model: openai("gpt-4o-mini"),
+    memory,
+  });
+
+  const recipeParserVision = createRecipeParserAgent({
+    id: "recipeParserVision",
+    name: "recipeParserVision",
+    model: openai("gpt-4o"),
+    memory,
+  });
+
+  cached = createMastra({
+    agents: { recipeParser, recipeParserVision },
+    storage,
+    logger: createDefaultLogger({ name: "cozya", level: env.MASTRA_LOG_LEVEL }),
+  });
+  return cached;
+}

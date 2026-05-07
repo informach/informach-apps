@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, count, type Database, db, desc, eq, sql } from "@informach/db";
 import { cozyaRecipes } from "@informach/db/schema";
-import type { Recipe, RecipeListPage } from "./types";
+import type { Recipe, RecipeListPage, RecipeSummary } from "./types";
 
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 type DbClient = Database | Tx;
@@ -68,7 +68,7 @@ async function lockRecipeLimitForUser(tx: Tx, userId: string): Promise<void> {
   await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`cozya:recipes:${userId}`}))`);
 }
 
-export async function findRecipesByUser(userId: string, limit = 50): Promise<Recipe[]> {
+export async function findRecipesByUser(userId: string, limit = 50): Promise<RecipeSummary[]> {
   const page = await findRecipesPageByUser(userId, { limit });
   return page.recipes;
 }
@@ -79,8 +79,20 @@ export async function findRecipesPageByUser(
 ): Promise<RecipeListPage> {
   const limit = normalizeRecipeLimit(options.limit);
   const page = normalizeRecipePage(options.page);
+  // Projection: skips `preparation` and `finishing` — the heaviest text
+  // columns. The list view doesn't need them; detail/edit dialogs fetch the
+  // full row separately via `findRecipeByIdForUser`.
   const rows = await db
-    .select()
+    .select({
+      id: cozyaRecipes.id,
+      userId: cozyaRecipes.userId,
+      name: cozyaRecipes.name,
+      ingredients: cozyaRecipes.ingredients,
+      isFavorite: cozyaRecipes.isFavorite,
+      creationMethod: cozyaRecipes.creationMethod,
+      createdAt: cozyaRecipes.createdAt,
+      updatedAt: cozyaRecipes.updatedAt,
+    })
     .from(cozyaRecipes)
     .where(recipesWhereClause(userId, options.search))
     .orderBy(desc(cozyaRecipes.isFavorite), desc(cozyaRecipes.createdAt))
