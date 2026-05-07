@@ -214,14 +214,38 @@ describe("findRecipesPageByUser", () => {
     expect(capture.offsetArg).toBe(1);
   });
 
-  it("searches recipe names with escaped LIKE wildcards", async () => {
+  it("tokenizes the search input and AND-matches each word against the name", async () => {
     dbMocks.db.select.mockReturnValue(selectListResult([recipe]));
+    dbMocks.sql.mockClear();
+
+    await findRecipesPageByUser("user_123", { search: "Sopa de pipoca." });
+
+    expect(dbMocks.sql).toHaveBeenCalledTimes(3);
+    const patterns = dbMocks.sql.mock.calls.map((call) => call[2]);
+    expect(patterns).toEqual(["%Sopa%", "%de%", "%pipoca%"]);
+    for (const call of dbMocks.sql.mock.calls) {
+      expect(call[1]).toBe("name");
+      expect(call[3]).toBe("\\");
+    }
+  });
+
+  it("strips wildcard chars from individual tokens before LIKE", async () => {
+    dbMocks.db.select.mockReturnValue(selectListResult([recipe]));
+    dbMocks.sql.mockClear();
 
     await findRecipesPageByUser("user_123", { search: "bolo_% teste" });
 
-    expect(dbMocks.sql.mock.calls[0]?.[1]).toBe("name");
-    expect(dbMocks.sql.mock.calls[0]?.[2]).toBe("%bolo\\_\\% teste%");
-    expect(dbMocks.sql.mock.calls[0]?.[3]).toBe("\\");
+    const patterns = dbMocks.sql.mock.calls.map((call) => call[2]);
+    expect(patterns).toEqual(["%bolo%", "%teste%"]);
+  });
+
+  it("falls back to userId-only filter when the search has no usable tokens", async () => {
+    dbMocks.db.select.mockReturnValue(selectListResult([recipe]));
+    dbMocks.sql.mockClear();
+
+    await findRecipesPageByUser("user_123", { search: "  ...  " });
+
+    expect(dbMocks.sql).not.toHaveBeenCalled();
   });
 });
 

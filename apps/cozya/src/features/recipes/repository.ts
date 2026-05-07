@@ -181,17 +181,38 @@ function normalizeRecipePage(page: number | undefined): number {
 }
 
 function recipesWhereClause(userId: string, search: string | undefined) {
-  const term = normalizeRecipeSearch(search);
-  if (!term) return eq(cozyaRecipes.userId, userId);
+  const tokens = tokenizeRecipeSearch(search);
+  if (tokens.length === 0) return eq(cozyaRecipes.userId, userId);
 
-  const nameSearch = sql`${cozyaRecipes.name} ilike ${buildLikePattern(term)} escape ${"\\"}`;
-  const clause = and(eq(cozyaRecipes.userId, userId), nameSearch);
+  const tokenClauses = tokens.map(
+    (token) => sql`${cozyaRecipes.name} ilike ${buildLikePattern(token)} escape ${"\\"}`,
+  );
+  const clause = and(eq(cozyaRecipes.userId, userId), ...tokenClauses);
   if (!clause) return eq(cozyaRecipes.userId, userId);
   return clause;
 }
 
-function normalizeRecipeSearch(search: string | undefined): string {
-  return search?.trim().replace(/\s+/g, " ").slice(0, 120) ?? "";
+const MAX_RECIPE_SEARCH_TOKENS = 6;
+
+/**
+ * Splits the user's search input into individual words so the query matches
+ * regardless of word order, casing, or trailing punctuation. ILIKE is already
+ * case-insensitive, so we only normalize punctuation and whitespace here.
+ *
+ * Why tokenize: Whisper transcripts often add a trailing period or comma
+ * (e.g. "Sopa de pipoca.") that, with a single ILIKE, fails to match the
+ * stored title "Sopa de pipoca". Splitting into words and AND-ing each
+ * makes the search robust against this and against word reordering.
+ */
+function tokenizeRecipeSearch(search: string | undefined): string[] {
+  if (!search) return [];
+  const trimmed = search.trim().slice(0, 120);
+  if (!trimmed) return [];
+  return trimmed
+    .split(/\s+/)
+    .map((token) => token.replace(/[^\p{L}\p{N}-]/gu, ""))
+    .filter((token) => token.length > 0)
+    .slice(0, MAX_RECIPE_SEARCH_TOKENS);
 }
 
 function buildLikePattern(value: string): string {
