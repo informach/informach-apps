@@ -5,6 +5,7 @@ import { toast } from "@informach/ui/components/sonner";
 import { Loader2, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
+import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { reactivateSubscriptionAction } from "../plan-actions";
 
 type Props = {
@@ -24,10 +25,12 @@ export function ReactivateBanner({ accessUntil, productName }: Props) {
 
   const reactivate = () => {
     startTransition(async () => {
-      const result = await reactivateSubscriptionAction({});
+      const result = await catchActionResult(() => reactivateSubscriptionAction({}));
       if (!result.ok) {
         toast.error("Não foi possível reativar.", {
-          description: "Tente novamente em instantes.",
+          description: isActionRejected(result.error)
+            ? "Atualize a página e tente novamente."
+            : "Tente novamente em instantes.",
         });
         return;
       }

@@ -38,6 +38,10 @@ vi.mock("next/headers", () => ({
   ),
 }));
 
+vi.mock("next/navigation", () => ({
+  unstable_rethrow: vi.fn(),
+}));
+
 import { ForbiddenError, UnauthorizedError } from "../helpers";
 import { createActionFactory, parseWindowSeconds, RateLimitError } from "../server-actions";
 
@@ -356,5 +360,37 @@ describe("createActionFactory — audit", () => {
       eventType: "auth.forget_password_requested",
       actorId: null,
     });
+  });
+});
+
+describe("createActionFactory — handler errors", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    dbInsertChain.rows = [];
+  });
+
+  it("calls onError with the actor id and rethrows handler errors", async () => {
+    const helpers = makeHelpers({ currentUser: { id: "u1" } });
+    const onError = vi.fn();
+    const thrown = new Error("database unavailable");
+    const { action } = createActionFactory<TestUser, TestSession>({ helpers, onError });
+    const fn = action.auth({ require: "user" }).run(async () => {
+      throw thrown;
+    });
+
+    await expect(fn({})).rejects.toBe(thrown);
+    expect(onError).toHaveBeenCalledWith({ error: thrown, actorId: "u1" });
+  });
+
+  it("does not call onError for validation errors before the handler runs", async () => {
+    const helpers = makeHelpers({});
+    const onError = vi.fn();
+    const { action } = createActionFactory<TestUser, TestSession>({ helpers, onError });
+    const fn = action
+      .input(z.object({ name: z.string().min(1) }))
+      .run(async ({ input }) => input.name);
+
+    await expect(fn({ name: "" })).rejects.toThrow();
+    expect(onError).not.toHaveBeenCalled();
   });
 });

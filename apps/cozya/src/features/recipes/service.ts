@@ -10,15 +10,14 @@ import {
   findRecipesPageByUser,
   insertRecipe,
   insertRecipeWithinFreeLimit,
-  type Recipe,
   type RecipeListOptions,
-  type RecipeListPage,
   setRecipeFavoriteForUser,
   updateRecipeForUser,
 } from "./repository";
 import type { RecipeInput } from "./schemas";
+import type { Recipe, RecipeListPage } from "./types";
 
-export type { Recipe, RecipeListPage } from "./repository";
+export type { Recipe, RecipeListPage } from "./types";
 
 export type CreateRecipeError = {
   code: "PLAN_LIMIT_REACHED";

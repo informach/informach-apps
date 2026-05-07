@@ -30,6 +30,7 @@
         "STRIPE_MODE",
         "OPENAI_API_KEY",
         "ANTHROPIC_API_KEY",
+        "LOG_LEVEL",
         "MASTRA_LOG_LEVEL"
       ]
     },

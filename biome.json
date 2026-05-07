@@ -167,7 +167,7 @@
       }
     },
     {
-      "includes": ["apps/*/src/features/**/service.ts"],
+      "includes": ["apps/*/src/features/**/service.ts", "apps/*/src/features/**/*-service.ts"],
       "linter": {
         "rules": {
           "style": {

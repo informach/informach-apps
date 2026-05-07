@@ -3,6 +3,7 @@ import { db } from "@informach/db";
 import { rateLimit as rateLimitTable } from "@informach/db/schema";
 import { sql } from "drizzle-orm";
 import { headers } from "next/headers";
+import { unstable_rethrow } from "next/navigation";
 import type { z } from "zod";
 import type { AuditEventType } from "./audit";
 import { logAuditEvent } from "./audit";
@@ -122,6 +123,8 @@ export type ActionFactoryConfig<TUser, TSession> = {
   helpers: ActionFactoryHelpers<TUser, TSession>;
   /** Logger called for `audit("event")`. Receives the event type and serialized actor id. */
   onAudit?: (input: { eventType: AuditEventType; actorId: string | null }) => void;
+  /** Called when the action handler throws an unexpected non-Next.js framework error. */
+  onError?: (input: { error: unknown; actorId: string | null }) => void;
 };
 
 type ActionConfig<TSchema extends z.ZodTypeAny> = {
@@ -227,7 +230,13 @@ class ActionBuilder<TUser, TSession, TSchema extends z.ZodTypeAny> {
       }
 
       const ctx: ActionContext<TUser> = { actor, headers: requestHeaders };
-      return handler({ input, ctx });
+      try {
+        return await handler({ input, ctx });
+      } catch (error) {
+        unstable_rethrow(error);
+        factory.onError?.({ error, actorId: actorIdOf(actor) });
+        throw error;
+      }
     };
   }
 }

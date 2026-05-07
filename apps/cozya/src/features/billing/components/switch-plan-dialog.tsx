@@ -13,6 +13,7 @@ import { toast } from "@informach/ui/components/sonner";
 import { ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
+import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { previewPlanChangeAction, switchToPlanAction } from "../plan-actions";
 
 type Mode = "upgrade" | "downgrade";
@@ -77,13 +78,15 @@ export function SwitchPlanDialog({
     setPreview({ kind: "loading" });
     let canceled = false;
     void (async () => {
-      const result = await previewPlanChangeAction({ productId: targetProductId });
+      const result = await catchActionResult(() =>
+        previewPlanChangeAction({ productId: targetProductId }),
+      );
       if (canceled) return;
       if (!result.ok) {
         setPreview({
           kind: "error",
           message:
-            result.error.code === "NO_SUBSCRIPTION"
+            !isActionRejected(result.error) && result.error.code === "NO_SUBSCRIPTION"
               ? "Você não tem uma assinatura para alterar."
               : "Não conseguimos calcular o valor da mudança.",
         });
@@ -128,12 +131,14 @@ export function SwitchPlanDialog({
   const confirm = () => {
     setSubmit({ phase: "submitting" });
     startSubmit(async () => {
-      const result = await switchToPlanAction({ productId: targetProductId });
+      const result = await catchActionResult(() =>
+        switchToPlanAction({ productId: targetProductId }),
+      );
       if (!result.ok) {
         setSubmit({ phase: "idle" });
         toast.error("Não foi possível alterar o plano.", {
           description:
-            result.error.code === "ALREADY_ON_PLAN"
+            !isActionRejected(result.error) && result.error.code === "ALREADY_ON_PLAN"
               ? "Você já está neste plano."
               : "Tente novamente em instantes.",
         });

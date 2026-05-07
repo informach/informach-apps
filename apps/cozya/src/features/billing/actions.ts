@@ -4,7 +4,6 @@ import { CustomerNotFoundError } from "@informach/billing";
 import { z } from "zod";
 import { action, err, ok } from "@/lib/action";
 import { env } from "@/lib/env";
-import { logger } from "@/lib/logger";
 import { billing } from "./service";
 
 export const createBillingPortalSessionAction = action
@@ -25,10 +24,6 @@ export const createBillingPortalSessionAction = action
       if (error instanceof CustomerNotFoundError) {
         return err({ code: "NO_CUSTOMER" } as const);
       }
-      logger.error(
-        { userId, error: error instanceof Error ? error.message : String(error) },
-        "billing.portal.failed",
-      );
-      return err({ code: "PORTAL_FAILED" } as const);
+      throw error;
     }
   });

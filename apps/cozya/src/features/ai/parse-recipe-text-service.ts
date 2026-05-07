@@ -1,17 +1,11 @@
 import "server-only";
 
-import {
-  createAgentRunRecorder,
-  createDrizzleAgentRunStore,
-  withCredits,
-} from "@informach/ai-core";
-import { db } from "@informach/db";
+import { withCredits } from "@informach/ai-core";
 import { mastra } from "@/ai";
+import { agentRunRecorder as recorder } from "@/ai/agent-run-recorder";
 import { type RecipeParserOutput, recipeParserSchema } from "@/ai/recipe-parser/schema";
 import { billing } from "@/features/billing/service";
 import { env } from "@/lib/env";
-
-const recorder = createAgentRunRecorder({ store: createDrizzleAgentRunStore(db) });
 
 export type ParseRecipeFromTextInput = {
   userId: string;

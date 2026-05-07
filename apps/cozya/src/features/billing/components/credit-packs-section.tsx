@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@informach/ui/componen
 import { toast } from "@informach/ui/components/sonner";
 import { Loader2, ShoppingCart, Sparkles } from "lucide-react";
 import { useState, useTransition } from "react";
+import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { purchaseCreditPackAction } from "../plan-actions";
 
 type Props = {
@@ -40,9 +41,15 @@ function PackCard({ pack }: { pack: Product }) {
   const buy = () => {
     setActiveId(pack.id);
     startTransition(async () => {
-      const result = await purchaseCreditPackAction({ productId: pack.id });
+      const result = await catchActionResult(() =>
+        purchaseCreditPackAction({ productId: pack.id }),
+      );
       if (!result.ok) {
-        if (result.error.code === "NO_PRO_SUBSCRIPTION") {
+        if (isActionRejected(result.error)) {
+          toast.error("Não foi possível iniciar a compra.", {
+            description: "Atualize a página e tente novamente.",
+          });
+        } else if (result.error.code === "NO_PRO_SUBSCRIPTION") {
           // Defense-in-depth: the section is hidden for non-Pro users by the
           // page (`CreditPacksSlot` returns null), but if local/Stripe state
           // diverges and a non-Pro hits this code path, show a clean message

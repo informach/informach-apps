@@ -4,6 +4,7 @@ import { Button } from "@informach/ui/components/button";
 import { toast } from "@informach/ui/components/sonner";
 import { CreditCard, Loader2 } from "lucide-react";
 import { useTransition } from "react";
+import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { createBillingPortalSessionAction } from "../actions";
 
 type Props = {
@@ -19,8 +20,14 @@ export function BillingPortalButton({
 
   const handleClick = () => {
     startTransition(async () => {
-      const result = await createBillingPortalSessionAction({});
+      const result = await catchActionResult(() => createBillingPortalSessionAction({}));
       if (!result.ok) {
+        if (isActionRejected(result.error)) {
+          toast.error("Não foi possível abrir o portal.", {
+            description: "Atualize a página e tente novamente.",
+          });
+          return;
+        }
         if (result.error.code === "NO_CUSTOMER") {
           toast("Você ainda não tem uma assinatura ativa.", {
             description: "Escolha o Pro para habilitar o portal de cobrança.",

@@ -1,7 +1,6 @@
 "use server";
 
 import {
-  BillingError,
   CustomerNotFoundError,
   InvalidProductError,
   SubscriptionRequiredError,
@@ -50,11 +49,7 @@ export const previewPlanChangeAction = action
       if (error instanceof CustomerNotFoundError) {
         return err({ code: "NO_CUSTOMER" } as const);
       }
-      logger.error(
-        { userId, productId: input.productId, error: String(error) },
-        "billing.preview_plan.failed",
-      );
-      return err({ code: "PREVIEW_FAILED" } as const);
+      throw error;
     }
   });
 
@@ -109,11 +104,7 @@ export const switchToPlanAction = action
       if (error instanceof InvalidProductError) {
         return err({ code: "INVALID_PRODUCT" } as const);
       }
-      logger.error(
-        { userId, productId: input.productId, mode, error: String(error) },
-        "billing.switch_plan.failed",
-      );
-      return err({ code: "SWITCH_FAILED" } as const);
+      throw error;
     }
   });
 
@@ -133,27 +124,19 @@ export const cancelSubscriptionAction = action
     const subscription = await billing.getSubscription(subject);
     if (!subscription) return err({ code: "NO_SUBSCRIPTION" } as const);
 
-    try {
-      const updated = await billing.cancelSubscription({
-        subscriptionId: subscription.id,
-        actorId: userId,
-        reason: input.reason,
-        atPeriodEnd: true,
-      });
-      logger.info(
-        { userId, subscriptionId: subscription.id, reason: input.reason ?? null },
-        "billing.cancel.scheduled",
-      );
-      return ok({
-        cancelAtPeriodEnd: updated.cancelAtPeriodEnd?.toISOString() ?? null,
-      } as const);
-    } catch (error) {
-      logger.error(
-        { userId, subscriptionId: subscription.id, error: String(error) },
-        "billing.cancel.failed",
-      );
-      return err({ code: "CANCEL_FAILED" } as const);
-    }
+    const updated = await billing.cancelSubscription({
+      subscriptionId: subscription.id,
+      actorId: userId,
+      reason: input.reason,
+      atPeriodEnd: true,
+    });
+    logger.info(
+      { userId, subscriptionId: subscription.id, reason: input.reason ?? null },
+      "billing.cancel.scheduled",
+    );
+    return ok({
+      cancelAtPeriodEnd: updated.cancelAtPeriodEnd?.toISOString() ?? null,
+    } as const);
   });
 
 export const reactivateSubscriptionAction = action
@@ -168,19 +151,8 @@ export const reactivateSubscriptionAction = action
     const subscription = await billing.getSubscription(subject);
     if (!subscription) return err({ code: "NO_SUBSCRIPTION" } as const);
 
-    try {
-      await billing.reactivateSubscription({ subscriptionId: subscription.id, actorId: userId });
-      return ok({ ok: true } as const);
-    } catch (error) {
-      if (error instanceof BillingError) {
-        return err({ code: "REACTIVATE_FAILED" } as const);
-      }
-      logger.error(
-        { userId, subscriptionId: subscription.id, error: String(error) },
-        "billing.reactivate.failed",
-      );
-      return err({ code: "REACTIVATE_FAILED" } as const);
-    }
+    await billing.reactivateSubscription({ subscriptionId: subscription.id, actorId: userId });
+    return ok({ ok: true } as const);
   });
 
 export const purchaseCreditPackAction = action
@@ -217,10 +189,6 @@ export const purchaseCreditPackAction = action
       if (error instanceof InvalidProductError) {
         return err({ code: "INVALID_PRODUCT" } as const);
       }
-      logger.error(
-        { userId, productId: input.productId, error: String(error) },
-        "billing.credit_pack_checkout.failed",
-      );
-      return err({ code: "CHECKOUT_FAILED" } as const);
+      throw error;
     }
   });

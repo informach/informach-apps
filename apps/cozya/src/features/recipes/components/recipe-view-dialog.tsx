@@ -9,8 +9,8 @@ import {
   DialogTitle,
 } from "@informach/ui/components/dialog";
 import { Share2, Star, X } from "lucide-react";
-import type { Recipe } from "../repository";
 import { buildWhatsappShareUrl, parseIngredients } from "../share";
+import type { Recipe } from "../types";
 
 type Props = {
   open: boolean;

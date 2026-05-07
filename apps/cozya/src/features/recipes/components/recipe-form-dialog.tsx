@@ -30,8 +30,8 @@ import { useEffect, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { createRecipeAction, updateRecipeAction } from "../actions";
 import { FREE_RECIPE_LIMIT } from "../limits";
-import type { Recipe } from "../repository";
 import { type RecipeFormValues, recipeInputSchema } from "../schemas";
+import type { Recipe } from "../types";
 import { catchActionResult, isActionRejected } from "./action-errors";
 
 type Props = {

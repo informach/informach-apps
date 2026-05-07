@@ -1,16 +1,10 @@
 import "server-only";
 
-import {
-  createAgentRunRecorder,
-  createDrizzleAgentRunStore,
-  withCredits,
-} from "@informach/ai-core";
+import { withCredits } from "@informach/ai-core";
 import { transcribeAudio } from "@informach/ai-core/transcription";
-import { db } from "@informach/db";
+import { agentRunRecorder as recorder } from "@/ai/agent-run-recorder";
 import { billing } from "@/features/billing/service";
 import { env } from "@/lib/env";
-
-const recorder = createAgentRunRecorder({ store: createDrizzleAgentRunStore(db) });
 
 export type TranscribeRecipeAudioInput = {
   userId: string;

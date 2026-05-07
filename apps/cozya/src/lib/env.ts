@@ -33,6 +33,7 @@ export const env = createEnv({
     STRIPE_MODE: z.enum(["dev", "prod"]).optional(),
     OPENAI_API_KEY: z.string().min(1).optional(),
     ANTHROPIC_API_KEY: z.string().min(1).optional(),
+    LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).optional(),
     MASTRA_LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   },
   client: {
@@ -63,6 +64,7 @@ export const env = createEnv({
     STRIPE_MODE: process.env.STRIPE_MODE,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    LOG_LEVEL: process.env.LOG_LEVEL,
     MASTRA_LOG_LEVEL: process.env.MASTRA_LOG_LEVEL,
   },
   emptyStringAsUndefined: true,

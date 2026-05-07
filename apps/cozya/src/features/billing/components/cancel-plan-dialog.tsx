@@ -20,6 +20,7 @@ import { toast } from "@informach/ui/components/sonner";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { CANCEL_REASON_LABELS, CANCEL_REASONS, type CancelReason } from "../cancel-reasons";
 import { cancelSubscriptionAction } from "../plan-actions";
 
@@ -45,12 +46,16 @@ export function CancelPlanDialog({ open, onOpenChange, accessUntil, productName 
 
   const confirm = () => {
     startSubmit(async () => {
-      const result = await cancelSubscriptionAction({
-        reason: reason || undefined,
-      });
+      const result = await catchActionResult(() =>
+        cancelSubscriptionAction({
+          reason: reason || undefined,
+        }),
+      );
       if (!result.ok) {
         toast.error("Não foi possível cancelar.", {
-          description: "Tente novamente em instantes.",
+          description: isActionRejected(result.error)
+            ? "Atualize a página e tente novamente."
+            : "Tente novamente em instantes.",
         });
         return;
       }

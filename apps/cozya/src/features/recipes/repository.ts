@@ -2,8 +2,8 @@ import "server-only";
 
 import { and, count, type Database, db, desc, eq, sql } from "@informach/db";
 import { cozyaRecipes } from "@informach/db/schema";
+import type { Recipe, RecipeListPage } from "./types";
 
-export type Recipe = typeof cozyaRecipes.$inferSelect;
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 type DbClient = Database | Tx;
 
@@ -23,13 +23,6 @@ export type RecipeListOptions = {
   search?: string;
   page?: number;
   limit?: number;
-};
-
-export type RecipeListPage = {
-  recipes: Recipe[];
-  page: number;
-  limit: number;
-  hasNextPage: boolean;
 };
 
 const DEFAULT_RECIPE_PAGE_SIZE = 50;

@@ -89,6 +89,24 @@ export const packageLogger: PackageLogger = {
   },
 };
 
+export function captureActionException(error: unknown, context: { actorId: string | null }): void {
+  const message = "action.failed";
+  const safeContext = {
+    actorId: context.actorId,
+    error: sanitizeForSentry(error),
+  };
+
+  logger.error(safeContext, message);
+  Sentry.captureException(error, {
+    tags: {
+      source: "server-action",
+    },
+    extra: {
+      context: safeContext,
+    },
+  });
+}
+
 export const authObservability: ObservabilityHooks = {
   onAuditEvent: (event) => {
     Sentry.addBreadcrumb({
