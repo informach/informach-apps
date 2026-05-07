@@ -185,7 +185,8 @@ function recipesWhereClause(userId: string, search: string | undefined) {
   if (tokens.length === 0) return eq(cozyaRecipes.userId, userId);
 
   const tokenClauses = tokens.map(
-    (token) => sql`${cozyaRecipes.name} ilike ${buildLikePattern(token)} escape ${"\\"}`,
+    (token) =>
+      sql`unaccent(${cozyaRecipes.name}) ilike unaccent(${buildLikePattern(token)}) escape ${"\\"}`,
   );
   const clause = and(eq(cozyaRecipes.userId, userId), ...tokenClauses);
   if (!clause) return eq(cozyaRecipes.userId, userId);

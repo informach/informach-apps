@@ -229,6 +229,19 @@ describe("findRecipesPageByUser", () => {
     }
   });
 
+  it("wraps the column and pattern with unaccent() for accent-insensitive match", async () => {
+    dbMocks.db.select.mockReturnValue(selectListResult([recipe]));
+    dbMocks.sql.mockClear();
+
+    await findRecipesPageByUser("user_123", { search: "açúcar" });
+
+    expect(dbMocks.sql).toHaveBeenCalledTimes(1);
+    const [strings] = dbMocks.sql.mock.calls[0] ?? [];
+    expect(strings?.join("")).toContain("unaccent(");
+    expect(strings?.join("")).toContain("ilike");
+    expect(dbMocks.sql.mock.calls[0]?.[2]).toBe("%açúcar%");
+  });
+
   it("strips wildcard chars from individual tokens before LIKE", async () => {
     dbMocks.db.select.mockReturnValue(selectListResult([recipe]));
     dbMocks.sql.mockClear();
