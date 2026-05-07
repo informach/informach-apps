@@ -59,18 +59,22 @@ describe("seedCozyaCreditPricing", () => {
     expect(inserts).toHaveLength(0);
   });
 
-  it("default Cozya seed includes 6 features (1 vision + 4 mini + 1 whisper)", () => {
-    expect(COZYA_PRICING_SEED).toHaveLength(6);
+  it("default Cozya seed includes 7 features (1 vision + 5 mini + 1 whisper)", () => {
+    expect(COZYA_PRICING_SEED).toHaveLength(7);
     const visionRow = COZYA_PRICING_SEED.find(
       (r) => r.feature === "cozya.recipe.extract_from_photo",
     );
     expect(visionRow?.model).toBe("gpt-4o");
     const miniFeatures = COZYA_PRICING_SEED.filter((r) => r.model === "gpt-4o-mini");
-    expect(miniFeatures).toHaveLength(4);
+    expect(miniFeatures).toHaveLength(5);
     const whisperRow = COZYA_PRICING_SEED.find(
       (r) => r.feature === "cozya.recipe.transcribe_audio",
     );
     expect(whisperRow?.model).toBe("whisper-1");
+    const parseVoiceRow = COZYA_PRICING_SEED.find(
+      (r) => r.feature === "cozya.recipe.parse_voice",
+    );
+    expect(parseVoiceRow?.model).toBe("gpt-4o-mini");
     // Every default row is flat 1 credit per call
     for (const row of COZYA_PRICING_SEED) {
       expect(row.flatCost).toBe(1);
