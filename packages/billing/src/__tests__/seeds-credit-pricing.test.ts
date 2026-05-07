@@ -71,9 +71,7 @@ describe("seedCozyaCreditPricing", () => {
       (r) => r.feature === "cozya.recipe.transcribe_audio",
     );
     expect(whisperRow?.model).toBe("whisper-1");
-    const parseVoiceRow = COZYA_PRICING_SEED.find(
-      (r) => r.feature === "cozya.recipe.parse_voice",
-    );
+    const parseVoiceRow = COZYA_PRICING_SEED.find((r) => r.feature === "cozya.recipe.parse_voice");
     expect(parseVoiceRow?.model).toBe("gpt-4o-mini");
     // Every default row is flat 1 credit per call
     for (const row of COZYA_PRICING_SEED) {
