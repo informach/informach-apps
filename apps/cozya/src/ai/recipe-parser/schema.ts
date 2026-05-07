@@ -4,14 +4,14 @@ export const recipeParserSchema = z.object({
   isValidRecipe: z
     .boolean()
     .describe(
-      "true se o áudio descreve uma receita culinária com ingredientes e/ou modo de preparo identificáveis. false se for outra coisa (mensagem aleatória, conversa, áudio em branco).",
+      "true se o conteúdo (áudio transcrito, texto colado ou foto) descreve uma receita culinária com ingredientes e/ou modo de preparo identificáveis. false se for outra coisa (mensagem aleatória, conversa, conteúdo em branco, imagem não-culinária).",
     ),
   reason: z
     .string()
     .max(200)
     .nullish()
     .describe(
-      "Quando isValidRecipe=false, motivo curto em PT-BR explicando o que faltou (ex: 'O áudio não menciona ingredientes nem modo de preparo'). Null quando isValidRecipe=true.",
+      "Quando isValidRecipe=false, motivo curto em PT-BR explicando o que faltou (ex: 'O conteúdo não menciona ingredientes nem modo de preparo', 'A foto não mostra uma receita'). Null quando isValidRecipe=true.",
     ),
   name: z
     .string()

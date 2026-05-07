@@ -4,7 +4,7 @@ import { Button } from "@informach/ui/components/button";
 import { Card, CardContent } from "@informach/ui/components/card";
 import { toast } from "@informach/ui/components/sonner";
 import { cn } from "@informach/ui/lib/utils";
-import { Pencil, Star, Trash2 } from "lucide-react";
+import { Loader2, Pencil, Star, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toggleRecipeFavoriteAction } from "../actions";
@@ -91,11 +91,15 @@ export function RecipeCard({ recipe, isPro, currentCount }: Props) {
               aria-label={recipe.isFavorite ? "Desfavoritar" : "Favoritar"}
               aria-pressed={recipe.isFavorite}
             >
-              <Star
-                className="size-4"
-                fill={recipe.isFavorite ? "currentColor" : "none"}
-                aria-hidden
-              />
+              {favPending ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : (
+                <Star
+                  className="size-4"
+                  fill={recipe.isFavorite ? "currentColor" : "none"}
+                  aria-hidden
+                />
+              )}
             </Button>
 
             <Button

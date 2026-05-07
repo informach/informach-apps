@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@informach/ui/components/dialog";
 import { cn } from "@informach/ui/lib/utils";
-import { ClipboardPaste, Lock, Mic, Pencil } from "lucide-react";
+import { Camera, ClipboardPaste, Lock, Mic, Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 type Props = {
@@ -19,6 +19,7 @@ type Props = {
   onPickManual: () => void;
   onPickVoice: () => void;
   onPickText: () => void;
+  onPickImage: () => void;
 };
 
 export function NewRecipeMethodDialog({
@@ -28,6 +29,7 @@ export function NewRecipeMethodDialog({
   onPickManual,
   onPickVoice,
   onPickText,
+  onPickImage,
 }: Props) {
   const router = useRouter();
 
@@ -48,7 +50,7 @@ export function NewRecipeMethodDialog({
           <DialogDescription>Escolha uma forma de cadastrar sua nova receita.</DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <MethodCard
             icon={<Pencil className="size-5" aria-hidden />}
             title="Manual"
@@ -73,13 +75,23 @@ export function NewRecipeMethodDialog({
             badge="Pro"
             locked={!isPro}
           />
+          <MethodCard
+            icon={<Camera className="size-5" aria-hidden />}
+            title="Por foto"
+            description={
+              isPro ? "Tire uma foto da receita e a IA preenche pra você." : "Disponível no Pro."
+            }
+            onClick={handleProClick(onPickImage)}
+            badge="Pro"
+            locked={!isPro}
+          />
         </div>
 
         {!isPro ? (
           <p className="pt-1 text-center text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <Lock className="size-3" aria-hidden />
-              Por voz e colar texto são funcionalidades Pro —{" "}
+              Por voz, colar texto e por foto são funcionalidades Pro —{" "}
               <button
                 type="button"
                 className="underline underline-offset-2"

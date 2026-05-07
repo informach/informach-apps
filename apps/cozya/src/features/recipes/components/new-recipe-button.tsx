@@ -4,6 +4,7 @@ import { Button } from "@informach/ui/components/button";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import type { RecipeFormValues } from "../schemas";
+import { ImageRecipeDialog } from "./image-recipe-dialog";
 import { NewRecipeMethodDialog } from "./new-recipe-method-dialog";
 import { RecipeFormDialog } from "./recipe-form-dialog";
 import { TextRecipeDialog } from "./text-recipe-dialog";
@@ -14,7 +15,7 @@ type Props = {
   currentCount: number;
 };
 
-type View = "closed" | "picker" | "voice" | "text" | "manual";
+type View = "closed" | "picker" | "voice" | "text" | "image" | "manual";
 
 export function NewRecipeButton({ isPro, currentCount }: Props) {
   const [view, setView] = useState<View>("closed");
@@ -31,6 +32,10 @@ export function NewRecipeButton({ isPro, currentCount }: Props) {
 
   const handlePickText = () => {
     setView("text");
+  };
+
+  const handlePickImage = () => {
+    setView("image");
   };
 
   const handleParsedFromVoice = (recipe: ParsedRecipeFields) => {
@@ -57,6 +62,18 @@ export function NewRecipeButton({ isPro, currentCount }: Props) {
     setView("manual");
   };
 
+  const handleParsedFromImage = (recipe: ParsedRecipeFields) => {
+    setDefaultValues({
+      name: recipe.name,
+      ingredients: recipe.ingredients,
+      preparation: recipe.preparation,
+      finishing: recipe.finishing,
+      isFavorite: false,
+      creationMethod: "image",
+    });
+    setView("manual");
+  };
+
   const handleClose = () => {
     setView("closed");
     setDefaultValues(null);
@@ -68,13 +85,17 @@ export function NewRecipeButton({ isPro, currentCount }: Props) {
       ? "Revisar receita por voz"
       : prefilledOrigin === "text"
         ? "Revisar receita colada"
-        : undefined;
+        : prefilledOrigin === "image"
+          ? "Revisar receita por foto"
+          : undefined;
   const formDescription =
     prefilledOrigin === "voice"
       ? "Confira o que entendi do seu áudio e ajuste se precisar antes de salvar."
       : prefilledOrigin === "text"
         ? "Confira o que entendi do texto e ajuste se precisar antes de salvar."
-        : undefined;
+        : prefilledOrigin === "image"
+          ? "Confira o que entendi da foto e ajuste se precisar antes de salvar."
+          : undefined;
 
   return (
     <>
@@ -92,6 +113,7 @@ export function NewRecipeButton({ isPro, currentCount }: Props) {
         onPickManual={handlePickManual}
         onPickVoice={handlePickVoice}
         onPickText={handlePickText}
+        onPickImage={handlePickImage}
       />
 
       <VoiceRecipeDialog
@@ -108,6 +130,14 @@ export function NewRecipeButton({ isPro, currentCount }: Props) {
           if (!open) handleClose();
         }}
         onParsed={handleParsedFromText}
+      />
+
+      <ImageRecipeDialog
+        open={view === "image"}
+        onOpenChange={(open) => {
+          if (!open) handleClose();
+        }}
+        onParsed={handleParsedFromImage}
       />
 
       <RecipeFormDialog

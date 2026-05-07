@@ -3,8 +3,7 @@
 import { Button } from "@informach/ui/components/button";
 import { Card, CardContent } from "@informach/ui/components/card";
 import { Input } from "@informach/ui/components/input";
-import { ChefHat, ChevronLeft, ChevronRight, Search } from "lucide-react";
-import Link from "next/link";
+import { ChefHat, ChevronLeft, ChevronRight, Loader2, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import type { Recipe } from "../repository";
@@ -86,30 +85,77 @@ export function RecipesSection({ recipes, isPro, currentCount, query, page, hasN
       )}
 
       {page > 1 || hasNextPage ? (
-        <div className="flex items-center justify-between gap-3 pt-1">
-          {page > 1 ? (
-            <Button asChild variant="outline" size="sm">
-              <Link href={buildDashboardHref(query, page - 1)}>
-                <ChevronLeft className="mr-2 size-4" aria-hidden />
-                Anterior
-              </Link>
-            </Button>
-          ) : (
-            <span aria-hidden />
-          )}
-          <span className="text-xs text-muted-foreground">Página {page}</span>
-          {hasNextPage ? (
-            <Button asChild variant="outline" size="sm">
-              <Link href={buildDashboardHref(query, page + 1)}>
-                Próxima
-                <ChevronRight className="ml-2 size-4" aria-hidden />
-              </Link>
-            </Button>
-          ) : (
-            <span aria-hidden />
-          )}
-        </div>
+        <Pagination query={query} page={page} hasNextPage={hasNextPage} />
       ) : null}
+    </div>
+  );
+}
+
+function Pagination({
+  query,
+  page,
+  hasNextPage,
+}: {
+  query: string;
+  page: number;
+  hasNextPage: boolean;
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [pendingDirection, setPendingDirection] = useState<"prev" | "next" | null>(null);
+
+  const goTo = (direction: "prev" | "next", targetPage: number) => {
+    setPendingDirection(direction);
+    startTransition(() => {
+      router.push(buildDashboardHref(query, targetPage), { scroll: false });
+    });
+  };
+
+  // Clear the per-direction marker after the transition resolves so a fresh
+  // click on the same button repaints the spinner instead of staying frozen.
+  useEffect(() => {
+    if (!isPending) setPendingDirection(null);
+  }, [isPending]);
+
+  return (
+    <div className="flex items-center justify-between gap-3 pt-1">
+      {page > 1 ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => goTo("prev", page - 1)}
+          disabled={isPending}
+        >
+          {pendingDirection === "prev" ? (
+            <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
+          ) : (
+            <ChevronLeft className="mr-2 size-4" aria-hidden />
+          )}
+          Anterior
+        </Button>
+      ) : (
+        <span aria-hidden />
+      )}
+      <span className="text-xs text-muted-foreground">Página {page}</span>
+      {hasNextPage ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => goTo("next", page + 1)}
+          disabled={isPending}
+        >
+          Próxima
+          {pendingDirection === "next" ? (
+            <Loader2 className="ml-2 size-4 animate-spin" aria-hidden />
+          ) : (
+            <ChevronRight className="ml-2 size-4" aria-hidden />
+          )}
+        </Button>
+      ) : (
+        <span aria-hidden />
+      )}
     </div>
   );
 }
