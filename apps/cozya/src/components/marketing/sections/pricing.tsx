@@ -8,6 +8,7 @@ import { Check, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import {
+  ANNUAL_SAVINGS_PCT,
   type BillingCycle,
   FREE_FEATURES,
   PRICING,
@@ -43,7 +44,7 @@ export function Pricing() {
               <TabsTrigger value="annual" className="px-5">
                 {PRICING.annual.tabLabel}
                 <Badge variant="secondary" className="ml-2 rounded-full px-2 py-0 text-[10px]">
-                  -20%
+                  -{ANNUAL_SAVINGS_PCT}%
                 </Badge>
               </TabsTrigger>
             </TabsList>

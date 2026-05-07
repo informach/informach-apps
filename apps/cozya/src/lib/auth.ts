@@ -1,7 +1,9 @@
-import { createAuth } from "@informach/auth";
+import { createAuth, UnauthorizedError } from "@informach/auth";
 import { createServerHelpers } from "@informach/auth/server";
 import { APPS } from "@informach/config";
 import { buildUnsubscribeToken } from "@informach/emails";
+import { redirect } from "next/navigation";
+import { cache } from "react";
 import { billing } from "@/features/billing/service";
 import { emails, getEmailUnsubscribeMailto } from "@/features/emails/service";
 import { AUTH_SIGN_IN_PATH } from "./auth-routing";
@@ -78,9 +80,26 @@ export const {
   assertPermission,
 } = authResult;
 
-export const {
-  getServerSession,
-  getCurrentUserServer,
-  requireUserServer,
-  redirectIfUnauthenticated,
-} = createServerHelpers(authResult, { signInPath: AUTH_SIGN_IN_PATH });
+const serverHelpers = createServerHelpers(authResult, { signInPath: AUTH_SIGN_IN_PATH });
+
+export const getServerSession = cache(serverHelpers.getServerSession);
+export const getCurrentUserServer = cache(serverHelpers.getCurrentUserServer);
+
+export const requireUserServer = cache(async () => {
+  const user = await getCurrentUserServer();
+  if (!user) {
+    throw new UnauthorizedError();
+  }
+  return user;
+});
+
+export async function redirectIfUnauthenticated(next?: string) {
+  const user = await getCurrentUserServer();
+  if (!user) {
+    const target = next
+      ? `${AUTH_SIGN_IN_PATH}?next=${encodeURIComponent(next)}`
+      : AUTH_SIGN_IN_PATH;
+    redirect(target);
+  }
+  return user;
+}

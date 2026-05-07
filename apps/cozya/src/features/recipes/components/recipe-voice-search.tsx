@@ -14,6 +14,8 @@ import { Lock, Mic } from "lucide-react";
 import Link from "next/link";
 
 type Props = {
+  // UX-only: alterna entre estado disabled/tooltip e botão ativo. O gate Pro
+  // canônico está no servidor (`withAiRouteGuards` em /api/ai/transcribe).
   isPro: boolean;
   onTranscribed: (text: string) => void;
 };

@@ -1,3 +1,5 @@
+import { findProduct } from "@informach/config";
+
 export type BillingCycle = "monthly" | "annual";
 
 export type PlanFeature = { label: string; included: boolean };
@@ -22,21 +24,41 @@ export const PRO_FEATURES: PlanFeature[] = [
   { label: "Compre créditos extras avulsos quando precisar", included: true },
 ];
 
-/* TODO: trocar pelos preços reais quando definidos pelo time de billing */
+// Preços derivados de `packages/config/src/products.ts` — fonte oficial.
+// Divergência entre UI e Stripe Dashboard é bug (root CLAUDE.md §8.1).
+const monthlyProduct = findProduct("cozya_pro_monthly");
+const annualProduct = findProduct("cozya_pro_annual");
+if (!monthlyProduct?.listPrice || !annualProduct?.listPrice) {
+  throw new Error(
+    "cozya_pro_monthly e cozya_pro_annual precisam ter listPrice em packages/config/src/products.ts",
+  );
+}
+
+const BRL = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+  minimumFractionDigits: 2,
+});
+
+const monthlyCents = monthlyProduct.listPrice.amountCents;
+const annualCents = annualProduct.listPrice.amountCents;
+const annualMonthlyEquivalentCents = Math.round(annualCents / 12);
+export const ANNUAL_SAVINGS_PCT = Math.round((1 - annualCents / (monthlyCents * 12)) * 100);
+
 export const PRICING: Record<
   BillingCycle,
   { price: string; period: string; note: string; tabLabel: string }
 > = {
   monthly: {
-    price: "R$ 19",
+    price: BRL.format(monthlyCents / 100),
     period: "/mês",
     note: "cobrado mensalmente",
     tabLabel: "Mensal",
   },
   annual: {
-    price: "R$ 15",
+    price: BRL.format(annualMonthlyEquivalentCents / 100),
     period: "/mês",
-    note: "R$ 180/ano — economize ~20%",
+    note: `${BRL.format(annualCents / 100)}/ano — economize ~${ANNUAL_SAVINGS_PCT}%`,
     tabLabel: "Anual",
   },
 };

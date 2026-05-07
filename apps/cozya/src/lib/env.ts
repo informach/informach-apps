@@ -1,6 +1,19 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
+const redisUrlSchema = z
+  .string()
+  .url()
+  .optional()
+  .superRefine((value, ctx) => {
+    if (process.env.NODE_ENV === "production" && !value) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "REDIS_URL is required when NODE_ENV=production",
+      });
+    }
+  });
+
 export const env = createEnv({
   server: {
     DATABASE_URL: z.string().url(),
@@ -19,7 +32,7 @@ export const env = createEnv({
     CRON_SECRET: z.string().min(32),
     GOOGLE_CLIENT_ID: z.string().min(1).optional(),
     GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
-    REDIS_URL: z.string().url().optional(),
+    REDIS_URL: redisUrlSchema,
     STRIPE_SECRET_KEY: z
       .string()
       .startsWith("sk_", "STRIPE_SECRET_KEY must start with 'sk_test_' or 'sk_live_'"),

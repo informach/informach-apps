@@ -229,7 +229,7 @@ describe("findRecipesPageByUser", () => {
     }
   });
 
-  it("wraps the column and pattern with unaccent() for accent-insensitive match", async () => {
+  it("uses the immutable unaccent wrapper for accent-insensitive indexed match", async () => {
     dbMocks.db.select.mockReturnValue(selectListResult([recipe]));
     dbMocks.sql.mockClear();
 
@@ -237,7 +237,7 @@ describe("findRecipesPageByUser", () => {
 
     expect(dbMocks.sql).toHaveBeenCalledTimes(1);
     const [strings] = dbMocks.sql.mock.calls[0] ?? [];
-    expect(strings?.join("")).toContain("unaccent(");
+    expect(strings?.join("")).toContain("cozya.unaccent_immutable(");
     expect(strings?.join("")).toContain("ilike");
     expect(dbMocks.sql.mock.calls[0]?.[2]).toBe("%açúcar%");
   });

@@ -1,6 +1,6 @@
 import { Alert, AlertDescription, AlertTitle } from "@informach/ui/components/alert";
 import { Sparkles } from "lucide-react";
-import { billing } from "@/features/billing/service";
+import { getIsProForUser } from "@/features/billing/server-cache";
 import { RecipesSection } from "@/features/recipes/components/recipes-section";
 import { countUserRecipes, listRecipesForUser } from "@/features/recipes/service";
 import { requireUserServer } from "@/lib/auth";
@@ -18,11 +18,10 @@ export default async function DashboardPage({
   const recipePage = parsePositiveInt(parseSingleParam(params.page)) ?? 1;
 
   const user = await requireUserServer();
-  const subject = { type: "user" as const, id: user.id };
 
   const [recipeCount, isPro, recipesPage] = await Promise.all([
     countUserRecipes(user.id),
-    billing.hasProSubscription(subject),
+    getIsProForUser(user.id),
     listRecipesForUser(user.id, {
       search: recipeSearch,
       page: recipePage,

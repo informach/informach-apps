@@ -133,6 +133,8 @@ Antes de habilitar Pro/Pacotes em produção, criar estes 5 prices no Dashboard 
 | 20 créditos | One-time | R$ 12,90 | substitui `cozya_credits_20_dev/prod` |
 | 30 créditos | One-time | R$ 17,90 | substitui `cozya_credits_30_dev/prod` |
 
+Com `NODE_ENV=production` e `STRIPE_MODE=prod`, o app falha no boot se qualquer produto Cozya ainda tiver `price_TODO_*`.
+
 Webhook endpoint + eventos de billing: ver `packages/billing/PRODUCTION.md`.
 
 ---
@@ -157,8 +159,11 @@ Features registradas (todas com `flatCost: 1`, `defaultEstimateCredits: 1`):
 | `cozya.recipe.generate_from_prompt` | `gpt-4o-mini` |
 | `cozya.recipe.refine_conversational` | `gpt-4o-mini` |
 | `cozya.recipe.transcribe_audio` | `whisper-1` (voz → texto na busca, Pro-only) |
+| `cozya.recipe.parse_voice` | `gpt-4o-mini` (transcrição → receita estruturada) |
 
 Para trocar de modelo no futuro: NÃO mutar a row — `creditPricing` é versionado por `(feature, model)` com `effective_to UNIQUE WHERE NULL`. Inserir nova row com novo modelo + atualizar a antiga com `effective_to = now()`.
+
+Fluxo de cadastro por voz consome duas chamadas de IA quando executado completo: `transcribe_audio` para áudio → texto e `parse_voice` para texto → receita estruturada.
 
 ---
 

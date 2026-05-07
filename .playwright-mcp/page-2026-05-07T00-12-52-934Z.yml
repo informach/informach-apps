@@ -1,0 +1,40 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - link "Cozya — início" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img "Cozya" [ref=e6]
+        - button "Alternar tema" [ref=e18] [cursor=pointer]:
+          - img
+          - img
+          - generic [ref=e19]: Alternar tema
+    - main [ref=e20]:
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - generic [ref=e24]: Entre no Cozya
+          - generic [ref=e25]: Use sua senha ou entre com um código enviado por email.
+        - generic [ref=e27]:
+          - tablist [ref=e29]:
+            - tab "Senha" [selected] [ref=e30] [cursor=pointer]
+            - tab "Código" [ref=e31] [cursor=pointer]
+          - generic [ref=e32]:
+            - generic [ref=e33]:
+              - text: Email
+              - textbox "Email" [ref=e34]:
+                - /placeholder: voce@exemplo.com
+            - generic [ref=e35]:
+              - generic [ref=e36]:
+                - generic [ref=e37]: Senha
+                - button "Esqueci minha senha" [ref=e38] [cursor=pointer]
+              - textbox "Senha" [ref=e39]
+            - button "Entrar" [ref=e40] [cursor=pointer]:
+              - text: Entrar
+              - img
+        - generic [ref=e41]:
+          - text: Ainda não tem conta?
+          - link "Criar conta" [ref=e42] [cursor=pointer]:
+            - /url: /signup
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e48] [cursor=pointer]:
+    - img [ref=e49]

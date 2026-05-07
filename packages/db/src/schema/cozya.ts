@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { boolean, index, pgSchema, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { users } from "./core";
 
@@ -36,6 +37,10 @@ export const cozyaRecipes = cozya.table(
       t.userId,
       t.isFavorite.desc(),
       t.createdAt.desc(),
+    ),
+    index("cozya_recipes_name_unaccent_trgm_idx").using(
+      "gin",
+      sql`cozya.unaccent_immutable(${t.name}) gin_trgm_ops`,
     ),
   ],
 );

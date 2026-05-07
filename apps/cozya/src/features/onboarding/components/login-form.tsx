@@ -182,7 +182,7 @@ function PasswordStep({
 
   const onSubmit = form.handleSubmit(async (values) => {
     const { error } = await signIn.email({
-      email: values.email.trim().toLowerCase(),
+      email: values.email,
       password: values.password,
     });
 
@@ -260,7 +260,7 @@ function EmailOtpRequestStep({ onSubmitted }: { onSubmitted: (email: string) => 
   });
 
   const onSubmit = form.handleSubmit(async (values) => {
-    const email = values.email.trim().toLowerCase();
+    const email = values.email;
     const { error } = await emailOtp.sendVerificationOtp({
       email,
       type: "sign-in",
@@ -322,7 +322,7 @@ function ResetEmailStep({
   });
 
   const onSubmit = form.handleSubmit(async (values) => {
-    const email = values.email.trim().toLowerCase();
+    const email = values.email;
     const { error } = await forgetPassword.emailOtp({ email });
 
     if (error) {

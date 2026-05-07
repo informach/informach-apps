@@ -1,6 +1,6 @@
 import { logAuditEvent } from "@informach/auth";
 import { createBillingService, type DunningPayload } from "@informach/billing";
-import { APPS, PRODUCTS } from "@informach/config";
+import { APPS, isStripePriceIdConfigured, PRODUCTS, type Product } from "@informach/config";
 import {
   buildEmailUnsubscribeUrl,
   emails,
@@ -12,7 +12,10 @@ import { packageLogger } from "@/lib/observability";
 import { billingDb, findUserEmailById, resolveSubjectEmail } from "./repository";
 
 const stripeMode = env.STRIPE_MODE ?? (env.NODE_ENV === "production" ? "prod" : "dev");
+const cozyaProducts = PRODUCTS.filter((p) => p.app === APPS.cozya.slug);
 const MAX_DUNNING_ATTEMPTS = 3;
+
+assertProductionStripeCatalogConfigured(cozyaProducts);
 
 export const billing = createBillingService({
   provider: "stripe",
@@ -21,7 +24,7 @@ export const billing = createBillingService({
   db: billingDb,
   appName: APPS.cozya.name,
   publicAppUrl: env.NEXT_PUBLIC_APP_URL,
-  products: PRODUCTS.filter((p) => p.app === APPS.cozya.slug),
+  products: cozyaProducts,
   organizationsEnabled: false,
   stripeMode,
   resolveSubjectEmail,
@@ -43,6 +46,20 @@ export const billing = createBillingService({
     });
   },
 });
+
+function assertProductionStripeCatalogConfigured(products: readonly Product[]) {
+  if (env.NODE_ENV !== "production" || stripeMode !== "prod") return;
+
+  const missingProductIds = products
+    .filter((product) => !isStripePriceIdConfigured(product.stripePriceId.prod))
+    .map((product) => product.id);
+
+  if (missingProductIds.length > 0) {
+    throw new Error(
+      `Cozya Stripe production Price IDs are not configured: ${missingProductIds.join(", ")}`,
+    );
+  }
+}
 
 export function reconcileBillingSubscriptions() {
   return billing.reconcileSubscriptions();

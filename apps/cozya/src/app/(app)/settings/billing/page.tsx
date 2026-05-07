@@ -11,7 +11,12 @@ import { CreditBalanceCard } from "@/features/billing/components/credit-balance-
 import { CreditPacksSection } from "@/features/billing/components/credit-packs-section";
 import { PlanCard } from "@/features/billing/components/plan-card";
 import { ReactivateBanner } from "@/features/billing/components/reactivate-banner";
-import { billing } from "@/features/billing/service";
+import {
+  getBillingBalanceForUser,
+  getBillingCreditHistoryForUser,
+  getBillingSubscriptionForUser,
+  getIsProForUser,
+} from "@/features/billing/server-cache";
 import { requireUserServer } from "@/lib/auth";
 import { env } from "@/lib/env";
 
@@ -23,7 +28,6 @@ export const metadata = {
 // shell. Layout is rendered immediately; cards fill in as their data lands.
 export default async function BillingSettingsPage() {
   const user = await requireUserServer();
-  const subject = { type: "user", id: user.id } as const;
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 md:px-8">
@@ -41,7 +45,7 @@ export default async function BillingSettingsPage() {
           </p>
         </div>
         <Suspense fallback={<Skeleton className="h-9 w-44" />}>
-          <PortalButtonSlot subject={subject} />
+          <PortalButtonSlot userId={user.id} />
         </Suspense>
       </div>
 
@@ -50,42 +54,42 @@ export default async function BillingSettingsPage() {
       </Suspense>
 
       <Suspense fallback={null}>
-        <ReactivateBannerSlot subject={subject} />
+        <ReactivateBannerSlot userId={user.id} />
       </Suspense>
 
       <section className="grid gap-4 md:grid-cols-3">
         <Suspense fallback={<PlanCardSkeleton />}>
-          <PlanCardSlot subject={subject} />
+          <PlanCardSlot userId={user.id} />
         </Suspense>
         <Suspense fallback={<BalanceCardSkeleton />}>
-          <BalanceCardSlot subject={subject} />
+          <BalanceCardSlot userId={user.id} />
         </Suspense>
         <Suspense fallback={<ExpiringCardSkeleton />}>
-          <ExpiringCard subject={subject} />
+          <ExpiringCard userId={user.id} />
         </Suspense>
       </section>
 
       <Suspense fallback={null}>
-        <CreditPacksSlot subject={subject} />
+        <CreditPacksSlot userId={user.id} />
       </Suspense>
 
       <Suspense fallback={<HistorySkeleton />}>
-        <HistorySection subject={subject} />
+        <HistorySection userId={user.id} />
       </Suspense>
     </main>
   );
 }
 
-type SubjectArg = { subject: { readonly type: "user"; readonly id: string } };
+type UserArg = { userId: string };
 
-async function PortalButtonSlot({ subject }: SubjectArg) {
-  const subscription = await billing.getSubscription(subject);
+async function PortalButtonSlot({ userId }: UserArg) {
+  const subscription = await getBillingSubscriptionForUser(userId);
   if (!subscription) return null;
   return <BillingPortalButton />;
 }
 
-async function ReactivateBannerSlot({ subject }: SubjectArg) {
-  const subscription = await billing.getSubscription(subject);
+async function ReactivateBannerSlot({ userId }: UserArg) {
+  const subscription = await getBillingSubscriptionForUser(userId);
   if (!subscription?.cancelAtPeriodEnd || subscription.pendingProductId) return null;
   const product = findProduct(subscription.productId);
   return (
@@ -96,8 +100,8 @@ async function ReactivateBannerSlot({ subject }: SubjectArg) {
   );
 }
 
-async function PlanCardSlot({ subject }: SubjectArg) {
-  const subscription = await billing.getSubscription(subject);
+async function PlanCardSlot({ userId }: UserArg) {
+  const subscription = await getBillingSubscriptionForUser(userId);
   const product = subscription ? findProduct(subscription.productId) : undefined;
   const pendingProduct = subscription?.pendingProductId
     ? findProduct(subscription.pendingProductId)
@@ -121,12 +125,12 @@ async function PlanCardSlot({ subject }: SubjectArg) {
   );
 }
 
-async function BalanceCardSlot({ subject }: SubjectArg) {
+async function BalanceCardSlot({ userId }: UserArg) {
   // Parallel fetch: balance is the source of truth for credit accounting,
   // subscription provides the monthly cap (denominator for the progress bar).
   const [balance, subscription] = await Promise.all([
-    billing.getBalance(subject),
-    billing.getSubscription(subject),
+    getBillingBalanceForUser(userId),
+    getBillingSubscriptionForUser(userId),
   ]);
   const product = subscription ? findProduct(subscription.productId) : undefined;
   const monthlyCap = product?.bonusCreditsPerMonth ?? 0;
@@ -140,8 +144,8 @@ async function BalanceCardSlot({ subject }: SubjectArg) {
   );
 }
 
-async function ExpiringCard({ subject }: SubjectArg) {
-  const balance = await billing.getBalance(subject);
+async function ExpiringCard({ userId }: UserArg) {
+  const balance = await getBillingBalanceForUser(userId);
   return (
     <Card className="border-border/60">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -164,10 +168,10 @@ async function ExpiringCard({ subject }: SubjectArg) {
   );
 }
 
-async function CreditPacksSlot({ subject }: SubjectArg) {
+async function CreditPacksSlot({ userId }: UserArg) {
   // Pro-only: Free users don't see this section. The same gate is enforced
   // server-side in `createCreditPackCheckout` (defense in depth).
-  const isPro = await billing.hasProSubscription(subject);
+  const isPro = await getIsProForUser(userId);
   if (!isPro) return null;
 
   const stripeMode = env.STRIPE_MODE ?? (env.NODE_ENV === "production" ? "prod" : "dev");
@@ -177,8 +181,8 @@ async function CreditPacksSlot({ subject }: SubjectArg) {
   return <CreditPacksSection packs={creditPacks} />;
 }
 
-async function HistorySection({ subject }: SubjectArg) {
-  const history = await billing.getCreditHistory(subject, { limit: 8 });
+async function HistorySection({ userId }: UserArg) {
+  const history = await getBillingCreditHistoryForUser(userId, 8);
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-3">

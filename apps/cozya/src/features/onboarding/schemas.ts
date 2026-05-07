@@ -1,9 +1,11 @@
 import { z } from "zod";
 
+const emailSchema = z.string().trim().toLowerCase().email("Informe um email válido.");
+
 export const signupSchema = z
   .object({
     name: z.string().trim().min(2, "Informe seu nome (mínimo 2 caracteres)."),
-    email: z.string().trim().email("Informe um email válido."),
+    email: emailSchema,
     password: z
       .string()
       .min(8, "A senha deve ter pelo menos 8 caracteres.")
@@ -18,26 +20,26 @@ export const signupSchema = z
 export type SignupInput = z.infer<typeof signupSchema>;
 
 export const passwordLoginSchema = z.object({
-  email: z.string().trim().email("Informe um email válido."),
+  email: emailSchema,
   password: z.string().min(1, "Informe sua senha."),
 });
 
 export type PasswordLoginInput = z.infer<typeof passwordLoginSchema>;
 
 export const loginSchema = z.object({
-  email: z.string().trim().email("Informe um email válido."),
+  email: emailSchema,
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
 
 export const forgotPasswordSchema = z.object({
-  email: z.string().trim().email("Informe um email válido."),
+  email: emailSchema,
 });
 
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 
 export const otpSchema = z.object({
-  email: z.string().email(),
+  email: emailSchema,
   otp: z
     .string()
     .length(6, "O código tem 6 dígitos.")
@@ -48,7 +50,7 @@ export type OtpInput = z.infer<typeof otpSchema>;
 
 export const resetPasswordSchema = z
   .object({
-    email: z.string().trim().email("Informe um email válido."),
+    email: emailSchema,
     otp: z
       .string()
       .length(6, "O código tem 6 dígitos.")

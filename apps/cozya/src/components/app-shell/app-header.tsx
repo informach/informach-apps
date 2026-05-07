@@ -1,15 +1,10 @@
 import { Button } from "@informach/ui/components/button";
 import { ModeToggle } from "@informach/ui/components/mode-toggle";
 import Link from "next/link";
-import { cache } from "react";
 import { CozyaLogo } from "@/components/brand/cozya-logo";
-import { billing } from "@/features/billing/service";
+import { getIsProForUser } from "@/features/billing/server-cache";
 import { requireUserServer } from "@/lib/auth";
 import { UserMenu } from "./user-menu";
-
-const getIsProForUser = cache((userId: string) =>
-  billing.hasProSubscription({ type: "user", id: userId }),
-);
 
 export async function AppHeader() {
   const user = await requireUserServer();
