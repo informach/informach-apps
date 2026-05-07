@@ -22,7 +22,9 @@ const recipeBaseSchema = z.object({
   finishing: optionalTextSchema,
 });
 
-export const creationMethodSchema = z.enum(["manual", "voice", "text", "image"]).default("manual");
+export const creationMethodSchema = z
+  .enum(["manual", "voice", "text", "image", "prompt"])
+  .default("manual");
 export type RecipeCreationMethod = z.output<typeof creationMethodSchema>;
 
 export const recipeInputSchema = recipeBaseSchema.extend({

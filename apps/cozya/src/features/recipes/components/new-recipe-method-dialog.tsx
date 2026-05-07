@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@informach/ui/components/dialog";
 import { cn } from "@informach/ui/lib/utils";
-import { Camera, ClipboardPaste, Lock, Mic, Pencil } from "lucide-react";
+import { Camera, ClipboardPaste, Lock, Mic, Pencil, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 type Props = {
@@ -17,6 +17,7 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   isPro: boolean;
   onPickManual: () => void;
+  onPickPrompt: () => void;
   onPickVoice: () => void;
   onPickText: () => void;
   onPickImage: () => void;
@@ -27,6 +28,7 @@ export function NewRecipeMethodDialog({
   onOpenChange,
   isPro,
   onPickManual,
+  onPickPrompt,
   onPickVoice,
   onPickText,
   onPickImage,
@@ -50,12 +52,22 @@ export function NewRecipeMethodDialog({
           <DialogDescription>Escolha uma forma de cadastrar sua nova receita.</DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <MethodCard
             icon={<Pencil className="size-5" aria-hidden />}
             title="Manual"
             description="Digite os campos."
             onClick={onPickManual}
+          />
+          <MethodCard
+            icon={<Sparkles className="size-5" aria-hidden />}
+            title="Por descrição"
+            description={
+              isPro ? "Diga o que quer e a IA busca a receita pra você." : "Disponível no Pro."
+            }
+            onClick={handleProClick(onPickPrompt)}
+            badge="Pro"
+            locked={!isPro}
           />
           <MethodCard
             icon={<Mic className="size-5" aria-hidden />}
@@ -91,7 +103,7 @@ export function NewRecipeMethodDialog({
           <p className="pt-1 text-center text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <Lock className="size-3" aria-hidden />
-              Por voz, colar texto e por foto são funcionalidades Pro —{" "}
+              Por descrição, por voz, colar texto e por foto são funcionalidades Pro —{" "}
               <button
                 type="button"
                 className="underline underline-offset-2"

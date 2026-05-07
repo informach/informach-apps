@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { RecipeFormValues } from "../schemas";
 import { ImageRecipeDialog } from "./image-recipe-dialog";
 import { NewRecipeMethodDialog } from "./new-recipe-method-dialog";
+import { PromptRecipeDialog } from "./prompt-recipe-dialog";
 import { RecipeFormDialog } from "./recipe-form-dialog";
 import { TextRecipeDialog } from "./text-recipe-dialog";
 import { type ParsedRecipeFields, VoiceRecipeDialog } from "./voice-recipe-dialog";
@@ -15,7 +16,7 @@ type Props = {
   currentCount: number;
 };
 
-type View = "closed" | "picker" | "voice" | "text" | "image" | "manual";
+type View = "closed" | "picker" | "voice" | "text" | "image" | "prompt" | "manual";
 
 export function NewRecipeButton({ isPro, currentCount }: Props) {
   const [view, setView] = useState<View>("closed");
@@ -24,6 +25,10 @@ export function NewRecipeButton({ isPro, currentCount }: Props) {
   const handlePickManual = () => {
     setDefaultValues(null);
     setView("manual");
+  };
+
+  const handlePickPrompt = () => {
+    setView("prompt");
   };
 
   const handlePickVoice = () => {
@@ -74,6 +79,18 @@ export function NewRecipeButton({ isPro, currentCount }: Props) {
     setView("manual");
   };
 
+  const handleParsedFromPrompt = (recipe: ParsedRecipeFields) => {
+    setDefaultValues({
+      name: recipe.name,
+      ingredients: recipe.ingredients,
+      preparation: recipe.preparation,
+      finishing: recipe.finishing,
+      isFavorite: false,
+      creationMethod: "prompt",
+    });
+    setView("manual");
+  };
+
   const handleClose = () => {
     setView("closed");
     setDefaultValues(null);
@@ -87,7 +104,9 @@ export function NewRecipeButton({ isPro, currentCount }: Props) {
         ? "Revisar receita colada"
         : prefilledOrigin === "image"
           ? "Revisar receita por foto"
-          : undefined;
+          : prefilledOrigin === "prompt"
+            ? "Revisar receita encontrada"
+            : undefined;
   const formDescription =
     prefilledOrigin === "voice"
       ? "Confira o que entendi do seu áudio e ajuste se precisar antes de salvar."
@@ -95,7 +114,9 @@ export function NewRecipeButton({ isPro, currentCount }: Props) {
         ? "Confira o que entendi do texto e ajuste se precisar antes de salvar."
         : prefilledOrigin === "image"
           ? "Confira o que entendi da foto e ajuste se precisar antes de salvar."
-          : undefined;
+          : prefilledOrigin === "prompt"
+            ? "Confira a receita que encontrei e ajuste se precisar antes de salvar."
+            : undefined;
 
   return (
     <>
@@ -111,9 +132,18 @@ export function NewRecipeButton({ isPro, currentCount }: Props) {
         }}
         isPro={isPro}
         onPickManual={handlePickManual}
+        onPickPrompt={handlePickPrompt}
         onPickVoice={handlePickVoice}
         onPickText={handlePickText}
         onPickImage={handlePickImage}
+      />
+
+      <PromptRecipeDialog
+        open={view === "prompt"}
+        onOpenChange={(open) => {
+          if (!open) handleClose();
+        }}
+        onParsed={handleParsedFromPrompt}
       />
 
       <VoiceRecipeDialog
