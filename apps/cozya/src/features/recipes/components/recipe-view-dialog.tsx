@@ -1,8 +1,14 @@
 "use client";
 
 import { Button } from "@informach/ui/components/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@informach/ui/components/dialog";
-import { Share2, Star } from "lucide-react";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@informach/ui/components/dialog";
+import { Share2, Star, X } from "lucide-react";
 import type { Recipe } from "../repository";
 import { buildWhatsappShareUrl, parseIngredients } from "../share";
 
@@ -19,25 +25,45 @@ export function RecipeViewDialog({ open, onOpenChange, recipe }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] gap-6 overflow-y-auto rounded-2xl sm:max-w-lg">
-        <Button asChild size="icon" className="absolute right-14 top-2 size-8 rounded-full">
-          <a
-            href={buildWhatsappShareUrl(recipe)}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Compartilhar no WhatsApp"
-          >
-            <Share2 className="size-4" aria-hidden />
-          </a>
-        </Button>
-
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 pr-24 text-left text-xl font-semibold">
+      <DialogContent
+        showCloseButton={false}
+        className="max-h-[90vh] gap-6 overflow-y-auto rounded-2xl sm:max-w-lg"
+      >
+        <DialogHeader className="flex-row items-start justify-between gap-3 space-y-0">
+          <DialogTitle className="flex flex-1 items-center gap-2 pt-1 text-left text-xl font-semibold leading-tight">
             {recipe.name}
             {recipe.isFavorite ? (
               <Star className="size-4 shrink-0 text-primary" fill="currentColor" aria-hidden />
             ) : null}
           </DialogTitle>
+          <div className="flex shrink-0 items-center gap-2">
+            {/* Verde oficial do WhatsApp (#25D366): exceção intencional ao tema para gerar identificação imediata da ação. */}
+            <Button
+              asChild
+              size="icon"
+              className="size-9 rounded-full bg-[#25D366] text-white shadow-sm hover:bg-[#1ebe57]"
+            >
+              <a
+                href={buildWhatsappShareUrl(recipe)}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Compartilhar no WhatsApp"
+              >
+                <Share2 className="size-4" aria-hidden />
+              </a>
+            </Button>
+            <DialogClose asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="Fechar"
+                className="size-9 rounded-full bg-muted text-muted-foreground hover:bg-muted/70"
+              >
+                <X className="size-4" aria-hidden />
+              </Button>
+            </DialogClose>
+          </div>
         </DialogHeader>
 
         <div className="space-y-6 text-sm">
