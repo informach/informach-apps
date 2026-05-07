@@ -22,8 +22,12 @@ const recipeBaseSchema = z.object({
   finishing: optionalTextSchema,
 });
 
+export const creationMethodSchema = z.enum(["manual", "voice"]).default("manual");
+export type RecipeCreationMethod = z.output<typeof creationMethodSchema>;
+
 export const recipeInputSchema = recipeBaseSchema.extend({
   isFavorite: z.boolean().default(false),
+  creationMethod: creationMethodSchema,
 });
 
 export type RecipeFormValues = z.input<typeof recipeInputSchema>;

@@ -1,0 +1,1 @@
+ALTER TABLE "cozya"."recipes" ADD COLUMN "creation_method" text DEFAULT 'manual' NOT NULL;

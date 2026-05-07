@@ -65,6 +65,12 @@ export const COZYA_PRICING_SEED: readonly CreditPricingSeedRow[] = [
     flatCost: 1,
     defaultEstimateCredits: 1,
   },
+  {
+    feature: "cozya.recipe.parse_voice",
+    model: "gpt-4o-mini",
+    flatCost: 1,
+    defaultEstimateCredits: 1,
+  },
 ] as const;
 
 export type SeedCreditPricingResult = {

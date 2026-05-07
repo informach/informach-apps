@@ -14,6 +14,7 @@ export type NewRecipePayload = {
   preparation: string;
   finishing: string | null;
   isFavorite: boolean;
+  creationMethod: "manual" | "voice";
 };
 
 export type InsertWithinLimitResult = { ok: true; recipe: Recipe } | { ok: false; current: number };

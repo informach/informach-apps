@@ -21,6 +21,9 @@ export const cozyaRecipes = cozya.table(
     preparation: text("preparation").notNull(),
     finishing: text("finishing"),
     isFavorite: boolean("is_favorite").notNull().default(false),
+    creationMethod: text("creation_method", { enum: ["manual", "voice"] })
+      .notNull()
+      .default("manual"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },

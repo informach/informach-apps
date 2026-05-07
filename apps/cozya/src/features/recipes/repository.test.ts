@@ -65,6 +65,7 @@ const payload: NewRecipePayload = {
   preparation: "Misture tudo e asse.",
   finishing: null,
   isFavorite: false,
+  creationMethod: "manual",
 };
 
 const recipe = {

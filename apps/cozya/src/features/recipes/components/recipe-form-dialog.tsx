@@ -40,6 +40,9 @@ type Props = {
   isPro: boolean;
   currentCount: number;
   recipe?: Recipe;
+  defaultValues?: RecipeFormValues;
+  title?: string;
+  description?: string;
 };
 
 const EMPTY_DEFAULTS: RecipeFormValues = {
@@ -48,6 +51,7 @@ const EMPTY_DEFAULTS: RecipeFormValues = {
   preparation: "",
   finishing: "",
   isFavorite: false,
+  creationMethod: "manual",
 };
 
 function defaultsFromRecipe(recipe: Recipe): RecipeFormValues {
@@ -57,25 +61,39 @@ function defaultsFromRecipe(recipe: Recipe): RecipeFormValues {
     preparation: recipe.preparation,
     finishing: recipe.finishing ?? "",
     isFavorite: recipe.isFavorite,
+    creationMethod: recipe.creationMethod,
   };
 }
 
-export function RecipeFormDialog({ open, onOpenChange, isPro, currentCount, recipe }: Props) {
+export function RecipeFormDialog({
+  open,
+  onOpenChange,
+  isPro,
+  currentCount,
+  recipe,
+  defaultValues,
+  title,
+  description,
+}: Props) {
   const router = useRouter();
   const [submitting, startSubmit] = useTransition();
   const isEdit = recipe !== undefined;
   const limitReached = !isEdit && !isPro && currentCount >= FREE_RECIPE_LIMIT;
 
+  const initialDefaults = recipe
+    ? defaultsFromRecipe(recipe)
+    : { ...EMPTY_DEFAULTS, ...defaultValues };
+
   const form = useForm<RecipeFormValues>({
     resolver: zodResolver(recipeInputSchema),
-    defaultValues: recipe ? defaultsFromRecipe(recipe) : EMPTY_DEFAULTS,
+    defaultValues: initialDefaults,
   });
 
   useEffect(() => {
     if (open) {
-      form.reset(recipe ? defaultsFromRecipe(recipe) : EMPTY_DEFAULTS);
+      form.reset(recipe ? defaultsFromRecipe(recipe) : { ...EMPTY_DEFAULTS, ...defaultValues });
     }
-  }, [open, recipe, form]);
+  }, [open, recipe, defaultValues, form]);
 
   const onSubmit = form.handleSubmit((values) => {
     startSubmit(async () => {
@@ -140,21 +158,24 @@ export function RecipeFormDialog({ open, onOpenChange, isPro, currentCount, reci
 
   const handleOpenChange = (next: boolean) => {
     if (!next) {
-      form.reset(recipe ? defaultsFromRecipe(recipe) : EMPTY_DEFAULTS);
+      form.reset(recipe ? defaultsFromRecipe(recipe) : { ...EMPTY_DEFAULTS, ...defaultValues });
     }
     onOpenChange(next);
   };
+
+  const resolvedTitle = title ?? (isEdit ? "Editar receita" : "Nova receita");
+  const resolvedDescription =
+    description ??
+    (isEdit
+      ? "Atualize ingredientes, preparo ou finalização da sua receita."
+      : "Salve sua receita no Cozya com ingredientes, preparo e finalização.");
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Editar receita" : "Nova receita"}</DialogTitle>
-          <DialogDescription>
-            {isEdit
-              ? "Atualize ingredientes, preparo ou finalização da sua receita."
-              : "Salve sua receita no Cozya com ingredientes, preparo e finalização."}
-          </DialogDescription>
+          <DialogTitle>{resolvedTitle}</DialogTitle>
+          <DialogDescription>{resolvedDescription}</DialogDescription>
         </DialogHeader>
 
         {limitReached ? (

@@ -39,6 +39,7 @@ export async function createRecipe(
     preparation: input.preparation,
     finishing: input.finishing,
     isFavorite: input.isFavorite,
+    creationMethod: input.creationMethod,
   };
 
   const isPro = await billing.hasProSubscription({ type: "user", id: userId });
@@ -68,7 +69,7 @@ export async function listRecipesForUser(
 export async function updateRecipe(
   userId: string,
   id: string,
-  input: RecipeInput,
+  input: Omit<RecipeInput, "creationMethod">,
 ): Promise<Result<Recipe, RecipeNotFoundError>> {
   const row = await updateRecipeForUser(userId, id, {
     name: input.name,
