@@ -96,6 +96,7 @@ A ligação entre os dois é o `runId` (UUID): `ai.agent_runs.id` ≡ `billing.c
 | `./mastra` | re-exports `Agent`, `Memory`, `Mastra`, `PostgresStore`, `createTool`, `createStep`, `createWorkflow`, type `Workflow` | apps importam tudo daqui |
 | `./providers` | `createAnthropic`, `createOpenAI` | wrappers AI SDK com `apiKey` injetado |
 | `./logger` | `createDefaultLogger` | PinoLogger pronto pra `createMastra({ logger })` |
+| `./transcription` | `transcribeAudio` (wrap fino sobre `experimental_transcribe` + OpenAI Whisper) | route handlers que recebem áudio e devolvem texto, dentro do `withCredits` do app |
 | `./billing`, `./telemetry`, `./tools`, `./types` | aliases granulares | só úteis em testes ou import seletivo |
 
 Sub-paths removidos do scaffold inicial: `./models`, `./memory`, `./guardrails`, `./prompts`. Eles eram placeholders; absorvidos por `./mastra` ou movidos para `apps/<app>/src/ai/`.

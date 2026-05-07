@@ -15,7 +15,7 @@ export function NewRecipeButton({ isPro, currentCount }: Props) {
 
   return (
     <>
-      <Button onClick={() => setOpen(true)}>
+      <Button className="h-12" onClick={() => setOpen(true)}>
         <Plus className="mr-2 size-4" aria-hidden />
         Nova receita
       </Button>

@@ -156,6 +156,7 @@ Features registradas (todas com `flatCost: 1`, `defaultEstimateCredits: 1`):
 | `cozya.recipe.extract_from_text` | `gpt-4o-mini` |
 | `cozya.recipe.generate_from_prompt` | `gpt-4o-mini` |
 | `cozya.recipe.refine_conversational` | `gpt-4o-mini` |
+| `cozya.recipe.transcribe_audio` | `whisper-1` (voz → texto na busca, Pro-only) |
 
 Para trocar de modelo no futuro: NÃO mutar a row — `creditPricing` é versionado por `(feature, model)` com `effective_to UNIQUE WHERE NULL`. Inserir nova row com novo modelo + atualizar a antiga com `effective_to = now()`.
 
@@ -175,7 +176,7 @@ Decidido com a usuária:
 ## 8. Regras para agentes
 
 1. **Mudar preço Pro**: editar `listPrice.amountCents` em `packages/config/src/products.ts` E atualizar Stripe Dashboard. Os dois lados precisam bater — divergência é bug.
-2. **Adicionar nova feature de IA**: criar row em `COZYA_PRICING_SEED` (`packages/billing/src/seeds/credit-pricing.ts`), adicionar em `setSeed()`, atualizar tabela §6 deste doc. Modelo = `gpt-4o-mini` por default; `gpt-4o` apenas para vision real.
+2. **Adicionar nova feature de IA**: criar row em `COZYA_PRICING_SEED` (`packages/billing/src/seeds/credit-pricing.ts`), adicionar em `setSeed()`, atualizar tabela §6 deste doc. Modelo = `gpt-4o-mini` por default; `gpt-4o` apenas para vision real; `whisper-1` para transcrição de áudio.
 3. **Ajustar cap de créditos**: editar `bonusCreditsPerMonth` nos 2 produtos Pro em `products.ts`. UI auto-reflete via `currentProduct.bonusCreditsPerMonth`.
 4. **Mudar rate limit**: editar `COZYA_RATE_LIMITS` em `apps/cozya/src/lib/rate-limit.ts`. Tests cobrem o catálogo.
 5. **Stripe API version**: pinned em `2026-04-22.dahlia`. Bumpar requer validar payload (ver §1 de `packages/billing/CLAUDE.md`).

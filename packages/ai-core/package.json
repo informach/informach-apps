@@ -13,7 +13,8 @@
     "./telemetry": "./src/telemetry/index.ts",
     "./logger": "./src/logger.ts",
     "./providers": "./src/providers/index.ts",
-    "./mastra": "./src/mastra/index.ts"
+    "./mastra": "./src/mastra/index.ts",
+    "./transcription": "./src/transcription.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -28,6 +29,7 @@
     "@mastra/pg": "1.9.4",
     "@ai-sdk/anthropic": "3.0.74",
     "@ai-sdk/openai": "3.0.58",
+    "ai": "^6.0.0",
     "drizzle-orm": "^0.45.2",
     "server-only": "^0.0.1",
     "zod": "^3.25.0"

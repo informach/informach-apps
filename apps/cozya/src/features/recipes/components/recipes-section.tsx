@@ -3,11 +3,14 @@
 import { Button } from "@informach/ui/components/button";
 import { Card, CardContent } from "@informach/ui/components/card";
 import { Input } from "@informach/ui/components/input";
-import { ChefHat, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { ChefHat, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useTransition } from "react";
 import type { Recipe } from "../repository";
 import { NewRecipeButton } from "./new-recipe-button";
 import { RecipeCard } from "./recipe-card";
+import { RecipeVoiceSearch } from "./recipe-voice-search";
 
 type Props = {
   recipes: Recipe[];
@@ -17,6 +20,8 @@ type Props = {
   page: number;
   hasNextPage: boolean;
 };
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 export function RecipesSection({ recipes, isPro, currentCount, query, page, hasNextPage }: Props) {
   if (currentCount === 0 && !query) {
@@ -46,35 +51,7 @@ export function RecipesSection({ recipes, isPro, currentCount, query, page, hasN
   return (
     <div className="mx-auto w-full max-w-3xl space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <form action="/dashboard" className="flex gap-2">
-            <div className="relative min-w-0 flex-1">
-              <Search
-                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                aria-hidden
-              />
-              <Input
-                key={query}
-                type="search"
-                name="q"
-                placeholder="Buscar pelo título..."
-                defaultValue={query}
-                className="pl-9"
-                aria-label="Buscar receitas pelo título"
-              />
-            </div>
-            <Button type="submit" size="icon" aria-label="Buscar">
-              <Search className="size-4" aria-hidden />
-            </Button>
-            {query ? (
-              <Button asChild variant="outline" size="icon" aria-label="Limpar busca">
-                <Link href="/dashboard">
-                  <X className="size-4" aria-hidden />
-                </Link>
-              </Button>
-            ) : null}
-          </form>
-        </div>
+        <SearchBar isPro={isPro} initialQuery={query} />
         <NewRecipeButton isPro={isPro} currentCount={currentCount} />
       </div>
 
@@ -133,6 +110,68 @@ export function RecipesSection({ recipes, isPro, currentCount, query, page, hasN
           )}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function SearchBar({ isPro, initialQuery }: { isPro: boolean; initialQuery: string }) {
+  const router = useRouter();
+  const [, startTransition] = useTransition();
+  const [value, setValue] = useState(initialQuery);
+  const lastPushedRef = useRef(initialQuery);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setValue(initialQuery);
+    lastPushedRef.current = initialQuery;
+  }, [initialQuery]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
+  const navigate = (next: string) => {
+    if (lastPushedRef.current === next) return;
+    lastPushedRef.current = next;
+    startTransition(() => {
+      router.replace(buildDashboardHref(next, 1), { scroll: false });
+    });
+  };
+
+  const onChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const next = event.target.value;
+    setValue(next);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => navigate(next), SEARCH_DEBOUNCE_MS);
+  };
+
+  const onTranscribed = (text: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    setValue(text);
+    navigate(text);
+  };
+
+  return (
+    <div className="relative flex-1">
+      <Search
+        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+        aria-hidden
+      />
+      <Input
+        type="search"
+        name="q"
+        placeholder="O que vamos fazer?"
+        value={value}
+        onChange={onChange}
+        className="h-12 pl-10 pr-14"
+        aria-label="Buscar receitas pelo título"
+        autoComplete="off"
+      />
+      <div className="absolute right-1.5 top-1/2 -translate-y-1/2">
+        <RecipeVoiceSearch isPro={isPro} onTranscribed={onTranscribed} />
+      </div>
     </div>
   );
 }
