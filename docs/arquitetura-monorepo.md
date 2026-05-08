@@ -261,6 +261,7 @@ jobs:
       CRON_SECRET: ci-build-placeholder-not-a-real-secret-xxxx
       STRIPE_SECRET_KEY: sk_test_ci_build_placeholder
       STRIPE_WEBHOOK_SECRET: whsec_ci_build_placeholder
+      OPENROUTER_API_KEY: sk-or-ci-build-placeholder
       REDIS_URL: redis://localhost:6379
     steps:
       - uses: actions/checkout@v4
