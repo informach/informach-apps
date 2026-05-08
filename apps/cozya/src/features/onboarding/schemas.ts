@@ -4,7 +4,11 @@ const emailSchema = z.string().trim().toLowerCase().email("Informe um email vál
 
 export const signupSchema = z
   .object({
-    name: z.string().trim().min(2, "Informe seu nome (mínimo 2 caracteres)."),
+    name: z
+      .string()
+      .trim()
+      .min(2, "Informe seu nome (mínimo 2 caracteres).")
+      .max(120, "O nome pode ter no máximo 120 caracteres."),
     email: emailSchema,
     password: z
       .string()

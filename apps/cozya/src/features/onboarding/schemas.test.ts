@@ -40,4 +40,14 @@ describe("onboarding schemas", () => {
       }).email,
     ).toBe("maria@example.com");
   });
+
+  it("rejects names longer than 120 characters", () => {
+    const result = signupSchema.safeParse({
+      name: "a".repeat(121),
+      email: "maria@example.com",
+      password: "12345678",
+      confirmPassword: "12345678",
+    });
+    expect(result.success).toBe(false);
+  });
 });

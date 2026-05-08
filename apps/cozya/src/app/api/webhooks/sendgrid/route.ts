@@ -20,7 +20,7 @@ export async function POST(request: Request): Promise<Response> {
   const rawBody = Buffer.from(await request.arrayBuffer());
 
   if (!verifySendgridSignature(env.SENDGRID_WEBHOOK_PUBLIC_KEY, rawBody, signature, timestamp)) {
-    return new Response("Invalid signature", { status: 403 });
+    return new Response("Invalid signature", { status: 400 });
   }
 
   let payload: unknown;

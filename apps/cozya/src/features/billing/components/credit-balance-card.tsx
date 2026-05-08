@@ -27,9 +27,11 @@ type Props = {
 
 export function CreditBalanceCard({ available, total, reserved, monthlyCap }: Props) {
   const hasPlan = monthlyCap > 0;
-  // Show progress against the monthly cap. When the user has bought extra
-  // packs (total > cap) the bar caps at 100% — the caption explains the rest.
-  const percent = hasPlan ? Math.min(100, (available / monthlyCap) * 100) : 0;
+  // The progress bar tracks ONLY the monthly cycle (X/30) — extras from packs
+  // are surfaced separately as a chip + caption so users with packs see their
+  // full available balance without the bar appearing pinned to 100%.
+  const cycleAvailable = hasPlan ? Math.min(available, monthlyCap) : 0;
+  const percent = hasPlan ? (cycleAvailable / monthlyCap) * 100 : 0;
   const extras = Math.max(0, total - monthlyCap);
 
   return (
@@ -58,21 +60,35 @@ export function CreditBalanceCard({ available, total, reserved, monthlyCap }: Pr
         <Sparkles className="size-4 text-muted-foreground" aria-hidden />
       </CardHeader>
       <CardContent className="space-y-2">
-        <div className="text-3xl font-semibold tabular-nums tracking-tight">
-          {formatNumber(available)}
-          {hasPlan ? (
-            <span className="ml-1 text-base font-normal text-muted-foreground tabular-nums">
-              / {formatNumber(monthlyCap)}
+        <div className="flex items-baseline gap-2">
+          <div className="text-3xl font-semibold tabular-nums tracking-tight">
+            {formatNumber(available)}
+            {hasPlan ? (
+              <span className="ml-1 text-base font-normal text-muted-foreground tabular-nums">
+                / {formatNumber(monthlyCap)}
+              </span>
+            ) : null}
+          </div>
+          {extras > 0 ? (
+            <span
+              className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground tabular-nums"
+              title={`${formatNumber(extras)} créditos extras de pacotes não expiram com o ciclo`}
+            >
+              +{formatNumber(extras)} de pacotes
             </span>
           ) : null}
         </div>
         {hasPlan ? (
-          <Progress value={percent} className="h-2" aria-label="Progresso dos créditos do mês" />
+          <Progress
+            value={percent}
+            className="h-2"
+            aria-label="Progresso dos créditos do mês (sem contar extras de pacotes)"
+          />
         ) : null}
         <p className="text-xs text-muted-foreground">
           {hasPlan
             ? extras > 0
-              ? `+ ${formatNumber(extras)} créditos extras de pacotes${reserved > 0 ? ` · ${formatNumber(reserved)} reservados` : ""}.`
+              ? `Barra mostra o ciclo mensal. Extras de pacotes não expiram${reserved > 0 ? ` · ${formatNumber(reserved)} reservados em chamadas em andamento` : ""}.`
               : reserved > 0
                 ? `${formatNumber(reserved)} reservados em chamadas em andamento.`
                 : `Renova ao final do ciclo da sua assinatura.`

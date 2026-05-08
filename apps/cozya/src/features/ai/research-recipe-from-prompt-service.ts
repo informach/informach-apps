@@ -2,6 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import { runRecordedAiCall, withCredits } from "@informach/ai-core";
+import { COZYA_PRICING_SEED } from "@informach/billing/seeds";
 import { generateText } from "ai";
 import { getMastra } from "@/ai";
 import { agentRunRecorder as recorder } from "@/ai/agent-run-recorder";
@@ -23,6 +24,28 @@ export type ResearchRecipeFromPromptResult = RecipeParserOutput;
 
 const FEATURE = "cozya.recipe.generate_from_prompt" as const;
 
+/**
+ * Pulls the per-call cost from the same `COZYA_PRICING_SEED` that primes
+ * `billing.credit_pricing` (single source of truth — see
+ * `apps/cozya/CLAUDE.md` §6 and `packages/billing/CLAUDE.md` §5.5).
+ *
+ * Multi-stage flows like this one (research + structured parse) reuse the
+ * single `withCredits` reservation so the user is charged once per top-level
+ * call. `runBillableAiCall` in single-stage services defaults to 1 credit, but
+ * `withCredits` requires explicit cost callbacks — pinning to the seed keeps
+ * both paths in lockstep without a DB round-trip on every call.
+ */
+function resolveFlatCost(feature: string, model: string): number {
+  const row = COZYA_PRICING_SEED.find((r) => r.feature === feature && r.model === model);
+  if (!row) {
+    throw new Error(
+      `@informach/cozya: missing COZYA_PRICING_SEED entry for ${feature} (${model}). ` +
+        `Add a row in packages/billing/src/seeds/credit-pricing.ts before deploying.`,
+    );
+  }
+  return row.flatCost ?? 1;
+}
+
 const RECIPE_NOT_FOUND_REASON =
   "Não encontrei uma receita popular pra esse pedido. Tente algo mais específico.";
 
@@ -31,6 +54,7 @@ export async function researchRecipeFromPrompt(
 ): Promise<ResearchRecipeFromPromptResult> {
   const openrouter = getOpenRouter();
   const researchModelId = COZYA_MODELS[FEATURE];
+  const flatCost = resolveFlatCost(FEATURE, researchModelId);
 
   const out = await withCredits({
     billing,
@@ -38,8 +62,8 @@ export async function researchRecipeFromPrompt(
     app: "cozya",
     feature: FEATURE,
     model: researchModelId,
-    estimateCost: () => ({ estimatedAmount: 1 }),
-    computeActualCost: () => ({ actualAmount: 1 }),
+    estimateCost: () => ({ estimatedAmount: flatCost }),
+    computeActualCost: () => ({ actualAmount: flatCost }),
     call: async ({ reservation }) => {
       // Step 1 — pesquisa na web. Roda como um agente sintético "recipeResearcher"
       // para que o ai.agent_runs registre o run separadamente do parsing.
