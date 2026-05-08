@@ -178,7 +178,7 @@ Features registradas (todas com `flatCost: 1`, `defaultEstimateCredits: 1`). IDs
 
 Para trocar de modelo no futuro: NÃO mutar a row — `creditPricing` é versionado por `(feature, model)` com `effective_to UNIQUE WHERE NULL`. Inserir nova row com novo modelo + atualizar a antiga com `effective_to = now()`. O helper `expireLegacyCozyaPricing(db)` (`packages/billing/src/seeds/credit-pricing.ts`) faz exatamente isso para os IDs antigos não-prefixados (`gpt-4o`, `gpt-4o-mini`, `whisper-1`) e roda automaticamente em `pnpm db:seed` antes do `seedCozyaCreditPricing`.
 
-Fluxo de cadastro por voz consome duas chamadas de IA quando executado completo: `transcribe_audio` para áudio → texto e `parse_voice` para texto → receita estruturada.
+Fluxo de cadastro por voz consome duas chamadas de IA quando executado completo: `transcribe_audio` para áudio → texto e `parse_voice` para texto → receita estruturada. Chamadas pagas simples passam por `runBillableAiCall`; fluxos multiestágio, como geração por prompt com pesquisa + parse estruturado, usam uma reserva de billing e gravam cada etapa com `runRecordedAiCall` para manter auditoria separada sem cobrar crédito extra.
 
 ---
 
@@ -247,7 +247,7 @@ report-uri <derivado de NEXT_PUBLIC_SENTRY_DSN>;
 
 ## 9. Eval framework do `recipeParser`
 
-Detecta regressão de qualidade do parser quando se troca prompt, modelo ou versão do AI SDK. Inspirado nos `scorers/` do repo `rodrigobranas/formacao_ia_arq_t1_4`.
+Detecta regressão de qualidade do parser quando se troca prompt, modelo ou versão do AI SDK. Inspirado nos `scorers/` do repo `rodrigobranas/formacao_ia_arq_t1_4`. Saídas estruturadas no AI SDK usam `generateText({ output: Output.object({ schema }) })`; não adicionar usos novos de `generateObject`.
 
 **Arquivos:**
 - `src/ai/recipe-parser/instructions.ts` — `RECIPE_PARSER_INSTRUCTIONS` (puro; consumido por `agent.ts` em produção e por `scripts/run-evals.ts` no eval).
@@ -283,9 +283,10 @@ Regressão > 10pp em qualquer scorer faz exit non-zero. Baseline atualiza só co
 5. **Mudar rate limits de auth**: editar `productionRateLimitRules` em `apps/cozya/src/lib/auth.ts` (o branch e2e fica intacto).
 6. **Stripe API version**: pinned em `2026-04-22.dahlia`. Bumpar requer validar payload (ver §1 de `packages/billing/CLAUDE.md`).
 7. **Free não chama IA**: o gate é `billing.hasProSubscription`. Nunca contornar — Free com IA quebra economia (custo absorvido sem receita).
-8. **Antes de chamar `reserveCredits` em uma action de IA**, sempre passar pelo `enforceRateLimit` (defesa em camadas).
-9. **NUNCA** importar `@ai-sdk/openai` ou `@ai-sdk/anthropic` direto em features do cozya. Usar **sempre** `createOpenRouter` de `@informach/ai-core/providers`. A única exceção é `transcribeAudio` (que reusa `createOpenAI` internamente apontando para `https://openrouter.ai/api/v1`).
-10. **Adicionar CDN/origin ao CSP**: editar `apps/cozya/src/lib/csp.ts` (constantes agrupadas por categoria). Roodar com `CSP_ENFORCE=0` em produção primeiro para confirmar que não quebra nada.
-11. **Adicionar nova rota de API que renderiza HTML/RSC**: garantir que NÃO está em `CSP_SKIP_PREFIXES` (`csp.ts`). Skip é só para webhooks/jobs/health.
-12. **Mudar `RECIPE_PARSER_INSTRUCTIONS`**: editar `src/ai/recipe-parser/instructions.ts` E rodar o eval (§9) antes do PR. Se algum scorer cair > 10pp vs baseline, ou ajuste o prompt, ou aceite explicitamente atualizando o baseline.
-13. **Adicionar nova entrada ao golden dataset**: editar `src/ai/recipe-parser/evals/dataset.ts`. Não remover entradas antigas — elas guardam regressão acumulada.
+8. **Antes de chamar `runBillableAiCall`/`withCredits` em uma action de IA**, sempre passar pelo `enforceRateLimit` (defesa em camadas).
+9. **Chamada de IA paga simples** usa `runBillableAiCall`; fluxo multiestágio usa uma única reserva (`withCredits`) e `runRecordedAiCall` para cada etapa auditável.
+10. **NUNCA** importar `@ai-sdk/openai` ou `@ai-sdk/anthropic` direto em features do cozya. Usar **sempre** `createOpenRouter` de `@informach/ai-core/providers`. A única exceção é `transcribeAudio` (que reusa `createOpenAI` internamente apontando para `https://openrouter.ai/api/v1`).
+11. **Adicionar CDN/origin ao CSP**: editar `apps/cozya/src/lib/csp.ts` (constantes agrupadas por categoria). Rodar com `CSP_ENFORCE=0` em produção primeiro para confirmar que não quebra nada.
+12. **Adicionar nova rota de API que renderiza HTML/RSC**: garantir que NÃO está em `CSP_SKIP_PREFIXES` (`csp.ts`). Skip é só para webhooks/jobs/health.
+13. **Mudar `RECIPE_PARSER_INSTRUCTIONS`**: editar `src/ai/recipe-parser/instructions.ts` E rodar o eval (§9) antes do PR. Se algum scorer cair > 10pp vs baseline, ou ajuste o prompt, ou aceite explicitamente atualizando o baseline.
+14. **Adicionar nova entrada ao golden dataset**: editar `src/ai/recipe-parser/evals/dataset.ts`. Não remover entradas antigas — elas guardam regressão acumulada.

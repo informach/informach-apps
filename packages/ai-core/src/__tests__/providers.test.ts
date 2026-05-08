@@ -43,6 +43,24 @@ describe("createOpenRouter", () => {
     });
   });
 
+  it("forwards official app attribution fields, extraBody and compatibility", () => {
+    createOpenRouterSDKMock.mockClear();
+    createOpenRouter({
+      apiKey: "sk-or-test",
+      appName: "Cozya",
+      appUrl: "https://cozya.app",
+      compatibility: "strict",
+      extraBody: { transforms: ["middle-out"] },
+    });
+    expect(createOpenRouterSDKMock).toHaveBeenCalledWith({
+      apiKey: "sk-or-test",
+      appName: "Cozya",
+      appUrl: "https://cozya.app",
+      compatibility: "strict",
+      extraBody: { transforms: ["middle-out"] },
+    });
+  });
+
   it("omits optional fields when not provided", () => {
     createOpenRouterSDKMock.mockClear();
     createOpenRouter({ apiKey: "sk-or-test" });

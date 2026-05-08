@@ -1,4 +1,4 @@
-import { generateObject } from "ai";
+import { generateText, Output } from "ai";
 import { z } from "zod";
 import type { Scorer } from "./types";
 
@@ -40,9 +40,9 @@ export const scopeAdherenceScorer: Scorer = {
       reasonSource = "dataset expected.isValidRecipe";
     } else {
       const inputAsText = typeof input === "string" ? input : JSON.stringify(input).slice(0, 4000);
-      const result = await generateObject({
+      const result = await generateText({
         model: judge,
-        schema: judgeSchema,
+        output: Output.object({ schema: judgeSchema }),
         prompt: [
           "Você é um juiz que decide se um conteúdo descreve uma receita culinária.",
           "",
@@ -55,8 +55,8 @@ export const scopeAdherenceScorer: Scorer = {
           "Responda `inputDescribesRecipe` (boolean) e `reason` curto em PT-BR.",
         ].join("\n"),
       });
-      groundTruth = result.object.inputDescribesRecipe;
-      reasonSource = `LLM judge: ${result.object.reason}`;
+      groundTruth = result.output.inputDescribesRecipe;
+      reasonSource = `LLM judge: ${result.output.reason}`;
     }
 
     const correct = output.isValidRecipe === groundTruth;

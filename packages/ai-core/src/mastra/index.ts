@@ -7,6 +7,12 @@ import type { Workflow } from "@mastra/core/workflows";
 import { createStep, createWorkflow } from "@mastra/core/workflows";
 import type { PinoLogger } from "@mastra/loggers";
 import { Memory } from "@mastra/memory";
+import {
+  CloudExporter,
+  DefaultExporter,
+  Observability,
+  SensitiveDataFilter,
+} from "@mastra/observability";
 import { PostgresStore } from "@mastra/pg";
 
 /** Schema Postgres dedicado às tabelas auto-criadas pelo Mastra. */
@@ -108,6 +114,10 @@ export type CreateMastraConfig = {
   agents: Record<string, Agent>;
   /** Workflows opcionais. */
   workflows?: Record<string, Workflow>;
+  /** Scorers Mastra opcionais, registrados no runtime para eval/observability. */
+  scorers?: NonNullable<ConstructorParameters<typeof Mastra>[0]>["scorers"];
+  /** Observability Mastra opcional. Crie via `createDefaultObservability`. */
+  observability?: NonNullable<ConstructorParameters<typeof Mastra>[0]>["observability"];
   /** Storage compartilhado. */
   storage: PostgresStore;
   /** Logger compatível (criar via `createDefaultLogger`). */
@@ -137,12 +147,58 @@ export function createMastra(config: CreateMastraConfig): Mastra {
   return new Mastra({
     agents: config.agents,
     ...(config.workflows ? { workflows: config.workflows } : {}),
+    ...(config.scorers ? { scorers: config.scorers } : {}),
+    ...(config.observability ? { observability: config.observability } : {}),
     storage: config.storage,
     logger: config.logger,
+  });
+}
+
+export type CreateDefaultObservabilityConfig = {
+  /** Nome do serviço nos traces, ex.: "cozya". */
+  serviceName: string;
+  /** Nome da config no registry Mastra. Default `"default"`. */
+  configName?: string;
+  /**
+   * Envia traces ao Mastra Cloud além do storage local. Default false para
+   * evitar tráfego externo implícito; habilite apenas com credenciais Cloud.
+   */
+  cloud?: boolean;
+};
+
+/**
+ * Observability default para apps Informach: persiste traces no storage do
+ * Mastra e filtra dados sensíveis antes de exportar spans.
+ */
+export function createDefaultObservability(
+  config: CreateDefaultObservabilityConfig,
+): Observability {
+  return new Observability({
+    configs: {
+      [config.configName ?? "default"]: {
+        serviceName: config.serviceName,
+        exporters: config.cloud
+          ? [new DefaultExporter(), new CloudExporter()]
+          : [new DefaultExporter()],
+        spanOutputProcessors: [new SensitiveDataFilter()],
+      },
+    },
   });
 }
 
 export type { Workflow };
 // Re-exports — apps importam tudo daqui sem precisar conhecer a topologia
 // de sub-paths do `@mastra/core` (que muda entre minors).
-export { Agent, createStep, createTool, createWorkflow, Mastra, Memory, PostgresStore };
+export {
+  Agent,
+  CloudExporter,
+  createStep,
+  createTool,
+  createWorkflow,
+  DefaultExporter,
+  Mastra,
+  Memory,
+  Observability,
+  PostgresStore,
+  SensitiveDataFilter,
+};

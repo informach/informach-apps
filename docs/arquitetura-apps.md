@@ -197,14 +197,14 @@ Benefício: trocar provider de billing, ORM ou auth vira um problema do package,
 
 ## Pasta `src/ai/`
 
-Cada app tem sua pasta `ai/` para agentes, workflows e lógica IA específica daquele produto. A primitiva compartilhada vem de `@<org>/ai-core`: tipos (`AppName`, `TokenUsage`, `ToolContext`), billing (`withCredits`), telemetria (`createAgentRunRecorder`), factories Mastra (`@<org>/ai-core/mastra`), providers AI SDK (`@<org>/ai-core/providers`) e logger (`@<org>/ai-core/logger`).
+Cada app tem sua pasta `ai/` para agentes, workflows e lógica IA específica daquele produto. A primitiva compartilhada vem de `@<org>/ai-core`: tipos (`AppName`, `TokenUsage`, `ToolContext`), billing (`withCredits`), execução (`runBillableAiCall`, `runRecordedAiCall`), telemetria (`createAgentRunRecorder`), factories Mastra (`@<org>/ai-core/mastra`, incluindo `createDefaultObservability`), providers AI SDK (`@<org>/ai-core/providers`) e logger (`@<org>/ai-core/logger`).
 
 Os agentes em si — prompts, tools, workflows e regras de produto — são código do app, não do package, porque são acoplados ao domínio do produto. O package só padroniza a fundação.
 
 Contrato para qualquer rota/action que invoque LLM:
 
 - Código em `src/ai/` começa com `import "server-only"` e roda em Node, nunca Edge.
-- `DATABASE_URL`, `OPENROUTER_API_KEY` (gateway preferido — `createOpenRouter`) e `MASTRA_LOG_LEVEL` são lidos no `lib/env.ts` do app e injetados nas factories. Apps que ainda chamam OpenAI/Anthropic direto declaram `OPENAI_API_KEY`/`ANTHROPIC_API_KEY` adicionais. `@<org>/ai-core` não lê `process.env`.
+- `DATABASE_URL`, `OPENROUTER_API_KEY` (gateway preferido — `createOpenRouter`), metadados OpenRouter (`OPENROUTER_HTTP_REFERER`, `OPENROUTER_X_TITLE`) e `MASTRA_LOG_LEVEL` são lidos no `lib/env.ts` do app e injetados nas factories. Apps que ainda chamam OpenAI/Anthropic direto declaram `OPENAI_API_KEY`/`ANTHROPIC_API_KEY` adicionais. `@<org>/ai-core` não lê `process.env`.
 - Toda chamada paga usa `withCredits`; o `reservation.id` vira o `runId` passado para `agent.generate({ runId })` e para `recorder.start/finish`.
 - Usage vindo do provider é normalizado para `TokenUsage` antes de persistir ou calcular créditos. Se o provider retornar `inputTokens`/`outputTokens`, o app mapeia para `promptTokens`/`completionTokens`.
 - `recorder.finish` só recebe status terminal: `succeeded`, `failed` ou `canceled`.

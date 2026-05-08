@@ -1,6 +1,6 @@
 import "server-only";
 
-import { withCredits, withRetry } from "@informach/ai-core";
+import { runBillableAiCall } from "@informach/ai-core";
 import { transcribeAudio } from "@informach/ai-core/transcription";
 import { agentRunRecorder as recorder } from "@/ai/agent-run-recorder";
 import { COZYA_MODELS } from "@/ai/models";
@@ -32,47 +32,27 @@ const FEATURE = "cozya.recipe.transcribe_audio" as const;
 export async function transcribeRecipeAudio(
   input: TranscribeRecipeAudioInput,
 ): Promise<TranscribeRecipeAudioResult> {
-  const out = await withCredits({
+  const out = await runBillableAiCall({
     billing,
     owner: { type: "user", id: input.userId },
     app: "cozya",
     feature: FEATURE,
     model: COZYA_MODELS[FEATURE],
-    estimateCost: () => ({ estimatedAmount: 1 }),
-    computeActualCost: () => ({ actualAmount: 1 }),
-    call: async ({ reservation }) => {
-      await recorder.start({
-        runId: reservation.id,
-        app: "cozya",
-        agent: "transcribe-audio",
+    recorder,
+    agent: "transcribe-audio",
+    // Whisper/OpenRouter STT doesn't expose token usage — billing fixes 1 credit/call.
+    getUsage: () => ({ promptTokens: 0, completionTokens: 0, totalTokens: 0 }),
+    getSuccessMetadata: (result) =>
+      result.durationInSeconds === undefined
+        ? undefined
+        : { durationInSeconds: result.durationInSeconds },
+    call: async () => {
+      return transcribeAudio({
+        apiKey: env.OPENROUTER_API_KEY,
+        audio: input.audio,
+        headers: openRouterAttributionHeaders(),
+        language: "pt",
       });
-      try {
-        const result = await withRetry(() =>
-          transcribeAudio({
-            apiKey: env.OPENROUTER_API_KEY,
-            audio: input.audio,
-            headers: openRouterAttributionHeaders(),
-            language: "pt",
-          }),
-        );
-        await recorder.finish({
-          runId: reservation.id,
-          status: "succeeded",
-          // Whisper/OpenRouter STT doesn't expose token usage — billing fixes 1 credit/call.
-          usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
-          ...(result.durationInSeconds === undefined
-            ? {}
-            : { metadata: { durationInSeconds: result.durationInSeconds } }),
-        });
-        return result;
-      } catch (err) {
-        await recorder.finish({
-          runId: reservation.id,
-          status: "failed",
-          metadata: { error: err instanceof Error ? err.message : String(err) },
-        });
-        throw err;
-      }
     },
   });
   return { text: out.result.text };

@@ -1,4 +1,4 @@
-import { generateObject } from "ai";
+import { generateText, Output } from "ai";
 import { z } from "zod";
 import type { Scorer } from "./types";
 
@@ -50,9 +50,9 @@ export const ingredientCompletenessScorer: Scorer = {
     }
     const inputAsText = typeof input === "string" ? input : JSON.stringify(input).slice(0, 4000);
 
-    const result = await generateObject({
+    const result = await generateText({
       model: judge,
-      schema: judgeSchema,
+      output: Output.object({ schema: judgeSchema }),
       prompt: [
         "Você é um juiz que avalia se um parser de receitas extraiu corretamente todos os ingredientes.",
         "",
@@ -75,11 +75,11 @@ export const ingredientCompletenessScorer: Scorer = {
     });
 
     return {
-      score: result.object.score,
-      reason: result.object.reason,
+      score: result.output.score,
+      reason: result.output.reason,
       details: {
-        missingIngredients: result.object.missingIngredients ?? [],
-        hallucinatedIngredients: result.object.hallucinatedIngredients ?? [],
+        missingIngredients: result.output.missingIngredients ?? [],
+        hallucinatedIngredients: result.output.hallucinatedIngredients ?? [],
       },
     };
   },

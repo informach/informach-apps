@@ -16,13 +16,48 @@ const recorderMock = vi.hoisted(() => ({
   start: vi.fn(),
   finish: vi.fn(),
 }));
+const normalizeUsageForTest = vi.hoisted(() => (raw: unknown) => {
+  const usage = (raw ?? {}) as Record<string, unknown>;
+  const promptTokens = typeof usage.inputTokens === "number" ? usage.inputTokens : 0;
+  const completionTokens = typeof usage.outputTokens === "number" ? usage.outputTokens : 0;
+  const totalTokens =
+    typeof usage.totalTokens === "number" ? usage.totalTokens : promptTokens + completionTokens;
+  return { promptTokens, completionTokens, totalTokens };
+});
 
 vi.mock("server-only", () => ({}));
 vi.mock("@informach/ai-core", () => ({
   withCredits: withCreditsMock,
-  // Passthrough — testes existentes validam o comportamento sem retry
-  // transitório; cobertura do `withRetry` em si vive em `packages/ai-core`.
-  withRetry: <T>(fn: () => Promise<T>) => fn(),
+  runRecordedAiCall: async (opts: {
+    recorder: typeof recorderMock;
+    app: string;
+    agent: string;
+    runId: string;
+    metadata?: Record<string, unknown>;
+    call: () => Promise<unknown>;
+    getUsage?: (result: unknown) => unknown;
+    getSuccessMetadata?: (result: unknown) => Record<string, unknown> | undefined;
+  }) => {
+    await opts.recorder.start({
+      runId: opts.runId,
+      app: opts.app,
+      agent: opts.agent,
+      ...(opts.metadata ? { metadata: opts.metadata } : {}),
+    });
+    const result = await opts.call();
+    const rawUsage = opts.getUsage?.(result);
+    const usage = rawUsage === undefined ? undefined : normalizeUsageForTest(rawUsage);
+    await opts.recorder.finish({
+      runId: opts.runId,
+      status: "succeeded",
+      ...(usage ? { usage } : {}),
+      metadata: {
+        ...(opts.metadata ?? {}),
+        ...(opts.getSuccessMetadata?.(result) ?? {}),
+      },
+    });
+    return { result, ...(usage ? { usage } : {}) };
+  },
 }));
 vi.mock("@informach/ai-core/providers", () => ({
   createOpenRouter: createOpenRouterMock,
@@ -46,17 +81,6 @@ vi.mock("@/lib/env", () => ({
     OPENROUTER_X_TITLE: "Cozya",
   },
 }));
-vi.mock("./_shared", () => ({
-  normalizeUsage: (raw: unknown) => {
-    const usage = (raw ?? {}) as Record<string, unknown>;
-    const promptTokens = typeof usage.inputTokens === "number" ? usage.inputTokens : 0;
-    const completionTokens = typeof usage.outputTokens === "number" ? usage.outputTokens : 0;
-    const totalTokens =
-      typeof usage.totalTokens === "number" ? usage.totalTokens : promptTokens + completionTokens;
-    return { promptTokens, completionTokens, totalTokens };
-  },
-}));
-
 describe("researchRecipeFromPrompt", () => {
   beforeEach(() => {
     // `getOpenRouter()` em `@/lib/openrouter` é um helper cached por módulo.
@@ -115,10 +139,16 @@ describe("researchRecipeFromPrompt", () => {
     );
     expect(parserGenerateMock).not.toHaveBeenCalled();
     expect(recorderMock.finish).toHaveBeenCalledWith({
-      runId: "reservation-1",
+      runId: expect.any(String),
       status: "succeeded",
       usage: { promptTokens: 10, completionTokens: 2, totalTokens: 12 },
-      metadata: { outcome: "not_found", usedWebSearch: true },
+      metadata: expect.objectContaining({
+        feature: "cozya.recipe.generate_from_prompt",
+        reservationId: "reservation-1",
+        stage: "research",
+        outcome: "not_found",
+        usedWebSearch: true,
+      }),
     });
   });
 
@@ -150,22 +180,35 @@ describe("researchRecipeFromPrompt", () => {
     expect(result).toEqual(parsedRecipe);
     expect(createOpenRouterMock).toHaveBeenCalledWith({
       apiKey: "sk-or-test",
-      headers: {
-        "HTTP-Referer": "https://cozya.app",
-        "X-OpenRouter-Title": "Cozya",
-      },
+      appName: "Cozya",
+      appUrl: "https://cozya.app",
     });
-    expect(recorderMock.finish).toHaveBeenNthCalledWith(1, {
-      runId: "reservation-1",
-      status: "succeeded",
-      usage: { promptTokens: 20, completionTokens: 30, totalTokens: 50 },
-      metadata: { outcome: "research_found", usedWebSearch: true },
-    });
-    expect(recorderMock.finish).toHaveBeenNthCalledWith(2, {
-      runId: "reservation-1",
-      status: "succeeded",
-      usage: { promptTokens: 40, completionTokens: 60, totalTokens: 100 },
-      metadata: { outcome: "parsed" },
-    });
+    expect(recorderMock.finish).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        runId: expect.any(String),
+        status: "succeeded",
+        usage: { promptTokens: 20, completionTokens: 30, totalTokens: 50 },
+        metadata: expect.objectContaining({
+          reservationId: "reservation-1",
+          stage: "research",
+          outcome: "research_found",
+          usedWebSearch: true,
+        }),
+      }),
+    );
+    expect(recorderMock.finish).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        runId: expect.any(String),
+        status: "succeeded",
+        usage: { promptTokens: 40, completionTokens: 60, totalTokens: 100 },
+        metadata: expect.objectContaining({
+          reservationId: "reservation-1",
+          stage: "structured_parse",
+          outcome: "parsed",
+        }),
+      }),
+    );
   });
 });

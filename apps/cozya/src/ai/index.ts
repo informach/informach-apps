@@ -1,7 +1,12 @@
 import "server-only";
 
 import { createDefaultLogger } from "@informach/ai-core/logger";
-import { createMastra, createPostgresStore, createSharedMemory } from "@informach/ai-core/mastra";
+import {
+  createDefaultObservability,
+  createMastra,
+  createPostgresStore,
+  createSharedMemory,
+} from "@informach/ai-core/mastra";
 import { env } from "@/lib/env";
 import { getOpenRouter } from "@/lib/openrouter";
 import { withModelFallbacks } from "./fallbacks";
@@ -72,6 +77,7 @@ export function getMastra(): Mastra {
     agents: { recipeParser, recipeParserVision, recipeRefiner },
     storage,
     logger: createDefaultLogger({ name: "cozya", level: env.MASTRA_LOG_LEVEL }),
+    observability: createDefaultObservability({ serviceName: "cozya" }),
   });
   return cached;
 }

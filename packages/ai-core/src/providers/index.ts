@@ -1,6 +1,9 @@
 import { createAnthropic as createAnthropicSDK } from "@ai-sdk/anthropic";
 import { createOpenAI as createOpenAISDK } from "@ai-sdk/openai";
-import { createOpenRouter as createOpenRouterSDK } from "@openrouter/ai-sdk-provider";
+import {
+  createOpenRouter as createOpenRouterSDK,
+  type OpenRouterProviderSettings,
+} from "@openrouter/ai-sdk-provider";
 
 export type AnthropicProviderConfig = {
   apiKey: string;
@@ -19,11 +22,20 @@ export type OpenAIProviderConfig = {
 export type OpenRouterProviderConfig = {
   apiKey: string;
   baseURL?: string;
+  compatibility?: OpenRouterProviderSettings["compatibility"];
   /**
    * OpenRouter usa `HTTP-Referer` e `X-OpenRouter-Title` para atribuição/leaderboard.
    * Apps passam via `lib/env.ts` (`OPENROUTER_HTTP_REFERER`/`OPENROUTER_X_TITLE`).
    */
   headers?: Record<string, string>;
+  /** Atalho oficial do provider para `X-OpenRouter-Title`. */
+  appName?: string;
+  /** Atalho oficial do provider para `HTTP-Referer`. */
+  appUrl?: string;
+  /** Body extra aplicado a todas as requests deste provider. */
+  extraBody?: OpenRouterProviderSettings["extraBody"];
+  /** BYOK opcional para provider routing no OpenRouter. */
+  apiKeys?: NonNullable<OpenRouterProviderSettings["api_keys"]>;
 };
 
 /**
@@ -79,6 +91,11 @@ export function createOpenRouter(config: OpenRouterProviderConfig) {
   return createOpenRouterSDK({
     apiKey: config.apiKey,
     ...(config.baseURL ? { baseURL: config.baseURL } : {}),
+    ...(config.compatibility ? { compatibility: config.compatibility } : {}),
     ...(config.headers ? { headers: config.headers } : {}),
+    ...(config.appName ? { appName: config.appName } : {}),
+    ...(config.appUrl ? { appUrl: config.appUrl } : {}),
+    ...(config.extraBody ? { extraBody: config.extraBody } : {}),
+    ...(config.apiKeys ? { api_keys: config.apiKeys } : {}),
   });
 }

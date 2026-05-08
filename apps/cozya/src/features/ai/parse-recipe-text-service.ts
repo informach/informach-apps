@@ -1,13 +1,12 @@
 import "server-only";
 
-import { withCredits, withRetry } from "@informach/ai-core";
+import { runBillableAgentCall } from "@informach/ai-core";
 import { getMastra } from "@/ai";
 import { agentRunRecorder as recorder } from "@/ai/agent-run-recorder";
 import { COZYA_MODELS } from "@/ai/models";
 import { type RecipeParserOutput, recipeParserSchema } from "@/ai/recipe-parser/schema";
 import { cozyaThreadId } from "@/ai/working-memory";
 import { billing } from "@/features/billing/service";
-import { normalizeUsage } from "./_shared";
 
 export type ParseRecipeFromTextInput = {
   userId: string;
@@ -18,55 +17,39 @@ export type ParseRecipeFromTextResult = RecipeParserOutput;
 
 const FEATURE = "cozya.recipe.extract_from_text" as const;
 
+type RecipeAgentResponse = {
+  object: unknown;
+  usage?: unknown;
+};
+
 export async function parseRecipeFromText(
   input: ParseRecipeFromTextInput,
 ): Promise<ParseRecipeFromTextResult> {
-  const out = await withCredits({
+  const out = await runBillableAgentCall<RecipeAgentResponse>({
     billing,
     owner: { type: "user", id: input.userId },
     app: "cozya",
     feature: FEATURE,
     model: COZYA_MODELS[FEATURE],
-    estimateCost: () => ({ estimatedAmount: 1 }),
-    computeActualCost: () => ({ actualAmount: 1 }),
-    call: async ({ reservation }) => {
-      await recorder.start({
-        runId: reservation.id,
-        app: "cozya",
-        agent: "recipeParser",
-      });
-      try {
-        const response = await withRetry(() =>
-          getMastra()
-            .getAgent("recipeParser")
-            .generate(input.text, {
-              runId: reservation.id,
-              memory: {
-                thread: cozyaThreadId(input.userId, "extract_from_text"),
-                resource: input.userId,
-              },
-              structuredOutput: {
-                schema: recipeParserSchema,
-                errorStrategy: "strict",
-              },
-            }),
-        );
-        const usage = normalizeUsage(response.usage);
-        await recorder.finish({
-          runId: reservation.id,
-          status: "succeeded",
-          usage,
+    recorder,
+    agent: "recipeParser",
+    getUsage: (response) => response.usage,
+    call: async ({ runId }) => {
+      const response = await getMastra()
+        .getAgent("recipeParser")
+        .generate(input.text, {
+          runId,
+          memory: {
+            thread: cozyaThreadId(input.userId, "extract_from_text"),
+            resource: input.userId,
+          },
+          structuredOutput: {
+            schema: recipeParserSchema,
+            errorStrategy: "strict",
+          },
         });
-        return response.object as RecipeParserOutput;
-      } catch (err) {
-        await recorder.finish({
-          runId: reservation.id,
-          status: "failed",
-          metadata: { error: err instanceof Error ? err.message : String(err) },
-        });
-        throw err;
-      }
+      return response;
     },
   });
-  return out.result;
+  return out.result.object as RecipeParserOutput;
 }

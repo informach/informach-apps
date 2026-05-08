@@ -33,7 +33,8 @@ export function getOpenRouter(): ReturnType<typeof createOpenRouter> {
   if (cachedOpenRouter) return cachedOpenRouter;
   cachedOpenRouter = createOpenRouter({
     apiKey: env.OPENROUTER_API_KEY,
-    headers: openRouterAttributionHeaders(),
+    ...(env.OPENROUTER_X_TITLE ? { appName: env.OPENROUTER_X_TITLE } : {}),
+    ...(env.OPENROUTER_HTTP_REFERER ? { appUrl: env.OPENROUTER_HTTP_REFERER } : {}),
   });
   return cachedOpenRouter;
 }

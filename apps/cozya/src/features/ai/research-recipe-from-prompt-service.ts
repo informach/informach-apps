@@ -1,6 +1,7 @@
 import "server-only";
 
-import { withCredits, withRetry } from "@informach/ai-core";
+import { randomUUID } from "node:crypto";
+import { runRecordedAiCall, withCredits } from "@informach/ai-core";
 import { generateText } from "ai";
 import { getMastra } from "@/ai";
 import { agentRunRecorder as recorder } from "@/ai/agent-run-recorder";
@@ -11,7 +12,6 @@ import { cozyaThreadId } from "@/ai/working-memory";
 import { billing } from "@/features/billing/service";
 import { logger } from "@/lib/logger";
 import { getOpenRouter } from "@/lib/openrouter";
-import { normalizeUsage } from "./_shared";
 import { buildResearchPrompt } from "./research-recipe-prompt";
 
 export type ResearchRecipeFromPromptInput = {
@@ -43,15 +43,29 @@ export async function researchRecipeFromPrompt(
     call: async ({ reservation }) => {
       // Step 1 — pesquisa na web. Roda como um agente sintético "recipeResearcher"
       // para que o ai.agent_runs registre o run separadamente do parsing.
-      await recorder.start({
-        runId: reservation.id,
+      const researchRunId = randomUUID();
+      const { result: research } = await runRecordedAiCall({
+        recorder,
         app: "cozya",
         agent: "recipeResearcher",
-      });
-      let researchText: string;
-      let usedWebSearch = false;
-      try {
-        const research = await withRetry(() =>
+        runId: researchRunId,
+        metadata: {
+          feature: FEATURE,
+          model: researchModelId,
+          reservationId: reservation.id,
+          stage: "research",
+        },
+        getUsage: (result) => result.usage,
+        getSuccessMetadata: (result) => {
+          const researchText = result.text.trim();
+          const usedWebSearch = didUseWebSearch(result);
+          const searchMiss = isRecipeResearchMiss({ usedWebSearch, researchText });
+          return {
+            outcome: searchMiss ? "not_found" : "research_found",
+            usedWebSearch,
+          };
+        },
+        call: async () =>
           generateText({
             // Fallback embutido via `extraBody.models` — quando o primário cai,
             // OpenRouter tenta o próximo modelo da lista (cobra só o que respondeu).
@@ -65,59 +79,52 @@ export async function researchRecipeFromPrompt(
             toolChoice: "auto",
             prompt: buildResearchPrompt(input.prompt),
           }),
-        );
-        researchText = research.text.trim();
-        // Fail closed: se o modelo respondeu sem chamar `web_search`, tratamos
-        // a resposta como alucinação. Checagem positiva (Array.isArray antes
-        // de `.some`) — assim o guard não passa silenciosamente quando o shape
-        // do `ai` SDK mudar (ex.: ausência de `steps`/`toolCalls`).
-        usedWebSearch =
-          Array.isArray(research.steps) &&
-          research.steps.some(
-            (step) =>
-              Array.isArray(step.toolCalls) &&
-              step.toolCalls.some((call) => call?.toolName === "web_search"),
+      });
+
+      const researchText = research.text.trim();
+      // Fail closed: se o modelo respondeu sem chamar `web_search`, tratamos
+      // a resposta como alucinação.
+      const usedWebSearch = didUseWebSearch(research);
+      const searchMiss = isRecipeResearchMiss({ usedWebSearch, researchText });
+      if (searchMiss) {
+        // Caso "modelo respondeu texto plausível mas não chamou a tool" é o
+        // mais perigoso (regressão silenciosa do tool-calling no SDK). Loga
+        // estruturado para alarme antes do usuário reclamar.
+        if (!usedWebSearch && researchText.length >= 30) {
+          logger.warn(
+            {
+              runId: researchRunId,
+              reservationId: reservation.id,
+              model: researchModelId,
+              textLength: researchText.length,
+            },
+            "cozya.research.web_search_skipped_with_content",
           );
-        const searchMiss = isRecipeResearchMiss({ usedWebSearch, researchText });
-        await recorder.finish({
-          runId: reservation.id,
-          status: "succeeded",
-          usage: normalizeUsage(research.usage),
-          metadata: {
-            outcome: searchMiss ? "not_found" : "research_found",
-            usedWebSearch,
-          },
-        });
-        if (searchMiss) {
-          // Caso "modelo respondeu texto plausível mas não chamou a tool" é o
-          // mais perigoso (regressão silenciosa do tool-calling no SDK). Loga
-          // estruturado para alarme antes do usuário reclamar.
-          if (!usedWebSearch && researchText.length >= 30) {
-            logger.warn(
-              { runId: reservation.id, model: researchModelId, textLength: researchText.length },
-              "cozya.research.web_search_skipped_with_content",
-            );
-          }
-          return recipeNotFoundResult();
         }
-      } catch (err) {
-        await recorder.finish({
-          runId: reservation.id,
-          status: "failed",
-          metadata: { error: err instanceof Error ? err.message : String(err) },
-        });
-        throw err;
+        return recipeNotFoundResult();
       }
 
-      // Step 2 — estrutura. Reusa o `recipeParser` (mesmo runId), que já tem
-      // instruções para "texto colado de um site". Mastra registra o segundo
-      // run em ai_mastra.mastra_traces sob o mesmo runId.
-      try {
-        const response = await withRetry(() =>
+      // Step 2 — estrutura. Reusa o `recipeParser`, que já tem instruções
+      // para "texto colado de um site".
+      const parseRunId = randomUUID();
+      const { result: response } = await runRecordedAiCall({
+        recorder,
+        app: "cozya",
+        agent: "recipeParser",
+        runId: parseRunId,
+        metadata: {
+          feature: FEATURE,
+          model: COZYA_MODELS["cozya.recipe.extract_from_text"],
+          reservationId: reservation.id,
+          stage: "structured_parse",
+        },
+        getUsage: (result) => result.usage,
+        getSuccessMetadata: () => ({ outcome: "parsed" }),
+        call: async () =>
           getMastra()
             .getAgent("recipeParser")
             .generate(researchText, {
-              runId: reservation.id,
+              runId: parseRunId,
               memory: {
                 thread: cozyaThreadId(input.userId, "generate_from_prompt"),
                 resource: input.userId,
@@ -127,28 +134,26 @@ export async function researchRecipeFromPrompt(
                 errorStrategy: "strict",
               },
             }),
-        );
-        await recorder.finish({
-          runId: reservation.id,
-          status: "succeeded",
-          usage: normalizeUsage(response.usage),
-          metadata: { outcome: "parsed" },
-        });
-        return response.object as RecipeParserOutput;
-      } catch (err) {
-        await recorder.finish({
-          runId: reservation.id,
-          status: "failed",
-          metadata: {
-            stage: "structured_parse",
-            error: err instanceof Error ? err.message : String(err),
-          },
-        });
-        throw err;
-      }
+      });
+      return response.object as RecipeParserOutput;
     },
   });
   return out.result;
+}
+
+function didUseWebSearch(result: { steps?: unknown }): boolean {
+  return (
+    Array.isArray(result.steps) &&
+    result.steps.some(
+      (step) =>
+        typeof step === "object" &&
+        step !== null &&
+        Array.isArray((step as { toolCalls?: unknown }).toolCalls) &&
+        (step as { toolCalls: Array<{ toolName?: unknown }> }).toolCalls.some(
+          (call) => call?.toolName === "web_search",
+        ),
+    )
+  );
 }
 
 function isRecipeResearchMiss(input: { usedWebSearch: boolean; researchText: string }): boolean {

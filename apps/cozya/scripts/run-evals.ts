@@ -29,7 +29,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { withRetry } from "@informach/ai-core";
 import { createOpenRouter } from "@informach/ai-core/providers";
-import { generateObject, generateText } from "ai";
+import { generateText, Output } from "ai";
 import { config as loadEnv } from "dotenv";
 
 import { withModelFallbacks } from "../src/ai/fallbacks";
@@ -107,14 +107,14 @@ async function runEntry(entry: DatasetEntry): Promise<RecipeParserOutput> {
     case "text":
     case "voice": {
       const out = await withRetry(() =>
-        generateObject({
+        generateText({
           model: textModel,
-          schema: recipeParserSchema,
+          output: Output.object({ schema: recipeParserSchema }),
           system: RECIPE_PARSER_INSTRUCTIONS,
           prompt: entry.input,
         }),
       );
-      return out.object as RecipeParserOutput;
+      return out.output as RecipeParserOutput;
     }
     case "image": {
       const filePath = path.resolve(EVALS_DIR, entry.input);
@@ -123,9 +123,9 @@ async function runEntry(entry: DatasetEntry): Promise<RecipeParserOutput> {
       const mime = ext === "png" ? "image/png" : "image/jpeg";
       const dataUrl = `data:${mime};base64,${buf.toString("base64")}`;
       const out = await withRetry(() =>
-        generateObject({
+        generateText({
           model: visionModel,
-          schema: recipeParserSchema,
+          output: Output.object({ schema: recipeParserSchema }),
           system: RECIPE_PARSER_INSTRUCTIONS,
           messages: [
             {
@@ -142,7 +142,7 @@ async function runEntry(entry: DatasetEntry): Promise<RecipeParserOutput> {
           ],
         }),
       );
-      return out.object as RecipeParserOutput;
+      return out.output as RecipeParserOutput;
     }
     case "prompt": {
       const research = await withRetry(() =>
@@ -167,14 +167,14 @@ async function runEntry(entry: DatasetEntry): Promise<RecipeParserOutput> {
         };
       }
       const parsed = await withRetry(() =>
-        generateObject({
+        generateText({
           model: textModel,
-          schema: recipeParserSchema,
+          output: Output.object({ schema: recipeParserSchema }),
           system: RECIPE_PARSER_INSTRUCTIONS,
           prompt: text,
         }),
       );
-      return parsed.object as RecipeParserOutput;
+      return parsed.output as RecipeParserOutput;
     }
   }
 }

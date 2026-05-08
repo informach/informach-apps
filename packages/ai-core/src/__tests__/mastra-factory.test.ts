@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { createPostgresStore, MASTRA_SCHEMA_NAME, PostgresStore } from "../mastra";
+import {
+  createDefaultObservability,
+  createPostgresStore,
+  MASTRA_SCHEMA_NAME,
+  Observability,
+  PostgresStore,
+} from "../mastra";
 
 describe("createPostgresStore", () => {
   it("retorna um PostgresStore sem abrir conexão (factory pura)", () => {
@@ -29,5 +35,12 @@ describe("createPostgresStore", () => {
       max: 5,
     });
     expect(store).toBeInstanceOf(PostgresStore);
+  });
+});
+
+describe("createDefaultObservability", () => {
+  it("retorna uma instância Observability com exporters locais por default", () => {
+    const observability = createDefaultObservability({ serviceName: "cozya" });
+    expect(observability).toBeInstanceOf(Observability);
   });
 });
