@@ -245,7 +245,36 @@ report-uri <derivado de NEXT_PUBLIC_SENTRY_DSN>;
 
 ---
 
-## 9. Regras para agentes
+## 9. Eval framework do `recipeParser`
+
+Detecta regressão de qualidade do parser quando se troca prompt, modelo ou versão do AI SDK. Inspirado nos `scorers/` do repo `rodrigobranas/formacao_ia_arq_t1_4`.
+
+**Arquivos:**
+- `src/ai/recipe-parser/instructions.ts` — `RECIPE_PARSER_INSTRUCTIONS` (puro; consumido por `agent.ts` em produção e por `scripts/run-evals.ts` no eval).
+- `src/ai/recipe-parser/scorers/` — 3 scorers standalone:
+  - `schema-validity-scorer` (não-LLM; binário; valida `recipeParserSchema`).
+  - `scope-adherence-scorer` (LLM-as-judge; binário; classifica receita vs não-receita).
+  - `ingredient-completeness-scorer` (LLM-as-judge; 0–1; verifica falta/halucinação de ingredientes).
+- `src/ai/recipe-parser/evals/dataset.ts` — golden dataset (14 entradas: 5 text, 3 voice, 4 image, 2 prompt; o text-004 é negativo).
+- `src/ai/recipe-parser/evals/fixtures/` — imagens (popular manualmente; `.gitkeep` documenta).
+- `src/ai/recipe-parser/evals/__baseline__.json` — gerado por `EVAL_SNAPSHOT=1`. Não comitar antes de aceitar a qualidade atual como referência.
+- `scripts/run-evals.ts` — runner via `tsx`.
+
+**Custo:** ~R$ 1,00 por run completo (15 entradas × 3 scorers, 2 LLM-as-judge). **Não rodar em CI por default** — só on-demand pré-PR-de-prompt/modelo.
+
+**Uso:**
+```bash
+pnpm --filter @informach/cozya eval                       # diff vs baseline
+EVAL_SNAPSHOT=1 pnpm --filter @informach/cozya eval       # grava baseline
+EVAL_FILTER=text- pnpm --filter @informach/cozya eval     # subset
+EVAL_NO_LLM=1 pnpm --filter @informach/cozya eval         # só schema-validity (barato)
+```
+
+Regressão > 10pp em qualquer scorer faz exit non-zero. Baseline atualiza só com `EVAL_SNAPSHOT=1` num momento que se confie na qualidade.
+
+---
+
+## 10. Regras para agentes
 
 1. **Mudar preço Pro**: editar `listPrice.amountCents` em `packages/config/src/products.ts` E atualizar Stripe Dashboard. Os dois lados precisam bater — divergência é bug.
 2. **Adicionar nova feature de IA**: criar row em `COZYA_PRICING_SEED` (`packages/billing/src/seeds/credit-pricing.ts`) com **ID de modelo prefixado** (`openai/gpt-4o-mini` por default; `openai/gpt-4o` apenas para vision real; `openai/whisper-1` para transcrição), adicionar em `setSeed()`, atualizar tabela §6 deste doc.
@@ -258,3 +287,5 @@ report-uri <derivado de NEXT_PUBLIC_SENTRY_DSN>;
 9. **NUNCA** importar `@ai-sdk/openai` ou `@ai-sdk/anthropic` direto em features do cozya. Usar **sempre** `createOpenRouter` de `@informach/ai-core/providers`. A única exceção é `transcribeAudio` (que reusa `createOpenAI` internamente apontando para `https://openrouter.ai/api/v1`).
 10. **Adicionar CDN/origin ao CSP**: editar `apps/cozya/src/lib/csp.ts` (constantes agrupadas por categoria). Roodar com `CSP_ENFORCE=0` em produção primeiro para confirmar que não quebra nada.
 11. **Adicionar nova rota de API que renderiza HTML/RSC**: garantir que NÃO está em `CSP_SKIP_PREFIXES` (`csp.ts`). Skip é só para webhooks/jobs/health.
+12. **Mudar `RECIPE_PARSER_INSTRUCTIONS`**: editar `src/ai/recipe-parser/instructions.ts` E rodar o eval (§9) antes do PR. Se algum scorer cair > 10pp vs baseline, ou ajuste o prompt, ou aceite explicitamente atualizando o baseline.
+13. **Adicionar nova entrada ao golden dataset**: editar `src/ai/recipe-parser/evals/dataset.ts`. Não remover entradas antigas — elas guardam regressão acumulada.

@@ -1,5 +1,3 @@
-import "server-only";
-
 /**
  * Prompt para o passo de pesquisa em
  * `cozya.recipe.generate_from_prompt`. Recebe a referência curta do usuário

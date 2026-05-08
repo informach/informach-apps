@@ -1,0 +1,17 @@
+Adicione aqui as 4 imagens referenciadas em ../dataset.ts (kind: "image"):
+
+  - image-001-receita-livro.jpg       (receita impressa em livro)
+  - image-002-manuscrito-caderno.jpg  (receita à mão)
+  - image-003-screenshot-blog.png     (screenshot de receita em blog)
+  - image-004-foto-paisagem.jpg       (foto sem receita — caso negativo)
+
+Recomendações:
+  - Cada imagem < 200 KB (menor é melhor; o vision agent usa imageDetail=low).
+  - Conteúdo em PT-BR para refletir o uso real do cozya.
+  - Não comitar imagens com PII (rosto humano, nome próprio).
+
+Quando os 4 arquivos existirem, rode:
+
+  pnpm --filter @informach/cozya eval -- --snapshot
+
+para gerar/atualizar o baseline.
