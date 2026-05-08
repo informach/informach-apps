@@ -33,9 +33,7 @@ describe("env", () => {
   it("requires REDIS_URL in production", async () => {
     stubEnv({ NODE_ENV: "production", REDIS_URL: "" });
 
-    await expect(import("./env")).rejects.toThrow(
-      "REDIS_URL is required when NODE_ENV=production",
-    );
+    await expect(import("./env")).rejects.toThrow("REDIS_URL is required when NODE_ENV=production");
   });
 
   it("allows missing REDIS_URL outside production", async () => {
