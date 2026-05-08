@@ -4,7 +4,6 @@ import { APPS } from "@informach/config";
 import { buildUnsubscribeToken } from "@informach/emails";
 import { redirect } from "next/navigation";
 import { cache } from "react";
-import { billing } from "@/features/billing/service";
 import { emails, getEmailUnsubscribeMailto } from "@/features/emails/service";
 import { AUTH_SIGN_IN_PATH } from "./auth-routing";
 import { env } from "./env";
@@ -55,6 +54,7 @@ export const authResult = createAuth({
   accountDeletion: {
     enabled: true,
     onBeforeDelete: async (user) => {
+      const { billing } = await import("@/features/billing/service");
       const result = await billing.cancelBillingForSubject({ type: "user", id: user.id });
       if (result.failed > 0) {
         logger.error(

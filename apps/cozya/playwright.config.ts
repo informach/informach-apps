@@ -12,6 +12,7 @@ process.env.EMAIL_SANDBOX_DIR = EMAIL_SANDBOX_DIR;
 
 export default defineConfig({
   testDir: "./e2e",
+  timeout: process.env.CI ? 60_000 : 30_000,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
@@ -20,7 +21,7 @@ export default defineConfig({
   use: {
     baseURL: BASE_URL,
     trace: "on-first-retry",
-    actionTimeout: 10_000,
+    actionTimeout: process.env.CI ? 30_000 : 10_000,
   },
   webServer: process.env.E2E_SKIP_WEBSERVER
     ? undefined
@@ -36,6 +37,7 @@ export default defineConfig({
           E2E_RELAX_AUTH_RATE_LIMITS: "1",
           NEXT_PUBLIC_APP_URL: BASE_URL,
           REDIS_URL: "",
+          STRIPE_MODE: "dev",
         },
       },
   projects: [

@@ -45,6 +45,9 @@ type AuthConfig = {
     onAuditEvent?: unknown;
     onAuditPersistenceFailure?: unknown;
   };
+  accountDeletion?: {
+    onBeforeDelete?: (user: { id: string }) => Promise<void>;
+  };
 };
 
 type AuditHookConfig = {
@@ -141,6 +144,13 @@ describe("audit wiring", () => {
     expect(authConfig?.unsubscribeMailto).toBe("unsubscribe@cozya.example.com");
     expect(authConfig?.observability?.onAuditEvent).toBeTypeOf("function");
     expect(authConfig?.observability?.onAuditPersistenceFailure).toBeTypeOf("function");
+    expect(mocks.createBillingService).not.toHaveBeenCalled();
+    expect(authConfig?.accountDeletion?.onBeforeDelete).toBeTypeOf("function");
+    if (!authConfig?.accountDeletion?.onBeforeDelete) {
+      throw new Error("missing account deletion hook");
+    }
+
+    await authConfig.accountDeletion.onBeforeDelete({ id: "user-1" });
 
     const createBillingServiceCalls = mocks.createBillingService.mock.calls as unknown as Array<
       [AuditHookConfig]
