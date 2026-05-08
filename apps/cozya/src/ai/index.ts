@@ -7,6 +7,7 @@ import { getOpenRouter } from "@/lib/openrouter";
 import { withModelFallbacks } from "./fallbacks";
 import { COZYA_MODELS } from "./models";
 import { createRecipeParserAgent } from "./recipe-parser/agent";
+import { createRecipeRefinerAgent } from "./recipe-refiner/agent";
 import { COZYA_WORKING_MEMORY_TEMPLATE } from "./working-memory";
 
 type Mastra = ReturnType<typeof createMastra>;
@@ -48,6 +49,7 @@ export function getMastra(): Mastra {
 
   const textModel = COZYA_MODELS["cozya.recipe.extract_from_text"];
   const visionModel = COZYA_MODELS["cozya.recipe.extract_from_photo"];
+  const refineModel = COZYA_MODELS["cozya.recipe.refine_conversational"];
 
   const recipeParser = createRecipeParserAgent({
     model: openrouter(textModel, withModelFallbacks(textModel)),
@@ -61,8 +63,13 @@ export function getMastra(): Mastra {
     memory,
   });
 
+  const recipeRefiner = createRecipeRefinerAgent({
+    model: openrouter(refineModel, withModelFallbacks(refineModel)),
+    memory,
+  });
+
   cached = createMastra({
-    agents: { recipeParser, recipeParserVision },
+    agents: { recipeParser, recipeParserVision, recipeRefiner },
     storage,
     logger: createDefaultLogger({ name: "cozya", level: env.MASTRA_LOG_LEVEL }),
   });
