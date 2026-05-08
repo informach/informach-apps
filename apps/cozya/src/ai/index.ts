@@ -2,9 +2,10 @@ import "server-only";
 
 import { createDefaultLogger } from "@informach/ai-core/logger";
 import { createMastra, createPostgresStore, createSharedMemory } from "@informach/ai-core/mastra";
-import { createOpenRouter } from "@informach/ai-core/providers";
 import { env } from "@/lib/env";
-import { openRouterAttributionHeaders } from "@/lib/openrouter";
+import { getOpenRouter } from "@/lib/openrouter";
+import { withModelFallbacks } from "./fallbacks";
+import { COZYA_MODELS } from "./models";
 import { createRecipeParserAgent } from "./recipe-parser/agent";
 
 type Mastra = ReturnType<typeof createMastra>;
@@ -24,26 +25,31 @@ let cached: Mastra | null = null;
  * prefixed with `openai/` per OpenRouter convention. Whisper transcription
  * (separate flow in features/ai/transcribe-service.ts) uses the same gateway
  * via OpenAI-compatible /audio/transcriptions endpoint.
+ *
+ * Fallback routing: each agent receives `extraBody.models` derived from
+ * `withModelFallbacks(primary)`. When the primary is unavailable (provider
+ * down, quota), OpenRouter falls through to the next model in the list and
+ * bills only the model that actually answered. See `apps/cozya/src/ai/fallbacks.ts`.
  */
 export function getMastra(): Mastra {
   if (cached) return cached;
 
-  const openrouter = createOpenRouter({
-    apiKey: env.OPENROUTER_API_KEY,
-    headers: openRouterAttributionHeaders(),
-  });
+  const openrouter = getOpenRouter();
   const storage = createPostgresStore({ connectionString: env.DATABASE_URL });
   const memory = createSharedMemory({ storage });
 
+  const textModel = COZYA_MODELS["cozya.recipe.extract_from_text"];
+  const visionModel = COZYA_MODELS["cozya.recipe.extract_from_photo"];
+
   const recipeParser = createRecipeParserAgent({
-    model: openrouter("openai/gpt-4o-mini"),
+    model: openrouter(textModel, withModelFallbacks(textModel)),
     memory,
   });
 
   const recipeParserVision = createRecipeParserAgent({
     id: "recipeParserVision",
     name: "recipeParserVision",
-    model: openrouter("openai/gpt-4o"),
+    model: openrouter(visionModel, withModelFallbacks(visionModel)),
     memory,
   });
 

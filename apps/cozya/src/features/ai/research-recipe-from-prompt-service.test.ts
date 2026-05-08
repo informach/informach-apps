@@ -20,6 +20,9 @@ const recorderMock = vi.hoisted(() => ({
 vi.mock("server-only", () => ({}));
 vi.mock("@informach/ai-core", () => ({
   withCredits: withCreditsMock,
+  // Passthrough — testes existentes validam o comportamento sem retry
+  // transitório; cobertura do `withRetry` em si vive em `packages/ai-core`.
+  withRetry: <T>(fn: () => Promise<T>) => fn(),
 }));
 vi.mock("@informach/ai-core/providers", () => ({
   createOpenRouter: createOpenRouterMock,
@@ -56,6 +59,11 @@ vi.mock("./_shared", () => ({
 
 describe("researchRecipeFromPrompt", () => {
   beforeEach(() => {
+    // `getOpenRouter()` em `@/lib/openrouter` é um helper cached por módulo.
+    // Resetar o cache entre testes garante que cada `it` reinvoque
+    // `createOpenRouter` (mock) — sem isso, só o primeiro teste registra a
+    // chamada e os asserts subsequentes falham.
+    vi.resetModules();
     withCreditsMock.mockReset();
     generateTextMock.mockReset();
     parserGenerateMock.mockReset();

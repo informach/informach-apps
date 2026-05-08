@@ -1,8 +1,9 @@
 import "server-only";
 
-import { withCredits } from "@informach/ai-core";
+import { withCredits, withRetry } from "@informach/ai-core";
 import { getMastra } from "@/ai";
 import { agentRunRecorder as recorder } from "@/ai/agent-run-recorder";
+import { COZYA_MODELS } from "@/ai/models";
 import { type RecipeParserOutput, recipeParserSchema } from "@/ai/recipe-parser/schema";
 import { billing } from "@/features/billing/service";
 import { normalizeUsage } from "./_shared";
@@ -13,6 +14,8 @@ export type ParseRecipeFromVoiceInput = {
 };
 
 export type ParseRecipeFromVoiceResult = RecipeParserOutput;
+
+const FEATURE = "cozya.recipe.parse_voice" as const;
 
 /**
  * Sends the Whisper transcript to the recipeParser Mastra agent and returns
@@ -27,8 +30,8 @@ export async function parseRecipeFromVoice(
     billing,
     owner: { type: "user", id: input.userId },
     app: "cozya",
-    feature: "cozya.recipe.parse_voice",
-    model: "openai/gpt-4o-mini",
+    feature: FEATURE,
+    model: COZYA_MODELS[FEATURE],
     estimateCost: () => ({ estimatedAmount: 1 }),
     computeActualCost: () => ({ actualAmount: 1 }),
     call: async ({ reservation }) => {
@@ -38,15 +41,17 @@ export async function parseRecipeFromVoice(
         agent: "recipeParser",
       });
       try {
-        const response = await getMastra()
-          .getAgent("recipeParser")
-          .generate(input.transcript, {
-            runId: reservation.id,
-            structuredOutput: {
-              schema: recipeParserSchema,
-              errorStrategy: "strict",
-            },
-          });
+        const response = await withRetry(() =>
+          getMastra()
+            .getAgent("recipeParser")
+            .generate(input.transcript, {
+              runId: reservation.id,
+              structuredOutput: {
+                schema: recipeParserSchema,
+                errorStrategy: "strict",
+              },
+            }),
+        );
         const usage = normalizeUsage(response.usage);
         await recorder.finish({
           runId: reservation.id,

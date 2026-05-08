@@ -1,14 +1,15 @@
 import "server-only";
 
-import { withCredits } from "@informach/ai-core";
-import { createOpenRouter } from "@informach/ai-core/providers";
+import { withCredits, withRetry } from "@informach/ai-core";
 import { generateText } from "ai";
 import { getMastra } from "@/ai";
 import { agentRunRecorder as recorder } from "@/ai/agent-run-recorder";
+import { withModelFallbacks } from "@/ai/fallbacks";
+import { COZYA_MODELS } from "@/ai/models";
 import { type RecipeParserOutput, recipeParserSchema } from "@/ai/recipe-parser/schema";
 import { billing } from "@/features/billing/service";
-import { env } from "@/lib/env";
-import { openRouterAttributionHeaders } from "@/lib/openrouter";
+import { logger } from "@/lib/logger";
+import { getOpenRouter } from "@/lib/openrouter";
 import { normalizeUsage } from "./_shared";
 import { buildResearchPrompt } from "./research-recipe-prompt";
 
@@ -19,23 +20,23 @@ export type ResearchRecipeFromPromptInput = {
 
 export type ResearchRecipeFromPromptResult = RecipeParserOutput;
 
+const FEATURE = "cozya.recipe.generate_from_prompt" as const;
+
 const RECIPE_NOT_FOUND_REASON =
   "Não encontrei uma receita popular pra esse pedido. Tente algo mais específico.";
 
 export async function researchRecipeFromPrompt(
   input: ResearchRecipeFromPromptInput,
 ): Promise<ResearchRecipeFromPromptResult> {
-  const openrouter = createOpenRouter({
-    apiKey: env.OPENROUTER_API_KEY,
-    headers: openRouterAttributionHeaders(),
-  });
+  const openrouter = getOpenRouter();
+  const researchModelId = COZYA_MODELS[FEATURE];
 
   const out = await withCredits({
     billing,
     owner: { type: "user", id: input.userId },
     app: "cozya",
-    feature: "cozya.recipe.generate_from_prompt",
-    model: "openai/gpt-4o-mini",
+    feature: FEATURE,
+    model: researchModelId,
     estimateCost: () => ({ estimatedAmount: 1 }),
     computeActualCost: () => ({ actualAmount: 1 }),
     call: async ({ reservation }) => {
@@ -49,25 +50,33 @@ export async function researchRecipeFromPrompt(
       let researchText: string;
       let usedWebSearch = false;
       try {
-        const research = await generateText({
-          model: openrouter("openai/gpt-4o-mini"),
-          tools: {
-            web_search: openrouter.tools.webSearch({
-              maxResults: 5,
-              engine: "auto",
-            }),
-          },
-          toolChoice: "auto",
-          prompt: buildResearchPrompt(input.prompt),
-        });
+        const research = await withRetry(() =>
+          generateText({
+            // Fallback embutido via `extraBody.models` — quando o primário cai,
+            // OpenRouter tenta o próximo modelo da lista (cobra só o que respondeu).
+            model: openrouter(researchModelId, withModelFallbacks(researchModelId)),
+            tools: {
+              web_search: openrouter.tools.webSearch({
+                maxResults: 5,
+                engine: "auto",
+              }),
+            },
+            toolChoice: "auto",
+            prompt: buildResearchPrompt(input.prompt),
+          }),
+        );
         researchText = research.text.trim();
-        // Fail closed: if the model answered without calling web_search, treat
-        // the response as hallucinated and reject. Optional chaining keeps the
-        // check safe across `ai` SDK versions that may not expose `steps`.
+        // Fail closed: se o modelo respondeu sem chamar `web_search`, tratamos
+        // a resposta como alucinação. Checagem positiva (Array.isArray antes
+        // de `.some`) — assim o guard não passa silenciosamente quando o shape
+        // do `ai` SDK mudar (ex.: ausência de `steps`/`toolCalls`).
         usedWebSearch =
-          research.steps?.some((step) =>
-            step.toolCalls?.some((call) => call.toolName === "web_search"),
-          ) ?? false;
+          Array.isArray(research.steps) &&
+          research.steps.some(
+            (step) =>
+              Array.isArray(step.toolCalls) &&
+              step.toolCalls.some((call) => call?.toolName === "web_search"),
+          );
         const searchMiss = isRecipeResearchMiss({ usedWebSearch, researchText });
         await recorder.finish({
           runId: reservation.id,
@@ -79,6 +88,15 @@ export async function researchRecipeFromPrompt(
           },
         });
         if (searchMiss) {
+          // Caso "modelo respondeu texto plausível mas não chamou a tool" é o
+          // mais perigoso (regressão silenciosa do tool-calling no SDK). Loga
+          // estruturado para alarme antes do usuário reclamar.
+          if (!usedWebSearch && researchText.length >= 30) {
+            logger.warn(
+              { runId: reservation.id, model: researchModelId, textLength: researchText.length },
+              "cozya.research.web_search_skipped_with_content",
+            );
+          }
           return recipeNotFoundResult();
         }
       } catch (err) {
@@ -94,15 +112,17 @@ export async function researchRecipeFromPrompt(
       // instruções para "texto colado de um site". Mastra registra o segundo
       // run em ai_mastra.mastra_traces sob o mesmo runId.
       try {
-        const response = await getMastra()
-          .getAgent("recipeParser")
-          .generate(researchText, {
-            runId: reservation.id,
-            structuredOutput: {
-              schema: recipeParserSchema,
-              errorStrategy: "strict",
-            },
-          });
+        const response = await withRetry(() =>
+          getMastra()
+            .getAgent("recipeParser")
+            .generate(researchText, {
+              runId: reservation.id,
+              structuredOutput: {
+                schema: recipeParserSchema,
+                errorStrategy: "strict",
+              },
+            }),
+        );
         await recorder.finish({
           runId: reservation.id,
           status: "succeeded",

@@ -1,8 +1,9 @@
 import "server-only";
 
-import { withCredits } from "@informach/ai-core";
+import { withCredits, withRetry } from "@informach/ai-core";
 import { transcribeAudio } from "@informach/ai-core/transcription";
 import { agentRunRecorder as recorder } from "@/ai/agent-run-recorder";
+import { COZYA_MODELS } from "@/ai/models";
 import { billing } from "@/features/billing/service";
 import { env } from "@/lib/env";
 import { openRouterAttributionHeaders } from "@/lib/openrouter";
@@ -15,6 +16,8 @@ export type TranscribeRecipeAudioInput = {
 export type TranscribeRecipeAudioResult = {
   text: string;
 };
+
+const FEATURE = "cozya.recipe.transcribe_audio" as const;
 
 /**
  * Transcribes a recorded recipe-search utterance for the given user, billing
@@ -33,8 +36,8 @@ export async function transcribeRecipeAudio(
     billing,
     owner: { type: "user", id: input.userId },
     app: "cozya",
-    feature: "cozya.recipe.transcribe_audio",
-    model: "openai/whisper-1",
+    feature: FEATURE,
+    model: COZYA_MODELS[FEATURE],
     estimateCost: () => ({ estimatedAmount: 1 }),
     computeActualCost: () => ({ actualAmount: 1 }),
     call: async ({ reservation }) => {
@@ -44,12 +47,14 @@ export async function transcribeRecipeAudio(
         agent: "transcribe-audio",
       });
       try {
-        const result = await transcribeAudio({
-          apiKey: env.OPENROUTER_API_KEY,
-          audio: input.audio,
-          headers: openRouterAttributionHeaders(),
-          language: "pt",
-        });
+        const result = await withRetry(() =>
+          transcribeAudio({
+            apiKey: env.OPENROUTER_API_KEY,
+            audio: input.audio,
+            headers: openRouterAttributionHeaders(),
+            language: "pt",
+          }),
+        );
         await recorder.finish({
           runId: reservation.id,
           status: "succeeded",

@@ -80,23 +80,7 @@ export async function withAiRouteGuards(opts: { errorScope: string }): Promise<A
   return { ok: true, userId, subject };
 }
 
-/**
- * Normalizes AI SDK v5 usage shapes (`inputTokens`/`outputTokens`) and legacy
- * shapes (`promptTokens`/`completionTokens`) into a single struct accepted by
- * `agentRunRecorder.finish`. Treats missing or negative values as 0.
- */
-export function normalizeUsage(raw: unknown): {
-  promptTokens: number;
-  completionTokens: number;
-  totalTokens: number;
-} {
-  const u = (raw ?? {}) as Record<string, unknown>;
-  const promptTokens = numberOr(u.inputTokens ?? u.promptTokens, 0);
-  const completionTokens = numberOr(u.outputTokens ?? u.completionTokens, 0);
-  const totalTokens = numberOr(u.totalTokens, promptTokens + completionTokens);
-  return { promptTokens, completionTokens, totalTokens };
-}
-
-function numberOr(v: unknown, fallback: number): number {
-  return typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.floor(v) : fallback;
-}
+// Re-export do helper compartilhado em `@informach/ai-core` para que os
+// services do cozya possam continuar importando de `./_shared` sem mudança
+// (e para que `agenda-da-turma` reuse o mesmo normalizador quando ganhar IA).
+export { normalizeUsage } from "@informach/ai-core";
