@@ -1,9 +1,6 @@
 import { z } from "zod";
 import { withAiRouteGuards } from "@/features/ai/_shared";
-import {
-  RecipeNotFoundError,
-  researchRecipeFromPrompt,
-} from "@/features/ai/research-recipe-from-prompt-service";
+import { researchRecipeFromPrompt } from "@/features/ai/research-recipe-from-prompt-service";
 import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
@@ -53,9 +50,6 @@ export async function POST(request: Request): Promise<Response> {
       },
     });
   } catch (err) {
-    if (err instanceof RecipeNotFoundError) {
-      return Response.json({ isValidRecipe: false, reason: err.reason });
-    }
     logger.error(
       { userId, error: err instanceof Error ? err.message : String(err) },
       "cozya.from_prompt.failed",

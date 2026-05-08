@@ -1,5 +1,6 @@
 import { createAnthropic as createAnthropicSDK } from "@ai-sdk/anthropic";
 import { createOpenAI as createOpenAISDK } from "@ai-sdk/openai";
+import { createOpenRouter as createOpenRouterSDK } from "@openrouter/ai-sdk-provider";
 
 export type AnthropicProviderConfig = {
   apiKey: string;
@@ -12,6 +13,16 @@ export type OpenAIProviderConfig = {
   baseURL?: string;
   organization?: string;
   project?: string;
+  headers?: Record<string, string>;
+};
+
+export type OpenRouterProviderConfig = {
+  apiKey: string;
+  baseURL?: string;
+  /**
+   * OpenRouter usa `HTTP-Referer` e `X-OpenRouter-Title` para atribuição/leaderboard.
+   * Apps passam via `lib/env.ts` (`OPENROUTER_HTTP_REFERER`/`OPENROUTER_X_TITLE`).
+   */
   headers?: Record<string, string>;
 };
 
@@ -47,6 +58,27 @@ export function createOpenAI(config: OpenAIProviderConfig) {
     ...(config.baseURL ? { baseURL: config.baseURL } : {}),
     ...(config.organization ? { organization: config.organization } : {}),
     ...(config.project ? { project: config.project } : {}),
+    ...(config.headers ? { headers: config.headers } : {}),
+  });
+}
+
+/**
+ * Cria um provider OpenRouter do AI SDK com `apiKey` injetado.
+ *
+ * OpenRouter é o gateway unificado de modelos do projeto: chat (text/vision),
+ * structured output, web search (`openrouter.tools.webSearch`) e Whisper
+ * transcription via `/audio/transcriptions` OpenAI-compatible. IDs de modelo
+ * são prefixados pelo provider de origem (ex.: `openai/gpt-4o-mini`,
+ * `anthropic/claude-3.5-sonnet`, `openai/whisper-1`).
+ *
+ * Para transcrição via Whisper, prefira reusar `createOpenAI({ baseURL })` —
+ * OpenRouter expõe o endpoint `/audio/transcriptions` no mesmo shape OpenAI,
+ * então `experimental_transcribe` funciona sem rewrite.
+ */
+export function createOpenRouter(config: OpenRouterProviderConfig) {
+  return createOpenRouterSDK({
+    apiKey: config.apiKey,
+    ...(config.baseURL ? { baseURL: config.baseURL } : {}),
     ...(config.headers ? { headers: config.headers } : {}),
   });
 }

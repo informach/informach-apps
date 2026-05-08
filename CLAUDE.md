@@ -78,8 +78,9 @@ Each package exposes its surface via `package.json` `exports` pointing at `src/`
 - **Exception**: Mastra owns the `ai_mastra` schema (tables `mastra_threads`, `mastra_messages`, `mastra_traces`, `mastra_scorers`, `mastra_evals`, `mastra_workflow_snapshot`, `mastra_resources`). It auto-creates them on first call. `ai_mastra` is intentionally absent from `drizzle.config.ts` `schemaFilter` so `db:generate` never proposes DROP. Migration `0010_create_ai_mastra_schema.sql` only runs `CREATE SCHEMA IF NOT EXISTS`.
 
 ### AI agents — Mastra base in `@informach/ai-core`
-- `@mastra/core@^1.31` + `@mastra/pg` + `@mastra/loggers` + `@mastra/memory` + AI SDK v5 providers (`@ai-sdk/anthropic`, `@ai-sdk/openai`).
-- Apps consume factories: `createMastra`, `createPostgresStore` (default `schemaName: "ai_mastra"`), `createSharedMemory`, `createAnthropic`/`createOpenAI`, `createDefaultLogger`. Agents themselves live in `apps/<app>/src/ai/`, never in the package.
+- `@mastra/core@^1.31` + `@mastra/pg` + `@mastra/loggers` + `@mastra/memory` + AI SDK v6 providers (`@openrouter/ai-sdk-provider`, `@ai-sdk/anthropic`, `@ai-sdk/openai`).
+- **OpenRouter is the primary gateway**: cozya routes all AI calls (chat, vision, web search, Whisper transcription via `/audio/transcriptions` OpenAI-compatible) through `createOpenRouter({ apiKey: env.OPENROUTER_API_KEY })`. `createOpenAI`/`createAnthropic` remain available for apps that need a direct provider.
+- Apps consume factories: `createMastra`, `createPostgresStore` (default `schemaName: "ai_mastra"`), `createSharedMemory`, `createOpenRouter`/`createAnthropic`/`createOpenAI`, `createDefaultLogger`. Agents themselves live in `apps/<app>/src/ai/`, never in the package.
 - `runId` UUID is the cross-schema link: `withCredits` `reservation.id` ≡ `agent.generate({ runId })` ≡ `ai.agent_runs.id` ≡ `ai_mastra.mastra_traces.runId`. Always pass it through.
 - See `packages/ai-core/CLAUDE.md` for the full contract.
 

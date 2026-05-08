@@ -20,18 +20,18 @@ export type AiRouteGuardResult =
 /**
  * Shared pre-conditions for every Cozya AI route handler:
  *
- *   1. `OPENAI_API_KEY` is configured (else 503 `AI_DISABLED`).
+ *   1. `OPENROUTER_API_KEY` is configured (else 503 `AI_DISABLED`).
  *   2. The request has a valid user session (else 401 `UNAUTHORIZED`).
  *   3. The user is under the per-hour anti-script invocation limit
  *      (else 429 `RATE_LIMITED` with `Retry-After`).
  *   4. The user has Pro entitlement (else 403 `SUBSCRIPTION_REQUIRED`).
  *
- * `errorScope` is used for the structured log key emitted when the OpenAI
- * key is missing (e.g. `"cozya.parse_text"` → `"cozya.parse_text.openai_key_missing"`).
+ * `errorScope` is used for the structured log key emitted when the OpenRouter
+ * key is missing (e.g. `"cozya.parse_text"` → `"cozya.parse_text.openrouter_key_missing"`).
  */
 export async function withAiRouteGuards(opts: { errorScope: string }): Promise<AiRouteGuardResult> {
-  if (!env.OPENAI_API_KEY) {
-    logger.error({}, `${opts.errorScope}.openai_key_missing`);
+  if (!env.OPENROUTER_API_KEY) {
+    logger.error({}, `${opts.errorScope}.openrouter_key_missing`);
     return {
       ok: false,
       response: Response.json({ code: "AI_DISABLED" }, { status: 503 }),

@@ -9,7 +9,7 @@ import "server-only";
  *
  * Quando nenhuma receita popular for encontrada, o modelo deve responder
  * apenas a string literal `NAO_ENCONTRADA` — o service detecta esse caso e
- * lança `RecipeNotFoundError`, evitando alucinação.
+ * retorna `{ isValidRecipe: false }`, evitando alucinação.
  */
 export function buildResearchPrompt(userPrompt: string): string {
   return `Você é um especialista em culinária brasileira. O usuário pediu:

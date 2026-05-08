@@ -255,7 +255,7 @@ packages/ai-core/
     └── mastra/index.ts
 ```
 
-Tipos: `AppName`, `AgentName`, `AgentRunStatus`, `AgentRunTerminalStatus`, `TokenUsage`, `AiRuntimeConfig`, `ToolContext`. Helpers: `withCredits`, `computeCreditsFromUsage`, `createToolContext`, `createAgentRunRecorder`, `createDrizzleAgentRunStore`, `calculateTokenUsage`, `createDefaultLogger`, `createAnthropic`, `createOpenAI`, `createMastra`, `createPostgresStore`, `createSharedMemory`.
+Tipos: `AppName`, `AgentName`, `AgentRunStatus`, `AgentRunTerminalStatus`, `TokenUsage`, `AiRuntimeConfig`, `ToolContext`. Helpers: `withCredits`, `computeCreditsFromUsage`, `createToolContext`, `createAgentRunRecorder`, `createDrizzleAgentRunStore`, `calculateTokenUsage`, `createDefaultLogger`, `createOpenRouter` (gateway preferido), `createAnthropic`, `createOpenAI`, `createMastra`, `createPostgresStore`, `createSharedMemory`, `transcribeAudio` (sub-path `./transcription`, OpenAI-compatible — funciona com OpenRouter via `baseURL`).
 
 `withCredits` prealoca um UUID e o usa como `credit_reservations.id`, `billing.credit_ledger.run_id`, `ai.agent_runs.id` e `agent.generate({ runId })`. Esse é o contrato de correlação cross-schema; chamadas LLM não devem criar outro identificador paralelo.
 
@@ -264,7 +264,7 @@ Contratos fixos:
 - Runtime mínimo: **Node.js 22.13+**, alinhado ao Mastra v1.
 - Root export (`@<org>/ai-core`) é frame-agnostic e não importa Mastra nem providers. Mastra fica só no sub-path `@<org>/ai-core/mastra`, com `server-only`.
 - `createPostgresStore` usa `PostgresStore` do Mastra com `id` fixo e schema `ai_mastra`; Drizzle continua dono apenas do schema `ai`.
-- `createAnthropic`/`createOpenAI` recebem `apiKey` por parâmetro. Apps validam env em `lib/env.ts`; package compartilhado não lê `process.env`.
+- `createOpenRouter`/`createAnthropic`/`createOpenAI` recebem `apiKey` por parâmetro (e `baseURL`/`headers` opcionais). Apps validam env em `lib/env.ts`; package compartilhado não lê `process.env`. OpenRouter é o gateway primário do projeto — `createOpenAI`/`createAnthropic` continuam para casos de provider direto e para o Whisper apontado ao OpenRouter via `baseURL` em `transcribeAudio`.
 - Token usage persistido/cobrado sempre usa o tipo interno `TokenUsage` (`promptTokens`, `completionTokens`, `totalTokens`). Se o provider expuser `inputTokens`/`outputTokens`, o app normaliza antes de chamar `computeCreditsFromUsage`.
 - `AgentRunRecorder.finish` aceita apenas status terminal (`succeeded`, `failed`, `canceled`); `running` é estado de abertura via `start`.
 

@@ -29,6 +29,7 @@
     "@mastra/pg": "1.9.4",
     "@ai-sdk/anthropic": "3.0.74",
     "@ai-sdk/openai": "3.0.58",
+    "@openrouter/ai-sdk-provider": "2.9.0",
     "ai": "^6.0.0",
     "drizzle-orm": "^0.45.2",
     "server-only": "^0.0.1",

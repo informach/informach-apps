@@ -6,13 +6,14 @@
 
 ## 1. Propósito
 
-`@informach/ai-core` é a base de **agentes IA** dos apps do monorepo. Centraliza Mastra (`@mastra/core`, `@mastra/pg`, `@mastra/loggers`, `@mastra/memory`) e os providers AI SDK compatíveis com Mastra v1 (`@ai-sdk/anthropic`, `@ai-sdk/openai`, linha 3.x) atrás de factories puras que apps consomem por dependency injection. **Os agentes propriamente ditos não vivem aqui** — moram em `apps/<app>/src/ai/` (ver `arquitetura-apps.md` §"Pasta `src/ai/`"). O package fornece:
+`@informach/ai-core` é a base de **agentes IA** dos apps do monorepo. Centraliza Mastra (`@mastra/core`, `@mastra/pg`, `@mastra/loggers`, `@mastra/memory`) e os providers AI SDK compatíveis com Mastra v1 atrás de factories puras que apps consomem por dependency injection. Hoje exporta wrappers para 3 providers — `@openrouter/ai-sdk-provider` (gateway preferido do projeto), `@ai-sdk/openai` e `@ai-sdk/anthropic`. **Os agentes propriamente ditos não vivem aqui** — moram em `apps/<app>/src/ai/` (ver `arquitetura-apps.md` §"Pasta `src/ai/`"). O package fornece:
 
 - Factory `createMastra` que monta a instância `Mastra` do app com storage, logger e mapa de agentes.
 - Factory `createPostgresStore` apontando para o schema dedicado `ai_mastra` no Postgres compartilhado.
 - Factory `createSharedMemory` que reaproveita o storage para todos os agentes do app.
-- Factories `createAnthropic`/`createOpenAI` com `apiKey` injetado (não lê `process.env`).
+- Factories `createOpenRouter`/`createAnthropic`/`createOpenAI` com `apiKey` injetado (não lê `process.env`). `createOpenRouter` é o caminho preferido — gateway único cobre chat, vision, web search e Whisper transcription.
 - `createDefaultLogger` (PinoLogger pré-configurado).
+- `transcribeAudio` (sub-path `./transcription`): wrap fino sobre `/audio/transcriptions` JSON+base64. Aceita `apiKey` + `baseURL` + `model` + `headers`, então funciona contra OpenRouter (`baseURL: "https://openrouter.ai/api/v1"`, `model: "openai/whisper-1"`).
 - `withCredits`: wrapper reserve→commit/release acoplado ao `@informach/billing`, com validação de custo e correlação de `runId`.
 - `createAgentRunRecorder` + `createDrizzleAgentRunStore`: camada de auditoria nossa em `ai.agent_runs`/`ai.usage_logs`.
 
@@ -27,7 +28,7 @@ Dependências externas com contrato sensível:
 | Família | Versão atual | Regra |
 | --- | --- | --- |
 | Mastra | `@mastra/core@1.31.0`, `@mastra/pg@1.9.4`, `@mastra/memory@1.17.4`, `@mastra/loggers@1.1.1` | pin literal; validar upgrade via Context7 antes de alterar |
-| AI SDK providers | `@ai-sdk/anthropic@3.0.74`, `@ai-sdk/openai@3.0.58` | wrappers recebem `apiKey` do app; não usar default provider que lê env |
+| AI SDK providers | `@ai-sdk/anthropic@3.0.74`, `@ai-sdk/openai@3.0.58`, `@openrouter/ai-sdk-provider@2.9.0` | wrappers recebem `apiKey` do app; não usar default provider que lê env |
 | Node types | `@types/node@^22.13.0` | acompanha runtime mínimo |
 
 Notas confirmadas via Context7:
@@ -35,6 +36,7 @@ Notas confirmadas via Context7:
 - `new Mastra({ agents, workflows, storage, logger })` é o ponto de composição da instância.
 - Storage Mastra v1 exige `id`; `createPostgresStore` fixa `id: "informach-mastra-storage"` e `schemaName: "ai_mastra"`.
 - Providers AI SDK aceitam `apiKey`, `baseURL`, `headers` e opções específicas como `organization`/`project` no OpenAI. Este package expõe só o subset que os apps usam hoje.
+- `@openrouter/ai-sdk-provider` peerDep `ai@^6.0.0`; expõe `openrouter('openai/gpt-4o')`, `openrouter.tools.webSearch({ engine, maxResults })` e plugin `response-healing`. OpenRouter implementa também `/audio/transcriptions` OpenAI-compatible — por isso `transcribeAudio` apenas troca `baseURL` em vez de exigir provider próprio.
 
 ---
 
@@ -63,7 +65,8 @@ apps/<app>/src/app/api/<feature>/route.ts (ou Server Action)
   ├ src/tools/index.ts      ← createToolContext (frame-agnostic)
   ├ src/telemetry/index.ts  ← AgentRunRecorder, AgentRunStore, createDrizzleAgentRunStore
   ├ src/logger.ts           ← createDefaultLogger
-  ├ src/providers/index.ts  ← createAnthropic, createOpenAI (apiKey injetado)
+  ├ src/providers/index.ts  ← createOpenRouter, createAnthropic, createOpenAI (apiKey injetado)
+  ├ src/transcription.ts    ← transcribeAudio (apiKey + baseURL + model + headers — OpenAI-compatible)
   └ src/mastra/index.ts     ← createMastra, createPostgresStore, createSharedMemory
                               + re-exports (Agent, Memory, createTool, Workflow, …)
                               ← TUDO neste sub-path tem `import "server-only"`
@@ -94,9 +97,9 @@ A ligação entre os dois é o `runId` (UUID): `ai.agent_runs.id` ≡ `billing.c
 | `.` (root) | tipos: `AppName`, `AgentName`, `AgentRunStatus`, `AgentRunTerminalStatus`, `TokenUsage`, `AiRuntimeConfig`, `ToolContext` | contratos frame-agnostic |
 | `./mastra` | `createMastra`, `createPostgresStore`, `createSharedMemory`, `MASTRA_SCHEMA_NAME` | factories puras, server-only |
 | `./mastra` | re-exports `Agent`, `Memory`, `Mastra`, `PostgresStore`, `createTool`, `createStep`, `createWorkflow`, type `Workflow` | apps importam tudo daqui |
-| `./providers` | `createAnthropic`, `createOpenAI` | wrappers AI SDK com `apiKey` injetado |
+| `./providers` | `createOpenRouter`, `createAnthropic`, `createOpenAI` | wrappers AI SDK com `apiKey` injetado |
 | `./logger` | `createDefaultLogger` | PinoLogger pronto pra `createMastra({ logger })` |
-| `./transcription` | `transcribeAudio` (wrap fino sobre `experimental_transcribe` + OpenAI Whisper) | route handlers que recebem áudio e devolvem texto, dentro do `withCredits` do app |
+| `./transcription` | `transcribeAudio({ apiKey, audio, baseURL?, model?, headers?, language?, format? })` | wrap fino sobre o endpoint `/audio/transcriptions` do OpenRouter (JSON+base64). Default `baseURL=https://openrouter.ai/api/v1`, `model=openai/whisper-1`. NÃO usa multipart/form-data (OpenRouter não aceita) — confirmado lendo `@openrouter/sdk` `STTRequest` |
 | `./billing`, `./telemetry`, `./tools`, `./types` | aliases granulares | só úteis em testes ou import seletivo |
 
 Sub-paths removidos do scaffold inicial: `./models`, `./memory`, `./guardrails`, `./prompts`. Eles eram placeholders; absorvidos por `./mastra` ou movidos para `apps/<app>/src/ai/`.
@@ -109,36 +112,84 @@ Env vars (ver `apps/<app>/src/lib/env.ts`):
 
 ```ts
 DATABASE_URL: z.string().url(),
+// Caminho preferido — gateway único (cozya 2026-05+):
+OPENROUTER_API_KEY: z.string().min(1),
+OPENROUTER_HTTP_REFERER: z.string().url().optional(),
+OPENROUTER_X_TITLE: z.string().min(1).optional(),
+// Caminho legado — apps que ainda chamam OpenAI/Anthropic direto:
 OPENAI_API_KEY: z.string().min(1).optional(),
 ANTHROPIC_API_KEY: z.string().min(1).optional(),
 MASTRA_LOG_LEVEL: z.enum(["debug","info","warn","error"]).default("info"),
 ```
 
-Wire-up (`apps/<app>/src/ai/index.ts`):
+Wire-up via OpenRouter (caminho atual do cozya — `apps/cozya/src/ai/index.ts`):
 
 ```ts
 import "server-only";
 import { createMastra, createPostgresStore, createSharedMemory, Agent } from "@informach/ai-core/mastra";
-import { createAnthropic } from "@informach/ai-core/providers";
+import { createOpenRouter } from "@informach/ai-core/providers";
 import { createDefaultLogger } from "@informach/ai-core/logger";
 import { env } from "@/lib/env";
 
-const anthropic = createAnthropic({ apiKey: env.ANTHROPIC_API_KEY ?? "" });
-const storage   = createPostgresStore({ connectionString: env.DATABASE_URL });
-const memory    = createSharedMemory({ storage });
+const openrouter = createOpenRouter({
+  apiKey: env.OPENROUTER_API_KEY,
+  headers: {
+    ...(env.OPENROUTER_HTTP_REFERER ? { "HTTP-Referer": env.OPENROUTER_HTTP_REFERER } : {}),
+    ...(env.OPENROUTER_X_TITLE ? { "X-OpenRouter-Title": env.OPENROUTER_X_TITLE } : {}),
+  },
+});
+const storage = createPostgresStore({ connectionString: env.DATABASE_URL });
+const memory  = createSharedMemory({ storage });
 
-const triagem = new Agent({
-  name: "triagem",
+const recipeParser = new Agent({
+  name: "recipeParser",
   instructions: "...",
-  model: anthropic("claude-opus-4-7"),
+  model: openrouter("openai/gpt-4o-mini"),
   memory,
 });
 
 export const mastra = createMastra({
-  agents: { triagem },
+  agents: { recipeParser },
   storage,
-  logger: createDefaultLogger({ name: "agenda-da-turma", level: env.MASTRA_LOG_LEVEL }),
+  logger: createDefaultLogger({ name: "cozya", level: env.MASTRA_LOG_LEVEL }),
 });
+```
+
+Wire-up via Anthropic direto (template para apps que precisem de provider isolado — não usado no cozya):
+
+```ts
+import { createAnthropic } from "@informach/ai-core/providers";
+const anthropic = createAnthropic({ apiKey: env.ANTHROPIC_API_KEY ?? "" });
+const triagem = new Agent({ name: "triagem", model: anthropic("claude-opus-4-7"), memory });
+```
+
+Web search (substitui o `webSearchPreview` da Responses API da OpenAI):
+
+```ts
+import { generateText } from "ai";
+const result = await generateText({
+  model: openrouter("openai/gpt-4o-mini"),
+  tools: { web_search: openrouter.tools.webSearch({ engine: "auto", maxResults: 5 }) },
+  toolChoice: "auto",
+  prompt: "...",
+});
+```
+
+Transcrição via OpenRouter (Whisper-1):
+
+```ts
+import { transcribeAudio } from "@informach/ai-core/transcription";
+const result = await transcribeAudio({
+  apiKey: env.OPENROUTER_API_KEY,
+  audio,
+  headers: {
+    ...(env.OPENROUTER_HTTP_REFERER ? { "HTTP-Referer": env.OPENROUTER_HTTP_REFERER } : {}),
+    ...(env.OPENROUTER_X_TITLE ? { "X-OpenRouter-Title": env.OPENROUTER_X_TITLE } : {}),
+  },
+  language: "pt",
+});
+// `baseURL` defaults to https://openrouter.ai/api/v1; `model` defaults to "openai/whisper-1".
+// Format is inferred from Blob.type (audio/webm → "webm") com fallback "webm".
 ```
 
 Chamada com billing + auditoria (em route handler ou server action):

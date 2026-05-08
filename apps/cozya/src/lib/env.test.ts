@@ -11,6 +11,7 @@ const requiredEnv = {
   CRON_SECRET: "c".repeat(32),
   STRIPE_SECRET_KEY: "sk_test_123",
   STRIPE_WEBHOOK_SECRET: "whsec_123",
+  OPENROUTER_API_KEY: "sk-or-test-123",
 };
 
 function stubEnv(overrides: Partial<Record<keyof typeof requiredEnv | "REDIS_URL", string>>) {

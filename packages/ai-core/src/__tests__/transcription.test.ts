@@ -1,67 +1,165 @@
-import { describe, expect, it, vi } from "vitest";
-
-const transcribeMock = vi.hoisted(() => vi.fn());
-const createOpenAIMock = vi.hoisted(() => vi.fn());
-
-vi.mock("ai", () => ({
-  experimental_transcribe: transcribeMock,
-}));
-
-vi.mock("../providers", () => ({
-  createOpenAI: createOpenAIMock,
-}));
-
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { transcribeAudio } from "../transcription";
 
-describe("transcribeAudio", () => {
-  it("calls experimental_transcribe with the configured provider and language", async () => {
-    const transcriptionModel = { id: "openai/whisper-1" };
-    const provider = {
-      transcription: vi.fn().mockReturnValue(transcriptionModel),
-    };
-    createOpenAIMock.mockReturnValue(provider);
-    transcribeMock.mockResolvedValue({
-      text: "macarrão",
-      durationInSeconds: 1.4,
-      language: "pt",
+describe("transcribeAudio (OpenRouter — JSON+base64 via fetch)", () => {
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function okResponse(text: string, extra: Record<string, unknown> = {}): Response {
+    return new Response(JSON.stringify({ text, ...extra }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
     });
+  }
+
+  function firstFetchCall(): [string, RequestInit] {
+    const call = fetchMock.mock.calls[0] as [string, RequestInit] | undefined;
+    if (!call) throw new Error("fetch was not called");
+    return call;
+  }
+
+  function firstFetchBody(): Record<string, unknown> {
+    return JSON.parse(String(firstFetchCall()[1].body)) as Record<string, unknown>;
+  }
+
+  it("POSTs application/json with input_audio (data+format), model and language", async () => {
+    fetchMock.mockResolvedValue(okResponse("macarrão"));
 
     const audio = new Uint8Array([1, 2, 3]);
-    const out = await transcribeAudio({ openaiApiKey: "sk-test", audio, language: "pt" });
-
-    expect(createOpenAIMock).toHaveBeenCalledWith({ apiKey: "sk-test" });
-    expect(provider.transcription).toHaveBeenCalledWith("whisper-1");
-    expect(transcribeMock).toHaveBeenCalledWith({
-      model: transcriptionModel,
+    const out = await transcribeAudio({
+      apiKey: "sk-or-test",
       audio,
-      providerOptions: { openai: { language: "pt" } },
+      language: "pt",
+      format: "webm",
     });
-    expect(out).toEqual({ text: "macarrão", durationInSeconds: 1.4, language: "pt" });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = firstFetchCall();
+    expect(url).toBe("https://openrouter.ai/api/v1/audio/transcriptions");
+    expect(init.method).toBe("POST");
+    expect(init.headers).toMatchObject({
+      Authorization: "Bearer sk-or-test",
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    });
+    expect(firstFetchBody()).toEqual({
+      input_audio: { data: Buffer.from(audio).toString("base64"), format: "webm" },
+      model: "openai/whisper-1",
+      language: "pt",
+    });
+    expect(out).toEqual({ text: "macarrão" });
   });
 
-  it("omits providerOptions when no language is provided", async () => {
-    const provider = { transcription: vi.fn().mockReturnValue({}) };
-    createOpenAIMock.mockReturnValue(provider);
-    transcribeMock.mockResolvedValue({ text: "hello" });
-
-    await transcribeAudio({ openaiApiKey: "sk-test", audio: new Uint8Array() });
-
-    expect(transcribeMock).toHaveBeenCalledWith(
-      expect.not.objectContaining({ providerOptions: expect.anything() }),
-    );
-  });
-
-  it("uses the model override when provided", async () => {
-    const provider = { transcription: vi.fn().mockReturnValue({}) };
-    createOpenAIMock.mockReturnValue(provider);
-    transcribeMock.mockResolvedValue({ text: "" });
+  it("forwards OpenRouter attribution headers without overriding required headers", async () => {
+    fetchMock.mockResolvedValue(okResponse("ok"));
 
     await transcribeAudio({
-      openaiApiKey: "sk-test",
-      audio: new Uint8Array(),
-      model: "whisper-1",
+      apiKey: "sk-or-test",
+      audio: new Uint8Array([1]),
+      format: "wav",
+      headers: {
+        "HTTP-Referer": "https://cozya.app",
+        "X-OpenRouter-Title": "Cozya",
+        Authorization: "Bearer wrong",
+        "Content-Type": "text/plain",
+      },
     });
 
-    expect(provider.transcription).toHaveBeenCalledWith("whisper-1");
+    expect(firstFetchCall()[1].headers).toMatchObject({
+      "HTTP-Referer": "https://cozya.app",
+      "X-OpenRouter-Title": "Cozya",
+      Authorization: "Bearer sk-or-test",
+      "Content-Type": "application/json",
+    });
+  });
+
+  it("returns durationInSeconds from OpenRouter usage.seconds when present", async () => {
+    fetchMock.mockResolvedValue(okResponse("ok", { usage: { seconds: 3.25 } }));
+
+    const out = await transcribeAudio({
+      apiKey: "sk-or-test",
+      audio: new Uint8Array([1]),
+      format: "wav",
+    });
+
+    expect(out).toEqual({ text: "ok", durationInSeconds: 3.25 });
+  });
+
+  it("respects custom baseURL (e.g. self-hosted gateway), strips trailing slash", async () => {
+    fetchMock.mockResolvedValue(okResponse("ok"));
+
+    await transcribeAudio({
+      apiKey: "k",
+      baseURL: "https://gw.example.com/v1/",
+      audio: new Uint8Array([1]),
+      format: "wav",
+    });
+
+    expect(firstFetchCall()[0]).toBe("https://gw.example.com/v1/audio/transcriptions");
+  });
+
+  it("respects model override (default is openai/whisper-1)", async () => {
+    fetchMock.mockResolvedValue(okResponse("ok"));
+
+    await transcribeAudio({
+      apiKey: "k",
+      audio: new Uint8Array([1]),
+      format: "wav",
+      model: "openai/whisper-large-v3",
+    });
+
+    expect(firstFetchBody().model).toBe("openai/whisper-large-v3");
+  });
+
+  it("infers format from Blob.type (audio/webm;codecs=opus → webm)", async () => {
+    fetchMock.mockResolvedValue(okResponse("ok"));
+
+    const blob = new Blob([new Uint8Array([1, 2, 3])], { type: "audio/webm;codecs=opus" });
+    await transcribeAudio({ apiKey: "k", audio: blob });
+
+    expect((firstFetchBody().input_audio as { format: unknown }).format).toBe("webm");
+  });
+
+  it("falls back to format='webm' when Blob has no type and no explicit format", async () => {
+    fetchMock.mockResolvedValue(okResponse("ok"));
+
+    await transcribeAudio({ apiKey: "k", audio: new Blob([new Uint8Array([1])]) });
+
+    expect((firstFetchBody().input_audio as { format: unknown }).format).toBe("webm");
+  });
+
+  it("omits language when not provided", async () => {
+    fetchMock.mockResolvedValue(okResponse("ok"));
+
+    await transcribeAudio({ apiKey: "k", audio: new Uint8Array(), format: "wav" });
+
+    const body = firstFetchBody();
+    expect(body).not.toHaveProperty("language");
+  });
+
+  it("throws with status code and body snippet when OpenRouter returns non-2xx", async () => {
+    fetchMock.mockResolvedValue(
+      new Response('{"error":{"message":"unauthorized"}}', { status: 401 }),
+    );
+
+    await expect(
+      transcribeAudio({ apiKey: "k", audio: new Uint8Array([1]), format: "wav" }),
+    ).rejects.toThrow(/OpenRouter transcription failed \(401\)/);
+  });
+
+  it("throws when OpenRouter returns 200 but no text field", async () => {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ usage: {} }), { status: 200 }));
+
+    await expect(
+      transcribeAudio({ apiKey: "k", audio: new Uint8Array([1]), format: "wav" }),
+    ).rejects.toThrow(/missing 'text' field/);
   });
 });

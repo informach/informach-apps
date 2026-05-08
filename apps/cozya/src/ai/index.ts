@@ -2,8 +2,9 @@ import "server-only";
 
 import { createDefaultLogger } from "@informach/ai-core/logger";
 import { createMastra, createPostgresStore, createSharedMemory } from "@informach/ai-core/mastra";
-import { createOpenAI } from "@informach/ai-core/providers";
+import { createOpenRouter } from "@informach/ai-core/providers";
 import { env } from "@/lib/env";
+import { openRouterAttributionHeaders } from "@/lib/openrouter";
 import { createRecipeParserAgent } from "./recipe-parser/agent";
 
 type Mastra = ReturnType<typeof createMastra>;
@@ -18,23 +19,31 @@ let cached: Mastra | null = null;
  * Two parser agents share the same instructions/schema but differ in the
  * underlying model. Vision flow uses gpt-4o (per cozya/CLAUDE.md §2 +
  * credit_pricing seed); text/voice/url flows use the cheaper gpt-4o-mini.
+ *
+ * All model calls route through OpenRouter as the single gateway — IDs are
+ * prefixed with `openai/` per OpenRouter convention. Whisper transcription
+ * (separate flow in features/ai/transcribe-service.ts) uses the same gateway
+ * via OpenAI-compatible /audio/transcriptions endpoint.
  */
 export function getMastra(): Mastra {
   if (cached) return cached;
 
-  const openai = createOpenAI({ apiKey: env.OPENAI_API_KEY ?? "" });
+  const openrouter = createOpenRouter({
+    apiKey: env.OPENROUTER_API_KEY,
+    headers: openRouterAttributionHeaders(),
+  });
   const storage = createPostgresStore({ connectionString: env.DATABASE_URL });
   const memory = createSharedMemory({ storage });
 
   const recipeParser = createRecipeParserAgent({
-    model: openai("gpt-4o-mini"),
+    model: openrouter("openai/gpt-4o-mini"),
     memory,
   });
 
   const recipeParserVision = createRecipeParserAgent({
     id: "recipeParserVision",
     name: "recipeParserVision",
-    model: openai("gpt-4o"),
+    model: openrouter("openai/gpt-4o"),
     memory,
   });
 

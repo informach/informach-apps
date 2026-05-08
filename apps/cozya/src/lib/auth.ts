@@ -16,7 +16,33 @@ const googleProvider =
     ? { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET }
     : undefined;
 
-const e2eRateLimitRules =
+/**
+ * Defesa anti-brute-force explícita para os endpoints sensíveis do Better Auth.
+ *
+ * Por que explícito em vez de confiar nos defaults do Better Auth: o package
+ * traz defaults sãos hoje (`@informach/auth/CLAUDE.md` §3.4), mas eles podem
+ * mudar entre minor versions. Travar aqui garante que upgrades do Better Auth
+ * não relaxem proteções silenciosamente.
+ */
+const productionRateLimitRules = {
+  "/sign-in/email": { window: 60, max: 5 },
+  "/sign-in/email-otp": { window: 600, max: 5 },
+  "/sign-up/email": { window: 3600, max: 5 },
+  "/email-otp/send-verification-otp": { window: 60, max: 5 },
+  "/email-otp/verify-email": { window: 60, max: 10 },
+  "/forget-password": { window: 3600, max: 3 },
+  "/forget-password/email-otp": { window: 3600, max: 3 },
+  "/email-otp/request-password-reset": { window: 3600, max: 3 },
+  "/email-otp/reset-password": { window: 3600, max: 5 },
+  "/reset-password": { window: 3600, max: 5 },
+  "/verify-email": { window: 60, max: 10 },
+} as const;
+
+/**
+ * E2E só relaxa quando explicitamente habilitado. Defesa em camadas: env.ts
+ * rejeita E2E_RELAX_AUTH_RATE_LIMITS=1 em produção para impedir misconfig.
+ */
+const rateLimitRules =
   env.E2E_RELAX_AUTH_RATE_LIMITS === "1"
     ? {
         "/email-otp/send-verification-otp": { window: 60, max: 100 },
@@ -24,7 +50,7 @@ const e2eRateLimitRules =
         "/sign-in/email-otp": { window: 60, max: 100 },
         "/sign-up/email": { window: 60, max: 100 },
       }
-    : undefined;
+    : productionRateLimitRules;
 
 export const authResult = createAuth({
   appName: APPS.cozya.name,
@@ -41,7 +67,7 @@ export const authResult = createAuth({
   socialProviders: googleProvider ? { google: googleProvider } : undefined,
   secondaryStorage: authSecondaryStorage,
   observability: authObservability,
-  rateLimitRules: e2eRateLimitRules,
+  rateLimitRules,
   // Cozya mantém login por e-mail/senha. OTP cobre fluxos que exigem
   // confirmação por e-mail e também o login opcional sem senha.
   email: {

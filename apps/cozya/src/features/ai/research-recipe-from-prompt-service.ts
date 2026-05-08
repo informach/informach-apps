@@ -1,13 +1,14 @@
 import "server-only";
 
 import { withCredits } from "@informach/ai-core";
-import { createOpenAI } from "@informach/ai-core/providers";
+import { createOpenRouter } from "@informach/ai-core/providers";
 import { generateText } from "ai";
 import { getMastra } from "@/ai";
 import { agentRunRecorder as recorder } from "@/ai/agent-run-recorder";
 import { type RecipeParserOutput, recipeParserSchema } from "@/ai/recipe-parser/schema";
 import { billing } from "@/features/billing/service";
 import { env } from "@/lib/env";
+import { openRouterAttributionHeaders } from "@/lib/openrouter";
 import { normalizeUsage } from "./_shared";
 import { buildResearchPrompt } from "./research-recipe-prompt";
 
@@ -18,33 +19,23 @@ export type ResearchRecipeFromPromptInput = {
 
 export type ResearchRecipeFromPromptResult = RecipeParserOutput;
 
-/**
- * Sinaliza que a busca na web não encontrou nenhuma receita popular
- * correspondente ao prompt do usuário. O route handler converte em
- * `{ isValidRecipe: false, reason }` para que o dialog reuse o painel
- * `not_recipe` existente.
- */
-export class RecipeNotFoundError extends Error {
-  constructor(public readonly reason: string) {
-    super(reason);
-    this.name = "RecipeNotFoundError";
-  }
-}
+const RECIPE_NOT_FOUND_REASON =
+  "Não encontrei uma receita popular pra esse pedido. Tente algo mais específico.";
 
 export async function researchRecipeFromPrompt(
   input: ResearchRecipeFromPromptInput,
 ): Promise<ResearchRecipeFromPromptResult> {
-  if (!env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not configured");
-  }
-  const openai = createOpenAI({ apiKey: env.OPENAI_API_KEY });
+  const openrouter = createOpenRouter({
+    apiKey: env.OPENROUTER_API_KEY,
+    headers: openRouterAttributionHeaders(),
+  });
 
   const out = await withCredits({
     billing,
     owner: { type: "user", id: input.userId },
     app: "cozya",
     feature: "cozya.recipe.generate_from_prompt",
-    model: "gpt-4o-mini",
+    model: "openai/gpt-4o-mini",
     estimateCost: () => ({ estimatedAmount: 1 }),
     computeActualCost: () => ({ actualAmount: 1 }),
     call: async ({ reservation }) => {
@@ -59,9 +50,12 @@ export async function researchRecipeFromPrompt(
       let usedWebSearch = false;
       try {
         const research = await generateText({
-          model: openai.responses("gpt-4o-mini"),
+          model: openrouter("openai/gpt-4o-mini"),
           tools: {
-            web_search: openai.tools.webSearchPreview({ searchContextSize: "low" }),
+            web_search: openrouter.tools.webSearch({
+              maxResults: 5,
+              engine: "auto",
+            }),
           },
           toolChoice: "auto",
           prompt: buildResearchPrompt(input.prompt),
@@ -74,11 +68,19 @@ export async function researchRecipeFromPrompt(
           research.steps?.some((step) =>
             step.toolCalls?.some((call) => call.toolName === "web_search"),
           ) ?? false;
+        const searchMiss = isRecipeResearchMiss({ usedWebSearch, researchText });
         await recorder.finish({
           runId: reservation.id,
           status: "succeeded",
           usage: normalizeUsage(research.usage),
+          metadata: {
+            outcome: searchMiss ? "not_found" : "research_found",
+            usedWebSearch,
+          },
         });
+        if (searchMiss) {
+          return recipeNotFoundResult();
+        }
       } catch (err) {
         await recorder.finish({
           runId: reservation.id,
@@ -88,26 +90,57 @@ export async function researchRecipeFromPrompt(
         throw err;
       }
 
-      if (!usedWebSearch || researchText.startsWith("NAO_ENCONTRADA") || researchText.length < 30) {
-        throw new RecipeNotFoundError(
-          "Não encontrei uma receita popular pra esse pedido. Tente algo mais específico.",
-        );
-      }
-
       // Step 2 — estrutura. Reusa o `recipeParser` (mesmo runId), que já tem
       // instruções para "texto colado de um site". Mastra registra o segundo
       // run em ai_mastra.mastra_traces sob o mesmo runId.
-      const response = await getMastra()
-        .getAgent("recipeParser")
-        .generate(researchText, {
+      try {
+        const response = await getMastra()
+          .getAgent("recipeParser")
+          .generate(researchText, {
+            runId: reservation.id,
+            structuredOutput: {
+              schema: recipeParserSchema,
+              errorStrategy: "strict",
+            },
+          });
+        await recorder.finish({
           runId: reservation.id,
-          structuredOutput: {
-            schema: recipeParserSchema,
-            errorStrategy: "strict",
+          status: "succeeded",
+          usage: normalizeUsage(response.usage),
+          metadata: { outcome: "parsed" },
+        });
+        return response.object as RecipeParserOutput;
+      } catch (err) {
+        await recorder.finish({
+          runId: reservation.id,
+          status: "failed",
+          metadata: {
+            stage: "structured_parse",
+            error: err instanceof Error ? err.message : String(err),
           },
         });
-      return response.object as RecipeParserOutput;
+        throw err;
+      }
     },
   });
   return out.result;
+}
+
+function isRecipeResearchMiss(input: { usedWebSearch: boolean; researchText: string }): boolean {
+  return (
+    !input.usedWebSearch ||
+    input.researchText.startsWith("NAO_ENCONTRADA") ||
+    input.researchText.length < 30
+  );
+}
+
+function recipeNotFoundResult(): RecipeParserOutput {
+  return {
+    isValidRecipe: false,
+    reason: RECIPE_NOT_FOUND_REASON,
+    name: null,
+    ingredients: null,
+    preparation: null,
+    finishing: null,
+  };
 }

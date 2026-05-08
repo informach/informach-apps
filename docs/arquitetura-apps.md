@@ -204,7 +204,7 @@ Os agentes em si — prompts, tools, workflows e regras de produto — são cód
 Contrato para qualquer rota/action que invoque LLM:
 
 - Código em `src/ai/` começa com `import "server-only"` e roda em Node, nunca Edge.
-- `DATABASE_URL`, `OPENAI_API_KEY`/`ANTHROPIC_API_KEY` e `MASTRA_LOG_LEVEL` são lidos no `lib/env.ts` do app e injetados nas factories. `@<org>/ai-core` não lê `process.env`.
+- `DATABASE_URL`, `OPENROUTER_API_KEY` (gateway preferido — `createOpenRouter`) e `MASTRA_LOG_LEVEL` são lidos no `lib/env.ts` do app e injetados nas factories. Apps que ainda chamam OpenAI/Anthropic direto declaram `OPENAI_API_KEY`/`ANTHROPIC_API_KEY` adicionais. `@<org>/ai-core` não lê `process.env`.
 - Toda chamada paga usa `withCredits`; o `reservation.id` vira o `runId` passado para `agent.generate({ runId })` e para `recorder.start/finish`.
 - Usage vindo do provider é normalizado para `TokenUsage` antes de persistir ou calcular créditos. Se o provider retornar `inputTokens`/`outputTokens`, o app mapeia para `promptTokens`/`completionTokens`.
 - `recorder.finish` só recebe status terminal: `succeeded`, `failed` ou `canceled`.

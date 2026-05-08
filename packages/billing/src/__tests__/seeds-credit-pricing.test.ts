@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   COZYA_PRICING_SEED,
   type CreditPricingSeedRow,
+  expireLegacyCozyaPricing,
   seedCozyaCreditPricing,
 } from "../seeds/credit-pricing";
 import { createFakeDb } from "./_fake-db";
@@ -59,24 +60,28 @@ describe("seedCozyaCreditPricing", () => {
     expect(inserts).toHaveLength(0);
   });
 
-  it("default Cozya seed includes 7 features (1 vision + 5 mini + 1 whisper)", () => {
+  it("default Cozya seed includes 7 features (1 vision + 5 mini + 1 whisper) with OpenRouter-prefixed model IDs", () => {
     expect(COZYA_PRICING_SEED).toHaveLength(7);
     const visionRow = COZYA_PRICING_SEED.find(
       (r) => r.feature === "cozya.recipe.extract_from_photo",
     );
-    expect(visionRow?.model).toBe("gpt-4o");
-    const miniFeatures = COZYA_PRICING_SEED.filter((r) => r.model === "gpt-4o-mini");
+    expect(visionRow?.model).toBe("openai/gpt-4o");
+    const miniFeatures = COZYA_PRICING_SEED.filter((r) => r.model === "openai/gpt-4o-mini");
     expect(miniFeatures).toHaveLength(5);
     const whisperRow = COZYA_PRICING_SEED.find(
       (r) => r.feature === "cozya.recipe.transcribe_audio",
     );
-    expect(whisperRow?.model).toBe("whisper-1");
+    expect(whisperRow?.model).toBe("openai/whisper-1");
     const parseVoiceRow = COZYA_PRICING_SEED.find((r) => r.feature === "cozya.recipe.parse_voice");
-    expect(parseVoiceRow?.model).toBe("gpt-4o-mini");
+    expect(parseVoiceRow?.model).toBe("openai/gpt-4o-mini");
     // Every default row is flat 1 credit per call
     for (const row of COZYA_PRICING_SEED) {
       expect(row.flatCost).toBe(1);
       expect(row.defaultEstimateCredits).toBe(1);
+    }
+    // No legacy (non-prefixed) IDs leaked into the seed
+    for (const row of COZYA_PRICING_SEED) {
+      expect(row.model).toMatch(/^openai\//);
     }
   });
 
@@ -87,5 +92,33 @@ describe("seedCozyaCreditPricing", () => {
     expect(visionRow?.metadata).toEqual({
       providerOptions: { openai: { imageDetail: "low" } },
     });
+  });
+});
+
+describe("expireLegacyCozyaPricing", () => {
+  it("returns the count of legacy rows closed", async () => {
+    const { db, calls } = createFakeDb({
+      updateResult: [{ id: "row-1" }, { id: "row-2" }, { id: "row-3" }],
+    });
+
+    const result = await expireLegacyCozyaPricing(
+      db as unknown as Parameters<typeof expireLegacyCozyaPricing>[0],
+    );
+
+    expect(result).toEqual({ closed: 3 });
+    expect(calls.some((c) => c.mode === "update")).toBe(true);
+    expect(calls.some((c) => c.mode === "set")).toBe(true);
+    expect(calls.some((c) => c.mode === "where")).toBe(true);
+    expect(calls.some((c) => c.mode === "returning")).toBe(true);
+  });
+
+  it("is idempotent — no rows to close returns 0", async () => {
+    const { db } = createFakeDb({ updateResult: [] });
+
+    const result = await expireLegacyCozyaPricing(
+      db as unknown as Parameters<typeof expireLegacyCozyaPricing>[0],
+    );
+
+    expect(result).toEqual({ closed: 0 });
   });
 });

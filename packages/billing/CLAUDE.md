@@ -499,12 +499,14 @@ Cozya consome este package em modo **single-user** (`subject.type: "user"`, `org
 | Pro mensal | R$ 14,90/mês (`cozya_pro_monthly`, `bonusCreditsPerMonth: 30`) |
 | Pro anual | R$ 149/ano (`cozya_pro_annual`, drip mensal de 30) |
 | Regra de débito | **1 chamada à API de IA = 1 crédito** (`flatCost: 1` em `creditPricing`) |
-| Modelo default texto/URL/geração/refino | OpenAI GPT-4o-mini |
-| Modelo default vision (foto) | OpenAI GPT-4o (`imageDetail: 'low'` no caller) |
+| Modelo default texto/URL/geração/refino | `openai/gpt-4o-mini` via OpenRouter |
+| Modelo default vision (foto) | `openai/gpt-4o` via OpenRouter (`imageDetail: 'low'` no caller) |
+| Modelo de transcrição | `openai/whisper-1` via OpenRouter (`/audio/transcriptions` OpenAI-compatible) |
+| Gateway de IA | OpenRouter único (`OPENROUTER_API_KEY`); ~5% markup sobre custo OpenAI direto, margem cozya continua >95% |
 | Free | sem IA — gate em `hasProSubscription` |
 | Rate limit | 10 chamadas/hora por user (defesa anti-script no app cozya) |
 
-**Por que cobrar por chamada e não por cadastro salvo:** se o débito acontecesse só ao salvar, usuário podia gerar/refinar várias vezes sem salvar — cada chamada paga OpenAI sem cobrar nada do usuário. `withCredits` reserva ANTES da chamada, commita SE ok, libera SE falha. Custo OpenAI sempre coberto.
+**Por que cobrar por chamada e não por cadastro salvo:** se o débito acontecesse só ao salvar, usuário podia gerar/refinar várias vezes sem salvar — cada chamada paga upstream sem cobrar nada do usuário. `withCredits` reserva ANTES da chamada, commita SE ok, libera SE falha. Custo upstream sempre coberto.
 
 **Pacotes extras** (Pro-only via `getProSubscription` gate em `createCreditPackCheckout`): premium de 20-40% per-credit sobre o plano (R$ 0,497/crédito). Sinaliza "assinatura é o melhor valor". Volume cap em 30 (= 1 mês completo) — não vendemos volumes maiores que o cap mensal.
 
@@ -514,7 +516,7 @@ Cozya consome este package em modo **single-user** (`subject.type: "user"`, `org
 | `cozya_credits_20` | 20 | R$ 12,90 | R$ 0,645 | +30% |
 | `cozya_credits_30` | 30 | R$ 17,90 | R$ 0,597 | +20% |
 
-**Seed de pricing:** `pnpm db:seed` invoca `seedCozyaCreditPricing` (`packages/billing/src/seeds/credit-pricing.ts`) com 5 features (1 vision GPT-4o + 4 mini). Idempotente — só insere quando não há row ativa para `(feature, model)`. Para trocar modelo: insira nova row + set `effective_to = now()` na antiga.
+**Seed de pricing:** `pnpm db:seed` primeiro invoca `expireLegacyCozyaPricing` (fecha rows com IDs antigos não-prefixados — `gpt-4o`, `gpt-4o-mini`, `whisper-1` — restantes da era pré-OpenRouter), depois `seedCozyaCreditPricing` (`packages/billing/src/seeds/credit-pricing.ts`) com 7 features OpenRouter-prefixed: 1 vision (`openai/gpt-4o`) + 5 mini (`openai/gpt-4o-mini`) + 1 whisper (`openai/whisper-1`). Idempotente em ambos os passos — só insere quando não há row ativa para `(feature, model)` e só fecha legacy quando a row ainda está ativa. Para trocar modelo no futuro: insira nova row + set `effective_to = now()` na antiga (mesmo padrão).
 
 **Custo unitário esperado** (mix realista): ~R$ 0,02/chamada → 30 créditos = ~R$ 0,60 custo IA por user/mês → margem bruta ~96%. Pós-beta, comparar `SUM(usage_logs.tokens × custo_modelo)` vs receita por user e ajustar se margem < 90%.
 

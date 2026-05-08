@@ -5,7 +5,6 @@ import { getMastra } from "@/ai";
 import { agentRunRecorder as recorder } from "@/ai/agent-run-recorder";
 import { type RecipeParserOutput, recipeParserSchema } from "@/ai/recipe-parser/schema";
 import { billing } from "@/features/billing/service";
-import { env } from "@/lib/env";
 import { normalizeUsage } from "./_shared";
 
 export type ParseRecipeFromVoiceInput = {
@@ -24,15 +23,12 @@ export type ParseRecipeFromVoiceResult = RecipeParserOutput;
 export async function parseRecipeFromVoice(
   input: ParseRecipeFromVoiceInput,
 ): Promise<ParseRecipeFromVoiceResult> {
-  if (!env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not configured");
-  }
   const out = await withCredits({
     billing,
     owner: { type: "user", id: input.userId },
     app: "cozya",
     feature: "cozya.recipe.parse_voice",
-    model: "gpt-4o-mini",
+    model: "openai/gpt-4o-mini",
     estimateCost: () => ({ estimatedAmount: 1 }),
     computeActualCost: () => ({ actualAmount: 1 }),
     call: async ({ reservation }) => {

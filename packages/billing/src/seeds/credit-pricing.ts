@@ -19,59 +19,101 @@ export type CreditPricingSeedRow = {
 // runId) para auditoria/ajuste futuro de markup, mas não afetam o débito.
 //
 // Modelo default por feature — escolha justifica preço/qualidade:
-// - Foto: gpt-4o (vision superior em foto de receita escrita à mão/impressa).
+// - Foto: openai/gpt-4o (vision superior em foto de receita escrita à mão/impressa).
 //   Custo é mitigado via providerOptions.openai.imageDetail = 'low' no caller.
-// - Texto/URL/geração/refino: gpt-4o-mini (5x mais barato que gpt-4o,
-//   suficiente para extração estruturada com schema Zod via generateObject).
+// - Texto/URL/geração/refino/parse_voice: openai/gpt-4o-mini (5x mais barato
+//   que gpt-4o, suficiente para extração estruturada com schema Zod).
+// - Transcrição de áudio: openai/whisper-1 via OpenRouter
+//   (`/audio/transcriptions` OpenAI-compatible).
+//
+// IDs prefixados com `openai/` são convenção do OpenRouter (gateway único do
+// projeto). Cozya migrou de OpenAI direto → OpenRouter; rows antigas com IDs
+// não-prefixados ficam históricas (effective_to setado por
+// expireLegacyCozyaPricing antes deste seed rodar).
 //
 // Para trocar de modelo no futuro: NÃO mutar a row existente — inserir nova
-// com effective_to setado na anterior (versionamento do schema). Use
-// `expireActiveCozyaPricing` antes de re-rodar o seed em janelas de upgrade.
+// com effective_to setado na anterior. Use a mesma estratégia (helper
+// dedicado de expire) em janelas de upgrade.
 export const COZYA_PRICING_SEED: readonly CreditPricingSeedRow[] = [
   {
     feature: "cozya.recipe.extract_from_photo",
-    model: "gpt-4o",
+    model: "openai/gpt-4o",
     flatCost: 1,
     defaultEstimateCredits: 1,
     metadata: { providerOptions: { openai: { imageDetail: "low" } } },
   },
   {
     feature: "cozya.recipe.extract_from_url",
-    model: "gpt-4o-mini",
+    model: "openai/gpt-4o-mini",
     flatCost: 1,
     defaultEstimateCredits: 1,
   },
   {
     feature: "cozya.recipe.extract_from_text",
-    model: "gpt-4o-mini",
+    model: "openai/gpt-4o-mini",
     flatCost: 1,
     defaultEstimateCredits: 1,
   },
   {
     feature: "cozya.recipe.generate_from_prompt",
-    model: "gpt-4o-mini",
+    model: "openai/gpt-4o-mini",
     flatCost: 1,
     defaultEstimateCredits: 1,
   },
   {
     feature: "cozya.recipe.refine_conversational",
-    model: "gpt-4o-mini",
+    model: "openai/gpt-4o-mini",
     flatCost: 1,
     defaultEstimateCredits: 1,
   },
   {
     feature: "cozya.recipe.transcribe_audio",
-    model: "whisper-1",
+    model: "openai/whisper-1",
     flatCost: 1,
     defaultEstimateCredits: 1,
   },
   {
     feature: "cozya.recipe.parse_voice",
-    model: "gpt-4o-mini",
+    model: "openai/gpt-4o-mini",
     flatCost: 1,
     defaultEstimateCredits: 1,
   },
 ] as const;
+
+/**
+ * IDs de modelo usados antes da migração para OpenRouter. Mantidos aqui só
+ * para o helper de expire — o seed ativo usa exclusivamente IDs prefixados.
+ */
+const COZYA_LEGACY_MODELS = ["gpt-4o", "gpt-4o-mini", "whisper-1"] as const;
+
+export type ExpireLegacyCozyaPricingResult = {
+  closed: number;
+};
+
+/**
+ * Fecha rows ativas de `billing.credit_pricing` que ainda referenciam IDs de
+ * modelo antigos (não-prefixados pelo provider). Idempotente — re-executar é
+ * no-op porque rows já fechadas têm `effective_to NOT NULL`.
+ *
+ * Deve rodar ANTES de `seedCozyaCreditPricing` quando há migração de model
+ * (`pnpm db:seed` faz isso na ordem correta). A regra "pricing é versionada
+ * por (feature, model) e nunca mutada" exige fechar a antiga antes de inserir
+ * a nova — o helper sozinho garante isso sem precisar de SQL ad-hoc no deploy.
+ */
+export async function expireLegacyCozyaPricing(
+  db: Database,
+): Promise<ExpireLegacyCozyaPricingResult> {
+  const result = await db
+    .update(creditPricing)
+    .set({ effectiveTo: sql`now()` })
+    .where(
+      sql`${creditPricing.feature} LIKE 'cozya.%'
+          AND ${creditPricing.model} = ANY(${COZYA_LEGACY_MODELS as readonly string[]})
+          AND ${creditPricing.effectiveTo} IS NULL`,
+    )
+    .returning({ id: creditPricing.id });
+  return { closed: result.length };
+}
 
 export type SeedCreditPricingResult = {
   inserted: number;
