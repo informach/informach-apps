@@ -129,6 +129,8 @@ export function PlanCard({
   );
 }
 
+// Display only — feature gating must use hasProSubscription (server-side).
+// Here we only pick badge color/label based on Stripe subscription status.
 function StatusBadge({ status, cancelAt }: { status: string; cancelAt: Date | null }) {
   if (status === "active" && cancelAt) {
     return <Badge variant="secondary">Cancelando no fim do período</Badge>;

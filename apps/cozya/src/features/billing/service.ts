@@ -1,6 +1,7 @@
 import { logAuditEvent } from "@informach/auth";
 import { createBillingService, type DunningPayload } from "@informach/billing";
 import { APPS, isStripePriceIdConfigured, PRODUCTS, type Product } from "@informach/config";
+import * as Sentry from "@sentry/nextjs";
 import {
   buildEmailUnsubscribeUrl,
   emails,
@@ -108,6 +109,11 @@ async function sendDunningEmail({
   const email = await findUserEmailById(subject.id);
   if (!email) {
     logger.warn({ subscriptionId, userId: subject.id }, "billing.dunning.user_not_found");
+    Sentry.captureMessage("billing.dunning.user_not_found", {
+      level: "warning",
+      tags: { subscriptionId },
+      extra: { userId: subject.id },
+    });
     return;
   }
 

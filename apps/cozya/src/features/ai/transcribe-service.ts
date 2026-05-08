@@ -51,6 +51,7 @@ export async function transcribeRecipeAudio(
         await recorder.finish({
           runId: reservation.id,
           status: "succeeded",
+          // Whisper API doesn't expose token usage — billing fixes 1 credit/call.
           usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
           ...(result.durationInSeconds
             ? { metadata: { durationInSeconds: result.durationInSeconds } }

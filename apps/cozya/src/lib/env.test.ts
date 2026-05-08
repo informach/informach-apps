@@ -20,16 +20,12 @@ function stubEnv(overrides: Partial<Record<keyof typeof requiredEnv | "REDIS_URL
 }
 
 describe("env", () => {
-  let consoleError: ReturnType<typeof vi.spyOn>;
-
   beforeEach(() => {
     vi.resetModules();
     vi.unstubAllEnvs();
-    consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
   });
 
   afterEach(() => {
-    consoleError.mockRestore();
     vi.unstubAllEnvs();
     vi.resetModules();
   });
@@ -37,8 +33,7 @@ describe("env", () => {
   it("requires REDIS_URL in production", async () => {
     stubEnv({ NODE_ENV: "production", REDIS_URL: "" });
 
-    await expect(import("./env")).rejects.toThrow("Invalid environment variables");
-    expect(formatConsoleErrorCalls(consoleError.mock.calls)).toContain(
+    await expect(import("./env")).rejects.toThrow(
       "REDIS_URL is required when NODE_ENV=production",
     );
   });
@@ -51,10 +46,3 @@ describe("env", () => {
     expect(env.REDIS_URL).toBeUndefined();
   });
 });
-
-function formatConsoleErrorCalls(calls: unknown[][]): string {
-  return calls
-    .flat()
-    .map((value) => (typeof value === "string" ? value : JSON.stringify(value)))
-    .join("\n");
-}

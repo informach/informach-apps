@@ -30,6 +30,10 @@ vi.mock("./logger", () => ({
   },
 }));
 
+vi.mock("./env", () => ({
+  env: { NODE_ENV: "test" },
+}));
+
 import {
   aiInvokeKey,
   COZYA_RATE_LIMITS,

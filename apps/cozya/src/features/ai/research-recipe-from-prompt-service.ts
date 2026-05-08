@@ -56,6 +56,7 @@ export async function researchRecipeFromPrompt(
         agent: "recipeResearcher",
       });
       let researchText: string;
+      let usedWebSearch = false;
       try {
         const research = await generateText({
           model: openai.responses("gpt-4o-mini"),
@@ -66,6 +67,13 @@ export async function researchRecipeFromPrompt(
           prompt: buildResearchPrompt(input.prompt),
         });
         researchText = research.text.trim();
+        // Fail closed: if the model answered without calling web_search, treat
+        // the response as hallucinated and reject. Optional chaining keeps the
+        // check safe across `ai` SDK versions that may not expose `steps`.
+        usedWebSearch =
+          research.steps?.some((step) =>
+            step.toolCalls?.some((call) => call.toolName === "web_search"),
+          ) ?? false;
         await recorder.finish({
           runId: reservation.id,
           status: "succeeded",
@@ -80,7 +88,7 @@ export async function researchRecipeFromPrompt(
         throw err;
       }
 
-      if (researchText.startsWith("NAO_ENCONTRADA") || researchText.length < 30) {
+      if (!usedWebSearch || researchText.startsWith("NAO_ENCONTRADA") || researchText.length < 30) {
         throw new RecipeNotFoundError(
           "Não encontrei uma receita popular pra esse pedido. Tente algo mais específico.",
         );

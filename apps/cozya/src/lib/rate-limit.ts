@@ -1,3 +1,4 @@
+import { env } from "./env";
 import { logger } from "./logger";
 import { redis } from "./redis";
 
@@ -57,7 +58,7 @@ export type RateLimitResult = {
 export async function checkRateLimit(input: RateLimitInput): Promise<RateLimitResult> {
   const { key, limit, windowSeconds } = input;
   if (!redis) {
-    logger.warn({ key }, "rate_limit.no_redis_passthrough");
+    logger.warn({ key, environment: env.NODE_ENV }, "rate_limit.no_redis_passthrough");
     return { allowed: true, count: 0, remaining: limit, retryAfterSeconds: 0 };
   }
   const bucket = Math.floor(Date.now() / 1000 / windowSeconds);
