@@ -7,6 +7,7 @@ import { agentRunRecorder as recorder } from "@/ai/agent-run-recorder";
 import { withModelFallbacks } from "@/ai/fallbacks";
 import { COZYA_MODELS } from "@/ai/models";
 import { type RecipeParserOutput, recipeParserSchema } from "@/ai/recipe-parser/schema";
+import { cozyaThreadId } from "@/ai/working-memory";
 import { billing } from "@/features/billing/service";
 import { logger } from "@/lib/logger";
 import { getOpenRouter } from "@/lib/openrouter";
@@ -117,6 +118,10 @@ export async function researchRecipeFromPrompt(
             .getAgent("recipeParser")
             .generate(researchText, {
               runId: reservation.id,
+              memory: {
+                thread: cozyaThreadId(input.userId, "generate_from_prompt"),
+                resource: input.userId,
+              },
               structuredOutput: {
                 schema: recipeParserSchema,
                 errorStrategy: "strict",

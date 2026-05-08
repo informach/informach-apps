@@ -59,9 +59,22 @@ export type CreateSharedMemoryConfig = {
   /**
    * Opções do Memory. Por padrão, `lastMessages: 40` e `generateTitle: false`
    * (alinhado com defaults v1 sem RAG/embeddings). Apps que queiram
-   * `semanticRecall` ou `workingMemory` passam o objeto cheio aqui.
+   * `semanticRecall` ou customizar `workingMemory` por completo passam o
+   * objeto cheio aqui (sobrescreve `workingMemoryTemplate`).
    */
   options?: NonNullable<ConstructorParameters<typeof Memory>[0]>["options"];
+  /**
+   * Atalho para habilitar working memory com um template markdown. Atalho do
+   * caso comum: `options.workingMemory = { enabled: true, scope: "resource",
+   * template }`. Se `options` for fornecido com `workingMemory`, esse atalho
+   * é ignorado (o app tem controle total).
+   *
+   * `scope: "resource"` (default) faz a memória persistir entre todos os
+   * threads do mesmo `resource` (typically `userId`/`orgId`) — ideal para
+   * lembrar preferências do usuário entre chamadas. Storage `@mastra/pg`
+   * suporta o table `mastra_resources` necessário.
+   */
+  workingMemoryTemplate?: string;
 };
 
 /**
@@ -71,9 +84,22 @@ export type CreateSharedMemoryConfig = {
  * `vector` + `embedder` num wrapper que reaproveite este factory.
  */
 export function createSharedMemory(config: CreateSharedMemoryConfig): Memory {
+  const optionsHasWorkingMemory = config.options !== undefined && "workingMemory" in config.options;
+  const resolvedOptions =
+    config.workingMemoryTemplate !== undefined && !optionsHasWorkingMemory
+      ? {
+          ...(config.options ?? {}),
+          workingMemory: {
+            enabled: true as const,
+            scope: "resource" as const,
+            template: config.workingMemoryTemplate,
+          },
+        }
+      : config.options;
+
   return new Memory({
     storage: config.storage,
-    ...(config.options ? { options: config.options } : {}),
+    ...(resolvedOptions ? { options: resolvedOptions } : {}),
   });
 }
 

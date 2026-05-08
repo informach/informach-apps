@@ -5,6 +5,7 @@ import { getMastra } from "@/ai";
 import { agentRunRecorder as recorder } from "@/ai/agent-run-recorder";
 import { COZYA_MODELS } from "@/ai/models";
 import { type RecipeParserOutput, recipeParserSchema } from "@/ai/recipe-parser/schema";
+import { cozyaThreadId } from "@/ai/working-memory";
 import { billing } from "@/features/billing/service";
 import { normalizeUsage } from "./_shared";
 
@@ -46,6 +47,10 @@ export async function parseRecipeFromVoice(
             .getAgent("recipeParser")
             .generate(input.transcript, {
               runId: reservation.id,
+              memory: {
+                thread: cozyaThreadId(input.userId, "parse_voice"),
+                resource: input.userId,
+              },
               structuredOutput: {
                 schema: recipeParserSchema,
                 errorStrategy: "strict",

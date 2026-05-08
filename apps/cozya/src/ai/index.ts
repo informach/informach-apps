@@ -7,6 +7,7 @@ import { getOpenRouter } from "@/lib/openrouter";
 import { withModelFallbacks } from "./fallbacks";
 import { COZYA_MODELS } from "./models";
 import { createRecipeParserAgent } from "./recipe-parser/agent";
+import { COZYA_WORKING_MEMORY_TEMPLATE } from "./working-memory";
 
 type Mastra = ReturnType<typeof createMastra>;
 
@@ -36,7 +37,14 @@ export function getMastra(): Mastra {
 
   const openrouter = getOpenRouter();
   const storage = createPostgresStore({ connectionString: env.DATABASE_URL });
-  const memory = createSharedMemory({ storage });
+  // Working memory escopada por `resource` — persiste o "perfil culinário"
+  // entre threads/chamadas do mesmo userId (alergias, restrições, cozinhas
+  // favoritas). Os agentes leem e atualizam o bloco automaticamente quando
+  // a chamada passa `memory: { thread, resource: userId }`.
+  const memory = createSharedMemory({
+    storage,
+    workingMemoryTemplate: COZYA_WORKING_MEMORY_TEMPLATE,
+  });
 
   const textModel = COZYA_MODELS["cozya.recipe.extract_from_text"];
   const visionModel = COZYA_MODELS["cozya.recipe.extract_from_photo"];
