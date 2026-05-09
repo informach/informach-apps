@@ -154,7 +154,7 @@ export function ImageRecipeDialog({ open, onOpenChange, onParsed }: Props) {
         <input
           ref={fileInputRef}
           type="file"
-          accept={ACCEPTED_MIMES.join(",")}
+          accept="image/*"
           className="hidden"
           onChange={handleFileChange}
           aria-hidden
