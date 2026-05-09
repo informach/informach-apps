@@ -10,6 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `admin` (port 3003) — scaffold, no auth/billing/db wiring yet; keep dependencies minimal until it becomes a real app.
   - `agenda-da-turma` (port 3001) — multi-tenant (Better Auth organizations enabled), Sentry, Vitest + Playwright.
   - `cozya` (port 3002) — single-user (no organizations), Sentry, Vitest + Playwright.
+  - `informach-site` (port 3004) — landing institucional pública (`informach.com.br`). Sem auth/billing/db/AI; só Next + `@informach/ui`. Hospeda Termos e Privacidade guarda-chuva da holding (Stripe Customer Portal aponta pra cá).
 - **Packages** (`packages/`, scope `@informach/*`): `db`, `auth`, `billing`, `emails`, `ai-core`, `config`, `ui`. All consumed as TypeScript source — none have a build step.
 
 Per-package deep guides exist and should be consulted before non-trivial changes:
@@ -17,6 +18,8 @@ Per-package deep guides exist and should be consulted before non-trivial changes
 - `packages/billing/CLAUDE.md`
 - `packages/emails/CLAUDE.md`
 - `packages/ai-core/CLAUDE.md`
+- `apps/cozya/CLAUDE.md`
+- `apps/informach-site/CLAUDE.md`
 
 Cross-cutting docs in `docs/`: `arquitetura-monorepo.md`, `arquitetura-apps.md`, `arquitetura-packages.md`, `audit-payload-policy.md`, `adr/0001-uso-de-monorepo.md`.
 
@@ -28,7 +31,7 @@ Cross-cutting docs in `docs/`: `arquitetura-monorepo.md`, `arquitetura-apps.md`,
 - `pnpm db:generate` / `pnpm db:migrate` / `pnpm db:studio` / `pnpm db:push` — delegated to `@informach/db` (Drizzle Kit).
 
 ### Per app
-- `pnpm dev:admin` | `pnpm dev:agenda-da-turma` | `pnpm dev:cozya`
+- `pnpm dev:admin` | `pnpm dev:agenda-da-turma` | `pnpm dev:cozya` | `pnpm dev:informach-site`
 - `pnpm build:<app>` | `pnpm start:<app>`
 
 ### Single test

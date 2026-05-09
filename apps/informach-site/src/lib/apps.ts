@@ -1,0 +1,22 @@
+export type AppEntry = {
+  slug: string;
+  name: string;
+  tagline: string;
+  description: string;
+  url: string;
+  audience: string;
+  status: "live" | "soon";
+};
+
+export const APPS: ReadonlyArray<AppEntry> = [
+  {
+    slug: "cozya",
+    name: "Cozya",
+    tagline: "Cozinhe sem digitar receita.",
+    description:
+      "Capture receita por foto, voz ou só uma ideia. A IA estrutura em segundos pra você cozinhar sem ficar caçando print no celular.",
+    url: "https://cozya.informach.com.br",
+    audience: "Pra quem cozinha em casa.",
+    status: "live",
+  },
+] as const;

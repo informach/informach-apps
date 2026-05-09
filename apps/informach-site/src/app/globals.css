@@ -1,0 +1,62 @@
+@import "tailwindcss";
+@import "@informach/ui/styles.css";
+
+@source "../../../../packages/ui/src/**/*.{ts,tsx}";
+
+/* Fonte local via next/font toma precedência sobre o fallback do tema. */
+:root {
+  --font-sans: var(--font-jakarta), "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jakarta), "Plus Jakarta Sans", ui-monospace, monospace;
+}
+
+/* ============================================================
+   APP OVERRIDES — Informach (institucional)
+   Identidade da holding: Navy #173247 como primary (sóbrio,
+   institucional) + Terracota/sienna #A65835 como secondary
+   (destaque quente, deliberadamente distinto do laranja vivo
+   #FF7A3D que pertence ao Cozya).
+   Cream/Surface/Border permanecem como o package (escala de
+   cinza compartilhada).
+   ============================================================ */
+:root {
+  /* Navy #173247 */
+  --primary: oklch(0.2701 0.0432 248.6);
+  --primary-foreground: oklch(1 0 0);
+
+  /* Terracota/sienna ~#A65835 */
+  --secondary: oklch(0.5 0.1 45);
+  --secondary-foreground: oklch(1 0 0);
+
+  --ring: oklch(0.2701 0.0432 248.6);
+
+  --chart-1: oklch(0.2701 0.0432 248.6); /* navy */
+  --chart-2: oklch(0.5 0.1 45); /* terracota */
+  --chart-3: oklch(0.45 0.08 245); /* navy claro */
+  --chart-4: oklch(0.65 0.09 50); /* terra clara */
+  --chart-5: oklch(0.7 0.015 50); /* warm gray */
+
+  --sidebar-primary: oklch(0.2701 0.0432 248.6);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-ring: oklch(0.2701 0.0432 248.6);
+}
+
+.dark {
+  /* Navy levantado pra ganhar contraste contra fundo escuro. */
+  --primary: oklch(0.7 0.075 245);
+  --primary-foreground: oklch(0.1591 0 0);
+
+  --secondary: oklch(0.65 0.1 45);
+  --secondary-foreground: oklch(0.1591 0 0);
+
+  --ring: oklch(0.7 0.075 245);
+
+  --chart-1: oklch(0.7 0.075 245);
+  --chart-2: oklch(0.65 0.1 45);
+  --chart-3: oklch(0.55 0.1 245);
+  --chart-4: oklch(0.78 0.09 50);
+  --chart-5: oklch(0.7 0.015 50);
+
+  --sidebar-primary: oklch(0.7 0.075 245);
+  --sidebar-primary-foreground: oklch(0.1591 0 0);
+  --sidebar-ring: oklch(0.7 0.075 245);
+}
