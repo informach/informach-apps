@@ -14,9 +14,9 @@ import {
   SensitiveDataFilter,
 } from "@mastra/observability";
 import { PostgresStore } from "@mastra/pg";
+import { MASTRA_SCHEMA_NAME, MASTRA_STORAGE_ID } from "./constants";
 
-/** Schema Postgres dedicado às tabelas auto-criadas pelo Mastra. */
-export const MASTRA_SCHEMA_NAME = "ai_mastra" as const;
+export { MASTRA_SCHEMA_NAME, MASTRA_STORAGE_ID } from "./constants";
 
 export type CreatePostgresStoreConfig = {
   /** DATABASE_URL completo. App injeta via `lib/env.ts`. */
@@ -28,9 +28,9 @@ export type CreatePostgresStoreConfig = {
   /** Idle timeout em ms. Default 30000. */
   idleTimeoutMillis?: number;
   /**
-   * Quando `true`, Mastra NÃO auto-cria nem migra tabelas. Use só quando
-   * estiver replicando o schema via Drizzle (não é o caso atual — ai_mastra
-   * deliberadamente fica fora do `schemaFilter` de drizzle.config.ts).
+   * Quando `true`, Mastra NÃO auto-cria nem migra tabelas em runtime.
+   * Em produção, deixe `true` nos apps e rode `storage.init()` via migrator
+   * (`pnpm db:migrate`) antes do deploy/boot do app.
    */
   disableInit?: boolean;
 };
@@ -41,16 +41,18 @@ export type CreatePostgresStoreConfig = {
  * só dispara conexão na primeira query — seguro para `pnpm build` com env
  * dummy.
  *
- * As tabelas que o Mastra cria automaticamente neste schema:
+ * As tabelas que o init oficial do Mastra cria/atualiza neste schema:
  *   mastra_threads, mastra_messages, mastra_traces, mastra_scorers,
  *   mastra_evals, mastra_workflow_snapshot, mastra_resources.
  *
  * Drizzle não as conhece (schema `ai_mastra` ausente do `schemaFilter`),
- * então `pnpm db:generate` nunca propõe DROP nelas.
+ * então `pnpm db:generate` nunca propõe DROP nelas. O comando raiz
+ * `pnpm db:migrate` chama `PostgresStore.init()` para criar/atualizar essas
+ * tabelas fora do runtime dos apps.
  */
 export function createPostgresStore(config: CreatePostgresStoreConfig): PostgresStore {
   return new PostgresStore({
-    id: "informach-mastra-storage",
+    id: MASTRA_STORAGE_ID,
     connectionString: config.connectionString,
     schemaName: config.schemaName ?? MASTRA_SCHEMA_NAME,
     max: config.max ?? 10,
@@ -132,7 +134,10 @@ export type CreateMastraConfig = {
  * `import "server-only"`):
  *
  * ```ts
- * const storage = createPostgresStore({ connectionString: env.DATABASE_URL });
+ * const storage = createPostgresStore({
+ *   connectionString: env.DATABASE_URL,
+ *   disableInit: true,
+ * });
  * const memory  = createSharedMemory({ storage });
  * const agente  = new Agent({ name: "x", model: anthropic("claude-opus-4-7"), memory, instructions: "..." });
  *

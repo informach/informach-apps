@@ -10,7 +10,7 @@ Agentes, workflows e prompts específicos do app `agenda-da-turma` moram aqui. P
 4. **`runId`** passado para `agent.generate(input, { runId })` deve ser **o mesmo** `reservation.id` retornado por `withCredits`. É o que liga `ai.agent_runs.id` ↔ `billing.creditLedger.runId` ↔ `ai_mastra.mastra_traces.runId`.
 5. Tabelas relevantes:
    - `ai.agent_runs`, `ai.usage_logs` — auditoria nossa (chamar `createAgentRunRecorder` ao redor do `withCredits`).
-   - `ai_mastra.mastra_*` — Mastra cria/migra automaticamente no primeiro boot do agente.
+   - `ai_mastra.mastra_*` — criadas/atualizadas pelo migrator (`pnpm db:migrate` via `PostgresStore.init()`), não pelo runtime do app.
 6. Ao adicionar um novo agente, registre-o em `src/ai/index.ts` no objeto `agents` que é passado para `createMastra`.
 
 ## Esqueleto
@@ -28,7 +28,10 @@ import { createDefaultLogger } from "@informach/ai-core/logger";
 import { env } from "@/lib/env";
 
 const anthropic = createAnthropic({ apiKey: env.ANTHROPIC_API_KEY ?? "" });
-const storage   = createPostgresStore({ connectionString: env.DATABASE_URL });
+const storage   = createPostgresStore({
+  connectionString: env.DATABASE_URL,
+  disableInit: true,
+});
 const memory    = createSharedMemory({ storage });
 
 const exampleAgent = new Agent({

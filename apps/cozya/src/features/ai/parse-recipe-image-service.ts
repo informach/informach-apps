@@ -37,37 +37,36 @@ export async function parseRecipeFromImage(
     call: async ({ runId }) => {
       // Vision agent (gpt-4o) — see apps/cozya/src/ai/index.ts. Other parse
       // flows reuse the cheaper recipeParser (gpt-4o-mini).
-      const response = await getMastra()
-        .getAgent("recipeParserVision")
-        .generate(
-          [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: "Extraia a receita desta imagem.",
-                },
-                {
-                  type: "image",
-                  image: input.imageDataUrl,
-                  providerOptions: { openai: { imageDetail: "low" } },
-                },
-              ],
-            },
-          ],
+      const mastra = await getMastra();
+      const response = await mastra.getAgent("recipeParserVision").generate(
+        [
           {
-            runId,
-            memory: {
-              thread: cozyaThreadId(input.userId, "extract_from_photo"),
-              resource: input.userId,
-            },
-            structuredOutput: {
-              schema: recipeParserSchema,
-              errorStrategy: "strict",
-            },
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "Extraia a receita desta imagem.",
+              },
+              {
+                type: "image",
+                image: input.imageDataUrl,
+                providerOptions: { openai: { imageDetail: "low" } },
+              },
+            ],
           },
-        );
+        ],
+        {
+          runId,
+          memory: {
+            thread: cozyaThreadId(input.userId, "extract_from_photo"),
+            resource: input.userId,
+          },
+          structuredOutput: {
+            schema: recipeParserSchema,
+            errorStrategy: "strict",
+          },
+        },
+      );
       return response;
     },
   });

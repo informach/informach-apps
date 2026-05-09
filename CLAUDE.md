@@ -28,7 +28,7 @@ Cross-cutting docs in `docs/`: `arquitetura-monorepo.md`, `arquitetura-apps.md`,
 ### Workspace-wide (root scripts)
 - `pnpm dev` / `pnpm build` / `pnpm typecheck` / `pnpm test` — Turbo across the workspace.
 - `pnpm check` / `pnpm lint` / `pnpm format` — Biome (not ESLint/Prettier).
-- `pnpm db:generate` / `pnpm db:migrate` / `pnpm db:studio` / `pnpm db:push` — delegated to `@informach/db` (Drizzle Kit).
+- `pnpm db:generate` / `pnpm db:studio` / `pnpm db:push` — delegated to `@informach/db` (Drizzle Kit). `pnpm db:migrate` runs `@informach/db db:migrate` and then `@informach/ai-core mastra:migrate`.
 
 ### Per app
 - `pnpm dev:admin` | `pnpm dev:agenda-da-turma` | `pnpm dev:cozya` | `pnpm dev:informach-site`
@@ -78,7 +78,7 @@ Each package exposes its surface via `package.json` `exports` pointing at `src/`
 - All schema lives in `@informach/db` (no Better Auth CLI, no hand-written SQL). Postgres schemas: `core`, `billing`, `audit`, `ai`, `agenda`, `cozya`.
 - Schema changes flow through `pnpm db:generate` → `pnpm db:migrate`.
 - `audit.events` is append-only operational/compliance logging. Payload rules and LGPD/PII limits are documented in `docs/audit-payload-policy.md`.
-- **Exception**: Mastra owns the `ai_mastra` schema (tables `mastra_threads`, `mastra_messages`, `mastra_traces`, `mastra_scorers`, `mastra_evals`, `mastra_workflow_snapshot`, `mastra_resources`). It auto-creates them on first call. `ai_mastra` is intentionally absent from `drizzle.config.ts` `schemaFilter` so `db:generate` never proposes DROP. Migration `0010_create_ai_mastra_schema.sql` only runs `CREATE SCHEMA IF NOT EXISTS`.
+- **Exception**: Mastra owns the `ai_mastra` schema (tables `mastra_threads`, `mastra_messages`, `mastra_traces`, `mastra_scorers`, `mastra_evals`, `mastra_workflow_snapshot`, `mastra_resources`). `ai_mastra` is intentionally absent from `drizzle.config.ts` `schemaFilter` so `db:generate` never proposes DROP. Migration `0010_create_ai_mastra_schema.sql` creates the empty schema, and `pnpm db:migrate` runs `PostgresStore.init()` to create/update Mastra tables outside app runtime.
 
 ### AI agents — Mastra base in `@informach/ai-core`
 - `@mastra/core@^1.31` + `@mastra/pg` + `@mastra/loggers` + `@mastra/memory` + AI SDK v6 providers (`@openrouter/ai-sdk-provider`, `@ai-sdk/anthropic`, `@ai-sdk/openai`).

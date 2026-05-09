@@ -265,7 +265,7 @@ Contratos fixos:
 
 - Runtime mínimo: **Node.js 22.13+**, alinhado ao Mastra v1.
 - Root export (`@<org>/ai-core`) é frame-agnostic e não importa Mastra nem providers. Mastra fica só no sub-path `@<org>/ai-core/mastra`, com `server-only`.
-- `createPostgresStore` usa `PostgresStore` do Mastra com `id` fixo e schema `ai_mastra`; Drizzle continua dono apenas do schema `ai`. `createMastra` aceita `agents`, `workflows`, `storage`, `logger`, `scorers` e `observability`.
+- `createPostgresStore` usa `PostgresStore` do Mastra com `id` fixo e schema `ai_mastra`; Drizzle continua dono apenas do schema `ai`. O comando raiz `pnpm db:migrate` chama o init oficial do Mastra fora do runtime dos apps. `createMastra` aceita `agents`, `workflows`, `storage`, `logger`, `scorers` e `observability`.
 - `createOpenRouter`/`createAnthropic`/`createOpenAI` recebem `apiKey` por parâmetro (e `baseURL`/`headers` opcionais). Apps validam env em `lib/env.ts`; package compartilhado não lê `process.env`. OpenRouter é o gateway primário do projeto e também recebe `appName`, `appUrl`, `compatibility`, `extraBody` e `apiKeys` quando necessário — `createOpenAI`/`createAnthropic` continuam para casos de provider direto e para o Whisper apontado ao OpenRouter via `baseURL` em `transcribeAudio`.
 - `createDefaultObservability` configura Mastra Observability com `DefaultExporter` e `SensitiveDataFilter`; `CloudExporter` só entra quando o app optar por enviar para Mastra Cloud.
 - Token usage persistido/cobrado sempre usa o tipo interno `TokenUsage` (`promptTokens`, `completionTokens`, `totalTokens`). Se o provider expuser `inputTokens`/`outputTokens`, o app normaliza antes de chamar `computeCreditsFromUsage`.

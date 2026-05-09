@@ -144,20 +144,20 @@ export async function researchRecipeFromPrompt(
         },
         getUsage: (result) => result.usage,
         getSuccessMetadata: () => ({ outcome: "parsed" }),
-        call: async () =>
-          getMastra()
-            .getAgent("recipeParser")
-            .generate(researchText, {
-              runId: parseRunId,
-              memory: {
-                thread: cozyaThreadId(input.userId, "generate_from_prompt"),
-                resource: input.userId,
-              },
-              structuredOutput: {
-                schema: recipeParserSchema,
-                errorStrategy: "strict",
-              },
-            }),
+        call: async () => {
+          const mastra = await getMastra();
+          return mastra.getAgent("recipeParser").generate(researchText, {
+            runId: parseRunId,
+            memory: {
+              thread: cozyaThreadId(input.userId, "generate_from_prompt"),
+              resource: input.userId,
+            },
+            structuredOutput: {
+              schema: recipeParserSchema,
+              errorStrategy: "strict",
+            },
+          });
+        },
       });
       return response.object as RecipeParserOutput;
     },

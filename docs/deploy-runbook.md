@@ -209,7 +209,7 @@ REDIS_URL=${{Redis.REDIS_URL}}?family=0
 
 ### 4.3 Migrator service (♻ 1× por monorepo)
 
-Service one-off que roda `pnpm db:migrate && pnpm db:seed` 1× e termina. Idempotente — re-deploy quando schema/seed mudar.
+Service one-off que roda `pnpm db:migrate && pnpm db:seed` 1× e termina. `pnpm db:migrate` aplica Drizzle e inicializa o storage Mastra (`ai_mastra`) via `PostgresStore.init()`. Idempotente — re-deploy quando schema/seed mudar.
 
 **Setup** (Dashboard manual + 1 var via MCP):
 
@@ -218,7 +218,7 @@ Service one-off que roda `pnpm db:migrate && pnpm db:seed` 1× e termina. Idempo
 3. Settings → Source → Root Directory: `/`
 4. Settings → Source → **Config Path**: `infrastructure/railway/migrator.toml`
 5. MCP `set-variables`: `DATABASE_URL=${{Postgres.DATABASE_URL}}`
-6. **Watch Paths** (opcional mas recomendado): `packages/db/**`, `packages/billing/src/seeds/**` — assim só re-deploya quando schema/seed mudar, não a cada push.
+6. **Watch Paths** (opcional mas recomendado): `packages/db/**`, `packages/ai-core/src/mastra/**`, `packages/ai-core/scripts/**`, `packages/billing/src/seeds/**` — assim só re-deploya quando schema/seed mudar, não a cada push.
 
 ```toml
 # infrastructure/railway/migrator.toml
@@ -231,7 +231,7 @@ startCommand = "pnpm db:migrate && pnpm db:seed"
 restartPolicyType = "NEVER"
 ```
 
-> **Gotcha**: o migrator precisa de `tsx` (devDep) pra rodar `db:migrate.ts`. Como o migrator service NÃO tem `NODE_ENV=production`, devDeps são instaladas por default — funciona sem `--prod=false`. Cozya app, sim, precisa do flag (ver Fase 3.3).
+> **Gotcha**: o migrator precisa de `tsx` (devDep) pra rodar `packages/db/src/migrate.ts` e `packages/ai-core/scripts/migrate-mastra-storage.ts`. Como o migrator service NÃO tem `NODE_ENV=production`, devDeps são instaladas por default — funciona sem `--prod=false`. Cozya app, sim, precisa do flag (ver Fase 3.3).
 
 ---
 

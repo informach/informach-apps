@@ -9,8 +9,8 @@ const MAX_REFINEMENT_CHARS = 500;
 const MAX_RECIPE_FIELD_CHARS = 5000;
 
 // Aceita o shape que sai do `recipeParser` (`isValidRecipe: true` + campos).
-// Mantém os campos opcionais como nullish para tolerar payloads que omitam
-// finishing — o RecipeParserOutput original tem `nullish()` em quase tudo.
+// Mantém campos legados como nullish para tolerar payloads que omitam
+// `reason`/`finishing`; antes de chamar o service normalizamos para null.
 const recipeShape = z.object({
   isValidRecipe: z.literal(true),
   reason: z.string().nullish(),
@@ -47,9 +47,14 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
+    const currentRecipe = {
+      ...body.recipe,
+      reason: body.recipe.reason ?? null,
+      finishing: body.recipe.finishing ?? null,
+    };
     const result = await refineRecipe({
       userId,
-      currentRecipe: body.recipe,
+      currentRecipe,
       refinementRequest: body.refinementRequest,
     });
     if (!result.isValidRecipe) {

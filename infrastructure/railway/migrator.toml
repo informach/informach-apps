@@ -2,7 +2,7 @@
 # Wired no Dashboard via Settings → Source → Config Path → "infrastructure/railway/migrator.toml".
 #
 # Migrator é um service one-off cuja única responsabilidade é rodar
-# `pnpm db:migrate` (drizzle migrations) seguido de `pnpm db:seed` (idempotente)
+# `pnpm db:migrate` (Drizzle + Mastra storage) seguido de `pnpm db:seed` (idempotente)
 # no Postgres da rede privada do Railway. NÃO incluímos isso no build do cozya
 # pra preservar a possibilidade de rollback do app sem desfazer migrations.
 #

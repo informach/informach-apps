@@ -42,7 +42,10 @@ export function getMastra(): Mastra {
   if (cached) return cached;
 
   const openrouter = getOpenRouter();
-  const storage = createPostgresStore({ connectionString: env.DATABASE_URL });
+  const storage = createPostgresStore({
+    connectionString: env.DATABASE_URL,
+    disableInit: true,
+  });
   // Working memory escopada por `resource` — persiste o "perfil culinário"
   // entre threads/chamadas do mesmo userId (alergias, restrições, cozinhas
   // favoritas). Os agentes leem e atualizam o bloco automaticamente quando

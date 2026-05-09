@@ -11,7 +11,7 @@ Agentes, workflows e prompts específicos do app `cozya` moram aqui. Primitivas 
 5. **`runId`** passado para `agent.generate(input, { runId })` deve ser **o mesmo** `reservation.id` retornado pelo wrapper de billing, salvo estágios internos com `recordRunId` próprio e `reservationId` em metadata. É o que liga `ai.agent_runs.id` ↔ `billing.creditLedger.runId` ↔ `ai_mastra.mastra_traces.runId`.
 6. Tabelas relevantes:
    - `ai.agent_runs`, `ai.usage_logs` — auditoria nossa (usar `createAgentRunRecorder` com `runBillableAiCall`/`runRecordedAiCall`).
-   - `ai_mastra.mastra_*` — Mastra cria/migra automaticamente no primeiro boot do agente.
+   - `ai_mastra.mastra_*` — criadas/atualizadas pelo migrator (`pnpm db:migrate` via `PostgresStore.init()`), não pelo runtime do app.
 7. Ao adicionar um novo agente, registre-o em `src/ai/index.ts` no objeto `agents` que é passado para `createMastra`.
 
 ## Esqueleto
@@ -34,7 +34,10 @@ const openrouter = createOpenRouter({
   ...(env.OPENROUTER_X_TITLE ? { appName: env.OPENROUTER_X_TITLE } : {}),
   ...(env.OPENROUTER_HTTP_REFERER ? { appUrl: env.OPENROUTER_HTTP_REFERER } : {}),
 });
-const storage   = createPostgresStore({ connectionString: env.DATABASE_URL });
+const storage   = createPostgresStore({
+  connectionString: env.DATABASE_URL,
+  disableInit: true,
+});
 const memory    = createSharedMemory({ storage });
 
 const exampleAgent = new Agent({

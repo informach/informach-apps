@@ -27,7 +27,7 @@
     "build:informach-site": "turbo build --filter=@informach/informach-site",
     "start:informach-site": "pnpm --filter @informach/informach-site start",
     "db:generate": "pnpm --filter @informach/db db:generate",
-    "db:migrate": "pnpm --filter @informach/db db:migrate",
+    "db:migrate": "pnpm --filter @informach/db db:migrate && pnpm --filter @informach/ai-core mastra:migrate",
     "db:studio": "pnpm --filter @informach/db db:studio",
     "db:push": "pnpm --filter @informach/db db:push",
     "db:seed": "pnpm --filter @informach/billing seed"

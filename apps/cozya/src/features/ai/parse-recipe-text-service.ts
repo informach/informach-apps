@@ -35,19 +35,18 @@ export async function parseRecipeFromText(
     agent: "recipeParser",
     getUsage: (response) => response.usage,
     call: async ({ runId }) => {
-      const response = await getMastra()
-        .getAgent("recipeParser")
-        .generate(input.text, {
-          runId,
-          memory: {
-            thread: cozyaThreadId(input.userId, "extract_from_text"),
-            resource: input.userId,
-          },
-          structuredOutput: {
-            schema: recipeParserSchema,
-            errorStrategy: "strict",
-          },
-        });
+      const mastra = await getMastra();
+      const response = await mastra.getAgent("recipeParser").generate(input.text, {
+        runId,
+        memory: {
+          thread: cozyaThreadId(input.userId, "extract_from_text"),
+          resource: input.userId,
+        },
+        structuredOutput: {
+          schema: recipeParserSchema,
+          errorStrategy: "strict",
+        },
+      });
       return response;
     },
   });

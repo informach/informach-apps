@@ -49,7 +49,7 @@ Notas confirmadas via Context7:
 ```
 apps/<app>/src/ai/index.ts        ← agente "tradutor", "triagem", etc.
   ├ import "server-only"          (fence: nunca importável de client comp.)
-  ├ createPostgresStore({ env.DATABASE_URL })
+  ├ createPostgresStore({ env.DATABASE_URL, disableInit: true })
   ├ createSharedMemory({ storage })
   ├ Agent({ model: openrouter("openai/gpt-4o-mini"), memory })
   └ export const mastra = createMastra({ agents, storage, logger, observability })
@@ -82,9 +82,9 @@ Duas camadas separadas vivem no mesmo Postgres compartilhado, em schemas diferen
 | Schema | Donos | Tabelas | Migra via |
 | --- | --- | --- | --- |
 | `ai` | nosso código (Drizzle) | `agent_runs`, `usage_logs` | `pnpm db:generate`/`db:migrate` |
-| `ai_mastra` | Mastra (auto-init) | `mastra_threads`, `mastra_messages`, `mastra_traces`, `mastra_scorers`, `mastra_evals`, `mastra_workflow_snapshot`, `mastra_resources` | Mastra na primeira chamada após `CREATE SCHEMA` (migration `0010_create_ai_mastra_schema.sql`) |
+| `ai_mastra` | Mastra storage | `mastra_threads`, `mastra_messages`, `mastra_traces`, `mastra_scorers`, `mastra_evals`, `mastra_workflow_snapshot`, `mastra_resources` | `pnpm db:migrate` chama `PostgresStore.init()` após as migrations Drizzle |
 
-`drizzle.config.ts` mantém `schemaFilter` apenas com `["core","agenda","cozya","audit","ai","billing"]` — `ai_mastra` deliberadamente fora, então `db:generate` nunca propõe DROP nas tabelas que o Mastra cria.
+`drizzle.config.ts` mantém `schemaFilter` apenas com `["core","agenda","cozya","audit","ai","billing"]` — `ai_mastra` deliberadamente fora, então `db:generate` nunca propõe DROP nas tabelas geridas pelo Mastra.
 
 A ligação entre os dois é o `runId` (UUID): `ai.agent_runs.id` ≡ `billing.creditLedger.runId` ≡ `ai_mastra.mastra_traces.runId` ≡ `withCredits` `reservation.id`. `runBillableAiCall` preserva esse contrato para chamadas simples; em fluxos manuais, `withCredits` prealoca o UUID antes de chamar `reserveCredits`, então o `reservation.id` já nasce igual ao `runId` persistido no billing. **Sempre** que invocar `agent.generate(input, { runId })`, passe o mesmo UUID que veio do billing.
 
@@ -146,7 +146,10 @@ const openrouter = createOpenRouter({
   ...(env.OPENROUTER_X_TITLE ? { appName: env.OPENROUTER_X_TITLE } : {}),
   ...(env.OPENROUTER_HTTP_REFERER ? { appUrl: env.OPENROUTER_HTTP_REFERER } : {}),
 });
-const storage = createPostgresStore({ connectionString: env.DATABASE_URL });
+const storage = createPostgresStore({
+  connectionString: env.DATABASE_URL,
+  disableInit: true,
+});
 const memory  = createSharedMemory({ storage });
 
 const recipeParser = new Agent({
@@ -248,8 +251,8 @@ Owner por app:
 
 ## 6. Decisões fixadas
 
-1. **Schema `ai_mastra` separado** para tabelas auto-criadas pelo Mastra. Drizzle continua dono exclusivo de `ai`. Decidido para manter o invariante "Drizzle é fonte de verdade" sem tornar este package refém de mudanças de schema entre versões do Mastra.
-2. **`disableInit` deixado como `false`** (default). Mastra auto-migra `mastra_*` no primeiro hit. Migration custom `0010_create_ai_mastra_schema.sql` só cria o schema vazio — DDL fora dos schemas geridos pelo Drizzle.
+1. **Schema `ai_mastra` separado** para tabelas geridas pelo Mastra. Drizzle continua dono exclusivo de `ai`. Decidido para manter o invariante "Drizzle é fonte de verdade" sem tornar este package refém de mudanças de schema entre versões do Mastra.
+2. **Init do Mastra via migrator**. `pnpm db:migrate` roda Drizzle e depois `PostgresStore.init()`; apps em produção devem usar `disableInit: true` para não fazer DDL em runtime. Migration custom `0010_create_ai_mastra_schema.sql` só cria o schema vazio — DDL de tabelas fica com o init oficial do Mastra.
 3. **AI SDK providers linha 3.x** — exigidos pelo `@mastra/core@1.31.0`. Não voltar para providers 2.x sem validar a compatibilidade Mastra/AI SDK via Context7.
 4. **Sem pgvector / sem RAG** por padrão. Vector store é opt-in: para habilitar, adicionar `@mastra/pg` `PgVector` numa factory paralela à `createSharedMemory` e criar `CREATE EXTENSION IF NOT EXISTS vector` em migration custom.
 5. **`runId` compartilhado** entre `runBillableAiCall`/`withCredits` (reservation.id), `agent.generate({ runId })` e `recorder.start/finish`. Sem isso, perdemos correlação billing↔agente↔mastra_traces.

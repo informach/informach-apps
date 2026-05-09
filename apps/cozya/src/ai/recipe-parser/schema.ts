@@ -9,7 +9,7 @@ export const recipeParserSchema = z.object({
   reason: z
     .string()
     .max(200)
-    .nullish()
+    .nullable()
     .describe(
       "Quando isValidRecipe=false, motivo curto em PT-BR explicando o que faltou (ex: 'O conteúdo não menciona ingredientes nem modo de preparo', 'A foto não mostra uma receita'). Null quando isValidRecipe=true.",
     ),
@@ -17,7 +17,7 @@ export const recipeParserSchema = z.object({
     .string()
     .min(1)
     .max(120)
-    .nullish()
+    .nullable()
     .describe(
       "Nome curto e descritivo da receita (até 120 caracteres). Use o nome dito pelo usuário, ou infira a partir dos ingredientes principais quando não dito explicitamente. Null quando isValidRecipe=false.",
     ),
@@ -25,7 +25,7 @@ export const recipeParserSchema = z.object({
     .string()
     .min(1)
     .max(5000)
-    .nullish()
+    .nullable()
     .describe(
       "Lista de ingredientes, UM por linha, sem marcadores. Inclua quantidade e unidade quando ditas (ex: '500g de farinha', '3 ovos'). Null quando isValidRecipe=false.",
     ),
@@ -33,7 +33,7 @@ export const recipeParserSchema = z.object({
     .string()
     .min(1)
     .max(5000)
-    .nullish()
+    .nullable()
     .describe(
       "Modo de preparo em parágrafo único, em ordem cronológica, sem listas numeradas. Null quando isValidRecipe=false.",
     ),
@@ -41,7 +41,7 @@ export const recipeParserSchema = z.object({
     .string()
     .min(1)
     .max(5000)
-    .nullish()
+    .nullable()
     .describe(
       "Etapa de finalização (cobertura, decoração, servir) quando explicitamente mencionada pelo usuário. Null quando não houver — não retorne string vazia.",
     ),

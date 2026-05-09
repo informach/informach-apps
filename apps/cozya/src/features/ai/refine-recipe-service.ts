@@ -56,20 +56,19 @@ export async function refineRecipe(input: RefineRecipeInput): Promise<RefineReci
     agent: "recipeRefiner",
     getUsage: (response) => response.usage,
     call: async ({ runId }) => {
-      const response = await getMastra()
-        .getAgent("recipeRefiner")
-        .generate(input.refinementRequest, {
-          runId,
-          memory: {
-            thread: cozyaThreadId(input.userId, "refine_conversational"),
-            resource: input.userId,
-          },
-          system: `Receita atual:\n${JSON.stringify(input.currentRecipe, null, 2)}`,
-          structuredOutput: {
-            schema: recipeParserSchema,
-            errorStrategy: "strict",
-          },
-        });
+      const mastra = await getMastra();
+      const response = await mastra.getAgent("recipeRefiner").generate(input.refinementRequest, {
+        runId,
+        memory: {
+          thread: cozyaThreadId(input.userId, "refine_conversational"),
+          resource: input.userId,
+        },
+        system: `Receita atual:\n${JSON.stringify(input.currentRecipe, null, 2)}`,
+        structuredOutput: {
+          schema: recipeParserSchema,
+          errorStrategy: "strict",
+        },
+      });
       return response;
     },
   });

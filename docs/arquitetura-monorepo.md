@@ -107,7 +107,7 @@ Padrão consolidado:
     "start:<app>": "pnpm --filter @<org>/<app> start",
 
     "db:generate": "pnpm --filter @<org>/db db:generate",
-    "db:migrate":  "pnpm --filter @<org>/db db:migrate",
+    "db:migrate":  "pnpm --filter @<org>/db db:migrate && pnpm --filter @<org>/ai-core mastra:migrate",
     "db:studio":   "pnpm --filter @<org>/db db:studio",
     "db:push":     "pnpm --filter @<org>/db db:push"
   }
@@ -219,7 +219,7 @@ Detalhes de como o `db` se organiza: ver [`arquitetura-packages.md`](./arquitetu
 
 Regras invioláveis:
 
-1. Migrations rodam **só** a partir do package `db` (`pnpm db:migrate`).
+1. Migrations rodam **só** a partir do comando raiz `pnpm db:migrate`: primeiro `@informach/db` aplica Drizzle, depois `@informach/ai-core` inicializa o storage Mastra (`ai_mastra`).
 2. Apps **não** rodam migration no `start`. Sobem assumindo schema pronto.
 3. Em dev, o desenvolvedor roda manualmente após `pnpm db:generate`.
 4. Em produção, migrations rodam por **operação consciente**: comando manual contra o `DATABASE_URL` de produção, ou job dedicado no provider, ou step específico em GitHub Actions disparado manualmente. Nunca acoplado ao deploy de um app.

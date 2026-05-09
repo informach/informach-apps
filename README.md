@@ -104,7 +104,7 @@ bibliotecas internas consumidas como TypeScript fonte, sem `dist/` versionado.
 | `pnpm lint` | Biome lint |
 | `pnpm format` | Biome format com write |
 | `pnpm db:generate` | Gera migrations Drizzle |
-| `pnpm db:migrate` | Aplica migrations via `@informach/db` |
+| `pnpm db:migrate` | Aplica migrations Drizzle e inicializa o storage Mastra |
 | `pnpm db:studio` | Abre Drizzle Studio |
 | `pnpm db:push` | Push direto do schema Drizzle |
 
@@ -138,8 +138,9 @@ Schemas geridos pelo Drizzle:
 - `cozya`
 
 O schema `ai_mastra` é exceção: ele pertence ao Mastra e fica fora do
-`schemaFilter` do Drizzle. A migration do repo cria apenas o schema vazio; as
-tabelas `mastra_*` são inicializadas pelo Mastra na primeira chamada.
+`schemaFilter` do Drizzle. A migration do repo cria o schema vazio; o migrator
+`pnpm db:migrate` também chama `PostgresStore.init()` para criar/atualizar as
+tabelas `mastra_*` fora do runtime dos apps.
 
 Fluxo normal para mudanças de schema:
 
