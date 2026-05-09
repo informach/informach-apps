@@ -1,0 +1,21 @@
+# Railway service config para o migrator one-off (config-as-code).
+# Wired no Dashboard via Settings → Source → Config Path → "infrastructure/railway/migrator.toml".
+#
+# Migrator é um service one-off cuja única responsabilidade é rodar
+# `pnpm db:migrate` (drizzle migrations) seguido de `pnpm db:seed` (idempotente)
+# no Postgres da rede privada do Railway. NÃO incluímos isso no build do cozya
+# pra preservar a possibilidade de rollback do app sem desfazer migrations.
+#
+# Para re-rodar migrações: Dashboard → migrator → Deployments → Redeploy.
+#
+# Root Directory do service = "/" (raiz do monorepo) — pnpm workspace precisa
+# do repo inteiro pra resolver os pacotes @informach/* via TypeScript source
+# (mesmo padrão do service cozya).
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "pnpm install --frozen-lockfile"
+
+[deploy]
+startCommand = "pnpm db:migrate && pnpm db:seed"
+restartPolicyType = "NEVER"
