@@ -11,41 +11,57 @@
 
 /* ============================================================
    APP OVERRIDES — Agenda da Turma
-   Sobrescrever só cores de destaque: primary, secondary, ring,
-   chart-1..5, sidebar-primary, sidebar-ring, destructive.
-   NUNCA sobrescrever a escala de cinza: background, foreground,
-   card, popover, muted, accent, border, input, sidebar neutro.
-   Isso pertence ao package e é compartilhado entre os apps.
+   Identidade do brand book: Azul Principal #006FFD + Roxo de Apoio
+   #7C3AED. chart-1..5 mapeiam para as cores das matérias
+   (Matemática, Português, Ciências, História, Inglês).
+   Neutros (background, foreground, card, popover, muted, accent,
+   border, input, sidebar) permanecem do package — não sobrescrever.
    ============================================================ */
-/*
 :root {
-  --primary: oklch(...);
-  --primary-foreground: oklch(...);
-  --secondary: oklch(...);
-  --secondary-foreground: oklch(...);
-  --ring: oklch(...);
-  --chart-1: oklch(...);
-  --chart-2: oklch(...);
-  --chart-3: oklch(...);
-  --chart-4: oklch(...);
-  --chart-5: oklch(...);
-  --sidebar-primary: oklch(...);
-  --sidebar-primary-foreground: oklch(...);
-  --sidebar-ring: oklch(...);
+  /* Azul Principal #006FFD */
+  --primary: oklch(0.5791 0.228 259.32);
+  --primary-foreground: oklch(1 0 0);
+
+  /* Roxo de Apoio #7C3AED */
+  --secondary: oklch(0.5413 0.2466 293.01);
+  --secondary-foreground: oklch(1 0 0);
+
+  --ring: oklch(0.5791 0.228 259.32);
+
+  /* Erro #EF4444 */
+  --destructive: oklch(0.6368 0.2078 25.33);
+
+  /* Cores por Matéria */
+  --chart-1: oklch(0.6231 0.188 259.81); /* Matemática #3B82F6 */
+  --chart-2: oklch(0.6959 0.1491 162.48); /* Português  #10B981 */
+  --chart-3: oklch(0.6056 0.2189 292.72); /* Ciências   #8B5CF6 */
+  --chart-4: oklch(0.7049 0.1867 47.6); /* História   #F97316 */
+  --chart-5: oklch(0.6559 0.2118 354.31); /* Inglês     #EC4899 */
+
+  --sidebar-primary: oklch(0.5791 0.228 259.32);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-ring: oklch(0.5791 0.228 259.32);
 }
+
 .dark {
-  --primary: oklch(...);
-  --primary-foreground: oklch(...);
-  --secondary: oklch(...);
-  --secondary-foreground: oklch(...);
-  --ring: oklch(...);
-  --chart-1: oklch(...);
-  --chart-2: oklch(...);
-  --chart-3: oklch(...);
-  --chart-4: oklch(...);
-  --chart-5: oklch(...);
-  --sidebar-primary: oklch(...);
-  --sidebar-primary-foreground: oklch(...);
-  --sidebar-ring: oklch(...);
+  /* Azul levantado para contraste sobre fundo escuro. */
+  --primary: oklch(0.7 0.18 259.32);
+  --primary-foreground: oklch(0.1591 0 0);
+
+  --secondary: oklch(0.68 0.2 293.01);
+  --secondary-foreground: oklch(0.1591 0 0);
+
+  --ring: oklch(0.7 0.18 259.32);
+
+  --destructive: oklch(0.72 0.2 25.33);
+
+  --chart-1: oklch(0.7 0.18 259.81);
+  --chart-2: oklch(0.76 0.14 162.48);
+  --chart-3: oklch(0.68 0.21 292.72);
+  --chart-4: oklch(0.76 0.17 47.6);
+  --chart-5: oklch(0.72 0.2 354.31);
+
+  --sidebar-primary: oklch(0.7 0.18 259.32);
+  --sidebar-primary-foreground: oklch(0.1591 0 0);
+  --sidebar-ring: oklch(0.7 0.18 259.32);
 }
-*/
