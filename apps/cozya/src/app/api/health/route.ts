@@ -4,7 +4,7 @@ export async function GET() {
   return NextResponse.json({
     status: "ok",
     app: "cozya",
-    commit: process.env.GIT_COMMIT_SHA ?? null,
+    commit: process.env.GIT_COMMIT_SHA ?? process.env.RAILWAY_GIT_COMMIT_SHA ?? null,
     timestamp: new Date().toISOString(),
   });
 }
