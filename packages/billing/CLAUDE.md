@@ -496,8 +496,8 @@ Cozya consome este package em modo **single-user** (`subject.type: "user"`, `org
 
 | Item | Valor |
 |---|---|
-| Pro mensal | R$ 14,90/mês (`cozya_pro_monthly`, `bonusCreditsPerMonth: 30`) |
-| Pro anual | R$ 149/ano (`cozya_pro_annual`, drip mensal de 30) |
+| Pro mensal | R$ 14,90/mês (`cozya_pro_monthly`, `bonusCreditsPerMonth: 50`) |
+| Pro anual | R$ 149/ano (`cozya_pro_annual`, drip mensal de 50) |
 | Regra de débito | **1 chamada à API de IA = 1 crédito** (`flatCost: 1` em `creditPricing`) |
 | Modelo default texto/URL/geração/refino | `openai/gpt-4o-mini` via OpenRouter |
 | Modelo default vision (foto) | `openai/gpt-4o` via OpenRouter (`imageDetail: 'low'` no caller) |
@@ -518,7 +518,7 @@ Cozya consome este package em modo **single-user** (`subject.type: "user"`, `org
 
 **Seed de pricing:** `pnpm db:seed` primeiro invoca `expireLegacyCozyaPricing` (fecha rows com IDs antigos não-prefixados — `gpt-4o`, `gpt-4o-mini`, `whisper-1` — restantes da era pré-OpenRouter), depois `seedCozyaCreditPricing` (`packages/billing/src/seeds/credit-pricing.ts`) com 7 features OpenRouter-prefixed: 1 vision (`openai/gpt-4o`) + 5 mini (`openai/gpt-4o-mini`) + 1 whisper (`openai/whisper-1`). Idempotente em ambos os passos — só insere quando não há row ativa para `(feature, model)` e só fecha legacy quando a row ainda está ativa. Para trocar modelo no futuro: insira nova row + set `effective_to = now()` na antiga (mesmo padrão).
 
-**Custo unitário esperado** (mix realista): ~R$ 0,02/chamada → 30 créditos = ~R$ 0,60 custo IA por user/mês → margem bruta ~96%. Pós-beta, comparar `SUM(usage_logs.tokens × custo_modelo)` vs receita por user e ajustar se margem < 90%.
+**Custo unitário esperado** (mix realista): ~R$ 0,02/chamada → 50 créditos = ~R$ 1,00 custo IA por user/mês → margem bruta ~93%. Pós-beta, comparar `SUM(usage_logs.tokens × custo_modelo)` vs receita por user e ajustar se margem < 90%.
 
 Detalhes operacionais em `apps/cozya/CLAUDE.md` §2-7.
 

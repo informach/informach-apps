@@ -45,9 +45,10 @@ export type Product = {
 // antes de habilitar Pro em produção. Free não tem entrada — é ausência de subscription.
 //
 // Modelo econômico Cozya (ver `packages/billing/CLAUDE.md` §5.5):
-// - Pro: R$ 14,90/mês ou R$ 149/ano (~17% desc), 30 créditos/mês
+// - Pro: R$ 14,90/mês ou R$ 149/ano (~17% desc), 50 créditos/mês
 // - 1 crédito = 1 chamada à API de IA (independente de salvar)
 // - Custo médio por chamada ~R$ 0,02 (mix GPT-4o-mini + GPT-4o vision)
+// - 50 créditos/mês ≈ R$ 1,00 de custo de IA → margem bruta ~93%
 // - Free: sem IA (só cadastro manual com limite de receitas)
 export const PRODUCTS: readonly Product[] = [
   {
@@ -57,7 +58,7 @@ export const PRODUCTS: readonly Product[] = [
     name: "Cozya Pro",
     tier: "pro",
     interval: "month",
-    bonusCreditsPerMonth: 30,
+    bonusCreditsPerMonth: 50,
     stripePriceId: {
       dev: "price_1TTR6VCvOctqao30J41KCiYi",
       prod: "price_TODO_cozya_pro_monthly_prod",
@@ -71,7 +72,7 @@ export const PRODUCTS: readonly Product[] = [
     name: "Cozya Pro (Anual)",
     tier: "pro",
     interval: "year",
-    bonusCreditsPerMonth: 30,
+    bonusCreditsPerMonth: 50,
     stripePriceId: {
       dev: "price_1TTR7ECvOctqao30h2pkeyqP",
       prod: "price_TODO_cozya_pro_annual_prod",

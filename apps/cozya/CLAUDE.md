@@ -18,7 +18,7 @@ Porte: nicho pequeno (food enthusiasts em PT-BR), valor percebido baixo. Estrat�
 |---|---|
 | Pro mensal | **R$ 14,90/mês** (`cozya_pro_monthly`) |
 | Pro anual | **R$ 149/ano** (`cozya_pro_annual`) — ~17% desc, 2 meses grátis |
-| Créditos Pro | **30/mês**, drip mensal no anual, expiram no fim do ciclo |
+| Créditos Pro | **50/mês**, drip mensal no anual, expiram no fim do ciclo |
 | Regra de débito | **1 chamada à API de IA = 1 crédito** (independente de salvar resultado) |
 | Free | **sem IA** — cadastro 100% manual, com limite de receitas |
 | Modelo default texto/URL/geração | **`openai/gpt-4o-mini`** via OpenRouter |
@@ -51,7 +51,7 @@ A regra inicial "1 cadastro = 1 crédito" tem furo: o usuário pode invocar IA v
 | Texto/URL/geração (`openai/gpt-4o-mini`) | $0,001-0,003 | R$ 0,005-0,017 |
 | Transcrição (`openai/whisper-1`) | ~$0,006/min | ~R$ 0,03/min |
 
-Mix esperado (50% texto/URL, 30% geração/refino, 20% foto): **~R$ 0,02 por chamada**. 30 créditos no mês = **~R$ 0,60 custo de IA**. Receita Pro R$ 14,90 → **margem bruta ~96%** (markup do OpenRouter já incluído).
+Mix esperado (50% texto/URL, 30% geração/refino, 20% foto): **~R$ 0,02 por chamada**. 50 créditos no mês = **~R$ 1,00 custo de IA**. Receita Pro R$ 14,90 → **margem bruta ~93%** (markup do OpenRouter já incluído).
 
 ---
 
@@ -186,7 +186,7 @@ Fluxo de cadastro por voz consome duas chamadas de IA quando executado completo:
 
 Decidido com a usuária:
 
-- Card de saldo (`credit-balance-card.tsx`): "X de 30 créditos restantes este mês" + barra de progresso + tooltip explicando "cada uso da IA consome 1 crédito".
+- Card de saldo (`credit-balance-card.tsx`): "X de 50 créditos restantes este mês" + barra de progresso + tooltip explicando "cada uso da IA consome 1 crédito".
 - Cards de pacotes: **preço total em destaque** (R$ 4,90 etc) + créditos como métrica secundária.
 - Notificações 50%/80%/100% via email `billing.credits-warning` (idempotente por `(userId, threshold, periodStart)`).
 - Empty state Free: "Funcionalidade Pro — assine para liberar IA" via `SubscriptionRequiredError`.
