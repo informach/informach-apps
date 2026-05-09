@@ -21,6 +21,9 @@ apps/*/test-results/
 apps/*/playwright-report/
 apps/*/tmp/
 
+# MCP-generated artifacts
+.playwright-mcp/
+
 # Logs
 *.log
 npm-debug.log*
