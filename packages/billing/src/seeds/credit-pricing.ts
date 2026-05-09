@@ -1,6 +1,6 @@
 import type { Database } from "@informach/db";
 import { schema } from "@informach/db";
-import { sql } from "drizzle-orm";
+import { and, inArray, isNull, like, sql } from "drizzle-orm";
 
 const { creditPricing } = schema;
 
@@ -107,9 +107,11 @@ export async function expireLegacyCozyaPricing(
     .update(creditPricing)
     .set({ effectiveTo: sql`now()` })
     .where(
-      sql`${creditPricing.feature} LIKE 'cozya.%'
-          AND ${creditPricing.model} = ANY(${COZYA_LEGACY_MODELS as readonly string[]})
-          AND ${creditPricing.effectiveTo} IS NULL`,
+      and(
+        like(creditPricing.feature, "cozya.%"),
+        inArray(creditPricing.model, COZYA_LEGACY_MODELS as readonly string[]),
+        isNull(creditPricing.effectiveTo),
+      ),
     )
     .returning({ id: creditPricing.id });
   return { closed: result.length };
