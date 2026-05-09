@@ -22,7 +22,10 @@ export const env = createEnv({
     REDIS_URL: z.string().url().optional(),
     STRIPE_SECRET_KEY: z
       .string()
-      .startsWith("sk_", "STRIPE_SECRET_KEY must start with 'sk_test_' or 'sk_live_'"),
+      .regex(
+        /^(sk|rk)_(test|live)_/,
+        "STRIPE_SECRET_KEY must start with 'sk_test_'/'sk_live_' (full access) or 'rk_test_'/'rk_live_' (restricted, recommended for production — see packages/billing/PRODUCTION.md §6.1)",
+      ),
     STRIPE_WEBHOOK_SECRET: z
       .string()
       .startsWith("whsec_", "STRIPE_WEBHOOK_SECRET must start with 'whsec_'"),
