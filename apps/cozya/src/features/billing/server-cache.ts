@@ -1,7 +1,10 @@
 import "server-only";
 
+import type { LedgerEntryType } from "@informach/billing";
 import { cache } from "react";
 import { billing } from "./service";
+
+const CREDIT_RECEIVED_ENTRY_TYPES: LedgerEntryType[] = ["purchase", "bonus_grant"];
 
 function userSubject(userId: string) {
   return { type: "user", id: userId } as const;
@@ -21,4 +24,11 @@ export const getIsProForUser = cache((userId: string) =>
 
 export const getBillingCreditHistoryForUser = cache((userId: string, limit: number) =>
   billing.getCreditHistory(userSubject(userId), { limit }),
+);
+
+export const getBillingCreditReceivedHistoryForUser = cache((userId: string, limit: number) =>
+  billing.getCreditHistory(userSubject(userId), {
+    entryTypes: CREDIT_RECEIVED_ENTRY_TYPES,
+    limit,
+  }),
 );

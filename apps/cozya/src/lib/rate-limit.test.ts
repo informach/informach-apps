@@ -105,8 +105,8 @@ describe("enforceRateLimit", () => {
 });
 
 describe("COZYA_RATE_LIMITS", () => {
-  it("AI_INVOKE_PER_HOUR is 10 calls / 3600s", () => {
-    expect(COZYA_RATE_LIMITS.AI_INVOKE_PER_HOUR).toEqual({ limit: 10, windowSeconds: 3600 });
+  it("AI_INVOKE_PER_HOUR is 60 calls / 3600s", () => {
+    expect(COZYA_RATE_LIMITS.AI_INVOKE_PER_HOUR).toEqual({ limit: 60, windowSeconds: 3600 });
   });
 
   it("aiInvokeKey is stable per user", () => {

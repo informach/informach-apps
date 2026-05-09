@@ -13,7 +13,7 @@ import { PlanCard } from "@/features/billing/components/plan-card";
 import { ReactivateBanner } from "@/features/billing/components/reactivate-banner";
 import {
   getBillingBalanceForUser,
-  getBillingCreditHistoryForUser,
+  getBillingCreditReceivedHistoryForUser,
   getBillingSubscriptionForUser,
   getIsProForUser,
 } from "@/features/billing/server-cache";
@@ -182,13 +182,13 @@ async function CreditPacksSlot({ userId }: UserArg) {
 }
 
 async function HistorySection({ userId }: UserArg) {
-  const history = await getBillingCreditHistoryForUser(userId, 8);
+  const history = await getBillingCreditReceivedHistoryForUser(userId, 8);
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold tracking-tight">Histórico de créditos</h2>
+        <h2 className="text-lg font-semibold tracking-tight">Créditos recebidos</h2>
         {history.nextCursor ? (
-          <span className="text-xs text-muted-foreground">Mostrando movimentações recentes</span>
+          <span className="text-xs text-muted-foreground">Mostrando entradas recentes</span>
         ) : null}
       </div>
       <Card className="border-border/60">
@@ -219,7 +219,7 @@ async function HistorySection({ userId }: UserArg) {
             </div>
           ) : (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-              Nenhuma movimentação de créditos ainda.
+              Nenhum crédito recebido ainda.
             </div>
           )}
         </CardContent>

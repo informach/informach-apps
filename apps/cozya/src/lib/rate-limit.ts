@@ -104,8 +104,8 @@ export async function enforceRateLimit(input: RateLimitInput): Promise<RateLimit
  * tente queimar 30 créditos em segundos via script automatizado.
  */
 export const COZYA_RATE_LIMITS = {
-  /** AI invocations: 10 calls per hour per user. */
-  AI_INVOKE_PER_HOUR: { limit: 10, windowSeconds: 3600 },
+  /** AI invocations: 60 calls per hour per user. */
+  AI_INVOKE_PER_HOUR: { limit: 60, windowSeconds: 3600 },
 } as const;
 
 /** Stable key generator for the AI invocation limit. */

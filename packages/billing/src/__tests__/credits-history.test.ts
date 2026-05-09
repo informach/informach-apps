@@ -24,6 +24,17 @@ function makeRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function collectParamValues(value: unknown, seen = new Set<object>()): unknown[] {
+  if (!value || typeof value !== "object") return [];
+  if (seen.has(value)) return [];
+  seen.add(value);
+
+  const record = value as Record<string, unknown>;
+  const values = value.constructor.name === "Param" && "value" in record ? [record.value] : [];
+
+  return [...values, ...Object.values(record).flatMap((child) => collectParamValues(child, seen))];
+}
+
 describe("getCreditHistory", () => {
   it("returns entries with nextCursor=null when below limit", async () => {
     const { db } = createFakeDb({
@@ -50,6 +61,20 @@ describe("getCreditHistory", () => {
     if (!last || !page.nextCursor) throw new Error("missing");
     const decoded = Buffer.from(page.nextCursor, "base64url").toString("utf8");
     expect(decoded).toBe(`${last.createdAt.toISOString()}|${last.id}`);
+  });
+
+  it("filters by entry type when requested", async () => {
+    const { db, calls } = createFakeDb({ selectResult: [] });
+    await getCreditHistory({ db: db as never }, owner, {
+      entryTypes: ["purchase", "bonus_grant"],
+      limit: 10,
+    });
+
+    const whereCall = calls.find((c) => c.mode === "where");
+    expect(whereCall).toBeDefined();
+    expect(collectParamValues(whereCall?.args[0])).toEqual(
+      expect.arrayContaining(["purchase", "bonus_grant"]),
+    );
   });
 
   it("clamps limit to MAX_LIMIT (200)", async () => {
