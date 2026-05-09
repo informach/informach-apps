@@ -183,6 +183,11 @@ describe("researchRecipeFromPrompt", () => {
       appName: "Cozya",
       appUrl: "https://cozya.app",
     });
+    expect(generateTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolChoice: { type: "tool", toolName: "web_search" },
+      }),
+    );
     expect(recorderMock.finish).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({

@@ -100,7 +100,10 @@ export async function researchRecipeFromPrompt(
                 engine: "auto",
               }),
             },
-            toolChoice: "auto",
+            // This flow is explicitly "research from prompt"; a plain model
+            // answer is treated as hallucination below, so force the provider
+            // server tool instead of letting the model skip it.
+            toolChoice: { type: "tool", toolName: "web_search" },
             prompt: buildResearchPrompt(input.prompt),
           }),
       });
