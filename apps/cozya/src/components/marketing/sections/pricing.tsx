@@ -104,6 +104,12 @@ export function Pricing() {
               <span className="text-sm text-muted-foreground">{proPlan.period}</span>
             </div>
             <p className="text-xs text-muted-foreground">{proPlan.note}</p>
+            <div className="rounded-lg border border-primary/20 bg-primary/[0.06] p-3 text-center">
+              <p className="text-xl font-semibold text-primary">50 créditos de IA por mês</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                ≈ 50 buscas por voz, fotos parseadas ou receitas geradas
+              </p>
+            </div>
             <CardTitle className="text-base font-normal text-muted-foreground">
               Pra quem quer usar a IA pra capturar receita de qualquer fonte.
             </CardTitle>

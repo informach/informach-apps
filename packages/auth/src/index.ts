@@ -1,3 +1,4 @@
+import { createHash, randomUUID } from "node:crypto";
 import { passkey } from "@better-auth/passkey";
 import { db } from "@informach/db";
 import {
@@ -58,6 +59,14 @@ export {
 const DEFAULT_COOKIE_CACHE_MAX_AGE_SECONDS = 300;
 
 export type BuildUnsubscribeUrl = (identifier: string, category: EmailCategory) => string;
+
+function opaqueMessageKey(prefix: string, secret: string): string {
+  return `${prefix}_${createHash("sha256").update(secret).digest("hex")}`;
+}
+
+function transientMessageKey(prefix: string): string {
+  return `${prefix}_${randomUUID()}`;
+}
 
 export type CreateAuthSessionConfig = {
   cookieCache?: {
@@ -262,7 +271,7 @@ function buildMagicLinkPlugin(config: CreateAuthConfig) {
       await config.sendEmail({
         to: email,
         category: "auth.magic-link",
-        messageKey: token,
+        messageKey: opaqueMessageKey("magic-link", token),
         unsubscribeUrl,
         unsubscribeMailto: config.unsubscribeMailto,
         subject,
@@ -341,8 +350,9 @@ function buildEmailOtpPlugin(config: CreateAuthConfig, flows: EmailFlowSelection
       await config.sendEmail({
         to: email,
         category,
-        // OTP value differs per request; idempotent dedup via UNIQUE on the row.
-        messageKey: `otp_${otpType}_${email}_${otp}`,
+        // OTPs are low entropy and must never be persisted or made derivable
+        // from persisted identifiers. Use an opaque per-delivery key instead.
+        messageKey: transientMessageKey(`otp-${otpType}`),
         unsubscribeUrl,
         unsubscribeMailto: config.unsubscribeMailto,
         subject,
@@ -370,7 +380,7 @@ function buildOrganizationPlugin(config: CreateAuthConfig) {
       await config.sendEmail({
         to: data.email,
         category: "auth.invitation",
-        messageKey: data.id,
+        messageKey: opaqueMessageKey("invitation", data.id),
         unsubscribeUrl,
         unsubscribeMailto: config.unsubscribeMailto,
         subject,
@@ -562,7 +572,7 @@ function createAuthInstance(config: CreateAuthConfig) {
                       await config.sendEmail({
                         to: data.user.email,
                         category: "auth.account-deletion",
-                        messageKey: data.token,
+                        messageKey: opaqueMessageKey("account-deletion", data.token),
                         userId: data.user.id,
                         unsubscribeUrl,
                         unsubscribeMailto: config.unsubscribeMailto,
@@ -636,7 +646,7 @@ function createAuthInstance(config: CreateAuthConfig) {
               await config.sendEmail({
                 to: user.email,
                 category: "auth.password-reset",
-                messageKey: token,
+                messageKey: opaqueMessageKey("password-reset", token),
                 userId: user.id,
                 unsubscribeUrl,
                 unsubscribeMailto: config.unsubscribeMailto,
@@ -669,7 +679,7 @@ function createAuthInstance(config: CreateAuthConfig) {
               await config.sendEmail({
                 to: user.email,
                 category: "auth.verify-email",
-                messageKey: token,
+                messageKey: opaqueMessageKey("verify-email", token),
                 userId: user.id,
                 unsubscribeUrl,
                 unsubscribeMailto: config.unsubscribeMailto,

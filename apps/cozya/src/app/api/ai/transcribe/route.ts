@@ -1,10 +1,12 @@
 import { withAiRouteGuards } from "@/features/ai/_shared";
 import { transcribeRecipeAudio } from "@/features/ai/transcribe-service";
 import { logger } from "@/lib/logger";
+import { contentLengthExceeds } from "@/lib/request-size";
 
 export const runtime = "nodejs";
 
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024; // 10 MB
+const MAX_AUDIO_REQUEST_BYTES = MAX_AUDIO_BYTES + 1024 * 1024;
 const ALLOWED_MIME_PREFIX = "audio/";
 
 export async function POST(request: Request): Promise<Response> {
@@ -14,6 +16,9 @@ export async function POST(request: Request): Promise<Response> {
 
   let audioBlob: Blob;
   try {
+    if (contentLengthExceeds(request, MAX_AUDIO_REQUEST_BYTES)) {
+      return Response.json({ code: "AUDIO_TOO_LARGE" }, { status: 413 });
+    }
     const form = await request.formData();
     const audio = form.get("audio");
     if (!(audio instanceof Blob)) {

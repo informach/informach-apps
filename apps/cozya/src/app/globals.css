@@ -57,3 +57,57 @@
   --sidebar-primary-foreground: oklch(0.1591 0 0);
   --sidebar-ring: oklch(0.7212 0.1772 41.3);
 }
+
+/* ============================================================
+   LANDING ANIMATIONS — CSS-only, respeita prefers-reduced-motion.
+   Registradas como utilities via @theme (animate-*) + keyframes.
+   ============================================================ */
+@theme {
+  --animate-float-soft: float-soft 4s ease-in-out infinite;
+  --animate-pulse-glow: pulse-glow 3s ease-in-out infinite;
+  --animate-wave-bar: wave-bar 1s ease-in-out infinite;
+  --animate-blink-caret: blink-caret 1.1s steps(2, jump-none) infinite;
+}
+
+@keyframes float-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes wave-bar {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes blink-caret {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* prefers-reduced-motion: usar Tailwind motion-safe:* nos componentes. */

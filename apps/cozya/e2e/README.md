@@ -16,6 +16,9 @@ Playwright cobre os fluxos de auth por email do Cozya que dependem de OTP: signu
    - `EMAIL_SANDBOX_MODE=sandbox`
    - `EMAIL_SANDBOX_DIR=./tmp/integration_emails`
    - `CRON_SECRET` (qualquer string ≥ 32 chars)
+   - `STRIPE_SECRET_KEY=sk_test_e2e`
+   - `STRIPE_WEBHOOK_SECRET=whsec_e2e`
+   - `OPENROUTER_API_KEY=sk-or-e2e`
    - `REDIS_URL` vazio ou um Redis local ativo. A config do Playwright força vazio para usar Postgres nos testes.
 4. Browsers do Playwright: `pnpm e2e:install` (uma vez). Em CI Linux, use `pnpm --filter @informach/cozya exec playwright install --with-deps chromium`.
 

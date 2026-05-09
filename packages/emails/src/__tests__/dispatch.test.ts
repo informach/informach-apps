@@ -179,7 +179,6 @@ describe("dispatchEmail live mode", () => {
       payload: {
         deliveryId: "fake-id",
         category: "auth.verify-email",
-        messageKey: expect.stringMatching(/^key-/),
         reason: "recipient suppressed: bounce",
       },
     });
@@ -252,11 +251,74 @@ describe("dispatchEmail live mode", () => {
       payload: {
         deliveryId: "fake-id",
         category: "auth.verify-email",
-        messageKey: expect.stringMatching(/^key-/),
         providerMessageId: "mid-123",
         mode: "live",
       },
     });
+  });
+
+  it("does not persist auth email bodies but still sends the original body", async () => {
+    const { db, calls } = createFakeDb({
+      insertResult: [{ id: "fake-id", status: "pending", sendAttempts: 0 }],
+      updateResult: [{ id: "fake-id", status: "sending", sendAttempts: 1 }],
+    });
+    const send: SendFn = vi.fn().mockResolvedValue({ messageId: "mid-123" });
+
+    await dispatchEmail(
+      {
+        db: db as never,
+        defaultFrom: "noreply@example.com",
+        mode: "live",
+        sandboxDir: "./tmp",
+        send,
+      },
+      makeInput({
+        category: "auth.verify-email-otp",
+        html: "<p>OTP 123456</p>",
+        text: "OTP 123456",
+      }),
+    );
+
+    const insertValues = calls
+      .find((call) => call.mode === "insert")
+      ?.chain.find((entry) => entry.method === "values")?.args[0] as Record<string, unknown>;
+    expect(insertValues.html).toBeNull();
+    expect(insertValues.text).toBeNull();
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        html: "<p>OTP 123456</p>",
+        text: "OTP 123456",
+      }),
+    );
+  });
+
+  it("persists non-auth email bodies so retry can rebuild the message", async () => {
+    const { db, calls } = createFakeDb({
+      insertResult: [{ id: "fake-id", status: "pending", sendAttempts: 0 }],
+      updateResult: [{ id: "fake-id", status: "sending", sendAttempts: 1 }],
+    });
+    const send: SendFn = vi.fn().mockResolvedValue({ messageId: "mid-123" });
+
+    await dispatchEmail(
+      {
+        db: db as never,
+        defaultFrom: "noreply@example.com",
+        mode: "live",
+        sandboxDir: "./tmp",
+        send,
+      },
+      makeInput({
+        category: "billing.payment-failed",
+        html: "<p>Payment failed</p>",
+        text: "Payment failed",
+      }),
+    );
+
+    const insertValues = calls
+      .find((call) => call.mode === "insert")
+      ?.chain.find((entry) => entry.method === "values")?.args[0] as Record<string, unknown>;
+    expect(insertValues.html).toBe("<p>Payment failed</p>");
+    expect(insertValues.text).toBe("Payment failed");
   });
 
   it("does NOT retry on a permanent error and marks failed", async () => {
@@ -300,7 +362,6 @@ describe("dispatchEmail live mode", () => {
       payload: {
         deliveryId: "fake-id",
         category: "auth.verify-email",
-        messageKey: expect.stringMatching(/^key-/),
         classification: "permanent",
         reason: "rejected",
       },

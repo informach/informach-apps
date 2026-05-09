@@ -36,8 +36,11 @@ export default defineConfig({
           EMAIL_SANDBOX_DIR,
           E2E_RELAX_AUTH_RATE_LIMITS: "1",
           NEXT_PUBLIC_APP_URL: BASE_URL,
+          OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || "sk-or-e2e",
           REDIS_URL: "",
           STRIPE_MODE: "dev",
+          STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || "sk_test_e2e",
+          STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || "whsec_e2e",
         },
       },
   projects: [

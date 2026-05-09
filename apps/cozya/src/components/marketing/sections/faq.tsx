@@ -10,11 +10,19 @@ import {
 const QUESTIONS = [
   {
     q: "Preciso pagar pra começar?",
-    a: "Não. O plano Free salva receitas manualmente sem custo, sem cartão e sem prazo. Você só paga quando quiser usar IA pra importar de imagem, gerar por título ou ditar por voz.",
+    a: "Não. O plano Free salva receitas manualmente sem custo, sem cartão e sem prazo. Você só paga quando quiser usar IA pra importar de imagem, ditar por voz, gerar por prompt ou refinar receita conversando.",
+  },
+  {
+    q: "Como funciona a busca por voz?",
+    a: "Aperta o ícone de microfone e diz o nome ou descrição da receita ('bolo de cenoura', 'massa pra nhoque sem batata'). A IA transcreve, busca na web se precisar, e estrutura uma receita pronta pra cozinhar. Cada busca por voz consome 1 crédito do seu plano.",
+  },
+  {
+    q: "Posso pedir pra IA adaptar uma receita?",
+    a: "Sim. Depois que uma receita está salva, abre ela e conversa com a IA: 'faz vegana', 'metade das porções', 'sem lactose', 'no air fryer'. A IA reescreve a receita do seu jeito. Cada refinamento consome 1 crédito.",
   },
   {
     q: "Como funcionam os créditos de IA?",
-    a: "Toda assinatura Pro renova um pacote de créditos todo mês. Importar receita por imagem, gerar por título e ditado consomem créditos. Acabou antes da renovação? Você compra créditos extras avulsos ou espera o próximo ciclo.",
+    a: "Toda assinatura Pro renova 50 créditos todo mês. Cada chamada à IA (importar foto, gerar por prompt, ditar por voz, refinar conversando) consome 1 crédito. Acabou antes da renovação? Compra um pacote avulso ou espera o próximo ciclo — o cadastro manual continua liberado.",
   },
   {
     q: "O que acontece se meus créditos acabarem?",

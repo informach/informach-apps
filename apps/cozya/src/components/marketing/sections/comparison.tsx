@@ -7,7 +7,15 @@ const ROWS = [
   },
   {
     old: "Digitar receita inteira do zero",
-    new: "Cola texto ou foto, IA estrutura em segundos",
+    new: "Cola texto, sobe foto ou dita por voz — IA estrutura em segundos",
+  },
+  {
+    old: "Reescrever a receita inteira pra adaptar (vegana, sem lactose)",
+    new: "Diz 'faz vegana' e a IA refina conversando",
+  },
+  {
+    old: "Pesquisar no Google, abrir 5 abas e adaptar pelo seu jeito",
+    new: "Descreve em uma frase — a IA pesquisa na web e estrutura",
   },
   {
     old: "Pedir de novo a receita pra mãe",
@@ -15,7 +23,7 @@ const ROWS = [
   },
   {
     old: "Sem internet = sem receita",
-    new: "Abre no navegador do celular, sem depender de loja de apps",
+    new: "Abre direto no navegador do celular, sem loja de apps",
   },
   {
     old: "Achar receita perdida em 5 lugares",

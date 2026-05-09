@@ -15,13 +15,12 @@ export const FREE_FEATURES: PlanFeature[] = [
 ];
 
 export const PRO_FEATURES: PlanFeature[] = [
-  { label: "Tudo do plano Free", included: true },
   { label: "Receitas ilimitadas", included: true },
-  { label: "Importação por imagem, texto e câmera", included: true },
-  { label: "Geração por título com IA", included: true },
-  { label: "Ditado por voz", included: true },
-  { label: "Créditos de IA renovados todo mês", included: true },
-  { label: "Compre créditos extras avulsos quando precisar", included: true },
+  { label: "Captura por voz, foto e texto", included: true },
+  { label: "Geração com busca na web", included: true },
+  { label: "Refinamento conversacional com IA", included: true },
+  { label: "50 créditos de IA renovados todo mês", included: true },
+  { label: "Pacotes extras avulsos quando precisar", included: true },
 ];
 
 // Preços derivados de `packages/config/src/products.ts` — fonte oficial.

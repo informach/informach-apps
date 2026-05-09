@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Audience } from "@/components/marketing/sections/audience";
+import { AiDemo } from "@/components/marketing/sections/ai-demo";
 import { Comparison } from "@/components/marketing/sections/comparison";
 import { Faq } from "@/components/marketing/sections/faq";
 import { Features } from "@/components/marketing/sections/features";
@@ -9,9 +9,9 @@ import { HowItWorks } from "@/components/marketing/sections/how-it-works";
 import { Pricing } from "@/components/marketing/sections/pricing";
 import { Problem } from "@/components/marketing/sections/problem";
 
-const TITLE = "Cozya — Suas receitas rápidas, sem caos";
+const TITLE = "Cozya — Receita por voz, foto ou prompt. Sem digitar.";
 const DESCRIPTION =
-  "Capture receitas de prints, fotos, câmera ou voz. O Cozya estrutura com IA e organiza num app mobile-first. Grátis pra começar.";
+  "Capture receitas falando, fotografando print ou descrevendo em uma frase. A IA estrutura em segundos e refina conversando ('faz vegana', 'metade das porções'). Grátis pra começar.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -33,10 +33,10 @@ export default function MarketingHome() {
   return (
     <>
       <Hero />
+      <AiDemo />
       <Problem />
       <HowItWorks />
       <Features />
-      <Audience />
       <Comparison />
       <Pricing />
       <Faq />

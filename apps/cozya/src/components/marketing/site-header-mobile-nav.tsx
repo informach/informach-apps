@@ -1,7 +1,14 @@
 "use client";
 
 import { Button } from "@informach/ui/components/button";
-import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@informach/ui/components/sheet";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+  SheetTrigger,
+} from "@informach/ui/components/sheet";
 import { Menu } from "lucide-react";
 import Link from "next/link";
 
@@ -23,6 +30,8 @@ export function SiteHeaderMobileNav({ links }: SiteHeaderMobileNavProps) {
         </Button>
       </SheetTrigger>
       <SheetContent side="right" className="w-72">
+        <SheetTitle className="sr-only">Menu</SheetTitle>
+        <SheetDescription className="sr-only">Navegação principal do site Cozya.</SheetDescription>
         <div className="mt-8 flex flex-col gap-1">
           {links.map((link) => (
             <SheetClose asChild key={link.href}>

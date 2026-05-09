@@ -98,6 +98,18 @@ const mockedTwoFactor = vi.mocked(twoFactor);
 const mockedPasskey = vi.mocked(passkey);
 const mockedAuthMiddleware = vi.mocked(createAuthMiddleware);
 
+function expectHashedMessageKey(value: unknown, prefix: string, leakedValue: string): void {
+  expect(value).toEqual(expect.stringMatching(new RegExp(`^${prefix}_[a-f0-9]{64}$`)));
+  expect(String(value)).not.toContain(leakedValue);
+}
+
+function expectTransientMessageKey(value: unknown, prefix: string, leakedValues: string[]): void {
+  expect(value).toEqual(expect.stringMatching(new RegExp(`^${prefix}_[0-9a-f-]{36}$`)));
+  for (const leakedValue of leakedValues) {
+    expect(String(value)).not.toContain(leakedValue);
+  }
+}
+
 type AdditionalFieldSpec = {
   type?: string;
   required?: boolean;
@@ -365,7 +377,7 @@ describe("createAuth — email plugin selection (config.email)", () => {
     });
     const payload = sendEmail.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(payload.category).toBe("auth.verify-email");
-    expect(payload.messageKey).toBe("tok-abc");
+    expectHashedMessageKey(payload.messageKey, "verify-email", "tok-abc");
   });
 
   it("verification: 'link' + signIn.otp: true — emailOTP loaded WITHOUT override, send-on-signup off", () => {
@@ -427,7 +439,7 @@ describe("createAuth — email plugin selection (config.email)", () => {
     expect(sendEmail).toHaveBeenCalledTimes(1);
     const payload = sendEmail.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(payload.category).toBe("auth.sign-in-otp");
-    expect(payload.messageKey).toBe("otp_sign-in_user@example.com_987654");
+    expectTransientMessageKey(payload.messageKey, "otp-sign-in", ["user@example.com", "987654"]);
   });
 
   it("OTP callback dispatches auth.forget-password-otp email when forgetPassword is 'otp'", async () => {
@@ -452,7 +464,10 @@ describe("createAuth — email plugin selection (config.email)", () => {
     expect(sendEmail).toHaveBeenCalledTimes(1);
     const payload = sendEmail.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(payload.category).toBe("auth.forget-password-otp");
-    expect(payload.messageKey).toBe("otp_forget-password_user@example.com_111222");
+    expectTransientMessageKey(payload.messageKey, "otp-forget-password", [
+      "user@example.com",
+      "111222",
+    ]);
   });
 
   it("OTP callback no-ops for sign-in type when signIn.otp is false", async () => {
@@ -691,7 +706,7 @@ describe("createAuth — email callbacks", () => {
 
     const payload = sendEmail.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(payload.category).toBe("auth.password-reset");
-    expect(payload.messageKey).toBe("tok-xyz");
+    expectHashedMessageKey(payload.messageKey, "password-reset", "tok-xyz");
     expect(payload.userId).toBe("u2");
   });
 
@@ -728,7 +743,10 @@ describe("createAuth — email callbacks", () => {
     const payload = sendEmail.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(payload.to).toBe("verify@example.com");
     expect(payload.category).toBe("auth.verify-email-otp");
-    expect(payload.messageKey).toBe("otp_email-verification_verify@example.com_123456");
+    expectTransientMessageKey(payload.messageKey, "otp-email-verification", [
+      "verify@example.com",
+      "123456",
+    ]);
     expect(payload.unsubscribeUrl).toBe(
       "https://test.example.com/api/email/unsubscribe?t=verify@example.com-auth.verify-email-otp",
     );
@@ -779,7 +797,7 @@ describe("createAuth — email callbacks", () => {
 
     const payload = sendEmail.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(payload.category).toBe("auth.magic-link");
-    expect(payload.messageKey).toBe("tok-qqq");
+    expectHashedMessageKey(payload.messageKey, "magic-link", "tok-qqq");
     expect(payload.userId).toBeUndefined();
     expect(payload.unsubscribeUrl).toContain("magic@example.com-auth.magic-link");
   });
@@ -1274,7 +1292,7 @@ describe("createAuth — organization plugin (opt-in)", () => {
     const emailPayload = sendEmail.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(emailPayload.to).toBe("guest@example.com");
     expect(emailPayload.category).toBe("auth.invitation");
-    expect(emailPayload.messageKey).toBe("inv1");
+    expectHashedMessageKey(emailPayload.messageKey, "invitation", "inv1");
     expect(String(emailPayload.html)).toContain("Helena");
     expect(String(emailPayload.html)).toContain("Acme");
     expect(String(emailPayload.html)).toContain("/accept-invitation/inv1");
@@ -1480,7 +1498,7 @@ describe("createAuth — account deletion (opt-in)", () => {
     const payload = sendEmail.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(payload.to).toBe("del@example.com");
     expect(payload.category).toBe("auth.account-deletion");
-    expect(payload.messageKey).toBe("tok-del");
+    expectHashedMessageKey(payload.messageKey, "account-deletion", "tok-del");
     expect(String(payload.html)).toContain("irrevers");
   });
 

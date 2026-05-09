@@ -20,16 +20,22 @@ function isSensitiveKey(key: string): boolean {
     normalizedKey === "to" ||
     normalizedKey === "from" ||
     normalizedKey === "recipient" ||
+    normalizedKey === "messagekey" ||
+    normalizedKey === "html" ||
+    normalizedKey === "text" ||
+    normalizedKey === "body" ||
     normalizedKey.endsWith("email") ||
+    normalizedKey.endsWith("url") ||
     normalizedKey.includes("authorization") ||
     normalizedKey.includes("cookie") ||
+    normalizedKey.includes("mailto") ||
     normalizedKey.includes("secret") ||
     normalizedKey.includes("signature") ||
     normalizedKey.includes("token")
   );
 }
 
-function sanitizeForSentry(value: unknown): unknown {
+function sanitizeForTelemetry(value: unknown): unknown {
   if (value instanceof Date) return value.toISOString();
   if (value instanceof Error) {
     return {
@@ -38,18 +44,23 @@ function sanitizeForSentry(value: unknown): unknown {
       stack: value.stack,
     };
   }
-  if (Array.isArray(value)) return value.map((item) => sanitizeForSentry(item));
+  if (Array.isArray(value)) return value.map((item) => sanitizeForTelemetry(item));
   if (!isRecord(value)) return value;
 
   const sanitized: Record<string, unknown> = {};
   for (const [key, nestedValue] of Object.entries(value)) {
-    sanitized[key] = isSensitiveKey(key) ? REDACTED : sanitizeForSentry(nestedValue);
+    sanitized[key] = isSensitiveKey(key) ? REDACTED : sanitizeForTelemetry(nestedValue);
   }
   return sanitized;
 }
 
+function sanitizeLogContext(ctx?: object): object {
+  const sanitized = sanitizeForTelemetry(ctx ?? {});
+  return isRecord(sanitized) ? sanitized : {};
+}
+
 function writePino(level: PackageLogLevel, msg: string, ctx?: object): void {
-  const context = ctx ?? {};
+  const context = sanitizeLogContext(ctx);
   switch (level) {
     case "debug":
       logger.debug(context, msg);
@@ -72,7 +83,7 @@ function capturePackageMessage(level: SentryMessageLevel, msg: string, ctx?: obj
     tags: {
       source: "package-logger",
     },
-    extra: ctx ? { context: sanitizeForSentry(ctx) } : undefined,
+    extra: ctx ? { context: sanitizeForTelemetry(ctx) } : undefined,
   });
 }
 
@@ -93,7 +104,7 @@ export function captureActionException(error: unknown, context: { actorId: strin
   const message = "action.failed";
   const safeContext = {
     actorId: context.actorId,
-    error: sanitizeForSentry(error),
+    error: sanitizeForTelemetry(error),
   };
 
   logger.error(safeContext, message);
@@ -128,7 +139,7 @@ export const authObservability: ObservabilityHooks = {
       error: event.error,
     };
 
-    logger.error(context, message);
+    logger.error(sanitizeLogContext(context), message);
     Sentry.captureMessage(message, {
       level: "error",
       tags: {
@@ -136,7 +147,7 @@ export const authObservability: ObservabilityHooks = {
         source: "auth-observability",
       },
       extra: {
-        context: sanitizeForSentry(context),
+        context: sanitizeForTelemetry(context),
       },
     });
   },
@@ -147,7 +158,7 @@ export const authObservability: ObservabilityHooks = {
       metadata: event.metadata,
     };
 
-    logger.warn(context, message);
+    logger.warn(sanitizeLogContext(context), message);
     Sentry.captureMessage(message, {
       level: "warning",
       tags: {
@@ -155,7 +166,7 @@ export const authObservability: ObservabilityHooks = {
         source: "auth-observability",
       },
       extra: {
-        context: sanitizeForSentry(context),
+        context: sanitizeForTelemetry(context),
       },
     });
   },

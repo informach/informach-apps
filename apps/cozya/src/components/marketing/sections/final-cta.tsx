@@ -1,6 +1,12 @@
 import { Button } from "@informach/ui/components/button";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ImagePlus, Mic, Sparkles } from "lucide-react";
 import Link from "next/link";
+
+const CAPTURE_ICONS = [
+  { icon: Mic, label: "voz" },
+  { icon: ImagePlus, label: "foto" },
+  { icon: Sparkles, label: "prompt" },
+] as const;
 
 export function FinalCta() {
   return (
@@ -16,13 +22,28 @@ export function FinalCta() {
         />
 
         <div className="relative mx-auto max-w-2xl text-center">
-          <h2 className="text-balance text-3xl font-semibold tracking-tight md:text-5xl">
+          <div className="mx-auto flex w-fit items-center gap-3 rounded-full border border-secondary-foreground/20 bg-secondary-foreground/5 px-4 py-2 text-sm">
+            {CAPTURE_ICONS.map(({ icon: Icon, label }, i) => (
+              <span key={label} className="flex items-center gap-1.5">
+                <Icon className="size-4 text-primary" aria-hidden />
+                <span className="text-secondary-foreground/90">{label}</span>
+                {i < CAPTURE_ICONS.length - 1 && (
+                  <span className="ml-1 text-primary/50" aria-hidden>
+                    ·
+                  </span>
+                )}
+              </span>
+            ))}
+          </div>
+
+          <h2 className="mt-7 text-balance text-3xl font-semibold tracking-tight md:text-5xl">
             Pare de procurar receita.
             <br />
             Comece a cozinhar.
           </h2>
           <p className="mt-5 text-pretty text-base text-secondary-foreground/80 leading-relaxed md:text-lg">
-            Cadastre-se grátis em 30 segundos. Sem cartão. Sem fidelidade.
+            Em 30 segundos você cria a conta. Em 1 minuto a primeira receita já tá estruturada por
+            IA. Grátis pra começar — sem cartão, sem fidelidade.
           </p>
 
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">

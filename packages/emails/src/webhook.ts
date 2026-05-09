@@ -124,7 +124,7 @@ export async function handleSendgridEvent(deps: WebhookDeps, event: SendgridEven
     case "deferred": {
       safeLog(deps.logger, "warn", "SendGrid deferred", {
         deliveryId: delivery?.id,
-        email: event.email,
+        ...emailAddressAuditPayload(event.email),
         reason: event.reason,
       });
       return;
@@ -223,7 +223,7 @@ export async function handleSendgridEvents(
       failed += 1;
       safeLog(deps.logger, "error", "Failed to process SendGrid event", {
         event: event.event,
-        email: event.email,
+        ...emailAddressAuditPayload(event.email),
         error: (error as Error).message,
       });
     }

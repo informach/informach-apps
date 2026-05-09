@@ -110,6 +110,10 @@ export type DispatchResult =
 
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+function shouldPersistBody(category: EmailCategory): boolean {
+  return !category.startsWith("auth.");
+}
+
 function buildListUnsubscribeHeaders(url: string, mailto?: string): Record<string, string> {
   const parts = [`<${url}>`];
   if (mailto) parts.push(`<mailto:${mailto}>`);
@@ -167,6 +171,7 @@ export async function dispatchEmail(
 
   const id = crypto.randomUUID();
   const now = new Date();
+  const persistBody = shouldPersistBody(input.category);
 
   const inserted = await deps.db
     .insert(emailDeliveries)
@@ -176,8 +181,10 @@ export async function dispatchEmail(
       category: input.category,
       messageKey: input.messageKey,
       subject: input.subject,
-      html: input.html ?? null,
-      text: input.text ?? null,
+      // Auth email bodies contain OTPs or one-time links; keep them in process
+      // only for the current send attempt and do not persist them for retries.
+      html: persistBody ? (input.html ?? null) : null,
+      text: persistBody ? (input.text ?? null) : null,
       status: "pending",
       userId: input.userId,
       createdAt: now,
@@ -232,7 +239,6 @@ export async function dispatchEmail(
         payload: {
           deliveryId: delivery.id,
           category: input.category,
-          messageKey: input.messageKey,
           reason,
         },
       });
@@ -300,7 +306,6 @@ export async function dispatchEmail(
       payload: {
         deliveryId: delivery.id,
         category: input.category,
-        messageKey: input.messageKey,
         providerMessageId: `sandbox-${delivery.id}`,
         mode: "sandbox",
       },
@@ -341,7 +346,6 @@ export async function dispatchEmail(
       payload: {
         deliveryId: delivery.id,
         category: input.category,
-        messageKey: input.messageKey,
         providerMessageId: `memory-${delivery.id}`,
         mode: "memory",
       },
@@ -384,7 +388,6 @@ export async function dispatchEmail(
         payload: {
           deliveryId: delivery.id,
           category: input.category,
-          messageKey: input.messageKey,
           providerMessageId: messageId ?? null,
           mode: "live",
         },
@@ -439,7 +442,6 @@ export async function dispatchEmail(
     payload: {
       deliveryId: delivery.id,
       category: input.category,
-      messageKey: input.messageKey,
       classification: lastClassification,
       reason: lastError ?? "unknown send failure",
     },

@@ -117,6 +117,10 @@ describe("handleSendgridEvent", () => {
       makeEvent({ event: "deferred" }),
     );
     expect(warn).toHaveBeenCalledTimes(1);
+    const logContext = warn.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(logContext.emailDomain).toBe("example.com");
+    expect(logContext.emailHash).toEqual(expect.any(String));
+    expect(JSON.stringify(logContext)).not.toContain("user@example.com");
     expect(calls.some((c) => c.mode === "update")).toBe(false);
     expect(calls.some((c) => c.mode === "insert")).toBe(false);
   });
@@ -207,5 +211,9 @@ describe("handleSendgridEvents", () => {
     expect(result.processed).toBe(1);
     expect(result.failed).toBe(1);
     expect(error).toHaveBeenCalled();
+    const logContext = error.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(logContext.emailDomain).toBe("example.com");
+    expect(logContext.emailHash).toEqual(expect.any(String));
+    expect(JSON.stringify(logContext)).not.toContain("user@example.com");
   });
 });

@@ -179,7 +179,6 @@ describe("retryFailedDeliveries", () => {
       payload: {
         deliveryId: "row-1",
         category: "auth.verify-email",
-        messageKey: "key-1",
         providerMessageId: "mid-retry",
         source: "retry",
       },

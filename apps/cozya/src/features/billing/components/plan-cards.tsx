@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { selectFreePlanAction, startProCheckoutAction } from "@/features/onboarding/actions";
 import { OnboardingStepper } from "@/features/onboarding/components/onboarding-stepper";
+import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import {
   type BillingCycle,
   FREE_FEATURES,
@@ -49,10 +50,12 @@ export function PlanCards({
 
   const handleFree = () => {
     startFreeTransition(async () => {
-      const result = await selectFreePlanAction({});
+      const result = await catchActionResult(() => selectFreePlanAction({}));
       if (!result.ok) {
         toast.error("Não foi possível continuar.", {
-          description: "Tente novamente em instantes.",
+          description: isActionRejected(result.error)
+            ? "Atualize a página e tente novamente."
+            : "Tente novamente em instantes.",
         });
         return;
       }
@@ -62,8 +65,14 @@ export function PlanCards({
 
   const handlePro = () => {
     startProTransition(async () => {
-      const result = await startProCheckoutAction({ cycle });
+      const result = await catchActionResult(() => startProCheckoutAction({ cycle }));
       if (!result.ok) {
+        if (isActionRejected(result.error)) {
+          toast.error("Não foi possível abrir o checkout.", {
+            description: "Atualize a página e tente novamente.",
+          });
+          return;
+        }
         if (result.error.code === "PRO_NOT_CONFIGURED") {
           toast("Plano Pro ainda não configurado.", {
             description: "Voltamos em breve com o Pro disponível. Por enquanto, escolha o Free.",

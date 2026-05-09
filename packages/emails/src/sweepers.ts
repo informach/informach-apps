@@ -241,7 +241,6 @@ export async function retryFailedDeliveries(deps: RetryFailedDeps): Promise<Retr
         payload: {
           deliveryId: row.id,
           category: row.category,
-          messageKey: row.messageKey,
           classification: "permanent",
           reason: `invalid email category: ${row.category}`,
           source: "retry",
@@ -271,7 +270,6 @@ export async function retryFailedDeliveries(deps: RetryFailedDeps): Promise<Retr
           payload: {
             deliveryId: row.id,
             category,
-            messageKey: row.messageKey,
             reason,
             source: "retry",
           },
@@ -344,7 +342,6 @@ export async function retryFailedDeliveries(deps: RetryFailedDeps): Promise<Retr
         payload: {
           deliveryId: row.id,
           category,
-          messageKey: row.messageKey,
           providerMessageId: messageId ?? null,
           source: "retry",
         },
@@ -382,7 +379,6 @@ export async function retryFailedDeliveries(deps: RetryFailedDeps): Promise<Retr
         payload: {
           deliveryId: row.id,
           category,
-          messageKey: row.messageKey,
           classification,
           reason: lastError,
           source: "retry",

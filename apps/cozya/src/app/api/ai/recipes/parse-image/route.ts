@@ -2,12 +2,14 @@ import { z } from "zod";
 import { withAiRouteGuards } from "@/features/ai/_shared";
 import { parseRecipeFromImage } from "@/features/ai/parse-recipe-image-service";
 import { logger } from "@/lib/logger";
+import { contentLengthExceeds } from "@/lib/request-size";
 
 export const runtime = "nodejs";
 
 // Base64 inflates ~33%; 5 MB raw ≈ 7 MB string + the data URL prefix. We give
 // ourselves a small margin (8 MB) so a legitimate 5 MB JPEG doesn't get cut.
 const MAX_DATA_URL_CHARS = 8_000_000;
+const MAX_IMAGE_REQUEST_BYTES = MAX_DATA_URL_CHARS + 1024;
 
 const requestSchema = z.object({
   imageDataUrl: z
@@ -23,6 +25,9 @@ export async function POST(request: Request): Promise<Response> {
 
   let imageDataUrl: string;
   try {
+    if (contentLengthExceeds(request, MAX_IMAGE_REQUEST_BYTES)) {
+      return Response.json({ code: "IMAGE_TOO_LARGE" }, { status: 413 });
+    }
     const json = (await request.json().catch(() => null)) as unknown;
     const parsed = requestSchema.safeParse(json);
     if (!parsed.success) {
