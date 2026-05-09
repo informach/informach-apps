@@ -176,10 +176,10 @@ export function AiDemo() {
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-sm font-medium uppercase tracking-wider text-primary">IA em ação</p>
           <h2 className="mt-3 text-balance text-3xl font-semibold tracking-tight md:text-4xl">
-            Capture do jeito que dá. Cozya estrutura.
+            Capture do jeito que dá. A gente estrutura.
           </h2>
           <p className="mt-4 text-pretty text-base text-muted-foreground leading-relaxed md:text-lg">
-            Foto, voz ou só uma ideia. Em segundos vira receita estruturada — pronta pra cozinhar.
+            Foto, voz ou só uma ideia. Em segundos vira receita estruturada, pronta pra cozinhar.
           </p>
         </div>
 
@@ -216,7 +216,7 @@ export function AiDemo() {
         </div>
 
         <p className="mx-auto mt-12 max-w-xl text-center text-sm text-muted-foreground">
-          Cada captura consome 1 crédito. Pro vem com 50 créditos por mês — chega pra capturar uma
+          Cada captura consome 1 crédito. O Pro vem com 50 créditos por mês. Dá pra capturar uma
           receita por dia, com sobra.
         </p>
       </div>

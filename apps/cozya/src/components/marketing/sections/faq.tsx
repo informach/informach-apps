@@ -10,19 +10,15 @@ import {
 const QUESTIONS = [
   {
     q: "Preciso pagar pra começar?",
-    a: "Não. O plano Free salva receitas manualmente sem custo, sem cartão e sem prazo. Você só paga quando quiser usar IA pra importar de imagem, ditar por voz, gerar por prompt ou refinar receita conversando.",
+    a: "Não. O plano Free salva receitas manualmente sem custo, sem cartão e sem prazo. Você só paga quando quiser usar IA pra importar de imagem, ditar por voz ou gerar receita por prompt.",
   },
   {
     q: "Como funciona a busca por voz?",
-    a: "Aperta o ícone de microfone e diz o nome ou descrição da receita ('bolo de cenoura', 'massa pra nhoque sem batata'). A IA transcreve, busca na web se precisar, e estrutura uma receita pronta pra cozinhar. Cada busca por voz consome 1 crédito do seu plano.",
-  },
-  {
-    q: "Posso pedir pra IA adaptar uma receita?",
-    a: "Sim. Depois que uma receita está salva, abre ela e conversa com a IA: 'faz vegana', 'metade das porções', 'sem lactose', 'no air fryer'. A IA reescreve a receita do seu jeito. Cada refinamento consome 1 crédito.",
+    a: "Aperta o ícone de microfone e fala o nome ou descrição da receita ('bolo de cenoura', 'massa pra nhoque sem batata'). A IA transcreve, busca na web se precisar e estrutura uma receita pronta pra cozinhar. Cada busca por voz consome 1 crédito do seu plano.",
   },
   {
     q: "Como funcionam os créditos de IA?",
-    a: "Toda assinatura Pro renova 50 créditos todo mês. Cada chamada à IA (importar foto, gerar por prompt, ditar por voz, refinar conversando) consome 1 crédito. Acabou antes da renovação? Compra um pacote avulso ou espera o próximo ciclo — o cadastro manual continua liberado.",
+    a: "Toda assinatura Pro renova 50 créditos todo mês. Cada chamada à IA (importar foto, gerar por prompt, ditar por voz) consome 1 crédito. Acabou antes da renovação? Compra um pacote avulso ou espera o próximo ciclo. O cadastro manual continua liberado.",
   },
   {
     q: "O que acontece se meus créditos acabarem?",
@@ -30,15 +26,15 @@ const QUESTIONS = [
   },
   {
     q: "Posso cancelar quando quiser?",
-    a: "Sim. Cancela direto na sua conta, sem fidelidade. Você mantém acesso ao plano Pro até o fim do ciclo já pago e depois volta automaticamente para o Free.",
+    a: "Sim. Cancela direto na sua conta, sem fidelidade. Você mantém acesso ao plano Pro até o fim do ciclo já pago e depois volta automaticamente pro Free.",
   },
   {
     q: "Preciso instalar pela loja de apps?",
-    a: "Não. O Cozya abre direto no navegador do celular. Quando a versão instalável estiver pronta, isso será comunicado no produto.",
+    a: "Não. O Cozya abre direto no navegador do celular. Quando a versão instalável estiver pronta, a gente avisa no produto.",
   },
   {
     q: "Minhas receitas ficam privadas?",
-    a: "Sim. Cada conta tem suas próprias receitas. Compartilhamento só acontece quando você decide — pelo WhatsApp, com 1 toque.",
+    a: "Sim. Cada conta tem suas próprias receitas. Compartilhamento só acontece quando você decide, pelo WhatsApp, com 1 toque.",
   },
   {
     q: "Posso importar print de receita do WhatsApp?",
@@ -46,7 +42,7 @@ const QUESTIONS = [
   },
   {
     q: "Tem app pra Android e iPhone?",
-    a: "O Cozya abre no navegador em iPhone e Android. Você não precisa passar por loja de apps para começar a organizar receitas.",
+    a: "O Cozya abre no navegador em iPhone e Android. Você não precisa passar por loja de apps pra começar a organizar receitas.",
   },
 ] as const;
 

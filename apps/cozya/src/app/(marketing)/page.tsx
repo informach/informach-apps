@@ -9,9 +9,9 @@ import { HowItWorks } from "@/components/marketing/sections/how-it-works";
 import { Pricing } from "@/components/marketing/sections/pricing";
 import { Problem } from "@/components/marketing/sections/problem";
 
-const TITLE = "Cozya — Receita por voz, foto ou prompt. Sem digitar.";
+const TITLE = "Cozya. Receita por voz, foto ou prompt. Sem digitar.";
 const DESCRIPTION =
-  "Capture receitas falando, fotografando print ou descrevendo em uma frase. A IA estrutura em segundos e refina conversando ('faz vegana', 'metade das porções'). Grátis pra começar.";
+  "Captura receita falando, fotografando print ou descrevendo em uma frase. A IA estrutura em segundos. Grátis pra começar.";
 
 export const metadata: Metadata = {
   title: TITLE,

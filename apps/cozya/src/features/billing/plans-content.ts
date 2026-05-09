@@ -18,7 +18,6 @@ export const PRO_FEATURES: PlanFeature[] = [
   { label: "Receitas ilimitadas", included: true },
   { label: "Captura por voz, foto e texto", included: true },
   { label: "Geração com busca na web", included: true },
-  { label: "Refinamento conversacional com IA", included: true },
   { label: "50 créditos de IA renovados todo mês", included: true },
   { label: "Pacotes extras avulsos quando precisar", included: true },
 ];
@@ -57,7 +56,7 @@ export const PRICING: Record<
   annual: {
     price: BRL.format(annualMonthlyEquivalentCents / 100),
     period: "/mês",
-    note: `${BRL.format(annualCents / 100)}/ano — economize ~${ANNUAL_SAVINGS_PCT}%`,
+    note: `${BRL.format(annualCents / 100)}/ano. Economize ~${ANNUAL_SAVINGS_PCT}%`,
     tabLabel: "Anual",
   },
 };

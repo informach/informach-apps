@@ -43,7 +43,7 @@ export function FinalCta() {
           </h2>
           <p className="mt-5 text-pretty text-base text-secondary-foreground/80 leading-relaxed md:text-lg">
             Em 30 segundos você cria a conta. Em 1 minuto a primeira receita já tá estruturada por
-            IA. Grátis pra começar — sem cartão, sem fidelidade.
+            IA. Grátis pra começar, sem cartão, sem fidelidade.
           </p>
 
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">

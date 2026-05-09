@@ -13,14 +13,14 @@ const STEPS: Step[] = [
     icon: Wand2,
     title: "Capture",
     description:
-      "Cola texto, sobe foto, dita pelo microfone ou descreve em uma frase. A IA aceita print de WhatsApp, foto de caderno, áudio e prompt — e estrutura em segundos.",
+      "Cola um texto, sobe uma foto, fala no microfone ou descreve em uma frase. Print de WhatsApp, foto de caderno, áudio, prompt: a gente estrutura em segundos.",
   },
   {
     number: "02",
     icon: PenLine,
     title: "Revise",
     description:
-      "A IA monta o card com nome, ingredientes e preparo. Você ajusta o que quiser antes de salvar — e ainda pode pedir refino conversacional ('faz vegana', 'metade das porções').",
+      "A IA monta o card com nome, ingredientes e preparo. Você ajusta o que quiser antes de salvar.",
   },
   {
     number: "03",

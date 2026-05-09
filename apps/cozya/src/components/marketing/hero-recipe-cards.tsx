@@ -12,7 +12,7 @@ type Recipe = {
 const FRONT_RECIPE: Recipe = {
   name: "Bolo de cenoura · vegana",
   ingredients: ["3 cenouras médias", "Linhaça hidratada", "1 xíc. óleo", "2 xíc. açúcar mascavo"],
-  badge: { label: "Refinada com IA", tone: "primary" },
+  badge: { label: "Salva como favorita", tone: "primary" },
   favorite: true,
 };
 

@@ -32,7 +32,7 @@ export function SiteHeader({ variant = "marketing" }: SiteHeaderProps) {
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link href="/" className="flex items-center" aria-label="Cozya — início">
+        <Link href="/" className="flex items-center" aria-label="Cozya, início">
           <CozyaLogo className="h-8 w-auto text-secondary dark:text-foreground" />
         </Link>
 

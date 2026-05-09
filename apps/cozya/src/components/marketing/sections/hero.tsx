@@ -28,7 +28,7 @@ export function Hero() {
 
         <p className="max-w-xl text-pretty text-lg text-muted-foreground leading-relaxed">
           Mãos sujas, sem tempo, sem paciência? Mostra um print, fala em voz alta ou descreve em uma
-          frase. A IA do Cozya transforma em receita pronta pra cozinhar — em segundos.
+          frase. Em segundos a gente estrutura sua receita pronta pra cozinhar.
         </p>
 
         <div className="flex flex-col gap-3 sm:flex-row">
