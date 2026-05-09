@@ -5,7 +5,11 @@
 
 [build]
 builder = "NIXPACKS"
-buildCommand = "pnpm install --frozen-lockfile && pnpm build:cozya"
+# `--prod=false` força a instalação de devDependencies mesmo com NODE_ENV=production
+# no env do service. Sem isso, o pnpm pula `turbo` (devDep) e o build quebra com
+# "turbo: not found". `next build` em si continua produzindo bundle de produção
+# porque o próprio Next seta NODE_ENV=production durante o build.
+buildCommand = "pnpm install --frozen-lockfile --prod=false && pnpm build:cozya"
 
 [deploy]
 startCommand = "pnpm start:cozya"
