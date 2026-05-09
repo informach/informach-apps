@@ -72,7 +72,7 @@ export async function expireMonthlyBonusCredits(
     WHERE src.entry_type IN ('bonus_grant','promo_grant','purchase')
       AND src.amount > 0
       AND src.expires_at IS NOT NULL
-      AND src.expires_at <= ${now}
+      AND src.expires_at <= ${now.toISOString()}
       AND NOT EXISTS (
         SELECT 1 FROM billing.credit_ledger e
         WHERE e.entry_type = 'expiration'
@@ -119,11 +119,11 @@ export async function releaseExpiredReservations(
   const result = await deps.db.execute<{ id: string }>(sql`
     UPDATE billing.credit_reservations
     SET status = 'expired',
-        resolved_at = ${now}
+        resolved_at = ${now.toISOString()}
     WHERE id IN (
       SELECT id FROM billing.credit_reservations
       WHERE status = 'active'
-        AND expires_at <= ${now}
+        AND expires_at <= ${now.toISOString()}
       LIMIT ${batchSize}
     )
     RETURNING id
