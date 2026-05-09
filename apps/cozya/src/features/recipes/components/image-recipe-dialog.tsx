@@ -155,7 +155,6 @@ export function ImageRecipeDialog({ open, onOpenChange, onParsed }: Props) {
           ref={fileInputRef}
           type="file"
           accept={ACCEPTED_MIMES.join(",")}
-          capture="environment"
           className="hidden"
           onChange={handleFileChange}
           aria-hidden
@@ -172,9 +171,10 @@ export function ImageRecipeDialog({ open, onOpenChange, onParsed }: Props) {
               <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <Camera className="size-6" aria-hidden />
               </span>
-              <span className="text-sm font-medium text-foreground">Tirar foto ou enviar</span>
+              <span className="text-sm font-medium text-foreground">Escolher foto da receita</span>
               <span className="text-xs text-muted-foreground">
-                No celular abre a câmera. JPG, PNG ou WebP; fotos grandes são reduzidas.
+                Tire uma foto na hora ou escolha da galeria. JPG, PNG ou WebP; fotos grandes são
+                reduzidas.
               </span>
             </button>
           ) : null}
