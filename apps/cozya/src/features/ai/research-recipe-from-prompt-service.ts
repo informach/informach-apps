@@ -11,7 +11,6 @@ import { COZYA_MODELS } from "@/ai/models";
 import { type RecipeParserOutput, recipeParserSchema } from "@/ai/recipe-parser/schema";
 import { cozyaThreadId } from "@/ai/working-memory";
 import { billing } from "@/features/billing/service";
-import { logger } from "@/lib/logger";
 import { getOpenRouter } from "@/lib/openrouter";
 import { buildResearchPrompt } from "./research-recipe-prompt";
 
@@ -23,6 +22,7 @@ export type ResearchRecipeFromPromptInput = {
 export type ResearchRecipeFromPromptResult = RecipeParserOutput;
 
 const FEATURE = "cozya.recipe.generate_from_prompt" as const;
+const WEB_SEARCH_PLUGIN = { id: "web" as const, max_results: 5 };
 
 /**
  * Pulls the per-call cost from the same `COZYA_PRICING_SEED` that primes
@@ -82,52 +82,35 @@ export async function researchRecipeFromPrompt(
         getUsage: (result) => result.usage,
         getSuccessMetadata: (result) => {
           const researchText = result.text.trim();
-          const usedWebSearch = didUseWebSearch(result);
+          const usedWebSearch = true;
           const searchMiss = isRecipeResearchMiss({ usedWebSearch, researchText });
           return {
             outcome: searchMiss ? "not_found" : "research_found",
             usedWebSearch,
+            webSearchStrategy: "openrouter_plugin",
           };
         },
         call: async () =>
           generateText({
             // Fallback embutido via `extraBody.models` — quando o primário cai,
             // OpenRouter tenta o próximo modelo da lista (cobra só o que respondeu).
-            model: openrouter(researchModelId, withModelFallbacks(researchModelId)),
-            tools: {
-              web_search: openrouter.tools.webSearch({
-                maxResults: 5,
-                engine: "auto",
-              }),
-            },
-            // This flow is explicitly "research from prompt"; a plain model
-            // answer is treated as hallucination below, so force the provider
-            // server tool instead of letting the model skip it.
-            toolChoice: { type: "tool", toolName: "web_search" },
+            model: openrouter(researchModelId, {
+              ...withModelFallbacks(researchModelId),
+              // The current OpenRouter server tool lets the model decide whether
+              // to search. This flow requires one grounded web lookup, so use the
+              // still-supported plugin path that runs search once per request.
+              plugins: [WEB_SEARCH_PLUGIN],
+            }),
             prompt: buildResearchPrompt(input.prompt),
           }),
       });
 
       const researchText = research.text.trim();
-      // Fail closed: se o modelo respondeu sem chamar `web_search`, tratamos
-      // a resposta como alucinação.
-      const usedWebSearch = didUseWebSearch(research);
+      // The OpenRouter web plugin runs one search per request; once the call
+      // succeeds, a short/NAO_ENCONTRADA answer is the only miss condition.
+      const usedWebSearch = true;
       const searchMiss = isRecipeResearchMiss({ usedWebSearch, researchText });
       if (searchMiss) {
-        // Caso "modelo respondeu texto plausível mas não chamou a tool" é o
-        // mais perigoso (regressão silenciosa do tool-calling no SDK). Loga
-        // estruturado para alarme antes do usuário reclamar.
-        if (!usedWebSearch && researchText.length >= 30) {
-          logger.warn(
-            {
-              runId: researchRunId,
-              reservationId: reservation.id,
-              model: researchModelId,
-              textLength: researchText.length,
-            },
-            "cozya.research.web_search_skipped_with_content",
-          );
-        }
         return recipeNotFoundResult();
       }
 
@@ -166,21 +149,6 @@ export async function researchRecipeFromPrompt(
     },
   });
   return out.result;
-}
-
-function didUseWebSearch(result: { steps?: unknown }): boolean {
-  return (
-    Array.isArray(result.steps) &&
-    result.steps.some(
-      (step) =>
-        typeof step === "object" &&
-        step !== null &&
-        Array.isArray((step as { toolCalls?: unknown }).toolCalls) &&
-        (step as { toolCalls: Array<{ toolName?: unknown }> }).toolCalls.some(
-          (call) => call?.toolName === "web_search",
-        ),
-    )
-  );
 }
 
 function isRecipeResearchMiss(input: { usedWebSearch: boolean; researchText: string }): boolean {

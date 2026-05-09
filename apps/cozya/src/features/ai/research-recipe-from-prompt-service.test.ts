@@ -183,9 +183,11 @@ describe("researchRecipeFromPrompt", () => {
       appName: "Cozya",
       appUrl: "https://cozya.app",
     });
-    expect(generateTextMock).toHaveBeenCalledWith(
+    expect(openRouterModelMock).toHaveBeenCalledWith(
+      "openai/gpt-4o-mini",
       expect.objectContaining({
-        toolChoice: { type: "tool", toolName: "web_search" },
+        extraBody: { models: ["openai/gpt-4o-mini", "openai/gpt-4o"] },
+        plugins: [{ id: "web", max_results: 5 }],
       }),
     );
     expect(recorderMock.finish).toHaveBeenNthCalledWith(
