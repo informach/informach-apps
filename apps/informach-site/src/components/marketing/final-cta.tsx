@@ -9,9 +9,7 @@ export function FinalCta() {
         <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-2">
           <div className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-8">
             <p className="text-sm font-medium uppercase tracking-wider text-primary">Quero usar</p>
-            <h3 className="text-2xl font-semibold tracking-tight">
-              Conhece os apps da Informach.
-            </h3>
+            <h3 className="text-2xl font-semibold tracking-tight">Conhece os apps da Informach.</h3>
             <p className="text-sm leading-relaxed text-muted-foreground">
               Soluções prontas, feitas com cuidado, pra dores que cabem no seu dia a dia.
             </p>

@@ -59,6 +59,16 @@
   },
   "overrides": [
     {
+      "includes": ["apps/*/src/app/**/{opengraph-image,twitter-image}.tsx"],
+      "linter": {
+        "rules": {
+          "performance": {
+            "noImgElement": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": ["**/scripts/**", "**/migrate.ts"],
       "linter": {
         "rules": {

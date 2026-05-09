@@ -1,5 +1,5 @@
 import { Button } from "@informach/ui/components/button";
-import { ExternalLink, BookOpen, Wrench, Users, Layers } from "lucide-react";
+import { BookOpen, ExternalLink, Layers, Users, Wrench } from "lucide-react";
 import { SITE } from "@/lib/site";
 
 const PERKS = [

@@ -1,4 +1,4 @@
-import { Sparkles, HeartHandshake, Wrench } from "lucide-react";
+import { HeartHandshake, Sparkles, Wrench } from "lucide-react";
 
 const PILLARS = [
   {
@@ -28,8 +28,8 @@ export function Manifesto() {
             A gente acredita em apps que cabem na rotina.
           </h2>
           <p className="mt-4 text-balance text-base leading-relaxed text-muted-foreground md:text-lg">
-            Tem muito app que tenta ser tudo pra todo mundo e acaba ajudando ninguém. Aqui a
-            gente faz o oposto: cada produto resolve uma dor específica, e resolve direito.
+            Tem muito app que tenta ser tudo pra todo mundo e acaba ajudando ninguém. Aqui a gente
+            faz o oposto: cada produto resolve uma dor específica, e resolve direito.
           </p>
         </div>
 

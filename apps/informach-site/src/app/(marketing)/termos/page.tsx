@@ -27,8 +27,8 @@ export default function TermsOfUsePage() {
         <Section title="1. Quem somos">
           <p>
             Estes Termos são oferecidos pela <strong>{SITE.legalName}</strong>, pessoa jurídica de
-            direito privado inscrita no CNPJ sob o nº <strong>{SITE.cnpj}</strong> ("Informach",
-            "a gente"). Pra falar com a gente sobre estes Termos, use{" "}
+            direito privado inscrita no CNPJ sob o nº <strong>{SITE.cnpj}</strong> ("Informach", "a
+            gente"). Pra falar com a gente sobre estes Termos, use{" "}
             <a className="underline underline-offset-2" href={`mailto:${SITE.contactEmail}`}>
               {SITE.contactEmail}
             </a>
@@ -50,9 +50,7 @@ export default function TermsOfUsePage() {
           <p>Estes Termos guarda-chuva se aplicam a:</p>
           <ul className="list-disc space-y-2 pl-6">
             <li>navegação e uso do site institucional da Informach;</li>
-            <li>
-              relação contratual com a Informach enquanto fornecedora dos apps que ela opera;
-            </li>
+            <li>relação contratual com a Informach enquanto fornecedora dos apps que ela opera;</li>
             <li>
               o serviço de cobrança e gestão de assinatura via Stripe que dá suporte aos planos
               pagos dos apps;
@@ -101,17 +99,15 @@ export default function TermsOfUsePage() {
           <p>
             Pra criar conta nos apps você precisa ter pelo menos 18 anos, fornecer informações
             verdadeiras e manter seus dados de acesso em segurança. Você é responsável por toda
-            atividade realizada na sua conta. Se notar uso indevido, fala com a gente
-            imediatamente.
+            atividade realizada na sua conta. Se notar uso indevido, fala com a gente imediatamente.
           </p>
         </Section>
 
         <Section title="5. Planos, preços e pagamento">
           <p>
             Os apps da Informach podem ter um plano gratuito e planos pagos (assinatura mensal ou
-            anual) e/ou pacotes avulsos. Os preços vigentes são apresentados na página do
-            respectivo app antes da contratação e podem ser atualizados mediante aviso prévio com
-            30 dias.
+            anual) e/ou pacotes avulsos. Os preços vigentes são apresentados na página do respectivo
+            app antes da contratação e podem ser atualizados mediante aviso prévio com 30 dias.
           </p>
           <p>
             Os pagamentos são processados pela <strong>Stripe Payments</strong>. A Informach não
@@ -120,9 +116,9 @@ export default function TermsOfUsePage() {
           </p>
           <p>
             Não existe fidelidade. Você pode cancelar a assinatura a qualquer momento direto nas
-            configurações do app. O cancelamento encerra a renovação automática; o acesso ao
-            recurso pago continua até o fim do período já pago. Pagamentos referentes a períodos
-            já usados não são reembolsados, salvo determinação legal em contrário.
+            configurações do app. O cancelamento encerra a renovação automática; o acesso ao recurso
+            pago continua até o fim do período já pago. Pagamentos referentes a períodos já usados
+            não são reembolsados, salvo determinação legal em contrário.
           </p>
           {/* TODO(legal): revisar política de reembolso conforme CDC art. 49 (direito de arrependimento em até 7 dias para contratação à distância). */}
         </Section>
@@ -150,19 +146,19 @@ export default function TermsOfUsePage() {
         <Section title="7. Propriedade intelectual">
           <p>
             Marcas, logos, código-fonte, identidade visual e materiais publicados pela Informach
-            (incluindo nos apps e no site institucional) são de propriedade da Informach ou de
-            seus licenciantes. Os conteúdos que você cria dentro de um app continuam sendo seus,
-            sujeitos aos Termos específicos do app.
+            (incluindo nos apps e no site institucional) são de propriedade da Informach ou de seus
+            licenciantes. Os conteúdos que você cria dentro de um app continuam sendo seus, sujeitos
+            aos Termos específicos do app.
           </p>
         </Section>
 
         <Section title="8. Limitações da inteligência artificial">
           <p>
             Os apps da Informach usam IA para apoiar tarefas. A IA pode cometer erros, inferir
-            informações de forma aproximada ou interpretar mal entradas ambíguas. Use os
-            resultados como ponto de partida e <strong>não como aconselhamento profissional</strong>{" "}
-            (médico, jurídico, financeiro, alimentar). Cada app traz limitações específicas em
-            seus próprios Termos.
+            informações de forma aproximada ou interpretar mal entradas ambíguas. Use os resultados
+            como ponto de partida e <strong>não como aconselhamento profissional</strong> (médico,
+            jurídico, financeiro, alimentar). Cada app traz limitações específicas em seus próprios
+            Termos.
           </p>
         </Section>
 
@@ -193,9 +189,9 @@ export default function TermsOfUsePage() {
           <p>
             Na máxima extensão permitida pela legislação brasileira, a responsabilidade total da
             Informach perante você, decorrente do uso dos sites e apps, fica limitada ao valor
-            efetivamente pago por você nos 12 meses anteriores ao evento que originou a
-            reclamação. A Informach não responde por danos indiretos, lucros cessantes ou perda de
-            dados não provocados por dolo ou culpa grave.
+            efetivamente pago por você nos 12 meses anteriores ao evento que originou a reclamação.
+            A Informach não responde por danos indiretos, lucros cessantes ou perda de dados não
+            provocados por dolo ou culpa grave.
           </p>
           {/* TODO(legal): revisar limitação de responsabilidade à luz do CDC para hipóteses em que o contratante é consumidor pessoa física. */}
         </Section>
@@ -203,9 +199,9 @@ export default function TermsOfUsePage() {
         <Section title="12. Alterações destes Termos">
           <p>
             A gente pode atualizar estes Termos pra refletir mudanças nos produtos, na lei ou em
-            práticas operacionais. Mudanças materiais são comunicadas com antecedência mínima de
-            30 dias por e-mail e por aviso no site. Se você continuar usando os serviços após a
-            entrada em vigor, considera-se que aceitou a nova versão.
+            práticas operacionais. Mudanças materiais são comunicadas com antecedência mínima de 30
+            dias por e-mail e por aviso no site. Se você continuar usando os serviços após a entrada
+            em vigor, considera-se que aceitou a nova versão.
           </p>
         </Section>
 

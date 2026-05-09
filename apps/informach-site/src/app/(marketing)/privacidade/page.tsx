@@ -28,8 +28,8 @@ export default function PrivacyPolicyPage() {
           <p>
             <strong>{SITE.legalName}</strong>, CNPJ <strong>{SITE.cnpj}</strong>, é a controladora
             dos dados pessoais tratados pelos seus apps e pelo site institucional. Esta Política
-            descreve como a gente coleta, usa, compartilha e protege essas informações, e quais
-            são os seus direitos enquanto titular dos dados, à luz da Lei nº 13.709/2018 (LGPD).
+            descreve como a gente coleta, usa, compartilha e protege essas informações, e quais são
+            os seus direitos enquanto titular dos dados, à luz da Lei nº 13.709/2018 (LGPD).
           </p>
           <p>
             Cada app da Informach pode ter detalhamentos específicos na sua própria política de
@@ -54,8 +54,8 @@ export default function PrivacyPolicyPage() {
           <p>A Informach coleta apenas o necessário pra operar os serviços:</p>
           <ul className="list-disc space-y-2 pl-6">
             <li>
-              <strong>Dados de cadastro:</strong> nome, e-mail e senha (armazenada como hash,
-              nunca em texto puro).
+              <strong>Dados de cadastro:</strong> nome, e-mail e senha (armazenada como hash, nunca
+              em texto puro).
             </li>
             <li>
               <strong>Conteúdo que você cria nos apps:</strong> textos, imagens, áudios e demais
@@ -63,9 +63,9 @@ export default function PrivacyPolicyPage() {
             </li>
             <li>
               <strong>Dados de uso da IA:</strong> registro de chamadas (qual feature, modelo
-              utilizado, contagem de tokens, custo em créditos) pra fins de cobrança e auditoria.
-              A gente não armazena prompts e respostas após o processamento, exceto quando você
-              decide salvar o resultado.
+              utilizado, contagem de tokens, custo em créditos) pra fins de cobrança e auditoria. A
+              gente não armazena prompts e respostas após o processamento, exceto quando você decide
+              salvar o resultado.
             </li>
             <li>
               <strong>Dados de cobrança:</strong> identificadores Stripe (customer ID, subscription
@@ -86,8 +86,8 @@ export default function PrivacyPolicyPage() {
             <li>processar capturas e gerações por IA quando solicitadas;</li>
             <li>cobrar assinaturas e pacotes;</li>
             <li>
-              enviar e-mails transacionais (verificação, recuperação de senha, recibos, alertas
-              de uso);
+              enviar e-mails transacionais (verificação, recuperação de senha, recibos, alertas de
+              uso);
             </li>
             <li>prevenir fraude, abuso e ataques contra os sistemas;</li>
             <li>cumprir obrigações legais, fiscais e regulatórias.</li>
@@ -106,9 +106,8 @@ export default function PrivacyPolicyPage() {
               guarda fiscal de documentos e atendimento a autoridades.
             </li>
             <li>
-              <strong>Legítimo interesse</strong> (art. 7º, IX) — para segurança, prevenção a
-              fraude e melhoria do produto, sempre com avaliação de impacto e minimização de
-              dados.
+              <strong>Legítimo interesse</strong> (art. 7º, IX) — para segurança, prevenção a fraude
+              e melhoria do produto, sempre com avaliação de impacto e minimização de dados.
             </li>
             <li>
               <strong>Consentimento</strong> (art. 7º, I) — para qualquer comunicação opcional. Se
@@ -130,9 +129,8 @@ export default function PrivacyPolicyPage() {
               <strong>SendGrid</strong> (Twilio Inc., EUA) — envio de e-mails transacionais.
             </li>
             <li>
-              <strong>OpenRouter</strong> (Mintplex Labs, EUA) — gateway pra modelos de IA da
-              OpenAI e parceiros, processando os prompts em tempo real e descartando após a
-              resposta.
+              <strong>OpenRouter</strong> (Mintplex Labs, EUA) — gateway pra modelos de IA da OpenAI
+              e parceiros, processando os prompts em tempo real e descartando após a resposta.
             </li>
             <li>
               <strong>Sentry</strong> (Functional Software Inc., EUA) — monitoramento de erros e
@@ -152,19 +150,17 @@ export default function PrivacyPolicyPage() {
 
         <Section title="7. Transferência internacional">
           <p>
-            Os operadores listados acima processam dados em servidores nos Estados Unidos e na
-            União Europeia. As transferências internacionais são realizadas com base na execução
-            do contrato (LGPD art. 33, V) e nos padrões contratuais e técnicos adotados pelos
-            próprios fornecedores (cláusulas-padrão, criptografia em trânsito, controles de
-            acesso).
+            Os operadores listados acima processam dados em servidores nos Estados Unidos e na União
+            Europeia. As transferências internacionais são realizadas com base na execução do
+            contrato (LGPD art. 33, V) e nos padrões contratuais e técnicos adotados pelos próprios
+            fornecedores (cláusulas-padrão, criptografia em trânsito, controles de acesso).
           </p>
         </Section>
 
         <Section title="8. Por quanto tempo guardamos">
           <ul className="list-disc space-y-2 pl-6">
             <li>
-              <strong>Dados da conta e conteúdos dos apps:</strong> enquanto a conta estiver
-              ativa.
+              <strong>Dados da conta e conteúdos dos apps:</strong> enquanto a conta estiver ativa.
             </li>
             <li>
               <strong>Após exclusão da conta:</strong> os dados pessoais são removidos
@@ -191,8 +187,8 @@ export default function PrivacyPolicyPage() {
               corrigir dados incompletos, inexatos ou desatualizados pelas configurações da conta;
             </li>
             <li>
-              solicitar anonimização, bloqueio ou eliminação de dados desnecessários ou tratados
-              em desconformidade;
+              solicitar anonimização, bloqueio ou eliminação de dados desnecessários ou tratados em
+              desconformidade;
             </li>
             <li>solicitar portabilidade dos seus dados pra outro fornecedor;</li>
             <li>
@@ -208,19 +204,19 @@ export default function PrivacyPolicyPage() {
             <a className="underline underline-offset-2" href={`mailto:${SITE.contactEmail}`}>
               {SITE.contactEmail}
             </a>{" "}
-            ou usa as opções de autosserviço dentro do próprio app. A gente confirma o recebimento
-            e responde no prazo legal.
+            ou usa as opções de autosserviço dentro do próprio app. A gente confirma o recebimento e
+            responde no prazo legal.
           </p>
         </Section>
 
         <Section title="10. Cookies e tecnologias semelhantes">
           <p>
             Os apps da Informach usam <strong>apenas cookies essenciais</strong> pro funcionamento
-            do serviço: sessão de login, preferências de interface e identificação de transações
-            de pagamento. A gente não usa cookies de publicidade, rastreamento entre sites ou
-            analytics de terceiros. O site institucional não coleta cookies além dos estritamente
-            necessários pra renderizar a página. Se isso mudar no futuro, esta Política será
-            atualizada e você será notificado.
+            do serviço: sessão de login, preferências de interface e identificação de transações de
+            pagamento. A gente não usa cookies de publicidade, rastreamento entre sites ou analytics
+            de terceiros. O site institucional não coleta cookies além dos estritamente necessários
+            pra renderizar a página. Se isso mudar no futuro, esta Política será atualizada e você
+            será notificado.
           </p>
         </Section>
 
@@ -235,9 +231,9 @@ export default function PrivacyPolicyPage() {
             <li>acesso interno restrito por função, com autenticação multifator.</li>
           </ul>
           <p>
-            Nenhum sistema é 100% seguro. Em caso de incidente que represente risco aos titulares,
-            a Informach comunicará a Autoridade Nacional de Proteção de Dados (ANPD) e os
-            titulares afetados, conforme a LGPD.
+            Nenhum sistema é 100% seguro. Em caso de incidente que represente risco aos titulares, a
+            Informach comunicará a Autoridade Nacional de Proteção de Dados (ANPD) e os titulares
+            afetados, conforme a LGPD.
           </p>
         </Section>
 
@@ -245,16 +241,15 @@ export default function PrivacyPolicyPage() {
           <p>
             Os apps da Informach são destinados a maiores de 18 anos. A gente não coleta
             intencionalmente dados de crianças e adolescentes. Se você é responsável por um menor
-            que tenha criado conta sem autorização, entre em contato e a gente exclui
-            imediatamente.
+            que tenha criado conta sem autorização, entre em contato e a gente exclui imediatamente.
           </p>
         </Section>
 
         <Section title="13. Alterações desta Política">
           <p>
-            A gente pode atualizar esta Política para refletir mudanças no produto, em
-            fornecedores ou na legislação. Alterações materiais são comunicadas por e-mail com 30
-            dias de antecedência. A versão vigente está sempre disponível em{" "}
+            A gente pode atualizar esta Política para refletir mudanças no produto, em fornecedores
+            ou na legislação. Alterações materiais são comunicadas por e-mail com 30 dias de
+            antecedência. A versão vigente está sempre disponível em{" "}
             <a className="underline underline-offset-2" href="/privacidade">
               {SITE.url.replace("https://", "")}/privacidade
             </a>

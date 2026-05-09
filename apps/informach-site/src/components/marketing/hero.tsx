@@ -17,8 +17,8 @@ export function Hero() {
             <span className="text-secondary">do dia a dia.</span>
           </h1>
           <p className="mt-6 text-balance text-base leading-relaxed text-muted-foreground md:text-lg">
-            A gente faz produtos pequenos, com cuidado, pra problemas que todo mundo tem mas
-            ninguém se debruça pra resolver. E ensina quem quer aprender a fazer também.
+            A gente faz produtos pequenos, com cuidado, pra problemas que todo mundo tem mas ninguém
+            se debruça pra resolver. E ensina quem quer aprender a fazer também.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button size="lg" asChild>

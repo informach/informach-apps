@@ -1,6 +1,6 @@
-import { ImageResponse } from "next/og";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { ImageResponse } from "next/og";
 import { SITE } from "@/lib/site";
 
 export const alt = "Informach — Apps com IA pra dores reais do dia a dia.";
@@ -22,8 +22,7 @@ export default async function Image() {
         justifyContent: "center",
         alignItems: "center",
         padding: "80px",
-        background:
-          "linear-gradient(135deg, #173247 0%, #0F2030 60%, #0A1825 100%)",
+        background: "linear-gradient(135deg, #173247 0%, #0F2030 60%, #0A1825 100%)",
         color: "#ffffff",
         fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
       }}
@@ -36,7 +35,6 @@ export default async function Image() {
           marginBottom: "48px",
         }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={iconDataUrl} alt="" width={140} height={140} />
         <div
           style={{
@@ -64,9 +62,7 @@ export default async function Image() {
           letterSpacing: "-1px",
         }}
       >
-        <div style={{ display: "flex", color: "#ffffff" }}>
-          Apps com IA pra dores reais
-        </div>
+        <div style={{ display: "flex", color: "#ffffff" }}>Apps com IA pra dores reais</div>
         <div style={{ display: "flex", color: "#E89870" }}>do dia a dia.</div>
       </div>
       <div
