@@ -21,7 +21,7 @@ Per-package deep guides exist and should be consulted before non-trivial changes
 - `apps/cozya/CLAUDE.md`
 - `apps/informach-site/CLAUDE.md`
 
-Cross-cutting docs in `docs/`: `arquitetura-monorepo.md`, `arquitetura-apps.md`, `arquitetura-packages.md`, `audit-payload-policy.md`, `adr/0001-uso-de-monorepo.md`.
+Cross-cutting docs in `docs/`: `arquitetura-monorepo.md`, `arquitetura-apps.md`, `arquitetura-packages.md`, `audit-payload-policy.md`, `deploy-runbook.md` (Railway/Stripe/Sentry — passo-a-passo de deploy de app, derivado do cozya), `adr/0001-uso-de-monorepo.md`.
 
 ## Commands
 
