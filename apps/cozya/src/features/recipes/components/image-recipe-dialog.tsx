@@ -24,10 +24,15 @@ type Props = {
 type Stage = "idle" | "preview" | "parsing" | "not_recipe";
 
 const PARSE_ENDPOINT = "/api/ai/recipes/parse-image";
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_SOURCE_IMAGE_BYTES = 25 * 1024 * 1024;
+const MAX_DATA_URL_CHARS = 8_000_000;
 const ACCEPTED_MIMES = ["image/jpeg", "image/png", "image/webp"] as const;
-const RESIZE_MAX_DIM = 1280;
-const RESIZE_QUALITY = 0.85;
+const RESIZE_TARGETS = [
+  { maxDim: 1280, quality: 0.85 },
+  { maxDim: 1280, quality: 0.75 },
+  { maxDim: 1024, quality: 0.78 },
+  { maxDim: 960, quality: 0.72 },
+] as const;
 
 export function ImageRecipeDialog({ open, onOpenChange, onParsed }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -62,14 +67,21 @@ export function ImageRecipeDialog({ open, onOpenChange, onParsed }: Props) {
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
-    if (file.size > MAX_IMAGE_BYTES) {
-      toast.error("Imagem muito grande. Use uma foto de até 5 MB.");
+    if (file.size > MAX_SOURCE_IMAGE_BYTES) {
+      toast.error("Imagem muito grande. Use uma foto de até 25 MB.");
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
 
     try {
-      const dataUrl = await downscaleToDataUrl(file, RESIZE_MAX_DIM, RESIZE_QUALITY);
+      const dataUrl = await downscaleToDataUrl(file);
+      if (dataUrl.length > MAX_DATA_URL_CHARS) {
+        toast.error(
+          "Não consegui reduzir essa imagem. Tente uma foto com enquadramento mais fechado.",
+        );
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
       setImageDataUrl(dataUrl);
       setFileName(file.name);
       setNotRecipeReason("");
@@ -162,7 +174,7 @@ export function ImageRecipeDialog({ open, onOpenChange, onParsed }: Props) {
               </span>
               <span className="text-sm font-medium text-foreground">Tirar foto ou enviar</span>
               <span className="text-xs text-muted-foreground">
-                No celular abre a câmera. JPG, PNG ou WebP até 5 MB.
+                No celular abre a câmera. JPG, PNG ou WebP; fotos grandes são reduzidas.
               </span>
             </button>
           ) : null}
@@ -235,27 +247,38 @@ export function ImageRecipeDialog({ open, onOpenChange, onParsed }: Props) {
   );
 }
 
-async function downscaleToDataUrl(file: File, maxDim: number, quality: number): Promise<string> {
+async function downscaleToDataUrl(file: File): Promise<string> {
   const objectUrl = URL.createObjectURL(file);
   try {
     const img = await loadImage(objectUrl);
-    const longestSide = Math.max(img.naturalWidth, img.naturalHeight);
-    const ratio = longestSide > maxDim ? maxDim / longestSide : 1;
-    const targetWidth = Math.max(1, Math.round(img.naturalWidth * ratio));
-    const targetHeight = Math.max(1, Math.round(img.naturalHeight * ratio));
-
-    const canvas = document.createElement("canvas");
-    canvas.width = targetWidth;
-    canvas.height = targetHeight;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      throw new Error("Canvas indisponível neste navegador.");
+    for (const target of RESIZE_TARGETS) {
+      const dataUrl = renderImageToDataUrl(img, target.maxDim, target.quality);
+      if (dataUrl.length <= MAX_DATA_URL_CHARS) {
+        return dataUrl;
+      }
     }
-    ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
-    return canvas.toDataURL("image/jpeg", quality);
+    const finalTarget = RESIZE_TARGETS[RESIZE_TARGETS.length - 1] ?? { maxDim: 960 };
+    return renderImageToDataUrl(img, finalTarget.maxDim, 0.65);
   } finally {
     URL.revokeObjectURL(objectUrl);
   }
+}
+
+function renderImageToDataUrl(img: HTMLImageElement, maxDim: number, quality: number): string {
+  const longestSide = Math.max(img.naturalWidth, img.naturalHeight);
+  const ratio = longestSide > maxDim ? maxDim / longestSide : 1;
+  const targetWidth = Math.max(1, Math.round(img.naturalWidth * ratio));
+  const targetHeight = Math.max(1, Math.round(img.naturalHeight * ratio));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Canvas indisponível neste navegador.");
+  }
+  ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+  return canvas.toDataURL("image/jpeg", quality);
 }
 
 function loadImage(url: string): Promise<HTMLImageElement> {
