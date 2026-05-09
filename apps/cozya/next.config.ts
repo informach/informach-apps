@@ -86,6 +86,12 @@ export default withSentryConfig(nextConfig, {
   project: process.env.SENTRY_PROJECT,
   authToken: process.env.SENTRY_AUTH_TOKEN,
   silent: !process.env.CI,
+  // Eventos do client tunelados via /monitoring (same-origin) em vez de
+  // *.ingest.sentry.io — adblockers (uBlock/AdGuard) bloqueiam o domínio
+  // do Sentry e a app perde captura desses users. Next gera o handler
+  // /monitoring que proxia server-side. Custo: ~banda/CPU do edge por
+  // evento, irrelevante em low-traffic.
+  tunnelRoute: "/monitoring",
   sourcemaps: {
     disable: !hasSentrySourceMapConfig,
     deleteSourcemapsAfterUpload: true,
