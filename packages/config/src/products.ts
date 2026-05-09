@@ -61,7 +61,7 @@ export const PRODUCTS: readonly Product[] = [
     bonusCreditsPerMonth: 50,
     stripePriceId: {
       dev: "price_1TTR6VCvOctqao30J41KCiYi",
-      prod: "price_TODO_cozya_pro_monthly_prod",
+      prod: "price_1TVAjMCvOctqao30WAOrs565",
     },
     listPrice: { amountCents: 1490, currency: "BRL" },
   },
@@ -75,7 +75,7 @@ export const PRODUCTS: readonly Product[] = [
     bonusCreditsPerMonth: 50,
     stripePriceId: {
       dev: "price_1TTR7ECvOctqao30h2pkeyqP",
-      prod: "price_TODO_cozya_pro_annual_prod",
+      prod: "price_1TVAjTCvOctqao30glQmB1v4",
     },
     listPrice: { amountCents: 14900, currency: "BRL" },
   },
@@ -98,8 +98,8 @@ export const PRODUCTS: readonly Product[] = [
     name: "10 créditos",
     creditAmount: 10,
     stripePriceId: {
-      dev: "price_TODO_cozya_credits_10_dev",
-      prod: "price_TODO_cozya_credits_10_prod",
+      dev: "price_1TVAuJCvOctqao30a1dROkvp",
+      prod: "price_1TVAjZCvOctqao30HEcEev83",
     },
     listPrice: { amountCents: 690, currency: "BRL" },
   },
@@ -110,8 +110,8 @@ export const PRODUCTS: readonly Product[] = [
     name: "20 créditos",
     creditAmount: 20,
     stripePriceId: {
-      dev: "price_TODO_cozya_credits_20_dev",
-      prod: "price_TODO_cozya_credits_20_prod",
+      dev: "price_1TVAuKCvOctqao30zodJvm4F",
+      prod: "price_1TVAjdCvOctqao302vcihvsS",
     },
     listPrice: { amountCents: 1290, currency: "BRL" },
   },
@@ -122,8 +122,8 @@ export const PRODUCTS: readonly Product[] = [
     name: "30 créditos",
     creditAmount: 30,
     stripePriceId: {
-      dev: "price_TODO_cozya_credits_30_dev",
-      prod: "price_TODO_cozya_credits_30_prod",
+      dev: "price_1TVAuKCvOctqao3046AJfhFm",
+      prod: "price_1TVAjhCvOctqao30mIrhXhN0",
     },
     listPrice: { amountCents: 1790, currency: "BRL" },
   },

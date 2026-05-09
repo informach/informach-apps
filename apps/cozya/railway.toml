@@ -1,0 +1,15 @@
+# Railway service config para o app cozya (config-as-code).
+# Wired no Dashboard via Settings → Service → Config-as-code → "apps/cozya/railway.toml".
+# Root Directory do service = "/" (raiz do monorepo) — pnpm workspace precisa
+# do repo inteiro pra resolver os pacotes @informach/* via TypeScript source.
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "pnpm install --frozen-lockfile && pnpm build:cozya"
+
+[deploy]
+startCommand = "pnpm start:cozya"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
