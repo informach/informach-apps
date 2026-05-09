@@ -1,0 +1,22 @@
+# Railway service config para o app informach-site (config-as-code).
+# Wired no Dashboard via Settings → Source → Config Path → "apps/informach-site/railway.toml".
+# Root Directory = "/" (raiz do monorepo) — pnpm workspace precisa do repo
+# inteiro pra resolver @informach/ui via TypeScript source.
+#
+# Site institucional sem auth/billing/db/AI/Sentry — só Next + @informach/ui.
+# Healthcheck = "/" (root estático), não /api/health (não existe).
+
+[build]
+builder = "NIXPACKS"
+# `--prod=false` força a instalação de devDependencies mesmo com NODE_ENV=production
+# no env do service. Sem isso, pnpm pula tailwindcss + typescript (devDeps) e o
+# `next build` quebra. `next build` em si continua produzindo bundle de produção
+# porque o próprio Next seta NODE_ENV=production durante o build.
+buildCommand = "pnpm install --frozen-lockfile --prod=false && pnpm build:informach-site"
+
+[deploy]
+startCommand = "pnpm start:informach-site"
+healthcheckPath = "/"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
