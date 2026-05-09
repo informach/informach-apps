@@ -5,6 +5,20 @@
 
 [build]
 builder = "NIXPACKS"
+watchPatterns = [
+  "/apps/cozya/**",
+  "/packages/ai-core/**",
+  "/packages/auth/**",
+  "/packages/billing/**",
+  "/packages/config/**",
+  "/packages/db/**",
+  "/packages/emails/**",
+  "/packages/ui/**",
+  "/package.json",
+  "/pnpm-lock.yaml",
+  "/pnpm-workspace.yaml",
+  "/turbo.json"
+]
 # `--prod=false` força a instalação de devDependencies mesmo com NODE_ENV=production
 # no env do service. Sem isso, o pnpm pula `turbo` (devDep) e o build quebra com
 # "turbo: not found". `next build` em si continua produzindo bundle de produção
