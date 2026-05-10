@@ -10,7 +10,8 @@ import {
   DropdownMenuTrigger,
 } from "@informach/ui/components/dropdown-menu";
 import { toast } from "@informach/ui/components/sonner";
-import { Copy, LogOut, MoreVertical, Star, UserPlus } from "lucide-react";
+import { BookOpen, Copy, LogOut, MoreVertical, Star, UserPlus } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import type { StudentProfile } from "@/features/students/types";
@@ -117,10 +118,18 @@ export function TurmaCard({ turma, userProfiles }: Props) {
               {formatTurmaShort(turma)} · {turma.year} · {turma.cityName}/{turma.stateUf}
             </p>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={copyCode}>
-            <Copy className="mr-2 size-3.5" aria-hidden />
-            <span className="font-mono text-xs">{turma.code}</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/turmas/${turma.id}/materias`}>
+                <BookOpen className="mr-2 size-3.5" aria-hidden />
+                Matérias
+              </Link>
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={copyCode}>
+              <Copy className="mr-2 size-3.5" aria-hidden />
+              <span className="font-mono text-xs">{turma.code}</span>
+            </Button>
+          </div>
         </div>
 
         <div className="flex flex-col gap-2 border-t pt-3">

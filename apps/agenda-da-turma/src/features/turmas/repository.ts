@@ -204,6 +204,19 @@ export async function setActiveTurma(profileId: string, turmaId: string | null):
     .where(eq(agendaStudentProfiles.id, profileId));
 }
 
+export async function userHasMemberInTurma(userId: string, turmaId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: agendaTurmaMembers.id })
+    .from(agendaTurmaMembers)
+    .innerJoin(
+      agendaStudentProfiles,
+      eq(agendaStudentProfiles.id, agendaTurmaMembers.studentProfileId),
+    )
+    .where(and(eq(agendaTurmaMembers.turmaId, turmaId), eq(agendaStudentProfiles.userId, userId)))
+    .limit(1);
+  return row !== undefined;
+}
+
 export async function verifyMembership(profileId: string, turmaId: string): Promise<boolean> {
   const [row] = await db
     .select({ id: agendaTurmaMembers.id })

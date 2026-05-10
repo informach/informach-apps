@@ -118,6 +118,30 @@ export const agendaTurmaMembers = agenda.table(
   ],
 );
 
+// Matérias pertencem à turma (compartilhadas entre famílias). Só o creator da
+// turma edita/exclui — checagem é no service. UNIQUE (turma_id, name) impede
+// duplicata exata na mesma turma.
+export const agendaSubjects = agenda.table(
+  "subjects",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    turmaId: uuid("turma_id")
+      .notNull()
+      .references(() => agendaTurmas.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    teacherName: text("teacher_name"),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("agenda_subjects_turma_name_unique_idx").on(t.turmaId, t.name),
+    index("agenda_subjects_turma_idx").on(t.turmaId),
+  ],
+);
+
 export type AgendaState = typeof agendaStates.$inferSelect;
 export type AgendaCity = typeof agendaCities.$inferSelect;
 export type AgendaSchool = typeof agendaSchools.$inferSelect;
@@ -127,3 +151,5 @@ export type AgendaTurmaMember = typeof agendaTurmaMembers.$inferSelect;
 export type NewAgendaTurmaMember = typeof agendaTurmaMembers.$inferInsert;
 export type AgendaStudentProfile = typeof agendaStudentProfiles.$inferSelect;
 export type NewAgendaStudentProfile = typeof agendaStudentProfiles.$inferInsert;
+export type AgendaSubject = typeof agendaSubjects.$inferSelect;
+export type NewAgendaSubject = typeof agendaSubjects.$inferInsert;

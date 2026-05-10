@@ -162,6 +162,13 @@
       "when": 1778415643027,
       "tag": "0022_petite_swordsman",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1778420620041,
+      "tag": "0023_legal_ted_forrester",
+      "breakpoints": true
     }
   ]
 }

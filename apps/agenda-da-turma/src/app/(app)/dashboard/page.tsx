@@ -4,6 +4,8 @@ import {
   countUserProfilesWithoutTurma,
   countUserStudentProfiles,
 } from "@/features/students/service";
+import { NoSubjectsWidget } from "@/features/subjects/components/no-subjects-widget";
+import { listTurmasNeedingSubjectsForUser } from "@/features/subjects/service";
 import { requireUserServer } from "@/lib/auth";
 
 export const metadata = {
@@ -12,9 +14,10 @@ export const metadata = {
 
 export default async function DashboardPage() {
   const user = await requireUserServer();
-  const [profilesCount, profilesWithoutTurma] = await Promise.all([
+  const [profilesCount, profilesWithoutTurma, turmasNeedingSubjects] = await Promise.all([
     countUserStudentProfiles(user.id),
     countUserProfilesWithoutTurma(user.id),
+    listTurmasNeedingSubjectsForUser(user.id),
   ]);
 
   return (
@@ -30,6 +33,8 @@ export default async function DashboardPage() {
         <NoStudentsWidget />
       ) : profilesWithoutTurma > 0 ? (
         <ProfilesWithoutTurmaWidget count={profilesWithoutTurma} />
+      ) : turmasNeedingSubjects.length > 0 ? (
+        <NoSubjectsWidget turmas={turmasNeedingSubjects} />
       ) : null}
 
       <p className="text-sm text-muted-foreground">Em breve: tarefas, provas e recados da turma.</p>

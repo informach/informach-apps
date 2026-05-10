@@ -5,10 +5,10 @@ import Link from "next/link";
 
 export function NoStudentsWidget() {
   return (
-    <Card className="border-chart-1/40 bg-gradient-to-br from-primary/10 via-primary/5 to-chart-1/10">
+    <Card className="border-chart-3/40 bg-gradient-to-br from-secondary/10 via-secondary/5 to-chart-3/10">
       <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-4">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-secondary/15 text-secondary">
             <Users className="size-5" aria-hidden />
           </span>
           <div className="space-y-1">
@@ -21,7 +21,7 @@ export function NoStudentsWidget() {
             </p>
           </div>
         </div>
-        <Button asChild className="shrink-0">
+        <Button asChild variant="secondary" className="shrink-0">
           <Link href="/perfis">Criar perfil</Link>
         </Button>
       </CardContent>

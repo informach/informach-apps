@@ -1,0 +1,2 @@
+export const MAX_SUBJECT_NAME_LENGTH = 80;
+export const MAX_TEACHER_NAME_LENGTH = 80;
