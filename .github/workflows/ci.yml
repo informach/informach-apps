@@ -72,6 +72,8 @@ jobs:
 
       - run: pnpm build
         env:
+          BETTER_AUTH_URL: https://agenda.example.com
+          NEXT_PUBLIC_APP_URL: https://agenda.example.com
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
