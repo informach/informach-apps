@@ -74,6 +74,46 @@ export const authResult = createAuth({
     verification: "otp",
     signIn: { magicLink: false, otp: true },
     forgetPassword: "otp",
+    // Security: notifica usuário existente quando alguém tenta cadastrar com
+    // o mesmo e-mail. Limita ao subset com Pro ativo (segurança proporcional
+    // ao valor da conta). Rate limit do /sign-up/email (5/h) protege spam.
+    onExistingUserSignUp: async ({ user }) => {
+      try {
+        const { billing } = await import("@/features/billing/service");
+        const isPro = await billing.hasProSubscription({ type: "user", id: user.id });
+        if (!isPro) return;
+        const unsubscribeUrl = `${env.NEXT_PUBLIC_APP_URL}/api/email/unsubscribe?t=${buildUnsubscribeToken(
+          env.BETTER_AUTH_SECRET,
+          user.email,
+          "auth.signup-attempt-on-existing",
+        )}`;
+        const { html, text, subject } = await emails.renderTemplate(
+          "auth.signup-attempt-on-existing",
+          {
+            appName: APPS.cozya.name,
+            loginUrl: `${env.NEXT_PUBLIC_APP_URL}/login`,
+            unsubscribeUrl,
+            unsubscribeMailto: getEmailUnsubscribeMailto(),
+          },
+        );
+        await emails.sendEmail({
+          to: user.email,
+          category: "auth.signup-attempt-on-existing",
+          messageKey: `signup-attempt-${user.id}-${crypto.randomUUID()}`,
+          userId: user.id,
+          unsubscribeUrl,
+          unsubscribeMailto: getEmailUnsubscribeMailto(),
+          subject,
+          text,
+          html,
+        });
+      } catch (err) {
+        logger.error(
+          { userId: user.id, err: err instanceof Error ? err.message : String(err) },
+          "auth.signup_attempt_on_existing.notify_failed",
+        );
+      }
+    },
   },
   // LGPD: when an account is deleted, cancel any active subscriptions and
   // free credit balances for the user immediately. Ledger rows stay (fiscal).

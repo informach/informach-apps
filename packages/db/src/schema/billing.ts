@@ -226,12 +226,7 @@ export const creditLedger = billing.table(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
-    index("credit_ledger_owner_app_created_idx").on(
-      t.ownerType,
-      t.ownerId,
-      t.app,
-      t.createdAt,
-    ),
+    index("credit_ledger_owner_app_created_idx").on(t.ownerType, t.ownerId, t.app, t.createdAt),
     index("credit_ledger_owner_app_expires_idx")
       .on(t.ownerType, t.ownerId, t.app, t.expiresAt)
       .where(sql`${t.expiresAt} IS NOT NULL`),

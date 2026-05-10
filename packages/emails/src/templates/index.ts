@@ -15,6 +15,10 @@ import { PaymentFailedEmail, type PaymentFailedEmailProps } from "./paymentFaile
 import { PaymentSuccessEmail, type PaymentSuccessEmailProps } from "./paymentSuccess";
 import { SignInEmailOtp, type SignInEmailOtpProps } from "./signInEmailOtp";
 import {
+  SignupAttemptOnExistingEmail,
+  type SignupAttemptOnExistingEmailProps,
+} from "./signupAttemptOnExisting";
+import {
   SubscriptionCanceledEmail,
   type SubscriptionCanceledEmailProps,
 } from "./subscriptionCanceled";
@@ -44,6 +48,7 @@ export { PasswordResetEmail } from "./passwordReset";
 export { PaymentFailedEmail } from "./paymentFailed";
 export { PaymentSuccessEmail } from "./paymentSuccess";
 export { SignInEmailOtp } from "./signInEmailOtp";
+export { SignupAttemptOnExistingEmail } from "./signupAttemptOnExisting";
 export { SubscriptionCanceledEmail } from "./subscriptionCanceled";
 export { SubscriptionRenewedEmail } from "./subscriptionRenewed";
 export { VerificationEmail } from "./verification";
@@ -59,6 +64,7 @@ export type {
   PaymentFailedEmailProps,
   PaymentSuccessEmailProps,
   SignInEmailOtpProps,
+  SignupAttemptOnExistingEmailProps,
   SubscriptionCanceledEmailProps,
   SubscriptionRenewedEmailProps,
   VerificationEmailProps,
@@ -74,6 +80,7 @@ export type EmailCategory =
   | "auth.magic-link"
   | "auth.invitation"
   | "auth.account-deletion"
+  | "auth.signup-attempt-on-existing"
   | "billing.payment-success"
   | "billing.payment-failed"
   | "billing.subscription-renewed"
@@ -90,6 +97,7 @@ export type RenderTemplatePropsByCategory = {
   "auth.magic-link": MagicLinkEmailProps;
   "auth.invitation": InvitationEmailProps;
   "auth.account-deletion": AccountDeletionEmailProps;
+  "auth.signup-attempt-on-existing": SignupAttemptOnExistingEmailProps;
   "billing.payment-success": PaymentSuccessEmailProps;
   "billing.payment-failed": PaymentFailedEmailProps;
   "billing.subscription-renewed": SubscriptionRenewedEmailProps;
@@ -118,6 +126,7 @@ type SubjectNamespace =
   | "magicLink"
   | "invitation"
   | "accountDeletion"
+  | "signupAttemptOnExisting"
   | "paymentSuccess"
   | "paymentFailed"
   | "subscriptionRenewed"
@@ -175,6 +184,11 @@ const CATEGORY_REGISTRY: {
   "auth.account-deletion": {
     component: AccountDeletionEmail,
     subjectNamespace: "accountDeletion",
+    subjectValues: ({ appName }) => ({ appName }),
+  },
+  "auth.signup-attempt-on-existing": {
+    component: SignupAttemptOnExistingEmail,
+    subjectNamespace: "signupAttemptOnExisting",
     subjectValues: ({ appName }) => ({ appName }),
   },
   "billing.payment-success": {

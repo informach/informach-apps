@@ -120,6 +120,7 @@ Mapeamento `EmailCategory → componente React Email`:
 | `auth.magic-link` | `MagicLinkEmail` | `appName, url` |
 | `auth.invitation` | `InvitationEmail` | `appName, inviterName, organizationName, url` |
 | `auth.account-deletion` | `AccountDeletionEmail` | `appName, url` |
+| `auth.signup-attempt-on-existing` | `SignupAttemptOnExistingEmail` | `appName, loginUrl` |
 | `billing.payment-success` | `PaymentSuccessEmail` | `appName, productName, amountFormatted, manageBillingUrl` |
 | `billing.payment-failed` | `PaymentFailedEmail` | `appName, attempt, maxAttempts, updatePaymentUrl` |
 | `billing.subscription-renewed` | `SubscriptionRenewedEmail` | `appName, productName, nextBillingDate, manageBillingUrl` |

@@ -16,7 +16,7 @@ import {
 import type { EmailCategory, RenderTemplate, SendEmail } from "@informach/emails";
 import { type BetterAuthPlugin, betterAuth, type SecondaryStorage } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { createAuthMiddleware } from "better-auth/api";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import { magicLink } from "better-auth/plugins/magic-link";
 import { organization } from "better-auth/plugins/organization";
@@ -149,6 +149,22 @@ export type CreateAuthEmailConfig = {
    * Default: `"link"`.
    */
   forgetPassword?: "link" | "otp";
+  /**
+   * Disparado quando alguém tenta cadastrar com e-mail já existente. Recebe
+   * o usuário EXISTENTE (não o tentante). Use para enviar notificação de
+   * segurança (ex: "alguém tentou criar conta com seu email").
+   *
+   * Best-effort: o callback roda fire-and-forget. Erros são logados via
+   * `observability.onAuditPersistenceFailure` mas não interrompem o fluxo,
+   * que sempre lança `USER_ALREADY_EXISTS` para o cliente.
+   *
+   * IMPORTANTE: a presença deste campo não controla a detecção de duplicata
+   * — ela é sempre feita pelo middleware `/sign-up/email`. Este callback só
+   * controla a notificação opcional ao usuário existente.
+   */
+  onExistingUserSignUp?: (params: {
+    user: { id: string; email: string; name: string };
+  }) => Promise<void> | void;
 };
 
 export type CreateAuthAccountDeletionConfig = {
@@ -760,6 +776,56 @@ function createAuthInstance(config: CreateAuthConfig) {
       },
     },
     hooks: {
+      before: createAuthMiddleware(async (ctx) => {
+        // Better Auth nativo NÃO retorna USER_ALREADY_EXISTS quando
+        // `requireEmailVerification: true` (proteção anti-enumeration via
+        // "generic duplicate response"). Para apps consumer single-user esse
+        // trade-off prejudica mais a UX do que protege — o usuário fica preso
+        // na tela de OTP esperando código que nunca chega. Detectamos a
+        // duplicata aqui e retornamos erro explícito.
+        if (ctx.path !== "/sign-up/email") return;
+        const rawEmail = bodyField(ctx, "email");
+        if (!rawEmail) return;
+        const normalized = rawEmail.toLowerCase().trim();
+        const [existing] = await db
+          .select({ id: users.id, email: users.email, name: users.name })
+          .from(users)
+          .where(eq(users.email, normalized))
+          .limit(1);
+        if (!existing) return;
+
+        if (config.email?.onExistingUserSignUp) {
+          // Fire-and-forget: notificação não pode bloquear a resposta de erro.
+          Promise.resolve(
+            config.email.onExistingUserSignUp({
+              user: { id: existing.id, email: existing.email, name: existing.name },
+            }),
+          ).catch((err) => {
+            try {
+              config.observability?.onAuditPersistenceFailure?.({
+                eventType: "auth.signup_attempt_on_existing",
+                actorId: existing.id,
+                payloadKeys: ["error"],
+                error: {
+                  name: err instanceof Error ? err.name : "UnknownError",
+                  message: err instanceof Error ? err.message : String(err),
+                },
+              });
+            } catch {
+              // observability hooks must not break auth flows
+            }
+          });
+        }
+
+        await logAuditEvent("auth.signup_attempt_on_existing", existing.id, {
+          emailDomain: normalized.split("@")[1] ?? "",
+        });
+
+        throw new APIError("BAD_REQUEST", {
+          message: "An account with this email already exists.",
+          code: "USER_ALREADY_EXISTS",
+        });
+      }),
       after: createAuthMiddleware(async (ctx) => {
         const path = ctx.path;
         const session = ctx.context.session;

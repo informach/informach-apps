@@ -21,6 +21,7 @@ export type EmailNamespace =
   | "magicLink"
   | "invitation"
   | "accountDeletion"
+  | "signupAttemptOnExisting"
   | "paymentSuccess"
   | "paymentFailed"
   | "subscriptionRenewed"

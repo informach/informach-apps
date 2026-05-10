@@ -51,7 +51,7 @@ type LoginMode = "password" | "otp";
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
-export function LoginForm({ nextPath }: { nextPath: string }) {
+export function LoginForm({ nextPath, defaultEmail }: { nextPath: string; defaultEmail?: string }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>({ kind: "auth" });
   const [mode, setMode] = useState<LoginMode>("password");
@@ -112,11 +112,13 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
               </Tabs>
               {mode === "password" ? (
                 <PasswordStep
+                  defaultEmail={defaultEmail}
                   onForgotPassword={() => setStep({ kind: "reset-email" })}
                   onVerified={() => router.push(nextPath)}
                 />
               ) : (
                 <EmailOtpRequestStep
+                  defaultEmail={defaultEmail}
                   onSubmitted={(email) => {
                     setStep({ kind: "otp", email });
                     setResendCooldown(RESEND_COOLDOWN_SECONDS);
@@ -169,15 +171,17 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
 }
 
 function PasswordStep({
+  defaultEmail,
   onForgotPassword,
   onVerified,
 }: {
+  defaultEmail?: string;
   onForgotPassword: () => void;
   onVerified: () => void;
 }) {
   const form = useForm<PasswordLoginInput>({
     resolver: zodResolver(passwordLoginSchema),
-    defaultValues: { email: "", password: "" },
+    defaultValues: { email: defaultEmail ?? "", password: "" },
   });
 
   const onSubmit = form.handleSubmit(async (values) => {
@@ -253,10 +257,16 @@ function PasswordStep({
   );
 }
 
-function EmailOtpRequestStep({ onSubmitted }: { onSubmitted: (email: string) => void }) {
+function EmailOtpRequestStep({
+  defaultEmail,
+  onSubmitted,
+}: {
+  defaultEmail?: string;
+  onSubmitted: (email: string) => void;
+}) {
   const form = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: "" },
+    defaultValues: { email: defaultEmail ?? "" },
   });
 
   const onSubmit = form.handleSubmit(async (values) => {

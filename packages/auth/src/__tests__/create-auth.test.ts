@@ -23,6 +23,15 @@ vi.mock("better-auth/adapters/drizzle", () => ({
 
 vi.mock("better-auth/api", () => ({
   createAuthMiddleware: vi.fn((handler: unknown) => ({ __middleware: true, handler })),
+  APIError: class APIError extends Error {
+    constructor(
+      public readonly status: string,
+      public readonly body: { code?: string; message?: string },
+    ) {
+      super(body?.message ?? status);
+      this.name = "APIError";
+    }
+  },
 }));
 
 vi.mock("better-auth/plugins/magic-link", () => ({
@@ -66,12 +75,26 @@ const dbUpdateChain: {
   where: vi.fn(() => dbUpdateChain),
   returning: vi.fn(async () => dbUpdateChain.rows),
 };
+// Chain for `db.select(...).from(...).where(...).limit(N)` returning a row list.
+// Tests reset `dbSelectChain.rows` to control the return value.
+const dbSelectChain: {
+  rows: Array<Record<string, unknown>>;
+  from: ReturnType<typeof vi.fn>;
+  where: ReturnType<typeof vi.fn>;
+  limit: ReturnType<typeof vi.fn>;
+} = {
+  rows: [],
+  from: vi.fn(() => dbSelectChain),
+  where: vi.fn(() => dbSelectChain),
+  limit: vi.fn(async () => dbSelectChain.rows),
+};
 
 vi.mock("@informach/db", () => ({
   db: {
     insert: vi.fn(() => dbInsertChain),
     delete: vi.fn(() => dbDeleteChain),
     update: vi.fn(() => dbUpdateChain),
+    select: vi.fn(() => dbSelectChain),
   },
 }));
 
@@ -800,6 +823,149 @@ describe("createAuth — email callbacks", () => {
     expectHashedMessageKey(payload.messageKey, "magic-link", "tok-qqq");
     expect(payload.userId).toBeUndefined();
     expect(payload.unsubscribeUrl).toContain("magic@example.com-auth.magic-link");
+  });
+});
+
+describe("createAuth — hooks.before duplicate signup detection", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    dbSelectChain.rows = [];
+  });
+
+  // O middleware `before` é o PRIMEIRO `createAuthMiddleware` registrado em
+  // `index.ts`; o `after` (existente) é o segundo. Ambos os tipos de teste
+  // dependem dessa ordem de captura.
+  function getBeforeHandler(): (ctx: unknown) => Promise<void> {
+    const handler = mockedAuthMiddleware.mock.calls[0]?.[0];
+    expect(handler).toBeTypeOf("function");
+    return handler as (ctx: unknown) => Promise<void>;
+  }
+
+  it("retorna sem efeito quando o path não é /sign-up/email", async () => {
+    createAuth(makeConfig());
+    const handler = getBeforeHandler();
+    await handler({ path: "/sign-in/email", body: { email: "x@y.com" } });
+    expect(dbSelectChain.from).not.toHaveBeenCalled();
+    expect(dbInsertChain.values).not.toHaveBeenCalled();
+  });
+
+  it("retorna sem efeito quando o body não tem email", async () => {
+    createAuth(makeConfig());
+    const handler = getBeforeHandler();
+    await handler({ path: "/sign-up/email", body: {} });
+    expect(dbSelectChain.from).not.toHaveBeenCalled();
+  });
+
+  it("retorna sem efeito quando o e-mail não existe na tabela users", async () => {
+    createAuth(makeConfig());
+    const handler = getBeforeHandler();
+    dbSelectChain.rows = []; // miss
+    await handler({ path: "/sign-up/email", body: { email: "novo@x.com" } });
+    expect(dbSelectChain.from).toHaveBeenCalled();
+    expect(dbInsertChain.values).not.toHaveBeenCalled();
+  });
+
+  it("lança APIError USER_ALREADY_EXISTS quando o e-mail já existe", async () => {
+    createAuth(makeConfig());
+    const handler = getBeforeHandler();
+    dbSelectChain.rows = [{ id: "u1", email: "ja@x.com", name: "Já Existe" }];
+    let caught: { status?: string; body?: { code?: string; message?: string } } | null = null;
+    try {
+      await handler({ path: "/sign-up/email", body: { email: "ja@x.com" } });
+    } catch (err) {
+      caught = err as { status?: string; body?: { code?: string; message?: string } };
+    }
+    expect(caught).not.toBeNull();
+    expect(caught?.status).toBe("BAD_REQUEST");
+    expect(caught?.body?.code).toBe("USER_ALREADY_EXISTS");
+  });
+
+  it("normaliza o e-mail (lowercase + trim) antes de procurar", async () => {
+    createAuth(makeConfig());
+    const handler = getBeforeHandler();
+    dbSelectChain.rows = [];
+    await handler({ path: "/sign-up/email", body: { email: "  Foo@BAR.com  " } });
+    expect(dbSelectChain.where).toHaveBeenCalled();
+    // O valor normalizado vai pro `eq()` mockado, que retorna { field, value }.
+    const whereArg = dbSelectChain.where.mock.calls[0]?.[0] as { value?: string };
+    expect(whereArg?.value).toBe("foo@bar.com");
+  });
+
+  it("registra audit auth.signup_attempt_on_existing com emailDomain (sem e-mail bruto)", async () => {
+    createAuth(makeConfig());
+    const handler = getBeforeHandler();
+    dbSelectChain.rows = [{ id: "u42", email: "alguem@empresa.com.br", name: "Alguém" }];
+    try {
+      await handler({ path: "/sign-up/email", body: { email: "Alguem@Empresa.com.BR" } });
+    } catch {
+      // expected
+    }
+    const auditArgs = dbInsertChain.values.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(auditArgs.eventType).toBe("auth.signup_attempt_on_existing");
+    expect(auditArgs.actorId).toBe("u42");
+    const payload = auditArgs.payload as Record<string, unknown>;
+    expect(payload.emailDomain).toBe("empresa.com.br");
+    // payload não pode vazar e-mail bruto
+    expect(JSON.stringify(payload)).not.toContain("alguem@");
+  });
+
+  it("dispara o callback email.onExistingUserSignUp com o user EXISTENTE", async () => {
+    const onExistingUserSignUp = vi.fn().mockResolvedValue(undefined);
+    createAuth({ ...makeConfig(), email: { onExistingUserSignUp } });
+    const handler = getBeforeHandler();
+    dbSelectChain.rows = [{ id: "u7", email: "owner@x.com", name: "Owner" }];
+    try {
+      await handler({ path: "/sign-up/email", body: { email: "owner@x.com" } });
+    } catch {
+      // expected
+    }
+    expect(onExistingUserSignUp).toHaveBeenCalledTimes(1);
+    expect(onExistingUserSignUp).toHaveBeenCalledWith({
+      user: { id: "u7", email: "owner@x.com", name: "Owner" },
+    });
+  });
+
+  it("não dispara nenhum callback quando email.onExistingUserSignUp não foi configurado", async () => {
+    createAuth(makeConfig());
+    const handler = getBeforeHandler();
+    dbSelectChain.rows = [{ id: "u9", email: "z@x.com", name: "Z" }];
+    // Não deve quebrar e ainda assim deve lançar USER_ALREADY_EXISTS
+    let threw = false;
+    try {
+      await handler({ path: "/sign-up/email", body: { email: "z@x.com" } });
+    } catch {
+      threw = true;
+    }
+    expect(threw).toBe(true);
+  });
+
+  it("erros no callback são reportados via observability.onAuditPersistenceFailure (fire-and-forget)", async () => {
+    const onAuditPersistenceFailure = vi.fn();
+    const onExistingUserSignUp = vi.fn().mockRejectedValue(new Error("sendgrid down"));
+    createAuth({
+      ...makeConfig(),
+      email: { onExistingUserSignUp },
+      observability: { onAuditPersistenceFailure },
+    });
+    const handler = getBeforeHandler();
+    dbSelectChain.rows = [{ id: "u8", email: "u@x.com", name: "U" }];
+    try {
+      await handler({ path: "/sign-up/email", body: { email: "u@x.com" } });
+    } catch {
+      // expected APIError
+    }
+    // Aguarda o microtask do .catch() do fire-and-forget propagar.
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(onAuditPersistenceFailure).toHaveBeenCalledTimes(1);
+    const failureArgs = onAuditPersistenceFailure.mock.calls[0]?.[0] as {
+      eventType: string;
+      actorId: string | null;
+      payloadKeys: string[];
+      error: { name: string; message: string };
+    };
+    expect(failureArgs.eventType).toBe("auth.signup_attempt_on_existing");
+    expect(failureArgs.actorId).toBe("u8");
+    expect(failureArgs.error.message).toBe("sendgrid down");
   });
 });
 

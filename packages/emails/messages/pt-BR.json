@@ -73,6 +73,14 @@
     "instruction": "Se foi você, confirme clicando no botão abaixo. O link expira em breve. Se não foi você, ignore este email — sua conta permanece ativa.",
     "cta": "Confirmar exclusão"
   },
+  "signupAttemptOnExisting": {
+    "subject": "{appName} — tentativa de cadastro com seu email",
+    "preheader": "Alguém tentou criar uma conta usando seu email no {appName}.",
+    "title": "Tentativa de cadastro com seu email",
+    "body": "Alguém acabou de tentar criar uma nova conta no <strong>{appName}</strong> usando este endereço de email.",
+    "instruction": "Se foi você e quer acessar sua conta existente, basta entrar normalmente. Se não foi você, pode ignorar este email — sua conta permanece segura e nenhuma alteração foi feita.",
+    "cta": "Ir para o login"
+  },
   "paymentSuccess": {
     "subject": "{appName} — pagamento confirmado",
     "preheader": "Seu pagamento de {amountFormatted} foi confirmado.",

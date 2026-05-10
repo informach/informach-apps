@@ -114,6 +114,24 @@ describe("renderTemplate", () => {
     expect(result.html).toContain(baseProps.url);
   });
 
+  it("returns html, text and subject for signup-attempt-on-existing", async () => {
+    const result = await renderTemplate("auth.signup-attempt-on-existing", {
+      appName: "Test App",
+      loginUrl: "https://app.example.com/login",
+      unsubscribeUrl: baseProps.unsubscribeUrl,
+      unsubscribeMailto: baseProps.unsubscribeMailto,
+    });
+    expect(result.subject).toBe("Test App — tentativa de cadastro com seu email");
+    expect(result.html).toContain("Tentativa de cadastro com seu email");
+    expect(result.html).toContain("Test App");
+    expect(result.html).toContain("https://app.example.com/login");
+    expect(result.html).toContain("Ir para o login");
+    // Mensagem deve deixar claro que a conta está segura
+    expect(result.html).toContain("segura");
+    expect(result.text).toContain("Test App");
+    expect(result.text).toContain("https://app.example.com/login");
+  });
+
   it("throws on unknown category", async () => {
     await expect(
       renderTemplate(

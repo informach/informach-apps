@@ -28,6 +28,7 @@ export type EmailCategory =
   | "auth.magic-link"
   | "auth.invitation"
   | "auth.account-deletion"
+  | "auth.signup-attempt-on-existing"
   | "billing.payment-success"
   | "billing.payment-failed"
   | "billing.subscription-renewed"

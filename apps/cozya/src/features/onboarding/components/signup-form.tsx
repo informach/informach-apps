@@ -82,6 +82,7 @@ export function SignupForm({
         <CardContent>
           {step.kind === "form" ? (
             <FormStep
+              verifiedRedirectTo={verifiedRedirectTo}
               onSubmitted={(email, name) => {
                 setStep({ kind: "otp", email, name });
                 setResendCooldown(RESEND_COOLDOWN_SECONDS);
@@ -114,13 +115,35 @@ export function SignupForm({
   );
 }
 
-function FormStep({ onSubmitted }: { onSubmitted: (email: string, name: string) => void }) {
+function FormStep({
+  verifiedRedirectTo,
+  onSubmitted,
+}: {
+  verifiedRedirectTo: string;
+  onSubmitted: (email: string, name: string) => void;
+}) {
   const form = useForm<SignupInput>({
     resolver: zodResolver(signupSchema),
     defaultValues: { name: "", email: "", password: "", confirmPassword: "" },
   });
+  const [duplicateEmail, setDuplicateEmail] = useState<string | null>(null);
+
+  // Limpa o aviso de duplicata assim que o usuário trocar o e-mail.
+  useEffect(() => {
+    const sub = form.watch((values, info) => {
+      if (info.name === "email" && duplicateEmail && values.email !== duplicateEmail) {
+        setDuplicateEmail(null);
+      }
+    });
+    return () => sub.unsubscribe();
+  }, [form, duplicateEmail]);
 
   const onSubmit = form.handleSubmit(async (values) => {
+    if (duplicateEmail && values.email === duplicateEmail) {
+      // Já marcado como duplicado neste mesmo email — não reenviar.
+      return;
+    }
+
     const { error } = await signUp.email({
       name: values.name,
       email: values.email,
@@ -130,9 +153,7 @@ function FormStep({ onSubmitted }: { onSubmitted: (email: string, name: string) 
     if (error) {
       const code = error.code ?? "";
       if (code === "USER_ALREADY_EXISTS" || /already/i.test(error.message ?? "")) {
-        form.setError("email", {
-          message: "Já existe uma conta com esse email. Tente entrar.",
-        });
+        setDuplicateEmail(values.email);
         return;
       }
       toast.error("Não foi possível criar sua conta.", {
@@ -174,7 +195,19 @@ function FormStep({ onSubmitted }: { onSubmitted: (email: string, name: string) 
                   {...field}
                 />
               </FormControl>
-              <FormMessage />
+              {duplicateEmail ? (
+                <p className="text-sm font-medium text-destructive">
+                  Já existe uma conta com esse email.{" "}
+                  <Link
+                    href={`/login?email=${encodeURIComponent(duplicateEmail)}&next=${encodeURIComponent(verifiedRedirectTo)}`}
+                    className="font-semibold underline underline-offset-2"
+                  >
+                    Ir para o login
+                  </Link>
+                </p>
+              ) : (
+                <FormMessage />
+              )}
             </FormItem>
           )}
         />

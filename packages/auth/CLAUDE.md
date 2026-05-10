@@ -87,6 +87,7 @@ Apps podem combinar email/senha com OTP no mesmo produto. Ativar `email.signIn.o
 | Login passwordless por OTP | `email: { signIn: { otp: true } }` (default `false`) — habilita `signIn.emailOtp({ email })` (template `auth.sign-in-otp`) | — |
 | Desligar magic link | `email: { signIn: { magicLink: false } }` (default `true`) — plugin `magicLink` não carrega; `signIn.magicLink` indisponível | — |
 | Forget-password por OTP | `email: { forgetPassword: "otp" }` (default `"link"`) — `sendResetPassword` callback NÃO registrado; usa `forgetPassword.emailOtp({ email })` + `emailOtp.resetPassword({ email, otp, password })` (template `auth.forget-password-otp`) | — |
+| Notificar dono ao detectar signup com e-mail existente | `email: { onExistingUserSignUp: async ({ user }) => {...} }` — opcional. Disparado quando o middleware `/sign-up/email` detecta duplicata. Use para enviar e-mail "alguém tentou criar conta com seu e-mail" (security alert). Best-effort fire-and-forget — erros são reportados via `observability.onAuditPersistenceFailure`. | — |
 | Organizations (multi-tenant) | `organizations: { enabled: true, allowUserToCreateOrganization? }` | `organizations`, `members`, `invitations` |
 | Google OAuth | `socialProviders: { google: { clientId, clientSecret, redirectURI? } }` | — |
 | Passkey (WebAuthn) | `passkey: { enabled: true, rpName?, rpID?, origin? }` | `passkeys` |
@@ -154,6 +155,7 @@ user.banned             auth.sign_out
 user.unbanned           auth.sign_in_otp_requested
 user.deletion_requested auth.forget_password_requested
 user.deleted            auth.password_reset_completed
+                        auth.signup_attempt_on_existing
                         auth.two_factor_enabled
                         auth.two_factor_disabled
                         auth.two_factor_verified
@@ -429,6 +431,8 @@ Wiring real em `apps/<app>/src/lib/env.ts` (`@t3-oss/env-nextjs`).
 7. **`server-only` em proxy/server/server-actions.** Garante que importação de Client Component falha em build.
 8. **Audit pipeline try/catch'ed.** Falha em `observability.onAuditEvent`/`onSecurityEvent` ou em INSERT no `audit.events` não pode quebrar fluxo de auth — todos os emits estão dentro de try/catch. Falha de INSERT deve chamar `onAuditPersistenceFailure` com erro sanitizado.
 9. **Cadastro público continua aberto.** `requireEmailVerification: true` é o gate. `disableSignup` está exposto na config como infraestrutura para o futuro. Magic-link cria users na primeira ocorrência (limitação 1.x, comentada em `index.ts`).
+
+   **Bypass anti-enumeration nativo.** Better Auth, com `requireEmailVerification: true`, propositalmente NÃO retorna `USER_ALREADY_EXISTS` em `/sign-up/email` — retorna sucesso silencioso (proteção anti-enumeration). Para apps consumer (cozya, agenda-da-turma) esse trade-off prejudica mais a UX (usuário fica preso na tela de OTP esperando código que nunca chega) do que protege. O `hooks.before` no path `/sign-up/email` detecta a duplicata, opcionalmente notifica o dono via `email.onExistingUserSignUp`, loga `auth.signup_attempt_on_existing` e lança `APIError(BAD_REQUEST, code: "USER_ALREADY_EXISTS")`. Apps B2B/enterprise futuros que precisem da proteção opaca devem solicitar um flag explícito de opt-out (ainda não implementado).
 10. **Apps escolhem qual plugin envia cada email via `config.email`.** O package suporta 3 escolhas independentes (defaults entre parênteses):
    - `email.verification: "otp" | "link"` (default `"otp"`) — verificação no signup/email-change.
    - `email.signIn: { magicLink: boolean (default true), otp: boolean (default false) }` — login passwordless.

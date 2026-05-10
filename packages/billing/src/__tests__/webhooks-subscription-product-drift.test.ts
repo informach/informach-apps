@@ -71,7 +71,7 @@ describe("handleSubscriptionLifecycle — productId drift via metadata", () => {
       {
         db: db as never,
         provider: "stripe",
-      app: "test-app",
+        app: "test-app",
       },
       stripeSubscription as never,
       "customer.subscription.updated",

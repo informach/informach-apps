@@ -13,11 +13,12 @@ export default async function LoginPage({
 }) {
   const params = await searchParams;
   const nextPath = safeInternalPath(paramValue(params.next), "/dashboard");
+  const defaultEmail = safeEmailHint(paramValue(params.email));
   const user = await getCurrentUserServer();
 
   if (user) redirect(nextPath);
 
-  return <LoginForm nextPath={nextPath} />;
+  return <LoginForm nextPath={nextPath} defaultEmail={defaultEmail} />;
 }
 
 function paramValue(value: string | string[] | undefined): string | undefined {
@@ -29,4 +30,11 @@ function safeInternalPath(value: string | undefined, fallback: string): string {
   if (!value.startsWith("/") || value.startsWith("//")) return fallback;
   if (value === "/login" || value.startsWith("/api/")) return fallback;
   return value;
+}
+
+const SAFE_EMAIL_HINT = /^[^\s<>"]{1,254}@[^\s<>"]{1,254}$/;
+
+function safeEmailHint(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  return SAFE_EMAIL_HINT.test(value) ? value : undefined;
 }
