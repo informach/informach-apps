@@ -34,7 +34,7 @@ type Step = { kind: "form" } | { kind: "otp"; email: string; name: string };
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
-export function SignupForm({ verifiedRedirectTo = "/dashboard" }: { verifiedRedirectTo?: string }) {
+export function SignupForm({ verifiedRedirectTo = "/choose-plan" }: { verifiedRedirectTo?: string }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>({ kind: "form" });
   const [resendCooldown, setResendCooldown] = useState(0);

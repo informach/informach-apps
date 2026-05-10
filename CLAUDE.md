@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Apps** (`apps/`):
   - `admin` (port 3003) — scaffold, no auth/billing/db wiring yet; keep dependencies minimal until it becomes a real app.
-  - `agenda-da-turma` (port 3001) — single-user (sem organizations; modelo Netflix-household — perfis de filhos planejados como concept futuro, hoje só a conta do responsável existe), Sentry, Vitest + Playwright.
+  - `agenda-da-turma` (port 3001) — single-user (sem organizations; modelo Netflix-household — perfis de filhos planejados como concept futuro, hoje só a conta do responsável existe). Auth + billing + emails 100% wired (paridade UX com cozya: onboarding com escolha de plano, `/settings/billing`, `/upgrade`, packs de crédito); dashboard ainda placeholder (sem features de agenda); sem IA hoje. Sentry, Vitest + Playwright.
   - `cozya` (port 3002) — single-user (no organizations), Sentry, Vitest + Playwright.
   - `informach-site` (port 3004) — landing institucional pública (`informach.com.br`). Sem auth/billing/db/AI; só Next + `@informach/ui`. Hospeda Termos e Privacidade guarda-chuva da holding (Stripe Customer Portal aponta pra cá).
 - **Packages** (`packages/`, scope `@informach/*`): `db`, `auth`, `billing`, `emails`, `ai-core`, `config`, `ui`. All consumed as TypeScript source — none have a build step.
@@ -18,6 +18,7 @@ Per-package deep guides exist and should be consulted before non-trivial changes
 - `packages/billing/CLAUDE.md`
 - `packages/emails/CLAUDE.md`
 - `packages/ai-core/CLAUDE.md`
+- `apps/agenda-da-turma/CLAUDE.md`
 - `apps/cozya/CLAUDE.md`
 - `apps/informach-site/CLAUDE.md`
 

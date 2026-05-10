@@ -127,6 +127,76 @@ export const PRODUCTS: readonly Product[] = [
     },
     listPrice: { amountCents: 1790, currency: "BRL" },
   },
+  // Agenda da Turma — paridade com Cozya (R$ 14,90/mês, R$ 149/ano, 50 créditos/mês,
+  // packs 10/20/30 a R$ 6,90/12,90/17,90). Stripe Price IDs ficam como `price_TODO_*`
+  // até o time configurar produtos no Stripe Dashboard (test+live). `isStripePriceIdConfigured`
+  // rejeita placeholders e o boot do app trava em produção até IDs reais entrarem.
+  // Hoje a Agenda da Turma não tem features de IA — créditos são acumulados pra quando
+  // alguma feature consumir via `withCredits` (sem consumo até lá).
+  {
+    id: "agenda_da_turma_pro_monthly",
+    app: "agenda-da-turma",
+    kind: "subscription",
+    name: "Agenda da Turma Pro",
+    tier: "pro",
+    interval: "month",
+    bonusCreditsPerMonth: 50,
+    stripePriceId: {
+      dev: "price_1TVTonCvOctqao30b8wnGAXN",
+      prod: "price_TODO_agenda_da_turma_pro_monthly_prod",
+    },
+    listPrice: { amountCents: 1990, currency: "BRL" },
+  },
+  {
+    id: "agenda_da_turma_pro_annual",
+    app: "agenda-da-turma",
+    kind: "subscription",
+    name: "Agenda da Turma Pro (Anual)",
+    tier: "pro",
+    interval: "year",
+    bonusCreditsPerMonth: 50,
+    stripePriceId: {
+      dev: "price_1TVTpPCvOctqao30mLauE2qm",
+      prod: "price_TODO_agenda_da_turma_pro_annual_prod",
+    },
+    listPrice: { amountCents: 19900, currency: "BRL" },
+  },
+  {
+    id: "agenda_da_turma_credits_10",
+    app: "agenda-da-turma",
+    kind: "credit_pack",
+    name: "10 créditos",
+    creditAmount: 10,
+    stripePriceId: {
+      dev: "price_1TVTr9CvOctqao307lhSoW6K",
+      prod: "price_TODO_agenda_da_turma_credits_10_prod",
+    },
+    listPrice: { amountCents: 690, currency: "BRL" },
+  },
+  {
+    id: "agenda_da_turma_credits_20",
+    app: "agenda-da-turma",
+    kind: "credit_pack",
+    name: "20 créditos",
+    creditAmount: 20,
+    stripePriceId: {
+      dev: "price_1TVTsYCvOctqao3085Ch7sog",
+      prod: "price_TODO_agenda_da_turma_credits_20_prod",
+    },
+    listPrice: { amountCents: 1290, currency: "BRL" },
+  },
+  {
+    id: "agenda_da_turma_credits_30",
+    app: "agenda-da-turma",
+    kind: "credit_pack",
+    name: "30 créditos",
+    creditAmount: 30,
+    stripePriceId: {
+      dev: "price_1TVTsxCvOctqao30xAYj0dM2",
+      prod: "price_TODO_agenda_da_turma_credits_30_prod",
+    },
+    listPrice: { amountCents: 1790, currency: "BRL" },
+  },
 ] as const;
 
 export type StripeMode = "dev" | "prod";
@@ -144,7 +214,8 @@ export function getStripePriceId(product: Product, mode: StripeMode): string {
 
 export function isStripePriceIdConfigured(priceId: string): boolean {
   return (
-    STRIPE_PRICE_ID_PATTERN.test(priceId) && !priceId.startsWith(STRIPE_PRICE_ID_PLACEHOLDER_PREFIX)
+    STRIPE_PRICE_ID_PATTERN.test(priceId) &&
+    !priceId.startsWith(STRIPE_PRICE_ID_PLACEHOLDER_PREFIX)
   );
 }
 
@@ -153,5 +224,7 @@ export function findProduct(productId: ProductId): Product | undefined {
 }
 
 export function findProductByPriceId(priceId: string): Product | undefined {
-  return PRODUCTS.find((p) => p.stripePriceId.dev === priceId || p.stripePriceId.prod === priceId);
+  return PRODUCTS.find(
+    (p) => p.stripePriceId.dev === priceId || p.stripePriceId.prod === priceId,
+  );
 }

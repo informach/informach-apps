@@ -1,0 +1,56 @@
+"use client";
+
+import { Button } from "@informach/ui/components/button";
+import { toast } from "@informach/ui/components/sonner";
+import { CreditCard, Loader2 } from "lucide-react";
+import { useTransition } from "react";
+import { catchActionResult, isActionRejected } from "@/lib/action-result";
+import { createBillingPortalSessionAction } from "../actions";
+
+type Props = {
+  label?: string;
+  variant?: "default" | "outline" | "secondary" | "ghost";
+};
+
+export function BillingPortalButton({
+  label = "Atualizar cartão / faturas",
+  variant = "outline",
+}: Props = {}) {
+  const [pending, startTransition] = useTransition();
+
+  const handleClick = () => {
+    startTransition(async () => {
+      const result = await catchActionResult(() => createBillingPortalSessionAction({}));
+      if (!result.ok) {
+        if (isActionRejected(result.error)) {
+          toast.error("Não foi possível abrir o portal.", {
+            description: "Atualize a página e tente novamente.",
+          });
+          return;
+        }
+        if (result.error.code === "NO_CUSTOMER") {
+          toast("Você ainda não tem uma assinatura ativa.", {
+            description: "Escolha o Pro para habilitar o portal de cobrança.",
+          });
+          return;
+        }
+        toast.error("Não foi possível abrir o portal.", {
+          description: "Tente novamente em instantes.",
+        });
+        return;
+      }
+      window.location.href = result.value.url;
+    });
+  };
+
+  return (
+    <Button type="button" onClick={handleClick} disabled={pending} variant={variant}>
+      {pending ? (
+        <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
+      ) : (
+        <CreditCard className="mr-2 size-4" aria-hidden />
+      )}
+      {label}
+    </Button>
+  );
+}

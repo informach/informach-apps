@@ -71,3 +71,9 @@ export const resetPasswordSchema = z
   });
 
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
+export const proCheckoutSchema = z.object({
+  cycle: z.enum(["monthly", "annual"]),
+});
+
+export type ProCheckoutInput = z.infer<typeof proCheckoutSchema>;

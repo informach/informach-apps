@@ -32,7 +32,7 @@ export async function POST(request: Request): Promise<Response> {
         return;
       }
       const unsubscribeUrl = buildUnsubscribeUrlFor(recipient.unsubscribeIdentifier);
-      const updatePaymentUrl = `${env.NEXT_PUBLIC_APP_URL}/admin/billing`;
+      const updatePaymentUrl = `${env.NEXT_PUBLIC_APP_URL}/settings/billing`;
       const {
         html,
         text,

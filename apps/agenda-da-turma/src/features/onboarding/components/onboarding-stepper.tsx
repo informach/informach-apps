@@ -3,21 +3,22 @@
 import { cn } from "@informach/ui/lib/utils";
 import { Check } from "lucide-react";
 
-type Step = { id: 1 | 2; label: string };
+type Step = { id: 1 | 2 | 3; label: string };
 
 const STEPS: readonly Step[] = [
   { id: 1, label: "Cadastro" },
   { id: 2, label: "Verificação" },
+  { id: 3, label: "Plano" },
 ] as const;
 
 export type OnboardingStepperProps = {
-  currentStep: 1 | 2;
+  currentStep: 1 | 2 | 3;
   className?: string;
 };
 
 export function OnboardingStepper({ currentStep, className }: OnboardingStepperProps) {
   return (
-    <ol aria-label="Etapas do cadastro" className={cn("grid w-full grid-cols-2", className)}>
+    <ol aria-label="Etapas do cadastro" className={cn("grid w-full grid-cols-3", className)}>
       {STEPS.map((step, index) => {
         const isCompleted = step.id < currentStep;
         const isCurrent = step.id === currentStep;
