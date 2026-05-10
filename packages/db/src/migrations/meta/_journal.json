@@ -148,6 +148,13 @@
       "when": 1778370725772,
       "tag": "0020_exotic_wither",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1778412980113,
+      "tag": "0021_freezing_typhoid_mary",
+      "breakpoints": true
     }
   ]
 }

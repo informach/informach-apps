@@ -1,0 +1,2 @@
+export const FREE_STUDENT_PROFILE_LIMIT = 1;
+export const PRO_STUDENT_PROFILE_LIMIT = 3;
