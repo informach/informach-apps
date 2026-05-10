@@ -22,7 +22,13 @@ const SUBSCRIPTION_PRODUCT = {
 };
 
 function depsWithProducts(db: unknown, overrides: Record<string, unknown> = {}) {
-  return { db: db as never, provider: "stripe" as const, products: [CREDIT_PRODUCT], ...overrides };
+  return {
+    db: db as never,
+    provider: "stripe" as const,
+    app: "test-app",
+    products: [CREDIT_PRODUCT],
+    ...overrides,
+  };
 }
 
 const baseIntent = {

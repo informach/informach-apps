@@ -338,6 +338,7 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
     provider: config.provider,
     providerClient,
     organizationsEnabled: config.organizationsEnabled,
+    app: config.app,
     products: config.products,
     publicAppUrl: config.publicAppUrl,
     stripeMode: config.stripeMode,
@@ -365,6 +366,7 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
     db: config.db,
     provider: config.provider,
     providerClient,
+    app: config.app,
     webhookScope: config.appName,
     products: config.products,
     logger: config.logger,
@@ -374,6 +376,7 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
 
   const creditDeps = {
     db: config.db,
+    app: config.app,
     logger: config.logger,
     onAudit: config.onAudit,
   };
@@ -383,6 +386,7 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
     provider: config.provider,
     providerClient,
     organizationsEnabled: config.organizationsEnabled,
+    app: config.app,
     logger: config.logger,
     onAudit: config.onAudit,
   };
@@ -392,6 +396,7 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
     provider: config.provider,
     providerClient,
     organizationsEnabled: config.organizationsEnabled,
+    app: config.app,
     products: config.products,
     stripeMode: config.stripeMode,
     logger: config.logger,
@@ -406,6 +411,7 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
           provider: config.provider,
           providerClient,
           organizationsEnabled: config.organizationsEnabled,
+          app: config.app,
           logger: config.logger,
         },
         input,
@@ -418,10 +424,10 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
       return createCreditPackCheckout(checkoutDeps, input);
     },
     getBalance(owner) {
-      return getBalance({ db: config.db }, owner);
+      return getBalance({ db: config.db, app: config.app }, owner);
     },
     getCreditHistory(owner, filters) {
-      return getCreditHistory({ db: config.db }, owner, filters);
+      return getCreditHistory({ db: config.db, app: config.app }, owner, filters);
     },
     grantBonusCredits(input) {
       return grantBonusCredits(creditDeps, input);
@@ -451,7 +457,10 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
       return getSubscription(subscriptionsDeps, subject);
     },
     hasProSubscription(subject) {
-      return hasProSubscription({ db: config.db, provider: config.provider }, subject);
+      return hasProSubscription(
+        { db: config.db, provider: config.provider, app: config.app },
+        subject,
+      );
     },
     listSubscriptions(subject) {
       return listSubscriptions(subscriptionsDeps, subject);
@@ -478,6 +487,7 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
           provider: config.provider,
           providerClient,
           organizationsEnabled: config.organizationsEnabled,
+          app: config.app,
           logger: config.logger,
         },
         input,
@@ -491,6 +501,7 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
         db: config.db,
         provider: config.provider,
         providerClient,
+        app: config.app,
         logger: config.logger,
         batchSize: opts?.batchSize,
       });
@@ -498,6 +509,7 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
     expireMonthlyBonusCredits(opts) {
       return expireMonthlyBonusCredits({
         db: config.db,
+        app: config.app,
         logger: config.logger,
         now: opts?.now,
         batchSize: opts?.batchSize,
@@ -506,6 +518,7 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
     grantPendingMonthlyBonusCredits(opts) {
       return grantPendingMonthlyBonusCredits({
         db: config.db,
+        app: config.app,
         products: config.products,
         logger: config.logger,
         onAudit: config.onAudit,
@@ -516,6 +529,7 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
     releaseExpiredReservations(opts) {
       return releaseExpiredReservations({
         db: config.db,
+        app: config.app,
         logger: config.logger,
         now: opts?.now,
         batchSize: opts?.batchSize,
@@ -524,6 +538,8 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
     retryDunningEmails(opts) {
       return retryFailedDunningEmails({
         db: config.db,
+        app: config.app,
+        provider: config.provider,
         logger: config.logger,
         send: opts.send,
         maxAttempts: opts.maxAttempts,

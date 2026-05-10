@@ -20,6 +20,7 @@ describe("getOrCreateCustomer", () => {
         provider: "stripe",
         providerClient: provider,
         organizationsEnabled: true,
+        app: "test-app",
       },
       { subject: userSubject, email: "user@example.com" },
     );
@@ -48,6 +49,7 @@ describe("getOrCreateCustomer", () => {
         provider: "stripe",
         providerClient: provider,
         organizationsEnabled: true,
+        app: "test-app",
       },
       { subject: userSubject, email: "new@example.com" },
     );
@@ -72,6 +74,7 @@ describe("getOrCreateCustomer", () => {
           provider: "stripe",
           providerClient: provider,
           organizationsEnabled: false,
+          app: "test-app",
         },
         { subject: orgSubject, email: "team@example.com" },
       ),
@@ -92,6 +95,7 @@ describe("getOrCreateCustomer", () => {
         provider: "stripe",
         providerClient: provider,
         organizationsEnabled: true,
+        app: "test-app",
       },
       { subject: userSubject, email: "user@example.com" },
     );
@@ -120,6 +124,7 @@ describe("getOrCreateCustomer", () => {
         provider: "stripe",
         providerClient: provider,
         organizationsEnabled: true,
+        app: "test-app",
       },
       { subject: orgSubject, email: "team@example.com" },
     );

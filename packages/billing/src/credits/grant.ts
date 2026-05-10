@@ -38,6 +38,8 @@ export type RefundCreditsResult = {
 
 export type CreditGrantDeps = {
   db: Database;
+  /** App slug — escopo de isolamento gravado em `credit_ledger.app`. */
+  app: string;
   logger?: Logger;
   onAudit?: (event: BillingAuditEvent) => void;
 };
@@ -70,6 +72,7 @@ export async function grantBonusCredits(
     .values({
       ownerType: input.owner.type,
       ownerId: input.owner.id,
+      app: deps.app,
       entryType,
       amount: input.amount,
       expiresAt,
@@ -86,6 +89,7 @@ export async function grantBonusCredits(
       ledgerEntryId: inserted[0].id,
       ownerType: input.owner.type,
       ownerId: input.owner.id,
+      app: deps.app,
       amount: input.amount,
       reason: input.reason,
       stripeEventId: input.stripeEventId ?? null,
@@ -141,6 +145,7 @@ export async function refundCredits(
     .values({
       ownerType: input.owner.type,
       ownerId: input.owner.id,
+      app: deps.app,
       entryType: "refund",
       amount: -Math.abs(input.amount),
       stripeEventId: input.stripeEventId,
@@ -160,6 +165,7 @@ export async function refundCredits(
       ledgerEntryId: inserted[0].id,
       ownerType: input.owner.type,
       ownerId: input.owner.id,
+      app: deps.app,
       amount: input.amount,
       originalLedgerEntryId: input.originalLedgerEntryId,
       stripeEventId: input.stripeEventId,

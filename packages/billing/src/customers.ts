@@ -23,13 +23,15 @@ export type GetOrCreateCustomerDeps = {
   provider: BillingProvider;
   providerClient: BillingProviderClient;
   organizationsEnabled: boolean;
+  /** App slug — escopo de isolamento no `billing.customers.app`. */
+  app: string;
   logger?: Logger;
 };
 
 /**
- * Idempotent: returns the existing local customer row for (provider, subject)
+ * Idempotent: returns the existing local customer row for (provider, subject, app)
  * or creates one via the provider + persists it. Safe to call concurrently —
- * insert uses (provider, subject_type, subject_id) UNIQUE.
+ * insert uses (provider, subject_type, subject_id, app) UNIQUE.
  */
 export async function getOrCreateCustomer(
   deps: GetOrCreateCustomerDeps,
@@ -50,6 +52,7 @@ export async function getOrCreateCustomer(
         eq(customers.provider, deps.provider),
         eq(customers.subjectType, input.subject.type),
         eq(customers.subjectId, input.subject.id),
+        eq(customers.app, deps.app),
       ),
     )
     .limit(1);
@@ -67,7 +70,7 @@ export async function getOrCreateCustomer(
     email: input.email,
     subject: input.subject,
     metadata: input.metadata,
-    idempotencyKey: `customer:${deps.provider}:${input.subject.type}:${input.subject.id}`,
+    idempotencyKey: `customer:${deps.provider}:${deps.app}:${input.subject.type}:${input.subject.id}`,
   });
 
   const inserted = await deps.db
@@ -77,11 +80,12 @@ export async function getOrCreateCustomer(
       providerCustomerId: providerCustomer.id,
       subjectType: input.subject.type,
       subjectId: input.subject.id,
+      app: deps.app,
       email: providerCustomer.email,
       metadata: input.metadata ?? {},
     })
     .onConflictDoNothing({
-      target: [customers.provider, customers.subjectType, customers.subjectId],
+      target: [customers.provider, customers.subjectType, customers.subjectId, customers.app],
     })
     .returning({
       id: customers.id,
@@ -91,6 +95,7 @@ export async function getOrCreateCustomer(
   if (inserted.length > 0 && inserted[0]) {
     safeLog(deps.logger, "info", "billing.customer.created", {
       provider: deps.provider,
+      app: deps.app,
       subjectType: input.subject.type,
       subjectId: input.subject.id,
       providerCustomerId: providerCustomer.id,
@@ -115,6 +120,7 @@ export async function getOrCreateCustomer(
         eq(customers.provider, deps.provider),
         eq(customers.subjectType, input.subject.type),
         eq(customers.subjectId, input.subject.id),
+        eq(customers.app, deps.app),
       ),
     )
     .limit(1);
@@ -122,6 +128,7 @@ export async function getOrCreateCustomer(
   if (reread.length > 0 && reread[0]) {
     safeLog(deps.logger, "debug", "billing.customer.conflict_resolved", {
       provider: deps.provider,
+      app: deps.app,
       subjectType: input.subject.type,
       subjectId: input.subject.id,
     });
@@ -135,6 +142,6 @@ export async function getOrCreateCustomer(
 
   // Should never happen: insert returned 0 rows AND select after returned 0 rows.
   throw new Error(
-    `@informach/billing: failed to upsert customer for ${input.subject.type}:${input.subject.id}`,
+    `@informach/billing: failed to upsert customer for ${input.subject.type}:${input.subject.id} in app ${deps.app}`,
   );
 }

@@ -12,6 +12,7 @@ function baseConfig(overrides: Partial<BillingServiceConfig> = {}): BillingServi
     publicAppUrl: "https://app.example.com",
     products: [],
     organizationsEnabled: false,
+    app: "test-app",
     stripeMode: "dev",
     resolveSubjectEmail: vi.fn(async () => "user@example.com"),
     ...overrides,

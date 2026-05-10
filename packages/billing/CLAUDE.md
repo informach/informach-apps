@@ -294,7 +294,7 @@ import { logAuditEvent } from "@informach/auth";
 import { createBillingService, type SubjectRef } from "@informach/billing";
 import { APPS, PRODUCTS } from "@informach/config";
 import { db } from "@informach/db";
-import { users /* , organizations */ } from "@informach/db/schema";
+import { users } from "@informach/db/schema";
 import { buildUnsubscribeToken } from "@informach/emails";
 import { eq } from "drizzle-orm";
 import { emails } from "./emails";
@@ -305,7 +305,8 @@ const APP_HOSTNAME = new URL(env.NEXT_PUBLIC_APP_URL).hostname;
 const stripeMode = env.STRIPE_MODE ?? (env.NODE_ENV === "production" ? "prod" : "dev");
 
 async function resolveSubjectEmail(subject: SubjectRef): Promise<string> {
-  // SELECT users.email WHERE id=subject.id (cozya: só user; agenda: user OR org via JOIN)
+  // SELECT users.email WHERE id=subject.id
+  // Cozya/Agenda hoje são single-user — só `subject.type === "user"`.
   // ...
 }
 
@@ -315,9 +316,13 @@ export const billing = createBillingService({
   stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET,
   db,
   appName: APPS.<app>.name,
+  // App slug — escopo de isolamento em billing.customers.app e
+  // billing.credit_ledger.app. Mesmo user.id em apps diferentes vira 2
+  // customers Stripe distintos. NUNCA omitir.
+  app: APPS.<app>.slug,
   publicAppUrl: env.NEXT_PUBLIC_APP_URL,
   products: PRODUCTS.filter((p) => p.app === APPS.<app>.slug),
-  organizationsEnabled: true /* false em cozya */,
+  organizationsEnabled: false,
   stripeMode,
   resolveSubjectEmail,
   logger: packageLogger,
@@ -456,7 +461,7 @@ Server side, simples: `const balance = await billing.getBalance({ type: "user", 
 
 3. **Stripe API version PIN explícito** (`'2026-04-22.dahlia'` em `providers/stripe.ts`) matches `Stripe.LatestApiVersion` do `stripe@22.1.0` instalado. NUNCA usar `as any` para suprimir mismatch — TypeScript reclamando é o sinal certo de que SDK foi bumpado e payload changed (Basil moveu `current_period_*` para items.data[i] — bug silencioso se não atento).
 
-4. **Owner do billing por app** — `agenda-da-turma` (orgs habilitadas) sempre usa `subject.type: "organization"`; `cozya` (sem orgs) sempre `"user"`. Schema usa `subjectType` + `subjectId` polimórfico (sem FK), check constraint força enum. Service rejeita `organization` quando `organizationsEnabled: false`. Decisão consciente do usuário: dimensão única por app simplifica drasticamente UI/lookup/permissions.
+4. **Owner do billing por app + isolamento via coluna `app`** — Cozya e Agenda da Turma são ambos single-user (`subject.type: "user"`, `organizationsEnabled: false`). O isolamento entre apps NÃO depende de `subject.type` (ambos usam o mesmo) — ele depende da coluna `app` em `billing.customers` e `billing.credit_ledger`, com UNIQUE composto `(provider, subject_type, subject_id, app)`. O mesmo `user.id` ganha 2 customers Stripe distintos (um por app), saldos de crédito separados, e o single-subscription invariant é por (subject, app). Cada `createBillingService` recebe `app: APPS.<app>.slug` no config e propaga para todos os deps internos. Schema usa `subjectType` + `subjectId` polimórfico (sem FK) — `subjectType: "organization"` permanece como capability futura, mas Service rejeita `organization` quando `organizationsEnabled: false`.
 
 5. **Padrão reserve+commit/release para débito de IA.** Why: usuário escolheu para evitar race entre 2 chamadas LLM concorrentes. Padrão PaymentIntent-style — atomicidade via `pg_advisory_xact_lock(hashtext("user:abc"))` por owner + ledger append-only. Saldo sempre derivado de SUM, nunca cached em row mutável (evita drift).
 
@@ -642,7 +647,7 @@ Já entregues recentemente (não estão mais aqui): UI `/settings/billing` no Co
 
 Pendências:
 
-- **UI `/admin/billing` no agenda-da-turma** — backend está 100% pronto e o catálogo cozya foi feito; replicar plan card / switch dialog / credit packs com subject = `organization`.
+- **UI `/settings/billing` no agenda-da-turma** — backend está 100% pronto e o catálogo cozya foi feito; replicar plan card / switch dialog / credit packs com `subject: { type: "user", id: userId }`. Já existe pricing dedicado para Agenda em `@informach/config` filtrado por `APPS.agendaDaTurma.slug`.
 - **Admin UI para `creditPricing`** — atualizar preços per-feature/per-model sem deploy. Hoje é só seed inicial.
 - **Asaas provider** — adicionar Pix/Boleto via segunda implementação de `BillingProviderClient`.
 - **Métricas/alertas avançados** — o logger básico já duplica `warn`/`error` para Sentry no adapter do app; para métricas, spans ou dashboards, usar `onAudit` como ponto de extensão para Datadog/OTel/Sentry.

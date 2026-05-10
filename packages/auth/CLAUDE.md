@@ -303,7 +303,7 @@ export const proxy = createAuthProxy(authResult, {
 
 ## 4. Como cada app usa o package
 
-Pattern atual em `apps/agenda-da-turma` (organizations on) e `apps/cozya` (single-user, organizations off). Ambos compartilham a mesma instância de Postgres e schema.
+Pattern atual: ambos `apps/agenda-da-turma` e `apps/cozya` rodam single-user (organizations off). Compartilham a mesma instância de Postgres e schema. Multi-tenant via `organization` plugin permanece como capability disponível (campos opt-in já cabeados) mas hoje nenhum app habilita.
 
 ### 4.1 Wire-up obrigatório
 
@@ -330,8 +330,8 @@ export const authResult = createAuth({
   },
   unsubscribeMailto: `unsubscribe@${new URL(env.NEXT_PUBLIC_APP_URL).hostname}`,
   observability: authObservability,
-  // opt-ins por app:
-  organizations: { enabled: true },               // só agenda-da-turma
+  // opt-ins por app (Cozya/Agenda hoje não habilitam organizations):
+  // organizations: { enabled: true },           // habilitar em apps multi-tenant futuros
   socialProviders: googleProvider ? { google: googleProvider } : undefined,
   // passkey: { enabled: true },
   // twoFactor: { enabled: true },
@@ -353,7 +353,8 @@ import { env } from "./env";
 
 export const authClient = createInformachAuthClient({
   baseURL: env.NEXT_PUBLIC_APP_URL,
-  organizations: true,  // opt-ins espelham auth.ts
+  // opt-ins espelham auth.ts (Cozya/Agenda não habilitam organizations hoje):
+  // organizations: true,
   // passkey: true,
   // twoFactor: { onRedirect: () => router.push("/two-factor") },
 });
@@ -421,7 +422,7 @@ Wiring real em `apps/<app>/src/lib/env.ts` (`@t3-oss/env-nextjs`).
 
 1. **Better Auth como dependency real, não fork.** Versões `better-auth` e `@better-auth/passkey` pinadas em `1.6.9` exato (sem caret) em `package.json`. Subir versão exige rodar testes + typecheck, ler release notes, atualizar este doc.
 2. **RBAC custom, não plugin `admin()`.** O plugin oficial expõe endpoints `/admin/*` (impersonate, ban, list-users) que não foram pedidos como produto e expandem superfície de ataque. Implementação custom em `permissions.ts` + `helpers.ts` cobre o caso atual.
-3. **Multi-tenancy via `organization` é opt-in por app, não global.** `agenda-da-turma` ativa (escola → professores). `cozya` não ativa (single-user). Forçar plugin no client/schema dos dois custaria 3 tabelas e middleware sem ganho.
+3. **Multi-tenancy via `organization` é opt-in por app, não global.** Cozya e Agenda da Turma hoje rodam single-user; Agenda planeja perfis de filhos (modelo Netflix-household) num schema próprio do app, não via plugin de organização. Plugin permanece como capability disponível para apps futuros que precisem de multi-tenant real.
 4. **Schema source of truth é Drizzle (`packages/db/src/schema/core.ts`), não Better Auth CLI.** Misturar `npx better-auth migrate` com `drizzle-kit generate` causa conflitos. Quando Better Auth 1.x adiciona `additionalFields` ou plugin novo, declaramos manualmente em `core.ts` e mapeamos via `schema:` no `drizzleAdapter`.
 5. **Cookie cache 5min default.** Balanceia performance (evita DB hit por request) com latência de revogação aceitável. Para revogação imediata após ban/role-change, use `setUserRole` / `setUserBanState`, que revogam as sessões afetadas. Apps com necessidade de tempo real passam `session.cookieCache.maxAge` menor.
 6. **`proxy.ts` (Next 16), não `middleware.ts`.** Next 16 deprecated middleware em favor de proxy (runtime Node.js). Codename do package: `createAuthProxy` em `@informach/auth/proxy`.

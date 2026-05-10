@@ -7,7 +7,7 @@ const owner = { type: "user" as const, id: "user-1" };
 describe("getBalance", () => {
   it("returns zeros when execute returns no rows", async () => {
     const { db, calls } = createFakeDb({ executeResult: [] });
-    const balance = await getBalance({ db: db as never }, owner);
+    const balance = await getBalance({ db: db as never, app: "test-app" }, owner);
     expect(balance).toEqual({
       total: 0,
       reserved: 0,
@@ -29,7 +29,7 @@ describe("getBalance", () => {
         },
       ],
     });
-    const balance = await getBalance({ db: db as never }, owner);
+    const balance = await getBalance({ db: db as never, app: "test-app" }, owner);
     expect(balance.total).toBe(1500);
     expect(balance.reserved).toBe(200);
     expect(balance.available).toBe(1300);
@@ -48,7 +48,7 @@ describe("getBalance", () => {
         },
       ],
     });
-    const balance = await getBalance({ db: db as never }, owner);
+    const balance = await getBalance({ db: db as never, app: "test-app" }, owner);
     expect(balance.total).toBe(999999);
     expect(balance.expiringSoon.amount).toBe(0);
     expect(balance.expiringSoon.firstExpiresAt).toBeNull();
@@ -65,7 +65,7 @@ describe("getBalance", () => {
         },
       ],
     });
-    const balance = await getBalance({ db: db as never }, owner);
+    const balance = await getBalance({ db: db as never, app: "test-app" }, owner);
     expect(balance.expiringSoon.firstExpiresAt).toBeInstanceOf(Date);
     expect(balance.expiringSoon.firstExpiresAt?.toISOString()).toBe("2026-05-15T00:00:00.000Z");
   });

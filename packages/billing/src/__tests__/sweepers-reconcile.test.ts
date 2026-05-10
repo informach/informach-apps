@@ -27,6 +27,7 @@ describe("reconcileSubscriptionStatuses", () => {
     const result = await reconcileSubscriptionStatuses({
       db: db as never,
       provider: "stripe",
+      app: "test-app",
       providerClient: provider,
     });
     expect(result).toEqual({ scanned: 1, reconciled: 0, mismatches: 0, errors: 0 });
@@ -46,6 +47,7 @@ describe("reconcileSubscriptionStatuses", () => {
     const result = await reconcileSubscriptionStatuses({
       db: db as never,
       provider: "stripe",
+      app: "test-app",
       providerClient: provider,
     });
     expect(result).toEqual({ scanned: 1, reconciled: 1, mismatches: 1, errors: 0 });
@@ -59,6 +61,7 @@ describe("reconcileSubscriptionStatuses", () => {
     const result = await reconcileSubscriptionStatuses({
       db: db as never,
       provider: "stripe",
+      app: "test-app",
       providerClient: provider,
     });
     expect(result.reconciled).toBe(1);
@@ -79,6 +82,7 @@ describe("reconcileSubscriptionStatuses", () => {
     const result = await reconcileSubscriptionStatuses({
       db: db as never,
       provider: "stripe",
+      app: "test-app",
       providerClient: provider,
     });
     expect(result.reconciled).toBe(1);
@@ -109,6 +113,7 @@ describe("reconcileSubscriptionStatuses", () => {
     const result = await reconcileSubscriptionStatuses({
       db: db as never,
       provider: "stripe",
+      app: "test-app",
       providerClient: provider,
     });
     expect(result.scanned).toBe(2);
@@ -122,6 +127,7 @@ describe("reconcileSubscriptionStatuses", () => {
     const result = await reconcileSubscriptionStatuses({
       db: db as never,
       provider: "stripe",
+      app: "test-app",
       providerClient: provider,
     });
     expect(result).toEqual({ scanned: 0, reconciled: 0, mismatches: 0, errors: 0 });

@@ -60,15 +60,24 @@ export const customers = billing.table(
     providerCustomerId: text("provider_customer_id").notNull(),
     subjectType: ownerTypeEnum("subject_type").notNull(),
     subjectId: text("subject_id").notNull(),
+    // App-scope para isolar customers entre apps que compartilham o mesmo
+    // subject (ex.: mesmo user em Cozya e Agenda da Turma → 2 customers
+    // distintos no Stripe). UNIQUE composto inclui app por isso.
+    app: text("app").notNull(),
     email: text("email").notNull(),
     metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
-    uniqueIndex("customers_provider_subject_uniq").on(t.provider, t.subjectType, t.subjectId),
+    uniqueIndex("customers_provider_subject_app_uniq").on(
+      t.provider,
+      t.subjectType,
+      t.subjectId,
+      t.app,
+    ),
     uniqueIndex("customers_provider_provider_id_uniq").on(t.provider, t.providerCustomerId),
-    index("customers_subject_idx").on(t.subjectType, t.subjectId),
+    index("customers_subject_app_idx").on(t.subjectType, t.subjectId, t.app),
   ],
 );
 
@@ -196,6 +205,10 @@ export const creditLedger = billing.table(
     id: uuid("id").primaryKey().defaultRandom(),
     ownerType: ownerTypeEnum("owner_type").notNull(),
     ownerId: text("owner_id").notNull(),
+    // Mesmo subject pode ter saldos independentes por app (ex.: créditos
+    // Cozya separados de créditos Agenda da Turma). Queries de saldo e
+    // consumo precisam sempre filtrar por app além de (ownerType, ownerId).
+    app: text("app").notNull(),
     entryType: ledgerEntryTypeEnum("entry_type").notNull(),
     amount: integer("amount").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
@@ -213,9 +226,14 @@ export const creditLedger = billing.table(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
-    index("credit_ledger_owner_created_idx").on(t.ownerType, t.ownerId, t.createdAt),
-    index("credit_ledger_owner_expires_idx")
-      .on(t.ownerType, t.ownerId, t.expiresAt)
+    index("credit_ledger_owner_app_created_idx").on(
+      t.ownerType,
+      t.ownerId,
+      t.app,
+      t.createdAt,
+    ),
+    index("credit_ledger_owner_app_expires_idx")
+      .on(t.ownerType, t.ownerId, t.app, t.expiresAt)
       .where(sql`${t.expiresAt} IS NOT NULL`),
     uniqueIndex("credit_ledger_stripe_event_uniq").on(t.stripeEventId),
     index("credit_ledger_reservation_idx")

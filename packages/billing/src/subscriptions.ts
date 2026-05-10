@@ -15,6 +15,8 @@ export type SubscriptionsDeps = {
   provider: BillingProvider;
   providerClient: BillingProviderClient;
   organizationsEnabled: boolean;
+  /** App slug — escopo de isolamento usado para casar customers do mesmo subject. */
+  app: string;
   logger?: Logger;
   onAudit?: (event: BillingAuditEvent) => void;
 };
@@ -238,6 +240,7 @@ async function findCustomerForSubject(
         eq(customersTable.provider, deps.provider),
         eq(customersTable.subjectType, subject.type),
         eq(customersTable.subjectId, subject.id),
+        eq(customersTable.app, deps.app),
       ),
     )
     .limit(1);

@@ -24,6 +24,7 @@ export const billing = createBillingService({
   stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET,
   db: billingDb,
   appName: APPS.cozya.name,
+  app: APPS.cozya.slug,
   publicAppUrl: env.NEXT_PUBLIC_APP_URL,
   products: cozyaProducts,
   organizationsEnabled: false,

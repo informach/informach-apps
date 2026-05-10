@@ -37,6 +37,8 @@ export type SubscriptionWebhookDeps = {
    * webhook flows that don't need to create downstream subscriptions can omit it.
    */
   providerClient?: BillingProviderClient;
+  /** App slug — propagado pelo dispatcher; ainda não usado neste handler (apenas atualiza subscriptions/customers já filtrados pelo providerCustomerId). */
+  app: string;
   logger?: Logger;
   onAudit?: (event: BillingAuditEvent) => void;
   emails?: BillingEmailDeps;

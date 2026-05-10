@@ -24,6 +24,8 @@ export type PlanChangesDeps = {
   provider: BillingProvider;
   providerClient: BillingProviderClient;
   organizationsEnabled: boolean;
+  /** App slug — escopo de isolamento de customers. */
+  app: string;
   products: readonly Product[];
   stripeMode: StripeMode;
   logger?: Logger;
@@ -276,6 +278,7 @@ export async function previewPlanChange(
         eq(customersTable.provider, deps.provider),
         eq(customersTable.subjectType, input.subject.type),
         eq(customersTable.subjectId, input.subject.id),
+        eq(customersTable.app, deps.app),
       ),
     )
     .limit(1);

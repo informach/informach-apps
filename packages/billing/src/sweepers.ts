@@ -19,6 +19,8 @@ const MONTHLY_BONUS_TTL_DAYS = 31;
 
 export type ExpireMonthlyBonusDeps = {
   db: Database;
+  /** App slug — só expira rows do próprio app, sem cross-bleed. */
+  app: string;
   logger?: Logger;
   /** Override "now" for tests / replay. Defaults to new Date(). */
   now?: Date;
@@ -53,13 +55,15 @@ export async function expireMonthlyBonusCredits(
   // Single round-trip: the SELECT inside the INSERT is the canonical "to-expire"
   // set, anti-joined against existing expiration rows via NOT EXISTS so the
   // operation is idempotent. RETURNING amount lets us aggregate without a
-  // second query.
+  // second query. App-scoped: each app's sweeper only expires its own rows
+  // and the compensating row inherits app=src.app (= deps.app pelo filtro).
   const result = await deps.db.execute<{ amount: number | string }>(sql`
     INSERT INTO billing.credit_ledger
-      (owner_type, owner_id, entry_type, amount, expires_at, metadata)
+      (owner_type, owner_id, app, entry_type, amount, expires_at, metadata)
     SELECT
       src.owner_type,
       src.owner_id,
+      src.app,
       'expiration',
       -src.amount,
       src.expires_at,
@@ -69,7 +73,8 @@ export async function expireMonthlyBonusCredits(
         'sweptAt', ${now.toISOString()}
       )
     FROM billing.credit_ledger src
-    WHERE src.entry_type IN ('bonus_grant','promo_grant','purchase')
+    WHERE src.app = ${deps.app}
+      AND src.entry_type IN ('bonus_grant','promo_grant','purchase')
       AND src.amount > 0
       AND src.expires_at IS NOT NULL
       AND src.expires_at <= ${now.toISOString()}
@@ -96,6 +101,8 @@ export async function expireMonthlyBonusCredits(
 
 export type ReleaseExpiredReservationsDeps = {
   db: Database;
+  /** App slug — só libera reservations do próprio app. */
+  app: string;
   logger?: Logger;
   now?: Date;
   batchSize?: number;
@@ -123,6 +130,7 @@ export async function releaseExpiredReservations(
     WHERE id IN (
       SELECT id FROM billing.credit_reservations
       WHERE status = 'active'
+        AND app = ${deps.app}
         AND expires_at <= ${now.toISOString()}
       LIMIT ${batchSize}
     )
@@ -161,6 +169,10 @@ export type DunningSendFn = (payload: DunningPayload) => Promise<void>;
 
 export type RetryDunningEmailsDeps = {
   db: Database;
+  /** App slug — só processa subs cujo customer pertence a este app. */
+  app: string;
+  /** Provider scope — restringe ao provider configurado no app (stripe/asaas). */
+  provider: BillingProvider;
   send?: DunningSendFn;
   logger?: Logger;
   /** Default 3. Subscription rows that already had this many attempts are skipped. */
@@ -202,7 +214,13 @@ export async function retryFailedDunningEmails(
     })
     .from(subscriptionsTable)
     .innerJoin(customersTable, eq(subscriptionsTable.customerId, customersTable.id))
-    .where(eq(subscriptionsTable.status, "past_due"))
+    .where(
+      and(
+        eq(subscriptionsTable.status, "past_due"),
+        eq(customersTable.provider, deps.provider),
+        eq(customersTable.app, deps.app),
+      ),
+    )
     .limit(batchSize);
 
   let sent = 0;
@@ -296,6 +314,8 @@ export type ReconcileSubscriptionsDeps = {
   db: Database;
   provider: BillingProvider;
   providerClient: BillingProviderClient;
+  /** App slug — só reconcilia subs cujo customer pertence a este app. */
+  app: string;
   logger?: Logger;
   /** Hard cap per run to keep cron-friendly. Default 200. */
   batchSize?: number;
@@ -344,9 +364,11 @@ export async function reconcileSubscriptionStatuses(
       canceledAt: subscriptionsTable.canceledAt,
     })
     .from(subscriptionsTable)
+    .innerJoin(customersTable, eq(subscriptionsTable.customerId, customersTable.id))
     .where(
       and(
         eq(subscriptionsTable.provider, deps.provider),
+        eq(customersTable.app, deps.app),
         inArray(subscriptionsTable.status, [...RECONCILE_STATUSES]),
       ),
     )
@@ -475,6 +497,8 @@ void and;
 
 export type GrantMonthlyBonusDeps = {
   db: Database;
+  /** App slug — só processa subs cujo customer pertence a este app. */
+  app: string;
   /** Catalog used to resolve `bonusCreditsPerMonth` per product. */
   products: readonly Product[];
   logger?: Logger;
@@ -529,6 +553,7 @@ export async function grantPendingMonthlyBonusCredits(
         sql`${subscriptionsTable.nextCreditGrantAt} IS NOT NULL`,
         lte(subscriptionsTable.nextCreditGrantAt, now),
         inArray(subscriptionsTable.status, ["active", "trialing"]),
+        eq(customersTable.app, deps.app),
       ),
     )
     .limit(batchSize);
@@ -584,6 +609,7 @@ export async function grantPendingMonthlyBonusCredits(
     const result = await grantBonusCredits(
       {
         db: deps.db,
+        app: deps.app,
         logger: deps.logger,
         onAudit: deps.onAudit,
       },

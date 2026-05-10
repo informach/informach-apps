@@ -45,6 +45,8 @@ export type InvoiceWebhookDeps = {
   db: Database;
   provider: BillingProvider;
   providerClient: BillingProviderClient;
+  /** App slug — escopo do credit_ledger ao gravar bônus. */
+  app: string;
   emails?: BillingEmailDeps;
   /** Resolved product catalog for THIS app — used to look up bonusCreditsPerMonth. */
   products: readonly Product[];
@@ -145,6 +147,7 @@ export async function handleInvoicePaid(
       const result = await grantBonusCredits(
         {
           db: deps.db,
+          app: deps.app,
           logger: deps.logger,
           onAudit: deps.onAudit,
         },
@@ -231,6 +234,7 @@ export async function handleInvoicePaid(
   const result = await grantBonusCredits(
     {
       db: deps.db,
+      app: deps.app,
       logger: deps.logger,
       onAudit: deps.onAudit,
     },

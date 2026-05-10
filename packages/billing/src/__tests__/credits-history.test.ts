@@ -40,7 +40,7 @@ describe("getCreditHistory", () => {
     const { db } = createFakeDb({
       selectResult: [makeRow({ id: "11111111-0000-0000-0000-000000000001" })],
     });
-    const page = await getCreditHistory({ db: db as never }, owner, { limit: 10 });
+    const page = await getCreditHistory({ db: db as never, app: "test-app" }, owner, { limit: 10 });
     expect(page.entries).toHaveLength(1);
     expect(page.nextCursor).toBeNull();
   });
@@ -53,7 +53,7 @@ describe("getCreditHistory", () => {
       }),
     );
     const { db } = createFakeDb({ selectResult: rows });
-    const page = await getCreditHistory({ db: db as never }, owner, { limit: 10 });
+    const page = await getCreditHistory({ db: db as never, app: "test-app" }, owner, { limit: 10 });
     expect(page.entries).toHaveLength(10);
     expect(page.nextCursor).not.toBeNull();
     // Cursor must be base64-decodable to "<iso>|<uuid>" pointing at the LAST row of the page
@@ -65,7 +65,7 @@ describe("getCreditHistory", () => {
 
   it("filters by entry type when requested", async () => {
     const { db, calls } = createFakeDb({ selectResult: [] });
-    await getCreditHistory({ db: db as never }, owner, {
+    await getCreditHistory({ db: db as never, app: "test-app" }, owner, {
       entryTypes: ["purchase", "bonus_grant"],
       limit: 10,
     });
@@ -79,14 +79,14 @@ describe("getCreditHistory", () => {
 
   it("clamps limit to MAX_LIMIT (200)", async () => {
     const { db, calls } = createFakeDb({ selectResult: [] });
-    await getCreditHistory({ db: db as never }, owner, { limit: 9999 });
+    await getCreditHistory({ db: db as never, app: "test-app" }, owner, { limit: 9999 });
     expect(calls.find((c) => c.mode === "select")).toBeDefined();
     // Limit clamping is internal; just verify no error.
   });
 
   it("ignores invalid cursors instead of throwing", async () => {
     const { db } = createFakeDb({ selectResult: [makeRow()] });
-    const page = await getCreditHistory({ db: db as never }, owner, {
+    const page = await getCreditHistory({ db: db as never, app: "test-app" }, owner, {
       cursor: "not-valid-base64!!",
     });
     expect(page.entries).toHaveLength(1);

@@ -47,7 +47,7 @@ describe("PRO_STATUSES", () => {
 describe("getProSubscription", () => {
   it("returns the row when status is active", async () => {
     const { db } = createFakeDb({ selectQueue: [[sampleRow]] });
-    const result = await getProSubscription({ db: db as never, provider: "stripe" }, subject);
+    const result = await getProSubscription({ db: db as never, provider: "stripe", app: "test-app" }, subject);
     expect(result?.id).toBe("sub-row-1");
     expect(result?.status).toBe("active");
   });
@@ -58,7 +58,7 @@ describe("getProSubscription", () => {
       subscriptions: { ...sampleRow.subscriptions, status: "trialing" },
     };
     const { db } = createFakeDb({ selectQueue: [[trialingRow]] });
-    const result = await getProSubscription({ db: db as never, provider: "stripe" }, subject);
+    const result = await getProSubscription({ db: db as never, provider: "stripe", app: "test-app" }, subject);
     expect(result?.status).toBe("trialing");
   });
 
@@ -74,13 +74,13 @@ describe("getProSubscription", () => {
     "paused",
   ])("returns null when subject only has %s", async (_status) => {
     const { db } = createFakeDb({ selectQueue: [[]] });
-    const result = await getProSubscription({ db: db as never, provider: "stripe" }, subject);
+    const result = await getProSubscription({ db: db as never, provider: "stripe", app: "test-app" }, subject);
     expect(result).toBeNull();
   });
 
   it("returns null when subject has no subscription at all", async () => {
     const { db } = createFakeDb({ selectQueue: [[]] });
-    const result = await getProSubscription({ db: db as never, provider: "stripe" }, subject);
+    const result = await getProSubscription({ db: db as never, provider: "stripe", app: "test-app" }, subject);
     expect(result).toBeNull();
   });
 });
@@ -88,11 +88,11 @@ describe("getProSubscription", () => {
 describe("hasProSubscription", () => {
   it("returns true when active row exists", async () => {
     const { db } = createFakeDb({ selectQueue: [[sampleRow]] });
-    expect(await hasProSubscription({ db: db as never, provider: "stripe" }, subject)).toBe(true);
+    expect(await hasProSubscription({ db: db as never, provider: "stripe", app: "test-app" }, subject)).toBe(true);
   });
 
   it("returns false when no row matches", async () => {
     const { db } = createFakeDb({ selectQueue: [[]] });
-    expect(await hasProSubscription({ db: db as never, provider: "stripe" }, subject)).toBe(false);
+    expect(await hasProSubscription({ db: db as never, provider: "stripe", app: "test-app" }, subject)).toBe(false);
   });
 });

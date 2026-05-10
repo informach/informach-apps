@@ -28,6 +28,8 @@ export type CheckoutDeps = {
   provider: BillingProvider;
   providerClient: BillingProviderClient;
   organizationsEnabled: boolean;
+  /** App slug — escopo de isolamento de customers. */
+  app: string;
   products: readonly Product[];
   publicAppUrl: string;
   stripeMode: StripeMode;
@@ -80,6 +82,7 @@ export async function createSubscriptionCheckout(
       provider: deps.provider,
       providerClient: deps.providerClient,
       organizationsEnabled: deps.organizationsEnabled,
+      app: deps.app,
       logger: deps.logger,
     },
     {
@@ -99,6 +102,7 @@ export async function createSubscriptionCheckout(
     operation: "checkout_sub",
     subject: input.subject,
     productId: input.productId,
+    app: deps.app,
     nonce: input.idempotencyNonce,
   });
 
@@ -157,7 +161,10 @@ export async function createCreditPackCheckout(
   // there's no point letting a Free user buy them, since the AI features that
   // consume credits are themselves gated behind Pro. The single source of
   // truth is `PRO_STATUSES` in `./access.ts`.
-  const proSub = await getProSubscription({ db: deps.db, provider: deps.provider }, input.subject);
+  const proSub = await getProSubscription(
+    { db: deps.db, provider: deps.provider, app: deps.app },
+    input.subject,
+  );
   if (!proSub) {
     safeLog(deps.logger, "warn", "billing.checkout.credit_pack.no_pro_sub", {
       subjectType: input.subject.type,
@@ -174,6 +181,7 @@ export async function createCreditPackCheckout(
       provider: deps.provider,
       providerClient: deps.providerClient,
       organizationsEnabled: deps.organizationsEnabled,
+      app: deps.app,
       logger: deps.logger,
     },
     {
@@ -193,6 +201,7 @@ export async function createCreditPackCheckout(
     operation: "checkout_credit",
     subject: input.subject,
     productId: input.productId,
+    app: deps.app,
     nonce: input.idempotencyNonce,
   });
 
@@ -260,6 +269,7 @@ function buildIdempotencyKey(input: {
   operation: string;
   subject: SubjectRef;
   productId: string;
+  app: string;
   nonce?: string;
 }): string {
   // When no caller-supplied nonce is provided, derive a deterministic 5-minute
@@ -267,11 +277,11 @@ function buildIdempotencyKey(input: {
   // double-click / page-refresh duplicates without permanently locking out a
   // legitimate retry from the next session.
   const nonce = input.nonce ?? `auto:${Math.floor(Date.now() / 300_000)}`;
-  return `${input.operation}:${input.subject.type}:${input.subject.id}:${input.productId}:${nonce}`;
+  return `${input.operation}:${input.app}:${input.subject.type}:${input.subject.id}:${input.productId}:${nonce}`;
 }
 
 async function findActiveSubscriptionForSubject(
-  deps: Pick<CheckoutDeps, "db" | "provider">,
+  deps: Pick<CheckoutDeps, "db" | "provider" | "app">,
   subject: SubjectRef,
 ): Promise<{ id: string; productId: string } | null> {
   const rows = await deps.db
@@ -286,6 +296,7 @@ async function findActiveSubscriptionForSubject(
         eq(customersTable.provider, deps.provider),
         eq(customersTable.subjectType, subject.type),
         eq(customersTable.subjectId, subject.id),
+        eq(customersTable.app, deps.app),
         inArray(subscriptionsTable.status, ["active", "trialing", "past_due"]),
       ),
     )

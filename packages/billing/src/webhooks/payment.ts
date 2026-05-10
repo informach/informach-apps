@@ -18,6 +18,8 @@ type StripePaymentIntentLike = {
 export type PaymentWebhookDeps = {
   db: Database;
   provider: BillingProvider;
+  /** App slug — escopo do credit_ledger ao gravar a compra. */
+  app: string;
   logger?: Logger;
   onAudit?: (event: BillingAuditEvent) => void;
   emails?: BillingEmailDeps;
@@ -225,6 +227,7 @@ export async function handlePaymentIntentSucceeded(
       .values({
         ownerType: subjectType,
         ownerId: subjectId,
+        app: deps.app,
         entryType: "purchase",
         amount: creditAmount,
         expiresAt: null,
@@ -300,7 +303,7 @@ export async function handlePaymentIntentSucceeded(
   // never blocks the webhook ack. Idempotency: messageKey = ledgerEntryId, which
   // is stable per Stripe event.
   if (!result.replay && deps.emails && customer.email && result.ledgerEntryId) {
-    const balanceAfter = await readOwnerBalanceAfter(deps.db, subjectType, subjectId);
+    const balanceAfter = await readOwnerBalanceAfter(deps.db, subjectType, subjectId, deps.app);
     await sendBillingEmail(deps.emails, {
       category: "billing.credits-purchased",
       recipient: {
@@ -333,12 +336,14 @@ async function readOwnerBalanceAfter(
   db: Database,
   ownerType: SubjectType,
   ownerId: string,
+  app: string,
 ): Promise<number> {
   const result = await db.execute(sql`
     SELECT COALESCE(SUM(amount), 0) AS total
     FROM billing.credit_ledger
     WHERE owner_type = ${ownerType}
       AND owner_id = ${ownerId}
+      AND app = ${app}
       AND entry_type <> 'expiration'
       AND (expires_at IS NULL OR expires_at > now())
   `);

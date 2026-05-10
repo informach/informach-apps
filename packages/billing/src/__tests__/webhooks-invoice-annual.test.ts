@@ -58,6 +58,7 @@ describe("handleInvoicePaid (annual)", () => {
       {
         db: db as never,
         provider: "stripe",
+        app: "test-app",
         providerClient: createFakeProvider().provider,
         products: [ANNUAL_PRODUCT],
         onAudit,
@@ -91,6 +92,7 @@ describe("handleInvoicePaid (annual)", () => {
       {
         db: db as never,
         provider: "stripe",
+        app: "test-app",
         providerClient: createFakeProvider().provider,
         products: [ANNUAL_PRODUCT],
         onAudit,
@@ -121,6 +123,7 @@ describe("handleInvoicePaid (annual)", () => {
       {
         db: db as never,
         provider: "stripe",
+        app: "test-app",
         providerClient: createFakeProvider().provider,
         products: [ANNUAL_PRODUCT],
       },
@@ -158,6 +161,7 @@ describe("handleInvoicePaid (annual)", () => {
       {
         db: db as never,
         provider: "stripe",
+        app: "test-app",
         providerClient: createFakeProvider().provider,
         products: [MONTHLY_PRODUCT, ANNUAL_PRODUCT],
       },
@@ -185,6 +189,7 @@ describe("handleInvoicePaid (annual)", () => {
       {
         db: db as never,
         provider: "stripe",
+        app: "test-app",
         providerClient: createFakeProvider().provider,
         products: [MONTHLY_PRODUCT],
       },

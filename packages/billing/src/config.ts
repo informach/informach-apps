@@ -18,6 +18,15 @@ export type BillingServiceConfig = {
   stripeWebhookSecret?: string;
   db: Database;
   appName: string;
+  /**
+   * Slug que identifica este app dentro do banco de billing
+   * (ex.: "cozya", "agenda-da-turma"). Usado como app-scope em
+   * `billing.customers.app` e `billing.credit_ledger.app`, isolando
+   * customers e saldos de créditos entre apps que compartilham o
+   * mesmo subject (ex.: mesmo `user.id` em Cozya e Agenda da Turma).
+   * Não é o `appName` (display) — esse é o slug do banco.
+   */
+  app: string;
   publicAppUrl: string;
   /** Products this app sells. Filter from @informach/config PRODUCTS by app. */
   products: readonly Product[];

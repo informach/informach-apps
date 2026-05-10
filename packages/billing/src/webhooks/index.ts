@@ -24,6 +24,12 @@ export type StripeWebhookDeps = {
   provider: BillingProvider;
   providerClient: BillingProviderClient;
   /**
+   * App slug usado em `customers.app`/`credit_ledger.app`. Cada app tem seu
+   * próprio endpoint de webhook, então essa instância recebe SÓ eventos do
+   * próprio app.
+   */
+  app: string;
+  /**
    * Dedupe scope for this app/webhook endpoint. Stripe event IDs are global to
    * the Stripe account, but this monorepo has one endpoint per app.
    */
@@ -214,6 +220,7 @@ async function dispatchEvent(deps: StripeWebhookDeps, event: ParsedWebhookEvent)
     db: deps.db,
     provider: deps.provider,
     providerClient: deps.providerClient,
+    app: deps.app,
     logger: deps.logger,
     onAudit: deps.onAudit,
     emails: deps.emails,
@@ -248,6 +255,7 @@ async function dispatchEvent(deps: StripeWebhookDeps, event: ParsedWebhookEvent)
         {
           db: deps.db,
           provider: deps.provider,
+          app: deps.app,
           logger: deps.logger,
           onAudit: deps.onAudit,
           emails: deps.emails,
@@ -265,6 +273,7 @@ async function dispatchEvent(deps: StripeWebhookDeps, event: ParsedWebhookEvent)
           db: deps.db,
           provider: deps.provider,
           providerClient: deps.providerClient,
+          app: deps.app,
           products: deps.products,
           logger: deps.logger,
           onAudit: deps.onAudit,
@@ -284,6 +293,7 @@ async function dispatchEvent(deps: StripeWebhookDeps, event: ParsedWebhookEvent)
           db: deps.db,
           provider: deps.provider,
           providerClient: deps.providerClient,
+          app: deps.app,
           products: deps.products,
           logger: deps.logger,
           onAudit: deps.onAudit,

@@ -22,6 +22,7 @@ function makeDeps(overrides: Partial<SubscriptionsDeps> = {}): SubscriptionsDeps
     provider: "stripe",
     providerClient: provider,
     organizationsEnabled: true,
+    app: "test-app",
     onAudit: vi.fn(),
     ...overrides,
   };

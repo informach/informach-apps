@@ -11,7 +11,7 @@ describe("grantBonusCredits", () => {
       insertResult: [{ id: "ledger-1" }],
     });
     const result = await grantBonusCredits(
-      { db: db as never, onAudit },
+      { db: db as never, app: "test-app", onAudit },
       {
         owner,
         amount: 1000,
@@ -35,7 +35,7 @@ describe("grantBonusCredits", () => {
       selectResult: [{ id: "ledger-existing" }],
     });
     const result = await grantBonusCredits(
-      { db: db as never },
+      { db: db as never, app: "test-app" },
       {
         owner,
         amount: 1000,
@@ -52,21 +52,21 @@ describe("grantBonusCredits", () => {
   it("throws when insert returns 0 rows without a stripeEventId (broken invariant)", async () => {
     const { db } = createFakeDb({ insertResult: [] });
     await expect(
-      grantBonusCredits({ db: db as never }, { owner, amount: 100, reason: "promo" }),
+      grantBonusCredits({ db: db as never, app: "test-app" }, { owner, amount: 100, reason: "promo" }),
     ).rejects.toThrow(/schema invariant broken/);
   });
 
   it("rejects non-positive grant amounts before touching the DB", async () => {
     const { db, calls } = createFakeDb();
     await expect(
-      grantBonusCredits({ db: db as never }, { owner, amount: -1, reason: "promo" }),
+      grantBonusCredits({ db: db as never, app: "test-app" }, { owner, amount: -1, reason: "promo" }),
     ).rejects.toThrow("amount must be a positive integer");
     expect(calls).toEqual([]);
   });
 
   it("maps reason to the correct entry_type via metadata", async () => {
     const { db, calls } = createFakeDb({ insertResult: [{ id: "ledger-2" }] });
-    await grantBonusCredits({ db: db as never }, { owner, amount: 50, reason: "compensation" });
+    await grantBonusCredits({ db: db as never, app: "test-app" }, { owner, amount: 50, reason: "compensation" });
     expect(calls.find((c) => c.mode === "insert")).toBeDefined();
   });
 });
@@ -76,7 +76,7 @@ describe("refundCredits", () => {
     const onAudit = vi.fn();
     const { db } = createFakeDb({ insertResult: [{ id: "ledger-refund-1" }] });
     const result = await refundCredits(
-      { db: db as never, onAudit },
+      { db: db as never, app: "test-app", onAudit },
       {
         owner,
         originalLedgerEntryId: "ledger-purchase-1",
@@ -103,7 +103,7 @@ describe("refundCredits", () => {
       selectResult: [{ id: "ledger-refund-existing" }],
     });
     const result = await refundCredits(
-      { db: db as never },
+      { db: db as never, app: "test-app" },
       {
         owner,
         originalLedgerEntryId: "ledger-purchase-1",
@@ -125,7 +125,7 @@ describe("refundCredits", () => {
     const { db } = createFakeDb({ insertResult: [{ id: "ledger-3" }] });
     await expect(
       refundCredits(
-        { db: db as never },
+        { db: db as never, app: "test-app" },
         {
           owner,
           originalLedgerEntryId: "ledger-purchase-1",
@@ -141,7 +141,7 @@ describe("refundCredits", () => {
     const { db, calls } = createFakeDb();
     await expect(
       refundCredits(
-        { db: db as never },
+        { db: db as never, app: "test-app" },
         {
           owner,
           originalLedgerEntryId: "ledger-purchase-1",

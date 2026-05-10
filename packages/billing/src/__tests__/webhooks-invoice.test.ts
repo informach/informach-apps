@@ -68,6 +68,7 @@ describe("handleInvoicePaid", () => {
       {
         db: db as never,
         provider: "stripe",
+        app: "test-app",
         providerClient: providerClient(),
         products: [SUBSCRIPTION_PRODUCT],
         onAudit,
@@ -109,6 +110,7 @@ describe("handleInvoicePaid", () => {
       {
         db: db as never,
         provider: "stripe",
+        app: "test-app",
         providerClient: providerClient(),
         products: [SUBSCRIPTION_PRODUCT],
       },
@@ -124,6 +126,7 @@ describe("handleInvoicePaid", () => {
       {
         db: db as never,
         provider: "stripe",
+        app: "test-app",
         providerClient: providerClient(),
         products: [SUBSCRIPTION_PRODUCT],
       },
@@ -141,6 +144,7 @@ describe("handleInvoicePaid", () => {
       {
         db: db as never,
         provider: "stripe",
+        app: "test-app",
         providerClient: providerClient(),
         products: [SUBSCRIPTION_PRODUCT],
       },
@@ -168,6 +172,7 @@ describe("handleInvoicePaid", () => {
       {
         db: db as never,
         provider: "stripe",
+        app: "test-app",
         providerClient: providerClient(),
         products: [NO_BONUS_PRODUCT],
       },
@@ -195,6 +200,7 @@ describe("handleInvoicePaid", () => {
       {
         db: db as never,
         provider: "stripe",
+        app: "test-app",
         providerClient: providerClient(),
         products: [SUBSCRIPTION_PRODUCT],
       },
@@ -248,6 +254,7 @@ describe("handleInvoicePaid", () => {
       {
         db: db as never,
         provider: "stripe",
+        app: "test-app",
         providerClient: provider,
         products: [SUBSCRIPTION_PRODUCT],
       },
@@ -300,6 +307,7 @@ describe("handleInvoicePaid", () => {
       {
         db: db as never,
         provider: "stripe",
+        app: "test-app",
         providerClient: provider,
         products: [SUBSCRIPTION_PRODUCT, ANNUAL_SUBSCRIPTION_PRODUCT],
       },
@@ -321,6 +329,7 @@ describe("handleInvoicePaid", () => {
       {
         db: db as never,
         provider: "stripe",
+        app: "test-app",
         providerClient: providerClient(),
         products: [SUBSCRIPTION_PRODUCT],
       },
@@ -351,6 +360,7 @@ describe("handleInvoicePaymentFailed", () => {
       {
         db: db as never,
         provider: "stripe",
+        app: "test-app",
         providerClient: providerClient(),
         products: [SUBSCRIPTION_PRODUCT],
         onAudit,
@@ -374,6 +384,7 @@ describe("handleInvoicePaymentFailed", () => {
       {
         db: db as never,
         provider: "stripe",
+        app: "test-app",
         providerClient: providerClient(),
         products: [SUBSCRIPTION_PRODUCT],
       },

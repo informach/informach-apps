@@ -70,6 +70,7 @@ function makeDeps(overrides: Partial<PlanChangesDeps> = {}): PlanChangesDeps {
     provider: "stripe",
     providerClient: provider,
     organizationsEnabled: false,
+    app: "test-app",
     products: [monthlyProduct, annualProduct, creditPackProduct],
     stripeMode: "dev",
     onAudit: vi.fn(),

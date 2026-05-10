@@ -91,6 +91,7 @@ describe("handleSubscriptionLifecycle (pending intent on delete)", () => {
       {
         db: db as never,
         provider: "stripe",
+        app: "test-app",
         providerClient: provider,
         onAudit,
       },
@@ -138,6 +139,7 @@ describe("handleSubscriptionLifecycle (pending intent on delete)", () => {
       {
         db: db as never,
         provider: "stripe",
+        app: "test-app",
         providerClient: provider,
       },
       deletedAnnualSub() as never,
@@ -184,6 +186,7 @@ describe("handleSubscriptionLifecycle (pending intent on delete)", () => {
       {
         db: db as never,
         provider: "stripe",
+        app: "test-app",
         providerClient: provider,
       },
       deletedAnnualSub() as never,

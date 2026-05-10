@@ -36,6 +36,8 @@ export const PRO_STATUSES = [
 export type AccessDeps = {
   db: Database;
   provider: BillingProvider;
+  /** App slug — escopo de isolamento usado para casar customers do mesmo subject. */
+  app: string;
 };
 
 /**
@@ -56,6 +58,7 @@ export async function getProSubscription(
         eq(customersTable.provider, deps.provider),
         eq(customersTable.subjectType, subject.type),
         eq(customersTable.subjectId, subject.id),
+        eq(customersTable.app, deps.app),
         inArray(subscriptionsTable.status, [...PRO_STATUSES]),
       ),
     )

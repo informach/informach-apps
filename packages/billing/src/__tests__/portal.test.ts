@@ -15,6 +15,7 @@ function makeDeps(overrides: Partial<PortalDeps> = {}): PortalDeps {
     provider: "stripe",
     providerClient: provider,
     organizationsEnabled: true,
+    app: "test-app",
     ...overrides,
   };
 }

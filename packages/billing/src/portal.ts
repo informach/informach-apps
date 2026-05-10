@@ -11,6 +11,8 @@ export type PortalDeps = {
   provider: BillingProvider;
   providerClient: BillingProviderClient;
   organizationsEnabled: boolean;
+  /** App slug — escopo de isolamento de customers. */
+  app: string;
   logger?: Logger;
 };
 
@@ -39,6 +41,7 @@ export async function createPortalSession(
         eq(customersTable.provider, deps.provider),
         eq(customersTable.subjectType, input.subject.type),
         eq(customersTable.subjectId, input.subject.id),
+        eq(customersTable.app, deps.app),
       ),
     )
     .limit(1);

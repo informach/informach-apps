@@ -29,12 +29,16 @@ const MAX_LIMIT = 200;
  * verbatim. Last page is signalled by `nextCursor === null`.
  */
 export async function getCreditHistory(
-  deps: { db: Database },
+  deps: { db: Database; app: string },
   owner: CreditOwner,
   filters: LedgerHistoryFilters = {},
 ): Promise<LedgerHistoryPage> {
   const limit = Math.min(Math.max(filters.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
-  const conditions = [eq(creditLedger.ownerType, owner.type), eq(creditLedger.ownerId, owner.id)];
+  const conditions = [
+    eq(creditLedger.ownerType, owner.type),
+    eq(creditLedger.ownerId, owner.id),
+    eq(creditLedger.app, deps.app),
+  ];
   if (filters.from) conditions.push(gte(creditLedger.createdAt, filters.from));
   if (filters.to) conditions.push(lte(creditLedger.createdAt, filters.to));
   if (filters.entryTypes && filters.entryTypes.length > 0) {

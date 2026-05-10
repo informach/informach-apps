@@ -24,6 +24,7 @@ function makeDeps(
   const deps: StripeWebhookDeps = {
     db: fake.db as never,
     provider: "stripe",
+    app: "test-app",
     providerClient: provider,
     webhookScope: "test-app",
     products: [SUBSCRIPTION_PRODUCT],

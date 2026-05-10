@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Apps** (`apps/`):
   - `admin` (port 3003) — scaffold, no auth/billing/db wiring yet; keep dependencies minimal until it becomes a real app.
-  - `agenda-da-turma` (port 3001) — multi-tenant (Better Auth organizations enabled), Sentry, Vitest + Playwright.
+  - `agenda-da-turma` (port 3001) — single-user (sem organizations; modelo Netflix-household — perfis de filhos planejados como concept futuro, hoje só a conta do responsável existe), Sentry, Vitest + Playwright.
   - `cozya` (port 3002) — single-user (no organizations), Sentry, Vitest + Playwright.
   - `informach-site` (port 3004) — landing institucional pública (`informach.com.br`). Sem auth/billing/db/AI; só Next + `@informach/ui`. Hospeda Termos e Privacidade guarda-chuva da holding (Stripe Customer Portal aponta pra cá).
 - **Packages** (`packages/`, scope `@informach/*`): `db`, `auth`, `billing`, `emails`, `ai-core`, `config`, `ui`. All consumed as TypeScript source — none have a build step.
@@ -47,8 +47,8 @@ Each package exposes its surface via `package.json` `exports` pointing at `src/`
 - Better Auth 1.6.9 wrapped by `@informach/auth`. RBAC is custom (4 roles: owner/admin/member/guest, 8 permissions) — *not* the Better Auth admin plugin.
 - Apps use `src/proxy.ts` (Next 16's replacement for `middleware.ts`) calling `createAuthProxy(authResult, { publicPaths, requireAuth })` — see `apps/agenda-da-turma/src/proxy.ts` and `apps/cozya/src/proxy.ts`. New routing-level guards go through proxy.ts; consult context7 before touching Next routing primitives.
 - Cookie cache 5 min by default; role changes invalidate sessions immediately.
-- `agenda-da-turma` has organizations enabled; `cozya` does not.
-- **Email plugin choice is per-app via `config.email`** in `createAuth`/`createInformachAuthClient`: `verification: "otp" | "link"` (default `"otp"`), `signIn: { magicLink: bool, otp: bool }` (defaults `true`/`false`), `forgetPassword: "link" | "otp"` (default `"link"`). The package conditionally loads `magicLink`/`emailOTP` plugins and registers link callbacks (`sendVerificationEmail`/`sendResetPassword`) only when needed. **Cozya is OTP-only** (verification + sign-in + forget-password); `agenda-da-turma` uses defaults (OTP signup + magic-link sign-in + link reset). See `packages/auth/CLAUDE.md` §3.2.
+- Ambos `agenda-da-turma` e `cozya` são single-user (sem organizations). `organizationsEnabled: false` no `createBillingService` e sem o plugin de organização no `createAuth`/`createInformachAuthClient`.
+- **Email plugin choice is per-app via `config.email`** in `createAuth`/`createInformachAuthClient`: `verification: "otp" | "link"` (default `"otp"`), `signIn: { magicLink: bool, otp: bool }` (defaults `true`/`false`), `forgetPassword: "link" | "otp"` (default `"link"`). The package conditionally loads `magicLink`/`emailOTP` plugins and registers link callbacks (`sendVerificationEmail`/`sendResetPassword`) only when needed. **Cozya e Agenda da Turma são ambos OTP-only** (verification + sign-in + forget-password). See `packages/auth/CLAUDE.md` §3.2.
 - Account deletion (LGPD) calls `billing.cancelBillingForSubject` via the auth `onBeforeDelete` hook.
 - Audit is typed through `AuditEventType`; packages emit through app-wired `onAudit` callbacks and persistence failures are reported via `observability.onAuditPersistenceFailure`.
 
@@ -62,7 +62,7 @@ Each package exposes its surface via `package.json` `exports` pointing at `src/`
 - **Single-subscription invariant** — `createSubscriptionCheckout` rejects with `AlreadySubscribedError` if the subject already has any active-ish row (active/trialing/past_due). Apps should route to `switchPlan`.
 - **Annual plans drip credits monthly** — annual `invoice.paid` does NOT grant 12× upfront; it seeds `next_credit_grant_at = now + 30d`, and the daily sweeper `grantPendingMonthlyBonusCredits` releases 100 every 30d. `subscription_update` invoices are excluded from cycle-grant logic.
 - **`priceId` is authoritative over `metadata.product_id`** in webhooks — Stripe metadata doesn't migrate when `subscriptions.update` swaps prices, so the package resolves products via `stripePriceId.{dev,prod}` first.
-- Owner subject is `org` for agenda-da-turma, `user` for cozya.
+- Owner subject sempre é `user` (ambos os apps são single-user). Isolamento entre apps é feito pela coluna `app` em `billing.customers` e `billing.credit_ledger` — UNIQUE composto `(provider, subjectType, subjectId, app)` permite que o mesmo `user.id` tenha 2 customers Stripe distintos (um por app). Cada `createBillingService` recebe `app: APPS.<app>.slug` no config.
 - Idempotence in 3 layers: `webhookEvents` UNIQUE, table-level UNIQUE, `creditLedger.stripeEventId` UNIQUE. Idempotency keys for checkouts default to a 5-minute window when no nonce is supplied.
 - Sweepers: reconcile (1d), expire-bonus (1d), grant-monthly (1d, annual drip), release-reservations (5min), dunning-retry (6h).
 

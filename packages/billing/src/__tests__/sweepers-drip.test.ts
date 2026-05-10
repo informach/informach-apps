@@ -31,6 +31,7 @@ function makeDeps(overrides: Partial<GrantMonthlyBonusDeps> = {}): GrantMonthlyB
   const { db } = createFakeDb();
   return {
     db: db as never,
+    app: "test-app",
     products,
     ...overrides,
   };

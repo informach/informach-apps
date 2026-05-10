@@ -11,13 +11,13 @@ describe("expireMonthlyBonusCredits", () => {
     const { db } = createFakeDb({
       executeResult: [{ amount: 500 }, { amount: 1000 }, { amount: 250 }],
     });
-    const result = await expireMonthlyBonusCredits({ db: db as never });
+    const result = await expireMonthlyBonusCredits({ db: db as never, app: "test-app" });
     expect(result).toEqual({ expired: 3, totalCredits: 1750 });
   });
 
   it("returns zeros when no rows expire", async () => {
     const { db } = createFakeDb({ executeResult: [] });
-    const result = await expireMonthlyBonusCredits({ db: db as never });
+    const result = await expireMonthlyBonusCredits({ db: db as never, app: "test-app" });
     expect(result).toEqual({ expired: 0, totalCredits: 0 });
   });
 
@@ -25,7 +25,7 @@ describe("expireMonthlyBonusCredits", () => {
     const { db } = createFakeDb({
       executeResult: [{ amount: "500" }, { amount: "200" }],
     });
-    const result = await expireMonthlyBonusCredits({ db: db as never });
+    const result = await expireMonthlyBonusCredits({ db: db as never, app: "test-app" });
     expect(result.totalCredits).toBe(700);
   });
 });
@@ -35,13 +35,13 @@ describe("releaseExpiredReservations", () => {
     const { db } = createFakeDb({
       executeResult: [{ id: "res-1" }, { id: "res-2" }],
     });
-    const result = await releaseExpiredReservations({ db: db as never });
+    const result = await releaseExpiredReservations({ db: db as never, app: "test-app" });
     expect(result).toEqual({ released: 2 });
   });
 
   it("returns 0 when nothing to release", async () => {
     const { db } = createFakeDb({ executeResult: [] });
-    const result = await releaseExpiredReservations({ db: db as never });
+    const result = await releaseExpiredReservations({ db: db as never, app: "test-app" });
     expect(result).toEqual({ released: 0 });
   });
 });
@@ -63,6 +63,8 @@ describe("retryFailedDunningEmails", () => {
     const send = vi.fn(async () => undefined);
     const result = await retryFailedDunningEmails({
       db: db as never,
+      app: "test-app",
+      provider: "stripe",
       send,
     });
     expect(result.scanned).toBe(1);
@@ -79,7 +81,11 @@ describe("retryFailedDunningEmails", () => {
 
   it("dry-runs when no send fn is provided", async () => {
     const { db, calls } = createFakeDb({ selectResult: [subA] });
-    const result = await retryFailedDunningEmails({ db: db as never });
+    const result = await retryFailedDunningEmails({
+      db: db as never,
+      app: "test-app",
+      provider: "stripe",
+    });
     expect(result.sent).toBe(0);
     expect(result.scanned).toBe(1);
     expect(calls.some((c) => c.mode === "update")).toBe(false);
@@ -99,6 +105,8 @@ describe("retryFailedDunningEmails", () => {
     const send = vi.fn();
     const result = await retryFailedDunningEmails({
       db: db as never,
+      app: "test-app",
+      provider: "stripe",
       send,
       maxAttempts: 3,
     });
@@ -127,6 +135,8 @@ describe("retryFailedDunningEmails", () => {
     const send = vi.fn();
     const result = await retryFailedDunningEmails({
       db: db as never,
+      app: "test-app",
+      provider: "stripe",
       send,
       cooldownHours: 24,
     });
@@ -141,6 +151,8 @@ describe("retryFailedDunningEmails", () => {
     });
     const result = await retryFailedDunningEmails({
       db: db as never,
+      app: "test-app",
+      provider: "stripe",
       send,
     });
     expect(result.sent).toBe(0);
@@ -149,7 +161,11 @@ describe("retryFailedDunningEmails", () => {
 
   it("returns zero counts when no past_due subs found", async () => {
     const { db } = createFakeDb({ selectResult: [] });
-    const result = await retryFailedDunningEmails({ db: db as never });
+    const result = await retryFailedDunningEmails({
+      db: db as never,
+      app: "test-app",
+      provider: "stripe",
+    });
     expect(result).toEqual({ scanned: 0, sent: 0, skipped: 0 });
   });
 });

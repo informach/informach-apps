@@ -23,7 +23,7 @@ type BalanceRow = {
  * we coerce via Number() at the boundary.
  */
 export async function getBalance(
-  deps: { db: Database },
+  deps: { db: Database; app: string },
   owner: CreditOwner,
 ): Promise<CreditBalance> {
   const result = await deps.db.execute(sql`
@@ -33,6 +33,7 @@ export async function getBalance(
         FROM billing.credit_ledger
         WHERE owner_type = ${owner.type}
           AND owner_id = ${owner.id}
+          AND app = ${deps.app}
           AND entry_type <> 'expiration'
           AND (expires_at IS NULL OR expires_at > now())
       ), 0) AS total,
@@ -41,6 +42,7 @@ export async function getBalance(
         FROM billing.credit_reservations
         WHERE owner_type = ${owner.type}
           AND owner_id = ${owner.id}
+          AND app = ${deps.app}
           AND status = 'active'
           AND expires_at > now()
       ), 0) AS reserved,
@@ -49,6 +51,7 @@ export async function getBalance(
         FROM billing.credit_ledger
         WHERE owner_type = ${owner.type}
           AND owner_id = ${owner.id}
+          AND app = ${deps.app}
           AND amount > 0
           AND expires_at IS NOT NULL
           AND expires_at BETWEEN now() AND now() + interval '7 days'
@@ -58,6 +61,7 @@ export async function getBalance(
         FROM billing.credit_ledger
         WHERE owner_type = ${owner.type}
           AND owner_id = ${owner.id}
+          AND app = ${deps.app}
           AND amount > 0
           AND expires_at IS NOT NULL
           AND expires_at BETWEEN now() AND now() + interval '7 days'

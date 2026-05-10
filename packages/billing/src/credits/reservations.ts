@@ -128,10 +128,15 @@ type SaldoRow = {
 /**
  * Computes total and (optionally excluding a specific reservation) reserved
  * within an open transaction. The advisory lock on the owner must already be held.
+ *
+ * `app` é obrigatório para garantir que o saldo seja escopado ao app que está
+ * fazendo a operação — caso contrário, créditos do Cozya entrariam no saldo
+ * do Agenda da Turma quando o mesmo `user.id` aparece nos dois.
  */
 async function readBalanceForOwner(
   tx: Tx,
   owner: CreditOwner,
+  app: string,
   opts: { excludeReservationId?: string } = {},
 ): Promise<{ total: number; reserved: number }> {
   const excludedId = opts.excludeReservationId ?? null;
@@ -142,6 +147,7 @@ async function readBalanceForOwner(
         FROM billing.credit_ledger
         WHERE owner_type = ${owner.type}
           AND owner_id = ${owner.id}
+          AND app = ${app}
           AND entry_type <> 'expiration'
           AND (expires_at IS NULL OR expires_at > now())
       ), 0) AS total,
@@ -150,6 +156,7 @@ async function readBalanceForOwner(
         FROM billing.credit_reservations
         WHERE owner_type = ${owner.type}
           AND owner_id = ${owner.id}
+          AND app = ${app}
           AND status = 'active'
           AND expires_at > now()
           AND (${excludedId}::uuid IS NULL OR id <> ${excludedId}::uuid)
@@ -175,7 +182,7 @@ export async function reserveCredits(
   return deps.db.transaction(
     async (tx) => {
       await lockOwnerForTx(tx, input.owner);
-      const { total, reserved } = await readBalanceForOwner(tx, input.owner);
+      const { total, reserved } = await readBalanceForOwner(tx, input.owner, input.app);
       const available = total - reserved;
       if (available < input.estimatedAmount) {
         safeLog(deps.logger, "info", "billing.credits.reserve.insufficient", {
@@ -233,6 +240,7 @@ type ReservationRow = {
   id: string;
   ownerType: "user" | "organization";
   ownerId: string;
+  app: string;
   status: "active" | "committed" | "released" | "expired";
   expiresAt: Date;
   runId: string | null;
@@ -252,6 +260,7 @@ export async function commitReservation(
           id: creditReservations.id,
           ownerType: creditReservations.ownerType,
           ownerId: creditReservations.ownerId,
+          app: creditReservations.app,
           status: creditReservations.status,
           expiresAt: creditReservations.expiresAt,
           runId: creditReservations.runId,
@@ -310,6 +319,7 @@ export async function commitReservation(
         .values({
           ownerType: owner.type,
           ownerId: owner.id,
+          app: reservation.app,
           entryType: "consumption",
           amount: -Math.abs(input.actualAmount),
           reservationId: input.reservationId,
@@ -329,7 +339,7 @@ export async function commitReservation(
       // Compute balance AFTER the commit. The committed reservation is no longer
       // active so it doesn't subtract from `total - reserved`. The ledger entry
       // already reduces total. We exclude this reservation from `reserved` for safety.
-      const { total, reserved } = await readBalanceForOwner(tx, owner, {
+      const { total, reserved } = await readBalanceForOwner(tx, owner, reservation.app, {
         excludeReservationId: input.reservationId,
       });
       const balanceAfter = total - reserved;
@@ -410,7 +420,7 @@ export async function consumeCredits(
   return deps.db.transaction(
     async (tx) => {
       await lockOwnerForTx(tx, input.owner);
-      const { total, reserved } = await readBalanceForOwner(tx, input.owner);
+      const { total, reserved } = await readBalanceForOwner(tx, input.owner, input.app);
       const available = total - reserved;
       if (available < input.amount) {
         safeLog(deps.logger, "info", "billing.credits.consume.insufficient", {
@@ -431,12 +441,12 @@ export async function consumeCredits(
         .values({
           ownerType: input.owner.type,
           ownerId: input.owner.id,
+          app: input.app,
           entryType: "consumption",
           amount: -Math.abs(input.amount),
           runId: input.runId ?? null,
           metadata: {
             feature: input.feature,
-            app: input.app,
             model: input.model ?? null,
             ...(input.metadata ?? {}),
           },

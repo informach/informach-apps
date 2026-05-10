@@ -1,10 +1,11 @@
 import pino from "pino";
+import { env } from "./env";
 
 export const logger = pino({
-  level: process.env.LOG_LEVEL ?? (process.env.NODE_ENV === "production" ? "info" : "debug"),
+  level: env.LOG_LEVEL ?? (env.NODE_ENV === "production" ? "info" : "debug"),
   base: {
     app: "agenda-da-turma",
-    env: process.env.NODE_ENV,
+    env: env.NODE_ENV,
   },
   formatters: {
     level: (label) => ({ level: label }),

@@ -15,13 +15,21 @@ export const env = createEnv({
     SENDGRID_WEBHOOK_PUBLIC_KEY: z.string().min(1).optional(),
     EMAIL_SANDBOX_MODE: z.enum(["live", "sandbox", "memory"]).default("live"),
     EMAIL_SANDBOX_DIR: z.string().default("./tmp/integration_emails"),
+    /**
+     * Quando "1", relaxa rate limits dos endpoints OTP/signup do Better Auth
+     * para Playwright/E2E. Bloqueado em produção pelo guard pós-parse abaixo.
+     */
+    E2E_RELAX_AUTH_RATE_LIMITS: z.enum(["1"]).optional(),
     CRON_SECRET: z.string().min(32),
     GOOGLE_CLIENT_ID: z.string().min(1).optional(),
     GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
     REDIS_URL: z.string().url().optional(),
     STRIPE_SECRET_KEY: z
       .string()
-      .startsWith("sk_", "STRIPE_SECRET_KEY must start with 'sk_test_' or 'sk_live_'"),
+      .regex(
+        /^(sk|rk)_(test|live)_/,
+        "STRIPE_SECRET_KEY must start with 'sk_test_'/'sk_live_' (full access) or 'rk_test_'/'rk_live_' (restricted, recommended for production — see packages/billing/PRODUCTION.md §6.1)",
+      ),
     STRIPE_WEBHOOK_SECRET: z
       .string()
       .startsWith("whsec_", "STRIPE_WEBHOOK_SECRET must start with 'whsec_'"),
@@ -32,9 +40,7 @@ export const env = createEnv({
      * to test prod prices in staging or vice-versa.
      */
     STRIPE_MODE: z.enum(["dev", "prod"]).optional(),
-    OPENAI_API_KEY: z.string().min(1).optional(),
-    ANTHROPIC_API_KEY: z.string().min(1).optional(),
-    MASTRA_LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+    LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).optional(),
   },
   client: {
     NEXT_PUBLIC_APP_URL: z.string().url(),
@@ -51,6 +57,7 @@ export const env = createEnv({
     SENDGRID_WEBHOOK_PUBLIC_KEY: process.env.SENDGRID_WEBHOOK_PUBLIC_KEY,
     EMAIL_SANDBOX_MODE: process.env.EMAIL_SANDBOX_MODE,
     EMAIL_SANDBOX_DIR: process.env.EMAIL_SANDBOX_DIR,
+    E2E_RELAX_AUTH_RATE_LIMITS: process.env.E2E_RELAX_AUTH_RATE_LIMITS,
     CRON_SECRET: process.env.CRON_SECRET,
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
@@ -61,9 +68,24 @@ export const env = createEnv({
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
     STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY,
     STRIPE_MODE: process.env.STRIPE_MODE,
-    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
-    MASTRA_LOG_LEVEL: process.env.MASTRA_LOG_LEVEL,
+    LOG_LEVEL: process.env.LOG_LEVEL,
   },
   emptyStringAsUndefined: true,
 });
+
+// Runtime guards: server-only. `instrumentation-client.ts` (Sentry init)
+// importa este módulo no client, então qualquer acesso a campos `server:` no
+// top-level dispara `onInvalidAccess` do @t3-oss/env-nextjs e quebra a
+// hidratação do React. O gate `typeof window === "undefined"` é dead-code
+// eliminável pelo bundler no client e mantém o fail-closed no server.
+if (typeof window === "undefined") {
+  if (env.NODE_ENV === "production" && !env.REDIS_URL) {
+    throw new Error("REDIS_URL is required when NODE_ENV=production");
+  }
+
+  if (env.NODE_ENV === "production" && env.E2E_RELAX_AUTH_RATE_LIMITS === "1") {
+    throw new Error(
+      "E2E_RELAX_AUTH_RATE_LIMITS must NOT be set in production — it disables anti-brute-force protections.",
+    );
+  }
+}
