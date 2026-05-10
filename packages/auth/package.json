@@ -11,6 +11,7 @@
     "./server": "./src/server.ts",
     "./proxy": "./src/proxy.ts",
     "./server-actions": "./src/server-actions.ts",
+    "./redis-rate-limit-storage": "./src/redis-rate-limit-storage.ts",
     "./maintenance": "./src/maintenance.ts"
   },
   "scripts": {

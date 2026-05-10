@@ -83,7 +83,7 @@ apps/agenda-da-turma/
 │   │   ├── auth.ts                # createAuth({ email: { verification: "otp", signIn: { magicLink: false }, forgetPassword: "otp" } })
 │   │   ├── billing.ts             # createBillingService({ organizationsEnabled: false, app: APPS.agendaDaTurma.slug })
 │   │   ├── emails.ts              # createEmailService(...)
-│   │   ├── action.ts              # createActionFactory({ helpers: authResult })
+│   │   ├── action.ts              # createActionFactory({ helpers, rateLimitStorage: redisRateLimitStorage(redis, "agenda-da-turma:rl:") })
 │   │   ├── action-result.ts       # catchActionResult / isActionRejected (client helper)
 │   │   ├── observability.ts       # packageLogger + Sentry
 │   │   ├── redis.ts               # ioredis com ?family=0 implicit (Railway IPv6)
@@ -177,7 +177,7 @@ Validadas em `src/lib/env.ts` via Zod (`@t3-oss/env-nextjs`):
 | `STRIPE_WEBHOOK_SECRET` | sim | `whsec_*`; placeholder na fase 5 do runbook |
 | `STRIPE_PUBLISHABLE_KEY` | opcional | só se for usar Stripe Elements client-side |
 | `STRIPE_MODE` | opcional | override; default infere de `NODE_ENV` |
-| `REDIS_URL` | opcional dev / **obrigatório prod** | secondary storage do Better Auth + futuro rate-limit. Use `?family=0` no Railway (IPv6-only) |
+| `REDIS_URL` | opcional dev / **obrigatório prod** | secondary storage do Better Auth + rate-limit do action factory (prefix `agenda-da-turma:rl:*`). Use `?family=0` no Railway (IPv6-only) |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | opcional | habilita social login Google |
 | `E2E_RELAX_AUTH_RATE_LIMITS` | opcional | `"1"` em CI Playwright; **proibido em prod** (guard pós-parse) |
 | `LOG_LEVEL` | opcional | `debug\|info\|warn\|error` |

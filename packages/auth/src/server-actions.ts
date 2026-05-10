@@ -82,34 +82,58 @@ export function parseWindowSeconds(window: number | string): number {
   return amount * multiplier;
 }
 
-export async function enforceRateLimit(input: ActionRateLimitConfig): Promise<void> {
+export type RateLimitHit = {
+  /** Counter value AFTER increment in the current window. */
+  count: number;
+  /** Seconds until the bucket expires. Used by future UI for retry hints. */
+  ttlSeconds: number;
+};
+
+export type RateLimitStorage = {
+  /**
+   * Atomically increments the counter at `key` and ensures the TTL is set on
+   * first hit. Implementations MUST use fixed-window semantics — TTL must NOT
+   * extend on subsequent hits within the same window.
+   */
+  hit(key: string, windowSeconds: number): Promise<RateLimitHit>;
+};
+
+export const postgresRateLimitStorage: RateLimitStorage = {
+  async hit(key, windowSeconds) {
+    const now = Date.now();
+    const windowStart = now - windowSeconds * 1000;
+    const [row] = await db
+      .insert(rateLimitTable)
+      .values({
+        id: crypto.randomUUID(),
+        key,
+        count: 1,
+        lastRequest: now,
+      })
+      .onConflictDoUpdate({
+        target: rateLimitTable.key,
+        set: {
+          count: sql<number>`case when ${rateLimitTable.lastRequest} > ${windowStart} then ${rateLimitTable.count} + 1 else 1 end`,
+          lastRequest: now,
+        },
+      })
+      .returning({
+        count: rateLimitTable.count,
+      });
+    return { count: row?.count ?? 0, ttlSeconds: windowSeconds };
+  },
+};
+
+export async function enforceRateLimit(
+  input: ActionRateLimitConfig,
+  storage: RateLimitStorage = postgresRateLimitStorage,
+): Promise<void> {
   const windowSeconds = parseWindowSeconds(input.window);
   if (!Number.isFinite(input.max) || input.max <= 0) {
     throw new Error(`Invalid rateLimit max: ${input.max}`);
   }
-  const now = Date.now();
-  const windowStart = now - windowSeconds * 1000;
-
-  const [row] = await db
-    .insert(rateLimitTable)
-    .values({
-      id: crypto.randomUUID(),
-      key: input.key,
-      count: 1,
-      lastRequest: now,
-    })
-    .onConflictDoUpdate({
-      target: rateLimitTable.key,
-      set: {
-        count: sql<number>`case when ${rateLimitTable.lastRequest} > ${windowStart} then ${rateLimitTable.count} + 1 else 1 end`,
-        lastRequest: now,
-      },
-    })
-    .returning({
-      count: rateLimitTable.count,
-    });
-
-  if (row && row.count > input.max) {
+  const { count } = await storage.hit(input.key, windowSeconds);
+  if (count > input.max) {
     throw new RateLimitError(input.key);
   }
 }
@@ -125,6 +149,12 @@ export type ActionFactoryConfig<TUser, TSession> = {
   onAudit?: (input: { eventType: AuditEventType; actorId: string | null }) => void;
   /** Called when the action handler throws an unexpected non-Next.js framework error. */
   onError?: (input: { error: unknown; actorId: string | null }) => void;
+  /**
+   * Storage for rate-limit counters. Default: Postgres `core.rate_limit`. Apps
+   * in production should pass `redisRateLimitStorage(...)` from
+   * `@informach/auth/redis-rate-limit-storage` for proper scale.
+   */
+  rateLimitStorage?: RateLimitStorage;
 };
 
 type ActionConfig<TSchema extends z.ZodTypeAny> = {
@@ -217,10 +247,13 @@ class ActionBuilder<TUser, TSession, TSchema extends z.ZodTypeAny> {
       }
 
       if (rateLimit) {
-        await enforceRateLimit({
-          ...rateLimit,
-          key: resolveRateLimitKey(rateLimit, actor, requestHeaders),
-        });
+        await enforceRateLimit(
+          {
+            ...rateLimit,
+            key: resolveRateLimitKey(rateLimit, actor, requestHeaders),
+          },
+          factory.rateLimitStorage,
+        );
       }
 
       if (audit) {
@@ -285,6 +318,11 @@ export function createActionFactory<TUser, TSession>(
   config: ActionFactoryConfig<TUser, TSession>,
   getRequestHeaders: RequestHeadersProvider = defaultRequestHeaders,
 ) {
+  if (!config.rateLimitStorage && process.env.NODE_ENV === "production") {
+    console.warn(
+      "[@informach/auth] action factory rate-limit using Postgres fallback in production — set rateLimitStorage to redisRateLimitStorage(...) for proper scale.",
+    );
+  }
   const action = new ActionBuilder<TUser, TSession, z.ZodTypeAny>(config, getRequestHeaders);
   return {
     action,

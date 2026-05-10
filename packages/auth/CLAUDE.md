@@ -251,7 +251,7 @@ Apps são responsáveis por expor essas funções via route handler `POST` prote
 
 ### 3.10 Action factory (server actions)
 
-`createActionFactory({ helpers, onAudit? })` retorna `{ action, ok, err, *Error }`. O builder `action` é chainable; `.audit(...)` aceita somente `AuditEventType`, não string livre:
+`createActionFactory({ helpers, onAudit?, onError?, rateLimitStorage? })` retorna `{ action, ok, err, *Error }`. O builder `action` é chainable; `.audit(...)` aceita somente `AuditEventType`, não string livre:
 
 ```ts
 export const banUser = action
@@ -274,6 +274,29 @@ export const banUser = action
 Ordem de execução: `schema.parse(input) → require* → rateLimit → audit → handler`. `auth.require` aceita `"none" | "user" | "role" | "member-of-org"` (último exige `organizations.enabled`). `.rateLimit(...)` usa `scope: "auto"` por default: usuário autenticado vira chave `key:user:<id>`, fluxo pré-auth cai para `key:ip:<client-ip>`. Use `scope: "global"` só quando o throttle realmente deve ser compartilhado por todos.
 
 `Result<T, E>` é o tipo discriminado retornado pelo handler — `{ ok: true, value }` ou `{ ok: false, error }`. Erros tipados disponíveis: `UnauthorizedError`, `ForbiddenError`, `OrganizationsDisabledError`, `RateLimitError`.
+
+#### Rate-limit storage
+
+`rateLimitStorage` (opcional) define onde os contadores de `.rateLimit(...)` são persistidos. Apps em produção devem passar `redisRateLimitStorage(...)` de `@informach/auth/redis-rate-limit-storage`:
+
+```ts
+// apps/<app>/src/lib/action.ts
+import { redisRateLimitStorage } from "@informach/auth/redis-rate-limit-storage";
+import { redis } from "./redis"; // IORedis singleton
+
+const factory = createActionFactory({
+  helpers: authResult,
+  rateLimitStorage: redis
+    ? redisRateLimitStorage({ client: redis, keyPrefix: "<app-slug>:rl:" })
+    : undefined, // fallback Postgres (dev sem REDIS_URL)
+});
+```
+
+Mecânica: fixed-window via Redis `MULTI / INCR / EXPIRE NX / TTL / EXEC` (1 round-trip atomic). `EXPIRE NX` (Redis 7+) impede que TTL se estenda em hits subsequentes na mesma janela. Auto-limpa via TTL — não precisa cron.
+
+Default (`postgresRateLimitStorage`) faz `INSERT … ON CONFLICT DO UPDATE` em `core.rate_limit`. **Em produção sem `rateLimitStorage` setado, `createActionFactory` loga `console.warn` no boot** — sinal claro de misconfig. Cron `cleanupStaleRateLimit` continua relevante apenas para o caminho Postgres (idempotente em prod onde tabela fica vazia).
+
+Convenção de namespacing Redis: 1 instância por ambiente, isolamento por prefixo `<app-slug>:<scope>:` — `cozya:auth:*` (Better Auth secondary storage), `cozya:rl:*` (action factory + anti-script de IA), `agenda-da-turma:auth:*`, `agenda-da-turma:rl:*`. Nunca usar `SELECT` / DB numbers (incompatível com Redis Cluster).
 
 ### 3.11 Server helpers (RSC)
 
@@ -447,7 +470,8 @@ Wiring real em `apps/<app>/src/lib/env.ts` (`@t3-oss/env-nextjs`).
 | `@informach/auth/client` | `createInformachAuthClient` (React) | client components |
 | `@informach/auth/server` | `createServerHelpers` (RSC) | RSC + server actions |
 | `@informach/auth/proxy` | `createAuthProxy` | `apps/<app>/src/proxy.ts` |
-| `@informach/auth/server-actions` | `createActionFactory`, `Result`, `ok`/`err` | server actions |
+| `@informach/auth/server-actions` | `createActionFactory`, `Result`, `ok`/`err`, `RateLimitStorage`, `postgresRateLimitStorage` | server actions |
+| `@informach/auth/redis-rate-limit-storage` | `redisRateLimitStorage` (fixed-window via MULTI/EXPIRE NX) | `apps/<app>/src/lib/action.ts` em prod |
 | `@informach/auth/maintenance` | `cleanup*` funções | route handlers de cron job |
 
 ### 5.3 Tipos exportados

@@ -43,7 +43,12 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { ForbiddenError, UnauthorizedError } from "../helpers";
-import { createActionFactory, parseWindowSeconds, RateLimitError } from "../server-actions";
+import {
+  createActionFactory,
+  parseWindowSeconds,
+  RateLimitError,
+  type RateLimitStorage,
+} from "../server-actions";
 
 type TestUser = { id: string; role?: string };
 type TestSession = { id: string };
@@ -320,6 +325,68 @@ describe("createActionFactory — rate limit", () => {
     expect(dbInsertChain.onConflictDoUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ target: "rate_limit.key" }),
     );
+  });
+});
+
+describe("createActionFactory — rate limit (custom storage)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    dbInsertChain.rows = [];
+  });
+
+  function makeStorage(count: number): RateLimitStorage & { hit: ReturnType<typeof vi.fn> } {
+    const hit = vi.fn(async () => ({ count, ttlSeconds: 60 }));
+    return { hit };
+  }
+
+  it("uses the injected storage instead of Postgres", async () => {
+    const storage = makeStorage(1);
+    const helpers = makeHelpers({ currentUser: { id: "u1" } });
+    const { action } = createActionFactory<TestUser, TestSession>({
+      helpers,
+      rateLimitStorage: storage,
+    });
+    const fn = action
+      .auth({ require: "user" })
+      .rateLimit({ key: "test", max: 3, window: "1m" })
+      .run(async () => "ok");
+    await fn({});
+    expect(storage.hit).toHaveBeenCalledWith("test:user:u1", 60);
+    expect(dbInsertChain.values).not.toHaveBeenCalled();
+  });
+
+  it("throws RateLimitError when storage returns count above max", async () => {
+    const storage = makeStorage(6);
+    const helpers = makeHelpers({});
+    const { action } = createActionFactory<TestUser, TestSession>({
+      helpers,
+      rateLimitStorage: storage,
+    });
+    const fn = action.rateLimit({ key: "test", max: 5, window: "1m" }).run(async () => "ok");
+    await expect(fn({})).rejects.toBeInstanceOf(RateLimitError);
+  });
+
+  it("forwards the global key unchanged to storage", async () => {
+    const storage = makeStorage(1);
+    const helpers = makeHelpers({ currentUser: { id: "u1" } });
+    const { action } = createActionFactory<TestUser, TestSession>({
+      helpers,
+      rateLimitStorage: storage,
+    });
+    const fn = action
+      .rateLimit({ key: "global-throttle", max: 3, window: "1m", scope: "global" })
+      .run(async () => "ok");
+    await fn({});
+    expect(storage.hit).toHaveBeenCalledWith("global-throttle", 60);
+  });
+
+  it("falls back to Postgres when no storage is provided", async () => {
+    dbInsertChain.rows = [{ count: 1 }];
+    const helpers = makeHelpers({});
+    const { action } = createActionFactory<TestUser, TestSession>({ helpers });
+    const fn = action.rateLimit({ key: "test", max: 3, window: "1m" }).run(async () => "ok");
+    await fn({});
+    expect(dbInsertChain.values).toHaveBeenCalledTimes(1);
   });
 });
 

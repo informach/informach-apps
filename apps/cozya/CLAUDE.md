@@ -134,6 +134,10 @@ const reservation = await billing.reserveCredits({ ... });
 
 Quando `REDIS_URL` não está configurado (dev local), o helper loga warn e libera (passthrough). Produção sempre exige Redis.
 
+### Rate-limit do action factory (separado do anti-script)
+
+`apps/cozya/src/lib/action.ts` injeta `redisRateLimitStorage({ client: redis, keyPrefix: "cozya:rl:" })` no `createActionFactory`, então todo `.rateLimit({ key, max, window })` em server actions também grava no Redis (mesma instância, mesmo prefixo `cozya:rl:*`, keys distintas — `cozya:rl:cozya.ai.invoke:*` é IA, `cozya:rl:<action-key>:user:*` é action factory). Em dev sem `REDIS_URL`, cai pra Postgres `core.rate_limit` (fallback). Em prod sem Redis, factory loga warn no boot. Detalhes em `packages/auth/CLAUDE.md` §3.10.
+
 ---
 
 ## 5. Stripe Dashboard — checklist operacional
