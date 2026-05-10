@@ -1,8 +1,11 @@
 import type { ReactNode } from "react";
+import { SiteHeader } from "@/components/site-header";
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <div className="relative flex min-h-screen flex-col bg-background text-foreground">
+      <SiteHeader />
+
       {/* Decorative background. Subtle radial wash com os tokens de brand
           (azul + roxo); opacidade baixa pra nunca competir com o form. */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-0 overflow-hidden">
