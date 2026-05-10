@@ -67,11 +67,14 @@ export function StudentFormDialog({ open, onOpenChange, isPro, currentCount, pro
     defaultValues: initialDefaults,
   });
 
+  // Reset apenas em transições closed→open. `profile` ref pode mudar quando o
+  // parent re-renderiza após `router.refresh()`, o que zeraria o que o usuário
+  // está digitando.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: see comment above
   useEffect(() => {
-    if (open) {
-      form.reset(profile ? defaultsFromProfile(profile) : EMPTY_DEFAULTS);
-    }
-  }, [open, profile, form]);
+    if (!open) return;
+    form.reset(profile ? defaultsFromProfile(profile) : EMPTY_DEFAULTS);
+  }, [open]);
 
   const onSubmit = form.handleSubmit((values) => {
     startSubmit(async () => {

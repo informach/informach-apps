@@ -37,3 +37,6 @@ Thumbs.db
 
 # Misc
 .cache/
+
+# Reference datasets — baixar localmente conforme packages/db/src/seeds/schools.ts
+escolas_inep.csv

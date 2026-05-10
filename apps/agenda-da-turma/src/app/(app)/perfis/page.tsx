@@ -1,7 +1,7 @@
 import { getIsProForUser } from "@/features/billing/server-cache";
 import { StudentsSection } from "@/features/students/components/students-section";
 import { FREE_STUDENT_PROFILE_LIMIT, PRO_STUDENT_PROFILE_LIMIT } from "@/features/students/limits";
-import { listStudentProfilesForUser } from "@/features/students/service";
+import { listStudentProfilesWithActiveTurmaForUser } from "@/features/students/service";
 import { requireUserServer } from "@/lib/auth";
 
 export const metadata = {
@@ -11,7 +11,7 @@ export const metadata = {
 export default async function PerfisPage() {
   const user = await requireUserServer();
   const [profiles, isPro] = await Promise.all([
-    listStudentProfilesForUser(user.id),
+    listStudentProfilesWithActiveTurmaForUser(user.id),
     getIsProForUser(user.id),
   ]);
   const limit = isPro ? PRO_STUDENT_PROFILE_LIMIT : FREE_STUDENT_PROFILE_LIMIT;

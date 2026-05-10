@@ -6,9 +6,9 @@
 
 ## 1. Propósito
 
-Agenda da Turma é um app **single-user** para o responsável (pai/mãe) organizar a rotina escolar dos filhos — tarefas, provas, recados, entregas. O subject de billing é sempre o usuário responsável; perfis de filhos são **concept futuro** (modelo Netflix-household), não existem hoje no schema nem na UI.
+Agenda da Turma é um app **single-user** para o responsável (pai/mãe) organizar a rotina escolar dos filhos — tarefas, provas, recados, entregas. O subject de billing é sempre o usuário responsável; perfis de filhos vivem na sua própria conta como sub-entidades (modelo Netflix-household).
 
-Estado atual (2026-05-09): app early-stage. **Auth, billing e emails 100% wired** (paridade com cozya — onboarding com escolha de plano, `/settings/billing`, `/upgrade`, widget no dashboard, packs de crédito). **Dashboard ainda é placeholder** — não há features de agenda implementadas. **Sem IA hoje** — pipeline de créditos preparado pra quando alguma feature de IA aparecer.
+Estado atual (2026-05-10): app early-stage. **Auth, billing e emails 100% wired** (paridade com cozya — onboarding com escolha de plano, `/settings/billing`, `/upgrade`, widget no dashboard, packs de crédito). **Perfis de Estudante e Turmas implementados** — CRUD em `/perfis` (Free 1 / Pro 3), página global `/turmas` com filtro por perfil, comboboxes pesquisáveis IBGE+INEP pra cadastro manual, código de turma compartilhável pra entrar em turmas existentes, dedup natural via UNIQUE em `(school+grade+year+letter)`. **Dashboard ainda é placeholder de features** — só widgets condicionais (sem perfis / com perfis sem turma) + welcome. **Sem IA hoje** — pipeline de créditos preparado pra quando alguma feature de IA aparecer.
 
 Diferença de porte vs cozya: público maior potencial (pais brasileiros com filhos em idade escolar), valor percebido médio. Pricing reflete: Pro R$ 19,90/mês (vs R$ 14,90 do cozya).
 
@@ -71,9 +71,12 @@ apps/agenda-da-turma/
 │   │   └── layout.tsx             # Plus Jakarta Sans + ThemeProvider + Toaster
 │   ├── features/
 │   │   ├── billing/               # plan-cards, plan-card, credit-balance-card, credit-packs, history (paridade cozya)
-│   │   └── onboarding/            # signup-form (3 passos), login-form, plan-cards usado em /choose-plan + /upgrade
+│   │   ├── onboarding/            # signup-form (3 passos), login-form, plan-cards usado em /choose-plan + /upgrade
+│   │   ├── students/              # perfis de estudante (CRUD, dialogs, avatar com chart-N, widgets do dashboard)
+│   │   └── turmas/                # turmas (create/join-by-code/active/leave + comboboxes IBGE+INEP)
 │   ├── components/
 │   │   ├── brand/agenda-logo.tsx  # logotipo SVG inline (theme-aware)
+│   │   ├── app-shell/             # AppHeader + UserMenu (avatar com Meus perfis / Minhas turmas / billing / sair)
 │   │   └── site-header.tsx        # header /login + /signup (logo + ModeToggle); evolui pra dashboard depois
 │   ├── lib/
 │   │   ├── env.ts                 # Zod-validated envs
@@ -86,7 +89,7 @@ apps/agenda-da-turma/
 │   │   ├── redis.ts               # ioredis com ?family=0 implicit (Railway IPv6)
 │   │   ├── sendgrid-webhook.ts    # signature verify helper
 │   │   └── logger.ts              # pino app-level
-│   ├── proxy.ts                   # auth proxy; requireAuth: ["/dashboard","/choose-plan","/upgrade","/settings"]
+│   ├── proxy.ts                   # auth proxy; requireAuth: ["/dashboard","/choose-plan","/upgrade","/settings","/perfis","/turmas","/api/data"]
 │   ├── instrumentation.ts         # Sentry init (server)
 │   └── instrumentation-client.ts  # Sentry init (client)
 ├── e2e/                           # Playwright (auth signup/signin por senha/OTP)
@@ -184,7 +187,89 @@ Validadas em `src/lib/env.ts` via Zod (`@t3-oss/env-nextjs`):
 
 ---
 
-## 6. Pendências vs cozya (gaps conhecidos)
+## 6. Perfis e Turmas (modelo de dados central)
+
+### Perfis de Estudante (`agenda.student_profiles`)
+
+Sub-entidades por conta, sem login próprio. Free = 1 perfil, Pro = 3. Limite enforced em `service.createStudentProfile` via `pg_advisory_xact_lock("agenda:student_profiles:<userId>")` + count check antes do insert. Coluna `active_turma_id uuid NULL FK -> agenda.turmas.id ON DELETE SET NULL` aponta pra turma ativa do perfil (no máximo uma).
+
+Avatar: iniciais (até 2 letras) + cor derivada por hash do nome via paleta `chart-1..5` (mesma das matérias). Sem upload de foto no v1 — não há infra de blob storage no monorepo.
+
+Card no `/perfis` mostra `"X anos · {Turma ativa | Sem turma vinculada}"`. Menu do card: **Gerenciar turmas** (`/turmas?perfil=<id>`) + Editar + Excluir.
+
+### Turmas (`agenda.turmas` + `agenda.turma_members`)
+
+**Turmas são compartilhadas entre contas** (modelo Netflix-household estendido) — diferente dos perfis. Várias famílias com filhos na mesma turma têm uma única row em `agenda.turmas`. UNIQUE em `(school_inep_code, grade, year, class_letter)` é a chave natural pra dedup.
+
+Fluxos de cadastro:
+1. **Manual** — usuário escolhe estado → cidade → escola → série → ano → letra. Service tenta `INSERT ... ON CONFLICT DO NOTHING`; se conflitou, faz SELECT pelo natural key e retorna `created: false`. Em ambos os casos: insere `turma_member` (idempotente), seta como ativa do perfil.
+2. **Por código** — código de 6 chars (alfabeto sem ambíguos: sem `0/O/1/I/L`) gerado server-side, retry em colisão. UNIQUE em `agenda.turmas.code`. User entra com o código + escolhe perfil → vira membro + ativa.
+
+Listagem: `listTurmasForUser` traz turmas onde **(a) o user é o criador (`created_by_user_id`) OU (b) algum dos perfis do user é membro**. LEFT JOIN em `turma_members` filtrado por perfis do user — turmas criadas mas sem nenhum perfil seu vinculado ainda aparecem com `members: []`, pra que o creator consiga ver/copiar o código pra compartilhar ou re-vincular. Página `/turmas` é única, filtrável via `?perfil=<id>` — o filtro restringe só a turmas onde aquele perfil é membro (turmas creator-only só aparecem em "Todos").
+
+`TurmaCard` lida com `members.length === 0`: mostra "Nenhum estudante seu vinculado" + botões "Vincular [perfil]" pra cada perfil disponível (chama `joinTurmaByCodeAction` com o próprio code da turma — auth + rate-limit do helper já cobrem). Quando há membros mas perfis não-membros existem, aparece um dropdown discreto "Vincular" no header da seção Estudantes.
+
+`active_turma_id` é mutuamente exclusivo: setar uma turma como ativa só faz UPDATE da coluna; o helper `setActiveTurma` em `service.ts` valida que o perfil é membro antes (`verifyMembership`). Sair da turma (`deleteTurmaMember`) limpa `active_turma_id` na mesma transação se for a turma ativa.
+
+### Reference data: estados, cidades, escolas
+
+Schema: `agenda.states` (27 rows IBGE), `agenda.cities` (~5570 rows IBGE, FK pra states.uf), `agenda.schools` (~181k rows INEP, FK pra cities.ibge_code). Tabelas auxiliares pra alimentar comboboxes pesquisáveis no cadastro manual de turma.
+
+**Seed via `pnpm db:seed:reference`** (em `packages/db/src/seeds/`):
+1. `states.ts` — fetch IBGE `/api/v1/localidades/estados` + upsert (rápido).
+2. `cities.ts` — pra cada estado, fetch `/api/v1/localidades/estados/{UF}/municipios` + upsert (~30s).
+3. `schools.ts` — espera o CSV `escolas_inep.csv` (Catálogo de Escolas INEP, ~74MB) na raiz do repo. Stream via `papaparse`, batch upsert de 1000 rows (~30s). Resolve `cityIbgeCode` por lookup `(UF, normalized name)` contra `agenda.cities` (já seedado). Sem o CSV o seed loga warning e segue (estados+cidades funcionam mesmo assim, mas combobox de escolas fica vazio).
+
+**Caso especial documentado**: rows do INEP cujo nome é exatamente `"COLEGIO BATISTA MINEIRO"` (sem sufixo de unidade) são renomeadas no insert pra `"COLEGIO BATISTA MINEIRO - UNIDADE FLORESTA"` — desambiguação solicitada pela usuária. Outras variantes (`"...- UNIDADE BETIM"`, etc) passam intactas.
+
+Endpoints `/api/data/{states,cities,schools}` (auth-gated via `proxy.ts`) servem essas tabelas pros comboboxes (`AsyncCombobox` com debounce 200ms + ILIKE+unaccent server-side).
+
+### Dashboard widgets (mutuamente exclusivos)
+
+Em `app/(app)/dashboard/page.tsx`:
+- `count === 0` → `<NoStudentsWidget />` (azul/primary): "Comece organizando a rotina das crianças" + CTA pra `/perfis`.
+- `count > 0 && profilesWithoutTurma > 0` → `<ProfilesWithoutTurmaWidget />` (warning/amber): "Vincule seu estudante a uma turma" + CTA pra `/turmas`.
+
+UserMenu (avatar) tem links rápidos: **Meus perfis** (`/perfis`) e **Minhas turmas** (`/turmas`), separados das ações de billing/sair.
+
+---
+
+## 7. Design tokens (cores)
+
+**Não inventar token novo — sempre reutilizar os existentes** (mesmo conjunto que cozya: `primary, secondary, destructive, ring, chart-1..5, sidebar-*`). Identidade visual do app vem de **trabalhar bem essas cores**, não de adicionar tokens próprios.
+
+Tokens definidos em `src/app/globals.css` (light + dark):
+
+| Token | Cor (light) | Uso semântico |
+|---|---|---|
+| `--primary` | Azul #006FFD | CTAs principais, links, logo, headers de feature |
+| `--secondary` | Roxo #7C3AED | acentos secundários, banner upgrade |
+| `--destructive` | Vermelho #EF4444 | ações destrutivas, "atrasada", erros |
+| `--chart-1` | Azul #3B82F6 | **Matemática** + avatar + tom "informação" |
+| `--chart-2` | Verde #10B981 | **Português** + avatar + tom "sucesso" (turma ativa) |
+| `--chart-3` | Violeta #8B5CF6 | **Ciências** + avatar |
+| `--chart-4` | Laranja #F97316 | **História** + avatar + tom "alerta/warning" (perfil sem turma) |
+| `--chart-5` | Rosa #EC4899 | **Inglês** + avatar |
+
+**Cores semânticas (sucesso/alerta/info) reaproveitam `chart-N`** — não criar tokens dedicados. Convenções:
+- Sucesso/positivo → `chart-2` (verde) — ex: badge "Ativa", check, confirmações
+- Alerta/atenção → `chart-4` (laranja) — ex: tarefa "Hoje" pendente, deadlines próximos
+- Erro/atrasado → `destructive` — ex: badge "Atrasada", botões destrutivos
+- Informação → `chart-1` (azul) ou `primary`
+- Premium/elevado → combinar `secondary` + `chart-3` (ambos roxos) — ex: banner upgrade, widget de "vincule estudante a turma"
+
+**Regras pros componentes:**
+1. **Sempre token, nunca literal.** Proibido `bg-blue-500`, `text-emerald-600`, `#fff`, `oklch(...)` em código da agenda. Use sempre `bg-primary`, `text-chart-2`, etc.
+2. **Combinar tokens pra variações ricas.** O design caprichado vem de **misturar** tokens próximos (ex: `from-primary/10 ... to-chart-1/10` no widget de onboarding; `from-secondary/10 ... to-chart-3/10` no widget de turma). Uma cor sozinha fica raso — paleta ganha vida quando tokens irmãos compõem gradients/borders/icons.
+3. **Avatar de perfil** consome `chart-1..5` via hash do nome (`getAvatarColorClass` em `features/students/utils.ts`).
+4. **Tinted badges/cards**: `bg-chart-N/15` + `border-chart-N/40` + texto `text-foreground` ou `text-chart-N`. Opacidade baixa no fundo dá tom suave que combina com o resto da UI.
+5. **Matérias** herdam `chart-N` quando feature aparecer — Matemática=1, Português=2, Ciências=3, História=4, Inglês=5.
+
+Neutros (`background, foreground, card, popover, muted, accent, border, input, sidebar`) vêm do `@informach/ui` e **não** se sobrescreve aqui — são compartilhados entre apps pra consistência cross-app.
+
+---
+
+## 8. Pendências vs cozya (gaps conhecidos)
 
 Ordem rough de prioridade quando produto evoluir:
 

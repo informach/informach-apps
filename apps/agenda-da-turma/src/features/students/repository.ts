@@ -1,7 +1,14 @@
 import "server-only";
 
 import { and, asc, count, type Database, db, eq, sql } from "@informach/db";
-import { type AgendaStudentProfile, agendaStudentProfiles } from "@informach/db/schema";
+import {
+  type AgendaStudentProfile,
+  agendaCities,
+  agendaSchools,
+  agendaStudentProfiles,
+  agendaTurmas,
+} from "@informach/db/schema";
+import type { StudentProfileWithActiveTurma } from "./types";
 
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 type DbClient = Database | Tx;
@@ -112,5 +119,54 @@ async function countProfilesByUserWithClient(client: DbClient, userId: string): 
     .select({ count: count() })
     .from(agendaStudentProfiles)
     .where(eq(agendaStudentProfiles.userId, userId));
+  return Number(row?.count ?? 0);
+}
+
+export async function findStudentProfilesWithActiveTurmaByUser(
+  userId: string,
+): Promise<StudentProfileWithActiveTurma[]> {
+  const rows = await db
+    .select({
+      profile: agendaStudentProfiles,
+      turmaId: agendaTurmas.id,
+      turmaGrade: agendaTurmas.grade,
+      turmaClassLetter: agendaTurmas.classLetter,
+      schoolName: agendaSchools.name,
+    })
+    .from(agendaStudentProfiles)
+    .leftJoin(agendaTurmas, eq(agendaTurmas.id, agendaStudentProfiles.activeTurmaId))
+    .leftJoin(agendaSchools, eq(agendaSchools.inepCode, agendaTurmas.schoolInepCode))
+    .leftJoin(agendaCities, eq(agendaCities.ibgeCode, agendaSchools.cityIbgeCode))
+    .where(eq(agendaStudentProfiles.userId, userId))
+    .orderBy(asc(agendaStudentProfiles.createdAt));
+
+  return rows.map((row) => {
+    const profile = row.profile;
+    const activeTurma =
+      row.turmaId && row.turmaGrade && row.turmaClassLetter && row.schoolName
+        ? {
+            id: row.turmaId,
+            grade: row.turmaGrade,
+            classLetter: row.turmaClassLetter,
+            schoolName: row.schoolName,
+          }
+        : null;
+    return {
+      ...profile,
+      activeTurma,
+    };
+  });
+}
+
+export async function countProfilesWithoutActiveTurmaByUser(userId: string): Promise<number> {
+  const [row] = await db
+    .select({ count: count() })
+    .from(agendaStudentProfiles)
+    .where(
+      and(
+        eq(agendaStudentProfiles.userId, userId),
+        sql`${agendaStudentProfiles.activeTurmaId} is null`,
+      ),
+    );
   return Number(row?.count ?? 0);
 }

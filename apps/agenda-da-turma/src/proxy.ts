@@ -9,7 +9,15 @@ import { authResult } from "./lib/auth";
  * defensivos caso o package gere callbacks com esses prefixos).
  */
 export const proxy = createAuthProxy(authResult, {
-  requireAuth: ["/dashboard", "/choose-plan", "/upgrade", "/settings", "/perfis"],
+  requireAuth: [
+    "/dashboard",
+    "/choose-plan",
+    "/upgrade",
+    "/settings",
+    "/perfis",
+    "/turmas",
+    "/api/data",
+  ],
   signInPath: "/login",
   publicPaths: [
     "/login",

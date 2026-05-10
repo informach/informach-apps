@@ -6,28 +6,37 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@informach/ui/components/dropdown-menu";
-import { MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { GraduationCap, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
-import type { StudentProfile } from "../types";
-import { formatBirthDate, getAgeFromBirthDate } from "../utils";
+import type { StudentProfileWithActiveTurma } from "../types";
+import { getAgeFromBirthDate } from "../utils";
 import { DeleteStudentDialog } from "./delete-student-dialog";
 import { StudentAvatar } from "./student-avatar";
 import { StudentFormDialog } from "./student-form-dialog";
 
 type Props = {
-  profile: StudentProfile;
+  profile: StudentProfileWithActiveTurma;
   isPro: boolean;
   currentCount: number;
 };
+
+function formatTurmaShortLabel(grade: string, classLetter: string): string {
+  return `${grade.charAt(0)}º ano ${classLetter}`;
+}
 
 export function StudentCard({ profile, isPro, currentCount }: Props) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const age = getAgeFromBirthDate(profile.birthDate);
-  const formattedDate = formatBirthDate(profile.birthDate);
+  const ageLabel = `${age} ${age === 1 ? "ano" : "anos"}`;
+  const turmaLabel = profile.activeTurma
+    ? `${formatTurmaShortLabel(profile.activeTurma.grade, profile.activeTurma.classLetter)} — ${profile.activeTurma.schoolName}`
+    : "Sem turma vinculada";
 
   return (
     <>
@@ -36,8 +45,8 @@ export function StudentCard({ profile, isPro, currentCount }: Props) {
           <StudentAvatar name={profile.name} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-base font-semibold text-foreground">{profile.name}</p>
-            <p className="text-sm text-muted-foreground">
-              {age} {age === 1 ? "ano" : "anos"} · nasceu em {formattedDate}
+            <p className="truncate text-sm text-muted-foreground">
+              {ageLabel} · {turmaLabel}
             </p>
           </div>
           <DropdownMenu>
@@ -47,6 +56,13 @@ export function StudentCard({ profile, isPro, currentCount }: Props) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href={`/turmas?perfil=${profile.id}`}>
+                  <GraduationCap className="mr-2 size-4" aria-hidden />
+                  Gerenciar turmas
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => setEditOpen(true)}>
                 <Pencil className="mr-2 size-4" aria-hidden />
                 Editar

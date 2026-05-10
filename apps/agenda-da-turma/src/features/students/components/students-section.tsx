@@ -2,12 +2,12 @@
 
 import { Card, CardContent } from "@informach/ui/components/card";
 import { Users } from "lucide-react";
-import type { StudentProfile } from "../types";
+import type { StudentProfileWithActiveTurma } from "../types";
 import { NewStudentButton } from "./new-student-button";
 import { StudentCard } from "./student-card";
 
 type Props = {
-  profiles: StudentProfile[];
+  profiles: StudentProfileWithActiveTurma[];
   isPro: boolean;
   currentCount: number;
   limit: number;

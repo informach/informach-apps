@@ -13,7 +13,9 @@
    APP OVERRIDES — Agenda da Turma
    Identidade do brand book: Azul Principal #006FFD + Roxo de Apoio
    #7C3AED. chart-1..5 mapeiam para as cores das matérias
-   (Matemática, Português, Ciências, História, Inglês).
+   (Matemática, Português, Ciências, História, Inglês) e também para
+   semântica de status (verde=sucesso, laranja=alerta, etc) — não
+   criar tokens novos, sempre usar os existentes.
    Neutros (background, foreground, card, popover, muted, accent,
    border, input, sidebar) permanecem do package — não sobrescrever.
    ============================================================ */
@@ -31,11 +33,11 @@
   /* Erro #EF4444 */
   --destructive: oklch(0.6368 0.2078 25.33);
 
-  /* Cores por Matéria */
-  --chart-1: oklch(0.6231 0.188 259.81); /* Matemática #3B82F6 */
-  --chart-2: oklch(0.6959 0.1491 162.48); /* Português  #10B981 */
+  /* Cores por Matéria (e por extensão, paleta semântica de status) */
+  --chart-1: oklch(0.6231 0.188 259.81); /* Matemática #3B82F6 — also "info" tone */
+  --chart-2: oklch(0.6959 0.1491 162.48); /* Português  #10B981 — also "success" tone */
   --chart-3: oklch(0.6056 0.2189 292.72); /* Ciências   #8B5CF6 */
-  --chart-4: oklch(0.7049 0.1867 47.6); /* História   #F97316 */
+  --chart-4: oklch(0.7049 0.1867 47.6); /* História   #F97316 — also "warning" tone */
   --chart-5: oklch(0.6559 0.2118 354.31); /* Inglês     #EC4899 */
 
   --sidebar-primary: oklch(0.5791 0.228 259.32);

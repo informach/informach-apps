@@ -30,7 +30,8 @@
     "db:migrate": "pnpm --filter @informach/db db:migrate && pnpm --filter @informach/ai-core mastra:migrate",
     "db:studio": "pnpm --filter @informach/db db:studio",
     "db:push": "pnpm --filter @informach/db db:push",
-    "db:seed": "pnpm --filter @informach/billing seed"
+    "db:seed": "pnpm --filter @informach/billing seed",
+    "db:seed:reference": "pnpm --filter @informach/db db:seed:reference"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.13",

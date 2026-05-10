@@ -155,6 +155,13 @@
       "when": 1778412980113,
       "tag": "0021_freezing_typhoid_mary",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1778415643027,
+      "tag": "0022_petite_swordsman",
+      "breakpoints": true
     }
   ]
 }

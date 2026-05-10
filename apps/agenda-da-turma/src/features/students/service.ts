@@ -4,15 +4,17 @@ import { err, ok, type Result } from "@informach/auth/server-actions";
 import { billing } from "@/features/billing/service";
 import { FREE_STUDENT_PROFILE_LIMIT, PRO_STUDENT_PROFILE_LIMIT } from "./limits";
 import {
+  countProfilesWithoutActiveTurmaByUser,
   countStudentProfilesByUser,
   deleteStudentProfileForUser,
   findStudentProfileByIdForUser,
   findStudentProfilesByUser,
+  findStudentProfilesWithActiveTurmaByUser,
   insertStudentProfileWithinLimit,
   updateStudentProfileForUser,
 } from "./repository";
 import type { CreateStudentProfileInput, UpdateStudentProfileInput } from "./schemas";
-import type { StudentProfile } from "./types";
+import type { StudentProfile, StudentProfileWithActiveTurma } from "./types";
 
 export type CreateStudentProfileError = {
   code: "PLAN_LIMIT_REACHED";
@@ -80,6 +82,16 @@ export async function listStudentProfilesForUser(userId: string): Promise<Studen
   return findStudentProfilesByUser(userId);
 }
 
+export async function listStudentProfilesWithActiveTurmaForUser(
+  userId: string,
+): Promise<StudentProfileWithActiveTurma[]> {
+  return findStudentProfilesWithActiveTurmaByUser(userId);
+}
+
 export async function countUserStudentProfiles(userId: string): Promise<number> {
   return countStudentProfilesByUser(userId);
+}
+
+export async function countUserProfilesWithoutTurma(userId: string): Promise<number> {
+  return countProfilesWithoutActiveTurmaByUser(userId);
 }
