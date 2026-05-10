@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@informach/ui/components/dialog";
 import { toast } from "@informach/ui/components/sonner";
-import { Camera, ImagePlus, Loader2, RefreshCcw } from "lucide-react";
+import { Camera, ImagePlus, Images, Loader2, RefreshCcw } from "lucide-react";
 import { useRef, useState } from "react";
 import { handleAiHttpError } from "./_ai-http-errors";
 import type { ParsedRecipeFields } from "./voice-recipe-dialog";
@@ -35,18 +35,21 @@ const RESIZE_TARGETS = [
 ] as const;
 
 export function ImageRecipeDialog({ open, onOpenChange, onParsed }: Props) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const [stage, setStage] = useState<Stage>("idle");
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [notRecipeReason, setNotRecipeReason] = useState<string>("");
+  const [lastPickerUsed, setLastPickerUsed] = useState<"camera" | "gallery">("gallery");
 
   const reset = () => {
     setStage("idle");
     setImageDataUrl(null);
     setFileName(null);
     setNotRecipeReason("");
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
+    if (galleryInputRef.current) galleryInputRef.current.value = "";
   };
 
   const handleOpenChange = (next: boolean) => {
@@ -54,8 +57,17 @@ export function ImageRecipeDialog({ open, onOpenChange, onParsed }: Props) {
     onOpenChange(next);
   };
 
-  const openPicker = () => {
-    fileInputRef.current?.click();
+  const openCamera = () => {
+    setLastPickerUsed("camera");
+    cameraInputRef.current?.click();
+  };
+  const openGallery = () => {
+    setLastPickerUsed("gallery");
+    galleryInputRef.current?.click();
+  };
+  const reopenLastPicker = () => {
+    if (lastPickerUsed === "camera") openCamera();
+    else openGallery();
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -64,12 +76,12 @@ export function ImageRecipeDialog({ open, onOpenChange, onParsed }: Props) {
 
     if (!ACCEPTED_MIMES.includes(file.type as (typeof ACCEPTED_MIMES)[number])) {
       toast.error("Use uma imagem JPG, PNG ou WebP.");
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      event.target.value = "";
       return;
     }
     if (file.size > MAX_SOURCE_IMAGE_BYTES) {
       toast.error("Imagem muito grande. Use uma foto de até 25 MB.");
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      event.target.value = "";
       return;
     }
 
@@ -79,7 +91,7 @@ export function ImageRecipeDialog({ open, onOpenChange, onParsed }: Props) {
         toast.error(
           "Não consegui reduzir essa imagem. Tente uma foto com enquadramento mais fechado.",
         );
-        if (fileInputRef.current) fileInputRef.current.value = "";
+        event.target.value = "";
         return;
       }
       setImageDataUrl(dataUrl);
@@ -92,7 +104,7 @@ export function ImageRecipeDialog({ open, onOpenChange, onParsed }: Props) {
           ? err.message
           : "Não foi possível ler a imagem. Tente outra foto.",
       );
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      event.target.value = "";
     }
   };
 
@@ -152,7 +164,16 @@ export function ImageRecipeDialog({ open, onOpenChange, onParsed }: Props) {
         </DialogHeader>
 
         <input
-          ref={fileInputRef}
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handleFileChange}
+          aria-hidden
+        />
+        <input
+          ref={galleryInputRef}
           type="file"
           accept="image/*"
           className="hidden"
@@ -162,21 +183,34 @@ export function ImageRecipeDialog({ open, onOpenChange, onParsed }: Props) {
 
         <div className="flex flex-col gap-3 py-2">
           {stage === "idle" || (!imageDataUrl && stage !== "parsing") ? (
-            <button
-              type="button"
-              onClick={openPicker}
-              className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-muted/30 p-4 text-center transition-colors hover:border-primary hover:bg-muted/50"
-              aria-label="Selecionar foto da receita"
-            >
-              <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <Camera className="size-6" aria-hidden />
-              </span>
-              <span className="text-sm font-medium text-foreground">Escolher foto da receita</span>
-              <span className="text-xs text-muted-foreground">
-                Tire uma foto na hora ou escolha da galeria. JPG, PNG ou WebP; fotos grandes são
-                reduzidas.
-              </span>
-            </button>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={openCamera}
+                className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-muted/30 p-4 text-center transition-colors hover:border-primary hover:bg-muted/50"
+                aria-label="Tirar foto da receita com a câmera"
+              >
+                <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Camera className="size-6" aria-hidden />
+                </span>
+                <span className="text-sm font-medium text-foreground">Tirar foto</span>
+                <span className="text-xs text-muted-foreground">Abre a câmera do celular.</span>
+              </button>
+              <button
+                type="button"
+                onClick={openGallery}
+                className="flex w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-muted/30 p-4 text-center transition-colors hover:border-primary hover:bg-muted/50"
+                aria-label="Escolher foto da receita da galeria"
+              >
+                <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Images className="size-6" aria-hidden />
+                </span>
+                <span className="text-sm font-medium text-foreground">Escolher da galeria</span>
+                <span className="text-xs text-muted-foreground">
+                  JPG, PNG ou WebP. Fotos grandes são reduzidas.
+                </span>
+              </button>
+            </div>
           ) : null}
 
           {imageDataUrl && stage !== "idle" ? (
@@ -196,7 +230,7 @@ export function ImageRecipeDialog({ open, onOpenChange, onParsed }: Props) {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={openPicker}
+                    onClick={reopenLastPicker}
                     className="text-xs"
                   >
                     <RefreshCcw className="mr-1.5 size-3.5" aria-hidden />
