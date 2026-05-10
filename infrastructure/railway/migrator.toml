@@ -2,9 +2,11 @@
 # Wired no Dashboard via Settings → Source → Config Path → "infrastructure/railway/migrator.toml".
 #
 # Migrator é um service one-off cuja única responsabilidade é rodar
-# `pnpm db:migrate` (Drizzle + Mastra storage) seguido de `pnpm db:seed` (idempotente)
-# no Postgres da rede privada do Railway. NÃO incluímos isso no build do cozya
-# pra preservar a possibilidade de rollback do app sem desfazer migrations.
+# `pnpm db:migrate` (Drizzle + Mastra storage) seguido de `pnpm db:seed`
+# (credit_pricing) e `pnpm db:seed:reference` (estados/cidades IBGE +
+# escolas INEP via escolas_inep.csv.gz) no Postgres da rede privada do
+# Railway. Tudo idempotente. NÃO incluímos isso no build dos apps pra
+# preservar a possibilidade de rollback do app sem desfazer migrations.
 #
 # Para re-rodar migrações: Dashboard → migrator → Deployments → Redeploy.
 #
@@ -17,5 +19,5 @@ builder = "NIXPACKS"
 buildCommand = "pnpm install --frozen-lockfile"
 
 [deploy]
-startCommand = "pnpm db:migrate && pnpm db:seed"
+startCommand = "pnpm db:migrate && pnpm db:seed && pnpm db:seed:reference"
 restartPolicyType = "NEVER"

@@ -1,29 +1,37 @@
 import { createReadStream, existsSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import Papa from "papaparse";
+import { createGunzip } from "node:zlib";
 import { sql } from "drizzle-orm";
+import Papa from "papaparse";
 import type { Database } from "../client";
 import { agendaCities, agendaSchools } from "../schema";
 
 /**
  * INEP "Catálogo de Escolas" CSV importer.
  *
- * Expected file: ./escolas_inep.csv at the repo root (~77MB, ~181k rows).
- * Columns we use: "Escola", "Código INEP", "UF", "Município".
+ * Lookup order at the repo root:
+ *   1. `escolas_inep.csv.gz`  — gzip-compressed (~11MB, tracked in git so the
+ *      Railway Migrator service can populate `agenda.schools` without external
+ *      filesystem). Streamed through `zlib.createGunzip()` into papaparse.
+ *   2. `escolas_inep.csv`      — descomprimido (~74MB, gitignored). Útil em dev
+ *      quando o CSV foi baixado direto do portal de dados abertos do INEP.
  *
- * The CSV doesn't carry IBGE city codes — we resolve them by (UF, name) match
- * against the previously-seeded `agenda.cities` table. Names are normalized
- * (case-insensitive + accent-insensitive) before lookup. Rows whose city
- * doesn't resolve are logged and skipped.
+ * Columns used: "Escola", "Código INEP", "UF", "Município".
  *
- * Special case: schools named exactly "COLEGIO BATISTA MINEIRO" get the
- * suffix " - UNIDADE FLORESTA" appended (per product decision — multiple
- * INEP rows share that name and the user wants disambiguation in the UI).
+ * IBGE city codes are resolved by `(UF, normalized name)` match against the
+ * previously-seeded `agenda.cities` table. Names are accent-insensitive and
+ * case-insensitive. Rows whose city doesn't resolve are counted and skipped.
+ *
+ * Special case: rows whose name is exactly "COLEGIO BATISTA MINEIRO" (no unit
+ * suffix) are renamed to "COLEGIO BATISTA MINEIRO - UNIDADE FLORESTA" — a
+ * product decision to disambiguate the otherwise-generic INEP entry.
  */
-// Resolve to repo root (this file lives at packages/db/src/seeds/schools.ts).
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
-const INEP_CSV_PATH = path.resolve(REPO_ROOT, "escolas_inep.csv");
+const INEP_CSV_PATHS = [
+  path.resolve(REPO_ROOT, "escolas_inep.csv.gz"),
+  path.resolve(REPO_ROOT, "escolas_inep.csv"),
+];
 const BATCH_SIZE = 1000;
 const BATISTA_MINEIRO_NAME = "COLEGIO BATISTA MINEIRO";
 const BATISTA_MINEIRO_OVERRIDE = "COLEGIO BATISTA MINEIRO - UNIDADE FLORESTA";
@@ -38,7 +46,11 @@ type InepRow = {
 type SchoolInsert = { inepCode: string; cityIbgeCode: string; name: string };
 
 function normalizeCityKey(uf: string, name: string): string {
-  return `${uf.toUpperCase()}|${name.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().trim()}`;
+  return `${uf.toUpperCase()}|${name
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim()}`;
 }
 
 async function loadCityLookup(db: Database): Promise<Map<string, string>> {
@@ -71,19 +83,28 @@ async function flushBatch(db: Database, batch: SchoolInsert[]): Promise<number> 
   return batch.length;
 }
 
+function resolveCsvSource(): { path: string; isGzipped: boolean } | null {
+  for (const candidate of INEP_CSV_PATHS) {
+    if (existsSync(candidate)) {
+      return { path: candidate, isGzipped: candidate.endsWith(".gz") };
+    }
+  }
+  return null;
+}
+
 export async function seedSchools(db: Database): Promise<void> {
-  if (!existsSync(INEP_CSV_PATH)) {
+  const source = resolveCsvSource();
+  if (!source) {
     console.warn(
-      `[seeds:schools] ${INEP_CSV_PATH} not found — skipping schools seed.\n` +
-        `  To populate, place the INEP "Catálogo de Escolas" CSV at the repo root\n` +
-        `  (filename: escolas_inep.csv) and re-run pnpm db:seed:reference.`,
+      "[seeds:schools] neither escolas_inep.csv.gz nor escolas_inep.csv found at repo root — skipping.\n" +
+        "  Commit the .gz to populate via Railway Migrator, or place the .csv locally for dev seed.",
     );
     return;
   }
 
-  const fileSize = statSync(INEP_CSV_PATH).size;
+  const fileSize = statSync(source.path).size;
   console.log(
-    `[seeds:schools] reading ${INEP_CSV_PATH} (${(fileSize / 1024 / 1024).toFixed(1)} MB)`,
+    `[seeds:schools] reading ${source.path} (${(fileSize / 1024 / 1024).toFixed(1)} MB${source.isGzipped ? " gzipped" : ""})`,
   );
 
   const cityLookup = await loadCityLookup(db);
@@ -97,7 +118,10 @@ export async function seedSchools(db: Database): Promise<void> {
   const seenInep = new Set<string>();
 
   await new Promise<void>((resolve, reject) => {
-    const stream = createReadStream(INEP_CSV_PATH, { encoding: "utf-8" });
+    const fileStream = createReadStream(source.path);
+    const stream = source.isGzipped ? fileStream.pipe(createGunzip()) : fileStream;
+    // Papaparse auto-decodes UTF-8 from a Node stream; the BOM in the INEP
+    // dump is handled by `header: true` parser.
     const tasks: Array<Promise<void>> = [];
 
     Papa.parse<InepRow>(stream as unknown as NodeJS.ReadableStream, {
@@ -123,8 +147,7 @@ export async function seedSchools(db: Database): Promise<void> {
           return;
         }
 
-        const name =
-          rawName === BATISTA_MINEIRO_NAME ? BATISTA_MINEIRO_OVERRIDE : rawName;
+        const name = rawName === BATISTA_MINEIRO_NAME ? BATISTA_MINEIRO_OVERRIDE : rawName;
 
         seenInep.add(inepCode);
         batch.push({ inepCode, cityIbgeCode, name });
@@ -149,7 +172,6 @@ export async function seedSchools(db: Database): Promise<void> {
         }
       },
       complete: () => {
-        // Drain pending tasks then flush remainder.
         Promise.all(tasks)
           .then(() => flushBatch(db, batch))
           .then((n) => {

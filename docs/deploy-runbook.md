@@ -209,7 +209,7 @@ REDIS_URL=${{Redis.REDIS_URL}}?family=0
 
 ### 4.3 Migrator service (♻ 1× por monorepo)
 
-Service one-off que roda `pnpm db:migrate && pnpm db:seed` 1× e termina. `pnpm db:migrate` aplica Drizzle e inicializa o storage Mastra (`ai_mastra`) via `PostgresStore.init()`. Idempotente — re-deploy quando schema/seed mudar.
+Service one-off que roda `pnpm db:migrate && pnpm db:seed && pnpm db:seed:reference` 1× e termina. `pnpm db:migrate` aplica Drizzle e inicializa o storage Mastra (`ai_mastra`) via `PostgresStore.init()`. `pnpm db:seed` popula `billing.credit_pricing`. `pnpm db:seed:reference` popula `agenda.{states, cities, schools}` (IBGE API + `escolas_inep.csv.gz` no repo root). Tudo idempotente — re-deploy quando schema/seed mudar.
 
 **Setup** (Dashboard manual + 1 var via MCP):
 
@@ -218,7 +218,7 @@ Service one-off que roda `pnpm db:migrate && pnpm db:seed` 1× e termina. `pnpm 
 3. Settings → Source → Root Directory: `/`
 4. Settings → Source → **Config Path**: `infrastructure/railway/migrator.toml`
 5. MCP `set-variables`: `DATABASE_URL=${{Postgres.DATABASE_URL}}`
-6. **Watch Paths** (opcional mas recomendado): `packages/db/**`, `packages/ai-core/src/mastra/**`, `packages/ai-core/scripts/**`, `packages/billing/src/seeds/**` — assim só re-deploya quando schema/seed mudar, não a cada push.
+6. **Watch Paths** (opcional mas recomendado): `packages/db/**`, `packages/ai-core/src/mastra/**`, `packages/ai-core/scripts/**`, `packages/billing/src/seeds/**`, `escolas_inep.csv.gz` — assim só re-deploya quando schema/seed mudar, não a cada push.
 
 ```toml
 # infrastructure/railway/migrator.toml
@@ -227,7 +227,7 @@ builder = "NIXPACKS"
 buildCommand = "pnpm install --frozen-lockfile"
 
 [deploy]
-startCommand = "pnpm db:migrate && pnpm db:seed"
+startCommand = "pnpm db:migrate && pnpm db:seed && pnpm db:seed:reference"
 restartPolicyType = "NEVER"
 ```
 

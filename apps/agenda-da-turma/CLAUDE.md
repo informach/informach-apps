@@ -218,7 +218,9 @@ Schema: `agenda.states` (27 rows IBGE), `agenda.cities` (~5570 rows IBGE, FK pra
 **Seed via `pnpm db:seed:reference`** (em `packages/db/src/seeds/`):
 1. `states.ts` — fetch IBGE `/api/v1/localidades/estados` + upsert (rápido).
 2. `cities.ts` — pra cada estado, fetch `/api/v1/localidades/estados/{UF}/municipios` + upsert (~30s).
-3. `schools.ts` — espera o CSV `escolas_inep.csv` (Catálogo de Escolas INEP, ~74MB) na raiz do repo. Stream via `papaparse`, batch upsert de 1000 rows (~30s). Resolve `cityIbgeCode` por lookup `(UF, normalized name)` contra `agenda.cities` (já seedado). Sem o CSV o seed loga warning e segue (estados+cidades funcionam mesmo assim, mas combobox de escolas fica vazio).
+3. `schools.ts` — busca o CSV em duas localizações no root do repo, em ordem: (a) `escolas_inep.csv.gz` (~11MB, **rastreado em git** — Railway Migrator usa essa fonte) descomprimido em runtime via `zlib.createGunzip()`; (b) `escolas_inep.csv` (~74MB, gitignored, opção dev). Stream via `papaparse`, batch upsert de 1000 rows (~30s). Resolve `cityIbgeCode` por lookup `(UF, normalized name)` contra `agenda.cities` (já seedado). Sem nenhum dos dois o seed loga warning e segue (estados+cidades funcionam mesmo assim, mas combobox de escolas fica vazio).
+
+**Em produção (Railway)**: `infrastructure/railway/migrator.toml` startCommand é `pnpm db:migrate && pnpm db:seed && pnpm db:seed:reference` — o migrator service redeploy popula tudo automaticamente. O `escolas_inep.csv.gz` está no repo e é parte do build do migrator.
 
 **Caso especial documentado**: rows do INEP cujo nome é exatamente `"COLEGIO BATISTA MINEIRO"` (sem sufixo de unidade) são renomeadas no insert pra `"COLEGIO BATISTA MINEIRO - UNIDADE FLORESTA"` — desambiguação solicitada pela usuária. Outras variantes (`"...- UNIDADE BETIM"`, etc) passam intactas.
 

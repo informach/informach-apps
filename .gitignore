@@ -38,5 +38,7 @@ Thumbs.db
 # Misc
 .cache/
 
-# Reference datasets — baixar localmente conforme packages/db/src/seeds/schools.ts
+# Reference datasets — versão comprimida (escolas_inep.csv.gz, ~11MB) é
+# rastreada para o seed do Migrator (Railway) conseguir popular agenda.schools
+# sem depender de filesystem externo. A versão descomprimida (74MB) fica fora.
 escolas_inep.csv
