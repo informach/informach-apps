@@ -13,11 +13,7 @@ function authHeaders(baseURL: string | undefined, path = "/login") {
   };
 }
 
-async function verifyEmail(
-  request: APIRequestContext,
-  baseURL: string | undefined,
-  email: string,
-) {
+async function verifyEmail(request: APIRequestContext, baseURL: string | undefined, email: string) {
   const verificationEmail = await waitForEmail({
     to: email,
     category: "auth.verify-email-otp",

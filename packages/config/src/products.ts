@@ -214,8 +214,7 @@ export function getStripePriceId(product: Product, mode: StripeMode): string {
 
 export function isStripePriceIdConfigured(priceId: string): boolean {
   return (
-    STRIPE_PRICE_ID_PATTERN.test(priceId) &&
-    !priceId.startsWith(STRIPE_PRICE_ID_PLACEHOLDER_PREFIX)
+    STRIPE_PRICE_ID_PATTERN.test(priceId) && !priceId.startsWith(STRIPE_PRICE_ID_PLACEHOLDER_PREFIX)
   );
 }
 
@@ -224,7 +223,5 @@ export function findProduct(productId: ProductId): Product | undefined {
 }
 
 export function findProductByPriceId(priceId: string): Product | undefined {
-  return PRODUCTS.find(
-    (p) => p.stripePriceId.dev === priceId || p.stripePriceId.prod === priceId,
-  );
+  return PRODUCTS.find((p) => p.stripePriceId.dev === priceId || p.stripePriceId.prod === priceId);
 }
