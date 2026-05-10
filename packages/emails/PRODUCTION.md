@@ -115,8 +115,7 @@ Todos os 3 endpoints já existem em `apps/agenda-da-turma/src/app/api/jobs/` e `
 
 Start command no Railway `cron-runner-*` (1 service por job, por app):
 ```sh
-curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" \
-  "https://${APP_URL}/api/jobs/email-retry"
+sh -c 'curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" "https://${APP_URL}/api/jobs/email-retry"'
 ```
 
 Configurar **Service → Settings → Cron Schedule** com a expressão da tabela (UTC).

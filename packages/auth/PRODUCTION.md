@@ -269,8 +269,7 @@ export async function POST(request: Request): Promise<Response> {
 
 ```sh
 # start command do service cron-runner-auth-cleanup
-curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" \
-  "https://${APP_URL}/api/jobs/auth-cleanup"
+sh -c 'curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" "https://${APP_URL}/api/jobs/auth-cleanup"'
 ```
 
 Schedules sugeridos (UTC, mínimo 5min entre execuções):

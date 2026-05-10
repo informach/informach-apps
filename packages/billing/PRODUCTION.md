@@ -177,8 +177,7 @@ Todos os 5 endpoints já existem em `apps/agenda-da-turma/src/app/api/jobs/` e `
 
 Start command no Railway `cron-runner-billing-*` (1 service por job × 2 apps = 10 services):
 ```sh
-curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" \
-  "https://${APP_URL}/api/jobs/billing-reconcile"
+sh -c 'curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" "https://${APP_URL}/api/jobs/billing-reconcile"'
 ```
 
 Configurar **Service → Settings → Cron Schedule** com a expressão da tabela.

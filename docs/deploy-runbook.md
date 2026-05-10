@@ -439,13 +439,15 @@ railway add --service cron-global-auth-cleanup --image alpine/curl:latest \
 
 **Start Command — global** (1 chamada):
 ```sh
-curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" "https://${APP_URL}/api/jobs/<endpoint>"
+sh -c 'curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" "https://${APP_URL}/api/jobs/<endpoint>"'
 ```
 
 **Start Command — per-app loop** (defesa em profundidade — falha em 1 app não aborta os outros):
 ```sh
 sh -c 'for d in $APP_DOMAINS; do curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" "https://${d}/api/jobs/<endpoint>" || echo "Failed for ${d}, continuing"; done'
 ```
+
+> **Gotcha shell expansion**: em services image-based (`alpine/curl`) o Start Command precisa chamar `sh -c` quando usa variáveis (`$CRON_SECRET`, `$APP_URL`, `$APP_DOMAINS`). Sem isso, o `curl` recebe literalmente `https://${APP_URL}/...` e falha com `curl: (3) URL rejected: Bad hostname`.
 
 > **Gotcha copy-paste**: tabs em markdown viram múltiplos espaços ao copiar pro Dashboard, e `Authorization: Bearer  $CRON_SECRET` (mais de 1 espaço) falha no `rejectUnauthorizedCron` (strict equality em `lib/cron.ts:4`). **Conferir 1 espaço entre `Bearer` e `$CRON_SECRET`** após colar.
 
