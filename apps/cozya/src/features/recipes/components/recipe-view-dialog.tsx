@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@informach/ui/components/button";
+import { Checkbox } from "@informach/ui/components/checkbox";
 import {
   Dialog,
   DialogClose,
@@ -8,7 +9,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@informach/ui/components/dialog";
+import { cn } from "@informach/ui/lib/utils";
 import { Share2, Star, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { buildWhatsappShareUrl, parseIngredients } from "../share";
 import type { Recipe } from "../types";
 
@@ -22,6 +25,23 @@ export function RecipeViewDialog({ open, onOpenChange, recipe }: Props) {
   const ingredients = parseIngredients(recipe.ingredients);
   const ingredientItems = buildIngredientItems(ingredients);
   const finishing = recipe.finishing?.trim();
+
+  // Estado efêmero — ajuda quem está cozinhando a marcar visualmente os
+  // ingredientes que já pegou. Reset a cada abertura do dialog; sem persistência.
+  const [checkedKeys, setCheckedKeys] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (open) setCheckedKeys(new Set());
+  }, [open]);
+
+  const toggleIngredient = (key: string, next: boolean) => {
+    setCheckedKeys((prev) => {
+      const updated = new Set(prev);
+      if (next) updated.add(key);
+      else updated.delete(key);
+      return updated;
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -72,10 +92,30 @@ export function RecipeViewDialog({ open, onOpenChange, recipe }: Props) {
               Ingredientes
             </h3>
             {ingredients.length > 0 ? (
-              <ul className="ml-5 list-disc space-y-1 text-foreground marker:text-muted-foreground">
-                {ingredientItems.map((item) => (
-                  <li key={item.key}>{item.line}</li>
-                ))}
+              <ul className="space-y-2 text-foreground">
+                {ingredientItems.map((item) => {
+                  const id = `recipe-ingredient-${item.key}`;
+                  const isChecked = checkedKeys.has(item.key);
+                  return (
+                    <li key={item.key} className="flex items-start gap-2">
+                      <Checkbox
+                        id={id}
+                        checked={isChecked}
+                        onCheckedChange={(value) => toggleIngredient(item.key, value === true)}
+                        className="mt-0.5"
+                      />
+                      <label
+                        htmlFor={id}
+                        className={cn(
+                          "cursor-pointer select-none leading-relaxed",
+                          isChecked && "text-muted-foreground line-through",
+                        )}
+                      >
+                        {item.line}
+                      </label>
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <p className="whitespace-pre-line text-foreground">{recipe.ingredients}</p>
