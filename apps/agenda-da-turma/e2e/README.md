@@ -1,6 +1,6 @@
 # E2E — Agenda da Turma
 
-Playwright cobre os fluxos de auth (signup → verify → sign-in, magic-link) usando o sandbox de email do `@informach/emails` em vez do SendGrid real.
+Playwright cobre os fluxos de auth (signup → verify por OTP → sign-in por senha/OTP) usando o sandbox de email do `@informach/emails` em vez do SendGrid real.
 
 ## Pré-requisitos
 
@@ -29,7 +29,7 @@ A `playwright.config.ts` sobe `pnpm dev` automaticamente (`webServer`). Para rod
 
 ## Como funciona o sandbox de email
 
-Quando `EMAIL_SANDBOX_MODE=sandbox`, o `@informach/emails` grava cada email em `./tmp/integration_emails/<delivery-id>.json` (+ `.html`) em vez de chamar o SendGrid. A fixture `e2e/fixtures/email.ts` faz polling do diretório, casa por `to + category` e extrai a URL de verify/magic-link via regex.
+Quando `EMAIL_SANDBOX_MODE=sandbox`, o `@informach/emails` grava cada email em `./tmp/integration_emails/<delivery-id>.json` (+ `.html`) em vez de chamar o SendGrid. A fixture `e2e/fixtures/email.ts` faz polling do diretório, casa por `to + category` e extrai URLs ou códigos OTP de 6 dígitos via regex.
 
 ## Limpeza entre runs
 

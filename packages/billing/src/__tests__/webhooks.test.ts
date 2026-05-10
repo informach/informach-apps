@@ -56,6 +56,34 @@ const SUBSCRIPTION_PAYLOAD = {
 };
 
 describe("handleStripeEvent (idempotency)", () => {
+  it("scopes provider event ids by webhook endpoint so apps do not dedupe each other", async () => {
+    const { deps, calls } = makeDeps({
+      dbConfig: {
+        insertQueue: [[{ id: "agenda-wh-row" }], [{ id: "cozya-wh-row" }]],
+      },
+    });
+    const event = {
+      id: "evt_shared_between_apps",
+      type: "some.unknown.event",
+      payload: {},
+    };
+
+    await handleStripeEvent(
+      { ...deps, app: "agenda-da-turma", webhookScope: "agenda-da-turma" },
+      event,
+    );
+    await handleStripeEvent({ ...deps, app: "cozya", webhookScope: "cozya" }, event);
+
+    const valueCalls = calls.filter((call) => call.mode === "values");
+
+    expect(valueCalls[0]?.args[0]).toEqual(
+      expect.objectContaining({ providerEventId: "agenda-da-turma:evt_shared_between_apps" }),
+    );
+    expect(valueCalls[1]?.args[0]).toEqual(
+      expect.objectContaining({ providerEventId: "cozya:evt_shared_between_apps" }),
+    );
+  });
+
   it("returns deduped=true when an existing webhook row is already processed", async () => {
     const { deps } = makeDeps({
       dbConfig: {

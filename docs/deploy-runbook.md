@@ -269,7 +269,7 @@ mcp__Railway__set-variables service=@informach/<app> skipDeploys=true variables=
   "MASTRA_LOG_LEVEL=info",
   "OPENROUTER_HTTP_REFERER=https://<app>.informach.com.br",
   "OPENROUTER_X_TITLE=<App>",
-  "CSP_ENFORCE=0",  # Report-Only por 1 semana, depois flipar pra "1"
+  "CSP_ENFORCE=0",  # Somente apps com CSP per-request/report-only; Agenda usa CSP estática em next.config.ts
   "NPM_CONFIG_PRODUCTION=false",  # CRÍTICO — sem isso, turbo+tsc não estão no build
 ]
 ```
@@ -313,7 +313,7 @@ Setar via Railway MCP em batch:
 `turbo.json tasks.build.env` enumera as vars que afetam o build (cache invalidation). Ao adicionar nova var build-relevante (lida em runtime via `@t3-oss/env-nextjs`), atualizar lá ou Turbo serve cache stale.
 
 ⚠ **Não** todas as vars vão pra `turbo.json` — só as que afetam **output do build**. Não incluir:
-- `CSP_ENFORCE` (lida em runtime no proxy.ts, não no build)
+- `CSP_ENFORCE` (quando o app usa CSP per-request em proxy.ts; não afeta build output)
 - `NPM_CONFIG_PRODUCTION` (afeta install, não build output)
 
 ---
@@ -342,7 +342,7 @@ Já setados na Fase 5. Verificar via MCP `list-variables` que estão como `https
 
 Editar manualmente: cada Product do app tem `stripePriceId.{ dev, prod }` apontando pros IDs anotados nas Fases 1.3 e 1.4. Commit + push (auto-deploy via watchPath).
 
-**Guard de boot**: o app **falha no Zod env load** em produção se algum `price_TODO_*` sobrar (`isStripePriceIdConfigured` rejeita strings com prefix `price_TODO`). Não há como esquecer — boot trava com erro claro.
+**Guard de boot**: o app **falha durante o bootstrap server-side** em produção se algum `price_TODO_*` sobrar (`isStripePriceIdConfigured` rejeita strings com prefix `price_TODO`). Não há como esquecer — boot trava com erro claro.
 
 ---
 

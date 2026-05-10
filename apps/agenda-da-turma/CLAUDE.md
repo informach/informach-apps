@@ -89,10 +89,10 @@ apps/agenda-da-turma/
 │   ├── proxy.ts                   # auth proxy; requireAuth: ["/dashboard","/choose-plan","/upgrade","/settings"]
 │   ├── instrumentation.ts         # Sentry init (server)
 │   └── instrumentation-client.ts  # Sentry init (client)
-├── e2e/                           # Playwright (auth signup/signin/magic-link)
+├── e2e/                           # Playwright (auth signup/signin por senha/OTP)
 ├── public/
 │   └── logotipo.svg               # asset original (versão inline em components/brand/)
-└── next.config.ts                 # Sentry + standalone output (PWA/CSP/headers ainda não)
+└── next.config.ts                 # Sentry + standalone output + security headers/CSP estática
 ```
 
 ### Auth (OTP-only)
@@ -135,7 +135,7 @@ Antes de habilitar Pro/Pacotes em produção, criar estes 5 prices no Dashboard 
 | 20 créditos | One-time | R$ 12,90 | `agenda_da_turma_credits_20.stripePriceId.{dev,prod}` |
 | 30 créditos | One-time | R$ 17,90 | `agenda_da_turma_credits_30.stripePriceId.{dev,prod}` |
 
-Com `NODE_ENV=production` e `STRIPE_MODE=prod`, o package `@informach/billing` (via `assertProductionStripeCatalogConfigured` quando o pattern do cozya for replicado em `features/billing/service.ts`) deveria falhar no boot se sobrar `price_TODO_*`. Hoje a Agenda **não** roda esse guard — UI esconde packs com placeholder via `isStripePriceIdConfigured` no slot do `/settings/billing`, e checkout do Pro retorna `PRO_NOT_CONFIGURED` no toast (`InvalidProductError` do package). Ainda assim, **não habilitar Pro em produção sem preencher os IDs reais**.
+Com `NODE_ENV=production` e `STRIPE_MODE=prod`, `src/lib/billing.ts` falha no boot se qualquer produto da Agenda ainda tiver `price_TODO_*`. UI também esconde packs com placeholder via `isStripePriceIdConfigured` no slot do `/settings/billing`, e checkout do Pro retorna `PRO_NOT_CONFIGURED` no toast (`InvalidProductError` do package). Ainda assim, **não habilitar Pro em produção sem preencher os IDs reais**.
 
 Webhook endpoint + eventos de billing: ver `packages/billing/PRODUCTION.md` e `docs/deploy-runbook.md` Fase 10.
 
@@ -190,9 +190,9 @@ Ordem rough de prioridade quando produto evoluir:
 
 1. **Dashboard real** — hoje só widget de billing + saudação. Adicionar features de agenda (tarefas/provas/lembretes) é o próximo grande bloco de produto.
 2. **`apps/agenda-da-turma/railway.toml`** — não existe ainda. Quando deploy for plugado, copiar pattern do cozya (`pnpm install --frozen-lockfile --prod=false && pnpm build:agenda-da-turma`, healthcheck `/api/health`).
-3. **`assertProductionStripeCatalogConfigured`** — cozya tem em `features/billing/service.ts`; agenda não. Adicionar quando os Price IDs reais forem preencher pra evitar boot silencioso com placeholder em prod.
+3. **Price IDs live** — substituir todos os `price_TODO_*` da Agenda em `packages/config/src/products.ts` antes de habilitar Pro/Pacotes em produção. O boot guard em `src/lib/billing.ts` trava se faltar algum.
 4. **PWA** — sem manifest, sem icons (só `public/logotipo.svg`). Pattern em `apps/cozya/src/app/{manifest.ts,apple-icon.png,icon.png,icon.svg}` + `metadata.appleWebApp` em `layout.tsx`.
-5. **CSP + security headers** — `next.config.ts` está minimalista (Sentry + standalone). Adicionar `headers()` com HSTS/COOP/Permissions-Policy + `lib/csp.ts` per-request com nonce + `'strict-dynamic'`. Pattern em `apps/cozya/src/lib/csp.ts` + `apps/cozya/next.config.ts:headers()`.
+5. **CSP nonce per-request** — `next.config.ts` já aplica security headers e CSP estática. Se a Agenda passar a precisar de scripts inline próprios, evoluir para o pattern com nonce em `apps/cozya/src/lib/csp.ts` + `apps/cozya/next.config.ts:headers()`.
 6. **Rate limit anti-script** — `lib/rate-limit.ts` com Postgres-via-Redis ainda não existe. Replicar pattern do cozya quando feature de IA chegar (defesa em camadas além do cap mensal de créditos).
 7. **IA pipeline** — descrito em §2 acima. Bloco grande: agentes Mastra + seed `creditPricing` + integração `withCredits`/`runBillableAiCall`.
 8. **Site header pra dashboard** — `site-header.tsx` hoje é minimalista (só auth pages). Quando dashboard tiver navegação real, evoluir pro pattern variant igual `apps/cozya/src/components/marketing/site-header.tsx`.

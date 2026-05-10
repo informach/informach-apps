@@ -2,6 +2,65 @@ import path from "node:path";
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
+const isProd = process.env.NODE_ENV === "production";
+const isDev = !isProd;
+
+const cspHeader = [
+  "default-src 'self'",
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://js.stripe.com`,
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https://*.stripe.com",
+  "font-src 'self' data:",
+  [
+    "connect-src 'self'",
+    "https://api.stripe.com",
+    "https://*.ingest.sentry.io",
+    "https://*.ingest.us.sentry.io",
+    "https://*.ingest.de.sentry.io",
+  ].join(" "),
+  "frame-src https://checkout.stripe.com https://hooks.stripe.com https://accounts.google.com",
+  "worker-src 'self' blob:",
+  "manifest-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self' https://checkout.stripe.com",
+  "frame-ancestors 'none'",
+  ...(isProd ? ["upgrade-insecure-requests"] : []),
+].join("; ");
+
+const baseSecurityHeaders = [
+  { key: "Content-Security-Policy", value: cspHeader },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+  { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+  {
+    key: "Permissions-Policy",
+    value: [
+      "camera=()",
+      "geolocation=()",
+      "microphone=()",
+      "payment=()",
+      "usb=()",
+      "accelerometer=()",
+      "gyroscope=()",
+      "magnetometer=()",
+      "midi=()",
+      "interest-cohort=()",
+    ].join(", "),
+  },
+];
+
+const productionOnlyHeaders = isProd
+  ? [
+      {
+        key: "Strict-Transport-Security",
+        value: "max-age=63072000; includeSubDomains; preload",
+      },
+    ]
+  : [];
+
 const nextConfig: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: path.join(__dirname, "../../"),
@@ -15,6 +74,21 @@ const nextConfig: NextConfig = {
     "@informach/ui",
   ],
   typedRoutes: true,
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [...baseSecurityHeaders, ...productionOnlyHeaders],
+      },
+      {
+        source: "/api/webhooks/:path*",
+        headers: [
+          { key: "Cross-Origin-Opener-Policy", value: "unsafe-none" },
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+        ],
+      },
+    ];
+  },
 };
 
 const hasSentrySourceMapConfig = Boolean(

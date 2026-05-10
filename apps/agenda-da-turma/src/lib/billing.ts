@@ -1,6 +1,6 @@
 import { logAuditEvent } from "@informach/auth";
 import { createBillingService, type SubjectRef } from "@informach/billing";
-import { APPS, PRODUCTS } from "@informach/config";
+import { APPS, isStripePriceIdConfigured, PRODUCTS, type Product } from "@informach/config";
 import { db, eq } from "@informach/db";
 import { users } from "@informach/db/schema";
 import { buildUnsubscribeToken } from "@informach/emails";
@@ -11,6 +11,9 @@ import { packageLogger } from "./observability";
 
 const APP_HOSTNAME = new URL(env.NEXT_PUBLIC_APP_URL).hostname;
 const stripeMode = env.STRIPE_MODE ?? (env.NODE_ENV === "production" ? "prod" : "dev");
+const agendaProducts = PRODUCTS.filter((p) => p.app === APPS.agendaDaTurma.slug);
+
+assertProductionStripeCatalogConfigured(agendaProducts);
 
 /**
  * Single-user: o subject de billing sempre é `user`. Resolvemos o e-mail
@@ -44,7 +47,7 @@ export const billing = createBillingService({
   appName: APPS.agendaDaTurma.name,
   app: APPS.agendaDaTurma.slug,
   publicAppUrl: env.NEXT_PUBLIC_APP_URL,
-  products: PRODUCTS.filter((p) => p.app === APPS.agendaDaTurma.slug),
+  products: agendaProducts,
   organizationsEnabled: false,
   stripeMode,
   resolveSubjectEmail,
@@ -74,3 +77,17 @@ export const billing = createBillingService({
     });
   },
 });
+
+function assertProductionStripeCatalogConfigured(products: readonly Product[]) {
+  if (env.NODE_ENV !== "production" || stripeMode !== "prod") return;
+
+  const missingProductIds = products
+    .filter((product) => !isStripePriceIdConfigured(product.stripePriceId.prod))
+    .map((product) => product.id);
+
+  if (missingProductIds.length > 0) {
+    throw new Error(
+      `Agenda da Turma Stripe production Price IDs are not configured: ${missingProductIds.join(", ")}`,
+    );
+  }
+}

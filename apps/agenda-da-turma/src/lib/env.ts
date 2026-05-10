@@ -83,6 +83,23 @@ if (typeof window === "undefined") {
     throw new Error("REDIS_URL is required when NODE_ENV=production");
   }
 
+  if (env.NODE_ENV === "production") {
+    const authUrl = new URL(env.BETTER_AUTH_URL);
+    const appUrl = new URL(env.NEXT_PUBLIC_APP_URL);
+
+    if (authUrl.protocol !== "https:" || appUrl.protocol !== "https:") {
+      throw new Error(
+        "BETTER_AUTH_URL and NEXT_PUBLIC_APP_URL must use HTTPS when NODE_ENV=production",
+      );
+    }
+
+    if (authUrl.origin !== appUrl.origin) {
+      throw new Error(
+        "BETTER_AUTH_URL and NEXT_PUBLIC_APP_URL must share the same origin in production",
+      );
+    }
+  }
+
   if (env.NODE_ENV === "production" && env.E2E_RELAX_AUTH_RATE_LIMITS === "1") {
     throw new Error(
       "E2E_RELAX_AUTH_RATE_LIMITS must NOT be set in production — it disables anti-brute-force protections.",
