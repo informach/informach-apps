@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { count, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { agendaCities, agendaStates } from "../schema";
 
@@ -7,7 +7,19 @@ type IbgeCity = {
   nome: string;
 };
 
+// ~5570 municípios IBGE. Threshold conservador pra short-circuit — se já
+// passou de 5500, considera populado e pula o fetch.
+const MIN_POPULATED_CITIES = 5500;
+
 export async function seedCities(db: Database): Promise<void> {
+  // Curto-circuito: se a tabela já tem todos os municípios, pula os ~27
+  // fetches externos (defesa contra IBGE indisponível).
+  const [existing] = await db.select({ value: count() }).from(agendaCities);
+  if (existing && existing.value >= MIN_POPULATED_CITIES) {
+    console.log(`[seeds:cities] skip — ${existing.value} cidades já populadas`);
+    return;
+  }
+
   const states = await db.select({ uf: agendaStates.uf }).from(agendaStates);
   if (states.length === 0) {
     throw new Error("[seeds:cities] no states found — run seedStates first");

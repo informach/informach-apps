@@ -2,7 +2,7 @@ import { createReadStream, existsSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createGunzip } from "node:zlib";
-import { sql } from "drizzle-orm";
+import { count, sql } from "drizzle-orm";
 import Papa from "papaparse";
 import type { Database } from "../client";
 import { agendaCities, agendaSchools } from "../schema";
@@ -35,6 +35,10 @@ const INEP_CSV_PATHS = [
 const BATCH_SIZE = 1000;
 const BATISTA_MINEIRO_NAME = "COLEGIO BATISTA MINEIRO";
 const BATISTA_MINEIRO_OVERRIDE = "COLEGIO BATISTA MINEIRO - UNIDADE FLORESTA";
+
+// INEP tem ~181k escolas. Threshold conservador pra short-circuit — se já
+// passou de 100k, considera populado e pula o parse completo do CSV.
+const MIN_POPULATED_SCHOOLS = 100_000;
 
 type InepRow = {
   Escola?: string;
@@ -93,6 +97,14 @@ function resolveCsvSource(): { path: string; isGzipped: boolean } | null {
 }
 
 export async function seedSchools(db: Database): Promise<void> {
+  // Curto-circuito: se a tabela já tem o catálogo INEP, pula o parse + insert
+  // (181k rows é caro — evita refazer trabalho em todo deploy do migrator).
+  const [existing] = await db.select({ value: count() }).from(agendaSchools);
+  if (existing && existing.value >= MIN_POPULATED_SCHOOLS) {
+    console.log(`[seeds:schools] skip — ${existing.value} escolas já populadas`);
+    return;
+  }
+
   const source = resolveCsvSource();
   if (!source) {
     console.warn(
