@@ -3,6 +3,7 @@ export {
   type CreditPricingSeedRow,
   type ExpireLegacyCozyaPricingResult,
   expireLegacyCozyaPricing,
+  expireSupersededCozyaPricing,
   type SeedCreditPricingResult,
   seedCozyaCreditPricing,
 } from "./credit-pricing";

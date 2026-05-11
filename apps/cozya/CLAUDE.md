@@ -23,7 +23,7 @@ Porte: nicho pequeno (food enthusiasts em PT-BR), valor percebido baixo. Estrat�
 | Free | **sem IA** — cadastro 100% manual, com limite de receitas |
 | Modelo default texto/URL/geração | **`openai/gpt-4o-mini`** via OpenRouter |
 | Modelo default vision (foto) | **`openai/gpt-4o`** via OpenRouter, com `imageDetail: 'low'` |
-| Modelo de transcrição (voz) | **`openai/whisper-1`** via OpenRouter (`/audio/transcriptions` OpenAI-compatible) |
+| Modelo de transcrição (voz) | **`openai/whisper-large-v3`** via OpenRouter (`/audio/transcriptions` OpenAI-compatible). Migrou de `whisper-1` em 2026-05 para melhorar palavras isoladas em pt-BR. Service injeta `prompt` com glossário culinário. |
 | Gateway de IA | **OpenRouter único** — `OPENROUTER_API_KEY` na env, sem `OPENAI_API_KEY`/`ANTHROPIC_API_KEY` |
 | Rate limit (Pro) | **10 chamadas/hora** por usuário (defesa anti-script, além do cap mensal) |
 
@@ -49,7 +49,7 @@ A regra inicial "1 cadastro = 1 crédito" tem furo: o usuário pode invocar IA v
 |---|---|---|
 | Foto (`openai/gpt-4o` vision, imageDetail=low) | $0,005-0,016 | R$ 0,03-0,08 |
 | Texto/URL/geração (`openai/gpt-4o-mini`) | $0,001-0,003 | R$ 0,005-0,017 |
-| Transcrição (`openai/whisper-1`) | ~$0,006/min | ~R$ 0,03/min |
+| Transcrição (`openai/whisper-large-v3`) | ~$0,011/hora | ~R$ 0,001/min |
 
 Mix esperado (50% texto/URL, 30% geração/refino, 20% foto): **~R$ 0,02 por chamada**. 50 créditos no mês = **~R$ 1,00 custo de IA**. Receita Pro R$ 14,90 → **margem bruta ~93%** (markup do OpenRouter já incluído).
 
@@ -177,10 +177,10 @@ Features registradas (todas com `flatCost: 1`, `defaultEstimateCredits: 1`). IDs
 | `cozya.recipe.extract_from_text` | `openai/gpt-4o-mini` |
 | `cozya.recipe.generate_from_prompt` | `openai/gpt-4o-mini` (com `openrouter.tools.webSearch`) |
 | `cozya.recipe.refine_conversational` | `openai/gpt-4o-mini` |
-| `cozya.recipe.transcribe_audio` | `openai/whisper-1` (voz → texto na busca, Pro-only) |
+| `cozya.recipe.transcribe_audio` | `openai/whisper-large-v3` (voz → texto na busca, Pro-only; service injeta `prompt` com glossário pt-BR culinário) |
 | `cozya.recipe.parse_voice` | `openai/gpt-4o-mini` (transcrição → receita estruturada) |
 
-Para trocar de modelo no futuro: NÃO mutar a row — `creditPricing` é versionado por `(feature, model)` com `effective_to UNIQUE WHERE NULL`. Inserir nova row com novo modelo + atualizar a antiga com `effective_to = now()`. O helper `expireLegacyCozyaPricing(db)` (`packages/billing/src/seeds/credit-pricing.ts`) faz exatamente isso para os IDs antigos não-prefixados (`gpt-4o`, `gpt-4o-mini`, `whisper-1`) e roda automaticamente em `pnpm db:seed` antes do `seedCozyaCreditPricing`.
+Para trocar de modelo no futuro: NÃO mutar a row — `creditPricing` é versionado por `(feature, model)` com `effective_to UNIQUE WHERE NULL`. Inserir nova row com novo modelo + atualizar a antiga com `effective_to = now()`. Dois helpers em `packages/billing/src/seeds/credit-pricing.ts` rodam automaticamente em `pnpm db:seed` antes do `seedCozyaCreditPricing`: `expireLegacyCozyaPricing(db)` para IDs não-prefixados pré-OpenRouter (`gpt-4o`, `gpt-4o-mini`, `whisper-1`); `expireSupersededCozyaPricing(db)` para transições prefixed→prefixed (`openai/whisper-1` → `openai/whisper-large-v3`). Para a próxima troca, adicionar o par `(feature, model)` antigo em `COZYA_SUPERSEDED_MODELS`.
 
 Fluxo de cadastro por voz consome duas chamadas de IA quando executado completo: `transcribe_audio` para áudio → texto e `parse_voice` para texto → receita estruturada. Chamadas pagas simples passam por `runBillableAiCall`; fluxos multiestágio, como geração por prompt com pesquisa + parse estruturado, usam uma reserva de billing e gravam cada etapa com `runRecordedAiCall` para manter auditoria separada sem cobrar crédito extra.
 
@@ -281,7 +281,7 @@ Regressão > 10pp em qualquer scorer faz exit non-zero. Baseline atualiza só co
 ## 10. Regras para agentes
 
 1. **Mudar preço Pro**: editar `listPrice.amountCents` em `packages/config/src/products.ts` E atualizar Stripe Dashboard. Os dois lados precisam bater — divergência é bug.
-2. **Adicionar nova feature de IA**: criar row em `COZYA_PRICING_SEED` (`packages/billing/src/seeds/credit-pricing.ts`) com **ID de modelo prefixado** (`openai/gpt-4o-mini` por default; `openai/gpt-4o` apenas para vision real; `openai/whisper-1` para transcrição), adicionar em `setSeed()`, atualizar tabela §6 deste doc.
+2. **Adicionar nova feature de IA**: criar row em `COZYA_PRICING_SEED` (`packages/billing/src/seeds/credit-pricing.ts`) com **ID de modelo prefixado** (`openai/gpt-4o-mini` por default; `openai/gpt-4o` apenas para vision real; `openai/whisper-large-v3` para transcrição), adicionar em `setSeed()`, atualizar tabela §6 deste doc.
 3. **Ajustar cap de créditos**: editar `bonusCreditsPerMonth` nos 2 produtos Pro em `products.ts`. UI auto-reflete via `currentProduct.bonusCreditsPerMonth`.
 4. **Mudar rate limit de IA**: editar `COZYA_RATE_LIMITS` em `apps/cozya/src/lib/rate-limit.ts`. Tests cobrem o catálogo.
 5. **Mudar rate limits de auth**: editar `productionRateLimitRules` em `apps/cozya/src/lib/auth.ts` (o branch e2e fica intacto).

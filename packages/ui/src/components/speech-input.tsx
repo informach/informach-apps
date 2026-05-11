@@ -24,6 +24,33 @@ export type SpeechInputProps = Omit<ButtonProps, "onError" | "onChange"> & {
   lang?: string;
   /** Hard ceiling on recording time. Defaults to 60s. */
   maxDurationMs?: number;
+  /**
+   * MediaTrackConstraints passed to `getUserMedia({ audio })`. Defaults are
+   * tuned for STT: AGC + noise suppression + echo cancellation, 16 kHz mono
+   * (Whisper's native sample rate). Browsers may ignore individual fields
+   * (Safari iOS ignores `sampleRate`) — that's fine, the server reamostra.
+   */
+  audioConstraints?: MediaTrackConstraints;
+  /**
+   * Bitrate hint for `MediaRecorder`. Default 32 kbps Opus — sweet spot for
+   * voice (Chrome's default varies 24–48 kbps, can clip quiet speech).
+   */
+  audioBitsPerSecond?: number;
+  /**
+   * Minimum recording duration enforced before `stopRecording()` actually
+   * calls `recorder.stop()`. Guards palavra-única / clique-falsa-largada
+   * where the user releases the mic before MediaRecorder flushes a chunk.
+   * Default 500ms.
+   */
+  minDurationMs?: number;
+};
+
+const DEFAULT_AUDIO_CONSTRAINTS: MediaTrackConstraints = {
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl: true,
+  channelCount: 1,
+  sampleRate: 16000,
 };
 
 /**
@@ -47,6 +74,9 @@ export const SpeechInput = React.forwardRef<HTMLButtonElement, SpeechInputProps>
       onError,
       onStateChange,
       maxDurationMs = 60_000,
+      audioConstraints,
+      audioBitsPerSecond = 32_000,
+      minDurationMs = 500,
       disabled,
       variant = "ghost",
       size = "icon",
@@ -62,6 +92,8 @@ export const SpeechInput = React.forwardRef<HTMLButtonElement, SpeechInputProps>
     const chunksRef = React.useRef<Blob[]>([]);
     const streamRef = React.useRef<MediaStream | null>(null);
     const stopTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+    const recordingStartTimeRef = React.useRef<number>(0);
+    const minDurationTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const transition = React.useCallback(
       (next: SpeechInputState) => {
@@ -75,6 +107,10 @@ export const SpeechInput = React.forwardRef<HTMLButtonElement, SpeechInputProps>
       if (stopTimeoutRef.current) {
         clearTimeout(stopTimeoutRef.current);
         stopTimeoutRef.current = null;
+      }
+      if (minDurationTimeoutRef.current) {
+        clearTimeout(minDurationTimeoutRef.current);
+        minDurationTimeoutRef.current = null;
       }
       if (streamRef.current) {
         for (const track of streamRef.current.getTracks()) {
@@ -93,12 +129,16 @@ export const SpeechInput = React.forwardRef<HTMLButtonElement, SpeechInputProps>
         return;
       }
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: audioConstraints ?? DEFAULT_AUDIO_CONSTRAINTS,
+        });
         streamRef.current = stream;
         const mimeType = pickSupportedMimeType();
-        const recorder = mimeType
-          ? new MediaRecorder(stream, { mimeType })
-          : new MediaRecorder(stream);
+        const recorderOptions: MediaRecorderOptions = {
+          ...(mimeType ? { mimeType } : {}),
+          ...(audioBitsPerSecond ? { audioBitsPerSecond } : {}),
+        };
+        const recorder = new MediaRecorder(stream, recorderOptions);
         chunksRef.current = [];
         recorder.ondataavailable = (event) => {
           if (event.data.size > 0) chunksRef.current.push(event.data);
@@ -122,7 +162,11 @@ export const SpeechInput = React.forwardRef<HTMLButtonElement, SpeechInputProps>
           }
         };
         recorderRef.current = recorder;
-        recorder.start();
+        // Timeslice de 250ms emite chunks regularmente via ondataavailable —
+        // garante captura mesmo se o usuário soltar o mic antes do primeiro
+        // flush natural (palavras únicas <1s).
+        recorder.start(250);
+        recordingStartTimeRef.current = Date.now();
         transition("recording");
         stopTimeoutRef.current = setTimeout(() => {
           if (recorderRef.current?.state === "recording") {
@@ -137,12 +181,25 @@ export const SpeechInput = React.forwardRef<HTMLButtonElement, SpeechInputProps>
     }
 
     function stopRecording() {
-      if (recorderRef.current?.state === "recording") {
-        recorderRef.current.stop();
-      } else {
+      if (recorderRef.current?.state !== "recording") {
         cleanup();
         transition("idle");
+        return;
       }
+      const elapsed = Date.now() - recordingStartTimeRef.current;
+      const remaining = minDurationMs - elapsed;
+      if (remaining > 0) {
+        // Usuário soltou o mic muito rápido — segura mais um pouco para o
+        // MediaRecorder coletar o fim da palavra antes do stop.
+        minDurationTimeoutRef.current = setTimeout(() => {
+          minDurationTimeoutRef.current = null;
+          if (recorderRef.current?.state === "recording") {
+            recorderRef.current.stop();
+          }
+        }, remaining);
+        return;
+      }
+      recorderRef.current.stop();
     }
 
     const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {

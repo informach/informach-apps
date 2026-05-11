@@ -506,7 +506,7 @@ Cozya consome este package em modo **single-user** (`subject.type: "user"`, `org
 | Regra de débito | **1 chamada à API de IA = 1 crédito** (`flatCost: 1` em `creditPricing`) |
 | Modelo default texto/URL/geração/refino | `openai/gpt-4o-mini` via OpenRouter |
 | Modelo default vision (foto) | `openai/gpt-4o` via OpenRouter (`imageDetail: 'low'` no caller) |
-| Modelo de transcrição | `openai/whisper-1` via OpenRouter (`/audio/transcriptions` OpenAI-compatible) |
+| Modelo de transcrição | `openai/whisper-large-v3` via OpenRouter (`/audio/transcriptions` OpenAI-compatible). Migrou de `whisper-1` em 2026-05; service do cozya injeta `prompt` com glossário pt-BR culinário. |
 | Gateway de IA | OpenRouter único (`OPENROUTER_API_KEY`); ~5% markup sobre custo OpenAI direto, margem cozya continua >95% |
 | Free | sem IA — gate em `hasProSubscription` |
 | Rate limit | 10 chamadas/hora por user (defesa anti-script no app cozya) |
@@ -521,7 +521,7 @@ Cozya consome este package em modo **single-user** (`subject.type: "user"`, `org
 | `cozya_credits_20` | 20 | R$ 12,90 | R$ 0,645 | +30% |
 | `cozya_credits_30` | 30 | R$ 17,90 | R$ 0,597 | +20% |
 
-**Seed de pricing:** `pnpm db:seed` primeiro invoca `expireLegacyCozyaPricing` (fecha rows com IDs antigos não-prefixados — `gpt-4o`, `gpt-4o-mini`, `whisper-1` — restantes da era pré-OpenRouter), depois `seedCozyaCreditPricing` (`packages/billing/src/seeds/credit-pricing.ts`) com 7 features OpenRouter-prefixed: 1 vision (`openai/gpt-4o`) + 5 mini (`openai/gpt-4o-mini`) + 1 whisper (`openai/whisper-1`). Idempotente em ambos os passos — só insere quando não há row ativa para `(feature, model)` e só fecha legacy quando a row ainda está ativa. Para trocar modelo no futuro: insira nova row + set `effective_to = now()` na antiga (mesmo padrão).
+**Seed de pricing:** `pnpm db:seed` invoca, nesta ordem: (1) `expireLegacyCozyaPricing` (fecha rows com IDs não-prefixados pré-OpenRouter — `gpt-4o`, `gpt-4o-mini`, `whisper-1`); (2) `expireSupersededCozyaPricing` (fecha rows com IDs prefixados que foram substituídos por versão nova — hoje `(cozya.recipe.transcribe_audio, openai/whisper-1)` virou `openai/whisper-large-v3`); (3) `seedCozyaCreditPricing` (`packages/billing/src/seeds/credit-pricing.ts`) com 7 features OpenRouter-prefixed: 1 vision (`openai/gpt-4o`) + 5 mini (`openai/gpt-4o-mini`) + 1 whisper (`openai/whisper-large-v3`). Idempotente nos três passos — só insere quando não há row ativa para `(feature, model)` e só fecha quando a row ainda está ativa. Para próxima troca prefixed→prefixed: adicionar o par `(feature, model)` antigo em `COZYA_SUPERSEDED_MODELS`.
 
 **Custo unitário esperado** (mix realista): ~R$ 0,02/chamada → 50 créditos = ~R$ 1,00 custo IA por user/mês → margem bruta ~93%. Pós-beta, comparar `SUM(usage_logs.tokens × custo_modelo)` vs receita por user e ajustar se margem < 90%.
 

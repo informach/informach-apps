@@ -31,7 +31,7 @@ export const COZYA_MODELS = {
   "cozya.recipe.extract_from_text": "openai/gpt-4o-mini",
   "cozya.recipe.generate_from_prompt": "openai/gpt-4o-mini",
   "cozya.recipe.refine_conversational": "openai/gpt-4o-mini",
-  "cozya.recipe.transcribe_audio": "openai/whisper-1",
+  "cozya.recipe.transcribe_audio": "openai/whisper-large-v3",
   "cozya.recipe.parse_voice": "openai/gpt-4o-mini",
 } as const satisfies Record<CozyaFeature, string>;
 

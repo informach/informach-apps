@@ -19,6 +19,19 @@ export type TranscribeRecipeAudioResult = {
 
 const FEATURE = "cozya.recipe.transcribe_audio" as const;
 
+// Glossário pt-BR culinário passado como `prompt` ao Whisper. Cabe nos
+// ~244 tokens limite — guia o decoder em palavras isoladas e ambíguas
+// ("alho", "pão", "ovo") onde whisper-large-v3 tende a alucinar sem contexto.
+const RECIPE_TRANSCRIPTION_PROMPT =
+  "Receita brasileira em português. Ingredientes e pratos comuns: " +
+  "frango, arroz, feijão, ovo, leite, queijo, manteiga, azeite, sal, " +
+  "açúcar, tomate, cebola, alho, batata, cenoura, abobrinha, beterraba, " +
+  "alface, couve, espinafre, peixe, atum, carne moída, alcatra, costela, " +
+  "linguiça, bacon, lasanha, macarrão, espaguete, nhoque, pão, pão de queijo, " +
+  "bolo, torta, brigadeiro, beijinho, pudim, mousse, coxinha, pastel, " +
+  "feijoada, moqueca, virado, baião, farofa, salada, sopa, caldo, " +
+  "fubá, mandioca, batata-doce, abacate, banana, manga, maçã.";
+
 /**
  * Transcribes a recorded recipe-search utterance for the given user, billing
  * one Cozya credit via the standard reserve→commit/release flow. Pro gating
@@ -26,8 +39,10 @@ const FEATURE = "cozya.recipe.transcribe_audio" as const;
  * caller has already enforced those.
  *
  * Routes Whisper through OpenRouter's OpenAI-compatible
- * `/audio/transcriptions` endpoint (model id `openai/whisper-1`). Same
- * gateway as the chat/vision flows; single billable account.
+ * `/audio/transcriptions` endpoint (model id `openai/whisper-large-v3`).
+ * Same gateway as the chat/vision flows; single billable account. A
+ * pt-BR culinary glossary is passed as `prompt` to anchor the decoder on
+ * common ingredient/dish names — critical for single-word utterances.
  */
 export async function transcribeRecipeAudio(
   input: TranscribeRecipeAudioInput,
@@ -52,6 +67,7 @@ export async function transcribeRecipeAudio(
         audio: input.audio,
         headers: openRouterAttributionHeaders(),
         language: "pt",
+        prompt: RECIPE_TRANSCRIPTION_PROMPT,
       });
     },
   });

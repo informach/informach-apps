@@ -35,6 +35,16 @@ export type TranscribeAudioInput = {
    * `audio.type` se omitido (com fallback para `webm`).
    */
   format?: string;
+  /**
+   * Texto opcional que guia a transcrição (~244 tokens). Em Whisper-1 e
+   * Whisper-large-v3 é interpretado como lista de keywords/contexto que
+   * "pré-aquece" o decoder — útil para vocabulário específico (ingredientes
+   * culinários, nomes próprios, jargão técnico).
+   *
+   * Não está documentado na request schema do OpenRouter mas é repassado
+   * para o upstream OpenAI-compatible. Se o gateway ignorar, é no-op.
+   */
+  prompt?: string;
 };
 
 export type TranscribeAudioResult = {
@@ -67,6 +77,7 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
       input_audio: { data, format },
       model: input.model ?? DEFAULT_MODEL,
       ...(input.language ? { language: input.language } : {}),
+      ...(input.prompt ? { prompt: input.prompt } : {}),
     }),
   });
 

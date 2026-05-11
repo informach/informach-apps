@@ -3,6 +3,7 @@ import {
   COZYA_PRICING_SEED,
   type CreditPricingSeedRow,
   expireLegacyCozyaPricing,
+  expireSupersededCozyaPricing,
   seedCozyaCreditPricing,
 } from "../seeds/credit-pricing";
 import { createFakeDb } from "./_fake-db";
@@ -71,7 +72,7 @@ describe("seedCozyaCreditPricing", () => {
     const whisperRow = COZYA_PRICING_SEED.find(
       (r) => r.feature === "cozya.recipe.transcribe_audio",
     );
-    expect(whisperRow?.model).toBe("openai/whisper-1");
+    expect(whisperRow?.model).toBe("openai/whisper-large-v3");
     const parseVoiceRow = COZYA_PRICING_SEED.find((r) => r.feature === "cozya.recipe.parse_voice");
     expect(parseVoiceRow?.model).toBe("openai/gpt-4o-mini");
     // Every default row is flat 1 credit per call
@@ -117,6 +118,32 @@ describe("expireLegacyCozyaPricing", () => {
 
     const result = await expireLegacyCozyaPricing(
       db as unknown as Parameters<typeof expireLegacyCozyaPricing>[0],
+    );
+
+    expect(result).toEqual({ closed: 0 });
+  });
+});
+
+describe("expireSupersededCozyaPricing", () => {
+  it("closes one row per (feature, model) entry in COZYA_SUPERSEDED_MODELS", async () => {
+    // Today the list has exactly 1 entry: (cozya.recipe.transcribe_audio, openai/whisper-1).
+    const { db, calls } = createFakeDb({
+      updateResult: [{ id: "whisper-1-row" }],
+    });
+
+    const result = await expireSupersededCozyaPricing(
+      db as unknown as Parameters<typeof expireSupersededCozyaPricing>[0],
+    );
+
+    expect(result).toEqual({ closed: 1 });
+    expect(calls.filter((c) => c.mode === "update")).toHaveLength(1);
+  });
+
+  it("is idempotent — re-running when nothing is active returns 0", async () => {
+    const { db } = createFakeDb({ updateResult: [] });
+
+    const result = await expireSupersededCozyaPricing(
+      db as unknown as Parameters<typeof expireSupersededCozyaPricing>[0],
     );
 
     expect(result).toEqual({ closed: 0 });

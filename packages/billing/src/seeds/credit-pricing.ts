@@ -1,6 +1,6 @@
 import type { Database } from "@informach/db";
 import { schema } from "@informach/db";
-import { and, inArray, isNull, like, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, like, sql } from "drizzle-orm";
 
 const { creditPricing } = schema;
 
@@ -23,8 +23,11 @@ export type CreditPricingSeedRow = {
 //   Custo é mitigado via providerOptions.openai.imageDetail = 'low' no caller.
 // - Texto/URL/geração/refino/parse_voice: openai/gpt-4o-mini (5x mais barato
 //   que gpt-4o, suficiente para extração estruturada com schema Zod).
-// - Transcrição de áudio: openai/whisper-1 via OpenRouter
-//   (`/audio/transcriptions` OpenAI-compatible).
+// - Transcrição de áudio: openai/whisper-large-v3 via OpenRouter
+//   (`/audio/transcriptions` OpenAI-compatible). Substituiu openai/whisper-1
+//   em 2026-05 por precisão muito melhor em pt-BR e em palavras isoladas
+//   (busca de receita por voz). Row antiga fechada por
+//   expireSupersededCozyaPricing antes deste seed.
 //
 // IDs prefixados com `openai/` são convenção do OpenRouter (gateway único do
 // projeto). Cozya migrou de OpenAI direto → OpenRouter; rows antigas com IDs
@@ -68,7 +71,7 @@ export const COZYA_PRICING_SEED: readonly CreditPricingSeedRow[] = [
   },
   {
     feature: "cozya.recipe.transcribe_audio",
-    model: "openai/whisper-1",
+    model: "openai/whisper-large-v3",
     flatCost: 1,
     defaultEstimateCredits: 1,
   },
@@ -115,6 +118,50 @@ export async function expireLegacyCozyaPricing(
     )
     .returning({ id: creditPricing.id });
   return { closed: result.length };
+}
+
+/**
+ * Pares `(feature, model)` em que o modelo é prefixed-OpenRouter mas foi
+ * substituído por uma versão mais nova. Diferente de COZYA_LEGACY_MODELS
+ * (era pré-OpenRouter) — aqui o ID já é prefixed mas o modelo virou
+ * obsoleto por upgrade de qualidade.
+ *
+ * 2026-05: cozya.recipe.transcribe_audio migrou openai/whisper-1 →
+ * openai/whisper-large-v3 (busca por voz não entendia palavras isoladas
+ * em pt-BR; o modelo novo é substancialmente melhor).
+ */
+const COZYA_SUPERSEDED_MODELS: readonly { feature: string; model: string }[] = [
+  { feature: "cozya.recipe.transcribe_audio", model: "openai/whisper-1" },
+] as const;
+
+/**
+ * Fecha rows ativas de `billing.credit_pricing` cujo `(feature, model)`
+ * está listado em COZYA_SUPERSEDED_MODELS. Análogo a
+ * expireLegacyCozyaPricing, mas para transições prefixed→prefixed
+ * (upgrade de modelo dentro da era OpenRouter).
+ *
+ * Idempotente — UPDATE … WHERE effective_to IS NULL não casa com rows já
+ * fechadas. Deve rodar ANTES de seedCozyaCreditPricing.
+ */
+export async function expireSupersededCozyaPricing(
+  db: Database,
+): Promise<ExpireLegacyCozyaPricingResult> {
+  let closed = 0;
+  for (const { feature, model } of COZYA_SUPERSEDED_MODELS) {
+    const result = await db
+      .update(creditPricing)
+      .set({ effectiveTo: sql`now()` })
+      .where(
+        and(
+          eq(creditPricing.feature, feature),
+          eq(creditPricing.model, model),
+          isNull(creditPricing.effectiveTo),
+        ),
+      )
+      .returning({ id: creditPricing.id });
+    closed += result.length;
+  }
+  return { closed };
 }
 
 export type SeedCreditPricingResult = {

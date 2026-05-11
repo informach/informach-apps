@@ -4,7 +4,11 @@ import { schema } from "@informach/db";
 import { config as loadEnv } from "dotenv";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { expireLegacyCozyaPricing, seedCozyaCreditPricing } from "../src/seeds";
+import {
+  expireLegacyCozyaPricing,
+  expireSupersededCozyaPricing,
+  seedCozyaCreditPricing,
+} from "../src/seeds";
 
 loadEnv({
   path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..", ".env"),
@@ -23,6 +27,10 @@ async function main() {
   console.log("[billing:seed] expiring legacy cozya credit_pricing rows (pre-OpenRouter)...");
   const expired = await expireLegacyCozyaPricing(db);
   console.log(`[billing:seed] credit_pricing: ${expired.closed} legacy rows closed`);
+
+  console.log("[billing:seed] expiring superseded cozya credit_pricing rows (model upgrades)...");
+  const superseded = await expireSupersededCozyaPricing(db);
+  console.log(`[billing:seed] credit_pricing: ${superseded.closed} superseded rows closed`);
 
   console.log("[billing:seed] seeding billing.credit_pricing (Cozya)...");
   const result = await seedCozyaCreditPricing(db);

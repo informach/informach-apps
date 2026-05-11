@@ -145,6 +145,29 @@ describe("transcribeAudio (OpenRouter — JSON+base64 via fetch)", () => {
     expect(body).not.toHaveProperty("language");
   });
 
+  it("forwards prompt in the body when provided", async () => {
+    fetchMock.mockResolvedValue(okResponse("frango"));
+
+    await transcribeAudio({
+      apiKey: "k",
+      audio: new Uint8Array([1]),
+      format: "wav",
+      language: "pt",
+      prompt: "Ingredientes brasileiros: frango, arroz, feijão.",
+    });
+
+    expect(firstFetchBody().prompt).toBe("Ingredientes brasileiros: frango, arroz, feijão.");
+  });
+
+  it("omits prompt when not provided", async () => {
+    fetchMock.mockResolvedValue(okResponse("ok"));
+
+    await transcribeAudio({ apiKey: "k", audio: new Uint8Array(), format: "wav" });
+
+    const body = firstFetchBody();
+    expect(body).not.toHaveProperty("prompt");
+  });
+
   it("throws with status code and body snippet when OpenRouter returns non-2xx", async () => {
     fetchMock.mockResolvedValue(
       new Response('{"error":{"message":"unauthorized"}}', { status: 401 }),

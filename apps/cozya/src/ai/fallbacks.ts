@@ -19,7 +19,7 @@ import type { CozyaModel } from "./models";
 export const COZYA_FALLBACKS: Record<string, readonly string[]> = {
   "openai/gpt-4o-mini": ["openai/gpt-4o"],
   "openai/gpt-4o": ["anthropic/claude-3.5-sonnet"],
-  "openai/whisper-1": [],
+  "openai/whisper-large-v3": [],
 };
 
 /**
