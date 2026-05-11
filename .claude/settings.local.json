@@ -30,7 +30,8 @@
       "Bash(pnpm install *)",
       "Bash(pnpm --filter @informach/db exec tsx src/billing-status-tmp.ts tochaeluz@gmail.com)",
       "Bash(DRY_RUN=1 pnpm --filter @informach/db exec tsx src/restore-monthly-tmp.ts tochaeluz@gmail.com)",
-      "Bash(pnpm --filter @informach/db exec tsx src/restore-monthly-tmp.ts tochaeluz@gmail.com)"
+      "Bash(pnpm --filter @informach/db exec tsx src/restore-monthly-tmp.ts tochaeluz@gmail.com)",
+      "mcp__Railway__get-logs"
     ]
   }
 }
