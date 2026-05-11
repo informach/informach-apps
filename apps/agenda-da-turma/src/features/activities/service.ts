@@ -3,13 +3,16 @@ import "server-only";
 import { err, ok, type Result } from "@informach/auth/server-actions";
 import { billing } from "@/features/billing/service";
 import { findTurmaWithSchoolById } from "@/features/turmas/repository";
+import { FREE_ACTIVITY_LIMIT } from "./limits";
 import {
   type ActivitiesPage,
+  countActivitiesCreatedByUser,
   deleteActivityById,
   findActivityById,
   findActivityStatusForProfile,
   hasOtherAcceptances,
   insertActivityWithStatuses,
+  insertActivityWithStatusesWithinFreeLimit,
   type ListActivitiesPageOptions,
   listActivitiesPageForUser,
   listPendingSharedActivitiesForUser,
@@ -38,7 +41,8 @@ export type ActivityError =
   | { code: "NOT_FOUND" }
   | { code: "HAS_ACCEPTANCES" }
   | { code: "NOT_SHARED" }
-  | { code: "INVALID_PROFILE" };
+  | { code: "INVALID_PROFILE" }
+  | { code: "ACTIVITY_LIMIT_REACHED"; limit: number; current: number };
 
 function userSubject(userId: string) {
   return { type: "user", id: userId } as const;
@@ -46,7 +50,8 @@ function userSubject(userId: string) {
 
 // Cria a atividade respeitando: (1) membership na turma, (2) matéria pertence
 // à turma, (3) Pro pra visibility=shared (Free é forçado pra individual
-// silenciosamente — UI já desabilita a opção; este é defesa em profundidade).
+// silenciosamente — UI já desabilita a opção; este é defesa em profundidade),
+// (4) limite de FREE_ACTIVITY_LIMIT atividades total pra Free.
 // Status rows iniciais são inseridos pra cada perfil ativo do creator.
 export async function createActivity(
   userId: string,
@@ -61,13 +66,14 @@ export async function createActivity(
   const isValidSubject = await subjectBelongsToTurma(input.subjectId, input.turmaId);
   if (!isValidSubject) return err({ code: "SUBJECT_NOT_FOUND" });
 
+  const isPro = await billing.hasProSubscription(userSubject(userId));
+
   let visibility = input.visibility;
-  if (visibility === "shared_with_turma") {
-    const isPro = await billing.hasProSubscription(userSubject(userId));
-    if (!isPro) visibility = "individual";
+  if (visibility === "shared_with_turma" && !isPro) {
+    visibility = "individual";
   }
 
-  const activity = await insertActivityWithStatuses({
+  const payload = {
     turmaId: input.turmaId,
     subjectId: input.subjectId,
     createdByUserId: userId,
@@ -76,8 +82,21 @@ export async function createActivity(
     title: input.title,
     description: input.description ?? null,
     dueAt: input.dueAt,
-  });
+  };
 
+  if (!isPro) {
+    const limited = await insertActivityWithStatusesWithinFreeLimit(payload, FREE_ACTIVITY_LIMIT);
+    if (!limited.ok) {
+      return err({
+        code: "ACTIVITY_LIMIT_REACHED",
+        limit: FREE_ACTIVITY_LIMIT,
+        current: limited.current,
+      });
+    }
+    return ok(limited.activity);
+  }
+
+  const activity = await insertActivityWithStatuses(payload);
   return ok(activity);
 }
 
@@ -169,6 +188,10 @@ export async function getActivitiesPageForUser(
   options: ListActivitiesPageOptions,
 ): Promise<ActivitiesPage> {
   return listActivitiesPageForUser(userId, options);
+}
+
+export async function getActivitiesCreatedCountForUser(userId: string): Promise<number> {
+  return countActivitiesCreatedByUser(userId);
 }
 
 export async function getPendingSharedActivitiesForUser(

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, type Database, db, eq, gt, inArray, or, sql } from "@informach/db";
+import { and, asc, count, type Database, db, eq, gt, inArray, lt, or, sql } from "@informach/db";
 import {
   agendaActivities,
   agendaActivityAcceptances,
@@ -141,24 +141,77 @@ export async function hasOtherAcceptances(activityId: string): Promise<boolean> 
 // vincular nenhum filho ainda), insere a atividade sem statuses. Outros
 // users ainda podem aceitar e gerar suas próprias status rows.
 export async function insertActivityWithStatuses(payload: NewActivityPayload): Promise<Activity> {
-  return db.transaction(async (tx) => {
-    const [activity] = await tx.insert(agendaActivities).values(payload).returning();
-    if (!activity) {
-      throw new Error("agenda.activities: insert returned no row");
-    }
-    const profileIds = (
-      await listActiveProfilesOfUserInTurma(tx, payload.createdByUserId, payload.turmaId)
-    ).map((p) => p.id);
-    if (profileIds.length > 0) {
-      await tx.insert(agendaActivityStatuses).values(
-        profileIds.map((profileId) => ({
-          activityId: activity.id,
-          studentProfileId: profileId,
-        })),
-      );
-    }
-    return activity;
-  });
+  return db.transaction((tx) => insertActivityWithStatusesInTx(tx, payload));
+}
+
+// Variante Free: dentro de uma transação com advisory lock por usuário,
+// conta atividades criadas (any status) e bloqueia quando atinge o limite.
+// Espelha `insertRecipeWithinFreeLimit` do cozya. Race-safety: o lock
+// serializa apenas operações deste mesmo userId, sem afetar concorrência
+// global. `count` inclui done — marcar como concluída não libera vaga.
+export type InsertActivityWithinLimitResult =
+  | { ok: true; activity: Activity }
+  | { ok: false; current: number };
+
+export async function insertActivityWithStatusesWithinFreeLimit(
+  payload: NewActivityPayload,
+  limit: number,
+): Promise<InsertActivityWithinLimitResult> {
+  return db.transaction(
+    async (tx) => {
+      await lockActivityLimitForUser(tx, payload.createdByUserId);
+
+      const current = await countActivitiesCreatedByUserWithClient(tx, payload.createdByUserId);
+      if (current >= limit) {
+        return { ok: false as const, current };
+      }
+
+      const activity = await insertActivityWithStatusesInTx(tx, payload);
+      return { ok: true as const, activity };
+    },
+    { isolationLevel: "read committed" },
+  );
+}
+
+async function insertActivityWithStatusesInTx(
+  tx: Tx,
+  payload: NewActivityPayload,
+): Promise<Activity> {
+  const [activity] = await tx.insert(agendaActivities).values(payload).returning();
+  if (!activity) {
+    throw new Error("agenda.activities: insert returned no row");
+  }
+  const profileIds = (
+    await listActiveProfilesOfUserInTurma(tx, payload.createdByUserId, payload.turmaId)
+  ).map((p) => p.id);
+  if (profileIds.length > 0) {
+    await tx.insert(agendaActivityStatuses).values(
+      profileIds.map((profileId) => ({
+        activityId: activity.id,
+        studentProfileId: profileId,
+      })),
+    );
+  }
+  return activity;
+}
+
+async function lockActivityLimitForUser(tx: Tx, userId: string): Promise<void> {
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`agenda:activities:${userId}`}))`);
+}
+
+export async function countActivitiesCreatedByUser(userId: string): Promise<number> {
+  return countActivitiesCreatedByUserWithClient(db, userId);
+}
+
+async function countActivitiesCreatedByUserWithClient(
+  client: Database | Tx,
+  userId: string,
+): Promise<number> {
+  const [row] = await client
+    .select({ count: count() })
+    .from(agendaActivities)
+    .where(eq(agendaActivities.createdByUserId, userId));
+  return Number(row?.count ?? 0);
 }
 
 export async function updateActivityById(
@@ -252,25 +305,34 @@ export async function upsertAcceptanceAndStatuses(
 }
 
 // Cursor opaco pra paginação keyset da listagem. Encoda o último item
-// retornado como `<dueAt>|<activityCreatedAt ISO>|<statusId>` em base64url —
-// 3 chaves alinhadas com o ORDER BY pra garantir tiebreak determinístico
-// mesmo quando 2 perfis compartilham a mesma atividade (mesma dueAt +
-// mesma createdAt). Espelha o pattern de `@informach/billing/credits/history`.
-type ActivityCursor = { dueAt: string; createdAt: Date; statusId: string };
+// retornado como `<isDone>|<dueAt>|<activityCreatedAt ISO>|<statusId>` em
+// base64url — 4 chaves alinhadas com o ORDER BY pra garantir tiebreak
+// determinístico. A primeira chave (`isDone`) implementa o agrupamento
+// pendentes-antes-de-concluídas; dentro de cada grupo `dueAt` ordena
+// diferente (pending ASC, done DESC). Cursores antigos (3 chaves) caem
+// como inválidos e retornam à primeira página — comportamento defensivo.
+type ActivityCursor = {
+  isDone: boolean;
+  dueAt: string;
+  createdAt: Date;
+  statusId: string;
+};
 
 function encodeActivityCursor(item: ActivityListItem): string {
-  const payload = `${item.dueAt}|${item.activityCreatedAt.toISOString()}|${item.statusId}`;
+  const flag = item.status === "done" ? "1" : "0";
+  const payload = `${flag}|${item.dueAt}|${item.activityCreatedAt.toISOString()}|${item.statusId}`;
   return Buffer.from(payload, "utf8").toString("base64url");
 }
 
 function decodeActivityCursor(cursor: string): ActivityCursor | null {
   try {
     const decoded = Buffer.from(cursor, "base64url").toString("utf8");
-    const [dueAt, createdAtIso, statusId] = decoded.split("|");
-    if (!dueAt || !createdAtIso || !statusId) return null;
+    const [flag, dueAt, createdAtIso, statusId] = decoded.split("|");
+    if (!flag || !dueAt || !createdAtIso || !statusId) return null;
+    if (flag !== "0" && flag !== "1") return null;
     const createdAt = new Date(createdAtIso);
     if (Number.isNaN(createdAt.getTime())) return null;
-    return { dueAt, createdAt, statusId };
+    return { isDone: flag === "1", dueAt, createdAt, statusId };
   } catch {
     return null;
   }
@@ -307,22 +369,49 @@ export async function listActivitiesPageForUser(
     WHERE aa.activity_id = ${agendaActivities.id} AND aa.accepted = true
   )`;
 
-  // Cursor pra ASC ordering (dueAt, createdAt, statusId): itens "após" o
-  // cursor. Cursor corrompido/inválido vira "sem cursor" (defensivo).
+  // Cursor com 2 grupos (pending ASC dueAt, done DESC dueAt). "Após" depende
+  // de em qual grupo o cursor está:
+  // - cursor em pending: pode saltar pro grupo done inteiro, ou seguir em
+  //   pending com (dueAt, createdAt, statusId) ASC.
+  // - cursor em done: permanece em done; (dueAt) é DESC (depois = menor);
+  //   tiebreak (createdAt, statusId) segue ASC pra estabilidade.
+  // Cursor corrompido/inválido vira "sem cursor" (defensivo).
   const decoded = options.cursor ? decodeActivityCursor(options.cursor) : null;
   const cursorClause = decoded
-    ? or(
-        gt(agendaActivities.dueAt, decoded.dueAt),
-        and(
-          eq(agendaActivities.dueAt, decoded.dueAt),
-          gt(agendaActivities.createdAt, decoded.createdAt),
-        ),
-        and(
-          eq(agendaActivities.dueAt, decoded.dueAt),
-          eq(agendaActivities.createdAt, decoded.createdAt),
-          gt(agendaActivityStatuses.id, decoded.statusId),
-        ),
-      )
+    ? !decoded.isDone
+      ? or(
+          eq(agendaActivityStatuses.status, "done"),
+          and(
+            eq(agendaActivityStatuses.status, "pending"),
+            or(
+              gt(agendaActivities.dueAt, decoded.dueAt),
+              and(
+                eq(agendaActivities.dueAt, decoded.dueAt),
+                gt(agendaActivities.createdAt, decoded.createdAt),
+              ),
+              and(
+                eq(agendaActivities.dueAt, decoded.dueAt),
+                eq(agendaActivities.createdAt, decoded.createdAt),
+                gt(agendaActivityStatuses.id, decoded.statusId),
+              ),
+            ),
+          ),
+        )
+      : and(
+          eq(agendaActivityStatuses.status, "done"),
+          or(
+            lt(agendaActivities.dueAt, decoded.dueAt),
+            and(
+              eq(agendaActivities.dueAt, decoded.dueAt),
+              gt(agendaActivities.createdAt, decoded.createdAt),
+            ),
+            and(
+              eq(agendaActivities.dueAt, decoded.dueAt),
+              eq(agendaActivities.createdAt, decoded.createdAt),
+              gt(agendaActivityStatuses.id, decoded.statusId),
+            ),
+          ),
+        )
     : undefined;
 
   const whereExpr = and(
@@ -365,8 +454,14 @@ export async function listActivitiesPageForUser(
     .innerJoin(agendaTurmas, eq(agendaTurmas.id, agendaActivities.turmaId))
     .innerJoin(agendaSchools, eq(agendaSchools.inepCode, agendaTurmas.schoolInepCode))
     .where(whereExpr)
+    // Pendentes vêm primeiro (status='pending' < 'done' via boolean cast).
+    // Dentro de pending: dueAt ASC (mais antigo/atrasado no topo).
+    // Dentro de done: dueAt DESC (concluída mais recente no topo).
+    // createdAt e statusId garantem tiebreak determinístico nos 2 grupos.
     .orderBy(
-      asc(agendaActivities.dueAt),
+      sql`(${agendaActivityStatuses.status} = 'done')`,
+      sql`CASE WHEN ${agendaActivityStatuses.status} = 'pending' THEN ${agendaActivities.dueAt} END ASC NULLS LAST`,
+      sql`CASE WHEN ${agendaActivityStatuses.status} = 'done' THEN ${agendaActivities.dueAt} END DESC NULLS LAST`,
       asc(agendaActivities.createdAt),
       asc(agendaActivityStatuses.id),
     )

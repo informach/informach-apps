@@ -1,5 +1,6 @@
 import { ActivitiesSection } from "@/features/activities/components/activities-section";
 import {
+  getActivitiesCreatedCountForUser,
   getActivitiesPageForUser,
   getTurmasWithSubjectsForForm,
 } from "@/features/activities/service";
@@ -23,11 +24,12 @@ export default async function AtividadesPage({
   const filterProfileId = params.perfil ?? null;
   const cursor = params.cursor ?? null;
 
-  const [profiles, page, turmasForForm, isPro] = await Promise.all([
+  const [profiles, page, turmasForForm, isPro, activityCount] = await Promise.all([
     listStudentProfilesForUser(user.id),
     getActivitiesPageForUser(user.id, { profileFilter: filterProfileId, cursor }),
     getTurmasWithSubjectsForForm(user.id),
     getIsProForUser(user.id),
+    getActivitiesCreatedCountForUser(user.id),
   ]);
 
   const activeFilter = filterProfileId
@@ -52,6 +54,7 @@ export default async function AtividadesPage({
         turmasForForm={turmasForForm}
         currentUserId={user.id}
         isPro={isPro}
+        activityCount={activityCount}
       />
     </main>
   );

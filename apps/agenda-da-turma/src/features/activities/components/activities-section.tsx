@@ -9,11 +9,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@informach/ui/components/select";
+import { cn } from "@informach/ui/lib/utils";
 import { ArrowLeft, ArrowRight, ListTodo, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { StudentProfile } from "@/features/students/types";
+import { FREE_ACTIVITY_LIMIT } from "../limits";
 import type { ActivityListItem, TurmaWithSubjectsForForm } from "../types";
 import { ActivityCard } from "./activity-card";
 import { ActivityFormDialog } from "./activity-form-dialog";
@@ -29,6 +31,8 @@ type Props = {
   turmasForForm: TurmaWithSubjectsForForm[];
   currentUserId: string;
   isPro: boolean;
+  /** Total de atividades já cadastradas pelo user (qualquer status). */
+  activityCount: number;
 };
 
 // Monta `/atividades?perfil=X&cursor=Y` filtrando params nulos. Cursor null
@@ -56,9 +60,12 @@ export function ActivitiesSection({
   turmasForForm,
   currentUserId,
   isPro,
+  activityCount,
 }: Props) {
   const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
+  const showFreeCounter = !isPro;
+  const limitReached = !isPro && activityCount >= FREE_ACTIVITY_LIMIT;
 
   const handleFilterChange = (value: string) => {
     // Trocar de perfil reseta cursor — começa de novo na página 1.
@@ -116,10 +123,22 @@ export function ActivitiesSection({
           </Select>
         </div>
 
-        <Button type="button" onClick={() => setCreateOpen(true)} disabled={!canCreate}>
-          <Plus className="mr-2 size-4" aria-hidden />
-          Nova atividade
-        </Button>
+        <div className="flex items-center gap-3">
+          {showFreeCounter ? (
+            <span
+              className={cn(
+                "text-xs",
+                limitReached ? "font-medium text-destructive" : "text-muted-foreground",
+              )}
+            >
+              {activityCount}/{FREE_ACTIVITY_LIMIT} atividades · plano Free
+            </span>
+          ) : null}
+          <Button type="button" onClick={() => setCreateOpen(true)} disabled={!canCreate}>
+            <Plus className="mr-2 size-4" aria-hidden />
+            Nova atividade
+          </Button>
+        </div>
       </div>
 
       {!canCreate ? (
@@ -231,6 +250,7 @@ export function ActivitiesSection({
         onOpenChange={setCreateOpen}
         turmas={turmasForForm}
         isPro={isPro}
+        currentActivityCount={activityCount}
       />
     </div>
   );

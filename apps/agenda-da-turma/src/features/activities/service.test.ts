@@ -19,6 +19,8 @@ const mocks = vi.hoisted(() => ({
   userIsTurmaCreatorOrMember: vi.fn(),
   hasOtherAcceptances: vi.fn(),
   insertActivityWithStatuses: vi.fn(),
+  insertActivityWithStatusesWithinFreeLimit: vi.fn(),
+  countActivitiesCreatedByUser: vi.fn(),
   updateActivityById: vi.fn(),
   deleteActivityById: vi.fn(),
   findActivityStatusForProfile: vi.fn(),
@@ -51,6 +53,8 @@ vi.mock("./repository", () => ({
   userIsTurmaCreatorOrMember: mocks.userIsTurmaCreatorOrMember,
   hasOtherAcceptances: mocks.hasOtherAcceptances,
   insertActivityWithStatuses: mocks.insertActivityWithStatuses,
+  insertActivityWithStatusesWithinFreeLimit: mocks.insertActivityWithStatusesWithinFreeLimit,
+  countActivitiesCreatedByUser: mocks.countActivitiesCreatedByUser,
   updateActivityById: mocks.updateActivityById,
   deleteActivityById: mocks.deleteActivityById,
   findActivityStatusForProfile: mocks.findActivityStatusForProfile,
@@ -103,10 +107,32 @@ beforeEach(() => {
 });
 
 describe("createActivity", () => {
-  it("cria atividade individual quando user é membro", async () => {
+  it("cria atividade individual quando Free abaixo do limite (caminho transacional)", async () => {
     mocks.findTurmaWithSchoolById.mockResolvedValue(baseTurma);
     mocks.userIsTurmaCreatorOrMember.mockResolvedValue(true);
     mocks.subjectBelongsToTurma.mockResolvedValue(true);
+    mocks.hasProSubscription.mockResolvedValue(false);
+    mocks.insertActivityWithStatusesWithinFreeLimit.mockResolvedValue({
+      ok: true,
+      activity: baseActivity,
+    });
+
+    const result = await createActivity(creator.id, createInput);
+
+    expect(result.ok).toBe(true);
+    // Free passa pelo helper transacional com lock + count + insert.
+    expect(mocks.insertActivityWithStatusesWithinFreeLimit).toHaveBeenCalledWith(
+      expect.objectContaining({ visibility: "individual" }),
+      20,
+    );
+    expect(mocks.insertActivityWithStatuses).not.toHaveBeenCalled();
+  });
+
+  it("cria atividade individual direto quando Pro (sem helper de limite)", async () => {
+    mocks.findTurmaWithSchoolById.mockResolvedValue(baseTurma);
+    mocks.userIsTurmaCreatorOrMember.mockResolvedValue(true);
+    mocks.subjectBelongsToTurma.mockResolvedValue(true);
+    mocks.hasProSubscription.mockResolvedValue(true);
     mocks.insertActivityWithStatuses.mockResolvedValue(baseActivity);
 
     const result = await createActivity(creator.id, createInput);
@@ -115,8 +141,7 @@ describe("createActivity", () => {
     expect(mocks.insertActivityWithStatuses).toHaveBeenCalledWith(
       expect.objectContaining({ visibility: "individual" }),
     );
-    // Pro check só roda quando input pede shared.
-    expect(mocks.hasProSubscription).not.toHaveBeenCalled();
+    expect(mocks.insertActivityWithStatusesWithinFreeLimit).not.toHaveBeenCalled();
   });
 
   it("força visibility=individual quando Free pede shared_with_turma", async () => {
@@ -124,9 +149,9 @@ describe("createActivity", () => {
     mocks.userIsTurmaCreatorOrMember.mockResolvedValue(true);
     mocks.subjectBelongsToTurma.mockResolvedValue(true);
     mocks.hasProSubscription.mockResolvedValue(false);
-    mocks.insertActivityWithStatuses.mockResolvedValue({
-      ...baseActivity,
-      visibility: "individual",
+    mocks.insertActivityWithStatusesWithinFreeLimit.mockResolvedValue({
+      ok: true,
+      activity: { ...baseActivity, visibility: "individual" },
     });
 
     const result = await createActivity(creator.id, {
@@ -135,8 +160,9 @@ describe("createActivity", () => {
     });
 
     expect(result.ok).toBe(true);
-    expect(mocks.insertActivityWithStatuses).toHaveBeenCalledWith(
+    expect(mocks.insertActivityWithStatusesWithinFreeLimit).toHaveBeenCalledWith(
       expect.objectContaining({ visibility: "individual" }),
+      20,
     );
   });
 
@@ -159,6 +185,29 @@ describe("createActivity", () => {
     expect(mocks.insertActivityWithStatuses).toHaveBeenCalledWith(
       expect.objectContaining({ visibility: "shared_with_turma" }),
     );
+  });
+
+  it("retorna ACTIVITY_LIMIT_REACHED quando Free atinge limite de 20", async () => {
+    mocks.findTurmaWithSchoolById.mockResolvedValue(baseTurma);
+    mocks.userIsTurmaCreatorOrMember.mockResolvedValue(true);
+    mocks.subjectBelongsToTurma.mockResolvedValue(true);
+    mocks.hasProSubscription.mockResolvedValue(false);
+    mocks.insertActivityWithStatusesWithinFreeLimit.mockResolvedValue({
+      ok: false,
+      current: 20,
+    });
+
+    const result = await createActivity(creator.id, createInput);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("ACTIVITY_LIMIT_REACHED");
+      if (result.error.code === "ACTIVITY_LIMIT_REACHED") {
+        expect(result.error.limit).toBe(20);
+        expect(result.error.current).toBe(20);
+      }
+    }
+    expect(mocks.insertActivityWithStatuses).not.toHaveBeenCalled();
   });
 
   it("rejeita TURMA_NOT_FOUND quando turma não existe", async () => {
