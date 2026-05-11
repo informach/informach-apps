@@ -4,12 +4,14 @@ import { err, ok, type Result } from "@informach/auth/server-actions";
 import { billing } from "@/features/billing/service";
 import { findTurmaWithSchoolById } from "@/features/turmas/repository";
 import {
+  type ActivitiesPage,
   deleteActivityById,
   findActivityById,
   findActivityStatusForProfile,
   hasOtherAcceptances,
   insertActivityWithStatuses,
-  listActivitiesForUser,
+  type ListActivitiesPageOptions,
+  listActivitiesPageForUser,
   listPendingSharedActivitiesForUser,
   listTurmasWithSubjectsForUserForm,
   profileBelongsToUser,
@@ -26,12 +28,7 @@ import type {
   SetActivityStatusInput,
   UpdateActivityInput,
 } from "./schemas";
-import type {
-  Activity,
-  ActivityListItem,
-  PendingSharedActivity,
-  TurmaWithSubjectsForForm,
-} from "./types";
+import type { Activity, PendingSharedActivity, TurmaWithSubjectsForForm } from "./types";
 
 export type ActivityError =
   | { code: "TURMA_NOT_FOUND" }
@@ -167,11 +164,11 @@ export async function setActivityStatus(
   return ok({ statusId: statusRow.id });
 }
 
-export async function getActivitiesForUser(
+export async function getActivitiesPageForUser(
   userId: string,
-  profileFilter: string | null,
-): Promise<ActivityListItem[]> {
-  return listActivitiesForUser(userId, profileFilter);
+  options: ListActivitiesPageOptions,
+): Promise<ActivitiesPage> {
+  return listActivitiesPageForUser(userId, options);
 }
 
 export async function getPendingSharedActivitiesForUser(

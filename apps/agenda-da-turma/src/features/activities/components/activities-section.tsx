@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@informach/ui/components/select";
-import { ListTodo, Plus } from "lucide-react";
+import { ArrowLeft, ArrowRight, ListTodo, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -20,6 +20,10 @@ import { ActivityFormDialog } from "./activity-form-dialog";
 
 type Props = {
   items: ActivityListItem[];
+  /** Cursor pra próxima página; null no fim. */
+  nextCursor: string | null;
+  /** True quando a URL já tem ?cursor= — sinaliza que o user navegou pra page > 1. */
+  isPaginated: boolean;
   profiles: StudentProfile[];
   activeFilter: StudentProfile | null;
   turmasForForm: TurmaWithSubjectsForForm[];
@@ -27,8 +31,26 @@ type Props = {
   isPro: boolean;
 };
 
+// Monta `/atividades?perfil=X&cursor=Y` filtrando params nulos. Cursor null
+// retorna ao começo (primeira página); perfil null retorna pra "Todos".
+function buildAtividadesHref({
+  perfil,
+  cursor,
+}: {
+  perfil: string | null;
+  cursor: string | null;
+}): string {
+  const params = new URLSearchParams();
+  if (perfil) params.set("perfil", perfil);
+  if (cursor) params.set("cursor", cursor);
+  const qs = params.toString();
+  return qs ? `/atividades?${qs}` : "/atividades";
+}
+
 export function ActivitiesSection({
   items,
+  nextCursor,
+  isPaginated,
   profiles,
   activeFilter,
   turmasForForm,
@@ -39,6 +61,7 @@ export function ActivitiesSection({
   const [createOpen, setCreateOpen] = useState(false);
 
   const handleFilterChange = (value: string) => {
+    // Trocar de perfil reseta cursor — começa de novo na página 1.
     if (value === "all") {
       router.push("/atividades");
     } else {
@@ -70,6 +93,8 @@ export function ActivitiesSection({
   }
 
   const canCreate = turmasForForm.length > 0;
+  const filterPerfilId = activeFilter?.id ?? null;
+  const backToStartHref = buildAtividadesHref({ perfil: filterPerfilId, cursor: null });
 
   return (
     <div className="space-y-4">
@@ -123,34 +148,82 @@ export function ActivitiesSection({
             <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
               <ListTodo className="size-6" aria-hidden />
             </span>
-            <div className="space-y-1">
-              <p className="text-base font-semibold text-foreground">
-                {activeFilter
-                  ? `Nenhuma atividade para ${activeFilter.name}`
-                  : "Nenhuma atividade cadastrada"}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Adicione tarefas, provas, trabalhos ou lembretes pra organizar a rotina.
-              </p>
-            </div>
-            <Button type="button" onClick={() => setCreateOpen(true)}>
-              <Plus className="mr-2 size-4" aria-hidden />
-              Nova atividade
-            </Button>
+            {isPaginated ? (
+              <>
+                <div className="space-y-1">
+                  <p className="text-base font-semibold text-foreground">Você chegou ao fim</p>
+                  <p className="text-sm text-muted-foreground">
+                    Não há mais atividades nesta seleção.
+                  </p>
+                </div>
+                <Button asChild variant="outline">
+                  <Link href={backToStartHref}>
+                    <ArrowLeft className="mr-2 size-4" aria-hidden />
+                    Voltar ao início
+                  </Link>
+                </Button>
+              </>
+            ) : (
+              <>
+                <div className="space-y-1">
+                  <p className="text-base font-semibold text-foreground">
+                    {activeFilter
+                      ? `Nenhuma atividade para ${activeFilter.name}`
+                      : "Nenhuma atividade cadastrada"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Adicione tarefas, provas, trabalhos ou lembretes pra organizar a rotina.
+                  </p>
+                </div>
+                <Button type="button" onClick={() => setCreateOpen(true)}>
+                  <Plus className="mr-2 size-4" aria-hidden />
+                  Nova atividade
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
       ) : (
-        <div className="flex flex-col gap-3">
-          {items.map((item) => (
-            <ActivityCard
-              key={item.statusId}
-              item={item}
-              currentUserId={currentUserId}
-              isPro={isPro}
-              turmasForForm={turmasForForm}
-            />
-          ))}
-        </div>
+        <>
+          <div className="flex flex-col gap-3">
+            {items.map((item) => (
+              <ActivityCard
+                key={item.statusId}
+                item={item}
+                currentUserId={currentUserId}
+                isPro={isPro}
+                turmasForForm={turmasForForm}
+              />
+            ))}
+          </div>
+
+          {/* Footer de paginação — forward-only (keyset cursor).
+              "Voltar ao início" reseta cursor sem perder filtro de perfil. */}
+          {(nextCursor || isPaginated) && (
+            <footer className="flex items-center justify-between pt-2">
+              {isPaginated ? (
+                <Button asChild variant="ghost" size="sm">
+                  <Link href={backToStartHref}>
+                    <ArrowLeft className="mr-2 size-4" aria-hidden />
+                    Voltar ao início
+                  </Link>
+                </Button>
+              ) : (
+                <span />
+              )}
+              {nextCursor ? (
+                <Button asChild variant="outline" size="sm">
+                  <Link href={buildAtividadesHref({ perfil: filterPerfilId, cursor: nextCursor })}>
+                    Próxima página
+                    <ArrowRight className="ml-2 size-4" aria-hidden />
+                  </Link>
+                </Button>
+              ) : (
+                <span />
+              )}
+            </footer>
+          )}
+        </>
       )}
 
       <ActivityFormDialog

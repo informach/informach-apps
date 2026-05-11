@@ -40,6 +40,9 @@ export type ActivityListItem = {
   title: string;
   description: string | null;
   dueAt: string;
+  // Necessário pro cursor de paginação (tiebreaker estável quando vários
+  // perfis compartilham a mesma atividade — mesma dueAt). Não usado na UI.
+  activityCreatedAt: Date;
   createdByUserId: string;
   hasOtherAcceptances: boolean;
 };

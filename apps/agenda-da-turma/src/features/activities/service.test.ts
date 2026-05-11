@@ -24,7 +24,7 @@ const mocks = vi.hoisted(() => ({
   findActivityStatusForProfile: vi.fn(),
   updateActivityStatusValue: vi.fn(),
   upsertAcceptanceAndStatuses: vi.fn(),
-  listActivitiesForUser: vi.fn(),
+  listActivitiesPageForUser: vi.fn(),
   listPendingSharedActivitiesForUser: vi.fn(),
   listTurmasWithSubjectsForUserForm: vi.fn(),
 }));
@@ -56,7 +56,7 @@ vi.mock("./repository", () => ({
   findActivityStatusForProfile: mocks.findActivityStatusForProfile,
   updateActivityStatusValue: mocks.updateActivityStatusValue,
   upsertAcceptanceAndStatuses: mocks.upsertAcceptanceAndStatuses,
-  listActivitiesForUser: mocks.listActivitiesForUser,
+  listActivitiesPageForUser: mocks.listActivitiesPageForUser,
   listPendingSharedActivitiesForUser: mocks.listPendingSharedActivitiesForUser,
   listTurmasWithSubjectsForUserForm: mocks.listTurmasWithSubjectsForUserForm,
 }));

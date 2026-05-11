@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, type Database, db, eq, inArray, sql } from "@informach/db";
+import { and, asc, type Database, db, eq, gt, inArray, or, sql } from "@informach/db";
 import {
   agendaActivities,
   agendaActivityAcceptances,
@@ -12,6 +12,7 @@ import {
   agendaTurmas,
   users,
 } from "@informach/db/schema";
+import { DEFAULT_ACTIVITIES_PAGE_SIZE, MAX_ACTIVITIES_PAGE_SIZE } from "./limits";
 import type {
   Activity,
   ActivityListItem,
@@ -250,21 +251,85 @@ export async function upsertAcceptanceAndStatuses(
   });
 }
 
+// Cursor opaco pra paginação keyset da listagem. Encoda o último item
+// retornado como `<dueAt>|<activityCreatedAt ISO>|<statusId>` em base64url —
+// 3 chaves alinhadas com o ORDER BY pra garantir tiebreak determinístico
+// mesmo quando 2 perfis compartilham a mesma atividade (mesma dueAt +
+// mesma createdAt). Espelha o pattern de `@informach/billing/credits/history`.
+type ActivityCursor = { dueAt: string; createdAt: Date; statusId: string };
+
+function encodeActivityCursor(item: ActivityListItem): string {
+  const payload = `${item.dueAt}|${item.activityCreatedAt.toISOString()}|${item.statusId}`;
+  return Buffer.from(payload, "utf8").toString("base64url");
+}
+
+function decodeActivityCursor(cursor: string): ActivityCursor | null {
+  try {
+    const decoded = Buffer.from(cursor, "base64url").toString("utf8");
+    const [dueAt, createdAtIso, statusId] = decoded.split("|");
+    if (!dueAt || !createdAtIso || !statusId) return null;
+    const createdAt = new Date(createdAtIso);
+    if (Number.isNaN(createdAt.getTime())) return null;
+    return { dueAt, createdAt, statusId };
+  } catch {
+    return null;
+  }
+}
+
+export type ListActivitiesPageOptions = {
+  profileFilter: string | null;
+  cursor: string | null;
+  limit?: number;
+};
+
+export type ActivitiesPage = {
+  items: ActivityListItem[];
+  nextCursor: string | null;
+};
+
 // Lista pra `/atividades`. Uma row por (atividade × perfil do user). Filtra
 // por perfil opcionalmente. Inclui `hasOtherAcceptances` via subquery pra
-// guiar UI de edit/delete.
-export async function listActivitiesForUser(
+// guiar UI de edit/delete. Paginação keyset forward-only:
+// - Sem cursor → primeira página
+// - Com cursor → retorna itens "após" o cursor segundo o ORDER BY
+// - `nextCursor` é null quando atinge o fim
+export async function listActivitiesPageForUser(
   userId: string,
-  profileFilter: string | null,
-): Promise<ActivityListItem[]> {
+  options: ListActivitiesPageOptions,
+): Promise<ActivitiesPage> {
+  const limit = Math.min(
+    Math.max(options.limit ?? DEFAULT_ACTIVITIES_PAGE_SIZE, 1),
+    MAX_ACTIVITIES_PAGE_SIZE,
+  );
+
   const hasOtherAcceptancesExpr = sql<boolean>`EXISTS (
     SELECT 1 FROM ${agendaActivityAcceptances} aa
     WHERE aa.activity_id = ${agendaActivities.id} AND aa.accepted = true
   )`;
 
-  const whereExpr = profileFilter
-    ? and(eq(agendaStudentProfiles.userId, userId), eq(agendaStudentProfiles.id, profileFilter))
-    : eq(agendaStudentProfiles.userId, userId);
+  // Cursor pra ASC ordering (dueAt, createdAt, statusId): itens "após" o
+  // cursor. Cursor corrompido/inválido vira "sem cursor" (defensivo).
+  const decoded = options.cursor ? decodeActivityCursor(options.cursor) : null;
+  const cursorClause = decoded
+    ? or(
+        gt(agendaActivities.dueAt, decoded.dueAt),
+        and(
+          eq(agendaActivities.dueAt, decoded.dueAt),
+          gt(agendaActivities.createdAt, decoded.createdAt),
+        ),
+        and(
+          eq(agendaActivities.dueAt, decoded.dueAt),
+          eq(agendaActivities.createdAt, decoded.createdAt),
+          gt(agendaActivityStatuses.id, decoded.statusId),
+        ),
+      )
+    : undefined;
+
+  const whereExpr = and(
+    eq(agendaStudentProfiles.userId, userId),
+    options.profileFilter ? eq(agendaStudentProfiles.id, options.profileFilter) : undefined,
+    cursorClause,
+  );
 
   const rows = await db
     .select({
@@ -286,6 +351,7 @@ export async function listActivitiesForUser(
       title: agendaActivities.title,
       description: agendaActivities.description,
       dueAt: agendaActivities.dueAt,
+      activityCreatedAt: agendaActivities.createdAt,
       createdByUserId: agendaActivities.createdByUserId,
       hasOtherAcceptances: hasOtherAcceptancesExpr,
     })
@@ -299,9 +365,18 @@ export async function listActivitiesForUser(
     .innerJoin(agendaTurmas, eq(agendaTurmas.id, agendaActivities.turmaId))
     .innerJoin(agendaSchools, eq(agendaSchools.inepCode, agendaTurmas.schoolInepCode))
     .where(whereExpr)
-    .orderBy(asc(agendaActivities.dueAt), asc(agendaActivities.createdAt));
+    .orderBy(
+      asc(agendaActivities.dueAt),
+      asc(agendaActivities.createdAt),
+      asc(agendaActivityStatuses.id),
+    )
+    .limit(limit + 1);
 
-  return rows;
+  const hasMore = rows.length > limit;
+  const items = hasMore ? rows.slice(0, limit) : rows;
+  const last = items[items.length - 1];
+  const nextCursor = hasMore && last ? encodeActivityCursor(last) : null;
+  return { items, nextCursor };
 }
 
 // Widget de aceite no dashboard (Pro). Atividades compartilhadas:

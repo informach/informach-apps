@@ -1,5 +1,8 @@
 import { ActivitiesSection } from "@/features/activities/components/activities-section";
-import { getActivitiesForUser, getTurmasWithSubjectsForForm } from "@/features/activities/service";
+import {
+  getActivitiesPageForUser,
+  getTurmasWithSubjectsForForm,
+} from "@/features/activities/service";
 import { getIsProForUser } from "@/features/billing/server-cache";
 import { listStudentProfilesForUser } from "@/features/students/service";
 import { requireUserServer } from "@/lib/auth";
@@ -8,7 +11,7 @@ export const metadata = {
   title: "Atividades — Agenda da Turma",
 };
 
-type SearchParams = { perfil?: string };
+type SearchParams = { perfil?: string; cursor?: string };
 
 export default async function AtividadesPage({
   searchParams,
@@ -18,10 +21,11 @@ export default async function AtividadesPage({
   const user = await requireUserServer();
   const params = await searchParams;
   const filterProfileId = params.perfil ?? null;
+  const cursor = params.cursor ?? null;
 
-  const [profiles, items, turmasForForm, isPro] = await Promise.all([
+  const [profiles, page, turmasForForm, isPro] = await Promise.all([
     listStudentProfilesForUser(user.id),
-    getActivitiesForUser(user.id, filterProfileId),
+    getActivitiesPageForUser(user.id, { profileFilter: filterProfileId, cursor }),
     getTurmasWithSubjectsForForm(user.id),
     getIsProForUser(user.id),
   ]);
@@ -40,7 +44,9 @@ export default async function AtividadesPage({
         </p>
       </header>
       <ActivitiesSection
-        items={items}
+        items={page.items}
+        nextCursor={page.nextCursor}
+        isPaginated={cursor !== null}
         profiles={profiles}
         activeFilter={activeFilter}
         turmasForForm={turmasForForm}
