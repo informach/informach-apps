@@ -145,7 +145,7 @@ describe("transcribeAudio (OpenRouter — JSON+base64 via fetch)", () => {
     expect(body).not.toHaveProperty("language");
   });
 
-  it("forwards prompt in the body when provided", async () => {
+  it("wraps prompt under provider.options.<inferred-slug>.prompt", async () => {
     fetchMock.mockResolvedValue(okResponse("frango"));
 
     await transcribeAudio({
@@ -153,19 +153,64 @@ describe("transcribeAudio (OpenRouter — JSON+base64 via fetch)", () => {
       audio: new Uint8Array([1]),
       format: "wav",
       language: "pt",
+      model: "openai/gpt-4o-transcribe",
       prompt: "Ingredientes brasileiros: frango, arroz, feijão.",
     });
 
-    expect(firstFetchBody().prompt).toBe("Ingredientes brasileiros: frango, arroz, feijão.");
+    const body = firstFetchBody();
+    // OpenRouter descarta `prompt` no topo — só aceita via provider.options.
+    expect(body).not.toHaveProperty("prompt");
+    expect(body.provider).toEqual({
+      options: { openai: { prompt: "Ingredientes brasileiros: frango, arroz, feijão." } },
+    });
   });
 
-  it("omits prompt when not provided", async () => {
+  it("infers provider slug from model id for prompt routing", async () => {
+    fetchMock.mockResolvedValue(okResponse("ok"));
+
+    await transcribeAudio({
+      apiKey: "k",
+      audio: new Uint8Array([1]),
+      format: "wav",
+      model: "groq/whisper-large-v3-turbo",
+      prompt: "Use vocabulary: OpenRouter.",
+    });
+
+    const body = firstFetchBody();
+    expect(body.provider).toEqual({
+      options: { groq: { prompt: "Use vocabulary: OpenRouter." } },
+    });
+  });
+
+  it("forwards temperature when provided (0 is honored)", async () => {
+    fetchMock.mockResolvedValue(okResponse("ok"));
+
+    await transcribeAudio({
+      apiKey: "k",
+      audio: new Uint8Array([1]),
+      format: "wav",
+      temperature: 0,
+    });
+
+    expect(firstFetchBody().temperature).toBe(0);
+  });
+
+  it("omits prompt and provider when prompt not provided", async () => {
     fetchMock.mockResolvedValue(okResponse("ok"));
 
     await transcribeAudio({ apiKey: "k", audio: new Uint8Array(), format: "wav" });
 
     const body = firstFetchBody();
     expect(body).not.toHaveProperty("prompt");
+    expect(body).not.toHaveProperty("provider");
+  });
+
+  it("omits temperature when not provided", async () => {
+    fetchMock.mockResolvedValue(okResponse("ok"));
+
+    await transcribeAudio({ apiKey: "k", audio: new Uint8Array(), format: "wav" });
+
+    expect(firstFetchBody()).not.toHaveProperty("temperature");
   });
 
   it("throws with status code and body snippet when OpenRouter returns non-2xx", async () => {

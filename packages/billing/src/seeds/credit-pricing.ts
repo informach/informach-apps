@@ -23,10 +23,11 @@ export type CreditPricingSeedRow = {
 //   Custo é mitigado via providerOptions.openai.imageDetail = 'low' no caller.
 // - Texto/URL/geração/refino/parse_voice: openai/gpt-4o-mini (5x mais barato
 //   que gpt-4o, suficiente para extração estruturada com schema Zod).
-// - Transcrição de áudio: openai/whisper-large-v3 via OpenRouter
-//   (`/audio/transcriptions` OpenAI-compatible). Substituiu openai/whisper-1
-//   em 2026-05 por precisão muito melhor em pt-BR e em palavras isoladas
-//   (busca de receita por voz). Row antiga fechada por
+// - Transcrição de áudio: openai/gpt-4o-transcribe via OpenRouter
+//   (`/audio/transcriptions` OpenAI-compatible). Modelo da família GPT-4o
+//   (não Whisper), substancialmente melhor para clipes curtos e palavras
+//   isoladas em pt-BR. Sucessor de whisper-large-v3, que por sua vez
+//   substituiu whisper-1 em 2026-05. Rows antigas fechadas por
 //   expireSupersededCozyaPricing antes deste seed.
 //
 // IDs prefixados com `openai/` são convenção do OpenRouter (gateway único do
@@ -71,7 +72,7 @@ export const COZYA_PRICING_SEED: readonly CreditPricingSeedRow[] = [
   },
   {
     feature: "cozya.recipe.transcribe_audio",
-    model: "openai/whisper-large-v3",
+    model: "openai/gpt-4o-transcribe",
     flatCost: 1,
     defaultEstimateCredits: 1,
   },
@@ -126,12 +127,19 @@ export async function expireLegacyCozyaPricing(
  * (era pré-OpenRouter) — aqui o ID já é prefixed mas o modelo virou
  * obsoleto por upgrade de qualidade.
  *
- * 2026-05: cozya.recipe.transcribe_audio migrou openai/whisper-1 →
- * openai/whisper-large-v3 (busca por voz não entendia palavras isoladas
- * em pt-BR; o modelo novo é substancialmente melhor).
+ * 2026-05 (primeira passada): cozya.recipe.transcribe_audio migrou
+ *   openai/whisper-1 → openai/whisper-large-v3 (palavras isoladas em
+ *   pt-BR não eram entendidas).
+ * 2026-05 (segunda passada): mesma feature migrou
+ *   openai/whisper-large-v3 → openai/gpt-4o-transcribe após teste em
+ *   produção mostrar que whisper-large-v3 ainda alucinava em palavras
+ *   isoladas (ex.: "torta") e que o `prompt` estava sendo silenciosamente
+ *   descartado pelo OpenRouter — fix combinado (modelo novo + roteamento
+ *   correto do prompt via provider.options).
  */
 const COZYA_SUPERSEDED_MODELS: readonly { feature: string; model: string }[] = [
   { feature: "cozya.recipe.transcribe_audio", model: "openai/whisper-1" },
+  { feature: "cozya.recipe.transcribe_audio", model: "openai/whisper-large-v3" },
 ] as const;
 
 /**

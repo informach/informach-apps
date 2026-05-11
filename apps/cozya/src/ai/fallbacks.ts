@@ -13,13 +13,16 @@ import type { CozyaModel } from "./models";
  *   estruturação por schema sem ajuste de prompt.
  * - Para vision (`gpt-4o`), Claude 3.5 Sonnet é o backup natural — mesma
  *   capacidade multimodal, fluência PT-BR.
- * - Whisper não tem substituto adequado dentro do OpenRouter; deixamos vazio
- *   para que falhas peguem o `withRetry` em cima e/ou propagem como erro.
+ * - Transcrição (`gpt-4o-transcribe`) não tem substituto direto dentro do
+ *   OpenRouter — `gpt-4o-mini-transcribe` é o equivalente mais barato mas
+ *   menos preciso, e mudar de modelo entre tentativas pode introduzir
+ *   inconsistências de cobrança/qualidade. Deixamos vazio para que falhas
+ *   peguem o `withRetry` em cima e/ou propagem como erro.
  */
 export const COZYA_FALLBACKS: Record<string, readonly string[]> = {
   "openai/gpt-4o-mini": ["openai/gpt-4o"],
   "openai/gpt-4o": ["anthropic/claude-3.5-sonnet"],
-  "openai/whisper-large-v3": [],
+  "openai/gpt-4o-transcribe": [],
 };
 
 /**

@@ -1,4 +1,8 @@
-// Wrap fino sobre o endpoint `/audio/transcriptions` do OpenRouter (Whisper).
+// Wrap fino sobre o endpoint `/audio/transcriptions` do OpenRouter.
+// Cobre qualquer modelo STT OpenAI-style exposto pelo gateway:
+// `openai/whisper-1`, `openai/whisper-large-v3`, `openai/gpt-4o-transcribe`,
+// `openai/gpt-4o-mini-transcribe`, e variantes de outros providers
+// (`groq/whisper-large-v3-turbo` etc).
 //
 // OpenRouter exige `Content-Type: application/json` com o áudio em base64
 // dentro de `input_audio: { data, format }`. NÃO aceita multipart/form-data
@@ -6,6 +10,13 @@
 // (`@openrouter/sdk` `src/funcs/sttCreateTranscription.ts` + `STTRequest`).
 // Tentar multipart gera "No number after minus sign in JSON at position 1"
 // porque o backend tenta parsear o `--boundary...` como JSON.
+//
+// IMPORTANTE: A request schema do OpenRouter aceita apenas `model`,
+// `input_audio`, `language`, `temperature` e `provider`. Campos extras no
+// topo (ex.: `prompt`) são silenciosamente descartados pelo gateway. Para
+// passar `prompt` ao decoder upstream, use o canal `provider.options.<slug>`
+// (passthrough específico por provider) — este helper faz isso automaticamente
+// derivando o slug do `model` (`openai/gpt-4o-transcribe` → `openai`).
 //
 // Frame-agnostic, sem `import "server-only"` para permitir teste com vitest;
 // na prática só roda em route handlers Node (`runtime: "nodejs"`).
@@ -36,15 +47,23 @@ export type TranscribeAudioInput = {
    */
   format?: string;
   /**
-   * Texto opcional que guia a transcrição (~244 tokens). Em Whisper-1 e
-   * Whisper-large-v3 é interpretado como lista de keywords/contexto que
-   * "pré-aquece" o decoder — útil para vocabulário específico (ingredientes
-   * culinários, nomes próprios, jargão técnico).
+   * Texto opcional que guia a transcrição. Em Whisper é lista de keywords
+   * (~244 tokens); em `gpt-4o-transcribe`/`gpt-4o-mini-transcribe` é texto
+   * livre (pode incluir frases descritivas).
    *
-   * Não está documentado na request schema do OpenRouter mas é repassado
-   * para o upstream OpenAI-compatible. Se o gateway ignorar, é no-op.
+   * Roteado via `provider.options.<slug>.prompt` — canal documentado pelo
+   * OpenRouter para passar parâmetros provider-específicos. O slug é
+   * inferido automaticamente do `model` (`openai/gpt-4o-transcribe` →
+   * slug `openai`). Passar no topo do body NÃO funciona — OpenRouter
+   * descarta silenciosamente campos fora da schema.
    */
   prompt?: string;
+  /**
+   * Sampling temperature para a transcrição. Para STT, `0` é a escolha
+   * canônica (reduz alucinação e variabilidade entre chamadas idênticas).
+   * Omitir mantém o default do modelo.
+   */
+  temperature?: number;
 };
 
 export type TranscribeAudioResult = {
@@ -64,6 +83,8 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
   const bytes = await toUint8Array(input.audio);
   const data = bytesToBase64(bytes);
   const format = input.format ?? inferFormatFromBlob(input.audio) ?? "webm";
+  const model = input.model ?? DEFAULT_MODEL;
+  const providerSlug = inferProviderSlug(model);
 
   const response = await fetch(`${baseURL}/audio/transcriptions`, {
     method: "POST",
@@ -75,9 +96,12 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
     },
     body: JSON.stringify({
       input_audio: { data, format },
-      model: input.model ?? DEFAULT_MODEL,
+      model,
       ...(input.language ? { language: input.language } : {}),
-      ...(input.prompt ? { prompt: input.prompt } : {}),
+      ...(input.temperature !== undefined ? { temperature: input.temperature } : {}),
+      ...(input.prompt
+        ? { provider: { options: { [providerSlug]: { prompt: input.prompt } } } }
+        : {}),
     }),
   });
 
@@ -124,6 +148,16 @@ function bytesToBase64(bytes: Uint8Array): string {
 
 function stripTrailingSlash(url: string): string {
   return url.endsWith("/") ? url.slice(0, -1) : url;
+}
+
+/**
+ * Extrai o slug do provider a partir do model ID prefixado pelo OpenRouter.
+ * `openai/gpt-4o-transcribe` → `"openai"`, `groq/whisper-large-v3-turbo` →
+ * `"groq"`. Quando o ID não tem `/`, devolve o próprio ID (fallback raro).
+ */
+function inferProviderSlug(model: string): string {
+  const idx = model.indexOf("/");
+  return idx === -1 ? model : model.slice(0, idx);
 }
 
 function durationFromUsage(usage: unknown): number | undefined {

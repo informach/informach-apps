@@ -14,7 +14,7 @@
 - Factories `createOpenRouter`/`createAnthropic`/`createOpenAI` com `apiKey` injetado (não lê `process.env`). `createOpenRouter` é o caminho preferido — gateway único cobre chat, vision, web search e Whisper transcription.
 - `createDefaultLogger` (PinoLogger pré-configurado).
 - `createDefaultObservability` (Mastra Observability com `DefaultExporter` e `SensitiveDataFilter`; `CloudExporter` é opt-in).
-- `transcribeAudio` (sub-path `./transcription`): wrap fino sobre `/audio/transcriptions` JSON+base64. Aceita `apiKey` + `baseURL` + `model` + `headers`, então funciona contra OpenRouter (`baseURL: "https://openrouter.ai/api/v1"`, `model: "openai/whisper-1"`).
+- `transcribeAudio` (sub-path `./transcription`): wrap fino sobre `/audio/transcriptions` JSON+base64. Aceita `apiKey` + `baseURL` + `model` + `headers` + `language` + `temperature` + `prompt`. Default `model: "openai/whisper-1"` (mantido por backwards-compat — apps modernos passam o modelo explícito). O `prompt` é roteado via `provider.options.<inferred-slug>.prompt` (canal correto do OpenRouter; passar no topo do body é descartado silenciosamente pelo gateway).
 - `runRecordedAiCall`/`runBillableAiCall`: wrappers de execução com retry, auditoria `ai.agent_runs`, normalização de usage e, quando aplicável, reserve→commit/release de créditos.
 - `withCredits`: wrapper reserve→commit/release acoplado ao `@informach/billing`, com validação de custo e correlação de `runId`.
 - `createAgentRunRecorder` + `createDrizzleAgentRunStore`: camada de auditoria nossa em `ai.agent_runs`/`ai.usage_logs`.
@@ -103,7 +103,7 @@ A ligação entre os dois é o `runId` (UUID): `ai.agent_runs.id` ≡ `billing.c
 | `./mastra` | re-exports `Agent`, `Memory`, `Mastra`, `PostgresStore`, `createTool`, `createStep`, `createWorkflow`, `Observability`, `DefaultExporter`, `CloudExporter`, `SensitiveDataFilter`, type `Workflow` | apps importam tudo daqui |
 | `./providers` | `createOpenRouter`, `createAnthropic`, `createOpenAI` | wrappers AI SDK com `apiKey` injetado; OpenRouter também aceita `appName`, `appUrl`, `compatibility`, `extraBody`, `apiKeys` |
 | `./logger` | `createDefaultLogger` | PinoLogger pronto pra `createMastra({ logger })` |
-| `./transcription` | `transcribeAudio({ apiKey, audio, baseURL?, model?, headers?, language?, format? })` | wrap fino sobre o endpoint `/audio/transcriptions` do OpenRouter (JSON+base64). Default `baseURL=https://openrouter.ai/api/v1`, `model=openai/whisper-1`. NÃO usa multipart/form-data (OpenRouter não aceita) — confirmado lendo `@openrouter/sdk` `STTRequest` |
+| `./transcription` | `transcribeAudio({ apiKey, audio, baseURL?, model?, headers?, language?, format?, prompt?, temperature? })` | wrap fino sobre `/audio/transcriptions` do OpenRouter (JSON+base64). Default `baseURL=https://openrouter.ai/api/v1`, `model=openai/whisper-1`. NÃO usa multipart/form-data (OpenRouter não aceita). `prompt` é roteado via `provider.options.<inferred-slug>.prompt` (canal correto — passar no topo do body é descartado pelo gateway); o slug é inferido do `model` (`openai/gpt-4o-transcribe` → `openai`). |
 | `./billing`, `./telemetry`, `./tools`, `./types` | aliases granulares | só úteis em testes ou import seletivo |
 
 Sub-paths removidos do scaffold inicial: `./models`, `./memory`, `./guardrails`, `./prompts`. Eles eram placeholders; absorvidos por `./mastra` ou movidos para `apps/<app>/src/ai/`.
@@ -187,7 +187,7 @@ const result = await generateText({
 });
 ```
 
-Transcrição via OpenRouter (Whisper-1):
+Transcrição via OpenRouter (recomendado: `openai/gpt-4o-transcribe`):
 
 ```ts
 import { transcribeAudio } from "@informach/ai-core/transcription";
@@ -198,7 +198,12 @@ const result = await transcribeAudio({
     ...(env.OPENROUTER_HTTP_REFERER ? { "HTTP-Referer": env.OPENROUTER_HTTP_REFERER } : {}),
     ...(env.OPENROUTER_X_TITLE ? { "X-OpenRouter-Title": env.OPENROUTER_X_TITLE } : {}),
   },
+  model: "openai/gpt-4o-transcribe", // ou "openai/whisper-large-v3"; default é whisper-1
   language: "pt",
+  prompt: "Receita brasileira. Ingredientes comuns: frango, arroz...",
+  // ↑ Roteado internamente para `provider.options.openai.prompt` no body —
+  //   passar no topo é descartado pelo OpenRouter.
+  temperature: 0, // reduz alucinação; recomendado para STT
 });
 // `baseURL` defaults to https://openrouter.ai/api/v1; `model` defaults to "openai/whisper-1".
 // Format is inferred from Blob.type (audio/webm → "webm") com fallback "webm".
