@@ -211,6 +211,65 @@ Listagem: `listTurmasForUser` traz turmas onde **(a) o user é o criador (`creat
 
 `active_turma_id` é mutuamente exclusivo: setar uma turma como ativa só faz UPDATE da coluna; o helper `setActiveTurma` em `service.ts` valida que o perfil é membro antes (`verifyMembership`). Sair da turma (`deleteTurmaMember`) limpa `active_turma_id` na mesma transação se for a turma ativa.
 
+### Governança creator/membro em turmas compartilhadas
+
+Como turmas são compartilhadas entre famílias, edição/exclusão precisa balancear autonomia do creator com proteção dos dados das outras famílias. As regras são:
+
+| Ação | Quem pode | Bloqueado quando |
+|---|---|---|
+| Criar matéria | Qualquer membro da turma (creator ou perfil vinculado de outra família) | — |
+| Editar `teacherName` da matéria | Só quem criou a matéria | — (sempre livre) |
+| Editar `name` da matéria | Só quem criou a matéria | "Em uso por outras famílias" + mudança não é "pequeno ajuste" (regra abaixo) |
+| Excluir matéria | Só quem criou a matéria | "Em uso por outras famílias" (qualquer atividade alheia) |
+| Apagar turma | Só o creator (`turmas.created_by_user_id`) | Outra família tem perfil vinculado (`hasOtherFamilyMembersInTurma`) |
+| Editar turma | (Não existe ainda) — quando criar, mesma regra de apagar | Mesma regra |
+
+**Regra "em uso por outras famílias"** (matérias): qualquer atividade — individual OU compartilhada com a turma — criada por outro usuário e vinculada à matéria conta como uso. Mensagem genérica ("essa matéria está sendo usada por outras famílias") preserva privacidade: não vaza quem nem quantos. **Atividades do próprio criador da matéria NÃO contam** (`created_by_user_id != currentUserId`).
+
+**Regra "pequeno ajuste no nome"** (`isMinorNameEdit` em `features/subjects/utils.ts`): quando o nome está em uso por outras famílias, edição do nome só é permitida se for:
+1. **Normalize-equal** — depois de tirar acento/caixa/pontuação/espaços extras, os nomes coincidem (ex: "matematica" → "Matemática", "Ed. Física" → "Ed Física").
+2. **Distância de edição ≤ 3** (Levenshtein) sobre os nomes normalizados — cobre erro de digitação típico ("Matemtica" → "Matemática", "Geogarfia" → "Geografia").
+
+Mudanças maiores (ex: "Matemática" → "Educação Física") retornam `NAME_CHANGE_TOO_BIG`. Mensagem na UI: "Outras famílias já usam essa matéria. Só ajustes pequenos no nome são permitidos (acento, caixa, erro de digitação)." Quem quiser nome radicalmente diferente: criar matéria nova. **`teacherName` continua livre sempre** — professor não muda o teor da matéria.
+
+**Implementação**: o helper `isSubjectInUseByOtherUsers(subjectId, currentUserId)` em `features/subjects/repository.ts` é hoje **placeholder** retornando `false` — `agenda.activities` ainda não existe, então matérias nunca estão "em uso". Quando a tabela for criada, substituir por `SELECT EXISTS (... WHERE subject_id = $1 AND created_by_user_id != $2)`. O service já invoca o helper em `updateSubject`/`deleteSubject` — basta plugar a query real e os erros `IN_USE_BY_OTHERS` começam a fluir.
+
+**Por que "apagar turma" não tem transferência automática de creator?** Decisão de produto: turmas que perdem o creator viram órfãs (ninguém deleta) mas seguem 100% funcionais — membros ainda criam/editam suas próprias matérias e atividades. Trade-off aceito: simplicidade > housekeeping. Membros que quiserem uma turma 100% sua podem sair desta e criar nova.
+
+### Atividades (próximo bloco — preview do design)
+
+Não existe schema ainda. Quando entrar, o desenho pretendido é:
+
+```ts
+agenda.activities {
+  id uuid PK
+  turma_id uuid NOT NULL REFERENCES agenda.turmas(id) ON DELETE cascade
+  subject_id uuid NOT NULL REFERENCES agenda.subjects(id) ON DELETE cascade
+  student_profile_id uuid NOT NULL REFERENCES agenda.student_profiles(id) ON DELETE cascade
+  created_by_user_id text NOT NULL REFERENCES core.users(id)
+  visibility text NOT NULL CHECK (visibility IN ('individual','shared_with_turma'))
+  type text NOT NULL CHECK (type IN ('task','exam','reminder'))
+  title text NOT NULL
+  description text
+  due_at timestamptz
+  status text NOT NULL DEFAULT 'pending'
+  created_at timestamptz DEFAULT now() NOT NULL
+  updated_at timestamptz DEFAULT now() NOT NULL
+}
+INDEX (turma_id, due_at)
+INDEX (created_by_user_id, due_at)
+INDEX (subject_id) -- pro check `isSubjectInUseByOtherUsers`
+```
+
+**RBAC de visibilidade (enforcement no service)**:
+- **Free**: criar sempre força `visibility = 'individual'`. Listagem filtra `created_by_user_id = currentUserId`. Atividades `shared_with_turma` de outros membros NUNCA aparecem.
+- **Pro**: pode escolher `individual` ou `shared_with_turma` na criação. Listagem inclui suas próprias E `shared_with_turma` de outros membros da turma.
+- Gate único: `hasProSubscription(subject)` do `@informach/billing/access`. Nunca inline `status === 'active'`.
+
+**Edit/delete de atividade**: só o `created_by_user_id`. Sem efeito sobre permissões da matéria — sou eu que perco minhas próprias atividades, livremente.
+
+**Cascade quando matéria é apagada**: como a regra bloqueia delete da matéria enquanto há atividades de OUTRAS famílias, na prática o cascade só roda quando todas as atividades vinculadas são do próprio creator da matéria — perda consciente.
+
 ### Reference data: estados, cidades, escolas
 
 Schema: `agenda.states` (27 rows IBGE), `agenda.cities` (~5570 rows IBGE, FK pra states.uf), `agenda.schools` (~181k rows INEP, FK pra cities.ibge_code). Tabelas auxiliares pra alimentar comboboxes pesquisáveis no cadastro manual de turma.

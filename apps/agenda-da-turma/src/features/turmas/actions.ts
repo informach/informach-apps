@@ -4,11 +4,18 @@ import { action, err, ok } from "@/lib/action";
 import { logger } from "@/lib/logger";
 import {
   createTurmaInputSchema,
+  deleteTurmaInputSchema,
   joinByCodeInputSchema,
   leaveTurmaInputSchema,
   setActiveTurmaInputSchema,
 } from "./schemas";
-import { createOrJoinTurma, joinTurmaByCode, leaveTurma, setActiveTurma } from "./service";
+import {
+  createOrJoinTurma,
+  deleteTurma,
+  joinTurmaByCode,
+  leaveTurma,
+  setActiveTurma,
+} from "./service";
 
 export const createOrJoinTurmaAction = action
   .input(createTurmaInputSchema)
@@ -88,5 +95,20 @@ export const leaveTurmaAction = action
       { userId, turmaId: input.turmaId, profileId: input.profileId },
       "agenda.turma_left",
     );
+    return ok({ ok: true } as const);
+  });
+
+export const deleteTurmaAction = action
+  .input(deleteTurmaInputSchema)
+  .auth({ require: "user" })
+  .rateLimit({ key: "turmas-delete", max: 10, window: "1h" })
+  .run(async ({ input, ctx }) => {
+    const userId = ctx.actor?.id;
+    if (!userId) return err({ code: "UNAUTHORIZED" } as const);
+
+    const result = await deleteTurma(userId, input);
+    if (!result.ok) return err(result.error);
+
+    logger.info({ userId, turmaId: input.turmaId }, "agenda.turma_deleted");
     return ok({ ok: true } as const);
   });

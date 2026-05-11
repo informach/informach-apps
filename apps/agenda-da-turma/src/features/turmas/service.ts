@@ -3,10 +3,12 @@ import "server-only";
 import { err, ok, type Result } from "@informach/auth/server-actions";
 import { findStudentProfileByIdForUser } from "@/features/students/repository";
 import {
+  deleteTurmaById,
   deleteTurmaMember,
   findTurmaByCode,
   findTurmaWithSchoolById,
   generateUniqueTurmaCode,
+  hasOtherFamilyMembersInTurma,
   insertTurmaIfNotExists,
   insertTurmaMember,
   listTurmasForUser,
@@ -15,6 +17,7 @@ import {
 } from "./repository";
 import type {
   CreateTurmaInput,
+  DeleteTurmaInput,
   JoinByCodeInput,
   LeaveTurmaInput,
   SetActiveTurmaInput,
@@ -24,7 +27,9 @@ import type { TurmaForUser, TurmaWithSchool } from "./types";
 export type TurmaError =
   | { code: "PROFILE_NOT_FOUND" }
   | { code: "TURMA_NOT_FOUND" }
-  | { code: "NOT_A_MEMBER" };
+  | { code: "NOT_A_MEMBER" }
+  | { code: "FORBIDDEN" }
+  | { code: "HAS_OTHER_MEMBERS" };
 
 export type CreateOrJoinResult = { turma: TurmaWithSchool; created: boolean };
 
@@ -102,4 +107,25 @@ export async function leaveTurma(
 
 export async function listTurmasForCurrentUser(userId: string): Promise<TurmaForUser[]> {
   return listTurmasForUser(userId);
+}
+
+// Apagar turma: só o creator, e só se NENHUMA outra família tem perfil
+// vinculado. Outras famílias precisam sair primeiro. Cascade do schema
+// (agenda.subjects ON DELETE cascade, agenda.turma_members ON DELETE cascade,
+// agenda.student_profiles.active_turma_id ON DELETE SET NULL) cuida da
+// limpeza derivada — incluindo perfis do próprio creator vinculados à turma.
+export async function deleteTurma(
+  userId: string,
+  input: DeleteTurmaInput,
+): Promise<Result<true, TurmaError>> {
+  const turma = await findTurmaWithSchoolById(input.turmaId);
+  if (!turma) return err({ code: "TURMA_NOT_FOUND" });
+  if (turma.createdByUserId !== userId) return err({ code: "FORBIDDEN" });
+
+  if (await hasOtherFamilyMembersInTurma(input.turmaId, userId)) {
+    return err({ code: "HAS_OTHER_MEMBERS" });
+  }
+
+  await deleteTurmaById(input.turmaId);
+  return ok(true);
 }

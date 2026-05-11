@@ -4,6 +4,7 @@ import {
   index,
   integer,
   pgSchema,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
@@ -130,6 +131,9 @@ export const agendaSubjects = agenda.table(
       .references(() => agendaTurmas.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     teacherName: text("teacher_name"),
+    // Cor visual atribuída no momento do INSERT, 1..5 (chart-1..chart-5).
+    // Escolha free-of-collision por turma feita no repository sob pg_advisory_xact_lock.
+    colorIndex: smallint("color_index").notNull().default(1),
     createdByUserId: text("created_by_user_id")
       .notNull()
       .references(() => users.id),

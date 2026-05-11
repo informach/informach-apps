@@ -40,7 +40,12 @@ export default async function TurmasPage({
           código compartilhado.
         </p>
       </header>
-      <TurmasSection turmas={turmas} profiles={profiles} activeFilter={activeFilter} />
+      <TurmasSection
+        turmas={turmas}
+        profiles={profiles}
+        activeFilter={activeFilter}
+        currentUserId={user.id}
+      />
     </main>
   );
 }

@@ -231,6 +231,39 @@ export async function verifyMembership(profileId: string, turmaId: string): Prom
   return row !== undefined;
 }
 
+// Verifica se há perfis vinculados à turma cujo `userId` != `currentUserId`.
+// Usado pelo guard de "Apagar turma" — só pode apagar quando nenhuma outra
+// família está vinculada (a regra é "outras famílias", não "outros perfis":
+// múltiplos perfis do MESMO user não bloqueiam o creator).
+export async function hasOtherFamilyMembersInTurma(
+  turmaId: string,
+  currentUserId: string,
+): Promise<boolean> {
+  const [row] = await db
+    .select({ id: agendaTurmaMembers.id })
+    .from(agendaTurmaMembers)
+    .innerJoin(
+      agendaStudentProfiles,
+      eq(agendaStudentProfiles.id, agendaTurmaMembers.studentProfileId),
+    )
+    .where(
+      and(
+        eq(agendaTurmaMembers.turmaId, turmaId),
+        sql`${agendaStudentProfiles.userId} <> ${currentUserId}`,
+      ),
+    )
+    .limit(1);
+  return row !== undefined;
+}
+
+export async function deleteTurmaById(turmaId: string): Promise<boolean> {
+  const removed = await db
+    .delete(agendaTurmas)
+    .where(eq(agendaTurmas.id, turmaId))
+    .returning({ id: agendaTurmas.id });
+  return removed.length > 0;
+}
+
 export async function deleteTurmaMember(profileId: string, turmaId: string): Promise<boolean> {
   return db.transaction(async (tx) => {
     // Clear active flag if this is the active turma.

@@ -10,24 +10,28 @@ import {
   DropdownMenuTrigger,
 } from "@informach/ui/components/dropdown-menu";
 import { toast } from "@informach/ui/components/sonner";
-import { BookOpen, Copy, LogOut, MoreVertical, Star, UserPlus } from "lucide-react";
+import { BookOpen, Copy, LogOut, MoreVertical, Star, Trash2, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import type { StudentProfile } from "@/features/students/types";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { joinTurmaByCodeAction, leaveTurmaAction, setActiveTurmaAction } from "../actions";
 import type { TurmaForUser } from "../types";
 import { formatTurmaShort } from "../utils";
+import { DeleteTurmaDialog } from "./delete-turma-dialog";
 
 type Props = {
   turma: TurmaForUser;
   userProfiles: StudentProfile[];
+  currentUserId: string;
 };
 
-export function TurmaCard({ turma, userProfiles }: Props) {
+export function TurmaCard({ turma, userProfiles, currentUserId }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const isCreator = turma.createdByUserId === currentUserId;
 
   const memberProfileIds = new Set(turma.members.map((m) => m.profileId));
   const linkableProfiles = userProfiles.filter((p) => !memberProfileIds.has(p.id));
@@ -129,6 +133,29 @@ export function TurmaCard({ turma, userProfiles }: Props) {
               <Copy className="mr-2 size-3.5" aria-hidden />
               <span className="font-mono text-xs">{turma.code}</span>
             </Button>
+            {isCreator ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Ações da turma ${turma.schoolName}`}
+                  >
+                    <MoreVertical className="size-4" aria-hidden />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onSelect={() => setDeleteOpen(true)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="mr-2 size-4" aria-hidden />
+                    Apagar turma
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
           </div>
         </div>
 
@@ -225,6 +252,15 @@ export function TurmaCard({ turma, userProfiles }: Props) {
           )}
         </div>
       </CardContent>
+
+      {isCreator ? (
+        <DeleteTurmaDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          turmaId={turma.id}
+          schoolName={turma.schoolName}
+        />
+      ) : null}
     </Card>
   );
 }

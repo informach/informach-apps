@@ -45,7 +45,11 @@ export function DeleteSubjectDialog({ open, onOpenChange, subjectId, subjectName
             description: "Pode ter sido removida em outra aba.",
           });
         } else if (result.error.code === "FORBIDDEN") {
-          toast.error("Você não pode excluir matérias dessa turma.");
+          toast.error("Só quem criou essa matéria pode excluir.");
+        } else if (result.error.code === "IN_USE_BY_OTHERS") {
+          toast.error("Essa matéria está sendo usada por outras famílias.", {
+            description: "Não é possível excluir enquanto há atividades vinculadas.",
+          });
         } else {
           toast.error("Não foi possível excluir.", {
             description: "Tente novamente em instantes.",

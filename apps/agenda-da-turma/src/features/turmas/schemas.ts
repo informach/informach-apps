@@ -44,3 +44,8 @@ export type SetActiveTurmaInput = z.output<typeof setActiveTurmaInputSchema>;
 
 export const leaveTurmaInputSchema = setActiveTurmaInputSchema;
 export type LeaveTurmaInput = z.output<typeof leaveTurmaInputSchema>;
+
+export const deleteTurmaInputSchema = z.object({
+  turmaId: z.string().uuid("Identificador de turma inválido"),
+});
+export type DeleteTurmaInput = z.output<typeof deleteTurmaInputSchema>;

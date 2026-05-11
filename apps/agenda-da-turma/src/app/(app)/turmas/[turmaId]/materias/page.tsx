@@ -21,7 +21,7 @@ export default async function SubjectsPage({ params }: { params: Promise<{ turma
     notFound();
   }
 
-  const { turma, subjects, canManage } = result.value;
+  const { turma, subjects, canCreateSubject } = result.value;
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8 md:px-8">
@@ -39,7 +39,12 @@ export default async function SubjectsPage({ params }: { params: Promise<{ turma
           </p>
         </header>
       </div>
-      <SubjectsSection subjects={subjects} turmaId={turma.id} canManage={canManage} />
+      <SubjectsSection
+        subjects={subjects}
+        turmaId={turma.id}
+        currentUserId={user.id}
+        canCreateSubject={canCreateSubject}
+      />
     </main>
   );
 }

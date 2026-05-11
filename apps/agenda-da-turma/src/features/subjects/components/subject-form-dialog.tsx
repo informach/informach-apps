@@ -92,9 +92,16 @@ export function SubjectFormDialog({ open, onOpenChange, turmaId, subject }: Prop
             return;
           }
           if (result.error.code === "FORBIDDEN") {
-            toast.error("Você não pode editar matérias dessa turma.");
+            toast.error("Só quem criou essa matéria pode editar.");
             onOpenChange(false);
             router.refresh();
+            return;
+          }
+          if (result.error.code === "NAME_CHANGE_TOO_BIG") {
+            form.setError("name", {
+              message:
+                "Outras famílias já usam essa matéria. Só ajustes pequenos no nome são permitidos (acento, caixa, erro de digitação).",
+            });
             return;
           }
           if (result.error.code === "DUPLICATE") {
@@ -131,8 +138,8 @@ export function SubjectFormDialog({ open, onOpenChange, turmaId, subject }: Prop
           form.setError("name", { message: "Já existe uma matéria com esse nome nesta turma" });
           return;
         }
-        if (result.error.code === "FORBIDDEN") {
-          toast.error("Você não pode adicionar matérias nesta turma.");
+        if (result.error.code === "NOT_A_MEMBER") {
+          toast.error("Você precisa estar na turma para cadastrar matérias.");
           onOpenChange(false);
           router.refresh();
           return;

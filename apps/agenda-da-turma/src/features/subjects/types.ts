@@ -3,6 +3,7 @@ export type Subject = {
   turmaId: string;
   name: string;
   teacherName: string | null;
+  colorIndex: number;
   createdByUserId: string;
   createdAt: Date;
   updatedAt: Date;

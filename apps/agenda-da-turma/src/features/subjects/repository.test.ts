@@ -8,6 +8,8 @@ const dbMocks = vi.hoisted(() => {
     insert: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+    execute: vi.fn(() => Promise.resolve()),
+    transaction: vi.fn(async (cb: (tx: unknown) => unknown, _opts?: unknown) => await cb(db)),
   };
   return {
     and: vi.fn((...args: unknown[]) => ({ and: args })),
@@ -32,6 +34,7 @@ vi.mock("@informach/db/schema", () => ({
     turmaId: "turma_id",
     name: "name",
     teacherName: "teacher_name",
+    colorIndex: "color_index",
     createdByUserId: "created_by_user_id",
     createdAt: "created_at",
     updatedAt: "updated_at",
@@ -59,22 +62,41 @@ const insertedSubject = {
   turmaId: "turma_1",
   name: "Matemática",
   teacherName: "Carla",
+  colorIndex: 1,
   createdByUserId: "user_1",
   createdAt: new Date(),
   updatedAt: new Date(),
 };
 
+// Captura os values passados pro insert pra que os testes possam asserir
+// que colorIndex foi calculado e incluído.
+let capturedInsertValues: Record<string, unknown> | null = null;
+
 function insertChain(returningRows: unknown[]) {
   return {
-    values: vi.fn(() => ({
-      onConflictDoNothing: vi.fn(() => ({
-        returning: vi.fn(() => Promise.resolve(returningRows)),
-      })),
+    values: vi.fn((values: Record<string, unknown>) => {
+      capturedInsertValues = values;
+      return {
+        onConflictDoNothing: vi.fn(() => ({
+          returning: vi.fn(() => Promise.resolve(returningRows)),
+        })),
+      };
+    }),
+  };
+}
+
+// Cadeia pra `select({ colorIndex }).from(...).where(...)` — `.where()` é
+// thenable e resolve com a lista de rows.
+function selectColorIndexesChain(colorIndexes: number[]) {
+  return {
+    from: vi.fn(() => ({
+      where: vi.fn(() => Promise.resolve(colorIndexes.map((idx) => ({ colorIndex: idx })))),
     })),
   };
 }
 
-function selectExisting(rows: unknown[]) {
+// Cadeia pra `select().from(...).where(...).limit(1)` — resolve no `.limit()`.
+function selectExistingChain(rows: unknown[]) {
   return {
     from: vi.fn(() => ({
       where: vi.fn(() => ({
@@ -96,10 +118,12 @@ function updateChain(returningRows: unknown[]) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  capturedInsertValues = null;
 });
 
 describe("insertSubjectIfNotExists", () => {
-  it("returns created=true when the row was inserted", async () => {
+  it("returns created=true and assigns curated colorIndex=1 for Matemática (turma vazia)", async () => {
+    dbMocks.db.select.mockReturnValueOnce(selectColorIndexesChain([]));
     dbMocks.db.insert.mockReturnValue(insertChain([insertedSubject]));
 
     const result = await insertSubjectIfNotExists({
@@ -111,11 +135,29 @@ describe("insertSubjectIfNotExists", () => {
 
     expect(result.created).toBe(true);
     expect(result.subject.id).toBe(insertedSubject.id);
+    expect(capturedInsertValues?.colorIndex).toBe(1);
+  });
+
+  it("avoids color collision: Redação após Matemática vai pra slot 2", async () => {
+    dbMocks.db.select.mockReturnValueOnce(selectColorIndexesChain([1]));
+    dbMocks.db.insert.mockReturnValue(insertChain([{ ...insertedSubject, id: "subj_2" }]));
+
+    const result = await insertSubjectIfNotExists({
+      turmaId: insertedSubject.turmaId,
+      name: "Redação",
+      teacherName: null,
+      createdByUserId: insertedSubject.createdByUserId,
+    });
+
+    expect(result.created).toBe(true);
+    expect(capturedInsertValues?.colorIndex).toBe(2);
   });
 
   it("returns created=false and the existing row on conflict", async () => {
+    dbMocks.db.select
+      .mockReturnValueOnce(selectColorIndexesChain([]))
+      .mockReturnValueOnce(selectExistingChain([insertedSubject]));
     dbMocks.db.insert.mockReturnValue(insertChain([]));
-    dbMocks.db.select.mockReturnValue(selectExisting([insertedSubject]));
 
     const result = await insertSubjectIfNotExists({
       turmaId: insertedSubject.turmaId,
@@ -129,8 +171,10 @@ describe("insertSubjectIfNotExists", () => {
   });
 
   it("throws when insert returns empty AND no existing row is found", async () => {
+    dbMocks.db.select
+      .mockReturnValueOnce(selectColorIndexesChain([]))
+      .mockReturnValueOnce(selectExistingChain([]));
     dbMocks.db.insert.mockReturnValue(insertChain([]));
-    dbMocks.db.select.mockReturnValue(selectExisting([]));
 
     await expect(
       insertSubjectIfNotExists({

@@ -11,10 +11,11 @@ import { SubjectFormDialog } from "./subject-form-dialog";
 type Props = {
   subjects: Subject[];
   turmaId: string;
-  canManage: boolean;
+  currentUserId: string;
+  canCreateSubject: boolean;
 };
 
-export function SubjectsSection({ subjects, turmaId, canManage }: Props) {
+export function SubjectsSection({ subjects, turmaId, currentUserId, canCreateSubject }: Props) {
   const [createOpen, setCreateOpen] = useState(false);
 
   return (
@@ -25,7 +26,7 @@ export function SubjectsSection({ subjects, turmaId, canManage }: Props) {
             ? "Nenhuma matéria cadastrada nesta turma."
             : `${subjects.length} ${subjects.length === 1 ? "matéria" : "matérias"} cadastrada${subjects.length === 1 ? "" : "s"}.`}
         </p>
-        {canManage ? (
+        {canCreateSubject ? (
           <Button type="button" onClick={() => setCreateOpen(true)}>
             <Plus className="mr-2 size-4" aria-hidden />
             Nova matéria
@@ -41,12 +42,14 @@ export function SubjectsSection({ subjects, turmaId, canManage }: Props) {
             </span>
             <div className="space-y-1">
               <p className="text-base font-semibold text-foreground">
-                {canManage ? "Cadastre as matérias da turma" : "Esta turma ainda não tem matérias"}
+                {canCreateSubject
+                  ? "Cadastre as matérias da turma"
+                  : "Esta turma ainda não tem matérias"}
               </p>
               <p className="text-sm text-muted-foreground">
-                {canManage
-                  ? "As matérias ficam disponíveis para todas as famílias vinculadas a esta turma."
-                  : "Aguarde quem criou a turma cadastrar as matérias."}
+                {canCreateSubject
+                  ? "Qualquer pessoa da turma pode adicionar matérias. Você só edita/exclui as que criou."
+                  : "Aguarde alguém da turma cadastrar as matérias."}
               </p>
             </div>
           </CardContent>
@@ -58,13 +61,13 @@ export function SubjectsSection({ subjects, turmaId, canManage }: Props) {
               key={subject.id}
               subject={subject}
               turmaId={turmaId}
-              canManage={canManage}
+              currentUserId={currentUserId}
             />
           ))}
         </div>
       )}
 
-      {canManage ? (
+      {canCreateSubject ? (
         <SubjectFormDialog open={createOpen} onOpenChange={setCreateOpen} turmaId={turmaId} />
       ) : null}
     </div>

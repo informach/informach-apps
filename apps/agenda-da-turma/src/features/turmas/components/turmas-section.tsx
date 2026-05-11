@@ -23,9 +23,10 @@ type Props = {
   turmas: TurmaForUser[];
   profiles: StudentProfile[];
   activeFilter: StudentProfile | null;
+  currentUserId: string;
 };
 
-export function TurmasSection({ turmas, profiles, activeFilter }: Props) {
+export function TurmasSection({ turmas, profiles, activeFilter, currentUserId }: Props) {
   const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
@@ -114,7 +115,7 @@ export function TurmasSection({ turmas, profiles, activeFilter }: Props) {
       ) : (
         <div className="space-y-3">
           {turmas.map((t) => (
-            <TurmaCard key={t.id} turma={t} userProfiles={profiles} />
+            <TurmaCard key={t.id} turma={t} userProfiles={profiles} currentUserId={currentUserId} />
           ))}
         </div>
       )}

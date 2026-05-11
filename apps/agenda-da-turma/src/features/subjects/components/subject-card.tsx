@@ -8,31 +8,35 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@informach/ui/components/dropdown-menu";
-import { BookOpen, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { Subject } from "../types";
-import { getSubjectIconClass, getSubjectTintedClass } from "../utils";
+import { getSubjectIcon, getSubjectIconClassByIndex, getSubjectTintedClassByIndex } from "../utils";
 import { DeleteSubjectDialog } from "./delete-subject-dialog";
 import { SubjectFormDialog } from "./subject-form-dialog";
 
 type Props = {
   subject: Subject;
   turmaId: string;
-  canManage: boolean;
+  currentUserId: string;
 };
 
-export function SubjectCard({ subject, turmaId, canManage }: Props) {
+export function SubjectCard({ subject, turmaId, currentUserId }: Props) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const Icon = getSubjectIcon(subject.name);
+  // Só o criador da matéria edita/exclui. O service também aplica o guard
+  // (defesa em camadas) — esse check aqui só esconde os botões.
+  const canManage = subject.createdByUserId === currentUserId;
 
   return (
     <>
-      <Card className={getSubjectTintedClass(subject.name)}>
+      <Card className={getSubjectTintedClassByIndex(subject.colorIndex)}>
         <CardContent className="flex items-center gap-4 p-4">
           <span
-            className={`flex size-11 shrink-0 items-center justify-center rounded-full ${getSubjectIconClass(subject.name)}`}
+            className={`flex size-11 shrink-0 items-center justify-center rounded-full ${getSubjectIconClassByIndex(subject.colorIndex)}`}
           >
-            <BookOpen className="size-5" aria-hidden />
+            <Icon className="size-5" aria-hidden />
           </span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-base font-semibold text-foreground">{subject.name}</p>
