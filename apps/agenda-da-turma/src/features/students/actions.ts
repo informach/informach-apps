@@ -1,6 +1,7 @@
 "use server";
 
 import { action, err, ok } from "@/lib/action";
+import { logAgendaAuditEvent } from "@/lib/audit";
 import { logger } from "@/lib/logger";
 import {
   createStudentProfileInputSchema,
@@ -21,6 +22,9 @@ export const createStudentProfileAction = action
     if (!result.ok) return err(result.error);
 
     logger.info({ userId, profileId: result.value.id }, "agenda.student_profile_created");
+    await logAgendaAuditEvent("agenda.student_profile_created", userId, {
+      profileId: result.value.id,
+    });
     return ok({ id: result.value.id } as const);
   });
 
@@ -37,6 +41,9 @@ export const updateStudentProfileAction = action
     if (!result.ok) return err(result.error);
 
     logger.info({ userId, profileId: result.value.id }, "agenda.student_profile_updated");
+    await logAgendaAuditEvent("agenda.student_profile_updated", userId, {
+      profileId: result.value.id,
+    });
     return ok({ id: result.value.id } as const);
   });
 
@@ -52,5 +59,6 @@ export const deleteStudentProfileAction = action
     if (!result.ok) return err(result.error);
 
     logger.info({ userId, profileId: input.id }, "agenda.student_profile_deleted");
+    await logAgendaAuditEvent("agenda.student_profile_deleted", userId, { profileId: input.id });
     return ok({ id: input.id } as const);
   });

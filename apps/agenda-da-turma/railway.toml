@@ -1,0 +1,31 @@
+# Railway service config para o app agenda-da-turma (config-as-code).
+# Wired no Dashboard via Settings -> Service -> Config-as-code -> "apps/agenda-da-turma/railway.toml".
+# Root Directory do service = "/" (raiz do monorepo) para o pnpm workspace
+# resolver os pacotes @informach/* via TypeScript source.
+
+[build]
+builder = "NIXPACKS"
+watchPatterns = [
+  "/apps/agenda-da-turma/**",
+  "/packages/ai-core/**",
+  "/packages/auth/**",
+  "/packages/billing/**",
+  "/packages/config/**",
+  "/packages/db/**",
+  "/packages/emails/**",
+  "/packages/ui/**",
+  "/package.json",
+  "/pnpm-lock.yaml",
+  "/pnpm-workspace.yaml",
+  "/turbo.json"
+]
+# `--prod=false` garante devDependencies no build mesmo quando o Railway define
+# NODE_ENV=production no service. O Next ainda produz bundle de produção.
+buildCommand = "pnpm install --frozen-lockfile --prod=false && pnpm build:agenda-da-turma"
+
+[deploy]
+startCommand = "pnpm start:agenda-da-turma"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

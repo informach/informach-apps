@@ -43,3 +43,14 @@ Eventos de billing devem registrar o ator quando a ação veio de usuário auten
 - Sentry/APM deve receber `payloadKeys`, `eventType`, `actorId` e erro sanitizado, não o payload completo.
 - Falha de persistência do audit permanece best-effort e deve ser reportada via `observability.onAuditPersistenceFailure`.
 - Novo evento exige atualizar a union `AuditEventType`, a union do package emissor quando existir, docs e testes de wiring.
+
+## Eventos da Agenda da Turma
+
+Eventos `agenda.*` registram mutações de domínio do app `agenda-da-turma` com payload mínimo de IDs e flags operacionais. Não gravar nomes de estudantes, nomes de matérias, títulos, descrições ou conteúdo livre de atividades.
+
+Eventos atuais:
+
+- `agenda.student_profile_created`, `agenda.student_profile_updated`, `agenda.student_profile_deleted`
+- `agenda.turma_created_or_joined`, `agenda.turma_joined_by_code`, `agenda.turma_set_active`, `agenda.turma_left`, `agenda.turma_deleted`
+- `agenda.subject_created`, `agenda.subject_updated`, `agenda.subject_deleted`
+- `agenda.activity_created`, `agenda.activity_updated`, `agenda.activity_deleted`, `agenda.activity_status_set`, `agenda.activity_shared_response`

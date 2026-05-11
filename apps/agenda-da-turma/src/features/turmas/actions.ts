@@ -1,6 +1,7 @@
 "use server";
 
 import { action, err, ok } from "@/lib/action";
+import { logAgendaAuditEvent } from "@/lib/audit";
 import { logger } from "@/lib/logger";
 import {
   createTurmaInputSchema,
@@ -37,6 +38,11 @@ export const createOrJoinTurmaAction = action
       },
       "agenda.turma_created_or_joined",
     );
+    await logAgendaAuditEvent("agenda.turma_created_or_joined", userId, {
+      turmaId: result.value.turma.id,
+      created: result.value.created,
+      profileId: input.profileId,
+    });
     return ok({
       turmaId: result.value.turma.id,
       code: result.value.turma.code,
@@ -59,6 +65,10 @@ export const joinTurmaByCodeAction = action
       { userId, turmaId: result.value.turma.id, profileId: input.profileId },
       "agenda.turma_joined_by_code",
     );
+    await logAgendaAuditEvent("agenda.turma_joined_by_code", userId, {
+      turmaId: result.value.turma.id,
+      profileId: input.profileId,
+    });
     return ok({ turmaId: result.value.turma.id } as const);
   });
 
@@ -77,6 +87,10 @@ export const setActiveTurmaAction = action
       { userId, turmaId: input.turmaId, profileId: input.profileId },
       "agenda.turma_set_active",
     );
+    await logAgendaAuditEvent("agenda.turma_set_active", userId, {
+      turmaId: input.turmaId,
+      profileId: input.profileId,
+    });
     return ok({ ok: true } as const);
   });
 
@@ -95,6 +109,10 @@ export const leaveTurmaAction = action
       { userId, turmaId: input.turmaId, profileId: input.profileId },
       "agenda.turma_left",
     );
+    await logAgendaAuditEvent("agenda.turma_left", userId, {
+      turmaId: input.turmaId,
+      profileId: input.profileId,
+    });
     return ok({ ok: true } as const);
   });
 
@@ -110,5 +128,6 @@ export const deleteTurmaAction = action
     if (!result.ok) return err(result.error);
 
     logger.info({ userId, turmaId: input.turmaId }, "agenda.turma_deleted");
+    await logAgendaAuditEvent("agenda.turma_deleted", userId, { turmaId: input.turmaId });
     return ok({ ok: true } as const);
   });

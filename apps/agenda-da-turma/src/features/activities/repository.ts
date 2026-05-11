@@ -95,6 +95,14 @@ export async function listActiveProfilesOfUserInTurma(
     );
 }
 
+export async function userHasActiveProfileInTurma(
+  userId: string,
+  turmaId: string,
+): Promise<boolean> {
+  const [profile] = await listActiveProfilesOfUserInTurma(db, userId, turmaId);
+  return profile !== undefined;
+}
+
 // User pode operar na turma se for o creator OU se tiver ≥1 perfil (ativo ou
 // não) como membro. Usado no membership check de criação.
 export async function userIsTurmaCreatorOrMember(
@@ -341,6 +349,7 @@ function decodeActivityCursor(cursor: string): ActivityCursor | null {
 export type ListActivitiesPageOptions = {
   profileFilter: string | null;
   cursor: string | null;
+  includeSharedFromOthers: boolean;
   limit?: number;
 };
 
@@ -416,6 +425,7 @@ export async function listActivitiesPageForUser(
 
   const whereExpr = and(
     eq(agendaStudentProfiles.userId, userId),
+    options.includeSharedFromOthers ? undefined : eq(agendaActivities.createdByUserId, userId),
     options.profileFilter ? eq(agendaStudentProfiles.id, options.profileFilter) : undefined,
     cursorClause,
   );

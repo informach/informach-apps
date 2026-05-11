@@ -36,7 +36,7 @@ import type { AuthSecurityEvent, ObservabilityHooks } from "./observability";
 import { isRole, type Permission, ROLES, type Role } from "./permissions";
 
 export type { SecondaryStorage } from "better-auth";
-export type { AuditEventType } from "./audit";
+export type { AuditEventType, AuditPayload } from "./audit";
 export { logAuditEvent } from "./audit";
 export type {
   AuthAuditEvent,

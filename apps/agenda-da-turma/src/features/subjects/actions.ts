@@ -1,6 +1,7 @@
 "use server";
 
 import { action, err, ok } from "@/lib/action";
+import { logAgendaAuditEvent } from "@/lib/audit";
 import { logger } from "@/lib/logger";
 import {
   createSubjectInputSchema,
@@ -24,6 +25,10 @@ export const createSubjectAction = action
       { userId, subjectId: result.value.id, turmaId: input.turmaId },
       "agenda.subject_created",
     );
+    await logAgendaAuditEvent("agenda.subject_created", userId, {
+      subjectId: result.value.id,
+      turmaId: input.turmaId,
+    });
     return ok({ id: result.value.id } as const);
   });
 
@@ -39,6 +44,7 @@ export const updateSubjectAction = action
     if (!result.ok) return err(result.error);
 
     logger.info({ userId, subjectId: result.value.id }, "agenda.subject_updated");
+    await logAgendaAuditEvent("agenda.subject_updated", userId, { subjectId: result.value.id });
     return ok({ id: result.value.id } as const);
   });
 
@@ -54,5 +60,6 @@ export const deleteSubjectAction = action
     if (!result.ok) return err(result.error);
 
     logger.info({ userId, subjectId: input.id }, "agenda.subject_deleted");
+    await logAgendaAuditEvent("agenda.subject_deleted", userId, { subjectId: input.id });
     return ok({ id: input.id } as const);
   });

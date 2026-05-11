@@ -22,6 +22,7 @@ import {
   updateActivityById,
   updateActivityStatusValue,
   upsertAcceptanceAndStatuses,
+  userHasActiveProfileInTurma,
   userIsTurmaCreatorOrMember,
 } from "./repository";
 import type {
@@ -41,6 +42,7 @@ export type ActivityError =
   | { code: "NOT_FOUND" }
   | { code: "HAS_ACCEPTANCES" }
   | { code: "NOT_SHARED" }
+  | { code: "PRO_REQUIRED" }
   | { code: "INVALID_PROFILE" }
   | { code: "ACTIVITY_LIMIT_REACHED"; limit: number; current: number };
 
@@ -159,9 +161,12 @@ export async function respondSharedActivity(
   if (activity.visibility !== "shared_with_turma") return err({ code: "NOT_SHARED" });
   if (activity.createdByUserId === userId) return err({ code: "FORBIDDEN" });
 
+  const isPro = await billing.hasProSubscription(userSubject(userId));
+  if (!isPro) return err({ code: "PRO_REQUIRED" });
+
   // User só pode responder se tem perfil ativo na turma — senão a aceitação
   // não geraria status rows pra ninguém.
-  const isMember = await userIsTurmaCreatorOrMember(userId, activity.turmaId);
+  const isMember = await userHasActiveProfileInTurma(userId, activity.turmaId);
   if (!isMember) return err({ code: "NOT_A_MEMBER" });
 
   await upsertAcceptanceAndStatuses(activity.id, userId, input.accepted, activity.turmaId);
@@ -185,9 +190,10 @@ export async function setActivityStatus(
 
 export async function getActivitiesPageForUser(
   userId: string,
-  options: ListActivitiesPageOptions,
+  options: Omit<ListActivitiesPageOptions, "includeSharedFromOthers">,
 ): Promise<ActivitiesPage> {
-  return listActivitiesPageForUser(userId, options);
+  const isPro = await billing.hasProSubscription(userSubject(userId));
+  return listActivitiesPageForUser(userId, { ...options, includeSharedFromOthers: isPro });
 }
 
 export async function getActivitiesCreatedCountForUser(userId: string): Promise<number> {

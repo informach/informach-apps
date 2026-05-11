@@ -1,6 +1,7 @@
 "use server";
 
 import { action, err, ok } from "@/lib/action";
+import { logAgendaAuditEvent } from "@/lib/audit";
 import { logger } from "@/lib/logger";
 import {
   createActivityInputSchema,
@@ -38,6 +39,13 @@ export const createActivityAction = action
       },
       "agenda.activity_created",
     );
+    await logAgendaAuditEvent("agenda.activity_created", userId, {
+      activityId: result.value.id,
+      turmaId: input.turmaId,
+      subjectId: input.subjectId,
+      type: input.type,
+      visibility: result.value.visibility,
+    });
     return ok({ id: result.value.id } as const);
   });
 
@@ -53,6 +61,7 @@ export const updateActivityAction = action
     if (!result.ok) return err(result.error);
 
     logger.info({ userId, activityId: result.value.id }, "agenda.activity_updated");
+    await logAgendaAuditEvent("agenda.activity_updated", userId, { activityId: result.value.id });
     return ok({ id: result.value.id } as const);
   });
 
@@ -68,6 +77,7 @@ export const deleteActivityAction = action
     if (!result.ok) return err(result.error);
 
     logger.info({ userId, activityId: input.id }, "agenda.activity_deleted");
+    await logAgendaAuditEvent("agenda.activity_deleted", userId, { activityId: input.id });
     return ok({ id: input.id } as const);
   });
 
@@ -86,6 +96,12 @@ export const setActivityStatusAction = action
       { userId, activityId: input.activityId, status: input.status },
       "agenda.activity_status_set",
     );
+    await logAgendaAuditEvent("agenda.activity_status_set", userId, {
+      activityId: input.activityId,
+      statusId: result.value.statusId,
+      studentProfileId: input.studentProfileId,
+      status: input.status,
+    });
     return ok({ statusId: result.value.statusId } as const);
   });
 
@@ -104,5 +120,9 @@ export const respondSharedActivityAction = action
       { userId, activityId: result.value.activityId, accepted: result.value.accepted },
       "agenda.activity_shared_response",
     );
+    await logAgendaAuditEvent("agenda.activity_shared_response", userId, {
+      activityId: result.value.activityId,
+      accepted: result.value.accepted,
+    });
     return ok({ activityId: result.value.activityId } as const);
   });

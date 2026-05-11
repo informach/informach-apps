@@ -127,7 +127,7 @@ export const PRODUCTS: readonly Product[] = [
     },
     listPrice: { amountCents: 1790, currency: "BRL" },
   },
-  // Agenda da Turma — paridade com Cozya (R$ 14,90/mês, R$ 149/ano, 50 créditos/mês,
+  // Agenda da Turma — R$ 19,90/mês, R$ 199/ano, 50 créditos/mês,
   // packs 10/20/30 a R$ 6,90/12,90/17,90). Stripe Price IDs ficam como `price_TODO_*`
   // até o time configurar produtos no Stripe Dashboard (test+live). `isStripePriceIdConfigured`
   // rejeita placeholders e o boot do app trava em produção até IDs reais entrarem.

@@ -232,7 +232,7 @@ Como turmas são compartilhadas entre famílias, edição/exclusão precisa bala
 
 Mudanças maiores (ex: "Matemática" → "Educação Física") retornam `NAME_CHANGE_TOO_BIG`. Mensagem na UI: "Outras famílias já usam essa matéria. Só ajustes pequenos no nome são permitidos (acento, caixa, erro de digitação)." Quem quiser nome radicalmente diferente: criar matéria nova. **`teacherName` continua livre sempre** — professor não muda o teor da matéria.
 
-**Implementação**: o helper `isSubjectInUseByOtherUsers(subjectId, currentUserId)` em `features/subjects/repository.ts` é hoje **placeholder** retornando `false` — `agenda.activities` ainda não existe, então matérias nunca estão "em uso". Quando a tabela for criada, substituir por `SELECT EXISTS (... WHERE subject_id = $1 AND created_by_user_id != $2)`. O service já invoca o helper em `updateSubject`/`deleteSubject` — basta plugar a query real e os erros `IN_USE_BY_OTHERS` começam a fluir.
+**Implementação**: o helper `isSubjectInUseByOtherUsers(subjectId, currentUserId)` em `features/subjects/repository.ts` consulta `agenda.activities` com `subject_id = $1 AND created_by_user_id != $2`. O service invoca esse helper em `updateSubject`/`deleteSubject` e retorna `IN_USE_BY_OTHERS` quando outra família usa a matéria.
 
 **Por que "apagar turma" não tem transferência automática de creator?** Decisão de produto: turmas que perdem o creator viram órfãs (ninguém deleta) mas seguem 100% funcionais — membros ainda criam/editam suas próprias matérias e atividades. Trade-off aceito: simplicidade > housekeeping. Membros que quiserem uma turma 100% sua podem sair desta e criar nova.
 
@@ -335,14 +335,13 @@ Neutros (`background, foreground, card, popover, muted, accent, border, input, s
 Ordem rough de prioridade quando produto evoluir:
 
 1. **Dashboard real** — hoje só widget de billing + saudação. Adicionar features de agenda (tarefas/provas/lembretes) é o próximo grande bloco de produto.
-2. **`apps/agenda-da-turma/railway.toml`** — não existe ainda. Quando deploy for plugado, copiar pattern do cozya (`pnpm install --frozen-lockfile --prod=false && pnpm build:agenda-da-turma`, healthcheck `/api/health`).
+2. **Wiring Railway Dashboard** — `apps/agenda-da-turma/railway.toml` existe. Ainda precisa apontar o service no Railway para esse Config Path quando o deploy for plugado.
 3. **Price IDs live** — substituir todos os `price_TODO_*` da Agenda em `packages/config/src/products.ts` antes de habilitar Pro/Pacotes em produção. O boot guard em `src/lib/billing.ts` trava se faltar algum.
-4. **PWA** — sem manifest, sem icons (só `public/logotipo.svg`). Pattern em `apps/cozya/src/app/{manifest.ts,apple-icon.png,icon.png,icon.svg}` + `metadata.appleWebApp` em `layout.tsx`.
-5. **CSP nonce per-request** — `next.config.ts` já aplica security headers e CSP estática. Se a Agenda passar a precisar de scripts inline próprios, evoluir para o pattern com nonce em `apps/cozya/src/lib/csp.ts` + `apps/cozya/next.config.ts:headers()`.
-6. **Rate limit anti-script** — `lib/rate-limit.ts` com Postgres-via-Redis ainda não existe. Replicar pattern do cozya quando feature de IA chegar (defesa em camadas além do cap mensal de créditos).
-7. **IA pipeline** — descrito em §2 acima. Bloco grande: agentes Mastra + seed `creditPricing` + integração `withCredits`/`runBillableAiCall`.
-8. **Site header pra dashboard** — `site-header.tsx` hoje é minimalista (só auth pages). Quando dashboard tiver navegação real, evoluir pro pattern variant igual `apps/cozya/src/components/marketing/site-header.tsx`.
-9. **Landing pública** — `app/page.tsx` é placeholder. Decisão de produto: ter landing própria em `agenda-da-turma.informach.com.br/` ou redirect pra `informach.com.br/agenda-da-turma`?
+4. **CSP nonce per-request** — `next.config.ts` já aplica security headers e CSP estática. Se a Agenda passar a precisar de scripts inline próprios, evoluir para o pattern com nonce em `apps/cozya/src/lib/csp.ts` + `apps/cozya/next.config.ts:headers()`.
+5. **Rate limit anti-script** — `lib/rate-limit.ts` com Postgres-via-Redis ainda não existe. Replicar pattern do cozya quando feature de IA chegar (defesa em camadas além do cap mensal de créditos).
+6. **IA pipeline** — descrito em §2 acima. Bloco grande: agentes Mastra + seed `creditPricing` + integração `withCredits`/`runBillableAiCall`.
+7. **Site header pra dashboard** — `site-header.tsx` hoje é minimalista (só auth pages). Quando dashboard tiver navegação real, evoluir pro pattern variant igual `apps/cozya/src/components/marketing/site-header.tsx`.
+8. **Landing pública** — `app/page.tsx` é placeholder. Decisão de produto: ter landing própria em `agenda-da-turma.informach.com.br/` ou redirect pra `informach.com.br/agenda-da-turma`?
 
 ---
 

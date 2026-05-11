@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createActivity,
   deleteActivity,
+  getActivitiesPageForUser,
   respondSharedActivity,
   setActivityStatus,
   updateActivity,
@@ -16,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   findActivityById: vi.fn(),
   subjectBelongsToTurma: vi.fn(),
   profileBelongsToUser: vi.fn(),
+  userHasActiveProfileInTurma: vi.fn(),
   userIsTurmaCreatorOrMember: vi.fn(),
   hasOtherAcceptances: vi.fn(),
   insertActivityWithStatuses: vi.fn(),
@@ -50,6 +52,7 @@ vi.mock("./repository", () => ({
   findActivityById: mocks.findActivityById,
   subjectBelongsToTurma: mocks.subjectBelongsToTurma,
   profileBelongsToUser: mocks.profileBelongsToUser,
+  userHasActiveProfileInTurma: mocks.userHasActiveProfileInTurma,
   userIsTurmaCreatorOrMember: mocks.userIsTurmaCreatorOrMember,
   hasOtherAcceptances: mocks.hasOtherAcceptances,
   insertActivityWithStatuses: mocks.insertActivityWithStatuses,
@@ -380,7 +383,8 @@ describe("respondSharedActivity", () => {
 
   it("aceita compartilhada de outro user e gera statuses", async () => {
     mocks.findActivityById.mockResolvedValue(sharedActivity);
-    mocks.userIsTurmaCreatorOrMember.mockResolvedValue(true);
+    mocks.hasProSubscription.mockResolvedValue(true);
+    mocks.userHasActiveProfileInTurma.mockResolvedValue(true);
 
     const result = await respondSharedActivity(other.id, { activityId, accepted: true });
 
@@ -395,7 +399,8 @@ describe("respondSharedActivity", () => {
 
   it("rejeita compartilhada sem gerar statuses", async () => {
     mocks.findActivityById.mockResolvedValue(sharedActivity);
-    mocks.userIsTurmaCreatorOrMember.mockResolvedValue(true);
+    mocks.hasProSubscription.mockResolvedValue(true);
+    mocks.userHasActiveProfileInTurma.mockResolvedValue(true);
 
     const result = await respondSharedActivity(other.id, { activityId, accepted: false });
 
@@ -427,9 +432,22 @@ describe("respondSharedActivity", () => {
     if (!result.ok) expect(result.error.code).toBe("FORBIDDEN");
   });
 
+  it("rejeita PRO_REQUIRED quando Free tenta responder compartilhada", async () => {
+    mocks.findActivityById.mockResolvedValue(sharedActivity);
+    mocks.hasProSubscription.mockResolvedValue(false);
+
+    const result = await respondSharedActivity(other.id, { activityId, accepted: true });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("PRO_REQUIRED");
+    expect(mocks.userHasActiveProfileInTurma).not.toHaveBeenCalled();
+    expect(mocks.upsertAcceptanceAndStatuses).not.toHaveBeenCalled();
+  });
+
   it("rejeita NOT_A_MEMBER quando user não é da turma", async () => {
     mocks.findActivityById.mockResolvedValue(sharedActivity);
-    mocks.userIsTurmaCreatorOrMember.mockResolvedValue(false);
+    mocks.hasProSubscription.mockResolvedValue(true);
+    mocks.userHasActiveProfileInTurma.mockResolvedValue(false);
 
     const result = await respondSharedActivity(other.id, { activityId, accepted: true });
 
@@ -444,5 +462,43 @@ describe("respondSharedActivity", () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe("NOT_FOUND");
+  });
+});
+
+describe("getActivitiesPageForUser", () => {
+  const emptyPage = { items: [], nextCursor: null };
+
+  it("restringe atividades compartilhadas de outros usuários para Free", async () => {
+    mocks.hasProSubscription.mockResolvedValue(false);
+    mocks.listActivitiesPageForUser.mockResolvedValue(emptyPage);
+
+    const result = await getActivitiesPageForUser(other.id, {
+      profileFilter: null,
+      cursor: null,
+    });
+
+    expect(result).toBe(emptyPage);
+    expect(mocks.listActivitiesPageForUser).toHaveBeenCalledWith(other.id, {
+      profileFilter: null,
+      cursor: null,
+      includeSharedFromOthers: false,
+    });
+  });
+
+  it("inclui atividades compartilhadas de outros usuários para Pro", async () => {
+    mocks.hasProSubscription.mockResolvedValue(true);
+    mocks.listActivitiesPageForUser.mockResolvedValue(emptyPage);
+
+    const result = await getActivitiesPageForUser(other.id, {
+      profileFilter: profileId,
+      cursor: "cursor_1",
+    });
+
+    expect(result).toBe(emptyPage);
+    expect(mocks.listActivitiesPageForUser).toHaveBeenCalledWith(other.id, {
+      profileFilter: profileId,
+      cursor: "cursor_1",
+      includeSharedFromOthers: true,
+    });
   });
 });

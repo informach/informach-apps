@@ -51,6 +51,8 @@ vi.mock("@informach/auth", () => ({
   logAuditEvent: mocks.logAuditEvent,
 }));
 
+vi.mock("server-only", () => ({}));
+
 vi.mock("@informach/auth/server", () => ({
   createServerHelpers: mocks.createServerHelpers,
 }));
@@ -146,6 +148,20 @@ describe("audit wiring", () => {
     });
     expect(mocks.logAuditEvent).toHaveBeenCalledWith("email.delivery_sent", "user-1", {
       deliveryId: "delivery-1",
+    });
+  });
+
+  it("keeps agenda domain events connected to the audit pipeline", async () => {
+    const { logAgendaAuditEvent } = await import("../audit");
+
+    await logAgendaAuditEvent("agenda.activity_shared_response", "user-1", {
+      activityId: "activity-1",
+      accepted: true,
+    });
+
+    expect(mocks.logAuditEvent).toHaveBeenCalledWith("agenda.activity_shared_response", "user-1", {
+      activityId: "activity-1",
+      accepted: true,
     });
   });
 });
