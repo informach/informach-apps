@@ -1,7 +1,8 @@
 import "server-only";
 
-import { and, asc, type Database, db, eq, sql } from "@informach/db";
+import { and, asc, type Database, db, eq, ne, sql } from "@informach/db";
 import {
+  agendaActivities,
   agendaSchools,
   agendaStudentProfiles,
   agendaSubjects,
@@ -121,26 +122,26 @@ export async function deleteSubjectById(id: string): Promise<boolean> {
   return removed.length > 0;
 }
 
-// Placeholder até `agenda.activities` ser implementado. Quando a tabela existir,
-// substituir o corpo por:
-//   const [row] = await db
-//     .select({ exists: sql<boolean>`true` })
-//     .from(agendaActivities)
-//     .where(
-//       and(
-//         eq(agendaActivities.subjectId, subjectId),
-//         ne(agendaActivities.createdByUserId, currentUserId),
-//       ),
-//     )
-//     .limit(1);
-//   return row !== undefined;
-// Enquanto isso, matéria nunca está "em uso por outras famílias" — service
-// libera edit/delete pra quem criou. Veja apps/agenda-da-turma/CLAUDE.md §6.
+// Há alguma atividade vinculada à matéria criada por um usuário diferente
+// do creator? Usado pelo service de matérias pra (a) bloquear delete e (b)
+// permitir só "ajustes pequenos" no nome (`isMinorNameEdit`). Atividades do
+// próprio creator não contam — quem fez a matéria pode mexer livremente nas
+// suas próprias atividades.
 export async function isSubjectInUseByOtherUsers(
-  _subjectId: string,
-  _currentUserId: string,
+  subjectId: string,
+  currentUserId: string,
 ): Promise<boolean> {
-  return false;
+  const [row] = await db
+    .select({ id: agendaActivities.id })
+    .from(agendaActivities)
+    .where(
+      and(
+        eq(agendaActivities.subjectId, subjectId),
+        ne(agendaActivities.createdByUserId, currentUserId),
+      ),
+    )
+    .limit(1);
+  return row !== undefined;
 }
 
 // Turmas das quais o user é creator E que estão como activeTurma de algum perfil dele

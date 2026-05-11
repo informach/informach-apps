@@ -1,5 +1,6 @@
 import {
   type AnyPgColumn,
+  boolean,
   date,
   index,
   integer,
@@ -146,6 +147,99 @@ export const agendaSubjects = agenda.table(
   ],
 );
 
+// Atividades (tarefa/prova/trabalho/lembrete) pertencem à turma. Status é
+// individual por perfil (tabela separada) — uma atividade compartilhada não
+// tem "status global", cada perfil de cada família tem o seu próprio rastro.
+// Edit/delete só pelo criador; bloqueado quando outra família já aceitou.
+export const agendaActivities = agenda.table(
+  "activities",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    turmaId: uuid("turma_id")
+      .notNull()
+      .references(() => agendaTurmas.id, { onDelete: "cascade" }),
+    subjectId: uuid("subject_id")
+      .notNull()
+      .references(() => agendaSubjects.id, { onDelete: "cascade" }),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    type: text("type", {
+      enum: ["task", "exam", "project", "reminder"],
+    }).notNull(),
+    visibility: text("visibility", {
+      enum: ["individual", "shared_with_turma"],
+    })
+      .notNull()
+      .default("individual"),
+    title: text("title").notNull(),
+    description: text("description"),
+    // Só a data (sem hora nem timezone) — atividades escolares são "entrega no
+    // dia X". Drizzle mode default devolve string "YYYY-MM-DD", igual
+    // student_profiles.birthDate.
+    dueAt: date("due_at").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("agenda_activities_turma_due_idx").on(t.turmaId, t.dueAt),
+    index("agenda_activities_creator_due_idx").on(t.createdByUserId, t.dueAt),
+    // Suporta `isSubjectInUseByOtherUsers` no service de matérias.
+    index("agenda_activities_subject_idx").on(t.subjectId),
+  ],
+);
+
+// Status individual por perfil. Quando a atividade é criada, geramos uma row
+// por perfil ativo do criador na turma. Quando outro usuário Pro aceita a
+// atividade compartilhada, geramos rows pros perfis ativos dele na turma.
+// `done` é terminal mas reversível (user pode marcar como pending de novo).
+export const agendaActivityStatuses = agenda.table(
+  "activity_statuses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    activityId: uuid("activity_id")
+      .notNull()
+      .references(() => agendaActivities.id, { onDelete: "cascade" }),
+    studentProfileId: uuid("student_profile_id")
+      .notNull()
+      .references(() => agendaStudentProfiles.id, { onDelete: "cascade" }),
+    status: text("status", {
+      enum: ["pending", "done"],
+    })
+      .notNull()
+      .default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("agenda_activity_statuses_unique_idx").on(t.activityId, t.studentProfileId),
+    index("agenda_activity_statuses_profile_idx").on(t.studentProfileId, t.status),
+  ],
+);
+
+// Aceite/rejeite de atividade compartilhada por outro user (não-creator) da
+// turma. O criador NÃO tem row aqui — aceite implícito. `accepted=true`
+// gera status rows pros perfis ativos do user; `accepted=false` apenas
+// silencia o widget de aceitação no dashboard.
+export const agendaActivityAcceptances = agenda.table(
+  "activity_acceptances",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    activityId: uuid("activity_id")
+      .notNull()
+      .references(() => agendaActivities.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    accepted: boolean("accepted").notNull(),
+    respondedAt: timestamp("responded_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("agenda_activity_acceptances_unique_idx").on(t.activityId, t.userId),
+    index("agenda_activity_acceptances_user_idx").on(t.userId, t.accepted),
+  ],
+);
+
 export type AgendaState = typeof agendaStates.$inferSelect;
 export type AgendaCity = typeof agendaCities.$inferSelect;
 export type AgendaSchool = typeof agendaSchools.$inferSelect;
@@ -157,3 +251,9 @@ export type AgendaStudentProfile = typeof agendaStudentProfiles.$inferSelect;
 export type NewAgendaStudentProfile = typeof agendaStudentProfiles.$inferInsert;
 export type AgendaSubject = typeof agendaSubjects.$inferSelect;
 export type NewAgendaSubject = typeof agendaSubjects.$inferInsert;
+export type AgendaActivity = typeof agendaActivities.$inferSelect;
+export type NewAgendaActivity = typeof agendaActivities.$inferInsert;
+export type AgendaActivityStatus = typeof agendaActivityStatuses.$inferSelect;
+export type NewAgendaActivityStatus = typeof agendaActivityStatuses.$inferInsert;
+export type AgendaActivityAcceptance = typeof agendaActivityAcceptances.$inferSelect;
+export type NewAgendaActivityAcceptance = typeof agendaActivityAcceptances.$inferInsert;

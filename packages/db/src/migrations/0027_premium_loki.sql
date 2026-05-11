@@ -1,0 +1,1 @@
+ALTER TABLE "agenda"."activities" ALTER COLUMN "due_at" SET DATA TYPE date;

@@ -1,3 +1,6 @@
+import { SharedActivitiesWidget } from "@/features/activities/components/shared-activities-widget";
+import { getPendingSharedActivitiesForUser } from "@/features/activities/service";
+import { getIsProForUser } from "@/features/billing/server-cache";
 import { NoStudentsWidget } from "@/features/students/components/no-students-widget";
 import { ProfilesWithoutTurmaWidget } from "@/features/students/components/profiles-without-turma-widget";
 import {
@@ -14,11 +17,20 @@ export const metadata = {
 
 export default async function DashboardPage() {
   const user = await requireUserServer();
-  const [profilesCount, profilesWithoutTurma, turmasNeedingSubjects] = await Promise.all([
+  const [profilesCount, profilesWithoutTurma, turmasNeedingSubjects, isPro] = await Promise.all([
     countUserStudentProfiles(user.id),
     countUserProfilesWithoutTurma(user.id),
     listTurmasNeedingSubjectsForUser(user.id),
+    getIsProForUser(user.id),
   ]);
+
+  // Widget de aceite só faz sentido quando o onboarding tá completo
+  // (profiles + turmas + matérias) E o user é Pro. Fora isso, atividades
+  // compartilhadas nem são visíveis pra esse user.
+  const onboardingDone =
+    profilesCount > 0 && profilesWithoutTurma === 0 && turmasNeedingSubjects.length === 0;
+  const pendingShared =
+    isPro && onboardingDone ? await getPendingSharedActivitiesForUser(user.id) : [];
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 md:px-8">
@@ -37,7 +49,7 @@ export default async function DashboardPage() {
         <NoSubjectsWidget turmas={turmasNeedingSubjects} />
       ) : null}
 
-      <p className="text-sm text-muted-foreground">Em breve: tarefas, provas e recados da turma.</p>
+      {pendingShared.length > 0 ? <SharedActivitiesWidget items={pendingShared} /> : null}
     </main>
   );
 }
