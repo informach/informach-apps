@@ -29,14 +29,10 @@ export function BillingFlash() {
 
   if (credits === "success") {
     return (
-      <Alert className="border-emerald-200 bg-emerald-50 dark:border-emerald-900/60 dark:bg-emerald-950/30">
-        <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden />
-        <AlertTitle className="text-emerald-900 dark:text-emerald-100">
-          Compra confirmada!
-        </AlertTitle>
-        <AlertDescription className="text-emerald-800/90 dark:text-emerald-200/80">
-          Os créditos já estão no seu saldo.
-        </AlertDescription>
+      <Alert className="border-success/40 bg-success/10 [&>svg]:text-success">
+        <CheckCircle2 className="size-4" aria-hidden />
+        <AlertTitle>Compra confirmada!</AlertTitle>
+        <AlertDescription>Os créditos já estão no seu saldo.</AlertDescription>
       </Alert>
     );
   }

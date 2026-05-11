@@ -23,6 +23,10 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-overlay: var(--overlay);
   --color-border: var(--border);
   --color-input: var(--input);
@@ -96,6 +100,16 @@
 
   --destructive: oklch(0.5783 0.2301 28.5639);
   --destructive-foreground: oklch(1 0 0);
+
+  /* Semânticos cross-app: sucesso (verde) e atenção (âmbar). Independentes
+     do chart-palette do app — todo app comunica sucesso/aviso da mesma forma.
+     Apps podem sobrescrever se quiserem afinar o matiz, mas o default deve
+     bastar pra mensagens de status de billing, banners de confirmação, etc. */
+  --success: oklch(0.7032 0.1495 162.5);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.7681 0.1696 70.08);
+  --warning-foreground: oklch(0.1591 0 0);
+
   --overlay: oklch(0 0 0 / 0.8);
 
   --border: oklch(0.9461 0 0);
@@ -170,6 +184,13 @@
 
   --destructive: oklch(0.5783 0.2301 28.5639);
   --destructive-foreground: oklch(1 0 0);
+
+  /* Dark: levantar luminance pra manter contraste sobre fundo escuro. */
+  --success: oklch(0.7581 0.1426 162.5);
+  --success-foreground: oklch(0.1591 0 0);
+  --warning: oklch(0.821 0.1469 70.08);
+  --warning-foreground: oklch(0.1591 0 0);
+
   --overlay: oklch(0 0 0 / 0.8);
 
   --border: oklch(0.1822 0 0);

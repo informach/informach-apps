@@ -247,9 +247,9 @@ export function SwitchPlanDialog({
         )}
 
         {phase === "done" && (
-          <div className="flex items-center gap-3 rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm dark:border-emerald-900/60 dark:bg-emerald-950/30">
-            <CheckCircle2 className="size-5 text-emerald-600 dark:text-emerald-400" aria-hidden />
-            <span className="text-emerald-900 dark:text-emerald-100">
+          <div className="flex items-center gap-3 rounded-md border border-success/40 bg-success/10 p-4 text-sm">
+            <CheckCircle2 className="size-5 text-success" aria-hidden />
+            <span>
               {submit.mode === "immediate"
                 ? "Cobrança proporcional efetuada e plano ativado."
                 : "Vamos te avisar quando a mudança virar."}

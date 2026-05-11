@@ -40,8 +40,8 @@ export function AppsShowcase() {
               </div>
               <p className="text-sm leading-relaxed text-muted-foreground">{app.description}</p>
               <div className="mt-auto flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600/15 px-2.5 py-1 font-medium text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
-                  <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-success/15 px-2.5 py-1 font-medium text-success">
+                  <span className="size-1.5 rounded-full bg-success" aria-hidden />
                   Disponível
                 </span>
                 <span className="text-muted-foreground" aria-hidden>

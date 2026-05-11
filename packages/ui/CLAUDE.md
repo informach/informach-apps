@@ -42,6 +42,8 @@ secondary, secondary-foreground,
 muted, muted-foreground,
 accent, accent-foreground,
 destructive, destructive-foreground,
+success, success-foreground,
+warning, warning-foreground,
 border, input, ring,
 chart-1..5,
 sidebar, sidebar-foreground,
@@ -49,6 +51,8 @@ sidebar-primary, sidebar-primary-foreground,
 sidebar-accent, sidebar-accent-foreground,
 sidebar-border, sidebar-ring
 ```
+
+**Cores semânticas cross-app (`success`, `warning`)**: verde/âmbar independentes do chart-palette de cada app. Use em mensagens de status (`Compra confirmada!`, `Plano cancelado — ativo até X`, banners de "não consegui identificar uma receita") para que cozya/agenda/admin comuniquem sucesso/atenção do mesmo jeito mesmo tendo paletas de marca diferentes. Padrão de uso: `bg-success/10 border-success/40 text-success` (versão tinted, mais legível em alerts) ou `bg-success text-success-foreground` (solid, para badges com contraste alto). Mesma régua pro `warning`. Para erro continua sendo `destructive`.
 
 **Tipografia, geometria e sombra:**
 

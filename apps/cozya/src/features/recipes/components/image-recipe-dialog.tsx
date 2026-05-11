@@ -251,9 +251,9 @@ export function ImageRecipeDialog({ open, onOpenChange, onParsed }: Props) {
           ) : null}
 
           {stage === "not_recipe" ? (
-            <div className="rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-center text-sm text-amber-900 dark:border-amber-700/40 dark:bg-amber-950/40 dark:text-amber-200">
+            <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-center text-sm">
               <p className="font-medium">Não consegui identificar uma receita</p>
-              <p className="mt-1 text-xs">{notRecipeReason}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{notRecipeReason}</p>
             </div>
           ) : null}
         </div>

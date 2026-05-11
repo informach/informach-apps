@@ -12,7 +12,7 @@ export function StudentAvatar({ name, className }: Props) {
   const colorClass = getAvatarColorClass(name);
   return (
     <Avatar className={cn("size-12", className)}>
-      <AvatarFallback className={cn(colorClass, "text-white text-sm font-semibold")}>
+      <AvatarFallback className={cn(colorClass, "text-sm font-semibold text-primary-foreground")}>
         {initials}
       </AvatarFallback>
     </Avatar>
