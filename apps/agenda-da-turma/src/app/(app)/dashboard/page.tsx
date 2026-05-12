@@ -6,6 +6,7 @@ import {
 } from "@/features/activities/service";
 import { getIsProForUser } from "@/features/billing/server-cache";
 import { DashboardContent } from "@/features/dashboard/components/dashboard-content";
+import { ExportPdfButton } from "@/features/dashboard/components/export-pdf-button";
 import { NoStudentsWidget } from "@/features/students/components/no-students-widget";
 import { ProfilesWithoutTurmaWidget } from "@/features/students/components/profiles-without-turma-widget";
 import {
@@ -72,7 +73,10 @@ export default async function DashboardPage({ searchParams }: Props) {
   ]);
 
   return (
-    <Shell greeting={greeting}>
+    <Shell
+      greeting={greeting}
+      headerAction={<ExportPdfButton isPro={isPro} profileFilter={profileFilter} />}
+    >
       {pendingShared.length > 0 ? <SharedActivitiesWidget items={pendingShared} /> : null}
       <DashboardContent
         userId={user.id}
@@ -85,12 +89,23 @@ export default async function DashboardPage({ searchParams }: Props) {
   );
 }
 
-function Shell({ greeting, children }: { greeting: string; children: ReactNode }) {
+function Shell({
+  greeting,
+  headerAction,
+  children,
+}: {
+  greeting: string;
+  headerAction?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 md:px-8">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Bem-vindo de volta, {greeting}.</p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Bem-vindo de volta, {greeting}.</p>
+        </div>
+        {headerAction}
       </header>
       {children}
     </main>
