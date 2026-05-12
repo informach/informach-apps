@@ -106,6 +106,7 @@ export function ActivityBucketSection({
               currentUserId={currentUserId}
               isPro={isPro}
               turmasForForm={turmasForForm}
+              hideActions
             />
           ))}
         </div>

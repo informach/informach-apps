@@ -55,6 +55,7 @@ export function UpcomingGroupedList({ items, currentUserId, isPro, turmasForForm
                 currentUserId={currentUserId}
                 isPro={isPro}
                 turmasForForm={turmasForForm}
+                hideActions
               />
             ))}
           </div>

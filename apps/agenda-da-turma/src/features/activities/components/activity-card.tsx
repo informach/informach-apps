@@ -39,9 +39,20 @@ type Props = {
   currentUserId: string;
   isPro: boolean;
   turmasForForm: TurmaWithSubjectsForForm[];
+  /**
+   * Esconde o dropdown de ações (editar/excluir). Usado no dashboard, onde
+   * o card é uma vista panorâmica e edições acontecem em /atividades.
+   */
+  hideActions?: boolean;
 };
 
-export function ActivityCard({ item, currentUserId, isPro, turmasForForm }: Props) {
+export function ActivityCard({
+  item,
+  currentUserId,
+  isPro,
+  turmasForForm,
+  hideActions = false,
+}: Props) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -56,7 +67,9 @@ export function ActivityCard({ item, currentUserId, isPro, turmasForForm }: Prop
   // o criador fica trancado. Service aplica a regra também — UI só esconde.
   const isCreator = item.createdByUserId === currentUserId;
   const canManage =
-    isCreator && !(item.visibility === "shared_with_turma" && item.hasOtherAcceptances);
+    !hideActions &&
+    isCreator &&
+    !(item.visibility === "shared_with_turma" && item.hasOtherAcceptances);
 
   const handleToggle = (next: boolean) => {
     startTransition(async () => {
