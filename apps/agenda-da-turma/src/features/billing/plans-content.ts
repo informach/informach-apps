@@ -9,13 +9,13 @@ export const FREE_FEATURES: PlanFeature[] = [
   { label: "Visualização por dia, semana e mês", included: true },
   { label: "Notificações de prazos próximos", included: true },
   { label: "Uso direto no navegador do celular", included: true },
-  { label: "50 créditos de IA por mês", included: false },
+  { label: "70 créditos de IA por mês", included: false },
   { label: "Pacotes extras avulsos quando precisar", included: false },
 ];
 
 export const PRO_FEATURES: PlanFeature[] = [
   { label: "Tudo do Free, sem limites", included: true },
-  { label: "50 créditos de IA renovados todo mês", included: true },
+  { label: "70 créditos de IA renovados todo mês", included: true },
   { label: "Pacotes extras avulsos quando precisar", included: true },
   { label: "Suporte prioritário por e-mail", included: true },
 ];

@@ -127,7 +127,7 @@ export const PRODUCTS: readonly Product[] = [
     },
     listPrice: { amountCents: 1790, currency: "BRL" },
   },
-  // Agenda da Turma — R$ 19,90/mês, R$ 199/ano, 50 créditos/mês,
+  // Agenda da Turma — R$ 19,90/mês, R$ 199/ano, 70 créditos/mês,
   // packs 10/20/30 a R$ 6,90/12,90/17,90). Stripe Price IDs ficam como `price_TODO_*`
   // até o time configurar produtos no Stripe Dashboard (test+live). `isStripePriceIdConfigured`
   // rejeita placeholders e o boot do app trava em produção até IDs reais entrarem.
@@ -140,7 +140,7 @@ export const PRODUCTS: readonly Product[] = [
     name: "Agenda da Turma Pro",
     tier: "pro",
     interval: "month",
-    bonusCreditsPerMonth: 50,
+    bonusCreditsPerMonth: 70,
     stripePriceId: {
       dev: "price_1TVTonCvOctqao30b8wnGAXN",
       prod: "price_TODO_agenda_da_turma_pro_monthly_prod",
@@ -154,7 +154,7 @@ export const PRODUCTS: readonly Product[] = [
     name: "Agenda da Turma Pro (Anual)",
     tier: "pro",
     interval: "year",
-    bonusCreditsPerMonth: 50,
+    bonusCreditsPerMonth: 70,
     stripePriceId: {
       dev: "price_1TVTpPCvOctqao30mLauE2qm",
       prod: "price_TODO_agenda_da_turma_pro_annual_prod",

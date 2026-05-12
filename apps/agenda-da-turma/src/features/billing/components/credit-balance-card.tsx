@@ -18,7 +18,7 @@ type Props = {
   /** Credits in active reservations (in-flight LLM calls). */
   reserved: number;
   /**
-   * Monthly grant of the active subscription (e.g. 50 for Agenda da Turma Pro).
+   * Monthly grant of the active subscription (e.g. 70 for Agenda da Turma Pro).
    * Used as the denominator of the progress bar and the "X de N" label. When 0
    * (Free user without subscription), the bar is hidden and copy adapts.
    */

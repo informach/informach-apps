@@ -20,7 +20,7 @@ Diferença de porte vs cozya: público maior potencial (pais brasileiros com fil
 |---|---|
 | Pro mensal | **R$ 19,90/mês** (`agenda_da_turma_pro_monthly`) |
 | Pro anual | **R$ 199,00/ano** (`agenda_da_turma_pro_annual`) — ~17% desc, 2 meses grátis |
-| Créditos Pro | **50/mês**, drip mensal no anual, expiram no fim do ciclo |
+| Créditos Pro | **70/mês**, drip mensal no anual, expiram no fim do ciclo |
 | Free | acesso completo às features básicas, sem créditos de IA |
 | Gateway de IA | (ainda não wired) |
 
@@ -36,7 +36,7 @@ Mesma régua do cozya — pack custa mais per-credit que o plano (premium 20-40%
 
 ### ⚠ Créditos sem consumo hoje
 
-A Agenda da Turma **não tem nenhuma feature de IA implementada**. Plano Pro concede 50 créditos/mês via webhook + sweeper, mas nenhum código consome via `withCredits`. Quando feature de IA aparecer, será necessário:
+A Agenda da Turma **não tem nenhuma feature de IA implementada**. Plano Pro concede 70 créditos/mês via webhook + sweeper, mas nenhum código consome via `withCredits`. Quando feature de IA aparecer, será necessário:
 
 1. Adicionar rows em `creditPricing` (criar `seedAgendaCreditPricing` em `packages/billing/src/seeds/credit-pricing.ts` análogo a `seedCozyaCreditPricing`).
 2. Wire-up de `@informach/ai-core` no app (`createMastra`, `createSharedMemory`, `createOpenRouter`).
