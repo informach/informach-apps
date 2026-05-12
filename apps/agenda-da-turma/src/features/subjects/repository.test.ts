@@ -85,6 +85,22 @@ function insertChain(returningRows: unknown[]) {
   };
 }
 
+// Captura os values do `.set({...})` no UPDATE de merge de teacherName.
+let capturedUpdateSetValues: Record<string, unknown> | null = null;
+
+function mergeUpdateChain(returningRows: unknown[]) {
+  return {
+    set: vi.fn((values: Record<string, unknown>) => {
+      capturedUpdateSetValues = values;
+      return {
+        where: vi.fn(() => ({
+          returning: vi.fn(() => Promise.resolve(returningRows)),
+        })),
+      };
+    }),
+  };
+}
+
 // Cadeia pra `select({ colorIndex }).from(...).where(...)` — `.where()` é
 // thenable e resolve com a lista de rows.
 function selectColorIndexesChain(colorIndexes: number[]) {
@@ -119,10 +135,11 @@ function updateChain(returningRows: unknown[]) {
 beforeEach(() => {
   vi.clearAllMocks();
   capturedInsertValues = null;
+  capturedUpdateSetValues = null;
 });
 
 describe("insertSubjectIfNotExists", () => {
-  it("returns created=true and assigns curated colorIndex=1 for Matemática (turma vazia)", async () => {
+  it("returns status=created and assigns curated colorIndex=1 for Matemática (turma vazia)", async () => {
     dbMocks.db.select.mockReturnValueOnce(selectColorIndexesChain([]));
     dbMocks.db.insert.mockReturnValue(insertChain([insertedSubject]));
 
@@ -133,7 +150,7 @@ describe("insertSubjectIfNotExists", () => {
       createdByUserId: insertedSubject.createdByUserId,
     });
 
-    expect(result.created).toBe(true);
+    expect(result.status).toBe("created");
     expect(result.subject.id).toBe(insertedSubject.id);
     expect(capturedInsertValues?.colorIndex).toBe(1);
   });
@@ -149,25 +166,81 @@ describe("insertSubjectIfNotExists", () => {
       createdByUserId: insertedSubject.createdByUserId,
     });
 
-    expect(result.created).toBe(true);
+    expect(result.status).toBe("created");
     expect(capturedInsertValues?.colorIndex).toBe(2);
   });
 
-  it("returns created=false and the existing row on conflict", async () => {
+  it("returns status=skipped on conflict when other user created the existing row (governança)", async () => {
     dbMocks.db.select
       .mockReturnValueOnce(selectColorIndexesChain([]))
-      .mockReturnValueOnce(selectExistingChain([insertedSubject]));
+      .mockReturnValueOnce(selectExistingChain([{ ...insertedSubject, teacherName: null }]));
+    dbMocks.db.insert.mockReturnValue(insertChain([]));
+
+    const result = await insertSubjectIfNotExists({
+      turmaId: insertedSubject.turmaId,
+      name: insertedSubject.name,
+      teacherName: "Roberto",
+      createdByUserId: "another_user",
+    });
+
+    expect(result.status).toBe("skipped");
+    expect(result.subject.id).toBe(insertedSubject.id);
+    expect(capturedUpdateSetValues).toBeNull();
+  });
+
+  it("returns status=skipped on conflict when existing row already has teacherName (não sobrescreve)", async () => {
+    dbMocks.db.select
+      .mockReturnValueOnce(selectColorIndexesChain([]))
+      .mockReturnValueOnce(selectExistingChain([{ ...insertedSubject, teacherName: "Carla" }]));
+    dbMocks.db.insert.mockReturnValue(insertChain([]));
+
+    const result = await insertSubjectIfNotExists({
+      turmaId: insertedSubject.turmaId,
+      name: insertedSubject.name,
+      teacherName: "Roberto",
+      createdByUserId: insertedSubject.createdByUserId,
+    });
+
+    expect(result.status).toBe("skipped");
+    expect(capturedUpdateSetValues).toBeNull();
+  });
+
+  it("returns status=skipped on conflict when payload tem teacherName=null (nada a fundir)", async () => {
+    dbMocks.db.select
+      .mockReturnValueOnce(selectColorIndexesChain([]))
+      .mockReturnValueOnce(selectExistingChain([{ ...insertedSubject, teacherName: null }]));
     dbMocks.db.insert.mockReturnValue(insertChain([]));
 
     const result = await insertSubjectIfNotExists({
       turmaId: insertedSubject.turmaId,
       name: insertedSubject.name,
       teacherName: null,
-      createdByUserId: "another_user",
+      createdByUserId: insertedSubject.createdByUserId,
     });
 
-    expect(result.created).toBe(false);
-    expect(result.subject.id).toBe(insertedSubject.id);
+    expect(result.status).toBe("skipped");
+    expect(capturedUpdateSetValues).toBeNull();
+  });
+
+  it("returns status=merged when existing row do mesmo creator está sem teacher e payload tem teacher", async () => {
+    const existingNoTeacher = { ...insertedSubject, teacherName: null };
+    const merged = { ...insertedSubject, teacherName: "Roberto" };
+    dbMocks.db.select
+      .mockReturnValueOnce(selectColorIndexesChain([]))
+      .mockReturnValueOnce(selectExistingChain([existingNoTeacher]));
+    dbMocks.db.insert.mockReturnValue(insertChain([]));
+    dbMocks.db.update.mockReturnValue(mergeUpdateChain([merged]));
+
+    const result = await insertSubjectIfNotExists({
+      turmaId: insertedSubject.turmaId,
+      name: insertedSubject.name,
+      teacherName: "Roberto",
+      createdByUserId: insertedSubject.createdByUserId,
+    });
+
+    expect(result.status).toBe("merged");
+    expect(result.subject.teacherName).toBe("Roberto");
+    expect(capturedUpdateSetValues?.teacherName).toBe("Roberto");
   });
 
   it("throws when insert returns empty AND no existing row is found", async () => {

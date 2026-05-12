@@ -85,6 +85,10 @@ export async function transcribeRecipeAudio(
       return transcribeAudio({
         apiKey: env.OPENROUTER_API_KEY,
         audio: input.audio,
+        // Sempre passar `model` explícito — alinha com o que o billing está
+        // cobrando (`COZYA_MODELS[FEATURE]`) e impede regressão silenciosa
+        // se o default do package mudar no futuro.
+        model: COZYA_MODELS[FEATURE],
         headers: openRouterAttributionHeaders(),
         language: "pt",
         prompt: RECIPE_TRANSCRIPTION_PROMPT,

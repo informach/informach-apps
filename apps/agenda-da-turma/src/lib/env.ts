@@ -40,7 +40,20 @@ export const env = createEnv({
      * to test prod prices in staging or vice-versa.
      */
     STRIPE_MODE: z.enum(["dev", "prod"]).optional(),
+    /**
+     * OpenRouter — gateway único de IA do app. **Opcional**: features de IA
+     * (matérias por voz/imagem) só funcionam quando setada; caso contrário
+     * o route guard `withAiRouteGuards` devolve 503 `AI_DISABLED`. Permite
+     * subir dev/staging sem chave da OpenRouter enquanto o resto do app é
+     * 100% funcional (auth, billing, atividades, calendário etc).
+     */
+    OPENROUTER_API_KEY: z.string().min(1).optional(),
+    /** Atribuição opcional para o leaderboard do OpenRouter (header HTTP-Referer). */
+    OPENROUTER_HTTP_REFERER: z.string().url().optional(),
+    /** Atribuição opcional (header X-OpenRouter-Title). */
+    OPENROUTER_X_TITLE: z.string().min(1).optional(),
     LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).optional(),
+    MASTRA_LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   },
   client: {
     NEXT_PUBLIC_APP_URL: z.string().url(),
@@ -68,7 +81,11 @@ export const env = createEnv({
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
     STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY,
     STRIPE_MODE: process.env.STRIPE_MODE,
+    OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
+    OPENROUTER_HTTP_REFERER: process.env.OPENROUTER_HTTP_REFERER,
+    OPENROUTER_X_TITLE: process.env.OPENROUTER_X_TITLE,
     LOG_LEVEL: process.env.LOG_LEVEL,
+    MASTRA_LOG_LEVEL: process.env.MASTRA_LOG_LEVEL,
   },
   emptyStringAsUndefined: true,
 });

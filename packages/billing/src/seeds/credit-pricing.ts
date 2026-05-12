@@ -178,16 +178,13 @@ export type SeedCreditPricingResult = {
 };
 
 /**
- * Idempotently seeds `billing.credit_pricing` rows. For each (feature, model)
- * pair, inserts only when there's no active row (effective_to IS NULL).
- *
- * Safe to re-run on every deploy. To bump the price/model of an existing
- * feature, set `effective_to = now()` on the active row in a prior step, then
- * re-run this seed — the new row becomes the active one for that pair.
+ * Internal helper — insere uma lista de rows idempotentemente (skip quando
+ * já existe row ativa para `(feature, model)`). Compartilhado entre os
+ * seeders por-app (`seedCozyaCreditPricing`, `seedAgendaCreditPricing`).
  */
-export async function seedCozyaCreditPricing(
+async function insertActivePricingRows(
   db: Database,
-  rows: readonly CreditPricingSeedRow[] = COZYA_PRICING_SEED,
+  rows: readonly CreditPricingSeedRow[],
 ): Promise<SeedCreditPricingResult> {
   let inserted = 0;
   let skipped = 0;
@@ -217,4 +214,62 @@ export async function seedCozyaCreditPricing(
     inserted++;
   }
   return { inserted, skipped };
+}
+
+/**
+ * Idempotently seeds `billing.credit_pricing` rows. For each (feature, model)
+ * pair, inserts only when there's no active row (effective_to IS NULL).
+ *
+ * Safe to re-run on every deploy. To bump the price/model of an existing
+ * feature, set `effective_to = now()` on the active row in a prior step, then
+ * re-run this seed — the new row becomes the active one for that pair.
+ */
+export async function seedCozyaCreditPricing(
+  db: Database,
+  rows: readonly CreditPricingSeedRow[] = COZYA_PRICING_SEED,
+): Promise<SeedCreditPricingResult> {
+  return insertActivePricingRows(db, rows);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Agenda da Turma pricing — primeira leva de features de IA (matérias em
+// lote). Mesma estratégia do cozya: 1 chamada à API = 1 crédito (flatCost),
+// independente do volume de tokens. Tokens reais ficam em `ai.usage_logs`
+// para auditoria/markup futuro. Modelos escolhidos pelo mesmo critério do
+// cozya (validados empíricamente em pt-BR).
+//
+// IDs prefixados com `openai/` por convenção do OpenRouter.
+// ────────────────────────────────────────────────────────────────────────────
+export const AGENDA_PRICING_SEED: readonly CreditPricingSeedRow[] = [
+  {
+    feature: "agenda.subjects.parse_image",
+    model: "openai/gpt-4o",
+    flatCost: 1,
+    defaultEstimateCredits: 1,
+    metadata: { providerOptions: { openai: { imageDetail: "low" } } },
+  },
+  {
+    feature: "agenda.subjects.transcribe_audio",
+    model: "openai/gpt-4o-transcribe",
+    flatCost: 1,
+    defaultEstimateCredits: 1,
+  },
+  {
+    feature: "agenda.subjects.parse_voice",
+    model: "openai/gpt-4o-mini",
+    flatCost: 1,
+    defaultEstimateCredits: 1,
+  },
+] as const;
+
+/**
+ * Idempotently seeds `billing.credit_pricing` rows da Agenda da Turma.
+ * Mesma semântica de `seedCozyaCreditPricing`. Como Agenda nunca teve
+ * pricing antes, não há necessidade de helper `expireLegacy*` análogo.
+ */
+export async function seedAgendaCreditPricing(
+  db: Database,
+  rows: readonly CreditPricingSeedRow[] = AGENDA_PRICING_SEED,
+): Promise<SeedCreditPricingResult> {
+  return insertActivePricingRows(db, rows);
 }

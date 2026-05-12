@@ -1,0 +1,54 @@
+import { z } from "zod";
+import { jsonUtf8, withAiRouteGuards } from "@/features/ai/_shared";
+import { parseSubjectsFromVoice } from "@/features/ai/parse-subjects-voice-service";
+import { logger } from "@/lib/logger";
+
+export const runtime = "nodejs";
+
+const MAX_TRANSCRIPT_CHARS = 5000;
+
+const requestSchema = z.object({
+  transcript: z.string().trim().min(1, "Transcript vazio").max(MAX_TRANSCRIPT_CHARS),
+});
+
+export async function POST(request: Request): Promise<Response> {
+  const guard = await withAiRouteGuards({ errorScope: "agenda.parse_voice" });
+  if (!guard.ok) return guard.response;
+  const { userId } = guard;
+
+  let transcript: string;
+  try {
+    const json = (await request.json().catch(() => null)) as unknown;
+    const parsed = requestSchema.safeParse(json);
+    if (!parsed.success) {
+      return jsonUtf8({ code: "INVALID_TRANSCRIPT" }, { status: 400 });
+    }
+    transcript = parsed.data.transcript;
+  } catch (err) {
+    logger.warn(
+      { userId, error: err instanceof Error ? err.message : String(err) },
+      "agenda.parse_voice.parse_failed",
+    );
+    return jsonUtf8({ code: "INVALID_TRANSCRIPT" }, { status: 400 });
+  }
+
+  try {
+    const result = await parseSubjectsFromVoice({ userId, transcript });
+    if (!result.isValidInput) {
+      return jsonUtf8({
+        isValidInput: false,
+        reason: result.reason ?? "Não identifiquei matérias na sua fala.",
+      });
+    }
+    return jsonUtf8({
+      isValidInput: true,
+      subjects: result.subjects,
+    });
+  } catch (err) {
+    logger.error(
+      { userId, error: err instanceof Error ? err.message : String(err) },
+      "agenda.parse_voice.failed",
+    );
+    return jsonUtf8({ code: "PARSE_FAILED" }, { status: 502 });
+  }
+}

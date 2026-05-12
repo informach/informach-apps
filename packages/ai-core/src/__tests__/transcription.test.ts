@@ -52,7 +52,7 @@ describe("transcribeAudio (OpenRouter — JSON+base64 via fetch)", () => {
     });
     expect(firstFetchBody()).toEqual({
       input_audio: { data: Buffer.from(audio).toString("base64"), format: "webm" },
-      model: "openai/whisper-1",
+      model: "openai/gpt-4o-transcribe",
       language: "pt",
     });
     expect(out).toEqual({ text: "macarrão" });
@@ -106,7 +106,7 @@ describe("transcribeAudio (OpenRouter — JSON+base64 via fetch)", () => {
     expect(firstFetchCall()[0]).toBe("https://gw.example.com/v1/audio/transcriptions");
   });
 
-  it("respects model override (default is openai/whisper-1)", async () => {
+  it("respects model override (default is openai/gpt-4o-transcribe)", async () => {
     fetchMock.mockResolvedValue(okResponse("ok"));
 
     await transcribeAudio({

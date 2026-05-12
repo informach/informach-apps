@@ -44,3 +44,25 @@ export const subjectFormSchema = z.object({
   teacherName: teacherNameSchema,
 });
 export type SubjectFormValues = z.input<typeof subjectFormSchema>;
+
+// Cap defensivo de itens por lote — alinhado com `MAX_SUBJECTS_PER_BATCH`
+// usado no schema do parser de IA. Server enforça mesmo se o caller ignorar.
+const MAX_SUBJECTS_BATCH = 40;
+
+// Schema do batch usado pelo fluxo "cadastrar por voz/imagem" — recebe N
+// matérias detectadas pela IA (e editadas pelo usuário) para inserir em
+// lote numa única chamada de server action.
+export const createSubjectsBatchInputSchema = z.object({
+  turmaId: turmaIdSchema,
+  subjects: z
+    .array(
+      z.object({
+        name: nameSchema,
+        teacherName: teacherNameSchema,
+      }),
+    )
+    .min(1, "Inclua pelo menos uma matéria")
+    .max(MAX_SUBJECTS_BATCH, `Máximo de ${MAX_SUBJECTS_BATCH} matérias por lote`),
+});
+export type CreateSubjectsBatchInput = z.output<typeof createSubjectsBatchInputSchema>;
+export type CreateSubjectsBatchFormValues = z.input<typeof createSubjectsBatchInputSchema>;

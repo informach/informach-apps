@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createSubject, deleteSubject, updateSubject } from "./service";
+import { createSubject, createSubjectsBatch, deleteSubject, updateSubject } from "./service";
 
 const mocks = vi.hoisted(() => ({
   // turmas/repository
@@ -71,7 +71,7 @@ describe("createSubject", () => {
     mocks.findTurmaWithSchoolById.mockResolvedValue(turmaFromCreator);
     mocks.userHasMemberInTurma.mockResolvedValue(false); // creator nem precisa
     mocks.insertSubjectIfNotExists.mockResolvedValue({
-      created: true,
+      status: "created",
       subject: subjectByMember,
     });
 
@@ -91,7 +91,7 @@ describe("createSubject", () => {
     mocks.findTurmaWithSchoolById.mockResolvedValue(turmaFromCreator);
     mocks.userHasMemberInTurma.mockResolvedValue(true);
     mocks.insertSubjectIfNotExists.mockResolvedValue({
-      created: true,
+      status: "created",
       subject: { ...subjectByMember, createdByUserId: member.id },
     });
 
@@ -133,11 +133,11 @@ describe("createSubject", () => {
     if (!result.ok) expect(result.error.code).toBe("TURMA_NOT_FOUND");
   });
 
-  it("rejeita DUPLICATE quando insertSubjectIfNotExists devolve created=false", async () => {
+  it("rejeita DUPLICATE quando insertSubjectIfNotExists devolve status=skipped", async () => {
     mocks.findTurmaWithSchoolById.mockResolvedValue(turmaFromCreator);
     mocks.userHasMemberInTurma.mockResolvedValue(true);
     mocks.insertSubjectIfNotExists.mockResolvedValue({
-      created: false,
+      status: "skipped",
       subject: subjectByMember,
     });
 
@@ -149,6 +149,102 @@ describe("createSubject", () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe("DUPLICATE");
+  });
+
+  it("rejeita DUPLICATE quando status=merged (single-create não deve fundir silenciosamente)", async () => {
+    mocks.findTurmaWithSchoolById.mockResolvedValue(turmaFromCreator);
+    mocks.userHasMemberInTurma.mockResolvedValue(true);
+    mocks.insertSubjectIfNotExists.mockResolvedValue({
+      status: "merged",
+      subject: { ...subjectByMember, teacherName: "Carla" },
+    });
+
+    const result = await createSubject(member.id, {
+      turmaId,
+      name: "Matemática",
+      teacherName: "Carla",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("DUPLICATE");
+  });
+});
+
+describe("createSubjectsBatch", () => {
+  it("rejeita TURMA_NOT_FOUND quando turma não existe", async () => {
+    mocks.findTurmaWithSchoolById.mockResolvedValue(null);
+
+    const result = await createSubjectsBatch(member.id, {
+      turmaId,
+      subjects: [{ name: "Matemática", teacherName: undefined }],
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("TURMA_NOT_FOUND");
+    expect(mocks.insertSubjectIfNotExists).not.toHaveBeenCalled();
+  });
+
+  it("rejeita NOT_A_MEMBER e não chama insert algum", async () => {
+    mocks.findTurmaWithSchoolById.mockResolvedValue(turmaFromCreator);
+    mocks.userHasMemberInTurma.mockResolvedValue(false);
+
+    const result = await createSubjectsBatch(otherUser.id, {
+      turmaId,
+      subjects: [
+        { name: "Matemática", teacherName: undefined },
+        { name: "Português", teacherName: "Carla" },
+      ],
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("NOT_A_MEMBER");
+    expect(mocks.insertSubjectIfNotExists).not.toHaveBeenCalled();
+  });
+
+  it("retorna counts de mix created/merged/skipped e itens preservando nome+status", async () => {
+    mocks.findTurmaWithSchoolById.mockResolvedValue(turmaFromCreator);
+    mocks.userHasMemberInTurma.mockResolvedValue(true);
+    mocks.insertSubjectIfNotExists
+      .mockResolvedValueOnce({ status: "created", subject: { ...subjectByMember, id: "s1" } })
+      .mockResolvedValueOnce({ status: "merged", subject: { ...subjectByMember, id: "s2" } })
+      .mockResolvedValueOnce({ status: "skipped", subject: { ...subjectByMember, id: "s3" } });
+
+    const result = await createSubjectsBatch(member.id, {
+      turmaId,
+      subjects: [
+        { name: "Matemática", teacherName: undefined },
+        { name: "Português", teacherName: "Carla" },
+        { name: "Inglês", teacherName: undefined },
+      ],
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.counts).toEqual({ created: 1, merged: 1, skipped: 1 });
+      expect(result.value.items).toEqual([
+        { name: "Matemática", status: "created", id: "s1" },
+        { name: "Português", status: "merged", id: "s2" },
+        { name: "Inglês", status: "skipped", id: "s3" },
+      ]);
+      expect(result.value.turmaId).toBe(turmaId);
+    }
+    expect(mocks.insertSubjectIfNotExists).toHaveBeenCalledTimes(3);
+  });
+
+  it("creator também passa: bypass de userHasMemberInTurma quando é dono da turma", async () => {
+    mocks.findTurmaWithSchoolById.mockResolvedValue(turmaFromCreator);
+    mocks.insertSubjectIfNotExists.mockResolvedValue({
+      status: "created",
+      subject: { ...subjectByMember, id: "s_creator" },
+    });
+
+    const result = await createSubjectsBatch(creator.id, {
+      turmaId,
+      subjects: [{ name: "Matemática", teacherName: undefined }],
+    });
+
+    expect(result.ok).toBe(true);
+    expect(mocks.userHasMemberInTurma).not.toHaveBeenCalled();
   });
 });
 

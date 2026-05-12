@@ -8,7 +8,7 @@
 
 Agenda da Turma é um app **single-user** para o responsável (pai/mãe) organizar a rotina escolar dos filhos — tarefas, provas, recados, entregas. O subject de billing é sempre o usuário responsável; perfis de filhos vivem na sua própria conta como sub-entidades (modelo Netflix-household).
 
-Estado atual (2026-05-12): app early-stage. **Auth, billing e emails 100% wired** (paridade com cozya — onboarding com escolha de plano, `/settings/billing`, `/upgrade`, widget no dashboard, packs de crédito). **Perfis de Estudante e Turmas implementados** — CRUD em `/perfis` (Free 1 / Pro 3), página global `/turmas` com filtro por perfil, comboboxes pesquisáveis IBGE+INEP pra cadastro manual, código de turma compartilhável pra entrar em turmas existentes, dedup natural via UNIQUE em `(school+grade+year+letter)`. **Atividades + Calendário implementados** — `/atividades` (CRUD com paginação keyset, status per-perfil) + dashboard inteligente com KPIs/buckets/filtro por perfil + `/calendario` (vistas mês/semana/dia, blips coloridos por matéria, criar clicando em dia vazio, edit/delete na modal de detalhe). **Sem IA hoje** — pipeline de créditos preparado pra quando alguma feature de IA aparecer.
+Estado atual (2026-05-12): app early-stage. **Auth, billing e emails 100% wired** (paridade com cozya — onboarding com escolha de plano, `/settings/billing`, `/upgrade`, widget no dashboard, packs de crédito). **Perfis de Estudante e Turmas implementados** — CRUD em `/perfis` (Free 1 / Pro 3), página global `/turmas` com filtro por perfil, comboboxes pesquisáveis IBGE+INEP pra cadastro manual, código de turma compartilhável pra entrar em turmas existentes, dedup natural via UNIQUE em `(school+grade+year+letter)`. **Atividades + Calendário implementados** — `/atividades` (CRUD com paginação keyset, status per-perfil) + dashboard inteligente com KPIs/buckets/filtro por perfil + `/calendario` (vistas mês/semana/dia, blips coloridos por matéria, criar clicando em dia vazio, edit/delete na modal de detalhe). **Primeira feature de IA (Pro-only) lançada**: cadastro de matérias em lote por voz (`openai/gpt-4o-transcribe` + `openai/gpt-4o-mini`) e imagem (`openai/gpt-4o` com `imageDetail=low`) em `/turmas/[turmaId]/materias` — usuário grava áudio ou envia foto/print do horário, IA estrutura, modal de confirmação em lote permite editar antes de salvar. Cobra 2 créditos por voz (transcribe + parse) e 1 por imagem.
 
 Diferença de porte vs cozya: público maior potencial (pais brasileiros com filhos em idade escolar), valor percebido médio. Pricing reflete: Pro R$ 19,90/mês (vs R$ 14,90 do cozya).
 
@@ -34,18 +34,27 @@ Mesma régua do cozya — pack custa mais per-credit que o plano (premium 20-40%
 | `agenda_da_turma_credits_20` | 20 | R$ 12,90 | R$ 0,645 |
 | `agenda_da_turma_credits_30` | 30 | R$ 17,90 | R$ 0,597 |
 
-### ⚠ Créditos sem consumo hoje
+### Features de IA cadastradas
 
-A Agenda da Turma **não tem nenhuma feature de IA implementada**. Plano Pro concede 70 créditos/mês via webhook + sweeper, mas nenhum código consome via `withCredits`. Quando feature de IA aparecer, será necessário:
+Hoje há **uma família de features** (cadastro de matérias em lote por voz/imagem). Pro tem 70 créditos/mês via webhook + sweeper.
 
-1. Adicionar rows em `creditPricing` (criar `seedAgendaCreditPricing` em `packages/billing/src/seeds/credit-pricing.ts` análogo a `seedCozyaCreditPricing`).
-2. Wire-up de `@informach/ai-core` no app (`createMastra`, `createSharedMemory`, `createOpenRouter`).
-3. Criar agentes em `apps/agenda-da-turma/src/ai/`.
-4. Envolver chamadas LLM em `withCredits` ou `runBillableAiCall`.
-5. Adicionar rate-limit em `lib/rate-limit.ts` (defesa anti-script).
-6. Adicionar `OPENROUTER_API_KEY` ao `lib/env.ts` e ao `turbo.json` `tasks.build.env`.
+| Feature | Modelo (OpenRouter) | Créditos |
+|---|---|---|
+| `agenda.subjects.parse_image` | `openai/gpt-4o` (imageDetail=low) | 1 |
+| `agenda.subjects.transcribe_audio` | `openai/gpt-4o-transcribe` | 1 |
+| `agenda.subjects.parse_voice` | `openai/gpt-4o-mini` | 1 |
 
-Definição econômica final (custo unitário, mix de modelos, margem) fica para quando o produto de IA estiver definido.
+Fluxo de voz custa 2 créditos (transcribe + parse). Fluxo de imagem custa 1.
+
+Seed em `packages/billing/src/seeds/credit-pricing.ts` (`AGENDA_PRICING_SEED` + `seedAgendaCreditPricing`) idempotente. Rodar `pnpm db:seed` insere rows em `billing.credit_pricing`.
+
+Para adicionar nova feature de IA:
+1. Adicionar row em `AGENDA_PRICING_SEED` com ID de modelo prefixado (`openai/gpt-4o-mini` por default).
+2. Adicionar entry em `AGENDA_MODELS` (`apps/agenda-da-turma/src/ai/models.ts`).
+3. Criar service em `src/features/ai/` envolvendo a chamada em `runBillableAiCall` (ou `withCredits` se multi-stage).
+4. Adicionar route handler em `src/app/api/ai/...` com `withAiRouteGuards` (cobre OpenRouter key + auth + rate-limit + Pro gate).
+5. Garantir que rate-limit em `lib/rate-limit.ts` cobre — hoje `AI_INVOKE_PER_HOUR: 60` cobre todas as features de IA da Agenda.
+6. UI: botões com `disabled={!isPro}` + `Badge` "Pro" (mesmo padrão do `ExportPdfButton`).
 
 ---
 

@@ -26,8 +26,26 @@ export type SubjectUpdatePayload = {
   teacherName: string | null;
 };
 
-export type InsertSubjectResult = { subject: Subject; created: boolean };
+export type InsertSubjectStatus = "created" | "merged" | "skipped";
+export type InsertSubjectResult = { subject: Subject; status: InsertSubjectStatus };
 
+/**
+ * Idempotent upsert de matéria. Estados possíveis:
+ *
+ * - `created` — insert sucesso (turma×nome único, primeira vez).
+ * - `merged` — UNIQUE bateu E a row existente tinha `teacherName=null` E o
+ *   payload trouxe `teacherName` não-nulo E foi o MESMO usuário que criou
+ *   a row (`existing.createdByUserId === payload.createdByUserId`). Faz
+ *   UPDATE setando `teacherName` e devolve a row mergeada.
+ * - `skipped` — UNIQUE bateu mas nada a fundir (já tem teacherName, ou
+ *   payload não trouxe, ou row foi criada por outro usuário da turma
+ *   compartilhada). Devolve a row existente intacta.
+ *
+ * Restrição de governança: NUNCA pisar em cima de dados de outra família
+ * (turmas são compartilhadas). Se a row existente foi criada por outro
+ * membro, ainda que esteja sem teacherName, retorna `skipped` — quem fez
+ * a matéria tem o direito de preencher o professor.
+ */
 export async function insertSubjectIfNotExists(
   payload: NewSubjectPayload,
 ): Promise<InsertSubjectResult> {
@@ -49,7 +67,7 @@ export async function insertSubjectIfNotExists(
 
       const insertedRow = inserted[0];
       if (insertedRow) {
-        return { subject: insertedRow, created: true };
+        return { subject: insertedRow, status: "created" };
       }
 
       const [existing] = await tx
@@ -65,7 +83,28 @@ export async function insertSubjectIfNotExists(
           "agenda.subjects: insert returning empty AND existing row not found — check unique key",
         );
       }
-      return { subject: existing, created: false };
+
+      // Merge oportunístico de teacherName: só quando o MESMO usuário criou
+      // a row, ela está sem teacherName, e o payload trouxe um. Cobre o caso
+      // típico do fluxo de IA: usuário cadastrou "Matemática" manualmente
+      // ontem sem professor, hoje grava áudio dizendo "Matemática com prof
+      // Carla" — a chamada do batch popula o teacherName em vez de skippar.
+      const canMerge =
+        existing.teacherName === null &&
+        payload.teacherName !== null &&
+        existing.createdByUserId === payload.createdByUserId;
+      if (canMerge) {
+        const [merged] = await tx
+          .update(agendaSubjects)
+          .set({ teacherName: payload.teacherName, updatedAt: new Date() })
+          .where(eq(agendaSubjects.id, existing.id))
+          .returning();
+        if (merged) {
+          return { subject: merged, status: "merged" };
+        }
+      }
+
+      return { subject: existing, status: "skipped" };
     },
     { isolationLevel: "read committed" },
   );

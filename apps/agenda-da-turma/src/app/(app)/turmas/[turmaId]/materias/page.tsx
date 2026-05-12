@@ -6,6 +6,7 @@ import { SubjectsSection } from "@/features/subjects/components/subjects-section
 import { getSubjectsForUserAndTurma } from "@/features/subjects/service";
 import { formatTurmaShort } from "@/features/turmas/utils";
 import { requireUserServer } from "@/lib/auth";
+import { billing } from "@/lib/billing";
 
 export const metadata = {
   title: "Matérias — Agenda da Turma",
@@ -15,7 +16,10 @@ export default async function SubjectsPage({ params }: { params: Promise<{ turma
   const user = await requireUserServer();
   const { turmaId } = await params;
 
-  const result = await getSubjectsForUserAndTurma(user.id, turmaId);
+  const [result, isPro] = await Promise.all([
+    getSubjectsForUserAndTurma(user.id, turmaId),
+    billing.hasProSubscription({ type: "user", id: user.id }),
+  ]);
   if (!result.ok) {
     // Tanto TURMA_NOT_FOUND quanto FORBIDDEN viram 404 — não vazamos existência da turma.
     notFound();
@@ -44,6 +48,7 @@ export default async function SubjectsPage({ params }: { params: Promise<{ turma
         turmaId={turma.id}
         currentUserId={user.id}
         canCreateSubject={canCreateSubject}
+        isPro={isPro}
       />
     </main>
   );

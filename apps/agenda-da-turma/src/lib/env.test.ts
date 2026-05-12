@@ -11,9 +11,16 @@ const requiredEnv = {
   CRON_SECRET: "c".repeat(32),
   STRIPE_SECRET_KEY: "sk_test_123",
   STRIPE_WEBHOOK_SECRET: "whsec_123",
+  OPENROUTER_API_KEY: "sk-or-test",
 };
 
-type EnvKey = keyof typeof requiredEnv | "REDIS_URL" | "E2E_RELAX_AUTH_RATE_LIMITS";
+type EnvKey =
+  | keyof typeof requiredEnv
+  | "REDIS_URL"
+  | "E2E_RELAX_AUTH_RATE_LIMITS"
+  | "OPENROUTER_HTTP_REFERER"
+  | "OPENROUTER_X_TITLE"
+  | "MASTRA_LOG_LEVEL";
 
 function stubEnv(overrides: Partial<Record<EnvKey, string>>) {
   for (const [key, value] of Object.entries({ ...requiredEnv, ...overrides })) {

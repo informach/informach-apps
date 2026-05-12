@@ -37,10 +37,15 @@ const baseSecurityHeaders = [
   { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
   {
     key: "Permissions-Policy",
+    // `microphone=(self)` é necessário para a feature de cadastrar matérias
+    // por voz (SpeechInput → MediaRecorder no client). Sem ele, o navegador
+    // bloqueia getUserMedia silenciosamente e nem mostra o prompt de
+    // permissão. `camera=(self)` permite o `<input type="file" capture="environment">`
+    // no fluxo de "cadastrar por imagem" no mobile.
     value: [
-      "camera=()",
+      "camera=(self)",
       "geolocation=()",
-      "microphone=()",
+      "microphone=(self)",
       "payment=()",
       "usb=()",
       "accelerometer=()",

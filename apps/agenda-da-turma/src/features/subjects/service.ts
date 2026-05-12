@@ -12,7 +12,12 @@ import {
   listSubjectsForTurma,
   updateSubjectById,
 } from "./repository";
-import type { CreateSubjectInput, DeleteSubjectInput, UpdateSubjectInput } from "./schemas";
+import type {
+  CreateSubjectInput,
+  CreateSubjectsBatchInput,
+  DeleteSubjectInput,
+  UpdateSubjectInput,
+} from "./schemas";
 import type { Subject, TurmaNeedingSubjects } from "./types";
 import { isMinorNameEdit } from "./utils";
 
@@ -43,8 +48,71 @@ export async function createSubject(
     teacherName: input.teacherName ?? null,
     createdByUserId: userId,
   });
-  if (!result.created) return err({ code: "DUPLICATE" });
+  // Fluxo single-create mantém semântica antiga: só "created" conta como
+  // sucesso. "merged" e "skipped" (vindos da extensão pro batch) são
+  // tratados como duplicata pra esse caller — o user clicou "Nova matéria"
+  // e nada novo foi criado.
+  if (result.status !== "created") return err({ code: "DUPLICATE" });
   return ok(result.subject);
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Batch insert (consumido pelo fluxo "cadastrar matérias por voz/imagem"
+// via IA). Single advisor lock por turma serializa color picking; cada item
+// roda numa transação separada para que falha em um não aborte os outros.
+// ──────────────────────────────────────────────────────────────────────────
+
+export type BatchSubjectResultItem =
+  | { name: string; status: "created"; id: string }
+  | { name: string; status: "merged"; id: string }
+  | { name: string; status: "skipped"; id: string };
+
+export type CreateSubjectsBatchCounts = {
+  created: number;
+  merged: number;
+  skipped: number;
+};
+
+export type CreateSubjectsBatchResult = {
+  items: BatchSubjectResultItem[];
+  counts: CreateSubjectsBatchCounts;
+  turmaId: string;
+};
+
+export type CreateSubjectsBatchError = { code: "TURMA_NOT_FOUND" } | { code: "NOT_A_MEMBER" };
+
+/**
+ * Insere N matérias numa única turma. Checa membership uma vez no início —
+ * se não-membro, recusa toda a chamada (vira nada). Itera serialmente sobre
+ * os itens; falha em um (improvável depois da validação Zod) NÃO aborta os
+ * outros — vira `skipped` com `name` registrado pra que a UI mostre.
+ */
+export async function createSubjectsBatch(
+  userId: string,
+  input: CreateSubjectsBatchInput,
+): Promise<Result<CreateSubjectsBatchResult, CreateSubjectsBatchError>> {
+  const turma = await findTurmaWithSchoolById(input.turmaId);
+  if (!turma) return err({ code: "TURMA_NOT_FOUND" });
+
+  const isCreator = turma.createdByUserId === userId;
+  const isMember = isCreator || (await userHasMemberInTurma(userId, input.turmaId));
+  if (!isMember) return err({ code: "NOT_A_MEMBER" });
+
+  const items: BatchSubjectResultItem[] = [];
+  const counts: CreateSubjectsBatchCounts = { created: 0, merged: 0, skipped: 0 };
+
+  for (const subject of input.subjects) {
+    const result = await insertSubjectIfNotExists({
+      turmaId: input.turmaId,
+      name: subject.name,
+      teacherName: subject.teacherName ?? null,
+      createdByUserId: userId,
+    });
+    items.push({ name: subject.name, status: result.status, id: result.subject.id });
+    counts[result.status]++;
+  }
+
+  return ok({ items, counts, turmaId: input.turmaId });
 }
 
 // Quem pode editar: só quem criou a matéria.

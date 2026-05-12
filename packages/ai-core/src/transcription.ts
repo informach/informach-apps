@@ -22,7 +22,12 @@
 // na prática só roda em route handlers Node (`runtime: "nodejs"`).
 
 const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
-const DEFAULT_MODEL = "openai/whisper-1";
+// Default atualizado em 2026-05 — Whisper-1 e Whisper-large-v3 mostraram
+// regressão em palavras isoladas pt-BR em produção (ex.: cozya). Família
+// GPT-4o-transcribe substitui ambos com qualidade superior e custo similar.
+// Apps podem override via `input.model` para `openai/whisper-large-v3` ou
+// outro STT da família OpenAI-compat se preferir.
+const DEFAULT_MODEL = "openai/gpt-4o-transcribe";
 
 export type TranscribeAudioInput = {
   /** OpenRouter API key — injetado pelo app via `lib/env.ts`, nunca lido de `process.env` aqui. */
@@ -37,7 +42,12 @@ export type TranscribeAudioInput = {
   audio: Uint8Array | ArrayBuffer | Blob;
   /** Hint de idioma ISO-639-1 (ex.: "pt"). Melhora precisão e latência. */
   language?: string;
-  /** Modelo de transcrição. Default `openai/whisper-1`. */
+  /**
+   * Modelo de transcrição. Default `openai/gpt-4o-transcribe` (GPT-4o family,
+   * não Whisper — substancialmente melhor em pt-BR para clipes curtos e
+   * palavras isoladas). Override para `openai/whisper-large-v3`,
+   * `groq/whisper-large-v3-turbo`, etc., se o caso justificar.
+   */
   model?: string;
   /** Headers opcionais, como `HTTP-Referer` e `X-OpenRouter-Title` para atribuição. */
   headers?: Record<string, string>;

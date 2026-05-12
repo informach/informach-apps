@@ -7,6 +7,7 @@ import postgres from "postgres";
 import {
   expireLegacyCozyaPricing,
   expireSupersededCozyaPricing,
+  seedAgendaCreditPricing,
   seedCozyaCreditPricing,
 } from "../src/seeds";
 
@@ -33,9 +34,15 @@ async function main() {
   console.log(`[billing:seed] credit_pricing: ${superseded.closed} superseded rows closed`);
 
   console.log("[billing:seed] seeding billing.credit_pricing (Cozya)...");
-  const result = await seedCozyaCreditPricing(db);
+  const cozyaResult = await seedCozyaCreditPricing(db);
   console.log(
-    `[billing:seed] credit_pricing: ${result.inserted} inserted, ${result.skipped} skipped`,
+    `[billing:seed] credit_pricing (cozya): ${cozyaResult.inserted} inserted, ${cozyaResult.skipped} skipped`,
+  );
+
+  console.log("[billing:seed] seeding billing.credit_pricing (Agenda da Turma)...");
+  const agendaResult = await seedAgendaCreditPricing(db);
+  console.log(
+    `[billing:seed] credit_pricing (agenda): ${agendaResult.inserted} inserted, ${agendaResult.skipped} skipped`,
   );
 
   console.log("[billing:seed] done.");

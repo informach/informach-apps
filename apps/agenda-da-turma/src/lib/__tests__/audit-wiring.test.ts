@@ -99,6 +99,7 @@ function stubEnv(): void {
   vi.stubEnv("CRON_SECRET", "0123456789abcdef0123456789abcdef");
   vi.stubEnv("STRIPE_SECRET_KEY", "sk_test_123");
   vi.stubEnv("STRIPE_WEBHOOK_SECRET", "whsec_123");
+  vi.stubEnv("OPENROUTER_API_KEY", "sk-or-test");
 }
 
 describe("audit wiring", () => {

@@ -1,36 +1,98 @@
 "use client";
 
+import { Badge } from "@informach/ui/components/badge";
 import { Button } from "@informach/ui/components/button";
 import { Card, CardContent } from "@informach/ui/components/card";
-import { BookOpen, Plus } from "lucide-react";
+import { BookOpen, Camera, Mic, Plus } from "lucide-react";
 import { useState } from "react";
 import type { Subject } from "../types";
 import { SubjectCard } from "./subject-card";
 import { SubjectFormDialog } from "./subject-form-dialog";
+import {
+  type ParsedSubjectInput,
+  SubjectsBatchConfirmDialog,
+} from "./subjects-batch-confirm-dialog";
+import { SubjectsImageDialog } from "./subjects-image-dialog";
+import { SubjectsVoiceDialog } from "./subjects-voice-dialog";
 
 type Props = {
   subjects: Subject[];
   turmaId: string;
   currentUserId: string;
   canCreateSubject: boolean;
+  /**
+   * Quando true, os botões de IA (voz/imagem) ficam clicáveis. Quando false,
+   * permanecem visíveis mas desabilitados com badge "Pro" — mesmo padrão do
+   * `ExportPdfButton` do dashboard. Server-side guard em `withAiRouteGuards`
+   * é defesa em camadas.
+   */
+  isPro: boolean;
 };
 
-export function SubjectsSection({ subjects, turmaId, currentUserId, canCreateSubject }: Props) {
+export function SubjectsSection({
+  subjects,
+  turmaId,
+  currentUserId,
+  canCreateSubject,
+  isPro,
+}: Props) {
   const [createOpen, setCreateOpen] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [imageOpen, setImageOpen] = useState(false);
+  const [batchInitial, setBatchInitial] = useState<ParsedSubjectInput[] | null>(null);
+
+  // Quando a IA termina de processar (voz ou imagem) e devolve a lista, fecha
+  // o dialog de origem ANTES de abrir o de confirmação. Sem isso o voice
+  // dialog (ou image) fica aberto por baixo da modal de confirmar.
+  const handleParsed = (parsed: ParsedSubjectInput[]) => {
+    setVoiceOpen(false);
+    setImageOpen(false);
+    setBatchInitial(parsed);
+  };
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
           {subjects.length === 0
             ? "Nenhuma matéria cadastrada nesta turma."
             : `${subjects.length} ${subjects.length === 1 ? "matéria" : "matérias"} cadastrada${subjects.length === 1 ? "" : "s"}.`}
         </p>
         {canCreateSubject ? (
-          <Button type="button" onClick={() => setCreateOpen(true)}>
-            <Plus className="mr-2 size-4" aria-hidden />
-            Nova matéria
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" onClick={() => setCreateOpen(true)}>
+              <Plus className="mr-2 size-4" aria-hidden />
+              Nova matéria
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setVoiceOpen(true)}
+              disabled={!isPro}
+            >
+              <Mic className="mr-2 size-4" aria-hidden />
+              Por voz
+              {!isPro ? (
+                <Badge variant="secondary" className="ml-2">
+                  Pro
+                </Badge>
+              ) : null}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setImageOpen(true)}
+              disabled={!isPro}
+            >
+              <Camera className="mr-2 size-4" aria-hidden />
+              Por imagem
+              {!isPro ? (
+                <Badge variant="secondary" className="ml-2">
+                  Pro
+                </Badge>
+              ) : null}
+            </Button>
+          </div>
         ) : null}
       </div>
 
@@ -68,7 +130,31 @@ export function SubjectsSection({ subjects, turmaId, currentUserId, canCreateSub
       )}
 
       {canCreateSubject ? (
-        <SubjectFormDialog open={createOpen} onOpenChange={setCreateOpen} turmaId={turmaId} />
+        <>
+          <SubjectFormDialog open={createOpen} onOpenChange={setCreateOpen} turmaId={turmaId} />
+          {isPro ? (
+            <>
+              <SubjectsVoiceDialog
+                open={voiceOpen}
+                onOpenChange={setVoiceOpen}
+                onParsed={handleParsed}
+              />
+              <SubjectsImageDialog
+                open={imageOpen}
+                onOpenChange={setImageOpen}
+                onParsed={handleParsed}
+              />
+              <SubjectsBatchConfirmDialog
+                open={batchInitial !== null}
+                onOpenChange={(o) => {
+                  if (!o) setBatchInitial(null);
+                }}
+                turmaId={turmaId}
+                initialSubjects={batchInitial ?? []}
+              />
+            </>
+          ) : null}
+        </>
       ) : null}
     </div>
   );
