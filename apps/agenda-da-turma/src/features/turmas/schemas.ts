@@ -49,3 +49,20 @@ export const deleteTurmaInputSchema = z.object({
   turmaId: z.string().uuid("Identificador de turma inválido"),
 });
 export type DeleteTurmaInput = z.output<typeof deleteTurmaInputSchema>;
+
+export const updateTurmaInputSchema = z.object({
+  turmaId: z.string().uuid("Identificador de turma inválido"),
+  grade: z.enum(TURMA_GRADES),
+  year: z
+    .number()
+    .int("Ano inválido")
+    .min(MIN_TURMA_YEAR, `Ano mínimo ${MIN_TURMA_YEAR}`)
+    .max(MAX_TURMA_YEAR, `Ano máximo ${MAX_TURMA_YEAR}`),
+  classLetter: z
+    .string()
+    .trim()
+    .length(1, "Informe a letra")
+    .regex(/^[A-Z]$/, "Letra deve ser de A a Z"),
+});
+export type UpdateTurmaInput = z.output<typeof updateTurmaInputSchema>;
+export type UpdateTurmaFormValues = z.input<typeof updateTurmaInputSchema>;

@@ -50,6 +50,10 @@ export function DeleteTurmaDialog({ open, onOpenChange, turmaId, schoolName }: P
           toast.error("Outras famílias estão usando essa turma.", {
             description: "Peça pra elas saírem antes de apagar, ou crie outra.",
           });
+        } else if (result.error.code === "HAS_ACTIVITIES") {
+          toast.error("Turma já tem atividades cadastradas.", {
+            description: "Apague as atividades primeiro.",
+          });
         } else {
           toast.error("Não foi possível apagar a turma.", {
             description: "Tente novamente em instantes.",
@@ -73,7 +77,8 @@ export function DeleteTurmaDialog({ open, onOpenChange, turmaId, schoolName }: P
           <AlertDialogTitle>Apagar turma?</AlertDialogTitle>
           <AlertDialogDescription>
             A turma de &quot;{schoolName}&quot; e todas as matérias dela serão removidas
-            permanentemente. Só é possível apagar quando nenhuma outra família está vinculada.
+            permanentemente. Só é possível apagar enquanto a turma estiver vazia — sem atividades
+            cadastradas e sem outras famílias vinculadas.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

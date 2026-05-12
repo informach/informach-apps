@@ -9,6 +9,7 @@ import {
   joinByCodeInputSchema,
   leaveTurmaInputSchema,
   setActiveTurmaInputSchema,
+  updateTurmaInputSchema,
 } from "./schemas";
 import {
   createOrJoinTurma,
@@ -16,6 +17,7 @@ import {
   joinTurmaByCode,
   leaveTurma,
   setActiveTurma,
+  updateTurma,
 } from "./service";
 
 export const createOrJoinTurmaAction = action
@@ -130,4 +132,34 @@ export const deleteTurmaAction = action
     logger.info({ userId, turmaId: input.turmaId }, "agenda.turma_deleted");
     await logAgendaAuditEvent("agenda.turma_deleted", userId, { turmaId: input.turmaId });
     return ok({ ok: true } as const);
+  });
+
+export const updateTurmaAction = action
+  .input(updateTurmaInputSchema)
+  .auth({ require: "user" })
+  .rateLimit({ key: "turmas-update", max: 20, window: "1h" })
+  .run(async ({ input, ctx }) => {
+    const userId = ctx.actor?.id;
+    if (!userId) return err({ code: "UNAUTHORIZED" } as const);
+
+    const result = await updateTurma(userId, input);
+    if (!result.ok) return err(result.error);
+
+    logger.info(
+      {
+        userId,
+        turmaId: result.value.turma.id,
+        grade: result.value.turma.grade,
+        year: result.value.turma.year,
+        classLetter: result.value.turma.classLetter,
+      },
+      "agenda.turma_updated",
+    );
+    await logAgendaAuditEvent("agenda.turma_updated", userId, {
+      turmaId: result.value.turma.id,
+      grade: result.value.turma.grade,
+      year: result.value.turma.year,
+      classLetter: result.value.turma.classLetter,
+    });
+    return ok({ turmaId: result.value.turma.id } as const);
   });

@@ -25,6 +25,11 @@ export type TurmaForUser = TurmaWithSchool & {
     profileName: string;
     isActive: boolean;
   }>;
+  // Flags pra gate de Editar/Apagar (UI esconde/disabilita; service revalida).
+  // `hasActivities`: existe pelo menos 1 row em agenda.activities com turmaId = id.
+  // `hasOtherFamilies`: outro usuário (família diferente) tem perfil vinculado.
+  hasActivities: boolean;
+  hasOtherFamilies: boolean;
 };
 
 export type StateOption = { uf: string; name: string };

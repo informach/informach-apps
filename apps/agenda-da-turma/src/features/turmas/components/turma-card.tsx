@@ -7,10 +7,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@informach/ui/components/dropdown-menu";
 import { toast } from "@informach/ui/components/sonner";
-import { BookOpen, Copy, LogOut, MoreVertical, Star, Trash2, UserPlus } from "lucide-react";
+import { BookOpen, Copy, LogOut, MoreVertical, Pencil, Star, Trash2, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -20,6 +21,7 @@ import { joinTurmaByCodeAction, leaveTurmaAction, setActiveTurmaAction } from ".
 import type { TurmaForUser } from "../types";
 import { formatTurmaShort } from "../utils";
 import { DeleteTurmaDialog } from "./delete-turma-dialog";
+import { EditTurmaDialog } from "./edit-turma-dialog";
 
 type Props = {
   turma: TurmaForUser;
@@ -31,7 +33,17 @@ export function TurmaCard({ turma, userProfiles, currentUserId }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const isCreator = turma.createdByUserId === currentUserId;
+  // Edit/Apagar compartilham o mesmo gate: turma só pode ser editada/apagada
+  // enquanto está "fresca" (sem atividades e sem outras famílias). Service
+  // revalida — UI usa esses flags só pra esconder/disabilitar de antemão.
+  const isFrozen = turma.hasActivities || turma.hasOtherFamilies;
+  const frozenReason = turma.hasActivities
+    ? "Há atividades cadastradas"
+    : turma.hasOtherFamilies
+      ? "Outra família vinculada"
+      : null;
 
   const memberProfileIds = new Set(turma.members.map((m) => m.profileId));
   const linkableProfiles = userProfiles.filter((p) => !memberProfileIds.has(p.id));
@@ -102,61 +114,71 @@ export function TurmaCard({ turma, userProfiles, currentUserId }: Props) {
     });
   };
 
-  const anyActive = turma.members.some((m) => m.isActive);
   const isEmpty = turma.members.length === 0;
 
   return (
     <Card>
       <CardContent className="flex flex-col gap-3 p-4">
-        <div className="flex items-start justify-between gap-3">
+        {/* Header: title-block + ⋮ sempre top-right (convenção universal de cards) */}
+        <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1 space-y-0.5">
-            <div className="flex items-center gap-2">
-              <p className="truncate text-base font-semibold text-foreground">{turma.schoolName}</p>
-              {anyActive ? (
-                <Badge className="border border-chart-2/40 bg-chart-2/15 text-foreground">
-                  Ativa
-                </Badge>
-              ) : null}
-            </div>
+            <p className="truncate text-base font-semibold text-foreground">{turma.schoolName}</p>
             <p className="text-sm text-muted-foreground">
               {formatTurmaShort(turma)} · {turma.year} · {turma.cityName}/{turma.stateUf}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button asChild variant="outline" size="sm">
-              <Link href={`/turmas/${turma.id}/materias`}>
-                <BookOpen className="mr-2 size-3.5" aria-hidden />
-                Matérias
-              </Link>
-            </Button>
-            <Button type="button" variant="outline" size="sm" onClick={copyCode}>
-              <Copy className="mr-2 size-3.5" aria-hidden />
-              <span className="font-mono text-xs">{turma.code}</span>
-            </Button>
-            {isCreator ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Ações da turma ${turma.schoolName}`}
-                  >
-                    <MoreVertical className="size-4" aria-hidden />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onSelect={() => setDeleteOpen(true)}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <Trash2 className="mr-2 size-4" aria-hidden />
-                    Apagar turma
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : null}
-          </div>
+          {isCreator ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="-mr-2 -mt-1 shrink-0"
+                  aria-label={`Ações da turma ${turma.schoolName}`}
+                >
+                  <MoreVertical className="size-4" aria-hidden />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem disabled={isFrozen} onSelect={() => setEditOpen(true)}>
+                  <Pencil className="mr-2 size-4" aria-hidden />
+                  <div className="flex flex-col">
+                    <span>Editar turma</span>
+                    {frozenReason ? (
+                      <span className="text-xs text-muted-foreground">{frozenReason}</span>
+                    ) : null}
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  disabled={isFrozen}
+                  onSelect={() => setDeleteOpen(true)}
+                  className="text-destructive focus:text-destructive data-[disabled]:text-muted-foreground"
+                >
+                  <Trash2 className="mr-2 size-4" aria-hidden />
+                  <div className="flex flex-col">
+                    <span>Apagar turma</span>
+                    {frozenReason ? <span className="text-xs">{frozenReason}</span> : null}
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+        </div>
+
+        {/* Ações de conteúdo: Matérias + Code (compartilham row, flex-wrap pra viewports estreitos) */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/turmas/${turma.id}/materias`}>
+              <BookOpen className="mr-2 size-3.5" aria-hidden />
+              Matérias
+            </Link>
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={copyCode}>
+            <Copy className="mr-2 size-3.5" aria-hidden />
+            <span className="font-mono text-xs">{turma.code}</span>
+          </Button>
         </div>
 
         <div className="flex flex-col gap-2 border-t pt-3">
@@ -225,10 +247,10 @@ export function TurmaCard({ turma, userProfiles, currentUserId }: Props) {
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
-                      size="icon"
+                      className="size-7 text-muted-foreground hover:text-foreground"
                       aria-label={`Ações para ${member.profileName}`}
                     >
-                      <MoreVertical className="size-4" aria-hidden />
+                      <MoreVertical className="size-3.5" aria-hidden />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -254,12 +276,15 @@ export function TurmaCard({ turma, userProfiles, currentUserId }: Props) {
       </CardContent>
 
       {isCreator ? (
-        <DeleteTurmaDialog
-          open={deleteOpen}
-          onOpenChange={setDeleteOpen}
-          turmaId={turma.id}
-          schoolName={turma.schoolName}
-        />
+        <>
+          <DeleteTurmaDialog
+            open={deleteOpen}
+            onOpenChange={setDeleteOpen}
+            turmaId={turma.id}
+            schoolName={turma.schoolName}
+          />
+          <EditTurmaDialog open={editOpen} onOpenChange={setEditOpen} turma={turma} />
+        </>
       ) : null}
     </Card>
   );

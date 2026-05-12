@@ -227,8 +227,8 @@ Como turmas são compartilhadas entre famílias, edição/exclusão precisa bala
 | Editar `teacherName` da matéria | Só quem criou a matéria | — (sempre livre) |
 | Editar `name` da matéria | Só quem criou a matéria | "Em uso por outras famílias" + mudança não é "pequeno ajuste" (regra abaixo) |
 | Excluir matéria | Só quem criou a matéria | "Em uso por outras famílias" (qualquer atividade alheia) |
-| Apagar turma | Só o creator (`turmas.created_by_user_id`) | Outra família tem perfil vinculado (`hasOtherFamilyMembersInTurma`) |
-| Editar turma | (Não existe ainda) — quando criar, mesma regra de apagar | Mesma regra |
+| Apagar turma | Só o creator (`turmas.created_by_user_id`) | Outra família tem perfil vinculado (`hasOtherFamilyMembersInTurma`) OU turma tem qualquer atividade cadastrada (`turmaHasActivities`) |
+| Editar turma | Só o creator (`turmas.created_by_user_id`) | Mesma regra de apagar — outra família vinculada OU qualquer atividade cadastrada. Edita `grade`, `year`, `classLetter` (escola não editável). Retorna `CONFLICT_EXISTING_TURMA` se as novas coordenadas colidirem com o UNIQUE `(school+grade+year+letter)` |
 
 **Regra "em uso por outras famílias"** (matérias): qualquer atividade — individual OU compartilhada com a turma — criada por outro usuário e vinculada à matéria conta como uso. Mensagem genérica ("essa matéria está sendo usada por outras famílias") preserva privacidade: não vaza quem nem quantos. **Atividades do próprio criador da matéria NÃO contam** (`created_by_user_id != currentUserId`).
 

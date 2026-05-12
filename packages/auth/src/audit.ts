@@ -51,6 +51,7 @@ export type AuditEventType =
   | "agenda.turma_set_active"
   | "agenda.turma_left"
   | "agenda.turma_deleted"
+  | "agenda.turma_updated"
   | "agenda.subject_created"
   | "agenda.subject_updated"
   | "agenda.subject_deleted"

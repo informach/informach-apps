@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, asc, db, eq, inArray, or, sql } from "@informach/db";
 import {
+  agendaActivities,
   agendaCities,
   agendaSchools,
   agendaStates,
@@ -171,6 +172,8 @@ export async function listTurmasForUser(userId: string): Promise<TurmaForUser[]>
         cityName: row.cityName,
         stateUf: row.stateUf,
         members: [],
+        hasActivities: false,
+        hasOtherFamilies: false,
       };
       byTurma.set(row.id, entry);
     }
@@ -185,7 +188,107 @@ export async function listTurmasForUser(userId: string): Promise<TurmaForUser[]>
       }
     }
   }
+
+  // Anota flags por turma usadas pra gate de Editar/Apagar (UI esconde/disabilita
+  // quando alguma família já entrou OU já há atividades). Dois SELECTs DISTINCT
+  // pequenos pra não inflar o SELECT principal — bater o índice
+  // `agenda_activities_turma_due_idx` e `agenda_turma_members_unique_idx`.
+  const turmaIds = Array.from(byTurma.keys());
+  if (turmaIds.length > 0) {
+    const activityRows = await db
+      .selectDistinct({ turmaId: agendaActivities.turmaId })
+      .from(agendaActivities)
+      .where(inArray(agendaActivities.turmaId, turmaIds));
+    const turmasWithActivities = new Set(activityRows.map((r) => r.turmaId));
+
+    const otherFamilyRows = await db
+      .selectDistinct({ turmaId: agendaTurmaMembers.turmaId })
+      .from(agendaTurmaMembers)
+      .innerJoin(
+        agendaStudentProfiles,
+        eq(agendaStudentProfiles.id, agendaTurmaMembers.studentProfileId),
+      )
+      .where(
+        and(
+          inArray(agendaTurmaMembers.turmaId, turmaIds),
+          sql`${agendaStudentProfiles.userId} <> ${userId}`,
+        ),
+      );
+    const turmasWithOtherFamilies = new Set(otherFamilyRows.map((r) => r.turmaId));
+
+    for (const turma of byTurma.values()) {
+      turma.hasActivities = turmasWithActivities.has(turma.id);
+      turma.hasOtherFamilies = turmasWithOtherFamilies.has(turma.id);
+    }
+  }
+
   return Array.from(byTurma.values());
+}
+
+// Usado pelo guard de Editar/Apagar turma — bloqueia mutação quando há qualquer
+// atividade (própria ou de outras famílias). Cascade ON DELETE deletaria tudo;
+// melhor forçar usuário a apagar atividades antes (vide CLAUDE.md §6).
+export async function turmaHasActivities(turmaId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: agendaActivities.id })
+    .from(agendaActivities)
+    .where(eq(agendaActivities.turmaId, turmaId))
+    .limit(1);
+  return row !== undefined;
+}
+
+export type UpdateTurmaPatch = {
+  grade: Turma["grade"];
+  year: number;
+  classLetter: string;
+};
+
+export type UpdateTurmaResult =
+  | { ok: true; turma: Turma }
+  | { ok: false; code: "CONFLICT_EXISTING_TURMA" | "NOT_FOUND" };
+
+// Atualiza grade/year/classLetter mantendo o natural key UNIQUE. Pre-check de
+// colisão com outra turma da mesma escola — raro ter race aqui porque o gate
+// (sem atividades, sem outras famílias) já isola turmas "frescas".
+export async function updateTurma(
+  turmaId: string,
+  patch: UpdateTurmaPatch,
+): Promise<UpdateTurmaResult> {
+  const [existing] = await db
+    .select({ schoolInepCode: agendaTurmas.schoolInepCode })
+    .from(agendaTurmas)
+    .where(eq(agendaTurmas.id, turmaId))
+    .limit(1);
+  if (!existing) return { ok: false, code: "NOT_FOUND" };
+
+  const [conflict] = await db
+    .select({ id: agendaTurmas.id })
+    .from(agendaTurmas)
+    .where(
+      and(
+        eq(agendaTurmas.schoolInepCode, existing.schoolInepCode),
+        eq(agendaTurmas.grade, patch.grade),
+        eq(agendaTurmas.year, patch.year),
+        eq(agendaTurmas.classLetter, patch.classLetter),
+        sql`${agendaTurmas.id} <> ${turmaId}`,
+      ),
+    )
+    .limit(1);
+  if (conflict) return { ok: false, code: "CONFLICT_EXISTING_TURMA" };
+
+  const [updated] = await db
+    .update(agendaTurmas)
+    .set({
+      grade: patch.grade,
+      year: patch.year,
+      classLetter: patch.classLetter,
+      updatedAt: new Date(),
+    })
+    .where(eq(agendaTurmas.id, turmaId))
+    .returning();
+
+  if (!updated) return { ok: false, code: "NOT_FOUND" };
+  return { ok: true, turma: updated };
 }
 
 export async function insertTurmaMember(turmaId: string, profileId: string): Promise<void> {
