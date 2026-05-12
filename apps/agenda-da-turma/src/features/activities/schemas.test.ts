@@ -77,6 +77,13 @@ describe("createActivityInputSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("rejeita dueAt impossível no calendário", () => {
+    for (const dueAt of ["2026-02-30", "2026-04-31", "2025-02-29"]) {
+      const result = createActivityInputSchema.safeParse({ ...baseCreate, dueAt });
+      expect(result.success).toBe(false);
+    }
+  });
+
   it("rejeita dueAt com hora (datetime-local format)", () => {
     const result = createActivityInputSchema.safeParse({
       ...baseCreate,

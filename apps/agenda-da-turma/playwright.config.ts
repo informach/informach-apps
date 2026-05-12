@@ -1,7 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const PORT = 3001;
-const BASE_URL = process.env.E2E_BASE_URL ?? `http://localhost:${PORT}`;
+const DEFAULT_PORT = 3001;
+const BASE_URL = process.env.E2E_BASE_URL ?? `http://localhost:${DEFAULT_PORT}`;
+const DEV_PORT = new URL(BASE_URL).port || String(DEFAULT_PORT);
 
 export default defineConfig({
   testDir: "./e2e",
@@ -18,13 +19,16 @@ export default defineConfig({
   webServer: process.env.E2E_SKIP_WEBSERVER
     ? undefined
     : {
-        command: "pnpm dev",
+        command: `pnpm exec next dev -p ${DEV_PORT}`,
         url: BASE_URL,
-        reuseExistingServer: !process.env.CI,
+        reuseExistingServer: false,
         timeout: 120_000,
         env: {
+          BETTER_AUTH_URL: BASE_URL,
+          E2E_RELAX_AUTH_RATE_LIMITS: "1",
           EMAIL_SANDBOX_MODE: "sandbox",
           EMAIL_SANDBOX_DIR: "./tmp/integration_emails",
+          NEXT_PUBLIC_APP_URL: BASE_URL,
         },
       },
   projects: [

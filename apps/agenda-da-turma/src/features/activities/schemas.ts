@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isValidLocalIsoDate } from "@/features/dashboard/date";
 import { MAX_ACTIVITY_DESCRIPTION_LENGTH, MAX_ACTIVITY_TITLE_LENGTH } from "./limits";
 
 const activityIdSchema = z.string().uuid("Identificador de atividade inválido");
@@ -36,10 +37,7 @@ const dueAtSchema = z
   .trim()
   .min(1, "Informe a data de entrega")
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida")
-  .refine((value) => {
-    const parsed = new Date(`${value}T00:00:00Z`);
-    return !Number.isNaN(parsed.getTime());
-  }, "Data inválida");
+  .refine(isValidLocalIsoDate, "Data inválida");
 
 export const createActivityInputSchema = z.object({
   turmaId: turmaIdSchema,

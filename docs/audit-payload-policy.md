@@ -51,6 +51,6 @@ Eventos `agenda.*` registram mutações de domínio do app `agenda-da-turma` com
 Eventos atuais:
 
 - `agenda.student_profile_created`, `agenda.student_profile_updated`, `agenda.student_profile_deleted`
-- `agenda.turma_created_or_joined`, `agenda.turma_joined_by_code`, `agenda.turma_set_active`, `agenda.turma_left`, `agenda.turma_deleted`
+- `agenda.turma_created_or_joined`, `agenda.turma_joined_by_code`, `agenda.turma_set_active`, `agenda.turma_left`, `agenda.turma_updated`, `agenda.turma_deleted`
 - `agenda.subject_created`, `agenda.subject_updated`, `agenda.subject_deleted`
 - `agenda.activity_created`, `agenda.activity_updated`, `agenda.activity_deleted`, `agenda.activity_status_set`, `agenda.activity_shared_response`

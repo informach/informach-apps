@@ -76,6 +76,9 @@ describe("parseLocalIso", () => {
   it("throws on invalid ISO", () => {
     expect(() => parseLocalIso("not-a-date")).toThrow();
     expect(() => parseLocalIso("")).toThrow();
+    expect(() => parseLocalIso("2026-02-30")).toThrow();
+    expect(() => parseLocalIso("2026-04-31")).toThrow();
+    expect(() => parseLocalIso("2025-02-29")).toThrow();
   });
 });
 
@@ -209,6 +212,9 @@ describe("isValidDateIso", () => {
     expect(isValidDateIso("2026-5-12")).toBe(false);
     expect(isValidDateIso("not-a-date")).toBe(false);
     expect(isValidDateIso("2026/05/12")).toBe(false);
+    expect(isValidDateIso("2026-02-30")).toBe(false);
+    expect(isValidDateIso("2026-04-31")).toBe(false);
+    expect(isValidDateIso("2025-02-29")).toBe(false);
   });
 });
 

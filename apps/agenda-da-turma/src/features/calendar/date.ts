@@ -3,7 +3,13 @@
 // `features/dashboard/date` — a regra de TZ (`America/Sao_Paulo` em
 // `todayLocalIso`, server-TZ-neutro nos demais) vive lá.
 
-import { addDaysIso, parseLocalIso, todayLocalIso, toLocalIso } from "@/features/dashboard/date";
+import {
+  addDaysIso,
+  isValidLocalIsoDate,
+  parseLocalIso,
+  todayLocalIso,
+  toLocalIso,
+} from "@/features/dashboard/date";
 import type { MonthGridCell } from "./types";
 
 export { addDaysIso, parseLocalIso, todayLocalIso, toLocalIso };
@@ -150,21 +156,8 @@ export function rangeForView(
   return { fromIso: first, toIso: last };
 }
 
-// Regex defensivo pra validar `?date=YYYY-MM-DD` vindo da URL.
-const ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
-
 export function isValidDateIso(s: string): boolean {
-  if (!ISO_RE.test(s)) return false;
-  const d = parseLocalIsoSafe(s);
-  return d !== null;
-}
-
-function parseLocalIsoSafe(iso: string): Date | null {
-  try {
-    return parseLocalIso(iso);
-  } catch {
-    return null;
-  }
+  return isValidLocalIsoDate(s);
 }
 
 // Nomes curtos dos dias da semana — header da grid mensal (Dom Seg Ter ...).

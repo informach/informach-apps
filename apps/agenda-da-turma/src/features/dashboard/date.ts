@@ -10,6 +10,7 @@
 // de Date sintéticos) — esses NÃO devem receber `new Date()` direto.
 
 const APP_TIME_ZONE = "America/Sao_Paulo";
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 // `formatToParts` é mais robusto que `format`: extrai year/month/day como
 // strings padded sem depender de delimitadores ou ordering do locale (em
@@ -32,15 +33,27 @@ export function toLocalIso(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+export function isValidLocalIsoDate(iso: string): boolean {
+  return parseLocalIsoToDate(iso) !== null;
+}
+
+function parseLocalIsoToDate(iso: string): Date | null {
+  if (!ISO_DATE_RE.test(iso)) return null;
+  const [year, month, day] = iso.split("-").map(Number);
+  if (year === undefined || month === undefined || day === undefined) return null;
+  const parsed = new Date(year, month - 1, day, 12, 0, 0, 0);
+  return toLocalIso(parsed) === iso ? parsed : null;
+}
+
 // "YYYY-MM-DD" → Date local meio-dia (evita TZ shift em fusos negativos).
 // Date sintético — não representa um instante real, é só vehicle pra
 // aritmética de dias via setDate/getDate.
 export function parseLocalIso(iso: string): Date {
-  const [year, month, day] = iso.split("-").map(Number);
-  if (!year || !month || !day) {
+  const parsed = parseLocalIsoToDate(iso);
+  if (!parsed) {
     throw new Error(`parseLocalIso: invalid ISO "${iso}"`);
   }
-  return new Date(year, month - 1, day, 12, 0, 0, 0);
+  return parsed;
 }
 
 // "Hoje" segundo o calendário de São Paulo. Independe do TZ do servidor.

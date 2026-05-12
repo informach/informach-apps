@@ -1,13 +1,13 @@
 import { db } from "@informach/db";
 import { buildUnsubscribeToken, createSendGridSend, type EmailCategory } from "@informach/emails";
 import { retryFailedDeliveries } from "@informach/emails/sweepers";
+import { unsubscribeMailto } from "@/lib/email-identity";
 import { emailAudit } from "@/lib/emails";
 import { env } from "@/lib/env";
 import { packageLogger } from "@/lib/observability";
 
 export const runtime = "nodejs";
 
-const APP_HOSTNAME = new URL(env.NEXT_PUBLIC_APP_URL).hostname;
 const send = createSendGridSend(env.SENDGRID_API_KEY);
 
 export async function POST(request: Request): Promise<Response> {
@@ -23,7 +23,7 @@ export async function POST(request: Request): Promise<Response> {
       const token = buildUnsubscribeToken(env.BETTER_AUTH_SECRET, identifier, category);
       return `${env.NEXT_PUBLIC_APP_URL}/api/email/unsubscribe?t=${token}`;
     },
-    unsubscribeMailto: `unsubscribe@${APP_HOSTNAME}`,
+    unsubscribeMailto,
     logger: packageLogger,
     onAudit: emailAudit,
   });

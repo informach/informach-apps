@@ -1,11 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { deleteTurma, updateTurma } from "./service";
+import { createOrJoinTurma, deleteTurma, updateTurma } from "./service";
 
 const mocks = vi.hoisted(() => ({
   findStudentProfileByIdForUser: vi.fn(),
   findTurmaByCode: vi.fn(),
   findTurmaWithSchoolById: vi.fn(),
+  generateUniqueTurmaCode: vi.fn(),
   hasOtherFamilyMembersInTurma: vi.fn(),
+  insertTurmaIfNotExists: vi.fn(),
+  insertTurmaMember: vi.fn(),
+  setActiveTurma: vi.fn(),
   turmaHasActivities: vi.fn(),
   deleteTurmaById: vi.fn(),
   updateTurma: vi.fn(),
@@ -27,12 +31,12 @@ vi.mock("./repository", () => ({
   deleteTurmaMember: vi.fn(),
   findTurmaByCode: mocks.findTurmaByCode,
   findTurmaWithSchoolById: mocks.findTurmaWithSchoolById,
-  generateUniqueTurmaCode: vi.fn(),
+  generateUniqueTurmaCode: mocks.generateUniqueTurmaCode,
   hasOtherFamilyMembersInTurma: mocks.hasOtherFamilyMembersInTurma,
-  insertTurmaIfNotExists: vi.fn(),
-  insertTurmaMember: vi.fn(),
+  insertTurmaIfNotExists: mocks.insertTurmaIfNotExists,
+  insertTurmaMember: mocks.insertTurmaMember,
   listTurmasForUser: vi.fn(),
-  setActiveTurma: vi.fn(),
+  setActiveTurma: mocks.setActiveTurma,
   turmaHasActivities: mocks.turmaHasActivities,
   updateTurma: mocks.updateTurma,
   verifyMembership: vi.fn(),
@@ -62,8 +66,46 @@ const updateInput = {
   classLetter: "B",
 } as const;
 
+const createInput = {
+  profileId: "profile_1",
+  schoolInepCode: "inep_1",
+  grade: "5ano",
+  year: 2026,
+  classLetter: "A",
+} as const;
+
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+describe("createOrJoinTurma", () => {
+  it("retries when the generated code collides at insert time", async () => {
+    mocks.findStudentProfileByIdForUser.mockResolvedValue({ id: createInput.profileId });
+    mocks.generateUniqueTurmaCode.mockResolvedValueOnce("AAAAAA").mockResolvedValueOnce("BBBBBB");
+    mocks.insertTurmaIfNotExists
+      .mockResolvedValueOnce({ codeConflict: true })
+      .mockResolvedValueOnce({
+        turma: { id: turmaId },
+        created: true,
+      });
+    mocks.findTurmaWithSchoolById.mockResolvedValue(turmaFromCreator);
+
+    const result = await createOrJoinTurma(creator.id, createInput);
+
+    expect(result.ok).toBe(true);
+    expect(mocks.generateUniqueTurmaCode).toHaveBeenCalledTimes(2);
+    expect(mocks.insertTurmaIfNotExists).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ code: "AAAAAA" }),
+    );
+    expect(mocks.insertTurmaIfNotExists).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ code: "BBBBBB" }),
+    );
+    expect(mocks.insertTurmaMember).toHaveBeenCalledTimes(1);
+    expect(mocks.insertTurmaMember).toHaveBeenCalledWith(turmaId, createInput.profileId);
+    expect(mocks.setActiveTurma).toHaveBeenCalledWith(createInput.profileId, turmaId);
+  });
 });
 
 describe("deleteTurma", () => {

@@ -6,6 +6,7 @@ import {
 } from "@/features/activities/service";
 import { getIsProForUser } from "@/features/billing/server-cache";
 import { DashboardContent } from "@/features/dashboard/components/dashboard-content";
+import { DashboardNavButtons } from "@/features/dashboard/components/dashboard-nav-buttons";
 import { ExportPdfButton } from "@/features/dashboard/components/export-pdf-button";
 import { NoStudentsWidget } from "@/features/students/components/no-students-widget";
 import { ProfilesWithoutTurmaWidget } from "@/features/students/components/profiles-without-turma-widget";
@@ -77,6 +78,7 @@ export default async function DashboardPage({ searchParams }: Props) {
       greeting={greeting}
       headerAction={<ExportPdfButton isPro={isPro} profileFilter={profileFilter} />}
     >
+      <DashboardNavButtons />
       {pendingShared.length > 0 ? <SharedActivitiesWidget items={pendingShared} /> : null}
       <DashboardContent
         userId={user.id}

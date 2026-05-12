@@ -38,6 +38,8 @@ export type TurmaError =
 
 export type CreateOrJoinResult = { turma: TurmaWithSchool; created: boolean };
 
+const MAX_TURMA_CODE_INSERT_ATTEMPTS = 5;
+
 export async function createOrJoinTurma(
   userId: string,
   input: CreateTurmaInput,
@@ -45,25 +47,31 @@ export async function createOrJoinTurma(
   const profile = await findStudentProfileByIdForUser(userId, input.profileId);
   if (!profile) return err({ code: "PROFILE_NOT_FOUND" });
 
-  const code = await generateUniqueTurmaCode();
-  const result = await insertTurmaIfNotExists({
-    code,
-    schoolInepCode: input.schoolInepCode,
-    grade: input.grade,
-    year: input.year,
-    classLetter: input.classLetter,
-    createdByUserId: userId,
-  });
+  for (let attempt = 0; attempt < MAX_TURMA_CODE_INSERT_ATTEMPTS; attempt += 1) {
+    const code = await generateUniqueTurmaCode();
+    const result = await insertTurmaIfNotExists({
+      code,
+      schoolInepCode: input.schoolInepCode,
+      grade: input.grade,
+      year: input.year,
+      classLetter: input.classLetter,
+      createdByUserId: userId,
+    });
 
-  await insertTurmaMember(result.turma.id, profile.id);
-  await setActiveTurmaInDb(profile.id, result.turma.id);
+    if ("codeConflict" in result) continue;
 
-  const turmaWithSchool = await findTurmaWithSchoolById(result.turma.id);
-  if (!turmaWithSchool) {
-    // Defensive — shouldn't happen since we just inserted/found it.
-    return err({ code: "TURMA_NOT_FOUND" });
+    await insertTurmaMember(result.turma.id, profile.id);
+    await setActiveTurmaInDb(profile.id, result.turma.id);
+
+    const turmaWithSchool = await findTurmaWithSchoolById(result.turma.id);
+    if (!turmaWithSchool) {
+      // Defensive — shouldn't happen since we just inserted/found it.
+      return err({ code: "TURMA_NOT_FOUND" });
+    }
+    return ok({ turma: turmaWithSchool, created: result.created });
   }
-  return ok({ turma: turmaWithSchool, created: result.created });
+
+  throw new Error("Failed to create turma with unique code after multiple insert attempts");
 }
 
 export async function joinTurmaByCode(

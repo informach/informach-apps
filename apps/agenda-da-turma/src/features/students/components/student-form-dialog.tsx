@@ -25,6 +25,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useTransition } from "react";
 import { useForm } from "react-hook-form";
+import { todayLocalIso } from "@/features/dashboard/date";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { createStudentProfileAction, updateStudentProfileAction } from "../actions";
 import { FREE_STUDENT_PROFILE_LIMIT, PRO_STUDENT_PROFILE_LIMIT } from "../limits";
@@ -150,7 +151,7 @@ export function StudentFormDialog({ open, onOpenChange, isPro, currentCount, pro
     onOpenChange(next);
   };
 
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayIso = todayLocalIso();
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>

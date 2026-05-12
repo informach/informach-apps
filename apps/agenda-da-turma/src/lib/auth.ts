@@ -5,13 +5,13 @@ import { buildUnsubscribeToken } from "@informach/emails";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { billing } from "./billing";
+import { unsubscribeMailto } from "./email-identity";
 import { emails } from "./emails";
 import { env } from "./env";
 import { logger } from "./logger";
 import { authObservability } from "./observability";
 import { authSecondaryStorage } from "./redis";
 
-const APP_HOSTNAME = new URL(env.NEXT_PUBLIC_APP_URL).hostname;
 const AUTH_SIGN_IN_PATH = "/login";
 
 const googleProvider =
@@ -59,7 +59,7 @@ export const authResult = createAuth({
     const token = buildUnsubscribeToken(env.BETTER_AUTH_SECRET, identifier, category);
     return `${env.NEXT_PUBLIC_APP_URL}/api/email/unsubscribe?t=${token}`;
   },
-  unsubscribeMailto: `unsubscribe@${APP_HOSTNAME}`,
+  unsubscribeMailto,
   socialProviders: googleProvider ? { google: googleProvider } : undefined,
   secondaryStorage: authSecondaryStorage,
   observability: authObservability,
@@ -88,7 +88,7 @@ export const authResult = createAuth({
             appName: APPS.agendaDaTurma.name,
             loginUrl: `${env.NEXT_PUBLIC_APP_URL}/login`,
             unsubscribeUrl,
-            unsubscribeMailto: `unsubscribe@${APP_HOSTNAME}`,
+            unsubscribeMailto,
           },
         );
         await emails.sendEmail({
@@ -97,7 +97,7 @@ export const authResult = createAuth({
           messageKey: `signup-attempt-${user.id}-${crypto.randomUUID()}`,
           userId: user.id,
           unsubscribeUrl,
-          unsubscribeMailto: `unsubscribe@${APP_HOSTNAME}`,
+          unsubscribeMailto,
           subject,
           text,
           html,

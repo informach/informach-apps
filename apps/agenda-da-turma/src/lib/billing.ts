@@ -4,12 +4,12 @@ import { APPS, isStripePriceIdConfigured, PRODUCTS, type Product } from "@inform
 import { db, eq } from "@informach/db";
 import { users } from "@informach/db/schema";
 import { buildUnsubscribeToken } from "@informach/emails";
+import { unsubscribeMailto } from "./email-identity";
 import { emails } from "./emails";
 import { env } from "./env";
 import { logger } from "./logger";
 import { packageLogger } from "./observability";
 
-const APP_HOSTNAME = new URL(env.NEXT_PUBLIC_APP_URL).hostname;
 const stripeMode = env.STRIPE_MODE ?? (env.NODE_ENV === "production" ? "prod" : "dev");
 const agendaProducts = PRODUCTS.filter((p) => p.app === APPS.agendaDaTurma.slug);
 
@@ -63,7 +63,7 @@ export const billing = createBillingService({
     const token = buildUnsubscribeToken(env.BETTER_AUTH_SECRET, identifier, category);
     return `${env.NEXT_PUBLIC_APP_URL}/api/email/unsubscribe?t=${token}`;
   },
-  unsubscribeMailto: `unsubscribe@${APP_HOSTNAME}`,
+  unsubscribeMailto,
   onAudit: (event) => {
     // Fire-and-forget: audit emit must never block the billing call.
     logAuditEvent(event.eventType, event.actorId, event.payload).catch((err) => {

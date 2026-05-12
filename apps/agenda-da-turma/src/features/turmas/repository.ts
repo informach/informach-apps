@@ -1,5 +1,6 @@
 import "server-only";
 
+import { randomInt } from "node:crypto";
 import { and, asc, db, eq, inArray, or, sql } from "@informach/db";
 import {
   agendaActivities,
@@ -29,21 +30,10 @@ export type NewTurmaPayload = {
   createdByUserId: string;
 };
 
-export type InsertTurmaResult = { turma: Turma; created: boolean };
+export type InsertTurmaResult = { turma: Turma; created: boolean } | { codeConflict: true };
 
 export async function insertTurmaIfNotExists(payload: NewTurmaPayload): Promise<InsertTurmaResult> {
-  const inserted = await db
-    .insert(agendaTurmas)
-    .values(payload)
-    .onConflictDoNothing({
-      target: [
-        agendaTurmas.schoolInepCode,
-        agendaTurmas.grade,
-        agendaTurmas.year,
-        agendaTurmas.classLetter,
-      ],
-    })
-    .returning();
+  const inserted = await db.insert(agendaTurmas).values(payload).onConflictDoNothing().returning();
 
   const insertedRow = inserted[0];
   if (insertedRow) {
@@ -64,9 +54,7 @@ export async function insertTurmaIfNotExists(payload: NewTurmaPayload): Promise<
     .limit(1);
 
   if (!existing) {
-    throw new Error(
-      "agenda.turmas: insert returning empty AND existing row not found — check natural key",
-    );
+    return { codeConflict: true };
   }
   return { turma: existing, created: false };
 }
@@ -471,7 +459,7 @@ export async function generateUniqueTurmaCode(maxAttempts = 10): Promise<string>
 function generateRandomCode(): string {
   let out = "";
   for (let i = 0; i < TURMA_CODE_LENGTH; i += 1) {
-    out += TURMA_CODE_ALPHABET.charAt(Math.floor(Math.random() * TURMA_CODE_ALPHABET.length));
+    out += TURMA_CODE_ALPHABET.charAt(randomInt(TURMA_CODE_ALPHABET.length));
   }
   return out;
 }

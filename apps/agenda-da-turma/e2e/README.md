@@ -25,7 +25,9 @@ pnpm e2e            # headless
 pnpm e2e:ui         # interactive UI
 ```
 
-A `playwright.config.ts` sobe `pnpm dev` automaticamente (`webServer`). Para rodar contra um server já em pé, use `E2E_SKIP_WEBSERVER=1 pnpm e2e`.
+A `playwright.config.ts` sobe o Next automaticamente (`webServer`) com env de sandbox e `E2E_RELAX_AUTH_RATE_LIMITS=1`. Para rodar contra um server já em pé, use `E2E_SKIP_WEBSERVER=1 pnpm e2e` e garanta que o processo já esteja com `EMAIL_SANDBOX_MODE=sandbox`, `E2E_RELAX_AUTH_RATE_LIMITS=1`, `BETTER_AUTH_URL` e `NEXT_PUBLIC_APP_URL` apontando para a mesma URL do teste.
+
+Se `3001` estiver ocupado, rode com `E2E_BASE_URL=http://localhost:3002 pnpm e2e`; o `webServer` sobe o Next na porta informada pela URL.
 
 ## Como funciona o sandbox de email
 

@@ -109,8 +109,7 @@ describe("insertTurmaIfNotExists", () => {
       createdByUserId: insertedTurma.createdByUserId,
     });
 
-    expect(result.created).toBe(true);
-    expect(result.turma.id).toBe(insertedTurma.id);
+    expect(result).toMatchObject({ created: true, turma: { id: insertedTurma.id } });
   });
 
   it("returns created=false and the existing row when conflict happens", async () => {
@@ -126,8 +125,23 @@ describe("insertTurmaIfNotExists", () => {
       createdByUserId: insertedTurma.createdByUserId,
     });
 
-    expect(result.created).toBe(false);
-    expect(result.turma.id).toBe(insertedTurma.id);
+    expect(result).toMatchObject({ created: false, turma: { id: insertedTurma.id } });
+  });
+
+  it("returns codeConflict when a non-natural-key unique conflict happens", async () => {
+    dbMocks.db.insert.mockReturnValue(insertChain([]));
+    dbMocks.db.select.mockReturnValue(selectExisting([]));
+
+    const result = await insertTurmaIfNotExists({
+      code: "NEWCODE",
+      schoolInepCode: insertedTurma.schoolInepCode,
+      grade: insertedTurma.grade,
+      year: insertedTurma.year,
+      classLetter: insertedTurma.classLetter,
+      createdByUserId: insertedTurma.createdByUserId,
+    });
+
+    expect(result).toEqual({ codeConflict: true });
   });
 });
 

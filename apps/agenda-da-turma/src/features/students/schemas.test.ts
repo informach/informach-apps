@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { addDaysIso, todayLocalIso } from "@/features/dashboard/date";
 import { createStudentProfileInputSchema, updateStudentProfileInputSchema } from "./schemas";
 
 const validBase = {
@@ -46,10 +47,16 @@ describe("createStudentProfileInputSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("rejects normalized impossible birth date", () => {
+    const result = createStudentProfileInputSchema.safeParse({
+      ...validBase,
+      birthDate: "2026-02-30",
+    });
+    expect(result.success).toBe(false);
+  });
+
   it("rejects birth date in the future", () => {
-    const future = new Date();
-    future.setUTCFullYear(future.getUTCFullYear() + 1);
-    const futureIso = future.toISOString().slice(0, 10);
+    const futureIso = addDaysIso(todayLocalIso(), 1);
     const result = createStudentProfileInputSchema.safeParse({
       ...validBase,
       birthDate: futureIso,
@@ -58,9 +65,7 @@ describe("createStudentProfileInputSchema", () => {
   });
 
   it("rejects an age greater than 25 years", () => {
-    const old = new Date();
-    old.setUTCFullYear(old.getUTCFullYear() - 30);
-    const oldIso = old.toISOString().slice(0, 10);
+    const oldIso = addDaysIso(todayLocalIso(), -(30 * 366));
     const result = createStudentProfileInputSchema.safeParse({
       ...validBase,
       birthDate: oldIso,

@@ -4,13 +4,13 @@ import { customers, organizations, users } from "@informach/db/schema";
 import { buildUnsubscribeToken } from "@informach/emails";
 import { renderTemplate } from "@informach/emails/templates";
 import { billing } from "@/lib/billing";
+import { unsubscribeMailto } from "@/lib/email-identity";
 import { emails } from "@/lib/emails";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 
-const APP_HOSTNAME = new URL(env.NEXT_PUBLIC_APP_URL).hostname;
 const MAX_DUNNING_ATTEMPTS = 3;
 
 /** Cron sweeper — recommended cadence: every 6h. Sends dunning emails for past_due subs. */
@@ -43,7 +43,7 @@ export async function POST(request: Request): Promise<Response> {
         maxAttempts: MAX_DUNNING_ATTEMPTS,
         updatePaymentUrl,
         unsubscribeUrl,
-        unsubscribeMailto: `unsubscribe@${APP_HOSTNAME}`,
+        unsubscribeMailto,
       });
       await emails.sendEmail({
         to: recipient.email,
@@ -51,7 +51,7 @@ export async function POST(request: Request): Promise<Response> {
         // Idempotency: same invoice + same attempt = same email never sent twice.
         messageKey: `dunning_${invoiceId}_${attempt}`,
         unsubscribeUrl,
-        unsubscribeMailto: `unsubscribe@${APP_HOSTNAME}`,
+        unsubscribeMailto,
         userId: subject.type === "user" ? subject.id : undefined,
         subject: emailSubject,
         html,
