@@ -31,10 +31,10 @@ export function MonthView({ anchorIso, items, onSelectActivity, onCreateForDay }
   return (
     <section
       aria-label="Calendário mensal"
-      className="overflow-hidden rounded-lg border border-border bg-card"
+      className="overflow-hidden rounded-lg border border-muted-foreground/20 bg-card"
     >
       {/* Header de weekdays */}
-      <div className="grid grid-cols-7 border-b border-border bg-muted/40">
+      <div className="grid grid-cols-7 divide-x divide-muted-foreground/20 border-b border-muted-foreground/20 bg-muted/40">
         {WEEKDAY_SHORT_LABELS_SUNDAY_FIRST.map((label) => (
           <div
             key={label}
@@ -44,11 +44,10 @@ export function MonthView({ anchorIso, items, onSelectActivity, onCreateForDay }
           </div>
         ))}
       </div>
-      {/* Grid 7×6. `divide-x`/`divide-y` com `divide-border` (mesmo token
-          visível usado em todo o app — `border-border/60` ficava invisível
-          em light mode porque o token já é um cinza muito claro). Linhas
-          discretas tipo Google Calendar, sem dobra/duplicação. */}
-      <div className="grid grid-cols-7 divide-x divide-y divide-border">
+      {/* Grid 7×6. `--border` é igual ao `--card` no tema base, então a grade
+          usa `muted-foreground` com baixa opacidade para manter uma linha
+          discreta e visível em light/dark. */}
+      <div className="grid grid-cols-7 divide-x divide-y divide-muted-foreground/20">
         {grid.map((cell) => (
           <DayCell
             key={cell.iso}

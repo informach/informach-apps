@@ -38,10 +38,11 @@ export function WeekView({ anchorIso, items, onSelectActivity, onCreateForDay }:
   }, [items]);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card">
-      {/* Separadores entre colunas (desktop) ou linhas (mobile) usando o
-          token `border` cheio — `border/60` ficava quase invisível em light. */}
-      <div className="grid grid-cols-1 divide-y divide-border md:grid-cols-7 md:divide-x md:divide-y-0">
+    <div className="overflow-hidden rounded-lg border border-muted-foreground/20 bg-card">
+      {/* Separadores entre colunas (desktop) ou linhas (mobile). `--border`
+          acompanha `--card` no tema base, então a grade usa um divisor
+          semântico com opacidade baixa para aparecer em light/dark. */}
+      <div className="grid grid-cols-1 divide-y divide-muted-foreground/20 md:grid-cols-7 md:divide-x md:divide-y-0">
         {days.map((iso, index) => {
           const dayItems = itemsByDate.get(iso) ?? [];
           const isToday = iso === today;
@@ -53,7 +54,7 @@ export function WeekView({ anchorIso, items, onSelectActivity, onCreateForDay }:
             <div key={iso} className="group relative flex flex-col">
               <div
                 className={cn(
-                  "flex items-center justify-between border-b border-border bg-muted/30 px-3 py-2",
+                  "flex items-center justify-between border-b border-muted-foreground/20 bg-muted/30 px-3 py-2",
                   isToday && "bg-primary/10",
                 )}
               >
