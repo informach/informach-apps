@@ -8,7 +8,7 @@
 
 Agenda da Turma é um app **single-user** para o responsável (pai/mãe) organizar a rotina escolar dos filhos — tarefas, provas, recados, entregas. O subject de billing é sempre o usuário responsável; perfis de filhos vivem na sua própria conta como sub-entidades (modelo Netflix-household).
 
-Estado atual (2026-05-10): app early-stage. **Auth, billing e emails 100% wired** (paridade com cozya — onboarding com escolha de plano, `/settings/billing`, `/upgrade`, widget no dashboard, packs de crédito). **Perfis de Estudante e Turmas implementados** — CRUD em `/perfis` (Free 1 / Pro 3), página global `/turmas` com filtro por perfil, comboboxes pesquisáveis IBGE+INEP pra cadastro manual, código de turma compartilhável pra entrar em turmas existentes, dedup natural via UNIQUE em `(school+grade+year+letter)`. **Dashboard ainda é placeholder de features** — só widgets condicionais (sem perfis / com perfis sem turma) + welcome. **Sem IA hoje** — pipeline de créditos preparado pra quando alguma feature de IA aparecer.
+Estado atual (2026-05-12): app early-stage. **Auth, billing e emails 100% wired** (paridade com cozya — onboarding com escolha de plano, `/settings/billing`, `/upgrade`, widget no dashboard, packs de crédito). **Perfis de Estudante e Turmas implementados** — CRUD em `/perfis` (Free 1 / Pro 3), página global `/turmas` com filtro por perfil, comboboxes pesquisáveis IBGE+INEP pra cadastro manual, código de turma compartilhável pra entrar em turmas existentes, dedup natural via UNIQUE em `(school+grade+year+letter)`. **Atividades + Calendário implementados** — `/atividades` (CRUD com paginação keyset, status per-perfil) + dashboard inteligente com KPIs/buckets/filtro por perfil + `/calendario` (vistas mês/semana/dia, blips coloridos por matéria, criar clicando em dia vazio, edit/delete na modal de detalhe). **Sem IA hoje** — pipeline de créditos preparado pra quando alguma feature de IA aparecer.
 
 Diferença de porte vs cozya: público maior potencial (pais brasileiros com filhos em idade escolar), valor percebido médio. Pricing reflete: Pro R$ 19,90/mês (vs R$ 14,90 do cozya).
 
@@ -57,7 +57,9 @@ apps/agenda-da-turma/
 │   ├── app/                       # Next 16 app router
 │   │   ├── (auth)/                # /login, /signup, /choose-plan (passo 3 onboarding)
 │   │   ├── (app)/                 # autenticadas
-│   │   │   ├── dashboard/         # placeholder + widget billing (Pro/Free)
+│   │   │   ├── dashboard/         # KPIs + buckets (atrasadas/hoje/7 dias) + per-profile progress
+│   │   │   ├── atividades/        # CRUD completo + paginação keyset
+│   │   │   ├── calendario/        # vistas mês/semana/dia + modal de detalhe
 │   │   │   ├── settings/billing/  # plano + saldo + packs (Pro) + history + portal
 │   │   │   └── upgrade/           # PlanCards sem stepper, só Pro (Free → Pro)
 │   │   ├── api/                   # webhooks/jobs (auth, billing, emails)
@@ -70,9 +72,13 @@ apps/agenda-da-turma/
 │   │   ├── page.tsx               # placeholder de landing (texto simples, sem CTA)
 │   │   └── layout.tsx             # Plus Jakarta Sans + ThemeProvider + Toaster
 │   ├── features/
+│   │   ├── activities/            # CRUD de atividades + ActivityCard + ActivityFormDialog + utils (canEditActivity, buildActivityFormDefaults, getDueUrgency)
 │   │   ├── billing/               # plan-cards, plan-card, credit-balance-card, credit-packs, history (paridade cozya)
+│   │   ├── calendar/              # /calendario: views mês/semana/dia, blips, day-cell, detail-dialog, helpers de range/grid
+│   │   ├── dashboard/             # KPIs, buckets, per-profile summaries, helpers de data com TZ São Paulo
 │   │   ├── onboarding/            # signup-form (3 passos), login-form, plan-cards usado em /choose-plan + /upgrade
 │   │   ├── students/              # perfis de estudante (CRUD, dialogs, avatar com chart-N, widgets do dashboard)
+│   │   ├── subjects/              # matérias por turma + paleta chart-N collision-free
 │   │   └── turmas/                # turmas (create/join-by-code/active/leave + comboboxes IBGE+INEP)
 │   ├── components/
 │   │   ├── brand/agenda-logo.tsx  # logotipo SVG inline (theme-aware)
@@ -236,39 +242,51 @@ Mudanças maiores (ex: "Matemática" → "Educação Física") retornam `NAME_CH
 
 **Por que "apagar turma" não tem transferência automática de creator?** Decisão de produto: turmas que perdem o creator viram órfãs (ninguém deleta) mas seguem 100% funcionais — membros ainda criam/editam suas próprias matérias e atividades. Trade-off aceito: simplicidade > housekeeping. Membros que quiserem uma turma 100% sua podem sair desta e criar nova.
 
-### Atividades (próximo bloco — preview do design)
+### Atividades
 
-Não existe schema ainda. Quando entrar, o desenho pretendido é:
+Schema (`packages/db/src/schema/agenda.ts`):
 
-```ts
-agenda.activities {
-  id uuid PK
-  turma_id uuid NOT NULL REFERENCES agenda.turmas(id) ON DELETE cascade
-  subject_id uuid NOT NULL REFERENCES agenda.subjects(id) ON DELETE cascade
-  student_profile_id uuid NOT NULL REFERENCES agenda.student_profiles(id) ON DELETE cascade
-  created_by_user_id text NOT NULL REFERENCES core.users(id)
-  visibility text NOT NULL CHECK (visibility IN ('individual','shared_with_turma'))
-  type text NOT NULL CHECK (type IN ('task','exam','reminder'))
-  title text NOT NULL
-  description text
-  due_at timestamptz
-  status text NOT NULL DEFAULT 'pending'
-  created_at timestamptz DEFAULT now() NOT NULL
-  updated_at timestamptz DEFAULT now() NOT NULL
-}
-INDEX (turma_id, due_at)
-INDEX (created_by_user_id, due_at)
-INDEX (subject_id) -- pro check `isSubjectInUseByOtherUsers`
-```
+- **`agenda.activities`** — id, turmaId, subjectId, createdByUserId, type (task|exam|project|reminder), visibility (individual|shared_with_turma), title, description, **`dueAt` (DATE, "YYYY-MM-DD" sem hora/TZ)**, createdAt, updatedAt.
+- **`agenda.activity_statuses`** — 1 row por (atividade × `studentProfileId`), status pending|done. Por-perfil, não por-atividade.
+- **`agenda.activity_acceptances`** — quando outra família aceita uma shared activity (1 row por `(activityId, userId)`).
 
-**RBAC de visibilidade (enforcement no service)**:
+**RBAC de visibilidade (enforcement no service `features/activities/service.ts`)**:
 - **Free**: criar sempre força `visibility = 'individual'`. Listagem filtra `created_by_user_id = currentUserId`. Atividades `shared_with_turma` de outros membros NUNCA aparecem.
 - **Pro**: pode escolher `individual` ou `shared_with_turma` na criação. Listagem inclui suas próprias E `shared_with_turma` de outros membros da turma.
 - Gate único: `hasProSubscription(subject)` do `@informach/billing/access`. Nunca inline `status === 'active'`.
 
-**Edit/delete de atividade**: só o `created_by_user_id`. Sem efeito sobre permissões da matéria — sou eu que perco minhas próprias atividades, livremente.
+**Edit/delete de atividade**: só o `created_by_user_id`. **E** bloqueia mesmo o criador se a atividade é shared_with_turma e `hasOtherAcceptances=true` (outra família já aceitou). Regra centralizada em `canEditActivity(item, currentUserId)` em `features/activities/utils.ts` — UI esconde, service aplica.
+
+**Defaults do form** (`buildActivityFormDefaults` em `features/activities/utils.ts`): pura, testada — calcula `defaultValues` do RHF tanto em modo create quanto edit. Aceita `defaultDueAt` (usado pelo calendário ao clicar num dia vazio) e `defaultTurmaId` (auto-select se única turma). Em modo edit, ignora os defaults e usa os campos da `activity`.
+
+**SELECT canônico** (`activityListSelect` + `hasOtherAcceptancesExpr` em `features/activities/repository.ts`): export compartilhado entre `/atividades` (paginação keyset), dashboard (buckets) e calendário (range BETWEEN). Garante que `ActivityCard`, `ActivityDetailDialog` e demais consumidores recebem o mesmo shape `ActivityListItem` sem adapters.
 
 **Cascade quando matéria é apagada**: como a regra bloqueia delete da matéria enquanto há atividades de OUTRAS famílias, na prática o cascade só roda quando todas as atividades vinculadas são do próprio creator da matéria — perda consciente.
+
+### Datas e timezone (`features/dashboard/date.ts`)
+
+Toda data de calendário vive como **string "YYYY-MM-DD"** (formato da coluna `date` do Postgres em `agenda.activities.dueAt`). Comparação lexicográfica funciona corretamente nesse formato (ano-mês-dia padded).
+
+**Regra de TZ**: `todayLocalIso()` usa `Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" })` via `formatToParts` — independente do TZ do servidor (Railway roda UTC). Sem isso, uma tarefa cadastrada às 21h BRT "viraria" pro dia seguinte na visão do back-end UTC, e a vista de "hoje" no dashboard/calendário mostraria o dia errado por 3h por noite.
+
+Helpers:
+- `todayLocalIso(now?)` — São Paulo hoje (aceita Date pra testes).
+- `addDaysIso(iso, days)` — **pure string math**, server-TZ-neutro. Use pra qualquer "hoje ± N": `addDaysIso(todayLocalIso(), 7)`.
+- `toLocalIso`, `parseLocalIso`, `addDaysLocalIso` — server-TZ-neutros (operam sobre Dates sintéticos meio-dia local). **Não passe `new Date()` direto** pra eles — só use com Dates vindos de `parseLocalIso`. Pra "hoje + N" use sempre `addDaysIso(todayLocalIso(), N)`.
+
+### Calendário (`/calendario`)
+
+3 vistas (mês/semana/dia), URL como fonte da verdade (`?view=`, `?date=YYYY-MM-DD`, `?perfil=<id>`). Domingo é o primeiro dia da semana (default BR — Google Calendar/iOS).
+
+- **Mês**: grid manual 7×6 com blips coloridos pela matéria (`chart-N/15` + `chart-N/40` borda) e sinais de status sobrepostos: borda esquerda destructive (atrasada), ring chart-4 (hoje/amanhã), opacidade+strike (concluída). Até 3 blips por dia, resto em Popover "+N mais". Clicar célula vazia → `ActivityFormDialog` com `defaultDueAt` pré-preenchido. Linhas clarinhas via `divide-x divide-y divide-border/60` no grid.
+- **Semana**: 7 colunas (desktop) / linhas (mobile) com lista de blips por dia.
+- **Dia**: lista vertical reusando `ActivityCard` em modo completo.
+
+Data layer: `features/calendar/repository.ts` (`listActivitiesInDateRange(userId, { fromIso, toIso, profileFilter, isPro })`) reutiliza `activityListSelect`. Service `getCalendarSnapshot` checa Pro (`billing.hasProSubscription`) e calcula o range visível via `rangeForView` em `features/calendar/date.ts` (mês cobre os 42 dias visíveis, inclui spillover).
+
+**Modal de detalhe** (`features/calendar/components/activity-detail-dialog.tsx`): dedicada (não reuso do `ActivityCard`). Hierarquia visual diferente (título grande, badges de tipo/urgência/perfil, descrição em prose). Edit/Delete abrem `ActivityFormDialog`/`DeleteActivityDialog` como sub-dialogs — Radix lida com aninhamento.
+
+**Por que grid manual em vez do `<Calendar>` (react-day-picker) do `@informach/ui`**: RDP v9 renderiza `<button>` por dia, e aninhar blips clicáveis cria nested interactives (problema de a11y). Além disso RDP só faz mês — semana/dia já seriam custom de qualquer jeito.
 
 ### Reference data: estados, cidades, escolas
 
@@ -334,14 +352,13 @@ Neutros (`background, foreground, card, popover, muted, accent, border, input, s
 
 Ordem rough de prioridade quando produto evoluir:
 
-1. **Dashboard real** — hoje só widget de billing + saudação. Adicionar features de agenda (tarefas/provas/lembretes) é o próximo grande bloco de produto.
-2. **Wiring Railway Dashboard** — `apps/agenda-da-turma/railway.toml` existe. Ainda precisa apontar o service no Railway para esse Config Path quando o deploy for plugado.
-3. **Price IDs live** — substituir todos os `price_TODO_*` da Agenda em `packages/config/src/products.ts` antes de habilitar Pro/Pacotes em produção. O boot guard em `src/lib/billing.ts` trava se faltar algum.
-4. **CSP nonce per-request** — `next.config.ts` já aplica security headers e CSP estática. Se a Agenda passar a precisar de scripts inline próprios, evoluir para o pattern com nonce em `apps/cozya/src/lib/csp.ts` + `apps/cozya/next.config.ts:headers()`.
-5. **Rate limit anti-script** — `lib/rate-limit.ts` com Postgres-via-Redis ainda não existe. Replicar pattern do cozya quando feature de IA chegar (defesa em camadas além do cap mensal de créditos).
-6. **IA pipeline** — descrito em §2 acima. Bloco grande: agentes Mastra + seed `creditPricing` + integração `withCredits`/`runBillableAiCall`.
-7. **Site header pra dashboard** — `site-header.tsx` hoje é minimalista (só auth pages). Quando dashboard tiver navegação real, evoluir pro pattern variant igual `apps/cozya/src/components/marketing/site-header.tsx`.
-8. **Landing pública** — `app/page.tsx` é placeholder. Decisão de produto: ter landing própria em `agenda-da-turma.informach.com.br/` ou redirect pra `informach.com.br/agenda-da-turma`?
+1. **Wiring Railway Dashboard** — `apps/agenda-da-turma/railway.toml` existe. Ainda precisa apontar o service no Railway para esse Config Path quando o deploy for plugado.
+2. **Price IDs live** — substituir todos os `price_TODO_*` da Agenda em `packages/config/src/products.ts` antes de habilitar Pro/Pacotes em produção. O boot guard em `src/lib/billing.ts` trava se faltar algum.
+3. **CSP nonce per-request** — `next.config.ts` já aplica security headers e CSP estática. Se a Agenda passar a precisar de scripts inline próprios, evoluir para o pattern com nonce em `apps/cozya/src/lib/csp.ts` + `apps/cozya/next.config.ts:headers()`.
+4. **Rate limit anti-script** — `lib/rate-limit.ts` com Postgres-via-Redis ainda não existe. Replicar pattern do cozya quando feature de IA chegar (defesa em camadas além do cap mensal de créditos).
+5. **IA pipeline** — descrito em §2 acima. Bloco grande: agentes Mastra + seed `creditPricing` + integração `withCredits`/`runBillableAiCall`.
+6. **Site header pra dashboard** — `site-header.tsx` hoje é minimalista (só auth pages). Quando dashboard tiver navegação real, evoluir pro pattern variant igual `apps/cozya/src/components/marketing/site-header.tsx`.
+7. **Landing pública** — `app/page.tsx` é placeholder. Decisão de produto: ter landing própria em `agenda-da-turma.informach.com.br/` ou redirect pra `informach.com.br/agenda-da-turma`?
 
 ---
 

@@ -17,6 +17,7 @@ export const proxy = createAuthProxy(authResult, {
     "/perfis",
     "/turmas",
     "/atividades",
+    "/calendario",
     "/api/data",
   ],
   signInPath: "/login",

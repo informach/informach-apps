@@ -24,6 +24,7 @@ import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { setActivityStatusAction } from "../actions";
 import type { ActivityListItem, TurmaWithSubjectsForForm } from "../types";
 import {
+  canEditActivity,
   formatTurmaShort,
   getActivityTypeIcon,
   getActivityTypeLabel,
@@ -65,11 +66,7 @@ export function ActivityCard({
 
   // Só o criador edita/deleta. E se foi compartilhada e alguém aceitou, mesmo
   // o criador fica trancado. Service aplica a regra também — UI só esconde.
-  const isCreator = item.createdByUserId === currentUserId;
-  const canManage =
-    !hideActions &&
-    isCreator &&
-    !(item.visibility === "shared_with_turma" && item.hasOtherAcceptances);
+  const canManage = !hideActions && canEditActivity(item, currentUserId);
 
   const handleToggle = (next: boolean) => {
     startTransition(async () => {

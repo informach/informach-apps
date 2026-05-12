@@ -3,56 +3,21 @@ import "server-only";
 import { and, asc, db, eq, lt, sql } from "@informach/db";
 import {
   agendaActivities,
-  agendaActivityAcceptances,
   agendaActivityStatuses,
   agendaSchools,
   agendaStudentProfiles,
   agendaSubjects,
   agendaTurmas,
 } from "@informach/db/schema";
+import { activityListSelect } from "@/features/activities/repository";
 import type { ActivityListItem } from "@/features/activities/types";
-import { addDaysLocalIso, todayLocalIso } from "./date";
+import { addDaysIso, todayLocalIso } from "./date";
 import type { DashboardBucket, DashboardCounters, DashboardProfileSummary } from "./types";
 
 type Ctx = {
   profileFilter: string | null;
   isPro: boolean;
 };
-
-// Subquery que devolve `true` quando alguém de outra família já aceitou a
-// shared activity. Mesmo gate de edit/delete usado em /atividades — replicado
-// aqui pra que o ActivityCard recebido por props funcione idêntico.
-const hasOtherAcceptancesExpr = sql<boolean>`EXISTS (
-  SELECT 1 FROM ${agendaActivityAcceptances} aa
-  WHERE aa.activity_id = ${agendaActivities.id} AND aa.accepted = true
-)`;
-
-// SELECT base que produz uma row por (atividade × perfil do user). Mesmo
-// shape de ActivityListItem que /atividades consome — permite reusar
-// ActivityCard sem qualquer adapter.
-const activityListSelect = {
-  activityId: agendaActivities.id,
-  statusId: agendaActivityStatuses.id,
-  status: agendaActivityStatuses.status,
-  studentProfileId: agendaStudentProfiles.id,
-  studentProfileName: agendaStudentProfiles.name,
-  turmaId: agendaActivities.turmaId,
-  subjectId: agendaActivities.subjectId,
-  subjectName: agendaSubjects.name,
-  subjectColorIndex: agendaSubjects.colorIndex,
-  schoolName: agendaSchools.name,
-  grade: agendaTurmas.grade,
-  classLetter: agendaTurmas.classLetter,
-  year: agendaTurmas.year,
-  type: agendaActivities.type,
-  visibility: agendaActivities.visibility,
-  title: agendaActivities.title,
-  description: agendaActivities.description,
-  dueAt: agendaActivities.dueAt,
-  activityCreatedAt: agendaActivities.createdAt,
-  createdByUserId: agendaActivities.createdByUserId,
-  hasOtherAcceptances: hasOtherAcceptancesExpr,
-} as const;
 
 // Atividades visíveis ao user em determinada bucket. WHERE composto:
 // - perfil pertence ao user
@@ -66,8 +31,8 @@ export async function listActivitiesByBucket(
   options: Ctx & { limit: number },
 ): Promise<ActivityListItem[]> {
   const today = todayLocalIso();
-  const tomorrow = addDaysLocalIso(new Date(), 1);
-  const sevenDaysAhead = addDaysLocalIso(new Date(), 7);
+  const tomorrow = addDaysIso(today, 1);
+  const sevenDaysAhead = addDaysIso(today, 7);
 
   const bucketWhere =
     bucket === "overdue"
@@ -118,9 +83,9 @@ export async function getDashboardCounters(
   options: Ctx,
 ): Promise<DashboardCounters> {
   const today = todayLocalIso();
-  const tomorrow = addDaysLocalIso(new Date(), 1);
-  const sevenAhead = addDaysLocalIso(new Date(), 7);
-  const sevenAgo = addDaysLocalIso(new Date(), -7);
+  const tomorrow = addDaysIso(today, 1);
+  const sevenAhead = addDaysIso(today, 7);
+  const sevenAgo = addDaysIso(today, -7);
 
   const baseWhere = and(
     eq(agendaStudentProfiles.userId, userId),

@@ -25,6 +25,42 @@ import type {
 
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
+// Subquery booleana — `true` quando alguma outra família já aceitou a shared
+// activity. Mesmo gate de edit/delete usado em UI: bloqueia mesmo o criador
+// quando outra família já aceitou. Consumido por listActivitiesPageForUser,
+// listActivitiesByBucket (dashboard) e listActivitiesInDateRange (calendar).
+export const hasOtherAcceptancesExpr = sql<boolean>`EXISTS (
+  SELECT 1 FROM ${agendaActivityAcceptances} aa
+  WHERE aa.activity_id = ${agendaActivities.id} AND aa.accepted = true
+)`;
+
+// SELECT canônico que produz `ActivityListItem` (uma row por atividade × perfil
+// do user). Compartilhado entre /atividades, dashboard e calendário pra que
+// ActivityCard e demais consumidores recebam exatamente o mesmo shape.
+export const activityListSelect = {
+  activityId: agendaActivities.id,
+  statusId: agendaActivityStatuses.id,
+  status: agendaActivityStatuses.status,
+  studentProfileId: agendaStudentProfiles.id,
+  studentProfileName: agendaStudentProfiles.name,
+  turmaId: agendaActivities.turmaId,
+  subjectId: agendaActivities.subjectId,
+  subjectName: agendaSubjects.name,
+  subjectColorIndex: agendaSubjects.colorIndex,
+  schoolName: agendaSchools.name,
+  grade: agendaTurmas.grade,
+  classLetter: agendaTurmas.classLetter,
+  year: agendaTurmas.year,
+  type: agendaActivities.type,
+  visibility: agendaActivities.visibility,
+  title: agendaActivities.title,
+  description: agendaActivities.description,
+  dueAt: agendaActivities.dueAt,
+  activityCreatedAt: agendaActivities.createdAt,
+  createdByUserId: agendaActivities.createdByUserId,
+  hasOtherAcceptances: hasOtherAcceptancesExpr,
+} as const;
+
 export type NewActivityPayload = {
   turmaId: string;
   subjectId: string;
@@ -373,11 +409,6 @@ export async function listActivitiesPageForUser(
     MAX_ACTIVITIES_PAGE_SIZE,
   );
 
-  const hasOtherAcceptancesExpr = sql<boolean>`EXISTS (
-    SELECT 1 FROM ${agendaActivityAcceptances} aa
-    WHERE aa.activity_id = ${agendaActivities.id} AND aa.accepted = true
-  )`;
-
   // Cursor com 2 grupos (pending ASC dueAt, done DESC dueAt). "Após" depende
   // de em qual grupo o cursor está:
   // - cursor em pending: pode saltar pro grupo done inteiro, ou seguir em
@@ -431,29 +462,7 @@ export async function listActivitiesPageForUser(
   );
 
   const rows = await db
-    .select({
-      activityId: agendaActivities.id,
-      statusId: agendaActivityStatuses.id,
-      status: agendaActivityStatuses.status,
-      studentProfileId: agendaStudentProfiles.id,
-      studentProfileName: agendaStudentProfiles.name,
-      turmaId: agendaActivities.turmaId,
-      subjectId: agendaActivities.subjectId,
-      subjectName: agendaSubjects.name,
-      subjectColorIndex: agendaSubjects.colorIndex,
-      schoolName: agendaSchools.name,
-      grade: agendaTurmas.grade,
-      classLetter: agendaTurmas.classLetter,
-      year: agendaTurmas.year,
-      type: agendaActivities.type,
-      visibility: agendaActivities.visibility,
-      title: agendaActivities.title,
-      description: agendaActivities.description,
-      dueAt: agendaActivities.dueAt,
-      activityCreatedAt: agendaActivities.createdAt,
-      createdByUserId: agendaActivities.createdByUserId,
-      hasOtherAcceptances: hasOtherAcceptancesExpr,
-    })
+    .select(activityListSelect)
     .from(agendaActivityStatuses)
     .innerJoin(
       agendaStudentProfiles,

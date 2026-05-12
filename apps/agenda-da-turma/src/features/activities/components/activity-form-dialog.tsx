@@ -42,7 +42,7 @@ import { createActivityAction, updateActivityAction } from "../actions";
 import { FREE_ACTIVITY_LIMIT } from "../limits";
 import { type CreateActivityFormValues, createActivityInputSchema } from "../schemas";
 import type { ActivityListItem, TurmaWithSubjectsForForm } from "../types";
-import { formatTurmaShort, getActivityTypeLabel } from "../utils";
+import { buildActivityFormDefaults, formatTurmaShort, getActivityTypeLabel } from "../utils";
 
 type ActivityToEdit = Pick<
   ActivityListItem,
@@ -74,6 +74,12 @@ type Props = {
   activity?: ActivityToEdit;
   /** Pré-seleciona turma quando vier de um contexto filtrado. */
   defaultTurmaId?: string;
+  /**
+   * Pré-preenche a data de entrega (YYYY-MM-DD). Usado quando o user clica
+   * num dia vazio do calendário e abre o form pra criar. Ignorado em modo
+   * edição (data vem da própria activity).
+   */
+  defaultDueAt?: string;
 };
 
 const TYPES: Array<"task" | "exam" | "project" | "reminder"> = [
@@ -83,38 +89,6 @@ const TYPES: Array<"task" | "exam" | "project" | "reminder"> = [
   "reminder",
 ];
 
-const EMPTY_DEFAULTS: CreateActivityFormValues = {
-  turmaId: "",
-  subjectId: "",
-  type: "task",
-  title: "",
-  description: "",
-  dueAt: "",
-  visibility: "individual",
-};
-
-function defaultsForEdit(activity: ActivityToEdit): CreateActivityFormValues {
-  return {
-    turmaId: activity.turmaId,
-    subjectId: activity.subjectId,
-    type: activity.type,
-    title: activity.title,
-    description: activity.description ?? "",
-    // activity.dueAt já vem como "YYYY-MM-DD" do server (coluna `date`)
-    dueAt: activity.dueAt,
-    visibility: activity.visibility,
-  };
-}
-
-function pickInitialTurmaId(
-  turmas: TurmaWithSubjectsForForm[],
-  defaultTurmaId: string | undefined,
-): string {
-  if (defaultTurmaId && turmas.some((t) => t.turmaId === defaultTurmaId)) return defaultTurmaId;
-  if (turmas.length === 1) return turmas[0]?.turmaId ?? "";
-  return "";
-}
-
 export function ActivityFormDialog({
   open,
   onOpenChange,
@@ -123,6 +97,7 @@ export function ActivityFormDialog({
   currentActivityCount = 0,
   activity,
   defaultTurmaId,
+  defaultDueAt,
 }: Props) {
   const router = useRouter();
   const [submitting, startSubmit] = useTransition();
@@ -140,9 +115,12 @@ export function ActivityFormDialog({
   // resolver sem problema.
   const form = useForm<CreateActivityFormValues>({
     resolver: zodResolver(createActivityInputSchema),
-    defaultValues: activity
-      ? defaultsForEdit(activity)
-      : { ...EMPTY_DEFAULTS, turmaId: pickInitialTurmaId(turmas, defaultTurmaId) },
+    defaultValues: buildActivityFormDefaults({
+      activity,
+      turmas,
+      defaultTurmaId,
+      defaultDueAt,
+    }),
   });
 
   // Form reset apenas em transições closed→open. As deps `turmas`/`defaultTurmaId`
@@ -150,11 +128,7 @@ export function ActivityFormDialog({
   // biome-ignore lint/correctness/useExhaustiveDependencies: see comment above
   useEffect(() => {
     if (!open) return;
-    form.reset(
-      activity
-        ? defaultsForEdit(activity)
-        : { ...EMPTY_DEFAULTS, turmaId: pickInitialTurmaId(turmas, defaultTurmaId) },
-    );
+    form.reset(buildActivityFormDefaults({ activity, turmas, defaultTurmaId, defaultDueAt }));
   }, [open]);
 
   const selectedTurmaId = form.watch("turmaId");
@@ -289,7 +263,7 @@ export function ActivityFormDialog({
         return;
       }
       toast.success("Atividade criada");
-      form.reset(EMPTY_DEFAULTS);
+      form.reset(buildActivityFormDefaults({ activity, turmas, defaultTurmaId, defaultDueAt }));
       onOpenChange(false);
       router.refresh();
     });
@@ -297,11 +271,7 @@ export function ActivityFormDialog({
 
   const handleOpenChange = (next: boolean) => {
     if (!next) {
-      form.reset(
-        activity
-          ? defaultsForEdit(activity)
-          : { ...EMPTY_DEFAULTS, turmaId: pickInitialTurmaId(turmas, defaultTurmaId) },
-      );
+      form.reset(buildActivityFormDefaults({ activity, turmas, defaultTurmaId, defaultDueAt }));
     }
     onOpenChange(next);
   };
