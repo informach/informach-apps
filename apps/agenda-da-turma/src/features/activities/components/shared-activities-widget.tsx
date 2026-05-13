@@ -78,6 +78,10 @@ function SharedActivityItem({ item }: { item: PendingSharedActivity }) {
           toast.error("Atividades compartilhadas são recurso Pro.");
         } else if (result.error.code === "NOT_A_MEMBER") {
           toast.error("Você precisa estar na turma pra responder.");
+        } else if (result.error.code === "DUE_DATE_PASSED") {
+          toast.error("O prazo dessa atividade já passou.", {
+            description: "Atividades vencidas não podem mais ser aceitas.",
+          });
         } else {
           toast.error("Não foi possível responder.");
         }

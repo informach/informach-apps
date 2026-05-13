@@ -463,6 +463,19 @@ describe("respondSharedActivity", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe("NOT_FOUND");
   });
+
+  it("rejeita DUE_DATE_PASSED quando prazo da atividade já passou", async () => {
+    const expiredActivity = { ...sharedActivity, dueAt: "2020-01-01" };
+    mocks.findActivityById.mockResolvedValue(expiredActivity);
+    mocks.hasProSubscription.mockResolvedValue(true);
+
+    const result = await respondSharedActivity(other.id, { activityId, accepted: true });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("DUE_DATE_PASSED");
+    expect(mocks.userHasActiveProfileInTurma).not.toHaveBeenCalled();
+    expect(mocks.upsertAcceptanceAndStatuses).not.toHaveBeenCalled();
+  });
 });
 
 describe("getActivitiesPageForUser", () => {

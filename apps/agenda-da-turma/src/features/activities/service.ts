@@ -3,6 +3,7 @@ import "server-only";
 import { err, ok, type Result } from "@informach/auth/server-actions";
 import { billing } from "@/features/billing/service";
 import { findTurmaWithSchoolById } from "@/features/turmas/repository";
+import { todayLocalIso } from "../dashboard/date";
 import { FREE_ACTIVITY_LIMIT } from "./limits";
 import {
   type ActivitiesPage,
@@ -47,6 +48,7 @@ export type ActivityError =
   | { code: "NOT_SHARED" }
   | { code: "PRO_REQUIRED" }
   | { code: "INVALID_PROFILE" }
+  | { code: "DUE_DATE_PASSED" }
   | { code: "ACTIVITY_LIMIT_REACHED"; limit: number; current: number };
 
 // Erro do batch — `index` aponta a linha problemática pra UI destacar.
@@ -248,6 +250,12 @@ export async function respondSharedActivity(
 
   const isPro = await billing.hasProSubscription(userSubject(userId));
   if (!isPro) return err({ code: "PRO_REQUIRED" });
+
+  // Atividade com prazo passado nunca é oferecida pra aceitar/rejeitar — em
+  // qualquer circunstância. Defesa em camadas: a query do widget já esconde,
+  // mas blindamos contra request manual e race condition (atividade venceu
+  // entre o load do widget e o clique).
+  if (activity.dueAt < todayLocalIso()) return err({ code: "DUE_DATE_PASSED" });
 
   // User só pode responder se tem perfil ativo na turma — senão a aceitação
   // não geraria status rows pra ninguém.

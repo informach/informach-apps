@@ -12,6 +12,7 @@ import {
   agendaTurmas,
   users,
 } from "@informach/db/schema";
+import { todayLocalIso } from "../dashboard/date";
 import { DEFAULT_ACTIVITIES_PAGE_SIZE, MAX_ACTIVITIES_PAGE_SIZE } from "./limits";
 import type {
   Activity,
@@ -514,9 +515,13 @@ export async function listActivitiesPageForUser(
 //   - criadas por outro user
 //   - user tem ≥1 perfil ativo na mesma turma
 //   - user ainda não respondeu (aceitar nem rejeitar)
+//   - prazo ainda não passou (dueAt >= hoje em São Paulo) — sem isso o widget
+//     pareceria fantasma após entrar numa turma com histórico longo (mostraria
+//     dezenas de atividades vencidas que o user não tem como cumprir).
 export async function listPendingSharedActivitiesForUser(
   userId: string,
 ): Promise<PendingSharedActivity[]> {
+  const today = todayLocalIso();
   return db
     .select({
       activityId: agendaActivities.id,
@@ -543,6 +548,7 @@ export async function listPendingSharedActivitiesForUser(
       and(
         eq(agendaActivities.visibility, "shared_with_turma"),
         sql`${agendaActivities.createdByUserId} <> ${userId}`,
+        sql`${agendaActivities.dueAt} >= ${today}`,
         sql`EXISTS (
           SELECT 1 FROM ${agendaStudentProfiles} sp
           WHERE sp.user_id = ${userId} AND sp.active_turma_id = ${agendaActivities.turmaId}

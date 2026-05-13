@@ -397,7 +397,18 @@ Ordem rough de prioridade quando produto evoluir:
 
 ---
 
-## 7. Comandos
+## 9. PWA (escopo mínimo, sem service worker)
+
+Agenda da Turma é instalável como PWA em iOS e Android sem rodar service worker. Todo o setup é declarativo via Next 16 metadata routes:
+
+- `src/app/manifest.ts` — `display: standalone`, `theme_color: "#006FFD"` (azul `--primary` da agenda), ícones com `purpose: "any"` E `"maskable"` para os mesmos PNGs (Chrome aceita; Lighthouse PWA passa).
+- `src/app/layout.tsx` — `viewport` (`themeColor` light+dark, `viewportFit: "cover"`) e `metadata.appleWebApp` (`capable: true`, `statusBarStyle: "black-translucent"`, `title: "Agenda da Turma"`).
+- `src/app/{favicon.ico,icon.png,icon.svg,apple-icon.png}` — Next auto-linka.
+- `public/web-app-manifest-{192,512}.png` — ícones referenciados pelo `manifest.ts`.
+
+Sem cache de assets, sem offline, sem push notifications. A decisão é deliberada (mesma do cozya §8) — adicionar SW exige cuidados extras (invalidação após mutate, CSP `worker-src`, conflito com cookies do Better Auth). O CSP em `next.config.ts` já libera `manifest-src 'self'`.
+
+## 10. Comandos
 
 ```bash
 # dev
@@ -424,7 +435,7 @@ pnpm --filter @informach/agenda-da-turma exec playwright test e2e/auth.signup-an
 
 ---
 
-## 8. Regras para agentes
+## 11. Regras para agentes
 
 1. **Mudar preço Pro**: editar `listPrice.amountCents` dos 2 produtos em `packages/config/src/products.ts` E atualizar Stripe Dashboard. Os dois lados precisam bater — divergência é bug.
 2. **Adicionar nova feature de IA**: ver checklist em §2. Não pular `withCredits` — o gate de Pro+créditos é a única defesa contra Free consumindo IA.
@@ -443,7 +454,7 @@ pnpm --filter @informach/agenda-da-turma exec playwright test e2e/auth.signup-an
 
 ---
 
-## 9. Histórico relevante
+## 12. Histórico relevante
 
 - Commit `cb219f3` (per-app billing isolation): adicionou coluna `app` em `billing.{customers,credit_ledger,credit_reservations}`, UNIQUE composto `(provider, subjectType, subjectId, app)`. Permite que o mesmo `user.id` tenha customers Stripe distintos no cozya e na agenda. Migration `0020_exotic_wither.sql`.
 - Commit `381e053` (site header com logo + theme toggle): SiteHeader em `/login` e `/signup`, AgendaLogo SVG inline.
