@@ -43,6 +43,22 @@ Hoje há **uma família de features** (cadastro de matérias em lote por voz/ima
 | `agenda.subjects.parse_image` | `openai/gpt-4o` (imageDetail=low) | 1 |
 | `agenda.subjects.transcribe_audio` | `openai/gpt-4o-transcribe` | 1 |
 | `agenda.subjects.parse_voice` | `openai/gpt-4o-mini` | 1 |
+| `agenda.activities.parse_image` | `openai/gpt-4o` (imageDetail=low) | 1 |
+| `agenda.activities.transcribe_audio` | `openai/gpt-4o-transcribe` | 1 |
+| `agenda.activities.parse_voice` | `openai/gpt-4o-mini` | 1 |
+
+Cadastro em lote de atividades por voz/imagem espelha o pattern de matérias:
+áudio → transcribe (1 crédito) → parse (1 crédito) → batch confirm dialog;
+imagem → parse vision (1 crédito) → batch confirm dialog. Cada chamada cobra
+1 crédito via reserve→commit/release, mesma régua das matérias. O parser
+recebe a lista de nomes dos perfis de estudante do user no user-message
+(server-side via `findStudentProfilesByUser`) e devolve `studentNameHint`
+por atividade; o serviço resolve `studentNameHint` → `activeTurmaId` via
+`findClosestStudent` (Levenshtein ≤ 3 + normalização) antes de devolver
+pra UI, então o dialog pré-seleciona a turma do card quando a IA aponta
+um filho específico. Datas relativas ("amanhã", "quarta-feira") são
+resolvidas no agente contra a data "hoje" injetada no cabeçalho do
+user-message (TZ America/Sao_Paulo via `todayLocalIso`).
 
 Fluxo de voz custa 2 créditos (transcribe + parse). Fluxo de imagem custa 1.
 
@@ -81,7 +97,8 @@ apps/agenda-da-turma/
 │   │   ├── page.tsx               # placeholder de landing (texto simples, sem CTA)
 │   │   └── layout.tsx             # Plus Jakarta Sans + ThemeProvider + Toaster
 │   ├── features/
-│   │   ├── activities/            # CRUD de atividades + ActivityCard + ActivityFormDialog + utils (canEditActivity, buildActivityFormDefaults, getDueUrgency)
+│   │   ├── activities/            # CRUD + batch confirm dialog de IA + voice/image dialogs + match-{subject,student} (fuzzy resolver) + utils
+│   │   ├── ai/                    # helpers cross-feature: _http-errors, image-utils (downscaleToDataUrl), _shared (withAiRouteGuards), services dos parsers
 │   │   ├── billing/               # plan-cards, plan-card, credit-balance-card, credit-packs, history (paridade cozya)
 │   │   ├── calendar/              # /calendario: views mês/semana/dia, blips, day-cell, detail-dialog, helpers de range/grid
 │   │   ├── dashboard/             # KPIs, buckets, per-profile summaries, helpers de data com TZ São Paulo

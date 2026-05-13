@@ -44,7 +44,7 @@ export default async function CalendarPage({ searchParams }: Props) {
   const snapshot = await getCalendarSnapshot(user.id, { view, anchorIso, profileFilter });
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 md:px-8">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 md:px-8">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Calendário</h1>
         <p className="text-sm text-muted-foreground">

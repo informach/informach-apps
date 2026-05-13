@@ -21,12 +21,18 @@
 export type AgendaFeature =
   | "agenda.subjects.parse_image"
   | "agenda.subjects.transcribe_audio"
-  | "agenda.subjects.parse_voice";
+  | "agenda.subjects.parse_voice"
+  | "agenda.activities.parse_image"
+  | "agenda.activities.transcribe_audio"
+  | "agenda.activities.parse_voice";
 
 export const AGENDA_MODELS = {
   "agenda.subjects.parse_image": "openai/gpt-4o",
   "agenda.subjects.transcribe_audio": "openai/gpt-4o-transcribe",
   "agenda.subjects.parse_voice": "openai/gpt-4o-mini",
+  "agenda.activities.parse_image": "openai/gpt-4o",
+  "agenda.activities.transcribe_audio": "openai/gpt-4o-transcribe",
+  "agenda.activities.parse_voice": "openai/gpt-4o-mini",
 } as const satisfies Record<AgendaFeature, string>;
 
 export type AgendaModel = (typeof AGENDA_MODELS)[AgendaFeature];

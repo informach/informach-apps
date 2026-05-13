@@ -12,7 +12,13 @@ import {
 import { toast } from "@informach/ui/components/sonner";
 import { Camera, ImagePlus, Images, Loader2, RefreshCcw } from "lucide-react";
 import { useRef, useState } from "react";
-import { handleAiHttpError } from "./_ai-http-errors";
+import { handleAiHttpError } from "@/features/ai/_http-errors";
+import {
+  downscaleToDataUrl,
+  isAcceptedImageMime,
+  MAX_IMAGE_DATA_URL_CHARS,
+  MAX_IMAGE_SOURCE_BYTES,
+} from "@/features/ai/image-utils";
 import type { ParsedSubjectInput } from "./subjects-batch-confirm-dialog";
 
 type Props = {
@@ -24,15 +30,6 @@ type Props = {
 type Stage = "idle" | "preview" | "parsing" | "not_subjects";
 
 const PARSE_ENDPOINT = "/api/ai/subjects/parse-image";
-const MAX_SOURCE_IMAGE_BYTES = 25 * 1024 * 1024;
-const MAX_DATA_URL_CHARS = 8_000_000;
-const ACCEPTED_MIMES = ["image/jpeg", "image/png", "image/webp"] as const;
-const RESIZE_TARGETS = [
-  { maxDim: 1280, quality: 0.85 },
-  { maxDim: 1280, quality: 0.75 },
-  { maxDim: 1024, quality: 0.78 },
-  { maxDim: 960, quality: 0.72 },
-] as const;
 
 export function SubjectsImageDialog({ open, onOpenChange, onParsed }: Props) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -74,12 +71,12 @@ export function SubjectsImageDialog({ open, onOpenChange, onParsed }: Props) {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (!ACCEPTED_MIMES.includes(file.type as (typeof ACCEPTED_MIMES)[number])) {
+    if (!isAcceptedImageMime(file.type)) {
       toast.error("Use uma imagem JPG, PNG ou WebP.");
       event.target.value = "";
       return;
     }
-    if (file.size > MAX_SOURCE_IMAGE_BYTES) {
+    if (file.size > MAX_IMAGE_SOURCE_BYTES) {
       toast.error("Imagem muito grande. Use uma foto de até 25 MB.");
       event.target.value = "";
       return;
@@ -87,7 +84,7 @@ export function SubjectsImageDialog({ open, onOpenChange, onParsed }: Props) {
 
     try {
       const dataUrl = await downscaleToDataUrl(file);
-      if (dataUrl.length > MAX_DATA_URL_CHARS) {
+      if (dataUrl.length > MAX_IMAGE_DATA_URL_CHARS) {
         toast.error(
           "Não consegui reduzir essa imagem. Tente uma foto com enquadramento mais fechado.",
         );
@@ -284,47 +281,4 @@ export function SubjectsImageDialog({ open, onOpenChange, onParsed }: Props) {
       </DialogContent>
     </Dialog>
   );
-}
-
-async function downscaleToDataUrl(file: File): Promise<string> {
-  const objectUrl = URL.createObjectURL(file);
-  try {
-    const img = await loadImage(objectUrl);
-    for (const target of RESIZE_TARGETS) {
-      const dataUrl = renderImageToDataUrl(img, target.maxDim, target.quality);
-      if (dataUrl.length <= MAX_DATA_URL_CHARS) {
-        return dataUrl;
-      }
-    }
-    const finalTarget = RESIZE_TARGETS[RESIZE_TARGETS.length - 1] ?? { maxDim: 960 };
-    return renderImageToDataUrl(img, finalTarget.maxDim, 0.65);
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
-}
-
-function renderImageToDataUrl(img: HTMLImageElement, maxDim: number, quality: number): string {
-  const longestSide = Math.max(img.naturalWidth, img.naturalHeight);
-  const ratio = longestSide > maxDim ? maxDim / longestSide : 1;
-  const targetWidth = Math.max(1, Math.round(img.naturalWidth * ratio));
-  const targetHeight = Math.max(1, Math.round(img.naturalHeight * ratio));
-
-  const canvas = document.createElement("canvas");
-  canvas.width = targetWidth;
-  canvas.height = targetHeight;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    throw new Error("Canvas indisponível neste navegador.");
-  }
-  ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
-  return canvas.toDataURL("image/jpeg", quality);
-}
-
-function loadImage(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("Não foi possível ler a imagem."));
-    img.src = url;
-  });
 }

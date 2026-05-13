@@ -28,7 +28,7 @@ export default async function SubjectsPage({ params }: { params: Promise<{ turma
   const { turma, subjects, canCreateSubject } = result.value;
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8 md:px-8">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 md:px-8">
       <div>
         <Button asChild variant="ghost" size="sm" className="-ml-2 mb-2 gap-1.5">
           <Link href="/turmas">

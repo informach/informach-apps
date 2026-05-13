@@ -13,7 +13,7 @@ import { toast } from "@informach/ui/components/sonner";
 import { SpeechInput } from "@informach/ui/components/speech-input";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
-import { handleAiHttpError } from "./_ai-http-errors";
+import { handleAiHttpError } from "@/features/ai/_http-errors";
 import type { ParsedSubjectInput } from "./subjects-batch-confirm-dialog";
 
 type Props = {

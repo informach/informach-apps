@@ -1,5 +1,6 @@
 "use client";
 
+import { Badge } from "@informach/ui/components/badge";
 import { Button } from "@informach/ui/components/button";
 import { Card, CardContent } from "@informach/ui/components/card";
 import {
@@ -10,15 +11,18 @@ import {
   SelectValue,
 } from "@informach/ui/components/select";
 import { cn } from "@informach/ui/lib/utils";
-import { ArrowLeft, ArrowRight, ListTodo, Plus } from "lucide-react";
+import { ArrowLeft, ArrowRight, Camera, ListTodo, Mic, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { StudentProfile } from "@/features/students/types";
 import { FREE_ACTIVITY_LIMIT } from "../limits";
-import type { ActivityListItem, TurmaWithSubjectsForForm } from "../types";
+import type { ActivityListItem, ParsedActivityInput, TurmaWithSubjectsForForm } from "../types";
+import { ActivitiesBatchConfirmDialog } from "./activities-batch-confirm-dialog";
 import { ActivityCard } from "./activity-card";
 import { ActivityFormDialog } from "./activity-form-dialog";
+import { ActivityImageDialog } from "./activity-image-dialog";
+import { ActivityVoiceDialog } from "./activity-voice-dialog";
 
 type Props = {
   items: ActivityListItem[];
@@ -64,8 +68,19 @@ export function ActivitiesSection({
 }: Props) {
   const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [imageOpen, setImageOpen] = useState(false);
+  const [batchInitial, setBatchInitial] = useState<ParsedActivityInput[] | null>(null);
   const showFreeCounter = !isPro;
   const limitReached = !isPro && activityCount >= FREE_ACTIVITY_LIMIT;
+
+  // Fecha o dialog de origem ANTES de abrir o batch confirm pra evitar que
+  // ele fique aberto por baixo. Mesmo pattern dos subjects.
+  const handleParsed = (parsed: ParsedActivityInput[]) => {
+    setVoiceOpen(false);
+    setImageOpen(false);
+    setBatchInitial(parsed);
+  };
 
   const handleFilterChange = (value: string) => {
     // Trocar de perfil reseta cursor — começa de novo na página 1.
@@ -105,8 +120,9 @@ export function ActivitiesSection({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        {/* Filtro à esquerda no desktop, primeira linha no mobile. */}
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm text-muted-foreground">Filtrar por estudante:</span>
           <Select value={activeFilter?.id ?? "all"} onValueChange={handleFilterChange}>
             <SelectTrigger className="w-auto min-w-[180px]">
@@ -123,7 +139,11 @@ export function ActivitiesSection({
           </Select>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Ações à direita no desktop, embaixo no mobile.
+            Os 3 botões ficam explícitos (com Pro badges visíveis) para
+            incentivar conversão Free → Pro. Free counter aparece à esquerda
+            das ações quando aplicável. */}
+        <div className="flex flex-wrap items-center gap-2">
           {showFreeCounter ? (
             <span
               className={cn(
@@ -137,6 +157,34 @@ export function ActivitiesSection({
           <Button type="button" onClick={() => setCreateOpen(true)} disabled={!canCreate}>
             <Plus className="mr-2 size-4" aria-hidden />
             Nova atividade
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setVoiceOpen(true)}
+            disabled={!isPro || !canCreate}
+          >
+            <Mic className="mr-2 size-4" aria-hidden />
+            Por voz
+            {!isPro ? (
+              <Badge variant="secondary" className="ml-2">
+                Pro
+              </Badge>
+            ) : null}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setImageOpen(true)}
+            disabled={!isPro || !canCreate}
+          >
+            <Camera className="mr-2 size-4" aria-hidden />
+            Por imagem
+            {!isPro ? (
+              <Badge variant="secondary" className="ml-2">
+                Pro
+              </Badge>
+            ) : null}
           </Button>
         </div>
       </div>
@@ -252,6 +300,30 @@ export function ActivitiesSection({
         isPro={isPro}
         currentActivityCount={activityCount}
       />
+
+      {isPro ? (
+        <>
+          <ActivityVoiceDialog
+            open={voiceOpen}
+            onOpenChange={setVoiceOpen}
+            onParsed={handleParsed}
+          />
+          <ActivityImageDialog
+            open={imageOpen}
+            onOpenChange={setImageOpen}
+            onParsed={handleParsed}
+          />
+          <ActivitiesBatchConfirmDialog
+            open={batchInitial !== null}
+            onOpenChange={(o) => {
+              if (!o) setBatchInitial(null);
+            }}
+            turmas={turmasForForm}
+            isPro={isPro}
+            initialActivities={batchInitial ?? []}
+          />
+        </>
+      ) : null}
     </div>
   );
 }

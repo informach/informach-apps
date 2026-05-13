@@ -260,6 +260,25 @@ export const AGENDA_PRICING_SEED: readonly CreditPricingSeedRow[] = [
     flatCost: 1,
     defaultEstimateCredits: 1,
   },
+  {
+    feature: "agenda.activities.parse_image",
+    model: "openai/gpt-4o",
+    flatCost: 1,
+    defaultEstimateCredits: 1,
+    metadata: { providerOptions: { openai: { imageDetail: "low" } } },
+  },
+  {
+    feature: "agenda.activities.transcribe_audio",
+    model: "openai/gpt-4o-transcribe",
+    flatCost: 1,
+    defaultEstimateCredits: 1,
+  },
+  {
+    feature: "agenda.activities.parse_voice",
+    model: "openai/gpt-4o-mini",
+    flatCost: 1,
+    defaultEstimateCredits: 1,
+  },
 ] as const;
 
 /**

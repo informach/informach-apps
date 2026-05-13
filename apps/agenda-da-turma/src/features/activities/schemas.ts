@@ -81,3 +81,32 @@ export const respondSharedActivityInputSchema = z.object({
   accepted: z.boolean(),
 });
 export type RespondSharedActivityInput = z.output<typeof respondSharedActivityInputSchema>;
+
+// Cap defensivo de itens por lote — alinhado com MAX_ACTIVITIES_PER_BATCH
+// do schema do parser de IA. Server enforça mesmo se o caller ignorar.
+const MAX_ACTIVITIES_BATCH = 20;
+
+// Schema do batch usado pelo fluxo "cadastrar atividades por voz/imagem" —
+// recebe N atividades detectadas pela IA (e editadas pelo usuário) para
+// inserir em lote numa única chamada de server action. Cada linha pode ter
+// turma/matéria distintas (caso multi-filho, "Pedro tem prova quarta e Ana
+// tem trabalho sexta"). `visibility` é global — Pro pode escolher se todas
+// as atividades do batch são individuais ou compartilhadas.
+const batchActivitySchema = z.object({
+  turmaId: turmaIdSchema,
+  subjectId: subjectIdSchema,
+  type: typeSchema,
+  title: titleSchema,
+  description: descriptionSchema,
+  dueAt: dueAtSchema,
+});
+
+export const createActivitiesBatchInputSchema = z.object({
+  visibility: visibilitySchema.default("individual"),
+  activities: z
+    .array(batchActivitySchema)
+    .min(1, "Inclua pelo menos uma atividade")
+    .max(MAX_ACTIVITIES_BATCH, `Máximo de ${MAX_ACTIVITIES_BATCH} atividades por lote`),
+});
+export type CreateActivitiesBatchInput = z.output<typeof createActivitiesBatchInputSchema>;
+export type CreateActivitiesBatchFormValues = z.input<typeof createActivitiesBatchInputSchema>;

@@ -74,3 +74,28 @@ export type TurmaWithSubjectsForForm = {
   year: number;
   subjects: Array<{ id: string; name: string; colorIndex: number }>;
 };
+
+/**
+ * Shape de uma atividade detectada pela IA (voz/imagem) depois do
+ * enrichment server-side. Consumida pelo
+ * `ActivitiesBatchConfirmDialog` pra renderizar cards editáveis:
+ *
+ *   - `title`/`description`/`type`/`dueAt`: campos diretos da atividade.
+ *     `dueAt` pode vir `null` quando a IA não conseguiu inferir data;
+ *     o user preenche manualmente.
+ *   - `subjectHint`: texto livre da matéria. Client faz fuzzy-match
+ *     contra as matérias da turma escolhida (`findClosestSubject`).
+ *   - `studentNameHint`: texto livre do estudante mencionado. Server
+ *     já resolveu pra `resolvedTurmaId` quando casou um perfil.
+ *   - `resolvedTurmaId`: turma ativa do perfil casado, ou null. Usado
+ *     pelo dialog pra pré-selecionar a turma do card.
+ */
+export type ParsedActivityInput = {
+  title: string;
+  description: string | null;
+  type: ActivityType;
+  dueAt: string | null;
+  subjectHint: string | null;
+  studentNameHint: string | null;
+  resolvedTurmaId: string | null;
+};

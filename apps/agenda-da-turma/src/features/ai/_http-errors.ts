@@ -1,3 +1,5 @@
+"use client";
+
 import { toast } from "@informach/ui/components/sonner";
 
 /**

@@ -9,6 +9,7 @@ import {
 } from "@informach/ai-core/mastra";
 import { env } from "@/lib/env";
 import { getOpenRouter } from "@/lib/openrouter";
+import { createActivitiesParserAgent } from "./activities-parser/agent";
 import { AGENDA_MODELS } from "./models";
 import { createSubjectsParserAgent } from "./subjects-parser/agent";
 
@@ -44,23 +45,37 @@ export function getMastra(): Mastra {
   // memory configurado para o agente; usamos a versão default.
   const memory = createSharedMemory({ storage });
 
-  const textModel = AGENDA_MODELS["agenda.subjects.parse_voice"];
-  const visionModel = AGENDA_MODELS["agenda.subjects.parse_image"];
+  const subjectsTextModel = AGENDA_MODELS["agenda.subjects.parse_voice"];
+  const subjectsVisionModel = AGENDA_MODELS["agenda.subjects.parse_image"];
+  const activitiesTextModel = AGENDA_MODELS["agenda.activities.parse_voice"];
+  const activitiesVisionModel = AGENDA_MODELS["agenda.activities.parse_image"];
 
   const subjectsParser = createSubjectsParserAgent({
-    model: openrouter(textModel),
+    model: openrouter(subjectsTextModel),
     memory,
   });
 
   const subjectsParserVision = createSubjectsParserAgent({
     id: "subjectsParserVision",
     name: "subjectsParserVision",
-    model: openrouter(visionModel),
+    model: openrouter(subjectsVisionModel),
+    memory,
+  });
+
+  const activitiesParser = createActivitiesParserAgent({
+    model: openrouter(activitiesTextModel),
+    memory,
+  });
+
+  const activitiesParserVision = createActivitiesParserAgent({
+    id: "activitiesParserVision",
+    name: "activitiesParserVision",
+    model: openrouter(activitiesVisionModel),
     memory,
   });
 
   cached = createMastra({
-    agents: { subjectsParser, subjectsParserVision },
+    agents: { subjectsParser, subjectsParserVision, activitiesParser, activitiesParserVision },
     storage,
     logger: createDefaultLogger({ name: "agenda-da-turma", level: env.MASTRA_LOG_LEVEL }),
     observability: createDefaultObservability({ serviceName: "agenda-da-turma" }),
