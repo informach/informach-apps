@@ -5,19 +5,22 @@ export type BillingCycle = "monthly" | "annual";
 export type PlanFeature = { label: string; included: boolean };
 
 export const FREE_FEATURES: PlanFeature[] = [
-  { label: "Cadastro manual de tarefas e provas", included: true },
-  { label: "Visualização por dia, semana e mês", included: true },
-  { label: "Notificações de prazos próximos", included: true },
-  { label: "Uso direto no navegador do celular", included: true },
-  { label: "70 créditos de IA por mês", included: false },
-  { label: "Pacotes extras avulsos quando precisar", included: false },
+  { label: "1 perfil de estudante", included: true },
+  { label: "Até 20 atividades cadastradas", included: true },
+  { label: "Calendário em mês, semana e dia", included: true },
+  { label: "Dashboard com atrasadas, hoje e próximos 7 dias", included: true },
+  { label: "Cadastro por voz, foto e PDF (IA)", included: false },
+  { label: "Compartilhar atividades com pais da turma", included: false },
+  { label: "Exportar agenda em PDF", included: false },
 ];
 
 export const PRO_FEATURES: PlanFeature[] = [
-  { label: "Tudo do Free, sem limites", included: true },
-  { label: "70 créditos de IA renovados todo mês", included: true },
+  { label: "Até 3 perfis (irmãos, primos, o que precisar)", included: true },
+  { label: "Atividades ilimitadas", included: true },
+  { label: "Cadastro por voz, foto e PDF com IA", included: true },
+  { label: "Compartilhar atividades com pais da turma", included: true },
+  { label: "Exportar agenda em PDF", included: true },
   { label: "Pacotes extras avulsos quando precisar", included: true },
-  { label: "Suporte prioritário por e-mail", included: true },
 ];
 
 // Preços derivados de `packages/config/src/products.ts` — fonte oficial.
