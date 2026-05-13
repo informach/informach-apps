@@ -385,6 +385,11 @@ export function ActivityFormDialog({
                             emptyText="Nenhuma matéria encontrada"
                             disabled={!selectedTurmaId || subjectsForTurma.length === 0}
                             resetKey={selectedTurmaId || "no-turma"}
+                            initialLabel={
+                              field.value
+                                ? (subjectsForTurma.find((s) => s.id === field.value)?.name ?? null)
+                                : null
+                            }
                           />
                         </FormControl>
                         <FormMessage />

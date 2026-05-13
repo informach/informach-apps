@@ -8,7 +8,7 @@
 
 Agenda da Turma é um app **single-user** para o responsável (pai/mãe) organizar a rotina escolar dos filhos — tarefas, provas, recados, entregas. O subject de billing é sempre o usuário responsável; perfis de filhos vivem na sua própria conta como sub-entidades (modelo Netflix-household).
 
-Estado atual (2026-05-12): app early-stage. **Auth, billing e emails 100% wired** (paridade com cozya — onboarding com escolha de plano, `/settings/billing`, `/upgrade`, widget no dashboard, packs de crédito). **Perfis de Estudante e Turmas implementados** — CRUD em `/perfis` (Free 1 / Pro 3), página global `/turmas` com filtro por perfil, comboboxes pesquisáveis IBGE+INEP pra cadastro manual, código de turma compartilhável pra entrar em turmas existentes, dedup natural via UNIQUE em `(school+grade+year+letter)`. **Atividades + Calendário implementados** — `/atividades` (CRUD com paginação keyset, status per-perfil) + dashboard inteligente com KPIs/buckets/filtro por perfil + `/calendario` (vistas mês/semana/dia, blips coloridos por matéria, criar clicando em dia vazio, edit/delete na modal de detalhe). **Primeira feature de IA (Pro-only) lançada**: cadastro de matérias em lote por voz (`openai/gpt-4o-transcribe` + `openai/gpt-4o-mini`) e imagem (`openai/gpt-4o` com `imageDetail=low`) em `/turmas/[turmaId]/materias` — usuário grava áudio ou envia foto/print do horário, IA estrutura, modal de confirmação em lote permite editar antes de salvar. Cobra 2 créditos por voz (transcribe + parse) e 1 por imagem.
+Estado atual (2026-05-12): app early-stage. **Auth, billing e emails 100% wired** (paridade com cozya — onboarding com escolha de plano, `/settings/billing`, `/upgrade`, widget no dashboard, packs de crédito). **Perfis de Estudante e Turmas implementados** — CRUD em `/perfis` (Free 1 / Pro 3), página global `/turmas` com filtro por perfil, comboboxes pesquisáveis IBGE+INEP pra cadastro manual, código de turma compartilhável pra entrar em turmas existentes, dedup natural via UNIQUE em `(school+grade+year+letter)`. **Atividades + Calendário implementados** — `/atividades` (CRUD com paginação keyset, status per-perfil) + dashboard inteligente com KPIs/buckets/filtro por perfil + `/calendario` (vistas mês/semana/dia, blips coloridos por matéria, criar clicando em dia vazio, edit/delete na modal de detalhe). **Primeira feature de IA (Pro-only) lançada**: cadastro de matérias em lote por voz (`openai/gpt-4o-transcribe` + `openai/gpt-4o-mini`) e imagem (`openai/gpt-4o` com `imageDetail=low` para matérias; `imageDetail=high` para atividades) — usuário grava áudio ou envia foto/print do horário/agenda, IA estrutura, modal de confirmação em lote permite editar antes de salvar. Cobra 2 créditos por voz (transcribe + parse) e 1 por imagem.
 
 Diferença de porte vs cozya: público maior potencial (pais brasileiros com filhos em idade escolar), valor percebido médio. Pricing reflete: Pro R$ 19,90/mês (vs R$ 14,90 do cozya).
 
@@ -43,7 +43,7 @@ Hoje há **uma família de features** (cadastro de matérias em lote por voz/ima
 | `agenda.subjects.parse_image` | `openai/gpt-4o` (imageDetail=low) | 1 |
 | `agenda.subjects.transcribe_audio` | `openai/gpt-4o-transcribe` | 1 |
 | `agenda.subjects.parse_voice` | `openai/gpt-4o-mini` | 1 |
-| `agenda.activities.parse_image` | `openai/gpt-4o` (imageDetail=low) | 1 |
+| `agenda.activities.parse_image` | `openai/gpt-4o` (imageDetail=high) | 1 |
 | `agenda.activities.transcribe_audio` | `openai/gpt-4o-transcribe` | 1 |
 | `agenda.activities.parse_voice` | `openai/gpt-4o-mini` | 1 |
 

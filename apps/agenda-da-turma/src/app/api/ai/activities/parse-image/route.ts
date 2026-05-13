@@ -54,6 +54,7 @@ export async function POST(request: Request): Promise<Response> {
     return jsonUtf8({
       isValidInput: true,
       activities: result.activities,
+      guessedTurmaId: result.guessedTurmaId,
     });
   } catch (err) {
     logger.error(

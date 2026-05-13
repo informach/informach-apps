@@ -59,7 +59,7 @@ export default async function CalendarPage({ searchParams }: Props) {
         view={view}
         anchorIso={anchorIso}
         profileFilter={profileFilter}
-        profiles={profiles.map((p) => ({ id: p.id, name: p.name }))}
+        profiles={profiles}
         turmasForForm={turmasForForm}
         items={snapshot.items}
       />

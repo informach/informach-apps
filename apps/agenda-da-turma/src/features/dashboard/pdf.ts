@@ -369,7 +369,10 @@ function drawBucket(
     headStyles: { fillColor: opts.headFill, textColor: 255, fontStyle: "bold" },
     alternateRowStyles: { fillColor: [249, 250, 251] },
     columnStyles: {
-      0: { cellWidth: 18 },
+      // Data "DD/MM/YYYY" mal cabia em 18mm (font 8.5 + padding 2.3 × 2) e o
+      // último dígito do ano quebrava pra linha de baixo. 21mm dá folga
+      // confortável. A coluna "Atividade" (índice 4, `auto`) encolhe sozinha.
+      0: { cellWidth: 21 },
       1: { cellWidth: 17 },
       2: { cellWidth: 28 },
       3: { cellWidth: 14, halign: "center" },

@@ -96,6 +96,14 @@ type Props = {
   isPro: boolean;
   /** Atividades detectadas pela IA, prontas pra revisão. */
   initialActivities: ParsedActivityInput[];
+  /**
+   * Turma confirmada no passo intermediário (`TurmaConfirmDialog`). Quando
+   * presente: header mostra label fixo, dropdown de turma some das linhas,
+   * "Adicionar atividade" herda essa turma. Quando ausente (não esperado
+   * hoje, forward-compat), cai no comportamento antigo de dropdown por
+   * linha.
+   */
+  lockedTurmaId?: string;
 };
 
 type RowFormValues = BatchFormValues["activities"][number];
@@ -103,15 +111,25 @@ type RowFormValues = BatchFormValues["activities"][number];
 function buildInitialRow(
   parsed: ParsedActivityInput,
   turmas: TurmaWithSubjectsForForm[],
+  lockedTurmaId: string | undefined,
 ): RowFormValues {
-  const turmaId = parsed.resolvedTurmaId ?? pickInitialTurmaId(turmas, undefined);
+  const turmaId = lockedTurmaId ?? parsed.resolvedTurmaId ?? pickInitialTurmaId(turmas, undefined);
   const subjectsForTurma = turmaId
     ? (turmas.find((t) => t.turmaId === turmaId)?.subjects ?? [])
     : [];
-  const matched = findClosestSubject(subjectsForTurma, parsed.subjectHint);
+  // Prefere `resolvedSubjectId` quando ele ainda existe na turma atual
+  // (server já casou a matéria via fuzzy). Senão refaz o fuzzy match local
+  // usando o `subjectHint` shadow.
+  const preResolved =
+    parsed.resolvedSubjectId &&
+    parsed.resolvedTurmaId === turmaId &&
+    subjectsForTurma.some((s) => s.id === parsed.resolvedSubjectId)
+      ? parsed.resolvedSubjectId
+      : null;
+  const matched = preResolved ?? findClosestSubject(subjectsForTurma, parsed.subjectHint)?.id ?? "";
   return {
     turmaId,
-    subjectId: matched?.id ?? "",
+    subjectId: matched,
     type: parsed.type,
     title: parsed.title,
     description: parsed.description ?? "",
@@ -123,15 +141,16 @@ function buildInitialRow(
 function buildDefaultValues(
   initialActivities: ParsedActivityInput[],
   turmas: TurmaWithSubjectsForForm[],
+  lockedTurmaId: string | undefined,
 ): BatchFormValues {
   return {
     visibility: "individual",
     activities:
       initialActivities.length > 0
-        ? initialActivities.map((a) => buildInitialRow(a, turmas))
+        ? initialActivities.map((a) => buildInitialRow(a, turmas, lockedTurmaId))
         : [
             {
-              turmaId: pickInitialTurmaId(turmas, undefined),
+              turmaId: lockedTurmaId ?? pickInitialTurmaId(turmas, undefined),
               subjectId: "",
               type: "task" as const,
               title: "",
@@ -149,6 +168,7 @@ export function ActivitiesBatchConfirmDialog({
   turmas,
   isPro,
   initialActivities,
+  lockedTurmaId,
 }: Props) {
   const router = useRouter();
   const [submitting, startSubmit] = useTransition();
@@ -158,7 +178,7 @@ export function ActivitiesBatchConfirmDialog({
   // server action.
   const form = useForm<BatchFormValues>({
     resolver: zodResolver(batchFormSchema),
-    defaultValues: buildDefaultValues(initialActivities, turmas),
+    defaultValues: buildDefaultValues(initialActivities, turmas, lockedTurmaId),
   });
 
   const { fields, append, remove, update } = useFieldArray({
@@ -169,8 +189,12 @@ export function ActivitiesBatchConfirmDialog({
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset apenas em open transitions; deps mutam de turma-load.
   useEffect(() => {
     if (!open) return;
-    form.reset(buildDefaultValues(initialActivities, turmas));
+    form.reset(buildDefaultValues(initialActivities, turmas, lockedTurmaId));
   }, [open]);
+
+  const lockedTurma = lockedTurmaId
+    ? (turmas.find((t) => t.turmaId === lockedTurmaId) ?? null)
+    : null;
 
   // Troca de turma de uma linha → re-roda fuzzy match contra as matérias da
   // nova turma usando o `subjectHint` shadow. Se não casar, deixa o
@@ -257,10 +281,21 @@ export function ActivitiesBatchConfirmDialog({
         <DialogHeader>
           <DialogTitle>Revise as atividades detectadas pela IA</DialogTitle>
           <DialogDescription>
-            Confira e edite cada atividade. Você pode trocar turma/matéria, ajustar a data ou
-            remover linhas. Só salva quando tudo estiver certo.
+            {lockedTurma
+              ? "Confira e edite cada atividade. Ajuste matéria, data ou texto. Para mudar a turma, feche e refaça."
+              : "Confira e edite cada atividade. Você pode trocar turma/matéria, ajustar a data ou remover linhas. Só salva quando tudo estiver certo."}
           </DialogDescription>
         </DialogHeader>
+
+        {lockedTurma ? (
+          <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs">
+            <span className="text-muted-foreground">Turma:</span>{" "}
+            <span className="font-medium text-foreground">
+              {lockedTurma.schoolName} —{" "}
+              {formatTurmaShort(lockedTurma.grade, lockedTurma.classLetter, lockedTurma.year)}
+            </span>
+          </div>
+        ) : null}
 
         <Form {...form}>
           <form onSubmit={onSubmit} className="space-y-5">
@@ -342,6 +377,7 @@ export function ActivitiesBatchConfirmDialog({
                   onRemove={() => remove(index)}
                   canRemove={fields.length > 1}
                   disabled={submitting}
+                  hideTurmaField={lockedTurma !== null}
                 />
               ))}
             </div>
@@ -353,7 +389,7 @@ export function ActivitiesBatchConfirmDialog({
                 size="sm"
                 onClick={() =>
                   append({
-                    turmaId: pickInitialTurmaId(turmas, undefined),
+                    turmaId: lockedTurmaId ?? pickInitialTurmaId(turmas, undefined),
                     subjectId: "",
                     type: "task" as const,
                     title: "",
@@ -401,6 +437,8 @@ type RowCardProps = {
   onRemove: () => void;
   canRemove: boolean;
   disabled: boolean;
+  /** Esconde o dropdown de turma na linha (turma travada upfront). */
+  hideTurmaField: boolean;
 };
 
 function ActivityRowCard({
@@ -411,6 +449,7 @@ function ActivityRowCard({
   onRemove,
   canRemove,
   disabled,
+  hideTurmaField,
 }: RowCardProps) {
   const selectedTurmaId = form.watch(`activities.${index}.turmaId`);
   const subjectsForTurma = selectedTurmaId
@@ -445,36 +484,38 @@ function ActivityRowCard({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <FormField
-          control={form.control}
-          name={`activities.${index}.turmaId`}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Turma</FormLabel>
-              <Select
-                value={field.value}
-                onValueChange={(v) => {
-                  field.onChange(v);
-                  onTurmaChange(v);
-                }}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {turmas.map((t) => (
-                    <SelectItem key={t.turmaId} value={t.turmaId}>
-                      {t.schoolName} — {formatTurmaShort(t.grade, t.classLetter, t.year)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {hideTurmaField ? null : (
+          <FormField
+            control={form.control}
+            name={`activities.${index}.turmaId`}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Turma</FormLabel>
+                <Select
+                  value={field.value}
+                  onValueChange={(v) => {
+                    field.onChange(v);
+                    onTurmaChange(v);
+                  }}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {turmas.map((t) => (
+                      <SelectItem key={t.turmaId} value={t.turmaId}>
+                        {t.schoolName} — {formatTurmaShort(t.grade, t.classLetter, t.year)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
 
         <FormField
           control={form.control}
@@ -498,6 +539,11 @@ function ActivityRowCard({
                   emptyText="Nenhuma matéria encontrada"
                   disabled={!selectedTurmaId || subjectsForTurma.length === 0}
                   resetKey={selectedTurmaId || "no-turma"}
+                  initialLabel={
+                    field.value
+                      ? (subjectsForTurma.find((s) => s.id === field.value)?.name ?? null)
+                      : null
+                  }
                 />
               </FormControl>
               <FormMessage />

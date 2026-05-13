@@ -87,8 +87,10 @@ export type TurmaWithSubjectsForForm = {
  *     contra as matérias da turma escolhida (`findClosestSubject`).
  *   - `studentNameHint`: texto livre do estudante mencionado. Server
  *     já resolveu pra `resolvedTurmaId` quando casou um perfil.
- *   - `resolvedTurmaId`: turma ativa do perfil casado, ou null. Usado
- *     pelo dialog pra pré-selecionar a turma do card.
+ *   - `resolvedTurmaId`: turma ativa do perfil casado (ou turma única
+ *     cross-turma cuja matéria casou com `subjectHint`), ou null.
+ *   - `resolvedSubjectId`: matéria da turma resolvida que casou
+ *     `subjectHint` (fuzzy via `findClosestSubject`), ou null.
  */
 export type ParsedActivityInput = {
   title: string;
@@ -98,4 +100,5 @@ export type ParsedActivityInput = {
   subjectHint: string | null;
   studentNameHint: string | null;
   resolvedTurmaId: string | null;
+  resolvedSubjectId: string | null;
 };

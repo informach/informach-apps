@@ -23,6 +23,7 @@ import { ActivityCard } from "./activity-card";
 import { ActivityFormDialog } from "./activity-form-dialog";
 import { ActivityImageDialog } from "./activity-image-dialog";
 import { ActivityVoiceDialog } from "./activity-voice-dialog";
+import { TurmaConfirmDialog } from "./turma-confirm-dialog";
 
 type Props = {
   items: ActivityListItem[];
@@ -70,16 +71,30 @@ export function ActivitiesSection({
   const [createOpen, setCreateOpen] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [imageOpen, setImageOpen] = useState(false);
+  // Passo intermediário entre voz/imagem e batch confirm: o user confirma
+  // (ou escolhe) a turma do batch. As atividades parseadas ficam "presas" em
+  // `pendingActivities` até a confirmação acontecer.
+  const [pendingActivities, setPendingActivities] = useState<ParsedActivityInput[] | null>(null);
+  const [pendingGuessedTurmaId, setPendingGuessedTurmaId] = useState<string | null>(null);
   const [batchInitial, setBatchInitial] = useState<ParsedActivityInput[] | null>(null);
+  const [batchTurmaId, setBatchTurmaId] = useState<string | null>(null);
   const showFreeCounter = !isPro;
   const limitReached = !isPro && activityCount >= FREE_ACTIVITY_LIMIT;
 
-  // Fecha o dialog de origem ANTES de abrir o batch confirm pra evitar que
-  // ele fique aberto por baixo. Mesmo pattern dos subjects.
-  const handleParsed = (parsed: ParsedActivityInput[]) => {
+  // Fecha o dialog de origem (voz/imagem) e abre o passo intermediário de
+  // confirmação de turma. O batch confirm só abre depois que o user confirma.
+  const handleParsed = (parsed: ParsedActivityInput[], guessedTurmaId: string | null) => {
     setVoiceOpen(false);
     setImageOpen(false);
-    setBatchInitial(parsed);
+    setPendingActivities(parsed);
+    setPendingGuessedTurmaId(guessedTurmaId);
+  };
+
+  const handleConfirmTurma = (turmaId: string) => {
+    setBatchInitial(pendingActivities);
+    setBatchTurmaId(turmaId);
+    setPendingActivities(null);
+    setPendingGuessedTurmaId(null);
   };
 
   const handleFilterChange = (value: string) => {
@@ -313,14 +328,31 @@ export function ActivitiesSection({
             onOpenChange={setImageOpen}
             onParsed={handleParsed}
           />
+          <TurmaConfirmDialog
+            open={pendingActivities !== null}
+            onOpenChange={(o) => {
+              if (!o) {
+                setPendingActivities(null);
+                setPendingGuessedTurmaId(null);
+              }
+            }}
+            turmas={turmasForForm}
+            profiles={profiles}
+            guessedTurmaId={pendingGuessedTurmaId}
+            onConfirm={handleConfirmTurma}
+          />
           <ActivitiesBatchConfirmDialog
             open={batchInitial !== null}
             onOpenChange={(o) => {
-              if (!o) setBatchInitial(null);
+              if (!o) {
+                setBatchInitial(null);
+                setBatchTurmaId(null);
+              }
             }}
             turmas={turmasForForm}
             isPro={isPro}
             initialActivities={batchInitial ?? []}
+            lockedTurmaId={batchTurmaId ?? undefined}
           />
         </>
       ) : null}

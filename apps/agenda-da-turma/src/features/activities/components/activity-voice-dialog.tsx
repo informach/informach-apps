@@ -19,7 +19,12 @@ import type { ParsedActivityInput } from "../types";
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onParsed: (activities: ParsedActivityInput[]) => void;
+  /**
+   * Devolve atividades + turma "vencedora" inferida pelo backend (ou null
+   * quando não há consenso). O pai usa pra abrir o passo intermediário
+   * `TurmaConfirmDialog`.
+   */
+  onParsed: (activities: ParsedActivityInput[], guessedTurmaId: string | null) => void;
 };
 
 type Stage = "idle" | "transcribing" | "parsing" | "not_activities";
@@ -86,7 +91,7 @@ export function ActivityVoiceDialog({ open, onOpenChange, onParsed }: Props) {
       return transcript;
     }
     const pData = (await pRes.json().catch(() => null)) as
-      | { isValidInput: true; activities: ParsedActivityInput[] }
+      | { isValidInput: true; activities: ParsedActivityInput[]; guessedTurmaId: string | null }
       | { isValidInput: false; reason?: string }
       | null;
     if (!pData) {
@@ -105,7 +110,7 @@ export function ActivityVoiceDialog({ open, onOpenChange, onParsed }: Props) {
       return transcript;
     }
 
-    onParsed(pData.activities);
+    onParsed(pData.activities, pData.guessedTurmaId ?? null);
     reset();
     return transcript;
   }

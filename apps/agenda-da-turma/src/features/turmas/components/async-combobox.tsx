@@ -26,6 +26,14 @@ type Props = {
   disabled?: boolean;
   // Reset signal — when this changes, fetched cache is cleared.
   resetKey?: string;
+  /**
+   * Label conhecido pelo pai para o `value` atual. Exibido imediatamente
+   * quando o componente monta com um valor pré-selecionado, sem precisar
+   * esperar o popover abrir e o `fetchOptions` rodar. Útil em formulários
+   * que vêm pré-preenchidos (ex.: batch confirm dialog com matéria já
+   * resolvida pela IA).
+   */
+  initialLabel?: string | null;
 };
 
 export function AsyncCombobox({
@@ -37,12 +45,13 @@ export function AsyncCombobox({
   searchPlaceholder = "Buscar...",
   disabled = false,
   resetKey,
+  initialLabel = null,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [options, setOptions] = useState<ComboboxOption[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
+  const [selectedLabel, setSelectedLabel] = useState<string | null>(initialLabel);
   const id = useId();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastResetKey = useRef(resetKey);
@@ -52,9 +61,19 @@ export function AsyncCombobox({
       lastResetKey.current = resetKey;
       setOptions([]);
       setQuery("");
-      setSelectedLabel(null);
+      // Após reset (ex.: troca de turma), o pai já calculou o novo
+      // initialLabel — usa o valor recebido em vez de null pra evitar
+      // flicker (botão mostra placeholder por 1 frame e depois o label).
+      setSelectedLabel(initialLabel);
     }
-  }, [resetKey]);
+  }, [resetKey, initialLabel]);
+
+  // Mantém `selectedLabel` em sincronia quando o pai informa um label novo
+  // (ex.: form reset, value externo mudou). Sem isso o botão mostra
+  // placeholder até o popover abrir.
+  useEffect(() => {
+    if (initialLabel) setSelectedLabel(initialLabel);
+  }, [initialLabel]);
 
   useEffect(() => {
     if (!open || disabled) return;

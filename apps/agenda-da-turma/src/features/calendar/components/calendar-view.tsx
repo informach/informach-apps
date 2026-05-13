@@ -2,8 +2,17 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
+import { ActivitiesBatchConfirmDialog } from "@/features/activities/components/activities-batch-confirm-dialog";
 import { ActivityFormDialog } from "@/features/activities/components/activity-form-dialog";
-import type { ActivityListItem, TurmaWithSubjectsForForm } from "@/features/activities/types";
+import { ActivityImageDialog } from "@/features/activities/components/activity-image-dialog";
+import { ActivityVoiceDialog } from "@/features/activities/components/activity-voice-dialog";
+import { TurmaConfirmDialog } from "@/features/activities/components/turma-confirm-dialog";
+import type {
+  ActivityListItem,
+  ParsedActivityInput,
+  TurmaWithSubjectsForForm,
+} from "@/features/activities/types";
+import type { StudentProfile } from "@/features/students/types";
 import { shiftAnchor, todayLocalIso } from "../date";
 import type { CalendarView as CalendarViewKind } from "../types";
 import { ActivityDetailDialog } from "./activity-detail-dialog";
@@ -12,15 +21,18 @@ import { DayView } from "./day-view";
 import { MonthView } from "./month-view";
 import { WeekView } from "./week-view";
 
-type Profile = { id: string; name: string };
-
 type Props = {
   userId: string;
   isPro: boolean;
   view: CalendarViewKind;
   anchorIso: string;
   profileFilter: string | null;
-  profiles: Profile[];
+  /**
+   * Perfis completos do user — toolbar consome só `id`/`name`, mas o
+   * `TurmaConfirmDialog` precisa de `activeTurmaId` pra casar perfil ↔ turma
+   * vencedora.
+   */
+  profiles: StudentProfile[];
   turmasForForm: TurmaWithSubjectsForForm[];
   items: ActivityListItem[];
 };
@@ -46,6 +58,28 @@ export function CalendarView({
   const [detailOpen, setDetailOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [createDueAt, setCreateDueAt] = useState<string | undefined>(undefined);
+
+  // Mesma máquina de estado de `activities-section.tsx` pra fluxo voz/imagem:
+  // dialog de origem → turma confirm (se IA não chutou) → batch confirm.
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [imageOpen, setImageOpen] = useState(false);
+  const [pendingActivities, setPendingActivities] = useState<ParsedActivityInput[] | null>(null);
+  const [pendingGuessedTurmaId, setPendingGuessedTurmaId] = useState<string | null>(null);
+  const [batchInitial, setBatchInitial] = useState<ParsedActivityInput[] | null>(null);
+  const [batchTurmaId, setBatchTurmaId] = useState<string | null>(null);
+
+  const canCreate = turmasForForm.length > 0;
+
+  // Quando o user tem um perfil filtrado, a `activeTurmaId` desse perfil é
+  // o default natural pra qualquer atividade nova criada pela toolbar/grid —
+  // tanto o clique num dia vazio quanto o botão global "Nova atividade".
+  // Quando o perfil não tem turma ativa, fica null e o form continua exigindo
+  // seleção manual. Quando não há filtro, idem.
+  const defaultTurmaIdFromProfile = useMemo(() => {
+    if (!profileFilter) return undefined;
+    const matched = profiles.find((p) => p.id === profileFilter);
+    return matched?.activeTurmaId ?? undefined;
+  }, [profileFilter, profiles]);
 
   // Acha o item ativo pelo statusId (estável; `items` muda a cada
   // re-render mas o detail item escolhido fica gravado mesmo após router.refresh).
@@ -97,6 +131,20 @@ export function CalendarView({
     setCreateOpen(true);
   };
 
+  const handleParsed = (parsed: ParsedActivityInput[], guessedTurmaId: string | null) => {
+    setVoiceOpen(false);
+    setImageOpen(false);
+    setPendingActivities(parsed);
+    setPendingGuessedTurmaId(guessedTurmaId);
+  };
+
+  const handleConfirmTurma = (turmaId: string) => {
+    setBatchInitial(pendingActivities);
+    setBatchTurmaId(turmaId);
+    setPendingActivities(null);
+    setPendingGuessedTurmaId(null);
+  };
+
   return (
     <div className="space-y-4">
       <CalendarToolbar
@@ -104,12 +152,16 @@ export function CalendarView({
         anchorIso={anchorIso}
         profileFilter={profileFilter}
         profiles={profiles}
+        canCreate={canCreate}
+        isPro={isPro}
         onViewChange={handleViewChange}
         onProfileChange={handleProfileChange}
         onPrev={handlePrev}
         onNext={handleNext}
         onToday={handleToday}
         onCreate={handleCreateGlobal}
+        onCreateByVoice={() => setVoiceOpen(true)}
+        onCreateByImage={() => setImageOpen(true)}
       />
 
       {view === "month" ? (
@@ -155,7 +207,49 @@ export function CalendarView({
         turmas={turmasForForm}
         isPro={isPro}
         defaultDueAt={createDueAt}
+        defaultTurmaId={defaultTurmaIdFromProfile}
       />
+
+      {isPro ? (
+        <>
+          <ActivityVoiceDialog
+            open={voiceOpen}
+            onOpenChange={setVoiceOpen}
+            onParsed={handleParsed}
+          />
+          <ActivityImageDialog
+            open={imageOpen}
+            onOpenChange={setImageOpen}
+            onParsed={handleParsed}
+          />
+          <TurmaConfirmDialog
+            open={pendingActivities !== null}
+            onOpenChange={(o) => {
+              if (!o) {
+                setPendingActivities(null);
+                setPendingGuessedTurmaId(null);
+              }
+            }}
+            turmas={turmasForForm}
+            profiles={profiles}
+            guessedTurmaId={pendingGuessedTurmaId}
+            onConfirm={handleConfirmTurma}
+          />
+          <ActivitiesBatchConfirmDialog
+            open={batchInitial !== null}
+            onOpenChange={(o) => {
+              if (!o) {
+                setBatchInitial(null);
+                setBatchTurmaId(null);
+              }
+            }}
+            turmas={turmasForForm}
+            isPro={isPro}
+            initialActivities={batchInitial ?? []}
+            lockedTurmaId={batchTurmaId ?? undefined}
+          />
+        </>
+      ) : null}
     </div>
   );
 }
