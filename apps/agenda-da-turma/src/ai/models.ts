@@ -24,7 +24,8 @@ export type AgendaFeature =
   | "agenda.subjects.parse_voice"
   | "agenda.activities.parse_image"
   | "agenda.activities.transcribe_audio"
-  | "agenda.activities.parse_voice";
+  | "agenda.activities.parse_voice"
+  | "agenda.activities.parse_pdf";
 
 export const AGENDA_MODELS = {
   "agenda.subjects.parse_image": "openai/gpt-4o",
@@ -33,6 +34,7 @@ export const AGENDA_MODELS = {
   "agenda.activities.parse_image": "openai/gpt-4o",
   "agenda.activities.transcribe_audio": "openai/gpt-4o-transcribe",
   "agenda.activities.parse_voice": "openai/gpt-4o-mini",
+  "agenda.activities.parse_pdf": "openai/gpt-4o",
 } as const satisfies Record<AgendaFeature, string>;
 
 export type AgendaModel = (typeof AGENDA_MODELS)[AgendaFeature];

@@ -67,12 +67,22 @@ function todayFilename(): string {
 function activityRow(item: ActivityListItem): string[] {
   const turmaLabel = `${item.grade}${item.classLetter}`;
   const statusLabel = item.status === "done" ? "Concluída" : "Pendente";
+  const trimmedDescription = item.description?.trim();
+  // jspdf-autotable wrap nativo respeita \n quando overflow="linebreak"
+  // (default). Indentação de 2 espaços nas linhas de observação cria a
+  // hierarquia visual sem precisar de hook custom de render.
+  const activityCell = trimmedDescription
+    ? `${item.title}\n${trimmedDescription
+        .split("\n")
+        .map((line) => `  ${line}`)
+        .join("\n")}`
+    : item.title;
   return [
     formatDueDate(item.dueAt),
     ACTIVITY_TYPE_PT[item.type] ?? item.type,
     item.subjectName,
     turmaLabel,
-    item.title,
+    activityCell,
     item.studentProfileName,
     statusLabel,
   ];
@@ -365,8 +375,17 @@ function drawBucket(
     margin: { left: marginX, right: marginX, top: PDF_HEADER_HEIGHT, bottom: 18 },
     head: [["Data", "Tipo", "Matéria", "Turma", "Atividade", "Estudante", "Status"]],
     body: opts.items.map(activityRow),
-    styles: { font: "helvetica", fontSize: 8.5, cellPadding: 2.3, textColor: COLOR_TEXT },
-    headStyles: { fillColor: opts.headFill, textColor: 255, fontStyle: "bold" },
+    // valign:"top" alinha colunas curtas (Data/Tipo/etc.) ao topo quando a
+    // célula "Atividade" gera múltiplas linhas por causa da observação. Sem
+    // isso, jspdf-autotable centraliza vertical e a Data parece desalinhada.
+    styles: {
+      font: "helvetica",
+      fontSize: 8.5,
+      cellPadding: 2.3,
+      textColor: COLOR_TEXT,
+      valign: "top",
+    },
+    headStyles: { fillColor: opts.headFill, textColor: 255, fontStyle: "bold", valign: "middle" },
     alternateRowStyles: { fillColor: [249, 250, 251] },
     columnStyles: {
       // Data "DD/MM/YYYY" mal cabia em 18mm (font 8.5 + padding 2.3 × 2) e o

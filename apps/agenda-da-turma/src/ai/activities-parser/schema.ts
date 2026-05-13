@@ -36,7 +36,7 @@ const dueAtSchema = z
   .regex(/^\d{4}-\d{2}-\d{2}$/)
   .nullable()
   .describe(
-    "Data de entrega em formato estrito YYYY-MM-DD. Resolva expressões relativas em pt-BR contra a data 'hoje' informada no input ('amanhã', 'quarta-feira', 'dia 25', 'na próxima semana'). Retorne null quando NÃO houver indicação de data no conteúdo — nunca chute.",
+    "Data de entrega em formato estrito YYYY-MM-DD. Resolva expressões relativas em pt-BR contra a data 'hoje' informada no input ('amanhã', 'quarta-feira', 'dia 25', 'na próxima semana'). Quando NÃO houver indicação alguma de data no conteúdo, use 'amanhã' (hoje + 1) como default — NUNCA chute uma data aleatória, e NUNCA retorne null. Null só em casos extremos onde até 'amanhã' faria menos sentido que campo vazio — preferível usar amanhã.",
   );
 
 const subjectHintSchema = z
@@ -85,7 +85,7 @@ export const activitiesParserSchema = z.object({
           .max(MAX_ACTIVITY_DESCRIPTION_LENGTH)
           .nullable()
           .describe(
-            "Detalhes adicionais quando o conteúdo for explícito (ex.: 'Não esquecer a régua', 'Entregar em dupla'). Null quando não houver detalhe além do título.",
+            `Conteúdo detalhado da atividade (até ${MAX_ACTIVITY_DESCRIPTION_LENGTH} chars). Para atividades simples basta uma observação curta ("Não esquecer a régua", "Entregar em dupla"). Para roteiros/revisões de prova é OBRIGATÓRIO copiar a lista COMPLETA de tópicos e os enunciados de exercícios na íntegra (incluindo alíneas a/b/c) — esse campo guarda tudo que o aluno precisa pra estudar/resolver fora do PDF original. Use markdown leve (\\n entre seções, "- " como bullets, MAIÚSCULAS pros títulos). Pode condensar só comentários motivacionais ("bons estudos") e logística repetida. Null quando não houver nada além do título.`,
           ),
         type: activityTypeSchema,
         dueAt: dueAtSchema,

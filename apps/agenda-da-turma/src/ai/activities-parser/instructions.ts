@@ -31,17 +31,25 @@ Use a data "hoje" do cabeçalho para resolver:
 - "hoje" → a própria data informada
 - "amanhã" → hoje + 1
 - "depois de amanhã" → hoje + 2
-- "essa semana" → use o final da semana corrente (sábado, ou sexta se for dia letivo) — quando ambíguo, retorne null
+- "essa semana" → use o final da semana corrente (sábado, ou sexta se for dia letivo) — quando ambíguo, use o fallback (amanhã)
 - "próxima semana" → mesmo dia da semana + 7 dias
 - "segunda-feira", "terça", "quarta", "quinta", "sexta", "sábado", "domingo" → próxima ocorrência (>= hoje)
 - "próxima segunda/terça/..." → segunda ocorrência depois de hoje (mesmo se hoje já for esse dia da semana)
 - "dia 25", "no dia 30" → dia desse número no mês corrente; se já passou, no próximo mês
 - "8 do 4", "data 8 do 4", "dia 8 do mês 4", "08/04", "8/4", "8-4" → dia 8 do mês 4 (= abril) no ano corrente. Formato compacto DD/MM brasileiro — muito comum em cabeçalhos de prova, roteiros de estudo, agendas. NÃO confundir com "dia 8" sozinho (sem mês), que segue a regra anterior.
 - "8 de abril", "dia 8 de abril", "08 de abril" → idem (mês por extenso). Mesmo se a data já passou no ano corrente, use o ano corrente — copie literal, NÃO pule pro próximo ano (a foto pode ser antiga; o user revisa antes de salvar).
-- "no fim do mês", "começo do mês" → último/primeiro dia útil; ambíguo → null
-- "depois das férias", "após o recesso" → null (período indefinido)
+- "no fim do mês", "começo do mês" → último/primeiro dia útil; ambíguo → fallback (amanhã)
+- "depois das férias", "após o recesso" → fallback (amanhã) — período indefinido, user ajusta
 
-Sempre devolver \`dueAt\` em formato estrito YYYY-MM-DD. Quando o conteúdo NÃO mencionar data ou for ambíguo demais para resolver, retornar \`dueAt: null\` — o usuário preenche depois. Nunca chute.
+### Default quando NÃO há data alguma no conteúdo
+
+Quando o conteúdo NÃO mencionar nenhuma data (nem explícita, nem relativa, nem ambígua) → \`dueAt: hoje + 1\` (amanhã). **NUNCA retorne uma data aleatória ou inventada** — só amanhã quando não há pista nenhuma. **NUNCA retorne \`null\`** — a UI espera uma data e o user revisa antes de salvar.
+
+Por que amanhã: é o default seguro pra escola — atividade é provavelmente pro próximo dia letivo. O user pode editar no batch confirm antes de salvar se a data real é outra. Melhor amanhã (editável) do que null (campo vazio) ou data chutada (engana o user).
+
+\`dueAt: null\` SÓ em casos extremos onde até "amanhã" parece errado e você não tem nenhuma pista — preferível usar amanhã.
+
+Sempre devolver \`dueAt\` em formato estrito YYYY-MM-DD. NUNCA chute datas aleatórias — se não tem pista, o valor é literal hoje + 1.
 
 ## Tipo (\`type\`)
 Classificar pelo conteúdo:
@@ -100,18 +108,43 @@ Quando o conteúdo mencionar EXPLICITAMENTE um dos nomes (ex.: capa "Caderno da 
 
 **Quando o cabeçalho NÃO tem esse bloco** (modo legado): devolva o nome canônico em pt-BR quando o conteúdo mencionar a disciplina (ex.: "matemática" → "Matemática", "ed física" → "Educação Física"). Aceitar transcrições sem acentuação.
 
+### Aliases comuns de matérias brasileiras (SEMPRE considere ao casar)
+
+Escolas brasileiras usam nomes intercambiáveis pra mesma matéria. Quando o conteúdo cita um nome e a lista tem o sinônimo, **CASE — não retorne null**. Os aliases conhecidos:
+
+- **Português / Língua Portuguesa / LP / Port** — todos casam entre si. Ex.: PDF com "Português" no cabeçalho casa "Língua Portuguesa" da lista (e vice-versa). Inclui "Língua Pátria", "Portugal" (raro mas aparece).
+- **Matemática / Mat / Cálculo / Aritmética** — todos casam entre si. "Mat", "Matemática" e "Cálculo" são intercambiáveis em escolas BR.
+- **Ciências / Ciências da Natureza / Bio / Biologia** — no Fundamental, "Ciências" engloba Biologia/Física/Química básicas. No Médio, "Bio" pode aparecer como matéria separada — preferir match exato com a lista; usar "Ciências" só se for o único parecido.
+- **História / Hist** — casam.
+- **Geografia / Geo / Geografia Geral** — casam.
+- **Educação Física / Ed. Física / Ed Fis / EF / Edu. Física** — todos casam.
+- **Inglês / Língua Inglesa / Eng** — casam.
+- **Espanhol / Língua Espanhola / Esp** — casam.
+- **Artes / Arte / Educação Artística / Arte Visual** — casam.
+- **Ensino Religioso / ER / Religião** — casam.
+- **Filosofia / Filo** — casam.
+- **Sociologia / Socio** — casam.
+- **Redação / Produção de Texto / Produção Textual** — casam.
+- **Literatura / Lit** — casa, mas distinto de "Língua Portuguesa" no Médio (são matérias separadas).
+
+**Regra de ouro**: se o PDF/imagem cita "Português" e a lista tem "Língua Portuguesa", o subjectHint é "Língua Portuguesa" (copie EXATO como está na lista). NÃO retorne null por causa de diferença nominal — esses pares são a mesma matéria.
+
 ### Como identificar a matéria no conteúdo
 
-A matéria pode aparecer de várias formas no áudio/imagem — todas valem se ela bater com a lista:
+A matéria pode aparecer de várias formas no áudio/imagem/PDF — todas valem se ela bater com a lista:
 
 - **"prova/trabalho/tarefa DE [matéria]"** → casar com a matéria. Ex.: "Débora tem prova de redação" → \`subjectHint: "Redação"\` (se Redação está na lista). "Trabalho de história sobre o Império" → "História". "Tarefa de matemática páginas 32-33" → "Matemática".
+- **"revisão/estudo/avaliação/recuperação/simulado DE [matéria]"** → idem. Mesmo padrão: a matéria vem depois da preposição "de/da/do". Ex.: "Revisão da prova de Língua Portuguesa" → \`subjectHint: "Língua Portuguesa"\`. "Estudo dirigido de matemática" → "Matemática". "Recuperação de história" → "História". "Simulado de inglês" → "Inglês" (ou "Língua Inglesa" via alias).
+- **"Primeira/segunda/terceira prova de [matéria]"** → idem. Ordinal antes não muda nada. Ex.: "Primeira prova de Língua Portuguesa" → "Língua Portuguesa". "Segunda avaliação de geografia" → "Geografia".
 - **"prova/trabalho/tarefa SOBRE [tema]"** → o tema é título, NÃO é a matéria. Ex.: "Prova sobre frações" → \`subjectHint: null\` (a menos que outra parte do conteúdo cite a matéria).
-- **Sigla ou abreviação** que bate com a lista após normalização → casar. Ex.: "Mat" → "Matemática"; "Port" → "Português"; "Geo" → "Geografia"; "Ed Fis" → "Educação Física".
-- **Cabeçalho/sessão em imagem** (foto de agenda com a matéria escrita no topo da página/coluna) → casar.
+- **Sigla ou abreviação** que bate com a lista após normalização → casar. Ex.: "Mat" → "Matemática"; "Port" → "Português" (ou "Língua Portuguesa" via alias); "Geo" → "Geografia"; "Ed Fis" → "Educação Física".
+- **Cabeçalho/sessão em imagem ou PDF** (folha com a matéria escrita no topo, ou no título do documento) → casar. Ex.: PDF titulado "Revisão da primeira prova de Língua Portuguesa" → \`subjectHint: "Língua Portuguesa"\` (a matéria está literal no título do documento; não tem como ignorar).
 
-Mesmo quando a matéria aparece como complemento de "prova/trabalho/tarefa", ela ainda é a matéria — não confunda com "ação". O que NÃO casar:
+Mesmo quando a matéria aparece como complemento de "prova/trabalho/tarefa/revisão", ela ainda é a matéria — não confunda com "ação". O que NÃO casar:
 - "fazer uma redação sobre meio ambiente" → "redação" aqui é o tipo de produto a ser entregue (substantivo da ação), não a matéria. \`subjectHint: null\` (a menos que o contexto deixe explícito que a matéria É Redação).
 - "ler o capítulo 3 do livro" → não há menção de matéria, \`subjectHint: null\`.
+
+**Regra crítica pra documentos com título explícito**: quando o título do documento (PDF/imagem) cita a matéria diretamente (ex.: "Revisão de Língua Portuguesa", "Conteúdo da prova de matemática", "Roteiro de estudos de geografia"), o \`subjectHint\` é OBRIGATÓRIO — copie a matéria do título E aplique os aliases pra casar com a lista. NÃO retorne null nesse caso. Se o título diz "Língua Portuguesa" e a lista tem "Língua Portuguesa", o subjectHint é "Língua Portuguesa" — match direto, sem alias necessário.
 
 Em ambos os modos: quando o conteúdo não mencionar matéria, \`subjectHint: null\`. NÃO inventar matéria que não esteja na lista.
 
@@ -244,12 +277,40 @@ Quando o conteúdo parece um **roteiro/cronograma de estudos pra uma prova** —
 1. **\`type\`: SEMPRE \`"exam"\`**. O documento todo descreve uma prova; estudar é meio, não fim.
 2. **\`title\`**: nome curto da prova preservando ordinal/posicionamento ("Primeira prova de história", "Recuperação de matemática", "Simulado bimestral de português").
 3. **\`dueAt\`**: data da prova lida do cabeçalho. Formatos "DD do M" (ex.: "8 do 4" = 2026-04-08), "DD/MM" e "DD de [mês]" são todos válidos — ver seção de Datas.
-4. **\`subjectHint\`**: matéria da prova (lido do cabeçalho).
-5. **\`description\`**: lista **COMPLETA e BEM FORMATADA** dos tópicos a estudar. **NUNCA resuma** ("muito conteúdo", "vários tópicos", "estudar tudo do capítulo X" são respostas ERRADAS quando a imagem traz a lista detalhada). Use markdown leve (o app renderiza \`\\n\` como quebra de linha):
-   - Quebras de linha entre seções (\`\\n\\n\`).
-   - Bullets com \`- \` (hífen + espaço) no começo de cada tópico.
-   - Quando houver seções nomeadas ("O que vai cair", "O que estudar", "Como revisar"), preserve os títulos em negrito visual usando MAIÚSCULAS ou \`**texto**\` no começo da linha.
-   - Inclua meta-info que não couber no title: valor da prova ("Valor: 10 pontos"), peso, instruções específicas ("Trazer caneta azul", "Sem consulta").
+4. **\`subjectHint\`**: matéria da prova (lido do cabeçalho). Aplique os ALIASES da seção "Aliases comuns de matérias" — ex.: PDF de "Revisão de Português" + lista com "Língua Portuguesa" → \`subjectHint: "Língua Portuguesa"\`.
+5. **\`description\`**: conteúdo da revisão COPIADO NA ÍNTEGRA. Veja a próxima seção pra distinguir o que copia literalmente e o que pode condensar.
+
+### O que copiar na íntegra vs. o que pode condensar
+
+A regra de ouro: **se o aluno precisa do texto pra resolver/estudar, é íntegra. Se é meta-comentário do professor, pode condensar.**
+
+#### COPIAR LITERALMENTE (verbatim, palavra por palavra):
+
+- **Enunciados de exercícios** — toda pergunta/exercício numerado da revisão. Inclui o enunciado completo (não só "exercício 1") porque sem o enunciado o aluno não tem como resolver fora do PDF original.
+  - Ex.: "1. Identifique o sujeito e o predicado das orações abaixo: a) O menino chegou cedo. b) Choveu muito ontem." — copie a numeração + enunciado + todas as alíneas/itens.
+  - Aplica-se a: gramática, matemática, ciências, qualquer matéria com lista de exercícios pra resolver.
+- **Tópicos/conteúdos da prova** — toda a lista do "o que vai cair", "conteúdo da avaliação", "matéria pra estudar". Cada bullet/item da lista tem que aparecer no description.
+  - Ex.: "Sujeito e predicado / Tipos de sujeito / Concordância verbal / Pronomes oblíquos" → todos os 4 viram bullets no description, EXATAMENTE como escritos.
+- **Trechos de texto pra interpretação** — quando o exercício pede "leia o texto abaixo e responda", copie o texto + as perguntas. Sem o texto não tem como responder.
+- **Fórmulas, regras, definições destacadas** — quando o roteiro inclui fórmulas (matemática, física) ou regras (gramática), copie literal.
+- **Vocabulário, palavras pra decorar** — listas de palavras (inglês, espanhol, ciências) entram na íntegra.
+- **Capítulos/páginas específicos** — "estudar capítulos 4 e 5 do livro", "páginas 32-45" entra literal.
+- **Valor da prova, peso, instruções da prova** — "Valor: 10 pontos", "Duração: 2 aulas", "Sem consulta", "Trazer caneta azul".
+
+#### PODE CONDENSAR (ou omitir):
+
+- **Comentários genéricos do professor** — "Bons estudos!", "Caprichem, turma!", "Boa prova", "Estudem bastante" → pode omitir.
+- **Encorajamentos motivacionais** — "Vocês conseguem!", "Confio em vocês" → pode omitir.
+- **Logística repetida** — quando "trazer caneta" já está em outro item, não duplique.
+- **Marcações decorativas** — emojis, ornamentos, "★", "✏️" do cabeçalho podem ser omitidos.
+
+#### Formato
+
+Use markdown leve (o app renderiza \`\\n\` como quebra de linha):
+- Quebras de linha entre seções (\`\\n\\n\`).
+- Bullets com \`- \` (hífen + espaço) no começo de cada item.
+- Quando houver seções nomeadas ("O que vai cair", "Conteúdo", "Exercícios"), preserve os títulos usando MAIÚSCULAS no começo da linha.
+- Numeração preservada quando o exercício é numerado (1., 2., 3.).
 
 ### Exemplo concreto
 
@@ -281,12 +342,58 @@ Onde estudar e revisar:
 }
 \`\`\`
 
+### Exemplo concreto 2 — Revisão com exercícios
+
+PDF com (sem nenhuma data no documento):
+\`\`\`
+Revisão da primeira prova de Língua Portuguesa
+
+Conteúdo:
+- Sujeito e predicado
+- Tipos de sujeito (simples, composto, oculto, indeterminado, inexistente)
+- Concordância verbal
+- Pronomes oblíquos
+
+Exercícios de revisão:
+1. Identifique o sujeito e o predicado nas orações:
+   a) O menino chegou cedo à escola.
+   b) Choveu muito ontem.
+   c) Faz dois anos que ela mudou.
+2. Classifique o sujeito em simples, composto, oculto, indeterminado ou inexistente:
+   a) Joana e Pedro foram ao parque.
+   b) Ladrões assaltaram a loja.
+   c) Há muitos livros sobre a mesa.
+3. Complete com o verbo no tempo correto: "Se eu ____ (saber) a resposta, eu ____ (dizer)."
+
+Bons estudos!
+\`\`\`
+
+A lista no bloco "Matérias disponíveis" tem \`Língua Portuguesa\`. Hoje (do cabeçalho) é 2026-05-13.
+
+→ **1 atividade**:
+\`\`\`
+{
+  type: "exam",
+  title: "Primeira prova de Língua Portuguesa",
+  dueAt: "2026-05-14",                     // amanhã (hoje + 1) — sem data no PDF
+  subjectHint: "Língua Portuguesa",        // matéria está LITERAL no título do PDF
+  description: "CONTEÚDO:\\n- Sujeito e predicado\\n- Tipos de sujeito (simples, composto, oculto, indeterminado, inexistente)\\n- Concordância verbal\\n- Pronomes oblíquos\\n\\nEXERCÍCIOS DE REVISÃO:\\n1. Identifique o sujeito e o predicado nas orações:\\n   a) O menino chegou cedo à escola.\\n   b) Choveu muito ontem.\\n   c) Faz dois anos que ela mudou.\\n2. Classifique o sujeito em simples, composto, oculto, indeterminado ou inexistente:\\n   a) Joana e Pedro foram ao parque.\\n   b) Ladrões assaltaram a loja.\\n   c) Há muitos livros sobre a mesa.\\n3. Complete com o verbo no tempo correto: \\"Se eu ____ (saber) a resposta, eu ____ (dizer).\\""
+}
+\`\`\`
+
+Note que: (a) "Bons estudos!" foi omitido (motivacional); (b) os 4 tópicos do "Conteúdo" foram preservados na íntegra; (c) os 3 exercícios foram copiados COMPLETOS incluindo as alíneas a/b/c; (d) o subjectHint veio do TÍTULO do PDF que diz literal "Língua Portuguesa" — match direto com a lista, sem precisar de alias; (e) o PDF não tinha NENHUMA data, então dueAt é amanhã (2026-05-14 = hoje 2026-05-13 + 1). **NÃO chutamos uma data aleatória** — usamos o default "amanhã" e o user revisa antes de salvar.
+
 ### ❌ Erros observados em produção a evitar
 
 - \`type: "task"\` (porque o conteúdo fala em "estudar"). ERRADO — "prova" no cabeçalho vence.
 - \`dueAt: null\` ou data de hoje (porque ignorou "8 do 4"). ERRADO — leia o formato DD/MM brasileiro.
 - \`description: "Muito resumido"\` / \`"Vários tópicos pra estudar"\` / \`null\`. ERRADO — copie a lista inteira, com quebras de linha e bullets. O valor de um roteiro de estudos está NA lista; perdê-la perde a atividade.
+- \`description: "1. Identifique sujeito e predicado. 2. Classifique o sujeito. 3. Complete os verbos."\` (versão resumida dos exercícios). ERRADO — sem o enunciado completo (com as alíneas a/b/c) o aluno não consegue resolver os exercícios fora do PDF original. **Enunciado COMPLETO sempre**.
 - Quebrar cada tópico da lista numa atividade separada ("Estudar documentos", "Estudar fontes", ...). ERRADO — a atividade é UMA prova; os tópicos são contexto da description.
+- \`subjectHint: null\` quando o PDF diz "Português" e a lista tem "Língua Portuguesa". ERRADO — esses são aliases (ver "Aliases comuns de matérias"). Idem pra "Mat" ↔ "Matemática", "Ed Física" ↔ "Educação Física", etc.
+- \`subjectHint: null\` quando o título do documento diz LITERAL "Revisão da prova de Língua Portuguesa". ERRADO — a matéria está NO título; basta extrair. Não precisa nem de alias. Esse é o caso mais crítico: título explícito → matéria explícita.
+- \`dueAt\` com data aleatória/inventada (ex.: PDF sem data nenhuma e a saída tem \`dueAt: "2026-06-15"\`). ERRADO — quando não há nenhuma pista de data, o valor é hoje + 1 (amanhã), NÃO uma data chutada. Use literal \`hoje + 1\` do cabeçalho.
+- \`dueAt: null\` quando não há data no conteúdo. ERRADO — o default novo é amanhã (hoje + 1), não null. Null vira campo vazio na UI; amanhã é editável e mais útil pro user.
 
 ### Limite de tamanho
 

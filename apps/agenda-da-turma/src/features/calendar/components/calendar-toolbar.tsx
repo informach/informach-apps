@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@informach/ui/components/select";
 import { Tabs, TabsList, TabsTrigger } from "@informach/ui/components/tabs";
-import { Camera, ChevronLeft, ChevronRight, Mic, Plus } from "lucide-react";
+import { Camera, ChevronLeft, ChevronRight, FileText, Mic, Plus } from "lucide-react";
 import {
   endOfWeekIso,
   formatDayLabel,
@@ -39,6 +39,7 @@ type Props = {
   onCreate: () => void;
   onCreateByVoice: () => void;
   onCreateByImage: () => void;
+  onCreateByPdf: () => void;
 };
 
 // Toolbar do calendário. Estado externo (URL) — esses callbacks só
@@ -59,6 +60,7 @@ export function CalendarToolbar({
   onCreate,
   onCreateByVoice,
   onCreateByImage,
+  onCreateByPdf,
 }: Props) {
   const label =
     view === "month"
@@ -152,6 +154,21 @@ export function CalendarToolbar({
           >
             <Camera className="mr-1 size-4" aria-hidden />
             Por imagem
+            {!isPro ? (
+              <Badge variant="secondary" className="ml-2">
+                Pro
+              </Badge>
+            ) : null}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onCreateByPdf}
+            disabled={!isPro || !canCreate}
+          >
+            <FileText className="mr-1 size-4" aria-hidden />
+            Por PDF
             {!isPro ? (
               <Badge variant="secondary" className="ml-2">
                 Pro

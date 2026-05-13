@@ -46,10 +46,12 @@ Hoje há **uma família de features** (cadastro de matérias em lote por voz/ima
 | `agenda.activities.parse_image` | `openai/gpt-4o` (imageDetail=high) | 1 |
 | `agenda.activities.transcribe_audio` | `openai/gpt-4o-transcribe` | 1 |
 | `agenda.activities.parse_voice` | `openai/gpt-4o-mini` | 1 |
+| `agenda.activities.parse_pdf` | `openai/gpt-4o` (multimodal file input) | 1 |
 
-Cadastro em lote de atividades por voz/imagem espelha o pattern de matérias:
-áudio → transcribe (1 crédito) → parse (1 crédito) → batch confirm dialog;
-imagem → parse vision (1 crédito) → batch confirm dialog. Cada chamada cobra
+Cadastro em lote de atividades por voz/imagem/PDF espelha o pattern de
+matérias: áudio → transcribe (1 crédito) → parse (1 crédito) → batch confirm
+dialog; imagem → parse vision (1 crédito) → batch confirm dialog; PDF →
+parse multimodal (1 crédito) → batch confirm dialog. Cada chamada cobra
 1 crédito via reserve→commit/release, mesma régua das matérias. O parser
 recebe a lista de nomes dos perfis de estudante do user no user-message
 (server-side via `findStudentProfilesByUser`) e devolve `studentNameHint`
@@ -60,7 +62,14 @@ um filho específico. Datas relativas ("amanhã", "quarta-feira") são
 resolvidas no agente contra a data "hoje" injetada no cabeçalho do
 user-message (TZ America/Sao_Paulo via `todayLocalIso`).
 
-Fluxo de voz custa 2 créditos (transcribe + parse). Fluxo de imagem custa 1.
+PDF é processado direto pelo gpt-4o via AI SDK v6 (`type: "file"` +
+`mediaType: "application/pdf"`) — sem conversão pra imagem no servidor.
+Limites enforced antes da IA: máx 5 MB e 3 páginas (validação via
+`pdf-lib` em `features/ai/pdf-utils.ts`); PDFs maiores retornam
+`PDF_TOO_LONG`/`PDF_TOO_LARGE` no route handler antes de gastar crédito.
+
+Fluxo de voz custa 2 créditos (transcribe + parse). Fluxo de imagem e
+fluxo de PDF custam 1 crédito cada.
 
 Seed em `packages/billing/src/seeds/credit-pricing.ts` (`AGENDA_PRICING_SEED` + `seedAgendaCreditPricing`) idempotente. Rodar `pnpm db:seed` insere rows em `billing.credit_pricing`.
 

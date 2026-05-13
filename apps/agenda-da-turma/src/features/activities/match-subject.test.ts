@@ -42,4 +42,75 @@ describe("findClosestSubject", () => {
   it("retorna null com array vazio", () => {
     expect(findClosestSubject([], "Matemática")).toBeNull();
   });
+
+  // Aliases — pares que escolas BR usam intercambiavelmente mas têm
+  // distância de edição grande (escapam do Levenshtein ≤ 3).
+  describe("aliases", () => {
+    it("casa Português ↔ Língua Portuguesa nos dois sentidos", () => {
+      const withLP = [{ id: "x", name: "Língua Portuguesa" }] as const;
+      expect(findClosestSubject(withLP, "Português")?.id).toBe("x");
+      expect(findClosestSubject(withLP, "português")?.id).toBe("x");
+      expect(findClosestSubject(withLP, "LP")?.id).toBe("x");
+
+      const withPort = [{ id: "y", name: "Português" }] as const;
+      expect(findClosestSubject(withPort, "Língua Portuguesa")?.id).toBe("y");
+      expect(findClosestSubject(withPort, "lingua portuguesa")?.id).toBe("y");
+    });
+
+    it("casa Mat / Matemática / Cálculo", () => {
+      const withMat = [{ id: "1", name: "Matemática" }] as const;
+      expect(findClosestSubject(withMat, "Mat")?.id).toBe("1");
+      expect(findClosestSubject(withMat, "Cálculo")?.id).toBe("1");
+
+      const withCalc = [{ id: "2", name: "Cálculo" }] as const;
+      expect(findClosestSubject(withCalc, "Matemática")?.id).toBe("2");
+    });
+
+    it("casa Educação Física via abreviações", () => {
+      const ef = [{ id: "3", name: "Educação Física" }] as const;
+      expect(findClosestSubject(ef, "Ed Física")?.id).toBe("3");
+      expect(findClosestSubject(ef, "Ed Fis")?.id).toBe("3");
+      expect(findClosestSubject(ef, "EF")?.id).toBe("3");
+      expect(findClosestSubject(ef, "Edu. Física")?.id).toBe("3");
+    });
+
+    it("casa História / Hist e Geografia / Geo", () => {
+      const subs = [
+        { id: "h", name: "História" },
+        { id: "g", name: "Geografia" },
+      ] as const;
+      expect(findClosestSubject(subs, "Hist")?.id).toBe("h");
+      expect(findClosestSubject(subs, "Geo")?.id).toBe("g");
+    });
+
+    it("casa Inglês ↔ Língua Inglesa", () => {
+      const ing = [{ id: "i", name: "Língua Inglesa" }] as const;
+      expect(findClosestSubject(ing, "Inglês")?.id).toBe("i");
+      expect(findClosestSubject(ing, "Eng")?.id).toBe("i");
+    });
+
+    it("casa Artes ↔ Educação Artística", () => {
+      const a = [{ id: "a", name: "Educação Artística" }] as const;
+      expect(findClosestSubject(a, "Artes")?.id).toBe("a");
+      expect(findClosestSubject(a, "Arte")?.id).toBe("a");
+    });
+
+    it("não cruza grupos diferentes", () => {
+      // Biologia (grupo separado) NÃO casa com Ciências (outro grupo) — no
+      // Ensino Médio são matérias distintas.
+      const ciencias = [{ id: "c", name: "Ciências" }] as const;
+      expect(findClosestSubject(ciencias, "Biologia")).toBeNull();
+
+      const bio = [{ id: "b", name: "Biologia" }] as const;
+      expect(findClosestSubject(bio, "Ciências")).toBeNull();
+    });
+
+    it("alias vence Levenshtein quando ambos resolveriam", () => {
+      // "Matematica" (sem acento, hint) tem distância 0 com "Matemática"
+      // (Pass 1). Não testa Pass 2. Mas "Mat" (3 chars) tem distância 7
+      // com "Matemática" — Levenshtein não pegaria; alias pega.
+      const subs = [{ id: "m", name: "Matemática" }] as const;
+      expect(findClosestSubject(subs, "Mat")?.id).toBe("m");
+    });
+  });
 });

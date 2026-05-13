@@ -10,18 +10,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@informach/ui/components/select";
-import { cn } from "@informach/ui/lib/utils";
-import { ArrowLeft, ArrowRight, Camera, ListTodo, Mic, Plus } from "lucide-react";
+import { ArrowLeft, ArrowRight, Camera, FileText, ListTodo, Mic, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { StudentProfile } from "@/features/students/types";
-import { FREE_ACTIVITY_LIMIT } from "../limits";
 import type { ActivityListItem, ParsedActivityInput, TurmaWithSubjectsForForm } from "../types";
 import { ActivitiesBatchConfirmDialog } from "./activities-batch-confirm-dialog";
 import { ActivityCard } from "./activity-card";
 import { ActivityFormDialog } from "./activity-form-dialog";
 import { ActivityImageDialog } from "./activity-image-dialog";
+import { ActivityPdfDialog } from "./activity-pdf-dialog";
 import { ActivityVoiceDialog } from "./activity-voice-dialog";
 import { TurmaConfirmDialog } from "./turma-confirm-dialog";
 
@@ -71,21 +70,22 @@ export function ActivitiesSection({
   const [createOpen, setCreateOpen] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [imageOpen, setImageOpen] = useState(false);
-  // Passo intermediário entre voz/imagem e batch confirm: o user confirma
+  const [pdfOpen, setPdfOpen] = useState(false);
+  // Passo intermediário entre voz/imagem/PDF e batch confirm: o user confirma
   // (ou escolhe) a turma do batch. As atividades parseadas ficam "presas" em
   // `pendingActivities` até a confirmação acontecer.
   const [pendingActivities, setPendingActivities] = useState<ParsedActivityInput[] | null>(null);
   const [pendingGuessedTurmaId, setPendingGuessedTurmaId] = useState<string | null>(null);
   const [batchInitial, setBatchInitial] = useState<ParsedActivityInput[] | null>(null);
   const [batchTurmaId, setBatchTurmaId] = useState<string | null>(null);
-  const showFreeCounter = !isPro;
-  const limitReached = !isPro && activityCount >= FREE_ACTIVITY_LIMIT;
 
-  // Fecha o dialog de origem (voz/imagem) e abre o passo intermediário de
-  // confirmação de turma. O batch confirm só abre depois que o user confirma.
+  // Fecha o dialog de origem (voz/imagem/PDF) e abre o passo intermediário
+  // de confirmação de turma. O batch confirm só abre depois que o user
+  // confirma.
   const handleParsed = (parsed: ParsedActivityInput[], guessedTurmaId: string | null) => {
     setVoiceOpen(false);
     setImageOpen(false);
+    setPdfOpen(false);
     setPendingActivities(parsed);
     setPendingGuessedTurmaId(guessedTurmaId);
   };
@@ -155,20 +155,9 @@ export function ActivitiesSection({
         </div>
 
         {/* Ações à direita no desktop, embaixo no mobile.
-            Os 3 botões ficam explícitos (com Pro badges visíveis) para
-            incentivar conversão Free → Pro. Free counter aparece à esquerda
-            das ações quando aplicável. */}
+            Os 4 botões ficam explícitos (com Pro badges visíveis) para
+            incentivar conversão Free → Pro. */}
         <div className="flex flex-wrap items-center gap-2">
-          {showFreeCounter ? (
-            <span
-              className={cn(
-                "text-xs",
-                limitReached ? "font-medium text-destructive" : "text-muted-foreground",
-              )}
-            >
-              {activityCount}/{FREE_ACTIVITY_LIMIT} atividades · plano Free
-            </span>
-          ) : null}
           <Button type="button" onClick={() => setCreateOpen(true)} disabled={!canCreate}>
             <Plus className="mr-2 size-4" aria-hidden />
             Nova atividade
@@ -195,6 +184,20 @@ export function ActivitiesSection({
           >
             <Camera className="mr-2 size-4" aria-hidden />
             Por imagem
+            {!isPro ? (
+              <Badge variant="secondary" className="ml-2">
+                Pro
+              </Badge>
+            ) : null}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setPdfOpen(true)}
+            disabled={!isPro || !canCreate}
+          >
+            <FileText className="mr-2 size-4" aria-hidden />
+            Por PDF
             {!isPro ? (
               <Badge variant="secondary" className="ml-2">
                 Pro
@@ -328,6 +331,7 @@ export function ActivitiesSection({
             onOpenChange={setImageOpen}
             onParsed={handleParsed}
           />
+          <ActivityPdfDialog open={pdfOpen} onOpenChange={setPdfOpen} onParsed={handleParsed} />
           <TurmaConfirmDialog
             open={pendingActivities !== null}
             onOpenChange={(o) => {

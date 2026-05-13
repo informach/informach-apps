@@ -1,4 +1,6 @@
+import { cn } from "@informach/ui/lib/utils";
 import { ActivitiesSection } from "@/features/activities/components/activities-section";
+import { FREE_ACTIVITY_LIMIT } from "@/features/activities/limits";
 import {
   getActivitiesCreatedCountForUser,
   getActivitiesPageForUser,
@@ -36,14 +38,28 @@ export default async function AtividadesPage({
     ? (profiles.find((p) => p.id === filterProfileId) ?? null)
     : null;
 
+  const limitReached = !isPro && activityCount >= FREE_ACTIVITY_LIMIT;
+
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 md:px-8">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Atividades</h1>
-        <p className="text-sm text-muted-foreground">
-          Tarefas, provas, trabalhos e lembretes dos seus estudantes. Marque o status conforme você
-          avança.
-        </p>
+      <header className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Atividades</h1>
+          <p className="text-sm text-muted-foreground">
+            Tarefas, provas, trabalhos e lembretes dos seus estudantes. Marque o status conforme
+            você avança.
+          </p>
+        </div>
+        {!isPro ? (
+          <span
+            className={cn(
+              "shrink-0 text-xs sm:pt-2",
+              limitReached ? "font-medium text-destructive" : "text-muted-foreground",
+            )}
+          >
+            {activityCount}/{FREE_ACTIVITY_LIMIT} atividades · plano Free
+          </span>
+        ) : null}
       </header>
       <ActivitiesSection
         items={page.items}

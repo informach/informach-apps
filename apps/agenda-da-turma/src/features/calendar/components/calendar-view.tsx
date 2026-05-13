@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import { ActivitiesBatchConfirmDialog } from "@/features/activities/components/activities-batch-confirm-dialog";
 import { ActivityFormDialog } from "@/features/activities/components/activity-form-dialog";
 import { ActivityImageDialog } from "@/features/activities/components/activity-image-dialog";
+import { ActivityPdfDialog } from "@/features/activities/components/activity-pdf-dialog";
 import { ActivityVoiceDialog } from "@/features/activities/components/activity-voice-dialog";
 import { TurmaConfirmDialog } from "@/features/activities/components/turma-confirm-dialog";
 import type {
@@ -59,10 +60,12 @@ export function CalendarView({
   const [createOpen, setCreateOpen] = useState(false);
   const [createDueAt, setCreateDueAt] = useState<string | undefined>(undefined);
 
-  // Mesma máquina de estado de `activities-section.tsx` pra fluxo voz/imagem:
-  // dialog de origem → turma confirm (se IA não chutou) → batch confirm.
+  // Mesma máquina de estado de `activities-section.tsx` pra fluxo
+  // voz/imagem/PDF: dialog de origem → turma confirm (se IA não chutou) →
+  // batch confirm.
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [imageOpen, setImageOpen] = useState(false);
+  const [pdfOpen, setPdfOpen] = useState(false);
   const [pendingActivities, setPendingActivities] = useState<ParsedActivityInput[] | null>(null);
   const [pendingGuessedTurmaId, setPendingGuessedTurmaId] = useState<string | null>(null);
   const [batchInitial, setBatchInitial] = useState<ParsedActivityInput[] | null>(null);
@@ -134,6 +137,7 @@ export function CalendarView({
   const handleParsed = (parsed: ParsedActivityInput[], guessedTurmaId: string | null) => {
     setVoiceOpen(false);
     setImageOpen(false);
+    setPdfOpen(false);
     setPendingActivities(parsed);
     setPendingGuessedTurmaId(guessedTurmaId);
   };
@@ -162,6 +166,7 @@ export function CalendarView({
         onCreate={handleCreateGlobal}
         onCreateByVoice={() => setVoiceOpen(true)}
         onCreateByImage={() => setImageOpen(true)}
+        onCreateByPdf={() => setPdfOpen(true)}
       />
 
       {view === "month" ? (
@@ -222,6 +227,7 @@ export function CalendarView({
             onOpenChange={setImageOpen}
             onParsed={handleParsed}
           />
+          <ActivityPdfDialog open={pdfOpen} onOpenChange={setPdfOpen} onParsed={handleParsed} />
           <TurmaConfirmDialog
             open={pendingActivities !== null}
             onOpenChange={(o) => {
