@@ -29,6 +29,13 @@ const COLOR_DESTRUCTIVE: [number, number, number] = [239, 68, 68]; // red-500
 const COLOR_WARNING: [number, number, number] = [249, 115, 22]; // orange-500
 const COLOR_SUCCESS: [number, number, number] = [16, 185, 129]; // emerald-500
 
+const PDF_HEADER_HEIGHT = 44;
+const LOGO_WIDTH = 64;
+const LOGO_HEIGHT = 11.5;
+const LOGO_SVG_URL = "/logotipo.svg";
+
+let logoDataUrlPromise: Promise<string | null> | null = null;
+
 function formatDueDate(iso: string): string {
   // ISO "YYYY-MM-DD" — converte direto sem TZ shenanigans.
   const [year, month, day] = iso.split("-");
@@ -58,16 +65,63 @@ function todayFilename(): string {
 }
 
 function activityRow(item: ActivityListItem): string[] {
-  const subjectAndTurma = `${item.subjectName} · ${item.grade}${item.classLetter}`;
+  const turmaLabel = `${item.grade}${item.classLetter}`;
   const statusLabel = item.status === "done" ? "Concluída" : "Pendente";
   return [
     formatDueDate(item.dueAt),
     ACTIVITY_TYPE_PT[item.type] ?? item.type,
-    subjectAndTurma,
+    item.subjectName,
+    turmaLabel,
     item.title,
     item.studentProfileName,
     statusLabel,
   ];
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Failed to load PDF logo"));
+    image.src = src;
+  });
+}
+
+async function getLogoDataUrl(): Promise<string | null> {
+  logoDataUrlPromise ??= (async () => {
+    if (typeof document === "undefined") {
+      return null;
+    }
+
+    const response = await fetch(LOGO_SVG_URL);
+    if (!response.ok) {
+      return null;
+    }
+
+    const svg = await response.text();
+    const blobUrl = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+
+    try {
+      const image = await loadImage(blobUrl);
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth || 1440;
+      canvas.height = image.naturalHeight || 257;
+
+      const context = canvas.getContext("2d");
+      if (!context) {
+        return null;
+      }
+
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL("image/png");
+    } catch {
+      return null;
+    } finally {
+      URL.revokeObjectURL(blobUrl);
+    }
+  })();
+
+  return logoDataUrlPromise;
 }
 
 export async function buildDashboardPdf(args: BuildArgs): Promise<void> {
@@ -76,12 +130,13 @@ export async function buildDashboardPdf(args: BuildArgs): Promise<void> {
     import("jspdf-autotable"),
   ]);
   const autoTable = autoTableModule.autoTable;
+  const logoDataUrl = await getLogoDataUrl();
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const marginX = 14;
-  const marginTop = 32;
+  const marginTop = PDF_HEADER_HEIGHT;
 
   const filteredProfileName = args.profileFilter
     ? args.profiles.find((p) => p.id === args.profileFilter)?.name
@@ -93,28 +148,36 @@ export async function buildDashboardPdf(args: BuildArgs): Promise<void> {
     doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, pageWidth, marginTop - 4, "F");
 
-    doc.setTextColor(...COLOR_PRIMARY);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text("Agenda da Turma", marginX, 14);
+    if (logoDataUrl) {
+      doc.addImage(logoDataUrl, "PNG", marginX, 8, LOGO_WIDTH, LOGO_HEIGHT, "agenda-logo");
+    } else {
+      doc.setTextColor(...COLOR_PRIMARY);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.text("Agenda da Turma", marginX, 15);
+    }
 
     doc.setTextColor(...COLOR_TEXT);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
-    doc.text("Painel de atividades", marginX, 20);
+    doc.text("Painel de atividades", marginX, 25);
 
     doc.setTextColor(...COLOR_MUTED);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.text(args.userName, marginX, 25);
-    doc.text(scopeLabel, marginX, 29.5);
+    doc.text(args.userName, marginX, 30.5);
 
     const rightLabel = generatedAtLabel;
     doc.text(rightLabel, pageWidth - marginX, 25, { align: "right" });
 
     doc.setDrawColor(...COLOR_BORDER);
     doc.setLineWidth(0.3);
-    doc.line(marginX, marginTop - 4, pageWidth - marginX, marginTop - 4);
+    doc.line(marginX, 32.5, pageWidth - marginX, 32.5);
+
+    doc.setTextColor(...COLOR_MUTED);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(scopeLabel, marginX, 38);
   }
 
   function drawFooter(pageNumber: number, pageCount: number) {
@@ -245,7 +308,7 @@ function drawPerProfileSection(
 
   autoTable(doc, {
     startY: afterTitle,
-    margin: { left: marginX, right: marginX, top: 32, bottom: 18 },
+    margin: { left: marginX, right: marginX, top: PDF_HEADER_HEIGHT, bottom: 18 },
     head: [["Perfil", "Pendentes", "Atrasadas", "Concluídas", "Progresso"]],
     body: perProfile.map((p) => [
       p.profileName,
@@ -299,16 +362,20 @@ function drawBucket(
 
   opts.autoTable(doc, {
     startY: afterTitle,
-    margin: { left: marginX, right: marginX, top: 32, bottom: 18 },
-    head: [["Data", "Tipo", "Matéria · Turma", "Atividade", "Estudante", "Status"]],
+    margin: { left: marginX, right: marginX, top: PDF_HEADER_HEIGHT, bottom: 18 },
+    head: [["Data", "Tipo", "Matéria", "Turma", "Atividade", "Estudante", "Status"]],
     body: opts.items.map(activityRow),
-    styles: { font: "helvetica", fontSize: 9, cellPadding: 2.5, textColor: COLOR_TEXT },
+    styles: { font: "helvetica", fontSize: 8.5, cellPadding: 2.3, textColor: COLOR_TEXT },
     headStyles: { fillColor: opts.headFill, textColor: 255, fontStyle: "bold" },
     alternateRowStyles: { fillColor: [249, 250, 251] },
     columnStyles: {
       0: { cellWidth: 18 },
-      1: { cellWidth: 18 },
-      3: { cellWidth: "auto" },
+      1: { cellWidth: 17 },
+      2: { cellWidth: 28 },
+      3: { cellWidth: 14, halign: "center" },
+      4: { cellWidth: "auto" },
+      5: { cellWidth: 25 },
+      6: { cellWidth: 18 },
     },
     theme: "grid",
   });
