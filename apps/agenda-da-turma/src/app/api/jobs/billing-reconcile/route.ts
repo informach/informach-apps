@@ -1,13 +1,12 @@
 import { billing } from "@/lib/billing";
-import { env } from "@/lib/env";
+import { rejectUnauthorizedCron } from "@/lib/cron-auth";
 
 export const runtime = "nodejs";
 
 /** Cron sweeper — recommended cadence: ~daily. */
 export async function POST(request: Request): Promise<Response> {
-  if (request.headers.get("authorization") !== `Bearer ${env.CRON_SECRET}`) {
-    return new Response("Unauthorized", { status: 401 });
-  }
+  const unauthorized = rejectUnauthorizedCron(request);
+  if (unauthorized) return unauthorized;
   const result = await billing.reconcileSubscriptions();
   return Response.json(result);
 }

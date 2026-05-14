@@ -147,7 +147,7 @@ apps/agenda-da-turma/
 
 Justificativa em `packages/auth/CLAUDE.md` §3.1: OTP mantém usuário na mesma página, ótimo para mobile-first. Mesma decisão do cozya.
 
-Notificação `auth.signup-attempt-on-existing` está wired e gated em `billing.hasProSubscription` (só dispara se a conta-alvo é Pro).
+Notificação `auth.signup-attempt-on-existing` está wired e dispara para **todos** os usuários existentes (não só Pro). O gate Pro foi removido em 2026-05-14 porque criava vazamento de info: atacante deduzia que "email existente recebe notificação ⇒ é Pro" via signup attempt. Defesa anti-spam fica no rate limit do `/sign-up/email` (5/h) — qualquer escalada futura (CAPTCHA, IP throttle) deve manter a notificação democrática.
 
 ### Billing
 
@@ -450,7 +450,7 @@ pnpm --filter @informach/agenda-da-turma exec playwright test e2e/auth.signup-an
 6. **Single-user invariant**: `subject.type === "user"` em todo lugar. Não introduzir `organization` subject sem antes flipar `organizationsEnabled: true` no `createAuth` E `createBillingService` (decisão de produto, não code change isolado).
 7. **`subject.id` é o `users.id` do `core` schema** (ver `lib/billing.ts:resolveSubjectEmail`). Não usar `users.email` como ID — o subject de billing é estável; email pode mudar.
 8. **Webhook dunning** (`/api/jobs/billing-dunning/route.ts`) embute lógica de send inline (não usa wrapper `retryBillingDunningEmails` como cozya). Aceitável hoje; se a função crescer, extrair pra `features/billing/service.ts` igual cozya.
-9. **`auth.signup-attempt-on-existing`** só dispara pra contas Pro (`billing.hasProSubscription` gate). Mantém esse gate — privilégio do Pro, evita spam.
+9. **`auth.signup-attempt-on-existing`** dispara para todos os usuários existentes (sem gate Pro). Manter assim — Pro-only gate vazava info via enumeration. Spam fica contido pelo rate limit `/sign-up/email` 5/h.
 10. **Cron services no Railway**: NUNCA criar services novos. Editar `APP_DOMAINS` nos 7 cron-perapp existentes (ver §4 + `docs/deploy-runbook.md` Fase 11).
 11. **Adicionar nova rota authenticated**: incluir o prefixo em `requireAuth` no `src/proxy.ts`. Default deny não está ligado — só os prefixos listados são gated.
 12. **Não importar `@ai-sdk/openai` ou `@ai-sdk/anthropic` direto** quando IA chegar. Usar `createOpenRouter` de `@informach/ai-core/providers` (mesma regra do cozya §10.10). Whisper transcription pode usar `createOpenAI` apontando pra `https://openrouter.ai/api/v1`.

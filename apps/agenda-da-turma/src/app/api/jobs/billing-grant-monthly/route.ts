@@ -1,5 +1,5 @@
 import { billing } from "@/lib/billing";
-import { env } from "@/lib/env";
+import { rejectUnauthorizedCron } from "@/lib/cron-auth";
 
 export const runtime = "nodejs";
 
@@ -13,9 +13,8 @@ export const runtime = "nodejs";
  * (`drip:<subId>:<YYYY-MM-DD>`).
  */
 export async function POST(request: Request): Promise<Response> {
-  if (request.headers.get("authorization") !== `Bearer ${env.CRON_SECRET}`) {
-    return new Response("Unauthorized", { status: 401 });
-  }
+  const unauthorized = rejectUnauthorizedCron(request);
+  if (unauthorized) return unauthorized;
 
   const result = await billing.grantPendingMonthlyBonusCredits();
   return Response.json(result);

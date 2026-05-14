@@ -71,12 +71,11 @@ export const authResult = createAuth({
     signIn: { magicLink: false, otp: true },
     forgetPassword: "otp",
     // Security: notifica usuário existente quando alguém tenta cadastrar com
-    // o mesmo e-mail. Limita ao subset com Pro ativo (segurança proporcional
-    // ao valor da conta). Rate limit do /sign-up/email (5/h) protege spam.
+    // o mesmo e-mail. Dispara para TODOS os usuários existentes — limitar
+    // ao subset Pro criava vazamento (atacante deduzia "recebeu email = Pro"
+    // via signup attempt). Rate limit do /sign-up/email (5/h) protege spam.
     onExistingUserSignUp: async ({ user }) => {
       try {
-        const isPro = await billing.hasProSubscription({ type: "user", id: user.id });
-        if (!isPro) return;
         const unsubscribeUrl = `${env.NEXT_PUBLIC_APP_URL}/api/email/unsubscribe?t=${buildUnsubscribeToken(
           env.BETTER_AUTH_SECRET,
           user.email,

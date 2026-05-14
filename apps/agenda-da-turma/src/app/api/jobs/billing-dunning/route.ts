@@ -1,6 +1,7 @@
 import { APPS } from "@informach/config";
 import { renderTemplate } from "@informach/emails/templates";
 import { billing, buildBillingDunningUnsubscribeUrl, resolveDunningRecipient } from "@/lib/billing";
+import { rejectUnauthorizedCron } from "@/lib/cron-auth";
 import { unsubscribeMailto } from "@/lib/email-identity";
 import { emails } from "@/lib/emails";
 import { env } from "@/lib/env";
@@ -12,9 +13,8 @@ const MAX_DUNNING_ATTEMPTS = 3;
 
 /** Cron sweeper — recommended cadence: every 6h. Sends dunning emails for past_due subs. */
 export async function POST(request: Request): Promise<Response> {
-  if (request.headers.get("authorization") !== `Bearer ${env.CRON_SECRET}`) {
-    return new Response("Unauthorized", { status: 401 });
-  }
+  const unauthorized = rejectUnauthorizedCron(request);
+  if (unauthorized) return unauthorized;
 
   const result = await billing.retryDunningEmails({
     maxAttempts: MAX_DUNNING_ATTEMPTS,
