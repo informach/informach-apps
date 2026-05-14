@@ -526,6 +526,89 @@ describe("respondSharedActivity", () => {
   });
 });
 
+describe("shared activity edit-block chain (creator vs acceptor)", () => {
+  // Encadeia o fluxo "creator cria shared → outro user aceita → creator
+  // tenta editar/deletar → bloqueado por HAS_ACCEPTANCES" em um único
+  // cenário. Os steps individuais já têm cobertura em createActivity/
+  // respondSharedActivity/updateActivity/deleteActivity — este teste
+  // serve como documentação executável da regra de governança quando
+  // múltiplas famílias compartilham uma atividade.
+  const sharedActivity = {
+    ...baseActivity,
+    visibility: "shared_with_turma" as const,
+  };
+
+  it("aceitar trava update + delete subsequentes do criador", async () => {
+    // 1. Creator cria atividade shared (Pro path, sem helper de free limit)
+    mocks.findTurmaWithSchoolById.mockResolvedValue(baseTurma);
+    mocks.subjectBelongsToTurma.mockResolvedValue(true);
+    mocks.hasProSubscription.mockResolvedValue(true);
+    mocks.insertActivityWithStatuses.mockResolvedValue(sharedActivity);
+
+    const created = await createActivity(creator.id, {
+      ...createInput,
+      visibility: "shared_with_turma",
+    });
+    expect(created.ok).toBe(true);
+
+    // 2. Outro user (Pro também, membro da turma) aceita
+    mocks.findActivityById.mockResolvedValue(sharedActivity);
+    mocks.userHasActiveProfileInTurma.mockResolvedValue(true);
+
+    const accepted = await respondSharedActivity(other.id, {
+      activityId,
+      accepted: true,
+    });
+    expect(accepted.ok).toBe(true);
+    expect(mocks.upsertAcceptanceAndStatuses).toHaveBeenCalledWith(
+      activityId,
+      other.id,
+      true,
+      turmaId,
+    );
+
+    // 3. Creator tenta editar — agora hasOtherAcceptances=true
+    mocks.findActivityById.mockResolvedValue(sharedActivity);
+    mocks.hasOtherAcceptances.mockResolvedValue(true);
+
+    const updateAttempt = await updateActivity(creator.id, {
+      id: activityId,
+      type: "task",
+      title: "Edit attempt — should fail",
+      description: undefined,
+      dueAt: "2026-06-05",
+    });
+    expect(updateAttempt.ok).toBe(false);
+    if (!updateAttempt.ok) expect(updateAttempt.error.code).toBe("HAS_ACCEPTANCES");
+    expect(mocks.updateActivityById).not.toHaveBeenCalled();
+
+    // 4. Creator tenta deletar — mesma trava
+    const deleteAttempt = await deleteActivity(creator.id, { id: activityId });
+    expect(deleteAttempt.ok).toBe(false);
+    if (!deleteAttempt.ok) expect(deleteAttempt.error.code).toBe("HAS_ACCEPTANCES");
+    expect(mocks.deleteActivityById).not.toHaveBeenCalled();
+  });
+
+  it("acceptor não consegue editar/deletar (FORBIDDEN), independente de acceptance", async () => {
+    // Edit pela acceptor sempre falha (não é creator).
+    mocks.findActivityById.mockResolvedValue(sharedActivity);
+
+    const updateAttempt = await updateActivity(other.id, {
+      id: activityId,
+      type: "task",
+      title: "Edit attempt by acceptor",
+      description: undefined,
+      dueAt: "2026-06-05",
+    });
+    expect(updateAttempt.ok).toBe(false);
+    if (!updateAttempt.ok) expect(updateAttempt.error.code).toBe("FORBIDDEN");
+
+    const deleteAttempt = await deleteActivity(other.id, { id: activityId });
+    expect(deleteAttempt.ok).toBe(false);
+    if (!deleteAttempt.ok) expect(deleteAttempt.error.code).toBe("FORBIDDEN");
+  });
+});
+
 describe("getActivitiesPageForUser", () => {
   const emptyPage = { items: [], nextCursor: null };
 

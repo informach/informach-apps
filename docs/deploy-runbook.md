@@ -386,7 +386,9 @@ Pattern do script — `postgres-js` direto (já dep do `@informach/db`), 3 queri
 
 ---
 
-## Fase 10 — Stripe Webhook (Manual)
+## Fase 10 — Webhooks (Manual)
+
+### 10.1 Stripe Webhook
 
 1. Stripe Dashboard live → Developers → Webhooks → Add endpoint
 2. URL: `https://<app>.informach.com.br/api/webhooks/stripe`
@@ -395,6 +397,27 @@ Pattern do script — `postgres-js` direto (já dep do `@informach/db`), 3 queri
 5. Copiar Signing secret (`whsec_*`)
 6. Railway: `railway variable set "STRIPE_WEBHOOK_SECRET=whsec_..." --service "@informach/<app>" --skip-deploys` (substitui o placeholder da Fase 5)
 7. Trigger redeploy: `railway redeploy --service "@informach/<app>" --from-source -y`
+
+### 10.2 SendGrid Webhook (Event Webhook + Signed)
+
+Sem isso o app retorna **503 silencioso** em `POST /api/webhooks/sendgrid` (gate em `env.SENDGRID_WEBHOOK_PUBLIC_KEY`) — bounce/spam/unsubscribe não chegam ao DB. A suppression sync diária (Fase 11) pega a maioria dos casos, mas eventos em tempo real (delivery confirmation, unsubscribe imediato) ficam perdidos.
+
+1. SendGrid Dashboard → Settings → **Mail Settings** → **Event Webhook** → "+ Create new webhook"
+2. **HTTP Post URL**: `https://<app>.informach.com.br/api/webhooks/sendgrid`
+3. **Events to be POSTed**: marcar `Delivered`, `Bounce`, `Dropped`, `Spam Report`, `Unsubscribe`, `Group Unsubscribe`. Não precisa de `Opened`/`Clicked` (nada no app reage a eles).
+4. Status: **Enable**
+5. **Signed Event Webhook**: toggle **ON**. SendGrid gera um par de chaves; copiar a **Verification Key** (formato PEM, começa com `-----BEGIN PUBLIC KEY-----`).
+6. Railway: setar a chave **em uma única linha** (substituir quebras de linha por `\n` literal):
+   ```bash
+   railway variable set "SENDGRID_WEBHOOK_PUBLIC_KEY=$(cat sendgrid-pubkey.pem | tr '\n' '|' | sed 's/|/\\n/g')" --service "@informach/<app>" --skip-deploys
+   ```
+   ou colar no Dashboard com `\n` escapado. O verifier `verifySendgridSignature` lida com PEM bruto.
+7. Trigger redeploy. Conferir nos logs: `POST /api/webhooks/sendgrid 200` quando SendGrid testa o endpoint.
+8. **Validar manualmente**: SendGrid Dashboard → Mail Settings → Event Webhook → **Test Your Integration**. Esperar 200; se 403, key não bate; se 503, env var não foi propagada.
+
+> **Gotcha PEM em env var**: Railway aceita newlines literais no Dashboard mas o CLI pode comer quebras. Validar com `railway variable get SENDGRID_WEBHOOK_PUBLIC_KEY` e conferir que tem `-----BEGIN PUBLIC KEY-----` + corpo base64 + `-----END PUBLIC KEY-----`.
+
+> **Por que ECDSA e não HMAC**: SendGrid migrou pra Signed Event Webhook (RFC 8058, P-256). Não habilitar a parte "Signed" = webhook chega sem assinatura → handler retorna 403 (estamos sempre exigindo). Não há "shared secret" — só verificação assimétrica.
 
 ---
 
