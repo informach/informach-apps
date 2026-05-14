@@ -19,6 +19,10 @@ export const proxy = createAuthProxy(authResult, {
     "/atividades",
     "/calendario",
     "/api/data",
+    // Defesa-em-profundidade: route handlers de IA já chamam `withAiRouteGuards`
+    // (sessão + rate-limit + Pro gate). Listar aqui garante que qualquer route
+    // nova em `app/api/ai/*` que esqueça o guard ainda exige sessão.
+    "/api/ai",
   ],
   signInPath: "/login",
   publicPaths: [

@@ -122,4 +122,15 @@ if (typeof window === "undefined") {
       "E2E_RELAX_AUTH_RATE_LIMITS must NOT be set in production — it disables anti-brute-force protections.",
     );
   }
+
+  // Warn (não throw) se OPENROUTER_API_KEY não estiver setada em produção:
+  // features de IA são opt-in (route guard devolve 503 AI_DISABLED), então
+  // o app sobe sem ela. Mas em produção esperamos a chave — registrar
+  // ruidosamente para evitar IA desligada por config faltando.
+  if (env.NODE_ENV === "production" && !env.OPENROUTER_API_KEY) {
+    // biome-ignore lint/suspicious/noConsole: boot-time warn; logger depende de env.ts (ciclo)
+    console.warn(
+      "[env] OPENROUTER_API_KEY not set in production — AI features will return 503 AI_DISABLED",
+    );
+  }
 }
