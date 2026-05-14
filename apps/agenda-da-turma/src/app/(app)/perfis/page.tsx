@@ -1,3 +1,4 @@
+import { BackButton } from "@/components/app-shell/back-button";
 import { getIsProForUser } from "@/features/billing/server-cache";
 import { StudentsSection } from "@/features/students/components/students-section";
 import { FREE_STUDENT_PROFILE_LIMIT, PRO_STUDENT_PROFILE_LIMIT } from "@/features/students/limits";
@@ -18,11 +19,14 @@ export default async function PerfisPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 md:px-8">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Perfis</h1>
-        <p className="text-sm text-muted-foreground">
-          Organize a rotina escolar de cada criança em um perfil separado.
-        </p>
+      <header className="flex items-start gap-2">
+        <BackButton href="/dashboard" label="Voltar para o dashboard" />
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Perfis</h1>
+          <p className="text-sm text-muted-foreground">
+            Organize a rotina escolar de cada criança em um perfil separado.
+          </p>
+        </div>
       </header>
 
       <StudentsSection

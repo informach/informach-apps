@@ -1,10 +1,9 @@
 import { APPS, findProduct, isStripePriceIdConfigured, PRODUCTS } from "@informach/config";
-import { Button } from "@informach/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@informach/ui/components/card";
 import { Skeleton } from "@informach/ui/components/skeleton";
-import { ArrowLeft, WalletCards } from "lucide-react";
-import Link from "next/link";
+import { WalletCards } from "lucide-react";
 import { Suspense } from "react";
+import { BackButton } from "@/components/app-shell/back-button";
 import { BillingFlash } from "@/features/billing/components/billing-flash";
 import { BillingPortalButton } from "@/features/billing/components/billing-portal-button";
 import { CreditBalanceCard } from "@/features/billing/components/credit-balance-card";
@@ -31,23 +30,20 @@ export default async function BillingSettingsPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 md:px-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="space-y-1">
-          <Button asChild variant="ghost" size="sm" className="-ml-2">
-            <Link href="/dashboard">
-              <ArrowLeft className="mr-2 size-4" aria-hidden />
-              Dashboard
-            </Link>
-          </Button>
-          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Plano e cobrança</h1>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            Acompanhe assinatura, créditos de IA e histórico recente de consumo.
-          </p>
+      <header className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-2">
+          <BackButton href="/dashboard" label="Voltar para o dashboard" />
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Plano e cobrança</h1>
+            <p className="max-w-2xl text-sm text-muted-foreground">
+              Acompanhe assinatura, créditos de IA e histórico recente de consumo.
+            </p>
+          </div>
         </div>
         <Suspense fallback={<Skeleton className="h-9 w-44" />}>
           <PortalButtonSlot userId={user.id} />
         </Suspense>
-      </div>
+      </header>
 
       <Suspense fallback={null}>
         <BillingFlash />

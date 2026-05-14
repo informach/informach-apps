@@ -1,4 +1,5 @@
 import { cn } from "@informach/ui/lib/utils";
+import { BackButton } from "@/components/app-shell/back-button";
 import { ActivitiesSection } from "@/features/activities/components/activities-section";
 import { FREE_ACTIVITY_LIMIT } from "@/features/activities/limits";
 import {
@@ -43,12 +44,15 @@ export default async function AtividadesPage({
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 md:px-8">
       <header className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Atividades</h1>
-          <p className="text-sm text-muted-foreground">
-            Tarefas, provas, trabalhos e lembretes dos seus estudantes. Marque o status conforme
-            você avança.
-          </p>
+        <div className="flex items-start gap-2">
+          <BackButton href="/dashboard" label="Voltar para o dashboard" />
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Atividades</h1>
+            <p className="text-sm text-muted-foreground">
+              Tarefas, provas, trabalhos e lembretes dos seus estudantes. Marque o status conforme
+              você avança.
+            </p>
+          </div>
         </div>
         {!isPro ? (
           <span
