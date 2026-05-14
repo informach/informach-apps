@@ -20,7 +20,8 @@ type EnvKey =
   | "E2E_RELAX_AUTH_RATE_LIMITS"
   | "OPENROUTER_HTTP_REFERER"
   | "OPENROUTER_X_TITLE"
-  | "MASTRA_LOG_LEVEL";
+  | "MASTRA_LOG_LEVEL"
+  | "CSP_ENFORCE";
 
 function stubEnv(overrides: Partial<Record<EnvKey, string>>) {
   for (const [key, value] of Object.entries({ ...requiredEnv, ...overrides })) {
@@ -77,5 +78,41 @@ describe("env", () => {
     const { env } = await import("./env");
 
     expect(env.REDIS_URL).toBeUndefined();
+  });
+
+  it("defaults CSP to report-only outside production", async () => {
+    stubEnv({ CSP_ENFORCE: "", NODE_ENV: "test" });
+
+    const { env } = await import("./env");
+
+    expect(env.CSP_ENFORCE).toBe("0");
+  });
+
+  it("defaults CSP to enforce in production", async () => {
+    stubEnv({
+      BETTER_AUTH_URL: "https://agenda.informach.com.br",
+      CSP_ENFORCE: "",
+      NEXT_PUBLIC_APP_URL: "https://agenda.informach.com.br",
+      NODE_ENV: "production",
+      REDIS_URL: "redis://localhost:6379",
+    });
+
+    const { env } = await import("./env");
+
+    expect(env.CSP_ENFORCE).toBe("1");
+  });
+
+  it("allows explicit CSP report-only in production", async () => {
+    stubEnv({
+      BETTER_AUTH_URL: "https://agenda.informach.com.br",
+      CSP_ENFORCE: "0",
+      NEXT_PUBLIC_APP_URL: "https://agenda.informach.com.br",
+      NODE_ENV: "production",
+      REDIS_URL: "redis://localhost:6379",
+    });
+
+    const { env } = await import("./env");
+
+    expect(env.CSP_ENFORCE).toBe("0");
   });
 });

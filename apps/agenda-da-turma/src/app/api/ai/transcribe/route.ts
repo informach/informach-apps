@@ -1,7 +1,7 @@
 import { jsonUtf8, withAiRouteGuards } from "@/features/ai/_shared";
 import { transcribeSubjectsAudio } from "@/features/ai/transcribe-subjects-service";
 import { logger } from "@/lib/logger";
-import { contentLengthExceeds } from "@/lib/request-size";
+import { RequestBodyTooLargeError, readFormDataWithSizeLimit } from "@/lib/request-size";
 
 export const runtime = "nodejs";
 
@@ -22,10 +22,7 @@ export async function POST(request: Request): Promise<Response> {
 
   let audioBlob: Blob;
   try {
-    if (contentLengthExceeds(request, MAX_AUDIO_REQUEST_BYTES)) {
-      return jsonUtf8({ code: "AUDIO_TOO_LARGE" }, { status: 413 });
-    }
-    const form = await request.formData();
+    const form = await readFormDataWithSizeLimit(request, MAX_AUDIO_REQUEST_BYTES);
     const audio = form.get("audio");
     if (!(audio instanceof Blob)) {
       return jsonUtf8({ code: "INVALID_AUDIO" }, { status: 400 });
@@ -41,6 +38,9 @@ export async function POST(request: Request): Promise<Response> {
     }
     audioBlob = audio;
   } catch (err) {
+    if (err instanceof RequestBodyTooLargeError) {
+      return jsonUtf8({ code: "AUDIO_TOO_LARGE" }, { status: 413 });
+    }
     logger.warn(
       { userId, error: err instanceof Error ? err.message : String(err) },
       "agenda.transcribe.parse_failed",

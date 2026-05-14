@@ -2,7 +2,7 @@ import { z } from "zod";
 import { jsonUtf8, withAiRouteGuards } from "@/features/ai/_shared";
 import { parseSubjectsFromImage } from "@/features/ai/parse-subjects-image-service";
 import { logger } from "@/lib/logger";
-import { contentLengthExceeds } from "@/lib/request-size";
+import { RequestBodyTooLargeError, readJsonWithSizeLimit } from "@/lib/request-size";
 
 export const runtime = "nodejs";
 
@@ -25,16 +25,16 @@ export async function POST(request: Request): Promise<Response> {
 
   let imageDataUrl: string;
   try {
-    if (contentLengthExceeds(request, MAX_IMAGE_REQUEST_BYTES)) {
-      return jsonUtf8({ code: "IMAGE_TOO_LARGE" }, { status: 413 });
-    }
-    const json = (await request.json().catch(() => null)) as unknown;
+    const json = await readJsonWithSizeLimit(request, MAX_IMAGE_REQUEST_BYTES);
     const parsed = requestSchema.safeParse(json);
     if (!parsed.success) {
       return jsonUtf8({ code: "INVALID_IMAGE" }, { status: 400 });
     }
     imageDataUrl = parsed.data.imageDataUrl;
   } catch (err) {
+    if (err instanceof RequestBodyTooLargeError) {
+      return jsonUtf8({ code: "IMAGE_TOO_LARGE" }, { status: 413 });
+    }
     logger.warn(
       { userId, error: err instanceof Error ? err.message : String(err) },
       "agenda.parse_image.parse_failed",

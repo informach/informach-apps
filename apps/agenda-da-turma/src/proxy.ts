@@ -57,8 +57,7 @@ function generateNonce(): string {
  * CSP não faz sentido e ainda atrapalha logs.
  *
  * Toggle Report-Only ↔ enforce via `env.CSP_ENFORCE` ("0" → Report-Only,
- * "1" → enforce). Default "0" — flow recomendado é deploy report-only por 1
- * semana, monitorar violações no Sentry, depois flipar para enforce.
+ * "1" → enforce). O default é enforce em produção e report-only fora dela.
  */
 async function proxy(request: NextRequest): Promise<NextResponse> {
   const pathname = request.nextUrl.pathname;

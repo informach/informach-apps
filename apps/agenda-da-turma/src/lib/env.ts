@@ -1,6 +1,8 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
+const defaultCspEnforce = process.env.NODE_ENV === "production" ? "1" : "0";
+
 export const env = createEnv({
   server: {
     DATABASE_URL: z.string().url(),
@@ -55,12 +57,11 @@ export const env = createEnv({
     LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).optional(),
     MASTRA_LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
     /**
-     * Quando "1", o proxy emite `Content-Security-Policy` (enforce). Default
-     * "0" → emite `Content-Security-Policy-Report-Only` (não bloqueia, só
-     * reporta para o Sentry via report-uri derivada do DSN). Flow recomendado:
-     * deploy com "0" por 1 semana, monitorar violações, depois flipar pra "1".
+     * Quando "1", o proxy emite `Content-Security-Policy` (enforce). Default:
+     * enforce em produção, report-only fora dela. Para um rollout observado,
+     * configure explicitamente `CSP_ENFORCE=0` no ambiente de staging/produção.
      */
-    CSP_ENFORCE: z.enum(["0", "1"]).default("0"),
+    CSP_ENFORCE: z.enum(["0", "1"]).default(defaultCspEnforce),
   },
   client: {
     NEXT_PUBLIC_APP_URL: z.string().url(),

@@ -269,7 +269,7 @@ mcp__Railway__set-variables service=@informach/<app> skipDeploys=true variables=
   "MASTRA_LOG_LEVEL=info",
   "OPENROUTER_HTTP_REFERER=https://<app>.informach.com.br",
   "OPENROUTER_X_TITLE=<App>",
-  "CSP_ENFORCE=0",  # Somente apps com CSP per-request/report-only; Agenda usa CSP estática em next.config.ts
+  "CSP_ENFORCE=1",  # Apps com CSP per-request; Agenda defaulta para enforce em produção quando unset
   "NPM_CONFIG_PRODUCTION=false",  # CRÍTICO — sem isso, turbo+tsc não estão no build
 ]
 ```
@@ -313,7 +313,7 @@ Setar via Railway MCP em batch:
 `turbo.json tasks.build.env` enumera as vars que afetam o build (cache invalidation). Ao adicionar nova var build-relevante (lida em runtime via `@t3-oss/env-nextjs`), atualizar lá ou Turbo serve cache stale.
 
 ⚠ **Não** todas as vars vão pra `turbo.json` — só as que afetam **output do build**. Não incluir:
-- `CSP_ENFORCE` (quando o app usa CSP per-request em proxy.ts; não afeta build output)
+- `CSP_ENFORCE` (quando o app usa CSP per-request em proxy.ts; também entra no hash do build do Turbo)
 - `NPM_CONFIG_PRODUCTION` (afeta install, não build output)
 
 ---

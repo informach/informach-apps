@@ -31,6 +31,7 @@
         "OPENROUTER_API_KEY",
         "OPENROUTER_HTTP_REFERER",
         "OPENROUTER_X_TITLE",
+        "CSP_ENFORCE",
         "LOG_LEVEL",
         "MASTRA_LOG_LEVEL"
       ]

@@ -8,7 +8,7 @@ import {
   MAX_PDF_PAGES,
 } from "@/features/ai/pdf-utils";
 import { logger } from "@/lib/logger";
-import { contentLengthExceeds } from "@/lib/request-size";
+import { RequestBodyTooLargeError, readJsonWithSizeLimit } from "@/lib/request-size";
 
 export const runtime = "nodejs";
 
@@ -33,16 +33,16 @@ export async function POST(request: Request): Promise<Response> {
 
   let pdfDataUrl: string;
   try {
-    if (contentLengthExceeds(request, MAX_PDF_REQUEST_BYTES)) {
-      return jsonUtf8({ code: "PDF_TOO_LARGE" }, { status: 413 });
-    }
-    const json = (await request.json().catch(() => null)) as unknown;
+    const json = await readJsonWithSizeLimit(request, MAX_PDF_REQUEST_BYTES);
     const parsed = requestSchema.safeParse(json);
     if (!parsed.success) {
       return jsonUtf8({ code: "INVALID_PDF" }, { status: 400 });
     }
     pdfDataUrl = parsed.data.pdfDataUrl;
   } catch (err) {
+    if (err instanceof RequestBodyTooLargeError) {
+      return jsonUtf8({ code: "PDF_TOO_LARGE" }, { status: 413 });
+    }
     logger.warn(
       { userId, error: err instanceof Error ? err.message : String(err) },
       "agenda.activities.parse_pdf.parse_failed",

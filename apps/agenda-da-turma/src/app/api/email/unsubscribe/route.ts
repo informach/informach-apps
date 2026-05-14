@@ -1,6 +1,9 @@
 import { processAgendaEmailUnsubscribe } from "@/lib/emails";
+import { RequestBodyTooLargeError, readFormDataWithSizeLimit } from "@/lib/request-size";
 
 export const runtime = "nodejs";
+
+const MAX_UNSUBSCRIBE_FORM_BYTES = 4 * 1024;
 
 async function handle(token: string | null): Promise<Response> {
   if (!token) {
@@ -32,7 +35,14 @@ export async function POST(request: Request): Promise<Response> {
   const url = new URL(request.url);
   let token = url.searchParams.get("t");
   if (!token) {
-    const formData = await request.formData().catch(() => null);
+    let formData: FormData | null = null;
+    try {
+      formData = await readFormDataWithSizeLimit(request, MAX_UNSUBSCRIBE_FORM_BYTES);
+    } catch (err) {
+      if (err instanceof RequestBodyTooLargeError) {
+        return new Response(null, { status: 413 });
+      }
+    }
     token = formData?.get("t")?.toString() ?? null;
   }
   if (!token) {
