@@ -1,11 +1,13 @@
 import { AlertCircle, CalendarDays, Clock } from "lucide-react";
 import type { TurmaWithSubjectsForForm } from "@/features/activities/types";
 import { getDashboardSnapshot } from "../service";
+import type { TodaySubjectsView } from "../today-subjects-service";
 import { ActivityBucketSection } from "./activity-bucket-section";
 import { DashboardEmptyState } from "./dashboard-empty-state";
 import { KpiCards } from "./kpi-cards";
 import { PerProfileProgress } from "./per-profile-progress";
 import { ProfileFilterTabs } from "./profile-filter-tabs";
+import { TodaySubjectsCard } from "./today-subjects-card";
 import { UpcomingGroupedList } from "./upcoming-grouped-list";
 
 type Props = {
@@ -14,6 +16,9 @@ type Props = {
   profileFilter: string | null;
   profiles: Array<{ id: string; name: string }>;
   turmasForForm: TurmaWithSubjectsForForm[];
+  // Lista das matérias do dia pro perfil resolvido. Null = sem perfil único
+  // visível (multi-perfil sem filtro) OU sem horários cadastrados ainda.
+  todaySubjects: TodaySubjectsView | null;
 };
 
 // Constrói /atividades?perfil=X preservando o filtro atual.
@@ -27,6 +32,7 @@ export async function DashboardContent({
   profileFilter,
   profiles,
   turmasForForm,
+  todaySubjects,
 }: Props) {
   const snapshot = await getDashboardSnapshot(userId, { profileFilter });
   const { counters, overdue, today, upcoming, perProfile } = snapshot;
@@ -44,6 +50,8 @@ export async function DashboardContent({
   return (
     <div className="space-y-6">
       <ProfileFilterTabs profiles={profiles} active={profileFilter} />
+
+      {todaySubjects ? <TodaySubjectsCard view={todaySubjects} /> : null}
 
       <KpiCards counters={counters} />
 

@@ -8,6 +8,7 @@ import { getIsProForUser } from "@/features/billing/server-cache";
 import { DashboardContent } from "@/features/dashboard/components/dashboard-content";
 import { DashboardNavButtons } from "@/features/dashboard/components/dashboard-nav-buttons";
 import { ExportPdfButton } from "@/features/dashboard/components/export-pdf-button";
+import { getTodaySubjectsForProfile } from "@/features/dashboard/today-subjects-service";
 import { NoStudentsWidget } from "@/features/students/components/no-students-widget";
 import { ProfilesWithoutTurmaWidget } from "@/features/students/components/profiles-without-turma-widget";
 import {
@@ -68,9 +69,17 @@ export default async function DashboardPage({ searchParams }: Props) {
   const profileFilter =
     params.perfil && profiles.some((p) => p.id === params.perfil) ? params.perfil : null;
 
-  const [pendingShared, turmasForForm] = await Promise.all([
+  // Decide se mostra "Matérias de hoje": só quando há UM perfil ativo na visão.
+  // Com múltiplos perfis sem filtro, misturar matérias de turmas diferentes
+  // confundiria mais que ajudaria — o user precisa filtrar primeiro.
+  const effectiveProfileId = profiles.length === 1 ? (profiles[0]?.id ?? null) : profileFilter;
+
+  const [pendingShared, turmasForForm, todaySubjects] = await Promise.all([
     isPro ? getPendingSharedActivitiesForUser(user.id) : Promise.resolve([]),
     getTurmasWithSubjectsForForm(user.id),
+    effectiveProfileId
+      ? getTodaySubjectsForProfile(user.id, effectiveProfileId)
+      : Promise.resolve(null),
   ]);
 
   return (
@@ -86,6 +95,7 @@ export default async function DashboardPage({ searchParams }: Props) {
         profileFilter={profileFilter}
         profiles={profiles.map((p) => ({ id: p.id, name: p.name }))}
         turmasForForm={turmasForForm}
+        todaySubjects={todaySubjects}
       />
     </Shell>
   );

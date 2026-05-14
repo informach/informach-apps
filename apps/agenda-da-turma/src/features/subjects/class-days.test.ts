@@ -3,6 +3,7 @@ import {
   CLASS_DAY_VALUES,
   dayOfWeekToClassDay,
   formatClassDaysShort,
+  isSubjectActiveOnDate,
   nextClassDayIso,
   normalizeClassDays,
 } from "./class-days";
@@ -207,6 +208,86 @@ describe("nextClassDayIso com alternatingSlots (quinzenal)", () => {
   it("alternatingSlots vazio se comporta como sem slots (backward compat)", () => {
     const result = nextClassDayIso("2026-05-13", ["mon", "wed", "fri"], []);
     expect(result).toBe("2026-05-15");
+  });
+});
+
+describe("isSubjectActiveOnDate", () => {
+  // 2026-05-13 = quarta. 2026-05-15 = sex. 2026-05-09 = sáb. 2026-05-10 = dom.
+
+  it("classDays vazio → false sempre", () => {
+    expect(isSubjectActiveOnDate("2026-05-13", [])).toBe(false);
+  });
+
+  it("matéria seg/qua/sex no dia qua → true", () => {
+    expect(isSubjectActiveOnDate("2026-05-13", ["mon", "wed", "fri"])).toBe(true);
+  });
+
+  it("matéria seg/qua/sex no dia ter → false", () => {
+    // 2026-05-12 = terça
+    expect(isSubjectActiveOnDate("2026-05-12", ["mon", "wed", "fri"])).toBe(false);
+  });
+
+  it("matéria mon-fri no dia sábado → false (sábado fora do enum)", () => {
+    expect(isSubjectActiveOnDate("2026-05-09", ["mon", "tue", "wed", "thu", "fri"])).toBe(false);
+  });
+
+  it("matéria mon-fri no dia domingo → false", () => {
+    expect(isSubjectActiveOnDate("2026-05-10", ["mon", "tue", "wed", "thu", "fri"])).toBe(false);
+  });
+
+  it("slot quinzenal: anchor 2026-05-13 (qua), target 2026-05-13 → true (mesma semana)", () => {
+    expect(
+      isSubjectActiveOnDate("2026-05-13", ["wed"], [{ day: "wed", anchorIso: "2026-05-13" }]),
+    ).toBe(true);
+  });
+
+  it("slot quinzenal: anchor 2026-05-13 (qua), target 2026-05-20 → false (semana da pareada)", () => {
+    expect(
+      isSubjectActiveOnDate("2026-05-20", ["wed"], [{ day: "wed", anchorIso: "2026-05-13" }]),
+    ).toBe(false);
+  });
+
+  it("slot quinzenal: anchor 2026-05-13, target 2026-05-27 → true (volta minha semana)", () => {
+    expect(
+      isSubjectActiveOnDate("2026-05-27", ["wed"], [{ day: "wed", anchorIso: "2026-05-13" }]),
+    ).toBe(true);
+  });
+
+  it("Mat seg/ter/qua/sex weekly + fri quinzenal: target seg → true (sem slot pra seg)", () => {
+    expect(
+      isSubjectActiveOnDate(
+        "2026-05-11",
+        ["mon", "tue", "wed", "fri"],
+        [{ day: "fri", anchorIso: "2026-05-15" }],
+      ),
+    ).toBe(true);
+  });
+
+  it("Mat fri quinzenal: target sex 2026-05-15 (anchor) → true", () => {
+    expect(
+      isSubjectActiveOnDate(
+        "2026-05-15",
+        ["mon", "tue", "wed", "fri"],
+        [{ day: "fri", anchorIso: "2026-05-15" }],
+      ),
+    ).toBe(true);
+  });
+
+  it("Mat fri quinzenal: target sex 2026-05-22 (semana Rob) → false", () => {
+    expect(
+      isSubjectActiveOnDate(
+        "2026-05-22",
+        ["mon", "tue", "wed", "fri"],
+        [{ day: "fri", anchorIso: "2026-05-15" }],
+      ),
+    ).toBe(false);
+  });
+
+  it("slot pra dia que não está em classDays é ignorado", () => {
+    // Defensivo — invariante já garantida pelo service mas vale testar.
+    expect(
+      isSubjectActiveOnDate("2026-05-13", ["wed"], [{ day: "fri", anchorIso: "2026-05-15" }]),
+    ).toBe(true);
   });
 });
 

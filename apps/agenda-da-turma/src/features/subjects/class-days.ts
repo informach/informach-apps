@@ -92,6 +92,31 @@ function isMyWeek(candidateIso: string, anchorIso: string): boolean {
   return weeksDiff % 2 === 0;
 }
 
+// Verifica se a matéria tem aula numa data específica, considerando classDays
+// e (opcional) slots de revezamento quinzenal. Pure function — usado pelo
+// dashboard pra montar a lista de "matérias de hoje" e pelo calendário (futuro)
+// pra colorir dias.
+//
+// Algoritmo:
+//   1. Weekday do `targetIso` precisa estar em `classDays`. Se não estiver
+//      (ex.: hoje é sábado, classDays=[mon,fri]) → false.
+//   2. Se há slot pra esse weekday, checa paridade contra anchor: mesma →
+//      true (semana minha); outra → false (semana da pareada).
+//   3. Sem slot pra esse weekday → true (dia semanal).
+export function isSubjectActiveOnDate(
+  targetIso: string,
+  classDays: readonly AgendaClassDay[],
+  alternatingSlots?: readonly AlternatingSlot[],
+): boolean {
+  if (classDays.length === 0) return false;
+  const target = parseLocalIso(targetIso);
+  const enumDay = dayOfWeekToClassDay(target.getDay());
+  if (!enumDay || !classDays.includes(enumDay)) return false;
+  const slot = alternatingSlots?.find((s) => s.day === enumDay);
+  if (!slot) return true;
+  return isMyWeek(targetIso, slot.anchorIso);
+}
+
 // Devolve o próximo ISO ("YYYY-MM-DD") ESTRITAMENTE APÓS `todayIso` cujo dia
 // da semana casa com algum item de `classDays`. Retorna null quando `classDays`
 // está vazio.
