@@ -4,6 +4,8 @@ import { and, asc, db, eq, lt, sql } from "@informach/db";
 import {
   agendaActivities,
   agendaActivityStatuses,
+  agendaProfileSubjectActivities,
+  agendaProfileSubjects,
   agendaSchools,
   agendaStudentProfiles,
   agendaSubjects,
@@ -87,32 +89,65 @@ export async function getDashboardCounters(
   const sevenAhead = addDaysIso(today, 7);
   const sevenAgo = addDaysIso(today, -7);
 
-  const baseWhere = and(
+  // Duas queries paralelas (uma por origem) — Promise.all dedup'a o round-trip
+  // pro Postgres e mantém o WHERE/JOIN ideal pra cada tabela. SUM em JS
+  // depois é trivial (4 campos × 2 = 8 numbers).
+  const turmaBaseWhere = and(
     eq(agendaStudentProfiles.userId, userId),
     options.isPro ? undefined : eq(agendaActivities.createdByUserId, userId),
     options.profileFilter ? eq(agendaStudentProfiles.id, options.profileFilter) : undefined,
   );
 
-  const [row] = await db
-    .select({
-      overdue: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivityStatuses.status} = 'pending' AND ${agendaActivities.dueAt} < ${today})`,
-      today: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivityStatuses.status} = 'pending' AND ${agendaActivities.dueAt} = ${today})`,
-      week: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivityStatuses.status} = 'pending' AND ${agendaActivities.dueAt} BETWEEN ${tomorrow} AND ${sevenAhead})`,
-      doneRecent: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivityStatuses.status} = 'done' AND ${agendaActivities.dueAt} BETWEEN ${sevenAgo} AND ${today})`,
-    })
-    .from(agendaActivityStatuses)
-    .innerJoin(
-      agendaStudentProfiles,
-      eq(agendaStudentProfiles.id, agendaActivityStatuses.studentProfileId),
-    )
-    .innerJoin(agendaActivities, eq(agendaActivities.id, agendaActivityStatuses.activityId))
-    .where(baseWhere);
+  // Extras: sempre privadas, sem Free/Pro split. Filtra `paused` pra que
+  // pause "esconda" também dos KPIs (consistente com o que aparece nos
+  // buckets — paused é silêncio total no dashboard).
+  const extraBaseWhere = and(
+    eq(agendaStudentProfiles.userId, userId),
+    eq(agendaProfileSubjects.status, "active"),
+    options.profileFilter ? eq(agendaStudentProfiles.id, options.profileFilter) : undefined,
+  );
+
+  const [turmaRow, extraRow] = await Promise.all([
+    db
+      .select({
+        overdue: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivityStatuses.status} = 'pending' AND ${agendaActivities.dueAt} < ${today})`,
+        today: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivityStatuses.status} = 'pending' AND ${agendaActivities.dueAt} = ${today})`,
+        week: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivityStatuses.status} = 'pending' AND ${agendaActivities.dueAt} BETWEEN ${tomorrow} AND ${sevenAhead})`,
+        doneRecent: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivityStatuses.status} = 'done' AND ${agendaActivities.dueAt} BETWEEN ${sevenAgo} AND ${today})`,
+      })
+      .from(agendaActivityStatuses)
+      .innerJoin(
+        agendaStudentProfiles,
+        eq(agendaStudentProfiles.id, agendaActivityStatuses.studentProfileId),
+      )
+      .innerJoin(agendaActivities, eq(agendaActivities.id, agendaActivityStatuses.activityId))
+      .where(turmaBaseWhere)
+      .then((rows) => rows[0]),
+    db
+      .select({
+        overdue: sql<number>`COUNT(*) FILTER (WHERE ${agendaProfileSubjectActivities.status} = 'pending' AND ${agendaProfileSubjectActivities.dueAt} < ${today})`,
+        today: sql<number>`COUNT(*) FILTER (WHERE ${agendaProfileSubjectActivities.status} = 'pending' AND ${agendaProfileSubjectActivities.dueAt} = ${today})`,
+        week: sql<number>`COUNT(*) FILTER (WHERE ${agendaProfileSubjectActivities.status} = 'pending' AND ${agendaProfileSubjectActivities.dueAt} BETWEEN ${tomorrow} AND ${sevenAhead})`,
+        doneRecent: sql<number>`COUNT(*) FILTER (WHERE ${agendaProfileSubjectActivities.status} = 'done' AND ${agendaProfileSubjectActivities.dueAt} BETWEEN ${sevenAgo} AND ${today})`,
+      })
+      .from(agendaProfileSubjectActivities)
+      .innerJoin(
+        agendaProfileSubjects,
+        eq(agendaProfileSubjects.id, agendaProfileSubjectActivities.profileSubjectId),
+      )
+      .innerJoin(
+        agendaStudentProfiles,
+        eq(agendaStudentProfiles.id, agendaProfileSubjectActivities.profileId),
+      )
+      .where(extraBaseWhere)
+      .then((rows) => rows[0]),
+  ]);
 
   return {
-    overdue: Number(row?.overdue ?? 0),
-    today: Number(row?.today ?? 0),
-    week: Number(row?.week ?? 0),
-    doneRecent: Number(row?.doneRecent ?? 0),
+    overdue: Number(turmaRow?.overdue ?? 0) + Number(extraRow?.overdue ?? 0),
+    today: Number(turmaRow?.today ?? 0) + Number(extraRow?.today ?? 0),
+    week: Number(turmaRow?.week ?? 0) + Number(extraRow?.week ?? 0),
+    doneRecent: Number(turmaRow?.doneRecent ?? 0) + Number(extraRow?.doneRecent ?? 0),
   };
 }
 
@@ -126,41 +161,81 @@ export async function listProfileSummaries(
 ): Promise<DashboardProfileSummary[]> {
   const today = todayLocalIso();
 
-  const rows = await db
-    .select({
-      profileId: agendaStudentProfiles.id,
-      profileName: agendaStudentProfiles.name,
-      profileCreatedAt: agendaStudentProfiles.createdAt,
-      pending: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivityStatuses.status} = 'pending')`,
-      overdue: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivityStatuses.status} = 'pending' AND ${agendaActivities.dueAt} < ${today})`,
-      done: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivityStatuses.status} = 'done')`,
-    })
-    .from(agendaStudentProfiles)
-    .leftJoin(
-      agendaActivityStatuses,
-      eq(agendaActivityStatuses.studentProfileId, agendaStudentProfiles.id),
-    )
-    .leftJoin(agendaActivities, eq(agendaActivities.id, agendaActivityStatuses.activityId))
-    .where(
-      and(
-        eq(agendaStudentProfiles.userId, userId),
-        // Free: descarta status rows de atividades criadas por outros (defesa
-        // em profundidade; na prática Free não consegue aceitar shared, então
-        // não tem essas rows). LEFT JOIN: condição vai pro WHERE só quando
-        // houver activity ligada — se não houver, dueAt/createdByUserId são
-        // NULL e o filtro vira true por causa do `OR ... IS NULL`.
-        options.isPro
-          ? undefined
-          : sql`(${agendaActivities.createdByUserId} = ${userId} OR ${agendaActivities.id} IS NULL)`,
-      ),
-    )
-    .groupBy(agendaStudentProfiles.id, agendaStudentProfiles.name, agendaStudentProfiles.createdAt)
-    .orderBy(asc(agendaStudentProfiles.createdAt));
+  // Duas queries paralelas (turma + extras) agregadas por perfil. Merge em
+  // JS via Map → preserva LEFT JOIN nos perfis (perfil sem atividade ainda
+  // aparece com totals=0). Ordem default é por createdAt asc — preservada
+  // pela primeira query (turma). Extras só somam aos counters existentes.
+  const [turmaRows, extraRows] = await Promise.all([
+    db
+      .select({
+        profileId: agendaStudentProfiles.id,
+        profileName: agendaStudentProfiles.name,
+        profileCreatedAt: agendaStudentProfiles.createdAt,
+        pending: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivityStatuses.status} = 'pending')`,
+        overdue: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivityStatuses.status} = 'pending' AND ${agendaActivities.dueAt} < ${today})`,
+        done: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivityStatuses.status} = 'done')`,
+      })
+      .from(agendaStudentProfiles)
+      .leftJoin(
+        agendaActivityStatuses,
+        eq(agendaActivityStatuses.studentProfileId, agendaStudentProfiles.id),
+      )
+      .leftJoin(agendaActivities, eq(agendaActivities.id, agendaActivityStatuses.activityId))
+      .where(
+        and(
+          eq(agendaStudentProfiles.userId, userId),
+          // Free: descarta status rows de atividades criadas por outros (defesa
+          // em profundidade; na prática Free não consegue aceitar shared, então
+          // não tem essas rows). LEFT JOIN: condição vai pro WHERE só quando
+          // houver activity ligada — se não houver, dueAt/createdByUserId são
+          // NULL e o filtro vira true por causa do `OR ... IS NULL`.
+          options.isPro
+            ? undefined
+            : sql`(${agendaActivities.createdByUserId} = ${userId} OR ${agendaActivities.id} IS NULL)`,
+        ),
+      )
+      .groupBy(
+        agendaStudentProfiles.id,
+        agendaStudentProfiles.name,
+        agendaStudentProfiles.createdAt,
+      )
+      .orderBy(asc(agendaStudentProfiles.createdAt)),
+    db
+      .select({
+        profileId: agendaStudentProfiles.id,
+        pending: sql<number>`COUNT(*) FILTER (WHERE ${agendaProfileSubjectActivities.status} = 'pending')`,
+        overdue: sql<number>`COUNT(*) FILTER (WHERE ${agendaProfileSubjectActivities.status} = 'pending' AND ${agendaProfileSubjectActivities.dueAt} < ${today})`,
+        done: sql<number>`COUNT(*) FILTER (WHERE ${agendaProfileSubjectActivities.status} = 'done')`,
+      })
+      .from(agendaStudentProfiles)
+      .leftJoin(
+        agendaProfileSubjectActivities,
+        eq(agendaProfileSubjectActivities.profileId, agendaStudentProfiles.id),
+      )
+      .leftJoin(
+        agendaProfileSubjects,
+        eq(agendaProfileSubjects.id, agendaProfileSubjectActivities.profileSubjectId),
+      )
+      .where(
+        and(
+          eq(agendaStudentProfiles.userId, userId),
+          // Atividades de matérias `paused` NÃO entram nos counters do
+          // dashboard (consistente com buckets e KPIs). Quando não há
+          // activity ligada (LEFT JOIN), profileSubjects.status é NULL e
+          // a OR garante que o perfil aparece com 0.
+          sql`(${agendaProfileSubjects.status} = 'active' OR ${agendaProfileSubjectActivities.id} IS NULL)`,
+        ),
+      )
+      .groupBy(agendaStudentProfiles.id),
+  ]);
 
-  return rows.map((r) => {
-    const pending = Number(r.pending ?? 0);
-    const overdue = Number(r.overdue ?? 0);
-    const done = Number(r.done ?? 0);
+  const extraByProfile = new Map(extraRows.map((r) => [r.profileId, r]));
+
+  return turmaRows.map((r) => {
+    const extra = extraByProfile.get(r.profileId);
+    const pending = Number(r.pending ?? 0) + Number(extra?.pending ?? 0);
+    const overdue = Number(r.overdue ?? 0) + Number(extra?.overdue ?? 0);
+    const done = Number(r.done ?? 0) + Number(extra?.done ?? 0);
     const total = pending + done;
     const progress = total === 0 ? 0 : Math.round((done / total) * 100);
     return {

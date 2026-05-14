@@ -2,8 +2,9 @@ import { Button } from "@informach/ui/components/button";
 import { cn } from "@informach/ui/lib/utils";
 import { ArrowRight, type LucideIcon } from "lucide-react";
 import Link from "next/link";
-import { ActivityCard } from "@/features/activities/components/activity-card";
-import type { ActivityListItem, TurmaWithSubjectsForForm } from "@/features/activities/types";
+import type { TurmaWithSubjectsForForm } from "@/features/activities/types";
+import { UnifiedActivityCard } from "@/features/unified-activities/components/unified-activity-card";
+import type { UnifiedActivityListItem } from "@/features/unified-activities/types";
 
 type Tone = "destructive" | "chart-4" | "primary";
 
@@ -36,7 +37,7 @@ type Props = {
   title: string;
   Icon: LucideIcon;
   tone: Tone;
-  items: ActivityListItem[];
+  items: UnifiedActivityListItem[];
   totalCount: number;
   currentUserId: string;
   isPro: boolean;
@@ -44,7 +45,7 @@ type Props = {
   /** Querystring do link "Ver todas →" — preserva filtro de perfil. */
   seeAllHref: string;
   /** Render opcional pra agrupar items (Upcoming agrupa por dia). */
-  renderItems?: (items: ActivityListItem[]) => React.ReactNode;
+  renderItems?: (items: UnifiedActivityListItem[]) => React.ReactNode;
 };
 
 // Section reutilizado pelos 3 buckets (Atrasadas, Hoje, Próx. 7 dias).
@@ -100,8 +101,8 @@ export function ActivityBucketSection({
       ) : (
         <div className="space-y-3">
           {items.map((item) => (
-            <ActivityCard
-              key={item.statusId}
+            <UnifiedActivityCard
+              key={item.source === "turma" ? item.statusId : item.activityId}
               item={item}
               currentUserId={currentUserId}
               isPro={isPro}

@@ -1,14 +1,14 @@
 "use client";
 
 import { useMemo } from "react";
-import type { ActivityListItem } from "@/features/activities/types";
+import type { UnifiedActivityListItem } from "@/features/unified-activities/types";
 import { buildMonthGrid, WEEKDAY_SHORT_LABELS_SUNDAY_FIRST } from "../date";
 import { DayCell } from "./day-cell";
 
 type Props = {
   anchorIso: string;
-  items: ActivityListItem[];
-  onSelectActivity: (item: ActivityListItem) => void;
+  items: UnifiedActivityListItem[];
+  onSelectActivity: (item: UnifiedActivityListItem) => void;
   onCreateForDay: (iso: string) => void;
 };
 
@@ -19,7 +19,7 @@ export function MonthView({ anchorIso, items, onSelectActivity, onCreateForDay }
   const grid = useMemo(() => buildMonthGrid(anchorIso), [anchorIso]);
 
   const itemsByDate = useMemo(() => {
-    const map = new Map<string, ActivityListItem[]>();
+    const map = new Map<string, UnifiedActivityListItem[]>();
     for (const item of items) {
       const list = map.get(item.dueAt) ?? [];
       list.push(item);

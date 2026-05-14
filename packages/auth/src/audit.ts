@@ -59,7 +59,15 @@ export type AuditEventType =
   | "agenda.activity_updated"
   | "agenda.activity_deleted"
   | "agenda.activity_status_set"
-  | "agenda.activity_shared_response";
+  | "agenda.activity_shared_response"
+  | "agenda.profile_subject_created"
+  | "agenda.profile_subject_updated"
+  | "agenda.profile_subject_status_changed"
+  | "agenda.profile_subject_deleted"
+  | "agenda.profile_subject_activity_created"
+  | "agenda.profile_subject_activity_updated"
+  | "agenda.profile_subject_activity_deleted"
+  | "agenda.profile_subject_activity_status_set";
 
 export type AuditPayload = Record<string, unknown>;
 

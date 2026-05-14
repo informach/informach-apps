@@ -2,22 +2,24 @@
 
 import { Button } from "@informach/ui/components/button";
 import { Plus } from "lucide-react";
-import { ActivityCard } from "@/features/activities/components/activity-card";
-import type { ActivityListItem, TurmaWithSubjectsForForm } from "@/features/activities/types";
+import type { TurmaWithSubjectsForForm } from "@/features/activities/types";
+import { UnifiedActivityCard } from "@/features/unified-activities/components/unified-activity-card";
+import type { UnifiedActivityListItem } from "@/features/unified-activities/types";
 import { formatDayLabel } from "../date";
 
 type Props = {
   anchorIso: string;
-  items: ActivityListItem[];
+  items: UnifiedActivityListItem[];
   currentUserId: string;
   isPro: boolean;
   turmasForForm: TurmaWithSubjectsForForm[];
   onCreateForDay: (iso: string) => void;
 };
 
-// Vista diária: lista vertical reutilizando ActivityCard. A vista de dia é
-// exatamente o que o card já faz — sem ROI em reinventar. Botão grande pra
-// criar atividade no dia em destaque.
+// Vista diária: lista vertical reutilizando UnifiedActivityCard — despacha
+// pra ActivityCard (turma, com todas as ações) ou pro card simplificado de
+// extras. Botão "Nova atividade" cria só atividade de turma (extras vivem
+// em /perfis/[id]/extras/[subjectId]).
 export function DayView({
   anchorIso,
   items,
@@ -47,8 +49,8 @@ export function DayView({
       ) : (
         <div className="flex flex-col gap-3">
           {items.map((item) => (
-            <ActivityCard
-              key={item.statusId}
+            <UnifiedActivityCard
+              key={item.source === "turma" ? item.statusId : item.activityId}
               item={item}
               currentUserId={currentUserId}
               isPro={isPro}

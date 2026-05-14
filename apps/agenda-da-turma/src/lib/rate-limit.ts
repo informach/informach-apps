@@ -94,9 +94,31 @@ export async function enforceRateLimit(input: RateLimitInput): Promise<RateLimit
 export const AGENDA_RATE_LIMITS = {
   /** AI invocations: 60 calls per hour per user. */
   AI_INVOKE_PER_HOUR: { limit: 60, windowSeconds: 3600 },
+  /**
+   * Criação de matérias extracurriculares (Free 1 / Pro 10 por perfil).
+   * 30/h por user cobre cadastro inicial em lote + retries de erro de rede,
+   * sem permitir flood de script.
+   */
+  PROFILE_SUBJECTS_CREATE_PER_HOUR: { limit: 30, windowSeconds: 3600 },
+  /**
+   * Criação de atividades vinculadas a extracurriculares. Espelha o mesmo
+   * nível do `activities-create` original do app — pais cadastram em rajadas
+   * (foto/voz de um panfleto) e 100/h ainda dá margem.
+   */
+  PROFILE_SUBJECT_ACTIVITIES_CREATE_PER_HOUR: { limit: 100, windowSeconds: 3600 },
 } as const;
 
 /** Stable key generator for the AI invocation limit. */
 export function aiInvokeKey(userId: string): string {
   return `agenda-da-turma.ai.invoke:user:${userId}`;
+}
+
+/** Stable key generator for extracurricular subject create rate limit. */
+export function profileSubjectsCreateKey(userId: string): string {
+  return `agenda-da-turma.profile-subjects.create:user:${userId}`;
+}
+
+/** Stable key generator for extracurricular activity create rate limit. */
+export function profileSubjectActivitiesCreateKey(userId: string): string {
+  return `agenda-da-turma.profile-subject-activities.create:user:${userId}`;
 }

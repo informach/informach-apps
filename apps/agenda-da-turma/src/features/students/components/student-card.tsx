@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@informach/ui/components/dropdown-menu";
-import { GraduationCap, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { GraduationCap, MoreVertical, Pencil, Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import type { StudentProfileWithActiveTurma } from "../types";
@@ -60,6 +60,12 @@ export function StudentCard({ profile, isPro, currentCount }: Props) {
                 <Link href={`/turmas?perfil=${profile.id}`}>
                   <GraduationCap className="mr-2 size-4" aria-hidden />
                   Gerenciar turmas
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`/perfis/${profile.id}/extras`}>
+                  <Sparkles className="mr-2 size-4" aria-hidden />
+                  Extracurriculares
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />

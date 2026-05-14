@@ -22,6 +22,26 @@ import { users } from "./core";
 export const AGENDA_CLASS_DAYS = ["mon", "tue", "wed", "thu", "fri"] as const;
 export type AgendaClassDay = (typeof AGENDA_CLASS_DAYS)[number];
 
+// Extracurriculares (jazz, futebol, natação) pertencem ao perfil — não à
+// turma — então rodam qualquer dia da semana, inclusive sábado/domingo.
+// Mantemos o array `AGENDA_CLASS_DAYS` (Seg-Sex) intacto pro domínio escolar.
+export const AGENDA_EXTRACURRICULAR_DAYS = [
+  "mon",
+  "tue",
+  "wed",
+  "thu",
+  "fri",
+  "sat",
+  "sun",
+] as const;
+export type AgendaExtracurricularDay = (typeof AGENDA_EXTRACURRICULAR_DAYS)[number];
+
+// Estado de uma matéria extracurricular. `paused` é reversível — UI esconde
+// das vistas "matérias do dia" e do calendário, mas mantém row + atividades
+// pra retomar depois (criança que dá um break de 3 meses no jazz e volta).
+export const AGENDA_PROFILE_SUBJECT_STATUSES = ["active", "paused"] as const;
+export type AgendaProfileSubjectStatus = (typeof AGENDA_PROFILE_SUBJECT_STATUSES)[number];
+
 export const agenda = pgSchema("agenda");
 
 export const agendaPlaceholderEntries = agenda.table("placeholder_entries", {
@@ -303,6 +323,103 @@ export const agendaActivityAcceptances = agenda.table(
   ],
 );
 
+// ----- Extracurriculares (donas: perfis individuais) -----
+//
+// Diferente de `agenda.subjects` (que pertence à turma e é compartilhada
+// entre famílias), `agenda.profile_subjects` é privada ao perfil. Casos
+// de uso: jazz, futebol, natação, reforço fora da escola — atividades que
+// variam de criança pra criança e persistem anos sem amarração a
+// `grade`/`year`. UNIQUE (profile_id, name) impede duplicata exata.
+//
+// Status `paused` é estado de produto (user pausa quando filho dá break);
+// `paused_at` é puramente telemetria pra UI mostrar "Pausada desde X". Check
+// constraint força consistência (paused ⇔ paused_at IS NOT NULL).
+export const agendaProfileSubjects = agenda.table(
+  "profile_subjects",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => agendaStudentProfiles.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    // Cor visual atribuída no INSERT, 1..5 (chart-1..chart-5). Picker tenta
+    // evitar colisão dentro do mesmo perfil considerando matérias da turma
+    // ativa + extras `active` do perfil — não dentro da turma (turma já tem
+    // sua própria collision-free choice em `agendaSubjects`).
+    colorIndex: smallint("color_index").notNull().default(1),
+    // Dias da semana em que a extracurricular acontece. Aceita Seg-Dom porque
+    // jazz/futebol/natação rolam sábado. Check constraint trava qualquer
+    // outro valor.
+    classDays: text("class_days")
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`)
+      .$type<AgendaExtracurricularDay[]>(),
+    status: text("status", {
+      enum: AGENDA_PROFILE_SUBJECT_STATUSES,
+    })
+      .notNull()
+      .default("active"),
+    pausedAt: date("paused_at"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("agenda_profile_subjects_profile_name_unique_idx").on(t.profileId, t.name),
+    index("agenda_profile_subjects_profile_status_idx").on(t.profileId, t.status),
+    check(
+      "agenda_profile_subjects_class_days_valid",
+      sql`${t.classDays} <@ ARRAY['mon','tue','wed','thu','fri','sat','sun']::text[]`,
+    ),
+    check(
+      "agenda_profile_subjects_paused_consistency",
+      sql`(${t.status} = 'paused' AND ${t.pausedAt} IS NOT NULL)
+          OR (${t.status} = 'active' AND ${t.pausedAt} IS NULL)`,
+    ),
+  ],
+);
+
+// Atividades de matéria extracurricular. Sempre individuais (sem visibility,
+// sem acceptance, sem fan-out por perfil) — extracurricular é dona dum perfil
+// único, então `status` é coluna direta na row (1 row = 1 status). Reuso do
+// enum literal `type` de `agenda.activities` pra UI/labels.
+//
+// `profileId` é redundante com `profileSubjectId.profileId` mas evita JOIN
+// no path quente do dashboard. Service garante consistência no insert.
+export const agendaProfileSubjectActivities = agenda.table(
+  "profile_subject_activities",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => agendaStudentProfiles.id, { onDelete: "cascade" }),
+    profileSubjectId: uuid("profile_subject_id")
+      .notNull()
+      .references(() => agendaProfileSubjects.id, { onDelete: "cascade" }),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    type: text("type", {
+      enum: ["task", "exam", "project", "reminder"],
+    }).notNull(),
+    title: text("title").notNull(),
+    description: text("description"),
+    dueAt: date("due_at").notNull(),
+    status: text("status", {
+      enum: ["pending", "done"],
+    })
+      .notNull()
+      .default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("agenda_profile_subject_activities_profile_due_idx").on(t.profileId, t.dueAt),
+    index("agenda_profile_subject_activities_subject_idx").on(t.profileSubjectId),
+    index("agenda_profile_subject_activities_status_due_idx").on(t.status, t.dueAt),
+  ],
+);
+
 export type AgendaState = typeof agendaStates.$inferSelect;
 export type AgendaCity = typeof agendaCities.$inferSelect;
 export type AgendaSchool = typeof agendaSchools.$inferSelect;
@@ -322,3 +439,7 @@ export type AgendaActivityStatus = typeof agendaActivityStatuses.$inferSelect;
 export type NewAgendaActivityStatus = typeof agendaActivityStatuses.$inferInsert;
 export type AgendaActivityAcceptance = typeof agendaActivityAcceptances.$inferSelect;
 export type NewAgendaActivityAcceptance = typeof agendaActivityAcceptances.$inferInsert;
+export type AgendaProfileSubject = typeof agendaProfileSubjects.$inferSelect;
+export type NewAgendaProfileSubject = typeof agendaProfileSubjects.$inferInsert;
+export type AgendaProfileSubjectActivity = typeof agendaProfileSubjectActivities.$inferSelect;
+export type NewAgendaProfileSubjectActivity = typeof agendaProfileSubjectActivities.$inferInsert;

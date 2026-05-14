@@ -1,4 +1,4 @@
-import type { ActivityListItem } from "@/features/activities/types";
+import type { UnifiedActivityListItem } from "@/features/unified-activities/types";
 
 export type CalendarView = "month" | "week" | "day";
 
@@ -9,8 +9,12 @@ export type CalendarRange = {
   toIso: string;
 };
 
+// `items` contém atividades das duas origens (turma + extras `active`).
+// Blips e detail dialog ramificam por `source` — extras ganham modificador
+// visual (borda dashed) e o detail dialog mostra read-only sem edit/delete
+// inline (gestão das extras vive em /perfis/[id]/extras/[subjectId]).
 export type CalendarSnapshot = {
-  items: ActivityListItem[];
+  items: UnifiedActivityListItem[];
 } & CalendarRange;
 
 // Célula renderizada na grid mensal — `inMonth=false` cobre os dias de spillover

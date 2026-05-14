@@ -1,4 +1,4 @@
-import type { ActivityListItem } from "@/features/activities/types";
+import type { UnifiedActivityListItem } from "@/features/unified-activities/types";
 import type { DashboardProfileSummary, DashboardSnapshot } from "./types";
 
 type BuildArgs = {
@@ -64,8 +64,7 @@ function todayFilename(): string {
   return `agenda-da-turma-${parts}.pdf`;
 }
 
-function activityRow(item: ActivityListItem): string[] {
-  const turmaLabel = `${item.grade}${item.classLetter}`;
+function activityRow(item: UnifiedActivityListItem): string[] {
   const statusLabel = item.status === "done" ? "Concluída" : "Pendente";
   const trimmedDescription = item.description?.trim();
   // jspdf-autotable wrap nativo respeita \n quando overflow="linebreak"
@@ -77,10 +76,15 @@ function activityRow(item: ActivityListItem): string[] {
         .map((line) => `  ${line}`)
         .join("\n")}`
     : item.title;
+  // Discriminator: turma traz schoolName/grade/classLetter; extra usa
+  // "Extracurricular" como marca de origem na coluna "Turma" e o nome da
+  // matéria do perfil na coluna "Matéria".
+  const subjectName = item.source === "turma" ? item.subjectName : item.profileSubjectName;
+  const turmaLabel = item.source === "turma" ? `${item.grade}${item.classLetter}` : "Extra";
   return [
     formatDueDate(item.dueAt),
     ACTIVITY_TYPE_PT[item.type] ?? item.type,
-    item.subjectName,
+    subjectName,
     turmaLabel,
     activityCell,
     item.studentProfileName,
@@ -349,7 +353,7 @@ function drawBucket(
   marginX: number,
   opts: {
     title: string;
-    items: ActivityListItem[];
+    items: UnifiedActivityListItem[];
     headFill: [number, number, number];
     autoTable: AutoTableFn;
   },

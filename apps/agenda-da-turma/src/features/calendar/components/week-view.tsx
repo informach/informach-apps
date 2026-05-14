@@ -4,7 +4,7 @@ import { Button } from "@informach/ui/components/button";
 import { cn } from "@informach/ui/lib/utils";
 import { Plus } from "lucide-react";
 import { useMemo } from "react";
-import type { ActivityListItem } from "@/features/activities/types";
+import type { UnifiedActivityListItem } from "@/features/unified-activities/types";
 import {
   buildWeekDays,
   parseLocalIso,
@@ -15,8 +15,8 @@ import { ActivityBlip } from "./activity-blip";
 
 type Props = {
   anchorIso: string;
-  items: ActivityListItem[];
-  onSelectActivity: (item: ActivityListItem) => void;
+  items: UnifiedActivityListItem[];
+  onSelectActivity: (item: UnifiedActivityListItem) => void;
   onCreateForDay: (iso: string) => void;
 };
 
@@ -28,7 +28,7 @@ export function WeekView({ anchorIso, items, onSelectActivity, onCreateForDay }:
   const today = todayLocalIso();
 
   const itemsByDate = useMemo(() => {
-    const map = new Map<string, ActivityListItem[]>();
+    const map = new Map<string, UnifiedActivityListItem[]>();
     for (const item of items) {
       const list = map.get(item.dueAt) ?? [];
       list.push(item);
@@ -92,7 +92,7 @@ export function WeekView({ anchorIso, items, onSelectActivity, onCreateForDay }:
                 ) : (
                   dayItems.map((item) => (
                     <ActivityBlip
-                      key={item.statusId}
+                      key={item.source === "turma" ? item.statusId : item.activityId}
                       item={item}
                       onSelect={() => onSelectActivity(item)}
                     />

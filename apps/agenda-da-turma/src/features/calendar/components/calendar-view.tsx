@@ -8,12 +8,9 @@ import { ActivityImageDialog } from "@/features/activities/components/activity-i
 import { ActivityPdfDialog } from "@/features/activities/components/activity-pdf-dialog";
 import { ActivityVoiceDialog } from "@/features/activities/components/activity-voice-dialog";
 import { TurmaConfirmDialog } from "@/features/activities/components/turma-confirm-dialog";
-import type {
-  ActivityListItem,
-  ParsedActivityInput,
-  TurmaWithSubjectsForForm,
-} from "@/features/activities/types";
+import type { ParsedActivityInput, TurmaWithSubjectsForForm } from "@/features/activities/types";
 import type { StudentProfile } from "@/features/students/types";
+import type { UnifiedActivityListItem } from "@/features/unified-activities/types";
 import { shiftAnchor, todayLocalIso } from "../date";
 import type { CalendarView as CalendarViewKind } from "../types";
 import { ActivityDetailDialog } from "./activity-detail-dialog";
@@ -35,7 +32,7 @@ type Props = {
    */
   profiles: StudentProfile[];
   turmasForForm: TurmaWithSubjectsForForm[];
-  items: ActivityListItem[];
+  items: UnifiedActivityListItem[];
 };
 
 // Orquestrador do calendário. URL é a fonte da verdade (`?view=`, `?date=`,
@@ -84,12 +81,20 @@ export function CalendarView({
     return matched?.activeTurmaId ?? undefined;
   }, [profileFilter, profiles]);
 
-  // Acha o item ativo pelo statusId (estável; `items` muda a cada
-  // re-render mas o detail item escolhido fica gravado mesmo após router.refresh).
-  const detailItem = useMemo(
-    () => items.find((it) => it.statusId === detailItemId) ?? null,
-    [items, detailItemId],
-  );
+  // Acha o item ativo pela chave estável da origem. Turma usa `statusId`
+  // (atividade × perfil), extras usam `activityId` (1 row = 1 atividade).
+  // detailItemId é prefixado com "turma:" ou "extra:" pra evitar colisão.
+  const detailItem = useMemo(() => {
+    if (!detailItemId) return null;
+    const [origin, key] = detailItemId.split(":");
+    return (
+      items.find((it) => {
+        if (it.source === "turma" && origin === "turma") return it.statusId === key;
+        if (it.source === "extra" && origin === "extra") return it.activityId === key;
+        return false;
+      }) ?? null
+    );
+  }, [items, detailItemId]);
 
   const buildHref = useCallback(
     (next: { view?: CalendarViewKind; date?: string; perfil?: string | null }) => {
@@ -119,8 +124,9 @@ export function CalendarView({
   const handleViewChange = (next: CalendarViewKind) => navigate({ view: next });
   const handleProfileChange = (next: string | null) => navigate({ perfil: next });
 
-  const handleSelectActivity = useCallback((item: ActivityListItem) => {
-    setDetailItemId(item.statusId);
+  const handleSelectActivity = useCallback((item: UnifiedActivityListItem) => {
+    const key = item.source === "turma" ? `turma:${item.statusId}` : `extra:${item.activityId}`;
+    setDetailItemId(key);
     setDetailOpen(true);
   }, []);
 

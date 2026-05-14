@@ -1,6 +1,8 @@
 import "server-only";
 
 import { billing } from "@/features/billing/service";
+import { listProfileActivitiesInDateRange } from "@/features/profile-subject-activities/repository";
+import { type UnifiedActivityListItem, withTurmaSource } from "@/features/unified-activities/types";
 import { rangeForView } from "./date";
 import { listActivitiesInDateRange } from "./repository";
 import type { CalendarSnapshot, CalendarView } from "./types";
@@ -10,8 +12,12 @@ function userSubject(userId: string) {
 }
 
 // Snapshot do calendário pra uma vista. Calcula o range visível, checa Pro
-// (mesma regra do dashboard — Pro vê shared aceitas; Free só vê próprias) e
-// busca todas as atividades no range em uma única query.
+// (Pro vê shared aceitas; Free só vê próprias) e busca atividades das duas
+// origens em paralelo (async-parallel — Vercel best practices §1):
+//   - `listActivitiesInDateRange` → turma (JOIN com escola/turma/subjects)
+//   - `listProfileActivitiesInDateRange` → extras `active` (filtra paused)
+// O merge ordena por (dueAt asc, createdAt asc) — comparação lexicográfica
+// estável entre tipos porque dueAt é "YYYY-MM-DD".
 export async function getCalendarSnapshot(
   userId: string,
   options: {
@@ -22,11 +28,29 @@ export async function getCalendarSnapshot(
 ): Promise<CalendarSnapshot> {
   const isPro = await billing.hasProSubscription(userSubject(userId));
   const { fromIso, toIso } = rangeForView(options.anchorIso, options.view);
-  const items = await listActivitiesInDateRange(userId, {
-    fromIso,
-    toIso,
-    profileFilter: options.profileFilter,
-    isPro,
+
+  const [turmaItems, extraItems] = await Promise.all([
+    listActivitiesInDateRange(userId, {
+      fromIso,
+      toIso,
+      profileFilter: options.profileFilter,
+      isPro,
+    }),
+    listProfileActivitiesInDateRange(userId, {
+      fromIso,
+      toIso,
+      profileFilter: options.profileFilter,
+      // Calendário esconde matérias `paused` — usuário pausou jazz, não
+      // quer ver atividade antiga no grid. Histórico fica em /atividades.
+      includePausedSubjects: false,
+    }),
+  ]);
+
+  const items: UnifiedActivityListItem[] = [...turmaItems.map(withTurmaSource), ...extraItems];
+  items.sort((a, b) => {
+    if (a.dueAt !== b.dueAt) return a.dueAt.localeCompare(b.dueAt);
+    return a.activityCreatedAt.getTime() - b.activityCreatedAt.getTime();
   });
+
   return { items, fromIso, toIso };
 }

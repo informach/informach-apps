@@ -100,13 +100,17 @@ export function TodaySubjectsCard({ view }: Props) {
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-foreground">{s.name}</p>
-                    {s.teacherName ? (
+                    {s.source === "turma" && s.teacherName ? (
                       <p className="truncate text-xs text-muted-foreground">
                         Prof. {s.teacherName}
                       </p>
                     ) : null}
                   </div>
-                  {s.isAlternating ? (
+                  {s.source === "extra" ? (
+                    <Badge variant="outline" className="shrink-0 text-xs">
+                      Extra
+                    </Badge>
+                  ) : s.isAlternating ? (
                     <Badge variant="secondary" className="shrink-0 text-xs">
                       {s.alternatingPairName ? `reveza com ${s.alternatingPairName}` : "quinzenal"}
                     </Badge>

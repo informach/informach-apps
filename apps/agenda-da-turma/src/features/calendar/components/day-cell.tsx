@@ -4,15 +4,15 @@ import { Button } from "@informach/ui/components/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@informach/ui/components/popover";
 import { cn } from "@informach/ui/lib/utils";
 import { Plus } from "lucide-react";
-import type { ActivityListItem } from "@/features/activities/types";
+import type { UnifiedActivityListItem } from "@/features/unified-activities/types";
 import { todayLocalIso } from "../date";
 import { ActivityBlip } from "./activity-blip";
 
 type Props = {
   iso: string;
   inMonth: boolean;
-  items: ActivityListItem[];
-  onSelectActivity: (item: ActivityListItem) => void;
+  items: UnifiedActivityListItem[];
+  onSelectActivity: (item: UnifiedActivityListItem) => void;
   onCreateForDay: (iso: string) => void;
 };
 
@@ -83,7 +83,11 @@ export function DayCell({ iso, inMonth, items, onSelectActivity, onCreateForDay 
 
       <div className="flex flex-1 flex-col gap-0.5">
         {visible.map((item) => (
-          <ActivityBlip key={item.statusId} item={item} onSelect={() => onSelectActivity(item)} />
+          <ActivityBlip
+            key={item.source === "turma" ? item.statusId : item.activityId}
+            item={item}
+            onSelect={() => onSelectActivity(item)}
+          />
         ))}
         {overflow > 0 ? (
           <Popover>
@@ -105,7 +109,7 @@ export function DayCell({ iso, inMonth, items, onSelectActivity, onCreateForDay 
               <div className="flex flex-col gap-1">
                 {items.map((item) => (
                   <ActivityBlip
-                    key={item.statusId}
+                    key={item.source === "turma" ? item.statusId : item.activityId}
                     item={item}
                     onSelect={() => onSelectActivity(item)}
                   />

@@ -1,5 +1,6 @@
-import { ActivityCard } from "@/features/activities/components/activity-card";
-import type { ActivityListItem, TurmaWithSubjectsForForm } from "@/features/activities/types";
+import type { TurmaWithSubjectsForForm } from "@/features/activities/types";
+import { UnifiedActivityCard } from "@/features/unified-activities/components/unified-activity-card";
+import type { UnifiedActivityListItem } from "@/features/unified-activities/types";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
   weekday: "long",
@@ -22,15 +23,16 @@ function formatGroupHeader(dueAt: string): string {
 }
 
 type Props = {
-  items: ActivityListItem[];
+  items: UnifiedActivityListItem[];
   currentUserId: string;
   isPro: boolean;
   turmasForForm: TurmaWithSubjectsForForm[];
 };
 
 export function UpcomingGroupedList({ items, currentUserId, isPro, turmasForForm }: Props) {
-  // Items já vêm ordenados por dueAt ASC do repository — agrupa preservando ordem.
-  const groups = new Map<string, ActivityListItem[]>();
+  // Items já vêm ordenados por dueAt ASC do service (turma + extras mesclados).
+  // Agrupa preservando ordem.
+  const groups = new Map<string, UnifiedActivityListItem[]>();
   for (const item of items) {
     const list = groups.get(item.dueAt) ?? [];
     list.push(item);
@@ -49,8 +51,8 @@ export function UpcomingGroupedList({ items, currentUserId, isPro, turmasForForm
           </p>
           <div className="space-y-3">
             {group.map((item) => (
-              <ActivityCard
-                key={item.statusId}
+              <UnifiedActivityCard
+                key={item.source === "turma" ? item.statusId : item.activityId}
                 item={item}
                 currentUserId={currentUserId}
                 isPro={isPro}

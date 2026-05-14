@@ -14,13 +14,14 @@ import {
 import { Label } from "@informach/ui/components/label";
 import { toast } from "@informach/ui/components/sonner";
 import { cn } from "@informach/ui/lib/utils";
-import { Pencil, Trash2 } from "lucide-react";
+import { ExternalLink, Pencil, Sparkles, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { setActivityStatusAction } from "@/features/activities/actions";
 import { ActivityFormDialog } from "@/features/activities/components/activity-form-dialog";
 import { DeleteActivityDialog } from "@/features/activities/components/delete-activity-dialog";
-import type { ActivityListItem, TurmaWithSubjectsForForm } from "@/features/activities/types";
+import type { TurmaWithSubjectsForForm } from "@/features/activities/types";
 import {
   canEditActivity,
   formatTurmaShort,
@@ -30,24 +31,27 @@ import {
   getDueBadgeVariant,
   getDueUrgency,
 } from "@/features/activities/utils";
+import { setProfileSubjectActivityStatusAction } from "@/features/profile-subject-activities/actions";
 import { getSubjectIconClassByIndex } from "@/features/subjects/utils";
+import type { UnifiedActivityListItem } from "@/features/unified-activities/types";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  item: ActivityListItem | null;
+  item: UnifiedActivityListItem | null;
   currentUserId: string;
   isPro: boolean;
   turmasForForm: TurmaWithSubjectsForForm[];
 };
 
-// Modal de detalhe disparada ao clicar num blip. Layout próprio (não reuso
-// do ActivityCard) — hierarquia visual diferente: título em destaque, lugar
-// pra descrição em prose, ações primárias visíveis. Edit/Delete abrem
-// ActivityFormDialog e DeleteActivityDialog como sub-dialogs (Radix lida
-// com aninhamento; o detail fica aberto enquanto o sub-dialog é
-// interagido).
+// Modal de detalhe disparada ao clicar num blip. Ramifica por `source`:
+//   - turma → renderiza o detalhe completo com edit/delete inline (mantém
+//     o fluxo atual de atividades de turma intacto).
+//   - extra → renderiza versão simplificada: toggle de status + link
+//     "Abrir matéria" pra /perfis/[id]/extras/[subjectId] onde mora a gestão.
+//     Edit/Delete acontecem lá, não no calendário (decisão de produto:
+//     calendário é visualização cross-origem, gestão é por contexto).
 export function ActivityDetailDialog({
   open,
   onOpenChange,
@@ -56,11 +60,6 @@ export function ActivityDetailDialog({
   isPro,
   turmasForForm,
 }: Props) {
-  const router = useRouter();
-  const [editOpen, setEditOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [pending, startTransition] = useTransition();
-
   // Item null durante closing — não renderiza nada além do Dialog vazio.
   if (!item) {
     return (
@@ -69,6 +68,42 @@ export function ActivityDetailDialog({
       </Dialog>
     );
   }
+
+  if (item.source === "extra") {
+    return <ExtraActivityDetailDialog open={open} onOpenChange={onOpenChange} item={item} />;
+  }
+
+  return (
+    <TurmaActivityDetailDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      item={item}
+      currentUserId={currentUserId}
+      isPro={isPro}
+      turmasForForm={turmasForForm}
+    />
+  );
+}
+
+function TurmaActivityDetailDialog({
+  open,
+  onOpenChange,
+  item,
+  currentUserId,
+  isPro,
+  turmasForForm,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  item: Extract<UnifiedActivityListItem, { source: "turma" }>;
+  currentUserId: string;
+  isPro: boolean;
+  turmasForForm: TurmaWithSubjectsForForm[];
+}) {
+  const router = useRouter();
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [pending, startTransition] = useTransition();
 
   const TypeIcon = getActivityTypeIcon(item.type);
   const isDone = item.status === "done";
@@ -253,5 +288,143 @@ export function ActivityDetailDialog({
         </>
       ) : null}
     </>
+  );
+}
+
+function ExtraActivityDetailDialog({
+  open,
+  onOpenChange,
+  item,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  item: Extract<UnifiedActivityListItem, { source: "extra" }>;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+
+  const TypeIcon = getActivityTypeIcon(item.type);
+  const isDone = item.status === "done";
+  const urgency = getDueUrgency(item.dueAt, item.status);
+  const checkboxId = `detail-status-extra-${item.activityId}`;
+
+  const handleToggle = (next: boolean) => {
+    startTransition(async () => {
+      const result = await catchActionResult(() =>
+        setProfileSubjectActivityStatusAction({
+          id: item.activityId,
+          status: next ? "done" : "pending",
+        }),
+      );
+      if (!result.ok) {
+        if (isActionRejected(result.error)) {
+          toast.error("Não foi possível atualizar.", {
+            description: "Atualize a página e tente novamente.",
+          });
+        } else if (result.error.code === "NOT_FOUND") {
+          toast.error("Atividade não encontrada");
+        } else {
+          toast.error("Não foi possível atualizar.");
+        }
+        router.refresh();
+        return;
+      }
+      router.refresh();
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+        <DialogHeader className="space-y-3">
+          <div className="flex items-start gap-3">
+            <span
+              className={cn(
+                "flex size-11 shrink-0 items-center justify-center rounded-full",
+                getSubjectIconClassByIndex(item.profileSubjectColorIndex),
+              )}
+            >
+              <TypeIcon className="size-5" aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                <Badge variant="secondary">{getActivityTypeLabel(item.type)}</Badge>
+                <Badge variant="outline" className="font-normal">
+                  <Sparkles className="mr-1 size-3" aria-hidden />
+                  Extra
+                </Badge>
+              </div>
+              <DialogTitle
+                className={cn(
+                  "text-left text-xl leading-tight",
+                  isDone && "text-muted-foreground line-through",
+                )}
+              >
+                {item.title}
+              </DialogTitle>
+              <DialogDescription className="mt-1 text-left">
+                {item.profileSubjectName} · extracurricular
+              </DialogDescription>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={getDueBadgeVariant(urgency)}>
+              {getDueBadgeLabel(item.dueAt, urgency)}
+            </Badge>
+            <Badge variant="outline" className="font-normal">
+              {item.studentProfileName}
+            </Badge>
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          {item.description ? (
+            <div className="space-y-1">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Observação
+              </p>
+              <p className="whitespace-pre-wrap break-words text-sm text-foreground/90">
+                {item.description}
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm italic text-muted-foreground">Sem observação cadastrada.</p>
+          )}
+
+          <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 p-3">
+            <Checkbox
+              id={checkboxId}
+              checked={isDone}
+              onCheckedChange={(value) => handleToggle(value === true)}
+              disabled={pending}
+              aria-label={
+                isDone
+                  ? `Marcar "${item.title}" como pendente`
+                  : `Marcar "${item.title}" como concluída`
+              }
+            />
+            <Label htmlFor={checkboxId} className="cursor-pointer text-sm font-medium">
+              {isDone ? "Concluída" : "Marcar como concluída"}
+            </Label>
+          </div>
+        </div>
+
+        <DialogFooter className="flex-row flex-wrap gap-2 sm:justify-between">
+          <Button asChild variant="outline" size="sm">
+            <Link
+              href={`/perfis/${item.studentProfileId}/extras/${item.profileSubjectId}`}
+              onClick={() => onOpenChange(false)}
+            >
+              <ExternalLink className="mr-1 size-4" aria-hidden />
+              Abrir matéria
+            </Link>
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>
+            Fechar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
