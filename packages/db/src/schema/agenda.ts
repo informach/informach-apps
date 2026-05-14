@@ -169,6 +169,47 @@ export const agendaSubjects = agenda.table(
   ],
 );
 
+// Slots de revezamento quinzenal: marca que UMA matéria reveza num DIA
+// específico com OUTRA matéria, alternando a cada 7 dias. Cobre os casos:
+//   - Artes ↔ ACC na quarta (cada uma com classDays=[wed], slot pra wed).
+//   - Matemática [mon,tue,wed,fri] ↔ Robótica [fri] só no fri.
+// Sem linha pra `(subject, day)` ⇒ esse dia é semanal (comportamento default,
+// matches o que `classDays` já modela hoje). Com linha ⇒ esse dia é
+// quinzenal, e a paridade é calculada contra `anchor_date`.
+// Bidirecionalidade: o service garante que existe linha-espelho na matéria
+// pareada. Db-level constraint só impõe (subject_id, day) único — não tenta
+// validar a outra direção (overhead transacional).
+export const agendaSubjectAlternatingSlots = agenda.table(
+  "subject_alternating_slots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    subjectId: uuid("subject_id")
+      .notNull()
+      .references((): AnyPgColumn => agendaSubjects.id, { onDelete: "cascade" }),
+    dayOfWeek: text("day_of_week").notNull().$type<AgendaClassDay>(),
+    pairedSubjectId: uuid("paired_subject_id")
+      .notNull()
+      .references((): AnyPgColumn => agendaSubjects.id, { onDelete: "cascade" }),
+    // Data conhecida em que ESTA matéria teve aula nesse `dayOfWeek`.
+    // Qualquer outra data X: `floor((X - anchorDate) / 7d) % 2 === 0` ⇒ é
+    // semana "minha"; senão ⇒ é semana do par. TZ-agnostic (string "YYYY-MM-DD"
+    // tratada como dia local America/Sao_Paulo). Service valida que
+    // `getDay(anchor_date) === dayOfWeek` antes do insert.
+    anchorDate: date("anchor_date").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("agenda_subject_alt_slots_subject_day_idx").on(t.subjectId, t.dayOfWeek),
+    index("agenda_subject_alt_slots_paired_idx").on(t.pairedSubjectId),
+    check(
+      "agenda_subject_alt_slots_day_valid",
+      sql`${t.dayOfWeek} IN ('mon','tue','wed','thu','fri')`,
+    ),
+    check("agenda_subject_alt_slots_diff_subject", sql`${t.subjectId} <> ${t.pairedSubjectId}`),
+  ],
+);
+
 // Atividades (tarefa/prova/trabalho/lembrete) pertencem à turma. Status é
 // individual por perfil (tabela separada) — uma atividade compartilhada não
 // tem "status global", cada perfil de cada família tem o seu próprio rastro.
@@ -273,6 +314,8 @@ export type AgendaStudentProfile = typeof agendaStudentProfiles.$inferSelect;
 export type NewAgendaStudentProfile = typeof agendaStudentProfiles.$inferInsert;
 export type AgendaSubject = typeof agendaSubjects.$inferSelect;
 export type NewAgendaSubject = typeof agendaSubjects.$inferInsert;
+export type AgendaSubjectAlternatingSlot = typeof agendaSubjectAlternatingSlots.$inferSelect;
+export type NewAgendaSubjectAlternatingSlot = typeof agendaSubjectAlternatingSlots.$inferInsert;
 export type AgendaActivity = typeof agendaActivities.$inferSelect;
 export type NewAgendaActivity = typeof agendaActivities.$inferInsert;
 export type AgendaActivityStatus = typeof agendaActivityStatuses.$inferSelect;

@@ -1,9 +1,17 @@
 import "server-only";
 
 import { err, ok, type Result } from "@informach/auth/server-actions";
+import { isValidLocalIsoDate, parseLocalIso } from "@/features/dashboard/date";
 import { findTurmaWithSchoolById, userHasMemberInTurma } from "@/features/turmas/repository";
 import type { TurmaWithSchool } from "@/features/turmas/types";
 import {
+  pairedSubjectBelongsToSameTurma,
+  syncAlternatingSlotsForSubject,
+} from "./alternating-slots-repository";
+import { dayOfWeekToClassDay } from "./class-days";
+import {
+  attachAlternatingSlots,
+  attachAlternatingSlotsOne,
   deleteSubjectById,
   findSubjectById,
   findTurmasOfUserMissingSubjects,
@@ -19,7 +27,7 @@ import type {
   DeleteSubjectInput,
   UpdateSubjectInput,
 } from "./schemas";
-import type { Subject, TurmaNeedingSubjects } from "./types";
+import type { AlternatingSlotInput, Subject, TurmaNeedingSubjects } from "./types";
 import { isMinorNameEdit } from "./utils";
 
 export type SubjectError =
@@ -29,7 +37,61 @@ export type SubjectError =
   | { code: "NOT_FOUND" }
   | { code: "DUPLICATE" }
   | { code: "IN_USE_BY_OTHERS" }
-  | { code: "NAME_CHANGE_TOO_BIG" };
+  | { code: "NAME_CHANGE_TOO_BIG" }
+  | { code: "SLOT_DAY_NOT_IN_CLASS_DAYS"; day: string }
+  | { code: "INVALID_PAIRED_SUBJECT" }
+  | { code: "INVALID_ANCHOR_DATE"; day: string };
+
+// Valida cross-field dos slots:
+//   1. anchorDate parsea e cai no mesmo weekday do slot.dayOfWeek
+//   2. dayOfWeek está em classDays (não faz sentido ter slot quinzenal num
+//      dia que nem é dia de aula)
+//   3. pairedSubjectId existe E é da mesma turma (validado no DB pela
+//      lookup de turma id).
+// Validação 3 fica em `validatePairedSubjectsBelongToTurma` (separada porque
+// precisa hit no DB — passamos o turmaId esperado).
+function validateSlotsAgainstClassDays(
+  slots: readonly AlternatingSlotInput[],
+  classDays: readonly string[],
+): SubjectError | null {
+  const classDaysSet = new Set(classDays);
+  for (const slot of slots) {
+    if (!classDaysSet.has(slot.dayOfWeek)) {
+      return { code: "SLOT_DAY_NOT_IN_CLASS_DAYS", day: slot.dayOfWeek };
+    }
+    if (!isValidLocalIsoDate(slot.anchorDate)) {
+      return { code: "INVALID_ANCHOR_DATE", day: slot.dayOfWeek };
+    }
+    const anchor = parseLocalIso(slot.anchorDate);
+    const anchorWeekday = dayOfWeekToClassDay(anchor.getDay());
+    if (anchorWeekday !== slot.dayOfWeek) {
+      return { code: "INVALID_ANCHOR_DATE", day: slot.dayOfWeek };
+    }
+  }
+  return null;
+}
+
+async function validatePairedSubjectsBelongToTurma(
+  slots: readonly AlternatingSlotInput[],
+  expectedTurmaId: string,
+  excludeSubjectId: string | null,
+): Promise<boolean> {
+  if (slots.length === 0) return true;
+  const pairedIds = Array.from(new Set(slots.map((s) => s.pairedSubjectId)));
+  for (const id of pairedIds) {
+    if (id === excludeSubjectId) return false; // self-pair
+    if (!excludeSubjectId) return false; // defensivo — shouldn't happen
+    const ok = await pairedSubjectBelongsToSameTurma(excludeSubjectId, id);
+    if (!ok) return false;
+    // Adicional: validar que `id` é da `expectedTurmaId` (pairedSubjectBelongsToSameTurma
+    // só confere que `excludeSubjectId` e `id` são da MESMA turma, mas não
+    // verifica a turma específica. Aqui o caller diz qual é a turma esperada.)
+    // Como `excludeSubjectId` é da `expectedTurmaId` (caller garante),
+    // transitividade dá garantia suficiente.
+    void expectedTurmaId;
+  }
+  return true;
+}
 
 // Status retornado pro caller (UI) — distingue criação nova de merge
 // preenchendo brancos vs. matéria que já existia idêntica. UI usa pra
@@ -49,6 +111,12 @@ export type CreateSubjectSuccess = {
 // Como turmas são compartilhadas, "criar" matéria que já existe na turma faz
 // merge de campos em branco (teacherName e classDays) — nunca sobrescreve dados
 // já cadastrados, vale entre famílias. Ver `insertSubjectIfNotExists` no repo.
+//
+// Alternating slots (revezamento quinzenal) são sincronizados separadamente
+// quando `input.alternatingSlots` é não-vazio E o status é "created". Para
+// merge/skipped, slots NÃO são aplicados — quem criou primeiro tem prioridade
+// no horário; quem cadastrou depois pode editar via updateSubject se quiser
+// ajustar a paridade.
 export async function createSubject(
   userId: string,
   input: CreateSubjectInput,
@@ -60,6 +128,9 @@ export async function createSubject(
   const isMember = isCreator || (await userHasMemberInTurma(userId, input.turmaId));
   if (!isMember) return err({ code: "NOT_A_MEMBER" });
 
+  const slotsValidation = validateSlotsAgainstClassDays(input.alternatingSlots, input.classDays);
+  if (slotsValidation) return err(slotsValidation);
+
   const result = await insertSubjectIfNotExists({
     turmaId: input.turmaId,
     name: input.name,
@@ -68,13 +139,28 @@ export async function createSubject(
     createdByUserId: userId,
   });
 
+  // Slots só fluem em criação nova (não em merge). Se a matéria já existia,
+  // o user precisa editar pra mexer no horário — evita race condition entre
+  // famílias e protege paridade já estabelecida.
+  if (result.status === "created" && input.alternatingSlots.length > 0) {
+    const pairedOk = await validatePairedSubjectsBelongToTurma(
+      input.alternatingSlots,
+      input.turmaId,
+      result.subject.id,
+    );
+    if (!pairedOk) return err({ code: "INVALID_PAIRED_SUBJECT" });
+    await syncAlternatingSlotsForSubject(result.subject.id, input.alternatingSlots);
+  }
+
   const status: CreateSubjectStatus =
     result.status === "created"
       ? "created"
       : result.status === "merged"
         ? "merged_filled"
         : "merged_noop";
-  return ok({ subject: result.subject, status, filled: result.filled });
+  const subject = await attachAlternatingSlotsOne(result.subject);
+  if (!subject) return err({ code: "NOT_FOUND" });
+  return ok({ subject, status, filled: result.filled });
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -164,13 +250,28 @@ export async function updateSubject(
     }
   }
 
+  // Validações dos slots (cross-field shape + cross-table lookup).
+  const slotsValidation = validateSlotsAgainstClassDays(input.alternatingSlots, input.classDays);
+  if (slotsValidation) return err(slotsValidation);
+  const pairedOk = await validatePairedSubjectsBelongToTurma(
+    input.alternatingSlots,
+    subject.turmaId,
+    subject.id,
+  );
+  if (!pairedOk) return err({ code: "INVALID_PAIRED_SUBJECT" });
+
   const updated = await updateSubjectById(input.id, {
     name: input.name,
     teacherName: input.teacherName ?? null,
     classDays: input.classDays,
   });
   if (!updated) return err({ code: "NOT_FOUND" });
-  return ok(updated);
+
+  await syncAlternatingSlotsForSubject(updated.id, input.alternatingSlots);
+
+  const full = await attachAlternatingSlotsOne(updated);
+  if (!full) return err({ code: "NOT_FOUND" });
+  return ok(full);
 }
 
 // Quem pode excluir: mesmas regras de edit.
@@ -211,7 +312,8 @@ export async function getSubjectsForUserAndTurma(
   const isMember = isCreator || (await userHasMemberInTurma(userId, turmaId));
   if (!isMember) return err({ code: "FORBIDDEN" });
 
-  const subjects = await listSubjectsForTurma(turmaId);
+  const rows = await listSubjectsForTurma(turmaId);
+  const subjects = await attachAlternatingSlots(rows);
   return ok({ turma, subjects, canCreateSubject: isMember });
 }
 

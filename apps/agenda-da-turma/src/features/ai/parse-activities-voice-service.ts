@@ -12,6 +12,7 @@ import { agentRunRecorder as recorder } from "@/ai/agent-run-recorder";
 import { AGENDA_MODELS } from "@/ai/models";
 import { listTurmasWithSubjectsForUserForm } from "@/features/activities/repository";
 import { findStudentProfilesByUser } from "@/features/students/repository";
+import { loadSlotsByClassDayMap } from "@/features/subjects/alternating-slots-repository";
 import { billing } from "@/lib/billing";
 
 export type ParseActivitiesFromVoiceInput = {
@@ -48,6 +49,8 @@ export async function parseActivitiesFromVoice(
     findStudentProfilesByUser(input.userId),
     listTurmasWithSubjectsForUserForm(input.userId),
   ]);
+  const allSubjectIds = turmasWithSubjects.flatMap((t) => t.subjects.map((s) => s.id));
+  const slotsBySubjectId = await loadSlotsByClassDayMap(allSubjectIds);
 
   const userMessage = buildUserMessage({
     transcript: input.transcript,
@@ -79,5 +82,5 @@ export async function parseActivitiesFromVoice(
   });
 
   const parsed = out.result.object as ActivitiesParserOutput;
-  return enrichWithResolvedTurma(parsed, profiles, turmasWithSubjects);
+  return enrichWithResolvedTurma(parsed, profiles, turmasWithSubjects, undefined, slotsBySubjectId);
 }

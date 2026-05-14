@@ -124,6 +124,7 @@ export function SubjectsSection({
               subject={subject}
               turmaId={turmaId}
               currentUserId={currentUserId}
+              turmaSubjects={subjects}
             />
           ))}
         </div>
@@ -131,7 +132,12 @@ export function SubjectsSection({
 
       {canCreateSubject ? (
         <>
-          <SubjectFormDialog open={createOpen} onOpenChange={setCreateOpen} turmaId={turmaId} />
+          <SubjectFormDialog
+            open={createOpen}
+            onOpenChange={setCreateOpen}
+            turmaId={turmaId}
+            turmaSubjects={subjects}
+          />
           {isPro ? (
             <>
               <SubjectsVoiceDialog

@@ -14,6 +14,11 @@ const mocks = vi.hoisted(() => ({
   findTurmasOfUserMissingSubjects: vi.fn(),
   isSubjectInUseByOtherUsers: vi.fn(),
   subjectNameExistsInTurmaExceptId: vi.fn(),
+  attachAlternatingSlotsOne: vi.fn(),
+  attachAlternatingSlots: vi.fn(),
+  // alternating-slots-repository
+  syncAlternatingSlotsForSubject: vi.fn(),
+  pairedSubjectBelongsToSameTurma: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
@@ -37,6 +42,13 @@ vi.mock("./repository", () => ({
   findTurmasOfUserMissingSubjects: mocks.findTurmasOfUserMissingSubjects,
   isSubjectInUseByOtherUsers: mocks.isSubjectInUseByOtherUsers,
   subjectNameExistsInTurmaExceptId: mocks.subjectNameExistsInTurmaExceptId,
+  attachAlternatingSlotsOne: mocks.attachAlternatingSlotsOne,
+  attachAlternatingSlots: mocks.attachAlternatingSlots,
+}));
+
+vi.mock("./alternating-slots-repository", () => ({
+  syncAlternatingSlotsForSubject: mocks.syncAlternatingSlotsForSubject,
+  pairedSubjectBelongsToSameTurma: mocks.pairedSubjectBelongsToSameTurma,
 }));
 
 const creator = { id: "user_creator" };
@@ -70,6 +82,16 @@ beforeEach(() => {
   // Defaults: matéria não está em uso por outras famílias.
   mocks.isSubjectInUseByOtherUsers.mockResolvedValue(false);
   mocks.subjectNameExistsInTurmaExceptId.mockResolvedValue(false);
+  // Default: attach helpers retornam o subject com alternatingSlots=[] (sem
+  // slots). Testes específicos podem sobrescrever.
+  mocks.attachAlternatingSlotsOne.mockImplementation(async (row: unknown) =>
+    row ? { ...(row as object), alternatingSlots: [] } : null,
+  );
+  mocks.attachAlternatingSlots.mockImplementation(async (rows: unknown[]) =>
+    rows.map((r) => ({ ...(r as object), alternatingSlots: [] })),
+  );
+  mocks.syncAlternatingSlotsForSubject.mockResolvedValue(undefined);
+  mocks.pairedSubjectBelongsToSameTurma.mockResolvedValue(true);
 });
 
 describe("createSubject", () => {
@@ -87,6 +109,7 @@ describe("createSubject", () => {
       name: "Matemática",
       teacherName: undefined,
       classDays: [],
+      alternatingSlots: [],
     });
 
     expect(result.ok).toBe(true);
@@ -113,6 +136,7 @@ describe("createSubject", () => {
       name: "Educação Física",
       teacherName: undefined,
       classDays: [],
+      alternatingSlots: [],
     });
 
     expect(result.ok).toBe(true);
@@ -128,6 +152,7 @@ describe("createSubject", () => {
       name: "Música",
       teacherName: undefined,
       classDays: [],
+      alternatingSlots: [],
     });
 
     expect(result.ok).toBe(false);
@@ -143,6 +168,7 @@ describe("createSubject", () => {
       name: "X",
       teacherName: undefined,
       classDays: [],
+      alternatingSlots: [],
     });
 
     expect(result.ok).toBe(false);
@@ -165,6 +191,7 @@ describe("createSubject", () => {
       name: "Matemática",
       teacherName: undefined,
       classDays: [],
+      alternatingSlots: [],
     });
 
     expect(result.ok).toBe(true);
@@ -189,6 +216,7 @@ describe("createSubject", () => {
       name: "Matemática",
       teacherName: "Carla",
       classDays: [],
+      alternatingSlots: [],
     });
 
     expect(result.ok).toBe(true);
@@ -302,6 +330,7 @@ describe("updateSubject", () => {
       name: "Educação Física",
       teacherName: undefined,
       classDays: [],
+      alternatingSlots: [],
     });
 
     expect(result.ok).toBe(true);
@@ -318,6 +347,7 @@ describe("updateSubject", () => {
       name: "Matemática", // só acento — normalize-equal
       teacherName: undefined,
       classDays: [],
+      alternatingSlots: [],
     });
 
     expect(result.ok).toBe(true);
@@ -333,6 +363,7 @@ describe("updateSubject", () => {
       name: "Matemática", // typo fix
       teacherName: undefined,
       classDays: [],
+      alternatingSlots: [],
     });
 
     expect(result.ok).toBe(true);
@@ -347,6 +378,7 @@ describe("updateSubject", () => {
       name: "Educação Física",
       teacherName: undefined,
       classDays: [],
+      alternatingSlots: [],
     });
 
     expect(result.ok).toBe(false);
@@ -363,6 +395,7 @@ describe("updateSubject", () => {
       name: "Português",
       teacherName: undefined,
       classDays: [],
+      alternatingSlots: [],
     });
 
     expect(result.ok).toBe(false);
@@ -385,6 +418,7 @@ describe("updateSubject", () => {
       name: subjectByMember.name, // nome inalterado
       teacherName: "Carla",
       classDays: [],
+      alternatingSlots: [],
     });
 
     expect(result.ok).toBe(true);
@@ -400,6 +434,7 @@ describe("updateSubject", () => {
       name: "X",
       teacherName: undefined,
       classDays: [],
+      alternatingSlots: [],
     });
 
     expect(result.ok).toBe(false);
@@ -415,6 +450,7 @@ describe("updateSubject", () => {
       name: "Z",
       teacherName: undefined,
       classDays: [],
+      alternatingSlots: [],
     });
 
     expect(result.ok).toBe(false);

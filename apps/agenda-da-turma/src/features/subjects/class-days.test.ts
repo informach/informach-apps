@@ -86,6 +86,130 @@ describe("nextClassDayIso", () => {
   });
 });
 
+describe("nextClassDayIso com alternatingSlots (quinzenal)", () => {
+  // Cenário 1: Artes ↔ ACC na quarta. Artes classDays=[wed], slot pra wed.
+  // Anchor da Artes: 2026-05-13 (qua). Próxima Artes: 2026-05-27.
+  // Anchor da ACC: 2026-05-20 (qua). Próxima ACC: 2026-06-03.
+
+  it("Artes só na quarta de 15 em 15: anchor 2026-05-13, hoje 2026-05-14 → próxima 2026-05-27", () => {
+    // Quinta-feira (14/05). Quarta passada (13/05) foi Artes. Próxima Artes = qua de 27/05.
+    const result = nextClassDayIso(
+      "2026-05-14",
+      ["wed"],
+      [{ day: "wed", anchorIso: "2026-05-13" }],
+    );
+    expect(result).toBe("2026-05-27");
+  });
+
+  it("Artes só na quarta: hoje é sex 2026-05-22 (semana ACC), próxima Artes em 2026-05-27", () => {
+    const result = nextClassDayIso(
+      "2026-05-22",
+      ["wed"],
+      [{ day: "wed", anchorIso: "2026-05-13" }],
+    );
+    expect(result).toBe("2026-05-27");
+  });
+
+  it("Artes na quarta: hoje é seg 2026-05-25 (semana Artes), próxima quarta 2026-05-27 cai na minha", () => {
+    const result = nextClassDayIso(
+      "2026-05-25",
+      ["wed"],
+      [{ day: "wed", anchorIso: "2026-05-13" }],
+    );
+    expect(result).toBe("2026-05-27");
+  });
+
+  it("ACC na quarta (anchor 2026-05-20): hoje seg 2026-05-11, próxima ACC é 2026-05-20", () => {
+    const result = nextClassDayIso(
+      "2026-05-11",
+      ["wed"],
+      [{ day: "wed", anchorIso: "2026-05-20" }],
+    );
+    expect(result).toBe("2026-05-20");
+  });
+
+  // Cenário 2: Matemática [mon,tue,wed,fri], slot só pra fri.
+  // Anchor Mat (fri) = 2026-05-15. Próxima Mat-fri = 2026-05-29.
+
+  it("Mat mon/tue/wed weekly + fri quinzenal: hoje qua 2026-05-13 → próxima é qui? NÃO, próxima é sex 2026-05-15 (anchor)", () => {
+    const result = nextClassDayIso(
+      "2026-05-13",
+      ["mon", "tue", "wed", "fri"],
+      [{ day: "fri", anchorIso: "2026-05-15" }],
+    );
+    // 2026-05-15 (sex) — anchor cai na minha semana → vale como ocorrência.
+    expect(result).toBe("2026-05-15");
+  });
+
+  it("Mat com fri quinzenal: hoje sex 2026-05-15 → próxima Mat = seg 2026-05-18 (weekly)", () => {
+    const result = nextClassDayIso(
+      "2026-05-15",
+      ["mon", "tue", "wed", "fri"],
+      [{ day: "fri", anchorIso: "2026-05-15" }],
+    );
+    expect(result).toBe("2026-05-18");
+  });
+
+  it("Mat com fri quinzenal: hoje qui 2026-05-21 (semana ACC/Rob), pula fri 2026-05-22 → seg 2026-05-25", () => {
+    // Mat tem [mon,tue,wed,fri]. Sex 22 cai na semana do par (Rob), então pula.
+    // Próxima ocorrência válida é segunda 25/05.
+    const result = nextClassDayIso(
+      "2026-05-21",
+      ["mon", "tue", "wed", "fri"],
+      [{ day: "fri", anchorIso: "2026-05-15" }],
+    );
+    expect(result).toBe("2026-05-25");
+  });
+
+  it("Robótica só na sex quinzenal (anchor 2026-05-22): hoje qua 2026-05-13 → próxima 2026-05-22", () => {
+    const result = nextClassDayIso(
+      "2026-05-13",
+      ["fri"],
+      [{ day: "fri", anchorIso: "2026-05-22" }],
+    );
+    expect(result).toBe("2026-05-22");
+  });
+
+  it("Robótica só sex quinzenal: hoje sáb 2026-05-23 (semana ACC/Rob acabou) → próxima 2026-06-05", () => {
+    // Anchor 2026-05-22. Sex 22 era Robótica. Sex 29 é Mat. Sex 05/06 é Rob.
+    const result = nextClassDayIso(
+      "2026-05-23",
+      ["fri"],
+      [{ day: "fri", anchorIso: "2026-05-22" }],
+    );
+    expect(result).toBe("2026-06-05");
+  });
+
+  it("anchor 6 meses atrás continua funcionando (paridade % 2 estável)", () => {
+    // Anchor 2025-11-19 (qua) → semanas pares depois.
+    // 2026-05-13 está a ~25 semanas do anchor — paridade preservada (% 2).
+    const result = nextClassDayIso(
+      "2026-05-11",
+      ["wed"],
+      [{ day: "wed", anchorIso: "2025-11-19" }],
+    );
+    // (2026-05-13 - 2025-11-19) = 175 dias = 25 semanas → ímpar → pula → próxima minha em 2026-05-20.
+    expect(result).toBe("2026-05-20");
+  });
+
+  it("slot pra dia que não está em classDays é ignorado (defensivo)", () => {
+    // Mat tem [mon, tue, wed] mas alguém passou slot pra fri por engano.
+    // Como fri não está em classDays, o slot não tem efeito.
+    const result = nextClassDayIso(
+      "2026-05-13",
+      ["mon", "tue", "wed"],
+      [{ day: "fri", anchorIso: "2026-05-15" }],
+    );
+    // hoje qua → próxima é qui? Não, qui não está em classDays. Próxima é seg 18/05.
+    expect(result).toBe("2026-05-18");
+  });
+
+  it("alternatingSlots vazio se comporta como sem slots (backward compat)", () => {
+    const result = nextClassDayIso("2026-05-13", ["mon", "wed", "fri"], []);
+    expect(result).toBe("2026-05-15");
+  });
+});
+
 describe("formatClassDaysShort", () => {
   it("renderiza com separador ' · '", () => {
     expect(formatClassDaysShort(["mon", "tue", "thu", "fri"])).toBe("Seg · Ter · Qui · Sex");

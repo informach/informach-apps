@@ -1,19 +1,75 @@
 import "server-only";
 
-import { and, asc, type Database, db, eq, ne, sql } from "@informach/db";
+import { and, asc, type Database, db, eq, inArray, ne, sql } from "@informach/db";
 import {
   type AgendaClassDay,
   agendaActivities,
   agendaSchools,
   agendaStudentProfiles,
+  agendaSubjectAlternatingSlots,
   agendaSubjects,
   agendaTurmas,
 } from "@informach/db/schema";
-import type { Subject, TurmaNeedingSubjects } from "./types";
+import type { AlternatingSlot, Subject, TurmaNeedingSubjects } from "./types";
 import { pickAvailableColorIndex } from "./utils";
 
+// Shape "puro" da row de matéria (sem slots). Usado internamente pra
+// queries que carregam batches; o caller chama `attachAlternatingSlots`
+// pra montar o `Subject` completo.
+export type SubjectRow = Omit<Subject, "alternatingSlots">;
+
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
-type DbClient = Database | Tx;
+export type DbClient = Database | Tx;
+
+// Carrega slots de revezamento pra um conjunto de subjectIds e devolve um
+// Map. Single query — usado pra atachar slots em batch sem N+1.
+export async function loadSlotsForSubjects(
+  subjectIds: readonly string[],
+  client: DbClient = db,
+): Promise<Map<string, AlternatingSlot[]>> {
+  const map = new Map<string, AlternatingSlot[]>();
+  if (subjectIds.length === 0) return map;
+  const rows = await client
+    .select({
+      id: agendaSubjectAlternatingSlots.id,
+      subjectId: agendaSubjectAlternatingSlots.subjectId,
+      dayOfWeek: agendaSubjectAlternatingSlots.dayOfWeek,
+      pairedSubjectId: agendaSubjectAlternatingSlots.pairedSubjectId,
+      anchorDate: agendaSubjectAlternatingSlots.anchorDate,
+    })
+    .from(agendaSubjectAlternatingSlots)
+    .where(inArray(agendaSubjectAlternatingSlots.subjectId, subjectIds));
+  for (const row of rows) {
+    const list = map.get(row.subjectId) ?? [];
+    list.push(row);
+    map.set(row.subjectId, list);
+  }
+  return map;
+}
+
+// Helper de "attach" — combina um array de SubjectRow com seus slots e
+// devolve `Subject[]` completos. Usado pelos service methods que retornam
+// matérias pra UI.
+export async function attachAlternatingSlots(
+  rows: readonly SubjectRow[],
+  client: DbClient = db,
+): Promise<Subject[]> {
+  if (rows.length === 0) return [];
+  const slotsMap = await loadSlotsForSubjects(
+    rows.map((r) => r.id),
+    client,
+  );
+  return rows.map((r) => ({ ...r, alternatingSlots: slotsMap.get(r.id) ?? [] }));
+}
+
+export async function attachAlternatingSlotsOne(
+  row: SubjectRow | null,
+  client: DbClient = db,
+): Promise<Subject | null> {
+  if (!row) return null;
+  const [subject] = await attachAlternatingSlots([row], client);
+  return subject ?? null;
+}
 
 export type NewSubjectPayload = {
   turmaId: string;
@@ -34,8 +90,12 @@ export type InsertSubjectFilledFields = {
   teacherName: boolean;
   classDays: boolean;
 };
+// Devolve `SubjectRow` (sem slots) — o service que chama anexa via
+// `attachAlternatingSlotsOne` antes de devolver ao caller externo.
+// `insertSubjectIfNotExists` é só sobre a row de `agenda.subjects`; slots são
+// orquestrados num passo separado no service (`syncAlternatingSlots`).
 export type InsertSubjectResult = {
-  subject: Subject;
+  subject: SubjectRow;
   status: InsertSubjectStatus;
   // Quais campos em branco foram preenchidos no merge. Sempre presente, mas
   // só relevante quando `status === "merged"` (em `created` tudo é "novo";
@@ -163,7 +223,7 @@ async function listUsedColorIndexesByTurma(client: DbClient, turmaId: string): P
   return rows.map((r) => r.colorIndex);
 }
 
-export async function findSubjectById(id: string): Promise<Subject | null> {
+export async function findSubjectById(id: string): Promise<SubjectRow | null> {
   const [row] = await db.select().from(agendaSubjects).where(eq(agendaSubjects.id, id)).limit(1);
   return row ?? null;
 }
@@ -187,7 +247,7 @@ export async function subjectNameExistsInTurmaExceptId(
   return row !== undefined;
 }
 
-export async function listSubjectsForTurma(turmaId: string): Promise<Subject[]> {
+export async function listSubjectsForTurma(turmaId: string): Promise<SubjectRow[]> {
   return db
     .select()
     .from(agendaSubjects)
@@ -198,8 +258,9 @@ export async function listSubjectsForTurma(turmaId: string): Promise<Subject[]> 
 export async function updateSubjectById(
   id: string,
   payload: SubjectUpdatePayload,
-): Promise<Subject | null> {
-  const [row] = await db
+  client: DbClient = db,
+): Promise<SubjectRow | null> {
+  const [row] = await client
     .update(agendaSubjects)
     .set({
       name: payload.name,

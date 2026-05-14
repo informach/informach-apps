@@ -28,11 +28,33 @@ const classDaysSchema = z
   .default([])
   .transform((v) => CLASS_DAY_VALUES.filter((d) => v.includes(d)));
 
+// Slot de revezamento quinzenal pra UM dia. Validações de cross-field (anchor
+// cai no day_of_week certo; paired é da mesma turma) ficam no service —
+// schema só garante o shape básico. `anchorDate` é "YYYY-MM-DD" estrito;
+// não aceita Date direto pra evitar confusão TZ.
+const alternatingSlotInputSchema = z.object({
+  dayOfWeek: z.enum(["mon", "tue", "wed", "thu", "fri"]),
+  pairedSubjectId: z.string().uuid("Matéria pareada inválida"),
+  anchorDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida (YYYY-MM-DD)"),
+});
+
+const alternatingSlotsSchema = z
+  .array(alternatingSlotInputSchema)
+  .max(5)
+  .default([])
+  // Cap defensivo: não pode haver 2 slots pro mesmo dia na mesma matéria
+  // (UNIQUE no DB). Detecta cedo e dá mensagem clara.
+  .refine(
+    (slots) => new Set(slots.map((s) => s.dayOfWeek)).size === slots.length,
+    "Você só pode marcar revezamento uma vez por dia da semana",
+  );
+
 export const createSubjectInputSchema = z.object({
   turmaId: turmaIdSchema,
   name: nameSchema,
   teacherName: teacherNameSchema,
   classDays: classDaysSchema,
+  alternatingSlots: alternatingSlotsSchema,
 });
 export type CreateSubjectInput = z.output<typeof createSubjectInputSchema>;
 export type CreateSubjectFormValues = z.input<typeof createSubjectInputSchema>;
@@ -42,6 +64,7 @@ export const updateSubjectInputSchema = z.object({
   name: nameSchema,
   teacherName: teacherNameSchema,
   classDays: classDaysSchema,
+  alternatingSlots: alternatingSlotsSchema,
 });
 export type UpdateSubjectInput = z.output<typeof updateSubjectInputSchema>;
 
@@ -55,6 +78,7 @@ export const subjectFormSchema = z.object({
   name: nameSchema,
   teacherName: teacherNameSchema,
   classDays: classDaysSchema,
+  alternatingSlots: alternatingSlotsSchema,
 });
 export type SubjectFormValues = z.input<typeof subjectFormSchema>;
 

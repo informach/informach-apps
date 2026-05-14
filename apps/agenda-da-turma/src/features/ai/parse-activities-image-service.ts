@@ -12,6 +12,7 @@ import { agentRunRecorder as recorder } from "@/ai/agent-run-recorder";
 import { AGENDA_MODELS } from "@/ai/models";
 import { listTurmasWithSubjectsForUserForm } from "@/features/activities/repository";
 import { findStudentProfilesByUser } from "@/features/students/repository";
+import { loadSlotsByClassDayMap } from "@/features/subjects/alternating-slots-repository";
 import { billing } from "@/lib/billing";
 
 export type ParseActivitiesFromImageInput = {
@@ -79,6 +80,11 @@ export async function parseActivitiesFromImage(
     findStudentProfilesByUser(input.userId),
     listTurmasWithSubjectsForUserForm(input.userId),
   ]);
+  // Carrega slots de revezamento quinzenal pras matérias de todas as turmas
+  // do user. Map vazio quando nenhuma matéria tem horário quinzenal — não
+  // muda o comportamento do fallback de dueAt (continua semanal pra todos).
+  const allSubjectIds = turmasWithSubjects.flatMap((t) => t.subjects.map((s) => s.id));
+  const slotsBySubjectId = await loadSlotsByClassDayMap(allSubjectIds);
 
   // Reaproveita o mesmo formato de cabeçalho do voice — a IA já está
   // treinada nas instruções pra esperar esse layout. O bloco "Matérias
@@ -132,5 +138,5 @@ export async function parseActivitiesFromImage(
   });
 
   const parsed = out.result.object as ActivitiesParserOutput;
-  return enrichWithResolvedTurma(parsed, profiles, turmasWithSubjects);
+  return enrichWithResolvedTurma(parsed, profiles, turmasWithSubjects, undefined, slotsBySubjectId);
 }

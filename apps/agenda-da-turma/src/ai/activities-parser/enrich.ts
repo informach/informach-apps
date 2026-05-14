@@ -2,9 +2,18 @@ import { findClosestStudent } from "@/features/activities/match-student";
 import { findClosestSubject } from "@/features/activities/match-subject";
 import type { ParsedActivityInput, TurmaWithSubjectsForForm } from "@/features/activities/types";
 import { addDaysIso, todayLocalIso } from "@/features/dashboard/date";
-import { nextClassDayIso } from "@/features/subjects/class-days";
+import {
+  type AlternatingSlot as ClassDaySlot,
+  nextClassDayIso,
+} from "@/features/subjects/class-days";
 import { normalize } from "@/features/subjects/utils";
 import type { ActivitiesParserOutput } from "./schema";
+
+// Slots de revezamento quinzenal, achatados pra um Map (subjectId → slots).
+// Carregado pelos services de IA de atividades antes de chamar enrich;
+// vazio/omitido se a feature ainda não foi configurada na turma. Usado pelo
+// `applyNextClassDayFallback` pra decidir paridade no cálculo de próximo dia.
+export type SlotsBySubjectId = ReadonlyMap<string, readonly ClassDaySlot[]>;
 
 /**
  * Helpers puros do fluxo de IA de atividades — extraídos do service
@@ -123,6 +132,13 @@ export function enrichWithResolvedTurma(
    * `buildUserMessage` neste módulo.
    */
   now: Date = new Date(),
+  /**
+   * Slots de revezamento quinzenal por matéria. Quando presente, o fallback
+   * `applyNextClassDayFallback` usa pra decidir paridade (semana minha vs.
+   * semana da pareada). Quando omitido/vazio, todos os dias são tratados
+   * como semanais.
+   */
+  slotsBySubjectId?: SlotsBySubjectId,
 ): EnrichedParseResult {
   if (!output.isValidInput) {
     return { isValidInput: false, reason: output.reason ?? null };
@@ -163,7 +179,7 @@ export function enrichWithResolvedTurma(
   //   3) Fallback "amanhã" — cobre qualquer null que sobrou: imagem sem data
   //      nenhuma + matéria sem horário, ou atividade isolada sem matéria.
   const propagated = propagateUniqueDueDate(rawActivities);
-  const withNextClass = applyNextClassDayFallback(propagated, turmas, now);
+  const withNextClass = applyNextClassDayFallback(propagated, turmas, now, slotsBySubjectId);
   const activities = applyTomorrowFallback(withNextClass, now);
   const guessedTurmaId = inferGuessedTurma(activities, turmas);
   return { isValidInput: true, activities, guessedTurmaId };
@@ -211,6 +227,7 @@ export function applyNextClassDayFallback(
   activities: readonly ParsedActivityInput[],
   turmasWithSubjects: readonly TurmaWithSubjectsForForm[],
   now: Date = new Date(),
+  slotsBySubjectId?: SlotsBySubjectId,
 ): ParsedActivityInput[] {
   const todayIso = todayLocalIso(now);
   // Index uma vez (não por atividade) — classDays comes do mesmo array de
@@ -226,7 +243,8 @@ export function applyNextClassDayFallback(
     if (!a.resolvedSubjectId) return a;
     const subject = subjectById.get(a.resolvedSubjectId);
     if (!subject || subject.classDays.length === 0) return a;
-    const next = nextClassDayIso(todayIso, subject.classDays);
+    const slots = slotsBySubjectId?.get(a.resolvedSubjectId);
+    const next = nextClassDayIso(todayIso, subject.classDays, slots);
     return next ? { ...a, dueAt: next } : a;
   });
 }

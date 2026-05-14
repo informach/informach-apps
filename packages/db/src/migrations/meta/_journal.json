@@ -204,6 +204,13 @@
       "when": 1778757207684,
       "tag": "0028_cultured_shinko_yamashiro",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1778760472042,
+      "tag": "0029_absurd_siren",
+      "breakpoints": true
     }
   ]
 }

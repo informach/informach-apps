@@ -29,6 +29,7 @@ import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { createSubjectAction, updateSubjectAction } from "../actions";
 import { type SubjectFormValues, subjectFormSchema } from "../schemas";
 import type { Subject } from "../types";
+import { AlternatingSlotsEditor } from "./alternating-slots-editor";
 import { ClassDaysPicker } from "./class-days-picker";
 
 type Props = {
@@ -36,12 +37,16 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   turmaId: string;
   subject?: Subject;
+  // Outras matérias da turma — alimenta o combobox de revezamento. Caller
+  // passa a lista completa; o componente filtra a matéria sendo editada.
+  turmaSubjects?: readonly Subject[];
 };
 
 const EMPTY_DEFAULTS: SubjectFormValues = {
   name: "",
   teacherName: "",
   classDays: [],
+  alternatingSlots: [],
 };
 
 function defaultsFromSubject(subject: Subject): SubjectFormValues {
@@ -49,6 +54,11 @@ function defaultsFromSubject(subject: Subject): SubjectFormValues {
     name: subject.name,
     teacherName: subject.teacherName ?? "",
     classDays: subject.classDays,
+    alternatingSlots: subject.alternatingSlots.map((s) => ({
+      dayOfWeek: s.dayOfWeek,
+      pairedSubjectId: s.pairedSubjectId,
+      anchorDate: s.anchorDate,
+    })),
   };
 }
 
@@ -61,7 +71,16 @@ function describeFilled(filled: { teacherName: boolean; classDays: boolean }): s
   return `${parts.slice(0, -1).join(", ")} e ${parts[parts.length - 1]}`;
 }
 
-export function SubjectFormDialog({ open, onOpenChange, turmaId, subject }: Props) {
+export function SubjectFormDialog({
+  open,
+  onOpenChange,
+  turmaId,
+  subject,
+  turmaSubjects = [],
+}: Props) {
+  const otherTurmaSubjects = subject
+    ? turmaSubjects.filter((s) => s.id !== subject.id)
+    : turmaSubjects;
   const router = useRouter();
   const [submitting, startSubmit] = useTransition();
   const isEdit = subject !== undefined;
@@ -86,6 +105,7 @@ export function SubjectFormDialog({ open, onOpenChange, turmaId, subject }: Prop
             name: values.name,
             teacherName: values.teacherName,
             classDays: values.classDays,
+            alternatingSlots: values.alternatingSlots,
           }),
         );
         if (!result.ok) {
@@ -121,6 +141,27 @@ export function SubjectFormDialog({ open, onOpenChange, turmaId, subject }: Prop
             form.setError("name", { message: "Já existe uma matéria com esse nome nesta turma" });
             return;
           }
+          if (result.error.code === "SLOT_DAY_NOT_IN_CLASS_DAYS") {
+            form.setError("alternatingSlots", {
+              message:
+                "Um dos revezamentos está marcado pra um dia que não é dia de aula. Remova ou marque o dia em 'Dias de aula'.",
+            });
+            return;
+          }
+          if (result.error.code === "INVALID_ANCHOR_DATE") {
+            form.setError("alternatingSlots", {
+              message:
+                "Uma das datas de revezamento não cai no dia da semana certo. Verifique a data informada.",
+            });
+            return;
+          }
+          if (result.error.code === "INVALID_PAIRED_SUBJECT") {
+            form.setError("alternatingSlots", {
+              message:
+                "A matéria escolhida pro revezamento não existe ou é de outra turma. Atualize a página e tente novamente.",
+            });
+            return;
+          }
           toast.error("Não foi possível salvar.", {
             description: "Tente novamente em instantes.",
           });
@@ -138,6 +179,7 @@ export function SubjectFormDialog({ open, onOpenChange, turmaId, subject }: Prop
           name: values.name,
           teacherName: values.teacherName,
           classDays: values.classDays,
+          alternatingSlots: values.alternatingSlots,
         }),
       );
       if (!result.ok) {
@@ -158,6 +200,27 @@ export function SubjectFormDialog({ open, onOpenChange, turmaId, subject }: Prop
           toast.error("Turma não encontrada.");
           onOpenChange(false);
           router.refresh();
+          return;
+        }
+        if (result.error.code === "SLOT_DAY_NOT_IN_CLASS_DAYS") {
+          form.setError("alternatingSlots", {
+            message:
+              "Um dos revezamentos está marcado pra um dia que não é dia de aula. Remova ou marque o dia em 'Dias de aula'.",
+          });
+          return;
+        }
+        if (result.error.code === "INVALID_ANCHOR_DATE") {
+          form.setError("alternatingSlots", {
+            message:
+              "Uma das datas de revezamento não cai no dia da semana certo. Verifique a data informada.",
+          });
+          return;
+        }
+        if (result.error.code === "INVALID_PAIRED_SUBJECT") {
+          form.setError("alternatingSlots", {
+            message:
+              "A matéria escolhida pro revezamento não existe ou é de outra turma. Atualize a página e tente novamente.",
+          });
           return;
         }
         toast.error("Não foi possível criar a matéria.", {
@@ -258,6 +321,30 @@ export function SubjectFormDialog({ open, onOpenChange, turmaId, subject }: Prop
                   <FormDescription>
                     Opcional. Usado pra calcular datas de entrega automaticamente quando você
                     cadastra uma atividade sem data.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="alternatingSlots"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Revezamento quinzenal</FormLabel>
+                  <FormControl>
+                    <AlternatingSlotsEditor
+                      value={field.value ?? []}
+                      onChange={field.onChange}
+                      classDays={form.watch("classDays") ?? []}
+                      turmaSubjects={otherTurmaSubjects}
+                      disabled={submitting}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Use quando a matéria reveza com outra a cada 15 dias num mesmo dia. Ex.: Artes e
+                    ACC, ou Matemática e Robótica na sexta.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
