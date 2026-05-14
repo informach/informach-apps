@@ -3,33 +3,21 @@ import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
 const isProd = process.env.NODE_ENV === "production";
-const isDev = !isProd;
 
-const cspHeader = [
-  "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://js.stripe.com`,
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.stripe.com",
-  "font-src 'self' data:",
-  [
-    "connect-src 'self'",
-    "https://api.stripe.com",
-    "https://*.ingest.sentry.io",
-    "https://*.ingest.us.sentry.io",
-    "https://*.ingest.de.sentry.io",
-  ].join(" "),
-  "frame-src https://checkout.stripe.com https://hooks.stripe.com https://accounts.google.com",
-  "worker-src 'self' blob:",
-  "manifest-src 'self'",
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self' https://checkout.stripe.com",
-  "frame-ancestors 'none'",
-  ...(isProd ? ["upgrade-insecure-requests"] : []),
-].join("; ");
-
+/**
+ * Headers de segurança estáticos. CSP é setada per-request em `src/proxy.ts`
+ * (nonce + 'strict-dynamic' + report-uri pro Sentry), por isso fica fora
+ * desta lista. HSTS só vai pra produção — em dev/local quebra navegação se o
+ * cert local não for HTTPS.
+ *
+ * Webhooks (/api/webhooks/*) precisam de COOP/CORP relaxados defensivamente
+ * porque são chamados por servidores externos (Stripe/SendGrid), não browser.
+ *
+ * `microphone=(self)` é necessário para cadastro de matérias/atividades por
+ * voz (MediaRecorder no client). `camera=(self)` libera `<input type="file"
+ * capture="environment">` no fluxo de cadastro por imagem no mobile.
+ */
 const baseSecurityHeaders = [
-  { key: "Content-Security-Policy", value: cspHeader },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "X-Frame-Options", value: "DENY" },
@@ -37,11 +25,6 @@ const baseSecurityHeaders = [
   { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
   {
     key: "Permissions-Policy",
-    // `microphone=(self)` é necessário para a feature de cadastrar matérias
-    // por voz (SpeechInput → MediaRecorder no client). Sem ele, o navegador
-    // bloqueia getUserMedia silenciosamente e nem mostra o prompt de
-    // permissão. `camera=(self)` permite o `<input type="file" capture="environment">`
-    // no fluxo de "cadastrar por imagem" no mobile.
     value: [
       "camera=(self)",
       "geolocation=()",
@@ -79,6 +62,11 @@ const nextConfig: NextConfig = {
     "@informach/ui",
   ],
   typedRoutes: true,
+  images: {
+    // AVIF + WebP servidos automaticamente pelo Next/image quando o browser
+    // suporta. Reduz banda em ~30-50% vs PNG/JPEG nos previews de imagem.
+    formats: ["image/avif", "image/webp"],
+  },
   async headers() {
     return [
       {
@@ -86,6 +74,9 @@ const nextConfig: NextConfig = {
         headers: [...baseSecurityHeaders, ...productionOnlyHeaders],
       },
       {
+        // Webhooks são consumidos por servidores externos (não browser);
+        // relaxar COOP/CORP evita falsos positivos sem afrouxar a defesa do
+        // app. Signature verification continua no handler.
         source: "/api/webhooks/:path*",
         headers: [
           { key: "Cross-Origin-Opener-Policy", value: "unsafe-none" },
@@ -105,6 +96,12 @@ export default withSentryConfig(nextConfig, {
   project: process.env.SENTRY_PROJECT,
   authToken: process.env.SENTRY_AUTH_TOKEN,
   silent: !process.env.CI,
+  // Eventos do client tunelados via /monitoring (same-origin) em vez de
+  // *.ingest.sentry.io — adblockers (uBlock/AdGuard) bloqueiam o domínio
+  // do Sentry e a app perde captura desses users. Next gera o handler
+  // /monitoring que proxia server-side. Custo: ~banda/CPU do edge por
+  // evento, irrelevante em low-traffic.
+  tunnelRoute: "/monitoring",
   sourcemaps: {
     disable: !hasSentrySourceMapConfig,
     deleteSourcemapsAfterUpload: true,

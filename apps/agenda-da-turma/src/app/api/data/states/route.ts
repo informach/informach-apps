@@ -9,7 +9,7 @@ export async function GET() {
     { states },
     {
       headers: {
-        "Cache-Control": "private, max-age=3600, stale-while-revalidate=86400",
+        "Cache-Control": "private, max-age=86400, stale-while-revalidate=604800",
       },
     },
   );

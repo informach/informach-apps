@@ -128,9 +128,11 @@ export const PRODUCTS: readonly Product[] = [
     listPrice: { amountCents: 1790, currency: "BRL" },
   },
   // Agenda da Turma — R$ 19,90/mês, R$ 199/ano, 70 créditos/mês,
-  // packs 10/20/30 a R$ 6,90/12,90/17,90). Stripe Price IDs ficam como `price_TODO_*`
-  // até o time configurar produtos no Stripe Dashboard (test+live). `isStripePriceIdConfigured`
-  // rejeita placeholders e o boot do app trava em produção até IDs reais entrarem.
+  // packs 10/20/30 a R$ 6,90/12,90/17,90. Stripe Dashboard: 2 Products
+  // ("Agenda da Turma Pro" + "Agenda da Turma Créditos") com 5 Prices live
+  // anexadas — mesmo padrão do cozya. `isStripePriceIdConfigured` rejeita
+  // qualquer placeholder `price_TODO_*` e o boot do app trava em produção
+  // até IDs reais entrarem.
   // A Agenda da Turma já consome IA nas features `agenda.subjects.*` e
   // `agenda.activities.*`; os custos por feature/modelo são versionados em
   // `packages/billing/src/seeds/credit-pricing.ts`.
@@ -144,7 +146,7 @@ export const PRODUCTS: readonly Product[] = [
     bonusCreditsPerMonth: 70,
     stripePriceId: {
       dev: "price_1TVTonCvOctqao30b8wnGAXN",
-      prod: "price_TODO_agenda_da_turma_pro_monthly_prod",
+      prod: "price_1TWv7xCvOctqao30IPggyGFa",
     },
     listPrice: { amountCents: 1990, currency: "BRL" },
   },
@@ -158,7 +160,7 @@ export const PRODUCTS: readonly Product[] = [
     bonusCreditsPerMonth: 70,
     stripePriceId: {
       dev: "price_1TVTpPCvOctqao30mLauE2qm",
-      prod: "price_TODO_agenda_da_turma_pro_annual_prod",
+      prod: "price_1TWv81CvOctqao30XGmMOWZD",
     },
     listPrice: { amountCents: 19900, currency: "BRL" },
   },
@@ -170,7 +172,7 @@ export const PRODUCTS: readonly Product[] = [
     creditAmount: 10,
     stripePriceId: {
       dev: "price_1TVTr9CvOctqao307lhSoW6K",
-      prod: "price_TODO_agenda_da_turma_credits_10_prod",
+      prod: "price_1TWv84CvOctqao30QgIrNZ9n",
     },
     listPrice: { amountCents: 690, currency: "BRL" },
   },
@@ -182,7 +184,7 @@ export const PRODUCTS: readonly Product[] = [
     creditAmount: 20,
     stripePriceId: {
       dev: "price_1TVTsYCvOctqao3085Ch7sog",
-      prod: "price_TODO_agenda_da_turma_credits_20_prod",
+      prod: "price_1TWv8HCvOctqao30iOFfzANE",
     },
     listPrice: { amountCents: 1290, currency: "BRL" },
   },
@@ -194,7 +196,7 @@ export const PRODUCTS: readonly Product[] = [
     creditAmount: 30,
     stripePriceId: {
       dev: "price_1TVTsxCvOctqao30xAYj0dM2",
-      prod: "price_TODO_agenda_da_turma_credits_30_prod",
+      prod: "price_1TWv8nCvOctqao30K7FDTElg",
     },
     listPrice: { amountCents: 1790, currency: "BRL" },
   },

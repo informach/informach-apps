@@ -169,17 +169,22 @@ Stepper (`features/onboarding/components/onboarding-stepper.tsx`) usa `currentSt
 
 ## 4. Stripe Dashboard — checklist operacional
 
-Antes de habilitar Pro/Pacotes em produção, criar estes 5 prices no Dashboard (test + live) e substituir os `price_TODO_*` em `packages/config/src/products.ts`:
+Estrutura no Stripe espelha o cozya (`apps/cozya/CLAUDE.md` §5): **2 Products + 5 Prices**, não 5 Products. Catálogo live (criado em 2026-05-14):
 
-| Product | Tipo | BRL | Stripe Price ID |
-|---|---|---|---|
-| Agenda da Turma Pro Monthly | Subscription/recurring | R$ 19,90 | `agenda_da_turma_pro_monthly.stripePriceId.{dev,prod}` |
-| Agenda da Turma Pro Annual | Subscription/recurring | R$ 199,00 | `agenda_da_turma_pro_annual.stripePriceId.{dev,prod}` |
-| 10 créditos | One-time | R$ 6,90 | `agenda_da_turma_credits_10.stripePriceId.{dev,prod}` |
-| 20 créditos | One-time | R$ 12,90 | `agenda_da_turma_credits_20.stripePriceId.{dev,prod}` |
-| 30 créditos | One-time | R$ 17,90 | `agenda_da_turma_credits_30.stripePriceId.{dev,prod}` |
+- **Product 1 — `Agenda da Turma Pro`** (`prod_UVx1FUGEPYM2bz`, subscription)
+  - Price Monthly: R$ 19,90/mês → `agenda_da_turma_pro_monthly` → `price_1TWv7xCvOctqao30IPggyGFa`
+  - Price Annual: R$ 199,00/ano → `agenda_da_turma_pro_annual` → `price_1TWv81CvOctqao30XGmMOWZD`
+- **Product 2 — `Agenda da Turma Créditos`** (`prod_UVx1G1I9SR4qgE`, one-time)
+  - Price 10 créditos: R$ 6,90 → `agenda_da_turma_credits_10` → `price_1TWv84CvOctqao30QgIrNZ9n`
+  - Price 20 créditos: R$ 12,90 → `agenda_da_turma_credits_20` → `price_1TWv8HCvOctqao30iOFfzANE`
+  - Price 30 créditos: R$ 17,90 → `agenda_da_turma_credits_30` → `price_1TWv8nCvOctqao30K7FDTElg`
 
-Com `NODE_ENV=production` e `STRIPE_MODE=prod`, `src/lib/billing.ts` falha no boot se qualquer produto da Agenda ainda tiver `price_TODO_*`. UI também esconde packs com placeholder via `isStripePriceIdConfigured` no slot do `/settings/billing`, e checkout do Pro retorna `PRO_NOT_CONFIGURED` no toast (`InvalidProductError` do package). Ainda assim, **não habilitar Pro em produção sem preencher os IDs reais**.
+Com `NODE_ENV=production` e `STRIPE_MODE=prod`, `src/lib/billing.ts` falha no boot se qualquer produto da Agenda voltar a ter `price_TODO_*`. UI também esconde packs com placeholder via `isStripePriceIdConfigured` no slot do `/settings/billing`, e checkout do Pro retorna `PRO_NOT_CONFIGURED` no toast (`InvalidProductError` do package).
+
+> Pré-deploy ainda pendente no Stripe Dashboard (não-bloqueante pro código, mas recomendado antes do go-live):
+> - Anexar `tax_code: "txcd_10000000"` (General Services) nos 2 products.
+> - Setar `nickname` em cada price (ex: "Agenda da Turma Pro — Mensal").
+> - Adicionar `metadata.app=agenda-da-turma` e `metadata.product_id=<config-id>` nos 5 prices (facilita reconciliação manual; o billing package roteia por `priceId`, não por metadata).
 
 Webhook endpoint + eventos de billing: ver `packages/billing/PRODUCTION.md` e `docs/deploy-runbook.md` Fase 10.
 

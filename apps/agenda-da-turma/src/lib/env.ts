@@ -54,6 +54,13 @@ export const env = createEnv({
     OPENROUTER_X_TITLE: z.string().min(1).optional(),
     LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).optional(),
     MASTRA_LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+    /**
+     * Quando "1", o proxy emite `Content-Security-Policy` (enforce). Default
+     * "0" → emite `Content-Security-Policy-Report-Only` (não bloqueia, só
+     * reporta para o Sentry via report-uri derivada do DSN). Flow recomendado:
+     * deploy com "0" por 1 semana, monitorar violações, depois flipar pra "1".
+     */
+    CSP_ENFORCE: z.enum(["0", "1"]).default("0"),
   },
   client: {
     NEXT_PUBLIC_APP_URL: z.string().url(),
@@ -86,6 +93,7 @@ export const env = createEnv({
     OPENROUTER_X_TITLE: process.env.OPENROUTER_X_TITLE,
     LOG_LEVEL: process.env.LOG_LEVEL,
     MASTRA_LOG_LEVEL: process.env.MASTRA_LOG_LEVEL,
+    CSP_ENFORCE: process.env.CSP_ENFORCE,
   },
   emptyStringAsUndefined: true,
 });

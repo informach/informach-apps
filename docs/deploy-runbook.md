@@ -1,8 +1,8 @@
 # Runbook — Deploy de app no Railway
 
-Passo-a-passo reproduzível, baseado no deploy real do `@informach/cozya` (2026-05-09). Documenta o que rodou via **Stripe MCP**, **Sentry MCP**, **Railway MCP/CLI** e o que precisou ser **manual no Dashboard**, com os gotchas que custaram tempo na primeira vez.
+Passo-a-passo reproduzível, baseado no deploy real do `@informach/cozya` (2026-05-09) e replicado em `@informach/agenda-da-turma` (2026-05-14, em `agenda-da-turma.informach.com.br`). Documenta o que rodou via **Stripe MCP**, **Sentry MCP**, **Railway MCP/CLI** e o que precisou ser **manual no Dashboard**, com os gotchas que custaram tempo na primeira vez.
 
-> **Como usar para um novo app** (admin, agenda-da-turma, informach-site futuros): pular as fases marcadas **♻ reusa** quando a infra correspondente já existir (Postgres, Redis, Migrator, conta Stripe, conta SendGrid, etc.); seguir as fases **🆕 per-app** sempre.
+> **Como usar para um novo app** (admin, informach-site futuros): pular as fases marcadas **♻ reusa** quando a infra correspondente já existir (Postgres, Redis, Migrator, conta Stripe, conta SendGrid, etc.); seguir as fases **🆕 per-app** sempre.
 
 ---
 
@@ -451,11 +451,11 @@ sh -c 'for d in $APP_DOMAINS; do curl -fsS -X POST -H "Authorization: Bearer $CR
 
 > **Gotcha copy-paste**: tabs em markdown viram múltiplos espaços ao copiar pro Dashboard, e `Authorization: Bearer  $CRON_SECRET` (mais de 1 espaço) falha no `rejectUnauthorizedCron` (strict equality em `lib/cron.ts:4`). **Conferir 1 espaço entre `Bearer` e `$CRON_SECRET`** após colar.
 
-### Adicionar app novo (admin, agenda-da-turma)
+### Adicionar app novo (admin futuro)
 
 **Não criar novos cron services**. Em cada um dos 7 cron-perapp:
 1. Settings → Variables → editar `APP_DOMAINS`
-2. Adicionar com space-separated: `APP_DOMAINS=cozya.informach.com.br admin.informach.com.br`
+2. Adicionar com space-separated: `APP_DOMAINS=cozya.informach.com.br agenda-da-turma.informach.com.br admin.informach.com.br`
 
 Cron schedule, start command, restart policy: **inalterados**. O loop `for d in $APP_DOMAINS` itera os domínios novos automaticamente.
 
