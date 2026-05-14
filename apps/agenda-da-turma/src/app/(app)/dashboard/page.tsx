@@ -1,14 +1,11 @@
-import type { ReactNode } from "react";
-import { SharedActivitiesWidget } from "@/features/activities/components/shared-activities-widget";
-import {
-  getPendingSharedActivitiesForUser,
-  getTurmasWithSubjectsForForm,
-} from "@/features/activities/service";
+import { type ReactNode, Suspense } from "react";
+import { SharedActivitiesSection } from "@/features/activities/components/shared-activities-section";
 import { getIsProForUser } from "@/features/billing/server-cache";
-import { DashboardContent } from "@/features/dashboard/components/dashboard-content";
+import { DashboardContentSkeleton } from "@/features/dashboard/components/dashboard-content-skeleton";
 import { DashboardNavButtons } from "@/features/dashboard/components/dashboard-nav-buttons";
+import { DashboardSection } from "@/features/dashboard/components/dashboard-section";
 import { ExportPdfButton } from "@/features/dashboard/components/export-pdf-button";
-import { getTodaySubjectsForProfile } from "@/features/dashboard/today-subjects-service";
+import { pickDashboardGate } from "@/features/dashboard/gate";
 import { NoStudentsWidget } from "@/features/students/components/no-students-widget";
 import { ProfilesWithoutTurmaWidget } from "@/features/students/components/profiles-without-turma-widget";
 import {
@@ -40,23 +37,30 @@ export default async function DashboardPage({ searchParams }: Props) {
 
   const greeting = user.name ?? "responsável";
 
-  // Onboarding gates: cada estágio exclui mutuamente o seguinte. Mantém o
-  // comportamento prévio de "guie o user antes de mostrar o dashboard real".
-  if (profiles.length === 0) {
+  // Onboarding gates: cada estágio exclui mutuamente o seguinte. Decisão
+  // delegada à `pickDashboardGate` (pura, testada em gate.test.ts) pra
+  // garantir que a ordem de precedência fica documentada e não regride.
+  const gate = pickDashboardGate({
+    profilesCount: profiles.length,
+    profilesWithoutTurmaCount: profilesWithoutTurma,
+    turmasNeedingSubjectsCount: turmasNeedingSubjects.length,
+  });
+
+  if (gate.kind === "no-students") {
     return (
       <Shell greeting={greeting}>
         <NoStudentsWidget />
       </Shell>
     );
   }
-  if (profilesWithoutTurma > 0) {
+  if (gate.kind === "profiles-without-turma") {
     return (
       <Shell greeting={greeting}>
-        <ProfilesWithoutTurmaWidget count={profilesWithoutTurma} />
+        <ProfilesWithoutTurmaWidget count={gate.count} />
       </Shell>
     );
   }
-  if (turmasNeedingSubjects.length > 0) {
+  if (gate.kind === "no-subjects") {
     return (
       <Shell greeting={greeting}>
         <NoSubjectsWidget turmas={turmasNeedingSubjects} />
@@ -73,30 +77,34 @@ export default async function DashboardPage({ searchParams }: Props) {
   // Com múltiplos perfis sem filtro, misturar matérias de turmas diferentes
   // confundiria mais que ajudaria — o user precisa filtrar primeiro.
   const effectiveProfileId = profiles.length === 1 ? (profiles[0]?.id ?? null) : profileFilter;
+  const trimmedProfiles = profiles.map((p) => ({ id: p.id, name: p.name }));
 
-  const [pendingShared, turmasForForm, todaySubjects] = await Promise.all([
-    isPro ? getPendingSharedActivitiesForUser(user.id) : Promise.resolve([]),
-    getTurmasWithSubjectsForForm(user.id),
-    effectiveProfileId
-      ? getTodaySubjectsForProfile(user.id, effectiveProfileId)
-      : Promise.resolve(null),
-  ]);
-
+  // Streaming RSC: as queries dos gates acima já são essenciais (decidem qual
+  // sub-tree renderiza). A partir daqui, o shell + nav buttons vão pro browser
+  // imediatamente; o resto entra via Suspense conforme as queries resolvem.
+  // Splittar `SharedActivitiesSection` em sua própria boundary evita que ela
+  // segure `DashboardSection` (e vice-versa) — duas queries paralelas que
+  // streamam independente.
   return (
     <Shell
       greeting={greeting}
       headerAction={<ExportPdfButton isPro={isPro} profileFilter={profileFilter} />}
     >
       <DashboardNavButtons />
-      {pendingShared.length > 0 ? <SharedActivitiesWidget items={pendingShared} /> : null}
-      <DashboardContent
-        userId={user.id}
-        isPro={isPro}
-        profileFilter={profileFilter}
-        profiles={profiles.map((p) => ({ id: p.id, name: p.name }))}
-        turmasForForm={turmasForForm}
-        todaySubjects={todaySubjects}
-      />
+      {isPro ? (
+        <Suspense fallback={null}>
+          <SharedActivitiesSection userId={user.id} />
+        </Suspense>
+      ) : null}
+      <Suspense fallback={<DashboardContentSkeleton />}>
+        <DashboardSection
+          userId={user.id}
+          isPro={isPro}
+          profileFilter={profileFilter}
+          profiles={trimmedProfiles}
+          effectiveProfileId={effectiveProfileId}
+        />
+      </Suspense>
     </Shell>
   );
 }

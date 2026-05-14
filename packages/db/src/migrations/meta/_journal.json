@@ -211,6 +211,13 @@
       "when": 1778760472042,
       "tag": "0029_absurd_siren",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1778765705505,
+      "tag": "0030_agenda_search_trgm",
+      "breakpoints": true
     }
   ]
 }

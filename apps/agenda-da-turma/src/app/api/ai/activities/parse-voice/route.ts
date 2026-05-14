@@ -5,6 +5,8 @@ import { logger } from "@/lib/logger";
 import { RequestBodyTooLargeError, readJsonWithSizeLimit } from "@/lib/request-size";
 
 export const runtime = "nodejs";
+// gpt-4o-mini text parse leva 3–15s. Conservador a 60s pra ser consistente.
+export const maxDuration = 60;
 
 const MAX_TRANSCRIPT_CHARS = 5000;
 const MAX_TRANSCRIPT_REQUEST_BYTES = 32 * 1024;

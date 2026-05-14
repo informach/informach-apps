@@ -15,7 +15,11 @@ export async function GET(request: Request) {
     { schools },
     {
       headers: {
-        "Cache-Control": "private, max-age=300, stale-while-revalidate=900",
+        // Schools são INEP (atualiza 1×/ano) — referência imutável. `public`
+        // libera Cache em CDN/edge entre usuários. `s-maxage` controla shared
+        // cache (1h), `max-age` o browser local (15min). SWR longo (1d) evita
+        // origem em hits frios.
+        "Cache-Control": "public, max-age=900, s-maxage=3600, stale-while-revalidate=86400",
       },
     },
   );

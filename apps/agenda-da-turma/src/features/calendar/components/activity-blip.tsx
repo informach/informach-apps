@@ -23,12 +23,38 @@ type Props = {
 //   - upcoming → sem sinal extra.
 // - Ícone do tipo (CheckSquare/ClipboardCheck/...) compactíssimo (size-3).
 // - Truncate em uma linha — espaço da célula é limitado.
+
+const URGENCY_A11Y_LABEL: Record<string, string> = {
+  overdue: "atrasada",
+  due_soon: "vence em breve",
+  upcoming: "futura",
+};
+
+const TYPE_A11Y_LABEL: Record<string, string> = {
+  task: "tarefa",
+  exam: "prova",
+  project: "projeto",
+  reminder: "recado",
+};
+
 export function ActivityBlip({ item, onSelect }: Props) {
   const TypeIcon = getActivityTypeIcon(item.type);
   const isDone = item.status === "done";
   const urgency = getDueUrgency(item.dueAt, item.status);
   const isOverdue = urgency === "overdue";
   const isDueSoon = urgency === "due_soon";
+
+  // Label completa pra screen reader. A cor da matéria já não é acessível
+  // por canal visual; o nome da matéria precisa entrar verbalmente. O
+  // status (concluída/atrasada/vence em breve) entra pra que o user de SR
+  // saiba o sinal visual sem precisar ver borda/ring.
+  const typeLabel = TYPE_A11Y_LABEL[item.type] ?? "atividade";
+  const statusLabel = isDone
+    ? "concluída"
+    : (URGENCY_A11Y_LABEL[urgency] ?? URGENCY_A11Y_LABEL.upcoming);
+  const ariaLabel =
+    `${typeLabel} de ${item.subjectName}: ${item.title}` +
+    ` — ${item.studentProfileName} — ${statusLabel}`;
 
   return (
     <button
@@ -47,7 +73,7 @@ export function ActivityBlip({ item, onSelect }: Props) {
         isDueSoon && "ring-1 ring-chart-4/40",
         isDone && "opacity-60",
       )}
-      aria-label={`${item.title} — ${item.studentProfileName}`}
+      aria-label={ariaLabel}
     >
       <TypeIcon
         className={cn("size-3 shrink-0", getSubjectTextClassByIndex(item.subjectColorIndex))}
@@ -58,6 +84,7 @@ export function ActivityBlip({ item, onSelect }: Props) {
           "truncate font-medium text-foreground/90",
           isDone && "line-through text-muted-foreground",
         )}
+        aria-hidden
       >
         {item.title}
       </span>

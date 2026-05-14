@@ -15,7 +15,9 @@ export async function GET(request: Request) {
     { cities },
     {
       headers: {
-        "Cache-Control": "private, max-age=600, stale-while-revalidate=3600",
+        // Cities são IBGE (atualiza raramente) — referência imutável.
+        // Mesma política de schools: public + s-maxage 1h + SWR 1d.
+        "Cache-Control": "public, max-age=900, s-maxage=3600, stale-while-revalidate=86400",
       },
     },
   );

@@ -118,6 +118,13 @@ export async function listTurmasForUser(userId: string): Promise<TurmaForUser[]>
       ? or(eq(agendaTurmas.createdByUserId, userId), sql`${agendaTurmaMembers.id} IS NOT NULL`)
       : eq(agendaTurmas.createdByUserId, userId);
 
+  // Cap defensivo: famílias normais têm <10 turmas. Creator que acumulou centenas
+  // de turmas órfãs (criou e nunca apagou) é o pior-caso latente — sem LIMIT,
+  // a página `/turmas` traz tudo + 2 queries auxiliares, podendo timeout. Cada
+  // turma pode aparecer múltiplas vezes (1 row por membro vinculado); 200 *
+  // ~3 membros médios = 600 rows ainda processável. Acima disso o usuário
+  // precisa filtrar (UI já tem `?perfil=`).
+  const TURMA_LIST_ROW_CAP = 600;
   const rows = await db
     .select({
       id: agendaTurmas.id,
@@ -139,7 +146,8 @@ export async function listTurmasForUser(userId: string): Promise<TurmaForUser[]>
     .innerJoin(agendaSchools, eq(agendaSchools.inepCode, agendaTurmas.schoolInepCode))
     .innerJoin(agendaCities, eq(agendaCities.ibgeCode, agendaSchools.cityIbgeCode))
     .where(whereClause)
-    .orderBy(asc(agendaTurmas.year), asc(agendaTurmas.grade), asc(agendaTurmas.classLetter));
+    .orderBy(asc(agendaTurmas.year), asc(agendaTurmas.grade), asc(agendaTurmas.classLetter))
+    .limit(TURMA_LIST_ROW_CAP);
 
   // Group by turma id and merge members.
   const byTurma = new Map<string, TurmaForUser>();
@@ -410,7 +418,10 @@ export async function searchCitiesInState(
     .where(
       and(
         eq(agendaCities.stateUf, stateUf),
-        sql`unaccent(${agendaCities.name}) ilike unaccent(${pattern}) escape '\\'`,
+        // Bate o GIN trigram `agenda_cities_name_unaccent_trgm_idx` (migration
+        // 0030) — usa `agenda.unaccent_immutable` (IMMUTABLE) em vez do
+        // `unaccent()` bruto pra que o planner case com a expressão indexada.
+        sql`agenda.unaccent_immutable(${agendaCities.name}) ilike agenda.unaccent_immutable(${pattern}) escape '\\'`,
       ),
     )
     .orderBy(asc(agendaCities.name))
@@ -438,7 +449,10 @@ export async function searchSchoolsInCity(
     .where(
       and(
         eq(agendaSchools.cityIbgeCode, cityIbgeCode),
-        sql`unaccent(${agendaSchools.name}) ilike unaccent(${pattern}) escape '\\'`,
+        // Bate o GIN trigram `agenda_schools_name_unaccent_trgm_idx` (migration
+        // 0030). Mesma forma usada em searchCitiesInState pra que ambos índices
+        // sejam aproveitados consistentemente.
+        sql`agenda.unaccent_immutable(${agendaSchools.name}) ilike agenda.unaccent_immutable(${pattern}) escape '\\'`,
       ),
     )
     .orderBy(asc(agendaSchools.name))

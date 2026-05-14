@@ -11,6 +11,9 @@ import { logger } from "@/lib/logger";
 import { RequestBodyTooLargeError, readJsonWithSizeLimit } from "@/lib/request-size";
 
 export const runtime = "nodejs";
+// gpt-4o multimodal PDF (até 3 páginas escolares) leva 20–80s — maior das
+// rotas IA. Conservador a 90s pra não cortar PDFs legítimos.
+export const maxDuration = 90;
 
 // Base64 inflates ~33%; 5 MB raw ≈ 7 MB string + data URL prefix. Margem
 // confortável para um PDF de até 3 páginas escolar caber. Refletido em

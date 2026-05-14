@@ -5,6 +5,9 @@ import { logger } from "@/lib/logger";
 import { RequestBodyTooLargeError, readJsonWithSizeLimit } from "@/lib/request-size";
 
 export const runtime = "nodejs";
+// gpt-4o vision pode levar 15–45s pra imagens densas. Default Railway/Vercel
+// é 10s — sem este override o request morre antes da IA responder.
+export const maxDuration = 60;
 
 // Base64 inflates ~33%; 5 MB raw ≈ 7 MB string + data URL prefix. Margem
 // pequena (8 MB chars) pra uma JPEG legítima de 5 MB caber.

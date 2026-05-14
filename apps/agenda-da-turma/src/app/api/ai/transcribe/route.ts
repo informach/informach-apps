@@ -4,6 +4,9 @@ import { logger } from "@/lib/logger";
 import { RequestBodyTooLargeError, readFormDataWithSizeLimit } from "@/lib/request-size";
 
 export const runtime = "nodejs";
+// OpenRouter audio transcription pode levar 10–30s. Sem maxDuration explícito,
+// o Railway/Vercel mata em 10s (default antigo) e o usuário recebe 504 mudo.
+export const maxDuration = 60;
 
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024; // 10 MB
 const MAX_AUDIO_REQUEST_BYTES = MAX_AUDIO_BYTES + 1024 * 1024;

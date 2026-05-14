@@ -51,7 +51,11 @@ export function DayCell({ iso, inMonth, items, onSelectActivity, onCreateForDay 
       tabIndex={0}
       onClick={handleCellClick}
       onKeyDown={handleCellKey}
-      aria-label={`Dia ${dayNumber} — criar atividade`}
+      aria-label={
+        items.length === 0
+          ? `Dia ${dayNumber}${isToday ? " (hoje)" : ""} — sem atividades — criar nova`
+          : `Dia ${dayNumber}${isToday ? " (hoje)" : ""} — ${items.length} atividade${items.length === 1 ? "" : "s"} — clique pra criar nova`
+      }
       className={cn(
         // min-h-36 (9rem = 144px) cabe header + 3 blips + "+N mais" + gaps + padding
         // com folga, sem clipping. Tailwind core size, sem arbitrary value.
@@ -89,6 +93,7 @@ export function DayCell({ iso, inMonth, items, onSelectActivity, onCreateForDay 
                 size="sm"
                 className="h-5 justify-start px-1.5 py-0 text-xs font-normal text-muted-foreground hover:bg-muted hover:text-foreground"
                 onClick={(e) => e.stopPropagation()}
+                aria-label={`Ver mais ${overflow} atividade${overflow === 1 ? "" : "s"} do dia ${dayNumber}`}
               >
                 + {overflow} mais
               </Button>
