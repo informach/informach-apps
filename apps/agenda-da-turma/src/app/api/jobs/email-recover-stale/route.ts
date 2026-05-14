@@ -1,5 +1,4 @@
-import { db } from "@informach/db";
-import { recoverStaleDeliveries } from "@informach/emails/sweepers";
+import { recoverAgendaStaleDeliveries } from "@/lib/emails";
 import { env } from "@/lib/env";
 
 export const runtime = "nodejs";
@@ -9,6 +8,6 @@ export async function POST(request: Request): Promise<Response> {
   if (auth !== `Bearer ${env.CRON_SECRET}`) {
     return new Response("Unauthorized", { status: 401 });
   }
-  const result = await recoverStaleDeliveries({ db });
+  const result = await recoverAgendaStaleDeliveries();
   return Response.json(result);
 }

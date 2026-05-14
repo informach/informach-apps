@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { insertSubjectIfNotExists, updateSubjectById } from "./repository";
+import {
+  insertSubjectIfNotExists,
+  subjectNameExistsInTurmaExceptId,
+  updateSubjectById,
+} from "./repository";
 
 const dbMocks = vi.hoisted(() => {
   const db = {
@@ -16,6 +20,7 @@ const dbMocks = vi.hoisted(() => {
     asc: vi.fn((value: unknown) => ({ asc: value })),
     db,
     eq: vi.fn((left: unknown, right: unknown) => ({ left, right })),
+    ne: vi.fn((left: unknown, right: unknown) => ({ left, not: right })),
     sql: vi.fn(() => ({ sql: true })),
   };
 });
@@ -54,6 +59,7 @@ vi.mock("@informach/db", () => ({
   asc: dbMocks.asc,
   db: dbMocks.db,
   eq: dbMocks.eq,
+  ne: dbMocks.ne,
   sql: dbMocks.sql,
 }));
 
@@ -282,5 +288,23 @@ describe("updateSubjectById", () => {
     });
 
     expect(result).toBeNull();
+  });
+});
+
+describe("subjectNameExistsInTurmaExceptId", () => {
+  it("returns true when another subject has the same name in the turma", async () => {
+    dbMocks.db.select.mockReturnValue(selectExistingChain([{ id: "subj_2" }]));
+
+    const result = await subjectNameExistsInTurmaExceptId("turma_1", "Português", "subj_1");
+
+    expect(result).toBe(true);
+  });
+
+  it("returns false when no other subject has the same name in the turma", async () => {
+    dbMocks.db.select.mockReturnValue(selectExistingChain([]));
+
+    const result = await subjectNameExistsInTurmaExceptId("turma_1", "Português", "subj_1");
+
+    expect(result).toBe(false);
   });
 });

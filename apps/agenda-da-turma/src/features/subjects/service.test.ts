@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   listSubjectsForTurma: vi.fn(),
   findTurmasOfUserMissingSubjects: vi.fn(),
   isSubjectInUseByOtherUsers: vi.fn(),
+  subjectNameExistsInTurmaExceptId: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
@@ -35,6 +36,7 @@ vi.mock("./repository", () => ({
   listSubjectsForTurma: mocks.listSubjectsForTurma,
   findTurmasOfUserMissingSubjects: mocks.findTurmasOfUserMissingSubjects,
   isSubjectInUseByOtherUsers: mocks.isSubjectInUseByOtherUsers,
+  subjectNameExistsInTurmaExceptId: mocks.subjectNameExistsInTurmaExceptId,
 }));
 
 const creator = { id: "user_creator" };
@@ -64,6 +66,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   // Defaults: matéria não está em uso por outras famílias.
   mocks.isSubjectInUseByOtherUsers.mockResolvedValue(false);
+  mocks.subjectNameExistsInTurmaExceptId.mockResolvedValue(false);
 });
 
 describe("createSubject", () => {
@@ -305,6 +308,27 @@ describe("updateSubject", () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe("NAME_CHANGE_TOO_BIG");
+    expect(mocks.updateSubjectById).not.toHaveBeenCalled();
+  });
+
+  it("rejeita DUPLICATE quando já existe outra matéria com o novo nome na turma", async () => {
+    mocks.findSubjectById.mockResolvedValue(subjectByMember);
+    mocks.subjectNameExistsInTurmaExceptId.mockResolvedValue(true);
+
+    const result = await updateSubject(member.id, {
+      id: subjectId,
+      name: "Português",
+      teacherName: undefined,
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("DUPLICATE");
+    expect(mocks.subjectNameExistsInTurmaExceptId).toHaveBeenCalledWith(
+      turmaId,
+      "Português",
+      subjectId,
+    );
+    expect(mocks.isSubjectInUseByOtherUsers).not.toHaveBeenCalled();
     expect(mocks.updateSubjectById).not.toHaveBeenCalled();
   });
 

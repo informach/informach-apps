@@ -10,6 +10,7 @@ import {
   insertSubjectIfNotExists,
   isSubjectInUseByOtherUsers,
   listSubjectsForTurma,
+  subjectNameExistsInTurmaExceptId,
   updateSubjectById,
 } from "./repository";
 import type {
@@ -132,6 +133,10 @@ export async function updateSubject(
   if (subject.createdByUserId !== userId) return err({ code: "FORBIDDEN" });
 
   if (subject.name !== input.name) {
+    if (await subjectNameExistsInTurmaExceptId(subject.turmaId, input.name, subject.id)) {
+      return err({ code: "DUPLICATE" });
+    }
+
     const inUse = await isSubjectInUseByOtherUsers(subject.id, userId);
     if (inUse && !isMinorNameEdit(subject.name, input.name)) {
       return err({ code: "NAME_CHANGE_TOO_BIG" });

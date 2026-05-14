@@ -2,7 +2,7 @@
 
 Agentes, workflows e prompts específicos do app `agenda-da-turma` moram aqui. Primitivas compartilhadas (Mastra, providers AI SDK, factories `createMastra`/`createPostgresStore`/`createSharedMemory`, recorder de auditoria, billing wrapper) vêm de `@informach/ai-core`.
 
-> Status atual: agenda-da-turma ainda **não consome IA**. Este README descreve o contrato a seguir quando a feature for adicionada. Ao habilitar IA, declare as envs necessárias (ex.: `OPENROUTER_API_KEY`) em `apps/agenda-da-turma/src/lib/env.ts` antes de implementar — espelhar o padrão do Cozya.
+> Status atual: agenda-da-turma **consome IA em produção** para importar matérias e atividades por imagem, áudio/voz e PDF. As features ativas estão em `src/ai/models.ts` e o preço em créditos é semeado por `packages/billing/src/seeds/credit-pricing.ts`.
 
 ## Contrato
 
@@ -15,7 +15,7 @@ Agentes, workflows e prompts específicos do app `agenda-da-turma` moram aqui. P
    - `ai_mastra.mastra_*` — criadas/atualizadas pelo migrator (`pnpm db:migrate` via `PostgresStore.init()`), não pelo runtime do app.
 6. Ao adicionar um novo agente, registre-o em `src/ai/index.ts` no objeto `agents` que é passado para `createMastra`.
 
-## Esqueleto (referência — adaptar quando IA for habilitada)
+## Referência de composição
 
 ```ts
 import "server-only";
@@ -29,8 +29,8 @@ import { createOpenRouter } from "@informach/ai-core/providers";
 import { createDefaultLogger } from "@informach/ai-core/logger";
 import { env } from "@/lib/env";
 
-// Pré-requisito: declarar OPENROUTER_API_KEY (e variantes opcionais) em
-// src/lib/env.ts. Espelho do Cozya — gateway único.
+// OPENROUTER_API_KEY e variantes opcionais são declaradas em src/lib/env.ts.
+// OpenRouter é o gateway único.
 const openrouter = createOpenRouter({ apiKey: env.OPENROUTER_API_KEY });
 const storage    = createPostgresStore({
   connectionString: env.DATABASE_URL,

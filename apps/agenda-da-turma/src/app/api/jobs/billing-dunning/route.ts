@@ -1,9 +1,6 @@
 import { APPS } from "@informach/config";
-import { and, db, eq } from "@informach/db";
-import { customers, organizations, users } from "@informach/db/schema";
-import { buildUnsubscribeToken } from "@informach/emails";
 import { renderTemplate } from "@informach/emails/templates";
-import { billing } from "@/lib/billing";
+import { billing, buildBillingDunningUnsubscribeUrl, resolveDunningRecipient } from "@/lib/billing";
 import { unsubscribeMailto } from "@/lib/email-identity";
 import { emails } from "@/lib/emails";
 import { env } from "@/lib/env";
@@ -31,7 +28,7 @@ export async function POST(request: Request): Promise<Response> {
         );
         return;
       }
-      const unsubscribeUrl = buildUnsubscribeUrlFor(recipient.unsubscribeIdentifier);
+      const unsubscribeUrl = buildBillingDunningUnsubscribeUrl(recipient.unsubscribeIdentifier);
       const updatePaymentUrl = `${env.NEXT_PUBLIC_APP_URL}/settings/billing`;
       const {
         html,
@@ -63,49 +60,4 @@ export async function POST(request: Request): Promise<Response> {
     logger.info(result, "billing.cron.dunning");
   }
   return Response.json(result);
-}
-
-type DunningRecipient = {
-  email: string;
-  /** Identifier used to build the unsubscribe HMAC token. */
-  unsubscribeIdentifier: string;
-};
-
-async function resolveDunningRecipient(subject: {
-  type: "user" | "organization";
-  id: string;
-}): Promise<DunningRecipient | null> {
-  if (subject.type === "user") {
-    const rows = await db
-      .select({ email: users.email })
-      .from(users)
-      .where(eq(users.id, subject.id))
-      .limit(1);
-    const row = rows[0];
-    if (!row) return null;
-    return { email: row.email, unsubscribeIdentifier: row.email };
-  }
-  // Organization subject — billing email is the customer.email persisted at
-  // checkout time. The unsubscribe token uses that email so the package can
-  // resolve the preference through the users table when possible.
-  const rows = await db
-    .select({ email: customers.email })
-    .from(customers)
-    .innerJoin(organizations, eq(organizations.id, customers.subjectId))
-    .where(
-      and(
-        eq(customers.provider, "stripe"),
-        eq(customers.subjectType, "organization"),
-        eq(customers.subjectId, subject.id),
-      ),
-    )
-    .limit(1);
-  const row = rows[0];
-  if (!row) return null;
-  return { email: row.email, unsubscribeIdentifier: row.email };
-}
-
-function buildUnsubscribeUrlFor(identifier: string): string {
-  const token = buildUnsubscribeToken(env.BETTER_AUTH_SECRET, identifier, "billing.payment-failed");
-  return `${env.NEXT_PUBLIC_APP_URL}/api/email/unsubscribe?t=${token}`;
 }

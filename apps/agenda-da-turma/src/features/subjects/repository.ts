@@ -129,6 +129,25 @@ export async function findSubjectById(id: string): Promise<Subject | null> {
   return row ?? null;
 }
 
+export async function subjectNameExistsInTurmaExceptId(
+  turmaId: string,
+  name: string,
+  subjectId: string,
+): Promise<boolean> {
+  const [row] = await db
+    .select({ id: agendaSubjects.id })
+    .from(agendaSubjects)
+    .where(
+      and(
+        eq(agendaSubjects.turmaId, turmaId),
+        eq(agendaSubjects.name, name),
+        ne(agendaSubjects.id, subjectId),
+      ),
+    )
+    .limit(1);
+  return row !== undefined;
+}
+
 export async function listSubjectsForTurma(turmaId: string): Promise<Subject[]> {
   return db
     .select()

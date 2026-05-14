@@ -99,7 +99,7 @@
       }
     },
     {
-      "includes": ["apps/cozya/src/app/api/**/route.ts"],
+      "includes": ["apps/*/src/app/api/**/route.ts"],
       "linter": {
         "rules": {
           "style": {

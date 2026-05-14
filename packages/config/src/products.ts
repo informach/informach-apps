@@ -131,8 +131,9 @@ export const PRODUCTS: readonly Product[] = [
   // packs 10/20/30 a R$ 6,90/12,90/17,90). Stripe Price IDs ficam como `price_TODO_*`
   // até o time configurar produtos no Stripe Dashboard (test+live). `isStripePriceIdConfigured`
   // rejeita placeholders e o boot do app trava em produção até IDs reais entrarem.
-  // Hoje a Agenda da Turma não tem features de IA — créditos são acumulados pra quando
-  // alguma feature consumir via `withCredits` (sem consumo até lá).
+  // A Agenda da Turma já consome IA nas features `agenda.subjects.*` e
+  // `agenda.activities.*`; os custos por feature/modelo são versionados em
+  // `packages/billing/src/seeds/credit-pricing.ts`.
   {
     id: "agenda_da_turma_pro_monthly",
     app: "agenda-da-turma",

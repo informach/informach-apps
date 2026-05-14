@@ -1,8 +1,8 @@
 import { logAuditEvent } from "@informach/auth";
 import { createBillingService, type SubjectRef } from "@informach/billing";
 import { APPS, isStripePriceIdConfigured, PRODUCTS, type Product } from "@informach/config";
-import { db, eq } from "@informach/db";
-import { users } from "@informach/db/schema";
+import { and, db, eq } from "@informach/db";
+import { customers, organizations, users } from "@informach/db/schema";
 import { buildUnsubscribeToken } from "@informach/emails";
 import { unsubscribeMailto } from "./email-identity";
 import { emails } from "./emails";
@@ -77,6 +77,51 @@ export const billing = createBillingService({
     });
   },
 });
+
+export type DunningRecipient = {
+  email: string;
+  /** Identifier used to build the unsubscribe HMAC token. */
+  unsubscribeIdentifier: string;
+};
+
+export async function resolveDunningRecipient(
+  subject: SubjectRef,
+): Promise<DunningRecipient | null> {
+  if (subject.type === "user") {
+    const rows = await db
+      .select({ email: users.email })
+      .from(users)
+      .where(eq(users.id, subject.id))
+      .limit(1);
+    const row = rows[0];
+    if (!row) return null;
+    return { email: row.email, unsubscribeIdentifier: row.email };
+  }
+
+  // Organization subject — billing email is the customer.email persisted at
+  // checkout time. The unsubscribe token uses that email so the package can
+  // resolve the preference through the users table when possible.
+  const rows = await db
+    .select({ email: customers.email })
+    .from(customers)
+    .innerJoin(organizations, eq(organizations.id, customers.subjectId))
+    .where(
+      and(
+        eq(customers.provider, "stripe"),
+        eq(customers.subjectType, "organization"),
+        eq(customers.subjectId, subject.id),
+      ),
+    )
+    .limit(1);
+  const row = rows[0];
+  if (!row) return null;
+  return { email: row.email, unsubscribeIdentifier: row.email };
+}
+
+export function buildBillingDunningUnsubscribeUrl(identifier: string): string {
+  const token = buildUnsubscribeToken(env.BETTER_AUTH_SECRET, identifier, "billing.payment-failed");
+  return `${env.NEXT_PUBLIC_APP_URL}/api/email/unsubscribe?t=${token}`;
+}
 
 function assertProductionStripeCatalogConfigured(products: readonly Product[]) {
   if (env.NODE_ENV !== "production" || stripeMode !== "prod") return;

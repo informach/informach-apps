@@ -8,7 +8,6 @@ import {
   agendaSchools,
   agendaStudentProfiles,
   agendaSubjects,
-  agendaTurmaMembers,
   agendaTurmas,
   users,
 } from "@informach/db/schema";
@@ -140,31 +139,6 @@ export async function userHasActiveProfileInTurma(
   return profile !== undefined;
 }
 
-// User pode operar na turma se for o creator OU se tiver ≥1 perfil (ativo ou
-// não) como membro. Usado no membership check de criação.
-export async function userIsTurmaCreatorOrMember(
-  userId: string,
-  turmaId: string,
-): Promise<boolean> {
-  const [creator] = await db
-    .select({ id: agendaTurmas.id })
-    .from(agendaTurmas)
-    .where(and(eq(agendaTurmas.id, turmaId), eq(agendaTurmas.createdByUserId, userId)))
-    .limit(1);
-  if (creator) return true;
-
-  const [member] = await db
-    .select({ id: agendaTurmaMembers.id })
-    .from(agendaTurmaMembers)
-    .innerJoin(
-      agendaStudentProfiles,
-      eq(agendaStudentProfiles.id, agendaTurmaMembers.studentProfileId),
-    )
-    .where(and(eq(agendaTurmaMembers.turmaId, turmaId), eq(agendaStudentProfiles.userId, userId)))
-    .limit(1);
-  return member !== undefined;
-}
-
 // Existe alguma row em activity_acceptances com accepted=true? Bloqueia
 // edit/delete pelo criador quando alguém da turma já aceitou.
 export async function hasOtherAcceptances(activityId: string): Promise<boolean> {
@@ -182,9 +156,8 @@ export async function hasOtherAcceptances(activityId: string): Promise<boolean> 
 }
 
 // Cria a atividade + 1 status row pra cada perfil ativo do creator na turma.
-// Quando o creator não tem perfil ativo na turma (só é creator da turma sem
-// vincular nenhum filho ainda), insere a atividade sem statuses. Outros
-// users ainda podem aceitar e gerar suas próprias status rows.
+// O service autoriza criação só quando há pelo menos um perfil ativo, para
+// evitar atividades sem status e invisíveis para quem criou.
 export async function insertActivityWithStatuses(payload: NewActivityPayload): Promise<Activity> {
   return db.transaction((tx) => insertActivityWithStatusesInTx(tx, payload));
 }

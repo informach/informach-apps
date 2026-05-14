@@ -26,7 +26,6 @@ import {
   updateActivityStatusValue,
   upsertAcceptanceAndStatuses,
   userHasActiveProfileInTurma,
-  userIsTurmaCreatorOrMember,
 } from "./repository";
 import type {
   CreateActivitiesBatchInput,
@@ -66,7 +65,7 @@ function userSubject(userId: string) {
   return { type: "user", id: userId } as const;
 }
 
-// Cria a atividade respeitando: (1) membership na turma, (2) matéria pertence
+// Cria a atividade respeitando: (1) perfil ativo na turma, (2) matéria pertence
 // à turma, (3) Pro pra visibility=shared (Free é forçado pra individual
 // silenciosamente — UI já desabilita a opção; este é defesa em profundidade),
 // (4) limite de FREE_ACTIVITY_LIMIT atividades total pra Free.
@@ -78,7 +77,7 @@ export async function createActivity(
   const turma = await findTurmaWithSchoolById(input.turmaId);
   if (!turma) return err({ code: "TURMA_NOT_FOUND" });
 
-  const isMember = await userIsTurmaCreatorOrMember(userId, input.turmaId);
+  const isMember = await userHasActiveProfileInTurma(userId, input.turmaId);
   if (!isMember) return err({ code: "NOT_A_MEMBER" });
 
   const isValidSubject = await subjectBelongsToTurma(input.subjectId, input.turmaId);
@@ -127,12 +126,12 @@ export async function createActivity(
  * Diferente de `createActivity`:
  *   - Não checa FREE_ACTIVITY_LIMIT (Pro é ilimitado).
  *   - Aceita `visibility = "shared_with_turma"` sem forçar (Pro pode).
- *   - Valida cada item upfront (turma exists, membership, subject pertence
+ *   - Valida cada item upfront (turma exists, perfil ativo, subject pertence
  *     à turma). Falha em qualquer item → rejeita o batch inteiro com
  *     `index` apontando a linha — UI destaca pro user corrigir.
  *   - Insert + status rows numa transação única — sem persistência parcial.
  *
- * Caches turma/membership/subject por turmaId pra evitar N queries quando o
+ * Caches turma/perfil ativo/subject por turmaId pra evitar N queries quando o
  * batch tem várias atividades pra mesma turma (caso comum de áudio "Pedro
  * tem prova quarta e trabalho sexta").
  */
@@ -144,7 +143,7 @@ export async function createActivitiesBatch(
   if (!isPro) return err({ code: "PRO_REQUIRED" });
 
   const turmaCache = new Map<string, boolean>();
-  const memberCache = new Map<string, boolean>();
+  const activeProfileCache = new Map<string, boolean>();
   const subjectCache = new Map<string, boolean>();
 
   for (let i = 0; i < input.activities.length; i++) {
@@ -158,10 +157,10 @@ export async function createActivitiesBatch(
     }
     if (!turmaExists) return err({ code: "TURMA_NOT_FOUND", index: i });
 
-    let isMember = memberCache.get(item.turmaId);
+    let isMember = activeProfileCache.get(item.turmaId);
     if (isMember === undefined) {
-      isMember = await userIsTurmaCreatorOrMember(userId, item.turmaId);
-      memberCache.set(item.turmaId, isMember);
+      isMember = await userHasActiveProfileInTurma(userId, item.turmaId);
+      activeProfileCache.set(item.turmaId, isMember);
     }
     if (!isMember) return err({ code: "NOT_A_MEMBER", index: i });
 

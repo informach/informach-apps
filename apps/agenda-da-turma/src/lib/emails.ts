@@ -1,6 +1,20 @@
 import { logAuditEvent } from "@informach/auth";
 import { db } from "@informach/db";
-import { createEmailService, type EmailAuditEvent } from "@informach/emails";
+import {
+  buildUnsubscribeToken,
+  createEmailService,
+  createSendGridSend,
+  type EmailAuditEvent,
+  type EmailCategory,
+} from "@informach/emails";
+import {
+  recoverStaleDeliveries,
+  retryFailedDeliveries,
+  syncSendgridSuppressions,
+} from "@informach/emails/sweepers";
+import { processUnsubscribe } from "@informach/emails/unsubscribe";
+import { handleSendgridEvents, type SendgridEvent } from "@informach/emails/webhook";
+import { unsubscribeMailto } from "./email-identity";
 import { env } from "./env";
 import { logger } from "./logger";
 import { packageLogger } from "./observability";
@@ -26,3 +40,42 @@ export const emails = createEmailService({
   logger: packageLogger,
   onAudit: emailAudit,
 });
+
+const sendgridSend = createSendGridSend(env.SENDGRID_API_KEY);
+
+export function buildEmailUnsubscribeUrl(identifier: string, category: EmailCategory): string {
+  const token = buildUnsubscribeToken(env.BETTER_AUTH_SECRET, identifier, category);
+  return `${env.NEXT_PUBLIC_APP_URL}/api/email/unsubscribe?t=${token}`;
+}
+
+export function processAgendaEmailUnsubscribe(token: string) {
+  return processUnsubscribe({ db, secret: env.BETTER_AUTH_SECRET, onAudit: emailAudit }, token);
+}
+
+export function handleAgendaSendgridEvents(events: SendgridEvent[]) {
+  return handleSendgridEvents({ db, logger: packageLogger, onAudit: emailAudit }, events);
+}
+
+export function syncAgendaSendgridSuppressions() {
+  return syncSendgridSuppressions({
+    db,
+    apiKey: env.SENDGRID_API_KEY,
+    onAudit: emailAudit,
+  });
+}
+
+export function retryAgendaFailedDeliveries() {
+  return retryFailedDeliveries({
+    db,
+    defaultFrom: env.SENDGRID_FROM,
+    send: sendgridSend,
+    buildUnsubscribeUrl: buildEmailUnsubscribeUrl,
+    unsubscribeMailto,
+    logger: packageLogger,
+    onAudit: emailAudit,
+  });
+}
+
+export function recoverAgendaStaleDeliveries() {
+  return recoverStaleDeliveries({ db });
+}

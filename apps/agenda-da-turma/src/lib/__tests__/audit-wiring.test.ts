@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
     getOutbox: vi.fn(() => []),
     clearOutbox: vi.fn(),
   })),
+  createSendGridSend: vi.fn(() => vi.fn()),
   createServerHelpers: vi.fn(() => ({
     getServerSession: vi.fn(),
     getCurrentUserServer: vi.fn(),
@@ -29,6 +30,11 @@ const mocks = vi.hoisted(() => ({
     redirectIfUnauthenticated: vi.fn(),
   })),
   logAuditEvent: vi.fn(async () => undefined),
+  handleSendgridEvents: vi.fn(),
+  processUnsubscribe: vi.fn(),
+  recoverStaleDeliveries: vi.fn(),
+  retryFailedDeliveries: vi.fn(),
+  syncSendgridSuppressions: vi.fn(),
 }));
 
 type AuthConfig = {
@@ -74,6 +80,12 @@ vi.mock("@informach/db", () => ({
 }));
 
 vi.mock("@informach/db/schema", () => ({
+  customers: {
+    email: "customers.email",
+    provider: "customers.provider",
+    subjectId: "customers.subjectId",
+    subjectType: "customers.subjectType",
+  },
   organizations: { id: "organizations.id", slug: "organizations.slug" },
   users: { id: "users.id", email: "users.email" },
 }));
@@ -81,6 +93,21 @@ vi.mock("@informach/db/schema", () => ({
 vi.mock("@informach/emails", () => ({
   buildUnsubscribeToken: mocks.buildUnsubscribeToken,
   createEmailService: mocks.createEmailService,
+  createSendGridSend: mocks.createSendGridSend,
+}));
+
+vi.mock("@informach/emails/sweepers", () => ({
+  recoverStaleDeliveries: mocks.recoverStaleDeliveries,
+  retryFailedDeliveries: mocks.retryFailedDeliveries,
+  syncSendgridSuppressions: mocks.syncSendgridSuppressions,
+}));
+
+vi.mock("@informach/emails/unsubscribe", () => ({
+  processUnsubscribe: mocks.processUnsubscribe,
+}));
+
+vi.mock("@informach/emails/webhook", () => ({
+  handleSendgridEvents: mocks.handleSendgridEvents,
 }));
 
 vi.mock("@sentry/nextjs", () => ({
