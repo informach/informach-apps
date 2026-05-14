@@ -129,12 +129,8 @@ export async function getTodaySubjectsForProfile(
   // Manter as duas listas separadas na renderização também ajuda o user a
   // bater o olho e entender "ah, primeiro vem a escola, depois o que mais
   // ele faz hoje".
-  const sortByName = (a: TodaySubject, b: TodaySubject) =>
-    a.name.localeCompare(b.name, "pt-BR");
-  const todaySubjects = [
-    ...todayTurma.sort(sortByName),
-    ...todayExtras.sort(sortByName),
-  ];
+  const sortByName = (a: TodaySubject, b: TodaySubject) => a.name.localeCompare(b.name, "pt-BR");
+  const todaySubjects = [...todayTurma.sort(sortByName), ...todayExtras.sort(sortByName)];
 
   return {
     profileName: profile.name,
