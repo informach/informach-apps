@@ -65,21 +65,12 @@ export default function TermsOfUsePage() {
 
         <Section title="3. Apps da Informach">
           <p>
-            Hoje a Informach opera o <strong>Cozya</strong> (
-            <a
-              className="underline underline-offset-2"
-              href="https://cozya.informach.com.br"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              cozya.informach.com.br
-            </a>
-            ) — captura e organização de receitas de culinária com apoio de IA. Outros apps podem
-            ser lançados ao longo do tempo e serão listados em{" "}
+            Hoje a Informach opera os apps listados em{" "}
             <a className="underline underline-offset-2" href="/#apps">
               {SITE.url.replace("https://", "")}/#apps
             </a>
-            .
+            . Outros apps podem ser lançados ao longo do tempo e também serão publicados nessa
+            lista.
           </p>
           <p>
             <strong>Termos específicos do Cozya:</strong>{" "}

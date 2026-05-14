@@ -19,4 +19,14 @@ export const APPS: ReadonlyArray<AppEntry> = [
     audience: "Pra quem cozinha em casa.",
     status: "live",
   },
+  {
+    slug: "agenda-da-turma",
+    name: "Agenda da Turma",
+    tagline: "Organize a rotina escolar sem perder recado.",
+    description:
+      "Centralize tarefas, provas, recados e calendário dos filhos. A IA ajuda a transformar foto, áudio ou PDF da escola em atividades organizadas.",
+    url: "https://agenda-da-turma.informach.com.br",
+    audience: "Pra famílias com filhos na escola.",
+    status: "live",
+  },
 ] as const;

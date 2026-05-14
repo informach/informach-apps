@@ -3,6 +3,7 @@ import { ThemeProvider } from "@informach/ui/components/theme-provider";
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import type { ReactNode } from "react";
+import { APPS } from "@/lib/apps";
 import { SITE } from "@/lib/site";
 import "./globals.css";
 
@@ -71,7 +72,7 @@ const jsonLd = {
       logo: `${SITE.url}/logo-informach-light.svg`,
       email: SITE.contactEmail,
       taxID: SITE.cnpj,
-      sameAs: [SITE.communityUrl, "https://cozya.informach.com.br"],
+      sameAs: [SITE.communityUrl, ...APPS.map((app) => app.url)],
     },
     {
       "@type": "WebSite",
