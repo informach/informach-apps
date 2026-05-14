@@ -29,6 +29,7 @@ import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { createSubjectAction, updateSubjectAction } from "../actions";
 import { type SubjectFormValues, subjectFormSchema } from "../schemas";
 import type { Subject } from "../types";
+import { ClassDaysPicker } from "./class-days-picker";
 
 type Props = {
   open: boolean;
@@ -40,13 +41,24 @@ type Props = {
 const EMPTY_DEFAULTS: SubjectFormValues = {
   name: "",
   teacherName: "",
+  classDays: [],
 };
 
 function defaultsFromSubject(subject: Subject): SubjectFormValues {
   return {
     name: subject.name,
     teacherName: subject.teacherName ?? "",
+    classDays: subject.classDays,
   };
+}
+
+function describeFilled(filled: { teacherName: boolean; classDays: boolean }): string {
+  const parts: string[] = [];
+  if (filled.teacherName) parts.push("o professor");
+  if (filled.classDays) parts.push("o horário");
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0] as string;
+  return `${parts.slice(0, -1).join(", ")} e ${parts[parts.length - 1]}`;
 }
 
 export function SubjectFormDialog({ open, onOpenChange, turmaId, subject }: Props) {
@@ -73,6 +85,7 @@ export function SubjectFormDialog({ open, onOpenChange, turmaId, subject }: Prop
             id: subject.id,
             name: values.name,
             teacherName: values.teacherName,
+            classDays: values.classDays,
           }),
         );
         if (!result.ok) {
@@ -124,6 +137,7 @@ export function SubjectFormDialog({ open, onOpenChange, turmaId, subject }: Prop
           turmaId,
           name: values.name,
           teacherName: values.teacherName,
+          classDays: values.classDays,
         }),
       );
       if (!result.ok) {
@@ -132,10 +146,6 @@ export function SubjectFormDialog({ open, onOpenChange, turmaId, subject }: Prop
             description: "Atualize a página e tente novamente.",
           });
           router.refresh();
-          return;
-        }
-        if (result.error.code === "DUPLICATE") {
-          form.setError("name", { message: "Já existe uma matéria com esse nome nesta turma" });
           return;
         }
         if (result.error.code === "NOT_A_MEMBER") {
@@ -155,7 +165,22 @@ export function SubjectFormDialog({ open, onOpenChange, turmaId, subject }: Prop
         });
         return;
       }
-      toast.success("Matéria criada");
+      // Como turmas são compartilhadas e a regra é fill-in-blank, "criar"
+      // matéria que já existe na turma faz merge — distinguimos pelo status
+      // pra dar feedback transparente em vez de surpreender o user.
+      const { status, filled } = result.value;
+      if (status === "created") {
+        toast.success("Matéria criada");
+      } else if (status === "merged_filled") {
+        const filledDescription = describeFilled(filled);
+        toast.success(`${values.name} já existia.`, {
+          description: filledDescription
+            ? `Adicionamos ${filledDescription} que estava faltando.`
+            : "Atualizamos os campos que estavam em branco.",
+        });
+      } else {
+        toast.success(`${values.name} já estava cadastrada nesta turma.`);
+      }
       form.reset(EMPTY_DEFAULTS);
       onOpenChange(false);
       router.refresh();
@@ -212,6 +237,28 @@ export function SubjectFormDialog({ open, onOpenChange, turmaId, subject }: Prop
                     />
                   </FormControl>
                   <FormDescription>Opcional</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="classDays"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Dias de aula</FormLabel>
+                  <FormControl>
+                    <ClassDaysPicker
+                      value={field.value ?? []}
+                      onChange={field.onChange}
+                      disabled={submitting}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Opcional. Usado pra calcular datas de entrega automaticamente quando você
+                    cadastra uma atividade sem data.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

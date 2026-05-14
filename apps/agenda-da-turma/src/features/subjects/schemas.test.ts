@@ -98,3 +98,40 @@ describe("subjectFormSchema", () => {
     expect(subjectFormSchema.safeParse({ name: "Matemática" }).success).toBe(true);
   });
 });
+
+describe("classDays", () => {
+  it("defaults to [] when omitted", () => {
+    const parsed = createSubjectInputSchema.parse({
+      turmaId: validTurmaId,
+      name: "Matemática",
+    });
+    expect(parsed.classDays).toEqual([]);
+  });
+
+  it("normaliza pra ordem canônica Seg→Sex", () => {
+    const parsed = createSubjectInputSchema.parse({
+      turmaId: validTurmaId,
+      name: "Matemática",
+      classDays: ["fri", "mon", "wed"],
+    });
+    expect(parsed.classDays).toEqual(["mon", "wed", "fri"]);
+  });
+
+  it("deduplica dias repetidos", () => {
+    const parsed = createSubjectInputSchema.parse({
+      turmaId: validTurmaId,
+      name: "Matemática",
+      classDays: ["mon", "mon", "tue", "tue"],
+    });
+    expect(parsed.classDays).toEqual(["mon", "tue"]);
+  });
+
+  it("rejeita valores fora do enum (sat/sun não suportados no v1)", () => {
+    const result = createSubjectInputSchema.safeParse({
+      turmaId: validTurmaId,
+      name: "Matemática",
+      classDays: ["mon", "sat"],
+    });
+    expect(result.success).toBe(false);
+  });
+});

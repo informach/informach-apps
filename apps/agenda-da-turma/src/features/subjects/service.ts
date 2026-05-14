@@ -31,11 +31,28 @@ export type SubjectError =
   | { code: "IN_USE_BY_OTHERS" }
   | { code: "NAME_CHANGE_TOO_BIG" };
 
+// Status retornado pro caller (UI) — distingue criação nova de merge
+// preenchendo brancos vs. matéria que já existia idêntica. UI usa pra
+// escolher o toast certo.
+export type CreateSubjectStatus = "created" | "merged_filled" | "merged_noop";
+export type CreateSubjectFilledFields = {
+  teacherName: boolean;
+  classDays: boolean;
+};
+export type CreateSubjectSuccess = {
+  subject: Subject;
+  status: CreateSubjectStatus;
+  filled: CreateSubjectFilledFields;
+};
+
 // Quem pode criar: qualquer membro da turma (creator OU alguém com perfil vinculado).
+// Como turmas são compartilhadas, "criar" matéria que já existe na turma faz
+// merge de campos em branco (teacherName e classDays) — nunca sobrescreve dados
+// já cadastrados, vale entre famílias. Ver `insertSubjectIfNotExists` no repo.
 export async function createSubject(
   userId: string,
   input: CreateSubjectInput,
-): Promise<Result<Subject, SubjectError>> {
+): Promise<Result<CreateSubjectSuccess, SubjectError>> {
   const turma = await findTurmaWithSchoolById(input.turmaId);
   if (!turma) return err({ code: "TURMA_NOT_FOUND" });
 
@@ -47,14 +64,17 @@ export async function createSubject(
     turmaId: input.turmaId,
     name: input.name,
     teacherName: input.teacherName ?? null,
+    classDays: input.classDays,
     createdByUserId: userId,
   });
-  // Fluxo single-create mantém semântica antiga: só "created" conta como
-  // sucesso. "merged" e "skipped" (vindos da extensão pro batch) são
-  // tratados como duplicata pra esse caller — o user clicou "Nova matéria"
-  // e nada novo foi criado.
-  if (result.status !== "created") return err({ code: "DUPLICATE" });
-  return ok(result.subject);
+
+  const status: CreateSubjectStatus =
+    result.status === "created"
+      ? "created"
+      : result.status === "merged"
+        ? "merged_filled"
+        : "merged_noop";
+  return ok({ subject: result.subject, status, filled: result.filled });
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -107,6 +127,7 @@ export async function createSubjectsBatch(
       turmaId: input.turmaId,
       name: subject.name,
       teacherName: subject.teacherName ?? null,
+      classDays: subject.classDays,
       createdByUserId: userId,
     });
     items.push({ name: subject.name, status: result.status, id: result.subject.id });
@@ -146,6 +167,7 @@ export async function updateSubject(
   const updated = await updateSubjectById(input.id, {
     name: input.name,
     teacherName: input.teacherName ?? null,
+    classDays: input.classDays,
   });
   if (!updated) return err({ code: "NOT_FOUND" });
   return ok(updated);

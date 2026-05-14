@@ -56,11 +56,14 @@ const subjectByMember = {
   turmaId,
   name: "Matemática",
   teacherName: null,
+  classDays: [] as string[],
   colorIndex: 1,
   createdByUserId: member.id,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
+
+const noFilled = { teacherName: false, classDays: false };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -70,21 +73,27 @@ beforeEach(() => {
 });
 
 describe("createSubject", () => {
-  it("aceita quando o user é creator da turma", async () => {
+  it("aceita quando o user é creator da turma e retorna status=created", async () => {
     mocks.findTurmaWithSchoolById.mockResolvedValue(turmaFromCreator);
     mocks.userHasMemberInTurma.mockResolvedValue(false); // creator nem precisa
     mocks.insertSubjectIfNotExists.mockResolvedValue({
       status: "created",
       subject: subjectByMember,
+      filled: noFilled,
     });
 
     const result = await createSubject(creator.id, {
       turmaId,
       name: "Matemática",
       teacherName: undefined,
+      classDays: [],
     });
 
     expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.status).toBe("created");
+      expect(result.value.filled).toEqual(noFilled);
+    }
     expect(mocks.insertSubjectIfNotExists).toHaveBeenCalled();
     // Creator não precisa passar pela query de membership (short-circuit).
     expect(mocks.userHasMemberInTurma).not.toHaveBeenCalled();
@@ -96,12 +105,14 @@ describe("createSubject", () => {
     mocks.insertSubjectIfNotExists.mockResolvedValue({
       status: "created",
       subject: { ...subjectByMember, createdByUserId: member.id },
+      filled: noFilled,
     });
 
     const result = await createSubject(member.id, {
       turmaId,
       name: "Educação Física",
       teacherName: undefined,
+      classDays: [],
     });
 
     expect(result.ok).toBe(true);
@@ -116,6 +127,7 @@ describe("createSubject", () => {
       turmaId,
       name: "Música",
       teacherName: undefined,
+      classDays: [],
     });
 
     expect(result.ok).toBe(false);
@@ -130,46 +142,60 @@ describe("createSubject", () => {
       turmaId,
       name: "X",
       teacherName: undefined,
+      classDays: [],
     });
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe("TURMA_NOT_FOUND");
   });
 
-  it("rejeita DUPLICATE quando insertSubjectIfNotExists devolve status=skipped", async () => {
+  it("retorna status=merged_noop quando insertSubjectIfNotExists devolve status=skipped", async () => {
+    // Matéria já existia idêntica — fluxo fill-in-blank não tinha o que
+    // preencher. UI mostra toast "matéria já estava cadastrada".
     mocks.findTurmaWithSchoolById.mockResolvedValue(turmaFromCreator);
     mocks.userHasMemberInTurma.mockResolvedValue(true);
     mocks.insertSubjectIfNotExists.mockResolvedValue({
       status: "skipped",
       subject: subjectByMember,
+      filled: noFilled,
     });
 
     const result = await createSubject(member.id, {
       turmaId,
       name: "Matemática",
       teacherName: undefined,
+      classDays: [],
     });
 
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.code).toBe("DUPLICATE");
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.status).toBe("merged_noop");
+      expect(result.value.filled).toEqual(noFilled);
+    }
   });
 
-  it("rejeita DUPLICATE quando status=merged (single-create não deve fundir silenciosamente)", async () => {
+  it("retorna status=merged_filled quando insertSubjectIfNotExists fundiu campos em branco", async () => {
+    // Matéria existia sem professor; user passou professor → merge fill-in-blank.
     mocks.findTurmaWithSchoolById.mockResolvedValue(turmaFromCreator);
     mocks.userHasMemberInTurma.mockResolvedValue(true);
     mocks.insertSubjectIfNotExists.mockResolvedValue({
       status: "merged",
       subject: { ...subjectByMember, teacherName: "Carla" },
+      filled: { teacherName: true, classDays: false },
     });
 
     const result = await createSubject(member.id, {
       turmaId,
       name: "Matemática",
       teacherName: "Carla",
+      classDays: [],
     });
 
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.code).toBe("DUPLICATE");
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.status).toBe("merged_filled");
+      expect(result.value.filled).toEqual({ teacherName: true, classDays: false });
+    }
   });
 });
 
@@ -179,7 +205,7 @@ describe("createSubjectsBatch", () => {
 
     const result = await createSubjectsBatch(member.id, {
       turmaId,
-      subjects: [{ name: "Matemática", teacherName: undefined }],
+      subjects: [{ name: "Matemática", teacherName: undefined, classDays: [] }],
     });
 
     expect(result.ok).toBe(false);
@@ -194,8 +220,8 @@ describe("createSubjectsBatch", () => {
     const result = await createSubjectsBatch(otherUser.id, {
       turmaId,
       subjects: [
-        { name: "Matemática", teacherName: undefined },
-        { name: "Português", teacherName: "Carla" },
+        { name: "Matemática", teacherName: undefined, classDays: [] },
+        { name: "Português", teacherName: "Carla", classDays: [] },
       ],
     });
 
@@ -208,16 +234,28 @@ describe("createSubjectsBatch", () => {
     mocks.findTurmaWithSchoolById.mockResolvedValue(turmaFromCreator);
     mocks.userHasMemberInTurma.mockResolvedValue(true);
     mocks.insertSubjectIfNotExists
-      .mockResolvedValueOnce({ status: "created", subject: { ...subjectByMember, id: "s1" } })
-      .mockResolvedValueOnce({ status: "merged", subject: { ...subjectByMember, id: "s2" } })
-      .mockResolvedValueOnce({ status: "skipped", subject: { ...subjectByMember, id: "s3" } });
+      .mockResolvedValueOnce({
+        status: "created",
+        subject: { ...subjectByMember, id: "s1" },
+        filled: noFilled,
+      })
+      .mockResolvedValueOnce({
+        status: "merged",
+        subject: { ...subjectByMember, id: "s2" },
+        filled: { teacherName: true, classDays: false },
+      })
+      .mockResolvedValueOnce({
+        status: "skipped",
+        subject: { ...subjectByMember, id: "s3" },
+        filled: noFilled,
+      });
 
     const result = await createSubjectsBatch(member.id, {
       turmaId,
       subjects: [
-        { name: "Matemática", teacherName: undefined },
-        { name: "Português", teacherName: "Carla" },
-        { name: "Inglês", teacherName: undefined },
+        { name: "Matemática", teacherName: undefined, classDays: [] },
+        { name: "Português", teacherName: "Carla", classDays: [] },
+        { name: "Inglês", teacherName: undefined, classDays: [] },
       ],
     });
 
@@ -239,11 +277,12 @@ describe("createSubjectsBatch", () => {
     mocks.insertSubjectIfNotExists.mockResolvedValue({
       status: "created",
       subject: { ...subjectByMember, id: "s_creator" },
+      filled: noFilled,
     });
 
     const result = await createSubjectsBatch(creator.id, {
       turmaId,
-      subjects: [{ name: "Matemática", teacherName: undefined }],
+      subjects: [{ name: "Matemática", teacherName: undefined, classDays: [] }],
     });
 
     expect(result.ok).toBe(true);
@@ -262,6 +301,7 @@ describe("updateSubject", () => {
       id: subjectId,
       name: "Educação Física",
       teacherName: undefined,
+      classDays: [],
     });
 
     expect(result.ok).toBe(true);
@@ -277,6 +317,7 @@ describe("updateSubject", () => {
       id: subjectId,
       name: "Matemática", // só acento — normalize-equal
       teacherName: undefined,
+      classDays: [],
     });
 
     expect(result.ok).toBe(true);
@@ -291,6 +332,7 @@ describe("updateSubject", () => {
       id: subjectId,
       name: "Matemática", // typo fix
       teacherName: undefined,
+      classDays: [],
     });
 
     expect(result.ok).toBe(true);
@@ -304,6 +346,7 @@ describe("updateSubject", () => {
       id: subjectId,
       name: "Educação Física",
       teacherName: undefined,
+      classDays: [],
     });
 
     expect(result.ok).toBe(false);
@@ -319,6 +362,7 @@ describe("updateSubject", () => {
       id: subjectId,
       name: "Português",
       teacherName: undefined,
+      classDays: [],
     });
 
     expect(result.ok).toBe(false);
@@ -340,6 +384,7 @@ describe("updateSubject", () => {
       id: subjectId,
       name: subjectByMember.name, // nome inalterado
       teacherName: "Carla",
+      classDays: [],
     });
 
     expect(result.ok).toBe(true);
@@ -354,6 +399,7 @@ describe("updateSubject", () => {
       id: subjectId,
       name: "X",
       teacherName: undefined,
+      classDays: [],
     });
 
     expect(result.ok).toBe(false);
@@ -368,6 +414,7 @@ describe("updateSubject", () => {
       id: subjectId,
       name: "Z",
       teacherName: undefined,
+      classDays: [],
     });
 
     expect(result.ok).toBe(false);

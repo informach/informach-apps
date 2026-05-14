@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ParsedActivityInput, TurmaWithSubjectsForForm } from "@/features/activities/types";
 import {
+  applyNextClassDayFallback,
   applyTomorrowFallback,
   buildUserMessage,
   enrichWithResolvedTurma,
@@ -46,8 +47,8 @@ describe("buildUserMessage", () => {
           classLetter: "A",
           year: 2026,
           subjects: [
-            { id: "s1", name: "Matemática", colorIndex: 1 },
-            { id: "s2", name: "Português", colorIndex: 2 },
+            { id: "s1", name: "Matemática", colorIndex: 1, classDays: [] },
+            { id: "s2", name: "Português", colorIndex: 2, classDays: [] },
           ],
         },
         {
@@ -57,8 +58,8 @@ describe("buildUserMessage", () => {
           classLetter: "B",
           year: 2026,
           subjects: [
-            { id: "s3", name: "História", colorIndex: 3 },
-            { id: "s4", name: "Inglês", colorIndex: 4 },
+            { id: "s3", name: "História", colorIndex: 3, classDays: [] },
+            { id: "s4", name: "Inglês", colorIndex: 4, classDays: [] },
           ],
         },
       ],
@@ -103,7 +104,7 @@ describe("buildUserMessage", () => {
           grade: "6ano",
           classLetter: "C",
           year: 2026,
-          subjects: [{ id: "s1", name: "Matemática", colorIndex: 1 }],
+          subjects: [{ id: "s1", name: "Matemática", colorIndex: 1, classDays: [] }],
         },
       ],
       profiles: [{ id: "p1", name: "Pedro", activeTurmaId: "t1" }],
@@ -128,9 +129,9 @@ const turmasWithSubjects: TurmaWithSubjectsForForm[] = [
     classLetter: "A",
     year: 2026,
     subjects: [
-      { id: "s1-mat", name: "Matemática", colorIndex: 1 },
-      { id: "s1-por", name: "Português", colorIndex: 2 },
-      { id: "s1-cie", name: "Ciências", colorIndex: 3 },
+      { id: "s1-mat", name: "Matemática", colorIndex: 1, classDays: [] },
+      { id: "s1-por", name: "Português", colorIndex: 2, classDays: [] },
+      { id: "s1-cie", name: "Ciências", colorIndex: 3, classDays: [] },
     ],
   },
   {
@@ -140,9 +141,9 @@ const turmasWithSubjects: TurmaWithSubjectsForForm[] = [
     classLetter: "B",
     year: 2026,
     subjects: [
-      { id: "s2-mat", name: "Matemática", colorIndex: 1 },
-      { id: "s2-his", name: "História", colorIndex: 4 },
-      { id: "s2-geo", name: "Geografia", colorIndex: 5 },
+      { id: "s2-mat", name: "Matemática", colorIndex: 1, classDays: [] },
+      { id: "s2-his", name: "História", colorIndex: 4, classDays: [] },
+      { id: "s2-geo", name: "Geografia", colorIndex: 5, classDays: [] },
     ],
   },
 ];
@@ -326,9 +327,9 @@ describe("enrichWithResolvedTurma", () => {
         classLetter: "A",
         year: 2026,
         subjects: [
-          { id: "s-redacao", name: "Redação", colorIndex: 2 },
-          { id: "s-port", name: "Português", colorIndex: 2 },
-          { id: "s-mat", name: "Matemática", colorIndex: 1 },
+          { id: "s-redacao", name: "Redação", colorIndex: 2, classDays: [] },
+          { id: "s-port", name: "Português", colorIndex: 2, classDays: [] },
+          { id: "s-mat", name: "Matemática", colorIndex: 1, classDays: [] },
         ],
       },
     ];
@@ -367,8 +368,8 @@ describe("enrichWithResolvedTurma", () => {
         classLetter: "A",
         year: 2026,
         subjects: [
-          { id: "s-fis", name: "Física", colorIndex: 1 },
-          { id: "s-edf", name: "Educação Física", colorIndex: 3 },
+          { id: "s-fis", name: "Física", colorIndex: 1, classDays: [] },
+          { id: "s-edf", name: "Educação Física", colorIndex: 3, classDays: [] },
         ],
       },
     ];
@@ -403,7 +404,7 @@ describe("enrichWithResolvedTurma", () => {
         grade: "3ano",
         classLetter: "A",
         year: 2026,
-        subjects: [{ id: "s-arte", name: "Arte", colorIndex: 5 }],
+        subjects: [{ id: "s-arte", name: "Arte", colorIndex: 5, classDays: [] }],
       },
     ];
     const profs: ProfileLite[] = [{ id: "p1", name: "João", activeTurmaId: "t1" }];
@@ -723,5 +724,177 @@ describe("applyTomorrowFallback", () => {
     expect(result.activities[0]?.dueAt).toBe("2026-05-20");
     expect(result.activities[1]?.dueAt).toBe("2026-05-23");
     expect(result.activities[2]?.dueAt).toBe("2026-05-14"); // amanhã
+  });
+});
+
+describe("applyNextClassDayFallback", () => {
+  const makeActivity = (
+    dueAt: string | null,
+    resolvedSubjectId: string | null,
+  ): ParsedActivityInput => ({
+    title: "x",
+    description: null,
+    type: "task",
+    dueAt,
+    subjectHint: null,
+    studentNameHint: null,
+    resolvedTurmaId: null,
+    resolvedSubjectId,
+  });
+
+  // 2026-05-13 = quarta (fixedNow).
+  const turmasComHorario: TurmaWithSubjectsForForm[] = [
+    {
+      turmaId: "t1",
+      schoolName: "Escola X",
+      grade: "5ano",
+      classLetter: "A",
+      year: 2026,
+      subjects: [
+        // Matemática: seg/qua/sex → próxima após quarta é sexta (2026-05-15).
+        { id: "s-mat", name: "Matemática", colorIndex: 1, classDays: ["mon", "wed", "fri"] },
+        // Português sem horário cadastrado → applyTomorrowFallback pega depois.
+        { id: "s-port", name: "Português", colorIndex: 2, classDays: [] },
+      ],
+    },
+  ];
+
+  it("preenche dueAt com próximo dia de aula quando subject tem classDays", () => {
+    const result = applyNextClassDayFallback(
+      [makeActivity(null, "s-mat")],
+      turmasComHorario,
+      fixedNow,
+    );
+    expect(result[0]?.dueAt).toBe("2026-05-15"); // sexta
+  });
+
+  it("mantém null quando subject existe mas classDays está vazio", () => {
+    const result = applyNextClassDayFallback(
+      [makeActivity(null, "s-port")],
+      turmasComHorario,
+      fixedNow,
+    );
+    expect(result[0]?.dueAt).toBeNull();
+  });
+
+  it("mantém null quando resolvedSubjectId é null (matéria não resolvida)", () => {
+    const result = applyNextClassDayFallback(
+      [makeActivity(null, null)],
+      turmasComHorario,
+      fixedNow,
+    );
+    expect(result[0]?.dueAt).toBeNull();
+  });
+
+  it("mantém null quando subject não está no índice (caso defensivo)", () => {
+    const result = applyNextClassDayFallback(
+      [makeActivity(null, "s-inexistente")],
+      turmasComHorario,
+      fixedNow,
+    );
+    expect(result[0]?.dueAt).toBeNull();
+  });
+
+  it("não toca atividades que já têm dueAt definido", () => {
+    const result = applyNextClassDayFallback(
+      [makeActivity("2026-05-20", "s-mat")],
+      turmasComHorario,
+      fixedNow,
+    );
+    expect(result[0]?.dueAt).toBe("2026-05-20");
+  });
+
+  it("integração: enrichWithResolvedTurma usa o fallback entre propagação e amanhã", () => {
+    // Cenário: usuário cadastrou Matemática (s-mat) com classDays seg/qua/sex.
+    // Hoje é quarta. IA detectou atividade de matemática sem data nenhuma.
+    // Esperado: dueAt = próxima sexta (2026-05-15), NÃO amanhã.
+    const profilesLocais: ProfileLite[] = [{ id: "p-pedro", name: "Pedro", activeTurmaId: "t1" }];
+    const result = enrichWithResolvedTurma(
+      {
+        isValidInput: true,
+        reason: null,
+        activities: [
+          {
+            title: "Lista de matemática",
+            description: null,
+            type: "task" as const,
+            dueAt: null,
+            subjectHint: "Matemática",
+            studentNameHint: "Pedro",
+          },
+        ],
+      },
+      profilesLocais,
+      turmasComHorario,
+      fixedNow,
+    );
+    if (!result.isValidInput) throw new Error("expected isValidInput=true");
+    expect(result.activities[0]?.resolvedSubjectId).toBe("s-mat");
+    expect(result.activities[0]?.dueAt).toBe("2026-05-15");
+  });
+
+  it("integração: matéria sem classDays cai pra amanhã (preserva comportamento atual)", () => {
+    const profilesLocais: ProfileLite[] = [{ id: "p-pedro", name: "Pedro", activeTurmaId: "t1" }];
+    const result = enrichWithResolvedTurma(
+      {
+        isValidInput: true,
+        reason: null,
+        activities: [
+          {
+            title: "Tarefa de português",
+            description: null,
+            type: "task" as const,
+            dueAt: null,
+            subjectHint: "Português",
+            studentNameHint: "Pedro",
+          },
+        ],
+      },
+      profilesLocais,
+      turmasComHorario,
+      fixedNow,
+    );
+    if (!result.isValidInput) throw new Error("expected isValidInput=true");
+    expect(result.activities[0]?.resolvedSubjectId).toBe("s-port");
+    // 2026-05-13 (quarta) + 1 = 2026-05-14 (quinta).
+    expect(result.activities[0]?.dueAt).toBe("2026-05-14");
+  });
+
+  it("integração: propagação de data única ainda vence o next-class-day", () => {
+    // Cenário: folha com 1 data no topo + atividades de Matemática (classDays
+    // seg/qua/sex). Propagação roda PRIMEIRO — todas as nulls herdam a data
+    // da folha, então o next-class-day não tem o que fazer.
+    const profilesLocais: ProfileLite[] = [{ id: "p-pedro", name: "Pedro", activeTurmaId: "t1" }];
+    const result = enrichWithResolvedTurma(
+      {
+        isValidInput: true,
+        reason: null,
+        activities: [
+          {
+            title: "A",
+            description: null,
+            type: "task" as const,
+            dueAt: "2026-05-26",
+            subjectHint: "Matemática",
+            studentNameHint: "Pedro",
+          },
+          {
+            title: "B sem data",
+            description: null,
+            type: "task" as const,
+            dueAt: null,
+            subjectHint: "Matemática",
+            studentNameHint: "Pedro",
+          },
+        ],
+      },
+      profilesLocais,
+      turmasComHorario,
+      fixedNow,
+    );
+    if (!result.isValidInput) throw new Error("expected isValidInput=true");
+    // Ambos herdam 2026-05-26 (propagação), não 2026-05-15 (next-class-day).
+    expect(result.activities[0]?.dueAt).toBe("2026-05-26");
+    expect(result.activities[1]?.dueAt).toBe("2026-05-26");
   });
 });

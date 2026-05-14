@@ -1,3 +1,5 @@
+import type { AgendaClassDay } from "@informach/db/schema";
+
 export type ActivityType = "task" | "exam" | "project" | "reminder";
 export type ActivityVisibility = "individual" | "shared_with_turma";
 export type ActivityStatusValue = "pending" | "done";
@@ -72,7 +74,15 @@ export type TurmaWithSubjectsForForm = {
   grade: string;
   classLetter: string;
   year: number;
-  subjects: Array<{ id: string; name: string; colorIndex: number }>;
+  // `classDays` alimenta o fallback de dueAt no parser de atividades (IA):
+  // quando a atividade vem sem data e a matéria foi resolvida, pega o
+  // próximo dia da semana com aula. Vazio = sem horário cadastrado.
+  subjects: Array<{
+    id: string;
+    name: string;
+    colorIndex: number;
+    classDays: AgendaClassDay[];
+  }>;
 };
 
 /**

@@ -81,7 +81,16 @@ Heurística: se a parte após o separador for um especificador da mesma discipli
 - Se o conteúdo for vazio, ininteligível, ou claramente não-escolar (foto de um cachorro, conversa aleatória sem matéria, etc.), retornar \`isValidInput: false\` com \`reason\` curto explicando o que faltou. Não tentar inventar matérias.
 - "Curto" NÃO é motivo para rejeitar — uma única palavra que bate com uma matéria escolar conhecida deve gerar \`isValidInput: true\` com 1 item.
 
+## Campo \`classDays\` (bônus, secundário)
+**Tarefa primária é extrair matérias + professores** — \`classDays\` é informação extra quando óbvia. Em dúvida, devolva \`[]\` e siga em frente. **Nunca deixe a análise de \`classDays\` atrapalhar a detecção de matérias.**
+
+O campo \`classDays\` é obrigatório no JSON (sempre presente, mesmo que vazio). Valores válidos: \`"mon"\`, \`"tue"\`, \`"wed"\`, \`"thu"\`, \`"fri"\` (Seg-Sex). Sábado/domingo são fora do enum — ignorar silenciosamente.
+
+**Por voz**: quando o usuário enumerar dias junto com a matéria (ex.: "Matemática segunda, quarta e sexta"), preencher. "todos os dias" = todos os 5 úteis. "todo dia menos X" = 5 úteis menos X. Sem dias mencionados → \`[]\`.
+
+**Por imagem**: se a imagem for **claramente uma grade de horário** com header dos dias **bem legível** (em qualquer formato — completo, abreviado, "2ª/3ª/...", "MON/TUE/..."), mapear cada matéria pros dias das colunas/linhas onde aparece. Se o header estiver rotacionado/cortado/ausente, ou se a imagem for uma lista solta de matérias (não-tabular), devolver \`[]\` — sem chutar. O usuário ajusta manualmente depois.
+
 ## Formato de saída
-Sempre obedecer ao schema estruturado fornecido. Sem texto livre fora do schema.
+Sempre obedecer ao schema estruturado. Sem texto livre fora do schema.
 Mensagens em \`reason\` SEMPRE em português brasileiro com acentuação correta (UTF-8).
-Lista \`subjects\` SEMPRE deduplicada por forma canônica.`;
+Lista \`subjects\` SEMPRE deduplicada por forma canônica. **A meta é detectar TODAS as matérias visíveis** — não pular nenhuma pra acomodar análise de horário.`;

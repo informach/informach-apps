@@ -20,11 +20,14 @@ import { useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { createSubjectsBatchAction } from "../actions";
+import { type AgendaClassDay, normalizeClassDays } from "../class-days";
 import { MAX_SUBJECT_NAME_LENGTH, MAX_TEACHER_NAME_LENGTH } from "../limits";
+import { ClassDaysPicker } from "./class-days-picker";
 
 export type ParsedSubjectInput = {
   name: string;
   teacherName?: string | null;
+  classDays?: AgendaClassDay[] | null;
 };
 
 type Props = {
@@ -48,6 +51,10 @@ const rowSchema = z.object({
     .trim()
     .max(MAX_TEACHER_NAME_LENGTH, `Máx ${MAX_TEACHER_NAME_LENGTH}`)
     .optional(),
+  classDays: z
+    .array(z.enum(["mon", "tue", "wed", "thu", "fri"]))
+    .max(5)
+    .default([]),
 });
 
 const batchFormSchema = z.object({
@@ -70,29 +77,41 @@ function canonicalKey(name: string): string {
 
 function defaultsFromInitial(initialSubjects: ParsedSubjectInput[]): BatchFormValues {
   if (initialSubjects.length === 0) {
-    return { rows: [{ name: "", teacherName: "" }] };
+    return { rows: [{ name: "", teacherName: "", classDays: [] }] };
   }
   // Dedup defensivo: mantém a primeira ocorrência e preserva o teacherName
   // do primeiro non-empty (caso LLM tenha caído numa duplicata com prof
-  // diferente em uma das ocorrências).
-  const seen = new Map<string, { name: string; teacherName: string }>();
+  // diferente em uma das ocorrências). Same para classDays: une os dias
+  // entre duplicatas pra cobrir o caso de o LLM ter dividido a matéria em
+  // duas linhas (ex: "Matemática seg/ter" e "Matemática qui/sex").
+  const seen = new Map<
+    string,
+    { name: string; teacherName: string; classDays: AgendaClassDay[] }
+  >();
   for (const s of initialSubjects) {
     const key = canonicalKey(s.name);
     if (!key) continue;
     const existing = seen.get(key);
+    const incomingDays = s.classDays ?? [];
     if (existing) {
       if (!existing.teacherName && s.teacherName) {
         existing.teacherName = s.teacherName;
+      }
+      if (incomingDays.length > 0) {
+        existing.classDays = normalizeClassDays([...existing.classDays, ...incomingDays]);
       }
       continue;
     }
     seen.set(key, {
       name: s.name,
       teacherName: s.teacherName ?? "",
+      classDays: normalizeClassDays(incomingDays),
     });
   }
   const rows = Array.from(seen.values());
-  return { rows: rows.length > 0 ? rows : [{ name: "", teacherName: "" }] };
+  return {
+    rows: rows.length > 0 ? rows : [{ name: "", teacherName: "", classDays: [] }],
+  };
 }
 
 export function SubjectsBatchConfirmDialog({
@@ -128,6 +147,7 @@ export function SubjectsBatchConfirmDialog({
           subjects: values.rows.map((r) => ({
             name: r.name,
             teacherName: r.teacherName ?? "",
+            classDays: r.classDays ?? [],
           })),
         }),
       );
@@ -199,54 +219,70 @@ export function SubjectsBatchConfirmDialog({
 
         <Form {...form}>
           <form onSubmit={onSubmit} className="space-y-4">
-            <div className="grid grid-cols-[1fr_1fr_auto] gap-2 text-xs font-medium text-muted-foreground">
-              <span>Matéria</span>
-              <span>Professor(a)</span>
-              <span className="sr-only">Remover</span>
-            </div>
-            <div className="max-h-[55vh] space-y-2 overflow-y-auto pr-1">
+            <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
               {fields.map((field, index) => (
-                <div key={field.id} className="grid grid-cols-[1fr_1fr_auto] items-start gap-2">
+                <div
+                  key={field.id}
+                  className="space-y-2 rounded-md border border-border/60 bg-card/50 p-3"
+                >
+                  <div className="grid grid-cols-[1fr_1fr_auto] items-start gap-2">
+                    <FormField
+                      control={form.control}
+                      name={`rows.${index}.name`}
+                      render={({ field: nameField }) => (
+                        <FormItem className="space-y-1">
+                          <FormControl>
+                            <Input autoComplete="off" placeholder="Matéria" {...nameField} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name={`rows.${index}.teacherName`}
+                      render={({ field: teacherField }) => (
+                        <FormItem className="space-y-1">
+                          <FormControl>
+                            <Input
+                              autoComplete="off"
+                              placeholder="Professor(a) (opcional)"
+                              {...teacherField}
+                              value={teacherField.value ?? ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => remove(index)}
+                      disabled={submitting || fields.length === 1}
+                      aria-label={`Remover linha ${index + 1}`}
+                      className="mt-px"
+                    >
+                      <Trash2 className="size-4" aria-hidden />
+                    </Button>
+                  </div>
                   <FormField
                     control={form.control}
-                    name={`rows.${index}.name`}
-                    render={({ field: nameField }) => (
+                    name={`rows.${index}.classDays`}
+                    render={({ field: classDaysField }) => (
                       <FormItem className="space-y-1">
                         <FormControl>
-                          <Input autoComplete="off" placeholder="Ex: Matemática" {...nameField} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name={`rows.${index}.teacherName`}
-                    render={({ field: teacherField }) => (
-                      <FormItem className="space-y-1">
-                        <FormControl>
-                          <Input
-                            autoComplete="off"
-                            placeholder="Opcional"
-                            {...teacherField}
-                            value={teacherField.value ?? ""}
+                          <ClassDaysPicker
+                            value={classDaysField.value ?? []}
+                            onChange={classDaysField.onChange}
+                            disabled={submitting}
                           />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => remove(index)}
-                    disabled={submitting || fields.length === 1}
-                    aria-label={`Remover linha ${index + 1}`}
-                    className="mt-px"
-                  >
-                    <Trash2 className="size-4" aria-hidden />
-                  </Button>
                 </div>
               ))}
             </div>
@@ -256,7 +292,7 @@ export function SubjectsBatchConfirmDialog({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => append({ name: "", teacherName: "" })}
+                onClick={() => append({ name: "", teacherName: "", classDays: [] })}
                 disabled={!canAddMore || submitting}
               >
                 <Plus className="mr-1.5 size-4" aria-hidden />

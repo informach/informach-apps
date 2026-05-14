@@ -2,6 +2,7 @@ import { findClosestStudent } from "@/features/activities/match-student";
 import { findClosestSubject } from "@/features/activities/match-subject";
 import type { ParsedActivityInput, TurmaWithSubjectsForForm } from "@/features/activities/types";
 import { addDaysIso, todayLocalIso } from "@/features/dashboard/date";
+import { nextClassDayIso } from "@/features/subjects/class-days";
 import { normalize } from "@/features/subjects/utils";
 import type { ActivitiesParserOutput } from "./schema";
 
@@ -152,12 +153,18 @@ export function enrichWithResolvedTurma(
       resolvedSubjectId,
     };
   });
-  // Ordem importa: propagação primeiro (usa o contexto do batch — data única
-  // no topo da folha vai pras nulls), depois o fallback "amanhã" cobre
-  // qualquer null que sobrou (imagem sem nenhuma data, ou atividade isolada
-  // que escapou da propagação porque o batch tinha 2+ datas distintas).
+  // Ordem importa:
+  //   1) Propagação — data única no topo da folha vai pras nulls (cenário típico
+  //      "folha com 1 data + N atividades").
+  //   2) Próximo dia de aula — pra nulls remanescentes com matéria resolvida,
+  //      olha `subject.classDays` e calcula a próxima data estritamente após hoje
+  //      que casa com algum dia de aula. Só vale quando a matéria tem horário
+  //      cadastrado (`classDays` não-vazio).
+  //   3) Fallback "amanhã" — cobre qualquer null que sobrou: imagem sem data
+  //      nenhuma + matéria sem horário, ou atividade isolada sem matéria.
   const propagated = propagateUniqueDueDate(rawActivities);
-  const activities = applyTomorrowFallback(propagated, now);
+  const withNextClass = applyNextClassDayFallback(propagated, turmas, now);
+  const activities = applyTomorrowFallback(withNextClass, now);
   const guessedTurmaId = inferGuessedTurma(activities, turmas);
   return { isValidInput: true, activities, guessedTurmaId };
 }
@@ -183,6 +190,45 @@ export function propagateUniqueDueDate(
   const onlyDate = datesPresent[0];
   if (!onlyDate) return activities.slice();
   return activities.map((a) => (a.dueAt === null ? { ...a, dueAt: onlyDate } : a));
+}
+
+/**
+ * Camada intermediária de fallback baseada em horário da matéria. Pra cada
+ * atividade com `dueAt: null` que TEM `resolvedSubjectId`, busca os
+ * `classDays` da matéria correspondente e calcula a próxima data ESTRITAMENTE
+ * APÓS hoje que casa com algum dia cadastrado. Mantém null quando:
+ *   - subject não foi resolvido (resolvedSubjectId === null);
+ *   - subject não foi achado no índice de turmas (caso defensivo);
+ *   - subject existe mas não tem horário cadastrado (classDays vazio).
+ *
+ * Quem fica null aqui cai no `applyTomorrowFallback` depois (default "amanhã").
+ *
+ * Por que ESTRITAMENTE APÓS hoje: atividade ditada/fotografada hoje vale pra
+ * próxima aula, não pra aula de hoje (se hoje for um dia de aula, próxima é
+ * a próxima ocorrência semanal).
+ */
+export function applyNextClassDayFallback(
+  activities: readonly ParsedActivityInput[],
+  turmasWithSubjects: readonly TurmaWithSubjectsForForm[],
+  now: Date = new Date(),
+): ParsedActivityInput[] {
+  const todayIso = todayLocalIso(now);
+  // Index uma vez (não por atividade) — classDays comes do mesmo array de
+  // turmas que `findClosestSubject` já consumiu.
+  const subjectById = new Map<string, TurmaWithSubjectsForForm["subjects"][number]>();
+  for (const turma of turmasWithSubjects) {
+    for (const subject of turma.subjects) {
+      subjectById.set(subject.id, subject);
+    }
+  }
+  return activities.map((a) => {
+    if (a.dueAt !== null) return a;
+    if (!a.resolvedSubjectId) return a;
+    const subject = subjectById.get(a.resolvedSubjectId);
+    if (!subject || subject.classDays.length === 0) return a;
+    const next = nextClassDayIso(todayIso, subject.classDays);
+    return next ? { ...a, dueAt: next } : a;
+  });
 }
 
 /**

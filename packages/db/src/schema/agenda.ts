@@ -1,6 +1,8 @@
+import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
   boolean,
+  check,
   date,
   index,
   integer,
@@ -12,6 +14,13 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { users } from "./core";
+
+// Dias da semana em que uma matéria ocorre. v1 cobre só Seg-Sex (escolas
+// brasileiras tipicamente não têm aula sábado/domingo). Se um dia chegar
+// pelo parser de IA fora desse range, o check constraint do Postgres trava
+// no insert/update — defesa em camadas além da validação Zod.
+export const AGENDA_CLASS_DAYS = ["mon", "tue", "wed", "thu", "fri"] as const;
+export type AgendaClassDay = (typeof AGENDA_CLASS_DAYS)[number];
 
 export const agenda = pgSchema("agenda");
 
@@ -135,6 +144,15 @@ export const agendaSubjects = agenda.table(
     // Cor visual atribuída no momento do INSERT, 1..5 (chart-1..chart-5).
     // Escolha free-of-collision por turma feita no repository sob pg_advisory_xact_lock.
     colorIndex: smallint("color_index").notNull().default(1),
+    // Dias da semana em que a matéria tem aula. Vazio significa "horário não
+    // cadastrado". Usado pelo fallback de dueAt no parser de atividades de IA:
+    // quando a atividade vem sem data e o subject foi resolvido, calcula a
+    // próxima data que casa com algum dia daqui. v1 só Seg-Sex (`AGENDA_CLASS_DAYS`).
+    classDays: text("class_days")
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`)
+      .$type<AgendaClassDay[]>(),
     createdByUserId: text("created_by_user_id")
       .notNull()
       .references(() => users.id),
@@ -144,6 +162,10 @@ export const agendaSubjects = agenda.table(
   (t) => [
     uniqueIndex("agenda_subjects_turma_name_unique_idx").on(t.turmaId, t.name),
     index("agenda_subjects_turma_idx").on(t.turmaId),
+    check(
+      "agenda_subjects_class_days_valid",
+      sql`${t.classDays} <@ ARRAY['mon','tue','wed','thu','fri']::text[]`,
+    ),
   ],
 );
 

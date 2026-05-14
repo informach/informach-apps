@@ -26,7 +26,11 @@ type SubjectsAgentResponse = {
  * Estrutura uma imagem (print de horário, foto de quadro, foto de caderno)
  * numa lista validada de matérias. Usa agente vision `subjectsParserVision`
  * (`openai/gpt-4o`) com `imageDetail: "low"` — barato (~$0.005-0.016/call)
- * e suficiente pra OCR de texto impresso ou manuscrito.
+ * e suficiente pra OCR de texto impresso ou manuscrito. Tentamos "high" pra
+ * resolver dias rotacionados em grades de horário, mas a detecção de
+ * matérias REGREDIU (atenção do modelo se dispersou no grid analysis).
+ * Conclusão: manter "low" como baseline; classDays é extraído quando óbvio
+ * e o user ajusta manualmente no batch dialog quando necessário.
  *
  * Cobra 1 crédito via reserve→commit/release. Pro gating e rate limit ficam
  * no route handler.

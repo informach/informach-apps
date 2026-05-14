@@ -22,15 +22,29 @@ export const createSubjectAction = action
     const result = await createSubject(userId, input);
     if (!result.ok) return err(result.error);
 
-    logger.info(
-      { userId, subjectId: result.value.id, turmaId: input.turmaId },
-      "agenda.subject_created",
-    );
-    await logAgendaAuditEvent("agenda.subject_created", userId, {
-      subjectId: result.value.id,
-      turmaId: input.turmaId,
-    });
-    return ok({ id: result.value.id } as const);
+    const { subject, status, filled } = result.value;
+    // Só audita criação realmente nova OU merge que preencheu algo. Merge
+    // sem mudança (`merged_noop`) é noop semântico — não polui o log.
+    if (status === "created") {
+      logger.info(
+        { userId, subjectId: subject.id, turmaId: input.turmaId },
+        "agenda.subject_created",
+      );
+      await logAgendaAuditEvent("agenda.subject_created", userId, {
+        subjectId: subject.id,
+        turmaId: input.turmaId,
+      });
+    } else if (status === "merged_filled") {
+      logger.info(
+        { userId, subjectId: subject.id, turmaId: input.turmaId, filled },
+        "agenda.subject_merged",
+      );
+      await logAgendaAuditEvent("agenda.subject_updated", userId, {
+        subjectId: subject.id,
+        turmaId: input.turmaId,
+      });
+    }
+    return ok({ id: subject.id, status, filled } as const);
   });
 
 export const updateSubjectAction = action

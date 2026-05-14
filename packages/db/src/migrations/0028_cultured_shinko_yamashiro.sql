@@ -1,0 +1,2 @@
+ALTER TABLE "agenda"."subjects" ADD COLUMN "class_days" text[] DEFAULT ARRAY[]::text[] NOT NULL;--> statement-breakpoint
+ALTER TABLE "agenda"."subjects" ADD CONSTRAINT "agenda_subjects_class_days_valid" CHECK ("agenda"."subjects"."class_days" <@ ARRAY['mon','tue','wed','thu','fri']::text[]);

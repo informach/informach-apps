@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, asc, type Database, db, eq, ne, sql } from "@informach/db";
 import {
+  type AgendaClassDay,
   agendaActivities,
   agendaSchools,
   agendaStudentProfiles,
@@ -18,33 +19,47 @@ export type NewSubjectPayload = {
   turmaId: string;
   name: string;
   teacherName: string | null;
+  classDays: AgendaClassDay[];
   createdByUserId: string;
 };
 
 export type SubjectUpdatePayload = {
   name: string;
   teacherName: string | null;
+  classDays: AgendaClassDay[];
 };
 
 export type InsertSubjectStatus = "created" | "merged" | "skipped";
-export type InsertSubjectResult = { subject: Subject; status: InsertSubjectStatus };
+export type InsertSubjectFilledFields = {
+  teacherName: boolean;
+  classDays: boolean;
+};
+export type InsertSubjectResult = {
+  subject: Subject;
+  status: InsertSubjectStatus;
+  // Quais campos em branco foram preenchidos no merge. Sempre presente, mas
+  // só relevante quando `status === "merged"` (em `created` tudo é "novo";
+  // em `skipped` nada foi tocado).
+  filled: InsertSubjectFilledFields;
+};
 
 /**
  * Idempotent upsert de matéria. Estados possíveis:
  *
  * - `created` — insert sucesso (turma×nome único, primeira vez).
- * - `merged` — UNIQUE bateu E a row existente tinha `teacherName=null` E o
- *   payload trouxe `teacherName` não-nulo E foi o MESMO usuário que criou
- *   a row (`existing.createdByUserId === payload.createdByUserId`). Faz
- *   UPDATE setando `teacherName` e devolve a row mergeada.
- * - `skipped` — UNIQUE bateu mas nada a fundir (já tem teacherName, ou
- *   payload não trouxe, ou row foi criada por outro usuário da turma
- *   compartilhada). Devolve a row existente intacta.
+ * - `merged` — UNIQUE bateu E pelo menos um campo da row existente estava
+ *   em branco (`teacherName === null` OU `classDays.length === 0`) E o
+ *   payload trouxe valor pra esse campo. Faz UPDATE preenchendo SÓ os
+ *   brancos e devolve a row resultante + `filled` indicando quais campos
+ *   foram preenchidos. **Nunca sobrescreve dados já cadastrados**.
+ * - `skipped` — UNIQUE bateu mas não havia nada a fundir (todos os campos
+ *   já tinham valor, ou o payload não trouxe valor pros campos em branco).
  *
- * Restrição de governança: NUNCA pisar em cima de dados de outra família
- * (turmas são compartilhadas). Se a row existente foi criada por outro
- * membro, ainda que esteja sem teacherName, retorna `skipped` — quem fez
- * a matéria tem o direito de preencher o professor.
+ * Regra de governança: turmas são compartilhadas entre famílias. O merge
+ * **opportunístico de campos em branco** vale mesmo quando outra família
+ * criou a matéria — preencher um campo nulo não pisa em ninguém. Não há
+ * mais a restrição de "mesmo usuário" que existia antes; o que protege é
+ * só o "nunca sobrescrever não-nulo".
  */
 export async function insertSubjectIfNotExists(
   payload: NewSubjectPayload,
@@ -67,7 +82,11 @@ export async function insertSubjectIfNotExists(
 
       const insertedRow = inserted[0];
       if (insertedRow) {
-        return { subject: insertedRow, status: "created" };
+        return {
+          subject: insertedRow,
+          status: "created" as const,
+          filled: { teacherName: false, classDays: false },
+        };
       }
 
       const [existing] = await tx
@@ -84,27 +103,47 @@ export async function insertSubjectIfNotExists(
         );
       }
 
-      // Merge oportunístico de teacherName: só quando o MESMO usuário criou
-      // a row, ela está sem teacherName, e o payload trouxe um. Cobre o caso
-      // típico do fluxo de IA: usuário cadastrou "Matemática" manualmente
-      // ontem sem professor, hoje grava áudio dizendo "Matemática com prof
-      // Carla" — a chamada do batch popula o teacherName em vez de skippar.
-      const canMerge =
-        existing.teacherName === null &&
-        payload.teacherName !== null &&
-        existing.createdByUserId === payload.createdByUserId;
-      if (canMerge) {
-        const [merged] = await tx
-          .update(agendaSubjects)
-          .set({ teacherName: payload.teacherName, updatedAt: new Date() })
-          .where(eq(agendaSubjects.id, existing.id))
-          .returning();
-        if (merged) {
-          return { subject: merged, status: "merged" };
-        }
+      // Merge "fill-in-blank": para cada campo, só atualiza quando a row
+      // existente está em branco E o payload trouxe valor. Vale pra qualquer
+      // criador da row (turmas são compartilhadas — preencher branco é seguro).
+      const shouldFillTeacher = existing.teacherName === null && payload.teacherName !== null;
+      const shouldFillClassDays = existing.classDays.length === 0 && payload.classDays.length > 0;
+
+      if (!shouldFillTeacher && !shouldFillClassDays) {
+        return {
+          subject: existing,
+          status: "skipped" as const,
+          filled: { teacherName: false, classDays: false },
+        };
       }
 
-      return { subject: existing, status: "skipped" };
+      const updates: { teacherName?: string; classDays?: AgendaClassDay[]; updatedAt: Date } = {
+        updatedAt: new Date(),
+      };
+      if (shouldFillTeacher && payload.teacherName !== null) {
+        updates.teacherName = payload.teacherName;
+      }
+      if (shouldFillClassDays) {
+        updates.classDays = payload.classDays;
+      }
+
+      const [merged] = await tx
+        .update(agendaSubjects)
+        .set(updates)
+        .where(eq(agendaSubjects.id, existing.id))
+        .returning();
+      if (!merged) {
+        return {
+          subject: existing,
+          status: "skipped" as const,
+          filled: { teacherName: false, classDays: false },
+        };
+      }
+      return {
+        subject: merged,
+        status: "merged" as const,
+        filled: { teacherName: shouldFillTeacher, classDays: shouldFillClassDays },
+      };
     },
     { isolationLevel: "read committed" },
   );
@@ -165,6 +204,7 @@ export async function updateSubjectById(
     .set({
       name: payload.name,
       teacherName: payload.teacherName,
+      classDays: payload.classDays,
       updatedAt: new Date(),
     })
     .where(eq(agendaSubjects.id, id))

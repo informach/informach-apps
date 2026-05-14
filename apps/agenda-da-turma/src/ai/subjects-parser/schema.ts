@@ -47,6 +47,12 @@ export const subjectsParserSchema = z.object({
           .describe(
             "Nome do professor(a) APENAS quando explicitamente associado à matéria pelo usuário ou pela imagem. Não inventar. Sem prefixos 'Prof.'/'Profa.'. Null quando não houver.",
           ),
+        classDays: z
+          .array(z.enum(["mon", "tue", "wed", "thu", "fri"]))
+          .max(5)
+          .describe(
+            "Dias da semana em que a matéria tem aula (Seg-Sex). Use ['mon','tue','wed','thu','fri'] como enum. **SEMPRE retornar um array** — vazio (`[]`) quando o conteúdo NÃO informar horário. Quando o usuário enumerar dias por voz ('segunda, terça, quinta, sexta') ou a imagem mostrar uma grade de horário com colunas de dias, mapear cada matéria pros dias correspondentes. Sábado/domingo são ignorados nesta versão — se aparecer, simplesmente não incluir. Não inventar dias quando a fonte não disser.",
+          ),
       }),
     )
     .max(MAX_SUBJECTS_PER_BATCH)

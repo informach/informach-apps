@@ -10,6 +10,7 @@ import {
 } from "@informach/ui/components/dropdown-menu";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { formatClassDaysShort } from "../class-days";
 import type { Subject } from "../types";
 import { getSubjectIcon, getSubjectIconClassByIndex, getSubjectTintedClassByIndex } from "../utils";
 import { DeleteSubjectDialog } from "./delete-subject-dialog";
@@ -42,6 +43,11 @@ export function SubjectCard({ subject, turmaId, currentUserId }: Props) {
             <p className="truncate text-base font-semibold text-foreground">{subject.name}</p>
             {subject.teacherName ? (
               <p className="truncate text-sm text-muted-foreground">Prof. {subject.teacherName}</p>
+            ) : null}
+            {subject.classDays.length > 0 ? (
+              <p className="truncate text-xs text-muted-foreground">
+                {formatClassDaysShort(subject.classDays)}
+              </p>
             ) : null}
           </div>
           {canManage ? (

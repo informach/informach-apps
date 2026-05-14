@@ -121,7 +121,7 @@ const TURMAS: TurmaWithSubjectsForForm[] = [
     grade: "5ano",
     classLetter: "A",
     year: 2026,
-    subjects: [{ id: "subj-1", name: "Matemática", colorIndex: 1 }],
+    subjects: [{ id: "subj-1", name: "Matemática", colorIndex: 1, classDays: [] }],
   },
   {
     turmaId: "turma-b",
@@ -129,7 +129,7 @@ const TURMAS: TurmaWithSubjectsForForm[] = [
     grade: "6ano",
     classLetter: "B",
     year: 2026,
-    subjects: [{ id: "subj-2", name: "Português", colorIndex: 2 }],
+    subjects: [{ id: "subj-2", name: "Português", colorIndex: 2, classDays: [] }],
   },
 ];
 

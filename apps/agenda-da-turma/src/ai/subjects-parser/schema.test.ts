@@ -7,9 +7,9 @@ describe("subjectsParserSchema", () => {
       isValidInput: true,
       reason: null,
       subjects: [
-        { name: "Matemática", teacherName: "Carla" },
-        { name: "Português", teacherName: null },
-        { name: "Educação Física", teacherName: "Roberto Lima" },
+        { name: "Matemática", teacherName: "Carla", classDays: ["mon", "wed", "fri"] },
+        { name: "Português", teacherName: null, classDays: [] },
+        { name: "Educação Física", teacherName: "Roberto Lima", classDays: ["tue", "thu"] },
       ],
     });
     expect(result.success).toBe(true);
@@ -32,7 +32,7 @@ describe("subjectsParserSchema", () => {
     const result = subjectsParserSchema.safeParse({
       isValidInput: true,
       reason: null,
-      subjects: [{ name: "", teacherName: null }],
+      subjects: [{ name: "", teacherName: null, classDays: [] }],
     });
     expect(result.success).toBe(false);
   });
@@ -41,7 +41,7 @@ describe("subjectsParserSchema", () => {
     const result = subjectsParserSchema.safeParse({
       isValidInput: true,
       reason: null,
-      subjects: [{ name: "Matemática", teacherName: "" }],
+      subjects: [{ name: "Matemática", teacherName: "", classDays: [] }],
     });
     expect(result.success).toBe(false);
   });
@@ -50,7 +50,7 @@ describe("subjectsParserSchema", () => {
     const result = subjectsParserSchema.safeParse({
       isValidInput: true,
       reason: null,
-      subjects: [{ name: "x".repeat(81), teacherName: null }],
+      subjects: [{ name: "x".repeat(81), teacherName: null, classDays: [] }],
     });
     expect(result.success).toBe(false);
   });
@@ -59,6 +59,7 @@ describe("subjectsParserSchema", () => {
     const subjects = Array.from({ length: MAX_SUBJECTS_PER_BATCH + 1 }, (_, i) => ({
       name: `Matéria ${i}`,
       teacherName: null,
+      classDays: [],
     }));
     const result = subjectsParserSchema.safeParse({
       isValidInput: true,
@@ -72,6 +73,7 @@ describe("subjectsParserSchema", () => {
     const subjects = Array.from({ length: MAX_SUBJECTS_PER_BATCH }, (_, i) => ({
       name: `Matéria ${i}`,
       teacherName: null,
+      classDays: [],
     }));
     const result = subjectsParserSchema.safeParse({
       isValidInput: true,
@@ -79,5 +81,26 @@ describe("subjectsParserSchema", () => {
       subjects,
     });
     expect(result.success).toBe(true);
+  });
+
+  it("rejeita subject sem classDays — campo obrigatório (OpenAI strict mode)", () => {
+    // OpenAI/Azure strict response_format requer que TODOS os campos
+    // estejam em `required`. Removemos `.default([])` do schema; o modelo
+    // tem que sempre retornar o array (pode ser vazio).
+    const result = subjectsParserSchema.safeParse({
+      isValidInput: true,
+      reason: null,
+      subjects: [{ name: "Matemática", teacherName: null }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejeita classDays com valor fora do enum (sat/sun ignorados no v1)", () => {
+    const result = subjectsParserSchema.safeParse({
+      isValidInput: true,
+      reason: null,
+      subjects: [{ name: "Matemática", teacherName: null, classDays: ["mon", "sat"] }],
+    });
+    expect(result.success).toBe(false);
   });
 });

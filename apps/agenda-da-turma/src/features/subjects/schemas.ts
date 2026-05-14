@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CLASS_DAY_VALUES } from "./class-days";
 import { MAX_SUBJECT_NAME_LENGTH, MAX_TEACHER_NAME_LENGTH } from "./limits";
 
 const subjectIdSchema = z.string().uuid("Identificador de matéria inválido");
@@ -18,10 +19,20 @@ const teacherNameSchema = z
   .optional()
   .transform((v) => (v && v.length > 0 ? v : undefined));
 
+// Array de dias da semana (Seg-Sex). Sempre normaliza pra ordem canônica e
+// remove duplicatas — front pode mandar em qualquer ordem. Default vazio
+// quando o caller omite (compatível com form existente e fluxo de IA).
+const classDaysSchema = z
+  .array(z.enum(["mon", "tue", "wed", "thu", "fri"]))
+  .max(5)
+  .default([])
+  .transform((v) => CLASS_DAY_VALUES.filter((d) => v.includes(d)));
+
 export const createSubjectInputSchema = z.object({
   turmaId: turmaIdSchema,
   name: nameSchema,
   teacherName: teacherNameSchema,
+  classDays: classDaysSchema,
 });
 export type CreateSubjectInput = z.output<typeof createSubjectInputSchema>;
 export type CreateSubjectFormValues = z.input<typeof createSubjectInputSchema>;
@@ -30,6 +41,7 @@ export const updateSubjectInputSchema = z.object({
   id: subjectIdSchema,
   name: nameSchema,
   teacherName: teacherNameSchema,
+  classDays: classDaysSchema,
 });
 export type UpdateSubjectInput = z.output<typeof updateSubjectInputSchema>;
 
@@ -42,6 +54,7 @@ export type DeleteSubjectInput = z.output<typeof deleteSubjectInputSchema>;
 export const subjectFormSchema = z.object({
   name: nameSchema,
   teacherName: teacherNameSchema,
+  classDays: classDaysSchema,
 });
 export type SubjectFormValues = z.input<typeof subjectFormSchema>;
 
@@ -59,6 +72,7 @@ export const createSubjectsBatchInputSchema = z.object({
       z.object({
         name: nameSchema,
         teacherName: teacherNameSchema,
+        classDays: classDaysSchema,
       }),
     )
     .min(1, "Inclua pelo menos uma matéria")

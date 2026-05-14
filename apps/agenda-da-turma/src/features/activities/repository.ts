@@ -564,6 +564,7 @@ export async function listTurmasWithSubjectsForUserForm(
       id: agendaSubjects.id,
       name: agendaSubjects.name,
       colorIndex: agendaSubjects.colorIndex,
+      classDays: agendaSubjects.classDays,
     })
     .from(agendaSubjects)
     .where(inArray(agendaSubjects.turmaId, turmaIds))
@@ -572,7 +573,12 @@ export async function listTurmasWithSubjectsForUserForm(
   const subjectsByTurma = new Map<string, TurmaWithSubjectsForForm["subjects"]>();
   for (const s of subjects) {
     const list = subjectsByTurma.get(s.turmaId) ?? [];
-    list.push({ id: s.id, name: s.name, colorIndex: s.colorIndex });
+    list.push({
+      id: s.id,
+      name: s.name,
+      colorIndex: s.colorIndex,
+      classDays: s.classDays,
+    });
     subjectsByTurma.set(s.turmaId, list);
   }
 
