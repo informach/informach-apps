@@ -166,10 +166,12 @@ export function ActivityFormDialog({
         const result = await catchActionResult(() =>
           updateActivityAction({
             id: activity.activityId,
+            subjectId: values.subjectId,
             type: values.type,
             title: values.title,
             description: values.description,
             dueAt: values.dueAt,
+            visibility: values.visibility,
           }),
         );
         if (!result.ok) {
@@ -191,6 +193,11 @@ export function ActivityFormDialog({
           if (result.error.code === "FORBIDDEN") {
             toast.error("Só quem criou a atividade pode editar.");
             onOpenChange(false);
+            router.refresh();
+            return;
+          }
+          if (result.error.code === "SUBJECT_NOT_FOUND") {
+            toast.error("Matéria não encontrada na turma.");
             router.refresh();
             return;
           }
@@ -283,7 +290,7 @@ export function ActivityFormDialog({
           <DialogTitle>{isEdit ? "Editar atividade" : "Nova atividade"}</DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Você pode ajustar o título, a observação, a data e o tipo. Turma, matéria e visibilidade ficam fixas após o cadastro."
+              ? "Você pode ajustar matéria, visibilidade, título, observação, data e tipo. A turma fica fixa após o cadastro."
               : "Cadastre uma tarefa, prova, trabalho ou lembrete para a turma."}
           </DialogDescription>
         </DialogHeader>
@@ -318,86 +325,78 @@ export function ActivityFormDialog({
             <form onSubmit={onSubmit} className="space-y-4">
               {isEdit ? (
                 <div className="rounded-md border border-border bg-muted/40 p-3 text-sm">
-                  <p className="font-medium text-foreground">{activity.subjectName}</p>
+                  <p className="font-medium text-foreground">{activity.schoolName}</p>
                   <p className="text-muted-foreground">
-                    {activity.schoolName} ·{" "}
-                    {/* year not in ActivityToEdit, mostra grade+letter apenas */}
-                    {activity.grade.replace(/[^0-9]/g, "")}º ano {activity.classLetter}
+                    Turma · {activity.grade.replace(/[^0-9]/g, "")}º ano {activity.classLetter}
                   </p>
-                  {activity.visibility === "shared_with_turma" ? (
-                    <p className="mt-1 text-xs text-muted-foreground">Compartilhada com a turma</p>
-                  ) : null}
                 </div>
               ) : (
-                <>
-                  <FormField
-                    control={form.control}
-                    name="turmaId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Turma</FormLabel>
-                        {turmas.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">
-                            Você ainda não tem nenhuma turma ativa. Vincule um perfil a uma turma em
-                            /turmas antes de criar atividades.
-                          </p>
-                        ) : (
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecione a turma" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {turmas.map((t) => (
-                                <SelectItem key={t.turmaId} value={t.turmaId}>
-                                  {t.schoolName} —{" "}
-                                  {formatTurmaShort(t.grade, t.classLetter, t.year)}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="subjectId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Matéria</FormLabel>
-                        <FormControl>
-                          <AsyncCombobox
-                            value={field.value || null}
-                            onChange={(id) => field.onChange(id ?? "")}
-                            fetchOptions={fetchSubjectOptions}
-                            placeholder={
-                              !selectedTurmaId
-                                ? "Escolha a turma primeiro"
-                                : subjectsForTurma.length === 0
-                                  ? "Cadastre uma matéria primeiro"
-                                  : "Selecione a matéria"
-                            }
-                            searchPlaceholder="Buscar matéria..."
-                            emptyText="Nenhuma matéria encontrada"
-                            disabled={!selectedTurmaId || subjectsForTurma.length === 0}
-                            resetKey={selectedTurmaId || "no-turma"}
-                            initialLabel={
-                              field.value
-                                ? (subjectsForTurma.find((s) => s.id === field.value)?.name ?? null)
-                                : null
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </>
+                <FormField
+                  control={form.control}
+                  name="turmaId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Turma</FormLabel>
+                      {turmas.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          Você ainda não tem nenhuma turma ativa. Vincule um perfil a uma turma em
+                          /turmas antes de criar atividades.
+                        </p>
+                      ) : (
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione a turma" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {turmas.map((t) => (
+                              <SelectItem key={t.turmaId} value={t.turmaId}>
+                                {t.schoolName} — {formatTurmaShort(t.grade, t.classLetter, t.year)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               )}
+
+              <FormField
+                control={form.control}
+                name="subjectId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Matéria</FormLabel>
+                    <FormControl>
+                      <AsyncCombobox
+                        value={field.value || null}
+                        onChange={(id) => field.onChange(id ?? "")}
+                        fetchOptions={fetchSubjectOptions}
+                        placeholder={
+                          !selectedTurmaId
+                            ? "Escolha a turma primeiro"
+                            : subjectsForTurma.length === 0
+                              ? "Cadastre uma matéria primeiro"
+                              : "Selecione a matéria"
+                        }
+                        searchPlaceholder="Buscar matéria..."
+                        emptyText="Nenhuma matéria encontrada"
+                        disabled={!selectedTurmaId || subjectsForTurma.length === 0}
+                        resetKey={selectedTurmaId || "no-turma"}
+                        initialLabel={
+                          field.value
+                            ? (subjectsForTurma.find((s) => s.id === field.value)?.name ?? null)
+                            : null
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}
@@ -477,74 +476,72 @@ export function ActivityFormDialog({
                 )}
               />
 
-              {!isEdit ? (
-                <FormField
-                  control={form.control}
-                  name="visibility"
-                  render={({ field }) => (
-                    <FormItem className="space-y-2">
-                      <FormLabel>Visibilidade</FormLabel>
-                      <FormControl>
-                        <RadioGroup
-                          value={field.value}
-                          onValueChange={field.onChange}
-                          className="space-y-2"
+              <FormField
+                control={form.control}
+                name="visibility"
+                render={({ field }) => (
+                  <FormItem className="space-y-2">
+                    <FormLabel>Visibilidade</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        className="space-y-2"
+                      >
+                        <label
+                          htmlFor="activity-visibility-individual"
+                          className="flex items-start gap-3 rounded-md border border-border p-3 cursor-pointer hover:bg-accent/40"
                         >
-                          <label
-                            htmlFor="activity-visibility-individual"
-                            className="flex items-start gap-3 rounded-md border border-border p-3 cursor-pointer hover:bg-accent/40"
-                          >
-                            <RadioGroupItem
-                              id="activity-visibility-individual"
-                              value="individual"
-                              className="mt-1"
-                            />
-                            <div className="text-sm">
-                              <p className="font-medium">Só para mim</p>
-                              <p className="text-muted-foreground">
-                                A atividade fica visível só pra você.
-                              </p>
+                          <RadioGroupItem
+                            id="activity-visibility-individual"
+                            value="individual"
+                            className="mt-1"
+                          />
+                          <div className="text-sm">
+                            <p className="font-medium">Só para mim</p>
+                            <p className="text-muted-foreground">
+                              A atividade fica visível só pra você.
+                            </p>
+                          </div>
+                        </label>
+                        <label
+                          htmlFor="activity-visibility-shared"
+                          className={`flex items-start gap-3 rounded-md border border-border p-3 ${
+                            isPro
+                              ? "cursor-pointer hover:bg-accent/40"
+                              : "cursor-not-allowed opacity-60"
+                          }`}
+                        >
+                          <RadioGroupItem
+                            id="activity-visibility-shared"
+                            value="shared_with_turma"
+                            className="mt-1"
+                            disabled={!isPro}
+                          />
+                          <div className="text-sm flex-1">
+                            <div className="flex items-center gap-1.5 font-medium">
+                              <span>Compartilhar com a turma</span>
+                              {!isPro ? <Badge variant="secondary">Pro</Badge> : null}
                             </div>
-                          </label>
-                          <label
-                            htmlFor="activity-visibility-shared"
-                            className={`flex items-start gap-3 rounded-md border border-border p-3 ${
-                              isPro
-                                ? "cursor-pointer hover:bg-accent/40"
-                                : "cursor-not-allowed opacity-60"
-                            }`}
-                          >
-                            <RadioGroupItem
-                              id="activity-visibility-shared"
-                              value="shared_with_turma"
-                              className="mt-1"
-                              disabled={!isPro}
-                            />
-                            <div className="text-sm flex-1">
-                              <div className="flex items-center gap-1.5 font-medium">
-                                <span>Compartilhar com a turma</span>
-                                {!isPro ? <Badge variant="secondary">Pro</Badge> : null}
-                              </div>
-                              <p className="text-muted-foreground">
-                                Outras famílias da turma podem aceitar a atividade no dashboard.
-                              </p>
-                              {!isPro ? (
-                                <Link
-                                  href="/upgrade"
-                                  className="mt-1 inline-block text-xs font-medium text-primary hover:underline"
-                                >
-                                  Ver planos Pro
-                                </Link>
-                              ) : null}
-                            </div>
-                          </label>
-                        </RadioGroup>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              ) : null}
+                            <p className="text-muted-foreground">
+                              Outras famílias da turma podem aceitar a atividade no dashboard.
+                            </p>
+                            {!isPro ? (
+                              <Link
+                                href="/upgrade"
+                                className="mt-1 inline-block text-xs font-medium text-primary hover:underline"
+                              >
+                                Ver planos Pro
+                              </Link>
+                            ) : null}
+                          </div>
+                        </label>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <DialogFooter>
                 <Button

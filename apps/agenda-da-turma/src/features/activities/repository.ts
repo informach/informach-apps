@@ -74,7 +74,9 @@ export type NewActivityPayload = {
 };
 
 export type UpdateActivityPayload = {
+  subjectId: string;
   type: ActivityType;
+  visibility: ActivityVisibility;
   title: string;
   description: string | null;
   dueAt: string;
@@ -256,7 +258,9 @@ export async function updateActivityById(
   const [row] = await db
     .update(agendaActivities)
     .set({
+      subjectId: payload.subjectId,
       type: payload.type,
+      visibility: payload.visibility,
       title: payload.title,
       description: payload.description,
       dueAt: payload.dueAt,

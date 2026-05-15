@@ -102,20 +102,61 @@ describe("updateActivityInputSchema", () => {
   it("aceita payload de update", () => {
     const result = updateActivityInputSchema.parse({
       id: validUuid,
+      subjectId: validUuid,
+      type: "exam",
+      title: "Prova de história",
+      dueAt: "2026-06-02",
+      visibility: "individual",
+    });
+    expect(result.type).toBe("exam");
+    expect(result.dueAt).toBe("2026-06-02");
+    expect(result.subjectId).toBe(validUuid);
+    expect(result.visibility).toBe("individual");
+  });
+
+  it("default visibility=individual quando não informado", () => {
+    const result = updateActivityInputSchema.parse({
+      id: validUuid,
+      subjectId: validUuid,
       type: "exam",
       title: "Prova de história",
       dueAt: "2026-06-02",
     });
-    expect(result.type).toBe("exam");
-    expect(result.dueAt).toBe("2026-06-02");
+    expect(result.visibility).toBe("individual");
+  });
+
+  it("aceita visibility=shared_with_turma", () => {
+    const result = updateActivityInputSchema.parse({
+      id: validUuid,
+      subjectId: validUuid,
+      type: "exam",
+      title: "Prova de história",
+      dueAt: "2026-06-02",
+      visibility: "shared_with_turma",
+    });
+    expect(result.visibility).toBe("shared_with_turma");
   });
 
   it("rejeita id não-uuid", () => {
     const result = updateActivityInputSchema.safeParse({
       id: "abc",
+      subjectId: validUuid,
       type: "task",
       title: "x",
       dueAt: "2026-06-02",
+      visibility: "individual",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejeita subjectId não-uuid", () => {
+    const result = updateActivityInputSchema.safeParse({
+      id: validUuid,
+      subjectId: "not-a-uuid",
+      type: "task",
+      title: "x",
+      dueAt: "2026-06-02",
+      visibility: "individual",
     });
     expect(result.success).toBe(false);
   });

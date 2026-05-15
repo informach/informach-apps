@@ -197,14 +197,31 @@ export async function updateActivity(
   if (activity.createdByUserId !== userId) return err({ code: "FORBIDDEN" });
 
   // Atividades compartilhadas que já foram aceitas por outras famílias ficam
-  // congeladas — alterar título/data/tipo confundiria quem já adicionou à
-  // sua agenda. Individuais nunca têm acceptances, então não passam por aqui.
+  // congeladas — alterar qualquer campo (inclusive matéria/visibilidade)
+  // confundiria quem já adicionou à própria agenda. Individuais nunca têm
+  // acceptances, então não passam por aqui.
   if (activity.visibility === "shared_with_turma" && (await hasOtherAcceptances(activity.id))) {
     return err({ code: "HAS_ACCEPTANCES" });
   }
 
+  // Matéria precisa pertencer à turma original — defesa contra payload
+  // adulterado tentando mover a atividade pra subject de outra turma.
+  // Sempre valida contra activity.turmaId (banco), nunca contra input.
+  const isValidSubject = await subjectBelongsToTurma(input.subjectId, activity.turmaId);
+  if (!isValidSubject) return err({ code: "SUBJECT_NOT_FOUND" });
+
+  // Free não pode tornar uma atividade compartilhada (mesma regra do create).
+  // UI desabilita a opção; aqui é defesa em profundidade.
+  const isPro = await billing.hasProSubscription(userSubject(userId));
+  let visibility = input.visibility;
+  if (visibility === "shared_with_turma" && !isPro) {
+    visibility = "individual";
+  }
+
   const updated = await updateActivityById(input.id, {
+    subjectId: input.subjectId,
     type: input.type,
+    visibility,
     title: input.title,
     description: input.description ?? null,
     dueAt: input.dueAt,

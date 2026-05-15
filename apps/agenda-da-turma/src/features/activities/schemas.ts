@@ -52,15 +52,19 @@ export const createActivityInputSchema = z.object({
 export type CreateActivityInput = z.output<typeof createActivityInputSchema>;
 export type CreateActivityFormValues = z.input<typeof createActivityInputSchema>;
 
-// Update permite mudar título, observação, data e tipo. Visibilidade, matéria
-// e turma são fixas após o create — mudar isso teria efeitos complexos em
-// activity_statuses pra outras famílias.
+// Update permite mudar título, observação, data, tipo, matéria e visibilidade.
+// Apenas a turma é fixa após o create — mudar turma invalidaria
+// activity_statuses dos perfis ativos. Matéria e visibilidade têm gate
+// adicional via HAS_ACCEPTANCES no service: se outra família já aceitou a
+// atividade compartilhada, o edit inteiro fica bloqueado.
 export const updateActivityInputSchema = z.object({
   id: activityIdSchema,
+  subjectId: subjectIdSchema,
   type: typeSchema,
   title: titleSchema,
   description: descriptionSchema,
   dueAt: dueAtSchema,
+  visibility: visibilitySchema.default("individual"),
 });
 export type UpdateActivityInput = z.output<typeof updateActivityInputSchema>;
 

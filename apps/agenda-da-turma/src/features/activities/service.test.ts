@@ -295,14 +295,17 @@ describe("createActivitiesBatch", () => {
 describe("updateActivity", () => {
   const updateInput = {
     id: activityId,
+    subjectId,
     type: "exam" as const,
     title: "Prova surpresa",
     description: undefined,
     dueAt: "2026-06-05",
+    visibility: "individual" as const,
   };
 
   it("atualiza individual livremente pelo creator", async () => {
     mocks.findActivityById.mockResolvedValue(baseActivity);
+    mocks.subjectBelongsToTurma.mockResolvedValue(true);
     mocks.updateActivityById.mockResolvedValue({ ...baseActivity, ...updateInput });
 
     const result = await updateActivity(creator.id, updateInput);
@@ -314,6 +317,7 @@ describe("updateActivity", () => {
   it("atualiza compartilhada sem acceptances", async () => {
     mocks.findActivityById.mockResolvedValue({ ...baseActivity, visibility: "shared_with_turma" });
     mocks.hasOtherAcceptances.mockResolvedValue(false);
+    mocks.subjectBelongsToTurma.mockResolvedValue(true);
     mocks.updateActivityById.mockResolvedValue({ ...baseActivity, ...updateInput });
 
     const result = await updateActivity(creator.id, updateInput);
@@ -330,6 +334,7 @@ describe("updateActivity", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe("HAS_ACCEPTANCES");
     expect(mocks.updateActivityById).not.toHaveBeenCalled();
+    expect(mocks.subjectBelongsToTurma).not.toHaveBeenCalled();
   });
 
   it("rejeita FORBIDDEN quando não-criador tenta editar", async () => {
@@ -348,6 +353,94 @@ describe("updateActivity", () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe("NOT_FOUND");
+  });
+
+  it("aceita troca de matéria para outra subject da mesma turma", async () => {
+    mocks.findActivityById.mockResolvedValue(baseActivity);
+    mocks.subjectBelongsToTurma.mockResolvedValue(true);
+    mocks.updateActivityById.mockResolvedValue({
+      ...baseActivity,
+      subjectId: "subj_2",
+    });
+
+    const result = await updateActivity(creator.id, { ...updateInput, subjectId: "subj_2" });
+
+    expect(result.ok).toBe(true);
+    // Validação SEMPRE usa activity.turmaId do banco, nunca turma do input.
+    expect(mocks.subjectBelongsToTurma).toHaveBeenCalledWith("subj_2", turmaId);
+    expect(mocks.updateActivityById).toHaveBeenCalledWith(
+      activityId,
+      expect.objectContaining({ subjectId: "subj_2" }),
+    );
+  });
+
+  it("rejeita SUBJECT_NOT_FOUND quando matéria não pertence à turma original", async () => {
+    mocks.findActivityById.mockResolvedValue(baseActivity);
+    mocks.subjectBelongsToTurma.mockResolvedValue(false);
+
+    const result = await updateActivity(creator.id, { ...updateInput, subjectId: "subj_other" });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("SUBJECT_NOT_FOUND");
+    expect(mocks.updateActivityById).not.toHaveBeenCalled();
+  });
+
+  it("preserva visibility=shared_with_turma quando Pro flipa individual → shared (sem acceptances)", async () => {
+    mocks.findActivityById.mockResolvedValue(baseActivity);
+    mocks.subjectBelongsToTurma.mockResolvedValue(true);
+    mocks.hasProSubscription.mockResolvedValue(true);
+    mocks.updateActivityById.mockResolvedValue({
+      ...baseActivity,
+      visibility: "shared_with_turma",
+    });
+
+    const result = await updateActivity(creator.id, {
+      ...updateInput,
+      visibility: "shared_with_turma",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(mocks.updateActivityById).toHaveBeenCalledWith(
+      activityId,
+      expect.objectContaining({ visibility: "shared_with_turma" }),
+    );
+  });
+
+  it("força visibility=individual quando Free tenta setar shared (defesa em profundidade)", async () => {
+    mocks.findActivityById.mockResolvedValue(baseActivity);
+    mocks.subjectBelongsToTurma.mockResolvedValue(true);
+    mocks.hasProSubscription.mockResolvedValue(false);
+    mocks.updateActivityById.mockResolvedValue(baseActivity);
+
+    const result = await updateActivity(creator.id, {
+      ...updateInput,
+      visibility: "shared_with_turma",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(mocks.updateActivityById).toHaveBeenCalledWith(
+      activityId,
+      expect.objectContaining({ visibility: "individual" }),
+    );
+  });
+
+  it("permite Pro flipar shared → individual quando ninguém aceitou", async () => {
+    mocks.findActivityById.mockResolvedValue({ ...baseActivity, visibility: "shared_with_turma" });
+    mocks.hasOtherAcceptances.mockResolvedValue(false);
+    mocks.subjectBelongsToTurma.mockResolvedValue(true);
+    mocks.hasProSubscription.mockResolvedValue(true);
+    mocks.updateActivityById.mockResolvedValue({ ...baseActivity, visibility: "individual" });
+
+    const result = await updateActivity(creator.id, {
+      ...updateInput,
+      visibility: "individual",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(mocks.updateActivityById).toHaveBeenCalledWith(
+      activityId,
+      expect.objectContaining({ visibility: "individual" }),
+    );
   });
 });
 
@@ -573,10 +666,12 @@ describe("shared activity edit-block chain (creator vs acceptor)", () => {
 
     const updateAttempt = await updateActivity(creator.id, {
       id: activityId,
+      subjectId,
       type: "task",
       title: "Edit attempt — should fail",
       description: undefined,
       dueAt: "2026-06-05",
+      visibility: "shared_with_turma",
     });
     expect(updateAttempt.ok).toBe(false);
     if (!updateAttempt.ok) expect(updateAttempt.error.code).toBe("HAS_ACCEPTANCES");
@@ -595,10 +690,12 @@ describe("shared activity edit-block chain (creator vs acceptor)", () => {
 
     const updateAttempt = await updateActivity(other.id, {
       id: activityId,
+      subjectId,
       type: "task",
       title: "Edit attempt by acceptor",
       description: undefined,
       dueAt: "2026-06-05",
+      visibility: "shared_with_turma",
     });
     expect(updateAttempt.ok).toBe(false);
     if (!updateAttempt.ok) expect(updateAttempt.error.code).toBe("FORBIDDEN");
