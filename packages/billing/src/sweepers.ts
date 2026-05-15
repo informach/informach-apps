@@ -70,7 +70,10 @@ export async function expireMonthlyBonusCredits(
       jsonb_build_object(
         'originalEntryId', src.id::text,
         'originalExpiresAt', src.expires_at,
-        'sweptAt', ${now.toISOString()}
+        -- Cast explícito: jsonb_build_object é variadic "any", então o
+        -- Postgres não infere o tipo do parâmetro pelo contexto e rejeita o
+        -- prepare com "could not determine data type of parameter $1".
+        'sweptAt', ${now.toISOString()}::timestamptz
       )
     FROM billing.credit_ledger src
     WHERE src.app = ${deps.app}
