@@ -1,14 +1,41 @@
-import { createHash } from "node:crypto";
 import type { ErrorEvent, EventHint } from "@sentry/nextjs";
 
 const EMAIL_PATTERN = /([A-Za-z0-9._%+-]+)@([A-Za-z0-9.-]+\.[A-Za-z]{2,})/g;
 
-function hashEmail(email: string): string {
-  return `email_${createHash("sha256").update(email.toLowerCase()).digest("hex").slice(0, 12)}`;
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function maskEmailsInString(value: string): string {
-  return value.replace(EMAIL_PATTERN, (_match) => hashEmail(_match));
+async function hashEmail(email: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(email.toLowerCase()),
+  );
+
+  return `email_${bytesToHex(new Uint8Array(digest)).slice(0, 12)}`;
+}
+
+async function maskEmailsInString(value: string): Promise<string> {
+  const emails = Array.from(
+    new Set(Array.from(value.matchAll(EMAIL_PATTERN), ([email]) => email.toLowerCase())),
+  );
+
+  if (emails.length === 0) {
+    return value;
+  }
+
+  const hashedEmails = new Map<string, string>();
+
+  await Promise.all(
+    emails.map(async (email) => {
+      hashedEmails.set(email, await hashEmail(email));
+    }),
+  );
+
+  return value.replace(
+    EMAIL_PATTERN,
+    (email) => hashedEmails.get(email.toLowerCase()) ?? "[Filtered]",
+  );
 }
 
 /**
@@ -24,10 +51,13 @@ function maskEmailsInString(value: string): string {
  * de breadcrumbs são pequenos e auto-gerados pelo SDK; o maior risco
  * documentado está em request body e em mensagens de exceção.
  */
-export function scrubSentryEvent<T extends ErrorEvent>(event: T, _hint?: EventHint): T | null {
+export async function scrubSentryEvent<T extends ErrorEvent>(
+  event: T,
+  _hint?: EventHint,
+): Promise<T | null> {
   if (event.user) {
     if (typeof event.user.email === "string" && event.user.email) {
-      event.user.email = hashEmail(event.user.email);
+      event.user.email = await hashEmail(event.user.email);
     }
     // ip_address pode ser PII no contexto LGPD; mantemos opt-in via Sentry server-side scrubbing.
   }
@@ -49,12 +79,12 @@ export function scrubSentryEvent<T extends ErrorEvent>(event: T, _hint?: EventHi
   }
 
   if (event.message) {
-    event.message = maskEmailsInString(event.message);
+    event.message = await maskEmailsInString(event.message);
   }
 
   if (event.exception?.values) {
     for (const ex of event.exception.values) {
-      if (ex.value) ex.value = maskEmailsInString(ex.value);
+      if (ex.value) ex.value = await maskEmailsInString(ex.value);
     }
   }
 
