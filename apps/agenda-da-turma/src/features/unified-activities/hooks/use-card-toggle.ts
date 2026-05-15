@@ -24,11 +24,17 @@ type Args = {
  * - aplica `optimisticStatus` imediato pra feedback visual,
  * - dispara `isExiting` quando o card vai sair do bucket
  *   (`optimisticHideWhenDone`) — o caller usa essa flag pra anim CSS,
- * - agenda `optimisticallyHidden = true` após `exitMs` (desmonta após a
- *   animação),
- * - chama a Server Action via `startTransition` em paralelo,
+ * - chama a Server Action e o exit timer EM PARALELO (`Promise.all`),
+ * - quando ambos terminam: marca `optimisticallyHidden = true` (se for
+ *   o caso) e chama `router.refresh()` pra invalidar o RSC do parent
+ *   (KPIs do dashboard, ordenação da lista de atividades, etc),
  * - reverte tudo se a action falhar e delega o toast pro caller via
  *   `onError`.
+ *
+ * O `router.refresh()` em sucesso é defensivo: as server actions também
+ * chamam `refresh()` de `next/cache` (commit c200c94), mas em prod com
+ * `output: standalone` + `next start` essa via não dispara consistentemente
+ * o re-fetch RSC do client. Belt + suspenders.
  *
  * Hook é agnóstico de UX (sem strings de toast); cada card decide as
  * mensagens com base nos códigos de erro específicos da sua action.
@@ -59,22 +65,36 @@ export function useCardToggle({
     const nextStatus: Status = next ? "done" : "pending";
     setOptimisticStatus(nextStatus);
 
-    let exitTimer: ReturnType<typeof setTimeout> | null = null;
-    if (optimisticHideWhenDone && nextStatus === "done") {
+    const willExit = optimisticHideWhenDone && nextStatus === "done";
+    if (willExit) {
       setIsExiting(true);
-      exitTimer = setTimeout(() => setOptimisticallyHidden(true), exitMs);
     }
 
     startTransition(async () => {
-      const result = await catchActionResult(() => toggleAction(nextStatus));
+      // Roda action e exit timer EM PARALELO. Em sucesso, espera ambos pra
+      // (a) preservar a animação CSS (sem refresh cortar antes dos exitMs)
+      // e (b) sincronizar UI com o server (KPIs, ordenação na lista).
+      const exitPromise = willExit
+        ? new Promise<void>((resolve) => setTimeout(resolve, exitMs))
+        : Promise.resolve();
+      const [result] = await Promise.all([
+        catchActionResult(() => toggleAction(nextStatus)),
+        exitPromise,
+      ]);
+
       if (!result.ok) {
         setOptimisticStatus(previousStatus);
         setIsExiting(false);
         setOptimisticallyHidden(false);
-        if (exitTimer) clearTimeout(exitTimer);
         onError?.(result.error);
         router.refresh();
+        return;
       }
+
+      if (willExit) {
+        setOptimisticallyHidden(true);
+      }
+      router.refresh();
     });
   };
 
