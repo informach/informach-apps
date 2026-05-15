@@ -1,5 +1,6 @@
 "use server";
 
+import { refresh } from "next/cache";
 import { action, err, ok } from "@/lib/action";
 import { logAgendaAuditEvent } from "@/lib/audit";
 import { logger } from "@/lib/logger";
@@ -48,6 +49,7 @@ export const createActivityAction = action
       type: input.type,
       visibility: result.value.visibility,
     });
+    refresh();
     return ok({ id: result.value.id } as const);
   });
 
@@ -64,6 +66,7 @@ export const updateActivityAction = action
 
     logger.info({ userId, activityId: result.value.id }, "agenda.activity_updated");
     await logAgendaAuditEvent("agenda.activity_updated", userId, { activityId: result.value.id });
+    refresh();
     return ok({ id: result.value.id } as const);
   });
 
@@ -80,6 +83,7 @@ export const deleteActivityAction = action
 
     logger.info({ userId, activityId: input.id }, "agenda.activity_deleted");
     await logAgendaAuditEvent("agenda.activity_deleted", userId, { activityId: input.id });
+    refresh();
     return ok({ id: input.id } as const);
   });
 
@@ -104,6 +108,7 @@ export const setActivityStatusAction = action
       studentProfileId: input.studentProfileId,
       status: input.status,
     });
+    refresh();
     return ok({ statusId: result.value.statusId } as const);
   });
 
@@ -133,6 +138,7 @@ export const createActivitiesBatchAction = action
     await logAgendaAuditEvent("agenda.activity_created", userId, {
       batch: { count: activities.length, visibility: input.visibility },
     });
+    refresh();
     return ok({
       activityIds: activities.map((a) => a.id),
       count: activities.length,
@@ -158,5 +164,6 @@ export const respondSharedActivityAction = action
       activityId: result.value.activityId,
       accepted: result.value.accepted,
     });
+    refresh();
     return ok({ activityId: result.value.activityId } as const);
   });

@@ -1,5 +1,6 @@
 "use server";
 
+import { refresh } from "next/cache";
 import { action, err, ok } from "@/lib/action";
 import { logAgendaAuditEvent } from "@/lib/audit";
 import { logger } from "@/lib/logger";
@@ -39,6 +40,7 @@ export const createProfileSubjectActivityAction = action
       profileSubjectActivityId: result.value.id,
       profileSubjectId: input.profileSubjectId,
     });
+    refresh();
     return ok({ id: result.value.id } as const);
   });
 
@@ -57,6 +59,7 @@ export const updateProfileSubjectActivityAction = action
     await logAgendaAuditEvent("agenda.profile_subject_activity_updated", userId, {
       profileSubjectActivityId: result.value.id,
     });
+    refresh();
     return ok({ id: result.value.id } as const);
   });
 
@@ -75,6 +78,7 @@ export const deleteProfileSubjectActivityAction = action
     await logAgendaAuditEvent("agenda.profile_subject_activity_deleted", userId, {
       profileSubjectActivityId: input.id,
     });
+    refresh();
     return ok({ id: input.id } as const);
   });
 
@@ -97,5 +101,6 @@ export const setProfileSubjectActivityStatusAction = action
       profileSubjectActivityId: input.id,
       status: input.status,
     });
+    refresh();
     return ok({ id: input.id, status: input.status } as const);
   });
