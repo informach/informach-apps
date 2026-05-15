@@ -15,7 +15,7 @@ import { toast } from "@informach/ui/components/sonner";
 import { cn } from "@informach/ui/lib/utils";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   getSubjectIconClassByIndex,
   getSubjectTintedClassByIndex,
@@ -45,6 +45,11 @@ type Props = {
    * o card é uma vista panorâmica e edições acontecem em /atividades.
    */
   hideActions?: boolean;
+  /**
+   * Dashboard só mostra buckets pendentes. Ao concluir, remove o item localmente
+   * enquanto a Server Action refresca a rota.
+   */
+  optimisticHideWhenDone?: boolean;
 };
 
 export function ActivityCard({
@@ -53,31 +58,49 @@ export function ActivityCard({
   isPro,
   turmasForForm,
   hideActions = false,
+  optimisticHideWhenDone = false,
 }: Props) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [optimisticStatus, setOptimisticStatus] = useState(item.status);
+  const [optimisticallyHidden, setOptimisticallyHidden] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const TypeIcon = getActivityTypeIcon(item.type);
-  const isDone = item.status === "done";
-  const urgency = getDueUrgency(item.dueAt, item.status);
+  const isDone = optimisticStatus === "done";
+  const urgency = getDueUrgency(item.dueAt, optimisticStatus);
   const checkboxId = `activity-status-${item.statusId}`;
+
+  useEffect(() => {
+    setOptimisticStatus(item.status);
+    setOptimisticallyHidden(false);
+  }, [item.status]);
 
   // Só o criador edita/deleta. E se foi compartilhada e alguém aceitou, mesmo
   // o criador fica trancado. Service aplica a regra também — UI só esconde.
   const canManage = !hideActions && canEditActivity(item, currentUserId);
 
   const handleToggle = (next: boolean) => {
+    const previousStatus = optimisticStatus;
+    const nextStatus = next ? "done" : "pending";
+
+    setOptimisticStatus(nextStatus);
+    if (optimisticHideWhenDone && nextStatus === "done") {
+      setOptimisticallyHidden(true);
+    }
+
     startTransition(async () => {
       const result = await catchActionResult(() =>
         setActivityStatusAction({
           activityId: item.activityId,
           studentProfileId: item.studentProfileId,
-          status: next ? "done" : "pending",
+          status: nextStatus,
         }),
       );
       if (!result.ok) {
+        setOptimisticStatus(previousStatus);
+        setOptimisticallyHidden(false);
         if (isActionRejected(result.error)) {
           toast.error("Não foi possível atualizar.", {
             description: "Atualize a página e tente novamente.",
@@ -92,9 +115,10 @@ export function ActivityCard({
         router.refresh();
         return;
       }
-      router.refresh();
     });
   };
+
+  if (optimisticallyHidden) return null;
 
   return (
     <>

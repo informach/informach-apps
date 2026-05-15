@@ -108,6 +108,7 @@ export function ActivityBucketSection({
               isPro={isPro}
               turmasForForm={turmasForForm}
               hideActions
+              optimisticHideWhenDone
             />
           ))}
         </div>

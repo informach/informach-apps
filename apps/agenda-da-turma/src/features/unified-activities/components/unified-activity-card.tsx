@@ -8,7 +8,7 @@ import { toast } from "@informach/ui/components/sonner";
 import { cn } from "@informach/ui/lib/utils";
 import { Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { ActivityCard } from "@/features/activities/components/activity-card";
 import type { TurmaWithSubjectsForForm } from "@/features/activities/types";
 import {
@@ -36,6 +36,11 @@ type Props = {
    * card é uma vista panorâmica; edições acontecem na página específica.
    */
   hideActions?: boolean;
+  /**
+   * Dashboard só mostra buckets pendentes. Ao concluir, remove o item localmente
+   * enquanto a Server Action refresca a rota.
+   */
+  optimisticHideWhenDone?: boolean;
 };
 
 // Despacha o card correto baseado no `source`. Mantém ActivityCard intacto
@@ -49,6 +54,7 @@ export function UnifiedActivityCard({
   isPro,
   turmasForForm,
   hideActions,
+  optimisticHideWhenDone = false,
 }: Props) {
   if (item.source === "turma") {
     return (
@@ -58,33 +64,53 @@ export function UnifiedActivityCard({
         isPro={isPro}
         turmasForForm={turmasForForm}
         hideActions={hideActions}
+        optimisticHideWhenDone={optimisticHideWhenDone}
       />
     );
   }
-  return <UnifiedExtraActivityCard item={item} />;
+  return <UnifiedExtraActivityCard item={item} optimisticHideWhenDone={optimisticHideWhenDone} />;
 }
 
 function UnifiedExtraActivityCard({
   item,
+  optimisticHideWhenDone,
 }: {
   item: Extract<UnifiedActivityListItem, { source: "extra" }>;
+  optimisticHideWhenDone: boolean;
 }) {
   const router = useRouter();
+  const [optimisticStatus, setOptimisticStatus] = useState(item.status);
+  const [optimisticallyHidden, setOptimisticallyHidden] = useState(false);
   const [pending, startTransition] = useTransition();
   const TypeIcon = getActivityTypeIcon(item.type);
-  const isDone = item.status === "done";
-  const urgency = getDueUrgency(item.dueAt, item.status);
+  const isDone = optimisticStatus === "done";
+  const urgency = getDueUrgency(item.dueAt, optimisticStatus);
   const checkboxId = `extra-status-${item.activityId}`;
 
+  useEffect(() => {
+    setOptimisticStatus(item.status);
+    setOptimisticallyHidden(false);
+  }, [item.status]);
+
   const handleToggle = (next: boolean) => {
+    const previousStatus = optimisticStatus;
+    const nextStatus = next ? "done" : "pending";
+
+    setOptimisticStatus(nextStatus);
+    if (optimisticHideWhenDone && nextStatus === "done") {
+      setOptimisticallyHidden(true);
+    }
+
     startTransition(async () => {
       const result = await catchActionResult(() =>
         setProfileSubjectActivityStatusAction({
           id: item.activityId,
-          status: next ? "done" : "pending",
+          status: nextStatus,
         }),
       );
       if (!result.ok) {
+        setOptimisticStatus(previousStatus);
+        setOptimisticallyHidden(false);
         if (isActionRejected(result.error)) {
           toast.error("Não foi possível atualizar.", {
             description: "Atualize a página e tente novamente.",
@@ -97,9 +123,10 @@ function UnifiedExtraActivityCard({
         router.refresh();
         return;
       }
-      router.refresh();
     });
   };
+
+  if (optimisticallyHidden) return null;
 
   return (
     <Card
