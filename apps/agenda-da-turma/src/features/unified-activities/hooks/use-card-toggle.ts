@@ -12,6 +12,7 @@ type Args = {
   initialStatus: Status;
   optimisticHideWhenDone: boolean;
   toggleAction: (next: Status) => Promise<ToggleResult>;
+  onSuccess?: (previousStatus: Status, nextStatus: Status) => void;
   onError?: (error: { code: string }) => void;
   /** Tem que casar com a duration da transition do wrapper visual. */
   exitMs?: number;
@@ -26,15 +27,10 @@ type Args = {
  *   (`optimisticHideWhenDone`) — o caller usa essa flag pra anim CSS,
  * - chama a Server Action e o exit timer EM PARALELO (`Promise.all`),
  * - quando ambos terminam: marca `optimisticallyHidden = true` (se for
- *   o caso) e chama `router.refresh()` pra invalidar o RSC do parent
- *   (KPIs do dashboard, ordenação da lista de atividades, etc),
+ *   o caso), notifica o parent e chama `router.refresh()` pra sincronizar
+ *   o RSC do parent (KPIs do dashboard, ordenação da lista de atividades),
  * - reverte tudo se a action falhar e delega o toast pro caller via
  *   `onError`.
- *
- * O `router.refresh()` em sucesso é defensivo: as server actions também
- * chamam `refresh()` de `next/cache` (commit c200c94), mas em prod com
- * `output: standalone` + `next start` essa via não dispara consistentemente
- * o re-fetch RSC do client. Belt + suspenders.
  *
  * Hook é agnóstico de UX (sem strings de toast); cada card decide as
  * mensagens com base nos códigos de erro específicos da sua action.
@@ -43,6 +39,7 @@ export function useCardToggle({
   initialStatus,
   optimisticHideWhenDone,
   toggleAction,
+  onSuccess,
   onError,
   exitMs = 280,
 }: Args) {
@@ -94,6 +91,7 @@ export function useCardToggle({
       if (willExit) {
         setOptimisticallyHidden(true);
       }
+      onSuccess?.(previousStatus, nextStatus);
       router.refresh();
     });
   };

@@ -22,7 +22,7 @@ import {
 import { useCardToggle } from "@/features/unified-activities/hooks/use-card-toggle";
 import { isActionRejected } from "@/lib/action-result";
 import { setActivityStatusAction } from "../actions";
-import type { ActivityListItem, TurmaWithSubjectsForForm } from "../types";
+import type { ActivityListItem, ActivityStatusValue, TurmaWithSubjectsForForm } from "../types";
 import {
   canEditActivity,
   formatTurmaShort,
@@ -51,6 +51,11 @@ type Props = {
    * cuida do timing.
    */
   optimisticHideWhenDone?: boolean;
+  onStatusSuccess?: (
+    item: ActivityListItem,
+    previousStatus: ActivityStatusValue,
+    nextStatus: ActivityStatusValue,
+  ) => void;
 };
 
 export function ActivityCard({
@@ -60,6 +65,7 @@ export function ActivityCard({
   turmasForForm,
   hideActions = false,
   optimisticHideWhenDone = false,
+  onStatusSuccess,
 }: Props) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -73,6 +79,7 @@ export function ActivityCard({
         studentProfileId: item.studentProfileId,
         status: next,
       }),
+    onSuccess: (previousStatus, nextStatus) => onStatusSuccess?.(item, previousStatus, nextStatus),
     onError: (error) => {
       if (isActionRejected(error)) {
         toast.error("Não foi possível atualizar.", {

@@ -1,10 +1,14 @@
+"use client";
+
 import { Button } from "@informach/ui/components/button";
 import { cn } from "@informach/ui/lib/utils";
-import { ArrowRight, type LucideIcon } from "lucide-react";
+import { AlertCircle, ArrowRight, CalendarDays, Clock, type LucideIcon } from "lucide-react";
 import Link from "next/link";
-import type { TurmaWithSubjectsForForm } from "@/features/activities/types";
+import type { ActivityStatusValue, TurmaWithSubjectsForForm } from "@/features/activities/types";
 import { UnifiedActivityCard } from "@/features/unified-activities/components/unified-activity-card";
 import type { UnifiedActivityListItem } from "@/features/unified-activities/types";
+import type { DashboardBucket } from "../types";
+import { UpcomingGroupedList } from "./upcoming-grouped-list";
 
 type Tone = "destructive" | "chart-4" | "primary";
 
@@ -12,6 +16,18 @@ type ToneClasses = {
   border: string;
   bg: string;
   iconBg: string;
+};
+
+type BucketMeta = {
+  title: string;
+  tone: Tone;
+  Icon: LucideIcon;
+};
+
+const BUCKET_META: Record<DashboardBucket, BucketMeta> = {
+  overdue: { title: "Atrasadas", tone: "destructive", Icon: AlertCircle },
+  today: { title: "Hoje", tone: "chart-4", Icon: Clock },
+  week: { title: "Próximos 7 dias", tone: "primary", Icon: CalendarDays },
 };
 
 // Mesma régua do KpiCards: classes inteiras pra o JIT do Tailwind reconhecer.
@@ -34,9 +50,7 @@ const TONE_CLASSES: Record<Tone, ToneClasses> = {
 };
 
 type Props = {
-  title: string;
-  Icon: LucideIcon;
-  tone: Tone;
+  bucket: DashboardBucket;
   items: UnifiedActivityListItem[];
   totalCount: number;
   currentUserId: string;
@@ -44,25 +58,27 @@ type Props = {
   turmasForForm: TurmaWithSubjectsForForm[];
   /** Querystring do link "Ver todas →" — preserva filtro de perfil. */
   seeAllHref: string;
-  /** Render opcional pra agrupar items (Upcoming agrupa por dia). */
-  renderItems?: (items: UnifiedActivityListItem[]) => React.ReactNode;
+  onItemStatusSuccess?: (
+    item: UnifiedActivityListItem,
+    previousStatus: ActivityStatusValue,
+    nextStatus: ActivityStatusValue,
+  ) => void;
 };
 
 // Section reutilizado pelos 3 buckets (Atrasadas, Hoje, Próx. 7 dias).
 // Não renderiza nada quando totalCount === 0.
 export function ActivityBucketSection({
-  title,
-  Icon,
-  tone,
+  bucket,
   items,
   totalCount,
   currentUserId,
   isPro,
   turmasForForm,
   seeAllHref,
-  renderItems,
+  onItemStatusSuccess,
 }: Props) {
   if (totalCount === 0) return null;
+  const { title, tone, Icon } = BUCKET_META[bucket];
   const classes = TONE_CLASSES[tone];
   const hasMore = totalCount > items.length;
 
@@ -96,8 +112,14 @@ export function ActivityBucketSection({
         ) : null}
       </header>
 
-      {renderItems ? (
-        renderItems(items)
+      {bucket === "week" ? (
+        <UpcomingGroupedList
+          items={items}
+          currentUserId={currentUserId}
+          isPro={isPro}
+          turmasForForm={turmasForForm}
+          onItemStatusSuccess={onItemStatusSuccess}
+        />
       ) : (
         <div className="space-y-3">
           {items.map((item) => (
@@ -109,6 +131,7 @@ export function ActivityBucketSection({
               turmasForForm={turmasForForm}
               hideActions
               optimisticHideWhenDone
+              onStatusSuccess={onItemStatusSuccess}
             />
           ))}
         </div>

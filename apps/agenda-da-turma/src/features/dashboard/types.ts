@@ -23,6 +23,7 @@ export type DashboardProfileSummary = {
 // Discriminated union via `source` deixa o renderer escolher qual conjunto
 // de campos exibir e qual `ActivityCard` montar.
 export type DashboardSnapshot = {
+  todayIso: string;
   counters: DashboardCounters;
   overdue: UnifiedActivityListItem[];
   today: UnifiedActivityListItem[];

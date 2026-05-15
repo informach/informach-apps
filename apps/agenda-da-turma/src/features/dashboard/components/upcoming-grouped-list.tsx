@@ -1,4 +1,6 @@
-import type { TurmaWithSubjectsForForm } from "@/features/activities/types";
+"use client";
+
+import type { ActivityStatusValue, TurmaWithSubjectsForForm } from "@/features/activities/types";
 import { UnifiedActivityCard } from "@/features/unified-activities/components/unified-activity-card";
 import type { UnifiedActivityListItem } from "@/features/unified-activities/types";
 
@@ -27,9 +29,20 @@ type Props = {
   currentUserId: string;
   isPro: boolean;
   turmasForForm: TurmaWithSubjectsForForm[];
+  onItemStatusSuccess?: (
+    item: UnifiedActivityListItem,
+    previousStatus: ActivityStatusValue,
+    nextStatus: ActivityStatusValue,
+  ) => void;
 };
 
-export function UpcomingGroupedList({ items, currentUserId, isPro, turmasForForm }: Props) {
+export function UpcomingGroupedList({
+  items,
+  currentUserId,
+  isPro,
+  turmasForForm,
+  onItemStatusSuccess,
+}: Props) {
   // Items já vêm ordenados por dueAt ASC do service (turma + extras mesclados).
   // Agrupa preservando ordem.
   const groups = new Map<string, UnifiedActivityListItem[]>();
@@ -59,6 +72,7 @@ export function UpcomingGroupedList({ items, currentUserId, isPro, turmasForForm
                 turmasForForm={turmasForForm}
                 hideActions
                 optimisticHideWhenDone
+                onStatusSuccess={onItemStatusSuccess}
               />
             ))}
           </div>

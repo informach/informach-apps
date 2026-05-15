@@ -8,7 +8,7 @@ import { toast } from "@informach/ui/components/sonner";
 import { cn } from "@informach/ui/lib/utils";
 import { Sparkles } from "lucide-react";
 import { ActivityCard } from "@/features/activities/components/activity-card";
-import type { TurmaWithSubjectsForForm } from "@/features/activities/types";
+import type { ActivityStatusValue, TurmaWithSubjectsForForm } from "@/features/activities/types";
 import {
   getActivityTypeIcon,
   getActivityTypeLabel,
@@ -41,6 +41,11 @@ type Props = {
    * cuida do timing.
    */
   optimisticHideWhenDone?: boolean;
+  onStatusSuccess?: (
+    item: UnifiedActivityListItem,
+    previousStatus: ActivityStatusValue,
+    nextStatus: ActivityStatusValue,
+  ) => void;
 };
 
 // Despacha o card correto baseado no `source`. Mantém ActivityCard intacto
@@ -55,6 +60,7 @@ export function UnifiedActivityCard({
   turmasForForm,
   hideActions,
   optimisticHideWhenDone = false,
+  onStatusSuccess,
 }: Props) {
   if (item.source === "turma") {
     return (
@@ -65,18 +71,33 @@ export function UnifiedActivityCard({
         turmasForForm={turmasForForm}
         hideActions={hideActions}
         optimisticHideWhenDone={optimisticHideWhenDone}
+        onStatusSuccess={(activity, previousStatus, nextStatus) =>
+          onStatusSuccess?.({ ...activity, source: "turma" }, previousStatus, nextStatus)
+        }
       />
     );
   }
-  return <UnifiedExtraActivityCard item={item} optimisticHideWhenDone={optimisticHideWhenDone} />;
+  return (
+    <UnifiedExtraActivityCard
+      item={item}
+      optimisticHideWhenDone={optimisticHideWhenDone}
+      onStatusSuccess={onStatusSuccess}
+    />
+  );
 }
 
 function UnifiedExtraActivityCard({
   item,
   optimisticHideWhenDone,
+  onStatusSuccess,
 }: {
   item: Extract<UnifiedActivityListItem, { source: "extra" }>;
   optimisticHideWhenDone: boolean;
+  onStatusSuccess?: (
+    item: UnifiedActivityListItem,
+    previousStatus: ActivityStatusValue,
+    nextStatus: ActivityStatusValue,
+  ) => void;
 }) {
   const { isDone, isExiting, optimisticallyHidden, pending, handleToggle } = useCardToggle({
     initialStatus: item.status,
@@ -86,6 +107,7 @@ function UnifiedExtraActivityCard({
         id: item.activityId,
         status: next,
       }),
+    onSuccess: (previousStatus, nextStatus) => onStatusSuccess?.(item, previousStatus, nextStatus),
     onError: (error) => {
       if (isActionRejected(error)) {
         toast.error("Não foi possível atualizar.", {

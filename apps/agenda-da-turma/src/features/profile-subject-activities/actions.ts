@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { refresh, revalidatePath } from "next/cache";
 import { action, err, ok } from "@/lib/action";
 import { logAgendaAuditEvent } from "@/lib/audit";
 import { logger } from "@/lib/logger";
@@ -101,6 +101,7 @@ export const setProfileSubjectActivityStatusAction = action
       profileSubjectActivityId: input.id,
       status: input.status,
     });
+    revalidatePath("/dashboard");
     refresh();
     return ok({ id: input.id, status: input.status } as const);
   });

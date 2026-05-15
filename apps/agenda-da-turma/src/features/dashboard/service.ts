@@ -67,5 +67,5 @@ export async function getDashboardSnapshot(
     listProfileSummaries(userId, { isPro }),
   ]);
 
-  return { counters, overdue, today, upcoming, perProfile };
+  return { todayIso, counters, overdue, today, upcoming, perProfile };
 }
