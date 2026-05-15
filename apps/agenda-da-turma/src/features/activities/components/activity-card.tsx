@@ -14,13 +14,13 @@ import { Label } from "@informach/ui/components/label";
 import { toast } from "@informach/ui/components/sonner";
 import { cn } from "@informach/ui/lib/utils";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useState } from "react";
 import {
   getSubjectIconClassByIndex,
   getSubjectTintedClassByIndex,
 } from "@/features/subjects/utils";
-import { catchActionResult, isActionRejected } from "@/lib/action-result";
+import { useCardToggle } from "@/features/unified-activities/hooks/use-card-toggle";
+import { isActionRejected } from "@/lib/action-result";
 import { setActivityStatusAction } from "../actions";
 import type { ActivityListItem, TurmaWithSubjectsForForm } from "../types";
 import {
@@ -46,8 +46,9 @@ type Props = {
    */
   hideActions?: boolean;
   /**
-   * Dashboard só mostra buckets pendentes. Ao concluir, remove o item localmente
-   * enquanto a Server Action refresca a rota.
+   * Dashboard só mostra buckets pendentes. Ao concluir, o wrapper anima
+   * (collapse + fade) e depois o componente desmonta — `useCardToggle`
+   * cuida do timing.
    */
   optimisticHideWhenDone?: boolean;
 };
@@ -60,168 +61,164 @@ export function ActivityCard({
   hideActions = false,
   optimisticHideWhenDone = false,
 }: Props) {
-  const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [optimisticStatus, setOptimisticStatus] = useState(item.status);
-  const [optimisticallyHidden, setOptimisticallyHidden] = useState(false);
-  const [pending, startTransition] = useTransition();
+
+  const { isDone, isExiting, optimisticallyHidden, pending, handleToggle } = useCardToggle({
+    initialStatus: item.status,
+    optimisticHideWhenDone,
+    toggleAction: (next) =>
+      setActivityStatusAction({
+        activityId: item.activityId,
+        studentProfileId: item.studentProfileId,
+        status: next,
+      }),
+    onError: (error) => {
+      if (isActionRejected(error)) {
+        toast.error("Não foi possível atualizar.", {
+          description: "Atualize a página e tente novamente.",
+        });
+      } else if (error.code === "NOT_FOUND") {
+        toast.error("Atividade não encontrada");
+      } else if (error.code === "INVALID_PROFILE") {
+        toast.error("Esse perfil não é seu");
+      } else {
+        toast.error("Não foi possível atualizar.");
+      }
+    },
+  });
 
   const TypeIcon = getActivityTypeIcon(item.type);
-  const isDone = optimisticStatus === "done";
-  const urgency = getDueUrgency(item.dueAt, optimisticStatus);
+  const urgency = getDueUrgency(item.dueAt, isDone ? "done" : "pending");
   const checkboxId = `activity-status-${item.statusId}`;
-
-  useEffect(() => {
-    setOptimisticStatus(item.status);
-    setOptimisticallyHidden(false);
-  }, [item.status]);
 
   // Só o criador edita/deleta. E se foi compartilhada e alguém aceitou, mesmo
   // o criador fica trancado. Service aplica a regra também — UI só esconde.
   const canManage = !hideActions && canEditActivity(item, currentUserId);
 
-  const handleToggle = (next: boolean) => {
-    const previousStatus = optimisticStatus;
-    const nextStatus = next ? "done" : "pending";
-
-    setOptimisticStatus(nextStatus);
-    if (optimisticHideWhenDone && nextStatus === "done") {
-      setOptimisticallyHidden(true);
-    }
-
-    startTransition(async () => {
-      const result = await catchActionResult(() =>
-        setActivityStatusAction({
-          activityId: item.activityId,
-          studentProfileId: item.studentProfileId,
-          status: nextStatus,
-        }),
-      );
-      if (!result.ok) {
-        setOptimisticStatus(previousStatus);
-        setOptimisticallyHidden(false);
-        if (isActionRejected(result.error)) {
-          toast.error("Não foi possível atualizar.", {
-            description: "Atualize a página e tente novamente.",
-          });
-        } else if (result.error.code === "NOT_FOUND") {
-          toast.error("Atividade não encontrada");
-        } else if (result.error.code === "INVALID_PROFILE") {
-          toast.error("Esse perfil não é seu");
-        } else {
-          toast.error("Não foi possível atualizar.");
-        }
-        router.refresh();
-        return;
-      }
-    });
-  };
-
   if (optimisticallyHidden) return null;
 
   return (
     <>
-      <Card
-        className={cn(getSubjectTintedClassByIndex(item.subjectColorIndex), isDone && "opacity-70")}
+      <div
+        className={cn(
+          // Wrapper governa entrada (@starting-style) + saída (isExiting).
+          // grid-rows-[1fr]→[0fr] colapsa altura suavemente; opacity faz fade.
+          // overflow-hidden no filho evita o conteúdo estourar pra fora durante o colapso.
+          // motion-reduce honra prefers-reduced-motion (sem animação).
+          "grid grid-rows-[1fr] opacity-100",
+          "starting:grid-rows-[0fr] starting:opacity-0",
+          "transition-all duration-300 ease-out motion-reduce:transition-none",
+          "[transition-behavior:allow-discrete]",
+          isExiting && "grid-rows-[0fr] opacity-0",
+        )}
       >
-        <CardContent className="flex items-start gap-3 p-4">
-          <span
+        <div className="overflow-hidden">
+          <Card
             className={cn(
-              "flex size-11 shrink-0 items-center justify-center rounded-full",
-              getSubjectIconClassByIndex(item.subjectColorIndex),
+              getSubjectTintedClassByIndex(item.subjectColorIndex),
+              isDone && "opacity-70",
             )}
           >
-            <TypeIcon className="size-5" aria-hidden />
-          </span>
-
-          <div className="min-w-0 flex-1 space-y-1.5">
-            <div
-              className={cn(
-                "break-words text-base font-semibold text-foreground",
-                isDone && "text-muted-foreground line-through",
-              )}
-            >
-              {/* Badge do tipo prepended inline — fica na frente do título e
-                  flui com o texto quando ele quebra em várias linhas. */}
-              <Badge variant="secondary" className="mr-2 align-middle">
-                {getActivityTypeLabel(item.type)}
-              </Badge>
-              {item.title}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Badge de urgência da entrega — comunica visualmente o estado:
-                  destructive (atrasada), warning (hoje/amanhã), default azul
-                  (>= depois de amanhã), outline (concluída — neutro). */}
-              <Badge variant={getDueBadgeVariant(urgency)}>
-                {getDueBadgeLabel(item.dueAt, urgency)}
-              </Badge>
-              {item.visibility === "shared_with_turma" ? (
-                <Badge variant="outline" className="font-normal">
-                  Compartilhada
-                </Badge>
-              ) : null}
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {item.subjectName} · {formatTurmaShort(item.grade, item.classLetter, item.year)}
-            </p>
-            {item.description ? (
-              <p
+            <CardContent className="flex items-start gap-3 p-4">
+              <span
                 className={cn(
-                  "whitespace-pre-wrap break-words text-sm text-foreground/90",
-                  isDone && "text-muted-foreground line-through",
+                  "flex size-11 shrink-0 items-center justify-center rounded-full",
+                  getSubjectIconClassByIndex(item.subjectColorIndex),
                 )}
               >
-                {item.description}
-              </p>
-            ) : null}
-            <div className="flex items-center gap-2 pt-1">
-              <Checkbox
-                id={checkboxId}
-                checked={isDone}
-                onCheckedChange={(value) => handleToggle(value === true)}
-                disabled={pending}
-                aria-label={
-                  isDone
-                    ? `Marcar atividade de ${item.studentProfileName} como pendente`
-                    : `Marcar atividade de ${item.studentProfileName} como concluída`
-                }
-              />
-              <Label htmlFor={checkboxId} className="cursor-pointer text-sm font-medium">
-                {item.studentProfileName}
-              </Label>
-            </div>
-          </div>
+                <TypeIcon className="size-5" aria-hidden />
+              </span>
 
-          {canManage ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Ações para ${item.title}`}
-                  disabled={pending}
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <div
+                  className={cn(
+                    "break-words text-base font-semibold text-foreground",
+                    isDone && "text-muted-foreground line-through",
+                  )}
                 >
-                  <MoreVertical className="size-4" aria-hidden />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={() => setEditOpen(true)}>
-                  <Pencil className="mr-2 size-4" aria-hidden />
-                  Editar
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => setDeleteOpen(true)}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <Trash2 className="mr-2 size-4" aria-hidden />
-                  Excluir
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : null}
-        </CardContent>
-      </Card>
+                  {/* Badge do tipo prepended inline — fica na frente do título e
+                      flui com o texto quando ele quebra em várias linhas. */}
+                  <Badge variant="secondary" className="mr-2 align-middle">
+                    {getActivityTypeLabel(item.type)}
+                  </Badge>
+                  {item.title}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Badge de urgência da entrega — comunica visualmente o estado:
+                      destructive (atrasada), warning (hoje/amanhã), default azul
+                      (>= depois de amanhã), outline (concluída — neutro). */}
+                  <Badge variant={getDueBadgeVariant(urgency)}>
+                    {getDueBadgeLabel(item.dueAt, urgency)}
+                  </Badge>
+                  {item.visibility === "shared_with_turma" ? (
+                    <Badge variant="outline" className="font-normal">
+                      Compartilhada
+                    </Badge>
+                  ) : null}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {item.subjectName} · {formatTurmaShort(item.grade, item.classLetter, item.year)}
+                </p>
+                {item.description ? (
+                  <p
+                    className={cn(
+                      "whitespace-pre-wrap break-words text-sm text-foreground/90",
+                      isDone && "text-muted-foreground line-through",
+                    )}
+                  >
+                    {item.description}
+                  </p>
+                ) : null}
+                <div className="flex items-center gap-2 pt-1">
+                  <Checkbox
+                    id={checkboxId}
+                    checked={isDone}
+                    onCheckedChange={(value) => handleToggle(value === true)}
+                    disabled={pending}
+                    aria-label={
+                      isDone
+                        ? `Marcar atividade de ${item.studentProfileName} como pendente`
+                        : `Marcar atividade de ${item.studentProfileName} como concluída`
+                    }
+                  />
+                  <Label htmlFor={checkboxId} className="cursor-pointer text-sm font-medium">
+                    {item.studentProfileName}
+                  </Label>
+                </div>
+              </div>
+
+              {canManage ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Ações para ${item.title}`}
+                      disabled={pending}
+                    >
+                      <MoreVertical className="size-4" aria-hidden />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={() => setEditOpen(true)}>
+                      <Pencil className="mr-2 size-4" aria-hidden />
+                      Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => setDeleteOpen(true)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="mr-2 size-4" aria-hidden />
+                      Excluir
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
 
       {canManage ? (
         <>
