@@ -5,6 +5,7 @@ import {
   formatClassDaysShort,
   isSubjectActiveOnDate,
   nextClassDayIso,
+  nextWeekdayIso,
   normalizeClassDays,
 } from "./class-days";
 
@@ -208,6 +209,35 @@ describe("nextClassDayIso com alternatingSlots (quinzenal)", () => {
   it("alternatingSlots vazio se comporta como sem slots (backward compat)", () => {
     const result = nextClassDayIso("2026-05-13", ["mon", "wed", "fri"], []);
     expect(result).toBe("2026-05-15");
+  });
+});
+
+describe("nextWeekdayIso", () => {
+  // 2026-05-08 = sexta; 2026-05-09 = sáb; 2026-05-10 = dom; 2026-05-11 = seg;
+  // 2026-05-12 = ter; 2026-05-13 = qua; 2026-05-14 = qui; 2026-05-15 = sex.
+
+  it("terça → quarta", () => {
+    expect(nextWeekdayIso("2026-05-12")).toBe("2026-05-13");
+  });
+
+  it("quinta → sexta (não pula)", () => {
+    expect(nextWeekdayIso("2026-05-14")).toBe("2026-05-15");
+  });
+
+  it("sexta → próxima segunda (pula sáb/dom)", () => {
+    expect(nextWeekdayIso("2026-05-15")).toBe("2026-05-18");
+  });
+
+  it("sábado → segunda", () => {
+    expect(nextWeekdayIso("2026-05-09")).toBe("2026-05-11");
+  });
+
+  it("domingo → segunda", () => {
+    expect(nextWeekdayIso("2026-05-10")).toBe("2026-05-11");
+  });
+
+  it("segunda → terça", () => {
+    expect(nextWeekdayIso("2026-05-11")).toBe("2026-05-12");
   });
 });
 

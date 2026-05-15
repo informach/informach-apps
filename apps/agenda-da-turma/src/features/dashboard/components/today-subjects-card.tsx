@@ -112,7 +112,7 @@ export function TodaySubjectsCard({ view }: Props) {
                     </Badge>
                   ) : s.isAlternating ? (
                     <Badge variant="secondary" className="shrink-0 text-xs">
-                      {s.alternatingPairName ? `reveza com ${s.alternatingPairName}` : "quinzenal"}
+                      {s.alternatingPairName ? `Reveza com ${s.alternatingPairName}` : "quinzenal"}
                     </Badge>
                   ) : null}
                 </li>

@@ -1,10 +1,11 @@
 import { findClosestStudent } from "@/features/activities/match-student";
 import { findClosestSubject } from "@/features/activities/match-subject";
 import type { ParsedActivityInput, TurmaWithSubjectsForForm } from "@/features/activities/types";
-import { addDaysIso, todayLocalIso } from "@/features/dashboard/date";
+import { todayLocalIso } from "@/features/dashboard/date";
 import {
   type AlternatingSlot as ClassDaySlot,
   nextClassDayIso,
+  nextWeekdayIso,
 } from "@/features/subjects/class-days";
 import { normalize } from "@/features/subjects/utils";
 import type { ActivitiesParserOutput } from "./schema";
@@ -251,22 +252,25 @@ export function applyNextClassDayFallback(
 
 /**
  * Última camada de fallback de data: qualquer atividade que CONTINUE com
- * `dueAt: null` depois da propagação recebe "amanhã" (today + 1 dia em
- * America/Sao_Paulo). Decisão de produto: imagem sem data alguma cai num
- * default razoável (caso comum é "tarefa pra amanhã") em vez de obrigar o
- * user a preencher manualmente no batch confirm dialog. User ainda pode
- * editar antes de salvar.
+ * `dueAt: null` depois das camadas anteriores recebe o PRÓXIMO DIA ÚTIL
+ * (seg-sex) estritamente após hoje, em America/Sao_Paulo. Sexta → próxima
+ * segunda; sábado/domingo → próxima segunda. Decisão de produto: escola
+ * brasileira não tem aula sáb/dom, então "amanhã puro" (today + 1) cairia
+ * no fim de semana em sextas e desviava o user. User ainda pode editar
+ * antes de salvar.
  *
  * Per-atividade (não batch-level): cobre tanto "imagem inteira sem data"
  * quanto "atividade isolada que escapou da propagação porque o batch tinha
- * 2+ datas distintas". Atividades que já têm `dueAt` definida ficam intactas.
+ * 2+ datas distintas". Atividades que já têm `dueAt` definida (incluindo
+ * as preenchidas pelo `applyNextClassDayFallback` via horário da matéria)
+ * ficam intactas — essa camada só atua em nulls remanescentes.
  */
 export function applyTomorrowFallback(
   activities: readonly ParsedActivityInput[],
   now: Date = new Date(),
 ): ParsedActivityInput[] {
-  const tomorrow = addDaysIso(todayLocalIso(now), 1);
-  return activities.map((a) => (a.dueAt === null ? { ...a, dueAt: tomorrow } : a));
+  const next = nextWeekdayIso(todayLocalIso(now));
+  return activities.map((a) => (a.dueAt === null ? { ...a, dueAt: next } : a));
 }
 
 function resolveTurmaAndSubject(input: {

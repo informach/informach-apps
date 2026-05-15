@@ -153,6 +153,25 @@ export function nextClassDayIso(
   return null;
 }
 
+// Devolve o próximo ISO ("YYYY-MM-DD") ESTRITAMENTE APÓS `todayIso` que seja
+// um dia útil (segunda a sexta — fora do enum `AgendaClassDay`, que é Seg→Sex).
+// Sex → próxima seg; sáb → seg; dom → seg; demais → next day.
+//
+// Fallback final do enrich de IA quando a atividade não tem matéria resolvida
+// (ou a matéria não tem `classDays` cadastrados). Escola brasileira não tem
+// aula sáb/dom, então "amanhã" puro (today + 1) erra na sexta — esta versão
+// pula o fim de semana e cai na próxima segunda. Loop limitado a 7 dias.
+export function nextWeekdayIso(todayIso: string): string {
+  let candidateIso = todayIso;
+  for (let i = 0; i < 7; i++) {
+    candidateIso = addDaysIso(candidateIso, 1);
+    const jsDay = parseLocalIso(candidateIso).getDay();
+    if (jsDay !== 0 && jsDay !== 6) return candidateIso;
+  }
+  // Defensivo — bloco de 7 dias sempre contém pelo menos 5 dias úteis.
+  return candidateIso;
+}
+
 // Normaliza um array vindo de form/IA: remove duplicatas, descarta valores
 // fora do enum, reordena pra ordem canônica Seg→Sex.
 export function normalizeClassDays(input: readonly string[]): AgendaClassDay[] {

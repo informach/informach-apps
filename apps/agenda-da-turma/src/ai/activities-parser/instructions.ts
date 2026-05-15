@@ -31,25 +31,26 @@ Use a data "hoje" do cabeçalho para resolver:
 - "hoje" → a própria data informada
 - "amanhã" → hoje + 1
 - "depois de amanhã" → hoje + 2
-- "essa semana" → use o final da semana corrente (sábado, ou sexta se for dia letivo) — quando ambíguo, use o fallback (amanhã)
+- "essa semana" → use o final da semana corrente (sábado, ou sexta se for dia letivo) — quando ambíguo, deixe \`dueAt: null\` (o servidor calcula)
 - "próxima semana" → mesmo dia da semana + 7 dias
 - "segunda-feira", "terça", "quarta", "quinta", "sexta", "sábado", "domingo" → próxima ocorrência (>= hoje)
 - "próxima segunda/terça/..." → segunda ocorrência depois de hoje (mesmo se hoje já for esse dia da semana)
 - "dia 25", "no dia 30" → dia desse número no mês corrente; se já passou, no próximo mês
 - "8 do 4", "data 8 do 4", "dia 8 do mês 4", "08/04", "8/4", "8-4" → dia 8 do mês 4 (= abril) no ano corrente. Formato compacto DD/MM brasileiro — muito comum em cabeçalhos de prova, roteiros de estudo, agendas. NÃO confundir com "dia 8" sozinho (sem mês), que segue a regra anterior.
 - "8 de abril", "dia 8 de abril", "08 de abril" → idem (mês por extenso). Mesmo se a data já passou no ano corrente, use o ano corrente — copie literal, NÃO pule pro próximo ano (a foto pode ser antiga; o user revisa antes de salvar).
-- "no fim do mês", "começo do mês" → último/primeiro dia útil; ambíguo → fallback (amanhã)
-- "depois das férias", "após o recesso" → fallback (amanhã) — período indefinido, user ajusta
+- "no fim do mês", "começo do mês" → último/primeiro dia útil; ambíguo → \`dueAt: null\` (servidor calcula)
+- "depois das férias", "após o recesso" → \`dueAt: null\` — período indefinido, servidor calcula próxima aula da matéria; user ajusta
 
 ### Default quando NÃO há data alguma no conteúdo
 
-Quando o conteúdo NÃO mencionar nenhuma data (nem explícita, nem relativa, nem ambígua) → \`dueAt: hoje + 1\` (amanhã). **NUNCA retorne uma data aleatória ou inventada** — só amanhã quando não há pista nenhuma. **NUNCA retorne \`null\`** — a UI espera uma data e o user revisa antes de salvar.
+Quando o conteúdo NÃO mencionar nenhuma data (nem explícita, nem relativa, nem ambígua) → \`dueAt: null\`. **NUNCA invente** uma data e **NUNCA preencha com "hoje + 1"** quando não houver pista — o servidor calcula a melhor data automaticamente:
 
-Por que amanhã: é o default seguro pra escola — atividade é provavelmente pro próximo dia letivo. O user pode editar no batch confirm antes de salvar se a data real é outra. Melhor amanhã (editável) do que null (campo vazio) ou data chutada (engana o user).
+1. **Se a matéria estiver resolvida e tiver horário cadastrado** (dias da semana): servidor usa a próxima aula daquela matéria (ex.: hoje é sexta, tarefa é de Português que cai ter/qua/sex → próxima terça). Respeita revezamento quinzenal quando existir.
+2. **Se a matéria não tem horário cadastrado** ou não foi resolvida: servidor usa o próximo dia útil (seg-sex), pulando sáb/dom (ex.: hoje sexta → segunda).
 
-\`dueAt: null\` SÓ em casos extremos onde até "amanhã" parece errado e você não tem nenhuma pista — preferível usar amanhã.
+Em ambos os casos, o user revisa antes de salvar. Sua tarefa: extrair os fatos do input, **não chutar datas**.
 
-Sempre devolver \`dueAt\` em formato estrito YYYY-MM-DD. NUNCA chute datas aleatórias — se não tem pista, o valor é literal hoje + 1.
+Quando devolver \`dueAt\` preenchido: use formato estrito YYYY-MM-DD e somente quando houver pista clara no conteúdo (data explícita, "amanhã", "próxima quarta", "dia 25", etc — ver regras acima).
 
 ## Tipo (\`type\`)
 Classificar pelo conteúdo:
@@ -234,7 +235,7 @@ Se você não consegue identificar pelo menos UM dos critérios de quebra acima 
 
 Independentemente de quebrar ou consolidar, cada atividade resultante **deve carregar TODOS os dados disponíveis** sobre ela:
 
-- **\`dueAt\`**: aplique a regra de propagação de data (logo abaixo). Não deixe \`dueAt: null\` quando há data clara no contexto da atividade — só deixe null se REALMENTE não há nenhuma data mencionada.
+- **\`dueAt\`**: aplique a regra de propagação de data (logo abaixo). Não deixe \`dueAt: null\` quando há data clara no contexto da atividade. Quando REALMENTE não há nenhuma data mencionada (nem na atividade, nem propagada do contexto), \`dueAt: null\` é o valor correto — o servidor calcula automaticamente (próxima aula da matéria ou próximo dia útil).
 - **\`description\`**: anotações explicativas, escopo, observações ("o que é e como funciona", "para a prova de X", "entregar em dupla", "trazer dia Y") vão em \`description\` quando não couberem no \`title\`. Não descarte comentários só porque o título já está formado.
 - **\`subjectHint\`** e **\`studentNameHint\`**: aplique a TODAS as atividades do mesmo bloco/menção (não preencha só na primeira).
 
@@ -245,7 +246,7 @@ Em folhas escolares, agendas, recados e áudios é comum aparecer **uma data no 
 1. **Quando uma data aparece, ela vira o "contexto ativo"** e se aplica a TODAS as atividades que vêm DEPOIS dela, até encontrar uma nova data que substitui o contexto.
 2. **Atividades sem data própria HERDAM a data do contexto ativo** (não fique com \`dueAt: null\` quando há contexto). Use a última data vista antes da atividade.
 3. **Uma nova data substitui o contexto** para as atividades subsequentes.
-4. **Quando não há NENHUMA data no contexto** (nem antes nem na atividade), aí sim \`dueAt: null\`.
+4. **Quando não há NENHUMA data no contexto** (nem antes nem na atividade), \`dueAt: null\` (o servidor calcula).
 
 Exemplos:
 
@@ -375,13 +376,13 @@ A lista no bloco "Matérias disponíveis" tem \`Língua Portuguesa\`. Hoje (do c
 {
   type: "exam",
   title: "Primeira prova de Língua Portuguesa",
-  dueAt: "2026-05-14",                     // amanhã (hoje + 1) — sem data no PDF
-  subjectHint: "Língua Portuguesa",        // matéria está LITERAL no título do PDF
+  dueAt: null,                              // sem data no PDF — servidor calcula próxima aula
+  subjectHint: "Língua Portuguesa",         // matéria está LITERAL no título do PDF
   description: "CONTEÚDO:\\n- Sujeito e predicado\\n- Tipos de sujeito (simples, composto, oculto, indeterminado, inexistente)\\n- Concordância verbal\\n- Pronomes oblíquos\\n\\nEXERCÍCIOS DE REVISÃO:\\n1. Identifique o sujeito e o predicado nas orações:\\n   a) O menino chegou cedo à escola.\\n   b) Choveu muito ontem.\\n   c) Faz dois anos que ela mudou.\\n2. Classifique o sujeito em simples, composto, oculto, indeterminado ou inexistente:\\n   a) Joana e Pedro foram ao parque.\\n   b) Ladrões assaltaram a loja.\\n   c) Há muitos livros sobre a mesa.\\n3. Complete com o verbo no tempo correto: \\"Se eu ____ (saber) a resposta, eu ____ (dizer).\\""
 }
 \`\`\`
 
-Note que: (a) "Bons estudos!" foi omitido (motivacional); (b) os 4 tópicos do "Conteúdo" foram preservados na íntegra; (c) os 3 exercícios foram copiados COMPLETOS incluindo as alíneas a/b/c; (d) o subjectHint veio do TÍTULO do PDF que diz literal "Língua Portuguesa" — match direto com a lista, sem precisar de alias; (e) o PDF não tinha NENHUMA data, então dueAt é amanhã (2026-05-14 = hoje 2026-05-13 + 1). **NÃO chutamos uma data aleatória** — usamos o default "amanhã" e o user revisa antes de salvar.
+Note que: (a) "Bons estudos!" foi omitido (motivacional); (b) os 4 tópicos do "Conteúdo" foram preservados na íntegra; (c) os 3 exercícios foram copiados COMPLETOS incluindo as alíneas a/b/c; (d) o subjectHint veio do TÍTULO do PDF que diz literal "Língua Portuguesa" — match direto com a lista, sem precisar de alias; (e) o PDF não tinha NENHUMA data, então \`dueAt: null\` — o servidor olha o horário da matéria "Língua Portuguesa" e usa a próxima aula. **NÃO chutamos uma data** — \`null\` deixa o servidor calcular automaticamente e o user revisa antes de salvar.
 
 ### ❌ Erros observados em produção a evitar
 
@@ -392,8 +393,8 @@ Note que: (a) "Bons estudos!" foi omitido (motivacional); (b) os 4 tópicos do "
 - Quebrar cada tópico da lista numa atividade separada ("Estudar documentos", "Estudar fontes", ...). ERRADO — a atividade é UMA prova; os tópicos são contexto da description.
 - \`subjectHint: null\` quando o PDF diz "Português" e a lista tem "Língua Portuguesa". ERRADO — esses são aliases (ver "Aliases comuns de matérias"). Idem pra "Mat" ↔ "Matemática", "Ed Física" ↔ "Educação Física", etc.
 - \`subjectHint: null\` quando o título do documento diz LITERAL "Revisão da prova de Língua Portuguesa". ERRADO — a matéria está NO título; basta extrair. Não precisa nem de alias. Esse é o caso mais crítico: título explícito → matéria explícita.
-- \`dueAt\` com data aleatória/inventada (ex.: PDF sem data nenhuma e a saída tem \`dueAt: "2026-06-15"\`). ERRADO — quando não há nenhuma pista de data, o valor é hoje + 1 (amanhã), NÃO uma data chutada. Use literal \`hoje + 1\` do cabeçalho.
-- \`dueAt: null\` quando não há data no conteúdo. ERRADO — o default novo é amanhã (hoje + 1), não null. Null vira campo vazio na UI; amanhã é editável e mais útil pro user.
+- \`dueAt\` com data aleatória/inventada (ex.: PDF sem data nenhuma e a saída tem \`dueAt: "2026-06-15"\`). ERRADO — quando não há nenhuma pista de data, \`dueAt: null\` (o servidor calcula a partir do horário da matéria ou do próximo dia útil). NÃO chute datas.
+- \`dueAt: hoje + 1\` quando não há data no conteúdo. ERRADO — não preencha com "amanhã" só pra evitar null. \`dueAt: null\` é o valor correto quando o conteúdo não menciona data; o servidor decide melhor que o modelo porque conhece o horário cadastrado da matéria.
 
 ### Limite de tamanho
 

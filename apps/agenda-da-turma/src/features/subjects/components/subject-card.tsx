@@ -34,7 +34,7 @@ export function SubjectCard({ subject, turmaId, currentUserId, turmaSubjects }: 
   // (defesa em camadas) — esse check aqui só esconde os botões.
   const canManage = subject.createdByUserId === currentUserId;
 
-  // Resume os slots de revezamento em string curta tipo "qua reveza com ACC".
+  // Resume os slots de revezamento em string curta tipo "Qua Reveza com ACC".
   // Quando há múltiplos slots (matéria com revezamento em vários dias),
   // separa por vírgula. Tolera caller que não passou `turmaSubjects` —
   // nesse caso mostra só o dia sem o nome da matéria pareada.
@@ -45,7 +45,7 @@ export function SubjectCard({ subject, turmaId, currentUserId, turmaSubjects }: 
       .map((slot) => {
         const dayLabel = CLASS_DAY_LABEL_SHORT[slot.dayOfWeek];
         const pairedName = subjectsById.get(slot.pairedSubjectId);
-        return pairedName ? `${dayLabel} reveza com ${pairedName}` : `${dayLabel} quinzenal`;
+        return pairedName ? `${dayLabel} Reveza com ${pairedName}` : `${dayLabel} quinzenal`;
       })
       .join(" · ");
     return parts;
