@@ -37,6 +37,7 @@ O CTA fixo no rodapé móvel era opcional na proposta. A entrega usa os convites
 - Checkboxes têm a área inteira da linha como alvo. O foco por teclado permanece visível; as abas aceitam setas e recebem foco ao avançar de etapa.
 - Textos da interface demonstrativa foram ampliados após inspeção visual. Ingredientes não somáveis mostram a observação de conferência, incluindo a receita correspondente.
 - Links de navegação também funcionam quando acionados a partir de Termos ou Privacidade.
+- Na preparação da publicação, o CI detectou transbordamento em tela pequena. A investigação encontrou a variável da fonte em `body`, enquanto os tokens que dependem dela eram resolvidos em `:root`: a página usava a fonte do sistema operacional. A classe de `next/font` passou para `html`, onde os tokens conseguem resolvê-la. O teste adicional de fonte falhou antes da correção e passou depois; as capturas foram atualizadas. O teste de largura agora informa também o tamanho esperado e o valor medido, mantendo a mesma exigência de não transbordar.
 - Componentes e animações da antiga home sem uso foram retirados. A paleta da página é local ao marketing e preserva o tema do aplicativo e do onboarding.
 
 ## Imagens e limites da entrega
@@ -54,10 +55,10 @@ Verificações concluídas em 11/09/2026, após as últimas alterações funcion
 | Comando | Resultado | Código de saída |
 | --- | --- | --- |
 | `pnpm check` | 812 arquivos verificados, sem erros ou correções | 0 |
-| `pnpm typecheck` | 11 tarefas aprovadas, 10 reutilizadas do cache; Cozya executado novamente; 10,336 s | 0 |
-| `pnpm exec turbo test --concurrency=1` | 6 tarefas aprovadas, 5 reutilizadas do cache; Cozya executado novamente; 27,241 s | 0 |
-| `pnpm --filter @informach/cozya e2e` | 7 testes de navegador aprovados, em 53,7 s | 0 |
-| `pnpm exec turbo build --concurrency=1 --cache=local:r` | 4 aplicativos compilados, sem cache de tarefas; 3 min 16,91 s | 0 |
+| `pnpm typecheck` | 11 tarefas aprovadas, 6 reutilizadas do cache; Cozya executado novamente; 12,438 s | 0 |
+| `pnpm exec turbo test --concurrency=1` | 6 tarefas aprovadas, 5 reutilizadas do cache; Cozya executado novamente; 9,635 s | 0 |
+| `pnpm --filter @informach/cozya e2e` | 7 testes de navegador aprovados, em 55,7 s | 0 |
+| `pnpm exec turbo build --concurrency=1 --cache=local:r` | 4 aplicativos compilados, sem cache de tarefas; 3 min 24,943 s | 0 |
 | `git diff --check` | Nenhum erro de espaços em branco | 0 |
 | `git diff --exit-code -- packages/config/src/products.ts packages/billing/src/seeds/credit-pricing.ts` | Catálogo e preços de créditos sem alterações | 0 |
 

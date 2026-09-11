@@ -66,6 +66,9 @@ test("landing works on small screens, with keyboard, reduced motion and a saved 
   await page.addInitScript(() => localStorage.setItem("theme", "dark"));
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
+  await expect
+    .poll(() => page.locator("h1").evaluate((heading) => getComputedStyle(heading).fontFamily))
+    .toContain("Plus Jakarta Sans");
   await page.keyboard.press("Tab");
   await expect(
     page.getByRole("link", { name: "Pular para o conteúdo", exact: true }),
@@ -84,8 +87,10 @@ test("landing works on small screens, with keyboard, reduced motion and a saved 
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await expect
-      .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
-      .toBe(true);
+      .poll(() => page.evaluate(() => document.documentElement.scrollWidth), {
+        message: `Home content must fit a ${width}px viewport`,
+      })
+      .toBeLessThanOrEqual(width);
     const cta = page.locator("#primeiro-convite a");
     const measurements = await cta.evaluate((link) => ({
       height: link.getBoundingClientRect().height,

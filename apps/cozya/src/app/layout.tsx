@@ -42,8 +42,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
-      <body className={jakarta.variable} suppressHydrationWarning>
+    <html lang="pt-BR" className={jakarta.variable} suppressHydrationWarning>
+      <body suppressHydrationWarning>
         <ThemeProvider nonce={nonce}>
           {children}
           <Toaster />
