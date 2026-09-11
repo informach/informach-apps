@@ -120,10 +120,10 @@ export type CreateMastraConfig = {
   scorers?: NonNullable<ConstructorParameters<typeof Mastra>[0]>["scorers"];
   /** Observability Mastra opcional. Crie via `createDefaultObservability`. */
   observability?: NonNullable<ConstructorParameters<typeof Mastra>[0]>["observability"];
-  /** Storage compartilhado. */
-  storage: PostgresStore;
-  /** Logger compatível (criar via `createDefaultLogger`). */
-  logger: PinoLogger;
+  /** Optional: omit for stateless agents that must not retain conversation content. */
+  storage?: PostgresStore;
+  /** Logger compatível; false disables framework logs that may contain model content. */
+  logger: PinoLogger | false;
 };
 
 /**

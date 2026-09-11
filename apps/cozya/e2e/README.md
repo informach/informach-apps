@@ -37,4 +37,4 @@ Quando `EMAIL_SANDBOX_MODE=sandbox`, o `@informach/emails` grava cada email em `
 
 ## Limpeza entre runs
 
-A suíte usa emails únicos com timestamp (`cozya-signup-<ts>@e2e.local`) — não há colisão por conta da `unique` em `users.email`. Se quiser zerar tudo, `truncate core.users cascade;` ou recriar o banco. O diretório `./tmp/integration_emails` pode ser apagado livremente entre runs.
+A suíte usa emails únicos com timestamp (`cozya-signup-<ts>@e2e.local`) — não há colisão por conta da `unique` em `users.email`. Use um banco local dedicado. Para limpeza, selecione somente os IDs das contas sintéticas criadas pela execução; nunca faça truncate em tabelas compartilhadas. O diretório `./tmp/integration_emails` pode ser apagado livremente entre runs.

@@ -41,9 +41,9 @@ export function OnboardingStepper({ currentStep, className }: OnboardingStepperP
             )}
             <span
               className={cn(
-                "relative z-10 flex h-9 w-9 items-center justify-center rounded-full border text-sm font-semibold transition-all duration-200",
+                "relative z-10 flex h-9 w-9 items-center justify-center rounded-full border text-sm font-semibold transition-[color,background-color,border-color,box-shadow,transform] duration-200",
                 isCompleted && "border-primary bg-primary text-primary-foreground shadow-sm",
-                isCurrent && "border-primary bg-background text-primary ring-4 ring-primary/15",
+                isCurrent && "border-primary bg-background text-brand-ink ring-4 ring-primary/15",
                 !isCompleted && !isCurrent && "border-border bg-background text-muted-foreground",
               )}
             >

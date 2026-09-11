@@ -15,7 +15,7 @@ export default function TermsOfUsePage() {
   return (
     <article className="container mx-auto max-w-3xl px-4 py-16 md:py-24">
       <header className="space-y-3">
-        <p className="text-sm font-medium uppercase tracking-wider text-primary">Legal</p>
+        <p className="text-sm font-medium uppercase tracking-wider text-brand-ink">Legal</p>
         <h1 className="text-balance text-3xl font-semibold tracking-tight md:text-4xl">
           Termos de Uso
         </h1>
@@ -50,8 +50,11 @@ export default function TermsOfUsePage() {
           </p>
           <p>
             Existem dois planos. No plano <strong>Free</strong>, você cadastra receitas manualmente,
-            sem custo, com um limite vitalício de 15 receitas salvas. No plano <strong>Pro</strong>,
-            você libera os recursos de IA e recebe créditos mensais pra usá-los.
+            sem custo, com até 15 receitas no acervo. Uma conta com e-mail verificado pode ativar um
+            teste de 14 dias de planejamento e 3 operações de IA, sem cartão ou renovação
+            automática. No plano <strong>Pro</strong>, você cria planos e listas semanais e recebe
+            50 créditos mensais de IA. Depois do teste, o acervo, o preparo e as listas existentes
+            continuam acessíveis.
           </p>
         </Section>
 
@@ -68,14 +71,16 @@ export default function TermsOfUsePage() {
             O plano Pro tem dois ciclos: <strong>R$ 14,90 por mês</strong> ou{" "}
             <strong>R$ 149,00 por ano</strong> (equivalente a aproximadamente R$ 12,42 por mês).
             Cada ciclo Pro inclui <strong>50 créditos de IA renovados todo mês</strong>; no ciclo
-            anual, os créditos são liberados a cada 30 dias e expiram ao final do mês corrente. Os
-            valores podem ser atualizados mediante aviso prévio com 30 dias.
+            anual, os créditos são liberados mensalmente a partir da assinatura. Cada lote mensal
+            tem validade de 31 dias a partir da liberação. Os valores podem ser atualizados mediante
+            aviso prévio com 30 dias.
           </p>
           <p>
             Os pagamentos são processados pela Stripe Payments Brasil Ltda. A Cozya não armazena
             dados completos de cartão. Quando os créditos do mês acabam, você pode esperar a
-            renovação ou comprar pacotes avulsos (10, 20 ou 30 créditos extras) que ficam
-            disponíveis até o fim do ciclo Pro.
+            renovação ou comprar pacotes avulsos (10, 20 ou 30 créditos extras). Os créditos
+            comprados não têm vencimento próprio; usar as funções de IA exige acesso ativo ao Pro ou
+            ao período de teste.
           </p>
           <p>
             Não existe fidelidade. Você pode cancelar a assinatura a qualquer momento direto nas
@@ -139,7 +144,7 @@ export default function TermsOfUsePage() {
             A gente pode suspender ou encerrar uma conta que violar estes Termos, sem aviso prévio
             em casos graves (fraude, abuso, atividade ilegal). Você pode encerrar a conta a qualquer
             momento via{" "}
-            <a className="underline underline-offset-2" href="/settings">
+            <a className="underline underline-offset-2" href="/settings/account">
               configurações da conta
             </a>
             ; o encerramento cancela qualquer assinatura ativa e exclui os dados pessoais conforme a

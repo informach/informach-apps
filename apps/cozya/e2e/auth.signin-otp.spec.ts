@@ -35,7 +35,10 @@ async function createVerifiedUser(
   });
   expect(verifyResponse.ok(), `verify failed: ${await verifyResponse.text()}`).toBeTruthy();
 
-  await request.post("/api/auth/sign-out", { headers });
+  const signOut = await request.post("/api/auth/sign-out", { headers, data: {} });
+  expect(signOut.status()).toBe(200);
+  const signedOutSession = await request.get("/api/auth/get-session");
+  expect(await signedOutSession.json()).toBeNull();
   return email;
 }
 

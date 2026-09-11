@@ -29,10 +29,13 @@ const dbMocks = vi.hoisted(() => {
     db,
     desc: vi.fn((value: unknown) => ({ desc: value })),
     eq: vi.fn((left: unknown, right: unknown) => ({ left, right })),
-    sql: vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => ({
-      strings: Array.from(strings),
-      values,
-    })),
+    sql: Object.assign(
+      vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => ({
+        strings: Array.from(strings),
+        values,
+      })),
+      { join: (chunks: unknown[], separator: unknown) => ({ chunks, separator }) },
+    ),
     tx,
   };
 });

@@ -38,9 +38,9 @@ export type ExpireMonthlyBonusResult = {
  * `expires_at <= now()` AND for which we have NOT already inserted a historical
  * `expiration` entry, then inserts one negative `expiration` row per source.
  *
- * Balance queries already ignore expired positive rows by `expires_at`, so
- * `expiration` entries are audit/history only and are excluded from active
- * balance math.
+ * The balance projection expires each grant's unspent remainder. These entries
+ * record the face value of the original grant for audit, not the amount lost;
+ * they are excluded from balance math.
  *
  * The dedup uses `metadata->>'originalEntryId' = source.id` on the new
  * `expiration` rows. INSERT ... SELECT keeps it atomic and idempotent — running

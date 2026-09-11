@@ -8,7 +8,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col">
       <AppHeader />
-      <div className="flex-1">{children}</div>
+      <div id="app-content" className="flex-1" tabIndex={-1}>
+        {children}
+      </div>
     </div>
   );
 }

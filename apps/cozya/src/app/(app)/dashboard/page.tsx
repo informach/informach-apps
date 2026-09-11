@@ -1,6 +1,10 @@
 import { Alert, AlertDescription, AlertTitle } from "@informach/ui/components/alert";
 import { Sparkles } from "lucide-react";
+import Link from "next/link";
 import { getIsProForUser } from "@/features/billing/server-cache";
+import { getKitchenAccess } from "@/features/kitchen/access";
+import { StarterCollection } from "@/features/kitchen/components/starter-collection";
+import { TrialBanner } from "@/features/kitchen/components/trial-banner";
 import { RecipesSection } from "@/features/recipes/components/recipes-section";
 import { countUserRecipes, listRecipesForUser } from "@/features/recipes/service";
 import { requireUserServer } from "@/lib/auth";
@@ -19,7 +23,7 @@ export default async function DashboardPage({
 
   const user = await requireUserServer();
 
-  const [recipeCount, isPro, recipesPage] = await Promise.all([
+  const [recipeCount, isPro, recipesPage, access] = await Promise.all([
     countUserRecipes(user.id),
     getIsProForUser(user.id),
     listRecipesForUser(user.id, {
@@ -27,6 +31,7 @@ export default async function DashboardPage({
       page: recipePage,
       limit: RECIPE_PAGE_SIZE,
     }),
+    getKitchenAccess(user.id),
   ]);
 
   return (
@@ -55,7 +60,26 @@ export default async function DashboardPage({
         query={recipeSearch}
         page={recipesPage.page}
         hasNextPage={recipesPage.hasNextPage}
+        canUseAi={access.canUseAi}
       />
+      <div className="mx-auto max-w-3xl text-sm">
+        <Link
+          href="/receitas/recuperar"
+          className="inline-flex min-h-11 items-center underline underline-offset-4"
+        >
+          Recuperar resultados recentes da IA
+        </Link>
+      </div>
+      {!isPro && (
+        <div className="mx-auto max-w-3xl">
+          <TrialBanner
+            active={access.trialActive}
+            started={!!access.profile?.trialStartedAt}
+            endsAt={access.trialEndsAt?.toLocaleDateString("pt-BR") ?? null}
+          />
+        </div>
+      )}
+      <StarterCollection isPro={isPro} currentCount={recipeCount} />
     </main>
   );
 }

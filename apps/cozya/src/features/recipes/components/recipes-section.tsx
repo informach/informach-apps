@@ -18,20 +18,29 @@ type Props = {
   query: string;
   page: number;
   hasNextPage: boolean;
+  canUseAi?: boolean;
 };
 
 const SEARCH_DEBOUNCE_MS = 300;
 
-export function RecipesSection({ recipes, isPro, currentCount, query, page, hasNextPage }: Props) {
+export function RecipesSection({
+  recipes,
+  isPro,
+  currentCount,
+  query,
+  page,
+  hasNextPage,
+  canUseAi = isPro,
+}: Props) {
   if (currentCount === 0 && !query) {
     return (
       <div className="mx-auto w-full max-w-3xl space-y-4">
         <div className="flex justify-end">
-          <NewRecipeButton isPro={isPro} currentCount={currentCount} />
+          <NewRecipeButton isPro={isPro} canUseAi={canUseAi} currentCount={currentCount} />
         </div>
         <Card className="rounded-2xl border-dashed">
           <CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-            <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-brand-ink">
               <ChefHat className="size-6" aria-hidden />
             </span>
             <div className="space-y-1">
@@ -50,8 +59,8 @@ export function RecipesSection({ recipes, isPro, currentCount, query, page, hasN
   return (
     <div className="mx-auto w-full max-w-3xl space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <SearchBar isPro={isPro} initialQuery={query} />
-        <NewRecipeButton isPro={isPro} currentCount={currentCount} />
+        <SearchBar isPro={canUseAi} initialQuery={query} />
+        <NewRecipeButton isPro={isPro} canUseAi={canUseAi} currentCount={currentCount} />
       </div>
 
       <div className="flex items-center justify-between gap-3">

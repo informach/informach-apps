@@ -74,6 +74,8 @@ export type TranscribeAudioInput = {
    * Omitir mantém o default do modelo.
    */
   temperature?: number;
+  /** Optional caller cancellation; every transcription also has a 90-second deadline. */
+  signal?: AbortSignal;
 };
 
 export type TranscribeAudioResult = {
@@ -98,6 +100,9 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
 
   const response = await fetch(`${baseURL}/audio/transcriptions`, {
     method: "POST",
+    signal: input.signal
+      ? AbortSignal.any([input.signal, AbortSignal.timeout(90_000)])
+      : AbortSignal.timeout(90_000),
     headers: {
       ...(input.headers ?? {}),
       Authorization: `Bearer ${input.apiKey}`,

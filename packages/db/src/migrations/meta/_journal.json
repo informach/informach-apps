@@ -225,6 +225,27 @@
       "when": 1778776701095,
       "tag": "0031_wealthy_jazinda",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1789136036579,
+      "tag": "0032_normal_shiver_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1789137365241,
+      "tag": "0033_curly_dreaming_celestial",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1789145194776,
+      "tag": "0034_wonderful_omega_flight",
+      "breakpoints": true
     }
   ]
 }

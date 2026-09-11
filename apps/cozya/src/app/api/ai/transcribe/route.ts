@@ -1,7 +1,13 @@
 import { withAiRouteGuards } from "@/features/ai/_shared";
+import { aiErrorResponse } from "@/features/ai/errors";
+import { runAiOperation } from "@/features/ai/idempotency";
 import { transcribeRecipeAudio } from "@/features/ai/transcribe-service";
 import { logger } from "@/lib/logger";
-import { contentLengthExceeds } from "@/lib/request-size";
+import {
+  contentLengthExceeds,
+  RequestTooLargeError,
+  readLimitedFormData,
+} from "@/lib/request-size";
 
 export const runtime = "nodejs";
 
@@ -19,7 +25,7 @@ export async function POST(request: Request): Promise<Response> {
     if (contentLengthExceeds(request, MAX_AUDIO_REQUEST_BYTES)) {
       return Response.json({ code: "AUDIO_TOO_LARGE" }, { status: 413 });
     }
-    const form = await request.formData();
+    const form = await readLimitedFormData(request, MAX_AUDIO_REQUEST_BYTES);
     const audio = form.get("audio");
     if (!(audio instanceof Blob)) {
       return Response.json({ code: "INVALID_AUDIO" }, { status: 400 });
@@ -35,21 +41,25 @@ export async function POST(request: Request): Promise<Response> {
     }
     audioBlob = audio;
   } catch (err) {
+    if (err instanceof RequestTooLargeError) return aiErrorResponse(err);
     logger.warn(
-      { userId, error: err instanceof Error ? err.message : String(err) },
+      { userId, error: err instanceof Error ? err.name : "UnknownError" },
       "cozya.transcribe.parse_failed",
     );
     return Response.json({ code: "INVALID_AUDIO" }, { status: 400 });
   }
 
-  try {
-    const result = await transcribeRecipeAudio({ userId, audio: audioBlob });
-    return Response.json({ text: result.text });
-  } catch (err) {
-    logger.error(
-      { userId, error: err instanceof Error ? err.message : String(err) },
-      "cozya.transcribe.failed",
-    );
-    return Response.json({ code: "TRANSCRIBE_FAILED" }, { status: 502 });
-  }
+  return runAiOperation(request, userId, audioBlob, async () => {
+    try {
+      const result = await transcribeRecipeAudio({ userId, audio: audioBlob });
+      return Response.json({ text: result.text });
+    } catch (err) {
+      if (err instanceof RequestTooLargeError) return aiErrorResponse(err);
+      logger.error(
+        { userId, error: err instanceof Error ? err.name : "UnknownError" },
+        "cozya.transcribe.failed",
+      );
+      return aiErrorResponse(err, "TRANSCRIBE_FAILED");
+    }
+  });
 }

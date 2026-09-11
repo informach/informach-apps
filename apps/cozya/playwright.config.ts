@@ -27,7 +27,7 @@ export default defineConfig({
     ? undefined
     : {
         command: `pnpm exec next dev -p ${PORT}`,
-        url: BASE_URL,
+        url: `${BASE_URL}/api/auth/get-session`,
         reuseExistingServer: process.env.E2E_REUSE_EXISTING_SERVER === "1",
         timeout: 120_000,
         env: {
@@ -36,11 +36,14 @@ export default defineConfig({
           EMAIL_SANDBOX_DIR,
           E2E_RELAX_AUTH_RATE_LIMITS: "1",
           NEXT_PUBLIC_APP_URL: BASE_URL,
-          OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || "sk-or-e2e",
-          REDIS_URL: "",
+          OPENROUTER_API_KEY: "sk-or-e2e-disabled",
+          REDIS_URL: "redis://localhost:6379/12",
           STRIPE_MODE: "dev",
-          STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || "sk_test_e2e",
-          STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || "whsec_e2e",
+          STRIPE_SECRET_KEY: "sk_test_e2e",
+          STRIPE_WEBHOOK_SECRET: "whsec_e2e",
+          SENTRY_AUTH_TOKEN: "",
+          SENTRY_DSN: "",
+          NEXT_PUBLIC_SENTRY_DSN: "",
         },
       },
   projects: [

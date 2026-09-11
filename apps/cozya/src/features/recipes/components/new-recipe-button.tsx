@@ -14,11 +14,12 @@ import { type ParsedRecipeFields, VoiceRecipeDialog } from "./voice-recipe-dialo
 type Props = {
   isPro: boolean;
   currentCount: number;
+  canUseAi?: boolean;
 };
 
 type View = "closed" | "picker" | "voice" | "text" | "image" | "prompt" | "manual";
 
-export function NewRecipeButton({ isPro, currentCount }: Props) {
+export function NewRecipeButton({ isPro, currentCount, canUseAi = isPro }: Props) {
   const [view, setView] = useState<View>("closed");
   const [defaultValues, setDefaultValues] = useState<RecipeFormValues | null>(null);
 
@@ -45,6 +46,7 @@ export function NewRecipeButton({ isPro, currentCount }: Props) {
 
   const handleParsedFromVoice = (recipe: ParsedRecipeFields) => {
     setDefaultValues({
+      ...recipe,
       name: recipe.name,
       ingredients: recipe.ingredients,
       preparation: recipe.preparation,
@@ -57,6 +59,7 @@ export function NewRecipeButton({ isPro, currentCount }: Props) {
 
   const handleParsedFromText = (recipe: ParsedRecipeFields) => {
     setDefaultValues({
+      ...recipe,
       name: recipe.name,
       ingredients: recipe.ingredients,
       preparation: recipe.preparation,
@@ -69,6 +72,7 @@ export function NewRecipeButton({ isPro, currentCount }: Props) {
 
   const handleParsedFromImage = (recipe: ParsedRecipeFields) => {
     setDefaultValues({
+      ...recipe,
       name: recipe.name,
       ingredients: recipe.ingredients,
       preparation: recipe.preparation,
@@ -81,6 +85,7 @@ export function NewRecipeButton({ isPro, currentCount }: Props) {
 
   const handleParsedFromPrompt = (recipe: ParsedRecipeFields) => {
     setDefaultValues({
+      ...recipe,
       name: recipe.name,
       ingredients: recipe.ingredients,
       preparation: recipe.preparation,
@@ -130,7 +135,7 @@ export function NewRecipeButton({ isPro, currentCount }: Props) {
         onOpenChange={(open) => {
           if (!open) handleClose();
         }}
-        isPro={isPro}
+        canUseAi={canUseAi}
         onPickManual={handlePickManual}
         onPickPrompt={handlePickPrompt}
         onPickVoice={handlePickVoice}

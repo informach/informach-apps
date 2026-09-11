@@ -1,8 +1,9 @@
 import type { Product } from "@informach/config";
 import type { Database } from "@informach/db";
 import { creditLedger, customers, oneTimePayments } from "@informach/db/schema";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { type BillingEmailDeps, sendBillingEmail } from "./../billing-emails";
+import { getBalance } from "../credits/balance";
 import { type Logger, safeLog } from "./../logger";
 import type { BillingAuditEvent, BillingProvider, SubjectType } from "./../types";
 
@@ -338,15 +339,5 @@ async function readOwnerBalanceAfter(
   ownerId: string,
   app: string,
 ): Promise<number> {
-  const result = await db.execute(sql`
-    SELECT COALESCE(SUM(amount), 0) AS total
-    FROM billing.credit_ledger
-    WHERE owner_type = ${ownerType}
-      AND owner_id = ${ownerId}
-      AND app = ${app}
-      AND entry_type <> 'expiration'
-      AND (expires_at IS NULL OR expires_at > now())
-  `);
-  const rows = result as unknown as Array<{ total: number | string | null }>;
-  return Number(rows[0]?.total ?? 0);
+  return (await getBalance({ db, app }, { type: ownerType, id: ownerId })).total;
 }

@@ -67,6 +67,12 @@ vi.mock("@informach/auth/server", () => ({
   createServerHelpers: mocks.createServerHelpers,
 }));
 
+vi.mock("@/features/account/repository", () => ({
+  hasOtherAppSubscriptions: vi.fn(async () => false),
+  clearCozyaData: vi.fn(async () => undefined),
+}));
+vi.mock("@/features/account/legacy-ai", () => ({ purgeLegacyCozyaAi: vi.fn(async () => 0) }));
+
 vi.mock("@informach/billing", () => ({
   createBillingService: mocks.createBillingService,
 }));
@@ -166,6 +172,7 @@ describe("audit wiring", () => {
     });
     expect(mocks.logAuditEvent).toHaveBeenCalledWith("billing.payment_succeeded", "user-1", {
       invoiceId: "in_123",
+      app: "cozya",
     });
 
     const createEmailServiceCalls = mocks.createEmailService.mock.calls as unknown as Array<

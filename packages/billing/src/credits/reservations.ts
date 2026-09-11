@@ -26,6 +26,8 @@ import type {
  */
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
+import { getBalance } from "./balance";
+
 const DEFAULT_TTL_SECONDS = 600;
 const UUID_V4_OR_COMPATIBLE_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -120,11 +122,6 @@ async function lockOwnerForTx(tx: Tx, owner: CreditOwner): Promise<void> {
   await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${ownerKey(owner)}))`);
 }
 
-type SaldoRow = {
-  total: number | string | null;
-  reserved_other: number | string | null;
-};
-
 /**
  * Computes total and (optionally excluding a specific reservation) reserved
  * within an open transaction. The advisory lock on the owner must already be held.
@@ -139,35 +136,7 @@ async function readBalanceForOwner(
   app: string,
   opts: { excludeReservationId?: string } = {},
 ): Promise<{ total: number; reserved: number }> {
-  const excludedId = opts.excludeReservationId ?? null;
-  const result = await tx.execute(sql`
-    SELECT
-      COALESCE((
-        SELECT SUM(amount)
-        FROM billing.credit_ledger
-        WHERE owner_type = ${owner.type}
-          AND owner_id = ${owner.id}
-          AND app = ${app}
-          AND entry_type <> 'expiration'
-          AND (expires_at IS NULL OR expires_at > now())
-      ), 0) AS total,
-      COALESCE((
-        SELECT SUM(estimated_amount)
-        FROM billing.credit_reservations
-        WHERE owner_type = ${owner.type}
-          AND owner_id = ${owner.id}
-          AND app = ${app}
-          AND status = 'active'
-          AND expires_at > now()
-          AND (${excludedId}::uuid IS NULL OR id <> ${excludedId}::uuid)
-      ), 0) AS reserved_other
-  `);
-  const rows = result as unknown as SaldoRow[];
-  const row = rows[0];
-  return {
-    total: Number(row?.total ?? 0),
-    reserved: Number(row?.reserved_other ?? 0),
-  };
+  return getBalance({ db: tx, app }, owner, opts);
 }
 
 export async function reserveCredits(
@@ -390,7 +359,7 @@ export async function releaseReservation(
     .set({
       status: "released",
       resolvedAt: new Date(),
-      metadata: sql`${creditReservations.metadata} || ${{ release_reason: input.reason }}::jsonb`,
+      metadata: sql`${creditReservations.metadata} || ${JSON.stringify({ release_reason: input.reason })}::jsonb`,
     })
     .where(
       and(eq(creditReservations.id, input.reservationId), eq(creditReservations.status, "active")),

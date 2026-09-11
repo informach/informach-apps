@@ -5,7 +5,7 @@ import { RECIPE_REFINER_INSTRUCTIONS } from "./instructions";
 
 type AgentModel = ConstructorParameters<typeof Agent>[0]["model"];
 
-export function createRecipeRefinerAgent(opts: { model: AgentModel; memory: Memory }): Agent {
+export function createRecipeRefinerAgent(opts: { model: AgentModel; memory?: Memory }): Agent {
   return new Agent({
     id: "recipeRefiner",
     name: "recipeRefiner",

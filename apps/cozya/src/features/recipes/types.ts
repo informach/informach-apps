@@ -1,3 +1,4 @@
+import type { CozyaIngredient } from "@informach/db/schema";
 import type { RecipeCreationMethod } from "./schemas";
 
 export type Recipe = {
@@ -7,10 +8,16 @@ export type Recipe = {
   ingredients: string;
   preparation: string;
   finishing: string | null;
+  servings?: number | null;
+  totalMinutes?: number | null;
+  structuredIngredients?: CozyaIngredient[] | null;
+  sourceUrl?: string | null;
+  sourceName?: string | null;
   isFavorite: boolean;
   creationMethod: RecipeCreationMethod;
   createdAt: Date;
   updatedAt: Date;
+  contentUpdatedAt: Date;
 };
 
 /**

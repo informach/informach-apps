@@ -7,6 +7,26 @@ import { toast } from "@informach/ui/components/sonner";
  */
 export function handleAiHttpError(response: Response): boolean {
   if (response.ok) return true;
+  if (response.status === 402) {
+    toast.error("Seus créditos de IA acabaram.", {
+      description: "Suas receitas, compras e o modo de preparo continuam disponíveis.",
+      action: {
+        label: "Ver saldo",
+        onClick: () => {
+          window.location.href = "/settings/billing";
+        },
+      },
+    });
+    return false;
+  }
+  if (response.status === 413) {
+    toast.error("Arquivo muito grande. Envie uma imagem de até 5 MB ou áudio de até 10 MB.");
+    return false;
+  }
+  if (response.status === 401) {
+    toast.error("Entre novamente para continuar. Seu conteúdo permanece nesta tela.");
+    return false;
+  }
   if (response.status === 429) {
     response
       .json()
@@ -18,7 +38,7 @@ export function handleAiHttpError(response: Response): boolean {
     return false;
   }
   if (response.status === 403) {
-    toast.error("Esta funcionalidade é apenas para assinantes Pro.");
+    toast.error("Verifique seu e-mail e ative o teste gratuito ou o Pro para usar a IA.");
     return false;
   }
   if (response.status === 503) {

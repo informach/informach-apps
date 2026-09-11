@@ -43,6 +43,7 @@ type Props = {
   defaultValues?: RecipeFormValues;
   title?: string;
   description?: string;
+  onSaved?: () => void;
 };
 
 const EMPTY_DEFAULTS: RecipeFormValues = {
@@ -62,6 +63,10 @@ function defaultsFromRecipe(recipe: Recipe): RecipeFormValues {
     finishing: recipe.finishing ?? "",
     isFavorite: recipe.isFavorite,
     creationMethod: recipe.creationMethod,
+    servings: recipe.servings ?? null,
+    totalMinutes: recipe.totalMinutes ?? null,
+    sourceUrl: recipe.sourceUrl ?? null,
+    sourceName: recipe.sourceName ?? null,
   };
 }
 
@@ -74,6 +79,7 @@ export function RecipeFormDialog({
   defaultValues,
   title,
   description,
+  onSaved,
 }: Props) {
   const router = useRouter();
   const [submitting, startSubmit] = useTransition();
@@ -94,6 +100,16 @@ export function RecipeFormDialog({
       form.reset(recipe ? defaultsFromRecipe(recipe) : { ...EMPTY_DEFAULTS, ...defaultValues });
     }
   }, [open, recipe, defaultValues, form]);
+
+  const hasUnsavedChanges = open && form.formState.isDirty;
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+  }, [hasUnsavedChanges]);
 
   const onSubmit = form.handleSubmit((values) => {
     startSubmit(async () => {
@@ -123,6 +139,8 @@ export function RecipeFormDialog({
           return;
         }
         toast.success("Receita atualizada");
+        onSaved?.();
+        form.reset(values);
         onOpenChange(false);
         router.refresh();
         return;
@@ -157,6 +175,13 @@ export function RecipeFormDialog({
   });
 
   const handleOpenChange = (next: boolean) => {
+    if (!next && submitting) return;
+    if (
+      !next &&
+      form.formState.isDirty &&
+      !window.confirm("Descartar as alterações não salvas desta receita?")
+    )
+      return;
     if (!next) {
       form.reset(recipe ? defaultsFromRecipe(recipe) : { ...EMPTY_DEFAULTS, ...defaultValues });
     }
@@ -181,7 +206,7 @@ export function RecipeFormDialog({
         {limitReached ? (
           <div className="space-y-4">
             <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-muted/40 p-6 text-center">
-              <span className="flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <span className="flex size-11 items-center justify-center rounded-full bg-primary/10 text-brand-ink">
                 <Lock className="size-5" aria-hidden />
               </span>
               <div className="space-y-1">
@@ -237,11 +262,67 @@ export function RecipeFormDialog({
                         {...field}
                       />
                     </FormControl>
-                    <FormDescription>Liste um ingrediente por linha.</FormDescription>
+                    <FormDescription>
+                      Liste um ingrediente por linha. Quantidades serão usadas na lista de compras;
+                      confira o rendimento.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="servings"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Rendimento (porções)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={100}
+                          placeholder="Não informado"
+                          name={field.name}
+                          ref={field.ref}
+                          onBlur={field.onBlur}
+                          value={field.value ?? ""}
+                          onChange={(e) =>
+                            field.onChange(e.target.value === "" ? null : e.target.valueAsNumber)
+                          }
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="totalMinutes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tempo total (min)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={10080}
+                          placeholder="Opcional"
+                          name={field.name}
+                          ref={field.ref}
+                          onBlur={field.onBlur}
+                          value={field.value ?? ""}
+                          onChange={(e) =>
+                            field.onChange(e.target.value === "" ? null : e.target.valueAsNumber)
+                          }
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <FormField
                 control={form.control}
@@ -300,6 +381,50 @@ export function RecipeFormDialog({
                     <FormControl>
                       <Switch checked={Boolean(field.value)} onCheckedChange={field.onChange} />
                     </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="sourceUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Link da fonte (opcional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="url"
+                        maxLength={2048}
+                        placeholder="https://…"
+                        name={field.name}
+                        ref={field.ref}
+                        onBlur={field.onBlur}
+                        value={field.value ?? ""}
+                        onChange={(e) => field.onChange(e.target.value || null)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="sourceName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Autor ou origem (opcional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        maxLength={200}
+                        placeholder="Ex.: caderno da família"
+                        name={field.name}
+                        ref={field.ref}
+                        onBlur={field.onBlur}
+                        value={field.value ?? ""}
+                        onChange={(e) => field.onChange(e.target.value || null)}
+                      />
+                    </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )}
               />

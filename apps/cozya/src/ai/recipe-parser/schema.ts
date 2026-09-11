@@ -1,10 +1,36 @@
 import { z } from "zod";
 
 export const recipeParserSchema = z.object({
+  servings: z
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .nullable()
+    .describe(
+      "Rendimento em porções somente quando explícito na fonte. Nunca inferir; null se ausente.",
+    ),
+  totalMinutes: z
+    .number()
+    .int()
+    .min(1)
+    .max(10080)
+    .nullable()
+    .describe("Tempo total em minutos quando explícito; null se ausente."),
+  sourceUrl: z
+    .string()
+    .max(2048)
+    .nullable()
+    .describe("URL da fonte fornecida, sem inventar links; null se não informada."),
+  sourceName: z
+    .string()
+    .max(200)
+    .nullable()
+    .describe("Autor ou site explicitamente informado; null se desconhecido."),
   isValidRecipe: z
     .boolean()
     .describe(
-      "true se o conteúdo (áudio transcrito, texto colado ou foto) descreve uma receita culinária com ingredientes e/ou modo de preparo identificáveis. false se for outra coisa (mensagem aleatória, conversa, conteúdo em branco, imagem não-culinária).",
+      "true somente se o conteúdo contém UMA receita com ingredientes E preparo suficientes e legíveis. false para conteúdo incompleto, quantidades essenciais ilegíveis, receitas misturadas ou conteúdo não culinário.",
     ),
   reason: z
     .string()
@@ -35,7 +61,7 @@ export const recipeParserSchema = z.object({
     .max(5000)
     .nullable()
     .describe(
-      "Modo de preparo em parágrafo único, em ordem cronológica, sem listas numeradas. Null quando isValidRecipe=false.",
+      "Modo de preparo em ordem cronológica, UM PASSO por linha, sem listas numeradas. Preserve os tempos e temperaturas originais. Null quando isValidRecipe=false.",
     ),
   finishing: z
     .string()

@@ -2,10 +2,10 @@ import Link from "next/link";
 import { CozyaLogo } from "@/components/brand/cozya-logo";
 
 const NAV_LINKS = [
-  { href: "#como-funciona", label: "Como funciona" },
-  { href: "#recursos", label: "Recursos" },
-  { href: "#planos", label: "Planos" },
-  { href: "#perguntas", label: "Perguntas" },
+  { href: "/#como-funciona", label: "Como funciona" },
+  { href: "/#recursos", label: "Suas receitas" },
+  { href: "/#planos", label: "Planos" },
+  { href: "/#perguntas", label: "Perguntas" },
 ] as const;
 
 const ACCOUNT_LINKS = [
@@ -22,15 +22,15 @@ export function SiteFooter() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-border/60 bg-background">
-      <div className="container mx-auto px-4 py-14">
+    <footer className="landing-footer border-t border-border/60 bg-background">
+      <div className="landing-shell py-14">
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-3">
             <Link href="/" className="flex items-center" aria-label="Cozya, início">
-              <CozyaLogo className="h-8 w-auto text-secondary dark:text-foreground" />
+              <CozyaLogo className="cozya-mark h-8 w-auto" />
             </Link>
             <p className="max-w-xs text-sm text-muted-foreground leading-relaxed">
-              Receitas rápidas, sem caos. Capture, organize e cozinhe direto do celular.
+              Sua semana à mesa. Receitas, marmitas e compras organizadas para quem cozinha em casa.
             </p>
             <p className="max-w-xs text-xs text-muted-foreground/80 leading-relaxed">
               Informach — Núcleo de Aprendizagem Ltda

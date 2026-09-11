@@ -1,221 +1,119 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-type WithCreditsOptions = {
-  call: (input: { reservation: { id: string } }) => Promise<unknown>;
-};
-
-const withCreditsMock = vi.hoisted(() => vi.fn());
-const createOpenRouterMock = vi.hoisted(() => vi.fn());
-const openRouterModelMock = vi.hoisted(() => vi.fn((modelId: string) => ({ modelId })));
-const openRouterWebSearchMock = vi.hoisted(() => vi.fn(() => ({ type: "web_search" })));
-const generateTextMock = vi.hoisted(() => vi.fn());
-const parserGenerateMock = vi.hoisted(() => vi.fn());
-const getAgentMock = vi.hoisted(() => vi.fn(() => ({ generate: parserGenerateMock })));
-const getMastraMock = vi.hoisted(() => vi.fn(() => ({ getAgent: getAgentMock })));
-const recorderMock = vi.hoisted(() => ({
-  start: vi.fn(),
-  finish: vi.fn(),
+const generateText = vi.hoisted(() => vi.fn());
+const generate = vi.hoisted(() => vi.fn());
+const billing = vi.hoisted(() => ({
+  reserveCredits: vi.fn(),
+  commitReservation: vi.fn(),
+  releaseReservation: vi.fn(),
 }));
-const normalizeUsageForTest = vi.hoisted(() => (raw: unknown) => {
-  const usage = (raw ?? {}) as Record<string, unknown>;
-  const promptTokens = typeof usage.inputTokens === "number" ? usage.inputTokens : 0;
-  const completionTokens = typeof usage.outputTokens === "number" ? usage.outputTokens : 0;
-  const totalTokens =
-    typeof usage.totalTokens === "number" ? usage.totalTokens : promptTokens + completionTokens;
-  return { promptTokens, completionTokens, totalTokens };
-});
-
+const recorder = vi.hoisted(() => ({ start: vi.fn(), finish: vi.fn() }));
+const model = vi.hoisted(() => vi.fn(() => ({})));
 vi.mock("server-only", () => ({}));
-vi.mock("@informach/ai-core", () => ({
-  withCredits: withCreditsMock,
-  runRecordedAiCall: async (opts: {
-    recorder: typeof recorderMock;
-    app: string;
-    agent: string;
-    runId: string;
-    metadata?: Record<string, unknown>;
-    call: () => Promise<unknown>;
-    getUsage?: (result: unknown) => unknown;
-    getSuccessMetadata?: (result: unknown) => Record<string, unknown> | undefined;
-  }) => {
-    await opts.recorder.start({
-      runId: opts.runId,
-      app: opts.app,
-      agent: opts.agent,
-      ...(opts.metadata ? { metadata: opts.metadata } : {}),
-    });
-    const result = await opts.call();
-    const rawUsage = opts.getUsage?.(result);
-    const usage = rawUsage === undefined ? undefined : normalizeUsageForTest(rawUsage);
-    await opts.recorder.finish({
-      runId: opts.runId,
-      status: "succeeded",
-      ...(usage ? { usage } : {}),
-      metadata: {
-        ...(opts.metadata ?? {}),
-        ...(opts.getSuccessMetadata?.(result) ?? {}),
-      },
-    });
-    return { result, ...(usage ? { usage } : {}) };
-  },
+vi.mock("ai", () => ({ generateText }));
+vi.mock("@/ai", () => ({ getMastra: () => ({ getAgent: () => ({ generate }) }) }));
+vi.mock("@/ai/agent-run-recorder", () => ({ agentRunRecorder: recorder }));
+vi.mock("@/features/billing/service", () => ({ billing }));
+vi.mock("@/lib/openrouter", () => ({
+  getOpenRouter: () => Object.assign(model, { tools: { webSearch: () => ({ type: "provider" }) } }),
 }));
-vi.mock("@informach/ai-core/providers", () => ({
-  createOpenRouter: createOpenRouterMock,
-}));
-vi.mock("ai", () => ({
-  generateText: generateTextMock,
-}));
-vi.mock("@/ai", () => ({
-  getMastra: getMastraMock,
-}));
-vi.mock("@/ai/agent-run-recorder", () => ({
-  agentRunRecorder: recorderMock,
-}));
-vi.mock("@/features/billing/service", () => ({
-  billing: { test: true },
-}));
-vi.mock("@/lib/env", () => ({
-  env: {
-    OPENROUTER_API_KEY: "sk-or-test",
-    OPENROUTER_HTTP_REFERER: "https://cozya.app",
-    OPENROUTER_X_TITLE: "Cozya",
-  },
-}));
-describe("researchRecipeFromPrompt", () => {
+
+import { researchRecipeFromPrompt } from "./research-recipe-from-prompt-service";
+
+const recipe = {
+  servings: null,
+  totalMinutes: null,
+  sourceUrl: null,
+  sourceName: null,
+  isValidRecipe: true,
+  reason: null,
+  name: "Arroz",
+  ingredients: "1 xícara de arroz",
+  preparation: "Cozinhe o arroz.",
+  finishing: null,
+};
+const url = "https://example.com/arroz";
+function foundResearch() {
+  return {
+    text: `FONTE_URL: ${url}\nNOME: Arroz\nINGREDIENTES: 1 xícara de arroz\nMODO DE PREPARO: Cozinhe o arroz.`,
+    sources: [{ sourceType: "url", id: url, url, title: "Caderno de receitas" }],
+    usage: { inputTokens: 20, outputTokens: 30, totalTokens: 50 },
+    providerMetadata: { openrouter: { usage: { cost: 0.008 } } },
+  };
+}
+
+describe("pesquisa com reserva real e fontes", () => {
   beforeEach(() => {
-    // `getOpenRouter()` em `@/lib/openrouter` é um helper cached por módulo.
-    // Resetar o cache entre testes garante que cada `it` reinvoque
-    // `createOpenRouter` (mock) — sem isso, só o primeiro teste registra a
-    // chamada e os asserts subsequentes falham.
-    vi.resetModules();
-    withCreditsMock.mockReset();
-    generateTextMock.mockReset();
-    parserGenerateMock.mockReset();
-    createOpenRouterMock.mockClear();
-    openRouterModelMock.mockClear();
-    openRouterWebSearchMock.mockClear();
-    getMastraMock.mockClear();
-    getAgentMock.mockClear();
-    recorderMock.start.mockClear();
-    recorderMock.finish.mockClear();
-
-    withCreditsMock.mockImplementation(async (opts: WithCreditsOptions) => ({
-      result: await opts.call({ reservation: { id: "reservation-1" } }),
-    }));
-    createOpenRouterMock.mockReturnValue(
-      Object.assign(openRouterModelMock, {
-        tools: { webSearch: openRouterWebSearchMock },
-      }),
-    );
-  });
-
-  it("returns an invalid recipe result for search misses instead of throwing inside withCredits", async () => {
-    const { researchRecipeFromPrompt } = await import("./research-recipe-from-prompt-service");
-    generateTextMock.mockResolvedValue({
-      text: "NAO_ENCONTRADA",
-      usage: { inputTokens: 10, outputTokens: 2, totalTokens: 12 },
-      steps: [{ toolCalls: [{ toolName: "web_search" }] }],
-    });
-
-    const result = await researchRecipeFromPrompt({
-      userId: "user-1",
-      prompt: "receita famosa que não existe",
-    });
-
-    expect(result).toMatchObject({
-      isValidRecipe: false,
-      reason: expect.any(String),
-      name: null,
-      ingredients: null,
-      preparation: null,
-      finishing: null,
-    });
-    expect(withCreditsMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        owner: { type: "user", id: "user-1" },
-        feature: "cozya.recipe.generate_from_prompt",
-        computeActualCost: expect.any(Function),
-      }),
-    );
-    expect(parserGenerateMock).not.toHaveBeenCalled();
-    expect(recorderMock.finish).toHaveBeenCalledWith({
-      runId: expect.any(String),
-      status: "succeeded",
-      usage: { promptTokens: 10, completionTokens: 2, totalTokens: 12 },
-      metadata: expect.objectContaining({
-        feature: "cozya.recipe.generate_from_prompt",
-        reservationId: "reservation-1",
-        stage: "research",
-        outcome: "not_found",
-        usedWebSearch: true,
-      }),
-    });
-  });
-
-  it("records usage for both the web research and structured parse calls", async () => {
-    const { researchRecipeFromPrompt } = await import("./research-recipe-from-prompt-service");
-    const parsedRecipe = {
-      isValidRecipe: true,
-      reason: null,
-      name: "Bolo simples",
-      ingredients: "2 ovos\n1 xicara de farinha",
-      preparation: "Misture tudo e asse.",
-      finishing: null,
-    };
-    generateTextMock.mockResolvedValue({
-      text: "Receita popular de bolo simples com ingredientes e modo de preparo detalhados.",
-      usage: { inputTokens: 20, outputTokens: 30, totalTokens: 50 },
-      steps: [{ toolCalls: [{ toolName: "web_search" }] }],
-    });
-    parserGenerateMock.mockResolvedValue({
-      object: parsedRecipe,
+    vi.clearAllMocks();
+    billing.reserveCredits.mockImplementation(async (input) => ({ id: input.reservationId }));
+    billing.commitReservation.mockResolvedValue({ ledgerEntryId: "ledger", balanceAfter: 2 });
+    billing.releaseReservation.mockResolvedValue(undefined);
+    generateText.mockResolvedValue(foundResearch());
+    generate.mockResolvedValue({
+      object: recipe,
       usage: { inputTokens: 40, outputTokens: 60, totalTokens: 100 },
     });
-
-    const result = await researchRecipeFromPrompt({
-      userId: "user-1",
-      prompt: "bolo simples",
+  });
+  it("libera a reserva sem cobrar quando a pesquisa não encontra receita", async () => {
+    generateText.mockResolvedValue({ ...foundResearch(), text: "NAO_ENCONTRADA", sources: [] });
+    await expect(
+      researchRecipeFromPrompt({ userId: "user-1", prompt: "receita ausente" }),
+    ).rejects.toThrow("Nenhum crédito");
+    expect(billing.releaseReservation).toHaveBeenCalledOnce();
+    expect(billing.commitReservation).not.toHaveBeenCalled();
+    expect(generate).not.toHaveBeenCalled();
+  });
+  it("recusa URL que o modelo escreveu sem uma citação correspondente", async () => {
+    generateText.mockResolvedValue({
+      ...foundResearch(),
+      text: "FONTE_URL: https://inexistente.example/arroz\nReceita imaginada",
     });
-
-    expect(result).toEqual(parsedRecipe);
-    expect(createOpenRouterMock).toHaveBeenCalledWith({
-      apiKey: "sk-or-test",
-      appName: "Cozya",
-      appUrl: "https://cozya.app",
-    });
-    expect(openRouterModelMock).toHaveBeenCalledWith(
-      "openai/gpt-4o-mini",
-      expect.objectContaining({
-        extraBody: { models: ["openai/gpt-4o-mini", "openai/gpt-4o"] },
-        plugins: [{ id: "web", max_results: 5 }],
-      }),
+    await expect(researchRecipeFromPrompt({ userId: "user-1", prompt: "arroz" })).rejects.toThrow();
+    expect(billing.commitReservation).not.toHaveBeenCalled();
+    expect(generate).not.toHaveBeenCalled();
+  });
+  it("cobra uma vez, preserva fonte e registra uso das duas etapas sem conteúdo", async () => {
+    const result = await researchRecipeFromPrompt({ userId: "user-1", prompt: "arroz" });
+    expect(result).toEqual({ ...recipe, sourceUrl: url, sourceName: "Caderno de receitas" });
+    expect(billing.reserveCredits).toHaveBeenCalledOnce();
+    expect(billing.commitReservation).toHaveBeenCalledWith(
+      expect.objectContaining({ actualAmount: 1 }),
     );
-    expect(recorderMock.finish).toHaveBeenNthCalledWith(
+    expect(recorder.finish).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
-        runId: expect.any(String),
-        status: "succeeded",
         usage: { promptTokens: 20, completionTokens: 30, totalTokens: 50 },
-        metadata: expect.objectContaining({
-          reservationId: "reservation-1",
-          stage: "research",
-          outcome: "research_found",
-          usedWebSearch: true,
-        }),
+        metadata: expect.objectContaining({ providerCostUsd: 0.008, sourceCount: 1 }),
       }),
     );
-    expect(recorderMock.finish).toHaveBeenNthCalledWith(
+    expect(recorder.finish).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
-        runId: expect.any(String),
-        status: "succeeded",
         usage: { promptTokens: 40, completionTokens: 60, totalTokens: 100 },
-        metadata: expect.objectContaining({
-          reservationId: "reservation-1",
-          stage: "structured_parse",
-          outcome: "parsed",
-        }),
       }),
     );
+    expect(model).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ extraBody: expect.objectContaining({ max_tool_calls: 1 }) }),
+    );
+    expect(JSON.stringify(recorder.finish.mock.calls)).not.toContain("Cozinhe o arroz");
+  });
+  it("libera a reserva quando a estrutura final não contém preparo", async () => {
+    generate.mockResolvedValue({ object: { ...recipe, preparation: null }, usage: {} });
+    await expect(researchRecipeFromPrompt({ userId: "user-1", prompt: "arroz" })).rejects.toThrow();
+    expect(billing.releaseReservation).toHaveBeenCalledOnce();
+    expect(billing.commitReservation).not.toHaveBeenCalled();
+  });
+  it("mantém o título da fonte dentro do limite aceito ao salvar a prévia", async () => {
+    const research = foundResearch();
+    research.sources = research.sources.map((source) => ({
+      ...source,
+      title: "Fonte de receita ".repeat(30),
+    }));
+    generateText.mockResolvedValue(research);
+    const result = await researchRecipeFromPrompt({ userId: "user-1", prompt: "arroz" });
+    expect(result.sourceName).toHaveLength(200);
+    expect(result.sourceUrl).toBe(url);
+    expect(billing.commitReservation).toHaveBeenCalledOnce();
   });
 });

@@ -1,5 +1,4 @@
 "use client";
-
 import { Button } from "@informach/ui/components/button";
 import {
   Dialog,
@@ -11,177 +10,102 @@ import {
 } from "@informach/ui/components/dialog";
 import { toast } from "@informach/ui/components/sonner";
 import { SpeechInput } from "@informach/ui/components/speech-input";
-import { Loader2 } from "lucide-react";
 import { useState } from "react";
-import { handleAiHttpError } from "./_ai-http-errors";
+import { type ParsedRecipeFields, useAiRequest } from "./use-ai-request";
 
-export type ParsedRecipeFields = {
-  name: string;
-  ingredients: string;
-  preparation: string;
-  finishing: string;
-};
-
-// Legacy alias kept for callers that already imported the voice-specific name.
+export type { ParsedRecipeFields } from "./use-ai-request";
 export type VoiceRecipeFields = ParsedRecipeFields;
-
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onParsed: (recipe: VoiceRecipeFields) => void;
+  onParsed: (recipe: ParsedRecipeFields) => void;
 };
 
-type Stage = "idle" | "transcribing" | "parsing" | "not_recipe";
-
-const TRANSCRIBE_ENDPOINT = "/api/ai/transcribe";
-const PARSE_ENDPOINT = "/api/ai/recipes/parse-voice";
-
 export function VoiceRecipeDialog({ open, onOpenChange, onParsed }: Props) {
-  const [stage, setStage] = useState<Stage>("idle");
-  const [notRecipeReason, setNotRecipeReason] = useState<string>("");
-
-  const reset = () => {
-    setStage("idle");
-    setNotRecipeReason("");
+  const [processing, setProcessing] = useState(false);
+  const [lastAudio, setLastAudio] = useState<Blob | null>(null);
+  const [reason, setReason] = useState("");
+  const requestAi = useAiRequest();
+  const close = () => {
+    if (processing) return;
+    if (lastAudio && !window.confirm("Descartar o áudio desta receita?")) return;
+    setLastAudio(null);
+    setReason("");
+    onOpenChange(false);
   };
-
-  const handleOpenChange = (next: boolean) => {
-    if (!next) reset();
-    onOpenChange(next);
-  };
-
-  async function handleAudio(blob: Blob): Promise<string> {
-    setNotRecipeReason("");
-    setStage("transcribing");
-
-    const transcribeForm = new FormData();
-    transcribeForm.append("audio", blob, "recipe.webm");
-    const tRes = await fetch(TRANSCRIBE_ENDPOINT, {
-      method: "POST",
-      body: transcribeForm,
-    });
-    if (!handleAiHttpError(tRes)) {
-      setStage("idle");
-      return "";
+  async function handleAudio(audio: Blob): Promise<string> {
+    setLastAudio(audio);
+    setReason("");
+    setProcessing(true);
+    try {
+      const body = new FormData();
+      body.append("audio", audio, "recipe.webm");
+      body.append("mode", "recipe");
+      const data = await requestAi("/api/ai/recipes/from-audio", body, audio);
+      if (!data) return "";
+      if (!data.isValidRecipe) {
+        setReason(data.reason ?? "Não identifiquei uma receita. Nenhum crédito foi consumido.");
+        return "";
+      }
+      onParsed(data.recipe);
+      setLastAudio(null);
+      return data.recipe.name;
+    } finally {
+      setProcessing(false);
     }
-    if (!tRes.ok) {
-      toast.error("Não foi possível transcrever o áudio. Tente novamente.");
-      setStage("idle");
-      return "";
-    }
-    const tData = (await tRes.json().catch(() => null)) as { text?: string } | null;
-    const transcript = (tData?.text ?? "").trim();
-    if (!transcript) {
-      setStage("not_recipe");
-      setNotRecipeReason(
-        "Não consegui ouvir o áudio. Fale mais alto e perto do microfone, depois tente de novo.",
-      );
-      return "";
-    }
-
-    setStage("parsing");
-    const pRes = await fetch(PARSE_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ transcript }),
-    });
-    if (!handleAiHttpError(pRes)) {
-      setStage("idle");
-      return transcript;
-    }
-    if (!pRes.ok) {
-      toast.error("Não foi possível organizar a receita. Tente novamente.");
-      setStage("idle");
-      return transcript;
-    }
-    const pData = (await pRes.json().catch(() => null)) as
-      | {
-          isValidRecipe: true;
-          recipe: VoiceRecipeFields;
-        }
-      | { isValidRecipe: false; reason?: string }
-      | null;
-    if (!pData) {
-      toast.error("Não foi possível organizar a receita. Tente novamente.");
-      setStage("idle");
-      return transcript;
-    }
-    if (!pData.isValidRecipe) {
-      setStage("not_recipe");
-      setNotRecipeReason(pData.reason ?? "Não identifiquei uma receita no áudio.");
-      return transcript;
-    }
-
-    onParsed(pData.recipe);
-    reset();
-    // Note: we don't call onOpenChange(false) here — the parent transitions to
-    // the form view by mounting RecipeFormDialog with prefilled defaults, which
-    // unmounts this voice dialog. Avoids racing onOpenChange against onParsed.
-    return transcript;
   }
-
-  const isProcessing = stage === "transcribing" || stage === "parsing";
-
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) close();
+      }}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Nova receita por voz</DialogTitle>
           <DialogDescription>
-            Toque para gravar e descreva a receita: nome, ingredientes e modo de preparo. Você terá
-            até 3 minutos para falar.
+            Descreva ingredientes e preparo em até 3 minutos. A tarefa completa consome 1 crédito,
+            incluindo a transcrição. Você revisa antes de salvar.
           </DialogDescription>
         </DialogHeader>
-
         <div className="flex flex-col items-center gap-4 py-4">
           <SpeechInput
             aria-label="Gravar receita por voz"
-            maxDurationMs={180_000}
+            maxDurationMs={180000}
             size="lg"
             variant="outline"
             className="size-16 rounded-full"
+            disabled={processing}
             onAudioRecorded={handleAudio}
-            onError={(err) => {
-              const message =
-                err instanceof DOMException && err.name === "NotAllowedError"
+            onError={(error) =>
+              toast.error(
+                error instanceof DOMException && error.name === "NotAllowedError"
                   ? "Permita o uso do microfone para gravar."
-                  : "Não foi possível acessar o microfone.";
-              toast.error(message);
-              setStage("idle");
-            }}
+                  : "Não foi possível gravar o áudio.",
+              )
+            }
           />
-
-          <p className="text-center text-xs text-muted-foreground">
-            {stage === "idle" ? "Toque no microfone para começar a gravar." : null}
-            {stage === "transcribing" ? (
-              <span className="inline-flex items-center gap-1.5">
-                <Loader2 className="size-3 animate-spin" aria-hidden />
-                Transcrevendo seu áudio…
-              </span>
-            ) : null}
-            {stage === "parsing" ? (
-              <span className="inline-flex items-center gap-1.5">
-                <Loader2 className="size-3 animate-spin" aria-hidden />
-                Organizando os campos da receita…
-              </span>
-            ) : null}
+          <p role="status" className="text-center text-sm text-muted-foreground">
+            {processing ? "Ouvindo e organizando sua receita…" : "Toque no microfone para gravar."}
           </p>
-
-          {stage === "not_recipe" ? (
-            <div className="w-full rounded-lg border border-warning/40 bg-warning/10 p-3 text-center text-sm">
-              <p className="font-medium">Não consegui identificar uma receita</p>
-              <p className="mt-1 text-xs text-muted-foreground">{notRecipeReason}</p>
-            </div>
-          ) : null}
+          {reason && (
+            <p role="status" className="rounded-xl border p-4 text-sm">
+              {reason}
+            </p>
+          )}
+          {lastAudio && !processing && (
+            <Button variant="outline" onClick={() => void handleAudio(lastAudio)}>
+              Tentar novamente com este áudio
+            </Button>
+          )}
         </div>
-
+        <p className="text-xs text-muted-foreground">
+          Se não houver receita ou ocorrer falha no processamento, o crédito é liberado. Áudio
+          permanece nesta tela para tentar novamente.
+        </p>
         <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => handleOpenChange(false)}
-            disabled={isProcessing}
-          >
+          <Button variant="outline" disabled={processing} onClick={close}>
             Cancelar
           </Button>
         </DialogFooter>

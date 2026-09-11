@@ -1,19 +1,11 @@
 import "server-only";
 
-import { createDefaultLogger } from "@informach/ai-core/logger";
-import {
-  createDefaultObservability,
-  createMastra,
-  createPostgresStore,
-  createSharedMemory,
-} from "@informach/ai-core/mastra";
-import { env } from "@/lib/env";
+import { createMastra } from "@informach/ai-core/mastra";
 import { getOpenRouter } from "@/lib/openrouter";
 import { withModelFallbacks } from "./fallbacks";
 import { COZYA_MODELS } from "./models";
 import { createRecipeParserAgent } from "./recipe-parser/agent";
 import { createRecipeRefinerAgent } from "./recipe-refiner/agent";
-import { COZYA_WORKING_MEMORY_TEMPLATE } from "./working-memory";
 
 type Mastra = ReturnType<typeof createMastra>;
 
@@ -42,18 +34,8 @@ export function getMastra(): Mastra {
   if (cached) return cached;
 
   const openrouter = getOpenRouter();
-  const storage = createPostgresStore({
-    connectionString: env.DATABASE_URL,
-    disableInit: true,
-  });
-  // Working memory escopada por `resource` — persiste o "perfil culinário"
-  // entre threads/chamadas do mesmo userId (alergias, restrições, cozinhas
-  // favoritas). Os agentes leem e atualizam o bloco automaticamente quando
-  // a chamada passa `memory: { thread, resource: userId }`.
-  const memory = createSharedMemory({
-    storage,
-    workingMemoryTemplate: COZYA_WORKING_MEMORY_TEMPLATE,
-  });
+  // Stateless extraction: no conversational memory or content-bearing trace exporter.
+  // Operational token/billing telemetry remains in our ai.agent_runs recorder.
 
   const textModel = COZYA_MODELS["cozya.recipe.extract_from_text"];
   const visionModel = COZYA_MODELS["cozya.recipe.extract_from_photo"];
@@ -61,26 +43,23 @@ export function getMastra(): Mastra {
 
   const recipeParser = createRecipeParserAgent({
     model: openrouter(textModel, withModelFallbacks(textModel)),
-    memory,
   });
 
   const recipeParserVision = createRecipeParserAgent({
     id: "recipeParserVision",
     name: "recipeParserVision",
     model: openrouter(visionModel, withModelFallbacks(visionModel)),
-    memory,
   });
 
   const recipeRefiner = createRecipeRefinerAgent({
     model: openrouter(refineModel, withModelFallbacks(refineModel)),
-    memory,
   });
 
   cached = createMastra({
     agents: { recipeParser, recipeParserVision, recipeRefiner },
-    storage,
-    logger: createDefaultLogger({ name: "cozya", level: env.MASTRA_LOG_LEVEL }),
-    observability: createDefaultObservability({ serviceName: "cozya" }),
+    // Mastra debug/error payloads can contain full model output. Our sanitized recorder
+    // remains responsible for diagnostics, even when MASTRA_LOG_LEVEL=debug in the environment.
+    logger: false,
   });
   return cached;
 }

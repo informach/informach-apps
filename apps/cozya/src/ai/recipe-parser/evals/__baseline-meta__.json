@@ -1,0 +1,23 @@
+{
+  "executedAt": "2026-09-11T15:39:04.300Z",
+  "models": {
+    "textId": "openai/gpt-4o-mini",
+    "visionId": "openai/gpt-4o",
+    "researchId": "openai/gpt-4o-mini"
+  },
+  "webRetrieval": {
+    "requested": 2,
+    "delivered": 1,
+    "safeRefusals": 1
+  },
+  "judges": false,
+  "datasetSha256": "bb25a9dc6452f2f1dfde54728c45840ec19759ccb4cc73af3924c30a9d99d091",
+  "instructionsSha256": "89118b06a0bf7be37a032a2482ef258aa79f250366f27b59d4c09ff9e511b464",
+  "fixtureHashes": {
+    "image-001-receita-livro": "e0a76a3f78e02ffa18e18d7c9126b3cdc293a6735976de58e89eecd7f9c956ec",
+    "image-002-manuscrito-caderno": "6c38b34e2f858d40e0bbef47614b2f3179c90796cdf9a23118ce88eaf07e68c7",
+    "image-003-screenshot-blog": "b1577dae6719a5bdba62c9d053326cd3e003473bff3b96430840366d3c712491",
+    "image-004-foto-paisagem-nao-receita": "0435af40a0adb2c8f3064b7c35cf6f398855b8798012a507a18d236cdacf0cde",
+    "image-005-quantidade-cortada": "f292c333d82a5c398e1b256f88afc7790d9f1c411e49aab9d20c57706236eec7"
+  }
+}

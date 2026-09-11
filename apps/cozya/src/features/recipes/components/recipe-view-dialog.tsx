@@ -6,11 +6,13 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@informach/ui/components/dialog";
 import { cn } from "@informach/ui/lib/utils";
 import { Share2, Star, X } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { buildWhatsappShareUrl, parseIngredients } from "../share";
 import type { Recipe } from "../types";
@@ -53,7 +55,7 @@ export function RecipeViewDialog({ open, onOpenChange, recipe }: Props) {
           <DialogTitle className="flex flex-1 items-center gap-2 pt-1 text-left text-xl font-semibold leading-tight">
             {recipe.name}
             {recipe.isFavorite ? (
-              <Star className="size-4 shrink-0 text-primary" fill="currentColor" aria-hidden />
+              <Star className="size-4 shrink-0 text-brand-ink" fill="currentColor" aria-hidden />
             ) : null}
           </DialogTitle>
           <div className="flex shrink-0 items-center gap-2">
@@ -61,7 +63,7 @@ export function RecipeViewDialog({ open, onOpenChange, recipe }: Props) {
             <Button
               asChild
               size="icon"
-              className="size-9 rounded-full bg-[#25D366] text-white shadow-sm hover:bg-[#1ebe57]"
+              className="size-11 rounded-full bg-[#25D366] text-[#173248] shadow-sm hover:bg-[#1ebe57]"
             >
               <a
                 href={buildWhatsappShareUrl(recipe)}
@@ -78,13 +80,32 @@ export function RecipeViewDialog({ open, onOpenChange, recipe }: Props) {
                 variant="ghost"
                 size="icon"
                 aria-label="Fechar"
-                className="size-9 rounded-full bg-muted text-muted-foreground hover:bg-muted/70"
+                className="size-11 rounded-full bg-muted text-muted-foreground hover:bg-muted/70"
               >
                 <X className="size-4" aria-hidden />
               </Button>
             </DialogClose>
           </div>
         </DialogHeader>
+        <DialogDescription>
+          Confira sua receita ou abra o modo de preparo para salvar o progresso.
+        </DialogDescription>
+        <Button asChild className="min-h-12">
+          <Link href={`/receitas/${recipe.id}`}>Começar a cozinhar</Link>
+        </Button>
+        {recipe.sourceUrl && (
+          <p className="text-sm">
+            Fonte:{" "}
+            <a
+              className="underline"
+              href={recipe.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {recipe.sourceName || new URL(recipe.sourceUrl).hostname}
+            </a>
+          </p>
+        )}
 
         <div className="space-y-6 text-sm">
           <section className="space-y-2">

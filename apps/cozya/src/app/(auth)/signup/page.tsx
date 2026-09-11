@@ -16,7 +16,7 @@ export default async function SignupPage({
   const verifiedRedirectTo =
     plan === "pro"
       ? `/choose-plan?cycle=${cycle === "annual" ? "anual" : "mensal"}`
-      : "/choose-plan";
+      : "/dashboard?welcome=1";
 
   return <SignupForm verifiedRedirectTo={verifiedRedirectTo} />;
 }

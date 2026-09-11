@@ -23,7 +23,8 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "Cozya",
-  description: "Receitas rápidas, sem caos. Capture, organize e cozinhe direto do celular.",
+  description:
+    "Sua semana à mesa. Organize suas receitas, planeje refeições e marmitas e gere a lista de compras.",
   applicationName: "Cozya",
   appleWebApp: {
     capable: true,

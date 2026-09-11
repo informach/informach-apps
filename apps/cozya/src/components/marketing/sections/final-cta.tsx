@@ -1,70 +1,32 @@
-import { Button } from "@informach/ui/components/button";
-import { ArrowRight, ImagePlus, Mic, Sparkles } from "lucide-react";
+import { ArrowUpRight, Utensils } from "lucide-react";
 import Link from "next/link";
-
-const CAPTURE_ICONS = [
-  { icon: Mic, label: "voz" },
-  { icon: ImagePlus, label: "foto" },
-  { icon: Sparkles, label: "prompt" },
-] as const;
 
 export function FinalCta() {
   return (
-    <section className="container mx-auto px-4 py-20 md:py-28">
-      <div className="relative overflow-hidden rounded-3xl bg-secondary px-6 py-16 text-secondary-foreground shadow-xl md:px-16 md:py-24">
-        <div
-          className="pointer-events-none absolute -right-16 -top-16 size-72 rounded-full bg-primary/30 blur-3xl"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute -bottom-24 -left-10 size-72 rounded-full bg-primary/20 blur-3xl"
-          aria-hidden
-        />
-
-        <div className="relative mx-auto max-w-2xl text-center">
-          <div className="mx-auto flex w-fit items-center gap-3 rounded-full border border-secondary-foreground/20 bg-secondary-foreground/5 px-4 py-2 text-sm">
-            {CAPTURE_ICONS.map(({ icon: Icon, label }, i) => (
-              <span key={label} className="flex items-center gap-1.5">
-                <Icon className="size-4 text-primary" aria-hidden />
-                <span className="text-secondary-foreground/90">{label}</span>
-                {i < CAPTURE_ICONS.length - 1 && (
-                  <span className="ml-1 text-primary/50" aria-hidden>
-                    ·
-                  </span>
-                )}
-              </span>
-            ))}
-          </div>
-
-          <h2 className="mt-7 text-balance text-3xl font-semibold tracking-tight md:text-5xl">
-            Pare de procurar receita.
-            <br />
-            Comece a cozinhar.
-          </h2>
-          <p className="mt-5 text-pretty text-base text-secondary-foreground/80 leading-relaxed md:text-lg">
-            Em 30 segundos você cria a conta. Em 1 minuto a primeira receita já tá estruturada por
-            IA. Grátis pra começar, sem cartão, sem fidelidade.
-          </p>
-
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button size="lg" asChild>
-              <Link href="/signup">
-                Criar conta grátis
-                <ArrowRight className="size-4" aria-hidden />
-              </Link>
-            </Button>
-          </div>
-
-          <p className="mt-6 text-sm text-secondary-foreground/70">
-            Já tem conta?{" "}
-            <Link
-              href="/login"
-              className="font-medium text-secondary-foreground underline underline-offset-4 hover:text-primary"
-            >
-              Entrar
-            </Link>
-          </p>
-        </div>
+    <section className="landing-shell final-cta-section" aria-labelledby="final-title">
+      <div className="final-cta">
+        <span className="final-cta-symbol">
+          <Utensils size={28} aria-hidden />
+        </span>
+        <p className="landing-eyebrow">Sua semana à mesa</p>
+        <h2 id="final-title">
+          Deixe os próximos
+          <br />
+          jantares encaminhados.
+        </h2>
+        <p>
+          Escolha uma receita que você gosta.
+          <br />
+          Monte suas primeiras refeições. Leve a lista com você.
+        </p>
+        <Link href="/signup" className="landing-button landing-button-primary">
+          Planejar minha semana grátis <ArrowUpRight size={20} aria-hidden />
+        </Link>
+        <p className="final-cta-terms">
+          14 dias de planejamento + 3 créditos de IA.
+          <br />
+          Sem cartão. Sem renovação automática.
+        </p>
       </div>
     </section>
   );

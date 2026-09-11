@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Cozya",
     short_name: "Cozya",
     description: "Receitas rápidas, sem caos. Capture, organize e cozinhe direto do celular.",
-    start_url: "/",
+    start_url: "/dashboard",
     scope: "/",
     display: "standalone",
     orientation: "portrait",

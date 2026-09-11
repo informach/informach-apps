@@ -171,6 +171,8 @@ export type CreateAuthAccountDeletionConfig = {
   enabled: boolean;
   /** When true, the user gets a confirmation email before deletion. Default: true. */
   sendDeleteEmail?: boolean;
+  /** Abort deletion if mandatory application cleanup fails (for example subscription cancellation). */
+  requireCleanupSuccess?: boolean;
   /**
    * Optional async hook executed BEFORE the user is deleted from `core.users`.
    * Used by apps to clean up cross-package state (cancel billing subscriptions,
@@ -612,6 +614,7 @@ function createAuthInstance(config: CreateAuthConfig) {
                       hookError: err instanceof Error ? err.message : String(err),
                       stage: "onBeforeDelete",
                     });
+                    if (config.accountDeletion.requireCleanupSuccess) throw err;
                   }
                 }
               },

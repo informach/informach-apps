@@ -13,6 +13,22 @@ import {
 } from "../errors";
 import { createFakeDb } from "./_fake-db";
 
+const balanceSnapshot = (amount: number, reserved: number) => [
+  {
+    ledger: [
+      {
+        id: "grant",
+        amount,
+        entryType: "bonus_grant",
+        createdAt: "2020-01-01T00:00:00Z",
+        expiresAt: null,
+      },
+    ],
+    reserved,
+    as_of: new Date(),
+  },
+];
+
 const owner = { type: "user" as const, id: "user-1" };
 
 const baseReserveInput = {
@@ -28,8 +44,8 @@ describe("reserveCredits", () => {
   it("creates a reservation when balance is sufficient", async () => {
     const reservationId = "22222222-2222-4222-8222-222222222222";
     const { db, calls } = createFakeDb({
-      // execute() returns balance row: total=1000, reserved_other=300 → available=700
-      executeResult: [{ total: "1000", reserved_other: "300" }],
+      // Available credits exclude the other active reservations.
+      executeResult: balanceSnapshot(1000, 300),
       insertResult: [
         {
           id: "res-1",
@@ -60,7 +76,7 @@ describe("reserveCredits", () => {
   it("uses the reservation UUID as runId when caller does not pass runId", async () => {
     const reservationId = "33333333-3333-4333-8333-333333333333";
     const { db, calls } = createFakeDb({
-      executeResult: [{ total: "1000", reserved_other: "0" }],
+      executeResult: balanceSnapshot(1000, 0),
       insertResult: [{ id: reservationId, expiresAt: new Date("2026-05-01T20:00:00Z") }],
     });
     await reserveCredits(
@@ -86,7 +102,7 @@ describe("reserveCredits", () => {
 
   it("throws InsufficientCreditsError when available < estimatedAmount", async () => {
     const { db } = createFakeDb({
-      executeResult: [{ total: "100", reserved_other: "50" }],
+      executeResult: balanceSnapshot(100, 50),
     });
     await expect(reserveCredits({ db: db as never }, baseReserveInput)).rejects.toThrow(
       InsufficientCreditsError,
@@ -95,7 +111,7 @@ describe("reserveCredits", () => {
 
   it("clamps ttlSeconds below 60 to 60", async () => {
     const { db } = createFakeDb({
-      executeResult: [{ total: "1000", reserved_other: "0" }],
+      executeResult: balanceSnapshot(1000, 0),
       insertResult: [{ id: "res-2", expiresAt: new Date(Date.now() + 60_000) }],
     });
     await expect(
@@ -136,7 +152,7 @@ describe("commitReservation", () => {
         [{ status: "active", expiresAt: futureExpiry }],
       ],
       insertResult: [{ id: "ledger-commit-1" }],
-      executeResult: [{ total: "800", reserved_other: "0" }],
+      executeResult: balanceSnapshot(800, 0),
     });
     const result = await commitReservation(
       { db: db as never, onAudit },
@@ -244,7 +260,7 @@ describe("consumeCredits (reserve+commit shortcut)", () => {
   it("inserts a ledger consumption when balance is sufficient", async () => {
     const onAudit = vi.fn();
     const { db } = createFakeDb({
-      executeResult: [{ total: "1000", reserved_other: "100" }], // available = 900
+      executeResult: balanceSnapshot(1000, 100), // available = 900
       insertResult: [{ id: "ledger-direct-1" }],
     });
     const result = await consumeCredits(
@@ -272,7 +288,7 @@ describe("consumeCredits (reserve+commit shortcut)", () => {
 
   it("returns INSUFFICIENT_BALANCE without inserting ledger when below required", async () => {
     const { db, calls } = createFakeDb({
-      executeResult: [{ total: "100", reserved_other: "50" }], // available = 50
+      executeResult: balanceSnapshot(100, 50), // available = 50
     });
     const result = await consumeCredits(
       { db: db as never },

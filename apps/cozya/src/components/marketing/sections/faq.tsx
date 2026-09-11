@@ -1,74 +1,72 @@
-"use client";
-
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@informach/ui/components/accordion";
+import { ArrowUpRight, Plus } from "lucide-react";
+import Link from "next/link";
 
 const QUESTIONS = [
   {
-    q: "Preciso pagar pra começar?",
-    a: "Não. O plano Free salva receitas manualmente sem custo, sem cartão e sem prazo. Você só paga quando quiser usar IA pra importar de imagem, ditar por voz ou gerar receita por prompt.",
+    q: "Preciso ter uma semana inteira planejada para começar?",
+    a: "Você pode começar com uma receita e três refeições. Acrescente outras escolhas conforme sua rotina.",
   },
   {
-    q: "Como funciona a busca por voz?",
-    a: "Aperta o ícone de microfone e fala o nome ou descrição da receita ('bolo de cenoura', 'massa pra nhoque sem batata'). A IA transcreve, busca na web se precisar e estrutura uma receita pronta pra cozinhar. Cada busca por voz consome 1 crédito do seu plano.",
+    q: "Preciso de cartão para experimentar?",
+    a: "Não. Após verificar seu e-mail, ative 14 dias de planejamento, com 3 créditos de IA para todo o período. O teste é oferecido uma vez e não vira uma assinatura automaticamente.",
   },
   {
-    q: "Como funcionam os créditos de IA?",
-    a: "Toda assinatura Pro renova 50 créditos todo mês. Cada chamada à IA (importar foto, gerar por prompt, ditar por voz) consome 1 crédito. Acabou antes da renovação? Compra um pacote avulso ou espera o próximo ciclo. O cadastro manual continua liberado.",
+    q: "O que acontece quando o teste termina?",
+    a: "Seus dados continuam na conta. Você pode consultar seu acervo, usar o modo de preparo e acessar as listas já criadas. O Free permite novos cadastros dentro do limite de 15 receitas, sem apagar receitas que você já tenha acima desse limite. Novos planejamentos e o uso de IA ficam disponíveis com o Pro.",
   },
   {
-    q: "O que acontece se meus créditos acabarem?",
-    a: "Você continua salvando receitas manualmente, normalmente. Só os recursos de IA pausam até a renovação do mês ou até você comprar créditos extras avulsos.",
+    q: "A lista sabe o que já tenho em casa?",
+    a: "Você marca os itens que já tem. O Cozya reúne ingredientes compatíveis das receitas planejadas; algumas medidas precisam de conferência. Depois de mudar refeições ou receitas, use a ação de atualizar a lista.",
   },
   {
-    q: "Posso cancelar quando quiser?",
-    a: "Sim. Cancela direto na sua conta, sem fidelidade. Você mantém acesso ao plano Pro até o fim do ciclo já pago e depois volta automaticamente pro Free.",
+    q: "A IA é obrigatória?",
+    a: "Você pode cadastrar receitas manualmente. A IA ajuda quando quiser organizar uma foto, texto ou áudio, pesquisar uma receita ou fazer uma adaptação. Revise o resultado antes de salvar.",
   },
   {
-    q: "Preciso instalar pela loja de apps?",
-    a: "Não. O Cozya abre direto no navegador do celular. Quando a versão instalável estiver pronta, a gente avisa no produto.",
+    q: "E se os 50 créditos do mês acabarem?",
+    a: "Você continua com suas receitas, planejamento, compras e preparo. Os recursos de IA aguardam a renovação mensal ou a compra de créditos extras enquanto seu Pro estiver ativo.",
   },
   {
-    q: "Minhas receitas ficam privadas?",
-    a: "Sim. Cada conta tem suas próprias receitas. Compartilhamento só acontece quando você decide, pelo WhatsApp, com 1 toque.",
+    q: "Posso usar no celular?",
+    a: "Sim. O Cozya funciona no navegador do celular e do computador, com conexão à internet. Em aparelhos compatíveis, você pode adicioná-lo à tela inicial.",
   },
   {
-    q: "Posso importar print de receita do WhatsApp?",
-    a: "Pode. Cola a foto, faz upload ou tira foto direto do print na tela. A IA extrai o nome, ingredientes e preparo, e você revisa antes de salvar.",
+    q: "Posso cancelar a assinatura?",
+    a: "Você pode cancelar a renovação pela sua conta. O Pro continua disponível até o fim do período já pago; depois, a conta volta ao Free e seu acervo continua acessível.",
   },
-  {
-    q: "Tem app pra Android e iPhone?",
-    a: "O Cozya abre no navegador em iPhone e Android. Você não precisa passar por loja de apps pra começar a organizar receitas.",
-  },
-] as const;
+];
 
 export function Faq() {
   return (
-    <section id="perguntas" className="container mx-auto px-4 py-20 md:py-28">
-      <div className="mx-auto max-w-2xl text-center">
-        <p className="text-sm font-medium uppercase tracking-wider text-primary">
-          Perguntas frequentes
-        </p>
-        <h2 className="mt-3 text-balance text-3xl font-semibold tracking-tight md:text-4xl">
-          Perguntas que aparecem direto.
+    <section
+      id="perguntas"
+      className="landing-shell landing-section landing-faq"
+      aria-labelledby="faq-title"
+    >
+      <div className="faq-heading">
+        <p className="landing-eyebrow">Tudo às claras</p>
+        <h2 className="landing-title" id="faq-title">
+          Para começar
+          <br />
+          com tranquilidade.
         </h2>
+        <p className="landing-description">
+          As respostas que ajudam a escolher o seu próximo passo.
+        </p>
+        <Link href="/signup" className="landing-text-link">
+          Experimentar o Cozya <ArrowUpRight size={18} aria-hidden />
+        </Link>
       </div>
-
-      <div className="mx-auto mt-10 max-w-3xl">
-        <Accordion type="single" collapsible className="w-full">
-          {QUESTIONS.map((item, index) => (
-            <AccordionItem key={item.q} value={`item-${index}`}>
-              <AccordionTrigger className="text-left text-base">{item.q}</AccordionTrigger>
-              <AccordionContent className="text-muted-foreground leading-relaxed">
-                {item.a}
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
+      <div className="faq-list">
+        {QUESTIONS.map((item) => (
+          <details key={item.q}>
+            <summary>
+              {item.q}
+              <Plus size={20} aria-hidden />
+            </summary>
+            <p>{item.a}</p>
+          </details>
+        ))}
       </div>
     </section>
   );
