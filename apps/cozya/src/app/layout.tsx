@@ -23,7 +23,8 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "Cozya",
-  description: "Receitas rápidas, sem caos. Capture, organize e cozinhe direto do celular.",
+  description:
+    "Sua semana à mesa. Organize suas receitas, planeje refeições e marmitas e gere a lista de compras.",
   applicationName: "Cozya",
   appleWebApp: {
     capable: true,
@@ -41,8 +42,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
-      <body className={jakarta.variable} suppressHydrationWarning>
+    <html lang="pt-BR" className={jakarta.variable} suppressHydrationWarning>
+      <body suppressHydrationWarning>
         <ThemeProvider nonce={nonce}>
           {children}
           <Toaster />

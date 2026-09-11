@@ -1,0 +1,20 @@
+- dialog [ref=f2e243]:
+  - generic [ref=f2e244]:
+    - heading "Receita de revisão — omelete" [level=2] [ref=f2e245]
+    - generic [ref=f2e246]:
+      - link "Compartilhar no WhatsApp" [ref=f2e247] [cursor=pointer]:
+        - /url: https://wa.me/?text=*Receita%20de%20revis%C3%A3o%20%E2%80%94%20omelete*%0A%0A*Ingredientes%3A*%0A2%20ovos%0A1%20pitada%20de%20sal%0A%0A*Modo%20de%20preparo%3A*%0ABata%20os%20ovos.%20Cozinhe%20na%20frigideira%20at%C3%A9%20firmar.
+      - button "Fechar" [active] [ref=f2e248] [cursor=pointer]
+  - generic [ref=f2e249]:
+    - generic [ref=f2e250]:
+      - heading "Ingredientes" [level=3] [ref=f2e251]
+      - list [ref=f2e252]:
+        - listitem [ref=f2e253]:
+          - checkbox "2 ovos" [ref=f2e254] [cursor=pointer]
+          - generic [ref=f2e255] [cursor=pointer]: 2 ovos
+        - listitem [ref=f2e256]:
+          - checkbox "1 pitada de sal" [ref=f2e257] [cursor=pointer]
+          - generic [ref=f2e258] [cursor=pointer]: 1 pitada de sal
+    - generic [ref=f2e259]:
+      - heading "Preparo" [level=3] [ref=f2e260]
+      - paragraph [ref=f2e261]: Bata os ovos. Cozinhe na frigideira até firmar.

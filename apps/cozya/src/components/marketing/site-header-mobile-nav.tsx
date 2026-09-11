@@ -25,11 +25,11 @@ export function SiteHeaderMobileNav({ links }: SiteHeaderMobileNavProps) {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Abrir menu">
+        <Button variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label="Abrir menu">
           <Menu className="size-5" aria-hidden />
         </Button>
       </SheetTrigger>
-      <SheetContent side="right" className="w-72">
+      <SheetContent side="right" className="cozya-marketing w-72">
         <SheetTitle className="sr-only">Menu</SheetTitle>
         <SheetDescription className="sr-only">Navegação principal do site Cozya.</SheetDescription>
         <div className="mt-8 flex flex-col gap-1">
@@ -45,13 +45,13 @@ export function SiteHeaderMobileNav({ links }: SiteHeaderMobileNavProps) {
           ))}
           <div className="mt-6 flex flex-col gap-2 border-t border-border pt-6">
             <SheetClose asChild>
-              <Button variant="outline" asChild>
+              <Button variant="outline" className="min-h-11" asChild>
                 <Link href="/login">Entrar</Link>
               </Button>
             </SheetClose>
             <SheetClose asChild>
-              <Button asChild>
-                <Link href="/signup">Criar conta grátis</Link>
+              <Button className="min-h-11" asChild>
+                <Link href="/signup">Planejar minha semana grátis</Link>
               </Button>
             </SheetClose>
           </div>

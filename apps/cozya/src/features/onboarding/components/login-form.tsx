@@ -88,7 +88,7 @@ export function LoginForm({ nextPath, defaultEmail }: { nextPath: string; defaul
           {step.kind !== "auth" && (
             <span
               aria-hidden
-              className="mx-auto flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary"
+              className="mx-auto flex size-11 items-center justify-center rounded-full bg-primary/10 text-brand-ink"
             >
               {step.kind === "reset-email" ? (
                 <KeyRound className="size-5" />
@@ -160,7 +160,7 @@ export function LoginForm({ nextPath, defaultEmail }: { nextPath: string; defaul
         {step.kind === "auth" && (
           <CardFooter className="justify-center pt-2 text-sm text-muted-foreground">
             Ainda não tem conta?{" "}
-            <Link href="/signup" className="ml-1 font-medium text-primary hover:underline">
+            <Link href="/signup" className="ml-1 font-medium text-brand-ink hover:underline">
               Criar conta
             </Link>
           </CardFooter>

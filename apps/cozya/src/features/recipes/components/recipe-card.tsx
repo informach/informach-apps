@@ -37,9 +37,14 @@ export function RecipeCard({ recipe, isPro, currentCount }: Props) {
 
   // Detail/edit dialogs need `preparation` and `finishing`, which the list
   // projection drops. Lazy-load via `getRecipeAction` on the first open and
-  // cache for the lifetime of the card. Refresh discards the cache.
+  // Reuse only the same server version: router.refresh preserves local state.
   const ensureFullRecipe = async (): Promise<Recipe | null> => {
-    if (fullRecipe && fullRecipe.id === recipe.id) return fullRecipe;
+    if (
+      fullRecipe &&
+      fullRecipe.id === recipe.id &&
+      new Date(fullRecipe.updatedAt).getTime() === new Date(recipe.updatedAt).getTime()
+    )
+      return fullRecipe;
     const result = await catchActionResult(() => getRecipeAction({ id: recipe.id }));
     if (!result.ok) {
       if (isActionRejected(result.error) || result.error.code !== "NOT_FOUND") {
@@ -108,7 +113,7 @@ export function RecipeCard({ recipe, isPro, currentCount }: Props) {
             aria-label={`Ver detalhes de ${recipe.name}`}
           >
             <p className="text-base font-semibold leading-tight text-foreground">{recipe.name}</p>
-            <p className="mt-1 text-sm text-primary">{ingredientLabel(ingredientsCount)}</p>
+            <p className="mt-1 text-sm text-brand-ink">{ingredientLabel(ingredientsCount)}</p>
           </button>
 
           <div className="flex shrink-0 items-center gap-1.5">
@@ -117,9 +122,9 @@ export function RecipeCard({ recipe, isPro, currentCount }: Props) {
               variant="ghost"
               size="icon"
               className={cn(
-                "size-9 rounded-full",
+                "size-11 rounded-full",
                 recipe.isFavorite
-                  ? "bg-primary/15 text-primary hover:bg-primary/20 hover:text-primary"
+                  ? "bg-primary/15 text-brand-ink hover:bg-primary/20 hover:text-brand-ink"
                   : "text-muted-foreground hover:text-foreground",
               )}
               onClick={handleToggleFavorite}
@@ -142,7 +147,7 @@ export function RecipeCard({ recipe, isPro, currentCount }: Props) {
               type="button"
               variant="ghost"
               size="icon"
-              className="size-9 rounded-full text-muted-foreground hover:text-foreground"
+              className="size-11 rounded-full text-muted-foreground hover:text-foreground"
               onClick={(event) => {
                 event.stopPropagation();
                 void openEdit();
@@ -161,7 +166,7 @@ export function RecipeCard({ recipe, isPro, currentCount }: Props) {
               type="button"
               variant="ghost"
               size="icon"
-              className="size-9 rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              className="size-11 rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
               onClick={(event) => {
                 event.stopPropagation();
                 setDeleteOpen(true);
@@ -184,6 +189,7 @@ export function RecipeCard({ recipe, isPro, currentCount }: Props) {
           isPro={isPro}
           currentCount={currentCount}
           recipe={fullRecipe}
+          onSaved={() => setFullRecipe(null)}
         />
       ) : null}
       {deleteOpen ? (

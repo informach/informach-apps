@@ -12,7 +12,7 @@ import {
 import { toast } from "@informach/ui/components/sonner";
 import { Camera, ImagePlus, Images, Loader2, RefreshCcw } from "lucide-react";
 import { useRef, useState } from "react";
-import { handleAiHttpError } from "./_ai-http-errors";
+import { useAiRequest } from "./use-ai-request";
 import type { ParsedRecipeFields } from "./voice-recipe-dialog";
 
 type Props = {
@@ -35,6 +35,7 @@ const RESIZE_TARGETS = [
 ] as const;
 
 export function ImageRecipeDialog({ open, onOpenChange, onParsed }: Props) {
+  const requestAi = useAiRequest();
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [stage, setStage] = useState<Stage>("idle");
@@ -53,6 +54,8 @@ export function ImageRecipeDialog({ open, onOpenChange, onParsed }: Props) {
   };
 
   const handleOpenChange = (next: boolean) => {
+    if (!next && stage === "parsing") return;
+    if (!next && imageDataUrl && !window.confirm("Descartar o conteúdo desta receita?")) return;
     if (!next) reset();
     onOpenChange(next);
   };
@@ -114,27 +117,8 @@ export function ImageRecipeDialog({ open, onOpenChange, onParsed }: Props) {
     setNotRecipeReason("");
     setStage("parsing");
 
-    const res = await fetch(PARSE_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageDataUrl }),
-    });
-    if (!handleAiHttpError(res)) {
-      setStage("preview");
-      return;
-    }
-    if (!res.ok) {
-      toast.error("Não foi possível organizar a receita. Tente novamente.");
-      setStage("preview");
-      return;
-    }
-
-    const data = (await res.json().catch(() => null)) as
-      | { isValidRecipe: true; recipe: ParsedRecipeFields }
-      | { isValidRecipe: false; reason?: string }
-      | null;
+    const data = await requestAi(PARSE_ENDPOINT, JSON.stringify({ imageDataUrl }));
     if (!data) {
-      toast.error("Não foi possível organizar a receita. Tente novamente.");
       setStage("preview");
       return;
     }
@@ -162,6 +146,9 @@ export function ImageRecipeDialog({ open, onOpenChange, onParsed }: Props) {
             organiza os campos pra você revisar antes de salvar.
           </DialogDescription>
         </DialogHeader>
+        <p className="text-xs text-muted-foreground">
+          1 crédito por receita organizada. Conteúdo inválido ou falha libera o crédito.
+        </p>
 
         <input
           ref={cameraInputRef}
@@ -190,7 +177,7 @@ export function ImageRecipeDialog({ open, onOpenChange, onParsed }: Props) {
                 className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-muted/30 p-4 text-center transition-colors hover:border-primary hover:bg-muted/50"
                 aria-label="Tirar foto da receita com a câmera"
               >
-                <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-brand-ink">
                   <Camera className="size-6" aria-hidden />
                 </span>
                 <span className="text-sm font-medium text-foreground">Tirar foto</span>
@@ -202,7 +189,7 @@ export function ImageRecipeDialog({ open, onOpenChange, onParsed }: Props) {
                 className="flex w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-muted/30 p-4 text-center transition-colors hover:border-primary hover:bg-muted/50"
                 aria-label="Escolher foto da receita da galeria"
               >
-                <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-brand-ink">
                   <Images className="size-6" aria-hidden />
                 </span>
                 <span className="text-sm font-medium text-foreground">Escolher da galeria</span>

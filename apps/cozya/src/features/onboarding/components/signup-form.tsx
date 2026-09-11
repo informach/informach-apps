@@ -35,7 +35,7 @@ type Step = { kind: "form" } | { kind: "otp"; email: string; name: string };
 const RESEND_COOLDOWN_SECONDS = 60;
 
 export function SignupForm({
-  verifiedRedirectTo = "/choose-plan",
+  verifiedRedirectTo = "/dashboard?welcome=1",
 }: {
   verifiedRedirectTo?: string;
 }) {
@@ -59,7 +59,7 @@ export function SignupForm({
           {step.kind === "otp" && (
             <span
               aria-hidden
-              className="mx-auto flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary"
+              className="mx-auto flex size-11 items-center justify-center rounded-full bg-primary/10 text-brand-ink"
             >
               <MailCheck className="size-5" />
             </span>
@@ -104,7 +104,7 @@ export function SignupForm({
             Já tem conta?{" "}
             <Link
               href={`/login?next=${encodeURIComponent(verifiedRedirectTo)}`}
-              className="ml-1 font-medium text-primary hover:underline"
+              className="ml-1 font-medium text-brand-ink hover:underline"
             >
               Entrar
             </Link>

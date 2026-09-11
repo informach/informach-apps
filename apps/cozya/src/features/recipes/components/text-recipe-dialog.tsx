@@ -9,11 +9,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@informach/ui/components/dialog";
-import { toast } from "@informach/ui/components/sonner";
 import { Textarea } from "@informach/ui/components/textarea";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
-import { handleAiHttpError } from "./_ai-http-errors";
+import { useAiRequest } from "./use-ai-request";
 import type { ParsedRecipeFields } from "./voice-recipe-dialog";
 
 type Props = {
@@ -28,6 +27,7 @@ const PARSE_ENDPOINT = "/api/ai/recipes/parse-text";
 const MAX_TEXT_CHARS = 8000;
 
 export function TextRecipeDialog({ open, onOpenChange, onParsed }: Props) {
+  const requestAi = useAiRequest();
   const [text, setText] = useState("");
   const [stage, setStage] = useState<Stage>("idle");
   const [notRecipeReason, setNotRecipeReason] = useState<string>("");
@@ -39,6 +39,8 @@ export function TextRecipeDialog({ open, onOpenChange, onParsed }: Props) {
   };
 
   const handleOpenChange = (next: boolean) => {
+    if (!next && stage === "parsing") return;
+    if (!next && text.trim() && !window.confirm("Descartar o conteúdo desta receita?")) return;
     if (!next) reset();
     onOpenChange(next);
   };
@@ -50,27 +52,8 @@ export function TextRecipeDialog({ open, onOpenChange, onParsed }: Props) {
     setNotRecipeReason("");
     setStage("parsing");
 
-    const res = await fetch(PARSE_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: trimmed }),
-    });
-    if (!handleAiHttpError(res)) {
-      setStage("idle");
-      return;
-    }
-    if (!res.ok) {
-      toast.error("Não foi possível organizar a receita. Tente novamente.");
-      setStage("idle");
-      return;
-    }
-
-    const data = (await res.json().catch(() => null)) as
-      | { isValidRecipe: true; recipe: ParsedRecipeFields }
-      | { isValidRecipe: false; reason?: string }
-      | null;
+    const data = await requestAi(PARSE_ENDPOINT, JSON.stringify({ text: trimmed }));
     if (!data) {
-      toast.error("Não foi possível organizar a receita. Tente novamente.");
       setStage("idle");
       return;
     }
@@ -100,6 +83,9 @@ export function TextRecipeDialog({ open, onOpenChange, onParsed }: Props) {
             pra você revisar antes de salvar.
           </DialogDescription>
         </DialogHeader>
+        <p className="text-xs text-muted-foreground">
+          1 crédito por receita organizada. Conteúdo inválido ou falha libera o crédito.
+        </p>
 
         <div className="flex flex-col gap-2 py-2">
           <Textarea

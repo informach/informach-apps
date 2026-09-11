@@ -7,7 +7,7 @@ type AgentModel = ConstructorParameters<typeof Agent>[0]["model"];
 
 export function createRecipeParserAgent(opts: {
   model: AgentModel;
-  memory: Memory;
+  memory?: Memory;
   id?: string;
   name?: string;
 }): Agent {

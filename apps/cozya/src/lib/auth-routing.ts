@@ -3,6 +3,9 @@ export const AUTH_SIGN_UP_PATH = "/signup";
 
 export const AUTH_PROTECTED_PATHS = [
   "/dashboard",
+  "/semana",
+  "/compras",
+  "/receitas",
   "/choose-plan",
   "/settings",
   "/upgrade",

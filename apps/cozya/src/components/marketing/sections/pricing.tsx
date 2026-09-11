@@ -1,141 +1,114 @@
-"use client";
-
-import { Badge } from "@informach/ui/components/badge";
-import { Button } from "@informach/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@informach/ui/components/card";
-import { Tabs, TabsList, TabsTrigger } from "@informach/ui/components/tabs";
-import { Check, Sparkles } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
 import {
+  ANNUAL_SAVINGS,
   ANNUAL_SAVINGS_PCT,
-  type BillingCycle,
-  FREE_FEATURES,
+  ANNUAL_TOTAL,
   PRICING,
-  PRO_FEATURES,
 } from "@/features/billing/plans-content";
+import { TrialCta } from "../trial-cta";
 
-const QUERY_CYCLE: Record<BillingCycle, string> = {
-  monthly: "mensal",
-  annual: "anual",
-};
+const FEATURES = [
+  "Planejamento semanal com porções e marmitas",
+  "Lista de compras por ingredientes compatíveis",
+  "Repetição da semana e preparo em etapas",
+  "Receitas ilimitadas no seu acervo",
+  "Captura, pesquisa e adaptação com IA",
+  "50 créditos de IA renovados a cada mês",
+];
 
 export function Pricing() {
-  const [cycle, setCycle] = useState<BillingCycle>("annual");
-  const proPlan = PRICING[cycle];
-
   return (
-    <section id="planos" className="container mx-auto px-4 py-20 md:py-28">
-      <div className="mx-auto max-w-2xl text-center">
-        <p className="text-sm font-medium uppercase tracking-wider text-primary">Planos</p>
-        <h2 className="mt-3 text-balance text-3xl font-semibold tracking-tight md:text-4xl">
-          Comece grátis. Cresça quando quiser.
-        </h2>
-        <p className="mt-4 text-pretty text-base text-muted-foreground leading-relaxed md:text-lg">
-          Sem cartão pra começar. Sem fidelidade pra continuar.
-        </p>
-
-        <div className="mt-8 flex justify-center">
-          <Tabs value={cycle} onValueChange={(value) => setCycle(value as BillingCycle)}>
-            <TabsList>
-              <TabsTrigger value="monthly" className="px-5">
-                {PRICING.monthly.tabLabel}
-              </TabsTrigger>
-              <TabsTrigger value="annual" className="px-5">
-                {PRICING.annual.tabLabel}
-                <Badge variant="secondary" className="ml-2 rounded-full px-2 py-0 text-[10px]">
-                  -{ANNUAL_SAVINGS_PCT}%
-                </Badge>
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+    <section id="planos" className="pricing-section" aria-labelledby="pricing-title">
+      <div className="landing-shell">
+        <div className="pricing-intro">
+          <p className="landing-eyebrow">Um lugar na sua rotina</p>
+          <h2 className="landing-title" id="pricing-title">
+            Experimente na sua semana.
+            <br />
+            Continue com o que faz sentido.
+          </h2>
+          <p className="landing-description">
+            Crie sua conta, verifique o e-mail e ative seu teste gratuito. Depois, escolha como quer
+            continuar.
+          </p>
+          <TrialCta />
         </div>
-      </div>
-
-      <div className="mx-auto mt-12 grid max-w-4xl gap-5 md:grid-cols-2">
-        <Card className="flex flex-col border-border/70">
-          <CardHeader className="space-y-3 pb-4">
-            <p className="text-sm font-medium text-muted-foreground">Cozya Free</p>
-            <div className="flex items-baseline gap-1">
-              <span className="text-4xl font-semibold tracking-tight">R$ 0</span>
-              <span className="text-sm text-muted-foreground">para sempre</span>
+        <div className="pricing-grid">
+          <article className="landing-plan" aria-labelledby="monthly-plan-title">
+            <div className="plan-heading">
+              <span className="landing-mini-label">PARA IR NO SEU RITMO</span>
+              <h3 id="monthly-plan-title">Cozya Pro mensal</h3>
             </div>
-            <CardTitle className="text-base font-normal text-muted-foreground">
-              Pra quem quer começar a organizar receitas sem custo.
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-1 flex-col justify-between gap-6">
-            <ul className="space-y-3">
-              {FREE_FEATURES.map((feature) => (
-                <li
-                  key={feature.label}
-                  className={`flex items-start gap-3 text-sm ${
-                    feature.included ? "" : "text-muted-foreground/70"
-                  }`}
-                >
-                  <span
-                    className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full ${
-                      feature.included
-                        ? "bg-primary/15 text-primary"
-                        : "bg-muted text-muted-foreground/60"
-                    }`}
-                  >
-                    <Check className="size-3" aria-hidden />
-                  </span>
-                  <span className="leading-relaxed">{feature.label}</span>
+            <p className="plan-price">
+              {PRICING.monthly.price}
+              <span>/mês</span>
+            </p>
+            <p className="plan-billing-note">Cobrado mensalmente.</p>
+            <p className="plan-caption">A organização da semana, mês a mês.</p>
+            <ul>
+              {FEATURES.map((feature) => (
+                <li key={feature}>
+                  <Check size={17} aria-hidden />
+                  <span>{feature}</span>
                 </li>
               ))}
             </ul>
-            <Button variant="outline" size="lg" asChild>
-              <Link href="/signup">Começar grátis</Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="relative flex flex-col border-2 border-primary/50 shadow-lg">
-          <Badge className="absolute -top-3 left-6 gap-1">
-            <Sparkles className="size-3" aria-hidden />
-            Mais popular
-          </Badge>
-          <CardHeader className="space-y-3 pb-4">
-            <p className="text-sm font-medium text-primary">Cozya Pro</p>
-            <div className="flex items-baseline gap-1">
-              <span className="text-4xl font-semibold tracking-tight">{proPlan.price}</span>
-              <span className="text-sm text-muted-foreground">{proPlan.period}</span>
+            <Link
+              className="landing-button landing-button-outline"
+              href="/signup?plan=pro&cycle=mensal"
+            >
+              Assinar mensal <ArrowRight size={18} aria-hidden />
+            </Link>
+          </article>
+          <article className="landing-plan landing-plan-annual" aria-labelledby="annual-plan-title">
+            <div className="plan-heading">
+              <span className="plan-value-badge">Melhor valor no ano</span>
+              <h3 id="annual-plan-title">Cozya Pro anual</h3>
             </div>
-            <p className="text-xs text-muted-foreground">{proPlan.note}</p>
-            <div className="rounded-lg border border-primary/20 bg-primary/[0.06] p-3 text-center">
-              <p className="text-xl font-semibold text-primary">50 créditos de IA por mês</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                ≈ 50 buscas por voz, fotos parseadas ou receitas geradas
-              </p>
-            </div>
-            <CardTitle className="text-base font-normal text-muted-foreground">
-              Pra quem quer usar a IA pra capturar receita de qualquer fonte.
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-1 flex-col justify-between gap-6">
-            <ul className="space-y-3">
-              {PRO_FEATURES.map((feature) => (
-                <li key={feature.label} className="flex items-start gap-3 text-sm">
-                  <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-                    <Check className="size-3" aria-hidden />
-                  </span>
-                  <span className="leading-relaxed">{feature.label}</span>
+            <p className="plan-price">
+              {ANNUAL_TOTAL}
+              <span>/ano</span>
+            </p>
+            <p className="plan-billing-note">
+              Cobrado anualmente. Equivale a ≈ {PRICING.annual.price}/mês.
+            </p>
+            <p className="plan-caption">
+              Economize {ANNUAL_SAVINGS} em relação a 12 mensalidades (≈ {ANNUAL_SAVINGS_PCT}%).
+            </p>
+            <ul>
+              {FEATURES.map((feature) => (
+                <li key={feature}>
+                  <Check size={17} aria-hidden />
+                  <span>{feature}</span>
                 </li>
               ))}
             </ul>
-            <div className="space-y-3">
-              <Button size="lg" className="w-full" asChild>
-                <Link href={`/signup?plan=pro&cycle=${QUERY_CYCLE[cycle]}`}>Assinar Pro</Link>
-              </Button>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Quando os créditos do mês acabam, recursos de IA pausam até a renovação ou compra
-                avulsa. O cadastro manual de receitas continua liberado.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+            <Link
+              className="landing-button landing-button-primary"
+              href="/signup?plan=pro&cycle=anual"
+            >
+              Assinar anual <ArrowRight size={18} aria-hidden />
+            </Link>
+          </article>
+        </div>
+        <p className="pricing-credit-note">
+          Cada tarefa concluída de IA usa 1 crédito. Cadastro manual, planejamento e preparo não
+          consomem créditos. No anual, os 50 créditos também são renovados mensalmente.
+        </p>
+        <div className="pricing-free">
+          <div>
+            <span className="landing-mini-label">COZYA FREE · R$ 0</span>
+            <h3>Seu caderno também pode começar grátis.</h3>
+            <p>
+              Cadastre até 15 receitas. Depois do teste, seu acervo, o modo de preparo e as listas
+              já criadas continuam acessíveis. Novos planejamentos ficam no Pro.
+            </p>
+          </div>
+          <Link href="/signup" className="landing-text-link">
+            Começar pelo Free <ArrowRight size={18} aria-hidden />
+          </Link>
+        </div>
       </div>
     </section>
   );

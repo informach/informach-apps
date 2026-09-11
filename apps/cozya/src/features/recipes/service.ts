@@ -2,6 +2,8 @@ import "server-only";
 
 import { err, ok, type Result } from "@informach/auth/server-actions";
 import { billing } from "@/features/billing/service";
+import { recordProductEvent } from "@/features/kitchen/events";
+import { parseIngredients } from "@/features/kitchen/ingredients";
 import { FREE_RECIPE_LIMIT } from "./limits";
 import {
   countFavoritesByUser,
@@ -40,6 +42,11 @@ export async function createRecipe(
     finishing: input.finishing,
     isFavorite: input.isFavorite,
     creationMethod: input.creationMethod,
+    servings: input.servings ?? null,
+    totalMinutes: input.totalMinutes ?? null,
+    structuredIngredients: parseIngredients(input.ingredients),
+    sourceUrl: input.sourceUrl ?? null,
+    sourceName: input.sourceName ?? null,
   };
 
   const isPro = await billing.hasProSubscription({ type: "user", id: userId });
@@ -52,10 +59,12 @@ export async function createRecipe(
         current: limitedInsert.current,
       });
     }
+    await recordProductEvent(userId, "recipe_saved", limitedInsert.recipe.id);
     return ok(limitedInsert.recipe);
   }
 
   const row = await insertRecipe(payload);
+  await recordProductEvent(userId, "recipe_saved", row.id);
   return ok(row);
 }
 
@@ -86,6 +95,11 @@ export async function updateRecipe(
     preparation: input.preparation,
     finishing: input.finishing,
     isFavorite: input.isFavorite,
+    servings: input.servings ?? null,
+    totalMinutes: input.totalMinutes ?? null,
+    structuredIngredients: parseIngredients(input.ingredients),
+    sourceUrl: input.sourceUrl ?? null,
+    sourceName: input.sourceName ?? null,
   });
   if (!row) return err({ code: "NOT_FOUND" });
   return ok(row);

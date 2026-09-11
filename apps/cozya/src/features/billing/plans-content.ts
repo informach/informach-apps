@@ -9,12 +9,15 @@ export const FREE_FEATURES: PlanFeature[] = [
   { label: "Busca por nome e favoritos", included: true },
   { label: "Compartilhar pelo WhatsApp", included: true },
   { label: "Uso direto no navegador do celular", included: true },
-  { label: "Limite vitalício de 15 receitas salvas", included: true },
-  { label: "Importação por imagem, câmera e voz", included: false },
-  { label: "Geração de receita por título com IA", included: false },
+  { label: "Até 15 receitas no acervo gratuito", included: true },
+  { label: "Teste: 3 operações de IA e 14 dias de planejamento", included: true },
+  { label: "Preparo e listas já criadas continuam acessíveis", included: true },
 ];
 
 export const PRO_FEATURES: PlanFeature[] = [
+  { label: "Planejamento semanal com porções e marmitas", included: true },
+  { label: "Lista de compras somada por ingredientes compatíveis", included: true },
+  { label: "Repetir a semana e acompanhar o preparo", included: true },
   { label: "Receitas ilimitadas", included: true },
   { label: "Captura por voz, foto e texto", included: true },
   { label: "Geração com busca na web", included: true },
@@ -42,6 +45,8 @@ const monthlyCents = monthlyProduct.listPrice.amountCents;
 const annualCents = annualProduct.listPrice.amountCents;
 const annualMonthlyEquivalentCents = Math.round(annualCents / 12);
 export const ANNUAL_SAVINGS_PCT = Math.round((1 - annualCents / (monthlyCents * 12)) * 100);
+export const ANNUAL_TOTAL = BRL.format(annualCents / 100);
+export const ANNUAL_SAVINGS = BRL.format((monthlyCents * 12 - annualCents) / 100);
 
 export const PRICING: Record<
   BillingCycle,

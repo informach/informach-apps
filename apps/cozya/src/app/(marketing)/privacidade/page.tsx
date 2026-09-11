@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 
 const TITLE = "Política de Privacidade. Cozya";
-const DESCRIPTION =
-  "Como o Cozya coleta, usa e protege seus dados, em conformidade com a LGPD (Lei nº 13.709/2018).";
-const LAST_UPDATED = "8 de maio de 2026";
+const DESCRIPTION = "Como o Cozya trata receitas, planejamento, preferências e dados da conta.";
+const LAST_UPDATED = "11 de setembro de 2026";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -15,7 +14,7 @@ export default function PrivacyPolicyPage() {
   return (
     <article className="container mx-auto max-w-3xl px-4 py-16 md:py-24">
       <header className="space-y-3">
-        <p className="text-sm font-medium uppercase tracking-wider text-primary">Legal</p>
+        <p className="text-sm font-medium uppercase tracking-wider text-brand-ink">Legal</p>
         <h1 className="text-balance text-3xl font-semibold tracking-tight md:text-4xl">
           Política de Privacidade
         </h1>
@@ -52,14 +51,17 @@ export default function PrivacyPolicyPage() {
               em texto puro).
             </li>
             <li>
-              <strong>Conteúdo que você cria:</strong> receitas, fotos, textos e áudios enviados pra
-              captura por IA.
+              <strong>Conteúdo que você cria:</strong> receitas, planos semanais, listas de compras,
+              progresso de preparo e preferências preenchidas por você. Fotos, textos e áudios
+              enviados para IA são processados quando você solicita uma captura.
             </li>
             <li>
               <strong>Dados de uso da IA:</strong> registro de chamadas (qual feature, modelo
               utilizado, contagem de tokens, custo em créditos) pra fins de cobrança e auditoria.
-              Não armazenamos prompts e respostas após o processamento, exceto quando você decide
-              salvar a receita gerada.
+              Não mantemos memória automática de conversas nem inferimos perfil alimentar. A prévia
+              resultante fica disponível por 24 horas para recuperar uma solicitação cuja conexão
+              caiu; depois é bloqueada e removida na rotina horária. O conteúdo salvo como receita
+              permanece no seu acervo. Os dados enviados não são incluídos nos logs de IA.
             </li>
             <li>
               <strong>Dados de cobrança:</strong> identificadores Stripe (customer ID, subscription
@@ -123,9 +125,10 @@ export default function PrivacyPolicyPage() {
               <strong>SendGrid</strong> (Twilio Inc., EUA) para envio de e-mails transacionais.
             </li>
             <li>
-              <strong>OpenRouter</strong> (Mintplex Labs, EUA) como gateway pra modelos de IA da
-              OpenAI e parceiros, processando os prompts em tempo real e descartando após a
-              resposta.
+              <strong>OpenRouter e os provedores de modelos selecionados</strong> para processar o
+              material enviado à IA. Pesquisas também podem utilizar um serviço de busca web. As
+              regras de retenção desses fornecedores dependem do modelo, do provedor e das
+              configurações contratadas; não afirmamos descarte imediato por todos eles.
             </li>
             <li>
               <strong>Sentry</strong> (Functional Software Inc., EUA) para monitoramento de erros e
@@ -144,30 +147,58 @@ export default function PrivacyPolicyPage() {
 
         <Section title="7. Transferência internacional">
           <p>
-            Os operadores listados acima processam dados em servidores nos Estados Unidos e na União
-            Europeia. As transferências internacionais são realizadas com base na execução do
-            contrato (LGPD art. 33, V) e nos padrões contratuais e técnicos adotados pelos próprios
-            fornecedores (cláusulas-padrão, criptografia em trânsito, controles de acesso).
+            Serviços de pagamento, envio de e-mail e IA podem processar dados fora do Brasil. A
+            localização e as condições de tratamento variam conforme o fornecedor e o modelo
+            utilizado. Você pode solicitar detalhes sobre esses operadores pelo canal de
+            privacidade. As hipóteses legais para transferência internacional estão no art. 33 da{" "}
+            <a
+              className="underline"
+              href="https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709compilado.htm"
+            >
+              LGPD
+            </a>
+            .
           </p>
         </Section>
 
         <Section title="8. Por quanto tempo guardamos">
           <ul className="list-disc space-y-2 pl-6">
             <li>
-              <strong>Dados da conta e receitas:</strong> enquanto a conta estiver ativa.
+              <strong>Dados da conta e da cozinha:</strong> enquanto a conta estiver ativa ou até
+              você solicitar sua exclusão. Rascunhos de IA não salvos têm a janela de recuperação de
+              24 horas descrita acima, com limpeza na rotina horária seguinte.
             </li>
             <li>
-              <strong>Após exclusão da conta:</strong> os dados pessoais são removidos
-              imediatamente; o Cozya cancela assinaturas ativas e libera créditos no mesmo processo.
+              <strong>Eventos de uso e diagnóstico de IA:</strong> limpeza após 90 dias pela rotina
+              horária. O registro de idempotência sem conteúdo também é mantido por até 90 dias para
+              impedir a repetição de uma operação. Pendências de devolução de crédito preservam seus
+              identificadores e estado até a reconciliação; depois seguem a limpeza. Eventos não
+              contêm ingredientes ou preparo.
             </li>
             <li>
-              <strong>Registros fiscais e de pagamento:</strong> retidos pelo prazo legal de até 5
-              anos (Lei nº 8.846/1994 e Código Tributário Nacional), de forma minimizada e
-              dissociada quando possível.
+              <strong>Prevenção de repetição do teste:</strong> um identificador derivado do e-mail
+              com chave secreta registra o uso do teste. Após excluir a conta, esse identificador
+              desvinculado é removido quando completar 365 dias desde a ativação; ele não reinicia o
+              benefício ao recriar a mesma conta.
             </li>
             <li>
-              <strong>Logs de auditoria e segurança:</strong> mantidos por até 12 meses para
-              investigação de incidentes.
+              <strong>Exclusão:</strong> apagar dados do Cozya remove seu conteúdo da cozinha e
+              preserva a conta Informach e a assinatura. Excluir a conta Informach é uma ação
+              distinta, confirmada por e-mail, que afeta os aplicativos vinculados. Assinaturas de
+              outros aplicativos precisam ser encerradas antes; a do Cozya é cancelada durante o
+              processo. Operações de IA em andamento ou com devolução de crédito pendente precisam
+              ser concluídas antes da limpeza. Se a limpeza obrigatória falhar, a exclusão não é
+              concluída.
+            </li>
+            <li>
+              <strong>Registros fiscais e de pagamento:</strong> a limpeza do Cozya não apaga o
+              histórico de cobrança. Esses registros têm tratamento separado para obrigações
+              fiscais, contestações e atendimento, conforme o caso.
+            </li>
+            <li>
+              <strong>Logs de auditoria e segurança da conta Informach:</strong> têm retenção
+              separada dos eventos de uso da cozinha. Solicite informações ou eliminação pelo canal
+              de privacidade; esta rotina não apaga registros compartilhados de segurança.
             </li>
           </ul>
         </Section>
@@ -185,8 +216,11 @@ export default function PrivacyPolicyPage() {
             </li>
             <li>solicitar portabilidade dos seus dados pra outro fornecedor;</li>
             <li>
-              excluir a conta a qualquer momento pela área de configurações; isso cancela qualquer
-              assinatura ativa e remove os dados pessoais associados;
+              exportar ou apagar os dados da cozinha e solicitar exclusão da conta Informach em{" "}
+              <a className="underline" href="/settings/account">
+                Conta e privacidade
+              </a>
+              , observando o escopo de cada opção;
             </li>
             <li>obter informação sobre os agentes com quem compartilhamos dados;</li>
             <li>revogar consentimentos previamente dados, quando aplicável;</li>

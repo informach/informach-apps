@@ -1,31 +1,43 @@
 import type { Metadata } from "next";
-import { AiDemo } from "@/components/marketing/sections/ai-demo";
-import { Comparison } from "@/components/marketing/sections/comparison";
 import { Faq } from "@/components/marketing/sections/faq";
-import { Features } from "@/components/marketing/sections/features";
 import { FinalCta } from "@/components/marketing/sections/final-cta";
 import { Hero } from "@/components/marketing/sections/hero";
-import { HowItWorks } from "@/components/marketing/sections/how-it-works";
+import { KitchenDemo } from "@/components/marketing/sections/kitchen-demo";
+import { MealPrep } from "@/components/marketing/sections/meal-prep";
 import { Pricing } from "@/components/marketing/sections/pricing";
-import { Problem } from "@/components/marketing/sections/problem";
+import { RecipeCollection } from "@/components/marketing/sections/recipe-collection";
+import { RepeatWeek } from "@/components/marketing/sections/repeat-week";
+import { env } from "@/lib/env";
 
-const TITLE = "Cozya. Receita por voz, foto ou prompt. Sem digitar.";
+const TITLE = "Cozya — planeje refeições, marmitas e compras";
 const DESCRIPTION =
-  "Captura receita falando, fotografando print ou descrevendo em uma frase. A IA estrutura em segundos. Grátis pra começar.";
+  "Organize suas receitas, planeje jantares e marmitas e gere a lista de compras. Experimente 14 dias de planejamento, sem cartão.";
+const SOCIAL_IMAGE = {
+  url: "/marketing/cozya-social.png",
+  width: 1200,
+  height: 630,
+  alt: "Cozya: sua semana à mesa. Receitas, marmitas e compras organizadas.",
+};
 
 export const metadata: Metadata = {
+  metadataBase: new URL(env.NEXT_PUBLIC_APP_URL),
   title: TITLE,
   description: DESCRIPTION,
+  alternates: { canonical: "/" },
   openGraph: {
     title: TITLE,
     description: DESCRIPTION,
     type: "website",
     locale: "pt_BR",
+    siteName: "Cozya",
+    url: "/",
+    images: [SOCIAL_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
     title: TITLE,
     description: DESCRIPTION,
+    images: [SOCIAL_IMAGE],
   },
 };
 
@@ -33,11 +45,10 @@ export default function MarketingHome() {
   return (
     <>
       <Hero />
-      <AiDemo />
-      <Problem />
-      <HowItWorks />
-      <Features />
-      <Comparison />
+      <KitchenDemo />
+      <MealPrep />
+      <RecipeCollection />
+      <RepeatWeek />
       <Pricing />
       <Faq />
       <FinalCta />

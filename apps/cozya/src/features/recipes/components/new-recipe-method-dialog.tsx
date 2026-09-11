@@ -15,7 +15,7 @@ import { useRouter } from "next/navigation";
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  isPro: boolean;
+  canUseAi: boolean;
   onPickManual: () => void;
   onPickPrompt: () => void;
   onPickVoice: () => void;
@@ -26,7 +26,7 @@ type Props = {
 export function NewRecipeMethodDialog({
   open,
   onOpenChange,
-  isPro,
+  canUseAi,
   onPickManual,
   onPickPrompt,
   onPickVoice,
@@ -35,8 +35,8 @@ export function NewRecipeMethodDialog({
 }: Props) {
   const router = useRouter();
 
-  const handleProClick = (callback: () => void) => () => {
-    if (isPro) {
+  const handleAiClick = (callback: () => void) => () => {
+    if (canUseAi) {
       callback();
       return;
     }
@@ -63,47 +63,53 @@ export function NewRecipeMethodDialog({
             icon={<Sparkles className="size-5" aria-hidden />}
             title="Por descrição"
             description={
-              isPro ? "Diga o que quer e a IA busca a receita pra você." : "Disponível no Pro."
+              canUseAi ? "Diga o que quer e a IA busca a receita pra você." : "Teste grátis ou Pro."
             }
-            onClick={handleProClick(onPickPrompt)}
-            badge="Pro"
-            locked={!isPro}
+            onClick={handleAiClick(onPickPrompt)}
+            badge="IA"
+            locked={!canUseAi}
           />
           <MethodCard
             icon={<Mic className="size-5" aria-hidden />}
             title="Por voz"
-            description={isPro ? "Fale a receita e a IA preenche pra você." : "Disponível no Pro."}
-            onClick={handleProClick(onPickVoice)}
-            badge="Pro"
-            locked={!isPro}
+            description={
+              canUseAi ? "Fale a receita e a IA preenche pra você." : "Teste grátis ou Pro."
+            }
+            onClick={handleAiClick(onPickVoice)}
+            badge="IA"
+            locked={!canUseAi}
           />
           <MethodCard
             icon={<ClipboardPaste className="size-5" aria-hidden />}
             title="Colar texto"
             description={
-              isPro ? "Cole o texto de uma receita e a IA preenche pra você." : "Disponível no Pro."
+              canUseAi
+                ? "Cole o texto de uma receita e a IA preenche pra você."
+                : "Teste grátis ou Pro."
             }
-            onClick={handleProClick(onPickText)}
-            badge="Pro"
-            locked={!isPro}
+            onClick={handleAiClick(onPickText)}
+            badge="IA"
+            locked={!canUseAi}
           />
           <MethodCard
             icon={<Camera className="size-5" aria-hidden />}
             title="Por foto"
             description={
-              isPro ? "Tire uma foto da receita e a IA preenche pra você." : "Disponível no Pro."
+              canUseAi
+                ? "Tire uma foto da receita e a IA preenche pra você."
+                : "Teste grátis ou Pro."
             }
-            onClick={handleProClick(onPickImage)}
-            badge="Pro"
-            locked={!isPro}
+            onClick={handleAiClick(onPickImage)}
+            badge="IA"
+            locked={!canUseAi}
           />
         </div>
 
-        {!isPro ? (
+        {!canUseAi ? (
           <p className="pt-1 text-center text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <Lock className="size-3" aria-hidden />
-              Por descrição, por voz, colar texto e por foto são funcionalidades Pro —{" "}
+              Ative o teste gratuito nas receitas ou conheça o Pro —{" "}
               <button
                 type="button"
                 className="underline underline-offset-2"
@@ -136,7 +142,7 @@ function MethodCard({ icon, title, description, onClick, badge, locked }: Method
     <button
       type="button"
       onClick={onClick}
-      aria-label={locked ? `${title} (recurso Pro — ver planos)` : title}
+      aria-label={locked ? `${title} (IA — ver acesso)` : title}
       className={cn(
         "relative flex flex-col items-start gap-2 rounded-lg border border-border bg-card p-4 text-left transition-colors",
         locked
@@ -155,7 +161,7 @@ function MethodCard({ icon, title, description, onClick, badge, locked }: Method
       <span
         className={cn(
           "flex size-9 items-center justify-center rounded-full",
-          locked ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary",
+          locked ? "bg-muted text-muted-foreground" : "bg-primary/10 text-brand-ink",
         )}
       >
         {locked ? <Lock className="size-4" aria-hidden /> : icon}

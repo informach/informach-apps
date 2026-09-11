@@ -8,7 +8,8 @@ import { Tabs, TabsList, TabsTrigger } from "@informach/ui/components/tabs";
 import { cn } from "@informach/ui/lib/utils";
 import { Check, Loader2, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { recordOfferSeenAction } from "@/features/kitchen/event-actions";
 import { selectFreePlanAction, startProCheckoutAction } from "@/features/onboarding/actions";
 import { OnboardingStepper } from "@/features/onboarding/components/onboarding-stepper";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
@@ -42,6 +43,9 @@ export function PlanCards({
   showFreePlan = true,
 }: PlanCardsProps) {
   const router = useRouter();
+  useEffect(() => {
+    void catchActionResult(() => recordOfferSeenAction({}));
+  }, []);
   const [cycle, setCycle] = useState<BillingCycle>(initialCycle);
   const [isFreePending, startFreeTransition] = useTransition();
   const [isProPending, startProTransition] = useTransition();
@@ -130,7 +134,7 @@ export function PlanCards({
 
       <div className={cn("grid gap-5", showFreePlan ? "md:grid-cols-2" : "mx-auto max-w-md")}>
         {showFreePlan && (
-          <Card className="group relative flex flex-col border-border/60 bg-card/80 backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:border-border hover:shadow-md">
+          <Card className="group relative flex flex-col border-border/60 bg-card/80 backdrop-blur transition-[color,background-color,border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-border hover:shadow-md">
             <CardHeader className="space-y-3 pb-4">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Cozya Free
@@ -159,17 +163,19 @@ export function PlanCards({
           </Card>
         )}
 
-        <Card className="group relative flex flex-col border-2 border-primary/40 bg-card shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-xl">
+        <Card className="group relative flex flex-col border-2 border-primary/40 bg-card shadow-lg transition-[color,background-color,border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-xl">
           <span
             aria-hidden
             className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent"
           />
           <Badge className="absolute -top-3 left-6 gap-1">
             <Sparkles className="size-3" aria-hidden />
-            Mais popular
+            Para sua semana
           </Badge>
           <CardHeader className="space-y-3 pb-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-primary">Cozya Pro</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-brand-ink">
+              Cozya Pro
+            </p>
             <div className="flex items-baseline gap-1.5">
               <span className="text-4xl font-semibold tracking-tight">{proPlan.price}</span>
               <span className="text-sm text-muted-foreground">{proPlan.period}</span>
@@ -210,7 +216,9 @@ function FeatureList({ features }: { features: PlanFeature[] }) {
           <span
             className={cn(
               "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full",
-              feature.included ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground/60",
+              feature.included
+                ? "bg-primary/15 text-brand-ink"
+                : "bg-muted text-muted-foreground/60",
             )}
           >
             <Check className="size-3" aria-hidden />

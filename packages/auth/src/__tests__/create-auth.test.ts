@@ -1729,6 +1729,23 @@ describe("createAuth — account deletion (opt-in)", () => {
     expect(payload.stage).toBe("onBeforeDelete");
   });
 
+  it("blocks deletion when the app requires cleanup and the hook fails", async () => {
+    const failure = new Error("required cleanup unavailable");
+    createAuth({
+      ...makeConfig(),
+      accountDeletion: {
+        enabled: true,
+        requireCleanupSuccess: true,
+        onBeforeDelete: async () => {
+          throw failure;
+        },
+      },
+    });
+    await expect(
+      captureConfig().user?.deleteUser?.beforeDelete?.({ id: "u1", email: "del@x" }),
+    ).rejects.toBe(failure);
+  });
+
   it("onAfterDelete failure is captured in audit, does not throw", async () => {
     const onAfterDelete = vi.fn(async () => {
       throw new Error("downstream cleanup failed");

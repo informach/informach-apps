@@ -1,6 +1,6 @@
 import "server-only";
 
-import { billing } from "@/features/billing/service";
+import { getKitchenAccess } from "@/features/kitchen/access";
 import { getServerSession } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
@@ -24,7 +24,8 @@ export type AiRouteGuardResult =
  *   2. The request has a valid user session (else 401 `UNAUTHORIZED`).
  *   3. The user is under the per-hour anti-script invocation limit
  *      (else 429 `RATE_LIMITED` with `Retry-After`).
- *   4. The user has Pro entitlement (else 403 `SUBSCRIPTION_REQUIRED`).
+ *   4. Verified email and active Pro or explicitly activated trial entitlement.
+ *      Billing still requires an available credit; an exhausted trial is not unlimited AI.
  *
  * `errorScope` is used for the structured log key emitted when the OpenRouter
  * key is missing (e.g. `"cozya.parse_text"` → `"cozya.parse_text.openrouter_key_missing"`).
@@ -46,6 +47,11 @@ export async function withAiRouteGuards(opts: { errorScope: string }): Promise<A
     };
   }
   const userId = session.user.id;
+  if (!session.user.emailVerified)
+    return {
+      ok: false,
+      response: Response.json({ code: "EMAIL_VERIFICATION_REQUIRED" }, { status: 403 }),
+    };
   const subject: AiSubject = { type: "user", id: userId };
 
   try {
@@ -69,8 +75,8 @@ export async function withAiRouteGuards(opts: { errorScope: string }): Promise<A
     throw err;
   }
 
-  const isPro = await billing.hasProSubscription(subject);
-  if (!isPro) {
+  const access = await getKitchenAccess(userId);
+  if (!access.canUseAi) {
     return {
       ok: false,
       response: Response.json({ code: "SUBSCRIPTION_REQUIRED" }, { status: 403 }),

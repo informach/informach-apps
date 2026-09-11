@@ -64,7 +64,13 @@ jobs:
 
       - run: pnpm test
 
-      - run: pnpm --filter @informach/db db:migrate
+      - run: pnpm db:migrate
+
+      - run: pnpm --filter @informach/cozya test:integration
+
+      - run: pnpm --filter @informach/cozya eval
+        env:
+          EVAL_PREFLIGHT: "1"
 
       - run: pnpm --filter @informach/agenda-da-turma exec playwright install --with-deps chromium
 

@@ -278,11 +278,12 @@ SELECT cancel_at_period_end FROM billing.subscriptions WHERE provider_subscripti
 SELECT amount_cents, currency, credit_amount, status FROM billing.one_time_payments
 ORDER BY created_at DESC LIMIT 1;
 # Esperado: paid, credit_amount = N
-SELECT SUM(amount) AS balance FROM billing.credit_ledger
-WHERE owner_type='user' AND owner_id='<user-id>'
-  AND entry_type <> 'expiration'
-  AND (expires_at IS NULL OR expires_at > now());
-# Esperado: balance = N (créditos disponíveis)
+SELECT id, amount, payment_id FROM billing.credit_ledger
+WHERE owner_type='user' AND owner_id='<user-id>' AND app='<app-slug>'
+  AND entry_type='purchase' ORDER BY created_at DESC LIMIT 1;
+# Esperado: lançamento de compra com amount = N.
+# Para saldo disponível, usar billing.getBalance({ type: 'user', id: '<user-id>' })
+# na instância do app: available inclui consumo, validade e reservas ativas.
 
 # 7. Failed payment dunning:
 #    Trocar para card 4000 0000 0000 9995 (insufficient funds), criar nova sub.
@@ -323,6 +324,8 @@ curl -X POST -H "Authorization: Bearer $CRON_SECRET" \
 
 ### No DB (queries de health)
 
+O saldo canônico vem de `billing.getBalance(owner)`, também usado na reserva/consumo e no recibo. Não usar `SUM(amount)` filtrando concessões vencidas: isso desconta o consumo antigo novamente dos créditos de um ciclo posterior. A projeção reconstitui o histórico por dono/app, consome primeiro os créditos com vencimento mais próximo e expira somente o restante não utilizado. Créditos sem validade são usados depois. Reembolsos referenciados revogam primeiro a concessão de origem; dívida real não é truncada para zero. Lançamentos `expiration` registram o valor original da concessão para auditoria e não são um segundo débito.
+
 ```sql
 -- Subscriptions por status
 SELECT provider, status, COUNT(*) FROM billing.subscriptions
@@ -333,12 +336,11 @@ SELECT event_type, error, COUNT(*) FROM billing.webhook_events
 WHERE error IS NOT NULL AND created_at > NOW() - INTERVAL '24 hours'
 GROUP BY event_type, error ORDER BY 3 DESC;
 
--- Saldo total ativo (créditos não-expirados não-consumidos)
-SELECT owner_type, COUNT(DISTINCT owner_id) AS owners,
-       SUM(amount) AS total_credits
+-- Volume do ledger para monitorar o custo da projeção; NÃO representa saldo.
+SELECT app, owner_type, COUNT(DISTINCT owner_id) AS owners,
+       COUNT(*) AS ledger_entries
 FROM billing.credit_ledger
-WHERE (expires_at IS NULL OR expires_at > now())
-GROUP BY owner_type;
+GROUP BY app, owner_type;
 
 -- Reservations pendentes (active não-expiradas)
 SELECT COUNT(*), SUM(estimated_amount)

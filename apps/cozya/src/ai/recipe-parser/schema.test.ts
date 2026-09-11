@@ -7,6 +7,10 @@ describe("recipeParserSchema", () => {
 
     expect(
       recipeParserSchema.safeParse({
+        servings: null,
+        totalMinutes: null,
+        sourceUrl: null,
+        sourceName: null,
         isValidRecipe: false,
         reason: "O conteúdo não descreve uma receita.",
         name: null,

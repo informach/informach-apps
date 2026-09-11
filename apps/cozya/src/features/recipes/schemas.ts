@@ -20,6 +20,16 @@ const recipeBaseSchema = z.object({
     .min(1, "Descreva o preparo")
     .max(5000, "No máximo 5000 caracteres"),
   finishing: optionalTextSchema,
+  servings: z.number().int().min(1).max(100).nullish(),
+  totalMinutes: z.number().int().min(1).max(10080).nullish(),
+  sourceUrl: z
+    .string()
+    .trim()
+    .max(2048)
+    .url()
+    .refine((url) => /^https?:\/\//i.test(url), "Use um link http ou https")
+    .nullish(),
+  sourceName: z.string().trim().max(200).nullish(),
 });
 
 export const creationMethodSchema = z

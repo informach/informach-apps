@@ -5,8 +5,11 @@ import { getMastra } from "@/ai";
 import { agentRunRecorder as recorder } from "@/ai/agent-run-recorder";
 import { COZYA_MODELS } from "@/ai/models";
 import { type RecipeParserOutput, recipeParserSchema } from "@/ai/recipe-parser/schema";
-import { cozyaThreadId } from "@/ai/working-memory";
 import { billing } from "@/features/billing/service";
+import { NoRecipeResultError } from "./errors";
+import { currentAiOperationId } from "./operation-context";
+import { validateRecipeOutput } from "./recipe-output";
+import { providerCostMetadata } from "./usage-metadata";
 
 export type RefineRecipeInput = {
   userId: string;
@@ -32,45 +35,54 @@ const FEATURE = "cozya.recipe.refine_conversational" as const;
 type RecipeAgentResponse = {
   object: unknown;
   usage?: unknown;
+  providerMetadata?: unknown;
 };
 
-/**
- * Roda o agent `recipeRefiner` para aplicar um pedido conversacional sobre
- * uma receita já estruturada. A receita atual entra via `options.system`
- * (não via `prompt`) para que o agente trate a receita como contexto
- * imutável de leitura, e o pedido do usuário ocupa o slot de mensagem.
- *
- * Bilha 1 crédito via reserve→commit/release. Pro-gate + rate limit ficam no
- * route handler. Working memory (preferências do usuário) é compartilhada
- * com `recipeParser`/`recipeParserVision` por escopo de `resource`, então o
- * refiner já enxerga restrições alimentares lembradas em chamadas anteriores.
+/** Applies an explicit request to recipe data in the user message, without inferred memory.
+ * Validation precedes credit commit; an accepted adaptation is still reviewed before saving.
  */
 export async function refineRecipe(input: RefineRecipeInput): Promise<RefineRecipeResult> {
+  if (
+    input.currentRecipe.servings === null &&
+    /\b(pessoas?|porç(?:ão|ões))\b/iu.test(input.refinementRequest)
+  )
+    throw new NoRecipeResultError(
+      "Informe o rendimento original antes de adaptar para um número de pessoas. Nenhum crédito foi consumido.",
+    );
   const out = await runBillableAgentCall<RecipeAgentResponse>({
     billing,
+    runId: currentAiOperationId(),
     owner: { type: "user", id: input.userId },
     app: "cozya",
     feature: FEATURE,
     model: COZYA_MODELS[FEATURE],
     recorder,
+    retry: false,
+    metadata: { userId: input.userId },
+    getErrorMetadata: (error) => ({ error: error instanceof Error ? error.name : "UnknownError" }),
+    getSuccessMetadata: (response) =>
+      providerCostMetadata(response.providerMetadata, response.usage),
     agent: "recipeRefiner",
     getUsage: (response) => response.usage,
     call: async ({ runId }) => {
       const mastra = await getMastra();
-      const response = await mastra.getAgent("recipeRefiner").generate(input.refinementRequest, {
-        runId,
-        memory: {
-          thread: cozyaThreadId(input.userId, "refine_conversational"),
-          resource: input.userId,
-        },
-        system: `Receita atual:\n${JSON.stringify(input.currentRecipe, null, 2)}`,
-        structuredOutput: {
-          schema: recipeParserSchema,
-          errorStrategy: "strict",
-        },
-      });
+      const response = await mastra
+        .getAgent("recipeRefiner")
+        .generate(
+          JSON.stringify({ receita: input.currentRecipe, pedido: input.refinementRequest }),
+          {
+            runId,
+            abortSignal: AbortSignal.timeout(90000),
+            modelSettings: { maxOutputTokens: 3500, temperature: 0 },
+            structuredOutput: {
+              schema: recipeParserSchema,
+              errorStrategy: "strict",
+            },
+          },
+        );
+      validateRecipeOutput(response.object);
       return response;
     },
   });
-  return out.result.object as RecipeParserOutput;
+  return validateRecipeOutput(out.result.object);
 }

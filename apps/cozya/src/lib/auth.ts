@@ -119,7 +119,16 @@ export const authResult = createAuth({
   // free credit balances for the user immediately. Ledger rows stay (fiscal).
   accountDeletion: {
     enabled: true,
+    requireCleanupSuccess: true,
     onBeforeDelete: async (user) => {
+      const { hasOtherAppSubscriptions, clearCozyaData } = await import(
+        "@/features/account/repository"
+      );
+      const { purgeLegacyCozyaAi } = await import("@/features/account/legacy-ai");
+      if (await hasOtherAppSubscriptions(user.id))
+        throw new Error(
+          "Cancele as assinaturas dos outros apps Informach antes de excluir a conta compartilhada.",
+        );
       const { billing } = await import("@/features/billing/service");
       const result = await billing.cancelBillingForSubject({ type: "user", id: user.id });
       if (result.failed > 0) {
@@ -131,7 +140,12 @@ export const authResult = createAuth({
           },
           "auth.account_deletion.billing_partial",
         );
+        throw new Error(
+          "Não foi possível encerrar a assinatura. Tente novamente antes de excluir a conta.",
+        );
       }
+      await purgeLegacyCozyaAi(user.id);
+      await clearCozyaData(user.id);
     },
   },
 });

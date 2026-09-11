@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createActivitiesBatch,
   createActivity,
@@ -106,10 +106,15 @@ const createInput = {
 };
 
 beforeEach(() => {
+  // The activity fixtures are due in June 2026; business rules must not depend on today's date.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-05-01T12:00:00Z"));
   vi.clearAllMocks();
   mocks.hasProSubscription.mockResolvedValue(false);
   mocks.userHasActiveProfileInTurma.mockResolvedValue(true);
 });
+
+afterEach(() => vi.useRealTimers());
 
 describe("createActivity", () => {
   it("cria atividade individual quando Free abaixo do limite (caminho transacional)", async () => {

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { and, count, type Database, db, desc, eq, sql } from "@informach/db";
-import { cozyaRecipes } from "@informach/db/schema";
+import { type CozyaIngredient, cozyaRecipes } from "@informach/db/schema";
 import type { Recipe, RecipeListPage, RecipeSummary } from "./types";
 
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
@@ -13,6 +13,11 @@ export type NewRecipePayload = {
   ingredients: string;
   preparation: string;
   finishing: string | null;
+  servings?: number | null;
+  totalMinutes?: number | null;
+  structuredIngredients?: CozyaIngredient[] | null;
+  sourceUrl?: string | null;
+  sourceName?: string | null;
   isFavorite: boolean;
   creationMethod: "manual" | "voice" | "text" | "image" | "prompt";
 };
@@ -92,6 +97,7 @@ export async function findRecipesPageByUser(
       creationMethod: cozyaRecipes.creationMethod,
       createdAt: cozyaRecipes.createdAt,
       updatedAt: cozyaRecipes.updatedAt,
+      contentUpdatedAt: cozyaRecipes.contentUpdatedAt,
     })
     .from(cozyaRecipes)
     .where(recipesWhereClause(userId, options.search))
@@ -118,7 +124,16 @@ export async function findRecipeByIdForUser(userId: string, id: string): Promise
 
 export type RecipeUpdatePayload = Pick<
   NewRecipePayload,
-  "name" | "ingredients" | "preparation" | "finishing" | "isFavorite"
+  | "name"
+  | "ingredients"
+  | "preparation"
+  | "finishing"
+  | "isFavorite"
+  | "servings"
+  | "totalMinutes"
+  | "structuredIngredients"
+  | "sourceUrl"
+  | "sourceName"
 >;
 
 export async function updateRecipeForUser(
@@ -126,9 +141,27 @@ export async function updateRecipeForUser(
   id: string,
   payload: RecipeUpdatePayload,
 ): Promise<Recipe | null> {
+  const now = new Date();
+  const cookingFields = [
+    { column: cozyaRecipes.ingredients, value: payload.ingredients },
+    { column: cozyaRecipes.preparation, value: payload.preparation },
+    { column: cozyaRecipes.finishing, value: payload.finishing },
+    { column: cozyaRecipes.servings, value: payload.servings },
+    { column: cozyaRecipes.totalMinutes, value: payload.totalMinutes },
+  ];
+  const contentChanged = sql.join(
+    cookingFields
+      .filter(({ value }) => value !== undefined)
+      .map(({ column, value }) => sql`${column} IS DISTINCT FROM ${value}`),
+    sql` OR `,
+  );
   const [row] = await db
     .update(cozyaRecipes)
-    .set({ ...payload, updatedAt: new Date() })
+    .set({
+      ...payload,
+      updatedAt: now,
+      contentUpdatedAt: sql`CASE WHEN ${contentChanged} THEN ${now.toISOString()}::timestamptz ELSE ${cozyaRecipes.contentUpdatedAt} END`,
+    })
     .where(and(eq(cozyaRecipes.userId, userId), eq(cozyaRecipes.id, id)))
     .returning();
   return row ?? null;

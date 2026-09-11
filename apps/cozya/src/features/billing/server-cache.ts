@@ -4,7 +4,12 @@ import type { LedgerEntryType } from "@informach/billing";
 import { cache } from "react";
 import { billing } from "./service";
 
-const CREDIT_RECEIVED_ENTRY_TYPES: LedgerEntryType[] = ["purchase", "bonus_grant"];
+const CREDIT_RECEIVED_ENTRY_TYPES: LedgerEntryType[] = [
+  "purchase",
+  "bonus_grant",
+  "promo_grant",
+  "adjustment",
+];
 
 function userSubject(userId: string) {
   return { type: "user", id: userId } as const;

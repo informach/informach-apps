@@ -48,11 +48,10 @@ export const env = createEnv({
     MASTRA_LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
     /**
      * Quando "1", o proxy emite `Content-Security-Policy` (enforce).
-     * Default "0" → emite `Content-Security-Policy-Report-Only` (não bloqueia,
-     * só reporta para o Sentry). Flow recomendado: deploy com "0" por 1 semana,
-     * monitorar violações, depois flipar para "1".
+     * Default "1" aplica a política. "0" é diagnóstico explícito com
+     * `Content-Security-Policy-Report-Only`, sem bloqueio.
      */
-    CSP_ENFORCE: z.enum(["0", "1"]).default("0"),
+    CSP_ENFORCE: z.enum(["0", "1"]).default("1"),
   },
   client: {
     NEXT_PUBLIC_APP_URL: z.string().url(),

@@ -30,6 +30,21 @@ describe("transcribeAudio (OpenRouter — JSON+base64 via fetch)", () => {
     return JSON.parse(String(firstFetchCall()[1].body)) as Record<string, unknown>;
   }
 
+  it("cancels a stalled upstream request when the caller aborts", async () => {
+    const controller = new AbortController();
+    fetchMock.mockImplementation(
+      (_url: string, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true });
+          controller.abort(new DOMException("Cancelled", "AbortError"));
+        }),
+    );
+    await expect(
+      transcribeAudio({ apiKey: "test", audio: new Uint8Array([1]), signal: controller.signal }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(firstFetchCall()[1].signal?.aborted).toBe(true);
+  });
+
   it("POSTs application/json with input_audio (data+format), model and language", async () => {
     fetchMock.mockResolvedValue(okResponse("macarrão"));
 

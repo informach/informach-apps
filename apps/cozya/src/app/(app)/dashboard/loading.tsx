@@ -33,9 +33,9 @@ export default function DashboardLoading() {
                   <Skeleton className="h-4 w-1/3" />
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
-                  <Skeleton className="size-9 rounded-full" />
-                  <Skeleton className="size-9 rounded-full" />
-                  <Skeleton className="size-9 rounded-full" />
+                  <Skeleton className="size-11 rounded-full" />
+                  <Skeleton className="size-11 rounded-full" />
+                  <Skeleton className="size-11 rounded-full" />
                 </div>
               </CardContent>
             </Card>

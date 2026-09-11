@@ -4,6 +4,7 @@ import Link from "next/link";
 import { CozyaLogo } from "@/components/brand/cozya-logo";
 import { getIsProForUser } from "@/features/billing/server-cache";
 import { requireUserServer } from "@/lib/auth";
+import { AppNavigation } from "./app-navigation";
 import { UserMenu } from "./user-menu";
 
 export async function AppHeader() {
@@ -12,12 +13,18 @@ export async function AppHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <a
+        href="#app-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:rounded-lg focus:bg-background focus:p-4"
+      >
+        Pular para o conteúdo
+      </a>
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <Link href="/dashboard" className="flex items-center" aria-label="Cozya — início">
           <CozyaLogo className="h-8 w-auto text-secondary dark:text-foreground" />
         </Link>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 [&_button]:min-h-11 [&_button]:min-w-11">
           {!isPro && (
             <Button asChild size="sm" className="gap-1.5">
               <Link href="/upgrade">Seja Pro</Link>
@@ -34,6 +41,7 @@ export async function AppHeader() {
           />
         </div>
       </div>
+      <AppNavigation />
     </header>
   );
 }

@@ -181,7 +181,14 @@ export async function cancelBillingForSubject(
     .where(
       and(
         eq(subscriptionsTable.customerId, customer.id),
-        inArray(subscriptionsTable.status, ["active", "trialing", "past_due", "unpaid"]),
+        inArray(subscriptionsTable.status, [
+          "active",
+          "trialing",
+          "past_due",
+          "unpaid",
+          "incomplete",
+          "paused",
+        ]),
       ),
     );
 

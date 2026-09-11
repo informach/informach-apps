@@ -88,6 +88,8 @@ export const SpeechInput = React.forwardRef<HTMLButtonElement, SpeechInputProps>
     ref,
   ) {
     const [state, setState] = React.useState<SpeechInputState>("idle");
+    const mountedRef = React.useRef(true);
+    const startingRef = React.useRef(false);
     const recorderRef = React.useRef<MediaRecorder | null>(null);
     const chunksRef = React.useRef<Blob[]>([]);
     const streamRef = React.useRef<MediaStream | null>(null);
@@ -97,6 +99,7 @@ export const SpeechInput = React.forwardRef<HTMLButtonElement, SpeechInputProps>
 
     const transition = React.useCallback(
       (next: SpeechInputState) => {
+        if (!mountedRef.current) return;
         setState(next);
         onStateChange?.(next);
       },
@@ -104,6 +107,14 @@ export const SpeechInput = React.forwardRef<HTMLButtonElement, SpeechInputProps>
     );
 
     const cleanup = React.useCallback(() => {
+      const recorder = recorderRef.current;
+      recorderRef.current = null;
+      if (recorder) {
+        recorder.onstop = null;
+        recorder.ondataavailable = null;
+        if (recorder.state !== "inactive") recorder.stop();
+      }
+      chunksRef.current = [];
       if (stopTimeoutRef.current) {
         clearTimeout(stopTimeoutRef.current);
         stopTimeoutRef.current = null;
@@ -121,17 +132,29 @@ export const SpeechInput = React.forwardRef<HTMLButtonElement, SpeechInputProps>
       recorderRef.current = null;
     }, []);
 
-    React.useEffect(() => cleanup, [cleanup]);
+    React.useEffect(() => {
+      mountedRef.current = true;
+      return () => {
+        mountedRef.current = false;
+        cleanup();
+      };
+    }, [cleanup]);
 
     async function startRecording() {
+      if (startingRef.current || !mountedRef.current) return;
       if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
         onError?.(new Error("MediaRecorder API unavailable"));
         return;
       }
+      startingRef.current = true;
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: audioConstraints ?? DEFAULT_AUDIO_CONSTRAINTS,
         });
+        if (!mountedRef.current) {
+          for (const track of stream.getTracks()) track.stop();
+          return;
+        }
         streamRef.current = stream;
         const mimeType = pickSupportedMimeType();
         const recorderOptions: MediaRecorderOptions = {
@@ -144,6 +167,10 @@ export const SpeechInput = React.forwardRef<HTMLButtonElement, SpeechInputProps>
           if (event.data.size > 0) chunksRef.current.push(event.data);
         };
         recorder.onstop = async () => {
+          if (!mountedRef.current) {
+            cleanup();
+            return;
+          }
           const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
           chunksRef.current = [];
           cleanup();
@@ -154,9 +181,9 @@ export const SpeechInput = React.forwardRef<HTMLButtonElement, SpeechInputProps>
           transition("processing");
           try {
             const text = await onAudioRecorded(blob);
-            if (text) onTranscriptionChange?.(text);
+            if (text && mountedRef.current) onTranscriptionChange?.(text);
           } catch (err) {
-            onError?.(err);
+            if (mountedRef.current) onError?.(err);
           } finally {
             transition("idle");
           }
@@ -176,7 +203,9 @@ export const SpeechInput = React.forwardRef<HTMLButtonElement, SpeechInputProps>
       } catch (err) {
         cleanup();
         transition("idle");
-        onError?.(err);
+        if (mountedRef.current) onError?.(err);
+      } finally {
+        startingRef.current = false;
       }
     }
 

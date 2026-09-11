@@ -108,7 +108,7 @@ export function buildCspHeader(opts: BuildCspOptions): string {
   // (spec). Em vez de gerar warning no console, omitimos quando reportOnly.
   // Em produção sob HTTPS já é redundante (não há http:// pra upgrade), mas
   // mantém intent declarativa para auditorias.
-  if (!opts.reportOnly) {
+  if (!opts.reportOnly && !isDev) {
     directives.push("upgrade-insecure-requests");
   }
 

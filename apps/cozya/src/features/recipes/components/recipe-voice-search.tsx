@@ -1,104 +1,126 @@
 "use client";
-
-import { Badge } from "@informach/ui/components/badge";
 import { Button } from "@informach/ui/components/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@informach/ui/components/dialog";
 import { toast } from "@informach/ui/components/sonner";
 import { SpeechInput } from "@informach/ui/components/speech-input";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@informach/ui/components/tooltip";
-import { Lock, Mic } from "lucide-react";
+import { Mic } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
+import { z } from "zod";
+import { useRecoverableAiRequest } from "./use-ai-request";
 
-type Props = {
-  // UX-only: alterna entre estado disabled/tooltip e botão ativo. O gate Pro
-  // canônico está no servidor (`withAiRouteGuards` em /api/ai/transcribe).
+const transcriptSchema = z.union([
+  z.object({ text: z.string().min(1).max(8000) }),
+  z.object({ isValidRecipe: z.literal(false), reason: z.string().optional() }),
+]);
+
+export function RecipeVoiceSearch({
+  isPro: canUseAi,
+  onTranscribed,
+}: {
   isPro: boolean;
   onTranscribed: (text: string) => void;
-};
-
-const ENDPOINT = "/api/ai/transcribe";
-
-export function RecipeVoiceSearch({ isPro, onTranscribed }: Props) {
-  if (!isPro) {
-    return (
-      <TooltipProvider delayDuration={150}>
-        <div className="flex items-center gap-1.5">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="inline-flex">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  disabled
-                  aria-label="Buscar por voz (recurso Pro)"
-                  className="cursor-not-allowed"
-                >
-                  <Mic className="size-4" aria-hidden />
-                </Button>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="top">
-              <p className="flex items-center gap-1.5 text-xs">
-                <Lock className="size-3" aria-hidden />
-                Recurso Pro —{" "}
-                <Link href="/upgrade" className="underline underline-offset-2">
-                  ver planos
-                </Link>
-              </p>
-            </TooltipContent>
-          </Tooltip>
-          <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
-            Pro
-          </Badge>
-        </div>
-      </TooltipProvider>
-    );
-  }
-
+}) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [lastAudio, setLastAudio] = useState<Blob | null>(null);
+  const request = useRecoverableAiRequest(transcriptSchema);
+  const transcribe = async (audio: Blob) => {
+    setLastAudio(audio);
+    setBusy(true);
+    try {
+      const form = new FormData();
+      form.set("audio", audio, "search.webm");
+      const result = await request("/api/ai/transcribe", form, audio);
+      if (!result) return "";
+      if (!("text" in result)) {
+        toast.error(result.reason ?? "Não consegui ouvir o áudio. Nenhum crédito foi consumido.");
+        return "";
+      }
+      onTranscribed(result.text.trim());
+      setLastAudio(null);
+      setOpen(false);
+      return result.text;
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
-    <SpeechInput
-      aria-label="Buscar receita por voz"
-      onAudioRecorded={async (blob) => {
-        const formData = new FormData();
-        formData.append("audio", blob, "search.webm");
-        const response = await fetch(ENDPOINT, { method: "POST", body: formData });
-        if (response.status === 429) {
-          const data = (await response.json().catch(() => null)) as { retryAfter?: number } | null;
-          const wait = data?.retryAfter ? ` Tente novamente em ~${data.retryAfter}s.` : "";
-          toast.error(`Aguarde alguns minutos antes de usar a IA novamente.${wait}`);
-          return "";
-        }
-        if (response.status === 403) {
-          toast.error("Esta funcionalidade é apenas para assinantes Pro.");
-          return "";
-        }
-        if (response.status === 503) {
-          toast.error("Transcrição indisponível no momento.");
-          return "";
-        }
-        if (!response.ok) {
-          toast.error("Não foi possível transcrever o áudio. Tente novamente.");
-          return "";
-        }
-        const data = (await response.json().catch(() => null)) as { text?: string } | null;
-        return data?.text ?? "";
-      }}
-      onTranscriptionChange={(text) => {
-        const trimmed = text.trim();
-        if (trimmed) onTranscribed(trimmed);
-      }}
-      onError={(err) => {
-        const message =
-          err instanceof DOMException && err.name === "NotAllowedError"
-            ? "Permita o uso do microfone para gravar."
-            : "Não foi possível acessar o microfone.";
-        toast.error(message);
-      }}
-    />
+    <>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-11"
+        aria-label="Ditar busca · 1 crédito"
+        onClick={() => setOpen(true)}
+      >
+        <Mic className="size-4" aria-hidden />
+      </Button>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          if (
+            !next &&
+            (busy || recording || (lastAudio && !window.confirm("Descartar este áudio?")))
+          )
+            return;
+          if (!next) setLastAudio(null);
+          setOpen(next);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ditar uma busca no seu acervo</DialogTitle>
+            <DialogDescription>
+              A transcrição custa 1 crédito quando concluída. Digitar no campo de busca é gratuito.
+              Esta opção procura receitas que você já salvou.
+            </DialogDescription>
+          </DialogHeader>
+          {canUseAi ? (
+            <div className="flex flex-col items-center gap-4 py-4">
+              <SpeechInput
+                aria-label="Gravar termo de busca"
+                maxDurationMs={15000}
+                className="size-16 rounded-full"
+                variant="outline"
+                disabled={busy}
+                onAudioRecorded={transcribe}
+                onStateChange={(state) => setRecording(state === "recording")}
+                onError={() =>
+                  toast.error("Não foi possível gravar. Confira a permissão do microfone.")
+                }
+              />
+              <p role="status" className="text-sm">
+                {busy
+                  ? "Transcrevendo…"
+                  : recording
+                    ? "Toque para encerrar a gravação."
+                    : "Toque para gravar até 15 segundos."}
+              </p>
+              {lastAudio && !busy && (
+                <Button variant="outline" onClick={() => void transcribe(lastAudio)}>
+                  Tentar novamente com este áudio
+                </Button>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm">
+              Ative o teste gratuito nas receitas ou{" "}
+              <Link className="underline" href="/upgrade">
+                conheça o Pro
+              </Link>{" "}
+              para usar IA.
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

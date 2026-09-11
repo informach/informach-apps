@@ -1,68 +1,72 @@
-import { Badge } from "@informach/ui/components/badge";
-import { Button } from "@informach/ui/components/button";
-import { ArrowRight, Camera, Mic, Sparkles } from "lucide-react";
-import Link from "next/link";
-import { HeroRecipeCards } from "@/components/marketing/hero-recipe-cards";
+import { ArrowDown, ArrowRight, Utensils } from "lucide-react";
+import Image from "next/image";
+import { TrialCta } from "../trial-cta";
 
-const CAPTURE_MODES = [
-  { icon: Camera, label: "Foto" },
-  { icon: Mic, label: "Voz" },
-  { icon: Sparkles, label: "Prompt" },
-] as const;
+const MEALS = [
+  { day: "SEG", name: "Macarrão com tomate e grão-de-bico", servings: 4 },
+  { day: "TER", name: "Omelete de abobrinha", servings: 2 },
+  { day: "QUA", name: "Arroz com lentilha e cenoura", servings: 4 },
+];
 
 export function Hero() {
   return (
-    <section
-      id="inicio"
-      className="container mx-auto grid items-center gap-10 px-4 py-16 md:py-24 lg:grid-cols-[1.1fr_1fr] lg:gap-16 lg:py-28"
-    >
-      <div className="space-y-6 lg:space-y-7">
-        <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs">
-          Receita rápida, sem digitar
-        </Badge>
-
-        <h1 className="text-balance text-4xl font-semibold tracking-tight md:text-5xl lg:text-6xl">
-          Cozinhe sem digitar receita.{" "}
-          <span className="text-primary">Foto, voz ou só uma ideia.</span>
+    <section className="landing-shell landing-hero" id="inicio" aria-labelledby="hero-title">
+      <div className="hero-copy">
+        <p className="landing-eyebrow">
+          <span className="landing-dot" /> Sua semana à mesa
+        </p>
+        <h1 id="hero-title">
+          Seu jantar resolvido antes de a fome chegar<span className="hero-period">.</span>
         </h1>
-
-        <p className="max-w-xl text-pretty text-lg text-muted-foreground leading-relaxed">
-          Mãos sujas, sem tempo, sem paciência? Mostra um print, fala em voz alta ou descreve em uma
-          frase. Em segundos a gente estrutura sua receita pronta pra cozinhar.
+        <p className="hero-description">
+          Escolha suas receitas, planeje jantares e marmitas e leve a lista pronta ao mercado. O
+          Cozya organiza o caminho até a mesa.
         </p>
-
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Button size="lg" asChild>
-            <Link href="/signup">
-              Começar grátis
-              <ArrowRight className="size-4" aria-hidden />
-            </Link>
-          </Button>
-          <Button size="lg" variant="outline" asChild>
-            <Link href="#ia-demo">Ver como funciona</Link>
-          </Button>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2.5">
-          {CAPTURE_MODES.map(({ icon: Icon, label }, i) => (
-            <span
-              key={label}
-              className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/5 px-3 py-1 text-sm font-medium text-primary motion-safe:animate-pulse-glow"
-              style={{ animationDelay: `${i * 0.4}s` }}
-            >
-              <Icon className="size-3.5" aria-hidden />
-              {label}
-            </span>
-          ))}
-        </div>
-
-        <p className="text-sm text-muted-foreground">
-          Grátis pra começar · Sem cartão · Cancela quando quiser
-        </p>
+        <TrialCta id="primeiro-convite" />
+        <a className="landing-text-link hero-demo-link" href="#como-funciona">
+          <ArrowDown size={17} aria-hidden /> Explorar uma semana de exemplo
+        </a>
       </div>
-
-      <div className="relative">
-        <HeroRecipeCards />
+      <div className="hero-scene">
+        <div className="hero-photo">
+          <Image
+            src="/marketing/jantar.webp"
+            alt="Macarrão com tomate e grão-de-bico à mesa, com uma porção separada em uma marmita."
+            fill
+            sizes="(max-width: 767px) 100vw, (max-width: 1280px) 52vw, 650px"
+            preload
+          />
+          <span className="hero-photo-note">
+            <Utensils size={14} aria-hidden /> Comida de casa. Rotina mais leve.
+          </span>
+        </div>
+        <div className="hero-plan">
+          <div className="hero-plan-header">
+            <div>
+              <span className="landing-mini-label">EXEMPLO DE USO</span>
+              <h2>Minha semana</h2>
+            </div>
+            <span className="hero-plan-badge">3 refeições</span>
+          </div>
+          <ul>
+            {MEALS.map((meal) => (
+              <li key={meal.day}>
+                <span className="hero-plan-day">
+                  {meal.day}
+                  <small>Jantar</small>
+                </span>
+                <span className="hero-plan-recipe">{meal.name}</span>
+                <span className="hero-plan-portions">
+                  {meal.servings}
+                  <small>porções</small>
+                </span>
+              </li>
+            ))}
+          </ul>
+          <a className="landing-button landing-button-navy" href="#como-funciona">
+            Explorar minha semana <ArrowRight size={17} aria-hidden />
+          </a>
+        </div>
       </div>
     </section>
   );

@@ -37,15 +37,17 @@ export const billing = createBillingService({
   buildUnsubscribeUrl: buildEmailUnsubscribeUrl,
   unsubscribeMailto: getEmailUnsubscribeMailto(),
   onAudit: (event) => {
-    logAuditEvent(event.eventType, event.actorId, event.payload).catch((err) => {
-      logger.error(
-        {
-          eventType: event.eventType,
-          error: err instanceof Error ? err.message : String(err),
-        },
-        "billing.audit.persist_failed",
-      );
-    });
+    logAuditEvent(event.eventType, event.actorId, { ...event.payload, app: "cozya" }).catch(
+      (err) => {
+        logger.error(
+          {
+            eventType: event.eventType,
+            error: err instanceof Error ? err.message : String(err),
+          },
+          "billing.audit.persist_failed",
+        );
+      },
+    );
   },
 });
 
