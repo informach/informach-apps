@@ -12,11 +12,14 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@informach/ui/components/popover";
 import { cn } from "@informach/ui/lib/utils";
 import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { type ComponentPropsWithRef, useEffect, useId, useRef, useState } from "react";
 
 export type ComboboxOption = { value: string; label: string };
 
-type Props = {
+type Props = Pick<
+  ComponentPropsWithRef<"button">,
+  "id" | "ref" | "onBlur" | "aria-label" | "aria-labelledby" | "aria-describedby" | "aria-invalid"
+> & {
   value: string | null;
   onChange: (value: string | null, option: ComboboxOption | null) => void;
   fetchOptions: (query: string) => Promise<ComboboxOption[]>;
@@ -46,6 +49,7 @@ export function AsyncCombobox({
   disabled = false,
   resetKey,
   initialLabel = null,
+  ...controlProps
 }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -104,7 +108,8 @@ export function AsyncCombobox({
     <Popover open={open} onOpenChange={(next) => !disabled && setOpen(next)}>
       <PopoverTrigger asChild>
         <Button
-          id={id}
+          {...controlProps}
+          id={controlProps.id ?? id}
           variant="outline"
           role="combobox"
           aria-expanded={open}

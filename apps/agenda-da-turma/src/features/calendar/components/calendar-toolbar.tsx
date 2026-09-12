@@ -127,16 +127,16 @@ export function CalendarToolbar({
         ) : null}
 
         <div className="flex flex-wrap items-center gap-2 md:ml-auto">
-          <Button size="sm" asChild>
+          <Button onClick={onCreate} size="sm" disabled={!canCreate}>
+            <Plus className="mr-1 size-4" aria-hidden />
+            Nova atividade
+          </Button>
+          <Button size="sm" variant="outline" asChild>
             <Link href="/recados/novo">Organizar recado</Link>
           </Button>
           <details className="rounded-md border px-3 py-2">
-            <summary className="cursor-pointer text-sm">Atividades por matéria</summary>
+            <summary className="cursor-pointer text-sm">Importar atividades</summary>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Button onClick={onCreate} size="sm" disabled={!canCreate}>
-                <Plus className="mr-1 size-4" aria-hidden />
-                Nova atividade
-              </Button>
               <Button
                 type="button"
                 variant="outline"

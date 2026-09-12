@@ -41,7 +41,7 @@ import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { createActivityAction, updateActivityAction } from "../actions";
 import { FREE_ACTIVITY_LIMIT } from "../limits";
 import { type CreateActivityFormValues, createActivityInputSchema } from "../schemas";
-import type { ActivityListItem, TurmaWithSubjectsForForm } from "../types";
+import type { ActivityListItem, ActivityType, TurmaWithSubjectsForForm } from "../types";
 import { buildActivityFormDefaults, formatTurmaShort, getActivityTypeLabel } from "../utils";
 
 type ActivityToEdit = Pick<
@@ -81,6 +81,8 @@ type Props = {
    * edição (data vem da própria activity).
    */
   defaultDueAt?: string;
+  /** Tipo escolhido no atalho de cadastro. Ignorado em edição. */
+  defaultType?: ActivityType;
 };
 
 const TYPES: Array<"task" | "exam" | "project" | "reminder"> = [
@@ -99,6 +101,7 @@ export function ActivityFormDialog({
   activity,
   defaultTurmaId,
   defaultDueAt,
+  defaultType,
 }: Props) {
   const router = useRouter();
   const [submitting, startSubmit] = useTransition();
@@ -121,6 +124,7 @@ export function ActivityFormDialog({
       turmas,
       defaultTurmaId,
       defaultDueAt,
+      defaultType,
     }),
   });
 
@@ -129,7 +133,9 @@ export function ActivityFormDialog({
   // biome-ignore lint/correctness/useExhaustiveDependencies: see comment above
   useEffect(() => {
     if (!open) return;
-    form.reset(buildActivityFormDefaults({ activity, turmas, defaultTurmaId, defaultDueAt }));
+    form.reset(
+      buildActivityFormDefaults({ activity, turmas, defaultTurmaId, defaultDueAt, defaultType }),
+    );
   }, [open]);
 
   const selectedTurmaId = form.watch("turmaId");
@@ -272,7 +278,9 @@ export function ActivityFormDialog({
         return;
       }
       toast.success("Atividade criada");
-      form.reset(buildActivityFormDefaults({ activity, turmas, defaultTurmaId, defaultDueAt }));
+      form.reset(
+        buildActivityFormDefaults({ activity, turmas, defaultTurmaId, defaultDueAt, defaultType }),
+      );
       onOpenChange(false);
       router.refresh();
     });
@@ -280,7 +288,9 @@ export function ActivityFormDialog({
 
   const handleOpenChange = (next: boolean) => {
     if (!next) {
-      form.reset(buildActivityFormDefaults({ activity, turmas, defaultTurmaId, defaultDueAt }));
+      form.reset(
+        buildActivityFormDefaults({ activity, turmas, defaultTurmaId, defaultDueAt, defaultType }),
+      );
     }
     onOpenChange(next);
   };
@@ -293,7 +303,7 @@ export function ActivityFormDialog({
           <DialogDescription>
             {isEdit
               ? "Você pode ajustar matéria, visibilidade, título, observação, data e tipo. A turma fica fixa após o cadastro."
-              : "Cadastre uma tarefa, prova, trabalho ou lembrete para a turma."}
+              : "Escolha a matéria, descreva a atividade e informe a data de entrega."}
           </DialogDescription>
         </DialogHeader>
 
@@ -415,7 +425,7 @@ export function ActivityFormDialog({
                       <SelectContent>
                         {TYPES.map((t) => (
                           <SelectItem key={t} value={t}>
-                            {getActivityTypeLabel(t)}
+                            {t === "task" ? "Para casa (tarefa)" : getActivityTypeLabel(t)}
                           </SelectItem>
                         ))}
                       </SelectContent>

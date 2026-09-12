@@ -194,6 +194,7 @@ export function buildActivityFormDefaults(input: {
   turmas: TurmaWithSubjectsForForm[];
   defaultTurmaId?: string;
   defaultDueAt?: string;
+  defaultType?: ActivityType;
 }): CreateActivityFormValues {
   if (input.activity) {
     return {
@@ -209,6 +210,7 @@ export function buildActivityFormDefaults(input: {
   }
   return {
     ...EMPTY_FORM_DEFAULTS,
+    type: input.defaultType ?? EMPTY_FORM_DEFAULTS.type,
     turmaId: pickInitialTurmaId(input.turmas, input.defaultTurmaId),
     dueAt: input.defaultDueAt ?? "",
   };

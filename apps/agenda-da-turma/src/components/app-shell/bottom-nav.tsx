@@ -1,10 +1,11 @@
 "use client";
-import { CalendarDays, House, MailPlus, UsersRound } from "lucide-react";
+import { CalendarDays, House, ListChecks, MailPlus, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const items = [
   { href: "/dashboard", label: "Rotina", icon: House },
+  { href: "/atividades", label: "Atividades", icon: ListChecks },
   { href: "/recados/novo", label: "Recado", icon: MailPlus },
   { href: "/calendario", label: "Calendário", icon: CalendarDays },
   { href: "/familia", label: "Família", icon: UsersRound },
@@ -16,7 +17,7 @@ export function BottomNav() {
       aria-label="Navegação principal"
       className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
     >
-      <div className="mx-auto grid max-w-lg grid-cols-4">
+      <div className="mx-auto grid max-w-lg grid-cols-5">
         {items.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}

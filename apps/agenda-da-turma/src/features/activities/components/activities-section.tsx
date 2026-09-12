@@ -15,7 +15,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { StudentProfile } from "@/features/students/types";
-import type { ActivityListItem, ParsedActivityInput, TurmaWithSubjectsForForm } from "../types";
+import type {
+  ActivityListItem,
+  ActivityType,
+  ParsedActivityInput,
+  TurmaWithSubjectsForForm,
+} from "../types";
+import { getActivityTypeIcon, getActivityTypeLabel } from "../utils";
 import { ActivitiesBatchConfirmDialog } from "./activities-batch-confirm-dialog";
 import { ActivityCard } from "./activity-card";
 import { ActivityFormDialog } from "./activity-form-dialog";
@@ -38,6 +44,8 @@ type Props = {
   /** Total de atividades já cadastradas pelo user (qualquer status). */
   activityCount: number;
 };
+
+const CREATE_TYPES: ActivityType[] = ["task", "project", "exam", "reminder"];
 
 // Monta `/atividades?perfil=X&cursor=Y` filtrando params nulos. Cursor null
 // retorna ao começo (primeira página); perfil null retorna pra "Todos".
@@ -68,6 +76,7 @@ export function ActivitiesSection({
 }: Props) {
   const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
+  const [createType, setCreateType] = useState<ActivityType>("task");
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [imageOpen, setImageOpen] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
@@ -106,6 +115,11 @@ export function ActivitiesSection({
     }
   };
 
+  const handleCreate = (type: ActivityType) => {
+    setCreateType(type);
+    setCreateOpen(true);
+  };
+
   if (profiles.length === 0) {
     return (
       <Card className="rounded-2xl border-dashed">
@@ -135,6 +149,32 @@ export function ActivitiesSection({
 
   return (
     <div className="space-y-4">
+      <section aria-labelledby="create-activity-title" className="rounded-xl border bg-card p-4">
+        <h2 id="create-activity-title" className="text-base font-semibold">
+          Cadastrar atividade
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Escolha o tipo e preencha a matéria, o que precisa ser feito e a data.
+        </p>
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {CREATE_TYPES.map((type) => {
+            const Icon = getActivityTypeIcon(type);
+            return (
+              <Button
+                key={type}
+                type="button"
+                variant="outline"
+                className="min-h-11"
+                onClick={() => handleCreate(type)}
+                disabled={!canCreate}
+              >
+                <Icon className="size-4" aria-hidden />
+                {type === "task" ? "Para casa" : getActivityTypeLabel(type)}
+              </Button>
+            );
+          })}
+        </div>
+      </section>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         {/* Filtro à esquerda no desktop, primeira linha no mobile. */}
         <div className="flex flex-wrap items-center gap-2">
@@ -155,16 +195,12 @@ export function ActivitiesSection({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button asChild>
+          <Button asChild variant="outline">
             <Link href="/recados/novo">Organizar recado</Link>
           </Button>
           <details className="rounded-md border px-3 py-2">
-            <summary className="cursor-pointer text-sm">Atividades por matéria</summary>
+            <summary className="cursor-pointer text-sm">Importar atividades</summary>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Button type="button" onClick={() => setCreateOpen(true)} disabled={!canCreate}>
-                <Plus className="mr-2 size-4" aria-hidden />
-                Nova atividade
-              </Button>
               <Button
                 type="button"
                 variant="outline"
@@ -265,7 +301,7 @@ export function ActivitiesSection({
                     Adicione tarefas, provas, trabalhos ou lembretes pra organizar a rotina.
                   </p>
                 </div>
-                <Button type="button" onClick={() => setCreateOpen(true)}>
+                <Button type="button" onClick={() => handleCreate("task")}>
                   <Plus className="mr-2 size-4" aria-hidden />
                   Nova atividade
                 </Button>
@@ -322,6 +358,8 @@ export function ActivitiesSection({
         turmas={turmasForForm}
         isPro={isPro}
         currentActivityCount={activityCount}
+        defaultType={createType}
+        defaultTurmaId={activeFilter?.activeTurmaId ?? undefined}
       />
 
       {isPro ? (

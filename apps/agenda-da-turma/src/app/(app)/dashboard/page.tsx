@@ -78,6 +78,7 @@ export default async function DashboardPage({ searchParams }: Props) {
           ))}
         </nav>
       ) : null}
+      <DashboardNavButtons profileFilter={profileFilter} />
       <Suspense fallback={<DashboardContentSkeleton />}>
         <TomorrowRoutine userId={user.id} profileFilter={profileFilter} />
       </Suspense>
@@ -106,7 +107,6 @@ export default async function DashboardPage({ searchParams }: Props) {
           </summary>
           <div className="mt-4 space-y-4">
             <ExportPdfButton isPro={isPro} profileFilter={profileFilter} />
-            <DashboardNavButtons />
             <DashboardSection
               userId={user.id}
               isPro={isPro}

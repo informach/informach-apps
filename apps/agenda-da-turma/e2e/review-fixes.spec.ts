@@ -12,6 +12,7 @@ import {
   agendaNotices,
   agendaProductEvents,
   agendaSchools,
+  agendaStates,
   agendaStudentProfiles,
   agendaSubjects,
   agendaTurmaMembers,
@@ -94,10 +95,16 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       .returning();
     const child = required(children[0]),
       sibling = required(children[1]);
-    const [city] = await db.select().from(agendaCities).limit(1);
+    // The browser fixture must also work against the empty reference tables in CI.
+    await db.insert(agendaStates).values({ uf: school, ibgeCode: school, name: "Estado fictício" });
+    await db.insert(agendaCities).values({
+      ibgeCode: school,
+      stateUf: school,
+      name: "Cidade fictícia",
+    });
     await db.insert(agendaSchools).values({
       inepCode: school,
-      cityIbgeCode: required(city).ibgeCode,
+      cityIbgeCode: school,
       name: "Escola fictícia revisão",
     });
     const [group] = await db
@@ -142,6 +149,68 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       .returning();
     const activityId = required(activity).id;
     await db.insert(agendaActivityStatuses).values({ activityId, studentProfileId: child.id });
+
+    await test.step("school activities stay visible and each shortcut saves the chosen type", async () => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(`/dashboard?perfil=${child.id}`);
+      const schoolAccess = page.getByRole("region", { name: "Para casa, trabalhos e provas" });
+      await expect(schoolAccess).toBeInViewport();
+      await expect(
+        page.getByRole("navigation", { name: "Navegação principal" }).getByRole("link", {
+          name: "Atividades",
+          exact: true,
+        }),
+      ).toBeInViewport();
+      await page.screenshot({
+        path: testInfo.outputPath("school-access-mobile.png"),
+        caret: "initial",
+      });
+      await schoolAccess.getByRole("link", { name: "Ver e cadastrar atividades" }).click();
+      await expect(page).toHaveURL(new RegExp(`/atividades\\?perfil=${child.id}$`));
+      for (const width of [360, 1280]) {
+        await page.setViewportSize({ width, height: 900 });
+        await expect(page.getByRole("button", { name: "Para casa", exact: true })).toBeInViewport();
+        expect(
+          await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+        ).toBe(true);
+        await page.screenshot({
+          path: testInfo.outputPath(`school-create-${width}.png`),
+          caret: "initial",
+        });
+      }
+      await page.setViewportSize({ width: 390, height: 844 });
+      for (const [label, type] of [
+        ["Para casa", "task"],
+        ["Trabalho", "project"],
+        ["Prova", "exam"],
+      ] as const) {
+        await page.getByRole("button", { name: label, exact: true }).click();
+        const dialog = page.getByRole("dialog");
+        await expect(dialog.getByRole("combobox", { name: "Tipo", exact: true })).toContainText(
+          label,
+        );
+        await dialog.getByRole("combobox", { name: "Matéria", exact: true }).click();
+        await page.getByRole("option", { name: "Matéria de revisão", exact: true }).click();
+        await dialog.getByLabel("Atividade", { exact: true }).fill(`Cadastro direto: ${label}`);
+        await dialog.getByLabel("Data de entrega").fill(date);
+        await dialog.getByRole("button", { name: "Criar atividade", exact: true }).click();
+        await expect(dialog).toHaveCount(0);
+        const [saved] = await db
+          .select()
+          .from(agendaActivities)
+          .where(
+            and(
+              eq(agendaActivities.createdByUserId, id),
+              eq(agendaActivities.title, `Cadastro direto: ${label}`),
+            ),
+          );
+        expect(saved).toMatchObject({ type, turmaId, dueAt: date });
+      }
+      await page.goto(`/calendario?date=${date}`);
+      await page.getByRole("button", { name: "Nova atividade", exact: true }).click();
+      await expect(page.getByRole("dialog", { name: "Nova atividade" })).toBeVisible();
+      await page.getByRole("button", { name: "Cancelar", exact: true }).click();
+    });
 
     for (const version of [2, 3]) {
       await page.goto("/atividades");
@@ -299,6 +368,8 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
   } finally {
     await db.delete(agendaTurmas).where(eq(agendaTurmas.schoolInepCode, school));
     await db.delete(agendaSchools).where(eq(agendaSchools.inepCode, school));
+    await db.delete(agendaCities).where(eq(agendaCities.ibgeCode, school));
+    await db.delete(agendaStates).where(eq(agendaStates.uf, school));
     await db.delete(agendaProductEvents).where(eq(agendaProductEvents.userId, id));
     await db.delete(emailDeliveries).where(eq(emailDeliveries.userId, id));
     await db.delete(users).where(eq(users.id, id));

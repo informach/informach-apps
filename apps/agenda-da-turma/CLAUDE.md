@@ -10,6 +10,8 @@ Agenda da Turma organiza recados escolares em providências para a família: o q
 
 Estado da implementação em 11/09/2026: rotina móvel, recado com texto + imagem/PDF, revisão antes de salvar, prazos opcionais e origem da data, convites revogáveis, atribuição de responsável, histórico/versionamento, resumo e lembretes, push opt-in, calendário privado, exportação e exclusão de conta. Nascimento, turma e matérias são opcionais no primeiro uso. Grupos de turma são privados por criador e turno; conhecer os dados públicos da sala não concede acesso.
 
+Navegação escolar (12/09/2026): manter **Atividades** na barra principal e o acesso **Para casa, trabalhos e provas** visível no início da rotina, preservando o filtro da criança. Em `/atividades`, os atalhos Para casa/Trabalho/Prova/Lembrete abrem o cadastro com o tipo escolhido; no calendário, Nova atividade fica visível fora do grupo de importação. A captura de recados complementa esses cadastros: não esconder a criação manual em seções recolhidas.
+
 O plano gratuito permite uma criança, 20 pendências próprias combinando escola/extras/recados, recebimento de atividades compartilhadas e cinco importações por conta verificada. Dados existentes continuam consultáveis após downgrade; novas automações pagas ficam pausadas. O Pro tem até três crianças, dois adultos e 70 créditos/mês. Não há validação de pagantes informada pelo fundador.
 
 Teams e Batista ID são fontes de importação assistida (copiar publicação e enviar anexo). Conectores automáticos dependem de acesso autorizado e prova técnica; não estão disponíveis. Operação requer configuração de VAPID, envio de e-mail e scheduler. A implementação e a validação local não constituem implantação em produção.

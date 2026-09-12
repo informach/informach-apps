@@ -49,8 +49,8 @@ export default async function AtividadesPage({
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Atividades</h1>
             <p className="text-sm text-muted-foreground">
-              Tarefas, provas, trabalhos e lembretes dos seus estudantes. Marque o status conforme
-              você avança.
+              Para casa, trabalhos, provas e lembretes. Cadastre por matéria e acompanhe o que já
+              foi concluído.
             </p>
           </div>
         </div>
