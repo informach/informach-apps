@@ -10,7 +10,7 @@ export async function generateNoticeExtraction(
   attachment: Awaited<ReturnType<typeof prepareNoticeAttachment>>,
   runId?: string,
 ) {
-  const content = `Data da publicação fornecida pela família: ${input.publishedAt ?? "desconhecida"}. Origem: ${input.source}. Páginas originais selecionadas: ${attachment?.pages.join(", ") || "não se aplica"}.\nRECADO:\n${input.text}`;
+  const content = `Data da publicação/anotação fornecida pela família: ${input.publishedAt ?? "desconhecida"}. Origem: ${input.source}. Páginas originais selecionadas: ${attachment?.pages.join(", ") || "não se aplica"}.\nRECADO:\n${input.text}`;
   const agent = getNoticeParserAgent();
   const options = {
     ...(runId ? { runId } : {}),

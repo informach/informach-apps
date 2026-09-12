@@ -13,6 +13,55 @@ const action = {
   sourceExcerpt: "Enviar autorização até 16/09/2026.",
 };
 describe("school notice date provenance", () => {
+  it.each([
+    "Anotado em 15/09/2026",
+    "Data da anotação: 15/09/2026",
+    "Escrito em 2026-09-15",
+  ])("uses an explicit writing date for notebook deadlines: %s", (sourceExcerpt) => {
+    const result = validateNoticeExtraction(
+      {
+        actions: [
+          {
+            ...action,
+            type: "task",
+            dateOrigin: "relative",
+            sourceExcerpt: "Para casa: entregar amanhã.",
+          },
+        ],
+        warnings: [],
+        publicationReference: { date: "2026-09-15", sourceExcerpt },
+      },
+      null,
+    );
+    expect(result.actions[0]?.dueAt).toBe("2026-09-16");
+    expect(result.publicationReference?.date).toBe("2026-09-15");
+  });
+  it.each([
+    "Foto tirada em 15/09/2026",
+    "15/09/2026",
+    "Prova em 15/09/2026",
+  ])("does not infer a notebook writing date from %s", (sourceExcerpt) => {
+    const result = validateNoticeExtraction(
+      {
+        actions: [{ ...action, dateOrigin: "relative" }],
+        warnings: [],
+        publicationReference: { date: "2026-09-15", sourceExcerpt },
+      },
+      null,
+    );
+    expect(result.actions[0]?.dueAt).toBeNull();
+    expect(result.publicationReference).toBeNull();
+  });
+  it("accepts a notebook photo with no typed text", () => {
+    expect(
+      parseNoticeSchema.safeParse({
+        profileId: "f2eb50ee-b7b1-44b0-a20e-2261b382f8ee",
+        source: "notebook",
+        text: "",
+        attachment: { name: "agenda.png", dataUrl: "data:image/png;base64,iVBORw0KGgo=" },
+      }).success,
+    ).toBe(true);
+  });
   it("uses a publication identified in the original when the separate field is empty", () => {
     const result = validateNoticeExtraction(
       {

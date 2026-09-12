@@ -37,7 +37,10 @@ async function register(context: BrowserContext, baseURL: string, label: string)
 }
 async function selectFree(page: Page) {
   await page.goto("/choose-plan");
-  await page.getByRole("button", { name: "Começar grátis", exact: true }).click();
+  await Promise.all([
+    page.waitForURL(/\/dashboard$/),
+    page.getByRole("button", { name: "Começar grátis", exact: true }).click(),
+  ]);
   await expect(page).toHaveURL(/dashboard/);
 }
 test.afterEach(async () => {
@@ -105,10 +108,10 @@ test("two adults, private child access, completion, revocation and confirmed del
   await page.getByRole("button", { name: "Criar perfil", exact: true }).click();
   await expect(page.getByRole("button", { name: "Cadastrar manualmente" })).toBeEnabled();
   await page.getByRole("button", { name: "Cadastrar manualmente" }).click();
-  await page.getByLabel("Providência", { exact: true }).fill("Preparar mochila fictícia");
+  await page.getByLabel("Atividade", { exact: true }).fill("Preparar mochila fictícia");
   await page.getByRole("combobox", { name: "Tipo", exact: true }).selectOption("material");
-  await page.getByRole("button", { name: "Salvar 1 providência", exact: true }).click();
-  await expect(page).toHaveURL(/dashboard/);
+  await page.getByRole("button", { name: "Salvar 1 atividade", exact: true }).click();
+  await expect(page).toHaveURL(/atividades/);
   await expect(
     page.getByRole("link", { name: "Preparar mochila fictícia", exact: true }),
   ).toBeVisible();
@@ -161,7 +164,7 @@ test("two adults, private child access, completion, revocation and confirmed del
     await expect(
       guestPage.getByRole("link", { name: "Preparar mochila fictícia", exact: true }),
     ).toHaveCount(0);
-    await page.goto("/recados?historico=1");
+    await page.goto("/atividades?situacao=all");
     await expect(
       page.getByRole("button", { name: "Reabrir: Preparar mochila fictícia", exact: true }),
     ).toBeVisible();
@@ -174,7 +177,7 @@ test("two adults, private child access, completion, revocation and confirmed del
       .getByRole("button", { name: "Remover acesso deste responsável", exact: true })
       .click();
     await expect(page.getByText("Acesso atualizado.", { exact: true })).toBeVisible();
-    await guestPage.goto("/recados?historico=1");
+    await guestPage.goto("/atividades?situacao=all");
     await expect(
       guestPage.getByRole("link", { name: "Preparar mochila fictícia", exact: true }),
     ).toHaveCount(0);
@@ -218,7 +221,7 @@ test("two adults, private child access, completion, revocation and confirmed del
       .update(subscriptions)
       .set({ status: "canceled", canceledAt: new Date() })
       .where(eq(subscriptions.id, subscriptionId));
-    await page.goto("/recados?historico=1");
+    await page.goto("/atividades?situacao=all");
     await expect(
       page.getByRole("button", { name: "Reabrir: Preparar mochila fictícia", exact: true }),
     ).toBeVisible();

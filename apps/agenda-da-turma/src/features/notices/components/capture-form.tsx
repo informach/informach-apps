@@ -2,7 +2,8 @@
 
 import { Button } from "@informach/ui/components/button";
 import { Input } from "@informach/ui/components/input";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Camera, Loader2, Plus, Trash2 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -15,18 +16,23 @@ import {
   confirmNoticeSchema,
   type NoticeActionInput,
   noticeExtractionSchema,
+  noticeSourceSchema,
   parseNoticeSchema,
   SOURCE_LABELS,
 } from "../schemas";
 import { ActionFields, type AssignableAdult, type RoutineProfile } from "./action-fields";
 
 type Draft = { key: string; value: NoticeActionInput };
-function blankAction(profileId: string): Draft {
+function blankAction(
+  profileId: string,
+  type: NoticeActionInput["type"] = "task",
+  key = crypto.randomUUID(),
+): Draft {
   return {
-    key: crypto.randomUUID(),
+    key,
     value: {
       profileId,
-      type: "task",
+      type,
       title: "",
       description: null,
       dueAt: null,
@@ -55,11 +61,19 @@ export function CaptureForm({
   proProfileIds,
   ownerIsPro,
   initialNotice,
+  mode = "capture",
+  defaultProfileId,
+  defaultType = "task",
+  defaultSource = "teams",
 }: {
   profiles: RoutineProfile[];
   adults: AssignableAdult[];
   proProfileIds: string[];
   ownerIsPro: boolean;
+  mode?: "capture" | "manual";
+  defaultProfileId?: string;
+  defaultType?: NoticeActionInput["type"];
+  defaultSource?: z.infer<typeof noticeSourceSchema>;
   initialNotice?: {
     id: string;
     profileId: string;
@@ -69,13 +83,16 @@ export function CaptureForm({
   const router = useRouter();
   const [profiles, setProfiles] = useState(initialProfiles);
   const [profileId, setProfileId] = useState(
-    initialNotice?.profileId ?? initialProfiles[0]?.id ?? "",
+    initialNotice?.profileId ??
+      initialProfiles.find((p) => p.id === defaultProfileId)?.id ??
+      initialProfiles[0]?.id ??
+      "",
   );
   const isPro =
     proProfileIds.includes(profileId) ||
     (ownerIsPro && !initialProfiles.some((p) => p.id === profileId));
   const [childName, setChildName] = useState("");
-  const [source, setSource] = useState<"teams" | "batista" | "other">("teams");
+  const [source, setSource] = useState<z.infer<typeof noticeSourceSchema>>(defaultSource);
   const [sourceUrl, setSourceUrl] = useState("");
   const [publishedAt, setPublishedAt] = useState("");
   const [text, setText] = useState("");
@@ -94,7 +111,9 @@ export function CaptureForm({
             recurrence: "none",
           },
         }))
-      : [],
+      : mode === "manual" && profileId
+        ? [blankAction(profileId, defaultType, "manual-initial")]
+        : [],
   );
   const [noticeId, setNoticeId] = useState<string | null>(initialNotice?.id ?? null);
   const [warnings, setWarnings] = useState<string[]>(initialNotice?.extraction.warnings ?? []);
@@ -142,6 +161,7 @@ export function CaptureForm({
     }
     setProfiles([...profiles, { id: result.value.id, name: childName.trim() }]);
     setProfileId(result.value.id);
+    if (mode === "manual") setDrafts([blankAction(result.value.id, defaultType)]);
     router.refresh();
   }
   async function chooseFile(file: File | undefined) {
@@ -264,7 +284,10 @@ export function CaptureForm({
       }
       return;
     }
-    router.push("/dashboard");
+    const savedProfileIds = [...new Set(parsed.data.actions.map((item) => item.profileId))];
+    router.push(
+      savedProfileIds.length === 1 ? `/atividades?perfil=${savedProfileIds[0]}` : "/atividades",
+    );
     router.refresh();
   }
 
@@ -307,13 +330,13 @@ export function CaptureForm({
               </select>
             </label>
             <label htmlFor="notice-source" className="grid gap-2 text-sm font-medium">
-              Onde chegou?
+              O que você vai importar?
               <select
                 id="notice-source"
                 className="h-11 rounded-md border bg-background px-3"
                 value={source}
                 onChange={(e) => {
-                  const parsed = z.enum(["teams", "batista", "other"]).safeParse(e.target.value);
+                  const parsed = noticeSourceSchema.safeParse(e.target.value);
                   if (parsed.success) setSource(parsed.data);
                 }}
               >
@@ -326,7 +349,9 @@ export function CaptureForm({
             </label>
           </div>
           <label htmlFor="notice-text" className="grid gap-2 text-sm font-medium">
-            Cole a mensagem ou publicação
+            {source === "notebook"
+              ? "Observação para acompanhar a foto (opcional)"
+              : "Cole a mensagem ou publicação (opcional se enviar um arquivo)"}
             <textarea
               id="notice-text"
               className="min-h-40 rounded-md border bg-background p-3 font-normal"
@@ -337,18 +362,75 @@ export function CaptureForm({
             />
           </label>
           <label htmlFor="notice-file" className="grid gap-2 text-sm font-medium">
-            Anexo da publicação (opcional)
+            Foto ou arquivo
             <Input
               id="notice-file"
               type="file"
               accept="image/png,image/jpeg,image/webp,application/pdf"
               disabled={busy}
-              onChange={(e) => chooseFile(e.target.files?.[0])}
+              onChange={(e) => {
+                void chooseFile(e.target.files?.[0]);
+                e.target.value = "";
+              }}
             />
             <span className="font-normal text-muted-foreground">
-              Mensagem e anexo são lidos juntos. Até 5 MB. O original fica disponível por 30 dias.
+              Envie a foto da agenda, do caderno ou o anexo da escola. Não precisa digitar o que
+              está na foto. JPG, PNG, WebP ou PDF, até 5 MB. O arquivo original fica disponível por
+              30 dias.
             </span>
           </label>
+          <div className="space-y-3">
+            <label
+              htmlFor="notice-camera"
+              className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border px-4 text-sm font-medium focus-within:ring-2 focus-within:ring-ring"
+            >
+              <Camera className="size-4" aria-hidden /> Tirar foto da agenda ou do caderno
+              <input
+                id="notice-camera"
+                className="sr-only"
+                type="file"
+                capture="environment"
+                accept="image/jpeg,image/png,image/webp"
+                disabled={busy}
+                onChange={(e) => {
+                  setSource("notebook");
+                  void chooseFile(e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            {attachment ? (
+              <div className="space-y-2 rounded-lg border p-3">
+                <p className="break-words text-sm">Arquivo selecionado: {attachment.name}</p>
+                {attachment.dataUrl.startsWith("data:image/") ? (
+                  <Image
+                    src={attachment.dataUrl}
+                    alt="Foto selecionada para leitura"
+                    width={800}
+                    height={600}
+                    unoptimized
+                    className="max-h-72 w-full rounded-md object-contain"
+                  />
+                ) : null}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => {
+                    setAttachment(null);
+                    setPageCount(0);
+                    setPages([]);
+                  }}
+                >
+                  Remover arquivo
+                </Button>
+              </div>
+            ) : null}
+            <p className="text-xs text-muted-foreground">
+              Fotografe a página inteira, com boa luz e sem cortar as anotações. Letras ou prazos
+              pouco claros precisam de conferência.
+            </p>
+          </div>
           {pageCount > 0 ? (
             <fieldset className="space-y-3 rounded-lg border p-4">
               <legend className="px-1 text-sm font-medium">
@@ -380,7 +462,9 @@ export function CaptureForm({
           ) : null}
           <div className="grid gap-4 sm:grid-cols-2">
             <label htmlFor="notice-published" className="grid gap-2 text-sm font-medium">
-              Data da publicação (se conhecida)
+              {source === "notebook"
+                ? "Data da anotação (se conhecida)"
+                : "Data da publicação (se conhecida)"}
               <Input
                 id="notice-published"
                 type="date"
@@ -388,7 +472,8 @@ export function CaptureForm({
                 onChange={(e) => setPublishedAt(e.target.value)}
               />
               <span className="font-normal text-muted-foreground">
-                Ajuda a interpretar “amanhã” em recados antigos.
+                Use a data em que a anotação ou mensagem foi escrita. Ela ajuda a interpretar
+                “amanhã”; a data da foto não define o prazo.
               </span>
             </label>
             <label htmlFor="notice-url" className="grid gap-2 text-sm font-medium">
@@ -407,20 +492,26 @@ export function CaptureForm({
           </div>
           <p className="text-sm text-muted-foreground">
             {isPro
-              ? "1 crédito por recado, mesmo com várias providências."
+              ? "1 crédito por importação, mesmo com várias atividades."
               : "Experimente 5 importações gratuitas, sem cartão. Depois, o Pro inclui 70 créditos por mês."}{" "}
             Você revisa antes de salvar. O conteúdo será enviado ao serviço de IA para extração.
           </p>
           <div className="flex flex-wrap gap-3">
             <Button onClick={extract} disabled={busy || (!text.trim() && !attachment)}>
-              {busy ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden /> : null}Organizar
-              recado
+              {busy ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden /> : null}
+              Identificar atividades
             </Button>
             <Button
               variant="outline"
               disabled={busy}
               onClick={() => {
                 setNoticeId(null);
+                setWarnings([]);
+                setAppliedProfileIds([]);
+                setSourceProfileIds([]);
+                setShareOriginal(false);
+                setPublicationReference(null);
+                resetDecisions();
                 setDrafts([blankAction(profileId)]);
               }}
             >
@@ -451,8 +542,8 @@ export function CaptureForm({
                 .filter((p) => appliedProfileIds.includes(p.id))
                 .map((p) => p.name)
                 .join(", ")}
-              . Você pode revisar para outro filho sem nova cobrança de importação. As providências
-              anteriores serão preservadas; para alterá-las, abra a rotina.
+              . Você pode revisar para outro filho sem nova cobrança de importação. As atividades
+              anteriores serão preservadas; para alterá-las, abra Atividades.
             </p>
           ) : null}
           {publicationReference ? (
@@ -470,8 +561,8 @@ export function CaptureForm({
                 Privacidade do recado e do anexo
               </legend>
               <p className="text-sm text-muted-foreground">
-                As providências seguem as permissões de cada criança. Para compartilhar o original,
-                confirme todas as crianças mencionadas, mesmo sem providências. Se houver dados de
+                As atividades seguem as permissões de cada criança. Para compartilhar o original,
+                confirme todas as crianças mencionadas, mesmo sem atividades. Se houver dados de
                 outra criança que não aparece aqui, mantenha o original privado.
               </p>
               <label className="flex min-h-11 items-center gap-2 text-sm">
@@ -514,11 +605,12 @@ export function CaptureForm({
           {drafts.map((draft, index) => (
             <article key={draft.key} className="space-y-4 rounded-xl border bg-card p-5 sm:p-6">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold">Providência {index + 1}</h3>
+                <h3 className="font-semibold">Atividade {index + 1}</h3>
                 <Button
                   size="icon"
                   variant="ghost"
-                  aria-label={`Remover providência ${index + 1}`}
+                  aria-label={`Remover atividade ${index + 1}`}
+                  disabled={busy || (mode === "manual" && drafts.length === 1)}
                   onClick={() => {
                     setDrafts(drafts.filter((d) => d.key !== draft.key));
                     resetDecisions();
@@ -543,10 +635,10 @@ export function CaptureForm({
               />
               {corrections.some((c) => c.index === index) ? (
                 <label className="grid gap-2 rounded-lg border border-amber-500 p-4 text-sm">
-                  <span className="font-medium">O prazo desta providência mudou?</span>
+                  <span className="font-medium">O prazo desta atividade mudou?</span>
                   <select
                     className="min-h-11 rounded-md border bg-background px-3"
-                    aria-label={`Correção da providência ${index + 1}`}
+                    aria-label={`Correção da atividade ${index + 1}`}
                     value={(() => {
                       const r = resolutions.find((r) => r.index === index);
                       return r?.kind === "replace" ? r.actionId : (r?.kind ?? "");
@@ -573,7 +665,7 @@ export function CaptureForm({
                     }}
                   >
                     <option value="">Selecione como tratar este recado</option>
-                    <option value="separate">É outra providência; manter as duas</option>
+                    <option value="separate">É outra atividade; manter as duas</option>
                     {corrections
                       .filter((c) => c.index === index)
                       .map((c) => (
@@ -600,7 +692,7 @@ export function CaptureForm({
             disabled={drafts.length >= 30}
           >
             <Plus className="mr-2 size-4" aria-hidden />
-            Adicionar providência
+            Adicionar atividade
           </Button>
           {duplicates.length ? (
             <div className="space-y-3 rounded-lg border border-amber-500 p-4">
@@ -620,7 +712,7 @@ export function CaptureForm({
                   checked={allowDuplicates}
                   onChange={(e) => setAllowDuplicates(e.target.checked)}
                 />
-                São providências diferentes; desejo salvar outra.
+                São atividades diferentes; desejo salvar outra.
               </label>
             </div>
           ) : null}
@@ -628,21 +720,34 @@ export function CaptureForm({
             <Button disabled={busy} onClick={save}>
               {busy
                 ? "Salvando…"
-                : `Salvar ${drafts.length} providência${drafts.length === 1 ? "" : "s"}`}
+                : `Salvar ${drafts.length} atividade${drafts.length === 1 ? "" : "s"}`}
             </Button>
             <Button
               variant="ghost"
               disabled={busy}
               onClick={() => {
+                if (mode === "manual") {
+                  router.push("/atividades");
+                  return;
+                }
                 setDrafts([]);
                 setNoticeId(null);
+                setWarnings([]);
+                resetDecisions();
               }}
             >
-              Voltar ao recado
+              {mode === "manual" ? "Cancelar" : "Voltar à importação"}
             </Button>
           </div>
         </section>
       )}
+      {!drafts.length && warnings.length ? (
+        <div role="status" className="space-y-2 rounded-lg border border-amber-500/40 p-4 text-sm">
+          {warnings.map((warning) => (
+            <p key={warning}>{warning}</p>
+          ))}
+        </div>
+      ) : null}
       {error ? (
         <p
           role="alert"
@@ -651,10 +756,13 @@ export function CaptureForm({
           {error}
         </p>
       ) : null}
-      <p className="text-xs text-muted-foreground">
-        Teams e Batista ID: copie a publicação e baixe o anexo no aplicativo da escola. Este fluxo
-        não sincroniza automaticamente novas publicações.
-      </p>
+      {mode === "capture" ? (
+        <p className="text-xs text-muted-foreground">
+          Teams e Batista ID: copie a publicação e baixe o anexo no aplicativo da escola. Este fluxo
+          não sincroniza automaticamente novas publicações. Anotações do aluno podem ser enviadas
+          por foto.
+        </p>
+      ) : null}
     </div>
   );
 }

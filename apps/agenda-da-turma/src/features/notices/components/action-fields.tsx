@@ -35,7 +35,7 @@ export function ActionFields({
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <label className={labelStyle} htmlFor={`${prefix}-title`}>
-        Providência
+        Atividade
         <Input
           id={`${prefix}-title`}
           value={value.title}
@@ -165,7 +165,7 @@ export function ActionFields({
         {!isPro ? (
           <span className="font-normal text-muted-foreground">
             Repetição e lembretes ficam pausados no plano gratuito. Você pode continuar corrigindo a
-            providência.
+            atividade.
           </span>
         ) : null}
       </label>

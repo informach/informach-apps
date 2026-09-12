@@ -83,6 +83,7 @@ type Props = {
   defaultDueAt?: string;
   /** Tipo escolhido no atalho de cadastro. Ignorado em edição. */
   defaultType?: ActivityType;
+  manualHref?: string;
 };
 
 const TYPES: Array<"task" | "exam" | "project" | "reminder"> = [
@@ -93,6 +94,7 @@ const TYPES: Array<"task" | "exam" | "project" | "reminder"> = [
 ];
 
 export function ActivityFormDialog({
+  manualHref,
   open,
   onOpenChange,
   turmas,
@@ -307,6 +309,15 @@ export function ActivityFormDialog({
           </DialogDescription>
         </DialogHeader>
 
+        {!isEdit && manualHref ? (
+          <Link
+            href={manualHref}
+            className="text-sm text-primary underline"
+            onClick={() => onOpenChange(false)}
+          >
+            Cadastrar sem matéria ou com prazo a confirmar
+          </Link>
+        ) : null}
         {limitReached ? (
           <div className="space-y-4">
             <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-muted/40 p-6 text-center">

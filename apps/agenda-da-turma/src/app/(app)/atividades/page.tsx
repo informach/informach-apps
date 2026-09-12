@@ -1,74 +1,64 @@
-import { cn } from "@informach/ui/lib/utils";
+import { z } from "zod";
 import { BackButton } from "@/components/app-shell/back-button";
 import { ActivitiesSection } from "@/features/activities/components/activities-section";
-import { FREE_ACTIVITY_LIMIT } from "@/features/activities/limits";
 import {
   getActivitiesCreatedCountForUser,
-  getActivitiesPageForUser,
   getTurmasWithSubjectsForForm,
 } from "@/features/activities/service";
 import { getIsProForUser } from "@/features/billing/server-cache";
+import { ACTION_TYPES } from "@/features/notices/schemas";
 import { listStudentProfilesForUser } from "@/features/students/service";
+import { overviewStatusSchema } from "@/features/unified-activities/overview-types";
+import { getActivityOverview } from "@/features/unified-activities/service";
 import { requireUserServer } from "@/lib/auth";
 
-export const metadata = {
-  title: "Atividades — Agenda da Turma",
-};
-
-type SearchParams = { perfil?: string; cursor?: string };
+export const metadata = { title: "Atividades — Agenda da Turma" };
 
 export default async function AtividadesPage({
   searchParams,
 }: {
-  searchParams: Promise<SearchParams>;
+  searchParams: Promise<{
+    perfil?: string;
+    tipo?: string;
+    situacao?: string;
+    recado?: string;
+    pagina?: string;
+  }>;
 }) {
   const user = await requireUserServer();
   const params = await searchParams;
-  const filterProfileId = params.perfil ?? null;
-  const cursor = params.cursor ?? null;
-
-  const [profiles, page, turmasForForm, isPro, activityCount] = await Promise.all([
+  const [profiles, turmasForForm, isPro, activityCount] = await Promise.all([
     listStudentProfilesForUser(user.id),
-    getActivitiesPageForUser(user.id, { profileFilter: filterProfileId, cursor }),
     getTurmasWithSubjectsForForm(user.id),
     getIsProForUser(user.id),
     getActivitiesCreatedCountForUser(user.id),
   ]);
-
-  const activeFilter = filterProfileId
-    ? (profiles.find((p) => p.id === filterProfileId) ?? null)
-    : null;
-
-  const limitReached = !isPro && activityCount >= FREE_ACTIVITY_LIMIT;
-
+  const activeFilter = profiles.find((p) => p.id === params.perfil) ?? null;
+  const parsedType = z.enum(ACTION_TYPES).safeParse(params.tipo);
+  const filters = {
+    profileFilter: activeFilter?.id ?? null,
+    typeFilter: parsedType.success ? parsedType.data : null,
+    statusFilter: overviewStatusSchema.catch("pending").parse(params.situacao),
+    noticeId: z.string().uuid().catch("").parse(params.recado) || null,
+    page: z.coerce.number().int().min(1).max(10000).catch(1).parse(params.pagina),
+  };
+  const result = await getActivityOverview(user.id, filters);
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 md:px-8">
-      <header className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-2">
-          <BackButton href="/dashboard" label="Voltar para o dashboard" />
-          <div className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Atividades</h1>
-            <p className="text-sm text-muted-foreground">
-              Para casa, trabalhos, provas e lembretes. Cadastre por matéria e acompanhe o que já
-              foi concluído.
-            </p>
-          </div>
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 pb-28 md:px-8">
+      <header className="flex items-start gap-2">
+        <BackButton href="/dashboard" label="Voltar à rotina" />
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Atividades</h1>
+          <p className="text-sm text-muted-foreground">
+            O que cada criança precisa fazer, em um só lugar. Cadastre uma atividade ou importe uma
+            mensagem, foto da agenda ou do caderno.
+          </p>
         </div>
-        {!isPro ? (
-          <span
-            className={cn(
-              "shrink-0 text-xs sm:pt-2",
-              limitReached ? "font-medium text-destructive" : "text-muted-foreground",
-            )}
-          >
-            {activityCount}/{FREE_ACTIVITY_LIMIT} atividades · plano Free
-          </span>
-        ) : null}
       </header>
       <ActivitiesSection
-        items={page.items}
-        nextCursor={page.nextCursor}
-        isPaginated={cursor !== null}
+        items={result.items}
+        hasNextPage={result.hasNextPage}
+        filters={filters}
         profiles={profiles}
         activeFilter={activeFilter}
         turmasForForm={turmasForForm}

@@ -23,7 +23,7 @@ const descriptionSchema = z
   .optional()
   .transform((v) => (v && v.length > 0 ? v : undefined));
 
-const typeSchema = z.enum(["task", "exam", "project", "reminder"], {
+export const activityTypeSchema = z.enum(["task", "exam", "project", "reminder"], {
   message: "Selecione o tipo da atividade",
 });
 
@@ -42,7 +42,7 @@ const dueAtSchema = z
 export const createActivityInputSchema = z.object({
   turmaId: turmaIdSchema,
   subjectId: subjectIdSchema,
-  type: typeSchema,
+  type: activityTypeSchema,
   title: titleSchema,
   description: descriptionSchema,
   dueAt: dueAtSchema,
@@ -57,7 +57,7 @@ export const updateActivityInputSchema = z.object({
   id: activityIdSchema,
   version: z.number().int().positive().default(1),
   subjectId: subjectIdSchema,
-  type: typeSchema,
+  type: activityTypeSchema,
   title: titleSchema,
   description: descriptionSchema,
   dueAt: dueAtSchema,
@@ -96,7 +96,7 @@ const MAX_ACTIVITIES_BATCH = 20;
 const batchActivitySchema = z.object({
   turmaId: turmaIdSchema,
   subjectId: subjectIdSchema,
-  type: typeSchema,
+  type: activityTypeSchema,
   title: titleSchema,
   description: descriptionSchema,
   dueAt: dueAtSchema,

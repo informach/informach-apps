@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh, revalidatePath } from "next/cache";
+import { refreshActivityViews } from "@/features/unified-activities/revalidate";
 import { action, err, ok } from "@/lib/action";
 import { logAgendaAuditEvent } from "@/lib/audit";
 import { logger } from "@/lib/logger";
@@ -40,7 +40,7 @@ export const createProfileSubjectActivityAction = action
       profileSubjectActivityId: result.value.id,
       profileSubjectId: input.profileSubjectId,
     });
-    refresh();
+    refreshActivityViews();
     return ok({ id: result.value.id } as const);
   });
 
@@ -59,7 +59,7 @@ export const updateProfileSubjectActivityAction = action
     await logAgendaAuditEvent("agenda.profile_subject_activity_updated", userId, {
       profileSubjectActivityId: result.value.id,
     });
-    refresh();
+    refreshActivityViews();
     return ok({ id: result.value.id } as const);
   });
 
@@ -78,7 +78,7 @@ export const deleteProfileSubjectActivityAction = action
     await logAgendaAuditEvent("agenda.profile_subject_activity_deleted", userId, {
       profileSubjectActivityId: input.id,
     });
-    refresh();
+    refreshActivityViews();
     return ok({ id: input.id } as const);
   });
 
@@ -101,7 +101,6 @@ export const setProfileSubjectActivityStatusAction = action
       profileSubjectActivityId: input.id,
       status: input.status,
     });
-    revalidatePath("/dashboard");
-    refresh();
+    refreshActivityViews();
     return ok({ id: input.id, status: input.status } as const);
   });

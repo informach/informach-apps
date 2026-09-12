@@ -21,8 +21,11 @@ export async function listNoticeActions(
     profileId?: string;
     limit?: number;
     offset?: number;
+    ids?: string[];
+    noticeId?: string;
   } = {},
 ) {
+  if (options.ids?.length === 0) return [];
   const query = db
     .select({
       action: agendaNoticeActions,
@@ -38,6 +41,8 @@ export async function listNoticeActions(
     .where(
       and(
         accessibleProfileCondition(userId),
+        options.ids ? inArray(agendaNoticeActions.id, options.ids) : undefined,
+        options.noticeId ? eq(agendaNoticeActions.noticeId, options.noticeId) : undefined,
         options.profileId ? eq(agendaNoticeActions.profileId, options.profileId) : undefined,
         options.includeFinished ? undefined : eq(agendaNoticeActions.status, "pending"),
         options.from ? sql`${agendaNoticeActions.dueAt} >= ${options.from}::date` : undefined,
@@ -115,6 +120,40 @@ export async function listReadyNotices(userId: string) {
     .where(and(eq(agendaNotices.status, "ready"), sourceAccessCondition(userId)))
     .orderBy(desc(agendaNotices.createdAt))
     .limit(20);
+}
+
+export async function listNoticeOriginals(
+  userId: string,
+  options: { page: number; profileId?: string },
+) {
+  return db
+    .select({
+      id: agendaNotices.id,
+      source: agendaNotices.source,
+      preview: sql<string>`left(${agendaNotices.text}, 240)`,
+      attachmentName: agendaNotices.attachmentName,
+      publishedAt: agendaNotices.publishedAt,
+      createdAt: agendaNotices.createdAt,
+    })
+    .from(agendaNotices)
+    .where(
+      and(
+        eq(agendaNotices.status, "confirmed"),
+        sourceAccessCondition(userId),
+        options.profileId
+          ? sql`(
+      ${agendaNotices.captureProfileId} = ${options.profileId}::uuid
+      OR coalesce(${agendaNotices.sourceProfileIds}, '[]'::jsonb) ? ${options.profileId}
+      OR EXISTS (SELECT 1 FROM ${agendaNoticeApplications}
+        WHERE ${agendaNoticeApplications.noticeId} = ${agendaNotices.id}
+          AND ${agendaNoticeApplications.profileId} = ${options.profileId}::uuid)
+    )`
+          : undefined,
+      ),
+    )
+    .orderBy(desc(agendaNotices.createdAt), desc(agendaNotices.id))
+    .limit(31)
+    .offset((options.page - 1) * 30);
 }
 
 export async function getNoticeActionHistory(userId: string, id: string) {

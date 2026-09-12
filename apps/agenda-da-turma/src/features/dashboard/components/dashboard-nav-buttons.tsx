@@ -7,16 +7,16 @@ export function DashboardNavButtons({ profileFilter }: { profileFilter: string |
   return (
     <section aria-labelledby="school-activities-title" className="rounded-xl border bg-card p-4">
       <h2 id="school-activities-title" className="text-base font-semibold">
-        Para casa, trabalhos e provas
+        Atividades
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Cadastre por matéria, ajuste as datas e acompanhe as entregas da escola.
+        Cadastre e acompanhe as atividades de cada criança.
       </p>
       <div className="mt-4 grid gap-3 sm:flex sm:flex-wrap">
         <Button asChild>
           <Link href={`/atividades${query}`}>
             <ListChecks aria-hidden />
-            Ver e cadastrar atividades
+            Ver atividades
           </Link>
         </Button>
         <Button asChild variant="outline">

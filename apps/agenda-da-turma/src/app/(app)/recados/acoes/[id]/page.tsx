@@ -2,18 +2,18 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { EditNoticeAction } from "@/features/notices/components/edit-action";
+import { OriginalNotice } from "@/features/notices/components/original-notice";
 import {
   getNoticeAction,
   getNoticeActionHistory,
   getNoticeSource,
   listAssignableAdults,
 } from "@/features/notices/repository";
-import { SOURCE_LABELS } from "@/features/notices/schemas";
 import { requireUserServer } from "@/lib/auth";
 import { billing } from "@/lib/billing";
 
 export const metadata = {
-  title: "Providência — Agenda da Turma",
+  title: "Atividade — Agenda da Turma",
   robots: { index: false, follow: false },
 };
 function readable(value: unknown) {
@@ -43,8 +43,8 @@ export default async function NoticeActionPage({ params }: { params: Promise<{ i
   ]);
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 pb-28 sm:px-8">
-      <Link href="/recados" className="text-sm underline">
-        Voltar às providências
+      <Link href="/atividades" className="text-sm underline">
+        Voltar às atividades
       </Link>
       <header>
         <p className="text-sm text-muted-foreground">
@@ -76,43 +76,7 @@ export default async function NoticeActionPage({ params }: { params: Promise<{ i
         }}
       />
       {source ? (
-        <section className="space-y-3 rounded-xl border p-5">
-          <h2 className="text-lg font-semibold">
-            Recado original · {SOURCE_LABELS[source.source]}
-          </h2>
-          {source.publishedAt ? (
-            <p className="text-sm text-muted-foreground">
-              Publicado em {source.publishedAt.split("-").reverse().join("/")}
-            </p>
-          ) : null}
-          {source.text ? (
-            <p className="whitespace-pre-wrap break-words text-sm">{source.text}</p>
-          ) : null}
-          {source.sourceUrl ? (
-            <a
-              href={source.sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block text-sm text-primary underline"
-            >
-              Abrir no aplicativo da escola
-            </a>
-          ) : null}
-          {source.attachmentData &&
-          source.attachmentExpiresAt &&
-          source.attachmentExpiresAt > new Date() ? (
-            <a
-              href={`/api/recados/${source.id}/anexo`}
-              className="block text-sm text-primary underline"
-            >
-              Baixar anexo original: {source.attachmentName}
-            </a>
-          ) : source.attachmentName ? (
-            <p className="text-sm text-muted-foreground">
-              O anexo original expirou após 30 dias. Consulte o aplicativo da escola.
-            </p>
-          ) : null}
-        </section>
+        <OriginalNotice source={source} />
       ) : action.noticeId ? (
         <p className="text-sm text-muted-foreground">
           O acesso ao documento completo depende das crianças compartilhadas com você.

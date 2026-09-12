@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, count, db, eq, sql } from "@informach/db";
+import { and, asc, count, db, eq, inArray, sql } from "@informach/db";
 import {
   agendaProfileSubjectActivities,
   agendaProfileSubjects,
@@ -97,6 +97,14 @@ export async function findProfileSubjectActivityById(
     .where(eq(agendaProfileSubjectActivities.id, id))
     .limit(1);
   return row ?? null;
+}
+
+export async function listProfileActivitiesByIds(userId: string, ids: string[]) {
+  if (!ids.length) return [];
+  const rows = await selectListItem().where(
+    and(accessibleProfileCondition(userId), inArray(agendaProfileSubjectActivities.id, ids)),
+  );
+  return rows.map(toListItem);
 }
 
 // Garante que o user é dono do perfil que possui a atividade. Usado pelo

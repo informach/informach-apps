@@ -87,10 +87,14 @@ export async function TomorrowRoutine({
     <div className="space-y-8">
       <div className="flex flex-wrap gap-3">
         <Button asChild>
-          <Link href="/recados/novo">Organizar um recado</Link>
+          <Link href={profileFilter ? `/recados/novo?perfil=${profileFilter}` : "/recados/novo"}>
+            Importar mensagem ou foto
+          </Link>
         </Button>
         <Button asChild variant="outline">
-          <Link href="/recados">Ver todas as providências</Link>
+          <Link href={profileFilter ? `/atividades?perfil=${profileFilter}` : "/atividades"}>
+            Ver atividades
+          </Link>
         </Button>
       </div>
       {section(

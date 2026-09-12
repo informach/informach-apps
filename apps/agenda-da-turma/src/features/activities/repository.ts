@@ -490,8 +490,30 @@ function decodeActivityCursor(cursor: string): ActivityCursor | null {
   }
 }
 
+function selectActivityListItems() {
+  return db
+    .select(activityListSelect)
+    .from(agendaActivityStatuses)
+    .innerJoin(
+      agendaStudentProfiles,
+      eq(agendaStudentProfiles.id, agendaActivityStatuses.studentProfileId),
+    )
+    .innerJoin(agendaActivities, eq(agendaActivities.id, agendaActivityStatuses.activityId))
+    .innerJoin(agendaSubjects, eq(agendaSubjects.id, agendaActivities.subjectId))
+    .innerJoin(agendaTurmas, eq(agendaTurmas.id, agendaActivities.turmaId))
+    .innerJoin(agendaSchools, eq(agendaSchools.inepCode, agendaTurmas.schoolInepCode));
+}
+
+export async function listSchoolActivitiesByStatusIds(userId: string, ids: string[]) {
+  if (!ids.length) return [];
+  return selectActivityListItems().where(
+    and(accessibleProfileCondition(userId), inArray(agendaActivityStatuses.id, ids)),
+  );
+}
+
 export type ListActivitiesPageOptions = {
   profileFilter: string | null;
+  typeFilter?: ActivityType | null;
   cursor: string | null;
   includeSharedFromOthers: boolean;
   limit?: number;
@@ -525,6 +547,9 @@ export async function listActivitiesPageForUser(
   //   tiebreak (createdAt, statusId) segue ASC pra estabilidade.
   // Cursor corrompido/inválido vira "sem cursor" (defensivo).
   const decoded = options.cursor ? decodeActivityCursor(options.cursor) : null;
+  // PostgreSQL stores microseconds; the Date in the cursor preserves milliseconds.
+  // Compare and order at the same precision so a row cannot reappear on the next page.
+  const cursorCreatedAt = sql`date_trunc('milliseconds', ${agendaActivities.createdAt})`;
   const cursorClause = decoded
     ? !decoded.isDone
       ? or(
@@ -535,11 +560,11 @@ export async function listActivitiesPageForUser(
               gt(agendaActivities.dueAt, decoded.dueAt),
               and(
                 eq(agendaActivities.dueAt, decoded.dueAt),
-                gt(agendaActivities.createdAt, decoded.createdAt),
+                sql`${cursorCreatedAt} > ${decoded.createdAt.toISOString()}::timestamptz`,
               ),
               and(
                 eq(agendaActivities.dueAt, decoded.dueAt),
-                eq(agendaActivities.createdAt, decoded.createdAt),
+                sql`${cursorCreatedAt} = ${decoded.createdAt.toISOString()}::timestamptz`,
                 gt(agendaActivityStatuses.id, decoded.statusId),
               ),
             ),
@@ -551,11 +576,11 @@ export async function listActivitiesPageForUser(
             lt(agendaActivities.dueAt, decoded.dueAt),
             and(
               eq(agendaActivities.dueAt, decoded.dueAt),
-              gt(agendaActivities.createdAt, decoded.createdAt),
+              sql`${cursorCreatedAt} > ${decoded.createdAt.toISOString()}::timestamptz`,
             ),
             and(
               eq(agendaActivities.dueAt, decoded.dueAt),
-              eq(agendaActivities.createdAt, decoded.createdAt),
+              sql`${cursorCreatedAt} = ${decoded.createdAt.toISOString()}::timestamptz`,
               gt(agendaActivityStatuses.id, decoded.statusId),
             ),
           ),
@@ -566,20 +591,11 @@ export async function listActivitiesPageForUser(
     accessibleProfileCondition(userId),
     options.includeSharedFromOthers ? undefined : eq(agendaActivities.createdByUserId, userId),
     options.profileFilter ? eq(agendaStudentProfiles.id, options.profileFilter) : undefined,
+    options.typeFilter ? eq(agendaActivities.type, options.typeFilter) : undefined,
     cursorClause,
   );
 
-  const rows = await db
-    .select(activityListSelect)
-    .from(agendaActivityStatuses)
-    .innerJoin(
-      agendaStudentProfiles,
-      eq(agendaStudentProfiles.id, agendaActivityStatuses.studentProfileId),
-    )
-    .innerJoin(agendaActivities, eq(agendaActivities.id, agendaActivityStatuses.activityId))
-    .innerJoin(agendaSubjects, eq(agendaSubjects.id, agendaActivities.subjectId))
-    .innerJoin(agendaTurmas, eq(agendaTurmas.id, agendaActivities.turmaId))
-    .innerJoin(agendaSchools, eq(agendaSchools.inepCode, agendaTurmas.schoolInepCode))
+  const rows = await selectActivityListItems()
     .where(whereExpr)
     // Pendentes vêm primeiro (status='pending' < 'done' via boolean cast).
     // Dentro de pending: dueAt ASC (mais antigo/atrasado no topo).
@@ -589,7 +605,7 @@ export async function listActivitiesPageForUser(
       sql`(${agendaActivityStatuses.status} = 'done')`,
       sql`CASE WHEN ${agendaActivityStatuses.status} = 'pending' THEN ${agendaActivities.dueAt} END ASC NULLS LAST`,
       sql`CASE WHEN ${agendaActivityStatuses.status} = 'done' THEN ${agendaActivities.dueAt} END DESC NULLS LAST`,
-      asc(agendaActivities.createdAt),
+      asc(cursorCreatedAt),
       asc(agendaActivityStatuses.id),
     )
     .limit(limit + 1);

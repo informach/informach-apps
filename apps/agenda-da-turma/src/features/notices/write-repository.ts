@@ -85,7 +85,7 @@ export async function insertConfirmedNotice(
         ),
       );
     if (profiles.length !== profileIds.length) return err({ code: "INVALID_PROFILE" } as const);
-    let source: "teams" | "batista" | "other" | "manual" = "manual";
+    let source: "teams" | "batista" | "notebook" | "other" | "manual" = "manual";
     let originalText = "";
     let scope: string[] | null = null;
     let appliedProfiles: string[] = [];

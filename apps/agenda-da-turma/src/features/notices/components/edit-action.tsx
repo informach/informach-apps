@@ -67,12 +67,12 @@ export function EditNoticeAction({
             Salvar alteração
           </Button>
           <Button disabled={busy} variant="outline" onClick={() => setConfirmCancel(true)}>
-            Cancelar providência
+            Cancelar atividade
           </Button>
         </div>
       ) : (
         <p className="font-medium text-muted-foreground">
-          Providência cancelada. O histórico foi preservado.
+          Atividade cancelada. O histórico foi preservado.
         </p>
       )}
       {confirmCancel ? (
@@ -92,7 +92,7 @@ export function EditNoticeAction({
                 );
                 setBusy(false);
                 setMessage(
-                  result.ok ? "Providência cancelada." : noticeErrorMessage(result.error.code),
+                  result.ok ? "Atividade cancelada." : noticeErrorMessage(result.error.code),
                 );
                 setConfirmCancel(false);
                 router.refresh();

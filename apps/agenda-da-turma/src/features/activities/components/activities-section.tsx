@@ -14,16 +14,21 @@ import { ArrowLeft, ArrowRight, Camera, FileText, ListTodo, Mic, Plus } from "lu
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { z } from "zod";
+import { RoutineCard } from "@/features/notices/components/routine-card";
+import { ACTION_LABELS, ACTION_TYPES } from "@/features/notices/schemas";
 import type { StudentProfile } from "@/features/students/types";
-import type {
-  ActivityListItem,
-  ActivityType,
-  ParsedActivityInput,
-  TurmaWithSubjectsForForm,
-} from "../types";
-import { getActivityTypeIcon, getActivityTypeLabel } from "../utils";
+import { UnifiedActivityCard } from "@/features/unified-activities/components/unified-activity-card";
+import {
+  type ActivityOverviewItem,
+  type ActivityOverviewOptions,
+  activityOverviewHref,
+  OVERVIEW_STATUS_LABELS,
+  overviewStatusSchema,
+} from "@/features/unified-activities/overview-types";
+import { activityTypeSchema } from "../schemas";
+import type { ParsedActivityInput, TurmaWithSubjectsForForm } from "../types";
 import { ActivitiesBatchConfirmDialog } from "./activities-batch-confirm-dialog";
-import { ActivityCard } from "./activity-card";
 import { ActivityFormDialog } from "./activity-form-dialog";
 import { ActivityImageDialog } from "./activity-image-dialog";
 import { ActivityPdfDialog } from "./activity-pdf-dialog";
@@ -31,11 +36,9 @@ import { ActivityVoiceDialog } from "./activity-voice-dialog";
 import { TurmaConfirmDialog } from "./turma-confirm-dialog";
 
 type Props = {
-  items: ActivityListItem[];
-  /** Cursor pra próxima página; null no fim. */
-  nextCursor: string | null;
-  /** True quando a URL já tem ?cursor= — sinaliza que o user navegou pra page > 1. */
-  isPaginated: boolean;
+  items: ActivityOverviewItem[];
+  hasNextPage: boolean;
+  filters: ActivityOverviewOptions;
   profiles: StudentProfile[];
   activeFilter: StudentProfile | null;
   turmasForForm: TurmaWithSubjectsForForm[];
@@ -45,28 +48,10 @@ type Props = {
   activityCount: number;
 };
 
-const CREATE_TYPES: ActivityType[] = ["task", "project", "exam", "reminder"];
-
-// Monta `/atividades?perfil=X&cursor=Y` filtrando params nulos. Cursor null
-// retorna ao começo (primeira página); perfil null retorna pra "Todos".
-function buildAtividadesHref({
-  perfil,
-  cursor,
-}: {
-  perfil: string | null;
-  cursor: string | null;
-}): string {
-  const params = new URLSearchParams();
-  if (perfil) params.set("perfil", perfil);
-  if (cursor) params.set("cursor", cursor);
-  const qs = params.toString();
-  return qs ? `/atividades?${qs}` : "/atividades";
-}
-
 export function ActivitiesSection({
   items,
-  nextCursor,
-  isPaginated,
+  hasNextPage,
+  filters,
   profiles,
   activeFilter,
   turmasForForm,
@@ -75,8 +60,14 @@ export function ActivitiesSection({
   activityCount,
 }: Props) {
   const router = useRouter();
+  const { typeFilter, page } = filters;
+  const isPaginated = page > 1;
+  const manualParams = new URLSearchParams();
+  if (activeFilter) manualParams.set("perfil", activeFilter.id);
+  if (typeFilter) manualParams.set("tipo", typeFilter);
+  const manualHref = `/atividades/nova${manualParams.size ? `?${manualParams}` : ""}`;
+  const schoolType = activityTypeSchema.safeParse(typeFilter);
   const [createOpen, setCreateOpen] = useState(false);
-  const [createType, setCreateType] = useState<ActivityType>("task");
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [imageOpen, setImageOpen] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
@@ -106,100 +97,42 @@ export function ActivitiesSection({
     setPendingGuessedTurmaId(null);
   };
 
-  const handleFilterChange = (value: string) => {
-    // Trocar de perfil reseta cursor — começa de novo na página 1.
-    if (value === "all") {
-      router.push("/atividades");
-    } else {
-      router.push(`/atividades?perfil=${value}`);
-    }
+  const changeFilter = (next: Partial<ActivityOverviewOptions>) =>
+    router.push(activityOverviewHref({ ...filters, ...next, page: 1 }));
+  const handleFilterChange = (value: string) =>
+    changeFilter({ profileFilter: value === "all" ? null : value });
+  const handleTypeFilterChange = (value: string) => {
+    const parsed = z.enum(ACTION_TYPES).safeParse(value);
+    changeFilter({ typeFilter: parsed.success ? parsed.data : null });
   };
-
-  const handleCreate = (type: ActivityType) => {
-    setCreateType(type);
-    setCreateOpen(true);
-  };
-
-  if (profiles.length === 0) {
-    return (
-      <Card className="rounded-2xl border-dashed">
-        <CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-          <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <ListTodo className="size-6" aria-hidden />
-          </span>
-          <div className="space-y-1">
-            <p className="text-base font-semibold text-foreground">
-              Crie um perfil de estudante primeiro
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Cada atividade fica vinculada a um perfil — você precisa ter pelo menos um.
-            </p>
-          </div>
-          <Button asChild>
-            <Link href="/perfis">Criar perfil</Link>
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
 
   const canCreate = turmasForForm.length > 0;
-  const filterPerfilId = activeFilter?.id ?? null;
-  const backToStartHref = buildAtividadesHref({ perfil: filterPerfilId, cursor: null });
+  const canCreateForSelection =
+    canCreate &&
+    (!activeFilter || turmasForForm.some((turma) => turma.turmaId === activeFilter.activeTurmaId));
+  const backToStartHref = activityOverviewHref({ ...filters, page: 1 });
 
   return (
     <div className="space-y-4">
-      <section aria-labelledby="create-activity-title" className="rounded-xl border bg-card p-4">
-        <h2 id="create-activity-title" className="text-base font-semibold">
-          Cadastrar atividade
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Escolha o tipo e preencha a matéria, o que precisa ser feito e a data.
-        </p>
-        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {CREATE_TYPES.map((type) => {
-            const Icon = getActivityTypeIcon(type);
-            return (
-              <Button
-                key={type}
-                type="button"
-                variant="outline"
-                className="min-h-11"
-                onClick={() => handleCreate(type)}
-                disabled={!canCreate}
-              >
-                <Icon className="size-4" aria-hidden />
-                {type === "task" ? "Para casa" : getActivityTypeLabel(type)}
-              </Button>
-            );
-          })}
-        </div>
-      </section>
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        {/* Filtro à esquerda no desktop, primeira linha no mobile. */}
+      <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-muted-foreground">Filtrar por estudante:</span>
-          <Select value={activeFilter?.id ?? "all"} onValueChange={handleFilterChange}>
-            <SelectTrigger className="w-auto min-w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              {profiles.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            onClick={() => {
+              if (canCreateForSelection && (!typeFilter || schoolType.success)) setCreateOpen(true);
+              else router.push(manualHref);
+            }}
+          >
+            <Plus className="size-4" aria-hidden />
+            Nova atividade
+          </Button>
           <Button asChild variant="outline">
-            <Link href="/recados/novo">Organizar recado</Link>
+            <Link href={activeFilter ? `/recados/novo?perfil=${activeFilter.id}` : "/recados/novo"}>
+              <Camera className="size-4" aria-hidden /> Importar mensagem ou foto
+            </Link>
           </Button>
           <details className="rounded-md border px-3 py-2">
-            <summary className="cursor-pointer text-sm">Importar atividades</summary>
+            <summary className="cursor-pointer text-sm">Ferramentas por matéria</summary>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button
                 type="button"
@@ -246,29 +179,80 @@ export function ActivitiesSection({
             </div>
           </details>
         </div>
+        <div className="grid grid-cols-2 gap-3 sm:max-w-2xl sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <label htmlFor="activities-profile-filter" className="text-sm text-muted-foreground">
+              Estudante
+            </label>
+            <Select value={activeFilter?.id ?? "all"} onValueChange={handleFilterChange}>
+              <SelectTrigger id="activities-profile-filter" className="w-full min-w-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {profiles.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="activities-type-filter" className="text-sm text-muted-foreground">
+              Tipo de atividade
+            </label>
+            <Select value={typeFilter ?? "all"} onValueChange={handleTypeFilterChange}>
+              <SelectTrigger id="activities-type-filter" className="w-full min-w-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os tipos</SelectItem>
+                {ACTION_TYPES.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type === "task" ? "Para casa (tarefa)" : ACTION_LABELS[type]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="col-span-2 space-y-1.5 sm:col-span-1">
+            <label htmlFor="activities-status-filter" className="text-sm text-muted-foreground">
+              Situação
+            </label>
+            <Select
+              value={filters.statusFilter}
+              onValueChange={(value) => {
+                const parsed = overviewStatusSchema.safeParse(value);
+                if (parsed.success) changeFilter({ statusFilter: parsed.data });
+              }}
+            >
+              <SelectTrigger id="activities-status-filter" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {overviewStatusSchema.options.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {OVERVIEW_STATUS_LABELS[status]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </div>
-
-      {!canCreate ? (
-        <Card className="rounded-2xl border-dashed">
-          <CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-            <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <ListTodo className="size-6" aria-hidden />
-            </span>
-            <div className="space-y-1">
-              <p className="text-base font-semibold text-foreground">
-                Vincule um perfil a uma turma ativa
-              </p>
-              <p className="text-sm text-muted-foreground">
-                As atividades pertencem a uma turma. Cadastre uma matéria também para começar a
-                criar atividades.
-              </p>
-            </div>
-            <Button asChild>
-              <Link href="/turmas">Ir para turmas</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      ) : items.length === 0 ? (
+      {filters.noticeId ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/30 p-4 text-sm">
+          <p>Atividades vinculadas a um mesmo original.</p>
+          <Link
+            className="text-primary underline"
+            href={activityOverviewHref({ ...filters, noticeId: null, page: 1 })}
+          >
+            Remover filtro do original
+          </Link>
+        </div>
+      ) : null}
+      {items.length === 0 ? (
         <Card className="rounded-2xl border-dashed">
           <CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
             <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -293,18 +277,25 @@ export function ActivitiesSection({
               <>
                 <div className="space-y-1">
                   <p className="text-base font-semibold text-foreground">
-                    {activeFilter
-                      ? `Nenhuma atividade para ${activeFilter.name}`
-                      : "Nenhuma atividade cadastrada"}
+                    {typeFilter
+                      ? "Nenhuma atividade com esses filtros"
+                      : activeFilter
+                        ? `Nenhuma atividade para ${activeFilter.name}`
+                        : "Nenhuma atividade cadastrada"}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Adicione tarefas, provas, trabalhos ou lembretes pra organizar a rotina.
+                    {typeFilter
+                      ? "Escolha outro tipo ou remova o filtro para ver as demais atividades."
+                      : "Use Nova atividade para começar a organizar a rotina."}
                   </p>
                 </div>
-                <Button type="button" onClick={() => handleCreate("task")}>
-                  <Plus className="mr-2 size-4" aria-hidden />
-                  Nova atividade
-                </Button>
+                {typeFilter ? (
+                  <Button asChild variant="outline">
+                    <Link href={activityOverviewHref({ ...filters, typeFilter: null, page: 1 })}>
+                      Ver todos os tipos
+                    </Link>
+                  </Button>
+                ) : null}
               </>
             )}
           </CardContent>
@@ -312,20 +303,22 @@ export function ActivitiesSection({
       ) : (
         <>
           <div className="flex flex-col gap-3">
-            {items.map((item) => (
-              <ActivityCard
-                key={item.statusId}
-                item={item}
-                currentUserId={currentUserId}
-                isPro={isPro}
-                turmasForForm={turmasForForm}
-              />
-            ))}
+            {items.map((entry) =>
+              entry.source === "notice" ? (
+                <RoutineCard key={entry.key} item={entry.item} />
+              ) : (
+                <UnifiedActivityCard
+                  key={entry.key}
+                  item={entry.source === "turma" ? { ...entry.item, source: "turma" } : entry.item}
+                  currentUserId={currentUserId}
+                  isPro={isPro}
+                  turmasForForm={turmasForForm}
+                />
+              ),
+            )}
           </div>
 
-          {/* Footer de paginação — forward-only (keyset cursor).
-              "Voltar ao início" reseta cursor sem perder filtro de perfil. */}
-          {(nextCursor || isPaginated) && (
+          {(hasNextPage || isPaginated) && (
             <footer className="flex items-center justify-between pt-2">
               {isPaginated ? (
                 <Button asChild variant="ghost" size="sm">
@@ -337,9 +330,9 @@ export function ActivitiesSection({
               ) : (
                 <span />
               )}
-              {nextCursor ? (
+              {hasNextPage ? (
                 <Button asChild variant="outline" size="sm">
-                  <Link href={buildAtividadesHref({ perfil: filterPerfilId, cursor: nextCursor })}>
+                  <Link href={activityOverviewHref({ ...filters, page: page + 1 })}>
                     Próxima página
                     <ArrowRight className="ml-2 size-4" aria-hidden />
                   </Link>
@@ -358,7 +351,8 @@ export function ActivitiesSection({
         turmas={turmasForForm}
         isPro={isPro}
         currentActivityCount={activityCount}
-        defaultType={createType}
+        manualHref={manualHref}
+        defaultType={schoolType.success ? schoolType.data : undefined}
         defaultTurmaId={activeFilter?.activeTurmaId ?? undefined}
       />
 

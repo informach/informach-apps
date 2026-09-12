@@ -6,14 +6,14 @@ import { listAccessibleProfiles } from "@/features/family/access";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { CaptureForm } from "@/features/notices/components/capture-form";
 import { getNoticeSource, listAssignableAdults } from "@/features/notices/repository";
-import { noticeExtractionSchema } from "@/features/notices/schemas";
+import { noticeExtractionSchema, noticeSourceSchema } from "@/features/notices/schemas";
 import { requireUserServer } from "@/lib/auth";
 
-export const metadata = { title: "Organizar um recado — Agenda da Turma" };
+export const metadata = { title: "Importar mensagem ou foto — Agenda da Turma" };
 export default async function NewNoticePage({
   searchParams,
 }: {
-  searchParams: Promise<{ retomar?: string }>;
+  searchParams: Promise<{ retomar?: string; perfil?: string; origem?: string }>;
 }) {
   const user = await requireUserServer();
   const params = await searchParams;
@@ -42,13 +42,14 @@ export default async function NewNoticePage({
   }
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 pb-28 sm:px-8">
-      <Link href="/dashboard" className="text-sm text-muted-foreground underline">
-        Voltar à rotina
+      <Link href="/atividades" className="text-sm text-muted-foreground underline">
+        Voltar às atividades
       </Link>
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Organizar um recado</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Importar mensagem ou foto</h1>
         <p className="mt-2 text-muted-foreground">
-          Da publicação da escola para o que sua família precisa fazer.
+          Transforme mensagens, anexos e fotos da agenda ou do caderno em atividades. Confira os
+          detalhes antes de salvar.
         </p>
       </header>
       <CaptureForm
@@ -58,6 +59,8 @@ export default async function NewNoticePage({
         proProfileIds={entitlement.proProfileIds}
         ownerIsPro={ownerIsPro}
         initialNotice={initialNotice}
+        defaultProfileId={params.perfil}
+        defaultSource={noticeSourceSchema.catch("teams").parse(params.origem)}
       />
     </main>
   );

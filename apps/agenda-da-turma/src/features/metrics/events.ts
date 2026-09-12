@@ -19,7 +19,7 @@ export const productEventSchema = z
       "signup",
       "qualified_visit",
     ]),
-    source: z.enum(["teams", "batista", "other", "manual"]).optional(),
+    source: z.enum(["teams", "batista", "notebook", "other", "manual"]).optional(),
     count: z.number().int().min(0).max(1000).optional(),
     durationMs: z.number().int().min(0).max(3_600_000).optional(),
   })

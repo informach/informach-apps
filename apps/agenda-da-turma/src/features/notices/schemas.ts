@@ -11,7 +11,7 @@ export const ACTION_TYPES = [
   "study",
 ] as const;
 export const ACTION_LABELS: Record<(typeof ACTION_TYPES)[number], string> = {
-  task: "Tarefa",
+  task: "Para casa (tarefa)",
   exam: "Prova",
   project: "Trabalho",
   reminder: "Lembrete",
@@ -20,15 +20,18 @@ export const ACTION_LABELS: Record<(typeof ACTION_TYPES)[number], string> = {
   event: "Evento",
   study: "Estudo",
 };
+export const NOTICE_SOURCES = ["teams", "batista", "notebook", "other"] as const;
+export const noticeSourceSchema = z.enum(NOTICE_SOURCES);
 export const SOURCE_LABELS = {
   teams: "Microsoft Teams",
   batista: "Batista ID",
+  notebook: "Agenda ou caderno",
   other: "Outra origem",
 };
 export const DATE_ORIGIN_LABELS = {
   unspecified: "Prazo não informado",
-  school: "Informado pela escola",
-  relative: "Calculado a partir da publicação",
+  school: "Informado no original",
+  relative: "Calculado a partir do original",
   family: "Planejado pela família",
 };
 
@@ -51,7 +54,7 @@ const safeUrl = z
 export const parseNoticeSchema = z
   .object({
     profileId: z.string().uuid(),
-    source: z.enum(["teams", "batista", "other"]),
+    source: noticeSourceSchema,
     sourceUrl: safeUrl.nullable().default(null),
     publishedAt: dateSchema.nullable().default(null),
     text: z.string().trim().max(16000).default(""),

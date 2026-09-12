@@ -7,6 +7,7 @@ import { Label } from "@informach/ui/components/label";
 import { toast } from "@informach/ui/components/sonner";
 import { cn } from "@informach/ui/lib/utils";
 import { Sparkles } from "lucide-react";
+import Link from "next/link";
 import { ActivityCard } from "@/features/activities/components/activity-card";
 import type { ActivityStatusValue, TurmaWithSubjectsForForm } from "@/features/activities/types";
 import {
@@ -170,7 +171,12 @@ function UnifiedExtraActivityCard({
                 <Badge variant="secondary" className="mr-2 align-middle">
                   {getActivityTypeLabel(item.type)}
                 </Badge>
-                {item.title}
+                <Link
+                  href={`/perfis/${item.studentProfileId}/extras/${item.profileSubjectId}`}
+                  className="hover:underline"
+                >
+                  {item.title}
+                </Link>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant={getDueBadgeVariant(urgency)}>

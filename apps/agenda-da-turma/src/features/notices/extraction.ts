@@ -45,7 +45,7 @@ export function validateNoticeExtraction(
 function hasPublicationEvidence(date: string, excerpt: string) {
   const references = [
     ...excerpt.matchAll(
-      /(?:publicad[oa]|publica[cç][aã]o|enviad[oa]|data da mensagem)\s*(?:em\s*)?[:-]?\s*(\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{4})/gi,
+      /(?:publicad[oa]|publica[cç][aã]o|enviad[oa]|data da mensagem|anotad[oa]|escrit[oa]|data da anota[cç][aã]o)\s*(?:em\s*)?[:-]?\s*(\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{4})/gi,
     ),
   ].map((match) => {
     const written = match[1];

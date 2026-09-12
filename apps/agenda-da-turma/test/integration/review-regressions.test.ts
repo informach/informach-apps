@@ -7,6 +7,7 @@ import {
   agendaNotificationDeliveries,
   agendaNotificationPreferences,
   agendaProductEvents,
+  agendaProfileSubjects,
   agendaSchools,
   agendaStudentProfiles,
   agendaSubjects,
@@ -43,13 +44,17 @@ import {
   getNoticeActionHistory,
   getNoticeSource,
   listNoticeActions,
+  listNoticeOriginals,
   listReadyNotices,
 } from "@/features/notices/repository";
 import { type NoticeActionInput, parseNoticeSchema } from "@/features/notices/schemas";
 import { confirmNotice, setNoticeActionStatus } from "@/features/notices/service";
 import { deliverRoutineNotifications } from "@/features/notifications/delivery";
+import { createProfileSubjectActivity } from "@/features/profile-subject-activities/service";
 import { joinPrivateGroup, removeGroupAdult } from "@/features/turmas/group-access";
 import { createOrJoinTurma, setActiveTurma } from "@/features/turmas/service";
+import type { ActivityOverviewOptions } from "@/features/unified-activities/overview-types";
+import { getActivityOverview } from "@/features/unified-activities/service";
 import { emails } from "@/lib/emails";
 
 function value<T>(r: { ok: true; value: T } | { ok: false; error: unknown }): T {
@@ -227,6 +232,159 @@ function required<T>(value: T | undefined): T {
 }
 
 describe("Review regressions", () => {
+  it("unifies school, notebook and extra activities with global pagination and shared-child access", async () => {
+    const schoolRecord = await schoolActivity("individual");
+    const [extra] = await db
+      .insert(agendaProfileSubjects)
+      .values({ profileId: child, name: "Piano" })
+      .returning();
+    const extraRecord = value(
+      await createProfileSubjectActivity(owner, {
+        profileSubjectId: required(extra).id,
+        type: "project",
+        title: "Preparar apresentação de piano",
+        dueAt: date,
+      }),
+    );
+    const original = await notice("Anotações sintéticas da agenda");
+    await db
+      .update(agendaNotices)
+      .set({ source: "notebook" })
+      .where(eq(agendaNotices.id, original.id));
+    value(
+      await confirmNotice(owner, {
+        noticeId: original.id,
+        actions: Array.from({ length: 30 }, (_, i) => ({
+          ...action(`Anotação ${i}`),
+          type: "exam" as const,
+          dueAt: null,
+          dateOrigin: "unspecified" as const,
+        })),
+        allowDuplicates: true,
+        sourceProfileIds: [child, sibling],
+      }),
+    );
+    value(
+      await confirmNotice(owner, {
+        noticeId: null,
+        actions: [action("Somente a irmã", sibling)],
+        allowDuplicates: false,
+      }),
+    );
+    const options: ActivityOverviewOptions = {
+      profileFilter: child,
+      typeFilter: null,
+      statusFilter: "pending",
+      noticeId: null,
+      page: 1,
+    };
+    const first = await getActivityOverview(owner, options);
+    const second = await getActivityOverview(owner, { ...options, page: 2 });
+    expect(first.items).toHaveLength(30);
+    expect(first.hasNextPage).toBe(true);
+    expect(second.items).toHaveLength(2);
+    expect(second.hasNextPage).toBe(false);
+    const combined = [...first.items, ...second.items];
+    expect(new Set(combined.map((item) => item.key)).size).toBe(32);
+    expect(
+      combined.some((item) => item.source === "turma" && item.item.activityId === schoolRecord.id),
+    ).toBe(true);
+    expect(
+      combined.some((item) => item.source === "extra" && item.item.activityId === extraRecord.id),
+    ).toBe(true);
+    expect(
+      first.items.every(
+        (item) =>
+          item.source === "notice" &&
+          item.item.action.dueAt === null &&
+          item.item.source === "notebook",
+      ),
+    ).toBe(true);
+    const projects = await getActivityOverview(owner, { ...options, typeFilter: "project" });
+    expect(projects.items.map((item) => item.source)).toEqual(["extra"]);
+    expect(projects.hasNextPage).toBe(false);
+    const exams = await getActivityOverview(guest, { ...options, typeFilter: "exam" });
+    expect(exams.items).toHaveLength(30);
+    expect(exams.hasNextPage).toBe(false);
+    expect(
+      (await getActivityOverview(guest, { ...options, profileFilter: sibling })).items,
+    ).toHaveLength(0);
+    expect((await getActivityOverview(outsider, options)).items).toHaveLength(0);
+    // The action is accessible to the invited adult, but the original mentions a restricted sibling.
+    expect(await getNoticeSource(guest, original.id)).toBeNull();
+    expect(await listNoticeOriginals(guest, { page: 1 })).toHaveLength(0);
+    expect(
+      (await listNoticeOriginals(owner, { page: 1, profileId: sibling })).map((row) => row.id),
+    ).toContain(original.id);
+    const firstNotice = first.items.find((item) => item.source === "notice");
+    if (!firstNotice || firstNotice.source !== "notice") throw new Error("Missing notice activity");
+    value(
+      await setNoticeActionStatus(guest, {
+        id: firstNotice.item.action.id,
+        version: 1,
+        status: "done",
+      }),
+    );
+    const completed = await getActivityOverview(owner, {
+      ...options,
+      statusFilter: "done",
+      noticeId: original.id,
+    });
+    expect(completed.items.map((item) => item.key)).toEqual([firstNotice.key]);
+    expect((await listNoticeActions(owner, { noticeId: original.id })).length).toBe(29);
+    expect(
+      (await getActivityOverview(owner, { ...options, noticeId: original.id })).items,
+    ).toHaveLength(29);
+    expect(
+      (await getActivityOverview(owner, { ...options, typeFilter: "material" })).items,
+    ).toHaveLength(0);
+  });
+
+  it("filters activity types before pagination without expanding child access", async () => {
+    const exams: string[] = [];
+    for (const type of ["task", "exam", "project", "exam"] as const) {
+      const activity = value(
+        await createActivity(owner, {
+          turmaId: group,
+          subjectId: subject,
+          type,
+          visibility: "individual",
+          title: `Atividade ${type}`,
+          dueAt: date,
+        }),
+      );
+      if (type === "exam") exams.push(activity.id);
+    }
+    const options = {
+      profileFilter: child,
+      typeFilter: "exam" as const,
+      cursor: null,
+      includeSharedFromOthers: true,
+      limit: 1,
+    };
+    const first = await listActivitiesPageForUser(owner, options);
+    expect(first.items).toHaveLength(1);
+    expect(first.items[0]?.type).toBe("exam");
+    expect(first.nextCursor).not.toBeNull();
+    const second = await listActivitiesPageForUser(owner, { ...options, cursor: first.nextCursor });
+    expect(second.items).toHaveLength(1);
+    expect(second.items[0]?.type).toBe("exam");
+    expect(second.nextCursor).toBeNull();
+    expect([...first.items, ...second.items].map((item) => item.activityId).sort()).toEqual(
+      exams.sort(),
+    );
+    expect((await listActivitiesPageForUser(outsider, options)).items).toEqual([]);
+    expect(
+      (await listActivitiesPageForUser(owner, { ...options, profileFilter: sibling })).items,
+    ).toEqual([]);
+    const allTypes = await listActivitiesPageForUser(owner, {
+      ...options,
+      typeFilter: null,
+      limit: 10,
+    });
+    expect(allTypes.items).toHaveLength(4);
+  });
+
   it("F01 edits the current version twice and rejects an actually stale edit", async () => {
     const a = await schoolActivity();
     const first = value(
