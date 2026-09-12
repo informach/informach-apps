@@ -14,6 +14,7 @@ import { Label } from "@informach/ui/components/label";
 import { toast } from "@informach/ui/components/sonner";
 import { cn } from "@informach/ui/lib/utils";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import {
   getSubjectIconClassByIndex,
@@ -151,6 +152,17 @@ export function ActivityCard({
                   </Badge>
                   {item.title}
                 </div>
+                {item.canceledAt ? (
+                  <Badge variant="destructive">Cancelada pelo criador</Badge>
+                ) : null}
+                {(item.version ?? 1) > 1 ? (
+                  <Link
+                    href={`/atividades/${item.activityId}/historico`}
+                    className="block text-sm text-primary underline"
+                  >
+                    Alterada · versão {item.version} · ver antes e depois
+                  </Link>
+                ) : null}
                 <div className="flex flex-wrap items-center gap-2">
                   {/* Badge de urgência da entrega — comunica visualmente o estado:
                       destructive (atrasada), warning (hoje/amanhã), default azul
@@ -182,7 +194,7 @@ export function ActivityCard({
                     id={checkboxId}
                     checked={isDone}
                     onCheckedChange={(value) => handleToggle(value === true)}
-                    disabled={pending}
+                    disabled={pending || Boolean(item.canceledAt)}
                     aria-label={
                       isDone
                         ? `Marcar atividade de ${item.studentProfileName} como pendente`
@@ -235,6 +247,7 @@ export function ActivityCard({
             turmas={turmasForForm}
             isPro={isPro}
             activity={{
+              version: item.version,
               activityId: item.activityId,
               type: item.type,
               title: item.title,

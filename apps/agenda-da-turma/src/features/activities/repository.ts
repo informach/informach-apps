@@ -1,18 +1,23 @@
 import "server-only";
 
-import { and, asc, count, type Database, db, eq, gt, inArray, lt, or, sql } from "@informach/db";
+import { and, asc, type Database, db, eq, gt, inArray, lt, or, sql } from "@informach/db";
 import {
   agendaActivities,
   agendaActivityAcceptances,
+  agendaActivityRevisions,
   agendaActivityStatuses,
   agendaSchools,
   agendaStudentProfiles,
   agendaSubjects,
+  agendaTurmaMembers,
   agendaTurmas,
   users,
 } from "@informach/db/schema";
+import { accessibleProfileCondition } from "@/features/family/access";
+import { activeMembershipCondition } from "@/features/turmas/access";
 import { todayLocalIso } from "../dashboard/date";
 import { DEFAULT_ACTIVITIES_PAGE_SIZE, MAX_ACTIVITIES_PAGE_SIZE } from "./limits";
+import { countPendingActivities, lockPendingLimit } from "./pending-limit";
 import type {
   Activity,
   ActivityListItem,
@@ -25,13 +30,14 @@ import type {
 
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
-// Subquery booleana — `true` quando alguma outra família já aceitou a shared
-// activity. Mesmo gate de edit/delete usado em UI: bloqueia mesmo o criador
-// quando outra família já aceitou. Consumido por listActivitiesPageForUser,
-// listActivitiesByBucket (dashboard) e listActivitiesInDateRange (calendar).
+// Existing recipient state proves prior use, even after an acceptance is
+// reversed. Corrections/deletions must preserve that family's history.
+// Shared by list, dashboard and calendar queries.
 export const hasOtherAcceptancesExpr = sql<boolean>`EXISTS (
-  SELECT 1 FROM ${agendaActivityAcceptances} aa
-  WHERE aa.activity_id = ${agendaActivities.id} AND aa.accepted = true
+  SELECT 1 FROM ${agendaActivityStatuses} recipient_status
+  INNER JOIN ${agendaStudentProfiles} recipient_profile ON recipient_profile.id = recipient_status.student_profile_id
+  WHERE recipient_status.activity_id = ${agendaActivities.id}
+    AND recipient_profile.user_id IS DISTINCT FROM ${agendaActivities.createdByUserId}
 )`;
 
 // SELECT canônico que produz `ActivityListItem` (uma row por atividade × perfil
@@ -56,7 +62,10 @@ export const activityListSelect = {
   title: agendaActivities.title,
   description: agendaActivities.description,
   dueAt: agendaActivities.dueAt,
+  version: agendaActivities.version,
+  canceledAt: agendaActivities.canceledAt,
   activityCreatedAt: agendaActivities.createdAt,
+  activityUpdatedAt: agendaActivities.updatedAt,
   createdByUserId: agendaActivities.createdByUserId,
   hasOtherAcceptances: hasOtherAcceptancesExpr,
 } as const;
@@ -108,7 +117,7 @@ export async function profileBelongsToUser(profileId: string, userId: string): P
   const [row] = await db
     .select({ id: agendaStudentProfiles.id })
     .from(agendaStudentProfiles)
-    .where(and(eq(agendaStudentProfiles.id, profileId), eq(agendaStudentProfiles.userId, userId)))
+    .where(and(eq(agendaStudentProfiles.id, profileId), accessibleProfileCondition(userId)))
     .limit(1);
   return row !== undefined;
 }
@@ -129,6 +138,7 @@ export async function listActiveProfilesOfUserInTurma(
       and(
         eq(agendaStudentProfiles.userId, userId),
         eq(agendaStudentProfiles.activeTurmaId, turmaId),
+        activeMembershipCondition(),
       ),
     );
 }
@@ -141,20 +151,19 @@ export async function userHasActiveProfileInTurma(
   return profile !== undefined;
 }
 
-// Existe alguma row em activity_acceptances com accepted=true? Bloqueia
-// edit/delete pelo criador quando alguém da turma já aceitou.
+// Existe aceite de outra família? A UI usa para explicar a revisão e o
+// cancelamento preservado, sem bloquear correções pelo criador.
 export async function hasOtherAcceptances(activityId: string): Promise<boolean> {
-  const [row] = await db
-    .select({ id: agendaActivityAcceptances.id })
-    .from(agendaActivityAcceptances)
-    .where(
-      and(
-        eq(agendaActivityAcceptances.activityId, activityId),
-        eq(agendaActivityAcceptances.accepted, true),
-      ),
-    )
+  return hasRecipientHistory(db, activityId);
+}
+
+async function hasRecipientHistory(client: Database | Tx, activityId: string) {
+  const [row] = await client
+    .select({ id: agendaActivities.id })
+    .from(agendaActivities)
+    .where(and(eq(agendaActivities.id, activityId), hasOtherAcceptancesExpr))
     .limit(1);
-  return row !== undefined;
+  return Boolean(row);
 }
 
 // Cria a atividade + 1 status row pra cada perfil ativo do creator na turma.
@@ -165,10 +174,10 @@ export async function insertActivityWithStatuses(payload: NewActivityPayload): P
 }
 
 // Variante Free: dentro de uma transação com advisory lock por usuário,
-// conta atividades criadas (any status) e bloqueia quando atinge o limite.
+// conta pendências próprias de todas as origens e bloqueia ao atingir o limite.
 // Espelha `insertRecipeWithinFreeLimit` do cozya. Race-safety: o lock
 // serializa apenas operações deste mesmo userId, sem afetar concorrência
-// global. `count` inclui done — marcar como concluída não libera vaga.
+// global. Concluir libera vaga sem apagar o histórico.
 export type InsertActivityWithinLimitResult =
   | { ok: true; activity: Activity }
   | { ok: false; current: number };
@@ -179,9 +188,9 @@ export async function insertActivityWithStatusesWithinFreeLimit(
 ): Promise<InsertActivityWithinLimitResult> {
   return db.transaction(
     async (tx) => {
-      await lockActivityLimitForUser(tx, payload.createdByUserId);
+      await lockPendingLimit(tx, payload.createdByUserId);
 
-      const current = await countActivitiesCreatedByUserWithClient(tx, payload.createdByUserId);
+      const current = await countPendingActivities(tx, payload.createdByUserId);
       if (current >= limit) {
         return { ok: false as const, current };
       }
@@ -214,13 +223,23 @@ async function insertActivityWithStatusesInTx(
   tx: Tx,
   payload: NewActivityPayload,
 ): Promise<Activity> {
+  // Recheck after taking the same group lock used by membership revocation.
+  // Authorization checked before this transaction can become stale while waiting.
+  const [group] = await tx
+    .select({ id: agendaTurmas.id })
+    .from(agendaTurmas)
+    .where(eq(agendaTurmas.id, payload.turmaId))
+    .for("update");
+  const profileIds = group
+    ? (await listActiveProfilesOfUserInTurma(tx, payload.createdByUserId, payload.turmaId)).map(
+        (p) => p.id,
+      )
+    : [];
+  if (!profileIds.length) throw new Error("ACTIVE_PROFILE_REQUIRED");
   const [activity] = await tx.insert(agendaActivities).values(payload).returning();
   if (!activity) {
     throw new Error("agenda.activities: insert returned no row");
   }
-  const profileIds = (
-    await listActiveProfilesOfUserInTurma(tx, payload.createdByUserId, payload.turmaId)
-  ).map((p) => p.id);
   if (profileIds.length > 0) {
     await tx.insert(agendaActivityStatuses).values(
       profileIds.map((profileId) => ({
@@ -232,60 +251,83 @@ async function insertActivityWithStatusesInTx(
   return activity;
 }
 
-async function lockActivityLimitForUser(tx: Tx, userId: string): Promise<void> {
-  await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`agenda:activities:${userId}`}))`);
-}
-
 export async function countActivitiesCreatedByUser(userId: string): Promise<number> {
-  return countActivitiesCreatedByUserWithClient(db, userId);
-}
-
-async function countActivitiesCreatedByUserWithClient(
-  client: Database | Tx,
-  userId: string,
-): Promise<number> {
-  const [row] = await client
-    .select({ count: count() })
-    .from(agendaActivities)
-    .where(eq(agendaActivities.createdByUserId, userId));
-  return Number(row?.count ?? 0);
+  return countPendingActivities(db, userId);
 }
 
 export async function updateActivityById(
   id: string,
   payload: UpdateActivityPayload,
-): Promise<Activity | null> {
-  const [row] = await db
-    .update(agendaActivities)
-    .set({
-      subjectId: payload.subjectId,
-      type: payload.type,
-      visibility: payload.visibility,
-      title: payload.title,
-      description: payload.description,
-      dueAt: payload.dueAt,
-      updatedAt: new Date(),
-    })
-    .where(eq(agendaActivities.id, id))
-    .returning();
-  return row ?? null;
+  actorId: string,
+  expectedVersion: number,
+): Promise<Activity | "VERSION_CONFLICT" | null> {
+  return db.transaction(async (tx) => {
+    const [previous] = await tx
+      .select()
+      .from(agendaActivities)
+      .where(and(eq(agendaActivities.id, id), eq(agendaActivities.createdByUserId, actorId)))
+      .for("update");
+    if (!previous || previous.canceledAt) return null;
+    if (previous.version !== expectedVersion) return "VERSION_CONFLICT";
+    const accepted = await hasRecipientHistory(tx, id);
+    // Existing recipients keep access even if the creator downgrades or chooses
+    // a private visibility while editing another field.
+    const visibility = accepted ? previous.visibility : payload.visibility;
+    const [current] = await tx
+      .update(agendaActivities)
+      .set({ ...payload, visibility, version: previous.version + 1, updatedAt: new Date() })
+      .where(eq(agendaActivities.id, id))
+      .returning();
+    if (!current) throw new Error("Activity update returned no row");
+    await tx
+      .insert(agendaActivityRevisions)
+      .values({ activityId: id, actorId, version: current.version, previous, current });
+    return current;
+  });
 }
 
-export async function deleteActivityById(id: string): Promise<boolean> {
-  const removed = await db
-    .delete(agendaActivities)
-    .where(eq(agendaActivities.id, id))
-    .returning({ id: agendaActivities.id });
-  return removed.length > 0;
+export async function deleteActivityById(id: string, actorId: string): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const [previous] = await tx
+      .select()
+      .from(agendaActivities)
+      .where(and(eq(agendaActivities.id, id), eq(agendaActivities.createdByUserId, actorId)))
+      .for("update");
+    if (!previous) return false;
+    const accepted = await hasRecipientHistory(tx, id);
+    if (!accepted) {
+      await tx.delete(agendaActivities).where(eq(agendaActivities.id, id));
+      return true;
+    }
+    if (previous.canceledAt) return true;
+    const [current] = await tx
+      .update(agendaActivities)
+      .set({ canceledAt: new Date(), version: previous.version + 1, updatedAt: new Date() })
+      .where(eq(agendaActivities.id, id))
+      .returning();
+    if (!current) throw new Error("Activity cancellation returned no row");
+    await tx
+      .insert(agendaActivityRevisions)
+      .values({ activityId: id, actorId, version: current.version, previous, current });
+    return true;
+  });
 }
 
 export async function findActivityStatusForProfile(
   activityId: string,
   profileId: string,
-): Promise<{ id: string; status: ActivityStatusValue } | null> {
+): Promise<{ id: string; status: ActivityStatusValue; ownerUserId: string } | null> {
   const [row] = await db
-    .select({ id: agendaActivityStatuses.id, status: agendaActivityStatuses.status })
+    .select({
+      id: agendaActivityStatuses.id,
+      status: agendaActivityStatuses.status,
+      ownerUserId: agendaStudentProfiles.userId,
+    })
     .from(agendaActivityStatuses)
+    .innerJoin(
+      agendaStudentProfiles,
+      eq(agendaStudentProfiles.id, agendaActivityStatuses.studentProfileId),
+    )
     .where(
       and(
         eq(agendaActivityStatuses.activityId, activityId),
@@ -299,13 +341,64 @@ export async function findActivityStatusForProfile(
 export async function updateActivityStatusValue(
   statusId: string,
   status: ActivityStatusValue,
-): Promise<boolean> {
-  const updated = await db
-    .update(agendaActivityStatuses)
-    .set({ status, updatedAt: new Date() })
-    .where(eq(agendaActivityStatuses.id, statusId))
-    .returning({ id: agendaActivityStatuses.id });
-  return updated.length > 0;
+  actorId: string,
+  freeLimit: number | null,
+): Promise<boolean | { limitReached: number }> {
+  const [candidate] = await db
+    .select({ ownerId: agendaStudentProfiles.userId })
+    .from(agendaActivityStatuses)
+    .innerJoin(
+      agendaStudentProfiles,
+      eq(agendaStudentProfiles.id, agendaActivityStatuses.studentProfileId),
+    )
+    .where(and(eq(agendaActivityStatuses.id, statusId), accessibleProfileCondition(actorId)));
+  if (!candidate) return false;
+  return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtext(${`agenda:family:${candidate.ownerId}`}))`,
+    );
+    await lockPendingLimit(tx, candidate.ownerId);
+    const [current] = await tx
+      .select({ row: agendaActivityStatuses, activity: agendaActivities })
+      .from(agendaActivityStatuses)
+      .innerJoin(
+        agendaStudentProfiles,
+        eq(agendaStudentProfiles.id, agendaActivityStatuses.studentProfileId),
+      )
+      .innerJoin(agendaActivities, eq(agendaActivities.id, agendaActivityStatuses.activityId))
+      .where(and(eq(agendaActivityStatuses.id, statusId), accessibleProfileCondition(actorId)))
+      .for("update");
+    if (!current || current.activity.canceledAt) return false;
+    if (
+      freeLimit !== null &&
+      status === "pending" &&
+      current.row.status === "done" &&
+      current.activity.createdByUserId === candidate.ownerId
+    ) {
+      const [pendingSibling] = await tx
+        .select({ id: agendaActivityStatuses.id })
+        .from(agendaActivityStatuses)
+        .innerJoin(
+          agendaStudentProfiles,
+          eq(agendaStudentProfiles.id, agendaActivityStatuses.studentProfileId),
+        )
+        .where(
+          and(
+            eq(agendaActivityStatuses.activityId, current.activity.id),
+            eq(agendaActivityStatuses.status, "pending"),
+            eq(agendaStudentProfiles.userId, candidate.ownerId),
+          ),
+        )
+        .limit(1);
+      const total = await countPendingActivities(tx, candidate.ownerId);
+      if (!pendingSibling && total >= freeLimit) return { limitReached: total };
+    }
+    await tx
+      .update(agendaActivityStatuses)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(agendaActivityStatuses.id, statusId));
+    return true;
+  });
 }
 
 // Upsert da resposta + (quando accepted=true) seed de status rows pros perfis
@@ -317,8 +410,29 @@ export async function upsertAcceptanceAndStatuses(
   userId: string,
   accepted: boolean,
   turmaId: string,
-): Promise<void> {
-  await db.transaction(async (tx) => {
+): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const [group] = await tx
+      .select({ id: agendaTurmas.id })
+      .from(agendaTurmas)
+      .where(eq(agendaTurmas.id, turmaId))
+      .for("update");
+    if (!group) return false;
+    const [activity] = await tx
+      .select()
+      .from(agendaActivities)
+      .where(eq(agendaActivities.id, activityId))
+      .for("update");
+    if (
+      !activity ||
+      activity.canceledAt ||
+      activity.visibility !== "shared_with_turma" ||
+      activity.turmaId !== turmaId ||
+      activity.dueAt < todayLocalIso()
+    )
+      return false;
+    const profiles = await listActiveProfilesOfUserInTurma(tx, userId, turmaId);
+    if (!profiles.length) return false;
     await tx
       .insert(agendaActivityAcceptances)
       .values({ activityId, userId, accepted })
@@ -326,9 +440,7 @@ export async function upsertAcceptanceAndStatuses(
         target: [agendaActivityAcceptances.activityId, agendaActivityAcceptances.userId],
         set: { accepted, respondedAt: new Date() },
       });
-    if (!accepted) return;
-    const profiles = await listActiveProfilesOfUserInTurma(tx, userId, turmaId);
-    if (profiles.length === 0) return;
+    if (!accepted) return true;
     await tx
       .insert(agendaActivityStatuses)
       .values(
@@ -340,6 +452,7 @@ export async function upsertAcceptanceAndStatuses(
       .onConflictDoNothing({
         target: [agendaActivityStatuses.activityId, agendaActivityStatuses.studentProfileId],
       });
+    return true;
   });
 }
 
@@ -450,7 +563,7 @@ export async function listActivitiesPageForUser(
     : undefined;
 
   const whereExpr = and(
-    eq(agendaStudentProfiles.userId, userId),
+    accessibleProfileCondition(userId),
     options.includeSharedFromOthers ? undefined : eq(agendaActivities.createdByUserId, userId),
     options.profileFilter ? eq(agendaStudentProfiles.id, options.profileFilter) : undefined,
     cursorClause,
@@ -524,10 +637,13 @@ export async function listPendingSharedActivitiesForUser(
     .where(
       and(
         eq(agendaActivities.visibility, "shared_with_turma"),
+        sql`${agendaActivities.canceledAt} IS NULL`,
         sql`${agendaActivities.createdByUserId} <> ${userId}`,
         sql`${agendaActivities.dueAt} >= ${today}`,
         sql`EXISTS (
           SELECT 1 FROM ${agendaStudentProfiles} sp
+          INNER JOIN ${agendaTurmaMembers} membership ON membership.student_profile_id = sp.id
+            AND membership.turma_id = sp.active_turma_id
           WHERE sp.user_id = ${userId} AND sp.active_turma_id = ${agendaActivities.turmaId}
         )`,
         sql`NOT EXISTS (
@@ -556,7 +672,7 @@ export async function listTurmasWithSubjectsForUserForm(
     .from(agendaStudentProfiles)
     .innerJoin(agendaTurmas, eq(agendaTurmas.id, agendaStudentProfiles.activeTurmaId))
     .innerJoin(agendaSchools, eq(agendaSchools.inepCode, agendaTurmas.schoolInepCode))
-    .where(eq(agendaStudentProfiles.userId, userId))
+    .where(and(eq(agendaStudentProfiles.userId, userId), activeMembershipCondition()))
     .orderBy(asc(agendaSchools.name));
 
   if (turmas.length === 0) return [];

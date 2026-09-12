@@ -160,7 +160,10 @@ export function LoginForm({ nextPath, defaultEmail }: { nextPath: string; defaul
         {step.kind === "auth" && (
           <CardFooter className="justify-center pt-2 text-sm text-muted-foreground">
             Ainda não tem conta?{" "}
-            <Link href="/signup" className="ml-1 font-medium text-primary hover:underline">
+            <Link
+              href={`/signup?next=${encodeURIComponent(nextPath)}`}
+              className="ml-1 font-medium text-primary hover:underline"
+            >
               Criar conta
             </Link>
           </CardFooter>

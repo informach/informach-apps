@@ -46,10 +46,6 @@ export function DeleteActivityDialog({ open, onOpenChange, activityId, activityT
           });
         } else if (result.error.code === "FORBIDDEN") {
           toast.error("Só quem criou a atividade pode excluir.");
-        } else if (result.error.code === "HAS_ACCEPTANCES") {
-          toast.error("Outras famílias já aceitaram esta atividade.", {
-            description: "Não é possível excluir agora.",
-          });
         } else {
           toast.error("Não foi possível excluir.", {
             description: "Tente novamente em instantes.",
@@ -57,7 +53,7 @@ export function DeleteActivityDialog({ open, onOpenChange, activityId, activityT
           return;
         }
       } else {
-        toast.success("Atividade excluída");
+        toast.success("Atividade removida ou cancelada para as famílias que já aceitaram");
       }
       onOpenChange(false);
       router.refresh();
@@ -70,8 +66,8 @@ export function DeleteActivityDialog({ open, onOpenChange, activityId, activityT
         <AlertDialogHeader>
           <AlertDialogTitle>Excluir atividade?</AlertDialogTitle>
           <AlertDialogDescription>
-            Esta ação é permanente. &quot;{activityTitle}&quot; será removida da sua agenda e o
-            histórico de status de cada perfil será apagado.
+            &quot;{activityTitle}&quot; será removida. Se outra família já aceitou, a atividade será
+            marcada como cancelada, preservando o histórico de cada criança.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

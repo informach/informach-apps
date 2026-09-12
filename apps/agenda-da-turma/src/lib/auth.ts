@@ -4,7 +4,8 @@ import { APPS } from "@informach/config";
 import { buildUnsubscribeToken } from "@informach/emails";
 import { redirect } from "next/navigation";
 import { cache } from "react";
-import { billing } from "./billing";
+import { prepareAgendaAccountDeletion } from "@/features/account/deletion";
+import { recordProductEvent } from "@/features/metrics/events";
 import { unsubscribeMailto } from "./email-identity";
 import { emails } from "./emails";
 import { env } from "./env";
@@ -49,6 +50,7 @@ const rateLimitRules =
     : productionRateLimitRules;
 
 export const authResult = createAuth({
+  onUserCreated: async (user) => recordProductEvent(user.id, { event: "signup" }),
   appName: APPS.agendaDaTurma.name,
   baseUrl: env.BETTER_AUTH_URL,
   secret: env.BETTER_AUTH_SECRET,
@@ -114,18 +116,9 @@ export const authResult = createAuth({
   // não são deletadas — `subjectId` retido para NF-e.
   accountDeletion: {
     enabled: true,
+    requireCleanupSuccess: true,
     onBeforeDelete: async (user) => {
-      const result = await billing.cancelBillingForSubject({ type: "user", id: user.id });
-      if (result.failed > 0) {
-        logger.error(
-          {
-            userId: user.id,
-            canceled: result.canceled,
-            failed: result.failed,
-          },
-          "auth.account_deletion.billing_partial",
-        );
-      }
+      await prepareAgendaAccountDeletion(user.id);
     },
   },
 });

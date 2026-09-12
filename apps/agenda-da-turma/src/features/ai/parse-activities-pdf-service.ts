@@ -7,12 +7,11 @@ import {
   type EnrichedParseResult,
   enrichWithResolvedTurma,
 } from "@/ai/activities-parser/enrich";
-import { type ActivitiesParserOutput, activitiesParserSchema } from "@/ai/activities-parser/schema";
+import { activitiesParserSchema } from "@/ai/activities-parser/schema";
 import { agentRunRecorder as recorder } from "@/ai/agent-run-recorder";
 import { AGENDA_MODELS } from "@/ai/models";
 import { listTurmasWithSubjectsForUserForm } from "@/features/activities/repository";
 import { findStudentProfilesByUser } from "@/features/students/repository";
-import { loadSlotsByClassDayMap } from "@/features/subjects/alternating-slots-repository";
 import { billing } from "@/lib/billing";
 import { decodePdfDataUrl } from "./pdf-utils";
 
@@ -66,15 +65,10 @@ const PDF_INSTRUCTION =
   "Portuguesa', o subjectHint é 'Língua Portuguesa' (e vice-versa). Idem " +
   "pra Mat ↔ Matemática, Ed Fis ↔ Educação Física, Hist ↔ História, Geo ↔ " +
   "Geografia, Inglês ↔ Língua Inglesa, etc.\n\n" +
-  "4. DATA — REGRA NOVA: \n" +
-  "   (a) Quando NÃO houver NENHUMA data no PDF (nem explícita, nem " +
-  "relativa, nem ambígua) → dueAt é AMANHÃ (hoje + 1 do cabeçalho). " +
-  "NUNCA retorne null e NUNCA invente uma data aleatória. Amanhã é o " +
-  "default seguro; o user revisa antes de salvar.\n" +
-  "   (b) Quando houver data explícita ou relativa, resolva conforme as " +
-  "regras de 'Datas relativas' nas instruções.\n" +
-  "   (c) PROPAGAÇÃO: data no topo do bloco propaga pras atividades abaixo " +
-  "até aparecer nova data.\n\n" +
+  "4. PRAZOS: dueAt só recebe uma data explicitamente ligada à ação. " +
+  "Se não houver prazo ou a referência for ambígua, retorne null. " +
+  "Nunca use amanhã ou a próxima aula como prazo padrão. Data de publicação " +
+  "ou cabeçalho, isoladamente, não é prazo de entrega.\n\n" +
   "5. PISTAS DE TURMA: cabeçalhos com códigos compactos (EFI[N]T[X], " +
   'EFII[N]T[X], EM[N]T[X]) ou série/letra por extenso ("5º A", "6º ano B", "7° G") ' +
   "indicam a turma do documento inteiro. Cruze com o bloco 'Matérias " +
@@ -104,11 +98,9 @@ export async function parseActivitiesFromPdf(
     findStudentProfilesByUser(input.userId),
     listTurmasWithSubjectsForUserForm(input.userId),
   ]);
-  const allSubjectIds = turmasWithSubjects.flatMap((t) => t.subjects.map((s) => s.id));
-  const slotsBySubjectId = await loadSlotsByClassDayMap(allSubjectIds);
-
   const headerText = buildUserMessage({
     transcript: PDF_INSTRUCTION,
+    sourceKind: "document",
     studentNames: profiles.map((p) => p.name),
     turmasWithSubjects,
     profiles,
@@ -155,6 +147,6 @@ export async function parseActivitiesFromPdf(
     },
   });
 
-  const parsed = out.result.object as ActivitiesParserOutput;
-  return enrichWithResolvedTurma(parsed, profiles, turmasWithSubjects, undefined, slotsBySubjectId);
+  const parsed = activitiesParserSchema.parse(out.result.object);
+  return enrichWithResolvedTurma(parsed, profiles, turmasWithSubjects);
 }

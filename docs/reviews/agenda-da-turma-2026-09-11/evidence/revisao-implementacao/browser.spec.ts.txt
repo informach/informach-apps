@@ -1,0 +1,48 @@
+import { randomUUID } from 'node:crypto';
+import { createRequire } from 'node:module';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { db, eq } from '@informach/db';
+import { accounts, users, agendaStudentProfiles, agendaCities, agendaSchools, agendaTurmas, agendaSubjects, agendaActivities, agendaActivityStatuses, agendaProductEvents, emailDeliveries } from '@informach/db/schema';
+import { test, expect } from '@playwright/test';
+
+test('review: second school edit fails in the real UI',async({page,context,baseURL})=>{
+  if(!baseURL)throw new Error('Local base URL required');
+  const email=`full-review-browser-${randomUUID()}@e2e.local`;let id:string|undefined;let school:string|undefined;
+  try{
+    // Fixture only: signup is already covered; keep the app's 5/hour guard unchanged.
+    const authRequire=createRequire(path.resolve(process.cwd(),'../../packages/auth/package.json'));
+    const {hashPassword}=await import(pathToFileURL(authRequire.resolve('better-auth/crypto')).href);
+    id=`full-review-browser-${randomUUID()}`;
+    await db.insert(users).values({id,name:'Responsável fictício de revisão',email,emailVerified:true});
+    await db.insert(accounts).values({id:randomUUID(),userId:id,accountId:id,providerId:'credential',password:await hashPassword('FullReview!Synthetic2026')});
+    const login=await context.request.post(`${baseURL}/api/auth/sign-in/email`,{headers:{Origin:baseURL},data:{email,password:'FullReview!Synthetic2026'}});expect(login.ok()).toBe(true);
+    await page.goto('/choose-plan');await page.getByRole('button',{name:'Começar grátis',exact:true}).click();await expect(page).toHaveURL(/dashboard/);
+    const [p]=await db.insert(agendaStudentProfiles).values({userId:id!,name:'Criança revisão navegador'}).returning();
+    const [city]=await db.select().from(agendaCities).limit(1);school=`review-browser-${randomUUID()}`;
+    await db.insert(agendaSchools).values({inepCode:school,cityIbgeCode:city!.ibgeCode,name:'Escola fictícia revisão'});
+    const [g]=await db.insert(agendaTurmas).values({schoolInepCode:school,createdByUserId:id!,code:randomUUID().replace(/-/g,'').slice(0,12).toUpperCase(),grade:'4ano',year:2026,classLetter:'A',shift:'morning'}).returning();
+    await db.update(agendaStudentProfiles).set({activeTurmaId:g!.id}).where(eq(agendaStudentProfiles.id,p!.id));
+    const [s]=await db.insert(agendaSubjects).values({turmaId:g!.id,createdByUserId:id!,name:'Matéria de revisão'}).returning();
+    const [a]=await db.insert(agendaActivities).values({turmaId:g!.id,subjectId:s!.id,createdByUserId:id!,type:'task',visibility:'individual',title:'Atividade primeira versão',dueAt:'2026-09-15'}).returning();
+    await db.insert(agendaActivityStatuses).values({activityId:a!.id,studentProfileId:p!.id});
+    await page.goto('/atividades');
+    await page.getByRole('button',{name:'Ações para Atividade primeira versão',exact:true}).click();
+    await page.getByRole('menuitem',{name:'Editar',exact:true}).click();
+    await page.getByLabel('Atividade',{exact:true}).fill('Atividade segunda versão');
+    await page.getByRole('button',{name:'Salvar alterações',exact:true}).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await page.reload();
+    await page.getByRole('button',{name:'Ações para Atividade segunda versão',exact:true}).click();
+    await page.getByRole('menuitem',{name:'Editar',exact:true}).click();
+    await page.getByLabel('Atividade',{exact:true}).fill('Atividade terceira versão');
+    await page.getByRole('button',{name:'Salvar alterações',exact:true}).click();
+    await expect(page.getByText('Esta atividade mudou enquanto você editava. Confira a versão atual e tente novamente.',{exact:true})).toBeVisible();
+    const [current]=await db.select().from(agendaActivities).where(eq(agendaActivities.id,a!.id));
+    expect(current?.version).toBe(2);expect(current?.title).toBe('Atividade segunda versão');
+    await page.screenshot({path:'tmp/full-review/second-edit-rejected.png',fullPage:true});
+  }finally{
+    if(school){await db.delete(agendaTurmas).where(eq(agendaTurmas.schoolInepCode,school));await db.delete(agendaSchools).where(eq(agendaSchools.inepCode,school));}
+    if(id){await db.delete(agendaProductEvents).where(eq(agendaProductEvents.userId,id));await db.delete(emailDeliveries).where(eq(emailDeliveries.userId,id));await db.delete(users).where(eq(users.id,id));}
+  }
+});

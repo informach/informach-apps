@@ -190,6 +190,7 @@ export async function retryFailedDeliveries(deps: RetryFailedDeps): Promise<Retr
     .where(
       and(
         eq(emailDeliveries.status, "failed"),
+        sql`${emailDeliveries.category} <> 'agenda.routine'`,
         lt(emailDeliveries.sendAttempts, MAX_ATTEMPTS),
         or(isNull(emailDeliveries.nextAttemptAt), lte(emailDeliveries.nextAttemptAt, now)),
       ),

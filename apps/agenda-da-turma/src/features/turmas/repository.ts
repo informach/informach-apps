@@ -27,6 +27,7 @@ export type NewTurmaPayload = {
   grade: Turma["grade"];
   year: number;
   classLetter: string;
+  shift?: Turma["shift"];
   createdByUserId: string;
 };
 
@@ -49,6 +50,8 @@ export async function insertTurmaIfNotExists(payload: NewTurmaPayload): Promise<
         eq(agendaTurmas.grade, payload.grade),
         eq(agendaTurmas.year, payload.year),
         eq(agendaTurmas.classLetter, payload.classLetter),
+        eq(agendaTurmas.shift, payload.shift ?? "unspecified"),
+        eq(agendaTurmas.createdByUserId, payload.createdByUserId),
       ),
     )
     .limit(1);
@@ -72,6 +75,7 @@ export async function findTurmaWithSchoolById(id: string): Promise<TurmaWithScho
       schoolInepCode: agendaTurmas.schoolInepCode,
       grade: agendaTurmas.grade,
       year: agendaTurmas.year,
+      shift: agendaTurmas.shift,
       classLetter: agendaTurmas.classLetter,
       createdByUserId: agendaTurmas.createdByUserId,
       createdAt: agendaTurmas.createdAt,
@@ -132,6 +136,7 @@ export async function listTurmasForUser(userId: string): Promise<TurmaForUser[]>
       schoolInepCode: agendaTurmas.schoolInepCode,
       grade: agendaTurmas.grade,
       year: agendaTurmas.year,
+      shift: agendaTurmas.shift,
       classLetter: agendaTurmas.classLetter,
       createdByUserId: agendaTurmas.createdByUserId,
       createdAt: agendaTurmas.createdAt,
@@ -160,6 +165,7 @@ export async function listTurmasForUser(userId: string): Promise<TurmaForUser[]>
         schoolInepCode: row.schoolInepCode,
         grade: row.grade,
         year: row.year,
+        shift: row.shift,
         classLetter: row.classLetter,
         createdByUserId: row.createdByUserId,
         createdAt: row.createdAt,
@@ -234,6 +240,7 @@ export async function turmaHasActivities(turmaId: string): Promise<boolean> {
 }
 
 export type UpdateTurmaPatch = {
+  shift?: Turma["shift"];
   grade: Turma["grade"];
   year: number;
   classLetter: string;
@@ -251,7 +258,11 @@ export async function updateTurma(
   patch: UpdateTurmaPatch,
 ): Promise<UpdateTurmaResult> {
   const [existing] = await db
-    .select({ schoolInepCode: agendaTurmas.schoolInepCode })
+    .select({
+      schoolInepCode: agendaTurmas.schoolInepCode,
+      createdByUserId: agendaTurmas.createdByUserId,
+      shift: agendaTurmas.shift,
+    })
     .from(agendaTurmas)
     .where(eq(agendaTurmas.id, turmaId))
     .limit(1);
@@ -266,6 +277,8 @@ export async function updateTurma(
         eq(agendaTurmas.grade, patch.grade),
         eq(agendaTurmas.year, patch.year),
         eq(agendaTurmas.classLetter, patch.classLetter),
+        sql`${agendaTurmas.createdByUserId} IS NOT DISTINCT FROM ${existing.createdByUserId}`,
+        eq(agendaTurmas.shift, patch.shift ?? existing.shift),
         sql`${agendaTurmas.id} <> ${turmaId}`,
       ),
     )
@@ -278,6 +291,7 @@ export async function updateTurma(
       grade: patch.grade,
       year: patch.year,
       classLetter: patch.classLetter,
+      shift: patch.shift,
       updatedAt: new Date(),
     })
     .where(eq(agendaTurmas.id, turmaId))
@@ -296,11 +310,44 @@ export async function insertTurmaMember(turmaId: string, profileId: string): Pro
     });
 }
 
-export async function setActiveTurma(profileId: string, turmaId: string | null): Promise<void> {
-  await db
-    .update(agendaStudentProfiles)
-    .set({ activeTurmaId: turmaId, updatedAt: new Date() })
-    .where(eq(agendaStudentProfiles.id, profileId));
+export async function setActiveTurma(
+  profileId: string,
+  turmaId: string | null,
+  userId: string,
+): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    if (turmaId) {
+      const [group] = await tx
+        .select({ id: agendaTurmas.id })
+        .from(agendaTurmas)
+        .where(eq(agendaTurmas.id, turmaId))
+        .for("update");
+      if (!group) return false;
+    }
+    const [profile] = await tx
+      .select({ id: agendaStudentProfiles.id })
+      .from(agendaStudentProfiles)
+      .where(and(eq(agendaStudentProfiles.id, profileId), eq(agendaStudentProfiles.userId, userId)))
+      .for("update");
+    if (!profile) return false;
+    if (turmaId) {
+      const [member] = await tx
+        .select({ id: agendaTurmaMembers.id })
+        .from(agendaTurmaMembers)
+        .where(
+          and(
+            eq(agendaTurmaMembers.studentProfileId, profileId),
+            eq(agendaTurmaMembers.turmaId, turmaId),
+          ),
+        );
+      if (!member) return false;
+    }
+    await tx
+      .update(agendaStudentProfiles)
+      .set({ activeTurmaId: turmaId, updatedAt: new Date() })
+      .where(eq(agendaStudentProfiles.id, profileId));
+    return true;
+  });
 }
 
 export async function userHasMemberInTurma(userId: string, turmaId: string): Promise<boolean> {
@@ -365,6 +412,11 @@ export async function deleteTurmaById(turmaId: string): Promise<boolean> {
 
 export async function deleteTurmaMember(profileId: string, turmaId: string): Promise<boolean> {
   return db.transaction(async (tx) => {
+    await tx
+      .select({ id: agendaTurmas.id })
+      .from(agendaTurmas)
+      .where(eq(agendaTurmas.id, turmaId))
+      .for("update");
     // Clear active flag if this is the active turma.
     await tx
       .update(agendaStudentProfiles)

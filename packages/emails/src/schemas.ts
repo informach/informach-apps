@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const EMAIL_CATEGORIES = [
+  "agenda.routine",
   "auth.verify-email",
   "auth.verify-email-otp",
   "auth.sign-in-otp",

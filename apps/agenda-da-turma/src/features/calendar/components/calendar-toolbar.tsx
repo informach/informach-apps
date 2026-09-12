@@ -11,6 +11,7 @@ import {
 } from "@informach/ui/components/select";
 import { Tabs, TabsList, TabsTrigger } from "@informach/ui/components/tabs";
 import { Camera, ChevronLeft, ChevronRight, FileText, Mic, Plus } from "lucide-react";
+import Link from "next/link";
 import {
   endOfWeekIso,
   formatDayLabel,
@@ -126,55 +127,63 @@ export function CalendarToolbar({
         ) : null}
 
         <div className="flex flex-wrap items-center gap-2 md:ml-auto">
-          <Button onClick={onCreate} size="sm" disabled={!canCreate}>
-            <Plus className="mr-1 size-4" aria-hidden />
-            Nova atividade
+          <Button size="sm" asChild>
+            <Link href="/recados/novo">Organizar recado</Link>
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onCreateByVoice}
-            disabled={!isPro || !canCreate}
-          >
-            <Mic className="mr-1 size-4" aria-hidden />
-            Por voz
-            {!isPro ? (
-              <Badge variant="secondary" className="ml-2">
-                Pro
-              </Badge>
-            ) : null}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onCreateByImage}
-            disabled={!isPro || !canCreate}
-          >
-            <Camera className="mr-1 size-4" aria-hidden />
-            Por imagem
-            {!isPro ? (
-              <Badge variant="secondary" className="ml-2">
-                Pro
-              </Badge>
-            ) : null}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onCreateByPdf}
-            disabled={!isPro || !canCreate}
-          >
-            <FileText className="mr-1 size-4" aria-hidden />
-            Por PDF
-            {!isPro ? (
-              <Badge variant="secondary" className="ml-2">
-                Pro
-              </Badge>
-            ) : null}
-          </Button>
+          <details className="rounded-md border px-3 py-2">
+            <summary className="cursor-pointer text-sm">Atividades por matéria</summary>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button onClick={onCreate} size="sm" disabled={!canCreate}>
+                <Plus className="mr-1 size-4" aria-hidden />
+                Nova atividade
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onCreateByVoice}
+                disabled={!isPro || !canCreate}
+              >
+                <Mic className="mr-1 size-4" aria-hidden />
+                Por voz
+                {!isPro ? (
+                  <Badge variant="secondary" className="ml-2">
+                    Pro
+                  </Badge>
+                ) : null}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onCreateByImage}
+                disabled={!isPro || !canCreate}
+              >
+                <Camera className="mr-1 size-4" aria-hidden />
+                Por imagem
+                {!isPro ? (
+                  <Badge variant="secondary" className="ml-2">
+                    Pro
+                  </Badge>
+                ) : null}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onCreateByPdf}
+                disabled={!isPro || !canCreate}
+              >
+                <FileText className="mr-1 size-4" aria-hidden />
+                PDF por matéria
+                {!isPro ? (
+                  <Badge variant="secondary" className="ml-2">
+                    Pro
+                  </Badge>
+                ) : null}
+              </Button>
+            </div>
+          </details>
         </div>
       </div>
     </div>

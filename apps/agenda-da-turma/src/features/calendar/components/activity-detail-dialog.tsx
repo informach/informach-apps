@@ -31,6 +31,7 @@ import {
   getDueBadgeVariant,
   getDueUrgency,
 } from "@/features/activities/utils";
+import { RoutineCard } from "@/features/notices/components/routine-card";
 import { setProfileSubjectActivityStatusAction } from "@/features/profile-subject-activities/actions";
 import { getSubjectIconClassByIndex } from "@/features/subjects/utils";
 import type { UnifiedActivityListItem } from "@/features/unified-activities/types";
@@ -39,6 +40,7 @@ import { catchActionResult, isActionRejected } from "@/lib/action-result";
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onCloseAutoFocus?: (event: Event) => void;
   item: UnifiedActivityListItem | null;
   currentUserId: string;
   isPro: boolean;
@@ -55,6 +57,7 @@ type Props = {
 export function ActivityDetailDialog({
   open,
   onOpenChange,
+  onCloseAutoFocus,
   item,
   currentUserId,
   isPro,
@@ -64,19 +67,44 @@ export function ActivityDetailDialog({
   if (!item) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="hidden" />
+        <DialogContent className="hidden" onCloseAutoFocus={onCloseAutoFocus} />
       </Dialog>
     );
   }
 
+  if (item.source === "notice") {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent onCloseAutoFocus={onCloseAutoFocus}>
+          <DialogHeader>
+            <DialogTitle>{item.title}</DialogTitle>
+            <DialogDescription>
+              Providência de {item.studentProfileName}. Abra o título para conferir a fonte e o
+              histórico.
+            </DialogDescription>
+          </DialogHeader>
+          <RoutineCard item={item.routineItem} />
+        </DialogContent>
+      </Dialog>
+    );
+  }
   if (item.source === "extra") {
-    return <ExtraActivityDetailDialog open={open} onOpenChange={onOpenChange} item={item} />;
+    return (
+      <ExtraActivityDetailDialog
+        open={open}
+        onOpenChange={onOpenChange}
+        onCloseAutoFocus={onCloseAutoFocus}
+        currentUserId={currentUserId}
+        item={item}
+      />
+    );
   }
 
   return (
     <TurmaActivityDetailDialog
       open={open}
       onOpenChange={onOpenChange}
+      onCloseAutoFocus={onCloseAutoFocus}
       item={item}
       currentUserId={currentUserId}
       isPro={isPro}
@@ -88,6 +116,7 @@ export function ActivityDetailDialog({
 function TurmaActivityDetailDialog({
   open,
   onOpenChange,
+  onCloseAutoFocus,
   item,
   currentUserId,
   isPro,
@@ -95,6 +124,7 @@ function TurmaActivityDetailDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onCloseAutoFocus?: (event: Event) => void;
   item: Extract<UnifiedActivityListItem, { source: "turma" }>;
   currentUserId: string;
   isPro: boolean;
@@ -143,7 +173,10 @@ function TurmaActivityDetailDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+        <DialogContent
+          className="max-h-[90vh] max-w-lg overflow-y-auto"
+          onCloseAutoFocus={onCloseAutoFocus}
+        >
           <DialogHeader className="space-y-3">
             <div className="flex items-start gap-3">
               <span
@@ -189,6 +222,15 @@ function TurmaActivityDetailDialog({
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            {item.canceledAt ? <Badge variant="destructive">Cancelada pelo criador</Badge> : null}
+            {(item.version ?? 1) > 1 ? (
+              <Link
+                href={`/atividades/${item.activityId}/historico`}
+                className="block text-sm text-primary underline"
+              >
+                Alterada · versão {item.version} · ver histórico
+              </Link>
+            ) : null}
             {item.description ? (
               <div className="space-y-1">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -207,7 +249,7 @@ function TurmaActivityDetailDialog({
                 id={checkboxId}
                 checked={isDone}
                 onCheckedChange={(value) => handleToggle(value === true)}
-                disabled={pending}
+                disabled={pending || Boolean(item.canceledAt)}
                 aria-label={
                   isDone
                     ? `Marcar atividade de ${item.studentProfileName} como pendente`
@@ -262,6 +304,7 @@ function TurmaActivityDetailDialog({
             turmas={turmasForForm}
             isPro={isPro}
             activity={{
+              version: item.version,
               activityId: item.activityId,
               type: item.type,
               title: item.title,
@@ -294,10 +337,14 @@ function TurmaActivityDetailDialog({
 function ExtraActivityDetailDialog({
   open,
   onOpenChange,
+  onCloseAutoFocus,
+  currentUserId,
   item,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onCloseAutoFocus?: (event: Event) => void;
+  currentUserId: string;
   item: Extract<UnifiedActivityListItem, { source: "extra" }>;
 }) {
   const router = useRouter();
@@ -335,7 +382,10 @@ function ExtraActivityDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+      <DialogContent
+        className="max-h-[90vh] max-w-lg overflow-y-auto"
+        onCloseAutoFocus={onCloseAutoFocus}
+      >
         <DialogHeader className="space-y-3">
           <div className="flex items-start gap-3">
             <span
@@ -411,15 +461,17 @@ function ExtraActivityDetailDialog({
         </div>
 
         <DialogFooter className="flex-row flex-wrap gap-2 sm:justify-between">
-          <Button asChild variant="outline" size="sm">
-            <Link
-              href={`/perfis/${item.studentProfileId}/extras/${item.profileSubjectId}`}
-              onClick={() => onOpenChange(false)}
-            >
-              <ExternalLink className="mr-1 size-4" aria-hidden />
-              Abrir matéria
-            </Link>
-          </Button>
+          {item.createdByUserId === currentUserId ? (
+            <Button asChild variant="outline" size="sm">
+              <Link
+                href={`/perfis/${item.studentProfileId}/extras/${item.profileSubjectId}`}
+                onClick={() => onOpenChange(false)}
+              >
+                <ExternalLink className="mr-1 size-4" aria-hidden />
+                Abrir matéria
+              </Link>
+            </Button>
+          ) : null}
           <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>
             Fechar
           </Button>

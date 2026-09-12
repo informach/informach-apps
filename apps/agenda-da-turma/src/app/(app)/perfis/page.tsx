@@ -30,9 +30,10 @@ export default async function PerfisPage() {
       </header>
 
       <StudentsSection
+        currentUserId={user.id}
         profiles={profiles}
         isPro={isPro}
-        currentCount={profiles.length}
+        currentCount={profiles.filter((p) => p.userId === user.id).length}
         limit={limit}
       />
     </main>

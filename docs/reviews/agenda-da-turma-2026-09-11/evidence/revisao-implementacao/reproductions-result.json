@@ -1,0 +1,150 @@
+{
+  "numTotalTestSuites": 2,
+  "numPassedTestSuites": 2,
+  "numFailedTestSuites": 0,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 10,
+  "numPassedTests": 10,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1789176302570,
+  "success": true,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "Review reproductions — assertions document observed defects, not acceptance criteria"
+          ],
+          "fullName": "Review reproductions — assertions document observed defects, not acceptance criteria F01 activity form default version=1 rejects a second school edit",
+          "status": "passed",
+          "title": "F01 activity form default version=1 rejects a second school edit",
+          "duration": 931.0861000000004,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "Review reproductions — assertions document observed defects, not acceptance criteria"
+          ],
+          "fullName": "Review reproductions — assertions document observed defects, not acceptance criteria F02 a recipient reads private snapshots created before sharing",
+          "status": "passed",
+          "title": "F02 a recipient reads private snapshots created before sharing",
+          "duration": 264.40390000000116,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "Review reproductions — assertions document observed defects, not acceptance criteria"
+          ],
+          "fullName": "Review reproductions — assertions document observed defects, not acceptance criteria F03 accept then reject retains status, but creator deletion removes that history",
+          "status": "passed",
+          "title": "F03 accept then reject retains status, but creator deletion removes that history",
+          "duration": 248.4925000000003,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "Review reproductions — assertions document observed defects, not acceptance criteria"
+          ],
+          "fullName": "Review reproductions — assertions document observed defects, not acceptance criteria F04 a ready mixed-child original is visible to the A-only guest before review",
+          "status": "passed",
+          "title": "F04 a ready mixed-child original is visible to the A-only guest before review",
+          "duration": 252.79369999999835,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "Review reproductions — assertions document observed defects, not acceptance criteria"
+          ],
+          "fullName": "Review reproductions — assertions document observed defects, not acceptance criteria F05 the same confirmed notice cannot be applied to a second child",
+          "status": "passed",
+          "title": "F05 the same confirmed notice cannot be applied to a second child",
+          "duration": 154.69280000000072,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "Review reproductions — assertions document observed defects, not acceptance criteria"
+          ],
+          "fullName": "Review reproductions — assertions document observed defects, not acceptance criteria F06 importing a corrected deadline leaves both old and new obligations pending",
+          "status": "passed",
+          "title": "F06 importing a corrected deadline leaves both old and new obligations pending",
+          "duration": 170.0046000000002,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "Review reproductions — assertions document observed defects, not acceptance criteria"
+          ],
+          "fullName": "Review reproductions — assertions document observed defects, not acceptance criteria F07 a crash between delivery claims is converted into permanent cancellation",
+          "status": "passed",
+          "title": "F07 a crash between delivery claims is converted into permanent cancellation",
+          "duration": 280.41729999999916,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "Review reproductions — assertions document observed defects, not acceptance criteria"
+          ],
+          "fullName": "Review reproductions — assertions document observed defects, not acceptance criteria F08 delayed completion of the old parse can mark a new parse failed",
+          "status": "passed",
+          "title": "F08 delayed completion of the old parse can mark a new parse failed",
+          "duration": 161.89029999999912,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "Review reproductions — assertions document observed defects, not acceptance criteria"
+          ],
+          "fullName": "Review reproductions — assertions document observed defects, not acceptance criteria F09 a revoked group membership can be reinstated through a stale set-active request",
+          "status": "passed",
+          "title": "F09 a revoked group membership can be reinstated through a stale set-active request",
+          "duration": 433.9261999999999,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "Review reproductions — assertions document observed defects, not acceptance criteria"
+          ],
+          "fullName": "Review reproductions — assertions document observed defects, not acceptance criteria F10 a publication date visible in the original is discarded unless manually supplied",
+          "status": "passed",
+          "title": "F10 a publication date visible in the original is discarded unless manually supplied",
+          "duration": 182.45720000000074,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1789176314642,
+      "endTime": 1789176317723.4573,
+      "status": "passed",
+      "message": "",
+      "name": "C:/Users/tocha/projects/informach-apps/apps/agenda-da-turma/tmp/full-review/reproductions.test.ts"
+    }
+  ]
+}

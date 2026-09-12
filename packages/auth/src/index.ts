@@ -243,6 +243,8 @@ export type CreateAuthConfig = {
    */
   email?: CreateAuthEmailConfig;
   accountDeletion?: CreateAuthAccountDeletionConfig;
+  /** App-specific product instrumentation after a new account is persisted. */
+  onUserCreated?: (user: { id: string }) => Promise<void>;
   /**
    * When true, denormalizes `users.role` into `sessions.role` so it travels
    * inside the cached cookie session (Better Auth does NOT cache
@@ -715,6 +717,7 @@ function createAuthInstance(config: CreateAuthConfig) {
         create: {
           after: async (user) => {
             await logAuditEvent("user.created", user.id, { email: user.email });
+            await config.onUserCreated?.({ id: user.id });
           },
         },
       },

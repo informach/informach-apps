@@ -5,22 +5,20 @@ export type BillingCycle = "monthly" | "annual";
 export type PlanFeature = { label: string; included: boolean };
 
 export const FREE_FEATURES: PlanFeature[] = [
-  { label: "1 perfil de estudante", included: true },
-  { label: "Até 20 atividades cadastradas", included: true },
-  { label: "Calendário em mês, semana e dia", included: true },
-  { label: "Dashboard com atrasadas, hoje e próximos 7 dias", included: true },
-  { label: "Cadastro por voz, foto e PDF (IA)", included: false },
-  { label: "Compartilhar atividades com pais da turma", included: false },
-  { label: "Exportar agenda em PDF", included: false },
+  { label: "1 criança e até 20 pendências próprias", included: true },
+  { label: "5 importações de recados por conta verificada", included: true },
+  { label: "Receber atividades da turma gratuitamente", included: true },
+  { label: "Rotina, calendário e histórico preservado", included: true },
+  { label: "Dois adultos, resumo e lembretes", included: false },
 ];
-
 export const PRO_FEATURES: PlanFeature[] = [
-  { label: "Até 3 perfis (irmãos, primos, o que precisar)", included: true },
-  { label: "Atividades ilimitadas", included: true },
-  { label: "Cadastro por voz, foto e PDF com IA", included: true },
-  { label: "Compartilhar atividades com pais da turma", included: true },
-  { label: "Exportar agenda em PDF", included: true },
-  { label: "Pacotes extras avulsos quando precisar", included: true },
+  { label: "Até 3 crianças e 2 adultos com logins próprios", included: true },
+  { label: "Providências sem o limite de 20 pendências", included: true },
+  { label: "70 créditos por mês: 1 por recado de texto, foto ou PDF", included: true },
+  { label: "Resumo por e-mail, lembretes e push compatível", included: true },
+  { label: "Responsáveis por criança e repetição semanal", included: true },
+  { label: "Compartilhar com a turma e calendário pessoal", included: true },
+  { label: "Exportar agenda em PDF; cadastro por voz usa 2 créditos", included: true },
 ];
 
 // Preços derivados de `packages/config/src/products.ts` — fonte oficial.
@@ -55,9 +53,9 @@ export const PRICING: Record<
     tabLabel: "Mensal",
   },
   annual: {
-    price: BRL.format(annualMonthlyEquivalentCents / 100),
-    period: "/mês",
-    note: `${BRL.format(annualCents / 100)}/ano. Economize ~${ANNUAL_SAVINGS_PCT}%`,
+    price: BRL.format(annualCents / 100),
+    period: "/ano",
+    note: `Cobrado anualmente. Equivale a ${BRL.format(annualMonthlyEquivalentCents / 100)}/mês. Economia de ${BRL.format((monthlyCents * 12 - annualCents) / 100)} por ano em relação ao mensal (~${ANNUAL_SAVINGS_PCT}%).`,
     tabLabel: "Anual",
   },
 };

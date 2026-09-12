@@ -6,8 +6,9 @@ export type Turma = {
   schoolInepCode: string;
   grade: TurmaGrade;
   year: number;
+  shift?: "unspecified" | "morning" | "afternoon" | "full_day" | "evening";
   classLetter: string;
-  createdByUserId: string;
+  createdByUserId: string | null;
   createdAt: Date;
   updatedAt: Date;
 };

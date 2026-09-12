@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@informach/ui/components/dropdown-menu";
-import { CreditCard, GraduationCap, LogOut, Users } from "lucide-react";
+import { CreditCard, GraduationCap, LogOut, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
@@ -80,6 +80,12 @@ export function UserMenu({ user }: { user: UserMenuUser }) {
           <Link href="/settings/billing">
             <CreditCard className="mr-2 size-4" aria-hidden />
             Gerenciar assinatura
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/settings/account">
+            <Settings className="mr-2 size-4" aria-hidden />
+            Conta e dados
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />

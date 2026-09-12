@@ -11,6 +11,7 @@ import {
 } from "@informach/db/schema";
 import { activityListSelect } from "@/features/activities/repository";
 import type { ActivityListItem } from "@/features/activities/types";
+import { accessibleProfileCondition } from "@/features/family/access";
 
 type Options = {
   fromIso: string;
@@ -30,8 +31,7 @@ export async function listActivitiesInDateRange(
   options: Options,
 ): Promise<ActivityListItem[]> {
   const whereExpr = and(
-    eq(agendaStudentProfiles.userId, userId),
-    options.isPro ? undefined : eq(agendaActivities.createdByUserId, userId),
+    accessibleProfileCondition(userId),
     options.profileFilter ? eq(agendaStudentProfiles.id, options.profileFilter) : undefined,
     sql`${agendaActivities.dueAt} BETWEEN ${options.fromIso} AND ${options.toIso}`,
   );

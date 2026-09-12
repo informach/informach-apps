@@ -4,6 +4,7 @@ import { applyDashboardStatusSuccess } from "./optimistic";
 import type { DashboardSnapshot } from "./types";
 
 const baseItem: UnifiedActivityListItem = {
+  version: 1,
   source: "turma",
   activityId: "activity-1",
   statusId: "status-1",

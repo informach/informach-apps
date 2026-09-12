@@ -18,16 +18,8 @@ type Props = {
 
 const MAX_VISIBLE_BLIPS = 3;
 
-// Célula de um dia na grid mensal.
-// - Header: número do dia. "Hoje" ganha círculo `primary`. Dias fora do mês
-//   ficam atenuados.
-// - Body: até 3 blips empilhados; o resto vira "+N mais" num Popover.
-// - Click na célula abre o create dialog pré-preenchido com o ISO. Blips e
-//   "+N mais" usam stopPropagation pra não dispararem o handler da célula.
-//   Antes a gente tinha um <button> absoluto cobrindo a célula — eliminado
-//   porque criava nested-button issues com o "+N mais" e exigia z-index dance.
-// - A11y: a div é `role="button"` + tabIndex + onKeyDown — focável por teclado
-//   e ativável com Enter/Espaço, mesmo comportamento do antigo button absoluto.
+// Criar e abrir uma atividade são controles irmãos. Nenhum evento de um item
+// pode ativar a criação do dia, inclusive com Enter/Espaço ou no popover.
 export function DayCell({ iso, inMonth, items, onSelectActivity, onCreateForDay }: Props) {
   const today = todayLocalIso();
   const isToday = iso === today;
@@ -36,35 +28,21 @@ export function DayCell({ iso, inMonth, items, onSelectActivity, onCreateForDay 
   const visible = items.slice(0, MAX_VISIBLE_BLIPS);
   const overflow = items.length - visible.length;
 
-  const handleCellClick = () => onCreateForDay(iso);
-  const handleCellKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      onCreateForDay(iso);
-    }
-  };
-
   return (
-    // biome-ignore lint/a11y/useSemanticElements: nested <button> (blips + Popover trigger) seriam HTML inválido se o outer fosse um <button>
     <div
-      role="button"
-      tabIndex={0}
-      onClick={handleCellClick}
-      onKeyDown={handleCellKey}
-      aria-label={
-        items.length === 0
-          ? `Dia ${dayNumber}${isToday ? " (hoje)" : ""} — sem atividades — criar nova`
-          : `Dia ${dayNumber}${isToday ? " (hoje)" : ""} — ${items.length} atividade${items.length === 1 ? "" : "s"} — clique pra criar nova`
-      }
       className={cn(
         // min-h-36 (9rem = 144px) cabe header + 3 blips + "+N mais" + gaps + padding
         // com folga, sem clipping. Tailwind core size, sem arbitrary value.
-        "group flex min-h-36 cursor-pointer flex-col gap-1 bg-card p-1.5",
+        "group flex min-h-36 flex-col gap-1 bg-card p-1.5",
         !inMonth && "bg-muted/40",
-        "transition-colors hover:bg-accent/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
       )}
     >
-      <div className="flex items-center justify-between">
+      <button
+        type="button"
+        onClick={() => onCreateForDay(iso)}
+        aria-label={`Criar atividade em ${iso}${isToday ? " (hoje)" : ""}`}
+        className="flex min-h-9 items-center justify-between rounded-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
         <span
           className={cn(
             "grid size-6 place-items-center text-xs font-medium tabular-nums",
@@ -74,12 +52,8 @@ export function DayCell({ iso, inMonth, items, onSelectActivity, onCreateForDay 
         >
           {dayNumber}
         </span>
-        {/* "+" hover discreto pra affordance de criar — aparece on group hover. */}
-        <Plus
-          className="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
-          aria-hidden
-        />
-      </div>
+        <Plus className="size-3.5 text-muted-foreground" aria-hidden />
+      </button>
 
       <div className="flex flex-1 flex-col gap-0.5">
         {visible.map((item) => (

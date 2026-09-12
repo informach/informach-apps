@@ -42,6 +42,7 @@ const TYPE_A11Y_LABEL: Record<string, string> = {
 export function ActivityBlip({ item, onSelect }: Props) {
   const TypeIcon = getActivityTypeIcon(item.type);
   const isDone = item.status === "done";
+  const canceled = item.source === "turma" && Boolean(item.canceledAt);
   const urgency = getDueUrgency(item.dueAt, item.status);
   const isOverdue = urgency === "overdue";
   const isDueSoon = urgency === "due_soon";
@@ -51,9 +52,11 @@ export function ActivityBlip({ item, onSelect }: Props) {
   const subjectName = isExtra ? item.profileSubjectName : item.subjectName;
 
   const typeLabel = TYPE_A11Y_LABEL[item.type] ?? "atividade";
-  const statusLabel = isDone
-    ? "concluída"
-    : (URGENCY_A11Y_LABEL[urgency] ?? URGENCY_A11Y_LABEL.upcoming);
+  const statusLabel = canceled
+    ? "cancelada"
+    : isDone
+      ? "concluída"
+      : (URGENCY_A11Y_LABEL[urgency] ?? URGENCY_A11Y_LABEL.upcoming);
   const sourceLabel = isExtra ? " (extracurricular)" : "";
   const ariaLabel =
     `${typeLabel} de ${subjectName}${sourceLabel}: ${item.title}` +
@@ -77,7 +80,7 @@ export function ActivityBlip({ item, onSelect }: Props) {
         isExtra && "border-dashed",
         isOverdue && "border-l-2 border-l-destructive",
         isDueSoon && "ring-1 ring-chart-4/40",
-        isDone && "opacity-60",
+        (isDone || canceled) && "opacity-60",
       )}
       aria-label={ariaLabel}
     >
@@ -88,7 +91,7 @@ export function ActivityBlip({ item, onSelect }: Props) {
       <span
         className={cn(
           "truncate font-medium text-foreground/90",
-          isDone && "line-through text-muted-foreground",
+          (isDone || canceled) && "line-through text-muted-foreground",
         )}
         aria-hidden
       >

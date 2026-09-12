@@ -16,6 +16,7 @@ import {
   getDueBadgeVariant,
   getDueUrgency,
 } from "@/features/activities/utils";
+import { RoutineCard } from "@/features/notices/components/routine-card";
 import { setProfileSubjectActivityStatusAction } from "@/features/profile-subject-activities/actions";
 import {
   getSubjectIconClassByIndex,
@@ -62,6 +63,7 @@ export function UnifiedActivityCard({
   optimisticHideWhenDone = false,
   onStatusSuccess,
 }: Props) {
+  if (item.source === "notice") return <RoutineCard item={item.routineItem} />;
   if (item.source === "turma") {
     return (
       <ActivityCard

@@ -2,6 +2,7 @@ import "server-only";
 
 import { err, ok, type Result } from "@informach/auth/server-actions";
 import { findStudentProfileByIdForUser } from "@/features/students/repository";
+import { joinPrivateGroup } from "./group-access";
 import {
   deleteTurmaById,
   deleteTurmaMember,
@@ -15,7 +16,6 @@ import {
   setActiveTurma as setActiveTurmaInDb,
   turmaHasActivities,
   updateTurma as updateTurmaInDb,
-  verifyMembership,
 } from "./repository";
 import type {
   CreateTurmaInput,
@@ -54,14 +54,18 @@ export async function createOrJoinTurma(
       schoolInepCode: input.schoolInepCode,
       grade: input.grade,
       year: input.year,
+      shift: input.shift,
       classLetter: input.classLetter,
       createdByUserId: userId,
     });
 
     if ("codeConflict" in result) continue;
+    if (!result.created && result.turma.createdByUserId !== userId)
+      return err({ code: "FORBIDDEN" });
 
     await insertTurmaMember(result.turma.id, profile.id);
-    await setActiveTurmaInDb(profile.id, result.turma.id);
+    if (!(await setActiveTurmaInDb(profile.id, result.turma.id, userId)))
+      return err({ code: "NOT_A_MEMBER" });
 
     const turmaWithSchool = await findTurmaWithSchoolById(result.turma.id);
     if (!turmaWithSchool) {
@@ -84,8 +88,8 @@ export async function joinTurmaByCode(
   const turma = await findTurmaByCode(input.code);
   if (!turma) return err({ code: "TURMA_NOT_FOUND" });
 
-  await insertTurmaMember(turma.id, profile.id);
-  await setActiveTurmaInDb(profile.id, turma.id);
+  const joined = await joinPrivateGroup(userId, profile.id, input.code);
+  if (!joined) return err({ code: "TURMA_NOT_FOUND" });
 
   const turmaWithSchool = await findTurmaWithSchoolById(turma.id);
   if (!turmaWithSchool) return err({ code: "TURMA_NOT_FOUND" });
@@ -99,10 +103,8 @@ export async function setActiveTurma(
   const profile = await findStudentProfileByIdForUser(userId, input.profileId);
   if (!profile) return err({ code: "PROFILE_NOT_FOUND" });
 
-  const isMember = await verifyMembership(profile.id, input.turmaId);
-  if (!isMember) return err({ code: "NOT_A_MEMBER" });
-
-  await setActiveTurmaInDb(profile.id, input.turmaId);
+  if (!(await setActiveTurmaInDb(profile.id, input.turmaId, userId)))
+    return err({ code: "NOT_A_MEMBER" });
   return ok(true);
 }
 
@@ -175,6 +177,7 @@ export async function updateTurma(
     grade: input.grade,
     year: input.year,
     classLetter: input.classLetter,
+    shift: input.shift,
   });
   if (!result.ok) {
     if (result.code === "CONFLICT_EXISTING_TURMA") return err({ code: "CONFLICT_EXISTING_TURMA" });

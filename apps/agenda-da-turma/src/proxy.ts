@@ -22,6 +22,9 @@ const authProxy = createAuthProxy(authResult, {
     "/turmas",
     "/atividades",
     "/calendario",
+    "/recados",
+    "/familia",
+    "/api/recados",
     "/api/data",
     // Defesa-em-profundidade: route handlers de IA já chamam `withAiRouteGuards`
     // (sessão + rate-limit + Pro gate). Listar aqui garante que qualquer route

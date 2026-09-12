@@ -19,6 +19,7 @@
  */
 
 export type AgendaFeature =
+  | "agenda.notices.parse"
   | "agenda.subjects.parse_image"
   | "agenda.subjects.transcribe_audio"
   | "agenda.subjects.parse_voice"
@@ -28,6 +29,7 @@ export type AgendaFeature =
   | "agenda.activities.parse_pdf";
 
 export const AGENDA_MODELS = {
+  "agenda.notices.parse": "openai/gpt-4o",
   "agenda.subjects.parse_image": "openai/gpt-4o",
   "agenda.subjects.transcribe_audio": "openai/gpt-4o-transcribe",
   "agenda.subjects.parse_voice": "openai/gpt-4o-mini",

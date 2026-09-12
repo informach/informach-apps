@@ -2,19 +2,8 @@ import { findClosestStudent } from "@/features/activities/match-student";
 import { findClosestSubject } from "@/features/activities/match-subject";
 import type { ParsedActivityInput, TurmaWithSubjectsForForm } from "@/features/activities/types";
 import { todayLocalIso } from "@/features/dashboard/date";
-import {
-  type AlternatingSlot as ClassDaySlot,
-  nextClassDayIso,
-  nextWeekdayIso,
-} from "@/features/subjects/class-days";
 import { normalize } from "@/features/subjects/utils";
 import type { ActivitiesParserOutput } from "./schema";
-
-// Slots de revezamento quinzenal, achatados pra um Map (subjectId → slots).
-// Carregado pelos services de IA de atividades antes de chamar enrich;
-// vazio/omitido se a feature ainda não foi configurada na turma. Usado pelo
-// `applyNextClassDayFallback` pra decidir paridade no cálculo de próximo dia.
-export type SlotsBySubjectId = ReadonlyMap<string, readonly ClassDaySlot[]>;
 
 /**
  * Helpers puros do fluxo de IA de atividades — extraídos do service
@@ -50,6 +39,7 @@ export function buildUserMessage(opts: {
    * no formato "[Escola] · [série/letra · ano]".
    */
   profiles?: readonly ProfileLite[];
+  sourceKind?: "dictation" | "document";
   now?: Date;
 }): string {
   const today = todayLocalIso(opts.now);
@@ -57,7 +47,9 @@ export function buildUserMessage(opts: {
   const studentsLine = opts.studentNames.length > 0 ? opts.studentNames.join(", ") : "(nenhum)";
   const subjectsBlock = formatSubjectsBlock(opts.turmasWithSubjects, opts.profiles ?? []);
   return (
-    `Hoje é ${today} (${dayOfWeek}, fuso America/Sao_Paulo).\n` +
+    (opts.sourceKind === "document"
+      ? "Documento ou imagem de data desconhecida. A data atual não é referência para seus prazos relativos. Use apenas contexto de publicação inequívoco no original; sem ele, dueAt=null.\n"
+      : `Hoje é ${today} (${dayOfWeek}, fuso America/Sao_Paulo). Ditado realizado agora.\n`) +
     `Estudantes disponíveis: ${studentsLine}\n` +
     subjectsBlock +
     `\nConteúdo:\n${opts.transcript}`
@@ -127,19 +119,6 @@ export function enrichWithResolvedTurma(
    *   (c) o `inferGuessedTurma` (chamado em seguida pelos services).
    */
   turmasWithSubjects?: TurmaWithSubjectsForForm[],
-  /**
-   * "Hoje" usado pelo fallback final de data (`applyTomorrowFallback`).
-   * Padrão `new Date()`; testes injetam um Date fixo. Mesmo pattern do
-   * `buildUserMessage` neste módulo.
-   */
-  now: Date = new Date(),
-  /**
-   * Slots de revezamento quinzenal por matéria. Quando presente, o fallback
-   * `applyNextClassDayFallback` usa pra decidir paridade (semana minha vs.
-   * semana da pareada). Quando omitido/vazio, todos os dias são tratados
-   * como semanais.
-   */
-  slotsBySubjectId?: SlotsBySubjectId,
 ): EnrichedParseResult {
   if (!output.isValidInput) {
     return { isValidInput: false, reason: output.reason ?? null };
@@ -170,107 +149,10 @@ export function enrichWithResolvedTurma(
       resolvedSubjectId,
     };
   });
-  // Ordem importa:
-  //   1) Propagação — data única no topo da folha vai pras nulls (cenário típico
-  //      "folha com 1 data + N atividades").
-  //   2) Próximo dia de aula — pra nulls remanescentes com matéria resolvida,
-  //      olha `subject.classDays` e calcula a próxima data estritamente após hoje
-  //      que casa com algum dia de aula. Só vale quando a matéria tem horário
-  //      cadastrado (`classDays` não-vazio).
-  //   3) Fallback "amanhã" — cobre qualquer null que sobrou: imagem sem data
-  //      nenhuma + matéria sem horário, ou atividade isolada sem matéria.
-  const propagated = propagateUniqueDueDate(rawActivities);
-  const withNextClass = applyNextClassDayFallback(propagated, turmas, now, slotsBySubjectId);
-  const activities = applyTomorrowFallback(withNextClass, now);
+  // Ausência de prazo é um dado: não herdar datas de outros itens ou do horário.
+  const activities = rawActivities;
   const guessedTurmaId = inferGuessedTurma(activities, turmas);
   return { isValidInput: true, activities, guessedTurmaId };
-}
-
-/**
- * Fallback server-side da regra de propagação de data: se há atividades no
- * batch com `dueAt: null` e TODAS as outras atividades do batch têm a MESMA
- * `dueAt` definida, propaga essa data para as nulls. Cobre o cenário típico
- * de folha escolar com uma única data no topo + várias atividades listadas
- * embaixo — algumas o modelo associou à data, outras não.
- *
- * Conservador: só propaga quando há consenso (uma única data nas resolvidas).
- * Se houver 2+ datas distintas nas resolvidas, mantém os nulls intactos —
- * indica que cada bloco tem sua própria data e a null pode ser ambígua.
- */
-export function propagateUniqueDueDate(
-  activities: readonly ParsedActivityInput[],
-): ParsedActivityInput[] {
-  const datesPresent = activities.map((a) => a.dueAt).filter((d): d is string => d !== null);
-  if (datesPresent.length === 0) return activities.slice();
-  const uniqueDates = new Set(datesPresent);
-  if (uniqueDates.size !== 1) return activities.slice();
-  const onlyDate = datesPresent[0];
-  if (!onlyDate) return activities.slice();
-  return activities.map((a) => (a.dueAt === null ? { ...a, dueAt: onlyDate } : a));
-}
-
-/**
- * Camada intermediária de fallback baseada em horário da matéria. Pra cada
- * atividade com `dueAt: null` que TEM `resolvedSubjectId`, busca os
- * `classDays` da matéria correspondente e calcula a próxima data ESTRITAMENTE
- * APÓS hoje que casa com algum dia cadastrado. Mantém null quando:
- *   - subject não foi resolvido (resolvedSubjectId === null);
- *   - subject não foi achado no índice de turmas (caso defensivo);
- *   - subject existe mas não tem horário cadastrado (classDays vazio).
- *
- * Quem fica null aqui cai no `applyTomorrowFallback` depois (default "amanhã").
- *
- * Por que ESTRITAMENTE APÓS hoje: atividade ditada/fotografada hoje vale pra
- * próxima aula, não pra aula de hoje (se hoje for um dia de aula, próxima é
- * a próxima ocorrência semanal).
- */
-export function applyNextClassDayFallback(
-  activities: readonly ParsedActivityInput[],
-  turmasWithSubjects: readonly TurmaWithSubjectsForForm[],
-  now: Date = new Date(),
-  slotsBySubjectId?: SlotsBySubjectId,
-): ParsedActivityInput[] {
-  const todayIso = todayLocalIso(now);
-  // Index uma vez (não por atividade) — classDays comes do mesmo array de
-  // turmas que `findClosestSubject` já consumiu.
-  const subjectById = new Map<string, TurmaWithSubjectsForForm["subjects"][number]>();
-  for (const turma of turmasWithSubjects) {
-    for (const subject of turma.subjects) {
-      subjectById.set(subject.id, subject);
-    }
-  }
-  return activities.map((a) => {
-    if (a.dueAt !== null) return a;
-    if (!a.resolvedSubjectId) return a;
-    const subject = subjectById.get(a.resolvedSubjectId);
-    if (!subject || subject.classDays.length === 0) return a;
-    const slots = slotsBySubjectId?.get(a.resolvedSubjectId);
-    const next = nextClassDayIso(todayIso, subject.classDays, slots);
-    return next ? { ...a, dueAt: next } : a;
-  });
-}
-
-/**
- * Última camada de fallback de data: qualquer atividade que CONTINUE com
- * `dueAt: null` depois das camadas anteriores recebe o PRÓXIMO DIA ÚTIL
- * (seg-sex) estritamente após hoje, em America/Sao_Paulo. Sexta → próxima
- * segunda; sábado/domingo → próxima segunda. Decisão de produto: escola
- * brasileira não tem aula sáb/dom, então "amanhã puro" (today + 1) cairia
- * no fim de semana em sextas e desviava o user. User ainda pode editar
- * antes de salvar.
- *
- * Per-atividade (não batch-level): cobre tanto "imagem inteira sem data"
- * quanto "atividade isolada que escapou da propagação porque o batch tinha
- * 2+ datas distintas". Atividades que já têm `dueAt` definida (incluindo
- * as preenchidas pelo `applyNextClassDayFallback` via horário da matéria)
- * ficam intactas — essa camada só atua em nulls remanescentes.
- */
-export function applyTomorrowFallback(
-  activities: readonly ParsedActivityInput[],
-  now: Date = new Date(),
-): ParsedActivityInput[] {
-  const next = nextWeekdayIso(todayLocalIso(now));
-  return activities.map((a) => (a.dueAt === null ? { ...a, dueAt: next } : a));
 }
 
 function resolveTurmaAndSubject(input: {

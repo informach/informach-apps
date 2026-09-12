@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("server-only", () => ({}));
+vi.mock("./group-access", () => ({ joinPrivateGroup: vi.fn() }));
 
 vi.mock("@informach/auth/server-actions", () => ({
   ok: <T>(value: T) => ({ ok: true as const, value }),
@@ -76,6 +77,7 @@ const createInput = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.setActiveTurma.mockResolvedValue(true);
 });
 
 describe("createOrJoinTurma", () => {
@@ -104,7 +106,7 @@ describe("createOrJoinTurma", () => {
     );
     expect(mocks.insertTurmaMember).toHaveBeenCalledTimes(1);
     expect(mocks.insertTurmaMember).toHaveBeenCalledWith(turmaId, createInput.profileId);
-    expect(mocks.setActiveTurma).toHaveBeenCalledWith(createInput.profileId, turmaId);
+    expect(mocks.setActiveTurma).toHaveBeenCalledWith(createInput.profileId, turmaId, creator.id);
   });
 });
 

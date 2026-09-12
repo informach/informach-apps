@@ -79,8 +79,13 @@ function activityRow(item: UnifiedActivityListItem): string[] {
   // Discriminator: turma traz schoolName/grade/classLetter; extra usa
   // "Extracurricular" como marca de origem na coluna "Turma" e o nome da
   // matéria do perfil na coluna "Matéria".
-  const subjectName = item.source === "turma" ? item.subjectName : item.profileSubjectName;
-  const turmaLabel = item.source === "turma" ? `${item.grade}${item.classLetter}` : "Extra";
+  const subjectName = item.source === "extra" ? item.profileSubjectName : item.subjectName;
+  const turmaLabel =
+    item.source === "turma"
+      ? `${item.grade}${item.classLetter}`
+      : item.source === "extra"
+        ? "Extra"
+        : "Recado";
   return [
     formatDueDate(item.dueAt),
     ACTIVITY_TYPE_PT[item.type] ?? item.type,

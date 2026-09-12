@@ -8,6 +8,8 @@ import {
   agendaStudentProfiles,
   agendaTurmas,
 } from "@informach/db/schema";
+import { accessibleProfileCondition } from "@/features/family/access";
+import { activeMembershipCondition } from "@/features/turmas/access";
 import type { StudentProfileWithActiveTurma } from "./types";
 
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
@@ -16,7 +18,7 @@ type DbClient = Database | Tx;
 export type NewStudentProfilePayload = {
   userId: string;
   name: string;
-  birthDate: string;
+  birthDate: string | null;
 };
 
 export type StudentProfileUpdatePayload = Pick<NewStudentProfilePayload, "name" | "birthDate">;
@@ -73,7 +75,7 @@ export async function findStudentProfilesByUser(userId: string): Promise<AgendaS
   return db
     .select()
     .from(agendaStudentProfiles)
-    .where(eq(agendaStudentProfiles.userId, userId))
+    .where(accessibleProfileCondition(userId))
     .orderBy(asc(agendaStudentProfiles.createdAt));
 }
 
@@ -134,10 +136,13 @@ export async function findStudentProfilesWithActiveTurmaByUser(
       schoolName: agendaSchools.name,
     })
     .from(agendaStudentProfiles)
-    .leftJoin(agendaTurmas, eq(agendaTurmas.id, agendaStudentProfiles.activeTurmaId))
+    .leftJoin(
+      agendaTurmas,
+      and(eq(agendaTurmas.id, agendaStudentProfiles.activeTurmaId), activeMembershipCondition()),
+    )
     .leftJoin(agendaSchools, eq(agendaSchools.inepCode, agendaTurmas.schoolInepCode))
     .leftJoin(agendaCities, eq(agendaCities.ibgeCode, agendaSchools.cityIbgeCode))
-    .where(eq(agendaStudentProfiles.userId, userId))
+    .where(accessibleProfileCondition(userId))
     .orderBy(asc(agendaStudentProfiles.createdAt));
 
   return rows.map((row) => {
@@ -153,6 +158,7 @@ export async function findStudentProfilesWithActiveTurmaByUser(
         : null;
     return {
       ...profile,
+      activeTurmaId: activeTurma?.id ?? null,
       activeTurma,
     };
   });

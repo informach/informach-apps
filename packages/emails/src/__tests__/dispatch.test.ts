@@ -122,7 +122,7 @@ describe("dispatchEmail sandbox mode", () => {
     expect(result).toEqual({ ok: true, status: "already-sent", deliveryId: "old-id" });
   });
 
-  it("returns skipped when claim returns no rows (raced by another process)", async () => {
+  it("defers when claim returns no rows without attempting a provider send", async () => {
     const { db } = createFakeDb({
       insertResult: [{ id: "fake-id", status: "pending", sendAttempts: 0 }],
       updateResult: [], // UPDATE matched 0 rows
@@ -142,7 +142,8 @@ describe("dispatchEmail sandbox mode", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.status).toBe("skipped");
+    expect(result.status).toBe("deferred");
+    expect(sendMock).not.toHaveBeenCalled();
   });
 });
 

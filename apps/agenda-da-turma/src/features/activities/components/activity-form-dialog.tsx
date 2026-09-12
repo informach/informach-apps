@@ -46,6 +46,7 @@ import { buildActivityFormDefaults, formatTurmaShort, getActivityTypeLabel } fro
 
 type ActivityToEdit = Pick<
   ActivityListItem,
+  | "version"
   | "activityId"
   | "type"
   | "title"
@@ -166,6 +167,7 @@ export function ActivityFormDialog({
         const result = await catchActionResult(() =>
           updateActivityAction({
             id: activity.activityId,
+            version: activity.version,
             subjectId: values.subjectId,
             type: values.type,
             title: values.title,
@@ -201,9 +203,9 @@ export function ActivityFormDialog({
             router.refresh();
             return;
           }
-          if (result.error.code === "HAS_ACCEPTANCES") {
+          if (result.error.code === "VERSION_CONFLICT") {
             toast.error(
-              "Esta atividade já foi aceita por outras famílias e não pode mais ser editada.",
+              "Esta atividade mudou enquanto você editava. Confira a versão atual e tente novamente.",
             );
             onOpenChange(false);
             router.refresh();

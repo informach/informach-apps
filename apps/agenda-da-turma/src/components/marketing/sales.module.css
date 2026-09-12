@@ -1,0 +1,1412 @@
+/* Sales page: scoped layout, existing brand and theme tokens. */
+
+.root * {
+  box-sizing: border-box;
+}
+.root {
+  scroll-behavior: smooth;
+  scroll-padding-top: 32px;
+}
+.root {
+  margin: 0;
+  color: var(--foreground);
+  font-family: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  background: var(--background);
+  font-size: 16px;
+  line-height: 1.65;
+}
+.root button,
+.root a,
+.root input {
+  font: inherit;
+}
+.root button,
+.root a {
+  -webkit-tap-highlight-color: transparent;
+}
+.root a {
+  color: inherit;
+}
+.root button {
+  cursor: pointer;
+}
+.root button:disabled {
+  cursor: default;
+}
+.root button:focus-visible,
+.root a:focus-visible,
+.root summary:focus-visible,
+.root input:focus-visible {
+  outline: 3px solid color-mix(in oklch, var(--secondary) 55%, var(--foreground));
+  outline-offset: 5px;
+}
+.root :where(.home) h1,
+.root :where(.home) h2,
+.root :where(.home) h3,
+.root :where(.home) p {
+  margin: 0;
+}
+.root :where(.home) h1,
+.root :where(.home) h2,
+.root :where(.home) h3 {
+  line-height: 1.15;
+  font-weight: 600;
+}
+.root button {
+  color: inherit;
+}
+.root img {
+  display: block;
+  max-width: 100%;
+}
+.root ::selection {
+  background: color-mix(in oklch, var(--secondary) 9%, var(--background));
+}
+.root .wrap {
+  width: min(1200px, calc(100% - 80px));
+  margin-inline: auto;
+}
+.root .header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  padding-block: 28px;
+}
+.root .logo {
+  width: 196px;
+  height: auto;
+}
+.root .nav {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.root .nav a {
+  text-decoration: none;
+}
+.root .nav a:hover {
+  color: color-mix(in oklch, var(--primary) 80%, var(--foreground));
+}
+.root .nav .login {
+  border: 1px solid var(--border);
+  padding: 9px 19px;
+  border-radius: 9px;
+}
+.root .eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  font-weight: 800;
+  color: color-mix(in oklch, var(--primary) 80%, var(--foreground));
+  text-transform: uppercase;
+}
+.root .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  min-height: 52px;
+  padding: 15px 22px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  text-decoration: none;
+  background: color-mix(in oklch, var(--primary) 94%, var(--foreground));
+  color: var(--primary-foreground);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  box-shadow: 0 7px 20px color-mix(in oklch, var(--primary) 10%, transparent);
+  transition:
+    background 0.2s,
+    transform 0.2s;
+}
+.root .button:hover {
+  background: color-mix(in oklch, var(--primary) 55%, var(--foreground));
+  transform: translateY(-2px);
+}
+.root .button .arrow {
+  font-size: 21px;
+  line-height: 1;
+}
+.root .button.secondary {
+  color: var(--foreground);
+  background: var(--primary-foreground);
+  border-color: var(--border);
+  box-shadow: none;
+}
+.root .textLink {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--foreground);
+  text-underline-offset: 5px;
+}
+.root .fine {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--muted-foreground);
+}
+.root .pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 5px;
+  padding: 3px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.root .pill.blue {
+  color: color-mix(in oklch, var(--primary) 55%, var(--foreground));
+  background: color-mix(in oklch, var(--secondary) 9%, var(--background));
+}
+.root .pill.green {
+  color: color-mix(in oklch, var(--chart-2) 50%, var(--foreground));
+  background: color-mix(in oklch, var(--primary) 9%, var(--background));
+}
+.root .pill.amber {
+  color: color-mix(in oklch, var(--chart-4) 45%, var(--foreground));
+  background: color-mix(in oklch, var(--chart-4) 9%, var(--background));
+}
+.root .pill.pro {
+  color: color-mix(in oklch, var(--secondary) 9%, var(--background));
+  background: color-mix(in oklch, var(--primary) 55%, var(--foreground));
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+.root .tick {
+  display: inline-block;
+  color: color-mix(in oklch, var(--chart-2) 50%, var(--foreground));
+  font-weight: 800;
+}
+.root .section {
+  padding-block: 98px;
+}
+.root .sectionHead {
+  max-width: 660px;
+}
+.root .sectionHead h2 {
+  font-size: 42px;
+  letter-spacing: -1.65px;
+  margin-top: 14px;
+}
+.root .sectionHead > p:last-child {
+  color: var(--muted-foreground);
+  font-size: 16px;
+  margin-top: 20px;
+  max-width: 580px;
+}
+.root .hero {
+  display: grid;
+  grid-template-columns: 1.04fr 1fr;
+  gap: 34px;
+  align-items: center;
+  padding-block: 52px 88px;
+}
+.root .hero h1 {
+  font-size: clamp(48px, 4.6vw, 66px);
+  font-weight: 700;
+  letter-spacing: -3px;
+  line-height: 1.075;
+  margin-top: 21px;
+  max-width: 610px;
+}
+.root .hero h1 em {
+  font-style: normal;
+  color: var(--primary);
+}
+.root .heroCopy > p.description {
+  font-size: 16px;
+  color: var(--muted-foreground);
+  line-height: 1.8;
+  max-width: 485px;
+  margin-top: 25px;
+}
+.root .heroActions {
+  margin-top: 28px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex-direction: column;
+}
+.root .hero .fine {
+  margin-top: 12px;
+}
+.root .heroContext {
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+  margin-top: 27px;
+  max-width: 440px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.root .heroContext strong {
+  color: var(--foreground);
+  font-weight: 600;
+}
+.root .heroContext p + p {
+  margin-top: 4px;
+}
+.root .heroStage {
+  position: relative;
+  padding: 42px 18px 24px;
+  min-width: 0;
+  background: color-mix(in oklch, var(--primary) 7%, var(--background));
+  border-radius: 28px;
+}
+.root .stageLabel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 18px 26px;
+  gap: 15px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--muted-foreground);
+}
+.root .stageLabel strong {
+  font-size: 12px;
+  font-weight: 700;
+}
+.root .stageLabel span {
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.root .note {
+  position: relative;
+  background: color-mix(in oklch, var(--primary) 9%, var(--background));
+  border: 1px solid color-mix(in oklch, var(--chart-4) 9%, var(--background));
+  box-shadow: 0 12px 20px color-mix(in oklch, var(--primary) 5%, transparent);
+  border-radius: 9px;
+  padding: 18px 20px;
+  margin: 0 60px 0 8px;
+  transform: rotate(-3deg);
+}
+.root .note .noteHeading {
+  font-size: 10px;
+  font-weight: 700;
+  color: color-mix(in oklch, var(--primary) 55%, var(--foreground));
+  letter-spacing: 0.08em;
+  margin-bottom: 9px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.root .note p {
+  font-size: 12px;
+  line-height: 1.8;
+}
+.root .note mark {
+  background: color-mix(in oklch, var(--chart-4) 9%, var(--background));
+  color: var(--foreground);
+  padding: 0 2px;
+}
+.root .attachment {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border-top: 1px solid color-mix(in oklch, var(--chart-4) 9%, var(--background));
+  padding-top: 10px;
+  margin-top: 12px;
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.root .pdf {
+  display: inline-grid;
+  place-items: center;
+  background: color-mix(in oklch, var(--chart-4) 9%, var(--background));
+  color: color-mix(in oklch, var(--chart-4) 55%, var(--foreground));
+  border-radius: 4px;
+  width: 26px;
+  height: 31px;
+  font-size: 8px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.root .flowCaption {
+  font-size: 11px;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 20px 16px 14px;
+  color: color-mix(in oklch, var(--primary) 55%, var(--foreground));
+  font-weight: 700;
+}
+.root .routine {
+  position: relative;
+  margin-left: 39px;
+  border: 1px solid color-mix(in oklch, var(--secondary) 9%, var(--background));
+  background: var(--primary-foreground);
+  box-shadow: 0 20px 35px color-mix(in oklch, var(--primary) 7%, transparent);
+  border-radius: 14px;
+  padding: 22px;
+}
+.root .routineTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 19px;
+}
+.root .routine h3 {
+  font-size: 20px;
+  letter-spacing: -0.6px;
+}
+.root .routineSub {
+  font-size: 10px;
+  color: var(--muted-foreground);
+  margin-top: 4px;
+}
+.root .miniAvatar {
+  width: 29px;
+  height: 29px;
+  border-radius: 50%;
+  display: inline-grid;
+  place-items: center;
+  background: color-mix(in oklch, var(--secondary) 9%, var(--background));
+  color: color-mix(in oklch, var(--secondary) 55%, var(--foreground));
+  font-weight: 800;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+.root .task {
+  display: grid;
+  grid-template-columns: 29px 1fr;
+  gap: 12px;
+  padding: 13px 0;
+  border-top: 1px solid color-mix(in oklch, var(--primary) 9%, var(--background));
+}
+.root .dateTile {
+  font-size: 9px;
+  text-align: center;
+  line-height: 1.4;
+  color: var(--muted-foreground);
+  padding-top: 3px;
+}
+.root .dateTile b {
+  display: block;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+.root .taskTitle {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+.root .taskDetail {
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.root .task .pill {
+  margin-top: 6px;
+  font-size: 9px;
+}
+.root .heroStage > .fine {
+  text-align: center;
+  font-size: 9px;
+  padding-top: 18px;
+}
+.root .sourceStrip {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 22px 0;
+}
+.root .sourceStrip .wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 25px;
+}
+.root .sourceStrip p {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.root .sourceNames {
+  display: flex;
+  gap: 30px;
+  font-size: 15px;
+  letter-spacing: -0.3px;
+  font-weight: 600;
+}
+.root .sourceNames span:last-child {
+  color: var(--muted-foreground);
+  font-weight: 500;
+}
+.root .demoSection {
+  background: var(--muted);
+}
+.root .demoHeading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 32px;
+}
+.root .scenarioOptions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.root .scenarioOptions button {
+  background: transparent;
+  border: 1px solid var(--border);
+  min-height: 44px;
+  border-radius: 7px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.root .scenarioOptions button[aria-pressed="true"] {
+  background: var(--foreground);
+  color: var(--primary-foreground);
+  border-color: var(--foreground);
+}
+.root .demo {
+  display: grid;
+  grid-template-columns: 1fr 1.12fr;
+  gap: 24px;
+  margin-top: 36px;
+}
+.root .demoSource {
+  padding: 32px;
+  background: var(--primary-foreground);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  align-self: start;
+}
+.root .demoLabel {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+}
+.root .demoSource blockquote {
+  margin: 22px 0 20px;
+  font-size: 20px;
+  line-height: 1.7;
+  letter-spacing: -0.3px;
+}
+.root .demoSource .attachment {
+  font-size: 12px;
+  align-items: flex-start;
+  border-color: var(--border);
+  padding-top: 20px;
+}
+.root .demoSource .fine {
+  margin-top: 20px;
+}
+.root .demoOutput {
+  border-radius: 16px;
+  border: 1px solid color-mix(in oklch, var(--secondary) 9%, var(--background));
+  background: var(--primary-foreground);
+  padding: 30px;
+  min-width: 0;
+}
+.root .outputHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+.root .outputHeader h3 {
+  font-size: 18px;
+  letter-spacing: -0.4px;
+}
+.root .outputRow {
+  padding: 17px 0;
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 12px;
+}
+.root .outputRow input {
+  width: 19px;
+  height: 19px;
+  accent-color: var(--primary);
+  margin: 3px 0 0;
+  cursor: pointer;
+}
+.root .outputRow label {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.root .outputRow:has(input:checked) label {
+  text-decoration: line-through;
+  color: var(--muted-foreground);
+}
+.root .outputRow .meta {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  margin-top: 5px;
+}
+.root .outputRow .pill {
+  margin-top: 8px;
+}
+.root .planButton {
+  display: block;
+  background: var(--primary-foreground);
+  border: 1px solid color-mix(in oklch, var(--secondary) 9%, var(--background));
+  border-radius: 6px;
+  min-height: 44px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: color-mix(in oklch, var(--primary) 55%, var(--foreground));
+  margin-top: 12px;
+}
+.root .planButton:disabled {
+  color: color-mix(in oklch, var(--chart-2) 50%, var(--foreground));
+  border-color: color-mix(in oklch, var(--chart-2) 9%, var(--background));
+  background: color-mix(in oklch, var(--primary) 9%, var(--background));
+}
+.root .demoFoot {
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 28px;
+}
+.root .demoFoot > p {
+  max-width: 470px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+.root .demoFoot .button {
+  font-size: 12px;
+}
+.root .demoState {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  padding-top: 15px;
+  border-top: 1px solid var(--border);
+  min-height: 45px;
+}
+.root .recognition {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: 90px;
+}
+.root .recognition h2 {
+  font-size: 43px;
+  letter-spacing: -1.8px;
+  max-width: 420px;
+  margin-top: 15px;
+}
+.root .recognition p {
+  font-size: 16px;
+  line-height: 1.85;
+  color: var(--muted-foreground);
+  margin-top: 20px;
+}
+.root .proofRows {
+  padding-top: 8px;
+}
+.root .proofRow {
+  display: grid;
+  grid-template-columns: 35px 1fr;
+  gap: 18px;
+  border-bottom: 1px solid var(--border);
+  padding: 22px 0;
+}
+.root .proofRow:first-child {
+  padding-top: 0;
+}
+.root .proofNumber {
+  font-size: 13px;
+  color: color-mix(in oklch, var(--primary) 80%, var(--foreground));
+  font-weight: 700;
+}
+.root .proofRow h3 {
+  font-size: 19px;
+  letter-spacing: -0.5px;
+}
+.root .proofRow p {
+  font-size: 13px;
+  margin-top: 7px;
+}
+.root .family {
+  background: color-mix(in oklch, var(--primary) 25%, var(--foreground));
+  color: var(--primary-foreground);
+  border-radius: 24px;
+  padding: 62px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 66px;
+  align-items: center;
+}
+.root .family .eyebrow {
+  color: color-mix(in oklch, var(--secondary) 9%, var(--background));
+}
+.root .family h2 {
+  font-size: 41px;
+  letter-spacing: -1.5px;
+  margin-top: 20px;
+}
+.root .family .lead {
+  color: color-mix(in oklch, var(--secondary) 9%, var(--background));
+  font-size: 15px;
+  line-height: 1.9;
+  margin-top: 22px;
+}
+.root .family .familyNote {
+  color: color-mix(in oklch, var(--secondary) 9%, var(--background));
+  font-size: 12px;
+  margin-top: 20px;
+}
+.root .familyProof {
+  background: var(--background);
+  color: var(--foreground);
+  padding: 27px;
+  border-radius: 14px;
+}
+.root .familyProofHead {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+.root .avatarPair {
+  display: flex;
+  padding-right: 10px;
+}
+.root .avatarPair .miniAvatar + .miniAvatar {
+  background: color-mix(in oklch, var(--primary) 9%, var(--background));
+  color: color-mix(in oklch, var(--chart-2) 55%, var(--foreground));
+  margin-left: -6px;
+  outline: 2px solid var(--background);
+}
+.root .familyProof h3 {
+  font-size: 19px;
+  letter-spacing: -0.5px;
+}
+.root .familyProof .caption {
+  font-size: 10px;
+  color: var(--muted-foreground);
+  margin: 10px 0 20px;
+}
+.root .assignment {
+  padding: 15px 0;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  align-items: center;
+}
+.root .assignment strong {
+  font-size: 12px;
+  display: block;
+}
+.root .assignment small {
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.root .person {
+  padding: 5px 9px;
+  border-radius: 5px;
+  font-size: 11px;
+  background: color-mix(in oklch, var(--secondary) 9%, var(--background));
+  color: color-mix(in oklch, var(--secondary) 55%, var(--foreground));
+  white-space: nowrap;
+}
+.root .person.second {
+  background: color-mix(in oklch, var(--primary) 9%, var(--background));
+  color: color-mix(in oklch, var(--chart-2) 55%, var(--foreground));
+}
+.root .reminderPreview {
+  border-top: 1px solid var(--border);
+  padding-top: 17px;
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.root .reminderPreview strong {
+  color: var(--foreground);
+  display: block;
+  margin-bottom: 5px;
+}
+.root .trust {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 90px;
+}
+.root .trust h2 {
+  font-size: 41px;
+  letter-spacing: -1.5px;
+  margin-top: 16px;
+}
+.root .trust p {
+  font-size: 15px;
+  line-height: 1.9;
+  color: var(--muted-foreground);
+  margin-top: 21px;
+}
+.root .change {
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 34px;
+}
+.root .change h3 {
+  font-size: 18px;
+  margin-top: 15px;
+}
+.root .changeDates {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  margin-top: 25px;
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -1px;
+}
+.root .changeDates del {
+  color: color-mix(in oklch, var(--primary) 55%, var(--foreground));
+  text-decoration-thickness: 1px;
+}
+.root .changeDates span {
+  color: var(--primary);
+}
+.root .changeDates .changeArrow {
+  font-size: 22px;
+  color: var(--muted-foreground);
+}
+.root .change p {
+  font-size: 12px;
+  margin-top: 12px;
+}
+.root .trustPoints {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+  margin-top: 24px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.root .trustPoints span::before {
+  content: "✓";
+  color: color-mix(in oklch, var(--chart-2) 50%, var(--foreground));
+  font-weight: 800;
+  margin-right: 7px;
+}
+.root .pricingSection {
+  background: var(--muted);
+  border-block: 1px solid var(--border);
+}
+.root .pricingHead {
+  text-align: center;
+  margin: auto;
+  max-width: 700px;
+}
+.root .pricingHead h2 {
+  font-size: 43px;
+  letter-spacing: -1.8px;
+  margin-top: 16px;
+}
+.root .pricingHead p:last-child {
+  color: var(--muted-foreground);
+  margin-top: 19px;
+  font-size: 15px;
+}
+.root .cycle {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  margin: 29px auto 35px;
+  background: color-mix(in oklch, var(--primary) 9%, var(--background));
+  padding: 5px;
+  border-radius: 10px;
+  width: fit-content;
+}
+.root .cycle button {
+  min-height: 44px;
+  border: 0;
+  padding: 10px 18px;
+  border-radius: 7px;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+}
+.root .cycle button[aria-pressed="true"] {
+  background: var(--primary-foreground);
+  box-shadow: 0 2px 6px color-mix(in oklch, var(--primary) 6%, transparent);
+}
+.root .cycle span {
+  color: color-mix(in oklch, var(--chart-2) 55%, var(--foreground));
+  font-size: 10px;
+  margin-left: 7px;
+}
+.root .priceGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  max-width: 900px;
+  margin-inline: auto;
+}
+.root .priceCard {
+  background: var(--primary-foreground);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 35px;
+  display: flex;
+  flex-direction: column;
+}
+.root .priceCard.proCard {
+  border: 2px solid var(--primary);
+  padding: 34px;
+  box-shadow: 0 10px 35px color-mix(in oklch, var(--primary) 3%, transparent);
+}
+.root .planName {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.root .priceCard .intro {
+  font-size: 13px;
+  color: var(--muted-foreground);
+  margin-top: 12px;
+  max-width: 300px;
+}
+.root .price {
+  font-size: 44px;
+  font-weight: 700;
+  letter-spacing: -2px;
+  line-height: 1.3;
+  margin-top: 23px;
+}
+.root .price small {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--muted-foreground);
+}
+.root .billingNote {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  min-height: 42px;
+  margin-top: 6px;
+}
+.root .priceCard ul {
+  list-style: none;
+  padding: 22px 0;
+  margin: 0;
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 12px;
+  font-size: 12px;
+}
+.root .priceCard li {
+  display: flex;
+  gap: 9px;
+}
+.root .priceCard li::before {
+  content: "✓";
+  font-weight: 700;
+  color: color-mix(in oklch, var(--chart-2) 50%, var(--foreground));
+}
+.root .priceCard .button {
+  width: 100%;
+  margin-top: auto;
+}
+.root .priceCard .fine {
+  margin-top: 14px;
+}
+.root .pricingUnder {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  max-width: 780px;
+  text-align: center;
+  margin: 25px auto 0;
+}
+.root .faq {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 80px;
+}
+.root .faq h2 {
+  font-size: 41px;
+  letter-spacing: -1.5px;
+  margin-top: 16px;
+}
+.root .faqIntro > p:last-child {
+  font-size: 14px;
+  color: var(--muted-foreground);
+  margin-top: 20px;
+}
+.root .faq details {
+  border-bottom: 1px solid var(--border);
+  padding: 20px 0;
+}
+.root .faq details:first-child {
+  padding-top: 0;
+}
+.root .faq summary {
+  list-style: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+  min-height: 32px;
+}
+.root .faq summary::-webkit-details-marker {
+  display: none;
+}
+.root .faq summary::after {
+  content: "+";
+  font-size: 22px;
+  font-weight: 400;
+  flex-shrink: 0;
+  color: var(--primary);
+}
+.root .faq details[open] summary::after {
+  content: "−";
+}
+.root .faq details p {
+  font-size: 13px;
+  color: var(--muted-foreground);
+  line-height: 1.9;
+  margin-top: 17px;
+}
+.root .closing {
+  padding: 70px 30px;
+  background: color-mix(in oklch, var(--primary) 7%, var(--background));
+  border-radius: 24px;
+  text-align: center;
+}
+.root .closing h2 {
+  max-width: 750px;
+  margin: auto;
+  font-size: 45px;
+  letter-spacing: -1.8px;
+}
+.root .closing > p {
+  max-width: 535px;
+  margin: 20px auto 27px;
+  color: var(--muted-foreground);
+  font-size: 15px;
+}
+.root .closing .fine {
+  margin: 14px 0 0;
+  font-size: 11px;
+  max-width: none;
+}
+.root .footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 25px;
+  padding-block: 37px 28px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.root .footer .logo {
+  width: 158px;
+}
+.root .footer a {
+  text-underline-offset: 4px;
+}
+@media (min-width: 1550px) {
+  .root .hero h1 {
+    font-size: 69px;
+  }
+}
+@media (max-width: 1100px) {
+  .root .wrap {
+    width: calc(100% - 48px);
+  }
+  .root .hero {
+    gap: 26px;
+  }
+  .root .hero h1 {
+    font-size: 53px;
+    letter-spacing: -2.4px;
+  }
+  .root .heroStage {
+    padding: 25px 12px 18px;
+  }
+  .root .note {
+    margin-right: 30px;
+  }
+  .root .routine {
+    margin-left: 22px;
+    padding: 18px;
+  }
+  .root .demoHeading {
+    display: block;
+  }
+  .root .scenarioOptions {
+    margin-top: 24px;
+  }
+  .root .family {
+    padding: 40px;
+    gap: 35px;
+  }
+  .root .recognition,
+  .root .trust,
+  .root .faq {
+    gap: 40px;
+  }
+}
+@media (max-width: 780px) {
+  .root .wrap {
+    width: calc(100% - 40px);
+  }
+  .root .header {
+    padding-block: 20px;
+  }
+  .root .logo {
+    width: 173px;
+  }
+  .root .nav {
+    gap: 0;
+  }
+  .root .nav > a:not(.login) {
+    display: none;
+  }
+  .root .nav .login {
+    padding: 7px 13px;
+    font-size: 12px;
+  }
+  .root .hero {
+    grid-template-columns: 1fr;
+    padding-block: 27px 40px;
+    gap: 35px;
+  }
+  .root .hero h1 {
+    font-size: 47px;
+    letter-spacing: -2.2px;
+    line-height: 1.09;
+    max-width: 570px;
+  }
+  .root .heroCopy > p.description {
+    font-size: 15px;
+    margin-top: 21px;
+    max-width: 550px;
+  }
+  .root .heroActions {
+    margin-top: 24px;
+  }
+  .root .heroActions > .button {
+    width: 100%;
+    max-width: 410px;
+  }
+  .root .hero .fine {
+    font-size: 10px;
+  }
+  .root .heroContext {
+    margin-top: 23px;
+    padding-top: 17px;
+    max-width: none;
+  }
+  .root .heroStage {
+    max-width: 570px;
+    width: 100%;
+    margin-inline: auto;
+    padding: 27px 16px 19px;
+  }
+  .root .stageLabel {
+    padding-inline: 3px;
+  }
+  .root .note {
+    margin: 0 24px 0 3px;
+  }
+  .root .routine {
+    margin-left: 20px;
+    padding: 20px;
+  }
+  .root .routine h3 {
+    font-size: 20px;
+  }
+  .root .taskTitle {
+    font-size: 12px;
+  }
+  .root .taskDetail {
+    font-size: 10px;
+  }
+  .root .sourceStrip {
+    padding: 21px 0;
+  }
+  .root .sourceStrip .wrap {
+    align-items: flex-start;
+    gap: 12px;
+    flex-direction: column;
+  }
+  .root .sourceNames {
+    font-size: 13px;
+    gap: 22px;
+  }
+  .root .sourceStrip p {
+    font-size: 11px;
+  }
+  .root .section {
+    padding-block: 62px;
+  }
+  .root .sectionHead h2,
+  .root .recognition h2,
+  .root .family h2,
+  .root .trust h2,
+  .root .pricingHead h2,
+  .root .faq h2 {
+    font-size: 33px;
+    letter-spacing: -1.2px;
+  }
+  .root .sectionHead > p:last-child {
+    font-size: 14px;
+  }
+  .root .demo {
+    grid-template-columns: 1fr;
+    gap: 17px;
+    margin-top: 24px;
+  }
+  .root .demoSource,
+  .root .demoOutput {
+    padding: 24px;
+  }
+  .root .demoSource blockquote {
+    font-size: 17px;
+  }
+  .root .demoFoot {
+    display: block;
+    margin-top: 22px;
+  }
+  .root .demoFoot .button {
+    margin-top: 19px;
+    width: 100%;
+  }
+  .root .recognition,
+  .root .family,
+  .root .trust,
+  .root .faq {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+  .root .recognition p {
+    font-size: 14px;
+  }
+  .root .proofRow p {
+    font-size: 13px;
+  }
+  .root .family {
+    padding: 30px 24px;
+    border-radius: 16px;
+  }
+  .root .family .lead {
+    font-size: 14px;
+  }
+  .root .familyProof {
+    padding: 22px;
+  }
+  .root .familyProof h3 {
+    font-size: 17px;
+  }
+  .root .assignment {
+    gap: 10px;
+  }
+  .root .trust {
+    gap: 28px;
+  }
+  .root .trust p {
+    font-size: 14px;
+  }
+  .root .change {
+    padding: 27px;
+  }
+  .root .change p {
+    font-size: 12px;
+  }
+  .root .changeDates {
+    font-size: 31px;
+    gap: 24px;
+  }
+  .root .priceGrid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .root .priceCard,
+  .root .priceCard.proCard {
+    padding: 28px;
+  }
+  .root .priceCard .intro {
+    max-width: none;
+  }
+  .root .priceCard .billingNote {
+    min-height: 0;
+    margin-bottom: 23px;
+  }
+  .root .pricingHead p:last-child {
+    font-size: 14px;
+  }
+  .root .price {
+    font-size: 42px;
+  }
+  .root .faq {
+    gap: 35px;
+  }
+  .root .closing {
+    padding: 44px 24px;
+    border-radius: 16px;
+  }
+  .root .closing h2 {
+    font-size: 34px;
+    letter-spacing: -1.4px;
+  }
+  .root .closing > p {
+    font-size: 14px;
+  }
+  .root .closing .button {
+    width: 100%;
+  }
+  .root .footer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .root .footer > div {
+    display: flex;
+    gap: 17px;
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 360px) {
+  .root .wrap {
+    width: calc(100% - 30px);
+  }
+  .root .hero h1 {
+    font-size: 41px;
+  }
+  .root .hero .button {
+    font-size: 12px;
+  }
+  .root .heroStage {
+    padding-inline: 11px;
+  }
+  .root .routine {
+    margin-left: 6px;
+  }
+  .root .note {
+    margin-right: 12px;
+    padding: 16px;
+  }
+  .root .stageLabel {
+    padding-bottom: 20px;
+  }
+  .root .stageLabel strong {
+    font-size: 11px;
+  }
+  .root .sourceNames {
+    gap: 14px;
+    font-size: 12px;
+  }
+  .root .family {
+    padding: 26px 19px;
+  }
+  .root .familyProof {
+    padding: 18px;
+  }
+  .root .assignment strong {
+    font-size: 11px;
+  }
+  .root .person {
+    font-size: 10px;
+  }
+  .root .scenarioOptions {
+    gap: 5px;
+  }
+  .root .scenarioOptions button {
+    font-size: 11px;
+    padding: 8px 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    scroll-behavior: auto;
+  }
+  .root .button {
+    transition: none;
+  }
+  .root .button:hover {
+    transform: none;
+  }
+}
+
+.root {
+  min-height: 100vh;
+}
+.root .heroStage > .fine {
+  font-size: 11px;
+}
+.root .fine {
+  font-size: 12px;
+}
+.root .family {
+  color: var(--background);
+}
+.root .family .eyebrow,
+.root .family .lead,
+.root .family .familyNote {
+  color: inherit;
+}
+.root .familyProof {
+  color: var(--foreground);
+}
+.root .heroCtaNote {
+  margin-top: 12px;
+}
+.root .footerNav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.root .company {
+  padding-bottom: 24px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.root .demoOutput {
+  animation: reveal 0.2s ease-out;
+}
+.root [id] {
+  scroll-margin-top: 24px;
+}
+@keyframes reveal {
+  from {
+    opacity: 0.6;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .root .demoOutput {
+    animation: none;
+  }
+}
+
+.root .faq summary {
+  min-height: 44px;
+}
+.root .nav .login {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.root .outputRow input {
+  margin: 0;
+  width: 22px;
+  height: 44px;
+}

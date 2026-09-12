@@ -3,6 +3,19 @@ import { describe, expect, it } from "vitest";
 import { scrubSentryEvent } from "./sentry-scrub";
 
 describe("scrubSentryEvent", () => {
+  it("removes bearer calendar links, invitation tokens and SQL parameters", async () => {
+    const token = "a".repeat(64);
+    const result = await scrubSentryEvent({
+      type: undefined,
+      request: { url: `https://example.com/api/calendario/${token}` },
+      breadcrumbs: [{ data: { url: `https://example.com/familia/convite?token=${token}` } }],
+      exception: {
+        values: [{ value: "Failed query: insert notice params: private school content" }],
+      },
+    });
+    expect(JSON.stringify(result)).not.toContain(token);
+    expect(JSON.stringify(result)).not.toContain("private school content");
+  });
   it("hashes emails and removes request PII before sending to Sentry", async () => {
     const event: ErrorEvent = {
       type: undefined,

@@ -38,6 +38,8 @@ const dbMocks = vi.hoisted(() => {
 vi.mock("server-only", () => ({}));
 
 vi.mock("@informach/db/schema", () => ({
+  agendaFamilyMembers: "family_members",
+  agendaFamilyProfileAccess: "family_profile_access",
   agendaStudentProfiles: {
     createdAt: "created_at",
     id: "id",
@@ -48,6 +50,7 @@ vi.mock("@informach/db/schema", () => ({
 }));
 
 vi.mock("@informach/db", () => ({
+  or: (...args: unknown[]) => ({ or: args }),
   and: dbMocks.and,
   asc: dbMocks.asc,
   count: dbMocks.count,

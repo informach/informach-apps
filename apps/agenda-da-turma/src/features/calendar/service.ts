@@ -1,6 +1,8 @@
 import "server-only";
 
 import { billing } from "@/features/billing/service";
+import { noticeCalendarItems } from "@/features/notices/calendar";
+import { listNoticeActions } from "@/features/notices/repository";
 import { listProfileActivitiesInDateRange } from "@/features/profile-subject-activities/repository";
 import { type UnifiedActivityListItem, withTurmaSource } from "@/features/unified-activities/types";
 import { rangeForView } from "./date";
@@ -29,7 +31,7 @@ export async function getCalendarSnapshot(
   const isPro = await billing.hasProSubscription(userSubject(userId));
   const { fromIso, toIso } = rangeForView(options.anchorIso, options.view);
 
-  const [turmaItems, extraItems] = await Promise.all([
+  const [turmaItems, extraItems, noticeItems] = await Promise.all([
     listActivitiesInDateRange(userId, {
       fromIso,
       toIso,
@@ -44,9 +46,19 @@ export async function getCalendarSnapshot(
       // quer ver atividade antiga no grid. Histórico fica em /atividades.
       includePausedSubjects: false,
     }),
+    listNoticeActions(userId, {
+      from: fromIso,
+      to: toIso,
+      profileId: options.profileFilter ?? undefined,
+      includeFinished: true,
+    }),
   ]);
 
-  const items: UnifiedActivityListItem[] = [...turmaItems.map(withTurmaSource), ...extraItems];
+  const items: UnifiedActivityListItem[] = [
+    ...turmaItems.map(withTurmaSource),
+    ...extraItems,
+    ...noticeCalendarItems(noticeItems),
+  ];
   items.sort((a, b) => {
     if (a.dueAt !== b.dueAt) return a.dueAt.localeCompare(b.dueAt);
     return a.activityCreatedAt.getTime() - b.activityCreatedAt.getTime();

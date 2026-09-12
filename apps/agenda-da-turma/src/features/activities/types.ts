@@ -5,10 +5,12 @@ export type ActivityVisibility = "individual" | "shared_with_turma";
 export type ActivityStatusValue = "pending" | "done";
 
 export type Activity = {
+  version: number;
+  canceledAt?: Date | null;
   id: string;
   turmaId: string;
   subjectId: string;
-  createdByUserId: string;
+  createdByUserId: string | null;
   type: ActivityType;
   visibility: ActivityVisibility;
   title: string;
@@ -24,6 +26,8 @@ export type Activity = {
 // `studentProfileId` e `status`. O `hasOtherAcceptances` é o gate de edit/delete
 // pro creator (true quando outra família já aceitou).
 export type ActivityListItem = {
+  version: number;
+  canceledAt?: Date | null;
   activityId: string;
   statusId: string;
   status: ActivityStatusValue;
@@ -45,7 +49,8 @@ export type ActivityListItem = {
   // Necessário pro cursor de paginação (tiebreaker estável quando vários
   // perfis compartilham a mesma atividade — mesma dueAt). Não usado na UI.
   activityCreatedAt: Date;
-  createdByUserId: string;
+  activityUpdatedAt?: Date;
+  createdByUserId: string | null;
   hasOtherAcceptances: boolean;
 };
 
@@ -62,7 +67,7 @@ export type PendingSharedActivity = {
   grade: string;
   classLetter: string;
   year: number;
-  createdByUserId: string;
+  createdByUserId: string | null;
   createdByUserName: string | null;
 };
 

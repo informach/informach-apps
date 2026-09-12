@@ -140,11 +140,13 @@ export function formatTurmaShort(grade: string, classLetter: string, year: numbe
 // que outra família já considera certa pra rotina dela. Service replica a
 // regra; UI só esconde o botão. Reutilizado em ActivityCard e ActivityDetailDialog.
 export function canEditActivity(
-  item: Pick<ActivityListItem, "createdByUserId" | "visibility" | "hasOtherAcceptances">,
+  item: Pick<
+    ActivityListItem,
+    "createdByUserId" | "visibility" | "hasOtherAcceptances" | "canceledAt"
+  >,
   currentUserId: string,
 ): boolean {
-  if (item.createdByUserId !== currentUserId) return false;
-  if (item.visibility === "shared_with_turma" && item.hasOtherAcceptances) return false;
+  if (item.createdByUserId !== currentUserId || item.canceledAt) return false;
   return true;
 }
 

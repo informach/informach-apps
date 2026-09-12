@@ -1,0 +1,29 @@
+
+> @informach/agenda-da-turma@0.0.0 test:ai-eval C:\Users\tocha\projects\informach-apps\apps\agenda-da-turma
+> vitest run --config vitest.eval.config.ts
+
+
+ RUN  v2.1.9 C:/Users/tocha/projects/informach-apps/apps/agenda-da-turma
+
+ ✓ test/evaluation/notices.eval.ts (16 tests) 30930ms
+   ✓ real notice extraction: synthetic corpus > 'relative-date-publication-in-original' 2340ms
+   ✓ real notice extraction: synthetic corpus > 'notice-with-no-action' 1003ms
+   ✓ real notice extraction: synthetic corpus > 'explicit-correction' 1449ms
+   ✓ real notice extraction: synthetic corpus > 'conflicting-attachment' 1911ms
+   ✓ real notice extraction: synthetic corpus > 'image-attachment' 2963ms
+   ✓ real notice extraction: synthetic corpus > 'image-embedded-in-pdf' 4295ms
+   ✓ real notice extraction: synthetic corpus > 'separate-deadlines' 2376ms
+   ✓ real notice extraction: synthetic corpus > 'publication-is-not-deadline' 1467ms
+   ✓ real notice extraction: synthetic corpus > 'old-relative-post' 1455ms
+   ✓ real notice extraction: synthetic corpus > 'relative-without-reference' 3046ms
+   ✓ real notice extraction: synthetic corpus > 'friday-is-not-monday' 1389ms
+   ✓ real notice extraction: synthetic corpus > 'past-year-preserved' 1243ms
+   ✓ real notice extraction: synthetic corpus > 'untrusted-instructions' 1476ms
+   ✓ real notice extraction: synthetic corpus > 'message-and-pdf' 2113ms
+   ✓ real notice extraction: synthetic corpus > 'selected-fourth-page' 1293ms
+   ✓ real notice extraction: synthetic corpus > 'same-action-in-text-and-pdf' 1078ms
+
+ Test Files  1 passed (1)
+      Tests  16 passed (16)
+   Start at  23:33:44
+   Duration  33.18s (transform 158ms, setup 0ms, collect 1.86s, tests 30.93s, environment 0ms, prepare 120ms)

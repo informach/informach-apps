@@ -1,0 +1,1 @@
+ALTER TABLE "agenda"."product_events" ADD COLUMN "landing_context" jsonb;

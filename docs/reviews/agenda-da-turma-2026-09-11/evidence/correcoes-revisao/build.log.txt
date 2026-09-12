@@ -1,0 +1,87 @@
+
+> @informach/agenda-da-turma@0.0.0 build C:\Users\tocha\projects\informach-apps\apps\agenda-da-turma
+> next build
+
+▲ Next.js 16.2.6 (Turbopack)
+- Environments: .env.local
+- Experiments (use with caution):
+  · clientTraceMetadata
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 32.7s
+  Running next.config.js provided runAfterProductionCompile ...
+✓ Completed runAfterProductionCompile in 877ms
+  Running TypeScript ...
+  Finished TypeScript in 26.9s ...
+  Collecting page data using 11 workers ...
+  Generating static pages using 11 workers (0/50) ...
+  Generating static pages using 11 workers (12/50)
+  Generating static pages using 11 workers (24/50)
+  Generating static pages using 11 workers (37/50)
+✓ Generating static pages using 11 workers (50/50) in 1698ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ƒ /_not-found
+├ ƒ /api/ai/activities/parse-image
+├ ƒ /api/ai/activities/parse-pdf
+├ ƒ /api/ai/activities/parse-voice
+├ ƒ /api/ai/activities/transcribe
+├ ƒ /api/ai/subjects/parse-image
+├ ƒ /api/ai/subjects/parse-voice
+├ ƒ /api/ai/transcribe
+├ ƒ /api/auth/[...all]
+├ ƒ /api/calendario/[token]
+├ ƒ /api/data/cities
+├ ƒ /api/data/export
+├ ƒ /api/data/schools
+├ ƒ /api/data/states
+├ ƒ /api/email/unsubscribe
+├ ƒ /api/health
+├ ƒ /api/jobs/agenda-routine
+├ ƒ /api/jobs/billing-dunning
+├ ƒ /api/jobs/billing-expire-bonus
+├ ƒ /api/jobs/billing-grant-monthly
+├ ƒ /api/jobs/billing-reconcile
+├ ƒ /api/jobs/billing-release-reservations
+├ ƒ /api/jobs/email-recover-stale
+├ ƒ /api/jobs/email-retry
+├ ƒ /api/jobs/email-suppression-sync
+├ ƒ /api/product-event
+├ ƒ /api/recados/[id]/anexo
+├ ƒ /api/recados/parse
+├ ƒ /api/webhooks/sendgrid
+├ ƒ /api/webhooks/stripe
+├ ○ /apple-icon.png
+├ ƒ /atividades
+├ ƒ /atividades/[id]/historico
+├ ƒ /calendario
+├ ƒ /choose-plan
+├ ƒ /dashboard
+├ ƒ /familia
+├ ƒ /familia/convite
+├ ○ /icon.png
+├ ○ /icon.svg
+├ ƒ /login
+├ ○ /manifest.webmanifest
+├ ƒ /perfis
+├ ƒ /perfis/[id]/extras
+├ ƒ /perfis/[id]/extras/[subjectId]
+├ ƒ /privacidade
+├ ƒ /recados
+├ ƒ /recados/acoes/[id]
+├ ƒ /recados/novo
+├ ƒ /settings/account
+├ ƒ /settings/billing
+├ ƒ /signup
+├ ƒ /turmas
+├ ƒ /turmas/[turmaId]/acesso
+├ ƒ /turmas/[turmaId]/materias
+└ ƒ /upgrade
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand

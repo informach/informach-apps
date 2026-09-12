@@ -3,6 +3,7 @@ import "server-only";
 import { and, db, eq, inArray, sql } from "@informach/db";
 import { agendaProfileSubjects, agendaStudentProfiles, agendaSubjects } from "@informach/db/schema";
 import { pickAvailableColorIndex, type SubjectColorIndex } from "@/features/subjects/utils";
+import { activeMembershipCondition } from "@/features/turmas/access";
 
 // Escolhe `colorIndex` (1..5) pra uma extracurricular nova de um perfil,
 // evitando colisão com:
@@ -31,7 +32,7 @@ async function listUsedColorIndexesForProfile(
   const [profile] = await db
     .select({ activeTurmaId: agendaStudentProfiles.activeTurmaId })
     .from(agendaStudentProfiles)
-    .where(eq(agendaStudentProfiles.id, profileId))
+    .where(and(eq(agendaStudentProfiles.id, profileId), activeMembershipCondition()))
     .limit(1);
 
   const turmaId = profile?.activeTurmaId ?? null;

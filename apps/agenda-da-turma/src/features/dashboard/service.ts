@@ -53,17 +53,17 @@ async function listUnifiedBucket(
 // visibilidade de atividades compartilhadas por outras famílias.
 export async function getDashboardSnapshot(
   userId: string,
-  options: { profileFilter: string | null },
+  options: { profileFilter: string | null; now?: Date; limit?: number },
 ): Promise<DashboardSnapshot> {
   const isPro = await billing.hasProSubscription(userSubject(userId));
-  const todayIso = todayLocalIso();
+  const todayIso = todayLocalIso(options.now);
   const ctx = { profileFilter: options.profileFilter, isPro };
 
   const [counters, overdue, today, upcoming, perProfile] = await Promise.all([
     getDashboardCounters(userId, ctx),
-    listUnifiedBucket(userId, "overdue", { ...ctx, limit: 5 }, todayIso),
-    listUnifiedBucket(userId, "today", { ...ctx, limit: 5 }, todayIso),
-    listUnifiedBucket(userId, "week", { ...ctx, limit: 10 }, todayIso),
+    listUnifiedBucket(userId, "overdue", { ...ctx, limit: options.limit ?? 5 }, todayIso),
+    listUnifiedBucket(userId, "today", { ...ctx, limit: options.limit ?? 5 }, todayIso),
+    listUnifiedBucket(userId, "week", { ...ctx, limit: options.limit ?? 10 }, todayIso),
     listProfileSummaries(userId, { isPro }),
   ]);
 

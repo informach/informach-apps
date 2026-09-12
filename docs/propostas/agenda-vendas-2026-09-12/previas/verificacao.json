@@ -1,0 +1,36 @@
+{
+  "executedAt": "2026-09-12T09:10:03.572Z",
+  "prototypeOnly": true,
+  "checks": [
+    "Material date selected without changing the school deadline; completion updates",
+    "Three scenarios update source and resulting actions",
+    "Monthly/annual prices, annual total and next-step dialog with keyboard dismissal"
+  ],
+  "sizes": [
+    {
+      "width": 1440,
+      "scrollWidth": 1440,
+      "fontsLoaded": true,
+      "logoLoaded": true
+    },
+    {
+      "width": 768,
+      "scrollWidth": 768,
+      "fontsLoaded": true,
+      "logoLoaded": true
+    },
+    {
+      "width": 390,
+      "scrollWidth": 390,
+      "fontsLoaded": true,
+      "logoLoaded": true
+    },
+    {
+      "width": 320,
+      "scrollWidth": 320,
+      "fontsLoaded": true,
+      "logoLoaded": true
+    }
+  ],
+  "pageErrors": []
+}

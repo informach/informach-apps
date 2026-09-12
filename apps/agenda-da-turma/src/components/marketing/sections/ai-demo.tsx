@@ -1,248 +1,208 @@
-import { Badge } from "@informach/ui/components/badge";
-import { Card, CardContent, CardHeader } from "@informach/ui/components/card";
-import { ArrowDown, CalendarClock, FileText, ImagePlus, Mic, Sparkles } from "lucide-react";
+"use client";
+import { useState } from "react";
+import type { LandingScenario } from "@/features/metrics/landing-schema";
+import styles from "../sales.module.css";
+import { SalesCta } from "../sales-cta";
 
-type DemoColumn = {
-  inputLabel: string;
-  processingLabel: string;
-  output: {
-    title: string;
-    badge: string;
-    items: { label: string; chart: 1 | 2 | 3 | 4 | 5 }[];
-  };
-  input: React.ReactNode;
-  accent: "primary" | "secondary";
-};
-
-function VoiceInput() {
-  return (
-    <div className="relative h-32 w-full overflow-hidden rounded-xl border border-border/70 bg-gradient-to-br from-primary/15 via-primary/5 to-secondary/10">
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-        <Mic className="size-7 text-primary" aria-hidden />
-        <div className="flex h-7 items-end gap-1" aria-hidden>
-          {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-            <span
-              key={i}
-              className="block w-1 origin-bottom rounded-full bg-primary motion-safe:animate-wave-bar"
-              style={{
-                height: `${12 + (i % 3) * 8}px`,
-                animationDelay: `${i * 0.12}s`,
-              }}
-            />
-          ))}
-        </div>
-        <p className="font-mono text-xs text-muted-foreground">0:12</p>
-      </div>
-    </div>
-  );
-}
-
-function PhotoInput() {
-  return (
-    <div className="relative h-32 w-full overflow-hidden rounded-xl border border-border/70 bg-gradient-to-br from-secondary/15 via-secondary/5 to-primary/10">
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-secondary">
-        <ImagePlus className="size-8" aria-hidden />
-        <p className="font-mono text-xs text-muted-foreground">quadro_semana.jpg</p>
-      </div>
-      <div className="absolute right-2 top-2">
-        <Badge variant="outline" className="bg-background/90 text-[10px]">
-          Foto do quadro
-        </Badge>
-      </div>
-    </div>
-  );
-}
-
-function PdfInput() {
-  return (
-    <div className="relative h-32 w-full overflow-hidden rounded-xl border border-border/70 bg-gradient-to-br from-primary/10 via-background to-secondary/10">
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-4">
-        <FileText className="size-7 text-primary" aria-hidden />
-        <div className="w-full rounded-md border border-border bg-card px-3 py-2 text-left">
-          <p className="font-mono text-xs text-foreground">
-            agenda_escolar_maio.pdf
-            <span className="ml-0.5 inline-block w-px bg-foreground motion-safe:animate-blink-caret">
-              &nbsp;
-            </span>
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const COLUMNS: DemoColumn[] = [
-  {
-    input: <VoiceInput />,
-    inputLabel: "Voz",
-    processingLabel: "Transcrevendo e estruturando…",
-    output: {
-      title: "Prova de matemática",
-      badge: "Por voz",
-      items: [
-        { label: "Pedro · Matemática", chart: 1 },
-        { label: "Quarta, 28 de maio", chart: 1 },
-      ],
-    },
-    accent: "primary",
-  },
-  {
-    input: <PhotoInput />,
-    inputLabel: "Foto",
-    processingLabel: "IA lendo o quadro da semana…",
-    output: {
-      title: "3 atividades da semana",
-      badge: "Da foto",
-      items: [
-        { label: "Trabalho de ciências", chart: 3 },
-        { label: "Lição de português", chart: 2 },
-        { label: "Prova de história", chart: 4 },
-      ],
-    },
-    accent: "secondary",
-  },
-  {
-    input: <PdfInput />,
-    inputLabel: "PDF",
-    processingLabel: "Processando agenda da escola…",
-    output: {
-      title: "Calendário do bimestre",
-      badge: "Do PDF",
-      items: [
-        { label: "Festa junina", chart: 5 },
-        { label: "Reunião de pais", chart: 4 },
-        { label: "Mostra cultural", chart: 3 },
-      ],
-    },
-    accent: "primary",
-  },
-];
-
-function StepArrow({ label }: { label: string }) {
-  return (
-    <div className="flex flex-col items-center gap-2 py-1 text-muted-foreground">
-      <ArrowDown className="size-4 text-primary motion-safe:animate-pulse-glow" aria-hidden />
-      <p className="text-center text-xs">{label}</p>
-      <ArrowDown
-        className="size-4 text-primary motion-safe:animate-pulse-glow"
-        style={{ animationDelay: "0.5s" }}
-        aria-hidden
-      />
-    </div>
-  );
-}
-
-const CHART_DOT: Record<1 | 2 | 3 | 4 | 5, string> = {
-  1: "bg-chart-1",
-  2: "bg-chart-2",
-  3: "bg-chart-3",
-  4: "bg-chart-4",
-  5: "bg-chart-5",
-};
-
-function OutputCard({
-  title,
-  badge,
-  items,
-  accent,
-}: {
+type DemoAction = { id: string; title: string; detail: string; date?: string; planning?: boolean };
+type Scenario = {
+  label: string;
   title: string;
-  badge: string;
-  items: { label: string; chart: 1 | 2 | 3 | 4 | 5 }[];
-  accent: "primary" | "secondary";
-}) {
+  message: string;
+  attachment: string;
+  excerpt: string;
+  actions: DemoAction[];
+};
+const SCENARIOS: Record<LandingScenario, Scenario> = {
+  passeio: {
+    label: "Passeio",
+    title: "Um recado. Três coisas para resolver. Tudo à vista.",
+    message:
+      "O passeio ao museu será em 18/09/2026, às 8h. Enviem a autorização até 16/09. Os itens para levar estão no PDF.",
+    attachment: "Orientações do passeio.pdf",
+    excerpt:
+      "Levar boné e garrafa de água. Saída no portão principal. O prazo para separar o material não foi informado.",
+    actions: [
+      {
+        id: "autorizacao",
+        title: "Enviar autorização",
+        detail: "Prazo informado pela escola",
+        date: "16/09",
+      },
+      {
+        id: "preparacao",
+        title: "Separar boné e garrafa",
+        detail: "O recado não informa uma data de preparo",
+        planning: true,
+      },
+      {
+        id: "passeio",
+        title: "Passeio ao museu",
+        detail: "Às 8h · Saída no portão principal",
+        date: "18/09",
+      },
+    ],
+  },
+  prova: {
+    label: "Prova",
+    title: "Uma prova. O que estudar e quando. Tudo à vista.",
+    message: "Nossa avaliação de Ciências será em 22/09/2026. O roteiro de estudo está no anexo.",
+    attachment: "Roteiro de Ciências.pdf",
+    excerpt: "Revisar as páginas 24 a 31 do livro. Não foi definida uma data para a revisão.",
+    actions: [
+      {
+        id: "estudo",
+        title: "Revisar as páginas 24 a 31",
+        detail: "Ciências · Data de estudo não informada",
+      },
+      {
+        id: "prova",
+        title: "Avaliação de Ciências",
+        detail: "Data informada pela escola",
+        date: "22/09",
+      },
+    ],
+  },
+  material: {
+    label: "Material",
+    title: "Um pedido de material. O que levar e até quando.",
+    message:
+      "Para a aula de Artes de 21/09/2026, cada criança deverá trazer os materiais da lista anexa.",
+    attachment: "Materiais de Artes.pdf",
+    excerpt: "Uma caixa de sapatos, cola branca e papéis coloridos.",
+    actions: [
+      {
+        id: "material",
+        title: "Levar o material de Artes",
+        detail: "Caixa de sapatos, cola branca e papéis coloridos",
+        date: "21/09",
+      },
+    ],
+  },
+};
+
+function DemoResult({ scenario }: { scenario: LandingScenario }) {
+  const [planned, setPlanned] = useState(false);
+  const [completed, setCompleted] = useState<string[]>([]);
+  const data = SCENARIOS[scenario];
   return (
-    <Card
-      className={`shadow-md ${accent === "primary" ? "border-primary/40" : "border-secondary/40"}`}
-    >
-      <CardHeader className="space-y-2 pb-3">
-        <Badge variant={accent === "primary" ? "default" : "secondary"} className="w-fit gap-1">
-          <Sparkles className="size-3" aria-hidden />
-          {badge}
-        </Badge>
-        <p className="text-base font-semibold leading-tight tracking-tight">{title}</p>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <ul className="space-y-1.5 text-sm text-muted-foreground">
-          {items.map((item) => (
-            <li key={item.label} className="flex items-center gap-2">
-              <span className={`size-1.5 shrink-0 rounded-full ${CHART_DOT[item.chart]}`} />
-              {item.label}
-            </li>
-          ))}
-          <li className="flex items-center gap-2 pt-1 text-xs text-muted-foreground/80">
-            <CalendarClock className="size-3" aria-hidden />
-            Pronto pra revisar e salvar
-          </li>
-        </ul>
-      </CardContent>
-    </Card>
+    <div className={styles.demoOutput}>
+      <div className={styles.outputHeader}>
+        <h3>O que precisa de atenção</h3>
+        <span className={[styles.pill, styles.blue].join(" ")}>
+          {data.actions.length} {data.actions.length === 1 ? "providência" : "providências"}
+        </span>
+      </div>
+      {data.actions.map((action) => {
+        const id = `demo-${action.id}`;
+        return (
+          <div className={styles.outputRow} key={action.id}>
+            <input
+              id={id}
+              type="checkbox"
+              checked={completed.includes(action.id)}
+              data-landing-action="complete"
+              data-landing-scenario={scenario}
+              onChange={(event) =>
+                setCompleted((current) =>
+                  event.target.checked
+                    ? [...current, action.id]
+                    : current.filter((item) => item !== action.id),
+                )
+              }
+            />
+            <div>
+              <label htmlFor={id}>{action.title}</label>
+              <p className={styles.meta}>{action.detail}</p>
+              <span className={[styles.pill, action.date ? styles.blue : styles.amber].join(" ")}>
+                {action.date
+                  ? `${action.date} · Informado pela escola`
+                  : action.planning && planned
+                    ? "17/09 · Planejado pela família"
+                    : "Prazo a confirmar"}
+              </span>
+              {action.planning && (
+                <button
+                  type="button"
+                  className={styles.planButton}
+                  disabled={planned}
+                  data-landing-action="plan"
+                  data-landing-scenario={scenario}
+                  onClick={() => setPlanned(true)}
+                >
+                  {planned ? "Planejado para 17/09" : "Planejar para a véspera"}
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+      <p className={styles.demoState} role="status" aria-live="polite" aria-atomic="true">
+        {completed.length > 0
+          ? completed.length +
+            " de " +
+            data.actions.length +
+            " concluídas nesta demonstração. Nada é enviado à escola."
+          : planned
+            ? "Preparação escolhida para 17/09. A autorização continua com prazo de 16/09."
+            : "Experimente marcar uma providência como feita."}
+      </p>
+    </div>
   );
 }
-
 export function AiDemo() {
+  const [scenario, setScenario] = useState<LandingScenario>("passeio");
+  const data = SCENARIOS[scenario];
   return (
     <section
-      id="ia-demo"
-      className="relative overflow-hidden border-y border-border/60 bg-gradient-to-b from-primary/[0.04] via-background to-secondary/[0.05] py-20 md:py-28"
+      id="demonstracao"
+      className={[styles.section, styles.demoSection].join(" ")}
+      aria-labelledby="demo-title"
     >
-      <div
-        className="pointer-events-none absolute -left-20 top-1/2 -z-10 size-80 -translate-y-1/2 rounded-full bg-primary/10 blur-3xl"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute -right-20 bottom-0 -z-10 size-72 rounded-full bg-secondary/10 blur-3xl"
-        aria-hidden
-      />
-
-      <div className="container mx-auto px-4">
-        <div className="mx-auto max-w-2xl text-center">
-          <p className="text-sm font-medium uppercase tracking-wider text-primary">IA em ação</p>
-          <h2 className="mt-3 text-balance text-3xl font-semibold tracking-tight md:text-4xl">
-            Cadastra do jeito que dá. A gente organiza.
-          </h2>
-          <p className="mt-4 text-pretty text-base text-muted-foreground leading-relaxed md:text-lg">
-            Você fala, fotografa o quadro ou envia o PDF da escola. A IA entende data, matéria e
-            qual filho é.
-          </p>
+      <div className={styles.wrap}>
+        <div className={styles.demoHeading}>
+          <div className={styles.sectionHead}>
+            <p className={styles.eyebrow}>Experimente antes de criar sua conta</p>
+            <h2 id="demo-title">{data.title}</h2>
+            <p>Veja a mensagem e o anexo organizados juntos.</p>
+          </div>
+          <fieldset className={styles.scenarioOptions} aria-label="Escolha um exemplo">
+            {(Object.keys(SCENARIOS) as LandingScenario[]).map((key) => (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={scenario === key}
+                data-landing-action="scenario"
+                data-landing-scenario={key}
+                onClick={() => setScenario(key)}
+              >
+                {SCENARIOS[key].label}
+              </button>
+            ))}
+          </fieldset>
         </div>
-
-        <div className="mx-auto mt-14 grid max-w-5xl gap-8 md:grid-cols-3 md:gap-6 lg:gap-8">
-          {COLUMNS.map((col) => (
-            <div key={col.inputLabel} className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {col.inputLabel}
-                </p>
-                <span
-                  className={`inline-flex size-6 items-center justify-center rounded-full text-[10px] font-semibold ${
-                    col.accent === "primary"
-                      ? "bg-primary/15 text-primary"
-                      : "bg-secondary/15 text-secondary"
-                  }`}
-                >
-                  {COLUMNS.indexOf(col) + 1}
-                </span>
+        <div className={styles.demo}>
+          <div className={styles.demoSource}>
+            <p className={styles.demoLabel}>O recado que você recebeu</p>
+            <blockquote>{data.message}</blockquote>
+            <div className={styles.attachment}>
+              <span className={styles.pdf}>PDF</span>
+              <div>
+                <strong>{data.attachment}</strong>
+                <p>{data.excerpt}</p>
               </div>
-
-              {col.input}
-
-              <StepArrow label={col.processingLabel} />
-
-              <OutputCard
-                title={col.output.title}
-                badge={col.output.badge}
-                items={col.output.items}
-                accent={col.accent}
-              />
             </div>
-          ))}
+            <p className={styles.fine}>
+              Demonstração com dados fictícios. A revisão e os responsáveis são escolhas da família.
+              Nenhum recado real é enviado nesta demonstração.
+            </p>
+          </div>
+          <DemoResult key={scenario} scenario={scenario} />
         </div>
-
-        <p className="mx-auto mt-12 max-w-xl text-center text-sm text-muted-foreground">
-          Voz consome 2 créditos (transcrição e parse). Foto e PDF, 1 crédito cada. O Pro vem com 70
-          créditos por mês.
-        </p>
+        <div className={styles.demoFoot}>
+          <p>Agora imagine fazer isso com o próximo recado da sua escola.</p>
+          <SalesCta placement="demo" />
+        </div>
       </div>
     </section>
   );

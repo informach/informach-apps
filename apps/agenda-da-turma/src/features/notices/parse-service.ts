@@ -1,0 +1,148 @@
+import "server-only";
+
+import { createHash } from "node:crypto";
+import { runBillableAgentCall } from "@informach/ai-core";
+import { err, ok } from "@informach/auth/server-actions";
+import type { z } from "zod";
+import { agentRunRecorder } from "@/ai/agent-run-recorder";
+import { AGENDA_MODELS } from "@/ai/models";
+import { generateNoticeExtraction } from "@/ai/notices/extract";
+import { findAccessibleProfile } from "@/features/family/access";
+import { recordProductEvent } from "@/features/metrics/events";
+import { billing } from "@/lib/billing";
+import { env } from "@/lib/env";
+import { prepareNoticeAttachment } from "./attachment";
+import {
+  FREE_NOTICE_TRIAL,
+  finishNoticeParse,
+  isNoticeRunCommitted,
+  isNoticeUserVerified,
+  persistNoticeExtraction,
+  reserveNoticeParse,
+} from "./parse-repository";
+import { getNoticeSource, listNoticeApplications } from "./repository";
+import { type NoticeExtraction, noticeExtractionSchema, type parseNoticeSchema } from "./schemas";
+
+const FEATURE = "agenda.notices.parse";
+
+export async function parseNotice(userId: string, input: z.infer<typeof parseNoticeSchema>) {
+  const profile = await findAccessibleProfile(userId, input.profileId);
+  if (!profile) return err({ code: "INVALID_PROFILE" } as const);
+  if (!(await isNoticeUserVerified(userId))) return err({ code: "VERIFY_EMAIL" } as const);
+  if (!env.OPENROUTER_API_KEY) return err({ code: "AI_DISABLED" } as const);
+  const ownerId = profile.userId;
+  const isPro = await billing.hasProSubscription({ type: "user", id: ownerId });
+  let attachment: Awaited<ReturnType<typeof prepareNoticeAttachment>>;
+  try {
+    attachment = await prepareNoticeAttachment(input.attachment);
+  } catch (error) {
+    return err({
+      code:
+        error instanceof Error && error.message === "SELECT_PDF_PAGES"
+          ? "SELECT_PDF_PAGES"
+          : "INVALID_ATTACHMENT",
+    } as const);
+  }
+  const contentHash = createHash("sha256")
+    .update(
+      JSON.stringify([
+        input.text.trim(),
+        attachment?.originalData ?? null,
+        attachment?.pages ?? [],
+        input.publishedAt,
+      ]),
+    )
+    .digest("hex");
+  const now = new Date();
+  const reserved = await reserveNoticeParse({
+    userId,
+    ownerId,
+    profileId: profile.id,
+    isPro,
+    input,
+    attachment,
+    contentHash,
+    now,
+    trialDailyBudget: env.AGENDA_TRIAL_DAILY_BUDGET,
+  });
+  if (!reserved.ok) return reserved;
+  const { notice, replay } = reserved.value;
+  if (replay) {
+    if (!(await getNoticeSource(userId, notice.id))) return err({ code: "NOT_FOUND" } as const);
+    return ok({
+      noticeId: notice.id,
+      extraction: noticeExtractionSchema.parse(notice.parsedResult),
+      alreadyConfirmed: notice.status === "confirmed",
+      appliedProfileIds: (await listNoticeApplications(userId, notice.id)).map((a) => a.profileId),
+      sourceProfileIds: notice.sourceProfileIds,
+      replay: true,
+    });
+  }
+
+  if (!notice.billingRunId) throw new Error("Notice admission did not create a run id");
+  try {
+    if (!isPro)
+      await billing.grantBonusCredits({
+        owner: { type: "user", id: ownerId },
+        amount: FREE_NOTICE_TRIAL,
+        reason: "promo",
+        stripeEventId: `agenda-notice-trial-v1:${ownerId}`,
+      });
+    const out = await runBillableAgentCall<{ extraction: NoticeExtraction; usage?: unknown }>({
+      billing,
+      owner: { type: "user", id: ownerId },
+      app: "agenda-da-turma",
+      feature: FEATURE,
+      model: AGENDA_MODELS[FEATURE],
+      agent: "noticeParser",
+      recorder: agentRunRecorder,
+      runId: notice.billingRunId ?? undefined,
+      requestId: notice.id,
+      retry: false,
+      getUsage: (response) => response.usage,
+      getErrorMetadata: () => ({ error: "NOTICE_EXTRACTION_FAILED" }),
+      call: async ({ runId }) => {
+        try {
+          const { extraction, usage } = await generateNoticeExtraction(input, attachment, runId);
+          if (!extraction.actions.length) throw new Error("NO_ACTIONS");
+          // Persist the output before debit. Recovery checks the reservation after an interrupted request.
+          await persistNoticeExtraction(notice.id, runId, extraction);
+          return { extraction, usage };
+        } catch (error) {
+          throw new Error(
+            error instanceof Error && error.message === "NO_ACTIONS"
+              ? "NO_ACTIONS"
+              : "NOTICE_EXTRACTION_FAILED",
+          );
+        }
+      },
+    });
+    if (!(await finishNoticeParse(notice.id, notice.billingRunId, "ready")))
+      return err({ code: "PROCESSING" } as const);
+    await recordProductEvent(userId, {
+      event: "notice_parsed",
+      source: input.source,
+      count: out.result.extraction.actions.length,
+      durationMs: Date.now() - now.valueOf(),
+    });
+    if (!(await getNoticeSource(userId, notice.id))) return err({ code: "NOT_FOUND" } as const);
+    return ok({
+      noticeId: notice.id,
+      extraction: out.result.extraction,
+      alreadyConfirmed: false,
+      appliedProfileIds: [],
+      sourceProfileIds: null,
+      replay: false,
+    });
+  } catch (error) {
+    // A committed debit with persisted output is recoverable, never charged again.
+    if (notice.billingRunId && (await isNoticeRunCommitted(notice.billingRunId)))
+      return err({ code: "PROCESSING" } as const);
+    const code =
+      error instanceof Error && error.message === "NO_ACTIONS" ? "NO_ACTIONS" : "PARSE_FAILED";
+    if (!(await finishNoticeParse(notice.id, notice.billingRunId, "failed", code)))
+      return err({ code: "PROCESSING" } as const);
+    await recordProductEvent(userId, { event: "notice_failed", source: input.source });
+    return err({ code });
+  }
+}

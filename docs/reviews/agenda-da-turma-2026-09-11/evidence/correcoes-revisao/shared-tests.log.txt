@@ -1,0 +1,61 @@
+Scope: 3 of 12 workspace projects
+packages/emails test$ vitest run
+packages/emails test:  RUN  v2.1.9 C:/Users/tocha/projects/informach-apps/packages/emails
+packages/emails test:  ✓ src/__tests__/list-unsubscribe.test.ts (9 tests) 9ms
+packages/emails test:  ✓ src/__tests__/retry.test.ts (14 tests) 9ms
+packages/emails test:  ✓ src/__tests__/unsubscribe.test.ts (5 tests) 15ms
+packages/emails test:  ✓ src/__tests__/webhook.test.ts (13 tests) 37ms
+packages/emails test:  ✓ src/__tests__/dispatch.test.ts (14 tests) 62ms
+packages/emails test:  ✓ src/__tests__/sweepers.test.ts (15 tests) 206ms
+packages/emails test:  ✓ src/__tests__/templates.test.tsx (34 tests) 372ms
+packages/emails test:  ✓ src/__tests__/index.test.ts (2 tests) 3ms
+packages/emails test:  Test Files  8 passed (8)
+packages/emails test:       Tests  106 passed (106)
+packages/emails test:    Start at  23:35:45
+packages/emails test:    Duration  2.65s (transform 961ms, setup 0ms, collect 8.53s, tests 713ms, environment 4ms, prepare 1.66s)
+packages/emails test: Done
+packages/auth test$ vitest run
+packages/auth test:  RUN  v2.1.9 C:/Users/tocha/projects/informach-apps/packages/auth
+packages/auth test:  ✓ src/__tests__/permissions.test.ts (10 tests) 8ms
+packages/auth test:  ✓ src/__tests__/helpers.test.ts (31 tests) 20ms
+packages/auth test:  ✓ src/__tests__/redis-rate-limit-storage.test.ts (6 tests) 12ms
+packages/auth test:  ✓ src/__tests__/proxy.test.ts (7 tests) 8ms
+packages/auth test:  ✓ src/__tests__/server.test.ts (8 tests) 16ms
+packages/auth test:  ✓ src/__tests__/create-auth.test.ts (119 tests) 152ms
+packages/auth test:  ✓ src/__tests__/maintenance.test.ts (5 tests) 17ms
+packages/auth test:  ✓ src/__tests__/server-actions.test.ts (30 tests) 41ms
+packages/auth test:  Test Files  8 passed (8)
+packages/auth test:       Tests  216 passed (216)
+packages/auth test:    Start at  23:35:49
+packages/auth test:    Duration  1.34s (transform 1.03s, setup 0ms, collect 2.95s, tests 274ms, environment 2ms, prepare 1.61s)
+packages/auth test: Done
+packages/billing test$ vitest run
+packages/billing test:  RUN  v2.1.9 C:/Users/tocha/projects/informach-apps/packages/billing
+packages/billing test:  ✓ src/__tests__/sweepers-drip.test.ts (6 tests) 32ms
+packages/billing test:  ✓ src/__tests__/webhooks-subscription-pending.test.ts (3 tests) 31ms
+packages/billing test:  ✓ src/__tests__/subscriptions.test.ts (11 tests) 55ms
+packages/billing test:  ✓ src/__tests__/seeds-credit-pricing.test.ts (9 tests) 30ms
+packages/billing test:  ✓ src/__tests__/plan-changes.test.ts (12 tests) 61ms
+packages/billing test:  ✓ src/__tests__/webhooks-invoice-annual.test.ts (5 tests) 61ms
+packages/billing test:  ✓ src/__tests__/webhooks-invoice.test.ts (11 tests) 72ms
+packages/billing test:  ✓ src/__tests__/webhooks-payment.test.ts (12 tests) 22ms
+packages/billing test:  ✓ src/__tests__/credits-reservations.test.ts (15 tests) 35ms
+packages/billing test:  ✓ src/__tests__/checkout.test.ts (12 tests) 46ms
+packages/billing test:  ✓ src/__tests__/webhooks.test.ts (8 tests) 37ms
+packages/billing test:  ✓ src/__tests__/billing-emails.test.ts (9 tests) 16ms
+packages/billing test:  ✓ src/__tests__/ledger-balance.test.ts (12 tests) 8ms
+packages/billing test:  ✓ src/__tests__/sweepers.test.ts (11 tests) 20ms
+packages/billing test:  ✓ src/__tests__/sweepers-reconcile.test.ts (6 tests) 19ms
+packages/billing test:  ✓ src/__tests__/access.test.ts (12 tests) 20ms
+packages/billing test:  ✓ src/__tests__/credits-grant.test.ts (9 tests) 16ms
+packages/billing test:  ✓ src/__tests__/customers.test.ts (5 tests) 19ms
+packages/billing test:  ✓ src/__tests__/webhooks-subscription-product-drift.test.ts (2 tests) 10ms
+packages/billing test:  ✓ src/__tests__/credits-history.test.ts (5 tests) 12ms
+packages/billing test:  ✓ src/__tests__/portal.test.ts (3 tests) 9ms
+packages/billing test:  ✓ src/__tests__/credits-balance.test.ts (2 tests) 18ms
+packages/billing test:  ✓ src/__tests__/factory.test.ts (5 tests) 7ms
+packages/billing test:  Test Files  23 passed (23)
+packages/billing test:       Tests  185 passed (185)
+packages/billing test:    Start at  23:35:51
+packages/billing test:    Duration  5.66s (transform 2.84s, setup 0ms, collect 36.38s, tests 656ms, environment 8ms, prepare 6.12s)
+packages/billing test: Done

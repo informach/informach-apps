@@ -1,0 +1,61 @@
+import assert from 'node:assert/strict';
+import { readFileSync, existsSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import path from 'node:path';
+import { parseEnv } from 'node:util';
+
+const root = process.cwd();
+const review = path.join(root, 'docs/reviews/agenda-da-turma-2026-09-11');
+const evidence = path.join(review, 'evidence/revisao-implementacao');
+const report = readFileSync(path.join(review, 'REVISAO-IMPLEMENTACAO.md'), 'utf8');
+const headings = [...report.matchAll(/^## (F\d{2}) — /gm)].map(match => match[1]);
+assert.equal(headings.length, 10);
+assert.equal(new Set(headings).size, 10);
+assert.equal([...report.matchAll(/\| P1 — alta \|/g)].length, 6);
+assert.equal([...report.matchAll(/\| P2 — média \|/g)].length, 4);
+const result = JSON.parse(readFileSync(path.join(evidence, 'reproductions-result.json'), 'utf8'));
+assert.equal(result.success, true);
+assert.equal(result.numTotalTests, 10);
+assert.equal(result.numPassedTests, 10);
+assert.equal(result.numFailedTests, 0);
+const resultIds = result.testResults.flatMap(file => file.assertionResults.map(a => a.title.match(/^F\d{2}/)?.[0]));
+assert.deepEqual([...headings].sort(), resultIds.sort());
+const copies = {
+  'reproductions.test.ts': 'reproductions.test.ts.txt',
+  'review.config.ts': 'review.config.ts.txt',
+  'reproductions-result.json': 'reproductions-result.json',
+  'browser.spec.ts': 'browser.spec.ts.txt',
+  'browser.config.ts': 'browser.config.ts.txt',
+  'second-edit-rejected.png': 'second-edit-rejected.png',
+};
+for (const [original, copy] of Object.entries(copies)) {
+  assert.deepEqual(readFileSync(path.join(root, 'apps/agenda-da-turma/tmp/full-review', original)), readFileSync(path.join(evidence, copy)));
+}
+for (const file of [path.join(review, 'REVISAO-IMPLEMENTACAO.md'), path.join(evidence, 'EVIDENCIAS.md'), path.join(review, 'IMPLEMENTACAO.md')]) {
+  const content = readFileSync(file, 'utf8');
+  for (const match of content.matchAll(/\]\(/g)) {
+    const start = match.index + 2;
+    let end = start;
+    let depth = 1;
+    for (; end < content.length; end++) {
+      if (content[end] === '(') depth++;
+      if (content[end] === ')') depth--;
+      if (depth === 0) break;
+    }
+    assert.equal(depth, 0);
+    const target = content.slice(start, end);
+    if (target.startsWith('#') || /^https?:/.test(target)) continue;
+    assert.ok(existsSync(path.resolve(path.dirname(file), target.split('#')[0])), `${file}: missing ${target}`);
+  }
+}
+const local = parseEnv(readFileSync(path.join(root, 'apps/agenda-da-turma/.env.local'), 'utf8'));
+assert.ok(['localhost', '127.0.0.1', '[::1]'].includes(new URL(local.DATABASE_URL).hostname));
+const require = createRequire(path.join(root, 'packages/db/package.json'));
+const sql = require('postgres')(local.DATABASE_URL, { max: 1 });
+try {
+  const counts = await sql.begin('read only', tx => tx.unsafe("select count(*)::int as remaining_review_users from core.users where id like 'zz-full-review-%' or email like 'full-review-browser-%'"));
+  assert.equal(counts[0].remaining_review_users, 0);
+  console.log('10 findings mapped to 10 confirmed reproductions; 6 P1 and 4 P2; local links exist; 6 evidence copies match; remaining review users: 0.');
+} finally {
+  await sql.end();
+}

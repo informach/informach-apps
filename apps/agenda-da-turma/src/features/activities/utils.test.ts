@@ -247,13 +247,13 @@ describe("canEditActivity", () => {
     expect(canEditActivity(makeItem(), "outro-user")).toBe(false);
   });
 
-  it("creator NÃO edita shared activity já aceita por outra família", () => {
+  it("creator pode corrigir shared activity já aceita por outra família", () => {
     expect(
       canEditActivity(
         makeItem({ visibility: "shared_with_turma", hasOtherAcceptances: true }),
         "user-1",
       ),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("creator edita shared activity SEM aceites de outras famílias", () => {

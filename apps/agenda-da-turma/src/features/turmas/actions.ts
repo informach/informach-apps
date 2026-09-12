@@ -55,7 +55,7 @@ export const createOrJoinTurmaAction = action
 export const joinTurmaByCodeAction = action
   .input(joinByCodeInputSchema)
   .auth({ require: "user" })
-  .rateLimit({ key: "turmas-join-code", max: 30, window: "1h" })
+  .rateLimit({ key: "turmas-join-code", max: 12, window: "1h" })
   .run(async ({ input, ctx }) => {
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);

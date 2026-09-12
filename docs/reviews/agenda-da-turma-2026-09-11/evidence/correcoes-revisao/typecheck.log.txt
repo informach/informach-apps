@@ -1,0 +1,11 @@
+Scope: 5 of 12 workspace projects
+packages/db typecheck$ tsc --noEmit
+packages/db typecheck: Done
+packages/emails typecheck$ tsc --noEmit
+packages/emails typecheck: Done
+packages/auth typecheck$ tsc --noEmit
+packages/auth typecheck: Done
+packages/billing typecheck$ tsc --noEmit
+packages/billing typecheck: Done
+apps/agenda-da-turma typecheck$ tsc --noEmit
+apps/agenda-da-turma typecheck: Done

@@ -1,0 +1,41 @@
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import path from 'node:path';
+import { parseEnv } from 'node:util';
+
+const root = process.cwd();
+const local = parseEnv(readFileSync(path.join(root, 'apps/agenda-da-turma/.env.local'), 'utf8'));
+if (!['localhost', '127.0.0.1', '[::1]'].includes(new URL(local.DATABASE_URL).hostname)) {
+  throw new Error('Local database required');
+}
+const requireDb = createRequire(path.join(root, 'packages/db/package.json'));
+const sql = requireDb('postgres')(local.DATABASE_URL, { max: 1 });
+try {
+  const result = await sql.begin('read only', async tx => {
+    const migrations = [];
+    for (const name of ['0037_agenda_review_fixes', '0038_agenda_notice_applications_backfill']) {
+      const hash = createHash('sha256').update(readFileSync(path.join(root, `packages/db/src/migrations/${name}.sql`), 'utf8')).digest('hex');
+      const [row] = await tx`select count(*)::int as count from drizzle.__drizzle_migrations where hash = ${hash}`;
+      migrations.push({ name, recorded: row.count === 1 });
+    }
+    const [fixtures] = await tx`select count(*)::int as users_remaining from core.users
+      where id like 'zz-review-fix-%' or id like 'review-fixes-browser-%' or email like 'routine-browser-%@e2e.local'`;
+    const [customers] = await tx`select count(*)::int as customers_remaining from billing.customers
+      where subject_id like 'zz-review-fix-%' or subject_id like 'review-fixes-browser-%' or email like 'routine-browser-%@e2e.local'`;
+    const [column] = await tx`select data_type, is_nullable from information_schema.columns
+      where table_schema = 'agenda' and table_name = 'notices' and column_name = 'source_profile_ids'`;
+    const constraints = await tx`select constraint_type from information_schema.table_constraints
+      where table_schema = 'agenda' and table_name = 'notice_applications'`;
+    const [index] = await tx`select count(*)::int as count from pg_indexes
+      where schemaname = 'agenda' and tablename = 'notice_applications' and indexdef like 'CREATE UNIQUE INDEX%'`;
+    return { executedAt: new Date().toISOString(), localOnly: true, readOnly: true,
+      migrations, ...fixtures, ...customers, sourceScope: column,
+      applicationForeignKeys: constraints.filter(c => c.constraint_type === 'FOREIGN KEY').length,
+      applicationUniqueIndexes: index.count };
+  });
+  console.log(JSON.stringify(result, null, 2));
+  if (result.migrations.some(m => !m.recorded) || result.users_remaining || result.customers_remaining || result.applicationForeignKeys !== 2 || result.applicationUniqueIndexes !== 1 || result.sourceScope?.data_type !== 'jsonb') process.exitCode = 1;
+} finally {
+  await sql.end();
+}

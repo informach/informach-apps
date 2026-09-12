@@ -2,7 +2,7 @@ export type StudentProfile = {
   id: string;
   userId: string;
   name: string;
-  birthDate: string;
+  birthDate: string | null;
   activeTurmaId: string | null;
   createdAt: Date;
   updatedAt: Date;

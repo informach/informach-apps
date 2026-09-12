@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { type ReactNode, Suspense } from "react";
 import { SharedActivitiesSection } from "@/features/activities/components/shared-activities-section";
 import { getIsProForUser } from "@/features/billing/server-cache";
@@ -5,7 +6,7 @@ import { DashboardContentSkeleton } from "@/features/dashboard/components/dashbo
 import { DashboardNavButtons } from "@/features/dashboard/components/dashboard-nav-buttons";
 import { DashboardSection } from "@/features/dashboard/components/dashboard-section";
 import { ExportPdfButton } from "@/features/dashboard/components/export-pdf-button";
-import { pickDashboardGate } from "@/features/dashboard/gate";
+import { TomorrowRoutine } from "@/features/notices/components/tomorrow-routine";
 import { NoStudentsWidget } from "@/features/students/components/no-students-widget";
 import { ProfilesWithoutTurmaWidget } from "@/features/students/components/profiles-without-turma-widget";
 import {
@@ -17,7 +18,7 @@ import { listTurmasNeedingSubjectsForUser } from "@/features/subjects/service";
 import { requireUserServer } from "@/lib/auth";
 
 export const metadata = {
-  title: "Dashboard — Agenda da Turma",
+  title: "Rotina da família — Agenda da Turma",
 };
 
 type Props = {
@@ -37,37 +38,6 @@ export default async function DashboardPage({ searchParams }: Props) {
 
   const greeting = user.name ?? "responsável";
 
-  // Onboarding gates: cada estágio exclui mutuamente o seguinte. Decisão
-  // delegada à `pickDashboardGate` (pura, testada em gate.test.ts) pra
-  // garantir que a ordem de precedência fica documentada e não regride.
-  const gate = pickDashboardGate({
-    profilesCount: profiles.length,
-    profilesWithoutTurmaCount: profilesWithoutTurma,
-    turmasNeedingSubjectsCount: turmasNeedingSubjects.length,
-  });
-
-  if (gate.kind === "no-students") {
-    return (
-      <Shell greeting={greeting}>
-        <NoStudentsWidget />
-      </Shell>
-    );
-  }
-  if (gate.kind === "profiles-without-turma") {
-    return (
-      <Shell greeting={greeting}>
-        <ProfilesWithoutTurmaWidget count={gate.count} />
-      </Shell>
-    );
-  }
-  if (gate.kind === "no-subjects") {
-    return (
-      <Shell greeting={greeting}>
-        <NoSubjectsWidget turmas={turmasNeedingSubjects} />
-      </Shell>
-    );
-  }
-
   // Onboarding completo — dashboard real.
   // Valida ?perfil= contra os perfis do user (defensivo: id inválido cai pra "Todos").
   const profileFilter =
@@ -86,46 +56,81 @@ export default async function DashboardPage({ searchParams }: Props) {
   // segure `DashboardSection` (e vice-versa) — duas queries paralelas que
   // streamam independente.
   return (
-    <Shell
-      greeting={greeting}
-      headerAction={<ExportPdfButton isPro={isPro} profileFilter={profileFilter} />}
-    >
-      <DashboardNavButtons />
-      {isPro ? (
-        <Suspense fallback={null}>
-          <SharedActivitiesSection userId={user.id} />
-        </Suspense>
+    <Shell greeting={greeting}>
+      {profiles.length > 1 ? (
+        <nav aria-label="Filtrar rotina por criança" className="flex flex-wrap gap-2 text-sm">
+          <Link
+            className="rounded-full border px-4 py-2"
+            aria-current={!profileFilter ? "page" : undefined}
+            href="/dashboard"
+          >
+            Todas
+          </Link>
+          {profiles.map((p) => (
+            <Link
+              key={p.id}
+              href={`/dashboard?perfil=${p.id}`}
+              aria-current={profileFilter === p.id ? "page" : undefined}
+              className="rounded-full border px-4 py-2"
+            >
+              {p.name}
+            </Link>
+          ))}
+        </nav>
       ) : null}
       <Suspense fallback={<DashboardContentSkeleton />}>
-        <DashboardSection
-          userId={user.id}
-          isPro={isPro}
-          profileFilter={profileFilter}
-          profiles={trimmedProfiles}
-          effectiveProfileId={effectiveProfileId}
-        />
+        <TomorrowRoutine userId={user.id} profileFilter={profileFilter} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <SharedActivitiesSection userId={user.id} />
+      </Suspense>
+      {profiles.length === 0 ? <NoStudentsWidget /> : null}
+      <details className="rounded-lg border p-4">
+        <summary className="cursor-pointer text-sm font-medium">Perfis, turmas e matérias</summary>
+        <div className="mt-4 space-y-4">
+          {profilesWithoutTurma > 0 ? (
+            <ProfilesWithoutTurmaWidget count={profilesWithoutTurma} />
+          ) : null}
+          {turmasNeedingSubjects.length > 0 ? (
+            <NoSubjectsWidget turmas={turmasNeedingSubjects} />
+          ) : null}
+          {profilesWithoutTurma === 0 && turmasNeedingSubjects.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Configuração escolar em dia.</p>
+          ) : null}
+        </div>
+      </details>
+      <Suspense fallback={<DashboardContentSkeleton />}>
+        <details className="rounded-lg border p-4">
+          <summary className="cursor-pointer text-sm font-medium">
+            Atividades escolares, matérias e extracurriculares
+          </summary>
+          <div className="mt-4 space-y-4">
+            <ExportPdfButton isPro={isPro} profileFilter={profileFilter} />
+            <DashboardNavButtons />
+            <DashboardSection
+              userId={user.id}
+              isPro={isPro}
+              profileFilter={profileFilter}
+              profiles={trimmedProfiles}
+              effectiveProfileId={effectiveProfileId}
+            />
+          </div>
+        </details>
       </Suspense>
     </Shell>
   );
 }
 
-function Shell({
-  greeting,
-  headerAction,
-  children,
-}: {
-  greeting: string;
-  headerAction?: ReactNode;
-  children: ReactNode;
-}) {
+function Shell({ greeting, children }: { greeting: string; children: ReactNode }) {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 md:px-8">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Bem-vindo de volta, {greeting}.</p>
+          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Rotina da família</h1>
+          <p className="text-sm text-muted-foreground">
+            Veja o que precisa de atenção, {greeting}.
+          </p>
         </div>
-        {headerAction}
       </header>
       {children}
     </main>

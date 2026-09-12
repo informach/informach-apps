@@ -6,13 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@informach/ui/componen
 import { toast } from "@informach/ui/components/sonner";
 import { Tabs, TabsList, TabsTrigger } from "@informach/ui/components/tabs";
 import { cn } from "@informach/ui/lib/utils";
-import { Check, Loader2, Sparkles } from "lucide-react";
+import { Check, Loader2, Sparkles, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { selectFreePlanAction, startProCheckoutAction } from "@/features/onboarding/actions";
 import { OnboardingStepper } from "@/features/onboarding/components/onboarding-stepper";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import {
+  ANNUAL_SAVINGS_PCT,
   type BillingCycle,
   FREE_FEATURES,
   type PlanFeature,
@@ -108,7 +109,7 @@ export function PlanCards({
           Escolha seu plano
         </h1>
         <p className="mx-auto max-w-md text-pretty text-sm text-muted-foreground md:text-base">
-          Comece grátis ou desbloqueie a IA com o Pro. Você pode mudar de plano a qualquer momento.
+          Experimente cinco recados grátis. No Pro, divida a rotina e ative resumos e lembretes.
         </p>
       </header>
 
@@ -121,7 +122,7 @@ export function PlanCards({
             <TabsTrigger value="annual" className="px-5">
               {PRICING.annual.tabLabel}
               <Badge variant="secondary" className="ml-2 rounded-full px-2 py-0 text-[10px]">
-                -20%
+                -{ANNUAL_SAVINGS_PCT}%
               </Badge>
             </TabsTrigger>
           </TabsList>
@@ -166,7 +167,7 @@ export function PlanCards({
           />
           <Badge className="absolute -top-3 left-6 gap-1">
             <Sparkles className="size-3" aria-hidden />
-            Mais popular
+            Para a família
           </Badge>
           <CardHeader className="space-y-3 pb-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-primary">
@@ -215,9 +216,16 @@ function FeatureList({ features }: { features: PlanFeature[] }) {
               feature.included ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground/60",
             )}
           >
-            <Check className="size-3" aria-hidden />
+            {feature.included ? (
+              <Check className="size-3" aria-hidden />
+            ) : (
+              <X className="size-3" aria-hidden />
+            )}
           </span>
-          <span className="leading-relaxed">{feature.label}</span>
+          <span className="leading-relaxed">
+            {feature.label}
+            {!feature.included ? " — não incluído" : ""}
+          </span>
         </li>
       ))}
     </ul>

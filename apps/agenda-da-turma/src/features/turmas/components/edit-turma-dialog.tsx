@@ -33,7 +33,14 @@ import { useEffect, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { updateTurmaAction } from "../actions";
-import { MAX_TURMA_YEAR, MIN_TURMA_YEAR, TURMA_GRADES, type TurmaGrade } from "../limits";
+import {
+  MAX_TURMA_YEAR,
+  MIN_TURMA_YEAR,
+  TURMA_GRADES,
+  TURMA_SHIFT_LABELS,
+  TURMA_SHIFTS,
+  type TurmaGrade,
+} from "../limits";
 import { type UpdateTurmaFormValues, updateTurmaInputSchema } from "../schemas";
 import type { TurmaForUser } from "../types";
 import { formatGrade } from "../utils";
@@ -52,6 +59,7 @@ function defaultsFromTurma(turma: TurmaForUser): UpdateTurmaFormValues {
     grade: turma.grade,
     year: turma.year,
     classLetter: turma.classLetter,
+    shift: turma.shift ?? "unspecified",
   };
 }
 
@@ -149,6 +157,30 @@ export function EditTurmaDialog({ open, onOpenChange, turma }: Props) {
 
         <Form {...form}>
           <form onSubmit={onSubmit} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="shift"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Turno</FormLabel>
+                  <Select value={field.value ?? "unspecified"} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {TURMA_SHIFTS.map((shift) => (
+                        <SelectItem key={shift} value={shift}>
+                          {TURMA_SHIFT_LABELS[shift]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <div className="grid grid-cols-3 gap-3">
               <FormField
                 control={form.control}

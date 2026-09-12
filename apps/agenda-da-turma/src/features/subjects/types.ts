@@ -29,7 +29,7 @@ export type Subject = {
   colorIndex: number;
   classDays: AgendaClassDay[];
   alternatingSlots: AlternatingSlot[];
-  createdByUserId: string;
+  createdByUserId: string | null;
   createdAt: Date;
   updatedAt: Date;
 };

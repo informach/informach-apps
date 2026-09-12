@@ -1,0 +1,49 @@
+
+> @informach/agenda-da-turma@0.0.0 test C:\Users\tocha\projects\informach-apps\apps\agenda-da-turma
+> vitest run
+
+
+ RUN  v2.1.9 C:/Users/tocha/projects/informach-apps/apps/agenda-da-turma
+
+ ✓ src/features/turmas/service.test.ts (11 tests) 12ms
+ ✓ src/features/calendar/date.test.ts (31 tests) 19ms
+ ✓ src/features/subjects/utils.test.ts (30 tests) 17ms
+ ✓ src/features/activities/service.test.ts (38 tests) 34ms
+ ✓ src/features/activities/utils.test.ts (30 tests) 11ms
+ ✓ src/features/students/repository.test.ts (11 tests) 15ms
+ ✓ src/features/billing/actions.test.ts (20 tests) 25ms
+ ✓ src/features/subjects/repository.test.ts (14 tests) 22ms
+ ✓ src/ai/activities-parser/enrich.test.ts (25 tests) 18ms
+ ✓ src/features/activities/schemas.test.ts (21 tests) 16ms
+ ✓ src/ai/activities-parser/schema.test.ts (14 tests) 14ms
+ ✓ src/features/activities/match-subject.test.ts (14 tests) 12ms
+ ✓ src/features/notices/extraction.test.ts (13 tests) 22ms
+ ✓ src/features/turmas/repository.test.ts (5 tests) 9ms
+ ✓ src/ai/subjects-parser/schema.test.ts (9 tests) 12ms
+ ✓ src/lib/env.test.ts (7 tests) 146ms
+ ✓ src/features/subjects/class-days.test.ts (47 tests) 17ms
+ ✓ src/features/subjects/service.test.ts (21 tests) 19ms
+ ✓ src/features/dashboard/optimistic.test.ts (4 tests) 7ms
+ ✓ src/features/turmas/schemas.test.ts (12 tests) 12ms
+ ✓ src/lib/url.test.ts (11 tests) 7ms
+ ✓ src/lib/sentry-scrub.test.ts (2 tests) 11ms
+ ✓ src/features/students/schemas.test.ts (11 tests) 12ms
+ ✓ src/lib/__tests__/audit-wiring.test.ts (2 tests) 1025ms
+   ✓ audit wiring > keeps auth, billing and emails connected to the audit pipeline 976ms
+ ✓ src/features/activities/match-student.test.ts (8 tests) 9ms
+ ✓ src/features/students/utils.test.ts (12 tests) 8ms
+ ✓ src/features/subjects/schemas.test.ts (14 tests) 14ms
+ ✓ src/features/notifications/schemas.test.ts (14 tests) 23ms
+ ✓ src/features/account/deletion.test.ts (3 tests) 8ms
+ ✓ src/features/calendar-feed/ics.test.ts (4 tests) 10ms
+ ✓ src/features/onboarding/schemas.test.ts (2 tests) 6ms
+ ✓ src/lib/request-size.test.ts (3 tests) 25ms
+ ✓ src/features/dashboard/gate.test.ts (5 tests) 4ms
+ ✓ src/lib/__tests__/sendgrid-webhook.test.ts (3 tests) 9ms
+ ✓ src/features/turmas/utils.test.ts (4 tests) 4ms
+ ✓ src/features/notices/attachment.test.ts (7 tests) 30ms
+
+ Test Files  36 passed (36)
+      Tests  482 passed (482)
+   Start at  23:35:09
+   Duration  4.05s (transform 4.27s, setup 0ms, collect 11.77s, tests 1.66s, environment 11ms, prepare 8.88s)

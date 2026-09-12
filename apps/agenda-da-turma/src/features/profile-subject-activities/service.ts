@@ -77,6 +77,7 @@ export async function updateProfileSubjectActivity(
 ): Promise<Result<ProfileSubjectActivity, ProfileSubjectActivityError>> {
   const activity = await findProfileSubjectActivityForUser(userId, input.id);
   if (!activity) return err({ code: "NOT_FOUND" });
+  if (activity.createdByUserId !== userId) return err({ code: "FORBIDDEN" });
 
   const updated = await updateProfileSubjectActivityById(input.id, {
     type: input.type,
@@ -94,6 +95,7 @@ export async function deleteProfileSubjectActivity(
 ): Promise<Result<true, ProfileSubjectActivityError>> {
   const activity = await findProfileSubjectActivityForUser(userId, input.id);
   if (!activity) return err({ code: "NOT_FOUND" });
+  if (activity.createdByUserId !== userId) return err({ code: "FORBIDDEN" });
   const removed = await deleteProfileSubjectActivityById(input.id);
   if (!removed) return err({ code: "NOT_FOUND" });
   return ok(true);
@@ -123,7 +125,21 @@ export async function setProfileSubjectActivityStatusForUser(
 ): Promise<Result<{ id: string; status: typeof input.status }, ProfileSubjectActivityError>> {
   const activity = await findProfileSubjectActivityForUser(userId, input.id);
   if (!activity) return err({ code: "NOT_FOUND" });
-  const updated = await setProfileSubjectActivityStatus(input.id, input.status);
+  const isPro =
+    input.status === "pending" &&
+    (await billing.hasProSubscription(userSubject(activity.createdByUserId ?? userId)));
+  const updated = await setProfileSubjectActivityStatus(
+    input.id,
+    input.status,
+    userId,
+    input.status === "pending" && !isPro ? FREE_ACTIVITY_LIMIT : null,
+  );
+  if (typeof updated === "object")
+    return err({
+      code: "ACTIVITY_LIMIT_REACHED",
+      current: updated.limitReached,
+      limit: FREE_ACTIVITY_LIMIT,
+    });
   if (!updated) return err({ code: "NOT_FOUND" });
   return ok({ id: input.id, status: input.status });
 }

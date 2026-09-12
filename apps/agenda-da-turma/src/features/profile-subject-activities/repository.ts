@@ -1,16 +1,15 @@
 import "server-only";
 
-import { and, asc, count, type Database, db, eq, sql } from "@informach/db";
+import { and, asc, count, db, eq, sql } from "@informach/db";
 import {
-  agendaActivities,
   agendaProfileSubjectActivities,
   agendaProfileSubjects,
   agendaStudentProfiles,
 } from "@informach/db/schema";
+import { countPendingActivities, lockPendingLimit } from "@/features/activities/pending-limit";
 import type { ActivityStatusValue, ActivityType } from "@/features/activities/types";
+import { accessibleProfileCondition } from "@/features/family/access";
 import type { ProfileSubjectActivity, ProfileSubjectActivityListItem } from "./types";
-
-type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
 export type NewProfileSubjectActivityPayload = {
   profileId: string;
@@ -47,6 +46,7 @@ export const profileSubjectActivityListSelect = {
   description: agendaProfileSubjectActivities.description,
   dueAt: agendaProfileSubjectActivities.dueAt,
   activityCreatedAt: agendaProfileSubjectActivities.createdAt,
+  activityUpdatedAt: agendaProfileSubjectActivities.updatedAt,
   createdByUserId: agendaProfileSubjectActivities.createdByUserId,
 } as const;
 
@@ -69,6 +69,7 @@ function toListItem(
     description: row.description,
     dueAt: row.dueAt,
     activityCreatedAt: row.activityCreatedAt,
+    activityUpdatedAt: row.activityUpdatedAt,
     createdByUserId: row.createdByUserId,
   };
 }
@@ -111,7 +112,7 @@ export async function findProfileSubjectActivityForUser(
       agendaStudentProfiles,
       eq(agendaStudentProfiles.id, agendaProfileSubjectActivities.profileId),
     )
-    .where(and(eq(agendaStudentProfiles.userId, userId), eq(agendaProfileSubjectActivities.id, id)))
+    .where(and(accessibleProfileCondition(userId), eq(agendaProfileSubjectActivities.id, id)))
     .limit(1);
   return row?.activity ?? null;
 }
@@ -141,9 +142,9 @@ export async function insertProfileSubjectActivityWithinFreeLimit(
 ): Promise<InsertProfileSubjectActivityWithinLimitResult> {
   return db.transaction(
     async (tx) => {
-      await lockSharedActivityLimitForUser(tx, payload.createdByUserId);
+      await lockPendingLimit(tx, payload.createdByUserId);
 
-      const current = await countCombinedActivitiesForUser(tx, payload.createdByUserId);
+      const current = await countPendingActivities(tx, payload.createdByUserId);
       if (current >= limit) {
         return { ok: false as const, current };
       }
@@ -153,28 +154,6 @@ export async function insertProfileSubjectActivityWithinFreeLimit(
     },
     { isolationLevel: "read committed" },
   );
-}
-
-// Mesmo lock key que `agenda.activities` para que o cap FREE_ACTIVITY_LIMIT
-// seja atômico cross-domain. Sem isso, user Free poderia abrir duas abas e
-// inserir 20 turma + 20 extras simultâneo.
-async function lockSharedActivityLimitForUser(tx: Tx, userId: string): Promise<void> {
-  await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`agenda:activities:${userId}`}))`);
-}
-
-async function countCombinedActivitiesForUser(
-  client: Database | Tx,
-  userId: string,
-): Promise<number> {
-  const [turmaRow] = await client
-    .select({ count: count() })
-    .from(agendaActivities)
-    .where(eq(agendaActivities.createdByUserId, userId));
-  const [extraRow] = await client
-    .select({ count: count() })
-    .from(agendaProfileSubjectActivities)
-    .where(eq(agendaProfileSubjectActivities.createdByUserId, userId));
-  return Number(turmaRow?.count ?? 0) + Number(extraRow?.count ?? 0);
 }
 
 export async function updateProfileSubjectActivityById(
@@ -206,13 +185,43 @@ export async function deleteProfileSubjectActivityById(id: string): Promise<bool
 export async function setProfileSubjectActivityStatus(
   id: string,
   status: ActivityStatusValue,
-): Promise<boolean> {
-  const updated = await db
-    .update(agendaProfileSubjectActivities)
-    .set({ status, updatedAt: new Date() })
-    .where(eq(agendaProfileSubjectActivities.id, id))
-    .returning({ id: agendaProfileSubjectActivities.id });
-  return updated.length > 0;
+  actorId: string,
+  freeLimit: number | null,
+): Promise<boolean | { limitReached: number }> {
+  const [candidate] = await db
+    .select({ ownerId: agendaStudentProfiles.userId })
+    .from(agendaProfileSubjectActivities)
+    .innerJoin(
+      agendaStudentProfiles,
+      eq(agendaStudentProfiles.id, agendaProfileSubjectActivities.profileId),
+    )
+    .where(and(eq(agendaProfileSubjectActivities.id, id), accessibleProfileCondition(actorId)));
+  if (!candidate) return false;
+  return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtext(${`agenda:family:${candidate.ownerId}`}))`,
+    );
+    await lockPendingLimit(tx, candidate.ownerId);
+    const [current] = await tx
+      .select({ activity: agendaProfileSubjectActivities })
+      .from(agendaProfileSubjectActivities)
+      .innerJoin(
+        agendaStudentProfiles,
+        eq(agendaStudentProfiles.id, agendaProfileSubjectActivities.profileId),
+      )
+      .where(and(eq(agendaProfileSubjectActivities.id, id), accessibleProfileCondition(actorId)))
+      .for("update");
+    if (!current) return false;
+    if (freeLimit !== null && status === "pending" && current.activity.status === "done") {
+      const total = await countPendingActivities(tx, candidate.ownerId);
+      if (total >= freeLimit) return { limitReached: total };
+    }
+    await tx
+      .update(agendaProfileSubjectActivities)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(agendaProfileSubjectActivities.id, id));
+    return true;
+  });
 }
 
 // Lista atividades de uma matéria específica (página `/perfis/[id]/extras/[subjectId]`
@@ -244,7 +253,7 @@ export async function listProfileActivitiesInDateRange(
   options: ListProfileActivitiesInRangeOptions,
 ): Promise<ProfileSubjectActivityListItem[]> {
   const whereExpr = and(
-    eq(agendaStudentProfiles.userId, userId),
+    accessibleProfileCondition(userId),
     options.profileFilter ? eq(agendaStudentProfiles.id, options.profileFilter) : undefined,
     options.includePausedSubjects ? undefined : eq(agendaProfileSubjects.status, "active"),
     sql`${agendaProfileSubjectActivities.dueAt} BETWEEN ${options.fromIso} AND ${options.toIso}`,
@@ -302,7 +311,7 @@ export async function listProfileActivitiesByBucket(
   })();
 
   const whereExpr = and(
-    eq(agendaStudentProfiles.userId, userId),
+    accessibleProfileCondition(userId),
     eq(agendaProfileSubjects.status, "active"),
     options.profileFilter ? eq(agendaStudentProfiles.id, options.profileFilter) : undefined,
     bucketFilter,

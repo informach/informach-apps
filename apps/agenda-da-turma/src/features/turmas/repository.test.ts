@@ -149,7 +149,7 @@ describe("generateUniqueTurmaCode", () => {
   it("returns a code when none collides", async () => {
     dbMocks.db.select.mockReturnValue(selectExisting([]));
     const code = await generateUniqueTurmaCode(3);
-    expect(code).toMatch(/^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/);
+    expect(code).toMatch(/^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{12}$/);
   });
 
   it("retries on collisions and eventually throws when exhausted", async () => {

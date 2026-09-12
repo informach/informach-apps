@@ -35,7 +35,14 @@ import { useForm } from "react-hook-form";
 import type { StudentProfile } from "@/features/students/types";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { createOrJoinTurmaAction } from "../actions";
-import { MAX_TURMA_YEAR, MIN_TURMA_YEAR, TURMA_GRADES, type TurmaGrade } from "../limits";
+import {
+  MAX_TURMA_YEAR,
+  MIN_TURMA_YEAR,
+  TURMA_GRADES,
+  TURMA_SHIFT_LABELS,
+  TURMA_SHIFTS,
+  type TurmaGrade,
+} from "../limits";
 import { type CreateTurmaFormValues, createTurmaInputSchema } from "../schemas";
 import { formatGrade } from "../utils";
 import { AsyncCombobox, type ComboboxOption } from "./async-combobox";
@@ -64,6 +71,7 @@ export function CreateTurmaDialog({ open, onOpenChange, profiles, defaultProfile
       grade: "1ano",
       year: new Date().getFullYear(),
       classLetter: "A",
+      shift: "unspecified",
       profileId: defaultProfileId ?? profiles[0]?.id ?? "",
     },
   });
@@ -80,6 +88,7 @@ export function CreateTurmaDialog({ open, onOpenChange, profiles, defaultProfile
       grade: "1ano",
       year: new Date().getFullYear(),
       classLetter: "A",
+      shift: "unspecified",
       profileId: defaultProfileId ?? profiles[0]?.id ?? "",
     });
     setStateUf(null);
@@ -183,7 +192,7 @@ export function CreateTurmaDialog({ open, onOpenChange, profiles, defaultProfile
               <DialogDescription>
                 {shareCode.created
                   ? "A turma foi criada e seu estudante já está vinculado a ela como ativa."
-                  : "Essa turma já existia no sistema. Seu estudante foi adicionado e ela virou a turma ativa."}
+                  : "Seu estudante foi vinculado ao grupo que você já criou."}
               </DialogDescription>
             </DialogHeader>
 
@@ -211,13 +220,37 @@ export function CreateTurmaDialog({ open, onOpenChange, profiles, defaultProfile
             <DialogHeader>
               <DialogTitle>Nova turma</DialogTitle>
               <DialogDescription>
-                Cadastre a turma do estudante. Se a turma já existir no sistema, seu estudante entra
-                automaticamente nela.
+                Crie um grupo privado para organizar a turma. Para participar de um grupo de outra
+                família, use o código de convite.
               </DialogDescription>
             </DialogHeader>
 
             <Form {...form}>
               <form onSubmit={onSubmit} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="shift"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Turno</FormLabel>
+                      <Select value={field.value ?? "unspecified"} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {TURMA_SHIFTS.map((shift) => (
+                            <SelectItem key={shift} value={shift}>
+                              {TURMA_SHIFT_LABELS[shift]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name="profileId"

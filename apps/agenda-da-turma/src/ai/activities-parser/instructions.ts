@@ -25,32 +25,21 @@ Use a data como referência para resolver datas relativas (regras abaixo). Use a
 
 O bloco "Matérias disponíveis nas turmas dos estudantes", quando presente, lista as turmas ativas com suas matérias cadastradas. Use essa lista para preencher \`subjectHint\` (regras detalhadas na seção "Matéria" abaixo). O conjunto de matérias visíveis no conteúdo pode ajudar a inferir qual turma é o foco do batch (ex.: foto da agenda só com matérias da Turma A → toda a foto é provavelmente daquela turma).
 
-## Datas relativas
-Use a data "hoje" do cabeçalho para resolver:
+## Datas e prazos
+O cabeçalho com “Hoje” só é fornecido para ditado atual. Imagens e PDFs recebem aviso de documento de data desconhecida. Nunca adote a data atual implícita do sistema para resolver prazos de documentos antigos.
+Extraia somente datas ligadas explicitamente a uma providência. Data de postagem,
+impressão, cabeçalho ou aula NÃO estabelece prazo de entrega. Não propague uma
+data entre ações independentes. Uma data comum só vale quando o texto a vincula
+claramente a todas as ações do bloco.
 
-- "hoje" → a própria data informada
-- "amanhã" → hoje + 1
-- "depois de amanhã" → hoje + 2
-- "essa semana" → use o final da semana corrente (sábado, ou sexta se for dia letivo) — quando ambíguo, deixe \`dueAt: null\` (o servidor calcula)
-- "próxima semana" → mesmo dia da semana + 7 dias
-- "segunda-feira", "terça", "quarta", "quinta", "sexta", "sábado", "domingo" → próxima ocorrência (>= hoje)
-- "próxima segunda/terça/..." → segunda ocorrência depois de hoje (mesmo se hoje já for esse dia da semana)
-- "dia 25", "no dia 30" → dia desse número no mês corrente; se já passou, no próximo mês
-- "8 do 4", "data 8 do 4", "dia 8 do mês 4", "08/04", "8/4", "8-4" → dia 8 do mês 4 (= abril) no ano corrente. Formato compacto DD/MM brasileiro — muito comum em cabeçalhos de prova, roteiros de estudo, agendas. NÃO confundir com "dia 8" sozinho (sem mês), que segue a regra anterior.
-- "8 de abril", "dia 8 de abril", "08 de abril" → idem (mês por extenso). Mesmo se a data já passou no ano corrente, use o ano corrente — copie literal, NÃO pule pro próximo ano (a foto pode ser antiga; o user revisa antes de salvar).
-- "no fim do mês", "começo do mês" → último/primeiro dia útil; ambíguo → \`dueAt: null\` (servidor calcula)
-- "depois das férias", "após o recesso" → \`dueAt: null\` — período indefinido, servidor calcula próxima aula da matéria; user ajusta
+Use formato YYYY-MM-DD. Para expressões relativas, use a data de publicação
+quando informada. Se ela não estiver disponível e o conteúdo não for um ditado
+atual, preserve dueAt: null e deixe a família confirmar. Datas brasileiras são
+DD/MM. Não avance silenciosamente ano ou mês quando uma data já passou.
 
-### Default quando NÃO há data alguma no conteúdo
-
-Quando o conteúdo NÃO mencionar nenhuma data (nem explícita, nem relativa, nem ambígua) → \`dueAt: null\`. **NUNCA invente** uma data e **NUNCA preencha com "hoje + 1"** quando não houver pista — o servidor calcula a melhor data automaticamente:
-
-1. **Se a matéria estiver resolvida e tiver horário cadastrado** (dias da semana): servidor usa a próxima aula daquela matéria (ex.: hoje é sexta, tarefa é de Português que cai ter/qua/sex → próxima terça). Respeita revezamento quinzenal quando existir.
-2. **Se a matéria não tem horário cadastrado** ou não foi resolvida: servidor usa o próximo dia útil (seg-sex), pulando sáb/dom (ex.: hoje sexta → segunda).
-
-Em ambos os casos, o user revisa antes de salvar. Sua tarefa: extrair os fatos do input, **não chutar datas**.
-
-Quando devolver \`dueAt\` preenchido: use formato estrito YYYY-MM-DD e somente quando houver pista clara no conteúdo (data explícita, "amanhã", "próxima quarta", "dia 25", etc — ver regras acima).
+Sem prazo, com referência ambígua ("depois das férias", "próxima semana") ou
+sem ano/contexto suficiente, retorne dueAt: null. O servidor preserva a ausência
+de prazo. Nunca use amanhã, próximo dia útil ou horário da matéria como prazo.
 
 ## Tipo (\`type\`)
 Classificar pelo conteúdo:
@@ -235,26 +224,15 @@ Se você não consegue identificar pelo menos UM dos critérios de quebra acima 
 
 Independentemente de quebrar ou consolidar, cada atividade resultante **deve carregar TODOS os dados disponíveis** sobre ela:
 
-- **\`dueAt\`**: aplique a regra de propagação de data (logo abaixo). Não deixe \`dueAt: null\` quando há data clara no contexto da atividade. Quando REALMENTE não há nenhuma data mencionada (nem na atividade, nem propagada do contexto), \`dueAt: null\` é o valor correto — o servidor calcula automaticamente (próxima aula da matéria ou próximo dia útil).
+- **\`dueAt\`**: aplique a regra de propagação de data (logo abaixo). Não deixe \`dueAt: null\` quando há data clara no contexto da atividade. Quando REALMENTE não há nenhuma data mencionada (nem na atividade, nem propagada do contexto), \`dueAt: null\` é o valor correto — o responsável confirma o prazo sem preenchimento automático.
 - **\`description\`**: anotações explicativas, escopo, observações ("o que é e como funciona", "para a prova de X", "entregar em dupla", "trazer dia Y") vão em \`description\` quando não couberem no \`title\`. Não descarte comentários só porque o título já está formado.
 - **\`subjectHint\`** e **\`studentNameHint\`**: aplique a TODAS as atividades do mesmo bloco/menção (não preencha só na primeira).
 
-### Propagação de data — regra do "último contexto"
+### Prazo de um grupo de atividades
 
-Em folhas escolares, agendas, recados e áudios é comum aparecer **uma data no topo/início** valendo para várias atividades listadas embaixo. Aplique a regra do "último contexto":
+Uma data só vale para várias ações quando o texto liga explicitamente esse prazo ao grupo, por exemplo “Tarefas para entregar em 20/05”. Data de postagem, data no topo da folha ou data de uma ação anterior NÃO se propagam automaticamente. Sem vínculo claro, preserve dueAt=null. Uma data individual prevalece sobre um prazo geral.
 
-1. **Quando uma data aparece, ela vira o "contexto ativo"** e se aplica a TODAS as atividades que vêm DEPOIS dela, até encontrar uma nova data que substitui o contexto.
-2. **Atividades sem data própria HERDAM a data do contexto ativo** (não fique com \`dueAt: null\` quando há contexto). Use a última data vista antes da atividade.
-3. **Uma nova data substitui o contexto** para as atividades subsequentes.
-4. **Quando não há NENHUMA data no contexto** (nem antes nem na atividade), \`dueAt: null\` (o servidor calcula).
-
-Exemplos:
-
-- **Imagem com "20/05/2026" no cabeçalho + 4 atividades listadas sem datas individuais** → todas as 4 com \`dueAt: "2026-05-20"\`.
-- **Imagem com "20/05" + 2 atividades + linha "23/05" + 3 atividades** → primeiras 2 com 2026-05-20; últimas 3 com 2026-05-23.
-- **Áudio**: "Amanhã a Débora tem tarefa de matemática páginas 58-93 e trabalho de história sobre o Império" → ambas as atividades herdam dueAt = amanhã.
-- **Áudio**: "Amanhã tem prova de matemática e na quinta tem trabalho de português" → matemática = amanhã; português = quinta (cada uma com sua própria data explícita).
-- **Imagem**: cabeçalho "Para entregar 20/05" + bloco de Matemática (sem data própria) + bloco de Ciências (com "terça-feira" escrito) → atividades de Matemática herdam 20/05; atividades de Ciências usam terça-feira (data própria vence o contexto).
+Uma fala gravada agora pode usar o hoje informado para resolver “amanhã”. Em imagens e PDFs antigos, expressões relativas exigem data da publicação conhecida; caso contrário, null e revisão pela família.
 
 Exemplo combinado (caso da folha de Ciências com seta para microscópio + data no topo):
 - Folha com "Tarefa para 26/05" no topo + bloco com seta de "Ciências" → "Estudar sobre microscopia (o que é e como funciona)" → 1 atividade: \`{ type: "task", title: "Estudar sobre microscopia", description: "O que é e como funciona", dueAt: "2026-05-26", subjectHint: "Ciências", studentNameHint: <deduzido> }\`.
@@ -393,7 +371,7 @@ Note que: (a) "Bons estudos!" foi omitido (motivacional); (b) os 4 tópicos do "
 - Quebrar cada tópico da lista numa atividade separada ("Estudar documentos", "Estudar fontes", ...). ERRADO — a atividade é UMA prova; os tópicos são contexto da description.
 - \`subjectHint: null\` quando o PDF diz "Português" e a lista tem "Língua Portuguesa". ERRADO — esses são aliases (ver "Aliases comuns de matérias"). Idem pra "Mat" ↔ "Matemática", "Ed Física" ↔ "Educação Física", etc.
 - \`subjectHint: null\` quando o título do documento diz LITERAL "Revisão da prova de Língua Portuguesa". ERRADO — a matéria está NO título; basta extrair. Não precisa nem de alias. Esse é o caso mais crítico: título explícito → matéria explícita.
-- \`dueAt\` com data aleatória/inventada (ex.: PDF sem data nenhuma e a saída tem \`dueAt: "2026-06-15"\`). ERRADO — quando não há nenhuma pista de data, \`dueAt: null\` (o servidor calcula a partir do horário da matéria ou do próximo dia útil). NÃO chute datas.
+- \`dueAt\` com data aleatória/inventada (ex.: PDF sem data nenhuma e a saída tem \`dueAt: "2026-06-15"\`). ERRADO — quando não há nenhuma pista de data, \`dueAt: null\` (o responsável poderá informar ou planejar uma data na revisão). NÃO chute datas.
 - \`dueAt: hoje + 1\` quando não há data no conteúdo. ERRADO — não preencha com "amanhã" só pra evitar null. \`dueAt: null\` é o valor correto quando o conteúdo não menciona data; o servidor decide melhor que o modelo porque conhece o horário cadastrado da matéria.
 
 ### Limite de tamanho

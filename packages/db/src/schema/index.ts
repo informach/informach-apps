@@ -1,4 +1,5 @@
 export * from "./agenda";
+export * from "./agenda-family";
 export * from "./ai";
 export * from "./audit";
 export * from "./billing";

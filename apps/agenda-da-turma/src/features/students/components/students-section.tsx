@@ -7,14 +7,15 @@ import { NewStudentButton } from "./new-student-button";
 import { StudentCard } from "./student-card";
 
 type Props = {
+  currentUserId: string;
   profiles: StudentProfileWithActiveTurma[];
   isPro: boolean;
   currentCount: number;
   limit: number;
 };
 
-export function StudentsSection({ profiles, isPro, currentCount, limit }: Props) {
-  if (currentCount === 0) {
+export function StudentsSection({ profiles, isPro, currentCount, limit, currentUserId }: Props) {
+  if (profiles.length === 0) {
     return (
       <div className="space-y-4">
         <Card className="rounded-2xl border-dashed">
@@ -50,6 +51,7 @@ export function StudentsSection({ profiles, isPro, currentCount, limit }: Props)
       <div className="space-y-3">
         {profiles.map((profile) => (
           <StudentCard
+            currentUserId={currentUserId}
             key={profile.id}
             profile={profile}
             isPro={isPro}

@@ -1,18 +1,26 @@
 import { describe, expect, it } from "vitest";
-import type { ParsedActivityInput, TurmaWithSubjectsForForm } from "@/features/activities/types";
+import type { TurmaWithSubjectsForForm } from "@/features/activities/types";
 import {
-  applyNextClassDayFallback,
-  applyTomorrowFallback,
   buildUserMessage,
   enrichWithResolvedTurma,
   inferGuessedTurma,
   type ProfileLite,
-  propagateUniqueDueDate,
 } from "./enrich";
 
 const fixedNow = new Date("2026-05-13T12:00:00-03:00"); // quarta-feira, São Paulo
 
 describe("buildUserMessage", () => {
+  it("does not supply today's date as the publication date of an uploaded document", () => {
+    const msg = buildUserMessage({
+      transcript: "Entregar amanhã",
+      studentNames: [],
+      sourceKind: "document",
+      now: fixedNow,
+    });
+    expect(msg).not.toContain("2026-05-13");
+    expect(msg).toContain("publicação inequívoco no original");
+    expect(msg).toContain("dueAt=null");
+  });
   it("inclui hoje + dia da semana + estudantes + transcript", () => {
     const msg = buildUserMessage({
       transcript: "Pedro tem prova amanhã",
@@ -528,468 +536,55 @@ describe("inferGuessedTurma", () => {
   });
 });
 
-describe("propagateUniqueDueDate", () => {
-  const makeActivity = (dueAt: string | null, title = "x"): ParsedActivityInput => ({
-    title,
-    description: null,
-    type: "task",
-    dueAt,
-    subjectHint: null,
-    studentNameHint: null,
-    resolvedTurmaId: null,
-    resolvedSubjectId: null,
+describe("prazos ausentes", () => {
+  it("preserva ausência de prazo mesmo quando outro item tem data", () => {
+    const out = enrichWithResolvedTurma(
+      {
+        isValidInput: true,
+        reason: null,
+        activities: ["2026-09-14", null].map((dueAt) => ({
+          title: "Levar material",
+          description: null,
+          type: "reminder" as const,
+          dueAt,
+          subjectHint: null,
+          studentNameHint: null,
+        })),
+      },
+      [],
+    );
+    expect(out.isValidInput && out.activities.map((a) => a.dueAt)).toEqual(["2026-09-14", null]);
   });
 
-  it("propaga data única para atividades com dueAt=null", () => {
-    // Cenário típico: folha escolar com data "26/05" no topo. IA acertou a
-    // data só em 2 de 3 atividades. Fallback preenche a terceira.
-    const result = propagateUniqueDueDate([
-      makeActivity("2026-05-26", "Tarefa 1"),
-      makeActivity(null, "Tarefa 2"),
-      makeActivity("2026-05-26", "Tarefa 3"),
-    ]);
-    expect(result[0]?.dueAt).toBe("2026-05-26");
-    expect(result[1]?.dueAt).toBe("2026-05-26");
-    expect(result[2]?.dueAt).toBe("2026-05-26");
-  });
-
-  it("não propaga quando há mais de uma data distinta no batch", () => {
-    // Discrepância → conservador, mantém os nulls. Provavelmente cada bloco
-    // tem sua data própria e a null pode ser ambígua.
-    const result = propagateUniqueDueDate([
-      makeActivity("2026-05-20", "A"),
-      makeActivity("2026-05-23", "B"),
-      makeActivity(null, "C"),
-    ]);
-    expect(result[2]?.dueAt).toBeNull();
-  });
-
-  it("não muda nada quando todas têm data ou todas estão null", () => {
-    const allFilled = propagateUniqueDueDate([
-      makeActivity("2026-05-20", "A"),
-      makeActivity("2026-05-20", "B"),
-    ]);
-    expect(allFilled.map((a) => a.dueAt)).toEqual(["2026-05-20", "2026-05-20"]);
-
-    const allNull = propagateUniqueDueDate([makeActivity(null, "A"), makeActivity(null, "B")]);
-    expect(allNull.map((a) => a.dueAt)).toEqual([null, null]);
-  });
-
-  it("propagação roda dentro de enrichWithResolvedTurma (antes do fallback)", () => {
-    // Smoke test do caminho completo: folha com data uniforme + alguma
-    // atividade null → enrichWithResolvedTurma já entrega tudo propagado.
-    // Ordem importa: propagação roda ANTES do applyTomorrowFallback, então
-    // a null herda a data do batch (não vira "amanhã").
-    const result = enrichWithResolvedTurma(
+  it("não transforma horário da matéria em prazo de entrega", () => {
+    const out = enrichWithResolvedTurma(
       {
         isValidInput: true,
         reason: null,
         activities: [
           {
-            title: "Estudar microscopia",
-            description: "O que é e como funciona",
-            type: "task" as const,
-            dueAt: null, // IA esqueceu de associar com a data do topo
-            subjectHint: "Ciências",
-            studentNameHint: "Pedro",
-          },
-          {
-            title: "Lição de geografia",
+            title: "Ler",
             description: null,
-            type: "task" as const,
-            dueAt: "2026-05-26", // outra atividade da mesma folha pegou
-            subjectHint: null,
-            studentNameHint: "Pedro",
+            type: "task",
+            dueAt: null,
+            subjectHint: "Português",
+            studentNameHint: "Ana",
           },
         ],
       },
-      profiles,
-      turmasWithSubjects,
-      fixedNow,
-    );
-    if (!result.isValidInput) throw new Error("expected isValidInput=true");
-    // A primeira atividade herda a data da segunda (única data no batch).
-    expect(result.activities[0]?.dueAt).toBe("2026-05-26");
-    expect(result.activities[1]?.dueAt).toBe("2026-05-26");
-  });
-});
-
-describe("applyTomorrowFallback", () => {
-  const makeActivity = (dueAt: string | null, title = "x"): ParsedActivityInput => ({
-    title,
-    description: null,
-    type: "task",
-    dueAt,
-    subjectHint: null,
-    studentNameHint: null,
-    resolvedTurmaId: null,
-    resolvedSubjectId: null,
-  });
-
-  it("preenche dueAt=null com próximo dia útil (quarta → quinta)", () => {
-    // fixedNow = 2026-05-13 (quarta) → próximo dia útil = 2026-05-14 (quinta).
-    const result = applyTomorrowFallback(
-      [makeActivity(null, "Sem data"), makeActivity(null, "Outra sem data")],
-      fixedNow,
-    );
-    expect(result[0]?.dueAt).toBe("2026-05-14");
-    expect(result[1]?.dueAt).toBe("2026-05-14");
-  });
-
-  it("não altera atividades com data já definida", () => {
-    const result = applyTomorrowFallback(
-      [makeActivity("2026-05-20", "Com data"), makeActivity(null, "Sem data")],
-      fixedNow,
-    );
-    expect(result[0]?.dueAt).toBe("2026-05-20");
-    expect(result[1]?.dueAt).toBe("2026-05-14");
-  });
-
-  it("sexta-feira pula sábado/domingo e cai na próxima segunda", () => {
-    // 2026-05-15 = sexta → próxima segunda = 2026-05-18.
-    const friday = new Date("2026-05-15T12:00:00-03:00");
-    const result = applyTomorrowFallback([makeActivity(null, "Sem data")], friday);
-    expect(result[0]?.dueAt).toBe("2026-05-18");
-  });
-
-  it("sábado vai pra segunda (não domingo)", () => {
-    // 2026-05-16 = sábado → segunda = 2026-05-18.
-    const saturday = new Date("2026-05-16T12:00:00-03:00");
-    const result = applyTomorrowFallback([makeActivity(null, "Sem data")], saturday);
-    expect(result[0]?.dueAt).toBe("2026-05-18");
-  });
-
-  it("domingo vai pra segunda", () => {
-    // 2026-05-17 = domingo → segunda = 2026-05-18.
-    const sunday = new Date("2026-05-17T12:00:00-03:00");
-    const result = applyTomorrowFallback([makeActivity(null, "Sem data")], sunday);
-    expect(result[0]?.dueAt).toBe("2026-05-18");
-  });
-
-  it("integração: batch totalmente sem data via enrichWithResolvedTurma vira próximo dia útil", () => {
-    // Cenário do bug original: imagem da microscopia em que a IA não detectou
-    // NENHUMA data. Sem nada pra propagar nem horário de matéria, o fallback
-    // assume e preenche próximo dia útil. User ainda pode editar antes de salvar.
-    const result = enrichWithResolvedTurma(
-      {
-        isValidInput: true,
-        reason: null,
-        activities: [
-          {
-            title: "Estudar sobre microscopia",
-            description: "O que é e como funciona",
-            type: "task" as const,
-            dueAt: null,
-            subjectHint: "Ciências",
-            studentNameHint: "Pedro",
-          },
-          {
-            title: "Levar material de arte",
-            description: null,
-            type: "reminder" as const,
-            dueAt: null,
-            subjectHint: null,
-            studentNameHint: "Pedro",
-          },
-        ],
-      },
-      profiles,
-      turmasWithSubjects,
-      fixedNow,
-    );
-    if (!result.isValidInput) throw new Error("expected isValidInput=true");
-    // Hoje fixedNow = 2026-05-13 (qua) → próximo dia útil = 2026-05-14 (qui).
-    expect(result.activities[0]?.dueAt).toBe("2026-05-14");
-    expect(result.activities[1]?.dueAt).toBe("2026-05-14");
-  });
-
-  it("integração: null isolado com 2 datas distintas no batch (propagação falha) vira próximo dia útil", () => {
-    // Caso menos óbvio: batch tem 2 datas distintas, então propagateUniqueDueDate
-    // não tem como decidir e mantém o null. O fallback assume.
-    const result = enrichWithResolvedTurma(
-      {
-        isValidInput: true,
-        reason: null,
-        activities: [
-          {
-            title: "A",
-            description: null,
-            type: "task" as const,
-            dueAt: "2026-05-20",
-            subjectHint: "Matemática",
-            studentNameHint: "Pedro",
-          },
-          {
-            title: "B",
-            description: null,
-            type: "task" as const,
-            dueAt: "2026-05-23",
-            subjectHint: "Matemática",
-            studentNameHint: "Pedro",
-          },
-          {
-            title: "C sem data",
-            description: null,
-            type: "task" as const,
-            dueAt: null,
-            subjectHint: "Matemática",
-            studentNameHint: "Pedro",
-          },
-        ],
-      },
-      profiles,
-      turmasWithSubjects,
-      fixedNow,
-    );
-    if (!result.isValidInput) throw new Error("expected isValidInput=true");
-    expect(result.activities[0]?.dueAt).toBe("2026-05-20");
-    expect(result.activities[1]?.dueAt).toBe("2026-05-23");
-    expect(result.activities[2]?.dueAt).toBe("2026-05-14"); // próximo dia útil
-  });
-});
-
-describe("applyNextClassDayFallback", () => {
-  const makeActivity = (
-    dueAt: string | null,
-    resolvedSubjectId: string | null,
-  ): ParsedActivityInput => ({
-    title: "x",
-    description: null,
-    type: "task",
-    dueAt,
-    subjectHint: null,
-    studentNameHint: null,
-    resolvedTurmaId: null,
-    resolvedSubjectId,
-  });
-
-  // 2026-05-13 = quarta (fixedNow).
-  const turmasComHorario: TurmaWithSubjectsForForm[] = [
-    {
-      turmaId: "t1",
-      schoolName: "Escola X",
-      grade: "5ano",
-      classLetter: "A",
-      year: 2026,
-      subjects: [
-        // Matemática: seg/qua/sex → próxima após quarta é sexta (2026-05-15).
-        { id: "s-mat", name: "Matemática", colorIndex: 1, classDays: ["mon", "wed", "fri"] },
-        // Português sem horário cadastrado → applyTomorrowFallback pega depois.
-        { id: "s-port", name: "Português", colorIndex: 2, classDays: [] },
+      [{ id: "p", name: "Ana", activeTurmaId: "t" }],
+      [
+        {
+          turmaId: "t",
+          schoolName: "Escola",
+          grade: "4ano",
+          classLetter: "A",
+          year: 2026,
+          subjects: [{ id: "s", name: "Português", colorIndex: 0, classDays: ["mon", "fri"] }],
+        },
       ],
-    },
-  ];
-
-  it("preenche dueAt com próximo dia de aula quando subject tem classDays", () => {
-    const result = applyNextClassDayFallback(
-      [makeActivity(null, "s-mat")],
-      turmasComHorario,
-      fixedNow,
     );
-    expect(result[0]?.dueAt).toBe("2026-05-15"); // sexta
-  });
-
-  it("mantém null quando subject existe mas classDays está vazio", () => {
-    const result = applyNextClassDayFallback(
-      [makeActivity(null, "s-port")],
-      turmasComHorario,
-      fixedNow,
-    );
-    expect(result[0]?.dueAt).toBeNull();
-  });
-
-  it("mantém null quando resolvedSubjectId é null (matéria não resolvida)", () => {
-    const result = applyNextClassDayFallback(
-      [makeActivity(null, null)],
-      turmasComHorario,
-      fixedNow,
-    );
-    expect(result[0]?.dueAt).toBeNull();
-  });
-
-  it("mantém null quando subject não está no índice (caso defensivo)", () => {
-    const result = applyNextClassDayFallback(
-      [makeActivity(null, "s-inexistente")],
-      turmasComHorario,
-      fixedNow,
-    );
-    expect(result[0]?.dueAt).toBeNull();
-  });
-
-  it("não toca atividades que já têm dueAt definido", () => {
-    const result = applyNextClassDayFallback(
-      [makeActivity("2026-05-20", "s-mat")],
-      turmasComHorario,
-      fixedNow,
-    );
-    expect(result[0]?.dueAt).toBe("2026-05-20");
-  });
-
-  it("integração: enrichWithResolvedTurma usa o fallback entre propagação e amanhã", () => {
-    // Cenário: usuário cadastrou Matemática (s-mat) com classDays seg/qua/sex.
-    // Hoje é quarta. IA detectou atividade de matemática sem data nenhuma.
-    // Esperado: dueAt = próxima sexta (2026-05-15), NÃO amanhã.
-    const profilesLocais: ProfileLite[] = [{ id: "p-pedro", name: "Pedro", activeTurmaId: "t1" }];
-    const result = enrichWithResolvedTurma(
-      {
-        isValidInput: true,
-        reason: null,
-        activities: [
-          {
-            title: "Lista de matemática",
-            description: null,
-            type: "task" as const,
-            dueAt: null,
-            subjectHint: "Matemática",
-            studentNameHint: "Pedro",
-          },
-        ],
-      },
-      profilesLocais,
-      turmasComHorario,
-      fixedNow,
-    );
-    if (!result.isValidInput) throw new Error("expected isValidInput=true");
-    expect(result.activities[0]?.resolvedSubjectId).toBe("s-mat");
-    expect(result.activities[0]?.dueAt).toBe("2026-05-15");
-  });
-
-  it("integração: matéria sem classDays cai pra próximo dia útil", () => {
-    const profilesLocais: ProfileLite[] = [{ id: "p-pedro", name: "Pedro", activeTurmaId: "t1" }];
-    const result = enrichWithResolvedTurma(
-      {
-        isValidInput: true,
-        reason: null,
-        activities: [
-          {
-            title: "Tarefa de português",
-            description: null,
-            type: "task" as const,
-            dueAt: null,
-            subjectHint: "Português",
-            studentNameHint: "Pedro",
-          },
-        ],
-      },
-      profilesLocais,
-      turmasComHorario,
-      fixedNow,
-    );
-    if (!result.isValidInput) throw new Error("expected isValidInput=true");
-    expect(result.activities[0]?.resolvedSubjectId).toBe("s-port");
-    // 2026-05-13 (quarta) → próximo dia útil = 2026-05-14 (quinta).
-    expect(result.activities[0]?.dueAt).toBe("2026-05-14");
-  });
-
-  it("bug 2026-05-15: sexta + matéria com classDays seg/qua/sex → próxima é segunda (não sábado)", () => {
-    // Reprodução do bug relatado pelo usuário: cadastrou tarefa de Português por
-    // voz numa sexta-feira, sem mencionar data. Matéria tinha horário cadastrado.
-    // ANTES do fix: IA preenchia dueAt = hoje + 1 = sábado. O servidor não
-    // consultava o horário da matéria, e mesmo se consultasse aplicava amanhã puro.
-    // DEPOIS do fix: IA retorna null, servidor usa nextClassDayIso → próxima segunda.
-    const friday = new Date("2026-05-15T12:00:00-03:00"); // 2026-05-15 = sexta
-    const turmasComPort: TurmaWithSubjectsForForm[] = [
-      {
-        turmaId: "t1",
-        schoolName: "X",
-        grade: "5ano",
-        classLetter: "A",
-        year: 2026,
-        subjects: [
-          { id: "s-port", name: "Português", colorIndex: 2, classDays: ["mon", "wed", "fri"] },
-        ],
-      },
-    ];
-    const profs: ProfileLite[] = [{ id: "p1", name: "Pedro", activeTurmaId: "t1" }];
-    const result = enrichWithResolvedTurma(
-      {
-        isValidInput: true,
-        reason: null,
-        activities: [
-          {
-            title: "Tarefa de Português",
-            description: null,
-            type: "task" as const,
-            dueAt: null, // IA agora retorna null quando não há data no input
-            subjectHint: "Português",
-            studentNameHint: "Pedro",
-          },
-        ],
-      },
-      profs,
-      turmasComPort,
-      friday,
-    );
-    if (!result.isValidInput) throw new Error("expected isValidInput=true");
-    // Próximo dia em [mon, wed, fri] estritamente após sexta 2026-05-15 = seg 2026-05-18.
-    expect(result.activities[0]?.dueAt).toBe("2026-05-18");
-  });
-
-  it("bug 2026-05-15: sexta + matéria sem classDays → próxima segunda (pula sáb/dom)", () => {
-    // Variação do bug: matéria sem horário cadastrado. Cai no fallback final
-    // weekend-aware — sexta → segunda, nunca sábado.
-    const friday = new Date("2026-05-15T12:00:00-03:00");
-    const profs: ProfileLite[] = [{ id: "p-pedro", name: "Pedro", activeTurmaId: "t1" }];
-    const result = enrichWithResolvedTurma(
-      {
-        isValidInput: true,
-        reason: null,
-        activities: [
-          {
-            title: "Tarefa de português",
-            description: null,
-            type: "task" as const,
-            dueAt: null,
-            subjectHint: "Português",
-            studentNameHint: "Pedro",
-          },
-        ],
-      },
-      profs,
-      turmasComHorario, // Português aqui tem classDays: []
-      friday,
-    );
-    if (!result.isValidInput) throw new Error("expected isValidInput=true");
-    expect(result.activities[0]?.resolvedSubjectId).toBe("s-port");
-    // Sem classDays → applyTomorrowFallback → próximo dia útil de sexta = segunda.
-    expect(result.activities[0]?.dueAt).toBe("2026-05-18");
-  });
-
-  it("integração: propagação de data única ainda vence o next-class-day", () => {
-    // Cenário: folha com 1 data no topo + atividades de Matemática (classDays
-    // seg/qua/sex). Propagação roda PRIMEIRO — todas as nulls herdam a data
-    // da folha, então o next-class-day não tem o que fazer.
-    const profilesLocais: ProfileLite[] = [{ id: "p-pedro", name: "Pedro", activeTurmaId: "t1" }];
-    const result = enrichWithResolvedTurma(
-      {
-        isValidInput: true,
-        reason: null,
-        activities: [
-          {
-            title: "A",
-            description: null,
-            type: "task" as const,
-            dueAt: "2026-05-26",
-            subjectHint: "Matemática",
-            studentNameHint: "Pedro",
-          },
-          {
-            title: "B sem data",
-            description: null,
-            type: "task" as const,
-            dueAt: null,
-            subjectHint: "Matemática",
-            studentNameHint: "Pedro",
-          },
-        ],
-      },
-      profilesLocais,
-      turmasComHorario,
-      fixedNow,
-    );
-    if (!result.isValidInput) throw new Error("expected isValidInput=true");
-    // Ambos herdam 2026-05-26 (propagação), não 2026-05-15 (next-class-day).
-    expect(result.activities[0]?.dueAt).toBe("2026-05-26");
-    expect(result.activities[1]?.dueAt).toBe("2026-05-26");
+    expect(out.isValidInput && out.activities[0]?.dueAt).toBeNull();
+    expect(out.isValidInput && out.activities[0]?.resolvedSubjectId).toBe("s");
   });
 });

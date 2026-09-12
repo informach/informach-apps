@@ -48,7 +48,7 @@ const EMPTY_DEFAULTS: StudentProfileFormValues = {
 function defaultsFromProfile(profile: StudentProfile): StudentProfileFormValues {
   return {
     name: profile.name,
-    birthDate: profile.birthDate,
+    birthDate: profile.birthDate ?? "",
   };
 }
 
@@ -215,9 +215,9 @@ export function StudentFormDialog({ open, onOpenChange, isPro, currentCount, pro
                 name="birthDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Data de nascimento</FormLabel>
+                    <FormLabel>Data de nascimento (opcional)</FormLabel>
                     <FormControl>
-                      <Input type="date" max={todayIso} {...field} />
+                      <Input type="date" max={todayIso} {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

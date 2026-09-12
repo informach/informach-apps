@@ -2,6 +2,7 @@ import { Toaster } from "@informach/ui/components/sonner";
 import { ThemeProvider } from "@informach/ui/components/theme-provider";
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { headers } from "next/headers";
 import type { ReactNode } from "react";
 import "./globals.css";
 
@@ -34,11 +35,14 @@ export const metadata: Metadata = {
   formatDetection: { telephone: false },
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  // A nonce is unique to this render. Reading request headers opts public pages
+  // into dynamic rendering too; a statically cached script cannot share it.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body className={jakarta.variable} suppressHydrationWarning>
-        <ThemeProvider>
+        <ThemeProvider nonce={nonce}>
           {children}
           <Toaster />
         </ThemeProvider>

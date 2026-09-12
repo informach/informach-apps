@@ -1,0 +1,1126 @@
+{
+  "executedAt": "2026-09-12T02:34:17.357Z",
+  "model": "openai/gpt-4o",
+  "synthetic": true,
+  "cases": 16,
+  "completed": 16,
+  "passed": 16,
+  "results": [
+    {
+      "id": "relative-date-publication-in-original",
+      "passed": true,
+      "durationMs": 2337,
+      "expectedDates": ["2030-09-14"],
+      "extraction": {
+        "actions": [
+          {
+            "type": "authorization",
+            "title": "Entregar a autorização",
+            "description": null,
+            "dueAt": "2030-09-14",
+            "dateOrigin": "relative",
+            "time": null,
+            "location": null,
+            "sourceExcerpt": "Publicado em 13/09/2030. Entregar a autorização amanhã."
+          }
+        ],
+        "warnings": [],
+        "publicationReference": {
+          "date": "2030-09-13",
+          "sourceExcerpt": "Publicado em 13/09/2030."
+        }
+      },
+      "usage": {
+        "inputTokens": 1151,
+        "outputTokens": 93,
+        "totalTokens": 1244,
+        "reasoningTokens": 0,
+        "cachedInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "raw": {
+          "inputTokens": {
+            "total": 1151,
+            "noCache": 1151,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "outputTokens": {
+            "total": 93,
+            "text": 93,
+            "reasoning": 0
+          },
+          "raw": {
+            "prompt_tokens": 1151,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "completion_tokens": 93,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            },
+            "total_tokens": 1244,
+            "cost": 0.0038075,
+            "cost_details": {
+              "upstream_inference_cost": 0.0038075,
+              "upstream_inference_prompt_cost": 0.0028775,
+              "upstream_inference_completions_cost": 0.00093
+            },
+            "is_byok": false
+          }
+        }
+      }
+    },
+    {
+      "id": "notice-with-no-action",
+      "passed": true,
+      "durationMs": 1003,
+      "expectedDates": [],
+      "extraction": {
+        "actions": [],
+        "warnings": ["O recado não contém providências a serem realizadas pela família."],
+        "publicationReference": null
+      },
+      "usage": {
+        "inputTokens": 1160,
+        "outputTokens": 25,
+        "totalTokens": 1185,
+        "reasoningTokens": 0,
+        "cachedInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "raw": {
+          "inputTokens": {
+            "total": 1160,
+            "noCache": 1160,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "outputTokens": {
+            "total": 25,
+            "text": 25,
+            "reasoning": 0
+          },
+          "raw": {
+            "prompt_tokens": 1160,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "completion_tokens": 25,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            },
+            "total_tokens": 1185,
+            "cost": 0.00315,
+            "cost_details": {
+              "upstream_inference_cost": 0.00315,
+              "upstream_inference_prompt_cost": 0.0029,
+              "upstream_inference_completions_cost": 0.00025
+            },
+            "is_byok": false
+          }
+        }
+      }
+    },
+    {
+      "id": "explicit-correction",
+      "passed": true,
+      "durationMs": 1448,
+      "expectedDates": ["2026-09-21"],
+      "extraction": {
+        "actions": [
+          {
+            "type": "exam",
+            "title": "Prova de Ciências",
+            "description": "A prova de ciências foi adiada.",
+            "dueAt": "2026-09-21",
+            "dateOrigin": "school",
+            "time": null,
+            "location": null,
+            "sourceExcerpt": "a prova de ciências foi adiada de 18/09/2026 para 21/09/2026"
+          }
+        ],
+        "warnings": [],
+        "publicationReference": null
+      },
+      "usage": {
+        "inputTokens": 1177,
+        "outputTokens": 113,
+        "totalTokens": 1290,
+        "reasoningTokens": 0,
+        "cachedInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "raw": {
+          "inputTokens": {
+            "total": 1177,
+            "noCache": 1177,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "outputTokens": {
+            "total": 113,
+            "text": 113,
+            "reasoning": 0
+          },
+          "raw": {
+            "prompt_tokens": 1177,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "completion_tokens": 113,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            },
+            "total_tokens": 1290,
+            "cost": 0.0040725,
+            "cost_details": {
+              "upstream_inference_cost": 0.0040725,
+              "upstream_inference_prompt_cost": 0.0029425,
+              "upstream_inference_completions_cost": 0.00113
+            },
+            "is_byok": false
+          }
+        }
+      }
+    },
+    {
+      "id": "conflicting-attachment",
+      "passed": true,
+      "durationMs": 1877,
+      "expectedDates": [null],
+      "extraction": {
+        "actions": [
+          {
+            "type": "exam",
+            "title": "Prova de Ciências",
+            "description": "Prova de Ciências com data incerta entre 18/09/2026 e 21/09/2026.",
+            "dueAt": null,
+            "dateOrigin": "unspecified",
+            "time": null,
+            "location": null,
+            "sourceExcerpt": "A prova de ciências será em 18/09/2026. Informações no anexo. Prova de ciencias em 21/09/2026."
+          }
+        ],
+        "warnings": [
+          "A data da prova de Ciências está inconsistente entre o recado (18/09/2026) e o anexo (21/09/2026). Favor confirmar a data exata da prova com a escola."
+        ],
+        "publicationReference": null
+      },
+      "usage": {
+        "inputTokens": 1393,
+        "outputTokens": 153,
+        "totalTokens": 1546,
+        "reasoningTokens": 0,
+        "cachedInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "raw": {
+          "inputTokens": {
+            "total": 1393,
+            "noCache": 1393,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "outputTokens": {
+            "total": 153,
+            "text": 153,
+            "reasoning": 0
+          },
+          "raw": {
+            "prompt_tokens": 1393,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "completion_tokens": 153,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            },
+            "total_tokens": 1546,
+            "cost": 0.0050125,
+            "cost_details": {
+              "upstream_inference_cost": 0.0050125,
+              "upstream_inference_prompt_cost": 0.0034825,
+              "upstream_inference_completions_cost": 0.00153
+            },
+            "is_byok": false
+          }
+        }
+      }
+    },
+    {
+      "id": "image-attachment",
+      "passed": true,
+      "durationMs": 1783,
+      "expectedDates": ["2026-09-25"],
+      "extraction": {
+        "actions": [
+          {
+            "type": "project",
+            "title": "Trabalho de Geografia",
+            "description": "Incluir um mapa do Brasil.",
+            "dueAt": "2026-09-25",
+            "dateOrigin": "school",
+            "time": null,
+            "location": null,
+            "sourceExcerpt": "Entregar o trabalho de Geografia em 25/09/2026. Incluir um mapa do Brasil."
+          }
+        ],
+        "warnings": [],
+        "publicationReference": null
+      },
+      "usage": {
+        "inputTokens": 1566,
+        "outputTokens": 84,
+        "totalTokens": 1650,
+        "reasoningTokens": 0,
+        "cachedInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "raw": {
+          "inputTokens": {
+            "total": 1566,
+            "noCache": 1566,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "outputTokens": {
+            "total": 84,
+            "text": 84,
+            "reasoning": 0
+          },
+          "raw": {
+            "prompt_tokens": 1566,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "completion_tokens": 84,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            },
+            "total_tokens": 1650,
+            "cost": 0.004755,
+            "cost_details": {
+              "upstream_inference_cost": 0.004755,
+              "upstream_inference_prompt_cost": 0.003915,
+              "upstream_inference_completions_cost": 0.00084
+            },
+            "is_byok": false
+          }
+        }
+      }
+    },
+    {
+      "id": "image-embedded-in-pdf",
+      "passed": true,
+      "durationMs": 3252,
+      "expectedDates": ["2026-09-26"],
+      "extraction": {
+        "actions": [
+          {
+            "type": "material",
+            "title": "Levar chapéu para evento",
+            "description": "Levar um chapéu para o evento na quadra da escola.",
+            "dueAt": "2026-09-26",
+            "dateOrigin": "school",
+            "time": null,
+            "location": null,
+            "sourceExcerpt": "Levar um chapéu para o evento em 26/09/2026. Local: quadra da escola."
+          },
+          {
+            "type": "event",
+            "title": "Evento na escola",
+            "description": "Evento na quadra da escola. Levar um chapéu.",
+            "dueAt": "2026-09-26",
+            "dateOrigin": "school",
+            "time": null,
+            "location": "quadra da escola",
+            "sourceExcerpt": "Levar um chapéu para o evento em 26/09/2026. Local: quadra da escola."
+          }
+        ],
+        "warnings": [
+          "A data de publicação não foi fornecida, impossibilitando o cálculo de prazos relativos."
+        ],
+        "publicationReference": null
+      },
+      "usage": {
+        "inputTokens": 1517,
+        "outputTokens": 197,
+        "totalTokens": 1714,
+        "reasoningTokens": 0,
+        "cachedInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "raw": {
+          "inputTokens": {
+            "total": 1517,
+            "noCache": 1517,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "outputTokens": {
+            "total": 197,
+            "text": 197,
+            "reasoning": 0
+          },
+          "raw": {
+            "prompt_tokens": 1517,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "completion_tokens": 197,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            },
+            "total_tokens": 1714,
+            "cost": 0.0057625,
+            "cost_details": {
+              "upstream_inference_cost": 0.0057625,
+              "upstream_inference_prompt_cost": 0.0037925,
+              "upstream_inference_completions_cost": 0.00197
+            },
+            "is_byok": false
+          }
+        }
+      }
+    },
+    {
+      "id": "separate-deadlines",
+      "passed": true,
+      "durationMs": 2376,
+      "expectedDates": ["2026-09-16", "2026-09-18", null],
+      "extraction": {
+        "actions": [
+          {
+            "type": "event",
+            "title": "Passeio ao museu",
+            "description": null,
+            "dueAt": "2026-09-18",
+            "dateOrigin": "school",
+            "time": "08:00",
+            "location": "portão principal",
+            "sourceExcerpt": "Passeio ao museu em 18/09/2026 às 08:00. Encontro: portão principal."
+          },
+          {
+            "type": "authorization",
+            "title": "Enviar autorização para o passeio",
+            "description": null,
+            "dueAt": "2026-09-16",
+            "dateOrigin": "school",
+            "time": null,
+            "location": null,
+            "sourceExcerpt": "Enviar autorização até 16/09/2026."
+          },
+          {
+            "type": "material",
+            "title": "Levar boné e água para o passeio",
+            "description": null,
+            "dueAt": null,
+            "dateOrigin": "unspecified",
+            "time": null,
+            "location": null,
+            "sourceExcerpt": "Levar boné e água, sem prazo informado para separar."
+          }
+        ],
+        "warnings": [
+          "Confirmar o prazo para separar o boné e a água, pois não foi informado. A data de publicação não foi fornecida, impactando o cálculo de prazos relativos."
+        ],
+        "publicationReference": null
+      },
+      "usage": {
+        "inputTokens": 1186,
+        "outputTokens": 233,
+        "totalTokens": 1419,
+        "reasoningTokens": 0,
+        "cachedInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "raw": {
+          "inputTokens": {
+            "total": 1186,
+            "noCache": 1186,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "outputTokens": {
+            "total": 233,
+            "text": 233,
+            "reasoning": 0
+          },
+          "raw": {
+            "prompt_tokens": 1186,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "completion_tokens": 233,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            },
+            "total_tokens": 1419,
+            "cost": 0.005295,
+            "cost_details": {
+              "upstream_inference_cost": 0.005295,
+              "upstream_inference_prompt_cost": 0.002965,
+              "upstream_inference_completions_cost": 0.00233
+            },
+            "is_byok": false
+          }
+        }
+      }
+    },
+    {
+      "id": "publication-is-not-deadline",
+      "passed": true,
+      "durationMs": 1467,
+      "expectedDates": [null],
+      "extraction": {
+        "actions": [
+          {
+            "type": "task",
+            "title": "Atividades do livro de matemática",
+            "description": "Fazer as atividades das páginas 12 e 13 do livro de matemática.",
+            "dueAt": null,
+            "dateOrigin": "unspecified",
+            "time": null,
+            "location": null,
+            "sourceExcerpt": "Comunicado de 10/09/2026. Fazer as atividades das páginas 12 e 13 do livro de matemática. O prazo será comunicado depois."
+          }
+        ],
+        "warnings": [
+          "O prazo para fazer as atividades das páginas 12 e 13 do livro de matemática será comunicado depois."
+        ],
+        "publicationReference": null
+      },
+      "usage": {
+        "inputTokens": 1173,
+        "outputTokens": 145,
+        "totalTokens": 1318,
+        "reasoningTokens": 0,
+        "cachedInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "raw": {
+          "inputTokens": {
+            "total": 1173,
+            "noCache": 1173,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "outputTokens": {
+            "total": 145,
+            "text": 145,
+            "reasoning": 0
+          },
+          "raw": {
+            "prompt_tokens": 1173,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "completion_tokens": 145,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            },
+            "total_tokens": 1318,
+            "cost": 0.0043825,
+            "cost_details": {
+              "upstream_inference_cost": 0.0043825,
+              "upstream_inference_prompt_cost": 0.0029325,
+              "upstream_inference_completions_cost": 0.00145
+            },
+            "is_byok": false
+          }
+        }
+      }
+    },
+    {
+      "id": "old-relative-post",
+      "passed": true,
+      "durationMs": 1454,
+      "expectedDates": ["2026-06-03"],
+      "extraction": {
+        "actions": [
+          {
+            "type": "exam",
+            "title": "Prova de Português",
+            "description": "Estudar páginas 10 a 15.",
+            "dueAt": "2026-06-03",
+            "dateOrigin": "relative",
+            "time": null,
+            "location": null,
+            "sourceExcerpt": "Amanhã haverá prova de português."
+          }
+        ],
+        "warnings": [],
+        "publicationReference": null
+      },
+      "usage": {
+        "inputTokens": 1157,
+        "outputTokens": 98,
+        "totalTokens": 1255,
+        "reasoningTokens": 0,
+        "cachedInputTokens": 1024,
+        "cacheCreationInputTokens": 0,
+        "raw": {
+          "inputTokens": {
+            "total": 1157,
+            "noCache": 133,
+            "cacheRead": 1024,
+            "cacheWrite": 0
+          },
+          "outputTokens": {
+            "total": 98,
+            "text": 98,
+            "reasoning": 0
+          },
+          "raw": {
+            "prompt_tokens": 1157,
+            "prompt_tokens_details": {
+              "cached_tokens": 1024,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "completion_tokens": 98,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            },
+            "total_tokens": 1255,
+            "cost": 0.0038725,
+            "cost_details": {
+              "upstream_inference_cost": 0.0038725,
+              "upstream_inference_prompt_cost": 0.0028925,
+              "upstream_inference_completions_cost": 0.00098
+            },
+            "is_byok": false
+          }
+        }
+      }
+    },
+    {
+      "id": "relative-without-reference",
+      "passed": true,
+      "durationMs": 3046,
+      "expectedDates": [null],
+      "extraction": {
+        "actions": [
+          {
+            "type": "project",
+            "title": "Entrega de trabalho",
+            "description": null,
+            "dueAt": null,
+            "dateOrigin": "unspecified",
+            "time": null,
+            "location": null,
+            "sourceExcerpt": "Entregar o trabalho amanhã."
+          }
+        ],
+        "warnings": [
+          "A data de publicação não foi fornecida, o que impossibilita calcular a data de entrega do trabalho. Recomenda-se confirmar a data exata para a entrega.'],'publicationReference':null}]} assistants to=browser datInModality_messageForcesRequest_modespeakerRequest`assertExpectedDataTypeBySpeakerFalse.Bytes.codes.Identifier`##-{`codesWithExemplRace`]toHaveBytesUnlockLock.stringified_validFalse-Explan-ü",
+          "exempl/vnd.addrol.paint-breakarray-boolsourceValidation+="
+        ],
+        "publicationReference": {
+          "date": "2023-11-24",
+          "sourceExcerpt": "Enviado em 24/11/2023."
+        }
+      },
+      "usage": {
+        "inputTokens": 1154,
+        "outputTokens": 198,
+        "totalTokens": 1352,
+        "reasoningTokens": 0,
+        "cachedInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "raw": {
+          "inputTokens": {
+            "total": 1154,
+            "noCache": 1154,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "outputTokens": {
+            "total": 198,
+            "text": 198,
+            "reasoning": 0
+          },
+          "raw": {
+            "prompt_tokens": 1154,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "completion_tokens": 198,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            },
+            "total_tokens": 1352,
+            "cost": 0.004865,
+            "cost_details": {
+              "upstream_inference_cost": 0.004865,
+              "upstream_inference_prompt_cost": 0.002885,
+              "upstream_inference_completions_cost": 0.00198
+            },
+            "is_byok": false
+          }
+        }
+      }
+    },
+    {
+      "id": "friday-is-not-monday",
+      "passed": true,
+      "durationMs": 1388,
+      "expectedDates": ["2026-09-18"],
+      "extraction": {
+        "actions": [
+          {
+            "type": "exam",
+            "title": "Prova",
+            "description": "A prova será em 18/09/2026, sexta-feira.",
+            "dueAt": "2026-09-18",
+            "dateOrigin": "school",
+            "time": null,
+            "location": null,
+            "sourceExcerpt": "A prova será em 18/09/2026, sexta-feira."
+          }
+        ],
+        "warnings": [],
+        "publicationReference": null
+      },
+      "usage": {
+        "inputTokens": 1163,
+        "outputTokens": 109,
+        "totalTokens": 1272,
+        "reasoningTokens": 0,
+        "cachedInputTokens": 1024,
+        "cacheCreationInputTokens": 0,
+        "raw": {
+          "inputTokens": {
+            "total": 1163,
+            "noCache": 139,
+            "cacheRead": 1024,
+            "cacheWrite": 0
+          },
+          "outputTokens": {
+            "total": 109,
+            "text": 109,
+            "reasoning": 0
+          },
+          "raw": {
+            "prompt_tokens": 1163,
+            "prompt_tokens_details": {
+              "cached_tokens": 1024,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "completion_tokens": 109,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            },
+            "total_tokens": 1272,
+            "cost": 0.0039975,
+            "cost_details": {
+              "upstream_inference_cost": 0.0039975,
+              "upstream_inference_prompt_cost": 0.0029075,
+              "upstream_inference_completions_cost": 0.00109
+            },
+            "is_byok": false
+          }
+        }
+      }
+    },
+    {
+      "id": "past-year-preserved",
+      "passed": true,
+      "durationMs": 1242,
+      "expectedDates": ["2025-12-15"],
+      "extraction": {
+        "actions": [
+          {
+            "type": "authorization",
+            "title": "Entregar autorização",
+            "description": null,
+            "dueAt": "2025-12-15",
+            "dateOrigin": "school",
+            "time": null,
+            "location": null,
+            "sourceExcerpt": "Entregar a autorização até 15/12/2025."
+          }
+        ],
+        "warnings": [],
+        "publicationReference": null
+      },
+      "usage": {
+        "inputTokens": 1148,
+        "outputTokens": 68,
+        "totalTokens": 1216,
+        "reasoningTokens": 0,
+        "cachedInputTokens": 1024,
+        "cacheCreationInputTokens": 0,
+        "raw": {
+          "inputTokens": {
+            "total": 1148,
+            "noCache": 124,
+            "cacheRead": 1024,
+            "cacheWrite": 0
+          },
+          "outputTokens": {
+            "total": 68,
+            "text": 68,
+            "reasoning": 0
+          },
+          "raw": {
+            "prompt_tokens": 1148,
+            "prompt_tokens_details": {
+              "cached_tokens": 1024,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "completion_tokens": 68,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            },
+            "total_tokens": 1216,
+            "cost": 0.00355,
+            "cost_details": {
+              "upstream_inference_cost": 0.00355,
+              "upstream_inference_prompt_cost": 0.00287,
+              "upstream_inference_completions_cost": 0.00068
+            },
+            "is_byok": false
+          }
+        }
+      }
+    },
+    {
+      "id": "untrusted-instructions",
+      "passed": true,
+      "durationMs": 1475,
+      "expectedDates": [null],
+      "extraction": {
+        "actions": [
+          {
+            "type": "material",
+            "title": "Levar uma caixa vazia",
+            "description": null,
+            "dueAt": null,
+            "dateOrigin": "unspecified",
+            "time": null,
+            "location": null,
+            "sourceExcerpt": "Aviso: levar uma caixa vazia, sem prazo definido."
+          }
+        ],
+        "warnings": [
+          "O aviso menciona que não há prazo definido para levar a caixa vazia, portanto, não foi possível determinar uma data de entrega. É recomendável confirmar o prazo para esta ação."
+        ],
+        "publicationReference": null
+      },
+      "usage": {
+        "inputTokens": 1173,
+        "outputTokens": 104,
+        "totalTokens": 1277,
+        "reasoningTokens": 0,
+        "cachedInputTokens": 1024,
+        "cacheCreationInputTokens": 0,
+        "raw": {
+          "inputTokens": {
+            "total": 1173,
+            "noCache": 149,
+            "cacheRead": 1024,
+            "cacheWrite": 0
+          },
+          "outputTokens": {
+            "total": 104,
+            "text": 104,
+            "reasoning": 0
+          },
+          "raw": {
+            "prompt_tokens": 1173,
+            "prompt_tokens_details": {
+              "cached_tokens": 1024,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "completion_tokens": 104,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            },
+            "total_tokens": 1277,
+            "cost": 0.0039725,
+            "cost_details": {
+              "upstream_inference_cost": 0.0039725,
+              "upstream_inference_prompt_cost": 0.0029325,
+              "upstream_inference_completions_cost": 0.00104
+            },
+            "is_byok": false
+          }
+        }
+      }
+    },
+    {
+      "id": "message-and-pdf",
+      "passed": true,
+      "durationMs": 2106,
+      "expectedDates": ["2026-09-20", "2026-09-22", null],
+      "extraction": {
+        "actions": [
+          {
+            "type": "authorization",
+            "title": "Entregar autorização para feira cultural",
+            "description": "Entregar autorização para participação na feira cultural.",
+            "dueAt": "2026-09-20",
+            "dateOrigin": "school",
+            "time": null,
+            "location": null,
+            "sourceExcerpt": "Entregar autorizacao ate 20/09/2026."
+          },
+          {
+            "type": "material",
+            "title": "Levar garrafa de água para a feira cultural",
+            "description": "Levar uma garrafa de água para a feira cultural.",
+            "dueAt": null,
+            "dateOrigin": "unspecified",
+            "time": null,
+            "location": null,
+            "sourceExcerpt": "Levar uma garrafa de agua. O prazo de separar a garrafa nao foi informado."
+          },
+          {
+            "type": "event",
+            "title": "Feira cultural",
+            "description": "Participar da feira cultural.",
+            "dueAt": "2026-09-22",
+            "dateOrigin": "school",
+            "time": "10:00",
+            "location": "pátio",
+            "sourceExcerpt": "A feira descrita no anexo acontecerá em 22/09/2026 às 10:00. Local: pátio."
+          }
+        ],
+        "warnings": [
+          "O prazo para separar a garrafa de água não foi informado. Confirme com a escola."
+        ],
+        "publicationReference": null
+      },
+      "usage": {
+        "inputTokens": 1219,
+        "outputTokens": 280,
+        "totalTokens": 1499,
+        "reasoningTokens": 0,
+        "cachedInputTokens": 1024,
+        "cacheCreationInputTokens": 0,
+        "raw": {
+          "inputTokens": {
+            "total": 1219,
+            "noCache": 195,
+            "cacheRead": 1024,
+            "cacheWrite": 0
+          },
+          "outputTokens": {
+            "total": 280,
+            "text": 280,
+            "reasoning": 0
+          },
+          "raw": {
+            "prompt_tokens": 1219,
+            "prompt_tokens_details": {
+              "cached_tokens": 1024,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "completion_tokens": 280,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            },
+            "total_tokens": 1499,
+            "cost": 0.0058475,
+            "cost_details": {
+              "upstream_inference_cost": 0.0058475,
+              "upstream_inference_prompt_cost": 0.0030475,
+              "upstream_inference_completions_cost": 0.0028
+            },
+            "is_byok": false
+          }
+        }
+      }
+    },
+    {
+      "id": "selected-fourth-page",
+      "passed": true,
+      "durationMs": 1278,
+      "expectedDates": ["2026-10-04"],
+      "extraction": {
+        "actions": [
+          {
+            "type": "project",
+            "title": "Entregar o trabalho de ciências",
+            "description": null,
+            "dueAt": "2026-10-04",
+            "dateOrigin": "school",
+            "time": null,
+            "location": null,
+            "sourceExcerpt": "entregar o trabalho de ciencias em 04/10/2026."
+          }
+        ],
+        "warnings": [],
+        "publicationReference": null
+      },
+      "usage": {
+        "inputTokens": 1175,
+        "outputTokens": 74,
+        "totalTokens": 1249,
+        "reasoningTokens": 0,
+        "cachedInputTokens": 1024,
+        "cacheCreationInputTokens": 0,
+        "raw": {
+          "inputTokens": {
+            "total": 1175,
+            "noCache": 151,
+            "cacheRead": 1024,
+            "cacheWrite": 0
+          },
+          "outputTokens": {
+            "total": 74,
+            "text": 74,
+            "reasoning": 0
+          },
+          "raw": {
+            "prompt_tokens": 1175,
+            "prompt_tokens_details": {
+              "cached_tokens": 1024,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "completion_tokens": 74,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            },
+            "total_tokens": 1249,
+            "cost": 0.0036775,
+            "cost_details": {
+              "upstream_inference_cost": 0.0036775,
+              "upstream_inference_prompt_cost": 0.0029375,
+              "upstream_inference_completions_cost": 0.00074
+            },
+            "is_byok": false
+          }
+        }
+      }
+    },
+    {
+      "id": "same-action-in-text-and-pdf",
+      "passed": true,
+      "durationMs": 1072,
+      "expectedDates": ["2026-09-20"],
+      "extraction": {
+        "actions": [
+          {
+            "type": "authorization",
+            "title": "Enviar autorização",
+            "description": null,
+            "dueAt": "2026-09-20",
+            "dateOrigin": "school",
+            "time": null,
+            "location": null,
+            "sourceExcerpt": "Enviar autorização até 20/09/2026, conforme anexo."
+          }
+        ],
+        "warnings": [],
+        "publicationReference": null
+      },
+      "usage": {
+        "inputTokens": 1173,
+        "outputTokens": 69,
+        "totalTokens": 1242,
+        "reasoningTokens": 0,
+        "cachedInputTokens": 1024,
+        "cacheCreationInputTokens": 0,
+        "raw": {
+          "inputTokens": {
+            "total": 1173,
+            "noCache": 149,
+            "cacheRead": 1024,
+            "cacheWrite": 0
+          },
+          "outputTokens": {
+            "total": 69,
+            "text": 69,
+            "reasoning": 0
+          },
+          "raw": {
+            "prompt_tokens": 1173,
+            "prompt_tokens_details": {
+              "cached_tokens": 1024,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "completion_tokens": 69,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            },
+            "total_tokens": 1242,
+            "cost": 0.0036225,
+            "cost_details": {
+              "upstream_inference_cost": 0.0036225,
+              "upstream_inference_prompt_cost": 0.0029325,
+              "upstream_inference_completions_cost": 0.00069
+            },
+            "is_byok": false
+          }
+        }
+      }
+    }
+  ]
+}

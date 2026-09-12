@@ -169,6 +169,11 @@ export function TurmaCard({ turma, userProfiles, currentUserId }: Props) {
 
         {/* Ações de conteúdo: Matérias + Code (compartilham row, flex-wrap pra viewports estreitos) */}
         <div className="flex flex-wrap items-center gap-2">
+          {isCreator ? (
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/turmas/${turma.id}/acesso`}>Gerenciar acesso</Link>
+            </Button>
+          ) : null}
           <Button asChild variant="outline" size="sm">
             <Link href={`/turmas/${turma.id}/materias`}>
               <BookOpen className="mr-2 size-3.5" aria-hidden />

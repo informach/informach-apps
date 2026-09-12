@@ -1,5 +1,6 @@
 import { logAuditEvent } from "@informach/auth";
-import { db } from "@informach/db";
+import { db, eq } from "@informach/db";
+import { agendaNotificationPreferences } from "@informach/db/schema";
 import {
   buildUnsubscribeToken,
   createEmailService,
@@ -48,8 +49,17 @@ export function buildEmailUnsubscribeUrl(identifier: string, category: EmailCate
   return `${env.NEXT_PUBLIC_APP_URL}/api/email/unsubscribe?t=${token}`;
 }
 
-export function processAgendaEmailUnsubscribe(token: string) {
-  return processUnsubscribe({ db, secret: env.BETTER_AUTH_SECRET, onAudit: emailAudit }, token);
+export async function processAgendaEmailUnsubscribe(token: string) {
+  const result = await processUnsubscribe(
+    { db, secret: env.BETTER_AUTH_SECRET, onAudit: emailAudit },
+    token,
+  );
+  if (result.ok && result.category === "agenda.routine" && result.userId)
+    await db
+      .update(agendaNotificationPreferences)
+      .set({ emailEnabled: false, updatedAt: new Date() })
+      .where(eq(agendaNotificationPreferences.userId, result.userId));
+  return result;
 }
 
 export function handleAgendaSendgridEvents(events: SendgridEvent[]) {

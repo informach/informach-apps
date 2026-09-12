@@ -9,6 +9,7 @@ import {
   isSubjectActiveOnDate,
 } from "@/features/subjects/class-days";
 import { attachAlternatingSlots, listSubjectsForTurma } from "@/features/subjects/repository";
+import { verifyMembership } from "@/features/turmas/repository";
 import { todayLocalIso } from "./date";
 
 // Discriminated union — UI renderer escolhe o conjunto de campos a usar
@@ -72,10 +73,14 @@ export async function getTodaySubjectsForProfile(
   const todayIso = todayLocalIso();
   const todayJsDay = new Date(`${todayIso}T12:00:00`).getDay();
   const todayDay = dayOfWeekToClassDay(todayJsDay);
+  const activeTurmaId =
+    profile.activeTurmaId && (await verifyMembership(profile.id, profile.activeTurmaId))
+      ? profile.activeTurmaId
+      : null;
 
   // Buscar turma e extras em paralelo (queries independentes).
   const [turmaRows, extraSubjects] = await Promise.all([
-    profile.activeTurmaId ? listSubjectsForTurma(profile.activeTurmaId) : Promise.resolve([]),
+    activeTurmaId ? listSubjectsForTurma(activeTurmaId) : Promise.resolve([]),
     listActiveProfileSubjectsForProfile(profileId),
   ]);
 

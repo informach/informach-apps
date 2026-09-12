@@ -154,56 +154,61 @@ export function ActivitiesSection({
           </Select>
         </div>
 
-        {/* Ações à direita no desktop, embaixo no mobile.
-            Os 4 botões ficam explícitos (com Pro badges visíveis) para
-            incentivar conversão Free → Pro. */}
         <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" onClick={() => setCreateOpen(true)} disabled={!canCreate}>
-            <Plus className="mr-2 size-4" aria-hidden />
-            Nova atividade
+          <Button asChild>
+            <Link href="/recados/novo">Organizar recado</Link>
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setVoiceOpen(true)}
-            disabled={!isPro || !canCreate}
-          >
-            <Mic className="mr-2 size-4" aria-hidden />
-            Por voz
-            {!isPro ? (
-              <Badge variant="secondary" className="ml-2">
-                Pro
-              </Badge>
-            ) : null}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setImageOpen(true)}
-            disabled={!isPro || !canCreate}
-          >
-            <Camera className="mr-2 size-4" aria-hidden />
-            Por imagem
-            {!isPro ? (
-              <Badge variant="secondary" className="ml-2">
-                Pro
-              </Badge>
-            ) : null}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setPdfOpen(true)}
-            disabled={!isPro || !canCreate}
-          >
-            <FileText className="mr-2 size-4" aria-hidden />
-            Por PDF
-            {!isPro ? (
-              <Badge variant="secondary" className="ml-2">
-                Pro
-              </Badge>
-            ) : null}
-          </Button>
+          <details className="rounded-md border px-3 py-2">
+            <summary className="cursor-pointer text-sm">Atividades por matéria</summary>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button type="button" onClick={() => setCreateOpen(true)} disabled={!canCreate}>
+                <Plus className="mr-2 size-4" aria-hidden />
+                Nova atividade
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setVoiceOpen(true)}
+                disabled={!isPro || !canCreate}
+              >
+                <Mic className="mr-2 size-4" aria-hidden />
+                Por voz
+                {!isPro ? (
+                  <Badge variant="secondary" className="ml-2">
+                    Pro
+                  </Badge>
+                ) : null}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setImageOpen(true)}
+                disabled={!isPro || !canCreate}
+              >
+                <Camera className="mr-2 size-4" aria-hidden />
+                Por imagem
+                {!isPro ? (
+                  <Badge variant="secondary" className="ml-2">
+                    Pro
+                  </Badge>
+                ) : null}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPdfOpen(true)}
+                disabled={!isPro || !canCreate}
+              >
+                <FileText className="mr-2 size-4" aria-hidden />
+                PDF por matéria
+                {!isPro ? (
+                  <Badge variant="secondary" className="ml-2">
+                    Pro
+                  </Badge>
+                ) : null}
+              </Button>
+            </div>
+          </details>
         </div>
       </div>
 

@@ -285,6 +285,12 @@ export const AGENDA_PRICING_SEED: readonly CreditPricingSeedRow[] = [
     flatCost: 1,
     defaultEstimateCredits: 1,
   },
+  {
+    feature: "agenda.notices.parse",
+    model: "openai/gpt-4o",
+    flatCost: 1,
+    defaultEstimateCredits: 1,
+  },
 ] as const;
 
 /**

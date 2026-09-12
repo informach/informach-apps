@@ -11,7 +11,6 @@ import {
   deleteActivityById,
   findActivityById,
   findActivityStatusForProfile,
-  hasOtherAcceptances,
   insertActivitiesBatchWithStatuses,
   insertActivityWithStatuses,
   insertActivityWithStatusesWithinFreeLimit,
@@ -43,7 +42,7 @@ export type ActivityError =
   | { code: "NOT_A_MEMBER" }
   | { code: "FORBIDDEN" }
   | { code: "NOT_FOUND" }
-  | { code: "HAS_ACCEPTANCES" }
+  | { code: "VERSION_CONFLICT" }
   | { code: "NOT_SHARED" }
   | { code: "PRO_REQUIRED" }
   | { code: "INVALID_PROFILE" }
@@ -196,14 +195,6 @@ export async function updateActivity(
   if (!activity) return err({ code: "NOT_FOUND" });
   if (activity.createdByUserId !== userId) return err({ code: "FORBIDDEN" });
 
-  // Atividades compartilhadas que já foram aceitas por outras famílias ficam
-  // congeladas — alterar qualquer campo (inclusive matéria/visibilidade)
-  // confundiria quem já adicionou à própria agenda. Individuais nunca têm
-  // acceptances, então não passam por aqui.
-  if (activity.visibility === "shared_with_turma" && (await hasOtherAcceptances(activity.id))) {
-    return err({ code: "HAS_ACCEPTANCES" });
-  }
-
   // Matéria precisa pertencer à turma original — defesa contra payload
   // adulterado tentando mover a atividade pra subject de outra turma.
   // Sempre valida contra activity.turmaId (banco), nunca contra input.
@@ -218,14 +209,20 @@ export async function updateActivity(
     visibility = "individual";
   }
 
-  const updated = await updateActivityById(input.id, {
-    subjectId: input.subjectId,
-    type: input.type,
-    visibility,
-    title: input.title,
-    description: input.description ?? null,
-    dueAt: input.dueAt,
-  });
+  const updated = await updateActivityById(
+    input.id,
+    {
+      subjectId: input.subjectId,
+      type: input.type,
+      visibility,
+      title: input.title,
+      description: input.description ?? null,
+      dueAt: input.dueAt,
+    },
+    userId,
+    input.version,
+  );
+  if (updated === "VERSION_CONFLICT") return err({ code: "VERSION_CONFLICT" });
   if (!updated) return err({ code: "NOT_FOUND" });
   return ok(updated);
 }
@@ -238,11 +235,7 @@ export async function deleteActivity(
   if (!activity) return err({ code: "NOT_FOUND" });
   if (activity.createdByUserId !== userId) return err({ code: "FORBIDDEN" });
 
-  if (activity.visibility === "shared_with_turma" && (await hasOtherAcceptances(activity.id))) {
-    return err({ code: "HAS_ACCEPTANCES" });
-  }
-
-  const removed = await deleteActivityById(input.id);
+  const removed = await deleteActivityById(input.id, userId);
   if (!removed) return err({ code: "NOT_FOUND" });
   return ok(true);
 }
@@ -260,12 +253,9 @@ export async function respondSharedActivity(
   input: RespondSharedActivityInput,
 ): Promise<Result<{ activityId: string; accepted: boolean }, ActivityError>> {
   const activity = await findActivityById(input.activityId);
-  if (!activity) return err({ code: "NOT_FOUND" });
+  if (!activity || activity.canceledAt) return err({ code: "NOT_FOUND" });
   if (activity.visibility !== "shared_with_turma") return err({ code: "NOT_SHARED" });
   if (activity.createdByUserId === userId) return err({ code: "FORBIDDEN" });
-
-  const isPro = await billing.hasProSubscription(userSubject(userId));
-  if (!isPro) return err({ code: "PRO_REQUIRED" });
 
   // Atividade com prazo passado nunca é oferecida pra aceitar/rejeitar — em
   // qualquer circunstância. Defesa em camadas: a query do widget já esconde,
@@ -278,7 +268,13 @@ export async function respondSharedActivity(
   const isMember = await userHasActiveProfileInTurma(userId, activity.turmaId);
   if (!isMember) return err({ code: "NOT_A_MEMBER" });
 
-  await upsertAcceptanceAndStatuses(activity.id, userId, input.accepted, activity.turmaId);
+  const responded = await upsertAcceptanceAndStatuses(
+    activity.id,
+    userId,
+    input.accepted,
+    activity.turmaId,
+  );
+  if (responded === false) return err({ code: "NOT_FOUND" });
   return ok({ activityId: activity.id, accepted: input.accepted });
 }
 
@@ -292,7 +288,21 @@ export async function setActivityStatus(
   const statusRow = await findActivityStatusForProfile(input.activityId, input.studentProfileId);
   if (!statusRow) return err({ code: "NOT_FOUND" });
 
-  const updated = await updateActivityStatusValue(statusRow.id, input.status);
+  const isPro =
+    input.status === "pending" &&
+    (await billing.hasProSubscription(userSubject(statusRow.ownerUserId)));
+  const updated = await updateActivityStatusValue(
+    statusRow.id,
+    input.status,
+    userId,
+    input.status === "pending" && !isPro ? FREE_ACTIVITY_LIMIT : null,
+  );
+  if (typeof updated === "object")
+    return err({
+      code: "ACTIVITY_LIMIT_REACHED",
+      limit: FREE_ACTIVITY_LIMIT,
+      current: updated.limitReached,
+    });
   if (!updated) return err({ code: "NOT_FOUND" });
   return ok({ statusId: statusRow.id });
 }
@@ -301,8 +311,7 @@ export async function getActivitiesPageForUser(
   userId: string,
   options: Omit<ListActivitiesPageOptions, "includeSharedFromOthers">,
 ): Promise<ActivitiesPage> {
-  const isPro = await billing.hasProSubscription(userSubject(userId));
-  return listActivitiesPageForUser(userId, { ...options, includeSharedFromOthers: isPro });
+  return listActivitiesPageForUser(userId, { ...options, includeSharedFromOthers: true });
 }
 
 export async function getActivitiesCreatedCountForUser(userId: string): Promise<number> {

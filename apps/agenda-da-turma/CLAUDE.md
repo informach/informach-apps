@@ -6,11 +6,15 @@
 
 ## 1. Propósito
 
-Agenda da Turma é um app **single-user** para o responsável (pai/mãe) organizar a rotina escolar dos filhos — tarefas, provas, recados, entregas. O subject de billing é sempre o usuário responsável; perfis de filhos vivem na sua própria conta como sub-entidades (modelo Netflix-household).
+Agenda da Turma organiza recados escolares em providências para a família: o que fazer, até quando e quem cuida. O titular continua sendo o subject de billing; o Pro permite um segundo adulto com login próprio e permissões por criança. Não usar o identificador do titular como identidade de autenticação do convidado.
 
-Estado atual (2026-05-12): app early-stage. **Auth, billing e emails 100% wired** (paridade com cozya — onboarding com escolha de plano, `/settings/billing`, `/upgrade`, widget no dashboard, packs de crédito). **Perfis de Estudante e Turmas implementados** — CRUD em `/perfis` (Free 1 / Pro 3), página global `/turmas` com filtro por perfil, comboboxes pesquisáveis IBGE+INEP pra cadastro manual, código de turma compartilhável pra entrar em turmas existentes, dedup natural via UNIQUE em `(school+grade+year+letter)`. **Atividades + Calendário implementados** — `/atividades` (CRUD com paginação keyset, status per-perfil) + dashboard inteligente com KPIs/buckets/filtro por perfil + `/calendario` (vistas mês/semana/dia, blips coloridos por matéria, criar clicando em dia vazio, edit/delete na modal de detalhe). **Primeira feature de IA (Pro-only) lançada**: cadastro de matérias em lote por voz (`openai/gpt-4o-transcribe` + `openai/gpt-4o-mini`) e imagem (`openai/gpt-4o` com `imageDetail=low` para matérias; `imageDetail=high` para atividades) — usuário grava áudio ou envia foto/print do horário/agenda, IA estrutura, modal de confirmação em lote permite editar antes de salvar. Cobra 2 créditos por voz (transcribe + parse) e 1 por imagem.
+Estado da implementação em 11/09/2026: rotina móvel, recado com texto + imagem/PDF, revisão antes de salvar, prazos opcionais e origem da data, convites revogáveis, atribuição de responsável, histórico/versionamento, resumo e lembretes, push opt-in, calendário privado, exportação e exclusão de conta. Nascimento, turma e matérias são opcionais no primeiro uso. Grupos de turma são privados por criador e turno; conhecer os dados públicos da sala não concede acesso.
 
-Diferença de porte vs cozya: público maior potencial (pais brasileiros com filhos em idade escolar), valor percebido médio. Pricing reflete: Pro R$ 19,90/mês (vs R$ 14,90 do cozya).
+O plano gratuito permite uma criança, 20 pendências próprias combinando escola/extras/recados, recebimento de atividades compartilhadas e cinco importações por conta verificada. Dados existentes continuam consultáveis após downgrade; novas automações pagas ficam pausadas. O Pro tem até três crianças, dois adultos e 70 créditos/mês. Não há validação de pagantes informada pelo fundador.
+
+Teams e Batista ID são fontes de importação assistida (copiar publicação e enviar anexo). Conectores automáticos dependem de acesso autorizado e prova técnica; não estão disponíveis. Operação requer configuração de VAPID, envio de e-mail e scheduler. A implementação e a validação local não constituem implantação em produção.
+
+Consulte [implementação e rastreabilidade](../../docs/reviews/agenda-da-turma-2026-09-11/IMPLEMENTACAO.md), [operação](../../docs/reviews/agenda-da-turma-2026-09-11/OPERACAO.md) e [piloto](../../docs/reviews/agenda-da-turma-2026-09-11/PILOTO.md).
 
 ---
 
@@ -21,8 +25,8 @@ Diferença de porte vs cozya: público maior potencial (pais brasileiros com fil
 | Pro mensal | **R$ 19,90/mês** (`agenda_da_turma_pro_monthly`) |
 | Pro anual | **R$ 199,00/ano** (`agenda_da_turma_pro_annual`) — ~17% desc, 2 meses grátis |
 | Créditos Pro | **70/mês**, drip mensal no anual, expiram no fim do ciclo |
-| Free | acesso completo às features básicas, sem créditos de IA |
-| Gateway de IA | (ainda não wired) |
+| Free | 1 criança, 20 pendências próprias e 5 importações de teste por conta verificada |
+| Gateway de IA | OpenRouter; revisão obrigatória dos resultados |
 
 ### Pacotes extras (Pro-only)
 
@@ -36,10 +40,11 @@ Mesma régua do cozya — pack custa mais per-credit que o plano (premium 20-40%
 
 ### Features de IA cadastradas
 
-Hoje há **uma família de features** (cadastro de matérias em lote por voz/imagem). Pro tem 70 créditos/mês via webhook + sweeper.
+Recados têm captura própria com texto e anexo no mesmo processamento. As ferramentas anteriores de matérias e atividades continuam disponíveis no contexto de disciplinas. Pro tem 70 créditos/mês via webhook + sweeper; a captura de recados também aceita a franquia inicial gratuita.
 
 | Feature | Modelo (OpenRouter) | Créditos |
 |---|---|---|
+| `agenda.notices.parse` | `openai/gpt-4o` | 1 |
 | `agenda.subjects.parse_image` | `openai/gpt-4o` (imageDetail=low) | 1 |
 | `agenda.subjects.transcribe_audio` | `openai/gpt-4o-transcribe` | 1 |
 | `agenda.subjects.parse_voice` | `openai/gpt-4o-mini` | 1 |
@@ -58,9 +63,11 @@ recebe a lista de nomes dos perfis de estudante do user no user-message
 por atividade; o serviço resolve `studentNameHint` → `activeTurmaId` via
 `findClosestStudent` (Levenshtein ≤ 3 + normalização) antes de devolver
 pra UI, então o dialog pré-seleciona a turma do card quando a IA aponta
-um filho específico. Datas relativas ("amanhã", "quarta-feira") são
-resolvidas no agente contra a data "hoje" injetada no cabeçalho do
-user-message (TZ America/Sao_Paulo via `todayLocalIso`).
+um filho específico. Somente ditado atual recebe a data de hoje como contexto.
+Imagens e PDFs recebem aviso de data desconhecida; prazos relativos exigem
+referência de publicação inequívoca. Nunca preencher amanhã/próxima aula por
+ausência de prazo. A captura de recados não envia nomes dos perfis à IA e
+exige escolha da criança pela pessoa na revisão.
 
 PDF é processado direto pelo gpt-4o via AI SDK v6 (`type: "file"` +
 `mediaType: "application/pdf"`) — sem conversão pra imagem no servidor.
@@ -394,7 +401,7 @@ Ordem rough de prioridade quando produto evoluir:
 
 1. **Wiring Railway Dashboard** — `apps/agenda-da-turma/railway.toml` existe. Ainda precisa apontar o service no Railway para esse Config Path quando o deploy for plugado.
 2. **Price IDs live** — substituir todos os `price_TODO_*` da Agenda em `packages/config/src/products.ts` antes de habilitar Pro/Pacotes em produção. O boot guard em `src/lib/billing.ts` trava se faltar algum.
-3. **CSP enforce mode** — CSP nonce per-request **já está implementada** (idêntica ao cozya: `src/lib/csp.ts` + `src/proxy.ts`, nonce gerado por request, `'strict-dynamic'` em `script-src`, `'unsafe-eval'` só em dev). Atualmente roda em **Report-Only** em produção (Railway com `CSP_ENFORCE=0`) — confirma-se via `Disposition: report` nas violações capturadas pelo Sentry. Causa raiz dos reports identificada: **Next.js preloada chunks dinâmicos via `<link rel="preload" as="script" href="/_next/static/chunks/*">` sem atributo `nonce`** ([discussion #28658](https://github.com/vercel/next.js/discussions/28658), aberta desde 2021); com `'strict-dynamic'`, browsers exigem nonce próprio nesses preloads — `'self'` é ignorado. Os 8 chunks (`05nxtpf_2mbff.js`, etc.) têm hash alfanumérico do Turbopack (default no Next 16). Soluções possíveis quando quiser ligar `CSP_ENFORCE=1`: (a) adicionar `'unsafe-inline'` no `script-src` — em browsers que entendem `'strict-dynamic'`, é ignorado (mas no Safari antigo serve de fallback); (b) usar hashes SHA256 dos chunks — frágil pois muda a cada build; (c) remover `'strict-dynamic'` e voltar pra `'self'` allowlisting — perde proteção principal. Trade-off: enforce hoje quebra o app; sem enforce, a defesa contra XSS via nonce vira só informativa.
+3. **CSP** — nonce por request é encaminhado ao render e ao ThemeProvider; o layout lê headers e renderiza páginas dinamicamente. Validação no navegador local com `CSP_ENFORCE=1` sem violações de execução. Build otimizado aprovado; teste do runtime de produção ainda depende de homologação, pois a inicialização local desse build foi bloqueada pela aprovação automática. Não presumir que a variável publicada em Railway foi alterada por este trabalho. Manter `strict-dynamic`, sem relaxar `script-src` para contornar um nonce ausente.
 4. **Rate limit anti-script** — `lib/rate-limit.ts` com Postgres-via-Redis ainda não existe. Replicar pattern do cozya quando feature de IA chegar (defesa em camadas além do cap mensal de créditos).
 5. **IA pipeline** — descrito em §2 acima. Bloco grande: agentes Mastra + seed `creditPricing` + integração `withCredits`/`runBillableAiCall`.
 6. **Site header pra dashboard** — `site-header.tsx` hoje é minimalista (só auth pages). Quando dashboard tiver navegação real, evoluir pro pattern variant igual `apps/cozya/src/components/marketing/site-header.tsx`.
@@ -454,7 +461,7 @@ pnpm --filter @informach/agenda-da-turma exec playwright test e2e/auth.signup-an
 10. **Cron services no Railway**: NUNCA criar services novos. Editar `APP_DOMAINS` nos 7 cron-perapp existentes (ver §4 + `docs/deploy-runbook.md` Fase 11).
 11. **Adicionar nova rota authenticated**: incluir o prefixo em `requireAuth` no `src/proxy.ts`. Default deny não está ligado — só os prefixos listados são gated.
 12. **Não importar `@ai-sdk/openai` ou `@ai-sdk/anthropic` direto** quando IA chegar. Usar `createOpenRouter` de `@informach/ai-core/providers` (mesma regra do cozya §10.10). Whisper transcription pode usar `createOpenAI` apontando pra `https://openrouter.ai/api/v1`.
-13. **Adicionar nova categoria de email**: ver `packages/emails/CLAUDE.md` §7 regra 3. Hoje a Agenda usa as mesmas categorias que cozya (`auth.*`, `billing.*`).
+13. **Adicionar nova categoria de email**: ver `packages/emails/CLAUDE.md` §7 regra 3. A Agenda usa `auth.*`, `billing.*` e `agenda.routine`. O corpo de `agenda.routine` não é persistido para retry genérico: o job do app regenera com permissões atuais.
 14. **Account deletion (LGPD)**: NÃO remover o hook `accountDeletion.onBeforeDelete` em `lib/auth.ts`. Sem ele, deletar a conta deixa subscriptions Stripe ativas e a cobrança continua.
 
 ---
@@ -464,3 +471,31 @@ pnpm --filter @informach/agenda-da-turma exec playwright test e2e/auth.signup-an
 - Commit `cb219f3` (per-app billing isolation): adicionou coluna `app` em `billing.{customers,credit_ledger,credit_reservations}`, UNIQUE composto `(provider, subjectType, subjectId, app)`. Permite que o mesmo `user.id` tenha customers Stripe distintos no cozya e na agenda. Migration `0020_exotic_wither.sql`.
 - Commit `381e053` (site header com logo + theme toggle): SiteHeader em `/login` e `/signup`, AgendaLogo SVG inline.
 - Sessão atual (replicar billing do cozya): full UX de billing — onboarding step 3, `/settings/billing`, `/upgrade`, dashboard widget Pro/Free, packs Pro-only, server actions e cron routes. Bug fix em `billing-dunning/route.ts` (URL `/admin/billing` que não existia → `/settings/billing`).
+
+
+## Rotina familiar: limites de arquitetura e dados
+
+- A identidade Informach é compartilhada entre apps. A exclusão informa o alcance global e bloqueia enquanto outro app tiver assinatura ativa/recuperável, antes de cancelar a Agenda. Não remover esse guard nem cancelar outros produtos implicitamente.
+
+- Rotas e componentes não consultam o banco diretamente. Services coordenam autenticação, entitlement e repositórios; transações ficam nos repositórios.
+- `features/family/access.ts` define acesso por criança. Convites/alterações/revogação usam lock por família. Não substituir autorização por gating visual de Pro.
+- `features/notices` guarda fonte e providências, com `version`, `dateOrigin`, conclusão e responsável. A confirmação é atômica e idempotente por documento/criança (`notice_applications`), sem cobrar novamente pela extração reaproveitada para outro filho. Retificações pedem decisão explícita e versionam a ação existente com identificador e conclusão preservados.
+- O escopo do original (`source_profile_ids`) é confirmado separadamente das ações e inclui crianças mencionadas sem providências. Até essa revisão, só titular e remetente com acesso atual podem ler o original. Permissões para convidados exigem acesso a todo o escopo. Rascunhos antigos mantêm escopo desconhecido; não inferir autorização por ausência de ações.
+- Toda alteração de turma ativa revalida participação dentro do bloqueio de turma/perfil usado na revogação. `active_turma_id` sozinho não concede acesso. Histórico escolar autoriza cada snapshot; versões privadas anteriores à publicação não são devolvidas ao destinatário.
+- O parser aceita referência de publicação identificada no original, com trecho de evidência. `noticeGenerationSchema` exige o campo nullable para geração estruturada; leitura de rascunhos anteriores aceita sua ausência. Ausência ou conflito da referência mantém datas relativas em aberto.
+- `features/activities/pending-limit.ts` é a contagem única de pendências. As escritas de escola/extras/recados e reabertura usam o mesmo lock. Status de cada família é privado; correção compartilhada não o apaga.
+- `features/notifications/delivery.ts` reconstrói a mensagem antes de enviar, respeita consentimento/silêncio/plano/acesso e usa claim idempotente. Resultado `deferred` do pacote de e-mail não cancela a notificação nem esgota tentativas; `unknown` exige reconciliação antes de reenviar. Finalização confere a reserva atual. Scheduler chama `routine:job` a cada cinco minutos e percorre cursores.
+- `features/account/deletion.ts` cancela billing antes de limpar dados; falha preserva a conta. FKs de autoria permitem anonimização de atividades aceitas por outras famílias. Não prometer apagamento de cópias externas ou registros fiscais.
+- Migrações 0035/0036 foram geradas pelo Drizzle. Os snapshots fazem parte da mudança. Não executar `db:push` em produção.
+- Métricas aceitam somente metadados definidos no schema. Não registrar recado, anexo, nome de criança ou tokens privados. `pilot:report` usa consulta somente de leitura e eventos de fatura para pagamentos.
+- Corpus de IA é opt-in (`test:ai-eval`) e usa provedor real; exemplos fictícios não provam precisão em recados reais. Integração e navegador exigem banco local e fixtures sintéticas.
+
+## Página inicial e aquisição (setembro de 2026)
+
+- A home está em `src/app/(marketing)/page.tsx`. A implementação da proposta está documentada em `docs/propostas/agenda-vendas-2026-09-12/IMPLEMENTACAO.md`.
+- `components/marketing/sales.module.css` usa a fonte Jakarta e os tokens existentes, com estilos restritos ao layout público. O app autenticado mantém seu layout.
+- A demonstração é local, com dados fictícios e estado React. Não recebe arquivos nem chama IA. Prazo escolar e planejamento da família são apresentados separadamente.
+- O mensal é o padrão da home; `plans-content.ts` mostra o total anual cobrado, com equivalente mensal secundário. Preços continuam derivados do catálogo. CTA Pro preserva `plan=pro&cycle=mensal|anual` no cadastro.
+- `features/metrics/landing-schema.ts` é o contrato público estrito. Visita, CTA e demonstração têm eventos distintos. `qualified_visit` continua significando o primeiro clique de cadastro por montagem da página; não converter silenciosamente em pageview.
+- Migração 0039 adiciona `product_events.landing_context` nullable, sem backfill. Aplicar antes do novo código/relatório. Eventos não guardam conteúdo escolar nem identidade do visitante. `pilot:report` apresenta grupos agregados, sem atribuição individual entre visita e pagamento.
+- Verificação da home: `pnpm --filter @informach/agenda-da-turma exec playwright test --config playwright.marketing.config.ts` contra o dev server local. O teste intercepta apenas analytics; navegação e interações são reais. Persistência é verificada separadamente na suíte de integração local.

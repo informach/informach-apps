@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { ActivitiesBatchConfirmDialog } from "@/features/activities/components/activities-batch-confirm-dialog";
 import { ActivityFormDialog } from "@/features/activities/components/activity-form-dialog";
 import { ActivityImageDialog } from "@/features/activities/components/activity-image-dialog";
@@ -54,6 +54,7 @@ export function CalendarView({
 
   const [detailItemId, setDetailItemId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const detailTrigger = useRef<HTMLElement | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [createDueAt, setCreateDueAt] = useState<string | undefined>(undefined);
 
@@ -91,6 +92,7 @@ export function CalendarView({
       items.find((it) => {
         if (it.source === "turma" && origin === "turma") return it.statusId === key;
         if (it.source === "extra" && origin === "extra") return it.activityId === key;
+        if (it.source === "notice" && origin === "notice") return it.activityId === key;
         return false;
       }) ?? null
     );
@@ -125,7 +127,10 @@ export function CalendarView({
   const handleProfileChange = (next: string | null) => navigate({ perfil: next });
 
   const handleSelectActivity = useCallback((item: UnifiedActivityListItem) => {
-    const key = item.source === "turma" ? `turma:${item.statusId}` : `extra:${item.activityId}`;
+    detailTrigger.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const key =
+      item.source === "turma" ? `turma:${item.statusId}` : `${item.source}:${item.activityId}`;
     setDetailItemId(key);
     setDetailOpen(true);
   }, []);
@@ -204,7 +209,12 @@ export function CalendarView({
         open={detailOpen}
         onOpenChange={(next) => {
           setDetailOpen(next);
-          if (!next) setDetailItemId(null);
+        }}
+        onCloseAutoFocus={(event) => {
+          if (detailTrigger.current?.isConnected) {
+            event.preventDefault();
+            detailTrigger.current.focus();
+          }
         }}
         item={detailItem}
         currentUserId={userId}

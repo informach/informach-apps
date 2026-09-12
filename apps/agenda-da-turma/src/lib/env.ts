@@ -50,6 +50,9 @@ export const env = createEnv({
      * 100% funcional (auth, billing, atividades, calendário etc).
      */
     OPENROUTER_API_KEY: z.string().min(1).optional(),
+    AGENDA_TRIAL_DAILY_BUDGET: z.coerce.number().int().min(1).max(10000).default(100),
+    VAPID_PUBLIC_KEY: z.string().min(1).optional(),
+    VAPID_PRIVATE_KEY: z.string().min(1).optional(),
     /** Atribuição opcional para o leaderboard do OpenRouter (header HTTP-Referer). */
     OPENROUTER_HTTP_REFERER: z.string().url().optional(),
     /** Atribuição opcional (header X-OpenRouter-Title). */
@@ -90,6 +93,9 @@ export const env = createEnv({
     STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY,
     STRIPE_MODE: process.env.STRIPE_MODE,
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
+    AGENDA_TRIAL_DAILY_BUDGET: process.env.AGENDA_TRIAL_DAILY_BUDGET,
+    VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY,
     OPENROUTER_HTTP_REFERER: process.env.OPENROUTER_HTTP_REFERER,
     OPENROUTER_X_TITLE: process.env.OPENROUTER_X_TITLE,
     LOG_LEVEL: process.env.LOG_LEVEL,

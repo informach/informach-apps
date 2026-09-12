@@ -299,6 +299,7 @@ describe("createActivitiesBatch", () => {
 
 describe("updateActivity", () => {
   const updateInput = {
+    version: 1,
     id: activityId,
     subjectId,
     type: "exam" as const,
@@ -330,16 +331,22 @@ describe("updateActivity", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("rejeita HAS_ACCEPTANCES quando compartilhada e alguém aceitou", async () => {
+  it("permite correção pelo criador após aceite", async () => {
     mocks.findActivityById.mockResolvedValue({ ...baseActivity, visibility: "shared_with_turma" });
     mocks.hasOtherAcceptances.mockResolvedValue(true);
+    mocks.subjectBelongsToTurma.mockResolvedValue(true);
+    mocks.updateActivityById.mockResolvedValue({ ...baseActivity, ...updateInput });
 
     const result = await updateActivity(creator.id, updateInput);
 
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.code).toBe("HAS_ACCEPTANCES");
-    expect(mocks.updateActivityById).not.toHaveBeenCalled();
-    expect(mocks.subjectBelongsToTurma).not.toHaveBeenCalled();
+    expect(result.ok).toBe(true);
+    expect(mocks.updateActivityById).toHaveBeenCalledWith(
+      activityId,
+      expect.objectContaining({ title: updateInput.title }),
+      creator.id,
+      1,
+    );
+    expect(mocks.subjectBelongsToTurma).toHaveBeenCalledWith(subjectId, turmaId);
   });
 
   it("rejeita FORBIDDEN quando não-criador tenta editar", async () => {
@@ -376,6 +383,8 @@ describe("updateActivity", () => {
     expect(mocks.updateActivityById).toHaveBeenCalledWith(
       activityId,
       expect.objectContaining({ subjectId: "subj_2" }),
+      creator.id,
+      1,
     );
   });
 
@@ -408,6 +417,8 @@ describe("updateActivity", () => {
     expect(mocks.updateActivityById).toHaveBeenCalledWith(
       activityId,
       expect.objectContaining({ visibility: "shared_with_turma" }),
+      creator.id,
+      1,
     );
   });
 
@@ -426,6 +437,8 @@ describe("updateActivity", () => {
     expect(mocks.updateActivityById).toHaveBeenCalledWith(
       activityId,
       expect.objectContaining({ visibility: "individual" }),
+      creator.id,
+      1,
     );
   });
 
@@ -445,6 +458,8 @@ describe("updateActivity", () => {
     expect(mocks.updateActivityById).toHaveBeenCalledWith(
       activityId,
       expect.objectContaining({ visibility: "individual" }),
+      creator.id,
+      1,
     );
   });
 });
@@ -459,14 +474,14 @@ describe("deleteActivity", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("rejeita HAS_ACCEPTANCES quando compartilhada e aceita por outros", async () => {
+  it("encaminha cancelamento pelo criador quando compartilhada foi aceita", async () => {
     mocks.findActivityById.mockResolvedValue({ ...baseActivity, visibility: "shared_with_turma" });
     mocks.hasOtherAcceptances.mockResolvedValue(true);
 
     const result = await deleteActivity(creator.id, { id: activityId });
 
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.code).toBe("HAS_ACCEPTANCES");
+    expect(result.ok).toBe(true);
+    expect(mocks.deleteActivityById).toHaveBeenCalledWith(activityId, creator.id);
   });
 
   it("rejeita FORBIDDEN quando não-criador tenta excluir", async () => {
@@ -492,7 +507,12 @@ describe("setActivityStatus", () => {
     });
 
     expect(result.ok).toBe(true);
-    expect(mocks.updateActivityStatusValue).toHaveBeenCalledWith("status_1", "done");
+    expect(mocks.updateActivityStatusValue).toHaveBeenCalledWith(
+      "status_1",
+      "done",
+      creator.id,
+      null,
+    );
   });
 
   it("rejeita INVALID_PROFILE quando perfil é de outro user", async () => {
@@ -578,16 +598,20 @@ describe("respondSharedActivity", () => {
     if (!result.ok) expect(result.error.code).toBe("FORBIDDEN");
   });
 
-  it("rejeita PRO_REQUIRED quando Free tenta responder compartilhada", async () => {
+  it("permite Free aceitar compartilhada quando é membro", async () => {
     mocks.findActivityById.mockResolvedValue(sharedActivity);
     mocks.hasProSubscription.mockResolvedValue(false);
 
     const result = await respondSharedActivity(other.id, { activityId, accepted: true });
 
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.code).toBe("PRO_REQUIRED");
-    expect(mocks.userHasActiveProfileInTurma).not.toHaveBeenCalled();
-    expect(mocks.upsertAcceptanceAndStatuses).not.toHaveBeenCalled();
+    expect(result.ok).toBe(true);
+    expect(mocks.userHasActiveProfileInTurma).toHaveBeenCalledWith(other.id, turmaId);
+    expect(mocks.upsertAcceptanceAndStatuses).toHaveBeenCalledWith(
+      activityId,
+      other.id,
+      true,
+      turmaId,
+    );
   });
 
   it("rejeita NOT_A_MEMBER quando user não é da turma", async () => {
@@ -624,19 +648,13 @@ describe("respondSharedActivity", () => {
   });
 });
 
-describe("shared activity edit-block chain (creator vs acceptor)", () => {
-  // Encadeia o fluxo "creator cria shared → outro user aceita → creator
-  // tenta editar/deletar → bloqueado por HAS_ACCEPTANCES" em um único
-  // cenário. Os steps individuais já têm cobertura em createActivity/
-  // respondSharedActivity/updateActivity/deleteActivity — este teste
-  // serve como documentação executável da regra de governança quando
-  // múltiplas famílias compartilham uma atividade.
+describe("shared activity corrections (creator vs acceptor)", () => {
   const sharedActivity = {
     ...baseActivity,
     visibility: "shared_with_turma" as const,
   };
 
-  it("aceitar trava update + delete subsequentes do criador", async () => {
+  it("aceite mantém permissão do criador para corrigir e cancelar", async () => {
     // 1. Creator cria atividade shared (Pro path, sem helper de free limit)
     mocks.findTurmaWithSchoolById.mockResolvedValue(baseTurma);
     mocks.subjectBelongsToTurma.mockResolvedValue(true);
@@ -665,28 +683,34 @@ describe("shared activity edit-block chain (creator vs acceptor)", () => {
       turmaId,
     );
 
-    // 3. Creator tenta editar — agora hasOtherAcceptances=true
+    // 3. Criador pode corrigir; versionamento é responsabilidade do repositório.
     mocks.findActivityById.mockResolvedValue(sharedActivity);
     mocks.hasOtherAcceptances.mockResolvedValue(true);
+    mocks.updateActivityById.mockResolvedValue(sharedActivity);
+    mocks.deleteActivityById.mockResolvedValue(true);
 
     const updateAttempt = await updateActivity(creator.id, {
+      version: 1,
       id: activityId,
       subjectId,
       type: "task",
-      title: "Edit attempt — should fail",
+      title: "Prazo retificado pela escola",
       description: undefined,
       dueAt: "2026-06-05",
       visibility: "shared_with_turma",
     });
-    expect(updateAttempt.ok).toBe(false);
-    if (!updateAttempt.ok) expect(updateAttempt.error.code).toBe("HAS_ACCEPTANCES");
-    expect(mocks.updateActivityById).not.toHaveBeenCalled();
+    expect(updateAttempt.ok).toBe(true);
+    expect(mocks.updateActivityById).toHaveBeenCalledWith(
+      activityId,
+      expect.objectContaining({ dueAt: "2026-06-05" }),
+      creator.id,
+      1,
+    );
 
-    // 4. Creator tenta deletar — mesma trava
+    // 4. O repositório preserva o registro ao cancelar.
     const deleteAttempt = await deleteActivity(creator.id, { id: activityId });
-    expect(deleteAttempt.ok).toBe(false);
-    if (!deleteAttempt.ok) expect(deleteAttempt.error.code).toBe("HAS_ACCEPTANCES");
-    expect(mocks.deleteActivityById).not.toHaveBeenCalled();
+    expect(deleteAttempt.ok).toBe(true);
+    expect(mocks.deleteActivityById).toHaveBeenCalledWith(activityId, creator.id);
   });
 
   it("acceptor não consegue editar/deletar (FORBIDDEN), independente de acceptance", async () => {
@@ -694,6 +718,7 @@ describe("shared activity edit-block chain (creator vs acceptor)", () => {
     mocks.findActivityById.mockResolvedValue(sharedActivity);
 
     const updateAttempt = await updateActivity(other.id, {
+      version: 1,
       id: activityId,
       subjectId,
       type: "task",
@@ -714,7 +739,7 @@ describe("shared activity edit-block chain (creator vs acceptor)", () => {
 describe("getActivitiesPageForUser", () => {
   const emptyPage = { items: [], nextCursor: null };
 
-  it("restringe atividades compartilhadas de outros usuários para Free", async () => {
+  it("preserva atividades compartilhadas de outros usuários para Free", async () => {
     mocks.hasProSubscription.mockResolvedValue(false);
     mocks.listActivitiesPageForUser.mockResolvedValue(emptyPage);
 
@@ -727,7 +752,7 @@ describe("getActivitiesPageForUser", () => {
     expect(mocks.listActivitiesPageForUser).toHaveBeenCalledWith(other.id, {
       profileFilter: null,
       cursor: null,
-      includeSharedFromOthers: false,
+      includeSharedFromOthers: true,
     });
   });
 

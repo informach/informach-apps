@@ -9,7 +9,7 @@ export type ProfileSubjectActivity = {
   id: string;
   profileId: string;
   profileSubjectId: string;
-  createdByUserId: string;
+  createdByUserId: string | null;
   type: ActivityType;
   title: string;
   description: string | null;
@@ -45,5 +45,6 @@ export type ProfileSubjectActivityListItem = {
   description: string | null;
   dueAt: string;
   activityCreatedAt: Date;
-  createdByUserId: string;
+  activityUpdatedAt?: Date;
+  createdByUserId: string | null;
 };

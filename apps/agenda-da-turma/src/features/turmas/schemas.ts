@@ -5,15 +5,19 @@ import {
   TURMA_CODE_ALPHABET,
   TURMA_CODE_LENGTH,
   TURMA_GRADES,
+  TURMA_SHIFTS,
 } from "./limits";
 
-const codeRegex = new RegExp(`^[${TURMA_CODE_ALPHABET}]{${TURMA_CODE_LENGTH}}$`);
+const codeRegex = new RegExp(
+  `^(?:[${TURMA_CODE_ALPHABET}]{6}|[${TURMA_CODE_ALPHABET}]{${TURMA_CODE_LENGTH}})$`,
+);
 
 const profileIdSchema = z.string().uuid("Identificador de perfil inválido");
 
 export const createTurmaInputSchema = z.object({
   schoolInepCode: z.string().min(1, "Selecione a escola").max(32),
   grade: z.enum(TURMA_GRADES),
+  shift: z.enum(TURMA_SHIFTS).optional(),
   year: z
     .number()
     .int("Ano inválido")
@@ -53,6 +57,7 @@ export type DeleteTurmaInput = z.output<typeof deleteTurmaInputSchema>;
 export const updateTurmaInputSchema = z.object({
   turmaId: z.string().uuid("Identificador de turma inválido"),
   grade: z.enum(TURMA_GRADES),
+  shift: z.enum(TURMA_SHIFTS).optional(),
   year: z
     .number()
     .int("Ano inválido")

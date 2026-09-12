@@ -97,8 +97,8 @@ Retorna `{ sendEmail, renderTemplate, getOutbox?, clearOutbox? }`.
 Fluxo (linhas em `dispatch.ts`):
 
 1. **Validate** — `SendEmailInputSchema.parse(input)` (Zod). Erros viram `EmailDeliveryError` com `cause`.
-2. **Insert idempotente** — `INSERT ... ON CONFLICT (category, message_key) DO NOTHING RETURNING *`. Se a row já existe e está `sent`, retorna `{ ok: true, status: 'already-sent' }`.
-3. **Claim atômico** — `UPDATE WHERE id=? AND status IN ('pending', 'failed') SET status='sending', sendAttempts += 1`. Se 0 rows tocadas: outro processo já claim'ou (`{ ok: false, status: 'skipped' }`).
+2. **Insert idempotente** — `INSERT ... ON CONFLICT (category, message_key) DO NOTHING RETURNING *`. Se a row já existe e está `sent` ou `delivered`, retorna `{ ok: true, status: 'already-sent' }`.
+3. **Claim atômico** — `UPDATE WHERE id=? AND status IN ('pending', 'failed') SET status='sending', sendAttempts += 1`. Se 0 rows tocadas: retorna `{ ok: false, status: 'deferred', reason: 'in-flight' }`. Registros `sending` e `unknown` também retornam `deferred`; `unknown` usa `reason: 'outcome-unknown'` e exige reconciliação, sem reenvio automático. `skipped` fica reservado a bloqueios definitivos.
 4. **Sandbox** (`mode='sandbox'`) — escreve `<sandboxDir>/<id>.json` (meta) e `<id>.html` (body). Marca `status='sent'`.
 5. **Memory** (`mode='memory'`) — mete `{ id, to, subject, html, text, headers, customArgs }` em outbox em-memória. Marca `status='sent'`.
 6. **Live** — chama `sgMail.send(msg)` com `headers: List-Unsubscribe + List-Unsubscribe-Post: One-Click`, `customArgs: { delivery_id, category, user_id }`, `categories: [input.category]`.
@@ -303,7 +303,7 @@ Crons seguem o mesmo padrão (Bearer + invoke da função do `./sweepers`).
 
 2. **Idempotência por `(category, messageKey)`.** Index UNIQUE em `email_deliveries`. `messageKey` precisa ser determinístico por evento lógico (em auth: usamos `token` do verify-email/magic-link/reset; org invite: `invitation.id`). `INSERT ... ON CONFLICT DO NOTHING` + leitura subsequente do row existente.
 
-3. **Claim atômico via `UPDATE...WHERE status IN ('pending','failed')`.** Elimina racing entre processos. Quando 0 rows tocadas: `{ ok: false, status: 'skipped' }`.
+3. **Claim atômico via `UPDATE...WHERE status IN ('pending','failed')`.** Elimina racing entre processos. Quando 0 rows tocadas: `{ ok: false, status: 'deferred', reason: 'in-flight' }`. Consumidores devem manter a operação recuperável; não converter disputa de envio em cancelamento definitivo.
 
 4. **Backoff polinomial, não exponencial.** `attempt^4 + 2s ±15% jitter`. Padrão Akita (vibe-coding-vault). Razão: exponencial (`2^attempt`) explode rápido demais para 8 tentativas; polinomial dá distribuição mais útil em hours-scale.
 

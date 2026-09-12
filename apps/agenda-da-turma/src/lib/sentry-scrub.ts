@@ -2,6 +2,26 @@ import type { ErrorEvent, EventHint } from "@sentry/nextjs";
 
 const EMAIL_PATTERN = /([A-Za-z0-9._%+-]+)@([A-Za-z0-9.-]+\.[A-Za-z]{2,})/g;
 
+function redactPrivateLinks(value: string): string {
+  return value
+    .replace(/(\/api\/calendario\/)[a-f0-9]{64}/gi, "$1[Filtered]")
+    .replace(/([?&](?:token|t|code)=)[^&#\s]+/gi, "$1[Filtered]");
+}
+
+function redactBreadcrumbData(value: unknown): unknown {
+  if (typeof value === "string") return redactPrivateLinks(value);
+  if (Array.isArray(value)) return value.map(redactBreadcrumbData);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [
+      key,
+      /^(token|authorization|cookie|body|data|text|sourceExcerpt|attachmentData)$/i.test(key)
+        ? "[Filtered]"
+        : redactBreadcrumbData(item),
+    ]),
+  );
+}
+
 function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
@@ -16,6 +36,9 @@ async function hashEmail(email: string): Promise<string> {
 }
 
 async function maskEmailsInString(value: string): Promise<string> {
+  if (value.includes("Failed query:"))
+    return "Database operation failed [query and parameters filtered]";
+  value = redactPrivateLinks(value);
   const emails = Array.from(
     new Set(Array.from(value.matchAll(EMAIL_PATTERN), ([email]) => email.toLowerCase())),
   );
@@ -47,9 +70,7 @@ async function maskEmailsInString(value: string): Promise<string> {
  * - `event.request.data` (POST body): apagado se for string ou objeto (preserva
  *   só o tipo) — payloads de signup/reset trazem email + senha em plaintext.
  *
- * Não tenta sanitizar `breadcrumbs.data` em profundidade: dados estruturados
- * de breadcrumbs são pequenos e auto-gerados pelo SDK; o maior risco
- * documentado está em request body e em mensagens de exceção.
+ * Remove tokens e conteúdo privado também de breadcrumbs estruturados.
  */
 export async function scrubSentryEvent<T extends ErrorEvent>(
   event: T,
@@ -63,6 +84,9 @@ export async function scrubSentryEvent<T extends ErrorEvent>(
   }
 
   if (event.request) {
+    if (event.request.url) event.request.url = redactPrivateLinks(event.request.url);
+    if (typeof event.request.query_string === "string")
+      event.request.query_string = redactPrivateLinks(`?${event.request.query_string}`).slice(1);
     if (event.request.cookies) {
       delete event.request.cookies;
     }
@@ -72,10 +96,20 @@ export async function scrubSentryEvent<T extends ErrorEvent>(
       if ("Cookie" in headers) headers.Cookie = "[Filtered]";
       if ("authorization" in headers) headers.authorization = "[Filtered]";
       if ("Authorization" in headers) headers.Authorization = "[Filtered]";
+      for (const key of ["referer", "Referer"])
+        if (headers[key]) headers[key] = redactPrivateLinks(headers[key]);
     }
     if (event.request.data !== undefined && event.request.data !== null) {
       event.request.data = "[Filtered]";
     }
+  }
+
+  if (event.breadcrumbs) {
+    event.breadcrumbs = event.breadcrumbs.map((item) => ({
+      ...item,
+      message: item.message ? redactPrivateLinks(item.message) : item.message,
+      data: item.data ? (redactBreadcrumbData(item.data) as typeof item.data) : item.data,
+    }));
   }
 
   if (event.message) {

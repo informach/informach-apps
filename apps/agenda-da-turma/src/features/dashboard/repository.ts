@@ -13,6 +13,7 @@ import {
 } from "@informach/db/schema";
 import { activityListSelect } from "@/features/activities/repository";
 import type { ActivityListItem } from "@/features/activities/types";
+import { accessibleProfileCondition } from "@/features/family/access";
 import { addDaysIso, todayLocalIso } from "./date";
 import type { DashboardBucket, DashboardCounters, DashboardProfileSummary } from "./types";
 
@@ -47,8 +48,8 @@ export async function listActivitiesByBucket(
           );
 
   const whereExpr = and(
-    eq(agendaStudentProfiles.userId, userId),
-    options.isPro ? undefined : eq(agendaActivities.createdByUserId, userId),
+    sql`${agendaActivities.canceledAt} IS NULL`,
+    accessibleProfileCondition(userId),
     options.profileFilter ? eq(agendaStudentProfiles.id, options.profileFilter) : undefined,
     bucketWhere,
   );
@@ -93,8 +94,8 @@ export async function getDashboardCounters(
   // pro Postgres e mantém o WHERE/JOIN ideal pra cada tabela. SUM em JS
   // depois é trivial (4 campos × 2 = 8 numbers).
   const turmaBaseWhere = and(
-    eq(agendaStudentProfiles.userId, userId),
-    options.isPro ? undefined : eq(agendaActivities.createdByUserId, userId),
+    sql`${agendaActivities.canceledAt} IS NULL`,
+    accessibleProfileCondition(userId),
     options.profileFilter ? eq(agendaStudentProfiles.id, options.profileFilter) : undefined,
   );
 
@@ -102,7 +103,7 @@ export async function getDashboardCounters(
   // pause "esconda" também dos KPIs (consistente com o que aparece nos
   // buckets — paused é silêncio total no dashboard).
   const extraBaseWhere = and(
-    eq(agendaStudentProfiles.userId, userId),
+    accessibleProfileCondition(userId),
     eq(agendaProfileSubjects.status, "active"),
     options.profileFilter ? eq(agendaStudentProfiles.id, options.profileFilter) : undefined,
   );
@@ -110,10 +111,10 @@ export async function getDashboardCounters(
   const [turmaRow, extraRow] = await Promise.all([
     db
       .select({
-        overdue: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivityStatuses.status} = 'pending' AND ${agendaActivities.dueAt} < ${today})`,
-        today: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivityStatuses.status} = 'pending' AND ${agendaActivities.dueAt} = ${today})`,
-        week: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivityStatuses.status} = 'pending' AND ${agendaActivities.dueAt} BETWEEN ${tomorrow} AND ${sevenAhead})`,
-        doneRecent: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivityStatuses.status} = 'done' AND ${agendaActivities.dueAt} BETWEEN ${sevenAgo} AND ${today})`,
+        overdue: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivities.canceledAt} IS NULL AND ${agendaActivityStatuses.status} = 'pending' AND ${agendaActivities.dueAt} < ${today})`,
+        today: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivities.canceledAt} IS NULL AND ${agendaActivityStatuses.status} = 'pending' AND ${agendaActivities.dueAt} = ${today})`,
+        week: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivities.canceledAt} IS NULL AND ${agendaActivityStatuses.status} = 'pending' AND ${agendaActivities.dueAt} BETWEEN ${tomorrow} AND ${sevenAhead})`,
+        doneRecent: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivities.canceledAt} IS NULL AND ${agendaActivityStatuses.status} = 'done' AND ${agendaActivities.dueAt} BETWEEN ${sevenAgo} AND ${today})`,
       })
       .from(agendaActivityStatuses)
       .innerJoin(
@@ -157,7 +158,7 @@ export async function getDashboardCounters(
 // verdade pra "o que cada filho tem".
 export async function listProfileSummaries(
   userId: string,
-  options: Pick<Ctx, "isPro">,
+  _options: Pick<Ctx, "isPro">,
 ): Promise<DashboardProfileSummary[]> {
   const today = todayLocalIso();
 
@@ -171,9 +172,9 @@ export async function listProfileSummaries(
         profileId: agendaStudentProfiles.id,
         profileName: agendaStudentProfiles.name,
         profileCreatedAt: agendaStudentProfiles.createdAt,
-        pending: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivityStatuses.status} = 'pending')`,
-        overdue: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivityStatuses.status} = 'pending' AND ${agendaActivities.dueAt} < ${today})`,
-        done: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivityStatuses.status} = 'done')`,
+        pending: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivities.canceledAt} IS NULL AND ${agendaActivityStatuses.status} = 'pending')`,
+        overdue: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivities.canceledAt} IS NULL AND ${agendaActivityStatuses.status} = 'pending' AND ${agendaActivities.dueAt} < ${today})`,
+        done: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivities.canceledAt} IS NULL AND ${agendaActivityStatuses.status} = 'done')`,
       })
       .from(agendaStudentProfiles)
       .leftJoin(
@@ -181,19 +182,7 @@ export async function listProfileSummaries(
         eq(agendaActivityStatuses.studentProfileId, agendaStudentProfiles.id),
       )
       .leftJoin(agendaActivities, eq(agendaActivities.id, agendaActivityStatuses.activityId))
-      .where(
-        and(
-          eq(agendaStudentProfiles.userId, userId),
-          // Free: descarta status rows de atividades criadas por outros (defesa
-          // em profundidade; na prática Free não consegue aceitar shared, então
-          // não tem essas rows). LEFT JOIN: condição vai pro WHERE só quando
-          // houver activity ligada — se não houver, dueAt/createdByUserId são
-          // NULL e o filtro vira true por causa do `OR ... IS NULL`.
-          options.isPro
-            ? undefined
-            : sql`(${agendaActivities.createdByUserId} = ${userId} OR ${agendaActivities.id} IS NULL)`,
-        ),
-      )
+      .where(and(accessibleProfileCondition(userId)))
       .groupBy(
         agendaStudentProfiles.id,
         agendaStudentProfiles.name,
@@ -218,7 +207,7 @@ export async function listProfileSummaries(
       )
       .where(
         and(
-          eq(agendaStudentProfiles.userId, userId),
+          accessibleProfileCondition(userId),
           // Atividades de matérias `paused` NÃO entram nos counters do
           // dashboard (consistente com buckets e KPIs). Quando não há
           // activity ligada (LEFT JOIN), profileSubjects.status é NULL e

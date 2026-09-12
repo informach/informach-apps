@@ -585,6 +585,11 @@ function ActivityRowCard({
               <FormControl>
                 <Input type="date" {...field} value={field.value ?? ""} />
               </FormControl>
+              <p className="text-xs text-muted-foreground">
+                {field.value
+                  ? "Confira esta data no recado original antes de salvar."
+                  : "Prazo não informado. Confirme com a escola ou use Organizar um recado para manter a data em aberto."}
+              </p>
               <FormMessage />
             </FormItem>
           )}

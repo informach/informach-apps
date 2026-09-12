@@ -1,0 +1,149 @@
+import { randomUUID } from 'node:crypto';
+import { PDFDocument } from 'pdf-lib';
+import { db, eq, inArray, sql } from '@informach/db';
+import { agendaCities, agendaSchools, agendaTurmas, agendaSubjects, agendaStudentProfiles, agendaNotices, agendaNoticeActions, agendaProductEvents, agendaNotificationPreferences, agendaNotificationDeliveries, agendaActivityStatuses, agendaTurmaMembers, customers, subscriptions, users, emailDeliveries, creditReservations } from '@informach/db/schema';
+import { beforeEach, afterEach, describe, it, expect } from 'vitest';
+import { createActivity, updateActivity, deleteActivity, respondSharedActivity } from '@/features/activities/service';
+import { findActivityHistory } from '@/features/activities/history-repository';
+import { listPendingSharedActivitiesForUser } from '@/features/activities/repository';
+import { createOrJoinTurma, setActiveTurma } from '@/features/turmas/service';
+import { joinPrivateGroup, removeGroupAdult } from '@/features/turmas/group-access';
+import { createFamilyInvitation, acceptFamilyInvitation } from '@/features/family/service';
+import { getNoticeSource, listReadyNotices, listNoticeActions } from '@/features/notices/repository';
+import { reserveNoticeParse, finishNoticeParse } from '@/features/notices/parse-repository';
+import { confirmNotice, setNoticeActionStatus, updateNoticeAction } from '@/features/notices/service';
+import { parseNoticeSchema, type NoticeActionInput } from '@/features/notices/schemas';
+import { validateNoticeExtraction } from '@/features/notices/extraction';
+import { deliverRoutineNotifications } from '@/features/notifications/delivery';
+import { todayLocalIso } from '@/features/dashboard/date';
+import { emails } from '@/lib/emails';
+
+function value<T>(r: {ok:true;value:T}|{ok:false;error:unknown}):T { if(!r.ok)throw new Error(JSON.stringify(r.error));return r.value; }
+let owner:string, guest:string, outsider:string, child:string, sibling:string, otherChild:string, school:string, group:string, subject:string, customerId:string;
+const date=todayLocalIso();
+const action=(title='Providência de revisão', profileId=child):NoticeActionInput=>({profileId,type:'authorization',title,description:null,dueAt:'2030-09-14',dateOrigin:'family',time:null,location:null,sourceExcerpt:null,assignedToUserId:null,reminderAt:null,recurrence:'none'});
+const extraction={ actions:[{type:'material' as const,title:'Material A',description:null,dueAt:null,dateOrigin:'unspecified' as const,time:null,location:null,sourceExcerpt:'Levar material'}],warnings:[] };
+beforeEach(async()=>{
+  const prefix=`zz-full-review-${randomUUID()}`;
+  owner=`${prefix}-owner`;guest=`${prefix}-guest`;outsider=`${prefix}-other`;
+  await db.insert(users).values([owner,guest,outsider].map(id=>({id,name:'Adulto fictício de revisão',email:`${id}@e2e.local`,emailVerified:true})));
+  const [c]=await db.insert(customers).values({provider:'stripe',providerCustomerId:`test-${owner}`,subjectType:'user',subjectId:owner,app:'agenda-da-turma',email:`${owner}@e2e.local`}).returning();customerId=c!.id;
+  await db.insert(subscriptions).values({customerId,provider:'stripe',providerSubscriptionId:`test-${owner}`,productId:'agenda_da_turma_pro_monthly',providerPriceId:'price_synthetic',status:'active',currentPeriodStart:new Date(),currentPeriodEnd:new Date(Date.now()+30*86400000)});
+  const p=await db.insert(agendaStudentProfiles).values([{userId:owner,name:'Criança A revisão'},{userId:owner,name:'Criança B restrita revisão'},{userId:outsider,name:'Criança C revisão'}]).returning();[child,sibling,otherChild]=p.map(p=>p.id);
+  const [city]=await db.select({id:agendaCities.ibgeCode}).from(agendaCities).limit(1);school=`review-${randomUUID()}`;
+  await db.insert(agendaSchools).values({inepCode:school,cityIbgeCode:city!.id,name:'Escola fictícia de revisão'});
+  group=value(await createOrJoinTurma(owner,{profileId:child,schoolInepCode:school,grade:'4ano',year:2026,classLetter:'A',shift:'morning'})).turma.id;
+  const [s]=await db.insert(agendaSubjects).values({turmaId:group,name:'Matéria fictícia',createdByUserId:owner}).returning();subject=s!.id;
+  const [g]=await db.select().from(agendaTurmas).where(eq(agendaTurmas.id,group));
+  await joinPrivateGroup(outsider,otherChild,g!.code);
+  const invite=value(await createFamilyInvitation(owner,{email:`${guest}@e2e.local`,profileIds:[child]}));
+  value(await acceptFamilyInvitation(guest,new URL(invite.url).searchParams.get('token')!));
+  emails.clearOutbox();
+});
+afterEach(async()=>{
+  const ids=[owner,guest,outsider];
+  await db.delete(agendaTurmas).where(eq(agendaTurmas.schoolInepCode,school));
+  await db.delete(agendaSchools).where(eq(agendaSchools.inepCode,school));
+  await db.delete(agendaProductEvents).where(inArray(agendaProductEvents.userId,ids));
+  await db.delete(emailDeliveries).where(inArray(emailDeliveries.userId,ids));
+  await db.delete(creditReservations).where(inArray(creditReservations.ownerId,ids));
+  await db.delete(users).where(inArray(users.id,ids));
+  await db.delete(subscriptions).where(eq(subscriptions.customerId,customerId));
+  await db.delete(customers).where(eq(customers.id,customerId));
+  emails.clearOutbox();
+});
+async function notice(text:string, profileId=child){
+  const [n]=await db.insert(agendaNotices).values({ownerUserId:owner,captureProfileId:profileId,createdByUserId:owner,source:'teams',text,contentHash:randomUUID(),status:'ready',parsedResult:extraction}).returning();return n!;
+}
+async function schoolActivity(visibility:'individual'|'shared_with_turma'='shared_with_turma',description='Conteúdo público'){
+  return value(await createActivity(owner,{turmaId:group,subjectId:subject,type:'task',visibility,title:'Tarefa escolar de revisão',description,dueAt:date}));
+}
+describe('Review reproductions — assertions document observed defects, not acceptance criteria',()=>{
+  it('F01 activity form default version=1 rejects a second school edit',async()=>{
+    const a=await schoolActivity();
+    value(await updateActivity(owner,{...a,subjectId:subject,description:'Primeira edição',version:1}));
+    expect(await updateActivity(owner,{...a,subjectId:subject,description:'Segunda edição',version:1})).toMatchObject({ok:false,error:{code:'VERSION_CONFLICT'}});
+  });
+  it('F02 a recipient reads private snapshots created before sharing',async()=>{
+    const a=await schoolActivity('individual','SEGREDO FICTÍCIO PRIVADO');
+    value(await updateActivity(owner,{...a,subjectId:subject,description:'Somente conteúdo público',visibility:'shared_with_turma',version:1}));
+    value(await respondSharedActivity(outsider,{activityId:a.id,accepted:true}));
+    expect(JSON.stringify(await findActivityHistory(outsider,a.id))).toContain('SEGREDO FICTÍCIO PRIVADO');
+  });
+  it('F03 accept then reject retains status, but creator deletion removes that history',async()=>{
+    const a=await schoolActivity();
+    value(await respondSharedActivity(outsider,{activityId:a.id,accepted:true}));
+    value(await respondSharedActivity(outsider,{activityId:a.id,accepted:false}));
+    expect(await db.select().from(agendaActivityStatuses).where(eq(agendaActivityStatuses.studentProfileId,otherChild))).toHaveLength(1);
+    value(await deleteActivity(owner,{id:a.id}));
+    expect(await db.select().from(agendaActivityStatuses).where(eq(agendaActivityStatuses.studentProfileId,otherChild))).toHaveLength(0);
+  });
+  it('F04 a ready mixed-child original is visible to the A-only guest before review',async()=>{
+    const n=await notice('Material da criança A. INFORMAÇÃO RESTRITA DA CRIANÇA B.');
+    const pdf=await PDFDocument.create();pdf.addPage().drawText('RESTRICTED INFORMATION ABOUT CHILD B');
+    const original=Buffer.from(await pdf.save()).toString('base64');
+    await db.update(agendaNotices).set({attachmentData:original,attachmentName:'mixed-children.pdf',attachmentType:'application/pdf',attachmentExpiresAt:new Date(Date.now()+86400000)}).where(eq(agendaNotices.id,n.id));
+    expect((await getNoticeSource(guest,n.id))?.text).toContain('INFORMAÇÃO RESTRITA');
+    expect((await getNoticeSource(guest,n.id))?.attachmentData).toBe(original);
+    expect((await listReadyNotices(guest)).map(n=>n.id)).toContain(n.id);
+    value(await confirmNotice(owner,{noticeId:n.id,actions:[action('Material A',child),action('Material B',sibling)],allowDuplicates:false}));
+    expect(await getNoticeSource(guest,n.id)).toBeNull();
+  });
+  it('F05 the same confirmed notice cannot be applied to a second child',async()=>{
+    const n=await notice('Levar autorização');
+    value(await confirmNotice(owner,{noticeId:n.id,actions:[action()],allowDuplicates:false}));
+    const result=value(await confirmNotice(owner,{noticeId:n.id,actions:[action('Providência de revisão',sibling)],allowDuplicates:false}));
+    expect(result.alreadyConfirmed).toBe(true);
+    expect(await listNoticeActions(owner,{profileId:sibling})).toHaveLength(0);
+  });
+  it('F06 importing a corrected deadline leaves both old and new obligations pending',async()=>{
+    const n=await notice('Autorização até 14/09/2030');
+    value(await confirmNotice(owner,{noticeId:n.id,actions:[action()],allowDuplicates:false}));
+    const corrected=await notice('RETIFICAÇÃO: autorização passa de 14/09/2030 para 16/09/2030');
+    value(await confirmNotice(owner,{noticeId:corrected.id,actions:[{...action(),dueAt:'2030-09-16'}],allowDuplicates:false}));
+    expect((await listNoticeActions(owner)).map(r=>r.action.dueAt).sort()).toEqual(['2030-09-14','2030-09-16']);
+  });
+  it('F07 a crash between delivery claims is converted into permanent cancellation',async()=>{
+    const now=new Date('2030-09-13T15:00:00Z');
+    const a=value(await confirmNotice(owner,{noticeId:null,actions:[{...action(),reminderAt:new Date(now.valueOf()-20*60000).toISOString()}],allowDuplicates:false}));
+    await db.insert(agendaNotificationPreferences).values({userId:owner,emailEnabled:true,digestHour:19,quietStart:21,quietEnd:7});
+    const key=`action:${a.ids[0]}:v1`;
+    await db.insert(agendaNotificationDeliveries).values({userId:owner,messageKey:key,channel:'email',status:'processing',attempts:1,lastAttemptAt:new Date(now.valueOf()-11*60000)});
+    await db.insert(emailDeliveries).values({id:randomUUID(),recipient:`${owner}@e2e.local`,category:'agenda.routine',messageKey:`agenda:${owner}:${key}`,subject:'Synthetic review reminder',userId:owner,status:'sending',sendingStartedAt:new Date(),sendAttempts:1});
+    await deliverRoutineNotifications(now,{afterUserId:owner.slice(0,-5),limit:1});
+    const rows=await db.select().from(agendaNotificationDeliveries).where(eq(agendaNotificationDeliveries.userId,owner));
+    expect(rows[0]?.status).toBe('canceled');
+    await db.update(emailDeliveries).set({status:'failed'}).where(eq(emailDeliveries.userId,owner));
+    await deliverRoutineNotifications(new Date(now.valueOf()+20*60000),{afterUserId:owner.slice(0,-5),limit:1});
+    expect(emails.getOutbox()).toHaveLength(0);
+  });
+  it('F08 delayed completion of the old parse can mark a new parse failed',async()=>{
+    const input=parseNoticeSchema.parse({profileId:child,source:'teams',text:'Levar material'});const hash=randomUUID();
+    const reserve=(now:Date)=>reserveNoticeParse({userId:owner,ownerId:owner,profileId:child,isPro:true,input,attachment:null,contentHash:hash,now,trialDailyBudget:100});
+    const first=value(await reserve(new Date(Date.now()-11*60000))).notice;
+    const second=value(await reserve(new Date())).notice;
+    expect(second.billingRunId).not.toBe(first.billingRunId);
+    await finishNoticeParse(first.id,'failed','PARSE_FAILED');
+    const [row]=await db.select().from(agendaNotices).where(eq(agendaNotices.id,second.id));
+    expect(row?.billingRunId).toBe(second.billingRunId);expect(row?.status).toBe('failed');
+  });
+  it('F09 a revoked group membership can be reinstated through a stale set-active request',async()=>{
+    const a=await schoolActivity();
+    let release!:()=>void;const gate=new Promise<void>(resolve=>{release=resolve});let ready!:()=>void;const locked=new Promise<void>(resolve=>{ready=resolve});
+    const removal=db.transaction(async tx=>{
+      await tx.delete(agendaTurmaMembers).where(eq(agendaTurmaMembers.studentProfileId,otherChild));
+      await tx.update(agendaStudentProfiles).set({activeTurmaId:null}).where(eq(agendaStudentProfiles.id,otherChild));
+      ready();await gate;
+    });
+    await locked;
+    const reactivate=setActiveTurma(outsider,{profileId:otherChild,turmaId:group});
+    try{await new Promise(resolve=>setTimeout(resolve,100));}finally{release();}
+    await removal;expect((await reactivate).ok).toBe(true);
+    expect(await db.select().from(agendaTurmaMembers).where(eq(agendaTurmaMembers.studentProfileId,otherChild))).toHaveLength(0);
+    expect((await listPendingSharedActivitiesForUser(outsider)).map(x=>x.activityId)).toContain(a.id);
+  });
+  it('F10 a publication date visible in the original is discarded unless manually supplied',()=>{
+    const parsed=validateNoticeExtraction({actions:[{...extraction.actions[0],dueAt:'2030-09-14',dateOrigin:'relative',sourceExcerpt:'Publicado em 13/09/2030. Levar material amanhã.'}],warnings:[]},null);
+    expect(parsed.actions[0]?.dueAt).toBeNull();
+  });
+});

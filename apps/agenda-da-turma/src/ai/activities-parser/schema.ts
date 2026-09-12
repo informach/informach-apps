@@ -36,7 +36,7 @@ const dueAtSchema = z
   .regex(/^\d{4}-\d{2}-\d{2}$/)
   .nullable()
   .describe(
-    "Data de entrega em formato estrito YYYY-MM-DD. Resolva expressões relativas em pt-BR contra a data 'hoje' informada no input ('amanhã', 'quarta-feira', 'dia 25', 'na próxima semana'). Quando NÃO houver indicação alguma de data no conteúdo, use 'amanhã' (hoje + 1) como default — NUNCA chute uma data aleatória, e NUNCA retorne null. Null só em casos extremos onde até 'amanhã' faria menos sentido que campo vazio — preferível usar amanhã.",
+    "Data de entrega YYYY-MM-DD explicitamente ligada a esta ação. Sem prazo ou contexto suficiente, null. Nunca use amanhã, dia de aula ou data da postagem como prazo padrão. Datas relativas exigem referência temporal confiável: data de publicação informada ou fala gravada agora. Não suponha que um print ou PDF foi publicado hoje.",
   );
 
 const subjectHintSchema = z

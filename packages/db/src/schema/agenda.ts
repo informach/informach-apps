@@ -96,19 +96,24 @@ export const agendaTurmas = agenda.table(
       enum: ["1ano", "2ano", "3ano", "4ano", "5ano", "6ano", "7ano", "8ano", "9ano"],
     }).notNull(),
     year: integer("year").notNull(),
-    classLetter: text("class_letter").notNull(),
-    createdByUserId: text("created_by_user_id")
+    shift: text("shift", { enum: ["unspecified", "morning", "afternoon", "full_day", "evening"] })
       .notNull()
-      .references(() => users.id),
+      .default("unspecified"),
+    classLetter: text("class_letter").notNull(),
+    createdByUserId: text("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
-    uniqueIndex("agenda_turmas_natural_key_idx").on(
+    uniqueIndex("agenda_turmas_owner_key_idx").on(
       t.schoolInepCode,
       t.grade,
       t.year,
       t.classLetter,
+      t.shift,
+      t.createdByUserId,
     ),
   ],
 );
@@ -121,7 +126,7 @@ export const agendaStudentProfiles = agenda.table(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
-    birthDate: date("birth_date").notNull(),
+    birthDate: date("birth_date"),
     activeTurmaId: uuid("active_turma_id").references((): AnyPgColumn => agendaTurmas.id, {
       onDelete: "set null",
     }),
@@ -173,9 +178,9 @@ export const agendaSubjects = agenda.table(
       .notNull()
       .default(sql`ARRAY[]::text[]`)
       .$type<AgendaClassDay[]>(),
-    createdByUserId: text("created_by_user_id")
-      .notNull()
-      .references(() => users.id),
+    createdByUserId: text("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -244,9 +249,9 @@ export const agendaActivities = agenda.table(
     subjectId: uuid("subject_id")
       .notNull()
       .references(() => agendaSubjects.id, { onDelete: "cascade" }),
-    createdByUserId: text("created_by_user_id")
-      .notNull()
-      .references(() => users.id),
+    createdByUserId: text("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     type: text("type", {
       enum: ["task", "exam", "project", "reminder"],
     }).notNull(),
@@ -261,6 +266,8 @@ export const agendaActivities = agenda.table(
     // dia X". Drizzle mode default devolve string "YYYY-MM-DD", igual
     // student_profiles.birthDate.
     dueAt: date("due_at").notNull(),
+    version: integer("version").notNull().default(1),
+    canceledAt: timestamp("canceled_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -396,9 +403,9 @@ export const agendaProfileSubjectActivities = agenda.table(
     profileSubjectId: uuid("profile_subject_id")
       .notNull()
       .references(() => agendaProfileSubjects.id, { onDelete: "cascade" }),
-    createdByUserId: text("created_by_user_id")
-      .notNull()
-      .references(() => users.id),
+    createdByUserId: text("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     type: text("type", {
       enum: ["task", "exam", "project", "reminder"],
     }).notNull(),

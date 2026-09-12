@@ -20,6 +20,7 @@ import {
 import { SendEmailInputSchema } from "./schemas";
 
 export type EmailCategory =
+  | "agenda.routine"
   | "auth.verify-email"
   | "auth.verify-email-otp"
   | "auth.sign-in-otp"
@@ -107,12 +108,15 @@ export type DispatchDeps = {
 export type DispatchResult =
   | { ok: true; status: "sent" | "already-sent"; deliveryId: string }
   | { ok: false; status: "failed"; deliveryId: string; reason: string }
-  | { ok: false; status: "skipped"; deliveryId: string; reason: string };
+  | { ok: false; status: "skipped"; deliveryId: string; reason: string }
+  | { ok: false; status: "deferred"; deliveryId: string; reason: "in-flight" | "outcome-unknown" };
 
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 function shouldPersistBody(category: EmailCategory): boolean {
-  return !category.startsWith("auth.");
+  // School reminders must be regenerated after checking current access/status.
+  // Persisting their bodies would let generic retries send outdated child data.
+  return !category.startsWith("auth.") && category !== "agenda.routine";
 }
 
 function buildListUnsubscribeHeaders(url: string, mailto?: string): Record<string, string> {
@@ -212,10 +216,18 @@ export async function dispatchEmail(
     if (!delivery) {
       throw new Error("dispatchEmail: failed to insert and no existing row found");
     }
-    if (delivery.status === "sent") {
+    if (delivery.status === "sent" || delivery.status === "delivered") {
       return { ok: true, status: "already-sent", deliveryId: delivery.id };
     }
-    if (delivery.status === "dropped" || delivery.status === "skipped") {
+    if (delivery.status === "sending" || delivery.status === "unknown") {
+      return {
+        ok: false,
+        status: "deferred",
+        deliveryId: delivery.id,
+        reason: delivery.status === "unknown" ? "outcome-unknown" : "in-flight",
+      };
+    }
+    if (["dropped", "skipped", "bounced", "complained"].includes(delivery.status)) {
       return {
         ok: false,
         status: "skipped",
@@ -244,11 +256,13 @@ export async function dispatchEmail(
         },
       });
     }
+    if (!marked)
+      return { ok: false, status: "deferred", deliveryId: delivery.id, reason: "in-flight" };
     return {
       ok: false,
       status: "skipped",
       deliveryId: delivery.id,
-      reason: marked ? reason : "claimed by another process",
+      reason,
     };
   }
 
@@ -272,9 +286,9 @@ export async function dispatchEmail(
   if (!claimedRow) {
     return {
       ok: false,
-      status: "skipped",
+      status: "deferred",
       deliveryId: delivery.id,
-      reason: "claimed by another process",
+      reason: "in-flight",
     };
   }
   delivery = claimedRow;

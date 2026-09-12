@@ -32,7 +32,10 @@ const birthDateSchema = z
 
 const studentProfileBaseSchema = z.object({
   name: z.string().trim().min(1, "Informe o nome").max(80, "No máximo 80 caracteres"),
-  birthDate: birthDateSchema,
+  birthDate: z
+    .union([birthDateSchema, z.literal(""), z.null()])
+    .optional()
+    .transform((value) => value || null),
 });
 
 export const createStudentProfileInputSchema = studentProfileBaseSchema;

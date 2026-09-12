@@ -1,0 +1,23 @@
+{
+  "executedAt": "2026-09-12T02:39:11.653Z",
+  "localOnly": true,
+  "readOnly": true,
+  "migrations": [
+    {
+      "name": "0037_agenda_review_fixes",
+      "recorded": true
+    },
+    {
+      "name": "0038_agenda_notice_applications_backfill",
+      "recorded": true
+    }
+  ],
+  "users_remaining": 0,
+  "customers_remaining": 0,
+  "sourceScope": {
+    "data_type": "jsonb",
+    "is_nullable": "YES"
+  },
+  "applicationForeignKeys": 2,
+  "applicationUniqueIndexes": 1
+}

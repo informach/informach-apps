@@ -1,0 +1,66 @@
+import { createRequire } from 'node:module';
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+const root = process.cwd();
+const requireApp = createRequire(path.join(root, 'apps/agenda-da-turma/package.json'));
+const { chromium } = requireApp('@playwright/test');
+const destination = path.join(root, 'docs/propostas/agenda-vendas-2026-09-12');
+await mkdir(path.join(destination, 'previas'), { recursive:true });
+const browser = await chromium.launch({ channel:'msedge', headless:true });
+const errors = [];
+const checks = [];
+function assert(condition, message) { if (!condition) throw new Error(message); }
+try {
+  const page = await browser.newPage({ viewport:{width:1440,height:1000}, reducedMotion:'reduce' });
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto(pathToFileURL(path.join(destination,'conceito.html')).href);
+  await page.evaluate(() => document.fonts.ready);
+  assert(await page.locator('.output-row').count() === 3, 'Initial three actions');
+  await page.screenshot({path:path.join(destination,'previas/desktop.png'),fullPage:true});
+  await page.screenshot({path:path.join(destination,'previas/abertura-desktop.png')});
+  await page.locator('#demonstracao').screenshot({path:path.join(destination,'previas/demonstracao.png')});
+  await page.locator('#planos').screenshot({path:path.join(destination,'previas/planos.png')});
+  await page.getByRole('button',{name:'Planejar para a véspera',exact:true}).click();
+  assert((await page.locator('#demo-actions').innerText()).includes('17/09 · Data escolhida'), 'Family preparation date');
+  assert((await page.locator('#demo-actions').innerText()).includes('16/09 · Prazo da escola'), 'Authorization unchanged');
+  await page.getByRole('checkbox',{name:'Separar boné e garrafa',exact:true}).check();
+  assert((await page.locator('#demo-state').innerText()).includes('1 de 3'), 'Completion updates');
+  checks.push('Material date selected without changing the school deadline; completion updates');
+  await page.getByRole('button',{name:'Prova',exact:true}).click();
+  assert(await page.locator('.output-row').count() === 2, 'Exam scenario');
+  await page.getByRole('button',{name:'Material',exact:true}).click();
+  assert(await page.locator('.output-row').count() === 1, 'Material scenario');
+  await page.getByRole('button',{name:'Passeio',exact:true}).click();
+  checks.push('Three scenarios update source and resulting actions');
+  await page.getByRole('button',{name:'Anual',exact:false}).click();
+  assert(await page.locator('#pro-price').innerText() === 'R$ 199', 'Annual total visible');
+  assert((await page.locator('#billing-note').innerText()).includes('R$ 39,80'), 'Annual saving');
+  await page.getByRole('link',{name:'Escolher o Pro',exact:false}).click();
+  assert((await page.locator('#intent-copy').innerText()).includes('anual, de R$ 199/ano'), 'Correct annual intent');
+  await page.keyboard.press('Escape');
+  assert(!await page.locator('#intent-dialog').isVisible(), 'Escape closes dialog');
+  await page.getByRole('button',{name:'Mensal',exact:true}).click();
+  assert(await page.locator('#pro-price').innerText() === 'R$ 19,90', 'Monthly price');
+  checks.push('Monthly/annual prices, annual total and next-step dialog with keyboard dismissal');
+  await page.getByText('Busca mensagens sozinha no Teams ou Batista ID?',{exact:true}).click();
+  assert(await page.getByText(/Não existe conexão automática com essas plataformas/).isVisible(), 'FAQ disclosure');
+  await page.getByText('Busca mensagens sozinha no Teams ou Batista ID?',{exact:true}).click();
+  const sizes = [];
+  for(const width of [1440,768,390,320]) {
+    await page.setViewportSize({width,height:844});
+    await page.evaluate(() => window.scrollTo(0,0));
+    const measure = await page.evaluate(() => ({width:innerWidth,scrollWidth:document.documentElement.scrollWidth,fontsLoaded:document.fonts.check('16px "Plus Jakarta Sans"'),logoLoaded:Array.from(document.images).every(image=>image.complete && image.naturalWidth>0)}));
+    assert(measure.scrollWidth <= width, `Horizontal overflow at ${width}: ${measure.scrollWidth}`);
+    assert(measure.logoLoaded, 'Logo loading');
+    sizes.push(measure);
+    if(width === 390) {
+      await page.screenshot({path:path.join(destination,'previas/mobile.png'),fullPage:true});
+      await page.screenshot({path:path.join(destination,'previas/abertura-mobile.png')});
+    }
+  }
+  assert(errors.length === 0, JSON.stringify(errors));
+  const result = {executedAt:new Date().toISOString(),prototypeOnly:true,checks,sizes,pageErrors:errors};
+  await writeFile(path.join(destination,'previas/verificacao.json'),JSON.stringify(result,null,2));
+  console.log(JSON.stringify(result,null,2));
+} finally {await browser.close();}
