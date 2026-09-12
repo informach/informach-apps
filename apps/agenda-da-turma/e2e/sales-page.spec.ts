@@ -133,11 +133,13 @@ test("responsive light and dark layouts, FAQ keyboard, and legal navigation", as
     page.getByText("Não existe conexão automática com essas plataformas.", { exact: false }),
   ).toBeVisible();
   await page.getByRole("link", { name: "Privacidade", exact: true }).click();
+  await page.waitForURL(/\/privacidade$/);
   await expect(page).toHaveURL(/\/privacidade$/);
   await page
     .getByRole("navigation", { name: "Navegação do rodapé" })
     .getByRole("link", { name: "Como funciona" })
     .click();
+  await page.waitForURL(/\/#demonstracao$/);
   await expect(page).toHaveURL(/\/#demonstracao$/);
   await expect(page.locator("#demo-title")).toBeInViewport();
   expect(errors).toEqual([]);

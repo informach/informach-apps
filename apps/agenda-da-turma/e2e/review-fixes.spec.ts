@@ -162,6 +162,17 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       await page.goto(`/dashboard?perfil=${child.id}`);
       const schoolAccess = page.getByRole("region", { name: "Atividades", exact: true });
       await expect(schoolAccess).toBeInViewport();
+      for (const [label, route] of [
+        ["Ver atividades", "/atividades"],
+        ["Ver calendário", "/calendario"],
+        ["Importar mensagem ou foto", "/recados/novo"],
+      ] as const) {
+        await expect(page.getByRole("link", { name: label, exact: true })).toHaveCount(1);
+        await expect(schoolAccess.getByRole("link", { name: label, exact: true })).toHaveAttribute(
+          "href",
+          `${route}?perfil=${child.id}`,
+        );
+      }
       await expect(
         page.getByRole("navigation", { name: "Navegação principal" }).getByRole("link", {
           name: "Atividades",
@@ -345,7 +356,15 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       .getByRole("combobox", { name: "Para qual criança?", exact: true })
       .selectOption(sibling.id);
     await page.getByLabel("Cole a mensagem ou publicação").fill(text);
-    await page.getByRole("button", { name: "Identificar atividades", exact: true }).click();
+    const [replayedExtraction] = await Promise.all([
+      page.waitForResponse(
+        (response) =>
+          new URL(response.url()).pathname === "/api/recados/parse" &&
+          response.request().method() === "POST",
+      ),
+      page.getByRole("button", { name: "Identificar atividades", exact: true }).click(),
+    ]);
+    expect(replayedExtraction.status()).toBe(200);
     await expect(page.getByText(/Este recado já foi aplicado a/)).toBeVisible();
     await page.getByRole("button", { name: "Salvar 1 atividade", exact: true }).click();
     await expect(page).toHaveURL(/atividades/);
@@ -525,6 +544,56 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
     await expect(
       page.getByRole("link", { name: "Leitura planejada pela família", exact: true }),
     ).toBeVisible();
+    // Representative family dashboard: different types, today, tomorrow and empty sections.
+    await db.insert(agendaNoticeActions).values([
+      {
+        profileId: child.id,
+        createdByUserId: id,
+        type: "material",
+        title: "Separar o material de arte",
+        fingerprint: createHash("sha256").update(`${id}:material`).digest("hex"),
+        dueAt: date,
+        dateOrigin: "family",
+      },
+      {
+        profileId: child.id,
+        createdByUserId: id,
+        type: "project",
+        title: "Preparar a apresentação de ciências",
+        fingerprint: createHash("sha256").update(`${id}:project`).digest("hex"),
+        dueAt: new Date(new Date(`${date}T12:00:00Z`).valueOf() + 86400000)
+          .toISOString()
+          .slice(0, 10),
+        dateOrigin: "family",
+      },
+    ]);
+    await page.goto("/dashboard");
+    await expect(
+      page.getByRole("heading", { name: "Para cuidar hoje", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Separar o material de arte", exact: true }),
+    ).toBeVisible();
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    for (const width of [360, 768, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      for (const dark of [false, true]) {
+        await page.evaluate(async (useDark) => {
+          document.documentElement.classList.toggle("dark", useDark);
+          await document.fonts.ready;
+          window.scrollTo(0, 0);
+        }, dark);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+          true,
+        );
+        await page.screenshot({
+          path: testInfo.outputPath(`family-dashboard-${width}-${dark ? "dark" : "light"}.png`),
+          fullPage: true,
+          caret: "initial",
+          animations: "disabled",
+        });
+      }
+    }
     expect(runtimeErrors).toEqual([]);
   } finally {
     await db.delete(agendaTurmas).where(eq(agendaTurmas.schoolInepCode, school));
