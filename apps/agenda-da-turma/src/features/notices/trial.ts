@@ -7,7 +7,8 @@ import { getIsProForUser } from "@/features/billing/server-cache";
 import { findAccessibleProfile, listAccessibleProfiles } from "@/features/family/access";
 import { billing } from "@/lib/billing";
 import type { AddEntitlement } from "./entitlement";
-import { FREE_NOTICE_TRIAL, isNoticeUserVerified } from "./parse-repository";
+import { isNoticeUserVerified } from "./parse-repository";
+import { FREE_NOTICE_TRIAL, TRIAL_GRANT_AMOUNTS, voiceFitsInTrial } from "./trial-reserve";
 
 /**
  * Franquia de teste do plano gratuito, compartilhada por todo o fluxo de
@@ -43,13 +44,6 @@ const TRIAL_GRANT_KEYS = {
 } as const;
 
 export type NoticeTrialGrant = keyof typeof TRIAL_GRANT_KEYS;
-
-const TRIAL_VOICE_CALLS_PER_IMPORT = 3;
-
-const TRIAL_GRANT_AMOUNTS: Record<NoticeTrialGrant, number> = {
-  base: FREE_NOTICE_TRIAL,
-  voice: FREE_NOTICE_TRIAL * TRIAL_VOICE_CALLS_PER_IMPORT,
-};
 
 /** Importações de teste já consumidas pela conta titular. */
 export async function countTrialImports(ownerId: string): Promise<number> {
@@ -88,16 +82,21 @@ export type TrialAdmission =
   | { ok: false; code: "VERIFY_EMAIL" | "TRIAL_BUSY" | "TRIAL_ENDED" | "VOICE_TRIAL_SPENT" };
 
 /**
- * Mesmas pré-condições que `reserveNoticeParse` aplica ao plano gratuito,
- * disponíveis para as rotas que entram pela franquia antes de existir um
- * recado (hoje, a transcrição do ditado).
+ * Admite (ou recusa) uma chamada financiada pela franquia, **concedendo os
+ * créditos que a financiam**. Não é só uma consulta: a concessão faz parte da
+ * admissão, e é idempotente.
  *
- * Sem isto, uma conta com e-mail não confirmado gastava chamadas reais de IA
- * por conta da casa, sem teto diário global — bastava não confirmar o e-mail.
- * O orçamento diário é apenas consultado aqui: quem o consome é a importação,
- * que registra `trial_started`.
+ * A ordem importa e já esteve errada: avaliar o saldo antes de conceder via um
+ * saldo sem o próprio financiamento, e o ditado era recusado na primeira
+ * tentativa de toda conta gratuita — para sempre, já que a concessão só
+ * aconteceria depois de uma admissão que nunca passava.
+ *
+ * As pré-condições são as mesmas que `reserveNoticeParse` aplica ao plano
+ * gratuito. Sem elas, uma conta com e-mail não confirmado gastava chamadas
+ * reais de IA por conta da casa, sem teto diário. O orçamento diário é apenas
+ * consultado: quem o consome é a importação, que registra `trial_started`.
  */
-export async function checkTrialAdmission(
+export async function admitFreeTrialCall(
   userId: string,
   ownerId: string,
   dailyBudget: number,
@@ -121,11 +120,15 @@ export async function checkTrialAdmission(
   const importsLeft = FREE_NOTICE_TRIAL - used;
   if (importsLeft <= 0) return { ok: false, code: "TRIAL_ENDED" };
 
+  // Concede antes de medir: é esta concessão que financia a chamada.
+  await grantNoticeTrialCredits(ownerId, grant);
+
   if (grant === "voice") {
     // Um crédito por importação restante fica reservado para a leitura do
-    // recado. Ditar só entra no que sobra.
+    // recado. Ditar só entra no que sobra — assim o saldo nunca morre antes do
+    // teto de importações, e a tela nunca anuncia importação que falha.
     const { available } = await billing.getBalance({ type: "user", id: ownerId });
-    if (available - 1 < importsLeft) return { ok: false, code: "VOICE_TRIAL_SPENT" };
+    if (!voiceFitsInTrial(available, importsLeft)) return { ok: false, code: "VOICE_TRIAL_SPENT" };
   }
   return { ok: true };
 }

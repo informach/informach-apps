@@ -1,4 +1,5 @@
 import { listSubjectOptionsByProfile } from "@/features/subjects/options-service";
+import { ActivityCompletionButton } from "@/features/unified-activities/components/completion-button";
 import { ActivityDetailShell } from "@/features/unified-activities/components/detail-shell";
 import { ActivityRevisionList } from "@/features/unified-activities/components/revision-list";
 import { billing } from "@/lib/billing";
@@ -40,6 +41,13 @@ export async function NoticeActivityDetail({
       title={action.title}
       meta={`versão ${action.version}`}
     >
+      {action.status !== "canceled" ? (
+        <ActivityCompletionButton
+          target={{ kind: "notice", id: action.id, version: action.version }}
+          initialStatus={action.status === "done" ? "done" : "pending"}
+          title={action.title}
+        />
+      ) : null}
       <EditNoticeAction
         key={action.version}
         id={id}

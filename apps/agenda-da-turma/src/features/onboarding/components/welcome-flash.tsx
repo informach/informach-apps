@@ -23,6 +23,13 @@ export function WelcomeFlash({ isPro }: { isPro: boolean }) {
     // Mesma condição do render abaixo: com outro valor nada aparece, e agendar
     // a navegação mexeria na URL sem motivo.
     if (welcome !== "1") return;
+    if (!isPro) {
+      // O webhook ainda não chegou. Apagar o aviso aqui deixaria quem acabou de
+      // pagar num painel com limites de Free e nenhuma explicação — então o que
+      // se faz é buscar o estado novo, não esconder o antigo.
+      const retry = setTimeout(() => router.refresh(), 5000);
+      return () => clearTimeout(retry);
+    }
     const t = setTimeout(() => {
       // `scroll: false`: dez segundos depois a pessoa já está lendo a rotina, e
       // o padrão do router jogaria a página de volta ao topo.
@@ -32,7 +39,7 @@ export function WelcomeFlash({ isPro }: { isPro: boolean }) {
       );
     }, 10000);
     return () => clearTimeout(t);
-  }, [welcome, profileFilter, router]);
+  }, [welcome, profileFilter, router, isPro]);
 
   if (welcome !== "1") return null;
 

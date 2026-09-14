@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  createActivitiesBatch,
   createActivity,
   deleteActivity,
   respondSharedActivity,
@@ -240,57 +239,6 @@ describe("createActivity", () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe("SUBJECT_NOT_FOUND");
-  });
-});
-
-describe("createActivitiesBatch", () => {
-  const batchInput = {
-    visibility: "individual" as const,
-    activities: [
-      {
-        turmaId,
-        subjectId,
-        type: "task" as const,
-        title: "Páginas 10-12",
-        description: undefined,
-        dueAt: "2026-06-01",
-      },
-    ],
-  };
-
-  it("rejeita NOT_A_MEMBER quando o user não tem perfil ativo na turma", async () => {
-    mocks.hasProSubscription.mockResolvedValue(true);
-    mocks.findTurmaWithSchoolById.mockResolvedValue(baseTurma);
-    mocks.userHasActiveProfileInTurma.mockResolvedValue(false);
-
-    const result = await createActivitiesBatch(other.id, batchInput);
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error).toEqual({ code: "NOT_A_MEMBER", index: 0 });
-    }
-    expect(mocks.subjectBelongsToTurma).not.toHaveBeenCalled();
-    expect(mocks.insertActivitiesBatchWithStatuses).not.toHaveBeenCalled();
-  });
-
-  it("insere batch quando Pro tem perfil ativo e matéria válida", async () => {
-    mocks.hasProSubscription.mockResolvedValue(true);
-    mocks.findTurmaWithSchoolById.mockResolvedValue(baseTurma);
-    mocks.subjectBelongsToTurma.mockResolvedValue(true);
-    mocks.insertActivitiesBatchWithStatuses.mockResolvedValue([baseActivity]);
-
-    const result = await createActivitiesBatch(creator.id, batchInput);
-
-    expect(result.ok).toBe(true);
-    expect(mocks.userHasActiveProfileInTurma).toHaveBeenCalledWith(creator.id, turmaId);
-    expect(mocks.insertActivitiesBatchWithStatuses).toHaveBeenCalledWith([
-      expect.objectContaining({
-        createdByUserId: creator.id,
-        turmaId,
-        subjectId,
-        visibility: "individual",
-      }),
-    ]);
   });
 });
 

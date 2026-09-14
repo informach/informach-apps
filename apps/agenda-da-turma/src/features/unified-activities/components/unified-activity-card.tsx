@@ -118,7 +118,12 @@ export function UnifiedActivityCard({
   });
 
   const canManage = !hideActions && view.manage !== null;
-  const due = getViewDueBadge({ ...view, status: isDone ? "done" : view.status });
+  // O estado otimista manda nos dois sentidos: reabrir precisa devolver o
+  // badge de urgência na hora, e não só depois que o servidor responder.
+  const due = getViewDueBadge({
+    ...view,
+    status: view.status === "canceled" ? "canceled" : isDone ? "done" : "pending",
+  });
 
   if (optimisticallyHidden) return null;
 

@@ -1,10 +1,6 @@
 import "server-only";
 
-import {
-  checkTrialAdmission,
-  grantNoticeTrialCredits,
-  type NoticeTrialGrant,
-} from "@/features/notices/trial";
+import { admitFreeTrialCall, type NoticeTrialGrant } from "@/features/notices/trial";
 import { getServerSession } from "@/lib/auth";
 import { billing } from "@/lib/billing";
 import { env } from "@/lib/env";
@@ -113,16 +109,15 @@ export async function withAiRouteGuards(opts: {
     // diário global e teto de importações. Checar só o teto deixava uma conta
     // não verificada gastar IA por conta da casa.
     if (opts.freeTrial) {
-      const admission = await checkTrialAdmission(
+      // `admitFreeTrialCall` concede os créditos que financiam a chamada: a
+      // concessão é parte da admissão, não um passo depois dela.
+      const admission = await admitFreeTrialCall(
         userId,
         ownerId,
         env.AGENDA_TRIAL_DAILY_BUDGET,
         opts.freeTrial,
       );
-      if (admission.ok) {
-        await grantNoticeTrialCredits(ownerId, opts.freeTrial);
-        return { ok: true, userId, subject: { type: "user", id: ownerId } };
-      }
+      if (admission.ok) return { ok: true, userId, subject: { type: "user", id: ownerId } };
       logger.info({ userId, code: admission.code }, `${opts.errorScope}.trial_denied`);
       return {
         ok: false,

@@ -201,23 +201,6 @@ export async function insertActivityWithStatusesWithinFreeLimit(
   );
 }
 
-// Insere N atividades numa única transação. Sem checagem de limite Free
-// porque o consumidor (`createActivitiesBatch`) já gateia Pro upfront —
-// batch só roda pra quem tem assinatura Pro (e Pro é ilimitado). Se uma
-// linha falhar, rollback total — não persiste batch parcial.
-export async function insertActivitiesBatchWithStatuses(
-  payloads: NewActivityPayload[],
-): Promise<Activity[]> {
-  return db.transaction(async (tx) => {
-    const result: Activity[] = [];
-    for (const payload of payloads) {
-      const activity = await insertActivityWithStatusesInTx(tx, payload);
-      result.push(activity);
-    }
-    return result;
-  });
-}
-
 async function insertActivityWithStatusesInTx(
   tx: Tx,
   payload: NewActivityPayload,

@@ -3,6 +3,7 @@ import { Button } from "@informach/ui/components/button";
 import { Sparkles } from "lucide-react";
 import Link from "next/link";
 import { ACTIVITY_TYPE_LABELS } from "@/features/unified-activities/activity-types";
+import { ActivityCompletionButton } from "@/features/unified-activities/components/completion-button";
 import { ActivityDetailShell } from "@/features/unified-activities/components/detail-shell";
 import type { findExtraActivityDetailForUser } from "../repository";
 
@@ -36,6 +37,11 @@ export function ExtraActivityDetail({
             {activity.description}
           </p>
         ) : null}
+        <ActivityCompletionButton
+          target={{ kind: "extra", id: activity.id }}
+          initialStatus={activity.status}
+          title={activity.title}
+        />
         <div className="pt-2">
           <Button asChild variant="outline" className="min-h-11">
             <Link href={`/perfis/${activity.profileId}/extras/${activity.profileSubjectId}`}>

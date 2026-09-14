@@ -10,8 +10,12 @@ import {
 } from "@informach/db/schema";
 import type { z } from "zod";
 import type { prepareNoticeAttachment } from "./attachment";
+import { FREE_NOTICE_TRIAL } from "./trial-reserve";
+
+export { FREE_NOTICE_TRIAL };
+
 import { type NoticeExtraction, noticeExtractionSchema, type parseNoticeSchema } from "./schemas";
-export const FREE_NOTICE_TRIAL = 5;
+
 const PROCESSING_LEASE_MS = 10 * 60_000;
 export async function reserveNoticeParse({
   userId,

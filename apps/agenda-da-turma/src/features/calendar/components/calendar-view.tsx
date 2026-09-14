@@ -57,10 +57,6 @@ export function CalendarView({
   const [createOpen, setCreateOpen] = useState(false);
   const [createDueAt, setCreateDueAt] = useState<string | undefined>(undefined);
 
-  // Mesma máquina de estado de `activities-section.tsx` pra fluxo
-  // voz/imagem/PDF: dialog de origem → turma confirm (se IA não chutou) →
-  // batch confirm.
-
   const canCreate = turmasForForm.length > 0;
 
   // Quando o user tem um perfil filtrado, a `activeTurmaId` desse perfil é

@@ -1,6 +1,7 @@
 import { Badge } from "@informach/ui/components/badge";
 import { findActivityHistory } from "@/features/activities/history-repository";
 import { ACTIVITY_TYPE_LABELS } from "@/features/unified-activities/activity-types";
+import { ActivityCompletionButton } from "@/features/unified-activities/components/completion-button";
 import { ActivityDetailShell } from "@/features/unified-activities/components/detail-shell";
 import { ActivityRevisionList } from "@/features/unified-activities/components/revision-list";
 import { toActivityView } from "@/features/unified-activities/view";
@@ -62,6 +63,13 @@ export async function SchoolActivityDetail({
           <p className="whitespace-pre-wrap break-words text-sm text-foreground/90">
             {first.description}
           </p>
+        ) : null}
+        {view.toggle ? (
+          <ActivityCompletionButton
+            target={view.toggle}
+            initialStatus={first.status}
+            title={first.title}
+          />
         ) : null}
         <SchoolActivityManage
           item={first}
