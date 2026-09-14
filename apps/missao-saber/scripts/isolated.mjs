@@ -58,6 +58,7 @@ const testEnv = {
   STRIPE_SECRET_KEY: "sk_test_local_disabled",
   STRIPE_WEBHOOK_SECRET: "whsec_local_disabled",
   STRIPE_MODE: "dev",
+  OPENROUTER_API_KEY: "",
   CRON_SECRET: randomBytes(32).toString("hex"),
   MISSAO_CONTENT_MANAGER_IDS: "",
   MISSAO_CONTENT_MANAGER_EMAILS: "",
@@ -69,6 +70,11 @@ const testEnv = {
   MISSAO_E2E_RUN_ID: e2eRunId,
 };
 const childEnv = { ...process.env, ...testEnv, MISSAO_ISOLATED_TEST: "1" };
+// Isolated verification must not inherit optional production transports. In
+// particular, Better Auth stores sessions in Redis when REDIS_URL is present;
+// that would bypass the disposable PostgreSQL database created above and make
+// the run share state with the caller's environment.
+for (const key of ["REDIS_URL", "SENTRY_DSN", "NEXT_PUBLIC_SENTRY_DSN"]) delete childEnv[key];
 function run(args, cwd) {
   const child = spawnSync(process.execPath, [pnpmCli, ...args], {
     cwd,
