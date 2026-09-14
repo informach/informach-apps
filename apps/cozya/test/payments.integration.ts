@@ -335,7 +335,12 @@ describe("payment compatibility with the kitchen trial", () => {
         })
       ).url,
     ).toBe("https://billing.stripe.com/review");
-    await deliver("invoice.payment_failed", { ...invoice, id: `in_review_${randomUUID()}` });
+    const failedInvoice = {
+      ...invoice,
+      id: `in_review_${randomUUID()}`,
+      billing_reason: "subscription_cycle",
+    };
+    await deliver("invoice.payment_failed", failedInvoice);
     expect(await billing.hasProSubscription(owner)).toBe(false);
     await db
       .update(cozyaProfiles)
@@ -347,12 +352,18 @@ describe("payment compatibility with the kitchen trial", () => {
       canUseAi: false,
     });
     await deliver("customer.subscription.updated", subscription);
+    // A generic subscription update can arrive while Stripe still has an
+    // unpaid invoice. It must not restore paid access before payment succeeds.
+    expect(await billing.hasProSubscription(owner)).toBe(false);
+    await deliver("invoice.paid", failedInvoice);
+    const expectedAfterRecovery = days === 365 ? 113 : 163;
+    expect((await billing.getBalance(owner)).available).toBe(expectedAfterRecovery);
     const active = await billing.getSubscription(owner);
     if (!active) throw new Error("Expected active subscription");
     await checkoutBilling.cancelSubscription({ subscriptionId: active.id, atPeriodEnd: true });
     expect(await billing.hasProSubscription(owner)).toBe(true);
     await deliver("customer.subscription.deleted", { ...subscription, status: "canceled" });
     expect(await billing.hasProSubscription(owner)).toBe(false);
-    expect((await billing.getBalance(owner)).available).toBe(113);
+    expect((await billing.getBalance(owner)).available).toBe(expectedAfterRecovery);
   });
 });
