@@ -288,6 +288,7 @@ export function ActivityFormDialog({
 
   const handleOpenChange = (next: boolean) => {
     if (!next) {
+      setDueAtHint(null);
       form.reset(
         buildActivityFormDefaults({ activity, turmas, defaultTurmaId, defaultDueAt, defaultType }),
       );
@@ -373,7 +374,7 @@ export function ActivityFormDialog({
                           <SelectContent>
                             {turmas.map((t) => (
                               <SelectItem key={t.turmaId} value={t.turmaId}>
-                                {t.schoolName} — {formatTurmaShort(t.grade, t.classLetter, t.year)}
+                                {t.schoolName}, {formatTurmaShort(t.grade, t.classLetter, t.year)}
                               </SelectItem>
                             ))}
                           </SelectContent>

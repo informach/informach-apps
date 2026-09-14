@@ -8,7 +8,7 @@ import { listSubjectOptionsByProfile } from "@/features/subjects/options-service
 import { activityTypeSchema } from "@/features/unified-activities/activity-types";
 import { requireUserServer } from "@/lib/auth";
 
-export const metadata = { title: "Nova atividade — Agenda da Turma" };
+export const metadata = { title: "Nova atividade" };
 export default async function NewActivityPage({
   searchParams,
 }: {

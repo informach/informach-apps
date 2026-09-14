@@ -4,7 +4,7 @@ import { getCurrentUserServer } from "@/lib/auth";
 import { safeInternalPath } from "@/lib/url";
 
 export const metadata = {
-  title: "Entrar — Agenda da Turma",
+  title: "Entrar",
 };
 
 export default async function LoginPage({

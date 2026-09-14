@@ -10,7 +10,7 @@ import { noticeExtractionSchema, noticeSourceSchema } from "@/features/notices/s
 import { listSubjectOptionsByProfile } from "@/features/subjects/options-service";
 import { requireUserServer } from "@/lib/auth";
 
-export const metadata = { title: "Importar mensagem ou foto — Agenda da Turma" };
+export const metadata = { title: "Importar mensagem ou foto" };
 export default async function NewNoticePage({
   searchParams,
 }: {

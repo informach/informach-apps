@@ -5,7 +5,7 @@ import { listTurmasForCurrentUser } from "@/features/turmas/service";
 import { requireUserServer } from "@/lib/auth";
 
 export const metadata = {
-  title: "Turmas — Agenda da Turma",
+  title: "Turmas",
 };
 
 type SearchParams = { perfil?: string };

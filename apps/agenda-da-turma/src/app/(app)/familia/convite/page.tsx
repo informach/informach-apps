@@ -1,7 +1,7 @@
 import { AcceptInvitation } from "@/features/family/components/accept-invitation";
 import { requireUserServer } from "@/lib/auth";
 export const metadata = {
-  title: "Convite para a família — Agenda da Turma",
+  title: "Convite para a família",
   robots: { index: false, follow: false },
   referrer: "no-referrer",
 };

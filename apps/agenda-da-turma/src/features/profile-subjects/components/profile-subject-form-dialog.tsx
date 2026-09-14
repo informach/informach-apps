@@ -169,8 +169,8 @@ export function ProfileSubjectFormDialog({ open, onOpenChange, profileId, subjec
             {isEdit ? "Editar matéria extracurricular" : "Nova matéria extracurricular"}
           </DialogTitle>
           <DialogDescription>
-            Atividades fora da escola — jazz, futebol, natação, reforço. Aparecem nas matérias do
-            dia junto com a turma.
+            Atividades fora da escola, como jazz, futebol, natação ou reforço. Elas aparecem nas
+            matérias do dia junto com as da turma.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>

@@ -7,7 +7,7 @@ import { getNoticeSource } from "@/features/notices/repository";
 import { requireUserServer } from "@/lib/auth";
 
 export const metadata = {
-  title: "Documento original — Agenda da Turma",
+  title: "Documento original",
   robots: { index: false, follow: false },
 };
 export default async function NoticeOriginalPage({ params }: { params: Promise<{ id: string }> }) {

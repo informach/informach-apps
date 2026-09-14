@@ -111,10 +111,10 @@ export function ActionFields({
               subjectId: option?.source === "turma" ? option.id : null,
               profileSubjectId: option?.source === "extra" ? option.id : null,
             };
-            // Prazo vazio + matéria com horário cadastrado → próxima aula.
-            // Cálculo determinístico, com a procedência à vista; um toque no
-            // campo de data altera. Sem horário, o campo continua vazio: nunca
-            // "amanhã".
+            // Prazo vazio mais matéria com horário cadastrado dá a próxima
+            // aula. É cálculo determinístico, com a procedência à vista, e um
+            // toque no campo de data altera. Sem horário o campo continua
+            // vazio: nunca "amanhã".
             if (option && !value.dueAt) {
               const suggestion = suggestDueDateFromSchedule(option);
               if (suggestion) {
@@ -122,6 +122,9 @@ export function ActionFields({
                 patch.dateOrigin = "schedule";
               }
             }
+            // Sem matéria não existe horário que justifique a data. Ela fica,
+            // mas passa a ser planejamento da família.
+            if (!option && value.dateOrigin === "schedule") patch.dateOrigin = "family";
             change(patch);
           }}
         >

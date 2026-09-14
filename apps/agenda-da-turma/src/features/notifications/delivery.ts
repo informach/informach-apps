@@ -118,7 +118,7 @@ async function currentMessages(userId: string, now: Date): Promise<Message[]> {
     const lines = [
       ...relevant.map(
         (r) =>
-          `${r.profileName}: ${ACTIVITY_TYPE_LABELS[r.action.type]} — ${r.action.title}. ${r.action.dueAt ? `Data: ${r.action.dueAt}` : "Prazo a confirmar"}${r.action.time ? ` às ${r.action.time}` : ""}. Responsável: ${r.assignedName ?? "a combinar"}.`,
+          `${r.profileName}: ${ACTIVITY_TYPE_LABELS[r.action.type]}, ${r.action.title}. ${r.action.dueAt ? `Data: ${r.action.dueAt}` : "Prazo a confirmar"}${r.action.time ? ` às ${r.action.time}` : ""}. Responsável: ${r.assignedName ?? "a combinar"}.`,
       ),
       ...older.map((r) => `${r.studentProfileName}: ${r.title}. Data: ${r.dueAt}.`),
     ];

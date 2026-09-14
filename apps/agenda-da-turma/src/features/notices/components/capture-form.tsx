@@ -445,7 +445,7 @@ export function CaptureForm({
           {pageCount > 0 ? (
             <fieldset className="space-y-3 rounded-lg border p-4">
               <legend className="px-1 text-sm font-medium">
-                PDF com {pageCount} páginas — selecione até 3
+                PDF com {pageCount} páginas. Selecione até 3
               </legend>
               <div className="flex max-h-48 flex-wrap gap-2 overflow-auto">
                 {Array.from({ length: pageCount }, (_, i) => i + 1).map((page) => (
@@ -682,8 +682,8 @@ export function CaptureForm({
                       .filter((c) => c.index === index)
                       .map((c) => (
                         <option key={c.id} value={c.id}>
-                          Corrigir: {c.title} —{" "}
-                          {c.dueAt?.split("-").reverse().join("/") ?? "sem prazo"}
+                          Corrigir: {c.title}, prazo{" "}
+                          {c.dueAt?.split("-").reverse().join("/") ?? "a confirmar"}
                         </option>
                       ))}
                   </select>
@@ -715,7 +715,7 @@ export function CaptureForm({
                   className="block text-sm text-primary underline"
                   href={`/recados/acoes/${d.id}`}
                 >
-                  {d.title} — abrir para corrigir
+                  {d.title}, abrir para corrigir
                 </Link>
               ))}
               <label className="flex min-h-11 items-center gap-2 text-sm">

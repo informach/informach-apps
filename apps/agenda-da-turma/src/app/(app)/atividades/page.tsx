@@ -12,7 +12,7 @@ import { overviewStatusSchema } from "@/features/unified-activities/overview-typ
 import { getActivityOverview } from "@/features/unified-activities/service";
 import { requireUserServer } from "@/lib/auth";
 
-export const metadata = { title: "Atividades — Agenda da Turma" };
+export const metadata = { title: "Atividades" };
 
 export default async function AtividadesPage({
   searchParams,

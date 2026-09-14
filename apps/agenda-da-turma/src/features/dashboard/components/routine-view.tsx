@@ -49,7 +49,7 @@ const BUCKETS: BucketSpec[] = [
   },
   {
     key: "week",
-    title: "Próximos sete dias",
+    title: "O resto da semana",
     description: "Tempo para se organizar, estudar e pedir uma ajudinha.",
     empty: "Nenhuma atividade cadastrada para os próximos dias. Espaço para o que vem por aí!",
     Icon: CalendarDays,

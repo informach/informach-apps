@@ -17,9 +17,9 @@ describe("formatTurmaShort", () => {
 });
 
 describe("formatTurmaLabel", () => {
-  it("appends the school name with em-dash", () => {
+  it("liga a turma à escola sem travessão", () => {
     expect(formatTurmaLabel({ grade: "3ano", classLetter: "B", schoolName: "Escola Teste" })).toBe(
-      "3º ano B — Escola Teste",
+      "3º ano B na Escola Teste",
     );
   });
 });

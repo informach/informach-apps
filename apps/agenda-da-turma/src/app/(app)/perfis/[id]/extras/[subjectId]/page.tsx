@@ -18,7 +18,7 @@ type Props = {
 };
 
 export const metadata = {
-  title: "Atividades da matéria — Agenda da Turma",
+  title: "Atividades da matéria",
 };
 
 function formatPausedSinceLabel(iso: string): string {

@@ -224,7 +224,7 @@ function FeatureList({ features }: { features: PlanFeature[] }) {
           </span>
           <span className="leading-relaxed">
             {feature.label}
-            {!feature.included ? " — não incluído" : ""}
+            {!feature.included ? " (não incluído)" : ""}
           </span>
         </li>
       ))}

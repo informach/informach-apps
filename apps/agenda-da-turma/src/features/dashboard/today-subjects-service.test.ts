@@ -166,7 +166,7 @@ describe("getTodaySubjectsForProfiles", () => {
     expect(views[0]?.subjects).toEqual([]);
   });
 
-  it("consulta outro dia quando recebe dateIso — base da mochila de amanhã", async () => {
+  it("consulta outro dia quando recebe dateIso, que é a base da mochila de amanhã", async () => {
     // Hoje é segunda; amanhã (terça) a matéria de segunda não aparece.
     mocks.listAccessibleProfiles.mockResolvedValue([
       { id: "p1", name: "Ana", activeTurmaId: "t1" },

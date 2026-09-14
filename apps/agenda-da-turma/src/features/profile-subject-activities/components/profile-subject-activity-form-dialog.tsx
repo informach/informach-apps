@@ -244,7 +244,7 @@ export function ProfileSubjectActivityFormDialog({
                   <FormLabel>Observações (opcional)</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Detalhes — material extra, horário diferente, etc."
+                      placeholder="Detalhes, como material extra ou horário diferente"
                       rows={3}
                       {...field}
                     />

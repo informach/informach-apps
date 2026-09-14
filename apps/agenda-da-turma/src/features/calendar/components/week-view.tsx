@@ -83,7 +83,7 @@ export function WeekView({ anchorIso, items, onSelectActivity, onCreateForDay }:
                 type="button"
                 onClick={() => onCreateForDay(iso)}
                 className="absolute inset-0 top-[2.625rem] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                aria-label={`Espaço vazio de ${weekdayLabel} — criar atividade`}
+                aria-label={`Espaço vazio de ${weekdayLabel}, criar atividade`}
                 tabIndex={-1}
               />
               <div className="relative z-10 flex min-h-[18rem] flex-col gap-1 p-2">

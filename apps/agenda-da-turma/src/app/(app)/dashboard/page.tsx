@@ -23,7 +23,7 @@ import { getSubjectTintedClassByIndex } from "@/features/subjects/utils";
 import { requireUserServer } from "@/lib/auth";
 
 export const metadata = {
-  title: "Rotina da família — Agenda da Turma",
+  title: "Rotina da família",
 };
 
 type Props = {

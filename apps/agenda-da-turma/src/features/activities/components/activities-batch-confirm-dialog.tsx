@@ -290,7 +290,7 @@ export function ActivitiesBatchConfirmDialog({
           <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs">
             <span className="text-muted-foreground">Turma:</span>{" "}
             <span className="font-medium text-foreground">
-              {lockedTurma.schoolName} —{" "}
+              {lockedTurma.schoolName},{" "}
               {formatTurmaShort(lockedTurma.grade, lockedTurma.classLetter, lockedTurma.year)}
             </span>
           </div>
@@ -505,7 +505,7 @@ function ActivityRowCard({
                   <SelectContent>
                     {turmas.map((t) => (
                       <SelectItem key={t.turmaId} value={t.turmaId}>
-                        {t.schoolName} — {formatTurmaShort(t.grade, t.classLetter, t.year)}
+                        {t.schoolName}, {formatTurmaShort(t.grade, t.classLetter, t.year)}
                       </SelectItem>
                     ))}
                   </SelectContent>

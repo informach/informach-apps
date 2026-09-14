@@ -1,3 +1,4 @@
+import { ACTIVITY_TYPE_LABELS } from "@/features/unified-activities/activity-types";
 import type { UnifiedActivityListItem } from "@/features/unified-activities/types";
 import type { DashboardProfileSummary, DashboardSnapshot } from "./types";
 
@@ -7,13 +8,6 @@ type BuildArgs = {
   profileFilter: string | null;
   userName: string;
   generatedAtIso: string;
-};
-
-const ACTIVITY_TYPE_PT: Record<string, string> = {
-  task: "Tarefa",
-  exam: "Prova",
-  project: "Trabalho",
-  reminder: "Recado",
 };
 
 const SP_TZ = "America/Sao_Paulo";
@@ -88,7 +82,7 @@ function activityRow(item: UnifiedActivityListItem): string[] {
         : "Recado";
   return [
     formatDueDate(item.dueAt),
-    ACTIVITY_TYPE_PT[item.type] ?? item.type,
+    ACTIVITY_TYPE_LABELS[item.type],
     subjectName,
     turmaLabel,
     activityCell,

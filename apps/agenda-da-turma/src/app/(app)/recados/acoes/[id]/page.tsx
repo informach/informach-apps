@@ -14,7 +14,7 @@ import { requireUserServer } from "@/lib/auth";
 import { billing } from "@/lib/billing";
 
 export const metadata = {
-  title: "Atividade — Agenda da Turma",
+  title: "Atividade",
   robots: { index: false, follow: false },
 };
 function readable(value: unknown) {

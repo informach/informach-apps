@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export const metadata = { title: "Dados da família — Agenda da Turma" };
+export const metadata = { title: "Dados da família" };
 export default function PrivacyPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-12">

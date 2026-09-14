@@ -15,7 +15,7 @@ export function DashboardEmptyState({ scope, profileName }: Props) {
       : "Nada por aqui ainda";
   const description =
     scope === "filtered"
-      ? "Não há atividades atrasadas, para hoje ou pra semana — boa folga."
+      ? "Não há atividades atrasadas, para hoje ou para a semana. Boa folga!"
       : "Adicione tarefas, provas, trabalhos ou lembretes pra organizar a rotina.";
 
   return (

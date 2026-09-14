@@ -13,7 +13,11 @@ export async function AppHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link href="/dashboard" className="flex items-center" aria-label="Agenda da Turma — início">
+        <Link
+          href="/dashboard"
+          className="flex items-center"
+          aria-label="Agenda da Turma, ir para o início"
+        >
           <AgendaLogo className="h-8 w-auto text-foreground" />
         </Link>
 

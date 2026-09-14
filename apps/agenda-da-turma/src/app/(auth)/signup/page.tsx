@@ -4,7 +4,7 @@ import { getCurrentUserServer } from "@/lib/auth";
 import { safeInternalPath } from "@/lib/url";
 
 export const metadata = {
-  title: "Criar conta — Agenda da Turma",
+  title: "Criar conta",
 };
 
 export default async function SignupPage({

@@ -67,9 +67,7 @@ function ProfileSchedule({ view }: { view: TodaySubjectsView }) {
       </div>
       {view.subjects.length === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">
-          {isWeekend
-            ? "Sem aulas hoje. Bom descanso!"
-            : "Nenhuma aula cadastrada para hoje nesse horário."}
+          {isWeekend ? "Sem aulas hoje. Bom descanso!" : "Nenhuma aula cadastrada para hoje."}
         </p>
       ) : (
         <ul className="mt-3 space-y-2">

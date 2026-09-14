@@ -14,6 +14,6 @@ export function formatTurmaShort(turma: Pick<TurmaWithSchool, "grade" | "classLe
 export function formatTurmaLabel(
   turma: Pick<TurmaWithSchool, "grade" | "classLetter" | "schoolName">,
 ): string {
-  // "5º ano A — Escola X"
-  return `${formatTurmaShort(turma)} — ${turma.schoolName}`;
+  // "5º ano A na Escola X"
+  return `${formatTurmaShort(turma)} na ${turma.schoolName}`;
 }

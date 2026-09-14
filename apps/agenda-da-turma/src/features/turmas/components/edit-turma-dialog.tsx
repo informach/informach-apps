@@ -108,7 +108,7 @@ export function EditTurmaDialog({ open, onOpenChange, turma }: Props) {
         }
         if (result.error.code === "HAS_OTHER_MEMBERS") {
           toast.error("Outras famílias estão usando essa turma.", {
-            description: "Não é mais possível editar — peça pra elas saírem ou crie outra.",
+            description: "Não é mais possível editar. Peça para elas saírem ou crie outra turma.",
           });
           onOpenChange(false);
           router.refresh();
@@ -116,7 +116,7 @@ export function EditTurmaDialog({ open, onOpenChange, turma }: Props) {
         }
         if (result.error.code === "HAS_ACTIVITIES") {
           toast.error("Turma já tem atividades cadastradas.", {
-            description: "Não é mais possível editar — apague as atividades primeiro.",
+            description: "Não é mais possível editar. Apague as atividades primeiro.",
           });
           onOpenChange(false);
           router.refresh();
@@ -150,8 +150,8 @@ export function EditTurmaDialog({ open, onOpenChange, turma }: Props) {
         <DialogHeader>
           <DialogTitle>Editar turma</DialogTitle>
           <DialogDescription>
-            Ajuste série, ano e letra. A escola não muda — escola diferente é outra turma. Só é
-            possível editar enquanto a turma estiver vazia (sem atividades e sem outras famílias).
+            Ajuste série, ano e letra. A escola não muda, porque escola diferente é outra turma. Só
+            é possível editar enquanto a turma estiver vazia (sem atividades e sem outras famílias).
           </DialogDescription>
         </DialogHeader>
 

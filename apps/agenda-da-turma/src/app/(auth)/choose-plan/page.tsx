@@ -3,7 +3,7 @@ import { parseCycleQueryParam } from "@/features/billing/plans-content";
 import { redirectIfUnauthenticated } from "@/lib/auth";
 
 export const metadata = {
-  title: "Escolha seu plano — Agenda da Turma",
+  title: "Escolha seu plano",
 };
 
 export default async function ChoosePlanPage({

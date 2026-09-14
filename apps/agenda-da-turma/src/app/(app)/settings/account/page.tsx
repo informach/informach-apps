@@ -1,7 +1,7 @@
 import { AccountPanel } from "@/features/account/components/account-panel";
 import { hasOtherAppSubscriptions } from "@/features/account/repository";
 import { requireUserServer } from "@/lib/auth";
-export const metadata = { title: "Minha conta — Agenda da Turma" };
+export const metadata = { title: "Minha conta" };
 export default async function AccountPage() {
   const user = await requireUserServer();
   const otherSubscriptions = await hasOtherAppSubscriptions(user.id);

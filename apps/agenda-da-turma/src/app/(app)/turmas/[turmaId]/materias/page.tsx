@@ -7,7 +7,7 @@ import { requireUserServer } from "@/lib/auth";
 import { billing } from "@/lib/billing";
 
 export const metadata = {
-  title: "Matérias — Agenda da Turma",
+  title: "Matérias",
 };
 
 export default async function SubjectsPage({ params }: { params: Promise<{ turmaId: string }> }) {

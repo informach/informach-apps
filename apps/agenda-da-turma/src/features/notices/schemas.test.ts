@@ -16,7 +16,7 @@ const base = {
 const SUBJECT = "22222222-2222-4222-8222-222222222222";
 const EXTRA = "33333333-3333-4333-8333-333333333333";
 
-describe("actionFieldsSchema — matéria", () => {
+describe("actionFieldsSchema: matéria", () => {
   it("aceita a providência sem matéria", () => {
     const parsed = actionFieldsSchema.safeParse(base);
     expect(parsed.success).toBe(true);
