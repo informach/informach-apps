@@ -44,7 +44,7 @@ export function ReactivateBanner({ accessUntil, productName }: Props) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-warning/40 bg-warning/10 p-4 text-sm">
       <div className="space-y-1">
-        <p className="font-medium">Plano cancelado — ativo até {formatted}.</p>
+        <p className="font-medium">Plano cancelado. Fica ativo até {formatted}.</p>
         <p className="text-muted-foreground">
           Reative agora para continuar com {productName} sem interrupção.
         </p>

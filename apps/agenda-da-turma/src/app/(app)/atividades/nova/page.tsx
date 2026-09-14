@@ -1,14 +1,14 @@
 import Link from "next/link";
-import { z } from "zod";
 import { getIsProForUser } from "@/features/billing/server-cache";
 import { listAccessibleProfiles } from "@/features/family/access";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { CaptureForm } from "@/features/notices/components/capture-form";
 import { listAssignableAdults } from "@/features/notices/repository";
-import { ACTION_TYPES } from "@/features/notices/schemas";
+import { listSubjectOptionsByProfile } from "@/features/subjects/options-service";
+import { activityTypeSchema } from "@/features/unified-activities/activity-types";
 import { requireUserServer } from "@/lib/auth";
 
-export const metadata = { title: "Nova atividade — Agenda da Turma" };
+export const metadata = { title: "Nova atividade" };
 export default async function NewActivityPage({
   searchParams,
 }: {
@@ -16,11 +16,12 @@ export default async function NewActivityPage({
 }) {
   const user = await requireUserServer();
   const params = await searchParams;
-  const [profiles, adults, entitlement, ownerIsPro] = await Promise.all([
+  const [profiles, adults, entitlement, ownerIsPro, subjectOptions] = await Promise.all([
     listAccessibleProfiles(user.id),
     listAssignableAdults(user.id),
     getFamilyEntitlements(user.id),
     getIsProForUser(user.id),
+    listSubjectOptionsByProfile(user.id),
   ]);
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 pb-28 sm:px-8">
@@ -35,12 +36,13 @@ export default async function NewActivityPage({
       </header>
       <CaptureForm
         mode="manual"
+        subjectOptions={subjectOptions}
         profiles={profiles.map((p) => ({ id: p.id, name: p.name }))}
         adults={adults}
         proProfileIds={entitlement.proProfileIds}
         ownerIsPro={ownerIsPro}
         defaultProfileId={params.perfil}
-        defaultType={z.enum(ACTION_TYPES).catch("task").parse(params.tipo)}
+        defaultType={activityTypeSchema.catch("task").parse(params.tipo)}
       />
     </main>
   );

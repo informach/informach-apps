@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, type Database, db, eq, gt, inArray, lt, or, sql } from "@informach/db";
+import { and, asc, type Database, db, eq, inArray, sql } from "@informach/db";
 import {
   agendaActivities,
   agendaActivityAcceptances,
@@ -14,13 +14,12 @@ import {
   users,
 } from "@informach/db/schema";
 import { accessibleProfileCondition } from "@/features/family/access";
+import { loadSlotsForSubjects } from "@/features/subjects/repository";
 import { activeMembershipCondition } from "@/features/turmas/access";
 import { todayLocalIso } from "../dashboard/date";
-import { DEFAULT_ACTIVITIES_PAGE_SIZE, MAX_ACTIVITIES_PAGE_SIZE } from "./limits";
 import { countPendingActivities, lockPendingLimit } from "./pending-limit";
 import type {
   Activity,
-  ActivityListItem,
   ActivityStatusValue,
   ActivityType,
   ActivityVisibility,
@@ -456,40 +455,6 @@ export async function upsertAcceptanceAndStatuses(
   });
 }
 
-// Cursor opaco pra paginação keyset da listagem. Encoda o último item
-// retornado como `<isDone>|<dueAt>|<activityCreatedAt ISO>|<statusId>` em
-// base64url — 4 chaves alinhadas com o ORDER BY pra garantir tiebreak
-// determinístico. A primeira chave (`isDone`) implementa o agrupamento
-// pendentes-antes-de-concluídas; dentro de cada grupo `dueAt` ordena
-// diferente (pending ASC, done DESC). Cursores antigos (3 chaves) caem
-// como inválidos e retornam à primeira página — comportamento defensivo.
-type ActivityCursor = {
-  isDone: boolean;
-  dueAt: string;
-  createdAt: Date;
-  statusId: string;
-};
-
-function encodeActivityCursor(item: ActivityListItem): string {
-  const flag = item.status === "done" ? "1" : "0";
-  const payload = `${flag}|${item.dueAt}|${item.activityCreatedAt.toISOString()}|${item.statusId}`;
-  return Buffer.from(payload, "utf8").toString("base64url");
-}
-
-function decodeActivityCursor(cursor: string): ActivityCursor | null {
-  try {
-    const decoded = Buffer.from(cursor, "base64url").toString("utf8");
-    const [flag, dueAt, createdAtIso, statusId] = decoded.split("|");
-    if (!flag || !dueAt || !createdAtIso || !statusId) return null;
-    if (flag !== "0" && flag !== "1") return null;
-    const createdAt = new Date(createdAtIso);
-    if (Number.isNaN(createdAt.getTime())) return null;
-    return { isDone: flag === "1", dueAt, createdAt, statusId };
-  } catch {
-    return null;
-  }
-}
-
 function selectActivityListItems() {
   return db
     .select(activityListSelect)
@@ -509,112 +474,6 @@ export async function listSchoolActivitiesByStatusIds(userId: string, ids: strin
   return selectActivityListItems().where(
     and(accessibleProfileCondition(userId), inArray(agendaActivityStatuses.id, ids)),
   );
-}
-
-export type ListActivitiesPageOptions = {
-  profileFilter: string | null;
-  typeFilter?: ActivityType | null;
-  cursor: string | null;
-  includeSharedFromOthers: boolean;
-  limit?: number;
-};
-
-export type ActivitiesPage = {
-  items: ActivityListItem[];
-  nextCursor: string | null;
-};
-
-// Lista pra `/atividades`. Uma row por (atividade × perfil do user). Filtra
-// por perfil opcionalmente. Inclui `hasOtherAcceptances` via subquery pra
-// guiar UI de edit/delete. Paginação keyset forward-only:
-// - Sem cursor → primeira página
-// - Com cursor → retorna itens "após" o cursor segundo o ORDER BY
-// - `nextCursor` é null quando atinge o fim
-export async function listActivitiesPageForUser(
-  userId: string,
-  options: ListActivitiesPageOptions,
-): Promise<ActivitiesPage> {
-  const limit = Math.min(
-    Math.max(options.limit ?? DEFAULT_ACTIVITIES_PAGE_SIZE, 1),
-    MAX_ACTIVITIES_PAGE_SIZE,
-  );
-
-  // Cursor com 2 grupos (pending ASC dueAt, done DESC dueAt). "Após" depende
-  // de em qual grupo o cursor está:
-  // - cursor em pending: pode saltar pro grupo done inteiro, ou seguir em
-  //   pending com (dueAt, createdAt, statusId) ASC.
-  // - cursor em done: permanece em done; (dueAt) é DESC (depois = menor);
-  //   tiebreak (createdAt, statusId) segue ASC pra estabilidade.
-  // Cursor corrompido/inválido vira "sem cursor" (defensivo).
-  const decoded = options.cursor ? decodeActivityCursor(options.cursor) : null;
-  // PostgreSQL stores microseconds; the Date in the cursor preserves milliseconds.
-  // Compare and order at the same precision so a row cannot reappear on the next page.
-  const cursorCreatedAt = sql`date_trunc('milliseconds', ${agendaActivities.createdAt})`;
-  const cursorClause = decoded
-    ? !decoded.isDone
-      ? or(
-          eq(agendaActivityStatuses.status, "done"),
-          and(
-            eq(agendaActivityStatuses.status, "pending"),
-            or(
-              gt(agendaActivities.dueAt, decoded.dueAt),
-              and(
-                eq(agendaActivities.dueAt, decoded.dueAt),
-                sql`${cursorCreatedAt} > ${decoded.createdAt.toISOString()}::timestamptz`,
-              ),
-              and(
-                eq(agendaActivities.dueAt, decoded.dueAt),
-                sql`${cursorCreatedAt} = ${decoded.createdAt.toISOString()}::timestamptz`,
-                gt(agendaActivityStatuses.id, decoded.statusId),
-              ),
-            ),
-          ),
-        )
-      : and(
-          eq(agendaActivityStatuses.status, "done"),
-          or(
-            lt(agendaActivities.dueAt, decoded.dueAt),
-            and(
-              eq(agendaActivities.dueAt, decoded.dueAt),
-              sql`${cursorCreatedAt} > ${decoded.createdAt.toISOString()}::timestamptz`,
-            ),
-            and(
-              eq(agendaActivities.dueAt, decoded.dueAt),
-              sql`${cursorCreatedAt} = ${decoded.createdAt.toISOString()}::timestamptz`,
-              gt(agendaActivityStatuses.id, decoded.statusId),
-            ),
-          ),
-        )
-    : undefined;
-
-  const whereExpr = and(
-    accessibleProfileCondition(userId),
-    options.includeSharedFromOthers ? undefined : eq(agendaActivities.createdByUserId, userId),
-    options.profileFilter ? eq(agendaStudentProfiles.id, options.profileFilter) : undefined,
-    options.typeFilter ? eq(agendaActivities.type, options.typeFilter) : undefined,
-    cursorClause,
-  );
-
-  const rows = await selectActivityListItems()
-    .where(whereExpr)
-    // Pendentes vêm primeiro (status='pending' < 'done' via boolean cast).
-    // Dentro de pending: dueAt ASC (mais antigo/atrasado no topo).
-    // Dentro de done: dueAt DESC (concluída mais recente no topo).
-    // createdAt e statusId garantem tiebreak determinístico nos 2 grupos.
-    .orderBy(
-      sql`(${agendaActivityStatuses.status} = 'done')`,
-      sql`CASE WHEN ${agendaActivityStatuses.status} = 'pending' THEN ${agendaActivities.dueAt} END ASC NULLS LAST`,
-      sql`CASE WHEN ${agendaActivityStatuses.status} = 'done' THEN ${agendaActivities.dueAt} END DESC NULLS LAST`,
-      asc(cursorCreatedAt),
-      asc(agendaActivityStatuses.id),
-    )
-    .limit(limit + 1);
-
-  const hasMore = rows.length > limit;
-  const items = hasMore ? rows.slice(0, limit) : rows;
-  const last = items[items.length - 1];
-  const nextCursor = hasMore && last ? encodeActivityCursor(last) : null;
-  return { items, nextCursor };
 }
 
 // Widget de aceite no dashboard (Pro). Atividades compartilhadas:
@@ -706,6 +565,9 @@ export async function listTurmasWithSubjectsForUserForm(
     .where(inArray(agendaSubjects.turmaId, turmaIds))
     .orderBy(asc(agendaSubjects.name));
 
+  // Uma consulta só para os slots de revezamento de todas as matérias.
+  const slotsBySubject = await loadSlotsForSubjects(subjects.map((s) => s.id));
+
   const subjectsByTurma = new Map<string, TurmaWithSubjectsForForm["subjects"]>();
   for (const s of subjects) {
     const list = subjectsByTurma.get(s.turmaId) ?? [];
@@ -714,6 +576,10 @@ export async function listTurmasWithSubjectsForUserForm(
       name: s.name,
       colorIndex: s.colorIndex,
       classDays: s.classDays,
+      alternatingSlots: (slotsBySubject.get(s.id) ?? []).map((slot) => ({
+        day: slot.dayOfWeek,
+        anchorIso: slot.anchorDate,
+      })),
     });
     subjectsByTurma.set(s.turmaId, list);
   }

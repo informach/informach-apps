@@ -8,6 +8,8 @@ export function noticeErrorMessage(code: string) {
       "A escolha de correção não corresponde mais à revisão. Confira os itens e selecione novamente.",
     INVALID_PROFILE:
       "Selecione uma criança à qual você tem acesso. Cada recado deve pertencer a uma única família.",
+    INVALID_SUBJECT:
+      "Essa matéria não pertence à turma atual da criança. Escolha outra ou deixe sem matéria.",
     VERIFY_EMAIL: "Confirme seu e-mail antes de experimentar a importação.",
     AI_DISABLED:
       "A importação está indisponível neste ambiente. Você pode cadastrar as providências manualmente.",

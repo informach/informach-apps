@@ -60,7 +60,7 @@ export function ActivityBlip({ item, onSelect }: Props) {
   const sourceLabel = isExtra ? " (extracurricular)" : "";
   const ariaLabel =
     `${typeLabel} de ${subjectName}${sourceLabel}: ${item.title}` +
-    ` — ${item.studentProfileName} — ${statusLabel}`;
+    `, de ${item.studentProfileName}, ${statusLabel}`;
 
   return (
     <button

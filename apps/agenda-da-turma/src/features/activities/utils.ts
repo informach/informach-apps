@@ -1,4 +1,6 @@
-import { Bell, CheckSquare, ClipboardCheck, FolderKanban, type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { ACTIVITY_TYPE_LABELS } from "@/features/unified-activities/activity-types";
+import { getActivityPresentation } from "@/features/unified-activities/presentation";
 import type { CreateActivityFormValues } from "./schemas";
 import type {
   ActivityListItem,
@@ -8,31 +10,20 @@ import type {
   TurmaWithSubjectsForForm,
 } from "./types";
 
-const TYPE_LABEL: Record<ActivityType, string> = {
-  task: "Tarefa",
-  exam: "Prova",
-  project: "Trabalho",
-  reminder: "Lembrete",
-};
-
-const TYPE_ICON: Record<ActivityType, LucideIcon> = {
-  task: CheckSquare,
-  exam: ClipboardCheck,
-  project: FolderKanban,
-  reminder: Bell,
-};
-
 const STATUS_LABEL: Record<ActivityStatusValue, string> = {
   pending: "Pendente",
   done: "Concluído",
 };
 
+// Rótulo e ícone vêm da apresentação única em `unified-activities` — antes
+// havia um mapa próprio aqui, o que fazia o mesmo tipo aparecer com ícone e
+// nome diferentes no card escolar e no card da rotina.
 export function getActivityTypeLabel(type: ActivityType): string {
-  return TYPE_LABEL[type];
+  return ACTIVITY_TYPE_LABELS[type];
 }
 
 export function getActivityTypeIcon(type: ActivityType): LucideIcon {
-  return TYPE_ICON[type];
+  return getActivityPresentation(type).icon;
 }
 
 export function getActivityStatusLabel(status: ActivityStatusValue): string {

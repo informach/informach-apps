@@ -9,13 +9,10 @@ import {
   NotebookPen,
   ShieldCheck,
 } from "lucide-react";
-import type { ACTION_TYPES } from "@/features/notices/schemas";
 import { getSubjectTintedClassByIndex } from "@/features/subjects/utils";
+import type { ActivityType } from "./activity-types";
 
-const ACTIVITY_PRESENTATION: Record<
-  (typeof ACTION_TYPES)[number],
-  { icon: LucideIcon; color: number }
-> = {
+const ACTIVITY_PRESENTATION: Record<ActivityType, { icon: LucideIcon; color: number }> = {
   task: { icon: NotebookPen, color: 1 },
   exam: { icon: ClipboardCheck, color: 3 },
   project: { icon: FolderOpen, color: 5 },
@@ -26,7 +23,7 @@ const ACTIVITY_PRESENTATION: Record<
   study: { icon: BookOpen, color: 1 },
 };
 
-export function getActivityPresentation(type: (typeof ACTION_TYPES)[number]) {
+export function getActivityPresentation(type: ActivityType) {
   const { icon, color } = ACTIVITY_PRESENTATION[type];
   return {
     icon,

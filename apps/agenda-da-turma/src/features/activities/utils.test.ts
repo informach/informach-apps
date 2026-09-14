@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ACTIVITY_TYPES } from "@/features/unified-activities/activity-types";
 import type { TurmaWithSubjectsForForm } from "./types";
 import {
   type ActivityFormDefaultsActivity,
@@ -16,17 +17,30 @@ import {
 } from "./utils";
 
 describe("getActivityTypeLabel", () => {
+  // Rótulos vêm do vocabulário único (`unified-activities/activity-types.ts`),
+  // o mesmo usado pelos cards de recado — antes "task" aparecia como "Tarefa"
+  // aqui e "Para casa (tarefa)" lá.
   it("retorna rótulos em PT-BR pra cada tipo", () => {
-    expect(getActivityTypeLabel("task")).toBe("Tarefa");
+    expect(getActivityTypeLabel("task")).toBe("Para casa (tarefa)");
     expect(getActivityTypeLabel("exam")).toBe("Prova");
     expect(getActivityTypeLabel("project")).toBe("Trabalho");
     expect(getActivityTypeLabel("reminder")).toBe("Lembrete");
+    expect(getActivityTypeLabel("material")).toBe("Material");
+    expect(getActivityTypeLabel("authorization")).toBe("Autorização");
+    expect(getActivityTypeLabel("event")).toBe("Evento");
+    expect(getActivityTypeLabel("study")).toBe("Estudo");
+  });
+
+  it("cobre todos os tipos do vocabulário", () => {
+    for (const type of ACTIVITY_TYPES) {
+      expect(getActivityTypeLabel(type)).toBeTruthy();
+    }
   });
 });
 
 describe("getActivityTypeIcon", () => {
   it("retorna um componente pra cada tipo (smoke)", () => {
-    for (const type of ["task", "exam", "project", "reminder"] as const) {
+    for (const type of ACTIVITY_TYPES) {
       const Icon = getActivityTypeIcon(type);
       expect(Icon).toBeDefined();
     }
@@ -121,7 +135,9 @@ const TURMAS: TurmaWithSubjectsForForm[] = [
     grade: "5ano",
     classLetter: "A",
     year: 2026,
-    subjects: [{ id: "subj-1", name: "Matemática", colorIndex: 1, classDays: [] }],
+    subjects: [
+      { id: "subj-1", name: "Matemática", colorIndex: 1, classDays: [], alternatingSlots: [] },
+    ],
   },
   {
     turmaId: "turma-b",
@@ -129,7 +145,9 @@ const TURMAS: TurmaWithSubjectsForForm[] = [
     grade: "6ano",
     classLetter: "B",
     year: 2026,
-    subjects: [{ id: "subj-2", name: "Português", colorIndex: 2, classDays: [] }],
+    subjects: [
+      { id: "subj-2", name: "Português", colorIndex: 2, classDays: [], alternatingSlots: [] },
+    ],
   },
 ];
 

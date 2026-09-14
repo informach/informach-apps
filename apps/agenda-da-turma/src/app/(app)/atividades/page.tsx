@@ -6,13 +6,13 @@ import {
   getTurmasWithSubjectsForForm,
 } from "@/features/activities/service";
 import { getIsProForUser } from "@/features/billing/server-cache";
-import { ACTION_TYPES } from "@/features/notices/schemas";
 import { listStudentProfilesForUser } from "@/features/students/service";
+import { activityTypeSchema } from "@/features/unified-activities/activity-types";
 import { overviewStatusSchema } from "@/features/unified-activities/overview-types";
 import { getActivityOverview } from "@/features/unified-activities/service";
 import { requireUserServer } from "@/lib/auth";
 
-export const metadata = { title: "Atividades — Agenda da Turma" };
+export const metadata = { title: "Atividades" };
 
 export default async function AtividadesPage({
   searchParams,
@@ -34,7 +34,7 @@ export default async function AtividadesPage({
     getActivitiesCreatedCountForUser(user.id),
   ]);
   const activeFilter = profiles.find((p) => p.id === params.perfil) ?? null;
-  const parsedType = z.enum(ACTION_TYPES).safeParse(params.tipo);
+  const parsedType = activityTypeSchema.safeParse(params.tipo);
   const filters = {
     profileFilter: activeFilter?.id ?? null,
     typeFilter: parsedType.success ? parsedType.data : null,

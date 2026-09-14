@@ -8,7 +8,7 @@ import { listNoticeOriginals, listReadyNotices } from "@/features/notices/reposi
 import { SOURCE_LABELS } from "@/features/notices/schemas";
 import { requireUserServer } from "@/lib/auth";
 
-export const metadata = { title: "Recados e originais — Agenda da Turma" };
+export const metadata = { title: "Recados e originais" };
 export default async function NoticesPage({
   searchParams,
 }: {
@@ -57,7 +57,7 @@ export default async function NoticesPage({
               className="block min-h-11 text-sm text-primary underline"
               href={`/recados/novo?retomar=${draft.id}`}
             >
-              Retomar importação de {SOURCE_LABELS[draft.source]} —{" "}
+              Retomar importação de {SOURCE_LABELS[draft.source]}, de{" "}
               {draft.createdAt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
             </Link>
           ))}

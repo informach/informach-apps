@@ -36,7 +36,7 @@ export function StudentCard({ profile, isPro, currentCount, currentUserId }: Pro
   const age = profile.birthDate ? getAgeFromBirthDate(profile.birthDate) : null;
   const ageLabel = age === null ? "" : `${age} ${age === 1 ? "ano" : "anos"} · `;
   const turmaLabel = profile.activeTurma
-    ? `${formatTurmaShortLabel(profile.activeTurma.grade, profile.activeTurma.classLetter)} — ${profile.activeTurma.schoolName}`
+    ? `${formatTurmaShortLabel(profile.activeTurma.grade, profile.activeTurma.classLetter)} na ${profile.activeTurma.schoolName}`
     : "Sem turma vinculada";
 
   return (

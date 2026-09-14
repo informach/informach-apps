@@ -124,7 +124,7 @@ export function TurmaConfirmDialog({
                     Identifiquei a turma{guessedStudent ? ` de ${guessedStudent.name}` : ""}
                   </p>
                   <p className="mt-0.5 text-sm text-muted-foreground">
-                    {guessedTurma.schoolName} —{" "}
+                    {guessedTurma.schoolName},{" "}
                     {formatTurmaShort(
                       guessedTurma.grade,
                       guessedTurma.classLetter,
@@ -169,7 +169,7 @@ export function TurmaConfirmDialog({
                     return (
                       <SelectItem key={t.turmaId} value={t.turmaId}>
                         {profile ? `${profile.name} · ` : ""}
-                        {t.schoolName} — {formatTurmaShort(t.grade, t.classLetter, t.year)}
+                        {t.schoolName}, {formatTurmaShort(t.grade, t.classLetter, t.year)}
                       </SelectItem>
                     );
                   })}

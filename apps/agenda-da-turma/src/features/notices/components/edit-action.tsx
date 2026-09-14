@@ -2,6 +2,7 @@
 import { Button } from "@informach/ui/components/button";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import type { SubjectOptionsByProfile } from "@/features/subjects/options-service";
 import { catchActionResult } from "@/lib/action-result";
 import { setNoticeStatusAction, updateNoticeActionAction } from "../actions";
 import { noticeErrorMessage } from "../messages";
@@ -14,6 +15,7 @@ export function EditNoticeAction({
   initialValue,
   profiles,
   adults,
+  subjectOptions,
   isPro,
   canceled,
 }: {
@@ -22,6 +24,7 @@ export function EditNoticeAction({
   initialValue: NoticeActionInput;
   profiles: RoutineProfile[];
   adults: AssignableAdult[];
+  subjectOptions: SubjectOptionsByProfile;
   isPro: boolean;
   canceled: boolean;
 }) {
@@ -34,6 +37,7 @@ export function EditNoticeAction({
     <section className="space-y-5 rounded-xl border bg-card p-5 sm:p-6">
       <fieldset disabled={busy || canceled}>
         <ActionFields
+          subjectOptions={subjectOptions}
           prefix="edit-action"
           value={value}
           onChange={setValue}

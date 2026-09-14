@@ -7,7 +7,9 @@ import {
   agendaNoticeActions,
   agendaNoticeApplications,
   agendaNotices,
+  agendaProfileSubjects,
   agendaStudentProfiles,
+  agendaSubjects,
   users,
 } from "@informach/db/schema";
 import { accessibleProfileCondition } from "@/features/family/access";
@@ -33,11 +35,25 @@ export async function listNoticeActions(
       ownerUserId: agendaStudentProfiles.userId,
       source: agendaNotices.source,
       assignedName: users.name,
+      // Nome e cor da matéria vinculada (turma ou extracurricular), para que a
+      // providência seja lida por matéria como as atividades escolares. Nulos
+      // quando não há vínculo — a UI cai no rótulo do tipo.
+      subjectName: sql<
+        string | null
+      >`COALESCE(${agendaSubjects.name}, ${agendaProfileSubjects.name})`,
+      subjectColorIndex: sql<
+        number | null
+      >`COALESCE(${agendaSubjects.colorIndex}, ${agendaProfileSubjects.colorIndex})`,
     })
     .from(agendaNoticeActions)
     .innerJoin(agendaStudentProfiles, eq(agendaStudentProfiles.id, agendaNoticeActions.profileId))
     .leftJoin(agendaNotices, eq(agendaNotices.id, agendaNoticeActions.noticeId))
     .leftJoin(users, eq(users.id, agendaNoticeActions.assignedToUserId))
+    .leftJoin(agendaSubjects, eq(agendaSubjects.id, agendaNoticeActions.subjectId))
+    .leftJoin(
+      agendaProfileSubjects,
+      eq(agendaProfileSubjects.id, agendaNoticeActions.profileSubjectId),
+    )
     .where(
       and(
         accessibleProfileCondition(userId),

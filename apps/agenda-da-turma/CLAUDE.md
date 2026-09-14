@@ -102,7 +102,7 @@ apps/agenda-da-turma/
 │   ├── app/                       # Next 16 app router
 │   │   ├── (auth)/                # /login, /signup, /choose-plan (passo 3 onboarding)
 │   │   ├── (app)/                 # autenticadas
-│   │   │   ├── dashboard/         # KPIs + buckets (atrasadas/hoje/7 dias) + per-profile progress
+│   │   │   ├── dashboard/         # horário do dia por filho + KPIs + buckets + progresso
 │   │   │   ├── atividades/        # CRUD completo + paginação keyset
 │   │   │   ├── calendario/        # vistas mês/semana/dia + modal de detalhe
 │   │   │   ├── settings/billing/  # plano + saldo + packs (Pro) + history + portal
@@ -121,7 +121,7 @@ apps/agenda-da-turma/
 │   │   ├── ai/                    # helpers cross-feature: _http-errors, image-utils (downscaleToDataUrl), _shared (withAiRouteGuards), services dos parsers
 │   │   ├── billing/               # plan-cards, plan-card, credit-balance-card, credit-packs, history (paridade cozya)
 │   │   ├── calendar/              # /calendario: views mês/semana/dia, blips, day-cell, detail-dialog, helpers de range/grid
-│   │   ├── dashboard/             # KPIs, buckets, per-profile summaries, helpers de data com TZ São Paulo
+│   │   ├── dashboard/             # horário do dia (em lote), KPIs, buckets, progresso, helpers de data com TZ São Paulo
 │   │   ├── onboarding/            # signup-form (3 passos), login-form, plan-cards usado em /choose-plan + /upgrade
 │   │   ├── students/              # perfis de estudante (CRUD, dialogs, avatar com chart-N, widgets do dashboard)
 │   │   ├── subjects/              # matérias por turma + paleta chart-N collision-free
@@ -302,15 +302,17 @@ Schema (`packages/db/src/schema/agenda.ts`):
 - **`agenda.activity_acceptances`** — quando outra família aceita uma shared activity (1 row por `(activityId, userId)`).
 
 **RBAC de visibilidade (enforcement no service `features/activities/service.ts`)**:
-- **Free**: criar sempre força `visibility = 'individual'`. Listagem filtra `created_by_user_id = currentUserId`. Atividades `shared_with_turma` de outros membros NUNCA aparecem.
-- **Pro**: pode escolher `individual` ou `shared_with_turma` na criação. Listagem inclui suas próprias E `shared_with_turma` de outros membros da turma.
+- **Compartilhar exige Pro**: no Free, criar força `visibility = 'individual'`.
+- **Receber compartilhada é benefício do Free** (ver §1): as listas usam `accessibleProfileCondition(userId)`, que autoriza por criança (titular ou adulto convidado com acesso), e a atividade só chega ao perfil quando a família aceita. `listPendingSharedActivitiesForUser` continua exigindo participação efetiva na turma, então nada vaza entre turmas.
 - Gate único: `hasProSubscription(subject)` do `@informach/billing/access`. Nunca inline `status === 'active'`.
+
+**Vocabulário de tipos**: fonte única em `features/unified-activities/activity-types.ts` (8 valores), espelhada no banco por `AGENDA_ACTIVITY_TYPES` em `packages/db/src/schema/agenda.ts`. As três tabelas de atividade usam a mesma lista. A coluna é `text` sem CHECK: ampliar é mudança de código; remover valor exigiria migração de dados. O enum de 4 valores em `ai/activities-parser/schema.ts` é um subconjunto deliberado — contrato de saída do modelo, não vocabulário do app.
 
 **Edit/delete de atividade**: só o `created_by_user_id`. **E** bloqueia mesmo o criador se a atividade é shared_with_turma e `hasOtherAcceptances=true` (outra família já aceitou). Regra centralizada em `canEditActivity(item, currentUserId)` em `features/activities/utils.ts` — UI esconde, service aplica.
 
 **Defaults do form** (`buildActivityFormDefaults` em `features/activities/utils.ts`): pura, testada — calcula `defaultValues` do RHF tanto em modo create quanto edit. Aceita `defaultDueAt` (usado pelo calendário ao clicar num dia vazio) e `defaultTurmaId` (auto-select se única turma). Em modo edit, ignora os defaults e usa os campos da `activity`.
 
-**SELECT canônico** (`activityListSelect` + `hasOtherAcceptancesExpr` em `features/activities/repository.ts`): export compartilhado entre `/atividades` (paginação keyset), dashboard (buckets) e calendário (range BETWEEN). Garante que `ActivityCard`, `ActivityDetailDialog` e demais consumidores recebem o mesmo shape `ActivityListItem` sem adapters.
+**SELECT canônico** (`activityListSelect` + `hasOtherAcceptancesExpr` em `features/activities/repository.ts`): export compartilhado entre a hidratação da projeção unificada (`/atividades` e os buckets da rotina) e o calendário (range BETWEEN). Garante que `ActivityCard`, `ActivityDetailDialog` e demais consumidores recebem o mesmo shape `ActivityListItem` sem adapters.
 
 **Cascade quando matéria é apagada**: como a regra bloqueia delete da matéria enquanto há atividades de OUTRAS famílias, na prática o cascade só roda quando todas as atividades vinculadas são do próprio creator da matéria — perda consciente.
 
@@ -354,13 +356,40 @@ Schema: `agenda.states` (27 rows IBGE), `agenda.cities` (~5570 rows IBGE, FK pra
 
 Endpoints `/api/data/{states,cities,schools}` (auth-gated via `proxy.ts`) servem essas tabelas pros comboboxes (`AsyncCombobox` com debounce 200ms + ILIKE+unaccent server-side).
 
-### Dashboard widgets (mutuamente exclusivos)
+### Dashboard ("Rotina da família")
 
-Em `app/(app)/dashboard/page.tsx`:
-- `count === 0` → `<NoStudentsWidget />` (azul/primary): "Comece organizando a rotina das crianças" + CTA pra `/perfis`.
-- `count > 0 && profilesWithoutTurma > 0` → `<ProfilesWithoutTurmaWidget />` (warning/amber): "Vincule seu estudante a uma turma" + CTA pra `/turmas`.
+Ordem de `app/(app)/dashboard/page.tsx`, tudo visível sem clique:
+
+1. Cabeçalho, com `ExportPdfButton` à direita.
+2. Filtro de criança — **um só na página**. O mesmo `?perfil=` vale para o horário, para os buckets e para os destinos dos atalhos.
+3. `DashboardNavButtons` — Ver atividades / Ver calendário / Importar mensagem ou foto.
+4. **`TodayScheduleSection`** — "Hoje na escola": as matérias de hoje de **cada** criança, com o badge "Reveza com X" do revezamento quinzenal. Cada card leva a `/turmas/{id}/materias`, que de outro modo só é alcançável pelo menu do avatar.
+5. **`RoutineSection`** — KPIs + os três buckets (cuidar hoje / preparar amanhã / próximos sete dias) + progresso por estudante.
+6. `SharedActivitiesSection` — atividades compartilhadas a aceitar.
+7. `<details>` "Perfis, turmas e matérias" — só configuração fica recolhida.
+
+**Uma lista só.** Buckets e KPIs saem de `getRoutineSnapshot`
+(`features/unified-activities/service.ts`), que reusa a MESMA projeção SQL
+das três fontes da lista de `/atividades` (`activityIndexCte`) e a mesma
+hidratação em segundo passo. Por isso os contadores nunca discordam do que
+está listado logo abaixo. Não reintroduzir uma segunda lista no dashboard:
+foi daí que veio a duplicação corrigida em setembro de 2026.
+
+`getDashboardSnapshot` continua existindo, mas **não** alimenta o dashboard — só o job de lembretes (`features/notifications/delivery.ts`) e a exportação em PDF.
+
+`UnifiedActivityCard` recebe `ActivityOverviewItem` (fonte + linha crua) e despacha para `ActivityCard`, `RoutineCard` ou o card de extracurricular. Toda lista passa por ele; o calendário converte a sua com `toOverviewEntry`. Os três cards concluem pelo mesmo `useCardToggle`.
 
 UserMenu (avatar) tem links rápidos: **Meus perfis** (`/perfis`) e **Minhas turmas** (`/turmas`), separados das ações de billing/sair.
+
+### Prazo calculado pelo horário da matéria
+
+Ao escolher a matéria com a data vazia, os dois formulários (escolar e revisão de recado) preenchem o prazo com a **próxima aula**, via `suggestDueDateFromSchedule` → `nextClassDayIso`, que respeita o revezamento quinzenal. A procedência aparece no campo e um toque altera. `agenda.notice_actions.date_origin` ganhou o valor `schedule` para isso.
+
+**A IA continua proibida de inventar prazo** (achado R01): `enrich.ts` devolve `dueAt: null` e não tem fallback de "amanhã". A distinção é essa — calcular a próxima aula a partir do horário que a família cadastrou é determinístico; adivinhar uma data a partir de um texto sem prazo não é. Os testes dos dois lados precisam continuar passando juntos.
+
+### Matéria nas providências de recado
+
+`agenda.notice_actions` carrega `subject_id` (turma) e `profile_subject_id` (extracurricular), nullable e mutuamente exclusivos (CHECK `agenda_action_subject_exclusive_check`), `ON DELETE SET NULL` — apagar a matéria tira o rótulo, nunca a obrigação. `validSubject`, na transação de gravação, exige que a matéria seja da turma em que a criança participa AGORA, ou extracurricular dela. As opções vêm de `listSubjectOptionsByProfile`. A IA **não** recebe a lista de matérias: quem vincula é a pessoa na revisão.
 
 ---
 
@@ -440,7 +469,7 @@ pnpm build:agenda-da-turma                                              # produ�
 pnpm start:agenda-da-turma                                              # serve build local
 
 # E2E
-pnpm --filter @informach/agenda-da-turma e2e                            # Playwright (precisa do dev server up)
+pnpm --filter @informach/agenda-da-turma e2e                            # Playwright (sobe o dev server sozinho)
 pnpm --filter @informach/agenda-da-turma e2e:install                    # baixa Chromium 1×
 pnpm --filter @informach/agenda-da-turma e2e:ui                         # modo interativo
 
@@ -448,6 +477,20 @@ pnpm --filter @informach/agenda-da-turma e2e:ui                         # modo i
 pnpm --filter @informach/agenda-da-turma vitest run path/to/file.test.ts -t "test name"
 pnpm --filter @informach/agenda-da-turma exec playwright test e2e/auth.signup-and-verify.spec.ts
 ```
+
+**O CI roda a config default (`playwright.config.ts`), não as dedicadas.**
+`review-fixes.spec.ts` e `family-routine.spec.ts` também têm
+`playwright.routine.config.ts`, e `sales-page.spec.ts` tem
+`playwright.marketing.config.ts`, com orçamentos de tempo bem mais folgados.
+Ajustar tempo só nessas configs não chega ao CI: foi assim que
+`review-fixes.spec.ts` ficou vermelho por vários commits, estourando 10 s de
+`actionTimeout` numa rota que declara `maxDuration = 90`.
+
+O servidor do e2e é `next dev`, que compila cada rota na primeira requisição.
+`e2e/warmup.setup.ts` roda como setup project antes da suíte e paga essa
+compilação nas rotas pesadas (`/api/recados/parse` e companhia). Ao acrescentar
+uma rota de API pesada que a suíte toque poucas vezes, inclua-a lá, senão o
+custo volta a cair no timeout do primeiro teste que a tocar.
 
 ---
 

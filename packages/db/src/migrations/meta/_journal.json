@@ -351,6 +351,13 @@
       "when": 1789336438205,
       "tag": "0049_premium_beyonder",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1789402247434,
+      "tag": "0050_magenta_blue_shield",
+      "breakpoints": true
     }
   ]
 }

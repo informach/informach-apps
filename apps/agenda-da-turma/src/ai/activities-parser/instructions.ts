@@ -354,13 +354,13 @@ A lista no bloco "Matérias disponíveis" tem \`Língua Portuguesa\`. Hoje (do c
 {
   type: "exam",
   title: "Primeira prova de Língua Portuguesa",
-  dueAt: null,                              // sem data no PDF — servidor calcula próxima aula
+  dueAt: null,                              // sem data no PDF — quem confirma o prazo é a pessoa
   subjectHint: "Língua Portuguesa",         // matéria está LITERAL no título do PDF
   description: "CONTEÚDO:\\n- Sujeito e predicado\\n- Tipos de sujeito (simples, composto, oculto, indeterminado, inexistente)\\n- Concordância verbal\\n- Pronomes oblíquos\\n\\nEXERCÍCIOS DE REVISÃO:\\n1. Identifique o sujeito e o predicado nas orações:\\n   a) O menino chegou cedo à escola.\\n   b) Choveu muito ontem.\\n   c) Faz dois anos que ela mudou.\\n2. Classifique o sujeito em simples, composto, oculto, indeterminado ou inexistente:\\n   a) Joana e Pedro foram ao parque.\\n   b) Ladrões assaltaram a loja.\\n   c) Há muitos livros sobre a mesa.\\n3. Complete com o verbo no tempo correto: \\"Se eu ____ (saber) a resposta, eu ____ (dizer).\\""
 }
 \`\`\`
 
-Note que: (a) "Bons estudos!" foi omitido (motivacional); (b) os 4 tópicos do "Conteúdo" foram preservados na íntegra; (c) os 3 exercícios foram copiados COMPLETOS incluindo as alíneas a/b/c; (d) o subjectHint veio do TÍTULO do PDF que diz literal "Língua Portuguesa" — match direto com a lista, sem precisar de alias; (e) o PDF não tinha NENHUMA data, então \`dueAt: null\` — o servidor olha o horário da matéria "Língua Portuguesa" e usa a próxima aula. **NÃO chutamos uma data** — \`null\` deixa o servidor calcular automaticamente e o user revisa antes de salvar.
+Note que: (a) "Bons estudos!" foi omitido (motivacional); (b) os 4 tópicos do "Conteúdo" foram preservados na íntegra; (c) os 3 exercícios foram copiados COMPLETOS incluindo as alíneas a/b/c; (d) o subjectHint veio do TÍTULO do PDF que diz literal "Língua Portuguesa" — match direto com a lista, sem precisar de alias; (e) o PDF não tinha NENHUMA data, então \`dueAt: null\`. **NÃO chutamos uma data**: na revisão, se a matéria tiver horário cadastrado, o formulário oferece a próxima aula, e a pessoa confirma ou altera antes de salvar.
 
 ### ❌ Erros observados em produção a evitar
 
@@ -372,7 +372,7 @@ Note que: (a) "Bons estudos!" foi omitido (motivacional); (b) os 4 tópicos do "
 - \`subjectHint: null\` quando o PDF diz "Português" e a lista tem "Língua Portuguesa". ERRADO — esses são aliases (ver "Aliases comuns de matérias"). Idem pra "Mat" ↔ "Matemática", "Ed Física" ↔ "Educação Física", etc.
 - \`subjectHint: null\` quando o título do documento diz LITERAL "Revisão da prova de Língua Portuguesa". ERRADO — a matéria está NO título; basta extrair. Não precisa nem de alias. Esse é o caso mais crítico: título explícito → matéria explícita.
 - \`dueAt\` com data aleatória/inventada (ex.: PDF sem data nenhuma e a saída tem \`dueAt: "2026-06-15"\`). ERRADO — quando não há nenhuma pista de data, \`dueAt: null\` (o responsável poderá informar ou planejar uma data na revisão). NÃO chute datas.
-- \`dueAt: hoje + 1\` quando não há data no conteúdo. ERRADO — não preencha com "amanhã" só pra evitar null. \`dueAt: null\` é o valor correto quando o conteúdo não menciona data; o servidor decide melhor que o modelo porque conhece o horário cadastrado da matéria.
+- \`dueAt: hoje + 1\` quando não há data no conteúdo. ERRADO — não preencha com "amanhã" só pra evitar null. \`dueAt: null\` é o valor correto quando o conteúdo não menciona data; na revisão a pessoa confirma o prazo, com a próxima aula da matéria já sugerida quando há horário cadastrado.
 
 ### Limite de tamanho
 

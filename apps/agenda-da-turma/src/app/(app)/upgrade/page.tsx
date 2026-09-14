@@ -3,7 +3,7 @@ import { parseCycleQueryParam } from "@/features/billing/plans-content";
 import { redirectIfUnauthenticated } from "@/lib/auth";
 
 export const metadata = {
-  title: "Seja Pro — Agenda da Turma",
+  title: "Seja Pro",
 };
 
 export default async function UpgradePage({

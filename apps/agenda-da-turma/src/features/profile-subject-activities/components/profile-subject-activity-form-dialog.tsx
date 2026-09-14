@@ -34,6 +34,7 @@ import { useEffect, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { getActivityTypeLabel } from "@/features/activities/utils";
 import { todayLocalIso } from "@/features/dashboard/date";
+import { ACTIVITY_TYPES as TYPES } from "@/features/unified-activities/activity-types";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { createProfileSubjectActivityAction, updateProfileSubjectActivityAction } from "../actions";
 import {
@@ -49,13 +50,6 @@ type Props = {
   profileSubjectName: string;
   activity?: ProfileSubjectActivity;
 };
-
-const TYPES: Array<"task" | "exam" | "project" | "reminder"> = [
-  "task",
-  "exam",
-  "project",
-  "reminder",
-];
 
 function emptyDefaults(profileSubjectId: string): CreateProfileSubjectActivityFormValues {
   return {
@@ -250,7 +244,7 @@ export function ProfileSubjectActivityFormDialog({
                   <FormLabel>Observações (opcional)</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Detalhes — material extra, horário diferente, etc."
+                      placeholder="Detalhes, como material extra ou horário diferente"
                       rows={3}
                       {...field}
                     />

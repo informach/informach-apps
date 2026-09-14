@@ -15,7 +15,7 @@ type Props = {
 };
 
 export const metadata = {
-  title: "Matérias extracurriculares — Agenda da Turma",
+  title: "Matérias extracurriculares",
 };
 
 export default async function ProfileExtrasPage({ params }: Props) {
@@ -49,9 +49,9 @@ export default async function ProfileExtrasPage({ params }: Props) {
             Matérias extracurriculares
           </h1>
           <p className="text-sm text-muted-foreground">
-            Atividades fora do horário da escola — jazz, futebol, natação, reforço. Aparecem nas
-            matérias do dia junto com a turma e podem ser pausadas quando seu filho dar uma pausa,
-            sem perder o histórico.
+            Atividades fora do horário da escola, como jazz, futebol, natação ou reforço. Elas
+            aparecem nas matérias do dia junto com as da turma e podem ser pausadas quando seu filho
+            der uma pausa, sem perder o histórico.
           </p>
         </div>
         <NewProfileSubjectButton

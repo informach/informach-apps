@@ -24,7 +24,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Agenda da Turma",
+  // Cada página declara só o próprio nome; o sufixo da marca vem daqui.
+  title: { default: "Agenda da Turma", template: "%s · Agenda da Turma" },
   description: "Organize tarefas, provas e recados dos seus filhos em um só lugar.",
   applicationName: "Agenda da Turma",
   appleWebApp: {

@@ -38,6 +38,7 @@ import { useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
 import { isValidLocalIsoDate } from "@/features/dashboard/date";
 import { AsyncCombobox, type ComboboxOption } from "@/features/turmas/components/async-combobox";
+import { activityTypeSchema } from "@/features/unified-activities/activity-types";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { createActivitiesBatchAction } from "../actions";
 import { MAX_ACTIVITY_DESCRIPTION_LENGTH, MAX_ACTIVITY_TITLE_LENGTH } from "../limits";
@@ -55,9 +56,7 @@ const TYPES: Array<ActivityType> = ["task", "exam", "project", "reminder"];
 const rowFormSchema = z.object({
   turmaId: z.string().uuid("Selecione a turma"),
   subjectId: z.string().uuid("Selecione a matéria"),
-  type: z.enum(["task", "exam", "project", "reminder"], {
-    message: "Selecione o tipo",
-  }),
+  type: activityTypeSchema,
   title: z
     .string()
     .trim()
@@ -291,7 +290,7 @@ export function ActivitiesBatchConfirmDialog({
           <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs">
             <span className="text-muted-foreground">Turma:</span>{" "}
             <span className="font-medium text-foreground">
-              {lockedTurma.schoolName} —{" "}
+              {lockedTurma.schoolName},{" "}
               {formatTurmaShort(lockedTurma.grade, lockedTurma.classLetter, lockedTurma.year)}
             </span>
           </div>
@@ -506,7 +505,7 @@ function ActivityRowCard({
                   <SelectContent>
                     {turmas.map((t) => (
                       <SelectItem key={t.turmaId} value={t.turmaId}>
-                        {t.schoolName} — {formatTurmaShort(t.grade, t.classLetter, t.year)}
+                        {t.schoolName}, {formatTurmaShort(t.grade, t.classLetter, t.year)}
                       </SelectItem>
                     ))}
                   </SelectContent>

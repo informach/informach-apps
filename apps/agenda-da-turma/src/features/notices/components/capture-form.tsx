@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { z } from "zod";
 import { createStudentProfileAction } from "@/features/students/actions";
+import type { SubjectOptionsByProfile } from "@/features/subjects/options-service";
 import { catchActionResult } from "@/lib/action-result";
 import { confirmNoticeAction } from "../actions";
 import { noticeErrorMessage } from "../messages";
@@ -35,6 +36,8 @@ function blankAction(
       type,
       title: "",
       description: null,
+      subjectId: null,
+      profileSubjectId: null,
       dueAt: null,
       dateOrigin: "unspecified",
       time: null,
@@ -58,6 +61,7 @@ const responseSchema = z.object({
 export function CaptureForm({
   profiles: initialProfiles,
   adults,
+  subjectOptions,
   proProfileIds,
   ownerIsPro,
   initialNotice,
@@ -68,6 +72,7 @@ export function CaptureForm({
 }: {
   profiles: RoutineProfile[];
   adults: AssignableAdult[];
+  subjectOptions: SubjectOptionsByProfile;
   proProfileIds: string[];
   ownerIsPro: boolean;
   mode?: "capture" | "manual";
@@ -106,6 +111,10 @@ export function CaptureForm({
           value: {
             ...item,
             profileId: initialNotice.profileId,
+            // A IA não recebe a lista de matérias: quem vincula é a pessoa na
+            // revisão.
+            subjectId: null,
+            profileSubjectId: null,
             assignedToUserId: null,
             reminderAt: null,
             recurrence: "none",
@@ -242,6 +251,8 @@ export function CaptureForm({
           value: {
             ...item,
             profileId,
+            subjectId: null,
+            profileSubjectId: null,
             assignedToUserId: null,
             reminderAt: null,
             recurrence: "none",
@@ -434,7 +445,7 @@ export function CaptureForm({
           {pageCount > 0 ? (
             <fieldset className="space-y-3 rounded-lg border p-4">
               <legend className="px-1 text-sm font-medium">
-                PDF com {pageCount} páginas — selecione até 3
+                PDF com {pageCount} páginas. Selecione até 3
               </legend>
               <div className="flex max-h-48 flex-wrap gap-2 overflow-auto">
                 {Array.from({ length: pageCount }, (_, i) => i + 1).map((page) => (
@@ -620,6 +631,7 @@ export function CaptureForm({
                 </Button>
               </div>
               <ActionFields
+                subjectOptions={subjectOptions}
                 prefix={draft.key}
                 value={draft.value}
                 onChange={(value) => {
@@ -670,8 +682,8 @@ export function CaptureForm({
                       .filter((c) => c.index === index)
                       .map((c) => (
                         <option key={c.id} value={c.id}>
-                          Corrigir: {c.title} —{" "}
-                          {c.dueAt?.split("-").reverse().join("/") ?? "sem prazo"}
+                          Corrigir: {c.title}, prazo{" "}
+                          {c.dueAt?.split("-").reverse().join("/") ?? "a confirmar"}
                         </option>
                       ))}
                   </select>
@@ -703,7 +715,7 @@ export function CaptureForm({
                   className="block text-sm text-primary underline"
                   href={`/recados/acoes/${d.id}`}
                 >
-                  {d.title} — abrir para corrigir
+                  {d.title}, abrir para corrigir
                 </Link>
               ))}
               <label className="flex min-h-11 items-center gap-2 text-sm">

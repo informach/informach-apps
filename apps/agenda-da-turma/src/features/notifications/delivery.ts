@@ -12,7 +12,7 @@ import { addDaysIso, todayLocalIso } from "@/features/dashboard/date";
 import { getDashboardSnapshot } from "@/features/dashboard/service";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { listNoticeActions } from "@/features/notices/repository";
-import { ACTION_LABELS } from "@/features/notices/schemas";
+import { ACTIVITY_TYPE_LABELS } from "@/features/unified-activities/activity-types";
 import { buildEmailUnsubscribeUrl, emails } from "@/lib/emails";
 import { env } from "@/lib/env";
 import { isAllowedPushEndpoint, isQuietHour } from "./schemas";
@@ -118,7 +118,7 @@ async function currentMessages(userId: string, now: Date): Promise<Message[]> {
     const lines = [
       ...relevant.map(
         (r) =>
-          `${r.profileName}: ${ACTION_LABELS[r.action.type]} — ${r.action.title}. ${r.action.dueAt ? `Data: ${r.action.dueAt}` : "Prazo a confirmar"}${r.action.time ? ` às ${r.action.time}` : ""}. Responsável: ${r.assignedName ?? "a combinar"}.`,
+          `${r.profileName}: ${ACTIVITY_TYPE_LABELS[r.action.type]}, ${r.action.title}. ${r.action.dueAt ? `Data: ${r.action.dueAt}` : "Prazo a confirmar"}${r.action.time ? ` às ${r.action.time}` : ""}. Responsável: ${r.assignedName ?? "a combinar"}.`,
       ),
       ...older.map((r) => `${r.studentProfileName}: ${r.title}. Data: ${r.dueAt}.`),
     ];

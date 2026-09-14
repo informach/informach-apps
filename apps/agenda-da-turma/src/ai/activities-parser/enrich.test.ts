@@ -55,8 +55,8 @@ describe("buildUserMessage", () => {
           classLetter: "A",
           year: 2026,
           subjects: [
-            { id: "s1", name: "Matemática", colorIndex: 1, classDays: [] },
-            { id: "s2", name: "Português", colorIndex: 2, classDays: [] },
+            { id: "s1", name: "Matemática", colorIndex: 1, classDays: [], alternatingSlots: [] },
+            { id: "s2", name: "Português", colorIndex: 2, classDays: [], alternatingSlots: [] },
           ],
         },
         {
@@ -66,8 +66,8 @@ describe("buildUserMessage", () => {
           classLetter: "B",
           year: 2026,
           subjects: [
-            { id: "s3", name: "História", colorIndex: 3, classDays: [] },
-            { id: "s4", name: "Inglês", colorIndex: 4, classDays: [] },
+            { id: "s3", name: "História", colorIndex: 3, classDays: [], alternatingSlots: [] },
+            { id: "s4", name: "Inglês", colorIndex: 4, classDays: [], alternatingSlots: [] },
           ],
         },
       ],
@@ -112,7 +112,9 @@ describe("buildUserMessage", () => {
           grade: "6ano",
           classLetter: "C",
           year: 2026,
-          subjects: [{ id: "s1", name: "Matemática", colorIndex: 1, classDays: [] }],
+          subjects: [
+            { id: "s1", name: "Matemática", colorIndex: 1, classDays: [], alternatingSlots: [] },
+          ],
         },
       ],
       profiles: [{ id: "p1", name: "Pedro", activeTurmaId: "t1" }],
@@ -137,9 +139,9 @@ const turmasWithSubjects: TurmaWithSubjectsForForm[] = [
     classLetter: "A",
     year: 2026,
     subjects: [
-      { id: "s1-mat", name: "Matemática", colorIndex: 1, classDays: [] },
-      { id: "s1-por", name: "Português", colorIndex: 2, classDays: [] },
-      { id: "s1-cie", name: "Ciências", colorIndex: 3, classDays: [] },
+      { id: "s1-mat", name: "Matemática", colorIndex: 1, classDays: [], alternatingSlots: [] },
+      { id: "s1-por", name: "Português", colorIndex: 2, classDays: [], alternatingSlots: [] },
+      { id: "s1-cie", name: "Ciências", colorIndex: 3, classDays: [], alternatingSlots: [] },
     ],
   },
   {
@@ -149,9 +151,9 @@ const turmasWithSubjects: TurmaWithSubjectsForForm[] = [
     classLetter: "B",
     year: 2026,
     subjects: [
-      { id: "s2-mat", name: "Matemática", colorIndex: 1, classDays: [] },
-      { id: "s2-his", name: "História", colorIndex: 4, classDays: [] },
-      { id: "s2-geo", name: "Geografia", colorIndex: 5, classDays: [] },
+      { id: "s2-mat", name: "Matemática", colorIndex: 1, classDays: [], alternatingSlots: [] },
+      { id: "s2-his", name: "História", colorIndex: 4, classDays: [], alternatingSlots: [] },
+      { id: "s2-geo", name: "Geografia", colorIndex: 5, classDays: [], alternatingSlots: [] },
     ],
   },
 ];
@@ -335,9 +337,9 @@ describe("enrichWithResolvedTurma", () => {
         classLetter: "A",
         year: 2026,
         subjects: [
-          { id: "s-redacao", name: "Redação", colorIndex: 2, classDays: [] },
-          { id: "s-port", name: "Português", colorIndex: 2, classDays: [] },
-          { id: "s-mat", name: "Matemática", colorIndex: 1, classDays: [] },
+          { id: "s-redacao", name: "Redação", colorIndex: 2, classDays: [], alternatingSlots: [] },
+          { id: "s-port", name: "Português", colorIndex: 2, classDays: [], alternatingSlots: [] },
+          { id: "s-mat", name: "Matemática", colorIndex: 1, classDays: [], alternatingSlots: [] },
         ],
       },
     ];
@@ -376,8 +378,14 @@ describe("enrichWithResolvedTurma", () => {
         classLetter: "A",
         year: 2026,
         subjects: [
-          { id: "s-fis", name: "Física", colorIndex: 1, classDays: [] },
-          { id: "s-edf", name: "Educação Física", colorIndex: 3, classDays: [] },
+          { id: "s-fis", name: "Física", colorIndex: 1, classDays: [], alternatingSlots: [] },
+          {
+            id: "s-edf",
+            name: "Educação Física",
+            colorIndex: 3,
+            classDays: [],
+            alternatingSlots: [],
+          },
         ],
       },
     ];
@@ -412,7 +420,9 @@ describe("enrichWithResolvedTurma", () => {
         grade: "3ano",
         classLetter: "A",
         year: 2026,
-        subjects: [{ id: "s-arte", name: "Arte", colorIndex: 5, classDays: [] }],
+        subjects: [
+          { id: "s-arte", name: "Arte", colorIndex: 5, classDays: [], alternatingSlots: [] },
+        ],
       },
     ];
     const profs: ProfileLite[] = [{ id: "p1", name: "João", activeTurmaId: "t1" }];
@@ -580,7 +590,15 @@ describe("prazos ausentes", () => {
           grade: "4ano",
           classLetter: "A",
           year: 2026,
-          subjects: [{ id: "s", name: "Português", colorIndex: 0, classDays: ["mon", "fri"] }],
+          subjects: [
+            {
+              id: "s",
+              name: "Português",
+              colorIndex: 0,
+              classDays: ["mon", "fri"],
+              alternatingSlots: [],
+            },
+          ],
         },
       ],
     );

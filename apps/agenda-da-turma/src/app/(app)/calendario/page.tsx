@@ -9,7 +9,7 @@ import { listStudentProfilesForUser } from "@/features/students/service";
 import { requireUserServer } from "@/lib/auth";
 
 export const metadata = {
-  title: "Calendário — Agenda da Turma",
+  title: "Calendário",
 };
 
 type Props = {

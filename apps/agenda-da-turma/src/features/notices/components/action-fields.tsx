@@ -1,13 +1,14 @@
 "use client";
 import { Input } from "@informach/ui/components/input";
-import { z } from "zod";
 import { suggestReminder } from "@/features/notifications/reminder-suggestion";
+import { suggestDueDateFromSchedule } from "@/features/subjects/due-date-suggestion";
+import type { SubjectOptionsByProfile } from "@/features/subjects/options-service";
 import {
-  ACTION_LABELS,
-  ACTION_TYPES,
-  DATE_ORIGIN_LABELS,
-  type NoticeActionInput,
-} from "../schemas";
+  ACTIVITY_TYPE_LABELS,
+  ACTIVITY_TYPES,
+  activityTypeSchema,
+} from "@/features/unified-activities/activity-types";
+import { DATE_ORIGIN_LABELS, type NoticeActionInput } from "../schemas";
 
 const selectStyle = "h-11 w-full rounded-md border border-input bg-background px-3 text-sm";
 const labelStyle = "grid gap-1.5 text-sm font-medium";
@@ -19,6 +20,7 @@ export function ActionFields({
   onChange,
   profiles,
   adults,
+  subjectOptions,
   prefix,
   lockProfile = false,
   isPro,
@@ -27,10 +29,14 @@ export function ActionFields({
   onChange: (value: NoticeActionInput) => void;
   profiles: RoutineProfile[];
   adults: AssignableAdult[];
+  /** Matérias por criança — turma em que ela participa + extracurriculares. */
+  subjectOptions: SubjectOptionsByProfile;
   prefix: string;
   lockProfile?: boolean;
   isPro: boolean;
 }) {
+  const subjectsForProfile = subjectOptions[value.profileId] ?? [];
+  const selectedSubject = value.subjectId ?? value.profileSubjectId ?? "";
   const change = (patch: Partial<NoticeActionInput>) => onChange({ ...value, ...patch });
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -53,7 +59,16 @@ export function ActionFields({
           value={value.profileId}
           disabled={lockProfile}
           required
-          onChange={(e) => change({ profileId: e.target.value, assignedToUserId: null })}
+          onChange={(e) =>
+            change({
+              profileId: e.target.value,
+              assignedToUserId: null,
+              // A matéria pertence à turma da criança: trocar de criança
+              // invalida a escolha anterior.
+              subjectId: null,
+              profileSubjectId: null,
+            })
+          }
         >
           <option value="">Selecione</option>
           {profiles.map((p) => (
@@ -71,13 +86,55 @@ export function ActionFields({
           aria-label="Tipo"
           value={value.type}
           onChange={(e) => {
-            const parsed = z.enum(ACTION_TYPES).safeParse(e.target.value);
+            const parsed = activityTypeSchema.safeParse(e.target.value);
             if (parsed.success) change({ type: parsed.data });
           }}
         >
-          {ACTION_TYPES.map((type) => (
+          {ACTIVITY_TYPES.map((type) => (
             <option key={type} value={type}>
-              {ACTION_LABELS[type]}
+              {ACTIVITY_TYPE_LABELS[type]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className={labelStyle} htmlFor={`${prefix}-subject`}>
+        Matéria (opcional)
+        <select
+          className={selectStyle}
+          id={`${prefix}-subject`}
+          aria-label="Matéria"
+          value={selectedSubject}
+          disabled={subjectsForProfile.length === 0}
+          onChange={(e) => {
+            const option = subjectsForProfile.find((s) => s.id === e.target.value);
+            const patch: Partial<NoticeActionInput> = {
+              subjectId: option?.source === "turma" ? option.id : null,
+              profileSubjectId: option?.source === "extra" ? option.id : null,
+            };
+            // Prazo vazio mais matéria com horário cadastrado dá a próxima
+            // aula. É cálculo determinístico, com a procedência à vista, e um
+            // toque no campo de data altera. Sem horário o campo continua
+            // vazio: nunca "amanhã".
+            if (option && !value.dueAt) {
+              const suggestion = suggestDueDateFromSchedule(option);
+              if (suggestion) {
+                patch.dueAt = suggestion.dueAt;
+                patch.dateOrigin = "schedule";
+              }
+            }
+            // Sem matéria não existe horário que justifique a data. Ela fica,
+            // mas passa a ser planejamento da família.
+            if (!option && value.dateOrigin === "schedule") patch.dateOrigin = "family";
+            change(patch);
+          }}
+        >
+          <option value="">
+            {subjectsForProfile.length === 0 ? "Nenhuma matéria cadastrada" : "Sem matéria"}
+          </option>
+          {subjectsForProfile.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.name}
+              {option.source === "extra" ? " (extra)" : ""}
             </option>
           ))}
         </select>
@@ -197,7 +254,7 @@ export function ActionFields({
               className="min-h-11 w-fit text-left text-primary underline"
               onClick={() => change({ reminderAt: suggestReminder(value) })}
             >
-              Sugerir antecedência para {ACTION_LABELS[value.type].toLowerCase()}
+              Sugerir antecedência para {ACTIVITY_TYPE_LABELS[value.type].toLowerCase()}
             </button>
           ) : null}
           {value.reminderAt && new Date(value.reminderAt).valueOf() < Date.now() ? (

@@ -123,7 +123,7 @@ export function ActivityVoiceDialog({ open, onOpenChange, onParsed }: Props) {
         <DialogHeader>
           <DialogTitle>Cadastrar atividades por voz</DialogTitle>
           <DialogDescription>
-            Toque no microfone e fale a(s) atividade(s) — pode incluir o estudante, a matéria, o
+            Toque no microfone e fale as atividades. Você pode incluir o estudante, a matéria, o
             tipo (prova, trabalho, tarefa, lembrete) e a data. Ex.: "Pedro tem prova de matemática
             na quarta-feira sobre frações". Você terá até 2 minutos para falar.
           </DialogDescription>

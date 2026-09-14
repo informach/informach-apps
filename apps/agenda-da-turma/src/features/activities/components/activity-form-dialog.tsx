@@ -34,9 +34,11 @@ import { Textarea } from "@informach/ui/components/textarea";
 import { Loader2, Lock } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
+import { suggestDueDateFromSchedule } from "@/features/subjects/due-date-suggestion";
 import { AsyncCombobox, type ComboboxOption } from "@/features/turmas/components/async-combobox";
+import { ACTIVITY_TYPES as TYPES } from "@/features/unified-activities/activity-types";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { createActivityAction, updateActivityAction } from "../actions";
 import { FREE_ACTIVITY_LIMIT } from "../limits";
@@ -86,13 +88,6 @@ type Props = {
   manualHref?: string;
 };
 
-const TYPES: Array<"task" | "exam" | "project" | "reminder"> = [
-  "task",
-  "exam",
-  "project",
-  "reminder",
-];
-
 export function ActivityFormDialog({
   manualHref,
   open,
@@ -119,6 +114,9 @@ export function ActivityFormDialog({
   // Em modo edit, turmaId/subjectId/visibility ficam no form state com defaults
   // do `activity` (válidos), mesmo não sendo renderizados — passam pelo
   // resolver sem problema.
+  // Procedência da data quando ela veio do horário da matéria. Limpa assim que
+  // a pessoa digita outra data.
+  const [dueAtHint, setDueAtHint] = useState<string | null>(null);
   const form = useForm<CreateActivityFormValues>({
     resolver: zodResolver(createActivityInputSchema),
     defaultValues: buildActivityFormDefaults({
@@ -290,6 +288,7 @@ export function ActivityFormDialog({
 
   const handleOpenChange = (next: boolean) => {
     if (!next) {
+      setDueAtHint(null);
       form.reset(
         buildActivityFormDefaults({ activity, turmas, defaultTurmaId, defaultDueAt, defaultType }),
       );
@@ -375,7 +374,7 @@ export function ActivityFormDialog({
                           <SelectContent>
                             {turmas.map((t) => (
                               <SelectItem key={t.turmaId} value={t.turmaId}>
-                                {t.schoolName} — {formatTurmaShort(t.grade, t.classLetter, t.year)}
+                                {t.schoolName}, {formatTurmaShort(t.grade, t.classLetter, t.year)}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -396,7 +395,22 @@ export function ActivityFormDialog({
                     <FormControl>
                       <AsyncCombobox
                         value={field.value || null}
-                        onChange={(id) => field.onChange(id ?? "")}
+                        onChange={(id) => {
+                          field.onChange(id ?? "");
+                          // Data vazia + matéria com horário cadastrado →
+                          // próxima aula, respeitando o revezamento
+                          // quinzenal. Determinístico, a partir do horário
+                          // que a família cadastrou; um toque no campo de
+                          // data altera. Sem horário, fica vazio.
+                          if (!id || form.getValues("dueAt")) return;
+                          const subject = subjectsForTurma.find((s) => s.id === id);
+                          if (!subject) return;
+                          const suggestion = suggestDueDateFromSchedule(subject);
+                          if (suggestion) {
+                            form.setValue("dueAt", suggestion.dueAt, { shouldValidate: true });
+                            setDueAtHint(suggestion.label);
+                          }
+                        }}
                         fetchOptions={fetchSubjectOptions}
                         placeholder={
                           !selectedTurmaId
@@ -436,7 +450,7 @@ export function ActivityFormDialog({
                       <SelectContent>
                         {TYPES.map((t) => (
                           <SelectItem key={t} value={t}>
-                            {t === "task" ? "Para casa (tarefa)" : getActivityTypeLabel(t)}
+                            {getActivityTypeLabel(t)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -492,8 +506,19 @@ export function ActivityFormDialog({
                   <FormItem>
                     <FormLabel>Data de entrega</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} value={field.value ?? ""} />
+                      <Input
+                        type="date"
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) => {
+                          field.onChange(e);
+                          setDueAtHint(null);
+                        }}
+                      />
                     </FormControl>
+                    {dueAtHint ? (
+                      <p className="text-xs text-muted-foreground">{dueAtHint}</p>
+                    ) : null}
                     <FormMessage />
                   </FormItem>
                 )}

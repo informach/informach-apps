@@ -100,7 +100,7 @@ export function AlternatingSlotsEditor({
     <div className="space-y-3">
       {value.length === 0 ? (
         <p className="text-xs text-muted-foreground">
-          Sem revezamento configurado — a matéria acontece toda semana nos dias marcados acima.
+          Sem revezamento configurado. A matéria acontece toda semana nos dias marcados acima.
         </p>
       ) : null}
 

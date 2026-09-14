@@ -6,7 +6,7 @@ import { listStudentProfilesWithActiveTurmaForUser } from "@/features/students/s
 import { requireUserServer } from "@/lib/auth";
 
 export const metadata = {
-  title: "Perfis — Agenda da Turma",
+  title: "Perfis",
 };
 
 export default async function PerfisPage() {

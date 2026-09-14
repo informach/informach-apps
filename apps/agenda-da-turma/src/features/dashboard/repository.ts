@@ -156,10 +156,7 @@ export async function getDashboardCounters(
 // sem nenhuma atividade — LEFT JOIN nas statuses). Alimenta as tabs de
 // filtro e os progress cards. Não aceita profileFilter — é a fonte de
 // verdade pra "o que cada filho tem".
-export async function listProfileSummaries(
-  userId: string,
-  _options: Pick<Ctx, "isPro">,
-): Promise<DashboardProfileSummary[]> {
+export async function listProfileSummaries(userId: string): Promise<DashboardProfileSummary[]> {
   const today = todayLocalIso();
 
   // Duas queries paralelas (turma + extras) agregadas por perfil. Merge em

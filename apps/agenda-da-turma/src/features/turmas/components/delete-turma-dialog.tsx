@@ -77,7 +77,7 @@ export function DeleteTurmaDialog({ open, onOpenChange, turmaId, schoolName }: P
           <AlertDialogTitle>Apagar turma?</AlertDialogTitle>
           <AlertDialogDescription>
             A turma de &quot;{schoolName}&quot; e todas as matérias dela serão removidas
-            permanentemente. Só é possível apagar enquanto a turma estiver vazia — sem atividades
+            permanentemente. Só é possível apagar enquanto a turma estiver vazia, sem atividades
             cadastradas e sem outras famílias vinculadas.
           </AlertDialogDescription>
         </AlertDialogHeader>

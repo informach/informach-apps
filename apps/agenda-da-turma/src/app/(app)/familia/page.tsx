@@ -9,7 +9,7 @@ import { NotificationPreferencesPanel } from "@/features/notifications/component
 import { getNotificationPreferences } from "@/features/notifications/service";
 import { requireUserServer } from "@/lib/auth";
 import { env } from "@/lib/env";
-export const metadata = { title: "Família — Agenda da Turma" };
+export const metadata = { title: "Família" };
 export default async function FamilyPage() {
   const user = await requireUserServer();
   const [overview, isPro, preferences, entitlement, feedActive] = await Promise.all([

@@ -7,9 +7,10 @@ import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { CaptureForm } from "@/features/notices/components/capture-form";
 import { getNoticeSource, listAssignableAdults } from "@/features/notices/repository";
 import { noticeExtractionSchema, noticeSourceSchema } from "@/features/notices/schemas";
+import { listSubjectOptionsByProfile } from "@/features/subjects/options-service";
 import { requireUserServer } from "@/lib/auth";
 
-export const metadata = { title: "Importar mensagem ou foto — Agenda da Turma" };
+export const metadata = { title: "Importar mensagem ou foto" };
 export default async function NewNoticePage({
   searchParams,
 }: {
@@ -17,11 +18,12 @@ export default async function NewNoticePage({
 }) {
   const user = await requireUserServer();
   const params = await searchParams;
-  const [profiles, adults, entitlement, ownerIsPro] = await Promise.all([
+  const [profiles, adults, entitlement, ownerIsPro, subjectOptions] = await Promise.all([
     listAccessibleProfiles(user.id),
     listAssignableAdults(user.id),
     getFamilyEntitlements(user.id),
     getIsProForUser(user.id),
+    listSubjectOptionsByProfile(user.id),
   ]);
   let initialNotice:
     | { id: string; profileId: string; extraction: z.infer<typeof noticeExtractionSchema> }
@@ -56,6 +58,7 @@ export default async function NewNoticePage({
         key={initialNotice?.id ?? "new"}
         profiles={profiles.map((p) => ({ id: p.id, name: p.name }))}
         adults={adults}
+        subjectOptions={subjectOptions}
         proProfileIds={entitlement.proProfileIds}
         ownerIsPro={ownerIsPro}
         initialNotice={initialNotice}

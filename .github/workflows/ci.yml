@@ -68,6 +68,8 @@ jobs:
 
       - run: pnpm --filter @informach/cozya test:integration
 
+      - run: pnpm --filter @informach/missao-saber test:integration
+
       - run: pnpm --filter @informach/cozya eval
         env:
           EVAL_PREFLIGHT: "1"
@@ -78,12 +80,23 @@ jobs:
 
       - run: pnpm --filter @informach/agenda-da-turma e2e
 
+      - run: pnpm --filter @informach/missao-saber e2e
+
       - run: pnpm build
         env:
-          BETTER_AUTH_URL: https://agenda.example.com
-          NEXT_PUBLIC_APP_URL: https://agenda.example.com
-          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-          NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+          BETTER_AUTH_URL: https://ci.example.com
+          NEXT_PUBLIC_APP_URL: https://ci.example.com
+          EMAIL_SANDBOX_MODE: live
+          SENDGRID_WEBHOOK_PUBLIC_KEY: ci-build-placeholder
+          STRIPE_SECRET_KEY: sk_live_ci_build_placeholder
+          STRIPE_MODE: prod
+          STRIPE_PORTAL_CONFIGURATION_ID: bpc_ci_build_placeholder
+          MISSAO_INDIVIDUAL_MONTHLY_PRICE: price_ci_individual_monthly
+          MISSAO_INDIVIDUAL_ANNUAL_PRICE: price_ci_individual_annual
+          MISSAO_FAMILY_MONTHLY_PRICE: price_ci_family_monthly
+          MISSAO_FAMILY_ANNUAL_PRICE: price_ci_family_annual
+          SENTRY_DSN: https://public@ci.example.com/1
+          NEXT_PUBLIC_SENTRY_DSN: https://public@ci.example.com/1
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}

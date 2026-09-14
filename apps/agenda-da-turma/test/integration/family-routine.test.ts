@@ -72,6 +72,8 @@ const range = { fromIso: "2026-01-01", toIso: "2030-12-31", profileFilter: null,
 const action = (title = "Providência sintética", profileId = child): NoticeActionInput => ({
   profileId,
   type: "authorization",
+  subjectId: null,
+  profileSubjectId: null,
   title,
   description: null,
   dueAt: date,

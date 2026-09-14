@@ -1,25 +1,6 @@
 import { z } from "zod";
+import { activityTypeSchema } from "@/features/unified-activities/activity-types";
 
-export const ACTION_TYPES = [
-  "task",
-  "exam",
-  "project",
-  "reminder",
-  "material",
-  "authorization",
-  "event",
-  "study",
-] as const;
-export const ACTION_LABELS: Record<(typeof ACTION_TYPES)[number], string> = {
-  task: "Para casa (tarefa)",
-  exam: "Prova",
-  project: "Trabalho",
-  reminder: "Lembrete",
-  material: "Material",
-  authorization: "Autorização",
-  event: "Evento",
-  study: "Estudo",
-};
 export const NOTICE_SOURCES = ["teams", "batista", "notebook", "other"] as const;
 export const noticeSourceSchema = z.enum(NOTICE_SOURCES);
 export const SOURCE_LABELS = {
@@ -33,6 +14,7 @@ export const DATE_ORIGIN_LABELS = {
   school: "Informado no original",
   relative: "Calculado a partir do original",
   family: "Planejado pela família",
+  schedule: "Calculado pelo horário da matéria",
 };
 
 export const dateSchema = z
@@ -73,7 +55,7 @@ export const parseNoticeSchema = z
   .refine((v) => v.text.length > 0 || v.attachment, "Cole um recado ou escolha um anexo");
 
 export const extractedActionSchema = z.object({
-  type: z.enum(ACTION_TYPES),
+  type: activityTypeSchema,
   title: z.string().trim().min(1).max(180),
   description: z.string().max(3000).nullable(),
   dueAt: dateSchema.nullable(),
@@ -106,12 +88,25 @@ export const noticeGenerationSchema = noticeExtractionSchema.required({
 export const actionFieldsSchema = extractedActionSchema
   .extend({
     profileId: z.string().uuid(),
-    dateOrigin: z.enum(["unspecified", "school", "relative", "family"]),
+    // "schedule" só é atribuído pelo cálculo determinístico da próxima aula,
+    // no formulário. `extractedActionSchema` (saída da IA) segue sem ele.
+    dateOrigin: z.enum(["unspecified", "school", "relative", "family", "schedule"]),
+    // Matéria da providência, escolhida pela pessoa na revisão. No máximo uma
+    // das duas: da turma da criança OU extracurricular dela. O serviço
+    // revalida a pertinência — o formulário só sugere as opções.
+    subjectId: z.string().uuid().nullable().default(null),
+    profileSubjectId: z.string().uuid().nullable().default(null),
     assignedToUserId: z.string().max(128).nullable().default(null),
     reminderAt: z.string().datetime({ offset: true }).nullable().default(null),
     recurrence: z.enum(["none", "weekly"]).default("none"),
   })
   .superRefine((v, ctx) => {
+    if (v.subjectId && v.profileSubjectId)
+      ctx.addIssue({
+        code: "custom",
+        path: ["subjectId"],
+        message: "Escolha uma matéria da turma ou uma extracurricular, não as duas",
+      });
     if ((v.dueAt === null) !== (v.dateOrigin === "unspecified"))
       ctx.addIssue({
         code: "custom",

@@ -10,11 +10,13 @@ import { Pricing } from "@/components/marketing/sections/pricing";
 import { Problem } from "@/components/marketing/sections/problem";
 import { Trust } from "@/components/marketing/sections/trust";
 
-const TITLE = "Agenda da Turma — a rotina da escola não precisa morar na sua cabeça.";
+const TITLE = "Agenda da Turma: a rotina da escola não precisa morar na sua cabeça.";
 const DESCRIPTION =
   "Transforme mensagens, fotos e PDFs da escola em providências claras. Confira os prazos e, no Pro, divida os cuidados e acompanhe com lembretes. Experimente sem cartão.";
 export const metadata: Metadata = {
-  title: TITLE,
+  // `absolute` porque o título da home já traz a marca; sem isso o template
+  // do layout raiz a repetiria no fim.
+  title: { absolute: TITLE },
   description: DESCRIPTION,
   openGraph: { title: TITLE, description: DESCRIPTION, type: "website", locale: "pt_BR" },
   twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },

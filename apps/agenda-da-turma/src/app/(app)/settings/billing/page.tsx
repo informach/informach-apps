@@ -20,7 +20,7 @@ import { requireUserServer } from "@/lib/auth";
 import { env } from "@/lib/env";
 
 export const metadata = {
-  title: "Plano e cobrança — Agenda da Turma",
+  title: "Plano e cobrança",
 };
 
 const APP_SLUG = APPS.agendaDaTurma.slug;
