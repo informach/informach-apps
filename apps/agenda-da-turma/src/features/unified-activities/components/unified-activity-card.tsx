@@ -19,16 +19,22 @@ import {
 } from "@/features/activities/utils";
 import { RoutineCard } from "@/features/notices/components/routine-card";
 import { setProfileSubjectActivityStatusAction } from "@/features/profile-subject-activities/actions";
+import type { ProfileSubjectActivityListItem } from "@/features/profile-subject-activities/types";
 import {
   getSubjectIconClassByIndex,
   getSubjectTintedClassByIndex,
 } from "@/features/subjects/utils";
 import { isActionRejected } from "@/lib/action-result";
 import { useCardToggle } from "../hooks/use-card-toggle";
-import type { UnifiedActivityListItem } from "../types";
+import type { ActivityOverviewItem } from "../overview-types";
 
 type Props = {
-  item: UnifiedActivityListItem;
+  /**
+   * Entrada da projeção unificada — traz a fonte e a linha crua da tabela
+   * correspondente. Todas as listas (rotina, /atividades, dia do calendário)
+   * passam por aqui, então o mesmo item nunca aparece com dois formatos.
+   */
+  entry: ActivityOverviewItem;
   currentUserId: string;
   isPro: boolean;
   turmasForForm: TurmaWithSubjectsForForm[];
@@ -44,7 +50,7 @@ type Props = {
    */
   optimisticHideWhenDone?: boolean;
   onStatusSuccess?: (
-    item: UnifiedActivityListItem,
+    entry: ActivityOverviewItem,
     previousStatus: ActivityStatusValue,
     nextStatus: ActivityStatusValue,
   ) => void;
@@ -56,7 +62,7 @@ type Props = {
 // chart-N, ícone do tipo, badge de urgência) com badge "Extra" pra
 // diferenciar a origem.
 export function UnifiedActivityCard({
-  item,
+  entry,
   currentUserId,
   isPro,
   turmasForForm,
@@ -64,27 +70,39 @@ export function UnifiedActivityCard({
   optimisticHideWhenDone = false,
   onStatusSuccess,
 }: Props) {
-  if (item.source === "notice") return <RoutineCard item={item.routineItem} />;
-  if (item.source === "turma") {
+  if (entry.source === "notice") {
+    return (
+      <RoutineCard
+        item={entry.item}
+        optimisticHideWhenDone={optimisticHideWhenDone}
+        onStatusSuccess={(row, previousStatus, nextStatus) =>
+          onStatusSuccess?.({ ...entry, item: row }, previousStatus, nextStatus)
+        }
+      />
+    );
+  }
+  if (entry.source === "turma") {
     return (
       <ActivityCard
-        item={item}
+        item={entry.item}
         currentUserId={currentUserId}
         isPro={isPro}
         turmasForForm={turmasForForm}
         hideActions={hideActions}
         optimisticHideWhenDone={optimisticHideWhenDone}
         onStatusSuccess={(activity, previousStatus, nextStatus) =>
-          onStatusSuccess?.({ ...activity, source: "turma" }, previousStatus, nextStatus)
+          onStatusSuccess?.({ ...entry, item: activity }, previousStatus, nextStatus)
         }
       />
     );
   }
   return (
     <UnifiedExtraActivityCard
-      item={item}
+      item={entry.item}
       optimisticHideWhenDone={optimisticHideWhenDone}
-      onStatusSuccess={onStatusSuccess}
+      onStatusSuccess={(activity, previousStatus, nextStatus) =>
+        onStatusSuccess?.({ ...entry, item: activity }, previousStatus, nextStatus)
+      }
     />
   );
 }
@@ -94,10 +112,10 @@ function UnifiedExtraActivityCard({
   optimisticHideWhenDone,
   onStatusSuccess,
 }: {
-  item: Extract<UnifiedActivityListItem, { source: "extra" }>;
+  item: ProfileSubjectActivityListItem;
   optimisticHideWhenDone: boolean;
   onStatusSuccess?: (
-    item: UnifiedActivityListItem,
+    item: ProfileSubjectActivityListItem,
     previousStatus: ActivityStatusValue,
     nextStatus: ActivityStatusValue,
   ) => void;

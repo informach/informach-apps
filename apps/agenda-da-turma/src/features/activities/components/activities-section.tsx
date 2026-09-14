@@ -14,7 +14,6 @@ import { ArrowLeft, ArrowRight, Camera, FileText, ListTodo, Mic, Plus } from "lu
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { RoutineCard } from "@/features/notices/components/routine-card";
 import type { StudentProfile } from "@/features/students/types";
 import {
   ACTIVITY_TYPE_LABELS,
@@ -305,19 +304,15 @@ export function ActivitiesSection({
       ) : (
         <>
           <div className="flex flex-col gap-3">
-            {items.map((entry) =>
-              entry.source === "notice" ? (
-                <RoutineCard key={entry.key} item={entry.item} />
-              ) : (
-                <UnifiedActivityCard
-                  key={entry.key}
-                  item={entry.source === "turma" ? { ...entry.item, source: "turma" } : entry.item}
-                  currentUserId={currentUserId}
-                  isPro={isPro}
-                  turmasForForm={turmasForForm}
-                />
-              ),
-            )}
+            {items.map((entry) => (
+              <UnifiedActivityCard
+                key={entry.key}
+                entry={entry}
+                currentUserId={currentUserId}
+                isPro={isPro}
+                turmasForForm={turmasForForm}
+              />
+            ))}
           </div>
 
           {(hasNextPage || isPaginated) && (

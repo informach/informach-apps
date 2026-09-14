@@ -64,7 +64,7 @@ export async function getDashboardSnapshot(
     listUnifiedBucket(userId, "overdue", { ...ctx, limit: options.limit ?? 5 }, todayIso),
     listUnifiedBucket(userId, "today", { ...ctx, limit: options.limit ?? 5 }, todayIso),
     listUnifiedBucket(userId, "week", { ...ctx, limit: options.limit ?? 10 }, todayIso),
-    listProfileSummaries(userId, { isPro }),
+    listProfileSummaries(userId),
   ]);
 
   return { todayIso, counters, overdue, today, upcoming, perProfile };

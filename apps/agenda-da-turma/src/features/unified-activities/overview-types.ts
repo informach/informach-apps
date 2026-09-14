@@ -3,6 +3,7 @@ import type { ActivityListItem } from "@/features/activities/types";
 import type { NoticeActionRow } from "@/features/notices/repository";
 import type { ProfileSubjectActivityListItem } from "@/features/profile-subject-activities/types";
 import type { ActivityType } from "./activity-types";
+import type { UnifiedActivityListItem } from "./types";
 
 export type OverviewActivityType = ActivityType;
 export const overviewStatusSchema = z.enum(["all", "pending", "done", "canceled"]);
@@ -34,4 +35,30 @@ export function activityOverviewHref(options: ActivityOverviewOptions) {
   if (options.noticeId) params.set("recado", options.noticeId);
   if (options.page > 1) params.set("pagina", String(options.page));
   return params.size ? `/atividades?${params}` : "/atividades";
+}
+
+// O calendário monta sua lista com `UnifiedActivityListItem` (precisa de
+// `dueAt` para ordenar os blips). O card despacha pela projeção, então a
+// conversão acontece aqui, num ponto só.
+export function toOverviewEntry(item: UnifiedActivityListItem): ActivityOverviewItem {
+  if (item.source === "notice") {
+    return { key: `notice:${item.activityId}`, source: "notice", item: item.routineItem };
+  }
+  if (item.source === "turma") {
+    return { key: `turma:${item.statusId}`, source: "turma", item };
+  }
+  return { key: `extra:${item.activityId}`, source: "extra", item };
+}
+
+// Acessores por fonte — cada tabela guarda o prazo e a criança num lugar
+// diferente, e as vistas que misturam as três precisam dos dois sem se
+// importar com a origem.
+export function overviewDueAt(entry: ActivityOverviewItem): string | null {
+  if (entry.source === "notice") return entry.item.action.dueAt;
+  return entry.item.dueAt;
+}
+
+export function overviewProfileId(entry: ActivityOverviewItem): string {
+  if (entry.source === "notice") return entry.item.action.profileId;
+  return entry.item.studentProfileId;
 }

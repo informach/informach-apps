@@ -363,6 +363,23 @@ export async function userHasMemberInTurma(userId: string, turmaId: string): Pro
   return row !== undefined;
 }
 
+// Versão em lote de `verifyMembership`, para telas que resolvem vários perfis
+// de uma vez (o horário do dia no dashboard). Devolve os pares
+// (perfil, turma) que realmente existem — `active_turma_id` sozinho é
+// preferência, não participação.
+export async function listMembershipsForProfiles(
+  profileIds: string[],
+): Promise<Array<{ profileId: string; turmaId: string }>> {
+  if (profileIds.length === 0) return [];
+  return db
+    .select({
+      profileId: agendaTurmaMembers.studentProfileId,
+      turmaId: agendaTurmaMembers.turmaId,
+    })
+    .from(agendaTurmaMembers)
+    .where(inArray(agendaTurmaMembers.studentProfileId, profileIds));
+}
+
 export async function verifyMembership(profileId: string, turmaId: string): Promise<boolean> {
   const [row] = await db
     .select({ id: agendaTurmaMembers.id })

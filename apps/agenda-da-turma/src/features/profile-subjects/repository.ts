@@ -164,6 +164,25 @@ export async function listActiveProfileSubjectsForProfile(
     .orderBy(asc(agendaProfileSubjects.name));
 }
 
+// Extras `active` de vários perfis de uma vez. Recebe ids já autorizados pelo
+// caller (o serviço resolve os perfis acessíveis antes), então não repete a
+// checagem de acesso aqui.
+export async function listActiveProfileSubjectsForProfiles(
+  profileIds: string[],
+): Promise<ProfileSubject[]> {
+  if (profileIds.length === 0) return [];
+  return db
+    .select()
+    .from(agendaProfileSubjects)
+    .where(
+      and(
+        inArray(agendaProfileSubjects.profileId, profileIds),
+        eq(agendaProfileSubjects.status, "active"),
+      ),
+    )
+    .orderBy(asc(agendaProfileSubjects.name));
+}
+
 // Lista todas as extras `active` de todos os perfis do user — utility pro
 // dashboard quando não tem filtro de perfil.
 export async function listActiveProfileSubjectsForUser(userId: string): Promise<ProfileSubject[]> {

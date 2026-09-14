@@ -4,6 +4,7 @@ import { Button } from "@informach/ui/components/button";
 import { Plus } from "lucide-react";
 import type { TurmaWithSubjectsForForm } from "@/features/activities/types";
 import { UnifiedActivityCard } from "@/features/unified-activities/components/unified-activity-card";
+import { toOverviewEntry } from "@/features/unified-activities/overview-types";
 import type { UnifiedActivityListItem } from "@/features/unified-activities/types";
 import { formatDayLabel } from "../date";
 
@@ -48,10 +49,10 @@ export function DayView({
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {items.map((item) => (
+          {items.map(toOverviewEntry).map((entry) => (
             <UnifiedActivityCard
-              key={item.source === "turma" ? item.statusId : item.activityId}
-              item={item}
+              key={entry.key}
+              entry={entry}
               currentUserId={currentUserId}
               isPro={isPro}
               turmasForForm={turmasForForm}
