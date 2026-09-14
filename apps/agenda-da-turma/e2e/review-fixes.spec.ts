@@ -292,6 +292,43 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       await page.getByRole("button", { name: "Cancelar", exact: true }).click();
     });
 
+    await test.step("família reúne crianças, turmas, adultos e ajustes", async () => {
+      // As rotas antigas continuam respondendo: há links salvos e as telas
+      // profundas de extracurriculares e matérias seguem sob elas.
+      await page.goto("/perfis");
+      await expect(page).toHaveURL(/\/familia$/);
+      await page.goto(`/turmas?perfil=${child.id}`);
+      await expect(page).toHaveURL(new RegExp(`/familia/turmas\\?perfil=${child.id}$`));
+
+      await page.goto("/familia");
+      const sections = page.getByRole("navigation", { name: "Seções da família" });
+      await expect(sections.getByRole("link")).toHaveCount(4);
+      // Quem procura "meus filhos" toca em Família e acha, em vez de precisar
+      // do menu do avatar.
+      for (const name of ["Criança A navegador", "Criança B navegador"]) {
+        await expect(
+          page.getByRole("button", { name: `Ações para ${name}`, exact: true }),
+        ).toBeVisible();
+      }
+
+      for (const [label, route, heading] of [
+        ["Turmas", "/familia/turmas", "Escola fictícia revisão"],
+        ["Adultos", "/familia/adultos", "Quem cuida junto"],
+        ["Ajustes", "/familia/ajustes", "Sua agenda no calendário pessoal"],
+      ] as const) {
+        await sections.getByRole("link", { name: label, exact: true }).click();
+        await expect(page).toHaveURL(new RegExp(`${route}$`));
+        await expect(page.getByText(heading).first()).toBeVisible();
+      }
+
+      // O rodapé acende Família em todas as sub-rotas.
+      await expect(
+        page
+          .getByRole("navigation", { name: "Navegação principal" })
+          .getByRole("link", { name: "Família", exact: true }),
+      ).toHaveAttribute("aria-current", "page");
+    });
+
     for (const version of [2, 3]) {
       await page.goto("/atividades");
       await page

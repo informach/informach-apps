@@ -136,7 +136,7 @@ test("two adults, private child access, completion, revocation and confirmed del
       headers: { Origin: baseURL },
       data: {},
     });
-    await page.goto("/familia");
+    await page.goto("/familia/adultos");
     await page.getByLabel("E-mail do responsável").fill(guest.email);
     await page.getByLabel("Criança B restrita", { exact: true }).uncheck();
     await page.getByRole("button", { name: "Criar convite", exact: true }).click();
@@ -172,7 +172,7 @@ test("two adults, private child access, completion, revocation and confirmed del
       true,
     );
     await page.screenshot({ path: "tmp/evaluation/family-mobile.png", fullPage: true });
-    await page.goto("/familia");
+    await page.goto("/familia/adultos");
     await page
       .getByRole("button", { name: "Remover acesso deste responsável", exact: true })
       .click();

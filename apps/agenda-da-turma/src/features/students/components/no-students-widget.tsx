@@ -22,7 +22,7 @@ export function NoStudentsWidget() {
           </div>
         </div>
         <Button asChild variant="secondary" className="shrink-0">
-          <Link href="/perfis">Criar perfil</Link>
+          <Link href="/familia">Criar perfil</Link>
         </Button>
       </CardContent>
     </Card>

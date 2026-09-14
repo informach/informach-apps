@@ -67,8 +67,8 @@ export function FamilyPanel({ overview, isPro }: { overview: FamilyOverview; isP
       {!overview.profiles.length ? (
         <p className="text-sm">
           Crie o primeiro perfil em{" "}
-          <Link href="/perfis" className="text-primary underline">
-            Meus perfis
+          <Link href="/familia" className="text-primary underline">
+            Crianças
           </Link>
           .
         </p>

@@ -12,7 +12,7 @@ export const rotateGroupCodeAction = action
   .run(async ({ ctx, input }) => {
     if (!ctx.actor?.id) return err({ code: "UNAUTHORIZED" } as const);
     const result = await rotateGroupCode(ctx.actor.id, input.turmaId);
-    if (result.ok) revalidatePath("/turmas", "layout");
+    if (result.ok) revalidatePath("/familia", "layout");
     return result;
   });
 export const removeGroupAdultAction = action

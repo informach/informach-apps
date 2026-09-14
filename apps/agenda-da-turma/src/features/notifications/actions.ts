@@ -11,7 +11,7 @@ export const saveNotificationPreferencesAction = action
   .run(async ({ ctx, input }) => {
     if (!ctx.actor?.id) return err({ code: "UNAUTHORIZED" } as const);
     const result = await saveNotificationPreferences(ctx.actor.id, input);
-    if (result.ok) revalidatePath("/familia");
+    if (result.ok) revalidatePath("/familia", "layout");
     return result;
   });
 export const subscribePushAction = action

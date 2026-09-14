@@ -33,9 +33,9 @@ export function TurmasSection({ turmas, profiles, activeFilter, currentUserId }:
 
   const handleFilterChange = (value: string) => {
     if (value === "all") {
-      router.push("/turmas");
+      router.push("/familia/turmas");
     } else {
-      router.push(`/turmas?perfil=${value}`);
+      router.push(`/familia/turmas?perfil=${value}`);
     }
   };
 
@@ -55,7 +55,7 @@ export function TurmasSection({ turmas, profiles, activeFilter, currentUserId }:
             </p>
           </div>
           <Button asChild>
-            <Link href="/perfis">Criar perfil</Link>
+            <Link href="/familia">Criar perfil</Link>
           </Button>
         </CardContent>
       </Card>

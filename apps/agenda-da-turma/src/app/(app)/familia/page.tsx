@@ -1,42 +1,33 @@
-import Link from "next/link";
 import { getIsProForUser } from "@/features/billing/server-cache";
-import { CalendarFeedPanel } from "@/features/calendar-feed/components/feed-panel";
-import { hasCalendarFeed } from "@/features/calendar-feed/service";
-import { FamilyPanel } from "@/features/family/components/family-panel";
-import { getFamilyEntitlements } from "@/features/family/entitlements";
-import { getFamilyOverview } from "@/features/family/repository";
-import { NotificationPreferencesPanel } from "@/features/notifications/components/preferences-panel";
-import { getNotificationPreferences } from "@/features/notifications/service";
+import { FamilyHeader } from "@/features/family/components/family-tabs";
+import { StudentsSection } from "@/features/students/components/students-section";
+import { FREE_STUDENT_PROFILE_LIMIT, PRO_STUDENT_PROFILE_LIMIT } from "@/features/students/limits";
+import { listStudentProfilesWithActiveTurmaForUser } from "@/features/students/service";
 import { requireUserServer } from "@/lib/auth";
-import { env } from "@/lib/env";
-export const metadata = { title: "Família" };
-export default async function FamilyPage() {
+
+export const metadata = { title: "Crianças" };
+
+export default async function FamilyChildrenPage() {
   const user = await requireUserServer();
-  const [overview, isPro, preferences, entitlement, feedActive] = await Promise.all([
-    getFamilyOverview(user.id),
+  const [profiles, isPro] = await Promise.all([
+    listStudentProfilesWithActiveTurmaForUser(user.id),
     getIsProForUser(user.id),
-    getNotificationPreferences(user.id),
-    getFamilyEntitlements(user.id),
-    hasCalendarFeed(user.id),
   ]);
+  const limit = isPro ? PRO_STUDENT_PROFILE_LIMIT : FREE_STUDENT_PROFILE_LIMIT;
+
   return (
-    <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 pb-28 sm:px-8">
-      <header>
-        <h1 className="text-2xl font-semibold">Família e preferências</h1>
-        <p className="mt-2 text-muted-foreground">
-          Combine responsabilidades e como deseja acompanhar a rotina.
-        </p>
-      </header>
-      <FamilyPanel overview={overview} isPro={isPro} />
-      <NotificationPreferencesPanel
-        initial={preferences}
-        enabled={entitlement.enabled}
-        publicKey={env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY ? env.VAPID_PUBLIC_KEY : null}
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 pb-28 md:px-8">
+      <FamilyHeader
+        current="/familia"
+        subtitle="Um perfil por criança organiza a rotina escolar de cada uma."
       />
-      <CalendarFeedPanel active={feedActive} enabled={entitlement.enabled} />
-      <Link href="/settings/account" className="block text-sm text-primary underline">
-        Dados e exclusão da conta
-      </Link>
+      <StudentsSection
+        currentUserId={user.id}
+        profiles={profiles}
+        isPro={isPro}
+        currentCount={profiles.filter((p) => p.userId === user.id).length}
+        limit={limit}
+      />
     </main>
   );
 }

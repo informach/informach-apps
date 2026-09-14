@@ -10,7 +10,7 @@ export const createCalendarFeedAction = action
   .run(async ({ ctx }) => {
     if (!ctx.actor?.id) return err({ code: "UNAUTHORIZED" } as const);
     const result = await createCalendarFeed(ctx.actor.id);
-    if (result.ok) revalidatePath("/familia");
+    if (result.ok) revalidatePath("/familia", "layout");
     return result;
   });
 export const revokeCalendarFeedAction = action
@@ -20,6 +20,6 @@ export const revokeCalendarFeedAction = action
   .run(async ({ ctx }) => {
     if (!ctx.actor?.id) return err({ code: "UNAUTHORIZED" } as const);
     const result = await revokeCalendarFeeds(ctx.actor.id);
-    revalidatePath("/familia");
+    revalidatePath("/familia", "layout");
     return result;
   });

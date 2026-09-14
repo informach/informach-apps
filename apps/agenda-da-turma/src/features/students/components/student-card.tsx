@@ -60,7 +60,7 @@ export function StudentCard({ profile, isPro, currentCount, currentUserId }: Pro
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem asChild>
-                  <Link href={`/turmas?perfil=${profile.id}`}>
+                  <Link href={`/familia/turmas?perfil=${profile.id}`}>
                     <GraduationCap className="mr-2 size-4" aria-hidden />
                     Gerenciar turmas
                   </Link>

@@ -29,7 +29,7 @@ export function ProfilesWithoutTurmaWidget({ count }: Props) {
           </div>
         </div>
         <Button asChild variant="secondary" className="shrink-0">
-          <Link href="/turmas">Ver turmas</Link>
+          <Link href="/familia/turmas">Ver turmas</Link>
         </Button>
       </CardContent>
     </Card>
