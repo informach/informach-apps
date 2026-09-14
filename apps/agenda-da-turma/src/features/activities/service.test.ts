@@ -3,7 +3,6 @@ import {
   createActivitiesBatch,
   createActivity,
   deleteActivity,
-  getActivitiesPageForUser,
   respondSharedActivity,
   setActivityStatus,
   updateActivity,
@@ -29,7 +28,6 @@ const mocks = vi.hoisted(() => ({
   findActivityStatusForProfile: vi.fn(),
   updateActivityStatusValue: vi.fn(),
   upsertAcceptanceAndStatuses: vi.fn(),
-  listActivitiesPageForUser: vi.fn(),
   listPendingSharedActivitiesForUser: vi.fn(),
   listTurmasWithSubjectsForUserForm: vi.fn(),
 }));
@@ -64,7 +62,6 @@ vi.mock("./repository", () => ({
   findActivityStatusForProfile: mocks.findActivityStatusForProfile,
   updateActivityStatusValue: mocks.updateActivityStatusValue,
   upsertAcceptanceAndStatuses: mocks.upsertAcceptanceAndStatuses,
-  listActivitiesPageForUser: mocks.listActivitiesPageForUser,
   listPendingSharedActivitiesForUser: mocks.listPendingSharedActivitiesForUser,
   listTurmasWithSubjectsForUserForm: mocks.listTurmasWithSubjectsForUserForm,
 }));
@@ -733,43 +730,5 @@ describe("shared activity corrections (creator vs acceptor)", () => {
     const deleteAttempt = await deleteActivity(other.id, { id: activityId });
     expect(deleteAttempt.ok).toBe(false);
     if (!deleteAttempt.ok) expect(deleteAttempt.error.code).toBe("FORBIDDEN");
-  });
-});
-
-describe("getActivitiesPageForUser", () => {
-  const emptyPage = { items: [], nextCursor: null };
-
-  it("preserva atividades compartilhadas de outros usuários para Free", async () => {
-    mocks.hasProSubscription.mockResolvedValue(false);
-    mocks.listActivitiesPageForUser.mockResolvedValue(emptyPage);
-
-    const result = await getActivitiesPageForUser(other.id, {
-      profileFilter: null,
-      cursor: null,
-    });
-
-    expect(result).toBe(emptyPage);
-    expect(mocks.listActivitiesPageForUser).toHaveBeenCalledWith(other.id, {
-      profileFilter: null,
-      cursor: null,
-      includeSharedFromOthers: true,
-    });
-  });
-
-  it("inclui atividades compartilhadas de outros usuários para Pro", async () => {
-    mocks.hasProSubscription.mockResolvedValue(true);
-    mocks.listActivitiesPageForUser.mockResolvedValue(emptyPage);
-
-    const result = await getActivitiesPageForUser(other.id, {
-      profileFilter: profileId,
-      cursor: "cursor_1",
-    });
-
-    expect(result).toBe(emptyPage);
-    expect(mocks.listActivitiesPageForUser).toHaveBeenCalledWith(other.id, {
-      profileFilter: profileId,
-      cursor: "cursor_1",
-      includeSharedFromOthers: true,
-    });
   });
 });

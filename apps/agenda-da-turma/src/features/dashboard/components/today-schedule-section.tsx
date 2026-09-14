@@ -51,7 +51,7 @@ function formatDayLabel(iso: string): string {
 }
 
 function ProfileSchedule({ view }: { view: TodaySubjectsView }) {
-  const isWeekend = view.todayDay === null;
+  const isWeekend = view.classDay === null;
   return (
     <article className="rounded-2xl border bg-card p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -136,7 +136,7 @@ export async function TodayScheduleSection({
   const views = await getTodaySubjectsForProfiles(userId, { profileFilter });
   if (views.length === 0) return null;
 
-  const dayLabel = formatDayLabel(views[0]?.todayIso ?? "");
+  const dayLabel = formatDayLabel(views[0]?.dateIso ?? "");
 
   return (
     <section className="space-y-4" aria-labelledby="today-schedule-title">

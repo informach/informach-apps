@@ -22,10 +22,7 @@ import {
 import { PDFDocument } from "pdf-lib";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { findActivityHistory } from "@/features/activities/history-repository";
-import {
-  listActivitiesPageForUser,
-  listPendingSharedActivitiesForUser,
-} from "@/features/activities/repository";
+import { listPendingSharedActivitiesForUser } from "@/features/activities/repository";
 import {
   createActivity,
   deleteActivity,
@@ -357,33 +354,22 @@ describe("Review regressions", () => {
       );
       if (type === "exam") exams.push(activity.id);
     }
-    const options = {
+    const options: ActivityOverviewOptions = {
       profileFilter: child,
-      typeFilter: "exam" as const,
-      cursor: null,
-      includeSharedFromOthers: true,
-      limit: 1,
+      typeFilter: "exam",
+      statusFilter: "pending",
+      noticeId: null,
+      page: 1,
     };
-    const first = await listActivitiesPageForUser(owner, options);
-    expect(first.items).toHaveLength(1);
-    expect(first.items[0]?.type).toBe("exam");
-    expect(first.nextCursor).not.toBeNull();
-    const second = await listActivitiesPageForUser(owner, { ...options, cursor: first.nextCursor });
-    expect(second.items).toHaveLength(1);
-    expect(second.items[0]?.type).toBe("exam");
-    expect(second.nextCursor).toBeNull();
-    expect([...first.items, ...second.items].map((item) => item.activityId).sort()).toEqual(
-      exams.sort(),
-    );
-    expect((await listActivitiesPageForUser(outsider, options)).items).toEqual([]);
+    const filtered = await getActivityOverview(owner, options);
     expect(
-      (await listActivitiesPageForUser(owner, { ...options, profileFilter: sibling })).items,
+      filtered.items.map((item) => (item.source === "turma" ? item.item.activityId : null)).sort(),
+    ).toEqual(exams.sort());
+    expect((await getActivityOverview(outsider, options)).items).toEqual([]);
+    expect(
+      (await getActivityOverview(owner, { ...options, profileFilter: sibling })).items,
     ).toEqual([]);
-    const allTypes = await listActivitiesPageForUser(owner, {
-      ...options,
-      typeFilter: null,
-      limit: 10,
-    });
+    const allTypes = await getActivityOverview(owner, { ...options, typeFilter: null });
     expect(allTypes.items).toHaveLength(4);
   });
 
@@ -392,12 +378,15 @@ describe("Review regressions", () => {
     const first = value(
       await updateActivity(owner, { ...a, description: "Primeira edição", version: a.version }),
     );
-    const listed = await listActivitiesPageForUser(owner, {
+    const listed = await getActivityOverview(owner, {
       profileFilter: null,
-      cursor: null,
-      includeSharedFromOthers: true,
+      typeFilter: null,
+      statusFilter: "pending",
+      noticeId: null,
+      page: 1,
     });
-    expect(listed.items[0]?.version).toBe(first.version);
+    const listedSchool = listed.items.find((item) => item.source === "turma");
+    expect(listedSchool?.source === "turma" && listedSchool.item.version).toBe(first.version);
     const second = value(
       await updateActivity(owner, {
         ...first,

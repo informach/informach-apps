@@ -15,6 +15,7 @@ import {
 } from "@/features/unified-activities/overview-types";
 import type { RoutineBucketKey, RoutineBuckets } from "@/features/unified-activities/routine-types";
 import { applyRoutineStatusChange } from "../routine-optimistic";
+import type { TodaySubjectsView } from "../today-subjects-service";
 import type { DashboardCounters } from "../types";
 import { KpiCards } from "./kpi-cards";
 
@@ -60,6 +61,8 @@ type Props = {
   todayIso: string;
   buckets: RoutineBuckets;
   initialCounters: DashboardCounters;
+  /** Matérias de amanhã por criança — alimenta a mochila. */
+  tomorrowSchedule: TodaySubjectsView[];
   currentUserId: string;
   isPro: boolean;
   turmasForForm: TurmaWithSubjectsForForm[];
@@ -75,6 +78,7 @@ export function RoutineView({
   todayIso,
   buckets,
   initialCounters,
+  tomorrowSchedule,
   currentUserId,
   isPro,
   turmasForForm,
@@ -118,6 +122,7 @@ export function RoutineView({
                 <p className="mt-1 text-sm text-muted-foreground">{description}</p>
               </div>
             </div>
+            {key === "tomorrow" ? <TomorrowBackpack schedule={tomorrowSchedule} /> : null}
             {entries.length > 0 ? (
               <div className="grid gap-3 sm:grid-cols-2">
                 {entries.map((entry) => (
@@ -157,6 +162,35 @@ export function RoutineView({
         continuam no canal oficial. As listas consideram os itens cadastrados; novos recados e
         retificações precisam ser importados.
       </p>
+    </div>
+  );
+}
+
+/**
+ * Mochila de amanhã: as matérias que cada criança tem no dia seguinte.
+ *
+ * É a pergunta concreta das nove da noite — "o que entra na mochila?" — e
+ * sai de dado que já existe: o horário cadastrado, com o revezamento
+ * quinzenal aplicado. Os materiais pedidos aparecem logo abaixo, como
+ * atividades do bucket.
+ */
+function TomorrowBackpack({ schedule }: { schedule: TodaySubjectsView[] }) {
+  const withClasses = schedule.filter((view) => view.subjects.length > 0);
+  if (withClasses.length === 0) return null;
+  return (
+    <div className="rounded-2xl border border-chart-1/25 bg-chart-1/5 p-4">
+      <p className="flex items-center gap-2 text-sm font-semibold">
+        <Backpack className="size-4 shrink-0 text-chart-1" aria-hidden />
+        Na mochila de amanhã
+      </p>
+      <ul className="mt-2 space-y-1">
+        {withClasses.map((view) => (
+          <li key={view.profileId} className="break-words text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">{view.profileName}:</span>{" "}
+            {view.subjects.map((subject) => subject.name).join(" · ")}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

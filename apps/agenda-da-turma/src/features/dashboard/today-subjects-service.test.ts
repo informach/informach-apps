@@ -162,8 +162,28 @@ describe("getTodaySubjectsForProfiles", () => {
     const views = await getTodaySubjectsForProfiles("u1");
 
     expect(views).toHaveLength(1);
-    expect(views[0]?.todayDay).toBeNull();
+    expect(views[0]?.classDay).toBeNull();
     expect(views[0]?.subjects).toEqual([]);
+  });
+
+  it("consulta outro dia quando recebe dateIso — base da mochila de amanhã", async () => {
+    // Hoje é segunda; amanhã (terça) a matéria de segunda não aparece.
+    mocks.listAccessibleProfiles.mockResolvedValue([
+      { id: "p1", name: "Ana", activeTurmaId: "t1" },
+    ]);
+    mocks.listMembershipsForProfiles.mockResolvedValue([{ profileId: "p1", turmaId: "t1" }]);
+    mocks.listSubjectsForTurma.mockResolvedValue([
+      subject({ id: "seg", name: "Matemática", classDays: ["mon"] }),
+      subject({ id: "ter", name: "História", classDays: ["tue"] }),
+    ]);
+    mocks.attachAlternatingSlots.mockImplementation(async (rows: unknown[]) => rows);
+
+    const hoje = await getTodaySubjectsForProfiles("u1");
+    expect(hoje[0]?.subjects.map((s) => s.name)).toEqual(["Matemática"]);
+
+    const amanha = await getTodaySubjectsForProfiles("u1", { dateIso: "2026-09-15" });
+    expect(amanha[0]?.subjects.map((s) => s.name)).toEqual(["História"]);
+    expect(amanha[0]?.dateIso).toBe("2026-09-15");
   });
 
   it("aplica o filtro de criança", async () => {

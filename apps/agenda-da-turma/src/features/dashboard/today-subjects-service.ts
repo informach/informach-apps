@@ -47,9 +47,9 @@ export type TodaySubjectsView = {
   // Turma ativa confirmada por participação — a UI usa pra levar o usuário
   // direto à edição do horário. Null quando o perfil não tem turma válida.
   turmaId: string | null;
-  todayIso: string;
-  // Weekday do `todayIso` no enum AgendaClassDay (Seg-Sex). Null em Sáb/Dom.
-  todayDay: AgendaClassDay | null;
+  dateIso: string;
+  // Weekday de `dateIso` no enum AgendaClassDay (Seg-Sex). Null em Sáb/Dom.
+  classDay: AgendaClassDay | null;
   // Lista combinada — matérias da turma (com horário cadastrado e que
   // batem hoje) + extras `active` do perfil que rolam hoje.
   subjects: TodaySubject[];
@@ -70,12 +70,12 @@ function buildTodaySubjectsView(input: {
   profileId: string;
   profileName: string;
   turmaId: string | null;
-  todayIso: string;
-  todayDay: AgendaClassDay | null;
+  dateIso: string;
+  classDay: AgendaClassDay | null;
   turmaSubjects: Subject[];
   extraSubjects: ProfileSubject[];
 }): TodaySubjectsView | null {
-  const { todayIso, todayDay, turmaSubjects, extraSubjects } = input;
+  const { dateIso, classDay, turmaSubjects, extraSubjects } = input;
 
   const hasAnyTurmaClassDays = turmaSubjects.some((s) => s.classDays.length > 0);
   if (!hasAnyTurmaClassDays && extraSubjects.length === 0) return null;
@@ -85,29 +85,29 @@ function buildTodaySubjectsView(input: {
   const todayTurma: TodaySubject[] = turmaSubjects
     .filter((s) =>
       isSubjectActiveOnDate(
-        todayIso,
+        dateIso,
         s.classDays,
         s.alternatingSlots.map((slot) => ({ day: slot.dayOfWeek, anchorIso: slot.anchorDate })),
       ),
     )
     .map((s): TodaySubject => {
-      const todaySlot = todayDay
-        ? s.alternatingSlots.find((slot) => slot.dayOfWeek === todayDay)
+      const daySlot = classDay
+        ? s.alternatingSlots.find((slot) => slot.dayOfWeek === classDay)
         : undefined;
-      const pairName = todaySlot ? (subjectNameById.get(todaySlot.pairedSubjectId) ?? null) : null;
+      const pairName = daySlot ? (subjectNameById.get(daySlot.pairedSubjectId) ?? null) : null;
       return {
         source: "turma" as const,
         id: s.id,
         name: s.name,
         teacherName: s.teacherName,
         colorIndex: s.colorIndex,
-        isAlternating: todaySlot !== undefined,
+        isAlternating: daySlot !== undefined,
         alternatingPairName: pairName,
       };
     });
 
   const todayExtras: TodaySubject[] = extraSubjects
-    .filter((s) => isExtraSubjectActiveOnDate(todayIso, s.classDays))
+    .filter((s) => isExtraSubjectActiveOnDate(dateIso, s.classDays))
     .map(
       (s): TodaySubject => ({
         source: "extra" as const,
@@ -125,16 +125,15 @@ function buildTodaySubjectsView(input: {
     profileId: input.profileId,
     profileName: input.profileName,
     turmaId: input.turmaId,
-    todayIso,
-    todayDay,
+    dateIso,
+    classDay,
     subjects: [...todayTurma.sort(sortByName), ...todayExtras.sort(sortByName)],
   };
 }
 
-function resolveToday(): { todayIso: string; todayDay: AgendaClassDay | null } {
-  const todayIso = todayLocalIso();
-  const todayJsDay = new Date(`${todayIso}T12:00:00`).getDay();
-  return { todayIso, todayDay: dayOfWeekToClassDay(todayJsDay) };
+function resolveDay(dateIso: string): { dateIso: string; classDay: AgendaClassDay | null } {
+  const jsDay = new Date(`${dateIso}T12:00:00`).getDay();
+  return { dateIso, classDay: dayOfWeekToClassDay(jsDay) };
 }
 
 /**
@@ -150,7 +149,7 @@ export async function getTodaySubjectsForProfile(
   const profile = await findStudentProfileByIdForUser(userId, profileId);
   if (!profile) return null;
 
-  const { todayIso, todayDay } = resolveToday();
+  const { dateIso, classDay } = resolveDay(todayLocalIso());
   const activeTurmaId =
     profile.activeTurmaId && (await verifyMembership(profile.id, profile.activeTurmaId))
       ? profile.activeTurmaId
@@ -165,26 +164,29 @@ export async function getTodaySubjectsForProfile(
     profileId: profile.id,
     profileName: profile.name,
     turmaId: activeTurmaId,
-    todayIso,
-    todayDay,
+    dateIso,
+    classDay,
     turmaSubjects: turmaRows.length > 0 ? await attachAlternatingSlots(turmaRows) : [],
     extraSubjects,
   });
 }
 
 /**
- * Matérias de HOJE de TODOS os perfis acessíveis (ou de um só, quando há
- * filtro). O dashboard abre mostrando o dia de cada criança, então chamar a
- * versão de um perfil em laço seria N+1: aqui as participações, as matérias
- * por turma distinta e as extras saem em três consultas, independentemente do
- * número de filhos.
+ * Matérias de um DIA de todos os perfis acessíveis (ou de um só, quando há
+ * filtro). Sem `dateIso`, é hoje; a rotina também pede o dia seguinte, para
+ * montar a mochila de amanhã.
+ *
+ * O dashboard abre mostrando o dia de cada criança, então chamar a versão de
+ * um perfil em laço seria N+1: aqui as participações, as matérias por turma
+ * distinta e as extras saem em três consultas, independentemente do número de
+ * filhos.
  *
  * Perfis sem nada a mostrar são omitidos do resultado (mesma regra da versão
  * individual). A ordem segue o nome da criança.
  */
 export async function getTodaySubjectsForProfiles(
   userId: string,
-  options: { profileFilter?: string | null } = {},
+  options: { profileFilter?: string | null; dateIso?: string } = {},
 ): Promise<TodaySubjectsView[]> {
   const accessible = await listAccessibleProfiles(userId);
   const profiles = (
@@ -192,7 +194,7 @@ export async function getTodaySubjectsForProfiles(
   ).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
   if (profiles.length === 0) return [];
 
-  const { todayIso, todayDay } = resolveToday();
+  const { dateIso, classDay } = resolveDay(options.dateIso ?? todayLocalIso());
   const profileIds = profiles.map((p) => p.id);
 
   const [memberships, extras] = await Promise.all([
@@ -240,8 +242,8 @@ export async function getTodaySubjectsForProfiles(
         profileId: profile.id,
         profileName: profile.name,
         turmaId,
-        todayIso,
-        todayDay,
+        dateIso,
+        classDay,
         turmaSubjects: turmaId ? (subjectsByTurma.get(turmaId) ?? []) : [],
         extraSubjects: extrasByProfile.get(profile.id) ?? [],
       });

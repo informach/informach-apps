@@ -6,7 +6,6 @@ import { findTurmaWithSchoolById } from "@/features/turmas/repository";
 import { todayLocalIso } from "../dashboard/date";
 import { FREE_ACTIVITY_LIMIT } from "./limits";
 import {
-  type ActivitiesPage,
   countActivitiesCreatedByUser,
   deleteActivityById,
   findActivityById,
@@ -14,8 +13,6 @@ import {
   insertActivitiesBatchWithStatuses,
   insertActivityWithStatuses,
   insertActivityWithStatusesWithinFreeLimit,
-  type ListActivitiesPageOptions,
-  listActivitiesPageForUser,
   listPendingSharedActivitiesForUser,
   listTurmasWithSubjectsForUserForm,
   type NewActivityPayload,
@@ -305,13 +302,6 @@ export async function setActivityStatus(
     });
   if (!updated) return err({ code: "NOT_FOUND" });
   return ok({ statusId: statusRow.id });
-}
-
-export async function getActivitiesPageForUser(
-  userId: string,
-  options: Omit<ListActivitiesPageOptions, "includeSharedFromOthers">,
-): Promise<ActivitiesPage> {
-  return listActivitiesPageForUser(userId, { ...options, includeSharedFromOthers: true });
 }
 
 export async function getActivitiesCreatedCountForUser(userId: string): Promise<number> {
