@@ -88,6 +88,32 @@ function selectListItem() {
     );
 }
 
+/**
+ * A atividade extracurricular com os nomes que o detalhe mostra. A consulta
+ * mora aqui, e não no componente: componentes não falam com o banco.
+ */
+export async function findExtraActivityDetailForUser(userId: string, id: string) {
+  const [row] = await db
+    .select({
+      activity: agendaProfileSubjectActivities,
+      profileName: agendaStudentProfiles.name,
+      subjectName: agendaProfileSubjects.name,
+      subjectColorIndex: agendaProfileSubjects.colorIndex,
+    })
+    .from(agendaProfileSubjectActivities)
+    .innerJoin(
+      agendaStudentProfiles,
+      eq(agendaStudentProfiles.id, agendaProfileSubjectActivities.profileId),
+    )
+    .innerJoin(
+      agendaProfileSubjects,
+      eq(agendaProfileSubjects.id, agendaProfileSubjectActivities.profileSubjectId),
+    )
+    .where(and(accessibleProfileCondition(userId), eq(agendaProfileSubjectActivities.id, id)))
+    .limit(1);
+  return row ?? null;
+}
+
 export async function findProfileSubjectActivityById(
   id: string,
 ): Promise<ProfileSubjectActivity | null> {

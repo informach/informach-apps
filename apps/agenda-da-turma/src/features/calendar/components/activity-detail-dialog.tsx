@@ -31,9 +31,9 @@ import {
   getDueBadgeVariant,
   getDueUrgency,
 } from "@/features/activities/utils";
-import { RoutineCard } from "@/features/notices/components/routine-card";
 import { setProfileSubjectActivityStatusAction } from "@/features/profile-subject-activities/actions";
 import { getSubjectIconClassByIndex } from "@/features/subjects/utils";
+import { UnifiedActivityCard } from "@/features/unified-activities/components/unified-activity-card";
 import type { UnifiedActivityListItem } from "@/features/unified-activities/types";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
 
@@ -79,11 +79,16 @@ export function ActivityDetailDialog({
           <DialogHeader>
             <DialogTitle>{item.title}</DialogTitle>
             <DialogDescription>
-              Providência de {item.studentProfileName}. Abra o título para conferir a fonte e o
+              Atividade de {item.studentProfileName}. Abra o título para conferir a fonte e o
               histórico.
             </DialogDescription>
           </DialogHeader>
-          <RoutineCard item={item.routineItem} />
+          <UnifiedActivityCard
+            entry={{ source: "notice", key: `notice:${item.activityId}`, item: item.routineItem }}
+            currentUserId={currentUserId}
+            isPro={isPro}
+            turmasForForm={turmasForForm}
+          />
         </DialogContent>
       </Dialog>
     );

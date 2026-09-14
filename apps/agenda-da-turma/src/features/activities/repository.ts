@@ -469,6 +469,19 @@ function selectActivityListItems() {
     .innerJoin(agendaSchools, eq(agendaSchools.inepCode, agendaTurmas.schoolInepCode));
 }
 
+/**
+ * Uma atividade escolar na forma canônica da lista, para a página de detalhe.
+ *
+ * Volta uma linha por criança acessível — a mesma atividade pode valer para
+ * dois filhos, e cada um tem a sua conclusão. O detalhe mostra a primeira e
+ * lista as demais.
+ */
+export async function findSchoolActivityForUser(userId: string, activityId: string) {
+  return selectActivityListItems().where(
+    and(accessibleProfileCondition(userId), eq(agendaActivities.id, activityId)),
+  );
+}
+
 export async function listSchoolActivitiesByStatusIds(userId: string, ids: string[]) {
   if (!ids.length) return [];
   return selectActivityListItems().where(

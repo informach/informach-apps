@@ -1,243 +1,346 @@
 "use client";
 
 import { Badge } from "@informach/ui/components/badge";
-import { Card, CardContent } from "@informach/ui/components/card";
-import { Checkbox } from "@informach/ui/components/checkbox";
-import { Label } from "@informach/ui/components/label";
-import { toast } from "@informach/ui/components/sonner";
+import { Button } from "@informach/ui/components/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@informach/ui/components/dropdown-menu";
 import { cn } from "@informach/ui/lib/utils";
-import { Sparkles } from "lucide-react";
+import { Check, MoreVertical, Pencil, Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { ActivityCard } from "@/features/activities/components/activity-card";
-import type { ActivityStatusValue, TurmaWithSubjectsForForm } from "@/features/activities/types";
-import {
-  getActivityTypeIcon,
-  getActivityTypeLabel,
-  getDueBadgeLabel,
-  getDueBadgeVariant,
-  getDueUrgency,
-} from "@/features/activities/utils";
-import { RoutineCard } from "@/features/notices/components/routine-card";
+import { useState } from "react";
+import { setActivityStatusAction } from "@/features/activities/actions";
+import { ActivityFormDialog } from "@/features/activities/components/activity-form-dialog";
+import { DeleteActivityDialog } from "@/features/activities/components/delete-activity-dialog";
+import type { ActivityListItem, TurmaWithSubjectsForForm } from "@/features/activities/types";
+import { setNoticeStatusAction } from "@/features/notices/actions";
+import { noticeErrorMessage } from "@/features/notices/messages";
 import { setProfileSubjectActivityStatusAction } from "@/features/profile-subject-activities/actions";
-import type { ProfileSubjectActivityListItem } from "@/features/profile-subject-activities/types";
-import {
-  getSubjectIconClassByIndex,
-  getSubjectTintedClassByIndex,
-} from "@/features/subjects/utils";
+import { getSubjectTintedClassByIndex } from "@/features/subjects/utils";
 import { isActionRejected } from "@/lib/action-result";
+import { ACTIVITY_TYPE_LABELS } from "../activity-types";
 import { useCardToggle } from "../hooks/use-card-toggle";
 import type { ActivityOverviewItem } from "../overview-types";
+import { getActivityPresentation } from "../presentation";
+import { type ActivityToggleTarget, getViewDueBadge, toActivityView } from "../view";
 
 type Props = {
-  /**
-   * Entrada da projeção unificada — traz a fonte e a linha crua da tabela
-   * correspondente. Todas as listas (rotina, /atividades, dia do calendário)
-   * passam por aqui, então o mesmo item nunca aparece com dois formatos.
-   */
   entry: ActivityOverviewItem;
   currentUserId: string;
   isPro: boolean;
   turmasForForm: TurmaWithSubjectsForForm[];
-  /**
-   * Esconde o dropdown de ações (editar/excluir). Dashboard usa `true` — o
-   * card é uma vista panorâmica; edições acontecem na página específica.
-   */
+  /** Esconde o menu de ações. A rotina é vista panorâmica; edição mora na lista. */
   hideActions?: boolean;
-  /**
-   * Dashboard só mostra buckets pendentes. Ao concluir, o wrapper anima
-   * (collapse + fade) e depois o componente desmonta — `useCardToggle`
-   * cuida do timing.
-   */
+  /** Nos buckets da rotina o item some ao ser concluído, com colapso animado. */
   optimisticHideWhenDone?: boolean;
   onStatusSuccess?: (
     entry: ActivityOverviewItem,
-    previousStatus: ActivityStatusValue,
-    nextStatus: ActivityStatusValue,
+    previousStatus: "pending" | "done",
+    nextStatus: "pending" | "done",
   ) => void;
 };
 
-// Despacha o card correto baseado no `source`. Mantém ActivityCard intacto
-// pra atividades de turma (todos os recursos: shared, edit, delete, etc).
-// Renderiza um card compatível visualmente pras extras (mesma paleta
-// chart-N, ícone do tipo, badge de urgência) com badge "Extra" pra
-// diferenciar a origem.
+function runToggle(target: ActivityToggleTarget, next: "pending" | "done") {
+  if (target.kind === "notice")
+    return setNoticeStatusAction({ id: target.id, version: target.version, status: next });
+  if (target.kind === "extra")
+    return setProfileSubjectActivityStatusAction({ id: target.id, status: next });
+  return setActivityStatusAction({
+    activityId: target.activityId,
+    studentProfileId: target.studentProfileId,
+    status: next,
+  });
+}
+
+function toggleErrorMessage(target: ActivityToggleTarget, error: { code: string }): string {
+  if (isActionRejected(error))
+    return "Não foi possível atualizar. Atualize a página e tente de novo.";
+  if (target.kind === "notice") return noticeErrorMessage(error.code);
+  if (error.code === "NOT_FOUND") return "Atividade não encontrada.";
+  if (error.code === "INVALID_PROFILE") return "Esse perfil não é seu.";
+  return "Não foi possível atualizar.";
+}
+
+/**
+ * O card da rotina, um só para as três fontes.
+ *
+ * Antes eram três: um `Card` com checkbox para a atividade da turma, um
+ * `<article>` com botão de 44 px para a que veio de recado, e um terceiro,
+ * inline, para a extracurricular. Cada um mostrava o prazo de um jeito, abria
+ * um destino diferente ao toque no título — ou nenhum — e tratava erro num
+ * lugar diferente. A origem é invisível no card, mas decidia o que a família
+ * podia fazer.
+ *
+ * A forma que ficou é a de melhor toque: alvo de 44 px, título que sempre
+ * abre a atividade, prazo em badge mesmo quando não há prazo, e o menu de
+ * ações quando a pessoa pode editar.
+ */
 export function UnifiedActivityCard({
   entry,
   currentUserId,
   isPro,
   turmasForForm,
-  hideActions,
+  hideActions = false,
   optimisticHideWhenDone = false,
   onStatusSuccess,
 }: Props) {
-  if (entry.source === "notice") {
-    return (
-      <RoutineCard
-        item={entry.item}
-        optimisticHideWhenDone={optimisticHideWhenDone}
-        onStatusSuccess={(row, previousStatus, nextStatus) =>
-          onStatusSuccess?.({ ...entry, item: row }, previousStatus, nextStatus)
-        }
-      />
-    );
-  }
-  if (entry.source === "turma") {
-    return (
-      <ActivityCard
-        item={entry.item}
-        currentUserId={currentUserId}
-        isPro={isPro}
-        turmasForForm={turmasForForm}
-        hideActions={hideActions}
-        optimisticHideWhenDone={optimisticHideWhenDone}
-        onStatusSuccess={(activity, previousStatus, nextStatus) =>
-          onStatusSuccess?.({ ...entry, item: activity }, previousStatus, nextStatus)
-        }
-      />
-    );
-  }
-  return (
-    <UnifiedExtraActivityCard
-      item={entry.item}
-      optimisticHideWhenDone={optimisticHideWhenDone}
-      onStatusSuccess={(activity, previousStatus, nextStatus) =>
-        onStatusSuccess?.({ ...entry, item: activity }, previousStatus, nextStatus)
-      }
-    />
-  );
-}
+  const view = toActivityView(entry, currentUserId);
+  const [error, setError] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
-function UnifiedExtraActivityCard({
-  item,
-  optimisticHideWhenDone,
-  onStatusSuccess,
-}: {
-  item: ProfileSubjectActivityListItem;
-  optimisticHideWhenDone: boolean;
-  onStatusSuccess?: (
-    item: ProfileSubjectActivityListItem,
-    previousStatus: ActivityStatusValue,
-    nextStatus: ActivityStatusValue,
-  ) => void;
-}) {
+  const isCanceled = view.status === "canceled";
+  const presentation = getActivityPresentation(view.type);
+  const TypeIcon = presentation.icon;
+  // Com matéria vinculada o card é lido pela cor dela — é assim que a família
+  // reconhece a rotina. Sem vínculo, segue a cor do tipo.
+  const surface =
+    view.subjectColorIndex !== null
+      ? getSubjectTintedClassByIndex(view.subjectColorIndex)
+      : presentation.surface;
+
   const { isDone, isExiting, optimisticallyHidden, pending, handleToggle } = useCardToggle({
-    initialStatus: item.status,
-    optimisticHideWhenDone,
+    initialStatus: view.status === "done" ? "done" : "pending",
+    optimisticHideWhenDone: optimisticHideWhenDone && !isCanceled,
     toggleAction: (next) =>
-      setProfileSubjectActivityStatusAction({
-        id: item.activityId,
-        status: next,
-      }),
-    onSuccess: (previousStatus, nextStatus) => onStatusSuccess?.(item, previousStatus, nextStatus),
-    onError: (error) => {
-      if (isActionRejected(error)) {
-        toast.error("Não foi possível atualizar.", {
-          description: "Atualize a página e tente novamente.",
-        });
-      } else if (error.code === "NOT_FOUND") {
-        toast.error("Atividade não encontrada");
-      } else {
-        toast.error("Não foi possível atualizar.");
-      }
+      view.toggle
+        ? runToggle(view.toggle, next)
+        : Promise.resolve({ ok: false as const, error: { code: "NOT_FOUND" } }),
+    onSuccess: (previousStatus, nextStatus) => {
+      setError("");
+      onStatusSuccess?.(entry, previousStatus, nextStatus);
     },
+    onError: (actionError) =>
+      setError(view.toggle ? toggleErrorMessage(view.toggle, actionError) : ""),
   });
 
-  const TypeIcon = getActivityTypeIcon(item.type);
-  const urgency = getDueUrgency(item.dueAt, isDone ? "done" : "pending");
-  const checkboxId = `extra-status-${item.activityId}`;
+  const canManage = !hideActions && view.manage !== null;
+  const due = getViewDueBadge({ ...view, status: isDone ? "done" : view.status });
 
   if (optimisticallyHidden) return null;
 
   return (
-    <div
-      className={cn(
-        // Wrapper governa entrada (@starting-style) + saída (isExiting).
-        // grid-rows-[1fr]→[0fr] colapsa altura suavemente; opacity faz fade.
-        // overflow-hidden no filho evita o conteúdo estourar pra fora durante o colapso.
-        // motion-reduce honra prefers-reduced-motion (sem animação).
-        "grid grid-rows-[1fr] opacity-100",
-        "starting:grid-rows-[0fr] starting:opacity-0",
-        "transition-all duration-300 ease-out motion-reduce:transition-none",
-        "[transition-behavior:allow-discrete]",
-        isExiting && "grid-rows-[0fr] opacity-0",
-      )}
-    >
-      <div className="overflow-hidden">
-        <Card
-          className={cn(
-            getSubjectTintedClassByIndex(item.profileSubjectColorIndex),
-            isDone && "opacity-70",
-          )}
-        >
-          <CardContent className="flex items-start gap-3 p-4">
-            <span
-              className={cn(
-                "flex size-11 shrink-0 items-center justify-center rounded-full",
-                getSubjectIconClassByIndex(item.profileSubjectColorIndex),
-              )}
-            >
-              <TypeIcon className="size-5" aria-hidden />
-            </span>
-
-            <div className="min-w-0 flex-1 space-y-1.5">
-              <div
-                className={cn(
-                  "break-words text-base font-semibold text-foreground",
-                  isDone && "text-muted-foreground line-through",
-                )}
-              >
-                <Badge variant="secondary" className="mr-2 align-middle">
-                  {getActivityTypeLabel(item.type)}
-                </Badge>
-                <Link
-                  href={`/perfis/${item.studentProfileId}/extras/${item.profileSubjectId}`}
-                  className="hover:underline"
-                >
-                  {item.title}
-                </Link>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={getDueBadgeVariant(urgency)}>
-                  {getDueBadgeLabel(item.dueAt, urgency)}
-                </Badge>
-                <Badge variant="outline" className="font-normal">
-                  <Sparkles className="mr-1 size-3" aria-hidden />
-                  Extra
-                </Badge>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {item.profileSubjectName} · extracurricular
-              </p>
-              {item.description ? (
-                <p
+    <>
+      <div
+        className={cn(
+          "grid grid-rows-[1fr] opacity-100",
+          "starting:grid-rows-[0fr] starting:opacity-0",
+          "transition-all duration-300 ease-out motion-reduce:transition-none",
+          "[transition-behavior:allow-discrete]",
+          isExiting && "grid-rows-[0fr] opacity-0",
+        )}
+      >
+        <div className="overflow-hidden">
+          <article
+            className={cn(
+              "rounded-2xl border p-4 sm:p-5",
+              !isCanceled && !isDone ? surface : "border-border bg-card",
+              isDone && "opacity-70",
+            )}
+          >
+            <div className="flex items-start gap-3">
+              {view.toggle ? (
+                <Button
+                  size="icon"
+                  variant={isDone ? "secondary" : "outline"}
                   className={cn(
-                    "whitespace-pre-wrap break-words text-sm text-foreground/90",
-                    isDone && "text-muted-foreground line-through",
+                    "size-11 shrink-0 rounded-2xl",
+                    isDone
+                      ? "bg-chart-2/20 text-foreground hover:bg-chart-2/30"
+                      : "border-foreground/20 bg-background/60 hover:bg-background",
+                  )}
+                  aria-label={`${isDone ? "Reabrir" : "Marcar como feito em casa"}: ${view.title}`}
+                  disabled={pending}
+                  onClick={() => handleToggle(!isDone)}
+                >
+                  {isDone ? (
+                    <Check className="size-5" aria-hidden />
+                  ) : (
+                    <span className="size-4 rounded-full border-2 border-foreground/60" />
+                  )}
+                </Button>
+              ) : null}
+
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="min-w-0 break-words text-sm font-semibold">
+                    {view.profileName}
+                  </span>
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs font-medium text-foreground",
+                      presentation.surface,
+                    )}
+                  >
+                    <TypeIcon className="size-3.5" aria-hidden />
+                    {ACTIVITY_TYPE_LABELS[view.type]}
+                  </span>
+                </div>
+
+                <Link
+                  href={view.detailHref}
+                  className={cn(
+                    "mt-2 block break-words text-base font-semibold leading-relaxed hover:underline",
+                    (isCanceled || isDone) && "text-muted-foreground line-through",
                   )}
                 >
-                  {item.description}
-                </p>
-              ) : null}
-              <div className="flex items-center gap-2 pt-1">
-                <Checkbox
-                  id={checkboxId}
-                  checked={isDone}
-                  onCheckedChange={(value) => handleToggle(value === true)}
-                  disabled={pending}
-                  aria-label={
-                    isDone
-                      ? `Marcar "${item.title}" como pendente`
-                      : `Marcar "${item.title}" como concluída`
-                  }
-                />
-                <Label htmlFor={checkboxId} className="cursor-pointer text-sm font-medium">
-                  {item.studentProfileName}
-                </Label>
+                  {view.title}
+                </Link>
+
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <Badge variant={due.variant}>{due.label}</Badge>
+                  {view.shared ? (
+                    <Badge variant="outline" className="font-normal">
+                      Compartilhada
+                    </Badge>
+                  ) : null}
+                  {view.source === "extra" ? (
+                    <Badge variant="outline" className="font-normal">
+                      <Sparkles className="mr-1 size-3" aria-hidden />
+                      Extra
+                    </Badge>
+                  ) : null}
+                </div>
+
+                {view.subjectName || view.contextLine ? (
+                  <p className="mt-2 break-words text-xs font-medium text-foreground/80">
+                    {[view.subjectName, view.contextLine].filter(Boolean).join(" · ")}
+                  </p>
+                ) : null}
+
+                {view.description ? (
+                  <p
+                    className={cn(
+                      "mt-2 whitespace-pre-wrap break-words text-sm text-foreground/90",
+                      isDone && "text-muted-foreground line-through",
+                    )}
+                  >
+                    {view.description}
+                  </p>
+                ) : null}
+
+                {view.location ? (
+                  <p className="mt-1 break-words text-xs text-foreground/80">{view.location}</p>
+                ) : null}
+                {view.assignment ? (
+                  <p className="mt-1 break-words text-xs text-foreground/80">{view.assignment}</p>
+                ) : null}
+                {view.provenance ? (
+                  <p className="mt-1 text-xs text-foreground/80">{view.provenance}</p>
+                ) : null}
+
+                {view.version !== null && view.version > 1 ? (
+                  <Link
+                    href={view.detailHref}
+                    className="mt-2 block text-xs font-semibold text-primary underline"
+                  >
+                    Atualizada · versão {view.version} · ver antes e depois
+                  </Link>
+                ) : null}
               </div>
+
+              {canManage ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Ações para ${view.title}`}
+                      disabled={pending}
+                    >
+                      <MoreVertical className="size-4" aria-hidden />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={() => setEditOpen(true)}>
+                      <Pencil className="mr-2 size-4" aria-hidden />
+                      Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => setDeleteOpen(true)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="mr-2 size-4" aria-hidden />
+                      Excluir
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
             </div>
-          </CardContent>
-        </Card>
+
+            {error ? (
+              <p role="alert" className="mt-3 text-sm text-destructive">
+                {error}
+              </p>
+            ) : null}
+          </article>
+        </div>
       </div>
-    </div>
+
+      {canManage && entry.source === "turma" ? (
+        <TurmaManageDialogs
+          item={entry.item}
+          isPro={isPro}
+          turmasForForm={turmasForForm}
+          editOpen={editOpen}
+          onEditOpenChange={setEditOpen}
+          deleteOpen={deleteOpen}
+          onDeleteOpenChange={setDeleteOpen}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function TurmaManageDialogs({
+  item,
+  isPro,
+  turmasForForm,
+  editOpen,
+  onEditOpenChange,
+  deleteOpen,
+  onDeleteOpenChange,
+}: {
+  item: ActivityListItem;
+  isPro: boolean;
+  turmasForForm: TurmaWithSubjectsForForm[];
+  editOpen: boolean;
+  onEditOpenChange: (open: boolean) => void;
+  deleteOpen: boolean;
+  onDeleteOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <>
+      <ActivityFormDialog
+        open={editOpen}
+        onOpenChange={onEditOpenChange}
+        turmas={turmasForForm}
+        isPro={isPro}
+        activity={{
+          version: item.version,
+          activityId: item.activityId,
+          type: item.type,
+          title: item.title,
+          description: item.description,
+          dueAt: item.dueAt,
+          turmaId: item.turmaId,
+          subjectId: item.subjectId,
+          visibility: item.visibility,
+          subjectName: item.subjectName,
+          schoolName: item.schoolName,
+          grade: item.grade,
+          classLetter: item.classLetter,
+        }}
+      />
+      <DeleteActivityDialog
+        open={deleteOpen}
+        onOpenChange={onDeleteOpenChange}
+        activityId={item.activityId}
+        activityTitle={item.title}
+      />
+    </>
   );
 }
