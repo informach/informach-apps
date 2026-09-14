@@ -47,9 +47,12 @@ export default defineConfig({
         },
       },
   projects: [
+    // Compila as rotas pesadas antes da suíte — ver `e2e/warmup.setup.ts`.
+    { name: "warmup", testMatch: /warmup\.setup\.ts/ },
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+      dependencies: ["warmup"],
     },
   ],
 });

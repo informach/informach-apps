@@ -469,7 +469,7 @@ pnpm build:agenda-da-turma                                              # produ�
 pnpm start:agenda-da-turma                                              # serve build local
 
 # E2E
-pnpm --filter @informach/agenda-da-turma e2e                            # Playwright (precisa do dev server up)
+pnpm --filter @informach/agenda-da-turma e2e                            # Playwright (sobe o dev server sozinho)
 pnpm --filter @informach/agenda-da-turma e2e:install                    # baixa Chromium 1×
 pnpm --filter @informach/agenda-da-turma e2e:ui                         # modo interativo
 
@@ -477,6 +477,20 @@ pnpm --filter @informach/agenda-da-turma e2e:ui                         # modo i
 pnpm --filter @informach/agenda-da-turma vitest run path/to/file.test.ts -t "test name"
 pnpm --filter @informach/agenda-da-turma exec playwright test e2e/auth.signup-and-verify.spec.ts
 ```
+
+**O CI roda a config default (`playwright.config.ts`), não as dedicadas.**
+`review-fixes.spec.ts` e `family-routine.spec.ts` também têm
+`playwright.routine.config.ts`, e `sales-page.spec.ts` tem
+`playwright.marketing.config.ts`, com orçamentos de tempo bem mais folgados.
+Ajustar tempo só nessas configs não chega ao CI: foi assim que
+`review-fixes.spec.ts` ficou vermelho por vários commits, estourando 10 s de
+`actionTimeout` numa rota que declara `maxDuration = 90`.
+
+O servidor do e2e é `next dev`, que compila cada rota na primeira requisição.
+`e2e/warmup.setup.ts` roda como setup project antes da suíte e paga essa
+compilação nas rotas pesadas (`/api/recados/parse` e companhia). Ao acrescentar
+uma rota de API pesada que a suíte toque poucas vezes, inclua-a lá, senão o
+custo volta a cair no timeout do primeiro teste que a tocar.
 
 ---
 
