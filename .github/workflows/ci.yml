@@ -36,7 +36,7 @@ jobs:
       DATABASE_URL: postgres://ci:ci@localhost:5432/ci
       BETTER_AUTH_SECRET: ci-build-placeholder-not-a-real-secret-xxxx
       BETTER_AUTH_URL: http://localhost:3000
-      SENDGRID_API_KEY: ci-build-placeholder
+      SENDGRID_API_KEY: SG.ci.build-placeholder
       SENDGRID_FROM: ci@example.com
       EMAIL_SANDBOX_MODE: sandbox
       CRON_SECRET: ci-build-placeholder-not-a-real-secret-xxxx
