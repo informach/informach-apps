@@ -75,6 +75,8 @@ const date = todayLocalIso();
 const action = (title = "Providência de revisão", profileId = child): NoticeActionInput => ({
   profileId,
   type: "authorization",
+  subjectId: null,
+  profileSubjectId: null,
   title,
   description: null,
   dueAt: "2030-09-14",

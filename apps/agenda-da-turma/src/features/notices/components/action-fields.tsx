@@ -1,6 +1,7 @@
 "use client";
 import { Input } from "@informach/ui/components/input";
 import { suggestReminder } from "@/features/notifications/reminder-suggestion";
+import type { SubjectOptionsByProfile } from "@/features/subjects/options-service";
 import {
   ACTIVITY_TYPE_LABELS,
   ACTIVITY_TYPES,
@@ -18,6 +19,7 @@ export function ActionFields({
   onChange,
   profiles,
   adults,
+  subjectOptions,
   prefix,
   lockProfile = false,
   isPro,
@@ -26,10 +28,14 @@ export function ActionFields({
   onChange: (value: NoticeActionInput) => void;
   profiles: RoutineProfile[];
   adults: AssignableAdult[];
+  /** Matérias por criança — turma em que ela participa + extracurriculares. */
+  subjectOptions: SubjectOptionsByProfile;
   prefix: string;
   lockProfile?: boolean;
   isPro: boolean;
 }) {
+  const subjectsForProfile = subjectOptions[value.profileId] ?? [];
+  const selectedSubject = value.subjectId ?? value.profileSubjectId ?? "";
   const change = (patch: Partial<NoticeActionInput>) => onChange({ ...value, ...patch });
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -52,7 +58,16 @@ export function ActionFields({
           value={value.profileId}
           disabled={lockProfile}
           required
-          onChange={(e) => change({ profileId: e.target.value, assignedToUserId: null })}
+          onChange={(e) =>
+            change({
+              profileId: e.target.value,
+              assignedToUserId: null,
+              // A matéria pertence à turma da criança: trocar de criança
+              // invalida a escolha anterior.
+              subjectId: null,
+              profileSubjectId: null,
+            })
+          }
         >
           <option value="">Selecione</option>
           {profiles.map((p) => (
@@ -77,6 +92,33 @@ export function ActionFields({
           {ACTIVITY_TYPES.map((type) => (
             <option key={type} value={type}>
               {ACTIVITY_TYPE_LABELS[type]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className={labelStyle} htmlFor={`${prefix}-subject`}>
+        Matéria (opcional)
+        <select
+          className={selectStyle}
+          id={`${prefix}-subject`}
+          aria-label="Matéria"
+          value={selectedSubject}
+          disabled={subjectsForProfile.length === 0}
+          onChange={(e) => {
+            const option = subjectsForProfile.find((s) => s.id === e.target.value);
+            change({
+              subjectId: option?.source === "turma" ? option.id : null,
+              profileSubjectId: option?.source === "extra" ? option.id : null,
+            });
+          }}
+        >
+          <option value="">
+            {subjectsForProfile.length === 0 ? "Nenhuma matéria cadastrada" : "Sem matéria"}
+          </option>
+          {subjectsForProfile.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.name}
+              {option.source === "extra" ? " (extra)" : ""}
             </option>
           ))}
         </select>

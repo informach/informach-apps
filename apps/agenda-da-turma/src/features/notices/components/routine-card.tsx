@@ -4,6 +4,7 @@ import { cn } from "@informach/ui/lib/utils";
 import { Check } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { getSubjectTintedClassByIndex } from "@/features/subjects/utils";
 import { ACTIVITY_TYPE_LABELS } from "@/features/unified-activities/activity-types";
 import { useCardToggle } from "@/features/unified-activities/hooks/use-card-toggle";
 import { getActivityPresentation } from "@/features/unified-activities/presentation";
@@ -32,6 +33,12 @@ export function RoutineCard({ item, optimisticHideWhenDone = false, onStatusSucc
   const presentation = getActivityPresentation(action.type);
   const TypeIcon = presentation.icon;
   const isCanceled = action.status === "canceled";
+  // Com matéria vinculada, o card é lido pela cor da matéria — é assim que a
+  // família reconhece a rotina. Sem vínculo, segue a cor do tipo.
+  const surface =
+    item.subjectColorIndex !== null
+      ? getSubjectTintedClassByIndex(item.subjectColorIndex)
+      : presentation.surface;
 
   // O hook trabalha com pending/done. `canceled` é um terceiro estado que não
   // se alterna — o botão simplesmente não é renderizado nesse caso.
@@ -63,7 +70,7 @@ export function RoutineCard({ item, optimisticHideWhenDone = false, onStatusSucc
         <article
           className={cn(
             "rounded-2xl border p-4 sm:p-5",
-            !isCanceled && !isDone ? presentation.surface : "border-border bg-card",
+            !isCanceled && !isDone ? surface : "border-border bg-card",
             isDone && "opacity-70",
           )}
         >
@@ -110,6 +117,11 @@ export function RoutineCard({ item, optimisticHideWhenDone = false, onStatusSucc
               >
                 {action.title}
               </Link>
+              {item.subjectName ? (
+                <p className="mt-1 break-words text-xs font-medium text-foreground/80">
+                  {item.subjectName}
+                </p>
+              ) : null}
               <p className="mt-2 text-sm">
                 {isCanceled
                   ? "Cancelado"

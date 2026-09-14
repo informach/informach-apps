@@ -11,7 +11,10 @@ import {
   agendaNotices,
   agendaNotificationDeliveries,
   agendaProductEvents,
+  agendaProfileSubjects,
   agendaStudentProfiles,
+  agendaSubjects,
+  agendaTurmaMembers,
 } from "@informach/db/schema";
 import type { z } from "zod";
 import { FREE_ACTIVITY_LIMIT } from "@/features/activities/limits";
@@ -58,6 +61,48 @@ async function validAssignee(tx: AgendaTransaction, ownerId: string, input: Noti
       ),
     );
   return Boolean(guest);
+}
+
+/**
+ * A matéria escolhida precisa pertencer de fato à criança: ou é matéria da
+ * turma em que ela participa AGORA, ou é uma extracurricular dela.
+ *
+ * Revalidado dentro da transação, como o resto: `active_turma_id` sozinho é
+ * preferência, não participação, e o acesso pode ter sido revogado entre a
+ * revisão e o salvamento.
+ */
+async function validSubject(tx: AgendaTransaction, input: NoticeActionInput) {
+  if (input.subjectId) {
+    const [row] = await tx
+      .select({ id: agendaSubjects.id })
+      .from(agendaSubjects)
+      .innerJoin(agendaTurmaMembers, eq(agendaTurmaMembers.turmaId, agendaSubjects.turmaId))
+      .innerJoin(
+        agendaStudentProfiles,
+        eq(agendaStudentProfiles.id, agendaTurmaMembers.studentProfileId),
+      )
+      .where(
+        and(
+          eq(agendaSubjects.id, input.subjectId),
+          eq(agendaTurmaMembers.studentProfileId, input.profileId),
+          eq(agendaStudentProfiles.activeTurmaId, agendaSubjects.turmaId),
+        ),
+      );
+    return Boolean(row);
+  }
+  if (input.profileSubjectId) {
+    const [row] = await tx
+      .select({ id: agendaProfileSubjects.id })
+      .from(agendaProfileSubjects)
+      .where(
+        and(
+          eq(agendaProfileSubjects.id, input.profileSubjectId),
+          eq(agendaProfileSubjects.profileId, input.profileId),
+        ),
+      );
+    return Boolean(row);
+  }
+  return true;
 }
 
 async function lockFamily(tx: AgendaTransaction, ownerId: string) {
@@ -145,6 +190,7 @@ export async function insertConfirmedNotice(
     for (const { action } of work) {
       if (!(await validAssignee(tx, ownerId, action)))
         return err({ code: "INVALID_ASSIGNEE" } as const);
+      if (!(await validSubject(tx, action))) return err({ code: "INVALID_SUBJECT" } as const);
       if (!isPro && (action.recurrence !== "none" || action.reminderAt))
         return err({ code: "PRO_REQUIRED" } as const);
     }
@@ -363,6 +409,7 @@ export async function updateNoticeActionAtomically(
       return err({ code: "INVALID_PROFILE" } as const);
     if (!(await validAssignee(tx, ownerId, input.action)))
       return err({ code: "INVALID_ASSIGNEE" } as const);
+    if (!(await validSubject(tx, input.action))) return err({ code: "INVALID_SUBJECT" } as const);
     const addsAutomation =
       (input.action.recurrence !== "none" && input.action.recurrence !== previous.recurrence) ||
       (input.action.reminderAt !== null &&

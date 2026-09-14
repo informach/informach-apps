@@ -9,6 +9,7 @@ import {
   getNoticeSource,
   listAssignableAdults,
 } from "@/features/notices/repository";
+import { listSubjectOptionsByProfile } from "@/features/subjects/options-service";
 import { requireUserServer } from "@/lib/auth";
 import { billing } from "@/lib/billing";
 
@@ -35,11 +36,12 @@ export default async function NoticeActionPage({ params }: { params: Promise<{ i
   const found = await getNoticeAction(user.id, id);
   if (!found) notFound();
   const { action } = found;
-  const [history, source, adults, isPro] = await Promise.all([
+  const [history, source, adults, isPro, subjectOptions] = await Promise.all([
     getNoticeActionHistory(user.id, id),
     action.noticeId ? getNoticeSource(user.id, action.noticeId) : null,
     listAssignableAdults(user.id),
     billing.hasProSubscription({ type: "user", id: found.ownerUserId }),
+    listSubjectOptionsByProfile(user.id),
   ]);
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 pb-28 sm:px-8">
@@ -60,6 +62,7 @@ export default async function NoticeActionPage({ params }: { params: Promise<{ i
         isPro={isPro}
         profiles={[{ id: action.profileId, name: found.profileName }]}
         adults={adults}
+        subjectOptions={subjectOptions}
         initialValue={{
           type: action.type,
           title: action.title,
@@ -69,6 +72,8 @@ export default async function NoticeActionPage({ params }: { params: Promise<{ i
           time: action.time,
           location: action.location,
           sourceExcerpt: action.sourceExcerpt,
+          subjectId: action.subjectId,
+          profileSubjectId: action.profileSubjectId,
           profileId: action.profileId,
           assignedToUserId: action.assignedToUserId,
           recurrence: action.recurrence,

@@ -88,11 +88,22 @@ export const actionFieldsSchema = extractedActionSchema
   .extend({
     profileId: z.string().uuid(),
     dateOrigin: z.enum(["unspecified", "school", "relative", "family"]),
+    // Matéria da providência, escolhida pela pessoa na revisão. No máximo uma
+    // das duas: da turma da criança OU extracurricular dela. O serviço
+    // revalida a pertinência — o formulário só sugere as opções.
+    subjectId: z.string().uuid().nullable().default(null),
+    profileSubjectId: z.string().uuid().nullable().default(null),
     assignedToUserId: z.string().max(128).nullable().default(null),
     reminderAt: z.string().datetime({ offset: true }).nullable().default(null),
     recurrence: z.enum(["none", "weekly"]).default("none"),
   })
   .superRefine((v, ctx) => {
+    if (v.subjectId && v.profileSubjectId)
+      ctx.addIssue({
+        code: "custom",
+        path: ["subjectId"],
+        message: "Escolha uma matéria da turma ou uma extracurricular, não as duas",
+      });
     if ((v.dueAt === null) !== (v.dateOrigin === "unspecified"))
       ctx.addIssue({
         code: "custom",

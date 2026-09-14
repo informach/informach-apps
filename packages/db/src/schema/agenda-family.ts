@@ -11,7 +11,14 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import { AGENDA_ACTIVITY_TYPES, agenda, agendaActivities, agendaStudentProfiles } from "./agenda";
+import {
+  AGENDA_ACTIVITY_TYPES,
+  agenda,
+  agendaActivities,
+  agendaProfileSubjects,
+  agendaStudentProfiles,
+  agendaSubjects,
+} from "./agenda";
 import { users } from "./core";
 
 // Billing remains attached to the household owner. Every adult authenticates
@@ -149,6 +156,17 @@ export const agendaNoticeActions = agenda.table(
       onDelete: "set null",
     }),
     type: text("type", { enum: AGENDA_ACTIVITY_TYPES }).notNull(),
+    // Matéria da providência, opcional. É o que devolve a leitura por
+    // matéria (nome e cor `chart-N`) às atividades que vieram de recado ou do
+    // cadastro sem turma — antes elas só podiam exibir o rótulo do tipo.
+    // No máximo uma das duas: matéria da turma OU extracurricular do perfil.
+    // `SET NULL` (e não `CASCADE`, como em `agenda.activities.subject_id`)
+    // porque a providência da família existe independentemente da matéria:
+    // apagar a matéria tira o rótulo, nunca a obrigação.
+    subjectId: uuid("subject_id").references(() => agendaSubjects.id, { onDelete: "set null" }),
+    profileSubjectId: uuid("profile_subject_id").references(() => agendaProfileSubjects.id, {
+      onDelete: "set null",
+    }),
     title: text("title").notNull(),
     description: text("description"),
     dueAt: date("due_at"),
@@ -188,6 +206,12 @@ export const agendaNoticeActions = agenda.table(
       sql`${t.time} IS NULL OR (${t.dueAt} IS NOT NULL AND ${t.time} ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$')`,
     ),
     check("agenda_action_status_check", sql`${t.status} IN ('pending','done','canceled')`),
+    check(
+      "agenda_action_subject_exclusive_check",
+      sql`${t.subjectId} IS NULL OR ${t.profileSubjectId} IS NULL`,
+    ),
+    index("agenda_notice_actions_subject_idx").on(t.subjectId),
+    index("agenda_notice_actions_profile_subject_idx").on(t.profileSubjectId),
   ],
 );
 

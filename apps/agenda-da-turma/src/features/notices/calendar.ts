@@ -18,11 +18,12 @@ export function noticeCalendarItems(rows: NoticeActionRow[]): NoticeCalendarItem
         activityCreatedAt: a.createdAt,
         createdByUserId: a.createdByUserId,
         status: a.status,
-        // Existing calendar glyphs classify administrative actions as reminders;
-        // the precise label and full domain object are retained for display.
-        type: a.type === "task" || a.type === "exam" || a.type === "project" ? a.type : "reminder",
-        subjectName: ACTIVITY_TYPE_LABELS[a.type],
-        subjectColorIndex: 0,
+        type: a.type,
+        // Com matéria vinculada, o item é lido por matéria como as atividades
+        // escolares — mesmo nome e mesma cor `chart-N`. Sem vínculo, cai no
+        // rótulo do tipo, que é o que existia antes para toda providência.
+        subjectName: row.subjectName ?? ACTIVITY_TYPE_LABELS[a.type],
+        subjectColorIndex: row.subjectColorIndex ?? 0,
         routineItem: row,
       },
     ];

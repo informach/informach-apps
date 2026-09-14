@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { z } from "zod";
 import { createStudentProfileAction } from "@/features/students/actions";
+import type { SubjectOptionsByProfile } from "@/features/subjects/options-service";
 import { catchActionResult } from "@/lib/action-result";
 import { confirmNoticeAction } from "../actions";
 import { noticeErrorMessage } from "../messages";
@@ -35,6 +36,8 @@ function blankAction(
       type,
       title: "",
       description: null,
+      subjectId: null,
+      profileSubjectId: null,
       dueAt: null,
       dateOrigin: "unspecified",
       time: null,
@@ -58,6 +61,7 @@ const responseSchema = z.object({
 export function CaptureForm({
   profiles: initialProfiles,
   adults,
+  subjectOptions,
   proProfileIds,
   ownerIsPro,
   initialNotice,
@@ -68,6 +72,7 @@ export function CaptureForm({
 }: {
   profiles: RoutineProfile[];
   adults: AssignableAdult[];
+  subjectOptions: SubjectOptionsByProfile;
   proProfileIds: string[];
   ownerIsPro: boolean;
   mode?: "capture" | "manual";
@@ -106,6 +111,10 @@ export function CaptureForm({
           value: {
             ...item,
             profileId: initialNotice.profileId,
+            // A IA não recebe a lista de matérias: quem vincula é a pessoa na
+            // revisão.
+            subjectId: null,
+            profileSubjectId: null,
             assignedToUserId: null,
             reminderAt: null,
             recurrence: "none",
@@ -242,6 +251,8 @@ export function CaptureForm({
           value: {
             ...item,
             profileId,
+            subjectId: null,
+            profileSubjectId: null,
             assignedToUserId: null,
             reminderAt: null,
             recurrence: "none",
@@ -620,6 +631,7 @@ export function CaptureForm({
                 </Button>
               </div>
               <ActionFields
+                subjectOptions={subjectOptions}
                 prefix={draft.key}
                 value={draft.value}
                 onChange={(value) => {
