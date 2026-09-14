@@ -139,7 +139,21 @@ export const agendaNoticeApplications = agenda.table(
   (t) => [uniqueIndex("agenda_notice_application_profile_idx").on(t.noticeId, t.profileId)],
 );
 
-export const AGENDA_DATE_ORIGINS = ["unspecified", "school", "relative", "family"] as const;
+// Procedência do prazo de uma providência.
+//   school    — informado no próprio original
+//   relative  — calculado a partir de uma referência de publicação do original
+//   family    — planejado pela família
+//   schedule  — calculado pelo horário da matéria (próxima aula, respeitando o
+//               revezamento quinzenal). Determinístico, a partir do horário que
+//               a própria família cadastrou — não é palpite da IA, que continua
+//               proibida de inventar prazo.
+export const AGENDA_DATE_ORIGINS = [
+  "unspecified",
+  "school",
+  "relative",
+  "family",
+  "schedule",
+] as const;
 
 export const agendaNoticeActions = agenda.table(
   "notice_actions",
@@ -199,7 +213,7 @@ export const agendaNoticeActions = agenda.table(
     uniqueIndex("agenda_notice_actions_series_due_idx").on(t.seriesId, t.profileId, t.dueAt),
     check(
       "agenda_action_date_origin_check",
-      sql`(${t.dueAt} IS NULL AND ${t.dateOrigin} = 'unspecified') OR (${t.dueAt} IS NOT NULL AND ${t.dateOrigin} IN ('school','relative','family'))`,
+      sql`(${t.dueAt} IS NULL AND ${t.dateOrigin} = 'unspecified') OR (${t.dueAt} IS NOT NULL AND ${t.dateOrigin} IN ('school','relative','family','schedule'))`,
     ),
     check(
       "agenda_action_time_check",

@@ -14,6 +14,7 @@ import {
   users,
 } from "@informach/db/schema";
 import { accessibleProfileCondition } from "@/features/family/access";
+import { loadSlotsForSubjects } from "@/features/subjects/repository";
 import { activeMembershipCondition } from "@/features/turmas/access";
 import { todayLocalIso } from "../dashboard/date";
 import { DEFAULT_ACTIVITIES_PAGE_SIZE, MAX_ACTIVITIES_PAGE_SIZE } from "./limits";
@@ -706,6 +707,9 @@ export async function listTurmasWithSubjectsForUserForm(
     .where(inArray(agendaSubjects.turmaId, turmaIds))
     .orderBy(asc(agendaSubjects.name));
 
+  // Uma consulta só para os slots de revezamento de todas as matérias.
+  const slotsBySubject = await loadSlotsForSubjects(subjects.map((s) => s.id));
+
   const subjectsByTurma = new Map<string, TurmaWithSubjectsForForm["subjects"]>();
   for (const s of subjects) {
     const list = subjectsByTurma.get(s.turmaId) ?? [];
@@ -714,6 +718,10 @@ export async function listTurmasWithSubjectsForUserForm(
       name: s.name,
       colorIndex: s.colorIndex,
       classDays: s.classDays,
+      alternatingSlots: (slotsBySubject.get(s.id) ?? []).map((slot) => ({
+        day: slot.dayOfWeek,
+        anchorIso: slot.anchorDate,
+      })),
     });
     subjectsByTurma.set(s.turmaId, list);
   }

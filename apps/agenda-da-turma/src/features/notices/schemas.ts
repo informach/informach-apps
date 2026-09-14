@@ -14,6 +14,7 @@ export const DATE_ORIGIN_LABELS = {
   school: "Informado no original",
   relative: "Calculado a partir do original",
   family: "Planejado pela família",
+  schedule: "Calculado pelo horário da matéria",
 };
 
 export const dateSchema = z
@@ -87,7 +88,9 @@ export const noticeGenerationSchema = noticeExtractionSchema.required({
 export const actionFieldsSchema = extractedActionSchema
   .extend({
     profileId: z.string().uuid(),
-    dateOrigin: z.enum(["unspecified", "school", "relative", "family"]),
+    // "schedule" só é atribuído pelo cálculo determinístico da próxima aula,
+    // no formulário. `extractedActionSchema` (saída da IA) segue sem ele.
+    dateOrigin: z.enum(["unspecified", "school", "relative", "family", "schedule"]),
     // Matéria da providência, escolhida pela pessoa na revisão. No máximo uma
     // das duas: da turma da criança OU extracurricular dela. O serviço
     // revalida a pertinência — o formulário só sugere as opções.

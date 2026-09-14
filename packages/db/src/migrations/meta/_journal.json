@@ -288,6 +288,13 @@
       "when": 1789395077787,
       "tag": "0040_tense_squirrel_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1789395595616,
+      "tag": "0041_productive_polaris",
+      "breakpoints": true
     }
   ]
 }

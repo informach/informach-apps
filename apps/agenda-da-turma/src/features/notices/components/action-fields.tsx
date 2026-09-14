@@ -1,6 +1,7 @@
 "use client";
 import { Input } from "@informach/ui/components/input";
 import { suggestReminder } from "@/features/notifications/reminder-suggestion";
+import { suggestDueDateFromSchedule } from "@/features/subjects/due-date-suggestion";
 import type { SubjectOptionsByProfile } from "@/features/subjects/options-service";
 import {
   ACTIVITY_TYPE_LABELS,
@@ -106,10 +107,22 @@ export function ActionFields({
           disabled={subjectsForProfile.length === 0}
           onChange={(e) => {
             const option = subjectsForProfile.find((s) => s.id === e.target.value);
-            change({
+            const patch: Partial<NoticeActionInput> = {
               subjectId: option?.source === "turma" ? option.id : null,
               profileSubjectId: option?.source === "extra" ? option.id : null,
-            });
+            };
+            // Prazo vazio + matéria com horário cadastrado → próxima aula.
+            // Cálculo determinístico, com a procedência à vista; um toque no
+            // campo de data altera. Sem horário, o campo continua vazio: nunca
+            // "amanhã".
+            if (option && !value.dueAt) {
+              const suggestion = suggestDueDateFromSchedule(option);
+              if (suggestion) {
+                patch.dueAt = suggestion.dueAt;
+                patch.dateOrigin = "schedule";
+              }
+            }
+            change(patch);
           }}
         >
           <option value="">

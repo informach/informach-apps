@@ -1,0 +1,2 @@
+ALTER TABLE "agenda"."notice_actions" DROP CONSTRAINT "agenda_action_date_origin_check";--> statement-breakpoint
+ALTER TABLE "agenda"."notice_actions" ADD CONSTRAINT "agenda_action_date_origin_check" CHECK (("agenda"."notice_actions"."due_at" IS NULL AND "agenda"."notice_actions"."date_origin" = 'unspecified') OR ("agenda"."notice_actions"."due_at" IS NOT NULL AND "agenda"."notice_actions"."date_origin" IN ('school','relative','family','schedule')));

@@ -319,8 +319,8 @@ export function SubjectFormDialog({
                     />
                   </FormControl>
                   <FormDescription>
-                    Opcional. Usado pra calcular datas de entrega automaticamente quando você
-                    cadastra uma atividade sem data.
+                    Opcional. Com o horário cadastrado, o prazo de uma nova atividade dessa matéria
+                    já vem preenchido com a próxima aula.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
