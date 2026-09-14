@@ -9,7 +9,6 @@ import {
 } from "@informach/ai-core/mastra";
 import { env } from "@/lib/env";
 import { getOpenRouter } from "@/lib/openrouter";
-import { createActivitiesParserAgent } from "./activities-parser/agent";
 import { AGENDA_MODELS } from "./models";
 import { createSubjectsParserAgent } from "./subjects-parser/agent";
 
@@ -47,9 +46,6 @@ export function getMastra(): Mastra {
 
   const subjectsTextModel = AGENDA_MODELS["agenda.subjects.parse_voice"];
   const subjectsVisionModel = AGENDA_MODELS["agenda.subjects.parse_image"];
-  const activitiesTextModel = AGENDA_MODELS["agenda.activities.parse_voice"];
-  const activitiesVisionModel = AGENDA_MODELS["agenda.activities.parse_image"];
-  const activitiesPdfModel = AGENDA_MODELS["agenda.activities.parse_pdf"];
 
   const subjectsParser = createSubjectsParserAgent({
     model: openrouter(subjectsTextModel),
@@ -63,37 +59,10 @@ export function getMastra(): Mastra {
     memory,
   });
 
-  const activitiesParser = createActivitiesParserAgent({
-    model: openrouter(activitiesTextModel),
-    memory,
-  });
-
-  const activitiesParserVision = createActivitiesParserAgent({
-    id: "activitiesParserVision",
-    name: "activitiesParserVision",
-    model: openrouter(activitiesVisionModel),
-    memory,
-  });
-
-  // Sibling do vision parser — reusa as mesmas instructions/schema, só
-  // diferencia o id pra tracing/logs. O caller envia `type: "file"` com
-  // `mediaType: "application/pdf"` em vez de `type: "image"`. AI SDK v6
-  // suporta nativamente PDF como input multimodal pro gpt-4o (OpenAI
-  // Chat API com PDF support).
-  const activitiesParserPdf = createActivitiesParserAgent({
-    id: "activitiesParserPdf",
-    name: "activitiesParserPdf",
-    model: openrouter(activitiesPdfModel),
-    memory,
-  });
-
   cached = createMastra({
     agents: {
       subjectsParser,
       subjectsParserVision,
-      activitiesParser,
-      activitiesParserVision,
-      activitiesParserPdf,
     },
     storage,
     logger: createDefaultLogger({ name: "agenda-da-turma", level: env.MASTRA_LOG_LEVEL }),

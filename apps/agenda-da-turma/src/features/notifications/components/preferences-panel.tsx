@@ -114,7 +114,7 @@ export function NotificationPreferencesPanel({
       <h2 className="text-lg font-semibold">Lembrar no momento certo</h2>
       <p className="text-sm text-muted-foreground">
         Receba um resumo das pendências de hoje e do preparo para amanhã. Lembretes individuais
-        podem ser definidos em cada providência. Horários de Brasília.
+        podem ser definidos em cada atividade. Horários de Brasília.
       </p>
       <label className="flex min-h-11 items-center gap-3 text-sm">
         <input
@@ -160,7 +160,7 @@ export function NotificationPreferencesPanel({
         ))}
       </div>
       <p className="text-xs text-muted-foreground">
-        Use o mesmo horário de início e fim para desativar o silêncio. Uma providência concluída ou
+        Use o mesmo horário de início e fim para desativar o silêncio. Uma atividade concluída ou
         cancelada deixa de gerar novos lembretes.
       </p>
       <Button onClick={() => save()} disabled={busy}>

@@ -19,8 +19,8 @@ export function AccountPanel({
       <section className="space-y-3 rounded-xl border p-5">
         <h2 className="text-lg font-semibold">Uma cópia dos seus dados</h2>
         <p className="text-sm text-muted-foreground">
-          Baixe os perfis, atividades, providências e dados de recados da sua conta. Anexos
-          completos ficam disponíveis nos recados por 30 dias.
+          Baixe os perfis, as atividades e os dados de recados da sua conta. Anexos completos ficam
+          disponíveis nos recados por 30 dias.
         </p>
         <Button variant="outline" asChild>
           <a href="/api/data/export">Baixar dados em JSON</a>

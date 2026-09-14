@@ -4,13 +4,14 @@ import Link from "next/link";
 import { type ReactNode, Suspense } from "react";
 import { SharedActivitiesSection } from "@/features/activities/components/shared-activities-section";
 import { getIsProForUser } from "@/features/billing/server-cache";
-import { DashboardNavButtons } from "@/features/dashboard/components/dashboard-nav-buttons";
 import { ExportPdfButton } from "@/features/dashboard/components/export-pdf-button";
 import { RoutineSection, RoutineSkeleton } from "@/features/dashboard/components/routine-section";
 import {
   TodayScheduleSection,
   TodayScheduleSkeleton,
 } from "@/features/dashboard/components/today-schedule-section";
+import { PendingDraftsSection } from "@/features/notices/components/pending-drafts-section";
+import { WelcomeFlash } from "@/features/onboarding/components/welcome-flash";
 import { NoStudentsWidget } from "@/features/students/components/no-students-widget";
 import { ProfilesWithoutTurmaWidget } from "@/features/students/components/profiles-without-turma-widget";
 import {
@@ -87,7 +88,12 @@ export default async function DashboardPage({ searchParams }: Props) {
           ))}
         </nav>
       ) : null}
-      <DashboardNavButtons profileFilter={profileFilter} />
+      <Suspense fallback={null}>
+        <WelcomeFlash isPro={isPro} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <PendingDraftsSection userId={user.id} />
+      </Suspense>
       <Suspense fallback={<TodayScheduleSkeleton />}>
         <TodayScheduleSection userId={user.id} profileFilter={profileFilter} />
       </Suspense>
@@ -98,20 +104,22 @@ export default async function DashboardPage({ searchParams }: Props) {
         <SharedActivitiesSection userId={user.id} />
       </Suspense>
       {profiles.length === 0 ? <NoStudentsWidget /> : null}
-      <details className="rounded-2xl border p-4">
-        <summary className="cursor-pointer text-sm font-medium">Perfis, turmas e matérias</summary>
-        <div className="mt-4 space-y-4">
+      {/*
+        Pendências de cadastro ficavam recolhidas atrás de um resumo, junto com
+        um "Configuração escolar em dia." que não pede nada de ninguém. São
+        itens acionáveis: aparecem abertos quando existem, e somem quando não.
+        O resto da configuração tem casa própria, na aba Família.
+      */}
+      {profilesWithoutTurma > 0 || turmasNeedingSubjects.length > 0 ? (
+        <div className="space-y-4">
           {profilesWithoutTurma > 0 ? (
             <ProfilesWithoutTurmaWidget count={profilesWithoutTurma} />
           ) : null}
           {turmasNeedingSubjects.length > 0 ? (
             <NoSubjectsWidget turmas={turmasNeedingSubjects} />
           ) : null}
-          {profilesWithoutTurma === 0 && turmasNeedingSubjects.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Configuração escolar em dia.</p>
-          ) : null}
         </div>
-      </details>
+      ) : null}
     </Shell>
   );
 }

@@ -15,18 +15,18 @@ export default function PrivacyPage() {
       <section className="space-y-2">
         <h2 className="text-xl font-semibold">Recados, anexos e inteligência artificial</h2>
         <p>
-          Ao escolher Organizar recado, a mensagem e as páginas ou imagem selecionadas são enviadas
-          ao serviço de IA por meio do OpenRouter. O resultado precisa da sua revisão antes de
-          entrar na rotina. Esse fluxo não acrescenta o nome ou o nascimento cadastrados no perfil à
-          solicitação de extração. Informações pessoais que já estejam na mensagem ou no arquivo
-          enviado também serão processadas; confira o conteúdo antes de enviar. A data de nascimento
-          é opcional no perfil. As ferramentas de cadastro por matéria podem usar os nomes dos
-          perfis e das matérias para ajudar na identificação, sempre com confirmação antes de
-          salvar.
+          Ao adicionar uma atividade a partir de um recado, a mensagem e as páginas ou imagem
+          selecionadas são enviadas ao serviço de IA por meio do OpenRouter. O resultado precisa da
+          sua revisão antes de entrar na rotina. Esse fluxo não acrescenta o nome ou o nascimento
+          cadastrados no perfil à solicitação de extração. Informações pessoais que já estejam na
+          mensagem ou no arquivo enviado também serão processadas; confira o conteúdo antes de
+          enviar. A data de nascimento é opcional no perfil. As ferramentas de cadastro por matéria
+          podem usar os nomes dos perfis e das matérias para ajudar na identificação, sempre com
+          confirmação antes de salvar.
         </p>
         <p>
           O anexo original pode ser consultado por 30 dias. Depois disso, o arquivo é removido pela
-          rotina de retenção e o acesso ao download é bloqueado. O texto do recado e as providências
+          rotina de retenção e o acesso ao download é bloqueado. O texto do recado e as atividades
           ficam na conta para consulta do histórico, até a exclusão do perfil ou da conta.
         </p>
       </section>
@@ -34,7 +34,7 @@ export default function PrivacyPage() {
         <h2 className="text-xl font-semibold">Acesso de outros adultos</h2>
         <p>
           Você escolhe as crianças que um segundo adulto pode acompanhar. Os adultos autorizados
-          podem ver e atualizar as providências dessas crianças. Confira o conteúdo dos documentos
+          podem ver e atualizar as atividades dessas crianças. Confira o conteúdo dos documentos
           antes de compartilhar um perfil, pois uma publicação pode mencionar outras pessoas.
           Convites são vinculados ao e-mail indicado e expiram em 72 horas.
         </p>

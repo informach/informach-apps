@@ -143,7 +143,7 @@ export function JoinByCodeDialog({ open, onOpenChange, profiles, defaultProfileI
                       autoFocus
                       autoComplete="off"
                       maxLength={TURMA_CODE_LENGTH}
-                      placeholder="ABC123"
+                      placeholder="HKPR47MTXW29"
                       className="font-mono uppercase tracking-widest"
                       {...field}
                       onChange={(e) => field.onChange(e.target.value.toUpperCase())}

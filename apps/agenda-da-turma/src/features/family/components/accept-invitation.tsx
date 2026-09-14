@@ -12,8 +12,8 @@ export function AcceptInvitation({ token, email }: { token: string; email: strin
   return (
     <div className="space-y-4">
       <p className="text-muted-foreground">
-        Você está entrando com {email}. Ao aceitar, poderá acompanhar e atualizar as providências
-        das crianças autorizadas.
+        Você está entrando com {email}. Ao aceitar, poderá acompanhar e atualizar as atividades das
+        crianças autorizadas.
       </p>
       <Button
         disabled={busy}

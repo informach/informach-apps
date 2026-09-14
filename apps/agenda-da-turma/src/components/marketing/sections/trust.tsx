@@ -27,7 +27,7 @@ export function Trust() {
         <h2 id="trust-title">Você sabe de onde veio. E decide o que fica.</h2>
         <p>
           Confira a publicação e os trechos de origem antes de salvar. Mudou o prazo? Importe a
-          retificação e confirme a atualização da providência existente.
+          retificação e confirme a atualização da atividade existente.
         </p>
         <p>
           Quando a escola não informa uma data, o prazo fica a confirmar. Você pode escolher uma

@@ -13,7 +13,6 @@ import { billing } from "@/lib/billing";
 import { env } from "@/lib/env";
 import { prepareNoticeAttachment } from "./attachment";
 import {
-  FREE_NOTICE_TRIAL,
   finishNoticeParse,
   isNoticeRunCommitted,
   isNoticeUserVerified,
@@ -22,6 +21,7 @@ import {
 } from "./parse-repository";
 import { getNoticeSource, listNoticeApplications } from "./repository";
 import { type NoticeExtraction, noticeExtractionSchema, type parseNoticeSchema } from "./schemas";
+import { grantNoticeTrialCredits } from "./trial";
 
 const FEATURE = "agenda.notices.parse";
 
@@ -81,13 +81,7 @@ export async function parseNotice(userId: string, input: z.infer<typeof parseNot
 
   if (!notice.billingRunId) throw new Error("Notice admission did not create a run id");
   try {
-    if (!isPro)
-      await billing.grantBonusCredits({
-        owner: { type: "user", id: ownerId },
-        amount: FREE_NOTICE_TRIAL,
-        reason: "promo",
-        stripeEventId: `agenda-notice-trial-v1:${ownerId}`,
-      });
+    if (!isPro) await grantNoticeTrialCredits(ownerId, "base");
     const out = await runBillableAgentCall<{ extraction: NoticeExtraction; usage?: unknown }>({
       billing,
       owner: { type: "user", id: ownerId },

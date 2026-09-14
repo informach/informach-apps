@@ -24,7 +24,7 @@ export function validateNoticeExtraction(
         ? [
             conflict
               ? "A publicação informada diverge do original. Confirme a referência e os prazos antes de salvar."
-              : "Há um prazo relativo sem referência de publicação confirmada. Informe a publicação e organize novamente, ou confirme a data da providência.",
+              : "Há um prazo relativo sem referência de publicação confirmada. Informe a publicação e organize novamente, ou confirme a data da atividade.",
           ]
         : []),
     ].slice(0, 10),

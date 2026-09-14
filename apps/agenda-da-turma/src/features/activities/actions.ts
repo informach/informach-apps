@@ -5,7 +5,6 @@ import { action, err, ok } from "@/lib/action";
 import { logAgendaAuditEvent } from "@/lib/audit";
 import { logger } from "@/lib/logger";
 import {
-  createActivitiesBatchInputSchema,
   createActivityInputSchema,
   deleteActivityInputSchema,
   respondSharedActivityInputSchema,
@@ -13,7 +12,6 @@ import {
   updateActivityInputSchema,
 } from "./schemas";
 import {
-  createActivitiesBatch,
   createActivity,
   deleteActivity,
   respondSharedActivity,
@@ -110,39 +108,6 @@ export const setActivityStatusAction = action
     });
     refreshActivityViews();
     return ok({ statusId: result.value.statusId } as const);
-  });
-
-/**
- * Insere N atividades de uma vez — consumido pelo batch confirm dialog
- * após o fluxo de IA (voz/imagem). Pro-only enforced no service
- * (defesa em profundidade — UI já desabilita pra Free, route handler de IA
- * já recusa, e o service refaz a checagem). Audit emite single event com
- * `count` em metadata em vez de N events.
- */
-export const createActivitiesBatchAction = action
-  .input(createActivitiesBatchInputSchema)
-  .auth({ require: "user" })
-  .rateLimit({ key: "activities-batch-create", max: 20, window: "1h" })
-  .run(async ({ input, ctx }) => {
-    const userId = ctx.actor?.id;
-    if (!userId) return err({ code: "UNAUTHORIZED" } as const);
-
-    const result = await createActivitiesBatch(userId, input);
-    if (!result.ok) return err(result.error);
-
-    const { activities } = result.value;
-    logger.info(
-      { userId, count: activities.length, visibility: input.visibility },
-      "agenda.activities_batch_created",
-    );
-    await logAgendaAuditEvent("agenda.activity_created", userId, {
-      batch: { count: activities.length, visibility: input.visibility },
-    });
-    refreshActivityViews();
-    return ok({
-      activityIds: activities.map((a) => a.id),
-      count: activities.length,
-    } as const);
   });
 
 export const respondSharedActivityAction = action

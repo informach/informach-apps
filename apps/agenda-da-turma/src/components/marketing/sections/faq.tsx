@@ -11,7 +11,7 @@ const QUESTIONS = [
   ],
   [
     "Vou ter que digitar cada tarefa?",
-    "Você envia o conteúdo para a IA sugerir as providências e confere antes de salvar. Também pode criar ou corrigir uma providência manualmente.",
+    "Você envia o conteúdo para a IA sugerir as atividades e confere antes de salvar. Também pode criar ou corrigir uma atividade manualmente.",
   ],
   [
     "E se não houver prazo no recado?",
@@ -19,7 +19,7 @@ const QUESTIONS = [
   ],
   [
     "Serve para um filho ou para quem cuida sozinho?",
-    "Sim. Organizar as providências e acompanhar os próximos dias já é útil com uma criança. O Pro acrescenta lembretes e mais importações; convidar outro adulto é opcional.",
+    "Sim. Organizar as atividades e acompanhar os próximos dias já é útil com uma criança. O Pro acrescenta lembretes e mais importações; convidar outro adulto é opcional.",
   ],
   [
     "Marcar como feito envia a autorização para a escola?",
@@ -35,7 +35,7 @@ const QUESTIONS = [
   ],
   [
     "E se meus créditos acabarem?",
-    "Você pode continuar acompanhando e cadastrando providências manualmente. Para novas importações, aguarde a próxima franquia mensal do Pro ou consulte os pacotes avulsos disponíveis na sua conta.",
+    "Você pode continuar acompanhando e cadastrando atividades manualmente. Para novas importações, aguarde a próxima franquia mensal do Pro ou consulte os pacotes avulsos disponíveis na sua conta.",
   ],
 ] as const;
 export function Faq() {

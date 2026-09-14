@@ -16,6 +16,13 @@ import { expect, test } from "@playwright/test";
  *
  * Ao acrescentar uma rota de API pesada que a suíte toque poucas vezes,
  * inclua-a aqui.
+ *
+ * **Só funciona para rotas de API.** Aquecer uma PÁGINA autenticada por aqui
+ * não paga nada: sem sessão, o `proxy.ts` responde o redirect para `/login`
+ * antes de o módulo da página ser avaliado, e a compilação continua fria para
+ * o primeiro teste que a visitar logado. Foi medido: sete páginas adicionadas
+ * aqui subiram o aquecimento em 2 s e não tiraram nenhum segundo do teste.
+ * Para páginas, o orçamento tem de estar no `test.setTimeout` de quem navega.
  */
 const WARMUP: Array<{ path: string; method: "GET" | "POST" }> = [
   // A mais pesada do app, tocada uma vez só (review-fixes.spec.ts).

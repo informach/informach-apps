@@ -3,7 +3,7 @@ export function noticeErrorMessage(code: string) {
     INVALID_SOURCE_SCOPE:
       "Marque todas as crianças mencionadas no original e que já receberam este recado, ou mantenha o original privado.",
     POSSIBLE_CORRECTIONS:
-      "Há uma providência semelhante com outra data. Confira se este recado corrige a anterior ou se é uma nova obrigação.",
+      "Há uma atividade semelhante com outra data. Confira se este recado corrige a anterior ou se é uma nova obrigação.",
     INVALID_CORRECTION:
       "A escolha de correção não corresponde mais à revisão. Confira os itens e selecione novamente.",
     INVALID_PROFILE:
@@ -12,7 +12,7 @@ export function noticeErrorMessage(code: string) {
       "Essa matéria não pertence à turma atual da criança. Escolha outra ou deixe sem matéria.",
     VERIFY_EMAIL: "Confirme seu e-mail antes de experimentar a importação.",
     AI_DISABLED:
-      "A importação está indisponível neste ambiente. Você pode cadastrar as providências manualmente.",
+      "A importação está indisponível neste ambiente. Você pode cadastrar as atividades manualmente.",
     INVALID_ATTACHMENT: "Use uma imagem JPG, PNG ou WebP, ou um PDF válido, de até 5 MB.",
     SELECT_PDF_PAGES: "Selecione de uma a três páginas válidas do PDF.",
     PROCESSING:
@@ -21,11 +21,17 @@ export function noticeErrorMessage(code: string) {
     TRIAL_BUSY:
       "O teste gratuito atingiu a capacidade de hoje. Tente amanhã ou cadastre manualmente.",
     TRIAL_ENDED:
-      "Você já usou as cinco importações de teste. O Pro inclui 70 créditos por mês; cada recado usa um crédito.",
+      "Você já usou as cinco importações de teste. O Pro inclui 70 créditos por mês: um por recado de texto, foto ou PDF, e dois quando você dita.",
     NO_ACTIONS:
-      "Não encontrei providências claras neste recado. Revise o conteúdo ou cadastre manualmente. A tentativa não consumiu crédito.",
+      "Não encontrei atividades claras neste recado. Revise o conteúdo ou cadastre manualmente. A tentativa não consumiu crédito.",
     PARSE_FAILED:
       "Não foi possível organizar o recado. Verifique seu saldo e tente novamente. Você também pode cadastrar manualmente.",
+    VOICE_TRIAL_SPENT:
+      "O ditado de teste acabou. Os créditos que restam ficam guardados para ler seus recados: importe por texto ou foto, ou escreva a atividade.",
+    INSUFFICIENT_CREDITS:
+      "Seus créditos acabaram. Cadastre a atividade escrevendo, ou assine o Pro para continuar usando a IA.",
+    TRANSCRIBE_FAILED:
+      "Não consegui transcrever o áudio. Tente de novo, falando mais perto do microfone.",
     NOT_READY: "O recado ainda não está pronto para revisão.",
     NOT_FOUND: "Este item não está disponível para sua conta.",
     VERSION_CONFLICT:
@@ -35,9 +41,9 @@ export function noticeErrorMessage(code: string) {
     ACTIVITY_LIMIT_REACHED:
       "O plano gratuito permite 20 pendências próprias. Conclua algumas para liberar espaço; o histórico será mantido.",
     DUPLICATE_IN_REVIEW:
-      "Há duas providências iguais para a mesma criança nesta revisão. Remova uma delas.",
+      "Há duas atividades iguais para a mesma criança nesta revisão. Remova uma delas.",
     POSSIBLE_DUPLICATES:
-      "Já há uma providência com mesmo título, tipo e data. Abra o registro existente para corrigir, ou confirme que deseja outro.",
+      "Já há uma atividade com mesmo título, tipo e data. Abra o registro existente para corrigir, ou confirme que deseja outro.",
   };
   return (
     messages[code] ??

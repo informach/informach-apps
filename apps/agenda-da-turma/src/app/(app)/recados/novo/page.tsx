@@ -10,14 +10,29 @@ import { noticeExtractionSchema, noticeSourceSchema } from "@/features/notices/s
 import { listSubjectOptionsByProfile } from "@/features/subjects/options-service";
 import { requireUserServer } from "@/lib/auth";
 
-export const metadata = { title: "Importar mensagem ou foto" };
+export const metadata = { title: "Adicionar atividade" };
+
+/**
+ * `?modo=` vem da folha Adicionar e diz por onde a pessoa escolheu entrar.
+ * Não são fluxos diferentes: mudam só o subtítulo e o campo que recebe o foco.
+ */
+const MODE_HINTS = {
+  foto: "Envie a foto da agenda, do caderno ou o anexo que a escola mandou. Você confere tudo antes de salvar.",
+  colar:
+    "Cole a publicação do Teams, do Batista ID ou de onde o recado chegou. Você confere tudo antes de salvar.",
+  falar:
+    "Dite o que a criança precisa fazer. A transcrição aparece para você conferir antes de salvar.",
+} as const;
+const captureModeSchema = z.enum(["foto", "colar", "falar"]);
+
 export default async function NewNoticePage({
   searchParams,
 }: {
-  searchParams: Promise<{ retomar?: string; perfil?: string; origem?: string }>;
+  searchParams: Promise<{ retomar?: string; perfil?: string; origem?: string; modo?: string }>;
 }) {
   const user = await requireUserServer();
   const params = await searchParams;
+  const captureMode = captureModeSchema.safeParse(params.modo).data;
   const [profiles, adults, entitlement, ownerIsPro, subjectOptions] = await Promise.all([
     listAccessibleProfiles(user.id),
     listAssignableAdults(user.id),
@@ -48,10 +63,11 @@ export default async function NewNoticePage({
         Voltar às atividades
       </Link>
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Importar mensagem ou foto</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Adicionar atividade</h1>
         <p className="mt-2 text-muted-foreground">
-          Transforme mensagens, anexos e fotos da agenda ou do caderno em atividades. Confira os
-          detalhes antes de salvar.
+          {captureMode
+            ? MODE_HINTS[captureMode]
+            : "Transforme mensagens, anexos e fotos da agenda ou do caderno em atividades. Confira os detalhes antes de salvar."}
         </p>
       </header>
       <CaptureForm
@@ -62,6 +78,7 @@ export default async function NewNoticePage({
         proProfileIds={entitlement.proProfileIds}
         ownerIsPro={ownerIsPro}
         initialNotice={initialNotice}
+        captureMode={captureMode}
         defaultProfileId={params.perfil}
         defaultSource={noticeSourceSchema.catch("teams").parse(params.origem)}
       />

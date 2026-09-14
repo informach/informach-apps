@@ -4,6 +4,7 @@ import { GroupAccessPanel } from "@/features/turmas/components/group-access-pane
 import { listGroupAdults } from "@/features/turmas/group-access";
 import { findTurmaWithSchoolById } from "@/features/turmas/repository";
 import { requireUserServer } from "@/lib/auth";
+export const metadata = { title: "Acesso ao grupo" };
 export default async function GroupAccessPage({
   params,
 }: {

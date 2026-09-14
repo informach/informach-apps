@@ -95,8 +95,8 @@ export function Pricing() {
           </div>
         </div>
         <p className={styles.pricingUnder}>
-          Uma importação pode gerar várias providências. Cadastro por voz usa 2 créditos. O Pro
-          também inclui exportação da agenda em PDF.
+          Uma importação pode gerar várias atividades. Cadastro por voz usa 2 créditos. O Pro também
+          inclui exportação da agenda em PDF.
         </p>
       </div>
     </section>

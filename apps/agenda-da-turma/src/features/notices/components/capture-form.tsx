@@ -2,12 +2,15 @@
 
 import { Button } from "@informach/ui/components/button";
 import { Input } from "@informach/ui/components/input";
+import { toast } from "@informach/ui/components/sonner";
+import { SpeechInput } from "@informach/ui/components/speech-input";
 import { Camera, Loader2, Plus, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
+import { handleAiHttpError } from "@/features/ai/_http-errors";
 import { createStudentProfileAction } from "@/features/students/actions";
 import type { SubjectOptionsByProfile } from "@/features/subjects/options-service";
 import { catchActionResult } from "@/lib/action-result";
@@ -66,6 +69,7 @@ export function CaptureForm({
   ownerIsPro,
   initialNotice,
   mode = "capture",
+  captureMode,
   defaultProfileId,
   defaultType = "task",
   defaultSource = "teams",
@@ -76,6 +80,11 @@ export function CaptureForm({
   proProfileIds: string[];
   ownerIsPro: boolean;
   mode?: "capture" | "manual";
+  /**
+   * Caminho escolhido na folha Adicionar. Só decide o que recebe o foco ao
+   * abrir — todos os caminhos usam o mesmo formulário e a mesma revisão.
+   */
+  captureMode?: "foto" | "colar" | "falar";
   defaultProfileId?: string;
   defaultType?: NoticeActionInput["type"];
   defaultSource?: z.infer<typeof noticeSourceSchema>;
@@ -150,6 +159,24 @@ export function CaptureForm({
   >([]);
   const [busy, setBusy] = useState(false);
 
+  // O caminho escolhido na folha Adicionar leva o foco ao controle
+  // correspondente. Sem isto, quem toca em "Falar" cai num formulário longo e
+  // precisa caçar o microfone abaixo do campo de texto — exatamente o atrito
+  // que a folha existe para remover.
+  useEffect(() => {
+    if (!captureMode) return;
+    const targetId =
+      captureMode === "foto"
+        ? "notice-file"
+        : captureMode === "falar"
+          ? "notice-voice"
+          : "notice-text";
+    const target = document.getElementById(targetId);
+    if (!target) return;
+    target.scrollIntoView({ block: "center" });
+    target.focus({ preventScroll: true });
+  }, [captureMode]);
+
   function resetDecisions() {
     setCorrections([]);
     setResolutions([]);
@@ -173,6 +200,41 @@ export function CaptureForm({
     if (mode === "manual") setDrafts([blankAction(result.value.id, defaultType)]);
     router.refresh();
   }
+  /**
+   * Transcreve o ditado e devolve o texto para o campo acima. A leitura do
+   * recado continua sendo um passo separado, que a pessoa dispara depois de
+   * conferir a transcrição — ditar errado não gasta a interpretação.
+   */
+  async function transcribeAudio(blob: Blob): Promise<string> {
+    if (!profileId) return "";
+    setError("");
+    const body = new FormData();
+    body.append("audio", blob, "recado.webm");
+    const response = await fetch(
+      `/api/ai/activities/transcribe?perfil=${encodeURIComponent(profileId)}`,
+      { method: "POST", body },
+    );
+    if (!response.ok) {
+      // A rota distingue "acabou a franquia" de "o áudio falhou": repetir só
+      // resolve no segundo caso, então a mensagem precisa ser a certa.
+      const probe = (await response
+        .clone()
+        .json()
+        .catch(() => null)) as { code?: string } | null;
+      if (probe?.code && probe.code !== "SUBSCRIPTION_REQUIRED" && probe.code !== "RATE_LIMITED") {
+        toast.error(noticeErrorMessage(probe.code));
+        return "";
+      }
+      if (!handleAiHttpError(response)) return "";
+      toast.error(noticeErrorMessage("TRANSCRIBE_FAILED"));
+      return "";
+    }
+    const data = (await response.json().catch(() => null)) as { text?: string } | null;
+    const transcript = (data?.text ?? "").trim();
+    if (!transcript) toast.error("Não entendi o áudio. Fale um pouco mais perto do microfone.");
+    return transcript;
+  }
+
   async function chooseFile(file: File | undefined) {
     setAttachment(null);
     setPageCount(0);
@@ -372,6 +434,39 @@ export function CaptureForm({
               onChange={(e) => setText(e.target.value)}
             />
           </label>
+          {/*
+            Ditar escreve no mesmo campo de texto, e não num fluxo paralelo: a
+            transcrição fica visível para conferência antes de gastar a leitura
+            do recado. Até aqui a voz só existia no caminho Pro por matéria, que
+            exigia turma cadastrada e nunca chegava a quem estava começando.
+          */}
+          <div className="flex items-center gap-3 rounded-lg border border-chart-3/30 bg-chart-3/5 p-3">
+            {/* `SpeechInput` é um botão só de ícone: o rótulo visível vive ao
+                lado, e o acessível vem do aria-label. */}
+            <SpeechInput
+              id="notice-voice"
+              type="button"
+              variant="outline"
+              aria-label="Ditar a atividade"
+              className="size-11 shrink-0 rounded-full"
+              disabled={busy || !profileId}
+              maxDurationMs={120_000}
+              onAudioRecorded={transcribeAudio}
+              onTranscriptionChange={(value) => {
+                const next = value.trim();
+                if (!next) return;
+                setText((prev) => (prev.trim() ? `${prev.trim()}\n${next}` : next));
+              }}
+              onError={() => toast.error("Não consegui acessar o microfone. Confira a permissão.")}
+            />
+            <p className="text-sm">
+              <span className="font-medium">Ditar a atividade.</span>{" "}
+              <span className="text-muted-foreground">
+                Fale o que a criança precisa fazer. O texto aparece acima para você conferir antes
+                de salvar.
+              </span>
+            </p>
+          </div>
           <label htmlFor="notice-file" className="grid gap-2 text-sm font-medium">
             Foto ou arquivo
             <Input
@@ -395,7 +490,7 @@ export function CaptureForm({
               htmlFor="notice-camera"
               className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border px-4 text-sm font-medium focus-within:ring-2 focus-within:ring-ring"
             >
-              <Camera className="size-4" aria-hidden /> Tirar foto da agenda ou do caderno
+              <Camera className="size-4" aria-hidden /> Usar a câmera
               <input
                 id="notice-camera"
                 className="sr-only"
@@ -503,7 +598,7 @@ export function CaptureForm({
           </div>
           <p className="text-sm text-muted-foreground">
             {isPro
-              ? "1 crédito por importação, mesmo com várias atividades."
+              ? "1 crédito por importação, mesmo com várias atividades; ditar usa 2."
               : "Experimente 5 importações gratuitas, sem cartão. Depois, o Pro inclui 70 créditos por mês."}{" "}
             Você revisa antes de salvar. O conteúdo será enviado ao serviço de IA para extração.
           </p>

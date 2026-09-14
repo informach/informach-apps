@@ -90,7 +90,7 @@ function DemoResult({ scenario }: { scenario: LandingScenario }) {
       <div className={styles.outputHeader}>
         <h3>O que precisa de atenção</h3>
         <span className={[styles.pill, styles.blue].join(" ")}>
-          {data.actions.length} {data.actions.length === 1 ? "providência" : "providências"}
+          {data.actions.length} {data.actions.length === 1 ? "atividade" : "atividades"}
         </span>
       </div>
       {data.actions.map((action) => {
@@ -145,7 +145,7 @@ function DemoResult({ scenario }: { scenario: LandingScenario }) {
             " concluídas nesta demonstração. Nada é enviado à escola."
           : planned
             ? "Preparação escolhida para 17/09. A autorização continua com prazo de 16/09."
-            : "Experimente marcar uma providência como feita."}
+            : "Experimente marcar uma atividade como feita."}
       </p>
     </div>
   );

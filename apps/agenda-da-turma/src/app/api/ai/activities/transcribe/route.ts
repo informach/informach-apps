@@ -1,5 +1,8 @@
+import { InsufficientCreditsError } from "@informach/billing";
+import { z } from "zod";
 import { jsonUtf8, withAiRouteGuards } from "@/features/ai/_shared";
 import { transcribeActivitiesAudio } from "@/features/ai/transcribe-activities-service";
+import { findAccessibleProfile } from "@/features/family/access";
 import { logger } from "@/lib/logger";
 import { RequestBodyTooLargeError, readFormDataWithSizeLimit } from "@/lib/request-size";
 
@@ -21,7 +24,20 @@ const ALLOWED_MIME_PREFIX = "audio/";
  * que o credit ledger fica granular por feature.
  */
 export async function POST(request: Request): Promise<Response> {
-  const guard = await withAiRouteGuards({ errorScope: "agenda.activities.transcribe" });
+  // `perfil` chega junto do áudio para que o titular da franquia seja a conta
+  // da criança, e não quem está operando — um segundo adulto convidado usa o
+  // plano da família. Sem o campo, o titular é o próprio usuário.
+  const requestProfileId = new URL(request.url).searchParams.get("perfil");
+  const guard = await withAiRouteGuards({
+    errorScope: "agenda.activities.transcribe",
+    freeTrial: "voice",
+    ownerId: async (userId) => {
+      if (!requestProfileId || !z.string().uuid().safeParse(requestProfileId).success)
+        return userId;
+      const profile = await findAccessibleProfile(userId, requestProfileId);
+      return profile?.userId ?? userId;
+    },
+  });
   if (!guard.ok) return guard.response;
   const { userId } = guard;
 
@@ -54,9 +70,21 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const result = await transcribeActivitiesAudio({ userId, audio: audioBlob });
+    // Cobra da conta titular (`guard.subject`), que é onde a franquia de teste
+    // foi concedida; `userId` segue sendo quem operou, para os logs.
+    const result = await transcribeActivitiesAudio({
+      userId: guard.subject.id,
+      audio: audioBlob,
+    });
     return jsonUtf8({ text: result.text });
   } catch (err) {
+    // Saldo insuficiente não é falha de transcrição: "tente de novo" nunca
+    // funcionaria. Acontece quando a franquia de teste foi gasta em regravações
+    // antes de chegar ao teto de importações.
+    if (err instanceof InsufficientCreditsError) {
+      logger.info({ userId }, "agenda.activities.transcribe.insufficient_credits");
+      return jsonUtf8({ code: "INSUFFICIENT_CREDITS" }, { status: 402 });
+    }
     logger.error(
       { userId, error: err instanceof Error ? err.message : String(err) },
       "agenda.activities.transcribe.failed",

@@ -1,6 +1,5 @@
 "use client";
 
-import { Badge } from "@informach/ui/components/badge";
 import { Button } from "@informach/ui/components/button";
 import { Card, CardContent } from "@informach/ui/components/card";
 import {
@@ -10,10 +9,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@informach/ui/components/select";
-import { ArrowLeft, ArrowRight, Camera, FileText, ListTodo, Mic, Plus } from "lucide-react";
+import { ArrowLeft, ArrowRight, ListTodo, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import type { AddEntitlement } from "@/features/notices/entitlement";
 import type { StudentProfile } from "@/features/students/types";
 import {
   ACTIVITY_TYPE_LABELS,
@@ -28,13 +28,9 @@ import {
   OVERVIEW_STATUS_LABELS,
   overviewStatusSchema,
 } from "@/features/unified-activities/overview-types";
-import type { ParsedActivityInput, TurmaWithSubjectsForForm } from "../types";
-import { ActivitiesBatchConfirmDialog } from "./activities-batch-confirm-dialog";
+import type { TurmaWithSubjectsForForm } from "../types";
 import { ActivityFormDialog } from "./activity-form-dialog";
-import { ActivityImageDialog } from "./activity-image-dialog";
-import { ActivityPdfDialog } from "./activity-pdf-dialog";
-import { ActivityVoiceDialog } from "./activity-voice-dialog";
-import { TurmaConfirmDialog } from "./turma-confirm-dialog";
+import { AddSheet } from "./add-sheet";
 
 type Props = {
   items: ActivityOverviewItem[];
@@ -47,6 +43,8 @@ type Props = {
   isPro: boolean;
   /** Total de atividades já cadastradas pelo user (qualquer status). */
   activityCount: number;
+  /** Plano e franquia do titular, para a folha Adicionar. */
+  addEntitlement: AddEntitlement;
 };
 
 export function ActivitiesSection({
@@ -59,6 +57,7 @@ export function ActivitiesSection({
   currentUserId,
   isPro,
   activityCount,
+  addEntitlement,
 }: Props) {
   const router = useRouter();
   const { typeFilter, page } = filters;
@@ -69,35 +68,6 @@ export function ActivitiesSection({
   const manualHref = `/atividades/nova${manualParams.size ? `?${manualParams}` : ""}`;
   const schoolType = activityTypeSchema.safeParse(typeFilter);
   const [createOpen, setCreateOpen] = useState(false);
-  const [voiceOpen, setVoiceOpen] = useState(false);
-  const [imageOpen, setImageOpen] = useState(false);
-  const [pdfOpen, setPdfOpen] = useState(false);
-  // Passo intermediário entre voz/imagem/PDF e batch confirm: o user confirma
-  // (ou escolhe) a turma do batch. As atividades parseadas ficam "presas" em
-  // `pendingActivities` até a confirmação acontecer.
-  const [pendingActivities, setPendingActivities] = useState<ParsedActivityInput[] | null>(null);
-  const [pendingGuessedTurmaId, setPendingGuessedTurmaId] = useState<string | null>(null);
-  const [batchInitial, setBatchInitial] = useState<ParsedActivityInput[] | null>(null);
-  const [batchTurmaId, setBatchTurmaId] = useState<string | null>(null);
-
-  // Fecha o dialog de origem (voz/imagem/PDF) e abre o passo intermediário
-  // de confirmação de turma. O batch confirm só abre depois que o user
-  // confirma.
-  const handleParsed = (parsed: ParsedActivityInput[], guessedTurmaId: string | null) => {
-    setVoiceOpen(false);
-    setImageOpen(false);
-    setPdfOpen(false);
-    setPendingActivities(parsed);
-    setPendingGuessedTurmaId(guessedTurmaId);
-  };
-
-  const handleConfirmTurma = (turmaId: string) => {
-    setBatchInitial(pendingActivities);
-    setBatchTurmaId(turmaId);
-    setPendingActivities(null);
-    setPendingGuessedTurmaId(null);
-  };
-
   const changeFilter = (next: Partial<ActivityOverviewOptions>) =>
     router.push(activityOverviewHref({ ...filters, ...next, page: 1 }));
   const handleFilterChange = (value: string) =>
@@ -127,58 +97,13 @@ export function ActivitiesSection({
             <Plus className="size-4" aria-hidden />
             Nova atividade
           </Button>
-          <Button asChild variant="outline">
-            <Link href={activeFilter ? `/recados/novo?perfil=${activeFilter.id}` : "/recados/novo"}>
-              <Camera className="size-4" aria-hidden /> Importar mensagem ou foto
-            </Link>
-          </Button>
-          <details className="rounded-md border px-3 py-2">
-            <summary className="cursor-pointer text-sm">Ferramentas por matéria</summary>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setVoiceOpen(true)}
-                disabled={!isPro || !canCreate}
-              >
-                <Mic className="mr-2 size-4" aria-hidden />
-                Por voz
-                {!isPro ? (
-                  <Badge variant="secondary" className="ml-2">
-                    Pro
-                  </Badge>
-                ) : null}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setImageOpen(true)}
-                disabled={!isPro || !canCreate}
-              >
-                <Camera className="mr-2 size-4" aria-hidden />
-                Por imagem
-                {!isPro ? (
-                  <Badge variant="secondary" className="ml-2">
-                    Pro
-                  </Badge>
-                ) : null}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setPdfOpen(true)}
-                disabled={!isPro || !canCreate}
-              >
-                <FileText className="mr-2 size-4" aria-hidden />
-                PDF por matéria
-                {!isPro ? (
-                  <Badge variant="secondary" className="ml-2">
-                    Pro
-                  </Badge>
-                ) : null}
-              </Button>
-            </div>
-          </details>
+          <AddSheet
+            profileId={activeFilter?.id ?? null}
+            entitlement={addEntitlement}
+            label="Adicionar de um recado"
+            icon="sparkles"
+            variant="outline"
+          />
         </div>
         <div className="grid grid-cols-2 gap-3 sm:max-w-2xl sm:grid-cols-3">
           <div className="space-y-1.5">
@@ -352,48 +277,6 @@ export function ActivitiesSection({
         defaultType={schoolType.success ? schoolType.data : undefined}
         defaultTurmaId={activeFilter?.activeTurmaId ?? undefined}
       />
-
-      {isPro ? (
-        <>
-          <ActivityVoiceDialog
-            open={voiceOpen}
-            onOpenChange={setVoiceOpen}
-            onParsed={handleParsed}
-          />
-          <ActivityImageDialog
-            open={imageOpen}
-            onOpenChange={setImageOpen}
-            onParsed={handleParsed}
-          />
-          <ActivityPdfDialog open={pdfOpen} onOpenChange={setPdfOpen} onParsed={handleParsed} />
-          <TurmaConfirmDialog
-            open={pendingActivities !== null}
-            onOpenChange={(o) => {
-              if (!o) {
-                setPendingActivities(null);
-                setPendingGuessedTurmaId(null);
-              }
-            }}
-            turmas={turmasForForm}
-            profiles={profiles}
-            guessedTurmaId={pendingGuessedTurmaId}
-            onConfirm={handleConfirmTurma}
-          />
-          <ActivitiesBatchConfirmDialog
-            open={batchInitial !== null}
-            onOpenChange={(o) => {
-              if (!o) {
-                setBatchInitial(null);
-                setBatchTurmaId(null);
-              }
-            }}
-            turmas={turmasForForm}
-            isPro={isPro}
-            initialActivities={batchInitial ?? []}
-            lockedTurmaId={batchTurmaId ?? undefined}
-          />
-        </>
-      ) : null}
     </div>
   );
 }

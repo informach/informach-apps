@@ -12,7 +12,7 @@ import { Trust } from "@/components/marketing/sections/trust";
 
 const TITLE = "Agenda da Turma: a rotina da escola não precisa morar na sua cabeça.";
 const DESCRIPTION =
-  "Transforme mensagens, fotos e PDFs da escola em providências claras. Confira os prazos e, no Pro, divida os cuidados e acompanhe com lembretes. Experimente sem cartão.";
+  "Transforme mensagens, fotos e PDFs da escola em atividades claras. Confira os prazos e, no Pro, divida os cuidados e acompanhe com lembretes. Experimente sem cartão.";
 export const metadata: Metadata = {
   // `absolute` porque o título da home já traz a marca; sem isso o template
   // do layout raiz a repetiria no fim.

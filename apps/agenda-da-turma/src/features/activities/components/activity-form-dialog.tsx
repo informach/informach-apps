@@ -362,7 +362,7 @@ export function ActivityFormDialog({
                       {turmas.length === 0 ? (
                         <p className="text-sm text-muted-foreground">
                           Você ainda não tem nenhuma turma ativa. Vincule um perfil a uma turma em
-                          /turmas antes de criar atividades.
+                          Família antes de criar atividades.
                         </p>
                       ) : (
                         <Select onValueChange={field.onChange} value={field.value}>

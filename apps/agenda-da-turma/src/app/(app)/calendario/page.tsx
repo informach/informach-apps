@@ -5,6 +5,7 @@ import { CalendarView } from "@/features/calendar/components/calendar-view";
 import { isValidDateIso, todayLocalIso } from "@/features/calendar/date";
 import { getCalendarSnapshot } from "@/features/calendar/service";
 import type { CalendarView as CalendarViewKind } from "@/features/calendar/types";
+import { getAddEntitlement } from "@/features/notices/trial";
 import { listStudentProfilesForUser } from "@/features/students/service";
 import { requireUserServer } from "@/lib/auth";
 
@@ -60,6 +61,7 @@ export default async function CalendarPage({ searchParams }: Props) {
       <CalendarView
         userId={user.id}
         isPro={isPro}
+        addEntitlement={await getAddEntitlement(user.id)}
         view={view}
         anchorIso={anchorIso}
         profileFilter={profileFilter}

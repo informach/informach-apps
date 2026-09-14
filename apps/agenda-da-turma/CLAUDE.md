@@ -12,6 +12,14 @@ Estado da implementação em 11/09/2026: rotina móvel, recado com texto + image
 
 Fluxo de atividades e originais (12/09/2026): **Atividades** é a lista única de escola, recados/fotos e extras, com filtros por criança, tipo e situação aplicados antes da paginação. Para casa/Trabalho/Prova/Lembrete são tipos no formulário e na lista. Um único **Nova atividade** preserva o cadastro por matéria para quem tem turma e oferece cadastro sem matéria/prazo; sem turma, abre o formulário por criança diretamente. **Importar mensagem ou foto** aceita Teams, Batista ID e anotações manuscritas da agenda/caderno (`notebook`), com câmera, prévia e revisão obrigatória. A referência explícita de escrita pode fundamentar datas relativas; data da fotografia nunca vira prazo. **Recados e originais** guarda as fontes e rascunhos, com links para as atividades derivadas. Rotina e Calendário consultam os mesmos registros; atividades sem prazo permanecem na rotina/lista, sem data fictícia no calendário. O acesso ao original continua exigindo permissão sobre todo o escopo de crianças revisado. Arquivos originais expiram após 30 dias. A inclusão de `notebook` altera apenas os tipos da coluna textual existente, sem migração SQL.
 
+Navegação (14/09/2026): o rodapé tem **quatro destinos e uma ação** — `Hoje` · `Atividades` · `+` · `Calendário` · `Família` (`components/app-shell/bottom-nav.tsx`). O `+` não navega: abre a folha Adicionar, no centro porque é a ação mais frequente. A criança filtrada (`?perfil=`) viaja com a navegação, o que tornou dispensável o card de atalhos do dashboard (`DashboardNavButtons`, removido) — ele repetia três destinos que já estavam no rodapé.
+
+**Recados deixou de ser aba.** `/recados` continua existindo (o e-mail de lembrete aponta para `/recados/acoes/<id>`) como sub-página de Atividades, alcançável pelo link "Ver os recados guardados". O prefixo `/familia` do `requireAuth` no `proxy.ts` já cobre as sub-rotas novas; `/perfis` e `/turmas` seguem listados porque os stubs de redirect também exigem sessão.
+
+Entrada única (14/09/2026): existe **um gesto** para trazer atividade para dentro, a folha **Adicionar** (`features/activities/components/add-sheet.tsx`), com quatro caminhos — **Foto ou arquivo**, **Colar mensagem**, **Falar** e **Escrever**. Os três primeiros abrem `/recados/novo?modo=foto|colar|falar` e o quarto abre `/atividades/nova`; todos terminam no mesmo `ActionFields`. Antes o mesmo destino tinha quatro rótulos ("Importar mensagem ou foto", "Organizar recado", "Organizar um recado", "Tirar foto da agenda ou do caderno") e convivia com um segundo sistema Pro-only escondido num `<details>` ("Ferramentas por matéria" na lista, "Importar atividades" no calendário). Esse segundo caminho saiu da interface: os cinco diálogos de lote foram removidos e **voz agora vive no fluxo de recados** — transcreve para o campo de texto, que a pessoa confere antes de disparar a leitura. `agenda.activities.parse_{voice,image,pdf}` foram **removidos por inteiro** — rotas, services, o módulo `ai/activities-parser` e os resolvedores fuzzy `match-{student,subject}` — porque eram endpoints pagos sem nenhum cliente. Só `transcribe` segue em uso, pelo ditado. As linhas de preço continuam no seed: o ledger histórico referencia essas chaves. Se a Fase 3 quiser a resolução fuzzy de volta, ela está no histórico do git. **Não repor rótulo novo para o mesmo destino**: foi daí que veio a confusão corrigida aqui.
+
+Franquia de teste (14/09/2026): `features/notices/trial.ts` é a fonte única. A franquia é contada em **importações** (`FREE_NOTICE_TRIAL`, aplicado em `reserveNoticeParse` sobre linhas `is_trial`); os créditos só a financiam e por isso precisam **sobrar, nunca faltar** — se o saldo morrer antes do teto, a tela ainda anuncia importações que falham. Duas concessões idempotentes: `base` dá 1 crédito por importação e `voice` dá 3 por importação, porque ditar é iterativo e regravar é normal. Financiar generosamente não basta: `checkTrialAdmission` **recusa o ditado quando gastá-lo deixaria menos de um crédito por importação restante** (`VOICE_TRIAL_SPENT`), senão a transcrição comeria o saldo e a tela anunciaria importações que falham. `checkTrialAdmission` replica as MESMAS pré-condições de `reserveNoticeParse` (e-mail confirmado, orçamento diário global, teto de importações) para as rotas que entram pela franquia antes de existir um recado — sem isso, uma conta com e-mail não confirmado gastava IA por conta da casa. `withAiRouteGuards` aceita `freeTrial` e `ownerId`; **sempre passe `ownerId`** em rota que saiba de qual criança se trata, senão um segundo adulto convidado é tratado como Free numa família Pro. `getAddEntitlement` resolve plano e franquia do titular para a UI pelo mesmo caminho.
+
 Direção visual da rotina (12/09/2026): agenda escolar acolhedora para responsáveis e crianças, com a criança realizando atividades e a família acompanhando. Concentrar **Ver atividades**, **Ver calendário** e **Importar mensagem ou foto** no card Atividades, preservando o filtro de criança e sem repetir atalhos abaixo da rotina. Usar a fonte e os tokens existentes: azul para tarefas, lilás para provas, rosa para trabalhos/eventos, verde para materiais e laranja para lembretes/autorizações. Cor sempre acompanhada de texto e ícone; fundos suaves, bordas arredondadas e controles de pelo menos 44 px. O mapa compartilhado fica em `features/unified-activities/presentation.ts`. Manter leitura nos temas claro e escuro, linguagem de acompanhamento em família e nenhuma pontuação ou competição entre crianças.
 
 O plano gratuito permite uma criança, 20 pendências próprias combinando escola/extras/recados, recebimento de atividades compartilhadas e cinco importações por conta verificada. Dados existentes continuam consultáveis após downgrade; novas automações pagas ficam pausadas. O Pro tem até três crianças, dois adultos e 70 créditos/mês. Não há validação de pagantes informada pelo fundador.
@@ -44,7 +52,7 @@ Mesma régua do cozya — pack custa mais per-credit que o plano (premium 20-40%
 
 ### Features de IA cadastradas
 
-Recados têm captura própria com texto e anexo no mesmo processamento. As ferramentas anteriores de matérias e atividades continuam disponíveis no contexto de disciplinas. Pro tem 70 créditos/mês via webhook + sweeper; a captura de recados também aceita a franquia inicial gratuita.
+Recados têm captura própria com texto, anexo e ditado no mesmo fluxo. As ferramentas de **matérias** continuam em `/turmas/[id]/materias`; as de **atividades** (`parse_voice`/`parse_image`/`parse_pdf`) não têm mais entrada na interface. Pro tem 70 créditos/mês via webhook + sweeper; a captura de recados também aceita a franquia inicial gratuita.
 
 | Feature | Modelo (OpenRouter) | Créditos |
 |---|---|---|
@@ -52,10 +60,7 @@ Recados têm captura própria com texto e anexo no mesmo processamento. As ferra
 | `agenda.subjects.parse_image` | `openai/gpt-4o` (imageDetail=low) | 1 |
 | `agenda.subjects.transcribe_audio` | `openai/gpt-4o-transcribe` | 1 |
 | `agenda.subjects.parse_voice` | `openai/gpt-4o-mini` | 1 |
-| `agenda.activities.parse_image` | `openai/gpt-4o` (imageDetail=high) | 1 |
 | `agenda.activities.transcribe_audio` | `openai/gpt-4o-transcribe` | 1 |
-| `agenda.activities.parse_voice` | `openai/gpt-4o-mini` | 1 |
-| `agenda.activities.parse_pdf` | `openai/gpt-4o` (multimodal file input) | 1 |
 
 Cadastro em lote de atividades por voz/imagem/PDF espelha o pattern de
 matérias: áudio → transcribe (1 crédito) → parse (1 crédito) → batch confirm
@@ -90,7 +95,7 @@ Para adicionar nova feature de IA:
 3. Criar service em `src/features/ai/` envolvendo a chamada em `runBillableAiCall` (ou `withCredits` se multi-stage).
 4. Adicionar route handler em `src/app/api/ai/...` com `withAiRouteGuards` (cobre OpenRouter key + auth + rate-limit + Pro gate).
 5. Garantir que rate-limit em `lib/rate-limit.ts` cobre — hoje `AI_INVOKE_PER_HOUR: 60` cobre todas as features de IA da Agenda.
-6. UI: botões com `disabled={!isPro}` + `Badge` "Pro" (mesmo padrão do `ExportPdfButton`).
+6. UI: se a feature faz parte da entrada de atividades, ela entra na folha Adicionar e usa `freeTrial` no guard, sem selo "Pro" no botão. O padrão `disabled={!isPro}` + `Badge` "Pro" (como no `ExportPdfButton`) fica para features que são mesmo exclusivas do Pro.
 
 ---
 
@@ -252,7 +257,7 @@ Sub-entidades por conta, sem login próprio. Free = 1 perfil, Pro = 3. Limite en
 
 Avatar: iniciais (até 2 letras) + cor derivada por hash do nome via paleta `chart-1..5` (mesma das matérias). Sem upload de foto no v1 — não há infra de blob storage no monorepo.
 
-Card no `/perfis` mostra `"X anos · {Turma ativa | Sem turma vinculada}"`. Menu do card: **Gerenciar turmas** (`/turmas?perfil=<id>`) + Editar + Excluir.
+Card em Família › Crianças mostra `"X anos · {Turma ativa | Sem turma vinculada}"`. Menu do card: **Gerenciar turmas** (`/familia/turmas?perfil=<id>`) + Editar + Excluir.
 
 ### Turmas (`agenda.turmas` + `agenda.turma_members`)
 
@@ -260,9 +265,9 @@ Card no `/perfis` mostra `"X anos · {Turma ativa | Sem turma vinculada}"`. Menu
 
 Fluxos de cadastro:
 1. **Manual** — usuário escolhe estado → cidade → escola → série → ano → letra. Service tenta `INSERT ... ON CONFLICT DO NOTHING`; se conflitou, faz SELECT pelo natural key e retorna `created: false`. Em ambos os casos: insere `turma_member` (idempotente), seta como ativa do perfil.
-2. **Por código** — código de 6 chars (alfabeto sem ambíguos: sem `0/O/1/I/L`) gerado server-side, retry em colisão. UNIQUE em `agenda.turmas.code`. User entra com o código + escolhe perfil → vira membro + ativa.
+2. **Por código** — código de 12 chars (`TURMA_CODE_LENGTH`; alfabeto sem ambíguos: sem `0/O/1/I/L`; o validador ainda aceita 6 para linhas antigas) gerado server-side, retry em colisão. UNIQUE em `agenda.turmas.code`. User entra com o código + escolhe perfil → vira membro + ativa.
 
-Listagem: `listTurmasForUser` traz turmas onde **(a) o user é o criador (`created_by_user_id`) OU (b) algum dos perfis do user é membro**. LEFT JOIN em `turma_members` filtrado por perfis do user — turmas criadas mas sem nenhum perfil seu vinculado ainda aparecem com `members: []`, pra que o creator consiga ver/copiar o código pra compartilhar ou re-vincular. Página `/turmas` é única, filtrável via `?perfil=<id>` — o filtro restringe só a turmas onde aquele perfil é membro (turmas creator-only só aparecem em "Todos").
+Listagem: `listTurmasForUser` traz turmas onde **(a) o user é o criador (`created_by_user_id`) OU (b) algum dos perfis do user é membro**. LEFT JOIN em `turma_members` filtrado por perfis do user — turmas criadas mas sem nenhum perfil seu vinculado ainda aparecem com `members: []`, pra que o creator consiga ver/copiar o código pra compartilhar ou re-vincular. Página `/familia/turmas` é única, filtrável via `?perfil=<id>` — o filtro restringe só a turmas onde aquele perfil é membro (turmas creator-only só aparecem em "Todos").
 
 `TurmaCard` lida com `members.length === 0`: mostra "Nenhum estudante seu vinculado" + botões "Vincular [perfil]" pra cada perfil disponível (chama `joinTurmaByCodeAction` com o próprio code da turma — auth + rate-limit do helper já cobrem). Quando há membros mas perfis não-membros existem, aparece um dropdown discreto "Vincular" no header da seção Estudantes.
 
@@ -379,7 +384,7 @@ foi daí que veio a duplicação corrigida em setembro de 2026.
 
 `UnifiedActivityCard` recebe `ActivityOverviewItem` (fonte + linha crua) e despacha para `ActivityCard`, `RoutineCard` ou o card de extracurricular. Toda lista passa por ele; o calendário converte a sua com `toOverviewEntry`. Os três cards concluem pelo mesmo `useCardToggle`.
 
-UserMenu (avatar) tem links rápidos: **Meus perfis** (`/perfis`) e **Minhas turmas** (`/turmas`), separados das ações de billing/sair.
+UserMenu (avatar) tem só assinatura, conta e sair. Crianças e turmas vivem na aba Família.
 
 ### Prazo calculado pelo horário da matéria
 

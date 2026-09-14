@@ -1,14 +1,14 @@
-import { Button } from "@informach/ui/components/button";
 import { FileText } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { BackButton } from "@/components/app-shell/back-button";
 import { listAccessibleProfiles } from "@/features/family/access";
 import { listNoticeOriginals, listReadyNotices } from "@/features/notices/repository";
 import { SOURCE_LABELS } from "@/features/notices/schemas";
 import { requireUserServer } from "@/lib/auth";
 
-export const metadata = { title: "Recados e originais" };
+export const metadata = { title: "Recados guardados" };
 export default async function NoticesPage({
   searchParams,
 }: {
@@ -30,24 +30,16 @@ export default async function NoticesPage({
     `/recados?${new URLSearchParams({ pagina: String(nextPage), ...(child ? { perfil: child } : {}) })}`;
   return (
     <main className="mx-auto max-w-4xl space-y-6 px-4 py-8 pb-28 sm:px-8">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="max-w-xl">
-          <h1 className="text-2xl font-semibold">Recados e originais</h1>
-          <p className="mt-2 text-muted-foreground">
-            Mensagens da escola, anexos e fotos da agenda ou do caderno. Consulte aqui a origem;
-            acompanhe o que precisa ser feito em Atividades.
+      <header className="flex items-start gap-2">
+        <BackButton href="/atividades" label="Voltar às atividades" />
+        <div className="max-w-xl space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Recados guardados</h1>
+          <p className="text-sm text-muted-foreground">
+            As mensagens, anexos e fotos que viraram atividades. Cada atividade também abre o recado
+            que a originou.
           </p>
         </div>
-        <Button asChild>
-          <Link href="/recados/novo">Importar mensagem ou foto</Link>
-        </Button>
       </header>
-      <Link
-        href="/atividades"
-        className="inline-flex min-h-11 items-center text-sm text-primary underline"
-      >
-        Acompanhar atividades
-      </Link>
       {drafts.length ? (
         <section className="space-y-3 rounded-xl border border-primary/30 p-4">
           <h2 className="font-semibold">Falta conferir antes de salvar</h2>
@@ -120,8 +112,8 @@ export default async function NoticesPage({
       </div>
       {!rows.length ? (
         <p className="rounded-xl border border-dashed p-6 text-muted-foreground">
-          Nenhum original salvo nesta seleção. Importe uma mensagem ou foto e confirme as atividades
-          para guardá-lo aqui. Atividades cadastradas manualmente ficam em Atividades.
+          Nenhum recado guardado nesta seleção. Ao adicionar uma atividade a partir de uma mensagem
+          ou foto, o original fica aqui por 30 dias.
         </p>
       ) : null}
       <nav aria-label="Páginas de originais" className="flex gap-4 text-sm">

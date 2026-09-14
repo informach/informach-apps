@@ -3,7 +3,7 @@ import styles from "../sales.module.css";
 const STEPS = [
   [
     "O que precisa ser feito",
-    "Autorizações, materiais e tarefas viram providências que você pode acompanhar.",
+    "Autorizações, materiais e tarefas viram atividades que você pode acompanhar.",
   ],
   [
     "Qual é o prazo",

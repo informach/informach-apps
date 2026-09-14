@@ -4,6 +4,8 @@ import { z } from "zod";
 import { findActivityHistory } from "@/features/activities/history-repository";
 import { requireUserServer } from "@/lib/auth";
 
+export const metadata = { title: "Histórico da atividade" };
+
 export default async function ActivityHistoryPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUserServer();
   const { id } = await params;

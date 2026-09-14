@@ -130,7 +130,7 @@ async function currentMessages(userId: string, now: Date): Promise<Message[]> {
           lines.length > 20
             ? [
                 ...lines.slice(0, 20),
-                `Mais ${lines.length - 20} providências na rotina. Abra o app para conferir todas.`,
+                `Mais ${lines.length - 20} atividades na rotina. Abra o app para conferir todas.`,
               ]
             : lines,
         path: "/dashboard",
@@ -144,7 +144,7 @@ async function currentMessages(userId: string, now: Date): Promise<Message[]> {
     )
       messages.push({
         key: `action:${a.id}:v${a.version}`,
-        title: "Uma providência da família precisa de atenção",
+        title: "Uma atividade da família precisa de atenção",
         lines: [
           `${profileName}: ${a.title}. Data: ${a.dueAt ?? "a confirmar"}${a.time ? ` às ${a.time}` : ""}.`,
         ],
@@ -281,7 +281,7 @@ export async function deliverRoutineNotifications(
               },
               JSON.stringify({
                 title: fresh.title,
-                body: "Abra a Agenda da Turma para conferir as providências.",
+                body: "Abra a Agenda da Turma para conferir as atividades.",
                 url: fresh.path,
                 tag: delivery.id,
               }),

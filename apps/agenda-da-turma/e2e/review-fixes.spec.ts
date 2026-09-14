@@ -35,6 +35,12 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
   context,
   baseURL,
 }, testInfo) => {
+  // Jornada longa: visita a maior parte das rotas do app, incluindo as quatro
+  // seções de Família, e o `next dev` do e2e compila cada uma na primeira
+  // visita autenticada — o aquecimento por HTTP não alcança páginas (ver
+  // warmup.setup.ts). Mede ~50 s com compilação fria; a folga é para o runner
+  // do CI. Se crescer mais, quebrar em testes com orçamento próprio em vez de
+  // subir este número.
   test.setTimeout(300_000);
   if (!baseURL) throw new Error("Local app required");
   const id = `review-fixes-browser-${randomUUID()}`;
@@ -160,30 +166,51 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
     await test.step("activities use one creation flow and filters preserve the selected child", async () => {
       await page.setViewportSize({ width: 390, height: 844 });
       await page.goto(`/dashboard?perfil=${child.id}`);
-      const schoolAccess = page.getByRole("region", { name: "Atividades", exact: true });
-      await expect(schoolAccess).toBeInViewport();
+      // O rodapé é a navegação: quatro destinos e o botão Adicionar no centro.
+      // O card de atalhos do dashboard repetia três deles e foi removido.
+      const mainNav = page.getByRole("navigation", { name: "Navegação principal" });
+      await expect(mainNav).toBeInViewport();
+      await expect(mainNav.getByRole("link")).toHaveCount(4);
+      await expect(mainNav.getByRole("link", { name: "Recados", exact: true })).toHaveCount(0);
+      // A criança escolhida viaja com a navegação.
       for (const [label, route] of [
-        ["Ver atividades", "/atividades"],
-        ["Ver calendário", "/calendario"],
-        ["Importar mensagem ou foto", "/recados/novo"],
+        ["Hoje", "/dashboard"],
+        ["Atividades", "/atividades"],
+        ["Calendário", "/calendario"],
       ] as const) {
-        await expect(page.getByRole("link", { name: label, exact: true })).toHaveCount(1);
-        await expect(schoolAccess.getByRole("link", { name: label, exact: true })).toHaveAttribute(
+        await expect(mainNav.getByRole("link", { name: label, exact: true })).toHaveAttribute(
           "href",
           `${route}?perfil=${child.id}`,
         );
       }
-      await expect(
-        page.getByRole("navigation", { name: "Navegação principal" }).getByRole("link", {
-          name: "Atividades",
-          exact: true,
-        }),
-      ).toBeInViewport();
+      await expect(mainNav.getByRole("link", { name: "Família", exact: true })).toHaveAttribute(
+        "href",
+        "/familia",
+      );
+      // Entrada única: os quatro caminhos vivem na folha Adicionar e todos
+      // preservam a criança filtrada. Antes cada um tinha rótulo próprio,
+      // espalhado por três telas.
+      await expect(page.getByRole("button", { name: "Adicionar", exact: true })).toHaveCount(1);
+      await page.getByRole("button", { name: "Adicionar", exact: true }).click();
+      const addSheet = page.getByRole("dialog", { name: "Adicionar" });
+      for (const [label, route] of [
+        ["Foto ou arquivo", "/recados/novo?modo=foto"],
+        ["Colar mensagem", "/recados/novo?modo=colar"],
+        ["Falar", "/recados/novo?modo=falar"],
+        ["Escrever", "/atividades/nova"],
+      ] as const) {
+        await expect(addSheet.getByRole("link", { name: label })).toHaveAttribute(
+          "href",
+          `${route}${route.includes("?") ? "&" : "?"}perfil=${child.id}`,
+        );
+      }
+      await page.keyboard.press("Escape");
+      await expect(addSheet).toBeHidden();
       await page.screenshot({
         path: testInfo.outputPath("school-access-mobile.png"),
         caret: "initial",
       });
-      await schoolAccess.getByRole("link", { name: "Ver atividades", exact: true }).click();
+      await mainNav.getByRole("link", { name: "Atividades", exact: true }).click();
       await expect(page).toHaveURL(new RegExp(`/atividades\\?perfil=${child.id}$`));
       for (const width of [360, 1280]) {
         await page.setViewportSize({ width, height: 900 });
@@ -470,7 +497,11 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       .returning();
     const photoId = required(photoNotice).id;
     await page.goto(`/atividades?perfil=${child.id}`);
-    await page.getByRole("link", { name: "Importar mensagem ou foto", exact: true }).click();
+    await page.getByRole("button", { name: "Adicionar de um recado", exact: true }).click();
+    await page
+      .getByRole("dialog", { name: "Adicionar" })
+      .getByRole("link", { name: "Foto ou arquivo" })
+      .click();
     await expect(
       page.getByRole("combobox", { name: "Para qual criança?", exact: true }),
     ).toHaveValue(child.id);

@@ -2,13 +2,9 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { ActivitiesBatchConfirmDialog } from "@/features/activities/components/activities-batch-confirm-dialog";
 import { ActivityFormDialog } from "@/features/activities/components/activity-form-dialog";
-import { ActivityImageDialog } from "@/features/activities/components/activity-image-dialog";
-import { ActivityPdfDialog } from "@/features/activities/components/activity-pdf-dialog";
-import { ActivityVoiceDialog } from "@/features/activities/components/activity-voice-dialog";
-import { TurmaConfirmDialog } from "@/features/activities/components/turma-confirm-dialog";
-import type { ParsedActivityInput, TurmaWithSubjectsForForm } from "@/features/activities/types";
+import type { TurmaWithSubjectsForForm } from "@/features/activities/types";
+import type { AddEntitlement } from "@/features/notices/entitlement";
 import type { StudentProfile } from "@/features/students/types";
 import type { UnifiedActivityListItem } from "@/features/unified-activities/types";
 import { shiftAnchor, todayLocalIso } from "../date";
@@ -22,6 +18,8 @@ import { WeekView } from "./week-view";
 type Props = {
   userId: string;
   isPro: boolean;
+  /** Plano e franquia do titular, para a folha Adicionar. */
+  addEntitlement: AddEntitlement;
   view: CalendarViewKind;
   anchorIso: string;
   profileFilter: string | null;
@@ -41,6 +39,7 @@ type Props = {
 export function CalendarView({
   userId,
   isPro,
+  addEntitlement,
   view,
   anchorIso,
   profileFilter,
@@ -61,13 +60,6 @@ export function CalendarView({
   // Mesma máquina de estado de `activities-section.tsx` pra fluxo
   // voz/imagem/PDF: dialog de origem → turma confirm (se IA não chutou) →
   // batch confirm.
-  const [voiceOpen, setVoiceOpen] = useState(false);
-  const [imageOpen, setImageOpen] = useState(false);
-  const [pdfOpen, setPdfOpen] = useState(false);
-  const [pendingActivities, setPendingActivities] = useState<ParsedActivityInput[] | null>(null);
-  const [pendingGuessedTurmaId, setPendingGuessedTurmaId] = useState<string | null>(null);
-  const [batchInitial, setBatchInitial] = useState<ParsedActivityInput[] | null>(null);
-  const [batchTurmaId, setBatchTurmaId] = useState<string | null>(null);
 
   const canCreate = turmasForForm.length > 0;
 
@@ -145,21 +137,6 @@ export function CalendarView({
     setCreateOpen(true);
   };
 
-  const handleParsed = (parsed: ParsedActivityInput[], guessedTurmaId: string | null) => {
-    setVoiceOpen(false);
-    setImageOpen(false);
-    setPdfOpen(false);
-    setPendingActivities(parsed);
-    setPendingGuessedTurmaId(guessedTurmaId);
-  };
-
-  const handleConfirmTurma = (turmaId: string) => {
-    setBatchInitial(pendingActivities);
-    setBatchTurmaId(turmaId);
-    setPendingActivities(null);
-    setPendingGuessedTurmaId(null);
-  };
-
   return (
     <div className="space-y-4">
       <CalendarToolbar
@@ -168,16 +145,13 @@ export function CalendarView({
         profileFilter={profileFilter}
         profiles={profiles}
         canCreate={canCreate}
-        isPro={isPro}
+        addEntitlement={addEntitlement}
         onViewChange={handleViewChange}
         onProfileChange={handleProfileChange}
         onPrev={handlePrev}
         onNext={handleNext}
         onToday={handleToday}
         onCreate={handleCreateGlobal}
-        onCreateByVoice={() => setVoiceOpen(true)}
-        onCreateByImage={() => setImageOpen(true)}
-        onCreateByPdf={() => setPdfOpen(true)}
       />
 
       {view === "month" ? (
@@ -230,48 +204,6 @@ export function CalendarView({
         defaultDueAt={createDueAt}
         defaultTurmaId={defaultTurmaIdFromProfile}
       />
-
-      {isPro ? (
-        <>
-          <ActivityVoiceDialog
-            open={voiceOpen}
-            onOpenChange={setVoiceOpen}
-            onParsed={handleParsed}
-          />
-          <ActivityImageDialog
-            open={imageOpen}
-            onOpenChange={setImageOpen}
-            onParsed={handleParsed}
-          />
-          <ActivityPdfDialog open={pdfOpen} onOpenChange={setPdfOpen} onParsed={handleParsed} />
-          <TurmaConfirmDialog
-            open={pendingActivities !== null}
-            onOpenChange={(o) => {
-              if (!o) {
-                setPendingActivities(null);
-                setPendingGuessedTurmaId(null);
-              }
-            }}
-            turmas={turmasForForm}
-            profiles={profiles}
-            guessedTurmaId={pendingGuessedTurmaId}
-            onConfirm={handleConfirmTurma}
-          />
-          <ActivitiesBatchConfirmDialog
-            open={batchInitial !== null}
-            onOpenChange={(o) => {
-              if (!o) {
-                setBatchInitial(null);
-                setBatchTurmaId(null);
-              }
-            }}
-            turmas={turmasForForm}
-            isPro={isPro}
-            initialActivities={batchInitial ?? []}
-            lockedTurmaId={batchTurmaId ?? undefined}
-          />
-        </>
-      ) : null}
     </div>
   );
 }

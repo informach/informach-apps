@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { z } from "zod";
 import { BackButton } from "@/components/app-shell/back-button";
 import { ActivitiesSection } from "@/features/activities/components/activities-section";
@@ -6,6 +7,7 @@ import {
   getTurmasWithSubjectsForForm,
 } from "@/features/activities/service";
 import { getIsProForUser } from "@/features/billing/server-cache";
+import { getAddEntitlement } from "@/features/notices/trial";
 import { listStudentProfilesForUser } from "@/features/students/service";
 import { activityTypeSchema } from "@/features/unified-activities/activity-types";
 import { overviewStatusSchema } from "@/features/unified-activities/overview-types";
@@ -50,9 +52,15 @@ export default async function AtividadesPage({
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Atividades</h1>
           <p className="text-sm text-muted-foreground">
-            O que cada criança precisa fazer, em um só lugar. Cadastre uma atividade ou importe uma
-            mensagem, foto da agenda ou do caderno.
+            O que cada criança precisa fazer, em um só lugar. Escreva uma atividade ou traga de um
+            recado, foto da agenda ou do caderno.
           </p>
+          <Link
+            href="/recados"
+            className="inline-flex min-h-11 items-center text-sm text-primary underline"
+          >
+            Ver os recados guardados
+          </Link>
         </div>
       </header>
       <ActivitiesSection
@@ -65,6 +73,7 @@ export default async function AtividadesPage({
         currentUserId={user.id}
         isPro={isPro}
         activityCount={activityCount}
+        addEntitlement={await getAddEntitlement(user.id)}
       />
     </main>
   );

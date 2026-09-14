@@ -1,6 +1,5 @@
 "use client";
 
-import { Badge } from "@informach/ui/components/badge";
 import { Button } from "@informach/ui/components/button";
 import {
   Select,
@@ -10,8 +9,9 @@ import {
   SelectValue,
 } from "@informach/ui/components/select";
 import { Tabs, TabsList, TabsTrigger } from "@informach/ui/components/tabs";
-import { Camera, ChevronLeft, ChevronRight, FileText, Mic, Plus } from "lucide-react";
-import Link from "next/link";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { AddSheet } from "@/features/activities/components/add-sheet";
+import type { AddEntitlement } from "@/features/notices/entitlement";
 import {
   endOfWeekIso,
   formatDayLabel,
@@ -30,17 +30,14 @@ type Props = {
   profiles: Profile[];
   /** True se o user tem alguma turma vinculada — gate de qualquer criação. */
   canCreate: boolean;
-  /** Pro libera os fluxos por voz/imagem; Free vê os botões disabled + badge. */
-  isPro: boolean;
+  /** Plano e franquia do titular, para a folha Adicionar. */
+  addEntitlement: AddEntitlement;
   onViewChange: (view: CalendarView) => void;
   onProfileChange: (profileId: string | null) => void;
   onPrev: () => void;
   onNext: () => void;
   onToday: () => void;
   onCreate: () => void;
-  onCreateByVoice: () => void;
-  onCreateByImage: () => void;
-  onCreateByPdf: () => void;
 };
 
 // Toolbar do calendário. Estado externo (URL) — esses callbacks só
@@ -52,16 +49,13 @@ export function CalendarToolbar({
   profileFilter,
   profiles,
   canCreate,
-  isPro,
+  addEntitlement,
   onViewChange,
   onProfileChange,
   onPrev,
   onNext,
   onToday,
   onCreate,
-  onCreateByVoice,
-  onCreateByImage,
-  onCreateByPdf,
 }: Props) {
   const label =
     view === "month"
@@ -131,59 +125,14 @@ export function CalendarToolbar({
             <Plus className="mr-1 size-4" aria-hidden />
             Nova atividade
           </Button>
-          <Button size="sm" variant="outline" asChild>
-            <Link href="/recados/novo">Organizar recado</Link>
-          </Button>
-          <details className="rounded-md border px-3 py-2">
-            <summary className="cursor-pointer text-sm">Importar atividades</summary>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onCreateByVoice}
-                disabled={!isPro || !canCreate}
-              >
-                <Mic className="mr-1 size-4" aria-hidden />
-                Por voz
-                {!isPro ? (
-                  <Badge variant="secondary" className="ml-2">
-                    Pro
-                  </Badge>
-                ) : null}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onCreateByImage}
-                disabled={!isPro || !canCreate}
-              >
-                <Camera className="mr-1 size-4" aria-hidden />
-                Por imagem
-                {!isPro ? (
-                  <Badge variant="secondary" className="ml-2">
-                    Pro
-                  </Badge>
-                ) : null}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onCreateByPdf}
-                disabled={!isPro || !canCreate}
-              >
-                <FileText className="mr-1 size-4" aria-hidden />
-                PDF por matéria
-                {!isPro ? (
-                  <Badge variant="secondary" className="ml-2">
-                    Pro
-                  </Badge>
-                ) : null}
-              </Button>
-            </div>
-          </details>
+          <AddSheet
+            profileId={profileFilter}
+            entitlement={addEntitlement}
+            label="Adicionar de um recado"
+            icon="sparkles"
+            variant="outline"
+            size="sm"
+          />
         </div>
       </div>
     </div>

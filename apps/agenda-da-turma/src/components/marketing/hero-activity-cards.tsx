@@ -3,10 +3,7 @@ import styles from "./sales.module.css";
 
 export function HeroActivityCards() {
   return (
-    <figure
-      className={styles.heroStage}
-      aria-label="Exemplo de recado transformado em providências"
-    >
+    <figure className={styles.heroStage} aria-label="Exemplo de recado transformado em atividades">
       <p className={styles.stageLabel}>O MESMO RECADO. UM PRÓXIMO PASSO MAIS CLARO.</p>
       <div className={styles.note}>
         <div className={styles.noteHeading}>
