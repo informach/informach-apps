@@ -81,10 +81,11 @@ export async function logAuditEvent(
   eventType: AuditEventType,
   actorId: string | null,
   payload: AuditPayload,
+  hooks: ObservabilityHooks | undefined = observability,
 ): Promise<void> {
   const event: AuthAuditEvent = { eventType, actorId, payload };
   try {
-    observability?.onAuditEvent?.(event);
+    hooks?.onAuditEvent?.(event);
   } catch {
     // observability hooks must not break the audit pipeline
   }
@@ -97,7 +98,7 @@ export async function logAuditEvent(
     });
   } catch (error) {
     try {
-      observability?.onAuditPersistenceFailure?.({
+      hooks?.onAuditPersistenceFailure?.({
         eventType,
         actorId,
         payloadKeys: Object.keys(payload),

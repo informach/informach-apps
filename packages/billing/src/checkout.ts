@@ -10,6 +10,7 @@ import {
 } from "@informach/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { getProSubscription } from "./access";
+import { managedSubscriptionCheckout } from "./checkout-lifecycle";
 import { getOrCreateCustomer } from "./customers";
 import { AlreadySubscribedError, InvalidProductError, SubscriptionRequiredError } from "./errors";
 import { type Logger, safeLog } from "./logger";
@@ -28,6 +29,7 @@ export type CheckoutDeps = {
   provider: BillingProvider;
   providerClient: BillingProviderClient;
   organizationsEnabled: boolean;
+  managedCheckout?: boolean;
   /** App slug — escopo de isolamento de customers. */
   app: string;
   products: readonly Product[];
@@ -106,20 +108,37 @@ export async function createSubscriptionCheckout(
     nonce: input.idempotencyNonce,
   });
 
-  const session = await deps.providerClient.createCheckoutSession({
-    mode: "subscription",
-    customerId: customer.providerCustomerId,
-    priceId,
-    successUrl: input.successUrl,
-    cancelUrl: input.cancelUrl,
-    metadata: {
-      subject_type: input.subject.type,
-      subject_id: input.subject.id,
-      product_id: product.id,
-    },
-    trialDays: input.trialDays,
-    idempotencyKey,
-  });
+  const session = deps.managedCheckout
+    ? await managedSubscriptionCheckout(
+        deps,
+        {
+          id: customer.customerId,
+          providerCustomerId: customer.providerCustomerId,
+          subjectType: input.subject.type,
+          subjectId: input.subject.id,
+        },
+        product.id,
+        {
+          priceId,
+          successUrl: input.successUrl,
+          cancelUrl: input.cancelUrl,
+          trialDays: input.trialDays,
+        },
+      )
+    : await deps.providerClient.createCheckoutSession({
+        mode: "subscription",
+        customerId: customer.providerCustomerId,
+        priceId,
+        successUrl: input.successUrl,
+        cancelUrl: input.cancelUrl,
+        metadata: {
+          subject_type: input.subject.type,
+          subject_id: input.subject.id,
+          product_id: product.id,
+        },
+        trialDays: input.trialDays,
+        idempotencyKey,
+      });
 
   safeLog(deps.logger, "info", "billing.checkout.subscription.created", {
     productId: product.id,

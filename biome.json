@@ -5,6 +5,8 @@
       "**",
       "!**/node_modules",
       "!**/.next",
+      "!**/.next-e2e*",
+      "!apps/missao-saber/tmp",
       "!**/dist",
       "!**/test-results",
       "!**/playwright-report",

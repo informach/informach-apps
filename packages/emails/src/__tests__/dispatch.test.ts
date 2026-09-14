@@ -243,7 +243,8 @@ describe("dispatchEmail live mode", () => {
       "List-Unsubscribe=One-Click",
     );
     expect((msg.customArgs as Record<string, string>).delivery_id).toBe("fake-id");
-    expect((msg.customArgs as Record<string, string>).category).toBe("auth.verify-email");
+    expect((msg.customArgs as Record<string, string>).informach_category).toBe("auth.verify-email");
+    expect(msg.categories).toEqual(["auth.verify-email"]);
     expect((msg.customArgs as Record<string, string>).user_id).toBe("user-1");
     expect(msg.categories).toEqual(["auth.verify-email"]);
     expect(onAudit).toHaveBeenCalledWith({
@@ -256,6 +257,37 @@ describe("dispatchEmail live mode", () => {
         mode: "live",
       },
     });
+  });
+
+  it("does not replay a failed row after a processed webhook confirmed acceptance", async () => {
+    const { db } = createFakeDb({
+      insertResult: [],
+      selectResult: [
+        {
+          id: "accepted-id",
+          status: "failed",
+          providerAccepted: true,
+          sendAttempts: 1,
+          lastError: "response lost",
+        },
+      ],
+      updateResult: [{ id: "accepted-id", status: "sent" }],
+    });
+    const send: SendFn = vi.fn();
+
+    const result = await dispatchEmail(
+      {
+        db: db as never,
+        defaultFrom: "noreply@example.com",
+        mode: "live",
+        sandboxDir: "./tmp",
+        send,
+      },
+      makeInput({ messageKey: "processed-replay" }),
+    );
+
+    expect(result).toEqual({ ok: true, status: "already-sent", deliveryId: "accepted-id" });
+    expect(send).not.toHaveBeenCalled();
   });
 
   it("does not persist auth email bodies but still sends the original body", async () => {

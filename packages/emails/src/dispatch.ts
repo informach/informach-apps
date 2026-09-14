@@ -153,6 +153,28 @@ async function writeSandboxFile(
   }
 }
 
+async function providerAcceptanceArrived(db: Database, deliveryId: string): Promise<boolean> {
+  const [delivery] = await db
+    .select({ providerAccepted: emailDeliveries.providerAccepted })
+    .from(emailDeliveries)
+    .where(eq(emailDeliveries.id, deliveryId))
+    .limit(1);
+  if (!delivery?.providerAccepted) return false;
+  await db
+    .update(emailDeliveries)
+    .set({
+      status: sql<string>`case when ${emailDeliveries.status} = 'sending' then 'sent' else ${emailDeliveries.status} end`,
+      lastError: sql<
+        string | null
+      >`case when ${emailDeliveries.status} = 'sending' then null else ${emailDeliveries.lastError} end`,
+      nextAttemptAt: sql<Date | null>`case when ${emailDeliveries.status} = 'sending' then null else ${emailDeliveries.nextAttemptAt} end`,
+      sentAt: sql<Date>`coalesce(${emailDeliveries.sentAt}, now())`,
+      updatedAt: new Date(),
+    })
+    .where(eq(emailDeliveries.id, deliveryId));
+  return true;
+}
+
 export async function dispatchEmail(
   deps: DispatchDeps,
   input: DispatchInput,
@@ -185,6 +207,9 @@ export async function dispatchEmail(
       recipient: input.to,
       category: input.category,
       messageKey: input.messageKey,
+      fromAddress: input.from ?? deps.defaultFrom,
+      unsubscribeUrl: persistBody ? input.unsubscribeUrl : null,
+      unsubscribeMailto: persistBody ? (input.unsubscribeMailto ?? null) : null,
       subject: input.subject,
       // Auth email bodies contain OTPs or one-time links; keep them in process
       // only for the current send attempt and do not persist them for retries.
@@ -219,20 +244,39 @@ export async function dispatchEmail(
     if (delivery.status === "sent" || delivery.status === "delivered") {
       return { ok: true, status: "already-sent", deliveryId: delivery.id };
     }
-    if (delivery.status === "sending" || delivery.status === "unknown") {
-      return {
-        ok: false,
-        status: "deferred",
-        deliveryId: delivery.id,
-        reason: delivery.status === "unknown" ? "outcome-unknown" : "in-flight",
-      };
-    }
     if (["dropped", "skipped", "bounced", "complained"].includes(delivery.status)) {
       return {
         ok: false,
         status: "skipped",
         deliveryId: delivery.id,
         reason: delivery.lastError ?? "delivery already skipped",
+      };
+    }
+    if (delivery.providerAccepted) {
+      await deps.db
+        .update(emailDeliveries)
+        .set({
+          status: "sent",
+          lastError: null,
+          nextAttemptAt: null,
+          sentAt: sql<Date>`coalesce(${emailDeliveries.sentAt}, now())`,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(emailDeliveries.id, delivery.id),
+            inArray(emailDeliveries.status, ["pending", "failed", "sending", "unknown"]),
+            eq(emailDeliveries.providerAccepted, true),
+          ),
+        );
+      return { ok: true, status: "already-sent", deliveryId: delivery.id };
+    }
+    if (delivery.status === "sending" || delivery.status === "unknown") {
+      return {
+        ok: false,
+        status: "deferred",
+        deliveryId: delivery.id,
+        reason: delivery.status === "unknown" ? "outcome-unknown" : "in-flight",
       };
     }
   }
@@ -278,6 +322,7 @@ export async function dispatchEmail(
       and(
         eq(emailDeliveries.id, delivery.id),
         inArray(emailDeliveries.status, ["pending", "failed"]),
+        eq(emailDeliveries.providerAccepted, false),
       ),
     )
     .returning();
@@ -297,7 +342,7 @@ export async function dispatchEmail(
   const headers = buildListUnsubscribeHeaders(input.unsubscribeUrl, input.unsubscribeMailto);
   const customArgs: Record<string, string> = {
     delivery_id: delivery.id,
-    category: input.category,
+    informach_category: input.category,
     ...(input.userId ? { user_id: input.userId } : {}),
   };
 
@@ -383,17 +428,24 @@ export async function dispatchEmail(
   let lastClassification: "permanent" | "transient" = "transient";
 
   for (let attempt = 1; attempt <= inlineAttempts; attempt++) {
+    if (attempt > 1 && (await providerAcceptanceArrived(deps.db, delivery.id))) {
+      return { ok: true, status: "sent", deliveryId: delivery.id };
+    }
     try {
       const { messageId } = await deps.send(message);
       await deps.db
         .update(emailDeliveries)
         .set({
-          status: "sent",
+          status: sql<string>`case when ${emailDeliveries.status} = 'sending' then 'sent' else ${emailDeliveries.status} end`,
           providerAccepted: true,
-          providerMessageId: messageId ?? null,
-          lastError: null,
-          nextAttemptAt: null,
-          sentAt: new Date(),
+          providerMessageId: sql<
+            string | null
+          >`coalesce(${emailDeliveries.providerMessageId}, ${messageId ?? null})`,
+          lastError: sql<
+            string | null
+          >`case when ${emailDeliveries.status} = 'sending' then null else ${emailDeliveries.lastError} end`,
+          nextAttemptAt: sql<Date | null>`case when ${emailDeliveries.status} = 'sending' then null else ${emailDeliveries.nextAttemptAt} end`,
+          sentAt: sql<Date>`coalesce(${emailDeliveries.sentAt}, now())`,
           updatedAt: new Date(),
         })
         .where(eq(emailDeliveries.id, delivery.id));
@@ -412,6 +464,20 @@ export async function dispatchEmail(
       const errLike = error as SendgridErrorLike;
       lastClassification = classifySendgridError(errLike);
       lastError = errLike.message ?? `SendGrid error (status ${errLike.response?.statusCode})`;
+
+      if (await providerAcceptanceArrived(deps.db, delivery.id)) {
+        emitEmailAudit(deps, {
+          eventType: "email.delivery_sent",
+          actorId: input.userId ?? null,
+          payload: {
+            deliveryId: delivery.id,
+            category: input.category,
+            providerMessageId: null,
+            mode: "live-webhook-confirmed",
+          },
+        });
+        return { ok: true, status: "sent", deliveryId: delivery.id };
+      }
 
       if (lastClassification === "permanent") {
         safeLog(deps.logger, "error", "Email delivery permanently failed", {
@@ -449,7 +515,13 @@ export async function dispatchEmail(
           : null,
       updatedAt: new Date(),
     })
-    .where(eq(emailDeliveries.id, delivery.id));
+    .where(
+      and(
+        eq(emailDeliveries.id, delivery.id),
+        eq(emailDeliveries.status, "sending"),
+        eq(emailDeliveries.providerAccepted, false),
+      ),
+    );
 
   emitEmailAudit(deps, {
     eventType: "email.delivery_failed",

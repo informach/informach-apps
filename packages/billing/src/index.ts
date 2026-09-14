@@ -1,6 +1,7 @@
 import type { Subscription as SubscriptionRow } from "@informach/db/schema";
 import { hasProSubscription } from "./access";
 import { createCreditPackCheckout, createSubscriptionCheckout } from "./checkout";
+import { settleCheckoutIntent } from "./checkout-lifecycle";
 import type { BillingServiceConfig } from "./config";
 import {
   type CommitReservationInput,
@@ -47,6 +48,7 @@ import {
   type CancelSubscriptionInput,
   cancelBillingForSubject,
   cancelSubscription,
+  closeRemoteBillingForSubject,
   getSubscription,
   listSubscriptions,
   type UpdateSubscriptionInput,
@@ -104,6 +106,7 @@ export type {
 export {
   AlreadySubscribedError,
   BillingError,
+  CheckoutPendingError,
   CustomerNotFoundError,
   InsufficientCreditsError,
   InvalidProductError,
@@ -279,8 +282,13 @@ export type BillingService = {
    * IMMEDIATELY. Returns counts. Does NOT delete rows — fiscal retention.
    */
   cancelBillingForSubject(subject: SubjectRef): Promise<{ canceled: number; failed: number }>;
+  /** Expires pending checkouts and cancels provider-side subscriptions. Throws on failure. */
+  closeRemoteBillingForSubject(subject: SubjectRef): Promise<{ expired: number; canceled: number }>;
   /** Cron sweeper: reconcile local subscription rows with provider state. */
-  reconcileSubscriptions(opts?: { batchSize?: number }): Promise<ReconcileSubscriptionsResult>;
+  reconcileSubscriptions(opts?: {
+    batchSize?: number;
+    afterId?: string;
+  }): Promise<ReconcileSubscriptionsResult>;
   /** Cron sweeper: insert `expiration` ledger entries for vencidos. */
   expireMonthlyBonusCredits(opts?: {
     now?: Date;
@@ -304,6 +312,7 @@ export type BillingService = {
    * required to actually deliver — when omitted, the run is a dry-run.
    */
   retryDunningEmails(opts: {
+    afterId?: string;
     send?: DunningSendFn;
     maxAttempts?: number;
     cooldownHours?: number;
@@ -334,6 +343,7 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
   const providerClient = buildProviderClient(config);
 
   const checkoutDeps = {
+    managedCheckout: config.managedCheckout,
     db: config.db,
     provider: config.provider,
     providerClient,
@@ -368,6 +378,7 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
     providerClient,
     app: config.app,
     webhookScope: config.appName,
+    guardClosedBilling: config.guardClosedBilling,
     products: config.products,
     logger: config.logger,
     onAudit: config.onAudit,
@@ -382,6 +393,7 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
   };
 
   const subscriptionsDeps = {
+    managedCheckout: config.managedCheckout,
     db: config.db,
     provider: config.provider,
     providerClient,
@@ -450,8 +462,18 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
     verifyWebhookSignature(rawBody, signature) {
       return verifyStripeSignature(providerClient, rawBody, signature);
     },
-    handleStripeEvent(event) {
-      return handleStripeEvent(webhookDeps, event);
+    async handleStripeEvent(event) {
+      const result = await handleStripeEvent(webhookDeps, event);
+      if (config.managedCheckout) {
+        const object = (
+          event.payload as { data?: { object?: { customer?: string | { id?: string } } } }
+        ).data?.object;
+        await settleCheckoutIntent(
+          { ...config, providerClient },
+          typeof object?.customer === "string" ? object.customer : object?.customer?.id,
+        );
+      }
+      return result;
     },
     getSubscription(subject) {
       return getSubscription(subscriptionsDeps, subject);
@@ -486,6 +508,7 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
           db: config.db,
           provider: config.provider,
           providerClient,
+          configurationId: config.portalConfigurationId,
           organizationsEnabled: config.organizationsEnabled,
           app: config.app,
           logger: config.logger,
@@ -496,8 +519,15 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
     cancelBillingForSubject(subject) {
       return cancelBillingForSubject(subscriptionsDeps, subject);
     },
+    closeRemoteBillingForSubject(subject) {
+      return closeRemoteBillingForSubject(subscriptionsDeps, subject);
+    },
     reconcileSubscriptions(opts) {
       return reconcileSubscriptionStatuses({
+        products: config.products,
+        stripeMode: config.stripeMode,
+        afterId: opts?.afterId,
+        withSubjectLock: config.withSubjectLock,
         db: config.db,
         provider: config.provider,
         providerClient,
@@ -537,6 +567,8 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
     },
     retryDunningEmails(opts) {
       return retryFailedDunningEmails({
+        afterId: opts.afterId,
+        withSubjectLock: config.withSubjectLock,
         db: config.db,
         app: config.app,
         provider: config.provider,

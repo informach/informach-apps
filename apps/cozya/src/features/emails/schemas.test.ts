@@ -2,6 +2,16 @@ import { describe, expect, it } from "vitest";
 import { parseSendgridEventsPayload } from "./schemas";
 
 describe("parseSendgridEventsPayload", () => {
+  it("accepts provider category arrays and preserves the separate custom argument", () => {
+    const event = {
+      email: "user@example.com",
+      event: "group_unsubscribe",
+      timestamp: 1,
+      category: ["billing.payment-failed"],
+      informach_category: "billing.payment-failed",
+    };
+    expect(parseSendgridEventsPayload([event])).toEqual({ ok: true, events: [event] });
+  });
   it("accepts valid SendGrid event payloads", () => {
     const result = parseSendgridEventsPayload([
       {

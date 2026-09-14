@@ -1,6 +1,6 @@
 import type { Product } from "@informach/config";
 import type { Database } from "@informach/db";
-import { webhookEvents } from "@informach/db/schema";
+import { customers, webhookEvents } from "@informach/db/schema";
 import { and, eq, sql } from "drizzle-orm";
 import type { BillingEmailDeps } from "./../billing-emails";
 import { type Logger, safeLog } from "./../logger";
@@ -19,6 +19,13 @@ export type ParsedWebhookEvent = {
   payload: Record<string, unknown>;
 };
 
+function providerEventCreatedAt(payload: Record<string, unknown>): Date | undefined {
+  const seconds = payload.created;
+  return typeof seconds === "number" && Number.isFinite(seconds)
+    ? new Date(seconds * 1000)
+    : undefined;
+}
+
 export type StripeWebhookDeps = {
   db: Database;
   provider: BillingProvider;
@@ -34,6 +41,7 @@ export type StripeWebhookDeps = {
    * the Stripe account, but this monorepo has one endpoint per app.
    */
   webhookScope?: string;
+  guardClosedBilling?: boolean;
   /** Catalog for THIS app — used by invoice handler to look up bonusCreditsPerMonth. */
   products: readonly Product[];
   logger?: Logger;
@@ -228,6 +236,34 @@ async function dispatchEvent(deps: StripeWebhookDeps, event: ParsedWebhookEvent)
   const data = (event.payload as { data?: { object?: unknown } }).data;
   const obj = data?.object;
 
+  if (deps.guardClosedBilling && obj && typeof obj === "object") {
+    const object = obj as {
+      id?: string;
+      customer?: string | { id?: string };
+      subscription?: string | { id?: string };
+      parent?: { subscription_details?: { subscription?: string | { id?: string } } };
+    };
+    const customerId = typeof object.customer === "string" ? object.customer : object.customer?.id;
+    const reference = event.type.startsWith("customer.subscription.")
+      ? object.id
+      : (object.subscription ?? object.parent?.subscription_details?.subscription);
+    const subscriptionId = typeof reference === "string" ? reference : reference?.id;
+    if (customerId && subscriptionId) {
+      const [customer] = await deps.db
+        .select({ metadata: customers.metadata })
+        .from(customers)
+        .where(
+          and(
+            eq(customers.provider, deps.provider),
+            eq(customers.app, deps.app),
+            eq(customers.providerCustomerId, customerId),
+          ),
+        );
+      const closed = customer?.metadata.closedSubscriptionIds;
+      if (Array.isArray(closed) && closed.includes(subscriptionId)) return "subscription_closed";
+    }
+  }
+
   switch (event.type) {
     case "checkout.session.completed": {
       if (!obj) return "no_object";
@@ -245,7 +281,7 @@ async function dispatchEvent(deps: StripeWebhookDeps, event: ParsedWebhookEvent)
         subscriptionDeps,
         obj as Parameters<typeof handleSubscriptionLifecycle>[1],
         event.type,
-        { products: deps.products },
+        { products: deps.products, eventCreatedAt: providerEventCreatedAt(event.payload) },
       );
       return result.upserted ? "subscription_upserted" : `subscription_skipped:${result.reason}`;
     }
@@ -281,6 +317,7 @@ async function dispatchEvent(deps: StripeWebhookDeps, event: ParsedWebhookEvent)
         },
         obj as Parameters<typeof handleInvoicePaid>[1],
         event.id,
+        providerEventCreatedAt(event.payload),
       );
       return result.processed
         ? `invoice_paid.${result.reason}`
@@ -300,6 +337,7 @@ async function dispatchEvent(deps: StripeWebhookDeps, event: ParsedWebhookEvent)
         },
         obj as Parameters<typeof handleInvoicePaymentFailed>[1],
         event.id,
+        providerEventCreatedAt(event.payload),
       );
       return result.processed
         ? `invoice_failed.${result.reason}`

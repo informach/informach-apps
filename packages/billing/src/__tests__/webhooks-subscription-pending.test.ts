@@ -30,6 +30,7 @@ function deletedAnnualSub() {
     id: "sub_annual_1",
     customer: "cus_test_1",
     status: "canceled",
+    default_payment_method: "pm_saved_from_original",
     cancel_at_period_end: false,
     canceled_at: 1781856000,
     items: {
@@ -105,6 +106,7 @@ describe("handleSubscriptionLifecycle (pending intent on delete)", () => {
       expect.objectContaining({
         customerId: "cus_test_1",
         priceId: "price_dev_monthly",
+        defaultPaymentMethodId: "pm_saved_from_original",
         idempotencyKey: expect.stringContaining("pending_intent:sub_annual_1"),
       }),
     );
@@ -116,7 +118,7 @@ describe("handleSubscriptionLifecycle (pending intent on delete)", () => {
     );
   });
 
-  it("when provider.createSubscription throws, clears pending fields and stamps error metadata", async () => {
+  it("keeps the pending intent and makes the webhook retry when provider creation fails", async () => {
     const createSub = vi.fn().mockRejectedValue(new Error("card_expired"));
     const { provider } = createFakeProvider();
     provider.createSubscription = createSub;
@@ -135,31 +137,31 @@ describe("handleSubscriptionLifecycle (pending intent on delete)", () => {
       ],
     });
 
-    const result = await handleSubscriptionLifecycle(
-      {
-        db: db as never,
-        provider: "stripe",
-        app: "test-app",
-        providerClient: provider,
-      },
-      deletedAnnualSub() as never,
-      "customer.subscription.deleted",
-      { products },
-    );
-
-    // The cancellation upsert still succeeded — only the new sub failed.
-    expect(result.upserted).toBe(true);
+    await expect(
+      handleSubscriptionLifecycle(
+        {
+          db: db as never,
+          provider: "stripe",
+          app: "test-app",
+          providerClient: provider,
+        },
+        deletedAnnualSub() as never,
+        "customer.subscription.deleted",
+        { products },
+      ),
+    ).rejects.toThrow("card_expired");
 
     const setArgs = calls.filter((c) => c.mode === "set");
-    // One UPDATE writes the error metadata + clears pending fields.
+    // The diagnostic is stored without discarding the durable intent.
     const errorUpdate = setArgs.find((c) => {
       const a = c.args[0] as Record<string, unknown>;
-      return (
-        a.pendingProductId === null &&
-        (a.metadata as { pendingPlanError?: unknown })?.pendingPlanError
-      );
+      return (a.metadata as { pendingPlanError?: unknown })?.pendingPlanError;
     });
     expect(errorUpdate).toBeDefined();
+    expect(errorUpdate?.args[0]).not.toMatchObject({
+      pendingProductId: null,
+      pendingPriceId: null,
+    });
   });
 
   it("does nothing when no pending_product_id is set on the deleted sub", async () => {

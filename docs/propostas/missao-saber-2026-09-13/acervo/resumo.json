@@ -1,0 +1,16 @@
+{
+  "documentos": 670,
+  "baixados": 660,
+  "falhas": 10,
+  "bytes": 886366825,
+  "paginas_pdf": 9346,
+  "por_grupo": {
+    "('canguru', 'baixado')": 114,
+    "('obmep', 'baixado')": 365,
+    "('obmep', 'falha')": 7,
+    "('obmep-mirim', 'baixado')": 12,
+    "('obmep-poti', 'baixado')": 145,
+    "('obmep-poti', 'falha')": 3,
+    "('olitef', 'baixado')": 24
+  }
+}

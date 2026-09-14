@@ -123,7 +123,7 @@ describe("retryFailedDeliveries", () => {
   const baseRow = {
     id: "row-1",
     recipient: "user@example.com",
-    category: "auth.verify-email",
+    category: "billing.payment-success",
     messageKey: "key-1",
     subject: "Hello",
     html: "<p>Hi</p>",
@@ -136,6 +136,32 @@ describe("retryFailedDeliveries", () => {
   const buildUnsubscribeUrl = vi.fn(
     (id: string, cat: string) => `https://app.example.com/api/email/unsubscribe?t=${id}-${cat}`,
   );
+
+  it("preserves the original app envelope when another app processes the shared queue", async () => {
+    const original = {
+      ...baseRow,
+      category: "billing.payment-success",
+      fromAddress: "Missão Saber <missao@example.test>",
+      unsubscribeUrl: "https://missao.example.test/api/email/unsubscribe?t=original-signature",
+      unsubscribeMailto: null,
+    };
+    const { db } = createFakeDb({
+      selectQueue: [[original], []],
+      updateResult: [{ id: original.id }],
+    });
+    const send = vi.fn<SendFn>().mockResolvedValue({ messageId: "retried" });
+    await retryFailedDeliveries({
+      db: db as never,
+      defaultFrom: "Cozya <cozya@example.test>",
+      send,
+      buildUnsubscribeUrl,
+      unsubscribeMailto: "cozya@example.test",
+    });
+    expect(send.mock.calls[0]?.[0]).toMatchObject({
+      from: original.fromAddress,
+      headers: { "List-Unsubscribe": `<${original.unsubscribeUrl}>` },
+    });
+  });
 
   it("re-claims and re-sends rows in status='failed' that are past the backoff window", async () => {
     const { db } = createFakeDb({
@@ -167,18 +193,20 @@ describe("retryFailedDeliveries", () => {
       categories: string[];
     };
     expect(msg.headers["List-Unsubscribe"]).toContain(
-      "https://app.example.com/api/email/unsubscribe?t=user@example.com-auth.verify-email",
+      "https://app.example.com/api/email/unsubscribe?t=user@example.com-billing.payment-success",
     );
     expect(msg.headers["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
     expect(msg.customArgs.delivery_id).toBe(baseRow.id);
     expect(msg.customArgs.user_id).toBe(baseRow.userId);
-    expect(msg.categories).toEqual(["auth.verify-email"]);
+    expect(msg.customArgs.informach_category).toBe(baseRow.category);
+    expect(msg.customArgs).not.toHaveProperty("category");
+    expect(msg.categories).toEqual(["billing.payment-success"]);
     expect(onAudit).toHaveBeenCalledWith({
       eventType: "email.delivery_sent",
       actorId: "user-1",
       payload: {
         deliveryId: "row-1",
-        category: "auth.verify-email",
+        category: "billing.payment-success",
         providerMessageId: "mid-retry",
         source: "retry",
       },

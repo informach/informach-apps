@@ -1,0 +1,1 @@
+ALTER TABLE "missao_saber"."profiles" ADD COLUMN "access_enabled" boolean DEFAULT true NOT NULL;

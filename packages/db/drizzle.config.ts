@@ -17,7 +17,7 @@ export default defineConfig({
   dialect: "postgresql",
   schema: "./src/schema/index.ts",
   out: "./src/migrations",
-  schemaFilter: ["core", "agenda", "cozya", "audit", "ai", "billing"],
+  schemaFilter: ["core", "agenda", "cozya", "audit", "ai", "billing", "missao_saber"],
   dbCredentials: {
     url: databaseUrl,
   },

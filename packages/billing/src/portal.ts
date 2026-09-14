@@ -14,6 +14,7 @@ export type PortalDeps = {
   /** App slug — escopo de isolamento de customers. */
   app: string;
   logger?: Logger;
+  configurationId?: string;
 };
 
 /**
@@ -53,6 +54,7 @@ export async function createPortalSession(
   const session = await deps.providerClient.createPortalSession({
     customerId: row.providerCustomerId,
     returnUrl: input.returnUrl,
+    ...(deps.configurationId ? { configurationId: deps.configurationId } : {}),
   });
 
   safeLog(deps.logger, "info", "billing.portal.session_created", {

@@ -1,0 +1,116 @@
+import type { Lesson } from "./types";
+
+export const formatSamplesLesson: Lesson = {
+  id: "fracoes-formatos",
+  version: 1,
+  title: "Quatro jeitos de mostrar uma ideia",
+  skillId: "fracoes",
+  objective: "Representar, calcular, ordenar e justificar relações entre frações.",
+  introduction:
+    "Uma ideia matemática pode aparecer como escolha, número, sequência de passos ou explicação escrita.",
+  lab: "bars",
+  free: true,
+  kind: "mission",
+  stage: "discover",
+  prerequisites: [],
+  estimatedMinutes: 10,
+  items: [
+    {
+      type: "choice",
+      id: "fracoes-formatos-1",
+      skillId: "fracoes",
+      familyId: "fracoes:referencia-visual",
+      prompt: "Qual fração representa metade de uma barra dividida em oito partes iguais?",
+      options: ["2/8", "4/8", "6/8"],
+      answer: "4/8",
+      explanation: "Metade das oito partes corresponde a quatro partes: 4/8 = 1/2.",
+      hints: [
+        "Use metade como referência.",
+        "Divida as oito partes em dois grupos iguais.",
+        "Cada grupo tem quatro partes, então a metade é 4/8.",
+      ],
+      purpose: "discovery",
+      domain: "common",
+      misconceptions: {
+        "2/8": "Duas partes representam um quarto da barra.",
+        "6/8": "Seis partes representam três quartos da barra.",
+      },
+    },
+    {
+      type: "numeric",
+      id: "fracoes-formatos-2",
+      skillId: "fracoes",
+      familyId: "fracoes:equivalencia-numerica",
+      prompt: "Escreva o comprimento de meia unidade. Você pode usar decimal ou fração.",
+      explanation: "Meia unidade pode ser escrita como 1/2 ou 0,5.",
+      hints: [
+        "Pense em uma unidade dividida em duas partes iguais.",
+        "Uma dessas partes é uma metade.",
+        "Dividir 1 por 2 produz 0,5.",
+      ],
+      purpose: "guided-practice",
+      domain: "common",
+      grading: {
+        value: 0.5,
+        tolerance: 0,
+        acceptedForms: ["decimal", "fraction"],
+        unit: { symbol: "m", aliases: ["metro", "metros"], required: true },
+      },
+      exploration: {
+        kind: "bars",
+        instruction: "Ajuste uma barra e faça uma previsão antes de responder.",
+        alternativeText:
+          "O laboratório também apresenta em texto os valores inicial, intermediário e final.",
+      },
+    },
+    {
+      type: "ordering",
+      id: "fracoes-formatos-3",
+      skillId: "fracoes",
+      familyId: "fracoes:sequencia-de-resolucao",
+      prompt: "Organize os passos para calcular três quartos de 20.",
+      explanation: "Primeiro encontramos um quarto de 20 e depois tomamos três dessas partes.",
+      hints: [
+        "Comece identificando em quantas partes iguais o inteiro será dividido.",
+        "Encontre o valor de uma parte antes de usar o numerador.",
+        "A sequência é dividir 20 por 4, obter 5 e multiplicar 5 por 3.",
+      ],
+      purpose: "guided-practice",
+      domain: "common",
+      steps: [
+        { id: "multiply", label: "Multiplicar o valor de uma parte por 3" },
+        { id: "divide", label: "Dividir 20 em 4 partes iguais" },
+        { id: "result", label: "Concluir que três quartos de 20 são 15" },
+        { id: "part", label: "Reconhecer que uma parte vale 5" },
+      ],
+      grading: { mode: "exact", order: ["divide", "part", "multiply", "result"] },
+    },
+    {
+      type: "justification",
+      id: "fracoes-formatos-4",
+      skillId: "fracoes",
+      familyId: "fracoes:comparacao-justificada",
+      prompt: "Sem transformar em decimal, explique por que 5/8 é maior que 3/5.",
+      explanation: "Uma justificativa pode usar denominador comum: 5/8 = 25/40 e 3/5 = 24/40.",
+      hints: [
+        "Procure uma referência ou um denominador comum.",
+        "Quarenta é múltiplo de 8 e de 5.",
+        "Compare 25/40 com 24/40.",
+      ],
+      purpose: "independent-practice",
+      domain: "common",
+      response: {
+        label: "Explique seu raciocínio com suas palavras",
+        minLength: 20,
+        maxLength: 600,
+      },
+      rubric: [
+        "Compara as duas frações usando a mesma referência.",
+        "Mantém a equivalência ao alterar numerador e denominador.",
+        "Conclui explicitamente que 25/40 é maior que 24/40.",
+      ],
+      sampleResponse:
+        "Usei denominador 40: 5/8 equivale a 25/40 e 3/5 equivale a 24/40. Como 25 é maior que 24, 5/8 é maior.",
+    },
+  ],
+};

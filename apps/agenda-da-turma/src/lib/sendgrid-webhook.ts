@@ -11,7 +11,8 @@ const sendgridEventSchema = z
     type: z.string().optional(),
     status: z.string().optional(),
     delivery_id: z.string().min(1).optional(),
-    category: z.string().min(1).optional(),
+    category: z.union([z.string().min(1), z.array(z.string().min(1))]).optional(),
+    informach_category: z.string().min(1).optional(),
     user_id: z.string().min(1).optional(),
   })
   .passthrough();

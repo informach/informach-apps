@@ -354,6 +354,7 @@ describe("handleInvoicePaymentFailed", () => {
             subjectId: "org-1",
           },
         ],
+        [{ status: "active", metadata: {} }],
       ],
     });
     const result = await handleInvoicePaymentFailed(

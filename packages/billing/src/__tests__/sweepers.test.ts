@@ -58,6 +58,24 @@ describe("retryFailedDunningEmails", () => {
     subjectId: "org-1",
   };
 
+  it("stops suppressed notifications without recording a delivery or consuming an attempt", async () => {
+    const { db, calls } = createFakeDb({ selectResult: [subA] });
+    const result = await retryFailedDunningEmails({
+      db: db as never,
+      app: "test-app",
+      provider: "stripe",
+      send: async () => ({ status: "suppressed" }),
+    });
+    expect(result).toEqual({ scanned: 1, sent: 0, skipped: 1 });
+    expect(calls.find((call) => call.mode === "set")?.args[0]).toMatchObject({
+      metadata: { dunning: { pending: false, attempts: 0 } },
+    });
+    expect(
+      (calls.find((call) => call.mode === "set")?.args[0] as { metadata: { dunning: unknown } })
+        .metadata.dunning,
+    ).not.toHaveProperty("lastSentAt");
+  });
+
   it("invokes send for eligible past_due subs and updates metadata", async () => {
     const { db, calls } = createFakeDb({ selectResult: [subA] });
     const send = vi.fn(async () => undefined);

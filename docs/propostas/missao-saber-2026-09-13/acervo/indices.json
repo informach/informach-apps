@@ -1,0 +1,157 @@
+[
+  {
+    "url": "https://www.olitef.com.br/baixar-provas-anteriores",
+    "arquivo": "paginas/olitef-arquivo.json",
+    "origem": "indice_oficial_renderizado"
+  },
+  {
+    "url": "https://www.cangurudematematicabrasil.com.br/provas-anteriores",
+    "arquivo": "paginas/canguru-arquivo.json",
+    "origem": "indice_oficial_renderizado"
+  },
+  {
+    "url": "https://www.cangurudematematicabrasil.com.br/provas-anteriores-popup",
+    "arquivo": "paginas/canguru-popup.json",
+    "origem": "indice_oficial_renderizado"
+  },
+  {
+    "url": "https://www.obmep.org.br/banco.htm",
+    "arquivo": "paginas/obmep-banco.json",
+    "origem": "indice_oficial_renderizado"
+  },
+  {
+    "url": "https://www.obmep.org.br/apostilas.htm",
+    "arquivo": "paginas/obmep-apostilas.json",
+    "origem": "indice_oficial_renderizado"
+  },
+  {
+    "url": "https://www.obmep.org.br/simulados.htm",
+    "arquivo": "paginas/obmep-simulados.json",
+    "origem": "indice_oficial_renderizado"
+  },
+  {
+    "url": "https://olimpiadamirim.obmep.org.br/provas-solucoes",
+    "arquivo": "paginas/obmep-mirim.json",
+    "origem": "indice_oficial_renderizado"
+  },
+  {
+    "url": "https://20a.obmep.org.br/provas-2005.htm",
+    "ano": 2005,
+    "arquivo": "paginas/obmep-2005.html",
+    "origem": "indice_oficial"
+  },
+  {
+    "url": "https://20a.obmep.org.br/provas-2007.htm",
+    "ano": 2007,
+    "arquivo": "paginas/obmep-2007.html",
+    "origem": "indice_oficial"
+  },
+  {
+    "url": "https://20a.obmep.org.br/provas-2006.htm",
+    "ano": 2006,
+    "arquivo": "paginas/obmep-2006.html",
+    "origem": "indice_oficial"
+  },
+  {
+    "url": "https://20a.obmep.org.br/provas-2008.htm",
+    "ano": 2008,
+    "arquivo": "paginas/obmep-2008.html",
+    "origem": "indice_oficial"
+  },
+  {
+    "url": "https://20a.obmep.org.br/provas-2009.htm",
+    "ano": 2009,
+    "arquivo": "paginas/obmep-2009.html",
+    "origem": "indice_oficial"
+  },
+  {
+    "url": "https://20a.obmep.org.br/provas-2010.htm",
+    "ano": 2010,
+    "arquivo": "paginas/obmep-2010.html",
+    "origem": "indice_oficial"
+  },
+  {
+    "url": "https://20a.obmep.org.br/provas-2011.htm",
+    "ano": 2011,
+    "arquivo": "paginas/obmep-2011.html",
+    "origem": "indice_oficial"
+  },
+  {
+    "url": "https://20a.obmep.org.br/provas-2012.htm",
+    "ano": 2012,
+    "arquivo": "paginas/obmep-2012.html",
+    "origem": "indice_oficial"
+  },
+  {
+    "url": "https://20a.obmep.org.br/provas-2014.htm",
+    "ano": 2014,
+    "arquivo": "paginas/obmep-2014.html",
+    "origem": "indice_oficial"
+  },
+  {
+    "url": "https://20a.obmep.org.br/provas-2013.htm",
+    "ano": 2013,
+    "arquivo": "paginas/obmep-2013.html",
+    "origem": "indice_oficial"
+  },
+  {
+    "url": "https://20a.obmep.org.br/provas-2015.htm",
+    "ano": 2015,
+    "arquivo": "paginas/obmep-2015.html",
+    "origem": "indice_oficial"
+  },
+  {
+    "url": "https://20a.obmep.org.br/provas-2017.htm",
+    "ano": 2017,
+    "arquivo": "paginas/obmep-2017.html",
+    "origem": "indice_oficial"
+  },
+  {
+    "url": "https://20a.obmep.org.br/provas-2016.htm",
+    "ano": 2016,
+    "arquivo": "paginas/obmep-2016.html",
+    "origem": "indice_oficial"
+  },
+  {
+    "url": "https://20a.obmep.org.br/provas-2018.htm",
+    "ano": 2018,
+    "arquivo": "paginas/obmep-2018.html",
+    "origem": "indice_oficial"
+  },
+  {
+    "url": "https://20a.obmep.org.br/provas-2019.htm",
+    "ano": 2019,
+    "arquivo": "paginas/obmep-2019.html",
+    "origem": "indice_oficial"
+  },
+  {
+    "url": "https://20a.obmep.org.br/provas-2021.htm",
+    "ano": 2021,
+    "arquivo": "paginas/obmep-2021.html",
+    "origem": "indice_oficial"
+  },
+  {
+    "url": "https://20a.obmep.org.br/provas-2022.htm",
+    "ano": 2022,
+    "arquivo": "paginas/obmep-2022.html",
+    "origem": "indice_oficial"
+  },
+  {
+    "url": "https://20a.obmep.org.br/provas-2023.htm",
+    "ano": 2023,
+    "arquivo": "paginas/obmep-2023.html",
+    "origem": "indice_oficial"
+  },
+  {
+    "url": "https://20a.obmep.org.br/provas-2024.htm",
+    "ano": 2024,
+    "arquivo": "paginas/obmep-2024.html",
+    "origem": "indice_oficial"
+  },
+  {
+    "url": "https://20a.obmep.org.br/provas-2025.htm",
+    "ano": 2025,
+    "arquivo": "paginas/obmep-2025.html",
+    "origem": "indice_oficial"
+  }
+]

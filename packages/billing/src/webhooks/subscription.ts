@@ -19,6 +19,7 @@ type StripeSubscriptionItemLike = {
 type StripeSubscriptionLike = {
   id: string;
   customer: string | { id: string } | null;
+  default_payment_method?: string | { id: string } | null;
   status: string;
   cancel_at?: number | null;
   cancel_at_period_end?: boolean;
@@ -47,6 +48,8 @@ export type SubscriptionWebhookDeps = {
 export type SubscriptionLifecycleOptions = {
   /** Product catalog — used for productName resolution in emails. */
   products?: readonly Product[];
+  /** Stripe event creation time, used to reject delayed lifecycle regressions. */
+  eventCreatedAt?: Date;
 };
 
 const SUBSCRIPTION_STATUSES: ReadonlySet<SubscriptionStatus> = new Set([
@@ -76,6 +79,14 @@ function extractCustomerId(customer: StripeSubscriptionLike["customer"]): string
   if (!customer) return null;
   if (typeof customer === "string") return customer;
   return customer.id;
+}
+
+function extractPaymentMethodId(
+  paymentMethod: StripeSubscriptionLike["default_payment_method"],
+): string | null {
+  if (!paymentMethod) return null;
+  if (typeof paymentMethod === "string") return paymentMethod;
+  return paymentMethod.id;
 }
 
 function extractPriceId(items: StripeSubscriptionLike["items"]): string | null {
@@ -170,7 +181,9 @@ export async function handleSubscriptionLifecycle(
   }
   const productId = product.id;
   const isDeletion = eventType === "customer.subscription.deleted";
-  const status: SubscriptionStatus = isDeletion ? "canceled" : normalizeStatus(subscription.status);
+  const incomingStatus: SubscriptionStatus = isDeletion
+    ? "canceled"
+    : normalizeStatus(subscription.status);
 
   // Capture any pending plan intent BEFORE the upsert so we know whether to
   // create a downstream subscription after the cancellation row is written.
@@ -189,40 +202,104 @@ export async function handleSubscriptionLifecycle(
     : unixToDate(subscription.canceled_at);
   const trialEnd = unixToDate(subscription.trial_end);
 
-  await deps.db
-    .insert(subscriptions)
-    .values({
-      customerId: customerRow.id,
-      provider: deps.provider,
-      providerSubscriptionId: subscription.id,
-      productId,
-      providerPriceId: priceId,
-      status,
-      currentPeriodStart: periodStart,
-      currentPeriodEnd: periodEnd,
-      cancelAtPeriodEnd,
-      canceledAt,
-      trialEnd,
-      metadata: subscription.metadata ?? {},
-    })
-    .onConflictDoUpdate({
-      target: [subscriptions.provider, subscriptions.providerSubscriptionId],
-      set: {
-        status,
+  const state = await deps.db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({
+        status: subscriptions.status,
+        cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
+        confirmedAt: subscriptions.confirmedAt,
+        metadata: subscriptions.metadata,
+      })
+      .from(subscriptions)
+      .where(
+        and(
+          eq(subscriptions.provider, deps.provider),
+          eq(subscriptions.providerSubscriptionId, subscription.id),
+        ),
+      )
+      .for("update");
+
+    // A deleted provider subscription is terminal. A delayed create/update for
+    // the same provider ID must never revive it; a genuinely new subscription
+    // has a different provider ID.
+    if (!isDeletion && existing?.status === "canceled") {
+      return { ignored: true as const, reason: "terminal_canceled" };
+    }
+
+    const currentEventAt = billingStateAt(existing?.metadata);
+    if (
+      options.eventCreatedAt &&
+      currentEventAt &&
+      options.eventCreatedAt.getTime() < currentEventAt.getTime()
+    ) {
+      return { ignored: true as const, reason: "stale_event" };
+    }
+
+    const dunningPending = readDunningPending(existing?.metadata);
+    const status =
+      incomingStatus === "active" && existing?.status === "past_due" && dunningPending
+        ? "past_due"
+        : incomingStatus;
+    const metadata = mergeProviderMetadata(
+      existing?.metadata,
+      subscription.metadata,
+      options.eventCreatedAt,
+      eventType,
+    );
+    const confirmedAt =
+      existing?.confirmedAt ??
+      (status === "active" || status === "trialing"
+        ? (options.eventCreatedAt ?? new Date())
+        : null);
+    await tx
+      .insert(subscriptions)
+      .values({
+        customerId: customerRow.id,
+        provider: deps.provider,
+        providerSubscriptionId: subscription.id,
         productId,
         providerPriceId: priceId,
+        status,
         currentPeriodStart: periodStart,
         currentPeriodEnd: periodEnd,
         cancelAtPeriodEnd,
         canceledAt,
+        confirmedAt,
         trialEnd,
-        metadata: subscription.metadata ?? {},
-        // On deletion, also clear next_credit_grant_at so the drip sweeper
-        // doesn't keep granting after the subscription is gone.
-        ...(isDeletion ? { nextCreditGrantAt: null } : {}),
-        updatedAt: new Date(),
-      },
+        metadata,
+      })
+      .onConflictDoUpdate({
+        target: [subscriptions.provider, subscriptions.providerSubscriptionId],
+        set: {
+          status,
+          productId,
+          providerPriceId: priceId,
+          currentPeriodStart: periodStart,
+          currentPeriodEnd: periodEnd,
+          cancelAtPeriodEnd,
+          canceledAt,
+          confirmedAt,
+          trialEnd,
+          metadata,
+          ...(isDeletion ? { nextCreditGrantAt: null } : {}),
+          updatedAt: new Date(),
+        },
+      });
+    return {
+      ignored: false as const,
+      status,
+      previousCancelAtPeriodEnd: existing?.cancelAtPeriodEnd ?? null,
+    };
+  });
+  if (state.ignored) {
+    safeLog(deps.logger, "warn", "billing.webhook.subscription.state_regression_ignored", {
+      subscriptionId: subscription.id,
+      eventType,
+      reason: state.reason,
     });
+    return { upserted: false, reason: state.reason };
+  }
+  const status = state.status;
 
   const auditType = isDeletion
     ? "billing.subscription_canceled"
@@ -258,17 +335,17 @@ export async function handleSubscriptionLifecycle(
       },
       products: options.products ?? [],
       sourceProviderSubscriptionId: subscription.id,
+      defaultPaymentMethodId: extractPaymentMethodId(subscription.default_payment_method),
     });
   }
 
-  // Send subscription-canceled email when this event represents a cancellation:
-  //   - subscription.deleted (immediate or end of billing cycle)
-  //   - subscription.updated where cancel_at_period_end was JUST flipped to true
-  // Fresh-cancel detection on `updated` would require tracking previous state;
-  // we keep it simple and email on every updated-with-cancel-set, idempotency
-  // guarded by `email_deliveries.(category, messageKey)` UNIQUE.
-  const isCancellation =
-    isDeletion || (eventType === "customer.subscription.updated" && Boolean(cancelAtPeriodEnd));
+  const scheduleStarted =
+    eventType === "customer.subscription.updated" &&
+    !state.previousCancelAtPeriodEnd &&
+    Boolean(cancelAtPeriodEnd);
+  // A scheduled cancellation was already communicated when its flag changed.
+  // A direct deletion receives one final message of its own.
+  const isCancellation = scheduleStarted || (isDeletion && !state.previousCancelAtPeriodEnd);
   if (isCancellation && deps.emails && customerRow.email) {
     const productName = product.name;
     const accessUntil = formatDatePtBR(cancelAtPeriodEnd ?? periodEnd);
@@ -278,18 +355,51 @@ export async function handleSubscriptionLifecycle(
         email: customerRow.email,
         userId: customerRow.subjectType === "user" ? customerRow.subjectId : undefined,
       },
-      // Per-cancel idempotency: deletion gets the providerSubscriptionId; an
-      // update-cancel uses canceledAt timestamp so a re-cancel after reactivate
-      // still goes through.
       messageKey: isDeletion
-        ? `subscription_canceled_${subscription.id}`
-        : `subscription_cancel_scheduled_${subscription.id}_${(canceledAt ?? new Date()).toISOString()}`,
+        ? `subscription_ended_${subscription.id}`
+        : `subscription_cancel_scheduled_${subscription.id}_${periodEnd.toISOString()}`,
       productName,
       accessUntil,
     });
   }
 
   return { upserted: true };
+}
+
+function billingStateAt(metadata: Record<string, unknown> | undefined): Date | null {
+  const state = metadata?.billingState;
+  if (!state || typeof state !== "object") return null;
+  const raw = (state as Record<string, unknown>).providerEventCreatedAt;
+  if (typeof raw !== "string") return null;
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function readDunningPending(metadata: Record<string, unknown> | undefined): boolean {
+  const dunning = metadata?.dunning;
+  return Boolean(
+    dunning && typeof dunning === "object" && (dunning as Record<string, unknown>).pending,
+  );
+}
+
+function mergeProviderMetadata(
+  existing: Record<string, unknown> | undefined,
+  provider: Record<string, string> | undefined,
+  eventCreatedAt: Date | undefined,
+  eventType: string,
+): Record<string, unknown> {
+  return {
+    ...(existing ?? {}),
+    ...(provider ?? {}),
+    ...(eventCreatedAt
+      ? {
+          billingState: {
+            providerEventCreatedAt: eventCreatedAt.toISOString(),
+            eventType,
+          },
+        }
+      : {}),
+  };
 }
 
 /**
@@ -367,6 +477,7 @@ type PendingIntent = {
   pendingProductId: string;
   pendingPriceId: string;
   providerCustomerId: string;
+  metadata: Record<string, unknown>;
 };
 
 async function readPendingIntent(
@@ -380,6 +491,7 @@ async function readPendingIntent(
       pendingProductId: subscriptions.pendingProductId,
       pendingPriceId: subscriptions.pendingPriceId,
       providerCustomerId: customers.providerCustomerId,
+      metadata: subscriptions.metadata,
     })
     .from(subscriptions)
     .innerJoin(customers, eq(subscriptions.customerId, customers.id))
@@ -397,6 +509,7 @@ async function readPendingIntent(
     pendingProductId: row.pendingProductId,
     pendingPriceId: row.pendingPriceId,
     providerCustomerId: row.providerCustomerId,
+    metadata: row.metadata,
   };
 }
 
@@ -412,13 +525,14 @@ async function applyPendingIntent(
     };
     products: readonly Product[];
     sourceProviderSubscriptionId: string;
+    defaultPaymentMethodId: string | null;
   },
 ): Promise<void> {
   if (!deps.providerClient?.createSubscription) {
     safeLog(deps.logger, "warn", "billing.webhook.subscription.pending_skip_no_provider", {
       previousSubscriptionId: args.sourceProviderSubscriptionId,
     });
-    return;
+    throw new Error("billing provider cannot apply the pending plan intent");
   }
 
   const product = args.products.find((p) => p.id === args.pending.pendingProductId);
@@ -427,7 +541,7 @@ async function applyPendingIntent(
       previousSubscriptionId: args.sourceProviderSubscriptionId,
       pendingProductId: args.pending.pendingProductId,
     });
-    return;
+    throw new Error(`pending product '${args.pending.pendingProductId}' is not in the catalog`);
   }
 
   let createdDetails: Awaited<ReturnType<NonNullable<BillingProviderClient["createSubscription"]>>>;
@@ -435,6 +549,9 @@ async function applyPendingIntent(
     createdDetails = await deps.providerClient.createSubscription({
       customerId: args.pending.providerCustomerId,
       priceId: args.pending.pendingPriceId,
+      ...(args.defaultPaymentMethodId
+        ? { defaultPaymentMethodId: args.defaultPaymentMethodId }
+        : {}),
       metadata: {
         subject_type: args.customer.subjectType,
         subject_id: args.customer.subjectId,
@@ -446,15 +563,19 @@ async function applyPendingIntent(
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    // The customer's payment method likely failed (expired card, SCA, etc.).
-    // Clear the pending intent and stamp metadata.pendingPlanError so the app
-    // can show "we couldn't switch your plan, please re-subscribe".
+    // Keep the durable intent. The webhook remains failed and Stripe retries;
+    // the provider call uses a stable idempotency key, including the case where
+    // the remote subscription was created but the response timed out.
+    const [currentSubscription] = await deps.db
+      .select({ metadata: subscriptions.metadata })
+      .from(subscriptions)
+      .where(eq(subscriptions.id, args.pending.localSubscriptionId))
+      .limit(1);
     await deps.db
       .update(subscriptions)
       .set({
-        pendingProductId: null,
-        pendingPriceId: null,
         metadata: {
+          ...(currentSubscription?.metadata ?? args.pending.metadata),
           pendingPlanError: {
             attemptedAt: new Date().toISOString(),
             productId: args.pending.pendingProductId,
@@ -469,13 +590,7 @@ async function applyPendingIntent(
       pendingProductId: args.pending.pendingProductId,
       error: message,
     });
-    if (deps.emails) {
-      // Reuse payment-failed copy: surfaces "update payment method" CTA.
-      // Idempotent via messageKey scoped to this attempt.
-      // We cannot send because billing-emails is decoupled from this flow;
-      // the dunning sweeper will pick it up if status warrants.
-    }
-    return;
+    throw err;
   }
 
   // Persist the new subscription locally. We can't rely on the

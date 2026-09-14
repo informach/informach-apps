@@ -134,4 +134,69 @@ describe("handleSubscriptionLifecycle — productId drift via metadata", () => {
     >;
     expect(insertedValues.productId).toBe("cozya_pro_monthly");
   });
+
+  it("never revives a provider subscription after its deleted event", async () => {
+    const { db, calls } = createFakeDb({
+      selectQueue: [[customerRow], [{ status: "canceled", cancelAtPeriodEnd: null, metadata: {} }]],
+    });
+    const result = await handleSubscriptionLifecycle(
+      { db: db as never, provider: "stripe", app: "test-app" },
+      {
+        id: "sub_terminal",
+        customer: "cus_test_1",
+        status: "active",
+        items: {
+          data: [
+            {
+              price: { id: "price_dev_monthly" },
+              current_period_start: 1750000000,
+              current_period_end: 1781856000,
+            },
+          ],
+        },
+      },
+      "customer.subscription.updated",
+      { products, eventCreatedAt: new Date("2026-09-13T20:00:00Z") },
+    );
+    expect(result).toEqual({ upserted: false, reason: "terminal_canceled" });
+    expect(calls.find((call) => call.mode === "values")).toBeUndefined();
+  });
+
+  it("keeps past_due until an invoice.paid clears the dunning state", async () => {
+    const { db, calls } = createFakeDb({
+      selectQueue: [
+        [customerRow],
+        [
+          {
+            status: "past_due",
+            cancelAtPeriodEnd: null,
+            metadata: { dunning: { pending: true } },
+          },
+        ],
+      ],
+    });
+    const result = await handleSubscriptionLifecycle(
+      { db: db as never, provider: "stripe", app: "test-app" },
+      {
+        id: "sub_dunning",
+        customer: "cus_test_1",
+        status: "active",
+        items: {
+          data: [
+            {
+              price: { id: "price_dev_monthly" },
+              current_period_start: 1750000000,
+              current_period_end: 1781856000,
+            },
+          ],
+        },
+      },
+      "customer.subscription.updated",
+      { products },
+    );
+    expect(result.upserted).toBe(true);
+    expect(
+      (calls.find((call) => call.mode === "values")?.args[0] as Record<string, unknown>).status,
+    ).toBe("past_due");
+  });
 });

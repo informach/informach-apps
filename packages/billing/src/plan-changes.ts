@@ -82,6 +82,18 @@ export async function switchPlan(
   }
   const newPriceId = getStripePriceId(newProduct, deps.stripeMode);
 
+  const retriesSameSchedule =
+    input.mode === "schedule_at_period_end" &&
+    !row.cancelAtPeriodEnd &&
+    row.pendingProductId === newProduct.id &&
+    row.pendingPriceId === newPriceId;
+  if (
+    (row.pendingProductId || row.pendingPriceId || row.cancelAtPeriodEnd) &&
+    !retriesSameSchedule
+  ) {
+    throw new BillingError("Desfaça a alteração agendada antes de escolher outro plano.");
+  }
+
   if (input.mode === "immediate") {
     const summary = await deps.providerClient.updateSubscription({
       providerSubscriptionId: row.providerSubscriptionId,
@@ -153,8 +165,17 @@ export async function switchPlan(
     return { subscription: updatedRow, appliedImmediately: true, paymentActionUrl: null };
   }
 
-  // schedule_at_period_end: cancel current subscription at the period boundary
-  // and stash the intent locally. The deleted webhook will create the new sub.
+  // Persist the durable intent before the remote call. If the process stops or
+  // Stripe times out, retrying is safe and the deletion webhook can still
+  // finish the requested plan change.
+  await deps.db
+    .update(subscriptionsTable)
+    .set({
+      pendingProductId: newProduct.id,
+      pendingPriceId: newPriceId,
+      updatedAt: new Date(),
+    })
+    .where(eq(subscriptionsTable.id, row.id));
   const summary = await deps.providerClient.cancelSubscription({
     providerSubscriptionId: row.providerSubscriptionId,
     atPeriodEnd: true,
@@ -162,12 +183,7 @@ export async function switchPlan(
   const periodEnd = summary.currentPeriodEnd ?? row.currentPeriodEnd;
   const updated = await deps.db
     .update(subscriptionsTable)
-    .set({
-      cancelAtPeriodEnd: periodEnd,
-      pendingProductId: newProduct.id,
-      pendingPriceId: newPriceId,
-      updatedAt: new Date(),
-    })
+    .set({ cancelAtPeriodEnd: periodEnd, updatedAt: new Date() })
     .where(eq(subscriptionsTable.id, row.id))
     .returning();
   const updatedRow = updated[0] ?? row;

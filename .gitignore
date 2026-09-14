@@ -37,6 +37,19 @@ Thumbs.db
 
 # Misc
 .cache/
+.firecrawl/
+apps/missao-saber/tmp/
+apps/missao-saber/.next-e2e*/
+apps/missao-saber/.next-isolated-*/
+apps/missao-saber/test-results-*/
+apps/missao-saber/scripts/__pycache__/
+
+# Acervo de referência do estudo de olimpíadas (originais de terceiros)
+docs/propostas/missao-saber-2026-09-13/acervo/arquivos/
+docs/propostas/missao-saber-2026-09-13/acervo/paginas/
+docs/propostas/missao-saber-2026-09-13/acervo/textos/
+docs/propostas/missao-saber-2026-09-13/acervo/previas/
+docs/propostas/missao-saber-2026-09-13/scripts/__pycache__/
 
 # Reference datasets — versão comprimida (escolas_inep.csv.gz, ~11MB) é
 # rastreada para o seed do Migrator (Railway) conseguir popular agenda.schools

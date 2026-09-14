@@ -1,0 +1,1 @@
+DROP TABLE "missao_saber"."releases" CASCADE;

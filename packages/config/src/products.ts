@@ -52,6 +52,63 @@ export type Product = {
 // - Free: sem IA (só cadastro manual com limite de receitas)
 export const PRODUCTS: readonly Product[] = [
   {
+    id: "missao_individual_monthly",
+    app: "missao-saber",
+    kind: "subscription",
+    name: "Missão Saber Individual",
+    description: "Preparação autoral para olimpíadas escolares com um perfil de estudante.",
+    tier: "individual",
+    interval: "month",
+    stripePriceId: {
+      dev: "price_TODO_missao_individual_monthly",
+      prod: "price_TODO_missao_individual_monthly",
+    },
+    listPrice: { amountCents: 2990, currency: "BRL" },
+  },
+  {
+    id: "missao_individual_annual",
+    app: "missao-saber",
+    kind: "subscription",
+    name: "Missão Saber Individual anual",
+    description: "Preparação autoral anual para olimpíadas escolares com um perfil de estudante.",
+    tier: "individual",
+    interval: "year",
+    stripePriceId: {
+      dev: "price_TODO_missao_individual_annual",
+      prod: "price_TODO_missao_individual_annual",
+    },
+    listPrice: { amountCents: 29900, currency: "BRL" },
+  },
+  {
+    id: "missao_family_monthly",
+    app: "missao-saber",
+    kind: "subscription",
+    name: "Missão Saber Família",
+    description: "Preparação autoral para olimpíadas escolares com até três perfis de estudante.",
+    tier: "family",
+    interval: "month",
+    stripePriceId: {
+      dev: "price_TODO_missao_family_monthly",
+      prod: "price_TODO_missao_family_monthly",
+    },
+    listPrice: { amountCents: 4490, currency: "BRL" },
+  },
+  {
+    id: "missao_family_annual",
+    app: "missao-saber",
+    kind: "subscription",
+    name: "Missão Saber Família anual",
+    description:
+      "Preparação autoral anual para olimpíadas escolares com até três perfis de estudante.",
+    tier: "family",
+    interval: "year",
+    stripePriceId: {
+      dev: "price_TODO_missao_family_annual",
+      prod: "price_TODO_missao_family_annual",
+    },
+    listPrice: { amountCents: 44900, currency: "BRL" },
+  },
+  {
     id: "cozya_pro_monthly",
     app: "cozya",
     kind: "subscription",

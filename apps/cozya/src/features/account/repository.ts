@@ -2,6 +2,7 @@ import "server-only";
 import { and, db, eq, inArray, ne, sql } from "@informach/db";
 import {
   agentRuns,
+  checkoutIntents,
   cozyaAiOperations,
   cozyaCookingSessions,
   cozyaMeals,
@@ -114,6 +115,13 @@ export async function clearCozyaData(userId: string) {
 }
 
 export async function hasOtherAppSubscriptions(userId: string) {
+  const pending = await db
+    .select({ id: checkoutIntents.id })
+    .from(checkoutIntents)
+    .innerJoin(customers, eq(checkoutIntents.customerId, customers.id))
+    .where(and(eq(checkoutIntents.userId, userId), ne(customers.app, "cozya")))
+    .limit(1);
+  if (pending.length) return true;
   const rows = await db
     .select({ id: subscriptions.id })
     .from(subscriptions)

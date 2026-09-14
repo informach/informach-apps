@@ -1,7 +1,7 @@
 import type { Database } from "@informach/db";
 import { emailDeliveries, emailSuppressions, emailUnsubscribes, users } from "@informach/db/schema";
 import { EventWebhook, EventWebhookHeader } from "@sendgrid/eventwebhook";
-import { eq } from "drizzle-orm";
+import { and, eq, notInArray } from "drizzle-orm";
 import { type EmailAuditHook, emailAddressAuditPayload, emitEmailAudit } from "./audit";
 import { type Logger, safeLog } from "./logger";
 
@@ -17,7 +17,8 @@ export type SendgridEvent = {
   type?: string;
   status?: string;
   delivery_id?: string;
-  category?: string;
+  category?: string | string[];
+  informach_category?: string;
   user_id?: string;
 };
 
@@ -72,14 +73,28 @@ async function markDeliveryStatus(
   status: "delivered" | "bounced" | "dropped" | "complained",
   lastError: string | null,
 ): Promise<void> {
+  const deliveryMatch =
+    status === "delivered"
+      ? and(
+          eq(emailDeliveries.id, deliveryId),
+          notInArray(emailDeliveries.status, ["bounced", "dropped", "complained"]),
+        )
+      : eq(emailDeliveries.id, deliveryId);
   await db
     .update(emailDeliveries)
     .set({
-      ...(status === "delivered" ? {} : { status }),
+      status,
       providerAccepted: true,
       ...(lastError ? { lastError } : {}),
       updatedAt: new Date(),
     })
+    .where(deliveryMatch);
+}
+
+async function markProviderAccepted(db: Database, deliveryId: string): Promise<void> {
+  await db
+    .update(emailDeliveries)
+    .set({ providerAccepted: true, updatedAt: new Date() })
     .where(eq(emailDeliveries.id, deliveryId));
 }
 
@@ -92,7 +107,7 @@ async function upsertSuppression(db: Database, email: string, reason: string): P
 
 async function recordUnsubscribe(
   db: Database,
-  event: SendgridEvent,
+  event: Omit<SendgridEvent, "category"> & { category?: string },
 ): Promise<{ userId: string; category: string } | null> {
   let userId = event.user_id;
   if (!userId) {
@@ -110,11 +125,29 @@ async function recordUnsubscribe(
   return { userId, category };
 }
 
-export async function handleSendgridEvent(deps: WebhookDeps, event: SendgridEvent): Promise<void> {
-  const delivery = await findDelivery(deps.db, event);
+export async function handleSendgridEvent(deps: WebhookDeps, raw: SendgridEvent): Promise<void> {
+  const delivery = await findDelivery(deps.db, raw);
+  // Provider categories may be arrays. Delivery is authoritative; our custom
+  // argument has a distinct name so it cannot collide with the provider field.
+  const authoritative = delivery?.category ?? raw.informach_category;
+  const categories = [
+    ...new Set(
+      authoritative
+        ? [authoritative]
+        : Array.isArray(raw.category)
+          ? raw.category
+          : raw.category
+            ? [raw.category]
+            : [],
+    ),
+  ];
+  const event = { ...raw, category: categories[0], user_id: delivery?.userId ?? raw.user_id };
 
   switch (event.event) {
-    case "processed":
+    case "processed": {
+      if (delivery) await markProviderAccepted(deps.db, delivery.id);
+      return;
+    }
     case "delivered": {
       if (delivery) {
         await markDeliveryStatus(deps.db, delivery.id, "delivered", null);
@@ -189,18 +222,20 @@ export async function handleSendgridEvent(deps: WebhookDeps, event: SendgridEven
     }
     case "unsubscribe":
     case "group_unsubscribe": {
-      const recorded = await recordUnsubscribe(deps.db, event);
-      if (recorded) {
-        emitEmailAudit(deps, {
-          eventType: "email.unsubscribe_recorded",
-          actorId: recorded.userId,
-          payload: {
-            ...emailAddressAuditPayload(event.email),
-            category: recorded.category,
-            providerEvent: event.event,
-            source: "sendgrid",
-          },
-        });
+      for (const category of categories.length ? categories : ["marketing.all"]) {
+        const recorded = await recordUnsubscribe(deps.db, { ...event, category });
+        if (recorded) {
+          emitEmailAudit(deps, {
+            eventType: "email.unsubscribe_recorded",
+            actorId: recorded.userId,
+            payload: {
+              ...emailAddressAuditPayload(event.email),
+              category: recorded.category,
+              providerEvent: event.event,
+              source: "sendgrid",
+            },
+          });
+        }
       }
       return;
     }

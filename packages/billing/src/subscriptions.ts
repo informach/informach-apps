@@ -1,11 +1,13 @@
 import type { Database } from "@informach/db";
 import {
+  checkoutIntents,
   customers as customersTable,
   type Subscription as SubscriptionRow,
   subscriptions as subscriptionsTable,
 } from "@informach/db/schema";
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { CustomerNotFoundError, OrganizationsDisabledError } from "./errors";
+import { recoverPendingCheckout } from "./checkout-lifecycle";
+import { BillingError, CustomerNotFoundError, OrganizationsDisabledError } from "./errors";
 import { type Logger, safeLog } from "./logger";
 import type { BillingProviderClient } from "./providers";
 import type { BillingAuditEvent, BillingProvider, SubjectRef } from "./types";
@@ -15,6 +17,7 @@ export type SubscriptionsDeps = {
   provider: BillingProvider;
   providerClient: BillingProviderClient;
   organizationsEnabled: boolean;
+  managedCheckout?: boolean;
   /** App slug — escopo de isolamento usado para casar customers do mesmo subject. */
   app: string;
   logger?: Logger;
@@ -135,6 +138,10 @@ export async function updateSubscription(
     .set({
       providerPriceId: input.newPriceId,
       status: normalizeStatus(summary.status),
+      confirmedAt:
+        summary.status === "active" || summary.status === "trialing"
+          ? (row.confirmedAt ?? new Date())
+          : row.confirmedAt,
       currentPeriodEnd: summary.currentPeriodEnd ?? row.currentPeriodEnd,
       cancelAtPeriodEnd: summary.cancelAtPeriodEnd ? summary.currentPeriodEnd : null,
       updatedAt: new Date(),
@@ -233,6 +240,67 @@ function assertSubjectAllowed(deps: SubscriptionsDeps, subject: SubjectRef): voi
   if (subject.type === "organization" && !deps.organizationsEnabled) {
     throw new OrganizationsDisabledError();
   }
+}
+
+/** Stronger opt-in closure. Callers must serialize checkout creation and closure
+ * for this subject until their app data deletion is complete. Never infer remote
+ * state from local webhook projections when terminating a customer's billing. */
+export async function closeRemoteBillingForSubject(deps: SubscriptionsDeps, subject: SubjectRef) {
+  assertSubjectAllowed(deps, subject);
+  const [customer] = await deps.db
+    .select()
+    .from(customersTable)
+    .where(
+      and(
+        eq(customersTable.provider, deps.provider),
+        eq(customersTable.app, deps.app),
+        eq(customersTable.subjectType, subject.type),
+        eq(customersTable.subjectId, subject.id),
+      ),
+    );
+  if (!customer) return { expired: 0, canceled: 0 };
+  if (!deps.providerClient.closeCustomerSubscriptions)
+    throw new BillingError("Provider cannot safely close pending checkouts");
+  if (deps.managedCheckout) await recoverPendingCheckout(deps, customer);
+  // Clear scheduled replacements before cancellation can emit deletion events.
+  await deps.db
+    .update(subscriptionsTable)
+    .set({ pendingProductId: null, pendingPriceId: null })
+    .where(eq(subscriptionsTable.customerId, customer.id));
+  const result = await deps.providerClient.closeCustomerSubscriptions(customer.providerCustomerId);
+  const local = await deps.db
+    .select({ id: subscriptionsTable.providerSubscriptionId })
+    .from(subscriptionsTable)
+    .where(eq(subscriptionsTable.customerId, customer.id));
+  const previous = Array.isArray(customer.metadata.closedSubscriptionIds)
+    ? customer.metadata.closedSubscriptionIds.filter((id): id is string => typeof id === "string")
+    : [];
+  await deps.db
+    .update(customersTable)
+    .set({
+      metadata: {
+        ...customer.metadata,
+        closedSubscriptionIds: [
+          ...new Set([...previous, ...result.subscriptionIds, ...local.map((row) => row.id)]),
+        ],
+      },
+    })
+    .where(eq(customersTable.id, customer.id));
+  await deps.db
+    .update(subscriptionsTable)
+    .set({
+      status: "canceled",
+      canceledAt: new Date(),
+      cancelAtPeriodEnd: null,
+      pendingProductId: null,
+      pendingPriceId: null,
+      nextCreditGrantAt: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(subscriptionsTable.customerId, customer.id));
+  if (deps.managedCheckout)
+    await deps.db.delete(checkoutIntents).where(eq(checkoutIntents.customerId, customer.id));
+  return { expired: result.expired, canceled: result.canceled };
 }
 
 async function findCustomerForSubject(

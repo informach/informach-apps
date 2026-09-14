@@ -27,6 +27,7 @@ bibliotecas internas consumidas como TypeScript fonte, sem `dist/` versionado.
 | `admin` | `@informach/admin` | `3003` | Scaffold, sem wiring completo de auth/billing/db |
 | `agenda-da-turma` | `@informach/agenda-da-turma` | `3001` | App multi-tenant com Better Auth organizations |
 | `cozya` | `@informach/cozya` | `3002` | App single-user |
+| `missao-saber` | `@informach/missao-saber` | `3005` | Produto comercial autoral para olimpíadas, com perfis familiares e assinatura; [operação](apps/missao-saber/README.md) |
 
 ### Packages
 
@@ -89,6 +90,7 @@ bibliotecas internas consumidas como TypeScript fonte, sem `dist/` versionado.
    ```powershell
    pnpm dev:agenda-da-turma
    pnpm dev:cozya
+   pnpm dev:missao-saber
    pnpm dev:admin
    ```
 
@@ -136,6 +138,7 @@ Schemas geridos pelo Drizzle:
 - `ai`
 - `agenda`
 - `cozya`
+- `missao_saber`
 
 O schema `ai_mastra` é exceção: ele pertence ao Mastra e fica fora do
 `schemaFilter` do Drizzle. A migration do repo cria o schema vazio; o migrator

@@ -1,11 +1,12 @@
 import Stripe from "stripe";
-import { WebhookSignatureError } from "../errors";
+import { CheckoutPendingError, WebhookSignatureError } from "../errors";
 import type { SubjectRef } from "../types";
 import type {
   BillingProviderClient,
   ProviderCancelSubscriptionInput,
   ProviderCheckoutInput,
   ProviderCheckoutSession,
+  ProviderCheckoutState,
   ProviderCreateSubscriptionInput,
   ProviderCustomer,
   ProviderInvoicePreview,
@@ -39,6 +40,8 @@ export function createStripeProvider(config: StripeProviderConfig): BillingProvi
     config.client ??
     new Stripe(config.secretKey, {
       apiVersion: "2026-04-22.dahlia",
+      timeout: 30_000,
+      maxNetworkRetries: 2,
       appInfo: {
         name: `informach-platform/${config.appName}`,
       },
@@ -53,6 +56,29 @@ export function createStripeProvider(config: StripeProviderConfig): BillingProvi
       ...(extra ?? {}),
       subject_type: subject.type,
       subject_id: subject.id,
+    };
+  }
+
+  async function assertNoSubscription(customerId: string) {
+    for await (const sub of stripe.subscriptions.list({
+      customer: customerId,
+      status: "all",
+      limit: 100,
+    })) {
+      if (!["canceled", "incomplete_expired"].includes(sub.status))
+        throw new CheckoutPendingError();
+    }
+  }
+  function checkoutState(session: Stripe.Checkout.Session): ProviderCheckoutState {
+    if (!session.status) throw new Error("Checkout status missing");
+    return {
+      id: session.id,
+      url: session.url,
+      status: session.status,
+      subscriptionId:
+        typeof session.subscription === "string"
+          ? session.subscription
+          : (session.subscription?.id ?? null),
     };
   }
 
@@ -99,6 +125,7 @@ export function createStripeProvider(config: StripeProviderConfig): BillingProvi
         success_url: input.successUrl,
         cancel_url: input.cancelUrl,
         metadata: input.metadata,
+        expires_at: input.expiresAt,
       };
       if (input.mode === "subscription") {
         params.subscription_data = { metadata: input.metadata };
@@ -117,12 +144,74 @@ export function createStripeProvider(config: StripeProviderConfig): BillingProvi
       return { id: session.id, url: session.url };
     },
 
+    async findCheckoutSession(customerId, intentId, sessionId) {
+      if (sessionId) {
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        const owner =
+          typeof session.customer === "string" ? session.customer : session.customer?.id;
+        if (owner !== customerId || session.metadata?.checkout_intent_id !== intentId)
+          throw new Error("Checkout does not belong to this intent");
+        return checkoutState(session);
+      }
+      // Search history too: an unknown response may have completed before a retry.
+      for await (const session of stripe.checkout.sessions.list({
+        customer: customerId,
+        limit: 100,
+      })) {
+        if (session.metadata?.checkout_intent_id === intentId) return checkoutState(session);
+      }
+      return null;
+    },
+
+    async prepareSubscriptionCheckout(customerId, preserveSessionId) {
+      await assertNoSubscription(customerId);
+      for await (const session of stripe.checkout.sessions.list({
+        customer: customerId,
+        status: "open",
+        limit: 100,
+      })) {
+        if (session.mode === "subscription" && session.id !== preserveSessionId)
+          await stripe.checkout.sessions.expire(session.id);
+      }
+      // Completion can race expiry. Any expiry error aborts; recheck before creation.
+      await assertNoSubscription(customerId);
+    },
+
     async createPortalSession(input: ProviderPortalInput): Promise<ProviderPortalSession> {
       const session = await stripe.billingPortal.sessions.create({
         customer: input.customerId,
         return_url: input.returnUrl,
+        ...(input.configurationId ? { configuration: input.configurationId } : {}),
       });
       return { url: session.url };
+    },
+
+    async closeCustomerSubscriptions(customerId) {
+      let expired = 0;
+      let canceled = 0;
+      const subscriptionIds: string[] = [];
+      // Auto-pagination is essential: abandoned checkouts can exceed one page.
+      // A completion racing with expiry throws. Preserve app data and retry the
+      // whole operation; the next pass discovers the newly created subscription.
+      for await (const session of stripe.checkout.sessions.list({
+        customer: customerId,
+        status: "open",
+        limit: 100,
+      })) {
+        await stripe.checkout.sessions.expire(session.id);
+        expired++;
+      }
+      for await (const subscription of stripe.subscriptions.list({
+        customer: customerId,
+        status: "all",
+        limit: 100,
+      })) {
+        subscriptionIds.push(subscription.id);
+        if (["canceled", "incomplete_expired"].includes(subscription.status)) continue;
+        await stripe.subscriptions.cancel(subscription.id, { invoice_now: false, prorate: false });
+        canceled++;
+      }
+      return { expired, canceled, subscriptionIds };
     },
 
     async cancelSubscription(
@@ -204,6 +293,9 @@ export function createStripeProvider(config: StripeProviderConfig): BillingProvi
         {
           customer: input.customerId,
           items: [{ price: input.priceId }],
+          ...(input.defaultPaymentMethodId
+            ? { default_payment_method: input.defaultPaymentMethodId }
+            : {}),
           metadata: input.metadata ?? {},
           // Default behavior: charge the customer's default payment method.
           // Stripe throws "subscription_payment_intent_requires_action" if the

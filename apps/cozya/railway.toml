@@ -23,10 +23,10 @@ watchPatterns = [
 # no env do service. Sem isso, o pnpm pula `turbo` (devDep) e o build quebra com
 # "turbo: not found". `next build` em si continua produzindo bundle de produção
 # porque o próprio Next seta NODE_ENV=production durante o build.
-buildCommand = "pnpm install --frozen-lockfile --prod=false && pnpm build:cozya"
+buildCommand = "pnpm install --frozen-lockfile --prod=false && pnpm build:cozya && cp -R apps/cozya/public apps/cozya/.next/standalone/apps/cozya/public && cp -R apps/cozya/.next/static apps/cozya/.next/standalone/apps/cozya/.next/static"
 
 [deploy]
-startCommand = "pnpm start:cozya"
+startCommand = "HOSTNAME=0.0.0.0 node apps/cozya/.next/standalone/apps/cozya/server.js"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"

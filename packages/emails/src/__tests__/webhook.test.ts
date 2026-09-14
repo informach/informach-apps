@@ -59,6 +59,60 @@ describe("verifySendgridSignature", () => {
 });
 
 describe("handleSendgridEvent", () => {
+  it("marks a provider-confirmed delivery as delivered", async () => {
+    const { db, calls } = createFakeDb({
+      selectQueue: [[{ id: "delivery-1", category: "auth.verify-email" }]],
+      updateResult: [],
+    });
+    await handleSendgridEvent({ db: db as never }, makeEvent({ event: "delivered" }));
+    const update = calls.find((call) => call.mode === "update");
+    const set = update?.chain.find((call) => call.method === "set");
+    expect(set?.args[0]).toMatchObject({ status: "delivered", providerAccepted: true });
+  });
+
+  it("records processed as provider acceptance without claiming delivery", async () => {
+    const { db, calls } = createFakeDb({
+      selectQueue: [[{ id: "delivery-1", category: "auth.verify-email" }]],
+      updateResult: [],
+    });
+    await handleSendgridEvent({ db: db as never }, makeEvent({ event: "processed" }));
+    const update = calls.find((call) => call.mode === "update");
+    const set = update?.chain.find((call) => call.method === "set");
+    expect(set?.args[0]).toMatchObject({ providerAccepted: true });
+    expect(set?.args[0]).not.toHaveProperty("status");
+  });
+
+  it("keeps a terminal failure when an older processed event arrives later", async () => {
+    const { db, calls } = createFakeDb({
+      selectQueue: [[{ id: "delivery-1", status: "bounced", category: "auth.verify-email" }]],
+      updateResult: [],
+    });
+    await handleSendgridEvent({ db: db as never }, makeEvent({ event: "processed" }));
+    const set = calls
+      .find((call) => call.mode === "update")
+      ?.chain.find((call) => call.method === "set");
+    expect(set?.args[0]).toMatchObject({ providerAccepted: true });
+    expect(set?.args[0]).not.toHaveProperty("status");
+  });
+
+  it("does not claim delivery while SendGrid has only deferred the message", async () => {
+    const { db, calls } = createFakeDb({
+      selectQueue: [[{ id: "delivery-1", status: "sent" }], [{ id: "delivery-1", status: "sent" }]],
+      updateResult: [],
+    });
+    await handleSendgridEvent({ db: db as never }, makeEvent({ event: "processed" }));
+    await handleSendgridEvent(
+      { db: db as never, logger: { warn: vi.fn() } },
+      makeEvent({ event: "deferred" }),
+    );
+    const statusWrites = calls
+      .filter((call) => call.mode === "update")
+      .flatMap((call) => call.chain.filter((entry) => entry.method === "set"))
+      .map((entry) => entry.args[0] as Record<string, unknown>)
+      .filter((entry) => "status" in entry);
+    expect(statusWrites).toEqual([]);
+  });
+
   it("marks bounced and inserts a suppression on `bounce`", async () => {
     const { db, calls } = createFakeDb({
       selectQueue: [[{ id: "delivery-1", category: "auth.verify-email" }]],

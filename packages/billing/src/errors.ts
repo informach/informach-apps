@@ -5,6 +5,15 @@ export class BillingError extends Error {
   }
 }
 
+export class CheckoutPendingError extends BillingError {
+  constructor() {
+    super(
+      "A confirmação do pagamento anterior ainda está pendente. Aguarde a atualização da assinatura ou encerre a cobrança em Minha família.",
+    );
+    this.name = "CheckoutPendingError";
+  }
+}
+
 export class NotImplementedError extends BillingError {
   constructor(feature: string) {
     super(`${feature} is not implemented yet`);

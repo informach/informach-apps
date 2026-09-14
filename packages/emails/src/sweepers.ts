@@ -30,7 +30,13 @@ export async function recoverStaleDeliveries(deps: {
   const recovered = await deps.db
     .update(emailDeliveries)
     .set({ status: "unknown", nextAttemptAt: null, updatedAt: new Date() })
-    .where(and(eq(emailDeliveries.status, "sending"), lt(emailDeliveries.sendingStartedAt, cutoff)))
+    .where(
+      and(
+        eq(emailDeliveries.status, "sending"),
+        eq(emailDeliveries.providerAccepted, false),
+        lt(emailDeliveries.sendingStartedAt, cutoff),
+      ),
+    )
     .returning({ id: emailDeliveries.id });
 
   return { recovered: recovered.length };
@@ -190,7 +196,13 @@ export async function retryFailedDeliveries(deps: RetryFailedDeps): Promise<Retr
     .where(
       and(
         eq(emailDeliveries.status, "failed"),
+        eq(emailDeliveries.providerAccepted, false),
         sql`${emailDeliveries.category} <> 'agenda.routine'`,
+        // Payment reminders must recheck the subscription under its lifecycle
+        // lock. The dunning job regenerates them with the same delivery key.
+        sql`${emailDeliveries.category} <> 'billing.payment-failed'`,
+        sql`${emailDeliveries.category} NOT LIKE 'auth.%'`,
+        sql`(coalesce(${emailDeliveries.html}, '') <> '' OR coalesce(${emailDeliveries.text}, '') <> '')`,
         lt(emailDeliveries.sendAttempts, MAX_ATTEMPTS),
         or(isNull(emailDeliveries.nextAttemptAt), lte(emailDeliveries.nextAttemptAt, now)),
       ),
@@ -294,7 +306,13 @@ export async function retryFailedDeliveries(deps: RetryFailedDeps): Promise<Retr
         nextAttemptAt: null,
         updatedAt: new Date(),
       })
-      .where(and(eq(emailDeliveries.id, row.id), eq(emailDeliveries.status, "failed")))
+      .where(
+        and(
+          eq(emailDeliveries.id, row.id),
+          eq(emailDeliveries.status, "failed"),
+          eq(emailDeliveries.providerAccepted, false),
+        ),
+      )
       .returning();
 
     const claimedRow = claimed[0];
@@ -303,19 +321,24 @@ export async function retryFailedDeliveries(deps: RetryFailedDeps): Promise<Retr
       continue;
     }
 
-    const unsubscribeUrl = deps.buildUnsubscribeUrl(row.recipient, category);
-    const headers = buildListUnsubscribeHeaders(unsubscribeUrl, deps.unsubscribeMailto);
+    // A global queue must preserve the originating app's signed links/sender.
+    // Null values belong to legacy deliveries created before envelope persistence.
+    const unsubscribeUrl = row.unsubscribeUrl ?? deps.buildUnsubscribeUrl(row.recipient, category);
+    const headers = buildListUnsubscribeHeaders(
+      unsubscribeUrl,
+      row.unsubscribeUrl ? (row.unsubscribeMailto ?? undefined) : deps.unsubscribeMailto,
+    );
 
     const message: SendgridMessage = {
       to: row.recipient,
-      from: deps.defaultFrom,
+      from: row.fromAddress ?? deps.defaultFrom,
       subject: row.subject,
       ...(row.text ? { text: row.text } : {}),
       ...(row.html ? { html: row.html } : {}),
       headers,
       customArgs: {
         delivery_id: row.id,
-        category,
+        informach_category: category,
         ...(row.userId ? { user_id: row.userId } : {}),
       },
       categories: [category],
@@ -326,12 +349,16 @@ export async function retryFailedDeliveries(deps: RetryFailedDeps): Promise<Retr
       await deps.db
         .update(emailDeliveries)
         .set({
-          status: "sent",
+          status: sql<string>`case when ${emailDeliveries.status} = 'sending' then 'sent' else ${emailDeliveries.status} end`,
           providerAccepted: true,
-          providerMessageId: messageId ?? null,
-          lastError: null,
-          nextAttemptAt: null,
-          sentAt: new Date(),
+          providerMessageId: sql<
+            string | null
+          >`coalesce(${emailDeliveries.providerMessageId}, ${messageId ?? null})`,
+          lastError: sql<
+            string | null
+          >`case when ${emailDeliveries.status} = 'sending' then null else ${emailDeliveries.lastError} end`,
+          nextAttemptAt: sql<Date | null>`case when ${emailDeliveries.status} = 'sending' then null else ${emailDeliveries.nextAttemptAt} end`,
+          sentAt: sql<Date>`coalesce(${emailDeliveries.sentAt}, now())`,
           updatedAt: new Date(),
         })
         .where(eq(emailDeliveries.id, row.id));
@@ -357,6 +384,29 @@ export async function retryFailedDeliveries(deps: RetryFailedDeps): Promise<Retr
       const lastError =
         errLike.message ?? `SendGrid error (status ${errLike.response?.statusCode})`;
       const attempts = claimedRow.sendAttempts || row.sendAttempts + 1;
+      const [providerState] = await deps.db
+        .select({ providerAccepted: emailDeliveries.providerAccepted })
+        .from(emailDeliveries)
+        .where(eq(emailDeliveries.id, row.id))
+        .limit(1);
+
+      if (providerState?.providerAccepted) {
+        await deps.db
+          .update(emailDeliveries)
+          .set({
+            status: sql<string>`case when ${emailDeliveries.status} = 'sending' then 'sent' else ${emailDeliveries.status} end`,
+            lastError: sql<
+              string | null
+            >`case when ${emailDeliveries.status} = 'sending' then null else ${emailDeliveries.lastError} end`,
+            nextAttemptAt: sql<Date | null>`case when ${emailDeliveries.status} = 'sending' then null else ${emailDeliveries.nextAttemptAt} end`,
+            sentAt: sql<Date>`coalesce(${emailDeliveries.sentAt}, now())`,
+            updatedAt: new Date(),
+          })
+          .where(eq(emailDeliveries.id, row.id));
+        retried += 1;
+        recovered += 1;
+        continue;
+      }
 
       await deps.db
         .update(emailDeliveries)
@@ -370,7 +420,13 @@ export async function retryFailedDeliveries(deps: RetryFailedDeps): Promise<Retr
               : null,
           updatedAt: new Date(),
         })
-        .where(eq(emailDeliveries.id, row.id));
+        .where(
+          and(
+            eq(emailDeliveries.id, row.id),
+            eq(emailDeliveries.status, "sending"),
+            eq(emailDeliveries.providerAccepted, false),
+          ),
+        );
 
       retried += 1;
       failed += 1;

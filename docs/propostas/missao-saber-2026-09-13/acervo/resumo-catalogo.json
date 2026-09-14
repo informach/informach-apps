@@ -1,0 +1,41 @@
+{
+  "urls_documentos": 670,
+  "downloads_validos": 660,
+  "urls_com_falha": 10,
+  "arquivos_unicos_sha256": 646,
+  "bytes_downloads": 886366825,
+  "paginas_pdf_downloads": 9346,
+  "por_grupo": {
+    "canguru": 114,
+    "obmep": 331,
+    "obmep-carioca": 8,
+    "obmep-mirim": 38,
+    "obmep-poti": 145,
+    "olitef": 24
+  },
+  "por_categoria": {
+    "programa": 1,
+    "gabarito": 37,
+    "prova": 241,
+    "nota-corte": 6,
+    "apostila-pic": 18,
+    "banco-errata": 1,
+    "solucao": 164,
+    "banco": 15,
+    "simulado-gabarito": 3,
+    "simulado-solucao": 3,
+    "simulado-prova": 3,
+    "regulamento": 11,
+    "material-poti": 144,
+    "pacote": 1,
+    "prova-gabarito": 6,
+    "simulado": 3,
+    "caderno": 3
+  },
+  "zip_entradas": 1479,
+  "zip_membros_pdf": 784,
+  "zip_pdfs_unicos": 445,
+  "zip_paginas_pdfs_unicos": 2777,
+  "zip_bytes_pdfs_unicos": 84203196,
+  "mirim_urls_identificadas_no_indice": 38
+}

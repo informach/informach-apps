@@ -1,0 +1,357 @@
+@import "tailwindcss" source(none);
+@import "@informach/ui/styles.css";
+
+@source "../**/*.{ts,tsx}";
+@source "../../../../packages/ui/src/**/*.{ts,tsx}";
+
+/* ============================================================
+   MISSÃO SABER — sistema "Descoberta"
+   Duas peles, um só sistema: as telas do estudante são grandes,
+   saturadas e com sombra sólida; a área do responsável usa os
+   mesmos tokens em densidade normal.
+   Cor nunca é o único portador de significado (PROPOSTA.md §5).
+   ============================================================ */
+
+:root {
+  --font-sans: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-nunito), ui-serif, serif;
+  --font-display: var(--font-fredoka), var(--font-nunito), ui-sans-serif, sans-serif;
+
+  /* --- paleta da marca --- */
+  --ms-verde: oklch(0.6926 0.1642 158.2); /* #17B26A */
+  --ms-verde-fundo: oklch(0.5527 0.1315 157.9); /* #0E8A50 */
+  --ms-verde-claro: oklch(0.9299 0.0596 154.8);
+  --ms-lima: oklch(0.9096 0.1732 121.4); /* #C7F05C */
+  --ms-lima-fundo: oklch(0.7909 0.1583 121.9);
+  --ms-uva: oklch(0.6056 0.209 293.9); /* #8B5CF6 */
+  --ms-uva-fundo: oklch(0.4966 0.2045 294.1);
+  --ms-uva-claro: oklch(0.9376 0.0397 293.6);
+  --ms-sol: oklch(0.8033 0.1584 74.9); /* #FFB020 */
+  --ms-sol-fundo: oklch(0.6613 0.1424 65.6);
+  --ms-sol-claro: oklch(0.9575 0.0569 89.5);
+  --ms-coral: oklch(0.744 0.1494 41.6); /* #FF8A5B */
+  --ms-coral-fundo: oklch(0.6147 0.161 39.1);
+  --ms-coral-claro: oklch(0.9427 0.0393 54.6);
+  --ms-ceu: oklch(0.7006 0.1385 244.6); /* #3BA9F5 */
+  --ms-ceu-fundo: oklch(0.5644 0.144 250.4);
+  --ms-ceu-claro: oklch(0.9418 0.0311 234.5);
+
+  /* Preenchimentos sólidos: as cores vivas acima são claras demais para
+     texto branco (verde puro dá 2,5:1). Estes tons são calibrados para
+     branco a >= 4,5:1 e usados em botões, selos e nós preenchidos. */
+  --ms-verde-solido: oklch(0.5385 0.1291 156.9); /* #0D844C — branco 4,75:1 */
+  --ms-verde-solido-sombra: oklch(0.4263 0.1046 157.4);
+  --ms-uva-solido: oklch(0.4834 0.2325 295.5); /* #6D28D9 — branco 7,1:1 */
+  --ms-uva-solido-sombra: oklch(0.3846 0.1908 295.7);
+  --ms-coral-solido: oklch(0.5218 0.1755 40.2); /* #C2410C — branco 5,2:1 */
+  --ms-coral-solido-sombra: oklch(0.4117 0.1362 40.6);
+  --ms-ceu-solido: oklch(0.5305 0.1339 248.2); /* #0B6FB8 — branco 5,3:1 */
+  --ms-ceu-solido-sombra: oklch(0.4232 0.1084 249.1);
+
+  --ms-papel: oklch(0.9552 0.0166 95.1); /* #F5F1E4 */
+  --ms-creme: oklch(0.9925 0.0064 95.2); /* #FFFDF7 */
+  --ms-tinta: oklch(0.3035 0.0345 163.1); /* #17352C */
+  /* Calibrada para 4,5:1 em TODAS as superfícies do sistema, não só no
+     papel: o pior caso (texto sobre lima 35%) fica em 4,75:1. */
+  --ms-tinta-suave: oklch(0.5 0.0269 163.5);
+  --ms-borda: oklch(0.8815 0.0154 120.4);
+  --ms-sombra: oklch(0.8398 0.0204 118.9);
+
+  /* --- tokens semânticos do shadcn remapeados para a marca --- */
+  --background: var(--ms-papel);
+  --foreground: var(--ms-tinta);
+  --card: var(--ms-creme);
+  --card-foreground: var(--ms-tinta);
+  --popover: var(--ms-creme);
+  --popover-foreground: var(--ms-tinta);
+
+  --primary: var(--ms-verde);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: var(--ms-uva);
+  --secondary-foreground: oklch(1 0 0);
+
+  --muted: oklch(0.9331 0.0136 108.6);
+  --muted-foreground: var(--ms-tinta-suave);
+  --accent: var(--ms-lima);
+  --accent-foreground: var(--ms-tinta);
+
+  --success: var(--ms-verde);
+  --warning: var(--ms-sol);
+
+  --border: var(--ms-borda);
+  --input: var(--ms-borda);
+  --ring: var(--ms-uva);
+
+  --chart-1: var(--ms-verde);
+  --chart-2: var(--ms-uva);
+  --chart-3: var(--ms-sol);
+  --chart-4: var(--ms-ceu);
+  --chart-5: var(--ms-coral);
+
+  --sidebar: var(--ms-creme);
+  --sidebar-foreground: var(--ms-tinta);
+  --sidebar-primary: var(--ms-verde);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: var(--ms-lima);
+  --sidebar-accent-foreground: var(--ms-tinta);
+  --sidebar-border: var(--ms-borda);
+  --sidebar-ring: var(--ms-uva);
+
+  /* Largura do rail lateral. O painel de devolutiva se alinha a ela. */
+  --ms-rail: 264px;
+  --radius: 1.25rem;
+  --tracking-normal: -0.01em;
+}
+
+@theme {
+  --font-display: var(--font-display);
+
+  --color-verde: var(--ms-verde);
+  --color-verde-fundo: var(--ms-verde-fundo);
+  --color-verde-claro: var(--ms-verde-claro);
+  --color-lima: var(--ms-lima);
+  --color-lima-fundo: var(--ms-lima-fundo);
+  --color-uva: var(--ms-uva);
+  --color-uva-fundo: var(--ms-uva-fundo);
+  --color-uva-claro: var(--ms-uva-claro);
+  --color-sol: var(--ms-sol);
+  --color-sol-fundo: var(--ms-sol-fundo);
+  --color-sol-claro: var(--ms-sol-claro);
+  --color-coral: var(--ms-coral);
+  --color-coral-fundo: var(--ms-coral-fundo);
+  --color-coral-claro: var(--ms-coral-claro);
+  --color-ceu: var(--ms-ceu);
+  --color-ceu-fundo: var(--ms-ceu-fundo);
+  --color-ceu-claro: var(--ms-ceu-claro);
+  --color-verde-solido: var(--ms-verde-solido);
+  --color-verde-solido-sombra: var(--ms-verde-solido-sombra);
+  --color-uva-solido: var(--ms-uva-solido);
+  --color-coral-solido: var(--ms-coral-solido);
+  --color-ceu-solido: var(--ms-ceu-solido);
+  --color-papel: var(--ms-papel);
+  --color-creme: var(--ms-creme);
+  --color-tinta: var(--ms-tinta);
+  --color-tinta-suave: var(--ms-tinta-suave);
+  --color-sombra: var(--ms-sombra);
+
+  --radius-controle: 1rem;
+  --radius-card: 1.5rem;
+  --radius-heroi: 2rem;
+
+  --shadow-chapa: 0 4px 0 var(--ms-sombra);
+  --shadow-chapa-sm: 0 3px 0 var(--ms-sombra);
+  --shadow-chapa-lg: 0 6px 0 var(--ms-sombra);
+
+  --animate-pop-in: pop-in 260ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  --animate-subir: subir 300ms cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
+  --animate-flutuar: flutuar 2.4s ease-in-out infinite;
+  --animate-pulsar-no: pulsar-no 2s ease-in-out infinite;
+  --animate-encher: encher 400ms cubic-bezier(0.3, 0.8, 0.4, 1) both;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+@keyframes subir {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes flutuar {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(-7px) rotate(1deg);
+  }
+}
+/* Escala em vez de box-shadow: o nó da trilha usa clip-path e sombra
+   externa não acompanha o recorte. */
+@keyframes pulsar-no {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  55% {
+    transform: scale(1.24);
+    opacity: 0;
+  }
+}
+@keyframes encher {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes confete-cair {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--dx), 260px, 0) rotate(var(--rot));
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  line-height: 1.55;
+  -webkit-tap-highlight-color: transparent;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 3px;
+}
+
+/* Link de pulo: some da tela até receber foco por teclado. */
+.skip {
+  position: fixed;
+  top: -100px;
+  left: 20px;
+  z-index: 99;
+  padding: 12px 16px;
+  border-radius: var(--radius-controle);
+  background: var(--card);
+  color: var(--foreground);
+  font-weight: 700;
+}
+.skip:focus {
+  top: 10px;
+}
+
+/* ------------------------------------------------------------
+   Texto corrido (/sobre, /termos, /privacidade).
+   São documentos longos com marcação semântica pura, então
+   recebem um escopo tipográfico em vez de utilitários por tag.
+   ------------------------------------------------------------ */
+.prosa {
+  max-width: 46rem;
+  margin-inline: auto;
+  padding: 2.5rem 1rem 4rem;
+}
+@media (min-width: 640px) {
+  .prosa {
+    padding-inline: 2rem;
+  }
+}
+.prosa h1 {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 600;
+  line-height: 1.12;
+  margin: 0.5rem 0 1.25rem;
+}
+.prosa h2 {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 2.25rem 0 0.75rem;
+}
+.prosa h3 {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.5rem;
+}
+.prosa p,
+.prosa li {
+  font-size: 1.02rem;
+  line-height: 1.72;
+  color: var(--ms-tinta);
+}
+.prosa p {
+  margin: 0 0 1rem;
+}
+.prosa ul,
+.prosa ol {
+  margin: 0 0 1.25rem;
+  padding-left: 1.4rem;
+  display: grid;
+  gap: 0.4rem;
+}
+.prosa ul > li {
+  list-style: disc;
+}
+.prosa ol > li {
+  list-style: decimal;
+}
+.prosa a:not(.not-prose) {
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.prosa strong {
+  font-weight: 700;
+}
+.prosa .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  border: 2px solid color-mix(in oklab, var(--ms-lima-fundo) 40%, transparent);
+  background: color-mix(in oklab, var(--ms-lima) 40%, transparent);
+  color: var(--ms-tinta);
+  border-radius: 9999px;
+  padding: 0.25rem 0.75rem;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: none;
+}
+.prosa table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.25rem;
+  font-size: 0.94rem;
+}
+.prosa th,
+.prosa td {
+  border: 1px solid var(--ms-borda);
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+}
+.prosa th {
+  font-family: var(--font-display);
+  background: var(--ms-creme);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: precisa vencer as utilidades animate-* do Tailwind */
+    animation: none !important;
+    scroll-behavior: auto;
+    /* biome-ignore lint/complexity/noImportantStyles: precisa vencer as utilidades transition-* do Tailwind */
+    transition: none !important;
+  }
+}

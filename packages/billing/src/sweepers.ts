@@ -1,13 +1,19 @@
-import type { Product } from "@informach/config";
+import type { Product, StripeMode } from "@informach/config";
 import type { Database } from "@informach/db";
 import {
   customers as customersTable,
   subscriptions as subscriptionsTable,
 } from "@informach/db/schema";
-import { and, eq, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, lte, sql } from "drizzle-orm";
+import { PRO_STATUSES } from "./access";
+import type { BillingServiceConfig } from "./config";
 import { grantBonusCredits } from "./credits/grant";
 import { type Logger, safeLog } from "./logger";
-import type { BillingProviderClient, ProviderSubscriptionSummary } from "./providers";
+import type {
+  BillingProviderClient,
+  ProviderSubscriptionDetails,
+  ProviderSubscriptionSummary,
+} from "./providers";
 import type { BillingAuditEvent, BillingProvider, SubscriptionStatus } from "./types";
 
 /**
@@ -168,9 +174,11 @@ export type DunningPayload = {
  * Receives a payload with everything the template needs. Idempotency on the
  * delivery side is the app's responsibility (e.g., `messageKey` in @informach/emails).
  */
-export type DunningSendFn = (payload: DunningPayload) => Promise<void>;
+// biome-ignore lint/suspicious/noConfusingVoidType: backwards-compatible callbacks may return Promise<void>.
+export type DunningSendFn = (payload: DunningPayload) => Promise<void | { status: "suppressed" }>;
 
 export type RetryDunningEmailsDeps = {
+  withSubjectLock?: BillingServiceConfig["withSubjectLock"];
   db: Database;
   /** App slug — só processa subs cujo customer pertence a este app. */
   app: string;
@@ -184,10 +192,13 @@ export type RetryDunningEmailsDeps = {
   cooldownHours?: number;
   now?: Date;
   batchSize?: number;
+  /** Keyset cursor; persisted by the job runner between bounded executions. */
+  afterId?: string;
 };
 
 export type RetryDunningEmailsResult = {
   scanned: number;
+  nextCursor?: string;
   sent: number;
   skipped: number;
 };
@@ -222,68 +233,84 @@ export async function retryFailedDunningEmails(
         eq(subscriptionsTable.status, "past_due"),
         eq(customersTable.provider, deps.provider),
         eq(customersTable.app, deps.app),
+        deps.afterId ? gt(subscriptionsTable.id, deps.afterId) : undefined,
       ),
     )
+    .orderBy(asc(subscriptionsTable.id))
     .limit(batchSize);
 
   let sent = 0;
   let skipped = 0;
-  for (const sub of candidates) {
-    const dunning = readDunning(sub.metadata);
-    if (!dunning?.pending || !dunning.lastInvoiceId) {
-      skipped++;
-      continue;
-    }
-    const attempt = (dunning.attempts ?? 0) + 1;
-    if (attempt > maxAttempts) {
-      skipped++;
-      continue;
-    }
-    const lastSentAtMs = dunning.lastSentAt ? new Date(dunning.lastSentAt).getTime() : 0;
-    if (lastSentAtMs && now.getTime() - lastSentAtMs < cooldownMs) {
-      skipped++;
-      continue;
-    }
-
-    if (!deps.send) {
-      safeLog(deps.logger, "warn", "billing.sweeper.dunning.dry_run", {
-        subscriptionId: sub.id,
-        invoiceId: dunning.lastInvoiceId,
-        attempt,
-      });
-      continue;
-    }
-
+  for (const candidate of candidates) {
     try {
-      await deps.send({
-        subscriptionId: sub.id,
-        providerSubscriptionId: sub.providerSubscriptionId,
-        subject: { type: sub.subjectType as "user" | "organization", id: sub.subjectId },
-        invoiceId: dunning.lastInvoiceId,
-        attempt,
+      await runWithFreshSubscription(deps, candidate, ["past_due"], async (sub) => {
+        const dunning = readDunning(sub.metadata);
+        if (!dunning?.pending || !dunning.lastInvoiceId) {
+          skipped++;
+          return;
+        }
+        const attempt = (dunning.attempts ?? 0) + 1;
+        if (attempt > maxAttempts) {
+          skipped++;
+          return;
+        }
+        const lastSentAtMs = dunning.lastSentAt ? new Date(dunning.lastSentAt).getTime() : 0;
+        if (lastSentAtMs && now.getTime() - lastSentAtMs < cooldownMs) {
+          skipped++;
+          return;
+        }
+
+        if (!deps.send) {
+          safeLog(deps.logger, "warn", "billing.sweeper.dunning.dry_run", {
+            subscriptionId: sub.id,
+            invoiceId: dunning.lastInvoiceId,
+            attempt,
+          });
+          return;
+        }
+
+        try {
+          const delivery = await deps.send({
+            subscriptionId: sub.id,
+            providerSubscriptionId: sub.providerSubscriptionId,
+            subject: { type: sub.subjectType as "user" | "organization", id: sub.subjectId },
+            invoiceId: dunning.lastInvoiceId,
+            attempt,
+          });
+          const suppressed = delivery?.status === "suppressed";
+          const updatedDunning = suppressed
+            ? { ...dunning, pending: false }
+            : {
+                ...dunning,
+                attempts: attempt,
+                lastSentAt: now.toISOString(),
+                // Mark non-pending after maxAttempts so we don't keep retrying.
+                pending: attempt < maxAttempts,
+              };
+          await deps.db
+            .update(subscriptionsTable)
+            .set({
+              metadata: { ...sub.metadata, dunning: updatedDunning },
+              updatedAt: new Date(),
+            })
+            .where(eq(subscriptionsTable.id, sub.id));
+          if (suppressed) skipped++;
+          else sent++;
+        } catch (err) {
+          safeLog(deps.logger, "error", "billing.sweeper.dunning.send_error", {
+            subscriptionId: sub.id,
+            attempt,
+            error: err instanceof Error ? err.message : String(err),
+          });
+          skipped++;
+        }
       });
-      const updatedDunning = {
-        ...dunning,
-        attempts: attempt,
-        lastSentAt: now.toISOString(),
-        // Mark non-pending after maxAttempts so we don't keep retrying.
-        pending: attempt < maxAttempts,
-      };
-      await deps.db
-        .update(subscriptionsTable)
-        .set({
-          metadata: { ...sub.metadata, dunning: updatedDunning },
-          updatedAt: new Date(),
-        })
-        .where(eq(subscriptionsTable.id, sub.id));
-      sent++;
     } catch (err) {
-      safeLog(deps.logger, "error", "billing.sweeper.dunning.send_error", {
-        subscriptionId: sub.id,
-        attempt,
-        error: err instanceof Error ? err.message : String(err),
-      });
       skipped++;
+      safeLog(deps.logger, "warn", "billing.sweeper.dunning.lifecycle_busy", {
+        subscriptionId: candidate.id,
+        error: String(err),
+      });
     }
   }
 
@@ -295,7 +322,14 @@ export async function retryFailedDunningEmails(
       asOf: now.toISOString(),
     });
   }
-  return { scanned: candidates.length, sent, skipped };
+  return {
+    ...(candidates.length === batchSize
+      ? { nextCursor: candidates[candidates.length - 1]?.id }
+      : {}),
+    scanned: candidates.length,
+    sent,
+    skipped,
+  };
 }
 
 type DunningMetadata = {
@@ -314,7 +348,10 @@ function readDunning(metadata: Record<string, unknown>): DunningMetadata | null 
 }
 
 export type ReconcileSubscriptionsDeps = {
+  withSubjectLock?: BillingServiceConfig["withSubjectLock"];
   db: Database;
+  products?: readonly Product[];
+  stripeMode?: StripeMode;
   provider: BillingProvider;
   providerClient: BillingProviderClient;
   /** App slug — só reconcilia subs cujo customer pertence a este app. */
@@ -322,10 +359,13 @@ export type ReconcileSubscriptionsDeps = {
   logger?: Logger;
   /** Hard cap per run to keep cron-friendly. Default 200. */
   batchSize?: number;
+  /** Keyset cursor; persisted by the job runner between bounded executions. */
+  afterId?: string;
 };
 
 export type ReconcileSubscriptionsResult = {
   scanned: number;
+  nextCursor?: string;
   reconciled: number;
   mismatches: number;
   errors: number;
@@ -360,11 +400,16 @@ export async function reconcileSubscriptionStatuses(
   const candidates = await deps.db
     .select({
       id: subscriptionsTable.id,
+      subjectType: customersTable.subjectType,
+      subjectId: customersTable.subjectId,
       providerSubscriptionId: subscriptionsTable.providerSubscriptionId,
       status: subscriptionsTable.status,
+      productId: subscriptionsTable.productId,
+      providerPriceId: subscriptionsTable.providerPriceId,
       currentPeriodEnd: subscriptionsTable.currentPeriodEnd,
       cancelAtPeriodEnd: subscriptionsTable.cancelAtPeriodEnd,
       canceledAt: subscriptionsTable.canceledAt,
+      confirmedAt: subscriptionsTable.confirmedAt,
     })
     .from(subscriptionsTable)
     .innerJoin(customersTable, eq(subscriptionsTable.customerId, customersTable.id))
@@ -372,96 +417,149 @@ export async function reconcileSubscriptionStatuses(
       and(
         eq(subscriptionsTable.provider, deps.provider),
         eq(customersTable.app, deps.app),
+        deps.afterId ? gt(subscriptionsTable.id, deps.afterId) : undefined,
         inArray(subscriptionsTable.status, [...RECONCILE_STATUSES]),
       ),
     )
+    .orderBy(asc(subscriptionsTable.id))
     .limit(batchSize);
 
   let reconciled = 0;
   let mismatches = 0;
   let errors = 0;
 
-  for (const local of candidates) {
-    let summary: ProviderSubscriptionSummary | null;
+  for (const candidate of candidates) {
     try {
-      summary = await deps.providerClient.retrieveSubscription(local.providerSubscriptionId);
+      await runWithFreshSubscription(deps, candidate, RECONCILE_STATUSES, async (local) => {
+        let summary: ProviderSubscriptionSummary | null;
+        let details: ProviderSubscriptionDetails | null = null;
+        try {
+          if (deps.products && deps.stripeMode && deps.providerClient.retrieveSubscriptionDetails) {
+            details = await deps.providerClient.retrieveSubscriptionDetails(
+              local.providerSubscriptionId,
+            );
+            summary = details;
+          } else {
+            summary = await deps.providerClient.retrieveSubscription(local.providerSubscriptionId);
+          }
+        } catch (err) {
+          errors++;
+          safeLog(deps.logger, "error", "billing.sweeper.reconcile.fetch_error", {
+            subscriptionId: local.id,
+            providerSubscriptionId: local.providerSubscriptionId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+          return;
+        }
+
+        if (!summary) {
+          // Subscription gone from Stripe → mark canceled locally.
+          mismatches++;
+          try {
+            await deps.db
+              .update(subscriptionsTable)
+              .set({
+                status: "canceled",
+                canceledAt: local.canceledAt ?? new Date(),
+                updatedAt: new Date(),
+              })
+              .where(eq(subscriptionsTable.id, local.id));
+            reconciled++;
+            safeLog(deps.logger, "warn", "billing.sweeper.reconcile.deleted_in_stripe", {
+              subscriptionId: local.id,
+              providerSubscriptionId: local.providerSubscriptionId,
+            });
+          } catch (err) {
+            errors++;
+            safeLog(deps.logger, "error", "billing.sweeper.reconcile.update_error", {
+              subscriptionId: local.id,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
+          return;
+        }
+
+        const remoteStatus = normalizeStatus(summary.status);
+        const remoteCancelAtPeriodEnd = summary.cancelAtPeriodEnd
+          ? (summary.currentPeriodEnd ?? local.currentPeriodEnd)
+          : null;
+        const periodEndChanged =
+          summary.currentPeriodEnd !== null &&
+          summary.currentPeriodEnd.getTime() !== local.currentPeriodEnd.getTime();
+        const statusChanged = remoteStatus !== local.status;
+        const cancelAtChanged =
+          (remoteCancelAtPeriodEnd?.getTime() ?? null) !==
+          (local.cancelAtPeriodEnd?.getTime() ?? null);
+
+        const product =
+          details && deps.stripeMode
+            ? deps.products?.find(
+                (item) => item.stripePriceId[deps.stripeMode ?? "dev"] === details?.providerPriceId,
+              )
+            : undefined;
+        if (details && !product) {
+          errors++;
+          safeLog(deps.logger, "error", "billing.sweeper.reconcile.unknown_price", {
+            subscriptionId: local.id,
+            priceId: details.providerPriceId,
+          });
+          // Preserve revocations, but never activate or extend an entitlement using an
+          // unknown price and the previous product's permissions.
+          if (PRO_STATUSES.some((status) => status === remoteStatus)) return;
+        }
+        const planChanged =
+          !!product &&
+          (local.productId !== product.id || local.providerPriceId !== details?.providerPriceId);
+        if (!statusChanged && !cancelAtChanged && !periodEndChanged && !planChanged) {
+          return;
+        }
+
+        mismatches++;
+        try {
+          await deps.db
+            .update(subscriptionsTable)
+            .set({
+              status: remoteStatus,
+              confirmedAt:
+                remoteStatus === "active" || remoteStatus === "trialing"
+                  ? (local.confirmedAt ?? new Date())
+                  : local.confirmedAt,
+              ...(product && details?.providerPriceId
+                ? {
+                    productId: product.id,
+                    providerPriceId: details.providerPriceId,
+                    ...(details.currentPeriodStart
+                      ? { currentPeriodStart: details.currentPeriodStart }
+                      : {}),
+                  }
+                : {}),
+              currentPeriodEnd: summary.currentPeriodEnd ?? local.currentPeriodEnd,
+              cancelAtPeriodEnd: remoteCancelAtPeriodEnd,
+              updatedAt: new Date(),
+            })
+            .where(eq(subscriptionsTable.id, local.id));
+          reconciled++;
+          safeLog(deps.logger, "info", "billing.sweeper.reconcile.drift_fixed", {
+            subscriptionId: local.id,
+            providerSubscriptionId: local.providerSubscriptionId,
+            oldStatus: local.status,
+            newStatus: remoteStatus,
+            cancelAtChanged,
+            periodEndChanged,
+          });
+        } catch (err) {
+          errors++;
+          safeLog(deps.logger, "error", "billing.sweeper.reconcile.update_error", {
+            subscriptionId: local.id,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      });
     } catch (err) {
       errors++;
-      safeLog(deps.logger, "error", "billing.sweeper.reconcile.fetch_error", {
-        subscriptionId: local.id,
-        providerSubscriptionId: local.providerSubscriptionId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-      continue;
-    }
-
-    if (!summary) {
-      // Subscription gone from Stripe → mark canceled locally.
-      mismatches++;
-      try {
-        await deps.db
-          .update(subscriptionsTable)
-          .set({
-            status: "canceled",
-            canceledAt: local.canceledAt ?? new Date(),
-            updatedAt: new Date(),
-          })
-          .where(eq(subscriptionsTable.id, local.id));
-        reconciled++;
-        safeLog(deps.logger, "warn", "billing.sweeper.reconcile.deleted_in_stripe", {
-          subscriptionId: local.id,
-          providerSubscriptionId: local.providerSubscriptionId,
-        });
-      } catch (err) {
-        errors++;
-        safeLog(deps.logger, "error", "billing.sweeper.reconcile.update_error", {
-          subscriptionId: local.id,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-      continue;
-    }
-
-    const remoteStatus = normalizeStatus(summary.status);
-    const remoteCancelAtPeriodEnd = summary.cancelAtPeriodEnd
-      ? (summary.currentPeriodEnd ?? local.currentPeriodEnd)
-      : null;
-    const periodEndChanged =
-      summary.currentPeriodEnd !== null &&
-      summary.currentPeriodEnd.getTime() !== local.currentPeriodEnd.getTime();
-    const statusChanged = remoteStatus !== local.status;
-    const cancelAtChanged =
-      (remoteCancelAtPeriodEnd?.getTime() ?? null) !== (local.cancelAtPeriodEnd?.getTime() ?? null);
-
-    if (!statusChanged && !cancelAtChanged && !periodEndChanged) {
-      continue;
-    }
-
-    mismatches++;
-    try {
-      await deps.db
-        .update(subscriptionsTable)
-        .set({
-          status: remoteStatus,
-          currentPeriodEnd: summary.currentPeriodEnd ?? local.currentPeriodEnd,
-          cancelAtPeriodEnd: remoteCancelAtPeriodEnd,
-          updatedAt: new Date(),
-        })
-        .where(eq(subscriptionsTable.id, local.id));
-      reconciled++;
-      safeLog(deps.logger, "info", "billing.sweeper.reconcile.drift_fixed", {
-        subscriptionId: local.id,
-        providerSubscriptionId: local.providerSubscriptionId,
-        oldStatus: local.status,
-        newStatus: remoteStatus,
-        cancelAtChanged,
-        periodEndChanged,
-      });
-    } catch (err) {
-      errors++;
-      safeLog(deps.logger, "error", "billing.sweeper.reconcile.update_error", {
-        subscriptionId: local.id,
-        error: err instanceof Error ? err.message : String(err),
+      safeLog(deps.logger, "warn", "billing.sweeper.reconcile.lifecycle_busy", {
+        subscriptionId: candidate.id,
+        error: String(err),
       });
     }
   }
@@ -475,7 +573,15 @@ export async function reconcileSubscriptionStatuses(
     });
   }
 
-  return { scanned: candidates.length, reconciled, mismatches, errors };
+  return {
+    ...(candidates.length === batchSize
+      ? { nextCursor: candidates[candidates.length - 1]?.id }
+      : {}),
+    scanned: candidates.length,
+    reconciled,
+    mismatches,
+    errors,
+  };
 }
 
 function normalizeStatus(raw: string): SubscriptionStatus {
@@ -660,4 +766,49 @@ export async function grantPendingMonthlyBonusCredits(
   }
 
   return { scanned: candidates.length, granted, skipped, totalCredits };
+}
+
+/** Candidate lists are hints only. Hold the lifecycle lock across reload, remote
+ * reads, writes and email delivery, so closure cannot interleave with a job. */
+async function runWithFreshSubscription<
+  T extends { id: string; subjectType: "user" | "organization"; subjectId: string },
+>(
+  deps: {
+    db: Database;
+    app: string;
+    provider: BillingProvider;
+    withSubjectLock?: BillingServiceConfig["withSubjectLock"];
+  },
+  candidate: T,
+  statuses: readonly SubscriptionStatus[],
+  operation: (row: T) => Promise<void>,
+) {
+  if (!deps.withSubjectLock) return operation(candidate);
+  return deps.withSubjectLock(
+    { type: candidate.subjectType, id: candidate.subjectId },
+    async () => {
+      const [fresh] = await deps.db
+        .select({ subscription: subscriptionsTable, customer: customersTable })
+        .from(subscriptionsTable)
+        .innerJoin(customersTable, eq(subscriptionsTable.customerId, customersTable.id))
+        .where(
+          and(
+            eq(subscriptionsTable.id, candidate.id),
+            eq(customersTable.app, deps.app),
+            eq(customersTable.provider, deps.provider),
+            inArray(subscriptionsTable.status, [...statuses]),
+          ),
+        );
+      if (!fresh) return;
+      const closed = fresh.customer.metadata.closedSubscriptionIds;
+      if (Array.isArray(closed) && closed.includes(fresh.subscription.providerSubscriptionId))
+        return;
+      await operation({
+        ...candidate,
+        ...fresh.subscription,
+        subjectId: fresh.customer.subjectId,
+        subjectType: fresh.customer.subjectType,
+      });
+    },
+  );
 }

@@ -10,14 +10,14 @@ type GlobalWithRedis = typeof globalThis & {
 
 function createRedis(): IORedis | null {
   if (!env.REDIS_URL) return null;
-  // `lazyConnect: true` combined with `enableOfflineQueue: false` is a trap:
-  // the first command triggers an async connect, but the offline queue is
-  // disabled, so the command is rejected before the socket is ready
-  // ("Stream isn't writeable"). Defaults connect eagerly and queue commands
-  // during the brief handshake; `maxRetriesPerRequest` still bounds the wait
-  // when Redis is genuinely down.
+  // Railway's build workers cannot resolve the private Redis hostname. Keep
+  // connection lazy so builds do not open a socket; the default offline queue
+  // safely holds the first runtime command while the connection is established.
   const client = new IORedis(env.REDIS_URL, {
+    lazyConnect: true,
     maxRetriesPerRequest: 3,
+    connectTimeout: 3000,
+    commandTimeout: 5000,
   });
   client.on("error", (err) => {
     logger.warn({ err }, "redis.connection_error");

@@ -16,6 +16,7 @@ export type ProviderCheckoutInput = {
   cancelUrl: string;
   metadata: Record<string, string>;
   trialDays?: number;
+  expiresAt?: number;
   idempotencyKey?: string;
 };
 
@@ -24,7 +25,15 @@ export type ProviderCheckoutSession = {
   url: string;
 };
 
+export type ProviderCheckoutState = {
+  id: string;
+  url: string | null;
+  status: "open" | "complete" | "expired";
+  subscriptionId: string | null;
+};
+
 export type ProviderPortalInput = {
+  configurationId?: string;
   customerId: string;
   returnUrl: string;
 };
@@ -102,6 +111,8 @@ export type ProviderUpdateSubscriptionInput = {
 export type ProviderCreateSubscriptionInput = {
   customerId: string;
   priceId: string;
+  /** Payment method already used by the subscription being replaced. */
+  defaultPaymentMethodId?: string;
   metadata?: Record<string, string>;
   /** Stripe idempotency key. */
   idempotencyKey?: string;
@@ -159,7 +170,20 @@ export interface BillingProviderClient {
 
   createCheckoutSession(input: ProviderCheckoutInput): Promise<ProviderCheckoutSession>;
 
+  findCheckoutSession?(
+    customerId: string,
+    intentId: string,
+    sessionId?: string | null,
+  ): Promise<ProviderCheckoutState | null>;
+  /** Refuse an existing nonterminal subscription; expire other payable sessions. */
+  prepareSubscriptionCheckout?(customerId: string, preserveSessionId?: string): Promise<void>;
+
   createPortalSession(input: ProviderPortalInput): Promise<ProviderPortalSession>;
+
+  /** Expires every open Checkout, then cancels even subscriptions not yet delivered by webhook. */
+  closeCustomerSubscriptions?(
+    customerId: string,
+  ): Promise<{ expired: number; canceled: number; subscriptionIds: string[] }>;
 
   cancelSubscription(input: ProviderCancelSubscriptionInput): Promise<ProviderSubscriptionSummary>;
 

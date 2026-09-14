@@ -1,0 +1,2042 @@
+{
+  "executado_em": "2026-09-13T12:29:54.249482+00:00",
+  "arquivos_verificados": 1105,
+  "pdfs_verificados": 1104,
+  "paginas_pdf_verificadas": 12123,
+  "links_locais_verificados": 692,
+  "erros": [],
+  "avisos_pdf": [
+    {
+      "arquivo": "arquivos/canguru/2024/provab-en-pdf--8fc10ac7e1254c88.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "premature end of data in flate filter\n... repeated 2 times..."
+    },
+    {
+      "arquivo": "arquivos/canguru/2024/provae-pt-pdf--a2c5fde1daae8cfd.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "premature end of data in flate filter\n... repeated 2 times..."
+    },
+    {
+      "arquivo": "arquivos/canguru/2024/provaj-en-pdf--4805cdf8af3280f9.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "premature end of data in flate filter\n... repeated 2 times..."
+    },
+    {
+      "arquivo": "arquivos/obmep/2010/apostila11-pdf--3c46e71d42c671ab.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (685 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep/2009/apostila5-pdf--629fac2803a3c7be.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep/2010/apostila1-pdf--1e9da7b1297b5d0c.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (334 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep/sem-ano/apostila2-pdf--8746be11f55097c8.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep/2010/apostila3-pdf--e1667db3c8f1a27d.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2960)"
+    },
+    {
+      "arquivo": "arquivos/obmep/2009/apostila8-pdf--18b8fb014e0aab73.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (772 / -2959)\n... repeated 3 times..."
+    },
+    {
+      "arquivo": "arquivos/obmep/2006/2006-1a-fase-provas-nivel-1--492f0a0627114ae0.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "lcms: not an ICC profile, invalid signature.\nformat error: cmsOpenProfileFromMem failed\nignoring broken ICC profile"
+    },
+    {
+      "arquivo": "arquivos/obmep/2006/2006-1a-fase-provas-nivel-2--3483e4a9ef5efc29.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "lcms: not an ICC profile, invalid signature.\nformat error: cmsOpenProfileFromMem failed\nignoring broken ICC profile"
+    },
+    {
+      "arquivo": "arquivos/obmep/2006/2006-1a-fase-provas-nivel-3--150b46fd72c1105c.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "lcms: not an ICC profile, invalid signature.\nformat error: cmsOpenProfileFromMem failed\nignoring broken ICC profile"
+    },
+    {
+      "arquivo": "arquivos/obmep/2006/2006-1a-fase-solucoes-nivel-1--88027921407ed1b5.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "lcms: not an ICC profile, invalid signature.\nformat error: cmsOpenProfileFromMem failed\nignoring broken ICC profile"
+    },
+    {
+      "arquivo": "arquivos/obmep/2006/2006-1a-fase-solucoes-nivel-2--d262375bffb5ae5d.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "lcms: not an ICC profile, invalid signature.\nformat error: cmsOpenProfileFromMem failed\nignoring broken ICC profile"
+    },
+    {
+      "arquivo": "arquivos/obmep/2006/2006-1a-fase-solucoes-nivel-3--f3df78e786e5c7ea.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "lcms: not an ICC profile, invalid signature.\nformat error: cmsOpenProfileFromMem failed\nignoring broken ICC profile"
+    },
+    {
+      "arquivo": "arquivos/obmep/2005/abrir--bc1209221f87261d.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (0 / -176)\n... repeated 2 times..."
+    },
+    {
+      "arquivo": "arquivos/obmep/2009/abrir--e441b105fc1abe63.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (0 / -14)"
+    },
+    {
+      "arquivo": "arquivos/obmep/2010/2010-2a-fase-solucao-nivel-1--483d1b4e9ae1213b.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "format error: No default Layer config\nIgnoring broken Optional Content configuration"
+    },
+    {
+      "arquivo": "arquivos/obmep/2010/2010-2a-fase-solucao-nivel-2--339aee3c3baa97a2.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "format error: No default Layer config\nIgnoring broken Optional Content configuration"
+    },
+    {
+      "arquivo": "arquivos/obmep/2010/2010-2a-fase-solucao-nivel-3--5b1dea5064937030.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "format error: No default Layer config\nIgnoring broken Optional Content configuration"
+    },
+    {
+      "arquivo": "arquivos/obmep/2005/abrir--24f25ae120f7428c.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (772 / -2960)\nJPX numcomps (1) doesn't match color_space (4)\n... repeated 3 times...\nJPX numcomps (1) doesn't match color_space (3)\n... repeated 2 times...\nJPX numcomps (1) doesn't match color_space (4)\nJPX numcomps (1) doesn't match color_space (3)\n... repeated 3 times...\nJPX numcomps (1) doesn't match color_space (4)\nJPX numcomps (1) doesn't match color_space (3)\nJPX numcomps (1) doesn't match color_space (4)\n... repeated 3 times...\nJPX numcomps (1) doesn't match color_space (3)\nJPX numcomps (1) doesn't match color_space (4)\nJPX numcomps (1) doesn't match color_space (3)"
+    },
+    {
+      "arquivo": "arquivos/obmep/2014/2014-1a-fase-solucao-nivel-2--3cb304b5a0da64fb.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (3117 / -2463)\nCMap is missing codespace range\n... repeated 2 times...\nnon-embedded font using identity encoding: Meiryo (mapping via )"
+    },
+    {
+      "arquivo": "arquivos/obmep/2014/2014-1a-fase-solucao-nivel-3--8fc7f9e61546da23.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "CMap is missing codespace range\n... repeated 2 times...\nnon-embedded font using identity encoding: Meiryo (mapping via )\nbogus font ascent/descent values (3117 / -2463)"
+    },
+    {
+      "arquivo": "arquivos/obmep/2014/2014-2a-fase-solucao-nivel-3--d537e5bef7424ddb.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (3116 / -2463)"
+    },
+    {
+      "arquivo": "arquivos/obmep/2015/2015-1a-fase-solucao-nivel-1--a78d6c6d1518381c.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "Actualtext with no position. Text may be lost or mispositioned.\n... repeated 5 times...\nCMap is missing codespace range"
+    },
+    {
+      "arquivo": "arquivos/obmep/2015/2015-1a-fase-solucao-nivel-2--3cf7ccc4b63e4667.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "Actualtext with no position. Text may be lost or mispositioned.\n... repeated 39 times...\nCMap is missing codespace range\nActualtext with no position. Text may be lost or mispositioned.\n... repeated 36 times...\nCMap is missing codespace range"
+    },
+    {
+      "arquivo": "arquivos/obmep/2015/2015-1a-fase-solucao-nivel-3--be847a50bd10565f.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "Actualtext with no position. Text may be lost or mispositioned.\n... repeated 12 times...\nCMap is missing codespace range\nActualtext with no position. Text may be lost or mispositioned.\n... repeated 25 times...\nCMap is missing codespace range\n... repeated 5 times..."
+    },
+    {
+      "arquivo": "arquivos/obmep/sem-ano/abrir--24f6f2a291d13852.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "CMap is missing codespace range"
+    },
+    {
+      "arquivo": "arquivos/obmep/2017/sim-2017-n3-solucoes-pdf--783fb0feeddb6eab.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "CMap is missing codespace range\n... repeated 2 times...\nnon-embedded font using identity encoding: ArialMT (mapping via )\nCMap is missing codespace range\nnon-embedded font using identity encoding: ArialMT (mapping via )\nCMap is missing codespace range\nnon-embedded font using identity encoding: ArialMT (mapping via )"
+    },
+    {
+      "arquivo": "arquivos/obmep/2018/2018-1a-fase-solucoes-nivel-3--122acadb431be599.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "Actualtext with no position. Text may be lost or mispositioned.\n... repeated 6 times..."
+    },
+    {
+      "arquivo": "arquivos/obmep/sem-ano/abrir--2e92c714d4ec3812.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "CMap is missing codespace range\n... repeated 2 times...\nclosepath with no current point\n... repeated 236 times...\nsyntax error: cannot find ExtGState resource 'pgf@ca0.1'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nencountered syntax errors; page may not be correct\nclosepath with no current point\n... repeated 1984 times...\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca0.1'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca0.1'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.1'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca0.1'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.1'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep/sem-ano/abrir--65bb474b18dacec1.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "CMap is missing codespace range"
+    },
+    {
+      "arquivo": "arquivos/obmep/2021/16a-obmep-2a-fase-provas-nivel-2--a626bb03ada66c13.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (3117 / -2464)\n... repeated 2 times..."
+    },
+    {
+      "arquivo": "arquivos/obmep/2021/16a-obmep-2a-fase-provas-nivel-3--1f40a3959850d1e4.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (3117 / -2464)\n... repeated 2 times..."
+    },
+    {
+      "arquivo": "arquivos/obmep/2021/16a-obmep-2a-fase-solucoes-nivel-1--9ee3c54feefdfe95.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (3117 / -2464)"
+    },
+    {
+      "arquivo": "arquivos/obmep/2021/16a-obmep-2a-fase-solucoes-nivel-2--9c2b76a6e8265459.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (3117 / -2464)"
+    },
+    {
+      "arquivo": "arquivos/obmep/2021/16a-obmep-2a-fase-solucoes-nivel-3--ce643c7d2ee53833.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "Actualtext with no position. Text may be lost or mispositioned.\n... repeated 40 times..."
+    },
+    {
+      "arquivo": "arquivos/obmep/2023/18a-obmep-1a-fase-solucoes-nivel-2--7c4200b96f59e525.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (3117 / -2464)"
+    },
+    {
+      "arquivo": "arquivos/obmep/2023/18a-obmep-1a-fase-solucoes-nivel-3--30272395900f1637.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (3117 / -2464)\n... repeated 6 times..."
+    },
+    {
+      "arquivo": "arquivos/obmep/2024/19a-obmep-1a-fase-nivel-3-solucao--08e81b07639cdc5b.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (3117 / -2464)\n... repeated 2 times..."
+    },
+    {
+      "arquivo": "arquivos/obmep/2024/19a-obmep-1a-fase-nivel-3-solucao--4948e9f33c78349b.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (3117 / -2464)\n... repeated 2 times..."
+    },
+    {
+      "arquivo": "arquivos/obmep/2024/19a-obmep-1a-fase-nivel-3-solucao--829297d6a22ba067.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (3117 / -2464)\n... repeated 3 times..."
+    },
+    {
+      "arquivo": "arquivos/obmep/2024/19a-obmep-1a-fase-nivel-3-solucao--b56628f388d7d838.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (3117 / -2464)\n... repeated 2 times..."
+    },
+    {
+      "arquivo": "arquivos/obmep/2024/19a-obmep-1a-fase-nivel-3-solucao--dc155353e95dda00.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (3117 / -2464)\n... repeated 2 times..."
+    },
+    {
+      "arquivo": "arquivos/obmep/2025/20a-obmep-1a-fase-nivel-2-solucao--2684143f460efbca.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (3117 / -2464)"
+    },
+    {
+      "arquivo": "arquivos/obmep/2025/20a-obmep-1a-fase-nivel-2-solucao--5597bcc19f06cb1c.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (3117 / -2464)"
+    },
+    {
+      "arquivo": "arquivos/obmep/2025/20a-obmep-1a-fase-nivel-2-solucao--697f76528181f3de.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (3117 / -2464)"
+    },
+    {
+      "arquivo": "arquivos/obmep/2025/20a-obmep-1a-fase-nivel-2-solucao--940b82ff91f8940f.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (3117 / -2464)"
+    },
+    {
+      "arquivo": "arquivos/obmep/2025/20a-obmep-1a-fase-nivel-2-solucao--ab7e41802ae4d8cd.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (3117 / -2464)"
+    },
+    {
+      "arquivo": "arquivos/obmep/2025/20a-obmep-1a-fase-nivel-3-solucao--691817007ec194e5.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (3117 / -2464)"
+    },
+    {
+      "arquivo": "arquivos/obmep/2025/20a-obmep-1a-fase-nivel-3-solucao--778e1ae447e21ee6.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (3117 / -2464)"
+    },
+    {
+      "arquivo": "arquivos/obmep/2025/20a-obmep-1a-fase-nivel-3-solucao--b283fd9f3d6eb95f.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (3117 / -2464)"
+    },
+    {
+      "arquivo": "arquivos/obmep/2025/20a-obmep-1a-fase-nivel-3-solucao--d2ddd750c36e37a3.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (3117 / -2464)"
+    },
+    {
+      "arquivo": "arquivos/obmep/2025/20a-obmep-1a-fase-nivel-3-solucao--fdb7f676ed772da2.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (3117 / -2464)"
+    },
+    {
+      "arquivo": "arquivos/obmep-mirim/sem-ano/prova-mirim-1--d5fb391e6bceb400.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "premature end of data in flate filter\n... repeated 54 times..."
+    },
+    {
+      "arquivo": "arquivos/obmep-mirim/sem-ano/prova-mirim-2--10cccefdc7e1595b.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "premature end of data in flate filter\n... repeated 56 times..."
+    },
+    {
+      "arquivo": "arquivos/obmep-mirim/sem-ano/solucoes-mirim-1--2fe25d7ee2a58d1c.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "premature end of data in flate filter\n... repeated 4 times..."
+    },
+    {
+      "arquivo": "arquivos/obmep-mirim/sem-ano/solucoes-mirim-2--c3710becebab2268.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "premature end of data in flate filter\n... repeated 74 times..."
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/83zd1mfw3ps8k-pdf--2a00be9cee486adb.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (44 / -2664)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/8mg6ilsp3lkwk-pdf--ea0a99e8e44a592e.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/2006/1jkqhk8ygphs7-pdf--c0ccd709f7c34de3.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/4qdovup0ktgk4-pdf--7f362114d0c6e52c.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/bzn099cqbzwcg-pdf--a8c4581fae012c7c.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/2012/dhbt8euemzcc4-pdf--4d8b1916f7c112f1.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/d8hat48ylzwww-pdf--5431d11b3dd6af6f.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (334 / -2960)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/t3c2ujow32a0-pdf--cc0db5096e63fe51.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/diqafy8dofks4-pdf--a6720c65b33ec34b.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (334 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/5nsx3tt5gco4k-pdf--fa65c67dedee56c8.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/cg45a4iqw1s0o-pdf--3d8bfe5bfa37c790.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/cg5bhn7jgkoos-pdf--9df0799f8348a661.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/d180m5a08xcso-pdf--2268b69954ad0169.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/13fiuy0q57dqf-pdf--3fcf7ec384d255e9.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2360)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/trgcb5sc6yw-pdf--cc3d47afc77e8dc6.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/82r3a1jo69kw4-pdf--6c8a4d94df44f82d.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/fuj386omsu80w-pdf--752f28645fb8641e.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/632i9pu2djk84-pdf--90429c15c57bc457.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (334 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/ct146p4m4fnq-pdf--864ce254904f425c.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (334 / -2360)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/2012/5pd686lwv4owc-pdf--8d2ce930fc3f1803.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2360)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/2002/cfl0k66az5s04-pdf--ae2cd88161d507d1.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2360)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/5nrmc15g6sw88-pdf--723139bd90cdaf47.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (334 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/bx9ab02dhzsc8-pdf--a29e2b05dacc3744.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/cxf5cfjib5s00-pdf--bc66f7badedd54a3.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/cosi4rdqv54o4-pdf--2741b38b44c7c943.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (0 / -1400)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/869nzkl9yvswo-pdf--3c54fbdb3ee252b2.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/2006/8espp8ptkx44c-pdf--5d8e5fde4788abbf.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/c6aeewhejio8g-pdf--abc94ed0e70ff41f.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/cgjkrvtl0iogg-pdf--eb28e962674a1058.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (334 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/l6tqrudi68g8c-pdf--f06a894f053e78d2.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/ritf9p537brc-pdf--0a5b8f0684f3f3f1.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/2005/81shfj2sagw00-pdf--f9a1cdf7bb6611a0.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (0 / -1400)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/cfipc48t69kwo-pdf--ae716c8e750b0638.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/vp4772q62xww0-pdf--f448c536daa9b102.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (50 / -2960)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/13r5li8ek3t4-pdf--38399fb706c4aa60.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/1cbcwjnxmh553-pdf--791017cf116e2ad0.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/57g3vw4ywcw8g-pdf--755d14044e6cbc67.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/bqw4g6l0uuoso-pdf--096a1973d0a4b546.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/glaqukzrc204s-pdf--705e2360ea0d3cc2.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/a2z688wo6aogo-pdf--2719d08dd2715d5b.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (334 / -2359)\nbogus font ascent/descent values (45 / -2354)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/cvw0xhfhkq4o-pdf--876bbefd1999965b.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/gws18uwsrjswk-pdf--2c84757a03d05d42.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/dj0negl4jgg04-pdf--9f631c360006b0a7.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/8bmuradbn20wk-pdf--d7a8e248e8980449.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/d0ujz20oosg0w-pdf--0143b04578c788d4.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/glka48cm1nkk8-pdf--d9a97851fb7aca78.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/qhhfog120u2w-pdf--1dbba8010418d791.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (334 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/82phy0g0my8sg-pdf--a2d284f3932ed034.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (50 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/a2ldv0miyp4ow-pdf--dcd948b75b90e3cc.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/vrbl7n0ibzkoo-pdf--2b66534ad8ca16a0.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/olitef/2025/regulamento-olitef-pdf--f9c350521c10932f.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "repaired broken tree structure in outline"
+    },
+    {
+      "arquivo": "arquivos/olitef/2025/simulado-2025-gabarito-nivel-1-6o-e-7o-anos-pdf--82ee5ca547e7e2a2.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "Actualtext with no position. Text may be lost or mispositioned.\n... repeated 8 times..."
+    },
+    {
+      "arquivo": "arquivos/olitef/2025/simulado-2025-gabarito-nivel-3-ensino-medio-pdf--9580e346bbadd7a1.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "Actualtext with no position. Text may be lost or mispositioned.\n... repeated 8 times..."
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-3-2016-produtos-notaveis-v-01--ec63aef250bd1a4f.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/fig1--5929c087574f6324.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "broken xref subsection, proceeding anyway.\nTrailer Size is off-by-one. Ignoring."
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-n2-4-2017-divisibilidade-v03--77e7c699ad51831b.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-15-equacoes-diofantinas-iv--1358a25d9105786b.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (334 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-05-recorrencias-ii--a819f320937a3ccf.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/n2-1-simulado-4-max-min-com-solucoes--a8165d2817bef035.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2360)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simuladocmbn3funcgen-sol--e3ffb52213eac905.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (0 / -1400)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-12-descenso-infinito-de-fermat--a887e244de5082f2.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-08-aplicacoes-de-raizes-da-unidade--af9d54da7ecc9e9d.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2960)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-n3-2-2018-contagens-v01--4cb12960413156b7.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-1-2016-angulos-v05-enunciados-respostas--7c1d4cf124d73344.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-6-2016-combinatoria-contagens-v01--93bdeb30e0664a95.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-n2-3-2017-prod-not-v03--32dec98682b9249b.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-13-revisao-i-1--ce21efcc41b6c11e.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2360)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-05-inclusao-exclusao-polya--1cc1a0378c40434e.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (50 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-0-curso-basico-de-algebra--497d1c92d27f9d00.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2960)\n... repeated 2 times..."
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula18-sequencias-recorrentes-e-testes-de-primalidade--d152a35810cd47f0.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-02-bijecoes-e-contagem--9252cdfc5fed3bae.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-03-paridade--be48643d06f03ff8.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (0 / -1400)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-14-revisao-ii--64cefcbc0843474d.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2360)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-10-divisores--142389dfaa94da23.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-05-congruencias-e-bases--7f047c4444bdc2c9.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-11-grafos-3--3cf19ba44ee2ff99.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-03-algoritmo-de-euclides-novo--9c466c5f149eb54c.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-06-miscelanea-sobre-raizes-de-polinomios-i--0c7c1e200ebc3f4f.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (334 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-11-equacoes-diofantinas-quadraticas--9575148746580eaa.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-18-girard-i--900eeb3496b73a79.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simuladocmbn3contdupla2--25d82c129390b0c8.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-12-relacoes-entre-areas-1--c31322562eaaf806.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (44 / -2664)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simuladocmbn3contdupla2-sol--36155b49328888c8.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-16-combinatoria-e-sequencias--370a188ae5e28639.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-n2-2-2017-contagem-basico-gabarito-v01--2a9b4f4ca342a044.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-01-divisibilidade-novo--72f483a19b2affb4.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (334 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-17-familias-especiais-de-primos--f5bea9d6d304e221.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-03-sequencias--ba064cc087c9d1a8.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (334 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-11-2016-algebra-recorrencia-v01--f0f8dbf10b3b08ae.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nsyntax error: cannot find ExtGState resource 'pgf@CA.8'\nsyntax error: cannot find ExtGState resource 'pgf@ca.8'\nencountered syntax errors; page may not be correct\n... repeated 2 times..."
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-n2-5-2017-geo-plana-conceitos-iniciais-v01--e600aa1b2f7a6f33.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-07-casa-dos-pombos--5227cf085473140c.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-5-2016-geo-plana-conceitos-iniciais-v01--7035e1a65636c225.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-10-grafos-2--18f12239d3283087.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (334 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-n2-6-2017-contagens-v04--247eabd661ab8181.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-03-algoritmo-de-euclides--972096f823401eed.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-10-diferencas-finitas-e-interpolacao-de-polinomios--b8f94d003037c0a3.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/n2-1-simulado-1-produtosnotaveis--4d2b24c2aeb09535.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-04-funcoes-implicitas-ii--4f44aa4d85ee0e88.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-05-numeros-complexos--16b5ee7bdb02f097.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-n2-8-2017-congruencias-aritmetica-v03--eca1500bfab9011a.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-16-binomiais-e-primos--40f337c3f81ed74c.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-04-recorrencias--bad433b72d60ecd3.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-18-residuos-quadraticos--1daa317518be7cb5.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (50 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-09-congruencias-iii--b6445bf5380a799c.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-09-relacoes-metricas-no-triangulo--82f34ac3ff4e74d9.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-09-congruencias-quadraticas--601920e5c9f79ae8.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-17-geometria-combinatoria--37807745d8022ce8.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-11-funcoes-implicitamente-i--18a2c11eddb6c984.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (334 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-16-complexos-i--618a8c63b4ec6ef1.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-06-relacoes-entre-areas--8e3c4b665a52ab34.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2360)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-04-recursoes--0fab85498e42edcc.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (334 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-14-a-equacao-de-pell--86765759fa54d773.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-12-2016-tn-congruencia-ii-v01--61920988bb73a22d.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-13-grafos-4--8b5e97e8050038cf.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2360)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-06-congruencias-ii--bef2119657b665c2.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (334 / -2359)\nbogus font ascent/descent values (45 / -2354)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-13-equacoes-diofantinas-iii--9bb529c3ecd2cedb.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-01-produtos-notaveis-novo--f73b445d2cec172c.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (334 / -2960)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-10-grafos-i--1df84999ba88c806.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (0 / -1400)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-17-complexos-ii--a124c57ec6edba06.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-14-a-funcao-parte-inteira--5a497037cf7d7557.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-07-inducao-ii--bee603d0f4a92b14.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-15-continuidade--9c5daccee856a344.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (334 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-01-divisibilidade-n3--d7eb5eb203bff6c6.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-03-funcoes-implicitas-1--03c4ef5dc88d2da6.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-03-mdc-mmc-euclides--e92b61dcf4568422.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/n2-1-simulado-1-produtosnotaveis-com-solucoes--e086100d4d7af2e8.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-11-polinomios-em-z-x--42a0c958a70b5a41.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-13-fracoes-continuas--87f658cbad273e9b.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-9-2016-geo-plana-semelhanca-v01--b2317d06a2f0ebed.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca0.3'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nencountered syntax errors; page may not be correct\n... repeated 2 times...\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca0.3'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-18-grafos-6--dc02ffb7eb43a0e0.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-n2-11-2017-recorrencia-v02--17939ad4e03c9df4.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-06-invariantes-e-monovariantes--3d1e01c51608c729.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-02-equacoes-sistemas-novo--080b2fb6e996290d.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-10-2016-analise-combinatoria-jogos-v01--140e87401f3dedcb.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-n2-12-2017-congruencias-2-v01--24802fd2b3f9a373.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-04-teorema-fundamental-da-aritmetica--eb3eafec260ffcdd.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-13-substituicao-trigonometrica--cec5becac16f5e17.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2360)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-09-desigualdades-ii--9c80657cbbee72ed.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-02-divisibilidade2--3013ec32c21e14e0.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simuladocmbn3funcgen--bc4c73ded95f8294.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (0 / -1000)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-19-a-funcao-parte-inteira-ii--f05b25ace3369f9f.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-15-funcoes-definidas-implictamente-iii--e8a1d0001985ee26.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-17-sequencias-ii--bf01a0b395bee185.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-4-2016-divisibilidade-v01--ca07ce908228e165.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-n2-1-2017-angulos-extendido-gabarito-v01--e9f893963fdcb4e7.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-15-funcoes-multiplicativas-e-a-funcao-de-mobius--b0b01951b60acb8b.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-01-desigualdades-1--dc78ec85e9131aa2.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (50 / -2960)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-n2-9-2017-semelhanca-triangulo-v02--c9d74a7d4105b070.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/pentagono--4f71c14b9053dfa1.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "broken xref subsection, proceeding anyway.\nTrailer Size is off-by-one. Ignoring."
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-03-paridade-novo--c8585e67d9f78706.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (0 / -1400)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simuladocmbn3contdupla1-sol--af290575d628118e.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-04-mmc-mdc-e-os-numeros-primos-novo--78fe04eabddced3a.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-13-revisao--b11b08514216d6cc.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-06-inducao-i--f2ad2c2eab581dfc.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-10-maximos-e-minimos--c542c6dc1c6d5f0f.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simuladocmbn3probabilidades-sol--a3a2441b023b649b.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-n2-10-2017-pcp-v04--92b3fb1a45e20519.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-n3-5-2018-menelaus-v01--b42cb09e0f6869d6.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-nivel-3-sequencias--5a1ab7cd219a0354.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (0 / -1400)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-10-congruencias-de-ordem-superior--6781e5159e8696f4.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-03-contagem-dupla--b8ad956583777740.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-08-equacoes-diofantinas-i--b549dcf87e04191d.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-n3-4-2018-congruencia-v01--63e89e2449501ee4.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-16-pontos-notaveis-2-incentro--9a86cfaffeb47722.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-14-revisao-algebra-3--0589dea27a4cfbee.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2360)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-n2-1-2017-angulos-basico-gabarito-v01--44687ed00173749a.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-04-mmc-mdc-e-os-numeros-primos--cae124e05601ccd8.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-19-miscelania-ii--174a0894ec5932f2.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-21-algebra--c92bb29764bfcebb.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (50 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-20-subconjuntos--cb48282a28d4b335.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (334 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-11-o-teorema-chines-dos-restos--8bb3ec8adbfd3b27.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-12-funcoes-geratrizes--0e64a5e92d56f981.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (50 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-08-desigualdades-i--0033cb9bbff675b4.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2360)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-09-grafos-1--d8bea0618397602b.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-02-desigualdades-2--6ec85d0b20320047.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-n3-6-2018-pcp-v01--c7e6141b6b22b681.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-01-divisibilidade--a775764161751440.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (334 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-09-somas-de-newton--86debd5d17e321d2.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-06-teoremas-de-euler-et-al--f7b1bdc4b7630642.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-16-probabilidades--a319540e1cf32a9c.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (50 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-16-sequencias-i--33bfb1ff061966dd.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-n3-3-2018-funcoes-implicitas-v01--262d82b1031d6007.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-07-miscelanea-sobre-raizes-de-polinomios-ii--6614125774789011.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-03-sequencias-novo--b4344dc55db773be.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (334 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-n2-2-2017-contagem-extendido-gabarito-v01--5af09b167030485d.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-8-2016-tn-congruencia-i-v01--708dbf2908a3b271.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-01-produtos-notaveis--aad8a0f5024c94ab.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (334 / -2960)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-07-ordens-e-raizes-primitivas--dd128e7295f8328c.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-12-funcoes-implicitamente-ii--b526bdedf5940dd1.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (334 / -2360)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-02-principios--bf03fed80066596a.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2959)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-n3-1-2018-quadr-cicl-v01--c130326ed2a1d319.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-02-equacoes-sistemas--1b6e4743429a1b6a.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "bogus font ascent/descent values (40 / -2359)"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-2-2016-pfc-v01-enunciados-respostas--688bca5bd796608c.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/simulado-7-2016-algebra-inducao-v01--ea59dbc67dbed3d9.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "syntax error: cannot find ExtGState resource 'pgf@ca1.0'\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct\nsyntax error: cannot find ExtGState resource 'pgf@ca1.0'\nencountered syntax errors; page may not be correct"
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/fig2--660bcae984bd6dec.pdf",
+      "tipo": "estrutura_pdf",
+      "detalhe": "broken xref subsection, proceeding anyway.\nTrailer Size is off-by-one. Ignoring."
+    }
+  ],
+  "arquivos_com_pouco_texto": [
+    {
+      "arquivo": "arquivos/obmep/2010/apostila10-pdf--3dbc6f56059269df.pdf",
+      "paginas": 81,
+      "paginas_pouco_texto": 1,
+      "caracteres": 57128
+    },
+    {
+      "arquivo": "arquivos/obmep/sem-ano/abrir--1c73d322fce5b5fa.pdf",
+      "paginas": 35,
+      "paginas_pouco_texto": 3,
+      "caracteres": 21428
+    },
+    {
+      "arquivo": "arquivos/obmep/2010/apostila7-pdf--9a7a39f27aac46e5.pdf",
+      "paginas": 225,
+      "paginas_pouco_texto": 1,
+      "caracteres": 235771
+    },
+    {
+      "arquivo": "arquivos/obmep/2010/apostila1-pdf--1e9da7b1297b5d0c.pdf",
+      "paginas": 135,
+      "paginas_pouco_texto": 2,
+      "caracteres": 136577
+    },
+    {
+      "arquivo": "arquivos/obmep/sem-ano/apostila2-pdf--8746be11f55097c8.pdf",
+      "paginas": 97,
+      "paginas_pouco_texto": 3,
+      "caracteres": 121296
+    },
+    {
+      "arquivo": "arquivos/obmep/2010/apostila9-pdf--d9bb00d0fbbf8af0.pdf",
+      "paginas": 41,
+      "paginas_pouco_texto": 1,
+      "caracteres": 23281
+    },
+    {
+      "arquivo": "arquivos/obmep/2007/rpm-pic2007-pdf--a6f01d3274f6b763.pdf",
+      "paginas": 136,
+      "paginas_pouco_texto": 2,
+      "caracteres": 200981
+    },
+    {
+      "arquivo": "arquivos/obmep/2015/rpm2015-pdf--63b0617543ebeaf5.pdf",
+      "paginas": 204,
+      "paginas_pouco_texto": 1,
+      "caracteres": 270060
+    },
+    {
+      "arquivo": "arquivos/obmep/2013/revista-do-professor-de-matematica2013-pdf--d866af950ab33cc1.pdf",
+      "paginas": 204,
+      "paginas_pouco_texto": 1,
+      "caracteres": 270058
+    },
+    {
+      "arquivo": "arquivos/obmep/2007/eureka-pdf--14dfaaeee2af8815.pdf",
+      "paginas": 100,
+      "paginas_pouco_texto": 1,
+      "caracteres": 160530
+    },
+    {
+      "arquivo": "arquivos/obmep/2010/apostila3-pdf--e1667db3c8f1a27d.pdf",
+      "paginas": 94,
+      "paginas_pouco_texto": 1,
+      "caracteres": 71046
+    },
+    {
+      "arquivo": "arquivos/obmep/2009/apostila8-pdf--18b8fb014e0aab73.pdf",
+      "paginas": 95,
+      "paginas_pouco_texto": 1,
+      "caracteres": 57433
+    },
+    {
+      "arquivo": "arquivos/obmep/2007/2007-1a-fase-provas-nivel-1--a1e5dd9d56a67584.pdf",
+      "paginas": 4,
+      "paginas_pouco_texto": 4,
+      "caracteres": 12
+    },
+    {
+      "arquivo": "arquivos/obmep/2007/2007-1a-fase-provas-nivel-3--756bccb0f56ee67c.pdf",
+      "paginas": 4,
+      "paginas_pouco_texto": 1,
+      "caracteres": 631
+    },
+    {
+      "arquivo": "arquivos/obmep/2005/abrir--bc1209221f87261d.pdf",
+      "paginas": 168,
+      "paginas_pouco_texto": 5,
+      "caracteres": 251202
+    },
+    {
+      "arquivo": "arquivos/obmep/2008/2008-2a-fase-provas-nivel-1--fd38910b8c8d18d2.pdf",
+      "paginas": 8,
+      "paginas_pouco_texto": 1,
+      "caracteres": 6007
+    },
+    {
+      "arquivo": "arquivos/obmep/2008/2008-2a-fase-provas-nivel-2--c4680c951cd52798.pdf",
+      "paginas": 8,
+      "paginas_pouco_texto": 1,
+      "caracteres": 5899
+    },
+    {
+      "arquivo": "arquivos/obmep/2008/2008-2a-fase-provas-nivel-3--4ef8566ceea1cd81.pdf",
+      "paginas": 8,
+      "paginas_pouco_texto": 1,
+      "caracteres": 5912
+    },
+    {
+      "arquivo": "arquivos/obmep/2008/abrir--bcc2d1bca3501268.pdf",
+      "paginas": 107,
+      "paginas_pouco_texto": 1,
+      "caracteres": 99416
+    },
+    {
+      "arquivo": "arquivos/obmep/2009/2009-2a-fase-provas-nivel-1--7ef41e1ae4a5afb4.pdf",
+      "paginas": 8,
+      "paginas_pouco_texto": 1,
+      "caracteres": 8065
+    },
+    {
+      "arquivo": "arquivos/obmep/2009/2009-2a-fase-provas-nivel-2--44f337ef42a40920.pdf",
+      "paginas": 8,
+      "paginas_pouco_texto": 1,
+      "caracteres": 7605
+    },
+    {
+      "arquivo": "arquivos/obmep/2009/2009-2a-fase-provas-nivel-3--1b1d8eaef65e2d03.pdf",
+      "paginas": 8,
+      "paginas_pouco_texto": 1,
+      "caracteres": 7794
+    },
+    {
+      "arquivo": "arquivos/obmep/2009/abrir--e441b105fc1abe63.pdf",
+      "paginas": 129,
+      "paginas_pouco_texto": 2,
+      "caracteres": 210522
+    },
+    {
+      "arquivo": "arquivos/obmep/2005/abrir--24f25ae120f7428c.pdf",
+      "paginas": 356,
+      "paginas_pouco_texto": 1,
+      "caracteres": 791619
+    },
+    {
+      "arquivo": "arquivos/obmep/sem-ano/abrir--46255c0c1f186406.pdf",
+      "paginas": 172,
+      "paginas_pouco_texto": 35,
+      "caracteres": 218070
+    },
+    {
+      "arquivo": "arquivos/obmep/sem-ano/abrir--83152379f7f74bb4.pdf",
+      "paginas": 144,
+      "paginas_pouco_texto": 4,
+      "caracteres": 288220
+    },
+    {
+      "arquivo": "arquivos/obmep/sem-ano/abrir--503e5627498d5ba0.pdf",
+      "paginas": 184,
+      "paginas_pouco_texto": 6,
+      "caracteres": 223330
+    },
+    {
+      "arquivo": "arquivos/obmep/sem-ano/abrir--306f5da2ac012a37.pdf",
+      "paginas": 176,
+      "paginas_pouco_texto": 10,
+      "caracteres": 182209
+    },
+    {
+      "arquivo": "arquivos/obmep/2015/2015-2a-fase-solucao-nivel-1--0583967924aef1f7.pdf",
+      "paginas": 8,
+      "paginas_pouco_texto": 1,
+      "caracteres": 10712
+    },
+    {
+      "arquivo": "arquivos/obmep/sem-ano/abrir--24f6f2a291d13852.pdf",
+      "paginas": 174,
+      "paginas_pouco_texto": 6,
+      "caracteres": 204598
+    },
+    {
+      "arquivo": "arquivos/obmep/sem-ano/abrir--e2f1e6825368b063.pdf",
+      "paginas": 183,
+      "paginas_pouco_texto": 4,
+      "caracteres": 227098
+    },
+    {
+      "arquivo": "arquivos/obmep/sem-ano/abrir--7cd9d3734864b425.pdf",
+      "paginas": 176,
+      "paginas_pouco_texto": 4,
+      "caracteres": 213312
+    },
+    {
+      "arquivo": "arquivos/obmep/sem-ano/abrir--2e92c714d4ec3812.pdf",
+      "paginas": 173,
+      "paginas_pouco_texto": 8,
+      "caracteres": 209506
+    },
+    {
+      "arquivo": "arquivos/obmep/2019/2019-1a-fase-provas-nivel-2--a9aeef1e2220331c.pdf",
+      "paginas": 4,
+      "paginas_pouco_texto": 4,
+      "caracteres": 0
+    },
+    {
+      "arquivo": "arquivos/obmep/2019/banco-de-questoes-obmep-2019-abrir--8c807605de3ef7d8.pdf",
+      "paginas": 169,
+      "paginas_pouco_texto": 5,
+      "caracteres": 186036
+    },
+    {
+      "arquivo": "arquivos/obmep/sem-ano/abrir--65bb474b18dacec1.pdf",
+      "paginas": 175,
+      "paginas_pouco_texto": 5,
+      "caracteres": 175479
+    },
+    {
+      "arquivo": "arquivos/obmep/2021/16a-obmep-2a-fase-provas-nivel-1--f5d4e930d7ac3bce.pdf",
+      "paginas": 8,
+      "paginas_pouco_texto": 1,
+      "caracteres": 6196
+    },
+    {
+      "arquivo": "arquivos/obmep/2021/16a-obmep-2a-fase-provas-nivel-2--a626bb03ada66c13.pdf",
+      "paginas": 8,
+      "paginas_pouco_texto": 1,
+      "caracteres": 5394
+    },
+    {
+      "arquivo": "arquivos/obmep/2021/16a-obmep-2a-fase-provas-nivel-3--1f40a3959850d1e4.pdf",
+      "paginas": 8,
+      "paginas_pouco_texto": 1,
+      "caracteres": 6340
+    },
+    {
+      "arquivo": "arquivos/obmep/2022/17a-obmep-2a-fase-provas-nivel-1--fd759f6658c249b4.pdf",
+      "paginas": 8,
+      "paginas_pouco_texto": 1,
+      "caracteres": 6348
+    },
+    {
+      "arquivo": "arquivos/obmep/2022/17a-obmep-2a-fase-provas-nivel-2--00297ab94667a17c.pdf",
+      "paginas": 8,
+      "paginas_pouco_texto": 1,
+      "caracteres": 7014
+    },
+    {
+      "arquivo": "arquivos/obmep/2022/17a-obmep-2a-fase-provas-nivel-3--879af64df73eafa2.pdf",
+      "paginas": 8,
+      "paginas_pouco_texto": 1,
+      "caracteres": 6691
+    },
+    {
+      "arquivo": "arquivos/obmep/2023/18a-obmep-1a-fase-provas-nivel-1--2ef16ab9c6bf2475.pdf",
+      "paginas": 4,
+      "paginas_pouco_texto": 4,
+      "caracteres": 0
+    },
+    {
+      "arquivo": "arquivos/obmep/2023/18a-obmep-1a-fase-provas-nivel-2--4475023dde974c52.pdf",
+      "paginas": 4,
+      "paginas_pouco_texto": 4,
+      "caracteres": 0
+    },
+    {
+      "arquivo": "arquivos/obmep/2023/18a-obmep-1a-fase-provas-nivel-3--7b168089bcc463ab.pdf",
+      "paginas": 4,
+      "paginas_pouco_texto": 4,
+      "caracteres": 0
+    },
+    {
+      "arquivo": "arquivos/obmep/2023/18a-obmep-2a-fase-provas-nivel-1--20a9289d736c16f5.pdf",
+      "paginas": 8,
+      "paginas_pouco_texto": 1,
+      "caracteres": 6526
+    },
+    {
+      "arquivo": "arquivos/obmep/2023/18a-obmep-2a-fase-provas-nivel-2--bb00594597bad346.pdf",
+      "paginas": 8,
+      "paginas_pouco_texto": 1,
+      "caracteres": 6407
+    },
+    {
+      "arquivo": "arquivos/obmep/2023/18a-obmep-2a-fase-provas-nivel-3--b13069e96d2f5847.pdf",
+      "paginas": 8,
+      "paginas_pouco_texto": 1,
+      "caracteres": 6138
+    },
+    {
+      "arquivo": "arquivos/obmep/2024/19a-obmep-1a-fase-nivel-1-solucao--3de5dba543f0af7d.pdf",
+      "paginas": 10,
+      "paginas_pouco_texto": 1,
+      "caracteres": 11662
+    },
+    {
+      "arquivo": "arquivos/obmep/2024/19a-obmep-1a-fase-nivel-1-solucao--54cb0dc6489b4e2b.pdf",
+      "paginas": 10,
+      "paginas_pouco_texto": 1,
+      "caracteres": 9975
+    },
+    {
+      "arquivo": "arquivos/obmep/2024/19a-obmep-1a-fase-nivel-1-solucao--7559e8f38a39322c.pdf",
+      "paginas": 11,
+      "paginas_pouco_texto": 1,
+      "caracteres": 16373
+    },
+    {
+      "arquivo": "arquivos/obmep/2024/19a-obmep-1a-fase-nivel-1-solucao--84896cb76a962272.pdf",
+      "paginas": 11,
+      "paginas_pouco_texto": 1,
+      "caracteres": 16206
+    },
+    {
+      "arquivo": "arquivos/obmep/2024/19a-obmep-1a-fase-nivel-1-solucao--c3d246620ac08ef8.pdf",
+      "paginas": 11,
+      "paginas_pouco_texto": 1,
+      "caracteres": 16376
+    },
+    {
+      "arquivo": "arquivos/obmep/2024/19a-obmep-1a-fase-nivel-2-solucao--0b6fd92e6ca1747a.pdf",
+      "paginas": 11,
+      "paginas_pouco_texto": 1,
+      "caracteres": 14582
+    },
+    {
+      "arquivo": "arquivos/obmep/2024/19a-obmep-1a-fase-nivel-2-solucao--115364200a758284.pdf",
+      "paginas": 11,
+      "paginas_pouco_texto": 1,
+      "caracteres": 14589
+    },
+    {
+      "arquivo": "arquivos/obmep/2024/19a-obmep-1a-fase-nivel-2-solucao--4be0c129ceb8c9ce.pdf",
+      "paginas": 11,
+      "paginas_pouco_texto": 1,
+      "caracteres": 14549
+    },
+    {
+      "arquivo": "arquivos/obmep/2024/19a-obmep-1a-fase-nivel-2-solucao--5605ef210cb7d2b6.pdf",
+      "paginas": 11,
+      "paginas_pouco_texto": 1,
+      "caracteres": 14579
+    },
+    {
+      "arquivo": "arquivos/obmep/2024/19a-obmep-1a-fase-nivel-2-solucao--643d51c184f5aaba.pdf",
+      "paginas": 10,
+      "paginas_pouco_texto": 1,
+      "caracteres": 14699
+    },
+    {
+      "arquivo": "arquivos/obmep/2024/19a-obmep-1a-fase-nivel-3-solucao--08e81b07639cdc5b.pdf",
+      "paginas": 12,
+      "paginas_pouco_texto": 1,
+      "caracteres": 19818
+    },
+    {
+      "arquivo": "arquivos/obmep/2024/19a-obmep-1a-fase-nivel-3-solucao--4948e9f33c78349b.pdf",
+      "paginas": 11,
+      "paginas_pouco_texto": 1,
+      "caracteres": 19752
+    },
+    {
+      "arquivo": "arquivos/obmep/2024/19a-obmep-1a-fase-nivel-3-solucao--829297d6a22ba067.pdf",
+      "paginas": 11,
+      "paginas_pouco_texto": 1,
+      "caracteres": 19755
+    },
+    {
+      "arquivo": "arquivos/obmep/2024/19a-obmep-1a-fase-nivel-3-solucao--b56628f388d7d838.pdf",
+      "paginas": 12,
+      "paginas_pouco_texto": 1,
+      "caracteres": 19672
+    },
+    {
+      "arquivo": "arquivos/obmep/2024/19a-obmep-1a-fase-nivel-3-solucao--dc155353e95dda00.pdf",
+      "paginas": 12,
+      "paginas_pouco_texto": 1,
+      "caracteres": 19793
+    },
+    {
+      "arquivo": "arquivos/obmep/2024/19a-obmep-2a-fase-provas-nivel-1--93deffef4eb4bbbe.pdf",
+      "paginas": 8,
+      "paginas_pouco_texto": 1,
+      "caracteres": 6452
+    },
+    {
+      "arquivo": "arquivos/obmep/2024/19a-obmep-2a-fase-provas-nivel-2--7741239da1cabec6.pdf",
+      "paginas": 8,
+      "paginas_pouco_texto": 1,
+      "caracteres": 7081
+    },
+    {
+      "arquivo": "arquivos/obmep/2024/19a-obmep-2a-fase-provas-nivel-3--2e6448d6c17df6e0.pdf",
+      "paginas": 8,
+      "paginas_pouco_texto": 1,
+      "caracteres": 6483
+    },
+    {
+      "arquivo": "arquivos/obmep/2025/20a-obmep-2a-fase-provas-nivel-1--4db83920ce1cbc02.pdf",
+      "paginas": 8,
+      "paginas_pouco_texto": 2,
+      "caracteres": 4666
+    },
+    {
+      "arquivo": "arquivos/obmep/2025/20a-obmep-2a-fase-provas-nivel-2--20b6a2fdd31e2460.pdf",
+      "paginas": 8,
+      "paginas_pouco_texto": 2,
+      "caracteres": 5348
+    },
+    {
+      "arquivo": "arquivos/obmep/2025/20a-obmep-2a-fase-provas-nivel-3--7ee34f0509d9f614.pdf",
+      "paginas": 8,
+      "paginas_pouco_texto": 2,
+      "caracteres": 4536
+    },
+    {
+      "arquivo": "arquivos/obmep/2024/3a-olimpiada-mirim-obmep-2a-fase-solucoes-mirim-1--484bc8205006560a.pdf",
+      "paginas": 8,
+      "paginas_pouco_texto": 2,
+      "caracteres": 6624
+    },
+    {
+      "arquivo": "arquivos/obmep-mirim/sem-ano/prova-mirim-1--d5fb391e6bceb400.pdf",
+      "paginas": 4,
+      "paginas_pouco_texto": 3,
+      "caracteres": 753
+    },
+    {
+      "arquivo": "arquivos/obmep-mirim/sem-ano/prova-mirim-2--10cccefdc7e1595b.pdf",
+      "paginas": 4,
+      "paginas_pouco_texto": 3,
+      "caracteres": 74
+    },
+    {
+      "arquivo": "arquivos/obmep-mirim/sem-ano/solucoes-mirim-1--2fe25d7ee2a58d1c.pdf",
+      "paginas": 6,
+      "paginas_pouco_texto": 1,
+      "caracteres": 1092
+    },
+    {
+      "arquivo": "arquivos/obmep-mirim/sem-ano/solucoes-mirim-2--c3710becebab2268.pdf",
+      "paginas": 6,
+      "paginas_pouco_texto": 1,
+      "caracteres": 6473
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/sem-ano/5nrb8bmgg0000-pdf--936130eacf9c60eb.pdf",
+      "paginas": 11,
+      "paginas_pouco_texto": 1,
+      "caracteres": 21418
+    },
+    {
+      "arquivo": "arquivos/olitef/sem-ano/0fe426-ce0d4c1e5ca54a9eb57be2004215148e-pdf--cb9f961ae2c3b5f5.pdf",
+      "paginas": 50,
+      "paginas_pouco_texto": 1,
+      "caracteres": 74234
+    },
+    {
+      "arquivo": "arquivos/olitef/sem-ano/0fe426-59087fbe95cf46fab1f0a2d1f3702832-pdf--d3a005dde5a10a4a.pdf",
+      "paginas": 47,
+      "paginas_pouco_texto": 1,
+      "caracteres": 69455
+    },
+    {
+      "arquivo": "arquivos/olitef/sem-ano/0fe426-f95e228187174ce2ad1f01d32694f9e9-pdf--0838192d009818b1.pdf",
+      "paginas": 55,
+      "paginas_pouco_texto": 1,
+      "caracteres": 81986
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/fig1--5929c087574f6324.pdf",
+      "paginas": 1,
+      "paginas_pouco_texto": 1,
+      "caracteres": 0
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/aula-04-contagem-i-novo--104f0ba8c0109091.pdf",
+      "paginas": 11,
+      "paginas_pouco_texto": 1,
+      "caracteres": 21418
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/pentagono--4f71c14b9053dfa1.pdf",
+      "paginas": 1,
+      "paginas_pouco_texto": 1,
+      "caracteres": 0
+    },
+    {
+      "arquivo": "arquivos/obmep-poti/pacote/fig2--660bcae984bd6dec.pdf",
+      "paginas": 1,
+      "paginas_pouco_texto": 1,
+      "caracteres": 0
+    }
+  ],
+  "calculos": {
+    "desconto_sucessivo_150": "108.00",
+    "desconto_30_150": "105.0",
+    "desconto_sucessivo_80": "54.000",
+    "aumento_reducao": "96.00",
+    "areas_perimetros": [
+      [
+        15,
+        16
+      ],
+      [
+        14,
+        16
+      ],
+      [
+        14,
+        18
+      ]
+    ],
+    "cartoes_minimos": [
+      9,
+      11
+    ],
+    "combinacoes_verificadas": 80587,
+    "contribuicao_conta": "20.14",
+    "contas_equilibrio": 1242,
+    "custo_ferramentas_visuais": [
+      12000,
+      24000
+    ],
+    "custo_atividades_e_ferramentas": [
+      56000,
+      112000
+    ]
+  },
+  "cobertura": [
+    {
+      "olimpiada": "obmep",
+      "ano": 2005,
+      "papeis_esperados": 12,
+      "papeis_encontrados": 12,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "obmep",
+      "ano": 2006,
+      "papeis_esperados": 12,
+      "papeis_encontrados": 12,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "obmep",
+      "ano": 2007,
+      "papeis_esperados": 12,
+      "papeis_encontrados": 12,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "obmep",
+      "ano": 2008,
+      "papeis_esperados": 12,
+      "papeis_encontrados": 12,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "obmep",
+      "ano": 2009,
+      "papeis_esperados": 12,
+      "papeis_encontrados": 12,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "obmep",
+      "ano": 2010,
+      "papeis_esperados": 12,
+      "papeis_encontrados": 12,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "obmep",
+      "ano": 2011,
+      "papeis_esperados": 12,
+      "papeis_encontrados": 12,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "obmep",
+      "ano": 2012,
+      "papeis_esperados": 12,
+      "papeis_encontrados": 12,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "obmep",
+      "ano": 2013,
+      "papeis_esperados": 12,
+      "papeis_encontrados": 12,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "obmep",
+      "ano": 2014,
+      "papeis_esperados": 12,
+      "papeis_encontrados": 12,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "obmep",
+      "ano": 2015,
+      "papeis_esperados": 12,
+      "papeis_encontrados": 12,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "obmep",
+      "ano": 2016,
+      "papeis_esperados": 12,
+      "papeis_encontrados": 12,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "obmep",
+      "ano": 2017,
+      "papeis_esperados": 12,
+      "papeis_encontrados": 12,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "obmep",
+      "ano": 2018,
+      "papeis_esperados": 12,
+      "papeis_encontrados": 12,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "obmep",
+      "ano": 2019,
+      "papeis_esperados": 12,
+      "papeis_encontrados": 12,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "obmep",
+      "ano": 2021,
+      "papeis_esperados": 12,
+      "papeis_encontrados": 6,
+      "faltantes": [
+        [
+          "1",
+          "1",
+          "prova"
+        ],
+        [
+          "1",
+          "1",
+          "solucao"
+        ],
+        [
+          "2",
+          "1",
+          "prova"
+        ],
+        [
+          "2",
+          "1",
+          "solucao"
+        ],
+        [
+          "3",
+          "1",
+          "prova"
+        ],
+        [
+          "3",
+          "1",
+          "solucao"
+        ]
+      ]
+    },
+    {
+      "olimpiada": "obmep",
+      "ano": 2022,
+      "papeis_esperados": 12,
+      "papeis_encontrados": 12,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "obmep",
+      "ano": 2023,
+      "papeis_esperados": 12,
+      "papeis_encontrados": 12,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "obmep",
+      "ano": 2024,
+      "papeis_esperados": 12,
+      "papeis_encontrados": 12,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "obmep",
+      "ano": 2025,
+      "papeis_esperados": 12,
+      "papeis_encontrados": 12,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "canguru",
+      "ano": 2021,
+      "papeis_esperados": 18,
+      "papeis_encontrados": 18,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "canguru",
+      "ano": 2022,
+      "papeis_esperados": 18,
+      "papeis_encontrados": 18,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "canguru",
+      "ano": 2023,
+      "papeis_esperados": 18,
+      "papeis_encontrados": 18,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "canguru",
+      "ano": 2024,
+      "papeis_esperados": 18,
+      "papeis_encontrados": 18,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "canguru",
+      "ano": 2025,
+      "papeis_esperados": 18,
+      "papeis_encontrados": 18,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "canguru",
+      "ano": 2026,
+      "papeis_esperados": 18,
+      "papeis_encontrados": 18,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "olitef",
+      "ano": 2024,
+      "papeis_esperados": 3,
+      "papeis_encontrados": 3,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "olitef",
+      "ano": 2025,
+      "papeis_esperados": 6,
+      "papeis_encontrados": 6,
+      "faltantes": []
+    },
+    {
+      "olimpiada": "olitef",
+      "ano": 2026,
+      "papeis_esperados": 3,
+      "papeis_encontrados": 3,
+      "faltantes": []
+    }
+  ],
+  "veredito": "PASS",
+  "escopo": "Integridade dos arquivos locais, leitura de páginas PDF, links locais, cálculos e inventário. Não é revisão integral dos exercícios nem validação de aprendizagem."
+}

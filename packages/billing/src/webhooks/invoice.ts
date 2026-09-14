@@ -68,6 +68,7 @@ export async function handleInvoicePaid(
   deps: InvoiceWebhookDeps,
   invoice: StripeInvoiceLike,
   eventId: string,
+  eventCreatedAt?: Date,
 ): Promise<InvoiceWebhookResult> {
   const billingReason = invoice.billing_reason ?? "";
   // We grant the monthly bonus on TWO billing events only:
@@ -91,7 +92,6 @@ export async function handleInvoicePaid(
     });
     return { processed: false, reason: `non_cycle:${billingReason || "unknown"}` };
   }
-
   const subscriptionId = extractSubscriptionId(invoice);
   if (!subscriptionId) {
     safeLog(deps.logger, "debug", "billing.webhook.invoice.no_subscription", {
@@ -107,6 +107,18 @@ export async function handleInvoicePaid(
       providerSubscriptionId: subscriptionId,
     });
     return { processed: false, reason: "subscription_not_local" };
+  }
+
+  if (local.status === "past_due") {
+    const applied = await applyInvoiceBillingState(
+      deps,
+      local.id,
+      "paid",
+      invoice.id,
+      eventId,
+      eventCreatedAt,
+    );
+    if (!applied) return { processed: false, reason: "stale_billing_state" };
   }
 
   // PriceId is the SOURCE OF TRUTH for which plan the customer is paying for.
@@ -312,6 +324,7 @@ export async function handleInvoicePaymentFailed(
   deps: InvoiceWebhookDeps,
   invoice: StripeInvoiceLike,
   eventId: string,
+  eventCreatedAt?: Date,
 ): Promise<InvoiceWebhookResult> {
   const subscriptionId = extractSubscriptionId(invoice);
   if (!subscriptionId) {
@@ -326,32 +339,15 @@ export async function handleInvoicePaymentFailed(
     return { processed: false, reason: "subscription_not_local" };
   }
 
-  const dunningPayload = {
-    invoiceId: invoice.id,
+  const applied = await applyInvoiceBillingState(
+    deps,
+    local.id,
+    "failed",
+    invoice.id,
     eventId,
-    failedAt: new Date().toISOString(),
-  };
-  const newMetadata: Record<string, unknown> = {
-    ...local.metadata,
-    dunning: {
-      ...(typeof local.metadata.dunning === "object" && local.metadata.dunning
-        ? (local.metadata.dunning as Record<string, unknown>)
-        : {}),
-      lastFailedAt: dunningPayload.failedAt,
-      lastInvoiceId: invoice.id,
-      lastEventId: eventId,
-      pending: true,
-    },
-  };
-
-  await deps.db
-    .update(subscriptionsTable)
-    .set({
-      status: "past_due",
-      metadata: newMetadata,
-      updatedAt: new Date(),
-    })
-    .where(eq(subscriptionsTable.id, local.id));
+    eventCreatedAt,
+  );
+  if (!applied) return { processed: false, reason: "stale_billing_state" };
 
   if (deps.onAudit) {
     try {
@@ -382,6 +378,79 @@ export async function handleInvoicePaymentFailed(
   return { processed: true, reason: "subscription_past_due" };
 }
 
+async function applyInvoiceBillingState(
+  deps: InvoiceWebhookDeps,
+  localSubscriptionId: string,
+  outcome: "paid" | "failed",
+  invoiceId: string,
+  eventId: string,
+  eventCreatedAt?: Date,
+): Promise<boolean> {
+  return deps.db.transaction(async (tx) => {
+    const [current] = await tx
+      .select({
+        status: subscriptionsTable.status,
+        confirmedAt: subscriptionsTable.confirmedAt,
+        metadata: subscriptionsTable.metadata,
+      })
+      .from(subscriptionsTable)
+      .where(eq(subscriptionsTable.id, localSubscriptionId))
+      .for("update");
+    if (!current || current.status === "canceled") return false;
+    const previousState = current.metadata.billingState;
+    const previousRaw =
+      previousState && typeof previousState === "object"
+        ? (previousState as Record<string, unknown>).providerEventCreatedAt
+        : undefined;
+    const previousAt = typeof previousRaw === "string" ? new Date(previousRaw) : null;
+    if (
+      eventCreatedAt &&
+      previousAt &&
+      !Number.isNaN(previousAt.getTime()) &&
+      eventCreatedAt.getTime() < previousAt.getTime()
+    )
+      return false;
+
+    const previousDunning =
+      current.metadata.dunning && typeof current.metadata.dunning === "object"
+        ? (current.metadata.dunning as Record<string, unknown>)
+        : {};
+    const at = (eventCreatedAt ?? new Date()).toISOString();
+    await tx
+      .update(subscriptionsTable)
+      .set({
+        status: outcome === "failed" ? "past_due" : "active",
+        confirmedAt:
+          outcome === "paid" ? (current.confirmedAt ?? eventCreatedAt ?? new Date()) : undefined,
+        metadata: {
+          ...current.metadata,
+          dunning:
+            outcome === "failed"
+              ? {
+                  ...previousDunning,
+                  lastFailedAt: at,
+                  lastInvoiceId: invoiceId,
+                  lastEventId: eventId,
+                  pending: true,
+                }
+              : {
+                  ...previousDunning,
+                  recoveredAt: at,
+                  recoveredInvoiceId: invoiceId,
+                  pending: false,
+                },
+          billingState: {
+            providerEventCreatedAt: at,
+            eventType: outcome === "failed" ? "invoice.payment_failed" : "invoice.paid",
+          },
+        },
+        updatedAt: new Date(),
+      })
+      .where(eq(subscriptionsTable.id, localSubscriptionId));
+    return true;
+  });
+}
+
 function extractSubscriptionId(invoice: StripeInvoiceLike): string | null {
   const ref = invoice.parent?.subscription_details?.subscription;
   if (!ref) return null;
@@ -396,6 +465,7 @@ type LocalSubWithSubject = {
   subjectId: string;
   customerEmail: string;
   currentPeriodEnd: Date;
+  status: SubscriptionStatus;
   metadata: Record<string, unknown>;
 };
 
@@ -409,6 +479,7 @@ async function loadLocalSubscriptionWithSubject(
       productId: subscriptionsTable.productId,
       providerPriceId: subscriptionsTable.providerPriceId,
       currentPeriodEnd: subscriptionsTable.currentPeriodEnd,
+      status: subscriptionsTable.status,
       metadata: subscriptionsTable.metadata,
       subjectType: customersTable.subjectType,
       subjectId: customersTable.subjectId,
@@ -420,6 +491,7 @@ async function loadLocalSubscriptionWithSubject(
       and(
         eq(subscriptionsTable.provider, deps.provider),
         eq(subscriptionsTable.providerSubscriptionId, providerSubscriptionId),
+        eq(customersTable.app, deps.app),
       ),
     )
     .limit(1);
@@ -433,6 +505,7 @@ async function loadLocalSubscriptionWithSubject(
     subjectId: row.subjectId,
     customerEmail: row.customerEmail,
     currentPeriodEnd: row.currentPeriodEnd,
+    status: row.status,
     metadata: row.metadata,
   };
 }
@@ -489,6 +562,7 @@ async function recoverLocalSubscriptionFromProvider(
       and(
         eq(customersTable.provider, deps.provider),
         eq(customersTable.providerCustomerId, details.providerCustomerId),
+        eq(customersTable.app, deps.app),
       ),
     )
     .limit(1);
@@ -526,6 +600,7 @@ async function recoverLocalSubscriptionFromProvider(
       productId,
       providerPriceId: details.providerPriceId,
       status: normalizeStatus(details.status),
+      confirmedAt: details.status === "active" || details.status === "trialing" ? new Date() : null,
       currentPeriodStart,
       currentPeriodEnd,
       cancelAtPeriodEnd,
@@ -537,6 +612,8 @@ async function recoverLocalSubscriptionFromProvider(
       target: [subscriptionsTable.provider, subscriptionsTable.providerSubscriptionId],
       set: {
         status: normalizeStatus(details.status),
+        confirmedAt:
+          details.status === "active" || details.status === "trialing" ? new Date() : undefined,
         productId,
         providerPriceId: details.providerPriceId,
         currentPeriodStart,
@@ -550,6 +627,7 @@ async function recoverLocalSubscriptionFromProvider(
     })
     .returning({
       id: subscriptionsTable.id,
+      status: subscriptionsTable.status,
       currentPeriodEnd: subscriptionsTable.currentPeriodEnd,
       metadata: subscriptionsTable.metadata,
     });
@@ -571,6 +649,7 @@ async function recoverLocalSubscriptionFromProvider(
     subjectId: customer.subjectId,
     customerEmail: customer.email,
     currentPeriodEnd: recovered.currentPeriodEnd,
+    status: recovered.status,
     metadata: recovered.metadata,
   };
 }

@@ -137,6 +137,30 @@ describe("switchPlan(immediate)", () => {
     );
   });
 
+  it("requires reactivation before replacing a scheduled plan change", async () => {
+    const scheduledRow = {
+      ...baseSubRow,
+      cancelAtPeriodEnd: new Date("2026-05-01T00:00:00Z"),
+      pendingProductId: "cozya_pro_monthly",
+      pendingPriceId: "price_dev_monthly",
+    };
+    const { db, calls } = createFakeDb({ selectQueue: [[scheduledRow]] });
+    const { provider } = createFakeProvider();
+    const deps = makeDeps({ db: db as never, providerClient: provider });
+
+    await expect(
+      switchPlan(deps, {
+        subscriptionId: "sub-row-1",
+        newProductId: "cozya_pro_annual",
+        mode: "immediate",
+      }),
+    ).rejects.toThrow("Desfaça a alteração agendada antes de escolher outro plano.");
+
+    expect(provider.updateSubscription).not.toHaveBeenCalled();
+    expect(provider.cancelSubscription).not.toHaveBeenCalled();
+    expect(calls.find((call) => call.mode === "set")).toBeUndefined();
+  });
+
   it("returns paymentActionUrl when latest invoice is unpaid (open/uncollectible)", async () => {
     const periodEnd = new Date("2027-04-01T00:00:00Z");
     const { db, calls } = createFakeDb({
@@ -288,7 +312,7 @@ describe("switchPlan(schedule_at_period_end)", () => {
     const periodEnd = new Date("2027-04-01T00:00:00Z");
     const { db, calls } = createFakeDb({
       selectQueue: [[annualRow]],
-      updateQueue: [[{ ...annualRow, cancelAtPeriodEnd: periodEnd }]],
+      updateQueue: [[], [{ ...annualRow, cancelAtPeriodEnd: periodEnd }]],
     });
     const { provider } = createFakeProvider({
       subscriptionSummary: {
@@ -310,10 +334,69 @@ describe("switchPlan(schedule_at_period_end)", () => {
       expect.objectContaining({ atPeriodEnd: true }),
     );
     expect(result.appliedImmediately).toBe(false);
-    const setArgs = calls.find((c) => c.mode === "set")?.args[0] as Record<string, unknown>;
-    expect(setArgs.pendingProductId).toBe("cozya_pro_monthly");
-    expect(setArgs.pendingPriceId).toBe("price_dev_monthly");
-    expect(setArgs.cancelAtPeriodEnd).toEqual(periodEnd);
+    const setArgs = calls
+      .filter((c) => c.mode === "set")
+      .map((call) => call.args[0] as Record<string, unknown>);
+    expect(setArgs[0]?.pendingProductId).toBe("cozya_pro_monthly");
+    expect(setArgs[0]?.pendingPriceId).toBe("price_dev_monthly");
+    expect(setArgs[1]?.cancelAtPeriodEnd).toEqual(periodEnd);
+  });
+
+  it("keeps the durable target when scheduling at Stripe fails", async () => {
+    const annualRow = {
+      ...baseSubRow,
+      productId: "cozya_pro_annual",
+      providerPriceId: "price_dev_annual",
+    };
+    const { db, calls } = createFakeDb({ selectQueue: [[annualRow]] });
+    const { provider } = createFakeProvider();
+    vi.mocked(provider.cancelSubscription).mockRejectedValueOnce(new Error("response lost"));
+
+    await expect(
+      switchPlan(makeDeps({ db: db as never, providerClient: provider }), {
+        subscriptionId: "sub-row-1",
+        newProductId: "cozya_pro_monthly",
+        mode: "schedule_at_period_end",
+      }),
+    ).rejects.toThrow("response lost");
+
+    const firstWrite = calls.find((call) => call.mode === "set")?.args[0];
+    expect(firstWrite).toMatchObject({
+      pendingProductId: "cozya_pro_monthly",
+      pendingPriceId: "price_dev_monthly",
+    });
+  });
+
+  it("retries the same durable target after the provider outcome was unknown", async () => {
+    const retryRow = {
+      ...baseSubRow,
+      productId: "cozya_pro_annual",
+      providerPriceId: "price_dev_annual",
+      pendingProductId: "cozya_pro_monthly",
+      pendingPriceId: "price_dev_monthly",
+    };
+    const periodEnd = new Date("2027-04-01T00:00:00Z");
+    const { db } = createFakeDb({
+      selectQueue: [[retryRow]],
+      updateQueue: [[], [{ ...retryRow, cancelAtPeriodEnd: periodEnd }]],
+    });
+    const { provider } = createFakeProvider({
+      subscriptionSummary: {
+        id: "sub_test_1",
+        status: "active",
+        cancelAtPeriodEnd: true,
+        currentPeriodEnd: periodEnd,
+      },
+    });
+
+    const result = await switchPlan(makeDeps({ db: db as never, providerClient: provider }), {
+      subscriptionId: retryRow.id,
+      newProductId: "cozya_pro_monthly",
+      mode: "schedule_at_period_end",
+    });
+
+    expect(provider.cancelSubscription).toHaveBeenCalledTimes(1);
+    expect(result.subscription.cancelAtPeriodEnd).toEqual(periodEnd);
   });
 });
 
@@ -344,6 +427,34 @@ describe("reactivateSubscription", () => {
     expect(reactivateMock).toHaveBeenCalledWith({ providerSubscriptionId: "sub_test_1" });
     const setArgs = calls.find((c) => c.mode === "set")?.args[0] as Record<string, unknown>;
     expect(setArgs.cancelAtPeriodEnd).toBeNull();
+    expect(setArgs.pendingProductId).toBeNull();
+    expect(setArgs.pendingPriceId).toBeNull();
+  });
+
+  it("clears an orphaned durable target even before cancel_at_period_end was confirmed", async () => {
+    const pendingRow = {
+      ...baseSubRow,
+      pendingProductId: "cozya_pro_annual",
+      pendingPriceId: "price_dev_annual",
+    };
+    const { db, calls } = createFakeDb({
+      selectQueue: [[pendingRow]],
+      updateQueue: [[{ ...pendingRow, pendingProductId: null, pendingPriceId: null }]],
+    });
+    const { provider } = createFakeProvider();
+    provider.reactivateSubscription = vi.fn().mockResolvedValue({
+      id: "sub_test_1",
+      status: "active",
+      cancelAtPeriodEnd: false,
+      currentPeriodEnd: new Date("2026-05-01T00:00:00Z"),
+    });
+
+    await reactivateSubscription(makeDeps({ db: db as never, providerClient: provider }), {
+      subscriptionId: pendingRow.id,
+    });
+
+    expect(provider.reactivateSubscription).toHaveBeenCalledTimes(1);
+    const setArgs = calls.find((c) => c.mode === "set")?.args[0] as Record<string, unknown>;
     expect(setArgs.pendingProductId).toBeNull();
     expect(setArgs.pendingPriceId).toBeNull();
   });

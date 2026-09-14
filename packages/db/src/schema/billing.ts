@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   index,
   integer,
@@ -10,6 +11,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { users } from "./core";
 
 export const billing = pgSchema("billing");
 
@@ -81,6 +83,31 @@ export const customers = billing.table(
   ],
 );
 
+// One durable checkout attempt per customer. RESTRICT also closes the race with
+// deletion of the shared account in another app before a subscription webhook.
+export const checkoutIntents = billing.table("checkout_intents", {
+  customerId: uuid("customer_id")
+    .primaryKey()
+    .references(() => customers.id, { onDelete: "restrict" }),
+  id: uuid("id").notNull().defaultRandom(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "restrict" }),
+  productId: text("product_id").notNull(),
+  request: jsonb("request")
+    .$type<{
+      priceId: string;
+      successUrl: string;
+      cancelUrl: string;
+      trialDays?: number;
+      expiresAt: number;
+    }>()
+    .notNull(),
+  requestStarted: boolean("request_started").notNull().default(false),
+  providerSessionId: text("provider_session_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const subscriptions = billing.table(
   "subscriptions",
   {
@@ -97,6 +124,9 @@ export const subscriptions = billing.table(
     currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }).notNull(),
     cancelAtPeriodEnd: timestamp("cancel_at_period_end", { withTimezone: true }),
     canceledAt: timestamp("canceled_at", { withTimezone: true }),
+    // Positive, durable commercial milestone. It remains set after a later
+    // cancellation and is never inferred from a terminal status alone.
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
     trialEnd: timestamp("trial_end", { withTimezone: true }),
     // Drip mensal de créditos no plano anual: o sweeper diário concede o bônus
     // quando next_credit_grant_at <= now() e a subscription ainda está ativa.

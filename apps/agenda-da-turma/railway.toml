@@ -21,10 +21,10 @@ watchPatterns = [
 ]
 # `--prod=false` garante devDependencies no build mesmo quando o Railway define
 # NODE_ENV=production no service. O Next ainda produz bundle de produção.
-buildCommand = "pnpm install --frozen-lockfile --prod=false && pnpm build:agenda-da-turma"
+buildCommand = "pnpm install --frozen-lockfile --prod=false && pnpm build:agenda-da-turma && cp -R apps/agenda-da-turma/public apps/agenda-da-turma/.next/standalone/apps/agenda-da-turma/public && cp -R apps/agenda-da-turma/.next/static apps/agenda-da-turma/.next/standalone/apps/agenda-da-turma/.next/static"
 
 [deploy]
-startCommand = "pnpm start:agenda-da-turma"
+startCommand = "HOSTNAME=0.0.0.0 node apps/agenda-da-turma/.next/standalone/apps/agenda-da-turma/server.js"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"

@@ -10,6 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `admin` (port 3003) — scaffold, no auth/billing/db wiring yet; keep dependencies minimal until it becomes a real app.
   - `agenda-da-turma` (port 3001) — single-user (sem organizations; modelo Netflix-household — perfis de filhos vivem na conta do responsável como sub-entidades). Auth + billing + emails 100% wired (paridade UX com cozya: onboarding com escolha de plano, `/settings/billing`, `/upgrade`, packs de crédito). Features de agenda implementadas: perfis (Free 1 / Pro 3), turmas compartilhadas com código de 6 chars, matérias por turma, atividades CRUD com paginação keyset e status per-perfil, calendário (mês/semana/dia), dashboard com KPIs/buckets. IA (Pro-only via OpenRouter) — cadastro em lote por voz/imagem/PDF de matérias e atividades (`agenda.subjects.parse_*`, `agenda.activities.parse_*`); modelos `openai/gpt-4o`, `openai/gpt-4o-mini`, `openai/gpt-4o-transcribe`. PWA instalável (manifest + metadata, sem service worker). Landing pública na rota `/`. Sentry, Vitest + Playwright.
   - `cozya` (port 3002) — single-user (no organizations), Sentry, Vitest + Playwright.
+  - `missao-saber` (port 3005) — single-user com perfis familiares, preparação autoral para olimpíadas escolares, Sentry, Vitest + Playwright. Auth, billing, banco, e-mails e UI vêm dos packages compartilhados.
   - `informach-site` (port 3004) — landing institucional pública (`informach.com.br`). Sem auth/billing/db/AI; só Next + `@informach/ui`. Hospeda Termos e Privacidade guarda-chuva da holding (Stripe Customer Portal aponta pra cá).
 - **Packages** (`packages/`, scope `@informach/*`): `db`, `auth`, `billing`, `emails`, `ai-core`, `config`, `ui`. All consumed as TypeScript source — none have a build step.
 
@@ -32,7 +33,7 @@ Cross-cutting docs in `docs/`: `arquitetura-monorepo.md`, `arquitetura-apps.md`,
 - `pnpm db:generate` / `pnpm db:studio` / `pnpm db:push` — delegated to `@informach/db` (Drizzle Kit). `pnpm db:migrate` runs `@informach/db db:migrate` and then `@informach/ai-core mastra:migrate`.
 
 ### Per app
-- `pnpm dev:admin` | `pnpm dev:agenda-da-turma` | `pnpm dev:cozya` | `pnpm dev:informach-site`
+- `pnpm dev:admin` | `pnpm dev:agenda-da-turma` | `pnpm dev:cozya` | `pnpm dev:missao-saber` | `pnpm dev:informach-site`
 - `pnpm build:<app>` | `pnpm start:<app>`
 
 ### Single test

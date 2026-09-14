@@ -16,6 +16,8 @@ export type BillingServiceConfig = {
   stripeSecretKey?: string;
   /** Required when provider === "stripe" and providerClient is not injected. */
   stripeWebhookSecret?: string;
+  /** App-specific portal catalog, leaving the account default unchanged. */
+  portalConfigurationId?: string;
   db: Database;
   appName: string;
   /**
@@ -61,4 +63,10 @@ export type BillingServiceConfig = {
    * builds the appropriate provider from `provider` + secrets above.
    */
   providerClient?: BillingProviderClient;
+  /** Opt-in durable closure guards. Serialize webhook handling with checkout/closure in the app. */
+  guardClosedBilling?: boolean;
+  /** Caller serializes checkout, webhook and closure for each user. */
+  managedCheckout?: boolean;
+  /** Jobs use the same lifecycle lock, including eligibility reload and delivery. */
+  withSubjectLock?: <T>(subject: SubjectRef, operation: () => Promise<T>) => Promise<T>;
 };
