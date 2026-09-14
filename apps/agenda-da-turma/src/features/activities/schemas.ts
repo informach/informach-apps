@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isValidLocalIsoDate } from "@/features/dashboard/date";
+import { activityTypeSchema } from "@/features/unified-activities/activity-types";
 import { MAX_ACTIVITY_DESCRIPTION_LENGTH, MAX_ACTIVITY_TITLE_LENGTH } from "./limits";
 
 const activityIdSchema = z.string().uuid("Identificador de atividade inválido");
@@ -22,10 +23,6 @@ const descriptionSchema = z
   )
   .optional()
   .transform((v) => (v && v.length > 0 ? v : undefined));
-
-export const activityTypeSchema = z.enum(["task", "exam", "project", "reminder"], {
-  message: "Selecione o tipo da atividade",
-});
 
 const visibilitySchema = z.enum(["individual", "shared_with_turma"]);
 

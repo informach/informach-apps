@@ -1,10 +1,10 @@
 import { z } from "zod";
 import type { ActivityListItem } from "@/features/activities/types";
 import type { NoticeActionRow } from "@/features/notices/repository";
-import type { ACTION_TYPES } from "@/features/notices/schemas";
 import type { ProfileSubjectActivityListItem } from "@/features/profile-subject-activities/types";
+import type { ActivityType } from "./activity-types";
 
-export type OverviewActivityType = (typeof ACTION_TYPES)[number];
+export type OverviewActivityType = ActivityType;
 export const overviewStatusSchema = z.enum(["all", "pending", "done", "canceled"]);
 export type OverviewStatus = z.infer<typeof overviewStatusSchema>;
 export const OVERVIEW_STATUS_LABELS: Record<OverviewStatus, string> = {

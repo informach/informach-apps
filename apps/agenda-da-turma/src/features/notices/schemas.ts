@@ -1,25 +1,6 @@
 import { z } from "zod";
+import { activityTypeSchema } from "@/features/unified-activities/activity-types";
 
-export const ACTION_TYPES = [
-  "task",
-  "exam",
-  "project",
-  "reminder",
-  "material",
-  "authorization",
-  "event",
-  "study",
-] as const;
-export const ACTION_LABELS: Record<(typeof ACTION_TYPES)[number], string> = {
-  task: "Para casa (tarefa)",
-  exam: "Prova",
-  project: "Trabalho",
-  reminder: "Lembrete",
-  material: "Material",
-  authorization: "Autorização",
-  event: "Evento",
-  study: "Estudo",
-};
 export const NOTICE_SOURCES = ["teams", "batista", "notebook", "other"] as const;
 export const noticeSourceSchema = z.enum(NOTICE_SOURCES);
 export const SOURCE_LABELS = {
@@ -73,7 +54,7 @@ export const parseNoticeSchema = z
   .refine((v) => v.text.length > 0 || v.attachment, "Cole um recado ou escolha um anexo");
 
 export const extractedActionSchema = z.object({
-  type: z.enum(ACTION_TYPES),
+  type: activityTypeSchema,
   title: z.string().trim().min(1).max(180),
   description: z.string().max(3000).nullable(),
   dueAt: dateSchema.nullable(),

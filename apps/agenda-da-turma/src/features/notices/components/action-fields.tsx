@@ -1,13 +1,12 @@
 "use client";
 import { Input } from "@informach/ui/components/input";
-import { z } from "zod";
 import { suggestReminder } from "@/features/notifications/reminder-suggestion";
 import {
-  ACTION_LABELS,
-  ACTION_TYPES,
-  DATE_ORIGIN_LABELS,
-  type NoticeActionInput,
-} from "../schemas";
+  ACTIVITY_TYPE_LABELS,
+  ACTIVITY_TYPES,
+  activityTypeSchema,
+} from "@/features/unified-activities/activity-types";
+import { DATE_ORIGIN_LABELS, type NoticeActionInput } from "../schemas";
 
 const selectStyle = "h-11 w-full rounded-md border border-input bg-background px-3 text-sm";
 const labelStyle = "grid gap-1.5 text-sm font-medium";
@@ -71,13 +70,13 @@ export function ActionFields({
           aria-label="Tipo"
           value={value.type}
           onChange={(e) => {
-            const parsed = z.enum(ACTION_TYPES).safeParse(e.target.value);
+            const parsed = activityTypeSchema.safeParse(e.target.value);
             if (parsed.success) change({ type: parsed.data });
           }}
         >
-          {ACTION_TYPES.map((type) => (
+          {ACTIVITY_TYPES.map((type) => (
             <option key={type} value={type}>
-              {ACTION_LABELS[type]}
+              {ACTIVITY_TYPE_LABELS[type]}
             </option>
           ))}
         </select>
@@ -197,7 +196,7 @@ export function ActionFields({
               className="min-h-11 w-fit text-left text-primary underline"
               onClick={() => change({ reminderAt: suggestReminder(value) })}
             >
-              Sugerir antecedência para {ACTION_LABELS[value.type].toLowerCase()}
+              Sugerir antecedência para {ACTIVITY_TYPE_LABELS[value.type].toLowerCase()}
             </button>
           ) : null}
           {value.reminderAt && new Date(value.reminderAt).valueOf() < Date.now() ? (

@@ -37,6 +37,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { AsyncCombobox, type ComboboxOption } from "@/features/turmas/components/async-combobox";
+import { ACTIVITY_TYPES as TYPES } from "@/features/unified-activities/activity-types";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { createActivityAction, updateActivityAction } from "../actions";
 import { FREE_ACTIVITY_LIMIT } from "../limits";
@@ -85,13 +86,6 @@ type Props = {
   defaultType?: ActivityType;
   manualHref?: string;
 };
-
-const TYPES: Array<"task" | "exam" | "project" | "reminder"> = [
-  "task",
-  "exam",
-  "project",
-  "reminder",
-];
 
 export function ActivityFormDialog({
   manualHref,
@@ -436,7 +430,7 @@ export function ActivityFormDialog({
                       <SelectContent>
                         {TYPES.map((t) => (
                           <SelectItem key={t} value={t}>
-                            {t === "task" ? "Para casa (tarefa)" : getActivityTypeLabel(t)}
+                            {getActivityTypeLabel(t)}
                           </SelectItem>
                         ))}
                       </SelectContent>

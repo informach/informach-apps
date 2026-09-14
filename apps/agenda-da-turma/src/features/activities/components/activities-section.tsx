@@ -14,10 +14,13 @@ import { ArrowLeft, ArrowRight, Camera, FileText, ListTodo, Mic, Plus } from "lu
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { z } from "zod";
 import { RoutineCard } from "@/features/notices/components/routine-card";
-import { ACTION_LABELS, ACTION_TYPES } from "@/features/notices/schemas";
 import type { StudentProfile } from "@/features/students/types";
+import {
+  ACTIVITY_TYPE_LABELS,
+  ACTIVITY_TYPES,
+  activityTypeSchema,
+} from "@/features/unified-activities/activity-types";
 import { UnifiedActivityCard } from "@/features/unified-activities/components/unified-activity-card";
 import {
   type ActivityOverviewItem,
@@ -26,7 +29,6 @@ import {
   OVERVIEW_STATUS_LABELS,
   overviewStatusSchema,
 } from "@/features/unified-activities/overview-types";
-import { activityTypeSchema } from "../schemas";
 import type { ParsedActivityInput, TurmaWithSubjectsForForm } from "../types";
 import { ActivitiesBatchConfirmDialog } from "./activities-batch-confirm-dialog";
 import { ActivityFormDialog } from "./activity-form-dialog";
@@ -102,7 +104,7 @@ export function ActivitiesSection({
   const handleFilterChange = (value: string) =>
     changeFilter({ profileFilter: value === "all" ? null : value });
   const handleTypeFilterChange = (value: string) => {
-    const parsed = z.enum(ACTION_TYPES).safeParse(value);
+    const parsed = activityTypeSchema.safeParse(value);
     changeFilter({ typeFilter: parsed.success ? parsed.data : null });
   };
 
@@ -208,9 +210,9 @@ export function ActivitiesSection({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os tipos</SelectItem>
-                {ACTION_TYPES.map((type) => (
+                {ACTIVITY_TYPES.map((type) => (
                   <SelectItem key={type} value={type}>
-                    {type === "task" ? "Para casa (tarefa)" : ACTION_LABELS[type]}
+                    {ACTIVITY_TYPE_LABELS[type]}
                   </SelectItem>
                 ))}
               </SelectContent>

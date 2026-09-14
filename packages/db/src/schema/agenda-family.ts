@@ -11,7 +11,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import { agenda, agendaActivities, agendaStudentProfiles } from "./agenda";
+import { AGENDA_ACTIVITY_TYPES, agenda, agendaActivities, agendaStudentProfiles } from "./agenda";
 import { users } from "./core";
 
 // Billing remains attached to the household owner. Every adult authenticates
@@ -132,16 +132,6 @@ export const agendaNoticeApplications = agenda.table(
   (t) => [uniqueIndex("agenda_notice_application_profile_idx").on(t.noticeId, t.profileId)],
 );
 
-export const AGENDA_ACTION_TYPES = [
-  "task",
-  "exam",
-  "project",
-  "reminder",
-  "material",
-  "authorization",
-  "event",
-  "study",
-] as const;
 export const AGENDA_DATE_ORIGINS = ["unspecified", "school", "relative", "family"] as const;
 
 export const agendaNoticeActions = agenda.table(
@@ -158,7 +148,7 @@ export const agendaNoticeActions = agenda.table(
     assignedToUserId: text("assigned_to_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
-    type: text("type", { enum: AGENDA_ACTION_TYPES }).notNull(),
+    type: text("type", { enum: AGENDA_ACTIVITY_TYPES }).notNull(),
     title: text("title").notNull(),
     description: text("description"),
     dueAt: date("due_at"),

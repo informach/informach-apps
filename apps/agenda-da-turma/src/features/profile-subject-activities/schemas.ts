@@ -4,6 +4,7 @@ import {
   MAX_ACTIVITY_TITLE_LENGTH,
 } from "@/features/activities/limits";
 import { isValidLocalIsoDate } from "@/features/dashboard/date";
+import { activityTypeSchema } from "@/features/unified-activities/activity-types";
 
 const activityIdSchema = z.string().uuid("Identificador de atividade inválido");
 const profileSubjectIdSchema = z.string().uuid("Identificador de matéria inválido");
@@ -24,9 +25,7 @@ const descriptionSchema = z
   .optional()
   .transform((v) => (v && v.length > 0 ? v : undefined));
 
-const typeSchema = z.enum(["task", "exam", "project", "reminder"], {
-  message: "Selecione o tipo da atividade",
-});
+const typeSchema = activityTypeSchema;
 
 const statusSchema = z.enum(["pending", "done"]);
 

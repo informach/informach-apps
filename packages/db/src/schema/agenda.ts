@@ -20,6 +20,23 @@ import { users } from "./core";
 // pelo parser de IA fora desse range, o check constraint do Postgres trava
 // no insert/update — defesa em camadas além da validação Zod.
 export const AGENDA_CLASS_DAYS = ["mon", "tue", "wed", "thu", "fri"] as const;
+
+// Vocabulário único de tipos de atividade, compartilhado por
+// `agenda.activities` e `agenda.notice_actions`. Mora aqui (e não em
+// `agenda-family.ts`) porque este módulo é a base: `agenda-family.ts` importa
+// deste, nunca o contrário. O espelho em TypeScript do app é
+// `features/unified-activities/activity-types.ts`.
+export const AGENDA_ACTIVITY_TYPES = [
+  "task",
+  "exam",
+  "project",
+  "reminder",
+  "material",
+  "authorization",
+  "event",
+  "study",
+] as const;
+export type AgendaActivityType = (typeof AGENDA_ACTIVITY_TYPES)[number];
 export type AgendaClassDay = (typeof AGENDA_CLASS_DAYS)[number];
 
 // Extracurriculares (jazz, futebol, natação) pertencem ao perfil — não à
@@ -252,9 +269,11 @@ export const agendaActivities = agenda.table(
     createdByUserId: text("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
-    type: text("type", {
-      enum: ["task", "exam", "project", "reminder"],
-    }).notNull(),
+    // Mesmo vocabulário de `agenda.notice_actions.type` — a fonte única em TS é
+    // `features/unified-activities/activity-types.ts`. Coluna `text` sem CHECK:
+    // ampliar a lista é mudança de código; remover valor exigiria migração de
+    // dados.
+    type: text("type", { enum: AGENDA_ACTIVITY_TYPES }).notNull(),
     visibility: text("visibility", {
       enum: ["individual", "shared_with_turma"],
     })
@@ -406,9 +425,7 @@ export const agendaProfileSubjectActivities = agenda.table(
     createdByUserId: text("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
-    type: text("type", {
-      enum: ["task", "exam", "project", "reminder"],
-    }).notNull(),
+    type: text("type", { enum: AGENDA_ACTIVITY_TYPES }).notNull(),
     title: text("title").notNull(),
     description: text("description"),
     dueAt: date("due_at").notNull(),

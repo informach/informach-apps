@@ -1,11 +1,10 @@
 import Link from "next/link";
-import { z } from "zod";
 import { getIsProForUser } from "@/features/billing/server-cache";
 import { listAccessibleProfiles } from "@/features/family/access";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { CaptureForm } from "@/features/notices/components/capture-form";
 import { listAssignableAdults } from "@/features/notices/repository";
-import { ACTION_TYPES } from "@/features/notices/schemas";
+import { activityTypeSchema } from "@/features/unified-activities/activity-types";
 import { requireUserServer } from "@/lib/auth";
 
 export const metadata = { title: "Nova atividade — Agenda da Turma" };
@@ -40,7 +39,7 @@ export default async function NewActivityPage({
         proProfileIds={entitlement.proProfileIds}
         ownerIsPro={ownerIsPro}
         defaultProfileId={params.perfil}
-        defaultType={z.enum(ACTION_TYPES).catch("task").parse(params.tipo)}
+        defaultType={activityTypeSchema.catch("task").parse(params.tipo)}
       />
     </main>
   );

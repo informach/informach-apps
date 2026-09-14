@@ -1,6 +1,10 @@
 import type { AgendaClassDay } from "@informach/db/schema";
 
-export type ActivityType = "task" | "exam" | "project" | "reminder";
+// Fonte única do vocabulário — ver
+// `features/unified-activities/activity-types.ts`.
+import type { ActivityType } from "@/features/unified-activities/activity-types";
+
+export type { ActivityType };
 export type ActivityVisibility = "individual" | "shared_with_turma";
 export type ActivityStatusValue = "pending" | "done";
 

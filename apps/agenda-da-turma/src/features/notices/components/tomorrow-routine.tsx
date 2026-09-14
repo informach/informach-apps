@@ -8,10 +8,10 @@ import {
   getSubjectIconClassByIndex,
   getSubjectTintedClassByIndex,
 } from "@/features/subjects/utils";
+import { ACTIVITY_TYPE_LABELS } from "@/features/unified-activities/activity-types";
 import { getActivityPresentation } from "@/features/unified-activities/presentation";
 import type { UnifiedActivityListItem } from "@/features/unified-activities/types";
 import { listNoticeActions, type NoticeActionRow } from "../repository";
-import { ACTION_LABELS } from "../schemas";
 import { RoutineCard } from "./routine-card";
 
 function LegacyRow({ item }: { item: UnifiedActivityListItem }) {
@@ -34,7 +34,7 @@ function LegacyRow({ item }: { item: UnifiedActivityListItem }) {
           )}
         >
           <TypeIcon className="size-3.5" aria-hidden />
-          {ACTION_LABELS[item.type]}
+          {ACTIVITY_TYPE_LABELS[item.type]}
         </span>
       </div>
       <p className="mt-2 break-words font-semibold leading-relaxed">{item.title}</p>

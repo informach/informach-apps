@@ -25,6 +25,10 @@ export const MAX_ACTIVITIES_PER_BATCH = 20;
 export const MAX_SUBJECT_HINT_LENGTH = 60;
 export const MAX_STUDENT_HINT_LENGTH = 60;
 
+// Subconjunto deliberado do vocabulário do app (`unified-activities/
+// activity-types.ts`): este é o contrato de SAÍDA do modelo para a leitura de
+// atividades escolares, que só classifica esses quatro. Não ampliar sem
+// ampliar também as instruções do prompt.
 const activityTypeSchema = z
   .enum(["task", "exam", "project", "reminder"])
   .describe(

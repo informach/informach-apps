@@ -38,6 +38,7 @@ import { useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
 import { isValidLocalIsoDate } from "@/features/dashboard/date";
 import { AsyncCombobox, type ComboboxOption } from "@/features/turmas/components/async-combobox";
+import { activityTypeSchema } from "@/features/unified-activities/activity-types";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { createActivitiesBatchAction } from "../actions";
 import { MAX_ACTIVITY_DESCRIPTION_LENGTH, MAX_ACTIVITY_TITLE_LENGTH } from "../limits";
@@ -55,9 +56,7 @@ const TYPES: Array<ActivityType> = ["task", "exam", "project", "reminder"];
 const rowFormSchema = z.object({
   turmaId: z.string().uuid("Selecione a turma"),
   subjectId: z.string().uuid("Selecione a matéria"),
-  type: z.enum(["task", "exam", "project", "reminder"], {
-    message: "Selecione o tipo",
-  }),
+  type: activityTypeSchema,
   title: z
     .string()
     .trim()
