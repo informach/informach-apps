@@ -23,6 +23,7 @@ import {
 import { PDFDocument } from "pdf-lib";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { findActivityHistory } from "@/features/activities/history-repository";
+import { countPendingActivities } from "@/features/activities/pending-limit";
 import { listPendingSharedActivitiesForUser } from "@/features/activities/repository";
 import { respondSharedActivity } from "@/features/activities/service";
 import { addDaysIso, todayLocalIso } from "@/features/dashboard/date";
@@ -54,7 +55,10 @@ import { joinPrivateGroup, removeGroupAdult } from "@/features/turmas/group-acce
 import { createOrJoinTurma, setActiveTurma } from "@/features/turmas/service";
 import type { ActivityOverviewOptions } from "@/features/unified-activities/overview-types";
 import { getActivityOverview, getRoutineSnapshot } from "@/features/unified-activities/service";
-import { findTaskForUser } from "@/features/unified-activities/task-repository";
+import {
+  findTaskForUser,
+  listTasksInDateRange,
+} from "@/features/unified-activities/task-repository";
 import { emails } from "@/lib/emails";
 
 function value<T>(r: { ok: true; value: T } | { ok: false; error: unknown }): T {
@@ -474,9 +478,22 @@ describe("Review regressions", () => {
     const routineToday = async () =>
       (await getRoutineSnapshot(owner, { profileFilter: child })).counters.today;
 
-    // Ativa: aparece na lista e conta no KPI.
+    const calendarIds = async () =>
+      (
+        await listTasksInDateRange(owner, {
+          fromIso: addDaysIso(todayLocalIso(), -1),
+          toIso: addDaysIso(todayLocalIso(), 1),
+          profileFilter: child,
+        })
+      ).map((row) => row.id);
+    const digestIds = async () => (await listNoticeActions(owner)).map((row) => row.action.id);
+
+    // Ativa: aparece em todas as superfícies e conta nos dois números.
     expect(await listed()).toContain(taskId);
+    expect(await calendarIds()).toContain(taskId);
+    expect(await digestIds()).toContain(taskId);
     const withActive = await routineToday();
+    const pendingWithActive = await countPendingActivities(db, owner);
 
     await db
       .update(agendaProfileSubjects)
@@ -487,13 +504,25 @@ describe("Review regressions", () => {
     expect(await listed()).not.toContain(taskId);
     expect(await routineToday()).toBe(withActive - 1);
 
-    // E volta inteira ao despausar.
+    // O LIMITE do plano gratuito conta o mesmo que a tela mostra. Sem isto a
+    // família lê 15 pendências e é recusada ao cadastrar a 16ª, sem causa visível.
+    expect(await countPendingActivities(db, owner)).toBe(pendingWithActive - 1);
+
+    // E as outras superfícies que falam da mesma tarefa — aplicar em algumas e
+    // não em outras é pior do que não aplicar.
+    expect(await calendarIds()).not.toContain(taskId);
+    expect(await digestIds()).not.toContain(taskId);
+
+    // E volta inteira ao despausar, nas cinco.
     await db
       .update(agendaProfileSubjects)
       .set({ status: "active", pausedAt: null })
       .where(eq(agendaProfileSubjects.id, extraId));
     expect(await listed()).toContain(taskId);
     expect(await routineToday()).toBe(withActive);
+    expect(await countPendingActivities(db, owner)).toBe(pendingWithActive);
+    expect(await calendarIds()).toContain(taskId);
+    expect(await digestIds()).toContain(taskId);
   });
 
   it("o filtro do segundo adulto só mostra o que foi combinado com ele", async () => {

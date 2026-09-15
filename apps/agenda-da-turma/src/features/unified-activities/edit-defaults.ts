@@ -12,9 +12,11 @@ import type { TaskRow } from "./task-repository";
  * salvar apagava os "30 min" que a família tinha escolhido, sem aviso, e a soma
  * do bucket encolhia junto.
  *
- * Pura e testada de propósito. O teste enumera os campos, então acrescentar uma
- * coluna ao formulário sem trazê-la para cá passa a quebrar um teste em vez de
- * apagar dado de alguém.
+ * Pura e testada de propósito — mas quem impede a reincidência é o **compilador**,
+ * não o teste: o retorno é `NoticeActionInput`, e um campo novo no schema sem
+ * linha correspondente aqui não compila. O teste trava os VALORES (que a duração
+ * seja lida, que a repetição sobreviva); o tipo trava a EXISTÊNCIA. São duas
+ * proteções diferentes, e confundi-las faz alguem confiar na errada.
  *
  * `recurrence` e `reminderAt` também passam por aqui. Eles se perdiam pelo mesmo
  * motivo que a duração, só que um degrau antes: `taskSelect` não os projetava,

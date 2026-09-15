@@ -78,10 +78,6 @@ export function overviewDueAt(entry: ActivityOverviewItem): string | null {
   return entry.item.dueAt;
 }
 
-export function overviewProfileId(entry: ActivityOverviewItem): string {
-  return entry.item.profileId;
-}
-
 /**
  * Limites de data da janela, no mesmo formato "YYYY-MM-DD" do resto do app.
  * `null` dos dois lados significa "sem recorte" — e nesse caso as atividades

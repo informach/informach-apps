@@ -13,6 +13,7 @@ import {
   users,
 } from "@informach/db/schema";
 import { accessibleProfileCondition } from "@/features/family/access";
+import { activeProfileSubjectCondition } from "@/features/profile-subjects/visibility";
 
 export async function listNoticeActions(
   userId: string,
@@ -54,6 +55,12 @@ export async function listNoticeActions(
     .where(
       and(
         accessibleProfileCondition(userId),
+        // Pausada é silêncio também aqui — e aqui mais do que em qualquer lugar.
+        // Esta é a fonte do resumo por e-mail e do feed de calendário: sem o
+        // predicado, a atividade sumia de todas as telas e mesmo assim o e-mail
+        // das 20h nomeava o treino de natação que a família tinha acabado de
+        // pausar.
+        activeProfileSubjectCondition,
         options.ids ? inArray(agendaTasks.id, options.ids) : undefined,
         options.noticeId ? eq(agendaTasks.noticeId, options.noticeId) : undefined,
         options.profileId ? eq(agendaTasks.profileId, options.profileId) : undefined,

@@ -1,9 +1,11 @@
 import { z } from "zod";
 
-// Vocabulário único de tipos de atividade. Vale para as três fontes que a
-// camada unificada projeta: atividades escolares (`agenda.activities`),
-// providências vindas de recado (`agenda.notice_actions`) e extracurriculares
-// (`agenda.profile_subject_activities`).
+// Vocabulário único de tipos de atividade.
+//
+// Descrevia "as três fontes" — `agenda.activities`, `agenda.notice_actions` e
+// `agenda.profile_subject_activities`. As duas últimas não existem desde a
+// convergência: há uma tabela de tarefa (`agenda.tasks`), e a origem virou
+// coluna opcional dentro dela.
 //
 // Mora aqui, e não em `features/notices`, porque `activities`, `calendar` e
 // `dashboard` também dependem dele — mantê-lo em `notices` invertia a

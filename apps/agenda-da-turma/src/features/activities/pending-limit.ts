@@ -2,6 +2,7 @@ import "server-only";
 
 import { type Database, sql } from "@informach/db";
 import { agendaStudentProfiles, agendaTasks } from "@informach/db/schema";
+import { activeProfileSubjectConditionFor } from "@/features/profile-subjects/visibility";
 
 export type AgendaTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
@@ -34,6 +35,10 @@ export async function countPendingActivities(
     WHERE p.user_id = ${userId}
       AND n.status = 'pending'
       AND (n.shared_activity_id IS NULL OR n.created_by_user_id = ${userId})
+      -- Matéria extracurricular pausada é silêncio, e o limite conta o mesmo que a
+      -- tela mostra. Sem isto, a família que pausa uma extra lê 15 pendências e
+      -- é recusada ao cadastrar a 16ª, sem nenhuma causa visível.
+      AND ${activeProfileSubjectConditionFor("n")}
   `);
   return Number(result[0]?.total ?? 0);
 }

@@ -181,7 +181,10 @@ export function ActionFields({
             change({
               dueAt: e.target.value || null,
               dateOrigin: e.target.value ? "family" : "unspecified",
-              reminderAt: null,
+              // O lembrete só é apagado ao LIMPAR a data, junto de hora e
+              // repetição (abaixo). Apagar a cada troca de data era exclusão
+              // silenciosa: numa família que voltou ao gratuito o campo nem é
+              // renderizado, então não havia como perceber nem repor.
               // Sem data não há o que a turma possa receber: a caixa some, e
               // deixá-la marcada só faria a gravação ser recusada depois.
               ...(e.target.value

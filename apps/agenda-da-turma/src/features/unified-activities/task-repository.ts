@@ -13,6 +13,7 @@ import {
   users,
 } from "@informach/db/schema";
 import { accessibleProfileCondition } from "@/features/family/access";
+import { activeProfileSubjectCondition } from "@/features/profile-subjects/visibility";
 
 /**
  * A tarefa com todo o contexto que qualquer tela precisa, numa consulta só.
@@ -126,13 +127,14 @@ export async function listTasksInDateRange(
       sql`${agendaTasks.dueAt} BETWEEN ${options.fromIso}::date AND ${options.toIso}::date`,
       options.profileFilter ? eq(agendaTasks.profileId, options.profileFilter) : sql`TRUE`,
       sql`${agendaTasks.status} <> 'canceled'`,
+      activeProfileSubjectCondition,
     ),
   );
 }
 
 /**
- * Tarefas pendentes de um bucket, para a exportação em PDF e o job de
- * lembretes — as duas telas que ainda leem por bucket em vez da rotina.
+ * Tarefas pendentes de um bucket, para a exportação em PDF — a única consumidora
+ * hoje. O job de lembretes migrou para `listNoticeActions`.
  */
 export async function listTasksByBucket(
   userId: string,
@@ -153,6 +155,7 @@ export async function listTasksByBucket(
         eq(agendaTasks.status, "pending"),
         range,
         options.profileFilter ? eq(agendaTasks.profileId, options.profileFilter) : sql`TRUE`,
+        activeProfileSubjectCondition,
       ),
     )
     .orderBy(agendaTasks.dueAt, agendaTasks.createdAt)

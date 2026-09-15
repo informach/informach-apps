@@ -1,6 +1,6 @@
 # Implementação da proposta — o que ficou de pé
 
-15/09/2026 · Registro do que foi implementado da [proposta](./PROPOSTA.md), do que foi feito diferente, do que não foi feito e do que ficou esperando decisão. Branch `feat/agenda-redesign-2026-09`, sete commits.
+15/09/2026 · Registro do que foi implementado da [proposta](./PROPOSTA.md), do que foi feito diferente, do que não foi feito e do que ficou esperando decisão. Branch `feat/agenda-redesign-2026-09`.
 
 ---
 
@@ -97,11 +97,24 @@ link: na mesma tela, o card dizia "Atrasadas 1" e o progresso logo abaixo dizia 
 para a mesma criança.
 
 A regra "pausada é silêncio" já estava escrita e já valia em duas consultas. Foi
-aplicada na terceira em vez de removida das outras duas: o predicado agora mora
-em `features/profile-subjects/visibility.ts` e é composto pelas três projeções —
-`activityIndexCte`, `getDashboardCounters` e `listProfileSummaries`. Teste de
-integração prende a simultaneidade: pausar tira da lista **e** do contador no
-mesmo passo, e despausar devolve os dois.
+aplicada na terceira em vez de removida das outras duas: o predicado mora em
+`features/profile-subjects/visibility.ts` e é composto por **sete** consultas —
+as três projeções de tela mais o limite do plano gratuito, o calendário, as
+listas do PDF e a fonte do resumo por e-mail.
+
+A primeira tentativa aplicou só nas três, e o review final mostrou o preço:
+`countPendingActivities` passou a contar o que a tela escondia, então a família
+que pausasse uma extra lia 15 pendências e era recusada ao cadastrar a 16ª, sem
+causa visível. O calendário e o e-mail das 20h continuavam nomeando a atividade
+que tinha sumido de todas as telas. **Aplicar em algumas e não em outras é pior
+do que não aplicar.**
+
+`listFamilyCompletionDays` (a sequência) fica de fora de propósito: ela conta
+histórico, e pausar uma matéria hoje não desfaz o que foi feito em março.
+
+O teste de integração prende as cinco superfícies juntas: pausar tira da lista,
+do KPI, do limite, do calendário e do resumo no mesmo passo; despausar devolve
+as cinco.
 
 O preço aceito: pausar uma extra tira as atividades dela de `/atividades`
 também. É o que "pausar" quer dizer, é explícito e é reversível.
@@ -158,9 +171,9 @@ Tudo verde no fim:
 | O quê | Resultado |
 |---|---|
 | `typecheck` | limpo |
-| `biome check` | limpo, 400 arquivos |
-| Testes unitários | **466** (eram 423) |
-| Testes de integração, contra Postgres local | **55** (eram 51) |
+| `biome check` | limpo, 401 arquivos |
+| Testes unitários | **467** (eram 423) |
+| Testes de integração, contra Postgres local | **56** (eram 51) |
 | Playwright, config do CI | **16/16** |
 | `build` de produção | compila |
 

@@ -9,7 +9,7 @@ import type { DashboardSnapshot } from "./types";
 /**
  * Snapshot por bucket. Não alimenta mais o dashboard — a rotina usa
  * `getRoutineSnapshot`, sobre a mesma projeção da lista. Sobrou para a
- * exportação em PDF e para o job de lembretes.
+ * exportação em PDF e para o resumo por e-mail (que migrou para `listNoticeActions`).
  *
  * Eram duas consultas por bucket, uma por tabela, mescladas e truncadas em
  * memória. Com a tabela única é uma consulta por bucket, ordenada e truncada

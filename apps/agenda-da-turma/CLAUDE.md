@@ -368,16 +368,28 @@ Schema (`packages/db/src/schema/agenda.ts`):
 ### Matéria extracurricular pausada é silêncio — em todo lugar
 
 O predicado único é `activeProfileSubjectCondition`
-(`features/profile-subjects/visibility.ts`), e ele é composto por **todas** as
-consultas que produzem número ou lista de atividade: `activityIndexCte` (os
-quatro KPIs, os três buckets e `/atividades`), `getDashboardCounters` (a
-exportação em PDF) e `listProfileSummaries` (o progresso por criança).
+(`features/profile-subjects/visibility.ts`), com a variante
+`activeProfileSubjectConditionFor(alias)` para o SQL cru.
 
-A regra estava escrita mas só valia nas duas últimas. Enquanto os números não
-abriam listas, a divergência passava; depois que os contadores viraram link, o
-card passou a dizer "Atrasadas 1" com o progresso ao lado dizendo 0 para a mesma
-criança. **Consulta nova sobre `agenda.tasks` que produza número ou lista compõe
-o predicado.** Tarefa sem vínculo com matéria nunca é escondida por ele.
+**Compõem o predicado, hoje sete:** `activityIndexCte` (KPIs, buckets e
+`/atividades`), `getDashboardCounters` e `listProfileSummaries` (exportação em
+PDF e progresso), `countPendingActivities` (o limite do plano gratuito),
+`listTasksInDateRange` (calendário), `listTasksByBucket` (listas do PDF) e
+`listNoticeActions` (resumo por e-mail e feed de calendário).
+
+**Aplicar em algumas e não em outras é pior do que não aplicar.** Foi assim que
+o limite do gratuito passou a contar o que a tela escondia: a família lia 15
+pendências e era recusada ao cadastrar a 16ª, sem nenhuma causa visível.
+
+**A exceção é histórico, e é deliberada:** `listFamilyCompletionDays`, que
+alimenta a sequência da família, **não** compõe. Ela conta dias em que a casa
+cuidou de alguma coisa, e pausar uma matéria hoje não desfaz o que foi feito em
+março. Silenciar o que está por fazer respeita a pausa; reescrever o que já foi
+feito é outra coisa.
+
+Consulta nova sobre `agenda.tasks` que produza número, lista ou mensagem sobre o
+que a família **ainda tem a fazer** entra na lista. Tarefa sem vínculo com
+matéria nunca é escondida pelo predicado — a maioria delas.
 
 ### Ordem de deploy quando há migração
 
