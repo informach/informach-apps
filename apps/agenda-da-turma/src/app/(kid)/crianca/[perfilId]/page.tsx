@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { z } from "zod";
-import { todayLocalIso } from "@/features/dashboard/date";
 import { KidModeScreen } from "@/features/kid-mode/components/kid-mode-screen";
 import { getKidModeSnapshot } from "@/features/kid-mode/service";
 import { requireUserServer } from "@/lib/auth";
@@ -17,7 +16,5 @@ export default async function KidModePage({ params }: { params: Promise<{ perfil
   // pertence.
   if (!snapshot) notFound();
 
-  return (
-    <KidModeScreen profile={snapshot.profile} todo={snapshot.todo} todayIso={todayLocalIso()} />
-  );
+  return <KidModeScreen profile={snapshot.profile} todo={snapshot.todo} />;
 }

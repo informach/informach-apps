@@ -17,7 +17,6 @@ import { catchActionResult } from "@/lib/action-result";
 type Props = {
   profile: { id: string; name: string };
   todo: ActivityOverviewItem[];
-  todayIso: string;
 };
 
 /** Quanto tempo o dedo fica no botão de sair. Longo o bastante para não ser toque. */
@@ -35,39 +34,71 @@ const EXIT_HOLD_MS = 900;
  * Não há placar e não há comparação com irmãos. O progresso é o da própria
  * criança, no próprio dia.
  */
-export function KidModeScreen({ profile, todo, todayIso }: Props) {
+export function KidModeScreen({ profile, todo }: Props) {
   const router = useRouter();
   const [doneIds, setDoneIds] = useState<ReadonlySet<string>>(new Set());
   const [index, setIndex] = useState(0);
   const [error, setError] = useState("");
+  /**
+   * Trava enquanto a gravação está no ar.
+   *
+   * Sem ela, o segundo toque de um duplo toque caia no botão da atividade
+   * SEGUINTE: a conclusão re-renderiza de forma síncrona, o `key` troca o nó do
+   * DOM e nasce um botão novo exatamente na mesma posição. Duas atividades
+   * saiam, e a segunda nunca chegou a aparecer na tela.
+   */
+  const [saving, setSaving] = useState(false);
 
   const remaining = todo.filter((entry) => !doneIds.has(entry.item.id));
   const finished = remaining.length === 0;
-  const current = remaining[Math.min(index, Math.max(remaining.length - 1, 0))];
+  // Um índice só para o card, para a posição e para os botões — senao "3 de 5"
+  // pode descrever um card diferente do que está na tela.
+  const safeIndex = Math.min(index, Math.max(remaining.length - 1, 0));
+  const current = remaining[safeIndex];
   const total = todo.length;
   const doneCount = doneIds.size;
 
-  const complete = useCallback((entry: ActivityOverviewItem) => {
-    const { id, version } = entry.item;
-    setDoneIds((current) => new Set(current).add(id));
-    setIndex(0);
-    setError("");
-    void (async () => {
-      const result = await catchActionResult(() =>
-        setNoticeStatusAction({ id, version, status: "done" }),
-      );
-      if (!result.ok) {
-        // Devolve a atividade em vez de fingir que deu certo: a criança volta
-        // a ver o mesmo card, e o recado é sobre a rede, não sobre ela.
+  const complete = useCallback(
+    (entry: ActivityOverviewItem) => {
+      if (saving) return;
+      const { id, version } = entry.item;
+      setSaving(true);
+      setDoneIds((current) => new Set(current).add(id));
+      // O índice NÃO volta para zero: com a lista menor, a mesma posição já
+      // aponta para a próxima. Zerar devolvia a criança para uma atividade que
+      // ela tinha acabado de pular.
+      setError("");
+      void (async () => {
+        const result = await catchActionResult(() =>
+          setNoticeStatusAction({ id, version, status: "done" }),
+        );
+        setSaving(false);
+        if (result.ok) return;
+
+        // Devolve a atividade em vez de fingir que deu certo.
         setDoneIds((current) => {
           const next = new Set(current);
           next.delete(id);
           return next;
         });
-        setError("Não deu para guardar agora. Tente de novo daqui a pouco.");
-      }
-    })();
-  }, []);
+        setError(
+          result.error.code === "VERSION_CONFLICT"
+            ? "Alguém mudou essa atividade agora. Já atualizamos — pode tentar de novo."
+            : "Não deu para guardar agora. Tente de novo daqui a pouco.",
+        );
+        /*
+         * Sem este refresh a tela ficava num beco: `version` vem do snapshot
+         * inicial, então todo toque seguinte mandaria a mesma versão velha e
+         * levaria o mesmo conflito, indefinidamente — e a mensagem prometia um
+         * "tente de novo" que nunca ia funcionar. O caminho do adulto
+         * (`use-card-toggle`) já fazia isto; o modo criança reimplementou o
+         * toggle e perdeu.
+         */
+        router.refresh();
+      })();
+    },
+    [saving, router],
+  );
 
   // O responsável precisa ver o resultado ao voltar: a rotina dele é server
   // rendered, e sem isto os cards concluídos aqui continuariam lá até o próximo
@@ -114,12 +145,12 @@ export function KidModeScreen({ profile, todo, todayIso }: Props) {
         <ActivityStage
           key={current.item.id}
           entry={current}
-          todayIso={todayIso}
-          position={index + 1}
+          position={safeIndex + 1}
           remainingCount={remaining.length}
+          saving={saving}
           onDone={() => complete(current)}
-          onPrev={() => setIndex((value) => Math.max(0, value - 1))}
-          onNext={() => setIndex((value) => Math.min(remaining.length - 1, value + 1))}
+          onPrev={() => setIndex(Math.max(0, safeIndex - 1))}
+          onNext={() => setIndex(Math.min(remaining.length - 1, safeIndex + 1))}
         />
       ) : null}
 
@@ -134,17 +165,17 @@ export function KidModeScreen({ profile, todo, todayIso }: Props) {
 
 function ActivityStage({
   entry,
-  todayIso,
   position,
   remainingCount,
+  saving,
   onDone,
   onPrev,
   onNext,
 }: {
   entry: ActivityOverviewItem;
-  todayIso: string;
   position: number;
   remainingCount: number;
+  saving: boolean;
   onDone: () => void;
   onPrev: () => void;
   onNext: () => void;
@@ -191,16 +222,26 @@ function ActivityStage({
         <p className="text-sm font-medium text-foreground/70">
           {/*
             Sem vermelho e sem "atrasada". O prazo vencido continua existindo
-            para os adultos, na rotina; aqui ele só vira "é para hoje".
+            para os adultos, na rotina; aqui ele vira "é para hoje".
+
+            Sem data é um TERCEIRO estado, e não "hoje": o bucket `attention`
+            junta vencidas, de hoje e as que ainda estão a confirmar, e dizer
+            "é para hoje" numa atividade cuja data ninguém decidiu seria a
+            interface inventando o prazo que a IA é proibida de inventar.
+            Não existe ramo "esta semana": o bucket nunca traz data futura.
           */}
-          {item.dueAt === null || item.dueAt <= todayIso ? "É para hoje" : "É para esta semana"}
+          {item.dueAt === null ? "Ainda sem data marcada" : "É para hoje"}
         </p>
       </article>
 
       <Button
         type="button"
         onClick={onDone}
-        className="h-16 w-full rounded-2xl text-lg font-extrabold shadow-solid-primary transition-transform active:translate-y-0.5 active:shadow-none motion-reduce:transition-none [&_svg]:size-7"
+        disabled={saving}
+        // `touch-manipulation` tira o atraso de 300 ms e o zoom de duplo toque:
+        // o dedo de uma criança repete o toque, e o botão precisa responder ao
+        // primeiro sem guardar o segundo.
+        className="h-16 w-full touch-manipulation rounded-2xl text-lg font-extrabold shadow-solid-primary transition-transform active:translate-y-0.5 active:shadow-none motion-reduce:transition-none [&_svg]:size-7"
       >
         <Check aria-hidden />
         Feito!
@@ -286,6 +327,15 @@ function FinishedCard({
 function ExitButton({ onExit }: { onExit: () => void }) {
   const [progress, setProgress] = useState(0);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  /**
+   * Houve ponteiro de verdade neste ciclo?
+   *
+   * Um leitor de tela ativa o botão sintetizando `click`, sem `pointerdown` e
+   * sem `keydown` — e o adulto que usa TalkBack ficava sem saída do modo
+   * criança. O `onClick` abaixo existe para esse caso, e a flag impede que ele
+   * atalhe o "segurar" de quem tocou com o dedo.
+   */
+  const usedPointer = useRef(false);
 
   const stop = useCallback(() => {
     if (timer.current) clearInterval(timer.current);
@@ -297,6 +347,7 @@ function ExitButton({ onExit }: { onExit: () => void }) {
   useEffect(() => stop, [stop]);
 
   const start = useCallback(() => {
+    usedPointer.current = true;
     if (timer.current) return;
     const startedAt = Date.now();
     timer.current = setInterval(() => {
@@ -315,15 +366,30 @@ function ExitButton({ onExit }: { onExit: () => void }) {
       variant="ghost"
       size="icon"
       aria-label="Segurar para sair do modo criança"
-      className="relative size-12 shrink-0 overflow-hidden rounded-2xl"
+      // `touch-none` para o dedo escorregando não virar rolagem: sem isto um
+      // arrasto mínimo durante os 900 ms disparava `pointercancel` e zerava a
+      // barra sem explicar nada.
+      className="relative size-12 shrink-0 touch-none overflow-hidden rounded-2xl"
       onPointerDown={start}
       onPointerUp={stop}
       onPointerLeave={stop}
       onPointerCancel={stop}
-      // Teclado não segura: quem chega por teclado é adulto, e Enter sai direto.
+      onClick={() => {
+        // Só chega aqui sem ponteiro: clique sintetizado por tecnologia
+        // assistiva. Com dedo ou mouse, quem manda é o "segurar".
+        if (usedPointer.current) {
+          usedPointer.current = false;
+          return;
+        }
+        onExit();
+      }}
       onKeyDown={(event) => {
+        // `repeat` guarda o Enter segurado: sem isto, cada repetição disparava
+        // um `push` + `refresh`.
+        if (event.repeat) return;
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
+          usedPointer.current = false;
           onExit();
         }
       }}

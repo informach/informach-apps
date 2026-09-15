@@ -27,6 +27,7 @@ import { listPendingSharedActivitiesForUser } from "@/features/activities/reposi
 import { respondSharedActivity } from "@/features/activities/service";
 import { addDaysIso, todayLocalIso } from "@/features/dashboard/date";
 import { acceptFamilyInvitation, createFamilyInvitation } from "@/features/family/service";
+import { getKidModeSnapshot } from "@/features/kid-mode/service";
 import { validateNoticeExtraction } from "@/features/notices/extraction";
 import {
   finishNoticeParse,
@@ -51,7 +52,7 @@ import { createProfileSubjectActivity } from "@/features/profile-subject-activit
 import { joinPrivateGroup, removeGroupAdult } from "@/features/turmas/group-access";
 import { createOrJoinTurma, setActiveTurma } from "@/features/turmas/service";
 import type { ActivityOverviewOptions } from "@/features/unified-activities/overview-types";
-import { getActivityOverview } from "@/features/unified-activities/service";
+import { getActivityOverview, getRoutineSnapshot } from "@/features/unified-activities/service";
 import { findTaskForUser } from "@/features/unified-activities/task-repository";
 import { emails } from "@/lib/emails";
 
@@ -385,6 +386,42 @@ describe("Review regressions", () => {
     expect(
       (await getActivityOverview(owner, { ...options, typeFilter: "material" })).items,
     ).toHaveLength(0);
+  });
+
+  it("modo criança autoriza por criança e reusa a lista da rotina", async () => {
+    /*
+     * A página `/crianca/[perfilId]` tem UM ponto de autorização:
+     * `getKidModeSnapshot`. Se ele devolver dados de uma criança à qual quem
+     * pede não tem acesso, a tela entrega a rotina alheia inteira — e a
+     * página não tem nenhuma outra checagem para segurar isso.
+     */
+    const task = await schoolActivity(false, null, "Tarefa do modo criança");
+
+    // O titular entra.
+    const asOwner = await getKidModeSnapshot(owner, child);
+    expect(asOwner).not.toBeNull();
+    expect(asOwner?.profile.id).toBe(child);
+    expect(asOwner?.todo.some((entry) => entry.item.id === task.id)).toBe(true);
+
+    // O segundo adulto entra SOMENTE na criança que o convite nomeou.
+    expect(await getKidModeSnapshot(guest, child)).not.toBeNull();
+    expect(await getKidModeSnapshot(guest, sibling)).toBeNull();
+
+    // Quem não é da família não entra, e o titular não entra na criança de
+    // outra família. Os dois casos devolvem `null` — a página responde 404 sem
+    // dizer se a criança existe.
+    expect(await getKidModeSnapshot(outsider, child)).toBeNull();
+    expect(await getKidModeSnapshot(owner, otherChild)).toBeNull();
+    expect(await getKidModeSnapshot(owner, randomUUID())).toBeNull();
+
+    // Uma lista só: o que a criança vê é exatamente o bucket "para cuidar
+    // hoje" do responsável, pela mesma projeção. Se alguém criar uma consulta
+    // própria para o modo criança, pai e filha passam a discordar sobre o que
+    // falta hoje — e este teste é o que avisa.
+    const routine = await getRoutineSnapshot(owner, { profileFilter: child });
+    expect(asOwner?.todo.map((entry) => entry.key)).toEqual(
+      routine.buckets.attention.map((entry) => entry.key),
+    );
   });
 
   it("recorta a lista pela mesma janela que produziu cada contador da rotina", async () => {

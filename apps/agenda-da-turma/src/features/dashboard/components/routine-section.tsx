@@ -37,6 +37,7 @@ export async function RoutineSection({
         tomorrowSchedule={tomorrowSchedule}
         doneToday={snapshot.doneToday}
         streakDays={countStreakDays(completionDays, snapshot.todayIso)}
+        streakCountsToday={completionDays.includes(snapshot.todayIso)}
         currentUserId={userId}
         profileFilter={profileFilter}
       />

@@ -81,6 +81,15 @@ type Props = {
   doneToday: number;
   /** Dias seguidos em que a casa cuidou de alguma coisa. Nunca por criança. */
   streakDays: number;
+  /**
+   * Se hoje já entrava na conta quando o servidor respondeu.
+   *
+   * Sem isto a sequência nascia defasada em 1 justamente no fecho otimista: a
+   * página carregou antes da primeira conclusão do dia, então a contagem
+   * começou em ontem — e o selo aparecia dizendo N quando a verdade já era
+   * N+1, até o `router.refresh()` chegar.
+   */
+  streakCountsToday: boolean;
   currentUserId: string;
   /** A criança filtrada viaja para a lista junto com o recorte dos KPIs. */
   profileFilter: string | null;
@@ -101,6 +110,7 @@ export function RoutineView({
   profileFilter,
   doneToday: initialDoneToday,
   streakDays,
+  streakCountsToday,
 }: Props) {
   const [counters, setCounters] = useState(initialCounters);
   const [doneToday, setDoneToday] = useState(initialDoneToday);
@@ -207,7 +217,7 @@ export function RoutineView({
               <DayClosed
                 doneToday={doneToday}
                 tomorrowCount={buckets.tomorrow.length}
-                streakDays={streakDays}
+                streakDays={streakCountsToday || doneToday === 0 ? streakDays : streakDays + 1}
               />
             ) : (
               // Vazio não é objeto: deixou de ser cartão com borda e fundo

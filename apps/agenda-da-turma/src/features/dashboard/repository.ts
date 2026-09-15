@@ -126,13 +126,20 @@ export async function listProfileSummaries(userId: string): Promise<DashboardPro
 export async function listFamilyCompletionDays(userId: string): Promise<string[]> {
   const sinceIso = addDaysIso(todayLocalIso(), -STREAK_LOOKBACK_DAYS);
   const rows = await db.execute<{ day: string }>(sql`
-    SELECT DISTINCT (${agendaTasks.completedAt} AT TIME ZONE ${APP_TIME_ZONE})::date::text AS day
+    SELECT DISTINCT
+      -- to_char e nao ::date::text: a segunda forma depende do DateStyle
+      -- da sessao, que nada no projeto fixa, e countStreakDays compara
+      -- strings "YYYY-MM-DD".
+      to_char(${agendaTasks.completedAt} AT TIME ZONE ${APP_TIME_ZONE}, 'YYYY-MM-DD') AS day
     FROM ${agendaTasks}
     INNER JOIN ${agendaStudentProfiles} ON ${agendaStudentProfiles.id} = ${agendaTasks.profileId}
     WHERE ${accessibleProfileCondition(userId)}
       AND ${agendaTasks.status} = 'done'
-      AND ${agendaTasks.completedAt} IS NOT NULL
-      AND (${agendaTasks.completedAt} AT TIME ZONE ${APP_TIME_ZONE})::date >= ${sinceIso}::date
+      -- Comparacao sobre a coluna crua, e nao sobre uma expressao dela: com a
+      -- conversao do lado esquerdo o predicado nao e sargavel e nenhum indice
+      -- em completed_at poderia ajudar. A data local vira o instante da
+      -- meia-noite em Sao Paulo, do lado direito.
+      AND ${agendaTasks.completedAt} >= ${sinceIso}::date AT TIME ZONE ${APP_TIME_ZONE}
   `);
   return rows.map((row) => row.day);
 }
