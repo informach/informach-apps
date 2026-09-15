@@ -1,5 +1,5 @@
 import "server-only";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { err, ok } from "@informach/auth/server-actions";
 import { and, db, eq, inArray, ne, sql } from "@informach/db";
 import {
@@ -25,6 +25,7 @@ import {
   lockPendingLimit,
 } from "@/features/activities/pending-limit";
 import { accessibleProfileCondition } from "@/features/family/access";
+import { resolveSeriesId } from "./recurrence";
 import { sourceAccessCondition } from "./repository";
 import type {
   confirmNoticeSchema,
@@ -367,10 +368,7 @@ export async function insertConfirmedNotice(
             sharedActivityId: sharing.sharedActivityId,
             version: previous.version + 1,
             updatedAt: new Date(),
-            seriesId:
-              action.recurrence === "weekly"
-                ? (previous.seriesId ?? randomUUID())
-                : previous.seriesId,
+            seriesId: resolveSeriesId(action.recurrence, previous.seriesId),
           })
           .where(eq(agendaTasks.id, previous.id))
           .returning();
@@ -395,7 +393,7 @@ export async function insertConfirmedNotice(
             sharedActivityId: action.shareWithTurma
               ? await publishToTurma(tx, userId, action, published)
               : null,
-            seriesId: action.recurrence === "weekly" ? randomUUID() : null,
+            seriesId: resolveSeriesId(action.recurrence, null),
           })
           .returning({ id: agendaTasks.id });
 
@@ -508,10 +506,7 @@ export async function updateNoticeActionAtomically(
         fingerprint: actionFingerprint(input.action),
         version: previous.version + 1,
         updatedAt: new Date(),
-        seriesId:
-          input.action.recurrence === "weekly"
-            ? (previous.seriesId ?? randomUUID())
-            : previous.seriesId,
+        seriesId: resolveSeriesId(input.action.recurrence, previous.seriesId),
       })
       .where(eq(agendaTasks.id, input.id))
       .returning();

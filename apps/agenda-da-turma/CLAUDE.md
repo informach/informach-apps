@@ -132,7 +132,8 @@ apps/agenda-da-turma/
 │   │   │   ├── webhooks/{stripe,sendgrid}/
 │   │   │   ├── jobs/              # 5 billing crons + 3 email crons
 │   │   │   ├── email/unsubscribe/
-│   │   │   └── health/
+│   │   │   ├── health/            # commit servindo; nunca toca o banco
+│   │   │   └── ready/             # portão de deploy: schema do banco (ver §6)
 │   │   ├── (marketing)/           # landing pública + termos/privacidade
 │   │   └── layout.tsx             # Plus Jakarta Sans + ThemeProvider + Toaster
 │   ├── features/
@@ -219,17 +220,21 @@ Com `NODE_ENV=production` e `STRIPE_MODE=prod`, `src/lib/billing.ts` falha no bo
 >
 > Falta o cosmético, que não bloqueia código nem cobrança — **o billing package
 > roteia por `priceId`, nunca por metadata**, e o Stripe Tax não é usado em lugar
-> nenhum de `packages/billing`, então `tax_code` hoje é inerte:
+> nenhum de `packages/billing`, então `tax_code` hoje é inerte. Os comandos
+> abaixo seguem a forma que o **cozya já tem no catálogo live** (conferida em
+> 15/09/2026), não uma invenção: produto leva `kind=credit_pack`, preço de
+> assinatura leva `interval` e `bonus_credits_per_month`, preço de pack leva
+> `credit_amount`, e nenhum preço repete `app` — quem diz o app é o produto.
 >
 > ```bash
 > stripe products update prod_UVx1FUGEPYM2bz --live -d tax_code=txcd_10000000
-> stripe products update prod_UVx1G1I9SR4qgE --live -d tax_code=txcd_10000000 >   -d "metadata[app]=agenda-da-turma" -d "metadata[kind]=credits"
+> stripe products update prod_UVx1G1I9SR4qgE --live -d tax_code=txcd_10000000 >   -d "metadata[app]=agenda-da-turma" -d "metadata[kind]=credit_pack"
 >
-> stripe prices update price_1TWv7xCvOctqao30IPggyGFa --live >   -d "nickname=Agenda da Turma Pro — Mensal" >   -d "metadata[app]=agenda-da-turma" -d "metadata[product_id]=agenda_da_turma_pro_monthly"
-> stripe prices update price_1TWv81CvOctqao30XGmMOWZD --live >   -d "nickname=Agenda da Turma Pro — Anual" >   -d "metadata[app]=agenda-da-turma" -d "metadata[product_id]=agenda_da_turma_pro_annual"
-> stripe prices update price_1TWv84CvOctqao30QgIrNZ9n --live >   -d "nickname=Agenda da Turma — 10 créditos" >   -d "metadata[app]=agenda-da-turma" -d "metadata[product_id]=agenda_da_turma_credits_10"
-> stripe prices update price_1TWv8HCvOctqao30iOFfzANE --live >   -d "nickname=Agenda da Turma — 20 créditos" >   -d "metadata[app]=agenda-da-turma" -d "metadata[product_id]=agenda_da_turma_credits_20"
-> stripe prices update price_1TWv8nCvOctqao30K7FDTElg --live >   -d "nickname=Agenda da Turma — 30 créditos" >   -d "metadata[app]=agenda-da-turma" -d "metadata[product_id]=agenda_da_turma_credits_30"
+> stripe prices update price_1TWv7xCvOctqao30IPggyGFa --live >   -d "nickname=Agenda da Turma Pro Mensal" >   -d "metadata[product_id]=agenda_da_turma_pro_monthly" >   -d "metadata[interval]=month" -d "metadata[bonus_credits_per_month]=70"
+> stripe prices update price_1TWv81CvOctqao30XGmMOWZD --live >   -d "nickname=Agenda da Turma Pro Anual" >   -d "metadata[product_id]=agenda_da_turma_pro_annual" >   -d "metadata[interval]=year" -d "metadata[bonus_credits_per_month]=70"
+> stripe prices update price_1TWv84CvOctqao30QgIrNZ9n --live >   -d "nickname=10 créditos" >   -d "metadata[product_id]=agenda_da_turma_credits_10" -d "metadata[credit_amount]=10"
+> stripe prices update price_1TWv8HCvOctqao30iOFfzANE --live >   -d "nickname=20 créditos" >   -d "metadata[product_id]=agenda_da_turma_credits_20" -d "metadata[credit_amount]=20"
+> stripe prices update price_1TWv8nCvOctqao30K7FDTElg --live >   -d "nickname=30 créditos" >   -d "metadata[product_id]=agenda_da_turma_credits_30" -d "metadata[credit_amount]=30"
 > ```
 
 Webhook endpoint + eventos de billing: ver `packages/billing/PRODUCTION.md` e `docs/deploy-runbook.md` Fase 10.
@@ -355,6 +360,8 @@ Schema (`packages/db/src/schema/agenda.ts`):
 - **Receber compartilhada é benefício do Free** (ver §1): as listas usam `accessibleProfileCondition(userId)`, que autoriza por criança (titular ou adulto convidado com acesso), e a atividade só chega ao perfil quando a família aceita. `listPendingSharedActivitiesForUser` continua exigindo participação efetiva na turma, então nada vaza entre turmas.
 - Gate único: `hasProSubscription(subject)` do `@informach/billing/access`. Nunca inline `status === 'active'`.
 
+**Repetição e série**: `resolveSeriesId` (`features/notices/recurrence.ts`) é a regra única dos **três** caminhos de escrita — criar, corrigir por recado e editar. Os três já divergiram: a criação zerava a série quando a repetição saía, e as duas edições preservavam o `seriesId` antigo, deixando tarefas que dizem "não repete" ocupando um lugar no índice único `(series_id, profile_id, due_at)` — até alguém remarcar o prazo em cima e receber erro de banco em vez de recusa com texto. Voltar a repetir depois de ter parado abre série **nova**, de propósito: as ocorrências futuras da série anterior já existem como linhas próprias, e retomar o mesmo identificador as devolveria à disputa pelo índice. Fora dessa função, `seriesId` só é lido em `setNoticeActionStatus`, para materializar a próxima ocorrência.
+
 **Vocabulário de tipos**: fonte única em `features/unified-activities/activity-types.ts` (8 valores), espelhada no banco por `AGENDA_ACTIVITY_TYPES` em `packages/db/src/schema/agenda.ts`. `agenda.tasks` e `agenda.activities` usam a mesma lista. A coluna é `text` sem CHECK: ampliar é mudança de código; remover valor exigiria migração de dados.
 
 **Edit/delete de atividade**: só o `created_by_user_id`. **E** bloqueia mesmo o criador se a atividade é shared_with_turma e `hasOtherAcceptances=true` (outra família já aceitou). Regra centralizada em `canEditActivity(item, currentUserId)` em `features/activities/utils.ts` — UI esconde, service aplica.
@@ -400,11 +407,33 @@ não degrada.
 
 O migrator é um service Railway separado e deploya em paralelo com o app. Numa
 release que acrescenta coluna (o caso comum, `ADD COLUMN` nulável), a migração é
-compatível com a versão que já está no ar: **rodar o migrator primeiro,
-confirmar SUCCESS, e só então liberar o app**. Ver `docs/deploy-runbook.md`
-Fase 4.3.
+compatível com a versão que já está no ar: o migrator precisa terminar **antes**
+de o app receber tráfego. Ver `docs/deploy-runbook.md` Fase 4.3.
 
-A migração `0055` (`agenda.tasks.estimated_minutes`) é desse tipo, e foi aplicada em produção em 15/09/2026 pelo commit `bb2b408`. O migrator **não tem `watchPatterns`**, então ele redeploya a cada push e terminou antes do build dos apps — a ordem saiu certa por construção, não por sorte. Confirmado nos logs (`[db:migrate] done.`) antes de qualquer app trocar de instância.
+**Quem garante essa ordem é o healthcheck, não o runbook.** `healthcheckPath` é
+`/api/ready`, e essa rota chama `checkSchemaReadiness()` de `@informach/db`, que
+compara a última migração do journal deste build com `max(created_at)` em
+`drizzle.__drizzle_migrations`. Banco atrás do build → 503 → o Railway não troca
+a instância, e a versão anterior segue servindo. Antes disso o `healthcheckPath`
+era `/api/health`, que não toca o banco: um app publicado cedo demais passava
+verde e servia erro nas quatro telas, e a única defesa era alguém lembrar de
+conferir na mão.
+
+A pergunta é "o banco está **atrás** deste build?", nunca "o banco é exatamente
+este build" — rollback do app sem desfazer migração continua passando, que é a
+razão de o migrator ser um service separado.
+
+**`/api/health` continua existindo e continua sempre 200**, de propósito: é ele
+que responde qual commit está servindo, e precisa responder justamente quando um
+deploy falha. Um portão que derruba junto a fonte de diagnóstico esconde o
+problema na hora de investigá-lo.
+
+A migração `0055` (`agenda.tasks.estimated_minutes`) é desse tipo, e foi
+aplicada em produção em 15/09/2026 pelo commit `bb2b408`. O migrator **não tem
+`watchPatterns`**, então ele redeploya a cada push e terminou antes do build dos
+apps — naquela release a ordem saiu certa por construção, confirmada nos logs
+(`[db:migrate] done.`) antes de qualquer app trocar de instância. O `/api/ready`
+existe para as releases em que ela não sair.
 
 ### Datas e timezone (`features/dashboard/date.ts`)
 
@@ -530,17 +559,35 @@ Neutros (`background, foreground, card, popover, muted, accent, border, input, s
 
 ### Aberto
 
-1. **CSP em produção está em Report-Only.** `CSP_ENFORCE=0` no service
-   `@informach/agenda-da-turma`. O nonce por request está encaminhado ao render e
-   ao ThemeProvider, e a validação local com `CSP_ENFORCE=1` passou sem violação
-   de execução — falta homologar o runtime de produção e virar a variável para
-   `1`. Manter `strict-dynamic`; **nunca** relaxar `script-src` para contornar um
-   nonce ausente.
+1. **CSP: homologado, falta só virar a variável.** `CSP_ENFORCE=0` no service
+   `@informach/agenda-da-turma`; o código já tem `defaultCspEnforce = "1"` em
+   produção, então **a pendência é remover o override**, não escrever código:
+
+   ```bash
+   railway variables --service "@informach/agenda-da-turma" --set "CSP_ENFORCE=1"
+   ```
+
+   A homologação está feita, e não foi "passou local". As duas únicas violações
+   que existiram em quatro meses de Report-Only (`AGENDA-DA-TURMA-1` e `-2`,
+   ambas `script-src-elem`, ambas na landing) têm o **mesmo** último evento:
+   `2026-09-12T09:01:22Z` — a última carga antes de `98bf0f8`, que passou a ler
+   `headers()` no layout raiz e com isso tirou a landing do prerender estático,
+   onde nenhum nonce por request poderia valer. Depois dele, três dias de
+   tráfego real e nenhuma violação, de nenhuma diretiva. Conferido também na
+   mão em 15/09/2026: `/`, `/login`, `/signup`, `/offline` e `/privacidade`
+   servem 100% dos `<script>` com o nonce do header daquele request.
+
+   Manter `strict-dynamic`; **nunca** relaxar `script-src` para contornar um
+   nonce ausente. Se voltar a faltar nonce, a causa é uma página ter virado
+   estática, não o CSP. `CSP_ENFORCE=0` continua sendo a saída de emergência.
 
 2. **Checklist cosmético do Stripe** (não bloqueia código nem cobrança; ver §4).
    Os dois products e os cinco prices existem, estão ativos e batem com
-   `products.ts` centavo por centavo. Falta só `tax_code`, `nickname` e
-   `metadata` nos prices.
+   `products.ts` centavo por centavo. Falta só `tax_code` nos dois products,
+   `metadata` no product de créditos e `nickname` + `metadata` nos cinco prices.
+   Os comandos estão prontos na §4, já na forma que o cozya usa. Escrita no
+   Stripe live é recusada pelo classificador do agente ("[Modify Shared
+   Resources]") — quem roda é uma pessoa.
 
 3. **Site header para o app autenticado** — `site-header.tsx` ainda é o mínimo
    das páginas de auth. O `AppHeader` cobre o app; unificar os dois é arrumação,
