@@ -10,15 +10,15 @@ Agenda da Turma organiza recados escolares em providências para a família: o q
 
 Estado da implementação em 11/09/2026: rotina móvel, recado com texto + imagem/PDF, revisão antes de salvar, prazos opcionais e origem da data, convites revogáveis, atribuição de responsável, histórico/versionamento, resumo e lembretes, push opt-in, calendário privado, exportação e exclusão de conta. Nascimento, turma e matérias são opcionais no primeiro uso. Grupos de turma são privados por criador e turno; conhecer os dados públicos da sala não concede acesso.
 
-Fluxo de atividades e originais (12/09/2026): **Atividades** é a lista única de escola, recados/fotos e extras, com filtros por criança, tipo e situação aplicados antes da paginação. Para casa/Trabalho/Prova/Lembrete são tipos no formulário e na lista. Um único **Nova atividade** preserva o cadastro por matéria para quem tem turma e oferece cadastro sem matéria/prazo; sem turma, abre o formulário por criança diretamente. **Importar mensagem ou foto** aceita Teams, Batista ID e anotações manuscritas da agenda/caderno (`notebook`), com câmera, prévia e revisão obrigatória. A referência explícita de escrita pode fundamentar datas relativas; data da fotografia nunca vira prazo. **Recados e originais** guarda as fontes e rascunhos, com links para as atividades derivadas. Rotina e Calendário consultam os mesmos registros; atividades sem prazo permanecem na rotina/lista, sem data fictícia no calendário. O acesso ao original continua exigindo permissão sobre todo o escopo de crianças revisado. Arquivos originais expiram após 30 dias. A inclusão de `notebook` altera apenas os tipos da coluna textual existente, sem migração SQL.
+Fluxo de atividades e originais (12/09/2026): **Atividades** é a lista única de escola, recados/fotos e extras, com filtros por criança, tipo e situação aplicados antes da paginação. Para casa/Trabalho/Prova/Lembrete são tipos no formulário e na lista. **Nova atividade** leva sempre ao mesmo formulário (ver "Um formulário só" em §6). **Importar mensagem ou foto** aceita Teams, Batista ID e anotações manuscritas da agenda/caderno (`notebook`), com câmera, prévia e revisão obrigatória. A referência explícita de escrita pode fundamentar datas relativas; data da fotografia nunca vira prazo. **Recados e originais** guarda as fontes e rascunhos, com links para as atividades derivadas. Rotina e Calendário consultam os mesmos registros; atividades sem prazo permanecem na rotina/lista, sem data fictícia no calendário. O acesso ao original continua exigindo permissão sobre todo o escopo de crianças revisado. Arquivos originais expiram após 30 dias. A inclusão de `notebook` altera apenas os tipos da coluna textual existente, sem migração SQL.
 
 Um card, um detalhe (14/09/2026): `features/unified-activities/view.ts` é o único adaptador entre o banco e a tela. `toActivityView` traduz a tarefa num `ActivityView`, e tudo depois dele lê um formato só — antes havia três cards, cada um com o seu jeito de mostrar prazo, o seu destino ao toque no título (ou nenhum) e o seu tratamento de erro, decididos por uma origem que a família não vê. A forma que ficou é a de melhor toque: alvo de 44 px, `<article>`, título sempre abrindo a atividade, prazo em badge **mesmo sem prazo** (`getViewDueBadge`) e menu de ações para quem pode editar.
 
-**`/atividades/[id]` é o detalhe de qualquer fonte.** A página resolve o uuid nas três tabelas, cada busca já aplicando o acesso por criança, e delega para o renderizador da fonte. `/recados/acoes/[id]` e `/atividades/[id]/historico` viraram `redirect` — o histórico é uma seção do detalhe, não uma página. **Não recriar card ou detalhe por fonte**: a assimetria entre eles foi exatamente o que fez a mesma lista se comportar de três jeitos.
+**`/atividades/[id]` é o detalhe de qualquer atividade.** A página busca a tarefa aplicando o acesso por criança e a entrega a um renderizador só. `/recados/acoes/[id]` e `/atividades/[id]/historico` viraram `redirect` — o histórico é uma seção do detalhe, não uma página. **Não recriar card ou detalhe por fonte**: a assimetria entre eles foi exatamente o que fez a mesma lista se comportar de três jeitos.
 
 Navegação (14/09/2026): o rodapé tem **quatro destinos e uma ação** — `Hoje` · `Atividades` · `+` · `Calendário` · `Família` (`components/app-shell/bottom-nav.tsx`). O `+` não navega: abre a folha Adicionar, no centro porque é a ação mais frequente. A criança filtrada (`?perfil=`) viaja com a navegação, o que tornou dispensável o card de atalhos do dashboard (`DashboardNavButtons`, removido) — ele repetia três destinos que já estavam no rodapé.
 
-**Família é quem é quem**, não ajustes: `/familia` (Crianças) · `/familia/turmas` · `/familia/adultos` · `/familia/ajustes`, com sub-navegação em pílulas `Link` (`features/family/components/family-tabs.tsx`) em vez de `Tabs` do Radix, porque cada seção carrega dados próprios no servidor. `/perfis` e `/turmas` viraram `permanentRedirect` para as novas casas; as telas profundas (`/perfis/[id]/extras/*`, `/turmas/[turmaId]/{materias,acesso}`) continuam onde estavam. O menu do avatar ficou só com assinatura, conta e sair — **não repor atalhos de conteúdo ali**: crianças e turmas moravam nesse menu, junto de cobrança e sair, e quem procurava "meus filhos" não achava.
+**Família é quem é quem**, não ajustes: `/familia` (Crianças) · `/familia/turmas` · `/familia/adultos` · `/familia/ajustes`, com sub-navegação em pílulas `Link` (`features/family/components/family-tabs.tsx`) em vez de `Tabs` do Radix, porque cada seção carrega dados próprios no servidor. `/perfis` e `/turmas` viraram `redirect` temporário (307, não 308: um produto em movimento não grava a decisão no navegador de quem usa) para as novas casas; as telas profundas (`/perfis/[id]/extras/*`, `/turmas/[turmaId]/{materias,acesso}`) continuam onde estavam. O menu do avatar ficou só com assinatura, conta e sair — **não repor atalhos de conteúdo ali**: crianças e turmas moravam nesse menu, junto de cobrança e sair, e quem procurava "meus filhos" não achava.
 
 **Recados deixou de ser aba.** `/recados` continua existindo (o e-mail de lembrete aponta para `/recados/acoes/<id>`) como sub-página de Atividades, alcançável pelo link "Ver os recados guardados". O prefixo `/familia` do `requireAuth` no `proxy.ts` já cobre as sub-rotas novas; `/perfis` e `/turmas` seguem listados porque os stubs de redirect também exigem sessão.
 
@@ -26,7 +26,7 @@ Entrada única (14/09/2026): existe **um gesto** para trazer atividade para dent
 
 Franquia de teste (14/09/2026): `features/notices/trial.ts` é a fonte única. A franquia é contada em **importações** (`FREE_NOTICE_TRIAL`, aplicado em `reserveNoticeParse` sobre linhas `is_trial`); os créditos só a financiam e por isso precisam **sobrar, nunca faltar** — se o saldo morrer antes do teto, a tela ainda anuncia importações que falham. Duas concessões idempotentes: `base` dá 1 crédito por importação e `voice` dá 3 por importação, porque ditar é iterativo e regravar é normal. Financiar generosamente não basta: `checkTrialAdmission` **recusa o ditado quando gastá-lo deixaria menos de um crédito por importação restante** (`VOICE_TRIAL_SPENT`), senão a transcrição comeria o saldo e a tela anunciaria importações que falham. `admitFreeTrialCall` **concede os créditos que financiam a chamada** antes de medir o saldo: medir antes vê um saldo sem o próprio financiamento, e foi assim que o ditado ficou recusado para toda conta gratuita, de forma autotravante. A aritmética mora em `trial-reserve.ts`, fora do `server-only`, para poder ser testada. Ele replica as MESMAS pré-condições de `reserveNoticeParse` (e-mail confirmado, orçamento diário global, teto de importações) para as rotas que entram pela franquia antes de existir um recado — sem isso, uma conta com e-mail não confirmado gastava IA por conta da casa. `withAiRouteGuards` aceita `freeTrial` e `ownerId`; **sempre passe `ownerId`** em rota que saiba de qual criança se trata, senão um segundo adulto convidado é tratado como Free numa família Pro. `getAddEntitlement` resolve plano e franquia do titular para a UI pelo mesmo caminho.
 
-Direção visual da rotina (12/09/2026): agenda escolar acolhedora para responsáveis e crianças, com a criança realizando atividades e a família acompanhando. Concentrar **Ver atividades**, **Ver calendário** e **Importar mensagem ou foto** no card Atividades, preservando o filtro de criança e sem repetir atalhos abaixo da rotina. Usar a fonte e os tokens existentes: azul para tarefas, lilás para provas, rosa para trabalhos/eventos, verde para materiais e laranja para lembretes/autorizações. Cor sempre acompanhada de texto e ícone; fundos suaves, bordas arredondadas e controles de pelo menos 44 px. O mapa compartilhado fica em `features/unified-activities/presentation.ts`. Manter leitura nos temas claro e escuro, linguagem de acompanhamento em família e nenhuma pontuação ou competição entre crianças.
+Direção visual da rotina (12/09/2026): agenda escolar acolhedora para responsáveis e crianças, com a criança realizando atividades e a família acompanhando. A navegação mora no rodapé e a entrada na folha Adicionar; a rotina não repete atalhos. Usar a fonte e os tokens existentes: azul para tarefas, lilás para provas, rosa para trabalhos/eventos, verde para materiais e laranja para lembretes/autorizações. Cor sempre acompanhada de texto e ícone; fundos suaves, bordas arredondadas e controles de pelo menos 44 px. O mapa compartilhado fica em `features/unified-activities/presentation.ts`. Manter leitura nos temas claro e escuro, linguagem de acompanhamento em família e nenhuma pontuação ou competição entre crianças.
 
 O plano gratuito permite uma criança, 20 pendências próprias combinando escola/extras/recados, recebimento de atividades compartilhadas e cinco importações por conta verificada. Dados existentes continuam consultáveis após downgrade; novas automações pagas ficam pausadas. O Pro tem até três crianças, dois adultos e 70 créditos/mês. Não há validação de pagantes informada pelo fundador.
 
@@ -113,9 +113,12 @@ apps/agenda-da-turma/
 │   ├── app/                       # Next 16 app router
 │   │   ├── (auth)/                # /login, /signup, /choose-plan (passo 3 onboarding)
 │   │   ├── (app)/                 # autenticadas
-│   │   │   ├── dashboard/         # horário do dia por filho + KPIs + buckets + progresso
-│   │   │   ├── atividades/        # CRUD completo + paginação keyset
-│   │   │   ├── calendario/        # vistas mês/semana/dia + modal de detalhe
+│   │   │   ├── dashboard/         # "Hoje": horário do dia, rotina, rascunhos a conferir
+│   │   │   ├── atividades/        # lista + `[id]` (detalhe único) + `nova` (formulário único)
+│   │   │   ├── calendario/        # vistas mês/semana/dia + vista rápida
+│   │   │   ├── recados/           # originais guardados + `novo` (captura) + redirects antigos
+│   │   │   ├── familia/           # crianças, turmas, adultos e ajustes
+│   │   │   ├── perfis/, turmas/   # redirect 307 para Família + telas profundas (extras, matérias)
 │   │   │   ├── settings/billing/  # plano + saldo + packs (Pro) + history + portal
 │   │   │   └── upgrade/           # PlanCards sem stepper, só Pro (Free → Pro)
 │   │   ├── api/                   # webhooks/jobs (auth, billing, emails)
@@ -124,14 +127,13 @@ apps/agenda-da-turma/
 │   │   │   ├── jobs/              # 5 billing crons + 3 email crons
 │   │   │   ├── email/unsubscribe/
 │   │   │   └── health/
-│   │   ├── playground/            # smoke test de tokens UI (mantido enquanto não há features reais)
-│   │   ├── page.tsx               # placeholder de landing (texto simples, sem CTA)
+│   │   ├── (marketing)/           # landing pública + termos/privacidade
 │   │   └── layout.tsx             # Plus Jakarta Sans + ThemeProvider + Toaster
 │   ├── features/
-│   │   ├── activities/            # CRUD + batch confirm dialog de IA + voice/image dialogs + match-{subject,student} (fuzzy resolver) + utils
-│   │   ├── ai/                    # helpers cross-feature: _http-errors, image-utils (downscaleToDataUrl), _shared (withAiRouteGuards), services dos parsers
+│   │   ├── activities/            # folha Adicionar, lista, aceite de compartilhadas e o fato publicado na turma
+│   │   ├── ai/                    # helpers cross-feature: _http-errors, image-utils, _shared (withAiRouteGuards)
 │   │   ├── billing/               # plan-cards, plan-card, credit-balance-card, credit-packs, history (paridade cozya)
-│   │   ├── calendar/              # /calendario: views mês/semana/dia, blips, day-cell, detail-dialog, helpers de range/grid
+│   │   ├── calendar/              # /calendario: views mês/semana/dia, blips, day-cell, vista rápida, range/grid
 │   │   ├── dashboard/             # horário do dia (em lote), KPIs, buckets, progresso, helpers de data com TZ São Paulo
 │   │   ├── onboarding/            # signup-form (3 passos), login-form, plan-cards usado em /choose-plan + /upgrade
 │   │   ├── students/              # perfis de estudante (CRUD, dialogs, avatar com chart-N, widgets do dashboard)
@@ -320,6 +322,8 @@ Schema (`packages/db/src/schema/agenda.ts`):
 
 **Não reintroduzir tabela de tarefa por origem.** Foi exatamente a assimetria entre as três que fez a mesma lista se comportar de três jeitos. Origem nova vira coluna opcional em `agenda.tasks`.
 
+> Duplicação que ficou: `ProfileSubjectActivityFormDialog` continua sendo um formulário próprio nas telas de matéria extracurricular (`/perfis/[id]/extras/*`). Ele já grava em `agenda.tasks` como todo o resto, e a matéria ali é fixa pelo contexto — não é um segundo "Nova atividade" no fluxo principal, que era o problema. Se for convergir, o caminho é `/atividades/nova` aceitar a matéria por query e a página da matéria listar `UnifiedActivityCard`; não vale criar um terceiro formulário no meio do caminho.
+>
 > Dívida conhecida de nome: o módulo ainda se chama `features/notices` e exporta `listNoticeActions`, `updateNoticeActionAtomically`, `setNoticeActionStatus` — nomes de quando a tabela era só de recados. A tabela e o schema já dizem `tasks`; o módulo continua como está para não misturar renomeação de arquivos com a convergência. Ao mexer nele, prefira mover o CRUD de tarefa para `features/tasks` a espalhar o nome antigo.
 
 **RBAC de visibilidade (enforcement no service `features/activities/service.ts`)**:
@@ -327,7 +331,7 @@ Schema (`packages/db/src/schema/agenda.ts`):
 - **Receber compartilhada é benefício do Free** (ver §1): as listas usam `accessibleProfileCondition(userId)`, que autoriza por criança (titular ou adulto convidado com acesso), e a atividade só chega ao perfil quando a família aceita. `listPendingSharedActivitiesForUser` continua exigindo participação efetiva na turma, então nada vaza entre turmas.
 - Gate único: `hasProSubscription(subject)` do `@informach/billing/access`. Nunca inline `status === 'active'`.
 
-**Vocabulário de tipos**: fonte única em `features/unified-activities/activity-types.ts` (8 valores), espelhada no banco por `AGENDA_ACTIVITY_TYPES` em `packages/db/src/schema/agenda.ts`. As três tabelas de atividade usam a mesma lista. A coluna é `text` sem CHECK: ampliar é mudança de código; remover valor exigiria migração de dados. O enum de 4 valores em `ai/activities-parser/schema.ts` é um subconjunto deliberado — contrato de saída do modelo, não vocabulário do app.
+**Vocabulário de tipos**: fonte única em `features/unified-activities/activity-types.ts` (8 valores), espelhada no banco por `AGENDA_ACTIVITY_TYPES` em `packages/db/src/schema/agenda.ts`. `agenda.tasks` e `agenda.activities` usam a mesma lista. A coluna é `text` sem CHECK: ampliar é mudança de código; remover valor exigiria migração de dados.
 
 **Edit/delete de atividade**: só o `created_by_user_id`. **E** bloqueia mesmo o criador se a atividade é shared_with_turma e `hasOtherAcceptances=true` (outra família já aceitou). Regra centralizada em `canEditActivity(item, currentUserId)` em `features/activities/utils.ts` — UI esconde, service aplica.
 
@@ -391,14 +395,14 @@ Ordem de `app/(app)/dashboard/page.tsx`, tudo visível sem clique:
 
 **Uma lista só.** Buckets e KPIs saem de `getRoutineSnapshot`
 (`features/unified-activities/service.ts`), que reusa a MESMA projeção SQL
-das três fontes da lista de `/atividades` (`activityIndexCte`) e a mesma
-hidratação em segundo passo. Por isso os contadores nunca discordam do que
+da lista de `/atividades` (`activityIndexCte`) e a mesma hidratação em segundo
+passo. Por isso os contadores nunca discordam do que
 está listado logo abaixo. Não reintroduzir uma segunda lista no dashboard:
 foi daí que veio a duplicação corrigida em setembro de 2026.
 
-`getDashboardSnapshot` continua existindo, mas **não** alimenta o dashboard — só o job de lembretes (`features/notifications/delivery.ts`) e a exportação em PDF.
+`getDashboardSnapshot` continua existindo, mas **não** alimenta o dashboard — só a exportação em PDF. O resumo por e-mail (`features/notifications/delivery.ts`) lê `listNoticeActions`, que desde a convergência já é a lista inteira.
 
-`UnifiedActivityCard` recebe `ActivityOverviewItem` (fonte + linha crua) e despacha para `ActivityCard`, `RoutineCard` ou o card de extracurricular. Toda lista passa por ele; o calendário converte a sua com `toOverviewEntry`. Os três cards concluem pelo mesmo `useCardToggle`.
+`UnifiedActivityCard` recebe `ActivityOverviewItem` (a tarefa com o contexto que a consulta já traz) e é o único card do app: lista, rotina, vista do dia e vista rápida do calendário usam ele, e a conclusão passa pelo mesmo `useCardToggle`.
 
 UserMenu (avatar) tem só assinatura, conta e sair. Crianças e turmas vivem na aba Família.
 
