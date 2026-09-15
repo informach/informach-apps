@@ -9,7 +9,8 @@ loadEnv({
 });
 
 /**
- * Leva atividades escolares e extracurriculares para `agenda.notice_actions`.
+ * Leva atividades escolares e extracurriculares para `agenda.tasks` e remove as
+ * tabelas de origem — nesta ordem, que é a única segura.
  *
  * Idempotente pelo id: a tarefa de uma atividade escolar nasce com o id da
  * linha de `activity_statuses` (uma por criança, que é exatamente a
@@ -39,10 +40,9 @@ async function main() {
 
   const client = postgres(databaseUrl, { max: 1 });
 
-  // As tabelas antigas são removidas pela migração 0052, depois de a
-  // convergência ter sido verificada. A partir daí este passo não tem o que
-  // levar — e um banco novo nunca terá. Sair em silêncio é o comportamento
-  // certo: falhar aqui travaria `db:migrate` para sempre.
+  // Depois que este próprio passo remove as tabelas antigas não há mais o que
+  // levar, e rodar de novo é legítimo. Sair em silêncio aqui é o certo: falhar
+  // travaria `db:migrate` para sempre.
   const [legacy] = await client`
     SELECT to_regclass('agenda.activity_statuses') IS NOT NULL
        AND to_regclass('agenda.profile_subject_activities') IS NOT NULL AS present
@@ -76,7 +76,7 @@ async function main() {
       const dueAt: string | null = row.due_at ? String(row.due_at) : null;
       const status = row.canceled_at ? "canceled" : row.status;
       const result = await tx`
-        INSERT INTO agenda.notice_actions (
+        INSERT INTO agenda.tasks (
           id, notice_id, profile_id, created_by_user_id, assigned_to_user_id,
           type, subject_id, profile_subject_id, title, description, due_at,
           "time", location, date_origin, source_excerpt, status, completed_at,
@@ -99,7 +99,7 @@ async function main() {
     for (const row of extra) {
       const dueAt: string | null = row.due_at ? String(row.due_at) : null;
       const result = await tx`
-        INSERT INTO agenda.notice_actions (
+        INSERT INTO agenda.tasks (
           id, notice_id, profile_id, created_by_user_id, assigned_to_user_id,
           type, subject_id, profile_subject_id, title, description, due_at,
           "time", location, date_origin, source_excerpt, status, completed_at,
@@ -120,15 +120,36 @@ async function main() {
     }
   });
 
+  // Conferir ANTES de remover. A remoção morava numa migração, que o
+  // `db:migrate` aplica antes deste passo — num banco na release anterior o
+  // deploy terminava verde e as atividades sumiam. Aqui ela só acontece depois
+  // de cada linha antiga ter a sua tarefa, e para de tudo se faltar uma.
+  const [pending] = await client`
+    SELECT
+      (SELECT count(*) FROM agenda.activity_statuses s
+       WHERE NOT EXISTS (SELECT 1 FROM agenda.tasks t WHERE t.id = s.id)) AS escolares,
+      (SELECT count(*) FROM agenda.profile_subject_activities e
+       WHERE NOT EXISTS (SELECT 1 FROM agenda.tasks t WHERE t.id = e.id)) AS extras
+  `;
+  if (Number(pending?.escolares ?? 0) > 0 || Number(pending?.extras ?? 0) > 0) {
+    throw new Error(
+      `[db:backfill-tasks] ${pending?.escolares} escolares e ${pending?.extras} extras ficaram sem tarefa; nada foi removido`,
+    );
+  }
+
   const [check] = await client`
     SELECT
       (SELECT count(*) FROM agenda.activity_statuses) AS escolares,
       (SELECT count(*) FROM agenda.profile_subject_activities) AS extras,
-      (SELECT count(*) FROM agenda.notice_actions WHERE shared_activity_id IS NOT NULL) AS tarefas_escolares,
-      (SELECT count(*) FROM agenda.notice_actions WHERE profile_subject_id IS NOT NULL AND notice_id IS NULL) AS tarefas_extras
+      (SELECT count(*) FROM agenda.tasks WHERE shared_activity_id IS NOT NULL) AS tarefas_escolares,
+      (SELECT count(*) FROM agenda.tasks WHERE profile_subject_id IS NOT NULL AND notice_id IS NULL) AS tarefas_extras
   `;
   console.log(`[db:backfill-tasks] inseridas ${inserted} tarefas`);
   console.log(`[db:backfill-tasks] conferência: ${JSON.stringify(check)}`);
+
+  await client`DROP TABLE agenda.activity_statuses CASCADE`;
+  await client`DROP TABLE agenda.profile_subject_activities CASCADE`;
+  console.log("[db:backfill-tasks] tabelas antigas removidas");
 
   await client.end();
 }

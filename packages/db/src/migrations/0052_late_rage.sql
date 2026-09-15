@@ -1,2 +1,12 @@
-DROP TABLE "agenda"."activity_statuses" CASCADE;--> statement-breakpoint
-DROP TABLE "agenda"."profile_subject_activities" CASCADE;
+-- Sem efeito, de propósito.
+--
+-- Esta migração removia `agenda.activity_statuses` e
+-- `agenda.profile_subject_activities`. O `db:migrate` aplica todas as
+-- migrações pendentes ANTES de rodar `db:backfill-tasks`, então a remoção
+-- acontecia com os dados ainda dentro: num banco na release anterior, o deploy
+-- terminava verde e toda atividade escolar e extracurricular sumia.
+--
+-- A remoção passou a morar no fim do próprio `db:backfill-tasks`, que é o único
+-- lugar que roda depois da cópia — e só remove depois de conferir que cada
+-- linha antiga tem a sua tarefa. Ver `packages/db/src/backfill-tasks.ts`.
+SELECT 1;
