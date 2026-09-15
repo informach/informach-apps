@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, count, db, eq, isNotNull, sql } from "@informach/db";
+import { and, count, db, eq, sql } from "@informach/db";
 import {
   agendaNotices,
   agendaProductEvents,
@@ -9,7 +9,11 @@ import {
 } from "@informach/db/schema";
 import { cache } from "react";
 import { getIsProForUser } from "@/features/billing/server-cache";
-import { findAccessibleProfile, listAccessibleProfiles } from "@/features/family/access";
+import {
+  accessibleProfileCondition,
+  findAccessibleProfile,
+  listAccessibleProfiles,
+} from "@/features/family/access";
 import { billing } from "@/lib/billing";
 import type { AddEntitlement } from "./entitlement";
 import { isNoticeUserVerified } from "./parse-repository";
@@ -77,12 +81,23 @@ export async function hasTrialImportsLeft(ownerId: string): Promise<boolean> {
  * 5"; contar atividades diz "você organizou 14" — a mesma franquia, do lado do
  * que a família ganhou.
  */
-export async function countActivitiesFromNotices(ownerId: string): Promise<number> {
+export async function countActivitiesFromNotices(viewerId: string): Promise<number> {
   const [organized] = await db
     .select({ value: count() })
     .from(agendaTasks)
     .innerJoin(agendaStudentProfiles, eq(agendaStudentProfiles.id, agendaTasks.profileId))
-    .where(and(eq(agendaStudentProfiles.userId, ownerId), isNotNull(agendaTasks.noticeId)));
+    .innerJoin(agendaNotices, eq(agendaNotices.id, agendaTasks.noticeId))
+    .where(
+      and(
+        // Escopo de quem OLHA, como toda consulta que devolve dado de criança.
+        // Filtrar pelo titular fazia o segundo adulto com acesso a um filho ler
+        // um número que somava os três.
+        accessibleProfileCondition(viewerId),
+        // Só o que a franquia produziu: sem isto, um ex-Pro que cancelou lia o
+        // histórico inteiro colado em "as importações de teste acabaram".
+        eq(agendaNotices.isTrial, true),
+      ),
+    );
   return organized?.value ?? 0;
 }
 
@@ -197,11 +212,19 @@ export const getAddEntitlement = cache(async (userId: string): Promise<AddEntitl
     countTrialImports(ownerId),
   ]);
   const trialLeft = Math.max(0, FREE_NOTICE_TRIAL - used);
-  // A contagem do que foi organizado só interessa no momento em que a franquia
-  // acaba — e é exatamente aí que ela deixa de ser uma consulta por página para
-  // virar a única vez que roda.
+  /*
+   * A contagem só existe no momento em que a franquia acaba: um Pro nunca paga
+   * por ela, e um gratuito com importação sobrando também não.
+   *
+   * Depois que a franquia acaba, porém, este é o estado PERMANENTE do plano
+   * gratuito — e `getAddEntitlement` vem do layout, via rodapé. Ou seja: a
+   * consulta roda uma vez por request, em toda navegação autenticada, para
+   * sempre. É um `COUNT` com dois joins sobre os perfis acessíveis, barato hoje
+   * e crescente com o histórico. Se pesar, o caminho é memorizar o número: ele
+   * quase não muda depois que a franquia acabou.
+   */
   const organizedFromNotices =
-    !isPro && trialLeft === 0 ? await countActivitiesFromNotices(ownerId) : 0;
+    !isPro && trialLeft === 0 ? await countActivitiesFromNotices(userId) : 0;
   return { isPro, trialLeft, organizedFromNotices };
 });
 

@@ -26,6 +26,7 @@ import { findActivityHistory } from "@/features/activities/history-repository";
 import { listPendingSharedActivitiesForUser } from "@/features/activities/repository";
 import { respondSharedActivity } from "@/features/activities/service";
 import { addDaysIso, todayLocalIso } from "@/features/dashboard/date";
+import { hasSecondAdultInFamily } from "@/features/family/access";
 import { acceptFamilyInvitation, createFamilyInvitation } from "@/features/family/service";
 import { getKidModeSnapshot } from "@/features/kid-mode/service";
 import { validateNoticeExtraction } from "@/features/notices/extraction";
@@ -386,6 +387,68 @@ describe("Review regressions", () => {
     expect(
       (await getActivityOverview(owner, { ...options, typeFilter: "material" })).items,
     ).toHaveLength(0);
+  });
+
+  it("o filtro do segundo adulto só mostra o que foi combinado com ele", async () => {
+    /*
+     * Os outros testes exercitam apenas o lado `assignedToMe: false`, que é o
+     * curto-circuito do predicado. Este cobre o ramo que o botão "Só o que é
+     * meu" liga, e prende a regra de produto: atividade SEM responsável não
+     * entra. O filtro responde "o que combinamos comigo", não "o que sobrou".
+     */
+    const created = value(
+      await confirmNotice(owner, {
+        noticeId: null,
+        allowDuplicates: true,
+        actions: [
+          { ...action("Combinada com o titular"), assignedToUserId: owner },
+          { ...action("Combinada com o segundo adulto"), assignedToUserId: guest },
+          { ...action("Sem responsável definido"), assignedToUserId: null },
+        ],
+      }),
+    );
+    const ids = created.ids.map((id) => required(id));
+    const mine = required(ids[0]);
+    const theirs = required(ids[1]);
+    const nobodys = required(ids[2]);
+
+    const base: ActivityOverviewOptions = {
+      profileFilter: child,
+      typeFilter: null,
+      statusFilter: "pending",
+      dueWindow: "all",
+      assignedToMe: false,
+      noticeId: null,
+      page: 1,
+    };
+    const idsFor = async (userId: string, assignedToMe: boolean) =>
+      (await getActivityOverview(userId, { ...base, assignedToMe })).items.map(
+        (entry) => entry.item.id,
+      );
+
+    // Sem o filtro, as três aparecem para os dois adultos.
+    expect(await idsFor(owner, false)).toEqual(expect.arrayContaining([mine, theirs, nobodys]));
+    expect(await idsFor(guest, false)).toEqual(expect.arrayContaining([mine, theirs, nobodys]));
+
+    // Com o filtro, cada um vê só o seu — e a sem responsável some dos dois.
+    const ownerMine = await idsFor(owner, true);
+    expect(ownerMine).toContain(mine);
+    expect(ownerMine).not.toContain(theirs);
+    expect(ownerMine).not.toContain(nobodys);
+
+    const guestMine = await idsFor(guest, true);
+    expect(guestMine).toContain(theirs);
+    expect(guestMine).not.toContain(mine);
+    expect(guestMine).not.toContain(nobodys);
+  });
+
+  it("reconhece o segundo adulto por um EXISTS, dos dois lados do convite", async () => {
+    // O botão "Só o que é meu" e o parse de `?responsavel=eu` dependem disto: se
+    // der falso, o filtro deixa de existir E deixa de ser aplicado.
+    expect(await hasSecondAdultInFamily(owner)).toBe(true);
+    expect(await hasSecondAdultInFamily(guest)).toBe(true);
+    // Quem está sozinho na própria conta não vê o controle.
+    expect(await hasSecondAdultInFamily(outsider)).toBe(false);
   });
 
   it("modo criança autoriza por criança e reusa a lista da rotina", async () => {

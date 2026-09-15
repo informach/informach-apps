@@ -16,6 +16,8 @@ export const notificationPreferencesSchema = z
     message: "Escolha o resumo fora do horário de silêncio",
     path: ["digestHour"],
   });
+export type NotificationPreferences = z.infer<typeof notificationPreferencesSchema>;
+
 export const DEFAULT_NOTIFICATION_PREFERENCES = {
   emailEnabled: false,
   pushEnabled: false,

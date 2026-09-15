@@ -18,8 +18,12 @@ export default async function KidLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-dvh bg-app-ground">
       {/* O único elemento de shell que sobrevive aqui: uma criança marcando
-          "feito" sem rede precisa saber que não foi ela que errou. */}
-      <OfflineBanner />
+          "feito" sem rede precisa saber que não foi ela que errou.
+          Sobreposta, e não no fluxo: o `main` da criança é `min-h-dvh`, e uma
+          barra empilhada criaria rolagem numa tela desenhada para não rolar. */}
+      <div className="pointer-events-none fixed inset-x-0 top-0 z-40">
+        <OfflineBanner />
+      </div>
       {children}
     </div>
   );

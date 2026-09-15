@@ -3,9 +3,10 @@
 import { Button } from "@informach/ui/components/button";
 import { CalendarHeart, Check } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
+import { noticeErrorMessage } from "@/features/notices/messages";
 import { catchActionResult } from "@/lib/action-result";
 import { saveNotificationPreferencesAction } from "../actions";
-import { DEFAULT_NOTIFICATION_PREFERENCES } from "../schemas";
+import type { NotificationPreferences } from "../schemas";
 
 /**
  * O combinado da família.
@@ -30,7 +31,20 @@ const HOURS = [
   { hour: 20, label: "Depois do jantar", hint: "20h" },
 ] as const;
 
-export function CommitmentWidget({ dismissedKey }: { dismissedKey: string }) {
+export function CommitmentWidget({
+  dismissedKey,
+  current,
+}: {
+  dismissedKey: string;
+  /**
+   * As preferências como estão gravadas.
+   *
+   * O card espalhava os PADRÕES e reescrevia `quietStart`/`quietEnd` no
+   * caminho: uma família que tinha ajustado o silêncio para 9h–17h e depois
+   * desligou os dois canais perdia esse ajuste em silêncio ao tocar Combinado.
+   */
+  current: NotificationPreferences;
+}) {
   const [chosen, setChosen] = useState<number | null>(null);
   const [done, setDone] = useState(false);
   const [hidden, setHidden] = useState(false);
@@ -52,7 +66,13 @@ export function CommitmentWidget({ dismissedKey }: { dismissedKey: string }) {
 
   if (done) {
     return (
-      <section className="flex items-center gap-3 rounded-2xl border border-chart-2/40 bg-chart-2/10 p-4">
+      <section
+        // O sucesso também precisa ser anunciado: o botão que tinha o foco é
+        // substituído por esta seção, e sem a live region quem usa leitor de tela
+        // só perdia o foco, sem saber que deu certo.
+        role="status"
+        className="flex items-center gap-3 rounded-2xl border border-chart-2/40 bg-chart-2/10 p-4"
+      >
         <Check className="size-5 shrink-0 text-chart-2-ink" aria-hidden />
         <p className="text-sm font-medium">
           Combinado. O resumo chega por e-mail todo dia no horário escolhido — dá para mudar em
@@ -67,13 +87,16 @@ export function CommitmentWidget({ dismissedKey }: { dismissedKey: string }) {
     startSaving(async () => {
       const result = await catchActionResult(() =>
         saveNotificationPreferencesAction({
-          ...DEFAULT_NOTIFICATION_PREFERENCES,
+          ...current,
           emailEnabled: true,
           digestHour: chosen,
         }),
       );
       if (!result.ok) {
-        setError("Não deu para salvar agora. Tente de novo em instantes.");
+        // O código real, e não uma frase genérica: o caminho que falha de verdade
+        // aqui é `PRO_REQUIRED`, e dizer "tente de novo em instantes" mandava a
+        // família repetir para sempre um botão que nunca ia funcionar.
+        setError(noticeErrorMessage(result.error.code));
         return;
       }
       setError("");

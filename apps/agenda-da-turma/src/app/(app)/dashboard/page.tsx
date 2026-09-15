@@ -12,6 +12,7 @@ import {
 } from "@/features/dashboard/components/today-schedule-section";
 import { TomorrowBackpackSection } from "@/features/dashboard/components/tomorrow-backpack-section";
 import { isEveningInApp } from "@/features/dashboard/date";
+import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { PendingDraftsSection } from "@/features/notices/components/pending-drafts-section";
 import { CommitmentWidget } from "@/features/notifications/components/commitment-widget";
 import { getNotificationPreferences } from "@/features/notifications/service";
@@ -39,14 +40,21 @@ export default async function DashboardPage({ searchParams }: Props) {
   const params = await searchParams;
   const user = await requireUserServer();
 
-  const [profiles, profilesWithoutTurma, turmasNeedingSubjects, isPro, notificationPrefs] =
-    await Promise.all([
-      listStudentProfilesForUser(user.id),
-      countUserProfilesWithoutTurma(user.id),
-      listTurmasNeedingSubjectsForUser(user.id),
-      getIsProForUser(user.id),
-      getNotificationPreferences(user.id),
-    ]);
+  const [
+    profiles,
+    profilesWithoutTurma,
+    turmasNeedingSubjects,
+    isPro,
+    notificationPrefs,
+    familyEntitlements,
+  ] = await Promise.all([
+    listStudentProfilesForUser(user.id),
+    countUserProfilesWithoutTurma(user.id),
+    listTurmasNeedingSubjectsForUser(user.id),
+    getIsProForUser(user.id),
+    getNotificationPreferences(user.id),
+    getFamilyEntitlements(user.id),
+  ]);
 
   /*
    * O convite a combinar um horário aparece enquanto nenhum canal estiver
@@ -57,7 +65,15 @@ export default async function DashboardPage({ searchParams }: Props) {
    * exigiria uma coluna só para registrar uma recusa que talvez seja só adiar.
    */
   const shouldAskForCommitment =
-    profiles.length > 0 && !notificationPrefs.emailEnabled && !notificationPrefs.pushEnabled;
+    profiles.length > 0 &&
+    // Gravar as preferências é Pro. Sem esta condição o card perguntava o
+    // horário a toda conta gratuita e o botão falhava com `PRO_REQUIRED` — um
+    // beco sem saída que voltava a cada sessão. `enabled` do entitlement da
+    // FAMÍLIA, e não `isPro` de quem olha: o segundo adulto convidado tem
+    // `isPro=false` para si e ainda assim tem direito, porque o titular paga.
+    familyEntitlements.enabled &&
+    !notificationPrefs.emailEnabled &&
+    !notificationPrefs.pushEnabled;
 
   const greeting = user.name ?? "responsável";
   // Depois das 18h em São Paulo a pergunta da casa muda, e a página se reordena
@@ -116,7 +132,10 @@ export default async function DashboardPage({ searchParams }: Props) {
         <PendingDraftsSection userId={user.id} />
       </Suspense>
       {shouldAskForCommitment ? (
-        <CommitmentWidget dismissedKey={`agenda:commitment-dismissed:${user.id}`} />
+        <CommitmentWidget
+          dismissedKey={`agenda:commitment-dismissed:${user.id}`}
+          current={notificationPrefs}
+        />
       ) : null}
       {evening ? (
         // `fallback={null}` como as outras seções opcionais desta página: a

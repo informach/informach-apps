@@ -305,7 +305,10 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       await expect(
         page.getByText("Nenhuma atividade com esses filtros", { exact: true }),
       ).toBeVisible();
-      await page.getByRole("link", { name: "Ver todos os tipos", exact: true }).click();
+      // O botão de escape do vazio deixou de ser só sobre o tipo: com a janela
+      // de prazo vinda dos contadores da rotina, ele limpa qualquer recorte —
+      // e o nome passou a dizer isso. O destino continua o mesmo.
+      await page.getByRole("link", { name: "Limpar filtros", exact: true }).click();
       await expect(page).toHaveURL(new RegExp(`/atividades\\?perfil=${sibling.id}$`));
       await page.goto(`/atividades?perfil=${child.id}&tipo=invalid`);
       await expect(typeFilter).toContainText("Todos os tipos");
