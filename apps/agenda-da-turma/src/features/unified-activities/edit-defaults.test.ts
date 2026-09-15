@@ -29,6 +29,8 @@ const task = {
   location: "Sala 3",
   dateOrigin: "school",
   sourceExcerpt: "trecho do recado",
+  recurrence: "weekly",
+  reminderAt: new Date("2026-05-19T21:00:00Z"),
   version: 2,
   createdAt: new Date("2026-05-10T12:00:00Z"),
   subjectId: "33333333-3333-4333-8333-333333333333",
@@ -60,8 +62,8 @@ describe("taskToActionInput", () => {
       location: "Sala 3",
       sourceExcerpt: "trecho do recado",
       assignedToUserId: "guest",
-      reminderAt: null,
-      recurrence: "none",
+      reminderAt: "2026-05-19T21:00:00.000Z",
+      recurrence: "weekly",
       shareWithTurma: false,
     });
   });
@@ -88,14 +90,18 @@ describe("taskToActionInput", () => {
     expect(edited.estimatedMinutes).toBe(30);
   });
 
-  it("documenta a perda conhecida de repetição e lembrete", () => {
-    // Não é escolha: `taskSelect` não projeta essas duas colunas, então elas não
-    // chegam até aqui. Este teste existe para que a perda seja visível — se um
-    // dia o `taskSelect` passar a trazê-las, ele quebra e cobra a leitura.
+  it("preserva repetição semanal e lembrete", () => {
+    // O defeito irmão do da duração, um degrau antes: `taskSelect` não projetava
+    // essas colunas, então o formulário gravava "none"/null por cima e uma
+    // atividade semanal editada pelo detalhe virava avulsa.
     const result = taskToActionInput(task);
-    expect(result.recurrence).toBe("none");
-    expect(result.reminderAt).toBeNull();
-    expect("recurrence" in task).toBe(false);
-    expect("reminderAt" in task).toBe(false);
+    expect(result.recurrence).toBe("weekly");
+    expect(result.reminderAt).toBe("2026-05-19T21:00:00.000Z");
+  });
+
+  it("aceita atividade sem repetição nem lembrete", () => {
+    const plain = taskToActionInput({ ...task, recurrence: "none", reminderAt: null });
+    expect(plain.recurrence).toBe("none");
+    expect(plain.reminderAt).toBeNull();
   });
 });

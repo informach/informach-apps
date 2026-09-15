@@ -16,13 +16,16 @@ import type { TaskRow } from "./task-repository";
  * coluna ao formulário sem trazê-la para cá passa a quebrar um teste em vez de
  * apagar dado de alguém.
  *
- * ⚠️ **`recurrence` e `reminderAt` continuam se perdendo na edição**, e não por
- * escolha: `taskSelect` (em `task-repository.ts`) não projeta essas duas
- * colunas, então elas não chegam aqui. Uma atividade semanal editada pelo
- * detalhe vira avulsa, e o lembrete some. É defeito anterior a esta função — o
- * conserto é acrescentar as duas ao `taskSelect` e lê-las abaixo, mas isso muda
- * comportamento de quem já usa e merece decisão própria, não um efeito colateral
- * desta extração.
+ * `recurrence` e `reminderAt` também passam por aqui. Eles se perdiam pelo mesmo
+ * motivo que a duração, só que um degrau antes: `taskSelect` não os projetava,
+ * então não havia o que ler. Uma atividade semanal editada pelo detalhe virava
+ * avulsa e o lembrete sumia.
+ *
+ * Devolver os MESMOS valores não esbarra no gate de Pro: `updateNoticeAction`
+ * recusa quando a edição **acrescenta** automação (`addsAutomation`), não quando
+ * ela preserva o que já estava lá. Isso também é o certo para quem voltou ao
+ * gratuito: dado existente continua consultável, e editar o título não é hora de
+ * apagar em silêncio o que a família configurou quando era Pro.
  */
 export function taskToActionInput(
   task: TaskRow,
@@ -42,9 +45,8 @@ export function taskToActionInput(
     location: task.location,
     sourceExcerpt: task.sourceExcerpt,
     assignedToUserId: task.assignedToUserId,
-    // Ver o aviso no topo: não vêm do `taskSelect`.
-    reminderAt: null,
-    recurrence: "none",
+    reminderAt: task.reminderAt?.toISOString() ?? null,
+    recurrence: task.recurrence,
     // Publicada na turma é estado da atividade, não campo editável solto.
     shareWithTurma: task.sharedActivityId !== null,
     ...overrides,

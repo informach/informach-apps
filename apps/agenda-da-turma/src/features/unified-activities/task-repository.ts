@@ -54,6 +54,16 @@ const taskSelect = {
   location: agendaTasks.location,
   dateOrigin: agendaTasks.dateOrigin,
   sourceExcerpt: agendaTasks.sourceExcerpt,
+  /**
+   * Repetição e lembrete existem aqui para SOBREVIVER à edição.
+   *
+   * Sem eles projetados, o formulário de detalhe não tinha como lê-los e
+   * gravava `"none"`/`null` por cima: uma atividade semanal editada pelo
+   * detalhe virava avulsa e o lembrete sumia, sem aviso. Ver
+   * `edit-defaults.ts`.
+   */
+  recurrence: agendaTasks.recurrence,
+  reminderAt: agendaTasks.reminderAt,
   version: agendaTasks.version,
   createdAt: agendaTasks.createdAt,
   subjectId: agendaTasks.subjectId,

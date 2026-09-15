@@ -433,6 +433,69 @@ describe("Review regressions", () => {
     expect((await reload(id)).estimatedMinutes).toBeNull();
   });
 
+  it("matéria extracurricular pausada some dos números E da lista, juntas", async () => {
+    /*
+     * "Pausada é silêncio" valia só na exportação em PDF e no card de progresso.
+     * A projeção unificada — KPIs, buckets e `/atividades` — não aplicava, e
+     * depois que os contadores viraram link isso ficou na cara: o card dizia
+     * "Atrasadas 1" com o progresso ao lado dizendo 0 para a mesma criança.
+     */
+    const [extra] = await db
+      .insert(agendaProfileSubjects)
+      .values({ profileId: child, name: "Natação do review" })
+      .returning();
+    const extraId = required(extra).id;
+    const [task] = await db
+      .insert(agendaTasks)
+      .values({
+        profileId: child,
+        createdByUserId: owner,
+        type: "task",
+        profileSubjectId: extraId,
+        title: "Treino de natação",
+        dueAt: todayLocalIso(),
+        dateOrigin: "family",
+        fingerprint: `e2e-extra-${extraId}`,
+      })
+      .returning();
+    const taskId = required(task).id;
+
+    const options: ActivityOverviewOptions = {
+      profileFilter: child,
+      typeFilter: null,
+      statusFilter: "pending",
+      dueWindow: "all",
+      assignedToMe: false,
+      noticeId: null,
+      page: 1,
+    };
+    const listed = async () =>
+      (await getActivityOverview(owner, options)).items.map((entry) => entry.item.id);
+    const routineToday = async () =>
+      (await getRoutineSnapshot(owner, { profileFilter: child })).counters.today;
+
+    // Ativa: aparece na lista e conta no KPI.
+    expect(await listed()).toContain(taskId);
+    const withActive = await routineToday();
+
+    await db
+      .update(agendaProfileSubjects)
+      .set({ status: "paused", pausedAt: todayLocalIso() })
+      .where(eq(agendaProfileSubjects.id, extraId));
+
+    // Pausada: some dos dois ao mesmo tempo — é essa simultaneidade que importa.
+    expect(await listed()).not.toContain(taskId);
+    expect(await routineToday()).toBe(withActive - 1);
+
+    // E volta inteira ao despausar.
+    await db
+      .update(agendaProfileSubjects)
+      .set({ status: "active", pausedAt: null })
+      .where(eq(agendaProfileSubjects.id, extraId));
+    expect(await listed()).toContain(taskId);
+    expect(await routineToday()).toBe(withActive);
+  });
+
   it("o filtro do segundo adulto só mostra o que foi combinado com ele", async () => {
     /*
      * Os outros testes exercitam apenas o lado `assignedToMe: false`, que é o

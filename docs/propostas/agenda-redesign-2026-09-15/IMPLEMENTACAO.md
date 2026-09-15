@@ -79,22 +79,32 @@ A fila não entrou, e é decisão. Concluir usa `version` para concorrência oti
 
 São três peças, e é trabalho de uma fase própria. Enquanto isso, a barra de sem conexão diz o que é verdade: dá para ler, e **marcar como feito precisa de rede** — a primeira versão do texto prometia que as mudanças esperavam, o que era falso.
 
+**A fatia barata entrou no lugar dela.** Quando a gravação falha, o card mostra
+**"Tentar de novo"** ao lado do erro, em vez de só reverter e deixar a pessoa
+adivinhar que dá para insistir. Nada fica guardado e nada sobe sozinho — mas o
+`router.refresh()` da falha já trouxe a versão nova, então a segunda tentativa
+não repete um conflito de versão. No modo criança o caminho já era esse: a
+atividade volta e a criança toca "Feito!" de novo.
+
 ---
 
 ## 5. Decisões que precisam de você
 
-### 5.1 Matéria extracurricular pausada: o silêncio vale onde?
+### 5.1 Matéria extracurricular pausada — resolvido: o silêncio vale em tudo
 
-`getDashboardCounters` (a exportação em PDF) e `listProfileSummaries` aplicam `visibleTaskCondition` — a regra documentada "matéria extracurricular pausada é silêncio: nem KPI, nem progresso". A projeção unificada (`activityIndexCte`), que alimenta os contadores da rotina, os buckets e a lista, **não aplica**.
+Era divergência pré-existente que ficou visível quando os contadores viraram
+link: na mesma tela, o card dizia "Atrasadas 1" e o progresso logo abaixo dizia 0
+para a mesma criança.
 
-É divergência pré-existente. O que mudou é que agora ela é visível: na mesma tela, o card diz "Atrasadas 1" e o progresso logo abaixo diz 0 para a mesma criança, e o card abre uma lista com o item.
+A regra "pausada é silêncio" já estava escrita e já valia em duas consultas. Foi
+aplicada na terceira em vez de removida das outras duas: o predicado agora mora
+em `features/profile-subjects/visibility.ts` e é composto pelas três projeções —
+`activityIndexCte`, `getDashboardCounters` e `listProfileSummaries`. Teste de
+integração prende a simultaneidade: pausar tira da lista **e** do contador no
+mesmo passo, e despausar devolve os dois.
 
-As duas saídas mudam comportamento de produto:
-
-- **Aplicar em tudo** — pausar uma extra some com as atividades dela da lista também. Coerente com "pausada é silêncio", mas pode surpreender quem pausou só a matéria.
-- **Não aplicar em lugar nenhum** — a tarefa continua na lista e nos números, e "pausada" passa a valer só para o horário. Enfraquece a regra escrita.
-
-Não escolhi sozinho. Está anotado no código.
+O preço aceito: pausar uma extra tira as atividades dela de `/atividades`
+também. É o que "pausar" quer dizer, é explícito e é reversível.
 
 ### 5.2 Uma migração do `missao-saber` pegou carona neste branch
 
@@ -123,18 +133,17 @@ este trabalho.
 **Regra para a próxima vez:** conferir `git status` antes de `pnpm db:generate`,
 e commitar `packages/db` por caminho de arquivo, nunca com `-A` no diretório.
 
-### 5.3 Editar apaga repetição semanal e lembrete
+### 5.3 Editar apagava repetição semanal e lembrete — resolvido
 
-Descoberto ao consertar o mesmo defeito na duração: `taskSelect` não projeta
-`recurrence` nem `reminderAt`, então o formulário de edição não tem como lês —
-e grava `"none"`/`null` por cima. Uma atividade semanal editada pelo detalhe
-vira avulsa, e o lembrete some.
+`taskSelect` não projetava `recurrence` nem `reminderAt`, então o formulário de
+edição não tinha como lê-los e gravava `"none"`/`null` por cima: uma atividade
+semanal editada pelo detalhe virava avulsa e o lembrete sumia.
 
-É anterior a este trabalho. O conserto é acrescentar as duas colunas ao
-`taskSelect` e lê-las em `taskToActionInput`, mas muda comportamento de quem já
-usa. Está documentado e testado em `features/unified-activities/edit-defaults.ts`
-— o teste quebra no dia em que o `taskSelect` passar a trazê-las, cobrando a
-leitura.
+As duas colunas entraram na projeção e `taskToActionInput` passou a lê-las.
+Devolver os **mesmos** valores não esbarra no gate de Pro — `updateNoticeAction`
+recusa quando a edição *acrescenta* automação, não quando preserva o que já
+estava lá. Isso também é o certo para quem voltou ao gratuito: editar o título
+não é hora de apagar em silêncio o que a família configurou quando era Pro.
 
 ### 5.4 O KPI calcula "hoje" no render; a lista recalcula no clique
 

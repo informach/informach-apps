@@ -4,6 +4,7 @@ import { agendaStudentProfiles, agendaTasks } from "@informach/db/schema";
 import { APP_TIME_ZONE } from "@/features/dashboard/date";
 import type { DashboardCounters } from "@/features/dashboard/types";
 import { accessibleProfileCondition } from "@/features/family/access";
+import { activeProfileSubjectCondition } from "@/features/profile-subjects/visibility";
 import { type ActivityOverviewOptions, OVERVIEW_PAGE_SIZE } from "./overview-types";
 import { ROUTINE_MAX_ITEMS, type RoutineBucketKey } from "./routine-types";
 
@@ -26,6 +27,11 @@ function activityIndexCte(userId: string) {
       FROM ${agendaTasks}
       INNER JOIN ${agendaStudentProfiles} ON ${agendaStudentProfiles.id} = ${agendaTasks.profileId}
       WHERE ${accessibleProfileCondition(userId)}
+        -- Matéria extracurricular pausada é silêncio, aqui também. Sem isto, os
+        -- contadores da rotina e a lista mostravam o que a exportação em PDF e o
+        -- card de progresso escondiam — e depois que os contadores viraram link,
+        -- o card dizia "Atrasadas 1" com o progresso ao lado dizendo 0.
+        AND ${activeProfileSubjectCondition}
     )`;
 }
 

@@ -1,8 +1,9 @@
 import "server-only";
 
 import { and, asc, db, eq, sql } from "@informach/db";
-import { agendaProfileSubjects, agendaStudentProfiles, agendaTasks } from "@informach/db/schema";
+import { agendaStudentProfiles, agendaTasks } from "@informach/db/schema";
 import { accessibleProfileCondition } from "@/features/family/access";
+import { activeProfileSubjectCondition } from "@/features/profile-subjects/visibility";
 import { APP_TIME_ZONE, addDaysIso, todayLocalIso } from "./date";
 import { STREAK_LOOKBACK_DAYS } from "./streak";
 import type { DashboardCounters, DashboardProfileSummary } from "./types";
@@ -16,13 +17,7 @@ import type { DashboardCounters, DashboardProfileSummary } from "./types";
  */
 const visibleTaskCondition = sql`
   ${agendaTasks.status} <> 'canceled'
-  AND (
-    ${agendaTasks.profileSubjectId} IS NULL
-    OR EXISTS (
-      SELECT 1 FROM ${agendaProfileSubjects} ps
-      WHERE ps.id = ${agendaTasks.profileSubjectId} AND ps.status = 'active'
-    )
-  )
+  AND ${activeProfileSubjectCondition}
 `;
 
 /**

@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@informach/ui/components/dropdown-menu";
 import { cn } from "@informach/ui/lib/utils";
-import { Check, MoreVertical, Pencil, Sparkles, Timer, Trash2 } from "lucide-react";
+import { Check, MoreVertical, Pencil, RotateCcw, Sparkles, Timer, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -79,7 +79,7 @@ export function UnifiedActivityCard({
       ? getSubjectTintedClassByIndex(view.subjectColorIndex)
       : presentation.surface;
 
-  const { isDone, isExiting, optimisticallyHidden, pending, handleToggle } = useCardToggle({
+  const { isDone, isExiting, optimisticallyHidden, pending, handleToggle, retry } = useCardToggle({
     initialStatus: view.status === "done" ? "done" : "pending",
     optimisticHideWhenDone: optimisticHideWhenDone && !isCanceled,
     toggleAction: (next) =>
@@ -310,9 +310,18 @@ export function UnifiedActivityCard({
           ) : null}
 
           {error ? (
-            <p role="alert" className="mt-3 text-sm text-destructive">
-              {error}
-            </p>
+            <div role="alert" className="mt-3 flex flex-wrap items-center gap-2">
+              <p className="text-sm text-destructive">{error}</p>
+              {/* Insistir é o caminho honesto enquanto não há fila: a versão já
+                  foi atualizada pela falha, então a segunda tentativa não repete
+                  o mesmo conflito. */}
+              {retry ? (
+                <Button size="sm" variant="outline" disabled={pending} onClick={retry}>
+                  <RotateCcw className="mr-1.5 size-3.5" aria-hidden />
+                  Tentar de novo
+                </Button>
+              ) : null}
+            </div>
           ) : null}
         </article>
       </div>

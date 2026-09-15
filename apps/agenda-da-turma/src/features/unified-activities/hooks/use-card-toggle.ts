@@ -55,6 +55,15 @@ export function useCardToggle({
   const [isExiting, setIsExiting] = useState(false);
   const [optimisticallyHidden, setOptimisticallyHidden] = useState(false);
   const [pending, startTransition] = useTransition();
+  /**
+   * O que a pessoa tentou quando deu errado.
+   *
+   * Sem isto, falhar era um beco: o card revertia, o erro aparecia, e a única
+   * saída era tocar o botão de novo — o que é fácil num card, mas invisível como
+   * opção. No portão da escola, com sinal indo e voltando, a pessoa precisa de
+   * um alvo que diga "dá para insistir" em vez de adivinhar.
+   */
+  const [failedAttempt, setFailedAttempt] = useState<Status | null>(null);
 
   // Sync quando o server retorna nova versão do item (refresh()/router push).
   // Reset cobre o caso em que o card "voltou" antes do timer de exit terminar.
@@ -62,11 +71,13 @@ export function useCardToggle({
     setOptimisticStatus(initialStatus);
     setIsExiting(false);
     setOptimisticallyHidden(false);
+    setFailedAttempt(null);
   }, [initialStatus]);
 
   const handleToggle = (next: boolean) => {
     const previousStatus = optimisticStatus;
     const nextStatus: Status = next ? "done" : "pending";
+    setFailedAttempt(null);
     setOptimisticStatus(nextStatus);
 
     const willExit = optimisticHideWhenDone && nextStatus === "done";
@@ -90,6 +101,7 @@ export function useCardToggle({
         setOptimisticStatus(previousStatus);
         setIsExiting(false);
         setOptimisticallyHidden(false);
+        setFailedAttempt(nextStatus);
         onError?.(result.error);
         router.refresh();
         return;
@@ -109,5 +121,14 @@ export function useCardToggle({
     optimisticallyHidden,
     pending,
     handleToggle,
+    /**
+     * Repete a última tentativa que falhou, ou `null` quando não houve falha.
+     *
+     * Não é fila offline: nada fica guardado, nada sobe sozinho quando a rede
+     * volta. É só o alvo para insistir, no momento em que a pessoa vê o erro —
+     * o `router.refresh()` da falha já trouxe a versão nova, então a segunda
+     * tentativa não repete um conflito de versão.
+     */
+    retry: failedAttempt === null ? null : () => handleToggle(failedAttempt === "done"),
   };
 }

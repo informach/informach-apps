@@ -349,6 +349,20 @@ Schema (`packages/db/src/schema/agenda.ts`):
 
 **Cascade quando matéria é apagada**: como a regra bloqueia delete da matéria enquanto há atividades de OUTRAS famílias, na prática o cascade só roda quando todas as atividades vinculadas são do próprio creator da matéria — perda consciente.
 
+### Matéria extracurricular pausada é silêncio — em todo lugar
+
+O predicado único é `activeProfileSubjectCondition`
+(`features/profile-subjects/visibility.ts`), e ele é composto por **todas** as
+consultas que produzem número ou lista de atividade: `activityIndexCte` (os
+quatro KPIs, os três buckets e `/atividades`), `getDashboardCounters` (a
+exportação em PDF) e `listProfileSummaries` (o progresso por criança).
+
+A regra estava escrita mas só valia nas duas últimas. Enquanto os números não
+abriam listas, a divergência passava; depois que os contadores viraram link, o
+card passou a dizer "Atrasadas 1" com o progresso ao lado dizendo 0 para a mesma
+criança. **Consulta nova sobre `agenda.tasks` que produza número ou lista compõe
+o predicado.** Tarefa sem vínculo com matéria nunca é escondida por ele.
+
 ### Ordem de deploy quando há migração
 
 `taskSelect` (em `features/unified-activities/task-repository.ts`) é a leitura de
