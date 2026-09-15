@@ -96,7 +96,47 @@ As duas saídas mudam comportamento de produto:
 
 Não escolhi sozinho. Está anotado no código.
 
-### 5.2 O KPI calcula "hoje" no render; a lista recalcula no clique
+### 5.2 Uma migração do `missao-saber` pegou carona neste branch
+
+`packages/db/src/migrations/0054_green_revanche.sql` (coluna `reading_support` em
+`missao_saber.sessions`) e a alteração correspondente em
+`packages/db/src/schema/missao-saber.ts` entraram no commit `0a67851`, que é um
+commit da Agenda. Aconteceu porque `pnpm db:generate` roda sobre a árvore
+inteira, e outra sessão estava editando o `missao-saber` ao mesmo tempo.
+
+**Não extraí, de propósito.** O código do `missao-saber` que usa a coluna está
+na árvore de trabalho (`features/learning/*`), e o arquivo de schema mudou de
+novo depois do meu commit — ou seja, aquela sessão continua trabalhando nele.
+Reverter aqui apagaria o trabalho dela da árvore compartilhada.
+
+O risco prático é baixo: `ADD COLUMN boolean NOT NULL DEFAULT false` é aditiva e
+sem reescrita, e a coluna fica sem uso até o código do outro app chegar. O custo
+real é de procedência — o snapshot 0054 fixa um estado de schema que esta
+revisão não examinou, e um merge da Agenda leva para produção uma coluna de
+outra feature.
+
+**O que fazer antes do merge:** decidir com quem cuida do `missao-saber` se a
+0054 sai daqui e vai com a feature dela, ou se fica. Se sair, a 0055 da Agenda
+precisa ser regerada. Se ficar, basta registrar no PR que a 0054 não pertence a
+este trabalho.
+
+**Regra para a próxima vez:** conferir `git status` antes de `pnpm db:generate`,
+e commitar `packages/db` por caminho de arquivo, nunca com `-A` no diretório.
+
+### 5.3 Editar apaga repetição semanal e lembrete
+
+Descoberto ao consertar o mesmo defeito na duração: `taskSelect` não projeta
+`recurrence` nem `reminderAt`, então o formulário de edição não tem como lês —
+e grava `"none"`/`null` por cima. Uma atividade semanal editada pelo detalhe
+vira avulsa, e o lembrete some.
+
+É anterior a este trabalho. O conserto é acrescentar as duas colunas ao
+`taskSelect` e lê-las em `taskToActionInput`, mas muda comportamento de quem já
+usa. Está documentado e testado em `features/unified-activities/edit-defaults.ts`
+— o teste quebra no dia em que o `taskSelect` passar a trazê-las, cobrando a
+leitura.
+
+### 5.4 O KPI calcula "hoje" no render; a lista recalcula no clique
 
 Numa aba deixada aberta na virada da meia-noite, o contador e a lista discordam por um dia. É a mesma propriedade que os buckets da rotina já têm. Fixar exigiria pôr o dia no link e ampliar o contrato da URL — o que significa aceitar um "hoje" arbitrário vindo de fora. Deixei como está e registrei.
 
@@ -109,9 +149,9 @@ Tudo verde no fim:
 | O quê | Resultado |
 |---|---|
 | `typecheck` | limpo |
-| `biome check` | limpo, 398 arquivos |
-| Testes unitários | **461** (eram 423) |
-| Testes de integração, contra Postgres local | **54** (eram 51) |
+| `biome check` | limpo, 400 arquivos |
+| Testes unitários | **466** (eram 423) |
+| Testes de integração, contra Postgres local | **55** (eram 51) |
 | Playwright, config do CI | **16/16** |
 | `build` de produção | compila |
 
