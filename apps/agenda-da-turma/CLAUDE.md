@@ -404,7 +404,7 @@ compatível com a versão que já está no ar: **rodar o migrator primeiro,
 confirmar SUCCESS, e só então liberar o app**. Ver `docs/deploy-runbook.md`
 Fase 4.3.
 
-A migração `0055` (`agenda.tasks.estimated_minutes`) é desse tipo.
+A migração `0055` (`agenda.tasks.estimated_minutes`) é desse tipo, e foi aplicada em produção em 15/09/2026 pelo commit `bb2b408`. O migrator **não tem `watchPatterns`**, então ele redeploya a cada push e terminou antes do build dos apps — a ordem saiu certa por construção, não por sorte. Confirmado nos logs (`[db:migrate] done.`) antes de qualquer app trocar de instância.
 
 ### Datas e timezone (`features/dashboard/date.ts`)
 
