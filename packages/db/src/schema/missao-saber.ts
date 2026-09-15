@@ -62,6 +62,13 @@ export const missaoSessions = missaoSaber.table(
     mode: text("mode", { enum: ["mission", "review", "diagnostic", "exam"] }).notNull(),
     snapshot: jsonb("snapshot").$type<Record<string, unknown>>().notNull(),
     requestKey: uuid("request_key").notNull(),
+    /**
+     * Leitura em voz alta usada em algum momento da sessão. Só importa em
+     * diagnóstico e simulado: ler o enunciado pode alterar o construto
+     * avaliado, então a devolutiva e o histórico precisam declarar o apoio em
+     * vez de comparar o resultado como se fosse leitura autônoma.
+     */
+    readingSupport: boolean("reading_support").notNull().default(false),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     interruptedAt: timestamp("interrupted_at", { withTimezone: true }),
     interruptionReason: text("interruption_reason"),

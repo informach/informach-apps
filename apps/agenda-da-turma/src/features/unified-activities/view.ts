@@ -27,6 +27,8 @@ export type ActivityView = {
   /** Nulo é um estado legítimo: prazo a confirmar é informação, não falta. */
   dueAt: string | null;
   time: string | null;
+  /** Duração estimada pela família, em minutos. Nulo é o normal. */
+  estimatedMinutes: number | null;
   location: string | null;
   subjectName: string | null;
   subjectColorIndex: number | null;
@@ -85,6 +87,7 @@ export function toActivityView(entry: ActivityOverviewItem, currentUserId: strin
     profileName: item.profileName,
     dueAt: item.dueAt,
     time: item.time,
+    estimatedMinutes: item.estimatedMinutes,
     location: item.location,
     subjectName: item.subjectName,
     subjectColorIndex: item.subjectColorIndex,

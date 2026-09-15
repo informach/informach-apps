@@ -8,6 +8,7 @@ import {
   ACTIVITY_TYPES,
   activityTypeSchema,
 } from "@/features/unified-activities/activity-types";
+import { ESTIMATE_PRESETS, formatEstimate } from "@/features/unified-activities/estimate";
 import { DATE_ORIGIN_LABELS, type NoticeActionInput } from "../schemas";
 
 const selectStyle = "h-11 w-full rounded-md border border-input bg-background px-3 text-sm";
@@ -208,6 +209,33 @@ export function ActionFields({
           onChange={(e) => change({ time: e.target.value || null })}
         />
       </label>
+      <fieldset className={`${labelStyle} sm:col-span-2`}>
+        <legend className="mb-1.5">Quanto tempo leva (opcional)</legend>
+        {/*
+          Presets, e não um campo livre: ninguém sabe dizer "37 minutos", e a
+          pergunta que isto responde é grosseira — "dá para fazer antes do
+          jantar?". Os buckets da rotina somam o que estiver preenchido e
+          ignoram o resto, então estimar uma atividade de cinco já ajuda.
+        */}
+        <div className="flex flex-wrap gap-2">
+          {ESTIMATE_PRESETS.map((minutes) => {
+            const active = value.estimatedMinutes === minutes;
+            return (
+              <button
+                key={minutes}
+                type="button"
+                aria-pressed={active}
+                onClick={() => change({ estimatedMinutes: active ? null : minutes })}
+                className={`min-h-11 rounded-full border px-4 text-sm font-medium transition-colors ${
+                  active ? "border-primary/40 bg-primary/10 font-semibold" : "hover:bg-muted"
+                }`}
+              >
+                {formatEstimate(minutes)}
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
       <label className={`${labelStyle} sm:col-span-2`} htmlFor={`${prefix}-description`}>
         Detalhes, páginas ou materiais
         <textarea

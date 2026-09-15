@@ -197,6 +197,16 @@ export const agendaTasks = agenda.table(
     description: text("description"),
     dueAt: date("due_at"),
     time: text("time"),
+    /**
+     * Quanto tempo a atividade leva, em minutos. Nulo é o normal.
+     *
+     * Responde a pergunta das sete da noite — "dá para fazer antes do jantar?"
+     * — que o app não sabia responder. É escolha da FAMÍLIA: a IA não estima,
+     * pela mesma regra que a proíbe de inventar prazo. Calcular a próxima aula
+     * a partir do horário cadastrado é determinístico; adivinhar quanto tempo
+     * uma criança leva num trabalho não é.
+     */
+    estimatedMinutes: integer("estimated_minutes"),
     location: text("location"),
     dateOrigin: text("date_origin", { enum: AGENDA_DATE_ORIGINS }).notNull().default("unspecified"),
     sourceExcerpt: text("source_excerpt"),

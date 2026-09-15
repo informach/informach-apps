@@ -31,7 +31,7 @@ export const DUE_WINDOW_LABELS: Record<DueWindow, string> = {
   atrasadas: "Prazo vencido",
   hoje: "Para hoje",
   semana: "Próximos 7 dias",
-  recentes: "Últimos 7 dias",
+  recentes: "Concluídas nos últimos 7 dias",
 };
 
 /**
@@ -81,17 +81,24 @@ export function dueWindowRange(
   window: DueWindow,
   todayIso: string,
   addDays: (iso: string, days: number) => string,
-): { from: string | null; to: string | null } {
+): { from: string | null; to: string | null; column: "due" | "completed" } {
   switch (window) {
     case "atrasadas":
-      return { from: null, to: addDays(todayIso, -1) };
+      return { from: null, to: addDays(todayIso, -1), column: "due" };
     case "hoje":
-      return { from: todayIso, to: todayIso };
+      return { from: todayIso, to: todayIso, column: "due" };
     case "semana":
-      return { from: addDays(todayIso, 1), to: addDays(todayIso, 7) };
+      return { from: addDays(todayIso, 1), to: addDays(todayIso, 7), column: "due" };
     case "recentes":
-      return { from: addDays(todayIso, -7), to: todayIso };
+      // A ÚNICA janela que olha a conclusão, e não o prazo.
+      //
+      // "Concluídas (7d)" contava atividades cujo PRAZO caiu nos últimos sete
+      // dias: concluir hoje uma tarefa vencida há três semanas não mexia no
+      // número, e a lista que o card abre também não a mostrava. O rótulo
+      // prometia uma coisa e o filtro media outra. O contador equivalente em
+      // `getRoutineCounters` mudou junto — os dois precisam continuar iguais.
+      return { from: addDays(todayIso, -7), to: todayIso, column: "completed" };
     default:
-      return { from: null, to: null };
+      return { from: null, to: null, column: "due" };
   }
 }

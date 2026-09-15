@@ -50,6 +50,7 @@ const taskSelect = {
   description: agendaTasks.description,
   dueAt: agendaTasks.dueAt,
   time: agendaTasks.time,
+  estimatedMinutes: agendaTasks.estimatedMinutes,
   location: agendaTasks.location,
   dateOrigin: agendaTasks.dateOrigin,
   sourceExcerpt: agendaTasks.sourceExcerpt,

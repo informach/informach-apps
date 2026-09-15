@@ -25,6 +25,7 @@ import {
   type ActivityOverviewItem,
   type ActivityOverviewOptions,
   activityOverviewHref,
+  DUE_WINDOW_LABELS,
   OVERVIEW_STATUS_LABELS,
   overviewStatusSchema,
 } from "@/features/unified-activities/overview-types";
@@ -67,6 +68,10 @@ export function ActivitiesSection({
   };
 
   const backToStartHref = activityOverviewHref({ ...filters, page: 1 });
+  // O que estreita a lista além da criança escolhida. "Pendentes" é o padrão e
+  // não conta; qualquer outra situação, sim.
+  const hasNarrowingFilter =
+    typeFilter !== null || filters.dueWindow !== "all" || filters.statusFilter !== "pending";
 
   return (
     <div className="space-y-4">
@@ -150,6 +155,26 @@ export function ActivitiesSection({
           </div>
         </div>
       </div>
+      {/*
+        A janela de prazo chega pela rotina (os quatro contadores viraram link) e
+        não tinha nenhuma representação aqui: a lista aparecia curta enquanto os
+        três seletores diziam "Todos", e a única saída era o botão voltar do
+        navegador. Pastilha removível, como a do original.
+      */}
+      {filters.dueWindow !== "all" ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm">
+          <p>
+            Mostrando só:{" "}
+            <strong className="font-semibold">{DUE_WINDOW_LABELS[filters.dueWindow]}</strong>
+          </p>
+          <Link
+            className="min-h-11 text-primary-ink underline"
+            href={activityOverviewHref({ ...filters, dueWindow: "all", page: 1 })}
+          >
+            Ver todos os prazos
+          </Link>
+        </div>
+      ) : null}
       {filters.noticeId ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/30 p-4 text-sm">
           <p>Atividades vinculadas a um mesmo original.</p>
@@ -182,24 +207,38 @@ export function ActivitiesSection({
               </>
             ) : (
               <>
+                {/*
+                  Só chama de "nenhuma cadastrada" quando não há recorte nenhum.
+                  Com a janela de prazo ativa — e é assim que se chega aqui vindo
+                  de um contador — a lista vazia dizia a uma família com quarenta
+                  atividades que ela não tinha nenhuma, e não oferecia saída.
+                */}
                 <div className="space-y-1">
                   <p className="text-base font-semibold text-foreground">
-                    {typeFilter
+                    {hasNarrowingFilter
                       ? "Nenhuma atividade com esses filtros"
                       : activeFilter
                         ? `Nenhuma atividade para ${activeFilter.name}`
                         : "Nenhuma atividade cadastrada"}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {typeFilter
-                      ? "Escolha outro tipo ou remova o filtro para ver as demais atividades."
+                    {hasNarrowingFilter
+                      ? "Remova um filtro para ver as demais atividades."
                       : "Use Nova atividade para começar a organizar a rotina."}
                   </p>
                 </div>
-                {typeFilter ? (
+                {hasNarrowingFilter ? (
                   <Button asChild variant="outline">
-                    <Link href={activityOverviewHref({ ...filters, typeFilter: null, page: 1 })}>
-                      Ver todos os tipos
+                    <Link
+                      href={activityOverviewHref({
+                        ...filters,
+                        typeFilter: null,
+                        dueWindow: "all",
+                        statusFilter: "pending",
+                        page: 1,
+                      })}
+                    >
+                      Limpar filtros
                     </Link>
                   </Button>
                 ) : null}

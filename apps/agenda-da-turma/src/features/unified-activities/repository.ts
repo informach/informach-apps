@@ -30,8 +30,17 @@ function activityIndexCte(userId: string) {
 
 export async function listActivityOverviewIndex(
   userId: string,
-  options: ActivityOverviewOptions & { dueFrom: string | null; dueTo: string | null },
+  options: ActivityOverviewOptions & {
+    dueFrom: string | null;
+    dueTo: string | null;
+    /** "completed" só na janela de concluídas; ver `dueWindowRange`. */
+    windowColumn: "due" | "completed";
+  },
 ) {
+  const windowColumn =
+    options.windowColumn === "completed"
+      ? sql`(completed_at AT TIME ZONE ${APP_TIME_ZONE})::date`
+      : sql`due_at`;
   return db.execute<{ id: string }>(sql`
     ${activityIndexCte(userId)}
     SELECT id FROM activity_index
@@ -39,15 +48,15 @@ export async function listActivityOverviewIndex(
       AND (${options.typeFilter}::text IS NULL OR type = ${options.typeFilter})
       AND (${options.statusFilter} = 'all' OR status = ${options.statusFilter})
       AND (${options.noticeId}::uuid IS NULL OR notice_id = ${options.noticeId}::uuid)
-      -- Janela de prazo (ver dueWindowRange em overview-types). Sem recorte, a atividade sem
-      -- prazo continua listada; com recorte, ela sai — não há como dizer se um
-      -- prazo a confirmar cai dentro ou fora da janela.
+      -- Janela (ver dueWindowRange em overview-types). Sem recorte, a atividade
+      -- sem prazo continua listada; com recorte ela sai, porque não há como
+      -- dizer se um prazo a confirmar cai dentro ou fora da janela.
       AND (
         (${options.dueFrom}::date IS NULL AND ${options.dueTo}::date IS NULL)
         OR (
-          due_at IS NOT NULL
-          AND (${options.dueFrom}::date IS NULL OR due_at >= ${options.dueFrom}::date)
-          AND (${options.dueTo}::date IS NULL OR due_at <= ${options.dueTo}::date)
+          ${windowColumn} IS NOT NULL
+          AND (${options.dueFrom}::date IS NULL OR ${windowColumn} >= ${options.dueFrom}::date)
+          AND (${options.dueTo}::date IS NULL OR ${windowColumn} <= ${options.dueTo}::date)
         )
       )
     ORDER BY CASE status WHEN 'pending' THEN 0 WHEN 'done' THEN 1 ELSE 2 END,
@@ -117,9 +126,14 @@ export async function getRoutineCounters(
         WHERE status = 'pending'
           AND due_at BETWEEN ${options.tomorrowIso}::date AND ${options.weekEndIso}::date
       ) AS week,
+      -- Pela CONCLUSÃO, não pelo prazo: "concluídas nos últimos 7 dias" quer
+      -- dizer o que a família cuidou, inclusive o que estava atrasado há
+      -- semanas. A janela "recentes" da lista usa a mesma coluna.
       COUNT(*) FILTER (
         WHERE status = 'done'
-          AND due_at BETWEEN ${options.weekAgoIso}::date AND ${options.todayIso}::date
+          AND completed_at IS NOT NULL
+          AND (completed_at AT TIME ZONE ${APP_TIME_ZONE})::date
+              BETWEEN ${options.weekAgoIso}::date AND ${options.todayIso}::date
       ) AS done_recent,
       -- Concluídas HOJE conta pela conclusão, não pelo prazo: o fecho do dia
       -- reconhece quando a família cuidou, e uma atividade sem prazo cuidada

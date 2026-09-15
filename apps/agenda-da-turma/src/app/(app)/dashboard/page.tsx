@@ -10,7 +10,6 @@ import {
   TodayScheduleSection,
   TodayScheduleSkeleton,
 } from "@/features/dashboard/components/today-schedule-section";
-import { TomorrowBackpackSkeleton } from "@/features/dashboard/components/tomorrow-backpack";
 import { TomorrowBackpackSection } from "@/features/dashboard/components/tomorrow-backpack-section";
 import { isEveningInApp } from "@/features/dashboard/date";
 import { PendingDraftsSection } from "@/features/notices/components/pending-drafts-section";
@@ -102,7 +101,10 @@ export default async function DashboardPage({ searchParams }: Props) {
         <PendingDraftsSection userId={user.id} />
       </Suspense>
       {evening ? (
-        <Suspense fallback={<TomorrowBackpackSkeleton />}>
+        // `fallback={null}` como as outras seções opcionais desta página: a
+        // mochila não existe no sábado à noite nem sem horário cadastrado, e um
+        // esqueleto de 112px piscando e sumindo empurraria a página inteira.
+        <Suspense fallback={null}>
           <TomorrowBackpackSection userId={user.id} profileFilter={profileFilter} />
         </Suspense>
       ) : null}

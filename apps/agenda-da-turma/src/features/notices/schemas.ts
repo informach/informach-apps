@@ -96,6 +96,14 @@ export const actionFieldsSchema = extractedActionSchema
     // revalida a pertinência — o formulário só sugere as opções.
     subjectId: z.string().uuid().nullable().default(null),
     profileSubjectId: z.string().uuid().nullable().default(null),
+    /**
+     * Duração estimada, em minutos. A pessoa escolhe; a IA nunca preenche.
+     *
+     * Mesma regra do prazo: calcular a próxima aula a partir do horário
+     * cadastrado é determinístico, adivinhar quanto tempo uma criança leva num
+     * trabalho não é. O teto de 8 horas é sanidade, não regra de produto.
+     */
+    estimatedMinutes: z.number().int().min(1).max(480).nullable().default(null),
     assignedToUserId: z.string().max(128).nullable().default(null),
     reminderAt: z.string().datetime({ offset: true }).nullable().default(null),
     recurrence: z.enum(["none", "weekly"]).default("none"),

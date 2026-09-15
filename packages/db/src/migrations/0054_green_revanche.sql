@@ -1,0 +1,1 @@
+ALTER TABLE "missao_saber"."sessions" ADD COLUMN "reading_support" boolean DEFAULT false NOT NULL;

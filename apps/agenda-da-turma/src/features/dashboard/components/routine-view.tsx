@@ -1,7 +1,15 @@
 "use client";
 
 import { cn } from "@informach/ui/lib/utils";
-import { Backpack, CalendarDays, CircleCheck, Flame, type LucideIcon, Sun } from "lucide-react";
+import {
+  Backpack,
+  CalendarDays,
+  CircleCheck,
+  Flame,
+  type LucideIcon,
+  Sun,
+  Timer,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { DayClosedIllustration } from "@/components/illustrations";
 import {
@@ -9,6 +17,7 @@ import {
   getSubjectTintedClassByIndex,
 } from "@/features/subjects/utils";
 import { UnifiedActivityCard } from "@/features/unified-activities/components/unified-activity-card";
+import { formatBucketEstimate } from "@/features/unified-activities/estimate";
 import {
   type ActivityOverviewItem,
   overviewDueAt,
@@ -95,6 +104,28 @@ export function RoutineView({
 }: Props) {
   const [counters, setCounters] = useState(initialCounters);
   const [doneToday, setDoneToday] = useState(initialDoneToday);
+  /**
+   * O que saiu da tela antes de o servidor responder.
+   *
+   * `UnifiedActivityCard` se esconde sozinho quando conclui (`return null`),
+   * mas o array continua vindo do servidor — sem rastrear aqui, a pastilha do
+   * cabeçalho continuava dizendo "1 atividade" sobre um grid vazio, e o fecho
+   * do dia só aparecia quando o `router.refresh()` voltasse.
+   */
+  const [hiddenKeys, setHiddenKeys] = useState<ReadonlySet<string>>(new Set());
+  /**
+   * Zera o escondido quando o servidor manda uma lista nova.
+   *
+   * Ajuste durante o render, e não `useEffect`: o efeito só rodaria depois de
+   * um render com a lista nova e o conjunto velho, e nesse quadro um item que
+   * voltou a ficar pendente apareceria escondido. `buckets` só muda de
+   * identidade quando a resposta do servidor troca.
+   */
+  const [seenBuckets, setSeenBuckets] = useState(buckets);
+  if (seenBuckets !== buckets) {
+    setSeenBuckets(buckets);
+    setHiddenKeys(new Set());
+  }
 
   // O servidor é a verdade: depois do `router.refresh()` disparado pelo card,
   // os contadores reais chegam e substituem o ajuste otimista.
@@ -105,7 +136,11 @@ export function RoutineView({
     <div className="space-y-8">
       <KpiCards counters={counters} profileFilter={profileFilter} />
       {BUCKETS.map(({ key, title, description, empty, Icon, color }) => {
-        const entries = buckets[key];
+        const entries = buckets[key].filter((entry) => !hiddenKeys.has(entry.key));
+        // "3 atividades · ~45 min" responde a pergunta das sete da noite. O
+        // rótulo diz quantas foram estimadas quando nem todas foram — senão o
+        // número viraria promessa falsa.
+        const estimate = formatBucketEstimate(entries.map((e) => e.item.estimatedMinutes));
         return (
           <section key={key} className="space-y-4">
             <div className="flex items-start gap-3">
@@ -128,6 +163,12 @@ export function RoutineView({
                       )}
                     >
                       {entries.length} {entries.length === 1 ? "atividade" : "atividades"}
+                    </span>
+                  ) : null}
+                  {estimate ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                      <Timer className="size-3.5 shrink-0" aria-hidden />
+                      {estimate}
                     </span>
                   ) : null}
                 </div>

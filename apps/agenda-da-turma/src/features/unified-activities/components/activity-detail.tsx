@@ -81,6 +81,7 @@ export async function ActivityDetail({ userId, task }: { userId: string; task: T
           dueAt: task.dueAt,
           dateOrigin: task.dateOrigin,
           time: task.time,
+          estimatedMinutes: null,
           location: task.location,
           sourceExcerpt: task.sourceExcerpt,
           subjectId: task.subjectId,

@@ -29,8 +29,13 @@ async function hydrateIndexRows(
 export async function getActivityOverview(userId: string, options: ActivityOverviewOptions) {
   // "Hoje" sai do mesmo helper com fuso de São Paulo que a rotina usa, para que
   // a janela do contador e a janela da lista não possam divergir.
-  const { from, to } = dueWindowRange(options.dueWindow, todayLocalIso(), addDaysIso);
-  const index = await listActivityOverviewIndex(userId, { ...options, dueFrom: from, dueTo: to });
+  const { from, to, column } = dueWindowRange(options.dueWindow, todayLocalIso(), addDaysIso);
+  const index = await listActivityOverviewIndex(userId, {
+    ...options,
+    dueFrom: from,
+    dueTo: to,
+    windowColumn: column,
+  });
   const visible = index.slice(0, OVERVIEW_PAGE_SIZE);
   const items = await hydrateIndexRows(userId, visible);
   return {

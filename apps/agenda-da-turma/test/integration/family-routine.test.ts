@@ -104,6 +104,7 @@ const action = (title = "Providência sintética", profileId = child): NoticeAct
   dueAt: date,
   dateOrigin: "family",
   time: null,
+  estimatedMinutes: null,
   location: null,
   sourceExcerpt: null,
   assignedToUserId: null,

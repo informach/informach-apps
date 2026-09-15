@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@informach/ui/components/dropdown-menu";
 import { cn } from "@informach/ui/lib/utils";
-import { Check, MoreVertical, Pencil, Sparkles, Trash2 } from "lucide-react";
+import { Check, MoreVertical, Pencil, Sparkles, Timer, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -19,6 +19,7 @@ import { StudentAvatar } from "@/features/students/components/student-avatar";
 import { getSubjectTintedClassByIndex } from "@/features/subjects/utils";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { ACTIVITY_TYPE_LABELS } from "../activity-types";
+import { formatEstimate } from "../estimate";
 import { useCardToggle } from "../hooks/use-card-toggle";
 import type { ActivityOverviewItem } from "../overview-types";
 import { getActivityPresentation } from "../presentation";
@@ -164,6 +165,12 @@ export function UnifiedActivityCard({
 
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Badge variant={due.variant}>{due.label}</Badge>
+                {view.estimatedMinutes !== null ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-lg border bg-background/60 px-2 py-1 text-xs font-medium">
+                    <Timer className="size-3.5" aria-hidden />
+                    {formatEstimate(view.estimatedMinutes)}
+                  </span>
+                ) : null}
                 <span className="inline-flex min-w-0 items-center gap-1.5 rounded-lg border bg-background/60 py-0.5 pl-0.5 pr-2 text-xs font-medium">
                   <StudentAvatar name={view.profileName} size="chip" className="border" />
                   <span className="min-w-0 truncate">{view.profileName}</span>

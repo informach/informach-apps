@@ -45,6 +45,7 @@ function blankAction(
       dueAt,
       dateOrigin: dueAt ? "family" : "unspecified",
       time: null,
+      estimatedMinutes: null,
       location: null,
       sourceExcerpt: null,
       assignedToUserId: null,
@@ -132,6 +133,10 @@ export function CaptureForm({
             assignedToUserId: null,
             reminderAt: null,
             recurrence: "none",
+            // A IA não estima duração, pela mesma regra que a proíbe de
+            // inventar prazo. `extractedActionSchema` nem carrega o campo:
+            // quem sabe quanto tempo a criança leva é quem mora com ela.
+            estimatedMinutes: null,
             // Publicar na turma é decisão de quem revisa, nunca da leitura.
             shareWithTurma: false,
           },
@@ -325,6 +330,10 @@ export function CaptureForm({
             assignedToUserId: null,
             reminderAt: null,
             recurrence: "none",
+            // A IA não estima duração, pela mesma regra que a proíbe de
+            // inventar prazo. `extractedActionSchema` nem carrega o campo:
+            // quem sabe quanto tempo a criança leva é quem mora com ela.
+            estimatedMinutes: null,
             // Publicar na turma é decisão de quem revisa, nunca da leitura.
             shareWithTurma: false,
           },

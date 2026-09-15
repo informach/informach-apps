@@ -78,8 +78,8 @@ export function TomorrowBackpack({
  */
 export function TomorrowBackpackSkeleton() {
   return (
-    <div role="status" aria-label="Carregando a mochila de amanhã" aria-hidden>
-      <Skeleton className="h-28 rounded-2xl" />
+    <div role="status" aria-label="Carregando a mochila de amanhã">
+      <Skeleton className="h-28 rounded-2xl" aria-hidden />
     </div>
   );
 }

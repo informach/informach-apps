@@ -1,0 +1,1 @@
+ALTER TABLE "agenda"."tasks" ADD COLUMN "estimated_minutes" integer;

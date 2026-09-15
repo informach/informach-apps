@@ -25,7 +25,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { findActivityHistory } from "@/features/activities/history-repository";
 import { listPendingSharedActivitiesForUser } from "@/features/activities/repository";
 import { respondSharedActivity } from "@/features/activities/service";
-import { todayLocalIso } from "@/features/dashboard/date";
+import { addDaysIso, todayLocalIso } from "@/features/dashboard/date";
 import { acceptFamilyInvitation, createFamilyInvitation } from "@/features/family/service";
 import { validateNoticeExtraction } from "@/features/notices/extraction";
 import {
@@ -80,6 +80,7 @@ const action = (title = "Providência de revisão", profileId = child): NoticeAc
   dueAt: "2030-09-14",
   dateOrigin: "family",
   time: null,
+  estimatedMinutes: null,
   location: null,
   sourceExcerpt: null,
   assignedToUserId: null,
@@ -96,6 +97,7 @@ const extraction = {
       dueAt: null,
       dateOrigin: "unspecified" as const,
       time: null,
+      estimatedMinutes: null,
       location: null,
       sourceExcerpt: "Levar material",
     },
@@ -262,6 +264,7 @@ function taskAction(task: Task, patch: Partial<NoticeActionInput> = {}): NoticeA
     dueAt: task.dueAt,
     dateOrigin: task.dateOrigin,
     time: task.time,
+    estimatedMinutes: null,
     location: task.location,
     sourceExcerpt: task.sourceExcerpt,
     assignedToUserId: task.assignedToUserId,
@@ -381,6 +384,79 @@ describe("Review regressions", () => {
     expect(
       (await getActivityOverview(owner, { ...options, typeFilter: "material" })).items,
     ).toHaveLength(0);
+  });
+
+  it("recorta a lista pela mesma janela que produziu cada contador da rotina", async () => {
+    // O ramo SQL da janela nunca era exercido: os outros testes passam
+    // `dueWindow: "all"`, que é exatamente o curto-circuito. Sem isto, trocar o
+    // BETWEEN de `getRoutineCounters` deixaria o teste unitário verde enquanto
+    // o contador passaria a abrir uma lista que discorda dele.
+    const today = todayLocalIso();
+    const base = (title: string, dueAt: string | null) => ({
+      ...action(title),
+      subjectId: subject,
+      dueAt,
+      dateOrigin: dueAt ? ("school" as const) : ("unspecified" as const),
+    });
+    const created = value(
+      await confirmNotice(owner, {
+        noticeId: null,
+        allowDuplicates: true,
+        actions: [
+          base("Venceu ontem", addDaysIso(today, -1)),
+          base("É para hoje", today),
+          base("É para amanhã", addDaysIso(today, 1)),
+          base("Daqui a duas semanas", addDaysIso(today, 14)),
+          base("Sem prazo ainda", null),
+        ],
+      }),
+    );
+    const ids = created.ids.map((id) => required(id));
+    const overdue = required(ids[0]);
+    const todayTask = required(ids[1]);
+    const tomorrow = required(ids[2]);
+    const faraway = required(ids[3]);
+    const undated = required(ids[4]);
+
+    const options: ActivityOverviewOptions = {
+      profileFilter: child,
+      typeFilter: null,
+      statusFilter: "pending",
+      dueWindow: "all",
+      noticeId: null,
+      page: 1,
+    };
+    const idsFor = async (patch: Partial<ActivityOverviewOptions>) =>
+      (await getActivityOverview(owner, { ...options, ...patch })).items
+        .map((entry) => entry.item.id)
+        .sort();
+
+    expect(await idsFor({ dueWindow: "atrasadas" })).toEqual([overdue].sort());
+    expect(await idsFor({ dueWindow: "hoje" })).toEqual([todayTask].sort());
+    // Sete dias a partir de amanhã: o de 14 dias fica fora.
+    expect(await idsFor({ dueWindow: "semana" })).toEqual([tomorrow].sort());
+
+    // Sem prazo entra em "todos" e sai de qualquer recorte — não há como dizer
+    // se um prazo a confirmar cai dentro ou fora da janela.
+    expect(await idsFor({ dueWindow: "all" })).toContain(undated);
+    for (const window of ["atrasadas", "hoje", "semana", "recentes"] as const) {
+      expect(await idsFor({ dueWindow: window })).not.toContain(undated);
+    }
+    expect(await idsFor({ dueWindow: "all" })).toContain(faraway);
+
+    // "Concluídas nos últimos 7 dias" mede a CONCLUSÃO, não o prazo: a tarefa
+    // que venceu ontem e foi cuidada hoje precisa aparecer.
+    const before = await reload(overdue);
+    value(
+      await setNoticeActionStatus(owner, {
+        id: overdue,
+        version: before.version,
+        status: "done",
+      }),
+    );
+    expect(await idsFor({ dueWindow: "recentes", statusFilter: "done" })).toEqual([overdue].sort());
+    // E some de "atrasadas", que continua sendo sobre o que está pendente.
+    expect(await idsFor({ dueWindow: "atrasadas" })).toEqual([]);
   });
 
   it("filters activity types before pagination without expanding child access", async () => {

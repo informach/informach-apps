@@ -85,6 +85,13 @@ const TOKEN_CLASSES: Record<KpiToken, { card: string; label: string; icon: strin
   },
 };
 
+/** Zero não pede atenção: neutro legível, sem opacidade sobre o texto. */
+const EMPTY_CLASSES = {
+  card: "border-border/60 bg-card",
+  label: "text-muted-foreground",
+  icon: "bg-muted text-muted-foreground",
+} as const;
+
 type Props = {
   counters: DashboardCounters;
   /** Viaja para a lista junto do recorte, como no resto da rotina. */
@@ -107,8 +114,8 @@ export function KpiCards({ counters, profileFilter }: Props) {
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
       {KPIS.map(({ key, label, token, Icon, status, dueWindow }) => {
         const value = counters[key];
-        const classes = TOKEN_CLASSES[token];
         const empty = value === 0;
+        const classes = empty ? EMPTY_CLASSES : TOKEN_CLASSES[token];
         const href = activityOverviewHref({
           profileFilter,
           typeFilter: null,
@@ -149,8 +156,11 @@ export function KpiCards({ counters, profileFilter }: Props) {
         );
 
         if (empty) {
+          // Zero fica discreto pela COR, nunca por `opacity`: a opacidade caía
+          // sobre a subárvore inteira e levava o rótulo de 11px — justamente a
+          // tinta calibrada para 4,5:1 — de volta para a faixa de 2,3:1.
           return (
-            <Card key={key} className={cn(classes.card, "opacity-60")}>
+            <Card key={key} className="border-border/60 bg-card">
               {body}
             </Card>
           );
@@ -167,7 +177,9 @@ export function KpiCards({ counters, profileFilter }: Props) {
             <Link
               href={href}
               aria-label={`${label}: ${value}. Ver na lista de atividades.`}
-              className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              // Mesmo raio do `Card` do pacote (`rounded-lg`): com `rounded-xl`
+              // o anel de foco passava por fora da borda e cortava os cantos.
+              className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {body}
             </Link>
