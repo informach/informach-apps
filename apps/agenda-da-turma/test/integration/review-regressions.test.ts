@@ -328,6 +328,7 @@ describe("Review regressions", () => {
       typeFilter: null,
       statusFilter: "pending",
       dueWindow: "all",
+      assignedToMe: false,
       noticeId: null,
       page: 1,
     };
@@ -423,6 +424,7 @@ describe("Review regressions", () => {
       typeFilter: null,
       statusFilter: "pending",
       dueWindow: "all",
+      assignedToMe: false,
       noticeId: null,
       page: 1,
     };
@@ -470,6 +472,7 @@ describe("Review regressions", () => {
       typeFilter: "exam",
       statusFilter: "pending",
       dueWindow: "all",
+      assignedToMe: false,
       noticeId: null,
       page: 1,
     };
@@ -497,6 +500,7 @@ describe("Review regressions", () => {
       typeFilter: null,
       statusFilter: "pending",
       dueWindow: "all",
+      assignedToMe: false,
       noticeId: null,
       page: 1,
     });

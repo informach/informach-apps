@@ -1,6 +1,7 @@
 import { type ReactNode, Suspense } from "react";
 import { AppHeader } from "@/components/app-shell/app-header";
 import { BottomNav } from "@/components/app-shell/bottom-nav";
+import { OfflineBanner } from "@/components/app-shell/offline-banner";
 import { getAddEntitlement } from "@/features/notices/trial";
 import { redirectIfUnauthenticated } from "@/lib/auth";
 
@@ -13,6 +14,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     // claro, então cartão nenhum se destacava de nada.
     <div className="flex min-h-dvh flex-col bg-app-ground">
       <AppHeader />
+      <OfflineBanner />
       <div className="flex-1 pb-20">{children}</div>
       {/*
         Fora do caminho crítico: a franquia custa uma consulta de billing e duas

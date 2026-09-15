@@ -13,6 +13,8 @@ import {
 import { TomorrowBackpackSection } from "@/features/dashboard/components/tomorrow-backpack-section";
 import { isEveningInApp } from "@/features/dashboard/date";
 import { PendingDraftsSection } from "@/features/notices/components/pending-drafts-section";
+import { CommitmentWidget } from "@/features/notifications/components/commitment-widget";
+import { getNotificationPreferences } from "@/features/notifications/service";
 import { WelcomeFlash } from "@/features/onboarding/components/welcome-flash";
 import { NoStudentsWidget } from "@/features/students/components/no-students-widget";
 import { ProfilesWithoutTurmaWidget } from "@/features/students/components/profiles-without-turma-widget";
@@ -37,12 +39,25 @@ export default async function DashboardPage({ searchParams }: Props) {
   const params = await searchParams;
   const user = await requireUserServer();
 
-  const [profiles, profilesWithoutTurma, turmasNeedingSubjects, isPro] = await Promise.all([
-    listStudentProfilesForUser(user.id),
-    countUserProfilesWithoutTurma(user.id),
-    listTurmasNeedingSubjectsForUser(user.id),
-    getIsProForUser(user.id),
-  ]);
+  const [profiles, profilesWithoutTurma, turmasNeedingSubjects, isPro, notificationPrefs] =
+    await Promise.all([
+      listStudentProfilesForUser(user.id),
+      countUserProfilesWithoutTurma(user.id),
+      listTurmasNeedingSubjectsForUser(user.id),
+      getIsProForUser(user.id),
+      getNotificationPreferences(user.id),
+    ]);
+
+  /*
+   * O convite a combinar um horário aparece enquanto nenhum canal estiver
+   * ligado. `readNotificationPreferences` devolve os padrões quando a linha não
+   * existe, então "nunca combinou" e "combinou desligar os dois" são
+   * indistinguíveis daqui — quem desligou de propósito vê o card de novo numa
+   * sessão nova, e o "Agora não" o cala até lá. Distinguir os dois casos
+   * exigiria uma coluna só para registrar uma recusa que talvez seja só adiar.
+   */
+  const shouldAskForCommitment =
+    profiles.length > 0 && !notificationPrefs.emailEnabled && !notificationPrefs.pushEnabled;
 
   const greeting = user.name ?? "responsável";
   // Depois das 18h em São Paulo a pergunta da casa muda, e a página se reordena
@@ -100,6 +115,9 @@ export default async function DashboardPage({ searchParams }: Props) {
       <Suspense fallback={null}>
         <PendingDraftsSection userId={user.id} />
       </Suspense>
+      {shouldAskForCommitment ? (
+        <CommitmentWidget dismissedKey={`agenda:commitment-dismissed:${user.id}`} />
+      ) : null}
       {evening ? (
         // `fallback={null}` como as outras seções opcionais desta página: a
         // mochila não existe no sábado à noite nem sem horário cadastrado, e um

@@ -21,6 +21,7 @@ function activityIndexCte(userId: string) {
         ${agendaTasks.dueAt} AS due_at,
         ${agendaTasks.createdAt} AS created_at,
         ${agendaTasks.completedAt} AS completed_at,
+        ${agendaTasks.assignedToUserId} AS assigned_to_user_id,
         ${agendaTasks.noticeId} AS notice_id
       FROM ${agendaTasks}
       INNER JOIN ${agendaStudentProfiles} ON ${agendaStudentProfiles.id} = ${agendaTasks.profileId}
@@ -48,6 +49,10 @@ export async function listActivityOverviewIndex(
       AND (${options.typeFilter}::text IS NULL OR type = ${options.typeFilter})
       AND (${options.statusFilter} = 'all' OR status = ${options.statusFilter})
       AND (${options.noticeId}::uuid IS NULL OR notice_id = ${options.noticeId}::uuid)
+      -- "O que é meu": quem ficou de cuidar. Sem responsável definido a
+      -- atividade é de todo mundo, então ela NÃO entra aqui — o filtro responde
+      -- "o que combinaram comigo", não "o que sobrou".
+      AND (${options.assignedToMe} = false OR assigned_to_user_id = ${userId})
       -- Janela (ver dueWindowRange em overview-types). Sem recorte, a atividade
       -- sem prazo continua listada; com recorte ela sai, porque não há como
       -- dizer se um prazo a confirmar cai dentro ou fora da janela.

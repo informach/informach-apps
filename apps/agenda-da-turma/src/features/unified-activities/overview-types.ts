@@ -45,6 +45,15 @@ export type ActivityOverviewOptions = {
   typeFilter: OverviewActivityType | null;
   statusFilter: OverviewStatus;
   dueWindow: DueWindow;
+  /**
+   * Só o que ficou sob a responsabilidade de quem está olhando.
+   *
+   * O Pro vende "divida os cuidados", e o dado já existia — `assignedToUserId`
+   * grava quem ficou de cuidar, e o card mostra "Acompanhamento: fulano". O que
+   * faltava era a pergunta inversa: "o que é meu?". Aparece só quando há um
+   * segundo adulto; com um adulto só, tudo é dele e o filtro seria ruído.
+   */
+  assignedToMe: boolean;
   noticeId: string | null;
   page: number;
 };
@@ -56,6 +65,7 @@ export function activityOverviewHref(options: ActivityOverviewOptions) {
   if (options.typeFilter) params.set("tipo", options.typeFilter);
   if (options.statusFilter !== "pending") params.set("situacao", options.statusFilter);
   if (options.dueWindow !== "all") params.set("prazo", options.dueWindow);
+  if (options.assignedToMe) params.set("responsavel", "eu");
   if (options.noticeId) params.set("recado", options.noticeId);
   if (options.page > 1) params.set("pagina", String(options.page));
   return params.size ? `/atividades?${params}` : "/atividades";

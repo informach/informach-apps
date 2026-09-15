@@ -142,20 +142,54 @@ export function AddSheet({
             </li>
           ))}
         </ul>
-        <p className="border-t bg-muted/40 px-5 py-3 text-sm text-muted-foreground">
-          Você confere tudo antes de salvar.{" "}
-          {entitlement.isPro ? (
-            "Cada importação usa 1 crédito; por voz, 2."
-          ) : entitlement.trialLeft > 0 ? (
-            <strong className="font-semibold text-foreground">
-              {entitlement.trialLeft === 1
-                ? "Resta 1 importação grátis."
-                : `Restam ${entitlement.trialLeft} importações grátis.`}
-            </strong>
-          ) : (
-            "As importações de teste acabaram. Escrever à mão continua livre."
-          )}
-        </p>
+        {/*
+          Quando a franquia acaba, o rodapé deixa de ser um aviso seco.
+          Ele dizia "As importações de teste acabaram" — o custo, sem o
+          benefício. Aqui a mesma franquia é contada do lado do que a família
+          ganhou, e o convite ao Pro vem no único momento em que ele responde a
+          uma pergunta que a pessoa acabou de fazer. Escrever à mão continua
+          livre, e continua na lista acima.
+        */}
+        {!entitlement.isPro && entitlement.trialLeft === 0 ? (
+          <div className="space-y-3 border-t bg-secondary/10 px-5 py-4">
+            <p className="text-sm">
+              {entitlement.organizedFromNotices > 0 ? (
+                <>
+                  A leitura já virou{" "}
+                  <strong className="font-semibold">
+                    {entitlement.organizedFromNotices === 1
+                      ? "1 atividade"
+                      : `${entitlement.organizedFromNotices} atividades`}
+                  </strong>{" "}
+                  na rotina de vocês. As importações de teste acabaram.
+                </>
+              ) : (
+                "As importações de teste acabaram."
+              )}
+            </p>
+            <Button asChild size="sm" className="w-full">
+              <Link href="/upgrade" onClick={() => setOpen(false)}>
+                Continuar com o Pro
+              </Link>
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Escrever à mão continua livre, sem limite.
+            </p>
+          </div>
+        ) : (
+          <p className="border-t bg-muted/40 px-5 py-3 text-sm text-muted-foreground">
+            Você confere tudo antes de salvar.{" "}
+            {entitlement.isPro ? (
+              "Cada importação usa 1 crédito; por voz, 2."
+            ) : (
+              <strong className="font-semibold text-foreground">
+                {entitlement.trialLeft === 1
+                  ? "Resta 1 importação grátis."
+                  : `Restam ${entitlement.trialLeft} importações grátis.`}
+              </strong>
+            )}
+          </p>
+        )}
       </SheetContent>
     </Sheet>
   );

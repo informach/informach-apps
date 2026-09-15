@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { OfflineBanner } from "@/components/app-shell/offline-banner";
 import { redirectIfUnauthenticated } from "@/lib/auth";
 
 /**
@@ -14,5 +15,12 @@ import { redirectIfUnauthenticated } from "@/lib/auth";
  */
 export default async function KidLayout({ children }: { children: ReactNode }) {
   await redirectIfUnauthenticated();
-  return <div className="min-h-dvh bg-app-ground">{children}</div>;
+  return (
+    <div className="min-h-dvh bg-app-ground">
+      {/* O único elemento de shell que sobrevive aqui: uma criança marcando
+          "feito" sem rede precisa saber que não foi ela que errou. */}
+      <OfflineBanner />
+      {children}
+    </div>
+  );
 }

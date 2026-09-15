@@ -121,6 +121,7 @@ export function KpiCards({ counters, profileFilter }: Props) {
           typeFilter: null,
           statusFilter: status,
           dueWindow,
+          assignedToMe: false,
           noticeId: null,
           page: 1,
         });

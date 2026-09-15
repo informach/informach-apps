@@ -1,7 +1,12 @@
 import "server-only";
 
-import { and, count, db, eq, sql } from "@informach/db";
-import { agendaNotices, agendaProductEvents } from "@informach/db/schema";
+import { and, count, db, eq, isNotNull, sql } from "@informach/db";
+import {
+  agendaNotices,
+  agendaProductEvents,
+  agendaStudentProfiles,
+  agendaTasks,
+} from "@informach/db/schema";
 import { cache } from "react";
 import { getIsProForUser } from "@/features/billing/server-cache";
 import { findAccessibleProfile, listAccessibleProfiles } from "@/features/family/access";
@@ -62,6 +67,23 @@ export async function countTrialImports(ownerId: string): Promise<number> {
 
 export async function hasTrialImportsLeft(ownerId: string): Promise<boolean> {
   return (await countTrialImports(ownerId)) < FREE_NOTICE_TRIAL;
+}
+
+/**
+ * Quantas atividades nasceram de um recado lido pela IA.
+ *
+ * É o que a franquia entregou de concreto, e por isso é o número que a folha
+ * Adicionar mostra quando o teste acaba. Contar importações diria "você gastou
+ * 5"; contar atividades diz "você organizou 14" — a mesma franquia, do lado do
+ * que a família ganhou.
+ */
+export async function countActivitiesFromNotices(ownerId: string): Promise<number> {
+  const [organized] = await db
+    .select({ value: count() })
+    .from(agendaTasks)
+    .innerJoin(agendaStudentProfiles, eq(agendaStudentProfiles.id, agendaTasks.profileId))
+    .where(and(eq(agendaStudentProfiles.userId, ownerId), isNotNull(agendaTasks.noticeId)));
+  return organized?.value ?? 0;
 }
 
 /** Idempotente por `stripeEventId` — chamar de novo não concede outra vez. */
@@ -174,7 +196,13 @@ export const getAddEntitlement = cache(async (userId: string): Promise<AddEntitl
     getIsProForUser(ownerId),
     countTrialImports(ownerId),
   ]);
-  return { isPro, trialLeft: Math.max(0, FREE_NOTICE_TRIAL - used) };
+  const trialLeft = Math.max(0, FREE_NOTICE_TRIAL - used);
+  // A contagem do que foi organizado só interessa no momento em que a franquia
+  // acaba — e é exatamente aí que ela deixa de ser uma consulta por página para
+  // virar a única vez que roda.
+  const organizedFromNotices =
+    !isPro && trialLeft === 0 ? await countActivitiesFromNotices(ownerId) : 0;
+  return { isPro, trialLeft, organizedFromNotices };
 });
 
 export type { AddEntitlement };

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { z } from "zod";
 import { BackButton } from "@/components/app-shell/back-button";
 import { ActivitiesSection } from "@/features/activities/components/activities-section";
+import { listAssignableAdults } from "@/features/notices/repository";
 import { getAddEntitlement } from "@/features/notices/trial";
 import { listStudentProfilesForUser } from "@/features/students/service";
 import { activityTypeSchema } from "@/features/unified-activities/activity-types";
@@ -22,13 +23,20 @@ export default async function AtividadesPage({
     tipo?: string;
     situacao?: string;
     prazo?: string;
+    responsavel?: string;
     recado?: string;
     pagina?: string;
   }>;
 }) {
   const user = await requireUserServer();
   const params = await searchParams;
-  const profiles = await listStudentProfilesForUser(user.id);
+  const [profiles, adults] = await Promise.all([
+    listStudentProfilesForUser(user.id),
+    listAssignableAdults(user.id),
+  ]);
+  // Um adulto só: tudo é dele, e "o que é meu" seria um filtro que nunca tira
+  // nada da lista. O controle aparece a partir do segundo.
+  const hasSecondAdult = new Set(adults.map((adult) => adult.userId)).size > 1;
   const activeFilter = profiles.find((p) => p.id === params.perfil) ?? null;
   const parsedType = activityTypeSchema.safeParse(params.tipo);
   const filters = {
@@ -36,6 +44,7 @@ export default async function AtividadesPage({
     typeFilter: parsedType.success ? parsedType.data : null,
     statusFilter: overviewStatusSchema.catch("pending").parse(params.situacao),
     dueWindow: dueWindowSchema.catch("all").parse(params.prazo),
+    assignedToMe: params.responsavel === "eu",
     noticeId: z.string().uuid().catch("").parse(params.recado) || null,
     page: z.coerce.number().int().min(1).max(10000).catch(1).parse(params.pagina),
   };
@@ -65,6 +74,7 @@ export default async function AtividadesPage({
         profiles={profiles}
         activeFilter={activeFilter}
         currentUserId={user.id}
+        hasSecondAdult={hasSecondAdult}
         addEntitlement={await getAddEntitlement(user.id)}
       />
     </main>

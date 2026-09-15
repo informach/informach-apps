@@ -8,4 +8,12 @@
  * navegador e quebrar a página inteira. Um módulo sem dependências evita o
  * acidente em vez de contar com a disciplina de quem edita.
  */
-export type AddEntitlement = { isPro: boolean; trialLeft: number };
+export type AddEntitlement = {
+  isPro: boolean;
+  trialLeft: number;
+  /**
+   * Atividades que nasceram de um recado lido. Só é calculado quando a franquia
+   * acabou e a conta não é Pro — nos outros casos vem zero, porque ninguém o lê.
+   */
+  organizedFromNotices: number;
+};

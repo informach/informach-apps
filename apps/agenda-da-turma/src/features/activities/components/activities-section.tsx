@@ -38,6 +38,8 @@ type Props = {
   profiles: StudentProfile[];
   activeFilter: StudentProfile | null;
   currentUserId: string;
+  /** Com um adulto só, "o que é meu" nunca tiraria nada da lista. */
+  hasSecondAdult: boolean;
   /** Plano e franquia do titular, para a folha Adicionar. */
   addEntitlement: AddEntitlement;
 };
@@ -49,6 +51,7 @@ export function ActivitiesSection({
   profiles,
   activeFilter,
   currentUserId,
+  hasSecondAdult,
   addEntitlement,
 }: Props) {
   const router = useRouter();
@@ -71,7 +74,10 @@ export function ActivitiesSection({
   // O que estreita a lista além da criança escolhida. "Pendentes" é o padrão e
   // não conta; qualquer outra situação, sim.
   const hasNarrowingFilter =
-    typeFilter !== null || filters.dueWindow !== "all" || filters.statusFilter !== "pending";
+    typeFilter !== null ||
+    filters.dueWindow !== "all" ||
+    filters.statusFilter !== "pending" ||
+    filters.assignedToMe;
 
   return (
     <div className="space-y-4">
@@ -130,6 +136,22 @@ export function ActivitiesSection({
               </SelectContent>
             </Select>
           </div>
+          {hasSecondAdult ? (
+            <div className="col-span-2 flex items-end sm:col-span-1">
+              <button
+                type="button"
+                aria-pressed={filters.assignedToMe}
+                onClick={() => changeFilter({ assignedToMe: !filters.assignedToMe })}
+                className={`min-h-11 w-full rounded-md border px-4 text-sm transition-colors ${
+                  filters.assignedToMe
+                    ? "border-primary/40 bg-primary/10 font-semibold"
+                    : "hover:bg-muted"
+                }`}
+              >
+                Só o que é meu
+              </button>
+            </div>
+          ) : null}
           <div className="col-span-2 space-y-1.5 sm:col-span-1">
             <label htmlFor="activities-status-filter" className="text-sm text-muted-foreground">
               Situação
@@ -235,6 +257,7 @@ export function ActivitiesSection({
                         typeFilter: null,
                         dueWindow: "all",
                         statusFilter: "pending",
+                        assignedToMe: false,
                         page: 1,
                       })}
                     >
