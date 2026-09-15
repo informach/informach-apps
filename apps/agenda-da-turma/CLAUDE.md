@@ -211,10 +211,26 @@ Estrutura no Stripe espelha o cozya (`apps/cozya/CLAUDE.md` §5): **2 Products +
 
 Com `NODE_ENV=production` e `STRIPE_MODE=prod`, `src/lib/billing.ts` falha no boot se qualquer produto da Agenda voltar a ter `price_TODO_*`. UI também esconde packs com placeholder via `isStripePriceIdConfigured` no slot do `/settings/billing`, e checkout do Pro retorna `PRO_NOT_CONFIGURED` no toast (`InvalidProductError` do package).
 
-> Pré-deploy ainda pendente no Stripe Dashboard (não-bloqueante pro código, mas recomendado antes do go-live):
-> - Anexar `tax_code: "txcd_10000000"` (General Services) nos 2 products.
-> - Setar `nickname` em cada price (ex: "Agenda da Turma Pro — Mensal").
-> - Adicionar `metadata.app=agenda-da-turma` e `metadata.product_id=<config-id>` nos 5 prices (facilita reconciliação manual; o billing package roteia por `priceId`, não por metadata).
+> **Estado em 15/09/2026, conferido no Stripe live:** os 2 products e os 5 prices
+> existem, estão ativos e os valores batem com `products.ts`. `prod_UVx1FUGEPYM2bz`
+> tem `metadata = {app: agenda-da-turma, kind: subscription}`;
+> `prod_UVx1G1I9SR4qgE` está sem metadata. Nenhum dos dois tem `tax_code`, e
+> nenhum dos 5 prices tem `nickname` nem `metadata`.
+>
+> Falta o cosmético, que não bloqueia código nem cobrança — **o billing package
+> roteia por `priceId`, nunca por metadata**, e o Stripe Tax não é usado em lugar
+> nenhum de `packages/billing`, então `tax_code` hoje é inerte:
+>
+> ```bash
+> stripe products update prod_UVx1FUGEPYM2bz --live -d tax_code=txcd_10000000
+> stripe products update prod_UVx1G1I9SR4qgE --live -d tax_code=txcd_10000000 >   -d "metadata[app]=agenda-da-turma" -d "metadata[kind]=credits"
+>
+> stripe prices update price_1TWv7xCvOctqao30IPggyGFa --live >   -d "nickname=Agenda da Turma Pro — Mensal" >   -d "metadata[app]=agenda-da-turma" -d "metadata[product_id]=agenda_da_turma_pro_monthly"
+> stripe prices update price_1TWv81CvOctqao30XGmMOWZD --live >   -d "nickname=Agenda da Turma Pro — Anual" >   -d "metadata[app]=agenda-da-turma" -d "metadata[product_id]=agenda_da_turma_pro_annual"
+> stripe prices update price_1TWv84CvOctqao30QgIrNZ9n --live >   -d "nickname=Agenda da Turma — 10 créditos" >   -d "metadata[app]=agenda-da-turma" -d "metadata[product_id]=agenda_da_turma_credits_10"
+> stripe prices update price_1TWv8HCvOctqao30iOFfzANE --live >   -d "nickname=Agenda da Turma — 20 créditos" >   -d "metadata[app]=agenda-da-turma" -d "metadata[product_id]=agenda_da_turma_credits_20"
+> stripe prices update price_1TWv8nCvOctqao30K7FDTElg --live >   -d "nickname=Agenda da Turma — 30 créditos" >   -d "metadata[app]=agenda-da-turma" -d "metadata[product_id]=agenda_da_turma_credits_30"
+> ```
 
 Webhook endpoint + eventos de billing: ver `packages/billing/PRODUCTION.md` e `docs/deploy-runbook.md` Fase 10.
 
@@ -492,17 +508,47 @@ Neutros (`background, foreground, card, popover, muted, accent, border, input, s
 
 ---
 
-## 8. Pendências vs cozya (gaps conhecidos)
+## 8. Pendências reais (conferido em 15/09/2026)
 
-Ordem rough de prioridade quando produto evoluir:
+> A lista anterior listava sete itens; cinco já estavam feitos. Os estados abaixo
+> foram **verificados contra o Railway e o Stripe**, não contra a memória de
+> quem escreveu. Ao fechar um item, atualize aqui na mesma passada — uma
+> pendência falsa custa tanto quanto uma esquecida, porque manda alguém refazer
+> o que já existe.
 
-1. **Wiring Railway Dashboard** — `apps/agenda-da-turma/railway.toml` existe. Ainda precisa apontar o service no Railway para esse Config Path quando o deploy for plugado.
-2. **Price IDs live** — substituir todos os `price_TODO_*` da Agenda em `packages/config/src/products.ts` antes de habilitar Pro/Pacotes em produção. O boot guard em `src/lib/billing.ts` trava se faltar algum.
-3. **CSP** — nonce por request é encaminhado ao render e ao ThemeProvider; o layout lê headers e renderiza páginas dinamicamente. Validação no navegador local com `CSP_ENFORCE=1` sem violações de execução. Build otimizado aprovado; teste do runtime de produção ainda depende de homologação, pois a inicialização local desse build foi bloqueada pela aprovação automática. Não presumir que a variável publicada em Railway foi alterada por este trabalho. Manter `strict-dynamic`, sem relaxar `script-src` para contornar um nonce ausente.
-4. **Rate limit anti-script** — `lib/rate-limit.ts` com Postgres-via-Redis ainda não existe. Replicar pattern do cozya quando feature de IA chegar (defesa em camadas além do cap mensal de créditos).
-5. **IA pipeline** — descrito em §2 acima. Bloco grande: agentes Mastra + seed `creditPricing` + integração `withCredits`/`runBillableAiCall`.
-6. **Site header pra dashboard** — `site-header.tsx` hoje é minimalista (só auth pages). Quando dashboard tiver navegação real, evoluir pro pattern variant igual `apps/cozya/src/components/marketing/site-header.tsx`.
-7. **Landing pública** — `app/page.tsx` é placeholder. Decisão de produto: ter landing própria em `agenda-da-turma.informach.com.br/` ou redirect pra `informach.com.br/agenda-da-turma`?
+### Aberto
+
+1. **CSP em produção está em Report-Only.** `CSP_ENFORCE=0` no service
+   `@informach/agenda-da-turma`. O nonce por request está encaminhado ao render e
+   ao ThemeProvider, e a validação local com `CSP_ENFORCE=1` passou sem violação
+   de execução — falta homologar o runtime de produção e virar a variável para
+   `1`. Manter `strict-dynamic`; **nunca** relaxar `script-src` para contornar um
+   nonce ausente.
+
+2. **Checklist cosmético do Stripe** (não bloqueia código nem cobrança; ver §4).
+   Os dois products e os cinco prices existem, estão ativos e batem com
+   `products.ts` centavo por centavo. Falta só `tax_code`, `nickname` e
+   `metadata` nos prices.
+
+3. **Site header para o app autenticado** — `site-header.tsx` ainda é o mínimo
+   das páginas de auth. O `AppHeader` cobre o app; unificar os dois é arrumação,
+   não bloqueio.
+
+### Fechado (e por que estava na lista)
+
+- ~~Wiring Railway~~ — o service `@informach/agenda-da-turma` existe, está
+  `RUNNING`, aponta para `/apps/agenda-da-turma/railway.toml` e responde em
+  `agenda-da-turma.informach.com.br`. Os sete `cron-perapp-*` já têm
+  `agenda-da-turma.informach.com.br` em `APP_DOMAINS`.
+- ~~Price IDs live~~ — os cinco estão preenchidos em `products.ts` e conferidos
+  contra o Stripe live: R$ 19,90/mês, R$ 199,00/ano e os packs de R$ 6,90,
+  R$ 12,90 e R$ 17,90, todos ativos. Os únicos `price_TODO_*` que restam no
+  arquivo são do **missao-saber**.
+- ~~Rate limit anti-script~~ — `lib/rate-limit.ts` existe, com Redis e
+  passthrough registrado quando ele falta.
+- ~~Pipeline de IA~~ — `src/ai/` e `src/app/api/ai/{activities,subjects,transcribe}`
+  existem; ver §2.
+- ~~Landing pública~~ — `app/(marketing)/page.tsx` é a página de vendas completa.
 
 ---
 
