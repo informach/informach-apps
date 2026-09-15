@@ -148,25 +148,20 @@ describe("createActivity", () => {
     expect(mocks.insertActivityWithStatusesWithinFreeLimit).not.toHaveBeenCalled();
   });
 
-  it("força visibility=individual quando Free pede shared_with_turma", async () => {
+  it("recusa quando Free pede shared_with_turma, em vez de salvar individual calado", async () => {
     mocks.findTurmaWithSchoolById.mockResolvedValue(baseTurma);
     mocks.subjectBelongsToTurma.mockResolvedValue(true);
     mocks.hasProSubscription.mockResolvedValue(false);
-    mocks.insertActivityWithStatusesWithinFreeLimit.mockResolvedValue({
-      ok: true,
-      activity: { ...baseActivity, visibility: "individual" },
-    });
 
     const result = await createActivity(creator.id, {
       ...createInput,
       visibility: "shared_with_turma",
     });
 
-    expect(result.ok).toBe(true);
-    expect(mocks.insertActivityWithStatusesWithinFreeLimit).toHaveBeenCalledWith(
-      expect.objectContaining({ visibility: "individual" }),
-      20,
-    );
+    expect(result).toEqual({ ok: false, error: { code: "PRO_REQUIRED" } });
+    // Nada é gravado: entregar algo diferente do pedido é pior que recusar.
+    expect(mocks.insertActivityWithStatusesWithinFreeLimit).not.toHaveBeenCalled();
+    expect(mocks.insertActivityWithStatuses).not.toHaveBeenCalled();
   });
 
   it("preserva visibility=shared_with_turma quando Pro", async () => {
@@ -367,8 +362,10 @@ describe("updateActivity", () => {
     );
   });
 
-  it("força visibility=individual quando Free tenta setar shared (defesa em profundidade)", async () => {
-    mocks.findActivityById.mockResolvedValue(baseActivity);
+  it("deixa quem perdeu o Pro editar a atividade que já era compartilhada", async () => {
+    // O Pro compra COMPARTILHAR, não continuar compartilhado. Barrar o estado
+    // trancaria a pessoa fora da própria atividade por um conserto de digitação.
+    mocks.findActivityById.mockResolvedValue({ ...baseActivity, visibility: "shared_with_turma" });
     mocks.subjectBelongsToTurma.mockResolvedValue(true);
     mocks.hasProSubscription.mockResolvedValue(false);
     mocks.updateActivityById.mockResolvedValue(baseActivity);
@@ -379,12 +376,20 @@ describe("updateActivity", () => {
     });
 
     expect(result.ok).toBe(true);
-    expect(mocks.updateActivityById).toHaveBeenCalledWith(
-      activityId,
-      expect.objectContaining({ visibility: "individual" }),
-      creator.id,
-      1,
-    );
+  });
+
+  it("recusa quando Free tenta setar shared na edição", async () => {
+    mocks.findActivityById.mockResolvedValue(baseActivity);
+    mocks.subjectBelongsToTurma.mockResolvedValue(true);
+    mocks.hasProSubscription.mockResolvedValue(false);
+
+    const result = await updateActivity(creator.id, {
+      ...updateInput,
+      visibility: "shared_with_turma",
+    });
+
+    expect(result).toEqual({ ok: false, error: { code: "PRO_REQUIRED" } });
+    expect(mocks.updateActivityById).not.toHaveBeenCalled();
   });
 
   it("permite Pro flipar shared → individual quando ninguém aceitou", async () => {

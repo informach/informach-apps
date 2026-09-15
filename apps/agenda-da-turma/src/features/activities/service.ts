@@ -48,8 +48,9 @@ function userSubject(userId: string) {
 }
 
 // Cria a atividade respeitando: (1) perfil ativo na turma, (2) matéria pertence
-// à turma, (3) Pro pra visibility=shared (Free é forçado pra individual
-// silenciosamente — UI já desabilita a opção; este é defesa em profundidade),
+// à turma, (3) Pro pra visibility=shared — a recusa é explícita (`PRO_REQUIRED`),
+// porque salvar como individual o que a pessoa pediu compartilhado entrega algo
+// diferente do combinado sem avisar,
 // (4) limite de FREE_ACTIVITY_LIMIT atividades total pra Free.
 // Status rows iniciais são inseridos pra cada perfil ativo do creator.
 export async function createActivity(
@@ -67,10 +68,11 @@ export async function createActivity(
 
   const isPro = await billing.hasProSubscription(userSubject(userId));
 
-  let visibility = input.visibility;
-  if (visibility === "shared_with_turma" && !isPro) {
-    visibility = "individual";
-  }
+  // Recusa em vez de rebaixar. Salvar como individual o que a pessoa pediu
+  // compartilhado entrega algo diferente do combinado, em silêncio: ela acha
+  // que a turma vai ver, e não vai.
+  const visibility = input.visibility;
+  if (visibility === "shared_with_turma" && !isPro) return err({ code: "PRO_REQUIRED" });
 
   const payload = {
     turmaId: input.turmaId,
@@ -113,13 +115,15 @@ export async function updateActivity(
   const isValidSubject = await subjectBelongsToTurma(input.subjectId, activity.turmaId);
   if (!isValidSubject) return err({ code: "SUBJECT_NOT_FOUND" });
 
-  // Free não pode tornar uma atividade compartilhada (mesma regra do create).
-  // UI desabilita a opção; aqui é defesa em profundidade.
-  const isPro = await billing.hasProSubscription(userSubject(userId));
-  let visibility = input.visibility;
-  if (visibility === "shared_with_turma" && !isPro) {
-    visibility = "individual";
-  }
+  // O que o Pro compra é COMPARTILHAR, não continuar compartilhado. Barrar o
+  // estado, e não a transição, trancava quem teve o plano encerrado: a atividade
+  // já era compartilhada, o formulário devolvia esse valor, e um conserto de
+  // digitação no título passava a ser recusado para sempre.
+  const becomingShared =
+    input.visibility === "shared_with_turma" && activity.visibility !== "shared_with_turma";
+  if (becomingShared && !(await billing.hasProSubscription(userSubject(userId))))
+    return err({ code: "PRO_REQUIRED" });
+  const visibility = input.visibility;
 
   const updated = await updateActivityById(
     input.id,

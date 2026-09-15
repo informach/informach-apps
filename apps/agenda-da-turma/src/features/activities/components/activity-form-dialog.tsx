@@ -198,6 +198,16 @@ export function ActivityFormDialog({
             router.refresh();
             return;
           }
+          if (result.error.code === "PRO_REQUIRED") {
+            form.setError("visibility", {
+              message: "Compartilhar com a turma exige o plano Pro.",
+            });
+            toast.error("Compartilhar com a turma é do plano Pro.", {
+              description: "A alteração não foi salva. Escolha Só para mim ou assine o Pro.",
+              action: { label: "Ver planos", onClick: () => router.push("/upgrade") },
+            });
+            return;
+          }
           if (result.error.code === "FORBIDDEN") {
             toast.error("Só quem criou a atividade pode editar.");
             onOpenChange(false);
@@ -256,6 +266,16 @@ export function ActivityFormDialog({
         if (result.error.code === "SUBJECT_NOT_FOUND") {
           toast.error("Matéria não encontrada na turma selecionada.");
           router.refresh();
+          return;
+        }
+        if (result.error.code === "PRO_REQUIRED") {
+          form.setError("visibility", {
+            message: "Compartilhar com a turma exige o plano Pro.",
+          });
+          toast.error("Compartilhar com a turma é do plano Pro.", {
+            description: "A atividade não foi salva. Escolha Só para mim ou assine o Pro.",
+            action: { label: "Ver planos", onClick: () => router.push("/upgrade") },
+          });
           return;
         }
         if (result.error.code === "NOT_A_MEMBER") {
