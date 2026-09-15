@@ -2,6 +2,7 @@ import { type ReactNode, Suspense } from "react";
 import { AppHeader } from "@/components/app-shell/app-header";
 import { BottomNav } from "@/components/app-shell/bottom-nav";
 import { OfflineBanner } from "@/components/app-shell/offline-banner";
+import { ServiceWorkerRegistrar } from "@/components/app-shell/service-worker";
 import { getAddEntitlement } from "@/features/notices/trial";
 import { redirectIfUnauthenticated } from "@/lib/auth";
 
@@ -13,6 +14,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     // branco sobre branco: `--background` e `--card` quase coincidem no tema
     // claro, então cartão nenhum se destacava de nada.
     <div className="flex min-h-dvh flex-col bg-app-ground">
+      <ServiceWorkerRegistrar />
       <AppHeader />
       <OfflineBanner />
       <div className="flex-1 pb-20">{children}</div>

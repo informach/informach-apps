@@ -483,14 +483,18 @@ Agenda da Turma é instalável como PWA em iOS e Android. O setup é declarativo
 
 ### O service worker que existe
 
-`public/sw.js` **existe** e é registrado por `features/notifications/components/preferences-panel.tsx` (`navigator.serviceWorker.register("/sw.js", { scope: "/" })`) quando a pessoa aceita receber lembretes. Ele trata **dois eventos e nada mais**: `push` (mostra a notificação, com a URL restrita a `/dashboard` e `/recados`) e `notificationclick` (abre a janela, só na própria origem).
+`public/sw.js` faz **duas** coisas, e o que ele não faz é tão importante quanto:
 
-Esta seção afirmava "sem cache de assets, sem offline, sem push notifications" e chamava a decisão de deliberada — o que contradizia o código desde que o push entrou. O que é verdade é mais estreito, e continua sendo uma decisão:
+1. **Push** — `push` mostra a notificação (URL restrita a `/dashboard` e `/recados`) e `notificationclick` abre a janela, só na própria origem. Opt-in, dependente de VAPID.
+2. **Leitura offline do esqueleto** — pré-cacheia `/offline`, o manifesto e o ícone; serve `/_next/static/*` por cache-first (nomes com hash, imutáveis); e, quando uma navegação falha, devolve `/offline` em vez da tela do navegador.
 
-- **Sem cache de assets e sem offline.** Os cuidados que a decisão original citava seguem valendo para qualquer `fetch` handler: invalidação após mutação, `worker-src` no CSP e o cookie de sessão do Better Auth.
-- **Com push**, opt-in, dependente de VAPID configurado.
+**O service worker é registrado para todo mundo** por `components/app-shell/service-worker.tsx`, no layout de `(app)`. Antes quem registrava era o painel de notificações, e só ao ligar os lembretes — então a maioria não tinha service worker nenhum. Registrar **não** inscreve em push: a inscrição continua sendo um passo explícito no painel.
 
-O CSP em `next.config.ts` já libera `manifest-src 'self'`. Ao ligar cache/offline, atualizar esta seção **junto** com a mudança — foi a divergência entre as duas que se instalou aqui.
+**HTML autenticado nunca entra no cache.** Navegação é sempre rede, e a resposta não é guardada. A rotina de uma família é dado sensível e o aparelho é compartilhado: uma página em cache sobreviveria ao logout. Só entra no cache o que é idêntico para toda conta.
+
+**Não há fila de escrita**, e é decisão, não esquecimento. Concluir uma atividade usa `version` para concorrência otimista: repetir uma gravação enfileirada depois que outra pessoa editou não é "tentar de novo", é decidir por ela. Uma fila honesta precisa de endpoint idempotente próprio (não replay de server action, cujo id muda a cada build) e de uma tela que mostre o que não subiu. Enquanto ela não existe, a barra de `components/app-shell/offline-banner.tsx` diz o que é verdade: dá para ler, e as mudanças esperam a rede.
+
+O CSP em `next.config.ts` já libera `manifest-src 'self'` e `worker-src 'self' blob:`. **Ao mexer no que o service worker guarda, atualizar esta seção junto** — foi a divergência entre o texto e o código que se instalou aqui antes.
 
 ## 10. Comandos
 
