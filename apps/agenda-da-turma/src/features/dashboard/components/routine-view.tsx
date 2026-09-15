@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@informach/ui/lib/utils";
-import { Backpack, CalendarDays, CircleCheck, type LucideIcon, Sun } from "lucide-react";
+import { Backpack, CalendarDays, CircleCheck, Flame, type LucideIcon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { DayClosedIllustration } from "@/components/illustrations";
 import {
@@ -70,6 +70,8 @@ type Props = {
   tomorrowSchedule: TodaySubjectsView[];
   /** Quantas a família concluiu hoje — o que distingue fechar de nunca ter tido. */
   doneToday: number;
+  /** Dias seguidos em que a casa cuidou de alguma coisa. Nunca por criança. */
+  streakDays: number;
   currentUserId: string;
   /** A criança filtrada viaja para a lista junto com o recorte dos KPIs. */
   profileFilter: string | null;
@@ -89,6 +91,7 @@ export function RoutineView({
   currentUserId,
   profileFilter,
   doneToday: initialDoneToday,
+  streakDays,
 }: Props) {
   const [counters, setCounters] = useState(initialCounters);
   const [doneToday, setDoneToday] = useState(initialDoneToday);
@@ -160,7 +163,11 @@ export function RoutineView({
                 ))}
               </div>
             ) : key === "attention" && doneToday > 0 ? (
-              <DayClosed doneToday={doneToday} tomorrowCount={buckets.tomorrow.length} />
+              <DayClosed
+                doneToday={doneToday}
+                tomorrowCount={buckets.tomorrow.length}
+                streakDays={streakDays}
+              />
             ) : (
               // Vazio não é objeto: deixou de ser cartão com borda e fundo
               // para não competir em peso com os cartões que têm conteúdo.
@@ -193,7 +200,15 @@ export function RoutineView({
  * fechou" de "o dia nunca teve nada". Sem pontos e sem comparação entre
  * crianças — o reconhecimento é da casa.
  */
-function DayClosed({ doneToday, tomorrowCount }: { doneToday: number; tomorrowCount: number }) {
+function DayClosed({
+  doneToday,
+  tomorrowCount,
+  streakDays,
+}: {
+  doneToday: number;
+  tomorrowCount: number;
+  streakDays: number;
+}) {
   return (
     <div className="flex flex-col items-center gap-3 rounded-2xl border border-chart-2/30 bg-card p-6 text-center shadow-solid">
       <DayClosedIllustration className="max-w-[150px]" />
@@ -205,6 +220,17 @@ function DayClosed({ doneToday, tomorrowCount }: { doneToday: number; tomorrowCo
             : `${doneToday} atividades cuidadas hoje. Nada mais pendente para o dia.`}
         </p>
       </div>
+      {/*
+        A sequência é da FAMÍLIA. Aparece a partir de dois dias, porque "1 dia
+        seguido" não é sequência — e nunca por criança: um número por filho
+        viraria placar entre irmãos dentro de casa.
+      */}
+      {streakDays >= 2 ? (
+        <p className="inline-flex items-center gap-2 rounded-full border border-chart-4/40 bg-chart-4/15 px-3 py-1 text-sm font-semibold">
+          <Flame className="size-4 shrink-0 text-chart-4-ink" aria-hidden />
+          Vocês cuidaram da rotina {streakDays} dias seguidos
+        </p>
+      ) : null}
       <p className="text-sm font-medium">
         {tomorrowCount === 0
           ? "Amanhã está livre por enquanto."

@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@informach/ui/components/dropdown-menu";
-import { GraduationCap, MoreVertical, Pencil, Sparkles, Trash2 } from "lucide-react";
+import { GraduationCap, Hand, MoreVertical, Pencil, Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import type { StudentProfileWithActiveTurma } from "../types";
@@ -51,6 +51,17 @@ export function StudentCard({ profile, isPro, currentCount, currentUserId }: Pro
               {turmaLabel}
             </p>
           </div>
+          {/*
+            Entregar o telefone é ação de todo dia, não configuração: fica à
+            vista, e não dentro do menu de três pontinhos junto de "Excluir".
+            Vale para o titular e para o segundo adulto — quem tem acesso à
+            criança pode passar o aparelho para ela.
+          */}
+          <Button asChild variant="outline" size="icon" className="size-11 shrink-0">
+            <Link href={`/crianca/${profile.id}`} aria-label={`Abrir a vez de ${profile.name}`}>
+              <Hand className="size-4" aria-hidden />
+            </Link>
+          </Button>
           {profile.userId === currentUserId ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

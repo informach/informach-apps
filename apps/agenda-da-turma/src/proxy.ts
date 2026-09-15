@@ -22,6 +22,8 @@ const authProxy = createAuthProxy(authResult, {
     "/turmas",
     "/atividades",
     "/calendario",
+    // O modo criança é uma vista dos dados da família, não um acesso público.
+    "/crianca",
     "/recados",
     "/familia",
     "/api/recados",

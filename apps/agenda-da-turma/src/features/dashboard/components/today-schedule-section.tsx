@@ -1,7 +1,7 @@
 import { Badge } from "@informach/ui/components/badge";
 import { Skeleton } from "@informach/ui/components/skeleton";
 import { cn } from "@informach/ui/lib/utils";
-import { CalendarClock, GraduationCap } from "lucide-react";
+import { CalendarClock, GraduationCap, Hand } from "lucide-react";
 import Link from "next/link";
 import {
   getSubjectIcon,
@@ -65,6 +65,16 @@ function ProfileSchedule({ view }: { view: TodaySubjectsView }) {
           </Link>
         ) : null}
       </div>
+      {/*
+        A porta do modo criança onde o telefone costuma ser passado: o cartão da
+        própria criança, na primeira tela da manhã.
+      */}
+      <Link
+        href={`/crianca/${view.profileId}`}
+        className="mt-3 flex min-h-11 items-center justify-center gap-2 rounded-xl border bg-background/60 px-3 text-sm font-semibold transition-colors hover:bg-background"
+      >
+        <Hand className="size-4 shrink-0" aria-hidden />A vez de {view.profileName}
+      </Link>
       {view.subjects.length === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">
           {isWeekend ? "Sem aulas hoje. Bom descanso!" : "Nenhuma aula cadastrada para hoje."}

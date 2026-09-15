@@ -1,6 +1,7 @@
 import { Skeleton } from "@informach/ui/components/skeleton";
 import { getRoutineSnapshot } from "@/features/unified-activities/service";
-import { listProfileSummaries } from "../repository";
+import { listFamilyCompletionDays, listProfileSummaries } from "../repository";
+import { countStreakDays } from "../streak";
 import { getTomorrowSubjectsForProfiles } from "../today-subjects-service";
 import { PerProfileProgress } from "./per-profile-progress";
 import { RoutineView } from "./routine-view";
@@ -19,10 +20,12 @@ export async function RoutineSection({
    */
   showBackpack: boolean;
 }) {
-  const [snapshot, perProfile, tomorrowSchedule] = await Promise.all([
+  const [snapshot, perProfile, tomorrowSchedule, completionDays] = await Promise.all([
     getRoutineSnapshot(userId, { profileFilter }),
     listProfileSummaries(userId),
     showBackpack ? getTomorrowSubjectsForProfiles(userId, { profileFilter }) : [],
+    // Sem `profileFilter`: a sequência é da casa, não da criança em foco.
+    listFamilyCompletionDays(userId),
   ]);
 
   return (
@@ -33,6 +36,7 @@ export async function RoutineSection({
         initialCounters={snapshot.counters}
         tomorrowSchedule={tomorrowSchedule}
         doneToday={snapshot.doneToday}
+        streakDays={countStreakDays(completionDays, snapshot.todayIso)}
         currentUserId={userId}
         profileFilter={profileFilter}
       />

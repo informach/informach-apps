@@ -3,7 +3,8 @@ import "server-only";
 import { and, asc, db, eq, sql } from "@informach/db";
 import { agendaProfileSubjects, agendaStudentProfiles, agendaTasks } from "@informach/db/schema";
 import { accessibleProfileCondition } from "@/features/family/access";
-import { addDaysIso, todayLocalIso } from "./date";
+import { APP_TIME_ZONE, addDaysIso, todayLocalIso } from "./date";
+import { STREAK_LOOKBACK_DAYS } from "./streak";
 import type { DashboardCounters, DashboardProfileSummary } from "./types";
 
 /**
@@ -109,4 +110,29 @@ export async function listProfileSummaries(userId: string): Promise<DashboardPro
       progressPercent: total === 0 ? 0 : Math.round((done / total) * 100),
     };
   });
+}
+
+/**
+ * Os dias em que a família concluiu alguma coisa, para a sequência.
+ *
+ * Devolve DIAS, não linhas: a sequência não se importa com quantas atividades
+ * cada dia teve, e agregar no banco evita trazer meses de tarefas para contar
+ * datas em JavaScript.
+ *
+ * Sem `profileFilter` de propósito — a sequência é da casa (ver `streak.ts`).
+ * O recorte por criança que o resto da rotina aceita transformaria o número num
+ * placar entre irmãos, que é justamente o que a regra do app proíbe.
+ */
+export async function listFamilyCompletionDays(userId: string): Promise<string[]> {
+  const sinceIso = addDaysIso(todayLocalIso(), -STREAK_LOOKBACK_DAYS);
+  const rows = await db.execute<{ day: string }>(sql`
+    SELECT DISTINCT (${agendaTasks.completedAt} AT TIME ZONE ${APP_TIME_ZONE})::date::text AS day
+    FROM ${agendaTasks}
+    INNER JOIN ${agendaStudentProfiles} ON ${agendaStudentProfiles.id} = ${agendaTasks.profileId}
+    WHERE ${accessibleProfileCondition(userId)}
+      AND ${agendaTasks.status} = 'done'
+      AND ${agendaTasks.completedAt} IS NOT NULL
+      AND (${agendaTasks.completedAt} AT TIME ZONE ${APP_TIME_ZONE})::date >= ${sinceIso}::date
+  `);
+  return rows.map((row) => row.day);
 }

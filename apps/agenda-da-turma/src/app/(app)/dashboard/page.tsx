@@ -10,8 +10,8 @@ import {
   TodayScheduleSection,
   TodayScheduleSkeleton,
 } from "@/features/dashboard/components/today-schedule-section";
-import { TomorrowBackpackSection } from "@/features/dashboard/components/tomorrow-backpack-section";
 import { TomorrowBackpackSkeleton } from "@/features/dashboard/components/tomorrow-backpack";
+import { TomorrowBackpackSection } from "@/features/dashboard/components/tomorrow-backpack-section";
 import { isEveningInApp } from "@/features/dashboard/date";
 import { PendingDraftsSection } from "@/features/notices/components/pending-drafts-section";
 import { WelcomeFlash } from "@/features/onboarding/components/welcome-flash";
