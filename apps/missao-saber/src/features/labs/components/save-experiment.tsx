@@ -2,7 +2,7 @@
 import { useState, useTransition } from "react";
 import { BotaoChapa } from "@/components/ui/botao-chapa";
 import { experimentAction } from "../actions";
-import type { Experiment } from "../schemas";
+import type { ExperimentInput } from "../schemas";
 
 export function SaveExperiment({
   profileId,
@@ -10,7 +10,7 @@ export function SaveExperiment({
   initialRevision = 0,
 }: {
   profileId?: string;
-  state: Experiment;
+  state: ExperimentInput;
   initialRevision?: number;
 }) {
   const [revision, setRevision] = useState(initialRevision);

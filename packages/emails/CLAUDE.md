@@ -134,6 +134,8 @@ Retorna `{ html: string; text: string; subject: string }`. Internamente usa `ren
 
 **Categorias `billing.*`** são consumidas por `@informach/billing` (4 via webhook handlers — `payment-success` / `subscription-renewed` / `subscription-canceled` / `credits-purchased`) e pelo dunning sweeper das apps (`payment-failed`). `billing.credits-warning` é disparada por trigger app-side (sweeper diário ou pós-`commitReservation`) para notificar 50%/80%/100% do cap mensal — disparo é responsabilidade do app, package só fornece o template. Strings PT-BR vivem em `messages/pt-BR.json` sob namespaces `paymentSuccess`/`paymentFailed`/`subscriptionRenewed`/`subscriptionCanceled`/`creditsPurchased`/`billingCreditsWarning`. Ver `@informach/billing/CLAUDE.md` §3.8 para o ciclo completo.
 
+**Categorias montadas pelo app, sem template do package.** `agenda.routine` e `missao.weekly-report` descrevem dados de uma criança e são montadas no próprio app, no momento do envio. Elas entram em `EMAIL_CATEGORIES` e na union de `dispatch.ts`, mas **não** no registro de templates nem no i18n — a checklist da regra 3 abaixo se aplica só às letras (a) e (b) para esse tipo de categoria. As duas também são excluídas de `shouldPersistBody`: persistir o corpo deixaria uma retentativa genérica reenviar uma leitura desatualizada sobre a criança.
+
 > **`EmailCategory` está declarado em DOIS lugares:** (a) como Zod enum em `schemas.ts:EMAIL_CATEGORIES`, usado por `dispatchEmail` validation; (b) como string union em `templates/index.ts`, usado por `renderTemplate`. Adicionar nova categoria exige atualizar AMBOS — TypeScript pega o segundo, mas o primeiro é runtime check do `dispatch`. Ver §7 regra 3.
 
 ### 3.4 Tabela de retry (de `retry.ts`)

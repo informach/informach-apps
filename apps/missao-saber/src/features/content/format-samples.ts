@@ -56,6 +56,10 @@ export const formatSamplesLesson: Lesson = {
         acceptedForms: ["decimal", "fraction"],
         unit: { symbol: "m", aliases: ["metro", "metros"], required: true },
       },
+      misreads: [
+        { value: 0.25, feedback: "0,25 m é um quarto da unidade. A metade é o dobro disso." },
+        { value: 0.2, feedback: "0,2 m corresponde a um quinto da unidade, não à metade." },
+      ],
       exploration: {
         kind: "bars",
         instruction: "Ajuste uma barra e faça uma previsão antes de responder.",

@@ -4,7 +4,12 @@ import { and, db, eq } from "@informach/db";
 import { missaoExperiments, missaoProfiles } from "@informach/db/schema";
 import { assertAllowed } from "@/lib/errors";
 import { lockOwner } from "../learning/repository";
-import { type Experiment, experimentSchema, type SavedExperiment } from "./schemas";
+import {
+  type Experiment,
+  type ExperimentInput,
+  experimentSchema,
+  type SavedExperiment,
+} from "./schemas";
 
 export async function getExperiments(userId: string, profileId: string) {
   const rows = await db
@@ -22,9 +27,13 @@ export async function getExperiments(userId: string, profileId: string) {
 export async function saveExperiment(
   userId: string,
   profileId: string,
-  state: Experiment,
+  entrada: ExperimentInput,
   revision: number,
 ) {
+  /* Normaliza antes de comparar e gravar: sem isso, a mesma montagem enviada
+     com e sem as anotações produziria dois JSON diferentes, e a checagem de
+     idempotência por igualdade profunda passaria a acusar conflito. */
+  const state = experimentSchema.parse(entrada);
   return db.transaction(async (tx) => {
     await lockOwner(tx, userId);
     const [profile] = await tx

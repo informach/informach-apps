@@ -1,12 +1,22 @@
-import { ArrowRight, Clock3, Compass, FlaskConical, NotebookPen, Sprout } from "lucide-react";
+import {
+  ArrowRight,
+  Clock3,
+  Compass,
+  FlaskConical,
+  NotebookPen,
+  Sprout,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { Avatar } from "@/components/avatares";
 import { StartButton } from "@/components/controls";
 import { EmptyProfile } from "@/components/empty-profile";
 import { Mascote } from "@/components/mascote";
+import { BarraProgresso } from "@/components/ui/barra-progresso";
 import { BolhasSemana } from "@/components/ui/bolhas-semana";
 import { LinkChapa } from "@/components/ui/botao-chapa";
 import { Chapa } from "@/components/ui/chapa";
+import { FalaFaisca } from "@/components/ui/fala-faisca";
 import { Etiqueta, Ladrilho } from "@/components/ui/pagina";
 import { isSuspended, lessonAvailability } from "@/features/content/availability";
 import {
@@ -15,7 +25,9 @@ import {
   courseAssessmentBanks,
   courseLessons,
   findCourse,
+  skillNames,
 } from "@/features/content/catalog";
+import { localDaysApart } from "@/features/learning/engine";
 import { availableLessons, recommend } from "@/features/learning/recommendation";
 import { currentDashboard } from "@/lib/view";
 
@@ -54,16 +66,34 @@ export default async function Today() {
       profileAllowed: data.profileAllowed,
       state: data.contentStates.get(diagnostic.id),
     }).available;
+  const agora = new Date();
   const recommendation = recommend(
     available,
     data.evidence,
     data.states,
-    new Date(),
+    agora,
     new Set(data.attemptedItemIds),
   );
   const recommended = recommendation?.lesson;
   const { paused, diagnosed } = data;
   const autonomas = data.states.filter((s) => s.level === "independent").length;
+
+  /* Reencontro sem culpa: depois de uma ausência a Faísca cumprimenta e diz o
+     que ficou esperando. Nunca conta dias perdidos — as bolhas da semana são
+     contagem, não corrente, e a ausência não tem preço no produto.
+     O limiar é de três viradas de calendário local, a mesma unidade dos dias
+     com prática e das datas de revisão. Isso pode disparar com pouco mais de
+     dois dias de relógio; como a mensagem é um cumprimento e nunca uma
+     cobrança, errar para o lado de acolher é o lado seguro. */
+  const ultimaTentativa = data.evidence.reduce<Date | null>(
+    (maior, row) => (!maior || row.createdAt > maior ? row.createdAt : maior),
+    null,
+  );
+  const reencontro = !!ultimaTentativa && localDaysApart(ultimaTentativa, agora) >= 3;
+  const esperando = data.states
+    .filter((state) => state.dueAt <= agora)
+    .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime())[0];
+  const desafio = data.challenge;
 
   return (
     <>
@@ -77,6 +107,16 @@ export default async function Today() {
           </h1>
         </div>
       </header>
+
+      {reencontro && (
+        <FalaFaisca humor="acolhendo" tom="lima" titulo="Bom te ver de novo." className="mb-5">
+          <p>
+            {esperando
+              ? `A revisão de ${skillNames[esperando.skillId] ?? esperando.skillId} esperou por você. Nada se perdeu no caminho.`
+              : "Sua jornada continua exatamente de onde parou. Nada se perdeu no caminho."}
+          </p>
+        </FalaFaisca>
+      )}
 
       <section className="rounded-heroi border-2 border-verde/30 bg-verde-claro p-5 shadow-[0_6px_0_color-mix(in_oklab,var(--ms-verde)_28%,transparent)] sm:p-7">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-7">
@@ -125,6 +165,30 @@ export default async function Today() {
           <Mascote humor="acolhendo" tamanho="g" className="mx-auto max-sm:hidden" />
         </div>
       </section>
+
+      {/* Desafio da família: barra única, somada. A criança vê a meta da casa,
+          nunca a posição dela em relação aos irmãos. */}
+      {desafio?.goal ? (
+        <Chapa tom="lima" className="mt-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Etiqueta tom="lima">
+              <Users size={14} aria-hidden="true" /> Desafio da família
+            </Etiqueta>
+            <span className="font-display font-semibold text-tinta">
+              {desafio.progress} de {desafio.goal} estratégias
+            </span>
+          </div>
+          <p className="mt-2.5 text-sm text-tinta">
+            Estratégias diferentes resolvidas sem pistas por toda a casa nesta semana. Cada
+            descoberta nova soma na mesma barra.
+          </p>
+          <BarraProgresso
+            feitos={desafio.progress}
+            total={desafio.goal}
+            className="mt-3 max-w-md"
+          />
+        </Chapa>
+      ) : null}
 
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
         <Ladrilho

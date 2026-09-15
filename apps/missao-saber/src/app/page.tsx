@@ -3,13 +3,13 @@ import Link from "next/link";
 import { Brand } from "@/components/brand";
 import { Mascote } from "@/components/mascote";
 import { LinkChapa } from "@/components/ui/botao-chapa";
-import { Chapa, type Tom } from "@/components/ui/chapa";
+import { Chapa } from "@/components/ui/chapa";
+import { Horizonte, tomDoCurso } from "@/components/ui/horizonte";
 import { Etiqueta } from "@/components/ui/pagina";
 import { courses } from "@/features/content/catalog";
 
 /* Página de venda: quem lê é o responsável. Registro adulto e calmo,
    mas mostrando a linguagem visual que a criança vai encontrar dentro. */
-const TONS_TRILHA: Tom[] = ["verde", "uva", "sol", "ceu"];
 
 export default function Home() {
   return (
@@ -114,19 +114,24 @@ export default function Home() {
             <Etiqueta tom="creme">61 missões · 6º e 7º ano</Etiqueta>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {courses.map((course, i) => (
-              <Chapa key={course.id} tom={TONS_TRILHA[i % 4]} className="flex flex-col">
-                <span aria-hidden="true" className="font-display text-3xl text-tinta">
-                  {["◒", "▧", "✳", "◈"][i]}
-                </span>
-                <span className="mt-3 font-display text-xs font-semibold text-tinta-suave uppercase">
+            {/* O mesmo horizonte que a criança encontra na trilha: o responsável
+                reconhece o lugar antes de assinar, e a criança reencontra o
+                lugar depois de entrar. */}
+            {courses.map((course) => (
+              <Chapa
+                key={course.id}
+                tom={tomDoCurso(course.id)}
+                className="relative flex flex-col overflow-hidden pb-16"
+              >
+                <Horizonte tom={tomDoCurso(course.id)} className="h-16 opacity-30 sm:h-16" />
+                <span className="relative font-display text-xs font-semibold text-tinta-suave uppercase">
                   {course.label}
                 </span>
-                <h3 className="mt-1 font-display text-lg leading-snug font-semibold text-tinta">
+                <h3 className="relative mt-1 font-display text-lg leading-snug font-semibold text-tinta">
                   {course.title}
                 </h3>
-                <p className="mt-1.5 text-sm text-tinta-suave">{course.description}</p>
-                <span className="mt-auto pt-4 font-display text-sm font-semibold text-tinta">
+                <p className="relative mt-1.5 text-sm text-tinta-suave">{course.description}</p>
+                <span className="relative mt-auto pt-4 font-display text-sm font-semibold text-tinta">
                   {course.grades.map((g) => `${g}º`).join(" e ")} ano
                 </span>
               </Chapa>

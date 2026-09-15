@@ -5,6 +5,7 @@ import { Label } from "@informach/ui/components/label";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { AVATARES, Avatar } from "@/components/avatares";
+import { BarraProgresso } from "@/components/ui/barra-progresso";
 import { AncoraChapa, BotaoChapa } from "@/components/ui/botao-chapa";
 import { createProfileAction } from "@/features/learning/actions";
 import { authClient } from "@/lib/auth-client";
@@ -12,9 +13,11 @@ import {
   changePlanAction,
   checkoutAction,
   clearAction,
+  familyChallengeAction,
   portalAction,
   reactivateAction,
   routineAction,
+  weeklyReportEmailAction,
 } from "../actions";
 
 type CourseChoice = { id: string; label: string; grades: number[] };
@@ -157,6 +160,178 @@ export function CreateProfile({ courses }: { courses: CourseChoice[] }) {
         </CardContent>
       </Card>
     </form>
+  );
+}
+
+/**
+ * Desafio da semana: uma meta somada entre os estudantes da casa.
+ *
+ * Cooperativo por construção — a barra é uma só, as contribuições aparecem sem
+ * ordenação e a semana seguinte recomeça sem dívida. Quem aceita, ajusta e
+ * encerra é o responsável; o app apenas sugere.
+ */
+export function FamilyChallenge({
+  goal,
+  suggested,
+  progress,
+  contributions,
+}: {
+  goal: number | null;
+  suggested: number;
+  progress: number;
+  contributions: { profileId: string; nickname: string; strategies: number }[];
+}) {
+  const [meta, setMeta] = useState(goal ?? suggested);
+  const [message, setMessage] = useState("");
+  const [pending, start] = useTransition();
+  function salvar(valor: number) {
+    start(async () => {
+      try {
+        const result = await familyChallengeAction(valor);
+        setMessage(
+          result.ok
+            ? valor === 0
+              ? "Desafio encerrado nesta semana."
+              : "Desafio da semana atualizado."
+            : result.error,
+        );
+      } catch {
+        setMessage("Não foi possível atualizar o desafio.");
+      }
+    });
+  }
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="font-display">Desafio da família</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Uma meta só, somando os estudantes da casa: estratégias diferentes resolvidas sem pistas
+          nesta semana. Sem classificação entre irmãos e sem dívida na semana seguinte.
+        </p>
+      </CardHeader>
+      <CardContent>
+        {goal !== null && (
+          <div className="mb-4">
+            <p className="font-display font-semibold text-tinta">
+              {progress} de {goal} estratégias nesta semana
+            </p>
+            <BarraProgresso feitos={progress} total={goal} className="mt-2 max-w-sm" />
+            {contributions.length > 0 && (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Participaram:{" "}
+                {contributions.map((quem) => `${quem.nickname} (${quem.strategies})`).join(", ")}.
+              </p>
+            )}
+          </div>
+        )}
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="max-w-40">
+            <Label htmlFor="desafio">Meta da semana</Label>
+            <select
+              id="desafio"
+              className={seletor}
+              value={meta}
+              disabled={pending}
+              onChange={(event) => setMeta(Number(event.target.value))}
+            >
+              {[4, 6, 8, 10, 12, 16, 20, 24, 30, 40].map((valor) => (
+                <option key={valor} value={valor}>
+                  {valor} estratégias
+                </option>
+              ))}
+            </select>
+          </div>
+          <BotaoChapa type="button" medida="p" disabled={pending} onClick={() => salvar(meta)}>
+            {goal === null ? "Aceitar desafio" : "Atualizar meta"}
+          </BotaoChapa>
+          {goal !== null && (
+            <BotaoChapa
+              type="button"
+              tom="contorno"
+              medida="p"
+              disabled={pending}
+              onClick={() => salvar(0)}
+            >
+              Encerrar nesta semana
+            </BotaoChapa>
+          )}
+        </div>
+        <p role="status" className="mt-2 text-sm font-medium">
+          {message}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * Resumo semanal por e-mail, opt-in.
+ *
+ * Desligado por padrão: o corpo descreve o estudo de uma criança, e ninguém
+ * passa a receber esses dados por omissão. O destinatário é sempre a conta do
+ * responsável — a decisão de nunca enviar lembrete ao estudante continua
+ * valendo.
+ */
+export function WeeklyReportEmail({
+  enabled,
+  canceladoPeloEmail,
+  email,
+}: {
+  enabled: boolean;
+  /** Cancelamento feito pelo link do e-mail, que a coluna da família não reflete. */
+  canceladoPeloEmail?: boolean;
+  email: string;
+}) {
+  const [ligado, setLigado] = useState(enabled);
+  const [message, setMessage] = useState("");
+  const [pending, start] = useTransition();
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="font-display">Resumo da semana por e-mail</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Uma mensagem por semana para {email}, com a mesma leitura desta página e as conversas de
+          apoio em casa. Nunca enviamos nada ao estudante.
+        </p>
+      </CardHeader>
+      <CardContent>
+        <BotaoChapa
+          type="button"
+          medida="p"
+          tom={ligado ? "contorno" : "verde"}
+          disabled={pending}
+          onClick={() =>
+            start(async () => {
+              const proximo = !ligado;
+              try {
+                const result = await weeklyReportEmailAction(proximo);
+                if (result.ok) {
+                  setLigado(proximo);
+                  setMessage(
+                    proximo
+                      ? "Resumo semanal ativado. Você pode desativar quando quiser."
+                      : "Resumo semanal desativado.",
+                  );
+                } else setMessage(result.error);
+              } catch {
+                setMessage("Não foi possível atualizar o envio.");
+              }
+            })
+          }
+        >
+          {ligado ? "Desativar o resumo semanal" : "Quero receber o resumo semanal"}
+        </BotaoChapa>
+        {canceladoPeloEmail && !ligado && (
+          <p className="mt-2 text-sm text-muted-foreground">
+            O envio foi cancelado pelo link de um e-mail anterior. Reativar aqui desfaz esse
+            cancelamento.
+          </p>
+        )}
+        <p role="status" className="mt-2 text-sm font-medium">
+          {message}
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 

@@ -12,17 +12,22 @@ import Link from "next/link";
 import { Avatar } from "@/components/avatares";
 import { LinkChapa } from "@/components/ui/botao-chapa";
 import { billing, configuredPrice, planChangeMode, products } from "@/features/billing/service";
+import { homeSupportFor } from "@/features/content/apoio-em-casa";
 import { courses, findCourse, skillNames } from "@/features/content/catalog";
 import { isContentManager } from "@/features/content-maintenance/service";
 import {
   BillingButton,
   CreateProfile,
+  FamilyChallenge,
   PlanChangeControls,
   PrivacyControls,
   Routine,
+  WeeklyReportEmail,
 } from "@/features/family/components/family-controls";
+import { suggestedGoal } from "@/features/family/desafio";
 import { repeatedDifficulties, skillStates, weeklyEvidence } from "@/features/learning/engine";
-import { familyReports, history } from "@/features/learning/repository";
+import { weeklyNarrative } from "@/features/learning/relato";
+import { familyReports, history, weeklyReportUnsubscribed } from "@/features/learning/repository";
 import { getSession, requirePageUser } from "@/lib/auth";
 import { currentDashboard } from "@/lib/view";
 
@@ -52,10 +57,12 @@ export default async function Family() {
     );
 
   const data = await currentDashboard();
-  const [allSubscriptions, submittedReports] = await Promise.all([
+  const [allSubscriptions, submittedReports, cancelouResumo] = await Promise.all([
     billing.listSubscriptions({ type: "user", id: user.id }),
     familyReports(user.id),
+    weeklyReportUnsubscribed(user.id),
   ]);
+  const challenge = data.challenge;
   const hasSubscriptionRecord = allSubscriptions.length > 0;
   const blockingSubscription = allSubscriptions.some((s) =>
     ["active", "trialing", "past_due", "unpaid", "incomplete", "paused"].includes(s.status),
@@ -68,17 +75,34 @@ export default async function Family() {
       const nextSkill = course?.skills.find(
         (skillId) => states.find((state) => state.skillId === skillId)?.level !== "independent",
       );
+      const now = new Date();
+      const weekly = weeklyEvidence(evidence, now);
+      const repeatedDifficulty = repeatedDifficulties(evidence, now);
       return {
         profile,
         evidence,
         reflections,
-        weekly: weeklyEvidence(evidence, new Date()),
+        weekly,
         states,
         notStudied:
           course?.skills.filter((skillId) => !states.some((state) => state.skillId === skillId)) ??
           [],
-        repeatedDifficulty: repeatedDifficulties(evidence, new Date()),
+        repeatedDifficulty,
         nextSkill,
+        /* O apoio acompanha a habilidade do próximo passo; sem próximo passo,
+           acompanha a dificuldade repetida mais recente. */
+        support: homeSupportFor(nextSkill ?? repeatedDifficulty[0]?.skillId ?? ""),
+        narrative: weeklyNarrative({
+          nickname: profile.nickname,
+          evidence,
+          weekly,
+          states,
+          repeatedDifficulties: repeatedDifficulty,
+          nextSkillId: nextSkill,
+          reflections: reflections.length,
+          now,
+          skillNames,
+        }),
       };
     }),
   );
@@ -177,6 +201,8 @@ export default async function Family() {
               notStudied,
               repeatedDifficulty,
               nextSkill,
+              narrative,
+              support,
             }) => (
               <Card key={profile.id}>
                 <CardHeader>
@@ -187,6 +213,32 @@ export default async function Family() {
                   </p>
                 </CardHeader>
                 <CardContent>
+                  {/* A leitura da semana em frases, antes dos números. Composta
+                      por regras a partir da mesma evidência que a tabela abaixo
+                      exibe — nenhum adjetivo de capacidade, nenhuma alegação de
+                      domínio. */}
+                  <div className="mb-4 grid gap-1.5 rounded-lg border-2 border-verde/35 bg-verde-claro p-4">
+                    {narrative.linhas.map((linha) => (
+                      <p key={linha} className="text-[0.975rem] leading-relaxed text-tinta">
+                        {linha}
+                      </p>
+                    ))}
+                  </div>
+                  {/* Apoio em casa: a única parte do relatório que pede tela
+                      nenhuma. Vem da habilidade do próximo passo, para a
+                      conversa acompanhar o que está sendo construído. */}
+                  {support && (
+                    <div className="mb-4 rounded-lg border border-border p-4">
+                      <p className="font-display font-semibold text-tinta">
+                        Como apoiar em casa, sem tela
+                      </p>
+                      <ul className="mt-2 grid gap-1.5 pl-5 text-sm text-tinta [&>li]:list-disc">
+                        {support.map((ideia) => (
+                          <li key={ideia}>{ideia}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   <p className="mb-4 text-sm text-muted-foreground">
                     {weekly.total || reflections.length
                       ? "A autonomia abaixo considera primeiras respostas em estratégias variadas, com evidências em mais de um dia. Não é uma classificação de capacidade."
@@ -280,8 +332,22 @@ export default async function Family() {
       </section>
 
       {data.family && (
-        <section className="mb-10">
+        <section className="mb-10 grid gap-5">
+          <FamilyChallenge
+            goal={challenge.goal}
+            suggested={suggestedGoal(data.profiles.length)}
+            progress={challenge.progress}
+            contributions={challenge.contributions}
+          />
           <Routine minutes={data.family.dailyMinutes} />
+          {/* Cancelar pelo link do e-mail não mexe na coluna da família, então
+              o estado mostrado é o efetivo: ligado só quando as duas coisas
+              concordam. */}
+          <WeeklyReportEmail
+            enabled={data.family.weeklyReportEmail && !cancelouResumo}
+            canceladoPeloEmail={cancelouResumo}
+            email={user.email}
+          />
         </section>
       )}
 

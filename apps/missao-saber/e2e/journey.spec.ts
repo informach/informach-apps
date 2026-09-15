@@ -100,6 +100,10 @@ test("parent signup, verified profile, learning, saved lab, report and profile s
     "A primeira leitura não deixou claro qual referência usar.",
   );
   await page.screenshot({ path: test.info().outputPath("missao.png"), fullPage: true });
+  // O grupo de alternativas se chama pelo enunciado: quem navega por leitor de
+  // tela entra nas opções sabendo a pergunta, não só "sua resposta".
+  const enunciado = await page.locator("p[id^='enunciado-']").first().innerText();
+  await expect(page.getByRole("group", { name: enunciado })).toBeVisible();
   await page.getByRole("radio").first().check();
   await page.getByRole("button", { name: "Conferir minha ideia" }).click();
   await expect(page.getByText("Esta tentativa foi registrada com apoio de pistas.")).toBeVisible();
@@ -132,6 +136,19 @@ test("parent signup, verified profile, learning, saved lab, report and profile s
   await expect(
     page.getByRole("button", { name: "Linha 1, coluna 1", exact: true }),
   ).toHaveAttribute("aria-pressed", "false");
+  // "Meu espaço" passou a carregar dados reais e a escolha de tema; ambos
+  // eram interface nova sem nenhuma cobertura.
+  await page.goto("/meu-espaco");
+  await expect(page.getByRole("heading", { name: "Meu espaço" })).toBeVisible();
+  await expect(page.getByText("1 descoberta guardada", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Escuro", exact: true }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.reload();
+  // A escolha sobrevive ao recarregamento sem piscar: o script do layout
+  // aplica o tema antes da primeira pintura, com o nonce da CSP.
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.getByRole("button", { name: "Do sistema", exact: true }).click();
+  await expect(page.locator("html")).not.toHaveAttribute("data-theme", "dark");
   await page.goto("/hoje");
   await page.getByRole("button", { name: "Explorar meu ponto de partida" }).click();
   // O banco do diagnóstico acompanha o catálogo (hoje 12 itens reservados),

@@ -24,6 +24,11 @@ export async function hintAction(input: unknown) {
 export async function interruptAction(sessionId: unknown) {
   return runAction(async () => learning.interrupt((await verifiedUser()).id, sessionId));
 }
+export async function readingSupportAction(sessionId: unknown) {
+  return runAction(async () => ({
+    marked: await learning.markReading((await verifiedUser()).id, sessionId),
+  }));
+}
 export async function createProfileAction(input: unknown) {
   return runAction(async () => {
     const user = await recentParent();

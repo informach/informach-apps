@@ -1,10 +1,12 @@
 import "server-only";
-import { and, count, db, desc, eq, gte, inArray, isNull, sql } from "@informach/db";
+import { and, count, db, desc, eq, gte, inArray, isNotNull, isNull, lt, sql } from "@informach/db";
 import {
   missaoAttempts as attempts,
   missaoContentControls as contentControls,
+  emailUnsubscribes,
   missaoExperiments as experiments,
   missaoFamilies as families,
+  missaoFamilyChallenges as familyChallenges,
   missaoHints as hints,
   missaoNotes as notes,
   missaoProfiles as profiles,
@@ -269,6 +271,77 @@ export async function readSession(userId: string, sessionId: string) {
       const suspended = await contentIsSuspended(tx, sourceLessonsForSnapshot(lesson), false);
       return { session, saved, givenHints, sessionReports, suspended };
     });
+  });
+}
+/**
+ * Contagem por habilidade do último percurso concluído do mesmo modo, anterior
+ * a esta sessão.
+ *
+ * Permite a devolutiva dizer "4/6 → 5/6" sem nota, sem média e sem
+ * classificação. Usa a coluna `correct` já gravada em vez de reavaliar as
+ * respostas antigas: o conteúdo pode ter mudado de versão, e recorrigir o
+ * passado reescreveria o histórico.
+ */
+export async function previousAssessment(
+  userId: string,
+  profileId: string,
+  mode: "diagnostic" | "exam",
+  before: Date,
+) {
+  const [previous] = await db
+    .select({
+      id: sessions.id,
+      createdAt: sessions.createdAt,
+      readingSupport: sessions.readingSupport,
+    })
+    .from(sessions)
+    .innerJoin(profiles, eq(sessions.profileId, profiles.id))
+    .where(
+      and(
+        eq(profiles.userId, userId),
+        eq(sessions.profileId, profileId),
+        eq(sessions.mode, mode),
+        isNotNull(sessions.completedAt),
+        lt(sessions.createdAt, before),
+      ),
+    )
+    .orderBy(desc(sessions.createdAt))
+    .limit(1);
+  if (!previous) return null;
+  const rows = await db
+    .select({ skillId: attempts.skillId, correct: attempts.correct })
+    .from(attempts)
+    .where(eq(attempts.sessionId, previous.id));
+  const counts: Record<string, { correct: number; total: number }> = {};
+  for (const row of rows) {
+    // Reflexões não têm acerto objetivo e ficam fora da comparação.
+    if (row.correct === null) continue;
+    const current = counts[row.skillId] ?? { correct: 0, total: 0 };
+    counts[row.skillId] = {
+      correct: current.correct + (row.correct ? 1 : 0),
+      total: current.total + 1,
+    };
+  }
+  return { createdAt: previous.createdAt, readingSupport: previous.readingSupport, counts };
+}
+
+/**
+ * Registra que a leitura em voz alta foi usada nesta sessão.
+ *
+ * Só vale enquanto a sessão está aberta: depois de concluída, ouvir a
+ * devolutiva não muda o que foi medido. A coluna só caminha de falso para
+ * verdadeiro, então a operação é idempotente por natureza.
+ */
+export async function markReadingSupport(userId: string, sessionId: string) {
+  return db.transaction(async (tx) => {
+    const session = await ownedSession(tx, userId, sessionId);
+    // Já declarado: repetir a leitura não é falha, é a mesma verdade.
+    if (session.readingSupport) return true;
+    // Percurso encerrado é história imutável — ouvir na revisão não muda como
+    // as respostas foram produzidas, e o cliente precisa saber que não marcou.
+    if (session.completedAt || session.interruptedAt) return false;
+    await tx.update(sessions).set({ readingSupport: true }).where(eq(sessions.id, session.id));
+    return true;
   });
 }
 export async function recordAnswer(
@@ -682,6 +755,191 @@ export async function saveReport(
 }
 export async function setRoutine(userId: string, dailyMinutes: number) {
   await db.update(families).set({ dailyMinutes }).where(eq(families.userId, userId));
+}
+/**
+ * Data do último simulado concluído deste perfil.
+ *
+ * Consulta própria porque `recent` traz só os trinta percursos mais novos: quem
+ * fez trinta missões desde a última prova veria "nenhum ainda" tendo feito
+ * várias.
+ */
+export async function lastExamDate(userId: string, profileId: string) {
+  const [ultimo] = await db
+    .select({ createdAt: sessions.createdAt })
+    .from(sessions)
+    .innerJoin(profiles, eq(sessions.profileId, profiles.id))
+    .where(
+      and(
+        eq(profiles.userId, userId),
+        eq(sessions.profileId, profileId),
+        eq(sessions.mode, "exam"),
+        isNotNull(sessions.completedAt),
+      ),
+    )
+    .orderBy(desc(sessions.createdAt))
+    .limit(1);
+  return ultimo?.createdAt ?? null;
+}
+
+/**
+ * Responsáveis que optaram pelo resumo semanal, com o e-mail verificado e sem
+ * cancelamento ativo.
+ *
+ * O cancelamento é excluído aqui, e não só na entrega: montar o corpo custa uma
+ * leitura de todo o histórico de cada filho, e seria um relato completo sobre
+ * uma criança construído toda semana para ser descartado em seguida.
+ */
+export async function listFamiliesForWeeklyReport() {
+  return db
+    .select({ userId: families.userId, email: users.email })
+    .from(families)
+    .innerJoin(users, eq(families.userId, users.id))
+    .leftJoin(
+      emailUnsubscribes,
+      and(
+        eq(emailUnsubscribes.userId, families.userId),
+        eq(emailUnsubscribes.category, "missao.weekly-report"),
+      ),
+    )
+    .where(
+      and(
+        eq(families.weeklyReportEmail, true),
+        eq(users.emailVerified, true),
+        isNull(emailUnsubscribes.userId),
+      ),
+    );
+}
+
+/** Quantas descobertas o perfil guardou. Contagem, não lista: o caderno pagina. */
+export async function countNotes(userId: string, profileId: string) {
+  return db.transaction(async (tx) => {
+    await ownedProfile(tx, userId, profileId);
+    const [linha] = await tx
+      .select({ total: count() })
+      .from(notes)
+      .where(eq(notes.profileId, profileId));
+    return linha?.total ?? 0;
+  });
+}
+export async function setWeeklyReportEmail(userId: string, enabled: boolean) {
+  /* As duas escritas andam juntas: se o UPDATE gravasse e o DELETE falhasse, o
+     botão diria "ativado" e a política de entrega continuaria descartando todo
+     envio, para sempre e em silêncio. */
+  await db.transaction(async (tx) => {
+    await tx
+      .update(families)
+      .set({ weeklyReportEmail: enabled })
+      .where(eq(families.userId, userId));
+    // Religar pelo app desfaz um cancelamento feito pelo link do e-mail.
+    if (enabled)
+      await tx
+        .delete(emailUnsubscribes)
+        .where(
+          and(
+            eq(emailUnsubscribes.userId, userId),
+            eq(emailUnsubscribes.category, "missao.weekly-report"),
+          ),
+        );
+  });
+}
+
+/**
+ * Se o responsável cancelou pelo link do e-mail, a coluna da família continua
+ * ligada e só a política de entrega sabe do cancelamento. A área da família
+ * precisa mostrar o estado real, não o da coluna.
+ */
+export async function weeklyReportUnsubscribed(userId: string) {
+  const [linha] = await db
+    .select({ userId: emailUnsubscribes.userId })
+    .from(emailUnsubscribes)
+    .where(
+      and(
+        eq(emailUnsubscribes.userId, userId),
+        eq(emailUnsubscribes.category, "missao.weekly-report"),
+      ),
+    );
+  return !!linha;
+}
+
+/**
+ * Desafio da semana e o que a família já percorreu dele.
+ *
+ * O progresso conta **famílias de atividade distintas** resolvidas sem pistas na
+ * semana, somando todos os perfis. Distinto por família, e não por tentativa: a
+ * meta é de variedade, e repetir a mesma estratégia não aumenta a barra. A
+ * contribuição por perfil vem junto para o cartão mostrar quem participou, sem
+ * ordenar ninguém.
+ */
+export async function familyChallenge(userId: string, weekStart: string) {
+  const [challenge] = await db
+    .select()
+    .from(familyChallenges)
+    .where(and(eq(familyChallenges.userId, userId), eq(familyChallenges.weekStart, weekStart)));
+  /* Sem meta aceita não há barra para preencher, e a varredura da semana inteira
+     não precisa acontecer. A maioria das famílias nunca aceita um desafio, e
+     esta página abre em toda sessão de estudo. */
+  if (!challenge) return { goal: null, progress: 0, contributions: [] };
+  /* O recorte precisa ser um instante, porque quem filtra é o banco. São Paulo
+     está em UTC-3 o ano inteiro desde 2019, então a meia-noite local da segunda
+     é 03:00 UTC. `weeklyEvidence` compara dias locais em JavaScript e continua
+     correta se o horário de verão voltar; esta janela precisaria de ajuste. */
+  const inicio = new Date(`${weekStart}T03:00:00.000Z`);
+  const fim = new Date(inicio.getTime() + 7 * 86_400_000);
+  const rows = await db
+    .select({
+      profileId: profiles.id,
+      nickname: profiles.nickname,
+      familyId: attempts.familyId,
+    })
+    .from(attempts)
+    .innerJoin(sessions, eq(attempts.sessionId, sessions.id))
+    .innerJoin(profiles, eq(sessions.profileId, profiles.id))
+    .where(
+      and(
+        eq(profiles.userId, userId),
+        gte(attempts.createdAt, inicio),
+        lt(attempts.createdAt, fim),
+        eq(attempts.correct, true),
+        eq(attempts.helpCount, 0),
+        /* Diagnóstico e simulado ficam de fora, pela mesma razão que
+           `skillStates` os exclui: neles não existe pista, então toda resposta
+           certa teria `helpCount = 0` e um único diagnóstico de doze itens
+           encheria a meta da semana inteira. A barra mede estratégia resolvida
+           no treino, não desempenho em avaliação. */
+        inArray(sessions.mode, ["mission", "review"]),
+      ),
+    );
+  const distintas = new Set<string>();
+  const porPerfil = new Map<string, { nickname: string; families: Set<string> }>();
+  for (const row of rows) {
+    distintas.add(row.familyId);
+    const atual = porPerfil.get(row.profileId) ?? { nickname: row.nickname, families: new Set() };
+    atual.families.add(row.familyId);
+    porPerfil.set(row.profileId, atual);
+  }
+  return {
+    goal: challenge.goal as number | null,
+    progress: distintas.size,
+    contributions: [...porPerfil].map(([profileId, dados]) => ({
+      profileId,
+      nickname: dados.nickname,
+      strategies: dados.families.size,
+    })),
+  };
+}
+export async function setFamilyChallenge(userId: string, weekStart: string, goal: number) {
+  await db
+    .insert(familyChallenges)
+    .values({ userId, weekStart, goal })
+    .onConflictDoUpdate({
+      target: [familyChallenges.userId, familyChallenges.weekStart],
+      set: { goal },
+    });
+}
+export async function clearFamilyChallenge(userId: string, weekStart: string) {
+  await db
+    .delete(familyChallenges)
+    .where(and(eq(familyChallenges.userId, userId), eq(familyChallenges.weekStart, weekStart)));
 }
 export async function familyReports(userId: string) {
   return db

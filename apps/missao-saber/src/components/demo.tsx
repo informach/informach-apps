@@ -1,27 +1,55 @@
 "use client";
 import { useState } from "react";
 import { BarsLab } from "@/features/labs/components/labs";
-import { Mascote } from "./mascote";
 import { Alternativa } from "./ui/alternativa";
 import { BotaoChapa, LinkChapa } from "./ui/botao-chapa";
 import { Chapa } from "./ui/chapa";
+import { FalaFaisca } from "./ui/fala-faisca";
+import { LerEmVoz } from "./ui/ler-em-voz";
 import { Etiqueta } from "./ui/pagina";
 
+const ENUNCIADO =
+  "Uma peça custa R$ 200. A loja dá 20% de desconto e, depois, mais 10% sobre o preço reduzido. Qual é o preço final?";
+
+const PASSOS = ["Prever", "Conferir", "Nomear a estratégia"] as const;
+
+/**
+ * Missão demonstrativa pública.
+ *
+ * É a tela que decide a assinatura, então ela precisa entregar o ciclo
+ * completo do produto em três minutos: prever antes de calcular, conferir com
+ * a devolutiva da Faísca, manipular a representação e — o passo que faltava —
+ * **nomear a estratégia** aprendida. Terminar sabendo o nome do que se
+ * aprendeu é o que diferencia uma questão solta de uma missão.
+ *
+ * Continua sem cadastro, sem cartão, sem salvar dados e sem atribuir domínio.
+ */
 export function Demo() {
   const [answer, setAnswer] = useState("");
   const [checked, setChecked] = useState(false);
   const [help, setHelp] = useState(false);
   const acertou = answer === "R$ 144";
+  const passo = checked ? 3 : answer ? 2 : 1;
   return (
     <div className="mx-auto max-w-3xl">
-      <Etiqueta tom="lima">Missão demonstrativa · 3 minutos</Etiqueta>
-      <h1 className="mt-3 font-display text-3xl leading-tight font-semibold text-tinta sm:text-4xl">
+      <Etiqueta tom="lima">
+        Missão demonstrativa · passo {passo} de 3 · {PASSOS[passo - 1]}
+      </Etiqueta>
+
+      <FalaFaisca humor="acolhendo" tom="verde" titulo="Oi! Sou a Faísca." className="mt-4">
+        <p>
+          Vou te acompanhar nesta missão de três minutos. Aqui não existe vida para perder: a gente
+          prevê, experimenta e no fim dá nome ao que descobriu.
+        </p>
+      </FalaFaisca>
+
+      <h1 className="mt-7 font-display text-3xl leading-tight font-semibold text-tinta sm:text-4xl">
         Um desconto pode esconder uma surpresa.
       </h1>
-      <p className="mt-3 text-lg text-tinta">
-        Uma peça custa R$ 200. A loja dá 20% de desconto e, depois, mais 10% sobre o preço reduzido.
-        Qual é o preço final?
-      </p>
+      <div className="mt-3 flex items-start gap-3">
+        <p className="min-w-0 flex-1 text-lg text-tinta">{ENUNCIADO}</p>
+        <LerEmVoz texto={ENUNCIADO} />
+      </div>
 
       <fieldset className="mt-7 border-0 p-0" disabled={checked}>
         <legend className="mb-4 font-display text-lg font-semibold text-tinta">
@@ -66,23 +94,14 @@ export function Demo() {
       )}
 
       {checked && (
-        <div
-          role="status"
-          className={`mt-5 flex flex-col gap-4 rounded-card border-2 p-5 sm:flex-row sm:items-center motion-safe:animate-pop-in ${
-            acertou ? "border-verde/40 bg-verde-claro" : "border-coral/40 bg-coral-claro"
-          }`}
-        >
-          <Mascote
+        <div role="status" className="mt-5 motion-safe:animate-pop-in">
+          <FalaFaisca
             humor={acertou ? "comemorando" : "encorajando"}
-            tamanho="p"
-            flutua={false}
-            className="max-sm:hidden"
-          />
-          <div className="min-w-0">
-            <h2 className="font-display text-xl font-semibold text-tinta">
-              {acertou ? "Isso! A referência muda." : "Vamos olhar para a segunda etapa."}
-            </h2>
-            <p className="mt-2 text-tinta">
+            tom={acertou ? "verde" : "coral"}
+            titulo={acertou ? "Isso! A referência muda." : "Vamos olhar para a segunda etapa."}
+            tituloComo="h2"
+          >
+            <p>
               {answer === "R$ 140"
                 ? "Somar 20% e 10% usa os R$ 200 como base duas vezes. Mas o segundo desconto usa R$ 160."
                 : answer === "R$ 160"
@@ -90,7 +109,7 @@ export function Demo() {
                   : "O primeiro desconto retira R$ 40 e deixa R$ 160."}{" "}
               Dez por cento de R$ 160 são R$ 16. O preço final é R$ 144.
             </p>
-          </div>
+          </FalaFaisca>
         </div>
       )}
 
@@ -98,6 +117,23 @@ export function Demo() {
         <div className="mt-6">
           <BarsLab />
         </div>
+      )}
+
+      {checked && (
+        <FalaFaisca
+          humor="comemorando"
+          tom="lima"
+          titulo="Você acabou de usar uma estratégia."
+          tituloComo="h2"
+          className="mt-7"
+        >
+          <p>
+            <strong className="font-display">Porcentagem sobre o valor já alterado.</strong> Quando
+            duas mudanças vêm em sequência, a segunda se aplica ao valor novo, não ao original. A
+            mesma estratégia reaparece em aumento de preço, juros e comparação de ofertas — e é por
+            isso que ela vale mais do que a resposta desta questão.
+          </p>
+        </FalaFaisca>
       )}
 
       <Chapa tom="uva" className="mt-9">

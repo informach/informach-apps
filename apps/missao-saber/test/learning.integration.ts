@@ -41,6 +41,7 @@ import {
   dashboard,
   hint,
   interrupt,
+  markReading,
   sessionView,
 } from "@/features/learning/service";
 
@@ -215,6 +216,63 @@ describe("isolated PostgreSQL learning", () => {
     expect(
       (await exportFamily(owner)).attempts.find((r) => r.sessionId === session.id)?.correct,
     ).not.toBeNull();
+  });
+  it("declares reading support once and keeps the comparison honest about it", async () => {
+    const leitor = randomUUID();
+    await db
+      .insert(users)
+      .values({ id: leitor, email: `${leitor}@example.test`, name: "Reading test" });
+    const perfil = (await createProfile(leitor, input)).id;
+    try {
+      const primeira = await begin(leitor, {
+        profileId: perfil,
+        lessonId: "diagnostic:olitef-n1",
+        mode: "diagnostic",
+        requestKey: randomUUID(),
+      });
+      expect(await markReading(leitor, primeira.id)).toBe(true);
+      // Ouvir de novo é a mesma verdade, não uma falha: o cliente usa este
+      // retorno para decidir se volta atrás no sinalizador local.
+      expect(await markReading(leitor, primeira.id)).toBe(true);
+      let vista = await sessionView(leitor, primeira.id);
+      expect(vista.readingSupport).toBe(true);
+      for (const item of vista.lesson.items)
+        vista = await answer(leitor, {
+          sessionId: primeira.id,
+          itemId: item.id,
+          answer: "__skip__",
+          requestKey: randomUUID(),
+        });
+      expect(vista.completed).toBe(true);
+      expect(vista.readingSupport).toBe(true);
+      // A declaração já feita continua de pé depois do fim.
+      expect(await markReading(leitor, primeira.id)).toBe(true);
+      const segunda = await begin(leitor, {
+        profileId: perfil,
+        lessonId: "diagnostic:olitef-n1",
+        mode: "diagnostic",
+        requestKey: randomUUID(),
+      });
+      let vistaSegunda = await sessionView(leitor, segunda.id);
+      for (const item of vistaSegunda.lesson.items)
+        vistaSegunda = await answer(leitor, {
+          sessionId: segunda.id,
+          itemId: item.id,
+          answer: "__skip__",
+          requestKey: randomUUID(),
+        });
+      expect(vistaSegunda.readingSupport).toBe(false);
+      // Percurso encerrado sem apoio não aceita a declaração depois: ouvir na
+      // revisão não muda como as respostas foram produzidas, e o cliente
+      // precisa deste `false` para não exibir como registrado o que não foi.
+      expect(await markReading(leitor, segunda.id)).toBe(false);
+      expect((await sessionView(leitor, segunda.id)).readingSupport).toBe(false);
+      // Sem este dado, a coluna de comparação mostraria como recuo o que é só
+      // uma mudança nas condições de apoio.
+      expect(vistaSegunda.previousAssessment?.readingSupport).toBe(true);
+    } finally {
+      await db.delete(users).where(eq(users.id, leitor));
+    }
   });
   it("rejects unpaid content and preserves historical sessions after cancellation", async () => {
     await expect(
@@ -676,7 +734,14 @@ describe("isolated PostgreSQL learning", () => {
     state.cells[0] = false;
     expect(await saveExperiment(owner, profileId, state, 0)).toBe(1);
     expect(await saveExperiment(owner, profileId, { cells: state.cells, kind: "grid" }, 0)).toBe(1);
-    expect((await getExperiments(owner, profileId)).grid?.state).toEqual(state);
+    // A montagem guardada é sempre normalizada pelo schema: previsão e
+    // observação entram vazias quando o chamador não as envia, e é isso que
+    // mantém a comparação de igualdade da idempotência confiável.
+    expect((await getExperiments(owner, profileId)).grid?.state).toEqual({
+      ...state,
+      previsao: "",
+      observacao: "",
+    });
     expect(await getExperiments(stranger, profileId)).toEqual({});
     await expect(saveExperiment(stranger, profileId, state, 1)).rejects.toMatchObject({
       code: "PROFILE",

@@ -47,6 +47,24 @@
   --ms-coral-solido-sombra: oklch(0.4117 0.1362 40.6);
   --ms-ceu-solido: oklch(0.5305 0.1339 248.2); /* #0B6FB8 — branco 5,3:1 */
   --ms-ceu-solido-sombra: oklch(0.4232 0.1084 249.1);
+  /* Lima e sol também ganham par sólido próprio. No tema claro são o mesmo
+     tom, mas os papéis são diferentes: `--ms-lima` é tinta translúcida de
+     etiqueta e de nó da trilha, e precisa escurecer no tema escuro para o texto
+     continuar legível; `--ms-lima-solido` é preenchimento de botão e precisa
+     clarear. Um token não consegue ser os dois — foi o que a medição mostrou. */
+  --ms-lima-solido: var(--ms-lima);
+  --ms-sol-solido: var(--ms-sol);
+
+  /* Texto sobre cada preenchimento sólido. É token, e não `text-white` solto,
+     porque no tema escuro o par inteiro se inverte: lá os sólidos ficam claros
+     e o texto em cima precisa ser escuro. */
+  --ms-sobre-verde: oklch(1 0 0);
+  --ms-sobre-uva: oklch(1 0 0);
+  --ms-sobre-coral: oklch(1 0 0);
+  --ms-sobre-ceu: oklch(1 0 0);
+  --ms-sobre-sol: oklch(0.3035 0.0345 163.1);
+  --ms-sobre-lima: oklch(0.3035 0.0345 163.1);
+  --ms-sobre-creme: oklch(0.3035 0.0345 163.1);
 
   --ms-papel: oklch(0.9552 0.0166 95.1); /* #F5F1E4 */
   --ms-creme: oklch(0.9925 0.0064 95.2); /* #FFFDF7 */
@@ -65,10 +83,10 @@
   --popover: var(--ms-creme);
   --popover-foreground: var(--ms-tinta);
 
-  --primary: var(--ms-verde);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: var(--ms-uva);
-  --secondary-foreground: oklch(1 0 0);
+  --primary: var(--ms-verde-solido);
+  --primary-foreground: var(--ms-sobre-verde);
+  --secondary: var(--ms-uva-solido);
+  --secondary-foreground: var(--ms-sobre-uva);
 
   --muted: oklch(0.9331 0.0136 108.6);
   --muted-foreground: var(--ms-tinta-suave);
@@ -90,8 +108,8 @@
 
   --sidebar: var(--ms-creme);
   --sidebar-foreground: var(--ms-tinta);
-  --sidebar-primary: var(--ms-verde);
-  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-primary: var(--ms-verde-solido);
+  --sidebar-primary-foreground: var(--ms-sobre-verde);
   --sidebar-accent: var(--ms-lima);
   --sidebar-accent-foreground: var(--ms-tinta);
   --sidebar-border: var(--ms-borda);
@@ -101,6 +119,159 @@
   --ms-rail: 264px;
   --radius: 1.25rem;
   --tracking-normal: -0.01em;
+}
+
+/* ============================================================
+   Tema escuro.
+
+   Não é inversão: os tons `-solido` foram calibrados para texto BRANCO sobre
+   fundo claro, e virá-los sem medir produz botão claro com letra branca. Aqui
+   os sólidos ficam vivos e o texto em cima passa a ser escuro, pelo par
+   `--ms-sobre-*`. As tintas `-claro`, que no tema claro são fundos suaves,
+   viram fundos profundos.
+
+   Os valores vivem uma vez só, em `--escuro-*`; os dois seletores abaixo
+   apenas remapeiam. `src/app/tema.test.ts` mede cada par sobre este arquivo,
+   então a promessa de 4,5:1 não depende de comentário.
+   ============================================================ */
+:root {
+  /* --- paleta escura, aplicada pelos dois seletores seguintes --- */
+  --escuro-papel: oklch(0.2189 0.0208 163.4);
+  --escuro-creme: oklch(0.2673 0.0223 163.6);
+  --escuro-tinta: oklch(0.9541 0.0118 120.3);
+  --escuro-tinta-suave: oklch(0.7889 0.0205 152);
+  --escuro-borda: oklch(0.3652 0.0243 160.5);
+  --escuro-sombra: oklch(0.1573 0.0182 163.8);
+
+  --escuro-verde: oklch(0.7492 0.1531 158.2);
+  --escuro-verde-fundo: oklch(0.6126 0.1354 157.9);
+  --escuro-verde-claro: oklch(0.3018 0.0561 159.4);
+  --escuro-lima: oklch(0.3487 0.0724 121.4);
+  --escuro-lima-fundo: oklch(0.5117 0.1094 121.9);
+  --escuro-lima-solido: oklch(0.8613 0.1621 121.4);
+  --escuro-sol-solido: oklch(0.8033 0.1584 74.9);
+  --escuro-uva: oklch(0.7289 0.1534 293.9);
+  --escuro-uva-fundo: oklch(0.5932 0.1707 294.1);
+  --escuro-uva-claro: oklch(0.3054 0.0619 293.6);
+  --escuro-sol: oklch(0.7804 0.1416 74.9);
+  --escuro-sol-fundo: oklch(0.6311 0.1206 65.6);
+  --escuro-sol-claro: oklch(0.3112 0.0521 89.5);
+  --escuro-coral: oklch(0.7604 0.1301 41.6);
+  --escuro-coral-fundo: oklch(0.6217 0.1355 39.1);
+  --escuro-coral-claro: oklch(0.3067 0.0517 54.6);
+  --escuro-ceu: oklch(0.7503 0.1204 244.6);
+  --escuro-ceu-fundo: oklch(0.6098 0.1246 250.4);
+  --escuro-ceu-claro: oklch(0.3059 0.0546 234.5);
+
+  /* Sólidos vivos, com texto escuro em cima. */
+  --escuro-verde-solido: oklch(0.7492 0.1531 158.2);
+  --escuro-verde-solido-sombra: oklch(0.5714 0.1183 157.4);
+  --escuro-uva-solido: oklch(0.7289 0.1534 295.5);
+  --escuro-uva-solido-sombra: oklch(0.5615 0.1476 295.7);
+  --escuro-coral-solido: oklch(0.7604 0.1301 40.2);
+  --escuro-coral-solido-sombra: oklch(0.5918 0.1218 40.6);
+  --escuro-ceu-solido: oklch(0.7503 0.1204 248.2);
+  --escuro-ceu-solido-sombra: oklch(0.5807 0.1155 249.1);
+  --escuro-sobre: oklch(0.1902 0.0219 163.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ms-papel: var(--escuro-papel);
+    --ms-creme: var(--escuro-creme);
+    --ms-tinta: var(--escuro-tinta);
+    --ms-tinta-suave: var(--escuro-tinta-suave);
+    --ms-borda: var(--escuro-borda);
+    --ms-sombra: var(--escuro-sombra);
+    --ms-verde: var(--escuro-verde);
+    --ms-verde-fundo: var(--escuro-verde-fundo);
+    --ms-verde-claro: var(--escuro-verde-claro);
+    --ms-lima: var(--escuro-lima);
+    --ms-lima-fundo: var(--escuro-lima-fundo);
+    --ms-lima-solido: var(--escuro-lima-solido);
+    --ms-sol-solido: var(--escuro-sol-solido);
+    --ms-uva: var(--escuro-uva);
+    --ms-uva-fundo: var(--escuro-uva-fundo);
+    --ms-uva-claro: var(--escuro-uva-claro);
+    --ms-sol: var(--escuro-sol);
+    --ms-sol-fundo: var(--escuro-sol-fundo);
+    --ms-sol-claro: var(--escuro-sol-claro);
+    --ms-coral: var(--escuro-coral);
+    --ms-coral-fundo: var(--escuro-coral-fundo);
+    --ms-coral-claro: var(--escuro-coral-claro);
+    --ms-ceu: var(--escuro-ceu);
+    --ms-ceu-fundo: var(--escuro-ceu-fundo);
+    --ms-ceu-claro: var(--escuro-ceu-claro);
+    --ms-verde-solido: var(--escuro-verde-solido);
+    --ms-verde-solido-sombra: var(--escuro-verde-solido-sombra);
+    --ms-uva-solido: var(--escuro-uva-solido);
+    --ms-uva-solido-sombra: var(--escuro-uva-solido-sombra);
+    --ms-coral-solido: var(--escuro-coral-solido);
+    --ms-coral-solido-sombra: var(--escuro-coral-solido-sombra);
+    --ms-ceu-solido: var(--escuro-ceu-solido);
+    --ms-ceu-solido-sombra: var(--escuro-ceu-solido-sombra);
+    --ms-sobre-verde: var(--escuro-sobre);
+    --ms-sobre-uva: var(--escuro-sobre);
+    --ms-sobre-coral: var(--escuro-sobre);
+    --ms-sobre-ceu: var(--escuro-sobre);
+    --ms-sobre-sol: var(--escuro-sobre);
+    --ms-sobre-lima: var(--escuro-sobre);
+    --ms-sobre-creme: var(--escuro-tinta);
+    --muted: oklch(0.2891 0.0166 108.6);
+  }
+}
+
+/* Escolha explícita de tema claro com sistema no escuro: sem isto o navegador
+   continua desenhando select, campo de texto e barra de rolagem em escuro
+   sobre uma página clara, porque o viewport anuncia os dois esquemas. */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ms-papel: var(--escuro-papel);
+  --ms-creme: var(--escuro-creme);
+  --ms-tinta: var(--escuro-tinta);
+  --ms-tinta-suave: var(--escuro-tinta-suave);
+  --ms-borda: var(--escuro-borda);
+  --ms-sombra: var(--escuro-sombra);
+  --ms-verde: var(--escuro-verde);
+  --ms-verde-fundo: var(--escuro-verde-fundo);
+  --ms-verde-claro: var(--escuro-verde-claro);
+  --ms-lima: var(--escuro-lima);
+  --ms-lima-fundo: var(--escuro-lima-fundo);
+  --ms-lima-solido: var(--escuro-lima-solido);
+  --ms-sol-solido: var(--escuro-sol-solido);
+  --ms-uva: var(--escuro-uva);
+  --ms-uva-fundo: var(--escuro-uva-fundo);
+  --ms-uva-claro: var(--escuro-uva-claro);
+  --ms-sol: var(--escuro-sol);
+  --ms-sol-fundo: var(--escuro-sol-fundo);
+  --ms-sol-claro: var(--escuro-sol-claro);
+  --ms-coral: var(--escuro-coral);
+  --ms-coral-fundo: var(--escuro-coral-fundo);
+  --ms-coral-claro: var(--escuro-coral-claro);
+  --ms-ceu: var(--escuro-ceu);
+  --ms-ceu-fundo: var(--escuro-ceu-fundo);
+  --ms-ceu-claro: var(--escuro-ceu-claro);
+  --ms-verde-solido: var(--escuro-verde-solido);
+  --ms-verde-solido-sombra: var(--escuro-verde-solido-sombra);
+  --ms-uva-solido: var(--escuro-uva-solido);
+  --ms-uva-solido-sombra: var(--escuro-uva-solido-sombra);
+  --ms-coral-solido: var(--escuro-coral-solido);
+  --ms-coral-solido-sombra: var(--escuro-coral-solido-sombra);
+  --ms-ceu-solido: var(--escuro-ceu-solido);
+  --ms-ceu-solido-sombra: var(--escuro-ceu-solido-sombra);
+  --ms-sobre-verde: var(--escuro-sobre);
+  --ms-sobre-uva: var(--escuro-sobre);
+  --ms-sobre-coral: var(--escuro-sobre);
+  --ms-sobre-ceu: var(--escuro-sobre);
+  --ms-sobre-sol: var(--escuro-sobre);
+  --ms-sobre-lima: var(--escuro-sobre);
+  --ms-sobre-creme: var(--escuro-tinta);
+  --muted: oklch(0.2891 0.0166 108.6);
 }
 
 @theme {
@@ -128,6 +299,15 @@
   --color-uva-solido: var(--ms-uva-solido);
   --color-coral-solido: var(--ms-coral-solido);
   --color-ceu-solido: var(--ms-ceu-solido);
+  --color-lima-solido: var(--ms-lima-solido);
+  --color-sol-solido: var(--ms-sol-solido);
+  --color-sobre-verde: var(--ms-sobre-verde);
+  --color-sobre-uva: var(--ms-sobre-uva);
+  --color-sobre-coral: var(--ms-sobre-coral);
+  --color-sobre-ceu: var(--ms-sobre-ceu);
+  --color-sobre-sol: var(--ms-sobre-sol);
+  --color-sobre-lima: var(--ms-sobre-lima);
+  --color-sobre-creme: var(--ms-sobre-creme);
   --color-papel: var(--ms-papel);
   --color-creme: var(--ms-creme);
   --color-tinta: var(--ms-tinta);

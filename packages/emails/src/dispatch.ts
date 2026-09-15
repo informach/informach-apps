@@ -35,7 +35,8 @@ export type EmailCategory =
   | "billing.subscription-renewed"
   | "billing.subscription-canceled"
   | "billing.credits-purchased"
-  | "billing.credits-warning";
+  | "billing.credits-warning"
+  | "missao.weekly-report";
 
 export type EmailAddress = string;
 
@@ -114,9 +115,14 @@ export type DispatchResult =
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 function shouldPersistBody(category: EmailCategory): boolean {
-  // School reminders must be regenerated after checking current access/status.
-  // Persisting their bodies would let generic retries send outdated child data.
-  return !category.startsWith("auth.") && category !== "agenda.routine";
+  // School reminders and the weekly study digest must be regenerated after
+  // checking current access, status and consent. Persisting their bodies would
+  // let a generic retry send outdated data about a child.
+  return (
+    !category.startsWith("auth.") &&
+    category !== "agenda.routine" &&
+    category !== "missao.weekly-report"
+  );
 }
 
 function buildListUnsubscribeHeaders(url: string, mailto?: string): Record<string, string> {

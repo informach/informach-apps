@@ -30,6 +30,8 @@ type NumericSpec = {
   value: number;
   explanation: string;
   unit?: { symbol: string; aliases: string[]; required: boolean };
+  /** Etapa trocada previsível, com a devolutiva que a nomeia. */
+  misreads?: { value: number; feedback: string }[];
 };
 type ObjectiveSpec = ChoiceSpec | NumericSpec;
 
@@ -58,8 +60,8 @@ const n = (
   prompt: string,
   value: number,
   explanation: string,
-  unit?: NumericSpec["unit"],
-): NumericSpec => ({ kind: "numeric", family, prompt, value, explanation, unit });
+  extra: { unit?: NumericSpec["unit"]; misreads?: NumericSpec["misreads"] } = {},
+): NumericSpec => ({ kind: "numeric", family, prompt, value, explanation, ...extra });
 
 function orderedOptions(itemId: string, values: string[]) {
   const score = (value: string) => createHash("sha256").update(`${itemId}:${value}`).digest("hex");
@@ -98,6 +100,7 @@ function objectiveItem(
           : ["decimal", "fraction"],
         unit: spec.unit,
       },
+      misreads: spec.misreads ?? [],
     };
   const options = orderedOptions(id, [spec.answer, ...spec.wrong]);
   return {
@@ -177,13 +180,31 @@ function fractionSpecs(stage: number): ObjectiveSpec[] {
       `Uma receita usa ${[2, 3, 4][stage]} copos de água para ${[8, 12, 20][stage]} porções. Quantos copos são necessários para ${[12, 20, 35][stage]} porções?`,
       [3, 5, 7][stage] ?? 3,
       "Mantendo a razão, encontramos o valor por porção e multiplicamos pelo novo total.",
-      { symbol: "copos", aliases: ["copo"], required: false },
+      {
+        unit: { symbol: "copos", aliases: ["copo"], required: false },
+        misreads: [
+          {
+            value: [2, 3, 4][stage] ?? 2,
+            feedback:
+              "Esse é o número de copos da receita original. O novo total de porções muda a quantidade.",
+          },
+        ],
+      },
     ),
     n(
       "divisao-em-partes",
       `${[18, 30, 42][stage]} metros de corda serão divididos em partes de ${[3, 5, 7][stage]}/2 metro. Quantas partes completas serão formadas?`,
       12,
       "Dividir pelo comprimento de cada parte equivale a multiplicar pelo inverso da fração.",
+      {
+        misreads: [
+          {
+            value: 6,
+            feedback:
+              "Você dividiu pelo numerador e deixou o denominador 2 de fora. Cada parte mede metade desse valor, então cabem o dobro de partes.",
+          },
+        ],
+      },
     ),
   ];
 }
@@ -242,13 +263,35 @@ function percentageSpecs(stage: number): ObjectiveSpec[] {
       `Em ${[20, 40, 80][stage]} tentativas, uma equipe concluiu ${[15, 34, 68][stage]}. Qual foi a taxa de conclusão em porcentagem?`,
       [75, 85, 85][stage] ?? 75,
       "Dividimos as conclusões pelo total e multiplicamos por 100.",
-      { symbol: "%", aliases: ["por cento"], required: false },
+      {
+        unit: { symbol: "%", aliases: ["por cento"], required: false },
+        misreads: [
+          {
+            value: [15, 34, 68][stage] ?? 15,
+            feedback:
+              "Esse é o número de conclusões. A taxa compara esse número com o total de tentativas.",
+          },
+          {
+            value: [25, 15, 15][stage] ?? 25,
+            feedback: "Essa é a porcentagem que faltou concluir, não a taxa de conclusão.",
+          },
+        ],
+      },
     ),
     n(
       "percentual-inverso",
       `Depois de aumentar ${[25, 20, 10][stage]}%, uma quantidade ficou igual a ${[75, 144, 198][stage]}. Qual era a quantidade inicial?`,
       [60, 120, 180][stage] ?? 60,
       "O valor final corresponde a 125%, 120% ou 110% do valor inicial; dividimos pelo fator.",
+      {
+        misreads: [
+          {
+            value: [56.25, 115.2, 178.2][stage] ?? 56.25,
+            feedback:
+              "Você descontou a porcentagem do valor final. O aumento foi calculado sobre a quantidade inicial, que é menor.",
+          },
+        ],
+      },
     ),
   ];
 }
@@ -326,14 +369,32 @@ function priceSpecs(stage: number): ObjectiveSpec[] {
       `Um passe de ${brl(stageValue([72, 105, 156], stage))} será usado ${[12, 15, 24][stage]} vezes. Qual é o custo por uso?`,
       [6, 7, 6.5][stage] ?? 6,
       "Dividimos o custo total pelo número de usos previstos.",
-      { symbol: "R$", aliases: ["reais", "real"], required: false },
+      {
+        unit: { symbol: "R$", aliases: ["reais", "real"], required: false },
+        misreads: [
+          {
+            value: stageValue([72, 105, 156], stage),
+            feedback:
+              "Esse é o custo total do passe. O custo por uso divide esse valor pelo número de usos.",
+          },
+        ],
+      },
     ),
     n(
       "economia-total",
       `Uma escolha economiza ${brl(stageValue([2.5, 3.75, 4.2], stage))} por unidade em ${[8, 12, 25][stage]} unidades. Qual é a economia total?`,
       [20, 45, 105][stage] ?? 20,
       "Multiplicamos a economia por unidade pela quantidade comprada.",
-      { symbol: "R$", aliases: ["reais", "real"], required: false },
+      {
+        unit: { symbol: "R$", aliases: ["reais", "real"], required: false },
+        misreads: [
+          {
+            value: stageValue([2.5, 3.75, 4.2], stage),
+            feedback:
+              "Essa é a economia de uma unidade. O total multiplica esse valor pela quantidade comprada.",
+          },
+        ],
+      },
     ),
   ];
 }
@@ -405,14 +466,31 @@ function budgetSpecs(stage: number): ObjectiveSpec[] {
       `Uma meta recebe ${brl(stageValue([18, 35, 55], stage))} por mês durante ${[7, 9, 12][stage]} meses, sem rendimento. Quanto será acumulado?`,
       [126, 315, 660][stage] ?? 126,
       "Sem rendimento, o total é o aporte mensal multiplicado pelo número de meses.",
-      { symbol: "R$", aliases: ["reais", "real"], required: false },
+      {
+        unit: { symbol: "R$", aliases: ["reais", "real"], required: false },
+        misreads: [
+          {
+            value: stageValue([18, 35, 55], stage),
+            feedback: "Esse é o aporte de um mês. O acumulado soma todos os meses do plano.",
+          },
+        ],
+      },
     ),
     n(
       "margem-de-seguranca",
       `Um custo estimado é ${brl(stageValue([200, 360, 640], stage))}. O plano reserva mais ${[10, 15, 20][stage]}% para variações. Qual é o total planejado?`,
       [220, 414, 768][stage] ?? 220,
       "Somamos ao custo a margem calculada sobre a estimativa inicial.",
-      { symbol: "R$", aliases: ["reais", "real"], required: false },
+      {
+        unit: { symbol: "R$", aliases: ["reais", "real"], required: false },
+        misreads: [
+          {
+            value: [20, 54, 128][stage] ?? 20,
+            feedback:
+              "Essa é apenas a margem reservada. O total planejado soma a margem ao custo estimado.",
+          },
+        ],
+      },
     ),
   ];
 }
@@ -474,14 +552,32 @@ function measureSpecs(stage: number): ObjectiveSpec[] {
       `Um triângulo tem base ${[10, 14, 18][stage]} cm e altura ${[6, 9, 12][stage]} cm. Qual é a área?`,
       [30, 63, 108][stage] ?? 30,
       "A área de um triângulo é metade do produto da base pela altura.",
-      { symbol: "cm²", aliases: ["cm2", "centímetros quadrados"], required: false },
+      {
+        unit: { symbol: "cm²", aliases: ["cm2", "centímetros quadrados"], required: false },
+        misreads: [
+          {
+            value: [60, 126, 216][stage] ?? 60,
+            feedback:
+              "Esse é o produto da base pela altura, que corresponde ao retângulo inteiro. A área do triângulo é a metade dele.",
+          },
+        ],
+      },
     ),
     n(
       "lado-por-area",
       `Um quadrado tem área ${[49, 121, 196][stage]} cm². Qual é a medida do lado?`,
       [7, 11, 14][stage] ?? 7,
       "O lado é o número que, multiplicado por si mesmo, produz a área.",
-      { symbol: "cm", aliases: ["centímetro", "centímetros"], required: false },
+      {
+        unit: { symbol: "cm", aliases: ["centímetro", "centímetros"], required: false },
+        misreads: [
+          {
+            value: [24.5, 60.5, 98][stage] ?? 24.5,
+            feedback:
+              "Você dividiu a área por 2. O lado é o número que, multiplicado por si mesmo, devolve a área.",
+          },
+        ],
+      },
     ),
   ];
 }
@@ -565,13 +661,32 @@ function symmetrySpecs(stage: number): ObjectiveSpec[] {
       `Na malha, o ponto (${[3, 5, 7][stage]}, ${[2, 4, 6][stage]}) é refletido no eixo vertical x = 0. Qual é a nova coordenada x?`,
       -([3, 5, 7][stage] ?? 3),
       "A reflexão no eixo vertical troca o sinal de x e mantém y.",
+      {
+        misreads: [
+          {
+            value: [3, 5, 7][stage] ?? 3,
+            feedback:
+              "Você manteve o sinal de x. A reflexão em x = 0 troca esse sinal e conserva y.",
+          },
+          { value: 0, feedback: "Zero é a posição do eixo, não do ponto refletido." },
+        ],
+      },
     ),
     n(
       "voltas-completas",
       `Uma peça gira ${[5, 11, 18][stage]} quartos de volta. Quantos graus equivalentes restam depois de retirar voltas completas?`,
       [90, 270, 180][stage] ?? 90,
       "Cada quarto vale 90°; retiramos múltiplos de 360° e conservamos o restante.",
-      { symbol: "°", aliases: ["graus", "grau"], required: false },
+      {
+        unit: { symbol: "°", aliases: ["graus", "grau"], required: false },
+        misreads: [
+          {
+            value: [450, 990, 1620][stage] ?? 450,
+            feedback:
+              "Você somou todos os quartos de volta. Falta retirar as voltas completas de 360°.",
+          },
+        ],
+      },
     ),
   ];
 }
@@ -627,12 +742,30 @@ function countingSpecs(stage: number): ObjectiveSpec[] {
       `Um percurso exige escolher uma de ${[2, 3, 4][stage]} pontes, depois uma de ${[3, 4, 5][stage]} trilhas e, por fim, uma de ${[2, 2, 3][stage]} saídas. Quantos percursos existem?`,
       [12, 24, 60][stage] ?? 12,
       "As escolhas independentes de cada etapa são multiplicadas.",
+      {
+        misreads: [
+          {
+            value: [7, 9, 12][stage] ?? 7,
+            feedback:
+              "Você somou as opções de cada etapa. Escolhas independentes se multiplicam, porque cada ponte combina com cada trilha.",
+          },
+        ],
+      },
     ),
     n(
       "subconjuntos-simples",
       `Uma pessoa pode escolher incluir ou não cada um de ${[4, 5, 6][stage]} adesivos diferentes. Quantas seleções existem, incluindo não escolher nenhum?`,
       [16, 32, 64][stage] ?? 16,
       "Cada adesivo oferece duas decisões independentes; multiplicamos 2 por si mesmo para cada adesivo.",
+      {
+        misreads: [
+          {
+            value: [8, 10, 12][stage] ?? 8,
+            feedback:
+              "Você multiplicou 2 pelo número de adesivos. Cada adesivo dobra o total de seleções possíveis.",
+          },
+        ],
+      },
     ),
   ];
 }
@@ -686,12 +819,30 @@ function pigeonholeSpecs(stage: number): ObjectiveSpec[] {
       `Em ${[9, 12, 15][stage]} grupos, quantos participantes garantem que algum grupo tenha pelo menos ${[4, 5, 6][stage]} pessoas?`,
       [28, 49, 76][stage] ?? 28,
       "Podemos manter no máximo uma pessoa a menos que a cota em cada grupo; somamos uma para forçar a garantia.",
+      {
+        misreads: [
+          {
+            value: [27, 48, 75][stage] ?? 27,
+            feedback:
+              "Com esse total ainda é possível que nenhum grupo alcance a cota. Falta uma pessoa para forçar a garantia.",
+          },
+        ],
+      },
     ),
     n(
       "teto-da-media",
       `${[52, 77, 103][stage]} arquivos foram organizados em ${[10, 12, 15][stage]} pastas. Qual é o mínimo garantido na pasta mais cheia?`,
       [6, 7, 7][stage] ?? 6,
       "A pasta mais cheia tem pelo menos o teto da média total por pasta.",
+      {
+        misreads: [
+          {
+            value: [5, 6, 6][stage] ?? 5,
+            feedback:
+              "Esse é o valor da média arredondado para baixo. Como a divisão não é exata, alguma pasta precisa passar dele.",
+          },
+        ],
+      },
     ),
   ];
 }
@@ -750,12 +901,30 @@ function probabilitySpecs(stage: number): ObjectiveSpec[] {
       `Um dado comum é lançado ${[24, 60, 90][stage]} vezes. Usando o modelo equiprovável, quantas ocorrências de um número específico são esperadas em média?`,
       [4, 10, 15][stage] ?? 4,
       "A chance é 1/6; multiplicamos a quantidade de lançamentos por essa chance.",
+      {
+        misreads: [
+          {
+            value: [24, 60, 90][stage] ?? 24,
+            feedback:
+              "Esse é o total de lançamentos. A média esperada aplica a chance de 1/6 a esse total.",
+          },
+        ],
+      },
     ),
     n(
       "espaco-amostral",
       `Uma roleta tem ${[4, 6, 8][stage]} setores e uma moeda tem 2 lados. Quantos resultados ordenados existem ao usar os dois?`,
       [8, 12, 16][stage] ?? 8,
       "Cada setor pode ser combinado com cada um dos dois lados da moeda.",
+      {
+        misreads: [
+          {
+            value: [6, 8, 10][stage] ?? 6,
+            feedback:
+              "Você somou os setores e os lados da moeda. Cada setor combina com cada lado, então os números se multiplicam.",
+          },
+        ],
+      },
     ),
   ];
 }
@@ -809,12 +978,30 @@ function paritySpecs(stage: number): ObjectiveSpec[] {
       `Qual é o menor número que deve ser somado a ${[74, 118, 203][stage]} para obter um múltiplo de ${[9, 11, 12][stage]}?`,
       [7, 3, 1][stage] ?? 7,
       "Calculamos o resto atual e completamos até o divisor.",
+      {
+        misreads: [
+          {
+            value: [2, 8, 11][stage] ?? 2,
+            feedback:
+              "Esse é o resto atual da divisão. A pergunta pede quanto falta para chegar ao próximo múltiplo.",
+          },
+        ],
+      },
     ),
     n(
       "quantidade-de-impares",
       `Quantos números ímpares existem de 1 até ${[31, 57, 101][stage]}, inclusive?`,
       [16, 29, 51][stage] ?? 16,
       "A sequência de ímpares alterna com os pares e começa em 1; arredondamos a metade para cima.",
+      {
+        misreads: [
+          {
+            value: [15, 28, 50][stage] ?? 15,
+            feedback:
+              "Você arredondou a metade para baixo. A contagem começa em 1, então sobra um ímpar a mais.",
+          },
+        ],
+      },
     ),
   ];
 }
@@ -872,12 +1059,29 @@ function patternSpecs(stage: number): ObjectiveSpec[] {
       `Calcule a soma ${["2 + 5 + 8 + 11 + 14", "3 + 7 + 11 + 15 + 19 + 23", "5 + 10 + 15 + 20 + 25 + 30 + 35"][stage]}.`,
       [40, 78, 140][stage] ?? 40,
       "Podemos parear termos das extremidades, que produzem a mesma soma.",
+      {
+        misreads: [
+          {
+            value: [26, 55, 105][stage] ?? 26,
+            feedback: "Parece que o último termo ficou fora da soma. Confira a lista até o fim.",
+          },
+        ],
+      },
     ),
     n(
       "posicao-de-termo",
       `Na sequência que começa em ${[5, 8, 12][stage]} e aumenta ${[4, 6, 9][stage]}, em qual posição aparece ${[41, 62, 102][stage]}?`,
       [10, 10, 11][stage] ?? 10,
       "Subtraímos o primeiro termo, dividimos pelo passo e somamos uma posição inicial.",
+      {
+        misreads: [
+          {
+            value: [9, 9, 10][stage] ?? 9,
+            feedback:
+              "Você contou quantos passos foram dados. A posição inclui também o primeiro termo da sequência.",
+          },
+        ],
+      },
     ),
   ];
 }
@@ -967,12 +1171,26 @@ function logicSpecs(stage: number): ObjectiveSpec[] {
       `${[3, 4, 5][stage]} pessoas ocupam posições em fila. Lia deve ficar antes de Rui, e Rui antes de Sol. Dentro do bloco consecutivo formado por essas três pessoas, qual é a posição de Rui?`,
       [2, 2, 2][stage] ?? 2,
       "Entre Lia e Sol, Rui ocupa a segunda posição do bloco ordenado.",
+      {
+        misreads: [
+          { value: 1, feedback: "Essa é a posição de Lia, que precisa ficar antes de Rui." },
+          { value: 3, feedback: "Essa é a posição de Sol, que precisa ficar depois de Rui." },
+        ],
+      },
     ),
     n(
       "verdadeiros-e-falsos",
       `Em ${[7, 11, 15][stage]} afirmações, exatamente ${[3, 5, 7][stage]} são falsas. Quantas são verdadeiras?`,
       [4, 6, 8][stage] ?? 4,
       "As afirmações se dividem entre verdadeiras e falsas; subtraímos as falsas do total.",
+      {
+        misreads: [
+          {
+            value: [3, 5, 7][stage] ?? 3,
+            feedback: "Esse é o número de afirmações falsas. A pergunta pede as verdadeiras.",
+          },
+        ],
+      },
     ),
   ];
 }

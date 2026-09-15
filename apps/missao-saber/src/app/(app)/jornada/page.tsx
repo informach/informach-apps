@@ -1,6 +1,9 @@
 import { cn } from "@informach/ui/lib/utils";
 import { CoursePicker, StartButton } from "@/components/controls";
 import { EmptyProfile } from "@/components/empty-profile";
+import { BarraProgresso } from "@/components/ui/barra-progresso";
+import { tomClaro } from "@/components/ui/chapa";
+import { Horizonte, tomDoCurso } from "@/components/ui/horizonte";
 import { type EstadoNo, NoTrilha } from "@/components/ui/no-trilha";
 import { Etiqueta } from "@/components/ui/pagina";
 import { SeloHabilidade } from "@/components/ui/selo-habilidade";
@@ -16,6 +19,7 @@ export default async function Journey() {
   if (!course) return null;
   const completed = new Set(data.attemptedItemIds);
   const licoes = courseLessons(course);
+  const tomCurso = tomDoCurso(course.id);
 
   /** Estado de cada lição, na ordem do curso. */
   const estados = licoes.map((lesson) => {
@@ -46,25 +50,43 @@ export default async function Journey() {
         </p>
       </header>
 
-      <section className="mb-9 flex flex-col gap-4 rounded-heroi border-2 border-uva/25 bg-uva-claro p-5 sm:flex-row sm:items-end sm:justify-between sm:p-6">
-        <div className="min-w-0">
-          <Etiqueta tom="uva">
-            {course.label} · {profile.grade}º ano
-          </Etiqueta>
-          <h2 className="mt-2.5 font-display text-2xl font-semibold text-tinta">{course.title}</h2>
-          <p className="mt-1.5 max-w-xl text-sm text-tinta-suave">{course.description}</p>
+      {/* Cada trilha tem seu horizonte. Ele fica atrás do conteúdo, com
+          opacidade baixa: território não pode competir com texto. */}
+      <section
+        className={cn(
+          "relative mb-9 overflow-hidden rounded-heroi border-2 p-5 sm:p-6",
+          tomClaro[tomCurso],
+        )}
+      >
+        <Horizonte tom={tomCurso} className="opacity-25" />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <Etiqueta tom={tomCurso}>
+              {course.label} · {profile.grade}º ano
+            </Etiqueta>
+            <h2 className="mt-2.5 font-display text-2xl font-semibold text-tinta">
+              {course.title}
+            </h2>
+            <p className="mt-1.5 max-w-xl text-sm text-tinta-suave">{course.description}</p>
+          </div>
+          <CoursePicker
+            profileId={profile.id}
+            current={course.id}
+            courses={courses.filter((c) => c.grades.includes(profile.grade))}
+          />
         </div>
-        <CoursePicker
-          profileId={profile.id}
-          current={course.id}
-          courses={courses.filter((c) => c.grades.includes(profile.grade))}
-        />
       </section>
 
       {course.skills.map((skill, i) => {
         const state = data.states.find((s) => s.skillId === skill);
         const doCapitulo = estados.filter((e) => e.lesson.skillId === skill);
         if (!doCapitulo.length) return null;
+        /* Progresso do capítulo em descobertas, a mesma unidade que cada lição
+           anuncia no seu cartão. "Percorridas" e não "dominadas": a medida de
+           autonomia é o selo ao lado, que exige acerto sem pista em dias
+           diferentes. */
+        const itensCapitulo = doCapitulo.flatMap((e) => e.lesson.items);
+        const percorridas = itensCapitulo.filter((item) => completed.has(item.id)).length;
         return (
           <section key={skill} className="mb-10">
             {/* Faixa do capítulo */}
@@ -84,6 +106,14 @@ export default async function Journey() {
                     ? "Base compartilhada das trilhas. Unidade gratuita completa."
                     : `Ponte sugerida: ${skillNames[course.skills[i - 1] ?? "fracoes"]}. Use o laboratório se precisar representar a ideia.`}
                 </p>
+                <p className="mt-2 font-display text-sm font-semibold text-tinta">
+                  {percorridas} de {itensCapitulo.length} descobertas percorridas
+                </p>
+                <BarraProgresso
+                  feitos={percorridas}
+                  total={itensCapitulo.length}
+                  className="mt-1.5 max-w-xs"
+                />
               </div>
               <SeloHabilidade nivel={state?.level ?? "starting"} />
             </div>

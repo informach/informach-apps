@@ -23,5 +23,19 @@ export function contentHash(lesson: Lesson) {
 
 export function itemHash(item: Item) {
   const { source: _source, ...authoredItem } = item;
+  /**
+   * Uma lista vazia de leituras equivocadas não é conteúdo autoral e não pode
+   * mudar a identidade do item — pela mesma razão que `source` fica de fora.
+   *
+   * Isto não é cosmético. O hash de invalidação é calculado sobre a versão
+   * CONGELADA na sessão, e reparsear um snapshot antigo com o schema atual
+   * injeta `misreads: []` onde antes não havia chave nenhuma. Sem esta
+   * exclusão, toda atividade numérica retirada por um mantenedor voltaria a
+   * contar como evidência no primeiro deploy depois do campo novo.
+   */
+  if ("misreads" in authoredItem && authoredItem.misreads.length === 0) {
+    const { misreads: _misreads, ...semLeituras } = authoredItem;
+    return createHash("sha256").update(canonicalJson(semLeituras)).digest("hex");
+  }
   return createHash("sha256").update(canonicalJson(authoredItem)).digest("hex");
 }

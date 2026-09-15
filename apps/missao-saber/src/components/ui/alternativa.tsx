@@ -57,7 +57,7 @@ export function Alternativa({
             className={cn(
               "grid size-9 shrink-0 place-items-center rounded-full border-2 font-display text-sm font-semibold",
               marcada
-                ? "border-verde-fundo bg-verde-solido text-white"
+                ? "border-verde-fundo bg-verde-solido text-sobre-verde"
                 : "border-sombra bg-papel text-tinta-suave",
             )}
           >

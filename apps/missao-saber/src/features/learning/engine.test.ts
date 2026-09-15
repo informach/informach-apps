@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { homeSupport, homeSupportFor } from "../content/apoio-em-casa";
 import { catalogReviewAudit } from "../content/authoring-review";
 import {
   assessment,
@@ -11,12 +12,14 @@ import {
   lessons,
   progressionBySkill,
 } from "../content/catalog";
+import { deepChallengeFor, deepChallenges } from "../content/desafios-profundos";
 import { inventory } from "../content/inventory";
 import { type Item, itemSchema, publicLesson } from "../content/types";
 import { itemHash } from "../content/version";
 import {
   type Evidence,
   gradeAnswer,
+  localDaysApart,
   repeatedDifficulties,
   skillStates,
   weeklyEvidence,
@@ -179,6 +182,23 @@ describe("learning evidence", () => {
     const last = row({ correct: false, createdAt: new Date("2026-09-12T12:00:00Z") });
     expect(skillStates([row(), last])[0]?.dueAt.toISOString()).toBe("2026-09-13T12:00:00.000Z");
   });
+  it("measures absence in Sao Paulo calendar days, not in elapsed hours", () => {
+    // Conta viradas de calendário, não horas: o par abaixo tem menos de dois
+    // dias e meio de intervalo e vale 3, porque a última tentativa caiu às
+    // 23:30 de Brasília. É a mesma unidade dos dias com prática e das datas de
+    // revisão, e é como uma família percebe "não estuda desde quarta".
+    expect(localDaysApart(new Date("2026-09-12T02:30:00Z"), new Date("2026-09-14T14:00:00Z"))).toBe(
+      3,
+    );
+    expect(localDaysApart(new Date("2026-09-14T12:00:00Z"), new Date("2026-09-14T23:00:00Z"))).toBe(
+      0,
+    );
+    // 02:00 UTC ainda é o dia anterior em Brasília, então o par abaixo cruza
+    // uma virada de calendário mesmo separado por menos de 24 horas.
+    expect(localDaysApart(new Date("2026-09-14T02:00:00Z"), new Date("2026-09-14T23:00:00Z"))).toBe(
+      1,
+    );
+  });
   it("uses the Brazilian day boundary in weekly reports", () => {
     const results = weeklyEvidence(
       [
@@ -274,6 +294,31 @@ describe("original pilot content", () => {
         ).assessmentNovelty,
       ).toBe("practice");
     }
+  });
+  it("gives every skill its own deep challenge, with steps and a rubric", () => {
+    for (const skillId of new Set(courses.flatMap((course) => course.skills))) {
+      const challenge = deepChallengeFor(skillId);
+      expect(challenge, `sem desafio profundo para ${skillId}`).toBeDefined();
+      expect(challenge?.skillId).toBe(skillId);
+      expect(challenge?.steps).toHaveLength(3);
+      expect(challenge?.rubric).toHaveLength(4);
+      // Cada critério declara a faixa de pontos: a rubrica é de autoavaliação.
+      for (const criterio of challenge?.rubric ?? []) expect(criterio).toMatch(/\(0–\d\)$/);
+    }
+    // Um desafio por habilidade, sem enunciado reaproveitado entre elas.
+    const titulos = Object.values(deepChallenges).map((challenge) => challenge.title);
+    expect(new Set(titulos).size).toBe(titulos.length);
+  });
+  it("offers two screen-free conversations for every skill of every course", () => {
+    for (const skillId of new Set(courses.flatMap((course) => course.skills))) {
+      const support = homeSupportFor(skillId);
+      expect(support, `sem apoio em casa para ${skillId}`).toBeDefined();
+      expect(support).toHaveLength(2);
+      for (const idea of support ?? []) expect(idea.length).toBeGreaterThan(40);
+    }
+    // Pedir tela anularia o recurso: ele existe para o tempo fora do aplicativo.
+    for (const ideas of Object.values(homeSupport))
+      for (const idea of ideas) expect(idea).not.toMatch(/\bapp\b|tela|celular|vídeo|site/i);
   });
   it("resolves prerequisites without cycles and separates training from assessment families", () => {
     const teachingFamilies = new Set(
@@ -551,6 +596,94 @@ describe("activity contract v2", () => {
     expect(gradeAnswer(item, "1/2 cm")).toMatchObject({ valid: false });
     expect(gradeAnswer(item, "1/(1+1) m")).toMatchObject({ valid: false });
   });
+  it("names the trocada step of a numeric answer and otherwise reports only the direction", () => {
+    const item = sample.items.find((candidate) => candidate.type === "numeric");
+    if (item?.type !== "numeric") throw new Error("Missing numeric item");
+    expect(gradeAnswer(item, "0,25 m")).toMatchObject({
+      correct: false,
+      explanation: "0,25 m é um quarto da unidade. A metade é o dobro disso.",
+    });
+    // Sem leitura autoral, a direção do desvio precede a explicação da questão.
+    expect(gradeAnswer(item, "0,6 m").explanation).toBe(
+      `Seu valor ficou acima do esperado. ${item.explanation}`,
+    );
+    expect(gradeAnswer(item, "0,1 m").explanation).toBe(
+      `Seu valor ficou abaixo do esperado. ${item.explanation}`,
+    );
+    // Com leitura autoral, ela substitui a explicação genérica em vez de somar.
+    expect(gradeAnswer(item, "0,2 m").explanation).not.toContain(item.explanation);
+  });
+  it("refuses a misread that the grading would accept as correct", () => {
+    const item = sample.items.find((candidate) => candidate.type === "numeric");
+    if (item?.type !== "numeric") throw new Error("Missing numeric item");
+    expect(() =>
+      itemSchema.parse({
+        ...item,
+        id: "misread-conflict",
+        misreads: [{ value: 0.5, feedback: "Não pode valer como erro." }],
+      }),
+    ).toThrow();
+    expect(() =>
+      itemSchema.parse({
+        ...item,
+        id: "misread-duplicate",
+        misreads: [
+          { value: 0.25, feedback: "Um quarto." },
+          { value: 0.25, feedback: "Repetido." },
+        ],
+      }),
+    ).toThrow();
+  });
+  it("refuses two misreads whose tolerance windows overlap", () => {
+    const item = sample.items.find((candidate) => candidate.type === "numeric");
+    if (item?.type !== "numeric") throw new Error("Missing numeric item");
+    // Com tolerância 0,05 as janelas de 0,25 e 0,3 se tocam: uma resposta de
+    // 0,275 casaria com a primeira da lista e nomearia a etapa errada.
+    const comTolerancia = { ...item, grading: { ...item.grading, tolerance: 0.05 } };
+    expect(() =>
+      itemSchema.parse({
+        ...comTolerancia,
+        id: "misread-overlap",
+        misreads: [
+          { value: 0.25, feedback: "Um quarto." },
+          { value: 0.3, feedback: "Perto demais do anterior." },
+        ],
+      }),
+    ).toThrow();
+    // Separadas por mais de duas tolerâncias, cada leitura tem janela própria.
+    expect(() =>
+      itemSchema.parse({
+        ...comTolerancia,
+        id: "misread-separado",
+        misreads: [
+          { value: 0.25, feedback: "Um quarto." },
+          { value: 0.4, feedback: "Outra etapa trocada." },
+        ],
+      }),
+    ).not.toThrow();
+  });
+  it("points at a single inverted pair of steps instead of revealing the whole order", () => {
+    const exact = sample.items.find((candidate) => candidate.type === "ordering");
+    if (exact?.type !== "ordering") throw new Error("Missing ordering item");
+    const inverted = gradeAnswer(
+      exact,
+      JSON.stringify(["part", "divide", "multiply", "result"]),
+    ).explanation;
+    expect(inverted).toMatch(
+      /^“Dividir 20 em 4 partes iguais” precisa vir antes de “Reconhecer que uma parte vale 5”\./,
+    );
+    expect(inverted).not.toContain("Concluir que três quartos de 20 são 15");
+    const precedence = itemSchema.parse({
+      ...exact,
+      id: "precedence-feedback",
+      grading: { mode: "precedence", constraints: [["divide", "multiply"]] },
+    });
+    expect(
+      gradeAnswer(precedence, JSON.stringify(["multiply", "part", "divide", "result"])).explanation,
+    ).toMatch(
+      /^“Dividir 20 em 4 partes iguais” precisa vir antes de “Multiplicar o valor de uma parte por 3”\./,
+    );
+  });
   it("validates exact and precedence orders without accepting repeated or foreign steps", () => {
     const exact = sample.items.find((candidate) => candidate.type === "ordering");
     if (exact?.type !== "ordering") throw new Error("Missing ordering item");
@@ -600,6 +733,18 @@ describe("activity contract v2", () => {
     });
     expect(legacy.type).toBe("choice");
     expect(gradeAnswer(legacy, "5")).toMatchObject({ correct: true });
+  });
+  it("keeps a frozen snapshot's identity when an optional authored field is added", () => {
+    // O hash de invalidação é calculado sobre a versão congelada na sessão.
+    // Reparsear um snapshot antigo com o schema atual injeta `misreads: []`, e
+    // se isso mudasse o hash toda atividade numérica retirada por um mantenedor
+    // voltaria a contar como evidência no primeiro deploy.
+    const antigo = sample.items.find((candidate) => candidate.type === "numeric");
+    if (antigo?.type !== "numeric") throw new Error("Missing numeric item");
+    const { misreads: _misreads, ...semCampo } = antigo;
+    expect(itemHash(itemSchema.parse(semCampo))).toBe(itemHash(semCampo as Item));
+    // Ganhar leitura equivocada autoral é conteúdo novo, e aí o hash muda.
+    expect(itemHash(antigo)).not.toBe(itemHash(semCampo as Item));
   });
   it("keeps content identity stable when PostgreSQL JSONB reorders object keys", () => {
     const item = sample.items[0];

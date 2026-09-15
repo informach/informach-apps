@@ -98,13 +98,56 @@ function numericAnswer(item: Extract<Item, { type: "numeric" }>, raw: string): A
   if (!item.grading.acceptedForms.includes(parsed.form))
     return rejected("Use um dos formatos pedidos nesta atividade.");
   const correct = Math.abs(parsed.value - item.grading.value) <= item.grading.tolerance;
+  const solution = `${item.grading.value}${unit ? ` ${unit.symbol}` : ""}`;
+  if (correct)
+    return { valid: true, result: "correct", correct, explanation: item.explanation, solution };
+  /* Uma leitura equivocada autoral nomeia a etapa trocada. Sem ela, a direção
+     do desvio ainda é uma informação verdadeira e específica, e não entrega o
+     valor esperado. */
+  const misread = item.misreads.find(
+    (candidate) => Math.abs(parsed.value - candidate.value) <= item.grading.tolerance,
+  );
+  const direction = parsed.value > item.grading.value ? "acima" : "abaixo";
   return {
     valid: true,
-    result: correct ? "correct" : "incorrect",
+    result: "incorrect",
     correct,
-    explanation: item.explanation,
-    solution: `${item.grading.value}${unit ? ` ${unit.symbol}` : ""}`,
+    explanation: misread
+      ? misread.feedback
+      : `Seu valor ficou ${direction} do esperado. ${item.explanation}`,
+    solution,
   };
+}
+
+/**
+ * Par de passos que o estudante trocou de lugar: `before` precisa vir antes de
+ * `after`. Em `exact`, procura a primeira inversão em relação à ordem oficial;
+ * em `precedence`, a primeira dependência desrespeitada. Nomear um par ensina a
+ * relação sem revelar a sequência inteira.
+ */
+function orderingConflict(
+  item: Extract<Item, { type: "ordering" }>,
+  order: string[],
+): { before: string; after: string } | null {
+  if (item.grading.mode === "precedence") {
+    const positions = new Map(order.map((id, index) => [id, index]));
+    const violated = item.grading.constraints.find(
+      ([before, after]) =>
+        (positions.get(before) ?? Number.POSITIVE_INFINITY) >=
+        (positions.get(after) ?? Number.NEGATIVE_INFINITY),
+    );
+    return violated ? { before: violated[0], after: violated[1] } : null;
+  }
+  const expected = new Map(item.grading.order.map((id, index) => [id, index]));
+  for (let first = 0; first < order.length; first += 1)
+    for (let second = first + 1; second < order.length; second += 1) {
+      const left = order[first];
+      const right = order[second];
+      if (left === undefined || right === undefined) continue;
+      if ((expected.get(left) ?? 0) > (expected.get(right) ?? 0))
+        return { before: right, after: left };
+    }
+  return null;
 }
 
 function orderingAnswer(item: Extract<Item, { type: "ordering" }>, raw: string): AnswerEvaluation {
@@ -132,11 +175,15 @@ function orderingAnswer(item: Extract<Item, { type: "ordering" }>, raw: string):
             (positions.get(before) ?? Number.POSITIVE_INFINITY) <
             (positions.get(after) ?? Number.NEGATIVE_INFINITY),
         );
+  const conflict = correct ? null : orderingConflict(item, order);
+  const label = (id: string) => item.steps.find((step) => step.id === id)?.label ?? id;
   return {
     valid: true,
     result: correct ? "correct" : "incorrect",
     correct,
-    explanation: item.explanation,
+    explanation: conflict
+      ? `“${label(conflict.before)}” precisa vir antes de “${label(conflict.after)}”. ${item.explanation}`
+      : item.explanation,
     solution:
       item.grading.mode === "exact"
         ? item.grading.order
@@ -241,6 +288,16 @@ export function localDay(date: Date) {
     month: "2-digit",
     day: "2-digit",
   }).format(date);
+}
+/**
+ * Distância em dias de calendário local, sem depender da hora do dia nem de
+ * transições históricas de horário de verão — a mesma aritmética já usada em
+ * `weeklyEvidence`.
+ */
+export function localDaysApart(from: Date, to: Date) {
+  const start = Date.parse(`${localDay(from)}T00:00:00Z`);
+  const end = Date.parse(`${localDay(to)}T00:00:00Z`);
+  return Math.round((end - start) / dayMs);
 }
 export function weeklyEvidence(evidence: Evidence[], now: Date) {
   const today = localDay(now);

@@ -1,7 +1,7 @@
 "use client";
 import { Label } from "@informach/ui/components/label";
 import { cn } from "@informach/ui/lib/utils";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { BotaoChapa } from "@/components/ui/botao-chapa";
 import { Etiqueta } from "@/components/ui/pagina";
 import { gridMeasures, successiveDiscounts } from "../math";
@@ -23,11 +23,77 @@ const resumo = "cursor-pointer font-semibold text-tinta-suave underline underlin
 const controle =
   "mt-2 block w-full accent-[var(--ms-verde)] [&::-webkit-slider-thumb]:cursor-pointer";
 
+/**
+ * Previsão antes de mexer, observação depois de mexer.
+ *
+ * É o passo que faltava no ciclo do produto: sem uma aposta registrada, mexer
+ * nos controles é brincar com o widget. As duas anotações são salvas junto com
+ * a montagem, então voltam quando o estudante retoma o experimento.
+ *
+ * Nenhuma delas é corrigida: uma previsão errada é matéria-prima da descoberta,
+ * não um erro a pontuar.
+ */
+function CicloDeDescoberta({
+  pergunta,
+  previsao,
+  observacao,
+  onPrevisao,
+  onObservacao,
+}: {
+  pergunta: string;
+  previsao: string;
+  observacao: string;
+  onPrevisao: (value: string) => void;
+  onObservacao: (value: string) => void;
+}) {
+  /* `useId` em vez de um identificador fixo: dentro de uma missão a mesma
+     ferramenta pode aparecer duas vezes na mesma tela — explorar antes de
+     responder e a ferramenta de apoio das pistas —, e dois `id` iguais fariam
+     o rótulo de uma cópia apontar para o campo da outra. */
+  const campo = useId();
+  return (
+    <div className="mt-5 grid gap-3 rounded-controle border-2 border-dashed border-sombra p-3.5 sm:grid-cols-2">
+      <div>
+        <Label htmlFor={`previsao-${campo}`} className="block font-semibold">
+          Qual é sua aposta? {pergunta}
+        </Label>
+        <textarea
+          id={`previsao-${campo}`}
+          rows={2}
+          maxLength={280}
+          value={previsao}
+          onChange={(event) => onPrevisao(event.target.value)}
+          className="mt-2 block w-full rounded-controle border-2 border-sombra bg-papel p-2.5 text-sm text-tinta"
+        />
+      </div>
+      <div>
+        <Label htmlFor={`observacao-${campo}`} className="block font-semibold">
+          Depois de mexer, o que você observou?
+        </Label>
+        <textarea
+          id={`observacao-${campo}`}
+          rows={2}
+          maxLength={280}
+          value={observacao}
+          onChange={(event) => onObservacao(event.target.value)}
+          className="mt-2 block w-full rounded-controle border-2 border-sombra bg-papel p-2.5 text-sm text-tinta"
+        />
+      </div>
+      <p className="text-xs text-tinta-suave sm:col-span-2">
+        As duas linhas ficam salvas com o experimento. Previsão errada não conta erro: é ela que
+        torna a observação interessante.
+      </p>
+    </div>
+  );
+}
+
 export function BarsLab({ profileId, saved }: LabProps = {}) {
   const restored = saved?.state.kind === "bars" ? saved.state : undefined;
   const [initial, setInitial] = useState(restored?.initial ?? 200);
   const [first, setFirst] = useState(restored?.first ?? 20);
   const [second, setSecond] = useState(restored?.second ?? 10);
+  const [previsao, setPrevisao] = useState(restored?.previsao ?? "");
+  const [observacao, setObservacao] = useState(restored?.observacao ?? "");
   const result = successiveDiscounts(initial, first, second);
   return (
     <div className={caixaLab}>
@@ -112,10 +178,17 @@ export function BarsLab({ profileId, saved }: LabProps = {}) {
       <p className={legenda}>
         Teclado: use as setas nos controles. Abaixo das barras, o resultado também está em texto.
       </p>
+      <CicloDeDescoberta
+        pergunta="O desconto total será maior, igual ou menor que a soma dos dois?"
+        previsao={previsao}
+        observacao={observacao}
+        onPrevisao={setPrevisao}
+        onObservacao={setObservacao}
+      />
       <SaveExperiment
         profileId={profileId}
         initialRevision={saved?.revision}
-        state={{ kind: "bars", initial, first, second }}
+        state={{ kind: "bars", initial, first, second, previsao, observacao }}
       />
     </div>
   );
@@ -124,11 +197,12 @@ export function BarsLab({ profileId, saved }: LabProps = {}) {
 export function GridLab({ profileId, saved }: LabProps = {}) {
   const initialCells = () =>
     Array.from({ length: 20 }, (_, position) => ({ position, active: true }));
+  const restored = saved?.state.kind === "grid" ? saved.state : undefined;
   const [cells, setCells] = useState(() =>
-    saved?.state.kind === "grid"
-      ? saved.state.cells.map((active, position) => ({ active, position }))
-      : initialCells(),
+    restored ? restored.cells.map((active, position) => ({ active, position })) : initialCells(),
   );
+  const [previsao, setPrevisao] = useState(restored?.previsao ?? "");
+  const [observacao, setObservacao] = useState(restored?.observacao ?? "");
   const { area, perimeter } = gridMeasures(
     cells.map((cell) => cell.active),
     5,
@@ -156,7 +230,7 @@ export function GridLab({ profileId, saved }: LabProps = {}) {
             className={cn(
               "grid size-12 place-items-center rounded-lg border-2 text-lg transition-transform duration-100 active:translate-y-0.5 sm:size-14",
               active
-                ? "border-verde-solido-sombra bg-verde-solido text-white shadow-[0_3px_0_var(--ms-verde-solido-sombra)]"
+                ? "border-verde-solido-sombra bg-verde-solido text-sobre-verde shadow-[0_3px_0_var(--ms-verde-solido-sombra)]"
                 : "border-sombra bg-papel text-tinta-suave",
             )}
             onClick={() =>
@@ -192,10 +266,22 @@ export function GridLab({ profileId, saved }: LabProps = {}) {
         </p>
       </details>
       <p className={legenda}>Cada célula é um botão: Tab navega, Espaço ativa ou retira.</p>
+      <CicloDeDescoberta
+        pergunta="Retirar um canto muda a área, o contorno, ou os dois?"
+        previsao={previsao}
+        observacao={observacao}
+        onPrevisao={setPrevisao}
+        onObservacao={setObservacao}
+      />
       <SaveExperiment
         profileId={profileId}
         initialRevision={saved?.revision}
-        state={{ kind: "grid", cells: cells.map((cell) => cell.active) }}
+        state={{
+          kind: "grid",
+          cells: cells.map((cell) => cell.active),
+          previsao,
+          observacao,
+        }}
       />
     </div>
   );
@@ -207,6 +293,8 @@ export function GroupsLab({ profileId, saved }: LabProps = {}) {
   const [tokens, setTokens] = useState(
     restored?.tokens ?? [0, 1, 2, 3, 0].map((box, id) => ({ id, box })),
   );
+  const [previsao, setPrevisao] = useState(restored?.previsao ?? "");
+  const [observacao, setObservacao] = useState(restored?.observacao ?? "");
   const counts = Array.from({ length: groups }, (_, id) => ({
     id,
     count: tokens.filter((token) => token.box === id).length,
@@ -309,10 +397,17 @@ export function GroupsLab({ profileId, saved }: LabProps = {}) {
       <p className={legenda}>
         Todos os movimentos também podem ser feitos com os seletores pelo teclado.
       </p>
+      <CicloDeDescoberta
+        pergunta="Com quantas peças alguma caixa é obrigada a receber duas?"
+        previsao={previsao}
+        observacao={observacao}
+        onPrevisao={setPrevisao}
+        onObservacao={setObservacao}
+      />
       <SaveExperiment
         profileId={profileId}
         initialRevision={saved?.revision}
-        state={{ kind: "groups", groups, tokens }}
+        state={{ kind: "groups", groups, tokens, previsao, observacao }}
       />
     </div>
   );

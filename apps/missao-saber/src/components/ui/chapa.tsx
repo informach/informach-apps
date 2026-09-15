@@ -13,18 +13,19 @@ export type Tom = "verde" | "uva" | "sol" | "coral" | "ceu" | "lima" | "creme";
 /**
  * Superfícies sólidas.
  *
- * Tons escuros levam texto branco; tons claros (sol, lima, creme) levam
- * texto em tinta. Todos os pares passam de 4,5:1 — as cores vivas da
- * paleta são claras demais para branco e ficam reservadas a fundos suaves.
+ * O texto de cada preenchimento vem do par `--ms-sobre-*`, e não de
+ * `text-white` fixo: no tema escuro os sólidos clareiam e o texto em cima
+ * precisa escurecer. Todos os pares dos dois temas são medidos em
+ * `src/app/tema.test.ts`, que reprova qualquer um abaixo de 4,5:1.
  */
 export const tomSolido: Record<Tom, string> = {
-  verde: "bg-verde-solido text-white shadow-[0_5px_0_var(--ms-verde-solido-sombra)]",
-  uva: "bg-uva-solido text-white shadow-[0_5px_0_var(--ms-uva-solido-sombra)]",
-  sol: "bg-sol text-tinta shadow-[0_5px_0_var(--ms-sol-fundo)]",
-  coral: "bg-coral-solido text-white shadow-[0_5px_0_var(--ms-coral-solido-sombra)]",
-  ceu: "bg-ceu-solido text-white shadow-[0_5px_0_var(--ms-ceu-solido-sombra)]",
-  lima: "bg-lima text-tinta shadow-[0_5px_0_var(--ms-lima-fundo)]",
-  creme: "bg-creme text-tinta shadow-[0_5px_0_var(--ms-sombra)]",
+  verde: "bg-verde-solido text-sobre-verde shadow-[0_5px_0_var(--ms-verde-solido-sombra)]",
+  uva: "bg-uva-solido text-sobre-uva shadow-[0_5px_0_var(--ms-uva-solido-sombra)]",
+  sol: "bg-sol-solido text-sobre-sol shadow-[0_5px_0_var(--ms-sol-fundo)]",
+  coral: "bg-coral-solido text-sobre-coral shadow-[0_5px_0_var(--ms-coral-solido-sombra)]",
+  ceu: "bg-ceu-solido text-sobre-ceu shadow-[0_5px_0_var(--ms-ceu-solido-sombra)]",
+  lima: "bg-lima-solido text-sobre-lima shadow-[0_5px_0_var(--ms-lima-fundo)]",
+  creme: "bg-creme text-sobre-creme shadow-[0_5px_0_var(--ms-sombra)]",
 };
 
 /**

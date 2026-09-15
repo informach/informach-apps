@@ -41,7 +41,9 @@ export function AuthForm() {
             }}
             className={cn(
               "min-h-11 rounded-[0.7rem] font-display font-semibold transition-colors",
-              mode === alvo ? "bg-verde-solido text-white" : "text-tinta-suave hover:text-tinta",
+              mode === alvo
+                ? "bg-verde-solido text-sobre-verde"
+                : "text-tinta-suave hover:text-tinta",
             )}
           >
             {alvo === "login" ? "Entrar" : "Criar conta"}

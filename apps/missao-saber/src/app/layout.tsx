@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Fredoka, Nunito } from "next/font/google";
+import { headers } from "next/headers";
+import { RegistrarServiceWorker } from "@/components/registrar-sw";
 import "./globals.css";
 
 const nunito = Nunito({
@@ -29,15 +31,34 @@ export const metadata: Metadata = {
 };
 export const viewport: Viewport = {
   themeColor: "#17B26A",
-  colorScheme: "light",
+  colorScheme: "light dark",
 };
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+
+/**
+ * Aplica a escolha explícita de tema antes da primeira pintura.
+ *
+ * Sem isso a tela abre clara e pisca para escura depois da hidratação. Quem
+ * não escolheu nada não recebe atributo nenhum e fica com `prefers-color-scheme`
+ * — inclusive com JavaScript desligado.
+ */
+const temaAntesDaPintura = `try{var t=localStorage.getItem("ms-tema");if(t==="escuro")document.documentElement.setAttribute("data-theme","dark");else if(t==="claro")document.documentElement.setAttribute("data-theme","light")}catch(e){}`;
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  /* A CSP do proxy é `script-src 'self' 'nonce-…' 'strict-dynamic'`: sem o
+     nonce o script inline é bloqueado e a preferência de tema salva não chega
+     a ser aplicada. O proxy publica o nonce da requisição em `x-nonce`. */
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html lang="pt-BR" className={`${nunito.variable} ${fredoka.variable}`}>
+      <head>
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: script literal e fixo, sem dado de usuário */}
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: temaAntesDaPintura }} />
+      </head>
       <body>
         <a className="skip" href="#conteudo">
           Pular para o conteúdo
         </a>
+        <RegistrarServiceWorker />
         {children}
       </body>
     </html>

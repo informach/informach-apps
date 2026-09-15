@@ -1,15 +1,34 @@
 import { LinkChapa } from "@/components/ui/botao-chapa";
 import { Chapa } from "@/components/ui/chapa";
 import { CabecalhoPagina, Etiqueta } from "@/components/ui/pagina";
+import { findCourse, skillNames } from "@/features/content/catalog";
+import { deepChallengeFor } from "@/features/content/desafios-profundos";
 import { BarsLab, GridLab, GroupsLab } from "@/features/labs/components/labs";
 import { getExperiments } from "@/features/labs/repository";
 import { requirePageUser } from "@/lib/auth";
 import { currentDashboard } from "@/lib/view";
 
+const nomeDoLab = {
+  bars: "as barras de referência",
+  grid: "a malha de descobertas",
+  groups: "o organizador de casos",
+} as const;
+
 export default async function Laboratory() {
   const data = await currentDashboard();
   const user = await requirePageUser();
   const saved = data.profile ? await getExperiments(user.id, data.profile.id) : {};
+
+  /* O desafio profundo acompanha a habilidade que está sendo construída — a
+     mesma escolha que o relatório da família chama de próximo passo. Antes era
+     um único desafio escrito à mão na página, igual para as doze habilidades e
+     para as 61 missões do catálogo. */
+  const course = data.profile ? findCourse(data.profile.courseId) : undefined;
+  const emConstrucao = course?.skills.find(
+    (skillId) => data.states.find((state) => state.skillId === skillId)?.level !== "independent",
+  );
+  const desafio = deepChallengeFor(emConstrucao ?? course?.skills[0] ?? "medidas");
+
   return (
     <>
       <CabecalhoPagina
@@ -27,32 +46,41 @@ export default async function Laboratory() {
         />
       </div>
 
-      <Chapa tom="uva" className="mt-8">
-        <Etiqueta tom="uva">Desafio profundo · 20–30 min · pode pausar</Etiqueta>
-        <h2 className="mt-3 font-display text-2xl font-semibold text-tinta">
-          Uma borda, muitas possibilidades
-        </h2>
-        <p className="mt-2.5 text-tinta">
-          Na malha, construa duas figuras de mesma área e perímetros diferentes. Agora tente manter
-          o perímetro e mudar a área. Que regra você suspeita que exista?
-        </p>
-        <p className="mt-2.5 text-sm text-tinta-suave">
-          Para pausar, use “Salvar experimento” antes de sair. Ao voltar com o mesmo perfil, a
-          montagem salva reaparece, inclusive em outro aparelho. O caderno guarda suas explicações.
-        </p>
-        <ol className="mt-4 grid gap-2 pl-5 text-tinta [&>li]:list-decimal">
-          <li>Registre dois exemplos e suas medidas.</li>
-          <li>Explique por que lados compartilhados mudam o resultado.</li>
-          <li>Procure um exemplo que contrarie sua primeira ideia.</li>
-        </ol>
-        <p className="mt-4 text-sm text-tinta-suave">
-          Autoavaliação: exemplos válidos (0–2), contagem verificável (0–3), explicação dos lados
-          (0–3), tentativa de generalização (0–2). É uma rubrica formativa, sem nota automática.
-        </p>
-        <LinkChapa href="/caderno" tom="contorno" className="mt-5">
-          Guardar minha investigação
-        </LinkChapa>
-      </Chapa>
+      {desafio && (
+        <Chapa tom="uva" className="mt-8">
+          <Etiqueta tom="uva">Desafio profundo · 20–30 min · pode pausar</Etiqueta>
+          <h2 className="mt-3 font-display text-2xl font-semibold text-tinta">{desafio.title}</h2>
+          <p className="mt-1.5 text-sm font-semibold text-tinta-suave">
+            {skillNames[desafio.skillId] ?? desafio.skillId}
+          </p>
+          <p className="mt-2.5 text-tinta">{desafio.prompt}</p>
+          <p className="mt-2.5 text-sm text-tinta-suave">
+            Para pausar, use “Salvar experimento” antes de sair. Ao voltar com o mesmo perfil, a
+            montagem salva reaparece, inclusive em outro aparelho. O caderno guarda suas
+            explicações.
+          </p>
+          <ol className="mt-4 grid gap-2 pl-5 text-tinta [&>li]:list-decimal">
+            {desafio.steps.map((passo) => (
+              <li key={passo}>{passo}</li>
+            ))}
+          </ol>
+          {/* Aponta a ferramenta em vez de montar outra cópia dela: as três já
+              estão nesta mesma página, logo acima. Duplicar o laboratório
+              duplicaria também os controles e o botão de salvar. */}
+          {desafio.lab && (
+            <p className="mt-4 font-display font-semibold text-tinta">
+              Ferramenta que ajuda: {nomeDoLab[desafio.lab]}, aqui em cima.
+            </p>
+          )}
+          <p className="mt-4 text-sm text-tinta-suave">
+            Autoavaliação: {desafio.rubric.join(", ")}. É uma rubrica formativa, sem nota
+            automática.
+          </p>
+          <LinkChapa href="/caderno" tom="contorno" className="mt-5">
+            Guardar minha investigação
+          </LinkChapa>
+        </Chapa>
+      )}
     </>
   );
 }

@@ -17,6 +17,7 @@ import {
   skillNames,
 } from "../content/catalog";
 import { lessonSchema, publicLesson } from "../content/types";
+import { weekStart } from "../family/desafio";
 import { allowedProfileIds } from "../family/profile-access";
 import { gradeAnswer, skillStates, weeklyEvidence } from "./engine";
 import { availableLessons, recommend } from "./recommendation";
@@ -38,10 +39,13 @@ export async function dashboard(userId: string, profileId?: string) {
   const profiles = await repo.getProfiles(userId);
   const profile = profileId ? profiles.find((p) => p.id === profileId) : profiles[0];
   assertAllowed(!profileId || profile, "PROFILE", "Perfil não encontrado.");
-  const [family, access, contentStates] = await Promise.all([
+  const [family, access, contentStates, challenge] = await Promise.all([
     repo.getFamily(userId),
     getAccess(userId),
     repo.contentStates(),
+    // O desafio é da família, não do perfil: fica aqui, junto do resto do
+    // painel, para que layout e página compartilhem uma leitura só.
+    repo.familyChallenge(userId, weekStart(new Date())),
   ]);
   const activeProfileIds = allowedProfileIds(profiles, access.profileLimit);
   if (!profile)
@@ -52,6 +56,7 @@ export async function dashboard(userId: string, profileId?: string) {
       access,
       contentStates,
       activeProfileIds,
+      challenge,
       profileAllowed: false,
       evidence: [],
       attemptedItemIds: [],
@@ -71,6 +76,7 @@ export async function dashboard(userId: string, profileId?: string) {
     access,
     contentStates,
     activeProfileIds,
+    challenge,
     profileAllowed: activeProfileIds.includes(profile.id),
     evidence,
     attemptedItemIds,
@@ -140,6 +146,16 @@ export async function sessionView(userId: string, sessionId: string) {
     reason: string;
     mode: "mission" | "review";
   } | null = null;
+  const assessmentMode = session.mode === "diagnostic" || session.mode === "exam";
+  const previous =
+    assessmentMode && session.completedAt
+      ? await repo.previousAssessment(
+          userId,
+          session.profileId,
+          session.mode as "diagnostic" | "exam",
+          session.createdAt,
+        )
+      : null;
   if (session.mode === "diagnostic" && session.completedAt) {
     const data = await dashboard(userId, session.profileId);
     const course = data.profile && findCourse(data.profile.courseId);
@@ -171,6 +187,14 @@ export async function sessionView(userId: string, sessionId: string) {
     skillLabels: Object.fromEntries(
       lesson.items.map((item) => [item.skillId, skillNames[item.skillId] ?? item.skillId]),
     ),
+    readingSupport: session.readingSupport,
+    previousAssessment: previous
+      ? {
+          createdAt: previous.createdAt.toISOString(),
+          readingSupport: previous.readingSupport,
+          counts: previous.counts,
+        }
+      : null,
     id: session.id,
     profileId: session.profileId,
     mode: session.mode,
@@ -214,6 +238,10 @@ export async function answer(userId: string, raw: unknown) {
 }
 export async function hint(userId: string, raw: unknown) {
   return repo.recordHint(userId, hintSchema.parse(raw));
+}
+export async function markReading(userId: string, raw: unknown) {
+  const sessionId = z.string().uuid().parse(raw);
+  return repo.markReadingSupport(userId, sessionId);
 }
 export async function interrupt(userId: string, raw: unknown) {
   const sessionId = z.string().uuid().parse(raw);

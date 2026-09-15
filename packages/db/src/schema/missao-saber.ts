@@ -2,10 +2,12 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  date,
   index,
   integer,
   jsonb,
   pgSchema,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -25,9 +27,40 @@ export const missaoFamilies = missaoSaber.table(
     consentVersion: text("consent_version").notNull(),
     consentAt: time("consent_at"),
     dailyMinutes: integer("daily_minutes").notNull().default(10),
+    /**
+     * Resumo semanal por e-mail para o responsável. Opt-in explícito e desligado
+     * por padrão: o corpo descreve o estudo de uma criança, então ninguém passa
+     * a receber esses dados por omissão.
+     */
+    weeklyReportEmail: boolean("weekly_report_email").notNull().default(false),
     createdAt: time("created_at"),
   },
   (t) => [check("missao_daily_minutes", sql`${t.dailyMinutes} in (5, 10, 15, 20)`)],
+);
+
+/**
+ * Desafio da família: uma meta semanal única, somada entre todos os perfis.
+ *
+ * A meta é de VARIEDADE — estratégias distintas na semana — e não de volume nem
+ * de velocidade: contar respostas premiaria repetir a mesma família de item,
+ * exatamente o que o motor de evidência existe para não premiar. Não há
+ * classificação entre irmãos e a semana seguinte recomeça sem dívida.
+ */
+export const missaoFamilyChallenges = missaoSaber.table(
+  "family_challenges",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => missaoFamilies.userId, { onDelete: "cascade" }),
+    /** Segunda-feira local de São Paulo, em data pura. */
+    weekStart: date("week_start").notNull(),
+    goal: integer("goal").notNull(),
+    createdAt: time("created_at"),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.weekStart] }),
+    check("missao_family_challenge_goal", sql`${t.goal} between 4 and 40`),
+  ],
 );
 
 export const missaoProfiles = missaoSaber.table(

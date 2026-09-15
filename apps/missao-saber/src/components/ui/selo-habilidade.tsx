@@ -27,9 +27,11 @@ export function SeloHabilidade({
 }) {
   const cores =
     nivel === "independent"
-      ? "bg-verde-solido text-white border-verde-solido-sombra"
+      ? "bg-verde-solido text-sobre-verde border-verde-solido-sombra"
       : nivel === "building"
-        ? "bg-sol text-tinta border-sol-fundo"
+        ? // Par sólido, não o tom vivo: no tema escuro `--ms-sol` clareia e
+          // `--ms-tinta` vira quase branco, o que apagaria o selo inteiro.
+          "bg-sol-solido text-sobre-sol border-sol-fundo"
         : "bg-creme text-tinta-suave border-sombra";
   return (
     <span

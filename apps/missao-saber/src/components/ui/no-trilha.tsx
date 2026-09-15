@@ -15,7 +15,11 @@ export type EstadoNo = "concluido" | "atual" | "disponivel" | "bloqueado";
 const HEX = "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)";
 
 const cores: Record<EstadoNo, { frente: string; fundo: string; tinta: string }> = {
-  concluido: { frente: "bg-verde-solido", fundo: "bg-verde-solido-sombra", tinta: "text-white" },
+  concluido: {
+    frente: "bg-verde-solido",
+    fundo: "bg-verde-solido-sombra",
+    tinta: "text-sobre-verde",
+  },
   atual: { frente: "bg-lima", fundo: "bg-lima-fundo", tinta: "text-tinta" },
   disponivel: { frente: "bg-creme", fundo: "bg-sombra", tinta: "text-tinta" },
   bloqueado: { frente: "bg-muted", fundo: "bg-sombra", tinta: "text-tinta-suave" },

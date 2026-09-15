@@ -2,17 +2,26 @@
 import { cn } from "@informach/ui/lib/utils";
 import { ArrowRight, ChevronLeft, Flag, Lightbulb } from "lucide-react";
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { StartButton } from "@/components/controls";
 import { Mascote } from "@/components/mascote";
 import { BotaoChapa, LinkChapa } from "@/components/ui/botao-chapa";
 import { Chapa } from "@/components/ui/chapa";
 import { Confete } from "@/components/ui/confete";
+import { FalaFaisca } from "@/components/ui/fala-faisca";
+import { LerEmVoz } from "@/components/ui/ler-em-voz";
 import { Etiqueta } from "@/components/ui/pagina";
 import { PainelDevolutiva } from "@/components/ui/painel-devolutiva";
 import { ProgressoSegmentado } from "@/components/ui/progresso-segmentado";
+import { explorerBreakFor } from "@/features/content/pausas";
 import { Lab } from "@/features/labs/components/labs";
-import { answerAction, hintAction, interruptAction, reportAction } from "../actions";
+import {
+  answerAction,
+  hintAction,
+  interruptAction,
+  readingSupportAction,
+  reportAction,
+} from "../actions";
 import type { SessionView } from "../service";
 import { initialResponse, ResponseInput } from "./response-input";
 
@@ -115,7 +124,17 @@ function ItemReport({
   );
 }
 
-export function Player({ initial }: { initial: SessionView }) {
+/** Estado da oferta de pausa: fora de cena, oferecida, aceita ou dispensada. */
+type Pausa = "silenciosa" | "oferecida" | "aceita" | "dispensada";
+
+export function Player({
+  initial,
+  minutosSugeridos = 0,
+}: {
+  initial: SessionView;
+  /** Rotina escolhida pelo responsável. Zero desliga a oferta de pausa. */
+  minutosSugeridos?: number;
+}) {
   const [view, setView] = useState(initial);
   const [index, setIndex] = useState(initial.saved.length);
   const [choice, setChoice] = useState(() =>
@@ -125,10 +144,53 @@ export function Player({ initial }: { initial: SessionView }) {
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
   const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
+  const [readingSupport, setReadingSupport] = useState(initial.readingSupport);
+  /* O registro do apoio roda em paralelo à leitura, mas não pode perder a
+     corrida para a última resposta: se a sessão fechasse antes da marca, o
+     resultado apareceria como leitura autônoma. `submit` espera este pendente. */
+  const leituraPendente = useRef<Promise<void> | null>(null);
   const item = view.lesson.items[index];
   const result = item && view.saved.find((saved) => saved.itemId === item.id);
   const itemHints = item ? (view.hints[item.id] ?? []) : [];
   const assessment = view.mode === "exam" || view.mode === "diagnostic";
+
+  /**
+   * Em treino, ouvir o enunciado é só conforto de leitura e não registra nada.
+   * Em diagnóstico e simulado, a leitura pode alterar o construto medido, então
+   * a sessão declara o apoio. Se o servidor recusar a marca — falha de rede ou
+   * percurso já encerrado —, o sinalizador local volta atrás para uma próxima
+   * escuta tentar de novo: é melhor tentar duas vezes do que apresentar um
+   * resultado como leitura autônoma.
+   */
+  function marcarLeitura() {
+    if (!assessment || readingSupport) return;
+    setReadingSupport(true);
+    const registro: Promise<void> = readingSupportAction(view.id).then(
+      (response) => {
+        if (!response.ok || !response.data.marked) setReadingSupport(false);
+      },
+      () => setReadingSupport(false),
+    );
+    leituraPendente.current = registro;
+    void registro.then(() => {
+      if (leituraPendente.current === registro) leituraPendente.current = null;
+    });
+  }
+
+  /* Pausa do explorador: uma OFERTA quando o tempo sugerido passa, nunca uma
+     parede. O botão de continuar a missão segue sendo a ação mais fácil da
+     tela, a pausa não vale recompensa e "não preciso" encerra o assunto pela
+     sessão inteira. A regra escrita em `Routine` é explícita: sem bloqueio de
+     estudo e sem punição. */
+  const [pausa, setPausa] = useState<Pausa>("silenciosa");
+  const [adiamentos, setAdiamentos] = useState(0);
+  useEffect(() => {
+    if (!minutosSugeridos || pausa !== "silenciosa") return;
+    // Primeira oferta no tempo sugerido; cada "mais tarde" adia cinco minutos.
+    const espera = (adiamentos === 0 ? minutosSugeridos : 5) * 60_000;
+    const relogio = setTimeout(() => setPausa("oferecida"), espera);
+    return () => clearTimeout(relogio);
+  }, [minutosSugeridos, adiamentos, pausa]);
 
   if (view.interrupted)
     return (
@@ -221,6 +283,9 @@ export function Player({ initial }: { initial: SessionView }) {
             <p className="mx-auto mt-2 max-w-xl text-sm text-tinta-suave">
               Resultado formativo de um percurso autoral. Não equivale a nota, classificação ou
               diagnóstico oficial.
+              {view.readingSupport
+                ? " Este percurso teve apoio de leitura em voz alta, então não representa leitura autônoma."
+                : ""}
             </p>
           )}
           <div className="mt-6 flex flex-wrap justify-center gap-3">
@@ -259,6 +324,11 @@ export function Player({ initial }: { initial: SessionView }) {
                   <th className="p-3.5 text-left font-display font-semibold">
                     Acertos neste percurso
                   </th>
+                  {view.previousAssessment && (
+                    <th className="p-3.5 text-left font-display font-semibold">
+                      Percurso anterior
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -269,18 +339,41 @@ export function Player({ initial }: { initial: SessionView }) {
                   const answers = view.saved.filter(
                     (saved) => ids.has(saved.itemId) && saved.feedback?.correct !== null,
                   );
+                  const before = view.previousAssessment?.counts[skill];
                   return (
                     <tr key={skill} className="border-b border-sombra/60 last:border-0">
                       <td className="p-3.5">{label}</td>
                       <td className="p-3.5 font-display font-semibold">
                         {answers.filter((s) => s.feedback?.correct).length} / {answers.length}
                       </td>
+                      {view.previousAssessment && (
+                        <td className="p-3.5 text-tinta-suave">
+                          {before ? `${before.correct} / ${before.total}` : "—"}
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
+        )}
+        {assessment && view.previousAssessment && (
+          <p className="mt-2 text-left text-sm text-tinta-suave">
+            A coluna de comparação mostra o percurso de{" "}
+            {new Date(view.previousAssessment.createdAt).toLocaleDateString("pt-BR", {
+              timeZone: "America/Sao_Paulo",
+            })}
+            . São conjuntos de questões diferentes, então a leitura é de tendência — não é nota nem
+            média.
+            {/* Sem esta frase, mudar o apoio de leitura entre um percurso e
+                outro apareceria como avanço ou recuo de habilidade. */}
+            {view.previousAssessment.readingSupport !== view.readingSupport
+              ? view.readingSupport
+                ? " Este percurso teve apoio de leitura em voz alta e o anterior não, então as duas colunas foram feitas em condições diferentes."
+                : " O percurso anterior teve apoio de leitura em voz alta e este não, então as duas colunas foram feitas em condições diferentes."
+              : ""}
+          </p>
         )}
 
         <h2 className="mt-9 mb-3 text-left font-display text-2xl font-semibold text-tinta">
@@ -296,12 +389,12 @@ export function Player({ initial }: { initial: SessionView }) {
                 <span
                   aria-hidden="true"
                   className={cn(
-                    "mt-0.5 grid size-6 shrink-0 place-items-center rounded-full text-xs text-white",
+                    "mt-0.5 grid size-6 shrink-0 place-items-center rounded-full text-xs",
                     saved.feedback?.correct === null
-                      ? "bg-uva"
+                      ? "bg-uva-solido text-sobre-uva"
                       : saved.feedback?.correct
-                        ? "bg-verde-solido"
-                        : "bg-coral-solido",
+                        ? "bg-verde-solido text-sobre-verde"
+                        : "bg-coral-solido text-sobre-coral",
                   )}
                 >
                   {saved.feedback?.correct === null ? "✎" : saved.feedback?.correct ? "✓" : "↗"}
@@ -347,6 +440,8 @@ export function Player({ initial }: { initial: SessionView }) {
     start(async () => {
       setError("");
       try {
+        // Ver `marcarLeitura`: a marca de apoio precisa chegar antes do fim.
+        if (leituraPendente.current) await leituraPendente.current;
         const response = await answerAction({
           sessionId: view.id,
           itemId: item.id,
@@ -404,19 +499,90 @@ export function Player({ initial }: { initial: SessionView }) {
       </h1>
       <p className="mt-1.5 text-sm text-tinta-suave">{view.lesson.objective}</p>
 
+      {/* A ideia de abertura ficava fechada em um `<details>` que quase ninguém
+          abre. Ela é o enquadramento da missão, então a Faísca a diz em voz
+          alta antes da primeira questão. */}
       {index === 0 && !assessment && (
-        <details className="mt-5 rounded-card border-2 border-sol/40 bg-sol-claro p-4">
-          <summary className="cursor-pointer font-display font-semibold text-tinta">
-            Antes de começar: uma ideia que ajuda
-          </summary>
-          <p className="mt-2.5 text-sm text-tinta">{view.lesson.introduction}</p>
-        </details>
+        <FalaFaisca
+          humor="encorajando"
+          tom="sol"
+          titulo="Uma ideia que ajuda"
+          className="mt-6 mb-1"
+        >
+          <p>{view.lesson.introduction}</p>
+        </FalaFaisca>
       )}
 
-      <fieldset className="mt-7 border-0 p-0" disabled={pending || feedback}>
-        <legend className="mb-5 font-display text-xl leading-snug font-semibold text-tinta sm:text-2xl">
+      {pausa === "oferecida" && (
+        <FalaFaisca
+          humor="acolhendo"
+          tom="ceu"
+          titulo="Que tal uma pausa de dois minutos?"
+          className="mt-6"
+        >
+          <p>Você já está nisso há um tempo. A missão espera aqui, e nada se perde.</p>
+          <div className="mt-3 flex flex-wrap gap-2.5">
+            <BotaoChapa type="button" tom="ceu" medida="p" onClick={() => setPausa("aceita")}>
+              Vou pausar
+            </BotaoChapa>
+            <BotaoChapa
+              type="button"
+              tom="contorno"
+              medida="p"
+              onClick={() => {
+                setAdiamentos((total) => total + 1);
+                setPausa("silenciosa");
+              }}
+            >
+              Mais tarde
+            </BotaoChapa>
+            <BotaoChapa
+              type="button"
+              tom="contorno"
+              medida="p"
+              onClick={() => setPausa("dispensada")}
+            >
+              Não preciso
+            </BotaoChapa>
+          </div>
+        </FalaFaisca>
+      )}
+
+      {pausa === "aceita" && (
+        <FalaFaisca humor="descansando" tom="ceu" titulo="Dois minutos seus." className="mt-6">
+          <p>{explorerBreakFor(view.id)}</p>
+          <p className="mt-1.5 text-sm text-tinta-suave">
+            Isto não vale ponto nem selo. É só uma pausa.
+          </p>
+          <div className="mt-3">
+            <BotaoChapa type="button" tom="ceu" medida="p" onClick={() => setPausa("dispensada")}>
+              Voltei
+            </BotaoChapa>
+          </div>
+        </FalaFaisca>
+      )}
+
+      {/* O enunciado sai do <legend> e vira um parágrafo próprio: um botão
+          dentro de `fieldset[disabled]` herda o desabilitado, e ouvir o
+          enunciado tem de continuar possível enquanto a resposta é conferida.
+          O grupo de respostas continua se chamando pelo enunciado, agora por
+          `aria-labelledby` — um rótulo genérico deixaria quem navega por
+          leitor de tela entrar nas alternativas sem saber a pergunta. */}
+      <div className="mt-7 mb-5 flex items-start gap-3">
+        <p
+          id={`enunciado-${item.id}`}
+          className="min-w-0 flex-1 font-display text-xl leading-snug font-semibold text-tinta sm:text-2xl"
+        >
           {item.prompt}
-        </legend>
+        </p>
+        <LerEmVoz texto={item.prompt} aoUsar={marcarLeitura} />
+      </div>
+
+      <fieldset
+        className="border-0 p-0"
+        disabled={pending || feedback}
+        aria-labelledby={`enunciado-${item.id}`}
+      >
         <ResponseInput
           key={item.id}
           item={item}
@@ -469,12 +635,15 @@ export function Player({ initial }: { initial: SessionView }) {
           </BotaoChapa>
           <div aria-live="polite" className="mt-3 grid gap-2.5">
             {itemHints.map((hint, i) => (
-              <p
+              <div
                 key={hint}
-                className="rounded-card border-2 border-sol/45 bg-sol-claro p-3.5 text-sm text-tinta motion-safe:animate-pop-in"
+                className="flex items-start gap-2.5 rounded-card border-2 border-sol/45 bg-sol-claro p-3.5 motion-safe:animate-pop-in"
               >
-                <strong className="font-display">Pista {i + 1}.</strong> {hint}
-              </p>
+                <p className="min-w-0 flex-1 text-sm text-tinta">
+                  <strong className="font-display">Pista {i + 1}.</strong> {hint}
+                </p>
+                <LerEmVoz texto={hint} rotulo={`Ouvir a pista ${i + 1}`} aoUsar={marcarLeitura} />
+              </div>
             ))}
           </div>
           {view.lesson.lab && itemHints.length > 0 && (
@@ -534,14 +703,30 @@ export function Player({ initial }: { initial: SessionView }) {
 
       {feedback && result?.feedback && result.feedback.correct === null && (
         <Chapa tom="uva" className="mt-7">
-          <h2 className="font-display text-xl font-semibold text-tinta">Reflexão registrada.</h2>
-          <p className="mt-2 text-sm text-tinta">{result.feedback.explanation}</p>
+          <FalaFaisca humor="pensando" tom="creme" titulo="Reflexão registrada." tituloComo="h2">
+            <div className="flex items-start gap-2.5">
+              <p className="min-w-0 flex-1">{result.feedback.explanation}</p>
+              <LerEmVoz
+                texto={result.feedback.explanation}
+                rotulo="Ouvir a explicação"
+                aoUsar={marcarLeitura}
+              />
+            </div>
+          </FalaFaisca>
           {result.feedback.rubric && (
-            <ul className="mt-3 grid gap-1 pl-5 text-sm text-tinta-suave [&>li]:list-disc">
-              {result.feedback.rubric.map((criterion) => (
-                <li key={criterion}>{criterion}</li>
-              ))}
-            </ul>
+            <>
+              {/* Rubrica como autoavaliação, não como nota: o produto não
+                  atribui acerto a texto livre, então a interface não pode
+                  sugerir que algum critério foi conferido automaticamente. */}
+              <p className="mt-4 font-display font-semibold text-tinta">
+                Compare sua explicação com estes critérios:
+              </p>
+              <ul className="mt-2 grid gap-1 pl-5 text-sm text-tinta-suave [&>li]:list-disc">
+                {result.feedback.rubric.map((criterion) => (
+                  <li key={criterion}>{criterion}</li>
+                ))}
+              </ul>
+            </>
           )}
           {result.feedback.solution && (
             <p className="mt-3 text-sm text-tinta">
@@ -579,6 +764,13 @@ export function Player({ initial }: { initial: SessionView }) {
               result.helpCount
                 ? "Esta tentativa foi registrada com apoio de pistas."
                 : "Esta tentativa foi registrada sem pistas."
+            }
+            voz={
+              <LerEmVoz
+                texto={result.feedback.explanation}
+                rotulo="Ouvir a explicação"
+                aoUsar={marcarLeitura}
+              />
             }
           >
             <BotaoChapa

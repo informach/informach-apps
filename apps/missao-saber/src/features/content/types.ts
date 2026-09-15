@@ -43,6 +43,16 @@ const choiceItemSchema = commonItemSchema
         context.addIssue({ code: "custom", message: `Missing feedback for ${option}` });
   });
 const numericFormSchema = z.enum(["integer", "decimal", "fraction"]);
+/**
+ * Leitura equivocada previsível de um item numérico: o valor que o estudante
+ * digita quando aplica uma etapa errada, com a devolutiva que nomeia essa
+ * etapa. É o equivalente de `misconceptions` para respostas abertas — e,
+ * como lá, o texto é autoral, nunca gerado.
+ */
+const numericMisreadSchema = z.object({
+  value: z.number().finite(),
+  feedback: z.string().min(1),
+});
 const numericItemSchema = commonItemSchema
   .extend({
     type: z.literal("numeric"),
@@ -58,13 +68,33 @@ const numericItemSchema = commonItemSchema
         })
         .optional(),
     }),
+    misreads: z.array(numericMisreadSchema).max(6).default([]),
   })
-  .refine(
-    (item) => new Set(item.grading.acceptedForms).size === item.grading.acceptedForms.length,
-    {
-      message: "Numeric accepted forms must be unique",
-    },
-  );
+  .superRefine((item, context) => {
+    if (new Set(item.grading.acceptedForms).size !== item.grading.acceptedForms.length)
+      context.addIssue({ code: "custom", message: "Numeric accepted forms must be unique" });
+    for (const misread of item.misreads)
+      if (Math.abs(misread.value - item.grading.value) <= item.grading.tolerance)
+        context.addIssue({
+          code: "custom",
+          message: `Numeric misread ${misread.value} is accepted as correct`,
+        });
+    /* Duas leituras equivocadas separadas por menos de duas tolerâncias têm
+       janelas que se cruzam, e uma resposta na interseção casaria com a
+       primeira da lista — nomeando uma etapa que o estudante não trocou. Com
+       tolerância zero, a exigência é exatamente a de valores distintos. */
+    const ordenadas = [...item.misreads].sort((a, b) => a.value - b.value);
+    for (let i = 0; i + 1 < ordenadas.length; i += 1) {
+      const atual = ordenadas[i];
+      const proxima = ordenadas[i + 1];
+      if (!atual || !proxima) continue;
+      if (proxima.value - atual.value <= 2 * item.grading.tolerance)
+        context.addIssue({
+          code: "custom",
+          message: `Numeric misreads ${atual.value} and ${proxima.value} overlap within tolerance`,
+        });
+    }
+  });
 const orderingItemSchema = commonItemSchema
   .extend({
     type: z.literal("ordering"),

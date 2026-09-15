@@ -9,15 +9,31 @@
  * A coluna é `text` sem CHECK no banco, então ampliar o conjunto exige
  * apenas estender `AVATARES` e o enum em features/learning/schemas.ts.
  */
+/**
+ * Cada avatar é um par preenchimento/glifo do sistema, nunca um tom vivo com
+ * branco fixo. No tema escuro os tons vivos clareiam: um `#FFFFFF` fixo ou
+ * `--ms-tinta` em cima deles apagaria o desenho. Os pares `-solido` e
+ * `--ms-sobre-*` viram juntos, e `src/app/tema.test.ts` mede todos eles.
+ */
 export const AVATARES = [
-  { id: "cometa", nome: "Cometa", fundo: "var(--ms-ceu)", tinta: "#FFFFFF" },
-  { id: "folha", nome: "Folha", fundo: "var(--ms-verde)", tinta: "#FFFFFF" },
-  { id: "estrela", nome: "Estrela", fundo: "var(--ms-sol)", tinta: "var(--ms-tinta)" },
-  { id: "foguete", nome: "Foguete", fundo: "var(--ms-coral)", tinta: "#FFFFFF" },
-  { id: "lua", nome: "Lua", fundo: "var(--ms-uva)", tinta: "#FFFFFF" },
-  { id: "raio", nome: "Raio", fundo: "var(--ms-lima)", tinta: "var(--ms-tinta)" },
-  { id: "onda", nome: "Onda", fundo: "var(--ms-ceu-fundo)", tinta: "#FFFFFF" },
-  { id: "bussola", nome: "Bússola", fundo: "var(--ms-verde-fundo)", tinta: "#FFFFFF" },
+  { id: "cometa", nome: "Cometa", fundo: "var(--ms-ceu-solido)", tinta: "var(--ms-sobre-ceu)" },
+  { id: "folha", nome: "Folha", fundo: "var(--ms-verde-solido)", tinta: "var(--ms-sobre-verde)" },
+  { id: "estrela", nome: "Estrela", fundo: "var(--ms-sol-solido)", tinta: "var(--ms-sobre-sol)" },
+  {
+    id: "foguete",
+    nome: "Foguete",
+    fundo: "var(--ms-coral-solido)",
+    tinta: "var(--ms-sobre-coral)",
+  },
+  { id: "lua", nome: "Lua", fundo: "var(--ms-uva-solido)", tinta: "var(--ms-sobre-uva)" },
+  { id: "raio", nome: "Raio", fundo: "var(--ms-lima-solido)", tinta: "var(--ms-sobre-lima)" },
+  { id: "onda", nome: "Onda", fundo: "var(--ms-ceu-fundo)", tinta: "var(--ms-sobre-ceu)" },
+  {
+    id: "bussola",
+    nome: "Bússola",
+    fundo: "var(--ms-verde-fundo)",
+    tinta: "var(--ms-sobre-verde)",
+  },
 ] as const;
 
 export type AvatarId = (typeof AVATARES)[number]["id"];
