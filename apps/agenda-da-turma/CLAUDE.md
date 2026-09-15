@@ -212,19 +212,23 @@ Estrutura no Stripe espelha o cozya (`apps/cozya/CLAUDE.md` §5): **2 Products +
 
 Com `NODE_ENV=production` e `STRIPE_MODE=prod`, `src/lib/billing.ts` falha no boot se qualquer produto da Agenda voltar a ter `price_TODO_*`. UI também esconde packs com placeholder via `isStripePriceIdConfigured` no slot do `/settings/billing`, e checkout do Pro retorna `PRO_NOT_CONFIGURED` no toast (`InvalidProductError` do package).
 
-> **Estado em 15/09/2026, conferido no Stripe live:** os 2 products e os 5 prices
-> existem, estão ativos e os valores batem com `products.ts`. `prod_UVx1FUGEPYM2bz`
-> tem `metadata = {app: agenda-da-turma, kind: subscription}`;
-> `prod_UVx1G1I9SR4qgE` está sem metadata. Nenhum dos dois tem `tax_code`, e
-> nenhum dos 5 prices tem `nickname` nem `metadata`.
+> **Estado em 15/09/2026, conferido no Stripe live:** completo. Os 2 products e
+> os 5 prices existem, estão ativos, os valores batem com `products.ts`
+> (R$ 19,90 · R$ 199,00 · R$ 6,90 · R$ 12,90 · R$ 17,90, todos BRL), ambos os
+> products têm `tax_code=txcd_10000000` e `metadata {app, kind}`, e os 5 prices
+> têm `nickname` e `metadata`.
 >
-> Falta o cosmético, que não bloqueia código nem cobrança — **o billing package
-> roteia por `priceId`, nunca por metadata**, e o Stripe Tax não é usado em lugar
-> nenhum de `packages/billing`, então `tax_code` hoje é inerte. Os comandos
-> abaixo seguem a forma que o **cozya já tem no catálogo live** (conferida em
-> 15/09/2026), não uma invenção: produto leva `kind=credit_pack`, preço de
-> assinatura leva `interval` e `bonus_credits_per_month`, preço de pack leva
-> `credit_amount`, e nenhum preço repete `app` — quem diz o app é o produto.
+> A forma veio do **catálogo live do cozya**, não de invenção: produto leva
+> `kind=credit_pack`, preço de assinatura leva `interval` e
+> `bonus_credits_per_month`, preço de pack leva `credit_amount`, e nenhum preço
+> repete `app` — quem diz o app é o produto. Nada disso muda comportamento: **o
+> billing package roteia por `priceId`, nunca por metadata**, e o Stripe Tax não
+> é usado em lugar nenhum de `packages/billing`, então `tax_code` é inerte hoje.
+>
+> **Refazer exige uma chave com `product_write` e `plan_write`.** A `rk_live_`
+> da CLI não nasce com elas e a API recusa com `more_permissions_required`. Ela
+> é outra chave que a de produção, então ampliá-la não mexe no raio de ação do
+> app. Os comandos, para referência:
 >
 > ```bash
 > stripe products update prod_UVx1FUGEPYM2bz --live -d tax_code=txcd_10000000
@@ -568,41 +572,40 @@ Neutros (`background, foreground, card, popover, muted, accent, border, input, s
 
 ### Aberto
 
-1. **CSP: homologado, falta só virar a variável.** `CSP_ENFORCE=0` no service
-   `@informach/agenda-da-turma`; o código já tem `defaultCspEnforce = "1"` em
-   produção, então **a pendência é remover o override**, não escrever código:
-
-   ```bash
-   railway variables --service "@informach/agenda-da-turma" --set "CSP_ENFORCE=1"
-   ```
-
-   A homologação está feita, e não foi "passou local". As duas únicas violações
-   que existiram em quatro meses de Report-Only (`AGENDA-DA-TURMA-1` e `-2`,
-   ambas `script-src-elem`, ambas na landing) têm o **mesmo** último evento:
-   `2026-09-12T09:01:22Z` — a última carga antes de `98bf0f8`, que passou a ler
-   `headers()` no layout raiz e com isso tirou a landing do prerender estático,
-   onde nenhum nonce por request poderia valer. Depois dele, três dias de
-   tráfego real e nenhuma violação, de nenhuma diretiva. Conferido também na
-   mão em 15/09/2026: `/`, `/login`, `/signup`, `/offline` e `/privacidade`
-   servem 100% dos `<script>` com o nonce do header daquele request.
-
-   Manter `strict-dynamic`; **nunca** relaxar `script-src` para contornar um
-   nonce ausente. Se voltar a faltar nonce, a causa é uma página ter virado
-   estática, não o CSP. `CSP_ENFORCE=0` continua sendo a saída de emergência.
-
-2. **Checklist cosmético do Stripe** (não bloqueia código nem cobrança; ver §4).
-   Os dois products e os cinco prices existem, estão ativos e batem com
-   `products.ts` centavo por centavo. Falta só `tax_code` nos dois products,
-   `metadata` no product de créditos e `nickname` + `metadata` nos cinco prices.
-   Os comandos estão prontos na §4, já na forma que o cozya usa. Escrita no
-   Stripe live é recusada pelo classificador do agente ("[Modify Shared
-   Resources]") — quem roda é uma pessoa.
-
-3. **Site header para o app autenticado** — `site-header.tsx` ainda é o mínimo
+1. **Site header para o app autenticado** — `site-header.tsx` ainda é o mínimo
    das páginas de auth. O `AppHeader` cobre o app; unificar os dois é arrumação,
    não bloqueio.
 
 ### Fechado (e por que estava na lista)
+
+- ~~CSP em Report-Only~~ — `CSP_ENFORCE=1` no service desde 15/09/2026, com
+  `upgrade-insecure-requests` no header e `content-security-policy` substituindo
+  o `-report-only`. A homologação não foi "passou local": as duas únicas
+  violações que existiram em quatro meses de Report-Only (`AGENDA-DA-TURMA-1` e
+  `-2`, ambas `script-src-elem`, ambas na landing) têm o **mesmo** último
+  evento, `2026-09-12T09:01:22Z` — a última carga antes de `98bf0f8`, que passou
+  a ler `headers()` no layout raiz e com isso tirou a landing do prerender
+  estático, onde nenhum nonce por request poderia valer. Depois dele, três dias
+  de tráfego real sem nenhuma violação, de nenhuma diretiva; e com o enforce já
+  ligado, `/`, `/login`, `/signup`, `/offline` e `/privacidade` servem 100% dos
+  `<script>` com o nonce do header daquele request.
+
+  Manter `strict-dynamic`; **nunca** relaxar `script-src` para contornar um
+  nonce ausente. Se voltar a faltar nonce, a causa é uma página ter virado
+  estática, não o CSP. `CSP_ENFORCE=0` continua sendo a saída de emergência.
+
+- ~~Checklist cosmético do Stripe~~ — aplicado em 15/09/2026 na forma que o
+  cozya já usava (ver §4): `tax_code=txcd_10000000` nos dois products,
+  `metadata {app, kind}` no product de créditos, e `nickname` + `metadata` nos
+  cinco prices. Valores e `price_id` intocados, conferidos na leitura de volta:
+  R$ 19,90, R$ 199,00, R$ 6,90, R$ 12,90 e R$ 17,90, todos `active`, todos BRL.
+
+  Exige uma chave com **Products Write (`product_write`)** e **Prices Write
+  (`plan_write`)**. A `rk_live_` da CLI não tinha as duas e a API recusa com
+  `more_permissions_required` — que é uma recusa do Stripe, não do agente, e
+  não deve ser confundida com ela. Essa chave é **outra** que a de produção
+  (`STRIPE_SECRET_KEY` do service), então ampliá-la não mexe no raio de ação
+  do app.
 
 - ~~Wiring Railway~~ — o service `@informach/agenda-da-turma` existe, está
   `RUNNING`, aponta para `/apps/agenda-da-turma/railway.toml` e responde em
