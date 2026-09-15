@@ -62,7 +62,9 @@ export function BottomNav({ entitlement }: { entitlement: AddEntitlement }) {
           peso das abas. O gesto mais frequente do app estava escondido à vista:
           um botão de 48 px alinhado com os ícones de navegação não se lê como
           ação. Sobe 14 px acima da barra, ganha círculo, tamanho de 56 px e a
-          sombra sólida — o único `shadow-solid-primary` do app.
+          sombra de AÇÃO (`shadow-solid-primary`). A outra ação com essa sombra
+          é o "Feito!" do modo criança, numa tela que não tem rodapé — as duas
+          nunca aparecem juntas. Ver ELEVAÇÃO em `globals.css`.
         */}
         <div className="flex min-h-16 flex-col items-center justify-center">
           <AddSheet

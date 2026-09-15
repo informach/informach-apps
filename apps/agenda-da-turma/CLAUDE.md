@@ -18,6 +18,10 @@ Um card, um detalhe (14/09/2026): `features/unified-activities/view.ts` é o ún
 
 Navegação (14/09/2026): o rodapé tem **quatro destinos e uma ação** — `Hoje` · `Atividades` · `+` · `Calendário` · `Família` (`components/app-shell/bottom-nav.tsx`). O `+` não navega: abre a folha Adicionar, no centro porque é a ação mais frequente. A criança filtrada (`?perfil=`) viaja com a navegação, o que tornou dispensável o card de atalhos do dashboard (`DashboardNavButtons`, removido) — ele repetia três destinos que já estavam no rodapé.
 
+**A vez da criança (15/09/2026): `/crianca/[perfilId]`**, no grupo de rotas `(kid)`, **fora** de `(app)`. Sem cabeçalho, sem menu do avatar e sem rodapé: tudo ali é endereçado ao responsável e fica a um toque de uma criança com o telefone na mão. Uma atividade por vez, botão "Feito!" de 64 px, e **sem prazo em vermelho** — vencido vira "é para hoje", sem data vira "ainda sem data marcada". `getKidModeSnapshot` **reusa `getRoutineSnapshot`** e fica com o bucket `attention`: é a MESMA projeção que o responsável vê em "Para cuidar hoje". **Não criar consulta própria** — pai e filha discordarem sobre o que falta hoje é a pior forma da segunda lista que este app deixou de ter; há teste de integração comparando chave a chave. Sair exige segurar o dedo: quebra-molas contra o toque distraído, **não tranca**. Entradas: o cartão de cada criança em "Hoje na escola" e um botão à vista em Família › Crianças.
+
+**`/offline`** é pública e estática, servida pelo service worker quando a navegação falha (§9). Não toca banco nem sessão — depender de sessão seria mais uma navegação a falhar justamente quando a rede caiu.
+
 **Família é quem é quem**, não ajustes: `/familia` (Crianças) · `/familia/turmas` · `/familia/adultos` · `/familia/ajustes`, com sub-navegação em pílulas `Link` (`features/family/components/family-tabs.tsx`) em vez de `Tabs` do Radix, porque cada seção carrega dados próprios no servidor. `/perfis` e `/turmas` viraram `redirect` temporário (307, não 308: um produto em movimento não grava a decisão no navegador de quem usa) para as novas casas; as telas profundas (`/perfis/[id]/extras/*`, `/turmas/[turmaId]/{materias,acesso}`) continuam onde estavam. O menu do avatar ficou só com assinatura, conta e sair — **não repor atalhos de conteúdo ali**: crianças e turmas moravam nesse menu, junto de cobrança e sair, e quem procurava "meus filhos" não achava.
 
 **Turma é do titular, de propósito.** Crianças, atividades, rotina e calendário são escopados por criança acessível (`accessibleProfileCondition`); **turmas e matérias são escopadas por conta** (`listTurmasForUser`, `userHasMemberInTurma`). Não é descuido: a turma é espaço compartilhado com outras famílias e o `TurmaCard` mostra o **código**, que é credencial — quem o tem vincula qualquer criança àquela sala. Quem consentiu em ter a filha cuidada não consentiu com isso. O segundo adulto já usa matéria onde importa: `listSubjectOptionsByProfile` é por criança, então ele escolhe a matéria na atividade e recebe a sugestão de prazo pela próxima aula. Por isso Família › Turmas mostra a ele o porquê, e não "nenhuma turma" com botões que recusam. Se um dia abrir: **tirar o código do card de quem não é criador primeiro**, depois trocar o escopo das duas consultas — e só então `/api/ai/subjects/*` e `/api/ai/transcribe` passam a precisar de `ownerId`, resolvido pela turma (nunca por `resolveTrialOwner`, que desempata globalmente entre famílias).
@@ -345,6 +349,21 @@ Schema (`packages/db/src/schema/agenda.ts`):
 
 **Cascade quando matéria é apagada**: como a regra bloqueia delete da matéria enquanto há atividades de OUTRAS famílias, na prática o cascade só roda quando todas as atividades vinculadas são do próprio creator da matéria — perda consciente.
 
+### Ordem de deploy quando há migração
+
+`taskSelect` (em `features/unified-activities/task-repository.ts`) é a leitura de
+**toda** atividade — rotina, `/atividades`, calendário e detalhe. Ele projeta as
+colunas explicitamente, então **uma coluna faltando derruba as quatro telas**,
+não degrada.
+
+O migrator é um service Railway separado e deploya em paralelo com o app. Numa
+release que acrescenta coluna (o caso comum, `ADD COLUMN` nulável), a migração é
+compatível com a versão que já está no ar: **rodar o migrator primeiro,
+confirmar SUCCESS, e só então liberar o app**. Ver `docs/deploy-runbook.md`
+Fase 4.3.
+
+A migração `0055` (`agenda.tasks.estimated_minutes`) é desse tipo.
+
 ### Datas e timezone (`features/dashboard/date.ts`)
 
 Toda data de calendário vive como **string "YYYY-MM-DD"** (formato da coluna `date` do Postgres em `agenda.activities.dueAt`). Comparação lexicográfica funciona corretamente nesse formato (ano-mês-dia padded).
@@ -447,11 +466,13 @@ Tokens definidos em `src/app/globals.css` (light + dark):
 - Premium/elevado → combinar `secondary` + `chart-3` (ambos roxos) — ex: banner upgrade, widget de "vincule estudante a turma"
 
 **Regras pros componentes:**
-1. **Sempre token, nunca literal.** Proibido `bg-blue-500`, `text-emerald-600`, `#fff`, `oklch(...)` em código da agenda. Use sempre `bg-primary`, `text-chart-2`, etc.
-2. **Combinar tokens pra variações ricas.** O design caprichado vem de **misturar** tokens próximos (ex: `from-primary/10 ... to-chart-1/10` no widget de onboarding; `from-secondary/10 ... to-chart-3/10` no widget de turma). Uma cor sozinha fica raso — paleta ganha vida quando tokens irmãos compõem gradients/borders/icons.
-3. **Avatar de perfil** consome `chart-1..5` via hash do nome (`getAvatarColorClass` em `features/students/utils.ts`).
-4. **Tinted badges/cards**: `bg-chart-N/15` + `border-chart-N/40` + texto `text-foreground` ou `text-chart-N`. Opacidade baixa no fundo dá tom suave que combina com o resto da UI.
-5. **Matérias** herdam `chart-N` quando feature aparecer — Matemática=1, Português=2, Ciências=3, História=4, Inglês=5.
+1. **Sempre token, nunca literal.** Proibido `bg-blue-500`, `text-emerald-600`, `#fff`, `oklch(...)` em código da agenda. Use `bg-primary`, `bg-chart-2`, `border-chart-2/40`.
+2. **Preenchimento usa a cor; glifo usa a TINTA.** `chart-N` e `primary` nasceram para fundo, borda e blip. Como cor de **texto** sobre `background` elas reprovam em contraste — medido a partir dos próprios tokens: `text-chart-2` dá 2,43:1, `text-chart-4` dá 2,69:1 e `text-primary` dá 4,29:1, contra o mínimo AA de 4,5:1 para texto e 3:1 para ícone. Para texto e ícone use `text-chart-N-ink` / `text-primary-ink`, derivadas por `color-mix` contra o `--foreground` (bloco TINTAS em `app/globals.css`). **Nunca `bg-*-ink` nem `border-*-ink`** — tinta é glifo. Ao mexer nos valores de `chart-N`, refazer a medição.
+3. **Nunca `opacity` para apagar um bloco com texto tintado.** A opacidade cai sobre a subárvore e leva a tinta calibrada de volta para ~2,3:1. Estado apagado se faz pela cor (`muted`).
+4. **Combinar tokens pra variações ricas.** O design caprichado vem de **misturar** tokens próximos (ex: `from-primary/10 ... to-chart-1/10` no widget de onboarding; `from-secondary/10 ... to-chart-3/10` no widget de turma). Uma cor sozinha fica raso — paleta ganha vida quando tokens irmãos compõem gradients/borders/icons.
+5. **Avatar de perfil** consome `chart-1..5` via hash do nome (`getAvatarColorIndex` em `features/students/utils.ts`), e a montagem é única em `features/students/components/student-avatar.tsx` — pastilha (`bg-chart-N/25` + `border-chart-N/50`) com `text-foreground`, em três tamanhos declarados. Havia duas montagens com cores de texto diferentes, cada uma reprovando no tema oposto.
+6. **Tinted badges/cards**: `bg-chart-N/15` + `border-chart-N/40` + texto `text-foreground` (ou `text-chart-N-ink`, nunca `text-chart-N`). Opacidade baixa no fundo dá tom suave que combina com o resto da UI.
+7. **Matérias** herdam `chart-N` — Matemática=1, Português=2, Ciências=3, História=4, Inglês=5.
 
 Neutros (`background, foreground, card, popover, muted, accent, border, input, sidebar`) vêm do `@informach/ui` e **não** se sobrescreve aqui — são compartilhados entre apps pra consistência cross-app.
 
@@ -471,7 +492,7 @@ Ordem rough de prioridade quando produto evoluir:
 
 ---
 
-## 9. PWA (instalável, service worker só de push)
+## 9. PWA (instalável; service worker de push + leitura offline do esqueleto)
 
 Agenda da Turma é instalável como PWA em iOS e Android. O setup é declarativo via Next 16 metadata routes:
 
@@ -488,7 +509,9 @@ Agenda da Turma é instalável como PWA em iOS e Android. O setup é declarativo
 1. **Push** — `push` mostra a notificação (URL restrita a `/dashboard` e `/recados`) e `notificationclick` abre a janela, só na própria origem. Opt-in, dependente de VAPID.
 2. **Leitura offline do esqueleto** — pré-cacheia `/offline`, o manifesto e o ícone; serve `/_next/static/*` por cache-first (nomes com hash, imutáveis); e, quando uma navegação falha, devolve `/offline` em vez da tela do navegador.
 
-**O service worker é registrado para todo mundo** por `components/app-shell/service-worker.tsx`, no layout de `(app)`. Antes quem registrava era o painel de notificações, e só ao ligar os lembretes — então a maioria não tinha service worker nenhum. Registrar **não** inscreve em push: a inscrição continua sendo um passo explícito no painel.
+**O service worker é registrado para todo mundo** por `components/app-shell/service-worker.tsx`, no layout de `(app)`. Antes quem registrava era só o painel de notificações, ao ligar os lembretes — então a maioria não tinha service worker nenhum. O painel **continua** chamando `register` (`preferences-panel.tsx`); a chamada é idempotente e devolve a registration existente, então são dois pontos de entrada para o mesmo registro. Registrar **não** inscreve em push: a inscrição continua sendo um passo explícito no painel.
+
+**Há interruptor.** `sw.js` começa com `const ENABLED`; publicar com `false` faz o próprio worker limpar os caches e se desregistrar no próximo carregamento. Como ele agora intercepta **toda navegação** de **todos** os usuários, um defeito ali deixou de ser problema de uma minoria opt-in — e sem esse caminho a saída seria pedir "limpar dados do site" para a base inteira.
 
 **HTML autenticado nunca entra no cache.** Navegação é sempre rede, e a resposta não é guardada. A rotina de uma família é dado sensível e o aparelho é compartilhado: uma página em cache sobreviveria ao logout. Só entra no cache o que é idêntico para toda conta.
 

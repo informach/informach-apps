@@ -4,6 +4,15 @@
 
 Referência visual: [`conceito.html`](./conceito.html).
 
+> ⚠️ **Este documento é a proposta, não o registro do que foi feito.** A
+> implementação divergiu dele em dez pontos — rota do modo criança, regra da
+> sequência, PIN, reuso do `useCardToggle`, escopo do filtro "o que é meu",
+> onboarding, agenda do mês, ilustrações, cor da sombra, e a fila de escrita
+> offline, que foi deliberadamente recusada. Várias dessas divergências são
+> decisões melhores que a proposta; nenhuma está descrita aqui.
+>
+> **Para saber o que é verdade no código, leia [`IMPLEMENTACAO.md`](./IMPLEMENTACAO.md).**
+
 ---
 
 ## 1. As duas referências estudadas

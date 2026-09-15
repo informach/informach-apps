@@ -33,6 +33,14 @@ const EXIT_HOLD_MS = 900;
  *
  * Não há placar e não há comparação com irmãos. O progresso é o da própria
  * criança, no próprio dia.
+ *
+ * ⚠️ **A conclusão aqui NÃO usa `useCardToggle`**, e isso é escolha, não
+ * descuido. O hook chama `router.refresh()` a cada sucesso: no card do adulto
+ * isso é o que sincroniza KPIs e ordem, mas aqui reordenaria a lista embaixo de
+ * uma criança no meio da sessão, a cada "Feito!". O preço é duas
+ * implementações do mesmo fluxo — está anotado nos dois arquivos, e o conserto
+ * do conflito de versão já precisou ser feito duas vezes. Ao mexer em uma,
+ * olhe a outra.
  */
 export function KidModeScreen({ profile, todo }: Props) {
   const router = useRouter();
@@ -341,6 +349,10 @@ function ExitButton({ onExit }: { onExit: () => void }) {
     if (timer.current) clearInterval(timer.current);
     timer.current = null;
     setProgress(0);
+    // A flag também zera aqui: um `pointerdown` que termina em `pointerleave`
+    // não dispara clique, e a flag presa engolia o próximo clique sintetizado
+    // por leitor de tela.
+    usedPointer.current = false;
   }, []);
 
   // Segurar e sair da aba deixaria o intervalo correndo.
@@ -376,11 +388,9 @@ function ExitButton({ onExit }: { onExit: () => void }) {
       onPointerCancel={stop}
       onClick={() => {
         // Só chega aqui sem ponteiro: clique sintetizado por tecnologia
-        // assistiva. Com dedo ou mouse, quem manda é o "segurar".
-        if (usedPointer.current) {
-          usedPointer.current = false;
-          return;
-        }
+        // assistiva. Com dedo ou mouse, `pointerup` já passou por `stop` e a
+        // flag ainda está ligada no mesmo ciclo do clique.
+        if (usedPointer.current) return;
         onExit();
       }}
       onKeyDown={(event) => {

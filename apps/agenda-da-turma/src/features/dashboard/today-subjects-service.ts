@@ -172,19 +172,6 @@ export async function getTodaySubjectsForProfile(
 }
 
 /**
- * Matérias de um DIA de todos os perfis acessíveis (ou de um só, quando há
- * filtro). Sem `dateIso`, é hoje; a rotina também pede o dia seguinte, para
- * montar a mochila de amanhã.
- *
- * O dashboard abre mostrando o dia de cada criança, então chamar a versão de
- * um perfil em laço seria N+1: aqui as participações, as matérias por turma
- * distinta e as extras saem em três consultas, independentemente do número de
- * filhos.
- *
- * Perfis sem nada a mostrar são omitidos do resultado (mesma regra da versão
- * individual). A ordem segue o nome da criança.
- */
-/**
  * O horário de amanhã. Existe para que a data de amanhã seja calculada num
  * lugar só: a rotina e o slot do topo da página pedem o mesmo dia, e dois
  * `addDaysIso` soltos podiam divergir na virada da meia-noite.
@@ -199,6 +186,19 @@ export async function getTomorrowSubjectsForProfiles(
   });
 }
 
+/**
+ * Matérias de um DIA de todos os perfis acessíveis (ou de um só, quando há
+ * filtro). Sem `dateIso`, é hoje; a rotina também pede o dia seguinte, para
+ * montar a mochila de amanhã.
+ *
+ * O dashboard abre mostrando o dia de cada criança, então chamar a versão de
+ * um perfil em laço seria N+1: aqui as participações, as matérias por turma
+ * distinta e as extras saem em três consultas, independentemente do número de
+ * filhos.
+ *
+ * Perfis sem nada a mostrar são omitidos do resultado (mesma regra da versão
+ * individual). A ordem segue o nome da criança.
+ */
 export async function getTodaySubjectsForProfiles(
   userId: string,
   options: { profileFilter?: string | null; dateIso?: string } = {},

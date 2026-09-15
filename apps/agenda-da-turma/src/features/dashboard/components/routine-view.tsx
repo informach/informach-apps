@@ -216,7 +216,9 @@ export function RoutineView({
             ) : key === "attention" && doneToday > 0 ? (
               <DayClosed
                 doneToday={doneToday}
-                tomorrowCount={buckets.tomorrow.length}
+                tomorrowCount={
+                  buckets.tomorrow.filter((entry) => !hiddenKeys.has(entry.key)).length
+                }
                 streakDays={streakCountsToday || doneToday === 0 ? streakDays : streakDays + 1}
               />
             ) : (
@@ -265,6 +267,8 @@ function DayClosed({
       <DayClosedIllustration className="max-w-[150px]" />
       <div className="space-y-1">
         <p className="text-xl font-bold tracking-tight">Dia fechado</p>
+        {/* `doneToday` é sempre ≥ 1 aqui: o cartão só renderiza sob essa
+            condição — é ela que separa "o dia fechou" de "nunca houve nada". */}
         <p className="text-sm text-muted-foreground">
           {doneToday === 1
             ? "Uma atividade cuidada hoje. Nada mais pendente para o dia."

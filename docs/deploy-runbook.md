@@ -231,6 +231,23 @@ startCommand = "pnpm db:migrate && pnpm db:seed && pnpm db:seed:reference"
 restartPolicyType = "NEVER"
 ```
 
+> **Gotcha de ORDEM — coluna antes do código.** O migrator é um service
+> separado, com watch path próprio. Um push que toca `packages/db` **e** um app
+> dispara os dois **em paralelo**: não há barreira, e a janela em que o app novo
+> está no ar com a migração ainda não aplicada é uma janela de **500 em toda
+> tela que leia a coluna nova** — não de degradação parcial. Um `SELECT` do
+> Drizzle projeta colunas explicitamente, então basta uma coluna faltando para a
+> consulta inteira falhar.
+>
+> Quando a mudança **acrescenta** coluna (o caso comum: `ADD COLUMN` nulável,
+> sem default), a migração é compatível com a versão que já está no ar. Então:
+> **redeploy do migrator primeiro, conferir SUCCESS, só depois o app.** Em push
+> único, segurar o deploy do app service até o migrator terminar.
+>
+> Quando a mudança **remove ou aperta** (drop, NOT NULL, rename), a ordem se
+> inverte e a migração precisa ser quebrada em duas releases. Ver
+> `packages/db/CLAUDE.md`.
+
 > **Gotcha**: o migrator precisa de `tsx` (devDep) pra rodar `packages/db/src/migrate.ts` e `packages/ai-core/scripts/migrate-mastra-storage.ts`. Como o migrator service NÃO tem `NODE_ENV=production`, devDeps são instaladas por default — funciona sem `--prod=false`. Cozya app, sim, precisa do flag (ver Fase 3.3).
 
 ---

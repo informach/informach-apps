@@ -9,6 +9,7 @@ import {
 import { listSubjectOptionsByProfile } from "@/features/subjects/options-service";
 import { billing } from "@/lib/billing";
 import { ACTIVITY_TYPE_LABELS } from "../activity-types";
+import { taskToActionInput } from "../edit-defaults";
 import type { TaskRow } from "../task-repository";
 import { toActivityView } from "../view";
 import { ActivityCompletionButton } from "./completion-button";
@@ -74,24 +75,10 @@ export async function ActivityDetail({ userId, task }: { userId: string; task: T
         profiles={[{ id: task.profileId, name: task.profileName }]}
         adults={adults}
         subjectOptions={subjectOptions}
-        initialValue={{
-          type: task.type,
-          title: task.title,
-          description: task.description,
-          dueAt: task.dueAt,
-          dateOrigin: task.dateOrigin,
-          time: task.time,
-          estimatedMinutes: null,
-          location: task.location,
-          sourceExcerpt: task.sourceExcerpt,
-          subjectId: task.subjectId,
-          profileSubjectId: task.profileSubjectId,
-          profileId: task.profileId,
-          assignedToUserId: task.assignedToUserId,
-          recurrence: "none",
-          reminderAt: null,
-          shareWithTurma: task.sharedActivityId !== null,
-        }}
+        // Montado por uma função pura e testada, e não campo a campo aqui: um
+        // campo esquecido neste objeto não dá erro — vira o valor do formulário
+        // e o banco recebe o esquecimento. Ver `edit-defaults.ts`.
+        initialValue={taskToActionInput(task)}
       />
 
       {source ? (

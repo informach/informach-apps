@@ -1,4 +1,3 @@
-import { Skeleton } from "@informach/ui/components/skeleton";
 import { Backpack } from "lucide-react";
 import type { TodaySubjectsView } from "../today-subjects-service";
 
@@ -30,7 +29,7 @@ export function TomorrowBackpack({
       aria-labelledby="tomorrow-backpack-title"
       className={
         emphasis
-          ? "rounded-2xl border border-chart-1/30 bg-card p-5 shadow-solid"
+          ? "rounded-2xl border border-chart-1/30 bg-card p-5"
           : "rounded-2xl border border-chart-1/25 bg-chart-1/5 p-4"
       }
     >
@@ -64,22 +63,5 @@ export function TomorrowBackpack({
         </p>
       ) : null}
     </section>
-  );
-}
-
-/**
- * A busca vive em `tomorrow-backpack-section.tsx`, não aqui.
- *
- * Este módulo é importado por `routine-view`, que é um componente de cliente.
- * Enquanto a função `async` que consulta o horário morava no mesmo arquivo, o
- * bundler arrastava `today-subjects-service` — e com ele o banco — para dentro
- * do pacote do navegador, e o build parava. Apresentação e busca separadas,
- * mesmo quando são a mesma feature.
- */
-export function TomorrowBackpackSkeleton() {
-  return (
-    <div role="status" aria-label="Carregando a mochila de amanhã">
-      <Skeleton className="h-28 rounded-2xl" aria-hidden />
-    </div>
   );
 }

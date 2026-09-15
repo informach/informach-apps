@@ -34,6 +34,13 @@ type Args = {
  *
  * Hook é agnóstico de UX (sem strings de toast); cada card decide as
  * mensagens com base nos códigos de erro específicos da sua action.
+ *
+ * ⚠️ **Há uma SEGUNDA implementação deste fluxo** em
+ * `features/kid-mode/components/kid-mode-screen.tsx`. Ela existe porque este
+ * hook chama `router.refresh()` a cada sucesso, e no modo criança isso
+ * reordenaria a lista embaixo de uma criança no meio da sessão. Ao consertar
+ * algo aqui — rollback, conflito de versão, condição de corrida — **olhe lá
+ * também**: o conserto do conflito de versão já precisou ser feito duas vezes.
  */
 export function useCardToggle({
   initialStatus,

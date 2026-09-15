@@ -117,9 +117,21 @@
    ELEVAÇÃO — sombra sólida, um elemento por tela
 
    Três níveis de superfície: o fundo do app leva uma tinta de 5%
-   (`bg-app-ground`), o cartão fica `bg-card` puro e o UM elemento que pede o
-   próximo passo ganha `shadow-solid`. Antes era tudo `rounded-2xl border p-4`
-   e nada dirigia o olho.
+   (`bg-app-ground`), o cartão fica `bg-card` puro e o elemento que pede o
+   próximo passo ganha sombra. Antes era tudo `rounded-2xl border p-4` e nada
+   dirigia o olho.
+
+   As duas sombras têm papéis diferentes, e a conta de "quantos por tela" é
+   separada para cada uma:
+
+   - `shadow-solid-primary` — **ação**, nunca conteúdo. O botão Adicionar do
+     rodapé (presente em toda rota do app) e o "Feito!" do modo criança (numa
+     tela que não tem rodapé). Os dois nunca coexistem.
+   - `shadow-solid` — **no máximo UM conteúdo elevado por tela.** Este é o
+     teto que já foi furado uma vez: mochila da noite, convite a combinar o
+     horário e fecho do dia coexistem numa conta Pro na primeira semana, e
+     três destaques na mesma tela não destacam nada. Hoje o único é o fecho do
+     dia. Ao elevar algo novo, tire a sombra de quem estava elevado.
 
    A sombra é deslocada e SEM desfoque, de propósito: é o que faz o elemento
    parecer um botão físico em vez de um cartão flutuando. Mora aqui, e não como

@@ -235,7 +235,11 @@ function PasswordStep({
                   type="button"
                   variant="link"
                   size="sm"
-                  className="h-auto px-0 py-0 text-xs"
+                  // `text-primary-ink` sobrescreve o `text-primary` que o
+                  // `variant="link"` do pacote aplica (4,29:1, abaixo de AA em
+                  // texto de 12px). A tinta é local porque o pacote é
+                  // compartilhado com cozya e missao-saber.
+                  className="h-auto px-0 py-0 text-xs text-primary-ink"
                   onClick={onForgotPassword}
                 >
                   Esqueci minha senha

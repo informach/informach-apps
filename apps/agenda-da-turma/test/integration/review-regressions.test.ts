@@ -266,7 +266,9 @@ function taskAction(task: Task, patch: Partial<NoticeActionInput> = {}): NoticeA
     dueAt: task.dueAt,
     dateOrigin: task.dateOrigin,
     time: task.time,
-    estimatedMinutes: null,
+    // Lê o que está gravado, como o formulário de edição. Enquanto os dois
+    // fixavam `null`, o teste reproduzia o bug em vez de pegá-lo.
+    estimatedMinutes: task.estimatedMinutes,
     location: task.location,
     sourceExcerpt: task.sourceExcerpt,
     assignedToUserId: task.assignedToUserId,
@@ -387,6 +389,48 @@ describe("Review regressions", () => {
     expect(
       (await getActivityOverview(owner, { ...options, typeFilter: "material" })).items,
     ).toHaveLength(0);
+  });
+
+  it("editar uma atividade não apaga a duração que a família escolheu", async () => {
+    /*
+     * A duração é o único campo novo que a interface mostra, e o caminho de
+     * gravação é um spread cego (`.set({ ...input.action })`): basta um `null`
+     * no valor inicial do formulário para o banco receber `null`. A família
+     * abre a atividade para corrigir o título, salva, e o chip some do card sem
+     * nenhum aviso — junto com a soma do bucket.
+     */
+    const created = value(
+      await confirmNotice(owner, {
+        noticeId: null,
+        allowDuplicates: true,
+        actions: [{ ...action("Trabalho de Ciências"), estimatedMinutes: 30 }],
+      }),
+    );
+    const id = required(created.ids[0]);
+    expect((await reload(id)).estimatedMinutes).toBe(30);
+
+    // Edição que não menciona a duração: ela precisa sobreviver.
+    const before = await reload(id);
+    value(
+      await updateNoticeAction(owner, {
+        id,
+        version: before.version,
+        action: taskAction(before, { title: "Trabalho de Ciências (corrigido)" }),
+      }),
+    );
+    const after = await reload(id);
+    expect(after.title).toBe("Trabalho de Ciências (corrigido)");
+    expect(after.estimatedMinutes).toBe(30);
+
+    // E limpar continua sendo possível quando é a intenção.
+    value(
+      await updateNoticeAction(owner, {
+        id,
+        version: after.version,
+        action: taskAction(after, { estimatedMinutes: null }),
+      }),
+    );
+    expect((await reload(id)).estimatedMinutes).toBeNull();
   });
 
   it("o filtro do segundo adulto só mostra o que foi combinado com ele", async () => {

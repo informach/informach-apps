@@ -86,7 +86,7 @@ export function MonthAgenda({
             key={iso}
             className={cn(
               "overflow-hidden rounded-2xl border bg-card",
-              isToday && "border-primary/40 shadow-solid-primary",
+              isToday && "border-primary/40",
             )}
           >
             <div className="flex items-center justify-between gap-2 border-b bg-muted/30 px-3 py-2">

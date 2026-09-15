@@ -44,7 +44,7 @@ export function sumEstimates(values: Iterable<number | null>): {
 }
 
 /**
- * O rótulo do bucket: "~45 min" quando tudo está estimado, "~45 min de 3 de 8"
+ * O rótulo do bucket: "~45 min" quando tudo está estimado, "~45 min em 3 de 8"
  * quando não. Devolve `null` quando não há nada a dizer.
  */
 export function formatBucketEstimate(values: Iterable<number | null>): string | null {
