@@ -55,7 +55,8 @@ Ciclo principal: guardar uma receita → planejar refeições e porções → co
 
 ## Segurança e operação
 
-- CSP com nonce e strict-dynamic **aplicada por padrão** (`CSP_ENFORCE=1`). `0` é modo diagnóstico explícito. `upgrade-insecure-requests` somente em produção; APIs de jobs/webhooks/health têm exclusões específicas.
+- CSP com nonce e strict-dynamic **aplicada por padrão** (`CSP_ENFORCE=1`). `0` é modo diagnóstico explícito. `upgrade-insecure-requests` somente em produção; APIs de jobs/webhooks/health/ready têm exclusões específicas.
+- `healthcheckPath` é `/api/ready`, não `/api/health`. O ready chama `checkSchemaReadiness()` de `@informach/db` e responde 503 enquanto o banco estiver atrás da última migração deste build — o migrator é um service separado, e sem esse portão um app publicado antes dele subia verde e servia erro. A comparação é "atrás", nunca "diferente": rollback do app sem desfazer migração continua passando. O `/api/health` segue sempre 200 de propósito, porque é ele que diz qual commit está servindo quando um deploy vai mal.
 - Limite IA: 60 solicitações/hora/usuário; novas operações em teste: 6/dia/usuário e 100/dia global, além dos 3 créditos do teste. Redis obrigatório em produção.
 - Não relaxar auth de produção por testes. `E2E_RELAX_AUTH_RATE_LIMITS=1` é rejeitado em produção.
 - Preços/produtos: `packages/config/src/products.ts`. Seed versionado de custo em créditos: `packages/billing/src/seeds/credit-pricing.ts`; `pnpm db:seed` é idempotente.

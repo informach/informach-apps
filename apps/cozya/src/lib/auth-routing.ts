@@ -23,4 +23,5 @@ export const AUTH_PUBLIC_PATHS = [
   "/api/jobs",
   "/api/email",
   "/api/health",
+  "/api/ready",
 ] as const;

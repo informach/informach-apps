@@ -42,6 +42,7 @@ const authProxy = createAuthProxy(authResult, {
     "/api/jobs",
     "/api/email",
     "/api/health",
+    "/api/ready",
   ],
 });
 

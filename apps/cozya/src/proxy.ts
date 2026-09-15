@@ -18,7 +18,8 @@ import { env } from "./lib/env";
  *   /api/webhooks    — Stripe + SendGrid; auth via HMAC/ECDSA signature
  *   /api/jobs        — cron routes; auth via `Authorization: Bearer ${CRON_SECRET}`
  *   /api/email       — unsubscribe link; auth via HMAC token in query string
- *   /api/health      — Railway liveness probe; no auth needed
+ *   /api/health      — liveness probe; responde qual commit está servindo
+ *   /api/ready       — portão de deploy do Railway; confere o schema do banco
  */
 const authProxy = createAuthProxy(authResult, {
   requireAuth: [...AUTH_PROTECTED_PATHS],

@@ -168,7 +168,11 @@ buildCommand = "pnpm install --frozen-lockfile --prod=false && pnpm build:<app>"
 
 [deploy]
 startCommand = "pnpm start:<app>"
-healthcheckPath = "/api/health"
+# `/api/ready`, não `/api/health`: o ready confere que o banco está pelo menos
+# tão novo quanto este build (Fase 4.3). O health não toca o banco de propósito
+# — ele responde qual commit está servindo, e precisa responder quando o deploy
+# falha.
+healthcheckPath = "/api/ready"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
@@ -243,6 +247,23 @@ restartPolicyType = "NEVER"
 > sem default), a migração é compatível com a versão que já está no ar. Então:
 > **redeploy do migrator primeiro, conferir SUCCESS, só depois o app.** Em push
 > único, segurar o deploy do app service até o migrator terminar.
+>
+> **Desde 15/09/2026 isso não depende mais de alguém lembrar.** Os três apps
+> apontam `healthcheckPath` para `/api/ready`, que chama `checkSchemaReadiness()`
+> de `@informach/db`: ele compara a última migração do journal **deste build**
+> com `max(created_at)` em `drizzle.__drizzle_migrations` e responde 503
+> enquanto o banco estiver atrás. O Railway então não troca a instância e a
+> versão anterior segue servindo — a ordem vira propriedade do deploy, não
+> disciplina do operador.
+>
+> A comparação é "atrás", nunca "diferente": **rollback do app sem desfazer
+> migração continua passando**, que é justamente a razão de o migrator ser um
+> service à parte.
+>
+> Um migrator com Watch Paths pode não disparar num push que só mexe no app.
+> Nesse caso o banco já está à frente e o `/api/ready` passa na hora. O 503 só
+> aparece quando o app subiria antes da coluna existir — que é o caso que
+> custava as telas.
 >
 > Quando a mudança **remove ou aperta** (drop, NOT NULL, rename), a ordem se
 > inverte e a migração precisa ser quebrada em duas releases. Ver
@@ -532,6 +553,10 @@ commit: process.env.GIT_COMMIT_SHA ?? process.env.RAILWAY_GIT_COMMIT_SHA ?? null
 ```bash
 curl -sSL https://<app>.informach.com.br/api/health
 # Esperado: {"status":"ok","app":"<app>","commit":"<sha>","timestamp":"..."}
+
+curl -sSL https://<app>.informach.com.br/api/ready
+# Esperado: {"status":"ready","app":"<app>","schema":{"expected":"00NN_...","applied":"00NN_..."}}
+# 503 com reason "behind" = o migrator ainda não rodou esta release (Fase 4.3).
 ```
 
 Conferir no Sentry (https://<org>.sentry.io/projects/<app>) que não há issues `unresolved firstSeen:-1h` após o boot.

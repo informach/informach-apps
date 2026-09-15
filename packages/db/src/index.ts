@@ -17,4 +17,6 @@ export {
 export type { Database } from "./client";
 export { db } from "./client";
 export { DatabaseLockBusyError, withDatabaseLock, withDatabaseLockWait } from "./locks";
+export type { SchemaReadiness } from "./readiness";
+export { checkSchemaReadiness, EXPECTED_MIGRATION } from "./readiness";
 export * as schema from "./schema";

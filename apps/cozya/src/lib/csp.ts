@@ -134,7 +134,7 @@ export const CSP_NONCE_HEADER = "x-nonce";
  * Path prefixes que NÃO devem receber CSP. Webhooks, cron jobs e health checks
  * servem JSON para servidores externos, não browser; injetar CSP só polui logs.
  */
-const CSP_SKIP_PREFIXES = ["/api/webhooks", "/api/jobs", "/api/health"];
+const CSP_SKIP_PREFIXES = ["/api/webhooks", "/api/jobs", "/api/health", "/api/ready"];
 
 export function shouldSkipCsp(pathname: string): boolean {
   return CSP_SKIP_PREFIXES.some(

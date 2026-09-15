@@ -233,7 +233,8 @@ Zod em toda fronteira:
 - **Adapter app-level**: `lib/observability.ts` é o único lugar onde os packages encostam em Sentry. Exporta `packageLogger` para `@informach/billing`/`@informach/emails` (mantém pino e duplica `warn`/`error` sanitizados para `Sentry.captureMessage`) e `authObservability` para `@informach/auth` (breadcrumbs de audit, `onAuditPersistenceFailure` e security events). Contextos enviados ao Sentry passam por sanitização de chaves sensíveis.
 - **Errors**: Sentry SDK Next.js. Captura em `error.tsx`, `global-error.tsx` e dentro do wrapper `lib/action.ts` quando o service retorna erro de infra.
 - **Source maps**: subidos para Sentry no CI.
-- **Health endpoint**: `app/api/health/route.ts` retornando 200 com timestamp + commit SHA. Provider usa para healthcheck.
+- **Health endpoint**: `app/api/health/route.ts` retornando 200 com timestamp + commit SHA. Não toca o banco, e é isso que o torna útil — ele responde qual commit está servindo mesmo quando o deploy vai mal.
+- **Ready endpoint**: `app/api/ready/route.ts` é o que o provider usa como healthcheck. Chama `checkSchemaReadiness()` de `@informach/db` e responde 503 enquanto o banco estiver atrás da última migração deste build, para que uma instância publicada antes do migrator não receba tráfego. A comparação é "atrás", nunca "diferente": rollback do app sem desfazer migração continua passando.
 - **Edge runtime**: não. Tudo Node. Pino e drivers de DB queremos em Node, e Railway é Node.
 
 ---
