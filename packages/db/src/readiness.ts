@@ -1,6 +1,9 @@
 import { sql } from "drizzle-orm";
 import { db } from "./client";
-import journal from "./migrations/meta/_journal.json";
+// O atributo é obrigatório: três specs do e2e da Agenda importam `@informach/db`,
+// e o loader do Playwright é Node ESM puro — sem bundler para relevar a falta.
+// O build de produção passava sem ele, então só o CI pegava.
+import journal from "./migrations/meta/_journal.json" with { type: "json" };
 
 /**
  * O banco está pelo menos tão novo quanto o build que faz a pergunta?
