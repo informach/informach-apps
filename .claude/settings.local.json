@@ -31,7 +31,11 @@
       "Bash(pnpm --filter @informach/db exec tsx src/billing-status-tmp.ts tochaeluz@gmail.com)",
       "Bash(DRY_RUN=1 pnpm --filter @informach/db exec tsx src/restore-monthly-tmp.ts tochaeluz@gmail.com)",
       "Bash(pnpm --filter @informach/db exec tsx src/restore-monthly-tmp.ts tochaeluz@gmail.com)",
-      "mcp__Railway__get-logs"
+      "mcp__Railway__get-logs",
+      "mcp__sentry__find_organizations",
+      "mcp__sentry__find_projects",
+      "mcp__sentry__search_issues",
+      "mcp__sentry__get_sentry_resource"
     ]
   }
 }
