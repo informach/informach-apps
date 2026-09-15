@@ -248,6 +248,13 @@ restartPolicyType = "NEVER"
 > **redeploy do migrator primeiro, conferir SUCCESS, só depois o app.** Em push
 > único, segurar o deploy do app service até o migrator terminar.
 >
+> **O custo já foi pago uma vez.** Em 14/09/2026, das 14:53 às 15:06 UTC, a
+> release `84bf571` da Agenda serviu `/dashboard` com `column
+> notice_actions.subject_id does not exist`: app no ar com o código novo, banco
+> ainda na forma anterior. Treze minutos de tela principal quebrada, com o
+> healthcheck verde o tempo inteiro. Sentry: `AGENDA-DA-TURMA-F` (servidor) e
+> `AGENDA-DA-TURMA-E` (a mesma requisição vista do navegador).
+>
 > **Desde 15/09/2026 isso não depende mais de alguém lembrar.** Os três apps
 > apontam `healthcheckPath` para `/api/ready`, que chama `checkSchemaReadiness()`
 > de `@informach/db`: ele compara a última migração do journal **deste build**

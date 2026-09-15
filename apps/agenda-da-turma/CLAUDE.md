@@ -410,6 +410,15 @@ release que acrescenta coluna (o caso comum, `ADD COLUMN` nulável), a migraçã
 compatível com a versão que já está no ar: o migrator precisa terminar **antes**
 de o app receber tráfego. Ver `docs/deploy-runbook.md` Fase 4.3.
 
+**Isso já aconteceu, e está registrado.** Em 14/09/2026, das 14:53 às 15:06 UTC,
+a release `84bf571` serviu `/dashboard` com `column notice_actions.subject_id
+does not exist` — o app no ar com o código da convergência e o banco ainda na
+forma anterior. Treze minutos, uma família em Belo Horizonte, a tela principal
+quebrada. No Sentry é `AGENDA-DA-TURMA-F` (o erro do servidor) e
+`AGENDA-DA-TURMA-E` (a mesma requisição vista do navegador — o `trace_id` é o
+mesmo). O healthcheck ficou verde o tempo inteiro, porque apontava para uma rota
+que não toca o banco.
+
 **Quem garante essa ordem é o healthcheck, não o runbook.** `healthcheckPath` é
 `/api/ready`, e essa rota chama `checkSchemaReadiness()` de `@informach/db`, que
 compara a última migração do journal deste build com `max(created_at)` em
