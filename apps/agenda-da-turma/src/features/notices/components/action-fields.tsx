@@ -181,7 +181,16 @@ export function ActionFields({
               dueAt: e.target.value || null,
               dateOrigin: e.target.value ? "family" : "unspecified",
               reminderAt: null,
-              ...(e.target.value ? {} : { time: null, reminderAt: null, recurrence: "none" }),
+              // Sem data não há o que a turma possa receber: a caixa some, e
+              // deixá-la marcada só faria a gravação ser recusada depois.
+              ...(e.target.value
+                ? {}
+                : {
+                    time: null,
+                    reminderAt: null,
+                    recurrence: "none",
+                    shareWithTurma: false,
+                  }),
             })
           }
         />

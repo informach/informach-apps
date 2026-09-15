@@ -347,17 +347,24 @@ export async function insertConfirmedNotice(
     const published = new Map<string, string>();
     for (const { action, index, fingerprint } of values) {
       const previous = replacements.get(index);
+      const { shareWithTurma: _share, ...actionFields } = action;
       const fields = {
-        ...action,
+        ...actionFields,
         noticeId: input.noticeId,
         reminderAt: action.reminderAt ? new Date(action.reminderAt) : null,
         fingerprint,
       };
       if (previous) {
+        // A retificação que veio no recado alcança a turma pelo mesmo caminho
+        // da edição manual — publicar, despublicar e corrigir são a mesma
+        // decisão, e é por isso que moram numa função só.
+        const sharing = await reconcileSharing(tx, userId, isPro, previous, action, published);
+        if (!sharing.ok) return err({ code: sharing.code } as const);
         const [current] = await tx
           .update(agendaTasks)
           .set({
             ...fields,
+            sharedActivityId: sharing.sharedActivityId,
             version: previous.version + 1,
             updatedAt: new Date(),
             seriesId:
@@ -368,6 +375,8 @@ export async function insertConfirmedNotice(
           .where(eq(agendaTasks.id, previous.id))
           .returning();
         if (!current) throw new Error("Notice correction failed");
+        if (sharing.publishedBySelf && sharing.sharedActivityId)
+          await publishActivityCorrection(tx, sharing.sharedActivityId, userId, current);
         await tx.insert(agendaActivityRevisions).values({
           taskId: previous.id,
           actorId: userId,
@@ -389,6 +398,7 @@ export async function insertConfirmedNotice(
             seriesId: action.recurrence === "weekly" ? randomUUID() : null,
           })
           .returning({ id: agendaTasks.id });
+
         if (!created) throw new Error("Notice action insert failed");
         ids.push(created.id);
       }
@@ -479,27 +489,16 @@ export async function updateNoticeActionAtomically(
     // Quem publicou a atividade na turma edita o que a turma inteira lê, e o
     // fato publicado exige matéria e prazo. Recusar é mais honesto do que
     // gravar a versão da família e deixar a turma com a antiga.
-    const publishedBySelf = previous.sharedActivityId
-      ? await isPublishedBy(tx, previous.sharedActivityId, userId)
-      : false;
-    if (publishedBySelf && (!input.action.dueAt || !input.action.subjectId))
+    if (
+      previous.sharedActivityId &&
+      input.action.shareWithTurma &&
+      (await isPublishedBy(tx, previous.sharedActivityId, userId)) &&
+      (!input.action.dueAt || !input.action.subjectId)
+    )
       return err({ code: "SHARED_REQUIRES_SCHOOL_FIELDS" } as const);
-    // Compartilhar (ou deixar de compartilhar) é a mesma caixa do formulário
-    // único, e vale também depois de criada.
-    let sharedActivityId = previous.sharedActivityId;
-    if (!previous.sharedActivityId && input.action.shareWithTurma) {
-      if (!isPro) return err({ code: "SHARE_REQUIRES_PRO" } as const);
-      sharedActivityId = await publishToTurma(tx, userId, input.action, new Map());
-    } else if (previous.sharedActivityId && !input.action.shareWithTurma) {
-      // Despublicar é retirar da turma o que outras famílias podem já ter
-      // começado a cumprir. Só quem publicou pode, e só enquanto ninguém mais
-      // tiver recebido — do contrário some da vista delas sem explicação.
-      if (!publishedBySelf) return err({ code: "SHARE_NOT_YOURS" } as const);
-      if (await hasOtherHouseholdTasks(tx, previous.sharedActivityId, userId))
-        return err({ code: "SHARE_ALREADY_ACCEPTED" } as const);
-      await tx.delete(agendaActivities).where(eq(agendaActivities.id, previous.sharedActivityId));
-      sharedActivityId = null;
-    }
+    const sharing = await reconcileSharing(tx, userId, isPro, previous, input.action, new Map());
+    if (!sharing.ok) return err({ code: sharing.code } as const);
+    const { sharedActivityId, publishedBySelf } = sharing;
     const [current] = await tx
       .update(agendaTasks)
       .set({
@@ -529,6 +528,55 @@ export async function updateNoticeActionAtomically(
     });
     return ok({ id: input.id });
   });
+}
+
+/**
+ * O que a turma passa a ver depois de gravar esta tarefa.
+ *
+ * Existe para ser chamado por TODOS os caminhos de escrita. A retificação que
+ * chega por recado é a mesma retificação que a pessoa faria na mão — se só o
+ * formulário avisasse a turma, a prova adiada por um comunicado continuaria
+ * marcada para as outras famílias, e ninguém saberia.
+ *
+ * Devolve o `shared_activity_id` que a tarefa deve passar a ter, ou um erro
+ * quando a escolha não é possível.
+ */
+async function reconcileSharing(
+  tx: AgendaTransaction,
+  userId: string,
+  isPro: boolean,
+  previous: { sharedActivityId: string | null },
+  action: NoticeActionInput,
+  reuse: Map<string, string>,
+): Promise<
+  | { ok: true; sharedActivityId: string | null; publishedBySelf: boolean }
+  | {
+      ok: false;
+      code: "SHARE_REQUIRES_PRO" | "SHARE_NOT_YOURS" | "SHARE_ALREADY_ACCEPTED";
+    }
+> {
+  const publishedBySelf = previous.sharedActivityId
+    ? await isPublishedBy(tx, previous.sharedActivityId, userId)
+    : false;
+  if (!previous.sharedActivityId && action.shareWithTurma) {
+    if (!isPro) return { ok: false, code: "SHARE_REQUIRES_PRO" };
+    return {
+      ok: true,
+      sharedActivityId: await publishToTurma(tx, userId, action, reuse),
+      publishedBySelf: false,
+    };
+  }
+  if (previous.sharedActivityId && !action.shareWithTurma) {
+    // Despublicar é retirar da turma o que outras famílias podem já ter
+    // começado a cumprir. Só quem publicou pode, e só enquanto ninguém mais
+    // tiver recebido — do contrário some da vista delas sem explicação.
+    if (!publishedBySelf) return { ok: false, code: "SHARE_NOT_YOURS" };
+    if (await hasOtherHouseholdTasks(tx, previous.sharedActivityId, userId))
+      return { ok: false, code: "SHARE_ALREADY_ACCEPTED" };
+    await tx.delete(agendaActivities).where(eq(agendaActivities.id, previous.sharedActivityId));
+    return { ok: true, sharedActivityId: null, publishedBySelf: false };
+  }
+  return { ok: true, sharedActivityId: previous.sharedActivityId, publishedBySelf };
 }
 
 /** Alguma outra família já tem tarefa deste fato publicado? */
@@ -711,6 +759,10 @@ export async function setNoticeActionStatusAtomically(
     if (!previous) return err({ code: "NOT_FOUND" } as const);
     if (previous.version !== input.version) return err({ code: "VERSION_CONFLICT" } as const);
     if (previous.status === input.status) return ok({ id: input.id });
+    // Cancelar alcança a turma; reabrir só a própria cópia deixaria as outras
+    // famílias canceladas sem ninguém saber. O que foi cancelado fica no
+    // histórico e vira uma atividade nova quando voltar a valer.
+    if (previous.status === "canceled") return err({ code: "ALREADY_CANCELED" } as const);
     if (
       !isPro &&
       input.status === "pending" &&

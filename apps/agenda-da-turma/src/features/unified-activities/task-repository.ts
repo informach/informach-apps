@@ -34,6 +34,13 @@ const taskSelect = {
   sharedActivityId: agendaTasks.sharedActivityId,
   profileId: agendaTasks.profileId,
   profileName: agendaStudentProfiles.name,
+  /**
+   * A família dona da criança — não quem criou a tarefa. É ela que paga o
+   * plano, e por isso é ela que decide se lembrete e repetição estão
+   * disponíveis: um segundo adulto convidado não é Free numa família Pro, e
+   * uma família gratuita não vira Pro por receber a atividade de uma que é.
+   */
+  ownerUserId: agendaStudentProfiles.userId,
   createdByUserId: agendaTasks.createdByUserId,
   assignedToUserId: agendaTasks.assignedToUserId,
   assignedName: users.name,

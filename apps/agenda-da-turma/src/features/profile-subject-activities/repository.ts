@@ -116,9 +116,17 @@ export async function insertProfileSubjectActivityWithinFreeLimit(
 ): Promise<InsertProfileSubjectActivityWithinLimitResult> {
   return db.transaction(
     async (tx) => {
-      await lockPendingLimit(tx, payload.createdByUserId);
+      // O teto é da família dona da criança, não de quem digita. Contar por
+      // quem digita daria zero para um segundo adulto e o limite passaria
+      // batido — e o lock seria outro, sem serializar com os demais writers.
+      const [owner] = await tx
+        .select({ userId: agendaStudentProfiles.userId })
+        .from(agendaStudentProfiles)
+        .where(eq(agendaStudentProfiles.id, payload.profileId));
+      if (!owner) throw new Error("agenda.tasks: profile not found for the free limit");
+      await lockPendingLimit(tx, owner.userId);
 
-      const current = await countPendingActivities(tx, payload.createdByUserId);
+      const current = await countPendingActivities(tx, owner.userId);
       if (current >= limit) {
         return { ok: false as const, current };
       }

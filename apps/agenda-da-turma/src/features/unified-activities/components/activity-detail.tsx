@@ -30,7 +30,7 @@ export async function ActivityDetail({ userId, task }: { userId: string; task: T
     getNoticeActionHistory(userId, task.id),
     task.noticeId ? getNoticeSource(userId, task.noticeId) : null,
     listAssignableAdults(userId),
-    billing.hasProSubscription({ type: "user", id: task.createdByUserId ?? userId }),
+    billing.hasProSubscription({ type: "user", id: task.ownerUserId }),
     listSubjectOptionsByProfile(userId),
   ]);
 

@@ -52,6 +52,7 @@ import { joinPrivateGroup, removeGroupAdult } from "@/features/turmas/group-acce
 import { createOrJoinTurma, setActiveTurma } from "@/features/turmas/service";
 import type { ActivityOverviewOptions } from "@/features/unified-activities/overview-types";
 import { getActivityOverview } from "@/features/unified-activities/service";
+import { findTaskForUser } from "@/features/unified-activities/task-repository";
 import { emails } from "@/lib/emails";
 
 function value<T>(r: { ok: true; value: T } | { ok: false; error: unknown }): T {
@@ -587,6 +588,113 @@ describe("Review regressions", () => {
         action: taskAction(mine, { shareWithTurma: false }),
       }),
     ).toMatchObject({ ok: false, error: { code: "SHARE_NOT_YOURS" } });
+  });
+  it("leva a retificação que veio no recado até a turma, como a edição manual leva", async () => {
+    const published = await schoolActivity(true, null, "Prova de ciências");
+    value(
+      await respondSharedActivity(outsider, { activityId: sharedId(published), accepted: true }),
+    );
+
+    // O recado diz que a escola adiou. A família escolhe "esta corrige a
+    // anterior" em vez de criar outra.
+    const corrected = value(
+      await confirmNotice(owner, {
+        noticeId: null,
+        allowDuplicates: true,
+        actions: [
+          {
+            ...action("Prova de ciências"),
+            type: "task",
+            subjectId: subject,
+            dueAt: "2030-10-01",
+            dateOrigin: "school",
+            shareWithTurma: true,
+          },
+        ],
+        resolutions: [
+          { index: 0, kind: "replace", actionId: published.id, version: published.version },
+        ],
+      }),
+    );
+    expect(corrected.ids).toEqual([published.id]);
+
+    // A turma recebe a data nova — sem isto, as outras famílias continuariam
+    // cobrando a prova no dia velho e ninguém saberia.
+    const [fact] = await db
+      .select()
+      .from(agendaActivities)
+      .where(eq(agendaActivities.id, sharedId(published)));
+    expect(fact).toMatchObject({ dueAt: "2030-10-01", version: 2 });
+    const [received] = await db
+      .select()
+      .from(agendaTasks)
+      .where(
+        and(
+          eq(agendaTasks.sharedActivityId, sharedId(published)),
+          eq(agendaTasks.profileId, otherChild),
+        ),
+      );
+    expect(received).toMatchObject({ dueAt: "2030-10-01" });
+  });
+  it("não reabre o que foi cancelado, porque a turma não seria avisada de volta", async () => {
+    const published = await schoolActivity(true, null, "Prova cancelada");
+    value(
+      await respondSharedActivity(outsider, { activityId: sharedId(published), accepted: true }),
+    );
+    value(
+      await setNoticeActionStatus(owner, {
+        id: published.id,
+        version: published.version,
+        status: "canceled",
+      }),
+    );
+    const canceled = await reload(published.id);
+    expect(
+      await setNoticeActionStatus(owner, {
+        id: published.id,
+        version: canceled.version,
+        status: "pending",
+      }),
+    ).toMatchObject({ ok: false, error: { code: "ALREADY_CANCELED" } });
+  });
+  it("aceitar duas vezes não duplica a tarefa da família que recebeu", async () => {
+    const published = await schoolActivity();
+    for (const _ of [1, 2])
+      value(
+        await respondSharedActivity(outsider, { activityId: sharedId(published), accepted: true }),
+      );
+    const received = await db
+      .select()
+      .from(agendaTasks)
+      .where(
+        and(
+          eq(agendaTasks.sharedActivityId, sharedId(published)),
+          eq(agendaTasks.profileId, otherChild),
+        ),
+      );
+    expect(received).toHaveLength(1);
+  });
+  it("diz de quem é a família da tarefa, e não quem a digitou", async () => {
+    // O detalhe decide por aqui se lembrete e repetição aparecem. Usar quem
+    // criou faria a família gratuita que RECEBE de uma Pro ver recursos que a
+    // gravação depois recusa — e o segundo adulto de uma família Pro ser
+    // tratado como gratuito.
+    const published = await schoolActivity(true, null, "Prova de história");
+    value(
+      await respondSharedActivity(outsider, { activityId: sharedId(published), accepted: true }),
+    );
+    const [received] = await db
+      .select()
+      .from(agendaTasks)
+      .where(
+        and(
+          eq(agendaTasks.sharedActivityId, sharedId(published)),
+          eq(agendaTasks.profileId, otherChild),
+        ),
+      );
+    const task = await findTaskForUser(outsider, required(received).id);
+    expect(task?.createdByUserId).toBe(owner);
+    expect(task?.ownerUserId).toBe(outsider);
   });
   it("F04 denies unreviewed mixed originals and includes children without extracted actions in scope", async () => {
     const n = await notice("Material da criança A. INFORMAÇÃO RESTRITA DA CRIANÇA B.");

@@ -37,6 +37,8 @@ export function noticeErrorMessage(code: string) {
     VERSION_CONFLICT:
       "Outro responsável alterou este item. Atualize a página antes de editar novamente.",
     INVALID_ASSIGNEE: "Esse responsável não tem mais acesso à criança. Escolha outro responsável.",
+    ALREADY_CANCELED:
+      "Esta atividade foi cancelada e o histórico ficou guardado. Se ela voltou a valer, cadastre-a de novo — assim quem recebeu entende o que aconteceu.",
     SHARE_REQUIRES_PRO:
       "Compartilhar com a turma faz parte do Pro. Você pode salvar a atividade só para a sua família agora e compartilhar depois.",
     SHARE_NOT_YOURS:
