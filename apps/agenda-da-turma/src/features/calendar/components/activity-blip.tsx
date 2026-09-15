@@ -6,10 +6,10 @@ import {
   getSubjectTextClassByIndex,
   getSubjectTintedClassByIndex,
 } from "@/features/subjects/utils";
-import type { UnifiedActivityListItem } from "@/features/unified-activities/types";
+import type { TaskRow } from "@/features/unified-activities/task-repository";
 
 type Props = {
-  item: UnifiedActivityListItem;
+  item: TaskRow;
   onSelect: () => void;
 };
 
@@ -42,14 +42,14 @@ const TYPE_A11Y_LABEL: Record<string, string> = {
 export function ActivityBlip({ item, onSelect }: Props) {
   const TypeIcon = getActivityTypeIcon(item.type);
   const isDone = item.status === "done";
-  const canceled = item.source === "turma" && Boolean(item.canceledAt);
-  const urgency = getDueUrgency(item.dueAt, item.status);
+  const canceled = item.status === "canceled";
+  const urgency = getDueUrgency(item.dueAt ?? "", item.status === "done" ? "done" : "pending");
   const isOverdue = urgency === "overdue";
   const isDueSoon = urgency === "due_soon";
 
-  const isExtra = item.source === "extra";
-  const colorIndex = isExtra ? item.profileSubjectColorIndex : item.subjectColorIndex;
-  const subjectName = isExtra ? item.profileSubjectName : item.subjectName;
+  const isExtra = item.profileSubjectId !== null;
+  const colorIndex = item.subjectColorIndex ?? 0;
+  const subjectName = item.subjectName ?? "sem matéria";
 
   const typeLabel = TYPE_A11Y_LABEL[item.type] ?? "atividade";
   const statusLabel = canceled
@@ -60,7 +60,7 @@ export function ActivityBlip({ item, onSelect }: Props) {
   const sourceLabel = isExtra ? " (extracurricular)" : "";
   const ariaLabel =
     `${typeLabel} de ${subjectName}${sourceLabel}: ${item.title}` +
-    `, de ${item.studentProfileName}, ${statusLabel}`;
+    `, de ${item.profileName}, ${statusLabel}`;
 
   return (
     <button

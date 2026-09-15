@@ -4,13 +4,10 @@ import { Button } from "@informach/ui/components/button";
 import { cn } from "@informach/ui/lib/utils";
 import { Check } from "lucide-react";
 import { useState } from "react";
-import { setActivityStatusAction } from "@/features/activities/actions";
 import { setNoticeStatusAction } from "@/features/notices/actions";
 import { noticeErrorMessage } from "@/features/notices/messages";
-import { setProfileSubjectActivityStatusAction } from "@/features/profile-subject-activities/actions";
 import { isActionRejected } from "@/lib/action-result";
 import { useCardToggle } from "../hooks/use-card-toggle";
-import type { ActivityToggleTarget } from "../view";
 
 /**
  * Marcar como feito, na página de detalhe.
@@ -21,11 +18,13 @@ import type { ActivityToggleTarget } from "../view";
  * controle aqui é o mesmo do card, inclusive o alvo de 44 px e os rótulos.
  */
 export function ActivityCompletionButton({
-  target,
+  id,
+  version,
   initialStatus,
   title,
 }: {
-  target: ActivityToggleTarget;
+  id: string;
+  version: number;
   initialStatus: "pending" | "done";
   title: string;
 }) {
@@ -34,25 +33,13 @@ export function ActivityCompletionButton({
   const { isDone, pending, handleToggle } = useCardToggle({
     initialStatus,
     optimisticHideWhenDone: false,
-    toggleAction: (next) => {
-      if (target.kind === "notice")
-        return setNoticeStatusAction({ id: target.id, version: target.version, status: next });
-      if (target.kind === "extra")
-        return setProfileSubjectActivityStatusAction({ id: target.id, status: next });
-      return setActivityStatusAction({
-        activityId: target.activityId,
-        studentProfileId: target.studentProfileId,
-        status: next,
-      });
-    },
+    toggleAction: (next) => setNoticeStatusAction({ id, version, status: next }),
     onSuccess: () => setError(""),
     onError: (actionError) =>
       setError(
         isActionRejected(actionError)
           ? "Não foi possível atualizar. Atualize a página e tente de novo."
-          : target.kind === "notice"
-            ? noticeErrorMessage(actionError.code)
-            : "Não foi possível atualizar.",
+          : noticeErrorMessage(actionError.code),
       ),
   });
 

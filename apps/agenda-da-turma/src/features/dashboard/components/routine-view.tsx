@@ -3,7 +3,6 @@
 import { cn } from "@informach/ui/lib/utils";
 import { Backpack, CalendarDays, CircleCheck, type LucideIcon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { TurmaWithSubjectsForForm } from "@/features/activities/types";
 import {
   getSubjectIconClassByIndex,
   getSubjectTintedClassByIndex,
@@ -64,15 +63,13 @@ type Props = {
   /** Matérias de amanhã por criança — alimenta a mochila. */
   tomorrowSchedule: TodaySubjectsView[];
   currentUserId: string;
-  isPro: boolean;
-  turmasForForm: TurmaWithSubjectsForForm[];
 };
 
 /**
- * A rotina da família: KPIs e os três buckets, ambos vindos da mesma projeção
- * das três fontes (turma, recado e extracurricular). Um card só, um jeito só
- * de concluir — antes a mesma atividade aparecia aqui num formato e, logo
- * abaixo, num bloco recolhido, em outro.
+ * A rotina da família: KPIs e os três buckets, ambos vindos da mesma consulta
+ * que alimenta a lista de `/atividades`. Um card só, um jeito só de concluir —
+ * antes a mesma atividade aparecia aqui num formato e, logo abaixo, num bloco
+ * recolhido, em outro.
  */
 export function RoutineView({
   todayIso,
@@ -80,8 +77,6 @@ export function RoutineView({
   initialCounters,
   tomorrowSchedule,
   currentUserId,
-  isPro,
-  turmasForForm,
 }: Props) {
   const [counters, setCounters] = useState(initialCounters);
 
@@ -130,9 +125,6 @@ export function RoutineView({
                     key={entry.key}
                     entry={entry}
                     currentUserId={currentUserId}
-                    isPro={isPro}
-                    turmasForForm={turmasForForm}
-                    hideActions
                     optimisticHideWhenDone
                     onStatusSuccess={(changed: ActivityOverviewItem, previous, next) =>
                       setCounters((current) =>

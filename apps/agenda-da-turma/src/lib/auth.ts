@@ -45,6 +45,10 @@ const rateLimitRules =
         "/email-otp/send-verification-otp": { window: 60, max: 100 },
         "/email-otp/verify-email": { window: 60, max: 100 },
         "/sign-in/email-otp": { window: 60, max: 100 },
+        // A suíte também entra por e-mail e senha para montar as fixturas; sem
+        // esta linha o teto de produção derruba a suíte quando ela roda duas
+        // vezes seguidas na mesma máquina.
+        "/sign-in/email": { window: 60, max: 100 },
         "/sign-up/email": { window: 60, max: 100 },
       }
     : productionRateLimitRules;

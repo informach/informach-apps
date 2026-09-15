@@ -6,9 +6,9 @@ import {
   agendaFamilyInvitations,
   agendaFamilyMembers,
   agendaFamilyProfileAccess,
-  agendaNoticeActions,
   agendaProductEvents,
   agendaStudentProfiles,
+  agendaTasks,
   users,
 } from "@informach/db/schema";
 import type { z } from "zod";
@@ -148,13 +148,13 @@ export async function deleteFamilyAccess(userId: string, memberId: string) {
       );
     if (!member) return err({ code: "NOT_FOUND" } as const);
     await tx
-      .update(agendaNoticeActions)
+      .update(agendaTasks)
       .set({ assignedToUserId: null, updatedAt: new Date() })
       .where(
         and(
-          eq(agendaNoticeActions.assignedToUserId, member.userId),
+          eq(agendaTasks.assignedToUserId, member.userId),
           inArray(
-            agendaNoticeActions.profileId,
+            agendaTasks.profileId,
             tx
               .select({ id: agendaStudentProfiles.id })
               .from(agendaStudentProfiles)
@@ -198,19 +198,19 @@ export async function replaceFamilyAccess(
     if (profiles.length !== input.profileIds.length)
       return err({ code: "INVALID_PROFILE" } as const);
     await tx
-      .update(agendaNoticeActions)
+      .update(agendaTasks)
       .set({ assignedToUserId: null, updatedAt: new Date() })
       .where(
         and(
-          eq(agendaNoticeActions.assignedToUserId, member.userId),
+          eq(agendaTasks.assignedToUserId, member.userId),
           inArray(
-            agendaNoticeActions.profileId,
+            agendaTasks.profileId,
             tx
               .select({ profileId: agendaFamilyProfileAccess.profileId })
               .from(agendaFamilyProfileAccess)
               .where(eq(agendaFamilyProfileAccess.memberId, member.id)),
           ),
-          sql`${agendaNoticeActions.profileId} NOT IN (${sql.join(
+          sql`${agendaTasks.profileId} NOT IN (${sql.join(
             input.profileIds.map((id) => sql`${id}::uuid`),
             sql`, `,
           )})`,

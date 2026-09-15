@@ -9,7 +9,6 @@ import {
 } from "@informach/db/schema";
 import webpush from "web-push";
 import { addDaysIso, todayLocalIso } from "@/features/dashboard/date";
-import { getDashboardSnapshot } from "@/features/dashboard/service";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { listNoticeActions } from "@/features/notices/repository";
 import { ACTIVITY_TYPE_LABELS } from "@/features/unified-activities/activity-types";
@@ -98,30 +97,20 @@ async function currentMessages(userId: string, now: Date): Promise<Message[]> {
   if (isQuietHour(hour, prefs.quietStart, prefs.quietEnd)) return [];
   const entitlement = await getFamilyEntitlements(userId);
   if (!entitlement.enabled) return [];
-  const [rows, legacy] = await Promise.all([
-    listNoticeActions(userId),
-    hour === prefs.digestHour
-      ? getDashboardSnapshot(userId, { profileFilter: null, now, limit: 100 })
-      : null,
-  ]);
+  // Uma lista só. O resumo já somou duas consultas — as providências de recado
+  // e um snapshot por bucket das atividades escolares — e a mesma atividade
+  // aparecia com dois textos diferentes conforme a tabela de origem. Com a
+  // convergência, `listNoticeActions` (pendentes, por acesso à criança) é a
+  // fonte inteira.
+  const rows = await listNoticeActions(userId);
   const eligible = rows.filter((r) => entitlement.proProfileIds.includes(r.action.profileId));
   const messages: Message[] = [];
   if (hour === prefs.digestHour) {
     const relevant = eligible.filter(({ action: a }) => !a.dueAt || a.dueAt <= tomorrow);
-    const older = legacy
-      ? [
-          ...legacy.overdue,
-          ...legacy.today,
-          ...legacy.upcoming.filter((i) => i.dueAt === tomorrow),
-        ].filter((i) => entitlement.proProfileIds.includes(i.studentProfileId))
-      : [];
-    const lines = [
-      ...relevant.map(
-        (r) =>
-          `${r.profileName}: ${ACTIVITY_TYPE_LABELS[r.action.type]}, ${r.action.title}. ${r.action.dueAt ? `Data: ${r.action.dueAt}` : "Prazo a confirmar"}${r.action.time ? ` às ${r.action.time}` : ""}. Responsável: ${r.assignedName ?? "a combinar"}.`,
-      ),
-      ...older.map((r) => `${r.studentProfileName}: ${r.title}. Data: ${r.dueAt}.`),
-    ];
+    const lines = relevant.map(
+      (r) =>
+        `${r.profileName}: ${ACTIVITY_TYPE_LABELS[r.action.type]}, ${r.action.title}. ${r.action.dueAt ? `Data: ${r.action.dueAt}` : "Prazo a confirmar"}${r.action.time ? ` às ${r.action.time}` : ""}. Responsável: ${r.assignedName ?? "a combinar"}.`,
+    );
     if (lines.length)
       messages.push({
         key: `digest:${today}`,
@@ -148,7 +137,7 @@ async function currentMessages(userId: string, now: Date): Promise<Message[]> {
         lines: [
           `${profileName}: ${a.title}. Data: ${a.dueAt ?? "a confirmar"}${a.time ? ` às ${a.time}` : ""}.`,
         ],
-        path: `/recados/acoes/${a.id}`,
+        path: `/atividades/${a.id}`,
       });
   }
   return messages;

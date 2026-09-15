@@ -9,23 +9,19 @@ import {
   countActivitiesCreatedByUser,
   deleteActivityById,
   findActivityById,
-  findActivityStatusForProfile,
-  insertActivityWithStatuses,
-  insertActivityWithStatusesWithinFreeLimit,
+  insertActivityWithTasks,
+  insertActivityWithTasksWithinFreeLimit,
   listPendingSharedActivitiesForUser,
   listTurmasWithSubjectsForUserForm,
-  profileBelongsToUser,
   subjectBelongsToTurma,
   updateActivityById,
-  updateActivityStatusValue,
-  upsertAcceptanceAndStatuses,
+  upsertAcceptanceAndTasks,
   userHasActiveProfileInTurma,
 } from "./repository";
 import type {
   CreateActivityInput,
   DeleteActivityInput,
   RespondSharedActivityInput,
-  SetActivityStatusInput,
   UpdateActivityInput,
 } from "./schemas";
 import type { Activity, PendingSharedActivity, TurmaWithSubjectsForForm } from "./types";
@@ -86,7 +82,7 @@ export async function createActivity(
   };
 
   if (!isPro) {
-    const limited = await insertActivityWithStatusesWithinFreeLimit(payload, FREE_ACTIVITY_LIMIT);
+    const limited = await insertActivityWithTasksWithinFreeLimit(payload, FREE_ACTIVITY_LIMIT);
     if (!limited.ok) {
       return err({
         code: "ACTIVITY_LIMIT_REACHED",
@@ -97,7 +93,7 @@ export async function createActivity(
     return ok(limited.activity);
   }
 
-  const activity = await insertActivityWithStatuses(payload);
+  const activity = await insertActivityWithTasks(payload);
   return ok(activity);
 }
 
@@ -157,13 +153,12 @@ export async function deleteActivity(
 }
 
 // Aceitar/rejeitar atividade compartilhada por outro user. Creator não passa
-// por aqui — ele já tem statuses dos próprios perfis desde o create. Quando
-// `accepted=true` e o user tem N perfis ativos na turma, geramos N status
-// rows. Aceitar duas vezes é idempotente (ON CONFLICT DO NOTHING nos
-// statuses). Mudar de mente (aceitar depois de rejeitar, ou vice-versa) só
-// atualiza o flag na acceptance — status rows ficam até o user explicitamente
-// rejeitar (rejeitar não remove rows existentes; é apenas para silenciar o
-// widget, não pra deletar histórico).
+// por aqui — ele já tem tarefas das próprias crianças desde o create. Quando
+// `accepted=true` e o user tem N crianças ativas na turma, geramos N tarefas.
+// Aceitar duas vezes é idempotente (ON CONFLICT DO NOTHING). Mudar de mente
+// (aceitar depois de rejeitar, ou vice-versa) só atualiza o flag na
+// acceptance — as tarefas ficam: rejeitar silencia o widget, não apaga a
+// rotina que a família já pode ter começado.
 export async function respondSharedActivity(
   userId: string,
   input: RespondSharedActivityInput,
@@ -184,7 +179,7 @@ export async function respondSharedActivity(
   const isMember = await userHasActiveProfileInTurma(userId, activity.turmaId);
   if (!isMember) return err({ code: "NOT_A_MEMBER" });
 
-  const responded = await upsertAcceptanceAndStatuses(
+  const responded = await upsertAcceptanceAndTasks(
     activity.id,
     userId,
     input.accepted,
@@ -192,35 +187,6 @@ export async function respondSharedActivity(
   );
   if (responded === false) return err({ code: "NOT_FOUND" });
   return ok({ activityId: activity.id, accepted: input.accepted });
-}
-
-export async function setActivityStatus(
-  userId: string,
-  input: SetActivityStatusInput,
-): Promise<Result<{ statusId: string }, ActivityError>> {
-  const ownsProfile = await profileBelongsToUser(input.studentProfileId, userId);
-  if (!ownsProfile) return err({ code: "INVALID_PROFILE" });
-
-  const statusRow = await findActivityStatusForProfile(input.activityId, input.studentProfileId);
-  if (!statusRow) return err({ code: "NOT_FOUND" });
-
-  const isPro =
-    input.status === "pending" &&
-    (await billing.hasProSubscription(userSubject(statusRow.ownerUserId)));
-  const updated = await updateActivityStatusValue(
-    statusRow.id,
-    input.status,
-    userId,
-    input.status === "pending" && !isPro ? FREE_ACTIVITY_LIMIT : null,
-  );
-  if (typeof updated === "object")
-    return err({
-      code: "ACTIVITY_LIMIT_REACHED",
-      limit: FREE_ACTIVITY_LIMIT,
-      current: updated.limitReached,
-    });
-  if (!updated) return err({ code: "NOT_FOUND" });
-  return ok({ statusId: statusRow.id });
 }
 
 export async function getActivitiesCreatedCountForUser(userId: string): Promise<number> {

@@ -67,7 +67,7 @@ function defaultsFromActivity(a: ProfileSubjectActivity): CreateProfileSubjectAc
     type: a.type,
     title: a.title,
     description: a.description ?? "",
-    dueAt: a.dueAt,
+    dueAt: a.dueAt ?? todayLocalIso(),
   };
 }
 

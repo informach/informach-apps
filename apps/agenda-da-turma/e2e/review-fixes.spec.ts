@@ -3,19 +3,18 @@ import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { and, db, eq } from "@informach/db";
+import { and, db, eq, isNotNull } from "@informach/db";
 import {
   accounts,
   agendaActivities,
-  agendaActivityStatuses,
   agendaCities,
-  agendaNoticeActions,
   agendaNotices,
   agendaProductEvents,
   agendaSchools,
   agendaStates,
   agendaStudentProfiles,
   agendaSubjects,
+  agendaTasks,
   agendaTurmaMembers,
   agendaTurmas,
   customers,
@@ -161,7 +160,17 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       })
       .returning();
     const activityId = required(activity).id;
-    await db.insert(agendaActivityStatuses).values({ activityId, studentProfileId: child.id });
+    await db.insert(agendaTasks).values({
+      sharedActivityId: activityId,
+      profileId: child.id,
+      createdByUserId: id,
+      type: "task",
+      subjectId: required(subject).id,
+      title: "Atividade versão 1",
+      dueAt: date,
+      dateOrigin: "school",
+      fingerprint: `e2e-${activityId}`,
+    });
 
     await test.step("activities use one creation flow and filters preserve the selected child", async () => {
       await page.setViewportSize({ width: 390, height: 844 });
@@ -329,15 +338,23 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       ).toHaveAttribute("aria-current", "page");
     });
 
+    // Editar é sempre o mesmo formulário, na mesma tela, seja qual for o
+    // caminho até ela — e a correção de quem publicou alcança a turma: a versão
+    // que sobe é a de `agenda.activities`, não só a da cópia de quem editou.
     for (const version of [2, 3]) {
       await page.goto("/atividades");
       await page
         .getByRole("button", { name: `Ações para Atividade versão ${version - 1}`, exact: true })
         .click();
       await page.getByRole("menuitem", { name: "Editar", exact: true }).click();
+      await expect(page).toHaveURL(/\/atividades\/[0-9a-f-]{36}$/);
       await page.getByLabel("Atividade", { exact: true }).fill(`Atividade versão ${version}`);
-      await page.getByRole("button", { name: "Salvar alterações", exact: true }).click();
-      await expect(page.getByRole("dialog")).toHaveCount(0);
+      await page.getByRole("button", { name: "Salvar alteração", exact: true }).click();
+      // A gravação recarrega o formulário na versão nova, então a confirmação
+      // que permanece na tela é o histórico — que é o que a família consulta.
+      await expect(
+        page.getByText(`Título: Atividade versão ${version - 1} → Atividade versão ${version}`),
+      ).toBeVisible();
       await expect
         .poll(
           async () =>
@@ -353,10 +370,18 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
           name: new RegExp(`tarefa de Matéria de revisão: Atividade versão ${version - 1}`),
         })
         .click();
-      await page.getByRole("button", { name: "Editar", exact: true }).click();
+      await page
+        .getByRole("dialog")
+        .getByRole("link", { name: `Atividade versão ${version - 1}`, exact: true })
+        .click();
+      await expect(page).toHaveURL(/\/atividades\/[0-9a-f-]{36}$/);
       await page.getByLabel("Atividade", { exact: true }).fill(`Atividade versão ${version}`);
-      await page.getByRole("button", { name: "Salvar alterações", exact: true }).click();
-      await expect(page.getByRole("dialog")).toHaveCount(0);
+      await page.getByRole("button", { name: "Salvar alteração", exact: true }).click();
+      // A gravação recarrega o formulário na versão nova, então a confirmação
+      // que permanece na tela é o histórico — que é o que a família consulta.
+      await expect(
+        page.getByText(`Título: Atividade versão ${version - 1} → Atividade versão ${version}`),
+      ).toBeVisible();
       await expect
         .poll(
           async () =>
@@ -433,18 +458,13 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
     await page.getByRole("button", { name: "Salvar 1 atividade", exact: true }).click();
     await expect(page).toHaveURL(/atividades/);
     expect(
-      await db.select().from(agendaNoticeActions).where(eq(agendaNoticeActions.noticeId, noticeId)),
+      await db.select().from(agendaTasks).where(eq(agendaTasks.noticeId, noticeId)),
     ).toHaveLength(2);
 
     const [before] = await db
       .select()
-      .from(agendaNoticeActions)
-      .where(
-        and(
-          eq(agendaNoticeActions.noticeId, noticeId),
-          eq(agendaNoticeActions.profileId, child.id),
-        ),
-      );
+      .from(agendaTasks)
+      .where(and(eq(agendaTasks.noticeId, noticeId), eq(agendaTasks.profileId, child.id)));
     const previous = required(before);
     const [correction] = await db
       .insert(agendaNotices)
@@ -476,18 +496,22 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
     await page.screenshot({ path: testInfo.outputPath("deadline-correction.png"), fullPage: true });
     await page.getByRole("button", { name: "Salvar 1 atividade", exact: true }).click();
     await expect(page).toHaveURL(/atividades/);
+    // A retificação versiona a atividade que já existia em vez de criar outra:
+    // a criança continua com UMA tarefa vinda deste recado. As atividades da
+    // escola vivem na mesma tabela desde a convergência, por isso a contagem
+    // filtra pelo recado de origem.
     const after = await db
       .select()
-      .from(agendaNoticeActions)
-      .where(eq(agendaNoticeActions.profileId, child.id));
+      .from(agendaTasks)
+      .where(and(eq(agendaTasks.profileId, child.id), isNotNull(agendaTasks.noticeId)));
     expect(after).toHaveLength(1);
     expect(after[0]).toMatchObject({ id: previous.id, version: 2, dueAt: "2030-09-16" });
     expect(
       (
         await db
           .select()
-          .from(agendaNoticeActions)
-          .where(eq(agendaNoticeActions.profileId, sibling.id))
+          .from(agendaTasks)
+          .where(and(eq(agendaTasks.profileId, sibling.id), isNotNull(agendaTasks.noticeId)))
       )[0]?.dueAt,
     ).toBe("2030-09-14");
 
@@ -613,7 +637,7 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       page.getByRole("link", { name: "Leitura planejada pela família", exact: true }),
     ).toBeVisible();
     // Representative family dashboard: different types, today, tomorrow and empty sections.
-    await db.insert(agendaNoticeActions).values([
+    await db.insert(agendaTasks).values([
       {
         profileId: child.id,
         createdByUserId: id,

@@ -5,22 +5,22 @@ import {
   agendaActivities,
   agendaActivityAcceptances,
   agendaActivityRevisions,
-  agendaActivityStatuses,
   agendaSchools,
   agendaStudentProfiles,
   agendaSubjects,
+  agendaTasks,
   agendaTurmaMembers,
   agendaTurmas,
   users,
 } from "@informach/db/schema";
 import { accessibleProfileCondition } from "@/features/family/access";
+import { actionFingerprint } from "@/features/notices/write-repository";
 import { loadSlotsForSubjects } from "@/features/subjects/repository";
 import { activeMembershipCondition } from "@/features/turmas/access";
 import { todayLocalIso } from "../dashboard/date";
 import { countPendingActivities, lockPendingLimit } from "./pending-limit";
 import type {
   Activity,
-  ActivityStatusValue,
   ActivityType,
   ActivityVisibility,
   PendingSharedActivity,
@@ -33,41 +33,11 @@ type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 // reversed. Corrections/deletions must preserve that family's history.
 // Shared by list, dashboard and calendar queries.
 export const hasOtherAcceptancesExpr = sql<boolean>`EXISTS (
-  SELECT 1 FROM ${agendaActivityStatuses} recipient_status
-  INNER JOIN ${agendaStudentProfiles} recipient_profile ON recipient_profile.id = recipient_status.student_profile_id
-  WHERE recipient_status.activity_id = ${agendaActivities.id}
+  SELECT 1 FROM ${agendaTasks} recipient_task
+  INNER JOIN ${agendaStudentProfiles} recipient_profile ON recipient_profile.id = recipient_task.profile_id
+  WHERE recipient_task.shared_activity_id = ${agendaActivities.id}
     AND recipient_profile.user_id IS DISTINCT FROM ${agendaActivities.createdByUserId}
 )`;
-
-// SELECT canônico que produz `ActivityListItem` (uma row por atividade × perfil
-// do user). Compartilhado entre /atividades, dashboard e calendário pra que
-// ActivityCard e demais consumidores recebam exatamente o mesmo shape.
-export const activityListSelect = {
-  activityId: agendaActivities.id,
-  statusId: agendaActivityStatuses.id,
-  status: agendaActivityStatuses.status,
-  studentProfileId: agendaStudentProfiles.id,
-  studentProfileName: agendaStudentProfiles.name,
-  turmaId: agendaActivities.turmaId,
-  subjectId: agendaActivities.subjectId,
-  subjectName: agendaSubjects.name,
-  subjectColorIndex: agendaSubjects.colorIndex,
-  schoolName: agendaSchools.name,
-  grade: agendaTurmas.grade,
-  classLetter: agendaTurmas.classLetter,
-  year: agendaTurmas.year,
-  type: agendaActivities.type,
-  visibility: agendaActivities.visibility,
-  title: agendaActivities.title,
-  description: agendaActivities.description,
-  dueAt: agendaActivities.dueAt,
-  version: agendaActivities.version,
-  canceledAt: agendaActivities.canceledAt,
-  activityCreatedAt: agendaActivities.createdAt,
-  activityUpdatedAt: agendaActivities.updatedAt,
-  createdByUserId: agendaActivities.createdByUserId,
-  hasOtherAcceptances: hasOtherAcceptancesExpr,
-} as const;
 
 export type NewActivityPayload = {
   turmaId: string;
@@ -165,11 +135,11 @@ async function hasRecipientHistory(client: Database | Tx, activityId: string) {
   return Boolean(row);
 }
 
-// Cria a atividade + 1 status row pra cada perfil ativo do creator na turma.
-// O service autoriza criação só quando há pelo menos um perfil ativo, para
-// evitar atividades sem status e invisíveis para quem criou.
-export async function insertActivityWithStatuses(payload: NewActivityPayload): Promise<Activity> {
-  return db.transaction((tx) => insertActivityWithStatusesInTx(tx, payload));
+// Cria o fato publicado na turma + 1 tarefa pra cada criança ativa do creator.
+// O service autoriza criação só quando há pelo menos uma criança ativa, para
+// evitar atividade sem tarefa e invisível para quem criou.
+export async function insertActivityWithTasks(payload: NewActivityPayload): Promise<Activity> {
+  return db.transaction((tx) => insertActivityWithTasksInTx(tx, payload));
 }
 
 // Variante Free: dentro de uma transação com advisory lock por usuário,
@@ -181,7 +151,7 @@ export type InsertActivityWithinLimitResult =
   | { ok: true; activity: Activity }
   | { ok: false; current: number };
 
-export async function insertActivityWithStatusesWithinFreeLimit(
+export async function insertActivityWithTasksWithinFreeLimit(
   payload: NewActivityPayload,
   limit: number,
 ): Promise<InsertActivityWithinLimitResult> {
@@ -194,17 +164,23 @@ export async function insertActivityWithStatusesWithinFreeLimit(
         return { ok: false as const, current };
       }
 
-      const activity = await insertActivityWithStatusesInTx(tx, payload);
+      const activity = await insertActivityWithTasksInTx(tx, payload);
       return { ok: true as const, activity };
     },
     { isolationLevel: "read committed" },
   );
 }
 
-async function insertActivityWithStatusesInTx(
-  tx: Tx,
-  payload: NewActivityPayload,
-): Promise<Activity> {
+/**
+ * O fato publicado e as tarefas que ele gera, na mesma transação.
+ *
+ * `agenda.activities` deixou de ser a tarefa e passou a ser só o que a turma
+ * vê: turma, matéria, título, prazo, visibilidade. Quem executa é
+ * `agenda.tasks`, uma linha por criança — e é ela que a família conclui,
+ * atribui, agenda e comenta. Era isso que `activity_statuses` fazia pela
+ * metade: guardava a conclusão, mas não o resto.
+ */
+async function insertActivityWithTasksInTx(tx: Tx, payload: NewActivityPayload): Promise<Activity> {
   // Recheck after taking the same group lock used by membership revocation.
   // Authorization checked before this transaction can become stale while waiting.
   const [group] = await tx
@@ -222,15 +198,31 @@ async function insertActivityWithStatusesInTx(
   if (!activity) {
     throw new Error("agenda.activities: insert returned no row");
   }
-  if (profileIds.length > 0) {
-    await tx.insert(agendaActivityStatuses).values(
-      profileIds.map((profileId) => ({
-        activityId: activity.id,
-        studentProfileId: profileId,
-      })),
-    );
-  }
+  await tx.insert(agendaTasks).values(profileIds.map((id) => taskFromActivity(activity, id)));
   return activity;
+}
+
+/**
+ * A tarefa que executa um fato publicado, para uma criança.
+ *
+ * Os campos que a turma define (tipo, matéria, título, prazo) vêm da
+ * atividade; os que são da família (hora, local, responsável, lembrete)
+ * nascem vazios e passam a ser editáveis — antes não existiam para a
+ * atividade escolar.
+ */
+function taskFromActivity(activity: Activity, profileId: string) {
+  return {
+    sharedActivityId: activity.id,
+    profileId,
+    createdByUserId: activity.createdByUserId,
+    type: activity.type,
+    subjectId: activity.subjectId,
+    title: activity.title,
+    description: activity.description,
+    dueAt: activity.dueAt,
+    dateOrigin: "school" as const,
+    fingerprint: actionFingerprint(activity),
+  };
 }
 
 export async function countActivitiesCreatedByUser(userId: string): Promise<number> {
@@ -261,6 +253,23 @@ export async function updateActivityById(
       .where(eq(agendaActivities.id, id))
       .returning();
     if (!current) throw new Error("Activity update returned no row");
+    // A retificação publicada alcança quem já recebeu. Os campos da família
+    // (hora, local, responsável, lembrete, conclusão) não são tocados: o que a
+    // turma corrige é o enunciado, não a rotina de cada casa.
+    await tx
+      .update(agendaTasks)
+      .set({
+        type: current.type,
+        subjectId: current.subjectId,
+        title: current.title,
+        description: current.description,
+        dueAt: current.dueAt,
+        dateOrigin: "school",
+        fingerprint: actionFingerprint(current),
+        version: sql`${agendaTasks.version} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(agendaTasks.sharedActivityId, id));
     await tx
       .insert(agendaActivityRevisions)
       .values({ activityId: id, actorId, version: current.version, previous, current });
@@ -278,6 +287,10 @@ export async function deleteActivityById(id: string, actorId: string): Promise<b
     if (!previous) return false;
     const accepted = await hasRecipientHistory(tx, id);
     if (!accepted) {
+      // Sem histórico de destinatário, some de verdade — inclusive as tarefas.
+      // O `ON DELETE SET NULL` da FK sozinho deixaria tarefas órfãs, que
+      // continuariam cobrando a família por uma atividade que não existe mais.
+      await tx.delete(agendaTasks).where(eq(agendaTasks.sharedActivityId, id));
       await tx.delete(agendaActivities).where(eq(agendaActivities.id, id));
       return true;
     }
@@ -288,6 +301,18 @@ export async function deleteActivityById(id: string, actorId: string): Promise<b
       .where(eq(agendaActivities.id, id))
       .returning();
     if (!current) throw new Error("Activity cancellation returned no row");
+    // Só o que ainda estava por fazer é cancelado. A criança que já cumpriu
+    // continua tendo cumprido — a conclusão de cada família é dela, e a
+    // correção de quem publicou não a apaga. A versão sobe junto porque é ela
+    // que diz ao calendário assinado que o evento mudou (SEQUENCE no .ics).
+    await tx
+      .update(agendaTasks)
+      .set({
+        status: "canceled",
+        version: sql`${agendaTasks.version} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(agendaTasks.sharedActivityId, id), eq(agendaTasks.status, "pending")));
     await tx
       .insert(agendaActivityRevisions)
       .values({ activityId: id, actorId, version: current.version, previous, current });
@@ -295,99 +320,11 @@ export async function deleteActivityById(id: string, actorId: string): Promise<b
   });
 }
 
-export async function findActivityStatusForProfile(
-  activityId: string,
-  profileId: string,
-): Promise<{ id: string; status: ActivityStatusValue; ownerUserId: string } | null> {
-  const [row] = await db
-    .select({
-      id: agendaActivityStatuses.id,
-      status: agendaActivityStatuses.status,
-      ownerUserId: agendaStudentProfiles.userId,
-    })
-    .from(agendaActivityStatuses)
-    .innerJoin(
-      agendaStudentProfiles,
-      eq(agendaStudentProfiles.id, agendaActivityStatuses.studentProfileId),
-    )
-    .where(
-      and(
-        eq(agendaActivityStatuses.activityId, activityId),
-        eq(agendaActivityStatuses.studentProfileId, profileId),
-      ),
-    )
-    .limit(1);
-  return row ?? null;
-}
-
-export async function updateActivityStatusValue(
-  statusId: string,
-  status: ActivityStatusValue,
-  actorId: string,
-  freeLimit: number | null,
-): Promise<boolean | { limitReached: number }> {
-  const [candidate] = await db
-    .select({ ownerId: agendaStudentProfiles.userId })
-    .from(agendaActivityStatuses)
-    .innerJoin(
-      agendaStudentProfiles,
-      eq(agendaStudentProfiles.id, agendaActivityStatuses.studentProfileId),
-    )
-    .where(and(eq(agendaActivityStatuses.id, statusId), accessibleProfileCondition(actorId)));
-  if (!candidate) return false;
-  return db.transaction(async (tx) => {
-    await tx.execute(
-      sql`SELECT pg_advisory_xact_lock(hashtext(${`agenda:family:${candidate.ownerId}`}))`,
-    );
-    await lockPendingLimit(tx, candidate.ownerId);
-    const [current] = await tx
-      .select({ row: agendaActivityStatuses, activity: agendaActivities })
-      .from(agendaActivityStatuses)
-      .innerJoin(
-        agendaStudentProfiles,
-        eq(agendaStudentProfiles.id, agendaActivityStatuses.studentProfileId),
-      )
-      .innerJoin(agendaActivities, eq(agendaActivities.id, agendaActivityStatuses.activityId))
-      .where(and(eq(agendaActivityStatuses.id, statusId), accessibleProfileCondition(actorId)))
-      .for("update");
-    if (!current || current.activity.canceledAt) return false;
-    if (
-      freeLimit !== null &&
-      status === "pending" &&
-      current.row.status === "done" &&
-      current.activity.createdByUserId === candidate.ownerId
-    ) {
-      const [pendingSibling] = await tx
-        .select({ id: agendaActivityStatuses.id })
-        .from(agendaActivityStatuses)
-        .innerJoin(
-          agendaStudentProfiles,
-          eq(agendaStudentProfiles.id, agendaActivityStatuses.studentProfileId),
-        )
-        .where(
-          and(
-            eq(agendaActivityStatuses.activityId, current.activity.id),
-            eq(agendaActivityStatuses.status, "pending"),
-            eq(agendaStudentProfiles.userId, candidate.ownerId),
-          ),
-        )
-        .limit(1);
-      const total = await countPendingActivities(tx, candidate.ownerId);
-      if (!pendingSibling && total >= freeLimit) return { limitReached: total };
-    }
-    await tx
-      .update(agendaActivityStatuses)
-      .set({ status, updatedAt: new Date() })
-      .where(eq(agendaActivityStatuses.id, statusId));
-    return true;
-  });
-}
-
-// Upsert da resposta + (quando accepted=true) seed de status rows pros perfis
-// ativos do user na turma. Idempotente: ON CONFLICT DO NOTHING nos statuses
+// Upsert da resposta + (quando accepted=true) uma tarefa pra cada criança
+// ativa do user na turma. Idempotente: ON CONFLICT DO NOTHING nas tarefas
 // e DO UPDATE na acceptance pra permitir mudar de mente (aceitar depois de
 // rejeitar, ou vice-versa).
-export async function upsertAcceptanceAndStatuses(
+export async function upsertAcceptanceAndTasks(
   activityId: string,
   userId: string,
   accepted: boolean,
@@ -424,52 +361,14 @@ export async function upsertAcceptanceAndStatuses(
       });
     if (!accepted) return true;
     await tx
-      .insert(agendaActivityStatuses)
-      .values(
-        profiles.map((p) => ({
-          activityId,
-          studentProfileId: p.id,
-        })),
-      )
+      .insert(agendaTasks)
+      .values(profiles.map((p) => taskFromActivity(activity, p.id)))
       .onConflictDoNothing({
-        target: [agendaActivityStatuses.activityId, agendaActivityStatuses.studentProfileId],
+        target: [agendaTasks.sharedActivityId, agendaTasks.profileId],
+        where: sql`${agendaTasks.sharedActivityId} IS NOT NULL`,
       });
     return true;
   });
-}
-
-function selectActivityListItems() {
-  return db
-    .select(activityListSelect)
-    .from(agendaActivityStatuses)
-    .innerJoin(
-      agendaStudentProfiles,
-      eq(agendaStudentProfiles.id, agendaActivityStatuses.studentProfileId),
-    )
-    .innerJoin(agendaActivities, eq(agendaActivities.id, agendaActivityStatuses.activityId))
-    .innerJoin(agendaSubjects, eq(agendaSubjects.id, agendaActivities.subjectId))
-    .innerJoin(agendaTurmas, eq(agendaTurmas.id, agendaActivities.turmaId))
-    .innerJoin(agendaSchools, eq(agendaSchools.inepCode, agendaTurmas.schoolInepCode));
-}
-
-/**
- * Uma atividade escolar na forma canônica da lista, para a página de detalhe.
- *
- * Volta uma linha por criança acessível — a mesma atividade pode valer para
- * dois filhos, e cada um tem a sua conclusão. O detalhe mostra a primeira e
- * lista as demais.
- */
-export async function findSchoolActivityForUser(userId: string, activityId: string) {
-  return selectActivityListItems().where(
-    and(accessibleProfileCondition(userId), eq(agendaActivities.id, activityId)),
-  );
-}
-
-export async function listSchoolActivitiesByStatusIds(userId: string, ids: string[]) {
-  if (!ids.length) return [];
-  return selectActivityListItems().where(
-    and(accessibleProfileCondition(userId), inArray(agendaActivityStatuses.id, ids)),
-  );
 }
 
 // Widget de aceite no dashboard (Pro). Atividades compartilhadas:

@@ -1,12 +1,12 @@
 import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import { err, ok } from "@informach/auth/server-actions";
-import { and, db, eq, inArray, sql } from "@informach/db";
+import { and, db, eq, inArray, ne, sql } from "@informach/db";
 import {
+  agendaActivities,
   agendaActivityRevisions,
   agendaFamilyMembers,
   agendaFamilyProfileAccess,
-  agendaNoticeActions,
   agendaNoticeApplications,
   agendaNotices,
   agendaNotificationDeliveries,
@@ -14,6 +14,7 @@ import {
   agendaProfileSubjects,
   agendaStudentProfiles,
   agendaSubjects,
+  agendaTasks,
   agendaTurmaMembers,
 } from "@informach/db/schema";
 import type { z } from "zod";
@@ -205,11 +206,11 @@ export async function insertConfirmedNotice(
     const existing = work.length
       ? await tx
           .select()
-          .from(agendaNoticeActions)
+          .from(agendaTasks)
           .where(
             and(
-              inArray(agendaNoticeActions.profileId, profileIds),
-              sql`${agendaNoticeActions.status} <> 'canceled'`,
+              inArray(agendaTasks.profileId, profileIds),
+              sql`${agendaTasks.status} <> 'canceled'`,
             ),
           )
           .for("update")
@@ -239,7 +240,7 @@ export async function insertConfirmedNotice(
     const resolutions = input.resolutions ?? [];
     if (new Set(resolutions.map((r) => r.index)).size !== resolutions.length)
       return err({ code: "INVALID_CORRECTION" } as const);
-    const replacements = new Map<number, typeof agendaNoticeActions.$inferSelect>();
+    const replacements = new Map<number, typeof agendaTasks.$inferSelect>();
     for (const { index, action } of values) {
       const options = candidates.filter((c) => c.index === index);
       const resolution = resolutions.find((r) => r.index === index);
@@ -297,7 +298,7 @@ export async function insertConfirmedNotice(
       };
       if (previous) {
         const [current] = await tx
-          .update(agendaNoticeActions)
+          .update(agendaTasks)
           .set({
             ...fields,
             version: previous.version + 1,
@@ -307,11 +308,11 @@ export async function insertConfirmedNotice(
                 ? (previous.seriesId ?? randomUUID())
                 : previous.seriesId,
           })
-          .where(eq(agendaNoticeActions.id, previous.id))
+          .where(eq(agendaTasks.id, previous.id))
           .returning();
         if (!current) throw new Error("Notice correction failed");
         await tx.insert(agendaActivityRevisions).values({
-          noticeActionId: previous.id,
+          taskId: previous.id,
           actorId: userId,
           version: current.version,
           previous,
@@ -321,13 +322,13 @@ export async function insertConfirmedNotice(
         ids.push(current.id);
       } else {
         const [created] = await tx
-          .insert(agendaNoticeActions)
+          .insert(agendaTasks)
           .values({
             ...fields,
             createdByUserId: userId,
             seriesId: action.recurrence === "weekly" ? randomUUID() : null,
           })
-          .returning({ id: agendaNoticeActions.id });
+          .returning({ id: agendaTasks.id });
         if (!created) throw new Error("Notice action insert failed");
         ids.push(created.id);
       }
@@ -387,12 +388,12 @@ export async function updateNoticeActionAtomically(
     await lockFamily(tx, ownerId);
     const [previous] = await tx
       .select()
-      .from(agendaNoticeActions)
+      .from(agendaTasks)
       .where(
         and(
-          eq(agendaNoticeActions.id, input.id),
+          eq(agendaTasks.id, input.id),
           inArray(
-            agendaNoticeActions.profileId,
+            agendaTasks.profileId,
             tx
               .select({ id: agendaStudentProfiles.id })
               .from(agendaStudentProfiles)
@@ -415,8 +416,16 @@ export async function updateNoticeActionAtomically(
       (input.action.reminderAt !== null &&
         new Date(input.action.reminderAt).valueOf() !== previous.reminderAt?.valueOf());
     if (!isPro && addsAutomation) return err({ code: "PRO_REQUIRED" } as const);
+    // Quem publicou a atividade na turma edita o que a turma inteira lê, e o
+    // fato publicado exige matéria e prazo. Recusar é mais honesto do que
+    // gravar a versão da família e deixar a turma com a antiga.
+    const publishedBySelf = previous.sharedActivityId
+      ? await isPublishedBy(tx, previous.sharedActivityId, userId)
+      : false;
+    if (publishedBySelf && (!input.action.dueAt || !input.action.subjectId))
+      return err({ code: "SHARED_REQUIRES_SCHOOL_FIELDS" } as const);
     const [current] = await tx
-      .update(agendaNoticeActions)
+      .update(agendaTasks)
       .set({
         ...input.action,
         reminderAt: input.action.reminderAt ? new Date(input.action.reminderAt) : null,
@@ -428,12 +437,14 @@ export async function updateNoticeActionAtomically(
             ? (previous.seriesId ?? randomUUID())
             : previous.seriesId,
       })
-      .where(eq(agendaNoticeActions.id, input.id))
+      .where(eq(agendaTasks.id, input.id))
       .returning();
     if (!current) throw new Error("Action update failed");
+    if (publishedBySelf && previous.sharedActivityId)
+      await publishActivityCorrection(tx, previous.sharedActivityId, userId, current);
     await cancelActionDeliveries(tx, previous.id, previous.version);
     await tx.insert(agendaActivityRevisions).values({
-      noticeActionId: input.id,
+      taskId: input.id,
       actorId: userId,
       version: current.version,
       previous,
@@ -441,6 +452,84 @@ export async function updateNoticeActionAtomically(
     });
     return ok({ id: input.id });
   });
+}
+
+/** O fato publicado é deste usuário e ainda vale? */
+async function isPublishedBy(tx: AgendaTransaction, activityId: string, userId: string) {
+  const [row] = await tx
+    .select({ id: agendaActivities.id })
+    .from(agendaActivities)
+    .where(
+      and(
+        eq(agendaActivities.id, activityId),
+        eq(agendaActivities.createdByUserId, userId),
+        sql`${agendaActivities.canceledAt} IS NULL`,
+      ),
+    )
+    .limit(1);
+  return Boolean(row);
+}
+
+/**
+ * Leva a correção da família que publicou para a turma inteira.
+ *
+ * Sem isto, a tela de edição única corrigiria só a cópia de quem editou e as
+ * outras famílias continuariam vendo o enunciado antigo — a mesma assimetria
+ * que a convergência veio desfazer, só que invisível. A hora, o local, o
+ * responsável e a conclusão de cada casa não viajam: o que a turma corrige é o
+ * enunciado, não a rotina alheia.
+ */
+async function publishActivityCorrection(
+  tx: AgendaTransaction,
+  activityId: string,
+  actorId: string,
+  task: typeof agendaTasks.$inferSelect,
+) {
+  if (!task.dueAt || !task.subjectId) return;
+  const [previous] = await tx
+    .select()
+    .from(agendaActivities)
+    .where(eq(agendaActivities.id, activityId))
+    .for("update");
+  // Reconfere sob o lock: entre a checagem e aqui a atividade pode ter sido
+  // cancelada por outra sessão, e ressuscitá-la em silêncio seria pior do que
+  // deixar a correção valer só para esta família.
+  if (!previous || previous.canceledAt || previous.createdByUserId !== actorId) return;
+  const [current] = await tx
+    .update(agendaActivities)
+    .set({
+      type: task.type,
+      subjectId: task.subjectId,
+      title: task.title,
+      description: task.description,
+      dueAt: task.dueAt,
+      version: previous.version + 1,
+      updatedAt: new Date(),
+    })
+    .where(eq(agendaActivities.id, activityId))
+    .returning();
+  if (!current) throw new Error("Shared activity correction failed");
+  await tx.insert(agendaActivityRevisions).values({
+    activityId,
+    actorId,
+    version: current.version,
+    previous,
+    current,
+  });
+  await tx
+    .update(agendaTasks)
+    .set({
+      type: current.type,
+      subjectId: current.subjectId,
+      title: current.title,
+      description: current.description,
+      dueAt: current.dueAt,
+      dateOrigin: "school",
+      fingerprint: actionFingerprint(current),
+      version: sql`${agendaTasks.version} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(agendaTasks.sharedActivityId, activityId), ne(agendaTasks.id, task.id)));
 }
 
 export function nextWeeklyDate(iso: string) {
@@ -459,12 +548,12 @@ export async function setNoticeActionStatusAtomically(
     await lockFamily(tx, ownerId);
     const [previous] = await tx
       .select()
-      .from(agendaNoticeActions)
+      .from(agendaTasks)
       .where(
         and(
-          eq(agendaNoticeActions.id, input.id),
+          eq(agendaTasks.id, input.id),
           inArray(
-            agendaNoticeActions.profileId,
+            agendaTasks.profileId,
             tx
               .select({ id: agendaStudentProfiles.id })
               .from(agendaStudentProfiles)
@@ -483,18 +572,18 @@ export async function setNoticeActionStatusAtomically(
     )
       return err({ code: "ACTIVITY_LIMIT_REACHED" } as const);
     const [current] = await tx
-      .update(agendaNoticeActions)
+      .update(agendaTasks)
       .set({
         status: input.status,
         version: previous.version + 1,
         updatedAt: new Date(),
         completedAt: input.status === "done" ? new Date() : null,
       })
-      .where(eq(agendaNoticeActions.id, input.id))
+      .where(eq(agendaTasks.id, input.id))
       .returning();
     if (!current) throw new Error("Action status update failed");
     await tx.insert(agendaActivityRevisions).values({
-      noticeActionId: input.id,
+      taskId: input.id,
       actorId: userId,
       version: current.version,
       previous,
@@ -505,7 +594,7 @@ export async function setNoticeActionStatusAtomically(
       if (isPro && previous.recurrence === "weekly" && previous.dueAt && previous.seriesId) {
         const dueAt = nextWeeklyDate(previous.dueAt);
         await tx
-          .insert(agendaNoticeActions)
+          .insert(agendaTasks)
           .values({
             profileId: previous.profileId,
             createdByUserId: userId,
@@ -525,11 +614,7 @@ export async function setNoticeActionStatusAtomically(
               : null,
           })
           .onConflictDoNothing({
-            target: [
-              agendaNoticeActions.seriesId,
-              agendaNoticeActions.profileId,
-              agendaNoticeActions.dueAt,
-            ],
+            target: [agendaTasks.seriesId, agendaTasks.profileId, agendaTasks.dueAt],
           });
       }
     }

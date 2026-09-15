@@ -4,8 +4,8 @@ import { and, db, eq, inArray, sql } from "@informach/db";
 import {
   agendaActivities,
   agendaActivityAcceptances,
-  agendaActivityStatuses,
   agendaStudentProfiles,
+  agendaTasks,
   agendaTurmaMembers,
   agendaTurmas,
   users,
@@ -80,11 +80,11 @@ export async function removeGroupAdult(userId: string, turmaId: string, memberUs
       .from(agendaStudentProfiles)
       .where(eq(agendaStudentProfiles.userId, memberUserId));
     // Revocation removes this group's incoming shared data, retaining work authored by that adult.
-    await tx.delete(agendaActivityStatuses).where(
+    await tx.delete(agendaTasks).where(
       and(
-        inArray(agendaActivityStatuses.studentProfileId, profiles),
+        inArray(agendaTasks.profileId, profiles),
         inArray(
-          agendaActivityStatuses.activityId,
+          agendaTasks.sharedActivityId,
           tx
             .select({ id: agendaActivities.id })
             .from(agendaActivities)

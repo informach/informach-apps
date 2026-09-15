@@ -6,7 +6,8 @@ import { ActivityFormDialog } from "@/features/activities/components/activity-fo
 import type { TurmaWithSubjectsForForm } from "@/features/activities/types";
 import type { AddEntitlement } from "@/features/notices/entitlement";
 import type { StudentProfile } from "@/features/students/types";
-import type { UnifiedActivityListItem } from "@/features/unified-activities/types";
+import type { ActivityOverviewItem } from "@/features/unified-activities/overview-types";
+import type { TaskRow } from "@/features/unified-activities/task-repository";
 import { shiftAnchor, todayLocalIso } from "../date";
 import type { CalendarView as CalendarViewKind } from "../types";
 import { ActivityDetailDialog } from "./activity-detail-dialog";
@@ -30,7 +31,7 @@ type Props = {
    */
   profiles: StudentProfile[];
   turmasForForm: TurmaWithSubjectsForForm[];
-  items: UnifiedActivityListItem[];
+  items: ActivityOverviewItem[];
 };
 
 // Orquestrador do calendário. URL é a fonte da verdade (`?view=`, `?date=`,
@@ -70,21 +71,12 @@ export function CalendarView({
     return matched?.activeTurmaId ?? undefined;
   }, [profileFilter, profiles]);
 
-  // Acha o item ativo pela chave estável da origem. Turma usa `statusId`
-  // (atividade × perfil), extras usam `activityId` (1 row = 1 atividade).
-  // detailItemId é prefixado com "turma:" ou "extra:" pra evitar colisão.
-  const detailItem = useMemo(() => {
-    if (!detailItemId) return null;
-    const [origin, key] = detailItemId.split(":");
-    return (
-      items.find((it) => {
-        if (it.source === "turma" && origin === "turma") return it.statusId === key;
-        if (it.source === "extra" && origin === "extra") return it.activityId === key;
-        if (it.source === "notice" && origin === "notice") return it.activityId === key;
-        return false;
-      }) ?? null
-    );
-  }, [items, detailItemId]);
+  // Uma tabela, um id: a chave composta por origem deixou de ser necessária.
+  const rows = useMemo(() => items.map((entry) => entry.item), [items]);
+  const detailItem = useMemo(
+    () => (detailItemId ? (rows.find((row) => row.id === detailItemId) ?? null) : null),
+    [rows, detailItemId],
+  );
 
   const buildHref = useCallback(
     (next: { view?: CalendarViewKind; date?: string; perfil?: string | null }) => {
@@ -114,12 +106,10 @@ export function CalendarView({
   const handleViewChange = (next: CalendarViewKind) => navigate({ view: next });
   const handleProfileChange = (next: string | null) => navigate({ perfil: next });
 
-  const handleSelectActivity = useCallback((item: UnifiedActivityListItem) => {
+  const handleSelectActivity = useCallback((item: TaskRow) => {
     detailTrigger.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const key =
-      item.source === "turma" ? `turma:${item.statusId}` : `${item.source}:${item.activityId}`;
-    setDetailItemId(key);
+    setDetailItemId(item.id);
     setDetailOpen(true);
   }, []);
 
@@ -153,14 +143,14 @@ export function CalendarView({
       {view === "month" ? (
         <MonthView
           anchorIso={anchorIso}
-          items={items}
+          items={rows}
           onSelectActivity={handleSelectActivity}
           onCreateForDay={handleCreateForDay}
         />
       ) : view === "week" ? (
         <WeekView
           anchorIso={anchorIso}
-          items={items}
+          items={rows}
           onSelectActivity={handleSelectActivity}
           onCreateForDay={handleCreateForDay}
         />
@@ -169,8 +159,6 @@ export function CalendarView({
           anchorIso={anchorIso}
           items={items}
           currentUserId={userId}
-          isPro={isPro}
-          turmasForForm={turmasForForm}
           onCreateForDay={handleCreateForDay}
         />
       )}
@@ -188,8 +176,6 @@ export function CalendarView({
         }}
         item={detailItem}
         currentUserId={userId}
-        isPro={isPro}
-        turmasForForm={turmasForForm}
       />
 
       <ActivityFormDialog

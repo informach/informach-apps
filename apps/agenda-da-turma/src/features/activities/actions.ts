@@ -8,16 +8,9 @@ import {
   createActivityInputSchema,
   deleteActivityInputSchema,
   respondSharedActivityInputSchema,
-  setActivityStatusInputSchema,
   updateActivityInputSchema,
 } from "./schemas";
-import {
-  createActivity,
-  deleteActivity,
-  respondSharedActivity,
-  setActivityStatus,
-  updateActivity,
-} from "./service";
+import { createActivity, deleteActivity, respondSharedActivity, updateActivity } from "./service";
 
 export const createActivityAction = action
   .input(createActivityInputSchema)
@@ -83,31 +76,6 @@ export const deleteActivityAction = action
     await logAgendaAuditEvent("agenda.activity_deleted", userId, { activityId: input.id });
     refreshActivityViews();
     return ok({ id: input.id } as const);
-  });
-
-export const setActivityStatusAction = action
-  .input(setActivityStatusInputSchema)
-  .auth({ require: "user" })
-  .rateLimit({ key: "activities-status", max: 300, window: "1h" })
-  .run(async ({ input, ctx }) => {
-    const userId = ctx.actor?.id;
-    if (!userId) return err({ code: "UNAUTHORIZED" } as const);
-
-    const result = await setActivityStatus(userId, input);
-    if (!result.ok) return err(result.error);
-
-    logger.info(
-      { userId, activityId: input.activityId, status: input.status },
-      "agenda.activity_status_set",
-    );
-    await logAgendaAuditEvent("agenda.activity_status_set", userId, {
-      activityId: input.activityId,
-      statusId: result.value.statusId,
-      studentProfileId: input.studentProfileId,
-      status: input.status,
-    });
-    refreshActivityViews();
-    return ok({ statusId: result.value.statusId } as const);
   });
 
 export const respondSharedActivityAction = action

@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db, eq, inArray } from "@informach/db";
 import {
-  agendaActivityStatuses,
   agendaCities,
   agendaNotices,
   agendaNotificationDeliveries,
@@ -11,6 +10,7 @@ import {
   agendaSchools,
   agendaStudentProfiles,
   agendaSubjects,
+  agendaTasks,
   agendaTurmaMembers,
   agendaTurmas,
   creditReservations,
@@ -285,22 +285,15 @@ describe("Review regressions", () => {
     expect(second.hasNextPage).toBe(false);
     const combined = [...first.items, ...second.items];
     expect(new Set(combined.map((item) => item.key)).size).toBe(32);
-    expect(
-      combined.some((item) => item.source === "turma" && item.item.activityId === schoolRecord.id),
-    ).toBe(true);
-    expect(
-      combined.some((item) => item.source === "extra" && item.item.activityId === extraRecord.id),
-    ).toBe(true);
+    expect(combined.some((item) => item.item.sharedActivityId === schoolRecord.id)).toBe(true);
+    expect(combined.some((item) => item.item.id === extraRecord.id)).toBe(true);
     expect(
       first.items.every(
-        (item) =>
-          item.source === "notice" &&
-          item.item.action.dueAt === null &&
-          item.item.source === "notebook",
+        (item) => item.item.dueAt === null && item.item.noticeSource === "notebook",
       ),
     ).toBe(true);
     const projects = await getActivityOverview(owner, { ...options, typeFilter: "project" });
-    expect(projects.items.map((item) => item.source)).toEqual(["extra"]);
+    expect(projects.items.map((item) => item.item.id)).toEqual([extraRecord.id]);
     expect(projects.hasNextPage).toBe(false);
     const exams = await getActivityOverview(guest, { ...options, typeFilter: "exam" });
     expect(exams.items).toHaveLength(30);
@@ -315,11 +308,11 @@ describe("Review regressions", () => {
     expect(
       (await listNoticeOriginals(owner, { page: 1, profileId: sibling })).map((row) => row.id),
     ).toContain(original.id);
-    const firstNotice = first.items.find((item) => item.source === "notice");
-    if (!firstNotice || firstNotice.source !== "notice") throw new Error("Missing notice activity");
+    const firstNotice = first.items.find((item) => item.item.noticeId !== null);
+    if (!firstNotice) throw new Error("Missing notice activity");
     value(
       await setNoticeActionStatus(guest, {
-        id: firstNotice.item.action.id,
+        id: firstNotice.item.id,
         version: 1,
         status: "done",
       }),
@@ -362,9 +355,7 @@ describe("Review regressions", () => {
       page: 1,
     };
     const filtered = await getActivityOverview(owner, options);
-    expect(
-      filtered.items.map((item) => (item.source === "turma" ? item.item.activityId : null)).sort(),
-    ).toEqual(exams.sort());
+    expect(filtered.items.map((item) => item.item.sharedActivityId).sort()).toEqual(exams.sort());
     expect((await getActivityOverview(outsider, options)).items).toEqual([]);
     expect(
       (await getActivityOverview(owner, { ...options, profileFilter: sibling })).items,
@@ -385,8 +376,8 @@ describe("Review regressions", () => {
       noticeId: null,
       page: 1,
     });
-    const listedSchool = listed.items.find((item) => item.source === "turma");
-    expect(listedSchool?.source === "turma" && listedSchool.item.version).toBe(first.version);
+    const listedSchool = listed.items.find((item) => item.item.sharedActivityId === a.id);
+    expect(listedSchool?.item.version).toBe(first.version);
     const second = value(
       await updateActivity(owner, {
         ...first,
@@ -432,15 +423,15 @@ describe("Review regressions", () => {
     const a = await schoolActivity();
     value(await respondSharedActivity(outsider, { activityId: a.id, accepted: true }));
     await db
-      .update(agendaActivityStatuses)
+      .update(agendaTasks)
       .set({ status: "done" })
-      .where(eq(agendaActivityStatuses.studentProfileId, otherChild));
+      .where(eq(agendaTasks.profileId, otherChild));
     value(await respondSharedActivity(outsider, { activityId: a.id, accepted: false }));
     value(await deleteActivity(owner, { id: a.id }));
     const statuses = await db
       .select()
-      .from(agendaActivityStatuses)
-      .where(eq(agendaActivityStatuses.studentProfileId, otherChild));
+      .from(agendaTasks)
+      .where(eq(agendaTasks.profileId, otherChild));
     expect(statuses).toHaveLength(1);
     expect(statuses[0]?.status).toBe("done");
     expect((await findActivityHistory(outsider, a.id))?.activity.canceledAt).toBeInstanceOf(Date);

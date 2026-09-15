@@ -20,15 +20,13 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { cleanAgendaAccount } from "@/features/account/cleanup";
 import { prepareAgendaAccountDeletion } from "@/features/account/deletion";
 import { countPendingActivities } from "@/features/activities/pending-limit";
-import { insertActivityWithStatuses } from "@/features/activities/repository";
+import { insertActivityWithTasks } from "@/features/activities/repository";
 import {
   createActivity,
   deleteActivity,
   respondSharedActivity,
-  setActivityStatus,
   updateActivity,
 } from "@/features/activities/service";
-import { listActivitiesInDateRange } from "@/features/calendar/repository";
 import {
   createCalendarFeed,
   readCalendarFeed,
@@ -59,6 +57,7 @@ import {
   rotateGroupCode,
 } from "@/features/turmas/group-access";
 import { createOrJoinTurma } from "@/features/turmas/service";
+import { listTasksInDateRange } from "@/features/unified-activities/task-repository";
 import { emails } from "@/lib/emails";
 
 function value<T>(result: { ok: true; value: T } | { ok: false; error: unknown }): T {
@@ -68,7 +67,7 @@ function value<T>(result: { ok: true; value: T } | { ok: false; error: unknown }
 let owner: string, guest: string, other: string, child: string, sibling: string, otherChild: string;
 let school: string, group: string, subject: string, customer: string, subscription: string;
 const date = todayLocalIso();
-const range = { fromIso: "2026-01-01", toIso: "2030-12-31", profileFilter: null, isPro: false };
+const range = { fromIso: "2026-01-01", toIso: "2030-12-31", profileFilter: null };
 const action = (title = "Providência sintética", profileId = child): NoticeActionInput => ({
   profileId,
   type: "authorization",
@@ -220,15 +219,15 @@ describe("private groups and shared activities", () => {
       }),
     );
     value(await respondSharedActivity(other, { activityId: created.id, accepted: true }));
-    expect((await listActivitiesInDateRange(other, range)).map((a) => a.activityId)).toContain(
-      created.id,
-    );
+    expect(
+      (await listTasksInDateRange(other, range)).map((task) => task.sharedActivityId),
+    ).toContain(created.id);
     expect(await countPendingActivities(db, other)).toBe(0);
     value(await removeGroupAdult(owner, group, other));
-    expect(await listActivitiesInDateRange(other, range)).toEqual([]);
+    expect(await listTasksInDateRange(other, range)).toEqual([]);
     expect(await joinPrivateGroup(other, otherChild, rotated.code)).toBeNull();
     await expect(
-      insertActivityWithStatuses({
+      insertActivityWithTasks({
         turmaId: group,
         subjectId: subject,
         createdByUserId: other,
@@ -254,10 +253,14 @@ describe("private groups and shared activities", () => {
       }),
     );
     value(await respondSharedActivity(other, { activityId: created.id, accepted: true }));
+    // A conclusão é da tarefa da família que recebeu — a mesma alternância de
+    // qualquer outra atividade desde a convergência.
+    const [received] = await listTasksInDateRange(other, range);
+    if (!received) throw new Error("Missing received task");
     value(
-      await setActivityStatus(other, {
-        activityId: created.id,
-        studentProfileId: otherChild,
+      await setNoticeActionStatus(other, {
+        id: received.id,
+        version: received.version,
         status: "done",
       }),
     );
@@ -285,14 +288,14 @@ describe("private groups and shared activities", () => {
       }),
     ).toMatchObject({ ok: false, error: { code: "VERSION_CONFLICT" } });
     await downgrade();
-    expect((await listActivitiesInDateRange(other, range))[0]).toMatchObject({
+    expect((await listTasksInDateRange(other, range))[0]).toMatchObject({
       title: "Prova remarcada",
       status: "done",
-      version: 2,
+      version: 3,
     });
     await cleanAgendaAccount(owner);
     await db.delete(users).where(eq(users.id, owner));
-    expect((await listActivitiesInDateRange(other, range))[0]).toMatchObject({
+    expect((await listTasksInDateRange(other, range))[0]).toMatchObject({
       createdByUserId: null,
       status: "done",
       title: "Prova remarcada",

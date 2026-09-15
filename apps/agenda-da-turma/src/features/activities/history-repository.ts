@@ -3,8 +3,8 @@ import { and, db, desc, eq } from "@informach/db";
 import {
   agendaActivities,
   agendaActivityRevisions,
-  agendaActivityStatuses,
   agendaStudentProfiles,
+  agendaTasks,
   users,
 } from "@informach/db/schema";
 import { accessibleProfileCondition } from "@/features/family/access";
@@ -12,11 +12,8 @@ export async function findActivityHistory(userId: string, id: string) {
   const accessible = await db
     .select({ activity: agendaActivities, ownerId: agendaStudentProfiles.userId })
     .from(agendaActivities)
-    .innerJoin(agendaActivityStatuses, eq(agendaActivityStatuses.activityId, agendaActivities.id))
-    .innerJoin(
-      agendaStudentProfiles,
-      eq(agendaStudentProfiles.id, agendaActivityStatuses.studentProfileId),
-    )
+    .innerJoin(agendaTasks, eq(agendaTasks.sharedActivityId, agendaActivities.id))
+    .innerJoin(agendaStudentProfiles, eq(agendaStudentProfiles.id, agendaTasks.profileId))
     .where(and(eq(agendaActivities.id, id), accessibleProfileCondition(userId)));
   const [activity] = accessible;
   if (!activity) return null;

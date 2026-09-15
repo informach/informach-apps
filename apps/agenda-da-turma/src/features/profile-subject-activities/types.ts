@@ -2,9 +2,14 @@ import type { ActivityStatusValue, ActivityType } from "@/features/activities/ty
 
 export type { ActivityStatusValue, ActivityType };
 
-// Row crua de `agenda.profile_subject_activities`. `profileId` é redundante
-// com `profileSubjectId.profileId` mas guardamos pra evitar JOIN em queries
-// de range (dashboard, calendário).
+/**
+ * A atividade extracurricular, como a página da matéria a lê.
+ *
+ * É uma linha de `agenda.tasks` com `profile_subject_id` preenchido — não há
+ * mais tabela própria. Por isso o prazo é opcional (a tarefa sem data vive na
+ * rotina, sem data fictícia) e o cancelamento é um estado possível, coisas
+ * que a tabela antiga não sabia representar.
+ */
 export type ProfileSubjectActivity = {
   id: string;
   profileId: string;
@@ -13,38 +18,9 @@ export type ProfileSubjectActivity = {
   type: ActivityType;
   title: string;
   description: string | null;
-  // "YYYY-MM-DD" (coluna `date` no Postgres)
-  dueAt: string;
-  status: ActivityStatusValue;
+  // "YYYY-MM-DD" (coluna `date` no Postgres); nulo é prazo a confirmar.
+  dueAt: string | null;
+  status: ActivityStatusValue | "canceled";
   createdAt: Date;
   updatedAt: Date;
-};
-
-// Shape consumido pela UI (cards). Discriminated union com o
-// `ActivityListItem` original via `source: "extra"`. Alinhado em colunas
-// comuns (dueAt, type, title, description, subjectColorIndex, status, perfil)
-// pra render funções (color, urgência, badges) consigam tratar os dois sem
-// adapters. Os campos exclusivos da turma (subjectName, schoolName, grade,
-// classLetter, year) ficam undefined; o renderer checa `source` antes de usar.
-export type ProfileSubjectActivityListItem = {
-  source: "extra";
-  // ID da atividade (mantém o nome do campo igual ao da turma pra reuso).
-  activityId: string;
-  // Pra extra, profileSubjectActivityId === activityId. Renomeado pro consumer
-  // entender o que está olhando.
-  profileSubjectActivityId: string;
-  status: ActivityStatusValue;
-  studentProfileId: string;
-  studentProfileName: string;
-  profileSubjectId: string;
-  profileSubjectName: string;
-  profileSubjectColorIndex: number;
-  profileSubjectStatus: "active" | "paused";
-  type: ActivityType;
-  title: string;
-  description: string | null;
-  dueAt: string;
-  activityCreatedAt: Date;
-  activityUpdatedAt?: Date;
-  createdByUserId: string | null;
 };

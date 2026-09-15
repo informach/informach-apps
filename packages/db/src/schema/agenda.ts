@@ -298,34 +298,6 @@ export const agendaActivities = agenda.table(
   ],
 );
 
-// Status individual por perfil. Quando a atividade é criada, geramos uma row
-// por perfil ativo do criador na turma. Quando outro usuário Pro aceita a
-// atividade compartilhada, geramos rows pros perfis ativos dele na turma.
-// `done` é terminal mas reversível (user pode marcar como pending de novo).
-export const agendaActivityStatuses = agenda.table(
-  "activity_statuses",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    activityId: uuid("activity_id")
-      .notNull()
-      .references(() => agendaActivities.id, { onDelete: "cascade" }),
-    studentProfileId: uuid("student_profile_id")
-      .notNull()
-      .references(() => agendaStudentProfiles.id, { onDelete: "cascade" }),
-    status: text("status", {
-      enum: ["pending", "done"],
-    })
-      .notNull()
-      .default("pending"),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-  },
-  (t) => [
-    uniqueIndex("agenda_activity_statuses_unique_idx").on(t.activityId, t.studentProfileId),
-    index("agenda_activity_statuses_profile_idx").on(t.studentProfileId, t.status),
-  ],
-);
-
 // Aceite/rejeite de atividade compartilhada por outro user (não-creator) da
 // turma. O criador NÃO tem row aqui — aceite implícito. `accepted=true`
 // gera status rows pros perfis ativos do user; `accepted=false` apenas
@@ -405,45 +377,6 @@ export const agendaProfileSubjects = agenda.table(
   ],
 );
 
-// Atividades de matéria extracurricular. Sempre individuais (sem visibility,
-// sem acceptance, sem fan-out por perfil) — extracurricular é dona dum perfil
-// único, então `status` é coluna direta na row (1 row = 1 status). Reuso do
-// enum literal `type` de `agenda.activities` pra UI/labels.
-//
-// `profileId` é redundante com `profileSubjectId.profileId` mas evita JOIN
-// no path quente do dashboard. Service garante consistência no insert.
-export const agendaProfileSubjectActivities = agenda.table(
-  "profile_subject_activities",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    profileId: uuid("profile_id")
-      .notNull()
-      .references(() => agendaStudentProfiles.id, { onDelete: "cascade" }),
-    profileSubjectId: uuid("profile_subject_id")
-      .notNull()
-      .references(() => agendaProfileSubjects.id, { onDelete: "cascade" }),
-    createdByUserId: text("created_by_user_id").references(() => users.id, {
-      onDelete: "set null",
-    }),
-    type: text("type", { enum: AGENDA_ACTIVITY_TYPES }).notNull(),
-    title: text("title").notNull(),
-    description: text("description"),
-    dueAt: date("due_at").notNull(),
-    status: text("status", {
-      enum: ["pending", "done"],
-    })
-      .notNull()
-      .default("pending"),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-  },
-  (t) => [
-    index("agenda_profile_subject_activities_profile_due_idx").on(t.profileId, t.dueAt),
-    index("agenda_profile_subject_activities_subject_idx").on(t.profileSubjectId),
-    index("agenda_profile_subject_activities_status_due_idx").on(t.status, t.dueAt),
-  ],
-);
-
 export type AgendaState = typeof agendaStates.$inferSelect;
 export type AgendaCity = typeof agendaCities.$inferSelect;
 export type AgendaSchool = typeof agendaSchools.$inferSelect;
@@ -459,11 +392,7 @@ export type AgendaSubjectAlternatingSlot = typeof agendaSubjectAlternatingSlots.
 export type NewAgendaSubjectAlternatingSlot = typeof agendaSubjectAlternatingSlots.$inferInsert;
 export type AgendaActivity = typeof agendaActivities.$inferSelect;
 export type NewAgendaActivity = typeof agendaActivities.$inferInsert;
-export type AgendaActivityStatus = typeof agendaActivityStatuses.$inferSelect;
-export type NewAgendaActivityStatus = typeof agendaActivityStatuses.$inferInsert;
 export type AgendaActivityAcceptance = typeof agendaActivityAcceptances.$inferSelect;
 export type NewAgendaActivityAcceptance = typeof agendaActivityAcceptances.$inferInsert;
 export type AgendaProfileSubject = typeof agendaProfileSubjects.$inferSelect;
 export type NewAgendaProfileSubject = typeof agendaProfileSubjects.$inferInsert;
-export type AgendaProfileSubjectActivity = typeof agendaProfileSubjectActivities.$inferSelect;
-export type NewAgendaProfileSubjectActivity = typeof agendaProfileSubjectActivities.$inferInsert;

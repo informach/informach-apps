@@ -6,7 +6,6 @@ import { MAX_ACTIVITY_DESCRIPTION_LENGTH, MAX_ACTIVITY_TITLE_LENGTH } from "./li
 const activityIdSchema = z.string().uuid("Identificador de atividade inválido");
 const turmaIdSchema = z.string().uuid("Identificador de turma inválido");
 const subjectIdSchema = z.string().uuid("Identificador de matéria inválido");
-const studentProfileIdSchema = z.string().uuid("Identificador de estudante inválido");
 
 const titleSchema = z
   .string()
@@ -25,8 +24,6 @@ const descriptionSchema = z
   .transform((v) => (v && v.length > 0 ? v : undefined));
 
 const visibilitySchema = z.enum(["individual", "shared_with_turma"]);
-
-const statusSchema = z.enum(["pending", "done"]);
 
 // "YYYY-MM-DD" (input type="date" retorna esse formato). Sem hora nem TZ.
 const dueAtSchema = z
@@ -66,13 +63,6 @@ export const deleteActivityInputSchema = z.object({
   id: activityIdSchema,
 });
 export type DeleteActivityInput = z.output<typeof deleteActivityInputSchema>;
-
-export const setActivityStatusInputSchema = z.object({
-  activityId: activityIdSchema,
-  studentProfileId: studentProfileIdSchema,
-  status: statusSchema,
-});
-export type SetActivityStatusInput = z.output<typeof setActivityStatusInputSchema>;
 
 export const respondSharedActivityInputSchema = z.object({
   activityId: activityIdSchema,

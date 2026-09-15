@@ -1,6 +1,4 @@
-import type { UnifiedActivityListItem } from "@/features/unified-activities/types";
-
-export type DashboardBucket = "overdue" | "today" | "week";
+import type { TaskRow } from "@/features/unified-activities/task-repository";
 
 export type DashboardCounters = {
   overdue: number;
@@ -19,14 +17,12 @@ export type DashboardProfileSummary = {
   progressPercent: number;
 };
 
-// Buckets carregam atividades das duas origens (turma + extras `active`).
-// Discriminated union via `source` deixa o renderer escolher qual conjunto
-// de campos exibir e qual `ActivityCard` montar.
+// Buckets carregam tarefas — uma forma só desde a convergência.
 export type DashboardSnapshot = {
   todayIso: string;
   counters: DashboardCounters;
-  overdue: UnifiedActivityListItem[];
-  today: UnifiedActivityListItem[];
-  upcoming: UnifiedActivityListItem[];
+  overdue: TaskRow[];
+  today: TaskRow[];
+  upcoming: TaskRow[];
   perProfile: DashboardProfileSummary[];
 };

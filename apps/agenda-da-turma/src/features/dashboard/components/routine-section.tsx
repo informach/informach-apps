@@ -1,5 +1,4 @@
 import { Skeleton } from "@informach/ui/components/skeleton";
-import { getTurmasWithSubjectsForForm } from "@/features/activities/service";
 import { getRoutineSnapshot } from "@/features/unified-activities/service";
 import { addDaysIso, todayLocalIso } from "../date";
 import { listProfileSummaries } from "../repository";
@@ -9,17 +8,14 @@ import { RoutineView } from "./routine-view";
 
 export async function RoutineSection({
   userId,
-  isPro,
   profileFilter,
 }: {
   userId: string;
-  isPro: boolean;
   profileFilter: string | null;
 }) {
   const tomorrowIso = addDaysIso(todayLocalIso(), 1);
-  const [snapshot, turmasForForm, perProfile, tomorrowSchedule] = await Promise.all([
+  const [snapshot, perProfile, tomorrowSchedule] = await Promise.all([
     getRoutineSnapshot(userId, { profileFilter }),
-    getTurmasWithSubjectsForForm(userId),
     listProfileSummaries(userId),
     // Mochila de amanhã: as matérias do dia seguinte, para saber o que entra
     // na mochila junto com os materiais pedidos.
@@ -34,8 +30,6 @@ export async function RoutineSection({
         initialCounters={snapshot.counters}
         tomorrowSchedule={tomorrowSchedule}
         currentUserId={userId}
-        isPro={isPro}
-        turmasForForm={turmasForForm}
       />
       {perProfile.length >= 2 && profileFilter === null ? (
         <PerProfileProgress profiles={perProfile} />

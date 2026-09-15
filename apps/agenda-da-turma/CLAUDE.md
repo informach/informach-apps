@@ -12,7 +12,7 @@ Estado da implementação em 11/09/2026: rotina móvel, recado com texto + image
 
 Fluxo de atividades e originais (12/09/2026): **Atividades** é a lista única de escola, recados/fotos e extras, com filtros por criança, tipo e situação aplicados antes da paginação. Para casa/Trabalho/Prova/Lembrete são tipos no formulário e na lista. Um único **Nova atividade** preserva o cadastro por matéria para quem tem turma e oferece cadastro sem matéria/prazo; sem turma, abre o formulário por criança diretamente. **Importar mensagem ou foto** aceita Teams, Batista ID e anotações manuscritas da agenda/caderno (`notebook`), com câmera, prévia e revisão obrigatória. A referência explícita de escrita pode fundamentar datas relativas; data da fotografia nunca vira prazo. **Recados e originais** guarda as fontes e rascunhos, com links para as atividades derivadas. Rotina e Calendário consultam os mesmos registros; atividades sem prazo permanecem na rotina/lista, sem data fictícia no calendário. O acesso ao original continua exigindo permissão sobre todo o escopo de crianças revisado. Arquivos originais expiram após 30 dias. A inclusão de `notebook` altera apenas os tipos da coluna textual existente, sem migração SQL.
 
-Um card, um detalhe (14/09/2026): `features/unified-activities/view.ts` é o único lugar que conhece as três formas de atividade. `toActivityView` normaliza turma, recado e extracurricular num `ActivityView`, e tudo depois dele lê um formato só — antes havia três cards, cada um com o seu jeito de mostrar prazo, o seu destino ao toque no título (ou nenhum) e o seu tratamento de erro, decididos por uma origem que a família não vê. A forma que ficou é a de melhor toque: alvo de 44 px, `<article>`, título sempre abrindo a atividade, prazo em badge **mesmo sem prazo** (`getViewDueBadge`) e menu de ações para quem pode editar.
+Um card, um detalhe (14/09/2026): `features/unified-activities/view.ts` é o único adaptador entre o banco e a tela. `toActivityView` traduz a tarefa num `ActivityView`, e tudo depois dele lê um formato só — antes havia três cards, cada um com o seu jeito de mostrar prazo, o seu destino ao toque no título (ou nenhum) e o seu tratamento de erro, decididos por uma origem que a família não vê. A forma que ficou é a de melhor toque: alvo de 44 px, `<article>`, título sempre abrindo a atividade, prazo em badge **mesmo sem prazo** (`getViewDueBadge`) e menu de ações para quem pode editar.
 
 **`/atividades/[id]` é o detalhe de qualquer fonte.** A página resolve o uuid nas três tabelas, cada busca já aplicando o acesso por criança, e delega para o renderizador da fonte. `/recados/acoes/[id]` e `/atividades/[id]/historico` viraram `redirect` — o histórico é uma seção do detalhe, não uma página. **Não recriar card ou detalhe por fonte**: a assimetria entre eles foi exatamente o que fez a mesma lista se comportar de três jeitos.
 
@@ -308,9 +308,17 @@ Mudanças maiores (ex: "Matemática" → "Educação Física") retornam `NAME_CH
 
 Schema (`packages/db/src/schema/agenda.ts`):
 
-- **`agenda.activities`** — id, turmaId, subjectId, createdByUserId, type (task|exam|project|reminder), visibility (individual|shared_with_turma), title, description, **`dueAt` (DATE, "YYYY-MM-DD" sem hora/TZ)**, createdAt, updatedAt.
-- **`agenda.activity_statuses`** — 1 row por (atividade × `studentProfileId`), status pending|done. Por-perfil, não por-atividade.
-- **`agenda.activity_acceptances`** — quando outra família aceita uma shared activity (1 row por `(activityId, userId)`).
+**Uma tarefa é uma tarefa (14/09/2026).** Eram três tabelas com contratos diferentes — `activity_statuses` (exigia turma, matéria e prazo), `notice_actions` (prazo opcional com procedência, hora, local, responsável, lembrete, recorrência, versão) e `profile_subject_activities` (extras, sem nada disso). A diferença vazava para a tela: o mesmo card se comportava de três jeitos conforme uma origem que a família não vê. Depois da convergência (migrações 0051–0053):
+
+- **`agenda.tasks`** (antiga `notice_actions`) — **a única linha de execução, uma por criança**. Toda atividade mora aqui, venha da escola, de um recado ou da própria família, e por isso toda atividade tem hora, local, responsável, lembrete, cancelamento e histórico. `shared_activity_id` aponta para o fato publicado na turma quando há um; `notice_id` para o recado de origem; `subject_id` XOR `profile_subject_id` para a matéria. UNIQUE parcial `(shared_activity_id, profile_id) WHERE shared_activity_id IS NOT NULL` impede tarefa duplicada por criança.
+- **`agenda.activities`** — deixou de ser tarefa e é só **o fato publicado na turma**: turma, matéria, título, prazo, `visibility`, `canceled_at`, `version`. É o que outras famílias aceitam, e o que `activity_revisions` versiona pelo lado da turma.
+- **`agenda.activity_acceptances`** — quando outra família aceita uma shared activity (1 row por `(activityId, userId)`); aceitar cria as tarefas das crianças ativas dela na turma.
+
+**Quem publica corrige para a turma inteira.** `updateNoticeActionAtomically` detecta que a tarefa tem `shared_activity_id` e que quem edita é quem publicou, e então atualiza `agenda.activities` e propaga o enunciado (tipo, matéria, título, descrição, prazo) para as tarefas das outras famílias. **Hora, local, responsável, lembrete e conclusão de cada casa não viajam** — a turma corrige o enunciado, não a rotina alheia. Como o fato publicado exige matéria e prazo, limpar um dos dois numa atividade publicada é **recusado** (`SHARED_REQUIRES_SCHOOL_FIELDS`) em vez de gravar só a cópia de quem editou. Cancelar a atividade cancela apenas as tarefas **pendentes**: quem já cumpriu continua tendo cumprido.
+
+**Não reintroduzir tabela de tarefa por origem.** Foi exatamente a assimetria entre as três que fez a mesma lista se comportar de três jeitos. Origem nova vira coluna opcional em `agenda.tasks`.
+
+> Dívida conhecida de nome: o módulo ainda se chama `features/notices` e exporta `listNoticeActions`, `updateNoticeActionAtomically`, `setNoticeActionStatus` — nomes de quando a tabela era só de recados. A tabela e o schema já dizem `tasks`; o módulo continua como está para não misturar renomeação de arquivos com a convergência. Ao mexer nele, prefira mover o CRUD de tarefa para `features/tasks` a espalhar o nome antigo.
 
 **RBAC de visibilidade (enforcement no service `features/activities/service.ts`)**:
 - **Compartilhar exige Pro**: no Free, criar força `visibility = 'individual'`.
@@ -394,13 +402,13 @@ UserMenu (avatar) tem só assinatura, conta e sair. Crianças e turmas vivem na 
 
 ### Prazo calculado pelo horário da matéria
 
-Ao escolher a matéria com a data vazia, os dois formulários (escolar e revisão de recado) preenchem o prazo com a **próxima aula**, via `suggestDueDateFromSchedule` → `nextClassDayIso`, que respeita o revezamento quinzenal. A procedência aparece no campo e um toque altera. `agenda.notice_actions.date_origin` ganhou o valor `schedule` para isso.
+Ao escolher a matéria com a data vazia, os dois formulários (escolar e revisão de recado) preenchem o prazo com a **próxima aula**, via `suggestDueDateFromSchedule` → `nextClassDayIso`, que respeita o revezamento quinzenal. A procedência aparece no campo e um toque altera. `agenda.tasks.date_origin` ganhou o valor `schedule` para isso.
 
 **A IA continua proibida de inventar prazo** (achado R01): `enrich.ts` devolve `dueAt: null` e não tem fallback de "amanhã". A distinção é essa — calcular a próxima aula a partir do horário que a família cadastrou é determinístico; adivinhar uma data a partir de um texto sem prazo não é. Os testes dos dois lados precisam continuar passando juntos.
 
 ### Matéria nas providências de recado
 
-`agenda.notice_actions` carrega `subject_id` (turma) e `profile_subject_id` (extracurricular), nullable e mutuamente exclusivos (CHECK `agenda_action_subject_exclusive_check`), `ON DELETE SET NULL` — apagar a matéria tira o rótulo, nunca a obrigação. `validSubject`, na transação de gravação, exige que a matéria seja da turma em que a criança participa AGORA, ou extracurricular dela. As opções vêm de `listSubjectOptionsByProfile`. A IA **não** recebe a lista de matérias: quem vincula é a pessoa na revisão.
+`agenda.tasks` carrega `subject_id` (turma) e `profile_subject_id` (extracurricular), nullable e mutuamente exclusivos (CHECK `agenda_task_subject_exclusive_check`), `ON DELETE SET NULL` — apagar a matéria tira o rótulo, nunca a obrigação. `validSubject`, na transação de gravação, exige que a matéria seja da turma em que a criança participa AGORA, ou extracurricular dela. As opções vêm de `listSubjectOptionsByProfile`. A IA **não** recebe a lista de matérias: quem vincula é a pessoa na revisão.
 
 ---
 

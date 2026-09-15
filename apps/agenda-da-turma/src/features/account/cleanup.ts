@@ -3,8 +3,8 @@ import "server-only";
 import { and, db, eq, sql } from "@informach/db";
 import {
   agendaActivities,
-  agendaActivityStatuses,
   agendaStudentProfiles,
+  agendaTasks,
   agendaTurmaMembers,
   agendaTurmas,
 } from "@informach/db/schema";
@@ -16,9 +16,9 @@ export async function cleanAgendaAccount(userId: string): Promise<void> {
     await tx.delete(agendaActivities).where(
       and(
         eq(agendaActivities.createdByUserId, userId),
-        sql`NOT EXISTS (SELECT 1 FROM ${agendaActivityStatuses} s
-        INNER JOIN ${agendaStudentProfiles} p ON p.id = s.student_profile_id
-        WHERE s.activity_id = ${agendaActivities.id} AND p.user_id <> ${userId})`,
+        sql`NOT EXISTS (SELECT 1 FROM ${agendaTasks} n
+        INNER JOIN ${agendaStudentProfiles} p ON p.id = n.profile_id
+        WHERE n.shared_activity_id = ${agendaActivities.id} AND p.user_id <> ${userId})`,
       ),
     );
     await tx.delete(agendaTurmas).where(

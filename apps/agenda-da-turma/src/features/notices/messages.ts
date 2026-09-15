@@ -37,6 +37,8 @@ export function noticeErrorMessage(code: string) {
     VERSION_CONFLICT:
       "Outro responsável alterou este item. Atualize a página antes de editar novamente.",
     INVALID_ASSIGNEE: "Esse responsável não tem mais acesso à criança. Escolha outro responsável.",
+    SHARED_REQUIRES_SCHOOL_FIELDS:
+      "Você publicou esta atividade na turma, e a turma inteira lê o que você salvar aqui. Mantenha a matéria e o prazo, ou crie uma atividade só da sua família.",
     PRO_REQUIRED: "Lembretes personalizados e repetição semanal fazem parte do Pro.",
     ACTIVITY_LIMIT_REACHED:
       "O plano gratuito permite 20 pendências próprias. Conclua algumas para liberar espaço; o histórico será mantido.",

@@ -98,7 +98,7 @@ export default async function DashboardPage({ searchParams }: Props) {
         <TodayScheduleSection userId={user.id} profileFilter={profileFilter} />
       </Suspense>
       <Suspense fallback={<RoutineSkeleton />}>
-        <RoutineSection userId={user.id} isPro={isPro} profileFilter={profileFilter} />
+        <RoutineSection userId={user.id} profileFilter={profileFilter} />
       </Suspense>
       <Suspense fallback={null}>
         <SharedActivitiesSection userId={user.id} />

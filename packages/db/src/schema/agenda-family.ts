@@ -155,11 +155,23 @@ export const AGENDA_DATE_ORIGINS = [
   "schedule",
 ] as const;
 
-export const agendaNoticeActions = agenda.table(
-  "notice_actions",
+export const agendaTasks = agenda.table(
+  "tasks",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     noticeId: uuid("notice_id").references(() => agendaNotices.id, { onDelete: "set null" }),
+    /**
+     * Quando a tarefa veio de uma atividade publicada numa turma, aponta para o
+     * fato compartilhado em `agenda.activities`. É o que permite que a mesma
+     * atividade valha para várias famílias, cada uma com a sua conclusão, sem
+     * uma segunda tabela de status.
+     *
+     * `SET NULL`: se o fato da turma sumir, a obrigação da família continua —
+     * mesma regra da matéria.
+     */
+    sharedActivityId: uuid("shared_activity_id").references(() => agendaActivities.id, {
+      onDelete: "set null",
+    }),
     profileId: uuid("profile_id")
       .notNull()
       .references(() => agendaStudentProfiles.id, { onDelete: "cascade" }),
@@ -203,29 +215,28 @@ export const agendaNoticeActions = agenda.table(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
-    index("agenda_notice_actions_profile_due_idx").on(t.profileId, t.dueAt),
-    index("agenda_notice_actions_reminder_idx").on(t.reminderAt, t.status),
-    uniqueIndex("agenda_notice_actions_notice_profile_idx").on(
-      t.noticeId,
-      t.profileId,
-      t.fingerprint,
-    ),
-    uniqueIndex("agenda_notice_actions_series_due_idx").on(t.seriesId, t.profileId, t.dueAt),
+    index("agenda_tasks_profile_due_idx").on(t.profileId, t.dueAt),
+    index("agenda_tasks_reminder_idx").on(t.reminderAt, t.status),
+    uniqueIndex("agenda_tasks_notice_profile_idx").on(t.noticeId, t.profileId, t.fingerprint),
+    uniqueIndex("agenda_tasks_series_due_idx").on(t.seriesId, t.profileId, t.dueAt),
     check(
-      "agenda_action_date_origin_check",
+      "agenda_task_date_origin_check",
       sql`(${t.dueAt} IS NULL AND ${t.dateOrigin} = 'unspecified') OR (${t.dueAt} IS NOT NULL AND ${t.dateOrigin} IN ('school','relative','family','schedule'))`,
     ),
     check(
-      "agenda_action_time_check",
+      "agenda_task_time_check",
       sql`${t.time} IS NULL OR (${t.dueAt} IS NOT NULL AND ${t.time} ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$')`,
     ),
-    check("agenda_action_status_check", sql`${t.status} IN ('pending','done','canceled')`),
+    check("agenda_task_status_check", sql`${t.status} IN ('pending','done','canceled')`),
     check(
-      "agenda_action_subject_exclusive_check",
+      "agenda_task_subject_exclusive_check",
       sql`${t.subjectId} IS NULL OR ${t.profileSubjectId} IS NULL`,
     ),
-    index("agenda_notice_actions_subject_idx").on(t.subjectId),
-    index("agenda_notice_actions_profile_subject_idx").on(t.profileSubjectId),
+    uniqueIndex("agenda_tasks_shared_activity_profile_idx")
+      .on(t.sharedActivityId, t.profileId)
+      .where(sql`${t.sharedActivityId} IS NOT NULL`),
+    index("agenda_tasks_subject_idx").on(t.subjectId),
+    index("agenda_tasks_profile_subject_idx").on(t.profileSubjectId),
   ],
 );
 
@@ -234,7 +245,7 @@ export const agendaActivityRevisions = agenda.table(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     activityId: uuid("activity_id").references(() => agendaActivities.id, { onDelete: "cascade" }),
-    noticeActionId: uuid("notice_action_id").references(() => agendaNoticeActions.id, {
+    taskId: uuid("task_id").references(() => agendaTasks.id, {
       onDelete: "cascade",
     }),
     actorId: text("actor_id").references(() => users.id, { onDelete: "set null" }),
@@ -245,10 +256,10 @@ export const agendaActivityRevisions = agenda.table(
   },
   (t) => [
     uniqueIndex("agenda_activity_revision_version_idx").on(t.activityId, t.version),
-    uniqueIndex("agenda_notice_revision_version_idx").on(t.noticeActionId, t.version),
+    uniqueIndex("agenda_task_revision_version_idx").on(t.taskId, t.version),
     check(
       "agenda_revision_one_target",
-      sql`(${t.activityId} IS NOT NULL) <> (${t.noticeActionId} IS NOT NULL)`,
+      sql`(${t.activityId} IS NOT NULL) <> (${t.taskId} IS NOT NULL)`,
     ),
   ],
 );

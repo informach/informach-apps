@@ -2,33 +2,19 @@
 
 import { Button } from "@informach/ui/components/button";
 import { Plus } from "lucide-react";
-import type { TurmaWithSubjectsForForm } from "@/features/activities/types";
 import { UnifiedActivityCard } from "@/features/unified-activities/components/unified-activity-card";
-import { toOverviewEntry } from "@/features/unified-activities/overview-types";
-import type { UnifiedActivityListItem } from "@/features/unified-activities/types";
+import type { ActivityOverviewItem } from "@/features/unified-activities/overview-types";
 import { formatDayLabel } from "../date";
 
 type Props = {
   anchorIso: string;
-  items: UnifiedActivityListItem[];
+  items: ActivityOverviewItem[];
   currentUserId: string;
-  isPro: boolean;
-  turmasForForm: TurmaWithSubjectsForForm[];
   onCreateForDay: (iso: string) => void;
 };
 
-// Vista diária: lista vertical reutilizando UnifiedActivityCard — despacha
-// pra ActivityCard (turma, com todas as ações) ou pro card simplificado de
-// extras. Botão "Nova atividade" cria só atividade de turma (extras vivem
-// em /perfis/[id]/extras/[subjectId]).
-export function DayView({
-  anchorIso,
-  items,
-  currentUserId,
-  isPro,
-  turmasForForm,
-  onCreateForDay,
-}: Props) {
+// Vista diária: lista vertical com o mesmo card das outras telas.
+export function DayView({ anchorIso, items, currentUserId, onCreateForDay }: Props) {
   return (
     <section className="space-y-4">
       <header className="flex items-center justify-between gap-3">
@@ -49,14 +35,8 @@ export function DayView({
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {items.map(toOverviewEntry).map((entry) => (
-            <UnifiedActivityCard
-              key={entry.key}
-              entry={entry}
-              currentUserId={currentUserId}
-              isPro={isPro}
-              turmasForForm={turmasForForm}
-            />
+          {items.map((entry) => (
+            <UnifiedActivityCard key={entry.key} entry={entry} currentUserId={currentUserId} />
           ))}
         </div>
       )}

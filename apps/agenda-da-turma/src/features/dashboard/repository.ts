@@ -1,237 +1,112 @@
 import "server-only";
 
-import { and, asc, db, eq, lt, sql } from "@informach/db";
-import {
-  agendaActivities,
-  agendaActivityStatuses,
-  agendaProfileSubjectActivities,
-  agendaProfileSubjects,
-  agendaSchools,
-  agendaStudentProfiles,
-  agendaSubjects,
-  agendaTurmas,
-} from "@informach/db/schema";
-import { activityListSelect } from "@/features/activities/repository";
-import type { ActivityListItem } from "@/features/activities/types";
+import { and, asc, db, eq, sql } from "@informach/db";
+import { agendaProfileSubjects, agendaStudentProfiles, agendaTasks } from "@informach/db/schema";
 import { accessibleProfileCondition } from "@/features/family/access";
 import { addDaysIso, todayLocalIso } from "./date";
-import type { DashboardBucket, DashboardCounters, DashboardProfileSummary } from "./types";
+import type { DashboardCounters, DashboardProfileSummary } from "./types";
 
-type Ctx = {
-  profileFilter: string | null;
-  isPro: boolean;
-};
-
-// Atividades visíveis ao user em determinada bucket. WHERE composto:
-// - perfil pertence ao user
-// - se Free: só atividades criadas pelo próprio user (defesa em profundidade;
-//   shared de outros NÃO geram statuses pra Free porque ele não pode aceitar)
-// - opcional: filtrar por um perfil específico
-// - filtro de data por bucket
-export async function listActivitiesByBucket(
-  userId: string,
-  bucket: DashboardBucket,
-  options: Ctx & { limit: number },
-): Promise<ActivityListItem[]> {
-  const today = todayLocalIso();
-  const tomorrow = addDaysIso(today, 1);
-  const sevenDaysAhead = addDaysIso(today, 7);
-
-  const bucketWhere =
-    bucket === "overdue"
-      ? and(eq(agendaActivityStatuses.status, "pending"), lt(agendaActivities.dueAt, today))
-      : bucket === "today"
-        ? and(eq(agendaActivityStatuses.status, "pending"), eq(agendaActivities.dueAt, today))
-        : and(
-            eq(agendaActivityStatuses.status, "pending"),
-            sql`${agendaActivities.dueAt} BETWEEN ${tomorrow} AND ${sevenDaysAhead}`,
-          );
-
-  const whereExpr = and(
-    sql`${agendaActivities.canceledAt} IS NULL`,
-    accessibleProfileCondition(userId),
-    options.profileFilter ? eq(agendaStudentProfiles.id, options.profileFilter) : undefined,
-    bucketWhere,
-  );
-
-  return db
-    .select(activityListSelect)
-    .from(agendaActivityStatuses)
-    .innerJoin(
-      agendaStudentProfiles,
-      eq(agendaStudentProfiles.id, agendaActivityStatuses.studentProfileId),
+/**
+ * Matéria extracurricular pausada é silêncio: nem KPI, nem progresso.
+ *
+ * A regra existia só para a tabela de extras; agora vale para a tarefa que
+ * tiver vínculo com uma matéria pausada, venha de onde vier. Tarefa sem
+ * vínculo nunca é escondida por isto.
+ */
+const visibleTaskCondition = sql`
+  ${agendaTasks.status} <> 'canceled'
+  AND (
+    ${agendaTasks.profileSubjectId} IS NULL
+    OR EXISTS (
+      SELECT 1 FROM ${agendaProfileSubjects} ps
+      WHERE ps.id = ${agendaTasks.profileSubjectId} AND ps.status = 'active'
     )
-    .innerJoin(agendaActivities, eq(agendaActivities.id, agendaActivityStatuses.activityId))
-    .innerJoin(agendaSubjects, eq(agendaSubjects.id, agendaActivities.subjectId))
-    .innerJoin(agendaTurmas, eq(agendaTurmas.id, agendaActivities.turmaId))
-    .innerJoin(agendaSchools, eq(agendaSchools.inepCode, agendaTurmas.schoolInepCode))
-    .where(whereExpr)
-    .orderBy(
-      asc(agendaActivities.dueAt),
-      asc(agendaActivities.createdAt),
-      asc(agendaActivityStatuses.id),
-    )
-    .limit(options.limit);
-}
+  )
+`;
 
-// Quatro contadores em uma query única usando COUNT(*) FILTER. Conta
-// distinct activity rows (uma atividade com 2 perfis do mesmo user conta
-// como 1) — `COUNT(DISTINCT ${agendaActivityStatuses.id})` por bucket dá o
-// número exibido no KPI. Note: status rows são distintos por (activity,
-// perfil) — então contar statusId conta cada par. Para o dashboard,
-// "5 tarefas hoje" significa 5 itens na lista (que é uma row por par),
-// portanto contar statusId é o que match com a UI.
+/**
+ * Os quatro contadores numa consulta só.
+ *
+ * Eram duas — uma por tabela — somadas em JavaScript, e cada uma com o seu
+ * jeito de esconder o que estava cancelado. Uma tarefa é uma linha: "5 hoje"
+ * quer dizer cinco itens na lista logo abaixo, inclusive quando a mesma
+ * atividade vale para dois filhos (são duas coisas a fazer).
+ */
 export async function getDashboardCounters(
   userId: string,
-  options: Ctx,
+  options: { profileFilter: string | null },
 ): Promise<DashboardCounters> {
   const today = todayLocalIso();
   const tomorrow = addDaysIso(today, 1);
   const sevenAhead = addDaysIso(today, 7);
   const sevenAgo = addDaysIso(today, -7);
+  const due = agendaTasks.dueAt;
+  const status = agendaTasks.status;
 
-  // Duas queries paralelas (uma por origem) — Promise.all dedup'a o round-trip
-  // pro Postgres e mantém o WHERE/JOIN ideal pra cada tabela. SUM em JS
-  // depois é trivial (4 campos × 2 = 8 numbers).
-  const turmaBaseWhere = and(
-    sql`${agendaActivities.canceledAt} IS NULL`,
-    accessibleProfileCondition(userId),
-    options.profileFilter ? eq(agendaStudentProfiles.id, options.profileFilter) : undefined,
-  );
-
-  // Extras: sempre privadas, sem Free/Pro split. Filtra `paused` pra que
-  // pause "esconda" também dos KPIs (consistente com o que aparece nos
-  // buckets — paused é silêncio total no dashboard).
-  const extraBaseWhere = and(
-    accessibleProfileCondition(userId),
-    eq(agendaProfileSubjects.status, "active"),
-    options.profileFilter ? eq(agendaStudentProfiles.id, options.profileFilter) : undefined,
-  );
-
-  const [turmaRow, extraRow] = await Promise.all([
-    db
-      .select({
-        overdue: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivities.canceledAt} IS NULL AND ${agendaActivityStatuses.status} = 'pending' AND ${agendaActivities.dueAt} < ${today})`,
-        today: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivities.canceledAt} IS NULL AND ${agendaActivityStatuses.status} = 'pending' AND ${agendaActivities.dueAt} = ${today})`,
-        week: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivities.canceledAt} IS NULL AND ${agendaActivityStatuses.status} = 'pending' AND ${agendaActivities.dueAt} BETWEEN ${tomorrow} AND ${sevenAhead})`,
-        doneRecent: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivities.canceledAt} IS NULL AND ${agendaActivityStatuses.status} = 'done' AND ${agendaActivities.dueAt} BETWEEN ${sevenAgo} AND ${today})`,
-      })
-      .from(agendaActivityStatuses)
-      .innerJoin(
-        agendaStudentProfiles,
-        eq(agendaStudentProfiles.id, agendaActivityStatuses.studentProfileId),
-      )
-      .innerJoin(agendaActivities, eq(agendaActivities.id, agendaActivityStatuses.activityId))
-      .where(turmaBaseWhere)
-      .then((rows) => rows[0]),
-    db
-      .select({
-        overdue: sql<number>`COUNT(*) FILTER (WHERE ${agendaProfileSubjectActivities.status} = 'pending' AND ${agendaProfileSubjectActivities.dueAt} < ${today})`,
-        today: sql<number>`COUNT(*) FILTER (WHERE ${agendaProfileSubjectActivities.status} = 'pending' AND ${agendaProfileSubjectActivities.dueAt} = ${today})`,
-        week: sql<number>`COUNT(*) FILTER (WHERE ${agendaProfileSubjectActivities.status} = 'pending' AND ${agendaProfileSubjectActivities.dueAt} BETWEEN ${tomorrow} AND ${sevenAhead})`,
-        doneRecent: sql<number>`COUNT(*) FILTER (WHERE ${agendaProfileSubjectActivities.status} = 'done' AND ${agendaProfileSubjectActivities.dueAt} BETWEEN ${sevenAgo} AND ${today})`,
-      })
-      .from(agendaProfileSubjectActivities)
-      .innerJoin(
-        agendaProfileSubjects,
-        eq(agendaProfileSubjects.id, agendaProfileSubjectActivities.profileSubjectId),
-      )
-      .innerJoin(
-        agendaStudentProfiles,
-        eq(agendaStudentProfiles.id, agendaProfileSubjectActivities.profileId),
-      )
-      .where(extraBaseWhere)
-      .then((rows) => rows[0]),
-  ]);
+  const [row] = await db
+    .select({
+      overdue: sql<number>`COUNT(*) FILTER (WHERE ${status} = 'pending' AND ${due} < ${today}::date)`,
+      today: sql<number>`COUNT(*) FILTER (WHERE ${status} = 'pending' AND ${due} = ${today}::date)`,
+      week: sql<number>`COUNT(*) FILTER (WHERE ${status} = 'pending' AND ${due} BETWEEN ${tomorrow}::date AND ${sevenAhead}::date)`,
+      doneRecent: sql<number>`COUNT(*) FILTER (WHERE ${status} = 'done' AND ${due} BETWEEN ${sevenAgo}::date AND ${today}::date)`,
+    })
+    .from(agendaTasks)
+    .innerJoin(agendaStudentProfiles, eq(agendaStudentProfiles.id, agendaTasks.profileId))
+    .where(
+      and(
+        accessibleProfileCondition(userId),
+        options.profileFilter ? eq(agendaStudentProfiles.id, options.profileFilter) : undefined,
+        visibleTaskCondition,
+      ),
+    );
 
   return {
-    overdue: Number(turmaRow?.overdue ?? 0) + Number(extraRow?.overdue ?? 0),
-    today: Number(turmaRow?.today ?? 0) + Number(extraRow?.today ?? 0),
-    week: Number(turmaRow?.week ?? 0) + Number(extraRow?.week ?? 0),
-    doneRecent: Number(turmaRow?.doneRecent ?? 0) + Number(extraRow?.doneRecent ?? 0),
+    overdue: Number(row?.overdue ?? 0),
+    today: Number(row?.today ?? 0),
+    week: Number(row?.week ?? 0),
+    doneRecent: Number(row?.doneRecent ?? 0),
   };
 }
 
-// Resumo agregado por perfil. Sempre traz TODOS os perfis do user (mesmo
-// sem nenhuma atividade — LEFT JOIN nas statuses). Alimenta as tabs de
-// filtro e os progress cards. Não aceita profileFilter — é a fonte de
-// verdade pra "o que cada filho tem".
+/**
+ * Resumo por criança. Sempre traz TODAS as crianças acessíveis, mesmo as sem
+ * nenhuma atividade — daí o LEFT JOIN. Não aceita filtro: é a fonte de
+ * "o que cada filho tem".
+ */
 export async function listProfileSummaries(userId: string): Promise<DashboardProfileSummary[]> {
   const today = todayLocalIso();
+  const due = agendaTasks.dueAt;
+  const status = agendaTasks.status;
 
-  // Duas queries paralelas (turma + extras) agregadas por perfil. Merge em
-  // JS via Map → preserva LEFT JOIN nos perfis (perfil sem atividade ainda
-  // aparece com totals=0). Ordem default é por createdAt asc — preservada
-  // pela primeira query (turma). Extras só somam aos counters existentes.
-  const [turmaRows, extraRows] = await Promise.all([
-    db
-      .select({
-        profileId: agendaStudentProfiles.id,
-        profileName: agendaStudentProfiles.name,
-        profileCreatedAt: agendaStudentProfiles.createdAt,
-        pending: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivities.canceledAt} IS NULL AND ${agendaActivityStatuses.status} = 'pending')`,
-        overdue: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivities.canceledAt} IS NULL AND ${agendaActivityStatuses.status} = 'pending' AND ${agendaActivities.dueAt} < ${today})`,
-        done: sql<number>`COUNT(*) FILTER (WHERE ${agendaActivities.canceledAt} IS NULL AND ${agendaActivityStatuses.status} = 'done')`,
-      })
-      .from(agendaStudentProfiles)
-      .leftJoin(
-        agendaActivityStatuses,
-        eq(agendaActivityStatuses.studentProfileId, agendaStudentProfiles.id),
-      )
-      .leftJoin(agendaActivities, eq(agendaActivities.id, agendaActivityStatuses.activityId))
-      .where(and(accessibleProfileCondition(userId)))
-      .groupBy(
-        agendaStudentProfiles.id,
-        agendaStudentProfiles.name,
-        agendaStudentProfiles.createdAt,
-      )
-      .orderBy(asc(agendaStudentProfiles.createdAt)),
-    db
-      .select({
-        profileId: agendaStudentProfiles.id,
-        pending: sql<number>`COUNT(*) FILTER (WHERE ${agendaProfileSubjectActivities.status} = 'pending')`,
-        overdue: sql<number>`COUNT(*) FILTER (WHERE ${agendaProfileSubjectActivities.status} = 'pending' AND ${agendaProfileSubjectActivities.dueAt} < ${today})`,
-        done: sql<number>`COUNT(*) FILTER (WHERE ${agendaProfileSubjectActivities.status} = 'done')`,
-      })
-      .from(agendaStudentProfiles)
-      .leftJoin(
-        agendaProfileSubjectActivities,
-        eq(agendaProfileSubjectActivities.profileId, agendaStudentProfiles.id),
-      )
-      .leftJoin(
-        agendaProfileSubjects,
-        eq(agendaProfileSubjects.id, agendaProfileSubjectActivities.profileSubjectId),
-      )
-      .where(
-        and(
-          accessibleProfileCondition(userId),
-          // Atividades de matérias `paused` NÃO entram nos counters do
-          // dashboard (consistente com buckets e KPIs). Quando não há
-          // activity ligada (LEFT JOIN), profileSubjects.status é NULL e
-          // a OR garante que o perfil aparece com 0.
-          sql`(${agendaProfileSubjects.status} = 'active' OR ${agendaProfileSubjectActivities.id} IS NULL)`,
-        ),
-      )
-      .groupBy(agendaStudentProfiles.id),
-  ]);
+  const rows = await db
+    .select({
+      profileId: agendaStudentProfiles.id,
+      profileName: agendaStudentProfiles.name,
+      pending: sql<number>`COUNT(*) FILTER (WHERE ${status} = 'pending')`,
+      overdue: sql<number>`COUNT(*) FILTER (WHERE ${status} = 'pending' AND ${due} < ${today}::date)`,
+      done: sql<number>`COUNT(*) FILTER (WHERE ${status} = 'done')`,
+    })
+    .from(agendaStudentProfiles)
+    .leftJoin(
+      agendaTasks,
+      and(eq(agendaTasks.profileId, agendaStudentProfiles.id), visibleTaskCondition),
+    )
+    .where(accessibleProfileCondition(userId))
+    .groupBy(agendaStudentProfiles.id, agendaStudentProfiles.name, agendaStudentProfiles.createdAt)
+    .orderBy(asc(agendaStudentProfiles.createdAt));
 
-  const extraByProfile = new Map(extraRows.map((r) => [r.profileId, r]));
-
-  return turmaRows.map((r) => {
-    const extra = extraByProfile.get(r.profileId);
-    const pending = Number(r.pending ?? 0) + Number(extra?.pending ?? 0);
-    const overdue = Number(r.overdue ?? 0) + Number(extra?.overdue ?? 0);
-    const done = Number(r.done ?? 0) + Number(extra?.done ?? 0);
+  return rows.map((r) => {
+    const pending = Number(r.pending ?? 0);
+    const done = Number(r.done ?? 0);
     const total = pending + done;
-    const progress = total === 0 ? 0 : Math.round((done / total) * 100);
     return {
       profileId: r.profileId,
       profileName: r.profileName,
       pending,
-      overdue,
+      overdue: Number(r.overdue ?? 0),
       doneTotal: done,
       totalAll: total,
-      progressPercent: progress,
+      progressPercent: total === 0 ? 0 : Math.round((done / total) * 100),
     };
   });
 }

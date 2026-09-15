@@ -3,7 +3,6 @@ import { MAX_ACTIVITY_DESCRIPTION_LENGTH, MAX_ACTIVITY_TITLE_LENGTH } from "./li
 import {
   createActivityInputSchema,
   respondSharedActivityInputSchema,
-  setActivityStatusInputSchema,
   updateActivityInputSchema,
 } from "./schemas";
 
@@ -157,37 +156,6 @@ describe("updateActivityInputSchema", () => {
       title: "x",
       dueAt: "2026-06-02",
       visibility: "individual",
-    });
-    expect(result.success).toBe(false);
-  });
-});
-
-describe("setActivityStatusInputSchema", () => {
-  it("aceita os dois status válidos", () => {
-    for (const status of ["pending", "done"] as const) {
-      const result = setActivityStatusInputSchema.parse({
-        activityId: validUuid,
-        studentProfileId: validUuid,
-        status,
-      });
-      expect(result.status).toBe(status);
-    }
-  });
-
-  it("rejeita in_progress (removido na simplificação)", () => {
-    const result = setActivityStatusInputSchema.safeParse({
-      activityId: validUuid,
-      studentProfileId: validUuid,
-      status: "in_progress",
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it("rejeita status inválido", () => {
-    const result = setActivityStatusInputSchema.safeParse({
-      activityId: validUuid,
-      studentProfileId: validUuid,
-      status: "abandoned",
     });
     expect(result.success).toBe(false);
   });

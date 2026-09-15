@@ -1,12 +1,10 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { err, ok } from "@informach/auth/server-actions";
-import { listActivitiesInDateRange } from "@/features/calendar/repository";
 import { addDaysIso, todayLocalIso } from "@/features/dashboard/date";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { recordProductEvent } from "@/features/metrics/events";
 import { listNoticeActions } from "@/features/notices/repository";
-import { listProfileActivitiesInDateRange } from "@/features/profile-subject-activities/repository";
 import { env } from "@/lib/env";
 import { buildCalendarFeed, type FeedEvent } from "./ics";
 import {
@@ -35,21 +33,19 @@ export async function readCalendarFeed(token: string) {
   if (!feed) return null;
   const fromIso = addDaysIso(todayLocalIso(), -30);
   const toIso = addDaysIso(todayLocalIso(), 365);
-  const [notices, school, extras] = await Promise.all([
-    listNoticeActions(feed.userId, { from: fromIso, to: toIso, includeFinished: true }),
-    listActivitiesInDateRange(feed.userId, { fromIso, toIso, profileFilter: null, isPro: false }),
-    listProfileActivitiesInDateRange(feed.userId, {
-      fromIso,
-      toIso,
-      profileFilter: null,
-      includePausedSubjects: false,
-    }),
-  ]);
-  const events: FeedEvent[] = notices.flatMap(({ action: a, profileName }) =>
+  // Uma consulta só. O feed somava três listas — recados, escola e extras —
+  // cada uma com o seu formato de id, de data e de "cancelada", e o mesmo
+  // evento aparecia diferente conforme a tabela de origem.
+  const tasks = await listNoticeActions(feed.userId, {
+    from: fromIso,
+    to: toIso,
+    includeFinished: true,
+  });
+  const events: FeedEvent[] = tasks.flatMap(({ action: a, profileName }) =>
     a.dueAt
       ? [
           {
-            id: `notice-${a.id}`,
+            id: `atividade-${a.id}`,
             title: `${profileName}: ${a.title}`,
             description: a.description,
             date: a.dueAt,
@@ -62,18 +58,5 @@ export async function readCalendarFeed(token: string) {
         ]
       : [],
   );
-  for (const item of [...school, ...extras])
-    events.push({
-      id: `${"statusId" in item ? "school" : "extra"}-${item.activityId}-${item.studentProfileId}`,
-      title: `${item.studentProfileName}: ${item.title}`,
-      description: item.description,
-      date: item.dueAt,
-      updatedAt:
-        "activityUpdatedAt" in item
-          ? (item.activityUpdatedAt ?? item.activityCreatedAt)
-          : item.activityCreatedAt,
-      version: "version" in item ? item.version : undefined,
-      canceled: "canceledAt" in item ? Boolean(item.canceledAt) : false,
-    });
   return buildCalendarFeed(events);
 }

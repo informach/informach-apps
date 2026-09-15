@@ -4,9 +4,9 @@ import { and, asc, count, type Database, db, eq, inArray, ne, sql } from "@infor
 import {
   type AgendaExtracurricularDay,
   type AgendaProfileSubjectStatus,
-  agendaProfileSubjectActivities,
   agendaProfileSubjects,
   agendaStudentProfiles,
+  agendaTasks,
 } from "@informach/db/schema";
 import type { ProfileSubject } from "./types";
 import { pickAvailableColorIndexForProfile } from "./utils";
@@ -253,17 +253,15 @@ export async function loadActivityCountsForProfileSubjects(
   if (ids.length === 0) return map;
   const rows = await db
     .select({
-      profileSubjectId: agendaProfileSubjectActivities.profileSubjectId,
-      status: agendaProfileSubjectActivities.status,
+      profileSubjectId: agendaTasks.profileSubjectId,
+      status: agendaTasks.status,
       total: count(),
     })
-    .from(agendaProfileSubjectActivities)
-    .where(inArray(agendaProfileSubjectActivities.profileSubjectId, ids))
-    .groupBy(
-      agendaProfileSubjectActivities.profileSubjectId,
-      agendaProfileSubjectActivities.status,
-    );
+    .from(agendaTasks)
+    .where(inArray(agendaTasks.profileSubjectId, ids))
+    .groupBy(agendaTasks.profileSubjectId, agendaTasks.status);
   for (const row of rows) {
+    if (!row.profileSubjectId) continue;
     const existing = map.get(row.profileSubjectId) ?? { pending: 0, done: 0 };
     if (row.status === "pending") existing.pending = Number(row.total);
     if (row.status === "done") existing.done = Number(row.total);

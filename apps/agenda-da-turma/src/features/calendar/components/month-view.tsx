@@ -1,14 +1,14 @@
 "use client";
 
 import { useMemo } from "react";
-import type { UnifiedActivityListItem } from "@/features/unified-activities/types";
+import type { TaskRow } from "@/features/unified-activities/task-repository";
 import { buildMonthGrid, WEEKDAY_SHORT_LABELS_SUNDAY_FIRST } from "../date";
 import { DayCell } from "./day-cell";
 
 type Props = {
   anchorIso: string;
-  items: UnifiedActivityListItem[];
-  onSelectActivity: (item: UnifiedActivityListItem) => void;
+  items: TaskRow[];
+  onSelectActivity: (item: TaskRow) => void;
   onCreateForDay: (iso: string) => void;
 };
 
@@ -19,8 +19,10 @@ export function MonthView({ anchorIso, items, onSelectActivity, onCreateForDay }
   const grid = useMemo(() => buildMonthGrid(anchorIso), [anchorIso]);
 
   const itemsByDate = useMemo(() => {
-    const map = new Map<string, UnifiedActivityListItem[]>();
+    const map = new Map<string, TaskRow[]>();
     for (const item of items) {
+      // Sem prazo não há célula; a ausência de data é estado legítimo.
+      if (!item.dueAt) continue;
       const list = map.get(item.dueAt) ?? [];
       list.push(item);
       map.set(item.dueAt, list);

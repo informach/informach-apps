@@ -1,0 +1,3 @@
+ALTER TABLE "agenda"."notice_actions" ADD COLUMN "shared_activity_id" uuid;--> statement-breakpoint
+ALTER TABLE "agenda"."notice_actions" ADD CONSTRAINT "notice_actions_shared_activity_id_activities_id_fk" FOREIGN KEY ("shared_activity_id") REFERENCES "agenda"."activities"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "agenda_tasks_shared_activity_profile_idx" ON "agenda"."notice_actions" USING btree ("shared_activity_id","profile_id") WHERE "agenda"."notice_actions"."shared_activity_id" IS NOT NULL;

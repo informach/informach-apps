@@ -4,7 +4,7 @@ import { Button } from "@informach/ui/components/button";
 import { cn } from "@informach/ui/lib/utils";
 import { Plus } from "lucide-react";
 import { useMemo } from "react";
-import type { UnifiedActivityListItem } from "@/features/unified-activities/types";
+import type { TaskRow } from "@/features/unified-activities/task-repository";
 import {
   buildWeekDays,
   parseLocalIso,
@@ -15,8 +15,8 @@ import { ActivityBlip } from "./activity-blip";
 
 type Props = {
   anchorIso: string;
-  items: UnifiedActivityListItem[];
-  onSelectActivity: (item: UnifiedActivityListItem) => void;
+  items: TaskRow[];
+  onSelectActivity: (item: TaskRow) => void;
   onCreateForDay: (iso: string) => void;
 };
 
@@ -28,8 +28,11 @@ export function WeekView({ anchorIso, items, onSelectActivity, onCreateForDay }:
   const today = todayLocalIso();
 
   const itemsByDate = useMemo(() => {
-    const map = new Map<string, UnifiedActivityListItem[]>();
+    const map = new Map<string, TaskRow[]>();
     for (const item of items) {
+      // Sem prazo não há coluna: a atividade fica na rotina e na lista, sem
+      // ganhar uma data fictícia só para caber na semana.
+      if (!item.dueAt) continue;
       const list = map.get(item.dueAt) ?? [];
       list.push(item);
       map.set(item.dueAt, list);
@@ -92,7 +95,7 @@ export function WeekView({ anchorIso, items, onSelectActivity, onCreateForDay }:
                 ) : (
                   dayItems.map((item) => (
                     <ActivityBlip
-                      key={item.source === "turma" ? item.statusId : item.activityId}
+                      key={item.id}
                       item={item}
                       onSelect={() => onSelectActivity(item)}
                     />

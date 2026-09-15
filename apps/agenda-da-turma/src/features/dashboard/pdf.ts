@@ -1,5 +1,5 @@
 import { ACTIVITY_TYPE_LABELS } from "@/features/unified-activities/activity-types";
-import type { UnifiedActivityListItem } from "@/features/unified-activities/types";
+import type { TaskRow } from "@/features/unified-activities/task-repository";
 import type { DashboardProfileSummary, DashboardSnapshot } from "./types";
 
 type BuildArgs = {
@@ -58,8 +58,17 @@ function todayFilename(): string {
   return `agenda-da-turma-${parts}.pdf`;
 }
 
-function activityRow(item: UnifiedActivityListItem): string[] {
-  const statusLabel = item.status === "done" ? "Concluída" : "Pendente";
+/**
+ * Uma linha da tabela por tarefa.
+ *
+ * Antes esta função precisava saber de qual tabela a linha tinha vindo para
+ * achar a matéria e rotular a coluna "Turma". Com a convergência a matéria já
+ * chega resolvida e a coluna diz a procedência que existir — turma publicada,
+ * extracurricular ou recado — em vez de uma origem técnica.
+ */
+function activityRow(item: TaskRow): string[] {
+  const statusLabel =
+    item.status === "done" ? "Concluída" : item.status === "canceled" ? "Cancelada" : "Pendente";
   const trimmedDescription = item.description?.trim();
   // jspdf-autotable wrap nativo respeita \n quando overflow="linebreak"
   // (default). Indentação de 2 espaços nas linhas de observação cria a
@@ -70,23 +79,21 @@ function activityRow(item: UnifiedActivityListItem): string[] {
         .map((line) => `  ${line}`)
         .join("\n")}`
     : item.title;
-  // Discriminator: turma traz schoolName/grade/classLetter; extra usa
-  // "Extracurricular" como marca de origem na coluna "Turma" e o nome da
-  // matéria do perfil na coluna "Matéria".
-  const subjectName = item.source === "extra" ? item.profileSubjectName : item.subjectName;
   const turmaLabel =
-    item.source === "turma"
+    item.grade && item.classLetter
       ? `${item.grade}${item.classLetter}`
-      : item.source === "extra"
+      : item.profileSubjectId
         ? "Extra"
-        : "Recado";
+        : item.noticeId
+          ? "Recado"
+          : "Família";
   return [
-    formatDueDate(item.dueAt),
+    item.dueAt ? formatDueDate(item.dueAt) : "A confirmar",
     ACTIVITY_TYPE_LABELS[item.type],
-    subjectName,
+    item.subjectName ?? "—",
     turmaLabel,
     activityCell,
-    item.studentProfileName,
+    item.profileName,
     statusLabel,
   ];
 }
@@ -352,7 +359,7 @@ function drawBucket(
   marginX: number,
   opts: {
     title: string;
-    items: UnifiedActivityListItem[];
+    items: TaskRow[];
     headFill: [number, number, number];
     autoTable: AutoTableFn;
   },

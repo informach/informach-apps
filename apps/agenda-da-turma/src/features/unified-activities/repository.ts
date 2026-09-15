@@ -1,52 +1,35 @@
 import "server-only";
 import { db, sql } from "@informach/db";
-import {
-  agendaActivities,
-  agendaActivityStatuses,
-  agendaNoticeActions,
-  agendaProfileSubjectActivities,
-  agendaStudentProfiles,
-} from "@informach/db/schema";
+import { agendaStudentProfiles, agendaTasks } from "@informach/db/schema";
 import type { DashboardCounters } from "@/features/dashboard/types";
 import { accessibleProfileCondition } from "@/features/family/access";
 import { type ActivityOverviewOptions, OVERVIEW_PAGE_SIZE } from "./overview-types";
 import { ROUTINE_MAX_ITEMS, type RoutineBucketKey } from "./routine-types";
 
-// Projeção única das três fontes de atividade. Tudo que lista ou conta
-// atividades (a lista de /atividades, os buckets da rotina, os KPIs) passa por
-// aqui, para que os números e as listas nunca discordem.
+// Projeção de atividades. Desde a convergência das tabelas é um SELECT só:
+// antes era uma UNION de três fontes com formatos diferentes, e cada consumidor
+// precisava saber de qual delas a linha tinha vindo. Tudo que lista ou conta
+// atividades passa por aqui, para que os números e as listas nunca discordem.
 function activityIndexCte(userId: string) {
-  const profiles = sql`SELECT ${agendaStudentProfiles.id} FROM ${agendaStudentProfiles}
-    WHERE ${accessibleProfileCondition(userId)}`;
   return sql`
     WITH activity_index AS (
-      SELECT ${agendaActivityStatuses.id} AS id, 'turma' AS source,
-        ${agendaActivityStatuses.studentProfileId} AS profile_id,
-        ${agendaActivities.type}::text AS type,
-        CASE WHEN ${agendaActivities.canceledAt} IS NOT NULL THEN 'canceled'
-          ELSE ${agendaActivityStatuses.status}::text END AS status,
-        ${agendaActivities.dueAt} AS due_at, ${agendaActivities.createdAt} AS created_at,
-        NULL::uuid AS notice_id
-      FROM ${agendaActivityStatuses}
-      JOIN ${agendaActivities} ON ${agendaActivities.id} = ${agendaActivityStatuses.activityId}
-      WHERE ${agendaActivityStatuses.studentProfileId} IN (${profiles})
-      UNION ALL
-      SELECT ${agendaNoticeActions.id}, 'notice', ${agendaNoticeActions.profileId},
-        ${agendaNoticeActions.type}::text, ${agendaNoticeActions.status}::text,
-        ${agendaNoticeActions.dueAt}, ${agendaNoticeActions.createdAt}, ${agendaNoticeActions.noticeId}
-      FROM ${agendaNoticeActions} WHERE ${agendaNoticeActions.profileId} IN (${profiles})
-      UNION ALL
-      SELECT ${agendaProfileSubjectActivities.id}, 'extra', ${agendaProfileSubjectActivities.profileId},
-        ${agendaProfileSubjectActivities.type}::text, ${agendaProfileSubjectActivities.status}::text,
-        ${agendaProfileSubjectActivities.dueAt}, ${agendaProfileSubjectActivities.createdAt}, NULL::uuid
-      FROM ${agendaProfileSubjectActivities} WHERE ${agendaProfileSubjectActivities.profileId} IN (${profiles})
+      SELECT ${agendaTasks.id} AS id,
+        ${agendaTasks.profileId} AS profile_id,
+        ${agendaTasks.type}::text AS type,
+        ${agendaTasks.status}::text AS status,
+        ${agendaTasks.dueAt} AS due_at,
+        ${agendaTasks.createdAt} AS created_at,
+        ${agendaTasks.noticeId} AS notice_id
+      FROM ${agendaTasks}
+      INNER JOIN ${agendaStudentProfiles} ON ${agendaStudentProfiles.id} = ${agendaTasks.profileId}
+      WHERE ${accessibleProfileCondition(userId)}
     )`;
 }
 
 export async function listActivityOverviewIndex(userId: string, options: ActivityOverviewOptions) {
-  return db.execute<{ id: string; source: "turma" | "notice" | "extra" }>(sql`
+  return db.execute<{ id: string }>(sql`
     ${activityIndexCte(userId)}
-    SELECT id, source FROM activity_index
+    SELECT id FROM activity_index
     WHERE (${options.profileFilter}::uuid IS NULL OR profile_id = ${options.profileFilter}::uuid)
       AND (${options.typeFilter}::text IS NULL OR type = ${options.typeFilter})
       AND (${options.statusFilter} = 'all' OR status = ${options.statusFilter})
@@ -54,7 +37,7 @@ export async function listActivityOverviewIndex(userId: string, options: Activit
     ORDER BY CASE status WHEN 'pending' THEN 0 WHEN 'done' THEN 1 ELSE 2 END,
       CASE WHEN status = 'pending' THEN due_at END ASC NULLS FIRST,
       CASE WHEN status <> 'pending' THEN due_at END DESC NULLS LAST,
-      created_at ASC, source ASC, id ASC
+      created_at ASC, id ASC
     LIMIT ${OVERVIEW_PAGE_SIZE + 1} OFFSET ${(options.page - 1) * OVERVIEW_PAGE_SIZE}
   `);
 }
@@ -72,10 +55,10 @@ export async function listRoutineIndex(
     weekEndIso: string;
   },
 ) {
-  return db.execute<{ id: string; source: "turma" | "notice" | "extra"; bucket: RoutineBucketKey }>(
+  return db.execute<{ id: string; bucket: RoutineBucketKey }>(
     sql`
     ${activityIndexCte(userId)}
-    SELECT id, source,
+    SELECT id,
       CASE
         WHEN due_at IS NULL OR due_at <= ${options.todayIso}::date THEN 'attention'
         WHEN due_at = ${options.tomorrowIso}::date THEN 'tomorrow'
@@ -85,7 +68,7 @@ export async function listRoutineIndex(
     WHERE status = 'pending'
       AND (${options.profileFilter}::uuid IS NULL OR profile_id = ${options.profileFilter}::uuid)
       AND (due_at IS NULL OR due_at <= ${options.weekEndIso}::date)
-    ORDER BY due_at ASC NULLS FIRST, created_at ASC, source ASC, id ASC
+    ORDER BY due_at ASC NULLS FIRST, created_at ASC, id ASC
     LIMIT ${ROUTINE_MAX_ITEMS}
   `,
   );

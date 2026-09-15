@@ -11,29 +11,21 @@ import {
 import { cn } from "@informach/ui/lib/utils";
 import { Check, MoreVertical, Pencil, Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
-import { setActivityStatusAction } from "@/features/activities/actions";
-import { ActivityFormDialog } from "@/features/activities/components/activity-form-dialog";
-import { DeleteActivityDialog } from "@/features/activities/components/delete-activity-dialog";
-import type { ActivityListItem, TurmaWithSubjectsForForm } from "@/features/activities/types";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import { setNoticeStatusAction } from "@/features/notices/actions";
 import { noticeErrorMessage } from "@/features/notices/messages";
-import { setProfileSubjectActivityStatusAction } from "@/features/profile-subject-activities/actions";
 import { getSubjectTintedClassByIndex } from "@/features/subjects/utils";
-import { isActionRejected } from "@/lib/action-result";
+import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { ACTIVITY_TYPE_LABELS } from "../activity-types";
 import { useCardToggle } from "../hooks/use-card-toggle";
 import type { ActivityOverviewItem } from "../overview-types";
 import { getActivityPresentation } from "../presentation";
-import { type ActivityToggleTarget, getViewDueBadge, toActivityView } from "../view";
+import { getViewDueBadge, toActivityView } from "../view";
 
 type Props = {
   entry: ActivityOverviewItem;
   currentUserId: string;
-  isPro: boolean;
-  turmasForForm: TurmaWithSubjectsForForm[];
-  /** Esconde o menu de ações. A rotina é vista panorâmica; edição mora na lista. */
-  hideActions?: boolean;
   /** Nos buckets da rotina o item some ao ser concluído, com colapso animado. */
   optimisticHideWhenDone?: boolean;
   onStatusSuccess?: (
@@ -43,25 +35,10 @@ type Props = {
   ) => void;
 };
 
-function runToggle(target: ActivityToggleTarget, next: "pending" | "done") {
-  if (target.kind === "notice")
-    return setNoticeStatusAction({ id: target.id, version: target.version, status: next });
-  if (target.kind === "extra")
-    return setProfileSubjectActivityStatusAction({ id: target.id, status: next });
-  return setActivityStatusAction({
-    activityId: target.activityId,
-    studentProfileId: target.studentProfileId,
-    status: next,
-  });
-}
-
-function toggleErrorMessage(target: ActivityToggleTarget, error: { code: string }): string {
+function toggleErrorMessage(error: { code: string }): string {
   if (isActionRejected(error))
     return "Não foi possível atualizar. Atualize a página e tente de novo.";
-  if (target.kind === "notice") return noticeErrorMessage(error.code);
-  if (error.code === "NOT_FOUND") return "Atividade não encontrada.";
-  if (error.code === "INVALID_PROFILE") return "Esse perfil não é seu.";
-  return "Não foi possível atualizar.";
+  return noticeErrorMessage(error.code);
 }
 
 /**
@@ -81,16 +58,14 @@ function toggleErrorMessage(target: ActivityToggleTarget, error: { code: string 
 export function UnifiedActivityCard({
   entry,
   currentUserId,
-  isPro,
-  turmasForForm,
-  hideActions = false,
   optimisticHideWhenDone = false,
   onStatusSuccess,
 }: Props) {
+  const router = useRouter();
   const view = toActivityView(entry, currentUserId);
   const [error, setError] = useState("");
-  const [editOpen, setEditOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [canceling, startCancel] = useTransition();
 
   const isCanceled = view.status === "canceled";
   const presentation = getActivityPresentation(view.type);
@@ -107,17 +82,15 @@ export function UnifiedActivityCard({
     optimisticHideWhenDone: optimisticHideWhenDone && !isCanceled,
     toggleAction: (next) =>
       view.toggle
-        ? runToggle(view.toggle, next)
+        ? setNoticeStatusAction({ id: view.toggle.id, version: view.toggle.version, status: next })
         : Promise.resolve({ ok: false as const, error: { code: "NOT_FOUND" } }),
     onSuccess: (previousStatus, nextStatus) => {
       setError("");
       onStatusSuccess?.(entry, previousStatus, nextStatus);
     },
-    onError: (actionError) =>
-      setError(view.toggle ? toggleErrorMessage(view.toggle, actionError) : ""),
+    onError: (actionError) => setError(toggleErrorMessage(actionError)),
   });
 
-  const canManage = !hideActions && view.manage !== null;
   // O estado otimista manda nos dois sentidos: reabrir precisa devolver o
   // badge de urgência na hora, e não só depois que o servidor responder.
   const due = getViewDueBadge({
@@ -128,224 +101,206 @@ export function UnifiedActivityCard({
   if (optimisticallyHidden) return null;
 
   return (
-    <>
-      <div
-        className={cn(
-          "grid grid-rows-[1fr] opacity-100",
-          "starting:grid-rows-[0fr] starting:opacity-0",
-          "transition-all duration-300 ease-out motion-reduce:transition-none",
-          "[transition-behavior:allow-discrete]",
-          isExiting && "grid-rows-[0fr] opacity-0",
-        )}
-      >
-        <div className="overflow-hidden">
-          <article
-            className={cn(
-              "rounded-2xl border p-4 sm:p-5",
-              !isCanceled && !isDone ? surface : "border-border bg-card",
-              isDone && "opacity-70",
-            )}
-          >
-            <div className="flex items-start gap-3">
-              {view.toggle ? (
-                <Button
-                  size="icon"
-                  variant={isDone ? "secondary" : "outline"}
-                  className={cn(
-                    "size-11 shrink-0 rounded-2xl",
-                    isDone
-                      ? "bg-chart-2/20 text-foreground hover:bg-chart-2/30"
-                      : "border-foreground/20 bg-background/60 hover:bg-background",
-                  )}
-                  aria-label={`${isDone ? "Reabrir" : "Marcar como feito em casa"}: ${view.title}`}
-                  disabled={pending}
-                  onClick={() => handleToggle(!isDone)}
-                >
-                  {isDone ? (
-                    <Check className="size-5" aria-hidden />
-                  ) : (
-                    <span className="size-4 rounded-full border-2 border-foreground/60" />
-                  )}
-                </Button>
-              ) : null}
+    <div
+      className={cn(
+        "grid grid-rows-[1fr] opacity-100",
+        "starting:grid-rows-[0fr] starting:opacity-0",
+        "transition-all duration-300 ease-out motion-reduce:transition-none",
+        "[transition-behavior:allow-discrete]",
+        isExiting && "grid-rows-[0fr] opacity-0",
+      )}
+    >
+      <div className="overflow-hidden">
+        <article
+          className={cn(
+            "rounded-2xl border p-4 sm:p-5",
+            !isCanceled && !isDone ? surface : "border-border bg-card",
+            isDone && "opacity-70",
+          )}
+        >
+          <div className="flex items-start gap-3">
+            {view.toggle ? (
+              <Button
+                size="icon"
+                variant={isDone ? "secondary" : "outline"}
+                className={cn(
+                  "size-11 shrink-0 rounded-2xl",
+                  isDone
+                    ? "bg-chart-2/20 text-foreground hover:bg-chart-2/30"
+                    : "border-foreground/20 bg-background/60 hover:bg-background",
+                )}
+                aria-label={`${isDone ? "Reabrir" : "Marcar como feito em casa"}: ${view.title}`}
+                disabled={pending}
+                onClick={() => handleToggle(!isDone)}
+              >
+                {isDone ? (
+                  <Check className="size-5" aria-hidden />
+                ) : (
+                  <span className="size-4 rounded-full border-2 border-foreground/60" />
+                )}
+              </Button>
+            ) : null}
 
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="min-w-0 break-words text-sm font-semibold">
-                    {view.profileName}
-                  </span>
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs font-medium text-foreground",
-                      presentation.surface,
-                    )}
-                  >
-                    <TypeIcon className="size-3.5" aria-hidden />
-                    {ACTIVITY_TYPE_LABELS[view.type]}
-                  </span>
-                </div>
-
-                <Link
-                  href={view.detailHref}
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="min-w-0 break-words text-sm font-semibold">
+                  {view.profileName}
+                </span>
+                <span
                   className={cn(
-                    "mt-2 block break-words text-base font-semibold leading-relaxed hover:underline",
-                    (isCanceled || isDone) && "text-muted-foreground line-through",
+                    "inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs font-medium text-foreground",
+                    presentation.surface,
                   )}
                 >
-                  {view.title}
-                </Link>
+                  <TypeIcon className="size-3.5" aria-hidden />
+                  {ACTIVITY_TYPE_LABELS[view.type]}
+                </span>
+              </div>
 
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <Badge variant={due.variant}>{due.label}</Badge>
-                  {view.shared ? (
-                    <Badge variant="outline" className="font-normal">
-                      Compartilhada
-                    </Badge>
-                  ) : null}
-                  {view.source === "extra" ? (
-                    <Badge variant="outline" className="font-normal">
-                      <Sparkles className="mr-1 size-3" aria-hidden />
-                      Extra
-                    </Badge>
-                  ) : null}
-                </div>
+              <Link
+                href={view.detailHref}
+                className={cn(
+                  "mt-2 block break-words text-base font-semibold leading-relaxed hover:underline",
+                  (isCanceled || isDone) && "text-muted-foreground line-through",
+                )}
+              >
+                {view.title}
+              </Link>
 
-                {view.subjectName || view.contextLine ? (
-                  <p className="mt-2 break-words text-xs font-medium text-foreground/80">
-                    {[view.subjectName, view.contextLine].filter(Boolean).join(" · ")}
-                  </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Badge variant={due.variant}>{due.label}</Badge>
+                {view.shared ? (
+                  <Badge variant="outline" className="font-normal">
+                    Compartilhada
+                  </Badge>
                 ) : null}
-
-                {view.description ? (
-                  <p
-                    className={cn(
-                      "mt-2 whitespace-pre-wrap break-words text-sm text-foreground/90",
-                      isDone && "text-muted-foreground line-through",
-                    )}
-                  >
-                    {view.description}
-                  </p>
-                ) : null}
-
-                {view.location ? (
-                  <p className="mt-1 break-words text-xs text-foreground/80">{view.location}</p>
-                ) : null}
-                {view.assignment ? (
-                  <p className="mt-1 break-words text-xs text-foreground/80">{view.assignment}</p>
-                ) : null}
-                {view.provenance ? (
-                  <p className="mt-1 text-xs text-foreground/80">{view.provenance}</p>
-                ) : null}
-
-                {view.version !== null && view.version > 1 ? (
-                  <Link
-                    href={view.detailHref}
-                    className="mt-2 block text-xs font-semibold text-primary underline"
-                  >
-                    Atualizada · versão {view.version} · ver antes e depois
-                  </Link>
+                {view.isExtra ? (
+                  <Badge variant="outline" className="font-normal">
+                    <Sparkles className="mr-1 size-3" aria-hidden />
+                    Extra
+                  </Badge>
                 ) : null}
               </div>
 
-              {canManage ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Ações para ${view.title}`}
-                      disabled={pending}
-                    >
-                      <MoreVertical className="size-4" aria-hidden />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onSelect={() => setEditOpen(true)}>
-                      <Pencil className="mr-2 size-4" aria-hidden />
-                      Editar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onSelect={() => setDeleteOpen(true)}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="mr-2 size-4" aria-hidden />
-                      Excluir
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+              {view.subjectName || view.contextLine ? (
+                <p className="mt-2 break-words text-xs font-medium text-foreground/80">
+                  {[view.subjectName, view.contextLine].filter(Boolean).join(" · ")}
+                </p>
+              ) : null}
+
+              {view.description ? (
+                <p
+                  className={cn(
+                    "mt-2 whitespace-pre-wrap break-words text-sm text-foreground/90",
+                    isDone && "text-muted-foreground line-through",
+                  )}
+                >
+                  {view.description}
+                </p>
+              ) : null}
+
+              {view.location ? (
+                <p className="mt-1 break-words text-xs text-foreground/80">{view.location}</p>
+              ) : null}
+              {view.assignment ? (
+                <p className="mt-1 break-words text-xs text-foreground/80">{view.assignment}</p>
+              ) : null}
+              {view.provenance ? (
+                <p className="mt-1 text-xs text-foreground/80">{view.provenance}</p>
+              ) : null}
+
+              {view.version !== null && view.version > 1 ? (
+                <Link
+                  href={view.detailHref}
+                  className="mt-2 block text-xs font-semibold text-primary underline"
+                >
+                  Atualizada · versão {view.version} · ver antes e depois
+                </Link>
               ) : null}
             </div>
 
-            {error ? (
-              <p role="alert" className="mt-3 text-sm text-destructive">
-                {error}
-              </p>
+            {view.manage ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-11 shrink-0 rounded-2xl"
+                    aria-label={`Ações para ${view.title}`}
+                  >
+                    <MoreVertical className="size-4" aria-hidden />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link href={view.detailHref}>
+                      <Pencil className="mr-2 size-4" aria-hidden />
+                      Editar
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onSelect={() => setConfirmCancel(true)}
+                  >
+                    <Trash2 className="mr-2 size-4" aria-hidden />
+                    Cancelar atividade
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : null}
-          </article>
-        </div>
+          </div>
+
+          {/* Confirmar antes de cancelar, aqui mesmo: o menu abre e fecha no
+              card, e mandar a pessoa para outra tela só para confirmar faria
+              perder o lugar na lista. */}
+          {confirmCancel && view.toggle ? (
+            <div className="mt-3 space-y-3 rounded-lg border border-destructive/30 p-3">
+              <p className="text-sm">
+                Cancelar esta atividade? Ela sai das pendências e deixa de gerar lembretes; o
+                histórico fica.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={canceling}
+                  onClick={() => {
+                    const target = view.toggle;
+                    if (!target) return;
+                    startCancel(async () => {
+                      const result = await catchActionResult(() =>
+                        setNoticeStatusAction({
+                          id: target.id,
+                          version: target.version,
+                          status: "canceled",
+                        }),
+                      );
+                      setConfirmCancel(false);
+                      if (!result.ok) {
+                        setError(toggleErrorMessage(result.error));
+                        return;
+                      }
+                      setError("");
+                      router.refresh();
+                    });
+                  }}
+                >
+                  Confirmar cancelamento
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setConfirmCancel(false)}>
+                  Voltar
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          {error ? (
+            <p role="alert" className="mt-3 text-sm text-destructive">
+              {error}
+            </p>
+          ) : null}
+        </article>
       </div>
-
-      {canManage && entry.source === "turma" ? (
-        <TurmaManageDialogs
-          item={entry.item}
-          isPro={isPro}
-          turmasForForm={turmasForForm}
-          editOpen={editOpen}
-          onEditOpenChange={setEditOpen}
-          deleteOpen={deleteOpen}
-          onDeleteOpenChange={setDeleteOpen}
-        />
-      ) : null}
-    </>
-  );
-}
-
-function TurmaManageDialogs({
-  item,
-  isPro,
-  turmasForForm,
-  editOpen,
-  onEditOpenChange,
-  deleteOpen,
-  onDeleteOpenChange,
-}: {
-  item: ActivityListItem;
-  isPro: boolean;
-  turmasForForm: TurmaWithSubjectsForForm[];
-  editOpen: boolean;
-  onEditOpenChange: (open: boolean) => void;
-  deleteOpen: boolean;
-  onDeleteOpenChange: (open: boolean) => void;
-}) {
-  return (
-    <>
-      <ActivityFormDialog
-        open={editOpen}
-        onOpenChange={onEditOpenChange}
-        turmas={turmasForForm}
-        isPro={isPro}
-        activity={{
-          version: item.version,
-          activityId: item.activityId,
-          type: item.type,
-          title: item.title,
-          description: item.description,
-          dueAt: item.dueAt,
-          turmaId: item.turmaId,
-          subjectId: item.subjectId,
-          visibility: item.visibility,
-          subjectName: item.subjectName,
-          schoolName: item.schoolName,
-          grade: item.grade,
-          classLetter: item.classLetter,
-        }}
-      />
-      <DeleteActivityDialog
-        open={deleteOpen}
-        onOpenChange={onDeleteOpenChange}
-        activityId={item.activityId}
-        activityTitle={item.title}
-      />
-    </>
+    </div>
   );
 }

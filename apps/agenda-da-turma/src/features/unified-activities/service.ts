@@ -1,9 +1,6 @@
 import "server-only";
-import { listSchoolActivitiesByStatusIds } from "@/features/activities/repository";
 import { addDaysIso, todayLocalIso } from "@/features/dashboard/date";
 import type { DashboardCounters } from "@/features/dashboard/types";
-import { listNoticeActions } from "@/features/notices/repository";
-import { listProfileActivitiesByIds } from "@/features/profile-subject-activities/repository";
 import {
   type ActivityOverviewItem,
   type ActivityOverviewOptions,
@@ -11,38 +8,21 @@ import {
 } from "./overview-types";
 import { getRoutineCounters, listActivityOverviewIndex, listRoutineIndex } from "./repository";
 import type { RoutineBuckets } from "./routine-types";
+import { listTasksByIds } from "./task-repository";
 
-type IndexRow = { id: string; source: "turma" | "notice" | "extra" };
-
-// Segundo passo comum: o índice devolve (id, fonte); aqui as três tabelas são
-// lidas em paralelo e reordenadas conforme o índice. A lista de /atividades e
-// os buckets da rotina compartilham esta hidratação, então o card e os campos
-// são exatamente os mesmos nas duas telas.
+// Segundo passo comum: o índice devolve os ids na ordem certa; aqui as linhas
+// são lidas numa consulta só e reordenadas conforme o índice. A lista de
+// /atividades e os buckets da rotina compartilham esta hidratação, então o card
+// e os campos são exatamente os mesmos nas duas telas.
 async function hydrateIndexRows(
   userId: string,
-  rows: IndexRow[],
+  rows: { id: string }[],
 ): Promise<Map<string, ActivityOverviewItem>> {
-  const ids = (source: IndexRow["source"]) =>
-    rows.filter((row) => row.source === source).map((row) => row.id);
-  const [school, notices, extras] = await Promise.all([
-    listSchoolActivitiesByStatusIds(userId, ids("turma")),
-    listNoticeActions(userId, { ids: ids("notice"), includeFinished: true }),
-    listProfileActivitiesByIds(userId, ids("extra")),
-  ]);
-  const items = new Map<string, ActivityOverviewItem>();
-  for (const item of school) {
-    const key = `turma:${item.statusId}`;
-    items.set(key, { key, source: "turma", item });
-  }
-  for (const item of notices) {
-    const key = `notice:${item.action.id}`;
-    items.set(key, { key, source: "notice", item });
-  }
-  for (const item of extras) {
-    const key = `extra:${item.activityId}`;
-    items.set(key, { key, source: "extra", item });
-  }
-  return items;
+  const tasks = await listTasksByIds(
+    userId,
+    rows.map((row) => row.id),
+  );
+  return new Map(tasks.map((item) => [item.id, { key: item.id, item }]));
 }
 
 export async function getActivityOverview(userId: string, options: ActivityOverviewOptions) {
@@ -51,7 +31,7 @@ export async function getActivityOverview(userId: string, options: ActivityOverv
   const items = await hydrateIndexRows(userId, visible);
   return {
     items: visible.flatMap((row) => {
-      const item = items.get(`${row.source}:${row.id}`);
+      const item = items.get(row.id);
       return item ? [item] : [];
     }),
     hasNextPage: index.length > OVERVIEW_PAGE_SIZE,
@@ -90,7 +70,7 @@ export async function getRoutineSnapshot(
   const items = await hydrateIndexRows(userId, index);
   const buckets: RoutineBuckets = { attention: [], tomorrow: [], week: [] };
   for (const row of index) {
-    const item = items.get(`${row.source}:${row.id}`);
+    const item = items.get(row.id);
     if (item) buckets[row.bucket].push(item);
   }
   return { todayIso, buckets, counters };

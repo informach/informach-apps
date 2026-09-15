@@ -1,11 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  createActivity,
-  deleteActivity,
-  respondSharedActivity,
-  setActivityStatus,
-  updateActivity,
-} from "./service";
+import { createActivity, deleteActivity, respondSharedActivity, updateActivity } from "./service";
 
 const mocks = vi.hoisted(() => ({
   // billing
@@ -19,14 +13,12 @@ const mocks = vi.hoisted(() => ({
   userHasActiveProfileInTurma: vi.fn(),
   hasOtherAcceptances: vi.fn(),
   insertActivitiesBatchWithStatuses: vi.fn(),
-  insertActivityWithStatuses: vi.fn(),
-  insertActivityWithStatusesWithinFreeLimit: vi.fn(),
+  insertActivityWithTasks: vi.fn(),
+  insertActivityWithTasksWithinFreeLimit: vi.fn(),
   countActivitiesCreatedByUser: vi.fn(),
   updateActivityById: vi.fn(),
   deleteActivityById: vi.fn(),
-  findActivityStatusForProfile: vi.fn(),
-  updateActivityStatusValue: vi.fn(),
-  upsertAcceptanceAndStatuses: vi.fn(),
+  upsertAcceptanceAndTasks: vi.fn(),
   listPendingSharedActivitiesForUser: vi.fn(),
   listTurmasWithSubjectsForUserForm: vi.fn(),
 }));
@@ -53,14 +45,12 @@ vi.mock("./repository", () => ({
   userHasActiveProfileInTurma: mocks.userHasActiveProfileInTurma,
   hasOtherAcceptances: mocks.hasOtherAcceptances,
   insertActivitiesBatchWithStatuses: mocks.insertActivitiesBatchWithStatuses,
-  insertActivityWithStatuses: mocks.insertActivityWithStatuses,
-  insertActivityWithStatusesWithinFreeLimit: mocks.insertActivityWithStatusesWithinFreeLimit,
+  insertActivityWithTasks: mocks.insertActivityWithTasks,
+  insertActivityWithTasksWithinFreeLimit: mocks.insertActivityWithTasksWithinFreeLimit,
   countActivitiesCreatedByUser: mocks.countActivitiesCreatedByUser,
   updateActivityById: mocks.updateActivityById,
   deleteActivityById: mocks.deleteActivityById,
-  findActivityStatusForProfile: mocks.findActivityStatusForProfile,
-  updateActivityStatusValue: mocks.updateActivityStatusValue,
-  upsertAcceptanceAndStatuses: mocks.upsertAcceptanceAndStatuses,
+  upsertAcceptanceAndTasks: mocks.upsertAcceptanceAndTasks,
   listPendingSharedActivitiesForUser: mocks.listPendingSharedActivitiesForUser,
   listTurmasWithSubjectsForUserForm: mocks.listTurmasWithSubjectsForUserForm,
 }));
@@ -69,7 +59,6 @@ const creator = { id: "user_creator" };
 const other = { id: "user_other" };
 const turmaId = "turma_1";
 const subjectId = "subj_1";
-const profileId = "profile_1";
 const activityId = "activity_1";
 
 const baseTurma = {
@@ -117,7 +106,7 @@ describe("createActivity", () => {
     mocks.findTurmaWithSchoolById.mockResolvedValue(baseTurma);
     mocks.subjectBelongsToTurma.mockResolvedValue(true);
     mocks.hasProSubscription.mockResolvedValue(false);
-    mocks.insertActivityWithStatusesWithinFreeLimit.mockResolvedValue({
+    mocks.insertActivityWithTasksWithinFreeLimit.mockResolvedValue({
       ok: true,
       activity: baseActivity,
     });
@@ -126,26 +115,26 @@ describe("createActivity", () => {
 
     expect(result.ok).toBe(true);
     // Free passa pelo helper transacional com lock + count + insert.
-    expect(mocks.insertActivityWithStatusesWithinFreeLimit).toHaveBeenCalledWith(
+    expect(mocks.insertActivityWithTasksWithinFreeLimit).toHaveBeenCalledWith(
       expect.objectContaining({ visibility: "individual" }),
       20,
     );
-    expect(mocks.insertActivityWithStatuses).not.toHaveBeenCalled();
+    expect(mocks.insertActivityWithTasks).not.toHaveBeenCalled();
   });
 
   it("cria atividade individual direto quando Pro (sem helper de limite)", async () => {
     mocks.findTurmaWithSchoolById.mockResolvedValue(baseTurma);
     mocks.subjectBelongsToTurma.mockResolvedValue(true);
     mocks.hasProSubscription.mockResolvedValue(true);
-    mocks.insertActivityWithStatuses.mockResolvedValue(baseActivity);
+    mocks.insertActivityWithTasks.mockResolvedValue(baseActivity);
 
     const result = await createActivity(creator.id, createInput);
 
     expect(result.ok).toBe(true);
-    expect(mocks.insertActivityWithStatuses).toHaveBeenCalledWith(
+    expect(mocks.insertActivityWithTasks).toHaveBeenCalledWith(
       expect.objectContaining({ visibility: "individual" }),
     );
-    expect(mocks.insertActivityWithStatusesWithinFreeLimit).not.toHaveBeenCalled();
+    expect(mocks.insertActivityWithTasksWithinFreeLimit).not.toHaveBeenCalled();
   });
 
   it("recusa quando Free pede shared_with_turma, em vez de salvar individual calado", async () => {
@@ -160,15 +149,15 @@ describe("createActivity", () => {
 
     expect(result).toEqual({ ok: false, error: { code: "PRO_REQUIRED" } });
     // Nada é gravado: entregar algo diferente do pedido é pior que recusar.
-    expect(mocks.insertActivityWithStatusesWithinFreeLimit).not.toHaveBeenCalled();
-    expect(mocks.insertActivityWithStatuses).not.toHaveBeenCalled();
+    expect(mocks.insertActivityWithTasksWithinFreeLimit).not.toHaveBeenCalled();
+    expect(mocks.insertActivityWithTasks).not.toHaveBeenCalled();
   });
 
   it("preserva visibility=shared_with_turma quando Pro", async () => {
     mocks.findTurmaWithSchoolById.mockResolvedValue(baseTurma);
     mocks.subjectBelongsToTurma.mockResolvedValue(true);
     mocks.hasProSubscription.mockResolvedValue(true);
-    mocks.insertActivityWithStatuses.mockResolvedValue({
+    mocks.insertActivityWithTasks.mockResolvedValue({
       ...baseActivity,
       visibility: "shared_with_turma",
     });
@@ -179,7 +168,7 @@ describe("createActivity", () => {
     });
 
     expect(result.ok).toBe(true);
-    expect(mocks.insertActivityWithStatuses).toHaveBeenCalledWith(
+    expect(mocks.insertActivityWithTasks).toHaveBeenCalledWith(
       expect.objectContaining({ visibility: "shared_with_turma" }),
     );
   });
@@ -188,7 +177,7 @@ describe("createActivity", () => {
     mocks.findTurmaWithSchoolById.mockResolvedValue(baseTurma);
     mocks.subjectBelongsToTurma.mockResolvedValue(true);
     mocks.hasProSubscription.mockResolvedValue(false);
-    mocks.insertActivityWithStatusesWithinFreeLimit.mockResolvedValue({
+    mocks.insertActivityWithTasksWithinFreeLimit.mockResolvedValue({
       ok: false,
       current: 20,
     });
@@ -203,7 +192,7 @@ describe("createActivity", () => {
         expect(result.error.current).toBe(20);
       }
     }
-    expect(mocks.insertActivityWithStatuses).not.toHaveBeenCalled();
+    expect(mocks.insertActivityWithTasks).not.toHaveBeenCalled();
   });
 
   it("rejeita TURMA_NOT_FOUND quando turma não existe", async () => {
@@ -223,7 +212,7 @@ describe("createActivity", () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe("NOT_A_MEMBER");
-    expect(mocks.insertActivityWithStatusesWithinFreeLimit).not.toHaveBeenCalled();
+    expect(mocks.insertActivityWithTasksWithinFreeLimit).not.toHaveBeenCalled();
   });
 
   it("rejeita SUBJECT_NOT_FOUND quando matéria não pertence à turma", async () => {
@@ -444,60 +433,10 @@ describe("deleteActivity", () => {
   });
 });
 
-describe("setActivityStatus", () => {
-  it("atualiza quando perfil pertence ao user", async () => {
-    mocks.profileBelongsToUser.mockResolvedValue(true);
-    mocks.findActivityStatusForProfile.mockResolvedValue({ id: "status_1", status: "pending" });
-    mocks.updateActivityStatusValue.mockResolvedValue(true);
-
-    const result = await setActivityStatus(creator.id, {
-      activityId,
-      studentProfileId: profileId,
-      status: "done",
-    });
-
-    expect(result.ok).toBe(true);
-    expect(mocks.updateActivityStatusValue).toHaveBeenCalledWith(
-      "status_1",
-      "done",
-      creator.id,
-      null,
-    );
-  });
-
-  it("rejeita INVALID_PROFILE quando perfil é de outro user", async () => {
-    mocks.profileBelongsToUser.mockResolvedValue(false);
-
-    const result = await setActivityStatus(other.id, {
-      activityId,
-      studentProfileId: profileId,
-      status: "done",
-    });
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.code).toBe("INVALID_PROFILE");
-    expect(mocks.updateActivityStatusValue).not.toHaveBeenCalled();
-  });
-
-  it("rejeita NOT_FOUND quando status row não existe", async () => {
-    mocks.profileBelongsToUser.mockResolvedValue(true);
-    mocks.findActivityStatusForProfile.mockResolvedValue(null);
-
-    const result = await setActivityStatus(creator.id, {
-      activityId,
-      studentProfileId: profileId,
-      status: "done",
-    });
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.code).toBe("NOT_FOUND");
-  });
-});
-
 describe("respondSharedActivity", () => {
   const sharedActivity = { ...baseActivity, visibility: "shared_with_turma" as const };
 
-  it("aceita compartilhada de outro user e gera statuses", async () => {
+  it("aceita compartilhada de outro user e gera tarefas", async () => {
     mocks.findActivityById.mockResolvedValue(sharedActivity);
     mocks.hasProSubscription.mockResolvedValue(true);
     mocks.userHasActiveProfileInTurma.mockResolvedValue(true);
@@ -505,7 +444,7 @@ describe("respondSharedActivity", () => {
     const result = await respondSharedActivity(other.id, { activityId, accepted: true });
 
     expect(result.ok).toBe(true);
-    expect(mocks.upsertAcceptanceAndStatuses).toHaveBeenCalledWith(
+    expect(mocks.upsertAcceptanceAndTasks).toHaveBeenCalledWith(
       activityId,
       other.id,
       true,
@@ -521,7 +460,7 @@ describe("respondSharedActivity", () => {
     const result = await respondSharedActivity(other.id, { activityId, accepted: false });
 
     expect(result.ok).toBe(true);
-    expect(mocks.upsertAcceptanceAndStatuses).toHaveBeenCalledWith(
+    expect(mocks.upsertAcceptanceAndTasks).toHaveBeenCalledWith(
       activityId,
       other.id,
       false,
@@ -536,7 +475,7 @@ describe("respondSharedActivity", () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe("NOT_SHARED");
-    expect(mocks.upsertAcceptanceAndStatuses).not.toHaveBeenCalled();
+    expect(mocks.upsertAcceptanceAndTasks).not.toHaveBeenCalled();
   });
 
   it("rejeita FORBIDDEN quando o creator tenta responder", async () => {
@@ -556,7 +495,7 @@ describe("respondSharedActivity", () => {
 
     expect(result.ok).toBe(true);
     expect(mocks.userHasActiveProfileInTurma).toHaveBeenCalledWith(other.id, turmaId);
-    expect(mocks.upsertAcceptanceAndStatuses).toHaveBeenCalledWith(
+    expect(mocks.upsertAcceptanceAndTasks).toHaveBeenCalledWith(
       activityId,
       other.id,
       true,
@@ -594,7 +533,7 @@ describe("respondSharedActivity", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe("DUE_DATE_PASSED");
     expect(mocks.userHasActiveProfileInTurma).not.toHaveBeenCalled();
-    expect(mocks.upsertAcceptanceAndStatuses).not.toHaveBeenCalled();
+    expect(mocks.upsertAcceptanceAndTasks).not.toHaveBeenCalled();
   });
 });
 
@@ -609,7 +548,7 @@ describe("shared activity corrections (creator vs acceptor)", () => {
     mocks.findTurmaWithSchoolById.mockResolvedValue(baseTurma);
     mocks.subjectBelongsToTurma.mockResolvedValue(true);
     mocks.hasProSubscription.mockResolvedValue(true);
-    mocks.insertActivityWithStatuses.mockResolvedValue(sharedActivity);
+    mocks.insertActivityWithTasks.mockResolvedValue(sharedActivity);
 
     const created = await createActivity(creator.id, {
       ...createInput,
@@ -626,7 +565,7 @@ describe("shared activity corrections (creator vs acceptor)", () => {
       accepted: true,
     });
     expect(accepted.ok).toBe(true);
-    expect(mocks.upsertAcceptanceAndStatuses).toHaveBeenCalledWith(
+    expect(mocks.upsertAcceptanceAndTasks).toHaveBeenCalledWith(
       activityId,
       other.id,
       true,

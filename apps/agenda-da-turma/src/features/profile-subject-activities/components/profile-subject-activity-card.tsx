@@ -41,7 +41,9 @@ export function ProfileSubjectActivityCard({ activity, profileSubjectName }: Pro
 
   const TypeIcon = getActivityTypeIcon(activity.type);
   const isDone = activity.status === "done";
-  const urgency = getDueUrgency(activity.dueAt, activity.status);
+  // Prazo a confirmar é estado legítimo desde a convergência: a tarefa sem
+  // data continua na rotina em vez de receber uma data fictícia.
+  const urgency = getDueUrgency(activity.dueAt ?? "", isDone ? "done" : "pending");
 
   const handleToggle = (next: boolean) => {
     startTransition(async () => {
@@ -89,7 +91,7 @@ export function ProfileSubjectActivityCard({ activity, profileSubjectName }: Pro
                 {getActivityTypeLabel(activity.type)}
               </Badge>
               <Badge variant={getDueBadgeVariant(urgency)} className="shrink-0 text-xs">
-                {getDueBadgeLabel(activity.dueAt, urgency)}
+                {activity.dueAt ? getDueBadgeLabel(activity.dueAt, urgency) : "Prazo a confirmar"}
               </Badge>
             </div>
             {activity.description ? (

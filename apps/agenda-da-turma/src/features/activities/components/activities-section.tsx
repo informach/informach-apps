@@ -230,13 +230,7 @@ export function ActivitiesSection({
         <>
           <div className="flex flex-col gap-3">
             {items.map((entry) => (
-              <UnifiedActivityCard
-                key={entry.key}
-                entry={entry}
-                currentUserId={currentUserId}
-                isPro={isPro}
-                turmasForForm={turmasForForm}
-              />
+              <UnifiedActivityCard key={entry.key} entry={entry} currentUserId={currentUserId} />
             ))}
           </div>
 

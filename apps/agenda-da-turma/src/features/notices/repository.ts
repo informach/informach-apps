@@ -4,12 +4,12 @@ import {
   agendaActivityRevisions,
   agendaFamilyMembers,
   agendaFamilyProfileAccess,
-  agendaNoticeActions,
   agendaNoticeApplications,
   agendaNotices,
   agendaProfileSubjects,
   agendaStudentProfiles,
   agendaSubjects,
+  agendaTasks,
   users,
 } from "@informach/db/schema";
 import { accessibleProfileCondition } from "@/features/family/access";
@@ -30,7 +30,7 @@ export async function listNoticeActions(
   if (options.ids?.length === 0) return [];
   const query = db
     .select({
-      action: agendaNoticeActions,
+      action: agendaTasks,
       profileName: agendaStudentProfiles.name,
       ownerUserId: agendaStudentProfiles.userId,
       source: agendaNotices.source,
@@ -45,31 +45,28 @@ export async function listNoticeActions(
         number | null
       >`COALESCE(${agendaSubjects.colorIndex}, ${agendaProfileSubjects.colorIndex})`,
     })
-    .from(agendaNoticeActions)
-    .innerJoin(agendaStudentProfiles, eq(agendaStudentProfiles.id, agendaNoticeActions.profileId))
-    .leftJoin(agendaNotices, eq(agendaNotices.id, agendaNoticeActions.noticeId))
-    .leftJoin(users, eq(users.id, agendaNoticeActions.assignedToUserId))
-    .leftJoin(agendaSubjects, eq(agendaSubjects.id, agendaNoticeActions.subjectId))
-    .leftJoin(
-      agendaProfileSubjects,
-      eq(agendaProfileSubjects.id, agendaNoticeActions.profileSubjectId),
-    )
+    .from(agendaTasks)
+    .innerJoin(agendaStudentProfiles, eq(agendaStudentProfiles.id, agendaTasks.profileId))
+    .leftJoin(agendaNotices, eq(agendaNotices.id, agendaTasks.noticeId))
+    .leftJoin(users, eq(users.id, agendaTasks.assignedToUserId))
+    .leftJoin(agendaSubjects, eq(agendaSubjects.id, agendaTasks.subjectId))
+    .leftJoin(agendaProfileSubjects, eq(agendaProfileSubjects.id, agendaTasks.profileSubjectId))
     .where(
       and(
         accessibleProfileCondition(userId),
-        options.ids ? inArray(agendaNoticeActions.id, options.ids) : undefined,
-        options.noticeId ? eq(agendaNoticeActions.noticeId, options.noticeId) : undefined,
-        options.profileId ? eq(agendaNoticeActions.profileId, options.profileId) : undefined,
-        options.includeFinished ? undefined : eq(agendaNoticeActions.status, "pending"),
-        options.from ? sql`${agendaNoticeActions.dueAt} >= ${options.from}::date` : undefined,
-        options.to ? sql`${agendaNoticeActions.dueAt} <= ${options.to}::date` : undefined,
+        options.ids ? inArray(agendaTasks.id, options.ids) : undefined,
+        options.noticeId ? eq(agendaTasks.noticeId, options.noticeId) : undefined,
+        options.profileId ? eq(agendaTasks.profileId, options.profileId) : undefined,
+        options.includeFinished ? undefined : eq(agendaTasks.status, "pending"),
+        options.from ? sql`${agendaTasks.dueAt} >= ${options.from}::date` : undefined,
+        options.to ? sql`${agendaTasks.dueAt} <= ${options.to}::date` : undefined,
       ),
     )
     .orderBy(
-      asc(agendaNoticeActions.dueAt),
-      asc(agendaNoticeActions.time),
-      desc(agendaNoticeActions.createdAt),
-      asc(agendaNoticeActions.id),
+      asc(agendaTasks.dueAt),
+      asc(agendaTasks.time),
+      desc(agendaTasks.createdAt),
+      asc(agendaTasks.id),
     );
   return options.limit ? query.limit(options.limit).offset(options.offset ?? 0) : query;
 }
@@ -78,13 +75,13 @@ export type NoticeActionRow = Awaited<ReturnType<typeof listNoticeActions>>[numb
 export async function getNoticeAction(userId: string, id: string) {
   const [row] = await db
     .select({
-      action: agendaNoticeActions,
+      action: agendaTasks,
       profileName: agendaStudentProfiles.name,
       ownerUserId: agendaStudentProfiles.userId,
     })
-    .from(agendaNoticeActions)
-    .innerJoin(agendaStudentProfiles, eq(agendaStudentProfiles.id, agendaNoticeActions.profileId))
-    .where(and(eq(agendaNoticeActions.id, id), accessibleProfileCondition(userId)));
+    .from(agendaTasks)
+    .innerJoin(agendaStudentProfiles, eq(agendaStudentProfiles.id, agendaTasks.profileId))
+    .where(and(eq(agendaTasks.id, id), accessibleProfileCondition(userId)));
   return row ?? null;
 }
 
@@ -184,7 +181,7 @@ export async function getNoticeActionHistory(userId: string, id: string) {
     })
     .from(agendaActivityRevisions)
     .leftJoin(users, eq(users.id, agendaActivityRevisions.actorId))
-    .where(eq(agendaActivityRevisions.noticeActionId, id))
+    .where(eq(agendaActivityRevisions.taskId, id))
     .orderBy(desc(agendaActivityRevisions.version))
     .limit(100);
 }

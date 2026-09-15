@@ -1,0 +1,142 @@
+import "server-only";
+
+import { and, db, eq, inArray, sql } from "@informach/db";
+import {
+  agendaActivities,
+  agendaNotices,
+  agendaProfileSubjects,
+  agendaSchools,
+  agendaStudentProfiles,
+  agendaSubjects,
+  agendaTasks,
+  agendaTurmas,
+  users,
+} from "@informach/db/schema";
+import { accessibleProfileCondition } from "@/features/family/access";
+
+/**
+ * A tarefa com todo o contexto que qualquer tela precisa, numa consulta só.
+ *
+ * Antes eram três consultas em paralelo — uma por tabela — e três formatos
+ * diferentes que cada card tinha de conhecer. Agora a tabela é uma, e o que
+ * variava entre as fontes virou coluna opcional: `sharedActivityId` traz a
+ * turma quando a atividade foi publicada nela, `noticeId` traz a origem quando
+ * veio de um recado, e a matéria sai do vínculo de turma ou do extracurricular.
+ *
+ * Todos os vínculos são LEFT JOIN de propósito: a ausência é um estado
+ * legítimo. Atividade sem matéria, sem prazo, sem turma e sem recado é uma
+ * atividade — foi por não aceitar isso que o cadastro escolar exigia turma,
+ * matéria e prazo antes de deixar a família anotar "levar garrafa de água".
+ */
+const taskSelect = {
+  id: agendaTasks.id,
+  noticeId: agendaTasks.noticeId,
+  sharedActivityId: agendaTasks.sharedActivityId,
+  profileId: agendaTasks.profileId,
+  profileName: agendaStudentProfiles.name,
+  createdByUserId: agendaTasks.createdByUserId,
+  assignedToUserId: agendaTasks.assignedToUserId,
+  assignedName: users.name,
+  type: agendaTasks.type,
+  status: agendaTasks.status,
+  title: agendaTasks.title,
+  description: agendaTasks.description,
+  dueAt: agendaTasks.dueAt,
+  time: agendaTasks.time,
+  location: agendaTasks.location,
+  dateOrigin: agendaTasks.dateOrigin,
+  sourceExcerpt: agendaTasks.sourceExcerpt,
+  version: agendaTasks.version,
+  createdAt: agendaTasks.createdAt,
+  subjectId: agendaTasks.subjectId,
+  profileSubjectId: agendaTasks.profileSubjectId,
+  subjectName: sql<string | null>`COALESCE(${agendaSubjects.name}, ${agendaProfileSubjects.name})`,
+  subjectColorIndex: sql<
+    number | null
+  >`COALESCE(${agendaSubjects.colorIndex}, ${agendaProfileSubjects.colorIndex})`,
+  noticeSource: agendaNotices.source,
+  visibility: agendaActivities.visibility,
+  turmaId: agendaActivities.turmaId,
+  schoolName: agendaSchools.name,
+  grade: agendaTurmas.grade,
+  classLetter: agendaTurmas.classLetter,
+  year: agendaTurmas.year,
+} as const;
+
+export type TaskRow = Awaited<ReturnType<typeof listTasksByIds>>[number];
+
+function selectTasks() {
+  return db
+    .select(taskSelect)
+    .from(agendaTasks)
+    .innerJoin(agendaStudentProfiles, eq(agendaStudentProfiles.id, agendaTasks.profileId))
+    .leftJoin(users, eq(users.id, agendaTasks.assignedToUserId))
+    .leftJoin(agendaSubjects, eq(agendaSubjects.id, agendaTasks.subjectId))
+    .leftJoin(agendaProfileSubjects, eq(agendaProfileSubjects.id, agendaTasks.profileSubjectId))
+    .leftJoin(agendaNotices, eq(agendaNotices.id, agendaTasks.noticeId))
+    .leftJoin(agendaActivities, eq(agendaActivities.id, agendaTasks.sharedActivityId))
+    .leftJoin(agendaTurmas, eq(agendaTurmas.id, agendaActivities.turmaId))
+    .leftJoin(agendaSchools, eq(agendaSchools.inepCode, agendaTurmas.schoolInepCode));
+}
+
+export async function listTasksByIds(userId: string, ids: string[]) {
+  if (!ids.length) return [];
+  return selectTasks().where(and(accessibleProfileCondition(userId), inArray(agendaTasks.id, ids)));
+}
+
+export async function findTaskForUser(userId: string, id: string) {
+  const [row] = await selectTasks()
+    .where(and(accessibleProfileCondition(userId), eq(agendaTasks.id, id)))
+    .limit(1);
+  return row ?? null;
+}
+
+/**
+ * Tarefas com prazo dentro de um intervalo, para o calendário.
+ *
+ * Sem prazo não há lugar no grid — e isso é deliberado: a atividade sem data
+ * continua na rotina e na lista, sem receber uma data fictícia só para caber
+ * numa célula.
+ */
+export async function listTasksInDateRange(
+  userId: string,
+  options: { fromIso: string; toIso: string; profileFilter: string | null },
+) {
+  return selectTasks().where(
+    and(
+      accessibleProfileCondition(userId),
+      sql`${agendaTasks.dueAt} BETWEEN ${options.fromIso}::date AND ${options.toIso}::date`,
+      options.profileFilter ? eq(agendaTasks.profileId, options.profileFilter) : sql`TRUE`,
+      sql`${agendaTasks.status} <> 'canceled'`,
+    ),
+  );
+}
+
+/**
+ * Tarefas pendentes de um bucket, para a exportação em PDF e o job de
+ * lembretes — as duas telas que ainda leem por bucket em vez da rotina.
+ */
+export async function listTasksByBucket(
+  userId: string,
+  bucket: "overdue" | "today" | "week",
+  options: { profileFilter: string | null; limit: number; todayIso: string; weekEndIso: string },
+) {
+  const due = agendaTasks.dueAt;
+  const range =
+    bucket === "overdue"
+      ? sql`${due} < ${options.todayIso}::date`
+      : bucket === "today"
+        ? sql`${due} = ${options.todayIso}::date`
+        : sql`${due} > ${options.todayIso}::date AND ${due} <= ${options.weekEndIso}::date`;
+  return selectTasks()
+    .where(
+      and(
+        accessibleProfileCondition(userId),
+        eq(agendaTasks.status, "pending"),
+        range,
+        options.profileFilter ? eq(agendaTasks.profileId, options.profileFilter) : sql`TRUE`,
+      ),
+    )
+    .orderBy(agendaTasks.dueAt, agendaTasks.createdAt)
+    .limit(options.limit);
+}
