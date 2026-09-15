@@ -55,3 +55,44 @@ describe("actionFieldsSchema: matéria", () => {
     ).toBe(true);
   });
 });
+
+describe("actionFieldsSchema: compartilhar com a turma", () => {
+  const dated = { ...base, dueAt: "2026-09-20", dateOrigin: "school" as const };
+
+  it("não compartilha por omissão", () => {
+    const parsed = actionFieldsSchema.safeParse(base);
+    expect(parsed.success && parsed.data.shareWithTurma).toBe(false);
+  });
+
+  it("aceita compartilhar quando há matéria da turma e prazo", () => {
+    const parsed = actionFieldsSchema.safeParse({
+      ...dated,
+      subjectId: SUBJECT,
+      shareWithTurma: true,
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it("recusa compartilhar sem prazo: a turma precisa saber até quando", () => {
+    const parsed = actionFieldsSchema.safeParse({
+      ...base,
+      subjectId: SUBJECT,
+      shareWithTurma: true,
+    });
+    expect(parsed.success).toBe(false);
+  });
+
+  it("recusa compartilhar uma extracurricular: não há turma do outro lado", () => {
+    const parsed = actionFieldsSchema.safeParse({
+      ...dated,
+      profileSubjectId: EXTRA,
+      shareWithTurma: true,
+    });
+    expect(parsed.success).toBe(false);
+  });
+
+  it("recusa compartilhar sem matéria nenhuma", () => {
+    const parsed = actionFieldsSchema.safeParse({ ...dated, shareWithTurma: true });
+    expect(parsed.success).toBe(false);
+  });
+});

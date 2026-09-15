@@ -25,39 +25,6 @@ export type Activity = {
   updatedAt: Date;
 };
 
-// Uma row por (atividade × perfil do user). Quando a atividade tem status pra
-// dois filhos do mesmo user, aparecem 2 linhas — cada uma com seu próprio
-// `studentProfileId` e `status`. O `hasOtherAcceptances` é o gate de edit/delete
-// pro creator (true quando outra família já aceitou).
-export type ActivityListItem = {
-  version: number;
-  canceledAt?: Date | null;
-  activityId: string;
-  statusId: string;
-  status: ActivityStatusValue;
-  studentProfileId: string;
-  studentProfileName: string;
-  turmaId: string;
-  subjectId: string;
-  subjectName: string;
-  subjectColorIndex: number;
-  schoolName: string;
-  grade: string;
-  classLetter: string;
-  year: number;
-  type: ActivityType;
-  visibility: ActivityVisibility;
-  title: string;
-  description: string | null;
-  dueAt: string;
-  // Necessário pro cursor de paginação (tiebreaker estável quando vários
-  // perfis compartilham a mesma atividade — mesma dueAt). Não usado na UI.
-  activityCreatedAt: Date;
-  activityUpdatedAt?: Date;
-  createdByUserId: string | null;
-  hasOtherAcceptances: boolean;
-};
-
 export type PendingSharedActivity = {
   activityId: string;
   turmaId: string;

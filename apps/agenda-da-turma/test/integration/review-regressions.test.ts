@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { db, eq, inArray } from "@informach/db";
+import { and, db, eq, inArray } from "@informach/db";
 import {
+  agendaActivities,
   agendaCities,
   agendaNotices,
   agendaNotificationDeliveries,
@@ -23,12 +24,7 @@ import { PDFDocument } from "pdf-lib";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { findActivityHistory } from "@/features/activities/history-repository";
 import { listPendingSharedActivitiesForUser } from "@/features/activities/repository";
-import {
-  createActivity,
-  deleteActivity,
-  respondSharedActivity,
-  updateActivity,
-} from "@/features/activities/service";
+import { respondSharedActivity } from "@/features/activities/service";
 import { todayLocalIso } from "@/features/dashboard/date";
 import { acceptFamilyInvitation, createFamilyInvitation } from "@/features/family/service";
 import { validateNoticeExtraction } from "@/features/notices/extraction";
@@ -45,7 +41,11 @@ import {
   listReadyNotices,
 } from "@/features/notices/repository";
 import { type NoticeActionInput, parseNoticeSchema } from "@/features/notices/schemas";
-import { confirmNotice, setNoticeActionStatus } from "@/features/notices/service";
+import {
+  confirmNotice,
+  setNoticeActionStatus,
+  updateNoticeAction,
+} from "@/features/notices/service";
 import { deliverRoutineNotifications } from "@/features/notifications/delivery";
 import { createProfileSubjectActivity } from "@/features/profile-subject-activities/service";
 import { joinPrivateGroup, removeGroupAdult } from "@/features/turmas/group-access";
@@ -84,6 +84,7 @@ const action = (title = "Providência de revisão", profileId = child): NoticeAc
   assignedToUserId: null,
   reminderAt: null,
   recurrence: "none",
+  shareWithTurma: false,
 });
 const extraction = {
   actions: [
@@ -209,21 +210,69 @@ async function notice(text: string, profileId = child) {
     .returning();
   return required(n);
 }
+type Task = typeof agendaTasks.$inferSelect;
+
+/**
+ * Uma atividade escolar pelo caminho que a família usa: o formulário único.
+ *
+ * Antes havia um segundo serviço só para escola, e estes testes entravam por
+ * ele — provavam o que ninguém mais usava. Agora entram pelo mesmo
+ * `confirmNotice` de qualquer atividade, com a matéria da turma e a caixa de
+ * compartilhar.
+ */
 async function schoolActivity(
-  visibility: "individual" | "shared_with_turma" = "shared_with_turma",
-  description = "Conteúdo público",
-) {
-  return value(
-    await createActivity(owner, {
-      turmaId: group,
-      subjectId: subject,
-      type: "task",
-      visibility,
-      title: "Tarefa escolar de revisão",
-      description,
-      dueAt: date,
+  share = true,
+  description: string | null = "Conteúdo público",
+  title = "Tarefa escolar de revisão",
+  type: NoticeActionInput["type"] = "task",
+): Promise<Task> {
+  const created = value(
+    await confirmNotice(owner, {
+      noticeId: null,
+      allowDuplicates: true,
+      actions: [
+        {
+          ...action(title),
+          type,
+          subjectId: subject,
+          description,
+          dueAt: date,
+          dateOrigin: "school",
+          shareWithTurma: share,
+        },
+      ],
     }),
   );
+  return await reload(required(created.ids[0]));
+}
+async function reload(id: string): Promise<Task> {
+  const [row] = await db.select().from(agendaTasks).where(eq(agendaTasks.id, id));
+  return required(row);
+}
+/** A tarefa de volta ao formato do formulário, para editá-la. */
+function taskAction(task: Task, patch: Partial<NoticeActionInput> = {}): NoticeActionInput {
+  return {
+    profileId: task.profileId,
+    type: task.type,
+    title: task.title,
+    description: task.description,
+    subjectId: task.subjectId,
+    profileSubjectId: task.profileSubjectId,
+    dueAt: task.dueAt,
+    dateOrigin: task.dateOrigin,
+    time: task.time,
+    location: task.location,
+    sourceExcerpt: task.sourceExcerpt,
+    assignedToUserId: task.assignedToUserId,
+    reminderAt: task.reminderAt?.toISOString() ?? null,
+    recurrence: task.recurrence,
+    shareWithTurma: task.sharedActivityId !== null,
+    ...patch,
+  };
+}
+function sharedId(task: Task): string {
+  if (!task.sharedActivityId) throw new Error("Task is not published to a turma");
+  return task.sharedActivityId;
 }
 function required<T>(value: T | undefined): T {
   if (value === undefined) throw new Error("Missing fixture row");
@@ -232,7 +281,7 @@ function required<T>(value: T | undefined): T {
 
 describe("Review regressions", () => {
   it("unifies school, notebook and extra activities with global pagination and shared-child access", async () => {
-    const schoolRecord = await schoolActivity("individual");
+    const schoolRecord = await schoolActivity(false);
     const [extra] = await db
       .insert(agendaProfileSubjects)
       .values({ profileId: child, name: "Piano" })
@@ -285,7 +334,7 @@ describe("Review regressions", () => {
     expect(second.hasNextPage).toBe(false);
     const combined = [...first.items, ...second.items];
     expect(new Set(combined.map((item) => item.key)).size).toBe(32);
-    expect(combined.some((item) => item.item.sharedActivityId === schoolRecord.id)).toBe(true);
+    expect(combined.some((item) => item.item.id === schoolRecord.id)).toBe(true);
     expect(combined.some((item) => item.item.id === extraRecord.id)).toBe(true);
     expect(
       first.items.every(
@@ -334,18 +383,9 @@ describe("Review regressions", () => {
 
   it("filters activity types before pagination without expanding child access", async () => {
     const exams: string[] = [];
-    for (const type of ["task", "exam", "project", "exam"] as const) {
-      const activity = value(
-        await createActivity(owner, {
-          turmaId: group,
-          subjectId: subject,
-          type,
-          visibility: "individual",
-          title: `Atividade ${type}`,
-          dueAt: date,
-        }),
-      );
-      if (type === "exam") exams.push(activity.id);
+    for (const [index, type] of (["task", "exam", "project", "exam"] as const).entries()) {
+      const task = await schoolActivity(false, null, `Atividade ${type} ${index}`, type);
+      if (type === "exam") exams.push(task.id);
     }
     const options: ActivityOverviewOptions = {
       profileFilter: child,
@@ -355,7 +395,7 @@ describe("Review regressions", () => {
       page: 1,
     };
     const filtered = await getActivityOverview(owner, options);
-    expect(filtered.items.map((item) => item.item.sharedActivityId).sort()).toEqual(exams.sort());
+    expect(filtered.items.map((item) => item.item.id).sort()).toEqual(exams.sort());
     expect((await getActivityOverview(outsider, options)).items).toEqual([]);
     expect(
       (await getActivityOverview(owner, { ...options, profileFilter: sibling })).items,
@@ -366,8 +406,12 @@ describe("Review regressions", () => {
 
   it("F01 edits the current version twice and rejects an actually stale edit", async () => {
     const a = await schoolActivity();
-    const first = value(
-      await updateActivity(owner, { ...a, description: "Primeira edição", version: a.version }),
+    value(
+      await updateNoticeAction(owner, {
+        id: a.id,
+        version: a.version,
+        action: taskAction(a, { description: "Primeira edição" }),
+      }),
     );
     const listed = await getActivityOverview(owner, {
       profileFilter: null,
@@ -376,65 +420,173 @@ describe("Review regressions", () => {
       noticeId: null,
       page: 1,
     });
-    const listedSchool = listed.items.find((item) => item.item.sharedActivityId === a.id);
-    expect(listedSchool?.item.version).toBe(first.version);
-    const second = value(
-      await updateActivity(owner, {
-        ...first,
-        description: "Segunda edição",
+    const first = await reload(a.id);
+    expect(listed.items.find((item) => item.item.id === a.id)?.item.version).toBe(first.version);
+    value(
+      await updateNoticeAction(owner, {
+        id: a.id,
         version: first.version,
+        action: taskAction(first, { description: "Segunda edição" }),
       }),
     );
-    expect(second.version).toBe(3);
+    expect((await reload(a.id)).version).toBe(3);
+    // A correção alcança a turma: o fato publicado subiu junto.
+    const [published] = await db
+      .select()
+      .from(agendaActivities)
+      .where(eq(agendaActivities.id, sharedId(a)));
+    expect(published).toMatchObject({ description: "Segunda edição", version: 3 });
     expect(
-      await updateActivity(owner, { ...a, description: "Edição antiga", version: 1 }),
+      await updateNoticeAction(owner, {
+        id: a.id,
+        version: 1,
+        action: taskAction(a, { description: "Edição antiga" }),
+      }),
     ).toMatchObject({ ok: false, error: { code: "VERSION_CONFLICT" } });
   });
   it("F02 keeps private snapshots with the owning family and only publishes public snapshots", async () => {
-    const a = await schoolActivity("individual", "SEGREDO FICTÍCIO PRIVADO");
-    const privateEdit = value(
-      await updateActivity(owner, { ...a, description: "SEGREDO PRIVADO 2", version: 1 }),
-    );
-    const published = value(
-      await updateActivity(owner, {
-        ...privateEdit,
-        description: "Somente conteúdo público",
-        visibility: "shared_with_turma",
-        version: 2,
+    const a = await schoolActivity(false, "SEGREDO FICTÍCIO PRIVADO");
+    value(
+      await updateNoticeAction(owner, {
+        id: a.id,
+        version: a.version,
+        action: taskAction(a, { description: "SEGREDO PRIVADO 2" }),
       }),
     );
-    value(await respondSharedActivity(outsider, { activityId: a.id, accepted: true }));
+    const privateEdit = await reload(a.id);
     value(
-      await updateActivity(owner, { ...published, description: "Correção pública", version: 3 }),
+      await updateNoticeAction(owner, {
+        id: a.id,
+        version: privateEdit.version,
+        action: taskAction(privateEdit, {
+          description: "Somente conteúdo público",
+          shareWithTurma: true,
+        }),
+      }),
     );
-    const history = await findActivityHistory(outsider, a.id);
-    expect(history?.history).toHaveLength(2);
+    const published = await reload(a.id);
+    value(
+      await respondSharedActivity(outsider, { activityId: sharedId(published), accepted: true }),
+    );
+    value(
+      await updateNoticeAction(owner, {
+        id: a.id,
+        version: published.version,
+        action: taskAction(published, { description: "Correção pública" }),
+      }),
+    );
+    // O que a turma lê nasce na publicação: os rascunhos privados nunca
+    // chegaram a `agenda.activities`, então não há o que filtrar depois.
+    const history = await findActivityHistory(outsider, sharedId(published));
+    expect(history?.history).toHaveLength(1);
     expect(JSON.stringify(history)).not.toContain("SEGREDO");
     expect(JSON.stringify(history)).toContain("Somente conteúdo público");
     expect(JSON.stringify(history)).toContain("Correção pública");
-    expect(JSON.stringify(await findActivityHistory(owner, a.id))).toContain(
+    // O histórico privado continua com a família, na tarefa.
+    expect(JSON.stringify(await getNoticeActionHistory(owner, a.id))).toContain(
       "SEGREDO FICTÍCIO PRIVADO",
     );
-    expect(JSON.stringify(await findActivityHistory(guest, a.id))).toContain(
+    expect(JSON.stringify(await getNoticeActionHistory(guest, a.id))).toContain(
       "SEGREDO FICTÍCIO PRIVADO",
     );
+    expect(await getNoticeActionHistory(outsider, a.id)).toEqual([]);
   });
   it("F03 preserves recipient completion after accept, reject and creator deletion", async () => {
     const a = await schoolActivity();
-    value(await respondSharedActivity(outsider, { activityId: a.id, accepted: true }));
+    value(await respondSharedActivity(outsider, { activityId: sharedId(a), accepted: true }));
     await db
       .update(agendaTasks)
       .set({ status: "done" })
       .where(eq(agendaTasks.profileId, otherChild));
-    value(await respondSharedActivity(outsider, { activityId: a.id, accepted: false }));
-    value(await deleteActivity(owner, { id: a.id }));
+    value(await respondSharedActivity(outsider, { activityId: sharedId(a), accepted: false }));
+    value(await setNoticeActionStatus(owner, { id: a.id, version: a.version, status: "canceled" }));
     const statuses = await db
       .select()
       .from(agendaTasks)
       .where(eq(agendaTasks.profileId, otherChild));
     expect(statuses).toHaveLength(1);
     expect(statuses[0]?.status).toBe("done");
-    expect((await findActivityHistory(outsider, a.id))?.activity.canceledAt).toBeInstanceOf(Date);
+    expect((await findActivityHistory(outsider, sharedId(a)))?.activity.canceledAt).toBeInstanceOf(
+      Date,
+    );
+  });
+  it("publica e despublica pela mesma caixa, e recusa retirar da turma o que já foi recebido", async () => {
+    // Criada só para a família: nada foi publicado.
+    const own = await schoolActivity(false);
+    expect(own.sharedActivityId).toBeNull();
+
+    // A mesma caixa publica depois, e a turma passa a ver.
+    value(
+      await updateNoticeAction(owner, {
+        id: own.id,
+        version: own.version,
+        action: taskAction(own, { shareWithTurma: true }),
+      }),
+    );
+    const published = await reload(own.id);
+    expect(
+      (await listPendingSharedActivitiesForUser(outsider)).map((row) => row.activityId),
+    ).toContain(sharedId(published));
+
+    // Enquanto ninguém recebeu, retirar da turma é reversível.
+    value(
+      await updateNoticeAction(owner, {
+        id: own.id,
+        version: published.version,
+        action: taskAction(published, { shareWithTurma: false }),
+      }),
+    );
+    const unpublished = await reload(own.id);
+    expect(unpublished.sharedActivityId).toBeNull();
+    expect(
+      await db
+        .select()
+        .from(agendaActivities)
+        .where(eq(agendaActivities.id, sharedId(published))),
+    ).toEqual([]);
+
+    // Depois que outra família recebe, some da vista dela seria pior do que
+    // cancelar: a retirada é recusada com o motivo.
+    value(
+      await updateNoticeAction(owner, {
+        id: own.id,
+        version: unpublished.version,
+        action: taskAction(unpublished, { shareWithTurma: true }),
+      }),
+    );
+    const republished = await reload(own.id);
+    value(
+      await respondSharedActivity(outsider, {
+        activityId: sharedId(republished),
+        accepted: true,
+      }),
+    );
+    expect(
+      await updateNoticeAction(owner, {
+        id: own.id,
+        version: republished.version,
+        action: taskAction(republished, { shareWithTurma: false }),
+      }),
+    ).toMatchObject({ ok: false, error: { code: "SHARE_ALREADY_ACCEPTED" } });
+
+    // E quem recebeu não pode retirar da turma o que não publicou.
+    const [received] = await db
+      .select()
+      .from(agendaTasks)
+      .where(
+        and(
+          eq(agendaTasks.sharedActivityId, sharedId(republished)),
+          eq(agendaTasks.profileId, otherChild),
+        ),
+      );
+    const mine = required(received);
+    expect(
+      await updateNoticeAction(outsider, {
+        id: mine.id,
+        version: mine.version,
+        action: taskAction(mine, { shareWithTurma: false }),
+      }),
+    ).toMatchObject({ ok: false, error: { code: "SHARE_NOT_YOURS" } });
   });
   it("F04 denies unreviewed mixed originals and includes children without extracted actions in scope", async () => {
     const n = await notice("Material da criança A. INFORMAÇÃO RESTRITA DA CRIANÇA B.");
@@ -799,7 +951,7 @@ describe("Review regressions", () => {
     expect(await reactivate).toMatchObject({ ok: false, error: { code: "NOT_A_MEMBER" } });
     expect(
       (await listPendingSharedActivitiesForUser(outsider)).map((x) => x.activityId),
-    ).not.toContain(a.id);
+    ).not.toContain(sharedId(a));
   });
   it("F09 revocation and activation share the same lock and stale preferences grant no read/write access", async () => {
     const a = await schoolActivity();
@@ -819,22 +971,28 @@ describe("Review regressions", () => {
       .where(eq(agendaStudentProfiles.id, otherChild));
     expect(
       (await listPendingSharedActivitiesForUser(outsider)).map((x) => x.activityId),
-    ).not.toContain(a.id);
+    ).not.toContain(sharedId(a));
+    // Preferência velha não vale como autorização: a matéria é da turma de que
+    // a criança não participa mais.
     expect(
       (
-        await createActivity(outsider, {
-          turmaId: group,
-          subjectId: subject,
-          type: "task",
-          visibility: "individual",
-          title: "Sem acesso",
-          dueAt: date,
+        await confirmNotice(outsider, {
+          noticeId: null,
+          allowDuplicates: true,
+          actions: [
+            {
+              ...action("Sem acesso", otherChild),
+              subjectId: subject,
+              dueAt: date,
+              dateOrigin: "school",
+            },
+          ],
         })
       ).ok,
     ).toBe(false);
-    expect((await respondSharedActivity(outsider, { activityId: a.id, accepted: true })).ok).toBe(
-      false,
-    );
+    expect(
+      (await respondSharedActivity(outsider, { activityId: sharedId(a), accepted: true })).ok,
+    ).toBe(false);
   });
   it("F10 accepts a relative date grounded in an explicit publication reference in the original", () => {
     const parsed = validateNoticeExtraction(

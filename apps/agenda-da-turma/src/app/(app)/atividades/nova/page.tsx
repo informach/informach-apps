@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getIsProForUser } from "@/features/billing/server-cache";
+import { isValidLocalIsoDate } from "@/features/dashboard/date";
 import { listAccessibleProfiles } from "@/features/family/access";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { CaptureForm } from "@/features/notices/components/capture-form";
@@ -12,7 +13,7 @@ export const metadata = { title: "Nova atividade" };
 export default async function NewActivityPage({
   searchParams,
 }: {
-  searchParams: Promise<{ perfil?: string; tipo?: string }>;
+  searchParams: Promise<{ perfil?: string; tipo?: string; data?: string }>;
 }) {
   const user = await requireUserServer();
   const params = await searchParams;
@@ -43,6 +44,7 @@ export default async function NewActivityPage({
         ownerIsPro={ownerIsPro}
         defaultProfileId={params.perfil}
         defaultType={activityTypeSchema.catch("task").parse(params.tipo)}
+        defaultDueAt={isValidLocalIsoDate(params.data ?? "") ? params.data : undefined}
       />
     </main>
   );

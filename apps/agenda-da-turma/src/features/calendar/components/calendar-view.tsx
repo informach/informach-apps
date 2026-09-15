@@ -2,8 +2,6 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { ActivityFormDialog } from "@/features/activities/components/activity-form-dialog";
-import type { TurmaWithSubjectsForForm } from "@/features/activities/types";
 import type { AddEntitlement } from "@/features/notices/entitlement";
 import type { StudentProfile } from "@/features/students/types";
 import type { ActivityOverviewItem } from "@/features/unified-activities/overview-types";
@@ -18,7 +16,6 @@ import { WeekView } from "./week-view";
 
 type Props = {
   userId: string;
-  isPro: boolean;
   /** Plano e franquia do titular, para a folha Adicionar. */
   addEntitlement: AddEntitlement;
   view: CalendarViewKind;
@@ -30,7 +27,6 @@ type Props = {
    * vencedora.
    */
   profiles: StudentProfile[];
-  turmasForForm: TurmaWithSubjectsForForm[];
   items: ActivityOverviewItem[];
 };
 
@@ -39,13 +35,11 @@ type Props = {
 // pular pro topo entre meses. Estado local mantido apenas pra dialogs.
 export function CalendarView({
   userId,
-  isPro,
   addEntitlement,
   view,
   anchorIso,
   profileFilter,
   profiles,
-  turmasForForm,
   items,
 }: Props) {
   const router = useRouter();
@@ -55,21 +49,18 @@ export function CalendarView({
   const [detailItemId, setDetailItemId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const detailTrigger = useRef<HTMLElement | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [createDueAt, setCreateDueAt] = useState<string | undefined>(undefined);
-
-  const canCreate = turmasForForm.length > 0;
-
-  // Quando o user tem um perfil filtrado, a `activeTurmaId` desse perfil é
-  // o default natural pra qualquer atividade nova criada pela toolbar/grid —
-  // tanto o clique num dia vazio quanto o botão global "Nova atividade".
-  // Quando o perfil não tem turma ativa, fica null e o form continua exigindo
-  // seleção manual. Quando não há filtro, idem.
-  const defaultTurmaIdFromProfile = useMemo(() => {
-    if (!profileFilter) return undefined;
-    const matched = profiles.find((p) => p.id === profileFilter);
-    return matched?.activeTurmaId ?? undefined;
-  }, [profileFilter, profiles]);
+  // Criar é sempre o mesmo formulário. O calendário só adianta o que sabe: o
+  // dia tocado e a criança filtrada.
+  const newActivityHref = useCallback(
+    (iso?: string) => {
+      const params = new URLSearchParams();
+      if (iso) params.set("data", iso);
+      if (profileFilter) params.set("perfil", profileFilter);
+      const query = params.toString();
+      return query ? `/atividades/nova?${query}` : "/atividades/nova";
+    },
+    [profileFilter],
+  );
 
   // Uma tabela, um id: a chave composta por origem deixou de ser necessária.
   const rows = useMemo(() => items.map((entry) => entry.item), [items]);
@@ -113,15 +104,12 @@ export function CalendarView({
     setDetailOpen(true);
   }, []);
 
-  const handleCreateForDay = useCallback((iso: string) => {
-    setCreateDueAt(iso);
-    setCreateOpen(true);
-  }, []);
+  const handleCreateForDay = useCallback(
+    (iso: string) => router.push(newActivityHref(iso)),
+    [router, newActivityHref],
+  );
 
-  const handleCreateGlobal = () => {
-    setCreateDueAt(undefined);
-    setCreateOpen(true);
-  };
+  const handleCreateGlobal = () => router.push(newActivityHref());
 
   return (
     <div className="space-y-4">
@@ -130,7 +118,6 @@ export function CalendarView({
         anchorIso={anchorIso}
         profileFilter={profileFilter}
         profiles={profiles}
-        canCreate={canCreate}
         addEntitlement={addEntitlement}
         onViewChange={handleViewChange}
         onProfileChange={handleProfileChange}
@@ -176,15 +163,6 @@ export function CalendarView({
         }}
         item={detailItem}
         currentUserId={userId}
-      />
-
-      <ActivityFormDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        turmas={turmasForForm}
-        isPro={isPro}
-        defaultDueAt={createDueAt}
-        defaultTurmaId={defaultTurmaIdFromProfile}
       />
     </div>
   );

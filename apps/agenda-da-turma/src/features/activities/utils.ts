@@ -1,14 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import { ACTIVITY_TYPE_LABELS } from "@/features/unified-activities/activity-types";
 import { getActivityPresentation } from "@/features/unified-activities/presentation";
-import type { CreateActivityFormValues } from "./schemas";
-import type {
-  ActivityListItem,
-  ActivityStatusValue,
-  ActivityType,
-  ActivityVisibility,
-  TurmaWithSubjectsForForm,
-} from "./types";
+import type { ActivityStatusValue, ActivityType } from "./types";
 
 const STATUS_LABEL: Record<ActivityStatusValue, string> = {
   pending: "Pendente",
@@ -130,79 +123,3 @@ export function formatTurmaShort(grade: string, classLetter: string, year: numbe
 // foi compartilhada e outra família já aceitou — evita apagar/mudar atividade
 // que outra família já considera certa pra rotina dela. Service replica a
 // regra; UI só esconde o botão. Reutilizado em ActivityCard e ActivityDetailDialog.
-export function canEditActivity(
-  item: Pick<
-    ActivityListItem,
-    "createdByUserId" | "visibility" | "hasOtherAcceptances" | "canceledAt"
-  >,
-  currentUserId: string,
-): boolean {
-  if (item.createdByUserId !== currentUserId || item.canceledAt) return false;
-  return true;
-}
-
-// Picks pra montar os defaults do ActivityFormDialog. Mantém o shape mínimo
-// pra que `buildActivityFormDefaults` seja testável sem precisar de fixtures
-// completos de ActivityListItem.
-export type ActivityFormDefaultsActivity = {
-  type: ActivityType;
-  title: string;
-  description: string | null;
-  dueAt: string;
-  turmaId: string;
-  subjectId: string;
-  visibility: ActivityVisibility;
-};
-
-const EMPTY_FORM_DEFAULTS: CreateActivityFormValues = {
-  turmaId: "",
-  subjectId: "",
-  type: "task",
-  title: "",
-  description: "",
-  dueAt: "",
-  visibility: "individual",
-};
-
-// Default turma: `defaultTurmaId` quando válido; fallback pra única turma
-// disponível; vazio caso o user tenha 0 ou ≥2 turmas e não houver hint.
-export function pickInitialTurmaId(
-  turmas: TurmaWithSubjectsForForm[],
-  defaultTurmaId: string | undefined,
-): string {
-  if (defaultTurmaId && turmas.some((t) => t.turmaId === defaultTurmaId)) return defaultTurmaId;
-  if (turmas.length === 1) return turmas[0]?.turmaId ?? "";
-  return "";
-}
-
-// Constrói os defaultValues do form do ActivityFormDialog. Pura — testável
-// sem mountar o componente. Em modo edit (com `activity`), turma/matéria/
-// visibilidade vêm fixos da activity e `defaultDueAt`/`defaultTurmaId` são
-// ignorados. Em modo create, `defaultDueAt` pré-preenche dueAt (caso de uso:
-// clicar num dia do calendário pra criar uma atividade pra ele).
-export function buildActivityFormDefaults(input: {
-  activity?: ActivityFormDefaultsActivity;
-  turmas: TurmaWithSubjectsForForm[];
-  defaultTurmaId?: string;
-  defaultDueAt?: string;
-  defaultType?: ActivityType;
-}): CreateActivityFormValues {
-  if (input.activity) {
-    return {
-      turmaId: input.activity.turmaId,
-      subjectId: input.activity.subjectId,
-      type: input.activity.type,
-      title: input.activity.title,
-      description: input.activity.description ?? "",
-      // activity.dueAt já vem como "YYYY-MM-DD" do server (coluna `date`)
-      dueAt: input.activity.dueAt,
-      visibility: input.activity.visibility,
-    };
-  }
-  return {
-    ...EMPTY_FORM_DEFAULTS,
-    type: input.defaultType ?? EMPTY_FORM_DEFAULTS.type,
-    turmaId: pickInitialTurmaId(input.turmas, input.defaultTurmaId),
-    dueAt: input.defaultDueAt ?? "",
-  };
-}

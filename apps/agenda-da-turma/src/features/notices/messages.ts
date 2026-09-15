@@ -37,6 +37,12 @@ export function noticeErrorMessage(code: string) {
     VERSION_CONFLICT:
       "Outro responsável alterou este item. Atualize a página antes de editar novamente.",
     INVALID_ASSIGNEE: "Esse responsável não tem mais acesso à criança. Escolha outro responsável.",
+    SHARE_REQUIRES_PRO:
+      "Compartilhar com a turma faz parte do Pro. Você pode salvar a atividade só para a sua família agora e compartilhar depois.",
+    SHARE_NOT_YOURS:
+      "Quem publicou esta atividade na turma foi outra família. Você pode cancelar a sua cópia, mas não retirá-la da turma.",
+    SHARE_ALREADY_ACCEPTED:
+      "Outras famílias já receberam esta atividade. Para tirá-la da turma, cancele a atividade — assim elas entendem o que aconteceu.",
     SHARED_REQUIRES_SCHOOL_FIELDS:
       "Você publicou esta atividade na turma, e a turma inteira lê o que você salvar aqui. Mantenha a matéria e o prazo, ou crie uma atividade só da sua família.",
     PRO_REQUIRED: "Lembretes personalizados e repetição semanal fazem parte do Pro.",

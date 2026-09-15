@@ -24,6 +24,7 @@ export function ActionFields({
   prefix,
   lockProfile = false,
   isPro,
+  shareLocked = false,
 }: {
   value: NoticeActionInput;
   onChange: (value: NoticeActionInput) => void;
@@ -34,6 +35,12 @@ export function ActionFields({
   prefix: string;
   lockProfile?: boolean;
   isPro: boolean;
+  /**
+   * Quem publicou a atividade na turma foi outra família: a caixa aparece
+   * marcada e travada, porque a cópia desta casa é dela, mas o fato na turma
+   * não.
+   */
+  shareLocked?: boolean;
 }) {
   const subjectsForProfile = subjectOptions[value.profileId] ?? [];
   const selectedSubject = value.subjectId ?? value.profileSubjectId ?? "";
@@ -64,9 +71,10 @@ export function ActionFields({
               profileId: e.target.value,
               assignedToUserId: null,
               // A matéria pertence à turma da criança: trocar de criança
-              // invalida a escolha anterior.
+              // invalida a escolha anterior, e com ela o compartilhamento.
               subjectId: null,
               profileSubjectId: null,
+              shareWithTurma: false,
             })
           }
         >
@@ -125,6 +133,8 @@ export function ActionFields({
             // Sem matéria não existe horário que justifique a data. Ela fica,
             // mas passa a ser planejamento da família.
             if (!option && value.dateOrigin === "schedule") patch.dateOrigin = "family";
+            // Sem matéria da turma não há turma com quem compartilhar.
+            if (option?.source !== "turma") patch.shareWithTurma = false;
             change(patch);
           }}
         >
@@ -163,6 +173,8 @@ export function ActionFields({
         <Input
           type="date"
           id={`${prefix}-date`}
+          aria-label="Data (opcional)"
+          aria-describedby={`${prefix}-date-origin`}
           value={value.dueAt ?? ""}
           onChange={(e) =>
             change({
@@ -173,7 +185,7 @@ export function ActionFields({
             })
           }
         />
-        <span className="font-normal text-muted-foreground">
+        <span id={`${prefix}-date-origin`} className="font-normal text-muted-foreground">
           {DATE_ORIGIN_LABELS[value.dateOrigin]}
         </span>
       </label>
@@ -268,6 +280,40 @@ export function ActionFields({
             serão respeitados.
           </span>
         </label>
+      ) : null}
+      {/* Compartilhar com a turma era o único campo que justificava um segundo
+          formulário de nova atividade. Aqui ele é o que sempre foi: uma opção
+          da atividade, que só aparece quando há turma com quem compartilhar. */}
+      {value.subjectId ? (
+        <div className="sm:col-span-2">
+          <label
+            className="flex items-start gap-3 rounded-lg border bg-card p-3 text-sm font-medium"
+            htmlFor={`${prefix}-share`}
+          >
+            <input
+              type="checkbox"
+              id={`${prefix}-share`}
+              aria-label="Compartilhar com a turma"
+              aria-describedby={`${prefix}-share-hint`}
+              className="mt-1 size-4"
+              checked={value.shareWithTurma}
+              disabled={!isPro || shareLocked || !value.dueAt}
+              onChange={(e) => change({ shareWithTurma: e.target.checked })}
+            />
+            <span className="grid gap-1">
+              Compartilhar com a turma
+              <span id={`${prefix}-share-hint`} className="font-normal text-muted-foreground">
+                {shareLocked
+                  ? "Publicada por outra família. Sua cópia é só sua; a da turma continua com quem publicou."
+                  : !isPro
+                    ? "Compartilhar faz parte do Pro. No gratuito a atividade fica só para a sua família."
+                    : !value.dueAt
+                      ? "Informe a data para as outras famílias saberem até quando."
+                      : "As outras famílias da turma recebem esta atividade e decidem se aceitam."}
+              </span>
+            </span>
+          </label>
+        </div>
       ) : null}
       {value.sourceExcerpt ? (
         <blockquote className="border-l-2 border-primary/30 pl-3 text-sm text-muted-foreground sm:col-span-2">

@@ -29,7 +29,6 @@ type Props = {
   profileFilter: string | null;
   profiles: Profile[];
   /** True se o user tem alguma turma vinculada — gate de qualquer criação. */
-  canCreate: boolean;
   /** Plano e franquia do titular, para a folha Adicionar. */
   addEntitlement: AddEntitlement;
   onViewChange: (view: CalendarView) => void;
@@ -48,7 +47,6 @@ export function CalendarToolbar({
   anchorIso,
   profileFilter,
   profiles,
-  canCreate,
   addEntitlement,
   onViewChange,
   onProfileChange,
@@ -121,7 +119,7 @@ export function CalendarToolbar({
         ) : null}
 
         <div className="flex flex-wrap items-center gap-2 md:ml-auto">
-          <Button onClick={onCreate} size="sm" disabled={!canCreate}>
+          <Button onClick={onCreate} size="sm">
             <Plus className="mr-1 size-4" aria-hidden />
             Nova atividade
           </Button>

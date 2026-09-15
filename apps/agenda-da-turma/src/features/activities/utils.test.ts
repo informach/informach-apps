@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ACTIVITY_TYPES } from "@/features/unified-activities/activity-types";
-import type { TurmaWithSubjectsForForm } from "./types";
 import {
-  type ActivityFormDefaultsActivity,
-  buildActivityFormDefaults,
-  canEditActivity,
   formatActivityDueAt,
   formatTurmaShort,
   getActivityStatusLabel,
@@ -13,7 +9,6 @@ import {
   getDueBadgeLabel,
   getDueBadgeVariant,
   getDueUrgency,
-  pickInitialTurmaId,
 } from "./utils";
 
 describe("getActivityTypeLabel", () => {
@@ -125,161 +120,5 @@ describe("formatTurmaShort", () => {
   it('extrai o número da série e formata "Nº ano L · YYYY"', () => {
     expect(formatTurmaShort("5ano", "A", 2025)).toBe("5º ano A · 2025");
     expect(formatTurmaShort("1ano", "B", 2026)).toBe("1º ano B · 2026");
-  });
-});
-
-const TURMAS: TurmaWithSubjectsForForm[] = [
-  {
-    turmaId: "turma-a",
-    schoolName: "Escola A",
-    grade: "5ano",
-    classLetter: "A",
-    year: 2026,
-    subjects: [
-      { id: "subj-1", name: "Matemática", colorIndex: 1, classDays: [], alternatingSlots: [] },
-    ],
-  },
-  {
-    turmaId: "turma-b",
-    schoolName: "Escola B",
-    grade: "6ano",
-    classLetter: "B",
-    year: 2026,
-    subjects: [
-      { id: "subj-2", name: "Português", colorIndex: 2, classDays: [], alternatingSlots: [] },
-    ],
-  },
-];
-
-describe("pickInitialTurmaId", () => {
-  it("retorna defaultTurmaId quando ele pertence à lista", () => {
-    expect(pickInitialTurmaId(TURMAS, "turma-b")).toBe("turma-b");
-  });
-
-  it("ignora defaultTurmaId inválido e cai pro fallback", () => {
-    // Com 2 turmas e default inválido → sem hint, retorna vazio.
-    expect(pickInitialTurmaId(TURMAS, "ghost")).toBe("");
-  });
-
-  it("auto-seleciona quando há exatamente uma turma", () => {
-    expect(pickInitialTurmaId([TURMAS[0] as TurmaWithSubjectsForForm], undefined)).toBe("turma-a");
-  });
-
-  it("retorna vazio quando não há turmas", () => {
-    expect(pickInitialTurmaId([], "turma-a")).toBe("");
-  });
-});
-
-describe("buildActivityFormDefaults — modo create", () => {
-  it("usa EMPTY_DEFAULTS quando não há activity, defaultTurmaId nem defaultDueAt", () => {
-    const result = buildActivityFormDefaults({ turmas: TURMAS });
-    expect(result).toEqual({
-      turmaId: "",
-      subjectId: "",
-      type: "task",
-      title: "",
-      description: "",
-      dueAt: "",
-      visibility: "individual",
-    });
-  });
-
-  it("pré-preenche dueAt com defaultDueAt", () => {
-    const result = buildActivityFormDefaults({ turmas: TURMAS, defaultDueAt: "2026-05-12" });
-    expect(result.dueAt).toBe("2026-05-12");
-    expect(result.title).toBe(""); // outros campos seguem vazios
-    expect(result.visibility).toBe("individual");
-  });
-
-  it("auto-seleciona turma única, mesmo sem defaultTurmaId, e respeita defaultDueAt", () => {
-    const single = [TURMAS[0] as TurmaWithSubjectsForForm];
-    const result = buildActivityFormDefaults({ turmas: single, defaultDueAt: "2026-05-12" });
-    expect(result.turmaId).toBe("turma-a");
-    expect(result.dueAt).toBe("2026-05-12");
-  });
-
-  it("respeita defaultTurmaId quando válido + defaultDueAt", () => {
-    const result = buildActivityFormDefaults({
-      turmas: TURMAS,
-      defaultTurmaId: "turma-b",
-      defaultDueAt: "2026-05-12",
-    });
-    expect(result.turmaId).toBe("turma-b");
-    expect(result.dueAt).toBe("2026-05-12");
-  });
-});
-
-describe("buildActivityFormDefaults — modo edit", () => {
-  const editActivity: ActivityFormDefaultsActivity = {
-    type: "exam",
-    title: "Prova de história",
-    description: "Capítulos 3-5",
-    dueAt: "2026-05-20",
-    turmaId: "turma-a",
-    subjectId: "subj-1",
-    visibility: "shared_with_turma",
-  };
-
-  it("retorna os campos da activity (ignora defaultDueAt e defaultTurmaId)", () => {
-    const result = buildActivityFormDefaults({
-      activity: editActivity,
-      turmas: TURMAS,
-      defaultTurmaId: "turma-b",
-      defaultDueAt: "2027-01-01",
-    });
-    expect(result).toEqual({
-      turmaId: "turma-a",
-      subjectId: "subj-1",
-      type: "exam",
-      title: "Prova de história",
-      description: "Capítulos 3-5",
-      dueAt: "2026-05-20",
-      visibility: "shared_with_turma",
-    });
-  });
-
-  it("normaliza description null → string vazia (RHF não aceita null)", () => {
-    const result = buildActivityFormDefaults({
-      activity: { ...editActivity, description: null },
-      turmas: TURMAS,
-    });
-    expect(result.description).toBe("");
-  });
-});
-
-describe("canEditActivity", () => {
-  function makeItem(overrides: Partial<Parameters<typeof canEditActivity>[0]> = {}) {
-    return {
-      createdByUserId: "user-1",
-      visibility: "individual" as const,
-      hasOtherAcceptances: false,
-      ...overrides,
-    };
-  }
-
-  it("creator pode editar atividade individual", () => {
-    expect(canEditActivity(makeItem(), "user-1")).toBe(true);
-  });
-
-  it("non-creator nunca edita", () => {
-    expect(canEditActivity(makeItem(), "outro-user")).toBe(false);
-  });
-
-  it("creator pode corrigir shared activity já aceita por outra família", () => {
-    expect(
-      canEditActivity(
-        makeItem({ visibility: "shared_with_turma", hasOtherAcceptances: true }),
-        "user-1",
-      ),
-    ).toBe(true);
-  });
-
-  it("creator edita shared activity SEM aceites de outras famílias", () => {
-    expect(
-      canEditActivity(
-        makeItem({ visibility: "shared_with_turma", hasOtherAcceptances: false }),
-        "user-1",
-      ),
-    ).toBe(true);
   });
 });

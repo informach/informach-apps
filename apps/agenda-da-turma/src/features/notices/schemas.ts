@@ -99,6 +99,10 @@ export const actionFieldsSchema = extractedActionSchema
     assignedToUserId: z.string().max(128).nullable().default(null),
     reminderAt: z.string().datetime({ offset: true }).nullable().default(null),
     recurrence: z.enum(["none", "weekly"]).default("none"),
+    // Publicar na turma é uma escolha da atividade, não um formulário à parte.
+    // Só faz sentido com matéria da turma e prazo: é isso que as outras
+    // famílias recebem.
+    shareWithTurma: z.boolean().default(false),
   })
   .superRefine((v, ctx) => {
     if (v.subjectId && v.profileSubjectId)
@@ -118,6 +122,12 @@ export const actionFieldsSchema = extractedActionSchema
         code: "custom",
         path: ["dueAt"],
         message: "Defina uma data para usar horário, lembrete ou repetição",
+      });
+    if (v.shareWithTurma && (!v.subjectId || !v.dueAt))
+      ctx.addIssue({
+        code: "custom",
+        path: ["shareWithTurma"],
+        message: "Para compartilhar com a turma, escolha a matéria da turma e a data",
       });
   });
 export type NoticeActionInput = z.infer<typeof actionFieldsSchema>;

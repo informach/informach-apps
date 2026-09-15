@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { seedAgendaCreditPricing } from "@informach/billing/seeds";
 import { and, db, eq, inArray } from "@informach/db";
 import {
+  agendaActivities,
   agendaCities,
   agendaNotices,
   agendaNotificationDeliveries,
@@ -10,6 +11,7 @@ import {
   agendaProfileSubjects,
   agendaSchools,
   agendaSubjects,
+  agendaTasks,
   agendaTurmas,
   customers,
   emailDeliveries,
@@ -20,13 +22,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { cleanAgendaAccount } from "@/features/account/cleanup";
 import { prepareAgendaAccountDeletion } from "@/features/account/deletion";
 import { countPendingActivities } from "@/features/activities/pending-limit";
-import { insertActivityWithTasks } from "@/features/activities/repository";
-import {
-  createActivity,
-  deleteActivity,
-  respondSharedActivity,
-  updateActivity,
-} from "@/features/activities/service";
+import { respondSharedActivity } from "@/features/activities/service";
 import {
   createCalendarFeed,
   readCalendarFeed,
@@ -68,6 +64,32 @@ let owner: string, guest: string, other: string, child: string, sibling: string,
 let school: string, group: string, subject: string, customer: string, subscription: string;
 const date = todayLocalIso();
 const range = { fromIso: "2026-01-01", toIso: "2030-12-31", profileFilter: null };
+type Task = typeof agendaTasks.$inferSelect;
+/** Uma prova publicada na turma, pelo formulário único. */
+async function sharedExam(title: string, dueAt = date): Promise<Task> {
+  const created = value(
+    await confirmNotice(owner, {
+      noticeId: null,
+      allowDuplicates: true,
+      actions: [
+        {
+          ...action(title),
+          type: "exam",
+          subjectId: subject,
+          dueAt,
+          dateOrigin: "school",
+          shareWithTurma: true,
+        },
+      ],
+    }),
+  );
+  const [row] = await db
+    .select()
+    .from(agendaTasks)
+    .where(eq(agendaTasks.id, created.ids[0] ?? ""));
+  if (!row?.sharedActivityId) throw new Error("Shared exam was not published");
+  return row;
+}
 const action = (title = "Providência sintética", profileId = child): NoticeActionInput => ({
   profileId,
   type: "authorization",
@@ -83,6 +105,7 @@ const action = (title = "Providência sintética", profileId = child): NoticeAct
   assignedToUserId: null,
   reminderAt: null,
   recurrence: "none",
+  shareWithTurma: false,
 });
 async function invite() {
   const invitation = value(
@@ -208,51 +231,47 @@ describe("private groups and shared activities", () => {
     const rotated = value(await rotateGroupCode(owner, group));
     expect(await joinPrivateGroup(other, otherChild, ownGroup.code)).toBeNull();
     expect(await joinPrivateGroup(other, otherChild, rotated.code)).toMatchObject({ id: group });
-    const created = value(
-      await createActivity(owner, {
-        turmaId: group,
-        subjectId: subject,
-        type: "exam",
-        title: "Prova compartilhada",
-        dueAt: date,
-        visibility: "shared_with_turma",
+    const created = await sharedExam("Prova compartilhada");
+    value(
+      await respondSharedActivity(other, {
+        activityId: created.sharedActivityId ?? "",
+        accepted: true,
       }),
     );
-    value(await respondSharedActivity(other, { activityId: created.id, accepted: true }));
     expect(
       (await listTasksInDateRange(other, range)).map((task) => task.sharedActivityId),
-    ).toContain(created.id);
+    ).toContain(created.sharedActivityId);
     expect(await countPendingActivities(db, other)).toBe(0);
     value(await removeGroupAdult(owner, group, other));
     expect(await listTasksInDateRange(other, range)).toEqual([]);
     expect(await joinPrivateGroup(other, otherChild, rotated.code)).toBeNull();
-    await expect(
-      insertActivityWithTasks({
-        turmaId: group,
-        subjectId: subject,
-        createdByUserId: other,
-        type: "task",
-        visibility: "shared_with_turma",
-        title: "Requisição antiga depois da revogação",
-        description: null,
-        dueAt: date,
+    // Depois da revogação a matéria deixa de ser oferecível: a criança não
+    // participa mais daquela turma, e é isso que a gravação confere.
+    expect(
+      await confirmNotice(other, {
+        noticeId: null,
+        allowDuplicates: true,
+        actions: [
+          {
+            ...action("Requisição antiga depois da revogação", otherChild),
+            subjectId: subject,
+            dueAt: date,
+            dateOrigin: "school",
+          },
+        ],
       }),
-    ).rejects.toThrow("ACTIVE_PROFILE_REQUIRED");
+    ).toMatchObject({ ok: false, error: { code: "INVALID_SUBJECT" } });
   });
   it("preserves recipient completion through correction, downgrade and creator deletion", async () => {
     const code = value(await rotateGroupCode(owner, group)).code;
     await joinPrivateGroup(other, otherChild, code);
-    const created = value(
-      await createActivity(owner, {
-        turmaId: group,
-        subjectId: subject,
-        type: "exam",
-        title: "Prova compartilhada",
-        dueAt: date,
-        visibility: "shared_with_turma",
+    const created = await sharedExam("Prova compartilhada");
+    value(
+      await respondSharedActivity(other, {
+        activityId: created.sharedActivityId ?? "",
+        accepted: true,
       }),
     );
-    value(await respondSharedActivity(other, { activityId: created.id, accepted: true }));
     // A conclusão é da tarefa da família que recebeu — a mesma alternância de
     // qualquer outra atividade desde a convergência.
     const [received] = await listTasksInDateRange(other, range);
@@ -264,27 +283,37 @@ describe("private groups and shared activities", () => {
         status: "done",
       }),
     );
-    const changed = value(
-      await updateActivity(owner, {
+    value(
+      await updateNoticeAction(owner, {
         id: created.id,
-        version: 1,
-        subjectId: subject,
-        type: "exam",
-        title: "Prova remarcada",
-        dueAt: "2026-09-28",
-        visibility: "shared_with_turma",
+        version: created.version,
+        action: {
+          ...action("Prova remarcada"),
+          type: "exam",
+          subjectId: subject,
+          dueAt: "2026-09-28",
+          dateOrigin: "school",
+          shareWithTurma: true,
+        },
       }),
     );
-    expect(changed.version).toBe(2);
+    const [publishedActivity] = await db
+      .select()
+      .from(agendaActivities)
+      .where(eq(agendaActivities.id, created.sharedActivityId ?? ""));
+    expect(publishedActivity).toMatchObject({ title: "Prova remarcada", version: 2 });
     expect(
-      await updateActivity(owner, {
+      await updateNoticeAction(owner, {
         id: created.id,
-        version: 1,
-        subjectId: subject,
-        type: "exam",
-        title: "Alteração antiga",
-        dueAt: date,
-        visibility: "shared_with_turma",
+        version: created.version,
+        action: {
+          ...action("Alteração antiga"),
+          type: "exam",
+          subjectId: subject,
+          dueAt: date,
+          dateOrigin: "school",
+          shareWithTurma: true,
+        },
       }),
     ).toMatchObject({ ok: false, error: { code: "VERSION_CONFLICT" } });
     await downgrade();
@@ -303,21 +332,23 @@ describe("private groups and shared activities", () => {
   });
   it("publishes cancellation and revision to an existing private calendar link", async () => {
     await joinPrivateGroup(other, otherChild, value(await rotateGroupCode(owner, group)).code);
-    const created = value(
-      await createActivity(owner, {
-        turmaId: group,
-        subjectId: subject,
-        type: "exam",
-        title: "Prova cancelada",
-        dueAt: date,
-        visibility: "shared_with_turma",
+    const created = await sharedExam("Prova cancelada");
+    value(
+      await respondSharedActivity(other, {
+        activityId: created.sharedActivityId ?? "",
+        accepted: true,
       }),
     );
-    value(await respondSharedActivity(other, { activityId: created.id, accepted: true }));
     const url = value(await createCalendarFeed(owner)).url;
     const token = url.split("/").at(-1) ?? "";
     expect(await readCalendarFeed(token)).toContain("Prova cancelada");
-    value(await deleteActivity(owner, { id: created.id }));
+    value(
+      await setNoticeActionStatus(owner, {
+        id: created.id,
+        version: created.version,
+        status: "canceled",
+      }),
+    );
     expect(await readCalendarFeed(token)).toContain("STATUS:CANCELLED");
     expect(await readCalendarFeed(token)).toContain("SEQUENCE:2");
     await revokeCalendarFeeds(owner);
@@ -429,13 +460,12 @@ describe("family permissions and action lifecycle", () => {
         actions: [action("Último recado")],
         allowDuplicates: false,
       }),
-      createActivity(owner, {
-        turmaId: group,
-        subjectId: subject,
-        type: "task",
-        title: "Última tarefa",
-        dueAt: date,
-        visibility: "individual",
+      confirmNotice(owner, {
+        noticeId: null,
+        allowDuplicates: true,
+        actions: [
+          { ...action("Última tarefa"), type: "task", subjectId: subject, dateOrigin: "school" },
+        ],
       }),
       createProfileSubjectActivity(owner, {
         profileSubjectId: extra.id,
@@ -444,7 +474,7 @@ describe("family permissions and action lifecycle", () => {
         dueAt: date,
       }),
     ]);
-    expect(results.filter((r) => r.ok)).toHaveLength(1);
+    expect(results.filter((result) => result.ok)).toHaveLength(1);
     expect(await countPendingActivities(db, owner)).toBe(20);
     const [first] = await listNoticeActions(owner);
     if (!first) throw new Error("Action missing");

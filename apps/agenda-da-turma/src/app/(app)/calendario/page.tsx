@@ -1,6 +1,4 @@
 import { BackButton } from "@/components/app-shell/back-button";
-import { getTurmasWithSubjectsForForm } from "@/features/activities/service";
-import { getIsProForUser } from "@/features/billing/server-cache";
 import { CalendarView } from "@/features/calendar/components/calendar-view";
 import { isValidDateIso, todayLocalIso } from "@/features/calendar/date";
 import { getCalendarSnapshot } from "@/features/calendar/service";
@@ -33,11 +31,7 @@ export default async function CalendarPage({ searchParams }: Props) {
   const view = parseView(params.view);
   const anchorIso = params.date && isValidDateIso(params.date) ? params.date : todayLocalIso();
 
-  const [profiles, isPro, turmasForForm] = await Promise.all([
-    listStudentProfilesForUser(user.id),
-    getIsProForUser(user.id),
-    getTurmasWithSubjectsForForm(user.id),
-  ]);
+  const profiles = await listStudentProfilesForUser(user.id);
 
   // Valida ?perfil= contra perfis do user (defensivo: ID inválido cai pra "todos").
   const profileFilter =
@@ -60,13 +54,11 @@ export default async function CalendarPage({ searchParams }: Props) {
 
       <CalendarView
         userId={user.id}
-        isPro={isPro}
         addEntitlement={await getAddEntitlement(user.id)}
         view={view}
         anchorIso={anchorIso}
         profileFilter={profileFilter}
         profiles={profiles}
-        turmasForForm={turmasForForm}
         items={snapshot.items}
       />
     </main>

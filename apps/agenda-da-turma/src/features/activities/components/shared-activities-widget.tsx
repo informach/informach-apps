@@ -74,8 +74,6 @@ function SharedActivityItem({ item }: { item: PendingSharedActivity }) {
           toast.error("Você criou essa atividade, então já está na sua agenda.");
         } else if (result.error.code === "NOT_SHARED") {
           toast.error("Essa atividade não é compartilhada.");
-        } else if (result.error.code === "PRO_REQUIRED") {
-          toast.error("Atividades compartilhadas são recurso Pro.");
         } else if (result.error.code === "NOT_A_MEMBER") {
           toast.error("Você precisa estar na turma pra responder.");
         } else if (result.error.code === "DUE_DATE_PASSED") {

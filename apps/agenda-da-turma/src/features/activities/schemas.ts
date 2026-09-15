@@ -1,74 +1,8 @@
 import { z } from "zod";
-import { isValidLocalIsoDate } from "@/features/dashboard/date";
-import { activityTypeSchema } from "@/features/unified-activities/activity-types";
-import { MAX_ACTIVITY_DESCRIPTION_LENGTH, MAX_ACTIVITY_TITLE_LENGTH } from "./limits";
 
 const activityIdSchema = z.string().uuid("Identificador de atividade inválido");
-const turmaIdSchema = z.string().uuid("Identificador de turma inválido");
-const subjectIdSchema = z.string().uuid("Identificador de matéria inválido");
-
-const titleSchema = z
-  .string()
-  .trim()
-  .min(1, "Descreva a atividade")
-  .max(MAX_ACTIVITY_TITLE_LENGTH, `Texto muito longo (máx ${MAX_ACTIVITY_TITLE_LENGTH})`);
-
-const descriptionSchema = z
-  .string()
-  .trim()
-  .max(
-    MAX_ACTIVITY_DESCRIPTION_LENGTH,
-    `Observação muito longa (máx ${MAX_ACTIVITY_DESCRIPTION_LENGTH})`,
-  )
-  .optional()
-  .transform((v) => (v && v.length > 0 ? v : undefined));
-
-const visibilitySchema = z.enum(["individual", "shared_with_turma"]);
-
-// "YYYY-MM-DD" (input type="date" retorna esse formato). Sem hora nem TZ.
-const dueAtSchema = z
-  .string()
-  .trim()
-  .min(1, "Informe a data de entrega")
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida")
-  .refine(isValidLocalIsoDate, "Data inválida");
-
-export const createActivityInputSchema = z.object({
-  turmaId: turmaIdSchema,
-  subjectId: subjectIdSchema,
-  type: activityTypeSchema,
-  title: titleSchema,
-  description: descriptionSchema,
-  dueAt: dueAtSchema,
-  // Free é silenciosamente forçado pra "individual" no service.
-  visibility: visibilitySchema.default("individual"),
-});
-export type CreateActivityInput = z.output<typeof createActivityInputSchema>;
-export type CreateActivityFormValues = z.input<typeof createActivityInputSchema>;
-
-// Correções preservam os estados privados e exigem a versão exibida.
-export const updateActivityInputSchema = z.object({
-  id: activityIdSchema,
-  version: z.number().int().positive().default(1),
-  subjectId: subjectIdSchema,
-  type: activityTypeSchema,
-  title: titleSchema,
-  description: descriptionSchema,
-  dueAt: dueAtSchema,
-  visibility: visibilitySchema.default("individual"),
-});
-export type UpdateActivityInput = z.output<typeof updateActivityInputSchema>;
-
-export const deleteActivityInputSchema = z.object({
-  id: activityIdSchema,
-});
-export type DeleteActivityInput = z.output<typeof deleteActivityInputSchema>;
-
 export const respondSharedActivityInputSchema = z.object({
   activityId: activityIdSchema,
   accepted: z.boolean(),
 });
 export type RespondSharedActivityInput = z.output<typeof respondSharedActivityInputSchema>;
-
-// Cap defensivo de itens por lote — alinhado com MAX_ACTIVITIES_PER_BATCH
-// do schema do parser de IA. Server enforça mesmo se o caller ignorar.

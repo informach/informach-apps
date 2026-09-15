@@ -69,6 +69,8 @@ export async function ActivityDetail({ userId, task }: { userId: string; task: T
         version={task.version}
         canceled={task.status === "canceled"}
         isPro={isPro}
+        // Publicou outra família: a caixa fica marcada e travada.
+        shareLocked={task.sharedActivityId !== null && task.createdByUserId !== userId}
         profiles={[{ id: task.profileId, name: task.profileName }]}
         adults={adults}
         subjectOptions={subjectOptions}
@@ -87,6 +89,7 @@ export async function ActivityDetail({ userId, task }: { userId: string; task: T
           assignedToUserId: task.assignedToUserId,
           recurrence: "none",
           reminderAt: null,
+          shareWithTurma: task.sharedActivityId !== null,
         }}
       />
 

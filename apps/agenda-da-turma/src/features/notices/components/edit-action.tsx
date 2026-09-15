@@ -18,6 +18,7 @@ export function EditNoticeAction({
   subjectOptions,
   isPro,
   canceled,
+  shareLocked = false,
 }: {
   id: string;
   version: number;
@@ -27,6 +28,7 @@ export function EditNoticeAction({
   subjectOptions: SubjectOptionsByProfile;
   isPro: boolean;
   canceled: boolean;
+  shareLocked?: boolean;
 }) {
   const router = useRouter();
   const [value, setValue] = useState(initialValue);
@@ -44,6 +46,7 @@ export function EditNoticeAction({
           profiles={profiles}
           adults={adults}
           isPro={isPro}
+          shareLocked={shareLocked}
           lockProfile
         />
       </fieldset>

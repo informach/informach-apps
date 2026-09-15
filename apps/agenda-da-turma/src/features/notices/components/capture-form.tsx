@@ -31,6 +31,7 @@ function blankAction(
   profileId: string,
   type: NoticeActionInput["type"] = "task",
   key = crypto.randomUUID(),
+  dueAt: string | null = null,
 ): Draft {
   return {
     key,
@@ -41,14 +42,15 @@ function blankAction(
       description: null,
       subjectId: null,
       profileSubjectId: null,
-      dueAt: null,
-      dateOrigin: "unspecified",
+      dueAt,
+      dateOrigin: dueAt ? "family" : "unspecified",
       time: null,
       location: null,
       sourceExcerpt: null,
       assignedToUserId: null,
       reminderAt: null,
       recurrence: "none",
+      shareWithTurma: false,
     },
   };
 }
@@ -72,6 +74,7 @@ export function CaptureForm({
   captureMode,
   defaultProfileId,
   defaultType = "task",
+  defaultDueAt,
   defaultSource = "teams",
 }: {
   profiles: RoutineProfile[];
@@ -87,6 +90,8 @@ export function CaptureForm({
   captureMode?: "foto" | "colar" | "falar";
   defaultProfileId?: string;
   defaultType?: NoticeActionInput["type"];
+  /** Dia escolhido no calendário: a atividade já nasce com ele. */
+  defaultDueAt?: string;
   defaultSource?: z.infer<typeof noticeSourceSchema>;
   initialNotice?: {
     id: string;
@@ -127,10 +132,12 @@ export function CaptureForm({
             assignedToUserId: null,
             reminderAt: null,
             recurrence: "none",
+            // Publicar na turma é decisão de quem revisa, nunca da leitura.
+            shareWithTurma: false,
           },
         }))
       : mode === "manual" && profileId
-        ? [blankAction(profileId, defaultType, "manual-initial")]
+        ? [blankAction(profileId, defaultType, "manual-initial", defaultDueAt ?? null)]
         : [],
   );
   const [noticeId, setNoticeId] = useState<string | null>(initialNotice?.id ?? null);
@@ -318,6 +325,8 @@ export function CaptureForm({
             assignedToUserId: null,
             reminderAt: null,
             recurrence: "none",
+            // Publicar na turma é decisão de quem revisa, nunca da leitura.
+            shareWithTurma: false,
           },
         })),
       );

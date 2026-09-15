@@ -106,6 +106,54 @@ async function validSubject(tx: AgendaTransaction, input: NoticeActionInput) {
   return true;
 }
 
+/**
+ * Publica a atividade na turma da criança e devolve o id do fato publicado.
+ *
+ * Havia dois formulários de nova atividade — um só para escola, que exigia
+ * turma, matéria e prazo, e outro para o resto. O que separava os dois era
+ * exatamente este campo, e agora ele é uma caixa no mesmo formulário: a turma
+ * sai da matéria escolhida, e o fato publicado nasce como consequência da
+ * atividade, não como uma coisa que se cadastra antes dela.
+ *
+ * `reuse` é a deduplicação dentro da mesma revisão: a mesma prova marcada para
+ * dois filhos da mesma turma é UM fato publicado com duas tarefas, e não duas
+ * cópias que a turma veria em dobro.
+ */
+async function publishToTurma(
+  tx: AgendaTransaction,
+  userId: string,
+  action: NoticeActionInput,
+  reuse: Map<string, string>,
+): Promise<string | null> {
+  if (!action.subjectId || !action.dueAt) return null;
+  const [subject] = await tx
+    .select({ turmaId: agendaSubjects.turmaId })
+    .from(agendaSubjects)
+    .where(eq(agendaSubjects.id, action.subjectId));
+  if (!subject) return null;
+  const key = [subject.turmaId, action.subjectId, action.type, action.title, action.dueAt].join(
+    "|",
+  );
+  const existing = reuse.get(key);
+  if (existing) return existing;
+  const [created] = await tx
+    .insert(agendaActivities)
+    .values({
+      turmaId: subject.turmaId,
+      subjectId: action.subjectId,
+      createdByUserId: userId,
+      type: action.type,
+      visibility: "shared_with_turma",
+      title: action.title,
+      description: action.description,
+      dueAt: action.dueAt,
+    })
+    .returning({ id: agendaActivities.id });
+  if (!created) throw new Error("Shared activity insert failed");
+  reuse.set(key, created.id);
+  return created.id;
+}
+
 async function lockFamily(tx: AgendaTransaction, ownerId: string) {
   await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`agenda:family:${ownerId}`}))`);
   await lockPendingLimit(tx, ownerId);
@@ -194,6 +242,9 @@ export async function insertConfirmedNotice(
       if (!(await validSubject(tx, action))) return err({ code: "INVALID_SUBJECT" } as const);
       if (!isPro && (action.recurrence !== "none" || action.reminderAt))
         return err({ code: "PRO_REQUIRED" } as const);
+      // Recusa em vez de rebaixar: salvar como privado o que a pessoa pediu
+      // compartilhado entrega algo diferente do combinado, em silêncio.
+      if (!isPro && action.shareWithTurma) return err({ code: "SHARE_REQUIRES_PRO" } as const);
     }
     const values = work.map(({ action, index }) => ({
       index,
@@ -288,6 +339,7 @@ export async function insertConfirmedNotice(
 
     // All decisions/versions/permissions have been checked before any mutation.
     const ids: string[] = [];
+    const published = new Map<string, string>();
     for (const { action, index, fingerprint } of values) {
       const previous = replacements.get(index);
       const fields = {
@@ -326,6 +378,9 @@ export async function insertConfirmedNotice(
           .values({
             ...fields,
             createdByUserId: userId,
+            sharedActivityId: action.shareWithTurma
+              ? await publishToTurma(tx, userId, action, published)
+              : null,
             seriesId: action.recurrence === "weekly" ? randomUUID() : null,
           })
           .returning({ id: agendaTasks.id });
@@ -424,10 +479,28 @@ export async function updateNoticeActionAtomically(
       : false;
     if (publishedBySelf && (!input.action.dueAt || !input.action.subjectId))
       return err({ code: "SHARED_REQUIRES_SCHOOL_FIELDS" } as const);
+    // Compartilhar (ou deixar de compartilhar) é a mesma caixa do formulário
+    // único, e vale também depois de criada.
+    let sharedActivityId = previous.sharedActivityId;
+    if (!previous.sharedActivityId && input.action.shareWithTurma) {
+      if (!isPro) return err({ code: "SHARE_REQUIRES_PRO" } as const);
+      sharedActivityId = await publishToTurma(tx, userId, input.action, new Map());
+      if (!sharedActivityId) return err({ code: "INVALID_SUBJECT" } as const);
+    } else if (previous.sharedActivityId && !input.action.shareWithTurma) {
+      // Despublicar é retirar da turma o que outras famílias podem já ter
+      // começado a cumprir. Só quem publicou pode, e só enquanto ninguém mais
+      // tiver recebido — do contrário some da vista delas sem explicação.
+      if (!publishedBySelf) return err({ code: "SHARE_NOT_YOURS" } as const);
+      if (await hasOtherHouseholdTasks(tx, previous.sharedActivityId, userId))
+        return err({ code: "SHARE_ALREADY_ACCEPTED" } as const);
+      await tx.delete(agendaActivities).where(eq(agendaActivities.id, previous.sharedActivityId));
+      sharedActivityId = null;
+    }
     const [current] = await tx
       .update(agendaTasks)
       .set({
         ...input.action,
+        sharedActivityId,
         reminderAt: input.action.reminderAt ? new Date(input.action.reminderAt) : null,
         fingerprint: actionFingerprint(input.action),
         version: previous.version + 1,
@@ -440,8 +513,8 @@ export async function updateNoticeActionAtomically(
       .where(eq(agendaTasks.id, input.id))
       .returning();
     if (!current) throw new Error("Action update failed");
-    if (publishedBySelf && previous.sharedActivityId)
-      await publishActivityCorrection(tx, previous.sharedActivityId, userId, current);
+    if (publishedBySelf && sharedActivityId)
+      await publishActivityCorrection(tx, sharedActivityId, userId, current);
     await cancelActionDeliveries(tx, previous.id, previous.version);
     await tx.insert(agendaActivityRevisions).values({
       taskId: input.id,
@@ -452,6 +525,26 @@ export async function updateNoticeActionAtomically(
     });
     return ok({ id: input.id });
   });
+}
+
+/** Alguma outra família já tem tarefa deste fato publicado? */
+async function hasOtherHouseholdTasks(
+  tx: AgendaTransaction,
+  activityId: string,
+  userId: string,
+): Promise<boolean> {
+  const [row] = await tx
+    .select({ id: agendaTasks.id })
+    .from(agendaTasks)
+    .innerJoin(agendaStudentProfiles, eq(agendaStudentProfiles.id, agendaTasks.profileId))
+    .where(
+      and(
+        eq(agendaTasks.sharedActivityId, activityId),
+        sql`${agendaStudentProfiles.userId} IS DISTINCT FROM ${userId}`,
+      ),
+    )
+    .limit(1);
+  return Boolean(row);
 }
 
 /** O fato publicado é deste usuário e ainda vale? */
@@ -532,6 +625,55 @@ async function publishActivityCorrection(
     .where(and(eq(agendaTasks.sharedActivityId, activityId), ne(agendaTasks.id, task.id)));
 }
 
+/**
+ * Cancela o fato publicado e alcança as outras famílias.
+ *
+ * Só o que ainda estava por fazer é cancelado: quem já cumpriu continua tendo
+ * cumprido, e o cancelamento de quem publicou não apaga a conclusão de
+ * ninguém. A versão sobe porque é ela que diz ao calendário assinado que o
+ * evento mudou.
+ */
+async function cancelPublishedActivity(
+  tx: AgendaTransaction,
+  activityId: string,
+  actorId: string,
+  taskId: string,
+) {
+  const [previous] = await tx
+    .select()
+    .from(agendaActivities)
+    .where(eq(agendaActivities.id, activityId))
+    .for("update");
+  if (!previous || previous.canceledAt || previous.createdByUserId !== actorId) return;
+  const [current] = await tx
+    .update(agendaActivities)
+    .set({ canceledAt: new Date(), version: previous.version + 1, updatedAt: new Date() })
+    .where(eq(agendaActivities.id, activityId))
+    .returning();
+  if (!current) throw new Error("Shared activity cancellation failed");
+  await tx.insert(agendaActivityRevisions).values({
+    activityId,
+    actorId,
+    version: current.version,
+    previous,
+    current,
+  });
+  await tx
+    .update(agendaTasks)
+    .set({
+      status: "canceled",
+      version: sql`${agendaTasks.version} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(agendaTasks.sharedActivityId, activityId),
+        eq(agendaTasks.status, "pending"),
+        ne(agendaTasks.id, taskId),
+      ),
+    );
+}
+
 export function nextWeeklyDate(iso: string) {
   const date = new Date(`${iso}T12:00:00Z`);
   date.setUTCDate(date.getUTCDate() + 7);
@@ -582,6 +724,15 @@ export async function setNoticeActionStatusAtomically(
       .where(eq(agendaTasks.id, input.id))
       .returning();
     if (!current) throw new Error("Action status update failed");
+    // Cancelar o que se publicou cancela para a turma. Sem isto, as outras
+    // famílias continuariam cobrando uma prova que a escola desmarcou, e só a
+    // casa de quem cancelou saberia.
+    if (
+      input.status === "canceled" &&
+      previous.sharedActivityId &&
+      (await isPublishedBy(tx, previous.sharedActivityId, userId))
+    )
+      await cancelPublishedActivity(tx, previous.sharedActivityId, userId, input.id);
     await tx.insert(agendaActivityRevisions).values({
       taskId: input.id,
       actorId: userId,

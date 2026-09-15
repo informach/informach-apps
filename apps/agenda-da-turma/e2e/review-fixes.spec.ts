@@ -223,11 +223,13 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       await expect(page).toHaveURL(new RegExp(`/atividades\\?perfil=${child.id}$`));
       for (const width of [360, 1280]) {
         await page.setViewportSize({ width, height: 900 });
-        await expect(page.getByRole("button", { name: "Nova atividade", exact: true })).toHaveCount(
+        // Um botão só, e um destino só: o segundo formulário com este mesmo
+        // nome saiu.
+        await expect(page.getByRole("link", { name: "Nova atividade", exact: true })).toHaveCount(
           1,
         );
         await expect(
-          page.getByRole("button", { name: "Nova atividade", exact: true }),
+          page.getByRole("link", { name: "Nova atividade", exact: true }),
         ).toBeInViewport();
         expect(
           await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
@@ -238,39 +240,54 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
         });
       }
       await page.setViewportSize({ width: 390, height: 844 });
-      for (const [label, type] of [
-        ["Para casa", "task"],
-        ["Trabalho", "project"],
-        ["Prova", "exam"],
+      // Escola, extra e recado passam pelo mesmo formulário. Compartilhar com a
+      // turma deixou de ser um segundo cadastro e virou uma caixa dele.
+      for (const [label, type, share] of [
+        ["Para casa", "task", false],
+        ["Trabalho", "project", false],
+        ["Prova", "exam", true],
       ] as const) {
-        await page.getByRole("button", { name: "Nova atividade", exact: true }).click();
-        const dialog = page.getByRole("dialog");
-        await dialog.getByRole("combobox", { name: "Tipo", exact: true }).click();
-        await page
-          .getByRole("option", {
-            name: label === "Para casa" ? "Para casa (tarefa)" : label,
-            exact: true,
-          })
-          .click();
-        await expect(dialog.getByRole("combobox", { name: "Tipo", exact: true })).toContainText(
-          label,
-        );
-        await dialog.getByRole("combobox", { name: "Matéria", exact: true }).click();
-        await page.getByRole("option", { name: "Matéria de revisão", exact: true }).click();
-        await dialog.getByLabel("Atividade", { exact: true }).fill(`Cadastro direto: ${label}`);
-        await dialog.getByLabel("Data de entrega").fill(date);
-        await dialog.getByRole("button", { name: "Criar atividade", exact: true }).click();
-        await expect(dialog).toHaveCount(0);
+        await page.getByRole("link", { name: "Nova atividade", exact: true }).click();
+        await expect(page).toHaveURL(/\/atividades\/nova/);
+        const form = page.getByRole("main");
+        await form.getByLabel("Tipo", { exact: true }).selectOption(type);
+        await form.getByLabel("Matéria", { exact: true }).selectOption({
+          label: "Matéria de revisão",
+        });
+        await form.getByLabel("Atividade", { exact: true }).fill(`Cadastro direto: ${label}`);
+        await form.getByLabel("Data (opcional)", { exact: true }).fill(date);
+        const share_ = form.getByLabel("Compartilhar com a turma");
+        await expect(share_).toBeVisible();
+        if (share) await share_.check();
+        await form.getByRole("button", { name: "Salvar 1 atividade", exact: true }).click();
+        // A lista, não o formulário: `/atividades/nova` também casa com
+        // `/atividades`, e a asserção passaria antes de a gravação terminar.
+        await expect(page).toHaveURL(new RegExp(`/atividades\\?perfil=${child.id}$`));
         const [saved] = await db
           .select()
-          .from(agendaActivities)
+          .from(agendaTasks)
           .where(
             and(
-              eq(agendaActivities.createdByUserId, id),
-              eq(agendaActivities.title, `Cadastro direto: ${label}`),
+              eq(agendaTasks.createdByUserId, id),
+              eq(agendaTasks.title, `Cadastro direto: ${label}`),
             ),
           );
-        expect(saved).toMatchObject({ type, turmaId, dueAt: date });
+        expect(saved).toMatchObject({ type, dueAt: date, profileId: child.id });
+        // Só a prova foi publicada, e é ela que a turma passa a ver.
+        expect(Boolean(saved?.sharedActivityId)).toBe(share);
+        if (share && saved?.sharedActivityId) {
+          const [published] = await db
+            .select()
+            .from(agendaActivities)
+            .where(eq(agendaActivities.id, saved.sharedActivityId));
+          expect(published).toMatchObject({
+            turmaId,
+            type,
+            dueAt: date,
+            visibility: "shared_with_turma",
+          });
+        }
+        await page.goto(`/atividades?perfil=${child.id}`);
       }
       const typeFilter = page.getByRole("combobox", { name: "Tipo de atividade", exact: true });
       await typeFilter.click();
@@ -295,10 +312,15 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       await expect(
         page.getByRole("button", { name: "Ações para Cadastro direto: Trabalho", exact: true }),
       ).toBeVisible();
-      await page.goto(`/calendario?date=${date}`);
+      // O calendário leva ao mesmo formulário, já com o dia tocado.
+      await page.goto(`/calendario?date=${date}&perfil=${child.id}`);
       await page.getByRole("button", { name: "Nova atividade", exact: true }).click();
-      await expect(page.getByRole("dialog", { name: "Nova atividade" })).toBeVisible();
-      await page.getByRole("button", { name: "Cancelar", exact: true }).click();
+      await expect(page).toHaveURL(`/atividades/nova?perfil=${child.id}`);
+      // Tocar num dia leva ao mesmo formulário com a data já preenchida.
+      await page.goto(`/calendario?date=${date}&perfil=${child.id}`);
+      await page.getByRole("button", { name: `Criar atividade em ${date}` }).click();
+      await expect(page).toHaveURL(`/atividades/nova?data=${date}&perfil=${child.id}`);
+      await expect(page.getByLabel("Data (opcional)", { exact: true })).toHaveValue(date);
     });
 
     await test.step("família reúne crianças, turmas, adultos e ajustes", async () => {
@@ -626,7 +648,7 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       caret: "initial",
     });
     await page.goto(`/atividades?perfil=${sibling.id}&tipo=task`);
-    await page.getByRole("button", { name: "Nova atividade", exact: true }).click();
+    await page.getByRole("link", { name: "Nova atividade", exact: true }).click();
     await page.waitForURL(/atividades\/nova/);
     await expect(page).toHaveURL(/atividades\/nova/);
     await expect(page.getByLabel("Criança", { exact: true })).toHaveValue(sibling.id);

@@ -12,7 +12,6 @@ import {
 import { ArrowLeft, ArrowRight, ListTodo, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import type { AddEntitlement } from "@/features/notices/entitlement";
 import type { StudentProfile } from "@/features/students/types";
 import {
@@ -28,8 +27,6 @@ import {
   OVERVIEW_STATUS_LABELS,
   overviewStatusSchema,
 } from "@/features/unified-activities/overview-types";
-import type { TurmaWithSubjectsForForm } from "../types";
-import { ActivityFormDialog } from "./activity-form-dialog";
 import { AddSheet } from "./add-sheet";
 
 type Props = {
@@ -38,11 +35,7 @@ type Props = {
   filters: ActivityOverviewOptions;
   profiles: StudentProfile[];
   activeFilter: StudentProfile | null;
-  turmasForForm: TurmaWithSubjectsForForm[];
   currentUserId: string;
-  isPro: boolean;
-  /** Total de atividades já cadastradas pelo user (qualquer status). */
-  activityCount: number;
   /** Plano e franquia do titular, para a folha Adicionar. */
   addEntitlement: AddEntitlement;
 };
@@ -53,10 +46,7 @@ export function ActivitiesSection({
   filters,
   profiles,
   activeFilter,
-  turmasForForm,
   currentUserId,
-  isPro,
-  activityCount,
   addEntitlement,
 }: Props) {
   const router = useRouter();
@@ -66,8 +56,6 @@ export function ActivitiesSection({
   if (activeFilter) manualParams.set("perfil", activeFilter.id);
   if (typeFilter) manualParams.set("tipo", typeFilter);
   const manualHref = `/atividades/nova${manualParams.size ? `?${manualParams}` : ""}`;
-  const schoolType = activityTypeSchema.safeParse(typeFilter);
-  const [createOpen, setCreateOpen] = useState(false);
   const changeFilter = (next: Partial<ActivityOverviewOptions>) =>
     router.push(activityOverviewHref({ ...filters, ...next, page: 1 }));
   const handleFilterChange = (value: string) =>
@@ -77,25 +65,19 @@ export function ActivitiesSection({
     changeFilter({ typeFilter: parsed.success ? parsed.data : null });
   };
 
-  const canCreate = turmasForForm.length > 0;
-  const canCreateForSelection =
-    canCreate &&
-    (!activeFilter || turmasForForm.some((turma) => turma.turmaId === activeFilter.activeTurmaId));
   const backToStartHref = activityOverviewHref({ ...filters, page: 1 });
 
   return (
     <div className="space-y-4">
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            onClick={() => {
-              if (canCreateForSelection && (!typeFilter || schoolType.success)) setCreateOpen(true);
-              else router.push(manualHref);
-            }}
-          >
-            <Plus className="size-4" aria-hidden />
-            Nova atividade
+          {/* Um destino só. Havia dois formulários com este mesmo nome, e qual
+              deles abria dependia de a criança filtrada ter turma ativa. */}
+          <Button asChild>
+            <Link href={manualHref}>
+              <Plus className="size-4" aria-hidden />
+              Nova atividade
+            </Link>
           </Button>
           <AddSheet
             profileId={activeFilter?.id ?? null}
@@ -260,17 +242,6 @@ export function ActivitiesSection({
           )}
         </>
       )}
-
-      <ActivityFormDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        turmas={turmasForForm}
-        isPro={isPro}
-        currentActivityCount={activityCount}
-        manualHref={manualHref}
-        defaultType={schoolType.success ? schoolType.data : undefined}
-        defaultTurmaId={activeFilter?.activeTurmaId ?? undefined}
-      />
     </div>
   );
 }

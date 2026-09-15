@@ -2,11 +2,6 @@ import Link from "next/link";
 import { z } from "zod";
 import { BackButton } from "@/components/app-shell/back-button";
 import { ActivitiesSection } from "@/features/activities/components/activities-section";
-import {
-  getActivitiesCreatedCountForUser,
-  getTurmasWithSubjectsForForm,
-} from "@/features/activities/service";
-import { getIsProForUser } from "@/features/billing/server-cache";
 import { getAddEntitlement } from "@/features/notices/trial";
 import { listStudentProfilesForUser } from "@/features/students/service";
 import { activityTypeSchema } from "@/features/unified-activities/activity-types";
@@ -29,12 +24,7 @@ export default async function AtividadesPage({
 }) {
   const user = await requireUserServer();
   const params = await searchParams;
-  const [profiles, turmasForForm, isPro, activityCount] = await Promise.all([
-    listStudentProfilesForUser(user.id),
-    getTurmasWithSubjectsForForm(user.id),
-    getIsProForUser(user.id),
-    getActivitiesCreatedCountForUser(user.id),
-  ]);
+  const profiles = await listStudentProfilesForUser(user.id);
   const activeFilter = profiles.find((p) => p.id === params.perfil) ?? null;
   const parsedType = activityTypeSchema.safeParse(params.tipo);
   const filters = {
@@ -69,10 +59,7 @@ export default async function AtividadesPage({
         filters={filters}
         profiles={profiles}
         activeFilter={activeFilter}
-        turmasForForm={turmasForForm}
         currentUserId={user.id}
-        isPro={isPro}
-        activityCount={activityCount}
         addEntitlement={await getAddEntitlement(user.id)}
       />
     </main>
