@@ -164,6 +164,22 @@ test("two adults, private child access, completion, revocation and confirmed del
     await expect(
       guestPage.getByRole("link", { name: "Preparar mochila fictícia", exact: true }),
     ).toHaveCount(0);
+
+    // Quem cuida junto vê a criança em Crianças e, um toque ao lado, em Turmas
+    // via o app dizer que não tinha nenhuma — com dois botões que recusavam
+    // quem os tocasse. A tela agora conta a verdade e não convida para porta
+    // fechada.
+    await guestPage.goto("/familia");
+    await expect(guestPage.getByText("Criança A fictícia", { exact: true })).toBeVisible();
+    await guestPage.goto("/familia/turmas");
+    await expect(
+      guestPage.getByText("As turmas ficam com quem cadastrou as crianças", { exact: true }),
+    ).toBeVisible();
+    await expect(guestPage.getByRole("button", { name: "Nova turma", exact: true })).toHaveCount(0);
+    await expect(
+      guestPage.getByRole("button", { name: "Entrar por código", exact: true }),
+    ).toHaveCount(0);
+
     await page.goto("/atividades?situacao=all");
     await expect(
       page.getByRole("button", { name: "Reabrir: Preparar mochila fictícia", exact: true }),

@@ -46,13 +46,13 @@ import {
 import { deliverRoutineNotifications } from "@/features/notifications/delivery";
 import { saveNotificationPreferences } from "@/features/notifications/service";
 import { createProfileSubjectActivity } from "@/features/profile-subject-activities/service";
-import { createStudentProfile } from "@/features/students/service";
+import { createStudentProfile, listStudentProfilesForUser } from "@/features/students/service";
 import {
   joinPrivateGroup,
   removeGroupAdult,
   rotateGroupCode,
 } from "@/features/turmas/group-access";
-import { createOrJoinTurma } from "@/features/turmas/service";
+import { createOrJoinTurma, listTurmasForCurrentUser } from "@/features/turmas/service";
 import { listTasksInDateRange } from "@/features/unified-activities/task-repository";
 import { emails } from "@/lib/emails";
 
@@ -63,6 +63,10 @@ function value<T>(result: { ok: true; value: T } | { ok: false; error: unknown }
 let owner: string, guest: string, other: string, child: string, sibling: string, otherChild: string;
 let school: string, group: string, subject: string, customer: string, subscription: string;
 const date = todayLocalIso();
+function required<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error("Missing fixture row");
+  return value;
+}
 const range = { fromIso: "2026-01-01", toIso: "2030-12-31", profileFilter: null };
 type Task = typeof agendaTasks.$inferSelect;
 /** Uma prova publicada na turma, pelo formulário único. */
@@ -353,6 +357,38 @@ describe("private groups and shared activities", () => {
     expect(await readCalendarFeed(token)).toContain("SEQUENCE:2");
     await revokeCalendarFeeds(owner);
     expect(await readCalendarFeed(token)).toBeNull();
+  });
+});
+
+describe("o segundo adulto e as turmas", () => {
+  it("vê as crianças de quem o convidou, mas as turmas continuam de quem as cadastrou", async () => {
+    const { token } = await invite();
+    value(await acceptFamilyInvitation(guest, token));
+
+    // A tela de Crianças é escopada por criança acessível: o convidado vê a
+    // filha de quem o convidou.
+    expect((await listStudentProfilesForUser(guest)).map((p) => p.id)).toEqual([child]);
+
+    // A de Turmas é escopada por conta, de propósito: a turma é espaço
+    // compartilhado com outras famílias, e o card entrega o código, que é
+    // credencial para vincular qualquer criança àquela sala. Quem consentiu
+    // com o cuidado de uma filha não consentiu com isso.
+    expect(await listTurmasForCurrentUser(guest)).toEqual([]);
+
+    // E as duas portas que a tela oferecia continuam fechadas para ele — por
+    // isso a tela precisa dizer isso, em vez de convidar.
+    expect(
+      await createOrJoinTurma(guest, {
+        profileId: child,
+        schoolInepCode: school,
+        grade: "5ano",
+        year: 2026,
+        classLetter: "B",
+        shift: "morning",
+      }),
+    ).toMatchObject({ ok: false, error: { code: "PROFILE_NOT_FOUND" } });
+    const [turma] = await db.select().from(agendaTurmas).where(eq(agendaTurmas.id, group));
+    expect(await joinPrivateGroup(guest, child, required(turma).code)).toBeNull();
   });
 });
 

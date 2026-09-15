@@ -15,10 +15,14 @@ export default async function FamilyTurmasPage({
   const params = await searchParams;
   const filterProfileId = params.perfil ?? null;
 
-  const [profiles, allTurmas] = await Promise.all([
+  const [accessible, allTurmas] = await Promise.all([
     listStudentProfilesForUser(user.id),
     listTurmasForCurrentUser(user.id),
   ]);
+  // Esta tela é da conta: a turma é cadastrada por quem matriculou a criança.
+  // As demais telas de Família são por criança acessível, e é essa diferença
+  // que o estado vazio precisa explicar em vez de esconder.
+  const profiles = accessible.filter((p) => p.userId === user.id);
 
   const activeFilter = filterProfileId
     ? (profiles.find((p) => p.id === filterProfileId) ?? null)
@@ -36,6 +40,7 @@ export default async function FamilyTurmasPage({
       <TurmasSection
         turmas={turmas}
         profiles={profiles}
+        caresForOtherFamilies={accessible.length > profiles.length}
         activeFilter={activeFilter}
         currentUserId={user.id}
       />
