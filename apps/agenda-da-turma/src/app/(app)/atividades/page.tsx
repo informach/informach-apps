@@ -5,7 +5,10 @@ import { ActivitiesSection } from "@/features/activities/components/activities-s
 import { getAddEntitlement } from "@/features/notices/trial";
 import { listStudentProfilesForUser } from "@/features/students/service";
 import { activityTypeSchema } from "@/features/unified-activities/activity-types";
-import { overviewStatusSchema } from "@/features/unified-activities/overview-types";
+import {
+  dueWindowSchema,
+  overviewStatusSchema,
+} from "@/features/unified-activities/overview-types";
 import { getActivityOverview } from "@/features/unified-activities/service";
 import { requireUserServer } from "@/lib/auth";
 
@@ -18,6 +21,7 @@ export default async function AtividadesPage({
     perfil?: string;
     tipo?: string;
     situacao?: string;
+    prazo?: string;
     recado?: string;
     pagina?: string;
   }>;
@@ -31,6 +35,7 @@ export default async function AtividadesPage({
     profileFilter: activeFilter?.id ?? null,
     typeFilter: parsedType.success ? parsedType.data : null,
     statusFilter: overviewStatusSchema.catch("pending").parse(params.situacao),
+    dueWindow: dueWindowSchema.catch("all").parse(params.prazo),
     noticeId: z.string().uuid().catch("").parse(params.recado) || null,
     page: z.coerce.number().int().min(1).max(10000).catch(1).parse(params.pagina),
   };
@@ -47,7 +52,7 @@ export default async function AtividadesPage({
           </p>
           <Link
             href="/recados"
-            className="inline-flex min-h-11 items-center text-sm text-primary underline"
+            className="inline-flex min-h-11 items-center text-sm text-primary-ink underline"
           >
             Ver os recados guardados
           </Link>

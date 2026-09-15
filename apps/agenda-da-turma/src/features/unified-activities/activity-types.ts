@@ -36,6 +36,27 @@ export const ACTIVITY_TYPE_LABELS: Record<ActivityType, string> = {
   study: "Estudo",
 };
 
+/**
+ * Termo curto do tipo, para onde o rótulo do formulário é longo demais.
+ *
+ * `ACTIVITY_TYPE_LABELS` é a etiqueta do formulário e carrega a explicação
+ * ("Para casa (tarefa)"); num `aria-label` de blip do calendário isso vira
+ * "para casa (tarefa) de Matemática, de Ana, atrasada" — parêntese e tudo. Mora
+ * aqui, ao lado do vocabulário, porque foi um mapa paralelo em `activity-blip`
+ * (com quatro dos oito tipos) que deixou metade das atividades sendo anunciada
+ * como "atividade".
+ */
+export const ACTIVITY_TYPE_SHORT_LABELS: Record<ActivityType, string> = {
+  task: "tarefa",
+  exam: "prova",
+  project: "trabalho",
+  reminder: "lembrete",
+  material: "material",
+  authorization: "autorização",
+  event: "evento",
+  study: "estudo",
+};
+
 export const activityTypeSchema = z.enum(ACTIVITY_TYPES, {
   message: "Selecione o tipo da atividade",
 });

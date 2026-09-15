@@ -186,7 +186,7 @@ export function CreateTurmaDialog({ open, onOpenChange, profiles, defaultProfile
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <CheckCircle2 className="size-5 text-primary" aria-hidden />
+                <CheckCircle2 className="size-5 text-primary-ink" aria-hidden />
                 {shareCode.created ? "Turma criada" : "Você entrou na turma"}
               </DialogTitle>
               <DialogDescription>

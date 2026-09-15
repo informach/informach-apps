@@ -60,7 +60,7 @@ export function WelcomeFlash({ isPro }: { isPro: boolean }) {
   }
 
   return (
-    <Alert className="border-chart-2/40 bg-chart-2/10 [&>svg]:text-chart-2">
+    <Alert className="border-chart-2/40 bg-chart-2/10 [&>svg]:text-chart-2-ink">
       <Sparkles className="size-4" aria-hidden />
       <AlertTitle>Assinatura Pro ativa!</AlertTitle>
       <AlertDescription>

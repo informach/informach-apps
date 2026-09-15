@@ -139,7 +139,7 @@ export async function TodayScheduleSection({
   return (
     <section className="space-y-4" aria-labelledby="today-schedule-title">
       <div className="flex items-start gap-3">
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary-ink">
           <GraduationCap className="size-6" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">

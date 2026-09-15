@@ -20,7 +20,7 @@ export function StudentsSection({ profiles, isPro, currentCount, limit, currentU
       <div className="space-y-4">
         <Card className="rounded-2xl border-dashed">
           <CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-            <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary-ink">
               <Users className="size-6" aria-hidden />
             </span>
             <div className="space-y-1">

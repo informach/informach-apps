@@ -6,6 +6,7 @@ import {
   getSubjectTextClassByIndex,
   getSubjectTintedClassByIndex,
 } from "@/features/subjects/utils";
+import { ACTIVITY_TYPE_SHORT_LABELS } from "@/features/unified-activities/activity-types";
 import type { TaskRow } from "@/features/unified-activities/task-repository";
 
 type Props = {
@@ -32,12 +33,10 @@ const URGENCY_A11Y_LABEL: Record<string, string> = {
   upcoming: "futura",
 };
 
-const TYPE_A11Y_LABEL: Record<string, string> = {
-  task: "tarefa",
-  exam: "prova",
-  project: "projeto",
-  reminder: "recado",
-};
+// O rótulo do tipo vem do vocabulário único. Havia aqui um mapa próprio com
+// quatro dos oito tipos — `material`, `authorization`, `event` e `study` caíam
+// no genérico "atividade" para quem usa leitor de tela, e o mapa era uma
+// segunda fonte para uma lista que `activity-types.ts` declara ser única.
 
 export function ActivityBlip({ item, onSelect }: Props) {
   const TypeIcon = getActivityTypeIcon(item.type);
@@ -51,7 +50,9 @@ export function ActivityBlip({ item, onSelect }: Props) {
   const colorIndex = item.subjectColorIndex ?? 0;
   const subjectName = item.subjectName ?? "sem matéria";
 
-  const typeLabel = TYPE_A11Y_LABEL[item.type] ?? "atividade";
+  // `agenda.activities.type` é `text` sem CHECK: uma linha antiga fora do
+  // vocabulário precisa degradar, não quebrar o card.
+  const typeLabel = ACTIVITY_TYPE_SHORT_LABELS[item.type] ?? "atividade";
   const statusLabel = canceled
     ? "cancelada"
     : isDone

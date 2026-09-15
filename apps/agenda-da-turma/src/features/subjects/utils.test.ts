@@ -75,7 +75,7 @@ describe("getSubjectColorIndex", () => {
 describe("class helpers", () => {
   it("returns chart-1 classes for Matemática", () => {
     expect(getSubjectTintedClass("Matemática")).toContain("chart-1");
-    expect(getSubjectTextClass("Matemática")).toBe("text-chart-1");
+    expect(getSubjectTextClass("Matemática")).toBe("text-chart-1-ink");
     expect(getSubjectIconClass("Matemática")).toContain("chart-1");
   });
 });

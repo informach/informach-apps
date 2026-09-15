@@ -30,7 +30,7 @@ export default async function FamilySettingsPage() {
         publicKey={env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY ? env.VAPID_PUBLIC_KEY : null}
       />
       <CalendarFeedPanel active={feedActive} enabled={entitlement.enabled} />
-      <Link href="/settings/account" className="block text-sm text-primary underline">
+      <Link href="/settings/account" className="block text-sm text-primary-ink underline">
         Dados e exclusão da conta
       </Link>
     </main>

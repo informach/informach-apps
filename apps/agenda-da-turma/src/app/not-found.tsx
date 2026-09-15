@@ -5,7 +5,7 @@ export default function NotFound() {
   return (
     <main className="container mx-auto flex min-h-screen flex-col items-center justify-center gap-6 px-4 py-16 text-center">
       <div className="space-y-3">
-        <p className="font-bold text-7xl text-primary tracking-tight md:text-8xl">404</p>
+        <p className="font-bold text-7xl text-primary-ink tracking-tight md:text-8xl">404</p>
         <h1 className="text-balance font-semibold text-2xl tracking-tight md:text-3xl">
           Essa página não está na agenda.
         </h1>

@@ -192,7 +192,7 @@ export function SubjectsImageDialog({ open, onOpenChange, onParsed }: Props) {
                 className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-muted/30 p-4 text-center transition-colors hover:border-primary hover:bg-muted/50"
                 aria-label="Tirar foto da lista de matérias com a câmera"
               >
-                <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary-ink">
                   <Camera className="size-6" aria-hidden />
                 </span>
                 <span className="text-sm font-medium text-foreground">Tirar foto</span>
@@ -204,7 +204,7 @@ export function SubjectsImageDialog({ open, onOpenChange, onParsed }: Props) {
                 className="flex w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-muted/30 p-4 text-center transition-colors hover:border-primary hover:bg-muted/50"
                 aria-label="Escolher imagem da galeria"
               >
-                <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary-ink">
                   <Images className="size-6" aria-hidden />
                 </span>
                 <span className="text-sm font-medium text-foreground">Escolher da galeria</span>

@@ -51,19 +51,26 @@ export function BottomNav({ entitlement }: { entitlement: AddEntitlement }) {
             key={href}
             href={withProfile(href)}
             aria-current={isActive(href) ? "page" : undefined}
-            className={`${tabClass} ${isActive(href) ? "font-semibold text-primary" : "text-muted-foreground hover:text-foreground"}`}
+            className={`${tabClass} ${isActive(href) ? "font-semibold text-primary-ink" : "text-muted-foreground hover:text-foreground"}`}
           >
             <Icon className="size-5" aria-hidden />
             {label}
           </Link>
         ))}
-        <div className="flex min-h-16 flex-col items-center justify-center gap-1">
+        {/*
+          A ação central é elevada, e não mais uma quinta coluna com o mesmo
+          peso das abas. O gesto mais frequente do app estava escondido à vista:
+          um botão de 48 px alinhado com os ícones de navegação não se lê como
+          ação. Sobe 14 px acima da barra, ganha círculo, tamanho de 56 px e a
+          sombra sólida — o único `shadow-solid-primary` do app.
+        */}
+        <div className="flex min-h-16 flex-col items-center justify-center">
           <AddSheet
             profileId={profileId}
             entitlement={entitlement}
             label="Adicionar"
             hideLabel
-            className="size-12 rounded-2xl p-0 [&_svg]:size-6"
+            className="-mt-7 size-14 rounded-full p-0 shadow-solid-primary ring-4 ring-background transition-transform active:translate-y-0.5 active:shadow-none motion-reduce:transition-none [&_svg]:size-7"
           />
         </div>
         {items.slice(2).map(({ href, label, icon: Icon }) => (
@@ -71,7 +78,7 @@ export function BottomNav({ entitlement }: { entitlement: AddEntitlement }) {
             key={href}
             href={withProfile(href)}
             aria-current={isActive(href) ? "page" : undefined}
-            className={`${tabClass} ${isActive(href) ? "font-semibold text-primary" : "text-muted-foreground hover:text-foreground"}`}
+            className={`${tabClass} ${isActive(href) ? "font-semibold text-primary-ink" : "text-muted-foreground hover:text-foreground"}`}
           >
             <Icon className="size-5" aria-hidden />
             {label}

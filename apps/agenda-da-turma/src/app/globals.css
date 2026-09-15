@@ -43,6 +43,51 @@
   --sidebar-primary: oklch(0.5791 0.228 259.32);
   --sidebar-primary-foreground: oklch(1 0 0);
   --sidebar-ring: oklch(0.5791 0.228 259.32);
+
+  /* ---- Tintas legíveis (ver bloco "TINTAS" abaixo) ----
+     Declaradas uma vez só: `color-mix` resolve no próprio `:root`, que é o
+     mesmo elemento que `.dark` veste, então a mistura reaproveita o
+     `--foreground` do tema atual sem precisar de um segundo bloco. */
+  --chart-1-ink: color-mix(in oklch, var(--chart-1) 65%, var(--foreground));
+  --chart-2-ink: color-mix(in oklch, var(--chart-2) 65%, var(--foreground));
+  --chart-3-ink: color-mix(in oklch, var(--chart-3) 65%, var(--foreground));
+  --chart-4-ink: color-mix(in oklch, var(--chart-4) 65%, var(--foreground));
+  --chart-5-ink: color-mix(in oklch, var(--chart-5) 65%, var(--foreground));
+  --primary-ink: color-mix(in oklch, var(--primary) 80%, var(--foreground));
+
+  /* Apoio da elevação e do fundo (ver blocos ELEVAÇÃO e TINTAS). */
+  --line-solid: color-mix(in oklch, var(--foreground) 14%, transparent);
+  --primary-solid: color-mix(in oklch, var(--primary) 32%, transparent);
+  --app-ground: color-mix(in oklch, var(--chart-4) 5%, var(--background));
+}
+
+/* ============================================================
+   TINTAS — a mesma cor, em versão legível
+
+   `chart-N` e `primary` são cores de PREENCHIMENTO: nasceram para fundo,
+   borda e blip, e é assim que continuam sendo usadas. Como COR DE TEXTO sobre
+   `background` elas reprovam — medido a partir destes mesmos tokens:
+   `text-chart-2` dá 2,43:1, `text-chart-4` dá 2,69:1 e `text-primary` dá
+   4,29:1, contra o mínimo AA de 4,5:1 para texto normal e 3:1 para ícone.
+
+   Não é token de cor novo: é a MESMA cor, escurecida (ou clareada, no tema
+   escuro) contra o `--foreground` até passar. Com 65% o pior caso é 4,70:1
+   sobre `background` e 4,61:1 sobre a pastilha `bg-chart-N/15`, nos dois
+   temas. `primary` precisa de menos correção e fica em 80% (6,05:1 claro).
+
+   Regra: **preenchimento usa `chart-N`, glifo usa `chart-N-ink`.**
+   `bg-chart-4/15` continua igual; `text-chart-4` vira `text-chart-4-ink`.
+   Ao mexer nos valores de `chart-N`, refazer a medição — a mistura mantém a
+   relação, não garante o resultado.
+   ============================================================ */
+@theme inline {
+  --color-app-ground: var(--app-ground);
+  --color-chart-1-ink: var(--chart-1-ink);
+  --color-chart-2-ink: var(--chart-2-ink);
+  --color-chart-3-ink: var(--chart-3-ink);
+  --color-chart-4-ink: var(--chart-4-ink);
+  --color-chart-5-ink: var(--chart-5-ink);
+  --color-primary-ink: var(--primary-ink);
 }
 
 .dark {
@@ -69,11 +114,24 @@
 }
 
 /* ============================================================
-   LANDING ANIMATIONS — CSS-only, respeita prefers-reduced-motion.
-   Registradas como utilities via @theme (animate-*) + keyframes.
-   Mesmo conjunto que o cozya. Usar sempre com motion-safe:animate-*.
+   ELEVAÇÃO — sombra sólida, um elemento por tela
+
+   Três níveis de superfície: o fundo do app leva uma tinta de 5%
+   (`bg-app-ground`), o cartão fica `bg-card` puro e o UM elemento que pede o
+   próximo passo ganha `shadow-solid`. Antes era tudo `rounded-2xl border p-4`
+   e nada dirigia o olho.
+
+   A sombra é deslocada e SEM desfoque, de propósito: é o que faz o elemento
+   parecer um botão físico em vez de um cartão flutuando. Mora aqui, e não como
+   valor arbitrário espalhado em componente, para continuar sendo uma decisão
+   só.
    ============================================================ */
 @theme {
+  --shadow-solid: 0 3px 0 0 var(--line-solid);
+  --shadow-solid-primary: 0 3px 0 0 var(--primary-solid);
+
+  /* LANDING ANIMATIONS — CSS-only, respeita prefers-reduced-motion.
+     Mesmo conjunto que o cozya. Usar sempre com motion-safe:animate-*. */
   --animate-float-soft: float-soft 4s ease-in-out infinite;
   --animate-pulse-glow: pulse-glow 3s ease-in-out infinite;
   --animate-wave-bar: wave-bar 1s ease-in-out infinite;

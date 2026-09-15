@@ -471,16 +471,26 @@ Ordem rough de prioridade quando produto evoluir:
 
 ---
 
-## 9. PWA (escopo mínimo, sem service worker)
+## 9. PWA (instalável, service worker só de push)
 
-Agenda da Turma é instalável como PWA em iOS e Android sem rodar service worker. Todo o setup é declarativo via Next 16 metadata routes:
+Agenda da Turma é instalável como PWA em iOS e Android. O setup é declarativo via Next 16 metadata routes:
 
 - `src/app/manifest.ts` — `display: standalone`, `theme_color: "#006FFD"` (azul `--primary` da agenda), ícones com `purpose: "any"` E `"maskable"` para os mesmos PNGs (Chrome aceita; Lighthouse PWA passa).
+- **`start_url: "/dashboard"`**, não `/`. A raiz é a landing de vendas (`app/(marketing)/page.tsx`): com `start_url: "/"` o atalho da tela inicial abria preço e FAQ para quem já assinou. Sem sessão o `proxy.ts` redireciona para `/login` normalmente, então o caminho de quem ainda não entrou continua correto.
 - `src/app/layout.tsx` — `viewport` (`themeColor` light+dark, `viewportFit: "cover"`) e `metadata.appleWebApp` (`capable: true`, `statusBarStyle: "black-translucent"`, `title: "Agenda da Turma"`).
 - `src/app/{favicon.ico,icon.png,icon.svg,apple-icon.png}` — Next auto-linka.
 - `public/web-app-manifest-{192,512}.png` — ícones referenciados pelo `manifest.ts`.
 
-Sem cache de assets, sem offline, sem push notifications. A decisão é deliberada (mesma do cozya §8) — adicionar SW exige cuidados extras (invalidação após mutate, CSP `worker-src`, conflito com cookies do Better Auth). O CSP em `next.config.ts` já libera `manifest-src 'self'`.
+### O service worker que existe
+
+`public/sw.js` **existe** e é registrado por `features/notifications/components/preferences-panel.tsx` (`navigator.serviceWorker.register("/sw.js", { scope: "/" })`) quando a pessoa aceita receber lembretes. Ele trata **dois eventos e nada mais**: `push` (mostra a notificação, com a URL restrita a `/dashboard` e `/recados`) e `notificationclick` (abre a janela, só na própria origem).
+
+Esta seção afirmava "sem cache de assets, sem offline, sem push notifications" e chamava a decisão de deliberada — o que contradizia o código desde que o push entrou. O que é verdade é mais estreito, e continua sendo uma decisão:
+
+- **Sem cache de assets e sem offline.** Os cuidados que a decisão original citava seguem valendo para qualquer `fetch` handler: invalidação após mutação, `worker-src` no CSP e o cookie de sessão do Better Auth.
+- **Com push**, opt-in, dependente de VAPID configurado.
+
+O CSP em `next.config.ts` já libera `manifest-src 'self'`. Ao ligar cache/offline, atualizar esta seção **junto** com a mudança — foi a divergência entre as duas que se instalou aqui.
 
 ## 10. Comandos
 

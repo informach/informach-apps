@@ -8,7 +8,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const user = await redirectIfUnauthenticated();
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    // Fundo do app com a tinta de 5% (ver ELEVAÇÃO em `globals.css`). Era
+    // branco sobre branco: `--background` e `--card` quase coincidem no tema
+    // claro, então cartão nenhum se destacava de nada.
+    <div className="flex min-h-dvh flex-col bg-app-ground">
       <AppHeader />
       <div className="flex-1 pb-20">{children}</div>
       {/*

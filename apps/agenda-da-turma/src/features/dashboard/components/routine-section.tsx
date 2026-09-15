@@ -1,25 +1,28 @@
 import { Skeleton } from "@informach/ui/components/skeleton";
 import { getRoutineSnapshot } from "@/features/unified-activities/service";
-import { addDaysIso, todayLocalIso } from "../date";
 import { listProfileSummaries } from "../repository";
-import { getTodaySubjectsForProfiles } from "../today-subjects-service";
+import { getTomorrowSubjectsForProfiles } from "../today-subjects-service";
 import { PerProfileProgress } from "./per-profile-progress";
 import { RoutineView } from "./routine-view";
 
 export async function RoutineSection({
   userId,
   profileFilter,
+  showBackpack,
 }: {
   userId: string;
   profileFilter: string | null;
+  /**
+   * Falso à noite, quando a mochila já é o primeiro bloco da página. A consulta
+   * também não roda: repetir a busca para esconder o resultado seria pagar duas
+   * vezes pelo mesmo horário.
+   */
+  showBackpack: boolean;
 }) {
-  const tomorrowIso = addDaysIso(todayLocalIso(), 1);
   const [snapshot, perProfile, tomorrowSchedule] = await Promise.all([
     getRoutineSnapshot(userId, { profileFilter }),
     listProfileSummaries(userId),
-    // Mochila de amanhã: as matérias do dia seguinte, para saber o que entra
-    // na mochila junto com os materiais pedidos.
-    getTodaySubjectsForProfiles(userId, { profileFilter, dateIso: tomorrowIso }),
+    showBackpack ? getTomorrowSubjectsForProfiles(userId, { profileFilter }) : [],
   ]);
 
   return (
@@ -29,7 +32,9 @@ export async function RoutineSection({
         buckets={snapshot.buckets}
         initialCounters={snapshot.counters}
         tomorrowSchedule={tomorrowSchedule}
+        doneToday={snapshot.doneToday}
         currentUserId={userId}
+        profileFilter={profileFilter}
       />
       {perProfile.length >= 2 && profileFilter === null ? (
         <PerProfileProgress profiles={perProfile} />

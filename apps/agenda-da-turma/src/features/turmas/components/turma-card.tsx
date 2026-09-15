@@ -243,7 +243,7 @@ export function TurmaCard({ turma, userProfiles, currentUserId }: Props) {
                   <span>{member.profileName}</span>
                   {member.isActive ? (
                     <Badge variant="outline" className="border-chart-2/50 text-foreground">
-                      <Star className="mr-1 size-3 fill-current text-chart-2" aria-hidden />
+                      <Star className="mr-1 size-3 fill-current text-chart-2-ink" aria-hidden />
                       ativa
                     </Badge>
                   ) : null}

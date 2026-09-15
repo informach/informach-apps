@@ -1,6 +1,7 @@
 import "server-only";
 import { db, sql } from "@informach/db";
 import { agendaStudentProfiles, agendaTasks } from "@informach/db/schema";
+import { APP_TIME_ZONE } from "@/features/dashboard/date";
 import type { DashboardCounters } from "@/features/dashboard/types";
 import { accessibleProfileCondition } from "@/features/family/access";
 import { type ActivityOverviewOptions, OVERVIEW_PAGE_SIZE } from "./overview-types";
@@ -19,6 +20,7 @@ function activityIndexCte(userId: string) {
         ${agendaTasks.status}::text AS status,
         ${agendaTasks.dueAt} AS due_at,
         ${agendaTasks.createdAt} AS created_at,
+        ${agendaTasks.completedAt} AS completed_at,
         ${agendaTasks.noticeId} AS notice_id
       FROM ${agendaTasks}
       INNER JOIN ${agendaStudentProfiles} ON ${agendaStudentProfiles.id} = ${agendaTasks.profileId}
@@ -26,7 +28,10 @@ function activityIndexCte(userId: string) {
     )`;
 }
 
-export async function listActivityOverviewIndex(userId: string, options: ActivityOverviewOptions) {
+export async function listActivityOverviewIndex(
+  userId: string,
+  options: ActivityOverviewOptions & { dueFrom: string | null; dueTo: string | null },
+) {
   return db.execute<{ id: string }>(sql`
     ${activityIndexCte(userId)}
     SELECT id FROM activity_index
@@ -34,6 +39,17 @@ export async function listActivityOverviewIndex(userId: string, options: Activit
       AND (${options.typeFilter}::text IS NULL OR type = ${options.typeFilter})
       AND (${options.statusFilter} = 'all' OR status = ${options.statusFilter})
       AND (${options.noticeId}::uuid IS NULL OR notice_id = ${options.noticeId}::uuid)
+      -- Janela de prazo (ver dueWindowRange em overview-types). Sem recorte, a atividade sem
+      -- prazo continua listada; com recorte, ela sai — não há como dizer se um
+      -- prazo a confirmar cai dentro ou fora da janela.
+      AND (
+        (${options.dueFrom}::date IS NULL AND ${options.dueTo}::date IS NULL)
+        OR (
+          due_at IS NOT NULL
+          AND (${options.dueFrom}::date IS NULL OR due_at >= ${options.dueFrom}::date)
+          AND (${options.dueTo}::date IS NULL OR due_at <= ${options.dueTo}::date)
+        )
+      )
     ORDER BY CASE status WHEN 'pending' THEN 0 WHEN 'done' THEN 1 ELSE 2 END,
       CASE WHEN status = 'pending' THEN due_at END ASC NULLS FIRST,
       CASE WHEN status <> 'pending' THEN due_at END DESC NULLS LAST,
@@ -85,12 +101,13 @@ export async function getRoutineCounters(
     weekEndIso: string;
     weekAgoIso: string;
   },
-): Promise<DashboardCounters> {
+): Promise<DashboardCounters & { doneToday: number }> {
   const rows = await db.execute<{
     overdue: string;
     today: string;
     week: string;
     done_recent: string;
+    done_today: string;
   }>(sql`
     ${activityIndexCte(userId)}
     SELECT
@@ -103,7 +120,16 @@ export async function getRoutineCounters(
       COUNT(*) FILTER (
         WHERE status = 'done'
           AND due_at BETWEEN ${options.weekAgoIso}::date AND ${options.todayIso}::date
-      ) AS done_recent
+      ) AS done_recent,
+      -- Concluídas HOJE conta pela conclusão, não pelo prazo: o fecho do dia
+      -- reconhece quando a família cuidou, e uma atividade sem prazo cuidada
+      -- hoje conta igual. completed_at é timestamptz; a conversão para o fuso
+      -- do app é o que impede a virada às 21h de contar no dia seguinte.
+      COUNT(*) FILTER (
+        WHERE status = 'done'
+          AND completed_at IS NOT NULL
+          AND (completed_at AT TIME ZONE ${APP_TIME_ZONE})::date = ${options.todayIso}::date
+      ) AS done_today
     FROM activity_index
     WHERE (${options.profileFilter}::uuid IS NULL OR profile_id = ${options.profileFilter}::uuid)
   `);
@@ -113,5 +139,6 @@ export async function getRoutineCounters(
     today: Number(row?.today ?? 0),
     week: Number(row?.week ?? 0),
     doneRecent: Number(row?.done_recent ?? 0),
+    doneToday: Number(row?.done_today ?? 0),
   };
 }

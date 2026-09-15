@@ -816,7 +816,7 @@ export function CaptureForm({
               {duplicates.map((d) => (
                 <Link
                   key={d.id}
-                  className="block text-sm text-primary underline"
+                  className="block text-sm text-primary-ink underline"
                   href={`/recados/acoes/${d.id}`}
                 >
                   {d.title}, abrir para corrigir

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatBirthDate, getAgeFromBirthDate, getAvatarColorClass, getInitials } from "./utils";
+import { formatBirthDate, getAgeFromBirthDate, getAvatarColorIndex, getInitials } from "./utils";
 
 describe("getAgeFromBirthDate", () => {
   it("returns the completed years before the birthday", () => {
@@ -50,13 +50,16 @@ describe("getInitials", () => {
   });
 });
 
-describe("getAvatarColorClass", () => {
-  it("returns a deterministic class for the same seed", () => {
-    expect(getAvatarColorClass("Helena")).toBe(getAvatarColorClass("Helena"));
+describe("getAvatarColorIndex", () => {
+  it("returns a deterministic index for the same seed", () => {
+    expect(getAvatarColorIndex("Helena")).toBe(getAvatarColorIndex("Helena"));
   });
 
-  it("returns one of the chart-N tailwind classes", () => {
-    const cls = getAvatarColorClass("Helena");
-    expect(cls).toMatch(/^bg-chart-[1-5]$/);
+  it("stays inside the chart-1..5 range, including for an empty seed", () => {
+    for (const seed of ["Helena", "Ana Beatriz", "Zé", "", "x".repeat(200)]) {
+      const idx = getAvatarColorIndex(seed);
+      expect(idx).toBeGreaterThanOrEqual(1);
+      expect(idx).toBeLessThanOrEqual(5);
+    }
   });
 });

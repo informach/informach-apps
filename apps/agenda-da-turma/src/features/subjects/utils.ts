@@ -158,20 +158,39 @@ const TINTED_BG_BY_INDEX: Record<SubjectColorIndex, string> = {
   5: "border-chart-5/40 bg-chart-5/15",
 };
 
+// Glifo usa a tinta legível, nunca a cor de preenchimento: `text-chart-N`
+// sobre `background` fica entre 2,43:1 e 3,52:1. Ver o bloco TINTAS em
+// `app/globals.css`.
 const TEXT_BY_INDEX: Record<SubjectColorIndex, string> = {
-  1: "text-chart-1",
-  2: "text-chart-2",
-  3: "text-chart-3",
-  4: "text-chart-4",
-  5: "text-chart-5",
+  1: "text-chart-1-ink",
+  2: "text-chart-2-ink",
+  3: "text-chart-3-ink",
+  4: "text-chart-4-ink",
+  5: "text-chart-5-ink",
 };
 
 const ICON_BG_BY_INDEX: Record<SubjectColorIndex, string> = {
-  1: "bg-chart-1/20 text-chart-1",
-  2: "bg-chart-2/20 text-chart-2",
-  3: "bg-chart-3/20 text-chart-3",
-  4: "bg-chart-4/20 text-chart-4",
-  5: "bg-chart-5/20 text-chart-5",
+  1: "bg-chart-1/20 text-chart-1-ink",
+  2: "bg-chart-2/20 text-chart-2-ink",
+  3: "bg-chart-3/20 text-chart-3-ink",
+  4: "bg-chart-4/20 text-chart-4-ink",
+  5: "bg-chart-5/20 text-chart-5-ink",
+};
+
+// Avatar da criança: pastilha + borda forte + `text-foreground`.
+//
+// Antes eram DUAS montagens do mesmo avatar com cores de texto diferentes —
+// `StudentAvatar` punha branco sobre `bg-chart-N` (2,54:1 a 4,23:1 no tema
+// claro) e o card de progresso punha `text-foreground` sobre a mesma cor
+// (1,31:1 a 2,07:1 no escuro). Cada uma falhava no tema oposto. A pastilha
+// com `text-foreground` dá 13,65:1 no pior caso claro e 7,76:1 no escuro, e
+// é o padrão que o resto do app já usa.
+const AVATAR_BY_INDEX: Record<SubjectColorIndex, string> = {
+  1: "border-chart-1/50 bg-chart-1/25",
+  2: "border-chart-2/50 bg-chart-2/25",
+  3: "border-chart-3/50 bg-chart-3/25",
+  4: "border-chart-4/50 bg-chart-4/25",
+  5: "border-chart-5/50 bg-chart-5/25",
 };
 
 function asColorIndex(idx: number): SubjectColorIndex {
@@ -203,6 +222,10 @@ export function getSubjectTextClass(name: string): string {
 
 export function getSubjectIconClass(name: string): string {
   return ICON_BG_BY_INDEX[getSubjectColorIndex(name)];
+}
+
+export function getSubjectAvatarClassByIndex(idx: number): string {
+  return AVATAR_BY_INDEX[asColorIndex(idx)];
 }
 
 export function getSubjectIcon(name: string): LucideIcon {

@@ -59,7 +59,7 @@ export function SignupForm({
           {step.kind === "otp" && (
             <span
               aria-hidden
-              className="mx-auto flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary"
+              className="mx-auto flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary-ink"
             >
               <MailCheck className="size-5" />
             </span>
@@ -104,7 +104,7 @@ export function SignupForm({
             Já tem conta?{" "}
             <Link
               href={`/login?next=${encodeURIComponent(verifiedRedirectTo)}`}
-              className="ml-1 font-medium text-primary hover:underline"
+              className="ml-1 font-medium text-primary-ink hover:underline"
             >
               Entrar
             </Link>

@@ -24,7 +24,7 @@ export function OriginalNotice({
           href={source.sourceUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="block text-sm text-primary underline"
+          className="block text-sm text-primary-ink underline"
         >
           Abrir no aplicativo da escola
         </a>
@@ -34,7 +34,7 @@ export function OriginalNotice({
       source.attachmentExpiresAt > new Date() ? (
         <a
           href={`/api/recados/${source.id}/anexo`}
-          className="block text-sm text-primary underline"
+          className="block text-sm text-primary-ink underline"
         >
           Baixar anexo original: {source.attachmentName}
         </a>

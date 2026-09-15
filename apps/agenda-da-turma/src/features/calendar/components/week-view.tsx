@@ -7,6 +7,7 @@ import { useMemo } from "react";
 import type { TaskRow } from "@/features/unified-activities/task-repository";
 import {
   buildWeekDays,
+  formatDayLabel,
   parseLocalIso,
   todayLocalIso,
   WEEKDAY_SHORT_LABELS_SUNDAY_FIRST,
@@ -66,7 +67,10 @@ export function WeekView({ anchorIso, items, onSelectActivity, onCreateForDay }:
                     {weekdayLabel}
                   </span>
                   <span
-                    className={cn("text-sm font-semibold tabular-nums", isToday && "text-primary")}
+                    className={cn(
+                      "text-sm font-semibold tabular-nums",
+                      isToday && "text-primary-ink",
+                    )}
                   >
                     {String(dayNumber).padStart(2, "0")}/{String(monthNumber).padStart(2, "0")}
                   </span>
@@ -76,7 +80,9 @@ export function WeekView({ anchorIso, items, onSelectActivity, onCreateForDay }:
                   size="icon"
                   className="size-6 opacity-0 transition-opacity group-hover:opacity-100"
                   onClick={() => onCreateForDay(iso)}
-                  aria-label={`Criar atividade em ${weekdayLabel} ${dayNumber}/${monthNumber}`}
+                  // Mesma grafia de `day-cell` e `month-agenda`: o mesmo
+                  // controle era anunciado de três jeitos em duas vistas.
+                  aria-label={`Criar atividade em ${formatDayLabel(iso)}`}
                 >
                   <Plus className="size-3.5" aria-hidden />
                 </Button>
@@ -86,7 +92,7 @@ export function WeekView({ anchorIso, items, onSelectActivity, onCreateForDay }:
                 type="button"
                 onClick={() => onCreateForDay(iso)}
                 className="absolute inset-0 top-[2.625rem] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                aria-label={`Espaço vazio de ${weekdayLabel}, criar atividade`}
+                aria-label={`Espaço vazio de ${formatDayLabel(iso)}, criar atividade`}
                 tabIndex={-1}
               />
               <div className="relative z-10 flex min-h-[18rem] flex-col gap-1 p-2">

@@ -24,6 +24,10 @@ function pendingBucket(
  * seguida. Itens sem prazo (`dueAt === null`) não entram em nenhum contador
  * de janela — aparecem na lista "para cuidar hoje", mas não são atrasados
  * nem de hoje.
+ *
+ * O contador de concluídas HOJE não mora aqui: ele conta pela conclusão, não
+ * pelo prazo, então nem a janela nem a regra do `dueAt === null` se aplicam a
+ * ele. Fica em `RoutineView`, junto do card de fecho do dia que o consome.
  */
 export function applyRoutineStatusChange(
   counters: DashboardCounters,

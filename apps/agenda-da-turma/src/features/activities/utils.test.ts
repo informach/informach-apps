@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { ACTIVITY_TYPES } from "@/features/unified-activities/activity-types";
 import {
   formatActivityDueAt,
@@ -50,8 +50,10 @@ describe("getActivityStatusLabel", () => {
 });
 
 describe("getDueUrgency", () => {
-  // now = 11/05/2026 (local)
-  const now = new Date(2026, 4, 11, 12, 0, 0);
+  // 11/05/2026, meio-dia em São Paulo. Instante explícito em UTC, e não
+  // `new Date(2026, 4, 11, 12)`: o cálculo agora fixa o fuso do app, então um
+  // horário "local da máquina" faria o teste depender de onde ele roda.
+  const now = new Date("2026-05-11T15:00:00Z");
 
   it("classifica como overdue quando data passou e status é pending", () => {
     expect(getDueUrgency("2026-05-10", "pending", now)).toBe("overdue");
@@ -86,7 +88,7 @@ describe("getDueBadgeVariant", () => {
 });
 
 describe("getDueBadgeLabel", () => {
-  const now = new Date(2026, 4, 11, 12, 0, 0);
+  const now = new Date("2026-05-11T15:00:00Z");
 
   it('prefixa "Atrasada · " quando overdue', () => {
     expect(getDueBadgeLabel("2026-05-10", "overdue", now)).toBe("Atrasada · 10/05");
@@ -120,5 +122,74 @@ describe("formatTurmaShort", () => {
   it('extrai o número da série e formata "Nº ano L · YYYY"', () => {
     expect(formatTurmaShort("5ano", "A", 2025)).toBe("5º ano A · 2025");
     expect(formatTurmaShort("1ano", "B", 2026)).toBe("1º ano B · 2026");
+  });
+});
+
+/**
+ * Regressão do fuso no caminho SEM `now` explícito.
+ *
+ * Todos os testes acima passam uma data: era justamente por isso que o bug não
+ * aparecia. Em produção ninguém passa — `getDueUrgency` e `getDueBadgeLabel`
+ * caem no `new Date()` padrão, durante a renderização no servidor, e o Railway
+ * roda em UTC. Entre 21h e a meia-noite de Brasília, um `todayLocalIso` que
+ * lesse o fuso do processo já estaria no dia seguinte.
+ */
+describe("prazo sem `now` explícito, às 23h30 de Brasília", () => {
+  // 2026-05-11T02:30:00Z === 10/05/2026, 23h30 em São Paulo.
+  // Em UTC o processo já virou para o dia 11.
+  const lateNightBrt = new Date("2026-05-11T02:30:00Z");
+
+  // O fuso do processo é fixado em UTC aqui, como no Railway. Sem isto o teste
+  // passaria mesmo com o bug numa máquina em horário de Brasília, que é
+  // justamente onde ele é escrito — e o CI seria o primeiro a descobrir.
+  const originalTz = process.env.TZ;
+  beforeAll(() => {
+    process.env.TZ = "UTC";
+  });
+  afterAll(() => {
+    if (originalTz === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTz;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("confirma que o processo está em UTC e já virou o dia", () => {
+    expect(lateNightBrt.getDate()).toBe(11);
+  });
+
+  function freeze() {
+    vi.useFakeTimers();
+    vi.setSystemTime(lateNightBrt);
+  }
+
+  it("trata o prazo do próprio dia como due_soon, não como atrasado", () => {
+    freeze();
+    expect(getDueUrgency("2026-05-10", "pending")).toBe("due_soon");
+  });
+
+  it("não antecipa o prazo de amanhã para hoje", () => {
+    freeze();
+    expect(getDueUrgency("2026-05-11", "pending")).toBe("due_soon");
+    expect(getDueBadgeLabel("2026-05-11", "due_soon")).toBe("Amanhã · 11/05");
+  });
+
+  it('rotula o prazo do próprio dia como "Hoje"', () => {
+    freeze();
+    expect(getDueBadgeLabel("2026-05-10", "due_soon")).toBe("Hoje · 10/05");
+  });
+
+  it("só considera atrasado o que venceu antes do dia corrente em São Paulo", () => {
+    freeze();
+    expect(getDueUrgency("2026-05-09", "pending")).toBe("overdue");
+  });
+
+  it("usa o ano de São Paulo para decidir se mostra o ano na etiqueta", () => {
+    // 2027-01-01T01:00:00Z === 31/12/2026, 22h em São Paulo: o processo em UTC
+    // já está em 2027 e passaria a carimbar o ano em toda data.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2027-01-01T01:00:00Z"));
+    expect(getDueBadgeLabel("2026-12-31", "due_soon")).toBe("Hoje · 31/12");
   });
 });

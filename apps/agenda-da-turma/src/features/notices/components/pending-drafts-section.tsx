@@ -26,7 +26,7 @@ export async function PendingDraftsSection({ userId }: { userId: string }) {
       className="rounded-3xl border border-chart-4/30 bg-chart-4/5 p-5 sm:p-6"
     >
       <div className="flex items-start gap-3">
-        <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-chart-4/15 text-chart-4">
+        <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-chart-4/15 text-chart-4-ink">
           <FileClock className="size-6" aria-hidden />
         </span>
         <div className="min-w-0">

@@ -9,7 +9,12 @@
 // `addDaysLocalIso` ficam server-TZ neutros (operam sobre componentes wall-clock
 // de Date sintéticos) — esses NÃO devem receber `new Date()` direto.
 
-const APP_TIME_ZONE = "America/Sao_Paulo";
+/**
+ * O fuso do app, em um lugar só. Exportado porque o SQL também precisa dele —
+ * `getRoutineCounters` converte `completed_at` (timestamptz) para o dia local
+ * antes de comparar, e um literal solto lá seria a segunda fonte do mesmo fato.
+ */
+export const APP_TIME_ZONE = "America/Sao_Paulo";
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 // `formatToParts` é mais robusto que `format`: extrai year/month/day como
@@ -24,6 +29,33 @@ const SP_DATE_PARTS = new Intl.DateTimeFormat("en-CA", {
 
 function pad(n: number): string {
   return String(n).padStart(2, "0");
+}
+
+// `h23` e não `hour12: false`: em algumas implementações a segunda forma
+// devolve "24" à meia-noite.
+const SP_HOUR_PARTS = new Intl.DateTimeFormat("en-GB", {
+  timeZone: APP_TIME_ZONE,
+  hour: "2-digit",
+  hourCycle: "h23",
+});
+
+/** Hora cheia (0–23) em São Paulo, independente do fuso do servidor. */
+export function appHour(now: Date = new Date()): number {
+  const hour = SP_HOUR_PARTS.formatToParts(now).find((part) => part.type === "hour")?.value;
+  const parsed = Number(hour);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/**
+ * A partir das 18h a pergunta da casa muda: deixa de ser "o que tem hoje" e
+ * passa a ser "o que entra na mochila amanhã". O dashboard usa isto para
+ * decidir a ORDEM da página — nenhum conteúdo aparece ou some por causa da
+ * hora, só troca de lugar.
+ */
+export const EVENING_HOUR = 18;
+
+export function isEveningInApp(now: Date = new Date()): boolean {
+  return appHour(now) >= EVENING_HOUR;
 }
 
 // Server-TZ-neutral: lê year/month/day como wall-clock do Date passado.

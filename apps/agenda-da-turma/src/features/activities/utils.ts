@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { addDaysIso, todayLocalIso } from "@/features/dashboard/date";
 import { ACTIVITY_TYPE_LABELS } from "@/features/unified-activities/activity-types";
 import { getActivityPresentation } from "@/features/unified-activities/presentation";
 import type { ActivityStatusValue, ActivityType } from "./types";
@@ -23,16 +24,21 @@ export function getActivityStatusLabel(status: ActivityStatusValue): string {
   return STATUS_LABEL[status];
 }
 
-// Local date no formato YYYY-MM-DD (sem TZ). Usar pra comparar com dueAt.
-function todayLocalIso(now: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-}
-
+// "Hoje" e "amanhã" vêm de `features/dashboard/date`, que fixa o fuso em
+// `America/Sao_Paulo`.
+//
+// Havia aqui uma cópia privada de `todayLocalIso` que lia `getFullYear`,
+// `getMonth` e `getDate` — ou seja, o fuso do PROCESSO. Como as funções abaixo
+// têm `now = new Date()` por padrão e são chamadas durante a renderização no
+// servidor, o Railway (UTC) passava a achar que hoje já era amanhã a partir das
+// 21h de Brasília: o prazo de hoje deixava de dizer "Hoje", o de amanhã passava
+// a dizer "Hoje", e o vencido no próprio dia aparecia atrasado. Sobrava ainda a
+// divergência de hidratação entre o HTML do servidor e o navegador da família.
+//
+// `features/dashboard/date` documenta esse perigo e é a fonte única desse
+// cálculo. Não reintroduzir uma cópia local: foi exatamente ela que derivou.
 function tomorrowLocalIso(now: Date): string {
-  const t = new Date(now);
-  t.setDate(t.getDate() + 1);
-  return todayLocalIso(t);
+  return addDaysIso(todayLocalIso(now), 1);
 }
 
 // Categoria de urgência da data de entrega:
@@ -78,7 +84,10 @@ export function getDueBadgeVariant(
 function formatBadgeDate(dueAt: string, now: Date): string {
   const [year, month, day] = dueAt.split("-");
   if (!year || !month || !day) return dueAt;
-  if (year === String(now.getFullYear())) return `${day}/${month}`;
+  // Ano corrente em São Paulo, pelo mesmo caminho do resto: em 31/12 às 22h
+  // BRT o servidor em UTC já está no ano seguinte e passaria a carimbar o ano
+  // em toda data.
+  if (year === todayLocalIso(now).slice(0, 4)) return `${day}/${month}`;
   return `${day}/${month}/${year}`;
 }
 

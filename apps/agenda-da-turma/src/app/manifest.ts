@@ -6,7 +6,10 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Agenda da Turma",
     short_name: "Agenda",
     description: "Organize tarefas, provas e recados dos seus filhos em um só lugar.",
-    start_url: "/",
+    // A rotina, não a página de vendas. Quem instalou o app já decidiu: com
+    // `start_url: "/"` o atalho da tela inicial abria a landing com preço e
+    // FAQ. Sem sessão, o proxy leva a `/login` normalmente.
+    start_url: "/dashboard",
     scope: "/",
     display: "standalone",
     orientation: "portrait",

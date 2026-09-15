@@ -170,7 +170,7 @@ export function PlanCards({
             Para a família
           </Badge>
           <CardHeader className="space-y-3 pb-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary-ink">
               Agenda da Turma Pro
             </p>
             <div className="flex items-baseline gap-1.5">
@@ -213,7 +213,9 @@ function FeatureList({ features }: { features: PlanFeature[] }) {
           <span
             className={cn(
               "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full",
-              feature.included ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground/60",
+              feature.included
+                ? "bg-primary/15 text-primary-ink"
+                : "bg-muted text-muted-foreground/60",
             )}
           >
             {feature.included ? (

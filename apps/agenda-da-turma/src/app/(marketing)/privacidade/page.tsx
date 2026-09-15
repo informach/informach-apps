@@ -76,7 +76,7 @@ export default function PrivacyPage() {
           cobrança seguem as finalidades e retenções descritas na política da Informach.
         </p>
       </section>
-      <Link href="/settings/account" className="inline-block min-h-11 text-primary underline">
+      <Link href="/settings/account" className="inline-block min-h-11 text-primary-ink underline">
         Abrir Conta e dados
       </Link>
     </div>

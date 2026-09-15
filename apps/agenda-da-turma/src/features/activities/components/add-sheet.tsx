@@ -35,7 +35,7 @@ const OPTIONS = [
     icon: Camera,
     label: "Foto ou arquivo",
     hint: "Agenda, caderno, comunicado, print, PDF",
-    tint: "bg-primary/10 text-primary",
+    tint: "bg-primary/10 text-primary-ink",
   },
   {
     key: "colar",
@@ -43,7 +43,7 @@ const OPTIONS = [
     icon: ClipboardType,
     label: "Colar mensagem",
     hint: "Teams, Batista ID, WhatsApp",
-    tint: "bg-chart-2/15 text-chart-2",
+    tint: "bg-chart-2/15 text-chart-2-ink",
   },
   {
     key: "falar",
@@ -51,7 +51,7 @@ const OPTIONS = [
     icon: Mic,
     label: "Falar",
     hint: "Ditar a atividade, de mãos ocupadas",
-    tint: "bg-chart-3/15 text-chart-3",
+    tint: "bg-chart-3/15 text-chart-3-ink",
   },
   {
     key: "escrever",
@@ -59,7 +59,7 @@ const OPTIONS = [
     icon: Pencil,
     label: "Escrever",
     hint: "Digitar direto, sem IA",
-    tint: "bg-chart-4/15 text-chart-4",
+    tint: "bg-chart-4/15 text-chart-4-ink",
   },
 ] as const;
 

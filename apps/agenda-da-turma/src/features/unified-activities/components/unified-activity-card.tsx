@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { setNoticeStatusAction } from "@/features/notices/actions";
 import { noticeErrorMessage } from "@/features/notices/messages";
+import { StudentAvatar } from "@/features/students/components/student-avatar";
 import { getSubjectTintedClassByIndex } from "@/features/subjects/utils";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { ACTIVITY_TYPE_LABELS } from "../activity-types";
@@ -142,9 +143,30 @@ export function UnifiedActivityCard({
             ) : null}
 
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="min-w-0 break-words text-sm font-semibold">
-                  {view.profileName}
+              {/*
+                O título vem primeiro.
+                Antes a primeira linha era o nome da criança somado ao badge de
+                tipo, e o título só aparecia depois, no mesmo peso do resto —
+                numa lista de vinte, a varredura virava "Maria, Maria, João" em
+                vez de "Prova de Ciências". O nome é filtro, não identidade do
+                item: desceu para a linha de contexto, como pastilha com o
+                avatar, onde continua reconhecível de relance.
+              */}
+              <Link
+                href={view.detailHref}
+                className={cn(
+                  "block break-words text-[17px] font-bold leading-snug tracking-tight hover:underline",
+                  (isCanceled || isDone) && "text-muted-foreground line-through",
+                )}
+              >
+                {view.title}
+              </Link>
+
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Badge variant={due.variant}>{due.label}</Badge>
+                <span className="inline-flex min-w-0 items-center gap-1.5 rounded-lg border bg-background/60 py-0.5 pl-0.5 pr-2 text-xs font-medium">
+                  <StudentAvatar name={view.profileName} size="chip" className="border" />
+                  <span className="min-w-0 truncate">{view.profileName}</span>
                 </span>
                 <span
                   className={cn(
@@ -155,20 +177,6 @@ export function UnifiedActivityCard({
                   <TypeIcon className="size-3.5" aria-hidden />
                   {ACTIVITY_TYPE_LABELS[view.type]}
                 </span>
-              </div>
-
-              <Link
-                href={view.detailHref}
-                className={cn(
-                  "mt-2 block break-words text-base font-semibold leading-relaxed hover:underline",
-                  (isCanceled || isDone) && "text-muted-foreground line-through",
-                )}
-              >
-                {view.title}
-              </Link>
-
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <Badge variant={due.variant}>{due.label}</Badge>
                 {view.shared ? (
                   <Badge variant="outline" className="font-normal">
                     Compartilhada
@@ -212,7 +220,7 @@ export function UnifiedActivityCard({
               {view.version !== null && view.version > 1 ? (
                 <Link
                   href={view.detailHref}
-                  className="mt-2 block text-xs font-semibold text-primary underline"
+                  className="mt-2 block text-xs font-semibold text-primary-ink underline"
                 >
                   Atualizada · versão {view.version} · ver antes e depois
                 </Link>

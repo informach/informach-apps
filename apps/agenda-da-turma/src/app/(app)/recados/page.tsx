@@ -46,7 +46,7 @@ export default async function NoticesPage({
           {drafts.map((draft) => (
             <Link
               key={draft.id}
-              className="block min-h-11 text-sm text-primary underline"
+              className="block min-h-11 text-sm text-primary-ink underline"
               href={`/recados/novo?retomar=${draft.id}`}
             >
               Retomar importação de {SOURCE_LABELS[draft.source]}, de{" "}
@@ -82,7 +82,7 @@ export default async function NoticesPage({
       <div className="grid gap-4 sm:grid-cols-2">
         {rows.slice(0, 30).map((row) => (
           <article key={row.id} className="flex flex-col gap-3 rounded-xl border bg-card p-5">
-            <div className="flex items-center gap-2 text-primary">
+            <div className="flex items-center gap-2 text-primary-ink">
               <FileText className="size-5" aria-hidden />
               <h2 className="font-semibold">{SOURCE_LABELS[row.source]}</h2>
             </div>
@@ -96,7 +96,7 @@ export default async function NoticesPage({
             <div className="mt-auto flex flex-wrap gap-x-5 gap-y-2 text-sm">
               <Link
                 href={`/recados/${row.id}`}
-                className="inline-flex min-h-11 items-center text-primary underline"
+                className="inline-flex min-h-11 items-center text-primary-ink underline"
               >
                 Consultar original
               </Link>

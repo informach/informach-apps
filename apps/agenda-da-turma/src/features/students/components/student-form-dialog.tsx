@@ -168,7 +168,7 @@ export function StudentFormDialog({ open, onOpenChange, isPro, currentCount, pro
         {limitReached ? (
           <div className="space-y-4">
             <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-muted/40 p-6 text-center">
-              <span className="flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <span className="flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary-ink">
                 <Lock className="size-5" aria-hidden />
               </span>
               <div className="space-y-1">

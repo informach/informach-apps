@@ -9,9 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@informach/ui/components/select";
-import { ArrowLeft, ArrowRight, ListTodo, Plus } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { NothingYetIllustration } from "@/components/illustrations";
 import type { AddEntitlement } from "@/features/notices/entitlement";
 import type { StudentProfile } from "@/features/students/types";
 import {
@@ -153,7 +154,7 @@ export function ActivitiesSection({
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/30 p-4 text-sm">
           <p>Atividades vinculadas a um mesmo original.</p>
           <Link
-            className="text-primary underline"
+            className="text-primary-ink underline"
             href={activityOverviewHref({ ...filters, noticeId: null, page: 1 })}
           >
             Remover filtro do original
@@ -163,9 +164,7 @@ export function ActivitiesSection({
       {items.length === 0 ? (
         <Card className="rounded-2xl border-dashed">
           <CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-            <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <ListTodo className="size-6" aria-hidden />
-            </span>
+            <NothingYetIllustration className="max-w-[170px]" />
             {isPaginated ? (
               <>
                 <div className="space-y-1">

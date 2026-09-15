@@ -133,6 +133,7 @@ export function CalendarView({
           items={rows}
           onSelectActivity={handleSelectActivity}
           onCreateForDay={handleCreateForDay}
+          onCreateWithoutDay={handleCreateGlobal}
         />
       ) : view === "week" ? (
         <WeekView

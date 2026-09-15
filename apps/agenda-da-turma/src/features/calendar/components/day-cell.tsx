@@ -5,7 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@informach/ui/component
 import { cn } from "@informach/ui/lib/utils";
 import { Plus } from "lucide-react";
 import type { TaskRow } from "@/features/unified-activities/task-repository";
-import { todayLocalIso } from "../date";
+import { formatDayLabel, todayLocalIso } from "../date";
 import { ActivityBlip } from "./activity-blip";
 
 type Props = {
@@ -40,7 +40,8 @@ export function DayCell({ iso, inMonth, items, onSelectActivity, onCreateForDay 
       <button
         type="button"
         onClick={() => onCreateForDay(iso)}
-        aria-label={`Criar atividade em ${iso}${isToday ? " (hoje)" : ""}`}
+        // Data por extenso: o rótulo anunciava "2026-09-15" em leitor de tela.
+        aria-label={`Criar atividade em ${formatDayLabel(iso)}${isToday ? " (hoje)" : ""}`}
         className="flex min-h-9 items-center justify-between rounded-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <span

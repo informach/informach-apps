@@ -4,6 +4,7 @@ import type { DashboardCounters } from "@/features/dashboard/types";
 import {
   type ActivityOverviewItem,
   type ActivityOverviewOptions,
+  dueWindowRange,
   OVERVIEW_PAGE_SIZE,
 } from "./overview-types";
 import { getRoutineCounters, listActivityOverviewIndex, listRoutineIndex } from "./repository";
@@ -26,7 +27,10 @@ async function hydrateIndexRows(
 }
 
 export async function getActivityOverview(userId: string, options: ActivityOverviewOptions) {
-  const index = await listActivityOverviewIndex(userId, options);
+  // "Hoje" sai do mesmo helper com fuso de São Paulo que a rotina usa, para que
+  // a janela do contador e a janela da lista não possam divergir.
+  const { from, to } = dueWindowRange(options.dueWindow, todayLocalIso(), addDaysIso);
+  const index = await listActivityOverviewIndex(userId, { ...options, dueFrom: from, dueTo: to });
   const visible = index.slice(0, OVERVIEW_PAGE_SIZE);
   const items = await hydrateIndexRows(userId, visible);
   return {
@@ -42,6 +46,13 @@ export type RoutineSnapshot = {
   todayIso: string;
   buckets: RoutineBuckets;
   counters: DashboardCounters;
+  /**
+   * Quantas a família concluiu hoje. Fica FORA de `counters` de propósito: os
+   * quatro KPIs são os quatro cards da tela, e `getDashboardCounters` (a
+   * exportação em PDF) usa o mesmo tipo. Este número não é card — é o que
+   * distingue "o dia fechou" de "nunca houve nada".
+   */
+  doneToday: number;
 };
 
 /**
@@ -73,5 +84,6 @@ export async function getRoutineSnapshot(
     const item = items.get(row.id);
     if (item) buckets[row.bucket].push(item);
   }
-  return { todayIso, buckets, counters };
+  const { doneToday, ...kpis } = counters;
+  return { todayIso, buckets, counters: kpis, doneToday };
 }

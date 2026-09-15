@@ -3,6 +3,7 @@
 import { cn } from "@informach/ui/lib/utils";
 import { Backpack, CalendarDays, CircleCheck, type LucideIcon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
+import { DayClosedIllustration } from "@/components/illustrations";
 import {
   getSubjectIconClassByIndex,
   getSubjectTintedClassByIndex,
@@ -17,6 +18,7 @@ import { applyRoutineStatusChange } from "../routine-optimistic";
 import type { TodaySubjectsView } from "../today-subjects-service";
 import type { DashboardCounters } from "../types";
 import { KpiCards } from "./kpi-cards";
+import { TomorrowBackpack } from "./tomorrow-backpack";
 
 type BucketSpec = {
   key: RoutineBucketKey;
@@ -60,9 +62,17 @@ type Props = {
   todayIso: string;
   buckets: RoutineBuckets;
   initialCounters: DashboardCounters;
-  /** Matérias de amanhã por criança — alimenta a mochila. */
+  /**
+   * Matérias de amanhã por criança. Vazio quando a mochila já subiu para o topo
+   * da página — à noite ela é o assunto, e repeti-la aqui seria a segunda lista
+   * que esta tela passou a não ter.
+   */
   tomorrowSchedule: TodaySubjectsView[];
+  /** Quantas a família concluiu hoje — o que distingue fechar de nunca ter tido. */
+  doneToday: number;
   currentUserId: string;
+  /** A criança filtrada viaja para a lista junto com o recorte dos KPIs. */
+  profileFilter: string | null;
 };
 
 /**
@@ -77,16 +87,20 @@ export function RoutineView({
   initialCounters,
   tomorrowSchedule,
   currentUserId,
+  profileFilter,
+  doneToday: initialDoneToday,
 }: Props) {
   const [counters, setCounters] = useState(initialCounters);
+  const [doneToday, setDoneToday] = useState(initialDoneToday);
 
   // O servidor é a verdade: depois do `router.refresh()` disparado pelo card,
   // os contadores reais chegam e substituem o ajuste otimista.
   useEffect(() => setCounters(initialCounters), [initialCounters]);
+  useEffect(() => setDoneToday(initialDoneToday), [initialDoneToday]);
 
   return (
     <div className="space-y-8">
-      <KpiCards counters={counters} />
+      <KpiCards counters={counters} profileFilter={profileFilter} />
       {BUCKETS.map(({ key, title, description, empty, Icon, color }) => {
         const entries = buckets[key];
         return (
@@ -126,7 +140,7 @@ export function RoutineView({
                     entry={entry}
                     currentUserId={currentUserId}
                     optimisticHideWhenDone
-                    onStatusSuccess={(changed: ActivityOverviewItem, previous, next) =>
+                    onStatusSuccess={(changed: ActivityOverviewItem, previous, next) => {
                       setCounters((current) =>
                         applyRoutineStatusChange(
                           current,
@@ -135,16 +149,25 @@ export function RoutineView({
                           previous,
                           next,
                         ),
-                      )
-                    }
+                      );
+                      // Concluir conta pelo DIA da conclusão, não pelo prazo:
+                      // uma atividade sem prazo cuidada hoje fecha o dia
+                      // igual. Sem isto, marcar a última pendência não trazia
+                      // o fecho até o servidor responder.
+                      setDoneToday((current) => Math.max(0, current + (next === "done" ? 1 : -1)));
+                    }}
                   />
                 ))}
               </div>
+            ) : key === "attention" && doneToday > 0 ? (
+              <DayClosed doneToday={doneToday} tomorrowCount={buckets.tomorrow.length} />
             ) : (
-              <div className="flex items-center gap-3 rounded-2xl border border-chart-2/25 bg-chart-2/5 p-5">
-                <CircleCheck className="size-5 shrink-0 text-chart-2" aria-hidden />
-                <p className="text-sm text-muted-foreground">{empty}</p>
-              </div>
+              // Vazio não é objeto: deixou de ser cartão com borda e fundo
+              // para não competir em peso com os cartões que têm conteúdo.
+              <p className="flex items-center gap-2.5 px-1 py-2 text-sm text-muted-foreground">
+                <CircleCheck className="size-4 shrink-0 text-chart-2-ink" aria-hidden />
+                {empty}
+              </p>
             )}
           </section>
         );
@@ -159,30 +182,36 @@ export function RoutineView({
 }
 
 /**
- * Mochila de amanhã: as matérias que cada criança tem no dia seguinte.
+ * O fecho do dia.
  *
- * É a pergunta concreta das nove da noite — "o que entra na mochila?" — e
- * sai de dado que já existe: o horário cadastrado, com o revezamento
- * quinzenal aplicado. Os materiais pedidos aparecem logo abaixo, como
- * atividades do bucket.
+ * Concluída a última pendência de hoje, esta seção mostrava "Tudo certo por
+ * aqui!" — exatamente a mesma caixa que aparece para quem nunca cadastrou nada.
+ * O esforço da família não era reconhecido em lugar nenhum, e o app abria com
+ * trabalho e terminava com trabalho.
+ *
+ * Só aparece quando houve o que cuidar: `doneToday > 0` é o que separa "o dia
+ * fechou" de "o dia nunca teve nada". Sem pontos e sem comparação entre
+ * crianças — o reconhecimento é da casa.
  */
-function TomorrowBackpack({ schedule }: { schedule: TodaySubjectsView[] }) {
-  const withClasses = schedule.filter((view) => view.subjects.length > 0);
-  if (withClasses.length === 0) return null;
+function DayClosed({ doneToday, tomorrowCount }: { doneToday: number; tomorrowCount: number }) {
   return (
-    <div className="rounded-2xl border border-chart-1/25 bg-chart-1/5 p-4">
-      <p className="flex items-center gap-2 text-sm font-semibold">
-        <Backpack className="size-4 shrink-0 text-chart-1" aria-hidden />
-        Na mochila de amanhã
+    <div className="flex flex-col items-center gap-3 rounded-2xl border border-chart-2/30 bg-card p-6 text-center shadow-solid">
+      <DayClosedIllustration className="max-w-[150px]" />
+      <div className="space-y-1">
+        <p className="text-xl font-bold tracking-tight">Dia fechado</p>
+        <p className="text-sm text-muted-foreground">
+          {doneToday === 1
+            ? "Uma atividade cuidada hoje. Nada mais pendente para o dia."
+            : `${doneToday} atividades cuidadas hoje. Nada mais pendente para o dia.`}
+        </p>
+      </div>
+      <p className="text-sm font-medium">
+        {tomorrowCount === 0
+          ? "Amanhã está livre por enquanto."
+          : tomorrowCount === 1
+            ? "Amanhã tem 1 atividade — ela está logo abaixo."
+            : `Amanhã tem ${tomorrowCount} atividades — elas estão logo abaixo.`}
       </p>
-      <ul className="mt-2 space-y-1">
-        {withClasses.map((view) => (
-          <li key={view.profileId} className="break-words text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">{view.profileName}:</span>{" "}
-            {view.subjects.map((subject) => subject.name).join(" · ")}
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }

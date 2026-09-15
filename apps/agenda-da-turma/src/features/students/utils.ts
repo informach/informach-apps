@@ -1,12 +1,5 @@
-const AVATAR_COLOR_PALETTE = [
-  "bg-chart-1",
-  "bg-chart-2",
-  "bg-chart-3",
-  "bg-chart-4",
-  "bg-chart-5",
-] as const;
-
-const DEFAULT_AVATAR_COLOR_CLASS = AVATAR_COLOR_PALETTE[0];
+const AVATAR_COLOR_COUNT = 5;
+const DEFAULT_AVATAR_COLOR_INDEX = 1;
 
 export function getAgeFromBirthDate(birthDate: string, now: Date = new Date()): number {
   const parsed = new Date(`${birthDate}T00:00:00Z`);
@@ -38,12 +31,19 @@ export function getInitials(name: string): string {
   return (first + last).toUpperCase();
 }
 
-export function getAvatarColorClass(seed: string): string {
-  if (!seed) return DEFAULT_AVATAR_COLOR_CLASS;
+/**
+ * Índice `chart-N` da criança, derivado do nome.
+ *
+ * Devolve o ÍNDICE, não a classe: quem monta o avatar é `StudentAvatar`, e ele
+ * precisa de fundo, borda e texto combinados. Enquanto isto devolvia
+ * `bg-chart-N` cru, cada chamador escolhia a cor do texto por conta própria —
+ * e as duas escolhas que existiam reprovavam em contraste, cada uma num tema.
+ */
+export function getAvatarColorIndex(seed: string): number {
+  if (!seed) return DEFAULT_AVATAR_COLOR_INDEX;
   let hash = 0;
   for (let i = 0; i < seed.length; i += 1) {
     hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
   }
-  const idx = hash % AVATAR_COLOR_PALETTE.length;
-  return AVATAR_COLOR_PALETTE[idx] ?? DEFAULT_AVATAR_COLOR_CLASS;
+  return (hash % AVATAR_COLOR_COUNT) + 1;
 }

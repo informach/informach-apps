@@ -324,6 +324,7 @@ describe("Review regressions", () => {
       profileFilter: child,
       typeFilter: null,
       statusFilter: "pending",
+      dueWindow: "all",
       noticeId: null,
       page: 1,
     };
@@ -392,6 +393,7 @@ describe("Review regressions", () => {
       profileFilter: child,
       typeFilter: "exam",
       statusFilter: "pending",
+      dueWindow: "all",
       noticeId: null,
       page: 1,
     };
@@ -418,6 +420,7 @@ describe("Review regressions", () => {
       profileFilter: null,
       typeFilter: null,
       statusFilter: "pending",
+      dueWindow: "all",
       noticeId: null,
       page: 1,
     });

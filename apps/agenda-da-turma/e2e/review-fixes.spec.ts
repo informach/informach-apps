@@ -317,8 +317,17 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       await page.getByRole("button", { name: "Nova atividade", exact: true }).click();
       await expect(page).toHaveURL(`/atividades/nova?perfil=${child.id}`);
       // Tocar num dia leva ao mesmo formulário com a data já preenchida.
+      // No celular a vista do mês é agenda vertical — a grade 7×6 fica para
+      // `md` — então o alvo é o "+" do cartão de hoje, e não a célula. O nome
+      // acessível traz a data por extenso, não o ISO, então a busca é pelo
+      // prefixo dentro do cartão marcado como "Hoje".
       await page.goto(`/calendario?date=${date}&perfil=${child.id}`);
-      await page.getByRole("button", { name: `Criar atividade em ${date}` }).click();
+      const todayCard = page
+        .getByRole("article")
+        .filter({ has: page.getByText("Hoje", { exact: true }) })
+        .first();
+      await expect(todayCard).toBeVisible();
+      await todayCard.getByRole("button", { name: /^Criar atividade em / }).click();
       await expect(page).toHaveURL(`/atividades/nova?data=${date}&perfil=${child.id}`);
       await expect(page.getByLabel("Data (opcional)", { exact: true })).toHaveValue(date);
     });

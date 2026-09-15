@@ -272,7 +272,7 @@ export function ActionFields({
           {value.dueAt ? (
             <button
               type="button"
-              className="min-h-11 w-fit text-left text-primary underline"
+              className="min-h-11 w-fit text-left text-primary-ink underline"
               onClick={() => change({ reminderAt: suggestReminder(value) })}
             >
               Sugerir antecedência para {ACTIVITY_TYPE_LABELS[value.type].toLowerCase()}

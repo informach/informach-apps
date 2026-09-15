@@ -16,7 +16,7 @@ import {
 import { attachAlternatingSlots, listSubjectsForTurma } from "@/features/subjects/repository";
 import type { Subject } from "@/features/subjects/types";
 import { listMembershipsForProfiles, verifyMembership } from "@/features/turmas/repository";
-import { todayLocalIso } from "./date";
+import { addDaysIso, todayLocalIso } from "./date";
 
 // Discriminated union — UI renderer escolhe o conjunto de campos a usar
 // segundo `source`. Matérias de turma trazem revezamento quinzenal (slots);
@@ -184,6 +184,21 @@ export async function getTodaySubjectsForProfile(
  * Perfis sem nada a mostrar são omitidos do resultado (mesma regra da versão
  * individual). A ordem segue o nome da criança.
  */
+/**
+ * O horário de amanhã. Existe para que a data de amanhã seja calculada num
+ * lugar só: a rotina e o slot do topo da página pedem o mesmo dia, e dois
+ * `addDaysIso` soltos podiam divergir na virada da meia-noite.
+ */
+export async function getTomorrowSubjectsForProfiles(
+  userId: string,
+  options: { profileFilter?: string | null } = {},
+): Promise<TodaySubjectsView[]> {
+  return getTodaySubjectsForProfiles(userId, {
+    ...options,
+    dateIso: addDaysIso(todayLocalIso(), 1),
+  });
+}
+
 export async function getTodaySubjectsForProfiles(
   userId: string,
   options: { profileFilter?: string | null; dateIso?: string } = {},

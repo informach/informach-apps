@@ -56,7 +56,7 @@ export function TurmasSection({
     return (
       <Card className="rounded-2xl border-dashed">
         <CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-          <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary-ink">
             <GraduationCap className="size-6" aria-hidden />
           </span>
           <div className="space-y-1">
@@ -80,7 +80,7 @@ export function TurmasSection({
     return (
       <Card className="rounded-2xl border-dashed">
         <CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-          <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary-ink">
             <GraduationCap className="size-6" aria-hidden />
           </span>
           <div className="space-y-1">
@@ -134,7 +134,7 @@ export function TurmasSection({
       {turmas.length === 0 ? (
         <Card className="rounded-2xl border-dashed">
           <CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-            <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary-ink">
               <GraduationCap className="size-6" aria-hidden />
             </span>
             <div className="space-y-1">
