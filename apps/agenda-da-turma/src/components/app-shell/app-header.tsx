@@ -13,15 +13,18 @@ export async function AppHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
+        {/* O logotipo é quem cede espaço. Num telefone de 360 px, o wordmark
+            somado a "Seja Pro", ao tema e ao avatar passava da tela e o app
+            inteiro rolava de lado — justamente para quem está no gratuito. */}
         <Link
           href="/dashboard"
-          className="flex items-center"
+          className="flex min-w-0 items-center"
           aria-label="Agenda da Turma, ir para o início"
         >
-          <AgendaLogo className="h-8 w-auto text-foreground" />
+          <AgendaLogo className="h-8 w-auto max-w-full text-foreground" />
         </Link>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {!isPro && (
             <Button asChild size="sm" className="gap-1.5">
               <Link href="/upgrade">Seja Pro</Link>

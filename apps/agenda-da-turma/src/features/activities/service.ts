@@ -5,12 +5,11 @@ import { todayLocalIso } from "../dashboard/date";
 import {
   findActivityById,
   listPendingSharedActivitiesForUser,
-  listTurmasWithSubjectsForUserForm,
   upsertAcceptanceAndTasks,
   userHasActiveProfileInTurma,
 } from "./repository";
 import type { RespondSharedActivityInput } from "./schemas";
-import type { PendingSharedActivity, TurmaWithSubjectsForForm } from "./types";
+import type { PendingSharedActivity } from "./types";
 
 /**
  * O que sobrou deste serviço é o aceite de uma atividade publicada por outra
@@ -65,10 +64,4 @@ export async function getPendingSharedActivitiesForUser(
   userId: string,
 ): Promise<PendingSharedActivity[]> {
   return listPendingSharedActivitiesForUser(userId);
-}
-
-export async function getTurmasWithSubjectsForForm(
-  userId: string,
-): Promise<TurmaWithSubjectsForForm[]> {
-  return listTurmasWithSubjectsForUserForm(userId);
 }

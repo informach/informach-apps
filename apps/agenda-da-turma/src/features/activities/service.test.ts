@@ -20,7 +20,6 @@ const mocks = vi.hoisted(() => ({
   deleteActivityById: vi.fn(),
   upsertAcceptanceAndTasks: vi.fn(),
   listPendingSharedActivitiesForUser: vi.fn(),
-  listTurmasWithSubjectsForUserForm: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
@@ -52,7 +51,6 @@ vi.mock("./repository", () => ({
   deleteActivityById: mocks.deleteActivityById,
   upsertAcceptanceAndTasks: mocks.upsertAcceptanceAndTasks,
   listPendingSharedActivitiesForUser: mocks.listPendingSharedActivitiesForUser,
-  listTurmasWithSubjectsForUserForm: mocks.listTurmasWithSubjectsForUserForm,
 }));
 
 const creator = { id: "user_creator" };

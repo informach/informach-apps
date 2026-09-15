@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, type Database, db, eq, inArray, sql } from "@informach/db";
+import { and, asc, type Database, db, eq, sql } from "@informach/db";
 import {
   agendaActivities,
   agendaActivityAcceptances,
@@ -13,22 +13,11 @@ import {
   users,
 } from "@informach/db/schema";
 import { actionFingerprint } from "@/features/notices/write-repository";
-import { loadSlotsForSubjects } from "@/features/subjects/repository";
 import { activeMembershipCondition } from "@/features/turmas/access";
 import { todayLocalIso } from "../dashboard/date";
-import type { Activity, PendingSharedActivity, TurmaWithSubjectsForForm } from "./types";
+import type { Activity, PendingSharedActivity } from "./types";
 
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
-
-// Existing recipient state proves prior use, even after an acceptance is
-// reversed. Corrections/deletions must preserve that family's history.
-// Shared by list, dashboard and calendar queries.
-export const hasOtherAcceptancesExpr = sql<boolean>`EXISTS (
-  SELECT 1 FROM ${agendaTasks} recipient_task
-  INNER JOIN ${agendaStudentProfiles} recipient_profile ON recipient_profile.id = recipient_task.profile_id
-  WHERE recipient_task.shared_activity_id = ${agendaActivities.id}
-    AND recipient_profile.user_id IS DISTINCT FROM ${agendaActivities.createdByUserId}
-)`;
 
 export async function findActivityById(id: string): Promise<Activity | null> {
   const [row] = await db
@@ -42,7 +31,7 @@ export async function findActivityById(id: string): Promise<Activity | null> {
 // Confirma que a matéria pertence à turma. Pequena guarda contra payload
 // adulterado — o form sempre escolhe matéria filtrada por turma, mas o
 // service nunca confia.
-export async function listActiveProfilesOfUserInTurma(
+async function listActiveProfilesOfUserInTurma(
   client: Database | Tx,
   userId: string,
   turmaId: string,
@@ -195,68 +184,4 @@ export async function listPendingSharedActivitiesForUser(
       ),
     )
     .orderBy(asc(agendaActivities.dueAt), asc(agendaActivities.createdAt));
-}
-
-// Turmas onde o user tem ≥1 perfil ativo + matérias delas. Alimenta o form
-// de nova atividade. Sem perfis ativos numa turma → user não pode criar
-// atividade lá (serviço também valida).
-export async function listTurmasWithSubjectsForUserForm(
-  userId: string,
-): Promise<TurmaWithSubjectsForForm[]> {
-  const turmas = await db
-    .selectDistinct({
-      turmaId: agendaTurmas.id,
-      schoolName: agendaSchools.name,
-      grade: agendaTurmas.grade,
-      classLetter: agendaTurmas.classLetter,
-      year: agendaTurmas.year,
-    })
-    .from(agendaStudentProfiles)
-    .innerJoin(agendaTurmas, eq(agendaTurmas.id, agendaStudentProfiles.activeTurmaId))
-    .innerJoin(agendaSchools, eq(agendaSchools.inepCode, agendaTurmas.schoolInepCode))
-    .where(and(eq(agendaStudentProfiles.userId, userId), activeMembershipCondition()))
-    .orderBy(asc(agendaSchools.name));
-
-  if (turmas.length === 0) return [];
-
-  const turmaIds = turmas.map((t) => t.turmaId);
-  const subjects = await db
-    .select({
-      turmaId: agendaSubjects.turmaId,
-      id: agendaSubjects.id,
-      name: agendaSubjects.name,
-      colorIndex: agendaSubjects.colorIndex,
-      classDays: agendaSubjects.classDays,
-    })
-    .from(agendaSubjects)
-    .where(inArray(agendaSubjects.turmaId, turmaIds))
-    .orderBy(asc(agendaSubjects.name));
-
-  // Uma consulta só para os slots de revezamento de todas as matérias.
-  const slotsBySubject = await loadSlotsForSubjects(subjects.map((s) => s.id));
-
-  const subjectsByTurma = new Map<string, TurmaWithSubjectsForForm["subjects"]>();
-  for (const s of subjects) {
-    const list = subjectsByTurma.get(s.turmaId) ?? [];
-    list.push({
-      id: s.id,
-      name: s.name,
-      colorIndex: s.colorIndex,
-      classDays: s.classDays,
-      alternatingSlots: (slotsBySubject.get(s.id) ?? []).map((slot) => ({
-        day: slot.dayOfWeek,
-        anchorIso: slot.anchorDate,
-      })),
-    });
-    subjectsByTurma.set(s.turmaId, list);
-  }
-
-  return turmas.map((t) => ({
-    turmaId: t.turmaId,
-    schoolName: t.schoolName,
-    grade: t.grade,
-    classLetter: t.classLetter,
-    year: t.year,
-    subjects: subjectsByTurma.get(t.turmaId) ?? [],
-  }));
 }

@@ -124,13 +124,18 @@ async function publishToTurma(
   userId: string,
   action: NoticeActionInput,
   reuse: Map<string, string>,
-): Promise<string | null> {
-  if (!action.subjectId || !action.dueAt) return null;
+): Promise<string> {
+  // O schema exige matéria da turma e prazo para compartilhar, e `validSubject`
+  // já conferiu que a matéria é da turma em que a criança participa agora.
+  // Chegar aqui sem isso é defeito nosso, não escolha da família — falhar alto
+  // é melhor do que gravar a atividade como privada em silêncio.
+  if (!action.subjectId || !action.dueAt)
+    throw new Error("publishToTurma requires subjectId and dueAt");
   const [subject] = await tx
     .select({ turmaId: agendaSubjects.turmaId })
     .from(agendaSubjects)
     .where(eq(agendaSubjects.id, action.subjectId));
-  if (!subject) return null;
+  if (!subject) throw new Error("publishToTurma: subject vanished inside the transaction");
   const key = [subject.turmaId, action.subjectId, action.type, action.title, action.dueAt].join(
     "|",
   );
@@ -485,7 +490,6 @@ export async function updateNoticeActionAtomically(
     if (!previous.sharedActivityId && input.action.shareWithTurma) {
       if (!isPro) return err({ code: "SHARE_REQUIRES_PRO" } as const);
       sharedActivityId = await publishToTurma(tx, userId, input.action, new Map());
-      if (!sharedActivityId) return err({ code: "INVALID_SUBJECT" } as const);
     } else if (previous.sharedActivityId && !input.action.shareWithTurma) {
       // Despublicar é retirar da turma o que outras famílias podem já ter
       // começado a cumprir. Só quem publicou pode, e só enquanto ninguém mais
