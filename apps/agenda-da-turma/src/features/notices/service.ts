@@ -6,14 +6,32 @@ import { billing } from "@/lib/billing";
 import { getNoticeAction } from "./repository";
 import type {
   confirmNoticeSchema,
+  discardDraftActionSchema,
+  discardNoticeSchema,
   statusNoticeActionSchema,
   updateNoticeActionSchema,
 } from "./schemas";
 import {
+  discardDraftActionAtomically,
+  discardNoticeAtomically,
   insertConfirmedNotice,
+  loadNoticeDraft,
   setNoticeActionStatusAtomically,
   updateNoticeActionAtomically,
 } from "./write-repository";
+
+export async function getNoticeDraft(userId: string, noticeId: string) {
+  return loadNoticeDraft(userId, noticeId);
+}
+export async function discardDraftAction(
+  userId: string,
+  input: z.infer<typeof discardDraftActionSchema>,
+) {
+  return discardDraftActionAtomically(userId, input);
+}
+export async function discardNotice(userId: string, input: z.infer<typeof discardNoticeSchema>) {
+  return discardNoticeAtomically(userId, input);
+}
 
 export async function confirmNotice(userId: string, input: z.infer<typeof confirmNoticeSchema>) {
   const first = input.actions[0];

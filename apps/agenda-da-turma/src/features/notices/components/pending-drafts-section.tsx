@@ -3,6 +3,7 @@ import { FileClock } from "lucide-react";
 import Link from "next/link";
 import { listReadyNotices } from "@/features/notices/repository";
 import { SOURCE_LABELS } from "@/features/notices/schemas";
+import { DiscardDraftButton } from "./discard-draft-button";
 
 /**
  * Importações que foram processadas mas nunca confirmadas.
@@ -12,6 +13,11 @@ import { SOURCE_LABELS } from "@/features/notices/schemas";
  * aparecia em `/recados` — uma página que a família não tem motivo para
  * reabrir — então a interrupção no meio da revisão custava dinheiro e sumia da
  * vista. Aqui ele volta para a primeira tela do dia.
+ *
+ * O card é grudento E tem saída: cada rascunho pode ser descartado daqui
+ * (`status = 'discarded'`), e a lixeira dentro da revisão também persiste.
+ * Antes, apagar uma atividade do rascunho só mexia na tela, e o card voltava
+ * inteiro no dia seguinte.
  *
  * Retorna `null` quando não há nada pendente: é uma seção de exceção, não um
  * item fixo da rotina.
@@ -42,17 +48,18 @@ export async function PendingDraftsSection({ userId }: { userId: string }) {
       </div>
       <ul className="mt-5 flex flex-col gap-2">
         {drafts.map((draft) => (
-          <li key={draft.id}>
+          <li key={draft.id} className="flex items-center gap-2">
             <Button
               asChild
               variant="outline"
-              className="min-h-11 w-full justify-start rounded-xl border-chart-4/30 bg-background text-foreground hover:bg-chart-4/10 hover:text-foreground"
+              className="min-h-11 min-w-0 flex-1 justify-start rounded-xl border-chart-4/30 bg-background text-foreground hover:bg-chart-4/10 hover:text-foreground"
             >
               <Link href={`/recados/novo?retomar=${draft.id}`}>
                 Retomar {SOURCE_LABELS[draft.source]}, de{" "}
                 {draft.createdAt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
               </Link>
             </Button>
+            <DiscardDraftButton noticeId={draft.id} label={SOURCE_LABELS[draft.source]} />
           </li>
         ))}
       </ul>

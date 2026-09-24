@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { actionFieldsSchema } from "./schemas";
+import { actionFieldsSchema, noticeExtractionSchema, noticeGenerationSchema } from "./schemas";
 
 const base = {
   profileId: "11111111-1111-4111-8111-111111111111",
@@ -94,5 +94,47 @@ describe("actionFieldsSchema: compartilhar com a turma", () => {
   it("recusa compartilhar sem matéria nenhuma", () => {
     const parsed = actionFieldsSchema.safeParse({ ...dated, shareWithTurma: true });
     expect(parsed.success).toBe(false);
+  });
+});
+
+describe("subjectHint: pista da leitura, nunca vínculo gravado", () => {
+  const extracted = {
+    type: "task" as const,
+    title: "Ciências: capítulos 10, 11 e 12",
+    description: null,
+    dueAt: "2026-10-27",
+    dateOrigin: "school" as const,
+    time: null,
+    location: null,
+    sourceExcerpt: "Ciências capítulos 10, 11 e 12 · 27/10",
+  };
+
+  it("a geração exige a chave presente, aceitando null", () => {
+    const generation = { actions: [extracted], warnings: [], publicationReference: null };
+    expect(noticeGenerationSchema.safeParse(generation).success).toBe(false);
+    expect(
+      noticeGenerationSchema.safeParse({
+        ...generation,
+        actions: [{ ...extracted, subjectHint: null }],
+      }).success,
+    ).toBe(true);
+    expect(
+      noticeGenerationSchema.safeParse({
+        ...generation,
+        actions: [{ ...extracted, subjectHint: "Ciências" }],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("a leitura de rascunhos antigos aceita a chave ausente", () => {
+    const parsed = noticeExtractionSchema.safeParse({ actions: [extracted], warnings: [] });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.actions[0]?.subjectHint).toBeUndefined();
+  });
+
+  it("o formulário descarta a pista: só subjectId/profileSubjectId chegam ao servidor", () => {
+    const parsed = actionFieldsSchema.safeParse({ ...base, subjectHint: "Ciências" });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect("subjectHint" in parsed.data).toBe(false);
   });
 });

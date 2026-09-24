@@ -16,8 +16,15 @@ type Case = {
   requiredTypes?: string[];
   maxActions?: number;
   imageText?: string;
+  /** HTML completo do corpo da imagem (tabelas); vence `imageText`. */
+  imageHtml?: string;
   imageInPdf?: boolean;
   expectWarning?: boolean;
+  /** Matérias cadastradas da criança, como o contexto da leitura as recebe. */
+  subjectNames?: string[];
+  minActions?: number;
+  /** Multiconjunto: cada pista esperada, uma vez por ação. */
+  expectedSubjectHints?: string[];
 };
 // Synthetic examples only. This corpus does not measure performance on families' actual notices.
 const cases: Case[] = [
@@ -152,20 +159,83 @@ const cases: Case[] = [
     expectedDates: ["2026-09-20"],
     maxActions: 1,
   },
+  // O cartaz "Datas finais — Grupos 1 e 2" que virou duas ações genéricas em
+  // produção: cinco matérias por bloco, um prazo por bloco, ano ausente.
+  {
+    id: "poster-groups-by-subject",
+    text: "Cartaz da escola na imagem.",
+    publishedAt: null,
+    imageHtml: `<h2>Datas finais — Grupos 1 e 2 · 6º ano · 3ª etapa · Eureka (SAS)</h2>
+<table border="1" cellpadding="10" style="border-collapse:collapse;font-size:22px">
+<thead><tr><th>Matéria</th><th>Grupo 1 — Prazo final: 27/10</th><th>Grupo 2 — Prazo final: 24/11</th></tr></thead>
+<tbody>
+<tr><td>Ciências</td><td>capítulos 10, 11 e 12</td><td>capítulos 13, 14 e 15</td></tr>
+<tr><td>Geografia</td><td>capítulos 10, 11 e 12</td><td>capítulos 13, 14 e 15</td></tr>
+<tr><td>História</td><td>capítulos 11 e 12</td><td>capítulos 13 e 14</td></tr>
+<tr><td>Matemática</td><td>capítulos 11 e 12</td><td>capítulos 13 e 14</td></tr>
+<tr><td>Língua Portuguesa</td><td>capítulos 11 e 12</td><td>capítulos 13 e 14</td></tr>
+</tbody></table>`,
+    subjectNames: [
+      "Ciências",
+      "Geografia",
+      "História",
+      "Matemática",
+      "Língua Portuguesa",
+      "Inglês",
+    ],
+    expectedDates: ["2026-10-27", "2026-11-24"],
+    minActions: 10,
+    maxActions: 10,
+    expectedSubjectHints: [
+      "Ciências",
+      "Ciências",
+      "Geografia",
+      "Geografia",
+      "História",
+      "História",
+      "Matemática",
+      "Matemática",
+      "Língua Portuguesa",
+      "Língua Portuguesa",
+    ],
+    expectWarning: true,
+  },
+  {
+    id: "two-subjects-one-sentence",
+    text: "Prova de matemática na quarta, 30/09/2026, e trabalho de história na sexta, 02/10/2026.",
+    publishedAt: null,
+    subjectNames: ["Matemática", "História", "Ciências"],
+    expectedDates: ["2026-09-30", "2026-10-02"],
+    minActions: 2,
+    maxActions: 2,
+    requiredTypes: ["exam", "project"],
+    expectedSubjectHints: ["História", "Matemática"],
+  },
+  {
+    id: "alias-to-registered-name",
+    text: "Prova de português em 30/09/2026.",
+    publishedAt: null,
+    subjectNames: ["Língua Portuguesa", "Matemática"],
+    expectedDates: ["2026-09-30"],
+    maxActions: 1,
+    expectedSubjectHints: ["Língua Portuguesa"],
+  },
 ];
 const results: Record<string, unknown>[] = [];
 describe("real notice extraction: synthetic corpus", () => {
   it.each(cases)("$id", async (sample) => {
     let attachment: Awaited<ReturnType<typeof prepareNoticeAttachment>> = null;
-    if (sample.imageText) {
+    const imageBody = sample.imageHtml ?? (sample.imageText ? `<p>${sample.imageText}</p>` : null);
+    if (imageBody) {
       const browser = await chromium.launch({ channel: "msedge", headless: true });
       let png: Buffer;
       try {
         const page = await browser.newPage({ viewport: { width: 800, height: 400 } });
         await page.setContent(
-          `<main style="padding:32px;font:24px sans-serif"><h1>Comunicado fictício</h1><p>${sample.imageText}</p></main>`,
+          `<main style="padding:32px;font:24px sans-serif"><h1>Comunicado fictício</h1>${imageBody}</main>`,
         );
-        png = await page.screenshot();
+        // Uma tabela passa dos 400 px da viewport: a página inteira, não o recorte.
+        png = await page.screenshot({ fullPage: true });
       } finally {
         await browser.close();
       }
@@ -195,13 +265,25 @@ describe("real notice extraction: synthetic corpus", () => {
       });
     }
     const started = Date.now();
-    const response = await generateNoticeExtraction({ ...sample, source: "teams" }, attachment);
+    // Ano fixo: as datas esperadas não podem derivar com o relógio.
+    const response = await generateNoticeExtraction({ ...sample, source: "teams" }, attachment, {
+      subjectNames: sample.subjectNames ?? [],
+      currentYear: "2026",
+    });
     const dates = [...new Set(response.extraction.actions.map((a) => a.dueAt))];
+    const hints = response.extraction.actions
+      .map((a) => a.subjectHint)
+      .filter((hint): hint is string => typeof hint === "string")
+      .sort();
+    const expectedHints = [...(sample.expectedSubjectHints ?? [])].sort();
     const passed =
       sample.expectedDates.every((d) => dates.includes(d)) &&
       dates.every((d) => sample.expectedDates.includes(d)) &&
       (sample.maxActions === undefined ||
         response.extraction.actions.length <= sample.maxActions) &&
+      (sample.minActions === undefined ||
+        response.extraction.actions.length >= sample.minActions) &&
+      (!sample.expectedSubjectHints || JSON.stringify(hints) === JSON.stringify(expectedHints)) &&
       (!sample.expectWarning || response.extraction.warnings.length > 0) &&
       (!sample.requiredTypes ||
         sample.requiredTypes.every((t) => response.extraction.actions.some((a) => a.type === t)));
@@ -217,6 +299,9 @@ describe("real notice extraction: synthetic corpus", () => {
     expect(dates.every((d) => sample.expectedDates.includes(d))).toBe(true);
     if (sample.maxActions !== undefined)
       expect(response.extraction.actions.length).toBeLessThanOrEqual(sample.maxActions);
+    if (sample.minActions !== undefined)
+      expect(response.extraction.actions.length).toBeGreaterThanOrEqual(sample.minActions);
+    if (sample.expectedSubjectHints) expect(hints).toEqual(expectedHints);
     if (sample.expectWarning) expect(response.extraction.warnings.length).toBeGreaterThan(0);
     if (sample.requiredTypes)
       expect(response.extraction.actions.map((a) => a.type)).toEqual(

@@ -80,8 +80,8 @@ const CURATED_ICON_BY_NAME = new Map<string, LucideIcon>([
 // - colapsa espaços
 // Exemplos: "Matemática" → "matematica"; "Ed. Física" → "ed fisica";
 // "História do Brasil" → "historia do brasil"; "MÚSICA" → "musica".
-// Exportada porque o mesmo normalize é reaproveitado pelos matchers de
-// matéria e estudante em features/activities/match-{subject,student}.ts.
+// Exportada porque o mesmo normalize é reaproveitado pelo matcher de matéria
+// em features/subjects/match-subject.ts.
 export function normalize(name: string): string {
   return name
     .normalize("NFD")

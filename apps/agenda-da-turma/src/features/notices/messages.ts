@@ -33,6 +33,7 @@ export function noticeErrorMessage(code: string) {
     TRANSCRIBE_FAILED:
       "Não consegui transcrever o áudio. Tente de novo, falando mais perto do microfone.",
     NOT_READY: "O recado ainda não está pronto para revisão.",
+    NOT_DRAFT: "Este recado já foi salvo ou descartado. Atualize a página.",
     NOT_FOUND: "Este item não está disponível para sua conta.",
     VERSION_CONFLICT:
       "Outro responsável alterou este item. Atualize a página antes de editar novamente.",

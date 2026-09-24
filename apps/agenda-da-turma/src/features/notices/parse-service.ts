@@ -7,11 +7,14 @@ import type { z } from "zod";
 import { agentRunRecorder } from "@/ai/agent-run-recorder";
 import { AGENDA_MODELS } from "@/ai/models";
 import { generateNoticeExtraction } from "@/ai/notices/extract";
+import { todayLocalIso } from "@/features/dashboard/date";
 import { findAccessibleProfile } from "@/features/family/access";
 import { recordProductEvent } from "@/features/metrics/events";
+import { listSubjectOptionsByProfile } from "@/features/subjects/options-service";
 import { billing } from "@/lib/billing";
 import { env } from "@/lib/env";
 import { prepareNoticeAttachment } from "./attachment";
+import { visibleDraftActions, withActionIds } from "./drafts";
 import {
   finishNoticeParse,
   isNoticeRunCommitted,
@@ -20,7 +23,7 @@ import {
   reserveNoticeParse,
 } from "./parse-repository";
 import { getNoticeSource, listNoticeApplications } from "./repository";
-import { type NoticeExtraction, noticeExtractionSchema, type parseNoticeSchema } from "./schemas";
+import { type parseNoticeSchema, type StoredExtraction, storedExtractionSchema } from "./schemas";
 import { grantNoticeTrialCredits } from "./trial";
 
 const FEATURE = "agenda.notices.parse";
@@ -71,7 +74,7 @@ export async function parseNotice(userId: string, input: z.infer<typeof parseNot
     if (!(await getNoticeSource(userId, notice.id))) return err({ code: "NOT_FOUND" } as const);
     return ok({
       noticeId: notice.id,
-      extraction: noticeExtractionSchema.parse(notice.parsedResult),
+      extraction: visibleDraftActions(storedExtractionSchema.parse(notice.parsedResult)),
       alreadyConfirmed: notice.status === "confirmed",
       appliedProfileIds: (await listNoticeApplications(userId, notice.id)).map((a) => a.profileId),
       sourceProfileIds: notice.sourceProfileIds,
@@ -81,8 +84,21 @@ export async function parseNotice(userId: string, input: z.infer<typeof parseNot
 
   if (!notice.billingRunId) throw new Error("Notice admission did not create a run id");
   try {
+    // Dentro do try: a admissão já gravou a tentativa e deixou a linha em
+    // `processing`. Uma falha de banco aqui fora não marcaria o recado como
+    // `failed`, e ele ficaria dez minutos recusando o reenvio com PROCESSING.
+    //
+    // A leitura recebe só os NOMES das matérias da criança da captura: é o que
+    // permite devolver `subjectHint` copiado da lista, que a revisão
+    // pré-seleciona. Não entra no contentHash de propósito — um replay devolve
+    // as pistas da leitura anterior, e o construtor de rascunho as resolve
+    // contra a lista atual, então matéria cadastrada depois ainda casa.
+    const subjectNames = ((await listSubjectOptionsByProfile(userId))[profile.id] ?? []).map(
+      (subject) => subject.name,
+    );
+    const currentYear = todayLocalIso(now).slice(0, 4);
     if (!isPro) await grantNoticeTrialCredits(ownerId, "base");
-    const out = await runBillableAgentCall<{ extraction: NoticeExtraction; usage?: unknown }>({
+    const out = await runBillableAgentCall<{ extraction: StoredExtraction; usage?: unknown }>({
       billing,
       owner: { type: "user", id: ownerId },
       app: "agenda-da-turma",
@@ -97,11 +113,18 @@ export async function parseNotice(userId: string, input: z.infer<typeof parseNot
       getErrorMetadata: () => ({ error: "NOTICE_EXTRACTION_FAILED" }),
       call: async ({ runId }) => {
         try {
-          const { extraction, usage } = await generateNoticeExtraction(input, attachment, runId);
+          const { extraction, usage } = await generateNoticeExtraction(input, attachment, {
+            runId,
+            subjectNames,
+            currentYear,
+          });
           if (!extraction.actions.length) throw new Error("NO_ACTIONS");
+          // Cada ação ganha id aqui, antes de existir em qualquer lugar: é por
+          // ele que a lixeira da revisão chega ao servidor.
+          const stored = withActionIds(extraction);
           // Persist the output before debit. Recovery checks the reservation after an interrupted request.
-          await persistNoticeExtraction(notice.id, runId, extraction);
-          return { extraction, usage };
+          await persistNoticeExtraction(notice.id, runId, stored);
+          return { extraction: stored, usage };
         } catch (error) {
           throw new Error(
             error instanceof Error && error.message === "NO_ACTIONS"
@@ -122,7 +145,7 @@ export async function parseNotice(userId: string, input: z.infer<typeof parseNot
     if (!(await getNoticeSource(userId, notice.id))) return err({ code: "NOT_FOUND" } as const);
     return ok({
       noticeId: notice.id,
-      extraction: out.result.extraction,
+      extraction: visibleDraftActions(out.result.extraction),
       alreadyConfirmed: false,
       appliedProfileIds: [],
       sourceProfileIds: null,

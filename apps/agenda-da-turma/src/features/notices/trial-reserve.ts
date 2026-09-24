@@ -27,3 +27,12 @@ export const TRIAL_GRANT_AMOUNTS = {
 export function voiceFitsInTrial(available: number, importsLeft: number): boolean {
   return available - 1 >= importsLeft;
 }
+
+/**
+ * Status que contam como importação consumida. `discarded` está aqui de
+ * propósito: o crédito (ou a importação de teste) foi gasto quando o recado
+ * ficou pronto, e descartar o rascunho não devolve nada — senão descartar
+ * viraria importação infinita. Os dois contadores (`reserveNoticeParse` e
+ * `countTrialImports`) leem daqui para nunca discordarem.
+ */
+export const TRIAL_COUNTED_STATUSES = ["ready", "confirmed", "processing", "discarded"] as const;

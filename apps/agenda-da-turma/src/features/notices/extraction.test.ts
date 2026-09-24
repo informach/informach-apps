@@ -199,3 +199,22 @@ describe("school notice date provenance", () => {
     ).toBe(false);
   });
 });
+
+describe("subject hints survive post-processing", () => {
+  it("keeps subjectHint when the deadline is dropped for lack of evidence", () => {
+    const result = validateNoticeExtraction(
+      {
+        actions: [
+          { ...action, subjectHint: "Ciências", sourceExcerpt: null },
+          { ...action, subjectHint: null },
+        ],
+        warnings: [],
+        publicationReference: null,
+      },
+      null,
+    );
+    expect(result.actions[0]?.dueAt).toBeNull();
+    expect(result.actions[0]?.subjectHint).toBe("Ciências");
+    expect(result.actions[1]?.subjectHint).toBeNull();
+  });
+});

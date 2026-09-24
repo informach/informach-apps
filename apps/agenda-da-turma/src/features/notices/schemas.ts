@@ -66,7 +66,16 @@ export const extractedActionSchema = z.object({
     .nullable(),
   location: z.string().max(300).nullable(),
   sourceExcerpt: z.string().max(1500).nullable(),
+  // Nome da matéria como a leitura a reconheceu — de preferência copiado da
+  // lista cadastrada da criança, que vai no contexto. É PISTA para a revisão:
+  // o vínculo real continua sendo subjectId/profileSubjectId, escolhido no
+  // formulário, e este campo nunca chega ao banco. Rascunhos anteriores não o
+  // têm, por isso é opcional na leitura e obrigatório (nullable) na geração.
+  // `.nullable().optional()` nesta ordem: `.required()` só desembrulha o
+  // ZodOptional quando ele é a camada de fora.
+  subjectHint: z.string().trim().max(80).nullable().optional(),
 });
+export type ExtractedAction = z.infer<typeof extractedActionSchema>;
 export const noticeExtractionSchema = z.object({
   actions: z.array(extractedActionSchema).max(30),
   warnings: z.array(z.string().max(400)).max(10),
@@ -81,11 +90,43 @@ export const noticeExtractionSchema = z.object({
 export type NoticeExtraction = z.infer<typeof noticeExtractionSchema>;
 // Older stored drafts may lack this field; structured generation requires
 // every property to be present, using null when no publication is known.
-export const noticeGenerationSchema = noticeExtractionSchema.required({
-  publicationReference: true,
+// O OpenRouter manda `json_schema.strict: true`, então toda propriedade precisa
+// estar em `required` (nullable serve; optional não). `.required()` é raso: o
+// item do array recebe o mesmo tratamento.
+export const noticeGenerationSchema = noticeExtractionSchema
+  .required({ publicationReference: true })
+  .extend({
+    actions: z.array(extractedActionSchema.required({ subjectHint: true })).max(30),
+  });
+
+// `parsed_result` guarda a leitura com um `id` por ação, atribuído ao
+// persistir. Linhas anteriores a isso não o têm, por isso ele é opcional na
+// leitura: `ensureStoredActionIds` preenche o que falta ao retomar.
+export const draftActionSchema = extractedActionSchema.extend({
+  id: z.string().uuid().optional(),
 });
+export const draftExtractionSchema = noticeExtractionSchema.extend({
+  actions: z.array(draftActionSchema).max(30),
+});
+export type DraftExtraction = z.infer<typeof draftExtractionSchema>;
+// Descartar uma ação do rascunho MARCA, nunca remove: reimportar o mesmo
+// conteúdo recupera a leitura já paga, inteira, sem nova cobrança.
+export const storedActionSchema = draftActionSchema.extend({
+  discardedAt: z.string().datetime({ offset: true }).nullable().optional(),
+});
+export const storedExtractionSchema = noticeExtractionSchema.extend({
+  actions: z.array(storedActionSchema).max(30),
+});
+export type StoredExtraction = z.infer<typeof storedExtractionSchema>;
+export const discardDraftActionSchema = z.object({
+  noticeId: z.string().uuid(),
+  actionId: z.string().uuid(),
+});
+export const discardNoticeSchema = z.object({ noticeId: z.string().uuid() });
 
 export const actionFieldsSchema = extractedActionSchema
+  // A pista de matéria fica no rascunho da tela; o que se grava é o vínculo.
+  .omit({ subjectHint: true })
   .extend({
     profileId: z.string().uuid(),
     // "schedule" só é atribuído pelo cálculo determinístico da próxima aula,

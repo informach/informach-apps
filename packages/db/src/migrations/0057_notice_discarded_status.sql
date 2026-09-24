@@ -1,0 +1,2 @@
+ALTER TABLE "agenda"."notices" DROP CONSTRAINT "agenda_notice_status_check";--> statement-breakpoint
+ALTER TABLE "agenda"."notices" ADD CONSTRAINT "agenda_notice_status_check" CHECK ("agenda"."notices"."status" IN ('processing','ready','failed','confirmed','discarded'));

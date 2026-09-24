@@ -2,6 +2,7 @@
 import { Input } from "@informach/ui/components/input";
 import { suggestReminder } from "@/features/notifications/reminder-suggestion";
 import { suggestDueDateFromSchedule } from "@/features/subjects/due-date-suggestion";
+import { findClosestSubject } from "@/features/subjects/match-subject";
 import type { SubjectOptionsByProfile } from "@/features/subjects/options-service";
 import {
   ACTIVITY_TYPE_LABELS,
@@ -26,6 +27,7 @@ export function ActionFields({
   lockProfile = false,
   isPro,
   shareLocked = false,
+  subjectHint = null,
 }: {
   value: NoticeActionInput;
   onChange: (value: NoticeActionInput) => void;
@@ -42,9 +44,19 @@ export function ActionFields({
    * não.
    */
   shareLocked?: boolean;
+  /**
+   * A matéria como a leitura do recado a reconheceu. Quando não casa com
+   * nenhuma cadastrada da criança, a revisão diz isso em vez de deixar o
+   * campo mudo — a pessoa decide entre cadastrar a matéria ou seguir sem.
+   */
+  subjectHint?: string | null;
 }) {
   const subjectsForProfile = subjectOptions[value.profileId] ?? [];
   const selectedSubject = value.subjectId ?? value.profileSubjectId ?? "";
+  const unmatchedHint =
+    subjectHint && !selectedSubject && !findClosestSubject(subjectsForProfile, subjectHint)
+      ? subjectHint
+      : null;
   const change = (patch: Partial<NoticeActionInput>) => onChange({ ...value, ...patch });
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -149,6 +161,11 @@ export function ActionFields({
             </option>
           ))}
         </select>
+        {unmatchedHint ? (
+          <span className="font-normal text-muted-foreground">
+            A leitura identificou “{unmatchedHint}”, que não está cadastrada para esta criança.
+          </span>
+        ) : null}
       </label>
       <label className={labelStyle} htmlFor={`${prefix}-assignee`}>
         Quem vai cuidar

@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { z } from "zod";
 import { getIsProForUser } from "@/features/billing/server-cache";
 import { listAccessibleProfiles } from "@/features/family/access";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { CaptureForm } from "@/features/notices/components/capture-form";
-import { getNoticeSource, listAssignableAdults } from "@/features/notices/repository";
-import { noticeExtractionSchema, noticeSourceSchema } from "@/features/notices/schemas";
+import { listAssignableAdults } from "@/features/notices/repository";
+import { type DraftExtraction, noticeSourceSchema } from "@/features/notices/schemas";
+import { getNoticeDraft } from "@/features/notices/service";
 import { listSubjectOptionsByProfile } from "@/features/subjects/options-service";
 import { requireUserServer } from "@/lib/auth";
 
@@ -40,22 +40,31 @@ export default async function NewNoticePage({
     getIsProForUser(user.id),
     listSubjectOptionsByProfile(user.id),
   ]);
-  let initialNotice:
-    | { id: string; profileId: string; extraction: z.infer<typeof noticeExtractionSchema> }
-    | undefined;
+  let initialNotice: { id: string; profileId: string; extraction: DraftExtraction } | undefined;
+  /*
+   * `?retomar=` que não resolve não derruba a tela.
+   *
+   * Descartar a última atividade da revisão tira o recado de `ready` e a ação
+   * revalida a rotina; se esta página respondesse "não encontrado" aí, ela
+   * trocaria de árvore no meio da resposta e levaria junto o que a pessoa
+   * tivesse acabado de escrever à mão. Um rascunho que sumiu vira o formulário
+   * de importação com um aviso — que é o que sobrou de verdade.
+   */
+  let resumeUnavailable = false;
   if (params.retomar) {
-    if (!z.string().uuid().safeParse(params.retomar).success) notFound();
-    const notice = await getNoticeSource(user.id, params.retomar);
+    const id = z.string().uuid().safeParse(params.retomar);
+    // Só rascunhos `ready`, já sem as ações descartadas e com id em cada uma.
+    const draft = id.success ? await getNoticeDraft(user.id, id.data) : null;
     if (
-      !notice ||
-      notice.status !== "ready" ||
-      !notice.captureProfileId ||
-      !profiles.some((p) => p.id === notice.captureProfileId)
+      draft?.notice.captureProfileId &&
+      profiles.some((p) => p.id === draft.notice.captureProfileId)
     )
-      notFound();
-    const parsed = noticeExtractionSchema.safeParse(notice.parsedResult);
-    if (!parsed.success) notFound();
-    initialNotice = { id: notice.id, profileId: notice.captureProfileId, extraction: parsed.data };
+      initialNotice = {
+        id: draft.notice.id,
+        profileId: draft.notice.captureProfileId,
+        extraction: draft.extraction,
+      };
+    else resumeUnavailable = true;
   }
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 pb-28 sm:px-8">
@@ -70,6 +79,12 @@ export default async function NewNoticePage({
             : "Transforme mensagens, anexos e fotos da agenda ou do caderno em atividades. Confira os detalhes antes de salvar."}
         </p>
       </header>
+      {resumeUnavailable ? (
+        <p role="status" className="rounded-lg border bg-muted/40 p-4 text-sm">
+          Aquele rascunho não está mais aguardando revisão: ele foi salvo ou descartado. Você pode
+          começar uma importação nova aqui.
+        </p>
+      ) : null}
       <CaptureForm
         key={initialNotice?.id ?? "new"}
         profiles={profiles.map((p) => ({ id: p.id, name: p.name }))}

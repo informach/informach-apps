@@ -25,13 +25,17 @@ import {
   lockPendingLimit,
 } from "@/features/activities/pending-limit";
 import { accessibleProfileCondition } from "@/features/family/access";
+import { ensureStoredActionIds, visibleDraftActions } from "./drafts";
 import { resolveSeriesId } from "./recurrence";
 import { sourceAccessCondition } from "./repository";
-import type {
-  confirmNoticeSchema,
-  NoticeActionInput,
-  statusNoticeActionSchema,
-  updateNoticeActionSchema,
+import {
+  type confirmNoticeSchema,
+  type discardDraftActionSchema,
+  type discardNoticeSchema,
+  type NoticeActionInput,
+  type statusNoticeActionSchema,
+  storedExtractionSchema,
+  type updateNoticeActionSchema,
 } from "./schemas";
 
 export function actionFingerprint(action: Pick<NoticeActionInput, "title" | "dueAt" | "type">) {
@@ -202,6 +206,10 @@ export async function insertConfirmedNotice(
         )
         .for("update");
       if (!notice) return err({ code: "NOT_FOUND" } as const);
+      // Descartado numa aba enquanto outra ainda mostrava a revisão: a tela
+      // está velha, não é um processamento em curso. `NOT_READY` mandaria
+      // esperar por algo que não vai acontecer.
+      if (notice.status === "discarded") return err({ code: "NOT_DRAFT" } as const);
       if (notice.status !== "ready" && notice.status !== "confirmed")
         return err({ code: "NOT_READY" } as const);
       source = notice.source;
@@ -430,6 +438,100 @@ export async function insertConfirmedNotice(
         source,
       });
     return ok({ alreadyConfirmed: ids.length === 0, ids });
+  });
+}
+
+/**
+ * O rascunho de um recado `ready`, para a revisão retomar.
+ *
+ * Linhas anteriores aos ids por ação ganham os seus aqui, dentro da mesma
+ * transação e com a linha travada: dois `retomar` concorrentes atribuiriam ids
+ * diferentes, e a lixeira de quem perdesse devolveria NOT_FOUND.
+ */
+export async function loadNoticeDraft(userId: string, noticeId: string) {
+  return db.transaction(async (tx) => {
+    const [notice] = await tx
+      .select()
+      .from(agendaNotices)
+      .where(
+        and(
+          eq(agendaNotices.id, noticeId),
+          eq(agendaNotices.status, "ready"),
+          sourceAccessCondition(userId),
+        ),
+      )
+      .for("update");
+    if (!notice) return null;
+    const stored = storedExtractionSchema.safeParse(notice.parsedResult);
+    if (!stored.success) return null;
+    const { extraction, changed } = ensureStoredActionIds(stored.data);
+    if (changed)
+      await tx
+        .update(agendaNotices)
+        .set({ parsedResult: extraction })
+        .where(eq(agendaNotices.id, notice.id));
+    return { notice, extraction: visibleDraftActions(extraction) };
+  });
+}
+
+/**
+ * Descarta UMA ação do rascunho. Marca, não remove: reimportar o mesmo
+ * conteúdo recupera a leitura inteira sem nova cobrança. Quando não sobra
+ * nenhuma, o recado vira `discarded` e sai de "Falta conferir antes de salvar".
+ * Só de `ready`: um recado `confirmed` já tem tarefas e aplicações por criança.
+ */
+export async function discardDraftActionAtomically(
+  userId: string,
+  input: z.infer<typeof discardDraftActionSchema>,
+) {
+  return db.transaction(async (tx) => {
+    const [notice] = await tx
+      .select()
+      .from(agendaNotices)
+      .where(and(eq(agendaNotices.id, input.noticeId), sourceAccessCondition(userId)))
+      .for("update");
+    if (!notice) return err({ code: "NOT_FOUND" } as const);
+    if (notice.status !== "ready") return err({ code: "NOT_DRAFT" } as const);
+    const stored = storedExtractionSchema.safeParse(notice.parsedResult);
+    if (!stored.success) return err({ code: "NOT_DRAFT" } as const);
+    const { extraction } = ensureStoredActionIds(stored.data);
+    if (!extraction.actions.some((a) => a.id === input.actionId && !a.discardedAt))
+      return err({ code: "NOT_FOUND" } as const);
+    const now = new Date();
+    const actions = extraction.actions.map((a) =>
+      a.id === input.actionId ? { ...a, discardedAt: now.toISOString() } : a,
+    );
+    const remaining = actions.filter((a) => !a.discardedAt).length;
+    await tx
+      .update(agendaNotices)
+      .set({
+        parsedResult: { ...extraction, actions },
+        status: remaining ? "ready" : "discarded",
+        updatedAt: now,
+      })
+      .where(eq(agendaNotices.id, notice.id));
+    return ok({ remaining });
+  });
+}
+
+/** Descarta o recado inteiro. Mesma regra: só de `ready`. */
+export async function discardNoticeAtomically(
+  userId: string,
+  input: z.infer<typeof discardNoticeSchema>,
+) {
+  return db.transaction(async (tx) => {
+    const [notice] = await tx
+      .select({ id: agendaNotices.id, status: agendaNotices.status })
+      .from(agendaNotices)
+      .where(and(eq(agendaNotices.id, input.noticeId), sourceAccessCondition(userId)))
+      .for("update");
+    if (!notice) return err({ code: "NOT_FOUND" } as const);
+    if (notice.status !== "ready") return err({ code: "NOT_DRAFT" } as const);
+    await tx
+      .update(agendaNotices)
+      .set({ status: "discarded", updatedAt: new Date() })
+      .where(eq(agendaNotices.id, notice.id));
+    return ok({ id: notice.id });
   });
 }
 

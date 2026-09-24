@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, count, db, eq, sql } from "@informach/db";
+import { and, count, db, eq, inArray, sql } from "@informach/db";
 import {
   agendaNotices,
   agendaProductEvents,
@@ -17,7 +17,12 @@ import {
 import { billing } from "@/lib/billing";
 import type { AddEntitlement } from "./entitlement";
 import { isNoticeUserVerified } from "./parse-repository";
-import { FREE_NOTICE_TRIAL, TRIAL_GRANT_AMOUNTS, voiceFitsInTrial } from "./trial-reserve";
+import {
+  FREE_NOTICE_TRIAL,
+  TRIAL_COUNTED_STATUSES,
+  TRIAL_GRANT_AMOUNTS,
+  voiceFitsInTrial,
+} from "./trial-reserve";
 
 /**
  * Franquia de teste do plano gratuito, compartilhada por todo o fluxo de
@@ -63,7 +68,7 @@ export async function countTrialImports(ownerId: string): Promise<number> {
       and(
         eq(agendaNotices.ownerUserId, ownerId),
         eq(agendaNotices.isTrial, true),
-        sql`${agendaNotices.status} IN ('ready', 'confirmed', 'processing')`,
+        inArray(agendaNotices.status, [...TRIAL_COUNTED_STATUSES]),
       ),
     );
   return used?.value ?? 0;

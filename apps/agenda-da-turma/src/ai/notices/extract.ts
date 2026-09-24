@@ -3,15 +3,17 @@ import type { prepareNoticeAttachment } from "@/features/notices/attachment";
 import { validateNoticeExtraction } from "@/features/notices/extraction";
 import { noticeGenerationSchema } from "@/features/notices/schemas";
 import { getNoticeParserAgent } from "./agent";
+import { buildNoticeUserMessage, type NoticeExtractionContext } from "./prompt";
 
 // The production flow and the opt-in evaluation use this same extraction boundary.
 export async function generateNoticeExtraction(
   input: { text: string; source: string; publishedAt: string | null },
   attachment: Awaited<ReturnType<typeof prepareNoticeAttachment>>,
-  runId?: string,
+  context: NoticeExtractionContext,
 ) {
-  const content = `Data da publicação/anotação fornecida pela família: ${input.publishedAt ?? "desconhecida"}. Origem: ${input.source}. Páginas originais selecionadas: ${attachment?.pages.join(", ") || "não se aplica"}.\nRECADO:\n${input.text}`;
+  const content = buildNoticeUserMessage(input, attachment?.pages, context);
   const agent = getNoticeParserAgent();
+  const { runId } = context;
   const options = {
     ...(runId ? { runId } : {}),
     structuredOutput: { schema: noticeGenerationSchema, errorStrategy: "strict" as const },

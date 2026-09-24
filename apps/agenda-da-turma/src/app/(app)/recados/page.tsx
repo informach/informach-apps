@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { BackButton } from "@/components/app-shell/back-button";
 import { listAccessibleProfiles } from "@/features/family/access";
+import { DiscardDraftButton } from "@/features/notices/components/discard-draft-button";
 import { listNoticeOriginals, listReadyNotices } from "@/features/notices/repository";
 import { SOURCE_LABELS } from "@/features/notices/schemas";
 import { requireUserServer } from "@/lib/auth";
@@ -44,14 +45,16 @@ export default async function NoticesPage({
         <section className="space-y-3 rounded-xl border border-primary/30 p-4">
           <h2 className="font-semibold">Falta conferir antes de salvar</h2>
           {drafts.map((draft) => (
-            <Link
-              key={draft.id}
-              className="block min-h-11 text-sm text-primary-ink underline"
-              href={`/recados/novo?retomar=${draft.id}`}
-            >
-              Retomar importação de {SOURCE_LABELS[draft.source]}, de{" "}
-              {draft.createdAt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
-            </Link>
+            <div key={draft.id} className="flex items-center gap-2">
+              <Link
+                className="flex min-h-11 min-w-0 flex-1 items-center text-sm text-primary-ink underline"
+                href={`/recados/novo?retomar=${draft.id}`}
+              >
+                Retomar importação de {SOURCE_LABELS[draft.source]}, de{" "}
+                {draft.createdAt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+              </Link>
+              <DiscardDraftButton noticeId={draft.id} label={SOURCE_LABELS[draft.source]} />
+            </div>
           ))}
           <p className="text-xs text-muted-foreground">
             Retomar o resultado salvo não consome outro crédito.

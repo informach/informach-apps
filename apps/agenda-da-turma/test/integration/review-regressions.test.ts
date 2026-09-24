@@ -1029,7 +1029,8 @@ describe("Review regressions", () => {
         attachmentExpiresAt: new Date(Date.now() + 86400000),
       })
       .where(eq(agendaNotices.id, n.id));
-    for (const status of ["processing", "ready"] as const) {
+    // `ready` por último: a confirmação logo abaixo depende dele.
+    for (const status of ["processing", "discarded", "ready"] as const) {
       await db.update(agendaNotices).set({ status }).where(eq(agendaNotices.id, n.id));
       expect(await getNoticeSource(guest, n.id)).toBeNull();
       expect((await listReadyNotices(guest)).map((n) => n.id)).not.toContain(n.id);

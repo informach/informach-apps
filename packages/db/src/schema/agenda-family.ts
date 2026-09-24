@@ -103,7 +103,10 @@ export const agendaNotices = agenda.table(
     attachmentType: text("attachment_type"),
     attachmentData: text("attachment_data"),
     attachmentExpiresAt: timestamp("attachment_expires_at", { withTimezone: true }),
-    status: text("status", { enum: ["processing", "ready", "failed", "confirmed"] })
+    // `discarded`: a família dispensou o rascunho depois de a leitura ter sido
+    // paga. Conta como importação consumida e volta a `ready` só se o mesmo
+    // conteúdo for importado de novo (replay, sem nova cobrança).
+    status: text("status", { enum: ["processing", "ready", "failed", "confirmed", "discarded"] })
       .notNull()
       .default("processing"),
     isTrial: boolean("is_trial").notNull().default(false),
@@ -120,7 +123,7 @@ export const agendaNotices = agenda.table(
     index("agenda_notices_expiry_idx").on(t.attachmentExpiresAt),
     check(
       "agenda_notice_status_check",
-      sql`${t.status} IN ('processing','ready','failed','confirmed')`,
+      sql`${t.status} IN ('processing','ready','failed','confirmed','discarded')`,
     ),
   ],
 );

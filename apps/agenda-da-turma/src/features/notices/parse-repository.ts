@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { err, ok } from "@informach/auth/server-actions";
-import { and, count, db, eq, sql } from "@informach/db";
+import { and, count, db, eq, inArray, sql } from "@informach/db";
 import {
   agendaNotices,
   agendaProductEvents,
@@ -10,11 +10,17 @@ import {
 } from "@informach/db/schema";
 import type { z } from "zod";
 import type { prepareNoticeAttachment } from "./attachment";
-import { FREE_NOTICE_TRIAL } from "./trial-reserve";
+import { FREE_NOTICE_TRIAL, TRIAL_COUNTED_STATUSES } from "./trial-reserve";
 
 export { FREE_NOTICE_TRIAL };
 
-import { type NoticeExtraction, noticeExtractionSchema, type parseNoticeSchema } from "./schemas";
+import { ensureStoredActionIds, restoreDiscardedActions } from "./drafts";
+import {
+  noticeExtractionSchema,
+  type parseNoticeSchema,
+  type StoredExtraction,
+  storedExtractionSchema,
+} from "./schemas";
 
 const PROCESSING_LEASE_MS = 10 * 60_000;
 export async function reserveNoticeParse({
@@ -74,8 +80,32 @@ export async function reserveNoticeParse({
         and(eq(agendaNotices.ownerUserId, ownerId), eq(agendaNotices.contentHash, contentHash)),
       )
       .for("update");
-    if (existing?.status === "ready" || existing?.status === "confirmed")
-      return ok({ notice: existing, replay: true });
+    if (existing?.status === "confirmed") return ok({ notice: existing, replay: true });
+    if (existing?.status === "ready" || existing?.status === "discarded") {
+      // A leitura já foi paga: devolve o rascunho inteiro, inclusive o que a
+      // família tinha descartado, sem nova cobrança. `parsed_result` ilegível
+      // cai no parse novo, abaixo, como qualquer outra linha não recuperável.
+      const stored = storedExtractionSchema.safeParse(existing.parsedResult);
+      // Quem não pode retomar este rascunho não o ressuscita. Sem isto, um
+      // segundo adulto que importasse o mesmo conteúdo devolvia ao titular um
+      // recado que ele tinha descartado — e ainda assim recebia NOT_FOUND na
+      // checagem de acesso logo depois, sem entender o que causou a volta.
+      const canResume = ownerId === userId || existing.createdByUserId === userId;
+      if (stored.success && !canResume) return ok({ notice: existing, replay: true });
+      if (stored.success) {
+        const ids = ensureStoredActionIds(stored.data);
+        const restored = restoreDiscardedActions(ids.extraction);
+        if (!ids.changed && !restored.changed && existing.status === "ready")
+          return ok({ notice: existing, replay: true });
+        const [notice] = await tx
+          .update(agendaNotices)
+          .set({ parsedResult: restored.extraction, status: "ready", updatedAt: now })
+          .where(eq(agendaNotices.id, existing.id))
+          .returning();
+        if (!notice) throw new Error("Notice replay failed");
+        return ok({ notice, replay: true });
+      }
+    }
     if (existing?.status === "processing") return err({ code: "PROCESSING" } as const);
     const since = new Date(now.valueOf() - 24 * 60 * 60_000);
     const [attempts] = await tx
@@ -107,7 +137,7 @@ export async function reserveNoticeParse({
           and(
             eq(agendaNotices.ownerUserId, ownerId),
             eq(agendaNotices.isTrial, true),
-            sql`${agendaNotices.status} IN ('ready', 'confirmed', 'processing')`,
+            inArray(agendaNotices.status, [...TRIAL_COUNTED_STATUSES]),
           ),
         );
       if ((used?.value ?? 0) >= FREE_NOTICE_TRIAL) return err({ code: "TRIAL_ENDED" } as const);
@@ -159,7 +189,7 @@ export async function isNoticeUserVerified(userId: string) {
 export async function persistNoticeExtraction(
   id: string,
   runId: string,
-  extraction: NoticeExtraction,
+  extraction: StoredExtraction,
 ) {
   const [saved] = await db
     .update(agendaNotices)

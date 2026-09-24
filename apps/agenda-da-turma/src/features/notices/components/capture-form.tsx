@@ -14,19 +14,33 @@ import { handleAiHttpError } from "@/features/ai/_http-errors";
 import { createStudentProfileAction } from "@/features/students/actions";
 import type { SubjectOptionsByProfile } from "@/features/subjects/options-service";
 import { catchActionResult } from "@/lib/action-result";
-import { confirmNoticeAction } from "../actions";
+import { confirmNoticeAction, discardDraftActionAction } from "../actions";
+import { draftFromExtractedAction } from "../draft-from-extraction";
 import { noticeErrorMessage } from "../messages";
 import {
   confirmNoticeSchema,
+  type DraftExtraction,
+  draftExtractionSchema,
   type NoticeActionInput,
-  noticeExtractionSchema,
   noticeSourceSchema,
   parseNoticeSchema,
   SOURCE_LABELS,
 } from "../schemas";
 import { ActionFields, type AssignableAdult, type RoutineProfile } from "./action-fields";
+import { DiscardNoticeDialog } from "./discard-notice-dialog";
 
-type Draft = { key: string; value: NoticeActionInput };
+/**
+ * `actionId` é o id da ação no rascunho guardado no servidor. Só as ações lidas
+ * pela IA o têm; as acrescentadas nesta tela existem só aqui até salvar.
+ * `subjectHint` é a matéria como a leitura a reconheceu — a revisão mostra
+ * quando ela não casou com nenhuma cadastrada.
+ */
+type Draft = {
+  key: string;
+  value: NoticeActionInput;
+  actionId?: string;
+  subjectHint?: string | null;
+};
 function blankAction(
   profileId: string,
   type: NoticeActionInput["type"] = "task",
@@ -57,7 +71,7 @@ function blankAction(
 }
 const responseSchema = z.object({
   noticeId: z.string().uuid(),
-  extraction: noticeExtractionSchema,
+  extraction: draftExtractionSchema,
   alreadyConfirmed: z.boolean(),
   replay: z.boolean(),
   appliedProfileIds: z.array(z.string().uuid()).default([]),
@@ -97,7 +111,7 @@ export function CaptureForm({
   initialNotice?: {
     id: string;
     profileId: string;
-    extraction: z.infer<typeof noticeExtractionSchema>;
+    extraction: DraftExtraction;
   };
 }) {
   const router = useRouter();
@@ -121,25 +135,16 @@ export function CaptureForm({
   const [pages, setPages] = useState<number[]>([]);
   const [drafts, setDrafts] = useState<Draft[]>(() =>
     initialNotice
-      ? initialNotice.extraction.actions.map((item, index) => ({
-          key: `resume-${index}`,
-          value: {
-            ...item,
-            profileId: initialNotice.profileId,
-            // A IA não recebe a lista de matérias: quem vincula é a pessoa na
-            // revisão.
-            subjectId: null,
-            profileSubjectId: null,
-            assignedToUserId: null,
-            reminderAt: null,
-            recurrence: "none",
-            // A IA não estima duração, pela mesma regra que a proíbe de
-            // inventar prazo. `extractedActionSchema` nem carrega o campo:
-            // quem sabe quanto tempo a criança leva é quem mora com ela.
-            estimatedMinutes: null,
-            // Publicar na turma é decisão de quem revisa, nunca da leitura.
-            shareWithTurma: false,
-          },
+      ? initialNotice.extraction.actions.map(({ id, ...item }, index) => ({
+          key: id ?? `resume-${index}`,
+          actionId: id,
+          // A pista de matéria casa com a lista atual da criança, mesmo num
+          // rascunho retomado: matéria cadastrada depois da leitura ainda vale.
+          ...draftFromExtractedAction(
+            item,
+            initialNotice.profileId,
+            subjectOptions[initialNotice.profileId] ?? [],
+          ),
         }))
       : mode === "manual" && profileId
         ? [blankAction(profileId, defaultType, "manual-initial", defaultDueAt ?? null)]
@@ -170,6 +175,9 @@ export function CaptureForm({
     NonNullable<z.infer<typeof confirmNoticeSchema>["resolutions"]>
   >([]);
   const [busy, setBusy] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
+  /** Replay de um recado já confirmado: não há rascunho no servidor. */
+  const [noticeConfirmed, setNoticeConfirmed] = useState(false);
 
   // O caminho escolhido na folha Adicionar leva o foco ao controle
   // correspondente. Sem isto, quem toca em "Falar" cai num formulário longo e
@@ -194,6 +202,59 @@ export function CaptureForm({
     setResolutions([]);
     setDuplicates([]);
     setAllowDuplicates(false);
+  }
+  function resetToImport() {
+    setDrafts([]);
+    setNoticeId(null);
+    setNoticeConfirmed(false);
+    setWarnings([]);
+    setAppliedProfileIds([]);
+    setSourceProfileIds([]);
+    setShareOriginal(false);
+    setPublicationReference(null);
+    resetDecisions();
+  }
+  function dropDraftLocally(key: string) {
+    // Atualização funcional: a pessoa pode ter editado ou acrescentado outra
+    // atividade enquanto o descarte ia ao servidor, e uma lista capturada
+    // antes do `await` desfaria o que ela acabou de escrever.
+    setDrafts((current) => current.filter((d) => d.key !== key));
+    resetDecisions();
+  }
+  async function removeDraft(draft: Draft) {
+    const currentNoticeId = noticeId;
+    const actionId = draft.actionId;
+    // Ação lida pela IA num rascunho ainda por salvar: o descarte precisa
+    // chegar ao servidor, senão ela volta inteira ao retomar. Ação escrita
+    // nesta tela — ou de um recado já salvo, revisado para outra criança —
+    // existe só aqui.
+    if (currentNoticeId && actionId) {
+      setError("");
+      setBusy(true);
+      const result = await catchActionResult(() =>
+        discardDraftActionAction({ noticeId: currentNoticeId, actionId }),
+      );
+      setBusy(false);
+      if (!result.ok) {
+        setError(noticeErrorMessage(result.error.code));
+        return;
+      }
+      if (result.value.remaining === 0) {
+        toast.success("Recado descartado.");
+        // O recado virou `discarded`. O que a pessoa escreveu à mão nesta tela
+        // continua valendo e vira um cadastro manual; só quando não sobra nada
+        // a tela volta ao passo de importação, e aí a URL é limpa — a página
+        // trata um `?retomar=` vencido com um aviso, não com um erro.
+        setNoticeId(null);
+        const others = drafts.filter((d) => d.key !== draft.key);
+        if (others.length === 0) {
+          resetToImport();
+          if (initialNotice) router.replace("/recados/novo");
+          return;
+        }
+      }
+    }
+    dropDraftLocally(draft.key);
   }
 
   async function addChild() {
@@ -318,25 +379,16 @@ export function CaptureForm({
       setShareOriginal(false);
       setPublicationReference(result.data.extraction.publicationReference ?? null);
       setNoticeId(result.data.noticeId);
+      setNoticeConfirmed(result.data.alreadyConfirmed);
       setWarnings(result.data.extraction.warnings);
       setDrafts(
-        result.data.extraction.actions.map((item) => ({
-          key: crypto.randomUUID(),
-          value: {
-            ...item,
-            profileId,
-            subjectId: null,
-            profileSubjectId: null,
-            assignedToUserId: null,
-            reminderAt: null,
-            recurrence: "none",
-            // A IA não estima duração, pela mesma regra que a proíbe de
-            // inventar prazo. `extractedActionSchema` nem carrega o campo:
-            // quem sabe quanto tempo a criança leva é quem mora com ela.
-            estimatedMinutes: null,
-            // Publicar na turma é decisão de quem revisa, nunca da leitura.
-            shareWithTurma: false,
-          },
+        result.data.extraction.actions.map(({ id, ...item }) => ({
+          key: id ?? crypto.randomUUID(),
+          // Recado já salvo, sendo revisado para outra criança: não há mais
+          // rascunho no servidor para descartar. A lixeira volta a ser local,
+          // senão ela responderia "já foi salvo" e não removeria nada.
+          actionId: result.data.alreadyConfirmed ? undefined : id,
+          ...draftFromExtractedAction(item, profileId, subjectOptions[profileId] ?? []),
         })),
       );
     } catch {
@@ -735,20 +787,20 @@ export function CaptureForm({
                   variant="ghost"
                   aria-label={`Remover atividade ${index + 1}`}
                   disabled={busy || (mode === "manual" && drafts.length === 1)}
-                  onClick={() => {
-                    setDrafts(drafts.filter((d) => d.key !== draft.key));
-                    resetDecisions();
-                  }}
+                  onClick={() => void removeDraft(draft)}
                 >
                   <Trash2 className="size-4" aria-hidden />
                 </Button>
               </div>
               <ActionFields
                 subjectOptions={subjectOptions}
+                subjectHint={draft.subjectHint ?? null}
                 prefix={draft.key}
                 value={draft.value}
                 onChange={(value) => {
-                  setDrafts(drafts.map((d) => (d.key === draft.key ? { ...d, value } : d)));
+                  setDrafts((current) =>
+                    current.map((d) => (d.key === draft.key ? { ...d, value } : d)),
+                  );
                   resetDecisions();
                 }}
                 profiles={profiles}
@@ -855,15 +907,39 @@ export function CaptureForm({
                   router.push("/atividades");
                   return;
                 }
-                setDrafts([]);
-                setNoticeId(null);
-                setWarnings([]);
-                resetDecisions();
+                resetToImport();
               }}
             >
               {mode === "manual" ? "Cancelar" : "Voltar à importação"}
             </Button>
+            {mode === "capture" && noticeId && !noticeConfirmed ? (
+              <Button
+                variant="ghost"
+                className="text-destructive hover:text-destructive"
+                disabled={busy}
+                onClick={() => setDiscardOpen(true)}
+              >
+                Descartar recado
+              </Button>
+            ) : null}
           </div>
+          {mode === "capture" && noticeId && !noticeConfirmed ? (
+            <>
+              <p className="text-xs text-muted-foreground">
+                Voltar à importação guarda este rascunho em “Falta conferir antes de salvar”, e
+                retomar não consome outro crédito. Para não guardar, descarte o recado.
+              </p>
+              <DiscardNoticeDialog
+                open={discardOpen}
+                onOpenChange={setDiscardOpen}
+                noticeId={noticeId}
+                onDiscarded={() => {
+                  router.push("/dashboard");
+                  router.refresh();
+                }}
+              />
+            </>
+          ) : null}
         </section>
       )}
       {!drafts.length && warnings.length ? (
