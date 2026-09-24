@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getIsProForUser } from "@/features/billing/server-cache";
 import { listAccessibleProfiles } from "@/features/family/access";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
-import { findInboxMessage } from "@/features/inbox/repository";
+import { findInboxMessageForCapture } from "@/features/inbox/repository";
 import { CaptureForm } from "@/features/notices/components/capture-form";
 import { listAssignableAdults } from "@/features/notices/repository";
 import { type DraftExtraction, noticeSourceSchema } from "@/features/notices/schemas";
@@ -66,9 +66,9 @@ export default async function NewNoticePage({
    * anexo, e vira recado só quando a pessoa escolhe a criança e manda ler.
    * Encaminhar não consome crédito; organizar é que consome.
    */
-  let inboxMessage: Awaited<ReturnType<typeof findInboxMessage>> = null;
+  let inboxMessage: Awaited<ReturnType<typeof findInboxMessageForCapture>> = null;
   if (params.email && z.string().uuid().safeParse(params.email).success)
-    inboxMessage = await findInboxMessage(user.id, params.email);
+    inboxMessage = await findInboxMessageForCapture(user.id, params.email);
   /*
    * `?retomar=` que não resolve não derruba a tela.
    *

@@ -5,11 +5,9 @@ import { recordProductEvent } from "@/features/metrics/events";
 import { env } from "@/lib/env";
 import { generateInboxToken, inboxAddress, senderDomain, tokenFromRecipient } from "./address";
 import {
-  countNewMessages,
   findActiveInboxAddress,
   findOwnerByToken,
-  insertInboxMessage,
-  MAX_NEW_MESSAGES,
+  insertInboxMessageWithinCap,
   MESSAGE_RETENTION_DAYS,
   replaceInboxAddress,
   revokeInboxAddresses,
@@ -50,7 +48,13 @@ export type InboundEmail = {
 };
 
 const MAX_TEXT = 16_000;
-const ALLOWED_ATTACHMENTS = ["image/png", "image/jpeg", "image/webp", "application/pdf"];
+/** Os mesmos tipos que a captura aceita; o webhook filtra por eles também. */
+export const ALLOWED_ATTACHMENT_TYPES = [
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "application/pdf",
+];
 
 /**
  * Guarda o que chegou por e-mail. Não lê nada, não cobra nada.
@@ -66,15 +70,14 @@ export async function receiveInboundEmail(input: InboundEmail, now = new Date())
   if (!token) return err({ code: "UNKNOWN_ADDRESS" } as const);
   const ownerUserId = await findOwnerByToken(token);
   if (!ownerUserId) return err({ code: "UNKNOWN_ADDRESS" } as const);
-  // Teto por família: a caixa é um degrau até a revisão, não um arquivo.
-  if ((await countNewMessages(ownerUserId)) >= MAX_NEW_MESSAGES)
-    return err({ code: "INBOX_FULL" } as const);
-
   const attachment =
-    input.attachment && ALLOWED_ATTACHMENTS.includes(input.attachment.type)
+    input.attachment && ALLOWED_ATTACHMENT_TYPES.includes(input.attachment.type)
       ? input.attachment
       : null;
-  const message = await insertInboxMessage({
+  // Teto por família, sob trava: a caixa é um degrau até a revisão, não um
+  // arquivo. Contar e inserir sem trava deixa duas entregas simultâneas
+  // passarem as duas, como em qualquer outro limite deste app.
+  const message = await insertInboxMessageWithinCap({
     ownerUserId,
     // Do remetente ficam o hash (para reconhecer repetição) e o domínio (para
     // a família reconhecer a escola). O endereço completo é dado de terceiro.

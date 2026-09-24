@@ -1,23 +1,10 @@
 import "server-only";
 import { err, ok } from "@informach/auth/server-actions";
-import { and, db, eq, inArray } from "@informach/db";
-import {
-  agendaProfileSubjects,
-  agendaStudentProfiles,
-  agendaSubjectKits,
-  agendaSubjects,
-  agendaTurmaMembers,
-} from "@informach/db/schema";
 import type { z } from "zod";
-import { accessibleProfileCondition, findAccessibleProfile } from "@/features/family/access";
+import { findAccessibleProfile } from "@/features/family/access";
 import { recordProductEvent } from "@/features/metrics/events";
+import { findSubjectKits, subjectBelongsToProfile, upsertSubjectKit } from "./repository";
 import type { saveSubjectKitSchema } from "./schemas";
-
-export type SubjectKit = {
-  subjectId: string | null;
-  profileSubjectId: string | null;
-  items: string[];
-};
 
 /**
  * "Levar sempre": o que vai na mochila toda vez que a matéria tem aula.
@@ -28,22 +15,7 @@ export type SubjectKit = {
  * que alguém tem de marcar como feitas.
  */
 export async function listSubjectKits(userId: string, profileIds: string[]) {
-  if (!profileIds.length) return new Map<string, string[]>();
-  const rows = await db
-    .select({
-      profileId: agendaSubjectKits.profileId,
-      subjectId: agendaSubjectKits.subjectId,
-      profileSubjectId: agendaSubjectKits.profileSubjectId,
-      items: agendaSubjectKits.items,
-    })
-    .from(agendaSubjectKits)
-    .innerJoin(agendaStudentProfiles, eq(agendaStudentProfiles.id, agendaSubjectKits.profileId))
-    // O acesso por criança vale aqui como em qualquer outra leitura: quem
-    // chama hoje só passa as próprias crianças, mas a garantia não pode
-    // depender de quem chama.
-    .where(
-      and(inArray(agendaSubjectKits.profileId, profileIds), accessibleProfileCondition(userId)),
-    );
+  const rows = await findSubjectKits(userId, profileIds);
   // Chave por (criança, matéria): a matéria é compartilhada entre famílias e
   // duas irmãs na mesma turma levam coisas diferentes.
   const byKey = new Map<string, string[]>();
@@ -54,69 +26,18 @@ export async function listSubjectKits(userId: string, profileIds: string[]) {
   return byKey;
 }
 
-/** A matéria é da turma em que a criança participa AGORA, ou extracurricular dela. */
-async function ownsSubject(profileId: string, input: z.infer<typeof saveSubjectKitSchema>) {
-  if (input.subjectId) {
-    const [row] = await db
-      .select({ id: agendaSubjects.id })
-      .from(agendaSubjects)
-      .innerJoin(agendaTurmaMembers, eq(agendaTurmaMembers.turmaId, agendaSubjects.turmaId))
-      .innerJoin(
-        agendaStudentProfiles,
-        eq(agendaStudentProfiles.id, agendaTurmaMembers.studentProfileId),
-      )
-      .where(
-        and(
-          eq(agendaSubjects.id, input.subjectId),
-          eq(agendaTurmaMembers.studentProfileId, profileId),
-          eq(agendaStudentProfiles.activeTurmaId, agendaSubjects.turmaId),
-        ),
-      );
-    return Boolean(row);
-  }
-  const [row] = await db
-    .select({ id: agendaProfileSubjects.id })
-    .from(agendaProfileSubjects)
-    .where(
-      and(
-        eq(agendaProfileSubjects.id, input.profileSubjectId ?? ""),
-        eq(agendaProfileSubjects.profileId, profileId),
-      ),
-    );
-  return Boolean(row);
-}
-
 export async function saveSubjectKit(userId: string, input: z.infer<typeof saveSubjectKitSchema>) {
   const profile = await findAccessibleProfile(userId, input.profileId);
   if (!profile) return err({ code: "INVALID_PROFILE" } as const);
-  if (!(await ownsSubject(profile.id, input))) return err({ code: "INVALID_SUBJECT" } as const);
+  if (!(await subjectBelongsToProfile(profile.id, input)))
+    return err({ code: "INVALID_SUBJECT" } as const);
   const items = [...new Set(input.items.map((item) => item.trim()).filter(Boolean))];
-  const target = input.subjectId
-    ? and(
-        eq(agendaSubjectKits.profileId, profile.id),
-        eq(agendaSubjectKits.subjectId, input.subjectId),
-      )
-    : and(
-        eq(agendaSubjectKits.profileId, profile.id),
-        eq(agendaSubjectKits.profileSubjectId, input.profileSubjectId ?? ""),
-      );
-  const [existing] = await db
-    .select({ id: agendaSubjectKits.id })
-    .from(agendaSubjectKits)
-    .where(target);
-  if (existing)
-    await db
-      .update(agendaSubjectKits)
-      .set({ items, updatedAt: new Date() })
-      .where(eq(agendaSubjectKits.id, existing.id));
-  else
-    await db.insert(agendaSubjectKits).values({
-      profileId: profile.id,
-      subjectId: input.subjectId,
-      profileSubjectId: input.profileSubjectId,
-      items,
-      updatedAt: new Date(),
-    });
+  await upsertSubjectKit({
+    profileId: profile.id,
+    subjectId: input.subjectId,
+    profileSubjectId: input.profileSubjectId,
+    items,
+  });
   await recordProductEvent(userId, { event: "subject_kit_saved", count: items.length });
   return ok({ items });
 }

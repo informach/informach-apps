@@ -66,11 +66,34 @@ export async function countNewMessages(ownerUserId: string) {
   return row?.value ?? 0;
 }
 
-export async function insertInboxMessage(values: typeof agendaInboxMessages.$inferInsert) {
-  const [row] = await db.insert(agendaInboxMessages).values(values).returning({
-    id: agendaInboxMessages.id,
+/**
+ * Insere respeitando o teto, sob trava por família.
+ *
+ * Contar antes e inserir depois deixa duas entregas simultâneas passarem as
+ * duas — o mesmo motivo pelo qual o limite de pendências e o de perfis usam
+ * `pg_advisory_xact_lock`. Devolve `null` quando a caixa está cheia.
+ */
+export async function insertInboxMessageWithinCap(values: typeof agendaInboxMessages.$inferInsert) {
+  return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtext(${`agenda:inbox:${values.ownerUserId}`}))`,
+    );
+    const [current] = await tx
+      .select({ value: count() })
+      .from(agendaInboxMessages)
+      .where(
+        and(
+          eq(agendaInboxMessages.ownerUserId, values.ownerUserId),
+          eq(agendaInboxMessages.status, "new"),
+        ),
+      );
+    if ((current?.value ?? 0) >= MAX_NEW_MESSAGES) return null;
+    const [row] = await tx
+      .insert(agendaInboxMessages)
+      .values(values)
+      .returning({ id: agendaInboxMessages.id });
+    return row ?? null;
   });
-  return row ?? null;
 }
 
 export async function listNewInboxMessages(ownerUserId: string) {
@@ -99,6 +122,28 @@ export async function findInboxMessage(ownerUserId: string, id: string) {
         eq(agendaInboxMessages.id, id),
         eq(agendaInboxMessages.ownerUserId, ownerUserId),
         eq(agendaInboxMessages.status, "new"),
+      ),
+    );
+  return row ?? null;
+}
+
+/**
+ * A mesma mensagem, para reabrir a captura.
+ *
+ * Aceita `used` além de `new`: a mensagem sai da caixa assim que a leitura
+ * fica pronta, e voltar para o endereço depois disso — por um recarregamento,
+ * por um toque no voltar — mostrava um formulário vazio sem explicação. O corpo
+ * continua guardado até a retenção acabar.
+ */
+export async function findInboxMessageForCapture(ownerUserId: string, id: string) {
+  const [row] = await db
+    .select()
+    .from(agendaInboxMessages)
+    .where(
+      and(
+        eq(agendaInboxMessages.id, id),
+        eq(agendaInboxMessages.ownerUserId, ownerUserId),
+        sql`${agendaInboxMessages.status} <> 'discarded'`,
       ),
     );
   return row ?? null;

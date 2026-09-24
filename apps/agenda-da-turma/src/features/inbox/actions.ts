@@ -40,7 +40,7 @@ export const revokeInboxAddressAction = action
  * partir dali o acompanhamento é do card "Falta conferir antes de salvar", e
  * manter a mesma coisa em duas listas seria a duplicação que este app evita.
  */
-export const useInboxMessageAction = action
+export const markInboxMessageUsedAction = action
   .input(z.object({ id: z.string().uuid(), noticeId: z.string().uuid() }))
   .auth({ require: "user" })
   .rateLimit({ key: "inbox-message-use", max: 100, window: "1h" })

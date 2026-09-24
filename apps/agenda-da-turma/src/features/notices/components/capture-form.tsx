@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import { z } from "zod";
 import { handleAiHttpError } from "@/features/ai/_http-errors";
 import { todayLocalIso } from "@/features/dashboard/date";
-import { useInboxMessageAction } from "@/features/inbox/actions";
+import { markInboxMessageUsedAction } from "@/features/inbox/actions";
 import { createStudentProfileAction } from "@/features/students/actions";
 import type { SubjectOptionsByProfile } from "@/features/subjects/options-service";
 import { catchActionResult } from "@/lib/action-result";
@@ -245,11 +245,23 @@ export function CaptureForm({
   /** Replay de um recado já confirmado: não há rascunho no servidor. */
   const [noticeConfirmed, setNoticeConfirmed] = useState(false);
 
+  // Anexo que já chegou pronto (e-mail encaminhado): o seletor de páginas
+  // depende de saber quantas são.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: só na montagem, ver acima
+  useEffect(() => {
+    if (!defaultAttachment?.dataUrl.startsWith("data:application/pdf")) return;
+    void countPdfPages(defaultAttachment.dataUrl).catch(() =>
+      setError(noticeErrorMessage("INVALID_ATTACHMENT")),
+    );
+    // Só na montagem: o anexo pré-carregado não muda enquanto a tela vive.
+  }, [defaultAttachment]);
+
   /**
    * Compartilhamento do sistema: o service worker guardou no aparelho e a
    * navegação chegou aqui. Buscar uma vez, e apagar — recado compartilhado não
    * pode reaparecer na próxima importação.
    */
+  // biome-ignore lint/correctness/useExhaustiveDependencies: só na montagem, ver acima
   useEffect(() => {
     if (captureMode !== "compartilhado") return;
     let active = true;
@@ -266,7 +278,6 @@ export function CaptureForm({
       active = false;
     };
     // Só na montagem: a leitura consome o que estava guardado.
-    // biome-ignore lint/correctness/useExhaustiveDependencies: ver comentário acima
   }, [captureMode]);
   // O caminho escolhido na folha Adicionar leva o foco ao controle
   // correspondente. Sem isto, quem toca em "Falar" cai num formulário longo e
@@ -397,6 +408,24 @@ export function CaptureForm({
     return transcript;
   }
 
+  /**
+   * Quantas páginas tem o PDF, e quais vão para a leitura.
+   *
+   * Vale para o arquivo escolhido aqui E para o que já chegou pronto (o anexo
+   * de um e-mail encaminhado): sem isto, um PDF de quatro páginas vindo por
+   * e-mail não mostrava o seletor de páginas e era recusado no envio, com um
+   * erro sobre o qual a pessoa não podia fazer nada.
+   */
+  async function countPdfPages(dataUrl: string) {
+    const { PDFDocument } = await import("pdf-lib");
+    const bytes = Uint8Array.from(atob(dataUrl.split(",")[1] ?? ""), (c) => c.charCodeAt(0));
+    const pdf = await PDFDocument.load(bytes);
+    const count = pdf.getPageCount();
+    if (count > 500) throw new Error("PDF_TOO_LONG");
+    setPageCount(count);
+    setPages(count <= 3 ? Array.from({ length: count }, (_, i) => i + 1) : []);
+  }
+
   async function chooseFile(file: File | undefined) {
     setAttachment(null);
     setPageCount(0);
@@ -439,14 +468,7 @@ export function CaptureForm({
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-      if (file.type === "application/pdf") {
-        const { PDFDocument } = await import("pdf-lib");
-        const pdf = await PDFDocument.load(await file.arrayBuffer());
-        const count = pdf.getPageCount();
-        if (count > 500) throw new Error("PDF_TOO_LONG");
-        setPageCount(count);
-        setPages(count <= 3 ? Array.from({ length: count }, (_, i) => i + 1) : []);
-      }
+      if (file.type === "application/pdf") await countPdfPages(dataUrl);
       setAttachment({ name: file.name, dataUrl });
     } catch {
       setError(noticeErrorMessage("INVALID_ATTACHMENT"));
@@ -537,7 +559,7 @@ export function CaptureForm({
       // é o card de rascunhos, e a mesma pendência não fica em duas listas.
       if (inboxMessageId)
         void catchActionResult(() =>
-          useInboxMessageAction({ id: inboxMessageId, noticeId: result.data.noticeId }),
+          markInboxMessageUsedAction({ id: inboxMessageId, noticeId: result.data.noticeId }),
         );
       setWarnings(result.data.extraction.warnings);
       setDrafts(

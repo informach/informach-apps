@@ -14,6 +14,10 @@ import type { WhatsAppMessage } from "../whatsapp-export";
  */
 export const MAX_PICKED_MESSAGES = 10;
 
+/** Identidade de uma mensagem na lista, sem depender da posição. */
+const messageKey = (message: WhatsAppMessage) =>
+  `${message.dateIso ?? ""}|${message.time ?? ""}|${message.author ?? ""}|${message.text}`;
+
 export function WhatsAppPicker({
   messages,
   onUse,
@@ -55,7 +59,7 @@ export function WhatsAppPicker({
         {ordered.map((message, index) => {
           const checked = picked.has(index);
           return (
-            <li key={`${message.dateIso ?? "sem-data"}-${message.time ?? index}-${index}`}>
+            <li key={messageKey(message)}>
               <label
                 className={`flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm ${
                   checked ? "border-primary/40 bg-primary/5" : "bg-background"
@@ -88,7 +92,7 @@ export function WhatsAppPicker({
           disabled={busy || picked.size === 0}
           // De volta à ordem da conversa: a retificação de quarta precisa ser
           // lida DEPOIS do recado de segunda que ela corrige.
-          onClick={() => onUse([...picked].sort((a, b) => b - a).map((i) => ordered[i]!))}
+          onClick={() => onUse(ordered.filter((_, i) => picked.has(i)).reverse())}
         >
           Usar {picked.size === 1 ? "1 mensagem" : `${picked.size} mensagens`}
         </Button>
