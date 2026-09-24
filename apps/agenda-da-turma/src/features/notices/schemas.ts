@@ -1,12 +1,13 @@
 import { z } from "zod";
 import { activityTypeSchema } from "@/features/unified-activities/activity-types";
 
-export const NOTICE_SOURCES = ["teams", "batista", "notebook", "other"] as const;
+export const NOTICE_SOURCES = ["teams", "batista", "notebook", "whatsapp", "other"] as const;
 export const noticeSourceSchema = z.enum(NOTICE_SOURCES);
 export const SOURCE_LABELS = {
   teams: "Microsoft Teams",
   batista: "Batista ID",
   notebook: "Agenda ou caderno",
+  whatsapp: "Grupo do WhatsApp",
   other: "Outra origem",
 };
 export const DATE_ORIGIN_LABELS = {

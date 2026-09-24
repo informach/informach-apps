@@ -12,6 +12,8 @@ import { findAccessibleProfile } from "@/features/family/access";
 import { recordProductEvent } from "@/features/metrics/events";
 import { findClosestSubject } from "@/features/subjects/match-subject";
 import { listSubjectOptionsByProfile } from "@/features/subjects/options-service";
+import { listTurmasForUser } from "@/features/turmas/repository";
+import { formatTurmaShort } from "@/features/turmas/utils";
 import { billing } from "@/lib/billing";
 import { env } from "@/lib/env";
 import { prepareNoticeAttachment } from "./attachment";
@@ -97,6 +99,14 @@ export async function parseNotice(userId: string, input: z.infer<typeof parseNot
     const subjectOptions = (await listSubjectOptionsByProfile(userId))[profile.id] ?? [];
     const subjectNames = subjectOptions.map((subject) => subject.name);
     const currentYear = todayLocalIso(now).slice(0, 4);
+    // Série da criança escolhida e das outras da casa, sem nome de ninguém: a
+    // leitura avisa quando o documento é claramente de outra turma.
+    const turmas = await listTurmasForUser(userId);
+    const turmaLabel =
+      turmas.find((t) => t.members.some((m) => m.profileId === profile.id)) ?? null;
+    const otherTurmaLabels = turmas
+      .filter((t) => t.members.length && !t.members.some((m) => m.profileId === profile.id))
+      .map((t) => formatTurmaShort(t));
     if (!isPro) await grantNoticeTrialCredits(ownerId, "base");
     const out = await runBillableAgentCall<{ extraction: StoredExtraction; usage?: unknown }>({
       billing,
@@ -117,6 +127,8 @@ export async function parseNotice(userId: string, input: z.infer<typeof parseNot
             runId,
             subjectNames,
             currentYear,
+            turmaLabel: turmaLabel ? formatTurmaShort(turmaLabel) : null,
+            otherTurmaLabels,
           });
           if (!extraction.actions.length) throw new Error("NO_ACTIONS");
           // Cada ação ganha id aqui, antes de existir em qualquer lugar: é por

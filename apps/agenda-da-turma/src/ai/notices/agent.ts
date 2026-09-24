@@ -33,6 +33,7 @@ Quando a publicação estiver explícita no original, preencha publicationRefere
 time recebe HH:mm apenas se claramente informado e houver data. Local recebe apenas o local informado. Sem esses dados, null.
 Não crie sessões de estudo nem datas de preparação como se fossem obrigações da escola. A família poderá planejá-las depois.
 Antes de responder, revise cada providência separadamente. A declaração explícita de prazo não informado tem prioridade sobre datas de outras ações. Exemplo: "Apresentação em 12/11/2028; levar tecido, sem prazo definido para separar" resulta em evento em 2028-11-12 E material sem data (dateOrigin=unspecified), com aviso para confirmar o prazo. Já "Levar tecido em 12/11/2028 para a apresentação" permite material em 2028-11-12. Não transfira a data de um evento para uma ação cujo prazo foi expressamente deixado em aberto.
+Se o documento identificar claramente uma série ou turma DIFERENTE da turma da criança escolhida — e essa outra série for a de outra criança da casa, informada no contexto —, acrescente um aviso em warnings dizendo qual série o documento menciona. Não troque a criança nem descarte as atividades: quem escolhe é o responsável na revisão.
 Não identifique uma criança pelo chute. O responsável confirma a criança no próximo passo. Se o recado não tiver providências, retorne actions vazio com uma explicação em warnings.`,
   });
 }

@@ -23,4 +23,24 @@ describe("buildNoticeUserMessage", () => {
     expect(message).toContain("fornecida pela família: 2026-09-24.");
     expect(message).toContain("Páginas originais selecionadas: 2, 3.");
   });
+  it("names the chosen child's turma and the other turmas of the house, without names", () => {
+    const message = buildNoticeUserMessage(input, undefined, {
+      subjectNames: [],
+      currentYear: "2026",
+      turmaLabel: "6º ano A",
+      otherTurmaLabels: ["3º ano B", "6º ano A", " 3º ano B "],
+    });
+    expect(message).toContain("Turma da criança escolhida: 6º ano A.");
+    // A própria turma não se repete entre as "outras", e duplicatas somem.
+    expect(message).toContain("Outras crianças da casa estão em: 3º ano B.");
+    expect(message).not.toContain("3º ano B; 3º ano B");
+  });
+  it("says the turma is unknown when there is none, and stays quiet about others", () => {
+    const message = buildNoticeUserMessage(input, undefined, {
+      subjectNames: [],
+      currentYear: "2026",
+    });
+    expect(message).toContain("Turma da criança escolhida: não informada.");
+    expect(message).not.toContain("Outras crianças");
+  });
 });

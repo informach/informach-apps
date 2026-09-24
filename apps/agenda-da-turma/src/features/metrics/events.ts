@@ -34,7 +34,7 @@ export const productEventSchema = z
       // primeiro reenvio.
       "subject_kit_saved",
     ]),
-    source: z.enum(["teams", "batista", "notebook", "other", "manual"]).optional(),
+    source: z.enum(["teams", "batista", "notebook", "whatsapp", "other", "manual"]).optional(),
     count: z.number().int().min(0).max(1000).optional(),
     durationMs: z.number().int().min(0).max(3_600_000).optional(),
   })

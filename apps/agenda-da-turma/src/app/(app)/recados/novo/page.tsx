@@ -23,13 +23,21 @@ const MODE_HINTS = {
     "Cole a publicação do Teams, do Batista ID ou de onde o recado chegou. Você confere tudo antes de salvar.",
   falar:
     "Dite o que a criança precisa fazer. A transcrição aparece para você conferir antes de salvar.",
+  compartilhado:
+    "Chegou pelo compartilhamento do seu telefone. Confira a criança e o conteúdo antes de salvar.",
 } as const;
-const captureModeSchema = z.enum(["foto", "colar", "falar"]);
+const captureModeSchema = z.enum(["foto", "colar", "falar", "compartilhado"]);
 
 export default async function NewNoticePage({
   searchParams,
 }: {
-  searchParams: Promise<{ retomar?: string; perfil?: string; origem?: string; modo?: string }>;
+  searchParams: Promise<{
+    retomar?: string;
+    perfil?: string;
+    origem?: string;
+    modo?: string;
+    texto?: string;
+  }>;
 }) {
   const user = await requireUserServer();
   const params = await searchParams;
@@ -118,6 +126,7 @@ export default async function NewNoticePage({
         initialNotice={initialNotice}
         captureMode={captureMode}
         defaultProfileId={params.perfil}
+        defaultText={typeof params.texto === "string" ? params.texto.slice(0, 4000) : undefined}
         defaultSource={noticeSourceSchema.catch("teams").parse(params.origem)}
       />
     </main>

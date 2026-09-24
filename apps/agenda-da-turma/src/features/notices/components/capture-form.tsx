@@ -18,6 +18,7 @@ import { catchActionResult } from "@/lib/action-result";
 import { confirmNoticeAction, discardDraftActionAction } from "../actions";
 import { draftFromExtractedAction } from "../draft-from-extraction";
 import { noticeErrorMessage } from "../messages";
+import { buildPdfFromPhotos, MAX_PHOTOS, type Photo } from "../photo-pdf";
 import {
   confirmNoticeSchema,
   type DraftExtraction,
@@ -27,8 +28,16 @@ import {
   parseNoticeSchema,
   SOURCE_LABELS,
 } from "../schemas";
+import { sharedPayloadText, takeSharedPayload } from "../share-target";
+import {
+  buildNoticeTextFromMessages,
+  latestMessageDate,
+  parseWhatsAppExport,
+  type WhatsAppMessage,
+} from "../whatsapp-export";
 import { ActionFields, type AssignableAdult, type RoutineProfile } from "./action-fields";
 import { DiscardNoticeDialog } from "./discard-notice-dialog";
+import { WhatsAppPicker } from "./whatsapp-picker";
 
 /**
  * `actionId` é o id da ação no rascunho guardado no servidor. Só as ações lidas
@@ -94,6 +103,7 @@ export function CaptureForm({
   defaultType = "task",
   defaultDueAt,
   defaultSource = "teams",
+  defaultText = "",
 }: {
   profiles: RoutineProfile[];
   adults: AssignableAdult[];
@@ -109,12 +119,14 @@ export function CaptureForm({
    * Caminho escolhido na folha Adicionar. Só decide o que recebe o foco ao
    * abrir — todos os caminhos usam o mesmo formulário e a mesma revisão.
    */
-  captureMode?: "foto" | "colar" | "falar";
+  captureMode?: "foto" | "colar" | "falar" | "compartilhado";
   defaultProfileId?: string;
   defaultType?: NoticeActionInput["type"];
   /** Dia escolhido no calendário: a atividade já nasce com ele. */
   defaultDueAt?: string;
   defaultSource?: z.infer<typeof noticeSourceSchema>;
+  /** Texto já vindo do compartilhamento pela rota de segurança. */
+  defaultText?: string;
   initialNotice?: {
     id: string;
     profileId: string;
@@ -151,10 +163,14 @@ export function CaptureForm({
     (proProfileIds.includes(pid) || (ownerIsPro && !initialProfiles.some((p) => p.id === pid)));
   const [sourceUrl, setSourceUrl] = useState("");
   const [publishedAt, setPublishedAt] = useState("");
-  const [text, setText] = useState("");
+  const [text, setText] = useState(defaultText);
   const [attachment, setAttachment] = useState<{ name: string; dataUrl: string } | null>(null);
   const [pageCount, setPageCount] = useState(0);
   const [pages, setPages] = useState<number[]>([]);
+  /** Fotos de um mesmo recado: duas ou mais viram um PDF só. */
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  /** Conversa exportada do WhatsApp aguardando a escolha das mensagens. */
+  const [whatsAppMessages, setWhatsAppMessages] = useState<WhatsAppMessage[] | null>(null);
   const [drafts, setDrafts] = useState<Draft[]>(() =>
     initialNotice
       ? initialNotice.extraction.actions.map(({ id, ...item }, index) => ({
@@ -212,6 +228,29 @@ export function CaptureForm({
   /** Replay de um recado já confirmado: não há rascunho no servidor. */
   const [noticeConfirmed, setNoticeConfirmed] = useState(false);
 
+  /**
+   * Compartilhamento do sistema: o service worker guardou no aparelho e a
+   * navegação chegou aqui. Buscar uma vez, e apagar — recado compartilhado não
+   * pode reaparecer na próxima importação.
+   */
+  useEffect(() => {
+    if (captureMode !== "compartilhado") return;
+    let active = true;
+    void (async () => {
+      const payload = await takeSharedPayload();
+      if (!active || !payload) return;
+      const shared = sharedPayloadText(payload);
+      if (shared) setText((current) => (current.trim() ? current : shared));
+      if (!payload.file) return;
+      const file = new File([payload.file.blob], payload.file.name, { type: payload.file.type });
+      await chooseFile(file);
+    })();
+    return () => {
+      active = false;
+    };
+    // Só na montagem: a leitura consome o que estava guardado.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: ver comentário acima
+  }, [captureMode]);
   // O caminho escolhido na folha Adicionar leva o foco ao controle
   // correspondente. Sem isto, quem toca em "Falar" cai num formulário longo e
   // precisa caçar o microfone abaixo do campo de texto — exatamente o atrito
@@ -346,7 +385,27 @@ export function CaptureForm({
     setPageCount(0);
     setPages([]);
     setError("");
+    setPhotos([]);
+    setWhatsAppMessages(null);
     if (!file) return;
+    // Conversa exportada do WhatsApp: não é anexo, é uma lista de mensagens
+    // para a pessoa escolher. O grupo inteiro nunca vai para a leitura.
+    if (file.type === "text/plain" || file.name.toLowerCase().endsWith(".txt")) {
+      if (file.size > 5 * 1024 * 1024) {
+        setError(noticeErrorMessage("INVALID_ATTACHMENT"));
+        return;
+      }
+      const messages = parseWhatsAppExport(await file.text());
+      if (!messages.length) {
+        setError(
+          "Não encontrei mensagens nesse arquivo. Exporte a conversa pelo WhatsApp, sem mídia.",
+        );
+        return;
+      }
+      setWhatsAppMessages(messages);
+      setSource("whatsapp");
+      return;
+    }
     if (
       file.size > 5 * 1024 * 1024 ||
       !["image/png", "image/jpeg", "image/webp", "application/pdf"].includes(file.type)
@@ -374,6 +433,50 @@ export function CaptureForm({
       setAttachment({ name: file.name, dataUrl });
     } catch {
       setError(noticeErrorMessage("INVALID_ATTACHMENT"));
+    } finally {
+      setBusy(false);
+    }
+  }
+  /**
+   * Acrescenta uma foto ao mesmo recado.
+   *
+   * Agenda de duas páginas, comunicado de três: até aqui cada foto era uma
+   * importação (e uma cobrança) à parte, e as atividades saíam desconexas.
+   */
+  async function addPhoto(file: File | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError(noticeErrorMessage("INVALID_ATTACHMENT"));
+      return;
+    }
+    setError("");
+    setBusy(true);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () =>
+          typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("FILE"));
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const current = photos.length
+        ? photos
+        : attachment?.dataUrl.startsWith("data:image/")
+          ? [{ name: attachment.name, dataUrl: attachment.dataUrl }]
+          : [];
+      const next = [...current, { name: file.name, dataUrl }].slice(0, MAX_PHOTOS);
+      const pdf = await buildPdfFromPhotos(next);
+      setPhotos(next);
+      setPageCount(next.length);
+      setPages(next.map((_, index) => index + 1));
+      setAttachment(pdf);
+      setSource((currentSource) => (currentSource === "teams" ? "notebook" : currentSource));
+    } catch (error) {
+      setError(
+        error instanceof Error && error.message === "PHOTOS_TOO_LARGE"
+          ? "As fotos juntas passam de 5 MB. Envie menos páginas ou uma foto de cada vez."
+          : noticeErrorMessage("INVALID_ATTACHMENT"),
+      );
     } finally {
       setBusy(false);
     }
@@ -491,6 +594,21 @@ export function CaptureForm({
             Criar perfil
           </Button>
         </section>
+      ) : whatsAppMessages ? (
+        <WhatsAppPicker
+          key="whatsapp-picker"
+          messages={whatsAppMessages}
+          busy={busy}
+          onCancel={() => setWhatsAppMessages(null)}
+          onUse={(picked) => {
+            // O texto leva a data de cada mensagem, e a mais recente vira a
+            // publicação: sem isso, um "entregar amanhã" de terça vira um
+            // prazo de hoje.
+            setText(buildNoticeTextFromMessages(picked));
+            setPublishedAt(latestMessageDate(picked) ?? "");
+            setWhatsAppMessages(null);
+          }}
+        />
       ) : !drafts.length ? (
         <section key="capture-notice" className="space-y-5 rounded-xl border bg-card p-5 sm:p-6">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -579,7 +697,7 @@ export function CaptureForm({
             <Input
               id="notice-file"
               type="file"
-              accept="image/png,image/jpeg,image/webp,application/pdf"
+              accept="image/png,image/jpeg,image/webp,application/pdf,text/plain,.txt"
               disabled={busy}
               onChange={(e) => {
                 void chooseFile(e.target.files?.[0]);
@@ -589,7 +707,8 @@ export function CaptureForm({
             <span className="font-normal text-muted-foreground">
               Envie a foto da agenda, do caderno ou o anexo da escola. Não precisa digitar o que
               está na foto. JPG, PNG, WebP ou PDF, até 5 MB. O arquivo original fica disponível por
-              30 dias.
+              30 dias. Exportou a conversa do grupo pelo WhatsApp? Envie o .txt e escolha as
+              mensagens.
             </span>
           </label>
           <div className="space-y-3">
@@ -612,9 +731,34 @@ export function CaptureForm({
                 }}
               />
             </label>
+            {attachment && (photos.length || attachment.dataUrl.startsWith("data:image/")) ? (
+              <label
+                htmlFor="notice-more-photos"
+                className="ml-2 inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border px-4 text-sm font-medium focus-within:ring-2 focus-within:ring-ring"
+              >
+                <Plus className="size-4" aria-hidden />
+                Adicionar outra foto
+                <input
+                  id="notice-more-photos"
+                  className="sr-only"
+                  type="file"
+                  capture="environment"
+                  accept="image/jpeg,image/png,image/webp"
+                  disabled={busy || photos.length >= MAX_PHOTOS}
+                  onChange={(e) => {
+                    void addPhoto(e.target.files?.[0]);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            ) : null}
             {attachment ? (
               <div className="space-y-2 rounded-lg border p-3">
-                <p className="break-words text-sm">Arquivo selecionado: {attachment.name}</p>
+                <p className="break-words text-sm">
+                  {photos.length > 1
+                    ? `${photos.length} fotos num PDF só: ${attachment.name}`
+                    : `Arquivo selecionado: ${attachment.name}`}
+                </p>
                 {attachment.dataUrl.startsWith("data:image/") ? (
                   <Image
                     src={attachment.dataUrl}

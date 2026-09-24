@@ -40,7 +40,7 @@ const ENABLED = true;
  * A versão vai no NOME do cache, e `activate` apaga todo cache com nome
  * diferente. Bumpe ao mudar o que é guardado ou como.
  */
-const CACHE = "agenda-shell-v2";
+const CACHE = "agenda-shell-v3";
 const OFFLINE_URL = "/offline";
 const PRECACHE = [OFFLINE_URL, "/manifest.webmanifest", "/web-app-manifest-192x192.png"];
 
@@ -115,9 +115,70 @@ function isCacheableAsset(url) {
   return PRECACHE.includes(url.pathname);
 }
 
+/** Guarda o compartilhamento recebido até a tela de revisão vir buscá-lo. */
+const SHARE_DB = "agenda-share";
+const SHARE_STORE = "payload";
+const SHARE_KEY = "pending";
+
+function openShareDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(SHARE_DB, 1);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains(SHARE_STORE))
+        request.result.createObjectStore(SHARE_STORE);
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function saveSharedPayload(payload) {
+  const db = await openShareDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(SHARE_STORE, "readwrite");
+    tx.objectStore(SHARE_STORE).put(payload, SHARE_KEY);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  db.close();
+}
+
+/**
+ * Recebe o que o sistema compartilhou e devolve a navegação para a revisão.
+ *
+ * Nada sai do aparelho aqui: o conteúdo fica no IndexedDB até a tela abrir, e
+ * quem manda para a leitura é a pessoa, depois de conferir.
+ */
+async function receiveShare(request) {
+  try {
+    const form = await request.formData();
+    const files = form.getAll("arquivos").filter((item) => item instanceof File && item.size > 0);
+    // Uma só, e dentro do limite do recado: descartar aqui é melhor do que
+    // falhar depois da navegação.
+    const file = files.find((item) => item.size <= 5 * 1024 * 1024);
+    await saveSharedPayload({
+      title: String(form.get("title") ?? ""),
+      text: String(form.get("text") ?? ""),
+      url: String(form.get("url") ?? ""),
+      file: file ? { name: file.name, type: file.type, blob: file } : null,
+      receivedAt: Date.now(),
+    });
+  } catch {
+    // Sem payload a tela abre vazia, que é melhor do que um erro do navegador.
+  }
+  return Response.redirect("/recados/novo?modo=compartilhado", 303);
+}
 self.addEventListener("fetch", (event) => {
   if (!ENABLED) return;
   const { request } = event;
+  if (
+    request.method === "POST" &&
+    new URL(request.url).origin === self.location.origin &&
+    new URL(request.url).pathname === "/recados/compartilhar"
+  ) {
+    event.respondWith(receiveShare(request));
+    return;
+  }
   if (request.method !== "GET") return;
 
   const url = new URL(request.url);

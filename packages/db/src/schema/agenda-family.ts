@@ -107,7 +107,9 @@ export const agendaNotices = agenda.table(
     createdByUserId: text("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
-    source: text("source", { enum: ["teams", "batista", "notebook", "other"] }).notNull(),
+    source: text("source", {
+      enum: ["teams", "batista", "notebook", "whatsapp", "other"],
+    }).notNull(),
     sourceUrl: text("source_url"),
     publishedAt: date("published_at"),
     text: text("text").notNull().default(""),
