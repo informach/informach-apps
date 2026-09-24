@@ -27,6 +27,9 @@ const authProxy = createAuthProxy(authResult, {
     "/recados",
     "/familia",
     "/api/recados",
+    // A fila offline sobe por aqui; a rota confere a sessão por conta própria e
+    // este prefixo é a defesa em profundidade da regra 11 do CLAUDE.md.
+    "/api/tasks",
     "/api/data",
     // Defesa-em-profundidade: route handlers de IA já chamam `withAiRouteGuards`
     // (sessão + rate-limit + Pro gate). Listar aqui garante que qualquer route

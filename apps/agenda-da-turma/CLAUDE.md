@@ -22,6 +22,8 @@ Navegação (14/09/2026): o rodapé tem **quatro destinos e uma ação** — `Ho
 
 **`/offline`** é pública e estática, servida pelo service worker quando a navegação falha (§9). Não toca banco nem sessão — depender de sessão seria mais uma navegação a falhar justamente quando a rede caiu.
 
+**Marcar como feito não precisa de rede (24/09/2026).** Concluir e reabrir passam por uma rota idempotente e, quando ela não responde, a decisão fica guardada no aparelho e sobe sozinha depois — com o card dizendo, enquanto isso, que ainda não subiu. Só concluir e reabrir: editar, cancelar e importar continuam exigindo conexão. O contrato inteiro está em §9, "A fila de escrita".
+
 **Família é quem é quem**, não ajustes: `/familia` (Crianças) · `/familia/turmas` · `/familia/adultos` · `/familia/ajustes`, com sub-navegação em pílulas `Link` (`features/family/components/family-tabs.tsx`) em vez de `Tabs` do Radix, porque cada seção carrega dados próprios no servidor. `/perfis` e `/turmas` viraram `redirect` temporário (307, não 308: um produto em movimento não grava a decisão no navegador de quem usa) para as novas casas; as telas profundas (`/perfis/[id]/extras/*`, `/turmas/[turmaId]/{materias,acesso}`) continuam onde estavam. O menu do avatar ficou só com assinatura, conta e sair — **não repor atalhos de conteúdo ali**: crianças e turmas moravam nesse menu, junto de cobrança e sair, e quem procurava "meus filhos" não achava.
 
 **Turma é do titular, de propósito.** Crianças, atividades, rotina e calendário são escopados por criança acessível (`accessibleProfileCondition`); **turmas e matérias são escopadas por conta** (`listTurmasForUser`, `userHasMemberInTurma`). Não é descuido: a turma é espaço compartilhado com outras famílias e o `TurmaCard` mostra o **código**, que é credencial — quem o tem vincula qualquer criança àquela sala. Quem consentiu em ter a filha cuidada não consentiu com isso. O segundo adulto já usa matéria onde importa: `listSubjectOptionsByProfile` é por criança, então ele escolhe a matéria na atividade e recebe a sugestão de prazo pela próxima aula. Por isso Família › Turmas mostra a ele o porquê, e não "nenhuma turma" com botões que recusam. Se um dia abrir: **tirar o código do card de quem não é criador primeiro**, depois trocar o escopo das duas consultas — e só então `/api/ai/subjects/*` e `/api/ai/transcribe` passam a precisar de `ownerId`, resolvido pela turma (nunca por `resolveTrialOwner`, que desempata globalmente entre famílias).
@@ -141,25 +143,44 @@ apps/agenda-da-turma/
 │   │   │   ├── perfis/, turmas/   # redirect 307 para Família + telas profundas (extras, matérias)
 │   │   │   ├── settings/billing/  # plano + saldo + packs (Pro) + history + portal
 │   │   │   └── upgrade/           # PlanCards sem stepper, só Pro (Free → Pro)
-│   │   ├── api/                   # webhooks/jobs (auth, billing, emails)
+│   │   ├── api/                   # webhooks/jobs + as poucas rotas do app
 │   │   │   ├── auth/[...all]/     # Better Auth handler
-│   │   │   ├── webhooks/{stripe,sendgrid}/
-│   │   │   ├── jobs/              # 5 billing crons + 3 email crons
+│   │   │   ├── webhooks/{stripe,sendgrid,email-inbound}/
+│   │   │   ├── jobs/              # 5 billing crons + 3 email crons + rotina
+│   │   │   ├── ai/                # transcribe + matérias por voz/imagem
+│   │   │   ├── recados/           # parse, original e anexo
+│   │   │   ├── tasks/[id]/status/ # concluir/reabrir idempotente (fila offline, §9)
+│   │   │   ├── calendario/[token]/ # feed ICS privado
+│   │   │   ├── data/              # estados/cidades/escolas + exportação
+│   │   │   ├── product-event/     # métricas da landing
 │   │   │   ├── email/unsubscribe/
 │   │   │   ├── health/            # commit servindo; nunca toca o banco
 │   │   │   └── ready/             # portão de deploy: schema do banco (ver §6)
 │   │   ├── (marketing)/           # landing pública + termos/privacidade
 │   │   └── layout.tsx             # Plus Jakarta Sans + ThemeProvider + Toaster
 │   ├── features/
+│   │   ├── account/               # exportação e exclusão (LGPD)
 │   │   ├── activities/            # folha Adicionar, lista, aceite de compartilhadas e o fato publicado na turma
 │   │   ├── ai/                    # helpers cross-feature: _http-errors, image-utils, _shared (withAiRouteGuards)
 │   │   ├── billing/               # plan-cards, plan-card, credit-balance-card, credit-packs, history (paridade cozya)
 │   │   ├── calendar/              # /calendario: views mês/semana/dia, blips, day-cell, vista rápida, range/grid
+│   │   ├── calendar-feed/         # token do feed ICS (hash em repouso, girável)
 │   │   ├── dashboard/             # horário do dia (em lote), KPIs, buckets, progresso, helpers de data com TZ São Paulo
+│   │   ├── family/                # acesso por criança, segundo adulto, convites e ajustes da casa
+│   │   ├── inbox/                 # endereço de e-mail da família + o que chegou por ele (§1)
+│   │   ├── kid-mode/              # a vez da criança: uma atividade por vez, "Feito!" de 64 px
+│   │   ├── metrics/               # eventos de produto (enum estrito) + contrato da landing
+│   │   ├── notices/               # recado, leitura, rascunho e o CRUD de toda atividade (dívida de nome, ver §6)
+│   │   ├── notifications/         # resumo diário, resumo de domingo, lembretes, push e retenção
+│   │   ├── offline-queue/         # a fila de conclusões que esperam a rede (§9)
 │   │   ├── onboarding/            # signup-form (3 passos), login-form, plan-cards usado em /choose-plan + /upgrade
+│   │   ├── profile-subjects/      # matérias extracurriculares + o predicado de matéria pausada (§6)
 │   │   ├── students/              # perfis de estudante (CRUD, dialogs, avatar com chart-N, widgets do dashboard)
+│   │   ├── study-plan/            # plano de estudo determinístico para prova e trabalho
+│   │   ├── subject-kits/          # "levar sempre" por matéria
 │   │   ├── subjects/              # matérias por turma + paleta chart-N collision-free
-│   │   └── turmas/                # turmas (create/join-by-code/active/leave + comboboxes IBGE+INEP)
+│   │   ├── turmas/                # turmas (create/join-by-code/active/leave + comboboxes IBGE+INEP)
+│   │   └── unified-activities/    # a projeção única: card, detalhe, carga do dia, toggle otimista
 │   ├── components/
 │   │   ├── brand/agenda-logo.tsx  # logotipo SVG inline (theme-aware)
 │   │   ├── app-shell/             # AppHeader + UserMenu (avatar com Meus perfis / Minhas turmas / billing / sair)
@@ -668,11 +689,12 @@ Agenda da Turma é instalável como PWA em iOS e Android. O setup é declarativo
 
 ### O service worker que existe
 
-`public/sw.js` faz **três** coisas, e o que ele não faz é tão importante quanto:
+`public/sw.js` faz **quatro** coisas, e o que ele não faz é tão importante quanto:
 
 1. **Push** — `push` mostra a notificação (URL restrita a `/dashboard` e `/recados`) e `notificationclick` abre a janela, só na própria origem. Opt-in, dependente de VAPID.
 2. **Receber compartilhamento** — o POST do `share_target` em `/recados/compartilhar` é interceptado, guardado no IndexedDB e a navegação segue para a revisão (ver §1). É a única exceção à regra de que o worker só trata `GET`.
 3. **Leitura offline do esqueleto** — pré-cacheia `/offline`, o manifesto e o ícone; serve `/_next/static/*` por cache-first (nomes com hash, imutáveis); e, quando uma navegação falha, devolve `/offline` em vez da tela do navegador.
+4. **Avisar que a rede voltou** — `sync` com a marca `agenda-flush` manda um recado às janelas abertas. **Ele não envia nada**: enviar daqui obrigaria a repetir no worker a sessão, a chave de idempotência e a leitura da resposta, e duas cópias dessa decisão é o tipo de divergência que faz uma conclusão sumir. Sem janela aberta, a fila espera o app abrir.
 
 **O service worker é registrado para todo mundo** por `components/app-shell/service-worker.tsx`, no layout de `(app)`. Antes quem registrava era só o painel de notificações, ao ligar os lembretes — então a maioria não tinha service worker nenhum. O painel **continua** chamando `register` (`preferences-panel.tsx`); a chamada é idempotente e devolve a registration existente, então são dois pontos de entrada para o mesmo registro. Registrar **não** inscreve em push: a inscrição continua sendo um passo explícito no painel.
 
@@ -680,7 +702,25 @@ Agenda da Turma é instalável como PWA em iOS e Android. O setup é declarativo
 
 **HTML autenticado nunca entra no cache.** Navegação é sempre rede, e a resposta não é guardada. A rotina de uma família é dado sensível e o aparelho é compartilhado: uma página em cache sobreviveria ao logout. Só entra no cache o que é idêntico para toda conta.
 
-**Não há fila de escrita**, e é decisão, não esquecimento. Concluir uma atividade usa `version` para concorrência otimista: repetir uma gravação enfileirada depois que outra pessoa editou não é "tentar de novo", é decidir por ela. Uma fila honesta precisa de endpoint idempotente próprio (não replay de server action, cujo id muda a cada build) e de uma tela que mostre o que não subiu. Enquanto ela não existe, a barra de `components/app-shell/offline-banner.tsx` diz o que é verdade: dá para ler, e as mudanças esperam a rede.
+### A fila de escrita (24/09/2026)
+
+**Concluir e reabrir sobrevivem à falta de rede.** Só isso: editar, cancelar e importar continuam exigindo conexão, porque são decisões que mudam o enunciado e não cabem numa repetição cega.
+
+Os três requisitos que a decisão anterior listava como condição para existir uma fila honesta estão cumpridos, e nenhum deles é dispensável:
+
+- **Endpoint próprio, idempotente** — `POST /api/tasks/[id]/status`, com `Idempotency-Key` no cabeçalho. **Server action não serve**: o identificador dela muda a cada build, e a gravação guardada no aparelho na sexta-feira não teria para onde ir depois do deploy de segunda. O recibo mora em `agenda.idempotent_writes`, chaveado por `(user_id, key)` — fosse `key` sozinha, adivinhar a de outra família devolveria o recibo dela. Titular e plano saem de `resolveTaskWriteContext`, a MESMA função da server action, e a lista de rotas a revalidar sai de `ROUTINE_PATHS`: duas cópias divergiriam na primeira tela nova.
+- **Uma vez só, de verdade** — recibo e gravação são a **mesma transação** (`applyTaskStatusOnce` chama `setNoticeActionStatusWithinTx`), sob `pg_advisory_xact_lock` da chave. Gravar primeiro e anotar depois deixa uma janela em que a atividade está concluída e o recibo não existe, e é justamente nessa janela que a retentativa do aparelho lê um conflito de versão por uma gravação que foi dela mesma. A recusa também fica guardada: repetir uma chave recusada recebe a MESMA recusa, nunca uma diferente. **O recibo é lido antes da atividade** — ele não tem FK para `tasks` de propósito, e procurar a atividade primeiro faria a repetição de uma gravação cuja atividade foi apagada responder "não encontrado". Recibo ilegível (de um build anterior) é **regravado**, não ignorado: com `onConflictDoNothing` aquela chave ficaria sem idempotência para sempre.
+- **Uma tela que mostra o que não subiu** — a barra conta ("2 mudanças esperando a rede") e abre `PendingWritesSheet`, com "Abrir atividade" e "Descartar" por linha. O card fica com o selo "sobe quando a rede voltar" e **não sai da lista**: sumir seria prometer que subiu.
+
+**O status HTTP é o contrato com o cliente.** `200` é resultado de negócio — inclusive a recusa por versão — e a entrada sai da fila. Transporte mantém a entrada: 401 de sessão expirada, 429, 5xx, rede caída. O `200` com HTML de um redirecionamento para o login conta como transporte, e é por isso que `classifyResponse` recusa corpo ilegível — tratá-lo como sucesso apagaria a conclusão sem ela ter chegado a lugar nenhum. `PERMANENT_STATUSES` (400, 403, 404, 405, 413, 415) é a exceção e precisa ser explícita: um `403` de origem ou um `404` de rota não melhoram com o tempo, e tratá-los como transporte deixaria a entrada reenviando a cada `online` e a cada aba que volta, com a barra prometendo para sempre que aquilo ainda vai subir.
+
+**A fila é da ORIGEM, e a sessão não.** Cada entrada carrega o `userId` de quem decidiu (`QueueOwnerProvider` nos dois shells), e quem lê filtra por `visibleForOwner`. Sem isso, num tablet de casa, uma conclusão feita antes do logout subiria com a sessão de quem entrasse depois, e o título da atividade de uma família apareceria na folha de outra — a mesma razão pela qual o worker nunca guarda HTML autenticado. Sem dono conhecido **não há fila**: a falha volta a ser falha. As entradas também vencem em sete dias, junto com o recibo do servidor — passado esse prazo a repetição viraria uma gravação nova com versão velha, e um conflito abandonado manteria "precisa de você" na tela para sempre.
+
+**Trocar de ideia ainda offline substitui, não empilha.** Duas gravações da mesma atividade levariam a MESMA versão (a tela não se atualizou), e a segunda subiria já vencida — pedindo atenção para uma contradição que a pessoa resolveu sozinha ao tocar de novo. O que já está em conflito nunca é substituído: ali há uma decisão de outra pessoa esperando ser vista.
+
+A decisão de insistir no que foi **recusado** nunca é do app: conflito de versão vira linha na folha, com a atividade a um toque. Reenviar sozinho seria decidir pela pessoa que mudou a atividade do outro lado — que era exatamente a objeção que segurou esta fila.
+
+A fila vive em `features/offline-queue/`: `queue.ts` é puro (classificação, ordem, contagem, frase) e tem os testes; `store.ts` é o IndexedDB (`agenda-writes`, no mesmo feitio de `share-target.ts`, sem biblioteca e sem lançar para quem chama); `client.ts` envia e esvazia; `OfflineQueueFlusher` mora nos dois shells e escuta montagem, `online`, visibilidade e o recado do worker.
 
 O CSP em `next.config.ts` já libera `manifest-src 'self'` e `worker-src 'self' blob:`. **Ao mexer no que o service worker guarda, atualizar esta seção junto** — foi a divergência entre o texto e o código que se instalou aqui antes.
 

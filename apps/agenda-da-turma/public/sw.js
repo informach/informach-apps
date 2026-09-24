@@ -1,11 +1,14 @@
 /*
  * Service worker da Agenda da Turma.
  *
- * Faz DUAS coisas, e é importante saber quais não faz:
+ * Faz QUATRO coisas, e é importante saber quais não faz:
  *
  *   1. Push — mostra o lembrete e abre a janela no clique.
  *   2. Leitura offline do ESQUELETO — os assets versionados do Next e uma
  *      página de "sem conexão" para quando a navegação falha.
+ *   3. Receber o que o sistema compartilhou — a única exceção ao "só GET".
+ *   4. Avisar as janelas abertas quando a conectividade volta (`sync`), para
+ *      que a fila de gravações do aparelho suba.
  *
  * O que ele deliberadamente NÃO faz é guardar HTML autenticado. A rotina de uma
  * família é dado sensível e um aparelho é compartilhado: uma página em cache
@@ -14,13 +17,12 @@
  * todo mundo — `/_next/static/*`, que já vem com hash no nome, e a página
  * `/offline`.
  *
- * Também não há fila de escrita. Concluir uma atividade usa `version` para
- * concorrência otimista: repetir uma gravação enfileirada depois que outra
- * pessoa editou não é "tentar de novo", é decidir por ela. Uma fila honesta
- * precisa de endpoint idempotente próprio e de uma tela que mostre o que não
- * subiu — está descrito na proposta como trabalho próprio, e não foi feito
- * aqui. Enquanto isso, a barra de "sem conexão" do app diz o que é verdade:
- * dá para ler, e marcar como feito precisa de rede.
+ * A fila de escrita existe, e NÃO mora aqui. O worker só avisa; quem guarda,
+ * envia e mostra o que não subiu é `features/offline-queue`, na janela. A
+ * divisão é deliberada: enviar daqui obrigaria a repetir dentro do worker a
+ * sessão, a chave de idempotência e a leitura da resposta, e duas cópias dessa
+ * decisão é exatamente o tipo de divergência que faz uma conclusão sumir. O
+ * preço é conhecido: sem janela aberta, a fila espera o app abrir de novo.
  */
 
 /**
@@ -222,6 +224,25 @@ self.addEventListener("fetch", (event) => {
         await trimAssets();
       }
       return response;
+    })(),
+  );
+});
+
+/**
+ * A conectividade voltou.
+ *
+ * O Background Sync entrega este evento quando a rede volta, mesmo que a aba
+ * tenha sido fechada há pouco. A resposta é só um recado para quem estiver
+ * aberto: quem sabe enviar é a janela. Sem nenhuma janela, o `sync` termina sem
+ * fazer nada e a fila sobe na próxima abertura do app — é a consequência aceita
+ * de não duplicar aqui a lógica de envio.
+ */
+self.addEventListener("sync", (event) => {
+  if (!ENABLED || event.tag !== "agenda-flush") return;
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const client of windows) client.postMessage({ type: "agenda-flush" });
     })(),
   );
 });

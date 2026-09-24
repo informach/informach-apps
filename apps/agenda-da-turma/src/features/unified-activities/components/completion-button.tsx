@@ -4,8 +4,10 @@ import { Button } from "@informach/ui/components/button";
 import { cn } from "@informach/ui/lib/utils";
 import { Check } from "lucide-react";
 import { useState } from "react";
-import { setNoticeStatusAction } from "@/features/notices/actions";
 import { noticeErrorMessage } from "@/features/notices/messages";
+import { submitTaskStatus } from "@/features/offline-queue/client";
+import { QueuedBadge } from "@/features/offline-queue/components/queued-badge";
+import { useQueueOwner } from "@/features/offline-queue/owner";
 import { isActionRejected } from "@/lib/action-result";
 import { useCardToggle } from "../hooks/use-card-toggle";
 
@@ -29,11 +31,13 @@ export function ActivityCompletionButton({
   title: string;
 }) {
   const [error, setError] = useState("");
+  const queueOwner = useQueueOwner();
 
-  const { isDone, pending, handleToggle } = useCardToggle({
+  const { isDone, pending, queued, handleToggle } = useCardToggle({
     initialStatus,
     optimisticHideWhenDone: false,
-    toggleAction: (next) => setNoticeStatusAction({ id, version, status: next }),
+    toggleAction: (next) =>
+      submitTaskStatus({ id, version, status: next, title, userId: queueOwner }),
     onSuccess: () => setError(""),
     onError: (actionError) =>
       setError(
@@ -64,6 +68,7 @@ export function ActivityCompletionButton({
           </>
         )}
       </Button>
+      {queued ? <QueuedBadge className="font-normal" /> : null}
       {error ? (
         <p role="alert" className="text-sm text-destructive">
           {error}

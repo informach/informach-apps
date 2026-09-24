@@ -12,6 +12,7 @@ import { addDaysIso, todayLocalIso } from "@/features/dashboard/date";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { purgeExpiredInboxMessages } from "@/features/inbox/repository";
 import { listNoticeActions } from "@/features/notices/repository";
+import { purgeExpiredIdempotentWrites } from "@/features/offline-queue/repository";
 import { ACTIVITY_TYPE_LABELS } from "@/features/unified-activities/activity-types";
 import { buildEmailUnsubscribeUrl, emails } from "@/lib/emails";
 import { env } from "@/lib/env";
@@ -349,6 +350,8 @@ export async function deliverRoutineNotifications(
   // A caixa de e-mail segue a mesma regra do original de um recado: o que não
   // virou atividade em 30 dias some inteiro, corpo e anexo.
   await purgeExpiredInboxMessages(now);
+  // O recibo da fila offline é lembrança de curto prazo, não histórico.
+  await purgeExpiredIdempotentWrites(now);
   await db
     .update(agendaNotices)
     .set({ attachmentData: null })

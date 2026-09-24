@@ -7,6 +7,7 @@ import {
   index,
   integer,
   jsonb,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -510,6 +511,42 @@ export const agendaInboxMessages = agenda.table(
     index("agenda_inbox_messages_owner_status_idx").on(t.ownerUserId, t.status, t.receivedAt),
     index("agenda_inbox_messages_expiry_idx").on(t.expiresAt),
     check("agenda_inbox_message_status_check", sql`${t.status} IN ('new','used','discarded')`),
+  ],
+);
+
+/**
+ * O recibo de uma gravação que veio da fila offline.
+ *
+ * Concluir uma atividade usa `version` para concorrência otimista, e por isso
+ * repetir uma gravação enfileirada NÃO é inofensivo: a segunda tentativa
+ * chegaria com a versão velha e seria recusada, ou — pior — passaria por cima
+ * de uma decisão que outra pessoa tomou no meio. Quem garante o "uma vez só" é
+ * a chave que o aparelho gera ANTES de tentar a primeira vez e repete em toda
+ * retentativa: a primeira grava e guarda aqui o que respondeu, e as seguintes
+ * recebem de volta exatamente aquela resposta, inclusive quando ela foi uma
+ * recusa por conflito de versão.
+ *
+ * A chave é composta com o dono de propósito. Fosse `key` sozinha a chave
+ * primária, adivinhar a de outra família devolveria o recibo dela.
+ *
+ * `task_id` fica sem FK: o recibo vale por sete dias e precisa sobreviver à
+ * atividade que ele descreve, senão apagar a atividade reabriria a porta para
+ * a mesma gravação acontecer de novo.
+ */
+export const agendaIdempotentWrites = agenda.table(
+  "idempotent_writes",
+  {
+    key: uuid("key").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    taskId: uuid("task_id"),
+    result: jsonb("result").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.key] }),
+    index("agenda_idempotent_write_age_idx").on(t.createdAt),
   ],
 );
 

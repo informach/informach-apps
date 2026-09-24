@@ -35,6 +35,10 @@ export const productEventSchema = z
       "subject_kit_saved",
       "inbox_message_received",
       "inbox_message_used",
+      // Quantas conclusões chegaram DEPOIS, pela fila do aparelho. É a única
+      // medida de que a fila serve para alguma coisa: `action_completed` conta
+      // a conclusão, e não distingue a que subiu na hora da que esperou a rede.
+      "offline_queue_flushed",
     ]),
     source: z.enum(["teams", "batista", "notebook", "whatsapp", "other", "manual"]).optional(),
     count: z.number().int().min(0).max(1000).optional(),

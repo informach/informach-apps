@@ -835,100 +835,117 @@ export async function setNoticeActionStatusAtomically(
   ownerId: string,
   isPro: boolean,
 ) {
-  return db.transaction(async (tx) => {
-    await lockFamily(tx, ownerId);
-    const [previous] = await tx
-      .select()
-      .from(agendaTasks)
-      .where(
-        and(
-          eq(agendaTasks.id, input.id),
-          inArray(
-            agendaTasks.profileId,
-            tx
-              .select({ id: agendaStudentProfiles.id })
-              .from(agendaStudentProfiles)
-              .where(accessibleProfileCondition(userId)),
-          ),
+  return db.transaction((tx) => setNoticeActionStatusWithinTx(tx, userId, input, ownerId, isPro));
+}
+
+/**
+ * A mesma gravação, dentro de uma transação que já existe.
+ *
+ * Existe para a fila offline: o recibo de idempotência e a gravação precisam
+ * ser a MESMA transação, senão uma queda entre as duas deixa a atividade
+ * concluída sem recibo, e a retentativa do aparelho lê um conflito de versão
+ * por uma gravação que foi dela mesma. Quem chama de fora continua usando
+ * `setNoticeActionStatusAtomically`.
+ */
+export async function setNoticeActionStatusWithinTx(
+  tx: AgendaTransaction,
+  userId: string,
+  input: z.infer<typeof statusNoticeActionSchema>,
+  ownerId: string,
+  isPro: boolean,
+) {
+  await lockFamily(tx, ownerId);
+  const [previous] = await tx
+    .select()
+    .from(agendaTasks)
+    .where(
+      and(
+        eq(agendaTasks.id, input.id),
+        inArray(
+          agendaTasks.profileId,
+          tx
+            .select({ id: agendaStudentProfiles.id })
+            .from(agendaStudentProfiles)
+            .where(accessibleProfileCondition(userId)),
         ),
-      )
-      .for("update");
-    if (!previous) return err({ code: "NOT_FOUND" } as const);
-    if (previous.version !== input.version) return err({ code: "VERSION_CONFLICT" } as const);
-    if (previous.status === input.status) return ok({ id: input.id });
-    // Cancelar alcança a turma; reabrir só a própria cópia deixaria as outras
-    // famílias canceladas sem ninguém saber. O que foi cancelado fica no
-    // histórico e vira uma atividade nova quando voltar a valer.
-    if (previous.status === "canceled") return err({ code: "ALREADY_CANCELED" } as const);
-    if (
-      !isPro &&
-      input.status === "pending" &&
-      (await countPendingActivities(tx, ownerId)) >= FREE_ACTIVITY_LIMIT
+      ),
     )
-      return err({ code: "ACTIVITY_LIMIT_REACHED" } as const);
-    const [current] = await tx
+    .for("update");
+  if (!previous) return err({ code: "NOT_FOUND" } as const);
+  if (previous.version !== input.version) return err({ code: "VERSION_CONFLICT" } as const);
+  if (previous.status === input.status) return ok({ id: input.id });
+  // Cancelar alcança a turma; reabrir só a própria cópia deixaria as outras
+  // famílias canceladas sem ninguém saber. O que foi cancelado fica no
+  // histórico e vira uma atividade nova quando voltar a valer.
+  if (previous.status === "canceled") return err({ code: "ALREADY_CANCELED" } as const);
+  if (
+    !isPro &&
+    input.status === "pending" &&
+    (await countPendingActivities(tx, ownerId)) >= FREE_ACTIVITY_LIMIT
+  )
+    return err({ code: "ACTIVITY_LIMIT_REACHED" } as const);
+  const [current] = await tx
+    .update(agendaTasks)
+    .set({
+      status: input.status,
+      version: previous.version + 1,
+      updatedAt: new Date(),
+      completedAt: input.status === "done" ? new Date() : null,
+    })
+    .where(eq(agendaTasks.id, input.id))
+    .returning();
+  if (!current) throw new Error("Action status update failed");
+  // Cancelar o que se publicou cancela para a turma. Sem isto, as outras
+  // famílias continuariam cobrando uma prova que a escola desmarcou, e só a
+  // casa de quem cancelou saberia.
+  if (
+    input.status === "canceled" &&
+    previous.sharedActivityId &&
+    (await isPublishedBy(tx, previous.sharedActivityId, userId))
+  )
+    await cancelPublishedActivity(tx, previous.sharedActivityId, userId, input.id);
+  // Prova cancelada não deixa sessões de estudo órfãs cobrando preparação
+  // para uma data que não existe mais. O que já foi estudado fica feito.
+  if (input.status === "canceled")
+    await tx
       .update(agendaTasks)
-      .set({
-        status: input.status,
-        version: previous.version + 1,
-        updatedAt: new Date(),
-        completedAt: input.status === "done" ? new Date() : null,
-      })
-      .where(eq(agendaTasks.id, input.id))
-      .returning();
-    if (!current) throw new Error("Action status update failed");
-    // Cancelar o que se publicou cancela para a turma. Sem isto, as outras
-    // famílias continuariam cobrando uma prova que a escola desmarcou, e só a
-    // casa de quem cancelou saberia.
-    if (
-      input.status === "canceled" &&
-      previous.sharedActivityId &&
-      (await isPublishedBy(tx, previous.sharedActivityId, userId))
-    )
-      await cancelPublishedActivity(tx, previous.sharedActivityId, userId, input.id);
-    // Prova cancelada não deixa sessões de estudo órfãs cobrando preparação
-    // para uma data que não existe mais. O que já foi estudado fica feito.
-    if (input.status === "canceled")
-      await tx
-        .update(agendaTasks)
-        .set({ status: "canceled", updatedAt: new Date() })
-        .where(and(eq(agendaTasks.studyForTaskId, input.id), eq(agendaTasks.status, "pending")));
-    await tx.insert(agendaActivityRevisions).values({
-      taskId: input.id,
-      actorId: userId,
-      version: current.version,
-      previous,
-      current,
-    });
-    if (input.status === "done") {
-      await tx.insert(agendaProductEvents).values({ userId, event: "action_completed", count: 1 });
-      if (isPro && previous.recurrence === "weekly" && previous.dueAt && previous.seriesId) {
-        const dueAt = nextWeeklyDate(previous.dueAt);
-        await tx
-          .insert(agendaTasks)
-          .values({
-            profileId: previous.profileId,
-            createdByUserId: userId,
-            assignedToUserId: previous.assignedToUserId,
-            type: previous.type,
-            title: previous.title,
-            description: previous.description,
-            dueAt,
-            time: previous.time,
-            location: previous.location,
-            dateOrigin: "family",
-            recurrence: "weekly",
-            seriesId: previous.seriesId,
-            fingerprint: actionFingerprint({ ...previous, dueAt }),
-            reminderAt: previous.reminderAt
-              ? new Date(previous.reminderAt.valueOf() + 7 * 86400_000)
-              : null,
-          })
-          .onConflictDoNothing({
-            target: [agendaTasks.seriesId, agendaTasks.profileId, agendaTasks.dueAt],
-          });
-      }
-    }
-    return ok({ id: input.id });
+      .set({ status: "canceled", updatedAt: new Date() })
+      .where(and(eq(agendaTasks.studyForTaskId, input.id), eq(agendaTasks.status, "pending")));
+  await tx.insert(agendaActivityRevisions).values({
+    taskId: input.id,
+    actorId: userId,
+    version: current.version,
+    previous,
+    current,
   });
+  if (input.status === "done") {
+    await tx.insert(agendaProductEvents).values({ userId, event: "action_completed", count: 1 });
+    if (isPro && previous.recurrence === "weekly" && previous.dueAt && previous.seriesId) {
+      const dueAt = nextWeeklyDate(previous.dueAt);
+      await tx
+        .insert(agendaTasks)
+        .values({
+          profileId: previous.profileId,
+          createdByUserId: userId,
+          assignedToUserId: previous.assignedToUserId,
+          type: previous.type,
+          title: previous.title,
+          description: previous.description,
+          dueAt,
+          time: previous.time,
+          location: previous.location,
+          dateOrigin: "family",
+          recurrence: "weekly",
+          seriesId: previous.seriesId,
+          fingerprint: actionFingerprint({ ...previous, dueAt }),
+          reminderAt: previous.reminderAt
+            ? new Date(previous.reminderAt.valueOf() + 7 * 86400_000)
+            : null,
+        })
+        .onConflictDoNothing({
+          target: [agendaTasks.seriesId, agendaTasks.profileId, agendaTasks.dueAt],
+        });
+    }
+  }
+  return ok({ id: input.id });
 }

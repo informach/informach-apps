@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import { OfflineBanner } from "@/components/app-shell/offline-banner";
+import { OfflineQueueFlusher } from "@/features/offline-queue/components/offline-queue-flusher";
+import { QueueOwnerProvider } from "@/features/offline-queue/owner";
 import { redirectIfUnauthenticated } from "@/lib/auth";
 
 /**
@@ -14,17 +16,22 @@ import { redirectIfUnauthenticated } from "@/lib/auth";
  * família, não um acesso público.
  */
 export default async function KidLayout({ children }: { children: ReactNode }) {
-  await redirectIfUnauthenticated();
+  const user = await redirectIfUnauthenticated();
   return (
-    <div className="min-h-dvh bg-app-ground">
-      {/* O único elemento de shell que sobrevive aqui: uma criança marcando
+    <QueueOwnerProvider userId={user.id}>
+      <div className="min-h-dvh bg-app-ground">
+        <OfflineQueueFlusher />
+        {/* O único elemento de shell que sobrevive aqui: uma criança marcando
           "feito" sem rede precisa saber que não foi ela que errou.
           Sobreposta, e não no fluxo: o `main` da criança é `min-h-dvh`, e uma
           barra empilhada criaria rolagem numa tela desenhada para não rolar. */}
-      <div className="pointer-events-none fixed inset-x-0 top-0 z-40">
-        <OfflineBanner />
+        <div className="pointer-events-none fixed inset-x-0 top-0 z-40">
+          {/* `manageable={false}`: a barra aqui é sobreposta e sem ponteiro, e a
+            folha de gravações pendentes é conversa de adulto. */}
+          <OfflineBanner manageable={false} />
+        </div>
+        {children}
       </div>
-      {children}
-    </div>
+    </QueueOwnerProvider>
   );
 }

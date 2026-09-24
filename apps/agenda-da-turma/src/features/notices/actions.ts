@@ -1,6 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { action, err } from "@/lib/action";
+import { ROUTINE_PATHS } from "./routine-paths";
 import {
   confirmNoticeSchema,
   discardDraftActionSchema,
@@ -17,8 +18,7 @@ import {
 } from "./service";
 
 function refreshRoutine() {
-  for (const path of ["/dashboard", "/recados", "/calendario", "/atividades"])
-    revalidatePath(path, "layout");
+  for (const path of ROUTINE_PATHS) revalidatePath(path, "layout");
 }
 /**
  * Descartar não mexe em atividade nenhuma: só nos dois lugares que anunciam

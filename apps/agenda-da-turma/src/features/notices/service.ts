@@ -55,12 +55,28 @@ export async function updateNoticeAction(
   const isPro = await billing.hasProSubscription({ type: "user", id: found.ownerUserId });
   return updateNoticeActionAtomically(userId, input, found.ownerUserId, isPro);
 }
+/**
+ * De quem é a atividade, e se a casa é Pro.
+ *
+ * Exportado porque a rota de status da fila offline precisa exatamente disto
+ * antes de gravar. Duas resoluções de titular e de plano divergiriam na
+ * primeira vez que o entitlement mudasse, e a gravação da fila passaria a
+ * aplicar um limite diferente do da tela.
+ */
+export async function resolveTaskWriteContext(userId: string, taskId: string) {
+  const found = await getNoticeAction(userId, taskId);
+  if (!found) return null;
+  return {
+    ownerId: found.ownerUserId,
+    isPro: await billing.hasProSubscription({ type: "user", id: found.ownerUserId }),
+  };
+}
+
 export async function setNoticeActionStatus(
   userId: string,
   input: z.infer<typeof statusNoticeActionSchema>,
 ) {
-  const found = await getNoticeAction(userId, input.id);
-  if (!found) return err({ code: "NOT_FOUND" } as const);
-  const isPro = await billing.hasProSubscription({ type: "user", id: found.ownerUserId });
-  return setNoticeActionStatusAtomically(userId, input, found.ownerUserId, isPro);
+  const context = await resolveTaskWriteContext(userId, input.id);
+  if (!context) return err({ code: "NOT_FOUND" } as const);
+  return setNoticeActionStatusAtomically(userId, input, context.ownerId, context.isPro);
 }

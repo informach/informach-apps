@@ -15,6 +15,9 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { setNoticeStatusAction } from "@/features/notices/actions";
 import { noticeErrorMessage } from "@/features/notices/messages";
+import { submitTaskStatus } from "@/features/offline-queue/client";
+import { QueuedBadge } from "@/features/offline-queue/components/queued-badge";
+import { useQueueOwner } from "@/features/offline-queue/owner";
 import { StudentAvatar } from "@/features/students/components/student-avatar";
 import { getSubjectTintedClassByIndex } from "@/features/subjects/utils";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
@@ -66,6 +69,7 @@ export function UnifiedActivityCard({
   const router = useRouter();
   const view = toActivityView(entry, currentUserId);
   const [error, setError] = useState("");
+  const queueOwner = useQueueOwner();
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [canceling, startCancel] = useTransition();
 
@@ -79,19 +83,29 @@ export function UnifiedActivityCard({
       ? getSubjectTintedClassByIndex(view.subjectColorIndex)
       : presentation.surface;
 
-  const { isDone, isExiting, optimisticallyHidden, pending, handleToggle, retry } = useCardToggle({
-    initialStatus: view.status === "done" ? "done" : "pending",
-    optimisticHideWhenDone: optimisticHideWhenDone && !isCanceled,
-    toggleAction: (next) =>
-      view.toggle
-        ? setNoticeStatusAction({ id: view.toggle.id, version: view.toggle.version, status: next })
-        : Promise.resolve({ ok: false as const, error: { code: "NOT_FOUND" } }),
-    onSuccess: (previousStatus, nextStatus) => {
-      setError("");
-      onStatusSuccess?.(entry, previousStatus, nextStatus);
-    },
-    onError: (actionError) => setError(toggleErrorMessage(actionError)),
-  });
+  const { isDone, isExiting, optimisticallyHidden, pending, queued, handleToggle, retry } =
+    useCardToggle({
+      initialStatus: view.status === "done" ? "done" : "pending",
+      optimisticHideWhenDone: optimisticHideWhenDone && !isCanceled,
+      // Concluir e reabrir passam pela rota idempotente, não pela server action:
+      // é o único caminho que sobrevive a uma rede que sumiu no meio, porque a
+      // chave de idempotência deixa o aparelho repetir sem gravar duas vezes.
+      toggleAction: (next) =>
+        view.toggle
+          ? submitTaskStatus({
+              id: view.toggle.id,
+              version: view.toggle.version,
+              status: next,
+              title: view.title,
+              userId: queueOwner,
+            })
+          : Promise.resolve({ ok: false as const, error: { code: "NOT_FOUND" } }),
+      onSuccess: (previousStatus, nextStatus) => {
+        setError("");
+        onStatusSuccess?.(entry, previousStatus, nextStatus);
+      },
+      onError: (actionError) => setError(toggleErrorMessage(actionError)),
+    });
 
   // O estado otimista manda nos dois sentidos: reabrir precisa devolver o
   // badge de urgência na hora, e não só depois que o servidor responder.
@@ -165,6 +179,7 @@ export function UnifiedActivityCard({
 
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Badge variant={due.variant}>{due.label}</Badge>
+                {queued ? <QueuedBadge className="font-normal" /> : null}
                 {view.estimatedMinutes !== null ? (
                   <span className="inline-flex items-center gap-1.5 rounded-lg border bg-background/60 px-2 py-1 text-xs font-medium">
                     <Timer className="size-3.5" aria-hidden />

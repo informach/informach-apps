@@ -106,6 +106,16 @@ export const AGENDA_RATE_LIMITS = {
    * (foto/voz de um panfleto) e 100/h ainda dá margem.
    */
   PROFILE_SUBJECT_ACTIVITIES_CREATE_PER_HOUR: { limit: 100, windowSeconds: 3600 },
+  /**
+   * Concluir/reabrir atividade por HTTP, inclusive o que sobe da fila offline.
+   *
+   * Mais folgado que os 100/h da server action equivalente de propósito: uma
+   * semana sem rede numa casa com três crianças esvazia dezenas de gravações de
+   * uma vez, e recusar o esvaziamento é perder exatamente o que a fila existe
+   * para não perder. Continua sendo defesa anti-script: 300/h não dá para
+   * varrer a agenda de ninguém.
+   */
+  TASK_STATUS_PER_HOUR: { limit: 300, windowSeconds: 3600 },
 } as const;
 
 /** Stable key generator for the AI invocation limit. */
@@ -121,4 +131,9 @@ export function profileSubjectsCreateKey(userId: string): string {
 /** Stable key generator for extracurricular activity create rate limit. */
 export function profileSubjectActivitiesCreateKey(userId: string): string {
   return `agenda-da-turma.profile-subject-activities.create:user:${userId}`;
+}
+
+/** Stable key generator for the task status endpoint. */
+export function taskStatusKey(userId: string): string {
+  return `agenda-da-turma.tasks.status:user:${userId}`;
 }

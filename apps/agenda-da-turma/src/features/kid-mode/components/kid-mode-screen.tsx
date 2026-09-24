@@ -6,13 +6,13 @@ import { Check, ChevronLeft, ChevronRight, LogOut, PartyPopper } from "lucide-re
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DayClosedIllustration } from "@/components/illustrations";
-import { setNoticeStatusAction } from "@/features/notices/actions";
+import { submitTaskStatus } from "@/features/offline-queue/client";
+import { useQueueOwner } from "@/features/offline-queue/owner";
 import { StudentAvatar } from "@/features/students/components/student-avatar";
 import { getSubjectIcon, getSubjectTintedClassByIndex } from "@/features/subjects/utils";
 import { ACTIVITY_TYPE_LABELS } from "@/features/unified-activities/activity-types";
 import type { ActivityOverviewItem } from "@/features/unified-activities/overview-types";
 import { getActivityPresentation } from "@/features/unified-activities/presentation";
-import { catchActionResult } from "@/lib/action-result";
 
 type Props = {
   profile: { id: string; name: string };
@@ -47,6 +47,7 @@ export function KidModeScreen({ profile, todo }: Props) {
   const [doneIds, setDoneIds] = useState<ReadonlySet<string>>(new Set());
   const [index, setIndex] = useState(0);
   const [error, setError] = useState("");
+  const queueOwner = useQueueOwner();
   /**
    * Trava enquanto a gravação está no ar.
    *
@@ -77,10 +78,18 @@ export function KidModeScreen({ profile, todo }: Props) {
       // ela tinha acabado de pular.
       setError("");
       void (async () => {
-        const result = await catchActionResult(() =>
-          setNoticeStatusAction({ id, version, status: "done" }),
-        );
+        const result = await submitTaskStatus({
+          id,
+          version,
+          status: "done",
+          title: entry.item.title,
+          userId: queueOwner,
+        });
         setSaving(false);
+        // Sem rede a gravação fica na fila do aparelho e isto também é sucesso:
+        // a criança fez, e a decisão está guardada. Quem conta o que ainda não
+        // subiu é a barra sobreposta do `(kid)/layout.tsx` — dizer a mesma coisa
+        // duas vezes na mesma tela não ajuda ninguém.
         if (result.ok) return;
 
         // Devolve a atividade em vez de fingir que deu certo.
@@ -105,7 +114,7 @@ export function KidModeScreen({ profile, todo }: Props) {
         router.refresh();
       })();
     },
-    [saving, router],
+    [saving, router, queueOwner],
   );
 
   // O responsável precisa ver o resultado ao voltar: a rotina dele é server

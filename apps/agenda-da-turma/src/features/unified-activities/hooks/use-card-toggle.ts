@@ -1,7 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { isQueued } from "@/features/offline-queue/client";
+import { listPendingWrites, QUEUE_CHANGED_EVENT } from "@/features/offline-queue/store";
 import { catchActionResult } from "@/lib/action-result";
 
 type Status = "pending" | "done";
@@ -25,7 +27,12 @@ type Args = {
  * - aplica `optimisticStatus` imediato pra feedback visual,
  * - dispara `isExiting` quando o card vai sair do bucket
  *   (`optimisticHideWhenDone`) — o caller usa essa flag pra anim CSS,
- * - chama a Server Action e o exit timer EM PARALELO (`Promise.all`),
+ * - chama a gravação e o exit timer EM PARALELO (`Promise.all`),
+ * - **enfileirado não é gravado**: quando `toggleAction` devolve a marca
+ *   `queued` (a rota não respondeu e a gravação ficou no aparelho), o card
+ *   mantém a decisão, ganha o selo "sobe quando a rede voltar", NÃO sai da
+ *   lista e NÃO chama `router.refresh()` — o servidor não tem nada de novo, e
+ *   buscar de novo traria a versão antiga por cima da decisão da pessoa,
  * - quando ambos terminam: marca `optimisticallyHidden = true` (se for
  *   o caso), notifica o parent e chama `router.refresh()` pra sincronizar
  *   o RSC do parent (KPIs do dashboard, ordenação da lista de atividades),
@@ -64,6 +71,21 @@ export function useCardToggle({
    * um alvo que diga "dá para insistir" em vez de adivinhar.
    */
   const [failedAttempt, setFailedAttempt] = useState<Status | null>(null);
+  /**
+   * A gravação ficou na fila do aparelho em vez de subir.
+   *
+   * O card continua mostrando a decisão da pessoa — ela decidiu —, mas passa a
+   * dizer que aquilo ainda não chegou ao servidor. E não sai da lista: sumir
+   * seria prometer que subiu, e ao recarregar a atividade voltaria pendente sem
+   * explicação nenhuma.
+   */
+  const [queuedKey, setQueuedKey] = useState<string | null>(null);
+  // O `onError` do caller é recriado a cada render; guardá-lo numa ref impede
+  // que a assinatura do evento da fila seja refeita a cada renderização.
+  const onErrorRef = useRef(onError);
+  useEffect(() => {
+    onErrorRef.current = onError;
+  });
 
   // Sync quando o server retorna nova versão do item (refresh()/router push).
   // Reset cobre o caso em que o card "voltou" antes do timer de exit terminar.
@@ -72,12 +94,41 @@ export function useCardToggle({
     setIsExiting(false);
     setOptimisticallyHidden(false);
     setFailedAttempt(null);
+    setQueuedKey(null);
   }, [initialStatus]);
+
+  /**
+   * O selo some quando a gravação resolve — e não na próxima navegação.
+   *
+   * Duas saídas, e confundi-las é o que fazia a decisão da pessoa desaparecer
+   * sem uma palavra: se a entrada SUMIU da fila, ela subiu, e o selo sai calado
+   * (quem busca a versão nova é o `OfflineQueueFlusher`, uma vez para a árvore
+   * inteira, em vez de uma vez por card). Se ela continua lá marcada como
+   * conflito, o servidor recusou: o card volta ao que o servidor diz, mostra o
+   * motivo e vira de novo um alvo para insistir.
+   */
+  useEffect(() => {
+    if (!queuedKey) return;
+    const check = () => {
+      void listPendingWrites().then((entries) => {
+        const entry = entries.find((item) => item.key === queuedKey);
+        if (entry?.state === "pending") return;
+        setQueuedKey(null);
+        if (!entry) return;
+        setOptimisticStatus(initialStatus);
+        setFailedAttempt(entry.status);
+        onErrorRef.current?.({ code: entry.errorCode ?? "VERSION_CONFLICT" });
+      });
+    };
+    window.addEventListener(QUEUE_CHANGED_EVENT, check);
+    return () => window.removeEventListener(QUEUE_CHANGED_EVENT, check);
+  }, [queuedKey, initialStatus]);
 
   const handleToggle = (next: boolean) => {
     const previousStatus = optimisticStatus;
     const nextStatus: Status = next ? "done" : "pending";
     setFailedAttempt(null);
+    setQueuedKey(null);
     setOptimisticStatus(nextStatus);
 
     const willExit = optimisticHideWhenDone && nextStatus === "done";
@@ -107,6 +158,16 @@ export function useCardToggle({
         return;
       }
 
+      // Enfileirado não é gravado. Nada a sincronizar com o servidor — e
+      // `router.refresh()` traria de volta a versão antiga por cima da decisão
+      // que a pessoa acabou de tomar.
+      if (isQueued(result.value)) {
+        setIsExiting(false);
+        setOptimisticallyHidden(false);
+        setQueuedKey(result.value.key);
+        onSuccess?.(previousStatus, nextStatus);
+        return;
+      }
       if (willExit) {
         setOptimisticallyHidden(true);
       }
@@ -120,14 +181,15 @@ export function useCardToggle({
     isExiting,
     optimisticallyHidden,
     pending,
+    queued: queuedKey !== null,
     handleToggle,
     /**
      * Repete a última tentativa que falhou, ou `null` quando não houve falha.
      *
-     * Não é fila offline: nada fica guardado, nada sobe sozinho quando a rede
-     * volta. É só o alvo para insistir, no momento em que a pessoa vê o erro —
-     * o `router.refresh()` da falha já trouxe a versão nova, então a segunda
-     * tentativa não repete um conflito de versão.
+     * Não se confunde com a fila: a fila guarda o que não teve resposta, e este
+     * alvo existe para quando a resposta veio e foi uma recusa — conflito de
+     * versão, limite do plano. O `router.refresh()` da falha já trouxe a versão
+     * nova, então a segunda tentativa não repete o mesmo conflito.
      */
     retry: failedAttempt === null ? null : () => handleToggle(failedAttempt === "done"),
   };
