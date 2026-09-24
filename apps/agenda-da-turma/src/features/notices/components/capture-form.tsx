@@ -12,7 +12,6 @@ import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { handleAiHttpError } from "@/features/ai/_http-errors";
 import { todayLocalIso } from "@/features/dashboard/date";
-import { markInboxMessageUsedAction } from "@/features/inbox/actions";
 import { createStudentProfileAction } from "@/features/students/actions";
 import type { SubjectOptionsByProfile } from "@/features/subjects/options-service";
 import { catchActionResult } from "@/lib/action-result";
@@ -108,7 +107,6 @@ export function CaptureForm({
   defaultSource = "teams",
   defaultText = "",
   defaultAttachment,
-  inboxMessageId,
 }: {
   profiles: RoutineProfile[];
   adults: AssignableAdult[];
@@ -140,7 +138,6 @@ export function CaptureForm({
    * Vai junto com a confirmação: ao salvar, a mensagem sai de "Chegou por
    * e-mail" e passa a apontar para o recado que nasceu dela.
    */
-  inboxMessageId?: string;
   initialNotice?: {
     id: string;
     profileId: string;
@@ -579,10 +576,6 @@ export function CaptureForm({
       setNoticeConfirmed(result.data.alreadyConfirmed);
       // A mensagem encaminhada cumpriu o papel: quem acompanha daqui em diante
       // é o card de rascunhos, e a mesma pendência não fica em duas listas.
-      if (inboxMessageId)
-        void catchActionResult(() =>
-          markInboxMessageUsedAction({ id: inboxMessageId, noticeId: result.data.noticeId }),
-        );
       setWarnings(result.data.extraction.warnings);
       setDrafts(
         result.data.extraction.actions.map(({ id, ...item }) => ({

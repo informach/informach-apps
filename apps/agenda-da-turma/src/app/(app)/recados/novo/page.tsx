@@ -3,7 +3,6 @@ import { z } from "zod";
 import { getIsProForUser } from "@/features/billing/server-cache";
 import { listAccessibleProfiles } from "@/features/family/access";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
-import { findInboxMessageForCapture } from "@/features/inbox/repository";
 import { CaptureForm } from "@/features/notices/components/capture-form";
 import { listAssignableAdults } from "@/features/notices/repository";
 import { type DraftExtraction, noticeSourceSchema } from "@/features/notices/schemas";
@@ -38,7 +37,6 @@ export default async function NewNoticePage({
     origem?: string;
     modo?: string;
     texto?: string;
-    email?: string;
   }>;
 }) {
   const user = await requireUserServer();
@@ -66,9 +64,6 @@ export default async function NewNoticePage({
    * anexo, e vira recado só quando a pessoa escolhe a criança e manda ler.
    * Encaminhar não consome crédito; organizar é que consome.
    */
-  let inboxMessage: Awaited<ReturnType<typeof findInboxMessageForCapture>> = null;
-  if (params.email && z.string().uuid().safeParse(params.email).success)
-    inboxMessage = await findInboxMessageForCapture(user.id, params.email);
   /*
    * `?retomar=` que não resolve não derruba a tela.
    *
@@ -124,17 +119,11 @@ export default async function NewNoticePage({
          * levando junto o que a pessoa tivesse escrito à mão. Pelos
          * parâmetros, a tela continua a mesma enquanto a URL for a mesma.
          *
-         * `email` e `texto` entram na chave porque `defaultText` e
-         * `defaultAttachment` são lidos só como estado INICIAL: numa navegação
-         * de cliente entre duas mensagens da caixa, sem remontagem, o conteúdo
-         * da primeira ficaria na tela enquanto o identificador apontaria para a
-         * segunda — e marcar como usada ligaria a segunda a um recado feito do
-         * texto da primeira.
+         * `texto` entra na chave porque `defaultText` é lido só como estado
+         * INICIAL: numa navegação de cliente entre duas URLs de texto colado,
+         * sem remontagem, o conteúdo da primeira ficaria na tela.
          */
-        key={
-          [params.retomar, params.email, params.texto ? "colado" : ""].filter(Boolean).join("|") ||
-          "new"
-        }
+        key={[params.retomar, params.texto ? "colado" : ""].filter(Boolean).join("|") || "new"}
         profiles={profiles.map((p) => ({ id: p.id, name: p.name }))}
         adults={adults}
         subjectOptions={subjectOptions}
@@ -145,19 +134,7 @@ export default async function NewNoticePage({
         initialNotice={initialNotice}
         captureMode={captureMode}
         defaultProfileId={params.perfil}
-        defaultText={
-          inboxMessage
-            ? [inboxMessage.subject, inboxMessage.text].filter(Boolean).join("\n\n")
-            : typeof params.texto === "string"
-              ? params.texto.slice(0, 4000)
-              : undefined
-        }
-        defaultAttachment={
-          inboxMessage?.attachmentData && inboxMessage.attachmentName
-            ? { name: inboxMessage.attachmentName, dataUrl: inboxMessage.attachmentData }
-            : undefined
-        }
-        inboxMessageId={inboxMessage?.id}
+        defaultText={typeof params.texto === "string" ? params.texto.slice(0, 4000) : undefined}
         defaultSource={noticeSourceSchema.catch("teams").parse(params.origem)}
       />
     </main>

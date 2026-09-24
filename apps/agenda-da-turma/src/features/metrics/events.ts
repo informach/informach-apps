@@ -33,8 +33,6 @@ export const productEventSchema = z
       // o estado real da entrega. Um segundo contador aqui discordaria dele no
       // primeiro reenvio.
       "subject_kit_saved",
-      "inbox_message_received",
-      "inbox_message_used",
       // Quantas conclusões chegaram DEPOIS, pela fila do aparelho. É a única
       // medida de que a fila serve para alguma coisa: `action_completed` conta
       // a conclusão, e não distingue a que subiu na hora da que esperou a rede.

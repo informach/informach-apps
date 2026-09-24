@@ -13,7 +13,6 @@ import {
 import { TomorrowBackpackSection } from "@/features/dashboard/components/tomorrow-backpack-section";
 import { isEveningInApp } from "@/features/dashboard/date";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
-import { InboxSection } from "@/features/inbox/components/inbox-section";
 import { PendingDraftsSection } from "@/features/notices/components/pending-drafts-section";
 import { CommitmentWidget } from "@/features/notifications/components/commitment-widget";
 import { getNotificationPreferences } from "@/features/notifications/service";
@@ -116,12 +115,6 @@ export default async function DashboardPage({ searchParams }: Props) {
       </Suspense>
       <Suspense fallback={null}>
         <PendingDraftsSection userId={user.id} />
-      </Suspense>
-      {/* Encaminhado por e-mail e ainda não organizado: mesma família de
-          pendências do card acima, com a diferença de que aqui nada foi lido
-          nem cobrado ainda. */}
-      <Suspense fallback={null}>
-        <InboxSection userId={user.id} />
       </Suspense>
       {shouldAskForCommitment ? (
         <CommitmentWidget

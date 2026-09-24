@@ -48,7 +48,7 @@ As lacunas eram de **fluxo**, não de recurso:
 | Matéria sem saída | "Nenhuma matéria cadastrada" era um campo desabilitado, sem link para cadastrar. |
 | Compartilhar desmarcado | A caixa "compartilhar com a turma" nascia vazia; na prática ninguém compartilhava. |
 | Só resumo diário | Nada dizia "o que vem nesta semana" — a hora em que uma família se organiza. |
-| Entrada só por cópia | Sem alvo de compartilhamento do sistema, sem e-mail, sem importar conversa do WhatsApp. |
+| Entrada só por cópia | Sem alvo de compartilhamento do sistema, sem importar conversa do WhatsApp. |
 | Começo sem trilha | Três avisos apareciam e sumiam sozinhos, sem dizer quantos passos faltavam. |
 | Sem planejamento | Lembrete só sob toque, nenhum plano de estudo, nenhuma noção de dia cheio. |
 | Sem fila offline | Marcar "feito" sem rede simplesmente falhava, e a intenção era descartada. |
@@ -59,7 +59,9 @@ As lacunas eram de **fluxo**, não de recurso:
 
 **Agendas digitais brasileiras são B2B.** ClipEscola, Agenda Edu, HUB Agenda e Kid Note vendem para a escola, e quem publica é a escola. A família recebe. Isso define o espaço: a Agenda da Turma não compete com elas — ela existe porque a escola de muita gente **não** usa nenhuma delas, e o recado chega por WhatsApp, Teams, papel e foto.
 
-**Organizadores familiares com IA convergiram em duas coisas.** Sense, Nori, Calendara, Skylight e Nuet chegaram, por caminhos diferentes, à mesma dupla: **entrada sem digitação** (foto, encaminhar e-mail, voz) e **um momento de planejamento no domingo**. Não é coincidência; é o formato que a rotina familiar impõe.
+**Organizadores familiares com IA convergiram em duas coisas.** Sense, Nori, Calendara, Skylight e Nuet chegaram, por caminhos diferentes, à mesma dupla: **entrada sem digitação** e **um momento de planejamento no domingo**. Não é coincidência; é o formato que a rotina familiar impõe.
+
+**Mas convergência de mercado não é evidência de campo.** Esses produtos apostam em "encaminhe o e-mail", e foi daí que saiu um lote inteiro desta proposta. Na escola real das famílias que usam a Agenda, tarefa não chega por e-mail: o canal serve a assunto administrativo e financeiro, e quem trata de tarefa não usa e-mail. O recurso foi construído e removido, e a lição fica registrada aqui.
 
 **O grupo de WhatsApp da escola é o problema por baixo do problema.** A literatura de 2026 sobre grupos escolares — no Brasil e o trabalho de Marc Rodríguez — descreve sempre o mesmo quadro: mensagem de última hora, checagem compulsiva, carga mental distribuída de forma desigual dentro de casa. O que os pais pedem não é mais notificação. É **uma fonte confiável que se olha uma vez por dia**.
 
@@ -101,11 +103,11 @@ Mais **"Levar sempre"** por matéria, tênis na educação física e flauta na m
 
 O manifesto passou a declarar alvo de compartilhamento: compartilhar do sistema abre a revisão com o conteúdo já lá, guardado no aparelho pelo service worker. Exportação do WhatsApp em texto, com seletor de mensagens — **só o que a pessoa marca vai para a leitura**, porque a conversa tem coisas de outras famílias. Várias fotos viram um PDF no navegador, e não três importações cobradas em separado. E um aviso quando o documento identifica claramente a série de outra criança da casa.
 
-### Lote 5 — Recado por e-mail
+### Lote 5 — Recado por e-mail, construído e removido
 
-A família ganha um endereço só dela e encaminha o e-mail da escola. O que chega espera em "Chegou por e-mail": **nada é lido por IA e nada é cobrado** até a pessoa escolher a criança e mandar organizar. Sem isso, quem descobrisse o endereço esvaziaria os créditos da casa. O token vive em hash, é girável e revogável; do remetente ficam só hash e domínio.
+A família ganharia um endereço só dela para encaminhar o e-mail da escola. Existiu inteiro, com endereço em hash, webhook, caixa no painel e retenção, e saiu antes de ser ligado.
 
-Falta o passo operacional, fora do alcance do agente: registro MX do subdomínio, configuração do Inbound Parse no SendGrid e duas variáveis no Railway. Até lá a tela diz "em ativação".
+**A premissa estava errada.** A ideia veio da convergência do mercado, não da escola destas famílias. Ali tarefa não chega por e-mail, e o recurso cobraria um registro MX, um serviço externo e uma superfície de entrada nova para resolver um problema que ninguém tem. O código está no histórico do git; o que falta para repor não é implementação, é uma escola que mande tarefa por e-mail.
 
 ### Lote 6 — Fila offline de conclusão
 
@@ -119,7 +121,9 @@ Esta proposta, o registro de implementação, a atualização do guia do app e u
 
 ## 5. O que deliberadamente não foi feito
 
-**Conectores automáticos para Teams e Batista ID.** Dependem de conta institucional autorizada, aplicação Microsoft registrada e credenciais que não existem. Não há como construir sem esse acesso, e prometer sincronização que não acontece é pior do que não prometer. A entrada por e-mail, o compartilhamento do sistema e a exportação do WhatsApp cobrem o caminho até lá.
+**Conectores automáticos para Teams e Batista ID.** Dependem de conta institucional autorizada, aplicação Microsoft registrada e credenciais que não existem. Não há como construir sem esse acesso, e prometer sincronização que não acontece é pior do que não prometer. O compartilhamento do sistema e a exportação do WhatsApp cobrem o caminho até lá.
+
+**Recado por e-mail.** Construído e removido no mesmo dia, pelo motivo acima. Fica na lista porque a decisão vale mais registrada do que esquecida.
 
 **Escrita no Railway, no DNS e no SendGrid.** Fora do alcance do agente por decisão registrada. Ficaram documentadas como passos operacionais.
 
@@ -139,7 +143,7 @@ Nenhuma destas métricas guarda conteúdo escolar, nome de criança ou identidad
 | --- | --- |
 | A leitura chega com a matéria certa? | Casamento automático de matéria sobre o total de ações da importação, contra as pistas que não casaram. |
 | A pessoa conserta menos à mão? | Queda na edição de matéria logo após a confirmação de um recado. |
-| A entrada ficou mais fácil? | Uso do compartilhamento do sistema, da exportação do WhatsApp, e a razão entre mensagens recebidas por e-mail e mensagens aproveitadas. |
+| A entrada ficou mais fácil? | Uso do compartilhamento do sistema e da exportação do WhatsApp, contra a digitação à mão. |
 | O começo deixou de ser deserto? | Conclusão dos quatro primeiros passos, contra quantas famílias dispensam a trilha. |
 | A rotina passou a ser planejada? | Planos de estudo criados e entregas do resumo semanal. |
 | A fila serve para alguma coisa? | Conclusões que só chegaram depois, quando a rede voltou. |
@@ -155,5 +159,4 @@ O último item é o mais importante e o mais fácil de ler ao contrário. Um app
 2. Reimportar conteúdo descartado recupera o rascunho sem nova cobrança.
 3. As dez atividades do cartaz são todas desejadas — "Grupo 1" e "Grupo 2" são lotes sequenciais válidos para toda criança.
 4. Compartilhar por padrão só no Pro, com matéria da turma, prazo da escola, nunca origem de caderno.
-5. O endereço de e-mail é de todo plano, com tetos; o que custa crédito é a leitura.
-6. Plano de estudo e carga da semana são determinísticos, sem IA e sem crédito.
+5. Plano de estudo e carga da semana são determinísticos, sem IA e sem crédito.

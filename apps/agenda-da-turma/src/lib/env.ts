@@ -51,16 +51,6 @@ export const env = createEnv({
      */
     OPENROUTER_API_KEY: z.string().min(1).optional(),
     AGENDA_TRIAL_DAILY_BUDGET: z.coerce.number().int().min(1).max(10000).default(100),
-    /**
-     * Domínio que recebe recado por e-mail (`recados+<token>@<domínio>`).
-     *
-     * Opcional: sem ele a feature simplesmente não existe na interface, em vez
-     * de existir e falhar. Depende de MX apontado para o SendGrid e de um
-     * Inbound Parse configurado — ver o guia do app, §8.
-     */
-    INBOUND_EMAIL_DOMAIN: z.string().min(3).optional(),
-    /** `usuario:senha` do Basic Auth que o Inbound Parse envia na URL. */
-    INBOUND_EMAIL_BASIC_AUTH: z.string().min(8).optional(),
     VAPID_PUBLIC_KEY: z.string().min(1).optional(),
     VAPID_PRIVATE_KEY: z.string().min(1).optional(),
     /** Atribuição opcional para o leaderboard do OpenRouter (header HTTP-Referer). */
@@ -104,8 +94,6 @@ export const env = createEnv({
     STRIPE_MODE: process.env.STRIPE_MODE,
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
     AGENDA_TRIAL_DAILY_BUDGET: process.env.AGENDA_TRIAL_DAILY_BUDGET,
-    INBOUND_EMAIL_DOMAIN: process.env.INBOUND_EMAIL_DOMAIN,
-    INBOUND_EMAIL_BASIC_AUTH: process.env.INBOUND_EMAIL_BASIC_AUTH,
     VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY,
     VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY,
     OPENROUTER_HTTP_REFERER: process.env.OPENROUTER_HTTP_REFERER,

@@ -103,23 +103,17 @@ A turma errada escolhida por ordem de ano em vez do `activeTurmaId` do perfil. A
 
 ---
 
-## Lote 5 — Recado por e-mail
+## Lote 5 — Recado por e-mail, construído e removido
 
-**Migração 0060** — `agenda.inbox_addresses` (espelho do feed de calendário) e `agenda.inbox_messages`.
+Feito inteiro e retirado no mesmo dia, antes de ser ligado. Fica registrado porque a lição é sobre a pesquisa, não sobre o código.
 
-**O endereço deposita, não lê.** Por isso pode circular num grupo de escola sem virar chave de acesso. O token vive em hash, é mostrado inteiro só quando nasce, é girável e revogável. Girar **revoga**, não apaga: uma mensagem que chegar no antigo encontra a linha e é recusada em silêncio, em vez de cair na caixa de outra família por reaproveitamento de token.
+**O que existia.** Migração 0060 com `agenda.inbox_addresses` e `agenda.inbox_messages`, endereço `recados+<token>@...` com token em hash, girável e revogável, webhook do SendGrid Inbound Parse com Basic Auth, caixa no painel, retenção de 30 dias, e a regra de que nada é lido por IA nem cobrado até a pessoa escolher a criança. A revisão do lote encontrou nove achados e todos foram corrigidos.
 
-**Nada é lido por IA e nada é cobrado** até a pessoa escolher a criança e mandar organizar.
+**Por que saiu.** A ideia veio da convergência do mercado: Sense, Nori, Calendara e afins apostam em "encaminhe o e-mail". Na escola real das famílias que usam a Agenda, **tarefa não chega por e-mail**. O canal serve a assunto administrativo e financeiro — atestado, boleto, secretaria — e quem trata de tarefa não usa e-mail. O recurso resolvia um problema que essas famílias não têm, e cobrava por isso um registro MX, um serviço externo e uma superfície de entrada nova.
 
-**O contrato do webhook é o status.** **200 quando a recusa é de negócio** — endereço desconhecido, caixa cheia, limite de frequência —, porque reentregar o que já foi recusado só repete. **500 quando a falha é nossa** (banco, Redis), porque aí a reentrega do SendGrid é a única chance de o recado não se perder.
+**Como saiu.** Migração 0062 derruba as duas tabelas, e o código foi removido por inteiro: feature, webhook, seções do painel, variáveis de ambiente e as duas métricas. Para a frente, como toda migração daqui — a 0060 fica no histórico. A queda é segura porque as tabelas nunca receberam linha: a feature dependia de um MX que nunca existiu.
 
-**Limitação conhecida:** o Inbound Parse entrega os campos no charset do original e `formData()` decodifica como UTF-8. Um remetente em ISO-8859-1 chega com acento trocado, e não há recuperação depois da decodificação.
-
-### Achados da revisão do lote 5 (nove, todos corrigidos)
-
-O filtro de tipo do anexo rodava **fora** do laço, então a assinatura da escola como primeiro anexo descartava em silêncio o PDF do comunicado logo atrás. Falha nossa respondia 200 e engolia o e-mail. O balde de frequência era chaveado pelo destinatário cru, que quem manda escolhe. O teto da caixa era advisory, e duas entregas simultâneas passavam as duas. Um PDF de quatro páginas vindo por e-mail não mostrava o seletor de páginas e era recusado no envio. Reabrir a mensagem depois da leitura mostrava formulário vazio. E um server action com nome de hook quebrava as regras de hook do lint.
-
-A revisão também expôs uma violação de arquitetura **anterior** ao lote: `study-plan` e `subject-kits` nasceram falando direto com o banco, contra a regra "serviços usam repositório". As duas ganharam `repository.ts` próprio.
+**Não repor sem evidência de campo.** O código está nos commits `86d79e2` e `86530bf`. O que falta não é implementação, é uma escola que mande tarefa por e-mail.
 
 ---
 
@@ -143,20 +137,14 @@ A chave é composta com o dono porque, fosse `key` sozinha a chave primária, ad
 
 **O service worker avisa, não envia.** O evento `sync` com a marca `agenda-flush` manda um recado às janelas abertas. Enviar dali obrigaria a repetir no worker a sessão, a chave e a leitura da resposta, e duas cópias dessa decisão é o tipo de divergência que faz uma conclusão sumir. O preço é conhecido: sem janela aberta, a fila espera o app abrir.
 
-**Retenção de sete dias** para os recibos, no mesmo job que já varre a caixa de e-mail e os anexos vencidos.
+**Retenção de sete dias** para os recibos, no mesmo job que já varre os anexos vencidos.
 
 ---
 
 ## Pendências operacionais
 
-Fora do alcance do agente. Nenhuma delas bloqueia o resto do branch.
+Nenhuma delas bloqueia o resto do branch.
 
-**1. Ativar a caixa de e-mail.** O código está pronto e desligado: sem `INBOUND_EMAIL_DOMAIN` a interface diz "em ativação" e o webhook responde 503.
+**1. Aplicar as migrações antes do deploy do app.** As migrações 0057 a 0061 são aditivas e a 0062 derruba duas tabelas que nunca receberam linha, e o `/api/ready` já é o portão: banco atrás do build devolve 503 e a instância nova não recebe tráfego. O migrator é um service separado e não tem `watchPatterns`, então ele redeploya a cada push.
 
-1. MX do subdomínio escolhido apontando para `mx.sendgrid.net`.
-2. Inbound Parse no SendGrid para esse domínio, apontando para `https://agenda-da-turma.informach.com.br/api/webhooks/email-inbound`, com **"POST the raw, full MIME message" DESLIGADO** — o handler lê os campos já separados — e credenciais de Basic Auth na URL.
-3. `INBOUND_EMAIL_DOMAIN` e `INBOUND_EMAIL_BASIC_AUTH` (formato `usuario:senha`) no service do Railway. As duas já estão em `turbo.json` `tasks.build.env`.
-
-**2. Aplicar as migrações antes do deploy do app.** As migrações 0057 a 0061 são todas aditivas, e o `/api/ready` já é o portão: banco atrás do build devolve 503 e a instância nova não recebe tráfego. O migrator é um service separado e não tem `watchPatterns`, então ele redeploya a cada push.
-
-**3. Nenhum cron novo.** A retenção dos recibos e a varredura da caixa de e-mail entraram no job que já existe.
+**2. Nenhum cron novo.** A retenção dos recibos entrou no job que já existe.

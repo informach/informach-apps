@@ -435,6 +435,13 @@
       "when": 1790251619814,
       "tag": "0061_agenda_idempotent_writes",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1790256688007,
+      "tag": "0062_drop_agenda_email_inbox",
+      "breakpoints": true
     }
   ]
 }
