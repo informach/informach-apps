@@ -9,7 +9,11 @@
  * montar aqui evita subir três arquivos para depois juntar.
  */
 export const MAX_PHOTOS = 3;
-/** O servidor recusa acima de 5 MB; a folga cobre o overhead do base64. */
+/**
+ * O servidor recusa anexo acima de 5 MB, medido nos bytes decodificados. A
+ * folga é para o PDF crescer um pouco na montagem, não para o base64 — esse
+ * infla o `dataUrl`, e o limite do route handler já conta com isso.
+ */
 const MAX_PDF_BYTES = 4.6 * 1024 * 1024;
 const MAX_EDGE = 1600;
 
@@ -56,8 +60,12 @@ export async function buildPdfFromPhotos(photos: readonly Photo[]): Promise<Phot
     }
     const bytes = await pdf.save();
     if (bytes.byteLength <= MAX_PDF_BYTES) {
+      // Em blocos: concatenar caractere a caractere sobre ~4,6 milhões de
+      // bytes trava a interface no telefone, que é exatamente onde a foto é
+      // tirada.
       let binary = "";
-      for (const byte of bytes) binary += String.fromCharCode(byte);
+      for (let offset = 0; offset < bytes.length; offset += 8192)
+        binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192));
       return {
         name: `recado-${photos.length}-fotos.pdf`,
         dataUrl: `data:application/pdf;base64,${btoa(binary)}`,

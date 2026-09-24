@@ -101,11 +101,16 @@ export async function parseNotice(userId: string, input: z.infer<typeof parseNot
     const currentYear = todayLocalIso(now).slice(0, 4);
     // Série da criança escolhida e das outras da casa, sem nome de ninguém: a
     // leitura avisa quando o documento é claramente de outra turma.
-    const turmas = await listTurmasForUser(userId);
-    const turmaLabel =
-      turmas.find((t) => t.members.some((m) => m.profileId === profile.id)) ?? null;
+    //
+    // Pelo `ownerId`, não por quem está importando: um segundo adulto convidado
+    // não é dono de perfil nenhum, e a lista voltaria vazia para ele.
+    // E pela turma ATIVA de cada criança: `listTurmasForUser` traz também as de
+    // anos anteriores, então pegar a primeira mandava a turma de 2025 e fazia
+    // a leitura avisar "outra série" em todo documento correto.
+    const turmas = await listTurmasForUser(ownerId);
+    const activeTurma = turmas.find((t) => t.id === profile.activeTurmaId) ?? null;
     const otherTurmaLabels = turmas
-      .filter((t) => t.members.length && !t.members.some((m) => m.profileId === profile.id))
+      .filter((t) => t.id !== profile.activeTurmaId && t.members.some((m) => m.isActive))
       .map((t) => formatTurmaShort(t));
     if (!isPro) await grantNoticeTrialCredits(ownerId, "base");
     const out = await runBillableAgentCall<{ extraction: StoredExtraction; usage?: unknown }>({
@@ -127,7 +132,7 @@ export async function parseNotice(userId: string, input: z.infer<typeof parseNot
             runId,
             subjectNames,
             currentYear,
-            turmaLabel: turmaLabel ? formatTurmaShort(turmaLabel) : null,
+            turmaLabel: activeTurma ? formatTurmaShort(activeTurma) : null,
             otherTurmaLabels,
           });
           if (!extraction.actions.length) throw new Error("NO_ACTIONS");

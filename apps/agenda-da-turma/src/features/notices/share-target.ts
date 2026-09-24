@@ -32,8 +32,23 @@ function openShareDb(): Promise<IDBDatabase> {
   });
 }
 
+/**
+ * A leitura é destrutiva, então o resultado fica guardado no módulo.
+ *
+ * O StrictMode monta, desmonta e monta de novo: a primeira chamada consumiria o
+ * registro e o descartaria, e a segunda não acharia nada — o compartilhamento
+ * morria em desenvolvimento e em qualquer remontagem de verdade. Guardar a
+ * promessa faz as duas chamadas verem o mesmo conteúdo.
+ */
+let pending: Promise<SharedPayload | null> | null = null;
+
 /** Devolve o compartilhamento pendente e o remove. Null quando não há. */
-export async function takeSharedPayload(now = Date.now()): Promise<SharedPayload | null> {
+export function takeSharedPayload(now = Date.now()): Promise<SharedPayload | null> {
+  pending ??= readSharedPayload(now);
+  return pending;
+}
+
+async function readSharedPayload(now: number): Promise<SharedPayload | null> {
   if (typeof indexedDB === "undefined") return null;
   try {
     const db = await openShareDb();

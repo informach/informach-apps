@@ -54,14 +54,19 @@ test("bringing a recado in without copying: WhatsApp export and the share fallba
     // A conversa exportada vira uma lista para escolher — e só o escolhido
     // chega ao campo de texto. O grupo inteiro nunca sai do navegador.
     await page.goto("/recados/novo");
-    await page.locator("#notice-file").setInputFiles({
-      name: "Conversa do WhatsApp com Turma.txt",
-      mimeType: "text/plain",
-      buffer: Buffer.from(CONVERSA, "utf8"),
-    });
-    await expect(
-      page.getByRole("heading", { name: "Escolha as mensagens do recado", exact: true }),
-    ).toBeVisible();
+    // Escolher o arquivo antes de o React assumir o formulário perde o evento:
+    // o `change` é disparado num input que ainda não tem ouvinte. Uma pessoa
+    // leva segundos no seletor do sistema e nunca cai nisso; o teste cai.
+    await expect(async () => {
+      await page.locator("#notice-file").setInputFiles({
+        name: "Conversa do WhatsApp com Turma.txt",
+        mimeType: "text/plain",
+        buffer: Buffer.from(CONVERSA, "utf8"),
+      });
+      await expect(
+        page.getByRole("heading", { name: "Escolha as mensagens do recado", exact: true }),
+      ).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
     await page.getByText("Prova de Ciências em 02/10/2026.", { exact: false }).click();
     await page.getByRole("button", { name: "Usar 1 mensagem", exact: true }).click();
 

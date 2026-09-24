@@ -13,6 +13,7 @@
 export type WhatsAppMessage = {
   /** "YYYY-MM-DD" da mensagem, quando a linha traz data válida. */
   dateIso: string | null;
+  /** Sempre em 24 horas, mesmo quando a exportação veio com AM/PM. */
   time: string | null;
   author: string | null;
   text: string;
@@ -22,12 +23,20 @@ export type WhatsAppMessage = {
  * iOS: `[27/09/2026, 18:43:34] Fulano: mensagem`
  * Android: `27/09/2026 18:43 - Fulano: mensagem`
  *
- * O ano com dois dígitos aparece nos dois: `27/09/26`.
+ * O ano com dois dígitos aparece nos dois (`27/09/26`), e exportações em
+ * inglês trazem `6:43 PM`.
  */
 const HEADER =
-  /^‎?\[?(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4}),?\s+(\d{1,2}:\d{2})(?::\d{2})?\s*(?:[AaPp]\.?[Mm]\.?)?\]?\s*(?:-\s*)?(.*)$/;
+  /^‎?\[?(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4}),?\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*([AaPp])?\.?[Mm]?\.?\]?\s*(?:-\s*)?(.*)$/;
 
-/** Linhas que o WhatsApp escreve sozinho: não são recado de ninguém. */
+/**
+ * Linhas que o WhatsApp escreve sozinho.
+ *
+ * Só valem quando a linha **não tem autor** — system lines não trazem
+ * "Nome: " antes do texto. Procurar estas palavras dentro de qualquer mensagem
+ * descartaria recado de verdade: "a coordenação adicionou uma atividade extra"
+ * sumia sem a família sequer saber que ele existia.
+ */
 const SYSTEM_MARKERS = [
   "as mensagens e as chamadas são protegidas",
   "messages and calls are end-to-end encrypted",
@@ -43,7 +52,7 @@ const SYSTEM_MARKERS = [
   "esta mensagem foi apagada",
   "você foi adicionado",
 ];
-/** Anexo não exportado: a linha existe, o arquivo não. */
+/** Anexo não exportado: a linha existe, o arquivo não. Sempre no começo do texto. */
 const ATTACHMENT_MARKERS = ["<anexado:", "<attached:", "arquivo de mídia oculto", "media omitted"];
 
 function toIso(day: string, month: string, year: string): string | null {
@@ -56,34 +65,57 @@ function toIso(day: string, month: string, year: string): string | null {
   return Number.isNaN(parsed.valueOf()) || parsed.toISOString().slice(0, 10) !== iso ? null : iso;
 }
 
-const isNoise = (text: string) => {
+/** "6:43" + "P" vira "18:43": o horário na tela precisa ser o horário do recado. */
+function toClock(hour: string, minute: string, meridiem: string | undefined): string {
+  let h = Number(hour);
+  if (meridiem) {
+    const afternoon = meridiem.toLowerCase() === "p";
+    if (afternoon && h < 12) h += 12;
+    if (!afternoon && h === 12) h = 0;
+  }
+  return `${String(h).padStart(2, "0")}:${minute}`;
+}
+
+function isNoise(text: string, author: string | null): boolean {
   const lower = text.toLowerCase();
-  return (
-    SYSTEM_MARKERS.some((marker) => lower.includes(marker)) ||
-    ATTACHMENT_MARKERS.some((marker) => lower.includes(marker))
-  );
-};
+  if (ATTACHMENT_MARKERS.some((marker) => lower.startsWith(marker))) return true;
+  return author === null && SYSTEM_MARKERS.some((marker) => lower.includes(marker));
+}
 
 export function parseWhatsAppExport(content: string, options: { limit?: number } = {}) {
   const limit = options.limit ?? 2000;
   const messages: WhatsAppMessage[] = [];
+  // A mensagem atual foi descartada: as continuações dela também vão fora. Sem
+  // isto, a legenda de uma foto não exportada grudava na mensagem anterior — e
+  // ia para a leitura atribuída à pessoa errada.
+  let suppressed = false;
   for (const rawLine of content.split(/\r?\n/)) {
     const line = rawLine.replace(/‎|‏/g, "");
     const header = HEADER.exec(line);
     if (!header) {
+      if (suppressed) continue;
       // Continuação da mensagem anterior: o WhatsApp quebra linha sem repetir
       // o cabeçalho, e perder isso cortaria o recado no meio.
       const last = messages[messages.length - 1];
       if (last && line.trim()) last.text = `${last.text}\n${line.trim()}`.slice(0, 4000);
       continue;
     }
-    const [, day, month, year, time, rest = ""] = header;
-    if (!day || !month || !year || !time) continue;
+    const [, day, month, year, hour, minute, meridiem, rest = ""] = header;
+    if (!day || !month || !year || !hour || !minute) continue;
+    suppressed = false;
     const separator = rest.indexOf(": ");
     const author = separator > 0 ? rest.slice(0, separator).trim() : null;
     const text = (separator > 0 ? rest.slice(separator + 2) : rest).trim();
-    if (!text || isNoise(text)) continue;
-    messages.push({ dateIso: toIso(day, month, year), time, author, text });
+    if (!text || isNoise(text, author)) {
+      suppressed = true;
+      continue;
+    }
+    messages.push({
+      dateIso: toIso(day, month, year),
+      time: toClock(hour, minute, meridiem),
+      author,
+      text,
+    });
     if (messages.length >= limit) break;
   }
   return messages;

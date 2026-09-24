@@ -86,7 +86,9 @@ export function WhatsAppPicker({
       <div className="flex flex-wrap gap-3">
         <Button
           disabled={busy || picked.size === 0}
-          onClick={() => onUse([...picked].sort((a, b) => a - b).map((i) => ordered[i]!))}
+          // De volta à ordem da conversa: a retificação de quarta precisa ser
+          // lida DEPOIS do recado de segunda que ela corrige.
+          onClick={() => onUse([...picked].sort((a, b) => b - a).map((i) => ordered[i]!))}
         >
           Usar {picked.size === 1 ? "1 mensagem" : `${picked.size} mensagens`}
         </Button>

@@ -43,6 +43,30 @@ describe("parseWhatsAppExport", () => {
     expect(messages).toHaveLength(1);
     expect(messages[0]?.text).toBe("Prova na sexta.");
   });
+  it("keeps a recado that merely contains a system word", () => {
+    // "adicionou" e "removeu" aparecem em recado de verdade. Só contam como
+    // linha do sistema quando a linha não tem autor.
+    const real = `26/09/2026 07:05 - Coordenação: A coordenação adicionou uma atividade extra na sexta.
+26/09/2026 07:06 - Profa: A professora removeu a página 12 da lista.
+26/09/2026 07:07 - Fulano adicionou Beltrano`;
+    expect(parseWhatsAppExport(real).map((m) => m.author)).toEqual(["Coordenação", "Profa"]);
+  });
+  it("drops the continuation lines of a dropped message", () => {
+    const withCaption = `26/09/2026 07:04 - Profa: Prova na sexta.
+26/09/2026 07:05 - Profa: <anexado: IMG-0001.jpg>
+Legenda da foto que não veio
+26/09/2026 07:06 - Profa: Levar régua.`;
+    const messages = parseWhatsAppExport(withCaption);
+    expect(messages).toHaveLength(2);
+    // Sem isto, a legenda grudava na mensagem anterior, atribuída a quem não a escreveu.
+    expect(messages[0]?.text).toBe("Prova na sexta.");
+    expect(messages[1]?.text).toBe("Levar régua.");
+  });
+  it("normalises a 12-hour export to the clock the family reads", () => {
+    expect(parseWhatsAppExport("27/09/2026, 6:43 PM - Profa: Prova")[0]?.time).toBe("18:43");
+    expect(parseWhatsAppExport("27/09/2026, 6:43 AM - Profa: Prova")[0]?.time).toBe("06:43");
+    expect(parseWhatsAppExport("27/09/2026, 12:10 AM - Profa: Prova")[0]?.time).toBe("00:10");
+  });
   it("respects the message cap", () => {
     const many = Array.from(
       { length: 50 },

@@ -147,11 +147,14 @@ export function CaptureForm({
     (ownerIsPro && !initialProfiles.some((p) => p.id === profileId));
   const [childName, setChildName] = useState("");
   const [source, setSource] = useState<z.infer<typeof noticeSourceSchema>>(
-    // Quem entra pelo caminho "Foto ou arquivo" está, na maioria das vezes,
-    // fotografando a agenda ou o caderno — é o que o próprio texto da tela diz.
-    // Deixar "Teams" aqui marcava como publicação da escola a letra de uma
-    // criança, e com o compartilhamento automático isso iria para a turma.
-    initialNotice?.source ?? (captureMode === "foto" ? "notebook" : defaultSource),
+    // Quem entra por "Foto ou arquivo" — ou por um compartilhamento do sistema
+    // — está, na maioria das vezes, mandando a agenda ou o caderno; é o que o
+    // próprio texto da tela diz. Deixar "Teams" aqui marcava como publicação da
+    // escola a letra de uma criança, e com o compartilhamento automático isso
+    // iria para a turma inteira. Quem tiver recebido o anexo da escola troca a
+    // origem no campo ao lado.
+    initialNotice?.source ??
+      (captureMode === "foto" || captureMode === "compartilhado" ? "notebook" : defaultSource),
   );
   /**
    * Compartilhar com a turma nasce marcado quando faz sentido para ela: matéria
@@ -605,7 +608,10 @@ export function CaptureForm({
             // publicação: sem isso, um "entregar amanhã" de terça vira um
             // prazo de hoje.
             setText(buildNoticeTextFromMessages(picked));
-            setPublishedAt(latestMessageDate(picked) ?? "");
+            // Só quando as mensagens escolhidas trazem data: apagar o que a
+            // pessoa digitou à mão seria perder a referência de publicação.
+            const latest = latestMessageDate(picked);
+            if (latest) setPublishedAt(latest);
             setWhatsAppMessages(null);
           }}
         />
