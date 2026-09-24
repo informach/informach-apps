@@ -307,10 +307,7 @@ export const agendaSubjectKits = agenda.table(
     profileSubjectId: uuid("profile_subject_id").references(() => agendaProfileSubjects.id, {
       onDelete: "cascade",
     }),
-    items: jsonb("items")
-      .$type<string[]>()
-      .notNull()
-      .default(sql`'[]'::jsonb`),
+    items: jsonb("items").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
