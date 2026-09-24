@@ -33,6 +33,8 @@ export const productEventSchema = z
       // o estado real da entrega. Um segundo contador aqui discordaria dele no
       // primeiro reenvio.
       "subject_kit_saved",
+      "inbox_message_received",
+      "inbox_message_used",
     ]),
     source: z.enum(["teams", "batista", "notebook", "whatsapp", "other", "manual"]).optional(),
     count: z.number().int().min(0).max(1000).optional(),

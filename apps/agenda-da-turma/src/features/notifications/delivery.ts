@@ -10,6 +10,7 @@ import {
 import webpush from "web-push";
 import { addDaysIso, todayLocalIso } from "@/features/dashboard/date";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
+import { purgeExpiredInboxMessages } from "@/features/inbox/repository";
 import { listNoticeActions } from "@/features/notices/repository";
 import { ACTIVITY_TYPE_LABELS } from "@/features/unified-activities/activity-types";
 import { buildEmailUnsubscribeUrl, emails } from "@/lib/emails";
@@ -345,6 +346,9 @@ export async function deliverRoutineNotifications(
     completed++;
   }
   // Retention is enforced even when nobody has notifications enabled.
+  // A caixa de e-mail segue a mesma regra do original de um recado: o que não
+  // virou atividade em 30 dias some inteiro, corpo e anexo.
+  await purgeExpiredInboxMessages(now);
   await db
     .update(agendaNotices)
     .set({ attachmentData: null })

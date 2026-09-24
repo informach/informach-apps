@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { z } from "zod";
 import { handleAiHttpError } from "@/features/ai/_http-errors";
 import { todayLocalIso } from "@/features/dashboard/date";
+import { useInboxMessageAction } from "@/features/inbox/actions";
 import { createStudentProfileAction } from "@/features/students/actions";
 import type { SubjectOptionsByProfile } from "@/features/subjects/options-service";
 import { catchActionResult } from "@/lib/action-result";
@@ -104,6 +105,8 @@ export function CaptureForm({
   defaultDueAt,
   defaultSource = "teams",
   defaultText = "",
+  defaultAttachment,
+  inboxMessageId,
 }: {
   profiles: RoutineProfile[];
   adults: AssignableAdult[];
@@ -127,6 +130,15 @@ export function CaptureForm({
   defaultSource?: z.infer<typeof noticeSourceSchema>;
   /** Texto já vindo do compartilhamento pela rota de segurança. */
   defaultText?: string;
+  /** Anexo de uma mensagem encaminhada por e-mail. */
+  defaultAttachment?: { name: string; dataUrl: string };
+  /**
+   * Mensagem da caixa de e-mail que originou esta captura.
+   *
+   * Vai junto com a confirmação: ao salvar, a mensagem sai de "Chegou por
+   * e-mail" e passa a apontar para o recado que nasceu dela.
+   */
+  inboxMessageId?: string;
   initialNotice?: {
     id: string;
     profileId: string;
@@ -167,7 +179,9 @@ export function CaptureForm({
   const [sourceUrl, setSourceUrl] = useState("");
   const [publishedAt, setPublishedAt] = useState("");
   const [text, setText] = useState(defaultText);
-  const [attachment, setAttachment] = useState<{ name: string; dataUrl: string } | null>(null);
+  const [attachment, setAttachment] = useState<{ name: string; dataUrl: string } | null>(
+    defaultAttachment ?? null,
+  );
   const [pageCount, setPageCount] = useState(0);
   const [pages, setPages] = useState<number[]>([]);
   /** Fotos de um mesmo recado: duas ou mais viram um PDF só. */
@@ -519,6 +533,12 @@ export function CaptureForm({
       setPublicationReference(result.data.extraction.publicationReference ?? null);
       setNoticeId(result.data.noticeId);
       setNoticeConfirmed(result.data.alreadyConfirmed);
+      // A mensagem encaminhada cumpriu o papel: quem acompanha daqui em diante
+      // é o card de rascunhos, e a mesma pendência não fica em duas listas.
+      if (inboxMessageId)
+        void catchActionResult(() =>
+          useInboxMessageAction({ id: inboxMessageId, noticeId: result.data.noticeId }),
+        );
       setWarnings(result.data.extraction.warnings);
       setDrafts(
         result.data.extraction.actions.map(({ id, ...item }) => ({
