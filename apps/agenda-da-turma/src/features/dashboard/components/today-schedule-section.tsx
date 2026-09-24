@@ -3,6 +3,8 @@ import { Skeleton } from "@informach/ui/components/skeleton";
 import { cn } from "@informach/ui/lib/utils";
 import { CalendarClock, GraduationCap, Hand } from "lucide-react";
 import Link from "next/link";
+import { SubjectKitDialog } from "@/features/subject-kits/components/subject-kit-dialog";
+import { listSubjectKits } from "@/features/subject-kits/service";
 import {
   getSubjectIcon,
   getSubjectIconClassByIndex,
@@ -50,7 +52,13 @@ function formatDayLabel(iso: string): string {
   return `${weekday}, ${day} de ${monthName}`;
 }
 
-function ProfileSchedule({ view }: { view: TodaySubjectsView }) {
+function ProfileSchedule({
+  view,
+  kits,
+}: {
+  view: TodaySubjectsView;
+  kits: Record<string, string[]>;
+}) {
   const isWeekend = view.classDay === null;
   return (
     <article className="rounded-2xl border bg-card p-4 sm:p-5">
@@ -107,6 +115,14 @@ function ProfileSchedule({ view }: { view: TodaySubjectsView }) {
                     </p>
                   ) : null}
                 </div>
+                <SubjectKitDialog
+                  profileId={view.profileId}
+                  subjectId={subject.source === "turma" ? subject.id : null}
+                  profileSubjectId={subject.source === "extra" ? subject.id : null}
+                  subjectName={subject.name}
+                  profileName={view.profileName}
+                  items={kits[`${view.profileId}:${subject.id}`] ?? []}
+                />
                 {subject.source === "extra" ? (
                   <Badge variant="outline" className="shrink-0 text-xs">
                     Extra
@@ -142,6 +158,12 @@ export async function TodayScheduleSection({
   profileFilter: string | null;
 }) {
   const views = await getTodaySubjectsForProfiles(userId, { profileFilter });
+  const kits = Object.fromEntries(
+    await listSubjectKits(
+      userId,
+      views.map((view) => view.profileId),
+    ),
+  );
   if (views.length === 0) return null;
 
   const dayLabel = formatDayLabel(views[0]?.dateIso ?? "");
@@ -164,7 +186,7 @@ export async function TodayScheduleSection({
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {views.map((view) => (
-          <ProfileSchedule key={view.profileId} view={view} />
+          <ProfileSchedule key={view.profileId} view={view} kits={kits} />
         ))}
       </div>
     </section>

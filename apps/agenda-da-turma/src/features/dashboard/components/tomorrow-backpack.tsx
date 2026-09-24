@@ -15,9 +15,12 @@ import type { TodaySubjectsView } from "../today-subjects-service";
  */
 export function TomorrowBackpack({
   schedule,
+  kits = {},
   emphasis = false,
 }: {
   schedule: TodaySubjectsView[];
+  /** Itens de "levar sempre", por `${profileId}:${subjectId}`. */
+  kits?: Record<string, string[]>;
   /** No topo da página ela é o assunto; dentro do bucket, um apoio. */
   emphasis?: boolean;
 }) {
@@ -53,7 +56,12 @@ export function TomorrowBackpack({
         {withClasses.map((view) => (
           <li key={view.profileId} className="break-words text-sm text-muted-foreground">
             <span className="font-semibold text-foreground">{view.profileName}:</span>{" "}
-            {view.subjects.map((subject) => subject.name).join(" · ")}
+            {view.subjects
+              .map((subject) => {
+                const items = kits[`${view.profileId}:${subject.id}`] ?? [];
+                return items.length ? `${subject.name} (${items.join(", ")})` : subject.name;
+              })
+              .join(" · ")}
           </li>
         ))}
       </ul>

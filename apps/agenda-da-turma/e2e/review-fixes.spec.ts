@@ -215,6 +215,12 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       }
       await page.keyboard.press("Escape");
       await expect(addSheet).toBeHidden();
+      // A folha some antes de o Radix devolver os eventos de ponteiro ao body.
+      // Sem esperar por isso, o primeiro toque seguinte cai no vazio — e a
+      // janela é curta o bastante para só aparecer com a máquina carregada.
+      await expect
+        .poll(() => page.evaluate(() => getComputedStyle(document.body).pointerEvents))
+        .not.toBe("none");
       await page.screenshot({
         path: testInfo.outputPath("school-access-mobile.png"),
         caret: "initial",

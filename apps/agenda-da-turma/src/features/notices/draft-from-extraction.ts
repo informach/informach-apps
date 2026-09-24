@@ -1,3 +1,4 @@
+import { suggestReminder } from "@/features/notifications/reminder-suggestion";
 import { suggestDueDateFromSchedule } from "@/features/subjects/due-date-suggestion";
 import { findClosestSubject } from "@/features/subjects/match-subject";
 import type { SubjectOption } from "@/features/subjects/options-service";
@@ -32,6 +33,16 @@ export type DraftOptions = {
    * desmarcável na revisão.
    */
   defaultShare?: boolean;
+  /**
+   * Preencher o lembrete sugerido (dois dias antes para material, prova e
+   * trabalho; um dia para o resto).
+   *
+   * A sugestão existia e dependia de um toque em cada atividade, então quase
+   * nunca era usada — e o lembrete é justamente o que evita a descoberta às
+   * dez da noite. Preenchida, ela fica à vista no formulário e se apaga como
+   * qualquer campo. Exige Pro, como qualquer lembrete.
+   */
+  suggestReminders?: boolean;
 };
 
 export function draftFromExtractedAction(
@@ -51,6 +62,15 @@ export function draftFromExtractedAction(
       dateOrigin = "schedule";
     }
   }
+  // Lembrete que já nasceria vencido não é lembrete: a entrega do job só
+  // alcança as últimas 24 horas, e o campo preenchido com um passado daria a
+  // impressão de um aviso que nunca vai chegar.
+  const suggested =
+    options.suggestReminders && dueAt ? suggestReminder({ dueAt, type: fields.type }) : null;
+  const reminderAt =
+    suggested && (!options.todayIso || suggested.slice(0, 10) >= options.todayIso)
+      ? suggested
+      : null;
   return {
     subjectHint,
     value: {
@@ -61,7 +81,7 @@ export function draftFromExtractedAction(
       dueAt,
       dateOrigin,
       assignedToUserId: null,
-      reminderAt: null,
+      reminderAt,
       recurrence: "none",
       // A IA não estima duração, pela mesma regra que a proíbe de inventar
       // prazo: quem sabe quanto tempo a criança leva é quem mora com ela.

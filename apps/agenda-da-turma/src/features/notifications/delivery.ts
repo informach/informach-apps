@@ -16,6 +16,7 @@ import { buildEmailUnsubscribeUrl, emails } from "@/lib/emails";
 import { env } from "@/lib/env";
 import { isAllowedPushEndpoint, isQuietHour } from "./schemas";
 import { getNotificationPreferences } from "./service";
+import { buildWeeklyDigestLines } from "./weekly";
 
 export function saoPauloHour(now: Date) {
   return Number(
@@ -25,6 +26,17 @@ export function saoPauloHour(now: Date) {
       hourCycle: "h23",
     }).format(now),
   );
+}
+
+/**
+ * O dia da semana em São Paulo, 0 = domingo.
+ *
+ * Sai da data local (`todayLocalIso`), não de `now.getDay()`: o servidor roda
+ * em UTC, e às 21h de um domingo brasileiro `getDay()` já responde segunda.
+ */
+export function weekdayInSaoPaulo(now: Date) {
+  const [year, month, day] = todayLocalIso(now).split("-").map(Number);
+  return new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, day ?? 1)).getUTCDay();
 }
 const escapeHtml = (text: string) =>
   text.replace(
@@ -105,6 +117,33 @@ async function currentMessages(userId: string, now: Date): Promise<Message[]> {
   const rows = await listNoticeActions(userId);
   const eligible = rows.filter((r) => entitlement.proProfileIds.includes(r.action.profileId));
   const messages: Message[] = [];
+  // O resumo da semana, no dia e na hora combinados. Sai da MESMA lista do
+  // resumo diário — é a mesma rotina lida com outro alcance, não uma segunda
+  // fonte que pode discordar.
+  if (
+    prefs.weeklyDigestEnabled &&
+    hour === prefs.weeklyDigestHour &&
+    weekdayInSaoPaulo(now) === prefs.weeklyDigestDay
+  ) {
+    const lines = buildWeeklyDigestLines(
+      eligible.map(({ action, profileName }) => ({
+        profileName,
+        title: action.title,
+        type: action.type,
+        dueAt: action.dueAt,
+        estimatedMinutes: action.estimatedMinutes,
+        status: action.status,
+      })),
+      { todayIso: today },
+    );
+    if (lines.length)
+      messages.push({
+        key: `weekly:${today}`,
+        title: "A semana que vem na sua casa",
+        lines,
+        path: "/calendario?view=week",
+      });
+  }
   if (hour === prefs.digestHour) {
     const relevant = eligible.filter(({ action: a }) => !a.dueAt || a.dueAt <= tomorrow);
     const lines = relevant.map(

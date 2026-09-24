@@ -414,6 +414,13 @@
       "when": 1790244004543,
       "tag": "0058_agenda_family_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1790245340539,
+      "tag": "0059_agenda_study_plan_and_kits",
+      "breakpoints": true
     }
   ]
 }

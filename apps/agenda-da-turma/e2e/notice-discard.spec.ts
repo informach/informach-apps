@@ -129,6 +129,7 @@ test("discarding a draft persists: trash in the review, and discard from the das
     const withManual = await seedDraft(id, profileId, ["Estudar para a prova"]);
     await page.goto(`/recados/novo?retomar=${withManual.id}`);
     await page.getByRole("button", { name: "Adicionar atividade", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Atividade 2", exact: true })).toBeVisible();
     await page
       .getByRole("textbox", { name: "Atividade", exact: true })
       .nth(1)

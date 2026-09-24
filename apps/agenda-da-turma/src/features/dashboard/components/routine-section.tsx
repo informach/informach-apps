@@ -1,4 +1,5 @@
 import { Skeleton } from "@informach/ui/components/skeleton";
+import { listSubjectKits } from "@/features/subject-kits/service";
 import { getRoutineSnapshot } from "@/features/unified-activities/service";
 import { listFamilyCompletionDays, listProfileSummaries } from "../repository";
 import { countStreakDays } from "../streak";
@@ -27,6 +28,15 @@ export async function RoutineSection({
     // Sem `profileFilter`: a sequência é da casa, não da criança em foco.
     listFamilyCompletionDays(userId),
   ]);
+  // "Levar sempre" acompanha a mochila nos DOIS lugares em que ela aparece: de
+  // dia dentro do bucket, à noite no topo. A mesma tela não pode mostrar
+  // conteúdo diferente conforme a hora.
+  const tomorrowKits = Object.fromEntries(
+    await listSubjectKits(
+      userId,
+      tomorrowSchedule.map((view) => view.profileId),
+    ),
+  );
 
   return (
     <div className="space-y-8">
@@ -35,6 +45,7 @@ export async function RoutineSection({
         buckets={snapshot.buckets}
         initialCounters={snapshot.counters}
         tomorrowSchedule={tomorrowSchedule}
+        tomorrowKits={tomorrowKits}
         doneToday={snapshot.doneToday}
         streakDays={countStreakDays(completionDays, snapshot.todayIso)}
         streakCountsToday={completionDays.includes(snapshot.todayIso)}

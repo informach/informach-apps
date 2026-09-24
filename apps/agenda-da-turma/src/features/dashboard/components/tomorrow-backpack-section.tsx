@@ -1,3 +1,4 @@
+import { listSubjectKits } from "@/features/subject-kits/service";
 import { getTomorrowSubjectsForProfiles } from "../today-subjects-service";
 import { TomorrowBackpack } from "./tomorrow-backpack";
 
@@ -16,5 +17,11 @@ export async function TomorrowBackpackSection({
   profileFilter: string | null;
 }) {
   const schedule = await getTomorrowSubjectsForProfiles(userId, { profileFilter });
-  return <TomorrowBackpack schedule={schedule} emphasis />;
+  // "Levar sempre" é o que a mochila de amanhã existe para lembrar: tênis na
+  // educação física vale toda semana e nunca virou atividade.
+  const kits = await listSubjectKits(
+    userId,
+    schedule.map((view) => view.profileId),
+  );
+  return <TomorrowBackpack schedule={schedule} kits={Object.fromEntries(kits)} emphasis />;
 }

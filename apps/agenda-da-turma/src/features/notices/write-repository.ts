@@ -886,6 +886,13 @@ export async function setNoticeActionStatusAtomically(
       (await isPublishedBy(tx, previous.sharedActivityId, userId))
     )
       await cancelPublishedActivity(tx, previous.sharedActivityId, userId, input.id);
+    // Prova cancelada não deixa sessões de estudo órfãs cobrando preparação
+    // para uma data que não existe mais. O que já foi estudado fica feito.
+    if (input.status === "canceled")
+      await tx
+        .update(agendaTasks)
+        .set({ status: "canceled", updatedAt: new Date() })
+        .where(and(eq(agendaTasks.studyForTaskId, input.id), eq(agendaTasks.status, "pending")));
     await tx.insert(agendaActivityRevisions).values({
       taskId: input.id,
       actorId: userId,

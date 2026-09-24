@@ -18,6 +18,7 @@ import {
 } from "@/features/subjects/utils";
 import { UnifiedActivityCard } from "@/features/unified-activities/components/unified-activity-card";
 import { formatBucketEstimate } from "@/features/unified-activities/estimate";
+import { formatDayLoad, summarizeDayLoad } from "@/features/unified-activities/load";
 import {
   type ActivityOverviewItem,
   overviewDueAt,
@@ -37,6 +38,23 @@ type BucketSpec = {
   Icon: LucideIcon;
   color: number;
 };
+
+const WEEKDAY_SHORT = [
+  "Domingo",
+  "Segunda",
+  "Terça",
+  "Quarta",
+  "Quinta",
+  "Sexta",
+  "Sábado",
+] as const;
+/** "Terça (30/09)" a partir de "YYYY-MM-DD", sem criar Date com offset. */
+function weekdayLabel(iso: string): string {
+  const [year, month, day] = iso.split("-").map(Number);
+  if (!year || !month || !day) return iso;
+  const weekday = WEEKDAY_SHORT[new Date(Date.UTC(year, month - 1, day)).getUTCDay()] ?? "";
+  return `${weekday} (${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")})`;
+}
 
 const BUCKETS: BucketSpec[] = [
   {
@@ -77,6 +95,8 @@ type Props = {
    * que esta tela passou a não ter.
    */
   tomorrowSchedule: TodaySubjectsView[];
+  /** Itens de "levar sempre", por `${profileId}:${subjectId}`. */
+  tomorrowKits: Record<string, string[]>;
   /** Quantas a família concluiu hoje — o que distingue fechar de nunca ter tido. */
   doneToday: number;
   /** Dias seguidos em que a casa cuidou de alguma coisa. Nunca por criança. */
@@ -106,6 +126,7 @@ export function RoutineView({
   buckets,
   initialCounters,
   tomorrowSchedule,
+  tomorrowKits,
   currentUserId,
   profileFilter,
   doneToday: initialDoneToday,
@@ -151,6 +172,17 @@ export function RoutineView({
         // rótulo diz quantas foram estimadas quando nem todas foram — senão o
         // número viraria promessa falsa.
         const estimate = formatBucketEstimate(entries.map((e) => e.item.estimatedMinutes));
+        const fullDays =
+          key === "week"
+            ? summarizeDayLoad(
+                entries.map((entry) => ({
+                  dueAt: entry.item.dueAt,
+                  estimatedMinutes: entry.item.estimatedMinutes,
+                  status: entry.item.status,
+                })),
+                { fromIso: todayIso, days: 8 },
+              ).filter((day) => day.level === "cheio")
+            : [];
         return (
           <section key={key} className="space-y-4">
             <div className="flex items-start gap-3">
@@ -183,9 +215,23 @@ export function RoutineView({
                   ) : null}
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+                {/* O semáforo da semana: saber na sexta que a terça tem três
+                    entregas é o que permite adiantar no fim de semana. Saber na
+                    terça de manhã não serve para nada. */}
+                {key === "week" && fullDays.length ? (
+                  <p className="mt-1 text-sm font-medium text-chart-4-ink">
+                    {fullDays.length === 1
+                      ? `${weekdayLabel(fullDays[0]?.iso ?? "")} está cheia: ${formatDayLoad(fullDays[0] ?? { iso: "", count: 0, minutes: 0, level: "leve" })}.`
+                      : `Dias mais puxados: ${fullDays
+                          .map((day) => `${weekdayLabel(day.iso)} (${formatDayLoad(day)})`)
+                          .join(", ")}.`}
+                  </p>
+                ) : null}
               </div>
             </div>
-            {key === "tomorrow" ? <TomorrowBackpack schedule={tomorrowSchedule} /> : null}
+            {key === "tomorrow" ? (
+              <TomorrowBackpack schedule={tomorrowSchedule} kits={tomorrowKits} />
+            ) : null}
             {entries.length > 0 ? (
               <div className="grid gap-3 sm:grid-cols-2">
                 {entries.map((entry) => (

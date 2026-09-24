@@ -11,11 +11,23 @@ export const notificationPreferencesSchema = z
     digestHour: z.number().int().min(0).max(23),
     quietStart: z.number().int().min(0).max(23),
     quietEnd: z.number().int().min(0).max(23),
+    suggestReminders: z.boolean().default(true),
+    weeklyDigestEnabled: z.boolean().default(true),
+    /** 0 = domingo, como `Date#getDay`. */
+    weeklyDigestDay: z.number().int().min(0).max(6).default(0),
+    weeklyDigestHour: z.number().int().min(0).max(23).default(18),
   })
   .refine((v) => !isQuietHour(v.digestHour, v.quietStart, v.quietEnd), {
     message: "Escolha o resumo fora do horário de silêncio",
     path: ["digestHour"],
-  });
+  })
+  .refine(
+    (v) => !v.weeklyDigestEnabled || !isQuietHour(v.weeklyDigestHour, v.quietStart, v.quietEnd),
+    {
+      message: "Escolha o resumo da semana fora do horário de silêncio",
+      path: ["weeklyDigestHour"],
+    },
+  );
 export type NotificationPreferences = z.infer<typeof notificationPreferencesSchema>;
 
 export const DEFAULT_NOTIFICATION_PREFERENCES = {
@@ -24,6 +36,10 @@ export const DEFAULT_NOTIFICATION_PREFERENCES = {
   digestHour: 19,
   quietStart: 21,
   quietEnd: 7,
+  suggestReminders: true,
+  weeklyDigestEnabled: true,
+  weeklyDigestDay: 0,
+  weeklyDigestHour: 18,
 };
 
 // Only browser push services may be contacted by the server. Do not turn a

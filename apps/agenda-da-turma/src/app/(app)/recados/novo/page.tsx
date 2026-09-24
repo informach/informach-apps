@@ -7,6 +7,7 @@ import { CaptureForm } from "@/features/notices/components/capture-form";
 import { listAssignableAdults } from "@/features/notices/repository";
 import { type DraftExtraction, noticeSourceSchema } from "@/features/notices/schemas";
 import { getNoticeDraft } from "@/features/notices/service";
+import { getNotificationPreferences } from "@/features/notifications/service";
 import { listSubjectOptionsByProfile } from "@/features/subjects/options-service";
 import { requireUserServer } from "@/lib/auth";
 
@@ -33,13 +34,15 @@ export default async function NewNoticePage({
   const user = await requireUserServer();
   const params = await searchParams;
   const captureMode = captureModeSchema.safeParse(params.modo).data;
-  const [profiles, adults, entitlement, ownerIsPro, subjectOptions] = await Promise.all([
-    listAccessibleProfiles(user.id),
-    listAssignableAdults(user.id),
-    getFamilyEntitlements(user.id),
-    getIsProForUser(user.id),
-    listSubjectOptionsByProfile(user.id),
-  ]);
+  const [profiles, adults, entitlement, ownerIsPro, subjectOptions, notificationPrefs] =
+    await Promise.all([
+      listAccessibleProfiles(user.id),
+      listAssignableAdults(user.id),
+      getFamilyEntitlements(user.id),
+      getIsProForUser(user.id),
+      listSubjectOptionsByProfile(user.id),
+      getNotificationPreferences(user.id),
+    ]);
   let initialNotice:
     | {
         id: string;
@@ -94,11 +97,22 @@ export default async function NewNoticePage({
         </p>
       ) : null}
       <CaptureForm
-        key={initialNotice?.id ?? "new"}
+        /*
+         * A chave é o PARÂMETRO da URL, não o rascunho resolvido.
+         *
+         * Descartar a última atividade tira o recado de `ready`; na
+         * re-renderização seguinte `initialNotice` some, e uma chave derivada
+         * dele mudaria de `<id>` para `"new"`, remontando o formulário e
+         * levando junto o que a pessoa tivesse escrito à mão. Pelo parâmetro,
+         * a tela continua a mesma enquanto a URL for a mesma, e trocar de
+         * rascunho continua começando do zero.
+         */
+        key={params.retomar ?? "new"}
         profiles={profiles.map((p) => ({ id: p.id, name: p.name }))}
         adults={adults}
         subjectOptions={subjectOptions}
         profileTurmas={Object.fromEntries(profiles.map((p) => [p.id, p.activeTurmaId]))}
+        suggestReminders={notificationPrefs.suggestReminders}
         proProfileIds={entitlement.proProfileIds}
         ownerIsPro={ownerIsPro}
         initialNotice={initialNotice}

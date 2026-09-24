@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import {
   boolean,
   check,
@@ -236,6 +237,21 @@ export const agendaTasks = agenda.table(
       .notNull()
       .default("none"),
     seriesId: uuid("series_id"),
+    /**
+     * Sessão de estudo criada para uma prova ou trabalho: aponta para ela.
+     *
+     * A família pede o plano, e ele é aritmética — dias disponíveis entre
+     * amanhã e a véspera, repartidos. A IA continua proibida de criar sessão de
+     * estudo a partir da leitura de um recado (ver §6): o que a escola mandou é
+     * uma coisa, o que a casa decide estudar é outra.
+     *
+     * `SET NULL`: se a prova for apagada, as sessões viram tarefas soltas em
+     * vez de sumirem; cancelar a prova cancela as pendentes, o que é decisão do
+     * serviço, não do banco.
+     */
+    studyForTaskId: uuid("study_for_task_id").references((): AnyPgColumn => agendaTasks.id, {
+      onDelete: "set null",
+    }),
     version: integer("version").notNull().default(1),
     fingerprint: text("fingerprint").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -264,6 +280,49 @@ export const agendaTasks = agenda.table(
       .where(sql`${t.sharedActivityId} IS NOT NULL`),
     index("agenda_tasks_subject_idx").on(t.subjectId),
     index("agenda_tasks_profile_subject_idx").on(t.profileSubjectId),
+    index("agenda_tasks_study_for_idx").on(t.studyForTaskId),
+  ],
+);
+
+/**
+ * "Levar sempre": o que vai na mochila toda vez que a matéria tem aula.
+ *
+ * Tênis na educação física, flauta na música, apostila no reforço. Não é
+ * atividade — não tem prazo, não se conclui e não entra em contagem nenhuma.
+ * É uma propriedade da matéria para aquela criança, e por isso mora fora de
+ * `tasks`: cadastrar vinte lembretes semanais repetidos seria transformar uma
+ * lista de três itens em vinte obrigações.
+ */
+export const agendaSubjectKits = agenda.table(
+  "subject_kits",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => agendaStudentProfiles.id, { onDelete: "cascade" }),
+    subjectId: uuid("subject_id").references(() => agendaSubjects.id, { onDelete: "cascade" }),
+    profileSubjectId: uuid("profile_subject_id").references(() => agendaProfileSubjects.id, {
+      onDelete: "cascade",
+    }),
+    items: jsonb("items")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // A lista é da matéria PARA AQUELA CRIANÇA: duas irmãs na mesma turma
+    // levam coisas diferentes, e a matéria é compartilhada entre famílias.
+    uniqueIndex("agenda_subject_kit_turma_idx")
+      .on(t.profileId, t.subjectId)
+      .where(sql`${t.subjectId} IS NOT NULL`),
+    uniqueIndex("agenda_subject_kit_extra_idx")
+      .on(t.profileId, t.profileSubjectId)
+      .where(sql`${t.profileSubjectId} IS NOT NULL`),
+    check(
+      "agenda_subject_kit_target_check",
+      sql`(${t.subjectId} IS NOT NULL) <> (${t.profileSubjectId} IS NOT NULL)`,
+    ),
   ],
 );
 
@@ -302,12 +361,30 @@ export const agendaNotificationPreferences = agenda.table(
     digestHour: integer("digest_hour").notNull().default(19),
     quietStart: integer("quiet_start").notNull().default(21),
     quietEnd: integer("quiet_end").notNull().default(7),
+    /**
+     * Preencher o lembrete sugerido ao importar um recado.
+     *
+     * A sugestão (`reminder-suggestion.ts`) já existia e só era aplicada por um
+     * toque explícito — então quase nunca era aplicada. Ligada por padrão, e à
+     * vista no formulário: o lembrete aparece preenchido e se apaga como
+     * qualquer campo.
+     */
+    suggestReminders: boolean("suggest_reminders").notNull().default(true),
+    /**
+     * O resumo de domingo. Responde a pergunta que o diário não responde: o que
+     * vem pela frente na semana, enquanto ainda dá para organizar o fim de
+     * semana em função dela.
+     */
+    weeklyDigestEnabled: boolean("weekly_digest_enabled").notNull().default(true),
+    /** 0 = domingo, como `Date#getDay`. */
+    weeklyDigestDay: integer("weekly_digest_day").notNull().default(0),
+    weeklyDigestHour: integer("weekly_digest_hour").notNull().default(18),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
     check(
       "agenda_notification_hours_check",
-      sql`${t.digestHour} BETWEEN 0 AND 23 AND ${t.quietStart} BETWEEN 0 AND 23 AND ${t.quietEnd} BETWEEN 0 AND 23`,
+      sql`${t.digestHour} BETWEEN 0 AND 23 AND ${t.quietStart} BETWEEN 0 AND 23 AND ${t.quietEnd} BETWEEN 0 AND 23 AND ${t.weeklyDigestHour} BETWEEN 0 AND 23 AND ${t.weeklyDigestDay} BETWEEN 0 AND 6`,
     ),
   ],
 );

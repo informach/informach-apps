@@ -518,6 +518,18 @@ foi daí que veio a duplicação corrigida em setembro de 2026.
 
 UserMenu (avatar) tem só assinatura, conta e sair. Crianças e turmas vivem na aba Família.
 
+### O que a Agenda planeja sozinha (24/09/2026)
+
+Três coisas que a rotina sabia e não dizia. Nenhuma delas usa IA — todas são aritmética sobre dados que a família já cadastrou, e é isso que as separa da regra de que **a leitura de recado não inventa prazo nem sessão de estudo**.
+
+- **Carga do dia** (`features/unified-activities/load.ts`): `summarizeDayLoad` marca um dia como "cheio" com três entregas OU noventa minutos estimados. Uma fonte só para três consumidores — o bucket "o resto da semana", o resumo de domingo e o plano de estudo —, porque três contagens diferentes de "dia cheio" seriam três respostas para a mesma pergunta.
+- **Plano de estudo** (`features/study-plan/`): opt-in, no detalhe de `exam`/`project` com prazo futuro. `planStudySessions` reparte N sessões entre hoje e a véspera, pelos dias mais livres, determinístico. As sessões são `type: "study"` com `dateOrigin: "family"` — a escola marcou uma data só, a prova. `studyForTaskId` liga cada sessão à prova; cancelar a prova cancela as sessões **pendentes** (o que já foi estudado continua feito), e replanejar substitui. **Toda decisão antes de qualquer escrita**: um `return` de dentro de uma transação Drizzle commita, então checar o limite do gratuito depois de cancelar o plano anterior apagaria o plano e devolveria erro.
+- **Resumo de domingo** (`features/notifications/weekly.ts`): dia e hora escolhidos em Ajustes, fora do silêncio, uma vez por semana (`messageKey = weekly:<dia>`). Sai da MESMA `listNoticeActions` do resumo diário e tem o mesmo teto de 20 linhas. Não tem evento de produto próprio: quem conta envio é `agenda.notification_deliveries`.
+
+**"Levar sempre"** (`agenda.subject_kits`, `features/subject-kits/`) é o que vai na mochila toda vez que a matéria tem aula — tênis, flauta, apostila. Não é atividade: não tem prazo, não se conclui e não entra em contagem nenhuma. A chave é `(criança, matéria)`, porque a matéria é compartilhada entre famílias e duas irmãs na mesma turma levam coisas diferentes. Aparece em "Hoje na escola" (onde se edita) e na mochila de amanhã — **nos dois lugares em que a mochila aparece**, de dia dentro do bucket e à noite no topo, senão a mesma tela mostraria conteúdo diferente conforme a hora.
+
+**Lembrete sugerido por padrão** (`notification_preferences.suggest_reminders`, ligado): a importação já preenche o lembrete de `reminder-suggestion.ts` quando a casa é Pro e o prazo existe — dois dias antes para material, prova e trabalho; um para o resto. Nunca um lembrete que já nasceria vencido: a entrega só alcança as últimas 24 horas.
+
 ### Prazo calculado pelo horário da matéria
 
 Ao escolher a matéria com a data vazia, os dois formulários (escolar e revisão de recado) preenchem o prazo com a **próxima aula**, via `suggestDueDateFromSchedule` → `nextClassDayIso`, que respeita o revezamento quinzenal. A procedência aparece no campo e um toque altera. `agenda.tasks.date_origin` ganhou o valor `schedule` para isso.

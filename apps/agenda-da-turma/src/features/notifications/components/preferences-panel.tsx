@@ -13,6 +13,16 @@ import {
 import { notificationPreferencesSchema, pushSubscriptionSchema } from "../schemas";
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
+/** Índice = `Date#getDay`, como a coluna guarda. */
+const WEEKDAYS = [
+  "Domingo",
+  "Segunda-feira",
+  "Terça-feira",
+  "Quarta-feira",
+  "Quinta-feira",
+  "Sexta-feira",
+  "Sábado",
+] as const;
 
 export function NotificationPreferencesPanel({
   initial,
@@ -163,6 +173,73 @@ export function NotificationPreferencesPanel({
         Use o mesmo horário de início e fim para desativar o silêncio. Uma atividade concluída ou
         cancelada deixa de gerar novos lembretes.
       </p>
+      <div className="space-y-3 border-t pt-4">
+        <h3 className="font-medium">A semana que vem</h3>
+        <p className="text-sm text-muted-foreground">
+          O resumo diário conta o que é para amanhã. O da semana chega enquanto ainda dá para
+          organizar o fim de semana em função dela, e aponta os dias mais puxados.
+        </p>
+        <label className="flex min-h-11 items-center gap-3 text-sm">
+          <input
+            type="checkbox"
+            checked={value.weeklyDigestEnabled}
+            onChange={(e) => setValue({ ...value, weeklyDigestEnabled: e.target.checked })}
+          />
+          Receber o resumo da semana
+        </label>
+        {value.weeklyDigestEnabled ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label htmlFor="weeklyDigestDay" className="grid gap-2 text-sm font-medium">
+              Dia
+              <select
+                id="weeklyDigestDay"
+                className="h-11 rounded-md border bg-background px-3"
+                value={value.weeklyDigestDay}
+                onChange={(e) => setValue({ ...value, weeklyDigestDay: Number(e.target.value) })}
+              >
+                {WEEKDAYS.map((label, day) => (
+                  <option key={label} value={day}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label htmlFor="weeklyDigestHour" className="grid gap-2 text-sm font-medium">
+              Horário
+              <select
+                id="weeklyDigestHour"
+                className="h-11 rounded-md border bg-background px-3"
+                value={value.weeklyDigestHour}
+                onChange={(e) => setValue({ ...value, weeklyDigestHour: Number(e.target.value) })}
+              >
+                {HOURS.map((h) => (
+                  <option key={h} value={h}>
+                    {String(h).padStart(2, "0")}:00
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        ) : null}
+      </div>
+      <div className="space-y-3 border-t pt-4">
+        <h3 className="font-medium">Ao importar um recado</h3>
+        <label className="flex min-h-11 items-start gap-3 text-sm">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={value.suggestReminders}
+            onChange={(e) => setValue({ ...value, suggestReminders: e.target.checked })}
+          />
+          <span className="grid gap-1">
+            Já preencher o lembrete sugerido
+            <span className="font-normal text-muted-foreground">
+              Dois dias antes para material, prova e trabalho; um dia para o resto. O campo fica à
+              vista na revisão e você apaga ou muda como quiser.
+            </span>
+          </span>
+        </label>
+      </div>
       <Button onClick={() => save()} disabled={busy}>
         Salvar preferências
       </Button>

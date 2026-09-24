@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { handleAiHttpError } from "@/features/ai/_http-errors";
+import { todayLocalIso } from "@/features/dashboard/date";
 import { createStudentProfileAction } from "@/features/students/actions";
 import type { SubjectOptionsByProfile } from "@/features/subjects/options-service";
 import { catchActionResult } from "@/lib/action-result";
@@ -83,6 +84,7 @@ export function CaptureForm({
   adults,
   subjectOptions,
   profileTurmas,
+  suggestReminders = false,
   proProfileIds,
   ownerIsPro,
   initialNotice,
@@ -98,6 +100,8 @@ export function CaptureForm({
   subjectOptions: SubjectOptionsByProfile;
   /** Turma ativa de cada criança: o caminho de saída quando não há matérias. */
   profileTurmas: Record<string, string | null>;
+  /** Preferência da casa: preencher o lembrete sugerido nas importações. */
+  suggestReminders?: boolean;
   proProfileIds: string[];
   ownerIsPro: boolean;
   mode?: "capture" | "manual";
@@ -167,6 +171,11 @@ export function CaptureForm({
                 initialNotice.source !== "notebook" &&
                 (proProfileIds.includes(initialNotice.profileId) ||
                   (ownerIsPro && !initialProfiles.some((p) => p.id === initialNotice.profileId))),
+              suggestReminders:
+                suggestReminders &&
+                (proProfileIds.includes(initialNotice.profileId) ||
+                  (ownerIsPro && !initialProfiles.some((p) => p.id === initialNotice.profileId))),
+              todayIso: todayLocalIso(),
             },
           ),
         }))
@@ -414,6 +423,8 @@ export function CaptureForm({
           actionId: result.data.alreadyConfirmed ? undefined : id,
           ...draftFromExtractedAction(item, profileId, subjectOptions[profileId] ?? [], {
             defaultShare: sharesByDefault(profileId, source),
+            suggestReminders: suggestReminders && isPro,
+            todayIso: todayLocalIso(),
           }),
         })),
       );

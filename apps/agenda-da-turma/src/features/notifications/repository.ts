@@ -26,6 +26,10 @@ export async function readNotificationPreferences(userId: string) {
         digestHour: row.digestHour,
         quietStart: row.quietStart,
         quietEnd: row.quietEnd,
+        suggestReminders: row.suggestReminders,
+        weeklyDigestEnabled: row.weeklyDigestEnabled,
+        weeklyDigestDay: row.weeklyDigestDay,
+        weeklyDigestHour: row.weeklyDigestHour,
       }
     : DEFAULT_NOTIFICATION_PREFERENCES;
 }

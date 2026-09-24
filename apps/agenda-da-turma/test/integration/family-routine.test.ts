@@ -44,6 +44,7 @@ import {
   updateNoticeAction,
 } from "@/features/notices/service";
 import { deliverRoutineNotifications } from "@/features/notifications/delivery";
+import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/features/notifications/schemas";
 import { saveNotificationPreferences } from "@/features/notifications/service";
 import { createProfileSubjectActivity } from "@/features/profile-subject-activities/service";
 import { createStudentProfile, listStudentProfilesForUser } from "@/features/students/service";
@@ -588,11 +589,11 @@ describe("routine delivery", () => {
     expect(emails.getOutbox()).toHaveLength(0);
     value(
       await saveNotificationPreferences(owner, {
+        ...DEFAULT_NOTIFICATION_PREFERENCES,
         emailEnabled: true,
-        pushEnabled: false,
-        digestHour: 19,
-        quietStart: 21,
-        quietEnd: 7,
+        // O resumo da semana tem teste próprio; aqui ele só não pode somar um
+        // e-mail e confundir a contagem do diário.
+        weeklyDigestEnabled: false,
       }),
     );
     value(await setNoticeActionStatus(owner, { id, version: 1, status: "canceled" }));

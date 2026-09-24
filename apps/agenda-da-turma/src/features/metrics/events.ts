@@ -27,6 +27,12 @@ export const productEventSchema = z
       "draft_discarded",
       "shared_accept_all",
       "first_steps_dismissed",
+      "study_plan_created",
+      // O resumo semanal NÃO tem evento próprio de propósito: quem já conta os
+      // envios é `agenda.notification_deliveries`, com a chave `weekly:<dia>` e
+      // o estado real da entrega. Um segundo contador aqui discordaria dele no
+      // primeiro reenvio.
+      "subject_kit_saved",
     ]),
     source: z.enum(["teams", "batista", "notebook", "other", "manual"]).optional(),
     count: z.number().int().min(0).max(1000).optional(),

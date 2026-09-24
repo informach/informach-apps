@@ -7,6 +7,8 @@ import {
   getNoticeSource,
   listAssignableAdults,
 } from "@/features/notices/repository";
+import { StudyPlanSection } from "@/features/study-plan/components/study-plan-section";
+import { listStudySessions, STUDY_PLAN_TYPES } from "@/features/study-plan/service";
 import { listSubjectOptionsByProfile } from "@/features/subjects/options-service";
 import { billing } from "@/lib/billing";
 import { ACTIVITY_TYPE_LABELS } from "../activity-types";
@@ -28,14 +30,20 @@ import { ActivityRevisionList } from "./revision-list";
  */
 export async function ActivityDetail({ userId, task }: { userId: string; task: TaskRow }) {
   const view = toActivityView({ key: task.id, item: task }, userId);
-  const [history, source, adults, isPro, subjectOptions, accessibleProfiles] = await Promise.all([
-    getNoticeActionHistory(userId, task.id),
-    task.noticeId ? getNoticeSource(userId, task.noticeId) : null,
-    listAssignableAdults(userId),
-    billing.hasProSubscription({ type: "user", id: task.ownerUserId }),
-    listSubjectOptionsByProfile(userId),
-    listAccessibleProfiles(userId),
-  ]);
+  const [history, source, adults, isPro, subjectOptions, accessibleProfiles, studySessions] =
+    await Promise.all([
+      getNoticeActionHistory(userId, task.id),
+      task.noticeId ? getNoticeSource(userId, task.noticeId) : null,
+      listAssignableAdults(userId),
+      billing.hasProSubscription({ type: "user", id: task.ownerUserId }),
+      listSubjectOptionsByProfile(userId),
+      listAccessibleProfiles(userId),
+      listStudySessions(userId, task.id),
+    ]);
+  const canPlanStudy =
+    task.status !== "canceled" &&
+    Boolean(task.dueAt) &&
+    STUDY_PLAN_TYPES.some((type) => type === task.type);
 
   return (
     <ActivityDetailShell
@@ -86,6 +94,20 @@ export async function ActivityDetail({ userId, task }: { userId: string; task: T
         // e o banco recebe o esquecimento. Ver `edit-defaults.ts`.
         initialValue={taskToActionInput(task)}
       />
+
+      {/* Prova e trabalho são o que se PREPARA: a data marcada não diz quando
+          estudar, e é isso que separa preparado de improvisado na véspera. */}
+      {canPlanStudy ? (
+        <StudyPlanSection
+          taskId={task.id}
+          sessions={studySessions.map((session) => ({
+            id: session.id,
+            title: session.title,
+            dueAt: session.dueAt,
+            status: session.status,
+          }))}
+        />
+      ) : null}
 
       {source ? (
         <OriginalNotice source={source} />
