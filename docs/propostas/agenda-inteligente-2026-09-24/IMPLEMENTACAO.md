@@ -1,4 +1,4 @@
-# Implementação — Agenda inteligente, setembro de 2026
+# Implementação: Agenda inteligente, setembro de 2026
 
 Registro do que foi construído no branch `feat/agenda-inteligente-2026-09`, por lote, com as decisões que não são óbvias no código e as pendências que ficaram fora do alcance do agente.
 
@@ -22,15 +22,15 @@ A regra de não deixar achado para depois foi seguida à risca: nenhum lote foi 
 
 ---
 
-## Lote 1 — Matéria na leitura, e a lixeira que apaga
+## Lote 1: matéria na leitura, e a lixeira que apaga
 
-**Migração 0057** — o estado `discarded` no ciclo do recado, com o CHECK refeito.
+**Migração 0057.** O estado `discarded` no ciclo do recado, com o CHECK refeito.
 
 **A pista de matéria.** A leitura passou a receber, em `src/ai/notices/prompt.ts`, os **nomes** das matérias da criança da captura e o ano corrente. A saída ganhou `subjectHint` por ação.
 
 Duas armadilhas de schema valem registro:
 
-- `noticeGenerationSchema` precisa do campo em `required`, e **`.required()` do Zod é raso**. O item de `actions` recebe `extractedActionSchema.required({ subjectHint: true })` à parte, porque o OpenRouter manda `json_schema.strict: true` e o Mastra não aplica o preparo estrito da OpenAI ao provider "openrouter" — toda propriedade precisa estar em `required`, e `nullable` serve enquanto `optional` não.
+- `noticeGenerationSchema` precisa do campo em `required`, e **`.required()` do Zod é raso**. O item de `actions` recebe `extractedActionSchema.required({ subjectHint: true })` à parte, porque o OpenRouter manda `json_schema.strict: true` e o Mastra não aplica o preparo estrito da OpenAI ao provider "openrouter", então toda propriedade precisa estar em `required`, e `nullable` serve enquanto `optional` não.
 - `actionFieldsSchema` faz `.omit({ subjectHint: true })`. A pista **nunca** entra no banco: ela é entrada para resolver o vínculo, não um dado da atividade.
 
 **O vínculo nasce num lugar só.** `features/notices/draft-from-extraction.ts` é puro e é onde a pista vira `subjectId` ou `profileSubjectId`, via `findClosestSubject`. Havia dois blocos duplicados no formulário de captura fazendo trabalho parecido; sobrou um caminho.
@@ -47,13 +47,13 @@ O mais grave: um `return` de erro de dentro de uma transação Drizzle **commita
 
 ---
 
-## Lote 2 — Entrada sem beco, turma como rede, primeiros passos
+## Lote 2: entrada sem beco, turma como rede, primeiros passos
 
-**Migração 0058** — `agenda.family_settings`, com a dispensa da trilha.
+**Migração 0058.** `agenda.family_settings`, com a dispensa da trilha.
 
 **O passo do horário usa a consulta certa.** `listTurmasNeedingScheduleForUser`, e não `findTurmasOfUserMissingSubjects`: esta última só enxerga turmas **criadas** pela conta, e quem entrou por código ficava com um passo que nunca fechava e um botão que não levava a lugar nenhum. O critério é a matéria **com dias de aula**, porque é isso que sugere prazo e monta a mochila.
 
-**`hasTurma` exige zero crianças sem turma**, não "alguma turma existe" — senão a segunda criança ficava invisível na trilha.
+**`hasTurma` exige zero crianças sem turma**, não "alguma turma existe", senão a segunda criança ficava invisível na trilha.
 
 **Compartilhar por padrão** entrou em `draftFromExtractedAction`, com a condição inteira: Pro, matéria da turma, prazo presente, e origem escolar (`school` ou `relative`). Prazo `schedule` **não** compartilha: é planejamento desta casa, e publicá-lo espalharia uma data que a escola não marcou.
 
@@ -65,9 +65,9 @@ O passo inalcançável para quem entrou por código, o `hasTurma` frouxo, a orig
 
 ---
 
-## Lote 3 — O que a Agenda planeja sozinha
+## Lote 3: o que a Agenda planeja sozinha
 
-**Migração 0059** — preferências de resumo semanal e de sugestão de lembrete, `tasks.study_for_task_id`, e `agenda.subject_kits`.
+**Migração 0059.** Preferências de resumo semanal e de sugestão de lembrete, `tasks.study_for_task_id`, e `agenda.subject_kits`.
 
 **Uma definição de "dia cheio", não três.** `summarizeDayLoad` em `features/unified-activities/load.ts` serve o bucket da semana, o resumo de domingo e o plano de estudo.
 
@@ -85,15 +85,15 @@ Além do plano destruído antes da recusa: a janela do resumo, e cinco de menor 
 
 ---
 
-## Lote 4 — Trazer o recado sem copiar
+## Lote 4: trazer o recado sem copiar
 
 Sem migração. Três entradas novas e um aviso.
 
 **O alvo de compartilhamento do sistema** é atendido pelo **service worker**, que guarda título, texto, URL e um arquivo de até 5 MB no IndexedDB e devolve 303 para a revisão. A rota de app é a rede de segurança para a primeira vez e para o worker desligado: ela redireciona com o texto na URL e **descarta o arquivo**, porque guardá-lo no servidor seria subir um anexo que ninguém conferiu.
 
-**A exportação do WhatsApp** lê os formatos iOS e Android, com continuação de linha e ano de dois dígitos, e descarta o que o WhatsApp escreve sozinho. O seletor mostra as mensagens e **só o marcado vai para a leitura**. Cada mensagem leva a própria data, e a mais recente vira a referência de publicação — sem isso, um "entregar amanhã" de terça viraria prazo de hoje.
+**A exportação do WhatsApp** lê os formatos iOS e Android, com continuação de linha e ano de dois dígitos, e descarta o que o WhatsApp escreve sozinho. O seletor mostra as mensagens e **só o marcado vai para a leitura**. Cada mensagem leva a própria data, e a mais recente vira a referência de publicação. Sem isso, um "entregar amanhã" de terça viraria prazo de hoje.
 
-**Várias fotos, um recado.** O PDF é montado no navegador, com reencodificação para caber em 5 MB. Antes, cada página da agenda era uma importação — e uma cobrança — separada.
+**Várias fotos, um recado.** O PDF é montado no navegador, com reencodificação para caber em 5 MB. Antes, cada página da agenda era uma importação separada, e uma cobrança separada.
 
 **O aviso de turma trocada** leva ao modelo a série da criança escolhida e a das outras da casa, **só a série, nunca o nome**. Ele não troca a criança: quem escolhe é quem revisa.
 
@@ -103,23 +103,23 @@ A turma errada escolhida por ordem de ano em vez do `activeTurmaId` do perfil. A
 
 ---
 
-## Lote 5 — Recado por e-mail, construído e removido
+## Lote 5: recado por e-mail, construído e removido
 
 Feito inteiro e retirado no mesmo dia, antes de ser ligado. Fica registrado porque a lição é sobre a pesquisa, não sobre o código.
 
 **O que existia.** Migração 0060 com `agenda.inbox_addresses` e `agenda.inbox_messages`, endereço `recados+<token>@...` com token em hash, girável e revogável, webhook do SendGrid Inbound Parse com Basic Auth, caixa no painel, retenção de 30 dias, e a regra de que nada é lido por IA nem cobrado até a pessoa escolher a criança. A revisão do lote encontrou nove achados e todos foram corrigidos.
 
-**Por que saiu.** A ideia veio da convergência do mercado: Sense, Nori, Calendara e afins apostam em "encaminhe o e-mail". Na escola real das famílias que usam a Agenda, **tarefa não chega por e-mail**. O canal serve a assunto administrativo e financeiro — atestado, boleto, secretaria — e quem trata de tarefa não usa e-mail. O recurso resolvia um problema que essas famílias não têm, e cobrava por isso um registro MX, um serviço externo e uma superfície de entrada nova.
+**Por que saiu.** A ideia veio da convergência do mercado: Sense, Nori, Calendara e afins apostam em "encaminhe o e-mail". Na escola real das famílias que usam a Agenda, **tarefa não chega por e-mail**. O canal serve a assunto administrativo e financeiro, como atestado, boleto e secretaria, e quem trata de tarefa não usa e-mail. O recurso resolvia um problema que essas famílias não têm, e cobrava por isso um registro MX, um serviço externo e uma superfície de entrada nova.
 
-**Como saiu.** Migração 0062 derruba as duas tabelas, e o código foi removido por inteiro: feature, webhook, seções do painel, variáveis de ambiente e as duas métricas. Para a frente, como toda migração daqui — a 0060 fica no histórico. A queda é segura porque as tabelas nunca receberam linha: a feature dependia de um MX que nunca existiu.
+**Como saiu.** Migração 0062 derruba as duas tabelas, e o código foi removido por inteiro: feature, webhook, seções do painel, variáveis de ambiente e as duas métricas. Para a frente, como toda migração daqui: a 0060 fica no histórico. A queda é segura porque as tabelas nunca receberam linha: a feature dependia de um MX que nunca existiu.
 
 **Não repor sem evidência de campo.** O código está nos commits `86d79e2` e `86530bf`. O que falta não é implementação, é uma escola que mande tarefa por e-mail.
 
 ---
 
-## Lote 6 — Fila offline de conclusão
+## Lote 6: fila offline de conclusão
 
-**Migração 0061** — `agenda.idempotent_writes`, chaveada por `(user_id, key)`.
+**Migração 0061.** `agenda.idempotent_writes`, chaveada por `(user_id, key)`.
 
 Escopo estreito de propósito: **só concluir e reabrir**, a partir dos cards, do detalhe e do modo criança. Editar, cancelar e importar continuam exigindo rede.
 
@@ -127,13 +127,13 @@ Escopo estreito de propósito: **só concluir e reabrir**, a partir dos cards, d
 
 **Endpoint próprio.** `POST /api/tasks/[id]/status`, com `Idempotency-Key` no cabeçalho. Server action não serve: o identificador dela muda a cada build, e a gravação guardada no aparelho na sexta-feira não teria para onde ir depois do deploy de segunda.
 
-**Uma vez só, de verdade.** `applyTaskStatusOnce` abre **uma** transação: trava a chave por advisory lock, lê o recibo, e — se não houver — chama `setNoticeActionStatusWithinTx` e grava o recibo ali mesmo. A extração dessa função do meio de `setNoticeActionStatusAtomically` foi a única mudança na gravação existente. Gravar primeiro e anotar depois deixaria uma janela em que a atividade está concluída e o recibo não existe, que é justamente a janela em que o aparelho tenta de novo.
+**Uma vez só, de verdade.** `applyTaskStatusOnce` abre **uma** transação: trava a chave por advisory lock, lê o recibo e, quando não há recibo, chama `setNoticeActionStatusWithinTx` e grava o recibo ali mesmo. A extração dessa função do meio de `setNoticeActionStatusAtomically` foi a única mudança na gravação existente. Gravar primeiro e anotar depois deixaria uma janela em que a atividade está concluída e o recibo não existe, que é justamente a janela em que o aparelho tenta de novo.
 
 A chave é composta com o dono porque, fosse `key` sozinha a chave primária, adivinhar a de outra família devolveria o recibo dela. `task_id` fica sem chave estrangeira: o recibo precisa sobreviver à atividade que descreve, senão apagar a atividade reabriria a porta para a mesma gravação acontecer de novo. E a **recusa também é guardada**: repetir uma chave recusada recebe a mesma recusa, nunca uma diferente.
 
-**O status HTTP é o contrato com o cliente.** 200 é resultado de negócio, inclusive a recusa, e a entrada sai da fila. Qualquer outra coisa é transporte e a entrada fica: 401 de sessão expirada, 429, 5xx, rede caída. O **200 com HTML** de um redirecionamento para o login conta como transporte — tratá-lo como sucesso apagaria a conclusão sem ela ter chegado a lugar nenhum. As exceções são 400 e 413: um pedido que o servidor não entende hoje não vai entender amanhã.
+**O status HTTP é o contrato com o cliente.** 200 é resultado de negócio, inclusive a recusa, e a entrada sai da fila. Qualquer outra coisa é transporte e a entrada fica: 401 de sessão expirada, 429, 5xx, rede caída. O **200 com HTML** de um redirecionamento para o login conta como transporte, porque tratá-lo como sucesso apagaria a conclusão sem ela ter chegado a lugar nenhum. As exceções são 400 e 413: um pedido que o servidor não entende hoje não vai entender amanhã.
 
-**O que foi recusado nunca é reenviado sozinho.** Conflito de versão vira linha na folha de pendências, com a atividade a um toque. Reenviar seria decidir pela pessoa que mudou a atividade do outro lado — a objeção exata que segurou esta fila até agora.
+**O que foi recusado nunca é reenviado sozinho.** Conflito de versão vira linha na folha de pendências, com a atividade a um toque. Reenviar seria decidir pela pessoa que mudou a atividade do outro lado. É a objeção exata que segurou esta fila até agora.
 
 **O service worker avisa, não envia.** O evento `sync` com a marca `agenda-flush` manda um recado às janelas abertas. Enviar dali obrigaria a repetir no worker a sessão, a chave e a leitura da resposta, e duas cópias dessa decisão é o tipo de divergência que faz uma conclusão sumir. O preço é conhecido: sem janela aberta, a fila espera o app abrir.
 
