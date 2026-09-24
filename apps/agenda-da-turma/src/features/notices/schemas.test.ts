@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { actionFieldsSchema, noticeExtractionSchema, noticeGenerationSchema } from "./schemas";
+import {
+  actionFieldsSchema,
+  NOTICE_EXTRACTION_TYPES,
+  noticeExtractionSchema,
+  noticeGenerationSchema,
+} from "./schemas";
 
 const base = {
   profileId: "11111111-1111-4111-8111-111111111111",
@@ -136,5 +141,59 @@ describe("subjectHint: pista da leitura, nunca vínculo gravado", () => {
     const parsed = actionFieldsSchema.safeParse({ ...base, subjectHint: "Ciências" });
     expect(parsed.success).toBe(true);
     if (parsed.success) expect("subjectHint" in parsed.data).toBe(false);
+  });
+});
+
+describe("tipos que a leitura pode produzir", () => {
+  it("nunca inclui sessão de estudo", () => {
+    // Sessão de estudo é planejamento da família e nasce ligada a uma prova.
+    // `study` entrou no vocabulário compartilhado num lote posterior e a
+    // leitura o herdou de graça, contra a regra documentada.
+    expect(NOTICE_EXTRACTION_TYPES).not.toContain("study");
+    expect(NOTICE_EXTRACTION_TYPES).toContain("exam");
+    expect(NOTICE_EXTRACTION_TYPES).toHaveLength(7);
+  });
+
+  it("recusa uma sessão de estudo vinda do modelo", () => {
+    const action = {
+      type: "study",
+      title: "Estudar para a prova",
+      description: null,
+      dueAt: null,
+      dateOrigin: "unspecified",
+      time: null,
+      location: null,
+      sourceExcerpt: null,
+      subjectHint: null,
+    };
+    expect(
+      noticeGenerationSchema.safeParse({
+        actions: [action],
+        warnings: [],
+        publicationReference: null,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("continua lendo um rascunho guardado que tenha uma", () => {
+    // O estreitamento vale na geração; a leitura precisa continuar abrindo o
+    // que já está no banco.
+    expect(
+      noticeExtractionSchema.safeParse({
+        actions: [
+          {
+            type: "study",
+            title: "Estudar para a prova",
+            description: null,
+            dueAt: null,
+            dateOrigin: "unspecified",
+            time: null,
+            location: null,
+            sourceExcerpt: null,
+          },
+        ],
+        warnings: [],
+      }).success,
+    ).toBe(true);
   });
 });

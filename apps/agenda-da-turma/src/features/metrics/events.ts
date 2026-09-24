@@ -29,7 +29,7 @@ export const productEventSchema = z
       "first_steps_dismissed",
       "study_plan_created",
       // O resumo semanal NÃO tem evento próprio de propósito: quem já conta os
-      // envios é `agenda.notification_deliveries`, com a chave `weekly:<dia>` e
+      // envios é `agenda.notification_deliveries`, com a chave `weekly:<data do envio>` e
       // o estado real da entrega. Um segundo contador aqui discordaria dele no
       // primeiro reenvio.
       "subject_kit_saved",

@@ -35,6 +35,7 @@ export function ActivityCompletionButton({
 
   const { isDone, pending, queued, handleToggle } = useCardToggle({
     initialStatus,
+    taskId: id,
     optimisticHideWhenDone: false,
     toggleAction: (next) =>
       submitTaskStatus({ id, version, status: next, title, userId: queueOwner }),

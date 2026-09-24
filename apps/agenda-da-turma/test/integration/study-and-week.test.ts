@@ -3,6 +3,8 @@ import { db, eq } from "@informach/db";
 import {
   agendaNotificationDeliveries,
   agendaProductEvents,
+  agendaProfileSubjects,
+  agendaSubjectKits,
   agendaTasks,
   customers,
   emailDeliveries,
@@ -17,6 +19,7 @@ import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/features/notifications/schem
 import { saveNotificationPreferences } from "@/features/notifications/service";
 import { createStudentProfile } from "@/features/students/service";
 import { createStudyPlan, listStudySessions, removeStudyPlan } from "@/features/study-plan/service";
+import { listSubjectKits, saveSubjectKit } from "@/features/subject-kits/service";
 import { emails } from "@/lib/emails";
 
 function value<T>(result: { ok: true; value: T } | { ok: false; error: unknown }): T {
@@ -230,5 +233,90 @@ describe("weekly digest", () => {
     await enableWeekly(0, 18);
     await deliverRoutineNotifications(sundaySixPm);
     expect(emails.getOutbox()).toHaveLength(0);
+  });
+  it("não conta matéria extracurricular pausada como dia cheio", async () => {
+    /*
+     * "Pausada é silêncio — em todo lugar." A carga que decide quais dias o
+     * plano de estudo evita é uma consulta sobre o que a família ainda tem a
+     * fazer, e nasceu sem o predicado: três treinos de uma natação pausada
+     * marcavam o dia como cheio e empurravam a sessão para outro, sem nenhuma
+     * causa visível na tela.
+     */
+    const hoje = todayLocalIso();
+    const [extra] = await db
+      .insert(agendaProfileSubjects)
+      .values({
+        profileId: child,
+        name: "Natação pausada",
+        status: "paused",
+        // O CHECK do banco exige a data: pausada sem quando é estado impossível.
+        pausedAt: todayLocalIso(),
+      })
+      .returning();
+    const extraId = extra?.id;
+    if (!extraId) throw new Error("Profile subject missing");
+    await db.insert(agendaTasks).values(
+      [1, 2, 3].map((n) => ({
+        profileId: child,
+        createdByUserId: owner,
+        type: "task" as const,
+        profileSubjectId: extraId,
+        title: `Treino ${n}`,
+        dueAt: hoje,
+        dateOrigin: "family" as const,
+        fingerprint: randomUUID(),
+      })),
+    );
+
+    const task = await exam(addDaysIso(hoje, 2));
+    expect(
+      value(await createStudyPlan(owner, { taskId: task.id, sessions: 1, minutesEach: 30 })),
+    ).toEqual({ sessions: 1 });
+    const sessions = await listStudySessions(owner, task.id);
+    // Três treinos marcariam hoje como cheio e empurrariam a sessão para
+    // amanhã. Como a matéria está pausada, hoje continua livre.
+    expect(sessions.map((session) => session.dueAt)).toEqual([hoje]);
+
+    await db.delete(agendaTasks).where(eq(agendaTasks.profileSubjectId, extraId));
+    await db.delete(agendaProfileSubjects).where(eq(agendaProfileSubjects.id, extraId));
+  });
+  it("salvar o 'levar sempre' duas vezes junta, em vez de violar o índice", async () => {
+    // Ler e depois escrever deixava duas abas acharem as duas que não havia
+    // linha, inserirem as duas, e a segunda levar uma violação de índice na
+    // cara da pessoa. Quem resolve o conflito é o banco.
+    const [extra] = await db
+      .insert(agendaProfileSubjects)
+      .values({ profileId: child, name: "Natação do kit" })
+      .returning();
+    const extraId = extra?.id;
+    if (!extraId) throw new Error("Profile subject missing");
+
+    value(
+      await saveSubjectKit(owner, {
+        profileId: child,
+        subjectId: null,
+        profileSubjectId: extraId,
+        items: ["touca"],
+      }),
+    );
+    value(
+      await saveSubjectKit(owner, {
+        profileId: child,
+        subjectId: null,
+        profileSubjectId: extraId,
+        items: ["touca", "óculos"],
+      }),
+    );
+
+    const kits = await listSubjectKits(owner, [child]);
+    expect(kits.get(`${child}:${extraId}`)).toEqual(["touca", "óculos"]);
+    const rows = await db
+      .select()
+      .from(agendaSubjectKits)
+      .where(eq(agendaSubjectKits.profileSubjectId, extraId));
+    expect(rows).toHaveLength(1);
+
+    await db.delete(agendaSubjectKits).where(eq(agendaSubjectKits.profileSubjectId, extraId));
+    await db.delete(agendaProfileSubjects).where(eq(agendaProfileSubjects.id, extraId));
   });
 });

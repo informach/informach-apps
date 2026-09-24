@@ -33,11 +33,3 @@ export type Subject = {
   createdAt: Date;
   updatedAt: Date;
 };
-
-export type TurmaNeedingSubjects = {
-  turmaId: string;
-  schoolName: string;
-  grade: string;
-  classLetter: string;
-  year: number;
-};

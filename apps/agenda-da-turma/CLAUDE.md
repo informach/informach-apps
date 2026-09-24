@@ -420,11 +420,12 @@ O predicado único é `activeProfileSubjectCondition`
 (`features/profile-subjects/visibility.ts`), com a variante
 `activeProfileSubjectConditionFor(alias)` para o SQL cru.
 
-**Compõem o predicado, hoje sete:** `activityIndexCte` (KPIs, buckets e
+**Compõem o predicado, hoje oito:** `activityIndexCte` (KPIs, buckets e
 `/atividades`), `getDashboardCounters` e `listProfileSummaries` (exportação em
 PDF e progresso), `countPendingActivities` (o limite do plano gratuito),
-`listTasksInDateRange` (calendário), `listTasksByBucket` (listas do PDF) e
-`listNoticeActions` (resumo por e-mail e feed de calendário).
+`listTasksInDateRange` (calendário), `listTasksByBucket` (listas do PDF),
+`listNoticeActions` (resumo diário, resumo de domingo e feed de calendário) e
+`findLoadUntilExam` (a carga que decide quais dias o plano de estudo evita).
 
 **Aplicar em algumas e não em outras é pior do que não aplicar.** Foi assim que
 o limite do gratuito passou a contar o que a tela escondia: a família lia 15
@@ -531,12 +532,17 @@ Endpoints `/api/data/{states,cities,schools}` (auth-gated via `proxy.ts`) servem
 Ordem de `app/(app)/dashboard/page.tsx`, tudo visível sem clique:
 
 1. Cabeçalho, com `ExportPdfButton` à direita.
-2. Filtro de criança — **um só na página**. O mesmo `?perfil=` vale para o horário, para os buckets e para os destinos dos atalhos.
-3. `DashboardNavButtons` — Ver atividades / Ver calendário / Importar mensagem ou foto.
-4. **`TodayScheduleSection`** — "Hoje na escola": as matérias de hoje de **cada** criança, com o badge "Reveza com X" do revezamento quinzenal. Cada card leva a `/turmas/{id}/materias`, que de outro modo só é alcançável pelo menu do avatar.
-5. **`RoutineSection`** — KPIs + os três buckets (cuidar hoje / preparar amanhã / próximos sete dias) + progresso por estudante.
-6. `SharedActivitiesSection` — atividades compartilhadas a aceitar, com **"Aceitar todas"** (teto de `ACCEPT_ALL_BATCH` por toque; cada item passa pelo mesmo `respondSharedActivity`, e o que sobra volta no botão).
-7. **`FirstStepsSection`** — a trilha do começo (criança → turma → horário → primeiro recado), calculada do banco a cada render e dispensável (`agenda.family_settings.first_steps_dismissed_at`). Substituiu `NoStudentsWidget`, `ProfilesWithoutTurmaWidget` e `NoSubjectsWidget`, que apareciam e sumiam sozinhos sem dizer quantos passos faltavam. **O passo do horário usa `listTurmasNeedingScheduleForUser`, não `findTurmasOfUserMissingSubjects`**: esta última só enxerga turmas criadas pela conta, e quem entrou por código ficava com um passo que nunca fechava e um botão que não levava a lugar nenhum. O critério é a matéria **com dias de aula**, porque é isso que sugere prazo e monta a mochila.
+2. Filtro de criança — **um só na página**. O mesmo `?perfil=` vale para o horário, para os buckets e para os destinos.
+3. `PendingDraftsSection` — "Falta conferir antes de salvar", com a lixeira que descarta de verdade.
+4. **`InboxSection`** — "Chegou por e-mail": a mesma família de pendências do card acima, com a diferença de que aqui **nada foi lido nem cobrado ainda**.
+5. `CommitmentWidget` — o convite a ligar lembretes, dispensável, só quando faz sentido.
+6. `TomorrowBackpackSection` — à noite, e só à noite, a mochila de amanhã sobe para o topo.
+7. **`TodayScheduleSection`** — "Hoje na escola": as matérias de hoje de **cada** criança, com o badge "Reveza com X" do revezamento quinzenal e os itens de "levar sempre". Cada card leva a `/turmas/{id}/materias`.
+8. **`RoutineSection`** — KPIs + os três buckets (cuidar hoje / preparar amanhã / próximos sete dias, este com o aviso de dia cheio) + progresso por estudante. A mochila aparece aqui de dia, quando não está no topo.
+9. `SharedActivitiesSection` — atividades compartilhadas a aceitar, com **"Aceitar todas"** (teto de `ACCEPT_ALL_BATCH` por toque; cada item passa pelo mesmo `respondSharedActivity`, e o que sobra volta no botão).
+10. **`FirstStepsSection`** — a trilha do começo (criança → turma → horário → primeiro recado), calculada do banco a cada render e dispensável (`agenda.family_settings.first_steps_dismissed_at`). Substituiu `NoStudentsWidget`, `ProfilesWithoutTurmaWidget` e `NoSubjectsWidget`, que apareciam e sumiam sozinhos sem dizer quantos passos faltavam. **O passo do horário usa `listTurmasNeedingScheduleForUser`, não `findTurmasOfUserMissingSubjects`**: esta última só enxerga turmas criadas pela conta, e quem entrou por código ficava com um passo que nunca fechava e um botão que não levava a lugar nenhum. O critério é a matéria **com dias de aula**, porque é isso que sugere prazo e monta a mochila.
+
+**`DashboardNavButtons` não existe mais** (ver §1): a criança filtrada viaja com a navegação do rodapé, e os três atalhos repetiam destinos que já estavam lá. Não repor.
 
 **Uma lista só.** Buckets e KPIs saem de `getRoutineSnapshot`
 (`features/unified-activities/service.ts`), que reusa a MESMA projeção SQL
@@ -556,8 +562,8 @@ UserMenu (avatar) tem só assinatura, conta e sair. Crianças e turmas vivem na 
 Três coisas que a rotina sabia e não dizia. Nenhuma delas usa IA — todas são aritmética sobre dados que a família já cadastrou, e é isso que as separa da regra de que **a leitura de recado não inventa prazo nem sessão de estudo**.
 
 - **Carga do dia** (`features/unified-activities/load.ts`): `summarizeDayLoad` marca um dia como "cheio" com três entregas OU noventa minutos estimados. Uma fonte só para três consumidores — o bucket "o resto da semana", o resumo de domingo e o plano de estudo —, porque três contagens diferentes de "dia cheio" seriam três respostas para a mesma pergunta.
-- **Plano de estudo** (`features/study-plan/`): opt-in, no detalhe de `exam`/`project` com prazo futuro. `planStudySessions` reparte N sessões entre hoje e a véspera, pelos dias mais livres, determinístico. As sessões são `type: "study"` com `dateOrigin: "family"` — a escola marcou uma data só, a prova. `studyForTaskId` liga cada sessão à prova; cancelar a prova cancela as sessões **pendentes** (o que já foi estudado continua feito), e replanejar substitui. **Toda decisão antes de qualquer escrita**: um `return` de dentro de uma transação Drizzle commita, então checar o limite do gratuito depois de cancelar o plano anterior apagaria o plano e devolveria erro.
-- **Resumo de domingo** (`features/notifications/weekly.ts`): dia e hora escolhidos em Ajustes, fora do silêncio, uma vez por semana (`messageKey = weekly:<dia>`). Sai da MESMA `listNoticeActions` do resumo diário e tem o mesmo teto de 20 linhas. Não tem evento de produto próprio: quem conta envio é `agenda.notification_deliveries`.
+- **Plano de estudo** (`features/study-plan/`): opt-in, no detalhe de `exam`/`project` com prazo futuro. `planStudySessions` reparte N sessões entre hoje e a véspera, pelos dias mais livres, determinístico. As sessões são `type: "study"` com `dateOrigin: "family"` — a escola marcou uma data só, a prova. `studyForTaskId` liga cada sessão à prova; cancelar a prova cancela as sessões **pendentes** (o que já foi estudado continua feito), e replanejar substitui. **Toda decisão antes de qualquer escrita**: um `return` de dentro de uma transação Drizzle commita, então checar o limite do gratuito depois de cancelar o plano anterior apagaria o plano e devolveria erro. **A leitura de recado não produz `study`**, e isso agora é schema e não promessa: `NOTICE_EXTRACTION_TYPES` tira o tipo da geração estruturada, guardado por um `Record<ActivityType, boolean>` que quebra o typecheck quando um tipo novo entra em `ACTIVITY_TYPES` sem decisão. Foi assim que `study` passou a ser aceito sem ninguém notar — ele nasceu no vocabulário compartilhado e a leitura o herdou de graça. O estreitamento é só na geração: `extractedActionSchema` continua aceitando os oito, porque é ele que abre rascunho guardado e alimenta o formulário, e o formulário precisa editar a sessão de estudo que já existe.
+- **Resumo de domingo** (`features/notifications/weekly.ts`): dia e hora escolhidos em Ajustes, fora do silêncio, uma vez por semana (`messageKey = weekly:<data do envio>`, o dia local em que o resumo saiu — não a segunda-feira da semana). Sai da MESMA `listNoticeActions` do resumo diário e tem o mesmo teto de 20 linhas. Não tem evento de produto próprio: quem conta envio é `agenda.notification_deliveries`.
 
 **"Levar sempre"** (`agenda.subject_kits`, `features/subject-kits/`) é o que vai na mochila toda vez que a matéria tem aula — tênis, flauta, apostila. Não é atividade: não tem prazo, não se conclui e não entra em contagem nenhuma. A chave é `(criança, matéria)`, porque a matéria é compartilhada entre famílias e duas irmãs na mesma turma levam coisas diferentes. Aparece em "Hoje na escola" (onde se edita) e na mochila de amanhã — **nos dois lugares em que a mochila aparece**, de dia dentro do bucket e à noite no topo, senão a mesma tela mostraria conteúdo diferente conforme a hora.
 
@@ -624,7 +630,7 @@ Neutros (`background, foreground, card, popover, muted, accent, border, input, s
 
 ### Aberto
 
-2. **Ativar a caixa de e-mail (operacional, fora do código).** O código está pronto e desligado: sem `INBOUND_EMAIL_DOMAIN` a interface diz "em ativação" e o webhook responde 503. Para ligar: (a) MX do subdomínio escolhido apontando para `mx.sendgrid.net`; (b) Inbound Parse no SendGrid para esse domínio, apontando para `https://agenda-da-turma.informach.com.br/api/webhooks/email-inbound`, com **"POST the raw, full MIME message" DESLIGADO** (o handler lê os campos já separados) e credenciais de Basic Auth na URL; (c) `INBOUND_EMAIL_DOMAIN` e `INBOUND_EMAIL_BASIC_AUTH` (no formato `usuario:senha`) no service do Railway — as duas já estão em `turbo.json` `tasks.build.env`. Escrita no Railway e no DNS não está no alcance do agente.
+2. **Ativar a caixa de e-mail (operacional, fora do código).** O código está pronto e desligado: sem `INBOUND_EMAIL_DOMAIN` a interface diz "em ativação" e o webhook responde 503. Para ligar: (a) MX do subdomínio escolhido apontando para `mx.sendgrid.net`; (b) Inbound Parse no SendGrid para esse domínio, apontando para `https://agenda-da-turma.informach.com.br/api/webhooks/email-inbound`, com **"POST the raw, full MIME message" DESLIGADO** (o handler lê os campos já separados) e credenciais de Basic Auth na URL; (c) `INBOUND_EMAIL_DOMAIN` e `INBOUND_EMAIL_BASIC_AUTH` (no formato `usuario:senha`) no service do Railway — as duas já estão em `turbo.json` `tasks.build.env`. Escrita no Railway e no DNS não está no alcance do agente. O passo a passo completo — inclusive por que o MIME bruto tem de ficar desligado — está em `docs/deploy-runbook.md` §10.3.
 
 1. **Site header para o app autenticado** — `site-header.tsx` ainda é o mínimo
    das páginas de auth. O `AppHeader` cobre o app; unificar os dois é arrumação,

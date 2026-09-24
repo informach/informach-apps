@@ -163,6 +163,25 @@ export function RoutineView({
   useEffect(() => setCounters(initialCounters), [initialCounters]);
   useEffect(() => setDoneToday(initialDoneToday), [initialDoneToday]);
 
+  /**
+   * Os dias cheios da semana, de TODOS os buckets.
+   *
+   * Antes a contagem via só o bucket "o resto da semana", então hoje e amanhã
+   * eram estruturalmente zero: numa sexta-feira o painel não avisava que o
+   * sábado tinha três entregas. Mesma janela do resumo de domingo
+   * (`LOAD_WINDOW_DAYS`), para as duas telas não darem respostas diferentes
+   * sobre o mesmo dia.
+   */
+  const heavyDays = summarizeDayLoad(
+    [...buckets.attention, ...buckets.tomorrow, ...buckets.week].map((entry) => ({
+      dueAt: entry.item.dueAt,
+      estimatedMinutes: entry.item.estimatedMinutes,
+      status: entry.item.status,
+      type: entry.item.type,
+    })),
+    { fromIso: todayIso },
+  ).filter((day) => day.level === "cheio");
+
   return (
     <div className="space-y-8">
       <KpiCards counters={counters} profileFilter={profileFilter} />
@@ -172,17 +191,7 @@ export function RoutineView({
         // rótulo diz quantas foram estimadas quando nem todas foram — senão o
         // número viraria promessa falsa.
         const estimate = formatBucketEstimate(entries.map((e) => e.item.estimatedMinutes));
-        const fullDays =
-          key === "week"
-            ? summarizeDayLoad(
-                entries.map((entry) => ({
-                  dueAt: entry.item.dueAt,
-                  estimatedMinutes: entry.item.estimatedMinutes,
-                  status: entry.item.status,
-                })),
-                { fromIso: todayIso, days: 8 },
-              ).filter((day) => day.level === "cheio")
-            : [];
+        const fullDays = key === "week" ? heavyDays : [];
         return (
           <section key={key} className="space-y-4">
             <div className="flex items-start gap-3">
@@ -221,7 +230,15 @@ export function RoutineView({
                 {key === "week" && fullDays.length ? (
                   <p className="mt-1 text-sm font-medium text-chart-4-ink">
                     {fullDays.length === 1
-                      ? `${weekdayLabel(fullDays[0]?.iso ?? "")} está cheia: ${formatDayLoad(fullDays[0] ?? { iso: "", count: 0, minutes: 0, level: "leve" })}.`
+                      ? `${weekdayLabel(fullDays[0]?.iso ?? "")} está cheia: ${formatDayLoad(
+                          fullDays[0] ?? {
+                            iso: "",
+                            deliveries: 0,
+                            study: 0,
+                            minutes: 0,
+                            level: "leve",
+                          },
+                        )}.`
                       : `Dias mais puxados: ${fullDays
                           .map((day) => `${weekdayLabel(day.iso)} (${formatDayLoad(day)})`)
                           .join(", ")}.`}

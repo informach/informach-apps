@@ -276,9 +276,12 @@ describe("discarding drafts", () => {
       now: new Date(),
       trialDailyBudget: 10000,
     });
-    expect(replay).toMatchObject({ ok: true, value: { replay: true } });
-    // O convidado recebe NOT_FOUND na checagem de acesso do serviço; o que não
-    // pode acontecer é o recado do titular voltar para "Falta conferir".
+    // Nem ressuscita, nem devolve uma tela muda: antes vinha um replay com
+    // zero ações visíveis, o formulário voltava vazio e tocar "ler recado" não
+    // fazia nada, sem erro nenhum.
+    expect(replay).toMatchObject({ ok: false, error: { code: "NOTICE_DISCARDED" } });
+    // O que não pode acontecer é o recado do titular voltar para "Falta
+    // conferir" na tela de quem não pode retomá-lo.
     expect((await reload(notice.id)).status).toBe("discarded");
     expect((await listReadyNotices(owner)).map((n) => n.id)).not.toContain(notice.id);
   });

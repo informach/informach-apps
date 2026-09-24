@@ -59,7 +59,7 @@ export function buildWeeklyDigestLines(
   if (!relevant.length) return [];
 
   const lines = window
-    .filter((day) => day.count > 0)
+    .filter((day) => day.deliveries + day.study > 0)
     .map((day) => {
       const ofDay = relevant.filter((item) => item.dueAt === day.iso);
       const detail = ofDay

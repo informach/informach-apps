@@ -153,7 +153,13 @@ export default async function DashboardPage({ searchParams }: Props) {
         feito, e pode ser dispensada antes disso.
       */}
       <Suspense fallback={null}>
-        <FirstStepsSection userId={user.id} profileCount={profiles.length} />
+        <FirstStepsSection
+          userId={user.id}
+          profileCount={profiles.length}
+          // A lista já traz a coluna de dono: saber se o adulto é titular ou
+          // convidado não custa consulta nenhuma.
+          ownsAnyProfile={profiles.some((p) => p.userId === user.id)}
+        />
       </Suspense>
     </Shell>
   );

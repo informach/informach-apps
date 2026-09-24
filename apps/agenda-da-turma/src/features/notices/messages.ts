@@ -34,6 +34,8 @@ export function noticeErrorMessage(code: string) {
       "Não consegui transcrever o áudio. Tente de novo, falando mais perto do microfone.",
     NOT_READY: "O recado ainda não está pronto para revisão.",
     NOT_DRAFT: "Este recado já foi salvo ou descartado. Atualize a página.",
+    NOTICE_DISCARDED:
+      "Este recado foi descartado por alguém da família. Peça a quem importou para retomá-lo, ou cadastre a atividade escrevendo.",
     NOT_FOUND: "Este item não está disponível para sua conta.",
     VERSION_CONFLICT:
       "Outro responsável alterou este item. Atualize a página antes de editar novamente.",
@@ -55,6 +57,13 @@ export function noticeErrorMessage(code: string) {
       "Há duas atividades iguais para a mesma criança nesta revisão. Remova uma delas.",
     POSSIBLE_DUPLICATES:
       "Já há uma atividade com mesmo título, tipo e data. Abra o registro existente para corrigir, ou confirme que deseja outro.",
+    // Fila offline. Sem estas linhas, uma queda de rede recebia "confira os
+    // campos" — conselho que não faz sentido nenhum para quem está sem sinal.
+    OFFLINE:
+      "Sem conexão, e este aparelho não consegue guardar a mudança para depois. Tente de novo quando a rede voltar.",
+    RATE_LIMITED: "Muitas mudanças em pouco tempo. Espere um minuto e tente de novo.",
+    WRITE_FAILED: "Não conseguimos salvar agora. A mudança continua guardada e sobe sozinha.",
+    KEY_REUSED: "Esta mudança já foi usada para outra atividade. Descarte-a e marque de novo.",
   };
   return (
     messages[code] ??

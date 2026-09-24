@@ -32,7 +32,8 @@ export async function dismissFirstSteps(userId: string): Promise<void> {
  * Turmas ativas das crianças da casa que ainda não têm nenhuma matéria com dias
  * de aula.
  *
- * Diferente de `findTurmasOfUserMissingSubjects`, que só enxerga turmas
+ * Diferente da consulta anterior (removida junto com o widget que a usava,
+ * e recuperável no histórico), que só enxergava turmas
  * CRIADAS pela conta: quem entrou por código ficaria com a lista sempre vazia
  * e um passo que nunca fecha nem leva a lugar nenhum. Criar matéria é direito
  * de qualquer membro da turma, então o destino vale para os dois casos. E o

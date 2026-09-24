@@ -1,7 +1,28 @@
 import { z } from "zod";
-import { activityTypeSchema } from "@/features/unified-activities/activity-types";
+import {
+  ACTIVITY_TYPES,
+  type ActivityType,
+  activityTypeSchema,
+} from "@/features/unified-activities/activity-types";
 
 export const NOTICE_SOURCES = ["teams", "batista", "notebook", "whatsapp", "other"] as const;
+/**
+ * Teto do texto de um recado, em caracteres.
+ *
+ * Exportado porque três lugares precisam do MESMO número: o `maxLength` do
+ * campo, o texto montado a partir do WhatsApp e o texto que vem de um e-mail
+ * encaminhado. Os dois últimos escrevem no estado sem passar pelo teclado, e o
+ * `maxLength` não os alcança — passar do teto deixava a importação impossível
+ * de enviar, com uma mensagem crua do Zod e nenhum caminho além de apagar
+ * milhares de caracteres na mão.
+ */
+export const NOTICE_TEXT_MAX = 16000;
+
+/** Corta no teto, preservando o começo — que é onde o recado começa. */
+export function clampNoticeText(text: string): string {
+  return text.length > NOTICE_TEXT_MAX ? text.slice(0, NOTICE_TEXT_MAX) : text;
+}
+
 export const noticeSourceSchema = z.enum(NOTICE_SOURCES);
 export const SOURCE_LABELS = {
   teams: "Microsoft Teams",
@@ -40,7 +61,7 @@ export const parseNoticeSchema = z
     source: noticeSourceSchema,
     sourceUrl: safeUrl.nullable().default(null),
     publishedAt: dateSchema.nullable().default(null),
-    text: z.string().trim().max(16000).default(""),
+    text: z.string().trim().max(NOTICE_TEXT_MAX).default(""),
     attachment: z
       .object({
         name: z.string().trim().min(1).max(180),
@@ -94,10 +115,51 @@ export type NoticeExtraction = z.infer<typeof noticeExtractionSchema>;
 // O OpenRouter manda `json_schema.strict: true`, então toda propriedade precisa
 // estar em `required` (nullable serve; optional não). `.required()` é raso: o
 // item do array recebe o mesmo tratamento.
+/**
+ * Os tipos que a LEITURA pode produzir: todos, menos `study`.
+ *
+ * Sessão de estudo é planejamento da família — `features/study-plan` reparte as
+ * sessões pelos dias livres e as liga à prova por `studyForTaskId`. Uma sessão
+ * saída da leitura não teria prova nenhuma atrás dela, e a regra "a IA não
+ * inventa sessão de estudo" viraria letra morta.
+ *
+ * O estreitamento vale só na GERAÇÃO. `extractedActionSchema` continua aceitando
+ * os oito, porque é ele que lê rascunhos guardados e alimenta o formulário — e
+ * o formulário precisa conseguir editar uma sessão de estudo que já existe.
+ */
+const EXTRACTABLE_BY_AI: Record<ActivityType, boolean> = {
+  task: true,
+  exam: true,
+  project: true,
+  reminder: true,
+  material: true,
+  authorization: true,
+  event: true,
+  // Planejamento da família, nunca leitura de recado.
+  study: false,
+};
+
+/**
+ * O `Record` acima é o guarda: um tipo novo em `ACTIVITY_TYPES` quebra o
+ * typecheck até alguém decidir se a leitura pode produzi-lo. Foi assim que
+ * `study` entrou sem ninguém notar — ele nasceu no vocabulário compartilhado e
+ * a leitura o herdou de graça.
+ */
+export const NOTICE_EXTRACTION_TYPES = ACTIVITY_TYPES.filter((type) => EXTRACTABLE_BY_AI[type]) as [
+  ActivityType,
+  ...ActivityType[],
+];
+
 export const noticeGenerationSchema = noticeExtractionSchema
   .required({ publicationReference: true })
   .extend({
-    actions: z.array(extractedActionSchema.required({ subjectHint: true })).max(30),
+    actions: z
+      .array(
+        extractedActionSchema
+          .required({ subjectHint: true })
+          .extend({ type: z.enum(NOTICE_EXTRACTION_TYPES) }),
+      )
+      .max(30),
   });
 
 // `parsed_result` guarda a leitura com um `id` por ação, atribuído ao

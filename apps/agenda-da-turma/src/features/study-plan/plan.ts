@@ -33,7 +33,10 @@ export function planStudySessions(input: {
   const load = new Map(input.loadByDay?.map((day) => [day.iso, day]) ?? []);
   const weight = (iso: string) => {
     const day = load.get(iso);
-    return day ? day.count * 60 + day.minutes : 0;
+    // Sessão de estudo de OUTRA prova pesa como qualquer compromisso: ela
+    // ocupa o dia igual. O que não pesa é o plano que está sendo refeito, e
+    // isso quem tira é a consulta (`findLoadUntilExam`).
+    return day ? (day.deliveries + day.study) * 60 + day.minutes : 0;
   };
   // Os dias mais livres primeiro; empate pelo mais próximo de hoje, para que a
   // criança comece cedo em vez de acumular na véspera.

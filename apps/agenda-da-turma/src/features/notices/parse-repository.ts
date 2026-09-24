@@ -91,6 +91,12 @@ export async function reserveNoticeParse({
       // recado que ele tinha descartado — e ainda assim recebia NOT_FOUND na
       // checagem de acesso logo depois, sem entender o que causou a volta.
       const canResume = ownerId === userId || existing.createdByUserId === userId;
+      // Descartado por outra pessoa da casa: devolver o replay levava a tela a
+      // um rascunho sem nenhuma ação visível — nada acontecia ao tocar "ler
+      // recado", sem erro e sem explicação. Quem não pode retomar precisa saber
+      // que o recado existe e foi descartado, não ver uma tela muda.
+      if (!canResume && existing.status === "discarded")
+        return err({ code: "NOTICE_DISCARDED" } as const);
       if (stored.success && !canResume) return ok({ notice: existing, replay: true });
       if (stored.success) {
         const ids = ensureStoredActionIds(stored.data);

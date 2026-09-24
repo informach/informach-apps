@@ -164,6 +164,13 @@ export async function findStudentProfilesWithActiveTurmaByUser(
   });
 }
 
+/**
+ * Crianças DESTA CONTA sem turma ativa — escopo de dono, não de acesso.
+ *
+ * Deliberado: turma é escopada por conta (ver o guia do app), então o segundo
+ * adulto não tem o que vincular. Quem consome isto é a trilha de primeiros
+ * passos, que por sua vez não é mostrada a ele.
+ */
 export async function countProfilesWithoutActiveTurmaByUser(userId: string): Promise<number> {
   const [row] = await db
     .select({ count: count() })

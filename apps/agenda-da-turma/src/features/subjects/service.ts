@@ -14,7 +14,6 @@ import {
   attachAlternatingSlotsOne,
   deleteSubjectById,
   findSubjectById,
-  findTurmasOfUserMissingSubjects,
   insertSubjectIfNotExists,
   isSubjectInUseByOtherUsers,
   listSubjectsForTurma,
@@ -27,7 +26,7 @@ import type {
   DeleteSubjectInput,
   UpdateSubjectInput,
 } from "./schemas";
-import type { AlternatingSlotInput, Subject, TurmaNeedingSubjects } from "./types";
+import type { AlternatingSlotInput, Subject } from "./types";
 import { isMinorNameEdit } from "./utils";
 
 export type SubjectError =
@@ -315,10 +314,4 @@ export async function getSubjectsForUserAndTurma(
   const rows = await listSubjectsForTurma(turmaId);
   const subjects = await attachAlternatingSlots(rows);
   return ok({ turma, subjects, canCreateSubject: isMember });
-}
-
-export async function listTurmasNeedingSubjectsForUser(
-  userId: string,
-): Promise<TurmaNeedingSubjects[]> {
-  return findTurmasOfUserMissingSubjects(userId);
 }

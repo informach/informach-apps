@@ -25,11 +25,23 @@ import { DismissFirstStepsButton } from "./dismiss-first-steps-button";
 export async function FirstStepsSection({
   userId,
   profileCount,
+  ownsAnyProfile,
 }: {
   userId: string;
   /** Já contado pelo dashboard: não vale uma segunda consulta. */
   profileCount: number;
+  /**
+   * Alguma das crianças visíveis é desta conta?
+   *
+   * O segundo adulto **não** pode fazer os dois primeiros passos: cadastrar
+   * criança e vincular turma são do titular, e turma é escopada por conta. Ele
+   * via "1 de 4 prontos" com um botão que levava a uma tela onde não havia o
+   * que criar — uma trilha que nunca fechava. Também sai do caminho para quem é
+   * titular de uma casa e convidado de outra, pelo mesmo motivo.
+   */
+  ownsAnyProfile: boolean;
 }) {
+  if (profileCount > 0 && !ownsAnyProfile) return null;
   if (await isFirstStepsDismissed(userId)) return null;
   const [profilesWithoutTurma, turmasNeedingSchedule, hasActivity] = await Promise.all([
     countUserProfilesWithoutTurma(userId),

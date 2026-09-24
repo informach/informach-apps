@@ -1,5 +1,5 @@
 import "server-only";
-import { and, db, eq, inArray } from "@informach/db";
+import { and, db, eq, inArray, sql } from "@informach/db";
 import {
   agendaProfileSubjects,
   agendaStudentProfiles,
@@ -66,29 +66,43 @@ export async function subjectBelongsToProfile(
   return Boolean(row);
 }
 
+/**
+ * Grava a lista do "levar sempre", criando ou substituindo.
+ *
+ * O conflito é resolvido pelo **banco**, nos dois índices únicos parciais que a
+ * migração 0059 criou. Ler e depois escrever deixava duas abas (ou um toque
+ * duplo que escapasse do `useTransition`) acharem as duas que não existia
+ * linha, inserirem as duas, e a segunda levar uma violação de índice na cara da
+ * pessoa em vez de simplesmente juntar.
+ *
+ * São dois índices porque a matéria é da turma **ou** extracurricular, nunca as
+ * duas (CHECK `agenda_subject_kit_target_check`), e um índice único comum sobre
+ * colunas anuláveis não impede duplicata no Postgres.
+ */
 export async function upsertSubjectKit(input: {
   profileId: string;
   subjectId: string | null;
   profileSubjectId: string | null;
   items: string[];
 }) {
-  const target = input.subjectId
-    ? and(
-        eq(agendaSubjectKits.profileId, input.profileId),
-        eq(agendaSubjectKits.subjectId, input.subjectId),
-      )
-    : and(
-        eq(agendaSubjectKits.profileId, input.profileId),
-        eq(agendaSubjectKits.profileSubjectId, input.profileSubjectId ?? ""),
-      );
-  const [existing] = await db
-    .select({ id: agendaSubjectKits.id })
-    .from(agendaSubjectKits)
-    .where(target);
-  if (existing)
+  const values = { ...input, updatedAt: new Date() };
+  if (input.subjectId) {
     await db
-      .update(agendaSubjectKits)
-      .set({ items: input.items, updatedAt: new Date() })
-      .where(eq(agendaSubjectKits.id, existing.id));
-  else await db.insert(agendaSubjectKits).values({ ...input, updatedAt: new Date() });
+      .insert(agendaSubjectKits)
+      .values(values)
+      .onConflictDoUpdate({
+        target: [agendaSubjectKits.profileId, agendaSubjectKits.subjectId],
+        targetWhere: sql`${agendaSubjectKits.subjectId} IS NOT NULL`,
+        set: { items: input.items, updatedAt: values.updatedAt },
+      });
+    return;
+  }
+  await db
+    .insert(agendaSubjectKits)
+    .values(values)
+    .onConflictDoUpdate({
+      target: [agendaSubjectKits.profileId, agendaSubjectKits.profileSubjectId],
+      targetWhere: sql`${agendaSubjectKits.profileSubjectId} IS NOT NULL`,
+      set: { items: input.items, updatedAt: values.updatedAt },
+    });
 }

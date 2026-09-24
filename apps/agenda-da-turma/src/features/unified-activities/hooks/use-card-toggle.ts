@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { isQueued } from "@/features/offline-queue/client";
+import { useQueueOwner } from "@/features/offline-queue/owner";
+import { visibleForOwner } from "@/features/offline-queue/queue";
 import { listPendingWrites, QUEUE_CHANGED_EVENT } from "@/features/offline-queue/store";
 import { catchActionResult } from "@/lib/action-result";
 
@@ -12,6 +14,14 @@ type ToggleResult = { ok: true; value: unknown } | { ok: false; error: { code: s
 
 type Args = {
   initialStatus: Status;
+  /**
+   * A atividade, para o card reencontrar a própria gravação na fila.
+   *
+   * Sem isto, fechar e reabrir o app ainda sem rede devolvia um card pendente
+   * e sem selo: o estado da fila vive no aparelho, e o componente nasce sem
+   * memória. Quem não passa `taskId` simplesmente não hidrata.
+   */
+  taskId?: string;
   optimisticHideWhenDone: boolean;
   toggleAction: (next: Status) => Promise<ToggleResult>;
   onSuccess?: (previousStatus: Status, nextStatus: Status) => void;
@@ -51,6 +61,7 @@ type Args = {
  */
 export function useCardToggle({
   initialStatus,
+  taskId,
   optimisticHideWhenDone,
   toggleAction,
   onSuccess,
@@ -58,6 +69,7 @@ export function useCardToggle({
   exitMs = 280,
 }: Args) {
   const router = useRouter();
+  const queueOwner = useQueueOwner();
   const [optimisticStatus, setOptimisticStatus] = useState<Status>(initialStatus);
   const [isExiting, setIsExiting] = useState(false);
   const [optimisticallyHidden, setOptimisticallyHidden] = useState(false);
@@ -98,31 +110,50 @@ export function useCardToggle({
   }, [initialStatus]);
 
   /**
-   * O selo some quando a gravação resolve — e não na próxima navegação.
+   * O card e a fila, nos dois sentidos.
    *
-   * Duas saídas, e confundi-las é o que fazia a decisão da pessoa desaparecer
-   * sem uma palavra: se a entrada SUMIU da fila, ela subiu, e o selo sai calado
-   * (quem busca a versão nova é o `OfflineQueueFlusher`, uma vez para a árvore
-   * inteira, em vez de uma vez por card). Se ela continua lá marcada como
-   * conflito, o servidor recusou: o card volta ao que o servidor diz, mostra o
-   * motivo e vira de novo um alvo para insistir.
+   * **Hidrata** na montagem: a decisão vive no aparelho, e o componente nasce
+   * sem memória dela. Fechar e reabrir o app ainda sem rede devolvia um card
+   * pendente, sem selo — desfazendo na tela o que a pessoa tinha decidido.
+   *
+   * **Limpa** quando a gravação resolve, e as duas saídas são diferentes: se a
+   * entrada SUMIU, ela subiu, e o selo sai calado (quem busca a versão nova é o
+   * `OfflineQueueFlusher`, uma vez para a árvore inteira, em vez de uma vez por
+   * card). Se ela continua lá como conflito, o servidor recusou: o card volta
+   * ao que o servidor diz, mostra o motivo e vira de novo um alvo para insistir.
    */
+  const queuedKeyRef = useRef<string | null>(null);
+  queuedKeyRef.current = queuedKey;
   useEffect(() => {
-    if (!queuedKey) return;
+    if (!taskId || !queueOwner) return;
+    let alive = true;
     const check = () => {
-      void listPendingWrites().then((entries) => {
-        const entry = entries.find((item) => item.key === queuedKey);
-        if (entry?.state === "pending") return;
+      void listPendingWrites().then((all) => {
+        if (!alive) return;
+        const mine = visibleForOwner(all, queueOwner).filter((item) => item.taskId === taskId);
+        const waiting = mine.find((item) => item.state === "pending");
+        if (waiting) {
+          setQueuedKey(waiting.key);
+          setOptimisticStatus(waiting.status);
+          return;
+        }
+        const previous = queuedKeyRef.current;
+        if (!previous) return;
         setQueuedKey(null);
-        if (!entry) return;
+        const refused = mine.find((item) => item.key === previous);
+        if (!refused) return;
         setOptimisticStatus(initialStatus);
-        setFailedAttempt(entry.status);
-        onErrorRef.current?.({ code: entry.errorCode ?? "VERSION_CONFLICT" });
+        setFailedAttempt(refused.status);
+        onErrorRef.current?.({ code: refused.errorCode ?? "VERSION_CONFLICT" });
       });
     };
+    check();
     window.addEventListener(QUEUE_CHANGED_EVENT, check);
-    return () => window.removeEventListener(QUEUE_CHANGED_EVENT, check);
-  }, [queuedKey, initialStatus]);
+    return () => {
+      alive = false;
+      window.removeEventListener(QUEUE_CHANGED_EVENT, check);
+    };
+  }, [taskId, queueOwner, initialStatus]);
 
   const handleToggle = (next: boolean) => {
     const previousStatus = optimisticStatus;

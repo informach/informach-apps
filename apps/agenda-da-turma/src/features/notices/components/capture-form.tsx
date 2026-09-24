@@ -8,7 +8,7 @@ import { Camera, Loader2, Plus, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { handleAiHttpError } from "@/features/ai/_http-errors";
 import { todayLocalIso } from "@/features/dashboard/date";
@@ -21,9 +21,11 @@ import { draftFromExtractedAction } from "../draft-from-extraction";
 import { noticeErrorMessage } from "../messages";
 import { buildPdfFromPhotos, MAX_PHOTOS, type Photo } from "../photo-pdf";
 import {
+  clampNoticeText,
   confirmNoticeSchema,
   type DraftExtraction,
   draftExtractionSchema,
+  NOTICE_TEXT_MAX,
   type NoticeActionInput,
   noticeSourceSchema,
   parseNoticeSchema,
@@ -173,12 +175,23 @@ export function CaptureForm({
    * da turma, prazo da escola e Pro. Anotação de caderno nunca — ali é a letra
    * de uma criança, não o enunciado que a escola mandou para todo mundo.
    */
+  /** A criança é de uma casa Pro? (Perfil convidado herda o plano do titular.) */
+  const isProForProfile = (pid: string) =>
+    proProfileIds.includes(pid) || (ownerIsPro && !initialProfiles.some((p) => p.id === pid));
   const sharesByDefault = (pid: string, origin: z.infer<typeof noticeSourceSchema>) =>
-    origin !== "notebook" &&
-    (proProfileIds.includes(pid) || (ownerIsPro && !initialProfiles.some((p) => p.id === pid)));
+    origin !== "notebook" && isProForProfile(pid);
   const [sourceUrl, setSourceUrl] = useState("");
   const [publishedAt, setPublishedAt] = useState("");
-  const [text, setText] = useState(defaultText);
+  // Todo caminho que escreve texto sem passar pelo teclado passa por aqui: o
+  // `maxLength` do campo não alcança o que o código escreve, e ultrapassar o
+  // teto deixava a importação impossível de enviar.
+  const [rawText, setRawTextState] = useState(defaultText);
+  const text = clampNoticeText(rawText ?? "");
+  const setText = (next: string | ((current: string) => string)) =>
+    setRawTextState((current) =>
+      clampNoticeText(typeof next === "function" ? next(clampNoticeText(current ?? "")) : next),
+    );
+  const textWasTrimmed = (rawText ?? "").length > NOTICE_TEXT_MAX;
   const [attachment, setAttachment] = useState<{ name: string; dataUrl: string } | null>(
     defaultAttachment ?? null,
   );
@@ -200,14 +213,12 @@ export function CaptureForm({
             initialNotice.profileId,
             subjectOptions[initialNotice.profileId] ?? [],
             {
-              defaultShare:
-                initialNotice.source !== "notebook" &&
-                (proProfileIds.includes(initialNotice.profileId) ||
-                  (ownerIsPro && !initialProfiles.some((p) => p.id === initialNotice.profileId))),
-              suggestReminders:
-                suggestReminders &&
-                (proProfileIds.includes(initialNotice.profileId) ||
-                  (ownerIsPro && !initialProfiles.some((p) => p.id === initialNotice.profileId))),
+              // Mesmos predicados da importação nova: a cópia inline que morava
+              // aqui era a mesma expressão escrita duas vezes, e retomar um
+              // rascunho é exatamente o caminho em que ninguém olharia se as
+              // duas tivessem divergido.
+              defaultShare: sharesByDefault(initialNotice.profileId, initialNotice.source),
+              suggestReminders: suggestReminders && isProForProfile(initialNotice.profileId),
               todayIso: todayLocalIso(),
             },
           ),
@@ -245,15 +256,26 @@ export function CaptureForm({
   /** Replay de um recado já confirmado: não há rascunho no servidor. */
   const [noticeConfirmed, setNoticeConfirmed] = useState(false);
 
-  // Anexo que já chegou pronto (e-mail encaminhado): o seletor de páginas
-  // depende de saber quantas são.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: só na montagem, ver acima
+  /**
+   * Anexo que já chegou pronto (e-mail encaminhado): o seletor de páginas
+   * depende de saber quantas são.
+   *
+   * A trava é a `ref`, não o array de dependências. `defaultAttachment` vem
+   * desserializado do servidor e muda de IDENTIDADE a cada `router.refresh()` —
+   * e o esvaziamento da fila offline dispara um. Sem a trava, o efeito rodava
+   * no meio da revisão e `countPdfPages` zerava as páginas que a pessoa tinha
+   * acabado de marcar, derrubando o envio com "confira os campos" e sem dizer
+   * que a escolha dela tinha sido apagada.
+   */
+  const countedAttachment = useRef(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a trava é a ref, ver acima
   useEffect(() => {
+    if (countedAttachment.current) return;
     if (!defaultAttachment?.dataUrl.startsWith("data:application/pdf")) return;
+    countedAttachment.current = true;
     void countPdfPages(defaultAttachment.dataUrl).catch(() =>
       setError(noticeErrorMessage("INVALID_ATTACHMENT")),
     );
-    // Só na montagem: o anexo pré-carregado não muda enquanto a tela vive.
   }, [defaultAttachment]);
 
   /**
@@ -649,6 +671,9 @@ export function CaptureForm({
             // O texto leva a data de cada mensagem, e a mais recente vira a
             // publicação: sem isso, um "entregar amanhã" de terça vira um
             // prazo de hoje.
+            // `setText` corta no teto: dez mensagens longas passam de 16 000
+            // caracteres com facilidade, e o corte aqui é melhor do que uma
+            // recusa do Zod depois, sem saída.
             setText(buildNoticeTextFromMessages(picked));
             // Só quando as mensagens escolhidas trazem data: apagar o que a
             // pessoa digitou à mão seria perder a referência de publicação.
@@ -703,9 +728,17 @@ export function CaptureForm({
               className="min-h-40 rounded-md border bg-background p-3 font-normal"
               placeholder="Ex.: O passeio será na sexta-feira. Entreguem a autorização até quarta..."
               value={text}
-              maxLength={16000}
+              maxLength={NOTICE_TEXT_MAX}
               onChange={(e) => setText(e.target.value)}
             />
+            {/* Cortar em silêncio seria pior: a pessoa mandaria ler metade de
+                um e-mail achando que mandou o todo. */}
+            {textWasTrimmed ? (
+              <p role="status" className="text-sm font-normal text-muted-foreground">
+                O recado é maior do que cabe numa leitura e foi cortado no começo dele. Confira o
+                que ficou e apague o que não for necessário.
+              </p>
+            ) : null}
           </label>
           {/*
             Ditar escreve no mesmo campo de texto, e não num fluxo paralelo: a

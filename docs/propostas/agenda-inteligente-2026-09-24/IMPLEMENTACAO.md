@@ -77,7 +77,7 @@ O passo inalcançável para quem entrou por código, o `hasTurma` frouxo, a orig
 
 **"Levar sempre" não é atividade.** Sem prazo, sem conclusão, fora de qualquer contagem. A chave é `(criança, matéria)`, porque a matéria é compartilhada entre famílias e duas irmãs na mesma turma levam coisas diferentes. Aparece nos **dois** lugares em que a mochila aparece, senão a mesma tela mostraria conteúdo diferente conforme a hora.
 
-**O resumo semanal não ganhou evento de produto próprio**: quem conta envio é `agenda.notification_deliveries`, com a chave `weekly:<segunda>`. Um segundo contador discordaria dele no primeiro reenvio.
+**O resumo semanal não ganhou evento de produto próprio**: quem conta envio é `agenda.notification_deliveries`, com a chave `weekly:<data do envio>`. Um segundo contador discordaria dele no primeiro reenvio.
 
 ### Achados da revisão do lote 3 (sete, todos corrigidos)
 

@@ -464,6 +464,24 @@ Sem isso o app retorna **503 silencioso** em `POST /api/webhooks/sendgrid` (gate
 
 > **Por que ECDSA e não HMAC**: SendGrid migrou pra Signed Event Webhook (RFC 8058, P-256). Não habilitar a parte "Signed" = webhook chega sem assinatura → handler retorna 403 (estamos sempre exigindo). Não há "shared secret" — só verificação assimétrica.
 
+### 10.3 SendGrid Inbound Parse (só Agenda da Turma; opcional)
+
+Liga o "recado por e-mail": a família encaminha o comunicado da escola para um endereço só dela e ele aparece em "Chegou por e-mail". **Enquanto `INBOUND_EMAIL_DOMAIN` não existir, o painel diz "em ativação" e o webhook responde 503** — o app funciona sem isto.
+
+O Inbound Parse **não assina o corpo**. A URL secreta e o Basic Auth são a defesa que existe; trate as credenciais como segredo de produção.
+
+1. Escolher um subdomínio dedicado (ex.: `recados.informach.com.br`). **Não** usar o domínio que já envia e-mail.
+2. DNS no Cloudflare: registro **MX** do subdomínio para `mx.sendgrid.net`, prioridade `10`, **proxy desligado** (MX não passa por proxy).
+3. SendGrid Dashboard → Settings → **Inbound Parse** → "Add Host & URL".
+   - **Receiving Domain**: o subdomínio do passo 1.
+   - **Destination URL**: `https://<usuario>:<senha>@agenda-da-turma.informach.com.br/api/webhooks/email-inbound`.
+   - **POST the raw, full MIME message**: **DESLIGADO**. O handler lê os campos já separados (`to`, `from`, `subject`, `text`, `html`, `attachment-info`); com o MIME bruto ele não acha nenhum deles.
+4. Railway, no service do app: `INBOUND_EMAIL_DOMAIN=<subdomínio>` e `INBOUND_EMAIL_BASIC_AUTH=<usuario>:<senha>` (as mesmas credenciais da URL). As duas já estão em `turbo.json` `tasks.build.env`.
+5. Redeploy e conferir: `/familia/ajustes` deixa de dizer "em ativação" e mostra o endereço da família.
+6. **Validar de verdade**: encaminhar um e-mail com anexo PDF para o endereço gerado e conferir que ele aparece no painel. O webhook responde **200 ao recusar por regra de negócio** (endereço desconhecido, caixa cheia, limite de frequência) e **500 quando a falha é nossa**, para o SendGrid reentregar.
+
+> **Gotcha do charset**: o Inbound Parse entrega os campos no charset do original e o handler decodifica como UTF-8. Um remetente em ISO-8859-1 chega com acento trocado, e não há conserto depois da decodificação.
+
 ---
 
 ## Fase 11 — Cron services (♻ ADD, não recriar)

@@ -3,7 +3,13 @@ import type { DayLoad } from "@/features/unified-activities/load";
 import { planStudySessions } from "./plan";
 
 const today = "2026-09-28";
-const heavy = (iso: string): DayLoad => ({ iso, count: 3, minutes: 120, level: "cheio" });
+const heavy = (iso: string): DayLoad => ({
+  iso,
+  deliveries: 3,
+  study: 0,
+  minutes: 120,
+  level: "cheio",
+});
 
 describe("planStudySessions", () => {
   it("spreads the sessions between today and the eve of the exam", () => {

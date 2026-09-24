@@ -86,6 +86,7 @@ export function UnifiedActivityCard({
   const { isDone, isExiting, optimisticallyHidden, pending, queued, handleToggle, retry } =
     useCardToggle({
       initialStatus: view.status === "done" ? "done" : "pending",
+      taskId: view.toggle?.id,
       optimisticHideWhenDone: optimisticHideWhenDone && !isCanceled,
       // Concluir e reabrir passam pela rota idempotente, não pela server action:
       // é o único caminho que sobrevive a uma rede que sumiu no meio, porque a

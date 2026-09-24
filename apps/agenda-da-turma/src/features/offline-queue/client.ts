@@ -92,10 +92,16 @@ export async function submitTaskStatus(input: {
     status: input.status,
     fromQueue: false,
   });
-  if (outcome.kind === "settled")
+  if (outcome.kind === "settled") {
+    // Subiu de verdade: o que estava esperando OU marcado como recusado para
+    // esta atividade deixa de valer. Sem isto, insistir num conflito pela
+    // lixeira do card salvava a atividade e deixava a linha antiga na folha,
+    // com a barra avisando para sempre sobre algo já resolvido.
+    if (outcome.ok && input.userId) await forgetTaskWrites(input.userId, input.id);
     return outcome.ok
       ? { ok: true, value: { id: input.id } }
       : { ok: false, error: { code: outcome.code } };
+  }
   if (outcome.kind === "invalid") return { ok: false, error: { code: outcome.code } };
   if (!input.userId) return { ok: false, error: { code: "OFFLINE" } };
 
@@ -194,6 +200,16 @@ async function runFlush(userId: string): Promise<FlushResult> {
   }
   if (changed) notifyQueueChanged();
   return { sent, conflicts: entries.filter((entry) => entry.state === "conflict").length };
+}
+
+/** Tira da fila tudo que esta pessoa tinha guardado sobre uma atividade. */
+async function forgetTaskWrites(userId: string, taskId: string) {
+  const mine = visibleForOwner(await listPendingWrites(), userId).filter(
+    (entry) => entry.taskId === taskId,
+  );
+  if (!mine.length) return;
+  for (const entry of mine) await deletePendingWrite(entry.key);
+  notifyQueueChanged();
 }
 
 /** Descartar uma gravação que o servidor recusou. A decisão é de quem lê. */

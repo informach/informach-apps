@@ -4,6 +4,7 @@ import { agendaStudentProfiles, agendaTasks } from "@informach/db/schema";
 import { FREE_ACTIVITY_LIMIT } from "@/features/activities/limits";
 import { countPendingActivities, lockPendingLimit } from "@/features/activities/pending-limit";
 import { accessibleProfileCondition } from "@/features/family/access";
+import { activeProfileSubjectCondition } from "@/features/profile-subjects/visibility";
 
 export type StudySessionRow = {
   id: string;
@@ -42,13 +43,26 @@ export async function findStudySessions(
  *
  * O plano ANTERIOR fica de fora: ele vai ser desfeito, e contá-lo faria o
  * replanejamento fugir justamente dos dias que ele libera.
+ *
+ * Compõe `activeProfileSubjectCondition` como toda consulta que diz o que a
+ * família ainda tem a fazer. Sem ele, a atividade de uma matéria extracurricular
+ * PAUSADA — que a tela esconde — encheria um dia e empurraria a sessão de estudo
+ * para outro, sem nenhuma causa visível. É o mesmo defeito que já fez o limite
+ * do plano gratuito contar o que a tela não mostrava.
  */
 export async function findLoadUntilExam(
   userId: string,
   input: { profileId: string; taskId: string; fromIso: string; toIso: string },
 ) {
   return db
-    .select({ dueAt: agendaTasks.dueAt, estimatedMinutes: agendaTasks.estimatedMinutes })
+    .select({
+      dueAt: agendaTasks.dueAt,
+      estimatedMinutes: agendaTasks.estimatedMinutes,
+      // O tipo vai junto para `summarizeDayLoad` separar entrega de sessão de
+      // estudo: três sessões de OUTRA prova ocupam o dia, mas não são três
+      // entregas.
+      type: agendaTasks.type,
+    })
     .from(agendaTasks)
     .innerJoin(agendaStudentProfiles, eq(agendaStudentProfiles.id, agendaTasks.profileId))
     .where(
@@ -56,6 +70,7 @@ export async function findLoadUntilExam(
         eq(agendaTasks.profileId, input.profileId),
         eq(agendaTasks.status, "pending"),
         accessibleProfileCondition(userId),
+        activeProfileSubjectCondition,
         sql`(${agendaTasks.studyForTaskId} IS NULL OR ${agendaTasks.studyForTaskId} <> ${input.taskId})`,
         sql`${agendaTasks.dueAt} BETWEEN ${input.fromIso}::date AND ${input.toIso}::date`,
       ),

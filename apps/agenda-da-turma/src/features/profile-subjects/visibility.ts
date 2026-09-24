@@ -20,10 +20,13 @@ import { agendaProfileSubjects, agendaTasks } from "@informach/db/schema";
  *
  * **Regra:** toda consulta sobre `agenda.tasks` que produza número, lista ou
  * mensagem sobre o que a família AINDA TEM A FAZER compõe este predicado. São
- * sete hoje — `activityIndexCte`, `getDashboardCounters`, `listProfileSummaries`,
- * `countPendingActivities`, `listTasksInDateRange`, `listTasksByBucket` e
- * `listNoticeActions`. Aplicar em algumas e não em outras é pior que não aplicar:
- * foi assim que o limite do plano gratuito passou a contar o que a tela escondia.
+ * OITO hoje — `activityIndexCte`, `getDashboardCounters`, `listProfileSummaries`,
+ * `countPendingActivities`, `listTasksInDateRange`, `listTasksByBucket`,
+ * `listNoticeActions` e `findLoadUntilExam`. Aplicar em algumas e não em outras é
+ * pior que não aplicar: foi assim que o limite do plano gratuito passou a contar
+ * o que a tela escondia, e foi assim que a carga do plano de estudo quase
+ * repetiu o erro — um dia "cheio" de atividades de uma matéria pausada empurrava
+ * a sessão para outro dia, sem nenhuma causa visível.
  *
  * **A exceção é histórico**, e é deliberada: `listFamilyCompletionDays`, que
  * alimenta a sequência da família, NÃO compõe. Ela conta dias em que a casa

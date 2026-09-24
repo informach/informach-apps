@@ -4,13 +4,10 @@ import { and, asc, type Database, db, eq, inArray, ne, sql } from "@informach/db
 import {
   type AgendaClassDay,
   agendaActivities,
-  agendaSchools,
-  agendaStudentProfiles,
   agendaSubjectAlternatingSlots,
   agendaSubjects,
-  agendaTurmas,
 } from "@informach/db/schema";
-import type { AlternatingSlot, Subject, TurmaNeedingSubjects } from "./types";
+import type { AlternatingSlot, Subject } from "./types";
 import { pickAvailableColorIndex } from "./utils";
 
 // Shape "puro" da row de matéria (sem slots). Usado internamente pra
@@ -301,31 +298,4 @@ export async function isSubjectInUseByOtherUsers(
     )
     .limit(1);
   return row !== undefined;
-}
-
-// Turmas das quais o user é creator E que estão como activeTurma de algum perfil dele
-// E que ainda não têm matérias cadastradas. Usado pelo widget do dashboard.
-export async function findTurmasOfUserMissingSubjects(
-  userId: string,
-): Promise<TurmaNeedingSubjects[]> {
-  const rows = await db
-    .selectDistinct({
-      turmaId: agendaTurmas.id,
-      schoolName: agendaSchools.name,
-      grade: agendaTurmas.grade,
-      classLetter: agendaTurmas.classLetter,
-      year: agendaTurmas.year,
-    })
-    .from(agendaStudentProfiles)
-    .innerJoin(agendaTurmas, eq(agendaTurmas.id, agendaStudentProfiles.activeTurmaId))
-    .innerJoin(agendaSchools, eq(agendaSchools.inepCode, agendaTurmas.schoolInepCode))
-    .where(
-      and(
-        eq(agendaStudentProfiles.userId, userId),
-        eq(agendaTurmas.createdByUserId, userId),
-        sql`NOT EXISTS (SELECT 1 FROM ${agendaSubjects} WHERE ${agendaSubjects.turmaId} = ${agendaTurmas.id})`,
-      ),
-    )
-    .orderBy(asc(agendaSchools.name));
-  return rows;
 }

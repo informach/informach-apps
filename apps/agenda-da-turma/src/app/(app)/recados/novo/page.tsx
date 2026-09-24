@@ -116,16 +116,25 @@ export default async function NewNoticePage({
       ) : null}
       <CaptureForm
         /*
-         * A chave é o PARÂMETRO da URL, não o rascunho resolvido.
+         * A chave são os PARÂMETROS da URL, não o rascunho resolvido.
          *
          * Descartar a última atividade tira o recado de `ready`; na
          * re-renderização seguinte `initialNotice` some, e uma chave derivada
          * dele mudaria de `<id>` para `"new"`, remontando o formulário e
-         * levando junto o que a pessoa tivesse escrito à mão. Pelo parâmetro,
-         * a tela continua a mesma enquanto a URL for a mesma, e trocar de
-         * rascunho continua começando do zero.
+         * levando junto o que a pessoa tivesse escrito à mão. Pelos
+         * parâmetros, a tela continua a mesma enquanto a URL for a mesma.
+         *
+         * `email` e `texto` entram na chave porque `defaultText` e
+         * `defaultAttachment` são lidos só como estado INICIAL: numa navegação
+         * de cliente entre duas mensagens da caixa, sem remontagem, o conteúdo
+         * da primeira ficaria na tela enquanto o identificador apontaria para a
+         * segunda — e marcar como usada ligaria a segunda a um recado feito do
+         * texto da primeira.
          */
-        key={params.retomar ?? "new"}
+        key={
+          [params.retomar, params.email, params.texto ? "colado" : ""].filter(Boolean).join("|") ||
+          "new"
+        }
         profiles={profiles.map((p) => ({ id: p.id, name: p.name }))}
         adults={adults}
         subjectOptions={subjectOptions}
