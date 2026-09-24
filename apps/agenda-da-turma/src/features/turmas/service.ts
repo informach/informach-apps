@@ -78,6 +78,21 @@ export async function createOrJoinTurma(
   throw new Error("Failed to create turma with unique code after multiple insert attempts");
 }
 
+/**
+ * A turma por trás de um código de convite, para a tela de entrar por link.
+ *
+ * Mostra escola, série e cidade a quem tem o código — que já é a credencial de
+ * entrada. Não revela criança nenhuma, de nenhuma família.
+ */
+export async function findTurmaForInvite(code: string) {
+  const turma = await findTurmaByCode(code);
+  // Turma órfã (o criador apagou a conta) não aceita ninguém: `joinPrivateGroup`
+  // recusa sem criador. Mostrar o convite com um botão que sempre falha é pior
+  // do que dizer que o convite não vale.
+  if (!turma?.createdByUserId) return null;
+  return findTurmaWithSchoolById(turma.id);
+}
+
 export async function joinTurmaByCode(
   userId: string,
   input: JoinByCodeInput,

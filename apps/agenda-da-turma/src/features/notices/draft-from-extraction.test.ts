@@ -89,6 +89,48 @@ describe("draftFromExtractedAction", () => {
     expect(draft.value.dateOrigin).toBe("schedule");
     expect(actionFieldsSchema.safeParse(draft.value).success).toBe(true);
   });
+  it("shares with the turma by default only with subject, deadline and permission", () => {
+    expect(
+      draftFromExtractedAction(base, profileId, options, { defaultShare: true }).value
+        .shareWithTurma,
+    ).toBe(true);
+    // Sem a permissão da casa, nada é publicado.
+    expect(draftFromExtractedAction(base, profileId, options).value.shareWithTurma).toBe(false);
+    // Extracurricular não tem turma do outro lado.
+    expect(
+      draftFromExtractedAction({ ...base, subjectHint: "natação" }, profileId, options, {
+        defaultShare: true,
+      }).value.shareWithTurma,
+    ).toBe(false);
+    // Sem matéria cadastrada, não há o que a turma receba.
+    expect(
+      draftFromExtractedAction({ ...base, subjectHint: "Espanhol" }, profileId, options, {
+        defaultShare: true,
+      }).value.shareWithTurma,
+    ).toBe(false);
+    // Sem prazo, a turma não saberia até quando.
+    expect(
+      draftFromExtractedAction(
+        { ...base, subjectHint: "Ciências", dueAt: null, dateOrigin: "unspecified" },
+        profileId,
+        options,
+        { defaultShare: true, todayIso },
+      ).value.shareWithTurma,
+    ).toBe(false);
+  });
+
+  it("keeps a schedule-suggested deadline out of the turma", () => {
+    // A próxima aula é planejamento desta casa, não o prazo que a escola deu.
+    const draft = draftFromExtractedAction(
+      { ...base, subjectHint: "Língua Portuguesa", dueAt: null, dateOrigin: "unspecified" },
+      profileId,
+      options,
+      { defaultShare: true, todayIso },
+    );
+    expect(draft.value.dateOrigin).toBe("schedule");
+    expect(draft.value.shareWithTurma).toBe(false);
+  });
+
   it("never invents a date without a schedule or without a match", () => {
     const noSchedule = draftFromExtractedAction(
       { ...base, subjectHint: "Ciências", dueAt: null, dateOrigin: "unspecified" },

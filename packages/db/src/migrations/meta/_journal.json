@@ -407,6 +407,13 @@
       "when": 1790241785932,
       "tag": "0057_notice_discarded_status",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1790244004543,
+      "tag": "0058_agenda_family_settings",
+      "breakpoints": true
     }
   ]
 }

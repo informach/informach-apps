@@ -11,7 +11,17 @@ import {
   DropdownMenuTrigger,
 } from "@informach/ui/components/dropdown-menu";
 import { toast } from "@informach/ui/components/sonner";
-import { BookOpen, Copy, LogOut, MoreVertical, Pencil, Star, Trash2, UserPlus } from "lucide-react";
+import {
+  BookOpen,
+  Copy,
+  LogOut,
+  MoreVertical,
+  Pencil,
+  Share2,
+  Star,
+  Trash2,
+  UserPlus,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -54,6 +64,32 @@ export function TurmaCard({ turma, userProfiles, currentUserId }: Props) {
       toast.success("Código copiado");
     } catch {
       toast.error("Não foi possível copiar");
+    }
+  };
+
+  /**
+   * O convite como link. O código já é a credencial — quem o tem vincula
+   * qualquer criança à turma —, então o link não abre nada novo; só tira o
+   * erro de digitação do caminho de quem recebe no grupo da turma.
+   */
+  const shareInvite = async () => {
+    const url = `${window.location.origin}/turmas/entrar?codigo=${turma.code}`;
+    const text = `Entre na turma ${formatTurmaShort(turma)} na Agenda da Turma: ${url}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "Convite da turma", text, url });
+        return;
+      } catch (error) {
+        // Fechar a folha de compartilhamento é uma decisão, não uma falha:
+        // copiar o link assim mesmo faria o oposto do que a pessoa pediu.
+        if (error instanceof DOMException && error.name === "AbortError") return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link de convite copiado");
+    } catch {
+      toast.error("Não foi possível copiar o link");
     }
   };
 
@@ -183,6 +219,10 @@ export function TurmaCard({ turma, userProfiles, currentUserId }: Props) {
           <Button type="button" variant="outline" size="sm" onClick={copyCode}>
             <Copy className="mr-2 size-3.5" aria-hidden />
             <span className="font-mono text-xs">{turma.code}</span>
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={shareInvite}>
+            <Share2 className="mr-2 size-3.5" aria-hidden />
+            Convidar
           </Button>
         </div>
 

@@ -42,6 +42,20 @@ export const agendaFamilyMembers = agenda.table(
   ],
 );
 
+/**
+ * Ajustes da casa que não são preferência de notificação nem dado de criança.
+ *
+ * Hoje guarda só a dispensa dos primeiros passos. Uma linha por titular, criada
+ * na primeira escrita: ausência significa "nunca dispensou", que é o padrão.
+ */
+export const agendaFamilySettings = agenda.table("family_settings", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  firstStepsDismissedAt: timestamp("first_steps_dismissed_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const agendaFamilyProfileAccess = agenda.table(
   "family_profile_access",
   {

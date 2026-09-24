@@ -40,7 +40,14 @@ export default async function NewNoticePage({
     getIsProForUser(user.id),
     listSubjectOptionsByProfile(user.id),
   ]);
-  let initialNotice: { id: string; profileId: string; extraction: DraftExtraction } | undefined;
+  let initialNotice:
+    | {
+        id: string;
+        profileId: string;
+        source: z.infer<typeof noticeSourceSchema>;
+        extraction: DraftExtraction;
+      }
+    | undefined;
   /*
    * `?retomar=` que não resolve não derruba a tela.
    *
@@ -62,6 +69,7 @@ export default async function NewNoticePage({
       initialNotice = {
         id: draft.notice.id,
         profileId: draft.notice.captureProfileId,
+        source: draft.notice.source,
         extraction: draft.extraction,
       };
     else resumeUnavailable = true;
@@ -90,6 +98,7 @@ export default async function NewNoticePage({
         profiles={profiles.map((p) => ({ id: p.id, name: p.name }))}
         adults={adults}
         subjectOptions={subjectOptions}
+        profileTurmas={Object.fromEntries(profiles.map((p) => [p.id, p.activeTurmaId]))}
         proProfileIds={entitlement.proProfileIds}
         ownerIsPro={ownerIsPro}
         initialNotice={initialNotice}

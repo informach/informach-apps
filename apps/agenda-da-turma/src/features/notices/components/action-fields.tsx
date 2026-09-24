@@ -1,5 +1,6 @@
 "use client";
 import { Input } from "@informach/ui/components/input";
+import Link from "next/link";
 import { suggestReminder } from "@/features/notifications/reminder-suggestion";
 import { suggestDueDateFromSchedule } from "@/features/subjects/due-date-suggestion";
 import { findClosestSubject } from "@/features/subjects/match-subject";
@@ -28,6 +29,7 @@ export function ActionFields({
   isPro,
   shareLocked = false,
   subjectHint = null,
+  profileTurmas,
 }: {
   value: NoticeActionInput;
   onChange: (value: NoticeActionInput) => void;
@@ -50,8 +52,15 @@ export function ActionFields({
    * campo mudo — a pessoa decide entre cadastrar a matéria ou seguir sem.
    */
   subjectHint?: string | null;
+  /**
+   * Turma ativa de cada criança. Sem matérias, o caminho de saída depende
+   * disso: quem já tem turma vai cadastrar as matérias dela; quem não tem
+   * precisa vincular a turma antes. Ausente, o destino é a lista de turmas.
+   */
+  profileTurmas?: Record<string, string | null>;
 }) {
   const subjectsForProfile = subjectOptions[value.profileId] ?? [];
+  const activeTurmaId = profileTurmas?.[value.profileId] ?? null;
   const selectedSubject = value.subjectId ?? value.profileSubjectId ?? "";
   const unmatchedHint =
     subjectHint && !selectedSubject && !findClosestSubject(subjectsForProfile, subjectHint)
@@ -154,6 +163,7 @@ export function ActionFields({
           <option value="">
             {subjectsForProfile.length === 0 ? "Nenhuma matéria cadastrada" : "Sem matéria"}
           </option>
+
           {subjectsForProfile.map((option) => (
             <option key={option.id} value={option.id}>
               {option.name}
@@ -161,6 +171,30 @@ export function ActionFields({
             </option>
           ))}
         </select>
+        {/* Um campo desativado que diz "nenhuma matéria cadastrada" e não leva
+            a lugar nenhum é um beco: quem chega aqui está justamente tentando
+            usar a matéria. O caminho de saída vai junto. */}
+        {subjectsForProfile.length === 0 ? (
+          <span className="font-normal text-muted-foreground">
+            {activeTurmaId ? (
+              <>
+                Esta turma ainda não tem matérias.{" "}
+                <Link href={`/turmas/${activeTurmaId}/materias`} className="underline">
+                  Cadastrar pela foto do horário
+                </Link>
+                .
+              </>
+            ) : (
+              <>
+                Vincule a criança a uma turma para usar matérias e o prazo pela próxima aula.{" "}
+                <Link href={`/familia/turmas?perfil=${value.profileId}`} className="underline">
+                  Ver turmas
+                </Link>
+                .
+              </>
+            )}
+          </span>
+        ) : null}
         {unmatchedHint ? (
           <span className="font-normal text-muted-foreground">
             A leitura identificou “{unmatchedHint}”, que não está cadastrada para esta criança.

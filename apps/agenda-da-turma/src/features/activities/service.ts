@@ -60,6 +60,36 @@ export async function respondSharedActivity(
   return ok({ activityId: activity.id, accepted: input.accepted });
 }
 
+/**
+ * Aceita de uma vez tudo o que a turma mandou e ainda está esperando resposta.
+ *
+ * Cada item passa pelo MESMO `respondSharedActivity` — turma, prazo e
+ * participação são reconferidos um a um. O que falhar (prazo vencido entre a
+ * tela e o clique, por exemplo) é contado e não derruba os outros: aceitar
+ * cinco e falhar num é melhor do que recusar os cinco.
+ */
+export const ACCEPT_ALL_BATCH = 30;
+
+export async function acceptAllSharedActivities(userId: string) {
+  const pending = await getPendingSharedActivitiesForUser(userId);
+  // Teto por clique: cada item é uma transação própria, e o começo de um ano
+  // letivo numa turma ativa traria centenas. Sem teto, a ação estoura o tempo
+  // do servidor e a pessoa vê "não foi possível" sobre um lote que em parte
+  // entrou. Com teto, o botão volta com o que ficou.
+  const batch = pending.slice(0, ACCEPT_ALL_BATCH);
+  let accepted = 0;
+  let skipped = 0;
+  for (const item of batch) {
+    const result = await respondSharedActivity(userId, {
+      activityId: item.activityId,
+      accepted: true,
+    });
+    if (result.ok) accepted++;
+    else skipped++;
+  }
+  return { accepted, skipped, remaining: Math.max(0, pending.length - batch.length) };
+}
+
 export async function getPendingSharedActivitiesForUser(
   userId: string,
 ): Promise<PendingSharedActivity[]> {

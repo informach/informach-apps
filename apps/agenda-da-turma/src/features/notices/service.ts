@@ -2,6 +2,7 @@ import "server-only";
 import { err } from "@informach/auth/server-actions";
 import type { z } from "zod";
 import { findAccessibleProfile } from "@/features/family/access";
+import { recordProductEvent } from "@/features/metrics/events";
 import { billing } from "@/lib/billing";
 import { getNoticeAction } from "./repository";
 import type {
@@ -27,10 +28,14 @@ export async function discardDraftAction(
   userId: string,
   input: z.infer<typeof discardDraftActionSchema>,
 ) {
-  return discardDraftActionAtomically(userId, input);
+  const result = await discardDraftActionAtomically(userId, input);
+  if (result.ok) await recordProductEvent(userId, { event: "draft_action_discarded" });
+  return result;
 }
 export async function discardNotice(userId: string, input: z.infer<typeof discardNoticeSchema>) {
-  return discardNoticeAtomically(userId, input);
+  const result = await discardNoticeAtomically(userId, input);
+  if (result.ok) await recordProductEvent(userId, { event: "draft_discarded" });
+  return result;
 }
 
 export async function confirmNotice(userId: string, input: z.infer<typeof confirmNoticeSchema>) {

@@ -18,6 +18,15 @@ export const productEventSchema = z
       "trial_started",
       "signup",
       "qualified_visit",
+      // Quanto da leitura já chega com a matéria certa, e quanto a família
+      // ainda precisa vincular na mão. `count` é o número de atividades
+      // daquela importação; nada sobre o conteúdo escolar.
+      "subject_auto_matched",
+      "subject_hint_unmatched",
+      "draft_action_discarded",
+      "draft_discarded",
+      "shared_accept_all",
+      "first_steps_dismissed",
     ]),
     source: z.enum(["teams", "batista", "notebook", "other", "manual"]).optional(),
     count: z.number().int().min(0).max(1000).optional(),

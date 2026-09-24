@@ -10,6 +10,7 @@ import { generateNoticeExtraction } from "@/ai/notices/extract";
 import { todayLocalIso } from "@/features/dashboard/date";
 import { findAccessibleProfile } from "@/features/family/access";
 import { recordProductEvent } from "@/features/metrics/events";
+import { findClosestSubject } from "@/features/subjects/match-subject";
 import { listSubjectOptionsByProfile } from "@/features/subjects/options-service";
 import { billing } from "@/lib/billing";
 import { env } from "@/lib/env";
@@ -93,9 +94,8 @@ export async function parseNotice(userId: string, input: z.infer<typeof parseNot
     // pré-seleciona. Não entra no contentHash de propósito — um replay devolve
     // as pistas da leitura anterior, e o construtor de rascunho as resolve
     // contra a lista atual, então matéria cadastrada depois ainda casa.
-    const subjectNames = ((await listSubjectOptionsByProfile(userId))[profile.id] ?? []).map(
-      (subject) => subject.name,
-    );
+    const subjectOptions = (await listSubjectOptionsByProfile(userId))[profile.id] ?? [];
+    const subjectNames = subjectOptions.map((subject) => subject.name);
     const currentYear = todayLocalIso(now).slice(0, 4);
     if (!isPro) await grantNoticeTrialCredits(ownerId, "base");
     const out = await runBillableAgentCall<{ extraction: StoredExtraction; usage?: unknown }>({
@@ -142,6 +142,18 @@ export async function parseNotice(userId: string, input: z.infer<typeof parseNot
       count: out.result.extraction.actions.length,
       durationMs: Date.now() - now.valueOf(),
     });
+    // Quanto da leitura já chega com a matéria certa. Mesmo resolvedor que a
+    // revisão usa, contra as mesmas opções — é a taxa de acerto do vínculo,
+    // não uma segunda regra. Só números; nada do conteúdo escolar.
+    const hinted = out.result.extraction.actions.filter((a) => a.subjectHint?.trim());
+    const matched = hinted.filter((a) => findClosestSubject(subjectOptions, a.subjectHint)).length;
+    if (matched)
+      await recordProductEvent(userId, { event: "subject_auto_matched", count: matched });
+    if (hinted.length - matched)
+      await recordProductEvent(userId, {
+        event: "subject_hint_unmatched",
+        count: hinted.length - matched,
+      });
     if (!(await getNoticeSource(userId, notice.id))) return err({ code: "NOT_FOUND" } as const);
     return ok({
       noticeId: notice.id,

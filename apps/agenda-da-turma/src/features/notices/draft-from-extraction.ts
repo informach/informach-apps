@@ -21,6 +21,17 @@ export type ExtractionDraft = { value: NoticeActionInput; subjectHint: string | 
 export type DraftOptions = {
   /** Hoje em São Paulo, "YYYY-MM-DD". Injetável para teste. */
   todayIso?: string;
+  /**
+   * Compartilhar com a turma já marcado.
+   *
+   * Uma família importa o recado da escola e a turma inteira recebe: é o que
+   * torna a turma uma rede, e ficava desligado em toda importação. Só vale com
+   * matéria da turma e prazo (o que a outra família precisa para entender a
+   * atividade), só no Pro, e nunca para anotação de caderno — essa é a letra
+   * de uma criança, não o enunciado da escola. A caixa continua à vista e
+   * desmarcável na revisão.
+   */
+  defaultShare?: boolean;
 };
 
 export function draftFromExtractedAction(
@@ -55,8 +66,16 @@ export function draftFromExtractedAction(
       // A IA não estima duração, pela mesma regra que a proíbe de inventar
       // prazo: quem sabe quanto tempo a criança leva é quem mora com ela.
       estimatedMinutes: null,
-      // Publicar na turma é decisão de quem revisa, nunca da leitura.
-      shareWithTurma: false,
+      // Quem revisa decide; o padrão apenas parte do que é mais útil à turma.
+      // O prazo tem de ser o da ESCOLA: a próxima aula calculada pelo horário é
+      // planejamento desta casa, e publicá-la espalharia uma data inventada
+      // para as outras famílias.
+      shareWithTurma: Boolean(
+        options.defaultShare &&
+          option?.source === "turma" &&
+          dueAt &&
+          (dateOrigin === "school" || dateOrigin === "relative"),
+      ),
     },
   };
 }

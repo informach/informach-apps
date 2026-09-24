@@ -310,6 +310,8 @@ Fluxos de cadastro:
 
 Listagem: `listTurmasForUser` traz turmas onde **(a) o user é o criador (`created_by_user_id`) OU (b) algum dos perfis do user é membro**. LEFT JOIN em `turma_members` filtrado por perfis do user — turmas criadas mas sem nenhum perfil seu vinculado ainda aparecem com `members: []`, pra que o creator consiga ver/copiar o código pra compartilhar ou re-vincular. Página `/familia/turmas` é única, filtrável via `?perfil=<id>` — o filtro restringe só a turmas onde aquele perfil é membro (turmas creator-only só aparecem em "Todos").
 
+**O código também é link.** `/turmas/entrar?codigo=XXXX` mostra escola, série e cidade a quem tem o código e pede só a escolha da criança (`findTurmaForInvite` → `joinTurmaByCodeAction`). Não abre nada novo: o código já era a credencial de entrada — tira o erro de digitação do caminho de quem recebe no grupo da turma. Turma órfã (criador que apagou a conta) devolve "convite não encontrado", porque `joinPrivateGroup` recusa sem criador e um botão que sempre falha é pior que uma recusa clara. `TurmaCard` ganhou "Convidar" (`navigator.share` com queda para copiar; cancelar a folha **não** copia).
+
 `TurmaCard` lida com `members.length === 0`: mostra "Nenhum estudante seu vinculado" + botões "Vincular [perfil]" pra cada perfil disponível (chama `joinTurmaByCodeAction` com o próprio code da turma — auth + rate-limit do helper já cobrem). Quando há membros mas perfis não-membros existem, aparece um dropdown discreto "Vincular" no header da seção Estudantes.
 
 `active_turma_id` é mutuamente exclusivo: setar uma turma como ativa só faz UPDATE da coluna; o helper `setActiveTurma` em `service.ts` valida que o perfil é membro antes (`verifyMembership`). Sair da turma (`deleteTurmaMember`) limpa `active_turma_id` na mesma transação se for a turma ativa.
@@ -363,6 +365,7 @@ Schema (`packages/db/src/schema/agenda.ts`):
 
 **RBAC de visibilidade (enforcement no service `features/activities/service.ts`)**:
 - **Compartilhar exige Pro**: no Free, criar força `visibility = 'individual'`.
+- **Na importação, a caixa nasce marcada** quando há matéria da turma, prazo **da escola** (`school`/`relative`) e Pro (`draftFromExtractedAction`, opção `defaultShare`). Prazo calculado pelo horário (`schedule`) **não** vai para a turma: é planejamento desta casa, e publicá-lo espalharia uma data inventada. Origem `notebook` nunca compartilha por padrão — é a letra de uma criança, não o enunciado da escola —, e por isso o caminho "Foto ou arquivo" (`?modo=foto`) passou a **nascer com a origem `notebook`** em vez de `teams`.
 - **Receber compartilhada é benefício do Free** (ver §1): as listas usam `accessibleProfileCondition(userId)`, que autoriza por criança (titular ou adulto convidado com acesso), e a atividade só chega ao perfil quando a família aceita. `listPendingSharedActivitiesForUser` continua exigindo participação efetiva na turma, então nada vaza entre turmas.
 - Gate único: `hasProSubscription(subject)` do `@informach/billing/access`. Nunca inline `status === 'active'`.
 
@@ -499,8 +502,8 @@ Ordem de `app/(app)/dashboard/page.tsx`, tudo visível sem clique:
 3. `DashboardNavButtons` — Ver atividades / Ver calendário / Importar mensagem ou foto.
 4. **`TodayScheduleSection`** — "Hoje na escola": as matérias de hoje de **cada** criança, com o badge "Reveza com X" do revezamento quinzenal. Cada card leva a `/turmas/{id}/materias`, que de outro modo só é alcançável pelo menu do avatar.
 5. **`RoutineSection`** — KPIs + os três buckets (cuidar hoje / preparar amanhã / próximos sete dias) + progresso por estudante.
-6. `SharedActivitiesSection` — atividades compartilhadas a aceitar.
-7. `<details>` "Perfis, turmas e matérias" — só configuração fica recolhida.
+6. `SharedActivitiesSection` — atividades compartilhadas a aceitar, com **"Aceitar todas"** (teto de `ACCEPT_ALL_BATCH` por toque; cada item passa pelo mesmo `respondSharedActivity`, e o que sobra volta no botão).
+7. **`FirstStepsSection`** — a trilha do começo (criança → turma → horário → primeiro recado), calculada do banco a cada render e dispensável (`agenda.family_settings.first_steps_dismissed_at`). Substituiu `NoStudentsWidget`, `ProfilesWithoutTurmaWidget` e `NoSubjectsWidget`, que apareciam e sumiam sozinhos sem dizer quantos passos faltavam. **O passo do horário usa `listTurmasNeedingScheduleForUser`, não `findTurmasOfUserMissingSubjects`**: esta última só enxerga turmas criadas pela conta, e quem entrou por código ficava com um passo que nunca fechava e um botão que não levava a lugar nenhum. O critério é a matéria **com dias de aula**, porque é isso que sugere prazo e monta a mochila.
 
 **Uma lista só.** Buckets e KPIs saem de `getRoutineSnapshot`
 (`features/unified-activities/service.ts`), que reusa a MESMA projeção SQL

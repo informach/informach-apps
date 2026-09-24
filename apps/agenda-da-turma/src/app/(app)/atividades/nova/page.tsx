@@ -38,6 +38,7 @@ export default async function NewActivityPage({
       <CaptureForm
         mode="manual"
         subjectOptions={subjectOptions}
+        profileTurmas={Object.fromEntries(profiles.map((p) => [p.id, p.activeTurmaId]))}
         profiles={profiles.map((p) => ({ id: p.id, name: p.name }))}
         adults={adults}
         proProfileIds={entitlement.proProfileIds}

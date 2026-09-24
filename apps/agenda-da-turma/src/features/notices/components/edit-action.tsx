@@ -16,6 +16,7 @@ export function EditNoticeAction({
   profiles,
   adults,
   subjectOptions,
+  profileTurmas,
   isPro,
   canceled,
   shareLocked = false,
@@ -26,6 +27,7 @@ export function EditNoticeAction({
   profiles: RoutineProfile[];
   adults: AssignableAdult[];
   subjectOptions: SubjectOptionsByProfile;
+  profileTurmas?: Record<string, string | null>;
   isPro: boolean;
   canceled: boolean;
   shareLocked?: boolean;
@@ -40,6 +42,7 @@ export function EditNoticeAction({
       <fieldset disabled={busy || canceled}>
         <ActionFields
           subjectOptions={subjectOptions}
+          profileTurmas={profileTurmas}
           prefix="edit-action"
           value={value}
           onChange={setValue}

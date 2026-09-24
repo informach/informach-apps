@@ -1,4 +1,5 @@
 import { Badge } from "@informach/ui/components/badge";
+import { listAccessibleProfiles } from "@/features/family/access";
 import { EditNoticeAction } from "@/features/notices/components/edit-action";
 import { OriginalNotice } from "@/features/notices/components/original-notice";
 import {
@@ -27,12 +28,13 @@ import { ActivityRevisionList } from "./revision-list";
  */
 export async function ActivityDetail({ userId, task }: { userId: string; task: TaskRow }) {
   const view = toActivityView({ key: task.id, item: task }, userId);
-  const [history, source, adults, isPro, subjectOptions] = await Promise.all([
+  const [history, source, adults, isPro, subjectOptions, accessibleProfiles] = await Promise.all([
     getNoticeActionHistory(userId, task.id),
     task.noticeId ? getNoticeSource(userId, task.noticeId) : null,
     listAssignableAdults(userId),
     billing.hasProSubscription({ type: "user", id: task.ownerUserId }),
     listSubjectOptionsByProfile(userId),
+    listAccessibleProfiles(userId),
   ]);
 
   return (
@@ -75,6 +77,10 @@ export async function ActivityDetail({ userId, task }: { userId: string; task: T
         profiles={[{ id: task.profileId, name: task.profileName }]}
         adults={adults}
         subjectOptions={subjectOptions}
+        // Sem isto, a criança COM turma e sem matérias via aqui o texto de
+        // quem não tem turma — e o caminho de saída apontava para o lugar
+        // errado justamente na tela em que ela tenta usar a matéria.
+        profileTurmas={Object.fromEntries(accessibleProfiles.map((p) => [p.id, p.activeTurmaId]))}
         // Montado por uma função pura e testada, e não campo a campo aqui: um
         // campo esquecido neste objeto não dá erro — vira o valor do formulário
         // e o banco recebe o esquecimento. Ver `edit-defaults.ts`.

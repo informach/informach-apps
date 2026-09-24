@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { getSubjectIconClassByIndex } from "@/features/subjects/utils";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
-import { respondSharedActivityAction } from "../actions";
+import { acceptAllSharedActivitiesAction, respondSharedActivityAction } from "../actions";
 import type { PendingSharedActivity } from "../types";
 import {
   formatTurmaShort,
@@ -41,11 +41,64 @@ export function SharedActivitiesWidget({ items }: Props) {
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
+        {items.length > 1 ? <AcceptAllSharedActivities count={items.length} /> : null}
         {items.map((item) => (
           <SharedActivityItem key={item.activityId} item={item} />
         ))}
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * Uma turma ativa manda várias atividades de uma vez, e responder uma a uma é
+ * o atrito que faz a família deixar a seção para depois — e depois é quando o
+ * prazo já passou. O botão por item continua, para quem quer escolher.
+ */
+function AcceptAllSharedActivities({ count }: { count: number }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 bg-background p-3">
+      <p className="text-sm text-muted-foreground">
+        Todas são da turma das suas crianças. Você pode aceitar de uma vez.
+      </p>
+      <Button
+        type="button"
+        size="sm"
+        className="min-h-11 shrink-0"
+        disabled={pending}
+        onClick={() =>
+          startTransition(async () => {
+            const result = await catchActionResult(() => acceptAllSharedActivitiesAction({}));
+            if (!result.ok) {
+              toast.error("Não foi possível aceitar todas.", {
+                description: "Atualize a página e tente novamente.",
+              });
+              router.refresh();
+              return;
+            }
+            const { accepted, skipped, remaining } = result.value;
+            const leftOver = [
+              skipped ? `${skipped} não puderam ser aceitas` : null,
+              remaining ? `${remaining} ficaram para o próximo toque` : null,
+            ]
+              .filter(Boolean)
+              .join(" e ");
+            if (accepted)
+              toast.success(
+                accepted === 1 ? "1 atividade aceita" : `${accepted} atividades aceitas`,
+                leftOver ? { description: `${leftOver}.` } : undefined,
+              );
+            else toast.error("Nenhuma pôde ser aceita agora.");
+            router.refresh();
+          })
+        }
+      >
+        {pending ? <Loader2 className="mr-1 size-3.5 animate-spin" aria-hidden /> : null}
+        Aceitar todas ({count})
+      </Button>
+    </div>
   );
 }
 

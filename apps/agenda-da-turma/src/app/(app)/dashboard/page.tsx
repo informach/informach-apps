@@ -16,15 +16,9 @@ import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { PendingDraftsSection } from "@/features/notices/components/pending-drafts-section";
 import { CommitmentWidget } from "@/features/notifications/components/commitment-widget";
 import { getNotificationPreferences } from "@/features/notifications/service";
+import { FirstStepsSection } from "@/features/onboarding/components/first-steps-section";
 import { WelcomeFlash } from "@/features/onboarding/components/welcome-flash";
-import { NoStudentsWidget } from "@/features/students/components/no-students-widget";
-import { ProfilesWithoutTurmaWidget } from "@/features/students/components/profiles-without-turma-widget";
-import {
-  countUserProfilesWithoutTurma,
-  listStudentProfilesForUser,
-} from "@/features/students/service";
-import { NoSubjectsWidget } from "@/features/subjects/components/no-subjects-widget";
-import { listTurmasNeedingSubjectsForUser } from "@/features/subjects/service";
+import { listStudentProfilesForUser } from "@/features/students/service";
 import { getSubjectTintedClassByIndex } from "@/features/subjects/utils";
 import { requireUserServer } from "@/lib/auth";
 
@@ -40,17 +34,8 @@ export default async function DashboardPage({ searchParams }: Props) {
   const params = await searchParams;
   const user = await requireUserServer();
 
-  const [
-    profiles,
-    profilesWithoutTurma,
-    turmasNeedingSubjects,
-    isPro,
-    notificationPrefs,
-    familyEntitlements,
-  ] = await Promise.all([
+  const [profiles, isPro, notificationPrefs, familyEntitlements] = await Promise.all([
     listStudentProfilesForUser(user.id),
-    countUserProfilesWithoutTurma(user.id),
-    listTurmasNeedingSubjectsForUser(user.id),
     getIsProForUser(user.id),
     getNotificationPreferences(user.id),
     getFamilyEntitlements(user.id),
@@ -154,23 +139,15 @@ export default async function DashboardPage({ searchParams }: Props) {
       <Suspense fallback={null}>
         <SharedActivitiesSection userId={user.id} />
       </Suspense>
-      {profiles.length === 0 ? <NoStudentsWidget /> : null}
       {/*
-        Pendências de cadastro ficavam recolhidas atrás de um resumo, junto com
-        um "Configuração escolar em dia." que não pede nada de ninguém. São
-        itens acionáveis: aparecem abertos quando existem, e somem quando não.
-        O resto da configuração tem casa própria, na aba Família.
+        Um caminho, não três cards soltos. Criança, turma, horário e primeiro
+        recado eram widgets independentes que apareciam e sumiam sozinhos, sem
+        dizer quantos passos faltavam. A seção some sozinha quando tudo está
+        feito, e pode ser dispensada antes disso.
       */}
-      {profilesWithoutTurma > 0 || turmasNeedingSubjects.length > 0 ? (
-        <div className="space-y-4">
-          {profilesWithoutTurma > 0 ? (
-            <ProfilesWithoutTurmaWidget count={profilesWithoutTurma} />
-          ) : null}
-          {turmasNeedingSubjects.length > 0 ? (
-            <NoSubjectsWidget turmas={turmasNeedingSubjects} />
-          ) : null}
-        </div>
-      ) : null}
+      <Suspense fallback={null}>
+        <FirstStepsSection userId={user.id} profileCount={profiles.length} />
+      </Suspense>
     </Shell>
   );
 }

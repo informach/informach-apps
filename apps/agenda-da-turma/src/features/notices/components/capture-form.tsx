@@ -82,6 +82,7 @@ export function CaptureForm({
   profiles: initialProfiles,
   adults,
   subjectOptions,
+  profileTurmas,
   proProfileIds,
   ownerIsPro,
   initialNotice,
@@ -95,6 +96,8 @@ export function CaptureForm({
   profiles: RoutineProfile[];
   adults: AssignableAdult[];
   subjectOptions: SubjectOptionsByProfile;
+  /** Turma ativa de cada criança: o caminho de saída quando não há matérias. */
+  profileTurmas: Record<string, string | null>;
   proProfileIds: string[];
   ownerIsPro: boolean;
   mode?: "capture" | "manual";
@@ -111,6 +114,7 @@ export function CaptureForm({
   initialNotice?: {
     id: string;
     profileId: string;
+    source: z.infer<typeof noticeSourceSchema>;
     extraction: DraftExtraction;
   };
 }) {
@@ -126,7 +130,21 @@ export function CaptureForm({
     proProfileIds.includes(profileId) ||
     (ownerIsPro && !initialProfiles.some((p) => p.id === profileId));
   const [childName, setChildName] = useState("");
-  const [source, setSource] = useState<z.infer<typeof noticeSourceSchema>>(defaultSource);
+  const [source, setSource] = useState<z.infer<typeof noticeSourceSchema>>(
+    // Quem entra pelo caminho "Foto ou arquivo" está, na maioria das vezes,
+    // fotografando a agenda ou o caderno — é o que o próprio texto da tela diz.
+    // Deixar "Teams" aqui marcava como publicação da escola a letra de uma
+    // criança, e com o compartilhamento automático isso iria para a turma.
+    initialNotice?.source ?? (captureMode === "foto" ? "notebook" : defaultSource),
+  );
+  /**
+   * Compartilhar com a turma nasce marcado quando faz sentido para ela: matéria
+   * da turma, prazo da escola e Pro. Anotação de caderno nunca — ali é a letra
+   * de uma criança, não o enunciado que a escola mandou para todo mundo.
+   */
+  const sharesByDefault = (pid: string, origin: z.infer<typeof noticeSourceSchema>) =>
+    origin !== "notebook" &&
+    (proProfileIds.includes(pid) || (ownerIsPro && !initialProfiles.some((p) => p.id === pid)));
   const [sourceUrl, setSourceUrl] = useState("");
   const [publishedAt, setPublishedAt] = useState("");
   const [text, setText] = useState("");
@@ -144,6 +162,12 @@ export function CaptureForm({
             item,
             initialNotice.profileId,
             subjectOptions[initialNotice.profileId] ?? [],
+            {
+              defaultShare:
+                initialNotice.source !== "notebook" &&
+                (proProfileIds.includes(initialNotice.profileId) ||
+                  (ownerIsPro && !initialProfiles.some((p) => p.id === initialNotice.profileId))),
+            },
           ),
         }))
       : mode === "manual" && profileId
@@ -388,7 +412,9 @@ export function CaptureForm({
           // rascunho no servidor para descartar. A lixeira volta a ser local,
           // senão ela responderia "já foi salvo" e não removeria nada.
           actionId: result.data.alreadyConfirmed ? undefined : id,
-          ...draftFromExtractedAction(item, profileId, subjectOptions[profileId] ?? []),
+          ...draftFromExtractedAction(item, profileId, subjectOptions[profileId] ?? [], {
+            defaultShare: sharesByDefault(profileId, source),
+          }),
         })),
       );
     } catch {
@@ -794,6 +820,7 @@ export function CaptureForm({
               </div>
               <ActionFields
                 subjectOptions={subjectOptions}
+                profileTurmas={profileTurmas}
                 subjectHint={draft.subjectHint ?? null}
                 prefix={draft.key}
                 value={draft.value}
