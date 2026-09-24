@@ -90,7 +90,7 @@ function activityRow(item: TaskRow): string[] {
   return [
     item.dueAt ? formatDueDate(item.dueAt) : "A confirmar",
     ACTIVITY_TYPE_LABELS[item.type],
-    item.subjectName ?? "—",
+    item.subjectName ?? "Sem matéria",
     turmaLabel,
     activityCell,
     item.profileName,

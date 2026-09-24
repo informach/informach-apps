@@ -100,7 +100,7 @@ export function KidModeScreen({ profile, todo }: Props) {
         });
         setError(
           result.error.code === "VERSION_CONFLICT"
-            ? "Alguém mudou essa atividade agora. Já atualizamos — pode tentar de novo."
+            ? "Alguém mudou essa atividade agora. Já atualizamos, pode tentar de novo."
             : "Não deu para guardar agora. Tente de novo daqui a pouco.",
         );
         /*

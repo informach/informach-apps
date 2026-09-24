@@ -353,8 +353,8 @@ function DayClosed({
         {tomorrowCount === 0
           ? "Amanhã está livre por enquanto."
           : tomorrowCount === 1
-            ? "Amanhã tem 1 atividade — ela está logo abaixo."
-            : `Amanhã tem ${tomorrowCount} atividades — elas estão logo abaixo.`}
+            ? "Amanhã tem 1 atividade. Ela está logo abaixo."
+            : `Amanhã tem ${tomorrowCount} atividades. Elas estão logo abaixo.`}
       </p>
     </div>
   );

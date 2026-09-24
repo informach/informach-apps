@@ -58,7 +58,7 @@ export function MonthAgenda({
         <div className="space-y-1">
           <p className="text-base font-semibold">Nada marcado em {monthLabel}</p>
           <p className="text-sm text-muted-foreground">
-            Atividades sem prazo continuam na rotina e na lista — elas não ganham data aqui.
+            Atividades sem prazo continuam na rotina e na lista. Elas não ganham data aqui.
           </p>
         </div>
         {/*

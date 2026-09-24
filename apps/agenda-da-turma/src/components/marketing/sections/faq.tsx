@@ -3,19 +3,43 @@ import styles from "../sales.module.css";
 const QUESTIONS = [
   [
     "Preciso que a escola use a Agenda da Turma?",
-    "Não. Você organiza os recados que já recebe. Copie a mensagem e envie a foto ou o PDF; a escola continua usando seus canais habituais.",
+    "Não. Você organiza os recados que já recebe. Fotografe o cartaz, compartilhe a mensagem ou cole o texto; a escola continua usando os canais de sempre.",
   ],
   [
     "Ela busca mensagens sozinha no Teams ou Batista ID?",
-    "A entrada atual é feita por você, copiando a publicação e enviando o anexo. A Agenda organiza esse conteúdo para revisão. Não existe conexão automática com essas plataformas.",
+    "A entrada é feita por você, compartilhando a mensagem, enviando a foto ou colando o texto. A Agenda organiza esse conteúdo para revisão. Não existe conexão automática com essas plataformas.",
+  ],
+  [
+    "Um cartaz com várias matérias vira uma atividade só?",
+    "Não. A leitura separa uma atividade por matéria, por entregável e por prazo. Um cartaz com dois blocos de cinco matérias vira dez atividades, cada uma já ligada à matéria que a criança tem na turma. Você confere tudo antes de salvar.",
+  ],
+  [
+    "Dá para trazer a conversa do grupo da escola?",
+    "Dá. Exporte a conversa no WhatsApp e escolha, na tela, só as mensagens que interessam. O que você não marcar não vai para a leitura, porque um grupo de turma tem assunto de outras famílias.",
+  ],
+  [
+    "Preciso ficar tirando foto de cada página?",
+    "Não. Você junta até três fotos num recado só, e a Agenda monta o arquivo antes de enviar. Antes cada página era uma importação separada.",
   ],
   [
     "Vou ter que digitar cada tarefa?",
-    "Você envia o conteúdo para a IA sugerir as atividades e confere antes de salvar. Também pode criar ou corrigir uma atividade manualmente.",
+    "Você envia o conteúdo, a IA sugere as atividades e você confere antes de salvar. Também dá para criar ou corrigir uma atividade na mão, quando for mais rápido.",
   ],
   [
     "E se não houver prazo no recado?",
-    "O prazo fica a confirmar. Se escolher uma data de preparação, ela aparece como planejamento da família.",
+    "Se a matéria estiver no horário da turma, a Agenda sugere a próxima aula dela e diz que a data foi calculada. Sem isso, o prazo fica a confirmar. A leitura nunca inventa uma data que a escola não deu.",
+  ],
+  [
+    "A Agenda ajuda a estudar para a prova?",
+    "Sim, se você pedir. No detalhe da prova você escolhe quantas sessões quer, e a Agenda reparte pelos dias mais livres até a véspera. Cancelar a prova cancela as sessões que ainda faltavam.",
+  ],
+  [
+    "Meu filho pode usar?",
+    "Existe uma tela só para a criança, com uma atividade por vez e um botão grande de feito. Sem menu, sem cobrança e sem prazo em vermelho. Você passa o telefone e pede de volta segurando o botão de sair.",
+  ],
+  [
+    "Funciona sem internet?",
+    "Dá para ler a rotina e marcar como feito. A decisão fica guardada no aparelho, com um aviso de que ainda não subiu, e sobe sozinha quando a rede voltar. Importar um recado novo precisa de conexão.",
   ],
   [
     "Serve para um filho ou para quem cuida sozinho?",
@@ -30,12 +54,8 @@ const QUESTIONS = [
     "Não. São cinco por conta verificada para experimentar. A franquia mensal de créditos faz parte do Pro.",
   ],
   [
-    "Como funcionam os lembretes?",
-    "No Pro, você configura resumo por e-mail e lembretes. Push depende de compatibilidade e permissão do dispositivo.",
-  ],
-  [
     "E se meus créditos acabarem?",
-    "Você pode continuar acompanhando e cadastrando atividades manualmente. Para novas importações, aguarde a próxima franquia mensal do Pro ou consulte os pacotes avulsos disponíveis na sua conta.",
+    "Você continua acompanhando e cadastrando atividades na mão. Para novas importações, espere a próxima franquia mensal do Pro ou veja os pacotes avulsos na sua conta.",
   ],
 ] as const;
 export function Faq() {

@@ -2,16 +2,16 @@ import styles from "../sales.module.css";
 
 const STEPS = [
   [
-    "O que precisa ser feito",
-    "Autorizações, materiais e tarefas viram atividades que você pode acompanhar.",
+    "Uma atividade por matéria",
+    "O cartaz com cinco matérias não vira um bloco só. Cada matéria ganha a sua atividade, já vinculada à matéria que a criança tem na turma.",
   ],
   [
-    "Qual é o prazo",
-    "Datas da escola ficam à vista. Quando falta uma data, o prazo fica a confirmar.",
+    "O prazo no lugar certo",
+    "Datas da escola ficam à vista. Sem data no recado, a Agenda sugere a próxima aula daquela matéria, e diz que foi ela quem calculou.",
   ],
   [
     "Quem vai cuidar",
-    "No Pro, combine os responsáveis e compartilhe os cuidados com outro adulto.",
+    "No Pro, combine os responsáveis e divida os cuidados com outro adulto, cada um com o seu login.",
   ],
 ] as const;
 export function Problem() {
@@ -25,8 +25,8 @@ export function Problem() {
         <h2 id="problem-title">Ler o recado é só o começo.</h2>
         <p>
           Ainda tem a autorização para responder, o material para separar e alguém para combinar
-          quem vai cuidar. A Agenda da Turma ajuda a transformar essa lista mental em próximos
-          passos.
+          quem vai cuidar. A Agenda da Turma transforma essa lista mental em próximos passos, na
+          ordem em que eles chegam.
         </p>
       </div>
       <div className={styles.proofRows}>

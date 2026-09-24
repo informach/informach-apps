@@ -12,8 +12,8 @@ export function Hero() {
             A rotina da escola não precisa morar na sua <em>cabeça.</em>
           </h1>
           <p className={styles.description}>
-            Transforme mensagens, fotos e PDFs da escola em uma lista clara do que fazer e até
-            quando. No Pro, divida os cuidados e acompanhe com lembretes.
+            Fotografe o cartaz, compartilhe a mensagem ou cole o texto. A Agenda separa uma
+            atividade por matéria, com o prazo de cada uma, e você confere antes de salvar.
           </p>
           <div className={styles.heroActions}>
             <SalesCta placement="hero" />
@@ -23,8 +23,8 @@ export function Hero() {
           </div>
           <TrialNote />
           <p className={styles.heroContext}>
-            Copie a publicação do Teams, Batista ID ou outro canal e junte o anexo. Você confere
-            antes de salvar.
+            Um cartaz com cinco matérias e duas datas vira dez atividades, cada uma já ligada à
+            matéria da sua criança. Nada é salvo sem a sua revisão.
           </p>
         </div>
         <HeroActivityCards />
@@ -33,9 +33,10 @@ export function Hero() {
         <div className={styles.wrap}>
           <p>A escola continua no canal de sempre.</p>
           <div className={styles.sourceNames}>
+            <span>WhatsApp</span>
             <span>Microsoft Teams</span>
             <span>Batista ID</span>
-            <span>e outros canais</span>
+            <span>Foto da agenda</span>
           </div>
           <p>
             Você traz o conteúdo.

@@ -33,10 +33,16 @@ export function Trust() {
           Quando a escola não informa uma data, o prazo fica a confirmar. Você pode escolher uma
           data de preparação, identificada como planejamento da família.
         </p>
+        <p>
+          No portão da escola, sem sinal, marcar como feito continua funcionando. A Agenda guarda a
+          sua decisão no aparelho, avisa que ela ainda não subiu e envia sozinha quando a rede
+          voltar.
+        </p>
         <div className={styles.trustPoints}>
           <span>Revisão antes de salvar</span>
           <span>Histórico de mudanças</span>
           <span>Acesso por criança</span>
+          <span>Funciona sem rede</span>
         </div>
       </div>
     </section>

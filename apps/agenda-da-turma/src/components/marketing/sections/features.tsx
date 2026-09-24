@@ -6,10 +6,15 @@ export function Features() {
       <div className={styles.family}>
         <div>
           <span className={[styles.pill, styles.pro].join(" ")}>PARA A FAMÍLIA · PRO</span>
-          <h2 id="family-title">O próximo dia fica mais claro quando a rotina está combinada.</h2>
+          <h2 id="family-title">A semana fica mais leve quando alguém avisa antes.</h2>
           <p className={styles.lead}>
-            Abra a rotina. Encontre o próximo passo. Combine quem cuida e acompanhem juntos, cada um
-            com seu próprio login.
+            Abra a rotina uma vez por dia. A Agenda mostra o próximo passo, avisa qual dia da semana
+            está pesado e ajuda a dividir quem cuida do quê.
+          </p>
+          <p className={styles.familyNote}>
+            Com a prova marcada, você pede um plano de estudo e a Agenda reparte as sessões pelos
+            dias mais livres até a véspera. No domingo chega o resumo do que vem pela frente,
+            enquanto ainda dá para organizar a semana.
           </p>
           <p className={styles.familyNote}>
             Uma assinatura para até três crianças e dois adultos, com acesso definido por criança.
@@ -34,14 +39,15 @@ export function Features() {
           </div>
           <div className={styles.assignment}>
             <div>
-              <strong>Conferir o material de artes</strong>
-              <small>Miguel · Preparação da família</small>
+              <strong>Levar tênis e garrafa</strong>
+              <small>Miguel · Educação Física tem aula amanhã</small>
             </div>
             <span className={[styles.person, styles.second].join(" ")}>Leo cuida</span>
           </div>
           <div className={styles.reminderPreview}>
-            <strong>Escolha quando lembrar. Siga com o seu dia.</strong>No Pro, configure resumo por
-            e-mail e lembretes. Push em dispositivo compatível e com sua autorização.
+            <strong>Terça está cheia: 3 entregas.</strong>O aviso chega na sexta, enquanto ainda dá
+            para adiantar no fim de semana. No Pro, configure também resumo por e-mail e lembretes.
+            Push em dispositivo compatível e com sua autorização.
           </div>
         </div>
       </div>
