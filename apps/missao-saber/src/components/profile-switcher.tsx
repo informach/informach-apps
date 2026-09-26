@@ -11,8 +11,9 @@ import {
 import { cn } from "@informach/ui/lib/utils";
 import { ChevronsUpDown } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { selectProfileAction } from "@/features/learning/actions";
+import { useServerAction } from "@/lib/use-server-action";
 import { Avatar } from "./avatares";
 
 type Perfil = { id: string; nickname: string; avatar: string; grade: number };
@@ -27,7 +28,7 @@ type Perfil = { id: string; nickname: string; avatar: string; grade: number };
 export function ProfileSwitcher({ profiles, selected }: { profiles: Perfil[]; selected?: string }) {
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
-  const [pending, start] = useTransition();
+  const [pending, start] = useServerAction();
   const [error, setError] = useState("");
   if (!profiles.length) return null;
   const atual = profiles.find((p) => p.id === selected) ?? profiles[0];
@@ -77,7 +78,6 @@ export function ProfileSwitcher({ profiles, selected }: { profiles: Perfil[]; se
                         if (result.ok) {
                           setAberto(false);
                           router.push("/hoje");
-                          router.refresh();
                         } else setError(result.error);
                       } catch {
                         setError("Não foi possível trocar de perfil.");

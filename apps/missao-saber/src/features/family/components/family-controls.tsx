@@ -3,12 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@informach/ui/componen
 import { Input } from "@informach/ui/components/input";
 import { Label } from "@informach/ui/components/label";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import { AVATARES, Avatar } from "@/components/avatares";
 import { BarraProgresso } from "@/components/ui/barra-progresso";
 import { AncoraChapa, BotaoChapa } from "@/components/ui/botao-chapa";
 import { createProfileAction } from "@/features/learning/actions";
 import { authClient } from "@/lib/auth-client";
+import { useServerAction } from "@/lib/use-server-action";
 import {
   changePlanAction,
   checkoutAction,
@@ -22,6 +23,54 @@ import {
 
 type CourseChoice = { id: string; label: string; grades: number[] };
 
+/**
+ * Volta do checkout da Stripe (`/familia?pagamento=recebido`).
+ *
+ * O acesso só é liberado pelo webhook, que costuma chegar segundos depois do
+ * redirecionamento. Em vez de mostrar "Explorar gratuito" para quem acabou de
+ * pagar, a página avisa que está confirmando e se atualiza sozinha até o plano
+ * aparecer; depois limpa o parâmetro para um recarregamento não repetir o aviso.
+ */
+export function PaymentConfirmation({ paid, plano }: { paid: boolean; plano: string }) {
+  const router = useRouter();
+  const [tentativas, setTentativas] = useState(0);
+  const esgotado = tentativas >= 15;
+  useEffect(() => {
+    if (paid) {
+      const t = setTimeout(() => router.replace("/familia"), 8000);
+      return () => clearTimeout(t);
+    }
+    if (esgotado) return;
+    const t = setTimeout(() => {
+      setTentativas((n) => n + 1);
+      router.refresh();
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [paid, esgotado, router]);
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="mb-6 rounded-card border-2 border-verde/40 bg-verde-claro p-4"
+    >
+      <p className="font-display font-semibold text-tinta">
+        {paid
+          ? `Pagamento confirmado. O plano ${plano} já está ativo.`
+          : esgotado
+            ? "A confirmação está demorando mais que o normal."
+            : "Confirmando o pagamento com a operadora…"}
+      </p>
+      <p className="mt-1 text-sm text-tinta">
+        {paid
+          ? "Os perfis da família já podem explorar as trilhas assinadas."
+          : esgotado
+            ? "Se o valor foi cobrado, o acesso é liberado assim que a operadora avisar. Volte a esta página em alguns minutos."
+            : "Esta página se atualiza sozinha. Nenhuma cobrança extra é feita enquanto isso."}
+      </p>
+    </div>
+  );
+}
+
 const seletor =
   "mt-1.5 block h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground";
 
@@ -32,7 +81,7 @@ export function CreateProfile({ courses }: { courses: CourseChoice[] }) {
   const [courseId, setCourseId] = useState("olitef-n1");
   const [consent, setConsent] = useState(false);
   const [message, setMessage] = useState("");
-  const [pending, start] = useTransition();
+  const [pending, start] = useServerAction();
   const router = useRouter();
   return (
     <form
@@ -47,10 +96,8 @@ export function CreateProfile({ courses }: { courses: CourseChoice[] }) {
               courseId,
               consent,
             });
-            if (result.ok) {
-              router.push("/hoje");
-              router.refresh();
-            } else setMessage(result.error);
+            if (result.ok) router.push("/hoje");
+            else setMessage(result.error);
           } catch {
             setMessage(
               "Não foi possível criar o perfil. Confira os perfis existentes antes de tentar novamente.",
@@ -183,7 +230,7 @@ export function FamilyChallenge({
 }) {
   const [meta, setMeta] = useState(goal ?? suggested);
   const [message, setMessage] = useState("");
-  const [pending, start] = useTransition();
+  const [pending, start] = useServerAction();
   function salvar(valor: number) {
     start(async () => {
       try {
@@ -284,7 +331,7 @@ export function WeeklyReportEmail({
 }) {
   const [ligado, setLigado] = useState(enabled);
   const [message, setMessage] = useState("");
-  const [pending, start] = useTransition();
+  const [pending, start] = useServerAction();
   return (
     <Card>
       <CardHeader>
@@ -337,7 +384,7 @@ export function WeeklyReportEmail({
 
 export function Routine({ minutes }: { minutes: number }) {
   const [message, setMessage] = useState("");
-  const [pending, start] = useTransition();
+  const [pending, start] = useServerAction();
   return (
     <Card>
       <CardHeader>
@@ -391,7 +438,7 @@ export function BillingButton({
   disabled?: boolean;
   children: React.ReactNode;
 }) {
-  const [pending, start] = useTransition();
+  const [pending, start] = useServerAction();
   const [message, setMessage] = useState("");
   return (
     <div>
@@ -444,7 +491,7 @@ export function PlanChangeControls({
     profiles.find((profile) => profile.accessEnabled)?.id ?? profiles[0]?.id ?? "",
   );
   const [message, setMessage] = useState("");
-  const [pending, start] = useTransition();
+  const [pending, start] = useServerAction();
   const router = useRouter();
   const needsChoice =
     options.some((option) => option.requiresRetainedProfile) && profiles.length > 1;
@@ -561,7 +608,7 @@ export function PlanChangeControls({
 export function PrivacyControls() {
   const [confirmation, setConfirmation] = useState("");
   const [message, setMessage] = useState("");
-  const [pending, start] = useTransition();
+  const [pending, start] = useServerAction();
   const router = useRouter();
   return (
     <>

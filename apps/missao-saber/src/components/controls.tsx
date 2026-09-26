@@ -71,8 +71,23 @@ export function CoursePicker({
   current: string;
   courses: { id: string; label: string }[];
 }) {
+  /* A escolha vive em estado local para o select mostrar a trilha nova na
+     hora; quando o servidor confirma e a página revalida, `current` chega
+     igual e nada muda. Se a troca falha, volta para a trilha confirmada. */
+  const [selected, setSelected] = useState(current);
+  const [confirmed, setConfirmed] = useState(current);
+  if (confirmed !== current) {
+    setConfirmed(current);
+    setSelected(current);
+  }
+  /* Sem useTransition de propósito: no Next 16, uma action que revalida a
+     árvore dentro de startTransition pode deixar o pending preso para
+     sempre (vercel/next.js#86055); a jornada, que é longa, reproduzia isso
+     em produção. O router.refresh() depois da action garante que card e
+     caminho acompanhem a trilha nova. Ver também o comentário sobre a
+     ausência de loading.tsx em app/(app)/layout.tsx. */
   const router = useRouter();
-  const [pending, start] = useTransition();
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   return (
     <div className="min-w-52">
@@ -80,23 +95,34 @@ export function CoursePicker({
         Sua trilha
       </Label>
       {/* Select nativo de propósito: a página é renderizada no servidor e um
-          seletor controlado por JS ficaria em branco até a hidratação. */}
+          seletor controlado por JS ficaria em branco até a hidratação.
+          autoComplete="off" impede o navegador de restaurar, num recarregamento,
+          a opção escolhida antes por cima da trilha que o servidor mandou. */}
       <select
         id="trilha"
+        autoComplete="off"
         className="block h-12 w-full rounded-controle border-2 border-sombra bg-creme px-3 font-semibold text-tinta"
-        value={current}
-        disabled={pending}
-        onChange={(event) => {
+        value={selected}
+        disabled={saving}
+        aria-busy={saving}
+        onChange={async (event) => {
           const id = event.target.value;
-          start(async () => {
-            try {
-              const result = await courseAction(profileId, id);
-              if (result.ok) router.refresh();
-              else setError(result.error);
-            } catch {
-              setError("Não foi possível trocar de trilha.");
+          setSelected(id);
+          setError("");
+          setSaving(true);
+          try {
+            const result = await courseAction(profileId, id);
+            if (result.ok) router.refresh();
+            else {
+              setSelected(current);
+              setError(result.error);
             }
-          });
+          } catch {
+            setSelected(current);
+            setError("Não foi possível trocar de trilha.");
+          } finally {
+            setSaving(false);
+          }
         }}
       >
         {courses.map((course) => (

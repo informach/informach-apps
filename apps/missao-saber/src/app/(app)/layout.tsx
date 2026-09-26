@@ -9,6 +9,16 @@ import { SignOut } from "@/components/sign-out";
 import { getCurrentUser } from "@/lib/auth";
 import { currentDashboard } from "@/lib/view";
 
+/*
+ * Este grupo não tem loading.tsx de propósito. Com a página dentro dessa
+ * fronteira de Suspense, o Next 16.2 deixa de aplicar na tela a árvore que
+ * chega depois de uma server action ou de um router.refresh(): a troca de
+ * trilha em /jornada gravava no banco e só aparecia após recarregar
+ * (vercel/next.js#86055, cujo contorno documentado é remover o loading.tsx).
+ * As páginas respondem rápido e a navegação mantém a tela anterior até a nova
+ * estar pronta, então o indicador não faz falta. Reavaliar quando o Next
+ * corrigir o problema.
+ */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
   if (!user) redirect("/entrar");

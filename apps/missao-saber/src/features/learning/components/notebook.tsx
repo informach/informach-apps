@@ -1,9 +1,10 @@
 "use client";
 import { Label } from "@informach/ui/components/label";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { BotaoChapa } from "@/components/ui/botao-chapa";
 import { Chapa } from "@/components/ui/chapa";
+import { useServerAction } from "@/lib/use-server-action";
 import { noteAction, removeNoteAction } from "../actions";
 
 export function Notebook({
@@ -15,7 +16,7 @@ export function Notebook({
 }) {
   const [text, setText] = useState("");
   const [message, setMessage] = useState("");
-  const [pending, start] = useTransition();
+  const [pending, start] = useServerAction();
   const router = useRouter();
   return (
     <>
