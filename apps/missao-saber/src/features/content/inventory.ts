@@ -204,6 +204,21 @@ export function catalogInventory() {
       /* Questão reservada com os mesmos números e a mesma resposta de uma atividade
          de ensino da habilidade: seria prática disfarçada de avaliação. Os bancos das
          quatro trilhas de 6º/7º estão congelados e ficam fora da conferência. */
+      /* Alternativa certa muito mais longa que as erradas denuncia a resposta sem
+         conta nenhuma. As missões de 6º/7º estão congeladas e ficam de fora. */
+      answerLengthCues: lessons
+        .filter((lesson) => !legacyLessonIds.has(lesson.id))
+        .flatMap((lesson) => lesson.items)
+        .filter((item) => {
+          if (item.type !== "choice") return false;
+          const longest = Math.max(
+            ...item.options
+              .filter((option) => option !== item.answer)
+              .map((option) => option.length),
+          );
+          return item.answer.length > 1.6 * longest && item.answer.length > longest + 15;
+        })
+        .map((item) => item.id),
       reservedNumericTwins: (() => {
         const teachingKeys = new Set(teachingItems.map(numericKey));
         return assessmentBanks

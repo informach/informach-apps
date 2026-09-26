@@ -403,13 +403,13 @@ export const polinomios: SkillPack = {
         c(
           "identidades",
           "Para provar que n³ − n é múltiplo de 6 para todo inteiro n, fatora-se:",
-          "n³ − n = (n − 1)n(n + 1), produto de três consecutivos",
-          ["n³ − n = n(n² − 1) e para aqui", "n³ − n = (n − 1)³"],
-          "Três consecutivos contêm um múltiplo de 2 e um de 3.",
+          "n³ − n = (n − 1)n(n + 1)",
+          ["n³ − n = n(n − 1)²", "n³ − n = n(n − 1)(n − 2)"],
+          "n³ − n = n(n² − 1) = (n − 1)n(n + 1), produto de três consecutivos. Três consecutivos contêm um múltiplo de 2 e um de 3.",
           {
             feedback: [
-              "Falta fatorar n² − 1 para ver os três consecutivos.",
-              "Essa igualdade é falsa.",
+              "n(n − 1)² = n³ − 2n² + n, que não é n³ − n; o certo é n² − 1 = (n − 1)(n + 1).",
+              "n(n − 1)(n − 2) = n³ − 3n² + 2n, que não é n³ − n; os consecutivos certos são n − 1, n e n + 1.",
             ],
           },
         ),

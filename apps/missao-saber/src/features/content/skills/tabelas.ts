@@ -103,9 +103,9 @@ export const tabelas: SkillPack = {
         c(
           "localizar",
           "Para achar um valor numa tabela, o que se faz primeiro?",
-          "Ler os títulos das linhas e das colunas para saber o que cada uma mostra",
-          ["Somar todos os números", "Olhar só o maior número"],
-          "Sem entender os títulos, o número achado pode ser de outra coisa.",
+          "Ler os títulos das linhas e das colunas",
+          ["Somar todos os números da tabela", "Procurar o maior número da tabela"],
+          "Os títulos dizem o que cada linha e cada coluna mostra. Sem entender os títulos, o número achado pode ser de outra coisa.",
           {
             feedback: [
               "Somar tudo só serve quando a pergunta pede o total.",
@@ -194,12 +194,12 @@ export const tabelas: SkillPack = {
           "totais",
           "Uma coluna de 'total' numa tabela deve mostrar:",
           "A soma dos valores daquela linha",
-          ["O maior valor da linha", "A quantidade de colunas"],
+          ["O maior valor da linha", "A soma dos valores de cada coluna"],
           "Total é soma.",
           {
             feedback: [
               "O maior valor é outra informação, chamada máximo.",
-              "A quantidade de colunas não depende dos valores.",
+              "Somar cada coluna é o trabalho de uma linha de total; a coluna de total soma cada linha.",
             ],
           },
         ),
@@ -284,12 +284,12 @@ export const tabelas: SkillPack = {
           "barras",
           "Para transformar um gráfico de barras em tabela, o que fica em cada linha da tabela?",
           "O nome da barra e o valor da sua altura",
-          ["Só o nome da barra", "A cor da barra"],
+          ["Só o nome de cada barra do gráfico", "O nome da barra e a posição dela no gráfico"],
           "Cada barra vira uma linha com nome e valor.",
           {
             feedback: [
               "Sem o valor, a tabela não diz quanto.",
-              "A cor não é informação da tabela.",
+              "A posição da barra no gráfico não diz quanto ela vale; o que importa é a altura.",
             ],
           },
         ),
@@ -365,13 +365,13 @@ export const tabelas: SkillPack = {
         c(
           "completar",
           "Ao completar uma tabela que tem totais de linha e de coluna, como conferir o valor descoberto?",
-          "Calcular pela linha e pela coluna e ver se os dois resultados são iguais",
-          ["Escolher o maior dos dois", "Não precisa conferir"],
+          "Calcular pela linha e pela coluna e ver se dá igual",
+          ["Escolher o maior dos dois resultados", "Não precisa, se a conta foi bem feita"],
           "Dois caminhos independentes que batem dão confiança.",
           {
             feedback: [
               "Se derem diferentes, algo está errado; escolher não resolve.",
-              "Conferir é a parte que pega erros de conta.",
+              "Mesmo com cuidado, erros de conta acontecem; conferir é o que pega esses erros.",
             ],
           },
         ),
@@ -443,8 +443,11 @@ export const tabelas: SkillPack = {
         c(
           "responder",
           "Uma tabela mostra quantos alunos almoçam na escola: 2ª feira 80, 3ª 75, 4ª 90, 5ª 85, 6ª 60. Qual afirmação está certa?",
-          "O dia com menos alunos foi a sexta, com 25 a menos que a quinta",
-          ["Todos os dias tiveram mais de 70 alunos", "A quarta teve o dobro da sexta"],
+          "O dia com menos alunos foi a sexta, 25 a menos que a quinta",
+          [
+            "Todos os dias da semana tiveram mais de 70 alunos",
+            "A quarta teve o dobro dos alunos da sexta",
+          ],
           "Sexta teve 60, o menor valor, e 85 − 60 = 25. As outras frases falham: a sexta teve menos de 70, e o dobro de 60 é 120, não 90.",
           {
             feedback: ["A sexta teve 60, menos de 70.", "O dobro de 60 é 120, não 90."],
@@ -453,9 +456,9 @@ export const tabelas: SkillPack = {
         c(
           "responder",
           "Antes de responder uma pergunta sobre uma tabela, o que ajuda a não errar?",
-          "Marcar na tabela os números que a pergunta pede e só depois fazer a conta",
+          "Marcar os números que a pergunta pede antes da conta",
           ["Somar todos os números da tabela", "Responder com o primeiro número que aparecer"],
-          "Selecionar os dados certos vem antes de calcular.",
+          "Selecionar os dados certos vem antes de calcular: primeiro marcar na tabela os números que a pergunta pede, depois fazer a conta.",
           {
             feedback: [
               "Somar tudo responde outra pergunta.",

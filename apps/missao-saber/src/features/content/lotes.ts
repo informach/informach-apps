@@ -46,4 +46,8 @@ export const authoringLots: AuthoringLot[] = [
   { number: 29, firstItemId: "modelos-financeiros-1-1", lastItemId: "equivalencia-temporal-5-10" },
   { number: 30, firstItemId: "renda-fixa-1-1", lastItemId: "renda-variavel-5-10" },
   { number: 31, firstItemId: "cenarios-1-1", lastItemId: "bank:exam:olitef-n3-12" },
+  // Onda 4 (2º e 3º ano): Mirim 1.
+  { number: 32, firstItemId: "contar-e-comparar-1-1", lastItemId: "formas-e-posicoes-5-10" },
+  { number: 33, firstItemId: "sequencias-iniciais-1-1", lastItemId: "medir-e-comparar-5-10" },
+  { number: 34, firstItemId: "problemas-com-desenho-1-1", lastItemId: "bank:exam:mirim-1-12" },
 ];

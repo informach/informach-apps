@@ -60,10 +60,13 @@ export const rendaFixa: SkillPack = {
           "remuneracao",
           "No item anterior, o cálculo exato do rendimento total é:",
           "9,2%, porque 1,04 × 1,05 = 1,092",
-          ["9%, exatamente", "20%, porque 4 × 5 = 20"],
-          "Os fatores se multiplicam.",
+          ["9%, porque 4% + 5% = 9%", "109,2%, que é o fator acumulado"],
+          "Os fatores se multiplicam: 1,092 significa 9,2% a mais.",
           {
-            feedback: ["9% é a aproximação por soma.", "Multiplicar as taxas não tem sentido."],
+            feedback: [
+              "9% é a aproximação por soma; o cálculo exato multiplica os fatores.",
+              "109,2% é o fator em porcentagem; a taxa é só o que passa de 100%.",
+            ],
           },
         ),
         n(
@@ -129,13 +132,16 @@ export const rendaFixa: SkillPack = {
         c(
           "liquidez",
           "Para uma reserva de emergência, a característica mais importante é:",
-          "Liquidez alta com baixo risco, mesmo que o rendimento seja menor",
-          ["O maior rendimento possível", "Um prazo longo de carência"],
-          "A emergência pode acontecer a qualquer momento.",
+          "Liquidez alta e baixo risco, mesmo rendendo menos",
+          [
+            "O maior rendimento possível, para crescer rápido",
+            "Rendimento acima da inflação, mesmo com carência",
+          ],
+          "A emergência pode acontecer a qualquer momento, então o dinheiro precisa estar disponível e sem risco de queda.",
           {
             feedback: [
-              "Rendimento alto costuma vir com prazo ou risco maior.",
-              "Carência impede o resgate na hora da emergência.",
+              "Rendimento alto costuma vir com prazo ou risco maior, e a emergência não espera.",
+              "Carência impede o resgate na hora da emergência, mesmo que o rendimento supere a inflação.",
             ],
           },
         ),
@@ -172,13 +178,16 @@ export const rendaFixa: SkillPack = {
         c(
           "liquidez",
           "Entre duas aplicações de mesmo risco, uma com resgate diário e outra com carência de 1 ano, é esperado que:",
-          "A de carência pague uma taxa maior, para compensar a falta de liquidez",
-          ["A de resgate diário pague mais", "As duas paguem exatamente o mesmo"],
-          "Abrir mão da liquidez costuma ser remunerado.",
+          "A de carência pague mais, pela falta de liquidez",
+          [
+            "A de resgate diário pague mais, por ser mais procurada",
+            "As duas paguem o mesmo, já que o risco é igual",
+          ],
+          "Abrir mão da liquidez costuma ser remunerado com uma taxa maior.",
           {
             feedback: [
-              "Liquidez tem valor; quem a oferece costuma pagar menos.",
-              "A diferença de liquidez costuma aparecer na taxa.",
+              "Liquidez tem valor: quem oferece resgate diário costuma pagar menos, não mais.",
+              "Risco igual não basta: abrir mão da liquidez também costuma aparecer na taxa.",
             ],
           },
         ),
@@ -201,12 +210,12 @@ export const rendaFixa: SkillPack = {
           "liquidez",
           "O item anterior mostra que um título prefixado vendido antes do vencimento:",
           "Pode dar prejuízo se as taxas do mercado subirem",
-          ["Sempre devolve o valor aplicado", "Sempre dá lucro"],
+          ["Sempre devolve o valor aplicado", "Sempre dá lucro, pois a taxa já está travada"],
           "O preço de venda depende das taxas do momento.",
           {
             feedback: [
               "Só no vencimento o valor combinado é pago.",
-              "Se as taxas caírem, pode dar lucro; se subirem, prejuízo.",
+              "A taxa travada só é garantida no vencimento; antes dele, se as taxas subirem, a venda pode dar prejuízo, como no item anterior.",
             ],
           },
         ),
@@ -259,12 +268,15 @@ export const rendaFixa: SkillPack = {
           "liquido",
           "Um imposto regressivo cobra 22,5% até 6 meses e 15% acima de 2 anos, sobre o rendimento. Para quem pode esperar, manter mais tempo:",
           "Reduz a alíquota sobre o rendimento",
-          ["Aumenta a alíquota", "Não muda nada"],
+          [
+            "Aumenta a alíquota, porque o rendimento é maior",
+            "Mantém a alíquota do início da aplicação",
+          ],
           "Regressivo: quanto mais tempo, menor a alíquota.",
           {
             feedback: [
-              "Regressivo significa que diminui com o tempo.",
-              "A alíquota depende do prazo.",
+              "Um rendimento maior pode gerar mais imposto em reais, mas a alíquota regressiva cai com o prazo.",
+              "A alíquota depende do tempo que o dinheiro ficou aplicado: com mais prazo, ela cai.",
             ],
           },
         ),
@@ -287,11 +299,14 @@ export const rendaFixa: SkillPack = {
         c(
           "liquido",
           "O imposto de renda sobre uma aplicação incide sobre:",
-          "O rendimento, não sobre o valor aplicado",
-          ["O valor total resgatado", "O valor aplicado"],
-          "Só o ganho é tributado.",
+          "Apenas o rendimento obtido",
+          ["O valor total resgatado", "O valor aplicado no início"],
+          "Só o ganho é tributado, não o valor aplicado.",
           {
-            feedback: ["O capital devolvido não é ganho.", "O valor aplicado não é renda."],
+            feedback: [
+              "O capital devolvido não é ganho; só a parte que rendeu é tributada.",
+              "O valor aplicado não é renda: é o próprio dinheiro de quem aplicou.",
+            ],
           },
         ),
         n(
@@ -396,24 +411,33 @@ export const rendaFixa: SkillPack = {
         c(
           "credito",
           "No item anterior, comparado com um título de risco muito baixo que paga 10% (suponha que pague os R$ 1.100), o título arriscado:",
-          "Tem valor esperado menor (1.080) e ainda risco de perder tudo",
-          ["É melhor, porque promete 20%", "É equivalente"],
-          "Promessa alta com risco pode render menos em média.",
+          "É pior: vale 1.080 em média e pode perder tudo",
+          [
+            "É melhor, porque promete R$ 1.200 ao final",
+            "É equivalente, pois a taxa maior paga o risco",
+          ],
+          "Promessa alta com risco pode render menos em média: o valor esperado é 1.080, menor que 1.100, e ainda há a chance de perder tudo.",
           {
             feedback: [
-              "O valor esperado é 1.080, menor que 1.100.",
-              "1.080 e 1.100 são diferentes.",
+              "R$ 1.200 é a promessa; com a chance de calote, o valor esperado é 1.080, menor que 1.100.",
+              "Aqui a taxa maior não compensa o risco: 1.080 fica abaixo de 1.100.",
             ],
           },
         ),
         c(
           "credito",
           "Uma propaganda oferece 'renda fixa de 5% ao mês, sem risco'. A leitura mais sensata é:",
-          "Desconfiar: taxas muito acima das comuns não vêm sem risco, e podem indicar golpe",
-          ["Aceitar, porque renda fixa não tem risco", "Aceitar, porque 5% é pouco"],
-          "5% ao mês passa de 79% ao ano.",
+          "Desconfiar, pois taxa tão alta sem risco não existe",
+          [
+            "Aceitar, porque renda fixa não tem risco",
+            "Aceitar, se a empresa tiver um site profissional",
+          ],
+          "5% ao mês passa de 79% ao ano. Taxas muito acima das comuns não vêm sem risco e podem indicar golpe.",
           {
-            feedback: ["Renda fixa tem riscos; o nome não os elimina.", "5% ao mês é muitíssimo."],
+            feedback: [
+              "Renda fixa tem riscos, como o calote; o nome não os elimina.",
+              "Golpes costumam ter aparência profissional; o sinal de alerta é a taxa alta prometida sem risco.",
+            ],
           },
         ),
       ],
@@ -493,20 +517,20 @@ export const rendaFixa: SkillPack = {
         c(
           "escolher",
           "Qual é a vantagem principal de um título atrelado à inflação para objetivos de longo prazo?",
-          "Proteger o poder de compra, pagando a inflação do período mais uma taxa",
-          ["Render sempre mais que qualquer outro", "Não ter nenhum risco"],
-          "O ganho real é conhecido antes de impostos, se o título for mantido até o vencimento e o emissor pagar.",
+          "Proteger o poder de compra ao longo do tempo",
+          ["Render sempre mais que qualquer prefixado", "Não ter risco algum, mesmo vendido antes"],
+          "Ele paga a inflação do período mais uma taxa. O ganho real é conhecido antes de impostos, se o título for mantido até o vencimento e o emissor pagar.",
           {
             feedback: [
-              "Em alguns períodos outros títulos podem render mais.",
-              "Também tem riscos, como vender antes do prazo.",
+              "Em alguns períodos um prefixado pode render mais, por exemplo se a inflação ficar baixa.",
+              "Também tem riscos: vendido antes do prazo pode render menos, e o emissor pode não pagar.",
             ],
           },
         ),
         c(
           "escolher",
           "Uma análise responsável de aplicações de renda fixa deve terminar com:",
-          "Uma comparação dos rendimentos líquidos, dizendo quais premissas de taxa e prazo foram usadas",
+          "Uma comparação dos rendimentos líquidos, com as premissas de taxa e prazo",
           [
             "A indicação de um produto específico como o melhor para todos",
             "A promessa de um valor final garantido",

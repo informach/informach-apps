@@ -7,6 +7,7 @@ import { combinacoes } from "./combinacoes";
 import { composicaoDeFiguras } from "./composicao-de-figuras";
 import { contagemCasos } from "./contagem-casos";
 import { contagemInicial } from "./contagem-inicial";
+import { contarEComparar } from "./contar-e-comparar";
 import { coordenadas } from "./coordenadas";
 import { coordenadasEm } from "./coordenadas-em";
 import { equacoes } from "./equacoes";
@@ -14,6 +15,7 @@ import { equacoesEm } from "./equacoes-em";
 import { equivalenciaTemporal } from "./equivalencia-temporal";
 import { espaco } from "./espaco";
 import { estruturasNumericas } from "./estruturas-numericas";
+import { formasEPosicoes } from "./formas-e-posicoes";
 import { funcoes } from "./funcoes";
 import { geometriaPlana } from "./geometria-plana";
 import { inducao } from "./inducao";
@@ -23,6 +25,7 @@ import { investimentos } from "./investimentos";
 import { juros } from "./juros";
 import { logicaEm } from "./logica-em";
 import { logicaN2 } from "./logica-n2";
+import { medirEComparar } from "./medir-e-comparar";
 import { modelosFinanceiros } from "./modelos-financeiros";
 import { orcamentoN2 } from "./orcamento-n2";
 import { orientacaoEspacial } from "./orientacao-espacial";
@@ -31,12 +34,14 @@ import { pitagoras } from "./pitagoras";
 import { polinomios } from "./polinomios";
 import { porcentagemN2 } from "./porcentagem-n2";
 import { probabilidadeEm } from "./probabilidade-em";
+import { problemasComDesenho } from "./problemas-com-desenho";
 import { proporcao } from "./proporcao";
 import { recorrencias } from "./recorrencias";
 import { rendaFixa } from "./renda-fixa";
 import { rendaVariavel } from "./renda-variavel";
 import { restos } from "./restos";
 import { semelhanca } from "./semelhanca";
+import { sequenciasIniciais } from "./sequencias-iniciais";
 import { tabelas } from "./tabelas";
 import { tempoEMedidas } from "./tempo-e-medidas";
 import { trigonometria } from "./trigonometria";
@@ -93,4 +98,10 @@ export const skillPacks: SkillPack[] = [
   rendaFixa,
   rendaVariavel,
   cenarios,
+  // Onda 4 (2º e 3º ano): Mirim 1.
+  contarEComparar,
+  formasEPosicoes,
+  sequenciasIniciais,
+  medirEComparar,
+  problemasComDesenho,
 ];

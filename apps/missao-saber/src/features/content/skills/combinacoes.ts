@@ -307,13 +307,16 @@ export const combinacoes: SkillPack = {
         c(
           "complementar",
           "Contar 'pelo menos um' diretamente, somando 'exatamente um', 'exatamente dois' e assim por diante:",
-          "Funciona, mas o complementar (total menos nenhum) costuma ser muito mais curto",
-          ["Está sempre errado", "É a única maneira correta"],
-          "Os dois caminhos dão o mesmo número; um deles é mais rápido.",
+          "Funciona, mas o complementar costuma ser mais curto",
+          [
+            "Está errado, pois conta alguns casos duas vezes",
+            "É a única maneira correta; o complementar falha",
+          ],
+          "Os dois caminhos dão o mesmo número; o complementar (total menos nenhum) costuma ser muito mais rápido.",
           {
             feedback: [
-              "Somar casos disjuntos é correto.",
-              "O complementar também é correto e mais direto.",
+              "Os casos 'exatamente um', 'exatamente dois' e assim por diante são disjuntos: nenhum é contado duas vezes, então somar é correto.",
+              "O complementar (total menos nenhum) também é correto e mais direto.",
             ],
           },
         ),

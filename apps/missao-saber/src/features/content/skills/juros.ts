@@ -318,16 +318,16 @@ export const juros: SkillPack = {
         c(
           "custo-do-parcelamento",
           "Qual afirmação sobre 'parcelamento sem juros' é a mais precisa?",
-          "O custo pode estar embutido no preço; compare a soma das parcelas com o preço à vista de outra loja ou com desconto",
+          "Parcelar sem juros pode ter o custo embutido no preço",
           [
             "Parcelar sem juros é sempre igual a pagar à vista",
-            "Parcelar sem juros é sempre mais vantajoso",
+            "Parcelar sem juros quer dizer que a loja perde dinheiro",
           ],
-          "Sem desconto à vista o total é o mesmo, mas muitas vezes o preço à vista é menor em outro lugar ou com desconto.",
+          "O custo pode estar embutido no preço: compare a soma das parcelas com o preço à vista de outra loja ou com desconto. Sem desconto à vista o total é o mesmo, mas muitas vezes o preço à vista é menor em outro lugar ou com desconto.",
           {
             feedback: [
               "Quando existe desconto à vista, parcelar custa mais.",
-              "Depende de haver desconto à vista e do rendimento do dinheiro guardado.",
+              "A loja não perde: o custo do prazo costuma já estar no preço.",
             ],
           },
         ),
@@ -518,13 +518,13 @@ export const juros: SkillPack = {
         c(
           "comparar-formas-de-pagamento",
           "Ao escolher entre duas ofertas de crédito, o critério que mais importa é:",
-          "O total pago ao final, incluindo taxas e seguros, e se as parcelas cabem no orçamento",
-          ["O valor da menor parcela", "O número de parcelas"],
-          "Parcelas menores em mais meses costumam somar um total maior.",
+          "O total pago ao final, com taxas e seguros",
+          ["O valor da parcela, quanto menor melhor", "O número de parcelas, quanto menos melhor"],
+          "O total pago ao final, incluindo taxas e seguros, mostra o custo de cada oferta; depois, é preciso ver se as parcelas cabem no orçamento. Parcelas menores em mais meses costumam somar um total maior.",
           {
             feedback: [
               "A menor parcela pode esconder um total muito maior.",
-              "O número de parcelas sozinho não diz o custo.",
+              "Menos parcelas nem sempre sai mais barato: a taxa e as tarifas de cada oferta mudam o total.",
             ],
           },
         ),

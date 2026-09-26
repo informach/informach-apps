@@ -38,10 +38,13 @@ export const trigonometria: SkillPack = {
           "razoes",
           "Para qualquer ângulo agudo θ, sen² θ + cos² θ vale:",
           "1",
-          ["θ", "Depende do ângulo"],
+          ["2", "Depende do ângulo"],
           "(o/h)² + (a/h)² = (o² + a²)/h² = 1 por Pitágoras.",
           {
-            feedback: ["Não depende do valor de θ.", "Vale 1 para todo θ."],
+            feedback: [
+              "2 exigiria sen² θ = 1 e cos² θ = 1 ao mesmo tempo, o que não acontece: quando um cresce, o outro diminui.",
+              "Não depende: por Pitágoras, o² + a² = h², então a soma vale 1 para todo θ.",
+            ],
           },
         ),
         n(
@@ -183,11 +186,14 @@ export const trigonometria: SkillPack = {
         c(
           "leis",
           "Com a lei dos cossenos, se o ângulo A é de 90°, a fórmula vira:",
-          "O teorema de Pitágoras, porque cos 90° = 0",
-          ["a = b + c", "a² = b² − c²"],
-          "O termo −2bc·cos A desaparece.",
+          "a² = b² + c²",
+          ["a² = b² + c² − 2bc", "a² = b² − c²"],
+          "O termo −2bc·cos A desaparece, porque cos 90° = 0: sobra o teorema de Pitágoras.",
           {
-            feedback: ["Os lados não se somam.", "É soma de quadrados, não diferença."],
+            feedback: [
+              "Isso usaria cos 90° = 1; como cos 90° = 0, o termo −2bc·cos A some inteiro.",
+              "É soma de quadrados, não diferença: a² = b² + c² − 2bc × 0.",
+            ],
           },
         ),
         n(
@@ -204,11 +210,14 @@ export const trigonometria: SkillPack = {
         c(
           "leis",
           "Um triângulo tem lados 7, 8 e 13. O maior ângulo é:",
-          "Obtuso, porque 13² > 7² + 8²",
+          "Obtuso",
           ["Reto", "Agudo"],
-          "169 > 113: cos do maior ângulo é negativo.",
+          "13² = 169 > 7² + 8² = 113: o cosseno do maior ângulo é negativo, então ele é obtuso.",
           {
-            feedback: ["Reto exigiria 169 = 113.", "Agudo exigiria 169 < 113."],
+            feedback: [
+              "Reto exigiria 13² = 7² + 8², isto é, 169 = 113.",
+              "Agudo exigiria 13² < 7² + 8², isto é, 169 < 113.",
+            ],
           },
         ),
         n(
@@ -221,11 +230,14 @@ export const trigonometria: SkillPack = {
         c(
           "leis",
           "Na lei dos senos, a razão a/sen A é igual a:",
-          "O diâmetro da circunferência circunscrita ao triângulo",
-          ["O perímetro do triângulo", "A área do triângulo"],
-          "a/sen A = 2R.",
+          "O diâmetro da circunferência circunscrita",
+          ["O raio da circunferência circunscrita", "O raio da circunferência inscrita"],
+          "a/sen A = 2R, em que R é o raio da circunferência circunscrita ao triângulo.",
           {
-            feedback: ["O perímetro não aparece na lei dos senos.", "A área é outra fórmula."],
+            feedback: [
+              "É o dobro do raio: a/sen A = 2R, o diâmetro da circunscrita.",
+              "A circunferência inscrita não aparece na lei dos senos; a razão é o diâmetro da circunscrita, 2R.",
+            ],
           },
         ),
         n(
@@ -304,11 +316,14 @@ export const trigonometria: SkillPack = {
         c(
           "area-seno",
           "Dois triângulos têm lados 5 e 7 com ângulos entre eles de 30° e 150°. Suas áreas são:",
-          "Iguais, porque sen 30° = sen 150°",
+          "As duas são iguais",
           ["A primeira é maior", "A segunda é maior"],
-          "Ângulos suplementares têm o mesmo seno.",
+          "Ângulos suplementares têm o mesmo seno: sen 30° = sen 150° = 1/2, e as duas áreas valem ½ × 5 × 7 × ½ = 35/4.",
           {
-            feedback: ["Os senos são iguais.", "Os senos são iguais."],
+            feedback: [
+              "A primeira não é maior: sen 30° = sen 150° = 1/2, então as duas áreas valem ½ × 5 × 7 × ½.",
+              "Um ângulo maior não dá área maior aqui: 30° e 150° são suplementares e têm o mesmo seno, 1/2.",
+            ],
           },
         ),
         n(
@@ -321,13 +336,16 @@ export const trigonometria: SkillPack = {
         c(
           "area-seno",
           "A fórmula ½·a·b·sen C vem de:",
-          "Área = ½ × base a × altura, com a altura igual a b·sen C",
-          ["Da lei dos cossenos", "Do teorema de Tales"],
-          "A altura relativa ao lado a é o cateto oposto a C num triângulo de hipotenusa b.",
+          "Da área ½ × base × altura, com altura b·sen C",
+          [
+            "Da lei dos cossenos, trocando cos C por sen C",
+            "Do retângulo a × b cortado ao meio pela diagonal",
+          ],
+          "A altura relativa ao lado a é o cateto oposto a C num triângulo de hipotenusa b: h = b·sen C, e a área é ½ × a × h.",
           {
             feedback: [
-              "A lei dos cossenos relaciona lados e ângulo, não área.",
-              "Tales trata de paralelas.",
+              "A lei dos cossenos relaciona lados e ângulo, não área; trocar cosseno por seno não é uma passagem válida.",
+              "Isso só vale quando C é reto, pois sen 90° = 1; em geral a altura relativa ao lado a é b·sen C, não b.",
             ],
           },
         ),
@@ -350,7 +368,7 @@ export const trigonometria: SkillPack = {
         c(
           "medir",
           "Para medir a largura de um rio sem atravessar, uma pessoa parte do ponto bem em frente a uma árvore da outra margem, anda 50 m pela margem e mede o ângulo até a árvore. Ela está usando:",
-          "Um triângulo retângulo com cateto conhecido e um ângulo, para achar o outro cateto pela tangente",
+          "A tangente do ângulo, num triângulo retângulo",
           [
             "A lei dos cossenos, porque o triângulo não é retângulo",
             "O seno do ângulo medido, multiplicado por 50",
@@ -418,13 +436,16 @@ export const trigonometria: SkillPack = {
         c(
           "medir",
           "Num problema de medida indireta, a fonte de erro mais importante costuma ser:",
-          "A medida do ângulo, porque pequenos erros de ângulo geram grandes erros de distância quando o ângulo é próximo de 90°",
-          ["O valor de π", "A unidade escolhida"],
-          "A tangente cresce muito perto de 90°.",
+          "A medida do ângulo, sobretudo perto de 90°",
+          [
+            "O arredondamento da tangente na calculadora",
+            "A unidade escolhida para medir as distâncias",
+          ],
+          "A tangente cresce muito perto de 90°: um erro pequeno na medida do ângulo gera um erro grande na distância calculada.",
           {
             feedback: [
-              "π não aparece nesses problemas.",
-              "A unidade não gera erro; a medição sim.",
+              "O arredondamento da calculadora afeta casas decimais distantes; o erro que pesa vem de medir o ângulo no campo.",
+              "Trocar metros por centímetros não cria erro, só muda a escala dos números; o erro vem da medição.",
             ],
           },
         ),

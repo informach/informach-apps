@@ -44,13 +44,13 @@ export const funcoes: SkillPack = {
         c(
           "funcao-ou-nao",
           "Qual destas relações NÃO é uma função de x?",
-          "A relação que associa a cada x os dois números y com y² = x, para x > 0",
-          ["y = x²", "y = |x|"],
-          "Para x = 4, a relação dá y = 2 e y = −2: duas saídas para uma entrada.",
+          "y² = x, para x > 0",
+          ["y = x², para x real", "y = √x, para x > 0"],
+          "A relação y² = x associa a cada x os dois números y cujo quadrado é x. Para x = 4, dá y = 2 e y = −2: duas saídas para uma entrada.",
           {
             feedback: [
               "y = x² dá uma única saída para cada x.",
-              "y = |x| dá uma única saída para cada x.",
+              "√x é, por definição, a raiz não negativa: dá uma única saída para cada x.",
             ],
           },
         ),
@@ -163,9 +163,9 @@ export const funcoes: SkillPack = {
         c(
           "afim",
           "Duas retas: y = 3x + 1 e y = 3x − 4. Elas:",
-          "São paralelas, porque têm o mesmo coeficiente angular e interceptos diferentes",
+          "São paralelas e distintas",
           ["Se cruzam em x = 5", "São a mesma reta"],
-          "Mesma inclinação e b diferentes: nunca se encontram.",
+          "Mesmo coeficiente angular (3) e interceptos diferentes (1 e −4): nunca se encontram.",
           {
             feedback: [
               "3x + 1 = 3x − 4 não tem solução.",
@@ -461,16 +461,16 @@ export const funcoes: SkillPack = {
         c(
           "modelar",
           "Um modelo linear prevê que uma planta cresce 2 cm por semana para sempre. Qual é a limitação mais importante?",
-          "Nenhuma planta cresce indefinidamente; o modelo só vale por um período",
+          "Nenhuma planta cresce para sempre; o modelo vale por um período",
           [
             "Funções lineares não servem para plantas",
-            "O modelo deveria usar pés em vez de centímetros",
+            "Deveria ser um crescimento exponencial sem fim",
           ],
           "Todo modelo tem um intervalo de validade.",
           {
             feedback: [
               "Lineares servem bem por um tempo; o problema é estender demais.",
-              "A unidade não muda a limitação.",
+              "Trocar por um crescimento exponencial sem fim piora o problema: nenhum crescimento dura para sempre.",
             ],
           },
         ),

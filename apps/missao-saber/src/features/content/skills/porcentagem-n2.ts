@@ -47,13 +47,16 @@ export const porcentagemN2: SkillPack = {
         c(
           "pontos-percentuais",
           "A taxa de aprovação de uma escola passou de 80% para 90%. Isso corresponde a:",
-          "Um aumento de 10 pontos percentuais, ou de 12,5% em relação à taxa anterior",
-          ["Um aumento de 10%", "Um aumento de 90%"],
-          "A diferença entre 80% e 90% é de 10 pontos percentuais; em relação a 80, o aumento é 10 ÷ 80 = 12,5%.",
+          "Um aumento de 10 pontos percentuais, ou de 12,5%",
+          [
+            "Um aumento de 10 pontos percentuais, ou de 10%",
+            "Um aumento de 10 pontos percentuais, ou de 11,1%",
+          ],
+          "A diferença entre 80% e 90% é de 10 pontos percentuais; em relação à taxa anterior, o aumento é 10 ÷ 80 = 12,5%.",
           {
             feedback: [
               "10% de 80% seriam 8 pontos; a taxa subiu 10 pontos, que são 12,5% de 80.",
-              "90% é a nova taxa, não o aumento.",
+              "11,1% divide os 10 pontos pela taxa nova, 90; a base do aumento é a taxa anterior, 80.",
             ],
           },
         ),
@@ -447,11 +450,14 @@ export const porcentagemN2: SkillPack = {
         c(
           "promocao",
           "Uma promoção 'leve 3, pague 2' equivale a um desconto de:",
-          "Cerca de 33% sobre os três produtos",
-          ["50%", "Cerca de 66%"],
-          "Paga-se 2 de 3: economiza-se 1/3, cerca de 33%.",
+          "Cerca de 33%",
+          ["50%", "Cerca de 67%"],
+          "Paga-se 2 de 3: economiza-se 1/3 do preço dos três produtos, cerca de 33%.",
           {
-            feedback: ["50% seria 'leve 2, pague 1'.", "66% é o que se paga, não o desconto."],
+            feedback: [
+              "50% seria 'leve 2, pague 1'.",
+              "Cerca de 67% é o que se paga, não o desconto.",
+            ],
           },
         ),
         n(
@@ -489,11 +495,14 @@ export const porcentagemN2: SkillPack = {
         c(
           "afirmacao-critica",
           "Um anúncio diz que um curso 'aumenta em 40% a chance de aprovação'. Sem saber a chance inicial, o que se pode afirmar?",
-          "Nada sobre a chance final: 40% a mais de 5% dá 7%, e 40% a mais de 50% dá 70%",
+          "Nada sobre o valor da chance final",
           ["Que a chance final é 40%", "Que a chance final é ao menos 40%"],
-          "Um aumento percentual depende da base; sem ela não há como saber o resultado.",
+          "Um aumento percentual depende da base: 40% a mais de 5% dá 7%, e 40% a mais de 50% dá 70%. Sem a chance inicial não há como saber o resultado.",
           {
-            feedback: ["40% é o aumento relativo, não a chance.", "Não há garantia sem a base."],
+            feedback: [
+              "40% é o aumento relativo, não a chance.",
+              "Com chance inicial de 5%, 40% a mais dá só 7%; não há garantia sem a base.",
+            ],
           },
         ),
         n(
@@ -513,11 +522,17 @@ export const porcentagemN2: SkillPack = {
         c(
           "afirmacao-critica",
           "Em uma cidade, 2% dos 500.000 moradores usam bicicleta; em outra, 20% dos 30.000. Qual afirmação é correta?",
-          "A primeira cidade tem mais ciclistas em número, mas a segunda tem mais em proporção",
-          ["A segunda tem mais ciclistas em número", "As duas têm o mesmo número de ciclistas"],
-          "2% de 500.000 = 10.000 e 20% de 30.000 = 6.000.",
+          "A primeira tem mais ciclistas em número; a segunda, em proporção",
+          [
+            "A segunda tem mais ciclistas em número e em proporção",
+            "A primeira tem mais ciclistas em número e em proporção",
+          ],
+          "2% de 500.000 = 10.000 e 20% de 30.000 = 6.000: a primeira tem mais ciclistas, mas na segunda a parte dos moradores que pedala é maior.",
           {
-            feedback: ["6.000 é menos que 10.000.", "10.000 e 6.000 são diferentes."],
+            feedback: [
+              "Em número, 20% de 30.000 são 6.000, menos que os 10.000 da primeira cidade.",
+              "Em proporção, 2% é bem menos que 20%; a primeira só ganha no número de ciclistas.",
+            ],
           },
         ),
         c(

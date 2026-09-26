@@ -52,13 +52,13 @@ export const coordenadasEm: SkillPack = {
         c(
           "distancia",
           "Os pontos A(0, 0), B(4, 0), C(4, 3) formam um triângulo:",
-          "Retângulo em B, com hipotenusa 5",
-          ["Equilátero", "Retângulo em A"],
-          "AB horizontal e BC vertical: ângulo reto em B; AC = 5.",
+          "Retângulo em B",
+          ["Isósceles, com AB = AC", "Retângulo em A"],
+          "AB é horizontal e BC é vertical: ângulo reto em B. A hipotenusa AC mede 5.",
           {
             feedback: [
-              "Os lados medem 4, 3 e 5.",
-              "O ângulo reto está em B, onde os lados são horizontal e vertical.",
+              "AB mede 4 e AC mede 5, pois é a hipotenusa; os lados são 3, 4 e 5, todos diferentes.",
+              "Em A se encontram AB, horizontal, e AC, inclinado; o ângulo reto está em B, onde os lados são horizontal e vertical.",
             ],
           },
         ),
@@ -100,13 +100,13 @@ export const coordenadasEm: SkillPack = {
         c(
           "distancia",
           "Os pontos (0, 0), (2, 1), (4, 2) são:",
-          "Colineares, porque as inclinações entre pares são iguais (1/2)",
+          "Colineares, todos na reta y = x/2",
           ["Vértices de um triângulo isósceles", "Vértices de um triângulo retângulo"],
-          "A distância de (0, 0) a (4, 2) é a soma das outras duas.",
+          "As inclinações entre pares são iguais (1/2): os três estão na reta y = x/2. Pelas distâncias também se vê: a de (0, 0) a (4, 2) é a soma das outras duas.",
           {
             feedback: [
-              "Não há triângulo: os pontos estão alinhados.",
-              "Alinhados não formam triângulo.",
+              "(2, 1) está à mesma distância dos outros dois, mas porque é o ponto médio: os três estão alinhados e não formam triângulo.",
+              "Não há triângulo: a inclinação de (0, 0) a (2, 1) e a de (2, 1) a (4, 2) são iguais a 1/2, então os pontos estão alinhados.",
             ],
           },
         ),
@@ -225,13 +225,13 @@ export const coordenadasEm: SkillPack = {
         c(
           "intersecao",
           "O sistema y = 2x + 1 e 2y = 4x + 2 tem:",
-          "Infinitas soluções: são a mesma reta",
-          ["Uma solução", "Nenhuma solução"],
-          "A segunda equação é o dobro da primeira.",
+          "Infinitas soluções",
+          ["Uma única solução", "Nenhuma solução"],
+          "A segunda equação é o dobro da primeira: as duas descrevem a mesma reta, e todo ponto dela é solução.",
           {
             feedback: [
-              "Retas coincidentes têm todos os pontos em comum.",
-              "Nenhuma seria para paralelas distintas.",
+              "Uma única solução seria de retas com inclinações diferentes; aqui as duas têm inclinação 2 e o mesmo intercepto, então coincidem.",
+              "Nenhuma solução seria de paralelas distintas; dividindo a segunda equação por 2 sai y = 2x + 1, a mesma reta.",
             ],
           },
         ),
@@ -353,12 +353,12 @@ export const coordenadasEm: SkillPack = {
           "area-circ",
           "A reta y = 5 em relação à circunferência x² + y² = 25 é:",
           "Tangente, no ponto (0, 5)",
-          ["Secante", "Exterior"],
-          "Distância do centro à reta igual ao raio.",
+          ["Secante, em (−5, 5) e (5, 5)", "Exterior, sem pontos comuns"],
+          "A distância do centro à reta é 5, igual ao raio. Substituindo y = 5, sobra x² = 0: um único ponto comum.",
           {
             feedback: [
-              "Secante cruzaria em dois pontos; aqui só toca em um.",
-              "Exterior não tocaria.",
+              "Substituindo y = 5: x² + 25 = 25, logo x = 0, e há um só ponto comum. Os pontos (±5, 5) ficam fora da circunferência.",
+              "A distância do centro à reta é 5, igual ao raio: a reta toca a circunferência em (0, 5).",
             ],
           },
         ),
@@ -379,13 +379,13 @@ export const coordenadasEm: SkillPack = {
         c(
           "area-circ",
           "Quantos pontos têm em comum as circunferências x² + y² = 4 e (x − 6)² + y² = 4?",
-          "Nenhum: a distância entre os centros (6) é maior que a soma dos raios (4)",
-          ["Um", "Dois"],
-          "Circunferências exteriores.",
+          "Nenhum, pois 6 > 2 + 2",
+          ["Um, o ponto (3, 0)", "Dois, pois 6 < 4 + 4"],
+          "Os centros são (0, 0) e (6, 0), a distância 6, e os raios medem 2. Como 6 > 2 + 2, as circunferências são exteriores.",
           {
             feedback: [
-              "Um ponto seria com distância igual à soma dos raios.",
-              "Dois pontos exigem distância menor que a soma.",
+              "(3, 0) é o ponto médio entre os centros, mas fica a 3 de cada um, e os raios medem 2; não está em nenhuma das duas.",
+              "4 é o quadrado do raio: os raios medem 2, e 6 > 2 + 2, então as circunferências não se encontram.",
             ],
           },
         ),
@@ -453,13 +453,16 @@ export const coordenadasEm: SkillPack = {
         c(
           "resolver",
           "Para achar o ponto da reta y = x mais próximo de (4, 0), o método por coordenadas é:",
-          "Traçar a perpendicular por (4, 0), y = −x + 4, e cruzar com y = x: (2, 2)",
-          ["Tomar (4, 4)", "Tomar (0, 0)"],
-          "O pé da perpendicular é o ponto mais próximo.",
+          "Cruzar a perpendicular por (4, 0) com y = x: (2, 2)",
+          [
+            "Subir na vertical de (4, 0) até y = x: (4, 4)",
+            "Tomar o ponto em que a reta começa: (0, 0)",
+          ],
+          "O pé da perpendicular é o ponto mais próximo. A perpendicular a y = x por (4, 0) é y = −x + 4, que cruza y = x em (2, 2).",
           {
             feedback: [
-              "(4, 4) está a distância 4; (2, 2) está a √8 ≈ 2,83.",
-              "(0, 0) está a distância 4.",
+              "A vertical não é perpendicular a y = x; (4, 4) está a distância 4, e (2, 2) está a √8 ≈ 2,83.",
+              "A reta não começa em (0, 0): ela segue nos dois sentidos. A origem está a distância 4, mais longe que (2, 2), a √8 ≈ 2,83.",
             ],
           },
         ),
@@ -488,13 +491,16 @@ export const coordenadasEm: SkillPack = {
         c(
           "resolver",
           "Ao provar uma propriedade geral com coordenadas, por que usar letras (a, b) em vez de números?",
-          "Porque números provam só um caso; letras cobrem todas as figuras da família",
-          ["Porque letras são mais elegantes", "Não faz diferença"],
-          "O caso geral exige parâmetros.",
+          "Porque números provam só um caso, e letras, todos",
+          [
+            "Porque as contas com letras ficam mais curtas",
+            "Não faz diferença, se o exemplo for bem escolhido",
+          ],
+          "Números verificam um caso; letras cobrem todas as figuras da família. O caso geral exige parâmetros.",
           {
             feedback: [
-              "Elegância não é o critério; generalidade é.",
-              "Faz toda a diferença entre exemplo e prova.",
+              "Com letras as contas costumam ficar mais longas, não mais curtas; o ganho é que o resultado vale para todas as figuras da família.",
+              "Um exemplo, por melhor que seja, verifica um caso só; é isso que separa exemplo de prova.",
             ],
           },
         ),

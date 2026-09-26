@@ -53,13 +53,13 @@ export const argumentacaoEm: SkillPack = {
         c(
           "implicacao",
           "'Se chove, a rua fica molhada.' A rua está molhada. O que se pode concluir?",
-          "Nada com certeza; pode ter chovido ou ter outra causa",
-          ["Choveu", "Não choveu"],
-          "Afirmar a conclusão não permite afirmar a hipótese.",
+          "Nada com certeza; pode haver outra causa",
+          ["Choveu, pois a rua molhada confirma a frase", "Que só a chuva deixa a rua molhada"],
+          "Afirmar a conclusão não permite afirmar a hipótese: pode ter chovido ou a rua pode ter molhado por outra causa.",
           {
             feedback: [
-              "Isso é a recíproca, que não decorre da frase.",
-              "Também não se pode concluir que não choveu.",
+              "Isso usa a recíproca ('se a rua está molhada, choveu'), que não decorre da frase.",
+              "A frase não diz que só a chuva molha a rua; isso seria um 'se e somente se'.",
             ],
           },
         ),
@@ -131,12 +131,15 @@ export const argumentacaoEm: SkillPack = {
           "casos-absurdo",
           "A prova clássica de que √2 é irracional começa supondo:",
           "Que √2 = p/q com p e q inteiros sem fator comum",
-          ["Que √2 é irracional", "Que √2 é inteiro"],
+          [
+            "Que √2 é irracional, e busca-se uma contradição",
+            "Que √2 é um decimal finito, como 1,4142",
+          ],
           "Supõe-se o contrário e deriva-se que p e q seriam ambos pares, contradição.",
           {
             feedback: [
-              "Supor o que se quer provar não leva a lugar nenhum.",
-              "Supor inteiro é um caso particular; a suposição precisa ser 'racional'.",
+              "Supor o que se quer provar não leva a lugar nenhum; no absurdo, supõe-se o contrário.",
+              "Decimal finito é só um tipo de racional; refutar isso não exclui as dízimas periódicas. A suposição precisa ser 'racional'.",
             ],
           },
         ),
@@ -157,13 +160,13 @@ export const argumentacaoEm: SkillPack = {
         c(
           "casos-absurdo",
           "Para provar que existem infinitos primos, supõe-se que são finitos, p₁, ..., pₙ, e considera-se N = p₁·p₂·...·pₙ + 1. A contradição vem de:",
-          "N não é divisível por nenhum dos pᵢ, então tem um fator primo fora da lista",
-          ["N é sempre primo", "N é par"],
-          "N deixa resto 1 por cada pᵢ.",
+          "Nenhum pᵢ divide N, logo há um primo fora da lista",
+          ["N é sempre primo e maior que todos os pᵢ", "N é par, pois o produto contém o fator 2"],
+          "N deixa resto 1 por cada pᵢ, então nenhum deles divide N; um fator primo de N fica fora da lista.",
           {
             feedback: [
-              "N nem sempre é primo; basta ter um fator primo novo.",
-              "N é ímpar, pois é múltiplo de 2 mais 1.",
+              "N nem sempre é primo (2·3·5·7·11·13 + 1 = 30031 = 59·509); basta ter um fator primo novo.",
+              "O produto é par, mas somando 1 fica ímpar.",
             ],
           },
         ),
@@ -186,11 +189,14 @@ export const argumentacaoEm: SkillPack = {
           "casos-absurdo",
           "Uma prova por casos está completa quando:",
           "Os casos cobrem todas as possibilidades e cada um foi provado",
-          ["Há pelo menos três casos", "Cada caso foi testado com um exemplo"],
+          [
+            "Há pelo menos dois casos e cada um foi provado",
+            "Os casos cobrem tudo e cada um foi testado com um exemplo",
+          ],
           "Exaustividade e prova em cada caso.",
           {
             feedback: [
-              "O número de casos não importa; a cobertura importa.",
+              "O número de casos não importa; o que importa é que eles cubram todas as possibilidades.",
               "Um exemplo por caso não prova o caso.",
             ],
           },
@@ -199,22 +205,28 @@ export const argumentacaoEm: SkillPack = {
           "casos-absurdo",
           "Numa prova por absurdo de 'não existe maior inteiro', supõe-se que M é o maior inteiro. A contradição é:",
           "M + 1 é inteiro e maior que M",
-          ["M é negativo", "M não é primo"],
+          ["M − 1 é inteiro e menor que M", "M/2 pode não ser inteiro"],
           "A suposição gera um inteiro maior que o suposto maior.",
           {
-            feedback: ["O sinal de M não gera contradição.", "Ser primo ou não é irrelevante."],
+            feedback: [
+              "Um inteiro menor que M não contradiz M ser o maior.",
+              "M/2 não ser inteiro é normal quando M é ímpar e não contradiz nada.",
+            ],
           },
         ),
         c(
           "casos-absurdo",
           "Qual é a diferença entre provar por absurdo e provar a contrapositiva?",
-          "A contrapositiva prova 'não B ⇒ não A' diretamente; o absurdo supõe A e não B e deriva qualquer contradição",
-          ["São exatamente a mesma coisa", "O absurdo só serve para números"],
-          "Ambas são válidas; a estrutura é diferente.",
+          "A contrapositiva prova 'não B ⇒ não A' direto; o absurdo supõe A e não B",
+          [
+            "São a mesma técnica; só muda a forma de escrever a conclusão",
+            "O absurdo prova a recíproca 'B ⇒ A'; a contrapositiva prova 'A ⇒ B'",
+          ],
+          "Ambas são válidas; a estrutura é diferente: a contrapositiva é uma prova direta de 'não B ⇒ não A', e o absurdo supõe A e não B e deriva qualquer contradição.",
           {
             feedback: [
               "Parecidas, mas a contrapositiva é uma prova direta de outra frase equivalente.",
-              "O absurdo serve em qualquer área.",
+              "As duas provam a própria 'A ⇒ B'; nenhuma delas prova a recíproca.",
             ],
           },
         ),
@@ -258,13 +270,16 @@ export const argumentacaoEm: SkillPack = {
         c(
           "gavetas",
           "Num tabuleiro 8 × 8 removem-se dois cantos opostos. É possível cobrir o resto com dominós 2 × 1?",
-          "Não: os cantos opostos têm a mesma cor, sobram 32 casas de uma cor e 30 da outra, e cada dominó cobre uma de cada",
-          ["Sim, porque 62 é par", "Sim, com 31 dominós"],
-          "A cor é o invariante.",
+          "Não: sobram 32 casas de uma cor e 30 da outra",
+          [
+            "Sim: são 62 casas, e 31 dominós cobrem 62",
+            "Depende da ordem em que os dominós são postos",
+          ],
+          "A cor é o invariante: os cantos opostos têm a mesma cor, então sobram 32 casas de uma cor e 30 da outra, e cada dominó cobre uma casa de cada cor.",
           {
             feedback: [
-              "62 par é necessário, mas não suficiente.",
-              "31 dominós cobririam 31 casas de cada cor, e não há.",
+              "62 par é necessário, mas não suficiente: 31 dominós cobririam 31 casas de cada cor, e não há.",
+              "Nenhuma ordem resolve: cada dominó cobre uma casa de cada cor, e as quantidades de cada cor são diferentes.",
             ],
           },
         ),
@@ -332,21 +347,30 @@ export const argumentacaoEm: SkillPack = {
         c(
           "ler-solucao",
           "Uma solução resolve x² = 5x dividindo os dois lados por x e conclui x = 5. O erro é:",
-          "Dividir por x, que pode ser zero; a solução x = 0 foi perdida",
-          ["Não há erro", "x = 5 não é solução"],
+          "Dividir por x, que pode ser zero; perdeu-se x = 0",
+          ["Nenhum: dividir os dois lados por x é permitido", "Faltou a raiz negativa, x = −5"],
           "x² − 5x = x(x − 5) = 0 dá x = 0 ou x = 5.",
           {
-            feedback: ["Falta a solução x = 0.", "x = 5 é solução; o problema é a que faltou."],
+            feedback: [
+              "Só se pode dividir por x quando x ≠ 0; aqui isso fez sumir a solução x = 0.",
+              "x = −5 não serve: (−5)² = 25 e 5 · (−5) = −25. A solução que falta é x = 0.",
+            ],
           },
         ),
         c(
           "ler-solucao",
           "Uma solução afirma: 'testei n = 1 até 6 e n² + n + 41 deu primo; logo é primo para todo n'. O erro é:",
           "Concluir uma afirmação geral a partir de exemplos",
-          ["Os testes estão errados", "41 não é primo"],
+          [
+            "Algum dos testes de n = 1 a 6 está errado",
+            "Deveria ter testado até n = 10 para concluir",
+          ],
           "n = 40 dá 41², que não é primo.",
           {
-            feedback: ["Os testes estão certos; a conclusão é que não segue.", "41 é primo."],
+            feedback: [
+              "Os testes estão certos: de n = 1 a 6 os valores são primos; a conclusão é que não segue.",
+              "Nenhuma quantidade finita de testes prova o caso geral; o primeiro valor composto só aparece em n = 40.",
+            ],
           },
         ),
         c(
@@ -369,8 +393,11 @@ export const argumentacaoEm: SkillPack = {
         c(
           "ler-solucao",
           "Uma solução escreve: 'como a soma dos ângulos é 180°, e o triângulo é isósceles, os ângulos são 60°, 60°, 60°'. O que falta?",
-          "Isósceles não garante equilátero; faltou uma hipótese ou um passo",
-          ["Nada; isósceles implica equilátero", "A soma deveria ser 360°"],
+          "Isósceles não garante equilátero; falta hipótese ou passo",
+          [
+            "Nada, pois todo triângulo isósceles é equilátero",
+            "A soma dos ângulos internos deveria ser 360°",
+          ],
           "Isósceles tem pelo menos dois ângulos iguais, não necessariamente três.",
           {
             feedback: [
@@ -395,9 +422,9 @@ export const argumentacaoEm: SkillPack = {
         c(
           "ler-solucao",
           "Uma solução termina com 'portanto o valor é 12' sem verificar as condições do problema. Qual é o risco?",
-          "O valor encontrado pode não satisfazer uma condição usada só no final, como ser positivo ou inteiro",
-          ["Nenhum, contas certas garantem a resposta", "Só o risco de erro de cálculo"],
-          "Soluções algébricas podem gerar valores estranhos ao problema.",
+          "O 12 pode não cumprir uma condição do enunciado",
+          ["Nenhum, contas certas garantem a resposta", "Só o risco de ter errado alguma conta"],
+          "Soluções algébricas podem gerar valores estranhos ao problema: o valor encontrado pode não satisfazer uma condição que não entrou nas contas, como ser ímpar, ser menor que 10 ou caber num intervalo dado. Só a verificação final pega isso.",
           {
             feedback: [
               "Contas certas podem produzir raízes que o contexto exclui.",
@@ -432,7 +459,7 @@ export const argumentacaoEm: SkillPack = {
           "escrever",
           "Para provar 'se n² é par então n é par', o método mais direto é:",
           "Contrapositiva: se n é ímpar então n² é ímpar",
-          ["Testar n = 2, 4, 6", "Supor n par e mostrar n² par"],
+          ["Testar n = 2, 4, 6 e generalizar o padrão", "Recíproca: se n é par então n² é par"],
           "Provar a contrapositiva é fácil: (2k + 1)² = 4k² + 4k + 1.",
           {
             feedback: ["Exemplos não provam.", "Isso prova a recíproca, não a afirmação."],
@@ -442,12 +469,15 @@ export const argumentacaoEm: SkillPack = {
           "escrever",
           "Para provar que a soma de dois ímpares é par, a prova correta começa:",
           "Sejam a = 2m + 1 e b = 2n + 1, com m e n inteiros",
-          ["Seja a = 2m + 1 e b = 2m + 1", "3 + 5 = 8, que é par"],
+          [
+            "Sejam a = 2m + 1 e b = 2m + 1, com m inteiro",
+            "Por exemplo, 3 + 5 = 8 e 7 + 9 = 16 são pares",
+          ],
           "Usar a mesma letra forçaria a = b.",
           {
             feedback: [
               "Com a mesma variável só se prova para números iguais.",
-              "Um exemplo não é prova.",
+              "Exemplos, por mais que sejam, não provam o caso geral.",
             ],
           },
         ),
@@ -483,7 +513,10 @@ export const argumentacaoEm: SkillPack = {
           "escrever",
           "Ao provar por absurdo, a conclusão deve ser escrita como:",
           "'Contradição; logo a suposição é falsa e a afirmação vale'",
-          ["'Logo a suposição é verdadeira'", "'Logo não se pode saber'"],
+          [
+            "'Contradição; logo a suposição era verdadeira'",
+            "'Contradição; logo não se pode saber se vale'",
+          ],
           "A contradição refuta a suposição.",
           {
             feedback: [
@@ -519,9 +552,12 @@ export const argumentacaoEm: SkillPack = {
         c(
           "escrever",
           "A frase 'é óbvio que' numa prova deve ser:",
-          "Evitada ou substituída pela razão do passo, porque o leitor precisa poder conferir",
-          ["Usada para encurtar", "Usada só no fim"],
-          "O que é óbvio para quem escreve pode ser o passo falho.",
+          "Evitada ou trocada pela razão que justifica o passo",
+          [
+            "Usada para encurtar passos que o leitor já conhece",
+            "Usada só no fim, quando a conclusão já está clara",
+          ],
+          "O que é óbvio para quem escreve pode ser o passo falho, e o leitor precisa poder conferir cada razão.",
           {
             feedback: [
               "Encurtar assim esconde onde o argumento pode falhar.",

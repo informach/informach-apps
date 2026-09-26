@@ -6,6 +6,7 @@ import { wave2Tracks } from "./wave-2";
 import { wave3aTracks } from "./wave-3a";
 import { wave3bTracks } from "./wave-3b";
 import { wave3cTracks } from "./wave-3c";
+import { wave4Tracks } from "./wave-4";
 
 /**
  * Registro das trilhas, por onda de publicação. Uma trilha só entra aqui
@@ -26,5 +27,6 @@ export const trackWaves: TrackDefinition[][] = [
   wave3aTracks,
   wave3bTracks,
   wave3cTracks,
+  wave4Tracks,
 ];
 export const trackDefinitions: TrackDefinition[] = trackWaves.flat();

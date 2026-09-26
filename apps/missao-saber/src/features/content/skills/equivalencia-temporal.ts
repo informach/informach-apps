@@ -61,13 +61,16 @@ export const equivalenciaTemporal: SkillPack = {
         c(
           "presente-futuro",
           "Para comparar R$ 1.000 hoje com R$ 1.080 daqui a um ano, o primeiro passo é:",
-          "Escolher uma taxa e levar os dois valores para a mesma data",
-          ["Comparar 1.000 e 1.080 diretamente", "Subtrair 80 de 1.000"],
+          "Escolher uma taxa e levar os dois valores à mesma data",
+          [
+            "Comparar 1.000 com 1.080 diretamente, sem taxa",
+            "Dividir a diferença de R$ 80 pelos 12 meses",
+          ],
           "A conclusão depende da taxa: com 8% ao ano são equivalentes.",
           {
             feedback: [
-              "Valores em datas diferentes não se comparam diretamente.",
-              "Subtrair não leva à mesma data.",
+              "Valores em datas diferentes não se comparam diretamente: R$ 1.000 hoje podem render até lá.",
+              "Repartir a diferença pelos meses não leva nenhum dos dois valores para a mesma data.",
             ],
           },
         ),
@@ -109,13 +112,16 @@ export const equivalenciaTemporal: SkillPack = {
         c(
           "presente-futuro",
           "Uma pessoa prefere receber R$ 500 hoje a R$ 520 daqui a um mês. Isso é coerente se:",
-          "Ela consegue uma aplicação que rende mais de 4% ao mês ou precisa do dinheiro agora",
-          ["Ela não sabe fazer contas", "Nunca é coerente"],
-          "520/500 = 1,04: com rendimento acima de 4% ao mês, hoje vale mais.",
+          "Ela consegue mais de 4% ao mês ou precisa do dinheiro já",
+          [
+            "Ela consegue qualquer rendimento acima de zero",
+            "A inflação do mês for positiva, mesmo que baixa",
+          ],
+          "520/500 = 1,04: com rendimento acima de 4% ao mês, hoje vale mais. A urgência também pode justificar a escolha.",
           {
             feedback: [
-              "A preferência pode ser uma decisão racional.",
-              "Depende da taxa disponível e da necessidade.",
+              "Com rendimento de 1% ao mês, os R$ 500 viram só R$ 505, menos que os R$ 520; é preciso passar de 4%.",
+              "Uma inflação baixa, como 0,5% ao mês, fica longe de cobrir a diferença de 4% entre 500 e 520.",
             ],
           },
         ),
@@ -138,13 +144,13 @@ export const equivalenciaTemporal: SkillPack = {
         c(
           "parcelas",
           "No item anterior, com taxa de 5% ao mês, o valor presente das duas parcelas é cerca de:",
-          "R$ 1.022,68, maior que o preço à vista",
-          ["R$ 1.100", "R$ 1.000"],
-          "550/1,05 + 550/1,05² ≈ 523,81 + 498,87.",
+          "R$ 1.022,68",
+          ["R$ 1.100", "R$ 1.047,62"],
+          "550/1,05 + 550/1,05² ≈ 523,81 + 498,87 = 1.022,68, um pouco mais que o preço à vista de R$ 1.000.",
           {
             feedback: [
-              "1.100 soma sem trazer as parcelas para hoje.",
-              "O valor presente das parcelas não coincide com o preço à vista.",
+              "1.100 soma as parcelas sem trazê-las para hoje.",
+              "1.047,62 desconta as duas parcelas por um mês só; a segunda vence em dois meses.",
             ],
           },
         ),
@@ -158,13 +164,16 @@ export const equivalenciaTemporal: SkillPack = {
         c(
           "parcelas",
           "Se um produto tem o mesmo preço à vista e parcelado, sem desconto, para quem pode pagar à vista e aplicar o dinheiro com rendimento:",
-          "Parcelar é vantajoso, porque o dinheiro rende enquanto as parcelas não vencem",
-          ["Pagar à vista é sempre melhor", "Não faz diferença nenhuma"],
-          "Sem juros de verdade, adiar o pagamento permite render.",
+          "Parcelar é melhor, pois o dinheiro rende até cada parcela",
+          [
+            "Pagar à vista é melhor, pois evita ficar com dívida",
+            "Tanto faz, pois o total pago é o mesmo nas duas",
+          ],
+          "Sem juros de verdade, adiar o pagamento permite que o dinheiro renda enquanto as parcelas não vencem.",
           {
             feedback: [
-              "Sem desconto à vista, pagar antes abre mão do rendimento.",
-              "O rendimento no período faz diferença.",
+              "Sem desconto à vista, pagar antes só abre mão do rendimento; essa dívida não tem custo.",
+              "O total é o mesmo, mas em datas diferentes: o dinheiro guardado rende até cada vencimento.",
             ],
           },
         ),
@@ -205,13 +214,16 @@ export const equivalenciaTemporal: SkillPack = {
         c(
           "parcelas",
           "O que o anúncio 'parcelado sem juros' pode esconder?",
-          "Que o preço à vista poderia ter desconto, e os juros estão embutidos no preço parcelado",
-          ["Nada; sem juros significa sem custo", "Que as parcelas aumentam com o tempo"],
-          "Se existe desconto à vista, o parcelado tem um custo.",
+          "Que o preço inclui juros, e à vista poderia ter desconto",
+          [
+            "Nada; sem juros quer dizer sem nenhum custo",
+            "Que as parcelas vão aumentando a cada mês",
+          ],
+          "Se existe desconto à vista, o parcelado tem um custo: os juros estão embutidos no preço parcelado.",
           {
             feedback: [
               "O custo pode estar no preço, não numa taxa declarada.",
-              "As parcelas anunciadas costumam ser fixas.",
+              "As parcelas anunciadas costumam ser fixas; o custo escondido está no preço, não em reajustes.",
             ],
           },
         ),
@@ -274,13 +286,16 @@ export const equivalenciaTemporal: SkillPack = {
         c(
           "antecipar",
           "Por que a dívida do rotativo do cartão cresce tão rápido?",
-          "Porque a taxa mensal é alta e os juros são compostos: incidem sobre os juros dos meses anteriores",
-          ["Porque a multa é cobrada todo dia", "Porque o banco dobra a dívida todo mês"],
-          "Taxas mensais de dois dígitos acumulam muito em poucos meses.",
+          "Porque a taxa mensal é alta e os juros são compostos",
+          [
+            "Porque a multa por atraso é cobrada todo mês",
+            "Porque a taxa é alta, mas os juros são simples",
+          ],
+          "Os juros compostos incidem sobre os juros dos meses anteriores, e taxas mensais de dois dígitos acumulam muito em poucos meses.",
           {
             feedback: [
-              "A multa é cobrada uma vez; o que cresce é o juro composto.",
-              "Não dobra todo mês, mas pode dobrar em poucos meses.",
+              "A multa é cobrada uma vez; o que faz a dívida crescer mês a mês é o juro composto.",
+              "Com juros simples ela cresceria sempre o mesmo valor; no rotativo, os juros de um mês rendem juros no seguinte.",
             ],
           },
         ),
@@ -302,11 +317,17 @@ export const equivalenciaTemporal: SkillPack = {
         c(
           "antecipar",
           "Uma pessoa tem R$ 1.000 aplicados a 1% ao mês e uma dívida de R$ 1.000 a 8% ao mês. Pelas contas, o mais vantajoso é:",
-          "Usar a aplicação para quitar a dívida, porque a dívida custa muito mais do que a aplicação rende",
-          ["Manter as duas, porque aplicação é sempre bom", "Fazer uma nova dívida para aplicar"],
-          "Cada mês a dívida custa 80 e a aplicação rende 10.",
+          "Usar a aplicação para quitar a dívida",
+          [
+            "Manter as duas, porque os valores se equilibram",
+            "Pagar só os juros da dívida com o rendimento",
+          ],
+          "Cada mês a dívida custa 80 e a aplicação rende 10: a dívida custa muito mais do que a aplicação rende.",
           {
-            feedback: ["Manter as duas perde 70 por mês.", "Isso aumentaria a perda."],
+            feedback: [
+              "Os valores são iguais, mas as taxas não: mantendo as duas, perde-se 80 − 10 = 70 por mês.",
+              "O rendimento de 10 por mês não cobre os 80 de juros, e a dívida continua cara.",
+            ],
           },
         ),
       ],
@@ -331,13 +352,13 @@ export const equivalenciaTemporal: SkillPack = {
         c(
           "fluxos",
           "Com taxa de 10% ao ano, o que vale mais hoje: A = R$ 2.200 daqui a 1 ano ou B = R$ 2.420 daqui a 2 anos?",
-          "Valem o mesmo: ambos equivalem a R$ 2.000 hoje",
-          ["A", "B, porque 2.420 é maior"],
-          "2.200/1,1 = 2.000 e 2.420/1,21 = 2.000.",
+          "Valem o mesmo, R$ 2.000 hoje",
+          ["A, porque chega um ano antes", "B, porque 2.420 é o maior valor"],
+          "2.200/1,1 = 2.000 e 2.420/1,21 = 2.000: ambos equivalem a R$ 2.000 hoje.",
           {
             feedback: [
-              "A vale 2.000 hoje, igual a B.",
-              "Um valor maior mais tarde pode equivaler ao mesmo hoje.",
+              "Chegar antes conta, mas B compensa com um valor maior: os dois valem R$ 2.000 hoje.",
+              "Um valor maior mais tarde pode equivaler ao mesmo hoje: 2.420/1,21 = 2.000.",
             ],
           },
         ),
@@ -355,13 +376,16 @@ export const equivalenciaTemporal: SkillPack = {
         c(
           "fluxos",
           "No item anterior, qual opção é ligeiramente melhor para quem recebe, com taxa de 10% ao ano?",
-          "As parcelas, com valor presente de cerca de R$ 30.091",
-          ["Os R$ 30.000 hoje", "São exatamente iguais"],
+          "As parcelas, que valem cerca de R$ 30.091 hoje",
+          [
+            "Os R$ 30.000, porque são recebidos de uma vez",
+            "Empatam, pois a taxa anula os R$ 3.000 a mais",
+          ],
           "30.090,91 > 30.000.",
           {
             feedback: [
-              "Com essa taxa, as parcelas valem um pouco mais.",
-              "Diferem em cerca de 91 reais.",
+              "Receber de uma vez não basta: com 10% ao ano, as parcelas valem R$ 30.090,91 hoje, um pouco mais.",
+              "Descontar as parcelas futuras tira cerca de R$ 2.909, não os R$ 3.000 inteiros; sobra uma diferença de uns 91 reais.",
             ],
           },
         ),
@@ -375,13 +399,16 @@ export const equivalenciaTemporal: SkillPack = {
         c(
           "fluxos",
           "Ao aumentar a taxa usada para trazer fluxos ao presente, os fluxos com recebimentos mais distantes:",
-          "Perdem proporcionalmente mais valor presente que os com recebimentos próximos",
-          ["Ganham valor presente", "Não mudam"],
-          "O desconto cresce com o prazo.",
+          "Perdem proporcionalmente mais valor presente",
+          [
+            "Perdem a mesma proporção que os próximos",
+            "Ganham valor presente, pois rendem por mais tempo",
+          ],
+          "O desconto cresce com o prazo: cada valor é dividido por (1 + i)ⁿ, e um n maior amplia o efeito da alta da taxa. Os recebimentos distantes perdem proporcionalmente mais que os próximos.",
           {
             feedback: [
-              "Uma taxa maior reduz valores presentes.",
-              "Cada valor futuro é dividido por um fator maior.",
+              "O prazo está no expoente do fator de desconto, então a mesma alta de taxa pesa mais nos valores distantes.",
+              "Render por mais tempo vale para quem aplica hoje; trazer ao presente com taxa maior reduz o valor.",
             ],
           },
         ),
@@ -418,13 +445,16 @@ export const equivalenciaTemporal: SkillPack = {
         c(
           "decidir",
           "Uma geladeira custa R$ 3.000 à vista ou 12 × R$ 290. A pessoa não tem o dinheiro agora e a geladeira atual quebrou. Uma análise responsável considera:",
-          "O custo do parcelamento, a necessidade real e se as parcelas cabem no orçamento sem comprometer o essencial",
-          ["Só o preço total", "Só a menor parcela possível"],
-          "O número importa, mas a capacidade de pagar e a urgência também.",
+          "O custo extra, a urgência e se as parcelas cabem no orçamento",
+          [
+            "Só a diferença entre o total parcelado e o preço à vista",
+            "Só o valor da parcela, que deve ser o menor possível",
+          ],
+          "O número importa, mas a capacidade de pagar sem comprometer o essencial e a urgência também.",
           {
             feedback: [
-              "O total ignora a urgência e o fluxo de caixa.",
-              "Parcela menor em mais meses pode custar muito mais.",
+              "O custo extra é só uma parte: ignora a urgência e se as parcelas cabem no mês.",
+              "Parcela menor em mais meses pode custar muito mais no total.",
             ],
           },
         ),
@@ -438,13 +468,16 @@ export const equivalenciaTemporal: SkillPack = {
         c(
           "decidir",
           "Esperar 6 meses guardando dinheiro para comprar à vista, em vez de parcelar, faz sentido quando:",
-          "O produto não é urgente e o desconto à vista ou os juros evitados compensam a espera",
-          ["Sempre, porque parcelar é errado", "Nunca, porque é melhor ter o produto logo"],
-          "A decisão depende da urgência e do custo.",
+          "O produto não é urgente e a economia compensa a espera",
+          [
+            "Sempre, porque pagar à vista sai sempre mais barato",
+            "Nunca, porque é melhor ter o produto logo",
+          ],
+          "A decisão depende da urgência e do custo: esperar vale quando o desconto à vista ou os juros evitados compensam ficar sem o produto.",
           {
             feedback: [
-              "Parcelar pode ser razoável em emergências.",
-              "Ter logo tem valor, mas também tem custo.",
+              "Nem sempre à vista sai mais barato, e parcelar pode ser razoável em emergências.",
+              "Ter logo tem valor, mas também tem custo; se o produto não é urgente, a espera pode compensar.",
             ],
           },
         ),
@@ -458,11 +491,17 @@ export const equivalenciaTemporal: SkillPack = {
         c(
           "decidir",
           "Um empréstimo consignado cobra 2% ao mês e o rotativo do cartão, 12% ao mês. Para quitar uma dívida de cartão, trocar pelo consignado:",
-          "Reduz muito o custo, desde que as parcelas caibam no orçamento e não se volte a usar o rotativo",
-          ["Não muda nada", "Aumenta o custo"],
-          "A troca de uma dívida cara por uma barata é uma estratégia comum.",
+          "Reduz muito o custo, se as parcelas couberem no orçamento",
+          [
+            "Não muda o custo, pois a dívida continua a mesma",
+            "Aumenta o custo, pois são dois empréstimos em vez de um",
+          ],
+          "2% ao mês é muito menos que 12%. Trocar uma dívida cara por uma barata é uma estratégia comum, desde que as parcelas caibam no orçamento e não se volte a usar o rotativo.",
           {
-            feedback: ["2% ao mês é muito menos que 12%.", "A taxa é menor, então o custo cai."],
+            feedback: [
+              "O valor devido é o mesmo, mas a taxa muda: a 2% ao mês em vez de 12%, os juros caem muito.",
+              "O consignado quita o cartão, então continua havendo uma dívida só, e mais barata.",
+            ],
           },
         ),
         n(
@@ -482,20 +521,20 @@ export const equivalenciaTemporal: SkillPack = {
         c(
           "decidir",
           "Uma pessoa recebe R$ 1.000 de bônus hoje. Qual é a pergunta mais importante antes de decidir o que fazer?",
-          "Se há dívidas caras a quitar ou uma reserva de emergência a formar",
-          ["Qual produto está em promoção", "Quanto o vizinho ganhou"],
-          "Quitar dívidas caras costuma ser o melhor 'rendimento' disponível.",
+          "Se há dívidas caras ou falta reserva de emergência",
+          ["Qual aplicação rendeu mais no último ano", "Qual compra adiada dá para fazer agora"],
+          "Quitar dívidas caras costuma ser o melhor 'rendimento' disponível, e a reserva protege contra imprevistos.",
           {
             feedback: [
-              "Promoção não é prioridade financeira por si só.",
-              "A situação do vizinho não entra na conta.",
+              "Rendimento passado não garante o futuro, e aplicar antes de quitar dívidas caras costuma sair caro.",
+              "Gastar pode até ser a escolha final, mas antes vale ver se há dívidas caras ou falta reserva.",
             ],
           },
         ),
         c(
           "decidir",
           "Por que a mesma compra parcelada pode ser razoável para uma pessoa e ruim para outra?",
-          "Porque a taxa que cada uma consegue, a urgência e a folga no orçamento são diferentes",
+          "Porque cada uma tem taxa, urgência e orçamento diferentes",
           [
             "Porque a matemática muda de pessoa para pessoa",
             "Não pode; parcelar é sempre igual para todos",

@@ -202,10 +202,13 @@ export const probabilidadeEm: SkillPack = {
           "contagem",
           "Numa loteria escolhem-se 6 números entre 60. A probabilidade de acertar todos com uma aposta é 1 dividido por:",
           "C(60, 6), cerca de 50 milhões",
-          ["60⁶", "6 × 60"],
+          ["60⁶, cerca de 47 bilhões", "60 × 59 × 58 × 57 × 56 × 55"],
           "A ordem não importa: C(60, 6) = 50.063.860.",
           {
-            feedback: ["60⁶ conta a ordem e permite repetição.", "6 × 60 é muito pequeno."],
+            feedback: [
+              "60⁶ conta a ordem dos números e ainda deixa o mesmo número sair mais de uma vez; na loteria não há repetição nem ordem.",
+              "Esse produto conta as sequências ordenadas; como a ordem dos 6 números não importa, falta dividir por 6! = 720.",
+            ],
           },
         ),
         n(
@@ -313,13 +316,13 @@ export const probabilidadeEm: SkillPack = {
         c(
           "regras",
           "Eventos mutuamente exclusivos com probabilidades positivas podem ser independentes?",
-          "Não: se um acontece, o outro não pode, então P(A e B) = 0 ≠ P(A) × P(B)",
-          ["Sim, sempre", "Sim, se tiverem a mesma probabilidade"],
-          "Exclusividade é dependência forte.",
+          "Não, pois P(A e B) = 0 ≠ P(A) × P(B)",
+          ["Sim, pois um não altera a chance do outro", "Depende dos valores de P(A) e P(B)"],
+          "Se um acontece, o outro não pode acontecer: P(A e B) = 0, enquanto P(A) × P(B) é positivo. Exclusividade é dependência forte.",
           {
             feedback: [
-              "Exclusivos nunca são independentes quando as probabilidades são positivas.",
-              "A igualdade das probabilidades não muda isso.",
+              "Isso confunde 'não se sobrepõem' com 'não se influenciam': se A acontece, B fica impossível, então saber de A muda totalmente a chance de B.",
+              "Não depende: para quaisquer probabilidades positivas, P(A e B) continua 0, e P(A) × P(B) continua positivo.",
             ],
           },
         ),
@@ -394,13 +397,13 @@ export const probabilidadeEm: SkillPack = {
         c(
           "condicional",
           "Se P(A) = 0,4, P(B) = 0,5 e P(A e B) = 0,2, então A e B são:",
-          "Independentes, porque 0,4 × 0,5 = 0,2",
+          "Independentes",
           ["Mutuamente exclusivos", "Dependentes"],
-          "P(A e B) = P(A) × P(B).",
+          "0,4 × 0,5 = 0,2, que é exatamente P(A e B). Como P(A e B) = P(A) × P(B), são independentes.",
           {
             feedback: [
-              "Exclusivos teriam interseção zero.",
-              "O produto bate exatamente, então são independentes.",
+              "Exclusivos teriam P(A e B) = 0, e aqui a interseção vale 0,2.",
+              "Dependência exigiria P(A e B) diferente de P(A) × P(B), mas 0,4 × 0,5 dá exatamente 0,2.",
             ],
           },
         ),
@@ -414,16 +417,16 @@ export const probabilidadeEm: SkillPack = {
         c(
           "condicional",
           "Por que P(doente | positivo) pode ser baixa mesmo com um teste muito preciso?",
-          "Porque, quando a doença é rara, os falsos positivos entre os muitos sadios superam os verdadeiros positivos",
+          "Porque a doença é rara e os falsos positivos superam os verdadeiros",
           [
-            "Porque testes precisos erram mais",
-            "Não pode; teste preciso garante probabilidade alta",
+            "Porque o teste deixa de detectar muitos doentes",
+            "Não pode; um teste preciso garante probabilidade alta",
           ],
-          "A prevalência pesa tanto quanto a precisão.",
+          "Quando a doença é rara, os poucos erros entre os muitos sadios geram mais positivos que os acertos entre os poucos doentes. A prevalência pesa tanto quanto a precisão.",
           {
             feedback: [
-              "A precisão do teste é alta; o que pesa é a raridade da doença.",
-              "Pode, e é comum em triagens de doenças raras.",
+              "Um teste muito preciso detecta quase todos os doentes; o que derruba a probabilidade são os sadios que dão positivo.",
+              "Pode, e é comum em triagens de doenças raras: uma pequena porcentagem de muitos sadios pode ser mais gente que quase todos os poucos doentes.",
             ],
           },
         ),
@@ -470,11 +473,14 @@ export const probabilidadeEm: SkillPack = {
         c(
           "decidir",
           "Duas opções: A dá R$ 50 com certeza; B dá R$ 200 com probabilidade 30% e nada com 70%. Sobre o valor esperado:",
-          "B tem valor esperado 60, maior que A, mas com risco de sair sem nada",
-          ["A é melhor porque tem valor esperado maior", "As duas têm o mesmo valor esperado"],
-          "0,3 × 200 = 60 > 50; a decisão depende da tolerância ao risco.",
+          "B tem valor esperado maior: 60 contra 50",
+          ["A tem valor esperado maior, por ser garantido", "As duas têm o mesmo valor esperado"],
+          "0,3 × 200 + 0,7 × 0 = 60 > 50. B tem média maior, mas com 70% de chance de sair sem nada; a decisão depende da tolerância ao risco.",
           {
-            feedback: ["O valor esperado de A é 50, menor que 60.", "50 e 60 são diferentes."],
+            feedback: [
+              "A certeza não aumenta o valor esperado: A vale 50, e B vale 0,3 × 200 = 60. A vantagem de A é o risco menor, não a média.",
+              "0,3 × 200 = 60, que é diferente dos 50 de A.",
+            ],
           },
         ),
         n(
@@ -512,16 +518,16 @@ export const probabilidadeEm: SkillPack = {
         c(
           "decidir",
           "Por que o valor esperado não basta para decidir uma escolha feita uma única vez, como uma cirurgia?",
-          "Porque ele descreve a média de muitas repetições; numa única vez, o que importa é a distribuição dos resultados e o que se pode suportar perder",
+          "Porque ele é a média de muitas repetições, e aqui há uma só",
           [
             "Porque o valor esperado só existe para dinheiro",
-            "Porque ele sempre superestima o ganho",
+            "Porque ele ignora os resultados pouco prováveis",
           ],
-          "Uma decisão única precisa olhar o pior caso e a variabilidade.",
+          "O valor esperado descreve a média de muitas repetições; numa decisão única, o que importa é a distribuição dos resultados, o pior caso e o que se pode suportar perder.",
           {
             feedback: [
-              "Valor esperado se aplica a qualquer grandeza numérica.",
-              "Não há viés sistemático; o problema é a média não descrever um caso só.",
+              "Valor esperado se aplica a qualquer grandeza numérica, como dias de recuperação ou anos de vida.",
+              "Ele usa todos os resultados, cada um pesado pela sua probabilidade; nada é ignorado. O problema é que uma média não descreve um caso só.",
             ],
           },
         ),

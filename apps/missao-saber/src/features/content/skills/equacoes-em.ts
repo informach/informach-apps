@@ -56,9 +56,9 @@ export const equacoesEm: SkillPack = {
         c(
           "segundo-grau",
           "A equação 2x² + 3x + 5 = 0 tem:",
-          "Nenhuma raiz real, pois Δ = 9 − 40 < 0",
+          "Nenhuma raiz real",
           ["Duas raízes reais distintas", "Uma raiz real dupla"],
-          "Δ negativo.",
+          "Δ = 9 − 40 = −31 < 0: não há raiz real.",
           {
             feedback: ["Para duas raízes Δ deveria ser positivo.", "Raiz dupla exige Δ = 0."],
           },
@@ -242,13 +242,13 @@ export const equacoesEm: SkillPack = {
         c(
           "modulo-raiz",
           "|x − 1| + |x − 5| tem valor mínimo:",
-          "4, atingido para qualquer x entre 1 e 5",
-          ["0, em x = 3", "6"],
+          "4, para qualquer x entre 1 e 5",
+          ["0, em x = 3, o ponto médio", "6, o valor em x = 0"],
           "É a soma das distâncias de x a 1 e a 5; entre eles vale sempre 4.",
           {
             feedback: [
-              "As duas distâncias não se anulam ao mesmo tempo.",
-              "6 é a soma das referências, não uma distância.",
+              "Em x = 3 as distâncias valem 2 e 2, somando 4; as duas não se anulam ao mesmo tempo, porque x não pode estar em 1 e em 5.",
+              "6 é o valor em x = 0, mas não é o menor: em x = 3, por exemplo, a soma vale 2 + 2 = 4.",
             ],
           },
         ),
@@ -262,13 +262,16 @@ export const equacoesEm: SkillPack = {
         c(
           "modulo-raiz",
           "Por que é obrigatório conferir as soluções depois de elevar uma equação ao quadrado?",
-          "Porque a² = b² vale também quando a = −b, e isso pode introduzir soluções que não satisfazem a original",
-          ["Porque elevar ao quadrado muda as raízes verdadeiras", "Não é obrigatório"],
-          "Elevar ao quadrado não é uma operação reversível.",
+          "Porque isso pode criar soluções que a original não tem",
+          [
+            "Porque elevar ao quadrado muda as raízes verdadeiras",
+            "Não é obrigatório, se as contas estiverem certas",
+          ],
+          "a² = b² vale também quando a = −b, então elevar ao quadrado pode introduzir soluções que não satisfazem a original. A operação não é reversível.",
           {
             feedback: [
-              "As verdadeiras continuam; o problema são as novas.",
-              "Sem conferir, respostas falsas passam.",
+              "As raízes verdadeiras continuam valendo depois de elevar; o problema são as novas, que surgem de a = −b.",
+              "Mesmo com contas perfeitas, elevar ao quadrado pode criar soluções estranhas, como em √(x + 6) = x, que ganha x = −2.",
             ],
           },
         ),
@@ -425,9 +428,12 @@ export const equacoesEm: SkillPack = {
         c(
           "inequacoes",
           "Ao multiplicar os dois lados de uma inequação por uma expressão cujo sinal não se conhece, o que deve ser feito?",
-          "Separar em casos: expressão positiva (mantém o sentido) e negativa (inverte)",
-          ["Nada; o sentido se mantém", "Sempre inverter o sentido"],
-          "O sinal do fator decide o sentido.",
+          "Separar os casos: fator positivo e fator negativo",
+          [
+            "Nada; o sentido da desigualdade se mantém",
+            "Sempre inverter o sentido da desigualdade",
+          ],
+          "O sinal do fator decide: se for positivo, o sentido se mantém; se for negativo, inverte. Como ele é desconhecido, cada caso é resolvido à parte.",
           {
             feedback: [
               "Se o fator for negativo, o sentido inverte.",

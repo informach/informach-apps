@@ -21,13 +21,13 @@ export const balancas: SkillPack = {
         c(
           "ler-balanca",
           "Numa balança, o prato da esquerda tem 3 maçãs iguais e o da direita tem 2 maçãs iguais às outras. O que acontece?",
-          "O prato da esquerda desce, porque tem mais peso",
+          "O prato da esquerda desce",
           ["O prato da direita desce", "Os pratos ficam equilibrados"],
-          "3 maçãs pesam mais que 2 maçãs iguais.",
+          "3 maçãs pesam mais que 2 maçãs iguais, então o prato da esquerda, que tem mais peso, desce.",
           {
             feedback: [
-              "O lado com menos maçãs sobe.",
-              "Equilíbrio só com a mesma quantidade de maçãs iguais.",
+              "A direita tem só 2 maçãs, então é o lado mais leve e sobe.",
+              "Os pratos só ficariam equilibrados com o mesmo número de maçãs iguais dos dois lados.",
             ],
           },
         ),
@@ -95,13 +95,13 @@ export const balancas: SkillPack = {
         c(
           "ler-balanca",
           "Uma balança está desequilibrada: o lado da caixa A está embaixo. Coloca-se um peso igual nos dois pratos. O que acontece?",
-          "Continua com o lado da caixa A embaixo",
-          ["Fica equilibrada", "O outro lado desce"],
+          "O lado da caixa A continua embaixo",
+          ["Os dois pratos ficam na mesma altura", "O lado da caixa A passa a subir"],
           "Somar o mesmo peso dos dois lados não muda quem é mais pesado.",
           {
             feedback: [
               "Para equilibrar, o peso teria de ir só no lado mais leve.",
-              "Nada mudou na diferença entre os lados.",
+              "Os dois lados ganharam o mesmo peso, então a diferença entre eles não mudou.",
             ],
           },
         ),
@@ -297,13 +297,13 @@ export const balancas: SkillPack = {
         c(
           "ordenar",
           "Entre 3 pedras, uma é mais pesada que as outras duas, que pesam igual. Com uma balança de dois pratos, qual é o menor número de pesagens para achar a mais pesada?",
-          "1: pese duas; se equilibrar, é a terceira; se não, é a que desceu",
+          "1 pesagem",
           ["2 pesagens", "3 pesagens"],
-          "Uma pesagem bem escolhida resolve.",
+          "Uma pesagem bem escolhida resolve: pese duas pedras; se equilibrar, a mais pesada é a terceira; se não, é a do prato que desceu.",
           {
             feedback: [
-              "Uma pesagem já decide, porque o equilíbrio também dá informação.",
-              "Não é preciso pesar cada pedra.",
+              "Uma pesagem já decide, porque o equilíbrio também dá informação: se as duas pesam igual, é a terceira.",
+              "Não é preciso pesar cada pedra; comparar duas delas já basta.",
             ],
           },
         ),
@@ -386,16 +386,16 @@ export const balancas: SkillPack = {
         c(
           "descobrir",
           "Uma balança de pratos está equilibrada com 1 abacaxi e 1 maçã de um lado e 1 abacaxi e 3 maçãs iguais do outro. O que isso mostra?",
-          "Que a balança está errada ou que algo está diferente: com abacaxis iguais, 1 maçã não equilibra 3 maçãs",
+          "Que há algo errado: 1 maçã não equilibra 3 iguais",
           [
             "Que a maçã da esquerda pesa o mesmo que 3 maçãs",
             "Que os abacaxis pesam o mesmo que as maçãs",
           ],
-          "Tirando um abacaxi de cada lado, 1 maçã contra 3 maçãs iguais não pode equilibrar.",
+          "Tirando um abacaxi de cada lado, 1 maçã contra 3 maçãs iguais não pode equilibrar. Então a balança está errada ou alguma coisa é diferente do que parece.",
           {
             feedback: [
-              "As maçãs são iguais, então 1 não pesa o mesmo que 3.",
-              "Os abacaxis se cancelam e não dizem nada sobre as maçãs.",
+              "As maçãs são iguais, então 1 não pode pesar o mesmo que 3; a balança mostrar isso é sinal de erro.",
+              "Os abacaxis são iguais e se cancelam, então não dizem nada sobre as maçãs.",
             ],
           },
         ),
@@ -416,13 +416,13 @@ export const balancas: SkillPack = {
         c(
           "descobrir",
           "Para descobrir o peso de uma coisa numa balança de dois pratos, o passo mais importante é:",
-          "Tirar dos dois lados tudo o que é igual, até a coisa ficar sozinha de um lado",
-          ["Colocar mais pesos no lado da coisa", "Adivinhar e conferir"],
-          "Retirar o que é igual dos dois lados mantém o equilíbrio e isola o desconhecido.",
+          "Tirar dos dois lados o que é igual",
+          ["Colocar mais pesos no lado da coisa", "Tirar coisas só do lado mais cheio"],
+          "Retirar o que é igual dos dois lados mantém o equilíbrio, até a coisa ficar sozinha de um lado. Assim o peso escondido aparece.",
           {
             feedback: [
-              "Pôr peso do lado da coisa afasta do objetivo.",
-              "Adivinhar pode funcionar, mas o método garante.",
+              "Pôr peso junto da coisa desequilibra a balança e não ajuda a achar o peso dela.",
+              "Tirar de um lado só desfaz o equilíbrio; o que sai de um prato tem de sair do outro também.",
             ],
           },
         ),
@@ -505,13 +505,13 @@ export const balancas: SkillPack = {
         c(
           "igualdade",
           "Por que tirar o mesmo número dos dois lados de uma igualdade não muda a resposta?",
-          "Porque os dois lados continuam valendo o mesmo, como uma balança da qual se tira o mesmo peso dos dois pratos",
-          ["Porque números pequenos não importam", "Porque só o lado esquerdo conta"],
-          "A igualdade se mantém quando a mesma mudança é feita dos dois lados.",
+          "Porque os dois lados continuam iguais",
+          ["Porque o número tirado é pequeno", "Porque tirar nunca muda uma conta"],
+          "A igualdade se mantém quando a mesma mudança é feita dos dois lados, como numa balança da qual se tira o mesmo peso dos dois pratos.",
           {
             feedback: [
-              "O tamanho do número não importa; importa fazer igual dos dois lados.",
-              "Os dois lados contam igualmente.",
+              "O tamanho do número não importa: mesmo um número grande pode ser tirado, desde que saia dos dois lados.",
+              "Tirar de um lado só muda a conta, sim; o que mantém a igualdade é tirar o mesmo dos dois lados.",
             ],
           },
         ),

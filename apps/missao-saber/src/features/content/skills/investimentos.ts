@@ -32,16 +32,16 @@ export const investimentos: SkillPack = {
         c(
           "conceito",
           "A diferença entre guardar dinheiro no cofre e investir é que:",
-          "Investido, o dinheiro rende e pode acompanhar ou vencer a inflação; no cofre, ele perde poder de compra",
+          "Investido, o dinheiro rende; no cofre, perde poder de compra",
           [
-            "No cofre o dinheiro rende mais, porque não paga taxas",
-            "Investir garante lucro sempre",
+            "No cofre, o dinheiro fica protegido da inflação",
+            "Investido, o lucro é garantido; no cofre, nada muda",
           ],
-          "No cofre não há rendimento; qualquer inflação reduz o que aquele dinheiro compra.",
+          "No cofre não há rendimento, e qualquer inflação reduz o que aquele dinheiro compra. Investido, ele rende e pode acompanhar ou vencer a inflação.",
           {
             feedback: [
-              "Sem rendimento não há ganho algum; a inflação corrói o valor parado.",
-              "Alguns investimentos podem perder; o que se ganha é a chance de render.",
+              "O cofre protege de roubo, não da inflação: as notas continuam as mesmas, mas os preços sobem e elas compram menos.",
+              "Nenhum investimento garante lucro, e alguns podem perder. E no cofre algo muda, sim: a inflação reduz o que o dinheiro compra.",
             ],
           },
         ),
@@ -55,13 +55,16 @@ export const investimentos: SkillPack = {
         c(
           "conceito",
           "Uma família guarda R$ 200 por mês para uma viagem daqui a um ano. Investir esse dinheiro em vez de deixá-lo parado serve principalmente para:",
-          "Fazer o valor render e não perder poder de compra até a data da viagem",
-          ["Poder gastar antes da viagem", "Garantir que a viagem custe menos"],
-          "O objetivo tem prazo; investir mantém o poder de compra e acrescenta rendimento.",
+          "Fazer o valor render e não perder poder de compra",
+          [
+            "Poder sacar e gastar o dinheiro antes da viagem",
+            "Garantir que a viagem fique mais barata",
+          ],
+          "O objetivo tem prazo; investir até a data da viagem mantém o poder de compra e acrescenta rendimento.",
           {
             feedback: [
-              "Investir é justamente para não gastar antes.",
-              "O preço da viagem não depende de onde o dinheiro está.",
+              "Investir é justamente para não gastar antes: o dinheiro fica aplicado até a data da viagem.",
+              "O preço da viagem não depende de onde o dinheiro está; investir faz o dinheiro crescer, não o preço cair.",
             ],
           },
         ),
@@ -99,11 +102,14 @@ export const investimentos: SkillPack = {
         c(
           "conceito",
           "Duas aplicações: A rende 7% ao ano e cobra taxa de 2% ao ano; B rende 5,5% ao ano sem taxa. Em um ano, com o mesmo valor aplicado, a melhor foi:",
-          "B, porque 5,5% é maior que 7% − 2% = 5%",
-          ["A, porque rende 7%", "As duas empatam"],
-          "O que importa é o rendimento líquido, depois das taxas.",
+          "B, que rende 5,5% contra 5% de A",
+          ["A, porque 7% é maior que 5,5%", "As duas empatam depois de descontar a taxa"],
+          "O que importa é o rendimento líquido, depois das taxas: A fica com 7% − 2% = 5%, e B, sem taxa, rende 5,5%.",
           {
-            feedback: ["A taxa de 2% reduz o ganho de A para 5%.", "5% e 5,5% são diferentes."],
+            feedback: [
+              "Comparou só o rendimento bruto; a taxa de 2% reduz o ganho de A para 5%.",
+              "Descontada a taxa, A fica com 5%, meio ponto abaixo dos 5,5% de B: não há empate.",
+            ],
           },
         ),
       ],
@@ -207,13 +213,13 @@ export const investimentos: SkillPack = {
         c(
           "aportes",
           "Duas pessoas guardam R$ 100 por mês a uma mesma taxa. Ana começou 5 anos antes de Bia, e as duas param no mesmo mês. Ao parar, Ana terá:",
-          "Mais que Bia, e a diferença é maior que os R$ 6.000 a mais que ela aportou, porque esse dinheiro rendeu por mais tempo",
+          "Mais de R$ 6.000 a mais que Bia",
           ["Exatamente R$ 6.000 a mais que Bia", "O mesmo que Bia, porque a taxa é igual"],
-          "5 anos × 12 × 100 = 6.000 de aportes a mais, que renderam durante todo o período.",
+          "5 anos × 12 × 100 = 6.000 de aportes a mais, e esse dinheiro rendeu durante todo o período; por isso a diferença passa de R$ 6.000.",
           {
             feedback: [
-              "Os 6.000 são só os aportes; eles também renderam.",
-              "Mesma taxa por mais tempo acumula mais.",
+              "Os 6.000 são só os aportes a mais; eles também renderam, então a diferença é maior.",
+              "A taxa é a mesma, mas Ana aportou por mais tempo; mesma taxa por mais tempo acumula mais.",
             ],
           },
         ),
@@ -228,11 +234,17 @@ export const investimentos: SkillPack = {
         c(
           "risco-retorno",
           "Um investimento A rende sempre 6% ao ano. Um investimento B rendeu 20% em um ano e perdeu 10% no seguinte. Sobre risco, podemos dizer que:",
-          "B tem mais risco, porque o resultado varia muito de um ano para outro",
-          ["A tem mais risco, porque rende menos", "Os dois têm o mesmo risco"],
-          "Risco é a variação do resultado, não o tamanho do ganho.",
+          "B tem mais risco, porque oscila muito",
+          [
+            "A tem mais risco, porque rende menos",
+            "Os dois têm o mesmo risco, pois ambos lucraram",
+          ],
+          "Risco é a variação do resultado, não o tamanho do ganho: o resultado de B varia muito de um ano para outro, e A é previsível.",
           {
-            feedback: ["Render menos não é risco; risco é incerteza.", "A é previsível; B oscila."],
+            feedback: [
+              "Render menos não é risco; risco é incerteza, e A rende sempre o mesmo.",
+              "Ter lucrado no fim não mede o risco: A é previsível, e B subiu 20% e depois caiu 10%.",
+            ],
           },
         ),
         n(
@@ -252,12 +264,12 @@ export const investimentos: SkillPack = {
         c(
           "liquidez",
           "Liquidez de um investimento é:",
-          "A facilidade de transformar o investimento em dinheiro sem perder valor",
-          ["A taxa de rendimento anual", "O valor mínimo para aplicar"],
-          "Alta liquidez: resgate rápido; baixa liquidez: prazo de carência ou perda ao sair antes.",
+          "A facilidade de resgatar sem perder valor",
+          ["A rapidez com que o investimento rende", "O valor mínimo necessário para aplicar"],
+          "Liquidez é a facilidade de transformar o investimento em dinheiro sem perder valor. Alta liquidez: resgate rápido; baixa liquidez: prazo de carência ou perda ao sair antes.",
           {
             feedback: [
-              "Taxa é retorno, não liquidez.",
+              "A rapidez do rendimento fala de retorno, não de liquidez; liquidez trata da saída do dinheiro.",
               "Valor mínimo é uma condição de entrada, não de saída.",
             ],
           },
@@ -285,13 +297,16 @@ export const investimentos: SkillPack = {
         c(
           "risco-retorno",
           "Um anúncio promete 'rendimento garantido de 5% ao mês, sem risco'. A leitura mais sensata é:",
-          "Desconfiar: retornos muito acima dos investimentos comuns e sem risco costumam ser golpe",
-          ["Aceitar, porque está escrito que é garantido", "Aceitar, porque 5% é pouco"],
-          "5% ao mês é cerca de 80% ao ano; ninguém garante isso sem risco.",
+          "Desconfiar: 5% ao mês sem risco costuma ser golpe",
+          [
+            "Aceitar, porque está escrito que é garantido",
+            "Aceitar, porque 5% parece uma taxa pequena",
+          ],
+          "5% ao mês é cerca de 80% ao ano, muito acima dos investimentos comuns; ninguém garante isso sem risco, e promessas assim costumam ser golpe.",
           {
             feedback: [
               "A palavra 'garantido' não garante nada; a taxa é que denuncia.",
-              "5% ao mês é enorme: 1,05¹² é cerca de 1,8.",
+              "5% ao mês não é pouco: 1,05¹² é cerca de 1,8, quase 80% ao ano.",
             ],
           },
         ),
@@ -313,13 +328,13 @@ export const investimentos: SkillPack = {
         c(
           "liquidez",
           "Um investimento paga 9% ao ano se o dinheiro ficar 2 anos e só 3% se for retirado antes. Para uma meta de 6 meses, ele:",
-          "Não é adequado, porque a retirada antecipada paga só 3%",
-          ["É ótimo, porque 9% é alto", "É indiferente"],
-          "O retorno alto só vale para quem cumpre o prazo.",
+          "Não é adequado: em 6 meses, paga só 3%",
+          ["É adequado, porque rende 9% ao ano", "É indiferente, pois o prazo não muda a taxa"],
+          "O retorno alto só vale para quem cumpre o prazo; para a meta de 6 meses, a retirada antecipada paga só 3%.",
           {
             feedback: [
-              "Os 9% exigem 2 anos; a meta é de 6 meses.",
-              "A diferença entre 9% e 3% não é indiferente.",
+              "Os 9% exigem 2 anos; com a meta de 6 meses, a retirada antecipada paga só 3%.",
+              "O prazo muda a taxa, sim: sair antes dos 2 anos derruba o rendimento de 9% para 3%.",
             ],
           },
         ),
@@ -379,13 +394,13 @@ export const investimentos: SkillPack = {
         c(
           "diversificacao",
           "Diversificar significa:",
-          "Distribuir o dinheiro entre investimentos que não sobem e descem juntos",
-          ["Aplicar em vários investimentos iguais", "Trocar de investimento toda semana"],
-          "O que protege é a diferença de comportamento entre as partes.",
+          "Distribuir o dinheiro entre aplicações que não caem juntas",
+          ["Aplicar em vários investimentos iguais", "Trocar de investimento sempre que um cair"],
+          "O que protege é a diferença de comportamento entre as partes: investimentos que não sobem e descem juntos amortecem as quedas.",
           {
             feedback: [
               "Vários iguais caem juntos: não há proteção.",
-              "Trocar sempre gera custo e não é diversificar.",
+              "Trocar a cada queda gera custo e costuma vender na baixa; isso não é diversificar.",
             ],
           },
         ),
@@ -401,13 +416,16 @@ export const investimentos: SkillPack = {
         c(
           "carteira",
           "Carteira 1: 100% em um investimento que rendeu 12%. Carteira 2: metade a 12% e metade a 6%. Sobre o ano, é correto dizer:",
-          "A carteira 1 rendeu mais (12% contra 9%), mas assumiu mais risco de concentração",
-          ["A carteira 2 rendeu mais, porque é diversificada", "As duas renderam igual"],
-          "Diversificar não garante render mais; reduz o impacto de um resultado ruim.",
+          "A carteira 1 rendeu 12% contra 9%, com mais risco",
+          [
+            "A carteira 2 rendeu mais, porque é diversificada",
+            "A carteira 1 rendeu mais, com o mesmo risco da 2",
+          ],
+          "A carteira 2 rendeu (12% + 6%) ÷ 2 = 9%, menos que a 1, que assumiu mais risco de concentração. Diversificar não garante render mais; reduz o impacto de um resultado ruim.",
           {
             feedback: [
-              "Neste ano a concentração deu certo; diversificar protege, não maximiza.",
-              "9% e 12% são diferentes.",
+              "Neste ano a concentração deu certo: a carteira 2 rendeu 9%. Diversificar protege, não maximiza.",
+              "O rendimento está certo, mas o risco não: com tudo em um só investimento, um resultado ruim atinge a carteira inteira.",
             ],
           },
         ),
@@ -496,9 +514,9 @@ export const investimentos: SkillPack = {
         c(
           "decisao",
           "Um amigo diz que 'investiu em algo que rendeu 50% no mês passado' e sugere colocar todas as economias lá. A resposta mais prudente é:",
-          "Um mês bom não diz nada sobre o próximo; quem rende 50% pode perder 50%, e as economias não devem ficar num lugar só",
-          ["Aceitar, porque 50% é muito", "Aceitar, mas só com metade das economias"],
-          "Retorno passado extremo indica risco extremo.",
+          "Recusar: um mês bom não garante o próximo",
+          ["Aceitar, porque 50% em um mês é muito", "Aceitar, mas só com metade das economias"],
+          "Retorno passado extremo indica risco extremo: quem rende 50% em um mês pode perder 50%, e as economias não devem ficar num lugar só.",
           {
             feedback: [
               "Ganho alto no passado não é garantia; é sinal de oscilação.",
@@ -509,13 +527,16 @@ export const investimentos: SkillPack = {
         c(
           "decisao",
           "Por que uma reserva de emergência deve existir antes de investir em coisas de mais risco?",
-          "Porque, sem ela, uma emergência obriga a vender o investimento arriscado num momento ruim ou a pegar empréstimo caro",
-          ["Porque investimentos de risco exigem reserva por lei", "Porque a reserva rende mais"],
-          "A reserva evita transformar um imprevisto em prejuízo ou dívida.",
+          "Porque evita vender o investimento na baixa ou se endividar",
+          [
+            "Porque investimentos de risco exigem reserva por lei",
+            "Porque a reserva rende mais que os investimentos de risco",
+          ],
+          "Sem reserva, uma emergência obriga a vender o investimento arriscado num momento ruim ou a pegar empréstimo caro. A reserva evita transformar um imprevisto em prejuízo ou dívida.",
           {
             feedback: [
               "Não é exigência legal; é prudência.",
-              "A reserva rende pouco; a função dela é estar disponível.",
+              "A reserva costuma render menos; a função dela é estar disponível na hora do imprevisto.",
             ],
           },
         ),

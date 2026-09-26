@@ -132,11 +132,14 @@ export const padroesIniciais: SkillPack = {
         c(
           "regra",
           "Na sequência 1, 4, 9, 16, 25, ..., qual é a regra?",
-          "Cada número é uma posição multiplicada por ela mesma: 1×1, 2×2, 3×3...",
-          ["Somar 3 sempre", "Dobrar sempre"],
-          "Os saltos crescem: 3, 5, 7, 9. São os quadrados das posições.",
+          "Multiplicar a posição por ela mesma",
+          ["Somar 3 a cada passo", "Multiplicar o número anterior por 4"],
+          "Cada número é a posição multiplicada por ela mesma: 1×1, 2×2, 3×3... Os saltos crescem: 3, 5, 7, 9. São os quadrados das posições.",
           {
-            feedback: ["Somar 3 sempre daria 1, 4, 7, 10.", "Dobrar daria 1, 2, 4, 8."],
+            feedback: [
+              "Somar 3 sempre daria 1, 4, 7, 10.",
+              "Multiplicar por 4 serve de 1 para 4, mas depois daria 16, e não 9.",
+            ],
           },
         ),
         n(
@@ -258,9 +261,9 @@ export const padroesIniciais: SkillPack = {
         c(
           "ciclo",
           "Um relógio de parede toca uma música a cada 3 horas, começando às 3 da manhã. Ele toca ao meio-dia?",
-          "Sim, porque 12 é múltiplo de 3: toca às 3, 6, 9 e 12",
+          "Sim, porque 12 é múltiplo de 3",
           ["Não, porque só toca de manhã", "Não, porque 12 não está na sequência"],
-          "3, 6, 9, 12: o meio-dia está no ciclo.",
+          "Toca às 3, 6, 9 e 12: o meio-dia está no ciclo.",
           {
             feedback: ["O padrão continua o dia inteiro.", "12 = 4 × 3, então está na sequência."],
           },
@@ -268,13 +271,13 @@ export const padroesIniciais: SkillPack = {
         c(
           "ciclo",
           "Para saber a cor da 50ª conta em um colar que repete 4 cores, o jeito mais rápido é:",
-          "Dividir 50 por 4 e olhar o resto: resto 2 significa a 2ª cor",
-          ["Desenhar as 50 contas", "Somar 4 + 50"],
-          "50 = 12 × 4 + 2. A 50ª conta tem a mesma cor da 2ª.",
+          "Dividir 50 por 4 e olhar o resto",
+          ["Desenhar as 50 contas, uma por uma", "Dividir 50 por 4 e olhar o resultado"],
+          "50 = 12 × 4 + 2: resto 2 significa a 2ª cor. A 50ª conta tem a mesma cor da 2ª.",
           {
             feedback: [
               "Desenhar funciona, mas é lento e fácil de errar.",
-              "Somar não diz nada sobre a posição no ciclo.",
+              "O resultado, 12, diz quantas voltas completas o colar deu; quem diz a cor é o resto.",
             ],
           },
         ),
@@ -439,9 +442,9 @@ export const padroesIniciais: SkillPack = {
         c(
           "resolver",
           "Um colega diz que a sequência 3, 6, 12 continua com 15, porque 'vai de 3 em 3'. O que está errado?",
-          "De 6 para 12 o salto foi 6, não 3; a regra é dobrar, e o próximo é 24",
-          ["Nada; 15 está certo", "O próximo é 18, porque 12 + 6 = 18"],
-          "3 × 2 = 6, 6 × 2 = 12, 12 × 2 = 24.",
+          "A regra é dobrar, então o próximo é 24",
+          ["Nada; vai de 3 em 3 e o próximo é 15", "O salto é 6, então o próximo é 18"],
+          "De 6 para 12 o salto foi 6, não 3: a regra é dobrar. 3 × 2 = 6, 6 × 2 = 12, 12 × 2 = 24.",
           {
             feedback: [
               "Se fosse de 3 em 3, depois do 6 viria 9, não 12.",
@@ -466,9 +469,9 @@ export const padroesIniciais: SkillPack = {
         c(
           "resolver",
           "Por que vale a pena conferir um padrão com um caso que já se conhece antes de usar a regra para uma posição distante?",
-          "Porque uma regra que parece certa nos primeiros termos pode falhar; conferir evita levar o erro para longe",
+          "Porque uma regra que parece certa pode falhar",
           ["Porque conferir é obrigatório em prova", "Não vale a pena; a regra sempre funciona"],
-          "Testar a regra em um termo conhecido é a forma mais simples de pegar um engano.",
+          "Uma regra que parece certa nos primeiros termos pode falhar, e conferir evita levar o erro para longe. Testar a regra em um termo conhecido é a forma mais simples de pegar um engano.",
           {
             feedback: [
               "Não é uma regra de prova; é uma forma de não errar.",

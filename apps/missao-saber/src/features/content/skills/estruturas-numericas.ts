@@ -393,13 +393,13 @@ export const estruturasNumericas: SkillPack = {
         c(
           "digitos",
           "Um número é divisível por 11 quando:",
-          "A diferença entre a soma dos dígitos de posição ímpar e a dos de posição par é múltiplo de 11",
-          ["A soma dos dígitos é múltiplo de 11", "Termina em 11"],
-          "10 ≡ −1 módulo 11, então os dígitos alternam sinal.",
+          "A soma alternada dos dígitos (+ − + ...) é múltiplo de 11",
+          ["A soma dos dígitos é múltiplo de 11", "Os dois últimos dígitos formam múltiplo de 11"],
+          "10 ≡ −1 módulo 11, então os dígitos alternam sinal: a diferença entre a soma dos dígitos de posição ímpar e a dos de posição par deve ser múltiplo de 11.",
           {
             feedback: [
               "Soma dos dígitos serve para 3 e 9.",
-              "121 é divisível por 11 e não termina em 11.",
+              "Olhar os dois últimos dígitos serve para 4 e 25; 121 é divisível por 11 e termina em 21.",
             ],
           },
         ),
@@ -491,9 +491,12 @@ export const estruturasNumericas: SkillPack = {
         c(
           "provar",
           "Por que 'funciona para n = 1, 2, 3, 4 e 5' não prova uma afirmação sobre todos os inteiros positivos?",
-          "Porque a afirmação pode falhar em algum n maior; casos particulares não cobrem infinitos casos",
-          ["Porque cinco casos são poucos; dez bastariam", "Porque só provas com álgebra valem"],
-          "n² + n + 41 é primo para n de 0 a 39 e falha em n = 40.",
+          "Porque ela pode falhar em algum n maior que 5",
+          [
+            "Porque cinco casos são poucos; dez bastariam",
+            "Porque só provas com álgebra valem em matemática",
+          ],
+          "Casos particulares não cobrem infinitos casos: n² + n + 41 é primo para n de 0 a 39 e falha em n = 40.",
           {
             feedback: [
               "Nenhuma quantidade finita de casos cobre todos os inteiros.",

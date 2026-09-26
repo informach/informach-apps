@@ -246,13 +246,13 @@ export const composicaoDeFiguras: SkillPack = {
         c(
           "dobrar",
           "Uma folha é dobrada ao meio e um pedaço é cortado bem no meio da dobra. Ao abrir, o buraco fica:",
-          "No meio da folha, com os dois lados iguais",
-          ["Em um dos cantos da folha", "Nos dois cantos de cima"],
-          "O meio da dobra é o meio da folha aberta; o corte abre um buraco simétrico ali.",
+          "Bem no meio da folha",
+          ["Em um dos cantos da folha", "Só em uma das metades"],
+          "O meio da dobra é o meio da folha aberta; o corte abre ali um buraco com os dois lados iguais.",
           {
             feedback: [
               "O pedaço cortado estava na dobra, que é o meio da folha aberta, não num canto.",
-              "Os cantos de cima seriam cortados se o corte fosse na ponta oposta à dobra.",
+              "O corte atravessou as duas camadas juntas, então o buraco pega as duas metades.",
             ],
           },
         ),
@@ -270,13 +270,13 @@ export const composicaoDeFiguras: SkillPack = {
         c(
           "dobrar",
           "Um quadrado de papel é dobrado ao meio de modo que as duas metades fiquem exatamente uma sobre a outra. De quantos jeitos diferentes dá para fazer isso?",
-          "4: duas dobras pelo meio dos lados e duas pelas diagonais",
-          ["2: só pelo meio dos lados", "1: só uma dobra funciona"],
-          "O quadrado tem 4 linhas de simetria.",
+          "4: dois pelo meio dos lados e dois na diagonal",
+          ["3: dois pelo meio dos lados e um na diagonal", "2: só pelo meio dos lados"],
+          "O quadrado tem 4 linhas de simetria: duas dobras pelo meio dos lados e duas pelas diagonais.",
           {
             feedback: [
+              "As duas diagonais funcionam, cada uma ligando dois cantos opostos.",
               "As diagonais também juntam as metades certinhas.",
-              "Há quatro dobras que funcionam.",
             ],
           },
         ),
@@ -292,9 +292,9 @@ export const composicaoDeFiguras: SkillPack = {
         c(
           "dobrar",
           "Uma folha é dobrada ao meio e recorta-se meio coração na dobra. Ao abrir, aparece:",
-          "Um coração inteiro, com os dois lados iguais",
+          "Um coração inteiro",
           ["Dois meios corações separados", "Meio coração"],
-          "A dobra vira o eixo de simetria do coração.",
+          "Ao abrir, aparece um coração inteiro, com os dois lados iguais: a dobra vira o eixo de simetria do coração.",
           {
             feedback: [
               "As duas metades estão ligadas pela dobra.",
@@ -305,9 +305,9 @@ export const composicaoDeFiguras: SkillPack = {
         c(
           "dobrar",
           "Um quadrado de papel é dobrado ao meio pela diagonal. Que figura aparece?",
-          "Um triângulo com dois lados iguais",
+          "Um triângulo",
           ["Um retângulo", "Um quadrado menor"],
-          "A dobra pela diagonal junta dois triângulos iguais em um só.",
+          "A dobra pela diagonal junta dois triângulos iguais em um só: aparece um triângulo com dois lados iguais.",
           {
             feedback: [
               "Um retângulo aparece dobrando pelo meio de um lado.",
@@ -333,12 +333,12 @@ export const composicaoDeFiguras: SkillPack = {
         c(
           "cobrir",
           "Um tabuleiro de 3 por 3 pode ser coberto só com dominós de 2 quadradinhos?",
-          "Não, porque 9 é ímpar e cada dominó cobre 2",
-          ["Sim, com 4 dominós e meio", "Sim, com 5 dominós"],
-          "9 quadradinhos não se dividem em pares.",
+          "Não, porque 9 é ímpar",
+          ["Sim, com 4 dominós", "Sim, com 5 dominós"],
+          "Cada dominó cobre 2 quadradinhos, e 9 quadradinhos não se dividem em pares.",
           {
             feedback: [
-              "Não existe meio dominó.",
+              "4 dominós cobrem só 8 quadradinhos, e sobra 1 sem cobrir.",
               "5 dominós cobrem 10 quadradinhos, mais do que 9.",
             ],
           },
@@ -360,9 +360,9 @@ export const composicaoDeFiguras: SkillPack = {
         c(
           "cobrir",
           "Um piso de 5 por 5 será coberto com quadrados de 2 por 2. O que acontece?",
-          "Sobram quadradinhos: 25 não é múltiplo de 4",
+          "Sobra um pedaço sem cobrir",
           ["Cabe certinho, com 6 peças", "Cabe certinho, com 7 peças"],
-          "25 ÷ 4 não é exato; no máximo 4 peças cabem e sobram 9 quadradinhos.",
+          "25 não é múltiplo de 4, então sobram quadradinhos: no máximo 4 peças cabem e ficam 9 quadradinhos sem cobrir.",
           {
             feedback: [
               "6 peças cobririam 24, mas o formato 5 por 5 nem deixa encaixar 6.",
@@ -380,9 +380,9 @@ export const composicaoDeFiguras: SkillPack = {
         c(
           "cobrir",
           "Para cobrir um retângulo de 2 por 6 com peças em L de 3 quadradinhos, a conta 12 ÷ 3 = 4 fecha. Isso garante que dá para cobrir?",
-          "Não garante sozinha; é preciso ver se as peças encaixam. Neste caso encaixam: dois pares de L formam dois retângulos 2 por 3",
+          "Sozinha não garante, mas aqui as peças encaixam",
           ["Sim, a conta fechar sempre garante", "Não; peças em L nunca cobrem retângulos"],
-          "A conta é necessária, mas o encaixe também precisa ser possível.",
+          "A conta é necessária, mas é preciso ver se as peças encaixam. Neste caso encaixam: dois pares de L formam dois retângulos 2 por 3.",
           {
             feedback: [
               "Há regiões em que a conta fecha e o encaixe não existe.",
@@ -400,12 +400,12 @@ export const composicaoDeFiguras: SkillPack = {
         c(
           "cobrir",
           "Ao cobrir um tabuleiro com dominós, uma peça foi colocada e depois não sobrou lugar para as outras. O que deve ser feito?",
-          "Voltar e tentar outra posição para a peça; a conta fechar não quer dizer que qualquer arrumação funciona",
-          ["Cortar uma peça ao meio", "Desistir, porque o tabuleiro não pode ser coberto"],
-          "A ordem e a posição das peças importam; o problema pode ter solução com outra arrumação.",
+          "Voltar e tentar outra posição para a peça",
+          ["Deixar um buraco e seguir com as outras", "Desistir: o tabuleiro não pode ser coberto"],
+          "A conta fechar não quer dizer que qualquer arrumação funciona. A ordem e a posição das peças importam; o problema pode ter solução com outra arrumação.",
           {
             feedback: [
-              "Cortar peça foge da regra de cobrir com peças iguais.",
+              "Cobrir é não deixar buracos; um buraco quer dizer que essa arrumação não deu certo.",
               "Uma tentativa que falha não prova que não dá.",
             ],
           },
@@ -423,11 +423,14 @@ export const composicaoDeFiguras: SkillPack = {
         c(
           "mover",
           "Uma peça em forma de L é girada meia volta. O que muda?",
-          "Só a posição; a quantidade de quadradinhos e o contorno continuam iguais",
-          ["A peça fica maior", "A peça ganha um quadradinho"],
-          "Girar não acrescenta nem tira nada da peça.",
+          "Só a posição da peça",
+          ["O contorno fica maior", "A peça ganha um quadradinho"],
+          "Girar não acrescenta nem tira nada da peça: a quantidade de quadradinhos e o contorno continuam iguais.",
           {
-            feedback: ["Girar não muda o tamanho.", "Girar não muda a quantidade de quadradinhos."],
+            feedback: [
+              "Girar não estica nem encolhe a peça; o contorno continua do mesmo tamanho.",
+              "Girar não muda a quantidade de quadradinhos.",
+            ],
           },
         ),
         n(
@@ -449,12 +452,12 @@ export const composicaoDeFiguras: SkillPack = {
           "mover",
           "Duas figuras de 3 quadradinhos: uma é uma fila deitada e a outra uma fila em pé. Elas são:",
           "A mesma peça, uma girada um quarto de volta",
-          ["Peças diferentes", "A mesma peça, uma dobrada"],
+          ["Peças diferentes, porque uma é mais alta", "A mesma peça, uma girada meia volta"],
           "Girar a fila deitada um quarto de volta dá a fila em pé.",
           {
             feedback: [
               "Têm a mesma forma e o mesmo tamanho; só a posição muda.",
-              "Peças de quadradinhos não se dobram; elas giram.",
+              "Meia volta deixa a fila deitada de novo; para ficar em pé, basta um quarto de volta.",
             ],
           },
         ),
@@ -475,11 +478,17 @@ export const composicaoDeFiguras: SkillPack = {
         c(
           "mover",
           "Um triângulo é cortado de um canto de um quadrado e colado no lado oposto, encaixando direitinho. A nova figura tem:",
-          "A mesma quantidade de papel do quadrado, mas outro formato",
-          ["Mais papel que o quadrado", "Menos papel que o quadrado"],
-          "Mover um pedaço não cria nem tira papel.",
+          "A mesma quantidade de papel, mas outro formato",
+          [
+            "Mais papel, porque ficou mais comprida",
+            "A mesma quantidade de papel e o mesmo formato",
+          ],
+          "Mover um pedaço não cria nem tira papel, mas muda o formato da figura.",
           {
-            feedback: ["Nenhum papel foi acrescentado.", "Nenhum papel foi jogado fora."],
+            feedback: [
+              "A figura pode parecer maior por ficar mais comprida, mas nenhum papel foi acrescentado.",
+              "O pedaço mudou de lugar, então o formato mudou; só a quantidade de papel ficou igual.",
+            ],
           },
         ),
         n(
@@ -499,24 +508,30 @@ export const composicaoDeFiguras: SkillPack = {
         ),
         c(
           "mover",
-          "Uma peça em L é virada como num espelho. A peça virada e a original:",
-          "São a mesma peça se puderem ser levantadas e viradas; no papel, sem levantar, uma não encaixa sobre a outra só girando",
-          ["São sempre peças diferentes", "São iguais só se forem pintadas da mesma cor"],
-          "Virar é diferente de girar: no plano, um L espelhado não se obtém só com giros.",
+          "Uma peça em L de 4 quadradinhos é virada como num espelho. A peça virada e a original:",
+          "São a mesma peça, mas só girando não encaixam",
+          ["São peças diferentes, porque uma foi virada", "Encaixam uma sobre a outra só girando"],
+          "Se a peça pode ser levantada e virada, é a mesma peça. Mas virar é diferente de girar: no papel, sem levantar, um L espelhado não se obtém só com giros.",
           {
-            feedback: ["Se a peça pode ser virada, é a mesma.", "A cor não muda a forma."],
+            feedback: [
+              "Se a peça pode ser levantada e virada, é a mesma.",
+              "Girar no papel não transforma um L no seu espelho; é preciso levantar e virar a peça.",
+            ],
           },
         ),
         c(
           "mover",
           "Por que contar os quadradinhos e o contorno ajuda a decidir se duas figuras são a mesma peça?",
-          "Porque girar e virar não mudam esses números; se forem diferentes, as peças são diferentes",
-          ["Porque os números sempre mudam ao girar", "Não ajuda; só olhar decide"],
-          "Números iguais não garantem que são a mesma peça, mas números diferentes garantem que não são.",
+          "Porque girar e virar não mudam esses números",
+          [
+            "Porque os números sempre mudam ao girar",
+            "Porque números iguais garantem a mesma peça",
+          ],
+          "Se os números forem diferentes, as peças são diferentes. Números iguais não garantem que são a mesma peça, mas números diferentes garantem que não são.",
           {
             feedback: [
               "Girar e virar mantêm quadradinhos e contorno.",
-              "Os números dão uma conferência que o olho às vezes erra.",
+              "Números iguais não bastam: a fila de 3 e o L de 3 têm 3 quadradinhos e contorno 8, e são peças diferentes.",
             ],
           },
         ),

@@ -44,6 +44,7 @@ describe("catálogo: invariantes", () => {
       reservedFamilyShapeConflicts: [],
       reservedStructuralAliases: [],
       trainingAssessmentStructuralOverlap: [],
+      answerLengthCues: [],
       reservedNumericTwins: [],
       duplicateFamiliesWithinBanks: [],
       itemsOutsideLots: [],

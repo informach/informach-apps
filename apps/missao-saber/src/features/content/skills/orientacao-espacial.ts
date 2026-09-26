@@ -293,13 +293,13 @@ export const orientacaoEspacial: SkillPack = {
         c(
           "giro",
           "A letra L é girada meia volta. Como ela fica?",
-          "De cabeça para baixo: o pé fica em cima, apontando para a esquerda, e a perna desce dele",
-          ["Exatamente igual", "Deitada, como um traço"],
-          "Meia volta vira a figura de cabeça para baixo e troca os lados.",
+          "Com o pé em cima, apontando para a esquerda",
+          ["Com o pé em cima, apontando para a direita", "Igual, com o pé embaixo, para a direita"],
+          "Meia volta vira a figura de cabeça para baixo e troca os lados: o pé fica em cima, apontando para a esquerda, e a perna desce dele.",
           {
             feedback: [
-              "Só figuras simétricas por meia volta ficam iguais, como o S ou o N.",
-              "Girar não muda a forma, só a posição.",
+              "Pé em cima apontando para a direita é o L virado como num espelho; na meia volta o pé também troca de lado.",
+              "Só figuras que não mudam com meia volta, como o S ou o N, ficam iguais; o L fica de cabeça para baixo.",
             ],
           },
         ),
@@ -353,12 +353,12 @@ export const orientacaoEspacial: SkillPack = {
         c(
           "vista",
           "A palavra 'PATO' escrita num papel é vista num espelho. O que acontece?",
-          "As letras aparecem invertidas e a ordem parece de trás para frente",
-          ["Fica igual", "As letras ficam de cabeça para baixo"],
-          "O espelho troca esquerda e direita.",
+          "As letras e a ordem ficam ao contrário",
+          ["Só a ordem fica ao contrário: OTAP", "As letras ficam de cabeça para baixo"],
+          "O espelho troca esquerda e direita: cada letra aparece invertida e a ordem parece de trás para frente.",
           {
             feedback: [
-              "Só palavras como OVO, com letras simétricas e lidas igual nos dois sentidos, parecem iguais.",
+              "O espelho também vira cada letra: o P, por exemplo, aparece com a barriga do outro lado.",
               "De cabeça para baixo seria um giro, não um espelho.",
             ],
           },
@@ -430,13 +430,13 @@ export const orientacaoEspacial: SkillPack = {
         c(
           "mapa",
           "Num bairro de ruas retas, a escola fica 2 quarteirões ao norte e 3 a leste da casa de Iris. Se ela anda primeiro os 3 quarteirões a leste, para onde deve virar depois?",
-          "Para a esquerda, que é o norte para quem olha o leste",
-          ["Para a direita", "Voltar"],
+          "Para a esquerda, rumo ao norte",
+          ["Para a direita, rumo ao norte", "Seguir em frente mais 2 quarteirões"],
           "Olhando para o leste, o norte fica à esquerda.",
           {
             feedback: [
-              "À direita de quem olha o leste está o sul.",
-              "Voltar levaria de novo para casa.",
+              "À direita de quem olha o leste está o sul, não o norte.",
+              "Em frente ela continuaria indo para o leste, mas os 3 quarteirões a leste já acabaram.",
             ],
           },
         ),
@@ -491,12 +491,12 @@ export const orientacaoEspacial: SkillPack = {
         c(
           "mapa",
           "Rui dá estas instruções: 'saia da porta, vire à direita e ande até a segunda rua'. Se a pessoa estiver de costas para a casa, vira para o lado errado. O que falta nas instruções?",
-          "Dizer para onde a pessoa deve estar olhando ao começar",
-          ["Dizer o nome da casa", "Nada; a instrução está completa"],
+          "Dizer para que lado olhar ao sair da porta",
+          ["Dizer o nome da segunda rua", "Nada; a instrução está completa"],
           "Esquerda e direita dependem de para onde se olha.",
           {
             feedback: [
-              "O nome não muda o lado para o qual se vira.",
+              "O nome da rua ajuda a saber onde parar, mas não diz para que lado virar.",
               "Sem a direção inicial, 'direita' pode ser qualquer lado.",
             ],
           },
@@ -511,9 +511,9 @@ export const orientacaoEspacial: SkillPack = {
         c(
           "mapa",
           "Duas pessoas descrevem o mesmo caminho: uma diz 'vire à esquerda na padaria' e a outra 'vire para o norte na padaria'. Qual instrução funciona para qualquer pessoa, venha de onde vier?",
-          "A que usa o norte, porque não depende de para onde a pessoa está olhando",
-          ["A que usa esquerda, porque é mais fácil", "As duas funcionam igual sempre"],
-          "Os pontos cardeais não mudam com a direção de quem anda.",
+          "A que usa o norte, que é sempre o mesmo",
+          ["A que usa esquerda, porque é mais fácil", "As duas, porque descrevem o mesmo caminho"],
+          "Os pontos cardeais não mudam com a direção de quem anda: a instrução com o norte não depende de para onde a pessoa está olhando.",
           {
             feedback: [
               "Esquerda muda de lado conforme a direção de quem chega.",

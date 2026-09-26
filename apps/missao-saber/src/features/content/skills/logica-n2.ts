@@ -20,9 +20,9 @@ export const logicaN2: SkillPack = {
         c(
           "verdade-e-mentira",
           "Em uma ilha, cavaleiros sempre falam a verdade e escudeiros sempre mentem. Alguém diz: 'Eu sou escudeiro'. O que podemos concluir?",
-          "Ninguém da ilha pode dizer isso: um cavaleiro mentiria e um escudeiro diria a verdade",
-          ["Ele é escudeiro", "Ele é cavaleiro"],
-          "Se fosse cavaleiro, a frase seria falsa; se fosse escudeiro, seria verdadeira. As duas hipóteses caem.",
+          "Ninguém da ilha diria essa frase",
+          ["Ele é escudeiro, já que confessou", "Ele é cavaleiro, já que foi sincero"],
+          "Se fosse cavaleiro, a frase seria falsa, e ele mentiria; se fosse escudeiro, seria verdadeira, e ele diria a verdade. As duas hipóteses caem, então ninguém da ilha pode dizer isso.",
           {
             feedback: [
               "Um escudeiro que diz 'sou escudeiro' estaria falando a verdade, o que ele nunca faz.",

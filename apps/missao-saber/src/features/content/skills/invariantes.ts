@@ -44,13 +44,16 @@ export const invariantes: SkillPack = {
         c(
           "paridade-invariante",
           "Em uma mesa há 7 copos virados para cima. A cada jogada, você vira exatamente 2 copos. É possível deixar todos virados para baixo?",
-          "Não: a cada jogada, o número de copos para baixo muda em 0 ou 2, então continua par",
-          ["Sim, em 4 jogadas", "Sim, em 7 jogadas"],
-          "Começa com 0 copos para baixo (par); virar 2 muda esse número em −2, 0 ou +2. Nunca chega a 7, que é ímpar.",
+          "Não: o número de copos para baixo é sempre par",
+          [
+            "Sim: em 4 jogadas dá para virar 8 copos, mais que 7",
+            "Sim, desde que o número de jogadas seja ímpar",
+          ],
+          "Começa com 0 copos para baixo (par); virar 2 muda esse número em −2, 0 ou +2, então ele continua par. Nunca chega a 7, que é ímpar.",
           {
             feedback: [
-              "4 jogadas viram 8 copos ao todo, mas a paridade do número de copos para baixo não permite 7.",
-              "O número de jogadas não importa: a paridade dos copos para baixo é sempre par.",
+              "Virar 8 vezes não basta: com 8 viradas em 7 copos, algum copo é virado mais de uma vez, e o número de copos para baixo continua par, nunca 7.",
+              "Nenhuma quantidade de jogadas resolve: cada jogada muda os copos para baixo em −2, 0 ou +2, e esse número segue par.",
             ],
           },
         ),
@@ -96,9 +99,9 @@ export const invariantes: SkillPack = {
         c(
           "paridade-invariante",
           "Uma lâmpada começa apagada. Um interruptor é acionado 2.025 vezes. Ao final, a lâmpada está:",
-          "Acesa, porque um número ímpar de acionamentos inverte o estado inicial",
+          "Acesa, porque 2.025 é ímpar",
           ["Apagada, porque 2.025 é múltiplo de 5", "Não dá para saber sem contar um a um"],
-          "Cada par de acionamentos devolve o estado inicial; sobra um acionamento.",
+          "Cada par de acionamentos devolve o estado inicial; sobra um acionamento. Um número ímpar de acionamentos inverte o estado inicial.",
           {
             feedback: [
               "Ser múltiplo de 5 não importa; o que decide é a paridade.",
@@ -109,13 +112,16 @@ export const invariantes: SkillPack = {
         c(
           "soma-invariante",
           "Em um círculo estão escritos os números 1, 2, 3, 4, 5 e 6. A cada passo, escolhem-se dois vizinhos e soma-se 1 a cada um deles. É possível deixar todos iguais?",
-          "Não: a soma total sempre sobe 2, então continua ímpar, e seis números iguais somam um número par",
-          ["Sim, bastam 6 passos", "Sim, se começarmos pelo 1 e pelo 6"],
-          "A soma inicial é 21, ímpar; somar 2 preserva a paridade ímpar; seis iguais somam 6k, par.",
+          "Não: a soma continua ímpar, e seis iguais somam um par",
+          [
+            "Sim: basta somar sempre nos dois vizinhos menores",
+            "Sim, desde que se comece pelo par formado por 1 e 6",
+          ],
+          "A soma inicial é 21, ímpar; cada passo soma 2 ao total e preserva a paridade ímpar; seis iguais somam 6k, par.",
           {
             feedback: [
-              "O número de passos não muda a paridade da soma.",
-              "A ordem das escolhas não altera o argumento de paridade.",
+              "Escolher os menores não muda o fato de a soma subir 2 a cada passo: ela começa em 21 e continua ímpar, e seis números iguais somam um par.",
+              "A ordem das escolhas não altera o argumento: qualquer passo soma 2 ao total, que segue ímpar, e seis números iguais somam um par.",
             ],
           },
         ),
@@ -130,9 +136,9 @@ export const invariantes: SkillPack = {
         c(
           "coloracao-xadrez",
           "Um tabuleiro 8 × 8 perdeu duas casas de cantos opostos. É possível cobri-lo com 31 dominós de 1 × 2?",
-          "Não: os cantos opostos têm a mesma cor, e cada dominó cobre uma casa de cada cor",
+          "Não: os dois cantos retirados têm a mesma cor",
           ["Sim, porque 62 casas = 31 × 2", "Sim, se os dominós forem colocados na vertical"],
-          "Restam 32 casas de uma cor e 30 da outra; 31 dominós cobririam 31 de cada cor.",
+          "Os cantos opostos têm a mesma cor, então restam 32 casas de uma cor e 30 da outra. Cada dominó cobre uma casa de cada cor, e 31 dominós cobririam 31 de cada.",
           {
             feedback: [
               "A contagem de casas bate, mas a contagem por cor não.",
@@ -186,12 +192,12 @@ export const invariantes: SkillPack = {
         c(
           "coloracao-por-linhas",
           "Um retângulo 6 × 6 será coberto com peças em forma de L, de 3 casas. Cada peça cobre casas de quantas cores diferentes em uma pintura de xadrez?",
-          "Sempre 2 cores: duas casas de uma e uma da outra",
-          ["Sempre 3 cores", "Sempre 1 cor"],
+          "Sempre 2 cores",
+          ["Depende de onde a peça é colocada", "Sempre 1 cor"],
           "Três casas em L têm duas de uma cor e uma da outra em qualquer posição.",
           {
             feedback: [
-              "A pintura de xadrez tem só duas cores.",
+              "Em qualquer posição, o L tem duas casas de uma cor e uma da outra; a posição não muda isso.",
               "Casas vizinhas têm cores diferentes, então uma peça de 3 casas nunca é monocromática.",
             ],
           },
@@ -210,12 +216,12 @@ export const invariantes: SkillPack = {
         c(
           "coloracao-xadrez",
           "Um tabuleiro 3 × 3 perdeu uma casa. Para que dominós de 1 × 2 possam cobrir as 8 casas restantes, a casa perdida deve ser:",
-          "Uma das 5 casas da cor dos cantos: um canto ou o centro",
-          ["Qualquer casa", "Só o centro"],
-          "Pintando como xadrez com cantos pretos há 5 pretas e 4 brancas; dominós cobrem uma de cada cor, então só sobram 4 e 4 se a casa retirada for preta. Retirando um canto ou o centro, a cobertura existe.",
+          "Um canto ou o centro",
+          ["Qualquer casa, já que sobram 8", "Só o centro"],
+          "Pintando como xadrez com cantos pretos há 5 pretas, os quatro cantos e o centro, e 4 brancas. Dominós cobrem uma de cada cor, então só sobram 4 e 4 se a casa retirada for preta. Retirando um canto ou o centro, a cobertura existe.",
           {
             feedback: [
-              "Retirar uma casa branca deixa 5 pretas e 3 brancas: impossível.",
+              "Sobrar um número par de casas não basta: retirar a casa do meio de uma borda, que é branca, deixa 5 pretas e 3 brancas, e cada dominó cobre uma de cada cor.",
               "Retirar um canto também funciona; o que importa é a cor da casa.",
             ],
           },
@@ -268,8 +274,11 @@ export const invariantes: SkillPack = {
         c(
           "extremo",
           "Em uma festa com várias pessoas, é possível que cada uma conheça um número diferente de outras pessoas presentes?",
-          "Não: alguém conheceria todas as outras e outra pessoa não conheceria ninguém, o que é contraditório",
-          ["Sim, com 3 pessoas", "Sim, desde que ninguém conheça todas as outras"],
+          "Não: haveria quem conhece todos e quem não conhece ninguém",
+          [
+            "Sim, com 3 pessoas conhecendo 0, 1 e 2 outras",
+            "Sim, desde que ninguém conheça todas as outras",
+          ],
           "Com n pessoas, os números de conhecidos vão de 0 a n − 1; para serem todos diferentes precisariam aparecer 0 e n − 1, mas quem conhece todos é conhecido por quem não conhece ninguém.",
           {
             feedback: [
@@ -315,7 +324,7 @@ export const invariantes: SkillPack = {
         c(
           "extremo",
           "Cinco pontos são colocados em um quadrado de lado 2. Qual é a menor distância que podemos garantir entre algum par de pontos?",
-          "√2, dividindo o quadrado em 4 quadrados de lado 1",
+          "√2",
           ["2", "1"],
           "Em 4 quadrados de lado 1, algum recebe 2 pontos (5 > 4), e dois pontos em um quadrado de lado 1 distam no máximo √2; os quatro cantos e o centro mostram que não dá para garantir menos.",
           {
@@ -453,9 +462,12 @@ export const invariantes: SkillPack = {
         c(
           "argumento-completo",
           "Na lousa estão escritos 10 sinais de mais e 15 sinais de menos. A cada passo, apagam-se dois sinais: iguais viram um mais, diferentes viram um menos. Qual sinal resta no fim?",
-          "Menos, porque o número de sinais de menos nunca muda de paridade e começa ímpar",
-          ["Mais, porque há mais operações que geram mais", "Depende da ordem das escolhas"],
-          "Dois menos viram um mais (menos diminui 2); dois mais viram um mais (menos não muda); um de cada vira menos (menos não muda). Começa em 15, ímpar, termina em 1.",
+          "Menos, porque os sinais de menos seguem em número ímpar",
+          [
+            "Mais, porque há mais operações que geram mais",
+            "Depende da ordem em que os pares são escolhidos",
+          ],
+          "Dois menos viram um mais (menos diminui 2); dois mais viram um mais (menos não muda); um de cada vira menos (menos não muda). O número de sinais de menos nunca muda de paridade: começa em 15, ímpar, e termina em 1.",
           {
             feedback: [
               "A quantidade de operações não decide; a paridade dos sinais de menos é o invariante.",
@@ -480,13 +492,16 @@ export const invariantes: SkillPack = {
         c(
           "argumento-completo",
           "Um número escrito com os algarismos 1, 2, 3, 4, 5 e 6 em alguma ordem é somado com o número escrito com os mesmos algarismos em outra ordem. A soma pode ser 999.999?",
-          "Não: cada um dos números tem soma dos algarismos 21, e a soma dos dois deixa resto 6 na divisão por 9, enquanto 999.999 é múltiplo de 9",
-          ["Sim, com 123.456 + 876.543", "Sim, se um deles for 654.321"],
-          "Cada número tem soma dos algarismos 21, resto 3 por 9; a soma dos dois tem resto 6, e 999.999 tem resto 0.",
+          "Não: a soma dos dois deixa resto 6 na divisão por 9",
+          [
+            "Sim, por exemplo 123.456 + 876.543",
+            "Sim: basta cada coluna somar 9, como 3 + 6 e 4 + 5",
+          ],
+          "Cada número tem soma dos algarismos 21, resto 3 por 9; a soma dos dois tem resto 6, e 999.999 tem resto 0, porque é múltiplo de 9.",
           {
             feedback: [
-              "876.543 usa os algarismos 8, 7 e 6, que não estão em 1 a 6.",
-              "Qualquer ordem dos algarismos de 1 a 6 dá resto 3 na divisão por 9; a soma nunca é múltiplo de 9.",
+              "876.543 usa os algarismos 8 e 7, que não estão entre 1 e 6.",
+              "3 + 6 e 4 + 5 dão 9, mas o 1 precisaria de um 8 e o 2 de um 7. E qualquer ordem dos algarismos de 1 a 6 dá resto 3 na divisão por 9, então a soma nunca é múltiplo de 9.",
             ],
           },
         ),
@@ -507,13 +522,16 @@ export const invariantes: SkillPack = {
         c(
           "argumento-completo",
           "Qual afirmação é uma prova correta de que um tabuleiro 5 × 5 não pode ser percorrido por um cavalo passando por todas as casas e voltando ao início?",
-          "Um passeio fechado alterna cores e teria 25 casas, número ímpar, o que é impossível",
-          ["O cavalo nunca sai do centro", "O tabuleiro é pequeno demais para um cavalo"],
-          "Cada salto troca a cor; um ciclo fechado precisa de número par de casas.",
+          "Cada salto troca a cor, e o ciclo teria 25 casas, número ímpar",
+          [
+            "Do canto, o cavalo tem só 2 saltos possíveis",
+            "No 5 × 5, o cavalo não consegue alcançar todas as casas",
+          ],
+          "Cada salto troca a cor; um passeio fechado alterna cores, então precisa de número par de casas, e 25 é ímpar.",
           {
             feedback: [
-              "No 5 × 5 o cavalo sai do centro para 8 casas diferentes; o que decide é a paridade.",
-              "Tamanho pequeno não é argumento; a paridade é.",
+              "É verdade que o canto tem só 2 saltos, mas isso apenas obriga o passeio a usar os dois; não prova que ele é impossível.",
+              "O cavalo alcança todas as casas do 5 × 5; o que impede o passeio fechado é a paridade das cores.",
             ],
           },
         ),

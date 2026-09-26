@@ -438,26 +438,32 @@ export const recorrencias: SkillPack = {
         c(
           "modelar",
           "Uma sequência começa 2, 4, 8. Sem mais informação, o próximo termo:",
-          "Pode ser 16 (PG), 14 (diferenças 2, 4, 6) ou outro valor; três termos não determinam a regra",
-          ["É com certeza 16", "É com certeza 14"],
-          "Regras diferentes coincidem nos primeiros termos.",
+          "Não está determinado: pode ser 16, 14 ou outro",
+          [
+            "É com certeza 16, pois a razão é 2",
+            "É com certeza 14, pois as diferenças crescem de 2",
+          ],
+          "Regras diferentes coincidem nos primeiros termos: 16 (PG de razão 2), 14 (diferenças 2, 4, 6) ou outro valor. Três termos não determinam a regra.",
           {
             feedback: [
-              "16 é a leitura mais comum, mas não a única.",
-              "14 também é possível, mas não a única.",
+              "16 é a leitura mais comum, como PG de razão 2, mas não a única.",
+              "14, com diferenças 2, 4, 6, também é possível, mas não é a única.",
             ],
           },
         ),
         c(
           "modelar",
           "Por que uma previsão baseada em PG deve ser usada com cautela para prazos longos?",
-          "Porque na vida real o crescimento encontra limites, e a regra de multiplicar deixa de valer",
-          ["Porque PGs sempre diminuem", "Porque a fórmula do termo geral só vale até n = 10"],
-          "Populações, dinheiro e epidemias saturam ou mudam de regime.",
+          "Porque, na prática, o crescimento encontra limites",
+          [
+            "Porque toda PG acaba diminuindo com o tempo",
+            "Porque a fórmula do termo geral acumula erro com n",
+          ],
+          "Na vida real o crescimento encontra limites, e a regra de multiplicar deixa de valer: populações, dinheiro e epidemias saturam ou mudam de regime.",
           {
             feedback: [
               "PGs com q > 1 crescem; o problema é o modelo, não a fórmula.",
-              "A fórmula vale para todo n; a realidade é que muda.",
+              "A fórmula é exata para todo n; quem muda é a realidade.",
             ],
           },
         ),

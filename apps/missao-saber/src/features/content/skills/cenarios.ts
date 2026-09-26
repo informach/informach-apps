@@ -41,13 +41,16 @@ export const cenarios: SkillPack = {
         c(
           "premissas",
           "Uma pessoa quer saber quanto um financiamento realmente vai custar. Qual informação é indispensável e costuma faltar em anúncios?",
-          "O custo efetivo total, com todas as taxas, tarifas e seguros incluídos",
-          ["A taxa de juros nominal anunciada", "O valor da parcela"],
-          "A taxa anunciada pode deixar de fora tarifas, impostos e seguros.",
+          "O custo efetivo total, com tarifas e seguros",
+          [
+            "A taxa de juros nominal, ao mês e ao ano",
+            "O valor da parcela, que mostra se cabe no mês",
+          ],
+          "O custo efetivo total inclui todas as taxas, tarifas e seguros; a taxa anunciada pode deixar de fora tarifas, impostos e seguros.",
           {
             feedback: [
               "A taxa nominal não inclui tarifas, impostos e seguros cobrados junto.",
-              "A parcela sozinha não diz o total, que depende do número de parcelas e dos encargos.",
+              "A parcela mostra se cabe no orçamento, mas não o total, que depende do número de parcelas e dos encargos.",
             ],
           },
         ),
@@ -64,13 +67,13 @@ export const cenarios: SkillPack = {
           "A renda mudar por desemprego, doença ou mudança de trabalho",
           [
             "A inflação reduzir um pouco o poder de compra da renda",
-            "Os meses terem números de dias diferentes",
+            "A renda aumentar com um reajuste anual",
           ],
-          "Perder a renda muda tudo; os outros efeitos são pequenos perto disso.",
+          "Perder a renda muda tudo; os outros efeitos são pequenos, ou até favoráveis, perto disso.",
           {
             feedback: [
               "A inflação pesa, mas perder a renda de uma vez é um risco muito maior.",
-              "A renda é mensal; o número de dias não muda o valor.",
+              "Um reajuste melhora o cenário; o risco que pesa é perder a renda.",
             ],
           },
         ),
@@ -84,12 +87,12 @@ export const cenarios: SkillPack = {
         c(
           "premissas",
           "Numa análise, escrever as premissas explicitamente serve para:",
-          "Que quem lê saiba em que condições a conclusão vale e possa testar outras",
+          "Deixar claro quando a conclusão vale e permitir testar outras",
           [
             "Garantir que a conclusão vai se confirmar",
             "Mostrar que a análise usou fórmulas avançadas",
           ],
-          "Premissas explícitas tornam a análise conferível.",
+          "Premissas explícitas tornam a análise conferível: quem lê sabe em que condições a conclusão vale e pode testar outras.",
           {
             feedback: [
               "Escrever premissas não garante que elas aconteçam.",
@@ -154,12 +157,15 @@ export const cenarios: SkillPack = {
         c(
           "sensibilidade",
           "Numa análise de guardar dinheiro por 30 anos, qual premissa costuma pesar mais no resultado final?",
-          "A taxa de rendimento, porque os juros compostos amplificam pequenas diferenças",
-          ["O valor do primeiro depósito", "O dia do mês em que cada depósito é feito"],
-          "Em 30 anos, 1 ponto de taxa muda muito o total.",
+          "A taxa de rendimento suposta para os 30 anos",
+          [
+            "O valor do primeiro depósito, que rende mais tempo",
+            "O dia do mês em que cada depósito é feito",
+          ],
+          "Os juros compostos amplificam pequenas diferenças: em 30 anos, 1 ponto de taxa muda muito o total.",
           {
             feedback: [
-              "O primeiro depósito é uma parcela pequena de 360 depósitos.",
+              "O primeiro depósito rende por mais tempo, mas é só 1 de 360; a taxa age sobre todos.",
               "O dia do depósito quase não muda o total.",
             ],
           },
@@ -246,12 +252,12 @@ export const cenarios: SkillPack = {
         c(
           "tres-cenarios",
           "Por que planejar a reserva de emergência pelo cenário pessimista?",
-          "Porque ela existe justamente para os momentos em que as coisas saem pior do que o esperado",
+          "Porque ela existe para quando as coisas saem pior",
           [
             "Porque o cenário pessimista é o mais provável",
             "Porque o cenário base costuma ser otimista demais",
           ],
-          "A reserva cobre imprevistos.",
+          "A reserva cobre imprevistos: existe justamente para os momentos em que as coisas saem pior do que o esperado.",
           {
             feedback: [
               "Nem sempre é o mais provável, mas é o caso para o qual a reserva serve.",
@@ -293,9 +299,12 @@ export const cenarios: SkillPack = {
         c(
           "tres-cenarios",
           "Ao apresentar três cenários a quem vai decidir, o mais útil é:",
-          "Mostrar o resultado de cada um e o que teria de acontecer para cada cenário se realizar",
-          ["Mostrar só o cenário base, que é o mais provável", "Mostrar só a média dos três"],
-          "Quem decide precisa ver o intervalo e as condições.",
+          "Mostrar o resultado e as condições de cada cenário",
+          [
+            "Mostrar só o cenário base, que é o mais provável",
+            "Mostrar só a média dos três, para simplificar",
+          ],
+          "Quem decide precisa ver o intervalo e o que teria de acontecer para cada cenário se realizar.",
           {
             feedback: [
               "Sem o pessimista, quem decide não vê o risco.",
@@ -323,11 +332,17 @@ export const cenarios: SkillPack = {
         c(
           "alternativas",
           "Na comparação entre alugar e comprar, um fator que a conta de parcelas não mostra é:",
-          "A flexibilidade de mudar de cidade ou de casa com facilidade",
-          ["O valor da parcela", "O valor do aluguel"],
-          "Critérios não financeiros também contam.",
+          "A facilidade de mudar de casa ou de cidade",
+          [
+            "A diferença entre a parcela e o aluguel",
+            "O total pago em parcelas ao longo de um ano",
+          ],
+          "Critérios não financeiros também contam, como a flexibilidade de mudar com facilidade.",
           {
-            feedback: ["A parcela já está na conta.", "O aluguel já está na conta."],
+            feedback: [
+              "A diferença entre parcela e aluguel sai direto da conta.",
+              "O total em parcelas é só multiplicar; ele já está na conta.",
+            ],
           },
         ),
         n(
@@ -340,9 +355,9 @@ export const cenarios: SkillPack = {
         c(
           "alternativas",
           "No item anterior, suponha que a pessoa passe a precisar de transporte também nos fins de semana (mais 8 dias a R$ 40 de aplicativo) e que o custo do carro continue R$ 1.200. A comparação:",
-          "Empata: o aplicativo passa a custar R$ 1.200, o mesmo que o carro",
+          "Empata: os dois custam R$ 1.200",
           ["O aplicativo continua R$ 320 mais barato", "O aplicativo fica R$ 320 mais caro"],
-          "40 × 30 = 1.200.",
+          "40 × 30 = 1.200, o mesmo custo do carro.",
           {
             feedback: [
               "A economia de 320 era para 22 dias.",
@@ -410,13 +425,16 @@ export const cenarios: SkillPack = {
         c(
           "concluir",
           "Qual conclusão é responsável?",
-          "'Com renda estável e taxa de 1% ao mês, a meta é atingida em 30 meses; se o depósito mensal cair 10%, o prazo sobe para cerca de 33 meses'",
-          ["'A meta será atingida em 30 meses'", "'Todos deveriam guardar do mesmo jeito'"],
-          "Liga resultado a premissas e mostra a sensibilidade.",
+          "'Com renda estável e 1% ao mês, a meta leva 30 meses; se o depósito cair 10%, cerca de 33'",
+          [
+            "'Com certeza a meta será atingida em 30 meses, como calculado'",
+            "'Todos deveriam guardar desse jeito para chegar lá em 30 meses'",
+          ],
+          "Liga o resultado às premissas (renda estável, taxa de 1% ao mês) e mostra a sensibilidade: com depósito 10% menor, o prazo sobe para cerca de 33 meses.",
           {
             feedback: [
-              "Esconde que depende de premissas.",
-              "Recomenda para todos sem conhecer ninguém.",
+              "Esconde que o prazo depende de premissas, como renda estável e taxa de 1% ao mês.",
+              "Recomenda para todos sem conhecer a situação de ninguém.",
             ],
           },
         ),
@@ -430,13 +448,16 @@ export const cenarios: SkillPack = {
         c(
           "concluir",
           "Uma análise concluiu que parcelar custa R$ 480 a mais. Uma pessoa sem reserva, com a geladeira quebrada, decide parcelar. Essa decisão:",
-          "Pode ser razoável: o custo extra é conhecido e a necessidade é real",
-          ["É sempre errada, porque custa mais", "Contradiz a matemática"],
-          "A análise informa o custo; a decisão pesa a situação.",
+          "Pode ser razoável, pois a necessidade é real",
+          [
+            "É errada, porque parcelar custa R$ 480 a mais",
+            "Contradiz a análise, que mostrou o custo maior",
+          ],
+          "O custo extra é conhecido e a necessidade é real: a análise informa o custo; a decisão pesa a situação.",
           {
             feedback: [
-              "O custo extra pode valer a pena numa necessidade real.",
-              "A matemática mostrou o custo, não proibiu a escolha.",
+              "O custo extra de R$ 480 pode valer a pena numa necessidade real.",
+              "A análise mostrou o custo, não proibiu a escolha.",
             ],
           },
         ),
@@ -487,8 +508,11 @@ export const cenarios: SkillPack = {
         c(
           "concluir",
           "Uma análise responsável sobre investimentos para um trabalho escolar deve evitar:",
-          "Indicar um produto específico como 'o melhor' para qualquer pessoa",
-          ["Comparar rendimentos líquidos", "Mostrar o cenário pessimista"],
+          "Indicar um produto como 'o melhor' para todos",
+          [
+            "Comparar os rendimentos líquidos, não os brutos",
+            "Mostrar o cenário pessimista junto com os outros",
+          ],
           "Recomendações pessoais dependem de cada situação.",
           {
             feedback: [

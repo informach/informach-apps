@@ -300,25 +300,190 @@ export function packMissionIds(pack: Pick<SkillPack, "id">) {
   return [1, 2, 3, 4, 5].map((position) => `${pack.id}-${position}`);
 }
 
+/**
+ * Habilidades do 2º ao 5º ano: pistas e ordenações com linguagem de criança.
+ * Fica aqui, e não em cada pacote, para que a regra valha para todos juntos.
+ */
+const EARLY_READING_PACKS = new Set([
+  "contagem-inicial",
+  "padroes-iniciais",
+  "orientacao-espacial",
+  "composicao-de-figuras",
+  "tempo-e-medidas",
+  "balancas",
+  "caminhos",
+  "tabelas",
+  "contar-e-comparar",
+  "formas-e-posicoes",
+  "sequencias-iniciais",
+  "medir-e-comparar",
+  "problemas-com-desenho",
+]);
+
+/** Primeira frase de um texto, para lembrar a ideia da missão numa pista. */
+function firstSentence(text: string) {
+  const end = text.search(/[.?!]\s/);
+  return end < 0 ? text : text.slice(0, end + 1);
+}
+
+/**
+ * Pistas das atividades das habilidades novas: a segunda lembra a ideia da
+ * missão (e não o nome interno da família), e a terceira mostra o caminho.
+ */
+function packHints(
+  early: boolean,
+  introduction: string,
+  spec: ObjectiveSpec,
+): [string, string, string] {
+  return (
+    spec.hints ??
+    (early
+      ? [
+          "Leia de novo: o que a pergunta quer saber?",
+          `Lembre da missão: ${firstSentence(introduction)}`,
+          `Veja o caminho: ${spec.explanation}`,
+        ]
+      : [
+          "Separe os dados da pergunta antes de calcular.",
+          `Lembre a ideia da missão: ${firstSentence(introduction)}`,
+          `Confira cada etapa: ${spec.explanation}`,
+        ])
+  );
+}
+
+/**
+ * Ordenação das missões 4 e 5 das habilidades novas: conferir uma resposta e
+ * comparar dois caminhos, com enunciado completo e passos no nível da faixa.
+ * A missão 3 usa a ordenação autoral do pacote.
+ */
+function packOrderingItem(
+  pack: SkillPack,
+  lessonId: string,
+  stage: number,
+  early: boolean,
+  title: string,
+): Item {
+  if (stage === 0) return orderingItem(pack.id, lessonId, 0, pack.ordering);
+  const order = ["understand", "represent", "solve", "verify"];
+  const labels: [string, string, string, string] =
+    stage === 1
+      ? early
+        ? [
+            "Ler de novo a pergunta",
+            "Olhar o desenho ou a conta que fiz",
+            "Fazer a conta de novo, com calma",
+            "Ver se a resposta combina com a história",
+          ]
+        : [
+            "Retomar a pergunta e a unidade esperada",
+            "Refazer a relação usada na solução",
+            "Recalcular e testar um caso simples",
+            "Comparar com a primeira resposta e corrigir a etapa que diverge",
+          ]
+      : early
+        ? [
+            "Pensar em dois jeitos de resolver",
+            "Resolver dos dois jeitos",
+            "Comparar as duas respostas",
+            "Escolher a resposta e explicar por quê",
+          ]
+        : [
+            "Descrever duas estratégias possíveis",
+            "Executar as duas com os mesmos dados",
+            "Comparar etapas e resultados",
+            "Escolher uma conclusão e justificar a escolha",
+          ];
+  const steps = labels.map((label, index) => ({ id: order[index] ?? String(index), label }));
+  const rotated = [...steps.slice(stage + 1), ...steps.slice(0, stage + 1)];
+  return {
+    type: "ordering",
+    id: `${lessonId}-9`,
+    skillId: pack.id,
+    familyId: `${pack.id}:learn:${stage === 1 ? "verificacao-de-solucao" : "comparacao-de-metodos"}`,
+    purpose: "guided-practice",
+    domain: "common",
+    prompt:
+      stage === 1
+        ? early
+          ? `Na missão “${title}”, você resolveu uma atividade. Coloque em ordem os passos para conferir a resposta.`
+          : `Depois de resolver uma atividade da missão “${title}”, coloque em ordem os passos para conferir a resposta.`
+        : early
+          ? `Na missão “${title}”, coloque em ordem os passos para resolver uma atividade de dois jeitos e comparar.`
+          : `Na missão “${title}”, coloque em ordem os passos para resolver uma atividade por dois caminhos e comparar.`,
+    explanation:
+      stage === 1
+        ? "Conferir é voltar à pergunta, refazer o caminho e ver se a resposta combina com o que foi pedido."
+        : early
+          ? "Resolver de dois jeitos e comparar ajuda a ter certeza da resposta."
+          : "Comparar dois caminhos com os mesmos dados mostra se a conclusão é firme.",
+    hints: [
+      "O que precisa vir primeiro, antes de fazer qualquer conta?",
+      stage === 1
+        ? "A conferência termina olhando a resposta de novo."
+        : "A escolha vem só depois de comparar.",
+      `A ordem completa é: ${labels.join(", depois ")}.`,
+    ],
+    steps: rotated,
+    grading: { mode: "exact", order },
+  };
+}
+
+/** Justificativa das habilidades novas: explicação e rubrica que valem para qualquer estágio. */
+function packJustificationItem(
+  pack: SkillPack,
+  lessonId: string,
+  stage: number,
+  early: boolean,
+): Item {
+  const base = justificationItem(pack.id, lessonId, stage, {
+    ...pack.justification,
+    introductions: ["", "", ""],
+  });
+  if (base.type !== "justification") return base;
+  if (early)
+    return {
+      ...base,
+      explanation:
+        "Uma boa explicação diz qual ideia você usou, mostra um exemplo ou uma conta e termina respondendo à pergunta.",
+      hints: [
+        "Comece dizendo qual ideia você usou.",
+        "Mostre um exemplo ou uma conta que ajude a entender.",
+        "Termine respondendo à pergunta.",
+      ],
+      response: { label: "Escreva sua explicação", minLength: 12, maxLength: 800 },
+      rubric: [
+        `Usa bem a ideia da missão: ${pack.justification.focus}.`,
+        "Mostra um exemplo ou uma conta.",
+        "Termina respondendo à pergunta.",
+      ],
+    };
+  return {
+    ...base,
+    explanation:
+      "Uma boa justificativa declara a relação usada, mostra um caso ou cálculo que a sustenta e termina respondendo exatamente ao que foi perguntado.",
+    rubric: [
+      `Usa com correção a ideia central: ${pack.justification.focus}.`,
+      "Conecta a relação ao caso ou afirmação da atividade.",
+      "Chega a uma conclusão explícita sem depender de autoridade ou opinião.",
+    ],
+  };
+}
+
 export function packLessons(pack: SkillPack): Lesson[] {
-  const generated = pack.missions.slice(2) as [
-    SkillPackMission,
-    SkillPackMission,
-    SkillPackMission,
-  ];
-  const introductions = generated.map((mission) => mission.introduction) as [
-    string,
-    string,
-    string,
-  ];
+  const early = EARLY_READING_PACKS.has(pack.id);
   return pack.missions.map((mission, position) => {
     const id = `${pack.id}-${position + 1}`;
     const stage = position - 2;
-    const items = mission.specs.map((spec, index) => objectiveItem(pack.id, id, index, spec));
+    const items = mission.specs.map((spec, index) =>
+      objectiveItem(pack.id, id, index, {
+        ...spec,
+        hints: packHints(early, mission.introduction, spec),
+      }),
+    );
     if (stage >= 0)
       items.push(
-        orderingItem(pack.id, id, stage, pack.ordering),
-        justificationItem(pack.id, id, stage, { ...pack.justification, introductions }),
+        packOrderingItem(pack, id, stage, early, mission.title),
+        packJustificationItem(pack, id, stage, early),
       );
     return {
       id,

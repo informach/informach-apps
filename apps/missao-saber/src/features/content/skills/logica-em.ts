@@ -161,11 +161,14 @@ export const logicaEm: SkillPack = {
           "quantificadores",
           "Todos os gatos são mamíferos. Alguns mamíferos voam. Logo:",
           "Não se pode concluir nada sobre gatos voarem",
-          ["Alguns gatos voam", "Nenhum gato voa"],
+          [
+            "Alguns gatos voam, porque gatos são mamíferos",
+            "Nenhum gato voa, porque só alguns mamíferos voam",
+          ],
           "Os mamíferos que voam podem não ser gatos.",
           {
             feedback: [
-              "Os mamíferos que voam podem ser só morcegos.",
+              "Os mamíferos que voam podem ser só morcegos; ser mamífero não dá ao gato uma propriedade que só uma parte dos mamíferos tem.",
               "As premissas não garantem isso: nada impede que algum gato esteja entre os mamíferos que voam.",
             ],
           },
@@ -215,12 +218,15 @@ export const logicaEm: SkillPack = {
           "quantificadores",
           "Para mostrar que 'todo número ímpar maior que 1 é primo' é falsa, basta:",
           "Mostrar um ímpar maior que 1 que não é primo, como 9",
-          ["Mostrar um primo ímpar, como 7", "Mostrar que 2 é primo"],
+          [
+            "Mostrar um ímpar maior que 1 que é primo, como 7",
+            "Mostrar um primo que não é ímpar, como 2",
+          ],
           "Um contraexemplo derruba o 'todo'.",
           {
             feedback: [
-              "Um exemplo favorável não prova nem refuta.",
-              "2 é par; não fala sobre ímpares.",
+              "Um exemplo que confirma a frase não prova nem refuta o 'todo'; para derrubá-lo, é preciso um caso que a contrarie.",
+              "2 é par, e a frase só fala de ímpares; um primo par não a contraria.",
             ],
           },
         ),
@@ -237,12 +243,12 @@ export const logicaEm: SkillPack = {
           "verdade-mentira",
           "A diz: 'eu sou patife'. O que se conclui?",
           "Nenhum habitante da ilha pode dizer isso",
-          ["A é patife", "A é cavaleiro"],
+          ["A é patife, pois admite que mente", "A é cavaleiro, pois foi sincero"],
           "Um cavaleiro não mentiria dizendo que é patife; um patife não diria a verdade.",
           {
             feedback: [
-              "Se fosse patife, a frase seria verdadeira, e patifes mentem.",
-              "Se fosse cavaleiro, a frase seria falsa.",
+              "Se A fosse patife, a frase 'eu sou patife' seria verdadeira, e patifes nunca dizem verdades.",
+              "Se A fosse cavaleiro, a frase seria falsa, e cavaleiros nunca mentem.",
             ],
           },
         ),
@@ -303,12 +309,15 @@ export const logicaEm: SkillPack = {
           "verdade-mentira",
           "Há duas portas, e só uma leva à saída; cada uma tem um guarda. Um guarda sempre diz a verdade e o outro sempre mente, mas não se sabe quem é quem. Qual pergunta, feita a qualquer um deles, revela a porta certa?",
           "'Qual porta o outro guarda diria que é a saída?' e escolher a oposta",
-          ["'Qual é a saída?'", "'Você mente?'"],
+          [
+            "'Qual é a saída?' e escolher a porta indicada",
+            "'Qual porta o outro guarda diria que é a saída?' e escolher essa",
+          ],
           "Os dois apontam a porta errada: o verdadeiro relata a mentira do outro; o mentiroso mente sobre a verdade.",
           {
             feedback: [
-              "O mentiroso apontaria a errada, e não se sabe quem é quem.",
-              "Os dois respondem 'não'.",
+              "Se quem responde for o mentiroso, ele aponta a porta errada, e não se sabe quem é quem; a resposta direta não serve.",
+              "Os dois apontam a porta errada: o sincero relata a mentira do outro, e o mentiroso mente sobre o que o sincero diria. Por isso se escolhe a oposta.",
             ],
           },
         ),
@@ -417,10 +426,16 @@ export const logicaEm: SkillPack = {
           "deducao",
           "Numa tabela de dedução, quando nenhuma casa pode mais ser decidida só por eliminação, o próximo passo é:",
           "Testar uma hipótese e ver se leva a contradição",
-          ["Chutar a resposta", "Recomeçar do zero"],
+          [
+            "Escolher a opção mais provável e tomá-la como certa",
+            "Recomeçar a tabela do zero, com outra ordem",
+          ],
           "Uma hipótese que gera contradição é descartada, e isso libera novas eliminações.",
           {
-            feedback: ["Chutar não garante a resposta.", "O trabalho feito continua válido."],
+            feedback: [
+              "Tomar a mais provável como certa não garante nada; é preciso testar a hipótese até ela se confirmar ou gerar contradição.",
+              "O que já foi deduzido continua válido; recomeçar só repete o caminho e trava no mesmo ponto.",
+            ],
           },
         ),
       ],
@@ -482,13 +497,13 @@ export const logicaEm: SkillPack = {
         c(
           "validade",
           "'Três pessoas que conheço de São Paulo torcem pelo mesmo time; logo, todo paulistano torce por esse time.' A falha é:",
-          "Generalização a partir de poucos casos",
-          ["Negação do antecedente", "Nenhuma; é válido"],
+          "Generalizar a partir de poucos casos",
+          ["Negar o antecedente de uma implicação", "Nenhuma, pois o raciocínio é válido"],
           "Três casos não representam milhões.",
           {
             feedback: [
-              "Não há implicação sendo negada.",
-              "A conclusão não decorre de três exemplos.",
+              "Não há um 'se..., então...' sendo usado ao contrário; o argumento parte de exemplos para uma regra geral.",
+              "A conclusão não decorre de três exemplos: um só paulistano que torça por outro time já a derruba.",
             ],
           },
         ),
@@ -512,16 +527,16 @@ export const logicaEm: SkillPack = {
         c(
           "validade",
           "Por que um argumento válido pode ter conclusão falsa?",
-          "Porque validade diz respeito à forma: se alguma premissa for falsa, a conclusão pode ser falsa mesmo com raciocínio correto",
+          "Porque validade é sobre a forma, e uma premissa pode ser falsa",
           [
-            "Não pode; válido implica conclusão verdadeira",
-            "Porque a lógica não se aplica à vida real",
+            "Não pode; ser válido garante conclusão verdadeira",
+            "Porque um argumento válido pode ter erro de raciocínio",
           ],
-          "Válido com premissas verdadeiras garante conclusão verdadeira; com premissa falsa, não.",
+          "Validade diz respeito à forma. Válido com premissas verdadeiras garante conclusão verdadeira; com premissa falsa, a conclusão pode ser falsa mesmo com raciocínio correto.",
           {
             feedback: [
-              "O exemplo do pinguim mostra que pode.",
-              "A lógica se aplica, desde que as premissas sejam verdadeiras.",
+              "O exemplo do pinguim mostra que pode: a forma é válida, mas a premissa 'todo pássaro voa' é falsa.",
+              "Válido quer dizer justamente que o raciocínio não tem falha; o que pode estar errado é alguma premissa.",
             ],
           },
         ),

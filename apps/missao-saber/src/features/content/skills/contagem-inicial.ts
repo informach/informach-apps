@@ -72,12 +72,12 @@ export const contagemInicial: SkillPack = {
           "contar-em-grupos",
           "Ana contou as pernas de 4 cachorros e chegou a 16. Como ela pode conferir?",
           "Contar de 4 em 4: 4, 8, 12, 16",
-          ["Contar os cachorros de novo: 1, 2, 3, 4", "Somar 4 com 16"],
+          ["Contar os cachorros de novo: 1, 2, 3, 4", "Contar de 2 em 2: 2, 4, 6, 8"],
           "Cada cachorro tem 4 pernas; 4 grupos de 4 são 16.",
           {
             feedback: [
               "Contar os cachorros confere quantos animais há, não quantas pernas.",
-              "Somar 4 com 16 não confere nada; o total vem de 4 grupos de 4.",
+              "2, 4, 6, 8 são as pernas de 4 pessoas; cachorro tem 4 pernas, então os grupos são de 4.",
             ],
           },
         ),
@@ -294,13 +294,13 @@ export const contagemInicial: SkillPack = {
         c(
           "combinar",
           "Para contar todas as duplas de sorvete com 4 sabores, sem repetir sabor e sem importar a ordem, o melhor jeito é:",
-          "Fixar um sabor de cada vez e listar com quem ele combina, sem repetir duplas já contadas",
-          ["Chutar um número grande", "Multiplicar 4 por 4"],
-          "O 1º sabor combina com os outros 3, o 2º com 2 novos, o 3º com 1 novo: 3 + 2 + 1 = 6 duplas.",
+          "Fixar um sabor por vez e listar com quem ele combina",
+          ["Contar os 4 sabores, um de cada vez", "Multiplicar 4 por 4 e achar 16 duplas"],
+          "Fixando um sabor de cada vez, sem repetir duplas já contadas, o 1º sabor combina com os outros 3, o 2º com 2 novos e o 3º com 1 novo: 3 + 2 + 1 = 6 duplas.",
           {
             feedback: [
-              "Chutar não é contar.",
-              "4 × 4 conta duplas repetidas e duplas do mesmo sabor.",
+              "Contar os sabores dá 4, mas a pergunta é sobre duplas de sabores.",
+              "4 × 4 conta duplas repetidas, como uva com limão e limão com uva, e duplas do mesmo sabor.",
             ],
           },
         ),
@@ -521,9 +521,9 @@ export const contagemInicial: SkillPack = {
         c(
           "decidir",
           "Quando um problema pede 'quantas maneiras' em vez de 'quantos objetos', o que muda na contagem?",
-          "Cada combinação de escolhas conta uma vez, e uma tabela ou lista ajuda a não esquecer nenhuma",
+          "Cada combinação de escolhas conta uma vez",
           ["Nada muda; é só contar os objetos", "É preciso sempre somar as opções"],
-          "Maneiras se contam combinando escolhas, não contando coisas soltas.",
+          "Maneiras se contam combinando escolhas, não contando coisas soltas; uma tabela ou lista ajuda a não esquecer nenhuma combinação.",
           {
             feedback: [
               "Contar objetos e contar combinações são perguntas diferentes.",

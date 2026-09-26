@@ -67,9 +67,9 @@ export const orcamentoN2: SkillPack = {
         c(
           "fixo-e-variavel",
           "Uma família quer reduzir gastos rapidamente. Onde o corte costuma ter efeito mais rápido?",
-          "Nas despesas variáveis, como delivery e lazer, que dependem de decisões de cada dia",
+          "Nas despesas variáveis, como delivery e lazer",
           ["No aluguel, que é a maior despesa", "Nas mensalidades já contratadas para o ano"],
-          "Despesas fixas exigem renegociar contratos; as variáveis mudam na hora.",
+          "Despesas fixas exigem renegociar contratos; as variáveis dependem de decisões de cada dia e mudam na hora.",
           {
             feedback: [
               "Mudar de casa ou renegociar aluguel leva tempo.",
@@ -105,13 +105,13 @@ export const orcamentoN2: SkillPack = {
         c(
           "custo-de-oportunidade",
           "Com R$ 60, um estudante pode comprar um jogo ou guardar para um passeio de R$ 180 daqui a três meses. Se compra o jogo, o que ele deixa de lado?",
-          "Um terço do passeio, que agora exige mais tempo ou mais dinheiro",
-          ["Nada, porque o dinheiro era dele", "O passeio inteiro"],
-          "Os 60 reais eram um terço dos 180; o passeio não some, mas fica mais distante.",
+          "Um terço do valor do passeio",
+          ["Nada, porque o dinheiro era dele", "O passeio inteiro, que fica impossível"],
+          "Os 60 reais eram um terço dos 180; o passeio não some, mas agora exige mais tempo ou mais dinheiro.",
           {
             feedback: [
               "Ser dono do dinheiro não elimina a escolha entre os dois usos.",
-              "Ele deixou de lado uma parte do passeio, não o passeio todo.",
+              "Ele deixou de lado uma parte do passeio, não o passeio todo: guardando por mais tempo, ainda chega lá.",
             ],
           },
         ),
@@ -191,13 +191,16 @@ export const orcamentoN2: SkillPack = {
         c(
           "comparar-alternativas",
           "Para escolher entre dois planos de internet, o que importa comparar?",
-          "Custo total no período do contrato, incluindo taxas de instalação e de cancelamento",
-          ["Só a mensalidade anunciada", "Só a velocidade"],
-          "Taxas e prazos mudam o custo real; velocidade importa, mas não decide o custo.",
+          "O custo total no contrato, com todas as taxas",
+          [
+            "Só a mensalidade, que é o que se paga todo mês",
+            "Só a velocidade, que é o que se nota no uso",
+          ],
+          "O que conta é o custo total no período do contrato, incluindo taxas de instalação e de cancelamento; velocidade importa, mas não decide o custo.",
           {
             feedback: [
-              "Uma mensalidade menor com taxa de instalação alta pode custar mais.",
-              "Velocidade é um critério de qualidade, não de custo.",
+              "Uma mensalidade menor com taxa de instalação ou de cancelamento alta pode custar mais no total.",
+              "Velocidade é um critério de qualidade, não de custo; dois planos igualmente rápidos podem ter taxas bem diferentes.",
             ],
           },
         ),
@@ -241,12 +244,15 @@ export const orcamentoN2: SkillPack = {
         c(
           "prioridade",
           "Em um mês apertado, uma família precisa escolher o que pagar primeiro. A ordem mais prudente é:",
-          "Contas com corte ou juros altos (luz, água, cartão), depois despesas essenciais, depois lazer",
-          ["Lazer primeiro, porque é o que mais atrasa", "Todas em partes iguais"],
-          "Atrasar cartão ou luz gera juros e corte; lazer pode esperar.",
+          "Contas com corte ou juros, depois essenciais, depois lazer",
+          [
+            "Primeiro as contas menores, depois as maiores",
+            "Um pouco de cada conta, em partes iguais",
+          ],
+          "Atrasar luz, água ou cartão gera corte ou juros altos; depois vêm as despesas essenciais, e o lazer pode esperar.",
           {
             feedback: [
-              "Lazer não gera juros nem corte de serviço.",
+              "O tamanho da conta não decide a prioridade: uma assinatura barata pode esperar, mas luz, água ou cartão atrasados geram corte ou juros.",
               "Pagar tudo em parte deixa juros correndo em todas.",
             ],
           },
@@ -349,8 +355,8 @@ export const orcamentoN2: SkillPack = {
         c(
           "meta",
           "Um jovem tem duas metas: fone de R$ 240 e curso de R$ 600. Guarda R$ 120 por mês. Se comprar o fone primeiro, o curso vem em:",
-          "7 meses, contando desde o início",
-          ["5 meses", "2 meses"],
+          "7 meses desde o início",
+          ["5 meses desde o início", "2 meses desde o início"],
           "Fone: 2 meses; curso: mais 5 meses; total 7 desde o início.",
           {
             feedback: [
@@ -371,13 +377,13 @@ export const orcamentoN2: SkillPack = {
         c(
           "reserva-de-emergencia",
           "A principal função de uma reserva de emergência é:",
-          "Cobrir imprevistos sem precisar de empréstimo com juros altos",
-          ["Render mais que outros investimentos", "Pagar as férias da família"],
-          "A reserva compra tempo em uma emergência e evita dívida cara.",
+          "Cobrir imprevistos sem pegar empréstimo caro",
+          ["Render mais que outros investimentos", "Pagar gastos planejados, como as férias"],
+          "A reserva compra tempo em uma emergência e evita precisar de empréstimo com juros altos.",
           {
             feedback: [
               "Reserva precisa estar disponível, mesmo rendendo pouco.",
-              "Férias são meta planejada, não emergência.",
+              "Férias e outros gastos planejados são metas, não emergências; a reserva fica para o que não dá para prever.",
             ],
           },
         ),
@@ -421,12 +427,12 @@ export const orcamentoN2: SkillPack = {
           "analise-de-orcamento",
           "A renda de uma família caiu 10%, de R$ 5.000 para R$ 4.500, e as despesas eram R$ 4.800. Para voltar ao equilíbrio, as despesas precisam cair, no mínimo:",
           "R$ 300, cerca de 6,25%",
-          ["10%", "R$ 500"],
+          ["R$ 480, ou seja, 10%", "R$ 500, cerca de 10,4%"],
           "4.800 − 4.500 = 300; 300 ÷ 4.800 é cerca de 6,25%.",
           {
             feedback: [
-              "10% das despesas seriam 480, mais do que o necessário.",
-              "R$ 500 é a queda da renda, não o corte necessário, porque havia sobra de 200.",
+              "Cortar 10% porque a renda caiu 10% dá R$ 480, mais do que o necessário: basta as despesas caírem até a nova renda.",
+              "R$ 500 é a queda da renda, não o corte necessário, porque antes havia sobra de R$ 200.",
             ],
           },
         ),
@@ -440,13 +446,16 @@ export const orcamentoN2: SkillPack = {
         c(
           "analise-de-orcamento",
           "Ao receber um aumento de R$ 400, a decisão que mais fortalece o orçamento é:",
-          "Destinar parte a reserva e metas antes de ampliar gastos fixos",
-          ["Assumir uma nova parcela de R$ 400", "Aumentar todas as despesas em 10%"],
+          "Destinar parte à reserva e metas antes de ampliar gastos fixos",
+          [
+            "Assumir uma nova parcela de R$ 400 por mês",
+            "Distribuir o aumento entre todas as despesas",
+          ],
           "Gastos fixos novos comprometem o aumento inteiro; reserva e metas dão margem.",
           {
             feedback: [
               "Uma parcela igual ao aumento deixa o orçamento tão apertado quanto antes.",
-              "Aumentar tudo dilui o ganho sem criar margem.",
+              "Espalhar o aumento pelas despesas dilui o ganho sem criar margem para imprevistos.",
             ],
           },
         ),
@@ -462,12 +471,15 @@ export const orcamentoN2: SkillPack = {
         c(
           "analise-de-orcamento",
           "Uma afirmação verdadeira sobre orçamento familiar é:",
-          "Registrar gastos pequenos e frequentes costuma revelar onde o dinheiro escapa",
-          ["Só despesas grandes importam", "Quem ganha pouco não precisa de orçamento"],
-          "Gastos pequenos repetidos somam muito no mês; o orçamento é mais útil justamente quando a renda é apertada.",
+          "Anotar gastos pequenos ajuda a ver onde o dinheiro escapa",
+          [
+            "Só as despesas grandes mudam o resultado do mês",
+            "Quem ganha pouco não precisa de orçamento",
+          ],
+          "Registrar gastos pequenos e frequentes costuma revelar onde o dinheiro escapa, porque eles somam muito no mês; o orçamento é mais útil justamente quando a renda é apertada.",
           {
             feedback: [
-              "Gastos pequenos repetidos somam valores altos.",
+              "Gastos pequenos repetidos somam valores altos: R$ 15 por dia viram R$ 450 no mês.",
               "Com renda apertada cada real importa mais, não menos.",
             ],
           },

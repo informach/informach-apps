@@ -248,13 +248,16 @@ export const coordenadas: SkillPack = {
         c(
           "area-na-malha",
           "Para calcular a área do triângulo de vértices (0, 0), (5, 1) e (2, 4), uma estratégia correta é:",
-          "Desenhar o retângulo 5 × 4 em volta e subtrair as áreas dos três triângulos retângulos que sobram",
-          ["Multiplicar 5 por 4 e dividir por 2", "Somar as coordenadas dos vértices"],
-          "O retângulo tem área 20; os triângulos de fora têm áreas 2,5, 4,5 e 4; sobra 20 − 11 = 9.",
+          "Tirar do retângulo 5 × 4 os três triângulos em volta",
+          [
+            "Multiplicar 5 por 4 e dividir por 2",
+            "Somar as áreas dos três triângulos em volta dele",
+          ],
+          "Desenhe o retângulo 5 × 4 em volta: ele tem área 20; os três triângulos retângulos de fora têm áreas 2,5, 4,5 e 4; sobra 20 − 11 = 9.",
           {
             feedback: [
               "5 × 4 ÷ 2 = 10 seria a área se a base e a altura fossem 5 e 4, mas o triângulo é inclinado.",
-              "Somar coordenadas não tem significado de área.",
+              "Os três triângulos ficam fora do triângulo pedido: somados dão 11, a parte do retângulo que sobra. É preciso tirá-los dos 20 do retângulo.",
             ],
           },
         ),
@@ -398,12 +401,12 @@ export const coordenadas: SkillPack = {
         c(
           "alinhamento",
           "Os pontos (1, 2), (3, 6) e (5, 10) estão alinhados?",
-          "Sim: de um para o outro, x aumenta 2 e y aumenta 4, sempre na mesma proporção",
+          "Sim: x sobe 2 e y sobe 4 a cada passo",
           [
             "Não, porque as coordenadas são todas diferentes",
             "Sim, porque todos têm y maior que x",
           ],
-          "A inclinação entre pares consecutivos é 4 ÷ 2 = 2 nos dois trechos; a reta é y = 2x.",
+          "De um ponto para o outro, x aumenta 2 e y aumenta 4, sempre na mesma proporção: a inclinação entre pares consecutivos é 4 ÷ 2 = 2 nos dois trechos; a reta é y = 2x.",
           {
             feedback: [
               "Coordenadas diferentes não impedem alinhamento.",

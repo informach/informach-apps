@@ -80,13 +80,13 @@ export const pitagoras: SkillPack = {
         c(
           "diagonal-do-quadrado",
           "Um quadrado tem lado 1. Sua diagonal mede:",
-          "√2, aproximadamente 1,41",
+          "√2",
           ["2", "1,5"],
-          "1² + 1² = 2, então a diagonal é √2.",
+          "1² + 1² = 2, então a diagonal é √2, aproximadamente 1,41.",
           {
             feedback: [
               "2 é o quadrado da diagonal, não a diagonal.",
-              "1,5 é um chute: 1,5² = 2,25, maior que 2.",
+              "1,5 parece razoável, mas 1,5² = 2,25, maior que 2.",
             ],
           },
         ),
@@ -181,9 +181,9 @@ export const pitagoras: SkillPack = {
         c(
           "estimar-raiz",
           "Os catetos de um triângulo retângulo medem 1 e 2. A hipotenusa está entre:",
-          "2 e 3, pois 2² < 5 < 3²",
+          "2 e 3",
           ["1 e 2", "3 e 4"],
-          "A hipotenusa ao quadrado é 1 + 4 = 5, e 4 < 5 < 9.",
+          "A hipotenusa ao quadrado é 1 + 4 = 5, e 2² < 5 < 3², ou seja, 4 < 5 < 9.",
           {
             feedback: [
               "A hipotenusa é maior que o maior cateto, que é 2.",
@@ -481,12 +481,12 @@ export const pitagoras: SkillPack = {
           "reconhecer-terno",
           "Se os lados de um triângulo estão na razão 3 : 4 : 5, então ele é:",
           "Retângulo, seja qual for o tamanho",
-          ["Retângulo só quando os lados medem 3, 4 e 5", "Um triângulo equilátero ampliado"],
+          ["Retângulo só quando os lados medem 3, 4 e 5", "Acutângulo, pois 3 + 4 é maior que 5"],
           "(3k)² + (4k)² = 25k² = (5k)² para qualquer k.",
           {
             feedback: [
               "A relação vale para qualquer múltiplo, pois os quadrados crescem na mesma proporção.",
-              "Lados diferentes nunca formam um triângulo equilátero.",
+              "3 + 4 > 5 só garante que o triângulo existe; para classificar o ângulo, compare os quadrados: 3² + 4² = 5², então ele é reto.",
             ],
           },
         ),

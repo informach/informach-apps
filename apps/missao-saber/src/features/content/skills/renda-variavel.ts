@@ -32,16 +32,16 @@ export const rendaVariavel: SkillPack = {
         c(
           "variacao",
           "Comprar uma ação significa:",
-          "Tornar-se sócio de uma pequena parte da empresa, com direito a participar dos resultados",
+          "Tornar-se sócio de uma pequena parte da empresa",
           [
             "Emprestar dinheiro à empresa com juros combinados",
-            "Comprar um produto da empresa com desconto",
+            "Garantir uma parte fixa do lucro da empresa todo ano",
           ],
-          "Emprestar com juros combinados é renda fixa.",
+          "Quem compra uma ação vira sócio e participa dos resultados, bons ou ruins. Emprestar com juros combinados é renda fixa.",
           {
             feedback: [
               "Isso descreve um título de dívida, não uma ação.",
-              "Ação não é produto; é participação.",
+              "Ação não garante lucro fixo: a empresa pode ter prejuízo ou não distribuir nada.",
             ],
           },
         ),
@@ -155,13 +155,13 @@ export const rendaVariavel: SkillPack = {
         c(
           "oscilacao",
           "Uma pessoa comprou ações por R$ 5.000 e hoje elas valem R$ 4.200, mas ela não vendeu. É correto dizer que:",
-          "Há uma perda não realizada de R$ 800, que pode aumentar, diminuir ou virar ganho",
-          ["Ela perdeu R$ 800 definitivamente", "Não há perda nenhuma"],
-          "Só a venda realiza o resultado; enquanto isso, ele muda com o preço.",
+          "Há uma perda de R$ 800 ainda não realizada",
+          ["Ela já perdeu R$ 800 de forma definitiva", "Não há perda, porque ela ainda não vendeu"],
+          "Só a venda realiza o resultado; enquanto isso, a perda de R$ 800 pode aumentar, diminuir ou virar ganho, conforme o preço.",
           {
             feedback: [
-              "A perda só se torna definitiva na venda.",
-              "O valor atual é menor que o pago.",
+              "A perda só se torna definitiva na venda; até lá o preço pode subir ou cair.",
+              "Não vender não apaga a queda: hoje as ações valem R$ 800 a menos do que custaram.",
             ],
           },
         ),
@@ -175,13 +175,16 @@ export const rendaVariavel: SkillPack = {
         c(
           "oscilacao",
           "Dinheiro que será usado para pagar uma cirurgia marcada para daqui a 3 meses deve estar:",
-          "Numa aplicação de baixo risco e alta liquidez, não em renda variável",
-          ["Em ações, que podem subir até lá", "Metade em ações para equilibrar"],
-          "Uma queda na hora errada comprometeria o pagamento.",
+          "Numa aplicação de baixo risco e alta liquidez",
+          [
+            "Em ações de empresas grandes, que oscilam menos",
+            "Metade em ações, para tentar ganhar um pouco mais",
+          ],
+          "Uma queda na hora errada comprometeria o pagamento; renda variável não combina com um prazo tão curto.",
           {
             feedback: [
-              "Em 3 meses as ações podem estar em queda.",
-              "Mesmo metade expõe um pagamento essencial ao risco.",
+              "Mesmo ações de empresas grandes podem cair bastante em 3 meses, bem na hora do pagamento.",
+              "Mesmo metade em ações expõe um pagamento essencial ao risco de queda.",
             ],
           },
         ),
@@ -195,13 +198,16 @@ export const rendaVariavel: SkillPack = {
         c(
           "oscilacao",
           "Por que prazos longos costumam ser recomendados para renda variável?",
-          "Porque dão mais tempo para atravessar quedas temporárias, embora não haja garantia de recuperação",
-          ["Porque no longo prazo as ações nunca caem", "Porque o imposto é zero no longo prazo"],
-          "O prazo ajuda, mas não elimina o risco.",
+          "Porque há mais tempo para atravessar quedas temporárias",
+          [
+            "Porque no longo prazo a recuperação é garantida",
+            "Porque o imposto sobre ações zera no longo prazo",
+          ],
+          "O prazo dá mais tempo para atravessar quedas temporárias, mas não há garantia de recuperação: ele ajuda, sem eliminar o risco.",
           {
             feedback: [
-              "Ações podem cair também no longo prazo.",
-              "O argumento é sobre oscilação, não imposto.",
+              "Ações podem cair também no longo prazo; o prazo aumenta as chances, mas não garante nada.",
+              "O argumento é sobre oscilação, não imposto; esperar mais não zera o imposto sobre ações.",
             ],
           },
         ),
@@ -289,9 +295,9 @@ export const rendaVariavel: SkillPack = {
         c(
           "carteira",
           "Numa crise que derruba o mercado inteiro, uma carteira diversificada só em ações:",
-          "Também cai, embora a diversificação reduza o peso de problemas de uma empresa só",
-          ["Não cai, porque está diversificada", "Cai mais que uma carteira concentrada"],
-          "Diversificação reduz risco específico, não o risco do mercado todo.",
+          "Também cai, mesmo estando diversificada",
+          ["Quase não cai, porque está diversificada", "Cai mais que uma carteira concentrada"],
+          "A diversificação reduz o peso de problemas de uma empresa só (risco específico), não o risco do mercado todo.",
           {
             feedback: [
               "Quedas gerais atingem quase todas as ações.",
@@ -309,13 +315,16 @@ export const rendaVariavel: SkillPack = {
         c(
           "carteira",
           "Uma carteira começou com 50% em ações e 50% em renda fixa. As ações subiram muito e hoje são 70%. Rebalancear significa:",
-          "Vender parte das ações e comprar renda fixa para voltar à proporção planejada",
-          ["Comprar mais ações, porque estão subindo", "Não fazer nada nunca"],
-          "Rebalancear mantém o nível de risco escolhido.",
+          "Vender parte das ações e comprar renda fixa",
+          [
+            "Comprar mais ações, porque estão subindo",
+            "Esperar as ações caírem para voltar aos 50%",
+          ],
+          "Rebalancear é voltar à proporção planejada de 50% e 50%, o que mantém o nível de risco escolhido.",
           {
             feedback: [
-              "Comprar mais aumentaria ainda mais o risco.",
-              "Sem rebalancear, o risco da carteira muda sozinho.",
+              "Comprar mais ações aumentaria ainda mais o risco e afastaria a carteira do plano.",
+              "Esperar a queda é apostar no preço, não rebalancear; enquanto isso, o risco fica maior que o planejado.",
             ],
           },
         ),
@@ -330,13 +339,16 @@ export const rendaVariavel: SkillPack = {
         c(
           "passado",
           "Um fundo rendeu 40% no último ano. A conclusão correta é:",
-          "Que rendeu 40% naquele ano, o que não garante nada sobre o próximo",
-          ["Que vai render 40% no próximo ano", "Que é o melhor investimento possível"],
-          "Resultado passado não é promessa.",
+          "Que rendeu 40% naquele ano, sem garantia futura",
+          [
+            "Que deve render perto de 40% no próximo ano",
+            "Que é o melhor investimento para qualquer pessoa",
+          ],
+          "Resultado passado não é promessa: o que aconteceu naquele ano não garante nada sobre o próximo.",
           {
             feedback: [
-              "O próximo ano pode ser muito diferente.",
-              "Um ano bom não define o melhor para todos.",
+              "O próximo ano pode ser muito diferente; resultado passado não é promessa.",
+              "Um ano bom não define o melhor para todos, e pode ter vindo junto com muito risco.",
             ],
           },
         ),
@@ -395,11 +407,17 @@ export const rendaVariavel: SkillPack = {
         c(
           "passado",
           "Qual frase é a leitura mais honesta de um gráfico de rentabilidade passada?",
-          "'Neste período, o investimento variou entre estes valores; o futuro pode ser diferente'",
-          ["'Este investimento sempre sobe'", "'Quem investir agora vai ganhar o mesmo'"],
-          "Descreve o passado sem prometer o futuro.",
+          "'Neste período variou assim; o futuro pode ser diferente'",
+          [
+            "'Como subiu no período, tende a continuar subindo'",
+            "'Quem investir agora vai ganhar o mesmo'",
+          ],
+          "Descreve o que o investimento fez no período, sem prometer o futuro.",
           {
-            feedback: ["'Sempre' ignora o risco.", "O passado não garante o futuro."],
+            feedback: [
+              "Uma alta passada pode se inverter; o gráfico não diz o que vem depois.",
+              "O passado não garante o futuro.",
+            ],
           },
         ),
         c(
@@ -455,13 +473,16 @@ export const rendaVariavel: SkillPack = {
         c(
           "cenarios-rv",
           "Aumentando a parte em ações de 40% para 80%, a diferença entre o cenário bom e o ruim:",
-          "Aumenta, porque mais dinheiro fica exposto à oscilação",
-          ["Diminui", "Não muda"],
-          "Mais peso em renda variável, maior a dispersão dos resultados.",
+          "Aumenta, pois mais dinheiro fica exposto",
+          [
+            "Diminui, pois o cenário bom compensa o ruim",
+            "Não muda, pois as variações das ações são as mesmas",
+          ],
+          "Mais peso em renda variável, maior a dispersão dos resultados: mais dinheiro fica exposto à oscilação.",
           {
             feedback: [
-              "Mais exposição aumenta a variação.",
-              "O peso muda o intervalo de resultados.",
+              "Mais ações deixam o cenário bom melhor e o ruim pior, então a distância entre eles cresce.",
+              "As variações das ações são as mesmas, mas agora valem sobre uma parte maior da carteira.",
             ],
           },
         ),
@@ -482,13 +503,16 @@ export const rendaVariavel: SkillPack = {
         c(
           "cenarios-rv",
           "Qual destas frases cabe numa análise responsável?",
-          "'Com as premissas adotadas, a carteira pode terminar entre R$ 9.280 e R$ 11.480; a escolha depende de quanto se aceita perder'",
-          ["'Invista 80% em ações, que é o melhor'", "'A carteira vai valer R$ 11.480'"],
-          "Mostra o intervalo e a dependência das preferências, sem prometer nem recomendar.",
+          "'Com estas premissas, fica entre R$ 9.280 e R$ 11.480; a escolha depende do risco aceito'",
+          [
+            "'Invista 80% em ações, que é a melhor escolha para todos'",
+            "'Pelas premissas adotadas, a carteira vai valer R$ 11.480'",
+          ],
+          "Declara as premissas, mostra o intervalo entre o cenário ruim e o bom e deixa a escolha para as preferências de cada um, sem prometer nem recomendar.",
           {
             feedback: [
-              "Recomendação pessoal ignora a situação de cada um.",
-              "Um cenário não é garantia.",
+              "Recomendação pessoal ignora objetivos, prazo e tolerância a perdas de cada um.",
+              "R$ 11.480 é só o cenário bom; premissas não transformam um cenário em garantia.",
             ],
           },
         ),
@@ -502,12 +526,12 @@ export const rendaVariavel: SkillPack = {
         c(
           "cenarios-rv",
           "Por que uma análise de cenários não deve terminar com 'faça isto'?",
-          "Porque a decisão depende de objetivos, prazos e tolerância a perdas de cada pessoa",
+          "Porque depende do objetivo, do prazo e do risco que cada um aceita",
           [
             "Porque as contas de cenários são aproximadas demais",
-            "Porque cenários nunca acertam o futuro",
+            "Porque cenários nunca acertam o que vai acontecer",
           ],
-          "A análise informa; a decisão é de cada um.",
+          "A análise informa; a decisão depende de objetivos, prazos e tolerância a perdas de cada pessoa.",
           {
             feedback: [
               "Contas aproximadas ainda informam; o que falta é a situação de cada pessoa.",

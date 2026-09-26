@@ -1,6 +1,6 @@
 # Operação do Missão Saber
 
-Publicado em 13/09/2026 em https://missao-saber.informach.com.br. A versão comercial atende estudantes do 3º ano à 3ª série do ensino médio (onda 1 de 8º/9º, OBMEP N2, Canguru C e OLITEF N2; onda 2 de 3º a 5º, Canguru P e Mirim 2; e onda 3 do ensino médio, OBMEP N3, Canguru J, Canguru S e OLITEF N3, publicadas em 26/09/2026) e permanece com `noindex` enquanto a família valida o produto. Compra e estudo não dependem de aprovação de conteúdo.
+Publicado em 13/09/2026 em https://missao-saber.informach.com.br. A versão comercial atende estudantes do 2º ano à 3ª série do ensino médio (onda 1 de 8º/9º, OBMEP N2, Canguru C e OLITEF N2; onda 2 de 3º a 5º, Canguru P e Mirim 2; onda 3 do ensino médio, OBMEP N3, Canguru J, Canguru S e OLITEF N3; e onda 4 de 2º e 3º, Mirim 1, publicadas em 26/09/2026) e permanece com `noindex` enquanto a família valida o produto. Compra e estudo não dependem de aprovação de conteúdo.
 
 ## Serviços
 
@@ -30,7 +30,7 @@ Em falha de aplicação, promover o último deployment saudável compatível com
 
 ## Catálogo e manutenção
 
-O catálogo comercial contém 266 missões e 2.706 atividades autorais únicas: 2.394 de ensino/prática e 312 reservadas em 26 bancos de diagnóstico e simulado. Há 160 desafios de justificativa e três laboratórios. As habilidades das faixas novas vivem em `src/features/content/skills/` (um arquivo por habilidade) e as trilhas em `src/features/content/tracks/`; os números são conferidos por snapshot em `inventory.test.ts`, atualizado de propósito a cada lote. Cada lote tem registro em `docs/propostas/missao-saber-2026-09-13/lotes-de-autoria/` e recebe revisão matemática independente antes de os hashes entrarem em `reviewed-catalog.ts`. As 96 questões de avaliação permanecem distintas mesmo sem a numeração visual e formam 26 famílias semânticas compartilhadas entre diagnóstico e simulado, de modo que o produto identifica corretamente a segunda exposição como prática. OLITEF N1, Canguru E, Canguru B e OBMEP N1 compartilham fundamentos sem duplicar a contagem.
+O catálogo comercial contém 291 missões e 2.960 atividades autorais únicas: 2.624 de ensino/prática e 336 reservadas em 28 bancos de diagnóstico e simulado. Há 175 desafios de justificativa e três laboratórios. As habilidades das faixas novas vivem em `src/features/content/skills/` (um arquivo por habilidade) e as trilhas em `src/features/content/tracks/`; os números são conferidos por snapshot em `inventory.test.ts`, atualizado de propósito a cada lote. Cada lote tem registro em `docs/propostas/missao-saber-2026-09-13/lotes-de-autoria/` e recebe revisão matemática independente antes de os hashes entrarem em `reviewed-catalog.ts`. As 96 questões de avaliação permanecem distintas mesmo sem a numeração visual e formam 26 famílias semânticas compartilhadas entre diagnóstico e simulado, de modo que o produto identifica corretamente a segunda exposição como prática. OLITEF N1, Canguru E, Canguru B e OBMEP N1 compartilham fundamentos sem duplicar a contagem.
 
 `MISSAO_CONTENT_MANAGER_EMAILS=helena@informach.com.br` dá acesso à manutenção para uma conta verificada. `/manutencao` permite consultar relatos, pausar uma unidade com problema, corrigir, invalidar a evidência atingida e reativar. Esse é um controle de incidente; não existe fila editorial nem aprovação prévia.
 

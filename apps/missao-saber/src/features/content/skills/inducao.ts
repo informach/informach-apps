@@ -64,11 +64,14 @@ export const inducao: SkillPack = {
         c(
           "conjecturar",
           "A sequência 1, 2, 4, 8, 16 sugere 2ⁿ⁻¹. Em que casos a conjectura 'próximo termo é 32' pode falhar?",
-          "Quando a regra geradora é outra, como o número máximo de regiões de um círculo com n pontos ligados, que dá 31 no sexto termo",
-          ["Nunca; cinco termos bastam", "Só se a sequência for finita"],
-          "Regras diferentes coincidem nos primeiros termos.",
+          "Quando outra regra também gera 1, 2, 4, 8, 16",
+          ["Nunca; cinco termos já fixam a regra", "Só se algum dos cinco termos estiver errado"],
+          "Regras diferentes podem coincidir nos primeiros termos. O número máximo de regiões de um círculo com n pontos ligados dá 1, 2, 4, 8, 16 e depois 31.",
           {
-            feedback: ["Casos não determinam a regra.", "A regra é que decide, não o tamanho."],
+            feedback: [
+              "Cinco casos não determinam a regra: as regiões de um círculo com n pontos ligados também começam 1, 2, 4, 8, 16 e seguem com 31.",
+              "Os cinco termos podem estar todos certos e o sexto ainda assim não ser 32; quem decide é a regra que gera a sequência.",
+            ],
           },
         ),
         n(
@@ -100,12 +103,12 @@ export const inducao: SkillPack = {
           "estrutura",
           "Numa prova por indução de que 1 + 2 + ... + n = n(n + 1)/2, a hipótese de indução é:",
           "1 + 2 + ... + k = k(k + 1)/2 para um certo k",
-          ["A fórmula vale para todo n", "1 = 1 × 2/2"],
+          ["1 + 2 + ... + n = n(n + 1)/2 para todo n", "1 + 2 + ... + (k + 1) = (k + 1)(k + 2)/2"],
           "Supõe-se o caso k para provar o caso k + 1.",
           {
             feedback: [
-              "Supor para todo n seria supor o que se quer provar.",
-              "Isso é a base, não a hipótese de indução.",
+              "Supor a fórmula para todo n seria supor exatamente o que se quer provar.",
+              "Esse é o caso k + 1, que o passo precisa provar; a hipótese é o caso k.",
             ],
           },
         ),
@@ -123,21 +126,27 @@ export const inducao: SkillPack = {
         c(
           "estrutura",
           "Uma prova por indução sem o caso base:",
-          "Não prova nada: o passo só transfere a verdade de k para k + 1, mas de onde ela começa?",
+          "Não prova nada, pois falta onde a cadeia começa",
           ["Vale, porque o passo é o mais importante", "Vale se o passo for feito duas vezes"],
-          "Exemplo: 'n = n + 1' passa de k para k + 1 e é falso.",
+          "O passo só transfere a verdade de k para k + 1; sem a base, nada garante que ela comece. Exemplo: 'n = n + 1' passa de k para k + 1 e é falso.",
           {
-            feedback: ["Sem base, nada garante P(1).", "Repetir o passo não cria a base."],
+            feedback: [
+              "O passo sozinho só diz 'se vale para k, vale para k + 1'; sem a base, nada garante P(1), e a cadeia não começa.",
+              "Repetir o passo continua transferindo uma verdade que ninguém garantiu; não cria a base.",
+            ],
           },
         ),
         c(
           "estrutura",
           "Para provar que 2ⁿ > n para todo n ≥ 1, o passo indutivo usa 2ᵏ⁺¹ = 2 × 2ᵏ > 2k e depois:",
           "2k ≥ k + 1 para k ≥ 1",
-          ["2k = k + 1", "k > k + 1"],
+          ["2k = k + 1", "2k > k + 2 para k ≥ 1"],
           "2k ≥ k + 1 equivale a k ≥ 1.",
           {
-            feedback: ["2k = k + 1 só em k = 1.", "k > k + 1 é sempre falso."],
+            feedback: [
+              "2k = k + 1 só vale em k = 1; o passo precisa de algo válido para todo k ≥ 1.",
+              "2k > k + 2 equivale a k > 2, então falha em k = 1 e k = 2; além disso, basta chegar a k + 1.",
+            ],
           },
         ),
         n(
@@ -160,13 +169,13 @@ export const inducao: SkillPack = {
         c(
           "estrutura",
           "O 'passo indutivo' falho no falso argumento 'todos os cavalos têm a mesma cor' quebra em:",
-          "k = 1 para k = 2: dois grupos de um cavalo não têm cavalo em comum",
-          ["k = 100", "Na base"],
-          "O argumento supõe sobreposição entre os grupos, que falha para k + 1 = 2.",
+          "Na passagem de k = 1 para k = 2",
+          ["Na passagem de k = 100 para k = 101", "Na base, com um cavalo só"],
+          "O argumento supõe que os dois grupos de k cavalos se sobrepõem. De k = 1 para k = 2, cada grupo tem um cavalo só e não há cavalo em comum: a cadeia quebra no primeiro elo.",
           {
             feedback: [
-              "Para k grande a sobreposição existe; o furo é no início.",
-              "A base (um cavalo) é verdadeira.",
+              "Para k grande a sobreposição entre os grupos existe; o furo está no início, de 1 para 2.",
+              "A base é verdadeira: um cavalo sozinho tem, é claro, a mesma cor que ele mesmo.",
             ],
           },
         ),
@@ -256,13 +265,16 @@ export const inducao: SkillPack = {
         c(
           "somas",
           "Numa prova por indução de uma desigualdade, depois de usar a hipótese costuma faltar:",
-          "Uma desigualdade auxiliar simples que vale para k a partir da base",
-          ["Nada; a hipótese fecha a prova", "Outra indução dentro da indução"],
-          "Por exemplo, 2k ≥ k + 1 para k ≥ 1.",
+          "Uma desigualdade simples válida a partir da base",
+          [
+            "Nada, pois a hipótese sozinha já fecha a prova",
+            "Outra indução completa dentro do passo",
+          ],
+          "A hipótese dá o lado de k; para chegar ao lado de k + 1 costuma faltar uma desigualdade simples, como 2k ≥ k + 1 para k ≥ 1.",
           {
             feedback: [
-              "A hipótese dá o lado de k; falta chegar ao lado de k + 1.",
-              "Raramente é preciso outra indução.",
+              "A hipótese dá o lado de k; ainda falta uma conta que leve ao lado de k + 1.",
+              "Raramente é preciso outra indução; em geral basta uma desigualdade simples, como 2k ≥ k + 1.",
             ],
           },
         ),
@@ -284,11 +296,17 @@ export const inducao: SkillPack = {
         c(
           "processos",
           "A recorrência da torre de Hanói é Hₙ = 2Hₙ₋₁ + 1 porque:",
-          "Move-se a torre de n − 1 discos, depois o maior, depois a torre de n − 1 de novo",
-          ["Cada disco se move duas vezes", "O maior disco se move n vezes"],
-          "Dois movimentos da torre menor e um do maior.",
+          "A torre de n − 1 muda de lugar duas vezes; o maior, uma",
+          [
+            "Cada disco se move duas vezes, mais um movimento extra",
+            "O maior disco se move n vezes e os demais, uma vez",
+          ],
+          "Para mover o maior disco, a torre de n − 1 discos sai de cima dele (Hₙ₋₁ movimentos), o maior se move (1) e a torre volta para cima dele (Hₙ₋₁): 2Hₙ₋₁ + 1.",
           {
-            feedback: ["Os discos pequenos se movem muitas vezes.", "O maior se move uma vez só."],
+            feedback: [
+              "Os discos pequenos se movem muito mais que duas vezes; o menor se move 2ⁿ⁻¹ vezes. O 2 da fórmula conta a torre de n − 1 inteira, não cada disco.",
+              "É o contrário: o maior disco se move uma vez só, e os pequenos se movem muitas vezes.",
+            ],
           },
         ),
         n(
@@ -301,13 +319,16 @@ export const inducao: SkillPack = {
         c(
           "processos",
           "Na prova de que um tabuleiro 2ⁿ × 2ⁿ menos uma casa é coberto por L-triminós, o passo indutivo:",
-          "Divide em 4 quadrantes, coloca um L no centro cobrindo uma casa de cada um dos 3 quadrantes sem a casa removida, e aplica a hipótese a cada quadrante",
-          ["Cobre linha por linha", "Usa que 4ⁿ − 1 é múltiplo de 3"],
-          "Cada quadrante fica com exatamente uma casa faltando.",
+          "Divide em 4 quadrantes, põe um L no centro e aplica a hipótese",
+          [
+            "Divide em 4 quadrantes e aplica a hipótese direto a cada um",
+            "Usa que 4ⁿ − 1 é múltiplo de 3 para contar as peças",
+          ],
+          "O L no centro cobre uma casa de cada um dos 3 quadrantes sem a casa removida. Assim, cada quadrante fica com exatamente uma casa faltando e a hipótese vale para os quatro.",
           {
             feedback: [
-              "Linha por linha não fecha em geral.",
-              "A divisibilidade é necessária, mas não constrói a cobertura.",
+              "Só um quadrante tem a casa removida; os outros três estão completos e a hipótese não se aplica a eles. É o L no centro que tira uma casa de cada um.",
+              "A divisibilidade garante que a conta de casas fecha, mas não constrói a cobertura.",
             ],
           },
         ),
@@ -321,11 +342,17 @@ export const inducao: SkillPack = {
         c(
           "processos",
           "Por que a k-ésima reta nova acrescenta exatamente k regiões?",
-          "Ela cruza as k − 1 retas anteriores em k − 1 pontos, ficando dividida em k pedaços, e cada pedaço corta uma região em duas",
-          ["Porque cada reta divide o plano em 2", "Porque k retas formam k triângulos"],
-          "Cada pedaço da reta nova gera uma região nova.",
+          "Ela fica cortada em k pedaços, e cada pedaço divide uma região",
+          [
+            "Ela divide ao meio cada uma das regiões que já existiam",
+            "Cada cruzamento com uma reta anterior cria uma região nova",
+          ],
+          "A reta nova cruza as k − 1 anteriores em k − 1 pontos, que a dividem em k pedaços. Cada pedaço atravessa uma região e a corta em duas: k regiões novas.",
           {
-            feedback: ["Isso só vale para a primeira reta.", "Não há relação com triângulos."],
+            feedback: [
+              "A reta nova só atravessa algumas regiões; se dividisse todas ao meio, o total dobraria, e 1, 2, 4, 7, 11 não dobra.",
+              "Os k − 1 cruzamentos dariam só k − 1 regiões novas; o que conta são os pedaços da reta, e k − 1 pontos a cortam em k pedaços.",
+            ],
           },
         ),
         n(
@@ -396,12 +423,12 @@ export const inducao: SkillPack = {
           "generalizar",
           "Para provar que toda quantia de 8 ou mais reais pode ser paga com notas de 3 e 5, usando o passo de n − 3 para n (acrescentando uma nota de 3), quais casos base são necessários?",
           "8 = 3 + 5, 9 = 3 + 3 + 3 e 10 = 5 + 5",
-          ["Só 8 = 3 + 5", "Só 9 = 3 + 3 + 3"],
+          ["Só 8 = 3 + 5", "8 = 3 + 5 e 9 = 3 + 3 + 3"],
           "Com o passo de 3, cada valor n ≥ 11 vem de n − 3; os três primeiros valores precisam ser verificados diretamente.",
           {
             feedback: [
-              "Com passo de 3 em 3, só o 8 não alcança 9 e 10.",
-              "Só o 9 não alcança 8 e 10.",
+              "Partindo só do 8, o passo de 3 em 3 alcança 11, 14, 17, ...; o 9 e o 10 nunca seriam cobertos.",
+              "Com 8 e 9, o passo de 3 em 3 alcança 11, 12, 14, 15, ..., mas nunca o 10 nem o 13; falta verificar 10 = 5 + 5.",
             ],
           },
         ),
@@ -415,13 +442,16 @@ export const inducao: SkillPack = {
         c(
           "generalizar",
           "Quando a indução NÃO é o método natural?",
-          "Quando a afirmação não é sobre inteiros sucessivos nem tem estrutura de 'próximo passo', como uma propriedade de todos os triângulos",
-          ["Quando n é muito grande", "Quando a afirmação é uma desigualdade"],
-          "Triângulos não vêm indexados por n.",
+          "Quando a afirmação não tem estrutura de 'próximo passo'",
+          [
+            "Quando os valores de n envolvidos são muito grandes",
+            "Quando a afirmação é uma desigualdade, não uma igualdade",
+          ],
+          "A indução pede uma afirmação sobre inteiros sucessivos, em que cada caso se apoia no anterior. Uma propriedade de todos os triângulos, por exemplo, não vem indexada por n.",
           {
             feedback: [
-              "O tamanho de n não importa para a indução.",
-              "Desigualdades se provam bem por indução.",
+              "O tamanho de n não importa para a indução: a prova cobre todos os n de uma vez.",
+              "Desigualdades se provam bem por indução, como 2ⁿ > n e n! > 2ⁿ.",
             ],
           },
         ),

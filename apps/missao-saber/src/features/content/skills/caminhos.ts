@@ -314,13 +314,16 @@ export const caminhos: SkillPack = {
         c(
           "regras",
           "Para contar caminhos que passam por um ponto obrigatório, o jeito certo é:",
-          "Contar os caminhos até o ponto, contar os caminhos do ponto até o fim e multiplicar",
-          ["Contar todos os caminhos e somar 1", "Contar só os caminhos até o ponto"],
-          "Trechos em sequência: multiplicam.",
+          "Contar os caminhos até o ponto e os do ponto ao fim, e multiplicar",
+          [
+            "Contar os caminhos até o ponto e os do ponto ao fim, e somar",
+            "Contar todos os caminhos, passando ou não pelo ponto",
+          ],
+          "Trechos em sequência se multiplicam: cada caminho até o ponto pode continuar por qualquer caminho do ponto até o fim.",
           {
             feedback: [
-              "Somar 1 não tem relação com o ponto obrigatório.",
-              "Falta o trecho depois do ponto.",
+              "Os dois trechos vêm um depois do outro, então cada caminho da primeira parte combina com cada caminho da segunda: é multiplicação, não soma.",
+              "Assim entram também os caminhos que não passam pelo ponto obrigatório.",
             ],
           },
         ),
@@ -360,12 +363,15 @@ export const caminhos: SkillPack = {
         c(
           "labirinto",
           "Ao chegar a um beco sem saída, o melhor a fazer é:",
-          "Voltar até a última bifurcação e tentar outra saída, marcando a que já foi tentada",
-          ["Ficar parado esperando", "Voltar até o começo e tentar tudo de novo"],
-          "Voltar só até a última escolha economiza caminho e evita repetir.",
+          "Voltar à última bifurcação e tentar outra saída",
+          [
+            "Tentar de novo o mesmo caminho, com mais cuidado",
+            "Voltar até o começo e tentar tudo de novo",
+          ],
+          "Voltar só até a última escolha economiza caminho e evita repetir. Marcar a saída que já foi tentada ajuda a não entrar nela outra vez.",
           {
             feedback: [
-              "Esperar não muda o labirinto.",
+              "Um beco continua sendo beco: repetir o mesmo caminho leva ao mesmo lugar.",
               "Voltar ao começo repete trechos que já se sabe que funcionam.",
             ],
           },
@@ -410,13 +416,13 @@ export const caminhos: SkillPack = {
         c(
           "labirinto",
           "Por que marcar o caminho evita andar em círculos num labirinto com voltas?",
-          "Porque, ao rever a marca, a pessoa sabe que já passou ali e escolhe outra saída",
-          ["Porque a marca abre passagens novas", "Não evita; só sorte evita"],
-          "A marca transforma memória em informação visível.",
+          "Porque a marca mostra por onde já se passou",
+          ["Porque a marca mostra onde fica a saída", "Porque a marca deixa o caminho mais curto"],
+          "Ao rever a marca, a pessoa sabe que já passou ali e escolhe outra saída. A marca transforma memória em informação visível.",
           {
             feedback: [
-              "A marca não muda o labirinto, muda o que a pessoa sabe.",
-              "Com marcação, a estratégia funciona sem sorte.",
+              "A marca não mostra a saída; ela só mostra os lugares por onde a pessoa já andou.",
+              "O labirinto continua do mesmo tamanho; a marca só evita que a pessoa repita trechos.",
             ],
           },
         ),
@@ -460,11 +466,14 @@ export const caminhos: SkillPack = {
         c(
           "escolher",
           "Se a regra é 'passar pela padaria', e o caminho pela padaria é mais comprido, qual caminho escolher?",
-          "O que passa pela padaria, porque a regra vem antes da distância",
-          ["O mais curto, sempre", "Nenhum dos dois"],
-          "Primeiro se obedece à regra; depois, entre os que obedecem, escolhe-se o melhor.",
+          "O que passa pela padaria",
+          ["O mais curto, sempre", "Tanto faz, os dois servem"],
+          "A regra vem antes da distância: primeiro se obedece à regra; depois, entre os que obedecem, escolhe-se o melhor.",
           {
-            feedback: ["O mais curto não cumpre a regra.", "Há um caminho que cumpre a regra."],
+            feedback: [
+              "Ser mais curto não adianta se o caminho não cumpre a regra.",
+              "O caminho mais curto não passa pela padaria, então não serve.",
+            ],
           },
         ),
         n(
@@ -478,12 +487,12 @@ export const caminhos: SkillPack = {
           "escolher",
           "Um mapa mostra dois caminhos até o cinema: um por 4 quarteirões planos e outro por 3 quarteirões de ladeira. Para quem vai de bicicleta e quer menos esforço, o critério importante é:",
           "A subida, não só a quantidade de quarteirões",
-          ["Só a quantidade de quarteirões", "A cor das ruas no mapa"],
+          ["Só a quantidade de quarteirões", "O caminho que parece mais reto no mapa"],
           "O critério muda a escolha: 3 quarteirões de subida podem cansar mais que 4 planos.",
           {
             feedback: [
               "Só contar quarteirões ignora o esforço da ladeira.",
-              "A cor do mapa não diz nada sobre esforço.",
+              "Parecer reto no desenho não diz nada sobre o esforço; o que cansa é a ladeira, e ela pode estar justamente no caminho mais reto.",
             ],
           },
         ),
@@ -505,9 +514,9 @@ export const caminhos: SkillPack = {
         c(
           "escolher",
           "Duda quer o caminho mais curto e Rui quer o caminho que passa pela loja de doces. Eles vão juntos. O que devem fazer?",
-          "Escolher primeiro o critério em comum ou combinar: entre os caminhos que passam pela loja, pegar o mais curto",
-          ["Cada um vai por um lado", "Ir pelo mais curto e esquecer a loja"],
-          "Combinar critérios: obedecer a regra e depois escolher o mais curto.",
+          "Entre os caminhos pela loja, pegar o mais curto",
+          ["Cada um vai pelo caminho que prefere", "Ir pelo mais curto e esquecer a loja"],
+          "Combinar critérios: primeiro ficar só com os caminhos que passam pela loja, como Rui quer, e entre eles escolher o mais curto, como Duda quer.",
           {
             feedback: [
               "Eles vão juntos; precisam de um caminho só.",
@@ -518,13 +527,13 @@ export const caminhos: SkillPack = {
         c(
           "escolher",
           "Antes de escolher um caminho, a primeira pergunta deve ser:",
-          "O que eu quero: o mais curto, o mais rápido ou o que passa por algum lugar?",
-          ["Qual caminho é mais bonito?", "Qual caminho tem o nome mais fácil?"],
-          "O critério define a comparação.",
+          "O que eu quero: mais curto, mais rápido ou outro?",
+          ["Qual caminho parece mais bonito?", "Qual caminho tem menos curvas no mapa?"],
+          "O critério define a comparação: o mais curto, o mais rápido ou o que passa por algum lugar.",
           {
             feedback: [
               "Beleza pode ser um critério, mas só se for o que se quer.",
-              "O nome não ajuda a comparar caminhos.",
+              "Menos curvas não quer dizer mais curto nem mais rápido; primeiro é preciso saber o que se quer.",
             ],
           },
         ),

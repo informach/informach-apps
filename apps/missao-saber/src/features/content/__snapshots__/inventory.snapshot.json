@@ -1,33 +1,33 @@
 {
   "totals": {
-    "missions": 266,
-    "assessmentBanks": 26,
-    "teachingItems": 2394,
-    "reservedItems": 312,
-    "uniqueItemIds": 2706,
-    "distinctActivitySignatures": 2706,
-    "justificationItems": 160,
-    "teachingFamilies": 833,
-    "assessmentFamilies": 104
+    "missions": 291,
+    "assessmentBanks": 28,
+    "teachingItems": 2624,
+    "reservedItems": 336,
+    "uniqueItemIds": 2960,
+    "distinctActivitySignatures": 2960,
+    "justificationItems": 175,
+    "teachingFamilies": 888,
+    "assessmentFamilies": 116
   },
   "byDomain": {
     "canguru": 692,
     "common": 944,
-    "mirim": 70,
+    "mirim": 324,
     "obmep": 372,
     "olitef": 628
   },
   "byFormat": {
-    "choice": 1576,
-    "justification": 160,
-    "numeric": 810,
-    "ordering": 160
+    "choice": 1705,
+    "justification": 175,
+    "numeric": 905,
+    "ordering": 175
   },
   "byPurpose": {
-    "assessment": 312,
-    "discovery": 531,
-    "guided-practice": 1173,
-    "independent-practice": 690
+    "assessment": 336,
+    "discovery": 581,
+    "guided-practice": 1288,
+    "independent-practice": 755
   },
   "bySkill": {
     "argumentacao-em": 48,
@@ -39,6 +39,7 @@
     "contagem": 54,
     "contagem-casos": 52,
     "contagem-inicial": 54,
+    "contar-e-comparar": 52,
     "coordenadas": 50,
     "coordenadas-em": 48,
     "equacoes": 54,
@@ -46,6 +47,7 @@
     "equivalencia-temporal": 52,
     "espaco": 50,
     "estruturas-numericas": 50,
+    "formas-e-posicoes": 52,
     "fracoes": 64,
     "funcoes": 54,
     "gavetas": 46,
@@ -59,6 +61,7 @@
     "logica-em": 50,
     "logica-n2": 50,
     "medidas": 52,
+    "medir-e-comparar": 50,
     "modelos-financeiros": 52,
     "orcamento": 46,
     "orcamento-n2": 50,
@@ -73,12 +76,14 @@
     "precos": 46,
     "probabilidade": 48,
     "probabilidade-em": 52,
+    "problemas-com-desenho": 50,
     "proporcao": 58,
     "recorrencias": 54,
     "renda-fixa": 50,
     "renda-variavel": 50,
     "restos": 50,
     "semelhanca": 54,
+    "sequencias-iniciais": 50,
     "simetria": 50,
     "tabelas": 50,
     "tempo-e-medidas": 54,
@@ -322,6 +327,23 @@
       "missions": 25,
       "diagnosticItems": 12,
       "examItems": 12
+    },
+    "mirim-1": {
+      "label": "Mirim · 1",
+      "grades": [
+        2,
+        3
+      ],
+      "skills": [
+        "contar-e-comparar",
+        "formas-e-posicoes",
+        "sequencias-iniciais",
+        "medir-e-comparar",
+        "problemas-com-desenho"
+      ],
+      "missions": 25,
+      "diagnosticItems": 12,
+      "examItems": 12
     }
   },
   "lots": [
@@ -509,6 +531,24 @@
       "number": 31,
       "firstItemId": "cenarios-1-1",
       "lastItemId": "bank:exam:olitef-n3-12",
+      "items": 70
+    },
+    {
+      "number": 32,
+      "firstItemId": "contar-e-comparar-1-1",
+      "lastItemId": "formas-e-posicoes-5-10",
+      "items": 92
+    },
+    {
+      "number": 33,
+      "firstItemId": "sequencias-iniciais-1-1",
+      "lastItemId": "medir-e-comparar-5-10",
+      "items": 92
+    },
+    {
+      "number": 34,
+      "firstItemId": "problemas-com-desenho-1-1",
+      "lastItemId": "bank:exam:mirim-1-12",
       "items": 70
     }
   ]

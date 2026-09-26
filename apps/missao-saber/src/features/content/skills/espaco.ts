@@ -84,13 +84,13 @@ export const espaco: SkillPack = {
         c(
           "euler",
           "Existe um poliedro convexo com 7 arestas?",
-          "Não: um tetraedro já tem 6 e não há como montar um com exatamente 7",
-          ["Sim, uma pirâmide de base triangular", "Sim, qualquer prisma"],
-          "A tem que satisfazer 3F ≤ 2A e 3V ≤ 2A; com A = 7 não há solução de Euler.",
+          "Não, nenhum poliedro convexo tem 7 arestas",
+          ["Sim, uma pirâmide de base triangular", "Sim, um prisma de base triangular"],
+          "O tetraedro, com 6 arestas, é o menor, mas 7 não dá: A tem que satisfazer 3F ≤ 2A e 3V ≤ 2A; com A = 7 não há solução de Euler.",
           {
             feedback: [
-              "A pirâmide triangular é o tetraedro, com 6 arestas.",
-              "O menor prisma tem 9 arestas.",
+              "A pirâmide de base triangular é o tetraedro, com 6 arestas: 3 na base e 3 laterais.",
+              "O prisma de base triangular tem 9 arestas: 3 em cada base e 3 laterais.",
             ],
           },
         ),
@@ -248,10 +248,13 @@ export const espaco: SkillPack = {
           "volume",
           "Qual tem mais volume: uma esfera de raio 3 ou um cubo de aresta 5?",
           "O cubo: 125 contra cerca de 113",
-          ["A esfera", "Empatam"],
-          "(4/3)π × 27 = 36π ≈ 113,1.",
+          ["A esfera: cerca de 339 contra 125", "Empatam, com cerca de 125 cada"],
+          "(4/3)π × 27 = 36π ≈ 113,1, menos que os 125 do cubo.",
           {
-            feedback: ["36π ≈ 113 < 125.", "113 e 125 são diferentes."],
+            feedback: [
+              "339 vem de 4π × 27, esquecendo o 1/3 da fórmula; o volume da esfera é (4/3)π × 27 = 36π ≈ 113.",
+              "O volume da esfera é 36π ≈ 113,1, não 125; o cubo tem cerca de 12 unidades a mais.",
+            ],
           },
         ),
         n(
@@ -457,12 +460,12 @@ export const espaco: SkillPack = {
           "coordenadas-espaco",
           "Para embalar a maior quantidade de líquido com a menor área de material, entre um cubo e uma esfera de mesmo volume, é melhor:",
           "A esfera, porque tem a menor área para um dado volume",
-          ["O cubo, porque é mais fácil de fazer", "Tanto faz, a área é a mesma"],
+          ["O cubo, porque não deixa espaços vazios", "Tanto faz, a área é a mesma"],
           "Entre todos os sólidos de mesmo volume, a esfera tem a menor superfície.",
           {
             feedback: [
-              "Facilidade de fabricação é outro critério, não o da área.",
-              "A esfera tem área menor que o cubo de mesmo volume.",
+              "Cubos se encaixam sem vãos numa caixa, mas a pergunta é o material de cada embalagem, e a esfera gasta menos área.",
+              "Mesmo volume não significa mesma área: a esfera tem área menor que o cubo de mesmo volume.",
             ],
           },
         ),

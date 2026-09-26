@@ -187,9 +187,9 @@ export const equacoes: SkillPack = {
         c(
           "conferir-solucao",
           "Qual afirmação sobre a equação 4x + 6 = 4x − 2 está correta?",
-          "Não tem solução, porque 6 nunca é igual a −2",
+          "Não tem solução",
           ["A solução é x = −2", "A solução é x = 0"],
-          "Tirando 4x dos dois lados sobra 6 = −2, que é falso para qualquer x.",
+          "Tirando 4x dos dois lados sobra 6 = −2, que é falso para qualquer x: 6 nunca é igual a −2.",
           {
             feedback: [
               "Com x = −2: 4(−2) + 6 = −2 e 4(−2) − 2 = −10, lados diferentes.",
@@ -307,9 +307,9 @@ export const equacoes: SkillPack = {
         c(
           "interpretar-solucao",
           "Ao resolver um problema sobre quantidade de ingressos, um estudante encontrou x = 12,5. O que isso indica?",
-          "Que há um erro no modelo ou nas contas, pois ingressos são contados em unidades inteiras",
+          "Que há um erro no modelo ou nas contas",
           ["Que a resposta é 12 ingressos", "Que a resposta é 13 ingressos"],
-          "Um número que não faz sentido no contexto pede revisão da equação, não arredondamento.",
+          "Ingressos são contados em unidades inteiras. Um número que não faz sentido no contexto pede revisão da equação, não arredondamento.",
           {
             feedback: [
               "Arredondar para baixo não corrige um modelo errado.",

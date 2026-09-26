@@ -31,13 +31,13 @@ export const inflacao: SkillPack = {
         c(
           "conceito",
           "Inflação significa:",
-          "Aumento geral e contínuo dos preços, que reduz o poder de compra do dinheiro",
-          ["Aumento do preço de um único produto", "Queda dos salários"],
-          "A inflação é medida por uma cesta de produtos e serviços, não por um item isolado.",
+          "Aumento geral e contínuo dos preços",
+          ["Aumento do preço de um único produto", "Queda geral dos salários em reais"],
+          "É um aumento geral e contínuo dos preços, que reduz o poder de compra do dinheiro. A inflação é medida por uma cesta de produtos e serviços, não por um item isolado.",
           {
             feedback: [
               "Um produto pode subir por motivo próprio, como uma safra ruim; inflação é o conjunto.",
-              "Salários podem até subir; o que cai é o quanto eles compram.",
+              "Com inflação, os salários em reais podem até subir; o que cai é o quanto eles compram.",
             ],
           },
         ),
@@ -181,13 +181,13 @@ export const inflacao: SkillPack = {
         c(
           "ganho-real",
           "Um investimento rendeu 10% em um ano com inflação de 10%. Em poder de compra, o investidor:",
-          "Ficou no mesmo lugar: rendimento real zero",
-          ["Ganhou 10%", "Ganhou 20%"],
-          "1,10 ÷ 1,10 = 1.",
+          "Ficou no mesmo lugar",
+          ["Ganhou 10%", "Perdeu 10%"],
+          "1,10 ÷ 1,10 = 1: rendimento real zero, o dinheiro compra o mesmo que antes.",
           {
             feedback: [
               "Os 10% de rendimento só repuseram a inflação.",
-              "Somar rendimento e inflação não tem sentido.",
+              "Os preços subiram 10%, mas o dinheiro também rendeu 10%; uma alta compensou a outra.",
             ],
           },
         ),
@@ -210,10 +210,13 @@ export const inflacao: SkillPack = {
           "ganho-real",
           "Uma poupança rendeu 6% em um ano; a inflação foi 7%. O que aconteceu com o dinheiro?",
           "Aumentou em reais e diminuiu em poder de compra",
-          ["Aumentou em poder de compra", "Diminuiu em reais"],
+          ["Aumentou em reais e em poder de compra", "Diminuiu em reais e em poder de compra"],
           "Há mais reais na conta, mas eles compram menos do que antes.",
           {
-            feedback: ["Render menos que a inflação é perda real.", "Em reais o saldo cresceu 6%."],
+            feedback: [
+              "Os reais aumentaram, mas render 6% com preços subindo 7% é perda de poder de compra.",
+              "Em reais o saldo cresceu 6%; só o poder de compra diminuiu.",
+            ],
           },
         ),
       ],
@@ -282,13 +285,13 @@ export const inflacao: SkillPack = {
         c(
           "acumulado",
           "Se a inflação foi 1% ao mês durante 12 meses, a inflação do ano fica:",
-          "Um pouco acima de 12%, cerca de 12,7%",
-          ["Exatamente 12%", "Menos de 12%"],
-          "1,01¹² é cerca de 1,127.",
+          "Um pouco acima de 12%",
+          ["Exatamente 12%", "Um pouco abaixo de 12%"],
+          "1,01¹² é cerca de 1,127: a inflação do ano fica perto de 12,7%.",
           {
             feedback: [
-              "Multiplicar os fatores dá mais que somar as taxas.",
-              "Acumular aumentos nunca dá menos que a soma.",
+              "12% soma as taxas; multiplicar os fatores dá mais que isso.",
+              "Cada mês incide sobre preços que já subiram, então o acumulado passa da soma, não fica abaixo.",
             ],
           },
         ),
@@ -382,12 +385,12 @@ export const inflacao: SkillPack = {
         c(
           "ler-grafico",
           "Em um gráfico, a inflação anual caiu de 10% para 4%. Isso significa que:",
-          "Os preços subiram menos que no ano anterior, mas continuaram subindo",
-          ["Os preços caíram 6%", "Os preços voltaram ao nível anterior"],
-          "4% ainda é aumento; só a velocidade diminuiu.",
+          "Os preços subiram, porém mais devagar",
+          ["Os preços caíram 6% no ano", "Os preços voltaram ao nível anterior"],
+          "Os preços subiram menos que no ano anterior, mas continuaram subindo: 4% ainda é aumento; só a velocidade diminuiu.",
           {
             feedback: [
-              "Queda da inflação não é queda de preços.",
+              "6 é a diferença entre as duas taxas; queda da inflação não é queda de preços.",
               "Com 4% de inflação os preços subiram mais 4%.",
             ],
           },
@@ -428,13 +431,16 @@ export const inflacao: SkillPack = {
         c(
           "decisao",
           "Uma pessoa guarda R$ 5.000 em casa por um ano com inflação de 8%. Ao final, o dinheiro:",
-          "Ainda são R$ 5.000, mas compram o que R$ 4.630 compravam antes",
-          ["Vira R$ 4.600", "Continua comprando a mesma coisa"],
-          "5.000 ÷ 1,08 é cerca de 4.630.",
+          "Continua sendo R$ 5.000, mas compra o que R$ 4.630 compravam antes",
+          [
+            "Continua sendo R$ 5.000, mas compra o que R$ 4.600 compravam antes",
+            "Continua sendo R$ 5.000 e compra o mesmo que comprava antes",
+          ],
+          "5.000 ÷ 1,08 é cerca de 4.630: as notas são as mesmas, mas compram menos.",
           {
             feedback: [
-              "O valor em reais não muda; o poder de compra é que cai.",
-              "Com preços 8% maiores o mesmo dinheiro compra menos.",
+              "4.600 tira 8% de 5.000; o poder de compra se acha dividindo por 1,08, o que dá cerca de 4.630.",
+              "Com preços 8% maiores, o mesmo dinheiro compra menos.",
             ],
           },
         ),
@@ -453,12 +459,12 @@ export const inflacao: SkillPack = {
           "decisao",
           "Um empregador oferece reajuste de 3% em um ano com inflação de 4,5%. Aceitar significa:",
           "Perder cerca de 1,4% de poder de compra",
-          ["Ganhar 3%", "Ficar igual"],
-          "1,03 ÷ 1,045 é cerca de 0,986.",
+          ["Ganhar cerca de 3% de poder de compra", "Perder cerca de 4,5% de poder de compra"],
+          "1,03 ÷ 1,045 é cerca de 0,986: uma perda de cerca de 1,4%.",
           {
             feedback: [
-              "O ganho de 3% é nominal; os preços subiram mais.",
-              "Igual exigiria reajuste de 4,5%.",
+              "Os 3% são ganho nominal; como os preços subiram 4,5%, o poder de compra caiu.",
+              "4,5% esquece o reajuste; os 3% compensam boa parte da alta dos preços.",
             ],
           },
         ),
@@ -479,9 +485,12 @@ export const inflacao: SkillPack = {
         c(
           "decisao",
           "Uma notícia diz: 'a inflação de 2025 foi positiva e a menor em cinco anos'. O que se pode concluir?",
-          "Que os preços subiram menos em 2025 do que nos quatro anos anteriores, mas ainda subiram",
-          ["Que os preços caíram em 2025", "Que os preços de 2025 são os menores em cinco anos"],
-          "Inflação menor é subida mais lenta, não descida.",
+          "Que os preços subiram mais devagar que nos anos anteriores",
+          [
+            "Que os preços caíram em 2025, depois de anos subindo",
+            "Que os preços de 2025 são os menores em cinco anos",
+          ],
+          "Os preços subiram menos em 2025 do que nos quatro anos anteriores, mas ainda subiram: inflação menor é subida mais lenta, não descida.",
           {
             feedback: [
               "Só inflação negativa faria os preços caírem.",
@@ -509,13 +518,16 @@ export const inflacao: SkillPack = {
         c(
           "decisao",
           "Por que comparar o preço de um produto hoje com o preço de 20 anos atrás sem corrigir pela inflação leva a conclusões erradas?",
-          "Porque o real de hoje compra menos que o de 20 anos atrás; sem corrigir, tudo parece ter ficado mais caro, mesmo o que ficou mais barato em termos reais",
-          ["Porque os produtos mudaram de nome", "Porque preços antigos não existem mais"],
-          "A comparação certa usa valores corrigidos pela inflação acumulada.",
+          "Porque o real de hoje compra menos que o de 20 anos atrás",
+          [
+            "Porque o real de hoje compra mais que o de 20 anos atrás",
+            "Porque há 20 anos os preços eram em outra moeda",
+          ],
+          "Sem corrigir, tudo parece ter ficado mais caro, mesmo o que ficou mais barato em termos reais. A comparação certa usa valores corrigidos pela inflação acumulada.",
           {
             feedback: [
-              "O nome não interfere na comparação de valores.",
-              "Os preços antigos existem em registros; o problema é a unidade de medida do dinheiro ter mudado.",
+              "É o contrário: com a inflação, cada real compra menos com o passar dos anos.",
+              "O real circula desde 1994, então há 20 anos os preços já eram em reais; o problema é o real ter perdido poder de compra.",
             ],
           },
         ),

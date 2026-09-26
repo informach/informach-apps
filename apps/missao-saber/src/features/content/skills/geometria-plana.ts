@@ -426,13 +426,16 @@ export const geometriaPlana: SkillPack = {
         c(
           "argumentar",
           "Dois triângulos têm dois lados e um ângulo iguais. Eles são necessariamente congruentes?",
-          "Não necessariamente; com o ângulo entre os dois lados (LAL) sim, mas com o ângulo oposto a um deles pode haver dois triângulos diferentes",
-          ["Sim, sempre", "Não; congruência exige os três lados"],
-          "Com o ângulo oposto a um dos lados pode haver duas configurações.",
+          "Não: se o ângulo não fica entre os dois lados, pode falhar",
+          [
+            "Sim, sempre: dois lados e um ângulo fixam o triângulo",
+            "Não: a congruência sempre exige os três lados iguais",
+          ],
+          "Com o ângulo entre os dois lados (LAL), há congruência. Com o ângulo oposto a um dos lados pode haver dois triângulos diferentes, então a congruência não é garantida.",
           {
             feedback: [
-              "Lado-lado-ângulo não é caso de congruência em geral.",
-              "LAL e ALA também garantem congruência.",
+              "Lado-lado-ângulo não é caso de congruência em geral: com o ângulo oposto a um dos lados pode haver duas configurações.",
+              "LAL e ALA também garantem congruência, sem conhecer os três lados.",
             ],
           },
         ),
@@ -466,11 +469,17 @@ export const geometriaPlana: SkillPack = {
         c(
           "argumentar",
           "Um desenho parece mostrar que um ângulo é reto. Isso basta para usar 'ângulo reto' numa prova?",
-          "Não; é preciso que o enunciado dê essa informação ou que ela seja demonstrada",
-          ["Sim, se o desenho estiver bem feito", "Sim, se for medido com transferidor"],
-          "Desenhos ilustram; provas dependem de hipóteses e deduções.",
+          "Não; precisa vir do enunciado ou ser demonstrado",
+          [
+            "Sim, se o desenho estiver bem feito",
+            "Não, a não ser que seja medido com transferidor",
+          ],
+          "Desenhos ilustram; provas dependem de hipóteses e deduções. O ângulo reto precisa ser dado pelo enunciado ou demonstrado.",
           {
-            feedback: ["Desenhos podem enganar por pequenas diferenças.", "Medir não é provar."],
+            feedback: [
+              "Desenhos podem enganar por pequenas diferenças.",
+              "Medir não é provar: o transferidor tem imprecisão, e a prova precisa de hipótese ou dedução.",
+            ],
           },
         ),
       ],

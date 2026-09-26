@@ -198,13 +198,13 @@ export const modelosFinanceiros: SkillPack = {
         c(
           "parametros",
           "Se no modelo M(t) = C·(1 + i)ᵗ a taxa i dobrar, o montante depois de t períodos:",
-          "Aumenta, mas geralmente não dobra",
-          ["Dobra exatamente", "Fica igual"],
-          "(1 + 2i)ᵗ não é o dobro de (1 + i)ᵗ em geral.",
+          "Aumenta, mas em geral não dobra",
+          ["Dobra exatamente, para qualquer prazo", "Dobra apenas quando t = 1"],
+          "(1 + 2i)ᵗ não é o dobro de (1 + i)ᵗ em geral: o montante cresce, mas não na mesma proporção da taxa.",
           {
             feedback: [
-              "Por exemplo, com i = 10% e t = 1: 1,2 contra 1,1, não o dobro.",
-              "Uma taxa maior sempre aumenta o montante.",
+              "Dobrar a taxa não dobra o montante: com i = 10% e t = 2, o fator vai de 1,21 para 1,44, não para 2,42.",
+              "Nem com t = 1 dobra: com i = 10%, o montante vai de C·1,1 para C·1,2, longe de C·2,2.",
             ],
           },
         ),
@@ -298,13 +298,13 @@ export const modelosFinanceiros: SkillPack = {
         c(
           "comparar",
           "Dois modelos, um linear crescente e um exponencial crescente, começam no mesmo valor. No longo prazo:",
-          "O exponencial ultrapassa o linear, qualquer que seja a inclinação do linear, se o fator for maior que 1",
-          ["O linear sempre fica acima", "Os dois ficam sempre próximos"],
-          "Crescimento por fator acaba superando qualquer crescimento por soma fixa.",
+          "O exponencial acaba passando o linear",
+          ["O linear fica acima se for bem inclinado", "A distância entre eles se estabiliza"],
+          "Com fator maior que 1, o crescimento por fator acaba superando qualquer crescimento por soma fixa, qualquer que seja a inclinação da reta.",
           {
             feedback: [
-              "No começo pode ficar, mas não para sempre.",
-              "A distância entre eles cresce sem limite.",
+              "Uma inclinação grande só adia o cruzamento: no começo o linear pode ficar acima, mas não para sempre.",
+              "A distância cresce sem limite, porque o acréscimo do exponencial aumenta a cada período.",
             ],
           },
         ),
@@ -428,13 +428,13 @@ export const modelosFinanceiros: SkillPack = {
         c(
           "equivalentes",
           "Por que comparar uma taxa mensal com uma anual exige convertê-las para o mesmo período?",
-          "Porque taxas de períodos diferentes não são comparáveis diretamente, e com juros compostos a conversão não é proporcional",
+          "Porque só dá para comparar taxas do mesmo período",
           ["Porque a anual é sempre 12 vezes a mensal", "Não exige; basta olhar o número maior"],
-          "1% ao mês não é 12% ao ano, é 12,68%.",
+          "Taxas de períodos diferentes não se comparam diretamente, e com juros compostos a conversão não é proporcional: 1% ao mês não é 12% ao ano, é 12,68%.",
           {
             feedback: [
-              "Multiplicar por 12 é o erro que a conversão evita.",
-              "Um número maior pode ser de um período maior.",
+              "Multiplicar por 12 é o erro que a conversão evita: com juros compostos, 1% ao mês dá 12,68% ao ano.",
+              "Um número maior pode ser de um período maior: 10% ao ano rende menos que 1% ao mês.",
             ],
           },
         ),
@@ -458,13 +458,16 @@ export const modelosFinanceiros: SkillPack = {
         c(
           "decidir",
           "No item anterior, se o dinheiro guardado render juros, o valor mensal necessário:",
-          "Diminui, porque os rendimentos ajudam a atingir a meta",
-          ["Aumenta", "Fica igual"],
-          "Parte dos R$ 12.000 viria dos juros.",
+          "Diminui, pois parte da meta vem dos juros",
+          [
+            "Fica igual, pois a meta continua sendo R$ 12.000",
+            "Aumenta, para cobrir o imposto sobre os juros",
+          ],
+          "Parte dos R$ 12.000 viria dos juros, então cada depósito pode ser menor.",
           {
             feedback: [
-              "Rendimento não aumenta o esforço necessário.",
-              "Os juros somam ao saldo, então é preciso depositar menos.",
+              "A meta é a mesma, mas os juros somam ao saldo, então os depósitos podem ser menores.",
+              "O imposto leva só uma parte do rendimento; o que sobra ainda ajuda a chegar à meta.",
             ],
           },
         ),
@@ -486,12 +489,15 @@ export const modelosFinanceiros: SkillPack = {
           "decidir",
           "Uma análise diz: 'guardando R$ 300 por mês a 1% ao mês por 30 anos, você terá mais de R$ 1 milhão'. A premissa mais frágil é:",
           "Supor a mesma taxa e o mesmo depósito por 30 anos",
-          ["Usar juros compostos", "Somar os depósitos"],
+          [
+            "Usar juros compostos em vez de juros simples",
+            "Considerar depósitos mensais, e não anuais",
+          ],
           "Em 30 anos taxas, inflação e renda mudam; o valor nominal também perde poder de compra.",
           {
             feedback: [
-              "Juros compostos são o modelo certo para aplicações.",
-              "Somar os depósitos faz parte do cálculo, não é premissa frágil.",
+              "Juros compostos são o modelo certo para uma aplicação que rende sobre o saldo.",
+              "Mensal ou anual é só a forma de organizar os depósitos; frágil é supor o mesmo valor e a mesma taxa por 30 anos.",
             ],
           },
         ),
@@ -509,13 +515,16 @@ export const modelosFinanceiros: SkillPack = {
         c(
           "decidir",
           "Qual destas é uma conclusão responsável de uma análise com modelo?",
-          "'Com as premissas adotadas, a opção A custa menos até 20 meses; se a taxa subir, o empate muda'",
-          ["'A opção A é sempre a melhor'", "'O modelo garante o resultado'"],
-          "A conclusão cita premissas e limites.",
+          "'Com esta taxa, A custa menos até 20 meses; se ela subir, o empate muda'",
+          [
+            "'A opção A custa menos que B, qualquer que seja o prazo'",
+            "'O modelo prova que A custará menos por 20 meses, com certeza'",
+          ],
+          "A conclusão responsável cita a premissa (a taxa) e o limite (o que muda se ela subir).",
           {
             feedback: [
-              "'Sempre' ignora que as premissas podem mudar.",
-              "Modelos orientam, não garantem.",
+              "Ignora o ponto de empate: pelo próprio modelo, A só custa menos até 20 meses.",
+              "Modelos orientam, não garantem: se a taxa mudar, o resultado muda junto.",
             ],
           },
         ),
@@ -529,13 +538,16 @@ export const modelosFinanceiros: SkillPack = {
         c(
           "decidir",
           "Ao apresentar um modelo financeiro, por que declarar o limite de validade?",
-          "Porque fora das condições supostas o resultado pode estar muito errado, e quem decide precisa saber disso",
-          ["Porque todo modelo está errado e não serve", "Porque é uma exigência de prova"],
-          "Limite honesto é parte da análise.",
+          "Porque fora das condições supostas o resultado pode falhar",
+          [
+            "Porque todo modelo está errado e não serve",
+            "Porque dentro do limite o resultado é garantido",
+          ],
+          "Fora das condições supostas o resultado pode estar muito errado, e quem decide precisa saber disso. Limite honesto é parte da análise.",
           {
             feedback: [
-              "Modelos servem, dentro das condições que supõem.",
-              "É uma exigência de honestidade, não de prova.",
+              "Modelos servem, dentro das condições que supõem; o limite mostra onde confiar neles.",
+              "Nem dentro do limite há garantia: ele só indica onde o modelo é razoável.",
             ],
           },
         ),
