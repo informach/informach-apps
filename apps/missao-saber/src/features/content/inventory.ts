@@ -8,12 +8,14 @@ import {
   progressionBySkill,
 } from "./catalog";
 import { authoringLots } from "./lotes";
+import { skillPacks } from "./skills";
+import { trackWaves } from "./tracks";
 import { legacyTracks } from "./tracks/legacy";
 import type { Item, Lesson } from "./types";
 
 const legacyCourseIds = new Set(legacyTracks.map((track) => track.id));
-const isLegacyBank = (bank: Lesson) =>
-  legacyCourseIds.has(bank.id.replace(/^bank:(diagnostic|exam):/, ""));
+const bankCourseId = (bank: Lesson) => bank.id.replace(/^bank:(diagnostic|exam):/, "");
+const isLegacyBank = (bank: Lesson) => legacyCourseIds.has(bankCourseId(bank));
 const itemsOf = (units: Lesson[]) => units.flatMap((unit) => unit.items);
 
 function countBy<T>(values: T[], key: (value: T) => string) {
@@ -78,13 +80,33 @@ export function catalogInventory() {
   const teachingShapes = new Set(teachingItems.map((item) => semanticShape(item.prompt)));
   /* Ordem de autoria: os seis lotes de 6º/7º cobriram missões e depois os
      bancos das quatro trilhas; o que veio depois segue a ordem do registro de
-     habilidades e, por fim, os bancos das trilhas novas. Os lotes são faixas
-     contíguas nessa ordem, não na ordem de carga do catálogo. */
+     habilidades, e o banco de cada trilha nova entra logo depois da última
+     habilidade que ela usa, para que cada onda feche em faixa contígua. Os
+     lotes são faixas contíguas nessa ordem, não na ordem de carga. */
+  const packOrder = new Map(skillPacks.map((pack, index) => [pack.id, index]));
+  const packLessonUnits = lessons.filter((lesson) => !legacyLessonIds.has(lesson.id));
+  const anchorOf = (bank: Lesson) => {
+    const wave = trackWaves.find((tracks) =>
+      tracks.some((track) => track.id === bankCourseId(bank)),
+    );
+    const skills = (wave ?? []).flatMap((track) => track.skills);
+    return Math.max(-1, ...skills.map((skill) => packOrder.get(skill) ?? -1));
+  };
+  const newBankUnits = assessmentBanks
+    .filter((bank) => !isLegacyBank(bank))
+    .map((bank, index) => ({ bank, anchor: anchorOf(bank), index }))
+    .sort((a, b) => a.anchor - b.anchor || a.index - b.index);
+  const wavedUnits: Lesson[] = [];
+  for (const [index, pack] of skillPacks.entries()) {
+    wavedUnits.push(...packLessonUnits.filter((lesson) => lesson.skillId === pack.id));
+    wavedUnits.push(
+      ...newBankUnits.filter((unit) => unit.anchor === index).map((unit) => unit.bank),
+    );
+  }
   const authoringOrder = [
     ...itemsOf(lessons.filter((lesson) => legacyLessonIds.has(lesson.id))),
     ...itemsOf(assessmentBanks.filter(isLegacyBank)),
-    ...itemsOf(lessons.filter((lesson) => !legacyLessonIds.has(lesson.id))),
-    ...itemsOf(assessmentBanks.filter((bank) => !isLegacyBank(bank))),
+    ...itemsOf(wavedUnits),
   ];
   const indexById = new Map(authoringOrder.map((item, index) => [item.id, index]));
   const lotRanges = authoringLots.map((lot) => ({

@@ -1,32 +1,32 @@
 {
   "totals": {
-    "missions": 106,
-    "assessmentBanks": 12,
-    "teachingItems": 922,
-    "reservedItems": 144,
-    "uniqueItemIds": 1066,
-    "distinctActivitySignatures": 1066,
-    "justificationItems": 64,
-    "teachingFamilies": 448,
-    "assessmentFamilies": 43
+    "missions": 131,
+    "assessmentBanks": 14,
+    "teachingItems": 1152,
+    "reservedItems": 168,
+    "uniqueItemIds": 1320,
+    "distinctActivitySignatures": 1320,
+    "justificationItems": 79,
+    "teachingFamilies": 531,
+    "assessmentFamilies": 53
   },
   "byDomain": {
     "canguru": 206,
     "common": 484,
     "obmep": 256,
-    "olitef": 120
+    "olitef": 374
   },
   "byFormat": {
-    "choice": 713,
-    "justification": 64,
-    "numeric": 225,
-    "ordering": 64
+    "choice": 844,
+    "justification": 79,
+    "numeric": 318,
+    "ordering": 79
   },
   "byPurpose": {
-    "assessment": 144,
-    "discovery": 211,
-    "guided-practice": 437,
-    "independent-practice": 274
+    "assessment": 168,
+    "discovery": 261,
+    "guided-practice": 552,
+    "independent-practice": 339
   },
   "bySkill": {
     "contagem": 54,
@@ -35,18 +35,23 @@
     "equacoes": 54,
     "fracoes": 64,
     "gavetas": 46,
+    "inflacao": 50,
     "invariantes": 48,
+    "investimentos": 50,
+    "juros": 50,
     "logica": 50,
     "logica-n2": 50,
     "medidas": 52,
     "orcamento": 46,
+    "orcamento-n2": 50,
     "padroes": 50,
     "paridade": 50,
     "pitagoras": 50,
     "porcentagem": 48,
+    "porcentagem-n2": 50,
     "precos": 46,
     "probabilidade": 48,
-    "proporcao": 54,
+    "proporcao": 58,
     "restos": 50,
     "semelhanca": 54,
     "simetria": 50
@@ -159,6 +164,24 @@
       "missions": 30,
       "diagnosticItems": 12,
       "examItems": 12
+    },
+    "olitef-n2": {
+      "label": "OLITEF · Nível 2",
+      "grades": [
+        8,
+        9
+      ],
+      "skills": [
+        "proporcao",
+        "porcentagem-n2",
+        "juros",
+        "orcamento-n2",
+        "inflacao",
+        "investimentos"
+      ],
+      "missions": 30,
+      "diagnosticItems": 12,
+      "examItems": 12
     }
   },
   "lots": [
@@ -227,6 +250,24 @@
       "firstItemId": "logica-n2-1-1",
       "lastItemId": "bank:exam:canguru-c-12",
       "items": 94
+    },
+    {
+      "number": 12,
+      "firstItemId": "porcentagem-n2-1-1",
+      "lastItemId": "juros-5-10",
+      "items": 92
+    },
+    {
+      "number": 13,
+      "firstItemId": "orcamento-n2-1-1",
+      "lastItemId": "inflacao-5-10",
+      "items": 92
+    },
+    {
+      "number": 14,
+      "firstItemId": "investimentos-1-1",
+      "lastItemId": "bank:exam:olitef-n2-12",
+      "items": 70
     }
   ]
 }

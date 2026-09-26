@@ -21,4 +21,8 @@ export const authoringLots: AuthoringLot[] = [
   { number: 9, firstItemId: "restos-1-1", lastItemId: "contagem-casos-5-10" },
   { number: 10, firstItemId: "invariantes-1-1", lastItemId: "coordenadas-5-10" },
   { number: 11, firstItemId: "logica-n2-1-1", lastItemId: "bank:exam:canguru-c-12" },
+  // Onda 1b (8º/9º): OLITEF N2.
+  { number: 12, firstItemId: "porcentagem-n2-1-1", lastItemId: "juros-5-10" },
+  { number: 13, firstItemId: "orcamento-n2-1-1", lastItemId: "inflacao-5-10" },
+  { number: 14, firstItemId: "investimentos-1-1", lastItemId: "bank:exam:olitef-n2-12" },
 ];

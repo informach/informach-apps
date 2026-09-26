@@ -4,7 +4,7 @@ import type { TrackDefinition } from "../types";
  * Onda 1a (8º/9º): OBMEP N2 e Canguru C, publicadas em 26/09/2026.
  * As duas primeiras missões de proporção são gratuitas para a faixa.
  */
-export const wave1Tracks: TrackDefinition[] = [
+export const wave1aTracks: TrackDefinition[] = [
   {
     id: "obmep-n2",
     title: "Provar e generalizar",
