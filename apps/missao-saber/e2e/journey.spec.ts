@@ -359,9 +359,11 @@ test("parent signup, verified profile, learning, saved lab, report and profile s
     .where(eq(sessions.userId, userId));
   await page.context().clearCookies({ name: /session_data/ });
   await page.goto("/familia");
-  await expect(
-    page.getByRole("heading", { name: "Um cuidado com o espaço da família." }),
-  ).toBeVisible();
+  // Sessão antiga: o relatório continua legível, mas assinatura, dados e novos
+  // perfis pedem confirmação de acesso, e a exportação recusa no servidor.
+  await expect(page.getByRole("heading", { name: "O aprendizado, mais de perto." })).toBeVisible();
+  await expect(page.getByText("Um cuidado com o espaço da família.").first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Exportar dados em JSON" })).toHaveCount(0);
   expect((await page.request.get("/api/familia/exportar")).status()).toBe(403);
   await page.getByRole("button", { name: "Sair da conta", exact: true }).click();
   await expect(page).toHaveURL(/\/$/);

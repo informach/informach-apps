@@ -79,6 +79,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <Link href="/privacidade" className="underline underline-offset-4 hover:text-tinta">
             Privacidade
           </Link>
+          <Link href="/termos" className="underline underline-offset-4 hover:text-tinta">
+            Termos
+          </Link>
           <SignOut />
         </footer>
       </div>

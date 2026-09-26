@@ -35,9 +35,16 @@ export async function createProfile(userId: string, raw: unknown) {
   const access = await getAccess(userId);
   return repo.addProfile(userId, input, access.profileLimit);
 }
-export async function dashboard(userId: string, profileId?: string) {
+export async function dashboard(
+  userId: string,
+  profileId?: string,
+  options: { fallbackToFirst?: boolean } = {},
+) {
   const profiles = await repo.getProfiles(userId);
-  const profile = profileId ? profiles.find((p) => p.id === profileId) : profiles[0];
+  const selected = profileId ? profiles.find((p) => p.id === profileId) : undefined;
+  // O cookie de perfil pode sobreviver a um perfil apagado ou a outra conta no
+  // mesmo aparelho; as páginas caem no primeiro perfil, o motor de sessão não.
+  const profile = selected ?? (options.fallbackToFirst || !profileId ? profiles[0] : undefined);
   assertAllowed(!profileId || profile, "PROFILE", "Perfil não encontrado.");
   const [family, access, contentStates, challenge] = await Promise.all([
     repo.getFamily(userId),

@@ -9,7 +9,8 @@ Publicado em 13/09/2026 em https://missao-saber.informach.com.br. A versão come
 | Railway | Projeto `informach-apps`, ambiente `production` |
 | Aplicação | Serviço `91f572ad-b55c-4938-9967-0650c90e49c6`; deployment `b7aa6d9e-26f1-4b20-8b95-2a5c10a07815` |
 | Cron e monitor | Serviço `5a361c2e-96d0-4dbc-9993-f7c0ff3cd13b`, a cada cinco minutos |
-| PostgreSQL | Compartilhado, 50 migrations até `0049` |
+| Cron do resumo semanal | Criar um serviço `cron-missao-saber-weekly-report` com a imagem `alpine/curl` (mesma de `railway-cron-weekly.json`), agenda `0 12 * * 1` (segunda, 9h em Brasília), e rodar `python scripts/production.py configure-weekly-cron <id-do-serviço>`; até isso existir, nenhum resumo é enviado |
+| PostgreSQL | Compartilhado; a última migração do Missão Saber é a `0056` |
 | Redis | Compartilhado, com prefixos exclusivos do Missão Saber |
 | Sentry | Organização `informach-nucleo-de-aprendizag`, projeto `missao-saber` |
 | Cloudflare | CNAME para `aijyebw0.up.railway.app`, proxy ligado |
@@ -53,7 +54,7 @@ A homologação real em modo teste (`runId fb4707d4-453e-4444-bf90-ea31b7e25ac6`
 
 O remetente é `Missão Saber <contato@casaldevgames.com>`. `processed` registra somente que o SendGrid aceitou a mensagem; `delivered` confirma a entrega. Aceitação confirmada interrompe novas tentativas, e estados terminais não são sobrescritos por eventos ou falhas atrasadas. Após os deployments `804e173b-93a9-4d69-b3ce-b0444e4eb959` do Cozya e `ab1e9a9c-e73b-43f7-b675-aa65c3267dfd` da Agenda da Turma, os consumidores compartilhados executam essa regra. Ambos usam o servidor standalone e iniciam a conexão Redis somente no runtime. Cadastro, login por OTP e recuperação de senha reais receberam `delivered`, aceitação e ID do provedor. Os códigos do próprio Better Auth concluíram os três desafios; a conta e as chaves temporárias foram removidas.
 
-`POST /api/jobs/weekly-report` também exige `CRON_SECRET` e envia o resumo semanal aos responsáveis que optaram por recebê-lo em `/familia`. A chave de mensagem inclui a semana, então o pipeline idempotente entrega no máximo um resumo por família por semana, mesmo se o cron disparar mais de uma vez. O corpo descreve o estudo de uma criança e por isso não é persistido: uma retentativa genérica reenviaria uma leitura vencida. Agendar uma vez por semana, por exemplo às segundas de manhã.
+`POST /api/jobs/weekly-report` também exige `CRON_SECRET` e envia o resumo semanal aos responsáveis que optaram por recebê-lo em `/familia`. A chave de mensagem inclui a semana, então o pipeline idempotente entrega no máximo um resumo por família por semana, mesmo se o cron disparar mais de uma vez. O corpo descreve o estudo de uma criança e por isso não é persistido: uma retentativa genérica reenviaria uma leitura vencida. O e-mail usa o layout compartilhado dos produtos Informach, com o link de descadastro no rodapé; o descadastro mostra uma confirmação no GET e só efetiva no POST. O disparo é do serviço cron semanal descrito na tabela acima: sem ele, a opção em `/familia` fica ligada e nada chega.
 
 `POST /api/jobs/billing` exige `CRON_SECRET`. Redis mantém lease e cursor; o ciclo trata reconciliação, inadimplência e manutenção da fila. O cron consulta `/api/ready` e envia falhas ao Sentry. O Sentry remove corpos, cookies, respostas dos estudantes, breadcrumbs e parâmetros SQL. O monitor nativo de uptime não foi criado por limite da conta; o monitor operacional está no cron Railway e registra falhas no Sentry.
 
@@ -61,6 +62,12 @@ O remetente é `Missão Saber <contato@casaldevgames.com>`. `processed` registra
 
 Na versão publicada foram aprovados: 73 testes unitários do app, 47 integrações com PostgreSQL, 199 testes de billing, 112 de e-mail, 86 do Cozya, 506 da Agenda da Turma e 6 E2E em desktop/celular. A suíte raiz somou 1.265 testes e os 12 pacotes passaram no typecheck. Os builds Railway dos três consumidores terminaram com sucesso. O smoke do deployment final confirmou páginas, assets, bloqueio de rotas privadas, readiness, webhook Stripe assinado/deduplicado e job autenticado.
 
-O check global `pnpm check` ainda falha por dívida preexistente do monorepo e arquivos brutos do acervo; o check focado nos arquivos desta entrega passa. O log está em `tmp/production/repository-check.log`.
+O repositório tem `.gitattributes` com `eol=lf`, então o Biome passa igual em Linux e Windows. Em um clone feito antes desse arquivo, o checkout está em CRLF e o `pnpm check` local acusa formatação: com a árvore limpa, rode `git rm -r -q --cached . && git reset --hard` para reescrever os arquivos em LF (o comando descarta alterações não commitadas).
+
+O Sentry recebe `environment` do nome do ambiente Railway (`RAILWAY_ENVIRONMENT_NAME`) e `release` do commit (`RAILWAY_GIT_COMMIT_SHA`); só erros viram eventos, avisos ficam no log estruturado. No cliente, as duas variáveis precisam existir com o prefixo `NEXT_PUBLIC_` para aparecerem.
+
+O grupo `(app)` não tem `loading.tsx` de propósito: com essa fronteira de Suspense, o Next 16.2 deixa de aplicar na tela a árvore devolvida por uma server action ou por `router.refresh()` em produção (vercel/next.js#86055). A troca de trilha em `/jornada` reproduzia isso. Reavaliar quando o Next corrigir.
+
+A área da família abre com a sessão normal do responsável; assinatura, exportação, encerramento, exclusão da conta e criação de perfis pedem login feito há menos de dez minutos. A exclusão da conta Informach é pedida dentro do app, confirmada por e-mail, recusada enquanto outro app tiver assinatura viva e, antes de apagar o usuário, encerra a cobrança e os dados pedagógicos deste app.
 
 A primeira operação comercial é a compra Família pela responsável, seguida da criação de até três perfis. A validação que permanece é de produto: observar compreensão, uso de pistas, transferência para problemas inéditos, retorno semanal e utilidade do relatório. Nenhuma campanha ou divulgação automática foi ativada.

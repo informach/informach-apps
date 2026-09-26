@@ -1,10 +1,13 @@
 import "server-only";
+import { renderEmailElement } from "@informach/emails";
+import { createElement } from "react";
 import { homeSupportFor } from "../content/apoio-em-casa";
 import { findCourse, skillNames } from "../content/catalog";
 import { repeatedDifficulties, skillStates, weeklyEvidence } from "../learning/engine";
 import { weeklyNarrative } from "../learning/relato";
 import { getProfiles, history, listFamiliesForWeeklyReport } from "../learning/repository";
 import { weekStart } from "./desafio";
+import { type BlocoResumo, ResumoSemanalEmail } from "./resumo-semanal-email";
 
 /**
  * Resumo semanal por e-mail para o responsável.
@@ -17,14 +20,6 @@ import { weekStart } from "./desafio";
  * A chave de mensagem inclui a semana, então o pipeline idempotente garante um
  * envio por família por semana mesmo se o cron rodar várias vezes.
  */
-
-function escapar(texto: string) {
-  return texto
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
-}
 
 export type ResumoDeFamilia = {
   userId: string;
@@ -41,10 +36,11 @@ export async function buildWeeklySummary(
   email: string,
   appUrl: string,
   now: Date,
+  unsubscribeUrl?: string,
 ): Promise<ResumoDeFamilia | null> {
   const profiles = await getProfiles(userId);
   if (!profiles.length) return null;
-  const blocos: { nome: string; linhas: string[]; apoio: readonly string[] }[] = [];
+  const blocos: BlocoResumo[] = [];
   for (const profile of profiles) {
     const { evidence, reflections } = await history(userId, profile.id);
     const states = skillStates(evidence);
@@ -86,22 +82,9 @@ export async function buildWeeklySummary(
     `Ver o relatório completo: ${appUrl}/familia`,
     rodape,
   ].join("\n");
-  const html = [
-    `<h1>${escapar(assunto)}</h1>`,
-    ...blocos.map((bloco) =>
-      [
-        `<h2>${escapar(bloco.nome)}</h2>`,
-        `<p>${bloco.linhas.map(escapar).join(" ")}</p>`,
-        bloco.apoio.length
-          ? `<p><strong>Para conversar em casa, sem tela:</strong></p><ul>${bloco.apoio
-              .map((ideia) => `<li>${escapar(ideia)}</li>`)
-              .join("")}</ul>`
-          : "",
-      ].join(""),
-    ),
-    `<p><a href="${escapar(appUrl)}/familia">Ver o relatório completo</a></p>`,
-    `<p>${escapar(rodape)}</p>`,
-  ].join("");
+  const { html } = await renderEmailElement(
+    createElement(ResumoSemanalEmail, { blocos, appUrl, unsubscribeUrl }),
+  );
   return { userId, email, semana, assunto, texto, html };
 }
 

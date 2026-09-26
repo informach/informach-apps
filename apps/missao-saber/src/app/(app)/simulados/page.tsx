@@ -17,6 +17,8 @@ import {
 } from "@/features/content/catalog";
 import { currentDashboard } from "@/lib/view";
 
+export const metadata = { title: "Simulados" };
+
 export default async function Exams() {
   const data = await currentDashboard();
   if (!data.profile) return <EmptyProfile />;

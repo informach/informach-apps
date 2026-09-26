@@ -28,9 +28,23 @@ export const authResult = createAuth({
   buildUnsubscribeUrl,
   organizations: { enabled: false },
   email: { verification: "otp", signIn: { magicLink: false, otp: true }, forgetPassword: "otp" },
-  // This app offers deletion of its own data. Global Informach account deletion
-  // stays disabled here until cancellation across every app is coordinated.
-  accountDeletion: { enabled: false },
+  // LGPD: a conta Informach é compartilhada. A exclusão pede confirmação por
+  // e-mail, recusa enquanto outro app tiver assinatura viva e, antes de apagar
+  // o usuário, encerra a cobrança e os dados pedagógicos deste app.
+  accountDeletion: {
+    enabled: true,
+    requireCleanupSuccess: true,
+    onBeforeDelete: async (user) => {
+      const { hasOtherAppSubscriptions } = await import("@/features/billing/repository");
+      if (await hasOtherAppSubscriptions(user.id))
+        throw new Error(
+          "Encerre as assinaturas dos outros apps Informach antes de excluir a conta compartilhada.",
+        );
+      const { closeBillingAndFamily } = await import("@/features/billing/service");
+      const { clearFamily } = await import("@/features/learning/repository");
+      await closeBillingAndFamily(user.id, () => clearFamily(user.id));
+    },
+  },
 });
 export const { auth } = authResult;
 const helpers = createServerHelpers(authResult, { signInPath: "/entrar" });

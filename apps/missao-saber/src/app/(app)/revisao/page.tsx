@@ -10,6 +10,8 @@ import { courseLessons, findCourse, skillNames } from "@/features/content/catalo
 import { availableLessons, reviewLesson } from "@/features/learning/recommendation";
 import { currentDashboard } from "@/lib/view";
 
+export const metadata = { title: "Revisão" };
+
 export default async function Review() {
   const data = await currentDashboard();
   if (!data.profile) return <EmptyProfile />;

@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { z } from "zod";
-import { recentParent, runAction } from "@/lib/action";
+import { recentParent, runAction, verifiedUser } from "@/lib/action";
 import { assertAllowed } from "@/lib/errors";
 import {
   changePlan,
@@ -23,7 +23,7 @@ import { weekStart } from "./desafio";
 export async function routineAction(minutes: number) {
   return runAction(async () => {
     z.union([z.literal(5), z.literal(10), z.literal(15), z.literal(20)]).parse(minutes);
-    await setRoutine((await recentParent()).id, minutes);
+    await setRoutine((await verifiedUser()).id, minutes);
     revalidatePath("/", "layout");
   });
 }
@@ -32,7 +32,7 @@ export async function familyChallengeAction(goal: number) {
   return runAction(async () => {
     const meta = z.number().int().min(0).max(40).parse(goal);
     assertAllowed(meta === 0 || meta >= 4, "GOAL", "A meta da semana vai de 4 a 40 estratégias.");
-    const user = await recentParent();
+    const user = await verifiedUser();
     const semana = weekStart(new Date());
     if (meta === 0) await clearFamilyChallenge(user.id, semana);
     else await setFamilyChallenge(user.id, semana, meta);
@@ -41,7 +41,7 @@ export async function familyChallengeAction(goal: number) {
 }
 export async function weeklyReportEmailAction(enabled: boolean) {
   return runAction(async () => {
-    await setWeeklyReportEmail((await recentParent()).id, z.boolean().parse(enabled));
+    await setWeeklyReportEmail((await verifiedUser()).id, z.boolean().parse(enabled));
     revalidatePath("/familia");
   });
 }

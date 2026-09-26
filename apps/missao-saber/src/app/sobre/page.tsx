@@ -1,5 +1,7 @@
 import { Brand } from "@/components/brand";
 import { LinkChapa } from "@/components/ui/botao-chapa";
+export const metadata = { title: "Sobre o projeto" };
+
 export default function About() {
   return (
     <>

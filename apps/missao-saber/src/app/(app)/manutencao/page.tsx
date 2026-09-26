@@ -23,6 +23,8 @@ import { requirePageUser } from "@/lib/auth";
 import { env } from "@/lib/env";
 
 /* Console interna: denso, neutro e sem elementos lúdicos. */
+export const metadata = { title: "Manutenção de conteúdo" };
+
 export default async function ContentMaintenance({
   searchParams,
 }: {

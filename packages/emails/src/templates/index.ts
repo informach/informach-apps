@@ -246,3 +246,13 @@ export const renderTemplate: RenderTemplate = async (category, props) => {
 
   return { html, text, subject };
 };
+
+/**
+ * Renders an app-owned element (built on `EmailLayout`) to html and plain
+ * text. For bodies that are assembled per send and never persisted, such as a
+ * weekly report about a child, and therefore have no category template here.
+ */
+export async function renderEmailElement(element: ReactElement) {
+  const [html, text] = await Promise.all([render(element), render(element, { plainText: true })]);
+  return { html, text };
+}

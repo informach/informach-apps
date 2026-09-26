@@ -11,6 +11,8 @@ import { assertableAvailabilityMessage, lessonAvailability } from "@/features/co
 import { courseLessons, courses, findCourse, skillNames } from "@/features/content/catalog";
 import { currentDashboard } from "@/lib/view";
 
+export const metadata = { title: "Minha jornada" };
+
 export default async function Journey() {
   const data = await currentDashboard();
   if (!data.profile) return <EmptyProfile />;

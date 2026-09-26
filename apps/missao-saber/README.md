@@ -18,7 +18,7 @@ pnpm dev:missao-saber
 
 Abra `http://localhost:3005`. A demonstração em `/experimentar` dispensa cadastro. Para testar o cadastro, use um e-mail fictício; o código fica no arquivo JSON de e-mail correspondente em `tmp/emails` (modo sandbox, sem envio externo). Não use esses dados locais em produção.
 
-Para abrir a manutenção de conteúdo em `/manutencao`, configure o e-mail de uma conta responsável em `MISSAO_CONTENT_MANAGER_EMAILS` ou seu ID em `MISSAO_CONTENT_MANAGER_IDS` e confirme esse e-mail. Em produção, `helena@informach.com.br` está autorizada. A manutenção permite consultar relatos, pausar conteúdo com problema, corrigir e reativar. Não existe fluxo de aprovação do catálogo. As operações sensíveis exigem login feito há menos de dez minutos.
+Para abrir a manutenção de conteúdo em `/manutencao`, configure o e-mail de uma conta responsável em `MISSAO_CONTENT_MANAGER_EMAILS` ou seu ID em `MISSAO_CONTENT_MANAGER_IDS` e confirme esse e-mail. Em produção, `helena@informach.com.br` está autorizada. A manutenção permite consultar relatos, pausar conteúdo com problema, corrigir e reativar. Não existe fluxo de aprovação do catálogo. A área da família abre com a sessão normal; assinatura, dados pessoais, exclusão da conta e novos perfis exigem login feito há menos de dez minutos.
 
 ## Verificar
 

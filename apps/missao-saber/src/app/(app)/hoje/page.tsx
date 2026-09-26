@@ -31,6 +31,8 @@ import { localDaysApart } from "@/features/learning/engine";
 import { availableLessons, recommend } from "@/features/learning/recommendation";
 import { currentDashboard } from "@/lib/view";
 
+export const metadata = { title: "Hoje" };
+
 export default async function Today() {
   const data = await currentDashboard();
   if (!data.profile) return <EmptyProfile />;
@@ -201,7 +203,7 @@ export default async function Today() {
         <Ladrilho valor={autonomas} rotulo="habilidades com evidências de autonomia" tom="verde" />
         <Ladrilho
           valor={data.weekly.withHelp}
-          rotulo="tentativas com pistas — aprender tem apoio"
+          rotulo="tentativas com pistas: aprender tem apoio"
           tom="sol"
         />
       </div>

@@ -6,6 +6,8 @@ import { requirePageUser } from "@/lib/auth";
 import { AppError } from "@/lib/errors";
 import { currentDashboard } from "@/lib/view";
 
+export const metadata = { title: "Missão" };
+
 export default async function Mission({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) notFound();

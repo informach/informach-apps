@@ -7,20 +7,33 @@ import { useState, useTransition } from "react";
 import { authClient } from "@/lib/auth-client";
 import { BotaoChapa } from "./ui/botao-chapa";
 
-type Mode = "login" | "signup" | "verify" | "otp" | "reset" | "reset-confirm";
+export type Mode = "login" | "signup" | "verify" | "otp" | "reset" | "reset-confirm";
 
 const campo = "mt-1.5 h-12 rounded-controle border-2 border-sombra bg-creme";
 const opcao =
   "rounded-md text-left text-sm font-semibold text-tinta-suave underline underline-offset-4 hover:text-tinta disabled:opacity-60";
 
-export function AuthForm() {
-  const [mode, setMode] = useState<Mode>("login");
+/** O limite de tentativas responde 429; sem esta leitura ele pareceria senha errada. */
+function limite(error: { status?: number } | null | undefined) {
+  return error?.status === 429
+    ? "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente de novo."
+    : null;
+}
+
+export function AuthForm({
+  initialMode = "login",
+  initialMessage = "",
+}: {
+  initialMode?: Mode;
+  initialMessage?: string;
+}) {
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [consent, setConsent] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(initialMessage);
   const [pending, start] = useTransition();
   const router = useRouter();
   function navigate() {
@@ -65,7 +78,8 @@ export function AuthForm() {
                 const result = await authClient.signUp.email({ email, password, name });
                 if (result.error) {
                   setMessage(
-                    "Não foi possível criar a conta. Se já tem uma conta Informach, use Entrar ou recupere sua senha.",
+                    limite(result.error) ??
+                      "Não foi possível criar a conta. Se já tem uma conta Informach, use Entrar ou recupere sua senha.",
                   );
                   return;
                 }
@@ -75,7 +89,8 @@ export function AuthForm() {
                 const result = await authClient.signIn.email({ email, password });
                 if (result.error) {
                   setMessage(
-                    "Confira seus dados. Se o e-mail ainda não foi confirmado, use Confirmar e-mail.",
+                    limite(result.error) ??
+                      "Confira seus dados. Se o e-mail ainda não foi confirmado, use Confirmar e-mail.",
                   );
                   return;
                 }
@@ -83,7 +98,9 @@ export function AuthForm() {
               } else if (mode === "verify") {
                 const result = await authClient.emailOtp.verifyEmail({ email, otp });
                 if (result.error) {
-                  setMessage("Código inválido ou expirado. Solicite outro código.");
+                  setMessage(
+                    limite(result.error) ?? "Código inválido ou expirado. Solicite outro código.",
+                  );
                   return;
                 }
                 if (password) {
@@ -241,7 +258,7 @@ export function AuthForm() {
                   type: "sign-in",
                 });
                 if (result.error) {
-                  setMessage("Não foi possível solicitar o código agora.");
+                  setMessage(limite(result.error) ?? "Não foi possível solicitar o código agora.");
                   return;
                 }
                 setMode("otp");

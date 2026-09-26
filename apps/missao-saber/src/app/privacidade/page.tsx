@@ -1,4 +1,6 @@
 import { Brand } from "@/components/brand";
+export const metadata = { title: "Privacidade" };
+
 export default function Privacy() {
   return (
     <>
@@ -71,10 +73,11 @@ export default function Privacy() {
         <h2>Seus controles</h2>
         <p>
           Na área Família, com acesso confirmado recentemente, é possível exportar os dados, sair da
-          conta, gerenciar a assinatura ou encerrar o Missão Saber e apagar seus dados pedagógicos.
-          O cancelamento pelo portal de cobrança preserva o histórico. A exclusão de dados
-          pedagógicos não exclui a conta Informach nem os dados de outros produtos. Solicitações de
-          exclusão da conta compartilhada devem ser feitas ao suporte.
+          conta, gerenciar a assinatura, encerrar o Missão Saber e apagar seus dados pedagógicos ou
+          excluir a conta Informach, com confirmação por e-mail. O cancelamento pelo portal de
+          cobrança preserva o histórico. A exclusão de dados pedagógicos não exclui a conta
+          Informach nem os dados de outros produtos. A exclusão da conta compartilhada só é
+          concluída quando nenhum outro app Informach tem assinatura ativa.
         </p>
         <p>
           Você pode pedir confirmação e acesso aos dados, correção, portabilidade, informação sobre

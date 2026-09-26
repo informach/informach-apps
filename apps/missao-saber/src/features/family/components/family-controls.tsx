@@ -605,9 +605,10 @@ export function PlanChangeControls({
   );
 }
 
-export function PrivacyControls() {
+export function PrivacyControls({ outrasAssinaturas }: { outrasAssinaturas: boolean }) {
   const [confirmation, setConfirmation] = useState("");
   const [message, setMessage] = useState("");
+  const [excluirConta, setExcluirConta] = useState(false);
   const [pending, start] = useServerAction();
   const router = useRouter();
   return (
@@ -681,6 +682,53 @@ export function PrivacyControls() {
           }
         >
           Confirmar encerramento e exclusão
+        </button>
+      </details>
+      <details className="mt-3 rounded-xl border border-destructive/35 bg-coral-claro/50 p-4">
+        <summary className="cursor-pointer font-semibold text-tinta">
+          Excluir a conta Informach
+        </summary>
+        <p className="mt-3 text-sm text-tinta">
+          A conta Informach é a mesma na Agenda da Turma e no Cozya. A exclusão apaga a conta e os
+          dados do Missão Saber depois de você confirmar por e-mail. Registros financeiros seguem
+          sua retenção própria.
+        </p>
+        {outrasAssinaturas && (
+          <p className="mt-2 text-sm font-semibold text-tinta">
+            Há assinatura ativa em outro app Informach. Encerre-a nas configurações daquele app
+            antes de excluir a conta compartilhada.
+          </p>
+        )}
+        <label htmlFor="excluir-conta" className="mt-3 flex items-start gap-3 text-sm text-tinta">
+          <input
+            id="excluir-conta"
+            type="checkbox"
+            className="mt-1 size-5 shrink-0 accent-[var(--ms-verde)]"
+            checked={excluirConta}
+            onChange={(e) => setExcluirConta(e.target.checked)}
+          />
+          Entendo que a exclusão vale para todos os apps Informach.
+        </label>
+        <button
+          type="button"
+          disabled={pending || !excluirConta || outrasAssinaturas}
+          className="mt-3 rounded-md text-sm font-semibold text-destructive underline underline-offset-4 disabled:opacity-50"
+          onClick={() =>
+            start(async () => {
+              try {
+                const result = await authClient.deleteUser({ callbackURL: "/" });
+                setMessage(
+                  result.error
+                    ? "Não foi possível solicitar a exclusão agora."
+                    : "Enviamos um e-mail para confirmar a exclusão da conta.",
+                );
+              } catch {
+                setMessage("Não foi possível solicitar a exclusão agora.");
+              }
+            })
+          }
+        >
+          Solicitar exclusão por e-mail
         </button>
       </details>
       <p role="status" className="mt-2 text-sm font-medium">

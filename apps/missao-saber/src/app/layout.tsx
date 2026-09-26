@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Fredoka, Nunito } from "next/font/google";
 import { headers } from "next/headers";
 import { RegistrarServiceWorker } from "@/components/registrar-sw";
+import { env } from "@/lib/env";
+import { INDEXAVEL } from "@/lib/seo";
 import "./globals.css";
 
 const nunito = Nunito({
@@ -18,11 +20,22 @@ const fredoka = Fredoka({
 });
 
 export const dynamic = "force-dynamic";
+const descricao =
+  "Raciocínio, matemática e educação financeira em missões autorais para o 6º e 7º ano.";
 export const metadata: Metadata = {
+  metadataBase: new URL(env.NEXT_PUBLIC_APP_URL),
   title: { default: "Missão Saber · Uma descoberta por dia", template: "%s · Missão Saber" },
-  description:
-    "Raciocínio, matemática e educação financeira em missões autorais para o 6º e 7º ano.",
-  robots: { index: false, follow: false },
+  description: descricao,
+  applicationName: "Missão Saber",
+  robots: INDEXAVEL ? { index: true, follow: true } : { index: false, follow: false },
+  openGraph: {
+    type: "website",
+    siteName: "Missão Saber",
+    locale: "pt_BR",
+    title: "Missão Saber · Uma descoberta por dia",
+    description: descricao,
+  },
+  twitter: { card: "summary_large_image", title: "Missão Saber", description: descricao },
   icons: {
     icon: [{ url: "/favicon.png", sizes: "32x32", type: "image/png" }],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],

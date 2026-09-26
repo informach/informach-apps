@@ -504,24 +504,42 @@ export async function history(userId: string, profileId: string) {
     "NOT_FOUND",
     "Perfil não encontrado.",
   );
-  const rows = await db
-    .select({
-      attempt: attempts,
-      mode: sessions.mode,
-      completedAt: sessions.completedAt,
-      snapshot: sessions.snapshot,
-    })
-    .from(attempts)
-    .innerJoin(sessions, eq(attempts.sessionId, sessions.id))
-    .where(eq(sessions.profileId, profileId));
-  const assessmentSessions = await db
-    .select({ id: sessions.id, snapshot: sessions.snapshot, completedAt: sessions.completedAt })
-    .from(sessions)
-    .where(and(eq(sessions.profileId, profileId), inArray(sessions.mode, ["diagnostic", "exam"])));
+  /* O snapshot da lição é grande e igual para todas as tentativas de uma
+     sessão: vem uma vez por sessão, e cada tentativa o encontra pelo id. Esta
+     consulta roda em toda página do app, então o tamanho importa. */
+  const [attemptRows, sessionRows] = await Promise.all([
+    db
+      .select({ attempt: attempts, mode: sessions.mode, completedAt: sessions.completedAt })
+      .from(attempts)
+      .innerJoin(sessions, eq(attempts.sessionId, sessions.id))
+      .where(eq(sessions.profileId, profileId)),
+    db
+      .select({
+        id: sessions.id,
+        mode: sessions.mode,
+        snapshot: sessions.snapshot,
+        completedAt: sessions.completedAt,
+      })
+      .from(sessions)
+      .where(eq(sessions.profileId, profileId)),
+  ]);
+  const parsedBySession = new Map(
+    sessionRows.map((session) => {
+      const parsed = lessonSchema.safeParse(session.snapshot);
+      return [session.id, parsed.success ? parsed.data : null] as const;
+    }),
+  );
+  const rows = attemptRows.map((row) => ({
+    ...row,
+    lesson: parsedBySession.get(row.attempt.sessionId) ?? null,
+  }));
+  const assessmentSessions = sessionRows.filter(
+    (session) => session.mode === "diagnostic" || session.mode === "exam",
+  );
   const assessmentExposedFamilyIds = new Set<string>();
   for (const session of assessmentSessions) {
-    const parsed = lessonSchema.safeParse(session.snapshot);
-    if (!parsed.success) continue;
+    const parsed = { success: true as const, data: parsedBySession.get(session.id) };
+    if (!parsed.data) continue;
     const answered = rows.filter((row) => row.attempt.sessionId === session.id).length;
     const exposed = session.completedAt ? parsed.data.items.length : answered + 1;
     for (const item of parsed.data.items.slice(0, exposed))
@@ -539,10 +557,7 @@ export async function history(userId: string, profileId: string) {
   const visibleRows = rows
     .filter((row) => (row.mode !== "exam" && row.mode !== "diagnostic") || row.completedAt !== null)
     .filter((row) => {
-      const parsed = lessonSchema.safeParse(row.snapshot);
-      const item = parsed.success
-        ? parsed.data.items.find((candidate) => candidate.id === row.attempt.itemId)
-        : undefined;
+      const item = row.lesson?.items.find((candidate) => candidate.id === row.attempt.itemId);
       return !item || !invalidated.has(`${item.id}:${itemHash(item)}`);
     });
   const evidence: Evidence[] = visibleRows

@@ -14,6 +14,8 @@ const nomeDoLab = {
   groups: "o organizador de casos",
 } as const;
 
+export const metadata = { title: "Laboratório" };
+
 export default async function Laboratory() {
   const data = await currentDashboard();
   const user = await requirePageUser();

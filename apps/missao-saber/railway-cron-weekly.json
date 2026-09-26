@@ -1,0 +1,7 @@
+{
+  "source": {
+    "image": "alpine/curl@sha256:d7720f8cffb47e7a80d01fb2c1b38562fab0e436948537e9b77dc312d29d12d6"
+  },
+  "cronSchedule": "0 12 * * 1",
+  "restartPolicyType": "NEVER"
+}

@@ -27,7 +27,14 @@ export async function POST(request: Request) {
       // a chave por semana faz a próxima passada do cron reenviar só quem ficou
       // sem resumo.
       try {
-        const resumo = await buildWeeklySummary(userId, email, env.NEXT_PUBLIC_APP_URL, now);
+        const unsubscribeUrl = buildUnsubscribeUrl(userId, "missao.weekly-report");
+        const resumo = await buildWeeklySummary(
+          userId,
+          email,
+          env.NEXT_PUBLIC_APP_URL,
+          now,
+          unsubscribeUrl,
+        );
         if (!resumo) {
           ignorados += 1;
           continue;
@@ -40,7 +47,7 @@ export async function POST(request: Request) {
           subject: resumo.assunto,
           text: resumo.texto,
           html: resumo.html,
-          unsubscribeUrl: buildUnsubscribeUrl(userId, "missao.weekly-report"),
+          unsubscribeUrl,
         });
         if (result.ok) enviados += 1;
         else if (result.status === "skipped") ignorados += 1;

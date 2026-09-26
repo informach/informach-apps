@@ -8,8 +8,9 @@ import { safeContext, safeText } from "./telemetry";
 function log(level: "debug" | "info" | "warn" | "error", message: string, context?: object) {
   const name = safeText(message);
   logger[level]({ context: safeContext(context) }, name);
-  if (level === "error" || level === "warn")
-    Sentry.captureMessage(name, level === "warn" ? "warning" : "error");
+  // Só erro vira evento no Sentry. Os avisos dos pacotes (retentativa de
+  // e-mail, evento de segurança já tratado) ficam no log estruturado.
+  if (level === "error") Sentry.captureMessage(name, "error");
 }
 
 export const packageLogger = {

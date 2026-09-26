@@ -1,4 +1,6 @@
 import { Brand } from "@/components/brand";
+export const metadata = { title: "Termos de uso" };
+
 export default function Terms() {
   return (
     <>
