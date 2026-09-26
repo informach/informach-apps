@@ -2,6 +2,7 @@ import type { TrackDefinition } from "../types";
 import { legacyTracks } from "./legacy";
 import { wave1aTracks } from "./wave-1a";
 import { wave1bTracks } from "./wave-1b";
+import { wave2Tracks } from "./wave-2";
 
 /**
  * Registro das trilhas, por onda de publicação. Uma trilha só entra aqui
@@ -14,5 +15,10 @@ import { wave1bTracks } from "./wave-1b";
  * habilidade que alguma trilha da onda usa, e assim cada onda fecha em uma
  * faixa contígua de lotes de autoria.
  */
-export const trackWaves: TrackDefinition[][] = [legacyTracks, wave1aTracks, wave1bTracks];
+export const trackWaves: TrackDefinition[][] = [
+  legacyTracks,
+  wave1aTracks,
+  wave1bTracks,
+  wave2Tracks,
+];
 export const trackDefinitions: TrackDefinition[] = trackWaves.flat();

@@ -25,4 +25,10 @@ export const authoringLots: AuthoringLot[] = [
   { number: 12, firstItemId: "porcentagem-n2-1-1", lastItemId: "juros-5-10" },
   { number: 13, firstItemId: "orcamento-n2-1-1", lastItemId: "inflacao-5-10" },
   { number: 14, firstItemId: "investimentos-1-1", lastItemId: "bank:exam:olitef-n2-12" },
+  // Onda 2 (3º ao 5º): Canguru P e Mirim 2.
+  { number: 15, firstItemId: "contagem-inicial-1-1", lastItemId: "padroes-iniciais-5-10" },
+  { number: 16, firstItemId: "orientacao-espacial-1-1", lastItemId: "composicao-de-figuras-5-10" },
+  { number: 17, firstItemId: "tempo-e-medidas-1-1", lastItemId: "balancas-5-10" },
+  { number: 18, firstItemId: "caminhos-1-1", lastItemId: "tabelas-5-10" },
+  { number: 19, firstItemId: "bank:diagnostic:canguru-p-1", lastItemId: "bank:exam:mirim-2-12" },
 ];

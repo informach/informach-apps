@@ -2,7 +2,7 @@
 
 Publicado em https://missao-saber.informach.com.br. Configuração e próximos passos de operação em [PRODUCAO.md](PRODUCAO.md). Stripe real em produção e teste no local. O catálogo publicado fica disponível conforme o plano; missões podem ser pausadas pontualmente para correção.
 
-Versão comercial funcional para estudantes do 6º ao 9º ano, com conta do responsável e trilhas de estratégias para OLITEF N1 e N2, Canguru E, B e C e OBMEP N1 e N2. O catálogo tem 131 missões, 1.320 atividades autorais únicas, 168 itens reservados para diagnóstico e simulados e 79 desafios de justificativa, além de três laboratórios. As faixas seguintes (4º/5º, ensino médio e 2º/3º) entram por ondas, cada uma publicável sozinha. As trilhas compartilham fundamentos; a contagem não duplica atividades compartilhadas. O perfil do estudante guarda o ano escolar e, se a família quiser, o mês e ano de nascimento, que só serve para sugerir o ano; o ano avança sozinho na virada e as trilhas elegíveis acompanham.
+Versão comercial funcional para estudantes do 3º ao 9º ano, com conta do responsável e trilhas de estratégias para OLITEF N1 e N2, Canguru P, E, B e C, OBMEP N1 e N2 e Mirim 2. O catálogo tem 171 missões, 1.736 atividades autorais únicas, 216 itens reservados para diagnóstico e simulados e 103 desafios de justificativa, além de três laboratórios. As faixas seguintes (ensino médio e 2º ano) entram por ondas, cada uma publicável sozinha. As trilhas compartilham fundamentos; a contagem não duplica atividades compartilhadas. O perfil do estudante guarda o ano escolar e, se a família quiser, o mês e ano de nascimento, que só serve para sugerir o ano; o ano avança sozinho na virada e as trilhas elegíveis acompanham.
 
 ## Abrir localmente
 

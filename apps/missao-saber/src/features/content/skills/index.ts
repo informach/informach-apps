@@ -1,5 +1,9 @@
 import type { SkillPack } from "../skill-factory";
+import { balancas } from "./balancas";
+import { caminhos } from "./caminhos";
+import { composicaoDeFiguras } from "./composicao-de-figuras";
 import { contagemCasos } from "./contagem-casos";
+import { contagemInicial } from "./contagem-inicial";
 import { coordenadas } from "./coordenadas";
 import { equacoes } from "./equacoes";
 import { inflacao } from "./inflacao";
@@ -8,11 +12,15 @@ import { investimentos } from "./investimentos";
 import { juros } from "./juros";
 import { logicaN2 } from "./logica-n2";
 import { orcamentoN2 } from "./orcamento-n2";
+import { orientacaoEspacial } from "./orientacao-espacial";
+import { padroesIniciais } from "./padroes-iniciais";
 import { pitagoras } from "./pitagoras";
 import { porcentagemN2 } from "./porcentagem-n2";
 import { proporcao } from "./proporcao";
 import { restos } from "./restos";
 import { semelhanca } from "./semelhanca";
+import { tabelas } from "./tabelas";
+import { tempoEMedidas } from "./tempo-e-medidas";
 
 /**
  * Registro das habilidades das faixas além de 6º/7º, na ordem de autoria.
@@ -35,4 +43,13 @@ export const skillPacks: SkillPack[] = [
   orcamentoN2,
   inflacao,
   investimentos,
+  // Onda 2 (3º ao 5º): Canguru P e Mirim 2.
+  contagemInicial,
+  padroesIniciais,
+  orientacaoEspacial,
+  composicaoDeFiguras,
+  tempoEMedidas,
+  balancas,
+  caminhos,
+  tabelas,
 ];

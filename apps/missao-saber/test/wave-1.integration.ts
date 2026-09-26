@@ -18,7 +18,7 @@ beforeAll(async () => {
 
 describe("onda 1a em PostgreSQL isolado: 8º e 9º ano", () => {
   it("oferece os anos das trilhas publicadas e aceita um perfil do 9º ano na OBMEP N2", async () => {
-    expect(catalogGrades).toEqual([6, 7, 8, 9]);
+    expect(catalogGrades).toEqual(expect.arrayContaining([6, 7, 8, 9]));
     expect(courses.map((course) => course.id)).toEqual(
       expect.arrayContaining(["obmep-n2", "canguru-c"]),
     );

@@ -26,7 +26,7 @@ export const legacyTracks: TrackDefinition[] = [
     label: "Canguru · E",
     olympiad: "canguru",
     level: "E",
-    grades: [6],
+    grades: [5, 6],
     bankSeed: 24,
     description: "Formas, padrões e problemas que convidam a experimentar.",
     skills: ["fracoes", "medidas", "simetria", "padroes", "contagem", "logica"],

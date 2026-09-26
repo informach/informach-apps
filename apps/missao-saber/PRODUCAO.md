@@ -1,6 +1,6 @@
 # Operação do Missão Saber
 
-Publicado em 13/09/2026 em https://missao-saber.informach.com.br. A versão comercial atende estudantes do 6º ao 9º ano (onda 1 de 8º/9º, OBMEP N2, Canguru C e OLITEF N2, publicada em 26/09/2026) e permanece com `noindex` enquanto a família valida o produto. Compra e estudo não dependem de aprovação de conteúdo.
+Publicado em 13/09/2026 em https://missao-saber.informach.com.br. A versão comercial atende estudantes do 3º ao 9º ano (onda 1 de 8º/9º, OBMEP N2, Canguru C e OLITEF N2, e onda 2 de 3º a 5º, Canguru P e Mirim 2, publicadas em 26/09/2026) e permanece com `noindex` enquanto a família valida o produto. Compra e estudo não dependem de aprovação de conteúdo.
 
 ## Serviços
 
@@ -30,7 +30,7 @@ Em falha de aplicação, promover o último deployment saudável compatível com
 
 ## Catálogo e manutenção
 
-O catálogo comercial contém 131 missões e 1.320 atividades autorais únicas: 1.152 de ensino/prática e 168 reservadas em catorze bancos de diagnóstico e simulado. Há 79 desafios de justificativa e três laboratórios. As habilidades das faixas novas vivem em `src/features/content/skills/` (um arquivo por habilidade) e as trilhas em `src/features/content/tracks/`; os números são conferidos por snapshot em `inventory.test.ts`, atualizado de propósito a cada lote. Cada lote tem registro em `docs/propostas/missao-saber-2026-09-13/lotes-de-autoria/` e recebe revisão matemática independente antes de os hashes entrarem em `reviewed-catalog.ts`. As 96 questões de avaliação permanecem distintas mesmo sem a numeração visual e formam 26 famílias semânticas compartilhadas entre diagnóstico e simulado, de modo que o produto identifica corretamente a segunda exposição como prática. OLITEF N1, Canguru E, Canguru B e OBMEP N1 compartilham fundamentos sem duplicar a contagem.
+O catálogo comercial contém 171 missões e 1.736 atividades autorais únicas: 1.520 de ensino/prática e 216 reservadas em dezoito bancos de diagnóstico e simulado. Há 103 desafios de justificativa e três laboratórios. As habilidades das faixas novas vivem em `src/features/content/skills/` (um arquivo por habilidade) e as trilhas em `src/features/content/tracks/`; os números são conferidos por snapshot em `inventory.test.ts`, atualizado de propósito a cada lote. Cada lote tem registro em `docs/propostas/missao-saber-2026-09-13/lotes-de-autoria/` e recebe revisão matemática independente antes de os hashes entrarem em `reviewed-catalog.ts`. As 96 questões de avaliação permanecem distintas mesmo sem a numeração visual e formam 26 famílias semânticas compartilhadas entre diagnóstico e simulado, de modo que o produto identifica corretamente a segunda exposição como prática. OLITEF N1, Canguru E, Canguru B e OBMEP N1 compartilham fundamentos sem duplicar a contagem.
 
 `MISSAO_CONTENT_MANAGER_EMAILS=helena@informach.com.br` dá acesso à manutenção para uma conta verificada. `/manutencao` permite consultar relatos, pausar uma unidade com problema, corrigir, invalidar a evidência atingida e reativar. Esse é um controle de incidente; não existe fila editorial nem aprovação prévia.
 

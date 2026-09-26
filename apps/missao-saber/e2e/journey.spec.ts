@@ -38,6 +38,9 @@ function formularioNovoPerfil(page: Page) {
 async function criarPerfil(page: Page, apelido: string) {
   const form = formularioNovoPerfil(page);
   await form.getByLabel("Apelido do estudante").fill(apelido);
+  // O formulário abre no primeiro ano do catálogo; a jornada de teste é do 6º ano, OLITEF N1.
+  await form.getByLabel("Ano escolar", { exact: true }).selectOption("6");
+  await form.getByLabel("Primeira trilha").selectOption("olitef-n1");
   await form.getByRole("checkbox").check();
   await form.getByRole("button", { name: "Criar perfil e explorar" }).click();
 }
