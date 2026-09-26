@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { db, eq } from "@informach/db";
-import { missaoProfiles, users } from "@informach/db/schema";
+import { missaoFamilies, missaoProfiles, users } from "@informach/db/schema";
 import { beforeAll, describe, expect, it } from "vitest";
 import { schoolYear } from "@/features/family/school-year";
-import { getProfiles } from "@/features/learning/repository";
+import { CONSENT_VERSION, getProfiles } from "@/features/learning/repository";
 import { begin, createProfile, dashboard, updateProfile } from "@/features/learning/service";
 
 const owner = randomUUID();
@@ -83,6 +83,30 @@ describe("ano escolar do perfil em PostgreSQL isolado", () => {
     });
     expect(updated).toMatchObject({ grade: 7, avatar: "lua", courseId: "canguru-b" });
     expect(updated.birthMonth).toBeNull();
+  });
+
+  it("pede autorização de novo quando o mês de nascimento volta a ser informado", async () => {
+    const edicao = {
+      profileId,
+      nickname: "Sol",
+      grade: 7,
+      birthMonth: `${schoolYear() - 13}-02`,
+      avatar: "lua",
+      courseId: "canguru-b",
+    };
+    await db
+      .update(missaoFamilies)
+      .set({ consentVersion: "2026-09-13" })
+      .where(eq(missaoFamilies.userId, owner));
+    await expect(updateProfile(owner, edicao)).rejects.toMatchObject({ code: "CONSENT" });
+    const updated = await updateProfile(owner, { ...edicao, birthConsent: true });
+    expect(String(updated.birthMonth)).toMatch(new RegExp(`^${schoolYear() - 13}-02-01`));
+    const [family] = await db.select().from(missaoFamilies).where(eq(missaoFamilies.userId, owner));
+    expect(family?.consentVersion).toBe(CONSENT_VERSION);
+    // Com o mês já guardado, editar outros campos não pede de novo.
+    await expect(updateProfile(owner, { ...edicao, avatar: "cometa" })).resolves.toMatchObject({
+      avatar: "cometa",
+    });
   });
 
   it("avança o ano na virada e leva a trilha para a sucessora na primeira missão", async () => {

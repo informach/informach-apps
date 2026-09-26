@@ -9,7 +9,7 @@ export const funcoes: SkillPack = {
   id: "funcoes",
   name: "Funções e gráficos",
   domain: "common",
-  lab: "grid",
+  lab: null,
   missions: [
     {
       title: "Uma regra, muitos valores",
@@ -566,7 +566,7 @@ export const funcoes: SkillPack = {
     title: "O modelo de uma conta da casa",
     prompt:
       "Escolha uma conta da casa que dependa do consumo (água, luz, celular). Descubra a parte fixa e a parte que varia, escreva a função, faça o gráfico e use o modelo para prever um mês diferente.",
-    lab: "grid",
+    lab: null,
     steps: [
       "Leia duas contas de meses diferentes e identifique a parte fixa e o valor por unidade consumida.",
       "Escreva a função custo em termos do consumo e desenhe o gráfico com os dois pontos reais.",

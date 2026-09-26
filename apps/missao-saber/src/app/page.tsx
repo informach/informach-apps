@@ -7,7 +7,7 @@ import { LinkChapa } from "@/components/ui/botao-chapa";
 import { Chapa } from "@/components/ui/chapa";
 import { Horizonte, tomDoCurso } from "@/components/ui/horizonte";
 import { Etiqueta } from "@/components/ui/pagina";
-import { catalogGrades, courses } from "@/features/content/catalog";
+import { catalogCourses, catalogGrades } from "@/features/content/catalog";
 import { inventory } from "@/features/content/inventory";
 import { gradeRangeLabel, gradeRangeSentence } from "@/features/family/school-year";
 
@@ -31,11 +31,11 @@ const perguntas = [
   {
     pergunta: "Precisa de cartão para começar?",
     resposta:
-      "Não. A missão de demonstração dispensa cadastro, e a conta gratuita inclui a unidade de frações, o diagnóstico e os laboratórios.",
+      "Não. A missão de demonstração dispensa cadastro, e a conta gratuita inclui as primeiras missões da trilha, o diagnóstico e os laboratórios.",
   },
   {
     pergunta: "Para qual ano escolar é o app hoje?",
-    resposta: `${gradeRangeSentence(catalogGrades).replace(/^./, (c) => c.toUpperCase())}, com trilhas ligadas a OLITEF, Canguru e OBMEP. Os outros anos entram por etapas, e o perfil do estudante mostra as trilhas do ano dele.`,
+    resposta: `${gradeRangeSentence(catalogGrades).replace(/^./, (c) => c.toUpperCase())}, com trilhas ligadas a OBMEP, OBMEP Mirim, Canguru e OLITEF. O perfil do estudante mostra as trilhas do ano dele.`,
   },
   {
     pergunta: "Como acompanho meu filho?",
@@ -169,7 +169,7 @@ export default function Home() {
             {/* O mesmo horizonte que a criança encontra na trilha: o responsável
                 reconhece o lugar antes de assinar, e a criança reencontra o
                 lugar depois de entrar. */}
-            {courses.map((course) => (
+            {catalogCourses.map((course) => (
               <Chapa
                 key={course.id}
                 tom={tomDoCurso(course)}
@@ -300,9 +300,9 @@ export default function Home() {
                 Assine quando fizer sentido.
               </h2>
               <p className="mt-4 text-tinta-suave">
-                A unidade de frações, o diagnóstico e os laboratórios são gratuitos, sem cartão. A
-                assinatura libera todas as trilhas, revisões, simulados e o relatório semanal da
-                família.
+                As primeiras missões de cada trilha, o diagnóstico e os laboratórios são gratuitos,
+                sem cartão. A assinatura libera as trilhas do ano escolar, revisões, simulados e o
+                relatório semanal da família.
               </p>
             </div>
             <div className="mt-8 grid gap-4 sm:grid-cols-2">

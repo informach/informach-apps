@@ -9,7 +9,7 @@ import { Etiqueta } from "@/components/ui/pagina";
 import { SeloHabilidade } from "@/components/ui/selo-habilidade";
 import { assertableAvailabilityMessage, lessonAvailability } from "@/features/content/availability";
 import { courseLessons, coursesForGrade, skillNames } from "@/features/content/catalog";
-import { gradeLabel } from "@/features/family/school-year";
+import { gradeLabel, ofGrade } from "@/features/family/school-year";
 import { currentDashboard } from "@/lib/view";
 
 export const metadata = { title: "Minha jornada" };
@@ -60,7 +60,7 @@ export default async function Journey() {
         >
           {data.courseTransition.to
             ? `Novo ano escolar: sua trilha agora é ${data.courseTransition.to.label}. Prefere outra? Escolha abaixo.`
-            : `Novo ano escolar: as trilhas do ${gradeLabel(profile.grade)} estão em preparação. Enquanto isso, a trilha atual continua aberta.`}
+            : `Novo ano escolar: as trilhas ${ofGrade(profile.grade)} estão em preparação. Enquanto isso, a trilha atual continua aberta.`}
         </p>
       )}
 
@@ -117,8 +117,12 @@ export default async function Journey() {
                 </h2>
                 <p className="mt-0.5 text-sm text-tinta-suave">
                   {i === 0
-                    ? "Base compartilhada das trilhas. Unidade gratuita completa."
-                    : `Ponte sugerida: ${skillNames[course.skills[i - 1] ?? "fracoes"]}. Use o laboratório se precisar representar a ideia.`}
+                    ? "Primeiro capítulo da trilha. As primeiras missões são gratuitas."
+                    : `Ponte sugerida: ${skillNames[course.skills[i - 1] ?? "fracoes"]}.${
+                        doCapitulo.some((e) => e.lesson.lab)
+                          ? " Use o laboratório se precisar representar a ideia."
+                          : ""
+                      }`}
                 </p>
                 <p className="mt-2 font-display text-sm font-semibold text-tinta">
                   {percorridas} de {itensCapitulo.length} descobertas percorridas

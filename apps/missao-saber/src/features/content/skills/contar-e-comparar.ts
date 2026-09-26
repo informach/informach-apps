@@ -8,7 +8,7 @@ export const contarEComparar: SkillPack = {
   id: "contar-e-comparar",
   name: "Contar e comparar",
   domain: "mirim",
-  lab: "groups",
+  lab: null,
   missions: [
     {
       title: "Quantos são?",
@@ -486,7 +486,7 @@ export const contarEComparar: SkillPack = {
     title: "A coleção em dezenas",
     prompt:
       "Escolha uma coleção da casa com mais de 20 coisas (botões, tampinhas, lápis). Faça montinhos de 10, escreva o número e compare com a coleção de alguém da família.",
-    lab: "groups",
+    lab: null,
     steps: [
       "Separe a coleção em montinhos de 10 e conte os que sobram.",
       "Escreva quantas dezenas e unidades há e o número total.",

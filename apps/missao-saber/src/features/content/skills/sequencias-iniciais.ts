@@ -9,7 +9,7 @@ export const sequenciasIniciais: SkillPack = {
   id: "sequencias-iniciais",
   name: "Sequências",
   domain: "mirim",
-  lab: "grid",
+  lab: null,
   missions: [
     {
       title: "O que se repete",
@@ -499,7 +499,7 @@ export const sequenciasIniciais: SkillPack = {
     title: "Meu colar de padrões",
     prompt:
       "Invente um padrão com cores ou objetos (feijões, botões, lápis) e monte uma fila com pelo menos 15 peças. Desafie alguém da família a descobrir o pedaço que se repete e a dizer qual é a 20ª peça.",
-    lab: "grid",
+    lab: null,
     steps: [
       "Monte o padrão e desenhe as primeiras 15 peças.",
       "Escreva qual é o pedaço que se repete.",

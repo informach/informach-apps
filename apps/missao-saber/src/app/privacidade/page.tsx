@@ -17,7 +17,7 @@ export default function Privacy() {
         <span className="eyebrow">ÚLTIMA ATUALIZAÇÃO · 26/09/2026</span>
         <h1>Privacidade, com clareza.</h1>
         <p>
-          O Missão Saber é operado pela Informach — Núcleo de Aprendizagem Ltda, CNPJ
+          O Missão Saber é operado pela Informach Núcleo de Aprendizagem Ltda, CNPJ
           43.588.758/0001-03. Contato:{" "}
           <a href="mailto:contato@casaldevgames.com">contato@casaldevgames.com</a>. Esse também é o
           canal para exercer direitos de privacidade.

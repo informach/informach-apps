@@ -9,7 +9,7 @@ export const contagemInicial: SkillPack = {
   id: "contagem-inicial",
   name: "Contar com organização",
   domain: "common",
-  lab: "groups",
+  lab: null,
   missions: [
     {
       title: "Contar sem esquecer e sem repetir",
@@ -617,7 +617,7 @@ export const contagemInicial: SkillPack = {
     title: "A contagem da casa",
     prompt:
       "Escolha uma coleção da sua casa com mais de 30 coisas (livros, talheres, peças de um jogo). Conte de um jeito organizado, registre como contou e confira de outro jeito.",
-    lab: "groups",
+    lab: null,
     steps: [
       "Escolha a coleção e decida a ordem em que vai contar.",
       "Conte em grupos (de 5 ou de 10) e anote o total.",

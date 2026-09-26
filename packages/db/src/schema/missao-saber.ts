@@ -74,9 +74,7 @@ export const missaoProfiles = missaoSaber.table(
     /** Ano escolar confirmado pelo responsável: 1 a 9 fundamental, 10 a 12 ensino médio. */
     grade: integer("grade").notNull(),
     /** Ano civil a que `grade` se refere; o ano efetivo avança a cada virada. */
-    gradeYear: integer("grade_year")
-      .notNull()
-      .default(sql`(extract(year from now()))::int`),
+    gradeYear: integer("grade_year").notNull().default(sql`(extract(year from now()))::int`),
     /** Mês e ano de nascimento (dia 1), opcional; só para sugerir o ano escolar. */
     birthMonth: date("birth_month"),
     avatar: text("avatar").notNull().default("cometa"),

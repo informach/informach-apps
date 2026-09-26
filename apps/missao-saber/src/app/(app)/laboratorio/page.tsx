@@ -38,6 +38,12 @@ export default async function Laboratory() {
         titulo="Pensar com as mãos."
         apoio="Faça uma previsão, mude uma coisa e observe. Aqui, a curiosidade guia o caminho."
       />
+      {data.profile && data.profile.grade <= 4 && (
+        <p className="mb-5 rounded-card border-2 border-sombra bg-creme px-4 py-3 text-sm text-tinta">
+          Estas ferramentas usam descontos, áreas e organização de casos, ideias que aparecem a
+          partir do 5º ano. Vale explorar junto com um adulto, sem pressa.
+        </p>
+      )}
       <div className="grid gap-5">
         <BarsLab key={`bars-${data.profile?.id}`} profileId={data.profile?.id} saved={saved.bars} />
         <GridLab key={`grid-${data.profile?.id}`} profileId={data.profile?.id} saved={saved.grid} />

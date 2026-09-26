@@ -9,7 +9,7 @@ export const espaco: SkillPack = {
   id: "espaco",
   name: "Geometria espacial",
   domain: "canguru",
-  lab: "grid",
+  lab: null,
   missions: [
     {
       title: "Vértices, arestas e faces",
@@ -588,7 +588,7 @@ export const espaco: SkillPack = {
     title: "A embalagem mais econômica",
     prompt:
       "Escolha um volume de 1 litro e compare três embalagens possíveis (cubo, cilindro e paralelepípedo de proporções diferentes). Calcule as dimensões, a área de material de cada uma e discuta qual é mais econômica e qual é mais prática.",
-    lab: "grid",
+    lab: null,
     steps: [
       "Calcule dimensões de três embalagens com volume de 1.000 cm³.",
       "Calcule a área total de cada uma.",

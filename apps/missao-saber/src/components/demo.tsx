@@ -35,6 +35,10 @@ export function Demo() {
       <Etiqueta tom="lima">
         Missão demonstrativa · passo {passo} de 3 · {PASSOS[passo - 1]}
       </Etiqueta>
+      <p className="mt-2 text-sm text-tinta-suave">
+        Exemplo de uma missão do 7º ano. Cada trilha tem problemas do tamanho do ano escolar, do 2º
+        ano ao ensino médio.
+      </p>
 
       <FalaFaisca humor="acolhendo" tom="verde" titulo="Oi! Sou a Faísca." className="mt-4">
         <p>
@@ -130,7 +134,7 @@ export function Demo() {
           <p>
             <strong className="font-display">Porcentagem sobre o valor já alterado.</strong> Quando
             duas mudanças vêm em sequência, a segunda se aplica ao valor novo, não ao original. A
-            mesma estratégia reaparece em aumento de preço, juros e comparação de ofertas — e é por
+            mesma estratégia reaparece em aumento de preço, juros e comparação de ofertas, e é por
             isso que ela vale mais do que a resposta desta questão.
           </p>
         </FalaFaisca>

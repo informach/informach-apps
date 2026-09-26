@@ -1,6 +1,7 @@
 import { Brand } from "@/components/brand";
-import { catalogGrades, courses } from "@/features/content/catalog";
+import { catalogCourses, catalogGrades } from "@/features/content/catalog";
 import { gradeRangeSentence } from "@/features/family/school-year";
+import { listaPtBr } from "@/lib/texto";
 export const metadata = { title: "Termos de uso" };
 
 export default function Terms() {
@@ -16,10 +17,10 @@ export default function Terms() {
         </a>
       </header>
       <main id="conteudo" className="prosa">
-        <span className="eyebrow">ÚLTIMA ATUALIZAÇÃO · 13/09/2026</span>
+        <span className="eyebrow">ÚLTIMA ATUALIZAÇÃO · 26/09/2026</span>
         <h1>Termos do Missão Saber.</h1>
         <p>
-          O Missão Saber é oferecido pela Informach — Núcleo de Aprendizagem Ltda, CNPJ
+          O Missão Saber é oferecido pela Informach Núcleo de Aprendizagem Ltda, CNPJ
           43.588.758/0001-03. O serviço é contratado por um responsável maior de 18 anos. Os perfis
           de estudantes ficam vinculados a essa conta. O responsável deve proteger seu acesso e
           acompanhar o uso adequado à idade.
@@ -28,8 +29,9 @@ export default function Terms() {
         <p>
           Oferecemos conteúdo autoral de preparação independente para desafios escolares{" "}
           {gradeRangeSentence(catalogGrades)}. Há trilhas voltadas às competências cobradas em{" "}
-          {courses.map((course) => course.label).join(", ")}. As trilhas compartilham fundamentos, e
-          uma unidade gratuita pode ser experimentada antes da assinatura.
+          {listaPtBr(catalogCourses.map((course) => course.label))}. Trilhas da mesma faixa
+          compartilham fundamentos, e as primeiras missões de cada trilha podem ser experimentadas
+          antes da assinatura.
         </p>
         <h2>Assinatura</h2>
         <p>

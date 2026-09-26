@@ -2,7 +2,7 @@ import "server-only";
 import { renderEmailElement } from "@informach/emails";
 import { createElement } from "react";
 import { homeSupportFor } from "../content/apoio-em-casa";
-import { findCourse, skillNames } from "../content/catalog";
+import { resolvedCourse, skillNames } from "../content/catalog";
 import { repeatedDifficulties, skillStates, weeklyEvidence } from "../learning/engine";
 import { weeklyNarrative } from "../learning/relato";
 import { getProfiles, history, listFamiliesForWeeklyReport } from "../learning/repository";
@@ -44,7 +44,7 @@ export async function buildWeeklySummary(
   for (const profile of profiles) {
     const { evidence, reflections } = await history(userId, profile.id);
     const states = skillStates(evidence);
-    const course = findCourse(profile.courseId);
+    const course = resolvedCourse(profile);
     const nextSkill = course?.skills.find(
       (skillId) => states.find((state) => state.skillId === skillId)?.level !== "independent",
     );

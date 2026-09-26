@@ -8,7 +8,11 @@ import { AVATARES, Avatar } from "@/components/avatares";
 import { BarraProgresso } from "@/components/ui/barra-progresso";
 import { AncoraChapa, BotaoChapa } from "@/components/ui/botao-chapa";
 import { schoolYear, suggestedGrade } from "@/features/family/school-year";
-import { createProfileAction, updateProfileAction } from "@/features/learning/actions";
+import {
+  createProfileAction,
+  forgetProfileAction,
+  updateProfileAction,
+} from "@/features/learning/actions";
 import { authClient } from "@/lib/auth-client";
 import { useServerAction } from "@/lib/use-server-action";
 import {
@@ -22,19 +26,20 @@ import {
   weeklyReportEmailAction,
 } from "../actions";
 
-type CourseChoice = { id: string; label: string; grades: number[]; olympiad: string };
+/** Já na ordem de sugestão; `line` junta a Mirim à OBMEP na virada de ano. */
+type CourseChoice = { id: string; label: string; grades: number[]; line: string };
 type GradeChoice = { value: number; label: string };
 
 /**
- * A trilha para um ano novo: a da mesma olimpíada, se existir; senão a
- * primeira elegível; `undefined` quando o ano ainda não tem trilha.
+ * A trilha para um ano novo: a da mesma linha, se existir; senão a sugerida
+ * para o ano; `undefined` quando o ano ainda não tem trilha.
  */
 function courseForGrade(courses: CourseChoice[], currentId: string, grade: number) {
   const current = courses.find((course) => course.id === currentId);
   if (current?.grades.includes(grade)) return current.id;
   return (
-    courses.find((course) => course.olympiad === current?.olympiad && course.grades.includes(grade))
-      ?.id ?? courses.find((course) => course.grades.includes(grade))?.id
+    courses.find((course) => course.line === current?.line && course.grades.includes(grade))?.id ??
+    courses.find((course) => course.grades.includes(grade))?.id
   );
 }
 
@@ -67,6 +72,9 @@ function CamposDeAno({
           type="month"
           className={seletor}
           value={birthMonth}
+          placeholder="AAAA-MM"
+          pattern="\d{4}-\d{2}"
+          title="Use o formato AAAA-MM, por exemplo 2016-03."
           min="2005-01"
           max={`${schoolYear()}-12`}
           onChange={(e) => {
@@ -319,9 +327,11 @@ export function EditProfile({
   const [birthMonth, setBirthMonth] = useState(profile.birthMonth);
   const [avatar, setAvatar] = useState(profile.avatar);
   const [courseId, setCourseId] = useState(profile.courseId);
+  const [birthConsent, setBirthConsent] = useState(false);
   const [message, setMessage] = useState("");
   const [pending, start] = useServerAction();
   const router = useRouter();
+  const pedeConsentimento = !profile.birthMonth && !!birthMonth;
   const escolherAno = (next: number) => {
     setGrade(next);
     setCourseId(courseForGrade(courses, courseId, next) ?? courseId);
@@ -343,6 +353,7 @@ export function EditProfile({
                 birthMonth: birthMonth || null,
                 avatar,
                 courseId,
+                birthConsent: pedeConsentimento ? birthConsent : undefined,
               });
               if (result.ok) {
                 setMessage("Perfil atualizado.");
@@ -416,6 +427,28 @@ export function EditProfile({
             </select>
           </div>
         </div>
+        {pedeConsentimento && (
+          <div className="flex items-start gap-3">
+            <input
+              id={`${profile.id}-consentimento-nascimento`}
+              type="checkbox"
+              checked={birthConsent}
+              onChange={(e) => setBirthConsent(e.target.checked)}
+              required
+              className="mt-1 size-5 shrink-0 accent-[var(--ms-verde)]"
+            />
+            <Label
+              htmlFor={`${profile.id}-consentimento-nascimento`}
+              className="text-sm leading-snug font-normal"
+            >
+              Autorizo guardar o mês e ano de nascimento só para sugerir o ano escolar, conforme a{" "}
+              <a href="/privacidade" className="font-medium underline underline-offset-4">
+                política de privacidade
+              </a>
+              .
+            </Label>
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-3">
           <BotaoChapa type="submit" medida="p" disabled={pending}>
             {pending ? "Salvando…" : "Salvar perfil"}
@@ -848,6 +881,7 @@ export function PrivacyControls({ outrasAssinaturas }: { outrasAssinaturas: bool
                   setMessage("Não foi possível sair agora.");
                   return;
                 }
+                await forgetProfileAction();
                 router.push("/");
                 router.refresh();
               } catch {

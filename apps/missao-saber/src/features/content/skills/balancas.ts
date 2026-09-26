@@ -9,7 +9,7 @@ export const balancas: SkillPack = {
   id: "balancas",
   name: "Balanças e trocas",
   domain: "canguru",
-  lab: "bars",
+  lab: null,
   missions: [
     {
       title: "Pratos em equilíbrio",
@@ -608,7 +608,7 @@ export const balancas: SkillPack = {
     title: "A balança de cabide",
     prompt:
       "Monte uma balança com um cabide e dois saquinhos iguais pendurados nas pontas. Use-a para comparar objetos da casa, descobrir trocas justas e ordenar cinco objetos do mais leve ao mais pesado.",
-    lab: "bars",
+    lab: null,
     steps: [
       "Monte a balança e confira se fica equilibrada vazia.",
       "Descubra duas trocas justas (por exemplo, quantas moedas pesam o mesmo que uma borracha).",

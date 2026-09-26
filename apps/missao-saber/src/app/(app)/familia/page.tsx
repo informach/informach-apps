@@ -14,7 +14,14 @@ import { LinkChapa } from "@/components/ui/botao-chapa";
 import { hasOtherAppSubscriptions } from "@/features/billing/repository";
 import { billing, configuredPrice, planChangeMode, products } from "@/features/billing/service";
 import { homeSupportFor } from "@/features/content/apoio-em-casa";
-import { catalogGrades, courses, findCourse, skillNames } from "@/features/content/catalog";
+import {
+  catalogCourses,
+  catalogGrades,
+  courseLine,
+  resolvedCourse,
+  skillNames,
+  suggestedCourses,
+} from "@/features/content/catalog";
 import { isContentManager } from "@/features/content-maintenance/service";
 import {
   BillingButton,
@@ -33,8 +40,15 @@ import { repeatedDifficulties, skillStates, weeklyEvidence } from "@/features/le
 import { weeklyNarrative } from "@/features/learning/relato";
 import { familyReports, history, weeklyReportUnsubscribed } from "@/features/learning/repository";
 import { getSession, requirePageUser } from "@/lib/auth";
+import { listaPtBr } from "@/lib/texto";
 import { currentDashboard } from "@/lib/view";
 
+const escolhasDeTrilha = suggestedCourses.map((course) => ({
+  id: course.id,
+  label: course.label,
+  grades: course.grades,
+  line: courseLine(course),
+}));
 const brl = (cents: number) =>
   (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -96,7 +110,7 @@ export default async function Family({
     data.profiles.map(async (profile) => {
       const { evidence, reflections } = await history(user.id, profile.id);
       const states = skillStates(evidence);
-      const course = findCourse(profile.courseId);
+      const course = resolvedCourse(profile);
       const nextSkill = course?.skills.find(
         (skillId) => states.find((state) => state.skillId === skillId)?.level !== "independent",
       );
@@ -194,9 +208,7 @@ export default async function Family({
                   <CardTitle className="font-display text-base">
                     {profile.nickname} · {gradeLabel(profile.grade)}
                   </CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    {findCourse(profile.courseId)?.label}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{resolvedCourse(profile)?.label}</p>
                 </div>
               </CardHeader>
               <CardContent>
@@ -213,14 +225,9 @@ export default async function Family({
                       avatar: profile.avatar,
                       grade: profile.grade,
                       birthMonth: birthMonthValue(profile.birthMonth),
-                      courseId: profile.courseId,
+                      courseId: resolvedCourse(profile)?.id ?? profile.courseId,
                     }}
-                    courses={courses.map(({ id, label, grades, olympiad }) => ({
-                      id,
-                      label,
-                      grades,
-                      olympiad,
-                    }))}
+                    courses={escolhasDeTrilha}
                     grades={gradeOptions(catalogGrades)}
                   />
                 )}
@@ -231,15 +238,7 @@ export default async function Family({
         {data.profiles.length < data.access.profileLimit && (
           <div className="mt-5">
             {acessoRecente ? (
-              <CreateProfile
-                courses={courses.map(({ id, label, grades, olympiad }) => ({
-                  id,
-                  label,
-                  grades,
-                  olympiad,
-                }))}
-                grades={gradeOptions(catalogGrades)}
-              />
+              <CreateProfile courses={escolhasDeTrilha} grades={gradeOptions(catalogGrades)} />
             ) : (
               <ConfirmarAcesso para="criar um novo perfil" />
             )}
@@ -498,12 +497,12 @@ export default async function Family({
             : ""}
         </p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Grátis: um perfil, diagnóstico, unidade de frações e laboratórios. As assinaturas incluem
-          as trilhas lançadas para o ano escolar, revisões, simulados e relatório. Sem anúncios ou
-          créditos de IA.
+          Grátis: um perfil, o diagnóstico, as primeiras missões de cada trilha e os laboratórios.
+          As assinaturas incluem as trilhas do ano escolar, revisões, simulados e relatório. Sem
+          anúncios ou créditos de IA.
         </p>
         <p className="mt-3 text-sm text-muted-foreground">
-          Trilhas disponíveis: {courses.map((course) => course.label).join(", ")}.
+          Trilhas disponíveis: {listaPtBr(catalogCourses.map((course) => course.label))}.
         </p>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           {["individual", "family"].map((tier) => {

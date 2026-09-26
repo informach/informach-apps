@@ -9,7 +9,7 @@ export const probabilidadeEm: SkillPack = {
   id: "probabilidade-em",
   name: "Probabilidade",
   domain: "common",
-  lab: "bars",
+  lab: null,
   missions: [
     {
       title: "Casos favoráveis, casos possíveis",
@@ -639,7 +639,7 @@ export const probabilidadeEm: SkillPack = {
     title: "O jogo que parece justo",
     prompt:
       "Escolha um jogo de azar simples (dados, moedas, cartas) ou uma promoção com sorteio. Calcule o valor esperado, simule 50 rodadas anotando os resultados e compare a média observada com a esperada.",
-    lab: "bars",
+    lab: null,
     steps: [
       "Descreva as regras e calcule a probabilidade de cada resultado e o valor esperado.",
       "Simule 50 rodadas e registre os resultados numa tabela.",

@@ -9,7 +9,7 @@ export const problemasComDesenho: SkillPack = {
   id: "problemas-com-desenho",
   name: "Resolver com desenho",
   domain: "mirim",
-  lab: "groups",
+  lab: null,
   missions: [
     {
       title: "Desenhar para entender",
@@ -532,7 +532,7 @@ export const problemasComDesenho: SkillPack = {
     title: "Meu problema desenhado",
     prompt:
       "Invente um problema com uma situação da sua casa (pratos na mesa, brinquedos na caixa, pessoas no carro). Resolva desenhando, escreva a conta e explique para alguém da família.",
-    lab: "groups",
+    lab: null,
     steps: [
       "Escreva ou conte o problema que você inventou.",
       "Desenhe a situação e faça a conta olhando o desenho.",

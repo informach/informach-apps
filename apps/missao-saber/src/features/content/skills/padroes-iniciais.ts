@@ -10,7 +10,7 @@ export const padroesIniciais: SkillPack = {
   id: "padroes-iniciais",
   name: "Descobrir padrões",
   domain: "common",
-  lab: "grid",
+  lab: null,
   missions: [
     {
       title: "O que vem depois?",
@@ -572,7 +572,7 @@ export const padroesIniciais: SkillPack = {
     title: "O padrão da minha casa",
     prompt:
       "Encontre um padrão que se repete na sua casa ou na rua (azulejos, grades, uma cerca, um calendário). Descreva a regra, preveja o que aparece em uma posição distante e vá conferir.",
-    lab: "grid",
+    lab: null,
     steps: [
       "Escolha o padrão e escreva ou desenhe os primeiros elementos.",
       "Descreva a regra com suas palavras e preveja a 20ª posição ou outra posição distante.",

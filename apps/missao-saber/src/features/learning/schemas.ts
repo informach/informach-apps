@@ -6,6 +6,10 @@ const gradeSchema = z.coerce.number().int().min(1).max(12);
 const birthMonthSchema = z
   .string()
   .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
+  .refine((value) => {
+    const year = Number(value.slice(0, 4));
+    return year >= 2000 && year <= 2100;
+  })
   .nullable()
   .optional();
 const avatarSchema = z.enum([
@@ -33,6 +37,8 @@ export const updateProfileSchema = z.object({
   birthMonth: birthMonthSchema,
   avatar: avatarSchema,
   courseId: z.string().max(40),
+  /** Obrigatório quando o mês de nascimento é informado pela primeira vez. */
+  birthConsent: z.boolean().optional(),
 });
 export const startSchema = z.object({
   profileId: z.string().uuid(),

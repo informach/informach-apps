@@ -9,7 +9,7 @@ export const trigonometria: SkillPack = {
   id: "trigonometria",
   name: "Trigonometria",
   domain: "canguru",
-  lab: "grid",
+  lab: null,
   missions: [
     {
       title: "Razões no triângulo retângulo",
@@ -540,7 +540,7 @@ export const trigonometria: SkillPack = {
     title: "A altura que ninguém mediu",
     prompt:
       "Construa um medidor de ângulos simples (transferidor com canudo e barbante com peso) e use-o para medir a altura de algo alto perto de você. Faça duas medidas de pontos diferentes e compare.",
-    lab: "grid",
+    lab: null,
     steps: [
       "Monte o medidor e teste-o num ângulo conhecido.",
       "Meça a distância até a base e o ângulo até o topo em dois pontos diferentes, e calcule a altura com a tangente.",

@@ -9,7 +9,7 @@ export const equacoesEm: SkillPack = {
   id: "equacoes-em",
   name: "Equações e inequações",
   domain: "canguru",
-  lab: "grid",
+  lab: null,
   missions: [
     {
       title: "Segundo grau e além",
@@ -526,7 +526,7 @@ export const equacoesEm: SkillPack = {
     title: "Quando a conta engana",
     prompt:
       "Monte três equações (uma com raiz quadrada, uma com módulo e uma de 2º grau com parâmetro) em que um descuido leva a uma resposta errada. Resolva cada uma, mostre onde o descuido apareceria e como a conferência o evita.",
-    lab: "grid",
+    lab: null,
     steps: [
       "Escreva as três equações e resolva cada uma com todos os passos.",
       "Mostre a resposta errada que um descuido produziria e o passo onde ele aconteceria.",

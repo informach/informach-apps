@@ -348,7 +348,7 @@ export function Player({
                       </td>
                       {view.previousAssessment && (
                         <td className="p-3.5 text-tinta-suave">
-                          {before ? `${before.correct} / ${before.total}` : "—"}
+                          {before ? `${before.correct} / ${before.total}` : "sem registro"}
                         </td>
                       )}
                     </tr>
@@ -364,7 +364,7 @@ export function Player({
             {new Date(view.previousAssessment.createdAt).toLocaleDateString("pt-BR", {
               timeZone: "America/Sao_Paulo",
             })}
-            . São conjuntos de questões diferentes, então a leitura é de tendência — não é nota nem
+            . São conjuntos de questões diferentes, então a leitura é de tendência: não é nota nem
             média.
             {/* Sem esta frase, mudar o apoio de leitura entre um percurso e
                 outro apareceria como avanço ou recuo de habilidade. */}

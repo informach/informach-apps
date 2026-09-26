@@ -9,7 +9,7 @@ export const recorrencias: SkillPack = {
   id: "recorrencias",
   name: "Sequências e recorrências",
   domain: "common",
-  lab: "bars",
+  lab: null,
   missions: [
     {
       title: "Progressões aritméticas",
@@ -557,7 +557,7 @@ export const recorrencias: SkillPack = {
     title: "Duas regras, um gráfico",
     prompt:
       "Escolha uma situação real com acréscimo fixo (uma poupança mensal) e outra com fator fixo (juros compostos ou uma população que cresce por porcentagem). Modele as duas como sequências, calcule dez termos de cada e mostre num gráfico quando uma ultrapassa a outra.",
-    lab: "bars",
+    lab: null,
     steps: [
       "Escreva o termo geral de cada sequência a partir dos dados escolhidos.",
       "Calcule os dez primeiros termos e monte o gráfico das duas no mesmo eixo.",

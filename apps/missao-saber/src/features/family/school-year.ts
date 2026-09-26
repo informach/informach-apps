@@ -45,26 +45,45 @@ export function effectiveGrade(
   return Math.min(ULTIMO_ANO, profile.grade + Math.max(0, schoolYear(now) - profile.gradeYear));
 }
 
+const serie = (grade: number) => grade >= 10;
+const ordinal = (grade: number) => (serie(grade) ? `${grade - 9}ª` : `${grade}º`);
+
+/** "6º ano" ou "1ª série do EM". */
 export function gradeLabel(grade: number): string {
-  return grade >= 10 ? `${grade - 9}ª série do EM` : `${grade}º ano`;
+  return serie(grade) ? `${ordinal(grade)} série do EM` : `${ordinal(grade)} ano`;
 }
 
-/** "6º e 7º ano", ou "do 2º ano à 3ª série do EM" quando a faixa é longa. */
+/** "no 6º ano", "na 1ª série do EM". */
+export function inGrade(grade: number): string {
+  return `${serie(grade) ? "na" : "no"} ${gradeLabel(grade)}`;
+}
+
+/** "do 6º ano", "da 1ª série do EM". */
+export function ofGrade(grade: number): string {
+  return `${serie(grade) ? "da" : "do"} ${gradeLabel(grade)}`;
+}
+
+/**
+ * "6º e 7º ano", "1ª e 2ª série do EM", "do 6º ao 9º ano",
+ * "da 1ª à 3ª série do EM" ou "do 2º ano à 3ª série do EM".
+ */
 export function gradeRangeLabel(grades: readonly number[]): string {
   const ordered = [...new Set(grades)].sort((a, b) => a - b);
   const first = ordered[0];
   const last = ordered[ordered.length - 1];
   if (first === undefined || last === undefined) return "";
   if (ordered.length === 1) return gradeLabel(first);
-  if (ordered.length === 2)
-    return `${gradeLabel(first).replace(/ ano$/, "")} e ${gradeLabel(last)}`;
-  return `do ${gradeLabel(first)} ${last >= 10 ? "à" : "ao"} ${gradeLabel(last)}`;
+  const mesmaEtapa = serie(first) === serie(last);
+  const inicio = mesmaEtapa ? ordinal(first) : gradeLabel(first);
+  if (ordered.length === 2) return `${inicio} e ${gradeLabel(last)}`;
+  return `${serie(first) ? "da" : "do"} ${inicio} ${serie(last) ? "à" : "ao"} ${gradeLabel(last)}`;
 }
 
-/** Para frases: "para o 6º e 7º ano" ou "do 6º ano ao 9º ano". */
+/** Para frases: "para o 6º e 7º ano", "para a 3ª série do EM" ou "do 6º ao 9º ano". */
 export function gradeRangeSentence(grades: readonly number[]): string {
   const label = gradeRangeLabel(grades);
-  return label.startsWith("do ") ? label : `para o ${label}`;
+  if (/^d[oa] /.test(label)) return label;
+  return `${serie(Math.min(...grades)) ? "para a" : "para o"} ${label}`;
 }
 
 export function gradeOptions(grades: readonly number[]) {

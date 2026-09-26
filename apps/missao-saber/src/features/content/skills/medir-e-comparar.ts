@@ -9,7 +9,7 @@ export const medirEComparar: SkillPack = {
   id: "medir-e-comparar",
   name: "Medir e comparar",
   domain: "mirim",
-  lab: "bars",
+  lab: null,
   missions: [
     {
       title: "Maior, menor, mais comprido",
@@ -522,7 +522,7 @@ export const medirEComparar: SkillPack = {
     title: "Medir a casa",
     prompt:
       "Escolha 4 objetos da casa e meça cada um de dois jeitos: com o seu palmo e com a régua ou fita. Compare os números e explique por que são diferentes.",
-    lab: "bars",
+    lab: null,
     steps: [
       "Escolha 4 objetos e estime o tamanho de cada um antes de medir.",
       "Meça com o palmo e com a régua e anote os dois números.",

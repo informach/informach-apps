@@ -450,7 +450,11 @@ function packJustificationItem(
         "Mostre um exemplo ou uma conta que ajude a entender.",
         "Termine respondendo à pergunta.",
       ],
-      response: { label: "Escreva sua explicação", minLength: 12, maxLength: 800 },
+      response: {
+        label: "Escreva sua explicação. Se quiser, fale e um adulto escreve para você.",
+        minLength: 12,
+        maxLength: 800,
+      },
       rubric: [
         `Usa bem a ideia da missão: ${pack.justification.focus}.`,
         "Mostra um exemplo ou uma conta.",

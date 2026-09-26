@@ -221,7 +221,10 @@ export type TrackDefinition = Omit<Course, "path"> & { maximumLayers?: number };
 export function publicItem(item: Item): PublicItem {
   const common = {
     id: item.id,
-    prompt: item.prompt,
+    // A numeração só mantém as questões de avaliação distintas no catálogo;
+    // a criança vê "1 de 12", nunca "Questão 505".
+    prompt:
+      item.purpose === "assessment" ? item.prompt.replace(/^Questão \d+\.\s*/, "") : item.prompt,
     skillId: item.skillId,
     type: item.type,
     exploration: item.exploration,

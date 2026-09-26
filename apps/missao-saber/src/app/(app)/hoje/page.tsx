@@ -26,7 +26,7 @@ import {
   courseLessons,
   skillNames,
 } from "@/features/content/catalog";
-import { gradeLabel } from "@/features/family/school-year";
+import { inGrade } from "@/features/family/school-year";
 import { localDaysApart } from "@/features/learning/engine";
 import { availableLessons, recommend } from "@/features/learning/recommendation";
 import { currentDashboard } from "@/lib/view";
@@ -103,8 +103,8 @@ export default async function Today() {
         <FalaFaisca humor="acolhendo" tom="lima" titulo="Novo ano escolar." className="mb-5">
           <p>
             {data.courseTransition.to
-              ? `Agora você está no ${gradeLabel(profile.grade)}, e sua trilha passa a ser ${data.courseTransition.to.label}. Dá para escolher outra em Minha jornada.`
-              : `Agora você está no ${gradeLabel(profile.grade)}. As trilhas desse ano estão em preparação; enquanto isso, a sua continua aberta.`}
+              ? `Agora você está ${inGrade(profile.grade)}, e sua trilha passa a ser ${data.courseTransition.to.label}. Dá para escolher outra em Minha jornada.`
+              : `Agora você está ${inGrade(profile.grade)}. As trilhas desse ano estão em preparação; enquanto isso, a sua continua aberta.`}
           </p>
         </FalaFaisca>
       )}

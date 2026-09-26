@@ -9,7 +9,7 @@ Publicado em 13/09/2026 em https://missao-saber.informach.com.br. A versão come
 | Railway | Projeto `informach-apps`, ambiente `production` |
 | Aplicação | Serviço `91f572ad-b55c-4938-9967-0650c90e49c6`; deployment `b7aa6d9e-26f1-4b20-8b95-2a5c10a07815` |
 | Cron e monitor | Serviço `5a361c2e-96d0-4dbc-9993-f7c0ff3cd13b`, a cada cinco minutos |
-| Cron do resumo semanal | Criar um serviço `cron-missao-saber-weekly-report` com a imagem `alpine/curl` (mesma de `railway-cron-weekly.json`), agenda `0 12 * * 1,2` (segunda e terça, 9h em Brasília; a terça só reenvia falhas da segunda), e rodar `python scripts/production.py configure-weekly-cron <id-do-serviço>`; até isso existir, nenhum resumo é enviado |
+| Cron do resumo semanal | Criar um serviço `cron-missao-saber-weekly-report` com a imagem `alpine/curl` (mesma de `railway-cron-weekly.json`), agenda `0 12 * * 1,2` (segunda e terça, 9h em Brasília; a terça só reenvia falhas da segunda), rodar `python apps/missao-saber/scripts/production.py configure-weekly-cron <id-do-serviço>` e fazer o deploy desse serviço; até isso existir, nenhum resumo é enviado |
 | PostgreSQL | Compartilhado; a última migração do Missão Saber é a `0063` |
 | Redis | Compartilhado, com prefixos exclusivos do Missão Saber |
 | Sentry | Organização `informach-nucleo-de-aprendizag`, projeto `missao-saber` |
@@ -18,9 +18,20 @@ Publicado em 13/09/2026 em https://missao-saber.informach.com.br. A versão come
 
 O build executa `pnpm install --frozen-lockfile --prod=false && pnpm build:missao-saber`; o start executa `pnpm start:missao-saber`. `/api/ready` verifica PostgreSQL e Redis, e `/api/health` identifica o deployment. Produção rejeita chaves Stripe de teste, e-mail sandbox, preços ausentes e URLs incoerentes. Os segredos ficam apenas na Railway e nos ambientes locais ignorados pelo Git.
 
+## Ordem de deploy com migração nova
+
+O migrator é um serviço à parte, disparado à mão, e as três aplicações só recebem tráfego quando `/api/ready` confirma que o banco não está atrás do build. Um push que traz migração nova e mexe em `packages/db` publica Missão Saber, Cozya e Agenda juntos, e os três ficam em 503 até a migração rodar; os deployments antigos continuam servindo nesse meio tempo. Por isso:
+
+1. `git push` para `main`.
+2. Railway: `migrator`, Deployments, Redeploy. Esperar SUCCESS.
+3. Railway: redeploy de Missão Saber, Cozya e Agenda da Turma, se os deploys disparados pelo push tiverem falhado no healthcheck.
+4. Conferir `/api/ready` dos três e rodar `DATABASE_PUBLIC_URL=… pnpm --filter @informach/missao-saber production:verify-schema`, que compara com o journal do checkout.
+
+As migrações desta atualização são compatíveis com o código que já está no ar, então aplicar antes ou depois do push é seguro.
+
 ## Banco, migrations e recuperação
 
-A migração `0063` (26/09/2026) abre o perfil para todos os anos escolares: `grade` aceita de 1 (1º ano) a 12 (3ª série do EM), `grade_year` guarda o ano civil a que o ano escolar se refere e `birth_month` guarda só mês e ano de nascimento, opcional, para sugerir o ano pela regra de corte de 31 de março. O ano efetivo avança sozinho em 1º de janeiro; se a trilha gravada não cobre o ano novo, as páginas mostram a sucessora da mesma olimpíada e a gravação acontece na primeira missão. Os formulários só oferecem anos que têm trilha publicada. A mesma migração indexa `reports.user_id`.
+A migração `0063` (26/09/2026) abre o perfil para todos os anos escolares: `grade` aceita de 1 (1º ano) a 12 (3ª série do EM), `grade_year` guarda o ano civil a que o ano escolar se refere e `birth_month` guarda só mês e ano de nascimento, opcional, para sugerir o ano pela regra de corte de 31 de março. O ano efetivo avança sozinho em 1º de janeiro; se a trilha gravada não cobre o ano novo, as páginas mostram a sucessora da mesma linha (a OBMEP Mirim segue para a OBMEP) e a gravação acontece na primeira missão. Os formulários só oferecem anos que têm trilha publicada. A mesma migração indexa `reports.user_id`. Antes dela, a `0054` criou `sessions.reading_support` e a `0056` criou `families.weekly_report_email` e a tabela `family_challenges`.
 
 As migrations `0044` a `0049` adicionaram controles de conteúdo, interrupção segura, acesso por perfil, relatos versionados, atualizações de relatório e confirmação financeira. A `0047` removeu a antiga tabela `missao_saber.releases`; não existe fluxo de publicação ou aprovação no runtime.
 
@@ -30,7 +41,7 @@ Em falha de aplicação, promover o último deployment saudável compatível com
 
 ## Catálogo e manutenção
 
-O catálogo comercial contém 291 missões e 2.960 atividades autorais únicas: 2.624 de ensino/prática e 336 reservadas em 28 bancos de diagnóstico e simulado. Há 175 desafios de justificativa e três laboratórios. As habilidades das faixas novas vivem em `src/features/content/skills/` (um arquivo por habilidade) e as trilhas em `src/features/content/tracks/`; os números são conferidos por snapshot em `inventory.test.ts`, atualizado de propósito a cada lote. Cada lote tem registro em `docs/propostas/missao-saber-2026-09-13/lotes-de-autoria/` e recebe revisão matemática independente antes de os hashes entrarem em `reviewed-catalog.ts`. As 96 questões de avaliação permanecem distintas mesmo sem a numeração visual e formam 26 famílias semânticas compartilhadas entre diagnóstico e simulado, de modo que o produto identifica corretamente a segunda exposição como prática. OLITEF N1, Canguru E, Canguru B e OBMEP N1 compartilham fundamentos sem duplicar a contagem.
+O catálogo comercial contém 291 missões e 2.960 atividades autorais únicas: 2.624 de ensino/prática e 336 reservadas em 28 bancos de diagnóstico e simulado. Há 175 desafios de justificativa e três laboratórios. As habilidades das faixas novas vivem em `src/features/content/skills/` (um arquivo por habilidade) e as trilhas em `src/features/content/tracks/`; os números são conferidos por snapshot em `inventory.test.ts`, atualizado de propósito a cada lote. Cada lote tem registro em `docs/propostas/missao-saber-2026-09-13/lotes-de-autoria/` e recebe revisão matemática independente antes de os hashes entrarem em `reviewed-catalog.ts`. As 336 questões reservadas formam 116 famílias semânticas compartilhadas entre diagnóstico e simulado, de modo que o produto identifica corretamente a segunda exposição como prática. A numeração interna que mantém cada questão distinta no catálogo não aparece para o estudante. OLITEF N1, Canguru E, Canguru B e OBMEP N1 compartilham fundamentos sem duplicar a contagem.
 
 `MISSAO_CONTENT_MANAGER_EMAILS=helena@informach.com.br` dá acesso à manutenção para uma conta verificada. `/manutencao` permite consultar relatos, pausar uma unidade com problema, corrigir, invalidar a evidência atingida e reativar. Esse é um controle de incidente; não existe fila editorial nem aprovação prévia.
 
@@ -62,7 +73,7 @@ O remetente é `Missão Saber <contato@casaldevgames.com>`. `processed` registra
 
 ## Verificação e operação inicial
 
-Na versão publicada foram aprovados: 73 testes unitários do app, 47 integrações com PostgreSQL, 199 testes de billing, 112 de e-mail, 86 do Cozya, 506 da Agenda da Turma e 6 E2E em desktop/celular. A suíte raiz somou 1.265 testes e os 12 pacotes passaram no typecheck. Os builds Railway dos três consumidores terminaram com sucesso. O smoke do deployment final confirmou páginas, assets, bloqueio de rotas privadas, readiness, webhook Stripe assinado/deduplicado e job autenticado.
+Na atualização de 26/09/2026, com o catálogo completo, passaram 161 testes unitários do app, 69 integrações com PostgreSQL isolado e 8 E2E em desktop e celular sobre o build de produção. Na versão publicada em 13/09 foram aprovados: 73 testes unitários do app, 47 integrações com PostgreSQL, 199 testes de billing, 112 de e-mail, 86 do Cozya, 506 da Agenda da Turma e 6 E2E em desktop/celular. A suíte raiz somou 1.265 testes e os 12 pacotes passaram no typecheck. Os builds Railway dos três consumidores terminaram com sucesso. O smoke do deployment final confirmou páginas, assets, bloqueio de rotas privadas, readiness, webhook Stripe assinado/deduplicado e job autenticado.
 
 O repositório tem `.gitattributes` com `eol=lf`, então o Biome passa igual em Linux e Windows. Em um clone feito antes desse arquivo, o checkout está em CRLF e o `pnpm check` local acusa formatação: com a árvore limpa, rode `git rm -r -q --cached . && git reset --hard` para reescrever os arquivos em LF (o comando descarta alterações não commitadas).
 
@@ -70,6 +81,6 @@ O Sentry recebe `environment` do nome do ambiente Railway (`RAILWAY_ENVIRONMENT_
 
 O grupo `(app)` não tem `loading.tsx` de propósito: com essa fronteira de Suspense, o Next 16.2 deixa de aplicar na tela a árvore devolvida por uma server action ou por `router.refresh()` em produção (vercel/next.js#86055). A troca de trilha em `/jornada` reproduzia isso. Reavaliar quando o Next corrigir.
 
-A área da família abre com a sessão normal do responsável; assinatura, exportação, encerramento, exclusão da conta e criação de perfis pedem login feito há menos de dez minutos. A exclusão da conta Informach é pedida dentro do app, confirmada por e-mail, recusada enquanto outro app tiver assinatura viva e, antes de apagar o usuário, encerra a cobrança e os dados pedagógicos deste app.
+A área da família abre com a sessão normal do responsável; assinatura, exportação, encerramento, exclusão da conta e criação ou edição de perfis pedem login feito há menos de dez minutos. A exclusão da conta Informach é pedida dentro do app, confirmada por e-mail, recusada enquanto outro app tiver assinatura viva e, antes de apagar o usuário, encerra a cobrança e os dados pedagógicos deste app.
 
 A primeira operação comercial é a compra Família pela responsável, seguida da criação de até três perfis. A validação que permanece é de produto: observar compreensão, uso de pistas, transferência para problemas inéditos, retorno semanal e utilidade do relatório. Nenhuma campanha ou divulgação automática foi ativada.

@@ -37,7 +37,7 @@ Integração e E2E criam e removem seu próprio banco local; recusam banco remot
 - A resposta correta e o feedback ficam no servidor. Tentativas têm idempotência, ordem validada e snapshot da versão estudada. Diagnóstico/simulado escondem correção até a conclusão, inclusive em histórico e exportação.
 - Domínio requer variedade de problemas, dias diferentes e respostas sem pistas. Repetir a mesma atividade não cria evidência inédita. Revisões seguem 1/3/7/14/30 dias e voltam a um dia após erro ou apoio.
 - Laboratórios de barras, malha e agrupamentos aceitam teclado. O botão de salvar persiste o estado por perfil com controle de concorrência; o caderno conserva a reflexão.
-- A unidade de frações e o diagnóstico são gratuitos. O restante exige assinatura. Uma suspensão operacional impede novas sessões e respostas até a correção; o histórico permanece. Os arquivos oficiais de referência não entram no bundle nem no catálogo.
+- As primeiras missões de cada trilha e o diagnóstico são gratuitos. O restante exige assinatura. Uma suspensão operacional impede novas sessões e respostas até a correção; o histórico permanece. Os arquivos oficiais de referência não entram no bundle nem no catálogo.
 - Cobrança e dados ficam no escopo `missao-saber`. Encerramento expira checkouts, cancela assinaturas remotas, registra IDs encerrados para impedir reativação por webhooks atrasados e só então limpa os dados pedagógicos. Falhas preservam esses dados para nova tentativa. A conta Informach e registros financeiros são preservados.
 
 Veja [PRODUCAO.md](PRODUCAO.md), a [proposta](../../docs/propostas/missao-saber-2026-09-13/PROPOSTA.md) e os [reviews](../../.compozy/tasks/missao-saber/reviews/).

@@ -51,18 +51,19 @@ export async function createProfile(userId: string, raw: unknown) {
 }
 /** Edição pelo responsável: o ano escolhido vale para o ano civil corrente. */
 export async function updateProfile(userId: string, raw: unknown) {
-  const { profileId, birthMonth, ...input } = updateProfileSchema.parse(raw);
+  const { profileId, birthMonth, birthConsent, ...input } = updateProfileSchema.parse(raw);
   const course = findCourse(input.courseId);
   assertAllowed(
     course?.grades.includes(input.grade),
     "COURSE",
     "Escolha uma trilha compatível com o ano escolar.",
   );
-  return repo.updateProfile(userId, profileId, {
-    ...input,
-    gradeYear: schoolYear(),
-    birthMonth: birthMonthDate(birthMonth),
-  });
+  return repo.updateProfile(
+    userId,
+    profileId,
+    { ...input, gradeYear: schoolYear(), birthMonth: birthMonthDate(birthMonth) },
+    birthConsent === true,
+  );
 }
 export async function dashboard(
   userId: string,
@@ -74,7 +75,11 @@ export async function dashboard(
   // O cookie de perfil pode sobreviver a um perfil apagado ou a outra conta no
   // mesmo aparelho; as páginas caem no primeiro perfil, o motor de sessão não.
   const profile = selected ?? (options.fallbackToFirst || !profileId ? profiles[0] : undefined);
-  assertAllowed(!profileId || profile, "PROFILE", "Perfil não encontrado.");
+  assertAllowed(
+    !profileId || profile || options.fallbackToFirst,
+    "PROFILE",
+    "Perfil não encontrado.",
+  );
   const [family, access, contentStates, challenge] = await Promise.all([
     repo.getFamily(userId),
     getAccess(userId),
@@ -210,8 +215,8 @@ export async function sessionView(userId: string, sessionId: string) {
       : null;
   if (session.mode === "diagnostic" && session.completedAt) {
     const data = await dashboard(userId, session.profileId);
-    const course = data.profile && findCourse(data.profile.courseId);
-    if (course) {
+    const course = data.course;
+    if (course && data.profile) {
       const next = recommend(
         availableLessons(courseLessons(course), {
           course,

@@ -1,6 +1,6 @@
 import { Brand } from "@/components/brand";
 import { LinkChapa } from "@/components/ui/botao-chapa";
-import { catalogGrades, courses } from "@/features/content/catalog";
+import { catalogCourses, catalogGrades } from "@/features/content/catalog";
 import { inventory } from "@/features/content/inventory";
 import { gradeRangeSentence } from "@/features/family/school-year";
 export const metadata = { title: "Sobre o projeto" };
@@ -22,9 +22,9 @@ export default function About() {
         <h1>Uma descoberta por dia.</h1>
         <p>
           Missão Saber é um produto Informach de preparação independente para desafios escolares. O
-          app atende {gradeRangeSentence(catalogGrades)}, com {courses.length} trilhas de educação
-          financeira, matemática e raciocínio inspiradas nas competências de OLITEF, Canguru e
-          OBMEP.
+          app atende {gradeRangeSentence(catalogGrades)}, com {catalogCourses.length} trilhas de
+          educação financeira, matemática e raciocínio inspiradas nas competências de OLITEF,
+          Canguru e OBMEP.
         </p>
         <h2>O hábito abre espaço para pensar</h2>
         <p>

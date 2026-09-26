@@ -9,7 +9,7 @@ export const equacoes: SkillPack = {
   id: "equacoes",
   name: "Equações e incógnitas",
   domain: "common",
-  lab: "bars",
+  lab: null,
   missions: [
     {
       title: "Da frase à igualdade",
@@ -603,7 +603,7 @@ export const equacoes: SkillPack = {
     title: "O truque do número pensado",
     prompt:
       "Invente um truque: peça a alguém que pense um número, faça algumas operações e diga o resultado, e você adivinha o número. Depois explique por que o truque sempre funciona.",
-    lab: "bars",
+    lab: null,
     steps: [
       "Escreva o truque passo a passo e teste com três números diferentes.",
       "Chame o número pensado de x e escreva a expressão que cada passo produz, até o resultado final.",

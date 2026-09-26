@@ -30,7 +30,8 @@ describe("onda 2 em PostgreSQL isolado: 3º ao 5º ano", () => {
   it("abre os anos novos e aceita um perfil do 3º ano na Canguru P", async () => {
     expect(catalogGrades).toEqual(expect.arrayContaining([3, 4, 5, 6, 7, 8, 9]));
     expect(coursesForGrade(3).map((course) => course.id)).toContain("canguru-p");
-    expect(coursesForGrade(4).map((course) => course.id)).toEqual(["canguru-p", "mirim-2"]);
+    // Ordem de sugestão: a linha da OBMEP (com a Mirim) antes da Canguru.
+    expect(coursesForGrade(4).map((course) => course.id)).toEqual(["mirim-2", "canguru-p"]);
     expect(
       coursesForGrade(5)
         .map((course) => course.id)

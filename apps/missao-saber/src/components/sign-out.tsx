@@ -1,6 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { forgetProfileAction } from "@/features/learning/actions";
 import { authClient } from "@/lib/auth-client";
 
 export function SignOut() {
@@ -22,6 +23,7 @@ export function SignOut() {
                 setError("Não foi possível sair. Tente novamente.");
                 return;
               }
+              await forgetProfileAction();
               router.push("/");
               router.refresh();
             } catch {

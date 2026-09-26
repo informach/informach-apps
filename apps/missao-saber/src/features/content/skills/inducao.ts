@@ -9,7 +9,7 @@ export const inducao: SkillPack = {
   id: "inducao",
   name: "Indução e generalização",
   domain: "canguru",
-  lab: "bars",
+  lab: null,
   missions: [
     {
       title: "Do caso pequeno à conjectura",
@@ -558,7 +558,7 @@ export const inducao: SkillPack = {
     title: "Uma conjectura, uma prova, um contraexemplo",
     prompt:
       "Escolha uma sequência gerada por uma regra geométrica ou combinatória (regiões, diagonais, cortes). Calcule os cinco primeiros casos, conjecture a fórmula, prove por indução se conseguir e, se não conseguir, procure um contraexemplo.",
-    lab: "bars",
+    lab: null,
     steps: [
       "Registre os cinco primeiros casos com desenhos ou tabelas e proponha uma fórmula.",
       "Tente escrever base e passo indutivo para a fórmula.",

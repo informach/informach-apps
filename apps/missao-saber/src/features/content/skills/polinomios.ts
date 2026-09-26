@@ -9,7 +9,7 @@ export const polinomios: SkillPack = {
   id: "polinomios",
   name: "Polinômios",
   domain: "canguru",
-  lab: "grid",
+  lab: null,
   missions: [
     {
       title: "Grau, coeficientes e valor",
@@ -522,7 +522,7 @@ export const polinomios: SkillPack = {
     title: "A fórmula que economiza contas",
     prompt:
       "Escolha três contas grandes (como 48 × 52, 1.003², 75² − 25²) e mostre como identidades algébricas resolvem cada uma de cabeça. Depois invente uma conta em que a identidade não ajuda e explique por quê.",
-    lab: "grid",
+    lab: null,
     steps: [
       "Para cada conta, escreva a identidade usada e a substituição feita.",
       "Confira o resultado por outro caminho.",

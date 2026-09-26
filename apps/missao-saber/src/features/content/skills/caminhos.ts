@@ -9,7 +9,7 @@ export const caminhos: SkillPack = {
   id: "caminhos",
   name: "Caminhos e escolhas",
   domain: "canguru",
-  lab: "grid",
+  lab: null,
   missions: [
     {
       title: "Quantos caminhos?",
@@ -620,7 +620,7 @@ export const caminhos: SkillPack = {
     title: "Todos os caminhos do quarteirão",
     prompt:
       "Desenhe um mapa quadriculado pequeno (2 por 3 casas) entre a sua casa e um lugar que você gosta. Liste todos os caminhos andando só para a direita e para cima, sem repetir, e depois conte quantos passam por um ponto que você escolher.",
-    lab: "grid",
+    lab: null,
     steps: [
       "Desenhe a malha e marque o começo e o fim.",
       "Liste os caminhos com letras (D para direita, C para cima) até ter certeza de que não falta nenhum.",

@@ -9,7 +9,7 @@ export const formasEPosicoes: SkillPack = {
   id: "formas-e-posicoes",
   name: "Formas e posições",
   domain: "mirim",
-  lab: "grid",
+  lab: null,
   missions: [
     {
       title: "Lados e cantos",
@@ -174,7 +174,7 @@ export const formasEPosicoes: SkillPack = {
       ],
     },
     {
-      title: "Onde está?",
+      title: "Direita, esquerda e entre",
       objective: "Usar em cima, embaixo, à esquerda, à direita, entre, na frente e atrás.",
       introduction:
         "Para dizer onde uma coisa está, usamos palavras como em cima, embaixo, à esquerda, à direita, entre, na frente e atrás. A esquerda e a direita dependem de para onde a gente está olhando.",
@@ -517,7 +517,7 @@ export const formasEPosicoes: SkillPack = {
     title: "Caça às formas",
     prompt:
       "Procure pela casa 5 objetos com formas diferentes (círculo, quadrado, retângulo, triângulo, cubo, cilindro). Desenhe cada um e escreva quantos lados ou faces ele tem.",
-    lab: "grid",
+    lab: null,
     steps: [
       "Encontre 5 objetos com formas diferentes e diga o nome da forma.",
       "Desenhe cada objeto visto de frente e de cima.",

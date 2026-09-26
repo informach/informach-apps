@@ -9,7 +9,7 @@ export const orientacaoEspacial: SkillPack = {
   id: "orientacao-espacial",
   name: "Localizar e mover",
   domain: "common",
-  lab: "grid",
+  lab: null,
   missions: [
     {
       title: "Onde está?",
@@ -618,7 +618,7 @@ export const orientacaoEspacial: SkillPack = {
     title: "O mapa do meu caminho",
     prompt:
       "Desenhe um mapa simples de um caminho que você faz sempre (da porta até a escola, até a padaria ou até o quarto de alguém). Escreva as instruções para outra pessoa e teste se ela chega.",
-    lab: "grid",
+    lab: null,
     steps: [
       "Desenhe o mapa visto de cima, com os lugares importantes.",
       "Escreva as instruções com direção inicial, quantidades e viradas.",

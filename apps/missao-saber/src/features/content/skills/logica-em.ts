@@ -9,7 +9,7 @@ export const logicaEm: SkillPack = {
   id: "logica-em",
   name: "Lógica e dedução",
   domain: "canguru",
-  lab: "groups",
+  lab: null,
   missions: [
     {
       title: "Conectivos e valores",
@@ -631,7 +631,7 @@ export const logicaEm: SkillPack = {
     title: "Falácias da semana",
     prompt:
       "Durante uma semana, recolha três argumentos de propagandas, notícias ou conversas. Para cada um, escreva premissas e conclusão, diga se o argumento é válido e, se não for, qual falácia aparece.",
-    lab: "groups",
+    lab: null,
     steps: [
       "Registre os três argumentos com a fonte e reescreva cada um como premissas e conclusão.",
       "Classifique cada um como válido ou inválido e nomeie a falácia quando houver.",

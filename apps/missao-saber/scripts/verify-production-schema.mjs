@@ -1,4 +1,15 @@
+import { readFileSync } from "node:fs";
 import postgres from "postgres";
+
+/* O número esperado vem do journal deste checkout: produção precisa ter pelo
+   menos essas migrações (pode ter mais, depois de um rollback do app). */
+const journal = JSON.parse(
+  readFileSync(
+    new URL("../../../packages/db/src/migrations/meta/_journal.json", import.meta.url),
+    "utf8",
+  ),
+);
+const expectedMigrations = journal.entries.length;
 
 const databaseUrl = process.env.DATABASE_PUBLIC_URL;
 
@@ -43,21 +54,41 @@ try {
         where table_schema = 'missao_saber'
           and table_name = 'reports'
           and column_name = 'request_key'
-      ) as report_request_key_present
+      ) as report_request_key_present,
+      exists (
+        select 1
+        from information_schema.columns
+        where table_schema = 'missao_saber'
+          and table_name = 'profiles'
+          and column_name = 'grade_year'
+      ) as profile_grade_year_present,
+      exists (
+        select 1
+        from information_schema.columns
+        where table_schema = 'missao_saber'
+          and table_name = 'profiles'
+          and column_name = 'birth_month'
+      ) as profile_birth_month_present
   `;
 
   const result = {
     migrations: migrationState?.count ?? 0,
     ...schemaState,
   };
+  if (result.migrations < expectedMigrations) {
+    throw new Error(
+      `Production schema behind: expected at least ${expectedMigrations} migrations, received ${result.migrations}`,
+    );
+  }
   const expected = {
-    migrations: 50,
     releases_removed: true,
     content_controls_present: true,
     report_updates_present: true,
     confirmed_at_present: true,
     profile_access_present: true,
     report_request_key_present: true,
+    profile_grade_year_present: true,
+    profile_birth_month_present: true,
   };
 
   for (const [key, expectedValue] of Object.entries(expected)) {

@@ -32,7 +32,7 @@ export const wave2Tracks: TrackDefinition[] = [
   {
     id: "mirim-2",
     title: "Pensar com desenho",
-    label: "Mirim · 2",
+    label: "OBMEP Mirim · 2",
     olympiad: "mirim",
     level: "M2",
     grades: [4, 5],

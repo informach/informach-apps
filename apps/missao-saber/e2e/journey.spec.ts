@@ -416,9 +416,11 @@ test("changing the track on the journey updates the card and the path without a 
   // Doze anos completos até 31 de março: 7º ano pela regra de corte.
   const anoLetivo = new Date().getFullYear();
   await edicao.getByLabel("Mês e ano de nascimento (opcional)").fill(`${anoLetivo - 12}-02`);
-  await expect(edicao.getByLabel("Ano escolar")).toHaveValue("7");
+  await expect(edicao.getByLabel("Ano escolar", { exact: true })).toHaveValue("7");
   await expect(edicao.getByText(/Ano sugerido pela regra de corte/)).toBeVisible();
   await expect(edicao.getByLabel("Trilha", { exact: true })).toHaveValue("canguru-b");
+  // Mês de nascimento informado pela primeira vez pede a autorização de novo.
+  await edicao.getByLabel(/Autorizo guardar o mês e ano de nascimento/).check();
   await edicao.getByRole("button", { name: "Salvar perfil" }).click();
   await expect(edicao.getByText("Perfil atualizado.")).toBeVisible();
   await expect(page.getByText("Sol · 7º ano")).toBeVisible();

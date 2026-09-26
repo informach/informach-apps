@@ -12,7 +12,7 @@ export const wave4Tracks: TrackDefinition[] = [
   {
     id: "mirim-1",
     title: "Contar e explicar",
-    label: "Mirim · 1",
+    label: "OBMEP Mirim · 1",
     olympiad: "mirim",
     level: "M1",
     grades: [2, 3],

@@ -13,7 +13,13 @@ import { reasoningLessons } from "./reasoning";
 import { packLessons, packMissionIds } from "./skill-factory";
 import { skillPacks } from "./skills";
 import { trackDefinitions } from "./tracks";
-import { type Course, type Lesson, lessonSchema, type TrackDefinition } from "./types";
+import {
+  type Course,
+  type Lesson,
+  lessonSchema,
+  type Olympiad,
+  type TrackDefinition,
+} from "./types";
 
 /* As doze habilidades de 6º/7º são congeladas: seus itens têm hash de revisão
    e não podem mudar. As habilidades das outras faixas entram por `skillPacks`,
@@ -165,21 +171,51 @@ if (new Set(courses.map((c) => c.id)).size !== courses.length)
 export const catalogGrades: number[] = [...new Set(courses.flatMap((c) => c.grades))].sort(
   (a, b) => a - b,
 );
+/** A Mirim é a porta de entrada da OBMEP: quem sai dela segue para a OBMEP. */
+const LINHA: Record<Olympiad, Olympiad> = {
+  mirim: "obmep",
+  obmep: "obmep",
+  canguru: "canguru",
+  olitef: "olitef",
+};
+const PREFERENCIA: Olympiad[] = ["obmep", "canguru", "olitef"];
+export function courseLine(c: Pick<Course, "olympiad">): Olympiad {
+  return LINHA[c.olympiad];
+}
+const primeiroAno = (c: Course) => Math.min(...c.grades);
+const preferencia = (c: Course) => PREFERENCIA.indexOf(courseLine(c));
+
+/** Para vitrines e listas: do ano mais novo ao mais velho; no mesmo ano, OBMEP, Canguru e OLITEF. */
+export const catalogCourses: Course[] = [...courses].sort(
+  (a, b) => primeiroAno(a) - primeiroAno(b) || preferencia(a) - preferencia(b),
+);
+
+/** Ordem de sugestão para formulários: OBMEP (com a Mirim), Canguru e OLITEF. */
+export const suggestedCourses: Course[] = [...courses].sort(
+  (a, b) => preferencia(a) - preferencia(b) || primeiroAno(a) - primeiroAno(b),
+);
+
+/** Trilhas do ano, na ordem de sugestão: a primeira é o padrão de um perfil novo. */
 export function coursesForGrade(grade: number) {
-  return courses.filter((c) => c.grades.includes(grade));
+  return suggestedCourses.filter((c) => c.grades.includes(grade));
 }
 /**
  * Para onde vai um perfil cuja trilha deixou de cobrir o ano escolar: a
- * trilha da mesma olimpíada para o ano novo; senão, qualquer trilha do ano;
- * senão nenhuma, e a trilha atual continua até a faixa ser publicada.
+ * trilha da mesma linha para o ano novo (Mirim segue para OBMEP); senão, a
+ * sugerida para o ano; senão nenhuma, e a trilha atual continua até a faixa
+ * ser publicada.
  */
 export function successorCourse(current: Course, grade: number): Course | null {
   if (current.grades.includes(grade)) return current;
-  return (
-    courses.find((c) => c.olympiad === current.olympiad && c.grades.includes(grade)) ??
-    courses.find((c) => c.grades.includes(grade)) ??
-    null
-  );
+  const doAno = coursesForGrade(grade);
+  return doAno.find((c) => courseLine(c) === courseLine(current)) ?? doAno[0] ?? null;
+}
+
+/** A trilha que vale para o perfil hoje, já considerando a virada de ano. */
+export function resolvedCourse(profile: { courseId: string; grade: number }): Course | null {
+  const stored = findCourse(profile.courseId);
+  if (!stored) return null;
+  return successorCourse(stored, profile.grade) ?? stored;
 }
 
 function resolveReserved(skillId: string, seed: number, variant: 0 | 1 | 2) {

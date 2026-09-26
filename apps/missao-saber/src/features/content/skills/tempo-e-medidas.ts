@@ -9,7 +9,7 @@ export const tempoEMedidas: SkillPack = {
   id: "tempo-e-medidas",
   name: "Tempo e medidas",
   domain: "common",
-  lab: "bars",
+  lab: null,
   missions: [
     {
       title: "Horas e minutos",
@@ -588,7 +588,7 @@ export const tempoEMedidas: SkillPack = {
     title: "Um dia medido",
     prompt:
       "Registre um dia seu com medidas: a que horas cada coisa começou e terminou, quanto durou, e meça três objetos da casa com régua ou fita métrica, escolhendo a unidade certa.",
-    lab: "bars",
+    lab: null,
     steps: [
       "Anote horários de início e fim de pelo menos quatro atividades e calcule a duração de cada uma.",
       "Meça três objetos e escreva a medida com a unidade certa (centímetros ou metros).",

@@ -110,6 +110,19 @@ export async function getFamily(userId: string) {
   const [family] = await db.select().from(families).where(eq(families.userId, userId));
   return family ?? null;
 }
+/** Versão da política de privacidade aceita no consentimento mais recente. */
+export const CONSENT_VERSION = "2026-09-26";
+
+/** Registra o consentimento do responsável na versão atual da política. */
+async function recordConsent(tx: Tx, userId: string) {
+  await tx
+    .insert(families)
+    .values({ userId, consentVersion: CONSENT_VERSION })
+    .onConflictDoUpdate({
+      target: families.userId,
+      set: { consentVersion: CONSENT_VERSION, consentAt: new Date() },
+    });
+}
 export async function addProfile(
   userId: string,
   input: Omit<Profile, "id" | "createdAt" | "userId" | "accessEnabled">,
@@ -122,10 +135,7 @@ export async function addProfile(
       .from(profiles)
       .where(eq(profiles.userId, userId));
     assertAllowed(existing.length < limit, "PLAN", `Seu plano permite ${limit} estudante(s).`);
-    await tx
-      .insert(families)
-      .values({ userId, consentVersion: "2026-09-26" })
-      .onConflictDoNothing();
+    await recordConsent(tx, userId);
     const [profile] = await tx
       .insert(profiles)
       .values({ ...input, userId, accessEnabled: true })
@@ -138,10 +148,20 @@ export async function updateProfile(
   userId: string,
   profileId: string,
   input: Pick<Profile, "nickname" | "grade" | "gradeYear" | "birthMonth" | "avatar" | "courseId">,
+  birthConsent = false,
 ) {
   return db.transaction(async (tx) => {
     await lockOwner(tx, userId);
-    await ownedProfile(tx, userId, profileId);
+    const current = await ownedProfile(tx, userId, profileId);
+    // Mês de nascimento novo é dado novo: pede a autorização de novo.
+    if (!current.birthMonth && input.birthMonth) {
+      assertAllowed(
+        birthConsent,
+        "CONSENT",
+        "Confirme a autorização para guardar o mês e ano de nascimento.",
+      );
+      await recordConsent(tx, userId);
+    }
     const [updated] = await tx
       .update(profiles)
       .set(input)
@@ -534,27 +554,44 @@ export async function history(userId: string, profileId: string) {
     "NOT_FOUND",
     "Perfil não encontrado.",
   );
-  /* O snapshot da lição é grande e igual para todas as tentativas de uma
-     sessão: vem uma vez por sessão, e cada tentativa o encontra pelo id. Esta
-     consulta roda em toda página do app, então o tamanho importa. */
-  const [attemptRows, sessionRows] = await Promise.all([
+  /* Esta consulta roda em toda página do app, e o snapshot da lição é a parte
+     pesada da sessão. Ele só é lido onde muda o resultado: nas avaliações, para
+     saber que famílias já foram expostas, e nas sessões com tentativa num item
+     que a manutenção invalidou. */
+  const [attemptRows, sessionRows, invalidationRows] = await Promise.all([
     db
       .select({ attempt: attempts, mode: sessions.mode, completedAt: sessions.completedAt })
       .from(attempts)
       .innerJoin(sessions, eq(attempts.sessionId, sessions.id))
       .where(eq(sessions.profileId, profileId)),
     db
-      .select({
-        id: sessions.id,
-        mode: sessions.mode,
-        snapshot: sessions.snapshot,
-        completedAt: sessions.completedAt,
-      })
+      .select({ id: sessions.id, mode: sessions.mode, completedAt: sessions.completedAt })
       .from(sessions)
       .where(eq(sessions.profileId, profileId)),
+    db
+      .select({ items: contentControls.invalidatedItems })
+      .from(contentControls)
+      .where(inArray(contentControls.status, ["suspended", "invalidated"])),
   ]);
+  const invalidatedItems = invalidationRows.flatMap((row) => row.items);
+  const invalidated = new Set(invalidatedItems.map((item) => `${item.itemId}:${item.itemHash}`));
+  const invalidatedIds = new Set(invalidatedItems.map((item) => item.itemId));
+  const snapshotIds = new Set([
+    ...sessionRows
+      .filter((session) => session.mode === "diagnostic" || session.mode === "exam")
+      .map((session) => session.id),
+    ...attemptRows
+      .filter((row) => invalidatedIds.has(row.attempt.itemId))
+      .map((row) => row.attempt.sessionId),
+  ]);
+  const snapshotRows = snapshotIds.size
+    ? await db
+        .select({ id: sessions.id, snapshot: sessions.snapshot })
+        .from(sessions)
+        .where(inArray(sessions.id, [...snapshotIds]))
+    : [];
   const parsedBySession = new Map(
-    sessionRows.map((session) => {
+    snapshotRows.map((session) => {
       const parsed = lessonSchema.safeParse(session.snapshot);
       return [session.id, parsed.success ? parsed.data : null] as const;
     }),
@@ -575,15 +612,6 @@ export async function history(userId: string, profileId: string) {
     for (const item of parsed.data.items.slice(0, exposed))
       assessmentExposedFamilyIds.add(item.familyId);
   }
-  const invalidationRows = await db
-    .select({
-      items: contentControls.invalidatedItems,
-    })
-    .from(contentControls)
-    .where(inArray(contentControls.status, ["suspended", "invalidated"]));
-  const invalidated = new Set(
-    invalidationRows.flatMap((row) => row.items.map((item) => `${item.itemId}:${item.itemHash}`)),
-  );
   const visibleRows = rows
     .filter((row) => (row.mode !== "exam" && row.mode !== "diagnostic") || row.completedAt !== null)
     .filter((row) => {
@@ -603,7 +631,7 @@ export async function history(userId: string, profileId: string) {
     }));
   const attemptedItemIds = [...new Set(visibleRows.map((row) => row.attempt.itemId))];
   const recent = await db
-    .select()
+    .select(sessionSummary)
     .from(sessions)
     .where(eq(sessions.profileId, profileId))
     .orderBy(desc(sessions.createdAt))

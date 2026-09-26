@@ -4,11 +4,13 @@ import { catalogReviewAudit } from "./authoring-review";
 import {
   assessment,
   assessmentBanks,
+  catalogCourses,
   catalogGrades,
   contentUnits,
   courseLessons,
   courses,
   coursesForGrade,
+  findCourse,
   findLesson,
   legacyLessonIds,
   lessons,
@@ -188,6 +190,29 @@ describe("catálogo: invariantes", () => {
     for (const grade of catalogGrades) expect(coursesForGrade(grade).length).toBeGreaterThan(0);
     for (const course of courses)
       for (const grade of course.grades) expect(successorCourse(course, grade)).toBe(course);
+  });
+
+  it("segue a linha da olimpíada na virada de ano; a Mirim leva à OBMEP", () => {
+    const next = (id: string, grade: number) => {
+      const course = findCourse(id);
+      return course ? successorCourse(course, grade)?.id : undefined;
+    };
+    expect(next("mirim-1", 4)).toBe("mirim-2");
+    expect(next("mirim-2", 6)).toBe("obmep-n1");
+    expect(next("obmep-n1", 8)).toBe("obmep-n2");
+    expect(next("obmep-n2", 10)).toBe("obmep-n3");
+    expect(next("canguru-p", 5)).toBe("canguru-e");
+    expect(next("canguru-c", 10)).toBe("canguru-j");
+    expect(next("olitef-n1", 8)).toBe("olitef-n2");
+    expect(next("olitef-n2", 10)).toBe("olitef-n3");
+    // O padrão de um perfil novo é a linha da OBMEP, com a Mirim nos anos iniciais.
+    expect(coursesForGrade(3)[0]?.id).toBe("mirim-1");
+    expect(coursesForGrade(5)[0]?.id).toBe("mirim-2");
+    expect(coursesForGrade(6)[0]?.id).toBe("obmep-n1");
+    expect(coursesForGrade(12)[0]?.id).toBe("obmep-n3");
+    // A vitrine vai do ano mais novo ao mais velho.
+    expect(catalogCourses[0]?.id).toBe("mirim-1");
+    expect(catalogCourses.at(-1)?.id).toBe("canguru-s");
   });
 });
 

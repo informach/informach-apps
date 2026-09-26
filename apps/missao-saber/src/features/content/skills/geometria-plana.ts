@@ -569,24 +569,24 @@ export const geometriaPlana: SkillPack = {
   },
   deepChallenge: {
     skillId: "geometria-plana",
-    title: "Medir o que não dá para alcançar",
+    title: "A planta de um cômodo",
     prompt:
-      "Use semelhança de triângulos para medir a altura de algo alto perto de casa (um prédio, um poste, uma árvore) com sombra ou com um objeto de referência. Registre as medidas, o desenho e a conta, e estime o erro.",
+      "Meça um cômodo da casa, ou o pátio da escola, e desenhe a planta em escala numa folha quadriculada. Calcule a área de dois jeitos diferentes, compare os resultados e estime o erro da medida.",
     lab: "grid",
     steps: [
-      "Meça a sombra do objeto alto e, no mesmo instante, a altura e a sombra de uma referência conhecida.",
-      "Desenhe os dois triângulos, justifique a semelhança e calcule a altura.",
-      "Repita a medida em outro horário e discuta a diferença entre os resultados.",
+      "Meça os lados com trena ou com passos de tamanho conhecido e desenhe a planta em escala, anotando a escala usada.",
+      "Calcule a área dividindo a planta em retângulos e triângulos e, depois, tirando partes de um retângulo maior que a contém.",
+      "Compare as duas contas com a contagem de quadradinhos da folha e explique de onde vêm as diferenças.",
     ],
     rubric: [
-      "Medidas registradas com unidades e instante (0–2)",
-      "Semelhança justificada e conta correta (0–3)",
-      "Segunda medida e comparação dos resultados (0–2)",
+      "Medidas e escala registradas com unidades (0–2)",
+      "Duas decomposições corretas e bem justificadas (0–3)",
+      "Comparação com a contagem na malha (0–2)",
       "Discussão das fontes de erro (0–1)",
     ],
   },
   homeSupport: [
-    "Ao ver uma sombra comprida no fim da tarde, perguntem como a altura do objeto poderia ser descoberta sem subir nele.",
+    "Ao arrumar um cômodo, perguntem quantos metros quadrados de piso ele tem e como descobrir isso sem contar cada lajota.",
     "Peçam para o estudante explicar por que o azulejo do banheiro fecha certinho, falando de ângulos que somam 360° em cada canto.",
   ],
 };

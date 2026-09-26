@@ -12,7 +12,7 @@ import type { TrackDefinition } from "../types";
 export const wave3aTracks: TrackDefinition[] = [
   {
     id: "obmep-n3",
-    title: "Generalizar e provar",
+    title: "Estruturas e demonstrações",
     label: "OBMEP · Nível 3",
     olympiad: "obmep",
     level: "N3",

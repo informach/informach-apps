@@ -9,7 +9,7 @@ export const tabelas: SkillPack = {
   id: "tabelas",
   name: "Ler tabelas",
   domain: "mirim",
-  lab: "bars",
+  lab: null,
   missions: [
     {
       title: "Linhas e colunas",
@@ -565,7 +565,7 @@ export const tabelas: SkillPack = {
     title: "A tabela da semana",
     prompt:
       "Escolha algo para contar todos os dias durante uma semana (copos de água, páginas lidas, minutos de brincadeira). Monte a tabela, desenhe o gráfico de barras e escreva três perguntas que a tabela responde.",
-    lab: "bars",
+    lab: null,
     steps: [
       "Monte a tabela com os 7 dias e anote o valor de cada dia.",
       "Desenhe o gráfico de barras com uma escala (quanto vale cada quadradinho).",
