@@ -8,7 +8,7 @@ import { type EstadoNo, NoTrilha } from "@/components/ui/no-trilha";
 import { Etiqueta } from "@/components/ui/pagina";
 import { SeloHabilidade } from "@/components/ui/selo-habilidade";
 import { assertableAvailabilityMessage, lessonAvailability } from "@/features/content/availability";
-import { courseLessons, courses, findCourse, skillNames } from "@/features/content/catalog";
+import { courseLessons, coursesForGrade, findCourse, skillNames } from "@/features/content/catalog";
 import { currentDashboard } from "@/lib/view";
 
 export const metadata = { title: "Minha jornada" };
@@ -21,7 +21,7 @@ export default async function Journey() {
   if (!course) return null;
   const completed = new Set(data.attemptedItemIds);
   const licoes = courseLessons(course);
-  const tomCurso = tomDoCurso(course.id);
+  const tomCurso = tomDoCurso(course);
 
   /** Estado de cada lição, na ordem do curso. */
   const estados = licoes.map((lesson) => {
@@ -74,7 +74,7 @@ export default async function Journey() {
           <CoursePicker
             profileId={profile.id}
             current={course.id}
-            courses={courses.filter((c) => c.grades.includes(profile.grade))}
+            courses={coursesForGrade(profile.grade)}
           />
         </div>
       </section>

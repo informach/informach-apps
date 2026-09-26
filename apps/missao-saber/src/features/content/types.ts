@@ -12,6 +12,10 @@ const explorationSchema = z.object({
   instruction: z.string(),
   alternativeText: z.string(),
 });
+export const domainSchema = z.enum(["common", "olitef", "canguru", "obmep", "mirim"]);
+export type Domain = z.infer<typeof domainSchema>;
+export type Olympiad = Exclude<Domain, "common">;
+
 const commonItemSchema = z.object({
   id: z.string(),
   skillId: z.string(),
@@ -22,7 +26,7 @@ const commonItemSchema = z.object({
   purpose: z
     .enum(["discovery", "guided-practice", "independent-practice", "assessment"])
     .default("guided-practice"),
-  domain: z.enum(["common", "olitef", "canguru", "obmep"]).default("common"),
+  domain: domainSchema.default("common"),
   source: itemSourceSchema.optional(),
   exploration: explorationSchema.optional(),
 });
@@ -200,11 +204,19 @@ export type Course = {
   id: string;
   title: string;
   label: string;
+  /** Olimpíada de referência: domínio das questões reservadas e da paleta. */
+  olympiad: Olympiad;
+  /** Nível oficial dentro da olimpíada: "N1", "E", "Mirim 2"... */
+  level: string;
+  /** Anos escolares elegíveis, de 2 (2º EF) a 12 (3º EM). */
   grades: number[];
+  /** Base das questões reservadas; ver tracks/legacy.ts. */
+  bankSeed: number;
   description: string;
   skills: string[];
   path: string[];
 };
+export type TrackDefinition = Omit<Course, "path"> & { maximumLayers?: number };
 
 export function publicItem(item: Item): PublicItem {
   const common = {

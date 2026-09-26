@@ -1,4 +1,5 @@
 import { cn } from "@informach/ui/lib/utils";
+import type { Olympiad } from "@/features/content/types";
 import type { Tom } from "./chapa";
 
 /**
@@ -146,9 +147,20 @@ const tonsPorCurso: Record<string, Tom> = {
   "canguru-b": "sol",
   "obmep-n1": "ceu",
 };
+const tonsPorOlimpiada: Record<Olympiad, Tom> = {
+  olitef: "verde",
+  obmep: "ceu",
+  canguru: "uva",
+  mirim: "lima",
+};
 
-export function tomDoCurso(courseId: string): Tom {
-  return tonsPorCurso[courseId] ?? "verde";
+/** As quatro trilhas originais mantêm a paisagem que a família já conhece;
+    as demais herdam a cor da olimpíada, com os níveis B, C e S do Canguru em sol. */
+export function tomDoCurso(course: { id: string; olympiad?: Olympiad; level?: string }): Tom {
+  const fixo = tonsPorCurso[course.id];
+  if (fixo) return fixo;
+  if (course.olympiad === "canguru" && ["B", "C", "S"].includes(course.level ?? "")) return "sol";
+  return course.olympiad ? tonsPorOlimpiada[course.olympiad] : "verde";
 }
 
 export function Horizonte({ tom = "verde", className }: { tom?: Tom; className?: string }) {

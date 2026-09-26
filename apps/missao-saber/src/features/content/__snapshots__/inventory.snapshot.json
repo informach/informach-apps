@@ -1,0 +1,156 @@
+{
+  "totals": {
+    "missions": 61,
+    "assessmentBanks": 8,
+    "teachingItems": 508,
+    "reservedItems": 96,
+    "uniqueItemIds": 604,
+    "distinctActivitySignatures": 604,
+    "justificationItems": 37,
+    "teachingFamilies": 271,
+    "assessmentFamilies": 26
+  },
+  "byDomain": {
+    "canguru": 90,
+    "common": 300,
+    "obmep": 94,
+    "olitef": 120
+  },
+  "byFormat": {
+    "choice": 457,
+    "justification": 37,
+    "numeric": 73,
+    "ordering": 37
+  },
+  "byPurpose": {
+    "assessment": 96,
+    "discovery": 121,
+    "guided-practice": 230,
+    "independent-practice": 157
+  },
+  "bySkill": {
+    "contagem": 54,
+    "fracoes": 64,
+    "gavetas": 46,
+    "logica": 50,
+    "medidas": 52,
+    "orcamento": 46,
+    "padroes": 50,
+    "paridade": 50,
+    "porcentagem": 48,
+    "precos": 46,
+    "probabilidade": 48,
+    "simetria": 50
+  },
+  "courses": {
+    "olitef-n1": {
+      "label": "OLITEF · Nível 1",
+      "grades": [
+        6,
+        7
+      ],
+      "skills": [
+        "fracoes",
+        "porcentagem",
+        "precos",
+        "orcamento",
+        "probabilidade"
+      ],
+      "missions": 26,
+      "diagnosticItems": 12,
+      "examItems": 12
+    },
+    "canguru-e": {
+      "label": "Canguru · E · 6º ano",
+      "grades": [
+        6
+      ],
+      "skills": [
+        "fracoes",
+        "medidas",
+        "simetria",
+        "padroes",
+        "contagem",
+        "logica"
+      ],
+      "missions": 24,
+      "diagnosticItems": 12,
+      "examItems": 12
+    },
+    "canguru-b": {
+      "label": "Canguru · B · 7º ano",
+      "grades": [
+        7
+      ],
+      "skills": [
+        "fracoes",
+        "medidas",
+        "simetria",
+        "contagem",
+        "paridade",
+        "probabilidade",
+        "logica"
+      ],
+      "missions": 36,
+      "diagnosticItems": 12,
+      "examItems": 12
+    },
+    "obmep-n1": {
+      "label": "OBMEP · Nível 1 · 6º e 7º anos",
+      "grades": [
+        6,
+        7
+      ],
+      "skills": [
+        "fracoes",
+        "paridade",
+        "padroes",
+        "contagem",
+        "gavetas",
+        "medidas",
+        "logica"
+      ],
+      "missions": 36,
+      "diagnosticItems": 12,
+      "examItems": 12
+    }
+  },
+  "lots": [
+    {
+      "number": 1,
+      "firstItemId": "fracoes-1-1",
+      "lastItemId": "probabilidade-1-5",
+      "items": 101
+    },
+    {
+      "number": 2,
+      "firstItemId": "probabilidade-1-6",
+      "lastItemId": "porcentagem-5-4",
+      "items": 101
+    },
+    {
+      "number": 3,
+      "firstItemId": "porcentagem-5-5",
+      "lastItemId": "simetria-3-5",
+      "items": 101
+    },
+    {
+      "number": 4,
+      "firstItemId": "simetria-3-6",
+      "lastItemId": "probabilidade-4-6",
+      "items": 101
+    },
+    {
+      "number": 5,
+      "firstItemId": "probabilidade-4-7",
+      "lastItemId": "logica-5-7",
+      "items": 101
+    },
+    {
+      "number": 6,
+      "firstItemId": "logica-5-8",
+      "lastItemId": "bank:exam:obmep-n1-12",
+      "items": 99
+    }
+  ]
+}

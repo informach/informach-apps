@@ -1,7 +1,6 @@
-import { createHash } from "node:crypto";
-import type { Item, Lesson } from "./types";
+import type { Course, Item, Lesson } from "./types";
 
-type SkillId =
+export type SkillId =
   | "fracoes"
   | "porcentagem"
   | "precos"
@@ -15,116 +14,19 @@ type SkillId =
   | "padroes"
   | "logica";
 
-type ChoiceSpec = {
-  kind: "choice";
-  family: string;
-  prompt: string;
-  answer: string;
-  wrong: [string, string];
-  explanation: string;
-};
-type NumericSpec = {
-  kind: "numeric";
-  family: string;
-  prompt: string;
-  value: number;
-  explanation: string;
-  unit?: { symbol: string; aliases: string[]; required: boolean };
-  /** Etapa trocada previsível, com a devolutiva que a nomeia. */
-  misreads?: { value: number; feedback: string }[];
-};
-type ObjectiveSpec = ChoiceSpec | NumericSpec;
-
-const brl = (value: number) =>
-  value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const decimal = (value: number) => value.toLocaleString("pt-BR", { maximumFractionDigits: 4 });
-function stageValue<T>(values: readonly [T, T, T], stage: number): T {
-  return values[stage as 0 | 1 | 2] ?? values[0];
-}
-const c = (
-  family: string,
-  prompt: string,
-  answer: string | number,
-  wrong: [string | number, string | number],
-  explanation: string,
-): ChoiceSpec => ({
-  kind: "choice",
-  family,
-  prompt,
-  answer: String(answer),
-  wrong: [String(wrong[0]), String(wrong[1])],
-  explanation,
-});
-const n = (
-  family: string,
-  prompt: string,
-  value: number,
-  explanation: string,
-  extra: { unit?: NumericSpec["unit"]; misreads?: NumericSpec["misreads"] } = {},
-): NumericSpec => ({ kind: "numeric", family, prompt, value, explanation, ...extra });
-
-function orderedOptions(itemId: string, values: string[]) {
-  const score = (value: string) => createHash("sha256").update(`${itemId}:${value}`).digest("hex");
-  return [...values].sort((a, b) => score(a).localeCompare(score(b)));
-}
-
-function objectiveItem(
-  skillId: SkillId,
-  lessonId: string,
-  index: number,
-  spec: ObjectiveSpec,
-): Item {
-  const id = `${lessonId}-${index + 1}`;
-  const purpose = index < 2 ? "discovery" : index < 6 ? "guided-practice" : "independent-practice";
-  const hints: [string, string, string] = [
-    "Separe os dados da pergunta antes de calcular.",
-    `Procure a relação central desta família: ${spec.family.replaceAll("-", " ")}.`,
-    `Confira cada etapa: ${spec.explanation}`,
-  ];
-  if (spec.kind === "numeric")
-    return {
-      type: "numeric",
-      id,
-      skillId,
-      familyId: `${skillId}:learn:${spec.family}`,
-      purpose,
-      domain: "common",
-      prompt: spec.prompt,
-      explanation: spec.explanation,
-      hints,
-      grading: {
-        value: spec.value,
-        tolerance: 0,
-        acceptedForms: Number.isInteger(spec.value)
-          ? ["integer", "decimal"]
-          : ["decimal", "fraction"],
-        unit: spec.unit,
-      },
-      misreads: spec.misreads ?? [],
-    };
-  const options = orderedOptions(id, [spec.answer, ...spec.wrong]);
-  return {
-    type: "choice",
-    id,
-    skillId,
-    familyId: `${skillId}:learn:${spec.family}`,
-    purpose,
-    domain: "common",
-    prompt: spec.prompt,
-    answer: spec.answer,
-    options,
-    explanation: spec.explanation,
-    hints,
-    misconceptions: Object.fromEntries(
-      spec.wrong.map((wrong, wrongIndex) => [
-        wrong,
-        wrongIndex === 0
-          ? `Essa alternativa usa apenas parte dos dados. ${spec.explanation}`
-          : `Essa alternativa troca a relação pedida por outra. ${spec.explanation}`,
-      ]),
-    ),
-  };
-}
+import {
+  brl,
+  justificationItem as buildJustificationItem,
+  orderingItem as buildOrderingItem,
+  type ChoiceSpec,
+  c,
+  distinctNumericOptions,
+  n,
+  type ObjectiveSpec,
+  objectiveItem,
+  stageValue,
+  verificationSpec,
+} from "./skill-factory";
 
 function fractionSpecs(stage: number): ObjectiveSpec[] {
   const quantities = [24, 35, 48];
@@ -1661,82 +1563,16 @@ const justificationFocus: Record<SkillId, string> = {
 };
 
 function orderingItem(skillId: SkillId, lessonId: string, stage: number): Item {
-  const definition = orderDefinitions[skillId];
-  const order = ["understand", "represent", "solve", "verify"];
-  const stageLabels: [string, string, string, string] =
-    stage === 0
-      ? definition.labels
-      : stage === 1
-        ? [
-            "Retomar a pergunta e a unidade esperada",
-            "Refazer a representação ou relação usada",
-            "Recalcular e testar um limite ou caso simples",
-            "Comparar com a resposta e corrigir a etapa divergente",
-          ]
-        : [
-            "Descrever duas estratégias possíveis",
-            "Executar ambas com os mesmos dados",
-            "Comparar hipóteses, etapas e resultados",
-            "Escolher uma conclusão e justificar o critério",
-          ];
-  const steps = stageLabels.map((label, index) => ({ id: order[index] ?? String(index), label }));
-  const rotated = [
-    ...steps.slice((stage + 1) % steps.length),
-    ...steps.slice(0, (stage + 1) % steps.length),
-  ];
-  return {
-    type: "ordering",
-    id: `${lessonId}-9`,
-    skillId,
-    familyId: `${skillId}:learn:${["metodo-organizado", "verificacao-de-solucao", "comparacao-de-metodos"][stage] ?? "metodo-organizado"}`,
-    purpose: "guided-practice",
-    domain: "common",
-    prompt:
-      stage === 0
-        ? definition.prompt
-        : stage === 1
-          ? `Organize uma verificação de resposta para esta ideia: ${definition.prompt.toLocaleLowerCase("pt-BR")}`
-          : `Organize a comparação de dois caminhos de solução para esta ideia: ${definition.prompt.toLocaleLowerCase("pt-BR")}`,
-    explanation:
-      stage === 0
-        ? definition.explanation
-        : stage === 1
-          ? "Verificar é repetir a relação com atenção à unidade e testar se a resposta respeita limites simples."
-          : "Comparar métodos exige aplicar os mesmos dados, explicitar hipóteses e conferir se chegam à mesma conclusão.",
-    hints: [
-      "Descubra qual passo define o objetivo antes da execução.",
-      "Coloque a representação antes do cálculo e a conferência depois dele.",
-      `A ordem completa é: ${stageLabels.join(" → ")}.`,
-    ],
-    steps: rotated,
-    grading: { mode: "exact", order },
-  };
+  return buildOrderingItem(skillId, lessonId, stage, orderDefinitions[skillId]);
 }
 
 function justificationItem(skillId: SkillId, lessonId: string, stage: number): Item {
-  const definition = skillDefinitions[skillId];
-  return {
-    type: "justification",
-    id: `${lessonId}-10`,
-    skillId,
-    familyId: `${skillId}:learn:argumentacao-${stage + 1}`,
-    purpose: "independent-practice",
-    domain: "common",
-    prompt: justificationPrompts[skillId][stage] ?? justificationPrompts[skillId][0],
-    explanation: `Uma boa justificativa liga a ideia “${definition.introductions[stage] ?? definition.introductions[0]}” a uma conclusão verificável.`,
-    hints: [
-      "Declare primeiro a relação que você vai usar.",
-      "Inclua um exemplo, cálculo ou caso que sustente essa relação.",
-      "Conclua retomando exatamente o que precisava ser explicado.",
-    ],
-    response: { label: "Escreva sua justificativa", minLength: 30, maxLength: 800 },
-    rubric: [
-      `Declara e usa corretamente ${justificationFocus[skillId]}.`,
-      "Conecta a relação ao caso ou afirmação da atividade.",
-      "Chega a uma conclusão explícita sem depender de autoridade ou opinião.",
-    ],
-    sampleResponse: justificationSamples[skillId][stage] ?? justificationSamples[skillId][0],
-  };
+  return buildJustificationItem(skillId, lessonId, stage, {
+    introductions: skillDefinitions[skillId].introductions,
+    prompts: justificationPrompts[skillId],
+    samples: justificationSamples[skillId],
+    focus: justificationFocus[skillId],
+  });
 }
 
 export const commercialLessons: Lesson[] = (Object.keys(skillDefinitions) as SkillId[]).flatMap(
@@ -1767,13 +1603,16 @@ export const commercialLessons: Lesson[] = (Object.keys(skillDefinitions) as Ski
   },
 );
 
-function distinctNumericOptions(answer: number): [string, string] {
-  const first = answer + Math.max(1, Math.round(Math.abs(answer) * 0.1));
-  const second = answer - Math.max(1, Math.round(Math.abs(answer) * 0.15));
-  return [decimal(first), decimal(second)];
-}
-
-function reservedSpec(skillId: string, seed: number, variant: number): ChoiceSpec {
+/**
+ * Questões reservadas das doze habilidades de 6º/7º. Devolve `undefined` para
+ * uma habilidade que não é destas: antes, qualquer id desconhecido caía em
+ * lógica em silêncio, e uma trilha nova receberia um banco errado.
+ */
+export function legacyReservedSpec(
+  skillId: string,
+  seed: number,
+  variant: number,
+): ChoiceSpec | undefined {
   switch (skillId) {
     case "fracoes": {
       const denominator = 4 + (seed % 4);
@@ -2169,7 +2008,7 @@ function reservedSpec(skillId: string, seed: number, variant: number): ChoiceSpe
         `Uma figura usa ${position} × ${position + 1} ÷ 2 = ${oneFigure} pontos; ${copies} figura(s) usam ${answer}.`,
       );
     }
-    default: {
+    case "logica": {
       const a = `cartão ${seed + 1}`;
       const b = `cartão ${seed + 2}`;
       const d = `cartão ${seed + 3}`;
@@ -2200,45 +2039,42 @@ function reservedSpec(skillId: string, seed: number, variant: number): ChoiceSpe
       );
     }
   }
+  return undefined;
 }
 
-function verificationSpec(spec: ChoiceSpec): ChoiceSpec {
-  return c(spec.family, spec.prompt, spec.answer, spec.wrong, spec.explanation);
-}
+export type AssessmentCourse = Pick<Course, "id" | "title" | "skills" | "olympiad" | "bankSeed">;
 
-export type AssessmentCourse = Pick<
-  { id: string; title: string; skills: string[] },
-  "id" | "title" | "skills"
->;
-
-export function makeAssessmentBank(course: AssessmentCourse, mode: "diagnostic" | "exam"): Lesson {
+/**
+ * Banco reservado de uma trilha: doze questões que percorrem as habilidades
+ * dela em rodízio. `resolveReserved` devolve a especificação da habilidade
+ * (pack novo ou legado); sem ela, a trilha não pode existir.
+ */
+export function makeAssessmentBank(
+  course: AssessmentCourse,
+  mode: "diagnostic" | "exam",
+  resolveReserved: (skillId: string, seed: number, variant: 0 | 1 | 2) => ChoiceSpec | undefined,
+): Lesson {
   const id = `bank:${mode}:${course.id}`;
-  const courseOffset =
-    ({ "olitef-n1": 0, "canguru-e": 24, "canguru-b": 48, "obmep-n1": 72 } as const)[
-      course.id as "olitef-n1" | "canguru-e" | "canguru-b" | "obmep-n1"
-    ] ?? 96;
   const items = Array.from({ length: 12 }, (_, index) => {
     const skillId = course.skills[index % course.skills.length] ?? course.skills[0] ?? "logica";
-    const baseSpec = reservedSpec(
+    const variant = (Math.floor(index / course.skills.length) % 3) as 0 | 1 | 2;
+    const baseSpec = resolveReserved(
       skillId,
-      courseOffset + index + (mode === "exam" ? 101 : 0),
-      Math.floor(index / course.skills.length) % 3,
+      course.bankSeed + index + (mode === "exam" ? 101 : 0),
+      variant,
     );
+    if (!baseSpec) throw new Error(`Sem questões reservadas para a habilidade ${skillId}`);
     const spec = mode === "exam" ? verificationSpec(baseSpec) : baseSpec;
     const numberedSpec = {
       ...spec,
-      prompt: `Questão ${courseOffset + index + (mode === "exam" ? 13 : 1)}. ${spec.prompt}`,
+      prompt: `Questão ${course.bankSeed + index + (mode === "exam" ? 13 : 1)}. ${spec.prompt}`,
     };
-    const item = objectiveItem(skillId as SkillId, id, index, numberedSpec);
+    const item = objectiveItem(skillId, id, index, numberedSpec);
     return {
       ...item,
       familyId: `${skillId}:assess:${spec.family}`,
       purpose: "assessment" as const,
-      domain: (course.id === "olitef-n1"
-        ? "olitef"
-        : course.id.startsWith("canguru")
-          ? "canguru"
-          : "obmep") as "olitef" | "canguru" | "obmep",
+      domain: course.olympiad,
     };
   });
   return {

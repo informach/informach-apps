@@ -1,3 +1,4 @@
+import { PRODUCTS } from "@informach/config";
 import { ArrowUpRight, Check, Compass, Lightbulb, Sprout } from "lucide-react";
 import Link from "next/link";
 import { Brand } from "@/components/brand";
@@ -6,7 +7,6 @@ import { LinkChapa } from "@/components/ui/botao-chapa";
 import { Chapa } from "@/components/ui/chapa";
 import { Horizonte, tomDoCurso } from "@/components/ui/horizonte";
 import { Etiqueta } from "@/components/ui/pagina";
-import { PRODUCTS } from "@informach/config";
 import { courses } from "@/features/content/catalog";
 
 export const metadata = {
@@ -170,10 +170,10 @@ export default function Home() {
             {courses.map((course) => (
               <Chapa
                 key={course.id}
-                tom={tomDoCurso(course.id)}
+                tom={tomDoCurso(course)}
                 className="relative flex flex-col overflow-hidden pb-16"
               >
-                <Horizonte tom={tomDoCurso(course.id)} className="h-16 opacity-30 sm:h-16" />
+                <Horizonte tom={tomDoCurso(course)} className="h-16 opacity-30 sm:h-16" />
                 <span className="relative font-display text-xs font-semibold text-tinta-suave uppercase">
                   {course.label}
                 </span>

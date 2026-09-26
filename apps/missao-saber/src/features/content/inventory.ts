@@ -1,5 +1,6 @@
 import "server-only";
 import { assessmentBanks, courseLessons, courses, lessons, progressionBySkill } from "./catalog";
+import { authoringLots } from "./lotes";
 import type { Item } from "./types";
 
 function countBy<T>(values: T[], key: (value: T) => string) {
@@ -59,6 +60,16 @@ export function catalogInventory() {
     shapeFamilies.set(shape, new Set([...(shapeFamilies.get(shape) ?? []), item.familyId]));
   }
   const teachingShapes = new Set(teachingItems.map((item) => semanticShape(item.prompt)));
+  const indexById = new Map(allItems.map((item, index) => [item.id, index]));
+  const lotRanges = authoringLots.map((lot) => ({
+    lot,
+    start: indexById.get(lot.firstItemId) ?? -1,
+    end: indexById.get(lot.lastItemId) ?? -1,
+  }));
+  const lotCoverage = new Array<number>(allItems.length).fill(0);
+  for (const { start, end } of lotRanges)
+    if (start >= 0 && end >= start)
+      for (let i = start; i <= end; i++) lotCoverage[i] = (lotCoverage[i] ?? 0) + 1;
   return {
     totals: {
       missions: lessons.length,
@@ -91,16 +102,12 @@ export function catalogInventory() {
         },
       ]),
     ),
-    lots: Array.from({ length: 6 }, (_, index) => {
-      const start = index * Math.ceil(allItems.length / 6);
-      const end = Math.min(allItems.length, (index + 1) * Math.ceil(allItems.length / 6));
-      return {
-        number: index + 1,
-        firstItemId: allItems[start]?.id ?? null,
-        lastItemId: allItems[end - 1]?.id ?? null,
-        items: Math.max(0, end - start),
-      };
-    }),
+    lots: lotRanges.map(({ lot, start, end }) => ({
+      number: lot.number,
+      firstItemId: lot.firstItemId,
+      lastItemId: lot.lastItemId,
+      items: start >= 0 && end >= start ? end - start + 1 : 0,
+    })),
     integrity: {
       duplicateItemIds: allItems.length - new Set(allItems.map((item) => item.id)).size,
       duplicateActivitySignatures: duplicateSignatures.length,
@@ -135,6 +142,11 @@ export function catalogInventory() {
           (bank) => new Set(bank.items.map((item) => item.familyId)).size !== bank.items.length,
         )
         .map((bank) => bank.id),
+      itemsOutsideLots: allItems.filter((_, index) => lotCoverage[index] === 0).map((i) => i.id),
+      itemsInSeveralLots: allItems.filter((_, index) => (lotCoverage[index] ?? 0) > 1).length,
+      unresolvedLots: lotRanges
+        .filter(({ start, end }) => start < 0 || end < start)
+        .map(({ lot }) => lot.number),
     },
   };
 }
