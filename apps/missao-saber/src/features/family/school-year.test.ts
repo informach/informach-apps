@@ -5,6 +5,7 @@ import {
   gradeLabel,
   gradeOptions,
   gradeRangeLabel,
+  gradeRangeSentence,
   schoolYear,
   suggestedGrade,
 } from "./school-year";
@@ -61,6 +62,11 @@ describe("ano escolar", () => {
     expect(gradeRangeLabel([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])).toBe(
       "do 2º ano à 3ª série do EM",
     );
+  });
+
+  it("monta a frase da faixa para os textos públicos", () => {
+    expect(gradeRangeSentence([6, 7])).toBe("para o 6º e 7º ano");
+    expect(gradeRangeSentence([6, 7, 8, 9])).toBe("do 6º ano ao 9º ano");
   });
 
   it("converte o mês gravado de volta para o campo do formulário", () => {

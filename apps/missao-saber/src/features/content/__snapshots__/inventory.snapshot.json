@@ -1,45 +1,54 @@
 {
   "totals": {
-    "missions": 61,
-    "assessmentBanks": 8,
-    "teachingItems": 508,
-    "reservedItems": 96,
-    "uniqueItemIds": 604,
-    "distinctActivitySignatures": 604,
-    "justificationItems": 37,
-    "teachingFamilies": 271,
-    "assessmentFamilies": 26
+    "missions": 106,
+    "assessmentBanks": 12,
+    "teachingItems": 922,
+    "reservedItems": 144,
+    "uniqueItemIds": 1066,
+    "distinctActivitySignatures": 1066,
+    "justificationItems": 64,
+    "teachingFamilies": 448,
+    "assessmentFamilies": 43
   },
   "byDomain": {
-    "canguru": 90,
-    "common": 300,
-    "obmep": 94,
+    "canguru": 206,
+    "common": 484,
+    "obmep": 256,
     "olitef": 120
   },
   "byFormat": {
-    "choice": 457,
-    "justification": 37,
-    "numeric": 73,
-    "ordering": 37
+    "choice": 713,
+    "justification": 64,
+    "numeric": 225,
+    "ordering": 64
   },
   "byPurpose": {
-    "assessment": 96,
-    "discovery": 121,
-    "guided-practice": 230,
-    "independent-practice": 157
+    "assessment": 144,
+    "discovery": 211,
+    "guided-practice": 437,
+    "independent-practice": 274
   },
   "bySkill": {
     "contagem": 54,
+    "contagem-casos": 52,
+    "coordenadas": 50,
+    "equacoes": 54,
     "fracoes": 64,
     "gavetas": 46,
+    "invariantes": 48,
     "logica": 50,
+    "logica-n2": 50,
     "medidas": 52,
     "orcamento": 46,
     "padroes": 50,
     "paridade": 50,
+    "pitagoras": 50,
     "porcentagem": 48,
     "precos": 46,
     "probabilidade": 48,
+    "proporcao": 54,
+    "restos": 50,
+    "semelhanca": 54,
     "simetria": 50
   },
   "courses": {
@@ -80,7 +89,8 @@
     "canguru-b": {
       "label": "Canguru · B",
       "grades": [
-        7
+        7,
+        8
       ],
       "skills": [
         "fracoes",
@@ -111,6 +121,42 @@
         "logica"
       ],
       "missions": 36,
+      "diagnosticItems": 12,
+      "examItems": 12
+    },
+    "obmep-n2": {
+      "label": "OBMEP · Nível 2",
+      "grades": [
+        8,
+        9
+      ],
+      "skills": [
+        "proporcao",
+        "restos",
+        "equacoes",
+        "semelhanca",
+        "pitagoras",
+        "contagem-casos",
+        "invariantes"
+      ],
+      "missions": 35,
+      "diagnosticItems": 12,
+      "examItems": 12
+    },
+    "canguru-c": {
+      "label": "Canguru · C",
+      "grades": [
+        9
+      ],
+      "skills": [
+        "proporcao",
+        "equacoes",
+        "semelhanca",
+        "contagem-casos",
+        "coordenadas",
+        "logica-n2"
+      ],
+      "missions": 30,
       "diagnosticItems": 12,
       "examItems": 12
     }
@@ -151,6 +197,36 @@
       "firstItemId": "logica-5-8",
       "lastItemId": "bank:exam:obmep-n1-12",
       "items": 99
+    },
+    {
+      "number": 7,
+      "firstItemId": "proporcao-1-1",
+      "lastItemId": "equacoes-5-10",
+      "items": 92
+    },
+    {
+      "number": 8,
+      "firstItemId": "semelhanca-1-1",
+      "lastItemId": "pitagoras-5-10",
+      "items": 92
+    },
+    {
+      "number": 9,
+      "firstItemId": "restos-1-1",
+      "lastItemId": "contagem-casos-5-10",
+      "items": 92
+    },
+    {
+      "number": 10,
+      "firstItemId": "invariantes-1-1",
+      "lastItemId": "coordenadas-5-10",
+      "items": 92
+    },
+    {
+      "number": 11,
+      "firstItemId": "logica-n2-1-1",
+      "lastItemId": "bank:exam:canguru-c-12",
+      "items": 94
     }
   ]
 }

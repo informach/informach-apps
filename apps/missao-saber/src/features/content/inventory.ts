@@ -1,7 +1,20 @@
 import "server-only";
-import { assessmentBanks, courseLessons, courses, lessons, progressionBySkill } from "./catalog";
+import {
+  assessmentBanks,
+  courseLessons,
+  courses,
+  legacyLessonIds,
+  lessons,
+  progressionBySkill,
+} from "./catalog";
 import { authoringLots } from "./lotes";
-import type { Item } from "./types";
+import { legacyTracks } from "./tracks/legacy";
+import type { Item, Lesson } from "./types";
+
+const legacyCourseIds = new Set(legacyTracks.map((track) => track.id));
+const isLegacyBank = (bank: Lesson) =>
+  legacyCourseIds.has(bank.id.replace(/^bank:(diagnostic|exam):/, ""));
+const itemsOf = (units: Lesson[]) => units.flatMap((unit) => unit.items);
 
 function countBy<T>(values: T[], key: (value: T) => string) {
   const counts: Record<string, number> = {};
@@ -26,12 +39,15 @@ function solutionSignature(item: Item) {
 }
 
 function semanticShape(prompt: string) {
-  return prompt
-    .toLocaleLowerCase("pt-BR")
-    .replace(/r\$\s*[\d.,]+/g, "<valor>")
-    .replace(/-?\d+(?:[.,]\d+)?/g, "<n>")
-    .replace(/\s+/g, " ")
-    .trim();
+  return (
+    prompt
+      .toLocaleLowerCase("pt-BR")
+      .replace(/r\$\s*[\d.,]+/g, "<valor>")
+      // O sinal pode ser o hífen ou o menos tipográfico usado nos itens.
+      .replace(/[−-]?\d+(?:[.,]\d+)?/g, "<n>")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
 }
 
 export function catalogInventory() {
@@ -60,13 +76,23 @@ export function catalogInventory() {
     shapeFamilies.set(shape, new Set([...(shapeFamilies.get(shape) ?? []), item.familyId]));
   }
   const teachingShapes = new Set(teachingItems.map((item) => semanticShape(item.prompt)));
-  const indexById = new Map(allItems.map((item, index) => [item.id, index]));
+  /* Ordem de autoria: os seis lotes de 6º/7º cobriram missões e depois os
+     bancos das quatro trilhas; o que veio depois segue a ordem do registro de
+     habilidades e, por fim, os bancos das trilhas novas. Os lotes são faixas
+     contíguas nessa ordem, não na ordem de carga do catálogo. */
+  const authoringOrder = [
+    ...itemsOf(lessons.filter((lesson) => legacyLessonIds.has(lesson.id))),
+    ...itemsOf(assessmentBanks.filter(isLegacyBank)),
+    ...itemsOf(lessons.filter((lesson) => !legacyLessonIds.has(lesson.id))),
+    ...itemsOf(assessmentBanks.filter((bank) => !isLegacyBank(bank))),
+  ];
+  const indexById = new Map(authoringOrder.map((item, index) => [item.id, index]));
   const lotRanges = authoringLots.map((lot) => ({
     lot,
     start: indexById.get(lot.firstItemId) ?? -1,
     end: indexById.get(lot.lastItemId) ?? -1,
   }));
-  const lotCoverage = new Array<number>(allItems.length).fill(0);
+  const lotCoverage = new Array<number>(authoringOrder.length).fill(0);
   for (const { start, end } of lotRanges)
     if (start >= 0 && end >= start)
       for (let i = start; i <= end; i++) lotCoverage[i] = (lotCoverage[i] ?? 0) + 1;
@@ -142,8 +168,10 @@ export function catalogInventory() {
           (bank) => new Set(bank.items.map((item) => item.familyId)).size !== bank.items.length,
         )
         .map((bank) => bank.id),
-      itemsOutsideLots: allItems.filter((_, index) => lotCoverage[index] === 0).map((i) => i.id),
-      itemsInSeveralLots: allItems.filter((_, index) => (lotCoverage[index] ?? 0) > 1).length,
+      itemsOutsideLots: authoringOrder
+        .filter((_, index) => lotCoverage[index] === 0)
+        .map((item) => item.id),
+      itemsInSeveralLots: authoringOrder.filter((_, index) => (lotCoverage[index] ?? 0) > 1).length,
       unresolvedLots: lotRanges
         .filter(({ start, end }) => start < 0 || end < start)
         .map(({ lot }) => lot.number),

@@ -1,4 +1,6 @@
 import { ImageResponse } from "next/og";
+import { catalogGrades } from "@/features/content/catalog";
+import { gradeRangeSentence } from "@/features/family/school-year";
 
 export const alt = "Missão Saber. Uma descoberta por dia.";
 export const size = { width: 1200, height: 630 };
@@ -54,7 +56,7 @@ export default function Image() {
           <div>Um novo jeito de pensar.</div>
         </div>
         <div style={{ fontSize: 34, color: "#4b5563" }}>
-          Matemática e educação financeira em missões autorais para o 6º e 7º ano.
+          {`Matemática e educação financeira em missões autorais ${gradeRangeSentence(catalogGrades)}.`}
         </div>
       </div>
       <div style={{ fontSize: 26, color: "#4b5563" }}>Um produto Informach</div>

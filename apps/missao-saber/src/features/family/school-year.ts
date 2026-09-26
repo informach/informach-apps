@@ -61,6 +61,12 @@ export function gradeRangeLabel(grades: readonly number[]): string {
   return `do ${gradeLabel(first)} ${last >= 10 ? "à" : "ao"} ${gradeLabel(last)}`;
 }
 
+/** Para frases: "para o 6º e 7º ano" ou "do 6º ano ao 9º ano". */
+export function gradeRangeSentence(grades: readonly number[]): string {
+  const label = gradeRangeLabel(grades);
+  return label.startsWith("do ") ? label : `para o ${label}`;
+}
+
 export function gradeOptions(grades: readonly number[]) {
   return [...grades].sort((a, b) => a - b).map((value) => ({ value, label: gradeLabel(value) }));
 }

@@ -9,12 +9,11 @@ import { Horizonte, tomDoCurso } from "@/components/ui/horizonte";
 import { Etiqueta } from "@/components/ui/pagina";
 import { catalogGrades, courses } from "@/features/content/catalog";
 import { inventory } from "@/features/content/inventory";
-import { gradeRangeLabel } from "@/features/family/school-year";
+import { gradeRangeLabel, gradeRangeSentence } from "@/features/family/school-year";
 
 export const metadata = {
   title: { absolute: "Missão Saber · Uma descoberta por dia" },
-  description:
-    "Matemática e educação financeira em missões autorais para o 6º e 7º ano. A primeira unidade é gratuita, sem cartão.",
+  description: `Matemática e educação financeira em missões autorais ${gradeRangeSentence(catalogGrades)}. A primeira unidade é gratuita, sem cartão.`,
 };
 
 const brl = (cents: number) =>
@@ -36,8 +35,7 @@ const perguntas = [
   },
   {
     pergunta: "Para qual ano escolar é o app hoje?",
-    resposta:
-      "Para o 6º e o 7º ano, com trilhas ligadas a OLITEF, Canguru e OBMEP. Os outros anos entram por etapas, e o perfil do estudante mostra as trilhas do ano dele.",
+    resposta: `${gradeRangeSentence(catalogGrades).replace(/^./, (c) => c.toUpperCase())}, com trilhas ligadas a OLITEF, Canguru e OBMEP. Os outros anos entram por etapas, e o perfil do estudante mostra as trilhas do ano dele.`,
   },
   {
     pergunta: "Como acompanho meu filho?",
@@ -99,7 +97,7 @@ export default function Home() {
             </h1>
             <p className="mt-5 max-w-xl text-lg text-tinta-suave">
               Matemática e educação financeira em pequenas missões. Para ganhar confiança nos
-              desafios do 6º e 7º ano, e levar o raciocínio além da prova.
+              desafios {gradeRangeSentence(catalogGrades)}, e levar o raciocínio além da prova.
             </p>
             <div className="mt-7 flex flex-wrap items-center gap-3">
               <LinkChapa href="/experimentar" medida="g">

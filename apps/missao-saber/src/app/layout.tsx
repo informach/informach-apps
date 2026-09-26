@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Fredoka, Nunito } from "next/font/google";
 import { headers } from "next/headers";
 import { RegistrarServiceWorker } from "@/components/registrar-sw";
+import { catalogGrades } from "@/features/content/catalog";
+import { gradeRangeSentence } from "@/features/family/school-year";
 import { env } from "@/lib/env";
 import { INDEXAVEL } from "@/lib/seo";
 import "./globals.css";
@@ -20,8 +22,7 @@ const fredoka = Fredoka({
 });
 
 export const dynamic = "force-dynamic";
-const descricao =
-  "Raciocínio, matemática e educação financeira em missões autorais para o 6º e 7º ano.";
+const descricao = `Raciocínio, matemática e educação financeira em missões autorais ${gradeRangeSentence(catalogGrades)}.`;
 export const metadata: Metadata = {
   metadataBase: new URL(env.NEXT_PUBLIC_APP_URL),
   title: { default: "Missão Saber · Uma descoberta por dia", template: "%s · Missão Saber" },

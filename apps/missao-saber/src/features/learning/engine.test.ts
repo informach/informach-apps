@@ -6,6 +6,7 @@ import {
   contentUnits,
   courses,
   findLesson,
+  legacyLessonIds,
   lessons,
 } from "../content/catalog";
 import { type Item, itemSchema, publicLesson } from "../content/types";
@@ -206,8 +207,12 @@ describe("learning evidence", () => {
 });
 describe("original pilot content", () => {
   it("varies answer positions and authors every distractor rationale and guiding clue", () => {
+    // Só o piloto de 6º/7º: as duas primeiras missões de cada habilidade legada.
     const originalLessons = lessons.filter(
-      (lesson) => !/^.+-[345]$/.test(lesson.id) && lesson.id !== "fracoes-formatos",
+      (lesson) =>
+        legacyLessonIds.has(lesson.id) &&
+        !/^.+-[345]$/.test(lesson.id) &&
+        lesson.id !== "fracoes-formatos",
     );
     const all = originalLessons.flatMap((lesson) => lesson.items);
     const choices = all.filter(isChoice).filter((item) => !item.id.startsWith("fracoes-formatos"));

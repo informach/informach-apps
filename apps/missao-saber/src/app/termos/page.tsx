@@ -1,4 +1,6 @@
 import { Brand } from "@/components/brand";
+import { catalogGrades, courses } from "@/features/content/catalog";
+import { gradeRangeSentence } from "@/features/family/school-year";
 export const metadata = { title: "Termos de uso" };
 
 export default function Terms() {
@@ -24,10 +26,10 @@ export default function Terms() {
         </p>
         <h2>O serviço</h2>
         <p>
-          Oferecemos conteúdo autoral de preparação independente para desafios escolares do 6º e 7º
-          ano. Há trilhas voltadas às competências cobradas na OLITEF Nível 1, no Canguru E e B e na
-          OBMEP Nível 1. As trilhas compartilham fundamentos, e uma unidade gratuita pode ser
-          experimentada antes da assinatura.
+          Oferecemos conteúdo autoral de preparação independente para desafios escolares{" "}
+          {gradeRangeSentence(catalogGrades)}. Há trilhas voltadas às competências cobradas em{" "}
+          {courses.map((course) => course.label).join(", ")}. As trilhas compartilham fundamentos, e
+          uma unidade gratuita pode ser experimentada antes da assinatura.
         </p>
         <h2>Assinatura</h2>
         <p>

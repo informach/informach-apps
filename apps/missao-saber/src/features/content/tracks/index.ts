@@ -1,5 +1,6 @@
 import type { TrackDefinition } from "../types";
 import { legacyTracks } from "./legacy";
+import { wave1Tracks } from "./wave-1";
 
 /**
  * Registro das trilhas, por onda de publicação. Uma trilha só entra aqui
@@ -7,4 +8,4 @@ import { legacyTracks } from "./legacy";
  * habilidade desconhecida. Os `bankSeed` novos começam em 200 e avançam de
  * 24 em 24, para os intervalos de questões reservadas nunca se cruzarem.
  */
-export const trackDefinitions: TrackDefinition[] = [...legacyTracks];
+export const trackDefinitions: TrackDefinition[] = [...legacyTracks, ...wave1Tracks];

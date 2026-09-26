@@ -15,4 +15,10 @@ export const authoringLots: AuthoringLot[] = [
   { number: 4, firstItemId: "simetria-3-6", lastItemId: "probabilidade-4-6" },
   { number: 5, firstItemId: "probabilidade-4-7", lastItemId: "logica-5-7" },
   { number: 6, firstItemId: "logica-5-8", lastItemId: "bank:exam:obmep-n1-12" },
+  // Onda 1a (8º/9º): OBMEP N2 e Canguru C.
+  { number: 7, firstItemId: "proporcao-1-1", lastItemId: "equacoes-5-10" },
+  { number: 8, firstItemId: "semelhanca-1-1", lastItemId: "pitagoras-5-10" },
+  { number: 9, firstItemId: "restos-1-1", lastItemId: "contagem-casos-5-10" },
+  { number: 10, firstItemId: "invariantes-1-1", lastItemId: "coordenadas-5-10" },
+  { number: 11, firstItemId: "logica-n2-1-1", lastItemId: "bank:exam:canguru-c-12" },
 ];

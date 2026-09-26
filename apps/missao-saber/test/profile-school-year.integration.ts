@@ -13,7 +13,12 @@ let profileId = "";
 beforeAll(async () => {
   await db.insert(users).values([
     { id: owner, email: `a-${owner}@example.test`, name: "Responsável A", emailVerified: true },
-    { id: stranger, email: `b-${stranger}@example.test`, name: "Responsável B", emailVerified: true },
+    {
+      id: stranger,
+      email: `b-${stranger}@example.test`,
+      name: "Responsável B",
+      emailVerified: true,
+    },
   ]);
   profileId = (
     await createProfile(owner, {
@@ -106,20 +111,21 @@ describe("ano escolar do perfil em PostgreSQL isolado", () => {
   });
 
   it("mantém a trilha atual quando o ano novo ainda não tem trilha publicada", async () => {
+    // 9º ano na OBMEP N2, gravado no ano passado: a 1ª série do EM ainda não tem trilha.
     await db
       .update(missaoProfiles)
-      .set({ grade: 7, courseId: "obmep-n1", gradeYear: schoolYear() - 1 })
+      .set({ grade: 9, courseId: "obmep-n2", gradeYear: schoolYear() - 1 })
       .where(eq(missaoProfiles.id, profileId));
     const painel = await dashboard(owner, profileId);
-    expect(painel.profile?.grade).toBe(8);
+    expect(painel.profile?.grade).toBe(10);
     expect(painel.courseTransition?.to).toBeNull();
-    expect(painel.course?.id).toBe("obmep-n1");
+    expect(painel.course?.id).toBe("obmep-n2");
     const sessao = await begin(owner, {
       profileId,
-      lessonId: "fracoes-1",
+      lessonId: "proporcao-1",
       mode: "mission",
       requestKey: randomUUID(),
     });
-    expect(sessao.lessonId).toBe("fracoes-1");
+    expect(sessao.lessonId).toBe("proporcao-1");
   });
 });

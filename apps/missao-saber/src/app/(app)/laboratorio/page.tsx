@@ -24,7 +24,7 @@ export default async function Laboratory() {
   /* O desafio profundo acompanha a habilidade que está sendo construída — a
      mesma escolha que o relatório da família chama de próximo passo. Antes era
      um único desafio escrito à mão na página, igual para as doze habilidades e
-     para as 61 missões do catálogo. */
+     para todas as missões do catálogo. */
   const course = data.course ?? undefined;
   const emConstrucao = course?.skills.find(
     (skillId) => data.states.find((state) => state.skillId === skillId)?.level !== "independent",

@@ -38,7 +38,7 @@ export const legacyTracks: TrackDefinition[] = [
     label: "Canguru · B",
     olympiad: "canguru",
     level: "B",
-    grades: [7],
+    grades: [7, 8],
     bankSeed: 48,
     description: "Conexões entre geometria, contagem e argumentos.",
     skills: ["fracoes", "medidas", "simetria", "contagem", "paridade", "probabilidade", "logica"],
