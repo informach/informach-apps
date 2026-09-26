@@ -110,22 +110,25 @@ describe("ano escolar do perfil em PostgreSQL isolado", () => {
     expect((await dashboard(owner, profileId)).courseTransition).toBeNull();
   });
 
-  it("mantém a trilha atual quando o ano novo ainda não tem trilha publicada", async () => {
-    // 9º ano na OBMEP N2, gravado no ano passado: a 1ª série do EM ainda não tem trilha.
+  it("leva o 9º ano da OBMEP N2 para a OBMEP N3 na virada para o ensino médio", async () => {
+    // 9º ano na OBMEP N2, gravado no ano passado: a 1ª série do EM tem trilha da mesma olimpíada.
     await db
       .update(missaoProfiles)
       .set({ grade: 9, courseId: "obmep-n2", gradeYear: schoolYear() - 1 })
       .where(eq(missaoProfiles.id, profileId));
     const painel = await dashboard(owner, profileId);
     expect(painel.profile?.grade).toBe(10);
-    expect(painel.courseTransition?.to).toBeNull();
-    expect(painel.course?.id).toBe("obmep-n2");
+    expect(painel.courseTransition?.from.id).toBe("obmep-n2");
+    expect(painel.courseTransition?.to?.id).toBe("obmep-n3");
+    expect(painel.course?.id).toBe("obmep-n3");
     const sessao = await begin(owner, {
       profileId,
-      lessonId: "proporcao-1",
+      lessonId: "funcoes-1",
       mode: "mission",
       requestKey: randomUUID(),
     });
-    expect(sessao.lessonId).toBe("proporcao-1");
+    expect(sessao.lessonId).toBe("funcoes-1");
+    const [depois] = await db.select().from(missaoProfiles).where(eq(missaoProfiles.id, profileId));
+    expect(depois?.courseId).toBe("obmep-n3");
   });
 });

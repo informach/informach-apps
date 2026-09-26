@@ -40,6 +40,16 @@ export const brl = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 export const decimal = (value: number) =>
   value.toLocaleString("pt-BR", { maximumFractionDigits: 4 });
+const SOBRESCRITOS = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+const SUBSCRITOS = "₀₁₂₃₄₅₆₇₈₉";
+/** Expoente tipográfico para enunciados gerados: `2${sobrescrito(10)}` = "2¹⁰". */
+export const sobrescrito = (value: number) =>
+  String(value)
+    .replace(/\d/g, (digit) => SOBRESCRITOS[Number(digit)] ?? digit)
+    .replace("-", "⁻");
+/** Índice tipográfico: `a${subscrito(12)}` = "a₁₂". */
+export const subscrito = (value: number) =>
+  String(value).replace(/\d/g, (digit) => SUBSCRITOS[Number(digit)] ?? digit);
 export function stageValue<T>(values: readonly [T, T, T], stage: number): T {
   return values[stage as 0 | 1 | 2] ?? values[0];
 }

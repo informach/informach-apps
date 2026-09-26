@@ -52,6 +52,22 @@ function semanticShape(prompt: string) {
   );
 }
 
+/** Números do enunciado e da resposta, para achar a mesma conta com outra redação. */
+function numericKey(item: Item) {
+  const numbers = (text: string) =>
+    (text.replace(/^Questão \d+\.\s*/, "").match(/[−-]?\d+(?:[.,]\d+)?/g) ?? [])
+      .map((value) => value.replace("−", "-").replace(",", "."))
+      .sort()
+      .join("|");
+  const answer =
+    item.type === "numeric"
+      ? String(item.grading.value)
+      : item.type === "choice"
+        ? numbers(item.answer)
+        : "";
+  return `${item.skillId}#${numbers(item.prompt)}#${answer}`;
+}
+
 export function catalogInventory() {
   const teachingItems = lessons.flatMap((lesson) => lesson.items);
   const reservedItems = assessmentBanks.flatMap((bank) => bank.items);
@@ -185,6 +201,20 @@ export function catalogInventory() {
       trainingAssessmentStructuralOverlap: [...shapeFamilies.keys()].filter((shape) =>
         teachingShapes.has(shape),
       ),
+      /* Questão reservada com os mesmos números e a mesma resposta de uma atividade
+         de ensino da habilidade: seria prática disfarçada de avaliação. Os bancos das
+         quatro trilhas de 6º/7º estão congelados e ficam fora da conferência. */
+      reservedNumericTwins: (() => {
+        const teachingKeys = new Set(teachingItems.map(numericKey));
+        return assessmentBanks
+          .filter((bank) => !isLegacyBank(bank))
+          .flatMap((bank) => bank.items)
+          .filter(
+            (item) =>
+              numericKey(item).split("#")[1]?.includes("|") && teachingKeys.has(numericKey(item)),
+          )
+          .map((item) => item.id);
+      })(),
       duplicateFamiliesWithinBanks: assessmentBanks
         .filter(
           (bank) => new Set(bank.items.map((item) => item.familyId)).size !== bank.items.length,

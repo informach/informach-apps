@@ -526,7 +526,8 @@ export const pitagoras: SkillPack = {
       [20, 21, 29],
     ];
     const [a0, b0, c0] = ternos[seed % 5] ?? [3, 4, 5];
-    const k = 1 + (seed % 3);
+    // Catetos 9 e 12 já aparecem nas missões.
+    const k = a0 === 3 && 1 + (seed % 3) === 3 ? 4 : 1 + (seed % 3);
     const [a, b, hip] = [a0 * k, b0 * k, c0 * k];
     if (variant === 0)
       return c(

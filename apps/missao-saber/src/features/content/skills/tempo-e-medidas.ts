@@ -548,8 +548,9 @@ export const tempoEMedidas: SkillPack = {
       );
     }
     if (variant === 1) {
-      const metros = 2 + (seed % 5);
       const pedaco = [20, 25, 50][seed % 3] ?? 25;
+      // Três metros em pedaços de 50 centímetros já é uma missão.
+      const metros = pedaco === 50 && 2 + (seed % 5) === 3 ? 7 : 2 + (seed % 5);
       const pedacos = (metros * 100) / pedaco;
       return c(
         "pedacos-de-fita",

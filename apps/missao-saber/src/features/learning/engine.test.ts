@@ -589,3 +589,35 @@ describe("activity contract v2", () => {
     expect(itemHash(reordered)).toBe(itemHash(item));
   });
 });
+
+describe("respostas numéricas escritas como no Brasil", () => {
+  const numericItem = (value: number) => {
+    const item = lessons
+      .flatMap((lesson) => lesson.items)
+      .find((candidate) => candidate.type === "numeric" && candidate.grading.value === value);
+    if (!item) throw new Error(`Sem item numérico com valor ${value}`);
+    return item;
+  };
+
+  it("aceita o ponto como separador de milhar e mostra a resposta no formato brasileiro", () => {
+    const item = numericItem(5050);
+    for (const typed of ["5050", "5.050", "5 050"])
+      expect(gradeAnswer(item, typed).correct).toBe(true);
+    expect(gradeAnswer(item, "5,050").correct).toBe(false);
+    const errada = gradeAnswer(item, "10.100");
+    expect(errada.correct).toBe(false);
+    expect(errada.valid && "solution" in errada ? errada.solution : "").toBe("5.050");
+  });
+
+  it("aceita milhar com decimais depois da vírgula", () => {
+    const item = numericItem(1310.4);
+    for (const typed of ["1310,4", "1310.40", "1.310,40", "1.310,4"])
+      expect(gradeAnswer(item, typed).correct).toBe(true);
+  });
+
+  it("aceita as duas leituras quando um só grupo segue o ponto", () => {
+    const item = numericItem(0.125);
+    expect(gradeAnswer(item, "0.125").correct).toBe(true);
+    expect(gradeAnswer(item, "0,125").correct).toBe(true);
+  });
+});
