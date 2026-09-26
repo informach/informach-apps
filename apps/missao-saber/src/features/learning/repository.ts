@@ -1013,6 +1013,10 @@ export async function exportFamily(userId: string) {
         ? await tx.select().from(experiments).where(inArray(experiments.profileId, ids))
         : [],
       reports: await tx.select().from(reports).where(eq(reports.userId, userId)),
+      challenges: await tx
+        .select()
+        .from(familyChallenges)
+        .where(eq(familyChallenges.userId, userId)),
     };
   });
 }

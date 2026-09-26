@@ -24,8 +24,8 @@ export async function POST(request: Request) {
     for (const { userId, email } of destinatarios) {
       // Uma família por vez, isolada: um dado quebrado em uma delas não pode
       // calar o resumo de todas as seguintes. A falha é contada e reportada, e
-      // a chave por semana faz a próxima passada do cron reenviar só quem ficou
-      // sem resumo.
+      // a chave por semana faz a passada de terça do cron reenviar só quem
+      // ficou sem resumo na segunda.
       try {
         const unsubscribeUrl = buildUnsubscribeUrl(userId, "missao.weekly-report");
         const resumo = await buildWeeklySummary(
