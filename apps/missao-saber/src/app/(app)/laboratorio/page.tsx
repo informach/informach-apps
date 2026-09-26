@@ -1,7 +1,7 @@
 import { LinkChapa } from "@/components/ui/botao-chapa";
 import { Chapa } from "@/components/ui/chapa";
 import { CabecalhoPagina, Etiqueta } from "@/components/ui/pagina";
-import { findCourse, skillNames } from "@/features/content/catalog";
+import { skillNames } from "@/features/content/catalog";
 import { deepChallengeFor } from "@/features/content/desafios-profundos";
 import { BarsLab, GridLab, GroupsLab } from "@/features/labs/components/labs";
 import { getExperiments } from "@/features/labs/repository";
@@ -25,7 +25,7 @@ export default async function Laboratory() {
      mesma escolha que o relatório da família chama de próximo passo. Antes era
      um único desafio escrito à mão na página, igual para as doze habilidades e
      para as 61 missões do catálogo. */
-  const course = data.profile ? findCourse(data.profile.courseId) : undefined;
+  const course = data.course ?? undefined;
   const emConstrucao = course?.skills.find(
     (skillId) => data.states.find((state) => state.skillId === skillId)?.level !== "independent",
   );

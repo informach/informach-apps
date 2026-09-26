@@ -8,7 +8,8 @@ import { type EstadoNo, NoTrilha } from "@/components/ui/no-trilha";
 import { Etiqueta } from "@/components/ui/pagina";
 import { SeloHabilidade } from "@/components/ui/selo-habilidade";
 import { assertableAvailabilityMessage, lessonAvailability } from "@/features/content/availability";
-import { courseLessons, coursesForGrade, findCourse, skillNames } from "@/features/content/catalog";
+import { courseLessons, coursesForGrade, skillNames } from "@/features/content/catalog";
+import { gradeLabel } from "@/features/family/school-year";
 import { currentDashboard } from "@/lib/view";
 
 export const metadata = { title: "Minha jornada" };
@@ -17,7 +18,7 @@ export default async function Journey() {
   const data = await currentDashboard();
   if (!data.profile) return <EmptyProfile />;
   const profile = data.profile;
-  const course = findCourse(profile.courseId);
+  const course = data.course;
   if (!course) return null;
   const completed = new Set(data.attemptedItemIds);
   const licoes = courseLessons(course);
@@ -52,6 +53,17 @@ export default async function Journey() {
         </p>
       </header>
 
+      {data.courseTransition && (
+        <p
+          role="status"
+          className="mb-5 rounded-card border-2 border-lima-fundo/40 bg-lima/30 px-4 py-3 text-sm text-tinta"
+        >
+          {data.courseTransition.to
+            ? `Novo ano escolar: sua trilha agora é ${data.courseTransition.to.label}. Prefere outra? Escolha abaixo.`
+            : `Novo ano escolar: as trilhas do ${gradeLabel(profile.grade)} estão em preparação. Enquanto isso, a trilha atual continua aberta.`}
+        </p>
+      )}
+
       {/* Cada trilha tem seu horizonte. Ele fica atrás do conteúdo, com
           opacidade baixa: território não pode competir com texto. */}
       <section
@@ -64,7 +76,7 @@ export default async function Journey() {
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
             <Etiqueta tom={tomCurso}>
-              {course.label} · {profile.grade}º ano
+              {course.label} · {gradeLabel(profile.grade)}
             </Etiqueta>
             <h2 className="mt-2.5 font-display text-2xl font-semibold text-tinta">
               {course.title}

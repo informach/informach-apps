@@ -7,7 +7,9 @@ import { LinkChapa } from "@/components/ui/botao-chapa";
 import { Chapa } from "@/components/ui/chapa";
 import { Horizonte, tomDoCurso } from "@/components/ui/horizonte";
 import { Etiqueta } from "@/components/ui/pagina";
-import { courses } from "@/features/content/catalog";
+import { catalogGrades, courses } from "@/features/content/catalog";
+import { inventory } from "@/features/content/inventory";
+import { gradeRangeLabel } from "@/features/family/school-year";
 
 export const metadata = {
   title: { absolute: "Missão Saber · Uma descoberta por dia" },
@@ -161,7 +163,9 @@ export default function Home() {
                 Qual ideia vamos explorar?
               </h2>
             </div>
-            <Etiqueta tom="creme">61 missões · 6º e 7º ano</Etiqueta>
+            <Etiqueta tom="creme">
+              {inventory.totals.missions} missões · {gradeRangeLabel(catalogGrades)}
+            </Etiqueta>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {/* O mesmo horizonte que a criança encontra na trilha: o responsável
@@ -182,7 +186,7 @@ export default function Home() {
                 </h3>
                 <p className="relative mt-1.5 text-sm text-tinta-suave">{course.description}</p>
                 <span className="relative mt-auto pt-4 font-display text-sm font-semibold text-tinta">
-                  {course.grades.map((g) => `${g}º`).join(" e ")} ano
+                  {gradeRangeLabel(course.grades)}
                 </span>
               </Chapa>
             ))}

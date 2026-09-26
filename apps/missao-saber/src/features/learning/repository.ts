@@ -22,10 +22,21 @@ import { assessmentSources, type ContentIdentity, findCourse } from "../content/
 import { type Lesson, lessonSchema } from "../content/types";
 import { itemHash } from "../content/version";
 import { allowedProfileIds } from "../family/profile-access";
+import { effectiveGrade } from "../family/school-year";
 import { type Evidence, gradeAnswer } from "./engine";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type Profile = typeof profiles.$inferSelect;
+/**
+ * Todo perfil lido do banco sai com o ano escolar efetivo em `grade` (o ano
+ * gravado avança a cada virada de ano civil) e o gravado em `storedGrade`.
+ */
+function withEffectiveGrade<T extends { grade: number; gradeYear: number }>(
+  row: T,
+  now = new Date(),
+) {
+  return { ...row, storedGrade: row.grade, grade: effectiveGrade(row, now) };
+}
 export type LearningSession = typeof sessions.$inferSelect;
 export type Attempt = typeof attempts.$inferSelect;
 export async function lockOwner(tx: Tx, userId: string) {
@@ -42,7 +53,7 @@ async function ownedProfile(tx: Tx, userId: string, profileId: string) {
     .from(profiles)
     .where(and(eq(profiles.id, profileId), eq(profiles.userId, userId)));
   assertAllowed(profile, "NOT_FOUND", "Perfil não encontrado.");
-  return profile;
+  return withEffectiveGrade(profile);
 }
 async function ownedSession(tx: Tx, userId: string, sessionId: string) {
   const [session] = await tx
@@ -87,11 +98,13 @@ async function assertCurrentSessionAccess(
   );
 }
 export async function getProfiles(userId: string) {
-  return db
+  const rows = await db
     .select()
     .from(profiles)
     .where(eq(profiles.userId, userId))
     .orderBy(profiles.createdAt, profiles.id);
+  const now = new Date();
+  return rows.map((row) => withEffectiveGrade(row, now));
 }
 export async function getFamily(userId: string) {
   const [family] = await db.select().from(families).where(eq(families.userId, userId));
@@ -111,7 +124,7 @@ export async function addProfile(
     assertAllowed(existing.length < limit, "PLAN", `Seu plano permite ${limit} estudante(s).`);
     await tx
       .insert(families)
-      .values({ userId, consentVersion: "2026-09-13" })
+      .values({ userId, consentVersion: "2026-09-26" })
       .onConflictDoNothing();
     const [profile] = await tx
       .insert(profiles)
@@ -119,6 +132,23 @@ export async function addProfile(
       .returning();
     assertAllowed(profile, "SAVE", "Não foi possível criar o perfil.");
     return profile;
+  });
+}
+export async function updateProfile(
+  userId: string,
+  profileId: string,
+  input: Pick<Profile, "nickname" | "grade" | "gradeYear" | "birthMonth" | "avatar" | "courseId">,
+) {
+  return db.transaction(async (tx) => {
+    await lockOwner(tx, userId);
+    await ownedProfile(tx, userId, profileId);
+    const [updated] = await tx
+      .update(profiles)
+      .set(input)
+      .where(eq(profiles.id, profileId))
+      .returning();
+    assertAllowed(updated, "SAVE", "Não foi possível atualizar o perfil.");
+    return withEffectiveGrade(updated);
   });
 }
 export async function updateCourse(userId: string, profileId: string, courseId: string) {

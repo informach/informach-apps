@@ -12,6 +12,7 @@ import { cn } from "@informach/ui/lib/utils";
 import { ChevronsUpDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { gradeLabel } from "@/features/family/school-year";
 import { selectProfileAction } from "@/features/learning/actions";
 import { useServerAction } from "@/lib/use-server-action";
 import { Avatar } from "./avatares";
@@ -98,7 +99,8 @@ export function ProfileSwitcher({ profiles, selected }: { profiles: Perfil[]; se
                       {p.nickname}
                     </span>
                     <span className="block text-sm text-tinta-suave">
-                      {p.grade}º ano{eAtual ? " · explorando agora" : ""}
+                      {gradeLabel(p.grade)}
+                      {eAtual ? " · explorando agora" : ""}
                     </span>
                   </span>
                 </button>

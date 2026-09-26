@@ -1,3 +1,4 @@
+import { coursesForGrade } from "./catalog";
 import type { Course, Lesson } from "./types";
 
 export type ContentState = {
@@ -30,7 +31,10 @@ export function lessonAvailability(input: {
   state?: ContentState;
 }): Availability {
   const { lesson, course } = input;
-  if (!course.grades.includes(input.grade)) return { available: false, reason: "GRADE" };
+  // Ano escolar sem trilha publicada não bloqueia: a trilha atual continua até
+  // a faixa nova existir; só um ano com trilhas próprias exige uma delas.
+  if (!course.grades.includes(input.grade) && coursesForGrade(input.grade).length > 0)
+    return { available: false, reason: "GRADE" };
   const belongsToCourse =
     lesson.skillId === "mixed"
       ? lesson.id === `diagnostic:${course.id}` || lesson.id === `exam:${course.id}`

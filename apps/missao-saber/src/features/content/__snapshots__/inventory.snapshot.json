@@ -61,7 +61,7 @@
       "examItems": 12
     },
     "canguru-e": {
-      "label": "Canguru · E · 6º ano",
+      "label": "Canguru · E",
       "grades": [
         6
       ],
@@ -78,7 +78,7 @@
       "examItems": 12
     },
     "canguru-b": {
-      "label": "Canguru · B · 7º ano",
+      "label": "Canguru · B",
       "grades": [
         7
       ],
@@ -96,7 +96,7 @@
       "examItems": 12
     },
     "obmep-n1": {
-      "label": "OBMEP · Nível 1 · 6º e 7º anos",
+      "label": "OBMEP · Nível 1",
       "grades": [
         6,
         7

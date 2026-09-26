@@ -71,7 +71,14 @@ export const missaoProfiles = missaoSaber.table(
       .notNull()
       .references(() => missaoFamilies.userId, { onDelete: "cascade" }),
     nickname: text("nickname").notNull(),
+    /** Ano escolar confirmado pelo responsável: 1 a 9 fundamental, 10 a 12 ensino médio. */
     grade: integer("grade").notNull(),
+    /** Ano civil a que `grade` se refere; o ano efetivo avança a cada virada. */
+    gradeYear: integer("grade_year")
+      .notNull()
+      .default(sql`(extract(year from now()))::int`),
+    /** Mês e ano de nascimento (dia 1), opcional; só para sugerir o ano escolar. */
+    birthMonth: date("birth_month"),
     avatar: text("avatar").notNull().default("cometa"),
     courseId: text("course_id").notNull(),
     accessEnabled: boolean("access_enabled").notNull().default(true),
@@ -79,7 +86,8 @@ export const missaoProfiles = missaoSaber.table(
   },
   (t) => [
     index("missao_profiles_owner").on(t.userId),
-    check("missao_profile_grade", sql`${t.grade} in (6, 7)`),
+    check("missao_profile_grade", sql`${t.grade} between 1 and 12`),
+    check("missao_profile_grade_year", sql`${t.gradeYear} between 2000 and 2100`),
   ],
 );
 
@@ -210,6 +218,7 @@ export const missaoReports = missaoSaber.table(
   },
   (t) => [
     index("missao_reports_open").on(t.status, t.createdAt),
+    index("missao_reports_owner").on(t.userId),
     index("missao_reports_recurrence").on(t.lessonId, t.itemId, t.category, t.createdAt),
     uniqueIndex("missao_report_request")
       .on(t.userId, t.requestKey)

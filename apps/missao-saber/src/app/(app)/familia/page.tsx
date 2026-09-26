@@ -14,11 +14,12 @@ import { LinkChapa } from "@/components/ui/botao-chapa";
 import { hasOtherAppSubscriptions } from "@/features/billing/repository";
 import { billing, configuredPrice, planChangeMode, products } from "@/features/billing/service";
 import { homeSupportFor } from "@/features/content/apoio-em-casa";
-import { courses, findCourse, skillNames } from "@/features/content/catalog";
+import { catalogGrades, courses, findCourse, skillNames } from "@/features/content/catalog";
 import { isContentManager } from "@/features/content-maintenance/service";
 import {
   BillingButton,
   CreateProfile,
+  EditProfile,
   FamilyChallenge,
   PaymentConfirmation,
   PlanChangeControls,
@@ -27,6 +28,7 @@ import {
   WeeklyReportEmail,
 } from "@/features/family/components/family-controls";
 import { suggestedGoal } from "@/features/family/desafio";
+import { birthMonthValue, gradeLabel, gradeOptions } from "@/features/family/school-year";
 import { repeatedDifficulties, skillStates, weeklyEvidence } from "@/features/learning/engine";
 import { weeklyNarrative } from "@/features/learning/relato";
 import { familyReports, history, weeklyReportUnsubscribed } from "@/features/learning/repository";
@@ -190,7 +192,7 @@ export default async function Family({
                 <Avatar id={profile.avatar} tamanho="p" />
                 <div className="min-w-0">
                   <CardTitle className="font-display text-base">
-                    {profile.nickname} · {profile.grade}º ano
+                    {profile.nickname} · {gradeLabel(profile.grade)}
                   </CardTitle>
                   <p className="text-sm text-muted-foreground">
                     {findCourse(profile.courseId)?.label}
@@ -203,6 +205,25 @@ export default async function Family({
                     ? "Histórico preservado; o plano atual não inclui novas missões assinadas para este perfil."
                     : "Progresso separado e acessível pelo seletor de estudante."}
                 </p>
+                {acessoRecente && (
+                  <EditProfile
+                    profile={{
+                      id: profile.id,
+                      nickname: profile.nickname,
+                      avatar: profile.avatar,
+                      grade: profile.grade,
+                      birthMonth: birthMonthValue(profile.birthMonth),
+                      courseId: profile.courseId,
+                    }}
+                    courses={courses.map(({ id, label, grades, olympiad }) => ({
+                      id,
+                      label,
+                      grades,
+                      olympiad,
+                    }))}
+                    grades={gradeOptions(catalogGrades)}
+                  />
+                )}
               </CardContent>
             </Card>
           ))}
@@ -211,7 +232,13 @@ export default async function Family({
           <div className="mt-5">
             {acessoRecente ? (
               <CreateProfile
-                courses={courses.map(({ id, label, grades }) => ({ id, label, grades }))}
+                courses={courses.map(({ id, label, grades, olympiad }) => ({
+                  id,
+                  label,
+                  grades,
+                  olympiad,
+                }))}
+                grades={gradeOptions(catalogGrades)}
               />
             ) : (
               <ConfirmarAcesso para="criar um novo perfil" />

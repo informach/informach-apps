@@ -10,7 +10,7 @@ Publicado em 13/09/2026 em https://missao-saber.informach.com.br. A versão come
 | Aplicação | Serviço `91f572ad-b55c-4938-9967-0650c90e49c6`; deployment `b7aa6d9e-26f1-4b20-8b95-2a5c10a07815` |
 | Cron e monitor | Serviço `5a361c2e-96d0-4dbc-9993-f7c0ff3cd13b`, a cada cinco minutos |
 | Cron do resumo semanal | Criar um serviço `cron-missao-saber-weekly-report` com a imagem `alpine/curl` (mesma de `railway-cron-weekly.json`), agenda `0 12 * * 1,2` (segunda e terça, 9h em Brasília; a terça só reenvia falhas da segunda), e rodar `python scripts/production.py configure-weekly-cron <id-do-serviço>`; até isso existir, nenhum resumo é enviado |
-| PostgreSQL | Compartilhado; a última migração do Missão Saber é a `0056` |
+| PostgreSQL | Compartilhado; a última migração do Missão Saber é a `0063` |
 | Redis | Compartilhado, com prefixos exclusivos do Missão Saber |
 | Sentry | Organização `informach-nucleo-de-aprendizag`, projeto `missao-saber` |
 | Cloudflare | CNAME para `aijyebw0.up.railway.app`, proxy ligado |
@@ -19,6 +19,8 @@ Publicado em 13/09/2026 em https://missao-saber.informach.com.br. A versão come
 O build executa `pnpm install --frozen-lockfile --prod=false && pnpm build:missao-saber`; o start executa `pnpm start:missao-saber`. `/api/ready` verifica PostgreSQL e Redis, e `/api/health` identifica o deployment. Produção rejeita chaves Stripe de teste, e-mail sandbox, preços ausentes e URLs incoerentes. Os segredos ficam apenas na Railway e nos ambientes locais ignorados pelo Git.
 
 ## Banco, migrations e recuperação
+
+A migração `0063` (26/09/2026) abre o perfil para todos os anos escolares: `grade` aceita de 1 (1º ano) a 12 (3ª série do EM), `grade_year` guarda o ano civil a que o ano escolar se refere e `birth_month` guarda só mês e ano de nascimento, opcional, para sugerir o ano pela regra de corte de 31 de março. O ano efetivo avança sozinho em 1º de janeiro; se a trilha gravada não cobre o ano novo, as páginas mostram a sucessora da mesma olimpíada e a gravação acontece na primeira missão. Os formulários só oferecem anos que têm trilha publicada. A mesma migração indexa `reports.user_id`.
 
 As migrations `0044` a `0049` adicionaram controles de conteúdo, interrupção segura, acesso por perfil, relatos versionados, atualizações de relatório e confirmação financeira. A `0047` removeu a antiga tabela `missao_saber.releases`; não existe fluxo de publicação ou aprovação no runtime.
 

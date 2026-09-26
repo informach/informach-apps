@@ -7,7 +7,8 @@ import { useEffect, useState } from "react";
 import { AVATARES, Avatar } from "@/components/avatares";
 import { BarraProgresso } from "@/components/ui/barra-progresso";
 import { AncoraChapa, BotaoChapa } from "@/components/ui/botao-chapa";
-import { createProfileAction } from "@/features/learning/actions";
+import { schoolYear, suggestedGrade } from "@/features/family/school-year";
+import { createProfileAction, updateProfileAction } from "@/features/learning/actions";
 import { authClient } from "@/lib/auth-client";
 import { useServerAction } from "@/lib/use-server-action";
 import {
@@ -21,7 +22,84 @@ import {
   weeklyReportEmailAction,
 } from "../actions";
 
-type CourseChoice = { id: string; label: string; grades: number[] };
+type CourseChoice = { id: string; label: string; grades: number[]; olympiad: string };
+type GradeChoice = { value: number; label: string };
+
+/**
+ * A trilha para um ano novo: a da mesma olimpíada, se existir; senão a
+ * primeira elegível; `undefined` quando o ano ainda não tem trilha.
+ */
+function courseForGrade(courses: CourseChoice[], currentId: string, grade: number) {
+  const current = courses.find((course) => course.id === currentId);
+  if (current?.grades.includes(grade)) return current.id;
+  return (
+    courses.find((course) => course.olympiad === current?.olympiad && course.grades.includes(grade))
+      ?.id ?? courses.find((course) => course.grades.includes(grade))?.id
+  );
+}
+
+/**
+ * Mês e ano de nascimento (opcional) mais o ano escolar. O mês só serve para
+ * sugerir o ano pela regra de corte; o responsável confirma ou corrige.
+ */
+function CamposDeAno({
+  prefixo,
+  grades,
+  grade,
+  birthMonth,
+  onGrade,
+  onBirthMonth,
+}: {
+  prefixo: string;
+  grades: GradeChoice[];
+  grade: number;
+  birthMonth: string;
+  onGrade: (grade: number) => void;
+  onBirthMonth: (value: string, sugerido: number | null) => void;
+}) {
+  const sugerido = birthMonth ? suggestedGrade(birthMonth, schoolYear()) : null;
+  return (
+    <>
+      <div>
+        <Label htmlFor={`${prefixo}-nascimento`}>Mês e ano de nascimento (opcional)</Label>
+        <input
+          id={`${prefixo}-nascimento`}
+          type="month"
+          className={seletor}
+          value={birthMonth}
+          min="2005-01"
+          max={`${schoolYear()}-12`}
+          onChange={(e) => {
+            const value = e.target.value;
+            onBirthMonth(value, value ? suggestedGrade(value, schoolYear()) : null);
+          }}
+        />
+        <p className="mt-1 text-xs text-muted-foreground">
+          {sugerido && grades.some((option) => option.value === sugerido)
+            ? "Ano sugerido pela regra de corte de 31 de março; ajuste se precisar."
+            : sugerido
+              ? "As trilhas desse ano ainda estão em preparação; escolha o ano mais próximo."
+              : "Serve só para sugerir o ano escolar. Nunca pedimos a data completa."}
+        </p>
+      </div>
+      <div>
+        <Label htmlFor={`${prefixo}-ano`}>Ano escolar</Label>
+        <select
+          id={`${prefixo}-ano`}
+          className={seletor}
+          value={grade}
+          onChange={(e) => onGrade(Number(e.target.value))}
+        >
+          {grades.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    </>
+  );
+}
 
 /**
  * Volta do checkout da Stripe (`/familia?pagamento=recebido`).
@@ -74,12 +152,24 @@ export function PaymentConfirmation({ paid, plano }: { paid: boolean; plano: str
 const seletor =
   "mt-1.5 block h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground";
 
-export function CreateProfile({ courses }: { courses: CourseChoice[] }) {
+export function CreateProfile({
+  courses,
+  grades,
+}: {
+  courses: CourseChoice[];
+  grades: GradeChoice[];
+}) {
+  const primeiroAno = grades[0]?.value ?? 6;
   const [nickname, setNickname] = useState("");
-  const [grade, setGrade] = useState(6);
+  const [grade, setGrade] = useState(primeiroAno);
+  const [birthMonth, setBirthMonth] = useState("");
   const [avatar, setAvatar] = useState("cometa");
-  const [courseId, setCourseId] = useState("olitef-n1");
+  const [courseId, setCourseId] = useState(courseForGrade(courses, "", primeiroAno) ?? "");
   const [consent, setConsent] = useState(false);
+  const escolherAno = (next: number) => {
+    setGrade(next);
+    setCourseId(courseForGrade(courses, courseId, next) ?? "");
+  };
   const [message, setMessage] = useState("");
   const [pending, start] = useServerAction();
   const router = useRouter();
@@ -92,6 +182,7 @@ export function CreateProfile({ courses }: { courses: CourseChoice[] }) {
             const result = await createProfileAction({
               nickname,
               grade,
+              birthMonth: birthMonth || null,
               avatar,
               courseId,
               consent,
@@ -126,23 +217,18 @@ export function CreateProfile({ courses }: { courses: CourseChoice[] }) {
             />
           </div>
           <div className="mb-4 grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="ano">Ano escolar</Label>
-              <select
-                id="ano"
-                className={seletor}
-                value={grade}
-                onChange={(e) => {
-                  const next = Number(e.target.value);
-                  setGrade(next);
-                  if (!courses.find((c) => c.id === courseId)?.grades.includes(next))
-                    setCourseId("olitef-n1");
-                }}
-              >
-                <option value={6}>6º ano</option>
-                <option value={7}>7º ano</option>
-              </select>
-            </div>
+            <CamposDeAno
+              prefixo="novo"
+              grades={grades}
+              grade={grade}
+              birthMonth={birthMonth}
+              onGrade={escolherAno}
+              onBirthMonth={(value, sugerido) => {
+                setBirthMonth(value);
+                if (sugerido && grades.some((option) => option.value === sugerido))
+                  escolherAno(sugerido);
+              }}
+            />
             <div>
               <Label htmlFor="avatar">Avatar</Label>
               {/* Prévia ao lado: o avatar deixou de ser dado invisível. */}
@@ -191,7 +277,8 @@ export function CreateProfile({ courses }: { courses: CourseChoice[] }) {
             />
             <Label htmlFor="consentimento-perfil" className="text-sm leading-snug font-normal">
               Sou responsável legal, maior de 18 anos. Autorizo o perfil e o registro de tentativas,
-              pistas e descobertas para acompanhar a aprendizagem, conforme a{" "}
+              pistas e descobertas para acompanhar a aprendizagem, e o mês de nascimento, se
+              informado, só para sugerir o ano escolar, conforme a{" "}
               <a href="/privacidade" className="font-medium underline underline-offset-4">
                 política de privacidade
               </a>
@@ -207,6 +294,138 @@ export function CreateProfile({ courses }: { courses: CourseChoice[] }) {
         </CardContent>
       </Card>
     </form>
+  );
+}
+
+/** Edição do perfil pelo responsável: apelido, avatar, nascimento, ano e trilha. */
+export function EditProfile({
+  profile,
+  courses,
+  grades,
+}: {
+  profile: {
+    id: string;
+    nickname: string;
+    avatar: string;
+    grade: number;
+    birthMonth: string;
+    courseId: string;
+  };
+  courses: CourseChoice[];
+  grades: GradeChoice[];
+}) {
+  const [nickname, setNickname] = useState(profile.nickname);
+  const [grade, setGrade] = useState(profile.grade);
+  const [birthMonth, setBirthMonth] = useState(profile.birthMonth);
+  const [avatar, setAvatar] = useState(profile.avatar);
+  const [courseId, setCourseId] = useState(profile.courseId);
+  const [message, setMessage] = useState("");
+  const [pending, start] = useServerAction();
+  const router = useRouter();
+  const escolherAno = (next: number) => {
+    setGrade(next);
+    setCourseId(courseForGrade(courses, courseId, next) ?? courseId);
+  };
+  const elegiveis = courses.filter((c) => c.grades.includes(grade));
+  return (
+    <details className="mt-3 rounded-xl border border-border p-3">
+      <summary className="cursor-pointer text-sm font-semibold text-tinta">Editar perfil</summary>
+      <form
+        className="mt-3 grid gap-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          start(async () => {
+            try {
+              const result = await updateProfileAction({
+                profileId: profile.id,
+                nickname,
+                grade,
+                birthMonth: birthMonth || null,
+                avatar,
+                courseId,
+              });
+              if (result.ok) {
+                setMessage("Perfil atualizado.");
+                router.refresh();
+              } else setMessage(result.error);
+            } catch {
+              setMessage("Não foi possível atualizar o perfil.");
+            }
+          });
+        }}
+      >
+        <div>
+          <Label htmlFor={`${profile.id}-apelido`}>Apelido do estudante</Label>
+          <Input
+            id={`${profile.id}-apelido`}
+            className="mt-1.5 h-11"
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            minLength={2}
+            maxLength={24}
+            required
+            autoComplete="off"
+          />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <CamposDeAno
+            prefixo={profile.id}
+            grades={grades}
+            grade={grade}
+            birthMonth={birthMonth}
+            onGrade={escolherAno}
+            onBirthMonth={(value, sugerido) => {
+              setBirthMonth(value);
+              if (sugerido && grades.some((option) => option.value === sugerido))
+                escolherAno(sugerido);
+            }}
+          />
+          <div>
+            <Label htmlFor={`${profile.id}-avatar`}>Avatar</Label>
+            <div className="mt-1.5 flex items-center gap-3">
+              <Avatar id={avatar} tamanho="p" />
+              <select
+                id={`${profile.id}-avatar`}
+                className={`${seletor} mt-0`}
+                value={avatar}
+                onChange={(e) => setAvatar(e.target.value)}
+              >
+                {AVATARES.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div>
+            <Label htmlFor={`${profile.id}-trilha`}>Trilha</Label>
+            <select
+              id={`${profile.id}-trilha`}
+              className={seletor}
+              value={courseId}
+              onChange={(e) => setCourseId(e.target.value)}
+            >
+              {(elegiveis.length ? elegiveis : courses.filter((c) => c.id === courseId)).map(
+                (course) => (
+                  <option key={course.id} value={course.id}>
+                    {course.label}
+                  </option>
+                ),
+              )}
+            </select>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <BotaoChapa type="submit" medida="p" disabled={pending}>
+            {pending ? "Salvando…" : "Salvar perfil"}
+          </BotaoChapa>
+          <p role="status" className="text-sm text-muted-foreground">
+            {message}
+          </p>
+        </div>
+      </form>
+    </details>
   );
 }
 

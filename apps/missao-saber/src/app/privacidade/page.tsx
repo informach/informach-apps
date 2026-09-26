@@ -14,7 +14,7 @@ export default function Privacy() {
         </a>
       </header>
       <main id="conteudo" className="prosa">
-        <span className="eyebrow">ÚLTIMA ATUALIZAÇÃO · 13/09/2026</span>
+        <span className="eyebrow">ÚLTIMA ATUALIZAÇÃO · 26/09/2026</span>
         <h1>Privacidade, com clareza.</h1>
         <p>
           O Missão Saber é operado pela Informach — Núcleo de Aprendizagem Ltda, CNPJ
@@ -25,10 +25,12 @@ export default function Privacy() {
         <h2>Conta do responsável e perfis</h2>
         <p>
           A conta Informach usa nome do responsável, e-mail, credenciais de autenticação e registros
-          de segurança. O perfil do estudante usa apelido, ano escolar, avatar e trilha. Não pedimos
-          nome completo do estudante, escola, CPF ou data exata de nascimento. O responsável
-          confirma a criação do perfil e sua autorização. O tratamento deve atender ao melhor
-          interesse da criança ou do adolescente; somente o responsável possui conta e credenciais.
+          de segurança. O perfil do estudante usa apelido, ano escolar, avatar, trilha e, se o
+          responsável quiser, mês e ano de nascimento, usados só para sugerir o ano escolar. Não
+          pedimos nome completo do estudante, escola, CPF ou data completa de nascimento. O
+          responsável confirma a criação do perfil e sua autorização. O tratamento deve atender ao
+          melhor interesse da criança ou do adolescente; somente o responsável possui conta e
+          credenciais.
         </p>
         <h2>O que guardamos para ensinar</h2>
         <p>

@@ -1,12 +1,38 @@
 import { z } from "zod";
 import { modeSchema } from "../content/types";
 
+const gradeSchema = z.coerce.number().int().min(1).max(12);
+/** "AAAA-MM": só mês e ano de nascimento, nunca o dia. */
+const birthMonthSchema = z
+  .string()
+  .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
+  .nullable()
+  .optional();
+const avatarSchema = z.enum([
+  "cometa",
+  "folha",
+  "estrela",
+  "foguete",
+  "lua",
+  "raio",
+  "onda",
+  "bussola",
+]);
 export const profileSchema = z.object({
   nickname: z.string().trim().min(2).max(24),
-  grade: z.coerce.number().refine((n) => n === 6 || n === 7),
-  avatar: z.enum(["cometa", "folha", "estrela", "foguete", "lua", "raio", "onda", "bussola"]),
+  grade: gradeSchema,
+  birthMonth: birthMonthSchema,
+  avatar: avatarSchema,
   courseId: z.string().max(40),
   consent: z.literal(true),
+});
+export const updateProfileSchema = z.object({
+  profileId: z.string().uuid(),
+  nickname: z.string().trim().min(2).max(24),
+  grade: gradeSchema,
+  birthMonth: birthMonthSchema,
+  avatar: avatarSchema,
+  courseId: z.string().max(40),
 });
 export const startSchema = z.object({
   profileId: z.string().uuid(),

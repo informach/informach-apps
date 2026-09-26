@@ -31,6 +31,17 @@ async function verificationCode(email: string) {
     .toBe(6);
   return code;
 }
+/** O formulário de novo perfil; o de edição repete os mesmos rótulos dentro de cada card. */
+function formularioNovoPerfil(page: Page) {
+  return page.locator("form", { hasText: "Uma nova jornada" });
+}
+async function criarPerfil(page: Page, apelido: string) {
+  const form = formularioNovoPerfil(page);
+  await form.getByLabel("Apelido do estudante").fill(apelido);
+  await form.getByRole("checkbox").check();
+  await form.getByRole("button", { name: "Criar perfil e explorar" }).click();
+}
+
 /** Cadastra um responsável, confirma o e-mail e cria o primeiro perfil (6º ano, OLITEF). */
 async function criarContaComPerfil(page: Page, apelido: string) {
   const email = `missao-${randomUUID()}@example.test`;
@@ -45,9 +56,7 @@ async function criarContaComPerfil(page: Page, apelido: string) {
   await page.getByLabel("Código de seis dígitos").fill(await verificationCode(email));
   await page.getByRole("button", { name: "Confirmar e-mail", exact: true }).click();
   await expect(page).toHaveURL(/\/familia$/);
-  await page.getByLabel("Apelido do estudante").fill(apelido);
-  await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: "Criar perfil e explorar" }).click();
+  await criarPerfil(page, apelido);
   await expect(page.getByRole("heading", { name: `Olá, ${apelido}.` })).toBeVisible();
   return email;
 }
@@ -304,14 +313,10 @@ test("parent signup, verified profile, learning, saved lab, report and profile s
   await expect(page.getByText(/3 de 3 questões com correção objetiva/)).toBeVisible();
   await expect(page.getByText(/1 reflexão foi registrada sem nota automática/)).toBeVisible();
   await page.goto("/familia");
-  await page.getByLabel("Apelido do estudante").fill("Lua");
-  await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: "Criar perfil e explorar" }).click();
+  await criarPerfil(page, "Lua");
   await expect(page.getByRole("heading", { name: "Olá, Lua." })).toBeVisible();
   await page.goto("/familia");
-  await page.getByLabel("Apelido do estudante").fill("Nina");
-  await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: "Criar perfil e explorar" }).click();
+  await criarPerfil(page, "Nina");
   await expect(page.getByRole("heading", { name: "Olá, Nina." })).toBeVisible();
   await page.getByRole("button", { name: /Trocar de estudante/ }).click();
   await page.getByRole("button", { name: /^Sol/ }).click();
@@ -399,6 +404,24 @@ test("changing the track on the journey updates the card and the path without a 
   await page.getByRole("link", { name: /Ver minha jornada/ }).click();
   await expect(page.getByLabel("Sua trilha")).toHaveValue("canguru-e");
   await expect(cartao.getByRole("heading", { level: 2 })).toHaveText("Olhar de explorador");
+
+  // Na família, o mês de nascimento sugere o ano pela regra de corte e a
+  // responsável pode confirmar ou corrigir; a trilha acompanha o ano.
+  await page.goto("/familia");
+  const edicao = page.locator("details", { hasText: "Editar perfil" }).first();
+  await edicao.locator("summary").click();
+  // Doze anos completos até 31 de março: 7º ano pela regra de corte.
+  const anoLetivo = new Date().getFullYear();
+  await edicao.getByLabel("Mês e ano de nascimento (opcional)").fill(`${anoLetivo - 12}-02`);
+  await expect(edicao.getByLabel("Ano escolar")).toHaveValue("7");
+  await expect(edicao.getByText(/Ano sugerido pela regra de corte/)).toBeVisible();
+  await expect(edicao.getByLabel("Trilha", { exact: true })).toHaveValue("canguru-b");
+  await edicao.getByRole("button", { name: "Salvar perfil" }).click();
+  await expect(edicao.getByText("Perfil atualizado.")).toBeVisible();
+  await expect(page.getByText("Sol · 7º ano")).toBeVisible();
+  await page.goto("/jornada");
+  await expect(page.getByLabel("Sua trilha")).toHaveValue("canguru-b");
+  await expect(page.getByText("Canguru · B · 7º ano")).toBeVisible();
 });
 test("unauthenticated access and operational endpoints fail closed", async ({ page }) => {
   await page.goto("/hoje");

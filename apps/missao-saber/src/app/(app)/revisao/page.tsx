@@ -6,7 +6,7 @@ import { LinkChapa } from "@/components/ui/botao-chapa";
 import { Chapa } from "@/components/ui/chapa";
 import { CabecalhoPagina, Etiqueta } from "@/components/ui/pagina";
 import { SeloHabilidade } from "@/components/ui/selo-habilidade";
-import { courseLessons, findCourse, skillNames } from "@/features/content/catalog";
+import { courseLessons, skillNames } from "@/features/content/catalog";
 import { availableLessons, reviewLesson } from "@/features/learning/recommendation";
 import { currentDashboard } from "@/lib/view";
 
@@ -15,7 +15,7 @@ export const metadata = { title: "Revisão" };
 export default async function Review() {
   const data = await currentDashboard();
   if (!data.profile) return <EmptyProfile />;
-  const course = findCourse(data.profile.courseId);
+  const course = data.course;
   if (!course) return null;
   const agora = new Date();
   const pendentes = data.states

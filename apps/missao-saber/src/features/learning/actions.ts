@@ -43,6 +43,13 @@ export async function createProfileAction(input: unknown) {
     return { id: profile.id };
   });
 }
+export async function updateProfileAction(input: unknown) {
+  return runAction(async () => {
+    const user = await recentParent();
+    await learning.updateProfile(user.id, input);
+    revalidatePath("/", "layout");
+  });
+}
 export async function selectProfileAction(id: string) {
   return runAction(async () => {
     z.string().uuid().parse(id);

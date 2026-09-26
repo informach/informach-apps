@@ -24,9 +24,9 @@ import {
   assessmentHasAllSkills,
   courseAssessmentBanks,
   courseLessons,
-  findCourse,
   skillNames,
 } from "@/features/content/catalog";
+import { gradeLabel } from "@/features/family/school-year";
 import { localDaysApart } from "@/features/learning/engine";
 import { availableLessons, recommend } from "@/features/learning/recommendation";
 import { currentDashboard } from "@/lib/view";
@@ -37,7 +37,7 @@ export default async function Today() {
   const data = await currentDashboard();
   if (!data.profile) return <EmptyProfile />;
   const profile = data.profile;
-  const course = findCourse(profile.courseId);
+  const course = data.course;
   if (!course) return null;
   const allLessons = courseLessons(course);
   const available = availableLessons(allLessons, {
@@ -99,6 +99,15 @@ export default async function Today() {
 
   return (
     <>
+      {data.courseTransition && (
+        <FalaFaisca humor="acolhendo" tom="lima" titulo="Novo ano escolar." className="mb-5">
+          <p>
+            {data.courseTransition.to
+              ? `Agora você está no ${gradeLabel(profile.grade)}, e sua trilha passa a ser ${data.courseTransition.to.label}. Dá para escolher outra em Minha jornada.`
+              : `Agora você está no ${gradeLabel(profile.grade)}. As trilhas desse ano estão em preparação; enquanto isso, a sua continua aberta.`}
+          </p>
+        </FalaFaisca>
+      )}
       <header className="mb-6 flex items-center gap-4">
         <Avatar id={profile.avatar} tamanho="m" />
         <div className="min-w-0">

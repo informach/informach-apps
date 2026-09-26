@@ -23,7 +23,7 @@ export const legacyTracks: TrackDefinition[] = [
   {
     id: "canguru-e",
     title: "Olhar de explorador",
-    label: "Canguru · E · 6º ano",
+    label: "Canguru · E",
     olympiad: "canguru",
     level: "E",
     grades: [6],
@@ -35,7 +35,7 @@ export const legacyTracks: TrackDefinition[] = [
   {
     id: "canguru-b",
     title: "Conectar ideias",
-    label: "Canguru · B · 7º ano",
+    label: "Canguru · B",
     olympiad: "canguru",
     level: "B",
     grades: [7],
@@ -46,7 +46,7 @@ export const legacyTracks: TrackDefinition[] = [
   {
     id: "obmep-n1",
     title: "Pensar além da conta",
-    label: "OBMEP · Nível 1 · 6º e 7º anos",
+    label: "OBMEP · Nível 1",
     olympiad: "obmep",
     level: "N1",
     grades: [6, 7],
