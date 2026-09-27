@@ -417,7 +417,9 @@ test("changing the track on the journey updates the card and the path without a 
   const anoLetivo = new Date().getFullYear();
   await edicao.getByLabel("Mês e ano de nascimento (opcional)").fill(`${anoLetivo - 12}-02`);
   await expect(edicao.getByLabel("Ano escolar", { exact: true })).toHaveValue("7");
-  await expect(edicao.getByText(/Ano sugerido pela regra de corte/)).toBeVisible();
+  await expect(
+    edicao.getByText(/Pela data de corte de 31 de março, a sugestão é 7º ano/),
+  ).toBeVisible();
   await expect(edicao.getByLabel("Trilha", { exact: true })).toHaveValue("canguru-b");
   // Mês de nascimento informado pela primeira vez pede a autorização de novo.
   await edicao.getByLabel(/Autorizo guardar o mês e ano de nascimento/).check();

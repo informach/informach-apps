@@ -9,7 +9,7 @@ Publicado em 13/09/2026 em https://missao-saber.informach.com.br. A versão come
 | Railway | Projeto `informach-apps`, ambiente `production` |
 | Aplicação | Serviço `91f572ad-b55c-4938-9967-0650c90e49c6`; deployment `b7aa6d9e-26f1-4b20-8b95-2a5c10a07815` |
 | Cron e monitor | Serviço `5a361c2e-96d0-4dbc-9993-f7c0ff3cd13b`, a cada cinco minutos |
-| Cron do resumo semanal | Criar um serviço `cron-missao-saber-weekly-report` com a imagem `alpine/curl` (mesma de `railway-cron-weekly.json`), agenda `0 12 * * 1,2` (segunda e terça, 9h em Brasília; a terça só reenvia falhas da segunda), rodar `python apps/missao-saber/scripts/production.py configure-weekly-cron <id-do-serviço>` e fazer o deploy desse serviço; até isso existir, nenhum resumo é enviado |
+| Cron do resumo semanal | Serviço `446b4a71-3a35-4be3-be99-743ac72688e3` (`cron-missao-saber-weekly-report`), criado em 26/09/2026 com a imagem `alpine/curl` de `railway-cron-weekly.json`, agenda `0 12 * * 1,2` (segunda e terça, 9h em Brasília; a terça só reenvia falhas da segunda). Para reaplicar comando e variáveis: `python apps/missao-saber/scripts/production.py configure-weekly-cron 446b4a71-3a35-4be3-be99-743ac72688e3` e deploy do serviço |
 | PostgreSQL | Compartilhado; a última migração do Missão Saber é a `0063` |
 | Redis | Compartilhado, com prefixos exclusivos do Missão Saber |
 | Sentry | Organização `informach-nucleo-de-aprendizag`, projeto `missao-saber` |
