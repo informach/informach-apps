@@ -10,6 +10,7 @@
       "!.firecrawl",
       "!apps/missao-saber/tmp",
       "!**/dist",
+      "!**/__snapshots__",
       "!**/test-results",
       "!**/playwright-report",
       "!apps/*/tmp/integration_emails",

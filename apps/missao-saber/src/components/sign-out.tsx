@@ -1,6 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { forgetProfileAction } from "@/features/learning/actions";
 import { authClient } from "@/lib/auth-client";
 
 export function SignOut() {
@@ -17,6 +18,7 @@ export function SignOut() {
           start(async () => {
             setError("");
             try {
+              await forgetProfileAction();
               const result = await authClient.signOut();
               if (result.error) {
                 setError("Não foi possível sair. Tente novamente.");

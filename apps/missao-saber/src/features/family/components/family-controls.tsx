@@ -3,12 +3,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@informach/ui/componen
 import { Input } from "@informach/ui/components/input";
 import { Label } from "@informach/ui/components/label";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import { AVATARES, Avatar } from "@/components/avatares";
 import { BarraProgresso } from "@/components/ui/barra-progresso";
 import { AncoraChapa, BotaoChapa } from "@/components/ui/botao-chapa";
-import { createProfileAction } from "@/features/learning/actions";
+import { gradeLabel, schoolYear, suggestedGrade } from "@/features/family/school-year";
+import {
+  createProfileAction,
+  forgetProfileAction,
+  updateProfileAction,
+} from "@/features/learning/actions";
 import { authClient } from "@/lib/auth-client";
+import { useServerAction } from "@/lib/use-server-action";
 import {
   changePlanAction,
   checkoutAction,
@@ -20,19 +26,171 @@ import {
   weeklyReportEmailAction,
 } from "../actions";
 
-type CourseChoice = { id: string; label: string; grades: number[] };
+/** Já na ordem de sugestão; `line` junta a Mirim à OBMEP na virada de ano. */
+type CourseChoice = { id: string; label: string; grades: number[]; line: string };
+type GradeChoice = { value: number; label: string };
+
+/**
+ * A trilha para um ano novo: a da mesma linha, se existir; senão a sugerida
+ * para o ano; `undefined` quando o ano ainda não tem trilha.
+ */
+function courseForGrade(courses: CourseChoice[], currentId: string, grade: number) {
+  const current = courses.find((course) => course.id === currentId);
+  if (current?.grades.includes(grade)) return current.id;
+  return (
+    courses.find((course) => course.line === current?.line && course.grades.includes(grade))?.id ??
+    courses.find((course) => course.grades.includes(grade))?.id
+  );
+}
+
+/**
+ * Mês e ano de nascimento (opcional) mais o ano escolar. O mês só serve para
+ * sugerir o ano pela regra de corte; o responsável confirma ou corrige.
+ */
+function CamposDeAno({
+  prefixo,
+  grades,
+  grade,
+  birthMonth,
+  onGrade,
+  onBirthMonth,
+}: {
+  prefixo: string;
+  grades: GradeChoice[];
+  grade: number | null;
+  birthMonth: string;
+  onGrade: (grade: number) => void;
+  onBirthMonth: (value: string, sugerido: number | null) => void;
+}) {
+  const sugerido = birthMonth ? suggestedGrade(birthMonth, schoolYear()) : null;
+  return (
+    <>
+      <div>
+        <Label htmlFor={`${prefixo}-nascimento`}>Mês e ano de nascimento (opcional)</Label>
+        <input
+          id={`${prefixo}-nascimento`}
+          type="month"
+          className={seletor}
+          value={birthMonth}
+          placeholder="AAAA-MM"
+          pattern="\d{4}-\d{2}"
+          title="Use o formato AAAA-MM, por exemplo 2016-03."
+          aria-describedby={`${prefixo}-nascimento-ajuda`}
+          min="2005-01"
+          max={`${schoolYear()}-12`}
+          onChange={(e) => {
+            const value = e.target.value;
+            onBirthMonth(value, value ? suggestedGrade(value, schoolYear()) : null);
+          }}
+        />
+        <p
+          id={`${prefixo}-nascimento-ajuda`}
+          aria-live="polite"
+          className="mt-1 text-xs text-muted-foreground"
+        >
+          {sugerido && grades.some((option) => option.value === sugerido)
+            ? `Pela data de corte de 31 de março, a sugestão é ${gradeLabel(sugerido)}. Ajuste se precisar.`
+            : sugerido
+              ? "O Missão Saber começa no 2º ano. Se escolher o 2º ano agora, confira o ano escolar no começo do próximo ano."
+              : "Serve só para sugerir o ano escolar. Nunca pedimos a data completa."}
+        </p>
+      </div>
+      <div>
+        <Label htmlFor={`${prefixo}-ano`}>Ano escolar</Label>
+        <select
+          id={`${prefixo}-ano`}
+          className={seletor}
+          value={grade ?? ""}
+          required
+          onChange={(e) => onGrade(Number(e.target.value))}
+        >
+          {grade === null && (
+            <option value="" disabled>
+              Escolha o ano
+            </option>
+          )}
+          {grades.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    </>
+  );
+}
+
+/**
+ * Volta do checkout da Stripe (`/familia?pagamento=recebido`).
+ *
+ * O acesso só é liberado pelo webhook, que costuma chegar segundos depois do
+ * redirecionamento. Em vez de mostrar "Explorar gratuito" para quem acabou de
+ * pagar, a página avisa que está confirmando e se atualiza sozinha até o plano
+ * aparecer; depois limpa o parâmetro para um recarregamento não repetir o aviso.
+ */
+export function PaymentConfirmation({ paid, plano }: { paid: boolean; plano: string }) {
+  const router = useRouter();
+  const [tentativas, setTentativas] = useState(0);
+  const esgotado = tentativas >= 15;
+  useEffect(() => {
+    if (paid) {
+      const t = setTimeout(() => router.replace("/familia"), 8000);
+      return () => clearTimeout(t);
+    }
+    if (esgotado) return;
+    const t = setTimeout(() => {
+      setTentativas((n) => n + 1);
+      router.refresh();
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [paid, esgotado, router]);
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="mb-6 rounded-card border-2 border-verde/40 bg-verde-claro p-4"
+    >
+      <p className="font-display font-semibold text-tinta">
+        {paid
+          ? `Pagamento confirmado. O plano ${plano} já está ativo.`
+          : esgotado
+            ? "A confirmação está demorando mais que o normal."
+            : "Confirmando o pagamento com a operadora…"}
+      </p>
+      <p className="mt-1 text-sm text-tinta">
+        {paid
+          ? "Os perfis da família já podem explorar as trilhas assinadas."
+          : esgotado
+            ? "Se o valor foi cobrado, o acesso é liberado assim que a operadora avisar. Volte a esta página em alguns minutos."
+            : "Esta página se atualiza sozinha. Nenhuma cobrança extra é feita enquanto isso."}
+      </p>
+    </div>
+  );
+}
 
 const seletor =
   "mt-1.5 block h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground";
 
-export function CreateProfile({ courses }: { courses: CourseChoice[] }) {
+export function CreateProfile({
+  courses,
+  grades,
+}: {
+  courses: CourseChoice[];
+  grades: GradeChoice[];
+}) {
+  // Sem ano pré-escolhido: quem pula o campo não cria sem querer um perfil de 2º ano.
   const [nickname, setNickname] = useState("");
-  const [grade, setGrade] = useState(6);
+  const [grade, setGrade] = useState<number | null>(null);
+  const [birthMonth, setBirthMonth] = useState("");
   const [avatar, setAvatar] = useState("cometa");
-  const [courseId, setCourseId] = useState("olitef-n1");
+  const [courseId, setCourseId] = useState("");
   const [consent, setConsent] = useState(false);
+  const escolherAno = (next: number) => {
+    setGrade(next);
+    setCourseId(courseForGrade(courses, courseId, next) ?? "");
+  };
   const [message, setMessage] = useState("");
-  const [pending, start] = useTransition();
+  const [pending, start] = useServerAction();
   const router = useRouter();
   return (
     <form
@@ -43,14 +201,13 @@ export function CreateProfile({ courses }: { courses: CourseChoice[] }) {
             const result = await createProfileAction({
               nickname,
               grade,
+              birthMonth: birthMonth || null,
               avatar,
               courseId,
               consent,
             });
-            if (result.ok) {
-              router.push("/hoje");
-              router.refresh();
-            } else setMessage(result.error);
+            if (result.ok) router.push("/hoje");
+            else setMessage(result.error);
           } catch {
             setMessage(
               "Não foi possível criar o perfil. Confira os perfis existentes antes de tentar novamente.",
@@ -79,23 +236,18 @@ export function CreateProfile({ courses }: { courses: CourseChoice[] }) {
             />
           </div>
           <div className="mb-4 grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="ano">Ano escolar</Label>
-              <select
-                id="ano"
-                className={seletor}
-                value={grade}
-                onChange={(e) => {
-                  const next = Number(e.target.value);
-                  setGrade(next);
-                  if (!courses.find((c) => c.id === courseId)?.grades.includes(next))
-                    setCourseId("olitef-n1");
-                }}
-              >
-                <option value={6}>6º ano</option>
-                <option value={7}>7º ano</option>
-              </select>
-            </div>
+            <CamposDeAno
+              prefixo="novo"
+              grades={grades}
+              grade={grade}
+              birthMonth={birthMonth}
+              onGrade={escolherAno}
+              onBirthMonth={(value, sugerido) => {
+                setBirthMonth(value);
+                if (sugerido && grades.some((option) => option.value === sugerido))
+                  escolherAno(sugerido);
+              }}
+            />
             <div>
               <Label htmlFor="avatar">Avatar</Label>
               {/* Prévia ao lado: o avatar deixou de ser dado invisível. */}
@@ -122,15 +274,21 @@ export function CreateProfile({ courses }: { courses: CourseChoice[] }) {
               id="trilha-inicial"
               className={seletor}
               value={courseId}
+              required
+              disabled={grade === null}
               onChange={(e) => setCourseId(e.target.value)}
             >
-              {courses
-                .filter((c) => c.grades.includes(grade))
-                .map((course) => (
-                  <option key={course.id} value={course.id}>
-                    {course.label}
-                  </option>
-                ))}
+              {grade === null ? (
+                <option value="">Escolha o ano escolar primeiro</option>
+              ) : (
+                courses
+                  .filter((c) => c.grades.includes(grade))
+                  .map((course) => (
+                    <option key={course.id} value={course.id}>
+                      {course.label}
+                    </option>
+                  ))
+              )}
             </select>
           </div>
           <div className="mb-5 flex items-start gap-3">
@@ -144,8 +302,14 @@ export function CreateProfile({ courses }: { courses: CourseChoice[] }) {
             />
             <Label htmlFor="consentimento-perfil" className="text-sm leading-snug font-normal">
               Sou responsável legal, maior de 18 anos. Autorizo o perfil e o registro de tentativas,
-              pistas e descobertas para acompanhar a aprendizagem, conforme a{" "}
-              <a href="/privacidade" className="font-medium underline underline-offset-4">
+              pistas e descobertas para acompanhar a aprendizagem, e o mês de nascimento, se
+              informado, só para sugerir o ano escolar, conforme a{" "}
+              <a
+                href="/privacidade"
+                target="_blank"
+                rel="noopener"
+                className="font-medium underline underline-offset-4"
+              >
                 política de privacidade
               </a>
               .
@@ -160,6 +324,172 @@ export function CreateProfile({ courses }: { courses: CourseChoice[] }) {
         </CardContent>
       </Card>
     </form>
+  );
+}
+
+/** Edição do perfil pelo responsável: apelido, avatar, nascimento, ano e trilha. */
+export function EditProfile({
+  profile,
+  courses,
+  grades,
+}: {
+  profile: {
+    id: string;
+    nickname: string;
+    avatar: string;
+    grade: number;
+    birthMonth: string;
+    courseId: string;
+  };
+  courses: CourseChoice[];
+  grades: GradeChoice[];
+}) {
+  const [nickname, setNickname] = useState(profile.nickname);
+  const [grade, setGrade] = useState(profile.grade);
+  const [birthMonth, setBirthMonth] = useState(profile.birthMonth);
+  const [avatar, setAvatar] = useState(profile.avatar);
+  const [courseId, setCourseId] = useState(profile.courseId);
+  const [birthConsent, setBirthConsent] = useState(false);
+  const [message, setMessage] = useState("");
+  const [pending, start] = useServerAction();
+  const router = useRouter();
+  const pedeConsentimento = !profile.birthMonth && !!birthMonth;
+  const escolherAno = (next: number) => {
+    setGrade(next);
+    setCourseId(courseForGrade(courses, courseId, next) ?? courseId);
+  };
+  const elegiveis = courses.filter((c) => c.grades.includes(grade));
+  return (
+    <details className="mt-3 rounded-xl border border-border p-3">
+      <summary className="cursor-pointer text-sm font-semibold text-tinta">
+        Editar perfil de {profile.nickname}
+      </summary>
+      <form
+        className="mt-3 grid gap-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          start(async () => {
+            try {
+              const result = await updateProfileAction({
+                profileId: profile.id,
+                nickname,
+                grade,
+                birthMonth: birthMonth || null,
+                avatar,
+                courseId,
+                birthConsent: pedeConsentimento ? birthConsent : undefined,
+              });
+              if (result.ok) {
+                setMessage("Perfil atualizado.");
+                setBirthConsent(false);
+                router.refresh();
+              } else setMessage(result.error);
+            } catch {
+              setMessage("Não foi possível atualizar o perfil.");
+            }
+          });
+        }}
+      >
+        <div>
+          <Label htmlFor={`${profile.id}-apelido`}>Apelido do estudante</Label>
+          <Input
+            id={`${profile.id}-apelido`}
+            className="mt-1.5 h-11"
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            minLength={2}
+            maxLength={24}
+            required
+            autoComplete="off"
+          />
+        </div>
+        <div className="grid gap-4 xl:grid-cols-2">
+          <CamposDeAno
+            prefixo={profile.id}
+            grades={grades}
+            grade={grade}
+            birthMonth={birthMonth}
+            onGrade={escolherAno}
+            onBirthMonth={(value, sugerido) => {
+              setBirthMonth(value);
+              if (!value) setBirthConsent(false);
+              if (sugerido && grades.some((option) => option.value === sugerido))
+                escolherAno(sugerido);
+            }}
+          />
+          <div>
+            <Label htmlFor={`${profile.id}-avatar`}>Avatar</Label>
+            <div className="mt-1.5 flex items-center gap-3">
+              <Avatar id={avatar} tamanho="p" />
+              <select
+                id={`${profile.id}-avatar`}
+                className={`${seletor} mt-0`}
+                value={avatar}
+                onChange={(e) => setAvatar(e.target.value)}
+              >
+                {AVATARES.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div>
+            <Label htmlFor={`${profile.id}-trilha`}>Trilha</Label>
+            <select
+              id={`${profile.id}-trilha`}
+              className={seletor}
+              value={courseId}
+              onChange={(e) => setCourseId(e.target.value)}
+            >
+              {(elegiveis.length ? elegiveis : courses.filter((c) => c.id === courseId)).map(
+                (course) => (
+                  <option key={course.id} value={course.id}>
+                    {course.label}
+                  </option>
+                ),
+              )}
+            </select>
+          </div>
+        </div>
+        {pedeConsentimento && (
+          <div className="flex items-start gap-3">
+            <input
+              id={`${profile.id}-consentimento-nascimento`}
+              type="checkbox"
+              checked={birthConsent}
+              onChange={(e) => setBirthConsent(e.target.checked)}
+              required
+              className="mt-1 size-5 shrink-0 accent-[var(--ms-verde)]"
+            />
+            <Label
+              htmlFor={`${profile.id}-consentimento-nascimento`}
+              className="text-sm leading-snug font-normal"
+            >
+              Autorizo guardar o mês e ano de nascimento só para sugerir o ano escolar, conforme a{" "}
+              <a
+                href="/privacidade"
+                target="_blank"
+                rel="noopener"
+                className="font-medium underline underline-offset-4"
+              >
+                política de privacidade
+              </a>
+              .
+            </Label>
+          </div>
+        )}
+        <div className="flex flex-wrap items-center gap-3">
+          <BotaoChapa type="submit" medida="p" disabled={pending}>
+            {pending ? "Salvando…" : "Salvar perfil"}
+          </BotaoChapa>
+          <p role="status" className="text-sm text-muted-foreground">
+            {message}
+          </p>
+        </div>
+      </form>
+    </details>
   );
 }
 
@@ -183,7 +513,7 @@ export function FamilyChallenge({
 }) {
   const [meta, setMeta] = useState(goal ?? suggested);
   const [message, setMessage] = useState("");
-  const [pending, start] = useTransition();
+  const [pending, start] = useServerAction();
   function salvar(valor: number) {
     start(async () => {
       try {
@@ -284,7 +614,7 @@ export function WeeklyReportEmail({
 }) {
   const [ligado, setLigado] = useState(enabled);
   const [message, setMessage] = useState("");
-  const [pending, start] = useTransition();
+  const [pending, start] = useServerAction();
   return (
     <Card>
       <CardHeader>
@@ -337,7 +667,7 @@ export function WeeklyReportEmail({
 
 export function Routine({ minutes }: { minutes: number }) {
   const [message, setMessage] = useState("");
-  const [pending, start] = useTransition();
+  const [pending, start] = useServerAction();
   return (
     <Card>
       <CardHeader>
@@ -391,7 +721,7 @@ export function BillingButton({
   disabled?: boolean;
   children: React.ReactNode;
 }) {
-  const [pending, start] = useTransition();
+  const [pending, start] = useServerAction();
   const [message, setMessage] = useState("");
   return (
     <div>
@@ -444,7 +774,7 @@ export function PlanChangeControls({
     profiles.find((profile) => profile.accessEnabled)?.id ?? profiles[0]?.id ?? "",
   );
   const [message, setMessage] = useState("");
-  const [pending, start] = useTransition();
+  const [pending, start] = useServerAction();
   const router = useRouter();
   const needsChoice =
     options.some((option) => option.requiresRetainedProfile) && profiles.length > 1;
@@ -558,10 +888,17 @@ export function PlanChangeControls({
   );
 }
 
-export function PrivacyControls() {
+export function PrivacyControls({
+  outrasAssinaturas,
+  outroAppComDados,
+}: {
+  outrasAssinaturas: boolean;
+  outroAppComDados: string | null;
+}) {
   const [confirmation, setConfirmation] = useState("");
   const [message, setMessage] = useState("");
-  const [pending, start] = useTransition();
+  const [excluirConta, setExcluirConta] = useState(false);
+  const [pending, start] = useServerAction();
   const router = useRouter();
   return (
     <>
@@ -576,6 +913,7 @@ export function PrivacyControls() {
           onClick={() =>
             start(async () => {
               try {
+                await forgetProfileAction();
                 const result = await authClient.signOut();
                 if (result.error) {
                   setMessage("Não foi possível sair agora.");
@@ -634,6 +972,59 @@ export function PrivacyControls() {
           }
         >
           Confirmar encerramento e exclusão
+        </button>
+      </details>
+      <details className="mt-3 rounded-xl border border-destructive/35 bg-coral-claro/50 p-4">
+        <summary className="cursor-pointer font-semibold text-tinta">
+          Excluir a conta Informach
+        </summary>
+        <p className="mt-3 text-sm text-tinta">
+          A conta Informach é a mesma na Agenda da Turma e no Cozya. A exclusão apaga a conta e os
+          dados do Missão Saber depois de você confirmar por e-mail. Registros financeiros seguem
+          sua retenção própria.
+        </p>
+        {outrasAssinaturas && (
+          <p className="mt-2 text-sm font-semibold text-tinta">
+            Há assinatura ativa em outro app Informach. Encerre-a nas configurações daquele app
+            antes de excluir a conta compartilhada.
+          </p>
+        )}
+        {!outrasAssinaturas && outroAppComDados && (
+          <p className="mt-2 text-sm font-semibold text-tinta">
+            Sua conta também tem dados no {outroAppComDados}. Peça a exclusão por lá: ela apaga os
+            dados daquele app e a conta compartilhada.
+          </p>
+        )}
+        <label htmlFor="excluir-conta" className="mt-3 flex items-start gap-3 text-sm text-tinta">
+          <input
+            id="excluir-conta"
+            type="checkbox"
+            className="mt-1 size-5 shrink-0 accent-[var(--ms-verde)]"
+            checked={excluirConta}
+            onChange={(e) => setExcluirConta(e.target.checked)}
+          />
+          Entendo que a exclusão vale para todos os apps Informach.
+        </label>
+        <button
+          type="button"
+          disabled={pending || !excluirConta || outrasAssinaturas || !!outroAppComDados}
+          className="mt-3 rounded-md text-sm font-semibold text-destructive underline underline-offset-4 disabled:opacity-50"
+          onClick={() =>
+            start(async () => {
+              try {
+                const result = await authClient.deleteUser({ callbackURL: "/" });
+                setMessage(
+                  result.error
+                    ? "Não foi possível solicitar a exclusão agora."
+                    : "Enviamos um e-mail para confirmar a exclusão da conta.",
+                );
+              } catch {
+                setMessage("Não foi possível solicitar a exclusão agora.");
+              }
+            })
+          }
+        >
+          Solicitar exclusão por e-mail
         </button>
       </details>
       <p role="status" className="mt-2 text-sm font-medium">

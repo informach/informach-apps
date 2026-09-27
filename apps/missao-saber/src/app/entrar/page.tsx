@@ -3,7 +3,14 @@ import { Brand } from "@/components/brand";
 import { Mascote } from "@/components/mascote";
 import { Etiqueta } from "@/components/ui/pagina";
 
-export default function Login() {
+export const metadata = { title: "Entrar" };
+
+export default async function Login({
+  searchParams,
+}: {
+  searchParams: Promise<{ confirmar?: string }>;
+}) {
+  const { confirmar } = await searchParams;
   return (
     <main
       id="conteudo"
@@ -31,9 +38,16 @@ export default function Login() {
       <section className="rounded-heroi border-2 border-sombra bg-creme p-6 shadow-chapa-lg sm:p-8">
         <h2 className="font-display text-2xl font-semibold text-tinta">Vamos começar?</h2>
         <p className="mt-1 mb-6 text-sm text-tinta-suave">
-          A primeira unidade é gratuita. Sem cartão.
+          As primeiras missões de cada trilha são gratuitas. Sem cartão.
         </p>
-        <AuthForm />
+        <AuthForm
+          initialMode={confirmar ? "verify" : "login"}
+          initialMessage={
+            confirmar
+              ? "Confirme o e-mail do responsável: digite o e-mail e o código de seis dígitos que enviamos. Para receber outro código, use Confirmar e-mail / reenviar código."
+              : ""
+          }
+        />
       </section>
     </main>
   );

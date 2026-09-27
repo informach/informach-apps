@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Brand } from "@/components/brand";
 import { Demo } from "@/components/demo";
 
+export const metadata = { title: "Experimentar uma missão" };
+
 export default function Try() {
   return (
     <>

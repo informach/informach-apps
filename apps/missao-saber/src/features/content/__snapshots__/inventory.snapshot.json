@@ -1,0 +1,555 @@
+{
+  "totals": {
+    "missions": 291,
+    "assessmentBanks": 28,
+    "teachingItems": 2624,
+    "reservedItems": 336,
+    "uniqueItemIds": 2960,
+    "distinctActivitySignatures": 2960,
+    "justificationItems": 175,
+    "teachingFamilies": 888,
+    "assessmentFamilies": 116
+  },
+  "byDomain": {
+    "canguru": 692,
+    "common": 944,
+    "mirim": 324,
+    "obmep": 372,
+    "olitef": 628
+  },
+  "byFormat": {
+    "choice": 1705,
+    "justification": 175,
+    "numeric": 905,
+    "ordering": 175
+  },
+  "byPurpose": {
+    "assessment": 336,
+    "discovery": 581,
+    "guided-practice": 1288,
+    "independent-practice": 755
+  },
+  "bySkill": {
+    "argumentacao-em": 48,
+    "balancas": 48,
+    "caminhos": 48,
+    "cenarios": 50,
+    "combinacoes": 58,
+    "composicao-de-figuras": 54,
+    "contagem": 54,
+    "contagem-casos": 52,
+    "contagem-inicial": 54,
+    "contar-e-comparar": 52,
+    "coordenadas": 50,
+    "coordenadas-em": 48,
+    "equacoes": 54,
+    "equacoes-em": 50,
+    "equivalencia-temporal": 52,
+    "espaco": 50,
+    "estruturas-numericas": 50,
+    "formas-e-posicoes": 52,
+    "fracoes": 64,
+    "funcoes": 54,
+    "gavetas": 46,
+    "geometria-plana": 54,
+    "inducao": 48,
+    "inflacao": 50,
+    "invariantes": 48,
+    "investimentos": 50,
+    "juros": 50,
+    "logica": 50,
+    "logica-em": 50,
+    "logica-n2": 50,
+    "medidas": 52,
+    "medir-e-comparar": 50,
+    "modelos-financeiros": 52,
+    "orcamento": 46,
+    "orcamento-n2": 50,
+    "orientacao-espacial": 54,
+    "padroes": 50,
+    "padroes-iniciais": 54,
+    "paridade": 50,
+    "pitagoras": 50,
+    "polinomios": 50,
+    "porcentagem": 48,
+    "porcentagem-n2": 50,
+    "precos": 46,
+    "probabilidade": 48,
+    "probabilidade-em": 52,
+    "problemas-com-desenho": 50,
+    "proporcao": 58,
+    "recorrencias": 54,
+    "renda-fixa": 50,
+    "renda-variavel": 50,
+    "restos": 50,
+    "semelhanca": 54,
+    "sequencias-iniciais": 50,
+    "simetria": 50,
+    "tabelas": 50,
+    "tempo-e-medidas": 54,
+    "trigonometria": 50
+  },
+  "courses": {
+    "olitef-n1": {
+      "label": "OLITEF · Nível 1",
+      "grades": [
+        6,
+        7
+      ],
+      "skills": [
+        "fracoes",
+        "porcentagem",
+        "precos",
+        "orcamento",
+        "probabilidade"
+      ],
+      "missions": 26,
+      "diagnosticItems": 12,
+      "examItems": 12
+    },
+    "canguru-e": {
+      "label": "Canguru · E",
+      "grades": [
+        5,
+        6
+      ],
+      "skills": [
+        "fracoes",
+        "medidas",
+        "simetria",
+        "padroes",
+        "contagem",
+        "logica"
+      ],
+      "missions": 24,
+      "diagnosticItems": 12,
+      "examItems": 12
+    },
+    "canguru-b": {
+      "label": "Canguru · B",
+      "grades": [
+        7,
+        8
+      ],
+      "skills": [
+        "fracoes",
+        "medidas",
+        "simetria",
+        "contagem",
+        "paridade",
+        "probabilidade",
+        "logica"
+      ],
+      "missions": 36,
+      "diagnosticItems": 12,
+      "examItems": 12
+    },
+    "obmep-n1": {
+      "label": "OBMEP · Nível 1",
+      "grades": [
+        6,
+        7
+      ],
+      "skills": [
+        "fracoes",
+        "paridade",
+        "padroes",
+        "contagem",
+        "gavetas",
+        "medidas",
+        "logica"
+      ],
+      "missions": 36,
+      "diagnosticItems": 12,
+      "examItems": 12
+    },
+    "obmep-n2": {
+      "label": "OBMEP · Nível 2",
+      "grades": [
+        8,
+        9
+      ],
+      "skills": [
+        "proporcao",
+        "restos",
+        "equacoes",
+        "semelhanca",
+        "pitagoras",
+        "contagem-casos",
+        "invariantes"
+      ],
+      "missions": 35,
+      "diagnosticItems": 12,
+      "examItems": 12
+    },
+    "canguru-c": {
+      "label": "Canguru · C",
+      "grades": [
+        9
+      ],
+      "skills": [
+        "proporcao",
+        "equacoes",
+        "semelhanca",
+        "contagem-casos",
+        "coordenadas",
+        "logica-n2"
+      ],
+      "missions": 30,
+      "diagnosticItems": 12,
+      "examItems": 12
+    },
+    "olitef-n2": {
+      "label": "OLITEF · Nível 2",
+      "grades": [
+        8,
+        9
+      ],
+      "skills": [
+        "proporcao",
+        "porcentagem-n2",
+        "juros",
+        "orcamento-n2",
+        "inflacao",
+        "investimentos"
+      ],
+      "missions": 30,
+      "diagnosticItems": 12,
+      "examItems": 12
+    },
+    "canguru-p": {
+      "label": "Canguru · P",
+      "grades": [
+        3,
+        4
+      ],
+      "skills": [
+        "contagem-inicial",
+        "padroes-iniciais",
+        "orientacao-espacial",
+        "composicao-de-figuras",
+        "tempo-e-medidas",
+        "balancas",
+        "caminhos"
+      ],
+      "missions": 35,
+      "diagnosticItems": 12,
+      "examItems": 12
+    },
+    "mirim-2": {
+      "label": "OBMEP Mirim · Nível 2",
+      "grades": [
+        4,
+        5
+      ],
+      "skills": [
+        "contagem-inicial",
+        "composicao-de-figuras",
+        "orientacao-espacial",
+        "padroes-iniciais",
+        "tempo-e-medidas",
+        "tabelas"
+      ],
+      "missions": 30,
+      "diagnosticItems": 12,
+      "examItems": 12
+    },
+    "obmep-n3": {
+      "label": "OBMEP · Nível 3",
+      "grades": [
+        10,
+        11,
+        12
+      ],
+      "skills": [
+        "funcoes",
+        "recorrencias",
+        "estruturas-numericas",
+        "geometria-plana",
+        "combinacoes",
+        "probabilidade-em",
+        "argumentacao-em"
+      ],
+      "missions": 35,
+      "diagnosticItems": 12,
+      "examItems": 12
+    },
+    "canguru-j": {
+      "label": "Canguru · J",
+      "grades": [
+        10,
+        11
+      ],
+      "skills": [
+        "funcoes",
+        "recorrencias",
+        "combinacoes",
+        "geometria-plana",
+        "polinomios",
+        "inducao",
+        "coordenadas-em"
+      ],
+      "missions": 35,
+      "diagnosticItems": 12,
+      "examItems": 12
+    },
+    "canguru-s": {
+      "label": "Canguru · S",
+      "grades": [
+        12
+      ],
+      "skills": [
+        "equacoes-em",
+        "trigonometria",
+        "espaco",
+        "combinacoes",
+        "probabilidade-em",
+        "logica-em"
+      ],
+      "missions": 30,
+      "diagnosticItems": 12,
+      "examItems": 12
+    },
+    "olitef-n3": {
+      "label": "OLITEF · Nível 3",
+      "grades": [
+        10,
+        11,
+        12
+      ],
+      "skills": [
+        "modelos-financeiros",
+        "equivalencia-temporal",
+        "renda-fixa",
+        "renda-variavel",
+        "cenarios"
+      ],
+      "missions": 25,
+      "diagnosticItems": 12,
+      "examItems": 12
+    },
+    "mirim-1": {
+      "label": "OBMEP Mirim · Nível 1",
+      "grades": [
+        2,
+        3
+      ],
+      "skills": [
+        "contar-e-comparar",
+        "formas-e-posicoes",
+        "sequencias-iniciais",
+        "medir-e-comparar",
+        "problemas-com-desenho"
+      ],
+      "missions": 25,
+      "diagnosticItems": 12,
+      "examItems": 12
+    }
+  },
+  "lots": [
+    {
+      "number": 1,
+      "firstItemId": "fracoes-1-1",
+      "lastItemId": "probabilidade-1-5",
+      "items": 101
+    },
+    {
+      "number": 2,
+      "firstItemId": "probabilidade-1-6",
+      "lastItemId": "porcentagem-5-4",
+      "items": 101
+    },
+    {
+      "number": 3,
+      "firstItemId": "porcentagem-5-5",
+      "lastItemId": "simetria-3-5",
+      "items": 101
+    },
+    {
+      "number": 4,
+      "firstItemId": "simetria-3-6",
+      "lastItemId": "probabilidade-4-6",
+      "items": 101
+    },
+    {
+      "number": 5,
+      "firstItemId": "probabilidade-4-7",
+      "lastItemId": "logica-5-7",
+      "items": 101
+    },
+    {
+      "number": 6,
+      "firstItemId": "logica-5-8",
+      "lastItemId": "bank:exam:obmep-n1-12",
+      "items": 99
+    },
+    {
+      "number": 7,
+      "firstItemId": "proporcao-1-1",
+      "lastItemId": "equacoes-5-10",
+      "items": 92
+    },
+    {
+      "number": 8,
+      "firstItemId": "semelhanca-1-1",
+      "lastItemId": "pitagoras-5-10",
+      "items": 92
+    },
+    {
+      "number": 9,
+      "firstItemId": "restos-1-1",
+      "lastItemId": "contagem-casos-5-10",
+      "items": 92
+    },
+    {
+      "number": 10,
+      "firstItemId": "invariantes-1-1",
+      "lastItemId": "coordenadas-5-10",
+      "items": 92
+    },
+    {
+      "number": 11,
+      "firstItemId": "logica-n2-1-1",
+      "lastItemId": "bank:exam:canguru-c-12",
+      "items": 94
+    },
+    {
+      "number": 12,
+      "firstItemId": "porcentagem-n2-1-1",
+      "lastItemId": "juros-5-10",
+      "items": 92
+    },
+    {
+      "number": 13,
+      "firstItemId": "orcamento-n2-1-1",
+      "lastItemId": "inflacao-5-10",
+      "items": 92
+    },
+    {
+      "number": 14,
+      "firstItemId": "investimentos-1-1",
+      "lastItemId": "bank:exam:olitef-n2-12",
+      "items": 70
+    },
+    {
+      "number": 15,
+      "firstItemId": "contagem-inicial-1-1",
+      "lastItemId": "padroes-iniciais-5-10",
+      "items": 92
+    },
+    {
+      "number": 16,
+      "firstItemId": "orientacao-espacial-1-1",
+      "lastItemId": "composicao-de-figuras-5-10",
+      "items": 92
+    },
+    {
+      "number": 17,
+      "firstItemId": "tempo-e-medidas-1-1",
+      "lastItemId": "balancas-5-10",
+      "items": 92
+    },
+    {
+      "number": 18,
+      "firstItemId": "caminhos-1-1",
+      "lastItemId": "tabelas-5-10",
+      "items": 92
+    },
+    {
+      "number": 19,
+      "firstItemId": "bank:diagnostic:canguru-p-1",
+      "lastItemId": "bank:exam:mirim-2-12",
+      "items": 48
+    },
+    {
+      "number": 20,
+      "firstItemId": "funcoes-1-1",
+      "lastItemId": "recorrencias-5-10",
+      "items": 92
+    },
+    {
+      "number": 21,
+      "firstItemId": "estruturas-numericas-1-1",
+      "lastItemId": "geometria-plana-5-10",
+      "items": 92
+    },
+    {
+      "number": 22,
+      "firstItemId": "combinacoes-1-1",
+      "lastItemId": "probabilidade-em-5-10",
+      "items": 92
+    },
+    {
+      "number": 23,
+      "firstItemId": "argumentacao-em-1-1",
+      "lastItemId": "polinomios-5-10",
+      "items": 92
+    },
+    {
+      "number": 24,
+      "firstItemId": "inducao-1-1",
+      "lastItemId": "coordenadas-em-5-10",
+      "items": 92
+    },
+    {
+      "number": 25,
+      "firstItemId": "bank:diagnostic:obmep-n3-1",
+      "lastItemId": "bank:exam:canguru-j-12",
+      "items": 48
+    },
+    {
+      "number": 26,
+      "firstItemId": "equacoes-em-1-1",
+      "lastItemId": "trigonometria-5-10",
+      "items": 92
+    },
+    {
+      "number": 27,
+      "firstItemId": "espaco-1-1",
+      "lastItemId": "logica-em-5-10",
+      "items": 92
+    },
+    {
+      "number": 28,
+      "firstItemId": "bank:diagnostic:canguru-s-1",
+      "lastItemId": "bank:exam:canguru-s-12",
+      "items": 24
+    },
+    {
+      "number": 29,
+      "firstItemId": "modelos-financeiros-1-1",
+      "lastItemId": "equivalencia-temporal-5-10",
+      "items": 92
+    },
+    {
+      "number": 30,
+      "firstItemId": "renda-fixa-1-1",
+      "lastItemId": "renda-variavel-5-10",
+      "items": 92
+    },
+    {
+      "number": 31,
+      "firstItemId": "cenarios-1-1",
+      "lastItemId": "bank:exam:olitef-n3-12",
+      "items": 70
+    },
+    {
+      "number": 32,
+      "firstItemId": "contar-e-comparar-1-1",
+      "lastItemId": "formas-e-posicoes-5-10",
+      "items": 92
+    },
+    {
+      "number": 33,
+      "firstItemId": "sequencias-iniciais-1-1",
+      "lastItemId": "medir-e-comparar-5-10",
+      "items": 92
+    },
+    {
+      "number": 34,
+      "firstItemId": "problemas-com-desenho-1-1",
+      "lastItemId": "bank:exam:mirim-1-12",
+      "items": 70
+    }
+  ]
+}

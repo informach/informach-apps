@@ -9,6 +9,16 @@ import { SignOut } from "@/components/sign-out";
 import { getCurrentUser } from "@/lib/auth";
 import { currentDashboard } from "@/lib/view";
 
+/*
+ * Este grupo não tem loading.tsx de propósito. Com a página dentro dessa
+ * fronteira de Suspense, o Next 16.2 deixa de aplicar na tela a árvore que
+ * chega depois de uma server action ou de um router.refresh(): a troca de
+ * trilha em /jornada gravava no banco e só aparecia após recarregar
+ * (vercel/next.js#86055, cujo contorno documentado é remover o loading.tsx).
+ * As páginas respondem rápido e a navegação mantém a tela anterior até a nova
+ * estar pronta, então o indicador não faz falta. Reavaliar quando o Next
+ * corrigir o problema.
+ */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
   if (!user) redirect("/entrar");
@@ -44,7 +54,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <Brand compacto />
           </div>
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
-            <ProfileSwitcher profiles={data.profiles} selected={data.profile?.id} />
+            <ProfileSwitcher
+              profiles={data.profiles.map(({ id, nickname, avatar, grade }) => ({
+                id,
+                nickname,
+                avatar,
+                grade,
+              }))}
+              selected={data.profile?.id}
+            />
             {/* A área da família sai da navegação da criança: é do responsável,
                 e já exige reautenticação de 10 minutos. */}
             <Link
@@ -68,6 +86,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <span>Conteúdo autoral · preparação independente, sem vínculo com as olimpíadas.</span>
           <Link href="/privacidade" className="underline underline-offset-4 hover:text-tinta">
             Privacidade
+          </Link>
+          <Link href="/termos" className="underline underline-offset-4 hover:text-tinta">
+            Termos
           </Link>
           <SignOut />
         </footer>

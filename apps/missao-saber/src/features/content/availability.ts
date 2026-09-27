@@ -1,3 +1,4 @@
+import { coursesForGrade } from "./catalog";
 import type { Course, Lesson } from "./types";
 
 export type ContentState = {
@@ -21,6 +22,15 @@ export function isSuspended(state: ContentState | undefined) {
   return state?.status === "suspended";
 }
 
+/** Missão, revisão ou avaliação que pertence à trilha (pelo id da lição da sessão). */
+export function lessonIdInCourse(course: Course, lessonId: string) {
+  return (
+    lessonId === `diagnostic:${course.id}` ||
+    lessonId === `exam:${course.id}` ||
+    course.path.includes(lessonId)
+  );
+}
+
 export function lessonAvailability(input: {
   lesson: Lesson;
   course: Course;
@@ -30,7 +40,10 @@ export function lessonAvailability(input: {
   state?: ContentState;
 }): Availability {
   const { lesson, course } = input;
-  if (!course.grades.includes(input.grade)) return { available: false, reason: "GRADE" };
+  // Ano escolar sem trilha publicada não bloqueia: a trilha atual continua até
+  // a faixa nova existir; só um ano com trilhas próprias exige uma delas.
+  if (!course.grades.includes(input.grade) && coursesForGrade(input.grade).length > 0)
+    return { available: false, reason: "GRADE" };
   const belongsToCourse =
     lesson.skillId === "mixed"
       ? lesson.id === `diagnostic:${course.id}` || lesson.id === `exam:${course.id}`
@@ -49,7 +62,7 @@ export function assertableAvailabilityMessage(reason: AvailabilityReason) {
     case "GRADE":
       return "Esta missão não está disponível para este ano escolar.";
     case "PLAN":
-      return "Esta missão faz parte da assinatura. A primeira unidade e o diagnóstico são gratuitos.";
+      return "Esta missão faz parte da assinatura. As primeiras missões de cada trilha e o diagnóstico são gratuitos.";
     case "PROFILE_LIMIT":
       return "Este perfil está preservado no histórico. O plano atual permite estudar com menos perfis.";
     case "WITHDRAWN":

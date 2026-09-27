@@ -17,15 +17,30 @@ import {
 import { assertAllowed } from "@/lib/errors";
 import { withBillingLifecycleWait } from "../billing/repository";
 import { getAccess } from "../billing/service";
-import { assertableAvailabilityMessage, lessonAvailability } from "../content/availability";
+import {
+  assertableAvailabilityMessage,
+  lessonAvailability,
+  lessonIdInCourse,
+} from "../content/availability";
 import { assessmentSources, type ContentIdentity, findCourse } from "../content/catalog";
 import { type Lesson, lessonSchema } from "../content/types";
 import { itemHash } from "../content/version";
 import { allowedProfileIds } from "../family/profile-access";
+import { effectiveGrade } from "../family/school-year";
 import { type Evidence, gradeAnswer } from "./engine";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type Profile = typeof profiles.$inferSelect;
+/**
+ * Todo perfil lido do banco sai com o ano escolar efetivo em `grade` (o ano
+ * gravado avança a cada virada de ano civil) e o gravado em `storedGrade`.
+ */
+function withEffectiveGrade<T extends { grade: number; gradeYear: number }>(
+  row: T,
+  now = new Date(),
+) {
+  return { ...row, storedGrade: row.grade, grade: effectiveGrade(row, now) };
+}
 export type LearningSession = typeof sessions.$inferSelect;
 export type Attempt = typeof attempts.$inferSelect;
 export async function lockOwner(tx: Tx, userId: string) {
@@ -42,7 +57,7 @@ async function ownedProfile(tx: Tx, userId: string, profileId: string) {
     .from(profiles)
     .where(and(eq(profiles.id, profileId), eq(profiles.userId, userId)));
   assertAllowed(profile, "NOT_FOUND", "Perfil não encontrado.");
-  return profile;
+  return withEffectiveGrade(profile);
 }
 async function ownedSession(tx: Tx, userId: string, sessionId: string) {
   const [session] = await tx
@@ -87,15 +102,61 @@ async function assertCurrentSessionAccess(
   );
 }
 export async function getProfiles(userId: string) {
-  return db
+  const rows = await db
     .select()
     .from(profiles)
     .where(eq(profiles.userId, userId))
     .orderBy(profiles.createdAt, profiles.id);
+  const now = new Date();
+  return rows.map((row) => withEffectiveGrade(row, now));
 }
 export async function getFamily(userId: string) {
   const [family] = await db.select().from(families).where(eq(families.userId, userId));
   return family ?? null;
+}
+/**
+ * Trocar de trilha encerra as pausas que ficaram na trilha anterior: elas não
+ * podem mais ser retomadas, e deixá-las abertas faria a página oferecer um
+ * percurso que seria recusado. O histórico continua lá, como interrompido.
+ */
+async function closeSessionsOutsideCourse(tx: Tx, profileId: string, courseId: string) {
+  const course = findCourse(courseId);
+  if (!course) return;
+  const open = await tx
+    .select({ id: sessions.id, lessonId: sessions.lessonId })
+    .from(sessions)
+    .where(
+      and(
+        eq(sessions.profileId, profileId),
+        isNull(sessions.completedAt),
+        isNull(sessions.interruptedAt),
+      ),
+    );
+  const outside = open.filter((session) => !lessonIdInCourse(course, session.lessonId));
+  if (!outside.length) return;
+  await tx
+    .update(sessions)
+    .set({ interruptedAt: new Date(), interruptionReason: "A trilha mudou" })
+    .where(
+      inArray(
+        sessions.id,
+        outside.map((session) => session.id),
+      ),
+    );
+}
+
+/** Versão da política de privacidade aceita no consentimento mais recente. */
+export const CONSENT_VERSION = "2026-09-26";
+
+/** Registra o consentimento do responsável na versão atual da política. */
+async function recordConsent(tx: Tx, userId: string) {
+  await tx
+    .insert(families)
+    .values({ userId, consentVersion: CONSENT_VERSION })
+    .onConflictDoUpdate({
+      target: families.userId,
+      set: { consentVersion: CONSENT_VERSION, consentAt: new Date() },
+    });
 }
 export async function addProfile(
   userId: string,
@@ -109,10 +170,7 @@ export async function addProfile(
       .from(profiles)
       .where(eq(profiles.userId, userId));
     assertAllowed(existing.length < limit, "PLAN", `Seu plano permite ${limit} estudante(s).`);
-    await tx
-      .insert(families)
-      .values({ userId, consentVersion: "2026-09-13" })
-      .onConflictDoNothing();
+    await recordConsent(tx, userId);
     const [profile] = await tx
       .insert(profiles)
       .values({ ...input, userId, accessEnabled: true })
@@ -121,11 +179,49 @@ export async function addProfile(
     return profile;
   });
 }
+export async function updateProfile(
+  userId: string,
+  profileId: string,
+  input: Pick<Profile, "nickname" | "grade" | "gradeYear" | "birthMonth" | "avatar" | "courseId">,
+  birthConsent = false,
+) {
+  return db.transaction(async (tx) => {
+    await lockOwner(tx, userId);
+    const current = await ownedProfile(tx, userId, profileId);
+    // Mês de nascimento novo é dado novo: pede a autorização de novo.
+    const consentRecorded = !current.birthMonth && !!input.birthMonth;
+    if (consentRecorded) {
+      assertAllowed(
+        birthConsent,
+        "CONSENT",
+        "Confirme a autorização para guardar o mês e ano de nascimento.",
+      );
+      await recordConsent(tx, userId);
+    }
+    const changedFields = (
+      ["nickname", "avatar", "grade", "birthMonth", "courseId"] as const
+    ).filter((field) =>
+      field === "grade"
+        ? current.grade !== input.grade
+        : String(current[field] ?? "") !== String(input[field] ?? ""),
+    );
+    const [updated] = await tx
+      .update(profiles)
+      .set(input)
+      .where(eq(profiles.id, profileId))
+      .returning();
+    assertAllowed(updated, "SAVE", "Não foi possível atualizar o perfil.");
+    if (current.courseId !== input.courseId)
+      await closeSessionsOutsideCourse(tx, profileId, input.courseId);
+    return { profile: withEffectiveGrade(updated), changedFields, consentRecorded };
+  });
+}
 export async function updateCourse(userId: string, profileId: string, courseId: string) {
   return db.transaction(async (tx) => {
     await lockOwner(tx, userId);
-    await ownedProfile(tx, userId, profileId);
+    const current = await ownedProfile(tx, userId, profileId);
     await tx.update(profiles).set({ courseId }).where(eq(profiles.id, profileId));
+    if (current.courseId !== courseId) await closeSessionsOutsideCourse(tx, profileId, courseId);
   });
 }
 export async function contentStates() {
@@ -504,45 +600,68 @@ export async function history(userId: string, profileId: string) {
     "NOT_FOUND",
     "Perfil não encontrado.",
   );
-  const rows = await db
-    .select({
-      attempt: attempts,
-      mode: sessions.mode,
-      completedAt: sessions.completedAt,
-      snapshot: sessions.snapshot,
-    })
-    .from(attempts)
-    .innerJoin(sessions, eq(attempts.sessionId, sessions.id))
-    .where(eq(sessions.profileId, profileId));
-  const assessmentSessions = await db
-    .select({ id: sessions.id, snapshot: sessions.snapshot, completedAt: sessions.completedAt })
-    .from(sessions)
-    .where(and(eq(sessions.profileId, profileId), inArray(sessions.mode, ["diagnostic", "exam"])));
+  /* Esta consulta roda em toda página do app, e o snapshot da lição é a parte
+     pesada da sessão. Ele só é lido onde muda o resultado: nas avaliações, para
+     saber que famílias já foram expostas, e nas sessões com tentativa num item
+     que a manutenção invalidou. */
+  const [attemptRows, sessionRows, invalidationRows] = await Promise.all([
+    db
+      .select({ attempt: attempts, mode: sessions.mode, completedAt: sessions.completedAt })
+      .from(attempts)
+      .innerJoin(sessions, eq(attempts.sessionId, sessions.id))
+      .where(eq(sessions.profileId, profileId)),
+    db
+      .select({ id: sessions.id, mode: sessions.mode, completedAt: sessions.completedAt })
+      .from(sessions)
+      .where(eq(sessions.profileId, profileId)),
+    db
+      .select({ items: contentControls.invalidatedItems })
+      .from(contentControls)
+      .where(inArray(contentControls.status, ["suspended", "invalidated"])),
+  ]);
+  const invalidatedItems = invalidationRows.flatMap((row) => row.items);
+  const invalidated = new Set(invalidatedItems.map((item) => `${item.itemId}:${item.itemHash}`));
+  const invalidatedIds = new Set(invalidatedItems.map((item) => item.itemId));
+  const snapshotIds = new Set([
+    ...sessionRows
+      .filter((session) => session.mode === "diagnostic" || session.mode === "exam")
+      .map((session) => session.id),
+    ...attemptRows
+      .filter((row) => invalidatedIds.has(row.attempt.itemId))
+      .map((row) => row.attempt.sessionId),
+  ]);
+  const snapshotRows = snapshotIds.size
+    ? await db
+        .select({ id: sessions.id, snapshot: sessions.snapshot })
+        .from(sessions)
+        .where(inArray(sessions.id, [...snapshotIds]))
+    : [];
+  const parsedBySession = new Map(
+    snapshotRows.map((session) => {
+      const parsed = lessonSchema.safeParse(session.snapshot);
+      return [session.id, parsed.success ? parsed.data : null] as const;
+    }),
+  );
+  const rows = attemptRows.map((row) => ({
+    ...row,
+    lesson: parsedBySession.get(row.attempt.sessionId) ?? null,
+  }));
+  const assessmentSessions = sessionRows.filter(
+    (session) => session.mode === "diagnostic" || session.mode === "exam",
+  );
   const assessmentExposedFamilyIds = new Set<string>();
   for (const session of assessmentSessions) {
-    const parsed = lessonSchema.safeParse(session.snapshot);
-    if (!parsed.success) continue;
+    const parsed = { success: true as const, data: parsedBySession.get(session.id) };
+    if (!parsed.data) continue;
     const answered = rows.filter((row) => row.attempt.sessionId === session.id).length;
     const exposed = session.completedAt ? parsed.data.items.length : answered + 1;
     for (const item of parsed.data.items.slice(0, exposed))
       assessmentExposedFamilyIds.add(item.familyId);
   }
-  const invalidationRows = await db
-    .select({
-      items: contentControls.invalidatedItems,
-    })
-    .from(contentControls)
-    .where(inArray(contentControls.status, ["suspended", "invalidated"]));
-  const invalidated = new Set(
-    invalidationRows.flatMap((row) => row.items.map((item) => `${item.itemId}:${item.itemHash}`)),
-  );
   const visibleRows = rows
     .filter((row) => (row.mode !== "exam" && row.mode !== "diagnostic") || row.completedAt !== null)
     .filter((row) => {
-      const parsed = lessonSchema.safeParse(row.snapshot);
-      const item = parsed.success
-        ? parsed.data.items.find((candidate) => candidate.id === row.attempt.itemId)
-        : undefined;
+      const item = row.lesson?.items.find((candidate) => candidate.id === row.attempt.itemId);
       return !item || !invalidated.has(`${item.id}:${itemHash(item)}`);
     });
   const evidence: Evidence[] = visibleRows
@@ -558,7 +677,7 @@ export async function history(userId: string, profileId: string) {
     }));
   const attemptedItemIds = [...new Set(visibleRows.map((row) => row.attempt.itemId))];
   const recent = await db
-    .select()
+    .select(sessionSummary)
     .from(sessions)
     .where(eq(sessions.profileId, profileId))
     .orderBy(desc(sessions.createdAt))
@@ -998,6 +1117,10 @@ export async function exportFamily(userId: string) {
         ? await tx.select().from(experiments).where(inArray(experiments.profileId, ids))
         : [],
       reports: await tx.select().from(reports).where(eq(reports.userId, userId)),
+      challenges: await tx
+        .select()
+        .from(familyChallenges)
+        .where(eq(familyChallenges.userId, userId)),
     };
   });
 }

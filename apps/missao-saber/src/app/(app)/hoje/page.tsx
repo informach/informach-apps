@@ -24,18 +24,20 @@ import {
   assessmentHasAllSkills,
   courseAssessmentBanks,
   courseLessons,
-  findCourse,
   skillNames,
 } from "@/features/content/catalog";
+import { inGrade } from "@/features/family/school-year";
 import { localDaysApart } from "@/features/learning/engine";
 import { availableLessons, recommend } from "@/features/learning/recommendation";
 import { currentDashboard } from "@/lib/view";
+
+export const metadata = { title: "Hoje" };
 
 export default async function Today() {
   const data = await currentDashboard();
   if (!data.profile) return <EmptyProfile />;
   const profile = data.profile;
-  const course = findCourse(profile.courseId);
+  const course = data.course;
   if (!course) return null;
   const allLessons = courseLessons(course);
   const available = availableLessons(allLessons, {
@@ -97,6 +99,24 @@ export default async function Today() {
 
   return (
     <>
+      {data.courseTransition && (
+        <FalaFaisca humor="acolhendo" tom="lima" titulo="Novo ano escolar." className="mb-5">
+          <p>
+            {data.courseTransition.to ? (
+              <>
+                Agora você está {inGrade(profile.grade)}, e sua trilha passa a ser{" "}
+                {data.courseTransition.to.label}. Dá para escolher outra na{" "}
+                <Link href="/jornada" className="font-semibold underline underline-offset-4">
+                  sua jornada
+                </Link>
+                .
+              </>
+            ) : (
+              `Agora você está ${inGrade(profile.grade)}. As trilhas desse ano estão em preparação; enquanto isso, a sua continua aberta.`
+            )}
+          </p>
+        </FalaFaisca>
+      )}
       <header className="mb-6 flex items-center gap-4">
         <Avatar id={profile.avatar} tamanho="m" />
         <div className="min-w-0">
@@ -198,10 +218,14 @@ export default async function Today() {
           tom="lima"
           extra={<BolhasSemana dias={data.weekly.practiceDays} />}
         />
-        <Ladrilho valor={autonomas} rotulo="habilidades com evidências de autonomia" tom="verde" />
+        <Ladrilho
+          valor={autonomas}
+          rotulo="habilidades que você já resolve sem ajuda"
+          tom="verde"
+        />
         <Ladrilho
           valor={data.weekly.withHelp}
-          rotulo="tentativas com pistas — aprender tem apoio"
+          rotulo="tentativas com pistas: aprender tem apoio"
           tom="sol"
         />
       </div>

@@ -1,13 +1,31 @@
 import "server-only";
 import { combinatoricsLessons } from "./combinatorics";
-import { commercialLessons, makeAssessmentBank } from "./commercial-curriculum";
+import {
+  commercialLessons,
+  legacyReservedSpec,
+  makeAssessmentBank,
+  type SkillId,
+} from "./commercial-curriculum";
 import { financeLessons } from "./finance";
 import { formatSamplesLesson } from "./format-samples";
 import { geometryLessons } from "./geometry";
 import { reasoningLessons } from "./reasoning";
-import { type Course, type Lesson, lessonSchema } from "./types";
+import { packLessons, packMissionIds } from "./skill-factory";
+import { skillPacks } from "./skills";
+import { trackDefinitions } from "./tracks";
+import {
+  type Course,
+  type Lesson,
+  lessonSchema,
+  type Olympiad,
+  type TrackDefinition,
+} from "./types";
 
-export const skillNames: Record<string, string> = {
+/* As doze habilidades de 6º/7º são congeladas: seus itens têm hash de revisão
+   e não podem mudar. As habilidades das outras faixas entram por `skillPacks`,
+   e as trilhas por `trackDefinitions`; este arquivo só junta as duas origens. */
+
+const legacySkillNames: Record<SkillId, string> = {
   fracoes: "Frações e referência",
   porcentagem: "Porcentagem",
   precos: "Comparação de preços",
@@ -22,7 +40,7 @@ export const skillNames: Record<string, string> = {
   logica: "Lógica e argumentos",
 };
 
-export const progressionBySkill: Record<string, string[]> = {
+const legacyProgression: Record<SkillId, string[]> = {
   fracoes: ["fracoes-1", "fracoes-formatos", "fracoes-2", "fracoes-3", "fracoes-4", "fracoes-5"],
   porcentagem: [
     "porcentagem-1",
@@ -49,7 +67,22 @@ export const progressionBySkill: Record<string, string[]> = {
   logica: ["logica-1", "logica-2", "logica-3", "logica-4", "logica-5"],
 };
 
-const authoredLessons = [
+const packById = new Map(skillPacks.map((pack) => [pack.id, pack]));
+for (const pack of skillPacks)
+  if (pack.id in legacySkillNames || packById.get(pack.id) !== pack)
+    throw new Error(`Duplicated skill id ${pack.id}`);
+
+export const skillNames: Record<string, string> = {
+  ...legacySkillNames,
+  ...Object.fromEntries(skillPacks.map((pack) => [pack.id, pack.name])),
+};
+
+export const progressionBySkill: Record<string, string[]> = {
+  ...legacyProgression,
+  ...Object.fromEntries(skillPacks.map((pack) => [pack.id, packMissionIds(pack)])),
+};
+
+const legacyLessons = [
   ...financeLessons,
   ...geometryLessons,
   ...combinatoricsLessons,
@@ -57,9 +90,18 @@ const authoredLessons = [
   formatSamplesLesson,
   ...commercialLessons,
 ];
+export const legacyLessonIds: ReadonlySet<string> = new Set(
+  legacyLessons.map((lesson) => lesson.id),
+);
+const authoredLessons = [...legacyLessons, ...skillPacks.flatMap(packLessons)];
 const authoredById = new Map(authoredLessons.map((lesson) => [lesson.id, lesson]));
 
-function teachingDomain(skillId: string, ordinal: number) {
+/**
+ * Domínio dos itens de 6º/7º, pela posição do item dentro da habilidade.
+ * A regra está congelada com o catálogo revisado: mudar um domínio mudaria o
+ * hash do item. Habilidades novas declaram o domínio no próprio pack.
+ */
+function legacyTeachingDomain(skillId: string, ordinal: number) {
   if (["fracoes", "medidas", "contagem", "probabilidade", "logica", "padroes"].includes(skillId))
     return "common" as const;
   if (skillId === "porcentagem") return ordinal < 30 ? ("common" as const) : ("olitef" as const);
@@ -83,10 +125,11 @@ export const lessons: Lesson[] = authoredLessons.map((lesson) => {
   const path = progressionBySkill[lesson.skillId] ?? [];
   const position = path.indexOf(lesson.id);
   const prerequisite = position > 0 ? path[position - 1] : undefined;
+  const legacy = legacyLessonIds.has(lesson.id);
   const items = lesson.items.map((item) => {
     const ordinal = skillItemOrdinals.get(lesson.skillId) ?? 0;
     skillItemOrdinals.set(lesson.skillId, ordinal + 1);
-    return { ...item, domain: teachingDomain(lesson.skillId, ordinal) };
+    return legacy ? { ...item, domain: legacyTeachingDomain(lesson.skillId, ordinal) } : item;
   });
   const parsed = lessonSchema.safeParse({
     ...lesson,
@@ -112,50 +155,78 @@ function layeredPath(skills: string[], maximumLayers = Number.POSITIVE_INFINITY)
   return path;
 }
 
-function course(input: Omit<Course, "path"> & { maximumLayers?: number }): Course {
-  const { maximumLayers, ...properties } = input;
-  return { ...properties, path: layeredPath(input.skills, maximumLayers) };
+function course(definition: TrackDefinition): Course {
+  const { maximumLayers, ...properties } = definition;
+  for (const skill of definition.skills)
+    if (!progressionBySkill[skill])
+      throw new Error(`Track ${definition.id} references unknown skill ${skill}`);
+  return { ...properties, path: layeredPath(definition.skills, maximumLayers) };
 }
 
-export const courses: Course[] = [
-  course({
-    id: "olitef-n1",
-    title: "Dinheiro com propósito",
-    label: "OLITEF · Nível 1",
-    grades: [6, 7],
-    description: "Frações, escolhas de consumo e planejamento financeiro.",
-    skills: ["fracoes", "porcentagem", "precos", "orcamento", "probabilidade"],
-  }),
-  course({
-    id: "canguru-e",
-    title: "Olhar de explorador",
-    label: "Canguru · E · 6º ano",
-    grades: [6],
-    description: "Formas, padrões e problemas que convidam a experimentar.",
-    skills: ["fracoes", "medidas", "simetria", "padroes", "contagem", "logica"],
-    maximumLayers: 4,
-  }),
-  course({
-    id: "canguru-b",
-    title: "Conectar ideias",
-    label: "Canguru · B · 7º ano",
-    grades: [7],
-    description: "Conexões entre geometria, contagem e argumentos.",
-    skills: ["fracoes", "medidas", "simetria", "contagem", "paridade", "probabilidade", "logica"],
-  }),
-  course({
-    id: "obmep-n1",
-    title: "Pensar além da conta",
-    label: "OBMEP · Nível 1 · 6º e 7º anos",
-    grades: [6, 7],
-    description: "Estratégias, casos e justificativas para resolver problemas.",
-    skills: ["fracoes", "paridade", "padroes", "contagem", "gavetas", "medidas", "logica"],
-  }),
-];
+export const courses: Course[] = trackDefinitions.map(course);
+if (new Set(courses.map((c) => c.id)).size !== courses.length)
+  throw new Error("Duplicated track id");
+
+/** Anos escolares com pelo menos uma trilha; os formulários só oferecem estes. */
+export const catalogGrades: number[] = [...new Set(courses.flatMap((c) => c.grades))].sort(
+  (a, b) => a - b,
+);
+/** A Mirim é a porta de entrada da OBMEP: quem sai dela segue para a OBMEP. */
+const LINHA: Record<Olympiad, Olympiad> = {
+  mirim: "obmep",
+  obmep: "obmep",
+  canguru: "canguru",
+  olitef: "olitef",
+};
+const PREFERENCIA: Olympiad[] = ["obmep", "canguru", "olitef"];
+export function courseLine(c: Pick<Course, "olympiad">): Olympiad {
+  return LINHA[c.olympiad];
+}
+const primeiroAno = (c: Course) => Math.min(...c.grades);
+const preferencia = (c: Course) => PREFERENCIA.indexOf(courseLine(c));
+
+/** Para vitrines e listas: do ano mais novo ao mais velho; no mesmo ano, OBMEP, Canguru e OLITEF. */
+export const catalogCourses: Course[] = [...courses].sort(
+  (a, b) => primeiroAno(a) - primeiroAno(b) || preferencia(a) - preferencia(b),
+);
+
+/** Ordem de sugestão para formulários: OBMEP (com a Mirim), Canguru e OLITEF. */
+export const suggestedCourses: Course[] = [...courses].sort(
+  (a, b) => preferencia(a) - preferencia(b) || primeiroAno(a) - primeiroAno(b),
+);
+
+/** Trilhas do ano, na ordem de sugestão: a primeira é o padrão de um perfil novo. */
+export function coursesForGrade(grade: number) {
+  return suggestedCourses.filter((c) => c.grades.includes(grade));
+}
+/**
+ * Para onde vai um perfil cuja trilha deixou de cobrir o ano escolar: a
+ * trilha da mesma linha para o ano novo (Mirim segue para OBMEP); senão, a
+ * sugerida para o ano; senão nenhuma, e a trilha atual continua até a faixa
+ * ser publicada.
+ */
+export function successorCourse(current: Course, grade: number): Course | null {
+  if (current.grades.includes(grade)) return current;
+  const doAno = coursesForGrade(grade);
+  return doAno.find((c) => courseLine(c) === courseLine(current)) ?? doAno[0] ?? null;
+}
+
+/** A trilha que vale para o perfil hoje, já considerando a virada de ano. */
+export function resolvedCourse(profile: { courseId: string; grade: number }): Course | null {
+  const stored = findCourse(profile.courseId);
+  if (!stored) return null;
+  return successorCourse(stored, profile.grade) ?? stored;
+}
+
+function resolveReserved(skillId: string, seed: number, variant: 0 | 1 | 2) {
+  return (
+    packById.get(skillId)?.reserved(seed, variant) ?? legacyReservedSpec(skillId, seed, variant)
+  );
+}
 
 export const assessmentBanks: Lesson[] = courses.flatMap((currentCourse) =>
   (["diagnostic", "exam"] as const).map((mode) => {
-    const bank = makeAssessmentBank(currentCourse, mode);
+    const bank = makeAssessmentBank(currentCourse, mode, resolveReserved);
     const parsed = lessonSchema.safeParse(bank);
     if (!parsed.success)
       throw new Error(`Invalid assessment bank ${bank.id}: ${parsed.error.message}`);
@@ -179,7 +250,11 @@ export function courseLessons(currentCourse: Course) {
     .filter((lesson): lesson is Lesson => !!lesson);
 }
 export function courseAssessmentBanks(currentCourse: Course) {
-  return assessmentBanks.filter((bank) => bank.id.endsWith(`:${currentCourse.id}`));
+  return assessmentBanks.filter(
+    (bank) =>
+      bank.id === `bank:diagnostic:${currentCourse.id}` ||
+      bank.id === `bank:exam:${currentCourse.id}`,
+  );
 }
 
 export function assessment(
@@ -201,16 +276,16 @@ export function assessment(
   return {
     id: `${mode}:${currentCourse.id}`,
     version: bank?.version ?? 1,
-    title: mode === "diagnostic" ? "Seu ponto de partida" : "Simulado autoral de estratégias",
+    title: mode === "diagnostic" ? "Seu ponto de partida" : "Simulado de estratégias",
     skillId: "mixed",
     objective:
       mode === "diagnostic"
-        ? "Identificar estratégias de entrada e próximos passos."
-        : "Observar transferência para problemas reservados e conectar estratégias.",
+        ? "Descobrir por onde começar e quais são os próximos passos."
+        : "Usar as estratégias da trilha em problemas novos.",
     introduction:
       assessmentNovelty === "fresh"
-        ? "Este percurso usa atividades autorais reservadas ainda não vistas neste perfil."
-        : "Este percurso retoma atividades já expostas e será identificado como prática, sem simular uma nova medida independente.",
+        ? "Estas questões são novas para você."
+        : "Você já viu estas questões antes, então este percurso conta como prática.",
     lab: null,
     free: mode === "diagnostic",
     kind: "assessment",

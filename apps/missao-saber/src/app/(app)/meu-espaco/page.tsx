@@ -71,7 +71,7 @@ export default async function MeuEspacoPage() {
     {
       href: "/familia",
       titulo: "Área da família",
-      texto: "Perfis, rotina, relatório e assinatura — com o responsável.",
+      texto: "Perfis, rotina, relatório e assinatura, com o responsável.",
       dado:
         data.profiles.length === 1
           ? "1 estudante nesta conta"

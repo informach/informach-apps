@@ -442,6 +442,13 @@
       "when": 1790256688007,
       "tag": "0062_drop_agenda_email_inbox",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1790445283677,
+      "tag": "0063_missao_profile_school_year",
+      "breakpoints": true
     }
   ]
 }

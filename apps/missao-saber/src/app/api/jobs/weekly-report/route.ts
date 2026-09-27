@@ -24,10 +24,17 @@ export async function POST(request: Request) {
     for (const { userId, email } of destinatarios) {
       // Uma família por vez, isolada: um dado quebrado em uma delas não pode
       // calar o resumo de todas as seguintes. A falha é contada e reportada, e
-      // a chave por semana faz a próxima passada do cron reenviar só quem ficou
-      // sem resumo.
+      // a chave por semana faz a passada de terça do cron reenviar só quem
+      // ficou sem resumo na segunda.
       try {
-        const resumo = await buildWeeklySummary(userId, email, env.NEXT_PUBLIC_APP_URL, now);
+        const unsubscribeUrl = buildUnsubscribeUrl(userId, "missao.weekly-report");
+        const resumo = await buildWeeklySummary(
+          userId,
+          email,
+          env.NEXT_PUBLIC_APP_URL,
+          now,
+          unsubscribeUrl,
+        );
         if (!resumo) {
           ignorados += 1;
           continue;
@@ -40,7 +47,7 @@ export async function POST(request: Request) {
           subject: resumo.assunto,
           text: resumo.texto,
           html: resumo.html,
-          unsubscribeUrl: buildUnsubscribeUrl(userId, "missao.weekly-report"),
+          unsubscribeUrl,
         });
         if (result.ok) enviados += 1;
         else if (result.status === "skipped") ignorados += 1;

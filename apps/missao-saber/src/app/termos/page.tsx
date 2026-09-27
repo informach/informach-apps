@@ -1,4 +1,8 @@
 import { Brand } from "@/components/brand";
+import { catalogCourses, catalogGrades } from "@/features/content/catalog";
+import { gradeRangeSentence } from "@/features/family/school-year";
+export const metadata = { title: "Termos de uso" };
+
 export default function Terms() {
   return (
     <>
@@ -12,20 +16,21 @@ export default function Terms() {
         </a>
       </header>
       <main id="conteudo" className="prosa">
-        <span className="eyebrow">ÚLTIMA ATUALIZAÇÃO · 13/09/2026</span>
+        <span className="eyebrow">ÚLTIMA ATUALIZAÇÃO · 26/09/2026</span>
         <h1>Termos do Missão Saber.</h1>
         <p>
-          O Missão Saber é oferecido pela Informach — Núcleo de Aprendizagem Ltda, CNPJ
+          O Missão Saber é oferecido pela Informach Núcleo de Aprendizagem Ltda, CNPJ
           43.588.758/0001-03. O serviço é contratado por um responsável maior de 18 anos. Os perfis
           de estudantes ficam vinculados a essa conta. O responsável deve proteger seu acesso e
           acompanhar o uso adequado à idade.
         </p>
         <h2>O serviço</h2>
         <p>
-          Oferecemos conteúdo autoral de preparação independente para desafios escolares do 6º e 7º
-          ano. Há trilhas voltadas às competências cobradas na OLITEF Nível 1, no Canguru E e B e na
-          OBMEP Nível 1. As trilhas compartilham fundamentos, e uma unidade gratuita pode ser
-          experimentada antes da assinatura.
+          Oferecemos conteúdo autoral de preparação independente para desafios escolares{" "}
+          {gradeRangeSentence(catalogGrades)}. São {catalogCourses.length} trilhas voltadas às
+          competências cobradas na OBMEP Mirim, na OBMEP, no Canguru de Matemática Brasil e na
+          OLITEF. Trilhas da mesma faixa compartilham fundamentos, e as primeiras missões de cada
+          trilha podem ser experimentadas antes da assinatura.
         </p>
         <h2>Assinatura</h2>
         <p>
@@ -46,8 +51,9 @@ export default function Terms() {
         <p>
           Os resultados são formativos. Não prometemos medalha, classificação, aprovação nem
           substituição da escola. Justificativas abertas podem ser registradas no caderno, mas não
-          recebem correção humana ilimitada ou nota oficial. O serviço não é afiliado às
-          organizações OLITEF, Canguru ou OBMEP.
+          recebem correção humana ilimitada ou nota oficial. O serviço não tem vínculo com a OBMEP,
+          a OBMEP Mirim, o Canguru de Matemática Brasil ou a OLITEF, nem com as instituições que as
+          organizam.
         </p>
         <p>
           O responsável não deve tentar contornar controles de acesso, interromper o serviço,

@@ -1,3 +1,4 @@
+import { PRODUCTS } from "@informach/config";
 import { ArrowUpRight, Check, Compass, Lightbulb, Sprout } from "lucide-react";
 import Link from "next/link";
 import { Brand } from "@/components/brand";
@@ -6,7 +7,47 @@ import { LinkChapa } from "@/components/ui/botao-chapa";
 import { Chapa } from "@/components/ui/chapa";
 import { Horizonte, tomDoCurso } from "@/components/ui/horizonte";
 import { Etiqueta } from "@/components/ui/pagina";
-import { courses } from "@/features/content/catalog";
+import { catalogCourses, catalogGrades } from "@/features/content/catalog";
+import { inventory } from "@/features/content/inventory";
+import { gradeRangeLabel, gradeRangeSentence } from "@/features/family/school-year";
+
+export const metadata = {
+  title: { absolute: "Missão Saber · Uma descoberta por dia" },
+  description: `Matemática e educação financeira em missões autorais ${gradeRangeSentence(catalogGrades)}. As primeiras missões são gratuitas, sem cartão.`,
+};
+
+const brl = (cents: number) =>
+  (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const planos = ["individual", "family"].map((tier) => ({
+  tier,
+  monthly: PRODUCTS.find(
+    (p) => p.app === "missao-saber" && p.tier === tier && p.interval === "month",
+  ),
+  annual: PRODUCTS.find(
+    (p) => p.app === "missao-saber" && p.tier === tier && p.interval === "year",
+  ),
+}));
+const perguntas = [
+  {
+    pergunta: "Precisa de cartão para começar?",
+    resposta:
+      "Não. A missão de demonstração dispensa cadastro, e a conta gratuita inclui as primeiras missões da trilha, o diagnóstico e os laboratórios.",
+  },
+  {
+    pergunta: "Para qual ano escolar é o app hoje?",
+    resposta: `${gradeRangeSentence(catalogGrades).replace(/^./, (c) => c.toUpperCase())}, com trilhas de preparação para a OBMEP, a OBMEP Mirim, o Canguru e a OLITEF. O perfil do estudante mostra as trilhas do ano dele.`,
+  },
+  {
+    pergunta: "Como acompanho meu filho?",
+    resposta:
+      "A área da família mostra o que cada estudante percorreu, onde pediu pista e o que repetiu. Quem quiser recebe um resumo semanal por e-mail, sem lembretes para a criança.",
+  },
+  {
+    pergunta: "Posso cancelar quando quiser?",
+    resposta:
+      "Sim, pelo portal seguro de cobrança, a qualquer momento. O histórico do estudante fica guardado e as missões gratuitas continuam abertas.",
+  },
+];
 
 /* Página de venda: quem lê é o responsável. Registro adulto e calmo,
    mas mostrando a linguagem visual que a criança vai encontrar dentro. */
@@ -29,6 +70,12 @@ export default function Home() {
           >
             Como funciona
           </a>
+          <a
+            href="#planos"
+            className="font-semibold text-tinta-suave underline-offset-4 hover:underline max-sm:hidden"
+          >
+            Planos
+          </a>
           <LinkChapa href="/entrar" tom="contorno" medida="p">
             Entrar <ArrowUpRight size={16} aria-hidden="true" />
           </LinkChapa>
@@ -50,11 +97,14 @@ export default function Home() {
             </h1>
             <p className="mt-5 max-w-xl text-lg text-tinta-suave">
               Matemática e educação financeira em pequenas missões. Para ganhar confiança nos
-              desafios do 6º e 7º ano — e levar o raciocínio além da prova.
+              desafios {gradeRangeSentence(catalogGrades)}, e levar o raciocínio além da prova.
             </p>
-            <div className="mt-7">
+            <div className="mt-7 flex flex-wrap items-center gap-3">
               <LinkChapa href="/experimentar" medida="g">
                 Experimentar uma missão <ArrowUpRight size={20} aria-hidden="true" />
+              </LinkChapa>
+              <LinkChapa href="/entrar" tom="contorno" medida="g">
+                Criar conta gratuita
               </LinkChapa>
             </div>
             <p className="mt-4 inline-flex items-center gap-1.5 text-sm text-tinta-suave">
@@ -111,19 +161,21 @@ export default function Home() {
                 Qual ideia vamos explorar?
               </h2>
             </div>
-            <Etiqueta tom="creme">61 missões · 6º e 7º ano</Etiqueta>
+            <Etiqueta tom="creme">
+              {inventory.totals.missions} missões · {gradeRangeLabel(catalogGrades)}
+            </Etiqueta>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {/* O mesmo horizonte que a criança encontra na trilha: o responsável
                 reconhece o lugar antes de assinar, e a criança reencontra o
                 lugar depois de entrar. */}
-            {courses.map((course) => (
+            {catalogCourses.map((course) => (
               <Chapa
                 key={course.id}
-                tom={tomDoCurso(course.id)}
+                tom={tomDoCurso(course)}
                 className="relative flex flex-col overflow-hidden pb-16"
               >
-                <Horizonte tom={tomDoCurso(course.id)} className="h-16 opacity-30 sm:h-16" />
+                <Horizonte tom={tomDoCurso(course)} className="h-16 opacity-30 sm:h-16" />
                 <span className="relative font-display text-xs font-semibold text-tinta-suave uppercase">
                   {course.label}
                 </span>
@@ -132,13 +184,13 @@ export default function Home() {
                 </h3>
                 <p className="relative mt-1.5 text-sm text-tinta-suave">{course.description}</p>
                 <span className="relative mt-auto pt-4 font-display text-sm font-semibold text-tinta">
-                  {course.grades.map((g) => `${g}º`).join(" e ")} ano
+                  {gradeRangeLabel(course.grades)}
                 </span>
               </Chapa>
             ))}
           </div>
           <p className="mt-6 max-w-3xl text-sm text-tinta-suave">
-            Preparação independente. Missão Saber não é afiliado às organizações das olimpíadas. O
+            Preparação independente. O Missão Saber não é afiliado às organizações das olimpíadas. O
             conteúdo publicado é autoral; nenhum resultado ou medalha é garantido.
           </p>
         </section>
@@ -238,6 +290,96 @@ export default function Home() {
           </Chapa>
         </section>
 
+        <section id="planos" className="border-t-2 border-sombra bg-creme">
+          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-8">
+            <div className="max-w-2xl">
+              <Etiqueta tom="verde">Planos</Etiqueta>
+              <h2 className="mt-3 font-display text-3xl leading-tight font-semibold text-tinta sm:text-4xl">
+                Comece de graça.
+                <br />
+                Assine quando fizer sentido.
+              </h2>
+              <p className="mt-4 text-tinta-suave">
+                As primeiras missões de cada trilha, o diagnóstico, os laboratórios e o relatório da
+                família são gratuitos, sem cartão. A assinatura libera todas as missões das trilhas
+                do ano escolar, as revisões e os simulados.
+              </p>
+            </div>
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              {planos.map(({ tier, monthly, annual }) =>
+                monthly && annual && monthly.listPrice && annual.listPrice ? (
+                  <Chapa
+                    key={tier}
+                    tom={tier === "family" ? "lima" : "creme"}
+                    className="flex flex-col"
+                  >
+                    <h3 className="font-display text-xl font-semibold text-tinta">
+                      {tier === "family" ? "Família" : "Individual"}
+                    </h3>
+                    <p className="mt-1 text-sm text-tinta-suave">
+                      {tier === "family" ? "Até três estudantes" : "Um estudante"}
+                    </p>
+                    <p className="mt-4 font-display text-4xl font-semibold text-tinta">
+                      {brl(monthly.listPrice.amountCents)}
+                      <span className="text-base font-normal text-tinta-suave">/mês</span>
+                    </p>
+                    <p className="mt-1 text-sm text-tinta-suave">
+                      Ou {brl(annual.listPrice.amountCents)} por ano, cobrados de uma vez.
+                    </p>
+                    <ul className="mt-5 grid gap-2 text-sm text-tinta">
+                      {[
+                        "Todas as trilhas do ano escolar",
+                        "Revisões espaçadas e simulados",
+                        "Histórico preservado após cancelar",
+                      ].map((linha) => (
+                        <li key={linha} className="flex items-start gap-2">
+                          <Check
+                            size={18}
+                            aria-hidden="true"
+                            className="mt-0.5 shrink-0 text-verde"
+                          />
+                          {linha}
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="mt-6">
+                      <LinkChapa
+                        href="/entrar"
+                        medida="m"
+                        tom={tier === "family" ? "verde" : "contorno"}
+                      >
+                        Criar conta e assinar
+                      </LinkChapa>
+                    </div>
+                  </Chapa>
+                ) : null,
+              )}
+            </div>
+            <p className="mt-4 text-sm text-tinta-suave">
+              Cancelamento a qualquer momento pelo portal seguro de cobrança. Sem anúncios e sem
+              venda de dados.
+            </p>
+            <div className="mt-12 max-w-3xl">
+              <h3 className="font-display text-2xl font-semibold text-tinta">
+                Perguntas frequentes
+              </h3>
+              <div className="mt-4 grid gap-3">
+                {perguntas.map(({ pergunta, resposta }) => (
+                  <details
+                    key={pergunta}
+                    className="rounded-card border-2 border-sombra bg-papel p-4 open:shadow-chapa"
+                  >
+                    <summary className="cursor-pointer font-display font-semibold text-tinta">
+                      {pergunta}
+                    </summary>
+                    <p className="mt-2 text-sm text-tinta-suave">{resposta}</p>
+                  </details>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="border-t-2 border-sombra bg-verde-claro">
           <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-8">
             <Etiqueta tom="verde">Curiosidade é um ótimo começo</Etiqueta>
@@ -246,13 +388,16 @@ export default function Home() {
               <br />
               pode começar agora.
             </h2>
-            <div className="mt-7">
+            <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
               <LinkChapa href="/experimentar" medida="g">
                 Quero experimentar <ArrowUpRight size={20} aria-hidden="true" />
               </LinkChapa>
+              <LinkChapa href="/entrar" tom="contorno" medida="g">
+                Criar conta do responsável
+              </LinkChapa>
             </div>
             <p className="mt-4 text-sm text-tinta-suave">
-              Uma missão gratuita, sem cadastro ou cartão.
+              Uma missão gratuita, sem cadastro nem cartão.
             </p>
           </div>
         </section>

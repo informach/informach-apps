@@ -1,6 +1,22 @@
 import "server-only";
-import { assessmentBanks, courseLessons, courses, lessons, progressionBySkill } from "./catalog";
-import type { Item } from "./types";
+import {
+  assessmentBanks,
+  courseLessons,
+  courses,
+  legacyLessonIds,
+  lessons,
+  progressionBySkill,
+} from "./catalog";
+import { authoringLots } from "./lotes";
+import { skillPacks } from "./skills";
+import { trackWaves } from "./tracks";
+import { legacyTracks } from "./tracks/legacy";
+import type { Item, Lesson } from "./types";
+
+const legacyCourseIds = new Set(legacyTracks.map((track) => track.id));
+const bankCourseId = (bank: Lesson) => bank.id.replace(/^bank:(diagnostic|exam):/, "");
+const isLegacyBank = (bank: Lesson) => legacyCourseIds.has(bankCourseId(bank));
+const itemsOf = (units: Lesson[]) => units.flatMap((unit) => unit.items);
 
 function countBy<T>(values: T[], key: (value: T) => string) {
   const counts: Record<string, number> = {};
@@ -25,12 +41,31 @@ function solutionSignature(item: Item) {
 }
 
 function semanticShape(prompt: string) {
-  return prompt
-    .toLocaleLowerCase("pt-BR")
-    .replace(/r\$\s*[\d.,]+/g, "<valor>")
-    .replace(/-?\d+(?:[.,]\d+)?/g, "<n>")
-    .replace(/\s+/g, " ")
-    .trim();
+  return (
+    prompt
+      .toLocaleLowerCase("pt-BR")
+      .replace(/r\$\s*[\d.,]+/g, "<valor>")
+      // O sinal pode ser o hífen ou o menos tipográfico usado nos itens.
+      .replace(/[−-]?\d+(?:[.,]\d+)?/g, "<n>")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+}
+
+/** Números do enunciado e da resposta, para achar a mesma conta com outra redação. */
+function numericKey(item: Item) {
+  const numbers = (text: string) =>
+    (text.replace(/^Questão \d+\.\s*/, "").match(/[−-]?\d+(?:[.,]\d+)?/g) ?? [])
+      .map((value) => value.replace("−", "-").replace(",", "."))
+      .sort()
+      .join("|");
+  const answer =
+    item.type === "numeric"
+      ? String(item.grading.value)
+      : item.type === "choice"
+        ? numbers(item.answer)
+        : "";
+  return `${item.skillId}#${numbers(item.prompt)}#${answer}`;
 }
 
 export function catalogInventory() {
@@ -59,6 +94,46 @@ export function catalogInventory() {
     shapeFamilies.set(shape, new Set([...(shapeFamilies.get(shape) ?? []), item.familyId]));
   }
   const teachingShapes = new Set(teachingItems.map((item) => semanticShape(item.prompt)));
+  /* Ordem de autoria: os seis lotes de 6º/7º cobriram missões e depois os
+     bancos das quatro trilhas; o que veio depois segue a ordem do registro de
+     habilidades, e o banco de cada trilha nova entra logo depois da última
+     habilidade que ela usa, para que cada onda feche em faixa contígua. Os
+     lotes são faixas contíguas nessa ordem, não na ordem de carga. */
+  const packOrder = new Map(skillPacks.map((pack, index) => [pack.id, index]));
+  const packLessonUnits = lessons.filter((lesson) => !legacyLessonIds.has(lesson.id));
+  const anchorOf = (bank: Lesson) => {
+    const wave = trackWaves.find((tracks) =>
+      tracks.some((track) => track.id === bankCourseId(bank)),
+    );
+    const skills = (wave ?? []).flatMap((track) => track.skills);
+    return Math.max(-1, ...skills.map((skill) => packOrder.get(skill) ?? -1));
+  };
+  const newBankUnits = assessmentBanks
+    .filter((bank) => !isLegacyBank(bank))
+    .map((bank, index) => ({ bank, anchor: anchorOf(bank), index }))
+    .sort((a, b) => a.anchor - b.anchor || a.index - b.index);
+  const wavedUnits: Lesson[] = [];
+  for (const [index, pack] of skillPacks.entries()) {
+    wavedUnits.push(...packLessonUnits.filter((lesson) => lesson.skillId === pack.id));
+    wavedUnits.push(
+      ...newBankUnits.filter((unit) => unit.anchor === index).map((unit) => unit.bank),
+    );
+  }
+  const authoringOrder = [
+    ...itemsOf(lessons.filter((lesson) => legacyLessonIds.has(lesson.id))),
+    ...itemsOf(assessmentBanks.filter(isLegacyBank)),
+    ...itemsOf(wavedUnits),
+  ];
+  const indexById = new Map(authoringOrder.map((item, index) => [item.id, index]));
+  const lotRanges = authoringLots.map((lot) => ({
+    lot,
+    start: indexById.get(lot.firstItemId) ?? -1,
+    end: indexById.get(lot.lastItemId) ?? -1,
+  }));
+  const lotCoverage = new Array<number>(authoringOrder.length).fill(0);
+  for (const { start, end } of lotRanges)
+    if (start >= 0 && end >= start)
+      for (let i = start; i <= end; i++) lotCoverage[i] = (lotCoverage[i] ?? 0) + 1;
   return {
     totals: {
       missions: lessons.length,
@@ -91,16 +166,12 @@ export function catalogInventory() {
         },
       ]),
     ),
-    lots: Array.from({ length: 6 }, (_, index) => {
-      const start = index * Math.ceil(allItems.length / 6);
-      const end = Math.min(allItems.length, (index + 1) * Math.ceil(allItems.length / 6));
-      return {
-        number: index + 1,
-        firstItemId: allItems[start]?.id ?? null,
-        lastItemId: allItems[end - 1]?.id ?? null,
-        items: Math.max(0, end - start),
-      };
-    }),
+    lots: lotRanges.map(({ lot, start, end }) => ({
+      number: lot.number,
+      firstItemId: lot.firstItemId,
+      lastItemId: lot.lastItemId,
+      items: start >= 0 && end >= start ? end - start + 1 : 0,
+    })),
     integrity: {
       duplicateItemIds: allItems.length - new Set(allItems.map((item) => item.id)).size,
       duplicateActivitySignatures: duplicateSignatures.length,
@@ -130,11 +201,47 @@ export function catalogInventory() {
       trainingAssessmentStructuralOverlap: [...shapeFamilies.keys()].filter((shape) =>
         teachingShapes.has(shape),
       ),
+      /* Questão reservada com os mesmos números e a mesma resposta de uma atividade
+         de ensino da habilidade: seria prática disfarçada de avaliação. Os bancos das
+         quatro trilhas de 6º/7º estão congelados e ficam fora da conferência. */
+      /* Alternativa certa muito mais longa que as erradas denuncia a resposta sem
+         conta nenhuma. As missões de 6º/7º estão congeladas e ficam de fora. */
+      answerLengthCues: lessons
+        .filter((lesson) => !legacyLessonIds.has(lesson.id))
+        .flatMap((lesson) => lesson.items)
+        .filter((item) => {
+          if (item.type !== "choice") return false;
+          const longest = Math.max(
+            ...item.options
+              .filter((option) => option !== item.answer)
+              .map((option) => option.length),
+          );
+          return item.answer.length > 1.6 * longest && item.answer.length > longest + 15;
+        })
+        .map((item) => item.id),
+      reservedNumericTwins: (() => {
+        const teachingKeys = new Set(teachingItems.map(numericKey));
+        return assessmentBanks
+          .filter((bank) => !isLegacyBank(bank))
+          .flatMap((bank) => bank.items)
+          .filter(
+            (item) =>
+              numericKey(item).split("#")[1]?.includes("|") && teachingKeys.has(numericKey(item)),
+          )
+          .map((item) => item.id);
+      })(),
       duplicateFamiliesWithinBanks: assessmentBanks
         .filter(
           (bank) => new Set(bank.items.map((item) => item.familyId)).size !== bank.items.length,
         )
         .map((bank) => bank.id),
+      itemsOutsideLots: authoringOrder
+        .filter((_, index) => lotCoverage[index] === 0)
+        .map((item) => item.id),
+      itemsInSeveralLots: authoringOrder.filter((_, index) => (lotCoverage[index] ?? 0) > 1).length,
+      unresolvedLots: lotRanges
+        .filter(({ start, end }) => start < 0 || end < start)
+        .map(({ lot }) => lot.number),
     },
   };
 }

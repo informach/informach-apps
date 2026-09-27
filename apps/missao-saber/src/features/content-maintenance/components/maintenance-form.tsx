@@ -1,8 +1,9 @@
 "use client";
 import { Label } from "@informach/ui/components/label";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { BotaoChapa } from "@/components/ui/botao-chapa";
+import { useServerAction } from "@/lib/use-server-action";
 import {
   contentAvailabilityAction,
   invalidateReportedVersionAction,
@@ -27,7 +28,7 @@ export function ContentMaintenanceForm({
   const [status, setStatus] = useState<"available" | "suspended">("available");
   const [invalidatedItemIds, setInvalidatedItemIds] = useState<string[]>([]);
   const [message, setMessage] = useState("");
-  const [pending, start] = useTransition();
+  const [pending, start] = useServerAction();
   const router = useRouter();
   const campoId = `${lessonId}-${version}`;
   return (
@@ -128,7 +129,7 @@ export function ContentMaintenanceForm({
 export function ReportActions({ id, status }: { id: string; status: "open" | "investigating" }) {
   const [note, setNote] = useState("");
   const [message, setMessage] = useState("");
-  const [pending, start] = useTransition();
+  const [pending, start] = useServerAction();
   const router = useRouter();
   const submit = (nextStatus: "investigating" | "resolved") =>
     start(async () => {
@@ -183,7 +184,7 @@ export function ReportActions({ id, status }: { id: string; status: "open" | "in
 export function ReportedVersionInvalidation({ reportId }: { reportId: string }) {
   const [note, setNote] = useState("");
   const [message, setMessage] = useState("");
-  const [pending, start] = useTransition();
+  const [pending, start] = useServerAction();
   const router = useRouter();
   return (
     <form

@@ -60,16 +60,40 @@ function rejected(message: string): AnswerEvaluation {
   return { valid: false, message, result: "incorrect", correct: false, explanation: "" };
 }
 
-function parseNumeric(raw: string) {
-  if (/^[+-]?\d+$/.test(raw)) return { form: "integer" as const, value: Number(raw) };
-  if (/^[+-]?(?:\d+[.,]\d+|[.,]\d+)$/.test(raw))
-    return { form: "decimal" as const, value: Number(raw.replace(",", ".")) };
-  const fraction = /^([+-]?\d+)\/([+-]?\d+)$/.exec(raw);
-  if (!fraction) return null;
+type NumericReading = { form: "integer" | "decimal" | "fraction"; value: number };
+
+/**
+ * Leituras possíveis do que o estudante digitou, na ordem de preferência. No
+ * Brasil o ponto separa milhares e a vírgula, decimais: "3.000", "1.757.600" e
+ * "3.000,50" são lidos assim. Com um único grupo depois do ponto, "1.125"
+ * também pode ser um decimal escrito com ponto, e as duas leituras valem.
+ */
+function parseNumeric(raw: string): NumericReading[] {
+  const text = raw.replace(/−/g, "-").replace(/(\d)\s+(?=\d{3}(?!\d))/g, "$1");
+  if (/^[+-]?\d+$/.test(text)) return [{ form: "integer", value: Number(text) }];
+  const grouped = /^([+-]?[1-9]\d{0,2}(?:\.\d{3})+)(?:,(\d+))?$/.exec(text);
+  if (grouped?.[1]) {
+    const integerPart = grouped[1].replaceAll(".", "");
+    if (grouped[2] !== undefined)
+      return [{ form: "decimal", value: Number(`${integerPart}.${grouped[2]}`) }];
+    const readings: NumericReading[] = [{ form: "integer", value: Number(integerPart) }];
+    if (grouped[1].split(".").length === 2)
+      readings.push({ form: "decimal", value: Number(grouped[1]) });
+    return readings;
+  }
+  if (/^[+-]?(?:\d+[.,]\d+|[.,]\d+)$/.test(text))
+    return [{ form: "decimal", value: Number(text.replace(",", ".")) }];
+  const fraction = /^([+-]?\d+)\/([+-]?\d+)$/.exec(text);
+  if (!fraction) return [];
   const numerator = Number(fraction[1]);
   const denominator = Number(fraction[2]);
-  if (!denominator) return null;
-  return { form: "fraction" as const, value: numerator / denominator };
+  if (!denominator) return [];
+  return [{ form: "fraction", value: numerator / denominator }];
+}
+
+/** Valor esperado escrito como o estudante escreveria: "5.050", "1.310,4". */
+function formatNumber(value: number) {
+  return value.toLocaleString("pt-BR", { maximumFractionDigits: 4 });
 }
 
 function numericAnswer(item: Extract<Item, { type: "numeric" }>, raw: string): AnswerEvaluation {
@@ -92,20 +116,25 @@ function numericAnswer(item: Extract<Item, { type: "numeric" }>, raw: string): A
     if (unit.required && !providedUnit)
       return rejected(`Inclua a unidade ${unit.symbol} junto do valor.`);
   }
-  const parsed = parseNumeric(valueText);
-  if (!parsed || !Number.isFinite(parsed.value))
+  const readings = parseNumeric(valueText).filter((reading) => Number.isFinite(reading.value));
+  if (readings.length === 0)
     return rejected("Digite um inteiro, decimal ou fração simples, sem expressões.");
-  if (!item.grading.acceptedForms.includes(parsed.form))
-    return rejected("Use um dos formatos pedidos nesta atividade.");
-  const correct = Math.abs(parsed.value - item.grading.value) <= item.grading.tolerance;
-  const solution = `${item.grading.value}${unit ? ` ${unit.symbol}` : ""}`;
+  const accepted = readings.filter((reading) => item.grading.acceptedForms.includes(reading.form));
+  if (accepted.length === 0) return rejected("Use um dos formatos pedidos nesta atividade.");
+  const matches = (reading: NumericReading) =>
+    Math.abs(reading.value - item.grading.value) <= item.grading.tolerance;
+  const parsed = accepted.find(matches) ?? accepted[0];
+  if (!parsed) return rejected("Use um dos formatos pedidos nesta atividade.");
+  const correct = matches(parsed);
+  const solution = `${formatNumber(item.grading.value)}${unit ? ` ${unit.symbol}` : ""}`;
   if (correct)
     return { valid: true, result: "correct", correct, explanation: item.explanation, solution };
   /* Uma leitura equivocada autoral nomeia a etapa trocada. Sem ela, a direção
      do desvio ainda é uma informação verdadeira e específica, e não entrega o
      valor esperado. */
-  const misread = item.misreads.find(
-    (candidate) => Math.abs(parsed.value - candidate.value) <= item.grading.tolerance,
+  // "1.125" tem duas leituras; a equivocada autoral pode estar em qualquer uma.
+  const misread = item.misreads.find((candidate) =>
+    accepted.some((reading) => Math.abs(reading.value - candidate.value) <= item.grading.tolerance),
   );
   const direction = parsed.value > item.grading.value ? "acima" : "abaixo";
   return {

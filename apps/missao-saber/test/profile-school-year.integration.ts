@@ -1,0 +1,191 @@
+import { randomUUID } from "node:crypto";
+import { db, eq } from "@informach/db";
+import { missaoFamilies, missaoProfiles, missaoSessions, users } from "@informach/db/schema";
+import { beforeAll, describe, expect, it } from "vitest";
+import { schoolYear } from "@/features/family/school-year";
+import { CONSENT_VERSION, getProfiles } from "@/features/learning/repository";
+import { begin, createProfile, dashboard, updateProfile } from "@/features/learning/service";
+
+const owner = randomUUID();
+const stranger = randomUUID();
+let profileId = "";
+
+beforeAll(async () => {
+  await db.insert(users).values([
+    { id: owner, email: `a-${owner}@example.test`, name: "Responsável A", emailVerified: true },
+    {
+      id: stranger,
+      email: `b-${stranger}@example.test`,
+      name: "Responsável B",
+      emailVerified: true,
+    },
+  ]);
+  profileId = (
+    await createProfile(owner, {
+      nickname: "Sol",
+      grade: 6,
+      birthMonth: `${schoolYear() - 12}-06`,
+      avatar: "cometa",
+      courseId: "canguru-e",
+      consent: true,
+    })
+  ).id;
+});
+
+describe("ano escolar do perfil em PostgreSQL isolado", () => {
+  it("grava o ano civil e só o mês de nascimento", async () => {
+    const [row] = await db.select().from(missaoProfiles).where(eq(missaoProfiles.id, profileId));
+    expect(row?.gradeYear).toBe(schoolYear());
+    expect(String(row?.birthMonth)).toMatch(new RegExp(`^${schoolYear() - 12}-06-01`));
+    const [profile] = await getProfiles(owner);
+    expect(profile?.grade).toBe(6);
+    expect(profile?.storedGrade).toBe(6);
+  });
+
+  it("só o dono edita, e a trilha precisa caber no ano escolhido", async () => {
+    await expect(
+      updateProfile(stranger, {
+        profileId,
+        nickname: "Sol",
+        grade: 7,
+        birthMonth: null,
+        avatar: "lua",
+        courseId: "canguru-b",
+      }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(
+      updateProfile(owner, {
+        profileId,
+        nickname: "Sol",
+        grade: 7,
+        birthMonth: null,
+        avatar: "lua",
+        courseId: "canguru-e",
+      }),
+    ).rejects.toMatchObject({ code: "COURSE" });
+    await expect(
+      updateProfile(owner, {
+        profileId,
+        nickname: "Sol",
+        grade: 9,
+        birthMonth: null,
+        avatar: "lua",
+        courseId: "canguru-b",
+      }),
+    ).rejects.toMatchObject({ code: "COURSE" });
+    const updated = await updateProfile(owner, {
+      profileId,
+      nickname: "Sol",
+      grade: 7,
+      birthMonth: null,
+      avatar: "lua",
+      courseId: "canguru-b",
+    });
+    expect(updated).toMatchObject({ grade: 7, avatar: "lua", courseId: "canguru-b" });
+    expect(updated.birthMonth).toBeNull();
+  });
+
+  it("pede autorização de novo quando o mês de nascimento volta a ser informado", async () => {
+    const edicao = {
+      profileId,
+      nickname: "Sol",
+      grade: 7,
+      birthMonth: `${schoolYear() - 13}-02`,
+      avatar: "lua",
+      courseId: "canguru-b",
+    };
+    await db
+      .update(missaoFamilies)
+      .set({ consentVersion: "2026-09-13" })
+      .where(eq(missaoFamilies.userId, owner));
+    await expect(updateProfile(owner, edicao)).rejects.toMatchObject({ code: "CONSENT" });
+    const updated = await updateProfile(owner, { ...edicao, birthConsent: true });
+    expect(String(updated.birthMonth)).toMatch(new RegExp(`^${schoolYear() - 13}-02-01`));
+    const [family] = await db.select().from(missaoFamilies).where(eq(missaoFamilies.userId, owner));
+    expect(family?.consentVersion).toBe(CONSENT_VERSION);
+    // Com o mês já guardado, editar outros campos não pede de novo.
+    await expect(updateProfile(owner, { ...edicao, avatar: "cometa" })).resolves.toMatchObject({
+      avatar: "cometa",
+    });
+  });
+
+  it("avança o ano na virada e leva a trilha para a sucessora na primeira missão", async () => {
+    // Volta o perfil para o 6º ano no Canguru E, gravado como se fosse o ano passado.
+    await db
+      .update(missaoProfiles)
+      .set({ grade: 6, courseId: "canguru-e", gradeYear: schoolYear() - 1 })
+      .where(eq(missaoProfiles.id, profileId));
+    const painel = await dashboard(owner, profileId);
+    expect(painel.profile?.grade).toBe(7);
+    expect(painel.courseTransition?.from.id).toBe("canguru-e");
+    expect(painel.courseTransition?.to?.id).toBe("canguru-b");
+    expect(painel.course?.id).toBe("canguru-b");
+    // Nada foi gravado só por ler.
+    const [antes] = await db.select().from(missaoProfiles).where(eq(missaoProfiles.id, profileId));
+    expect(antes?.courseId).toBe("canguru-e");
+    await begin(owner, {
+      profileId,
+      lessonId: "fracoes-1",
+      mode: "mission",
+      requestKey: randomUUID(),
+    });
+    const [depois] = await db.select().from(missaoProfiles).where(eq(missaoProfiles.id, profileId));
+    expect(depois?.courseId).toBe("canguru-b");
+    expect((await dashboard(owner, profileId)).courseTransition).toBeNull();
+  });
+
+  it("leva o 9º ano da OBMEP N2 para a OBMEP N3 na virada para o ensino médio", async () => {
+    // 9º ano na OBMEP N2, gravado no ano passado: a 1ª série do EM tem trilha da mesma olimpíada.
+    await db
+      .update(missaoProfiles)
+      .set({ grade: 9, courseId: "obmep-n2", gradeYear: schoolYear() - 1 })
+      .where(eq(missaoProfiles.id, profileId));
+    const painel = await dashboard(owner, profileId);
+    expect(painel.profile?.grade).toBe(10);
+    expect(painel.courseTransition?.from.id).toBe("obmep-n2");
+    expect(painel.courseTransition?.to?.id).toBe("obmep-n3");
+    expect(painel.course?.id).toBe("obmep-n3");
+    const sessao = await begin(owner, {
+      profileId,
+      lessonId: "funcoes-1",
+      mode: "mission",
+      requestKey: randomUUID(),
+    });
+    expect(sessao.lessonId).toBe("funcoes-1");
+    const [depois] = await db.select().from(missaoProfiles).where(eq(missaoProfiles.id, profileId));
+    expect(depois?.courseId).toBe("obmep-n3");
+  });
+
+  it("encerra a pausa da trilha antiga na virada e não a oferece como único caminho", async () => {
+    // 5º ano na OBMEP Mirim 2, com uma missão gratuita deixada aberta.
+    await db
+      .update(missaoProfiles)
+      .set({ grade: 5, courseId: "mirim-2", gradeYear: schoolYear() })
+      .where(eq(missaoProfiles.id, profileId));
+    const aberta = await begin(owner, {
+      profileId,
+      lessonId: "contagem-inicial-1",
+      mode: "mission",
+      requestKey: randomUUID(),
+    });
+    expect((await dashboard(owner, profileId)).paused?.id).toBe(aberta.id);
+    // Virada: o 6º ano segue para a OBMEP N1, e a pausa da Mirim não aparece mais.
+    await db
+      .update(missaoProfiles)
+      .set({ gradeYear: schoolYear() - 1 })
+      .where(eq(missaoProfiles.id, profileId));
+    const painel = await dashboard(owner, profileId);
+    expect(painel.course?.id).toBe("obmep-n1");
+    expect(painel.paused).toBeNull();
+    // Gravar a trilha nova encerra a pausa antiga, que fica no histórico como interrompida.
+    await begin(owner, {
+      profileId,
+      lessonId: "fracoes-1",
+      mode: "mission",
+      requestKey: randomUUID(),
+    });
+    const [antiga] = await db.select().from(missaoSessions).where(eq(missaoSessions.id, aberta.id));
+    expect(antiga?.interruptedAt).not.toBeNull();
+    expect(antiga?.interruptionReason).toBe("A trilha mudou");
+  });
+});

@@ -11,6 +11,7 @@
  * é formativa: nada aqui é corrigido automaticamente, e o caderno continua
  * sendo o lugar da explicação escrita.
  */
+import { skillPacks } from "./skills";
 
 export type DeepChallenge = {
   skillId: string;
@@ -244,5 +245,5 @@ export const deepChallenges: Readonly<Record<string, DeepChallenge>> = {
 };
 
 export function deepChallengeFor(skillId: string) {
-  return deepChallenges[skillId];
+  return deepChallenges[skillId] ?? skillPacks.find((pack) => pack.id === skillId)?.deepChallenge;
 }

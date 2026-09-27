@@ -1,4 +1,6 @@
 import { Brand } from "@/components/brand";
+export const metadata = { title: "Privacidade" };
+
 export default function Privacy() {
   return (
     <>
@@ -12,10 +14,10 @@ export default function Privacy() {
         </a>
       </header>
       <main id="conteudo" className="prosa">
-        <span className="eyebrow">ÚLTIMA ATUALIZAÇÃO · 13/09/2026</span>
+        <span className="eyebrow">ÚLTIMA ATUALIZAÇÃO · 26/09/2026</span>
         <h1>Privacidade, com clareza.</h1>
         <p>
-          O Missão Saber é operado pela Informach — Núcleo de Aprendizagem Ltda, CNPJ
+          O Missão Saber é operado pela Informach Núcleo de Aprendizagem Ltda, CNPJ
           43.588.758/0001-03. Contato:{" "}
           <a href="mailto:contato@casaldevgames.com">contato@casaldevgames.com</a>. Esse também é o
           canal para exercer direitos de privacidade.
@@ -23,10 +25,12 @@ export default function Privacy() {
         <h2>Conta do responsável e perfis</h2>
         <p>
           A conta Informach usa nome do responsável, e-mail, credenciais de autenticação e registros
-          de segurança. O perfil do estudante usa apelido, ano escolar, avatar e trilha. Não pedimos
-          nome completo do estudante, escola, CPF ou data exata de nascimento. O responsável
-          confirma a criação do perfil e sua autorização. O tratamento deve atender ao melhor
-          interesse da criança ou do adolescente; somente o responsável possui conta e credenciais.
+          de segurança. O perfil do estudante usa apelido, ano escolar, avatar, trilha e, se o
+          responsável quiser, mês e ano de nascimento, usados só para sugerir o ano escolar. Não
+          pedimos nome completo do estudante, escola, CPF ou data completa de nascimento. O
+          responsável confirma a criação do perfil e sua autorização. O tratamento deve atender ao
+          melhor interesse da criança ou do adolescente; somente o responsável possui conta e
+          credenciais.
         </p>
         <h2>O que guardamos para ensinar</h2>
         <p>
@@ -56,8 +60,10 @@ export default function Privacy() {
         <p>
           Railway e Cloudflare hospedam e entregam o serviço; PostgreSQL e Redis sustentam dados,
           sessão e proteção contra abuso. O SendGrid entrega códigos de acesso e mensagens
-          transacionais ao responsável. A Stripe processa assinaturas; dados completos de cartão são
-          preenchidos em sua página segura e não chegam ao Missão Saber. O Sentry recebe erros
+          transacionais ao responsável e, se ele ativar na área da família, um resumo semanal do
+          estudo, com a mesma leitura daquela área. O resumo pode ser desligado na área da família
+          ou pelo link do próprio e-mail. A Stripe processa assinaturas; dados completos de cartão
+          são preenchidos em sua página segura e não chegam ao Missão Saber. O Sentry recebe erros
           técnicos após filtragem de identidades, respostas, cadernos e corpos de requisição.
           Respostas e cadernos não são enviados a modelos de IA. Não vendemos dados nem os
           compartilhamos com anunciantes.
@@ -71,10 +77,11 @@ export default function Privacy() {
         <h2>Seus controles</h2>
         <p>
           Na área Família, com acesso confirmado recentemente, é possível exportar os dados, sair da
-          conta, gerenciar a assinatura ou encerrar o Missão Saber e apagar seus dados pedagógicos.
-          O cancelamento pelo portal de cobrança preserva o histórico. A exclusão de dados
-          pedagógicos não exclui a conta Informach nem os dados de outros produtos. Solicitações de
-          exclusão da conta compartilhada devem ser feitas ao suporte.
+          conta, gerenciar a assinatura, encerrar o Missão Saber e apagar seus dados pedagógicos ou
+          excluir a conta Informach, com confirmação por e-mail. O cancelamento pelo portal de
+          cobrança preserva o histórico. A exclusão de dados pedagógicos não exclui a conta
+          Informach nem os dados de outros produtos. A exclusão da conta compartilhada só é
+          concluída quando nenhum outro app Informach tem assinatura ativa.
         </p>
         <p>
           Você pode pedir confirmação e acesso aos dados, correção, portabilidade, informação sobre

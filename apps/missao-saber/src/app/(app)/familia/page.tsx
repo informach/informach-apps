@@ -11,50 +11,82 @@ import {
 import Link from "next/link";
 import { Avatar } from "@/components/avatares";
 import { LinkChapa } from "@/components/ui/botao-chapa";
+import { otherAppWithData } from "@/features/account/other-apps";
+import { hasOtherAppSubscriptions } from "@/features/billing/repository";
 import { billing, configuredPrice, planChangeMode, products } from "@/features/billing/service";
 import { homeSupportFor } from "@/features/content/apoio-em-casa";
-import { courses, findCourse, skillNames } from "@/features/content/catalog";
+import {
+  catalogCourses,
+  catalogGrades,
+  courseLine,
+  resolvedCourse,
+  skillNames,
+  suggestedCourses,
+} from "@/features/content/catalog";
 import { isContentManager } from "@/features/content-maintenance/service";
 import {
   BillingButton,
   CreateProfile,
+  EditProfile,
   FamilyChallenge,
+  PaymentConfirmation,
   PlanChangeControls,
   PrivacyControls,
   Routine,
   WeeklyReportEmail,
 } from "@/features/family/components/family-controls";
 import { suggestedGoal } from "@/features/family/desafio";
+import { birthMonthValue, gradeLabel, gradeOptions } from "@/features/family/school-year";
 import { repeatedDifficulties, skillStates, weeklyEvidence } from "@/features/learning/engine";
 import { weeklyNarrative } from "@/features/learning/relato";
 import { familyReports, history, weeklyReportUnsubscribed } from "@/features/learning/repository";
 import { getSession, requirePageUser } from "@/lib/auth";
+import { listaPtBr } from "@/lib/texto";
 import { currentDashboard } from "@/lib/view";
 
+const escolhasDeTrilha = suggestedCourses.map((course) => ({
+  id: course.id,
+  label: course.label,
+  grades: course.grades,
+  line: courseLine(course),
+}));
 const brl = (cents: number) =>
   (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 /* Pele adulta: mesmos tokens de marca, densidade normal e componentes do
    @informach/ui. Aqui o responsável lê relatório e coloca o cartão — não é
    lugar para sombra sólida nem mascote. */
-export default async function Family() {
-  const user = await requirePageUser();
-  const session = await getSession();
-  if (!session || Date.now() - new Date(session.session.createdAt).getTime() >= 10 * 60_000)
-    return (
-      <section className="mx-auto max-w-lg py-12 text-center">
-        <h1 className="font-display text-2xl font-semibold text-tinta">
-          Um cuidado com o espaço da família.
-        </h1>
-        <p className="mt-3 mb-6 text-tinta-suave">
-          Para ver relatórios, dados pessoais e assinatura, confirme seu acesso entrando novamente.
-          A área fica liberada por dez minutos.
-        </p>
-        <LinkChapa href="/entrar" medida="g">
+/* Ler o relatório e ajustar preferências vale com a sessão normal do
+   responsável. O que mexe em dinheiro, dados pessoais ou perfis pede um login
+   feito há menos de dez minutos; as actions conferem isso de novo no servidor. */
+function ConfirmarAcesso({ para }: { para: string }) {
+  return (
+    <div className="rounded-card border-2 border-sombra bg-creme p-4">
+      <p className="font-display font-semibold text-tinta">Um cuidado com o espaço da família.</p>
+      <p className="mt-1 text-sm text-tinta-suave">
+        Para {para}, confirme seu acesso entrando novamente. A confirmação vale por dez minutos.
+      </p>
+      <div className="mt-3">
+        <LinkChapa href="/entrar" medida="p">
           Confirmar acesso do responsável
         </LinkChapa>
-      </section>
-    );
+      </div>
+    </div>
+  );
+}
+
+export const metadata = { title: "Família" };
+
+export default async function Family({
+  searchParams,
+}: {
+  searchParams: Promise<{ pagamento?: string }>;
+}) {
+  const user = await requirePageUser();
+  const session = await getSession();
+  const acessoRecente =
+    !!session && Date.now() - new Date(session.session.createdAt).getTime() < 10 * 60_000;
+  const { pagamento } = await searchParams;
 
   const data = await currentDashboard();
   const [allSubscriptions, submittedReports, cancelouResumo] = await Promise.all([
@@ -67,11 +99,19 @@ export default async function Family() {
   const blockingSubscription = allSubscriptions.some((s) =>
     ["active", "trialing", "past_due", "unpaid", "incomplete", "paused"].includes(s.status),
   );
+  /* Cobrança recusada ou primeira cobrança não concluída: o acesso Pro cai
+     (past_due não é Pro), mas a família precisa ver o motivo e o caminho, não
+     um "Explorar gratuito" sem explicação. */
+  const paymentIssue = allSubscriptions.find((s) =>
+    ["past_due", "unpaid", "incomplete"].includes(s.status),
+  );
+  const paymentIssueProduct = products.find((p) => p.id === paymentIssue?.productId);
+  const paymentIssuePlan = paymentIssueProduct?.tier === "family" ? "Família" : "Individual";
   const reports = await Promise.all(
     data.profiles.map(async (profile) => {
       const { evidence, reflections } = await history(user.id, profile.id);
       const states = skillStates(evidence);
-      const course = findCourse(profile.courseId);
+      const course = resolvedCourse(profile);
       const nextSkill = course?.skills.find(
         (skillId) => states.find((state) => state.skillId === skillId)?.level !== "independent",
       );
@@ -140,17 +180,26 @@ export default async function Family() {
           O aprendizado, mais de perto.
         </h1>
         <p className="mt-2 text-sm text-tinta-suave">
-          Conta do responsável: {user.email}. A área da família exige uma confirmação recente de
-          acesso.
+          Conta do responsável: {user.email}. Assinatura, dados pessoais e perfis pedem uma
+          confirmação recente de acesso.
         </p>
       </header>
+
+      {pagamento === "recebido" && (
+        <PaymentConfirmation
+          paid={data.access.paid}
+          plano={data.access.tier === "family" ? "Família" : "Individual"}
+        />
+      )}
 
       <section className="mb-10">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-display text-xl font-semibold text-tinta">Estudantes da família</h2>
           <Badge variant="secondary">
-            {data.profiles.length} perfis salvos · {data.activeProfileIds.length} com estudo
-            liberado
+            {data.profiles.length === 1
+              ? "1 perfil salvo"
+              : `${data.profiles.length} perfis salvos`}{" "}
+            · {data.activeProfileIds.length} com estudo liberado
           </Badge>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -160,11 +209,9 @@ export default async function Family() {
                 <Avatar id={profile.avatar} tamanho="p" />
                 <div className="min-w-0">
                   <CardTitle className="font-display text-base">
-                    {profile.nickname} · {profile.grade}º ano
+                    {profile.nickname} · {gradeLabel(profile.grade)}
                   </CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    {findCourse(profile.courseId)?.label}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{resolvedCourse(profile)?.label}</p>
                 </div>
               </CardHeader>
               <CardContent>
@@ -173,14 +220,38 @@ export default async function Family() {
                     ? "Histórico preservado; o plano atual não inclui novas missões assinadas para este perfil."
                     : "Progresso separado e acessível pelo seletor de estudante."}
                 </p>
+                {acessoRecente && (
+                  <EditProfile
+                    profile={{
+                      id: profile.id,
+                      nickname: profile.nickname,
+                      avatar: profile.avatar,
+                      grade: profile.grade,
+                      birthMonth: birthMonthValue(profile.birthMonth),
+                      courseId: resolvedCourse(profile)?.id ?? profile.courseId,
+                    }}
+                    courses={escolhasDeTrilha}
+                    grades={gradeOptions(catalogGrades)}
+                  />
+                )}
               </CardContent>
             </Card>
           ))}
         </div>
-        {data.profiles.length < data.access.profileLimit && (
+        {acessoRecente ? (
+          data.profiles.length < data.access.profileLimit && (
+            <div className="mt-5">
+              <CreateProfile courses={escolhasDeTrilha} grades={gradeOptions(catalogGrades)} />
+            </div>
+          )
+        ) : (
           <div className="mt-5">
-            <CreateProfile
-              courses={courses.map(({ id, label, grades }) => ({ id, label, grades }))}
+            <ConfirmarAcesso
+              para={
+                data.profiles.length < data.access.profileLimit
+                  ? "editar ou criar perfis"
+                  : "editar os perfis"
+              }
             />
           </div>
         )}
@@ -208,8 +279,11 @@ export default async function Family() {
                 <CardHeader>
                   <CardTitle className="font-display">{profile.nickname}</CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    {weekly.total} tentativas · {weekly.practiceDays} dias com prática ·{" "}
-                    {weekly.withHelp} tentativas com pistas.
+                    {weekly.total === 1 ? "1 tentativa" : `${weekly.total} tentativas`} ·{" "}
+                    {weekly.practiceDays === 1
+                      ? "1 dia com prática"
+                      : `${weekly.practiceDays} dias com prática`}{" "}
+                    · {weekly.withHelp === 1 ? "1 com pista" : `${weekly.withHelp} com pistas`}.
                   </p>
                 </CardHeader>
                 <CardContent>
@@ -389,6 +463,32 @@ export default async function Family() {
         <h2 className="mb-3 font-display text-xl font-semibold text-tinta">
           Seu plano, com clareza
         </h2>
+        {paymentIssue && (
+          <div
+            role="alert"
+            className="mb-4 rounded-card border-2 border-coral-fundo/40 bg-coral-claro p-4"
+          >
+            <p className="font-display font-semibold text-tinta">
+              {paymentIssue.status === "incomplete"
+                ? "A primeira cobrança ainda não foi concluída."
+                : "Pagamento pendente."}
+            </p>
+            <p className="mt-1 text-sm text-tinta">
+              {paymentIssue.status === "incomplete"
+                ? `A assinatura ${paymentIssuePlan} fica ativa assim que o pagamento for concluído.`
+                : `A última cobrança da assinatura ${paymentIssuePlan} não foi aprovada. As trilhas assinadas ficam pausadas até a forma de pagamento ser atualizada; o histórico continua guardado.`}
+            </p>
+            <div className="mt-3">
+              {acessoRecente ? (
+                <BillingButton>Atualizar forma de pagamento</BillingButton>
+              ) : (
+                <LinkChapa href="/entrar" medida="p">
+                  Confirmar acesso para atualizar o pagamento
+                </LinkChapa>
+              )}
+            </div>
+          </div>
+        )}
         <p className="text-sm text-tinta">
           Plano atual:{" "}
           <strong>
@@ -396,7 +496,9 @@ export default async function Family() {
               ? "Família"
               : data.access.tier === "individual"
                 ? "Individual"
-                : "Explorar gratuito"}
+                : paymentIssue
+                  ? "Aguardando pagamento"
+                  : "Explorar gratuito"}
           </strong>
           .{" "}
           {data.access.subscription?.cancelAtPeriodEnd
@@ -409,12 +511,12 @@ export default async function Family() {
             : ""}
         </p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Grátis: um perfil, diagnóstico, unidade de frações e laboratórios. As assinaturas incluem
-          as trilhas lançadas para o ano escolar, revisões, simulados e relatório. Sem anúncios ou
-          créditos de IA.
+          Grátis: um perfil, o diagnóstico, as primeiras missões de cada trilha e os laboratórios.
+          As assinaturas incluem todas as missões das trilhas do ano escolar, as revisões e os
+          simulados. Sem anúncios nem créditos de IA.
         </p>
         <p className="mt-3 text-sm text-muted-foreground">
-          Trilhas disponíveis: {courses.map((course) => course.label).join(", ")}.
+          Trilhas disponíveis: {listaPtBr(catalogCourses.map((course) => course.label))}.
         </p>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           {["individual", "family"].map((tier) => {
@@ -453,7 +555,7 @@ export default async function Family() {
                       </li>
                     ))}
                   </ul>
-                  {!blockingSubscription && (
+                  {!blockingSubscription && acessoRecente && (
                     <div className="mt-5 flex flex-wrap gap-2.5">
                       <BillingButton productId={monthly.id} disabled={!configuredPrice(monthly.id)}>
                         Escolher mensal
@@ -468,7 +570,12 @@ export default async function Family() {
             );
           })}
         </div>
-        {hasSubscriptionRecord && (
+        {!acessoRecente && (
+          <div className="mt-5">
+            <ConfirmarAcesso para="assinar, alterar ou gerenciar o plano" />
+          </div>
+        )}
+        {hasSubscriptionRecord && acessoRecente && (
           <div className="mt-5">
             <BillingButton>Gerenciar plano, pagamentos ou cancelamento</BillingButton>
             <p className="mt-2 text-xs text-muted-foreground">
@@ -477,7 +584,7 @@ export default async function Family() {
             </p>
           </div>
         )}
-        {currentProduct && (
+        {currentProduct && acessoRecente && (
           <div className="mt-5">
             <PlanChangeControls
               options={changeOptions}
@@ -497,7 +604,14 @@ export default async function Family() {
         <h2 className="mb-3 font-display text-xl font-semibold text-tinta">
           Seus dados e suas escolhas
         </h2>
-        <PrivacyControls />
+        {acessoRecente ? (
+          <PrivacyControls
+            outrasAssinaturas={await hasOtherAppSubscriptions(user.id)}
+            outroAppComDados={await otherAppWithData(user.id)}
+          />
+        ) : (
+          <ConfirmarAcesso para="exportar dados, encerrar o app ou excluir a conta" />
+        )}
         <p className="mt-4 text-sm text-muted-foreground">
           <a
             href="mailto:contato@casaldevgames.com"

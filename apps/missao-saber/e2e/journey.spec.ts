@@ -9,7 +9,7 @@ import {
   sessions,
   subscriptions,
 } from "@informach/db/schema";
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 async function verificationCode(email: string) {
   const directory = process.env.EMAIL_SANDBOX_DIR;
@@ -30,6 +30,38 @@ async function verificationCode(email: string) {
     )
     .toBe(6);
   return code;
+}
+/** O formulário de novo perfil; o de edição repete os mesmos rótulos dentro de cada card. */
+function formularioNovoPerfil(page: Page) {
+  return page.locator("form", { hasText: "Uma nova jornada" });
+}
+async function criarPerfil(page: Page, apelido: string) {
+  const form = formularioNovoPerfil(page);
+  await form.getByLabel("Apelido do estudante").fill(apelido);
+  // O formulário abre no primeiro ano do catálogo; a jornada de teste é do 6º ano, OLITEF N1.
+  await form.getByLabel("Ano escolar", { exact: true }).selectOption("6");
+  await form.getByLabel("Primeira trilha").selectOption("olitef-n1");
+  await form.getByRole("checkbox").check();
+  await form.getByRole("button", { name: "Criar perfil e explorar" }).click();
+}
+
+/** Cadastra um responsável, confirma o e-mail e cria o primeiro perfil (6º ano, OLITEF). */
+async function criarContaComPerfil(page: Page, apelido: string) {
+  const email = `missao-${randomUUID()}@example.test`;
+  await page.goto("/entrar");
+  await page.getByRole("button", { name: "Criar conta", exact: true }).click();
+  await page.getByLabel("Como podemos chamar o responsável?").fill("Responsável do piloto");
+  await page.getByLabel("E-mail do responsável", { exact: true }).fill(email);
+  await page.getByLabel("Senha", { exact: true }).fill("Missao-Teste-2026-Local!");
+  await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Criar conta do responsável" }).click();
+  await expect(page.getByLabel("Código de seis dígitos")).toBeVisible();
+  await page.getByLabel("Código de seis dígitos").fill(await verificationCode(email));
+  await page.getByRole("button", { name: "Confirmar e-mail", exact: true }).click();
+  await expect(page).toHaveURL(/\/familia$/);
+  await criarPerfil(page, apelido);
+  await expect(page.getByRole("heading", { name: `Olá, ${apelido}.` })).toBeVisible();
+  return email;
 }
 test("public exploration is useful without an account and bars preserve scale", async ({
   page,
@@ -65,22 +97,7 @@ test("parent signup, verified profile, learning, saved lab, report and profile s
 }) => {
   const runtimeErrors: string[] = [];
   page.on("pageerror", (error) => runtimeErrors.push(error.message));
-  const email = `missao-${randomUUID()}@example.test`;
-  await page.goto("/entrar");
-  await page.getByRole("button", { name: "Criar conta", exact: true }).click();
-  await page.getByLabel("Como podemos chamar o responsável?").fill("Responsável do piloto");
-  await page.getByLabel("E-mail do responsável", { exact: true }).fill(email);
-  await page.getByLabel("Senha", { exact: true }).fill("Missao-Teste-2026-Local!");
-  await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: "Criar conta do responsável" }).click();
-  await expect(page.getByLabel("Código de seis dígitos")).toBeVisible();
-  await page.getByLabel("Código de seis dígitos").fill(await verificationCode(email));
-  await page.getByRole("button", { name: "Confirmar e-mail", exact: true }).click();
-  await expect(page).toHaveURL(/\/familia$/);
-  await page.getByLabel("Apelido do estudante").fill("Sol");
-  await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: "Criar perfil e explorar" }).click();
-  await expect(page.getByRole("heading", { name: "Olá, Sol." })).toBeVisible();
+  const email = await criarContaComPerfil(page, "Sol");
   await page.screenshot({ path: test.info().outputPath("hoje.png"), fullPage: true });
   await page.getByRole("button", { name: "Começar descoberta" }).click();
   await expect(page).toHaveURL(/\/missao\//);
@@ -296,17 +313,13 @@ test("parent signup, verified profile, learning, saved lab, report and profile s
   await page.getByRole("button", { name: "Conferir minha ideia" }).click();
   await expect(page.getByRole("heading", { name: "Reflexão registrada." })).toBeVisible();
   await page.getByRole("button", { name: "Ver minhas descobertas", exact: true }).click();
-  await expect(page.getByText(/3 de 3 questões com correção objetiva/)).toBeVisible();
-  await expect(page.getByText(/1 reflexão foi registrada sem nota automática/)).toBeVisible();
+  await expect(page.getByText(/Você acertou 3 de 3 questões/)).toBeVisible();
+  await expect(page.getByText(/Sua explicação ficou guardada, sem nota/)).toBeVisible();
   await page.goto("/familia");
-  await page.getByLabel("Apelido do estudante").fill("Lua");
-  await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: "Criar perfil e explorar" }).click();
+  await criarPerfil(page, "Lua");
   await expect(page.getByRole("heading", { name: "Olá, Lua." })).toBeVisible();
   await page.goto("/familia");
-  await page.getByLabel("Apelido do estudante").fill("Nina");
-  await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: "Criar perfil e explorar" }).click();
+  await criarPerfil(page, "Nina");
   await expect(page.getByRole("heading", { name: "Olá, Nina." })).toBeVisible();
   await page.getByRole("button", { name: /Trocar de estudante/ }).click();
   await page.getByRole("button", { name: /^Sol/ }).click();
@@ -354,14 +367,68 @@ test("parent signup, verified profile, learning, saved lab, report and profile s
     .where(eq(sessions.userId, userId));
   await page.context().clearCookies({ name: /session_data/ });
   await page.goto("/familia");
-  await expect(
-    page.getByRole("heading", { name: "Um cuidado com o espaço da família." }),
-  ).toBeVisible();
+  // Sessão antiga: o relatório continua legível, mas assinatura, dados e novos
+  // perfis pedem confirmação de acesso, e a exportação recusa no servidor.
+  await expect(page.getByRole("heading", { name: "O aprendizado, mais de perto." })).toBeVisible();
+  await expect(page.getByText("Um cuidado com o espaço da família.").first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Exportar dados em JSON" })).toHaveCount(0);
   expect((await page.request.get("/api/familia/exportar")).status()).toBe(403);
   await page.getByRole("button", { name: "Sair da conta", exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
   await page.goto("/hoje");
   await expect(page).toHaveURL(/\/entrar/);
+});
+test("changing the track on the journey updates the card and the path without a reload", async ({
+  page,
+}) => {
+  await criarContaComPerfil(page, "Sol");
+  // Navegação de cliente, como no uso real: a jornada abre a partir de "Hoje".
+  await page.getByRole("link", { name: /Ver minha jornada/ }).click();
+  await expect(page).toHaveURL(/\/jornada$/);
+  const cartao = page.locator("main section").first();
+  await expect(cartao.getByRole("heading", { level: 2 })).toHaveText("Dinheiro com propósito");
+  await expect(page.getByRole("heading", { name: "Princípio das gavetas" })).toHaveCount(0);
+
+  await page.getByLabel("Sua trilha").selectOption("obmep-n1");
+  // O seletor mostra a escolha na hora e o resto da página acompanha sem recarregar.
+  await expect(page.getByLabel("Sua trilha")).toHaveValue("obmep-n1");
+  await expect(cartao.getByRole("heading", { level: 2 })).toHaveText("Pensar além da conta");
+  await expect(page.getByRole("heading", { name: "Princípio das gavetas" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Comparação de preços" })).toHaveCount(0);
+
+  // Segunda troca em sequência, sem sair da página.
+  await page.getByLabel("Sua trilha").selectOption("canguru-e");
+  await expect(cartao.getByRole("heading", { level: 2 })).toHaveText("Olhar de explorador");
+  await expect(page.getByRole("heading", { name: "Simetria e transformações" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Princípio das gavetas" })).toHaveCount(0);
+
+  // "Hoje" recomenda a partir da trilha nova, e a jornada mantém a escolha ao voltar.
+  await page.goto("/hoje");
+  await page.getByRole("link", { name: /Ver minha jornada/ }).click();
+  await expect(page.getByLabel("Sua trilha")).toHaveValue("canguru-e");
+  await expect(cartao.getByRole("heading", { level: 2 })).toHaveText("Olhar de explorador");
+
+  // Na família, o mês de nascimento sugere o ano pela regra de corte e a
+  // responsável pode confirmar ou corrigir; a trilha acompanha o ano.
+  await page.goto("/familia");
+  const edicao = page.locator("details", { hasText: "Editar perfil" }).first();
+  await edicao.locator("summary").click();
+  // Doze anos completos até 31 de março: 7º ano pela regra de corte.
+  const anoLetivo = new Date().getFullYear();
+  await edicao.getByLabel("Mês e ano de nascimento (opcional)").fill(`${anoLetivo - 12}-02`);
+  await expect(edicao.getByLabel("Ano escolar", { exact: true })).toHaveValue("7");
+  await expect(
+    edicao.getByText(/Pela data de corte de 31 de março, a sugestão é 7º ano/),
+  ).toBeVisible();
+  await expect(edicao.getByLabel("Trilha", { exact: true })).toHaveValue("canguru-b");
+  // Mês de nascimento informado pela primeira vez pede a autorização de novo.
+  await edicao.getByLabel(/Autorizo guardar o mês e ano de nascimento/).check();
+  await edicao.getByRole("button", { name: "Salvar perfil" }).click();
+  await expect(edicao.getByText("Perfil atualizado.")).toBeVisible();
+  await expect(page.getByText("Sol · 7º ano")).toBeVisible();
+  await page.goto("/jornada");
+  await expect(page.getByLabel("Sua trilha")).toHaveValue("canguru-b");
+  await expect(page.getByText("Canguru · B · 7º ano")).toBeVisible();
 });
 test("unauthenticated access and operational endpoints fail closed", async ({ page }) => {
   await page.goto("/hoje");

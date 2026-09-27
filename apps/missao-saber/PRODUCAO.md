@@ -1,6 +1,6 @@
 # Operação do Missão Saber
 
-Publicado em 13/09/2026 em https://missao-saber.informach.com.br. A versão comercial atende estudantes do 6º e 7º ano e permanece com `noindex` enquanto a família valida o produto. Compra e estudo não dependem de aprovação de conteúdo.
+Publicado em 13/09/2026 em https://missao-saber.informach.com.br. A versão comercial atende estudantes do 2º ano à 3ª série do ensino médio (onda 1 de 8º/9º, OBMEP N2, Canguru C e OLITEF N2; onda 2 de 3º a 5º, Canguru P e Mirim 2; onda 3 do ensino médio, OBMEP N3, Canguru J, Canguru S e OLITEF N3; e onda 4 de 2º e 3º, Mirim 1, publicadas em 26/09/2026) e permanece com `noindex` enquanto a família valida o produto. Compra e estudo não dependem de aprovação de conteúdo.
 
 ## Serviços
 
@@ -9,7 +9,8 @@ Publicado em 13/09/2026 em https://missao-saber.informach.com.br. A versão come
 | Railway | Projeto `informach-apps`, ambiente `production` |
 | Aplicação | Serviço `91f572ad-b55c-4938-9967-0650c90e49c6`; deployment `b7aa6d9e-26f1-4b20-8b95-2a5c10a07815` |
 | Cron e monitor | Serviço `5a361c2e-96d0-4dbc-9993-f7c0ff3cd13b`, a cada cinco minutos |
-| PostgreSQL | Compartilhado, 50 migrations até `0049` |
+| Cron do resumo semanal | Serviço `446b4a71-3a35-4be3-be99-743ac72688e3` (`cron-missao-saber-weekly-report`), criado em 26/09/2026 com a imagem `alpine/curl` de `railway-cron-weekly.json`, agenda `0 12 * * 1,2` (segunda e terça, 9h em Brasília; a terça só reenvia falhas da segunda). Para reaplicar comando e variáveis: `python apps/missao-saber/scripts/production.py configure-weekly-cron 446b4a71-3a35-4be3-be99-743ac72688e3` e deploy do serviço |
+| PostgreSQL | Compartilhado; a última migração do Missão Saber é a `0063` |
 | Redis | Compartilhado, com prefixos exclusivos do Missão Saber |
 | Sentry | Organização `informach-nucleo-de-aprendizag`, projeto `missao-saber` |
 | Cloudflare | CNAME para `aijyebw0.up.railway.app`, proxy ligado |
@@ -17,7 +18,20 @@ Publicado em 13/09/2026 em https://missao-saber.informach.com.br. A versão come
 
 O build executa `pnpm install --frozen-lockfile --prod=false && pnpm build:missao-saber`; o start executa `pnpm start:missao-saber`. `/api/ready` verifica PostgreSQL e Redis, e `/api/health` identifica o deployment. Produção rejeita chaves Stripe de teste, e-mail sandbox, preços ausentes e URLs incoerentes. Os segredos ficam apenas na Railway e nos ambientes locais ignorados pelo Git.
 
+## Ordem de deploy com migração nova
+
+O migrator é um serviço à parte, ligado ao repositório com Watch Paths em `packages/db/**` e `packages/billing/src/seeds/**` (configurados no Dashboard, não no `migrator.toml`). As três aplicações só recebem tráfego quando `/api/ready` confirma que o banco não está atrás do build. Um push que traz migração nova e mexe em `packages/db` dispara juntos o migrator e os deploys de Missão Saber, Cozya e Agenda; os deployments antigos continuam servindo até os novos passarem no healthcheck. Por isso:
+
+1. `git push` para `main`.
+2. Railway: conferir que o `migrator` ganhou um deployment no commit do push e esperar SUCCESS, com `[db:migrate] done.` no log. Se o push não disparou o migrator, usar Deploy Latest Commit; nunca Redeploy de um deployment antigo, que roda o commit antigo sem a migração nova. Uma falha depois da migração, no `db:seed:reference` (busca no IBGE), marca o deployment como FAILED com o banco já migrado: o log diz qual foi o caso.
+3. Railway: redeploy de Missão Saber, Cozya e Agenda da Turma se algum deploy do push falhou no healthcheck (Cozya e Agenda esperam só 30 s). O redeploy usa o mesmo commit, que é o certo aqui.
+4. Conferir `/api/ready` dos três, o commit em `/api/health` e rodar `DATABASE_PUBLIC_URL=… pnpm --filter @informach/missao-saber production:verify-schema`, que compara com o journal do checkout.
+
+As migrações desta atualização são compatíveis com o código que já está no ar, então aplicar antes ou depois do push é seguro. O rollback de código continua possível para o schema, mas não para os dados: depois que a versão nova rodar, podem existir perfis com anos escolares e trilhas que a versão antiga não conhece. Voltar para um deployment anterior a esta atualização exige conferir esses perfis antes.
+
 ## Banco, migrations e recuperação
+
+A migração `0063` (26/09/2026) abre o perfil para todos os anos escolares: `grade` aceita de 1 (1º ano) a 12 (3ª série do EM), `grade_year` guarda o ano civil a que o ano escolar se refere e `birth_month` guarda só mês e ano de nascimento, opcional, para sugerir o ano pela regra de corte de 31 de março. O ano efetivo avança sozinho em 1º de janeiro; se a trilha gravada não cobre o ano novo, as páginas mostram a sucessora da mesma linha (a OBMEP Mirim segue para a OBMEP) e a gravação acontece na primeira missão. Os formulários só oferecem anos que têm trilha publicada. A mesma migração indexa `reports.user_id`. Antes dela, a `0054` criou `sessions.reading_support` e a `0056` criou `families.weekly_report_email` e a tabela `family_challenges`.
 
 As migrations `0044` a `0049` adicionaram controles de conteúdo, interrupção segura, acesso por perfil, relatos versionados, atualizações de relatório e confirmação financeira. A `0047` removeu a antiga tabela `missao_saber.releases`; não existe fluxo de publicação ou aprovação no runtime.
 
@@ -27,7 +41,7 @@ Em falha de aplicação, promover o último deployment saudável compatível com
 
 ## Catálogo e manutenção
 
-O catálogo comercial contém 61 missões e 604 atividades autorais únicas: 508 de ensino/prática e 96 reservadas em oito bancos de diagnóstico e simulado. Há 37 desafios de justificativa e três laboratórios. As 96 questões de avaliação permanecem distintas mesmo sem a numeração visual e formam 26 famílias semânticas compartilhadas entre diagnóstico e simulado, de modo que o produto identifica corretamente a segunda exposição como prática. OLITEF N1, Canguru E, Canguru B e OBMEP N1 compartilham fundamentos sem duplicar a contagem.
+O catálogo comercial contém 291 missões e 2.960 atividades autorais únicas: 2.624 de ensino/prática e 336 reservadas em 28 bancos de diagnóstico e simulado. Há 175 desafios de justificativa e três laboratórios. As habilidades das faixas novas vivem em `src/features/content/skills/` (um arquivo por habilidade) e as trilhas em `src/features/content/tracks/`; os números são conferidos por snapshot em `inventory.test.ts`, atualizado de propósito a cada lote. Cada lote tem registro em `docs/propostas/missao-saber-2026-09-13/lotes-de-autoria/` e recebe revisão matemática independente antes de os hashes entrarem em `reviewed-catalog.ts`. As 336 questões reservadas formam 116 famílias semânticas compartilhadas entre diagnóstico e simulado, de modo que o produto identifica corretamente a segunda exposição como prática. A numeração interna que mantém cada questão distinta no catálogo não aparece para o estudante. OLITEF N1, Canguru E, Canguru B e OBMEP N1 compartilham fundamentos sem duplicar a contagem.
 
 `MISSAO_CONTENT_MANAGER_EMAILS=helena@informach.com.br` dá acesso à manutenção para uma conta verificada. `/manutencao` permite consultar relatos, pausar uma unidade com problema, corrigir, invalidar a evidência atingida e reativar. Esse é um controle de incidente; não existe fila editorial nem aprovação prévia.
 
@@ -53,14 +67,20 @@ A homologação real em modo teste (`runId fb4707d4-453e-4444-bf90-ea31b7e25ac6`
 
 O remetente é `Missão Saber <contato@casaldevgames.com>`. `processed` registra somente que o SendGrid aceitou a mensagem; `delivered` confirma a entrega. Aceitação confirmada interrompe novas tentativas, e estados terminais não são sobrescritos por eventos ou falhas atrasadas. Após os deployments `804e173b-93a9-4d69-b3ce-b0444e4eb959` do Cozya e `ab1e9a9c-e73b-43f7-b675-aa65c3267dfd` da Agenda da Turma, os consumidores compartilhados executam essa regra. Ambos usam o servidor standalone e iniciam a conexão Redis somente no runtime. Cadastro, login por OTP e recuperação de senha reais receberam `delivered`, aceitação e ID do provedor. Os códigos do próprio Better Auth concluíram os três desafios; a conta e as chaves temporárias foram removidas.
 
-`POST /api/jobs/weekly-report` também exige `CRON_SECRET` e envia o resumo semanal aos responsáveis que optaram por recebê-lo em `/familia`. A chave de mensagem inclui a semana, então o pipeline idempotente entrega no máximo um resumo por família por semana, mesmo se o cron disparar mais de uma vez. O corpo descreve o estudo de uma criança e por isso não é persistido: uma retentativa genérica reenviaria uma leitura vencida. Agendar uma vez por semana, por exemplo às segundas de manhã.
+`POST /api/jobs/weekly-report` também exige `CRON_SECRET` e envia o resumo semanal aos responsáveis que optaram por recebê-lo em `/familia`. A chave de mensagem inclui a semana, então o pipeline idempotente entrega no máximo um resumo por família por semana, mesmo se o cron disparar mais de uma vez. O corpo descreve o estudo de uma criança e por isso não é persistido: uma retentativa genérica reenviaria uma leitura vencida. O e-mail usa o layout compartilhado dos produtos Informach, com o link de descadastro no rodapé; o descadastro mostra uma confirmação no GET e só efetiva no POST. O disparo é do serviço cron semanal descrito na tabela acima: sem ele, a opção em `/familia` fica ligada e nada chega.
 
 `POST /api/jobs/billing` exige `CRON_SECRET`. Redis mantém lease e cursor; o ciclo trata reconciliação, inadimplência e manutenção da fila. O cron consulta `/api/ready` e envia falhas ao Sentry. O Sentry remove corpos, cookies, respostas dos estudantes, breadcrumbs e parâmetros SQL. O monitor nativo de uptime não foi criado por limite da conta; o monitor operacional está no cron Railway e registra falhas no Sentry.
 
 ## Verificação e operação inicial
 
-Na versão publicada foram aprovados: 73 testes unitários do app, 47 integrações com PostgreSQL, 199 testes de billing, 112 de e-mail, 86 do Cozya, 506 da Agenda da Turma e 6 E2E em desktop/celular. A suíte raiz somou 1.265 testes e os 12 pacotes passaram no typecheck. Os builds Railway dos três consumidores terminaram com sucesso. O smoke do deployment final confirmou páginas, assets, bloqueio de rotas privadas, readiness, webhook Stripe assinado/deduplicado e job autenticado.
+Na atualização de 26/09/2026, com o catálogo completo, passaram 161 testes unitários do app, 69 integrações com PostgreSQL isolado e 8 E2E em desktop e celular sobre o build de produção. Na versão publicada em 13/09 foram aprovados: 73 testes unitários do app, 47 integrações com PostgreSQL, 199 testes de billing, 112 de e-mail, 86 do Cozya, 506 da Agenda da Turma e 6 E2E em desktop/celular. A suíte raiz somou 1.265 testes e os 12 pacotes passaram no typecheck. Os builds Railway dos três consumidores terminaram com sucesso. O smoke do deployment final confirmou páginas, assets, bloqueio de rotas privadas, readiness, webhook Stripe assinado/deduplicado e job autenticado.
 
-O check global `pnpm check` ainda falha por dívida preexistente do monorepo e arquivos brutos do acervo; o check focado nos arquivos desta entrega passa. O log está em `tmp/production/repository-check.log`.
+O repositório tem `.gitattributes` com `eol=lf`, então o Biome passa igual em Linux e Windows. Em um clone feito antes desse arquivo, o checkout está em CRLF e o `pnpm check` local acusa formatação: com a árvore limpa, rode `git rm -r -q --cached . && git reset --hard` para reescrever os arquivos em LF (o comando descarta alterações não commitadas).
+
+O Sentry recebe `environment` do nome do ambiente Railway (`RAILWAY_ENVIRONMENT_NAME`) e `release` do commit (`RAILWAY_GIT_COMMIT_SHA`); só erros viram eventos, avisos ficam no log estruturado. No cliente, o `next.config.ts` repassa as duas variáveis do Railway no build como `NEXT_PUBLIC_*`, sem configuração manual.
+
+O grupo `(app)` não tem `loading.tsx` de propósito: com essa fronteira de Suspense, o Next 16.2 deixa de aplicar na tela a árvore devolvida por uma server action ou por `router.refresh()` em produção (vercel/next.js#86055). A troca de trilha em `/jornada` reproduzia isso. Reavaliar quando o Next corrigir.
+
+A área da família abre com a sessão normal do responsável; assinatura, exportação, encerramento, exclusão da conta e criação ou edição de perfis pedem login feito há menos de dez minutos. A exclusão da conta Informach é pedida dentro do app, confirmada por e-mail, recusada enquanto outro app tiver assinatura viva e, antes de apagar o usuário, encerra a cobrança e os dados pedagógicos deste app.
 
 A primeira operação comercial é a compra Família pela responsável, seguida da criação de até três perfis. A validação que permanece é de produto: observar compreensão, uso de pistas, transferência para problemas inéditos, retorno semanal e utilidade do relatório. Nenhuma campanha ou divulgação automática foi ativada.

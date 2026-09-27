@@ -11,6 +11,7 @@
  * conteúdo. O verbo é sempre perguntar, comparar ou prever em voz alta —
  * é a única melhoria do produto que aumenta o aprendizado reduzindo tela.
  */
+import { skillPacks } from "./skills";
 export const homeSupport: Readonly<Record<string, readonly [string, string]>> = {
   fracoes: [
     "Na cozinha, peça para dividir uma receita pela metade em voz alta, dizendo o que acontece com cada ingrediente.",
@@ -63,5 +64,5 @@ export const homeSupport: Readonly<Record<string, readonly [string, string]>> = 
 };
 
 export function homeSupportFor(skillId: string) {
-  return homeSupport[skillId];
+  return homeSupport[skillId] ?? skillPacks.find((pack) => pack.id === skillId)?.homeSupport;
 }

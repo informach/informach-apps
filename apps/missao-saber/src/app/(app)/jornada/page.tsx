@@ -8,18 +8,21 @@ import { type EstadoNo, NoTrilha } from "@/components/ui/no-trilha";
 import { Etiqueta } from "@/components/ui/pagina";
 import { SeloHabilidade } from "@/components/ui/selo-habilidade";
 import { assertableAvailabilityMessage, lessonAvailability } from "@/features/content/availability";
-import { courseLessons, courses, findCourse, skillNames } from "@/features/content/catalog";
+import { courseLessons, coursesForGrade, skillNames } from "@/features/content/catalog";
+import { gradeLabel, ofGrade } from "@/features/family/school-year";
 import { currentDashboard } from "@/lib/view";
+
+export const metadata = { title: "Minha jornada" };
 
 export default async function Journey() {
   const data = await currentDashboard();
   if (!data.profile) return <EmptyProfile />;
   const profile = data.profile;
-  const course = findCourse(profile.courseId);
+  const course = data.course;
   if (!course) return null;
   const completed = new Set(data.attemptedItemIds);
   const licoes = courseLessons(course);
-  const tomCurso = tomDoCurso(course.id);
+  const tomCurso = tomDoCurso(course);
 
   /** Estado de cada lição, na ordem do curso. */
   const estados = licoes.map((lesson) => {
@@ -50,6 +53,17 @@ export default async function Journey() {
         </p>
       </header>
 
+      {data.courseTransition && (
+        <p
+          role="status"
+          className="mb-5 rounded-card border-2 border-lima-fundo/40 bg-lima/30 px-4 py-3 text-sm text-tinta"
+        >
+          {data.courseTransition.to
+            ? `Novo ano escolar: sua trilha agora é ${data.courseTransition.to.label}. Prefere outra? Escolha abaixo.`
+            : `Novo ano escolar: as trilhas ${ofGrade(profile.grade)} estão em preparação. Enquanto isso, a trilha atual continua aberta.`}
+        </p>
+      )}
+
       {/* Cada trilha tem seu horizonte. Ele fica atrás do conteúdo, com
           opacidade baixa: território não pode competir com texto. */}
       <section
@@ -62,7 +76,7 @@ export default async function Journey() {
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
             <Etiqueta tom={tomCurso}>
-              {course.label} · {profile.grade}º ano
+              {course.label} · {gradeLabel(profile.grade)}
             </Etiqueta>
             <h2 className="mt-2.5 font-display text-2xl font-semibold text-tinta">
               {course.title}
@@ -72,7 +86,7 @@ export default async function Journey() {
           <CoursePicker
             profileId={profile.id}
             current={course.id}
-            courses={courses.filter((c) => c.grades.includes(profile.grade))}
+            courses={coursesForGrade(profile.grade)}
           />
         </div>
       </section>
@@ -103,8 +117,14 @@ export default async function Journey() {
                 </h2>
                 <p className="mt-0.5 text-sm text-tinta-suave">
                   {i === 0
-                    ? "Base compartilhada das trilhas. Unidade gratuita completa."
-                    : `Ponte sugerida: ${skillNames[course.skills[i - 1] ?? "fracoes"]}. Use o laboratório se precisar representar a ideia.`}
+                    ? data.access.paid
+                      ? "Primeiro capítulo da trilha."
+                      : "Primeiro capítulo da trilha. As primeiras missões são gratuitas."
+                    : `Ponte sugerida: ${skillNames[course.skills[i - 1] ?? "fracoes"]}.${
+                        doCapitulo.some((e) => e.lesson.lab)
+                          ? " Use o laboratório se precisar representar a ideia."
+                          : ""
+                      }`}
                 </p>
                 <p className="mt-2 font-display text-sm font-semibold text-tinta">
                   {percorridas} de {itensCapitulo.length} descobertas percorridas
@@ -153,7 +173,7 @@ export default async function Journey() {
                       <p className="mt-0.5 text-sm text-tinta-suave">
                         {lesson.items.length} descobertas ·{" "}
                         {lesson.free
-                          ? "Grátis · conteúdo autoral"
+                          ? "Grátis"
                           : unavailable
                             ? availability.reason === "WITHDRAWN"
                               ? "Pausada para correção"

@@ -35,6 +35,10 @@ export function Demo() {
       <Etiqueta tom="lima">
         Missão demonstrativa · passo {passo} de 3 · {PASSOS[passo - 1]}
       </Etiqueta>
+      <p className="mt-2 text-sm text-tinta-suave">
+        Esta é uma missão de exemplo do 7º ano. Cada trilha traz problemas pensados para o ano
+        escolar, do 2º ano à 3ª série do ensino médio.
+      </p>
 
       <FalaFaisca humor="acolhendo" tom="verde" titulo="Oi! Sou a Faísca." className="mt-4">
         <p>
@@ -130,7 +134,7 @@ export function Demo() {
           <p>
             <strong className="font-display">Porcentagem sobre o valor já alterado.</strong> Quando
             duas mudanças vêm em sequência, a segunda se aplica ao valor novo, não ao original. A
-            mesma estratégia reaparece em aumento de preço, juros e comparação de ofertas — e é por
+            mesma estratégia reaparece em aumento de preço, juros e comparação de ofertas, e é por
             isso que ela vale mais do que a resposta desta questão.
           </p>
         </FalaFaisca>
@@ -141,8 +145,8 @@ export function Demo() {
           Uma pequena ideia. Muitas aplicações.
         </h2>
         <p className="mt-2 mb-5 text-tinta">
-          Crie uma conta do responsável para explorar a unidade gratuita e guardar o progresso. Esta
-          demonstração não salva dados nem atribui domínio.
+          Crie uma conta do responsável para explorar as primeiras missões gratuitas e guardar o
+          progresso. Esta demonstração não salva dados nem atribui domínio.
         </p>
         <LinkChapa href="/entrar" medida="g">
           Abrir minha jornada →

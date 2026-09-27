@@ -1,7 +1,7 @@
 import type { ErrorEvent } from "@sentry/nextjs";
 
 const privateField =
-  /email|password|secret|token|cookie|authorization|answer|nickname|body|text|html|prompt|query|params|recipient|name|address|^ip$|ipAddress/i;
+  /email|password|secret|token|cookie|authorization|answer|nickname|body|text|html|prompt|query|params|recipient|name|address|birth|^ip$|ipAddress/i;
 
 export function safeText(value: string): string {
   if (/failed query:|\bparams:/i.test(value)) return "Database operation failed (details withheld)";

@@ -49,6 +49,7 @@ export {
   type RenderTemplate,
   type RenderTemplatePropsByCategory,
   type RenderTemplateResult,
+  renderEmailElement,
   renderTemplate,
   SUPPORTED_LOCALES,
 } from "./templates";

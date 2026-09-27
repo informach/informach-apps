@@ -6,13 +6,55 @@ import {
   db,
   eq,
   inArray,
+  ne,
   withDatabaseLock,
   withDatabaseLockWait,
 } from "@informach/db";
-import { customers, missaoProfiles, users } from "@informach/db/schema";
+import {
+  checkoutIntents,
+  customers,
+  missaoProfiles,
+  subscriptions,
+  users,
+} from "@informach/db/schema";
 import { assertAllowed } from "@/lib/errors";
 
 export const billingDatabase = db;
+/**
+ * A conta Informach é compartilhada entre os apps. Antes de excluí-la por
+ * aqui, nenhum outro app pode ter assinatura viva ou checkout em andamento;
+ * cada app encerra o que é seu.
+ */
+export async function hasOtherAppSubscriptions(userId: string) {
+  const pending = await db
+    .select({ id: checkoutIntents.id })
+    .from(checkoutIntents)
+    .innerJoin(customers, eq(checkoutIntents.customerId, customers.id))
+    .where(and(eq(checkoutIntents.userId, userId), ne(customers.app, "missao-saber")))
+    .limit(1);
+  if (pending.length) return true;
+  const rows = await db
+    .select({ id: subscriptions.id })
+    .from(subscriptions)
+    .innerJoin(customers, eq(subscriptions.customerId, customers.id))
+    .where(
+      and(
+        eq(customers.subjectType, "user"),
+        eq(customers.subjectId, userId),
+        ne(customers.app, "missao-saber"),
+        inArray(subscriptions.status, [
+          "active",
+          "trialing",
+          "past_due",
+          "unpaid",
+          "incomplete",
+          "paused",
+        ]),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
+}
 export async function billingEventOwner(customerId: string) {
   const [customer] = await db
     .select({ id: customers.subjectId })

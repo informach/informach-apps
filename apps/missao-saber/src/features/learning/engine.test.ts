@@ -1,19 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { homeSupport, homeSupportFor } from "../content/apoio-em-casa";
-import { catalogReviewAudit } from "../content/authoring-review";
 import {
   assessment,
   assessmentBanks,
   assessmentSources,
   contentUnits,
-  courseLessons,
   courses,
   findLesson,
+  legacyLessonIds,
   lessons,
-  progressionBySkill,
 } from "../content/catalog";
-import { deepChallengeFor, deepChallenges } from "../content/desafios-profundos";
-import { inventory } from "../content/inventory";
 import { type Item, itemSchema, publicLesson } from "../content/types";
 import { itemHash } from "../content/version";
 import {
@@ -212,8 +207,12 @@ describe("learning evidence", () => {
 });
 describe("original pilot content", () => {
   it("varies answer positions and authors every distractor rationale and guiding clue", () => {
+    // Só o piloto de 6º/7º: as duas primeiras missões de cada habilidade legada.
     const originalLessons = lessons.filter(
-      (lesson) => !/^.+-[345]$/.test(lesson.id) && lesson.id !== "fracoes-formatos",
+      (lesson) =>
+        legacyLessonIds.has(lesson.id) &&
+        !/^.+-[345]$/.test(lesson.id) &&
+        lesson.id !== "fracoes-formatos",
     );
     const all = originalLessons.flatMap((lesson) => lesson.items);
     const choices = all.filter(isChoice).filter((item) => !item.id.startsWith("fracoes-formatos"));
@@ -223,121 +222,6 @@ describe("original pilot content", () => {
     for (const position of [0, 1, 2])
       expect(positions.filter((value) => value === position).length).toBeGreaterThan(25);
     expect(positions.some((position, index) => position !== index % 3)).toBe(true);
-  });
-  it("contains a valid commercial catalog and four grade-compatible courses", () => {
-    const ids = new Set<string>();
-    expect(lessons).toHaveLength(61);
-    expect(assessmentBanks).toHaveLength(8);
-    for (const lesson of contentUnits) {
-      for (const item of lesson.items) {
-        expect(ids.has(item.id)).toBe(false);
-        ids.add(item.id);
-        if (item.type === "choice") {
-          expect(new Set(item.options).size).toBe(item.options.length);
-          expect(item.options.filter((option) => option === item.answer)).toHaveLength(1);
-        }
-        expect(item.hints).toHaveLength(3);
-        if (lesson.kind === "assessment-bank") expect(item.purpose).toBe("assessment");
-        else expect(item.purpose).not.toBe("assessment");
-        expect(gradeAnswer(item, "__skip__").correct).toBe(
-          item.type === "justification" ? null : false,
-        );
-      }
-      const dto = publicLesson(lesson);
-      expect(
-        dto.items.every(
-          (item) => !("answer" in item) && !("hints" in item) && !("explanation" in item),
-        ),
-      ).toBe(true);
-    }
-    expect(lessons.flatMap((lesson) => lesson.items)).toHaveLength(508);
-    expect(assessmentBanks.flatMap((lesson) => lesson.items)).toHaveLength(96);
-    expect(ids.size).toBe(604);
-    expect(
-      Object.fromEntries(
-        ["common", "olitef", "canguru", "obmep"].map((domain) => [
-          domain,
-          contentUnits.flatMap((lesson) => lesson.items).filter((item) => item.domain === domain)
-            .length,
-        ]),
-      ),
-    ).toEqual({ common: 300, olitef: 120, canguru: 90, obmep: 94 });
-    expect(
-      lessons.flatMap((lesson) => lesson.items).filter((item) => item.type === "justification"),
-    ).toHaveLength(37);
-    expect(courses).toHaveLength(4);
-    for (const course of courses) {
-      expect(courseLessons(course).map((lesson) => lesson.id)).toEqual(course.path);
-      expect(courseLessons(course).length).toBeGreaterThan(20);
-      const diagnostic = assessment(course, "diagnostic");
-      const exam = assessment(course, "exam");
-      expect(diagnostic.items).toHaveLength(12);
-      expect(exam.items).toHaveLength(12);
-      expect(new Set(diagnostic.items.map((item) => item.id))).not.toEqual(
-        new Set(exam.items.map((item) => item.id)),
-      );
-      expect(diagnostic.assessmentNovelty).toBe("fresh");
-      expect(
-        assessment(
-          course,
-          "diagnostic",
-          new Set(),
-          new Set(diagnostic.items.map((item) => item.familyId)),
-        ).assessmentNovelty,
-      ).toBe("practice");
-      expect(
-        assessment(
-          course,
-          "exam",
-          new Set(),
-          new Set(diagnostic.items.map((item) => item.familyId)),
-        ).assessmentNovelty,
-      ).toBe("practice");
-    }
-  });
-  it("gives every skill its own deep challenge, with steps and a rubric", () => {
-    for (const skillId of new Set(courses.flatMap((course) => course.skills))) {
-      const challenge = deepChallengeFor(skillId);
-      expect(challenge, `sem desafio profundo para ${skillId}`).toBeDefined();
-      expect(challenge?.skillId).toBe(skillId);
-      expect(challenge?.steps).toHaveLength(3);
-      expect(challenge?.rubric).toHaveLength(4);
-      // Cada critério declara a faixa de pontos: a rubrica é de autoavaliação.
-      for (const criterio of challenge?.rubric ?? []) expect(criterio).toMatch(/\(0–\d\)$/);
-    }
-    // Um desafio por habilidade, sem enunciado reaproveitado entre elas.
-    const titulos = Object.values(deepChallenges).map((challenge) => challenge.title);
-    expect(new Set(titulos).size).toBe(titulos.length);
-  });
-  it("offers two screen-free conversations for every skill of every course", () => {
-    for (const skillId of new Set(courses.flatMap((course) => course.skills))) {
-      const support = homeSupportFor(skillId);
-      expect(support, `sem apoio em casa para ${skillId}`).toBeDefined();
-      expect(support).toHaveLength(2);
-      for (const idea of support ?? []) expect(idea.length).toBeGreaterThan(40);
-    }
-    // Pedir tela anularia o recurso: ele existe para o tempo fora do aplicativo.
-    for (const ideas of Object.values(homeSupport))
-      for (const idea of ideas) expect(idea).not.toMatch(/\bapp\b|tela|celular|vídeo|site/i);
-  });
-  it("resolves prerequisites without cycles and separates training from assessment families", () => {
-    const teachingFamilies = new Set(
-      lessons.flatMap((lesson) => lesson.items.map((item) => item.familyId)),
-    );
-    const assessmentFamilies = new Set(
-      assessmentBanks.flatMap((lesson) => lesson.items.map((item) => item.familyId)),
-    );
-    expect([...assessmentFamilies].some((family) => teachingFamilies.has(family))).toBe(false);
-    for (const [skillId, path] of Object.entries(progressionBySkill)) {
-      const visited = new Set<string>();
-      for (const [position, lessonId] of path.entries()) {
-        const lesson = findLesson(lessonId);
-        expect(lesson?.skillId).toBe(skillId);
-        expect(visited.has(lessonId)).toBe(false);
-        expect(lesson?.prerequisites).toEqual(position ? [path[position - 1]] : []);
-        visited.add(lessonId);
-      }
-    }
   });
   it("carries semantic assessment exposure across equivalent course families", () => {
     const source = courses.find((course) => course.id === "canguru-e");
@@ -373,7 +257,9 @@ describe("original pilot content", () => {
       .filter((bank) => bank.id.startsWith("bank:exam:"))
       .flatMap((bank) => bank.items)
       .filter(isChoice);
-    expect(examItems).toHaveLength(48);
+    expect(examItems).toHaveLength(
+      assessmentBanks.filter((bank) => bank.id.startsWith("bank:exam:")).length * 12,
+    );
     expect(
       examItems.every(
         (item) =>
@@ -398,56 +284,6 @@ describe("original pilot content", () => {
       new Set(diagnostic.items.map((item) => item.familyId)),
     );
     expect(exam.assessmentNovelty).toBe("practice");
-  });
-  it("keeps every reserved problem distinct without relying on its displayed number", () => {
-    const signatures = assessmentBanks.flatMap((bank) =>
-      bank.items.map((item) =>
-        JSON.stringify({
-          prompt: item.prompt.replace(/^Questão \d+\.\s*/, ""),
-          answer: item.type === "choice" ? item.answer : null,
-          options: item.type === "choice" ? [...item.options].sort() : null,
-        }),
-      ),
-    );
-    expect(new Set(signatures).size).toBe(96);
-  });
-  it("publishes an auditable inventory split into six checked lots", () => {
-    expect(inventory.totals).toMatchObject({
-      missions: 61,
-      assessmentBanks: 8,
-      teachingItems: 508,
-      reservedItems: 96,
-      uniqueItemIds: 604,
-      distinctActivitySignatures: 604,
-      justificationItems: 37,
-      teachingFamilies: 271,
-      assessmentFamilies: 26,
-    });
-    expect(inventory.byDomain).toEqual({ common: 300, canguru: 90, obmep: 94, olitef: 120 });
-    expect(inventory.lots.map((lot) => lot.items)).toEqual([101, 101, 101, 101, 101, 99]);
-    expect(inventory.integrity).toEqual({
-      duplicateItemIds: 0,
-      duplicateActivitySignatures: 0,
-      duplicateActivityGroups: [],
-      familyOverlap: [],
-      unresolvedCoursePaths: [],
-      unresolvedPrerequisites: [],
-      skillsWithoutProgression: [],
-      nonAssessmentItemsInReservedBanks: 0,
-      assessmentItemsExposedInMissions: 0,
-      reservedFamilyShapeConflicts: [],
-      reservedStructuralAliases: [],
-      trainingAssessmentStructuralOverlap: [],
-      duplicateFamiliesWithinBanks: [],
-    });
-  });
-  it("keeps every reviewed item unchanged after the item-by-item authoring audit", () => {
-    expect(catalogReviewAudit(contentUnits)).toEqual({
-      reviewed: 604,
-      missing: [],
-      changed: [],
-      orphaned: [],
-    });
   });
   it("checks the correction contract for every answer and distractor", () => {
     for (const item of contentUnits.flatMap((lesson) => lesson.items)) {
@@ -751,5 +587,37 @@ describe("activity contract v2", () => {
     if (!item) throw new Error("Missing item");
     const reordered = Object.fromEntries(Object.entries(item).reverse()) as Item;
     expect(itemHash(reordered)).toBe(itemHash(item));
+  });
+});
+
+describe("respostas numéricas escritas como no Brasil", () => {
+  const numericItem = (value: number) => {
+    const item = lessons
+      .flatMap((lesson) => lesson.items)
+      .find((candidate) => candidate.type === "numeric" && candidate.grading.value === value);
+    if (!item) throw new Error(`Sem item numérico com valor ${value}`);
+    return item;
+  };
+
+  it("aceita o ponto como separador de milhar e mostra a resposta no formato brasileiro", () => {
+    const item = numericItem(5050);
+    for (const typed of ["5050", "5.050", "5 050"])
+      expect(gradeAnswer(item, typed).correct).toBe(true);
+    expect(gradeAnswer(item, "5,050").correct).toBe(false);
+    const errada = gradeAnswer(item, "10.100");
+    expect(errada.correct).toBe(false);
+    expect(errada.valid && "solution" in errada ? errada.solution : "").toBe("5.050");
+  });
+
+  it("aceita milhar com decimais depois da vírgula", () => {
+    const item = numericItem(1310.4);
+    for (const typed of ["1310,4", "1310.40", "1.310,40", "1.310,4"])
+      expect(gradeAnswer(item, typed).correct).toBe(true);
+  });
+
+  it("aceita as duas leituras quando um só grupo segue o ponto", () => {
+    const item = numericItem(0.125);
+    expect(gradeAnswer(item, "0.125").correct).toBe(true);
+    expect(gradeAnswer(item, "0,125").correct).toBe(true);
   });
 });

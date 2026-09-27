@@ -18,6 +18,8 @@ const tons: Record<keyof typeof modes, Tom> = {
   exam: "ceu",
 };
 
+export const metadata = { title: "Histórico" };
+
 export default async function HistoryPage({
   searchParams,
 }: {

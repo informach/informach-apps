@@ -13,14 +13,15 @@ import {
   assessment,
   assessmentHasAllSkills,
   courseAssessmentBanks,
-  findCourse,
 } from "@/features/content/catalog";
 import { currentDashboard } from "@/lib/view";
+
+export const metadata = { title: "Simulados" };
 
 export default async function Exams() {
   const data = await currentDashboard();
   if (!data.profile) return <EmptyProfile />;
-  const course = findCourse(data.profile.courseId);
+  const course = data.course;
   if (!course) return null;
   const unavailableSources = new Set(
     courseAssessmentBanks(course)

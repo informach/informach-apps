@@ -5,6 +5,8 @@ import { listNotes } from "@/features/learning/repository";
 import { requirePageUser } from "@/lib/auth";
 import { currentDashboard } from "@/lib/view";
 
+export const metadata = { title: "Caderno" };
+
 export default async function Notes() {
   const data = await currentDashboard();
   if (!data.profile) return <EmptyProfile />;

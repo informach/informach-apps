@@ -29,6 +29,10 @@ export async function readingSupportAction(sessionId: unknown) {
     marked: await learning.markReading((await verifiedUser()).id, sessionId),
   }));
 }
+/** Sair da conta esquece o perfil escolhido neste aparelho. */
+export async function forgetProfileAction() {
+  (await cookies()).delete("ms-profile");
+}
 export async function createProfileAction(input: unknown) {
   return runAction(async () => {
     const user = await recentParent();
@@ -41,6 +45,13 @@ export async function createProfileAction(input: unknown) {
     });
     revalidatePath("/", "layout");
     return { id: profile.id };
+  });
+}
+export async function updateProfileAction(input: unknown) {
+  return runAction(async () => {
+    const user = await recentParent();
+    await learning.updateProfile(user.id, input);
+    revalidatePath("/", "layout");
   });
 }
 export async function selectProfileAction(id: string) {

@@ -8,8 +8,9 @@ import { safeContext, safeText } from "./telemetry";
 function log(level: "debug" | "info" | "warn" | "error", message: string, context?: object) {
   const name = safeText(message);
   logger[level]({ context: safeContext(context) }, name);
-  if (level === "error" || level === "warn")
-    Sentry.captureMessage(name, level === "warn" ? "warning" : "error");
+  // Só erro vira evento no Sentry. Os avisos dos pacotes (retentativa de
+  // e-mail, evento de segurança já tratado) ficam no log estruturado.
+  if (level === "error") Sentry.captureMessage(name, "error");
 }
 
 export const packageLogger = {
@@ -19,7 +20,14 @@ export const packageLogger = {
   error: (message: string, context?: object) => log("error", message, context),
 };
 
-export function audit(event: BillingAuditEvent | EmailAuditEvent) {
+/** Eventos de domínio do Missão Saber: só IDs e nomes de campo, ver docs/audit-payload-policy.md. */
+export type MissaoAuditEvent = {
+  eventType: "missao.profile_updated" | "missao.consent_recorded";
+  actorId: string;
+  payload: Record<string, unknown>;
+};
+
+export function audit(event: BillingAuditEvent | EmailAuditEvent | MissaoAuditEvent) {
   // Lazy import avoids the auth -> email -> audit initialization cycle.
   void import("@informach/auth")
     .then(({ logAuditEvent }) =>

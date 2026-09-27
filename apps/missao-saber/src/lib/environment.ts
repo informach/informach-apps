@@ -19,7 +19,6 @@ export const schema = z.object({
   REDIS_URL: z.string().url().optional(),
   SENTRY_DSN: z.string().url().optional(),
   NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
-  OPENROUTER_API_KEY: z.string().optional(),
   CRON_SECRET: z.string().min(32),
   MISSAO_CONTENT_MANAGER_IDS: z.string().default(""),
   MISSAO_CONTENT_MANAGER_EMAILS: z.string().default(""),

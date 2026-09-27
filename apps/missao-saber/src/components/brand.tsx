@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-/** Marca do app: foguete-livro com a estrela, herdado de public/brand-master.png. */
+/** Marca do app: foguete-livro com a estrela, redesenhado em SVG a partir da arte original. */
 function MarcaSimbolo({ tamanho = 40 }: { tamanho?: number }) {
   return (
     <svg
