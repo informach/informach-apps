@@ -544,7 +544,7 @@ export const restos: SkillPack = {
         `Uma gráfica agrupa ${numero} folhetos em pacotes de ${divisor}. Quantos folhetos ficam fora dos pacotes completos?`,
         resto,
         [quociente, faltam === resto ? resto + 1 : faltam],
-        `${numero} = ${divisor} × ${quociente} + ${resto}; sobram ${resto}.`,
+        `${numero} = ${divisor} × ${quociente} + ${resto}; ${resto === 1 ? "sobra" : "sobram"} ${resto}.`,
         {
           feedback: [
             "Esse é o número de pacotes completos, não a sobra.",
@@ -574,20 +574,20 @@ export const restos: SkillPack = {
     }
     const modulo = 5 + (seed % 5);
     const restoA = 1 + (seed % (modulo - 1));
-    const restoB = 1 + ((seed + 3) % (modulo - 1));
+    // A soma dos restos nunca fica abaixo do módulo: o item cobra a redução,
+    // e a alternativa da soma sem reduzir descreve sempre um erro real. O
+    // deslocamento 2 evita os restos 4 e 5 por 7, que já estão na missão.
+    const restoB = modulo - restoA + ((seed + 2) % restoA);
     const resposta = (restoA + restoB) % modulo;
     return c(
       "resto-da-soma-reservado",
       `Um número deixa resto ${restoA} na divisão por ${modulo}, e outro deixa resto ${restoB}. Qual é o resto da soma dos dois nessa mesma divisão?`,
       resposta,
-      [
-        restoA + restoB === resposta ? resposta + 1 : restoA + restoB,
-        (resposta + modulo - 1) % modulo,
-      ],
+      [restoA + restoB, (resposta + modulo - 1) % modulo],
       `${restoA} + ${restoB} = ${restoA + restoB}, e ${restoA + restoB} deixa resto ${resposta} na divisão por ${modulo}.`,
       {
         feedback: [
-          "Somou os restos e esqueceu de reduzir quando a soma passa do divisor, ou errou a soma.",
+          `Parou na soma dos restos, mas um resto na divisão por ${modulo} é sempre menor que ${modulo}: falta tirar ${modulo} de ${restoA + restoB}.`,
           "Não confere com a soma dos restos reduzida pelo divisor.",
         ],
       },

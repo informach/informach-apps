@@ -523,7 +523,9 @@ export const funcoes: SkillPack = {
     }
     if (variant === 1) {
       const r1 = 1 + (seed % 5);
-      const r2 = r1 + 2 + (Math.floor(seed / 5) % 5);
+      const r2Base = r1 + 2 + (Math.floor(seed / 5) % 5);
+      // Raízes 1 e 5 (x² − 6x + 5) e 2 e 8 já aparecem na missão 3.
+      const r2 = (r1 === 1 && r2Base === 5) || (r1 === 2 && r2Base === 8) ? r2Base + 1 : r2Base;
       const soma = r1 + r2;
       const produto = r1 * r2;
       const vertice = soma / 2;

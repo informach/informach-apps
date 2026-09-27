@@ -1,11 +1,13 @@
 import "server-only";
 import { z } from "zod";
 import { assertAllowed } from "@/lib/errors";
+import { audit } from "@/lib/observability";
 import { getAccess } from "../billing/service";
 import {
   assertableAvailabilityMessage,
   isSuspended,
   lessonAvailability,
+  lessonIdInCourse,
 } from "../content/availability";
 import {
   assessment,
@@ -43,11 +45,17 @@ export async function createProfile(userId: string, raw: unknown) {
     "Escolha uma trilha compatível com o ano escolar.",
   );
   const access = await getAccess(userId);
-  return repo.addProfile(
+  const profile = await repo.addProfile(
     userId,
     { ...input, gradeYear: schoolYear(), birthMonth: birthMonthDate(birthMonth) },
     access.profileLimit,
   );
+  audit({
+    eventType: "missao.consent_recorded",
+    actorId: userId,
+    payload: { profileId: profile.id, scope: "profile", version: repo.CONSENT_VERSION },
+  });
+  return profile;
 }
 /** Edição pelo responsável: o ano escolhido vale para o ano civil corrente. */
 export async function updateProfile(userId: string, raw: unknown) {
@@ -58,12 +66,25 @@ export async function updateProfile(userId: string, raw: unknown) {
     "COURSE",
     "Escolha uma trilha compatível com o ano escolar.",
   );
-  return repo.updateProfile(
+  const { profile, changedFields, consentRecorded } = await repo.updateProfile(
     userId,
     profileId,
     { ...input, gradeYear: schoolYear(), birthMonth: birthMonthDate(birthMonth) },
     birthConsent === true,
   );
+  if (consentRecorded)
+    audit({
+      eventType: "missao.consent_recorded",
+      actorId: userId,
+      payload: { profileId, scope: "birth_month", version: repo.CONSENT_VERSION },
+    });
+  if (changedFields.length)
+    audit({
+      eventType: "missao.profile_updated",
+      actorId: userId,
+      payload: { profileId, fields: changedFields },
+    });
+  return profile;
 }
 export async function dashboard(
   userId: string,
@@ -137,7 +158,9 @@ export async function dashboard(
     attemptedItemIds,
     assessmentExposedFamilyIds,
     recent,
-    paused,
+    // Uma pausa de outra trilha (virada de ano ou troca) não pode ser o único
+    // caminho da página: ela seria recusada ao abrir.
+    paused: paused && course && lessonIdInCourse(course, paused.lessonId) ? paused : null,
     diagnosed,
     states: skillStates(evidence),
     weekly: weeklyEvidence(evidence, new Date()),

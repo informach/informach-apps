@@ -13,7 +13,7 @@ import { gradeRangeLabel, gradeRangeSentence } from "@/features/family/school-ye
 
 export const metadata = {
   title: { absolute: "Missão Saber · Uma descoberta por dia" },
-  description: `Matemática e educação financeira em missões autorais ${gradeRangeSentence(catalogGrades)}. A primeira unidade é gratuita, sem cartão.`,
+  description: `Matemática e educação financeira em missões autorais ${gradeRangeSentence(catalogGrades)}. As primeiras missões são gratuitas, sem cartão.`,
 };
 
 const brl = (cents: number) =>
@@ -35,7 +35,7 @@ const perguntas = [
   },
   {
     pergunta: "Para qual ano escolar é o app hoje?",
-    resposta: `${gradeRangeSentence(catalogGrades).replace(/^./, (c) => c.toUpperCase())}, com trilhas ligadas a OBMEP, OBMEP Mirim, Canguru e OLITEF. O perfil do estudante mostra as trilhas do ano dele.`,
+    resposta: `${gradeRangeSentence(catalogGrades).replace(/^./, (c) => c.toUpperCase())}, com trilhas de preparação para a OBMEP, a OBMEP Mirim, o Canguru e a OLITEF. O perfil do estudante mostra as trilhas do ano dele.`,
   },
   {
     pergunta: "Como acompanho meu filho?",
@@ -45,7 +45,7 @@ const perguntas = [
   {
     pergunta: "Posso cancelar quando quiser?",
     resposta:
-      "Sim, pelo portal seguro de cobrança, a qualquer momento. O histórico do estudante fica guardado e a unidade gratuita continua aberta.",
+      "Sim, pelo portal seguro de cobrança, a qualquer momento. O histórico do estudante fica guardado e as missões gratuitas continuam abertas.",
   },
 ];
 
@@ -190,7 +190,7 @@ export default function Home() {
             ))}
           </div>
           <p className="mt-6 max-w-3xl text-sm text-tinta-suave">
-            Preparação independente. Missão Saber não é afiliado às organizações das olimpíadas. O
+            Preparação independente. O Missão Saber não é afiliado às organizações das olimpíadas. O
             conteúdo publicado é autoral; nenhum resultado ou medalha é garantido.
           </p>
         </section>
@@ -300,9 +300,9 @@ export default function Home() {
                 Assine quando fizer sentido.
               </h2>
               <p className="mt-4 text-tinta-suave">
-                As primeiras missões de cada trilha, o diagnóstico e os laboratórios são gratuitos,
-                sem cartão. A assinatura libera as trilhas do ano escolar, revisões, simulados e o
-                relatório semanal da família.
+                As primeiras missões de cada trilha, o diagnóstico, os laboratórios e o relatório da
+                família são gratuitos, sem cartão. A assinatura libera todas as missões das trilhas
+                do ano escolar, as revisões e os simulados.
               </p>
             </div>
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -330,7 +330,6 @@ export default function Home() {
                       {[
                         "Todas as trilhas do ano escolar",
                         "Revisões espaçadas e simulados",
-                        "Relatório da família e resumo semanal",
                         "Histórico preservado após cancelar",
                       ].map((linha) => (
                         <li key={linha} className="flex items-start gap-2">
@@ -398,7 +397,7 @@ export default function Home() {
               </LinkChapa>
             </div>
             <p className="mt-4 text-sm text-tinta-suave">
-              Uma missão gratuita, sem cadastro ou cartão.
+              Uma missão gratuita, sem cadastro nem cartão.
             </p>
           </div>
         </section>

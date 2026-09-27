@@ -11,8 +11,9 @@ import { wave4Tracks } from "./wave-4";
 /**
  * Registro das trilhas, por onda de publicação. Uma trilha só entra aqui
  * quando todas as habilidades dela existem em `skills/`; o catálogo recusa
- * habilidade desconhecida. Os `bankSeed` novos começam em 200 e avançam de
- * 24 em 24, para os intervalos de questões reservadas nunca se cruzarem.
+ * habilidade desconhecida. Os `bankSeed` novos começam em 200 e foram
+ * escolhidos com `tools/seed-search.tool.ts`; o inventário confere que os
+ * intervalos de questões reservadas nunca se cruzam.
  *
  * Cada onda é um arquivo. O inventário usa essa divisão para ordenar os
  * bancos reservados: os bancos de uma onda entram logo depois da última

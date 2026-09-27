@@ -262,7 +262,7 @@ export const invariantes: SkillPack = {
         ),
         n(
           "extremo",
-          "Em uma fila, cada pessoa é mais baixa que a da frente, exceto a primeira. Se a primeira tem 1,80 m e cada diferença é de pelo menos 2 cm, quantas pessoas cabem na fila com altura mínima de 1,50 m?",
+          "Em uma fila, cada pessoa é mais baixa que a da frente, exceto a primeira. Se a primeira tem 1,80 m e cada diferença é de pelo menos 2 cm, quantas pessoas, no máximo, cabem na fila com altura mínima de 1,50 m?",
           16,
           "De 180 a 150 há 30 cm; com saltos de 2 cm cabem 15 saltos, ou seja, 16 pessoas.",
           {
@@ -323,14 +323,14 @@ export const invariantes: SkillPack = {
         ),
         c(
           "extremo",
-          "Cinco pontos são colocados em um quadrado de lado 2. Qual é a menor distância que podemos garantir entre algum par de pontos?",
+          "Cinco pontos são colocados em um quadrado de lado 2. Qual é o menor valor d para o qual sempre existem dois dos pontos a uma distância de no máximo d?",
           "√2",
           ["2", "1"],
           "Em 4 quadrados de lado 1, algum recebe 2 pontos (5 > 4), e dois pontos em um quadrado de lado 1 distam no máximo √2; os quatro cantos e o centro mostram que não dá para garantir menos.",
           {
             feedback: [
-              "2 também é garantido, mas é uma garantia fraca: dividindo em quatro quadradinhos, dois pontos caem no mesmo e distam no máximo √2.",
-              "1 não é garantido: os quatro cantos e o centro distam pelo menos √2 uns dos outros.",
+              "Com d = 2 sempre existe o par, mas 2 não é o menor valor: dividindo em quatro quadradinhos de lado 1, dois pontos caem no mesmo e distam no máximo √2, que é menor que 2.",
+              "Com d = 1 o par pode não existir: os quatro cantos e o centro distam pelo menos √2 uns dos outros.",
             ],
           },
         ),

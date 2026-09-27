@@ -321,6 +321,10 @@ const EARLY_READING_PACKS = new Set([
 ]);
 
 /** Primeira frase de um texto, para lembrar a ideia da missão numa pista. */
+/** Os passos são verbos no infinitivo; no meio da frase começam em minúscula. */
+function minuscula(text: string) {
+  return text.charAt(0).toLocaleLowerCase("pt-BR") + text.slice(1);
+}
 function firstSentence(text: string) {
   const end = text.search(/[.?!]\s/);
   return end < 0 ? text : text.slice(0, end + 1);
@@ -340,13 +344,13 @@ function packHints(
     (early
       ? [
           "Leia de novo: o que a pergunta quer saber?",
-          `Lembre da missão: ${firstSentence(introduction)}`,
-          `Veja o caminho: ${spec.explanation}`,
+          `Lembre o que a missão explicou. ${firstSentence(introduction)}`,
+          `Veja como se resolve. ${spec.explanation}`,
         ]
       : [
           "Separe os dados da pergunta antes de calcular.",
-          `Lembre a ideia da missão: ${firstSentence(introduction)}`,
-          `Confira cada etapa: ${spec.explanation}`,
+          `Retome a ideia da missão. ${firstSentence(introduction)}`,
+          `Confira cada etapa. ${spec.explanation}`,
         ])
   );
 }
@@ -363,7 +367,20 @@ function packOrderingItem(
   early: boolean,
   title: string,
 ): Item {
-  if (stage === 0) return orderingItem(pack.id, lessonId, 0, pack.ordering);
+  if (stage === 0) {
+    const base = orderingItem(pack.id, lessonId, 0, pack.ordering);
+    // Nos anos iniciais, as dicas da ordenação falam como a criança fala.
+    return early
+      ? {
+          ...base,
+          hints: [
+            "O que você faz primeiro?",
+            `O primeiro passo é ${minuscula(pack.ordering.labels[0])}.`,
+            `A ordem completa é: ${pack.ordering.labels.map(minuscula).join(", depois ")}.`,
+          ],
+        }
+      : base;
+  }
   const order = ["understand", "represent", "solve", "verify"];
   const labels: [string, string, string, string] =
     stage === 1
@@ -421,7 +438,7 @@ function packOrderingItem(
       stage === 1
         ? "A conferência termina olhando a resposta de novo."
         : "A escolha vem só depois de comparar.",
-      `A ordem completa é: ${labels.join(", depois ")}.`,
+      `A ordem completa é: ${labels.map(minuscula).join(", depois ")}.`,
     ],
     steps: rotated,
     grading: { mode: "exact", order },

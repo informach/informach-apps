@@ -132,8 +132,9 @@ function numericAnswer(item: Extract<Item, { type: "numeric" }>, raw: string): A
   /* Uma leitura equivocada autoral nomeia a etapa trocada. Sem ela, a direção
      do desvio ainda é uma informação verdadeira e específica, e não entrega o
      valor esperado. */
-  const misread = item.misreads.find(
-    (candidate) => Math.abs(parsed.value - candidate.value) <= item.grading.tolerance,
+  // "1.125" tem duas leituras; a equivocada autoral pode estar em qualquer uma.
+  const misread = item.misreads.find((candidate) =>
+    accepted.some((reading) => Math.abs(reading.value - candidate.value) <= item.grading.tolerance),
   );
   const direction = parsed.value > item.grading.value ? "acima" : "abaixo";
   return {

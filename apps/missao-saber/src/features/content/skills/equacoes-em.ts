@@ -149,7 +149,7 @@ export const equacoesEm: SkillPack = {
           "O sistema x + 2y = 3 e 2x + 4y = 7 tem:",
           "Nenhuma solução",
           ["Infinitas soluções", "Uma solução"],
-          "A segunda equação dobrada da primeira daria 6, não 7: retas paralelas.",
+          "Dobrando a primeira sai 2x + 4y = 6, não 7: as retas são paralelas e não se cruzam.",
           {
             feedback: ["Infinitas exigiria 2x + 4y = 6.", "Retas paralelas não se cruzam."],
           },
@@ -386,7 +386,7 @@ export const equacoesEm: SkillPack = {
           {
             feedback: [
               "Dividir por negativo inverte o sentido.",
-              "Dividiu por 2 em vez de −2: o 3 fica positivo e o sentido também inverte.",
+              "Trocou o sinal do 3 e manteve o sentido; dividindo −2x > −6 por −2, o 3 fica positivo e o sentido inverte: x < 3.",
             ],
           },
         ),

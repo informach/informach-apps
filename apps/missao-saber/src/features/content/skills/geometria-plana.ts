@@ -512,8 +512,9 @@ export const geometriaPlana: SkillPack = {
     if (variant === 0) {
       const a = 35 + (seed % 31);
       const bBase = 40 + (seed % 37);
-      // Se os dois somassem 90, o terceiro também seria 90 e coincidiria com a errada.
-      const b = a + bBase === 90 ? bBase + 1 : bBase;
+      // Se os dois somassem 90, o terceiro também seria 90 e coincidiria com a errada;
+      // 47° e 68° já é o triângulo da missão 1.
+      const b = a + bBase === 90 || (a === 47 && bBase === 68) ? bBase + 1 : bBase;
       const terceiro = 180 - a - b;
       return c(
         "terceiro-angulo",

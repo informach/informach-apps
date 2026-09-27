@@ -10,6 +10,7 @@ const journal = JSON.parse(
   ),
 );
 const expectedMigrations = journal.entries.length;
+const lastMigrationAt = journal.entries.at(-1)?.when ?? 0;
 
 const databaseUrl = process.env.DATABASE_PUBLIC_URL;
 
@@ -26,7 +27,7 @@ const sql = postgres(databaseUrl, {
 
 try {
   const [migrationState] = await sql`
-    select count(*)::integer as count
+    select count(*)::integer as count, coalesce(max(created_at), 0)::bigint as latest
     from drizzle.__drizzle_migrations
   `;
   const [schemaState] = await sql`
@@ -75,6 +76,12 @@ try {
     migrations: migrationState?.count ?? 0,
     ...schemaState,
   };
+  // Mesmo critério do /api/ready: o banco não pode estar atrás do journal.
+  if (Number(migrationState?.latest ?? 0) < lastMigrationAt) {
+    throw new Error(
+      `Production schema behind: latest migration ${migrationState?.latest} is older than ${lastMigrationAt}`,
+    );
+  }
   if (result.migrations < expectedMigrations) {
     throw new Error(
       `Production schema behind: expected at least ${expectedMigrations} migrations, received ${result.migrations}`,

@@ -562,7 +562,7 @@ export const investimentos: SkillPack = {
     ],
     samples: [
       "Com R$ 100, ganhar 30% leva a R$ 130. Perder 30% de R$ 130 tira R$ 39, não R$ 30, e sobram R$ 91. A perda incide sobre um valor maior que o inicial; por isso as porcentagens não se cancelam.",
-      "5% ao mês, com reinvestimento, dá 1,05 elevado a 12, cerca de 1,80: quase 80% ao ano. Investimentos seguros rendem perto de 10% ao ano. Algo que promete oito vezes isso sem risco não fecha a conta; é sinal de golpe.",
+      "5% ao mês, com reinvestimento, dá 1,05 elevado a 12, cerca de 1,80: quase 80% ao ano. Aplicações de baixo risco rendem algo perto da taxa básica de juros, muito longe de 80% ao ano. Algo que promete tanto sem risco não fecha a conta; é sinal de golpe.",
       "Se tudo estivesse em um só investimento e ele perdesse 40%, a perda seria R$ 400. Dividindo em quatro partes de R$ 250 e só uma perdendo 40%, a perda é R$ 100, ou 10% do total. As outras três partes podem até ter rendido e compensado.",
     ],
     focus: "a relação entre retorno, risco e prazo",

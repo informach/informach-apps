@@ -117,7 +117,9 @@ export default async function Journey() {
                 </h2>
                 <p className="mt-0.5 text-sm text-tinta-suave">
                   {i === 0
-                    ? "Primeiro capítulo da trilha. As primeiras missões são gratuitas."
+                    ? data.access.paid
+                      ? "Primeiro capítulo da trilha."
+                      : "Primeiro capítulo da trilha. As primeiras missões são gratuitas."
                     : `Ponte sugerida: ${skillNames[course.skills[i - 1] ?? "fracoes"]}.${
                         doCapitulo.some((e) => e.lesson.lab)
                           ? " Use o laboratório se precisar representar a ideia."
@@ -171,7 +173,7 @@ export default async function Journey() {
                       <p className="mt-0.5 text-sm text-tinta-suave">
                         {lesson.items.length} descobertas ·{" "}
                         {lesson.free
-                          ? "Grátis · conteúdo autoral"
+                          ? "Grátis"
                           : unavailable
                             ? availability.reason === "WITHDRAWN"
                               ? "Pausada para correção"

@@ -102,9 +102,18 @@ export default async function Today() {
       {data.courseTransition && (
         <FalaFaisca humor="acolhendo" tom="lima" titulo="Novo ano escolar." className="mb-5">
           <p>
-            {data.courseTransition.to
-              ? `Agora você está ${inGrade(profile.grade)}, e sua trilha passa a ser ${data.courseTransition.to.label}. Dá para escolher outra em Minha jornada.`
-              : `Agora você está ${inGrade(profile.grade)}. As trilhas desse ano estão em preparação; enquanto isso, a sua continua aberta.`}
+            {data.courseTransition.to ? (
+              <>
+                Agora você está {inGrade(profile.grade)}, e sua trilha passa a ser{" "}
+                {data.courseTransition.to.label}. Dá para escolher outra na{" "}
+                <Link href="/jornada" className="font-semibold underline underline-offset-4">
+                  sua jornada
+                </Link>
+                .
+              </>
+            ) : (
+              `Agora você está ${inGrade(profile.grade)}. As trilhas desse ano estão em preparação; enquanto isso, a sua continua aberta.`
+            )}
           </p>
         </FalaFaisca>
       )}
@@ -209,7 +218,11 @@ export default async function Today() {
           tom="lima"
           extra={<BolhasSemana dias={data.weekly.practiceDays} />}
         />
-        <Ladrilho valor={autonomas} rotulo="habilidades com evidências de autonomia" tom="verde" />
+        <Ladrilho
+          valor={autonomas}
+          rotulo="habilidades que você já resolve sem ajuda"
+          tom="verde"
+        />
         <Ladrilho
           valor={data.weekly.withHelp}
           rotulo="tentativas com pistas: aprender tem apoio"

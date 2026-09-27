@@ -11,6 +11,7 @@ import {
 import Link from "next/link";
 import { Avatar } from "@/components/avatares";
 import { LinkChapa } from "@/components/ui/botao-chapa";
+import { otherAppWithData } from "@/features/account/other-apps";
 import { hasOtherAppSubscriptions } from "@/features/billing/repository";
 import { billing, configuredPrice, planChangeMode, products } from "@/features/billing/service";
 import { homeSupportFor } from "@/features/content/apoio-em-casa";
@@ -179,7 +180,7 @@ export default async function Family({
           O aprendizado, mais de perto.
         </h1>
         <p className="mt-2 text-sm text-tinta-suave">
-          Conta do responsável: {user.email}. Assinatura, dados pessoais e novos perfis pedem uma
+          Conta do responsável: {user.email}. Assinatura, dados pessoais e perfis pedem uma
           confirmação recente de acesso.
         </p>
       </header>
@@ -195,8 +196,10 @@ export default async function Family({
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-display text-xl font-semibold text-tinta">Estudantes da família</h2>
           <Badge variant="secondary">
-            {data.profiles.length} perfis salvos · {data.activeProfileIds.length} com estudo
-            liberado
+            {data.profiles.length === 1
+              ? "1 perfil salvo"
+              : `${data.profiles.length} perfis salvos`}{" "}
+            · {data.activeProfileIds.length} com estudo liberado
           </Badge>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -235,13 +238,21 @@ export default async function Family({
             </Card>
           ))}
         </div>
-        {data.profiles.length < data.access.profileLimit && (
-          <div className="mt-5">
-            {acessoRecente ? (
+        {acessoRecente ? (
+          data.profiles.length < data.access.profileLimit && (
+            <div className="mt-5">
               <CreateProfile courses={escolhasDeTrilha} grades={gradeOptions(catalogGrades)} />
-            ) : (
-              <ConfirmarAcesso para="criar um novo perfil" />
-            )}
+            </div>
+          )
+        ) : (
+          <div className="mt-5">
+            <ConfirmarAcesso
+              para={
+                data.profiles.length < data.access.profileLimit
+                  ? "editar ou criar perfis"
+                  : "editar os perfis"
+              }
+            />
           </div>
         )}
       </section>
@@ -268,8 +279,11 @@ export default async function Family({
                 <CardHeader>
                   <CardTitle className="font-display">{profile.nickname}</CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    {weekly.total} tentativas · {weekly.practiceDays} dias com prática ·{" "}
-                    {weekly.withHelp} tentativas com pistas.
+                    {weekly.total === 1 ? "1 tentativa" : `${weekly.total} tentativas`} ·{" "}
+                    {weekly.practiceDays === 1
+                      ? "1 dia com prática"
+                      : `${weekly.practiceDays} dias com prática`}{" "}
+                    · {weekly.withHelp === 1 ? "1 com pista" : `${weekly.withHelp} com pistas`}.
                   </p>
                 </CardHeader>
                 <CardContent>
@@ -498,8 +512,8 @@ export default async function Family({
         </p>
         <p className="mt-2 text-sm text-muted-foreground">
           Grátis: um perfil, o diagnóstico, as primeiras missões de cada trilha e os laboratórios.
-          As assinaturas incluem as trilhas do ano escolar, revisões, simulados e relatório. Sem
-          anúncios ou créditos de IA.
+          As assinaturas incluem todas as missões das trilhas do ano escolar, as revisões e os
+          simulados. Sem anúncios nem créditos de IA.
         </p>
         <p className="mt-3 text-sm text-muted-foreground">
           Trilhas disponíveis: {listaPtBr(catalogCourses.map((course) => course.label))}.
@@ -591,9 +605,12 @@ export default async function Family({
           Seus dados e suas escolhas
         </h2>
         {acessoRecente ? (
-          <PrivacyControls outrasAssinaturas={await hasOtherAppSubscriptions(user.id)} />
+          <PrivacyControls
+            outrasAssinaturas={await hasOtherAppSubscriptions(user.id)}
+            outroAppComDados={await otherAppWithData(user.id)}
+          />
         ) : (
-          <ConfirmarAcesso para="exportar dados, sair de todos os aparelhos ou encerrar o app" />
+          <ConfirmarAcesso para="exportar dados, encerrar o app ou excluir a conta" />
         )}
         <p className="mt-4 text-sm text-muted-foreground">
           <a

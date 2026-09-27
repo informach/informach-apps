@@ -289,10 +289,10 @@ export const orcamentoN2: SkillPack = {
           "Uma família recebe R$ 500 inesperados e tem uma dívida de R$ 400 a 10% ao mês. O uso mais vantajoso é:",
           "Quitar a dívida e guardar os R$ 100 restantes",
           [
-            "Guardar tudo na poupança, que rende 0,5% ao mês",
+            "Guardar tudo na poupança, que rende cerca de 0,5% ao mês",
             "Gastar em lazer, porque foi inesperado",
           ],
-          "A dívida custa 40 reais por mês; a poupança renderia 2,50.",
+          "A dívida custa 40 reais por mês; a poupança renderia cerca de 2,50.",
           {
             feedback: [
               "A poupança rende muito menos do que a dívida custa.",

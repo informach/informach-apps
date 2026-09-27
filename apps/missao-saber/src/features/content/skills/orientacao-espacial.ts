@@ -96,10 +96,10 @@ export const orientacaoEspacial: SkillPack = {
         ),
         c(
           "posicao",
-          "Numa mesa redonda com 6 lugares, Bia está de frente para Caio. Quantas pessoas há entre eles, de cada lado?",
+          "Numa mesa redonda com 6 lugares, seis amigos ocupam todos os lugares. Bia está de frente para Caio. Quantas pessoas há entre eles, de cada lado?",
           "2 de cada lado",
           ["3 de cada lado", "1 de cada lado"],
-          "Tirando Bia e Caio, sobram 4 lugares, 2 de cada lado.",
+          "Tirando Bia e Caio, sobram 4 amigos, 2 de cada lado.",
           {
             feedback: ["3 de cada lado daria 8 lugares.", "1 de cada lado daria 4 lugares."],
           },
@@ -341,7 +341,7 @@ export const orientacaoEspacial: SkillPack = {
         ),
         n(
           "vista",
-          "Sobre uma mesa há uma fileira de 4 cubos e, em cima do primeiro, mais 1 cubo. Vista de frente, quantos quadrados aparecem?",
+          "Sobre uma mesa há uma fileira de 4 cubos, lado a lado, da esquerda para a direita. Em cima do primeiro há mais 1 cubo. Vista de frente, quantos quadrados aparecem?",
           5,
           "4 na fileira de baixo e 1 em cima do primeiro: 5.",
           {
@@ -355,7 +355,7 @@ export const orientacaoEspacial: SkillPack = {
           "A palavra 'PATO' escrita num papel é vista num espelho. O que acontece?",
           "As letras e a ordem ficam ao contrário",
           ["Só a ordem fica ao contrário: OTAP", "As letras ficam de cabeça para baixo"],
-          "O espelho troca esquerda e direita: cada letra aparece invertida e a ordem parece de trás para frente.",
+          "O espelho troca esquerda e direita: a ordem parece de trás para frente, e letras como o P aparecem viradas para o outro lado. A, T e O parecem iguais porque os dois lados delas são iguais.",
           {
             feedback: [
               "O espelho também vira cada letra: o P, por exemplo, aparece com a barriga do outro lado.",
@@ -456,7 +456,7 @@ export const orientacaoEspacial: SkillPack = {
         ),
         c(
           "mapa",
-          "Num mapa, o parque está ao norte da praça e a padaria ao sul da praça. Quem sai do parque e vai até a padaria passa:",
+          "Numa rua reta que vai do norte ao sul ficam o parque, a praça e a padaria. O parque fica ao norte da praça, e a padaria, ao sul da praça. Quem vai do parque até a padaria por essa rua passa:",
           "Pela praça, andando para o sul",
           ["Pela praça, andando para o norte", "Sem passar pela praça"],
           "Parque ao norte, praça no meio, padaria ao sul.",
@@ -576,14 +576,16 @@ export const orientacaoEspacial: SkillPack = {
       const contrario = (4 - final) % 4;
       // Meia volta chega ao mesmo lugar pelos dois lados; as erradas são então os dois lados.
       const erradas = final === 2 ? [1, 3] : [contrario, 2];
+      // As direções por onde ela passa depois das voltas inteiras: leste, sul, oeste.
+      const paradas = direcoes.slice(1, final + 1).join(", ");
       return c(
         "giro-e-direcao",
         `Uma menina olha para o norte e gira ${quartos} quartos de volta para a direita, um depois do outro. Para onde ela olha no final?`,
         direcoes[final] ?? "norte",
         [direcoes[erradas[0] ?? 0] ?? "sul", direcoes[erradas[1] ?? 0] ?? "leste"],
         quartos < 4
-          ? `${quartos} quartos de volta para a direita, a partir do norte: ${quartos === 2 ? "meia volta" : "três quartos de volta"}, chega-se ao ${direcoes[final]}.`
-          : `Cada 4 quartos de volta é uma volta inteira. ${quartos} quartos deixam ${final} quarto${final > 1 ? "s" : ""} além da volta completa: do norte, girando para a direita, chega-se ao ${direcoes[final]}.`,
+          ? `${quartos} quartos de volta para a direita a partir do norte: ${paradas}.${quartos === 2 ? " Isso é meia volta." : ""}`
+          : `Cada 4 quartos de volta formam uma volta inteira, que termina de novo no norte. ${final > 1 ? "Sobram" : "Sobra"} ${final} quarto${final > 1 ? "s" : ""} para a direita a partir do norte: ${paradas}.`,
         {
           feedback: [
             "Girou para o lado errado ou errou a quantidade de quartos.",

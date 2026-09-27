@@ -1,4 +1,4 @@
-import { c, n, type SkillPack } from "../skill-factory";
+import { c, decimal, n, type SkillPack } from "../skill-factory";
 
 /**
  * Tempo e medidas: ler horas e calcular durações, dias e semanas no
@@ -252,7 +252,7 @@ export const tempoEMedidas: SkillPack = {
           "Uma corda de 6 metros é cortada em pedaços de 1 metro e meio. Quantos pedaços saem?",
           "4",
           ["3", "6"],
-          "1,5 + 1,5 + 1,5 + 1,5 = 6.",
+          "1 metro e meio + 1 metro e meio = 3 metros; 3 + 3 = 6 metros. São 4 pedaços.",
           {
             feedback: [
               "3 pedaços de 1 metro e meio dão 4 metros e meio.",
@@ -489,7 +489,7 @@ export const tempoEMedidas: SkillPack = {
           "Estimar antes de medir evita trocar metro por centímetro.",
           {
             feedback: [
-              "8 centímetros não cabe nem uma cadeira.",
+              "Em 8 centímetros não cabe nem uma cadeira.",
               "800 centímetros é o mesmo que 8 metros; o erro é a unidade, não a direção.",
             ],
           },
@@ -532,7 +532,9 @@ export const tempoEMedidas: SkillPack = {
       const minutoFim = totalMinutos % 60;
       const dois = (v: number) => String(v).padStart(2, "0");
       const horaErrada = `${dois(horaFim + 1)}h${dois(minutoFim)}`;
-      const outraErrada = `${dois(horaFim)}h${dois((minutoFim + 10) % 60)}`;
+      // Sempre 10 minutos de diferença: a menos quando somar 10 passaria da hora cheia.
+      const minutoErrado = minutoFim >= 50 ? minutoFim - 10 : minutoFim + 10;
+      const outraErrada = `${dois(horaFim)}h${dois(minutoErrado)}`;
       return c(
         "hora-de-termino",
         `Uma atividade começa às ${dois(horaInicio)}h${dois(minutoInicio)} e dura ${duracao} minutos. A que horas ela termina?`,
@@ -566,15 +568,16 @@ export const tempoEMedidas: SkillPack = {
         },
       );
     }
-    const litros = 2 + (seed % 4);
     const copo = [200, 250, 500][seed % 3] ?? 250;
+    // Dois litros em copos de 250 mililitros já é uma missão.
+    const litros = copo === 250 && 2 + (seed % 4) === 2 ? 3 : 2 + (seed % 4);
     const copos = (litros * 1000) / copo;
     return c(
       "copos-na-jarra",
       `Uma jarra tem ${litros} litros. Quantos copos de ${copo} mililitros ela enche?`,
       `${copos}`,
       [`${copos - litros}`, `${copos * 10}`],
-      `${litros} litros = ${litros * 1000} mililitros; ${litros * 1000} ÷ ${copo} = ${copos}.`,
+      `${litros} litros = ${decimal(litros * 1000)} mililitros; ${decimal(litros * 1000)} ÷ ${copo} = ${copos}.`,
       {
         feedback: [
           "Não confere: divida os mililitros da jarra pelos mililitros do copo.",

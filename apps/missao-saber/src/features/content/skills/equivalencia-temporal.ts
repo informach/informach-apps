@@ -570,7 +570,7 @@ export const equivalenciaTemporal: SkillPack = {
     samples: [
       "Com R$ 1.000 hoje, posso aplicar e ter mais que R$ 1.000 daqui a um ano. Com taxa de 10% ao ano, seriam R$ 1.100. Por isso, receber R$ 1.000 só daqui a um ano equivale a receber cerca de R$ 909 hoje. O tempo tem valor porque o dinheiro pode render.",
       "Se o preço à vista for menor que a soma das parcelas, calculo a taxa que faz o valor presente das parcelas igual ao preço à vista; se ela for maior que zero, há juros embutidos. Se não houver diferença nenhuma, a taxa é zero, e parcelar só custa algo para quem não consegue aplicar o dinheiro. O nome 'sem juros' não garante nada: é preciso comparar.",
-      "A cada mês a dívida cresce 8%, ou R$ 80 para cada R$ 1.000, e a aplicação rende 1%, ou R$ 10. Mantendo as duas, perco R$ 70 por mês. Quitando a dívida com a aplicação, deixo de ganhar 10 e deixo de pagar 80. É como conseguir um rendimento garantido de 8% ao mês.",
+      "A cada mês a dívida cresce 8%, ou R$ 80 para cada R$ 1.000, e a aplicação rende 1%, ou R$ 10. Mantendo as duas, perco R$ 70 por mês. Quitando a dívida com a aplicação, deixo de ganhar 10 e deixo de pagar 80. É como render 8% ao mês sem risco, em vez de 1%.",
     ],
     focus: "levar os valores para a mesma data",
   },
@@ -640,7 +640,7 @@ export const equivalenciaTemporal: SkillPack = {
       `${divida.toLocaleString("pt-BR")} × ${(1 + taxa / 100).toString().replace(".", ",")} elevado a ${meses} ≈ ${real(final)}.`,
       {
         feedback: [
-          "Somou os juros sem capitalizar; o rotativo cobra juros sobre juros.",
+          "Somou os juros sem capitalizar; a dívida cobra juros sobre juros.",
           "Esse é o valor depois de um mês só.",
         ],
       },

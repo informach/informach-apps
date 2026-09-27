@@ -282,7 +282,7 @@ export const composicaoDeFiguras: SkillPack = {
         ),
         n(
           "dobrar",
-          "Um retângulo de papel com 8 centímetros de comprimento é dobrado ao meio no comprimento e depois ao meio de novo, também no comprimento. Quantos centímetros de comprimento tem o papel dobrado?",
+          "Um retângulo de papel tem 8 centímetros de comprimento. Ele é dobrado ao meio de modo que o comprimento fique pela metade, e depois é dobrado de novo do mesmo jeito. Quantos centímetros de comprimento tem o papel dobrado?",
           2,
           "8 → 4 → 2.",
           {
@@ -435,7 +435,7 @@ export const composicaoDeFiguras: SkillPack = {
         ),
         n(
           "mover",
-          "Com 4 quadradinhos encostados lado a lado, quantas peças diferentes dá para montar, contando como iguais as que são uma só peça girada ou virada?",
+          "Com 4 quadradinhos formando uma peça só, cada um encostado em outro por um lado inteiro, quantas peças diferentes dá para montar, contando como iguais as que são uma só peça girada ou virada?",
           5,
           "Fila, quadrado, L, T e S: 5 peças (os tetraminós).",
           {
@@ -493,7 +493,7 @@ export const composicaoDeFiguras: SkillPack = {
         ),
         n(
           "mover",
-          "Com 3 quadradinhos encostados lado a lado, quantas peças diferentes existem, contando giros e viradas como a mesma peça?",
+          "Com 3 quadradinhos formando uma peça só, cada um encostado em outro por um lado inteiro, quantas peças diferentes existem, contando giros e viradas como a mesma peça?",
           2,
           "A fila de 3 e o L: 2 peças.",
           {
@@ -626,12 +626,12 @@ export const composicaoDeFiguras: SkillPack = {
     steps: [
       "Recorte as peças de 4 quadradinhos e confira se alguma é outra girada ou virada.",
       "Conte o contorno de cada peça e organize do menor ao maior.",
-      "Tente cobrir um retângulo de 4 por 5 com cinco peças diferentes e registre o que aconteceu.",
+      "Tente cobrir um retângulo de 4 por 5 usando as cinco peças, uma de cada forma, e anote o que acontece. Depois pinte o retângulo como um tabuleiro de xadrez, com 10 casas escuras e 10 claras, e conte quantas casas de cada cor cada peça cobre: isso explica o que você viu.",
     ],
     rubric: [
       "As 5 peças diferentes encontradas, sem repetição por giro (0–2)",
       "Contornos contados corretamente (0–3)",
-      "Tentativa de cobertura registrada com o que funcionou ou não (0–2)",
+      "Tentativa de cobertura registrada e explicada com as cores do tabuleiro (0–2)",
       "Explicação de por que o quadrado 2 por 2 tem o menor contorno (0–1)",
     ],
   },

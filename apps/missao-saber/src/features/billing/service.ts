@@ -81,7 +81,7 @@ export async function checkout(userId: string, productId: string) {
   assertAllowed(
     configuredPrice(productId),
     "BILLING_CONFIG",
-    "As assinaturas ainda estão em preparação. A unidade gratuita já pode ser explorada.",
+    "As assinaturas ainda estão em preparação. As missões gratuitas já podem ser exploradas.",
   );
   return withBillingLifecycle(userId, async () => {
     return billing

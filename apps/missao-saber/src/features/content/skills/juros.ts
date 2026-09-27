@@ -198,7 +198,7 @@ export const juros: SkillPack = {
         ),
         c(
           "juros-compostos",
-          "Uma poupança rende 0,5% ao mês, com juros compostos. R$ 10.000 rendem, no segundo mês, em reais:",
+          "Uma aplicação rende 0,5% ao mês, com juros compostos. R$ 10.000 rendem, no segundo mês, em reais:",
           "R$ 50,25",
           ["R$ 50", "R$ 100"],
           "Primeiro mês: 50, saldo 10.050; segundo mês: 0,5% de 10.050 = 50,25.",
@@ -398,7 +398,7 @@ export const juros: SkillPack = {
           "A taxa de 12% ao mês do cartão, com juros compostos, ao longo de um ano fica mais perto de:",
           "290% ao ano",
           ["144% ao ano", "12% ao ano"],
-          "1,12¹² é cerca de 3,9: a dívida quase quadruplica, um acréscimo de cerca de 290%.",
+          "1,12¹² é cerca de 3,9: a taxa equivalente fica perto de 290% ao ano. Desde 2024, a lei limita os juros e encargos do rotativo e do parcelamento da fatura ao valor da dívida original, mas a taxa mostra o quanto esse crédito é caro.",
           {
             feedback: [
               "144% seria 12 × 12, o cálculo de juros simples.",
@@ -530,14 +530,14 @@ export const juros: SkillPack = {
         ),
         c(
           "juros-compostos",
-          "Dois amigos guardam R$ 1.000: um a 6% ao ano por 2 anos, com juros compostos; outro a 12% ao ano por 1 ano. Ao final de seus prazos:",
+          "Dois amigos guardam R$ 1.000 por 2 anos. O primeiro recebe 6% ao ano, com juros compostos; o segundo recebe 12% no total, pagos de uma vez ao fim dos 2 anos. Ao fim dos 2 anos:",
           "O primeiro tem R$ 1.123,60 e o segundo R$ 1.120",
-          ["Os dois têm R$ 1.120", "O segundo tem mais, porque a taxa é o dobro"],
-          "1.000 × 1,06² = 1.123,60; 1.000 × 1,12 = 1.120.",
+          ["Os dois têm R$ 1.120", "O segundo tem mais: 12% é o dobro de 6%"],
+          "Na mesma data, ao fim dos 2 anos: 1.000 × 1,06² = 1.123,60 e 1.000 × 1,12 = 1.120. Os 6% ao ano compostos equivalem a 12,36% em 2 anos, um pouco mais que 12%.",
           {
             feedback: [
-              "O primeiro passa de 1.120 porque o segundo ano rende sobre 1.060.",
-              "O prazo maior com juros compostos compensa a taxa menor neste caso.",
+              "Os dois teriam R$ 1.120 com juros simples; com juros compostos, o segundo ano do primeiro rende sobre 1.060.",
+              "Os 12% do segundo valem pelos 2 anos inteiros; 6% ao ano compostos dão 12,36% no mesmo prazo.",
             ],
           },
         ),

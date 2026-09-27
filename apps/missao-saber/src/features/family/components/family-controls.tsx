@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { AVATARES, Avatar } from "@/components/avatares";
 import { BarraProgresso } from "@/components/ui/barra-progresso";
 import { AncoraChapa, BotaoChapa } from "@/components/ui/botao-chapa";
-import { schoolYear, suggestedGrade } from "@/features/family/school-year";
+import { gradeLabel, schoolYear, suggestedGrade } from "@/features/family/school-year";
 import {
   createProfileAction,
   forgetProfileAction,
@@ -57,7 +57,7 @@ function CamposDeAno({
 }: {
   prefixo: string;
   grades: GradeChoice[];
-  grade: number;
+  grade: number | null;
   birthMonth: string;
   onGrade: (grade: number) => void;
   onBirthMonth: (value: string, sugerido: number | null) => void;
@@ -75,6 +75,7 @@ function CamposDeAno({
           placeholder="AAAA-MM"
           pattern="\d{4}-\d{2}"
           title="Use o formato AAAA-MM, por exemplo 2016-03."
+          aria-describedby={`${prefixo}-nascimento-ajuda`}
           min="2005-01"
           max={`${schoolYear()}-12`}
           onChange={(e) => {
@@ -82,11 +83,15 @@ function CamposDeAno({
             onBirthMonth(value, value ? suggestedGrade(value, schoolYear()) : null);
           }}
         />
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p
+          id={`${prefixo}-nascimento-ajuda`}
+          aria-live="polite"
+          className="mt-1 text-xs text-muted-foreground"
+        >
           {sugerido && grades.some((option) => option.value === sugerido)
-            ? "Ano sugerido pela regra de corte de 31 de março; ajuste se precisar."
+            ? `Pela data de corte de 31 de março, a sugestão é ${gradeLabel(sugerido)}. Ajuste se precisar.`
             : sugerido
-              ? "As trilhas desse ano ainda estão em preparação; escolha o ano mais próximo."
+              ? "O Missão Saber começa no 2º ano. Se escolher o 2º ano agora, confira o ano escolar no começo do próximo ano."
               : "Serve só para sugerir o ano escolar. Nunca pedimos a data completa."}
         </p>
       </div>
@@ -95,9 +100,15 @@ function CamposDeAno({
         <select
           id={`${prefixo}-ano`}
           className={seletor}
-          value={grade}
+          value={grade ?? ""}
+          required
           onChange={(e) => onGrade(Number(e.target.value))}
         >
+          {grade === null && (
+            <option value="" disabled>
+              Escolha o ano
+            </option>
+          )}
           {grades.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -167,12 +178,12 @@ export function CreateProfile({
   courses: CourseChoice[];
   grades: GradeChoice[];
 }) {
-  const primeiroAno = grades[0]?.value ?? 6;
+  // Sem ano pré-escolhido: quem pula o campo não cria sem querer um perfil de 2º ano.
   const [nickname, setNickname] = useState("");
-  const [grade, setGrade] = useState(primeiroAno);
+  const [grade, setGrade] = useState<number | null>(null);
   const [birthMonth, setBirthMonth] = useState("");
   const [avatar, setAvatar] = useState("cometa");
-  const [courseId, setCourseId] = useState(courseForGrade(courses, "", primeiroAno) ?? "");
+  const [courseId, setCourseId] = useState("");
   const [consent, setConsent] = useState(false);
   const escolherAno = (next: number) => {
     setGrade(next);
@@ -263,15 +274,21 @@ export function CreateProfile({
               id="trilha-inicial"
               className={seletor}
               value={courseId}
+              required
+              disabled={grade === null}
               onChange={(e) => setCourseId(e.target.value)}
             >
-              {courses
-                .filter((c) => c.grades.includes(grade))
-                .map((course) => (
-                  <option key={course.id} value={course.id}>
-                    {course.label}
-                  </option>
-                ))}
+              {grade === null ? (
+                <option value="">Escolha o ano escolar primeiro</option>
+              ) : (
+                courses
+                  .filter((c) => c.grades.includes(grade))
+                  .map((course) => (
+                    <option key={course.id} value={course.id}>
+                      {course.label}
+                    </option>
+                  ))
+              )}
             </select>
           </div>
           <div className="mb-5 flex items-start gap-3">
@@ -287,7 +304,12 @@ export function CreateProfile({
               Sou responsável legal, maior de 18 anos. Autorizo o perfil e o registro de tentativas,
               pistas e descobertas para acompanhar a aprendizagem, e o mês de nascimento, se
               informado, só para sugerir o ano escolar, conforme a{" "}
-              <a href="/privacidade" className="font-medium underline underline-offset-4">
+              <a
+                href="/privacidade"
+                target="_blank"
+                rel="noopener"
+                className="font-medium underline underline-offset-4"
+              >
                 política de privacidade
               </a>
               .
@@ -339,7 +361,9 @@ export function EditProfile({
   const elegiveis = courses.filter((c) => c.grades.includes(grade));
   return (
     <details className="mt-3 rounded-xl border border-border p-3">
-      <summary className="cursor-pointer text-sm font-semibold text-tinta">Editar perfil</summary>
+      <summary className="cursor-pointer text-sm font-semibold text-tinta">
+        Editar perfil de {profile.nickname}
+      </summary>
       <form
         className="mt-3 grid gap-4"
         onSubmit={(event) => {
@@ -357,6 +381,7 @@ export function EditProfile({
               });
               if (result.ok) {
                 setMessage("Perfil atualizado.");
+                setBirthConsent(false);
                 router.refresh();
               } else setMessage(result.error);
             } catch {
@@ -378,7 +403,7 @@ export function EditProfile({
             autoComplete="off"
           />
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 xl:grid-cols-2">
           <CamposDeAno
             prefixo={profile.id}
             grades={grades}
@@ -387,6 +412,7 @@ export function EditProfile({
             onGrade={escolherAno}
             onBirthMonth={(value, sugerido) => {
               setBirthMonth(value);
+              if (!value) setBirthConsent(false);
               if (sugerido && grades.some((option) => option.value === sugerido))
                 escolherAno(sugerido);
             }}
@@ -442,7 +468,12 @@ export function EditProfile({
               className="text-sm leading-snug font-normal"
             >
               Autorizo guardar o mês e ano de nascimento só para sugerir o ano escolar, conforme a{" "}
-              <a href="/privacidade" className="font-medium underline underline-offset-4">
+              <a
+                href="/privacidade"
+                target="_blank"
+                rel="noopener"
+                className="font-medium underline underline-offset-4"
+              >
                 política de privacidade
               </a>
               .
@@ -857,7 +888,13 @@ export function PlanChangeControls({
   );
 }
 
-export function PrivacyControls({ outrasAssinaturas }: { outrasAssinaturas: boolean }) {
+export function PrivacyControls({
+  outrasAssinaturas,
+  outroAppComDados,
+}: {
+  outrasAssinaturas: boolean;
+  outroAppComDados: string | null;
+}) {
   const [confirmation, setConfirmation] = useState("");
   const [message, setMessage] = useState("");
   const [excluirConta, setExcluirConta] = useState(false);
@@ -876,12 +913,12 @@ export function PrivacyControls({ outrasAssinaturas }: { outrasAssinaturas: bool
           onClick={() =>
             start(async () => {
               try {
+                await forgetProfileAction();
                 const result = await authClient.signOut();
                 if (result.error) {
                   setMessage("Não foi possível sair agora.");
                   return;
                 }
-                await forgetProfileAction();
                 router.push("/");
                 router.refresh();
               } catch {
@@ -952,6 +989,12 @@ export function PrivacyControls({ outrasAssinaturas }: { outrasAssinaturas: bool
             antes de excluir a conta compartilhada.
           </p>
         )}
+        {!outrasAssinaturas && outroAppComDados && (
+          <p className="mt-2 text-sm font-semibold text-tinta">
+            Sua conta também tem dados no {outroAppComDados}. Peça a exclusão por lá: ela apaga os
+            dados daquele app e a conta compartilhada.
+          </p>
+        )}
         <label htmlFor="excluir-conta" className="mt-3 flex items-start gap-3 text-sm text-tinta">
           <input
             id="excluir-conta"
@@ -964,7 +1007,7 @@ export function PrivacyControls({ outrasAssinaturas }: { outrasAssinaturas: bool
         </label>
         <button
           type="button"
-          disabled={pending || !excluirConta || outrasAssinaturas}
+          disabled={pending || !excluirConta || outrasAssinaturas || !!outroAppComDados}
           className="mt-3 rounded-md text-sm font-semibold text-destructive underline underline-offset-4 disabled:opacity-50"
           onClick={() =>
             start(async () => {

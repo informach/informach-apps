@@ -19,6 +19,7 @@ const PRIVADAS = [
   "/missao/",
   "/caderno",
   "/historico",
+  "/meu-espaco",
   "/laboratorio",
   "/revisao",
   "/simulados",

@@ -239,11 +239,11 @@ export const proporcao: SkillPack = {
           "velocidade-media",
           "Na velocidade média de 18 km/h, quanto tempo um ciclista leva para percorrer 45 km?",
           "2 h 30 min",
-          ["2 h 27 min", "3 h"],
+          ["2 h 50 min", "3 h"],
           "45 ÷ 18 = 2,5 horas, e meia hora são 30 minutos.",
           {
             feedback: [
-              "Tratou o 0,5 da divisão como 27 minutos; meia hora são 30 minutos.",
+              "Leu 0,5 h como 50 minutos; meia hora são 30.",
               "Arredondou 2,5 para 3, mas a proporção pede o valor exato.",
             ],
           },
@@ -591,18 +591,20 @@ export const proporcao: SkillPack = {
       );
     }
     if (variant === 1) {
-      const kmPorCm = 1 + (seed % 3);
-      const cm = 3 + (seed % 17);
+      // Escala a partir de 2 e medida múltipla dela: dividir pela escala dá
+      // um inteiro diferente da resposta, e é esse o erro da alternativa.
+      const kmPorCm = 2 + (seed % 3);
+      const cm = kmPorCm * (2 + (seed % 5));
       const answer = kmPorCm * cm;
       return c(
         "escala-de-mapa",
         `Em um mapa, 1 cm representa ${kmPorCm} km. Duas cidades aparecem a ${cm} cm uma da outra. Qual é a distância real entre elas?`,
         `${answer} km`,
-        [`${answer * 10} km`, `${cm + kmPorCm} km`],
+        [`${cm / kmPorCm} km`, `${cm + kmPorCm} km`],
         `${cm} × ${kmPorCm} = ${answer} km.`,
         {
           feedback: [
-            "Multiplicou por 10 a mais na conversão.",
+            `Dividiu pela escala em vez de multiplicar: cada centímetro vale ${kmPorCm} km, então a distância real é maior que a medida no mapa.`,
             "Somou os números em vez de multiplicar pela escala.",
           ],
         },

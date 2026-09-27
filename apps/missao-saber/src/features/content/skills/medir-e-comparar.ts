@@ -442,34 +442,39 @@ export const medirEComparar: SkillPack = {
     },
   ],
   ordering: {
-    prompt: "Coloque em ordem os passos para medir o comprimento de um lápis com a régua.",
+    prompt: "Coloque em ordem os passos para descobrir a que horas termina uma atividade.",
     labels: [
-      "Achar o zero da régua",
-      "Colocar o lápis reto ao lado da régua, com a ponta no zero",
-      "Ver em que número fica a outra ponta",
-      "Escrever a medida com a unidade",
+      "Ver a que horas a atividade começa",
+      "Ver quanto tempo ela dura",
+      "Somar a duração à hora do começo",
+      "Conferir no relógio se a resposta faz sentido",
     ],
     explanation:
-      "Achar o zero, alinhar o lápis a partir dele, ler a outra ponta e escrever com a unidade.",
+      "Primeiro a hora do começo, depois quanto dura, depois a conta e, no fim, conferir.",
   },
   justification: {
     prompts: [
       "Explique como descobrir que horas serão meia hora depois das 3 horas.",
       "Explique como descobrir o troco de um sorvete de 4 reais pago com 10.",
-      "Explique por que um quilo de algodão pesa o mesmo que um quilo de pedras.",
+      "Explique como descobrir o troco de quem comprou 4 pães de 2 reais cada e pagou com uma nota de 10.",
     ],
     samples: [
       "Meia hora são 30 minutos. Às 3 horas o ponteiro grande está no 12. Depois de meia hora ele chega no 6. Então serão 3 e meia.",
       "Conto do 4 até o 10: 5, 6, 7, 8, 9, 10. São 6 números, então o troco é 6 reais. Também dá para fazer 10 − 4 = 6.",
-      "Um quilo é sempre um quilo. O algodão é fofinho e ocupa muito espaço, as pedras ocupam pouco. Mas, na balança, um quilo de cada fica equilibrado.",
+      "4 pães de 2 reais custam 2 + 2 + 2 + 2 = 8 reais. Conto do 8 até o 10: 9, 10. Faltam 2. O troco é 2 reais.",
     ],
     focus: "a unidade e a conta certas",
   },
   reserved: (seed, variant) => {
     if (variant === 0) {
       // O troco nunca coincide com o preço (5 de 10 ficaria de fora).
-      const preco = [2, 3, 4, 6, 7, 8][seed % 6] ?? 2;
+      const precoBase = [2, 3, 4, 6, 7, 8][seed % 6] ?? 2;
       const nota = [10, 20][Math.floor(seed / 6) % 2] ?? 10;
+      // 4 com nota de 10 (o sorvete) e 7 de 20 (o gasto do Rui) já são contas da missão 4.
+      const preco =
+        (precoBase === 4 && nota === 10) || (precoBase === 7 && nota === 20)
+          ? precoBase - 1
+          : precoBase;
       return c(
         "troco",
         `Um brinquedo custa ${preco} reais. Nina paga com uma nota de ${nota} reais. Qual é o troco?`,
@@ -485,8 +490,10 @@ export const medirEComparar: SkillPack = {
       );
     }
     if (variant === 1) {
-      const tamanho = 5 * (2 + (seed % 5));
+      const tamanhoBase = 5 * (2 + (seed % 5));
       const quantos = 2 + (Math.floor(seed / 5) % 3);
+      // 3 tijolos de 20 centímetros já é a conta da missão 1.
+      const tamanho = quantos === 3 && tamanhoBase === 20 ? 25 : tamanhoBase;
       return c(
         "comprimento-em-fila",
         `${quantos} tijolos iguais de ${tamanho} centímetros foram colocados em fila. Qual é o comprimento da fila?`,
@@ -501,7 +508,8 @@ export const medirEComparar: SkillPack = {
         },
       );
     }
-    const semanas = 2 + (seed % 3);
+    // 2 semanas já é a conta da missão 3.
+    const semanas = 3 + (seed % 2);
     const dias = semanas * 7;
     return c(
       "semanas-em-dias",

@@ -415,13 +415,13 @@ export const contarEComparar: SkillPack = {
   },
   justification: {
     prompts: [
-      "Explique por que 'deu 10 bolinhas' é uma conta de menos.",
-      "Explique como descobrir quantas balas a Ana tem a mais, se ela tem 12 e o Beto tem 9.",
+      "Léo tinha 25 bolinhas e deu 10 para o irmão. Explique por que essa é uma conta de menos.",
+      "Explique por que a metade de 40 é 20.",
       "Explique por que 'comeu 3 e ficou com 13' está errado, se ele tinha 10.",
     ],
     samples: [
       "Quando o Léo dá bolinhas, elas saem da mão dele e vão para o irmão. Então ele fica com menos do que tinha. Se tinha 25 e deu 10, desenho 25 bolinhas e risco 10: sobram 15.",
-      "Eu conto do 9 até o 12: 10, 11, 12. São 3 números. Então a Ana tem 3 balas a mais que o Beto. Também dá para fazer 12 − 9 = 3.",
+      "Metade é repartir em duas partes iguais. 40 são 4 dezenas. Ponho 2 dezenas em cada parte, e cada parte fica com 20. Confiro: 20 + 20 = 40. Então a metade de 40 é 20.",
       "Comer faz as balas sumirem, então ele tem que ficar com menos de 10. Se comeu 3, fica com 10 − 3 = 7. Ficar com 13 seria ganhar balas, não comer.",
     ],
     focus: "a escolha da conta",
@@ -430,8 +430,11 @@ export const contarEComparar: SkillPack = {
     if (variant === 0) {
       const dezenas = 2 + (seed % 7);
       // De 2 a 9 soltas (sem o singular) e nunca iguais às dezenas.
-      const unidades =
+      const soltas =
         2 + (seed % 8) === dezenas ? (dezenas === 9 ? 2 : dezenas + 1) : 2 + (seed % 8);
+      // 4 pacotes e 3 soltas e 2 caixas e 8 soltos já são contas da missão 1.
+      const unidades =
+        (dezenas === 4 && soltas === 3) || (dezenas === 2 && soltas === 8) ? soltas - 1 : soltas;
       return c(
         "pacotes-e-soltas",
         `Rui tem ${dezenas} pacotes com 10 figurinhas e mais ${unidades} figurinhas soltas. Quantas figurinhas ele tem?`,
@@ -448,7 +451,14 @@ export const contarEComparar: SkillPack = {
     }
     if (variant === 1) {
       const menor = 5 + (seed % 12);
-      const diferenca = 2 + (Math.floor(seed / 12) % 7);
+      const diferencaBase = 2 + (Math.floor(seed / 12) % 7);
+      // 12 e 9, 15 e 8 e 10 e 6 já são contas das missões 2 e 5.
+      const repetida = [
+        [9, 3],
+        [8, 7],
+        [6, 4],
+      ].some(([m, d]) => m === menor && d === diferencaBase);
+      const diferenca = repetida ? diferencaBase + 1 : diferencaBase;
       const maior = menor + diferenca;
       return c(
         "quantos-a-mais",
@@ -465,8 +475,12 @@ export const contarEComparar: SkillPack = {
       );
     }
     const tirou = 3 + (Math.floor(seed / 5) % 9);
-    // Quando o início é o dobro do que saiu, o resto coincidiria com a errada.
-    const inicio = 20 + (seed % 25) === 2 * tirou ? 21 + (seed % 25) : 20 + (seed % 25);
+    const inicioBase = 20 + (seed % 25);
+    // Quando o início é o dobro do que saiu, o resto coincidiria com a errada;
+    // 25 menos 10, 30 menos 8 e 30 menos 5 já são contas das missões 2 e 3.
+    const repetida =
+      (inicioBase === 25 && tirou === 10) || (inicioBase === 30 && (tirou === 8 || tirou === 5));
+    const inicio = inicioBase === 2 * tirou || repetida ? inicioBase + 1 : inicioBase;
     return c(
       "quanto-sobrou",
       `Numa caixa havia ${inicio} lápis. A professora tirou ${tirou}. Quantos lápis ficaram na caixa?`,

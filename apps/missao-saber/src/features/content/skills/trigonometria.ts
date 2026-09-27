@@ -512,15 +512,16 @@ export const trigonometria: SkillPack = {
     }
     const ternas: [number, number, number][] = [
       [7, 8, 13],
-      [8, 5, 7],
+      [9, 24, 21],
       [7, 15, 13],
       [5, 21, 19],
       [8, 15, 13],
-      [3, 5, 7],
+      [5, 16, 19],
     ];
     const [p, q, r] = ternas[seed % 6] ?? [7, 15, 13];
-    // 7 e 8 com 13 e 3 e 5 com 7 pedem 120°; os outros, 60°.
-    const angulo = (p === 7 && q === 8) || (p === 3 && q === 5) ? 120 : 60;
+    // 7 e 8 com 13 e 5 e 16 com 19 pedem 120°; os outros, 60°. Nenhuma terna
+    // repete as da missão 3 (5, 8 e 7; 3, 5 e 7; 3, 8 e 7).
+    const angulo = (p === 7 && q === 8) || (p === 5 && q === 16) ? 120 : 60;
     return c(
       "terceiro-lado-cossenos",
       `Num triângulo, dois lados medem ${p} e ${q} e o ângulo entre eles mede ${angulo}°. Quanto mede o terceiro lado?`,

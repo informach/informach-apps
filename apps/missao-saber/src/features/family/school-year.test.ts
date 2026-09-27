@@ -58,10 +58,10 @@ describe("ano escolar", () => {
   });
 
   it("resume a faixa de anos do catálogo", () => {
-    expect(gradeRangeLabel([6, 7])).toBe("6º e 7º ano");
+    expect(gradeRangeLabel([6, 7])).toBe("6º e 7º anos");
     expect(gradeRangeLabel([7])).toBe("7º ano");
     expect(gradeRangeLabel([9, 8, 6, 7])).toBe("do 6º ao 9º ano");
-    expect(gradeRangeLabel([10, 11])).toBe("1ª e 2ª série do EM");
+    expect(gradeRangeLabel([10, 11])).toBe("1ª e 2ª séries do EM");
     expect(gradeRangeLabel([10, 11, 12])).toBe("da 1ª à 3ª série do EM");
     expect(gradeRangeLabel([9, 10])).toBe("9º ano e 1ª série do EM");
     expect(gradeRangeLabel([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])).toBe(
@@ -70,10 +70,13 @@ describe("ano escolar", () => {
   });
 
   it("monta a frase da faixa para os textos públicos", () => {
-    expect(gradeRangeSentence([6, 7])).toBe("para o 6º e 7º ano");
+    expect(gradeRangeSentence([6, 7])).toBe("para o 6º e o 7º ano");
     expect(gradeRangeSentence([6, 7, 8, 9])).toBe("do 6º ao 9º ano");
-    expect(gradeRangeSentence([12])).toBe("para a 3ª série do EM");
-    expect(gradeRangeSentence([10, 11])).toBe("para a 1ª e 2ª série do EM");
+    expect(gradeRangeSentence([12])).toBe("para a 3ª série do ensino médio");
+    expect(gradeRangeSentence([10, 11])).toBe("para a 1ª e a 2ª série do ensino médio");
+    expect(gradeRangeSentence([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])).toBe(
+      "do 2º ano à 3ª série do ensino médio",
+    );
   });
 
   it("concorda o artigo com ano e série", () => {

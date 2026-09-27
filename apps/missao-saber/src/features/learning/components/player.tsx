@@ -268,24 +268,22 @@ export function Player({
             Uma ideia para levar com você.
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-tinta-suave">
-            Você acertou {correct} de {objective.length} questões com correção objetiva.{" "}
+            Você acertou {correct} de {objective.length} questões.{" "}
             {view.saved.filter((s) => s.helpCount > 0).length} tiveram pistas. Esse registro ajuda a
             escolher o próximo passo.
           </p>
           {reflections > 0 && (
             <p className="mx-auto mt-2 max-w-xl text-sm text-tinta-suave">
-              {reflections}{" "}
-              {reflections === 1 ? "reflexão foi registrada" : "reflexões foram registradas"} sem
-              nota automática.
+              {reflections === 1
+                ? "Sua explicação ficou guardada, sem nota."
+                : `Suas ${reflections} explicações ficaram guardadas, sem nota.`}
             </p>
           )}
           {assessment && (
             <p className="mx-auto mt-2 max-w-xl text-sm text-tinta-suave">
-              Resultado formativo de um percurso autoral. Não equivale a nota, classificação ou
-              diagnóstico oficial.
-              {view.readingSupport
-                ? " Este percurso teve apoio de leitura em voz alta, então não representa leitura autônoma."
-                : ""}
+              Este resultado serve para escolher os próximos passos. Não é nota nem classificação
+              oficial.
+              {view.readingSupport ? " Neste percurso, você usou a leitura em voz alta." : ""}
             </p>
           )}
           <div className="mt-6 flex flex-wrap justify-center gap-3">

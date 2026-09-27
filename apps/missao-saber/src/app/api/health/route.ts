@@ -3,5 +3,6 @@ export function GET() {
     app: "missao-saber",
     status: "ok",
     deployment: process.env.RAILWAY_DEPLOYMENT_ID ?? null,
+    commit: process.env.RAILWAY_GIT_COMMIT_SHA ?? null,
   });
 }

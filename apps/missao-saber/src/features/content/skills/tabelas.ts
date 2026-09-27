@@ -524,10 +524,11 @@ export const tabelas: SkillPack = {
       );
     }
     if (variant === 1) {
-      const total = 20 + (seed % 21);
       const conhecidos = [4 + (seed % 7), 3 + (seed % 5)];
       const soma = (conhecidos[0] ?? 0) + (conhecidos[1] ?? 0);
-      const falta = total - soma;
+      // Maio fica na mesma faixa dos outros meses; o total sai da soma dos três.
+      const falta = 3 + (seed % 8);
+      const total = soma + falta;
       return c(
         "valor-que-falta-na-tabela",
         `Tabela de livros lidos em três meses: março ${conhecidos[0]}, abril ${conhecidos[1]}, maio ainda não anotado. O total dos três meses é ${total}. Quantos livros foram lidos em maio?`,

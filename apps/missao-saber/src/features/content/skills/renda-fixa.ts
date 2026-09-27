@@ -43,29 +43,38 @@ export const rendaFixa: SkillPack = {
         ),
         n(
           "remuneracao",
-          "Um título paga a inflação mais 5% ao ano. Num ano com inflação de 4%, qual é o rendimento total aproximado, somando as duas partes, em porcentagem?",
-          9,
-          "Aproximadamente 4% + 5% = 9% (o cálculo exato multiplica os fatores: 1,04 × 1,05 = 1,092).",
+          "Um título paga a inflação mais 5% ao ano. Num ano com inflação de 4%, qual é o rendimento total exato, multiplicando os fatores das duas partes, em porcentagem?",
+          9.2,
+          "1,04 × 1,05 = 1,092: o rendimento total é 9,2%. Somar 4% + 5% = 9% dá só uma aproximação.",
           {
             misreads: [
               { value: 5, feedback: "5% é só a parte além da inflação." },
               {
-                value: 9.2,
-                feedback: "9,2% é o cálculo exato; aqui o enunciado pede a soma aproximada.",
+                value: 9,
+                feedback:
+                  "9% soma as duas taxas e é uma boa aproximação; o exato multiplica os fatores: 1,04 × 1,05 = 1,092.",
+              },
+              {
+                value: 109.2,
+                feedback:
+                  "109,2 é o fator acumulado em porcentagem; a taxa é só o que passa de 100.",
               },
             ],
           },
         ),
         c(
           "remuneracao",
-          "No item anterior, o cálculo exato do rendimento total é:",
-          "9,2%, porque 1,04 × 1,05 = 1,092",
-          ["9%, porque 4% + 5% = 9%", "109,2%, que é o fator acumulado"],
-          "Os fatores se multiplicam: 1,092 significa 9,2% a mais.",
+          "No item anterior, somar 4% + 5% dá 9%, um pouco menos que o valor exato. De onde vem a diferença?",
+          "Os 5% também rendem sobre a correção de 4% da inflação",
+          [
+            "A inflação é cobrada duas vezes no cálculo exato",
+            "O cálculo exato já desconta o imposto",
+          ],
+          "No cálculo exato, os 5% incidem sobre o valor já corrigido pela inflação: 5% de 4% são 0,2 ponto percentual, e 9% + 0,2 = 9,2%.",
           {
             feedback: [
-              "9% é a aproximação por soma; o cálculo exato multiplica os fatores.",
-              "109,2% é o fator em porcentagem; a taxa é só o que passa de 100%.",
+              "A inflação entra uma vez só, no fator 1,04; a diferença vem de os 5% incidirem sobre o valor corrigido.",
+              "Nenhum dos dois cálculos considera imposto; os 0,2 ponto a mais vêm de multiplicar os fatores.",
             ],
           },
         ),
@@ -352,7 +361,7 @@ export const rendaFixa: SkillPack = {
         ),
         n(
           "credito",
-          "Um fundo garante até R$ 250.000 por pessoa em cada banco. Alguém com R$ 400.000 num único banco que quebrou tem quanto garantido, em reais?",
+          "Um fundo garante até R$ 250.000 por CPF em cada instituição ou grupo financeiro. Alguém com R$ 400.000 num único banco que quebrou tem quanto garantido, em reais?",
           250000,
           "A garantia vai até o limite.",
           { misreads: [{ value: 400000, feedback: "A garantia tem limite de 250.000." }] },
@@ -362,11 +371,11 @@ export const rendaFixa: SkillPack = {
           "No item anterior, uma forma de ficar todo o valor dentro da garantia seria:",
           "Dividir o dinheiro entre bancos de grupos financeiros diferentes",
           ["Aplicar tudo num banco maior", "Dividir entre duas contas no mesmo banco"],
-          "Nesta regra hipotética o limite vale por pessoa e por grupo financeiro; a regra real tem outros detalhes, como um teto global.",
+          "O limite vale por CPF em cada instituição ou grupo financeiro; bancos de grupos diferentes contam separado. A regra real tem ainda um teto global, somando todas as instituições.",
           {
             feedback: [
               "O limite vale em qualquer banco, grande ou pequeno.",
-              "O limite é por pessoa na instituição; duas contas no mesmo banco somam.",
+              "O limite é por CPF na instituição; duas contas no mesmo banco somam.",
             ],
           },
         ),

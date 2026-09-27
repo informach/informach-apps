@@ -557,7 +557,9 @@ export const estruturasNumericas: SkillPack = {
       const base = [2, 3, 7][seed % 3] ?? 2;
       const modulo = base === 2 ? 7 : base === 3 ? 5 : 10;
       const periodo = base === 2 ? 3 : 4;
-      const expoente = 50 + (Math.floor(seed / 3) % 60);
+      const expoenteBase = 50 + (Math.floor(seed / 3) % 60);
+      // 2¹⁰⁰ na divisão por 7 já é uma missão.
+      const expoente = base === 2 && expoenteBase === 100 ? 101 : expoenteBase;
       const restoExp = expoente % periodo;
       const ciclo: number[] = [];
       let r = 1;
@@ -583,8 +585,8 @@ export const estruturasNumericas: SkillPack = {
     }
     const a = 6 * (2 + (seed % 5));
     const bBase = 4 * (3 + (seed % 7));
-    // Evita b igual a a e o par 18 e 24, que já aparece numa missão.
-    const b = bBase === a || (a === 18 && bBase === 24) ? bBase + 4 : bBase;
+    // Evita b igual a a e os pares 18 e 24 e 18 e 12, que já aparecem numa missão.
+    const b = bBase === a || (a === 18 && (bBase === 24 || bBase === 12)) ? bBase + 4 : bBase;
     const gcd = (x: number, y: number): number => (y === 0 ? x : gcd(y, x % y));
     const mdc = gcd(a, b);
     const mmc = (a * b) / mdc;

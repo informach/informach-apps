@@ -569,11 +569,11 @@ export const combinacoes: SkillPack = {
       );
     }
     if (variant === 1) {
-      const posicoes = 3 + (seed % 2);
+      // Com 3 posições a conta seria sempre 1.000 − 729 = 271, a da missão 3.
+      const posicoes = 5 - (seed % 2);
       const total = 10 ** posicoes;
       const semDigito = 9 ** posicoes;
-      // Três algarismos com pelo menos um 7 já é uma missão.
-      const digito = posicoes === 3 && 1 + (seed % 9) === 7 ? 8 : 1 + (seed % 9);
+      const digito = 1 + (seed % 9);
       return c(
         "pelo-menos-um-digito",
         `Quantas sequências de ${posicoes} algarismos (de ${"0".repeat(posicoes)} a ${"9".repeat(posicoes)}) têm pelo menos um algarismo ${digito}?`,
@@ -589,9 +589,10 @@ export const combinacoes: SkillPack = {
       );
     }
     const linhas = 2 + (seed % 3);
-    // O retângulo 3 por 4 já é uma missão.
+    const colunasBase = 3 + (Math.floor(seed / 3) % 3);
+    // O retângulo 3 por 4 já é uma missão, e 4 por 3 dá a mesma conta.
     const colunas =
-      linhas === 3 && 3 + (Math.floor(seed / 3) % 3) === 4 ? 5 : 3 + (Math.floor(seed / 3) % 3);
+      (linhas === 3 && colunasBase === 4) || (linhas === 4 && colunasBase === 3) ? 5 : colunasBase;
     const comb = (a: number, b: number) => {
       let r = 1;
       for (let i = 1; i <= b; i++) r = (r * (a - b + i)) / i;

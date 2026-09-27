@@ -1,4 +1,4 @@
-import { c, n, type SkillPack } from "../skill-factory";
+import { c, decimal, n, type SkillPack } from "../skill-factory";
 
 /**
  * Teorema de Pitágoras: reconhecer o triângulo retângulo, calcular lados e
@@ -535,7 +535,7 @@ export const pitagoras: SkillPack = {
         `Um terreno triangular tem um ângulo reto entre os lados de ${a} m e ${b} m. Quantos metros de cerca são necessários para fechar o terceiro lado?`,
         `${hip} m`,
         [`${a + b} m`, `${hip + k} m`],
-        `${a}² + ${b}² = ${a * a + b * b} = ${hip}²; o terceiro lado mede ${hip} m.`,
+        `${a}² + ${b}² = ${decimal(a * a + b * b)} = ${hip}²; o terceiro lado mede ${hip} m.`,
         {
           feedback: [
             "Somou os dois lados; o terceiro lado é menor que essa soma.",
@@ -560,9 +560,9 @@ export const pitagoras: SkillPack = {
     return c(
       "area-do-isosceles",
       `Um triângulo isósceles tem dois lados de ${hip} cm e base de ${2 * a} cm. Qual é a sua área?`,
-      `${a * b} cm²`,
-      [`${a * hip} cm²`, `${2 * a * b} cm²`],
-      `A altura sobre a base é a raiz de ${hip}² − ${a}² = ${b * b}, ou seja, ${b}; área ${2 * a} × ${b} ÷ 2 = ${a * b} cm².`,
+      `${decimal(a * b)} cm²`,
+      [`${decimal(a * hip)} cm²`, `${decimal(2 * a * b)} cm²`],
+      `A altura sobre a base é a raiz de ${hip}² − ${a}² = ${decimal(b * b)}, ou seja, ${b}; área ${2 * a} × ${b} ÷ 2 = ${decimal(a * b)} cm².`,
       {
         feedback: [
           "Usou o lado inclinado como altura.",

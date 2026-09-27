@@ -40,7 +40,7 @@ export const cenarios: SkillPack = {
         ),
         c(
           "premissas",
-          "Uma pessoa quer saber quanto um financiamento realmente vai custar. Qual informação é indispensável e costuma faltar em anúncios?",
+          "Uma pessoa quer saber quanto um financiamento realmente vai custar. Qual informação é indispensável e costuma aparecer só em letra miúda nos anúncios?",
           "O custo efetivo total, com tarifas e seguros",
           [
             "A taxa de juros nominal, ao mês e ao ano",
@@ -603,7 +603,7 @@ export const cenarios: SkillPack = {
         `Uma loja tem custo fixo de R$ ${fixo.toLocaleString("pt-BR")} por mês e cada produto deixa R$ ${margem} de margem. Se a margem cair para R$ ${nova}, quantos produtos, no mínimo, ela precisa vender para não ter prejuízo?`,
         novoEmpate.toLocaleString("pt-BR"),
         [empate.toLocaleString("pt-BR"), (novoEmpate - 1).toLocaleString("pt-BR")],
-        `${fixo.toLocaleString("pt-BR")} ÷ ${nova} = ${(fixo / nova).toFixed(2).replace(".", ",").replace(",00", "")}; o mínimo inteiro é ${novoEmpate}.`,
+        `${fixo.toLocaleString("pt-BR")} ÷ ${nova} = ${(fixo / nova).toLocaleString("pt-BR", { minimumFractionDigits: Number.isInteger(fixo / nova) ? 0 : 2, maximumFractionDigits: 2 })}; o mínimo inteiro é ${novoEmpate.toLocaleString("pt-BR")}.`,
         {
           feedback: [
             "Esse é o empate com o lucro antigo; com lucro menor por unidade, é preciso vender mais.",

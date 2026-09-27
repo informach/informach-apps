@@ -90,7 +90,7 @@ export const padroesIniciais: SkillPack = {
           ["8", "10"],
           "Cada figura ganha 2 quadradinhos: 7 + 2 = 9.",
           {
-            feedback: ["8 somaria só 1; o salto é 2.", "10 pularia um passo."],
+            feedback: ["8 somaria só 1; o salto é 2.", "10 somaria 3; a figura ganha sempre 2."],
           },
         ),
       ],
@@ -540,7 +540,9 @@ export const padroesIniciais: SkillPack = {
         `Um colar repete sempre estas cores, nesta ordem: ${lista}. Qual é a cor da ${posicao}ª conta?`,
         cores[indice] ?? "vermelha",
         [cores[outra] ?? "azul", cores[maisUma] ?? "verde"],
-        `${posicao} = ${Math.floor((posicao - 1) / ciclo)} ciclos de ${ciclo} e mais ${indice + 1}: a ${indice + 1}ª cor, ${cores[indice]}.`,
+        resto === 0
+          ? `${posicao} = ${posicao / ciclo} ciclos completos de ${ciclo}: a última cor, ${cores[indice]}.`
+          : `${posicao} = ${Math.floor(posicao / ciclo)} ciclos de ${ciclo} e mais ${resto}: a ${resto}ª cor, ${cores[indice]}.`,
         {
           feedback: [
             "Essa é a cor da conta seguinte; confira a posição dentro do ciclo.",

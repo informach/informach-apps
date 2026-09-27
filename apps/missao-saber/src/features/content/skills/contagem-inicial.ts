@@ -586,7 +586,7 @@ export const contagemInicial: SkillPack = {
         `Duda tem ${a} camisetas e ${b} bermudas, todas diferentes. De quantas maneiras ela pode escolher uma camiseta e uma bermuda?`,
         `${a * b}`,
         [`${a + b}`, `${a * b + b}`],
-        `Cada um dos ${a} combina com os ${b}: ${a} × ${b} = ${a * b}.`,
+        `Cada uma das ${a} camisetas combina com cada uma das ${b} bermudas: ${a} × ${b} = ${a * b}.`,
         {
           feedback: [
             "Somou as quantidades; cada peça de um tipo combina com cada peça do outro.",

@@ -103,9 +103,12 @@ export function CoursePicker({
         autoComplete="off"
         className="block h-12 w-full rounded-controle border-2 border-sombra bg-creme px-3 font-semibold text-tinta"
         value={selected}
-        disabled={saving}
+        // Sem `disabled`: no Windows, a seta num select fechado já dispara a
+        // troca, e um select desabilitado perderia o foco no meio dela.
+        aria-disabled={saving}
         aria-busy={saving}
         onChange={async (event) => {
+          if (saving) return;
           const id = event.target.value;
           setSelected(id);
           setError("");

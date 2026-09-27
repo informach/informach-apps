@@ -22,6 +22,15 @@ export function isSuspended(state: ContentState | undefined) {
   return state?.status === "suspended";
 }
 
+/** Missão, revisão ou avaliação que pertence à trilha (pelo id da lição da sessão). */
+export function lessonIdInCourse(course: Course, lessonId: string) {
+  return (
+    lessonId === `diagnostic:${course.id}` ||
+    lessonId === `exam:${course.id}` ||
+    course.path.includes(lessonId)
+  );
+}
+
 export function lessonAvailability(input: {
   lesson: Lesson;
   course: Course;
@@ -53,7 +62,7 @@ export function assertableAvailabilityMessage(reason: AvailabilityReason) {
     case "GRADE":
       return "Esta missão não está disponível para este ano escolar.";
     case "PLAN":
-      return "Esta missão faz parte da assinatura. A primeira unidade e o diagnóstico são gratuitos.";
+      return "Esta missão faz parte da assinatura. As primeiras missões de cada trilha e o diagnóstico são gratuitos.";
     case "PROFILE_LIMIT":
       return "Este perfil está preservado no histórico. O plano atual permite estudar com menos perfis.";
     case "WITHDRAWN":

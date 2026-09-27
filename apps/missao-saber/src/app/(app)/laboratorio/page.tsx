@@ -6,6 +6,7 @@ import { deepChallengeFor } from "@/features/content/desafios-profundos";
 import { BarsLab, GridLab, GroupsLab } from "@/features/labs/components/labs";
 import { getExperiments } from "@/features/labs/repository";
 import { requirePageUser } from "@/lib/auth";
+import { listaPtBr } from "@/lib/texto";
 import { currentDashboard } from "@/lib/view";
 
 const nomeDoLab = {
@@ -30,6 +31,8 @@ export default async function Laboratory() {
     (skillId) => data.states.find((state) => state.skillId === skillId)?.level !== "independent",
   );
   const desafio = deepChallengeFor(emConstrucao ?? course?.skills[0] ?? "medidas");
+  // Nos anos iniciais o desafio fala com a criança: sem tempo marcado e sem pontos.
+  const inicial = (data.profile?.grade ?? 6) <= 5;
 
   return (
     <>
@@ -40,8 +43,8 @@ export default async function Laboratory() {
       />
       {data.profile && data.profile.grade <= 4 && (
         <p className="mb-5 rounded-card border-2 border-sombra bg-creme px-4 py-3 text-sm text-tinta">
-          Estas ferramentas usam descontos, áreas e organização de casos, ideias que aparecem a
-          partir do 5º ano. Vale explorar junto com um adulto, sem pressa.
+          Estas ferramentas são de anos mais adiante. Se quiser brincar com elas, chame um adulto
+          para explorar junto.
         </p>
       )}
       <div className="grid gap-5">
@@ -56,7 +59,11 @@ export default async function Laboratory() {
 
       {desafio && (
         <Chapa tom="uva" className="mt-8">
-          <Etiqueta tom="uva">Desafio profundo · 20–30 min · pode pausar</Etiqueta>
+          <Etiqueta tom="uva">
+            {inicial
+              ? "Desafio para fazer com calma"
+              : "Desafio profundo · 20–30 min · pode pausar"}
+          </Etiqueta>
           <h2 className="mt-3 font-display text-2xl font-semibold text-tinta">{desafio.title}</h2>
           <p className="mt-1.5 text-sm font-semibold text-tinta-suave">
             {skillNames[desafio.skillId] ?? desafio.skillId}
@@ -80,10 +87,22 @@ export default async function Laboratory() {
               Ferramenta que ajuda: {nomeDoLab[desafio.lab]}, aqui em cima.
             </p>
           )}
-          <p className="mt-4 text-sm text-tinta-suave">
-            Autoavaliação: {desafio.rubric.join(", ")}. É uma rubrica formativa, sem nota
-            automática.
-          </p>
+          {inicial ? (
+            <p className="mt-4 text-sm text-tinta-suave">
+              Para conferir no final:{" "}
+              {listaPtBr(
+                desafio.rubric.map((criterio) =>
+                  criterio.replace(/\s*\(\d+[–-]\d+\)\s*$/, "").toLocaleLowerCase("pt-BR"),
+                ),
+              )}
+              .
+            </p>
+          ) : (
+            <p className="mt-4 text-sm text-tinta-suave">
+              Autoavaliação: {desafio.rubric.join(", ")}. É uma rubrica formativa, sem nota
+              automática.
+            </p>
+          )}
           <LinkChapa href="/caderno" tom="contorno" className="mt-5">
             Guardar minha investigação
           </LinkChapa>

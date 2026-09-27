@@ -1,7 +1,6 @@
 import { Brand } from "@/components/brand";
 import { catalogCourses, catalogGrades } from "@/features/content/catalog";
 import { gradeRangeSentence } from "@/features/family/school-year";
-import { listaPtBr } from "@/lib/texto";
 export const metadata = { title: "Termos de uso" };
 
 export default function Terms() {
@@ -28,10 +27,10 @@ export default function Terms() {
         <h2>O serviço</h2>
         <p>
           Oferecemos conteúdo autoral de preparação independente para desafios escolares{" "}
-          {gradeRangeSentence(catalogGrades)}. Há trilhas voltadas às competências cobradas em{" "}
-          {listaPtBr(catalogCourses.map((course) => course.label))}. Trilhas da mesma faixa
-          compartilham fundamentos, e as primeiras missões de cada trilha podem ser experimentadas
-          antes da assinatura.
+          {gradeRangeSentence(catalogGrades)}. São {catalogCourses.length} trilhas voltadas às
+          competências cobradas na OBMEP Mirim, na OBMEP, no Canguru de Matemática Brasil e na
+          OLITEF. Trilhas da mesma faixa compartilham fundamentos, e as primeiras missões de cada
+          trilha podem ser experimentadas antes da assinatura.
         </p>
         <h2>Assinatura</h2>
         <p>
@@ -52,8 +51,9 @@ export default function Terms() {
         <p>
           Os resultados são formativos. Não prometemos medalha, classificação, aprovação nem
           substituição da escola. Justificativas abertas podem ser registradas no caderno, mas não
-          recebem correção humana ilimitada ou nota oficial. O serviço não é afiliado às
-          organizações OLITEF, Canguru ou OBMEP.
+          recebem correção humana ilimitada ou nota oficial. O serviço não tem vínculo com a OBMEP,
+          a OBMEP Mirim, o Canguru de Matemática Brasil ou a OLITEF, nem com as instituições que as
+          organizam.
         </p>
         <p>
           O responsável não deve tentar contornar controles de acesso, interromper o serviço,

@@ -23,6 +23,16 @@ const config: NextConfig = {
     "@informach/ui",
   ],
   experimental: { serverActions: { bodySizeLimit: "64kb" } },
+  // O Railway expõe ambiente e commit também no build; o cliente do Sentry os
+  // recebe daqui, sem variável NEXT_PUBLIC_* criada à mão.
+  env: {
+    NEXT_PUBLIC_RAILWAY_ENVIRONMENT_NAME:
+      process.env.NEXT_PUBLIC_RAILWAY_ENVIRONMENT_NAME ??
+      process.env.RAILWAY_ENVIRONMENT_NAME ??
+      "",
+    NEXT_PUBLIC_RAILWAY_GIT_COMMIT_SHA:
+      process.env.NEXT_PUBLIC_RAILWAY_GIT_COMMIT_SHA ?? process.env.RAILWAY_GIT_COMMIT_SHA ?? "",
+  },
   async headers() {
     return [
       {

@@ -61,7 +61,7 @@ export const equacoes: SkillPack = {
           "conferir-solucao",
           "Qual valor de x torna verdadeira a igualdade 4x − 7 = 21?",
           7,
-          [3.5, 5],
+          ["3,5", 5],
           "4x = 21 + 7 = 28, então x = 7. Conferindo: 4 × 7 − 7 = 21.",
           {
             feedback: [
@@ -545,14 +545,16 @@ export const equacoes: SkillPack = {
   reserved: (seed, variant) => {
     if (variant === 0) {
       const coefficient = 3 + (seed % 4);
-      const solution = 4 + (seed % 11);
-      const constant = coefficient * (1 + (seed % 3));
+      const k = 1 + (seed % 3);
+      // A solução passa de 2k para que o erro de sinal (solução − 2k) dê um positivo.
+      const solution = Math.max(4 + (seed % 11), 2 * k + 1);
+      const constant = coefficient * k;
       const result = coefficient * solution - constant;
       return c(
         "equacao-para-resolver",
         `Qual é o valor de t na equação ${coefficient}t − ${constant} = ${result}?`,
         solution,
-        [solution + 1, solution - 2 * (1 + (seed % 3))],
+        [solution + 1, solution - 2 * k],
         `${coefficient}t = ${result} + ${constant} = ${result + constant}; t = ${solution}.`,
         {
           feedback: [

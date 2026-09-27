@@ -64,7 +64,7 @@ export function ofGrade(grade: number): string {
 }
 
 /**
- * "6º e 7º ano", "1ª e 2ª série do EM", "do 6º ao 9º ano",
+ * "6º e 7º anos", "1ª e 2ª séries do EM", "do 6º ao 9º ano",
  * "da 1ª à 3ª série do EM" ou "do 2º ano à 3ª série do EM".
  */
 export function gradeRangeLabel(grades: readonly number[]): string {
@@ -75,15 +75,30 @@ export function gradeRangeLabel(grades: readonly number[]): string {
   if (ordered.length === 1) return gradeLabel(first);
   const mesmaEtapa = serie(first) === serie(last);
   const inicio = mesmaEtapa ? ordinal(first) : gradeLabel(first);
-  if (ordered.length === 2) return `${inicio} e ${gradeLabel(last)}`;
+  if (ordered.length === 2)
+    return mesmaEtapa
+      ? `${inicio} e ${ordinal(last)} ${serie(last) ? "séries do EM" : "anos"}`
+      : `${inicio} e ${gradeLabel(last)}`;
   return `${serie(first) ? "da" : "do"} ${inicio} ${serie(last) ? "à" : "ao"} ${gradeLabel(last)}`;
 }
 
-/** Para frases: "para o 6º e 7º ano", "para a 3ª série do EM" ou "do 6º ao 9º ano". */
+/**
+ * Para frases, com "ensino médio" por extenso: "para o 6º e o 7º ano",
+ * "para a 3ª série do ensino médio" ou "do 2º ano à 3ª série do ensino médio".
+ */
 export function gradeRangeSentence(grades: readonly number[]): string {
-  const label = gradeRangeLabel(grades);
-  if (/^d[oa] /.test(label)) return label;
-  return `${serie(Math.min(...grades)) ? "para a" : "para o"} ${label}`;
+  const ordered = [...new Set(grades)].sort((a, b) => a - b);
+  const first = ordered[0];
+  const last = ordered[ordered.length - 1];
+  if (first === undefined || last === undefined) return "";
+  const extenso = (texto: string) => texto.replace(/ do EM$/, " do ensino médio");
+  const artigo = (grade: number) => (serie(grade) ? "a" : "o");
+  if (ordered.length === 1) return `para ${artigo(first)} ${extenso(gradeLabel(first))}`;
+  if (ordered.length === 2)
+    return serie(first) === serie(last)
+      ? `para ${artigo(first)} ${ordinal(first)} e ${artigo(last)} ${extenso(gradeLabel(last))}`
+      : `para o ${gradeLabel(first)} e a ${extenso(gradeLabel(last))}`;
+  return extenso(gradeRangeLabel(ordered));
 }
 
 export function gradeOptions(grades: readonly number[]) {

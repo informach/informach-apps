@@ -36,8 +36,8 @@ export function Demo() {
         Missão demonstrativa · passo {passo} de 3 · {PASSOS[passo - 1]}
       </Etiqueta>
       <p className="mt-2 text-sm text-tinta-suave">
-        Exemplo de uma missão do 7º ano. Cada trilha tem problemas do tamanho do ano escolar, do 2º
-        ano ao ensino médio.
+        Esta é uma missão de exemplo do 7º ano. Cada trilha traz problemas pensados para o ano
+        escolar, do 2º ano à 3ª série do ensino médio.
       </p>
 
       <FalaFaisca humor="acolhendo" tom="verde" titulo="Oi! Sou a Faísca." className="mt-4">
@@ -145,8 +145,8 @@ export function Demo() {
           Uma pequena ideia. Muitas aplicações.
         </h2>
         <p className="mt-2 mb-5 text-tinta">
-          Crie uma conta do responsável para explorar a unidade gratuita e guardar o progresso. Esta
-          demonstração não salva dados nem atribui domínio.
+          Crie uma conta do responsável para explorar as primeiras missões gratuitas e guardar o
+          progresso. Esta demonstração não salva dados nem atribui domínio.
         </p>
         <LinkChapa href="/entrar" medida="g">
           Abrir minha jornada →

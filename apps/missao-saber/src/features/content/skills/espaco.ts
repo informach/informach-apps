@@ -204,7 +204,7 @@ export const espaco: SkillPack = {
           "Pirâmides e cones têm ⅓ × base × altura.",
           {
             feedback: [
-              "Metade seria se o cone tivesse o volume de um prisma triangular; cones e pirâmides têm um terço.",
+              "Metade é um palpite comum, mas cones e pirâmides têm um terço: são precisos três cones cheios para encher o cilindro.",
               "O cone é mais estreito em cima.",
             ],
           },

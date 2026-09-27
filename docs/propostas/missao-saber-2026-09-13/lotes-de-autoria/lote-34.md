@@ -15,3 +15,13 @@ Junto com este lote entram três ajustes que valem para todas as habilidades das
 - **Ordenação e justificativa das missões 4 e 5.** Os passos de conferir e de comparar dois caminhos ganharam enunciado próprio com o nome da missão, e versões em palavras simples para os anos iniciais. A rubrica da justificativa cita a ideia central da habilidade.
 
 Todos os itens alterados passaram por nova conferência independente antes de os hashes entrarem em `reviewed-catalog.ts`.
+
+## Revisão completa antes do deploy
+
+Nove revisores independentes leram tudo o que foi implementado: seis no conteúdo, divididos por faixa, e três no código (lógica, segurança e operação, textos e experiência). Nenhum gabarito estava errado. As correções aplicadas foram:
+
+- **Conteúdo.** Enunciados que dependiam de algo não dito (pesos iguais na balança, dobras de papel, posições em mapas), retornos que não descreviam o erro da alternativa, uma alternativa exibida como "3.5", fatos brasileiros desatualizados (teto do rotativo, impostos tratados como taxa fixa, poupança), textos com cara de garantia e geradores que repetiam questões das missões ou formatavam números sem ponto de milhar. As justificativas e ordenações dos anos iniciais passaram a falar da missão em que aparecem, com dicas em palavras de criança.
+- **Código.** Uma missão aberta na trilha antiga deixou de travar a página depois da virada de ano ou de uma troca de trilha: ela é encerrada como interrompida. O mês de nascimento não vai mais ao navegador em toda página. A edição de perfil registra eventos de auditoria só com nomes de campo, e o consentimento ganhou histórico append-only. A exclusão de conta pelo Missão Saber recusa quando a pessoa tem dados na Agenda ou no Cozya e indica o app que sabe apagá-los.
+- **Textos.** Oferta gratuita descrita igual em todo lugar, relatório da família descrito como gratuito, termos com os nomes completos das olimpíadas, faixas de ano com plural e "ensino médio" por extenso nas frases, e formulário de perfil sem ano pré-escolhido.
+
+Todos os itens alterados tiveram o hash de revisão registrado de novo depois da conferência.

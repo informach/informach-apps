@@ -313,8 +313,8 @@ test("parent signup, verified profile, learning, saved lab, report and profile s
   await page.getByRole("button", { name: "Conferir minha ideia" }).click();
   await expect(page.getByRole("heading", { name: "Reflexão registrada." })).toBeVisible();
   await page.getByRole("button", { name: "Ver minhas descobertas", exact: true }).click();
-  await expect(page.getByText(/3 de 3 questões com correção objetiva/)).toBeVisible();
-  await expect(page.getByText(/1 reflexão foi registrada sem nota automática/)).toBeVisible();
+  await expect(page.getByText(/Você acertou 3 de 3 questões/)).toBeVisible();
+  await expect(page.getByText(/Sua explicação ficou guardada, sem nota/)).toBeVisible();
   await page.goto("/familia");
   await criarPerfil(page, "Lua");
   await expect(page.getByRole("heading", { name: "Olá, Lua." })).toBeVisible();

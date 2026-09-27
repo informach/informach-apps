@@ -23,8 +23,8 @@ export default function About() {
         <p>
           Missão Saber é um produto Informach de preparação independente para desafios escolares. O
           app atende {gradeRangeSentence(catalogGrades)}, com {catalogCourses.length} trilhas de
-          educação financeira, matemática e raciocínio inspiradas nas competências de OLITEF,
-          Canguru e OBMEP.
+          educação financeira, matemática e raciocínio inspiradas nas competências da OBMEP, da
+          OBMEP Mirim, do Canguru e da OLITEF.
         </p>
         <h2>O hábito abre espaço para pensar</h2>
         <p>

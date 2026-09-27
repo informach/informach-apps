@@ -20,14 +20,14 @@ O build executa `pnpm install --frozen-lockfile --prod=false && pnpm build:missa
 
 ## Ordem de deploy com migração nova
 
-O migrator é um serviço à parte, disparado à mão, e as três aplicações só recebem tráfego quando `/api/ready` confirma que o banco não está atrás do build. Um push que traz migração nova e mexe em `packages/db` publica Missão Saber, Cozya e Agenda juntos, e os três ficam em 503 até a migração rodar; os deployments antigos continuam servindo nesse meio tempo. Por isso:
+O migrator é um serviço à parte, ligado ao repositório com Watch Paths em `packages/db/**` e `packages/billing/src/seeds/**` (configurados no Dashboard, não no `migrator.toml`). As três aplicações só recebem tráfego quando `/api/ready` confirma que o banco não está atrás do build. Um push que traz migração nova e mexe em `packages/db` dispara juntos o migrator e os deploys de Missão Saber, Cozya e Agenda; os deployments antigos continuam servindo até os novos passarem no healthcheck. Por isso:
 
 1. `git push` para `main`.
-2. Railway: `migrator`, Deployments, Redeploy. Esperar SUCCESS.
-3. Railway: redeploy de Missão Saber, Cozya e Agenda da Turma, se os deploys disparados pelo push tiverem falhado no healthcheck.
-4. Conferir `/api/ready` dos três e rodar `DATABASE_PUBLIC_URL=… pnpm --filter @informach/missao-saber production:verify-schema`, que compara com o journal do checkout.
+2. Railway: conferir que o `migrator` ganhou um deployment no commit do push e esperar SUCCESS, com `[db:migrate] done.` no log. Se o push não disparou o migrator, usar Deploy Latest Commit; nunca Redeploy de um deployment antigo, que roda o commit antigo sem a migração nova. Uma falha depois da migração, no `db:seed:reference` (busca no IBGE), marca o deployment como FAILED com o banco já migrado: o log diz qual foi o caso.
+3. Railway: redeploy de Missão Saber, Cozya e Agenda da Turma se algum deploy do push falhou no healthcheck (Cozya e Agenda esperam só 30 s). O redeploy usa o mesmo commit, que é o certo aqui.
+4. Conferir `/api/ready` dos três, o commit em `/api/health` e rodar `DATABASE_PUBLIC_URL=… pnpm --filter @informach/missao-saber production:verify-schema`, que compara com o journal do checkout.
 
-As migrações desta atualização são compatíveis com o código que já está no ar, então aplicar antes ou depois do push é seguro.
+As migrações desta atualização são compatíveis com o código que já está no ar, então aplicar antes ou depois do push é seguro. O rollback de código continua possível para o schema, mas não para os dados: depois que a versão nova rodar, podem existir perfis com anos escolares e trilhas que a versão antiga não conhece. Voltar para um deployment anterior a esta atualização exige conferir esses perfis antes.
 
 ## Banco, migrations e recuperação
 
@@ -77,7 +77,7 @@ Na atualização de 26/09/2026, com o catálogo completo, passaram 161 testes un
 
 O repositório tem `.gitattributes` com `eol=lf`, então o Biome passa igual em Linux e Windows. Em um clone feito antes desse arquivo, o checkout está em CRLF e o `pnpm check` local acusa formatação: com a árvore limpa, rode `git rm -r -q --cached . && git reset --hard` para reescrever os arquivos em LF (o comando descarta alterações não commitadas).
 
-O Sentry recebe `environment` do nome do ambiente Railway (`RAILWAY_ENVIRONMENT_NAME`) e `release` do commit (`RAILWAY_GIT_COMMIT_SHA`); só erros viram eventos, avisos ficam no log estruturado. No cliente, as duas variáveis precisam existir com o prefixo `NEXT_PUBLIC_` para aparecerem.
+O Sentry recebe `environment` do nome do ambiente Railway (`RAILWAY_ENVIRONMENT_NAME`) e `release` do commit (`RAILWAY_GIT_COMMIT_SHA`); só erros viram eventos, avisos ficam no log estruturado. No cliente, o `next.config.ts` repassa as duas variáveis do Railway no build como `NEXT_PUBLIC_*`, sem configuração manual.
 
 O grupo `(app)` não tem `loading.tsx` de propósito: com essa fronteira de Suspense, o Next 16.2 deixa de aplicar na tela a árvore devolvida por uma server action ou por `router.refresh()` em produção (vercel/next.js#86055). A troca de trilha em `/jornada` reproduzia isso. Reavaliar quando o Next corrigir.
 

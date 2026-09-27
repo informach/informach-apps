@@ -192,14 +192,14 @@ export const logicaN2: SkillPack = {
         ),
         c(
           "tabela-logica",
-          "Com 9 moedas iguais e uma delas mais leve, quantas pesagens em balança de pratos bastam para achá-la com certeza?",
+          "Entre 9 moedas de aparência igual, uma é mais leve. Com uma balança de dois pratos, qual é o menor número de pesagens que garante achá-la?",
           2,
           [3, 4],
           "Divida em três grupos de 3: uma pesagem indica o grupo da leve; dentro dele, outra pesagem indica a moeda.",
           {
             feedback: [
-              "Cada pesagem separa em três casos; duas pesagens cobrem 9 possibilidades.",
-              "Quatro pesagens são mais que o necessário.",
+              "Três pesagens também acham a moeda, mas não é o menor número: cada pesagem separa em três casos, e duas já cobrem 9 possibilidades.",
+              "Quatro pesagens também acham a moeda, mas duas já bastam.",
             ],
           },
         ),

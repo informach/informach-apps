@@ -61,6 +61,7 @@ export async function buildWeeklySummary(
       skillNames,
     });
     blocos.push({
+      id: profile.id,
       nome: profile.nickname,
       linhas: narrative.linhas,
       apoio: homeSupportFor(nextSkill ?? repeated[0]?.skillId ?? "") ?? [],
@@ -81,6 +82,7 @@ export async function buildWeeklySummary(
     ]),
     `Ver o relatório completo: ${appUrl}/familia`,
     rodape,
+    ...(unsubscribeUrl ? [`Para não receber mais este resumo: ${unsubscribeUrl}`] : []),
   ].join("\n");
   const { html } = await renderEmailElement(
     createElement(ResumoSemanalEmail, { blocos, appUrl, unsubscribeUrl }),

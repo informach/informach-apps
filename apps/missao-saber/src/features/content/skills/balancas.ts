@@ -1,4 +1,4 @@
-import { c, n, type SkillPack } from "../skill-factory";
+import { c, decimal, n, type SkillPack } from "../skill-factory";
 
 /**
  * Balanças e relações: equilíbrio de dois pratos, trocar um objeto por
@@ -40,7 +40,7 @@ export const balancas: SkillPack = {
         ),
         c(
           "ler-balanca",
-          "Uma balança está equilibrada com um pacote de cada lado. Tira-se uma bala de cada pacote. O que acontece com a balança?",
+          "Uma balança está equilibrada com um pacote de balas de cada lado, e todas as balas são iguais. Tira-se uma bala de cada pacote. O que acontece com a balança?",
           "Continua equilibrada",
           ["O lado esquerdo desce", "Não dá para saber"],
           "Tirar o mesmo peso dos dois lados mantém o equilíbrio.",
@@ -84,10 +84,10 @@ export const balancas: SkillPack = {
         ),
         c(
           "ler-balanca",
-          "Numa balança, o prato da esquerda tem 2 maçãs e o da direita tem 2 maçãs e 1 uva. Qual prato desce?",
+          "Numa balança há 4 maçãs iguais, 2 em cada prato. No prato da direita há também 1 uva. Qual prato desce?",
           "O da direita, por causa da uva",
           ["O da esquerda", "Nenhum; ficam iguais"],
-          "As maçãs se anulam; sobra a uva na direita.",
+          "As 2 maçãs de cada prato pesam o mesmo; sobra a uva, que deixa a direita mais pesada.",
           {
             feedback: ["A esquerda tem menos peso.", "A uva desequilibra, mesmo sendo leve."],
           },
@@ -150,7 +150,7 @@ export const balancas: SkillPack = {
         ),
         c(
           "trocar",
-          "Uma balança tem 1 pera e 1 ameixa de um lado e 3 ameixas do outro, em equilíbrio. Quantas ameixas pesa a pera?",
+          "Uma balança tem 1 pera e 1 ameixa de um lado e 3 ameixas do outro, em equilíbrio. Todas as ameixas são iguais. A pera pesa o mesmo que quantas ameixas?",
           "2",
           ["3", "4"],
           "Tirando 1 ameixa de cada lado, sobra a pera contra 2 ameixas.",
@@ -385,7 +385,7 @@ export const balancas: SkillPack = {
         ),
         c(
           "descobrir",
-          "Uma balança de pratos está equilibrada com 1 abacaxi e 1 maçã de um lado e 1 abacaxi e 3 maçãs iguais do outro. O que isso mostra?",
+          "Uma balança de pratos está equilibrada com 1 abacaxi e 1 maçã no prato da esquerda e 1 abacaxi e 3 maçãs no da direita. Os dois abacaxis são iguais, e as 4 maçãs também são todas iguais. O que isso mostra?",
           "Que há algo errado: 1 maçã não equilibra 3 iguais",
           [
             "Que a maçã da esquerda pesa o mesmo que 3 maçãs",
@@ -408,7 +408,8 @@ export const balancas: SkillPack = {
             misreads: [
               {
                 value: 300,
-                feedback: "300 é o peso que sobra ao tirar 600 de 900, não o do saco.",
+                feedback:
+                  "Para chegar a 300, fez 900 − 300 = 600 e dividiu por 2 sacos, mas do outro lado também há 1 saco; tire 1 saco de cada lado primeiro.",
               },
             ],
           },
@@ -555,10 +556,10 @@ export const balancas: SkillPack = {
       const errada = Number.isInteger(somado) && somado !== todas ? somado : pesoCaixa + 50;
       return c(
         "peso-escondido",
-        `Uma balança está equilibrada. De um lado há ${caixas} caixas iguais e um peso de ${pesoSolto} gramas; do outro, pesos que somam ${outroLado} gramas. Quanto pesa cada caixa?`,
-        `${pesoCaixa} gramas`,
-        [`${errada} gramas`, `${todas} gramas`],
-        `${outroLado} − ${pesoSolto} = ${caixas * pesoCaixa}; ${caixas * pesoCaixa} ÷ ${caixas} = ${pesoCaixa}.`,
+        `Uma balança está equilibrada. De um lado há ${caixas} caixas iguais e um peso de ${decimal(pesoSolto)} gramas; do outro, pesos que somam ${decimal(outroLado)} gramas. Quanto pesa cada caixa?`,
+        `${decimal(pesoCaixa)} gramas`,
+        [`${decimal(errada)} gramas`, `${decimal(todas)} gramas`],
+        `${decimal(outroLado)} − ${decimal(pesoSolto)} = ${decimal(todas)}; ${decimal(todas)} ÷ ${caixas} = ${decimal(pesoCaixa)}.`,
         {
           feedback: [
             "Não confere: o peso solto está do mesmo lado das caixas e deve ser tirado antes de dividir.",

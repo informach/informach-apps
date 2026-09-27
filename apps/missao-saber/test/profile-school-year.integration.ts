@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db, eq } from "@informach/db";
-import { missaoFamilies, missaoProfiles, users } from "@informach/db/schema";
+import { missaoFamilies, missaoProfiles, missaoSessions, users } from "@informach/db/schema";
 import { beforeAll, describe, expect, it } from "vitest";
 import { schoolYear } from "@/features/family/school-year";
 import { CONSENT_VERSION, getProfiles } from "@/features/learning/repository";
@@ -154,5 +154,38 @@ describe("ano escolar do perfil em PostgreSQL isolado", () => {
     expect(sessao.lessonId).toBe("funcoes-1");
     const [depois] = await db.select().from(missaoProfiles).where(eq(missaoProfiles.id, profileId));
     expect(depois?.courseId).toBe("obmep-n3");
+  });
+
+  it("encerra a pausa da trilha antiga na virada e não a oferece como único caminho", async () => {
+    // 5º ano na OBMEP Mirim 2, com uma missão gratuita deixada aberta.
+    await db
+      .update(missaoProfiles)
+      .set({ grade: 5, courseId: "mirim-2", gradeYear: schoolYear() })
+      .where(eq(missaoProfiles.id, profileId));
+    const aberta = await begin(owner, {
+      profileId,
+      lessonId: "contagem-inicial-1",
+      mode: "mission",
+      requestKey: randomUUID(),
+    });
+    expect((await dashboard(owner, profileId)).paused?.id).toBe(aberta.id);
+    // Virada: o 6º ano segue para a OBMEP N1, e a pausa da Mirim não aparece mais.
+    await db
+      .update(missaoProfiles)
+      .set({ gradeYear: schoolYear() - 1 })
+      .where(eq(missaoProfiles.id, profileId));
+    const painel = await dashboard(owner, profileId);
+    expect(painel.course?.id).toBe("obmep-n1");
+    expect(painel.paused).toBeNull();
+    // Gravar a trilha nova encerra a pausa antiga, que fica no histórico como interrompida.
+    await begin(owner, {
+      profileId,
+      lessonId: "fracoes-1",
+      mode: "mission",
+      requestKey: randomUUID(),
+    });
+    const [antiga] = await db.select().from(missaoSessions).where(eq(missaoSessions.id, aberta.id));
+    expect(antiga?.interruptedAt).not.toBeNull();
+    expect(antiga?.interruptionReason).toBe("A trilha mudou");
   });
 });

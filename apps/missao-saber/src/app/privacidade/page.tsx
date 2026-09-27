@@ -60,8 +60,10 @@ export default function Privacy() {
         <p>
           Railway e Cloudflare hospedam e entregam o serviço; PostgreSQL e Redis sustentam dados,
           sessão e proteção contra abuso. O SendGrid entrega códigos de acesso e mensagens
-          transacionais ao responsável. A Stripe processa assinaturas; dados completos de cartão são
-          preenchidos em sua página segura e não chegam ao Missão Saber. O Sentry recebe erros
+          transacionais ao responsável e, se ele ativar na área da família, um resumo semanal do
+          estudo, com a mesma leitura daquela área. O resumo pode ser desligado na área da família
+          ou pelo link do próprio e-mail. A Stripe processa assinaturas; dados completos de cartão
+          são preenchidos em sua página segura e não chegam ao Missão Saber. O Sentry recebe erros
           técnicos após filtragem de identidades, respostas, cadernos e corpos de requisição.
           Respostas e cadernos não são enviados a modelos de IA. Não vendemos dados nem os
           compartilhamos com anunciantes.

@@ -38,7 +38,7 @@ export default async function Login({
       <section className="rounded-heroi border-2 border-sombra bg-creme p-6 shadow-chapa-lg sm:p-8">
         <h2 className="font-display text-2xl font-semibold text-tinta">Vamos começar?</h2>
         <p className="mt-1 mb-6 text-sm text-tinta-suave">
-          A primeira unidade é gratuita. Sem cartão.
+          As primeiras missões de cada trilha são gratuitas. Sem cartão.
         </p>
         <AuthForm
           initialMode={confirmar ? "verify" : "login"}

@@ -18,12 +18,12 @@ export function SignOut() {
           start(async () => {
             setError("");
             try {
+              await forgetProfileAction();
               const result = await authClient.signOut();
               if (result.error) {
                 setError("Não foi possível sair. Tente novamente.");
                 return;
               }
-              await forgetProfileAction();
               router.push("/");
               router.refresh();
             } catch {

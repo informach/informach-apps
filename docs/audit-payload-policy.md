@@ -44,6 +44,13 @@ Eventos de billing devem registrar o ator quando a ação veio de usuário auten
 - Falha de persistência do audit permanece best-effort e deve ser reportada via `observability.onAuditPersistenceFailure`.
 - Novo evento exige atualizar a union `AuditEventType`, a union do package emissor quando existir, docs e testes de wiring.
 
+## Eventos do Missão Saber
+
+Eventos `missao.*` registram o que o responsável fez com os perfis das crianças, com payload mínimo de IDs e nomes de campo. Nunca gravar apelido, mês de nascimento, ano escolar ou qualquer valor preenchido.
+
+- `missao.profile_updated`: `{ profileId, fields }`, onde `fields` lista só os nomes dos campos alterados (`nickname`, `avatar`, `grade`, `birthMonth`, `courseId`).
+- `missao.consent_recorded`: `{ profileId, scope, version }`, com `scope` igual a `profile` (criação do perfil) ou `birth_month` (mês de nascimento informado pela primeira vez na edição) e `version` igual à versão da política aceita. É append-only: a linha `families.consent_version` guarda só o estado atual, e o histórico fica aqui.
+
 ## Eventos da Agenda da Turma
 
 Eventos `agenda.*` registram mutações de domínio do app `agenda-da-turma` com payload mínimo de IDs e flags operacionais. Não gravar nomes de estudantes, nomes de matérias, títulos, descrições ou conteúdo livre de atividades.

@@ -54,7 +54,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <Brand compacto />
           </div>
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
-            <ProfileSwitcher profiles={data.profiles} selected={data.profile?.id} />
+            <ProfileSwitcher
+              profiles={data.profiles.map(({ id, nickname, avatar, grade }) => ({
+                id,
+                nickname,
+                avatar,
+                grade,
+              }))}
+              selected={data.profile?.id}
+            />
             {/* A área da família sai da navegação da criança: é do responsável,
                 e já exige reautenticação de 10 minutos. */}
             <Link

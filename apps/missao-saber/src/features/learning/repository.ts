@@ -17,7 +17,11 @@ import {
 import { assertAllowed } from "@/lib/errors";
 import { withBillingLifecycleWait } from "../billing/repository";
 import { getAccess } from "../billing/service";
-import { assertableAvailabilityMessage, lessonAvailability } from "../content/availability";
+import {
+  assertableAvailabilityMessage,
+  lessonAvailability,
+  lessonIdInCourse,
+} from "../content/availability";
 import { assessmentSources, type ContentIdentity, findCourse } from "../content/catalog";
 import { type Lesson, lessonSchema } from "../content/types";
 import { itemHash } from "../content/version";
@@ -110,6 +114,37 @@ export async function getFamily(userId: string) {
   const [family] = await db.select().from(families).where(eq(families.userId, userId));
   return family ?? null;
 }
+/**
+ * Trocar de trilha encerra as pausas que ficaram na trilha anterior: elas não
+ * podem mais ser retomadas, e deixá-las abertas faria a página oferecer um
+ * percurso que seria recusado. O histórico continua lá, como interrompido.
+ */
+async function closeSessionsOutsideCourse(tx: Tx, profileId: string, courseId: string) {
+  const course = findCourse(courseId);
+  if (!course) return;
+  const open = await tx
+    .select({ id: sessions.id, lessonId: sessions.lessonId })
+    .from(sessions)
+    .where(
+      and(
+        eq(sessions.profileId, profileId),
+        isNull(sessions.completedAt),
+        isNull(sessions.interruptedAt),
+      ),
+    );
+  const outside = open.filter((session) => !lessonIdInCourse(course, session.lessonId));
+  if (!outside.length) return;
+  await tx
+    .update(sessions)
+    .set({ interruptedAt: new Date(), interruptionReason: "A trilha mudou" })
+    .where(
+      inArray(
+        sessions.id,
+        outside.map((session) => session.id),
+      ),
+    );
+}
+
 /** Versão da política de privacidade aceita no consentimento mais recente. */
 export const CONSENT_VERSION = "2026-09-26";
 
@@ -154,7 +189,8 @@ export async function updateProfile(
     await lockOwner(tx, userId);
     const current = await ownedProfile(tx, userId, profileId);
     // Mês de nascimento novo é dado novo: pede a autorização de novo.
-    if (!current.birthMonth && input.birthMonth) {
+    const consentRecorded = !current.birthMonth && !!input.birthMonth;
+    if (consentRecorded) {
       assertAllowed(
         birthConsent,
         "CONSENT",
@@ -162,20 +198,30 @@ export async function updateProfile(
       );
       await recordConsent(tx, userId);
     }
+    const changedFields = (
+      ["nickname", "avatar", "grade", "birthMonth", "courseId"] as const
+    ).filter((field) =>
+      field === "grade"
+        ? current.grade !== input.grade
+        : String(current[field] ?? "") !== String(input[field] ?? ""),
+    );
     const [updated] = await tx
       .update(profiles)
       .set(input)
       .where(eq(profiles.id, profileId))
       .returning();
     assertAllowed(updated, "SAVE", "Não foi possível atualizar o perfil.");
-    return withEffectiveGrade(updated);
+    if (current.courseId !== input.courseId)
+      await closeSessionsOutsideCourse(tx, profileId, input.courseId);
+    return { profile: withEffectiveGrade(updated), changedFields, consentRecorded };
   });
 }
 export async function updateCourse(userId: string, profileId: string, courseId: string) {
   return db.transaction(async (tx) => {
     await lockOwner(tx, userId);
-    await ownedProfile(tx, userId, profileId);
+    const current = await ownedProfile(tx, userId, profileId);
     await tx.update(profiles).set({ courseId }).where(eq(profiles.id, profileId));
+    if (current.courseId !== courseId) await closeSessionsOutsideCourse(tx, profileId, courseId);
   });
 }
 export async function contentStates() {

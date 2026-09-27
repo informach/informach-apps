@@ -276,16 +276,16 @@ export function assessment(
   return {
     id: `${mode}:${currentCourse.id}`,
     version: bank?.version ?? 1,
-    title: mode === "diagnostic" ? "Seu ponto de partida" : "Simulado autoral de estratégias",
+    title: mode === "diagnostic" ? "Seu ponto de partida" : "Simulado de estratégias",
     skillId: "mixed",
     objective:
       mode === "diagnostic"
-        ? "Identificar estratégias de entrada e próximos passos."
-        : "Observar transferência para problemas reservados e conectar estratégias.",
+        ? "Descobrir por onde começar e quais são os próximos passos."
+        : "Usar as estratégias da trilha em problemas novos.",
     introduction:
       assessmentNovelty === "fresh"
-        ? "Este percurso usa atividades autorais reservadas ainda não vistas neste perfil."
-        : "Este percurso retoma atividades já expostas e será identificado como prática, sem simular uma nova medida independente.",
+        ? "Estas questões são novas para você."
+        : "Você já viu estas questões antes, então este percurso conta como prática.",
     lab: null,
     free: mode === "diagnostic",
     kind: "assessment",

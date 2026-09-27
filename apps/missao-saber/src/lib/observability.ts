@@ -20,7 +20,14 @@ export const packageLogger = {
   error: (message: string, context?: object) => log("error", message, context),
 };
 
-export function audit(event: BillingAuditEvent | EmailAuditEvent) {
+/** Eventos de domínio do Missão Saber: só IDs e nomes de campo, ver docs/audit-payload-policy.md. */
+export type MissaoAuditEvent = {
+  eventType: "missao.profile_updated" | "missao.consent_recorded";
+  actorId: string;
+  payload: Record<string, unknown>;
+};
+
+export function audit(event: BillingAuditEvent | EmailAuditEvent | MissaoAuditEvent) {
   // Lazy import avoids the auth -> email -> audit initialization cycle.
   void import("@informach/auth")
     .then(({ logAuditEvent }) =>

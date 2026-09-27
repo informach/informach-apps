@@ -300,7 +300,7 @@ export const porcentagemN2: SkillPack = {
           "96 ÷ 1,6 = 60.",
           {
             feedback: [
-              "57,6 tira 40% de 96, como se o aumento fosse sobre 96.",
+              "57,6 é 60% de 96: aplicou a taxa ao valor final em vez de dividir 96 por 1,6.",
               "36 é 60% de 60, o valor do aumento.",
             ],
           },
@@ -379,7 +379,7 @@ export const porcentagemN2: SkillPack = {
         ),
         n(
           "ler-percentual-em-tabela",
-          "Uma cidade tem 40.000 eleitores. Um gráfico mostra 45% para a candidata A, 35% para o candidato B e o restante em branco ou nulo. Quantos votos em branco ou nulo houve?",
+          "Uma eleição numa cidade teve 40.000 votos. Um gráfico mostra 45% para a candidata A, 35% para o candidato B e o restante em branco ou nulo. Quantos votos em branco ou nulo houve?",
           8000,
           "100% − 45% − 35% = 20%; 20% de 40.000 = 8.000.",
           {
@@ -479,7 +479,7 @@ export const porcentagemN2: SkillPack = {
         ),
         n(
           "imposto",
-          "Um trabalhador recebe R$ 3.200 brutos e tem 8% descontados para a previdência e depois 7,5% do restante para imposto de renda. Qual é o líquido, em reais?",
+          "Um trabalhador recebe R$ 3.200 brutos. Do salário sai um desconto de 8% e, sobre o que sobra, outro de 7,5%. Qual é o valor líquido, em reais?",
           2723.2,
           "3.200 × 0,92 = 2.944; 2.944 × 0,925 = 2.723,20.",
           {
@@ -577,11 +577,13 @@ export const porcentagemN2: SkillPack = {
       `R$ ${Number.isInteger(value) ? String(value) : value.toFixed(2).replace(".", ",")}`;
     if (variant === 0) {
       const taxa = 5 * (2 + (seed % 5));
-      const original = 40 * (2 + (seed % 11));
+      // Com preço final de R$ 100 (80 com 25%), tirar a taxa em reais coincidiria com
+      // tirar a porcentagem do preço final; nesse caso o preço original sobe para 120.
+      const inicial = 40 * (2 + (seed % 11));
+      const original = inicial * (100 + taxa) === 100 * 100 ? inicial + 40 : inicial;
       const final = original + (original * taxa) / 100;
       const sobreFinal = final - (final * taxa) / 100;
-      // Quando o preço final é 100, tirar a taxa em reais coincide com tirar a porcentagem.
-      const emReais = sobreFinal === final - taxa ? final - 2 * taxa : final - taxa;
+      const emReais = final - taxa;
       return c(
         "preco-antes-do-aumento",
         `Depois de um aumento de ${taxa}%, um produto passou a custar ${reais(final)}. Quanto ele custava antes do aumento?`,

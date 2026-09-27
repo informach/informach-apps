@@ -506,7 +506,7 @@ export const caminhos: SkillPack = {
               {
                 value: 12,
                 feedback:
-                  "12 iria e voltaria à loja a cada ponto; a rota mais curta visita os pontos em linha.",
+                  "12 conta a rota duas vezes, como se ainda faltasse voltar; a volta à loja já está nos 2 quilômetros do fim.",
               },
             ],
           },
@@ -619,7 +619,7 @@ export const caminhos: SkillPack = {
     skillId: "caminhos",
     title: "Todos os caminhos do quarteirão",
     prompt:
-      "Desenhe um mapa quadriculado pequeno (2 por 3 casas) entre a sua casa e um lugar que você gosta. Liste todos os caminhos andando só para a direita e para cima, sem repetir, e depois conte quantos passam por um ponto que você escolher.",
+      "Desenhe um mapa quadriculado pequeno (2 por 3 casas), com a sua casa no canto de baixo à esquerda e um lugar de que você gosta no canto oposto. Liste todos os caminhos de um canto ao canto oposto, andando pelas linhas da malha só para a direita e para cima, sem repetir, e depois conte quantos passam por um ponto que você escolher.",
     lab: null,
     steps: [
       "Desenhe a malha e marque o começo e o fim.",

@@ -563,11 +563,8 @@ export const probabilidadeEm: SkillPack = {
     if (variant === 0) {
       const azuis = 2 + (seed % 4);
       const vermelhasBase = azuis + 1 + (Math.floor(seed / 4) % 4);
-      // 4 e 2 e 6 e 3 já aparecem nas missões.
-      const vermelhas =
-        (vermelhasBase === 4 && azuis === 2) || (vermelhasBase === 6 && azuis === 3)
-          ? vermelhasBase + 1
-          : vermelhasBase;
+      // 5 vermelhas e 3 azuis já é a urna da missão 1.
+      const vermelhas = vermelhasBase === 5 && azuis === 3 ? 6 : vermelhasBase;
       const total = vermelhas + azuis;
       const gcd = (x: number, y: number): number => (y === 0 ? x : gcd(y, x % y));
       const g = gcd(azuis, total);
@@ -592,7 +589,8 @@ export const probabilidadeEm: SkillPack = {
     }
     if (variant === 1) {
       const p = 10 * (1 + (seed % 5));
-      const tentativas = 2 + (seed % 2);
+      // 10% em 2 tentativas é a máquina de duas peças da missão 3.
+      const tentativas = p === 10 ? 3 : 2 + (seed % 2);
       const nenhum = ((100 - p) / 100) ** tentativas;
       const peloMenosUm = Math.round((1 - nenhum) * 1000) / 10;
       const texto = (v: number) => String(v).replace(".", ",");
