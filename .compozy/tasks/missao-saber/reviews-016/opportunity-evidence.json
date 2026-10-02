@@ -1,0 +1,129 @@
+[
+  {
+    "audit": "completed-course",
+    "course": "olitef-n1",
+    "allAttempted": 214,
+    "overdue": 0,
+    "next": "fracoes-1",
+    "nextMode": "mission"
+  },
+  {
+    "audit": "completed-course",
+    "course": "canguru-e",
+    "allAttempted": 186,
+    "overdue": 0,
+    "next": "fracoes-1",
+    "nextMode": "mission"
+  },
+  {
+    "audit": "completed-course",
+    "course": "canguru-b",
+    "allAttempted": 298,
+    "overdue": 0,
+    "next": "fracoes-1",
+    "nextMode": "mission"
+  },
+  {
+    "audit": "completed-course",
+    "course": "obmep-n1",
+    "allAttempted": 298,
+    "overdue": 0,
+    "next": "fracoes-1",
+    "nextMode": "mission"
+  },
+  {
+    "audit": "completed-course",
+    "course": "obmep-n2",
+    "allAttempted": 322,
+    "overdue": 0,
+    "next": "proporcao-1",
+    "nextMode": "mission"
+  },
+  {
+    "audit": "completed-course",
+    "course": "canguru-c",
+    "allAttempted": 276,
+    "overdue": 0,
+    "next": "proporcao-1",
+    "nextMode": "mission"
+  },
+  {
+    "audit": "completed-course",
+    "course": "olitef-n2",
+    "allAttempted": 276,
+    "overdue": 0,
+    "next": "proporcao-1",
+    "nextMode": "mission"
+  },
+  {
+    "audit": "completed-course",
+    "course": "canguru-p",
+    "allAttempted": 322,
+    "overdue": 0,
+    "next": "contagem-inicial-1",
+    "nextMode": "mission"
+  },
+  {
+    "audit": "completed-course",
+    "course": "mirim-2",
+    "allAttempted": 276,
+    "overdue": 0,
+    "next": "contagem-inicial-1",
+    "nextMode": "mission"
+  },
+  {
+    "audit": "completed-course",
+    "course": "obmep-n3",
+    "allAttempted": 322,
+    "overdue": 0,
+    "next": "funcoes-1",
+    "nextMode": "mission"
+  },
+  {
+    "audit": "completed-course",
+    "course": "canguru-j",
+    "allAttempted": 322,
+    "overdue": 0,
+    "next": "funcoes-1",
+    "nextMode": "mission"
+  },
+  {
+    "audit": "completed-course",
+    "course": "canguru-s",
+    "allAttempted": 276,
+    "overdue": 0,
+    "next": "equacoes-em-1",
+    "nextMode": "mission"
+  },
+  {
+    "audit": "completed-course",
+    "course": "olitef-n3",
+    "allAttempted": 230,
+    "overdue": 0,
+    "next": "modelos-financeiros-1",
+    "nextMode": "mission"
+  },
+  {
+    "audit": "completed-course",
+    "course": "mirim-1",
+    "allAttempted": 230,
+    "overdue": 0,
+    "next": "contar-e-comparar-1",
+    "nextMode": "mission"
+  },
+  {
+    "audit": "review-on-displayed-day",
+    "firstDue": "2026-09-11T23:00:00.000Z",
+    "afterMorningReview": "2026-09-11T23:00:00.000Z"
+  },
+  {
+    "audit": "teaching-family-minimum",
+    "skills": 58,
+    "insufficient": []
+  },
+  {
+    "audit": "skip-after-recovery-recurrence-012-005",
+    "before": [],
+    "after": []
+  }
+]

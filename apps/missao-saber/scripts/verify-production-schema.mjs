@@ -69,7 +69,32 @@ try {
         where table_schema = 'missao_saber'
           and table_name = 'profiles'
           and column_name = 'birth_month'
-      ) as profile_birth_month_present
+      ) as profile_birth_month_present,
+      (
+        select count(*) = 4
+        from information_schema.columns
+        where table_schema = 'missao_saber'
+          and is_nullable = 'YES'
+          and (
+            (table_name = 'families' and column_name = 'weekly_report_processed_week' and data_type = 'date')
+            or (table_name = 'notes' and column_name = 'archived_at' and data_type = 'timestamp with time zone')
+            or (table_name = 'notes' and column_name = 'session_id' and data_type = 'uuid')
+            or (table_name = 'notes' and column_name = 'item_id' and data_type = 'text')
+          )
+      ) as notebook_weekly_columns_present,
+      exists (
+        select 1 from pg_index
+        where indexrelid = to_regclass('missao_saber.missao_notes_page')
+          and indrelid = 'missao_saber.notes'::regclass
+          and indisvalid and indisready
+      ) as notebook_page_index_ready,
+      exists (
+        select 1 from pg_constraint
+        where conname = 'notes_session_id_sessions_id_fk'
+          and conrelid = 'missao_saber.notes'::regclass
+          and confrelid = 'missao_saber.sessions'::regclass
+          and contype = 'f' and confdeltype = 'n' and convalidated
+      ) as notebook_session_fk_valid
   `;
 
   const result = {
@@ -96,6 +121,9 @@ try {
     report_request_key_present: true,
     profile_grade_year_present: true,
     profile_birth_month_present: true,
+    notebook_weekly_columns_present: true,
+    notebook_page_index_ready: true,
+    notebook_session_fk_valid: true,
   };
 
   for (const [key, expectedValue] of Object.entries(expected)) {

@@ -118,12 +118,21 @@ export function AuthForm({
               } else if (mode === "otp") {
                 const result = await authClient.signIn.emailOtp({ email, otp });
                 if (result.error) {
-                  setMessage("Código inválido ou expirado. Solicite outro código.");
+                  setMessage(
+                    limite(result.error) ?? "Código inválido ou expirado. Solicite outro código.",
+                  );
                   return;
                 }
                 navigate();
               } else if (mode === "reset") {
-                await authClient.emailOtp.requestPasswordReset({ email });
+                const result = await authClient.emailOtp.requestPasswordReset({ email });
+                if (result.error) {
+                  setMessage(
+                    limite(result.error) ??
+                      "Não foi possível solicitar o código agora. Tente novamente.",
+                  );
+                  return;
+                }
                 setMode("reset-confirm");
                 setMessage(
                   "Se houver uma conta com esse e-mail, você receberá um código para redefinir a senha.",
@@ -131,7 +140,10 @@ export function AuthForm({
               } else {
                 const result = await authClient.emailOtp.resetPassword({ email, otp, password });
                 if (result.error) {
-                  setMessage("Não foi possível redefinir. Confira o código e a nova senha.");
+                  setMessage(
+                    limite(result.error) ??
+                      "Não foi possível redefinir. Confira o código e a nova senha.",
+                  );
                   return;
                 }
                 setMode("login");
@@ -289,10 +301,17 @@ export function AuthForm({
           onClick={() =>
             start(async () => {
               try {
-                await authClient.emailOtp.sendVerificationOtp({
+                const result = await authClient.emailOtp.sendVerificationOtp({
                   email,
                   type: "email-verification",
                 });
+                if (result.error) {
+                  setMessage(
+                    limite(result.error) ??
+                      "Não foi possível solicitar o código agora. Tente novamente.",
+                  );
+                  return;
+                }
                 setMode("verify");
                 setMessage("Se o e-mail precisar de confirmação, um novo código será enviado.");
               } catch {

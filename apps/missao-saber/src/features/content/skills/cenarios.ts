@@ -12,6 +12,7 @@ export const cenarios: SkillPack = {
   lab: "bars",
   missions: [
     {
+      version: 2,
       title: "O que se sabe e o que se supõe",
       objective:
         "Separar dados de premissas numa situação financeira e reconhecer informação que falta.",
@@ -33,7 +34,7 @@ export const cenarios: SkillPack = {
         ),
         n(
           "premissas",
-          "Na mesma análise, quantos depósitos serão feitos ao todo?",
+          "Uma pessoa faz um depósito por mês durante 5 anos. Quantos depósitos serão feitos ao todo?",
           60,
           "12 × 5 = 60.",
           { misreads: [{ value: 5, feedback: "5 é o número de anos; os depósitos são mensais." }] },
@@ -110,6 +111,7 @@ export const cenarios: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "E se mudar?",
       objective: "Medir como o resultado muda quando uma premissa muda (análise de sensibilidade).",
       introduction:
@@ -145,7 +147,7 @@ export const cenarios: SkillPack = {
         ),
         n(
           "sensibilidade",
-          "No item anterior, quantos reais a mais custa o financiamento quando a taxa sobe de 10% para 15%?",
+          "Um financiamento de R$ 20.000 será quitado em uma única parcela daqui a 1 ano. Quantos reais a mais ele custa quando a taxa anual sobe de 10% para 15%?",
           1000,
           "23.000 − 22.000 = 1.000.",
           {
@@ -202,7 +204,7 @@ export const cenarios: SkillPack = {
         ),
         c(
           "sensibilidade",
-          "No item anterior, se a margem por produto cair para R$ 6, o ponto de empate:",
+          "Uma loja tem custo fixo mensal de R$ 2.400 e margem de R$ 8 por produto, empatando com 300 vendas. Se a margem cair para R$ 6, o ponto de empate:",
           "Sobe para 400 produtos",
           ["Cai para 225 produtos", "Continua em 300 produtos"],
           "2.400 ÷ 6 = 400.",
@@ -216,6 +218,7 @@ export const cenarios: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "Três cenários",
       objective:
         "Construir cenários pessimista, base e otimista e calcular o resultado em cada um.",
@@ -231,7 +234,7 @@ export const cenarios: SkillPack = {
         ),
         c(
           "tres-cenarios",
-          "No mesmo exemplo, o cenário otimista tem 15% mais vendas, com o mesmo preço. A receita otimista é:",
+          "Uma loja vende 1.000 produtos a R$ 20 cada no cenário base. O cenário otimista tem 15% mais vendas, com o mesmo preço. A receita otimista é:",
           "R$ 23.000",
           ["R$ 20.300", "R$ 3.000"],
           "1.150 × 20 = 23.000.",
@@ -315,6 +318,7 @@ export const cenarios: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "Comparar alternativas",
       objective: "Comparar alternativas financeiras com vários critérios e cenários.",
       introduction:
@@ -354,7 +358,7 @@ export const cenarios: SkillPack = {
         ),
         c(
           "alternativas",
-          "No item anterior, suponha que a pessoa passe a precisar de transporte também nos fins de semana (mais 8 dias a R$ 40 de aplicativo) e que o custo do carro continue R$ 1.200. A comparação:",
+          "Uma pessoa usa transporte por aplicativo a R$ 40 por dia em 22 dias úteis e mais 8 dias de fim de semana no mês. Um carro custaria R$ 1.200 no mesmo mês, já incluindo todos os gastos. A comparação:",
           "Empata: os dois custam R$ 1.200",
           ["O aplicativo continua R$ 320 mais barato", "O aplicativo fica R$ 320 mais caro"],
           "40 × 30 = 1.200, o mesmo custo do carro.",
@@ -374,7 +378,7 @@ export const cenarios: SkillPack = {
         ),
         c(
           "alternativas",
-          "No item anterior, depois de 24 meses, qual curso deu mais retorno líquido (aumento acumulado menos custo)?",
+          "O curso A custa R$ 4.800 e gera um aumento de salário de R$ 300 por mês; o B custa R$ 2.400 e gera R$ 200 por mês. Supondo esses aumentos desde o primeiro mês, sem juros, depois de 24 meses qual curso deu mais retorno líquido (aumento acumulado menos custo)?",
           "Empatam",
           ["O curso A", "O curso B"],
           "A: 300 × 24 − 4.800 = 2.400. B: 200 × 24 − 2.400 = 2.400.",
@@ -387,7 +391,7 @@ export const cenarios: SkillPack = {
         ),
         n(
           "alternativas",
-          "Ainda nos cursos, em qual mês o retorno acumulado do curso A passa a ser maior que o do B?",
+          "O curso A custa R$ 4.800 e gera R$ 300 a mais por mês; o B custa R$ 2.400 e gera R$ 200 a mais por mês, ambos desde o primeiro mês. Sem juros, em qual mês o retorno líquido acumulado (aumentos menos custo) do curso A passa a ser maior que o do B?",
           25,
           "A − B = 100m − 2.400 > 0 quando m > 24: a partir do 25º mês.",
           {
@@ -398,16 +402,16 @@ export const cenarios: SkillPack = {
         ),
         c(
           "alternativas",
-          "Qual é a limitação principal da comparação dos cursos?",
+          "Uma comparação de cursos calcula o retorno subtraindo o custo do curso dos aumentos de salário esperados a cada mês. Qual premissa sobre a renda pode falhar nessa comparação?",
           "Supor que o aumento de salário esperado vai de fato acontecer e durar",
           [
             "Não considerar o custo de oportunidade do dinheiro pago no curso",
             "Comparar cursos com preços diferentes",
           ],
-          "O aumento é a premissa mais incerta e a que mais pesa.",
+          "O cálculo supõe que os aumentos de salário acontecerão e continuarão durante o período; isso precisa ser verificado, não é garantido pelo curso.",
           {
             feedback: [
-              "O custo de oportunidade existe, mas pesa menos que a incerteza do aumento.",
+              "O custo de oportunidade também é um limite do modelo, mas a pergunta pede a premissa sobre a renda futura.",
               "Comparar preços diferentes é justamente o objetivo.",
             ],
           },

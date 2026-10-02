@@ -6,6 +6,7 @@ import {
   legacyLessonIds,
   lessons,
   progressionBySkill,
+  recoveryLessons,
 } from "./catalog";
 import { authoringLots } from "./lotes";
 import { skillPacks } from "./skills";
@@ -69,7 +70,7 @@ function numericKey(item: Item) {
 }
 
 export function catalogInventory() {
-  const teachingItems = lessons.flatMap((lesson) => lesson.items);
+  const teachingItems = [...lessons, ...recoveryLessons].flatMap((lesson) => lesson.items);
   const reservedItems = assessmentBanks.flatMap((bank) => bank.items);
   const allItems = [...teachingItems, ...reservedItems];
   const signatures = allItems.map((item) =>
@@ -123,6 +124,7 @@ export function catalogInventory() {
     ...itemsOf(lessons.filter((lesson) => legacyLessonIds.has(lesson.id))),
     ...itemsOf(assessmentBanks.filter(isLegacyBank)),
     ...itemsOf(wavedUnits),
+    ...itemsOf(recoveryLessons),
   ];
   const indexById = new Map(authoringOrder.map((item, index) => [item.id, index]));
   const lotRanges = authoringLots.map((lot) => ({
@@ -137,6 +139,7 @@ export function catalogInventory() {
   return {
     totals: {
       missions: lessons.length,
+      recoveryMissions: recoveryLessons.length,
       assessmentBanks: assessmentBanks.length,
       teachingItems: teachingItems.length,
       reservedItems: reservedItems.length,
@@ -206,7 +209,7 @@ export function catalogInventory() {
          quatro trilhas de 6º/7º estão congelados e ficam fora da conferência. */
       /* Alternativa certa muito mais longa que as erradas denuncia a resposta sem
          conta nenhuma. As missões de 6º/7º estão congeladas e ficam de fora. */
-      answerLengthCues: lessons
+      answerLengthCues: [...lessons, ...recoveryLessons]
         .filter((lesson) => !legacyLessonIds.has(lesson.id))
         .flatMap((lesson) => lesson.items)
         .filter((item) => {

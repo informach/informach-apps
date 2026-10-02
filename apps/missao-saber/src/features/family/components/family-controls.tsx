@@ -137,13 +137,13 @@ export function PaymentConfirmation({ paid, plano }: { paid: boolean; plano: str
       const t = setTimeout(() => router.replace("/familia"), 8000);
       return () => clearTimeout(t);
     }
-    if (esgotado) return;
+    if (tentativas >= 15) return;
     const t = setTimeout(() => {
       setTentativas((n) => n + 1);
       router.refresh();
     }, 4000);
     return () => clearTimeout(t);
-  }, [paid, esgotado, router]);
+  }, [paid, router, tentativas]);
   return (
     <div
       role="status"
@@ -361,7 +361,7 @@ export function EditProfile({
   const elegiveis = courses.filter((c) => c.grades.includes(grade));
   return (
     <details className="mt-3 rounded-xl border border-border p-3">
-      <summary className="cursor-pointer text-sm font-semibold text-tinta">
+      <summary className="cursor-pointer text-sm font-semibold wrap-anywhere text-tinta">
         Editar perfil de {profile.nickname}
       </summary>
       <form
@@ -547,7 +547,7 @@ export function FamilyChallenge({
             </p>
             <BarraProgresso feitos={progress} total={goal} className="mt-2 max-w-sm" />
             {contributions.length > 0 && (
-              <p className="mt-2 text-sm text-muted-foreground">
+              <p className="mt-2 text-sm wrap-anywhere text-muted-foreground">
                 Participaram:{" "}
                 {contributions.map((quem) => `${quem.nickname} (${quem.strategies})`).join(", ")}.
               </p>

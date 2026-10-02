@@ -76,7 +76,7 @@ export const geometryLessons = [
         "A posição da peça não muda a área que ela ocupa.",
       ],
       [
-        "Na mesma placa 4 por 4, retiramos só um quadrado de canto. Qual é o novo perímetro?",
+        "De uma placa de 4 por 4 quadrados unitários, retiramos só um quadrado de canto. Qual é o novo perímetro?",
         "16",
         ["14", "18"],
         "Saem dois lados externos do canto e aparecem dois lados internos. O perímetro permanece 16.",
@@ -134,7 +134,7 @@ export const geometryLessons = [
         "A distância ao espelho é preservada.",
       ],
       [
-        "O ponto anterior e sua imagem estão separados por quantos quadradinhos?",
+        "Um ponto está 3 quadradinhos à esquerda de um eixo vertical e é refletido nesse eixo. O ponto e sua imagem estão separados por quantos quadradinhos?",
         "6",
         ["3", "9"],
         "São 3 quadradinhos até o eixo e mais 3 até a imagem: 6 no total.",

@@ -196,6 +196,7 @@ export const medirEComparar: SkillPack = {
     },
     {
       title: "Horas e dias",
+      version: 2,
       objective: "Ler horas cheias e meias horas e usar dias da semana e meses.",
       introduction:
         "Uma hora tem 60 minutos e meia hora tem 30. A semana tem 7 dias: domingo, segunda, terça, quarta, quinta, sexta e sábado. O ano tem 12 meses.",
@@ -442,6 +443,11 @@ export const medirEComparar: SkillPack = {
     },
   ],
   ordering: {
+    constraints: [
+      [0, 2],
+      [1, 2],
+      [2, 3],
+    ],
     prompt: "Coloque em ordem os passos para descobrir a que horas termina uma atividade.",
     labels: [
       "Ver a que horas a atividade começa",
@@ -450,7 +456,7 @@ export const medirEComparar: SkillPack = {
       "Conferir no relógio se a resposta faz sentido",
     ],
     explanation:
-      "Primeiro a hora do começo, depois quanto dura, depois a conta e, no fim, conferir.",
+      "Encontre a hora do começo e a duração, em qualquer ordem. Depois faça a conta e confira.",
   },
   justification: {
     prompts: [

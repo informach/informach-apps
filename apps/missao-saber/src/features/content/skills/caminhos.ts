@@ -124,6 +124,7 @@ export const caminhos: SkillPack = {
     },
     {
       title: "O caminho mais curto",
+      version: 2,
       objective: "Comparar caminhos e escolher o mais curto somando os trechos.",
       introduction:
         "Para achar o caminho mais curto, some os trechos de cada caminho possível e compare. Um caminho com mais curvas pode ser mais curto se os trechos forem pequenos.",
@@ -191,12 +192,15 @@ export const caminhos: SkillPack = {
         ),
         c(
           "mais-curto",
-          "Ir de A a C passando por B custa 4 + 5 = 9 passos. Há uma estrada direta de A a C com 10 passos. Qual é o caminho mais curto?",
+          "Ir de A a C passando por B custa 4 + 5 = 9 passos. Outra estrada liga A a C sem passar por B, faz uma curva e tem 10 passos. Qual é o caminho mais curto?",
           "Passando por B, com 9 passos",
-          ["A estrada direta, porque é reta", "Empatam"],
-          "9 < 10: reto não quer dizer mais curto.",
+          ["A estrada sem passar por B, com 10 passos", "Empatam"],
+          "9 < 10: o caminho por B tem menos passos. Uma estrada sem parada intermediária pode fazer curvas; isso não significa que seja um segmento de reta.",
           {
-            feedback: ["A direta tem 10 passos, mais que 9.", "9 e 10 são diferentes."],
+            feedback: [
+              "A estrada sem passar por B tem 10 passos, mais que os 9 do caminho por B.",
+              "9 e 10 são diferentes.",
+            ],
           },
         ),
         n(
@@ -231,6 +235,7 @@ export const caminhos: SkillPack = {
     },
     {
       title: "Caminhos com regras",
+      version: 2,
       objective:
         "Contar ou escolher caminhos que obedecem a uma regra: não repetir lugar, não passar por um ponto, passar por outro.",
       introduction:
@@ -252,7 +257,7 @@ export const caminhos: SkillPack = {
         ),
         c(
           "regras",
-          "Na mesma malha de 2 por 2, quantos caminhos NÃO passam pelo centro?",
+          "Numa malha de 2 por 2 casas, quantos caminhos do canto inferior esquerdo ao superior direito, andando pelas linhas só para a direita e para cima, NÃO passam pelo centro?",
           "2",
           ["4", "6"],
           "6 no total menos 4 que passam pelo centro: 2 (DDCC e CCDD).",
@@ -541,6 +546,11 @@ export const caminhos: SkillPack = {
     },
   ],
   ordering: {
+    constraints: [
+      [0, 2],
+      [1, 2],
+      [2, 3],
+    ],
     prompt:
       "Coloque em ordem os passos para contar os caminhos entre dois lugares passando por um ponto do meio.",
     labels: [

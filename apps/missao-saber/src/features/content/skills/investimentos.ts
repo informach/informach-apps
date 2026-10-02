@@ -12,6 +12,7 @@ export const investimentos: SkillPack = {
   lab: "bars",
   missions: [
     {
+      version: 2,
       title: "Guardar com objetivo",
       objective:
         "Entender por que investir é diferente de só guardar e calcular rendimentos simples.",
@@ -101,7 +102,7 @@ export const investimentos: SkillPack = {
         ),
         c(
           "conceito",
-          "Duas aplicações: A rende 7% ao ano e cobra taxa de 2% ao ano; B rende 5,5% ao ano sem taxa. Em um ano, com o mesmo valor aplicado, a melhor foi:",
+          "Duas aplicações por 1 ano: A rende 7% e desconta ao final uma taxa de 2% do valor inicialmente aplicado; B rende 5,5% sem taxa. Sem impostos, com o mesmo valor inicial, qual rende mais líquido?",
           "B, que rende 5,5% contra 5% de A",
           ["A, porque 7% é maior que 5,5%", "As duas empatam depois de descontar a taxa"],
           "O que importa é o rendimento líquido, depois das taxas: A fica com 7% − 2% = 5%, e B, sem taxa, rende 5,5%.",
@@ -226,6 +227,7 @@ export const investimentos: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "Risco, retorno e liquidez",
       objective: "Relacionar risco e retorno esperado e entender liquidez e prazo.",
       introduction:
@@ -327,20 +329,24 @@ export const investimentos: SkillPack = {
         ),
         c(
           "liquidez",
-          "Um investimento paga 9% ao ano se o dinheiro ficar 2 anos e só 3% se for retirado antes. Para uma meta de 6 meses, ele:",
-          "Não é adequado: em 6 meses, paga só 3%",
-          ["É adequado, porque rende 9% ao ano", "É indiferente, pois o prazo não muda a taxa"],
-          "O retorno alto só vale para quem cumpre o prazo; para a meta de 6 meses, a retirada antecipada paga só 3%.",
+          "Um investimento tem taxa de 9% ao ano se o dinheiro ficar 2 anos e de 3% ao ano se for retirado antes. Para comparar seu rendimento com outras opções numa meta de 6 meses, qual taxa anual deve ser usada?",
+          "3% ao ano, a taxa prevista para retirada antecipada",
+          [
+            "9% ao ano, a taxa anunciada para o prazo completo",
+            "6% ao ano, a média entre as duas taxas anunciadas",
+          ],
+          "A retirada em 6 meses acontece antes de 2 anos, então vale a taxa de 3% ao ano, que ainda deve ser convertida para o período de 6 meses. Isso não basta, sozinho, para decidir se a aplicação é adequada: é preciso comparar as demais condições.",
           {
             feedback: [
-              "Os 9% exigem 2 anos; com a meta de 6 meses, a retirada antecipada paga só 3%.",
-              "O prazo muda a taxa, sim: sair antes dos 2 anos derruba o rendimento de 9% para 3%.",
+              "Os 9% ao ano exigem 2 anos; com retirada em 6 meses, vale a taxa de 3% ao ano.",
+              "As taxas dependem do prazo: aplica-se a de retirada antecipada, não a média das duas.",
             ],
           },
         ),
       ],
     },
     {
+      version: 2,
       title: "Não colocar tudo na mesma cesta",
       objective: "Entender diversificação e comparar carteiras simples.",
       introduction:
@@ -416,16 +422,16 @@ export const investimentos: SkillPack = {
         c(
           "carteira",
           "Carteira 1: 100% em um investimento que rendeu 12%. Carteira 2: metade a 12% e metade a 6%. Sobre o ano, é correto dizer:",
-          "A carteira 1 rendeu 12% contra 9%, com mais risco",
+          "A carteira 1 rendeu 12% contra 9%, com maior concentração",
           [
             "A carteira 2 rendeu mais, porque é diversificada",
-            "A carteira 1 rendeu mais, com o mesmo risco da 2",
+            "A carteira 1 rendeu mais, com a mesma concentração da 2",
           ],
-          "A carteira 2 rendeu (12% + 6%) ÷ 2 = 9%, menos que a 1, que assumiu mais risco de concentração. Diversificar não garante render mais; reduz o impacto de um resultado ruim.",
+          "A carteira 2 rendeu (12% + 6%) ÷ 2 = 9%, menos que a 1. A carteira 1 está toda em um único investimento, por isso é mais concentrada. Só esses rendimentos não permitem medir o risco total de cada carteira.",
           {
             feedback: [
-              "Neste ano a concentração deu certo: a carteira 2 rendeu 9%. Diversificar protege, não maximiza.",
-              "O rendimento está certo, mas o risco não: com tudo em um só investimento, um resultado ruim atinge a carteira inteira.",
+              "Nesse ano a carteira 2 rendeu 9%; dividir entre investimentos não garante rendimento maior.",
+              "O rendimento está certo, mas a concentração é diferente: a carteira 1 depende de um investimento só.",
             ],
           },
         ),
@@ -439,6 +445,7 @@ export const investimentos: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "Investir para decidir",
       objective:
         "Comparar alternativas de investimento considerando objetivo, prazo, risco e custos.",
@@ -461,7 +468,7 @@ export const investimentos: SkillPack = {
         ),
         n(
           "decisao",
-          "Aplicação A: 8% ao ano com taxa de 1,5% ao ano. Aplicação B: 6% ao ano sem taxa. Qual é a diferença, em pontos percentuais, entre os rendimentos líquidos?",
+          "Em 1 ano, A rende 8% e desconta ao final uma taxa de 1,5% do valor inicialmente aplicado; B rende 6% sem taxa. Sem impostos, qual é a diferença, em pontos percentuais, entre os rendimentos líquidos?",
           0.5,
           "A líquida: 6,5%; B: 6%; diferença 0,5 ponto.",
           { misreads: [{ value: 2, feedback: "2 compara 8% com 6% sem tirar a taxa de A." }] },

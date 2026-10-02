@@ -53,7 +53,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <div className="lg:hidden">
             <Brand compacto />
           </div>
-          <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          <div className="ml-auto flex min-w-0 items-center justify-end gap-2 sm:gap-3">
             <ProfileSwitcher
               profiles={data.profiles.map(({ id, nickname, avatar, grade }) => ({
                 id,
@@ -68,7 +68,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <Link
               href="/familia"
               aria-label="Área da família"
-              className="grid size-11 place-items-center rounded-full border-2 border-sombra bg-creme text-tinta-suave transition-colors hover:text-tinta"
+              className="grid size-11 shrink-0 place-items-center rounded-full border-2 border-sombra bg-creme text-tinta-suave transition-colors hover:text-tinta"
             >
               <Users size={20} aria-hidden="true" />
             </Link>

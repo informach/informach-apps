@@ -142,7 +142,7 @@ export function weeklyNarrative(input: {
   else if (weekly.total > 0)
     linhas.push("Nenhuma dificuldade repetida apareceu nas últimas quatro semanas.");
 
-  const due = input.states.filter((state) => state.dueAt <= now);
+  const due = input.states.filter((state) => state.dueOn <= localDay(now));
   if (input.nextSkillId)
     linhas.push(
       due.length

@@ -95,6 +95,7 @@ export const inducao: SkillPack = {
     },
     {
       title: "O passo que puxa o próximo",
+      version: 2,
       objective: "Entender a estrutura da indução: base e passo indutivo.",
       introduction:
         "A indução prova uma afirmação P(n) para todo n ≥ 1 em dois passos: P(1) vale (base) e, se P(k) vale, então P(k + 1) vale (passo). Como dominós em fila: o primeiro cai e cada um derruba o seguinte.",
@@ -168,7 +169,7 @@ export const inducao: SkillPack = {
         ),
         c(
           "estrutura",
-          "O 'passo indutivo' falho no falso argumento 'todos os cavalos têm a mesma cor' quebra em:",
+          "Um falso argumento diz que todo grupo de cavalos tem uma só cor. A base, um cavalo sozinho, vale. No passo, toma k + 1 cavalos e compara os primeiros k com os últimos k. Pela hipótese, cada subgrupo tem uma só cor; o argumento conclui que as cores são iguais porque os subgrupos têm cavalos em comum. Onde esse passo falha?",
           "Na passagem de k = 1 para k = 2",
           ["Na passagem de k = 100 para k = 101", "Na base, com um cavalo só"],
           "O argumento supõe que os dois grupos de k cavalos se sobrepõem. De k = 1 para k = 2, cada grupo tem um cavalo só e não há cavalo em comum: a cadeia quebra no primeiro elo.",

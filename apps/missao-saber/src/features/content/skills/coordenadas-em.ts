@@ -113,11 +113,12 @@ export const coordenadasEm: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "Retas no plano",
       objective:
         "Escrever a equação da reta, reconhecer inclinação e intercepto, e decidir paralelismo e perpendicularidade.",
       introduction:
-        "Uma reta y = mx + b tem inclinação m (variação de y por unidade de x) e intercepto b. Retas paralelas têm o mesmo m; perpendiculares têm produto de inclinações −1. Retas verticais têm equação x = c.",
+        "Uma reta y = mx + b tem inclinação m (variação de y por unidade de x) e intercepto b. Duas retas não verticais são paralelas quando têm o mesmo m, e perpendiculares quando o produto das inclinações é −1. Retas verticais têm equação x = c, são paralelas entre si e perpendiculares às horizontais.",
       specs: [
         n(
           "reta",
@@ -209,6 +210,7 @@ export const coordenadasEm: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "Interseções e sistemas",
       objective:
         "Achar interseções de retas, resolver sistemas geometricamente e interpretar soluções.",
@@ -299,6 +301,7 @@ export const coordenadasEm: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "Áreas e circunferências",
       objective:
         "Calcular áreas de polígonos por coordenadas e trabalhar com a equação da circunferência.",
@@ -510,23 +513,23 @@ export const coordenadasEm: SkillPack = {
   ordering: {
     prompt: "Organize os passos para achar a equação da mediatriz de um segmento.",
     labels: [
-      "Ler os extremos A e B do segmento",
-      "Calcular a inclinação de AB",
-      "Tomar a inclinação perpendicular, oposta do inverso",
-      "Escrever a reta com essa inclinação pelo ponto médio de AB",
+      "Ler os extremos distintos A e B e calcular o ponto médio M",
+      "Verificar se AB é horizontal, vertical ou oblíquo",
+      "Determinar a direção perpendicular: vertical, horizontal ou de inclinação −1/m, respectivamente",
+      "Escrever a reta perpendicular que passa por M",
     ],
     explanation:
-      "A mediatriz é perpendicular ao segmento e passa pelo meio; os dois dados vêm nessa ordem.",
+      "A mediatriz passa pelo ponto médio e é perpendicular ao segmento. Se AB for horizontal, ela é vertical; se AB for vertical, ela é horizontal. Só no caso oblíquo usamos a inclinação −1/m.",
   },
   justification: {
     prompts: [
       "Explique por que a fórmula da distância é o teorema de Pitágoras.",
-      "Explique por que retas perpendiculares têm inclinações com produto −1, usando um exemplo com inclinação 2.",
+      "Explique por que duas retas perpendiculares não verticais têm inclinações com produto −1, usando um exemplo com inclinação 2. O que muda se uma delas for horizontal?",
       "Explique como provar com coordenadas que as diagonais de um paralelogramo se cortam ao meio.",
     ],
     samples: [
       "Dois pontos (x₁, y₁) e (x₂, y₂) formam com o ponto (x₂, y₁) um triângulo retângulo: um cateto horizontal de comprimento |x₂ − x₁| e um vertical de |y₂ − y₁|. A distância entre os pontos é a hipotenusa, então vale √((x₂ − x₁)² + (y₂ − y₁)²).",
-      "Uma reta de inclinação 2 sobe 2 para cada 1 que anda: vetor (1, 2). Girar esse vetor um quarto de volta dá (−2, 1), que sobe 1 para cada −2 andados: inclinação −1/2. O produto 2 × (−1/2) = −1. Em geral, girar (1, m) dá (−m, 1), inclinação −1/m.",
+      "Uma reta de inclinação 2 sobe 2 para cada 1 que anda: vetor (1, 2). Girar esse vetor um quarto de volta dá (−2, 1), de inclinação −1/2. O produto 2 × (−1/2) = −1. Para m diferente de zero, girar (1, m) dá (−m, 1), de inclinação −1/m. Se m = 0, a reta é horizontal e sua perpendicular é vertical, cuja inclinação não é definida; nesse caso não se usa o produto −1.",
       "Coloque o paralelogramo com vértices (0, 0), (a, 0), (b, c) e (a + b, c). O ponto médio da diagonal de (0, 0) a (a + b, c) é ((a + b)/2, c/2). O ponto médio da outra, de (a, 0) a (b, c), é ((a + b)/2, c/2). São o mesmo ponto, então as diagonais se cortam ao meio, para qualquer paralelogramo.",
     ],
     focus: "as relações entre coordenadas: distância, inclinação e ponto médio",

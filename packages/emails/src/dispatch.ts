@@ -529,6 +529,17 @@ export async function dispatchEmail(
       ),
     );
 
+  // Auth bodies cannot be queued for a later retry, and public auth responses
+  // intentionally hide whether an account exists. Surface exhausted transport
+  // retries to operators without logging the recipient, OTP or provider body.
+  if (lastClassification === "transient")
+    safeLog(deps.logger, "error", "Email delivery inline retries exhausted", {
+      deliveryId: delivery.id,
+      category: input.category,
+      classification: lastClassification,
+      attempts: inlineAttempts,
+    });
+
   emitEmailAudit(deps, {
     eventType: "email.delivery_failed",
     actorId: input.userId ?? null,

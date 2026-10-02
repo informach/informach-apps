@@ -37,7 +37,13 @@ import {
 } from "@/features/family/components/family-controls";
 import { suggestedGoal } from "@/features/family/desafio";
 import { birthMonthValue, gradeLabel, gradeOptions } from "@/features/family/school-year";
-import { repeatedDifficulties, skillStates, weeklyEvidence } from "@/features/learning/engine";
+import { EvidenceProgress } from "@/features/learning/components/evidence-progress";
+import {
+  repeatedDifficulties,
+  reviewDateLabel,
+  skillStates,
+  weeklyEvidence,
+} from "@/features/learning/engine";
 import { weeklyNarrative } from "@/features/learning/relato";
 import { familyReports, history, weeklyReportUnsubscribed } from "@/features/learning/repository";
 import { getSession, requirePageUser } from "@/lib/auth";
@@ -179,7 +185,7 @@ export default async function Family({
         <h1 className="mt-1 font-display text-3xl font-semibold text-tinta">
           O aprendizado, mais de perto.
         </h1>
-        <p className="mt-2 text-sm text-tinta-suave">
+        <p className="mt-2 text-sm wrap-anywhere text-tinta-suave">
           Conta do responsável: {user.email}. Assinatura, dados pessoais e perfis pedem uma
           confirmação recente de acesso.
         </p>
@@ -208,7 +214,7 @@ export default async function Family({
               <CardHeader className="flex flex-row items-center gap-3 space-y-0">
                 <Avatar id={profile.avatar} tamanho="p" />
                 <div className="min-w-0">
-                  <CardTitle className="font-display text-base">
+                  <CardTitle className="font-display text-base wrap-anywhere">
                     {profile.nickname} · {gradeLabel(profile.grade)}
                   </CardTitle>
                   <p className="text-sm text-muted-foreground">{resolvedCourse(profile)?.label}</p>
@@ -275,9 +281,9 @@ export default async function Family({
               narrative,
               support,
             }) => (
-              <Card key={profile.id}>
+              <Card key={profile.id} className="min-w-0">
                 <CardHeader>
-                  <CardTitle className="font-display">{profile.nickname}</CardTitle>
+                  <CardTitle className="font-display wrap-anywhere">{profile.nickname}</CardTitle>
                   <p className="text-sm text-muted-foreground">
                     {weekly.total === 1 ? "1 tentativa" : `${weekly.total} tentativas`} ·{" "}
                     {weekly.practiceDays === 1
@@ -293,7 +299,10 @@ export default async function Family({
                       domínio. */}
                   <div className="mb-4 grid gap-1.5 rounded-lg border-2 border-verde/35 bg-verde-claro p-4">
                     {narrative.linhas.map((linha) => (
-                      <p key={linha} className="text-[0.975rem] leading-relaxed text-tinta">
+                      <p
+                        key={linha}
+                        className="text-[0.975rem] leading-relaxed wrap-anywhere text-tinta"
+                      >
                         {linha}
                       </p>
                     ))}
@@ -369,10 +378,8 @@ export default async function Family({
                                 : "precisa de mais encontros"}
                             </TableCell>
                             <TableCell>
-                              Rever em{" "}
-                              {state.dueAt.toLocaleDateString("pt-BR", {
-                                timeZone: "America/Sao_Paulo",
-                              })}
+                              Rever em {reviewDateLabel(state.dueOn)}
+                              <EvidenceProgress evidence={evidence} skillId={state.skillId} />
                             </TableCell>
                           </TableRow>
                         ))}

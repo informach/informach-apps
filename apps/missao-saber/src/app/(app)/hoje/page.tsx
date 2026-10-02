@@ -24,11 +24,13 @@ import {
   assessmentHasAllSkills,
   courseAssessmentBanks,
   courseLessons,
+  coursePracticeLessons,
   skillNames,
 } from "@/features/content/catalog";
 import { inGrade } from "@/features/family/school-year";
-import { localDaysApart } from "@/features/learning/engine";
-import { availableLessons, recommend } from "@/features/learning/recommendation";
+import { CourseCompletion } from "@/features/learning/components/course-completion";
+import { localDay, localDaysApart } from "@/features/learning/engine";
+import { availableLessons, courseProgress, recommend } from "@/features/learning/recommendation";
 import { currentDashboard } from "@/lib/view";
 
 export const metadata = { title: "Hoje" };
@@ -40,7 +42,7 @@ export default async function Today() {
   const course = data.course;
   if (!course) return null;
   const allLessons = courseLessons(course);
-  const available = availableLessons(allLessons, {
+  const available = availableLessons(coursePracticeLessons(course), {
     course,
     grade: profile.grade,
     paid: data.access.paid,
@@ -77,6 +79,12 @@ export default async function Today() {
     new Set(data.attemptedItemIds),
   );
   const recommended = recommendation?.lesson;
+  const progress = courseProgress(allLessons, new Set(data.attemptedItemIds));
+  const nextReviewOn =
+    data.states
+      .filter((state) => course.skills.includes(state.skillId))
+      .map((state) => state.dueOn)
+      .sort()[0] ?? null;
   const { paused, diagnosed } = data;
   const autonomas = data.states.filter((s) => s.level === "independent").length;
 
@@ -93,8 +101,8 @@ export default async function Today() {
   );
   const reencontro = !!ultimaTentativa && localDaysApart(ultimaTentativa, agora) >= 3;
   const esperando = data.states
-    .filter((state) => state.dueAt <= agora)
-    .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime())[0];
+    .filter((state) => state.dueOn <= localDay(agora))
+    .sort((a, b) => a.dueOn.localeCompare(b.dueOn))[0];
   const desafio = data.challenge;
 
   return (
@@ -122,7 +130,7 @@ export default async function Today() {
         <div className="min-w-0">
           <Etiqueta tom="lima">Um pouco hoje, um novo jeito de pensar</Etiqueta>
           {/* O ponto final faz parte do título — mantém a voz do produto. */}
-          <h1 className="mt-1.5 font-display text-3xl leading-tight font-semibold text-tinta sm:text-4xl">
+          <h1 className="mt-1.5 font-display text-3xl leading-tight font-semibold wrap-anywhere text-tinta sm:text-4xl">
             Olá, {profile.nickname}.
           </h1>
         </div>
@@ -138,53 +146,56 @@ export default async function Today() {
         </FalaFaisca>
       )}
 
-      <section className="rounded-heroi border-2 border-verde/30 bg-verde-claro p-5 shadow-[0_6px_0_color-mix(in_oklab,var(--ms-verde)_28%,transparent)] sm:p-7">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-7">
-          <div className="min-w-0 flex-1">
-            <Etiqueta tom="verde">
-              <Sprout size={14} aria-hidden="true" /> Sua missão de hoje
-            </Etiqueta>
-            <h2 className="mt-3 font-display text-2xl leading-tight font-semibold text-tinta sm:text-3xl">
-              {paused
-                ? (paused.title ?? "Seu percurso está esperando")
-                : (recommended?.title ?? "Explore uma nova ideia")}
-            </h2>
-            <p className="mt-2.5 text-tinta">
-              {paused
-                ? "Continue da questão em que parou. As respostas confirmadas estão guardadas."
-                : (recommended?.objective ??
-                  "Assim que uma trilha for liberada, ela aparece aqui com o próximo passo.")}
-            </p>
-            <p className="mt-2 text-sm text-tinta-suave">
-              {paused ? "Uma pausa também faz parte do caminho." : recommendation?.reason}
-            </p>
-            <div className="mt-5 flex flex-wrap items-center gap-3">
-              {paused ? (
-                <LinkChapa href={`/missao/${paused.id}`} medida="g" className="max-sm:w-full">
-                  Retomar missão <ArrowRight size={19} aria-hidden="true" />
-                </LinkChapa>
-              ) : (
-                recommended && (
-                  <StartButton
-                    profileId={profile.id}
-                    lessonId={recommended.id}
-                    mode={recommendation?.mode}
-                    medida="g"
-                    largo
-                  >
-                    Começar descoberta <ArrowRight size={19} aria-hidden="true" />
-                  </StartButton>
-                )
-              )}
-              <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-tinta-suave">
-                <Clock3 size={16} aria-hidden="true" /> cerca de {data.family?.dailyMinutes ?? 10}{" "}
-                min no seu ritmo
-              </span>
+      {progress.finished && <CourseCompletion nextReviewOn={nextReviewOn} />}
+      {(!progress.finished || paused || recommended) && (
+        <section className="rounded-heroi border-2 border-verde/30 bg-verde-claro p-5 shadow-[0_6px_0_color-mix(in_oklab,var(--ms-verde)_28%,transparent)] sm:p-7">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-7">
+            <div className="min-w-0 flex-1">
+              <Etiqueta tom="verde">
+                <Sprout size={14} aria-hidden="true" /> Sua missão de hoje
+              </Etiqueta>
+              <h2 className="mt-3 font-display text-2xl leading-tight font-semibold text-tinta sm:text-3xl">
+                {paused
+                  ? (paused.title ?? "Seu percurso está esperando")
+                  : (recommended?.title ?? "Você percorreu as missões disponíveis")}
+              </h2>
+              <p className="mt-2.5 text-tinta">
+                {paused
+                  ? "Continue da questão em que parou. As respostas confirmadas estão guardadas."
+                  : (recommended?.objective ??
+                    "Na jornada, você pode escolher uma missão para repetir ou conferir as próximas atividades da sua trilha.")}
+              </p>
+              <p className="mt-2 text-sm text-tinta-suave">
+                {paused ? "Uma pausa também faz parte do caminho." : recommendation?.reason}
+              </p>
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                {paused ? (
+                  <LinkChapa href={`/missao/${paused.id}`} medida="g" className="max-sm:w-full">
+                    Retomar missão <ArrowRight size={19} aria-hidden="true" />
+                  </LinkChapa>
+                ) : (
+                  recommended && (
+                    <StartButton
+                      profileId={profile.id}
+                      lessonId={recommended.id}
+                      mode={recommendation?.mode}
+                      medida="g"
+                      largo
+                    >
+                      Começar descoberta <ArrowRight size={19} aria-hidden="true" />
+                    </StartButton>
+                  )
+                )}
+                <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-tinta-suave">
+                  <Clock3 size={16} aria-hidden="true" /> cerca de {data.family?.dailyMinutes ?? 10}{" "}
+                  min no seu ritmo
+                </span>
+              </div>
             </div>
+            <Mascote humor="acolhendo" tamanho="g" className="mx-auto max-sm:hidden" />
           </div>
-          <Mascote humor="acolhendo" tamanho="g" className="mx-auto max-sm:hidden" />
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Desafio da família: barra única, somada. A criança vê a meta da casa,
           nunca a posição dela em relação aos irmãos. */}

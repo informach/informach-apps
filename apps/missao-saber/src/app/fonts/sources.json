@@ -1,0 +1,35 @@
+{
+  "commit": "9710da1eacb3be272583c3224dcb70f9da6eadbb",
+  "files": [
+    {
+      "file": "fredoka-variable.woff2",
+      "source": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/fredoka/Fredoka%5Bwdth%2Cwght%5D.ttf",
+      "bytes": 86408,
+      "sha256": "41802e969805c2470f08c5e467cfeaf09f603b014f1171b2b207fba0f2d110e4",
+      "sourceBytes": 159184,
+      "sourceSha256": "2ba02e68b152868aef9ba28e24b3648c7d457fe6f25c761f2c2c53fb61a73fc8",
+      "conversion": "fonttools 4.60.1; Brotli 1.2.0; full glyph set and variable axes preserved"
+    },
+    {
+      "file": "fredoka-OFL.txt",
+      "source": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/fredoka/OFL.txt",
+      "bytes": 4388,
+      "sha256": "5c9e7eee5c6b25f4b05b8d53b2e470ea4962f9ced742d044a98f7d95d1375bab"
+    },
+    {
+      "file": "nunito-variable.woff2",
+      "source": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/nunito/Nunito%5Bwght%5D.ttf",
+      "bytes": 101040,
+      "sha256": "03ec0093206a53d0fb1af8355f66e8fc6bf82c89ccced604721b1d7ee048ce4f",
+      "sourceBytes": 276932,
+      "sourceSha256": "bb55a5ca5c2042335b3991af27c4d0705d0ef41cac6164ac737fd8f2a1e85207",
+      "conversion": "fonttools 4.60.1; Brotli 1.2.0; full glyph set and variable axes preserved"
+    },
+    {
+      "file": "nunito-OFL.txt",
+      "source": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/nunito/OFL.txt",
+      "bytes": 4385,
+      "sha256": "580df76c95a1ec5ab878ceb25bb3d85c6a076804e9c970c8c6972aea775fdf65"
+    }
+  ]
+}

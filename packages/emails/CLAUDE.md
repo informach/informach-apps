@@ -104,7 +104,7 @@ Fluxo (linhas em `dispatch.ts`):
 6. **Live** — chama `sgMail.send(msg)` com `headers: List-Unsubscribe + List-Unsubscribe-Post: One-Click`, `customArgs: { delivery_id, category, user_id }`, `categories: [input.category]`.
 7. **Retry** — em erro `transient` (408/425/429/5xx): backoff polinomial `attempt^4 + 2s ±15%` (de `retry.ts:11`), até `inlineRetryAttempts` (default 3). Em erro `permanent` (400/401/403/413): aborta no primeiro fail.
 8. Em sucesso: `status='sent'`, `providerMessageId = headers['x-message-id']`, audit `email.delivery_sent`.
-9. Em falha após retries: `status='failed'`, `lastError` populado, audit `email.delivery_failed`. `retryFailedDeliveries` (sweeper) reativará depois.
+9. Em falha após retries: `status='failed'`, `lastError` populado, audit `email.delivery_failed` e log `error` ao esgotar as tentativas inline. `retryFailedDeliveries` reativa apenas as categorias com corpo persistido e autorizadas para retry genérico. Corpos `auth.*` nunca são persistidos: o responsável precisa solicitar novo código/link depois de resolvida a falha. A resposta pública de auth preserva a proteção contra enumeração de contas; o alerta operacional não inclui destinatário, OTP ou corpo.
 10. Bloqueios por suppression/unsubscribe emitem `email.delivery_skipped`.
 
 ### 3.3 `renderTemplate(category, props, opts?)` — renderização de templates
@@ -179,7 +179,7 @@ Backoff sample (sem jitter): `3, 18, 83, 258, 627, 1298, 2403, 4098` segundos. `
 
 `Logger = { debug?(msg, ctx?), info?(msg, ctx?), warn?(msg, ctx?), error?(msg, ctx?) }`. Todos os métodos opcionais. Default: no-op. Apps devem passar `packageLogger` de `apps/<app>/src/lib/observability.ts`, que escreve no pino e duplica `warn`/`error` sanitizados para Sentry. Pontos que emitem:
 
-- `dispatch.ts`: `error` em permanent fail; `debug` em retry attempt.
+- `dispatch.ts`: `error` em permanent fail e quando as tentativas inline de erro transitório se esgotam; `debug` nas tentativas intermediárias. O alerta de esgotamento contém somente ID da entrega, categoria, classificação e número de tentativas.
 - `sweepers.ts`: `info` em rows tocadas; `error` em erro de fetch SendGrid.
 - `webhook.ts`: `warn` em deferred; `error` em evento que falha de processar.
 

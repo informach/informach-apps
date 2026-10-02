@@ -80,6 +80,31 @@ describe("learning evidence", () => {
       ),
     ).toEqual([]);
   });
+  it("does not revive recovered difficulties after a skip or a single new error", () => {
+    const now = new Date("2026-09-16T15:00:00Z");
+    const recovered = [
+      row({ createdAt: new Date("2026-09-10T12:00:00Z"), correct: false, sessionId: "s1" }),
+      row({ createdAt: new Date("2026-09-11T12:00:00Z"), correct: false, sessionId: "s2" }),
+      row({ createdAt: new Date("2026-09-12T12:00:00Z"), correct: true, sessionId: "s3" }),
+      row({
+        createdAt: new Date("2026-09-13T12:00:00Z"),
+        correct: false,
+        result: "skipped",
+        sessionId: "s4",
+      }),
+    ];
+    expect(repeatedDifficulties(recovered, now)).toEqual([]);
+    recovered.push(
+      row({ createdAt: new Date("2026-09-14T12:00:00Z"), correct: false, sessionId: "s5" }),
+    );
+    expect(repeatedDifficulties(recovered, now)).toEqual([]);
+    recovered.push(
+      row({ createdAt: new Date("2026-09-15T12:00:00Z"), correct: false, sessionId: "s6" }),
+    );
+    expect(repeatedDifficulties(recovered, now)).toEqual([
+      { skillId: "fracoes", errors: 2, sessions: 2 },
+    ]);
+  });
   it("counts exactly seven Sao Paulo calendar days and excludes future attempts", () => {
     const now = new Date("2026-09-13T15:00:00Z");
     const evidence = Array.from({ length: 8 }, (_, i) =>
@@ -129,7 +154,9 @@ describe("learning evidence", () => {
     const evidence: Evidence[] = [];
     days.forEach((day, i) => {
       evidence.push(row({ createdAt: new Date(Date.UTC(2026, 8, day, 12)) }));
-      expect(skillStates(evidence)[0]?.dueAt).toEqual(new Date(Date.UTC(2026, 8, dueDays[i], 12)));
+      expect(skillStates(evidence)[0]?.dueOn).toEqual(
+        new Date(Date.UTC(2026, 8, dueDays[i], 12)).toISOString().slice(0, 10),
+      );
     });
     expect(skillStates(evidence)[0]?.independentFamilies).toBe(1);
   });
@@ -137,10 +164,10 @@ describe("learning evidence", () => {
     const evidence = Array.from({ length: 6 }, (_, i) =>
       row({ itemId: `fresh-${i}`, familyId: `family-${i}` }),
     );
-    expect(skillStates(evidence)[0]?.dueAt).toEqual(new Date("2026-09-11T12:00:00Z"));
+    expect(skillStates(evidence)[0]?.dueOn).toBe("2026-09-11");
     evidence.push(row({ createdAt: new Date("2026-09-11T12:00:00Z") }));
     evidence.push(row({ createdAt: new Date("2026-09-12T12:00:00Z") }));
-    expect(skillStates(evidence)[0]?.dueAt).toEqual(new Date("2026-09-14T12:00:00Z"));
+    expect(skillStates(evidence)[0]?.dueOn).toBe("2026-09-14");
   });
   it("never turns repeated answers into independent mastery", () => {
     const repeated = Array.from({ length: 20 }, (_, i) =>
@@ -175,7 +202,7 @@ describe("learning evidence", () => {
   });
   it("returns a failed skill to a one-day review", () => {
     const last = row({ correct: false, createdAt: new Date("2026-09-12T12:00:00Z") });
-    expect(skillStates([row(), last])[0]?.dueAt.toISOString()).toBe("2026-09-13T12:00:00.000Z");
+    expect(skillStates([row(), last])[0]?.dueOn).toBe("2026-09-13");
   });
   it("measures absence in Sao Paulo calendar days, not in elapsed hours", () => {
     // Conta viradas de calendário, não horas: o par abaixo tem menos de dois
@@ -250,7 +277,7 @@ describe("original pilot content", () => {
     expect(assessmentSources(legacy)).toEqual([
       { id: sourceMission.id, version: sourceMission.version },
     ]);
-    expect(current.version).toBe(3);
+    expect(current.version).toBe(4);
   });
   it("keeps exam choices as mathematical answers without answer-marker templates", () => {
     const examItems = assessmentBanks
@@ -428,7 +455,7 @@ describe("activity contract v2", () => {
     expect(gradeAnswer(item, "1/2 m")).toMatchObject({ valid: true, correct: true });
     expect(gradeAnswer(item, "0,5 metro")).toMatchObject({ valid: true, correct: true });
     expect(gradeAnswer(item, "0.6 m")).toMatchObject({ valid: true, correct: false });
-    expect(gradeAnswer(item, "0,5")).toMatchObject({ valid: false });
+    expect(gradeAnswer(item, "0,5")).toMatchObject({ valid: true, correct: true });
     expect(gradeAnswer(item, "1/2 cm")).toMatchObject({ valid: false });
     expect(gradeAnswer(item, "1/(1+1) m")).toMatchObject({ valid: false });
   });

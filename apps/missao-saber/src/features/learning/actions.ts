@@ -5,7 +5,7 @@ import { z } from "zod";
 import { recentParent, runAction, verifiedUser } from "@/lib/action";
 import { assertAllowed } from "@/lib/errors";
 import * as repo from "./repository";
-import { noteSchema, reportSchema } from "./schemas";
+import { editNoteSchema, noteSchema, reportSchema } from "./schemas";
 import * as learning from "./service";
 
 export async function startAction(input: unknown) {
@@ -83,7 +83,7 @@ export async function courseAction(profileId: string, courseId: string) {
 export async function noteAction(input: unknown) {
   return runAction(async () => {
     const data = noteSchema.parse(input);
-    await repo.saveNote((await verifiedUser()).id, data.profileId, data.text);
+    await repo.saveNote((await verifiedUser()).id, data.profileId, data.text, data.context);
     revalidatePath("/caderno");
   });
 }
@@ -92,6 +92,22 @@ export async function removeNoteAction(profileId: string, id: string) {
     z.string().uuid().parse(profileId);
     z.string().uuid().parse(id);
     await repo.removeNote((await verifiedUser()).id, profileId, id);
+    revalidatePath("/caderno");
+  });
+}
+export async function editNoteAction(input: unknown) {
+  return runAction(async () => {
+    const data = editNoteSchema.parse(input);
+    await repo.editNote((await verifiedUser()).id, data.profileId, data.id, data.text);
+    revalidatePath("/caderno");
+  });
+}
+export async function archiveNoteAction(profileId: string, id: string, archived: boolean) {
+  return runAction(async () => {
+    z.string().uuid().parse(profileId);
+    z.string().uuid().parse(id);
+    z.boolean().parse(archived);
+    await repo.archiveNote((await verifiedUser()).id, profileId, id, archived);
     revalidatePath("/caderno");
   });
 }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { figureSchema } from "./figures";
 
 export const modeSchema = z.enum(["mission", "review", "diagnostic", "exam"]);
 export type SessionMode = z.infer<typeof modeSchema>;
@@ -29,6 +30,7 @@ const commonItemSchema = z.object({
   domain: domainSchema.default("common"),
   source: itemSourceSchema.optional(),
   exploration: explorationSchema.optional(),
+  figure: figureSchema.optional(),
 });
 const choiceItemSchema = commonItemSchema
   .extend({
@@ -68,6 +70,8 @@ const numericItemSchema = commonItemSchema
         .object({
           symbol: z.string().min(1),
           aliases: z.array(z.string().min(1)).default([]),
+          // Mantido para preservar a identidade dos snapshots existentes.
+          // A unidade do campo é implícita; o corretor não exige o sufixo.
           required: z.boolean().default(false),
         })
         .optional(),
@@ -172,7 +176,7 @@ export const lessonSchema = z.object({
   introduction: z.string(),
   lab: z.enum(["bars", "grid", "groups"]).nullable(),
   free: z.boolean(),
-  kind: z.enum(["mission", "assessment-bank", "assessment"]).default("mission"),
+  kind: z.enum(["mission", "recovery", "assessment-bank", "assessment"]).default("mission"),
   stage: z.enum(["discover", "practice", "challenge", "assessment"]).default("practice"),
   prerequisites: z.array(z.string()).default([]),
   estimatedMinutes: z.number().int().min(3).max(60).default(12),
@@ -181,14 +185,14 @@ export const lessonSchema = z.object({
 });
 export type Lesson = z.infer<typeof lessonSchema>;
 
-type PublicCommon = Pick<Item, "id" | "prompt" | "skillId" | "type" | "exploration">;
+type PublicCommon = Pick<Item, "id" | "prompt" | "skillId" | "type" | "exploration" | "figure">;
 export type PublicItem =
   | (PublicCommon & { type: "choice"; options: string[] })
   | (PublicCommon & {
       type: "numeric";
       numeric: {
         acceptedForms: ("integer" | "decimal" | "fraction")[];
-        unit?: { symbol: string; required: boolean };
+        unit?: { symbol: string };
       };
     })
   | (PublicCommon & {
@@ -228,6 +232,7 @@ export function publicItem(item: Item): PublicItem {
     skillId: item.skillId,
     type: item.type,
     exploration: item.exploration,
+    figure: item.figure,
   };
   switch (item.type) {
     case "choice":
@@ -238,9 +243,7 @@ export function publicItem(item: Item): PublicItem {
         type: item.type,
         numeric: {
           acceptedForms: item.grading.acceptedForms,
-          unit: item.grading.unit
-            ? { symbol: item.grading.unit.symbol, required: item.grading.unit.required }
-            : undefined,
+          unit: item.grading.unit ? { symbol: item.grading.unit.symbol } : undefined,
         },
       };
     case "ordering":

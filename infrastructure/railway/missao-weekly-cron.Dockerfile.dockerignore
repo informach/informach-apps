@@ -1,0 +1,5 @@
+**
+!apps
+!apps/missao-saber
+!apps/missao-saber/scripts
+!apps/missao-saber/scripts/weekly-report-cron.sh

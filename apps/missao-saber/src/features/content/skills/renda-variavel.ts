@@ -331,6 +331,7 @@ export const rendaVariavel: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "Passado não é promessa",
       objective: "Ler criticamente rentabilidades passadas, médias e comparações de desempenho.",
       introduction:
@@ -385,7 +386,7 @@ export const rendaVariavel: SkillPack = {
         ),
         c(
           "passado",
-          "Um fundo rendeu 14% bruto e cobra 3% de taxa de administração. Comparado a um fundo que rendeu 12,5% bruto com taxa de 0,5%:",
+          "Em uma simulação de 1 ano, um fundo rende 14% bruto e outro 12,5%. Ao final, as taxas descontadas são, respectivamente, 3% e 0,5% do valor inicialmente aplicado, sem impostos. Qual comparação dos rendimentos líquidos está correta?",
           "O segundo rendeu mais líquido (12% contra 11%)",
           ["O primeiro, porque 14% é maior", "Empatam"],
           "14 − 3 = 11; 12,5 − 0,5 = 12.",
@@ -436,6 +437,7 @@ export const rendaVariavel: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "Analisar sem recomendar",
       objective:
         "Montar e comparar cenários de carteiras com renda variável, declarando premissas e sem recomendação pessoal.",
@@ -452,7 +454,7 @@ export const rendaVariavel: SkillPack = {
         ),
         c(
           "cenarios-rv",
-          "Na mesma carteira, num cenário bom as ações sobem 25% e o resto rende 8%. O valor final é:",
+          "Uma carteira de R$ 10.000 tem 40% em ações e o resto em renda fixa. Num cenário bom as ações sobem 25% e a renda fixa rende 8%. O valor final é:",
           "R$ 11.480",
           ["R$ 12.500", "R$ 10.800"],
           "4.000 × 1,25 + 6.000 × 1,08 = 5.000 + 6.480.",
@@ -472,7 +474,7 @@ export const rendaVariavel: SkillPack = {
         ),
         c(
           "cenarios-rv",
-          "Aumentando a parte em ações de 40% para 80%, a diferença entre o cenário bom e o ruim:",
+          "Numa carteira, as ações sobem 25% no cenário bom e caem 30% no ruim, enquanto a renda fixa rende 8% em ambos. Mantendo o total inicial, ao aumentar a parte em ações de 40% para 80%, a diferença entre os valores finais dos dois cenários:",
           "Aumenta, pois mais dinheiro fica exposto",
           [
             "Diminui, pois o cenário bom compensa o ruim",

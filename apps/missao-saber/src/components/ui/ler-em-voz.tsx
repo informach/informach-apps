@@ -22,11 +22,13 @@ export function LerEmVoz({
   texto,
   rotulo = "Ouvir o enunciado",
   aoUsar,
+  disabled = false,
   className,
 }: {
   texto: string;
   rotulo?: string;
   aoUsar?: () => void;
+  disabled?: boolean;
   className?: string;
 }) {
   const [disponivel, setDisponivel] = useState(false);
@@ -59,6 +61,7 @@ export function LerEmVoz({
   return (
     <button
       type="button"
+      disabled={disabled}
       aria-label={falando ? "Parar a leitura" : rotulo}
       title={falando ? "Parar a leitura" : rotulo}
       aria-pressed={falando}
@@ -83,7 +86,7 @@ export function LerEmVoz({
         sintese.speak(fala);
       }}
       className={cn(
-        "grid size-11 shrink-0 place-items-center rounded-full border-2 transition-transform duration-100 active:translate-y-0.5",
+        "grid size-11 shrink-0 place-items-center rounded-full border-2 transition-transform duration-100 active:translate-y-0.5 disabled:opacity-60",
         falando
           ? "border-uva-solido bg-uva-claro text-tinta"
           : "border-sombra bg-creme text-tinta-suave hover:text-tinta",

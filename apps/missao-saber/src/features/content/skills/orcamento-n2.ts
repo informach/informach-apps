@@ -208,6 +208,7 @@ export const orcamentoN2: SkillPack = {
     },
     {
       title: "Restrições e prioridades",
+      version: 2,
       objective: "Resolver problemas de orçamento com limite e ordem de prioridade.",
       introduction:
         "Com um teto de gastos, nem tudo cabe. Liste as opções, marque o que é essencial e veja o que ainda cabe no que sobra.",
@@ -243,17 +244,17 @@ export const orcamentoN2: SkillPack = {
         ),
         c(
           "prioridade",
-          "Em um mês apertado, uma família precisa escolher o que pagar primeiro. A ordem mais prudente é:",
-          "Contas com corte ou juros, depois essenciais, depois lazer",
+          "Uma família tem dinheiro limitado para alimentação, remédios, moradia, contas atrasadas e lazer. Que plano ajuda a reorganizar esse mês?",
+          "Preservar essenciais e negociar dívidas, adiando lazer",
           [
-            "Primeiro as contas menores, depois as maiores",
-            "Um pouco de cada conta, em partes iguais",
+            "Pagar primeiro a maior dívida e usar a sobra nos essenciais",
+            "Dividir o dinheiro igualmente entre todas as despesas",
           ],
-          "Atrasar luz, água ou cartão gera corte ou juros altos; depois vêm as despesas essenciais, e o lazer pode esperar.",
+          "Preserve alimentação, saúde e moradia, incluindo serviços essenciais. Avalie as dívidas pelo risco de corte e pelo custo dos juros, negociando o que não couber. Lazer pode ser adiado.",
           {
             feedback: [
-              "O tamanho da conta não decide a prioridade: uma assinatura barata pode esperar, mas luz, água ou cartão atrasados geram corte ou juros.",
-              "Pagar tudo em parte deixa juros correndo em todas.",
+              "O tamanho da dívida não basta para definir prioridade. Usar todo o dinheiro nela pode deixar a família sem alimentação ou remédios; preserve o essencial e negocie as dívidas.",
+              "Partes iguais não garantem os gastos essenciais nem resolvem todos os atrasos. Adie lazer, avalie o risco de corte e os juros e negocie os pagamentos possíveis.",
             ],
           },
         ),
@@ -390,6 +391,7 @@ export const orcamentoN2: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "Orçamento para decidir",
       objective: "Analisar um orçamento completo e propor ajustes com justificativa.",
       introduction:
@@ -405,7 +407,7 @@ export const orcamentoN2: SkillPack = {
         ),
         c(
           "analise-de-orcamento",
-          "No orçamento anterior, o ajuste mais realista para fechar o mês sem dívida é:",
+          "Uma família recebe R$ 4.000 e gasta R$ 4.100 por mês, incluindo R$ 450 de lazer e R$ 350 de outras despesas. Qual ajuste fecha o mês sem dívida, mantendo a renda e as despesas essenciais?",
           "Reduzir lazer e outros em cerca de R$ 100 no total",
           ["Cortar a educação", "Parar de pagar a moradia por um mês"],
           "Lazer e outros são variáveis e somam 800; 100 a menos fecha a conta.",

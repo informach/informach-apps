@@ -192,6 +192,7 @@ export const coordenadas: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "Distâncias e áreas na malha",
       objective: "Calcular distâncias entre pontos e áreas de figuras com vértices na malha.",
       introduction:
@@ -391,6 +392,7 @@ export const coordenadas: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "Coordenadas para argumentar",
       objective:
         "Resolver problemas de várias etapas combinando distâncias, áreas e transformações.",
@@ -497,7 +499,7 @@ export const coordenadas: SkillPack = {
       "Anotar as coordenadas dos dois pontos na ordem (x, y)",
       "Calcular as diferenças em x e em y",
       "Somar os quadrados das diferenças e extrair a raiz",
-      "Conferir com um esboço se a distância é maior que cada diferença",
+      "Conferir se a distância é maior ou igual ao valor absoluto de cada diferença",
     ],
     explanation:
       "Coordenadas primeiro, diferenças depois; Pitágoras dá a distância, e o esboço confirma o resultado.",
@@ -511,7 +513,7 @@ export const coordenadas: SkillPack = {
     samples: [
       "O eixo x é como um espelho horizontal. Um ponto a 3 unidades acima dele tem seu reflexo a 3 unidades abaixo, na mesma posição horizontal. Por isso x não muda e y troca de sinal: (2, 3) vai para (2, −3).",
       "3 e 4 são os catetos de um triângulo retângulo cuja hipotenusa é o segmento entre os pontos. A distância é a hipotenusa, raiz de 9 + 16 = 5, e não a soma dos catetos, que seria o caminho pela malha.",
-      "Três pontos estão alinhados quando a variação de y dividida pela variação de x é a mesma entre qualquer par. (1, 2), (3, 6) e (5, 10): 4 ÷ 2 = 2 nos dois trechos, alinhados. (1, 2), (3, 6) e (5, 9): 4 ÷ 2 = 2 e 3 ÷ 2 = 1,5, não alinhados.",
+      "Para três pontos distintos, primeiro verifico os valores de x. Se os três forem iguais, os pontos estão alinhados numa reta vertical; se só dois forem iguais, não estão. Se os três x forem diferentes, comparo as inclinações. (1, 2), (3, 6) e (5, 10): 4 ÷ 2 = 2 nos dois trechos, alinhados. (1, 2), (3, 6) e (5, 9): 4 ÷ 2 = 2 e 3 ÷ 2 = 1,5, não alinhados. Já (2, 1), (2, 3) e (2, 5) estão na vertical x = 2, sem dividir por zero.",
     ],
     focus: "a leitura das coordenadas como deslocamentos horizontal e vertical",
   },

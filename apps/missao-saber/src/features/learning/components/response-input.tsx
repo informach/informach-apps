@@ -47,9 +47,10 @@ export function ResponseInput({
         </label>
         <input
           id={`answer-${item.id}`}
+          type="text"
           value={value}
           disabled={disabled}
-          inputMode="decimal"
+          inputMode="text"
           autoComplete="off"
           aria-describedby={`format-${item.id}`}
           onChange={(event) => onChange(event.target.value)}
@@ -62,11 +63,11 @@ export function ResponseInput({
               form === "fraction" ? "fração" : form === "decimal" ? "decimal" : "inteiro",
             )
             .join(", ")}
-          {item.numeric.unit?.required
-            ? `. Inclua a unidade ${item.numeric.unit.symbol}.`
-            : item.numeric.unit
-              ? `. A unidade ${item.numeric.unit.symbol} é opcional.`
-              : "."}
+          .
+          {item.numeric.acceptedForms.includes("fraction") &&
+            " Na fração, separe os números com / (por exemplo, 3/4)."}
+          {item.numeric.unit &&
+            ` A unidade ${item.numeric.unit.symbol} já está indicada; basta escrever o valor.`}
         </p>
       </div>
     );

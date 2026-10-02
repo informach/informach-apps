@@ -291,8 +291,15 @@ test("parent signup, verified profile, learning, saved lab, report and profile s
   await page.getByRole("radio", { name: "4/8", exact: true }).check();
   await page.getByRole("button", { name: "Conferir minha ideia" }).click();
   await page.getByRole("button", { name: "Continuar", exact: true }).click();
-  await page.getByLabel("Seu valor em m").fill("0,5 m");
+  const numericResponse = page.getByLabel("Seu valor em m");
+  await expect(numericResponse).toHaveAttribute("type", "text");
+  await expect(numericResponse).toHaveAttribute("inputmode", "text");
+  await expect(
+    page.getByText("Na fração, separe os números com /", { exact: false }),
+  ).toBeVisible();
+  await numericResponse.fill(test.info().project.name === "mobile" ? "1 / 2" : "0,5");
   await page.getByRole("button", { name: "Conferir minha ideia" }).click();
+  await expect(page.getByText("Isso! Agora, veja por quê.", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Continuar", exact: true }).click();
   const moveDivide = page.getByRole("button", {
     name: /Mover “Dividir 20 em 4 partes iguais” para cima/,
@@ -315,6 +322,15 @@ test("parent signup, verified profile, learning, saved lab, report and profile s
   await page.getByRole("button", { name: "Ver minhas descobertas", exact: true }).click();
   await expect(page.getByText(/Você acertou 3 de 3 questões/)).toBeVisible();
   await expect(page.getByText(/Sua explicação ficou guardada, sem nota/)).toBeVisible();
+  const orderingSummary = page.locator("details").filter({
+    has: page.locator("summary").filter({
+      hasText: "Organize os passos para calcular três quartos de 20.",
+    }),
+  });
+  await orderingSummary.locator("summary").click();
+  await expect(orderingSummary).toContainText(
+    "Sua resposta: Dividir 20 em 4 partes iguais → Reconhecer que uma parte vale 5",
+  );
   await page.goto("/familia");
   await criarPerfil(page, "Lua");
   await expect(page.getByRole("heading", { name: "Olá, Lua." })).toBeVisible();

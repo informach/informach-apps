@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { DeepChallenge } from "./desafios-profundos";
+import type { ItemFigureData } from "./figures";
 import type { Domain, Item, Lesson } from "./types";
 
 /**
@@ -13,6 +14,7 @@ import type { Domain, Item, Lesson } from "./types";
  */
 
 export type ChoiceSpec = {
+  figure?: ItemFigureData;
   kind: "choice";
   family: string;
   prompt: string;
@@ -24,6 +26,7 @@ export type ChoiceSpec = {
   hints?: [string, string, string];
 };
 export type NumericSpec = {
+  figure?: ItemFigureData;
   kind: "numeric";
   family: string;
   prompt: string;
@@ -59,7 +62,11 @@ export const c = (
   answer: string | number,
   wrong: [string | number, string | number],
   explanation: string,
-  extra: { feedback?: ChoiceSpec["feedback"]; hints?: ChoiceSpec["hints"] } = {},
+  extra: {
+    feedback?: ChoiceSpec["feedback"];
+    hints?: ChoiceSpec["hints"];
+    figure?: ItemFigureData;
+  } = {},
 ): ChoiceSpec => ({
   kind: "choice",
   family,
@@ -75,6 +82,7 @@ export const n = (
   value: number,
   explanation: string,
   extra: {
+    figure?: ItemFigureData;
     unit?: NumericSpec["unit"];
     misreads?: NumericSpec["misreads"];
     hints?: NumericSpec["hints"];
@@ -108,6 +116,7 @@ export function objectiveItem(
       purpose,
       domain: "common",
       prompt: spec.prompt,
+      figure: spec.figure,
       explanation: spec.explanation,
       hints,
       grading: {
@@ -129,6 +138,7 @@ export function objectiveItem(
     purpose,
     domain: "common",
     prompt: spec.prompt,
+    figure: spec.figure,
     answer: spec.answer,
     options,
     explanation: spec.explanation,
@@ -150,6 +160,8 @@ export type OrderDefinition = {
   prompt: string;
   labels: [string, string, string, string];
   explanation: string;
+  /** Pares de índices: só os passos com dependência precisam manter a ordem. */
+  constraints?: Array<[0 | 1 | 2 | 3, 0 | 1 | 2 | 3]>;
 };
 
 export function orderingItem(
@@ -158,7 +170,8 @@ export function orderingItem(
   stage: number,
   definition: OrderDefinition,
 ): Item {
-  const order = ["understand", "represent", "solve", "verify"];
+  const order: [string, string, string, string] = ["understand", "represent", "solve", "verify"];
+  const constraints = stage === 0 ? definition.constraints : undefined;
   const stageLabels: [string, string, string, string] =
     stage === 0
       ? definition.labels
@@ -199,13 +212,24 @@ export function orderingItem(
         : stage === 1
           ? "Verificar é repetir a relação com atenção à unidade e testar se a resposta respeita limites simples."
           : "Comparar métodos exige aplicar os mesmos dados, explicitar hipóteses e conferir se chegam à mesma conclusão.",
-    hints: [
-      "Descubra qual passo define o objetivo antes da execução.",
-      "Coloque a representação antes do cálculo e a conferência depois dele.",
-      `A ordem completa é: ${stageLabels.join(" → ")}.`,
-    ],
+    hints: constraints
+      ? [
+          "Veja quais passos precisam de informações dos outros.",
+          "Passos independentes podem trocar de lugar; respeite o que cada passo precisa para começar.",
+          `Uma ordem possível é: ${stageLabels.join(" → ")}.`,
+        ]
+      : [
+          "Descubra qual passo define o objetivo antes da execução.",
+          "Coloque a representação antes do cálculo e a conferência depois dele.",
+          `A ordem completa é: ${stageLabels.join(" → ")}.`,
+        ],
     steps: rotated,
-    grading: { mode: "exact", order },
+    grading: constraints
+      ? {
+          mode: "precedence",
+          constraints: constraints.map(([before, after]) => [order[before], order[after]]),
+        }
+      : { mode: "exact", order },
   };
 }
 
@@ -259,6 +283,7 @@ export function verificationSpec(spec: ChoiceSpec): ChoiceSpec {
 
 /** Uma missão de habilidade nova: título, objetivo, introdução e oito itens objetivos. */
 export type SkillPackMission = {
+  version?: number;
   title: string;
   objective: string;
   introduction: string;
@@ -370,7 +395,7 @@ function packOrderingItem(
   if (stage === 0) {
     const base = orderingItem(pack.id, lessonId, 0, pack.ordering);
     // Nos anos iniciais, as dicas da ordenação falam como a criança fala.
-    return early
+    return early && base.type === "ordering" && base.grading.mode === "exact"
       ? {
           ...base,
           hints: [
@@ -508,7 +533,7 @@ export function packLessons(pack: SkillPack): Lesson[] {
       );
     return {
       id,
-      version: 1,
+      version: mission.version ?? 1,
       title: mission.title,
       skillId: pack.id,
       objective: mission.objective,

@@ -13,6 +13,7 @@ export const polinomios: SkillPack = {
   missions: [
     {
       title: "Grau, coeficientes e valor",
+      version: 2,
       objective:
         "Operar com polinômios, identificar grau e coeficientes e calcular valores numéricos.",
       introduction:
@@ -86,7 +87,10 @@ export const polinomios: SkillPack = {
           ["x = 0 é raiz", "O polinômio é nulo"],
           "p(1) = soma dos coeficientes = 0.",
           {
-            feedback: ["p(0) = −6, não zero.", "Só um valor é zero; o polinômio não é nulo."],
+            feedback: [
+              "p(0) = −6, não zero.",
+              "Ter p(1) = 0 não significa ser zero em toda entrada: p(0) = −6.",
+            ],
           },
         ),
       ],

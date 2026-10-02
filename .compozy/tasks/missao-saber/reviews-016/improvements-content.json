@@ -1,0 +1,1806 @@
+{
+  "date": "2026-10-02",
+  "newRecoveryItems": 348,
+  "newRecoveryLessons": 116,
+  "recoverySkills": 58,
+  "updatedLessons": [
+    {
+      "id": "funcoes-4",
+      "previousVersion": 1,
+      "version": 2
+    },
+    {
+      "id": "espaco-2",
+      "previousVersion": 1,
+      "version": 2
+    }
+  ],
+  "review": "Enunciados, premissas, respostas e pistas conferidos durante a autoria; oráculos permanentes para contagem, probabilidade, recorrências, geometria, modelos financeiros, gráficos e dobradura; famílias reutilizadas sem inflar diversidade; banco reservado preservado.",
+  "items": [
+    {
+      "itemId": "funcoes-4-1",
+      "previousDigest": "7b350d297fade0bd905dae3b1d6c4522f85e29c36a4b5a6e47afab3abcfaeb92",
+      "digest": "3ac6141d105f7cc406c42e14ffc9855b4221dfe3d8dbbfb0562d86271868b656"
+    },
+    {
+      "itemId": "funcoes-4-2",
+      "previousDigest": "5743b8ddd101f95964b522ba5365a55dd31d41ea564352b928ba313df96a594d",
+      "digest": "8767b23c883420ceb880e376f237973c5c219e447106fc30a568021342a68978"
+    },
+    {
+      "itemId": "funcoes-4-3",
+      "previousDigest": "3964d027c0b664226e2769c3d24069a0590e99b2bdf29999c26c991d343c5fc2",
+      "digest": "c66c4d6906eb92e287ec906d04e3cd4221775982495d871f50e091a784be34ea"
+    },
+    {
+      "itemId": "funcoes-4-4",
+      "previousDigest": "49631caf9f89085982a6ae393ec91e830c45957cd94d71c55f8c31f4192c40cb",
+      "digest": "71c3039b128a5ddd5a3fa2397b1214d482a63515c3282c862534bfb76a09035f"
+    },
+    {
+      "itemId": "funcoes-4-5",
+      "previousDigest": "4b21b4b067c3192999d1f6f327fb0ed98cab235cab4a876e16e9715b1f2729c7",
+      "digest": "395a66edcc3881f8f82691cee448ed0751931dbc12eab60d4cc21030cd66eb2c"
+    },
+    {
+      "itemId": "funcoes-4-6",
+      "previousDigest": "a0014cc2f0bb93a63e66f71f889ce1f01bcdc9a54f921013dd0d320315f4adec",
+      "digest": "e02f33b300cc8b5f6fdd2f7740fd3951d1ff20e5f293e6a67cece5662d457337"
+    },
+    {
+      "itemId": "funcoes-4-7",
+      "previousDigest": "71c4d517a41644bafcfca34b76b59137f41540e8474f190a28daff477cc98fce",
+      "digest": "53fd7f5d489f27552e9a33aaaa72b27b0af5688985083d0969d1903a6be30d4a"
+    },
+    {
+      "itemId": "funcoes-4-8",
+      "previousDigest": "b65dd27c271d9bec57574dd2e789008369fbb0d428a939400d8af997a31677c7",
+      "digest": "008af7b788495931655e27fffeaa43bbcfc0303990b1635b11f648b074619518"
+    },
+    {
+      "itemId": "espaco-2-6",
+      "previousDigest": "731e662d5800ff6c5fee1c83082375aea8d18747d000a6c46c8c61e2ef6022f6",
+      "digest": "5e6142b5e1866fb67781bb39739214242f40a9724f169284ac4ad49b2b6989f6"
+    },
+    {
+      "itemId": "fracoes-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "d2fac3871aa6441559a01e1a0d18969588a05b2f30f21e0621c2deaf47b2bc9b"
+    },
+    {
+      "itemId": "fracoes-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "ed6159fadf924c3b4f5a2f9307deec0b27063cf4414b589ee7a6fb1c7dd4bb56"
+    },
+    {
+      "itemId": "fracoes-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "c446ed87f7cb7650a9dcfcd1f8f8a3132b6c335aa862df699fd30f4af004b564"
+    },
+    {
+      "itemId": "fracoes-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "e6394c44a91d3ec0de74eec6902175fcb6d1d19ce347827da71fb6efcb2d215d"
+    },
+    {
+      "itemId": "fracoes-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "236b384d7cdf331ce4d4efa03fceb0b54453c3698f7dfde6982f56b47595bcc8"
+    },
+    {
+      "itemId": "fracoes-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "dd4b4d3c0ef02b4e9839348f2407b5ad6885af75cfc40dbf5a9ec22d207c6f32"
+    },
+    {
+      "itemId": "porcentagem-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "268dd105a0e2c8b691489655446237bdcaef6ac84ef9cb7dd96c280c5e09c7f7"
+    },
+    {
+      "itemId": "porcentagem-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "eb229826c9780e3e0b8be14b2ef65e7eef2fa2827d61d01b141f3621fd507af0"
+    },
+    {
+      "itemId": "porcentagem-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "0f3bf6c979a73d13fcb1e99a88a84e9916f9751719480a905dafcff7c0dfa711"
+    },
+    {
+      "itemId": "porcentagem-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "881264a0fc7f312df3fefaa42ab804a7a2fbc31fcf3205cfdaf879cfcd73187f"
+    },
+    {
+      "itemId": "porcentagem-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "2c8775bd561d800fbeff2c5015a5cdecacd4234833b524defbb8bec34d1bbd70"
+    },
+    {
+      "itemId": "porcentagem-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "eb84722c3d81d778b9c01dcd670fce83af03081de22d8d0a9e10433d86df66f8"
+    },
+    {
+      "itemId": "precos-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "2fb1df0362e99e05b0b06e8b4221fe88d21e8a042da5d9c96f3fc9147fe43eb1"
+    },
+    {
+      "itemId": "precos-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "f8ec840947060a9380d71409b12821b064484fe499395d66e2c168028a969872"
+    },
+    {
+      "itemId": "precos-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "68ae91166ee6ef11cadc66354354296381a5e2139bbec6be0d7e7d7600d988f6"
+    },
+    {
+      "itemId": "precos-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "6a55968c1c8e7e2f274857cdf7598b611216bf4b56b6bff8031680a77e3e6779"
+    },
+    {
+      "itemId": "precos-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "d125fd364baa36bf3adb665a0ee5b92ffc90bbd4c61e96e476686a3302995786"
+    },
+    {
+      "itemId": "precos-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "0628b098ca557fcce9babc988314d45fb407db885f5a0398bcec23664174afeb"
+    },
+    {
+      "itemId": "orcamento-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "89438ad66eccf8a949babd895194823471ab0949d9ef2ce367836c2268afd4d9"
+    },
+    {
+      "itemId": "orcamento-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "9d55c2c588af7b87aa85fa8732363eb88930d8280fceaf14355807fe2a9677cb"
+    },
+    {
+      "itemId": "orcamento-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "4e69d79c4871ded32d650bf3b1d7deb0f42ceed732fb3b65442a5eb1163e904b"
+    },
+    {
+      "itemId": "orcamento-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "52ce3b3228df5e9f563b4c69c01bac7b15880b3c860b13ef051fb7fa687dc281"
+    },
+    {
+      "itemId": "orcamento-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "180c83272fdb6797e99095b3d0d1a5595001cd4792e6eb243087449b0d934263"
+    },
+    {
+      "itemId": "orcamento-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "ecbcf6080ef92892a01f22d8eb1143254010bf0f104a52eaa86bf7a9e64ac5ac"
+    },
+    {
+      "itemId": "medidas-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "fe62c3a94f6bc3fd01ab11ddcc4dfae0e855463ceb1935de45855cc74ce6fdff"
+    },
+    {
+      "itemId": "medidas-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "46fc3332bf7c542b69af4b3311d7638f092008027fa3db68d3f4ef2a39675d4d"
+    },
+    {
+      "itemId": "medidas-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "68c33115c58c78cf45ffd8bb4f5bd1940c48ae7c9f09d7a2a2f501c245c9ffe4"
+    },
+    {
+      "itemId": "medidas-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "53f181783a19dc36bac2024cb67a2417ce2938ab66a1827c4367d54bfc7504a8"
+    },
+    {
+      "itemId": "medidas-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "629f69205cd87f7bbea00dd50e49748219fe2b911c25c8e256d83f4a6a893388"
+    },
+    {
+      "itemId": "medidas-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "3b5424debe320e3b93ef4dfdfe82352acc844d4689dcdc304cf0b06d6c6753b1"
+    },
+    {
+      "itemId": "simetria-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "494fea4a6dca8c54fd46a9bf21369d202f35b26a9c52242bed91c7e09d5150a4"
+    },
+    {
+      "itemId": "simetria-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "584406ab5f72bc0ede3110a1cbadcabd0410bfa16469f0231dbda75eed782c91"
+    },
+    {
+      "itemId": "simetria-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "222c4c02b8a6f9deadba21cbc290b148ae407aaf8f24c2e07b2fdc8d8da6dfa7"
+    },
+    {
+      "itemId": "simetria-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "6ebb99376987f732eed9d3b2787967d6cbd84a1979816ddbe7ac39a5ec7e0cec"
+    },
+    {
+      "itemId": "simetria-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "b7ad3d5e1b9a2c9ae9aa44bbdd3226976aef826192554c623f1fe057f3c6ed51"
+    },
+    {
+      "itemId": "simetria-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "392b1c055cdcd91435771d7663d06dcf30801076518b3c22b4f97d3fce20d4f9"
+    },
+    {
+      "itemId": "contagem-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "b0b68b6298ebf881ec35a7b826a575ec0e0eb2a8582ef2bc676f2754ca5c4c43"
+    },
+    {
+      "itemId": "contagem-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "143513242871757b200ba61b2abab45532d216dc843f72b943e27cd1f0b76425"
+    },
+    {
+      "itemId": "contagem-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "7f973382cc7d9ed50aa745e4cff0540d9fb8900a957b7f83b6100676d9154b29"
+    },
+    {
+      "itemId": "contagem-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "4bc0d099f75f9fedda9f1ac26d80d178d209c2b800d10419dd7f0d60feff98cc"
+    },
+    {
+      "itemId": "contagem-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "6d44c8167be4ad61586ccbdbaa1eaf84febbca5960a680e0e8f974a9824bf092"
+    },
+    {
+      "itemId": "contagem-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "3cce9fa406e9bb2ad370f2929e21851ba52c4e485c9750a33a7b1db06453d224"
+    },
+    {
+      "itemId": "gavetas-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "605452f93b4754941a58834a733175070f54415bbef2d2913119756bc8016ff0"
+    },
+    {
+      "itemId": "gavetas-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "476b2a14f2a0fd8f8f1cdd5cbcba025541da4a7a71ed5d457574c4d20040dcdd"
+    },
+    {
+      "itemId": "gavetas-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "af0e007b47fb596e9bd38033acbd6f1e6fbe2eb555c5ed165ebda42e6a5e63a4"
+    },
+    {
+      "itemId": "gavetas-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "1b6d8cbaacf126b6bbaaefec8321abb62172fa3e35f59adf7b02594546a2f238"
+    },
+    {
+      "itemId": "gavetas-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "5bcd6c54da9159f324252c91f5c6ccf9764625d9ae977cb66071ab4d758642ae"
+    },
+    {
+      "itemId": "gavetas-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "1f5e3a74c2fb9f09719d129294841ac398292bde6e381cde8c30f2a42689dcbf"
+    },
+    {
+      "itemId": "probabilidade-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "307c03dcd1d834ff356a2c26521a47b6fa3b5ba92fb747a865f49438e6792a8e"
+    },
+    {
+      "itemId": "probabilidade-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "4f2327c95a932febb281bb99c44854cd7fc519db90d7465e2cdaf28ba72fd97d"
+    },
+    {
+      "itemId": "probabilidade-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "7a827b49d5659c0bac3eff5682adabe7f423c459c5373cc8f0d799fe5a67b8fa"
+    },
+    {
+      "itemId": "probabilidade-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "3deea338bf809b63e66179a9f80dd69c5d45421519006a8fdb3edcdd1700ce83"
+    },
+    {
+      "itemId": "probabilidade-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "33129900c05495adccc75ac9c8bd86662931491b619700c0f47325a57e811d38"
+    },
+    {
+      "itemId": "probabilidade-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "8e36b261f904e1a9e6cbdb2b4a31c9a840844805860dca4a95ca3cae36c0d708"
+    },
+    {
+      "itemId": "paridade-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "e5c2c63552728d0f57d18a34d0ca376a8ff450e87c310561ad03e0285bcd2a96"
+    },
+    {
+      "itemId": "paridade-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "079b88ebb8b69cd35aa99c037429c3c8133e1b8dfee386c722b42f442acec268"
+    },
+    {
+      "itemId": "paridade-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "9ee2c9f0664d337d314b4fa3156a8b6140a71b8102f8d218080b1173fab33405"
+    },
+    {
+      "itemId": "paridade-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "ccf6ac4f0ce195833f285e3ea1e0cb74703e11df410b5f1b78cfb0ac0171e9dd"
+    },
+    {
+      "itemId": "paridade-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "2523e73bb9e0189bf4c23692192e61f1d6d4a3ee71e753ef463135a698094670"
+    },
+    {
+      "itemId": "paridade-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "31a3d20af47758c5488ed33b96d520ad8173c7eb0f885ae884cd9996853297b4"
+    },
+    {
+      "itemId": "padroes-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "5b3894bad15d103a0c5433ab49579d7bb85bf4468bc07c149cd8b8fb09e3ab86"
+    },
+    {
+      "itemId": "padroes-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "69458138260c8f99ee89934c179d4a6e601adda61e30f4639d4265030c27d226"
+    },
+    {
+      "itemId": "padroes-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "28e56da6cbfcb497b6e537b368605ce6099a28e6e2001e51a7ac8df4412ef17f"
+    },
+    {
+      "itemId": "padroes-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "ecf34ddcdd7056ec3e9f79623e2797f63bff4a3f86792ac959234a217776bc1e"
+    },
+    {
+      "itemId": "padroes-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "be7237d98e008bd6de7cf2e04f32491dae86541181aa60e777f83c93b63a227c"
+    },
+    {
+      "itemId": "padroes-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "f8411698be4529d8502b06b24d4f5d1a0c29c63126faf31e5dd356889ea4e024"
+    },
+    {
+      "itemId": "logica-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "f5b5d06f61311898f99ff0c2f8d1c5539eee2a58a0816d581eb5c72a64fe78ef"
+    },
+    {
+      "itemId": "logica-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "939e905cc881d55b16b0997a0b488338684a5255e84d0bce4a600f68cba0d061"
+    },
+    {
+      "itemId": "logica-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "c63e08ed5deb69396149a7fc6d37e945d75bb4b5632ed412d30ff1441972e5fb"
+    },
+    {
+      "itemId": "logica-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "a2bb04c441c9886a054bb473f74af12c1abd65bc421c277212d4903c1bab2817"
+    },
+    {
+      "itemId": "logica-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "e783391bb0ee53c57d4f3b0edc023f3068ad8bf7eca88ecef3de0824ad4cb1fb"
+    },
+    {
+      "itemId": "logica-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "f086006930ebee6cba81bd039d071da5de741da4a0fca57966934ac06e854139"
+    },
+    {
+      "itemId": "contagem-inicial-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "33a2733e48d29ecf21b6e9f5850cd77306487ef50aed1cf4bd50c3b48bdb722f"
+    },
+    {
+      "itemId": "contagem-inicial-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "f078c5d95deca37ae7b7c16b6f7d96ef21b1c00ab0c2b432109cc3bdf2c7b40b"
+    },
+    {
+      "itemId": "contagem-inicial-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "35e7fea9966b410b9620f1dc09be4668fe27c8e7e7f26df3934841812ec5ad58"
+    },
+    {
+      "itemId": "contagem-inicial-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "e277379c50aabcd147560b3397251d94a4a178b54f7018639d73f91c00b6a985"
+    },
+    {
+      "itemId": "contagem-inicial-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "fd4f3e7094c62ee16bc281c580a0bac1f9393f877f61699d622d7c652c2324f6"
+    },
+    {
+      "itemId": "contagem-inicial-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "e83923647e3ea476a9621437b5a2d6b3e755a2eb0e46c6264f7a0b9aa9337e65"
+    },
+    {
+      "itemId": "padroes-iniciais-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "111401bda5403f1c4f752c2f83fcc8cb88966d63b301432de1b161e376d6f730"
+    },
+    {
+      "itemId": "padroes-iniciais-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "2609560cb3c834eb884f9dd9094882fb18a4135becd52d9e515fdeafb65cf68d"
+    },
+    {
+      "itemId": "padroes-iniciais-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "50f6f60130329a8ee140b5917a3360cc706f9592696339f40e832ee5ca79f7e7"
+    },
+    {
+      "itemId": "padroes-iniciais-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "e1d3261a145ed5c53dcf8559defe999cfd935432834cb5b2c115599182083233"
+    },
+    {
+      "itemId": "padroes-iniciais-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "fda0ed03345f0f8cf96e83af0ed7919959e008138ebe3bfb8b17c98a2d22113d"
+    },
+    {
+      "itemId": "padroes-iniciais-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "e4cc0724e671ec60137d3aadd0d52a394e492064b9de4fa20db0f0bb5424911f"
+    },
+    {
+      "itemId": "orientacao-espacial-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "36930d9c3b3af393c5e0ee2227e7fcadb76e78ee6d37c75c0807300a19f9a3d7"
+    },
+    {
+      "itemId": "orientacao-espacial-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "c778890c67626806b6a484e3f75b3185718c5bac0ab472bdb7242f9b569030cb"
+    },
+    {
+      "itemId": "orientacao-espacial-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "2db14e32219884843a84ee5cd920e484338978478d223ccbd16eb725325e7e73"
+    },
+    {
+      "itemId": "orientacao-espacial-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "9dd5205d6bc414f8385f2b51d084dfdbfb8ef3d45c0b253573c1ca10ebdac51b"
+    },
+    {
+      "itemId": "orientacao-espacial-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "2cc18429b695246e604ecec97412e38e5b06aeb016e93b7480356137fefb9074"
+    },
+    {
+      "itemId": "orientacao-espacial-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "2987f319f7400eeb34f36ef57c59ebeb8f06a127830cd03ba89042a5160159d5"
+    },
+    {
+      "itemId": "composicao-de-figuras-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "632ef2cdfbe1a325aeba0c04a3c355b9516732f137d722ca33b2025ab71f5e3d"
+    },
+    {
+      "itemId": "composicao-de-figuras-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "ebe094a01c24eb9c432ef5603ae6d6ba7e65381ffdb25893add3f4436545d578"
+    },
+    {
+      "itemId": "composicao-de-figuras-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "81bfae45eda31312977db9e39e5ec327196472a18ba5f498c5d8eb25498e6ff6"
+    },
+    {
+      "itemId": "composicao-de-figuras-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "d38d6ba3f6e60a8dfa3e972e94e6ac3c803c62d25d6a3b08c5afb0de0f413cc1"
+    },
+    {
+      "itemId": "composicao-de-figuras-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "b986741a41195ad9362384256bff5c09afb074884ac623046fa509af08144d8b"
+    },
+    {
+      "itemId": "composicao-de-figuras-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "7e4187dc1ea8d0947b33033633a88ac2cb879caaf47519a47add126c5b8032e7"
+    },
+    {
+      "itemId": "tempo-e-medidas-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "3b56550ad6793ea4f46c5e7c962320250726d7f3f0e4432a94443fc54101c1f6"
+    },
+    {
+      "itemId": "tempo-e-medidas-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "19dd3b806eedb003db3ea7a72d71bc5cab85c822bd5b18b0157b6a5930af0708"
+    },
+    {
+      "itemId": "tempo-e-medidas-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "f03b5e4fa8af37f1b28da0d167984eee35cc67ef20acd27eafb55ab95a70b1c8"
+    },
+    {
+      "itemId": "tempo-e-medidas-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "0560eb55bd810084b232e5284af95ec3ea55d4b9c3b9632f01726b53e8a61364"
+    },
+    {
+      "itemId": "tempo-e-medidas-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "2f7ed533d6d4c3b84bb09173c1b992b1748dd383a31bb911671d4065eab40cda"
+    },
+    {
+      "itemId": "tempo-e-medidas-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "4afaa3c15c3b236a74e6ae4a901d14d295bb72d6d72506c42d31eca7da57e3f9"
+    },
+    {
+      "itemId": "balancas-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "9552152ec4daf9333ded713c6dd48c2a55ab823052d22b65273efc211c50f4eb"
+    },
+    {
+      "itemId": "balancas-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "fe9859bcbcbe650284cdd54bc8952eefca31ab894d659e561f85bf8d41f38997"
+    },
+    {
+      "itemId": "balancas-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "1e6941e51858a06aac34eb564e6ca512839499c322150d5111191700cbc75167"
+    },
+    {
+      "itemId": "balancas-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "94ed62d9dc246c615fdecde8dbc587f71ff7e120aa3fe7070fc1589f3b428b02"
+    },
+    {
+      "itemId": "balancas-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "95c920b08b12ce63a24e7b367d98db814aea3d481571b3a21e3447369f9dc68b"
+    },
+    {
+      "itemId": "balancas-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "a3c24e9b17c78545deae863198a46d2a248ff6c3895860bc13443a036ff165c5"
+    },
+    {
+      "itemId": "caminhos-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "034e8d15a906d5411ee20ea94ad9d2d65db5d480232fe3f945531bae7a420468"
+    },
+    {
+      "itemId": "caminhos-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "3b5854f64c916cbaf0a8df561b1901fdea30f95d109d393b9d656c9ae252c7ba"
+    },
+    {
+      "itemId": "caminhos-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "1bbac509897a65e49fc16eebfb5383a0a10919571e3a27f15a6fcb922775e8cb"
+    },
+    {
+      "itemId": "caminhos-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "41852821c8ff504fae8fae8f012432b5d123a66a4819ba4f0cedfedcc5c9ceaf"
+    },
+    {
+      "itemId": "caminhos-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "02d27762900c25106222a6103aaa72faa4169f07e14f686d15c91a60e5199981"
+    },
+    {
+      "itemId": "caminhos-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "e9778b7d668c6a023f9540e964abd1416da9bc8491109cc47116385d46653d1e"
+    },
+    {
+      "itemId": "tabelas-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "12f5f042b61d06fbe1eae5a2466ce39a2e64acab806420285b259ed9f608d7cf"
+    },
+    {
+      "itemId": "tabelas-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "688f1345fc850c9aa118249ecc58fa87253206bc2a986ebbe67a3d114a982446"
+    },
+    {
+      "itemId": "tabelas-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "f4b1e90b0cb0ed12e608c29b66c5abde75c492f20ba98a1455e7a3270b2aa933"
+    },
+    {
+      "itemId": "tabelas-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "943ee0d02f51f4a430afe3f3e0a6b38b04a233141a4efe1c96d907baaebb0cfb"
+    },
+    {
+      "itemId": "tabelas-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "fb1576bdec4dccfc2e0356709c1dc188054c4f377e86238584bb0da6895dc42b"
+    },
+    {
+      "itemId": "tabelas-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "d2e1b57c1f1918d7331817ab5f5bb507b48a0d367935714e11e724c5f83e979b"
+    },
+    {
+      "itemId": "contar-e-comparar-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "c5073911b059228324a03fe386a640d04f44a32dc46ec04380a12405c0f73bc4"
+    },
+    {
+      "itemId": "contar-e-comparar-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "23bf99796f2c904ae969a6a6adc7336c8122e0d3d1b413979ef862bf0e83605b"
+    },
+    {
+      "itemId": "contar-e-comparar-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "2ffe89b81c67a8fe34948316bfb04813090bd30fa79386ce18c0a8461493c6da"
+    },
+    {
+      "itemId": "contar-e-comparar-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "fad390e1b6fc70d72130660f30b51f4af1644599293b7d50c3bcef270da0db2c"
+    },
+    {
+      "itemId": "contar-e-comparar-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "afe49a96bfd1181b1b812f7665a1bc594c09c46d3336a867325b44396260b4ff"
+    },
+    {
+      "itemId": "contar-e-comparar-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "41b9baa95ca5f819bd24aac65dc481696921fb36a9fdf0f7af299ad0afb49a2a"
+    },
+    {
+      "itemId": "formas-e-posicoes-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "833f4af214ea57c4a5bc6024202ae905b6bb24b0984b6f99e83687d03b11804a"
+    },
+    {
+      "itemId": "formas-e-posicoes-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "8d80f14c3153e2003d5040c1c1ec8e8f43bd12645eddb924bbc3a120f2c4860e"
+    },
+    {
+      "itemId": "formas-e-posicoes-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "ea633e801328da09a50895447026abde834179879643c766e0583c1ae1ad44c5"
+    },
+    {
+      "itemId": "formas-e-posicoes-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "b9eb520d2d50a3b4d8fd543d98cca76bb5fdab5a4dc6f1d0e0cb53cc28e9551e"
+    },
+    {
+      "itemId": "formas-e-posicoes-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "6627a142451e3f821a7a6f943f77e5438a220df8fa8f6f93a9fbe28696ff0ebc"
+    },
+    {
+      "itemId": "formas-e-posicoes-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "c78917a6721708733f0e2e19aaca0dba1c78276df37bb3578cf2ccb289080247"
+    },
+    {
+      "itemId": "sequencias-iniciais-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "f4a33a513765cf868148cbe7da2a3ad5d55c475b7b02c3104bfcca23f5b4d511"
+    },
+    {
+      "itemId": "sequencias-iniciais-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "ddb2f0e27c12160dca825498551727fae6afafe6339a331678087902ffa57d69"
+    },
+    {
+      "itemId": "sequencias-iniciais-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "505efa88cb4e46ee1f1410d02c19b17245b36a976be469256077256e648cca5d"
+    },
+    {
+      "itemId": "sequencias-iniciais-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "13afad5219464588aec765da86dd6d724e082c8ef4ff8bc665f3df1561b748bf"
+    },
+    {
+      "itemId": "sequencias-iniciais-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "8f413551bf9d622566a96e08068b9ec0684293f874ebd9aac1b2e6b592333ac5"
+    },
+    {
+      "itemId": "sequencias-iniciais-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "be0f919fc05ac32fdd33eb47fb7a32c13a28a304a84b0274e4c9c09aeb4f62b5"
+    },
+    {
+      "itemId": "medir-e-comparar-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "b8f30c924db234711f54b0862673fd7e5c000b9f2c302b76a3c944baafbc58f1"
+    },
+    {
+      "itemId": "medir-e-comparar-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "34291c7212b9440d678ec259809c61dfe788cbc58d2b876a5ec9438235c57d46"
+    },
+    {
+      "itemId": "medir-e-comparar-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "26f32b4bd392d66bfd02a4f0e8f63e74fa664da0cd4518b34dbef0231b75a810"
+    },
+    {
+      "itemId": "medir-e-comparar-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "77a463ce34aa1347b4cf2581a9dcc096e467d1bc7b7f125327a01a70c8bf753b"
+    },
+    {
+      "itemId": "medir-e-comparar-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "b4df7df6e4ff1e8d7460f24c7f2caffded74e0c31412fe1cd40612dcda5b5989"
+    },
+    {
+      "itemId": "medir-e-comparar-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "25f9ad42e26ec5cf77b1b197625daf9aa4521166c8ec35535475efdcdc089b28"
+    },
+    {
+      "itemId": "problemas-com-desenho-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "aed80bc723e86f63bf83cf79241a139e5fd929e68291f0f56adc4bfbfa9bd2a1"
+    },
+    {
+      "itemId": "problemas-com-desenho-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "9dff2c01f33554027da1de268652cac7019600eb5fe778a60e539020419a7723"
+    },
+    {
+      "itemId": "problemas-com-desenho-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "db4acb962589eb6a8bc6a204839dc8110eb604d5a551ee1d3f5cb99a0d2e8f8f"
+    },
+    {
+      "itemId": "problemas-com-desenho-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "e0f4e82589a100148728551b60e3c6657fcdbdb02b9be034bba1d96cc7ab66cc"
+    },
+    {
+      "itemId": "problemas-com-desenho-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "0275addd40cc8eeeebef0478813ecb1f81decfe5a9c75faf6c7a033f12b32e2b"
+    },
+    {
+      "itemId": "problemas-com-desenho-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "5ae6a7e961761e087c1c7f4e2b7ff594c7b4b6518d97f3300b53c986fd96bac3"
+    },
+    {
+      "itemId": "proporcao-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "8caeae609a2e323ceb0b2e776d9979569829ac7880127fd23622ed00317d6906"
+    },
+    {
+      "itemId": "proporcao-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "e4973608b7f54c42cacab6ea1cd555845a0d1d6039cb8b492ab9651239c1c45e"
+    },
+    {
+      "itemId": "proporcao-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "9fed4ffdaceb5f4cc07d2a1ab177e85a46abac6ebb1643b9d7b2ecb81fda4c2f"
+    },
+    {
+      "itemId": "proporcao-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "abf041c347db339debdbb386f6147f2bf0daa74a4049446347f4f72423252f5f"
+    },
+    {
+      "itemId": "proporcao-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "49547568eb4716a0c1b932ffdf2d86ecb3b63265cd13fc48bcf052a2a6848e4d"
+    },
+    {
+      "itemId": "proporcao-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "bfdfc8ec5354510d85c53e9039e9423939257be87b1999f15b8b1328d3e3dff9"
+    },
+    {
+      "itemId": "equacoes-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "bf800c0fef8f1dfb9a89db49d5b0f1d7de2469ba9cf2ab90adfe22130020fd98"
+    },
+    {
+      "itemId": "equacoes-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "267c607a5115d22d269616670b73c9b3ffbce33f4b48a1c1d9f04797d879cd8c"
+    },
+    {
+      "itemId": "equacoes-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "c08773837ea4ca22ee5b0d398239f6a0e90a680e5f31c428f24cd02049e7c9fb"
+    },
+    {
+      "itemId": "equacoes-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "77099232b7c8a8690903fae740fc0d07510ab3a8a6015a1216aec7bf15c7814c"
+    },
+    {
+      "itemId": "equacoes-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "b2705d860947e7386736bd8c9f599c174866db53c348ea05e103d63a69056da4"
+    },
+    {
+      "itemId": "equacoes-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "83a8425ecae184063737fed45bc47d5c55972dafdfb216f4c86dc1d620853b3e"
+    },
+    {
+      "itemId": "semelhanca-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "d6a4deb7d4c99fa073de988c1e32057ca498c4399ee75199a060cd8c5d5667dd"
+    },
+    {
+      "itemId": "semelhanca-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "d9d16784ff644ddccb4321a252a6162442f66c08c7a2803db16b394c89707e31"
+    },
+    {
+      "itemId": "semelhanca-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "12c8d1169c2f530ab9a46307fd389beae3b64298ff97911379d3ab2cb4a2f380"
+    },
+    {
+      "itemId": "semelhanca-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "2e51cc9866c5e18396d9463358e9f852c4564bde4b8d0897fed617bc58db0434"
+    },
+    {
+      "itemId": "semelhanca-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "7fe1c78311b427ec1bcb62dfc5dacacef59fef27907af7474b9ba21b6f6c32da"
+    },
+    {
+      "itemId": "semelhanca-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "5bebb638f5ae23657e4b7ca11c28948a43981bfd2147fbd803dd8e9d136c5afb"
+    },
+    {
+      "itemId": "pitagoras-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "64f3df7325bed8df71e9428f431037b76cfc9fe0b12da72f5a19b107bd4702d9"
+    },
+    {
+      "itemId": "pitagoras-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "e29e9fa12971e67d41dcfa198f59c0ec513a19c8c4c75571cc62b084f34db93c"
+    },
+    {
+      "itemId": "pitagoras-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "512bc5d0a038fab3ee9bc7f99d1f276fceada58a446e31f8f2566a62d39f2664"
+    },
+    {
+      "itemId": "pitagoras-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "9a1f3864e596bc97c71e8faa1cd3969032f4789b1a068dfbe4afd4d84efbdec9"
+    },
+    {
+      "itemId": "pitagoras-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "3d8d4dcdcf4871441b3038970c401987e86208d3e998000f12146c3c33076c36"
+    },
+    {
+      "itemId": "pitagoras-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "5fff4fe136a4be3e2795497292919812f8f397fd15bbcc557d2b9a1efa6086b0"
+    },
+    {
+      "itemId": "restos-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "b311d0f17298fb0c201a3dd3ba756a0fa6aba4de1f1fa6a645fda196277fc273"
+    },
+    {
+      "itemId": "restos-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "f379e42b23b9075c21c3c4cd9a3660b74787e3193475f2b40ef6a22016e341bf"
+    },
+    {
+      "itemId": "restos-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "7f3ce4642a3d7199bc7f2a2ac49a1d9b2d06794547f27b305cfb508b74ccb09e"
+    },
+    {
+      "itemId": "restos-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "1687b5967bc902991ada83e2beaa3ec67a2a07529225bb44a0d1802ee92ee235"
+    },
+    {
+      "itemId": "restos-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "a8f0fd9f74ce71e01a8e9689c495057dffccdf95c1413ca9f6cd375b58b69261"
+    },
+    {
+      "itemId": "restos-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "72aa57219349b410c50c86e1c5d0aae65a05b291090d13e765faea3560ba04e7"
+    },
+    {
+      "itemId": "contagem-casos-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "6f14bccaa2f3d127d12c8358e7c542427b869970b0f84facc26bb211aba11c5e"
+    },
+    {
+      "itemId": "contagem-casos-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "609519b499299a0539f7aeee867d0f1fd3c5e797a83b0448d755677cb2851fe3"
+    },
+    {
+      "itemId": "contagem-casos-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "bfff9a607bf9aa63e700f24341316b4a8c3b0c58e94314bb1be8a558748c68be"
+    },
+    {
+      "itemId": "contagem-casos-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "e5421993a154c9e39f9093a0d2bd32cd30f1170f164dd2273780244f750344bc"
+    },
+    {
+      "itemId": "contagem-casos-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "e5840d9033d2d95b62b9ff1b8a8c3cc1d0c4147acfba3a084e5648a34d8939cf"
+    },
+    {
+      "itemId": "contagem-casos-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "0479d3a8e41467b3463388b56a392057fcbc002967dd8067711c871dbebde800"
+    },
+    {
+      "itemId": "invariantes-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "7b0757d078cdf1e2e50997825a3e6e06f18afc382f2c4513b48e023f8a9a46df"
+    },
+    {
+      "itemId": "invariantes-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "45e69639c12d2537cf52c2a820f06ccdfa0e77259b5c43e75bfc9939704cddbb"
+    },
+    {
+      "itemId": "invariantes-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "6bb06c66826250b1192ef1ed0538fdf706e62916615d12b8dbdc1fbcc01dc645"
+    },
+    {
+      "itemId": "invariantes-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "ca109c1a143a903a575b30d47465c31e76d30a42e273b5870bfd6a56c03750b0"
+    },
+    {
+      "itemId": "invariantes-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "1e89ae9b705c2c09664e7f73d5c6b86f030b6c20082c63f3b4e859b4fd1faa6e"
+    },
+    {
+      "itemId": "invariantes-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "597bb451806fe361a7ae0ae60e45605802ef5af8765fadc7deb16f9f8f530b63"
+    },
+    {
+      "itemId": "coordenadas-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "2aa38092812163c937d1fdeb4b792f84041c8ed57cebcd179b892cbef3ed0070"
+    },
+    {
+      "itemId": "coordenadas-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "9fefaa002beb258d462b263982632485a7eda4b3d223cc84a383f488f4dc504f"
+    },
+    {
+      "itemId": "coordenadas-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "8d728f40e6d43c5dbf65f4c237bff68cdd131e8762c89c05eebb874caa08589f"
+    },
+    {
+      "itemId": "coordenadas-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "4547e0030e2e207cf93625fc3fd2093de3d4722b7606db6d96a8dfbbcf9b369a"
+    },
+    {
+      "itemId": "coordenadas-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "920dd24e22ee221b2cf33702611dc8d5299a527b82e4186b32d2cf40b1a9b152"
+    },
+    {
+      "itemId": "coordenadas-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "f25708c6e3b35fa5bb972831b4651bbf4d567134972684e8529abb7fde3214fb"
+    },
+    {
+      "itemId": "logica-n2-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "0b248a9502384e033ca9df2e5a37791b6622acac89d7128d1eb0b05293d3ccb4"
+    },
+    {
+      "itemId": "logica-n2-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "82a29f28843a93693ef17fbe4d9773b41b0a851a4a063ca783bcaf6f35c66912"
+    },
+    {
+      "itemId": "logica-n2-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "419b6ee637a68412804a3c1d1578c6c3d06d7fce5ecbb5df0d6af515f5e09f45"
+    },
+    {
+      "itemId": "logica-n2-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "0c075cb2e3684cdf5950d37711ad5657904eb085316d3e078b5b4a3b9ea16ff8"
+    },
+    {
+      "itemId": "logica-n2-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "07b38ee139f32a0a872444bf88dfda03fa0bfe68130227739c98146f23a9e95a"
+    },
+    {
+      "itemId": "logica-n2-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "70694f9cdea690db8708a9a81e63d6ea3add7c8f11368b92ab65ea1d0f5c7a7a"
+    },
+    {
+      "itemId": "funcoes-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "4e58f449efa817a862a738156a888d37a32a33a80c66b9d9fc22cec855fb7d7b"
+    },
+    {
+      "itemId": "funcoes-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "4a04b6abfba631c05b9a7f6d876e4df38ed04046460ecc4088ed17dca1d6778f"
+    },
+    {
+      "itemId": "funcoes-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "bfe25c97ca58d167cd80dcc983141b6ed1fa2edfca1626b46711c174418ae5ed"
+    },
+    {
+      "itemId": "funcoes-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "3e0245c903d7313815e8d8e41a3466c25cf22f29cc1f1bcad7d544a09944e3e3"
+    },
+    {
+      "itemId": "funcoes-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "f856fa52f57ce9a90786e6bd455341a66e23b6d7c177a60dbaca1687c980b18e"
+    },
+    {
+      "itemId": "funcoes-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "1f3bcd26a1c523d6964f9591a1b340b5553bb582b89582e9287cbca65f13f9b3"
+    },
+    {
+      "itemId": "recorrencias-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "0d3c9a3b2f286ec15d9860849c74bb4539f25602bfc68dd82bb0d2819e388cc7"
+    },
+    {
+      "itemId": "recorrencias-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "fde0cddd585cb74447df2b1fe6ecea93262337d0b884981c62329fdca931d07d"
+    },
+    {
+      "itemId": "recorrencias-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "7a0bf078dab2ac1f7beb371c7f3b273b7c1409d68211efe06ee0a0cb38b3bdae"
+    },
+    {
+      "itemId": "recorrencias-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "e5194cde81bf63388becc4f637c7d460ae5a0381208a0f87b5c675a5ae498781"
+    },
+    {
+      "itemId": "recorrencias-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "d1ac02eff71c2726e6897aff653e0cba3cead2dc22294fb90a6486026a9b0b1a"
+    },
+    {
+      "itemId": "recorrencias-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "d0a37a4c58414b3bc06747d51b1d953dac5448a3393a5dfe7563e85041ce99b5"
+    },
+    {
+      "itemId": "estruturas-numericas-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "7bb3cd6aa12d4ba37fe4ffc5f3d9d8b45c6dcc2f953ceb678de4e59a9b0a63ce"
+    },
+    {
+      "itemId": "estruturas-numericas-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "cf01bcea6b290ff58c05dc33261739225907c4672ac59c5bc3dd6fa33134e510"
+    },
+    {
+      "itemId": "estruturas-numericas-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "4c92989dcc00180896bc20ab96140fe0099ec8cf922e77dad18927b7d9075159"
+    },
+    {
+      "itemId": "estruturas-numericas-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "1410fdb19bd8d9a8b01d99b960d4376d34f7f4b3fe8adb84285d3e26f019a9f2"
+    },
+    {
+      "itemId": "estruturas-numericas-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "51230049c62cddd59e114a2fda2a9533fcfff2b020fe0e45457565f4bb72dc90"
+    },
+    {
+      "itemId": "estruturas-numericas-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "a601c2922765f4dfd7b77c8ffabfde1509ca1798fba52479e002182be3d9e71c"
+    },
+    {
+      "itemId": "geometria-plana-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "84105cd9f0fc0662b5cac04f3d2b3b104612f6ae980f5f8b101a3395412495a1"
+    },
+    {
+      "itemId": "geometria-plana-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "7c1785d64ae433ed56978bfab631661c9e1dc872ddf02124b11e99928a5f86b9"
+    },
+    {
+      "itemId": "geometria-plana-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "8870a249c2008faf88b2b6f3c55a65140d3ec06f4eb99f1d588f8c6edbdc25b7"
+    },
+    {
+      "itemId": "geometria-plana-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "fbbd89e0a7f8ef48623b0595b8395213336e05ea2001c7f2e7b5985029b612d9"
+    },
+    {
+      "itemId": "geometria-plana-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "210b535b138f47c35723476eba500657ac639928d10e4cfb330e658ee5c8282c"
+    },
+    {
+      "itemId": "geometria-plana-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "0336901ef3b8073c9dcf811d3bf30303821e30d2bfbec2d9a8c8082d64e7edf6"
+    },
+    {
+      "itemId": "combinacoes-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "b6ee9211386224cd1758c0729da82d06620f83781c7f8d6a52041ea41bbe5c50"
+    },
+    {
+      "itemId": "combinacoes-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "52df6610392f5b4cec1a0cc4881aaeb9dd55859288a32157c0f39aeb335d1679"
+    },
+    {
+      "itemId": "combinacoes-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "cf05fdb467d6e719386201e0c1160569a5a06e34f405ef1d9a5d4f3fe0455450"
+    },
+    {
+      "itemId": "combinacoes-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "3b67b1259d1c8d0eec322418b60297b66d56e9dc3cd8db0cb6244925715a811d"
+    },
+    {
+      "itemId": "combinacoes-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "c428cfa9333594918a683b793c317e85e418a197ec88274cb229097c5c7836f3"
+    },
+    {
+      "itemId": "combinacoes-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "1274801c49e52af92f28ee9838c92033ad55d4d79c32f5dcabe12d5d96a84ae6"
+    },
+    {
+      "itemId": "probabilidade-em-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "dcfab13295942bdb37d9b215888b370bd225c6963d7c1da2a5fbf6cf42af98ec"
+    },
+    {
+      "itemId": "probabilidade-em-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "26b0f97d7ffab31071936def41e6db915bf6f2007476f6d592d7d0745ceaa0f4"
+    },
+    {
+      "itemId": "probabilidade-em-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "6a6969295a50c3ac4c6b1bc1179b6abab9a857087117d86f5eecdd2bca6f7aa4"
+    },
+    {
+      "itemId": "probabilidade-em-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "6ea51cf5e494b83caa5076135e2f98573a494bdcebb9773e90cbcfe57970cdfe"
+    },
+    {
+      "itemId": "probabilidade-em-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "ea633235c1b22abc17f8187f1c046d2fabe518c4e2ae850a63316b25f2cdcda7"
+    },
+    {
+      "itemId": "probabilidade-em-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "2cab9751ca69430df3d722d53ffa090ba82f6d3be1d7ff11c567d9d8a9da44d4"
+    },
+    {
+      "itemId": "argumentacao-em-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "ecd78cc896e7df3f77608c9d99d5176ca1a68a30be951e4ca2d05eee34e23e24"
+    },
+    {
+      "itemId": "argumentacao-em-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "a3530edbb294b71b738d5341a0af0505e2a1faf271d1f8703a5ff049ff498f79"
+    },
+    {
+      "itemId": "argumentacao-em-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "38adfff23a80a89e9360e77201b2608c428f2907a6ddea8239575054b9fd5b8e"
+    },
+    {
+      "itemId": "argumentacao-em-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "27c5cf170fc202ba3e924ae41a13bbb642eb656bfad2f96f8a49e29d34e10fd5"
+    },
+    {
+      "itemId": "argumentacao-em-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "44ba17e106295def2a335acd2e205549d8ca2e42898d868102720bbc0a427645"
+    },
+    {
+      "itemId": "argumentacao-em-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "f24c5fe27f373c79615582c8e83164fe75eb787f3a27ae9b02ce59327efc093b"
+    },
+    {
+      "itemId": "polinomios-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "eb648eb1aec04db7047e167112fbc47a4824d70486204968a0740b8e42674f80"
+    },
+    {
+      "itemId": "polinomios-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "4f77b0a17339dcacfb76e4b9e51573a5c6abd762b0960ecda87ca1b88583afa8"
+    },
+    {
+      "itemId": "polinomios-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "6300e5ab8d23b9de4bd6e8bb68eeaa3449f2e391bc099678da11585828afc1ee"
+    },
+    {
+      "itemId": "polinomios-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "2899eaeb2c0d4ddaf0212ccc7d641cb892b93e093cc8e7b4b99b98e6e53207d0"
+    },
+    {
+      "itemId": "polinomios-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "07c39b120b32ca7767ecae12b0ab65cc2e1212b91f3e8bbb964288d2b15a479d"
+    },
+    {
+      "itemId": "polinomios-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "40303950dd8dff072122664ceb2322da65ce22c9cbf843e6a2980f426e032564"
+    },
+    {
+      "itemId": "inducao-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "bdbbcad261c5d10c2fe078ef28507316ad7a0a3ecdd492977ea45d4c97085b3c"
+    },
+    {
+      "itemId": "inducao-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "cb9378ed4b4e1b90851590e3d874290ae13d4243a407f06bdfb2c687e5106dd3"
+    },
+    {
+      "itemId": "inducao-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "57f065eee09248b8fdc26c8260a8f30aece5c3c0a5acf85f9fca63f84b81a2de"
+    },
+    {
+      "itemId": "inducao-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "e2fa4f789f6e2a6d7ba6993846845c350ad10713a65b49acce5a0c0b9fd9caa9"
+    },
+    {
+      "itemId": "inducao-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "ad4d1b14fcad6916a370fbcbe3a692494212624efd04e091ab1ad206dc044ec8"
+    },
+    {
+      "itemId": "inducao-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "0b2504437a783e475c63072302de0ab58c1be475c7c3365c2541b0d87508fdbf"
+    },
+    {
+      "itemId": "coordenadas-em-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "1c7c9f568599438c9e8ba92b3b4c7d5f30fb29ef683555d05f2bf507016e9118"
+    },
+    {
+      "itemId": "coordenadas-em-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "ac83c4a98e744aef10a80b6f2b9b00e7df1b3e9efa6ab5357dbf8bcbb47f89ea"
+    },
+    {
+      "itemId": "coordenadas-em-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "ecb82153f960e41a49316a5efdd3a18b04a9c800fa3194dea033f3d2f5f384ac"
+    },
+    {
+      "itemId": "coordenadas-em-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "adb3349103b5236d41ed9174959f5bad47765ee134e391bfb22586fbe2034052"
+    },
+    {
+      "itemId": "coordenadas-em-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "a64822543bf7c2c0ce314d1bfc11562b9c6ce7243cd12f4e8bca3329972fc1f4"
+    },
+    {
+      "itemId": "coordenadas-em-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "67d1bb424bee40346b8d9fd4bbfc4c5a4ce22efb18aacb55fc87baf96de679e5"
+    },
+    {
+      "itemId": "equacoes-em-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "7bfa17aab9f3e076f39be10889aa02cc323d8b3c81b458f7d7a35ebdabe0f223"
+    },
+    {
+      "itemId": "equacoes-em-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "ddc87b49f5faaac45d36d09beadf8f6c52ca0bab1b3424dced578bc4eeacde6b"
+    },
+    {
+      "itemId": "equacoes-em-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "385662251b6c4ae787227c8a35a207df7b3be93eb18ef9c9e49a02b7ecc70828"
+    },
+    {
+      "itemId": "equacoes-em-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "9a31dac186e006093b80c6bc9c79b5c7c2667e4508b50395a0aa65e5226438a7"
+    },
+    {
+      "itemId": "equacoes-em-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "59cb9668df2ad199a2f220ce7ad116fe51e2dd5a88178c2f21e70e70b5704136"
+    },
+    {
+      "itemId": "equacoes-em-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "3296e7fd7056fe2fbe766ff3ef6b32e9a59e54b8ef7a09c6278fbe5eb26c18bd"
+    },
+    {
+      "itemId": "trigonometria-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "b6919598bc2145ffbde7c586df61f29551dad508e282844029f9d1d86347349e"
+    },
+    {
+      "itemId": "trigonometria-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "b6b9d7a2ff81a914358d3c29d4e1d0ab971c84d4b565fde40ff3317ec32e1af5"
+    },
+    {
+      "itemId": "trigonometria-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "49f6e9f42fc4973f91265559c844143e22b8fe64d29fe6d212a2595a20b853e6"
+    },
+    {
+      "itemId": "trigonometria-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "2ab5ad124670ffb790ee2f08c6be9eda5b30432aab06d7000d60086991b46ed9"
+    },
+    {
+      "itemId": "trigonometria-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "7ea7a817d1d62d84aa3108cfa9c08e9406040c202e666d5f4339746d5746323b"
+    },
+    {
+      "itemId": "trigonometria-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "1c2418f1386db5c45e1a7bfa2b22b78efcc26dd54a42dc4869823a497a39f56b"
+    },
+    {
+      "itemId": "espaco-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "222602ef2f8e9b844526cc378d02272ca69fbfd2083de4acbf6caeb9a39fc9d8"
+    },
+    {
+      "itemId": "espaco-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "f79b23e00454ff12aeb7e2ceb298d40486654aebc23a2356960d2aabde5485ea"
+    },
+    {
+      "itemId": "espaco-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "1560b724d733a23ebb2bdae461aa153e35ab39299d8285b396b390eae9267688"
+    },
+    {
+      "itemId": "espaco-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "0b10c2edcef694ac88304624afbebec65e2c194730e292e864dfc2f77aa806c8"
+    },
+    {
+      "itemId": "espaco-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "6cf69cd1376b3916fcdf43b3cdb9c66b9a7206faf796e529c60cbf95b7b6b6fb"
+    },
+    {
+      "itemId": "espaco-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "70ed2a5d689ecca59dbff7748f910ff5a8f1a3aa7c6f43fd7878c84d3c0d897e"
+    },
+    {
+      "itemId": "logica-em-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "dbad9c84dbc8ab4fb9a66885e8e2358aebe80164b8a0152de69af97d8b1c7041"
+    },
+    {
+      "itemId": "logica-em-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "e0cad574046f678444dd0082de883eb4ea6a015e16054c38c6f6bf01f49d621e"
+    },
+    {
+      "itemId": "logica-em-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "ed471804c651ad4fd3ad07b93fa980dd02082eeb4df1991532c89f6f9b0e00f3"
+    },
+    {
+      "itemId": "logica-em-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "92cb20037d01d151b4ffd863465857e36676cc47829b4391dff570e3ee9b5c41"
+    },
+    {
+      "itemId": "logica-em-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "3cf8f1e4ae2837c0c953c4b433ed08adcc957eb99feca498140ada07f1c5f1d1"
+    },
+    {
+      "itemId": "logica-em-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "62fac2f4d5984ff64d5a2808f69af75490402bad17aae4f390b3ae5257d6791c"
+    },
+    {
+      "itemId": "porcentagem-n2-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "3e9cc7e3bd459f931b472a1597b0e7df6e1dd54cd17075f26020c889365bcedd"
+    },
+    {
+      "itemId": "porcentagem-n2-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "3a040bc841954f555cc65e4bf89c88f95a03280af91ce64eb36d0d8e3dd746d8"
+    },
+    {
+      "itemId": "porcentagem-n2-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "f0c6f4f33eb0b3715455209bbe2c01d1454ac484d057a07d3cb42145bd1290f6"
+    },
+    {
+      "itemId": "porcentagem-n2-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "cf03fd9e6dfbd643fdff7a81a2e25bd420a73a39648a3206d74dc17f603e168f"
+    },
+    {
+      "itemId": "porcentagem-n2-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "f8d0eb18c91971c3512c36aa8d9da7e3251591c4f6cd375faa9463165d844fe6"
+    },
+    {
+      "itemId": "porcentagem-n2-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "00d20a267105bfea1afd91bbba05510131b3b80dff302dbfd4308137ac586b07"
+    },
+    {
+      "itemId": "juros-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "598294843bd4961209d85f1ed4d7893469c19bdfa4e837f998cdbaad420614e5"
+    },
+    {
+      "itemId": "juros-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "57e5ea9751ba26889dcdcdc9868ea45d5863a6d6daf3d2b91fbc896156616802"
+    },
+    {
+      "itemId": "juros-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "ef20f78a1c1a59b7ff35f4211cbaa18e974ca5723ca4199bc1d0f11130dfdf2c"
+    },
+    {
+      "itemId": "juros-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "7daf4dfe5b2d51a240eadc50a3966ca423072d0413debdf6bb862d10a7f85912"
+    },
+    {
+      "itemId": "juros-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "5e237a03389452fc9cc39dbc1b70aad8d4a26466469f291649d0becf76629a23"
+    },
+    {
+      "itemId": "juros-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "569aa502c570dbe3e2748a9392327b1ed256545b4bf87ce378b130b1acfaaebb"
+    },
+    {
+      "itemId": "orcamento-n2-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "d2b5542cd7c89dc7744a0f76e4c80b56c7fd394b39356d2fea363abb2a5716ff"
+    },
+    {
+      "itemId": "orcamento-n2-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "24e4e3989107dbf857fd7a8c8876623c577fe07e9a49ac7e0762fc44adb656ac"
+    },
+    {
+      "itemId": "orcamento-n2-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "93325e7a5c30fba2b7520a1b3e632555d950cec98ef6ba9ba9724bbfbcd77757"
+    },
+    {
+      "itemId": "orcamento-n2-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "ac008a7b9dffd85e3072d9d646a5bb8f4c1488dcea71b9571f34df9060266bdf"
+    },
+    {
+      "itemId": "orcamento-n2-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "552cecf5105086beebda6c2e88e3e6aaf8e416731cb1f6d1b73603da419e737c"
+    },
+    {
+      "itemId": "orcamento-n2-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "9b5e9c62fb3bf513f43c1385a16f41c6ec3d03e3e1150de9150b0c29d8809025"
+    },
+    {
+      "itemId": "inflacao-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "30b3d2c579f5076efc4023962301835ec62043a2483231ae0ef43011ddb42962"
+    },
+    {
+      "itemId": "inflacao-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "5c7826d5f0a336c990479f747b94c95a068f5a1a1a3b8b37dba29aedc00e958f"
+    },
+    {
+      "itemId": "inflacao-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "86f2908141660d6f69304df48e9d37d67c9605151b1748db5cc1866f40c2bf09"
+    },
+    {
+      "itemId": "inflacao-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "6111864727bc16131852a8c2d430b6b0bf34500f6b50be3302af3599913ab842"
+    },
+    {
+      "itemId": "inflacao-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "cd874fd4093d1f5d67beee650e49364c01f6f78fe15b16987f5b47f510371c90"
+    },
+    {
+      "itemId": "inflacao-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "537e62e85cde4cba7e19bd012b9a69d2154faed33fd2509b57383b75d8e4a898"
+    },
+    {
+      "itemId": "investimentos-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "cebbc991852e3a19b2108a30227835567348459a1ebc52a08cd5e378e76b362d"
+    },
+    {
+      "itemId": "investimentos-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "e460b21d34df26f1038f93d5eedab047ae77bca15b2e977201aacdaa07d7bb50"
+    },
+    {
+      "itemId": "investimentos-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "23da27f2379feb9ab45cb4240dc763c58a726b3bc076809c222173bd8f4aa641"
+    },
+    {
+      "itemId": "investimentos-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "2b9330e6a6dbab0416e938c3a78d8c18bace6dd7ab7db848176fc4f3aec4145b"
+    },
+    {
+      "itemId": "investimentos-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "ce9d88ee3954eec3d28fceb7e3312ce6258a6c9899d7163929965b703469f70d"
+    },
+    {
+      "itemId": "investimentos-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "a1b219f670f4a1a537939a8476161d2a0b8c0d8d5ca993f229c15c09c785b0bb"
+    },
+    {
+      "itemId": "modelos-financeiros-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "fde10d8d4fa610f96ac3ae54a4765e7f38f29c364ec45c07d37a8a08281192b9"
+    },
+    {
+      "itemId": "modelos-financeiros-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "21a2673a71ff8a98f10869084c2986342888b5a9623ed25b62101e9ac72de7f9"
+    },
+    {
+      "itemId": "modelos-financeiros-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "c041232c3760bfbf7ea402429304eac5930c7cef6dd2127428624cda0cedbf17"
+    },
+    {
+      "itemId": "modelos-financeiros-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "9b8105757163999fa7cbc1239e3fa683edcc8eea458c3471032fbafadf5fdcd8"
+    },
+    {
+      "itemId": "modelos-financeiros-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "1cfacbacbbbbdd36afa47b4c95958c7f7aa56dc4d3247ee4422d6e7b436c872f"
+    },
+    {
+      "itemId": "modelos-financeiros-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "874410d060bd9d758bc33d219a4f2d2691513ca6f34edff0391c41fecc191d0a"
+    },
+    {
+      "itemId": "equivalencia-temporal-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "c9c12e7d89b291596e0b484efe544e72ad9c87e6cc1e8658644cc1528501242e"
+    },
+    {
+      "itemId": "equivalencia-temporal-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "d6913a1edaf86480874596c9593e05a289c9cbc721f3816bfabef64970f96000"
+    },
+    {
+      "itemId": "equivalencia-temporal-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "eebf3a5bcc2194c7326aa286b736e4e402c409475bc24d2bc82a3357bb96346d"
+    },
+    {
+      "itemId": "equivalencia-temporal-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "63d65730378db432afe08f1cd6af461b7c0ce84a55dea338d0fdd56bed767a3c"
+    },
+    {
+      "itemId": "equivalencia-temporal-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "6546dba2d98b6220cf7d4cffe0e3ac9db2bb1cf90657538e5fdad9dc5695d9d9"
+    },
+    {
+      "itemId": "equivalencia-temporal-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "5d82e5116275e47f49c732c5bccfa72b20e645b67d3609cabb53fd041fb79509"
+    },
+    {
+      "itemId": "renda-fixa-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "3c1ace831627949ed6710acde5ff0afdb782176b9c9d1e1ebf0049cafc233cdb"
+    },
+    {
+      "itemId": "renda-fixa-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "5ff1ea9ef2bec17433059f9de05b638b144de0e152a35cd88243641212eeb6af"
+    },
+    {
+      "itemId": "renda-fixa-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "c23928300c14017025304b8ba8e30f7d2ea5a091d1da9c23a8e9b20cbd3afd58"
+    },
+    {
+      "itemId": "renda-fixa-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "ef4db0be707c9d9f9bd61df409a9cfec7977c762e1f07311e30348263b1e8a4f"
+    },
+    {
+      "itemId": "renda-fixa-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "e4150360639c5b5576c3c26b0cf977621124bf1695d1ce930143991c6c0f1ab7"
+    },
+    {
+      "itemId": "renda-fixa-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "0e028218d143db1a0d0ffd65a0262fc5ca51eed094e5dd8b92099b2e30552df4"
+    },
+    {
+      "itemId": "renda-variavel-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "9396809225597eeed676ee72f917cffb73daef9117419a82cc94356eb8a52d0f"
+    },
+    {
+      "itemId": "renda-variavel-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "c95de0ebb4712a1754625d096651da4788e82094e46c2d11ce3ef20c74561d4d"
+    },
+    {
+      "itemId": "renda-variavel-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "4cf788ad0ee009f91e14f2a9d995cf41bfaeae256f2ef4679de011cba39b0765"
+    },
+    {
+      "itemId": "renda-variavel-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "2dcb2872bef131474f48e97a1b85a1625f7558a57939500ce6038aae2157351e"
+    },
+    {
+      "itemId": "renda-variavel-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "c73496aa06ad83e13ebc23c8bf461b9e1e99fd7b1e3fa1c9980d25b6923d12cc"
+    },
+    {
+      "itemId": "renda-variavel-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "7a0c9c1fcbe2356818d9b9bbaee4e94aa99c758c14947343297c738edca8210d"
+    },
+    {
+      "itemId": "cenarios-recuperacao-1-1",
+      "previousDigest": null,
+      "digest": "9067a6702f2aab91cecc4d0be3f2637edd7a71c06fc2a97a96fb97af49642e98"
+    },
+    {
+      "itemId": "cenarios-recuperacao-1-2",
+      "previousDigest": null,
+      "digest": "819ecb422258f936cf12eba4d49f116f7a9c9dad217f974ee027ee2aa1f7390a"
+    },
+    {
+      "itemId": "cenarios-recuperacao-1-3",
+      "previousDigest": null,
+      "digest": "7c4fa80f369920ded9624c5ef8444293b781394040d23944db0b7bb28e019ccb"
+    },
+    {
+      "itemId": "cenarios-recuperacao-2-1",
+      "previousDigest": null,
+      "digest": "e5dc1583ae92c118f50a05990848be4bd14cff68badadf43773d6e9ebce48182"
+    },
+    {
+      "itemId": "cenarios-recuperacao-2-2",
+      "previousDigest": null,
+      "digest": "1b00f8fa159b057b72b49f2c1b79c0a257b50521c2229e04645692808eb59714"
+    },
+    {
+      "itemId": "cenarios-recuperacao-2-3",
+      "previousDigest": null,
+      "digest": "dc61277e46652b5cca50b4ca5006202076ca75eabfe730708ad2fd82a6f08447"
+    }
+  ]
+}

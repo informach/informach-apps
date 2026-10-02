@@ -50,4 +50,5 @@ export const authoringLots: AuthoringLot[] = [
   { number: 32, firstItemId: "contar-e-comparar-1-1", lastItemId: "formas-e-posicoes-5-10" },
   { number: 33, firstItemId: "sequencias-iniciais-1-1", lastItemId: "medir-e-comparar-5-10" },
   { number: 34, firstItemId: "problemas-com-desenho-1-1", lastItemId: "bank:exam:mirim-1-12" },
+  { number: 35, firstItemId: "fracoes-recuperacao-1-1", lastItemId: "cenarios-recuperacao-2-3" },
 ];

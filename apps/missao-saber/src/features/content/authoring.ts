@@ -12,6 +12,14 @@ export type Problem = [
   family: string,
   clue: string,
 ];
+
+// Revisões de autoria; sessões existentes continuam usando seu snapshot.
+const lessonVersions: Readonly<Record<string, number>> = {
+  "medidas-2": 2,
+  "simetria-1": 2,
+  "gavetas-2": 2,
+  "probabilidade-1": 2,
+};
 export function makeLesson(
   id: string,
   skillId: string,
@@ -53,7 +61,7 @@ export function makeLesson(
   });
   return {
     id,
-    version: 1,
+    version: lessonVersions[id] ?? 1,
     skillId,
     title,
     objective,

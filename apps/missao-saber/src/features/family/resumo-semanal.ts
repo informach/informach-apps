@@ -90,6 +90,8 @@ export async function buildWeeklySummary(
   return { userId, email, semana, assunto, texto, html };
 }
 
-export async function weeklySummaryRecipients() {
-  return listFamiliesForWeeklyReport();
+export async function weeklySummaryRecipients(
+  input: { week?: string; after?: string; limit?: number } = {},
+) {
+  return listFamiliesForWeeklyReport(input);
 }

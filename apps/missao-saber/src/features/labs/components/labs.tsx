@@ -27,8 +27,8 @@ const controle =
  * Previsão antes de mexer, observação depois de mexer.
  *
  * É o passo que faltava no ciclo do produto: sem uma aposta registrada, mexer
- * nos controles é brincar com o widget. As duas anotações são salvas junto com
- * a montagem, então voltam quando o estudante retoma o experimento.
+ * nos controles é brincar com o widget. No laboratório do perfil, o botão de
+ * salvar guarda as anotações junto com a montagem para retomar depois.
  *
  * Nenhuma delas é corrigida: uma previsão errada é matéria-prima da descoberta,
  * não um erro a pontuar.
@@ -39,12 +39,14 @@ function CicloDeDescoberta({
   observacao,
   onPrevisao,
   onObservacao,
+  podeSalvar,
 }: {
   pergunta: string;
   previsao: string;
   observacao: string;
   onPrevisao: (value: string) => void;
   onObservacao: (value: string) => void;
+  podeSalvar: boolean;
 }) {
   /* `useId` em vez de um identificador fixo: dentro de uma missão a mesma
      ferramenta pode aparecer duas vezes na mesma tela — explorar antes de
@@ -80,8 +82,10 @@ function CicloDeDescoberta({
         />
       </div>
       <p className="text-xs text-tinta-suave sm:col-span-2">
-        As duas linhas ficam salvas com o experimento. Previsão errada não conta erro: é ela que
-        torna a observação interessante.
+        {podeSalvar
+          ? "Use “Salvar experimento para continuar depois” para guardar as duas linhas com a montagem."
+          : "A montagem e estas anotações ficam apenas nesta tela e são descartadas ao sair."}{" "}
+        Previsão errada não conta erro: é ela que torna a observação interessante.
       </p>
     </div>
   );
@@ -180,6 +184,7 @@ export function BarsLab({ profileId, saved }: LabProps = {}) {
       </p>
       <CicloDeDescoberta
         pergunta="O desconto total será maior, igual ou menor que a soma dos dois?"
+        podeSalvar={!!profileId}
         previsao={previsao}
         observacao={observacao}
         onPrevisao={setPrevisao}
@@ -268,6 +273,7 @@ export function GridLab({ profileId, saved }: LabProps = {}) {
       <p className={legenda}>Cada célula é um botão: Tab navega, Espaço ativa ou retira.</p>
       <CicloDeDescoberta
         pergunta="Retirar um canto muda a área, o contorno, ou os dois?"
+        podeSalvar={!!profileId}
         previsao={previsao}
         observacao={observacao}
         onPrevisao={setPrevisao}
@@ -399,6 +405,7 @@ export function GroupsLab({ profileId, saved }: LabProps = {}) {
       </p>
       <CicloDeDescoberta
         pergunta="Com quantas peças alguma caixa é obrigada a receber duas?"
+        podeSalvar={!!profileId}
         previsao={previsao}
         observacao={observacao}
         onPrevisao={setPrevisao}

@@ -449,6 +449,13 @@
       "when": 1790445283677,
       "tag": "0063_missao_profile_school_year",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1790951251241,
+      "tag": "0064_missao_notebook_weekly_batches",
+      "breakpoints": true
     }
   ]
 }

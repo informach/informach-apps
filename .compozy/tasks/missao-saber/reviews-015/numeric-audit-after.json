@@ -1,0 +1,12 @@
+{
+  "lessons": 319,
+  "items": 2960,
+  "numeric": 905,
+  "formats": {
+    "choice": 1705,
+    "numeric": 905,
+    "ordering": 175,
+    "justification": 175
+  },
+  "rejectedPrintedAnswers": []
+}

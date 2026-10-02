@@ -556,22 +556,22 @@ export const recorrencias: SkillPack = {
     skillId: "recorrencias",
     title: "Duas regras, um gráfico",
     prompt:
-      "Escolha uma situação real com acréscimo fixo (uma poupança mensal) e outra com fator fixo (juros compostos ou uma população que cresce por porcentagem). Modele as duas como sequências, calcule dez termos de cada e mostre num gráfico quando uma ultrapassa a outra.",
+      "Escolha duas situações comparáveis, medidas na mesma unidade e nos mesmos períodos: uma com acréscimo fixo e outra com fator fixo, como dois planos de poupança. Modele as duas como sequências, calcule dez termos de cada e investigue no gráfico se há ultrapassagem nesse intervalo.",
     lab: null,
     steps: [
       "Escreva o termo geral de cada sequência a partir dos dados escolhidos.",
       "Calcule os dez primeiros termos e monte o gráfico das duas no mesmo eixo.",
-      "Identifique o ponto de ultrapassagem e discuta até onde o modelo geométrico é realista.",
+      "Identifique se há ultrapassagem nos dez termos; se não houver, registre essa ausência. Discuta os limites do modelo e o que seria necessário para prever além do intervalo observado.",
     ],
     rubric: [
       "Termos gerais corretos para as duas situações (0–3)",
       "Dez termos e gráfico coerentes (0–3)",
-      "Ponto de ultrapassagem identificado (0–2)",
+      "Presença ou ausência de ultrapassagem no intervalo justificada pelos termos (0–2)",
       "Discussão dos limites do modelo (0–2)",
     ],
   },
   homeSupport: [
-    "Comparem juntos uma poupança de valor fixo por mês com um rendimento percentual e discutam quando uma passa a outra.",
+    "Comparem juntos uma poupança de valor fixo por mês com um rendimento percentual e investiguem se uma passa a outra no intervalo observado.",
     "Ao ouvir 'dobra a cada X anos' no noticiário, perguntem quanto seria depois de dez vezes esse prazo e se faz sentido.",
   ],
 };

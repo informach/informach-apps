@@ -334,6 +334,7 @@ export const juros: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "Dívida que cresce, poupança que espera",
       objective: "Comparar o custo de uma dívida com o ganho de poupar antes de comprar.",
       introduction:
@@ -563,7 +564,7 @@ export const juros: SkillPack = {
     ],
     samples: [
       "Com juros simples, cada ano rende 10% de 1.000, ou seja, 100: depois de 2 anos há 1.200. Com juros compostos, o primeiro ano leva a 1.100 e o segundo rende 10% de 1.100, que são 110, chegando a 1.210. A diferença de 10 reais é exatamente o rendimento dos 100 de juros do primeiro ano.",
-      "É verdade quando não existe preço menor à vista e o dinheiro não renderia nada guardado. Se a loja dá desconto à vista, ou se outra loja vende mais barato à vista, ou se os R$ 1.200 renderiam juros ao longo dos 12 meses, então parcelar custa mais: o custo está embutido no preço, mesmo com a etiqueta 'sem juros'.",
+      "Os totais nominais são iguais: 12 × 100 = 1.200. Sem desconto à vista nem rendimento do dinheiro guardado, os custos são iguais nesse modelo. Com desconto à vista, é preciso comparar esse desconto com o rendimento líquido possível até cada pagamento. Sem desconto e com rendimento líquido positivo, guardar o saldo e retirar cada parcela no vencimento favorece o parcelamento, desde que as parcelas sejam pagas em dia: o dinheiro rende enquanto o pagamento é adiado.",
       "A diferença é 420 − 400 = 20 reais por um mês de espera. A taxa é 20 ÷ 400 = 0,05, ou seja, 5% ao mês. Isso significa que a loja cobra 5% do valor por cada mês de adiamento; se fosse para dois meses com juros compostos, seriam 400 × 1,05² = 441.",
     ],
     focus: "a comparação entre totais pagos, e não entre parcelas",

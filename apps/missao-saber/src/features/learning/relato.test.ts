@@ -29,7 +29,7 @@ function state(overrides: Partial<SkillState> = {}): SkillState {
     level: "building",
     independentFamilies: 1,
     attempts: 2,
-    dueAt: new Date("2026-09-20T12:00:00Z"),
+    dueOn: "2026-09-20",
     lastCorrect: true,
     ...overrides,
   };
@@ -165,7 +165,7 @@ describe("weekly family narrative", () => {
   it("reports a week without attempts without counting missed days", () => {
     const linhas = narrate({
       evidence: [row({ createdAt: new Date("2026-08-20T12:00:00Z") })],
-      states: [state({ dueAt: new Date("2026-09-10T12:00:00Z") })],
+      states: [state({ dueOn: "2026-09-10" })],
     });
     expect(linhas[0]).toBe("Nesta semana Lia não registrou tentativas.");
     expect(linhas.join(" ")).not.toMatch(/dias sem|perdeu|faltou/);

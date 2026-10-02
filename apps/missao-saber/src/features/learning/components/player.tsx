@@ -1,5 +1,4 @@
 "use client";
-import { cn } from "@informach/ui/lib/utils";
 import { ArrowRight, ChevronLeft, Flag, Lightbulb } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -23,7 +22,9 @@ import {
   reportAction,
 } from "../actions";
 import type { SessionView } from "../service";
+import { ItemFigure } from "./item-figure";
 import { initialResponse, ResponseInput } from "./response-input";
+import { SessionResponses } from "./session-responses";
 
 const reportCategories = [
   ["not_understood", "Não entendi esta questão"],
@@ -145,6 +146,7 @@ export function Player({
   const [pending, start] = useTransition();
   const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
   const [readingSupport, setReadingSupport] = useState(initial.readingSupport);
+  const leituraUsada = useRef(initial.readingSupport);
   /* O registro do apoio roda em paralelo à leitura, mas não pode perder a
      corrida para a última resposta: se a sessão fechasse antes da marca, o
      resultado apareceria como leitura autônoma. `submit` espera este pendente. */
@@ -153,17 +155,24 @@ export function Player({
   const result = item && view.saved.find((saved) => saved.itemId === item.id);
   const itemHints = item ? (view.hints[item.id] ?? []) : [];
   const assessment = view.mode === "exam" || view.mode === "diagnostic";
+  const promptRef = useRef<HTMLParagraphElement>(null);
+  const currentItemId = item?.id;
+  useEffect(() => {
+    if (currentItemId) promptRef.current?.focus();
+  }, [currentItemId]);
 
   /**
    * Em treino, ouvir o enunciado é só conforto de leitura e não registra nada.
    * Em diagnóstico e simulado, a leitura pode alterar o construto medido, então
    * a sessão declara o apoio. Se o servidor recusar a marca — falha de rede ou
-   * percurso já encerrado —, o sinalizador local volta atrás para uma próxima
-   * escuta tentar de novo: é melhor tentar duas vezes do que apresentar um
-   * resultado como leitura autônoma.
+   * percurso já encerrado —, outra escuta pode tentar a marca novamente. O
+   * fato de que houve leitura fica preservado e também segue com a resposta,
+   * para não apresentar a avaliação como leitura autônoma por falha da marca.
    */
   function marcarLeitura() {
-    if (!assessment || readingSupport) return;
+    if (!assessment) return;
+    leituraUsada.current = true;
+    if (readingSupport) return;
     setReadingSupport(true);
     const registro: Promise<void> = readingSupportAction(view.id).then(
       (response) => {
@@ -194,19 +203,22 @@ export function Player({
 
   if (view.interrupted)
     return (
-      <Chapa tom="sol" className="mx-auto max-w-2xl text-center">
-        <Mascote humor="acolhendo" tamanho="m" className="mx-auto" />
-        <h1 className="mt-3 font-display text-2xl font-semibold text-tinta">
-          Esta sessão foi encerrada com segurança.
-        </h1>
-        <p className="mx-auto mt-2 max-w-lg text-sm text-tinta-suave">
-          {view.interruptionReason}. As respostas que você já registrou continuam no histórico, sem
-          completar as questões restantes nem atribuir domínio.
-        </p>
-        <LinkChapa href="/hoje" medida="g" className="mt-5">
-          Ver outra missão
-        </LinkChapa>
-      </Chapa>
+      <section className="mx-auto max-w-3xl">
+        <Chapa tom="sol" className="text-center">
+          <Mascote humor="acolhendo" tamanho="m" className="mx-auto" />
+          <h1 className="mt-3 font-display text-2xl font-semibold text-tinta">
+            Esta sessão foi encerrada com segurança.
+          </h1>
+          <p className="mx-auto mt-2 max-w-lg text-sm text-tinta-suave">
+            {view.interruptionReason}. As respostas que você já registrou continuam no histórico,
+            sem completar as questões restantes nem atribuir domínio.
+          </p>
+          <LinkChapa href="/hoje" medida="g" className="mt-5">
+            Ver outra missão
+          </LinkChapa>
+        </Chapa>
+        <SessionResponses view={view} />
+      </section>
     );
 
   if (view.suspended && !view.completed)
@@ -362,8 +374,8 @@ export function Player({
             {new Date(view.previousAssessment.createdAt).toLocaleDateString("pt-BR", {
               timeZone: "America/Sao_Paulo",
             })}
-            . São conjuntos de questões diferentes, então a leitura é de tendência: não é nota nem
-            média.
+            . Os percursos podem incluir questões já vistas. Compare as estratégias usadas e as
+            condições de cada tentativa; estes registros não são uma nota oficial.
             {/* Sem esta frase, mudar o apoio de leitura entre um percurso e
                 outro apareceria como avanço ou recuo de habilidade. */}
             {view.previousAssessment.readingSupport !== view.readingSupport
@@ -374,51 +386,7 @@ export function Player({
           </p>
         )}
 
-        <h2 className="mt-9 mb-3 text-left font-display text-2xl font-semibold text-tinta">
-          Revisite seu raciocínio
-        </h2>
-        <div className="grid gap-2.5 text-left">
-          {view.saved.map((saved) => (
-            <details
-              key={saved.itemId}
-              className="rounded-card border-2 border-sombra bg-creme p-4 shadow-chapa"
-            >
-              <summary className="flex cursor-pointer items-start gap-2.5 font-semibold text-tinta">
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "mt-0.5 grid size-6 shrink-0 place-items-center rounded-full text-xs",
-                    saved.feedback?.correct === null
-                      ? "bg-uva-solido text-sobre-uva"
-                      : saved.feedback?.correct
-                        ? "bg-verde-solido text-sobre-verde"
-                        : "bg-coral-solido text-sobre-coral",
-                  )}
-                >
-                  {saved.feedback?.correct === null ? "✎" : saved.feedback?.correct ? "✓" : "↗"}
-                </span>
-                {view.lesson.items.find((q) => q.id === saved.itemId)?.prompt}
-              </summary>
-              <p className="mt-3 text-sm text-tinta-suave">
-                Sua resposta: {saved.chosen === "__skip__" ? "Ainda não sei" : saved.chosen} ·{" "}
-                {saved.helpCount ? "Com pistas" : "Sem pistas nesta tentativa"}
-              </p>
-              <p className="mt-1.5 text-sm text-tinta">{saved.feedback?.explanation}</p>
-              {saved.feedback?.rubric && (
-                <ul className="mt-2 grid gap-1 pl-5 text-sm text-tinta-suave [&>li]:list-disc">
-                  {saved.feedback.rubric.map((criterion) => (
-                    <li key={criterion}>{criterion}</li>
-                  ))}
-                </ul>
-              )}
-              {saved.feedback?.solution && saved.feedback.correct === null && (
-                <p className="mt-2 text-sm text-tinta">
-                  <strong>Uma resposta possível:</strong> {saved.feedback.solution}
-                </p>
-              )}
-            </details>
-          ))}
-        </div>
+        <SessionResponses view={view} />
       </section>
     );
   }
@@ -445,6 +413,7 @@ export function Player({
           itemId: item.id,
           answer,
           requestKey,
+          readingSupport: assessment ? leituraUsada.current : undefined,
         });
         if (!response.ok) {
           setError(response.error);
@@ -562,20 +531,24 @@ export function Player({
 
       {/* O enunciado sai do <legend> e vira um parágrafo próprio: um botão
           dentro de `fieldset[disabled]` herda o desabilitado, e ouvir o
-          enunciado tem de continuar possível enquanto a resposta é conferida.
+          enunciado continua possível no treino enquanto a resposta é conferida.
+          Na avaliação, uma nova escuta aguarda o envio para que o apoio seja registrado.
           O grupo de respostas continua se chamando pelo enunciado, agora por
           `aria-labelledby` — um rótulo genérico deixaria quem navega por
           leitor de tela entrar nas alternativas sem saber a pergunta. */}
       <div className="mt-7 mb-5 flex items-start gap-3">
         <p
+          ref={promptRef}
+          tabIndex={-1}
           id={`enunciado-${item.id}`}
           className="min-w-0 flex-1 font-display text-xl leading-snug font-semibold text-tinta sm:text-2xl"
         >
           {item.prompt}
         </p>
-        <LerEmVoz texto={item.prompt} aoUsar={marcarLeitura} />
+        <LerEmVoz texto={item.prompt} aoUsar={marcarLeitura} disabled={assessment && pending} />
       </div>
 
+      <ItemFigure figure={item.figure} />
       <fieldset
         className="border-0 p-0"
         disabled={pending || feedback}
@@ -692,6 +665,12 @@ export function Player({
         </div>
       )}
 
+      <Link
+        className="mt-6 inline-block text-sm font-semibold underline underline-offset-4"
+        href={`/caderno?${new URLSearchParams({ session: view.id, item: item.id })}`}
+      >
+        Anotar uma descoberta sobre esta questão
+      </Link>
       <ItemReport
         key={item.id}
         sessionId={view.id}

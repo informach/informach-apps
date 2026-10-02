@@ -10,6 +10,9 @@ import { SeloHabilidade } from "@/components/ui/selo-habilidade";
 import { assertableAvailabilityMessage, lessonAvailability } from "@/features/content/availability";
 import { courseLessons, coursesForGrade, skillNames } from "@/features/content/catalog";
 import { gradeLabel, ofGrade } from "@/features/family/school-year";
+import { CourseCompletion } from "@/features/learning/components/course-completion";
+import { RecoveryOptions } from "@/features/learning/components/recovery-options";
+import { courseProgress } from "@/features/learning/recommendation";
 import { currentDashboard } from "@/lib/view";
 
 export const metadata = { title: "Minha jornada" };
@@ -22,6 +25,12 @@ export default async function Journey() {
   if (!course) return null;
   const completed = new Set(data.attemptedItemIds);
   const licoes = courseLessons(course);
+  const progress = courseProgress(licoes, completed);
+  const nextReviewOn =
+    data.states
+      .filter((state) => course.skills.includes(state.skillId))
+      .map((state) => state.dueOn)
+      .sort()[0] ?? null;
   const tomCurso = tomDoCurso(course);
 
   /** Estado de cada lição, na ordem do curso. */
@@ -91,6 +100,7 @@ export default async function Journey() {
         </div>
       </section>
 
+      {progress.finished && <CourseCompletion nextReviewOn={nextReviewOn} />}
       {course.skills.map((skill, i) => {
         const state = data.states.find((s) => s.skillId === skill);
         const doCapitulo = estados.filter((e) => e.lesson.skillId === skill);
@@ -203,6 +213,16 @@ export default async function Journey() {
                 );
               })}
             </ol>
+            <RecoveryOptions
+              skillId={skill}
+              evidence={data.evidence}
+              attempted={completed}
+              profile={profile}
+              course={course}
+              paid={data.access.paid}
+              profileAllowed={data.profileAllowed}
+              states={data.contentStates}
+            />
           </section>
         );
       })}

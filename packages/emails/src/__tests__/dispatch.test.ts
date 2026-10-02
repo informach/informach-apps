@@ -410,6 +410,7 @@ describe("dispatchEmail live mode", () => {
       response: { statusCode: 429 },
     });
     const send: SendFn = vi.fn().mockRejectedValue(sendError);
+    const error = vi.fn();
 
     const result = await dispatchEmail(
       {
@@ -420,6 +421,7 @@ describe("dispatchEmail live mode", () => {
         send,
         sleep: async () => {},
         inlineRetryAttempts: 3,
+        logger: { error },
       },
       makeInput(),
     );
@@ -428,6 +430,13 @@ describe("dispatchEmail live mode", () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.status).toBe("failed");
+    expect(error).toHaveBeenCalledTimes(1);
+    expect(error).toHaveBeenCalledWith("Email delivery inline retries exhausted", {
+      deliveryId: "fake-id",
+      category: "auth.verify-email",
+      classification: "transient",
+      attempts: 3,
+    });
     const finalUpdate = calls
       .filter((call) => call.mode === "update")
       .at(-1)
@@ -445,6 +454,7 @@ describe("dispatchEmail live mode", () => {
       .fn()
       .mockRejectedValueOnce(transient)
       .mockResolvedValueOnce({ messageId: "mid-ok" });
+    const error = vi.fn();
 
     const result = await dispatchEmail(
       {
@@ -455,6 +465,7 @@ describe("dispatchEmail live mode", () => {
         send,
         sleep: async () => {},
         inlineRetryAttempts: 3,
+        logger: { error },
       },
       makeInput(),
     );
@@ -463,6 +474,7 @@ describe("dispatchEmail live mode", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.status).toBe("sent");
+    expect(error).not.toHaveBeenCalled();
   });
 
   it("does not let logger failures break dispatch failure handling", async () => {

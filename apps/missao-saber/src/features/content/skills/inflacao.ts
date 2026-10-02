@@ -222,6 +222,7 @@ export const inflacao: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "Índices e cestas",
       objective: "Ler índices de preços, pesos de uma cesta e variação acumulada.",
       introduction:
@@ -308,14 +309,14 @@ export const inflacao: SkillPack = {
         ),
         c(
           "cesta-com-pesos",
-          "Duas famílias veem a mesma inflação oficial de 5%. A família que gasta mais com o item que mais subiu:",
+          "Uma cesta oficial tem 50% de alimentos, que subiram 8%, e 50% de transporte, que subiu 2%: inflação de 5%. Uma família tem 75% dos gastos em alimentos e 25% em transporte, com as mesmas altas. Essa família:",
           "Sente uma inflação maior que a oficial",
           ["Sente exatamente 5%", "Sente uma inflação menor que a oficial"],
-          "O índice oficial usa pesos médios; cada família tem os seus.",
+          "A inflação da cesta familiar é 0,75 × 8% + 0,25 × 2% = 6,5%, maior que os 5% da cesta oficial.",
           {
             feedback: [
               "A inflação oficial é uma média; a de cada família depende dos seus pesos.",
-              "Gastar mais com o que mais subiu aumenta a inflação sentida.",
+              "Nesta cesta de dois itens, o peso maior dos alimentos aumenta a média: 6,5%, acima de 5%.",
             ],
           },
         ),

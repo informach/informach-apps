@@ -1,0 +1,38 @@
+[
+  {
+    "lessonId": "orcamento-n2-3",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["orcamento-n2-3-4"]
+  },
+  {
+    "lessonId": "argumentacao-em-1",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["argumentacao-em-1-8"]
+  },
+  {
+    "lessonId": "argumentacao-em-5",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["argumentacao-em-5-4"]
+  },
+  {
+    "lessonId": "polinomios-1",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["polinomios-1-8"]
+  },
+  {
+    "lessonId": "inducao-2",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["inducao-2-7"]
+  },
+  {
+    "lessonId": "modelos-financeiros-1",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["modelos-financeiros-1-8"]
+  }
+]

@@ -285,6 +285,7 @@ export const padroesIniciais: SkillPack = {
     },
     {
       title: "Padrões em tabelas e figuras",
+      version: 2,
       objective: "Reconhecer padrões em quadros de números e em figuras que crescem em etapas.",
       introduction:
         "Padrões também aparecem em tabelas de números e em figuras que crescem. Em uma tabela, olhe linhas e colunas; em figuras, veja o que muda de uma etapa para a outra.",
@@ -302,7 +303,7 @@ export const padroesIniciais: SkillPack = {
         ),
         c(
           "tabela",
-          "No mesmo quadro de 5 números por linha, em que linha está o número 33?",
+          "Um quadro tem 5 números seguidos por linha: a 1ª linha vai de 1 a 5, a 2ª de 6 a 10, e assim por diante. Em que linha está o número 33?",
           "7ª linha",
           ["6ª linha", "8ª linha"],
           "A 7ª linha vai de 31 a 35.",

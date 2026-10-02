@@ -1,5 +1,20 @@
 import "server-only";
-import { and, count, db, desc, eq, gte, inArray, isNotNull, isNull, lt, sql } from "@informach/db";
+import {
+  and,
+  count,
+  db,
+  desc,
+  eq,
+  gt,
+  gte,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  or,
+  sql,
+} from "@informach/db";
 import {
   missaoAttempts as attempts,
   missaoContentControls as contentControls,
@@ -22,7 +37,12 @@ import {
   lessonAvailability,
   lessonIdInCourse,
 } from "../content/availability";
-import { assessmentSources, type ContentIdentity, findCourse } from "../content/catalog";
+import {
+  assessmentSources,
+  type ContentIdentity,
+  findCourse,
+  resolvedCourse,
+} from "../content/catalog";
 import { type Lesson, lessonSchema } from "../content/types";
 import { itemHash } from "../content/version";
 import { allowedProfileIds } from "../family/profile-access";
@@ -76,12 +96,12 @@ async function assertCurrentSessionAccess(
   lesson: Lesson,
   access: Awaited<ReturnType<typeof getAccess>>,
 ) {
-  // A completed session is immutable history. Open sessions must always reflect
+  // A completed or interrupted session is immutable history. Open sessions must always reflect
   // the current subscription and the current profile position, even when they
   // were created before a payment failure or a plan downgrade.
-  if (session.completedAt) return;
+  if (session.completedAt || session.interruptedAt) return;
   const profile = await ownedProfile(tx, userId, session.profileId);
-  const course = findCourse(profile.courseId);
+  const course = resolvedCourse(profile);
   assertAllowed(course, "COURSE", "A trilha mudou. Volte ao início e escolha sua missão.");
   const orderedProfiles = await tx
     .select({ id: profiles.id, accessEnabled: profiles.accessEnabled })
@@ -405,11 +425,16 @@ export async function previousAssessment(
     .limit(1);
   if (!previous) return null;
   const rows = await db
-    .select({ skillId: attempts.skillId, correct: attempts.correct })
+    .select({
+      sessionId: attempts.sessionId,
+      itemId: attempts.itemId,
+      skillId: attempts.skillId,
+      correct: attempts.correct,
+    })
     .from(attempts)
     .where(eq(attempts.sessionId, previous.id));
   const counts: Record<string, { correct: number; total: number }> = {};
-  for (const row of rows) {
+  for (const row of await validAttemptRows(rows)) {
     // Reflexões não têm acerto objetivo e ficam fora da comparação.
     if (row.correct === null) continue;
     const current = counts[row.skillId] ?? { correct: 0, total: 0 };
@@ -442,7 +467,13 @@ export async function markReadingSupport(userId: string, sessionId: string) {
 }
 export async function recordAnswer(
   userId: string,
-  input: { sessionId: string; itemId: string; answer: string; requestKey: string },
+  input: {
+    sessionId: string;
+    itemId: string;
+    answer: string;
+    requestKey: string;
+    readingSupport?: boolean;
+  },
 ) {
   return withBillingLifecycleWait(userId, async () => {
     const access = await getAccess(userId);
@@ -484,6 +515,15 @@ export async function recordAnswer(
       );
       const evaluation = gradeAnswer(item, input.answer);
       assertAllowed(evaluation.valid, "ANSWER", evaluation.message ?? "Revise sua resposta.");
+      // A leitura pode ter ocorrido mesmo quando a marca separada falhou.
+      // Grave o fato com a tentativa, antes de encerrar a avaliação; false e
+      // campos ausentes nunca removem uma declaração anterior de apoio.
+      if (
+        input.readingSupport &&
+        !session.readingSupport &&
+        (session.mode === "diagnostic" || session.mode === "exam")
+      )
+        await tx.update(sessions).set({ readingSupport: true }).where(eq(sessions.id, session.id));
       const [hint] = await tx
         .select()
         .from(hints)
@@ -593,6 +633,34 @@ export async function interruptSession(userId: string, sessionId: string) {
     return interrupted ?? (await ownedSession(tx, userId, sessionId));
   });
 }
+/** A invalidação vale para toda leitura de evidências, pela versão exata do item. */
+async function validAttemptRows<T extends { sessionId: string; itemId: string }>(rows: T[]) {
+  if (!rows.length) return rows;
+  const decisions = await db
+    .select({ items: contentControls.invalidatedItems })
+    .from(contentControls)
+    .where(inArray(contentControls.status, ["suspended", "invalidated"]));
+  const items = decisions.flatMap((row) => row.items);
+  if (!items.length) return rows;
+  const invalidated = new Set(items.map((item) => `${item.itemId}:${item.itemHash}`));
+  const invalidatedIds = new Set(items.map((item) => item.itemId));
+  const sessionIds = [
+    ...new Set(rows.filter((row) => invalidatedIds.has(row.itemId)).map((row) => row.sessionId)),
+  ];
+  if (!sessionIds.length) return rows;
+  const snapshots = await db
+    .select({ id: sessions.id, snapshot: sessions.snapshot })
+    .from(sessions)
+    .where(inArray(sessions.id, sessionIds));
+  const excluded = new Set<string>();
+  for (const session of snapshots) {
+    const lesson = lessonSchema.parse(session.snapshot);
+    for (const item of lesson.items)
+      if (invalidated.has(`${item.id}:${itemHash(item)}`)) excluded.add(`${session.id}:${item.id}`);
+  }
+  return rows.filter((row) => !excluded.has(`${row.sessionId}:${row.itemId}`));
+}
+
 export async function history(userId: string, profileId: string) {
   const owner = await getProfiles(userId);
   assertAllowed(
@@ -600,11 +668,9 @@ export async function history(userId: string, profileId: string) {
     "NOT_FOUND",
     "Perfil não encontrado.",
   );
-  /* Esta consulta roda em toda página do app, e o snapshot da lição é a parte
-     pesada da sessão. Ele só é lido onde muda o resultado: nas avaliações, para
-     saber que famílias já foram expostas, e nas sessões com tentativa num item
-     que a manutenção invalidou. */
-  const [attemptRows, sessionRows, invalidationRows] = await Promise.all([
+  /* Os snapshots das avaliações identificam famílias expostas. A política
+     compartilhada de invalidação lê outros snapshots só quando há item afetado. */
+  const [attemptRows, sessionRows] = await Promise.all([
     db
       .select({ attempt: attempts, mode: sessions.mode, completedAt: sessions.completedAt })
       .from(attempts)
@@ -614,21 +680,11 @@ export async function history(userId: string, profileId: string) {
       .select({ id: sessions.id, mode: sessions.mode, completedAt: sessions.completedAt })
       .from(sessions)
       .where(eq(sessions.profileId, profileId)),
-    db
-      .select({ items: contentControls.invalidatedItems })
-      .from(contentControls)
-      .where(inArray(contentControls.status, ["suspended", "invalidated"])),
   ]);
-  const invalidatedItems = invalidationRows.flatMap((row) => row.items);
-  const invalidated = new Set(invalidatedItems.map((item) => `${item.itemId}:${item.itemHash}`));
-  const invalidatedIds = new Set(invalidatedItems.map((item) => item.itemId));
   const snapshotIds = new Set([
     ...sessionRows
       .filter((session) => session.mode === "diagnostic" || session.mode === "exam")
       .map((session) => session.id),
-    ...attemptRows
-      .filter((row) => invalidatedIds.has(row.attempt.itemId))
-      .map((row) => row.attempt.sessionId),
   ]);
   const snapshotRows = snapshotIds.size
     ? await db
@@ -642,10 +698,6 @@ export async function history(userId: string, profileId: string) {
       return [session.id, parsed.success ? parsed.data : null] as const;
     }),
   );
-  const rows = attemptRows.map((row) => ({
-    ...row,
-    lesson: parsedBySession.get(row.attempt.sessionId) ?? null,
-  }));
   const assessmentSessions = sessionRows.filter(
     (session) => session.mode === "diagnostic" || session.mode === "exam",
   );
@@ -653,17 +705,18 @@ export async function history(userId: string, profileId: string) {
   for (const session of assessmentSessions) {
     const parsed = { success: true as const, data: parsedBySession.get(session.id) };
     if (!parsed.data) continue;
-    const answered = rows.filter((row) => row.attempt.sessionId === session.id).length;
+    const answered = attemptRows.filter((row) => row.attempt.sessionId === session.id).length;
     const exposed = session.completedAt ? parsed.data.items.length : answered + 1;
     for (const item of parsed.data.items.slice(0, exposed))
       assessmentExposedFamilyIds.add(item.familyId);
   }
-  const visibleRows = rows
-    .filter((row) => (row.mode !== "exam" && row.mode !== "diagnostic") || row.completedAt !== null)
-    .filter((row) => {
-      const item = row.lesson?.items.find((candidate) => candidate.id === row.attempt.itemId);
-      return !item || !invalidated.has(`${item.id}:${itemHash(item)}`);
-    });
+  const visibleRows = await validAttemptRows(
+    attemptRows
+      .filter(
+        (row) => (row.mode !== "exam" && row.mode !== "diagnostic") || row.completedAt !== null,
+      )
+      .map((row) => ({ ...row, sessionId: row.attempt.sessionId, itemId: row.attempt.itemId })),
+  );
   const evidence: Evidence[] = visibleRows
     .filter((row) => row.attempt.correct !== null && row.attempt.result !== "reflection")
     .map(({ attempt, mode }) => ({ ...attempt, correct: attempt.correct ?? false, mode }));
@@ -770,20 +823,176 @@ export async function listNotes(userId: string, profileId: string) {
       .limit(100);
   });
 }
-export async function saveNote(userId: string, profileId: string, text: string) {
+export type NoteContext = {
+  sessionId: string;
+  itemId: string | null;
+  title: string;
+  prompt: string | null;
+};
+
+async function noteContext(
+  tx: Tx,
+  userId: string,
+  profileId: string,
+  sessionId: string,
+  itemId?: string | null,
+): Promise<NoteContext> {
+  const session = await ownedSession(tx, userId, sessionId);
+  assertAllowed(session.profileId === profileId, "PROFILE", "Escolha uma missão deste estudante.");
+  const lesson = lessonSchema.parse(session.snapshot);
+  const item = itemId ? lesson.items.find((item) => item.id === itemId) : undefined;
+  assertAllowed(!itemId || item, "ITEM", "Esta questão não pertence à missão.");
+  return { sessionId, itemId: item?.id ?? null, title: lesson.title, prompt: item?.prompt ?? null };
+}
+
+export async function readNoteContext(
+  userId: string,
+  profileId: string,
+  sessionId: string,
+  itemId?: string,
+) {
+  return db.transaction(async (tx) => {
+    await ownedProfile(tx, userId, profileId);
+    return noteContext(tx, userId, profileId, sessionId, itemId);
+  });
+}
+
+export async function notebookPage(
+  userId: string,
+  profileId: string,
+  input: { archived?: boolean; search?: string; cursor?: string } = {},
+) {
+  return db.transaction(async (tx) => {
+    await ownedProfile(tx, userId, profileId);
+    const [anchor] = input.cursor
+      ? await tx
+          .select()
+          .from(notes)
+          .where(and(eq(notes.id, input.cursor), eq(notes.profileId, profileId)))
+      : [];
+    assertAllowed(!input.cursor || anchor, "CURSOR", "A página mudou. Volte ao início do caderno.");
+    const search = input.search?.trim();
+    // %, _ e barra são caracteres pesquisados, não curingas de SQL.
+    const pattern = search ? `%${search.replace(/[\\%_]/g, "\\$&")}%` : undefined;
+    const rows = await tx
+      .select({ note: notes, snapshot: sessions.snapshot })
+      .from(notes)
+      .leftJoin(sessions, eq(notes.sessionId, sessions.id))
+      .where(
+        and(
+          eq(notes.profileId, profileId),
+          input.archived ? isNotNull(notes.archivedAt) : isNull(notes.archivedAt),
+          pattern ? ilike(notes.text, pattern) : undefined,
+          anchor
+            ? or(
+                lt(notes.createdAt, anchor.createdAt),
+                and(eq(notes.createdAt, anchor.createdAt), lt(notes.id, anchor.id)),
+              )
+            : undefined,
+        ),
+      )
+      .orderBy(desc(notes.createdAt), desc(notes.id))
+      .limit(21);
+    const [totals] = await tx
+      .select({
+        active: sql<number>`count(*) filter (where ${notes.archivedAt} is null)::int`,
+        archived: sql<number>`count(*) filter (where ${notes.archivedAt} is not null)::int`,
+      })
+      .from(notes)
+      .where(eq(notes.profileId, profileId));
+    const items = rows.slice(0, 20).map(({ note, snapshot }) => {
+      const lesson = snapshot ? lessonSchema.parse(snapshot) : null;
+      return {
+        ...note,
+        context:
+          note.sessionId && lesson
+            ? {
+                sessionId: note.sessionId,
+                itemId: note.itemId,
+                title: lesson.title,
+                prompt: lesson.items.find((item) => item.id === note.itemId)?.prompt ?? null,
+              }
+            : null,
+      };
+    });
+    return {
+      items,
+      next: rows.length > 20 ? (items.at(-1)?.id ?? null) : null,
+      activeCount: totals?.active ?? 0,
+      archivedCount: totals?.archived ?? 0,
+    };
+  });
+}
+
+export async function saveNote(
+  userId: string,
+  profileId: string,
+  text: string,
+  context?: { sessionId: string; itemId?: string },
+) {
   return db.transaction(async (tx) => {
     await lockOwner(tx, userId);
     await ownedProfile(tx, userId, profileId);
     const [total] = await tx
       .select({ value: count() })
       .from(notes)
-      .where(eq(notes.profileId, profileId));
+      .where(and(eq(notes.profileId, profileId), isNull(notes.archivedAt)));
     assertAllowed(
       (total?.value ?? 0) < 100,
       "LIMIT",
-      "Seu caderno tem 100 anotações. Exporte ou remova uma antes de acrescentar outra.",
+      "Seu caderno tem 100 anotações ativas. Arquive uma para abrir espaço sem apagar suas ideias.",
     );
-    await tx.insert(notes).values({ profileId, text });
+    const source = context
+      ? await noteContext(tx, userId, profileId, context.sessionId, context.itemId)
+      : null;
+    await tx
+      .insert(notes)
+      .values({ profileId, text, sessionId: source?.sessionId, itemId: source?.itemId });
+  });
+}
+
+export async function editNote(userId: string, profileId: string, id: string, text: string) {
+  return db.transaction(async (tx) => {
+    await lockOwner(tx, userId);
+    await ownedProfile(tx, userId, profileId);
+    const [saved] = await tx
+      .update(notes)
+      .set({ text })
+      .where(and(eq(notes.id, id), eq(notes.profileId, profileId)))
+      .returning({ id: notes.id });
+    assertAllowed(saved, "NOT_FOUND", "Anotação não encontrada.");
+  });
+}
+
+export async function archiveNote(
+  userId: string,
+  profileId: string,
+  id: string,
+  archived: boolean,
+) {
+  return db.transaction(async (tx) => {
+    await lockOwner(tx, userId);
+    await ownedProfile(tx, userId, profileId);
+    const [note] = await tx
+      .select()
+      .from(notes)
+      .where(and(eq(notes.id, id), eq(notes.profileId, profileId)));
+    assertAllowed(note, "NOT_FOUND", "Anotação não encontrada.");
+    if (!archived && note.archivedAt) {
+      const [total] = await tx
+        .select({ value: count() })
+        .from(notes)
+        .where(and(eq(notes.profileId, profileId), isNull(notes.archivedAt)));
+      assertAllowed(
+        (total?.value ?? 0) < 100,
+        "LIMIT",
+        "Arquive outra anotação antes de restaurar esta. O limite é de 100 ativas.",
+      );
+    }
+    await tx
+      .update(notes)
+      .set({ archivedAt: archived ? (note.archivedAt ?? new Date()) : null })
+      .where(eq(notes.id, id));
   });
 }
 export async function removeNote(userId: string, profileId: string, id: string) {
@@ -908,7 +1117,9 @@ export async function lastExamDate(userId: string, profileId: string) {
  * leitura de todo o histórico de cada filho, e seria um relato completo sobre
  * uma criança construído toda semana para ser descartado em seguida.
  */
-export async function listFamiliesForWeeklyReport() {
+export async function listFamiliesForWeeklyReport(
+  input: { week?: string; after?: string; limit?: number } = {},
+) {
   return db
     .select({ userId: families.userId, email: users.email })
     .from(families)
@@ -925,6 +1136,30 @@ export async function listFamiliesForWeeklyReport() {
         eq(families.weeklyReportEmail, true),
         eq(users.emailVerified, true),
         isNull(emailUnsubscribes.userId),
+        input.week
+          ? or(
+              isNull(families.weeklyReportProcessedWeek),
+              lt(families.weeklyReportProcessedWeek, input.week),
+            )
+          : undefined,
+        input.after ? gt(families.userId, input.after) : undefined,
+      ),
+    )
+    .orderBy(families.userId)
+    .limit(input.limit ?? 21);
+}
+
+export async function completeWeeklyReport(userId: string, week: string) {
+  await db
+    .update(families)
+    .set({ weeklyReportProcessedWeek: week })
+    .where(
+      and(
+        eq(families.userId, userId),
+        or(
+          isNull(families.weeklyReportProcessedWeek),
+          lt(families.weeklyReportProcessedWeek, week),
+        ),
       ),
     );
 }
@@ -949,7 +1184,8 @@ export async function setWeeklyReportEmail(userId: string, enabled: boolean) {
       .update(families)
       .set({ weeklyReportEmail: enabled })
       .where(eq(families.userId, userId));
-    // Religar pelo app desfaz um cancelamento feito pelo link do e-mail.
+    // O dispatcher relê esta política imediatamente antes da entrega. Desligar
+    // precisa bloquear também o lote que já selecionou esta família.
     if (enabled)
       await tx
         .delete(emailUnsubscribes)
@@ -959,6 +1195,11 @@ export async function setWeeklyReportEmail(userId: string, enabled: boolean) {
             eq(emailUnsubscribes.category, "missao.weekly-report"),
           ),
         );
+    else
+      await tx
+        .insert(emailUnsubscribes)
+        .values({ userId, category: "missao.weekly-report" })
+        .onConflictDoNothing();
   });
 }
 
@@ -1009,6 +1250,8 @@ export async function familyChallenge(userId: string, weekStart: string) {
       profileId: profiles.id,
       nickname: profiles.nickname,
       familyId: attempts.familyId,
+      sessionId: attempts.sessionId,
+      itemId: attempts.itemId,
     })
     .from(attempts)
     .innerJoin(sessions, eq(attempts.sessionId, sessions.id))
@@ -1030,7 +1273,7 @@ export async function familyChallenge(userId: string, weekStart: string) {
     );
   const distintas = new Set<string>();
   const porPerfil = new Map<string, { nickname: string; families: Set<string> }>();
-  for (const row of rows) {
+  for (const row of await validAttemptRows(rows)) {
     distintas.add(row.familyId);
     const atual = porPerfil.get(row.profileId) ?? { nickname: row.nickname, families: new Set() };
     atual.families.add(row.familyId);

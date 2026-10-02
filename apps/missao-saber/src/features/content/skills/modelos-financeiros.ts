@@ -13,6 +13,7 @@ export const modelosFinanceiros: SkillPack = {
   missions: [
     {
       title: "Crescer por soma ou por fator",
+      version: 2,
       objective:
         "Distinguir modelos lineares (juros simples, parcelas fixas) de exponenciais (juros compostos) e escrever suas fórmulas.",
       introduction:
@@ -110,10 +111,10 @@ export const modelosFinanceiros: SkillPack = {
         ),
         c(
           "linear-exponencial",
-          "Dois investimentos rendem 1% ao mês: um com juros simples, outro compostos. Depois de 1 mês:",
+          "Dois investimentos recebem o mesmo capital inicial de R$ 1.000 e rendem 1% ao mês: um com juros simples, outro compostos. Sem novos aportes, retiradas, impostos ou taxas, depois de 1 mês:",
           "Os dois valem o mesmo",
           ["O composto vale mais", "O simples vale mais"],
-          "No primeiro período os dois modelos coincidem; a diferença aparece depois.",
+          "Com o mesmo capital inicial, no primeiro período os dois modelos dão 1.000 × 1,01 = R$ 1.010. A diferença aparece depois.",
           {
             feedback: [
               "No primeiro mês os juros compostos ainda não incidem sobre juros.",
@@ -441,6 +442,7 @@ export const modelosFinanceiros: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "Modelar para decidir",
       objective:
         "Construir um modelo a partir de uma situação, calcular e declarar premissas e limites.",
@@ -457,7 +459,7 @@ export const modelosFinanceiros: SkillPack = {
         ),
         c(
           "decidir",
-          "No item anterior, se o dinheiro guardado render juros, o valor mensal necessário:",
+          "Para juntar R$ 12.000 em 2 anos partindo de zero, seriam necessários R$ 500 por mês sem rendimento. Se o dinheiro guardado render juros positivos, mantendo a mesma meta e prazo, o valor mensal necessário:",
           "Diminui, pois parte da meta vem dos juros",
           [
             "Fica igual, pois a meta continua sendo R$ 12.000",

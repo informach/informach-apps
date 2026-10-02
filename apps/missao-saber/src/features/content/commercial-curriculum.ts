@@ -20,9 +20,11 @@ import {
   orderingItem as buildOrderingItem,
   type ChoiceSpec,
   c,
+  decimal,
   distinctNumericOptions,
   n,
   type ObjectiveSpec,
+  type OrderDefinition,
   objectiveItem,
   stageValue,
   verificationSpec,
@@ -127,7 +129,7 @@ function percentageSpecs(stage: number): ObjectiveSpec[] {
     ),
     c(
       "percentual-como-fracao",
-      `Qual fração simplificada representa ${[40, 35, 62.5][stage]}%?`,
+      `Qual fração simplificada representa ${decimal(stageValue([40, 35, 62.5], stage))}%?`,
       ["2/5", "7/20", "5/8"][stage] ?? "2/5",
       stage === 0 ? ["4/5", "1/4"] : stage === 1 ? ["3/5", "7/10"] : ["3/8", "6/10"],
       "Escrevemos a porcentagem sobre 100 e simplificamos sem alterar a razão.",
@@ -437,7 +439,7 @@ function measureSpecs(stage: number): ObjectiveSpec[] {
     ),
     c(
       "conversao-de-comprimento",
-      `${[2.4, 3.75, 5.2][stage]} metros correspondem a quantos centímetros?`,
+      `${decimal(stageValue([2.4, 3.75, 5.2], stage))} metros correspondem a quantos centímetros?`,
       [240, 375, 520][stage] ?? 240,
       [[24, 37.5, 52][stage] ?? 24, [2400, 3750, 5200][stage] ?? 2400],
       "Cada metro tem 100 centímetros, então multiplicamos por 100.",
@@ -676,21 +678,21 @@ function pigeonholeSpecs(stage: number): ObjectiveSpec[] {
   return [
     c(
       "garantia-simples",
-      `${[13, 25, 37][stage]} cartões são distribuídos em ${[12, 8, 9][stage]} caixas. Qual é a menor quantidade garantida em alguma caixa?`,
+      `${[13, 25, 37][stage]} cartões são distribuídos em ${[12, 8, 9][stage]} caixas. Qual é o menor valor possível para a quantidade de cartões na caixa mais cheia?`,
       [2, 4, 5][stage] ?? 2,
       [[1, 3, 4][stage] ?? 1, [3, 5, 6][stage] ?? 3],
       "Dividimos e arredondamos para cima: alguma caixa atinge pelo menos o teto da média.",
     ),
     c(
       "garantia-de-par",
-      `Quantas meias precisam ser retiradas no escuro de uma gaveta com ${[3, 4, 5][stage]} cores para garantir duas da mesma cor?`,
+      `Qual é o menor número de meias que precisam ser retiradas no escuro de uma gaveta com ${[3, 4, 5][stage]} cores para garantir duas da mesma cor?`,
       [4, 5, 6][stage] ?? 4,
       [[3, 4, 5][stage] ?? 3, [6, 8, 10][stage] ?? 6],
       "No pior caso sai uma de cada cor; a retirada seguinte repete alguma cor.",
     ),
     c(
       "classes-de-resto",
-      `Escolhendo ${[5, 7, 9][stage]} números inteiros, qual quantidade de classes de resto por ${[4, 6, 8][stage]} garante que dois tenham o mesmo resto?`,
+      `Ao dividir números inteiros por ${[4, 6, 8][stage]}, quantas classes de resto existem? São essas classes que garantem uma repetição ao escolher ${[5, 7, 9][stage]} números inteiros.`,
       [4, 6, 8][stage] ?? 4,
       [[5, 7, 9][stage] ?? 5, [3, 5, 7][stage] ?? 3],
       "Os possíveis restos formam as gavetas; há uma classe para cada resto de zero até divisor menos um.",
@@ -711,14 +713,14 @@ function pigeonholeSpecs(stage: number): ObjectiveSpec[] {
     ),
     c(
       "garantia-de-tres",
-      `Há ${[4, 5, 6][stage]} símbolos possíveis. Quantas fichas garantem pelo menos três com o mesmo símbolo?`,
+      `Há ${[4, 5, 6][stage]} símbolos possíveis. Qual é o menor número de fichas que garante pelo menos três com o mesmo símbolo?`,
       [9, 11, 13][stage] ?? 9,
       [[8, 10, 12][stage] ?? 8, [12, 15, 18][stage] ?? 12],
       "Ainda é possível ter duas de cada símbolo; uma ficha a mais força a terceira repetição.",
     ),
     n(
       "minimo-para-cota",
-      `Em ${[9, 12, 15][stage]} grupos, quantos participantes garantem que algum grupo tenha pelo menos ${[4, 5, 6][stage]} pessoas?`,
+      `Em ${[9, 12, 15][stage]} grupos, qual é o menor número de participantes que garante que algum grupo tenha pelo menos ${[4, 5, 6][stage]} pessoas?`,
       [28, 49, 76][stage] ?? 28,
       "Podemos manter no máximo uma pessoa a menos que a cota em cada grupo; somamos uma para forçar a garantia.",
       {
@@ -733,7 +735,7 @@ function pigeonholeSpecs(stage: number): ObjectiveSpec[] {
     ),
     n(
       "teto-da-media",
-      `${[52, 77, 103][stage]} arquivos foram organizados em ${[10, 12, 15][stage]} pastas. Qual é o mínimo garantido na pasta mais cheia?`,
+      `${[52, 77, 103][stage]} arquivos foram organizados em ${[10, 12, 15][stage]} pastas. Qual é o menor valor possível para a quantidade de arquivos na pasta mais cheia?`,
       [6, 7, 7][stage] ?? 6,
       "A pasta mais cheia tem pelo menos o teto da média total por pasta.",
       {
@@ -877,7 +879,7 @@ function paritySpecs(stage: number): ObjectiveSpec[] {
     ),
     n(
       "proximo-multiplo",
-      `Qual é o menor número que deve ser somado a ${[74, 118, 203][stage]} para obter um múltiplo de ${[9, 11, 12][stage]}?`,
+      `Qual é o menor número inteiro não negativo que deve ser somado a ${[74, 118, 203][stage]} para obter um múltiplo de ${[9, 11, 12][stage]}?`,
       [7, 3, 1][stage] ?? 7,
       "Calculamos o resto atual e completamos até o divisor.",
       {
@@ -1289,10 +1291,7 @@ const skillDefinitions: Record<
   },
 };
 
-const orderDefinitions: Record<
-  SkillId,
-  { prompt: string; labels: [string, string, string, string]; explanation: string }
-> = {
+const orderDefinitions: Record<SkillId, OrderDefinition> = {
   fracoes: {
     prompt: "Organize um método para calcular uma fração de uma quantidade.",
     labels: [
@@ -1306,6 +1305,11 @@ const orderDefinitions: Record<
   },
   porcentagem: {
     prompt: "Organize um método para calcular um desconto percentual.",
+    constraints: [
+      [0, 2],
+      [1, 2],
+      [2, 3],
+    ],
     labels: [
       "Identificar o preço que serve de base",
       "Transformar a taxa em fração ou decimal",
@@ -1317,6 +1321,11 @@ const orderDefinitions: Record<
   },
   precos: {
     prompt: "Organize uma comparação justa entre duas embalagens.",
+    constraints: [
+      [0, 2],
+      [1, 2],
+      [2, 3],
+    ],
     labels: [
       "Registrar preço e quantidade de cada opção",
       "Escolher uma unidade comum",
@@ -1327,6 +1336,11 @@ const orderDefinitions: Record<
   },
   orcamento: {
     prompt: "Organize a construção de um orçamento simples.",
+    constraints: [
+      [0, 2],
+      [1, 2],
+      [2, 3],
+    ],
     labels: [
       "Listar todas as entradas",
       "Separar despesas obrigatórias e opcionais",
@@ -1337,6 +1351,11 @@ const orderDefinitions: Record<
   },
   medidas: {
     prompt: "Organize a solução de uma área composta.",
+    constraints: [
+      [0, 2],
+      [1, 2],
+      [2, 3],
+    ],
     labels: [
       "Desenhar ou decompor a figura",
       "Marcar as medidas e unidades",
@@ -1367,6 +1386,11 @@ const orderDefinitions: Record<
   },
   gavetas: {
     prompt: "Organize uma prova de garantia pelo pior caso.",
+    constraints: [
+      [0, 1],
+      [1, 2],
+      [1, 3],
+    ],
     labels: [
       "Identificar objetos e categorias",
       "Distribuir o máximo sem atingir a cota",
@@ -1575,6 +1599,23 @@ function justificationItem(skillId: SkillId, lessonId: string, stage: number): I
   });
 }
 
+// Revisões de conteúdo são publicadas sem reescrever snapshots já estudados.
+const missionVersions: Readonly<Record<string, number>> = {
+  "porcentagem-3": 2,
+  "porcentagem-5": 2,
+  "precos-3": 2,
+  "orcamento-3": 2,
+  "medidas-3": 2,
+  "medidas-4": 2,
+  "medidas-5": 2,
+  "gavetas-3": 2,
+  "gavetas-4": 2,
+  "gavetas-5": 2,
+  "paridade-3": 2,
+  "paridade-4": 2,
+  "paridade-5": 2,
+};
+
 export const commercialLessons: Lesson[] = (Object.keys(skillDefinitions) as SkillId[]).flatMap(
   (skillId) => {
     const definition = skillDefinitions[skillId];
@@ -1586,7 +1627,7 @@ export const commercialLessons: Lesson[] = (Object.keys(skillDefinitions) as Ski
       items.push(orderingItem(skillId, id, stage), justificationItem(skillId, id, stage));
       return {
         id,
-        version: 1,
+        version: missionVersions[id] ?? 1,
         title: definition.titles[stage] ?? definition.titles[0],
         skillId,
         objective: definition.objectives[stage] ?? definition.objectives[0],
@@ -1674,13 +1715,13 @@ export function legacyReservedSpec(
         );
       }
       const initial = base;
-      const final = initial * (1 + rate / 100);
+      const final = (initial * (100 + rate)) / 100;
       return c(
         "base-antes-do-aumento",
-        `Depois de aumentar ${rate}%, uma pontuação chegou a ${final}. Qual era a pontuação inicial?`,
-        initial,
-        [final - rate, final * (1 - rate / 100)],
-        `${final} corresponde a ${100 + rate}% do início; ${final} ÷ ${1 + rate / 100} = ${initial}.`,
+        `Depois de aumentar ${rate}%, uma pontuação chegou a ${decimal(final)}. Qual era a pontuação inicial?`,
+        decimal(initial),
+        [decimal(final - rate), decimal((final * (100 - rate)) / 100)],
+        `${decimal(final)} corresponde a ${100 + rate}% do início; ${decimal(final)} ÷ ${decimal((100 + rate) / 100)} = ${decimal(initial)}.`,
       );
     }
     case "precos": {
@@ -1868,7 +1909,7 @@ export function legacyReservedSpec(
         const answer = groups * (quota - 1) + 1;
         return c(
           "garantia-de-uma-cota",
-          `Há ${groups} etiquetas possíveis. Quantos objetos garantem pelo menos ${quota} com a mesma etiqueta?`,
+          `Há ${groups} etiquetas possíveis. Qual é o menor número de objetos que garante pelo menos ${quota} com a mesma etiqueta?`,
           answer,
           [answer - 1, answer + groups],
           `Com ${quota - 1} por etiqueta ainda evitamos a cota; o objeto seguinte a força: ${answer}.`,
@@ -1878,7 +1919,7 @@ export function legacyReservedSpec(
         const answer = groups + 1;
         return c(
           "primeira-repeticao-garantida",
-          `Uma caixa recebe objetos de ${groups} cores. Quantos objetos garantem que alguma cor apareça pelo menos duas vezes?`,
+          `Uma caixa recebe objetos de ${groups} cores. Qual é o menor número de objetos que garante que alguma cor apareça pelo menos duas vezes?`,
           answer,
           [groups, groups * 2],
           `Com ${groups} objetos ainda cabe uma cor por objeto; o próximo força repetição, total ${answer}.`,
@@ -2044,6 +2085,12 @@ export function legacyReservedSpec(
 
 export type AssessmentCourse = Pick<Course, "id" | "title" | "skills" | "olympiad" | "bankSeed">;
 
+const assessmentVersions: Readonly<Record<string, { diagnostic: number; exam: number }>> = {
+  "olitef-n1": { diagnostic: 3, exam: 4 },
+  "obmep-n1": { diagnostic: 3, exam: 4 },
+  "canguru-s": { diagnostic: 3, exam: 4 },
+};
+
 /**
  * Banco reservado de uma trilha: doze questões que percorrem as habilidades
  * dela em rodízio. `resolveReserved` devolve a especificação da habilidade
@@ -2079,7 +2126,7 @@ export function makeAssessmentBank(
   });
   return {
     id,
-    version: mode === "exam" ? 3 : 2,
+    version: assessmentVersions[course.id]?.[mode] ?? (mode === "exam" ? 3 : 2),
     title: `${mode === "diagnostic" ? "Diagnóstico" : "Avaliação formativa"} · ${course.title}`,
     skillId: "mixed",
     objective:

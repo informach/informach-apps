@@ -37,9 +37,11 @@ export function ProfileSwitcher({ profiles, selected }: { profiles: Perfil[]; se
 
   if (profiles.length === 1)
     return (
-      <span className="flex items-center gap-2.5 rounded-full border-2 border-sombra bg-creme py-1.5 pr-4 pl-1.5">
+      <span className="flex min-w-0 items-center gap-2.5 rounded-full border-2 border-sombra bg-creme py-1.5 pr-4 pl-1.5">
         <Avatar id={atual.avatar} tamanho="pp" />
-        <span className="font-display font-semibold text-tinta">{atual.nickname}</span>
+        <span className="truncate font-display font-semibold text-tinta" title={atual.nickname}>
+          {atual.nickname}
+        </span>
       </span>
     );
 
@@ -49,11 +51,11 @@ export function ProfileSwitcher({ profiles, selected }: { profiles: Perfil[]; se
         <button
           type="button"
           aria-label={`Trocar de estudante. Agora: ${atual.nickname}`}
-          className="flex items-center gap-2.5 rounded-full border-2 border-sombra bg-creme py-1.5 pr-3 pl-1.5 shadow-chapa-sm transition-transform duration-100 active:translate-y-0.5 active:shadow-none"
+          className="flex min-w-0 items-center gap-2.5 rounded-full border-2 border-sombra bg-creme py-1.5 pr-3 pl-1.5 shadow-chapa-sm transition-transform duration-100 active:translate-y-0.5 active:shadow-none"
         >
           <Avatar id={atual.avatar} tamanho="pp" />
-          <span className="font-display font-semibold text-tinta">{atual.nickname}</span>
-          <ChevronsUpDown size={16} aria-hidden="true" className="text-tinta-suave" />
+          <span className="truncate font-display font-semibold text-tinta">{atual.nickname}</span>
+          <ChevronsUpDown size={16} aria-hidden="true" className="shrink-0 text-tinta-suave" />
         </button>
       </DialogTrigger>
       <DialogContent className="rounded-card border-2 border-sombra bg-papel sm:max-w-lg">
@@ -95,7 +97,7 @@ export function ProfileSwitcher({ profiles, selected }: { profiles: Perfil[]; se
                 >
                   <Avatar id={p.avatar} tamanho="m" />
                   <span className="min-w-0">
-                    <span className="block font-display text-lg font-semibold text-tinta">
+                    <span className="block font-display text-lg font-semibold wrap-anywhere text-tinta">
                       {p.nickname}
                     </span>
                     <span className="block text-sm text-tinta-suave">

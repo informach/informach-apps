@@ -221,10 +221,11 @@ export const composicaoDeFiguras: SkillPack = {
     },
     {
       title: "Dobrar, cortar e abrir",
+      version: 2,
       objective:
         "Prever o que acontece ao dobrar um papel, cortar e abrir, e reconhecer partes iguais.",
       introduction:
-        "Quando um papel é dobrado e cortado, o corte aparece repetido em cada camada. Dobrar ao meio faz um corte virar dois furos iguais, um de cada lado da dobra.",
+        "Quando um papel é dobrado e furado longe das dobras e das bordas, o furo aparece em cada camada. Depois de uma dobra ao meio, aparecem dois furos separados, um de cada lado da dobra. Um recorte na própria dobra pode abrir um único buraco ao desdobrar.",
       specs: [
         c(
           "dobrar",
@@ -238,7 +239,7 @@ export const composicaoDeFiguras: SkillPack = {
         ),
         n(
           "dobrar",
-          "Uma folha é dobrada ao meio duas vezes. Um furo é feito atravessando todas as camadas. Quantos furos aparecem ao abrir a folha?",
+          "Uma folha é dobrada ao meio duas vezes. Um furo pequeno, sem tocar nas dobras nem nas bordas, atravessa todas as camadas. Quantos furos separados aparecem ao abrir a folha?",
           4,
           "Duas dobras dão 4 camadas; o furo atravessa as 4.",
           { misreads: [{ value: 2, feedback: "2 furos seriam com uma dobra só." }] },
@@ -319,6 +320,7 @@ export const composicaoDeFiguras: SkillPack = {
     },
     {
       title: "Cobrir sem deixar buracos",
+      version: 2,
       objective: "Cobrir uma região com peças iguais e decidir se dá certo, contando quadradinhos.",
       introduction:
         "Cobrir uma região é encaixar peças sem sobrepor e sem deixar buracos. Contar os quadradinhos da região e os de cada peça já diz se a conta fecha; depois é preciso ver se o encaixe é possível.",
@@ -414,6 +416,7 @@ export const composicaoDeFiguras: SkillPack = {
     },
     {
       title: "Mover sem mudar",
+      version: 2,
       objective:
         "Reconhecer quando uma figura é a mesma peça girada ou virada e quando é uma peça diferente.",
       introduction:
@@ -539,6 +542,11 @@ export const composicaoDeFiguras: SkillPack = {
     },
   ],
   ordering: {
+    constraints: [
+      [0, 2],
+      [1, 2],
+      [2, 3],
+    ],
     prompt:
       "Coloque em ordem os passos para decidir se uma região pode ser coberta com peças iguais.",
     labels: [
@@ -552,13 +560,13 @@ export const composicaoDeFiguras: SkillPack = {
   justification: {
     prompts: [
       "Explique por que 4 quadradinhos em fila têm contorno maior que 4 quadradinhos em quadrado.",
-      "Uma folha dobrada duas vezes recebe um furo. Explique quantos furos aparecem e por quê.",
+      "Uma folha dobrada ao meio duas vezes recebe um furo pequeno que atravessa todas as camadas sem tocar nas dobras nem nas bordas. Explique quantos furos separados aparecem ao abrir e por quê.",
       "Explique por que um tabuleiro de 3 por 3 não pode ser coberto só com dominós.",
     ],
     samples: [
       "Cada quadradinho tem 4 lados, então 4 quadradinhos têm 16 lados. Na fila há 3 encontros entre vizinhos, e cada encontro esconde 2 lados: 16 − 6 = 10. No quadrado 2 por 2 há 4 encontros: 16 − 8 = 8. Mais encontros, menos contorno.",
-      "Cada dobra ao meio dobra as camadas: 1, 2, 4. O furo atravessa as 4 camadas, então, ao abrir, aparecem 4 furos, um em cada parte da folha.",
-      "O tabuleiro tem 9 quadradinhos. Cada dominó cobre exatamente 2. Só dá para cobrir números pares: 2, 4, 6, 8. Como 9 é ímpar, sempre sobra 1 quadradinho, não importa como se arrumem as peças.",
+      "Cada dobra ao meio dobra as camadas: 1, 2, 4. O furo atravessa as 4 camadas longe das dobras e das bordas, então, ao abrir, aparecem 4 furos separados, um em cada parte da folha.",
+      "O tabuleiro tem 9 quadradinhos. Cada dominó cobre exatamente 2, então qualquer quantidade de dominós cobre um número par de quadradinhos. Como 9 é ímpar, não dá para cobrir tudo: se encaixarmos 4 dominós, sobra 1 quadradinho; outras arrumações podem deixar mais quadradinhos descobertos.",
     ],
     focus: "o que muda e o que não muda ao juntar ou mover peças",
   },
@@ -605,10 +613,10 @@ export const composicaoDeFiguras: SkillPack = {
     const camadas = 2 ** dobras;
     return c(
       "furos-na-folha-dobrada",
-      `Uma folha é dobrada ao meio ${dobras} vezes seguidas e um furo é feito atravessando todas as camadas. Quantos furos aparecem ao abrir a folha?`,
+      `Uma folha é dobrada ao meio ${dobras} vezes seguidas. Um furo pequeno, sem tocar nas dobras nem nas bordas, atravessa todas as camadas. Quantos furos separados aparecem ao abrir a folha?`,
       `${camadas}`,
       [`${camadas - 1}`, `${camadas * 2}`],
-      `Cada dobra ao meio dobra as camadas; com ${dobras} dobras são ${camadas} camadas, e o furo atravessa todas.`,
+      `Cada dobra ao meio dobra as camadas; com ${dobras} dobras são ${camadas} camadas. O furo atravessa todas sem tocar nas dobras nem nas bordas, por isso os ${camadas} furos ficam separados ao abrir.`,
       {
         feedback: [
           "Contou uma camada a menos: o furo atravessa todas as camadas.",

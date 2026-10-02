@@ -223,6 +223,7 @@ export const semelhanca: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "Triângulos que se repetem",
       objective: "Usar retas paralelas e o teorema de Tales para achar segmentos.",
       introduction:
@@ -278,7 +279,7 @@ export const semelhanca: SkillPack = {
         ),
         n(
           "espelho-no-chao",
-          "Um espelho está no chão a 3 m de uma pessoa de 1,6 m de altura e reflete para ela o topo de um prédio que está a 30 m do espelho. Qual é a altura do prédio, em m?",
+          "Um espelho está no chão horizontal a 3 m de uma pessoa cujos olhos estão a 1,6 m do chão. Ela vê nele o topo de um prédio vertical cuja base está a 30 m do espelho, no mesmo nível do chão. Qual é a altura do prédio, em m?",
           16,
           "Os dois triângulos são semelhantes: 1,6 ÷ 3 = h ÷ 30, então h = 16 m.",
           {

@@ -1,3 +1,4 @@
+import { cubeNets } from "../figures";
 import { c, n, type SkillPack } from "../skill-factory";
 
 /**
@@ -98,6 +99,7 @@ export const espaco: SkillPack = {
     },
     {
       title: "Planificações e áreas",
+      version: 2,
       objective:
         "Reconhecer planificações e calcular áreas de superfícies de prismas, cilindros, pirâmides e cones.",
       introduction:
@@ -148,12 +150,21 @@ export const espaco: SkillPack = {
         ),
         c(
           "area-superficie",
-          "Quantas planificações diferentes (não equivalentes por rotação ou reflexão) tem o cubo?",
-          "11",
-          ["6", "8"],
-          "É um resultado clássico: 11 hexaminós dobram em cubo.",
+          "Qual arranjo pode ser dobrado nas linhas internas para formar um cubo fechado, sem cortar, sobrepor ou esticar faces?",
+          "A",
+          ["B", "C"],
+          "Em A, o quadrado central recebe quatro faces vizinhas e a extensão fecha a face oposta. Os seis quadrados ocupam faces diferentes.",
           {
-            feedback: ["6 é o número de faces.", "8 é o número de vértices."],
+            figure: cubeNets,
+            feedback: [
+              "Em B, o bloco de quatro quadrados impede as dobras sem sobreposição.",
+              "Em C, quatro quadrados já contornam o cubo; os seguintes se sobrepõem e não fecham as tampas.",
+            ],
+            hints: [
+              "Imagine um quadrado como a base e levante seus vizinhos.",
+              "As faces dobradas precisam apontar em seis direções diferentes.",
+              "A cruz A tem quatro vizinhos ao redor do centro e mais um quadrado para fechar a face oposta.",
+            ],
           },
         ),
         n(
@@ -530,7 +541,7 @@ export const espaco: SkillPack = {
       const vertices = tipo === "prisma" ? 2 * lados : lados + 1;
       return c(
         "euler-prismas-piramides",
-        `Um poliedro com base de ${lados} lados tem ${vertices} vértices e ${faces} faces. Quantas arestas ele tem?`,
+        `Um poliedro convexo com base de ${lados} lados tem ${vertices} vértices e ${faces} faces. Quantas arestas ele tem?`,
         `${arestas}`,
         [`${vertices + faces}`, `${vertices + faces + 2}`],
         `Pela relação de Euler, V − A + F = 2: ${vertices} − A + ${faces} = 2, então A = ${arestas}.`,

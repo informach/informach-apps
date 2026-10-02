@@ -33,6 +33,8 @@ export const missaoFamilies = missaoSaber.table(
      * a receber esses dados por omissão.
      */
     weeklyReportEmail: boolean("weekly_report_email").notNull().default(false),
+    /** Checkpoint de entrega/dispensa; falhas não avançam a semana. */
+    weeklyReportProcessedWeek: date("weekly_report_processed_week"),
     createdAt: time("created_at"),
   },
   (t) => [check("missao_daily_minutes", sql`${t.dailyMinutes} in (5, 10, 15, 20)`)],
@@ -167,9 +169,15 @@ export const missaoNotes = missaoSaber.table(
       .notNull()
       .references(() => missaoProfiles.id, { onDelete: "cascade" }),
     text: text("text").notNull(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    sessionId: uuid("session_id").references(() => missaoSessions.id, { onDelete: "set null" }),
+    itemId: text("item_id"),
     createdAt: time("created_at"),
   },
-  (t) => [index("missao_notes_profile").on(t.profileId, t.createdAt)],
+  (t) => [
+    index("missao_notes_profile").on(t.profileId, t.createdAt),
+    index("missao_notes_page").on(t.profileId, t.archivedAt, t.createdAt, t.id),
+  ],
 );
 
 export const missaoContentControls = missaoSaber.table(

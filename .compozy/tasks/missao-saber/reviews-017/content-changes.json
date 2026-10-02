@@ -1,0 +1,542 @@
+[
+  {
+    "id": "fracoes-recuperacao-2-2",
+    "fields": ["prompt"],
+    "prompt": "Uma bateria estava completamente carregada e perdeu 5/12 da carga completa. Que fração da carga completa restou?",
+    "hints": [
+      "O que foi usado e o que sobrou recompõem o inteiro.",
+      "Subtraia a parte usada de uma unidade.",
+      "12/12 − 5/12 = 7/12."
+    ]
+  },
+  {
+    "id": "porcentagem-recuperacao-2-2",
+    "fields": ["hints"],
+    "prompt": "Uma população de mudas cresceu 20% e chegou a 144. Quantas mudas havia antes?",
+    "hints": [
+      "No aumento, o valor final corresponde a mais de 100% do inicial.",
+      "Divida o valor final por 1 mais a taxa de crescimento em forma decimal.",
+      "144 ÷ 1,2 = 120."
+    ]
+  },
+  {
+    "id": "precos-recuperacao-2-2",
+    "fields": ["hints"],
+    "prompt": "Um ingresso custa R$ 28 e a taxa é de R$ 3 por ingresso. Quanto custam quatro ingressos, em reais?",
+    "hints": [
+      "O total inclui valores fixos e valores por unidade.",
+      "Some preço e taxa por ingresso antes de multiplicar pela quantidade de ingressos.",
+      "4 × (28 + 3) = 124; a taxa se repete para cada ingresso."
+    ]
+  },
+  {
+    "id": "orcamento-recuperacao-2-2",
+    "fields": ["hints"],
+    "prompt": "Uma turma precisa de R$ 560 e já tem R$ 200. Em seis meses iguais, quantos reais deve juntar por mês?",
+    "hints": [
+      "Descubra quanto ainda falta para a meta.",
+      "Divida o valor que falta pelo número de meses para achar quanto juntar por mês.",
+      "(560 − 200) ÷ 6 = 60."
+    ]
+  },
+  {
+    "id": "medidas-recuperacao-2-1",
+    "fields": ["hints"],
+    "prompt": "Um canteiro retangular tem área 84 m² e largura 7 m. Qual é seu comprimento em m?",
+    "hints": [
+      "Área mede a superfície coberta.",
+      "Divida a área pela largura para encontrar o comprimento.",
+      "84 ÷ 7 = 12 m."
+    ]
+  },
+  {
+    "id": "medidas-recuperacao-2-2",
+    "fields": ["hints"],
+    "prompt": "Uma moldura quadrada usa 148 cm de fita em uma volta. Quanto mede cada lado em cm?",
+    "hints": [
+      "Perímetro percorre todos os lados externos.",
+      "No quadrado, divida o perímetro pelos quatro lados iguais.",
+      "148 ÷ 4 = 37 cm."
+    ]
+  },
+  {
+    "id": "medidas-recuperacao-2-3",
+    "fields": ["hints"],
+    "prompt": "Dois retângulos de áreas 26 e 35 cm² são unidos sem sobreposição. Qual é a área da união em cm²?",
+    "hints": [
+      "Separe a figura em áreas que você sabe calcular.",
+      "Some as áreas das partes, pois não há sobreposição.",
+      "Sem sobreposição, as áreas se somam: 26 + 35 = 61."
+    ]
+  },
+  {
+    "id": "simetria-recuperacao-2-1",
+    "fields": ["hints"],
+    "prompt": "Um ponto e seu reflexo em um espelho vertical têm coordenadas x iguais a −4 e 10. Em qual x está o espelho?",
+    "hints": [
+      "Uma reflexão coloca o ponto à mesma distância do outro lado do espelho.",
+      "A coordenada do espelho é a média das coordenadas horizontais do ponto e do reflexo.",
+      "O espelho fica no ponto médio: (−4 + 10)/2 = 3."
+    ]
+  },
+  {
+    "id": "simetria-recuperacao-2-2",
+    "fields": ["hints"],
+    "prompt": "Uma peça dá três quartos de volta. Quantos graus ela gira?",
+    "hints": [
+      "Uma volta completa tem 360 graus.",
+      "Divida 360 graus em quatro partes e tome três delas.",
+      "3 × 90 = 270 graus."
+    ]
+  },
+  {
+    "id": "gavetas-recuperacao-1-3",
+    "fields": ["prompt"],
+    "prompt": "Qual é o menor número de inteiros escolhidos que garante dois com o mesmo resto na divisão por 8?",
+    "hints": [
+      "Os restos possíveis funcionam como caixas.",
+      "Ao dividir por d, há d restos: de zero até d − 1.",
+      "Há 8 restos possíveis; 9 inteiros forçam coincidência."
+    ]
+  },
+  {
+    "id": "gavetas-recuperacao-2-1",
+    "fields": ["prompt"],
+    "prompt": "Há 5 tipos de adesivo. Qual é o menor número de adesivos que garante pelo menos três do mesmo tipo?",
+    "hints": [
+      "Pense no maior total ainda sem atingir a quantidade desejada em nenhuma caixa.",
+      "Depois desse pior caso, um objeto extra força a repetição.",
+      "É possível ter 2 de cada tipo, total 10. O 11º força um terceiro."
+    ]
+  },
+  {
+    "id": "gavetas-recuperacao-2-2",
+    "fields": ["prompt"],
+    "prompt": "Dezessete pessoas entram em 4 salas. Qual é o maior número k para o qual se pode garantir pelo menos k pessoas em alguma sala?",
+    "hints": [
+      "Se todas as caixas tivessem pouco, qual seria o total máximo?",
+      "Divida o total pelo número de caixas e arredonde para cima.",
+      "4 por sala somariam 16; uma sala tem pelo menos 5."
+    ]
+  },
+  {
+    "id": "gavetas-recuperacao-2-3",
+    "fields": ["prompt", "hints"],
+    "prompt": "Os números de uma lista deixam apenas os restos 0, 2 ou 4 ao dividir por 6. Qual é o menor número de elementos da lista que garante dois com o mesmo resto?",
+    "hints": [
+      "Os restos possíveis funcionam como caixas.",
+      "Use somente as três classes de resto permitidas pela lista.",
+      "Só três classes são permitidas; quatro números forçam uma repetição."
+    ]
+  },
+  {
+    "id": "probabilidade-recuperacao-2-3",
+    "fields": ["prompt"],
+    "prompt": "Uma caixa tem 3 bolas azuis e 2 brancas. Em dois sorteios independentes, com reposição e chances iguais para cada bola, qual é a chance de duas brancas?",
+    "hints": [
+      "Em escolhas independentes, um resultado não muda as chances do outro.",
+      "Multiplique as probabilidades das duas condições.",
+      "Com reposição, (2/5) × (2/5) = 4/25 = 0,16."
+    ]
+  },
+  {
+    "id": "paridade-recuperacao-2-2",
+    "fields": ["prompt"],
+    "prompt": "Um número deixa resto 5 ao dividir por 9. Qual é o resto da divisão por 9 desse número somado a 7?",
+    "hints": [
+      "Retire grupos completos do divisor.",
+      "O resto precisa ser não negativo e menor que o divisor.",
+      "5 + 7 = 12; 12 deixa resto 3 por 9."
+    ]
+  },
+  {
+    "id": "padroes-recuperacao-2-2",
+    "fields": ["hints"],
+    "prompt": "Uma máquina transforma a entrada n em 3n − 2. Que entrada produz 25?",
+    "hints": [
+      "A posição e a quantidade não são a mesma coisa.",
+      "Iguale a regra à saída informada e desfaça as operações para achar a entrada.",
+      "3n − 2 = 25: 3n = 27, n = 9."
+    ]
+  },
+  {
+    "id": "logica-recuperacao-2-2",
+    "fields": ["hints"],
+    "prompt": "Qual frase nega 'Existe uma porta aberta'?",
+    "hints": [
+      "Negar 'existe' exige que nenhum caso satisfaça a propriedade.",
+      "Para não existir porta aberta, nenhuma pode estar aberta.",
+      "A existência só é falsa se não houver porta aberta."
+    ]
+  },
+  {
+    "id": "orientacao-espacial-recuperacao-2-2",
+    "fields": ["hints"],
+    "prompt": "Você olha para o oeste e dá meia-volta. Para onde passa a olhar?",
+    "hints": [
+      "Imagine as direções norte, leste, sul e oeste ao redor de você.",
+      "Meia-volta leva à direção oposta.",
+      "Meia-volta leva à direção oposta ao oeste."
+    ]
+  },
+  {
+    "id": "orientacao-espacial-recuperacao-2-3",
+    "fields": ["hints"],
+    "prompt": "Quatro pilhas lado a lado têm 2 cubos cada. Quantos cubos existem ao todo, contando também os de baixo?",
+    "hints": [
+      "Conte todos os cubos, inclusive os que ficam debaixo dos outros.",
+      "Multiplique a quantidade de pilhas pelo número de cubos de cada pilha.",
+      "4 pilhas × 2 cubos = 8."
+    ]
+  },
+  {
+    "id": "composicao-de-figuras-recuperacao-2-1",
+    "fields": ["hints"],
+    "prompt": "Um retângulo feito de 18 quadradinhos é separado em duas partes. Uma tem 7. Quantos há na outra?",
+    "hints": [
+      "Partes sem sobreposição podem ser somadas.",
+      "Subtraia do total a parte conhecida para encontrar a outra.",
+      "18 − 7 = 11."
+    ]
+  },
+  {
+    "id": "composicao-de-figuras-recuperacao-2-3",
+    "fields": ["hints"],
+    "prompt": "Um tabuleiro tem 6 fileiras de 6 casas. Nove casas já estão cobertas. Quantas faltam cobrir?",
+    "hints": [
+      "Veja quantas peças cabem em uma fileira.",
+      "Calcule o total pelas fileiras e subtraia as casas já cobertas.",
+      "Há 36 casas; 36 − 9 = 27."
+    ]
+  },
+  {
+    "id": "balancas-recuperacao-2-1",
+    "fields": ["hints"],
+    "prompt": "Duas caixas iguais equilibram 18 kg. Quantos kg tem cada caixa?",
+    "hints": [
+      "Os dois lados de uma balança equilibrada têm a mesma massa.",
+      "Divida a massa total igualmente entre as duas caixas.",
+      "As duas dividem igualmente 18: cada uma tem 9 kg."
+    ]
+  },
+  {
+    "id": "contar-e-comparar-recuperacao-2-1",
+    "fields": ["hints"],
+    "prompt": "Uma caixa tem 63 lápis. Separamos 6 grupos de 10. Quantos lápis ficam soltos?",
+    "hints": [
+      "Uma dezena reúne dez unidades.",
+      "Subtraia do total as dezenas que já foram agrupadas.",
+      "63 − 60 = 3."
+    ]
+  },
+  {
+    "id": "medir-e-comparar-recuperacao-2-1",
+    "fields": ["hints"],
+    "prompt": "Uma fita começa na marca 5 cm e mede 9 cm. Em que marca da régua ela termina, em cm?",
+    "hints": [
+      "Use as marcas da régua, mesmo quando o objeto não começa no zero.",
+      "Some o comprimento à marca inicial para encontrar a marca final.",
+      "5 + 9 = 14 cm."
+    ]
+  },
+  {
+    "id": "medir-e-comparar-recuperacao-2-2",
+    "fields": ["hints"],
+    "prompt": "Lia tem três moedas de R$ 1 e duas notas de R$ 5. Quantos reais tem ao todo?",
+    "hints": [
+      "Some moedas e notas pelo valor de cada uma.",
+      "Multiplique a quantidade pelo valor de cada moeda ou nota e some os valores.",
+      "3 + 10 = 13."
+    ]
+  },
+  {
+    "id": "medir-e-comparar-recuperacao-2-3",
+    "fields": ["hints"],
+    "prompt": "Uma brincadeira começa às 14h e dura 2 horas. Em que hora termina? Responda usando o relógio de 24 horas.",
+    "hints": [
+      "Conte as horas que passam, não os números mostrados juntos.",
+      "Some a duração à hora inicial, mantendo o relógio de 24 horas.",
+      "14 + 2 = 16: termina às 16h."
+    ]
+  },
+  {
+    "id": "proporcao-recuperacao-2-1",
+    "fields": ["hints"],
+    "prompt": "Uma tinta cobre 27 m² com 3 litros, sempre no mesmo rendimento. Quantos litros cobrem 63 m²?",
+    "hints": [
+      "Encontre a quantidade correspondente a uma unidade.",
+      "Calcule a área coberta por litro e divida a área desejada por esse rendimento.",
+      "Cada litro cobre 9 m²; 63 ÷ 9 = 7."
+    ]
+  },
+  {
+    "id": "semelhanca-recuperacao-2-2",
+    "fields": ["hints"],
+    "prompt": "As áreas de dois quadrados são 36 e 225 cm². Qual é a razão entre o lado maior e o menor?",
+    "hints": [
+      "A escala de área envolve duas dimensões.",
+      "Extraia a raiz de cada área para achar os lados e divida o maior pelo menor.",
+      "Os lados são 6 e 15; 15/6 = 2,5."
+    ]
+  },
+  {
+    "id": "invariantes-recuperacao-2-3",
+    "fields": ["prompt"],
+    "prompt": "Uma região usa a coloração de um tabuleiro xadrez e tem 17 casas pretas e 15 brancas. Qual é o maior número de casas descobertas que apenas a diferença entre as cores garante numa cobertura parcial com dominós 1 × 2?",
+    "hints": [
+      "Cada dominó em um tabuleiro xadrez cobre cores diferentes.",
+      "Para uma cobertura completa, as duas cores precisam ter a mesma quantidade.",
+      "Cada dominó consome uma de cada cor; no máximo 15 dominós cobrem 30 casas, sobrando pelo menos 2. A forma da região pode impor ainda mais sobras."
+    ]
+  },
+  {
+    "id": "coordenadas-recuperacao-2-1",
+    "fields": ["hints"],
+    "prompt": "Um ponto sai de (6, −2) e anda 7 unidades para baixo. Qual é sua nova coordenada y?",
+    "hints": [
+      "Trate as coordenadas horizontal e vertical separadamente.",
+      "Para baixo diminui y; mantenha a coordenada x.",
+      "−2 − 7 = −9."
+    ]
+  },
+  {
+    "id": "logica-n2-recuperacao-2-2",
+    "fields": ["hints"],
+    "prompt": "Qual frase nega 'Todo livro da estante tem capa azul'?",
+    "hints": [
+      "Distinga 'todos' de 'existe'.",
+      "Para negar 'todo', basta existir um livro que não tenha a propriedade.",
+      "Uma única exceção já nega a afirmação sobre todos."
+    ]
+  },
+  {
+    "id": "funcoes-recuperacao-1-3",
+    "fields": ["hints"],
+    "prompt": "f(x) = x − 3 e g(x) = x² + 1. Quanto vale g(f(8))?",
+    "hints": [
+      "Compor aplica primeiro a função de dentro.",
+      "Calcule a função de dentro e use seu resultado como entrada da função de fora.",
+      "f(8) = 5, depois g(5) = 26."
+    ]
+  },
+  {
+    "id": "recorrencias-recuperacao-1-2",
+    "fields": ["hints"],
+    "prompt": "Um cultivo idealizado começa com 5 unidades e triplica a cada etapa. Quantas unidades há após 4 etapas?",
+    "hints": [
+      "Uma razão constante multiplica cada termo para obter o seguinte.",
+      "Depois de quatro etapas, o valor inicial foi multiplicado pela razão quatro vezes.",
+      "5 × 3⁴ = 405."
+    ]
+  },
+  {
+    "id": "geometria-plana-recuperacao-2-1",
+    "fields": ["hints"],
+    "prompt": "Um polígono regular tem ângulo externo de 24°. Quantos lados tem?",
+    "hints": [
+      "Use a soma dos ângulos internos e as relações de uma reta.",
+      "Os ângulos externos de um polígono convexo somam 360 graus; divida pelo ângulo de cada vértice.",
+      "Os ângulos externos somam 360°: 360/24 = 15."
+    ]
+  },
+  {
+    "id": "geometria-plana-recuperacao-2-2",
+    "fields": ["hints"],
+    "prompt": "Um trapézio tem bases 9 e 15 cm e altura 7 cm. Qual é sua área em cm²?",
+    "hints": [
+      "Escolha uma base e sua altura perpendicular.",
+      "No trapézio, some as bases, multiplique pela altura e divida por dois.",
+      "(9 + 15) × 7/2 = 84."
+    ]
+  },
+  {
+    "id": "geometria-plana-recuperacao-2-3",
+    "fields": ["hints"],
+    "prompt": "Uma coroa circular tem raios 8 cm e 3 cm. Sua área é kπ cm². Quanto vale k?",
+    "hints": [
+      "Uma coroa circular é o círculo maior sem a região do círculo menor.",
+      "Subtraia os quadrados dos raios para encontrar o coeficiente de π.",
+      "π(8² − 3²) = 55π."
+    ]
+  },
+  {
+    "id": "probabilidade-em-recuperacao-1-3",
+    "fields": ["prompt"],
+    "prompt": "Uma urna tem 4 bolas vermelhas e 3 azuis. Duas são sorteadas sem reposição, com chances iguais para cada bola disponível. Qual é a probabilidade de ambas serem azuis?",
+    "hints": [
+      "Conte o total e os resultados favoráveis sem misturar ordens.",
+      "Quando a seleção não considera ordem, use combinações nos dois lados.",
+      "C(3,2)/C(7,2) = 3/21 = 1/7."
+    ]
+  },
+  {
+    "id": "probabilidade-em-recuperacao-2-3",
+    "fields": ["hints"],
+    "prompt": "Lançam-se dois dados comuns justos e independentes. Qual é a probabilidade de a soma ser 10?",
+    "hints": [
+      "Conte o total e os resultados favoráveis sem misturar ordens.",
+      "Nos dois dados, conte pares ordenados igualmente prováveis: (a, b) difere de (b, a).",
+      "Os pares (4,6), (5,5), (6,4) são 3 entre 36: 1/12."
+    ]
+  },
+  {
+    "id": "argumentacao-em-recuperacao-2-2",
+    "fields": ["hints"],
+    "prompt": "Uma prova supõe que existe o maior inteiro M e constrói M + 1. Qual é a contradição?",
+    "hints": [
+      "Uma contradição mostra que a hipótese produz algo incompatível com ela.",
+      "Compare M + 1 com a hipótese de que M seria o maior inteiro.",
+      "A construção viola exatamente a hipótese de M ser o maior."
+    ]
+  },
+  {
+    "id": "polinomios-recuperacao-2-3",
+    "fields": ["hints"],
+    "prompt": "Se x + y = 13 e xy = 30, quanto vale (x − y)²?",
+    "hints": [
+      "Use uma identidade para agrupar produtos.",
+      "Use (x − y)² = (x + y)² − 4xy.",
+      "(x − y)² = (x + y)² − 4xy = 169 − 120 = 49."
+    ]
+  },
+  {
+    "id": "inducao-recuperacao-2-1",
+    "fields": ["hints"],
+    "prompt": "Uma prova verifica P(2) e mostra P(k) ⇒ P(k + 2) para k ≥ 2. Quais inteiros ficam garantidos?",
+    "hints": [
+      "A indução precisa de base e transmissão de um caso para o seguinte.",
+      "Partindo da base 2 e avançando de 2 em 2, quais números são alcançados?",
+      "Os passos preservam a paridade: 2, 4, 6, ...; não alcançam os ímpares."
+    ]
+  },
+  {
+    "id": "coordenadas-em-recuperacao-2-2",
+    "fields": ["hints"],
+    "prompt": "No encontro de x + y = 11 e 2x − y = 7, qual é a coordenada y?",
+    "hints": [
+      "No encontro de duas retas, o ponto satisfaz as duas equações.",
+      "Some as equações para eliminar y; depois substitua x e descubra y.",
+      "Somando: 3x = 18, x = 6; y = 5."
+    ]
+  },
+  {
+    "id": "equacoes-em-recuperacao-2-2",
+    "fields": ["hints"],
+    "prompt": "Qual é a soma das soluções reais de |2x − 3| = 7?",
+    "hints": [
+      "O módulo pode corresponder a uma expressão positiva ou negativa.",
+      "Resolva 2x − 3 = 7 e 2x − 3 = −7; some as duas soluções.",
+      "2x − 3 = 7 ou −7; x = 5 ou −2, soma 3."
+    ]
+  },
+  {
+    "id": "equacoes-em-recuperacao-2-3",
+    "fields": ["hints"],
+    "prompt": "Se log₂(x − 1) = 5, qual é x?",
+    "hints": [
+      "Um logaritmo informa o expoente de uma potência.",
+      "Reescreva o logaritmo como x − 1 = 2⁵ e isole x.",
+      "x − 1 = 2⁵ = 32, logo x = 33."
+    ]
+  },
+  {
+    "id": "orcamento-n2-recuperacao-2-2",
+    "fields": ["hints"],
+    "prompt": "Uma reserva de R$ 7.200 cobre despesas essenciais constantes de R$ 1.800 por mês. Quantos meses cobre, sem rendimento?",
+    "hints": [
+      "Uma meta de reserva usa despesas essenciais como referência.",
+      "Divida a reserva pela despesa mensal para encontrar quantos meses ela cobre.",
+      "7.200 ÷ 1.800 = 4."
+    ]
+  },
+  {
+    "id": "inflacao-recuperacao-2-3",
+    "fields": ["hints"],
+    "prompt": "Uma cesta passou de R$ 240 para R$ 276. Qual foi a inflação dessa cesta em %?",
+    "hints": [
+      "Manter poder de compra exige acompanhar o fator dos preços.",
+      "Divida o aumento pelo preço inicial e converta a razão em porcentagem.",
+      "(276 − 240)/240 = 0,15 = 15%."
+    ]
+  },
+  {
+    "id": "investimentos-recuperacao-2-1",
+    "fields": ["hints"],
+    "prompt": "Uma aplicação hipotética de R$ 840 rende 5% em um período, sem custos. Qual é o ganho em reais?",
+    "hints": [
+      "Separe o capital aplicado do ganho.",
+      "Multiplique o capital pela taxa em forma decimal para encontrar o ganho em reais.",
+      "840 × 0,05 = 42."
+    ]
+  },
+  {
+    "id": "modelos-financeiros-recuperacao-2-2",
+    "fields": ["hints"],
+    "prompt": "Um saldo linear S(t) = a + 18t vale R$ 146 em t = 4. Qual é o saldo inicial a, em reais?",
+    "hints": [
+      "O coeficiente de t representa variação por período; o termo constante é o valor inicial.",
+      "Subtraia do saldo observado a variação acumulada nos períodos já decorridos.",
+      "a = 146 − 18 × 4 = 74."
+    ]
+  },
+  {
+    "id": "modelos-financeiros-recuperacao-2-3",
+    "fields": ["hints"],
+    "prompt": "Um serviço A custa 40 + 6h reais; B custa 10h reais. Para h = 12, quantos reais A custa a menos que B?",
+    "hints": [
+      "Compare os modelos na mesma quantidade de uso e na mesma data.",
+      "Substitua o mesmo h nos dois custos e calcule a diferença.",
+      "A custa 112; B custa 120; diferença 8."
+    ]
+  },
+  {
+    "id": "renda-fixa-recuperacao-2-1",
+    "fields": ["hints"],
+    "prompt": "Um título hipotético remunera 80% de um índice que rendeu 10% no período. Pelo modelo proporcional deste exercício, qual é a taxa do título em %?",
+    "hints": [
+      "A taxa do exemplo se aplica ao capital e ao período indicados.",
+      "Multiplique a taxa do índice pela fração contratada.",
+      "80% de 10% = 8%."
+    ]
+  },
+  {
+    "id": "renda-fixa-recuperacao-2-2",
+    "fields": ["hints"],
+    "prompt": "Um investimento hipotético de R$ 900 rende R$ 120 brutos. Há imposto de 20% só sobre o ganho, sem outras taxas. Qual é o saldo líquido final em reais?",
+    "hints": [
+      "Impostos do exemplo incidem apenas sobre a base declarada.",
+      "Desconte o imposto do ganho bruto e acrescente o ganho líquido ao capital inicial.",
+      "Imposto 24; ganho líquido 96; saldo 900 + 96 = 996."
+    ]
+  },
+  {
+    "id": "renda-fixa-recuperacao-2-3",
+    "fields": ["hints"],
+    "prompt": "Um resgate é solicitado na segunda-feira e leva 2 dias úteis. Sem feriados, em qual dia ocorre o crédito?",
+    "hints": [
+      "Liquidez trata da possibilidade e do prazo de transformar o investimento em dinheiro disponível.",
+      "Conte os dias úteis seguintes à solicitação, sem incluir a segunda-feira.",
+      "Terça é o primeiro dia útil seguinte; quarta é o segundo."
+    ]
+  },
+  {
+    "id": "renda-variavel-recuperacao-2-2",
+    "fields": ["hints"],
+    "prompt": "Um ativo de R$ 200 cai 50% e depois sobe 50%. Qual é seu preço final em reais?",
+    "hints": [
+      "Uma perda altera a base sobre a qual a recuperação será calculada.",
+      "Aplique primeiro o fator da queda e depois o fator da alta ao saldo atualizado.",
+      "200 × 0,5 × 1,5 = 150."
+    ]
+  },
+  {
+    "id": "cenarios-recuperacao-2-2",
+    "fields": ["hints"],
+    "prompt": "O saldo é S = 7q − 210 reais. Qual quantidade q produz saldo zero?",
+    "hints": [
+      "Cada cenário usa sua própria premissa de vendas.",
+      "Iguale o saldo a zero e resolva a equação para q.",
+      "7q = 210, logo q = 30."
+    ]
+  }
+]

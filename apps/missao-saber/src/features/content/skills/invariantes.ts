@@ -453,6 +453,7 @@ export const invariantes: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "Invariantes para provar",
       objective: "Montar um argumento completo de impossibilidade ou de existência.",
       introduction:
@@ -521,7 +522,7 @@ export const invariantes: SkillPack = {
         ),
         c(
           "argumento-completo",
-          "Qual afirmação é uma prova correta de que um tabuleiro 5 × 5 não pode ser percorrido por um cavalo passando por todas as casas e voltando ao início?",
+          "Qual afirmação é uma prova correta de que um tabuleiro 5 × 5 não pode ser percorrido por um cavalo passando por cada casa exatamente uma vez e, depois da última, voltando à casa inicial?",
           "Cada salto troca a cor, e o ciclo teria 25 casas, número ímpar",
           [
             "Do canto, o cavalo tem só 2 saltos possíveis",
@@ -537,7 +538,7 @@ export const invariantes: SkillPack = {
         ),
         n(
           "argumento-completo",
-          "Escrevem-se os números de 1 a 2.025 em uma lousa. A cada passo, apagam-se dois e escreve-se a diferença positiva entre eles. Qual é a paridade do último número? Responda 0 para par e 1 para ímpar.",
+          "Escrevem-se os números de 1 a 2.025 em uma lousa. A cada passo, apagam-se dois e escreve-se o valor absoluto da diferença entre eles (zero, se forem iguais). Qual é a paridade do último número? Responda 0 para par e 1 para ímpar.",
           1,
           "Trocar a e b por a − b não muda a paridade da soma total. A soma inicial é 2.025 × 2.026 ÷ 2 = 2.025 × 1.013, que é ímpar; o último número é ímpar.",
           {

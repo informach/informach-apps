@@ -354,6 +354,7 @@ export const formasEPosicoes: SkillPack = {
     },
     {
       title: "Montar e ver",
+      version: 2,
       objective: "Montar figuras com peças e imaginar o que aparece de cada lado.",
       introduction:
         "Com peças podemos montar figuras novas. Dois triângulos iguais, como os de um quadrado cortado de um canto ao outro, formam um quadrado; quatro quadradinhos formam um quadrado maior. Olhando de cima ou de lado, as coisas parecem diferentes.",
@@ -422,7 +423,7 @@ export const formasEPosicoes: SkillPack = {
         ),
         c(
           "montar",
-          "Dobrei uma folha ao meio e fiz um furo que atravessa as duas partes. Quando abro a folha, quantos furos aparecem?",
+          "Dobrei uma folha ao meio e fiz um furo pequeno, longe da dobra e das bordas, que atravessa as duas partes. Quando abro a folha, quantos furos separados aparecem?",
           "2",
           ["1", "4"],
           "O furo passou pelas duas partes da folha.",

@@ -128,6 +128,7 @@ export const equivalenciaTemporal: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "Parcelas e à vista",
       objective:
         "Comparar compras à vista e parceladas trazendo as parcelas para a data da compra.",
@@ -143,10 +144,10 @@ export const equivalenciaTemporal: SkillPack = {
         ),
         c(
           "parcelas",
-          "No item anterior, com taxa de 5% ao mês, o valor presente das duas parcelas é cerca de:",
+          "Uma compra é paga em duas parcelas de R$ 550, uma daqui a 1 mês e outra daqui a 2 meses. Com taxa de 5% ao mês, o valor presente das duas parcelas é cerca de:",
           "R$ 1.022,68",
           ["R$ 1.100", "R$ 1.047,62"],
-          "550/1,05 + 550/1,05² ≈ 523,81 + 498,87 = 1.022,68, um pouco mais que o preço à vista de R$ 1.000.",
+          "550/1,05 + 550/1,05² ≈ 523,81 + 498,87 = 1.022,68. Cada parcela é trazida para hoje pelo seu próprio prazo.",
           {
             feedback: [
               "1.100 soma as parcelas sem trazê-las para hoje.",
@@ -333,6 +334,7 @@ export const equivalenciaTemporal: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "Fluxos de pagamentos",
       objective: "Comparar sequências de pagamentos ou recebimentos em datas diferentes.",
       introduction:
@@ -375,7 +377,7 @@ export const equivalenciaTemporal: SkillPack = {
         ),
         c(
           "fluxos",
-          "No item anterior, qual opção é ligeiramente melhor para quem recebe, com taxa de 10% ao ano?",
+          "Um prêmio pode ser recebido como R$ 30.000 hoje ou três parcelas anuais de R$ 11.000, a primeira hoje e as outras daqui a 1 e 2 anos. Qual opção é ligeiramente melhor para quem recebe, com taxa de 10% ao ano?",
           "As parcelas, que valem cerca de R$ 30.091 hoje",
           [
             "Os R$ 30.000, porque são recebidos de uma vez",
@@ -435,6 +437,7 @@ export const equivalenciaTemporal: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "Decidir no tempo",
       objective:
         "Analisar decisões de compra, crédito e poupança com equivalência de valores, declarando premissas.",
@@ -460,7 +463,7 @@ export const equivalenciaTemporal: SkillPack = {
         ),
         n(
           "decidir",
-          "No item anterior, quanto se paga a mais no total parcelando, em reais?",
+          "Uma geladeira custa R$ 3.000 à vista ou 12 parcelas de R$ 290. Quanto se paga a mais no total parcelando, em reais?",
           480,
           "12 × 290 = 3.480; 3.480 − 3.000 = 480.",
           { misreads: [{ value: 3480, feedback: "3.480 é o total, não a diferença." }] },
@@ -569,7 +572,7 @@ export const equivalenciaTemporal: SkillPack = {
     ],
     samples: [
       "Com R$ 1.000 hoje, posso aplicar e ter mais que R$ 1.000 daqui a um ano. Com taxa de 10% ao ano, seriam R$ 1.100. Por isso, receber R$ 1.000 só daqui a um ano equivale a receber cerca de R$ 909 hoje. O tempo tem valor porque o dinheiro pode render.",
-      "Se o preço à vista for menor que a soma das parcelas, calculo a taxa que faz o valor presente das parcelas igual ao preço à vista; se ela for maior que zero, há juros embutidos. Se não houver diferença nenhuma, a taxa é zero, e parcelar só custa algo para quem não consegue aplicar o dinheiro. O nome 'sem juros' não garante nada: é preciso comparar.",
+      "Comparo o preço à vista com a soma e as datas das parcelas. A taxa embutida é aquela que iguala o valor presente das parcelas ao preço à vista. Se o total parcelado for maior, há juros embutidos. Se os totais forem iguais, a taxa embutida é zero: sem rendimento do dinheiro guardado, os custos são iguais; com rendimento líquido positivo, manter o saldo aplicado até cada vencimento favorece parcelar, pagando sempre em dia. O nome 'sem juros' não dispensa essa comparação.",
       "A cada mês a dívida cresce 8%, ou R$ 80 para cada R$ 1.000, e a aplicação rende 1%, ou R$ 10. Mantendo as duas, perco R$ 70 por mês. Quitando a dívida com a aplicação, deixo de ganhar 10 e deixo de pagar 80. É como render 8% ao mês sem risco, em vez de 1%.",
     ],
     focus: "levar os valores para a mesma data",

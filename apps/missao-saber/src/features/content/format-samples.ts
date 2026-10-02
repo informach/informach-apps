@@ -2,7 +2,7 @@ import type { Lesson } from "./types";
 
 export const formatSamplesLesson: Lesson = {
   id: "fracoes-formatos",
-  version: 1,
+  version: 2,
   title: "Quatro jeitos de mostrar uma ideia",
   skillId: "fracoes",
   objective: "Representar, calcular, ordenar e justificar relações entre frações.",
@@ -41,10 +41,11 @@ export const formatSamplesLesson: Lesson = {
       id: "fracoes-formatos-2",
       skillId: "fracoes",
       familyId: "fracoes:equivalencia-numerica",
-      prompt: "Escreva o comprimento de meia unidade. Você pode usar decimal ou fração.",
-      explanation: "Meia unidade pode ser escrita como 1/2 ou 0,5.",
+      prompt:
+        "Uma fita tem um metro de comprimento. Quanto mede a metade dessa fita, em metros? Você pode usar decimal ou fração.",
+      explanation: "Metade de um metro mede 1/2 m ou 0,5 m.",
       hints: [
-        "Pense em uma unidade dividida em duas partes iguais.",
+        "Pense em um metro dividido em duas partes iguais.",
         "Uma dessas partes é uma metade.",
         "Dividir 1 por 2 produz 0,5.",
       ],
@@ -54,7 +55,7 @@ export const formatSamplesLesson: Lesson = {
         value: 0.5,
         tolerance: 0,
         acceptedForms: ["decimal", "fraction"],
-        unit: { symbol: "m", aliases: ["metro", "metros"], required: true },
+        unit: { symbol: "m", aliases: ["metro", "metros"], required: false },
       },
       misreads: [
         { value: 0.25, feedback: "0,25 m é um quarto da unidade. A metade é o dobro disso." },
@@ -109,9 +110,9 @@ export const formatSamplesLesson: Lesson = {
         maxLength: 600,
       },
       rubric: [
-        "Compara as duas frações usando a mesma referência.",
-        "Mantém a equivalência ao alterar numerador e denominador.",
-        "Conclui explicitamente que 25/40 é maior que 24/40.",
+        "Compara as duas frações sem usar aproximações decimais.",
+        "Explica a comparação com uma estratégia exata, como denominador comum ou produtos cruzados.",
+        "Conclui explicitamente que 5/8 é maior que 3/5.",
       ],
       sampleResponse:
         "Usei denominador 40: 5/8 equivale a 25/40 e 3/5 equivale a 24/40. Como 25 é maior que 24, 5/8 é maior.",

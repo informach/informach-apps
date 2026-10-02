@@ -1,0 +1,394 @@
+[
+  {
+    "lessonId": "medidas-2",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["medidas-2-2"]
+  },
+  {
+    "lessonId": "simetria-1",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["simetria-1-2"]
+  },
+  {
+    "lessonId": "gavetas-2",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["gavetas-2-3"]
+  },
+  {
+    "lessonId": "probabilidade-1",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["probabilidade-1-3"]
+  },
+  {
+    "lessonId": "fracoes-formatos",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["fracoes-formatos-2", "fracoes-formatos-4"]
+  },
+  {
+    "lessonId": "porcentagem-3",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["porcentagem-3-9"]
+  },
+  {
+    "lessonId": "porcentagem-5",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["porcentagem-5-2"]
+  },
+  {
+    "lessonId": "precos-3",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["precos-3-9"]
+  },
+  {
+    "lessonId": "orcamento-3",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["orcamento-3-9"]
+  },
+  {
+    "lessonId": "medidas-3",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["medidas-3-5", "medidas-3-9"]
+  },
+  {
+    "lessonId": "medidas-4",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["medidas-4-5"]
+  },
+  {
+    "lessonId": "medidas-5",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["medidas-5-5"]
+  },
+  {
+    "lessonId": "gavetas-3",
+    "version": 2,
+    "previousVersion": 1,
+    "items": [
+      "gavetas-3-1",
+      "gavetas-3-2",
+      "gavetas-3-3",
+      "gavetas-3-6",
+      "gavetas-3-7",
+      "gavetas-3-8",
+      "gavetas-3-9"
+    ]
+  },
+  {
+    "lessonId": "gavetas-4",
+    "version": 2,
+    "previousVersion": 1,
+    "items": [
+      "gavetas-4-1",
+      "gavetas-4-2",
+      "gavetas-4-3",
+      "gavetas-4-6",
+      "gavetas-4-7",
+      "gavetas-4-8"
+    ]
+  },
+  {
+    "lessonId": "gavetas-5",
+    "version": 2,
+    "previousVersion": 1,
+    "items": [
+      "gavetas-5-1",
+      "gavetas-5-2",
+      "gavetas-5-3",
+      "gavetas-5-6",
+      "gavetas-5-7",
+      "gavetas-5-8"
+    ]
+  },
+  {
+    "lessonId": "paridade-3",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["paridade-3-7"]
+  },
+  {
+    "lessonId": "paridade-4",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["paridade-4-7"]
+  },
+  {
+    "lessonId": "paridade-5",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["paridade-5-7"]
+  },
+  {
+    "lessonId": "semelhanca-3",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["semelhanca-3-5"]
+  },
+  {
+    "lessonId": "invariantes-5",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["invariantes-5-5", "invariantes-5-6"]
+  },
+  {
+    "lessonId": "coordenadas-3",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["coordenadas-3-9"]
+  },
+  {
+    "lessonId": "coordenadas-5",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["coordenadas-5-10"]
+  },
+  {
+    "lessonId": "juros-4",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["juros-4-10"]
+  },
+  {
+    "lessonId": "orcamento-n2-5",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["orcamento-n2-5-2"]
+  },
+  {
+    "lessonId": "inflacao-3",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["inflacao-3-8"]
+  },
+  {
+    "lessonId": "investimentos-1",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["investimentos-1-8"]
+  },
+  {
+    "lessonId": "investimentos-3",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["investimentos-3-8"]
+  },
+  {
+    "lessonId": "investimentos-4",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["investimentos-4-7"]
+  },
+  {
+    "lessonId": "investimentos-5",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["investimentos-5-2"]
+  },
+  {
+    "lessonId": "padroes-iniciais-4",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["padroes-iniciais-4-2"]
+  },
+  {
+    "lessonId": "composicao-de-figuras-3",
+    "version": 2,
+    "previousVersion": 1,
+    "items": [
+      "composicao-de-figuras-3-1",
+      "composicao-de-figuras-3-2",
+      "composicao-de-figuras-3-3",
+      "composicao-de-figuras-3-4",
+      "composicao-de-figuras-3-5",
+      "composicao-de-figuras-3-6",
+      "composicao-de-figuras-3-7",
+      "composicao-de-figuras-3-8",
+      "composicao-de-figuras-3-9"
+    ]
+  },
+  {
+    "lessonId": "composicao-de-figuras-4",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["composicao-de-figuras-4-10"]
+  },
+  {
+    "lessonId": "composicao-de-figuras-5",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["composicao-de-figuras-5-10"]
+  },
+  {
+    "lessonId": "caminhos-2",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["caminhos-2-6"]
+  },
+  {
+    "lessonId": "caminhos-3",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["caminhos-3-2", "caminhos-3-9"]
+  },
+  {
+    "lessonId": "coordenadas-em-3",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["coordenadas-em-3-9"]
+  },
+  {
+    "lessonId": "coordenadas-em-4",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["coordenadas-em-4-10"]
+  },
+  {
+    "lessonId": "equacoes-em-5",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["equacoes-em-5-8"]
+  },
+  {
+    "lessonId": "modelos-financeiros-5",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["modelos-financeiros-5-2"]
+  },
+  {
+    "lessonId": "equivalencia-temporal-2",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["equivalencia-temporal-2-2"]
+  },
+  {
+    "lessonId": "equivalencia-temporal-4",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["equivalencia-temporal-4-4", "equivalencia-temporal-4-10"]
+  },
+  {
+    "lessonId": "equivalencia-temporal-5",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["equivalencia-temporal-5-2"]
+  },
+  {
+    "lessonId": "renda-fixa-1",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["renda-fixa-1-4"]
+  },
+  {
+    "lessonId": "renda-fixa-2",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["renda-fixa-2-7"]
+  },
+  {
+    "lessonId": "renda-fixa-4",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["renda-fixa-4-3", "renda-fixa-4-7"]
+  },
+  {
+    "lessonId": "renda-fixa-5",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["renda-fixa-5-3"]
+  },
+  {
+    "lessonId": "renda-variavel-4",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["renda-variavel-4-5"]
+  },
+  {
+    "lessonId": "renda-variavel-5",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["renda-variavel-5-2", "renda-variavel-5-4"]
+  },
+  {
+    "lessonId": "cenarios-1",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["cenarios-1-2"]
+  },
+  {
+    "lessonId": "cenarios-2",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["cenarios-2-3", "cenarios-2-8"]
+  },
+  {
+    "lessonId": "cenarios-3",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["cenarios-3-2"]
+  },
+  {
+    "lessonId": "cenarios-4",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["cenarios-4-4", "cenarios-4-6", "cenarios-4-7", "cenarios-4-8"]
+  },
+  {
+    "lessonId": "formas-e-posicoes-5",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["formas-e-posicoes-5-8"]
+  },
+  {
+    "lessonId": "medir-e-comparar-3",
+    "version": 2,
+    "previousVersion": 1,
+    "items": ["medir-e-comparar-3-9"]
+  },
+  {
+    "lessonId": "bank:diagnostic:olitef-n1",
+    "version": 3,
+    "previousVersion": 2,
+    "items": ["bank:diagnostic:olitef-n1-12"]
+  },
+  {
+    "lessonId": "bank:exam:olitef-n1",
+    "version": 4,
+    "previousVersion": 3,
+    "items": ["bank:exam:olitef-n1-12"]
+  },
+  {
+    "lessonId": "bank:diagnostic:obmep-n1",
+    "version": 3,
+    "previousVersion": 2,
+    "items": ["bank:diagnostic:obmep-n1-5", "bank:diagnostic:obmep-n1-12"]
+  },
+  {
+    "lessonId": "bank:exam:obmep-n1",
+    "version": 4,
+    "previousVersion": 3,
+    "items": ["bank:exam:obmep-n1-5", "bank:exam:obmep-n1-12"]
+  },
+  {
+    "lessonId": "bank:diagnostic:canguru-s",
+    "version": 3,
+    "previousVersion": 2,
+    "items": ["bank:diagnostic:canguru-s-3"]
+  },
+  {
+    "lessonId": "bank:exam:canguru-s",
+    "version": 4,
+    "previousVersion": 3,
+    "items": ["bank:exam:canguru-s-3"]
+  }
+]

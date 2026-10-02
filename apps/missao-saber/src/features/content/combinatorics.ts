@@ -203,7 +203,7 @@ export const combinatoricsLessons = [
         "Dos cartões 1 a 10, qual conjunto de cinco ainda evita pares de soma 11?",
         "1, 2, 3, 4, 5",
         ["1, 2, 3, 4, 10", "2, 3, 4, 5, 9"],
-        "As duas maiores escolhas do primeiro conjunto somam 9. Os outros conjuntos contêm 1+10 e 2+9, respectivamente.",
+        "No conjunto 1, 2, 3, 4, 5, as duas maiores escolhas somam 9, então nenhum par soma 11. O conjunto 1, 2, 3, 4, 10 contém 1 + 10 = 11; o conjunto 2, 3, 4, 5, 9 contém 2 + 9 = 11.",
         "contraexemplo",
         "Procure pares que somem exatamente onze.",
       ],
@@ -258,7 +258,7 @@ export const combinatoricsLessons = [
         "Liste as faces pares.",
       ],
       [
-        "No mesmo dado, qual é a chance de sair um número maior que 6?",
+        "Um dado comum e equilibrado tem faces numeradas de 1 a 6. Qual é a chance de sair um número maior que 6?",
         "0",
         ["1/6", "1"],
         "Não existe face maior que 6. O evento é impossível e sua probabilidade é zero.",

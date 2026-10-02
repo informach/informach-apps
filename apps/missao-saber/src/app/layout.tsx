@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Fredoka, Nunito } from "next/font/google";
+import localFont from "next/font/local";
 import { headers } from "next/headers";
 import { RegistrarServiceWorker } from "@/components/registrar-sw";
 import { catalogGrades } from "@/features/content/catalog";
@@ -8,15 +8,15 @@ import { env } from "@/lib/env";
 import { INDEXAVEL } from "@/lib/seo";
 import "./globals.css";
 
-const nunito = Nunito({
-  subsets: ["latin", "latin-ext"],
-  weight: ["400", "600", "700", "800"],
+const nunito = localFont({
+  src: "./fonts/nunito-variable.woff2",
+  weight: "200 1000",
   variable: "--font-nunito",
   display: "swap",
 });
-const fredoka = Fredoka({
-  subsets: ["latin", "latin-ext"],
-  weight: ["500", "600", "700"],
+const fredoka = localFont({
+  src: "./fonts/fredoka-variable.woff2",
+  weight: "300 700",
   variable: "--font-fredoka",
   display: "swap",
 });

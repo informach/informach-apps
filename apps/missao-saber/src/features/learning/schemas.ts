@@ -51,6 +51,7 @@ export const answerSchema = z.object({
   itemId: z.string().max(100),
   answer: z.string().min(1).max(2000),
   requestKey: z.string().uuid(),
+  readingSupport: z.boolean().optional(),
 });
 export const hintSchema = z.object({
   sessionId: z.string().uuid(),
@@ -60,6 +61,19 @@ export const hintSchema = z.object({
 export const noteSchema = z.object({
   profileId: z.string().uuid(),
   text: z.string().trim().min(3).max(1000),
+  context: z
+    .object({ sessionId: z.string().uuid(), itemId: z.string().min(1).max(100).optional() })
+    .optional(),
+});
+export const editNoteSchema = noteSchema
+  .pick({ profileId: true, text: true })
+  .extend({ id: z.string().uuid() });
+export const notebookQuerySchema = z.object({
+  q: z.string().trim().max(100).default(""),
+  archived: z.enum(["0", "1"]).default("0"),
+  after: z.string().uuid().optional(),
+  session: z.string().uuid().optional(),
+  item: z.string().min(1).max(100).optional(),
 });
 export const reportSchema = z.object({
   sessionId: z.string().uuid(),

@@ -1,4 +1,4 @@
-import { coursesForGrade } from "./catalog";
+import { coursesForGrade, findLesson } from "./catalog";
 import type { Course, Lesson } from "./types";
 
 export type ContentState = {
@@ -24,10 +24,12 @@ export function isSuspended(state: ContentState | undefined) {
 
 /** Missão, revisão ou avaliação que pertence à trilha (pelo id da lição da sessão). */
 export function lessonIdInCourse(course: Course, lessonId: string) {
+  const lesson = findLesson(lessonId);
   return (
     lessonId === `diagnostic:${course.id}` ||
     lessonId === `exam:${course.id}` ||
-    course.path.includes(lessonId)
+    course.path.includes(lessonId) ||
+    (lesson?.kind === "recovery" && course.skills.includes(lesson.skillId))
   );
 }
 
@@ -47,7 +49,10 @@ export function lessonAvailability(input: {
   const belongsToCourse =
     lesson.skillId === "mixed"
       ? lesson.id === `diagnostic:${course.id}` || lesson.id === `exam:${course.id}`
-      : lesson.kind === "mission" && course.path.includes(lesson.id);
+      : (lesson.kind === "mission" && course.path.includes(lesson.id)) ||
+        (lesson.kind === "recovery" &&
+          course.skills.includes(lesson.skillId) &&
+          findLesson(lesson.id)?.kind === "recovery");
   if (!belongsToCourse) return { available: false, reason: "COURSE" };
   if (isSuspended(input.state)) return { available: false, reason: "WITHDRAWN" };
   if (!lesson.free && !input.paid) return { available: false, reason: "PLAN" };

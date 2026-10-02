@@ -16,30 +16,31 @@ export type SkillState = {
   level: "starting" | "building" | "independent";
   independentFamilies: number;
   attempts: number;
-  dueAt: Date;
+  /** Data civil de São Paulo (AAAA-MM-DD), sem horário de vencimento. */
+  dueOn: string;
   lastCorrect: boolean;
 };
 const dayMs = 86_400_000;
 const intervals = [1, 3, 7, 14, 30];
 
-function spacedDue(rows: Evidence[]): Date {
+function spacedDue(rows: Evidence[]): string {
   const days = new Map<string, Evidence[]>();
   for (const row of rows) {
     const key = localDay(row.createdAt);
     days.set(key, [...(days.get(key) ?? []), row]);
   }
   let stage = -1;
-  let due = new Date(0);
+  let due = "1970-01-01";
   for (const day of days.values()) {
     const last = day[day.length - 1];
     if (!last) continue;
     const success = day.every((attempt) => attempt.correct && attempt.helpCount === 0);
     if (!success) {
       stage = 0;
-      due = new Date(last.createdAt.getTime() + dayMs);
-    } else if (last.createdAt >= due) {
+      due = reviewDateAfter(localDay(last.createdAt), 1);
+    } else if (localDay(last.createdAt) >= due) {
       stage = Math.min(stage + 1, intervals.length - 1);
-      due = new Date(last.createdAt.getTime() + (intervals[stage] ?? 1) * dayMs);
+      due = reviewDateAfter(localDay(last.createdAt), intervals[stage] ?? 1);
     }
   }
   return due;
@@ -83,7 +84,7 @@ function parseNumeric(raw: string): NumericReading[] {
   }
   if (/^[+-]?(?:\d+[.,]\d+|[.,]\d+)$/.test(text))
     return [{ form: "decimal", value: Number(text.replace(",", ".")) }];
-  const fraction = /^([+-]?\d+)\/([+-]?\d+)$/.exec(text);
+  const fraction = /^([+-]?\d+)\s*\/\s*([+-]?\d+)$/.exec(text);
   if (!fraction) return [];
   const numerator = Number(fraction[1]);
   const denominator = Number(fraction[2]);
@@ -91,15 +92,37 @@ function parseNumeric(raw: string): NumericReading[] {
   return [{ form: "fraction", value: numerator / denominator }];
 }
 
-/** Valor esperado escrito como o estudante escreveria: "5.050", "1.310,4". */
-function formatNumber(value: number) {
-  return value.toLocaleString("pt-BR", { maximumFractionDigits: 4 });
+/** A displayed solution must itself be accepted; never round an exact fraction silently. */
+export function numericSolution(item: Extract<Item, { type: "numeric" }>) {
+  const { value, acceptedForms, unit } = item.grading;
+  let result = value.toLocaleString("pt-BR", { maximumSignificantDigits: 21 });
+  if (Number(value.toFixed(4)) === value)
+    result = value.toLocaleString("pt-BR", { maximumFractionDigits: 4 });
+  if (
+    acceptedForms.includes("fraction") &&
+    (Number(value.toFixed(4)) !== value ||
+      (!acceptedForms.includes("decimal") && !acceptedForms.includes("integer")))
+  ) {
+    for (let denominator = 1; denominator <= 10_000; denominator++) {
+      const numerator = Math.round(value * denominator);
+      if (Number.isSafeInteger(numerator) && numerator / denominator === value) {
+        result = `${numerator}/${denominator}`;
+        break;
+      }
+    }
+  }
+  if (
+    Number.isInteger(value) &&
+    !acceptedForms.includes("integer") &&
+    acceptedForms.includes("decimal")
+  )
+    result = `${value.toLocaleString("pt-BR")},0`;
+  return `${result}${unit ? ` ${unit.symbol}` : ""}`;
 }
 
 function numericAnswer(item: Extract<Item, { type: "numeric" }>, raw: string): AnswerEvaluation {
   let valueText = raw.trim().toLowerCase();
   const unit = item.grading.unit;
-  let providedUnit = false;
   if (unit) {
     const aliases = [unit.symbol, ...unit.aliases].sort((a, b) => b.length - a.length);
     const matched = aliases.find((candidate) => {
@@ -111,10 +134,11 @@ function numericAnswer(item: Extract<Item, { type: "numeric" }>, raw: string): A
     });
     if (matched) {
       valueText = valueText.slice(0, -matched.trim().length).trim();
-      providedUnit = true;
+    } else if (unit.symbol.toLowerCase() === "r$" && valueText.startsWith("r$")) {
+      valueText = valueText.slice(2).trim();
     }
-    if (unit.required && !providedUnit)
-      return rejected(`Inclua a unidade ${unit.symbol} junto do valor.`);
+    // O campo já informa a unidade. Inclusive em snapshots antigos que
+    // guardavam required: true, digitar o sufixo é uma escolha de notação.
   }
   const readings = parseNumeric(valueText).filter((reading) => Number.isFinite(reading.value));
   if (readings.length === 0)
@@ -126,7 +150,7 @@ function numericAnswer(item: Extract<Item, { type: "numeric" }>, raw: string): A
   const parsed = accepted.find(matches) ?? accepted[0];
   if (!parsed) return rejected("Use um dos formatos pedidos nesta atividade.");
   const correct = matches(parsed);
-  const solution = `${formatNumber(item.grading.value)}${unit ? ` ${unit.symbol}` : ""}`;
+  const solution = numericSolution(item);
   if (correct)
     return { valid: true, result: "correct", correct, explanation: item.explanation, solution };
   /* Uma leitura equivocada autoral nomeia a etapa trocada. Sem ela, a direção
@@ -263,11 +287,30 @@ export function gradeAnswer(item: Item, answer: string): AnswerEvaluation {
     }
   }
 }
-export function skillStates(evidence: Evidence[]): SkillState[] {
+export function firstIndependentEvidence(evidence: Evidence[]): Evidence[] {
   const firstSeen = new Map<string, Evidence>();
   for (const row of [...evidence].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())) {
     if (!firstSeen.has(row.itemId)) firstSeen.set(row.itemId, row);
   }
+  return [...firstSeen.values()].filter(
+    (row) => row.mode !== "diagnostic" && row.correct && row.helpCount === 0,
+  );
+}
+
+export function independenceProgress(evidence: Evidence[], skillId: string) {
+  const rows = firstIndependentEvidence(evidence).filter((row) => row.skillId === skillId);
+  const families = new Set(rows.map((row) => row.familyId)).size;
+  const days = new Set(rows.map((row) => localDay(row.createdAt))).size;
+  return {
+    families,
+    days,
+    missingFamilies: Math.max(0, 3 - families),
+    missingDays: Math.max(0, 2 - days),
+  };
+}
+
+export function skillStates(evidence: Evidence[]): SkillState[] {
+  const firstIndependent = new Set(firstIndependentEvidence(evidence));
   const groups = new Map<string, Evidence[]>();
   for (const row of evidence) {
     if (row.mode === "diagnostic") continue;
@@ -285,7 +328,7 @@ export function skillStates(evidence: Evidence[]): SkillState[] {
         row.correct &&
         row.helpCount === 0 &&
         !seenItems.has(row.itemId) &&
-        firstSeen.get(row.itemId) === row
+        firstIndependent.has(row)
       ) {
         families.add(row.familyId);
         dates.add(localDay(row.createdAt));
@@ -305,11 +348,21 @@ export function skillStates(evidence: Evidence[]): SkillState[] {
           : families.size > 0
             ? "building"
             : "starting",
-      dueAt: spacedDue(rows),
+      dueOn: spacedDue(rows),
       lastCorrect: last.correct,
     };
   });
 }
+export function reviewDateAfter(day: string, days: number) {
+  return new Date(Date.parse(`${day}T00:00:00Z`) + days * dayMs).toISOString().slice(0, 10);
+}
+
+/** Formata uma data pura sem deslocá-la para o dia anterior no fuso local. */
+export function reviewDateLabel(day: string) {
+  const [year, month, date] = day.split("-");
+  return `${date}/${month}/${year}`;
+}
+
 export function localDay(date: Date) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Sao_Paulo",
@@ -352,7 +405,7 @@ export function weeklyEvidence(evidence: Evidence[], now: Date) {
  * Observed, current difficulties for the family report. A skill appears only
  * after objective errors in at least two study sessions during the last 28
  * calendar days. Skips are absence of evidence, and a later correct response
- * removes the active warning while the historical attempts remain stored.
+ * starts a new observation period while historical attempts remain stored.
  */
 export function repeatedDifficulties(evidence: Evidence[], now: Date, windowDays = 28) {
   const today = localDay(now);
@@ -362,16 +415,22 @@ export function repeatedDifficulties(evidence: Evidence[], now: Date, windowDays
   const groups = new Map<string, Evidence[]>();
   for (const row of evidence) {
     const day = localDay(row.createdAt);
-    if (row.createdAt > now || day < firstDay || day > today) continue;
+    if (
+      row.createdAt > now ||
+      day < firstDay ||
+      day > today ||
+      row.result === "skipped" ||
+      row.result === "reflection"
+    )
+      continue;
     const current = groups.get(row.skillId) ?? [];
     current.push(row);
     groups.set(row.skillId, current);
   }
   return [...groups.entries()].flatMap(([skillId, rows]) => {
     rows.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-    const latest = rows.at(-1);
-    if (!latest || latest.correct) return [];
-    const errors = rows.filter((row) => !row.correct && row.result !== "skipped");
+    const lastRecovery = rows.reduce((last, row, index) => (row.correct ? index : last), -1);
+    const errors = rows.slice(lastRecovery + 1);
     const sessions = new Set(errors.map((row) => row.sessionId));
     return sessions.size >= 2 ? [{ skillId, errors: errors.length, sessions: sessions.size }] : [];
   });

@@ -1,6 +1,15 @@
 import { type ContentState, lessonAvailability } from "../content/availability";
 import type { Course, Lesson } from "../content/types";
-import type { Evidence, SkillState } from "./engine";
+import { type Evidence, localDay, type SkillState } from "./engine";
+import { releasedPractice } from "./recovery";
+
+export function courseProgress(lessons: Lesson[], attemptedItemIds: ReadonlySet<string>) {
+  const total = lessons.length;
+  const completed = lessons.filter((lesson) =>
+    lesson.items.every((item) => attemptedItemIds.has(item.id)),
+  ).length;
+  return { total, completed, finished: total > 0 && completed === total };
+}
 
 export function availableLessons(
   lessons: Lesson[],
@@ -29,8 +38,11 @@ export function reviewLesson(
   skillId: string,
   evidence: Evidence[],
   attemptedItemIds: ReadonlySet<string> = new Set(evidence.map((row) => row.itemId)),
+  now: Date = new Date(),
 ) {
-  const choices = lessons.filter((lesson) => lesson.skillId === skillId);
+  const choices = releasedPractice(lessons, evidence, now).filter(
+    (lesson) => lesson.skillId === skillId,
+  );
   return (
     choices.find((lesson) => lesson.items.some((item) => !attemptedItemIds.has(item.id))) ??
     choices[0]
@@ -43,19 +55,28 @@ export function recommend(
   now: Date,
   attemptedItemIds: ReadonlySet<string> = new Set(evidence.map((row) => row.itemId)),
 ) {
+  lessons = releasedPractice(lessons, evidence, now);
   const due = [...states]
-    .filter((state) => state.dueAt <= now)
-    .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
+    .filter((state) => state.dueOn <= localDay(now))
+    .sort((a, b) => a.dueOn.localeCompare(b.dueOn));
   for (const state of due) {
-    const lesson = reviewLesson(lessons, state.skillId, evidence, attemptedItemIds);
+    const lesson = reviewLesson(lessons, state.skillId, evidence, attemptedItemIds, now);
     if (lesson)
       return {
         lesson,
         mode: "review" as const,
         reason:
-          "Esta habilidade está na data de reencontro. Vamos recuperar a estratégia em uma nova tentativa.",
+          lesson.kind === "recovery"
+            ? "Novas situações para reencontrar três estratégias desta habilidade."
+            : "Esta habilidade está na data de reencontro. Vamos recuperar a estratégia em uma nova tentativa.",
       };
   }
+  // Recovery is optional reinforcement once autonomy has already been observed.
+  lessons = lessons.filter(
+    (lesson) =>
+      lesson.kind !== "recovery" ||
+      states.find((state) => state.skillId === lesson.skillId)?.level !== "independent",
+  );
   const diagnosticItemIds = new Set(
     evidence.filter((row) => row.mode === "diagnostic").map((row) => row.itemId),
   );
@@ -82,9 +103,7 @@ export function recommend(
     lessons.find(
       (lesson) =>
         !passed.has(lesson.skillId) && lesson.items.some((item) => !practiced.has(item.id)),
-    ) ??
-    lessons.find((lesson) => lesson.items.some((item) => !practiced.has(item.id))) ??
-    lessons[0];
+    ) ?? lessons.find((lesson) => lesson.items.some((item) => !practiced.has(item.id)));
   if (!next) return null;
   return {
     lesson: next,

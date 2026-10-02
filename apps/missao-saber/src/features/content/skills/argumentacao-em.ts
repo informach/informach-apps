@@ -13,6 +13,7 @@ export const argumentacaoEm: SkillPack = {
   missions: [
     {
       title: "Se, então",
+      version: 2,
       objective: "Distinguir implicação, recíproca e contrapositiva, e usar contraexemplos.",
       introduction:
         "'Se A, então B' não é o mesmo que 'se B, então A' (a recíproca). Mas é o mesmo que 'se não B, então não A' (a contrapositiva). Para derrubar um 'se A, então B' basta um caso com A verdadeiro e B falso.",
@@ -97,12 +98,12 @@ export const argumentacaoEm: SkillPack = {
           "implicacao",
           "Para mostrar que uma afirmação do tipo 'para todo n' é falsa, basta:",
           "Exibir um n em que ela falha",
-          ["Mostrar que falha para infinitos n", "Mostrar que falha para todo n"],
+          ["Exibir um n em que ela funciona", "Testar vários n em que ela funciona"],
           "Um contraexemplo basta.",
           {
             feedback: [
-              "Um caso já basta; infinitos não são necessários.",
-              "Falhar sempre é muito mais do que o necessário.",
+              "Um caso em que a afirmação funciona não a refuta; é preciso um caso em que ela falha.",
+              "Vários exemplos favoráveis não refutam a afirmação; um contraexemplo a refuta.",
             ],
           },
         ),
@@ -449,6 +450,7 @@ export const argumentacaoEm: SkillPack = {
     },
     {
       title: "Escrever uma prova",
+      version: 2,
       objective:
         "Estruturar uma prova curta: hipótese, passos justificados, conclusão, e escolher o método.",
       introduction:
@@ -500,12 +502,15 @@ export const argumentacaoEm: SkillPack = {
           "escrever",
           "Uma prova bem escrita de 'entre 5 inteiros quaisquer há dois com a mesma paridade' usa:",
           "Gavetas: só há 2 paridades para 5 números",
-          ["Listagem de todos os casos", "Indução sobre 5"],
-          "5 objetos em 2 gavetas.",
+          [
+            "Testar cinco quintetos e generalizar para todos",
+            "Comparar apenas o maior e o menor dos cinco números",
+          ],
+          "Cinco números em duas classes de paridade obrigam uma repetição. Enumerar os 32 padrões de paridade também provaria, mas não é preciso.",
           {
             feedback: [
-              "Há infinitos quintetos; listar é impossível.",
-              "Não há o que induzir; é um argumento direto.",
+              "Cinco quintetos são apenas exemplos, sem garantir o resultado para todos. Uma enumeração válida cobriria todos os padrões de paridade.",
+              "Os extremos podem ter paridades diferentes, como em 1, 2, 3, 4, 6. É preciso considerar os cinco números.",
             ],
           },
         ),

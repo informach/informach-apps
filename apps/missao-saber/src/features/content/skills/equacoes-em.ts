@@ -349,6 +349,7 @@ export const equacoesEm: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "Inequações e decisões",
       objective:
         "Resolver inequações de 1º e 2º grau, produto e quociente, e usá-las em problemas.",
@@ -428,12 +429,12 @@ export const equacoesEm: SkillPack = {
         c(
           "inequacoes",
           "Ao multiplicar os dois lados de uma inequação por uma expressão cujo sinal não se conhece, o que deve ser feito?",
-          "Separar os casos: fator positivo e fator negativo",
+          "Separar fator positivo, negativo e zero; no caso zero, conferir a inequação original",
           [
-            "Nada; o sentido da desigualdade se mantém",
-            "Sempre inverter o sentido da desigualdade",
+            "Manter o sentido para fator positivo, negativo ou zero; a multiplicação preserva a inequação",
+            "Inverter o sentido para fator positivo, negativo ou zero; a multiplicação exige essa troca",
           ],
-          "O sinal do fator decide: se for positivo, o sentido se mantém; se for negativo, inverte. Como ele é desconhecido, cada caso é resolvido à parte.",
+          "Se o fator for positivo, o sentido se mantém; se for negativo, inverte. Se for zero, multiplicar apaga a informação dos dois lados, então esse caso precisa ser verificado na inequação original. Os três casos devem ser considerados.",
           {
             feedback: [
               "Se o fator for negativo, o sentido inverte.",

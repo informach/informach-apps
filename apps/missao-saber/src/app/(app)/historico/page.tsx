@@ -56,7 +56,12 @@ export default async function HistoryPage({
           {history.items.map((session) => (
             <Chapa key={session.id} tom={tons[session.mode]} className="flex flex-col">
               <Etiqueta tom={tons[session.mode]}>
-                {modes[session.mode]} · {session.completedAt ? "Concluído" : "Em pausa"}
+                {modes[session.mode]} ·{" "}
+                {session.completedAt
+                  ? "Concluído"
+                  : session.interruptedAt
+                    ? "Encerrado"
+                    : "Em pausa"}
               </Etiqueta>
               <h2 className="mt-3 font-display text-lg leading-snug font-semibold text-tinta">
                 {session.title ?? session.lessonId}
@@ -70,7 +75,8 @@ export default async function HistoryPage({
                 href={`/missao/${session.id}`}
                 className="mt-auto self-start font-display font-semibold text-tinta underline underline-offset-4"
               >
-                {session.completedAt ? "Ver percurso" : "Retomar percurso"} →
+                {session.completedAt || session.interruptedAt ? "Ver percurso" : "Retomar percurso"}{" "}
+                →
               </Link>
             </Chapa>
           ))}

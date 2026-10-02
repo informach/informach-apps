@@ -13,7 +13,7 @@ import {
   assessment,
   assessmentHasAllSkills,
   courseAssessmentBanks,
-  courseLessons,
+  coursePracticeLessons,
   findCourse,
   findLesson,
   skillNames,
@@ -23,8 +23,9 @@ import { lessonSchema, publicLesson } from "../content/types";
 import { weekStart } from "../family/desafio";
 import { allowedProfileIds } from "../family/profile-access";
 import { schoolYear } from "../family/school-year";
-import { gradeAnswer, skillStates, weeklyEvidence } from "./engine";
+import { gradeAnswer, reviewDateLabel, skillStates, weeklyEvidence } from "./engine";
 import { availableLessons, recommend } from "./recommendation";
+import { recoveryRelease } from "./recovery";
 import * as repo from "./repository";
 import {
   answerSchema,
@@ -210,6 +211,14 @@ export async function begin(userId: string, raw: unknown) {
     availability.reason,
     assertableAvailabilityMessage(availability.reason),
   );
+  const release = recoveryRelease(lesson, data.evidence, new Date());
+  assertAllowed(
+    release.ready,
+    "RECOVERY_DATE",
+    release.on
+      ? `Este encontro abre em ${reviewDateLabel(release.on)}, para observar a estratégia em outro dia.`
+      : "Responda às três questões do primeiro encontro de recuperação para abrir o próximo em outro dia.",
+  );
   return repo.startSession(userId, input.profileId, lesson, input.mode, input.requestKey);
 }
 export async function sessionView(userId: string, sessionId: string) {
@@ -241,7 +250,7 @@ export async function sessionView(userId: string, sessionId: string) {
     const course = data.course;
     if (course && data.profile) {
       const next = recommend(
-        availableLessons(courseLessons(course), {
+        availableLessons(coursePracticeLessons(course), {
           course,
           grade: data.profile.grade,
           paid: data.access.paid,

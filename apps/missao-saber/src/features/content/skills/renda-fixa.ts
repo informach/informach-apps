@@ -12,6 +12,7 @@ export const rendaFixa: SkillPack = {
   lab: "bars",
   missions: [
     {
+      version: 2,
       title: "Como a renda fixa remunera",
       objective: "Distinguir remuneração prefixada, pós-fixada e atrelada à inflação.",
       introduction:
@@ -64,7 +65,7 @@ export const rendaFixa: SkillPack = {
         ),
         c(
           "remuneracao",
-          "No item anterior, somar 4% + 5% dá 9%, um pouco menos que o valor exato. De onde vem a diferença?",
+          "Um título paga inflação mais 5% ao ano. Com inflação de 4%, o fator é 1,04 × 1,05 e o rendimento é 9,2%. Somar 4% + 5% dá só 9%. De onde vem a diferença?",
           "Os 5% também rendem sobre a correção de 4% da inflação",
           [
             "A inflação é cobrada duas vezes no cálculo exato",
@@ -132,6 +133,7 @@ export const rendaFixa: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "Prazo e liquidez",
       objective:
         "Relacionar prazo, carência e liquidez com a escolha de uma aplicação para um objetivo.",
@@ -217,14 +219,14 @@ export const rendaFixa: SkillPack = {
         ),
         c(
           "liquidez",
-          "O item anterior mostra que um título prefixado vendido antes do vencimento:",
+          "Um título prefixado vendido antes do vencimento, enquanto as taxas de mercado variam:",
           "Pode dar prejuízo se as taxas do mercado subirem",
           ["Sempre devolve o valor aplicado", "Sempre dá lucro, pois a taxa já está travada"],
           "O preço de venda depende das taxas do momento.",
           {
             feedback: [
               "Só no vencimento o valor combinado é pago.",
-              "A taxa travada só é garantida no vencimento; antes dele, se as taxas subirem, a venda pode dar prejuízo, como no item anterior.",
+              "A taxa contratada vale ao manter o título até o vencimento, se o emissor pagar; antes dele, uma alta das taxas de mercado pode causar prejuízo na venda.",
             ],
           },
         ),
@@ -338,6 +340,7 @@ export const rendaFixa: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "Quem deve e quem garante",
       objective: "Entender risco de crédito, garantias e a relação entre risco e taxa.",
       introduction:
@@ -368,9 +371,12 @@ export const rendaFixa: SkillPack = {
         ),
         c(
           "credito",
-          "No item anterior, uma forma de ficar todo o valor dentro da garantia seria:",
-          "Dividir o dinheiro entre bancos de grupos financeiros diferentes",
-          ["Aplicar tudo num banco maior", "Dividir entre duas contas no mesmo banco"],
+          "Suponha uma garantia de até R$ 250.000 por CPF em cada instituição ou grupo financeiro, sem outros limites neste exercício. Como distribuir R$ 400.000 para que todo o valor fique dentro da garantia?",
+          "Aplicar R$ 200.000 em cada um de dois bancos de grupos financeiros diferentes",
+          [
+            "Aplicar os R$ 400.000 num único banco maior, pois o porte elimina o limite por CPF",
+            "Aplicar R$ 200.000 em cada uma de duas contas no mesmo banco, pois cada conta tem seu limite",
+          ],
           "O limite vale por CPF em cada instituição ou grupo financeiro; bancos de grupos diferentes contam separado. A regra real tem ainda um teto global, somando todas as instituições.",
           {
             feedback: [
@@ -419,7 +425,7 @@ export const rendaFixa: SkillPack = {
         ),
         c(
           "credito",
-          "No item anterior, comparado com um título de risco muito baixo que paga 10% (suponha que pague os R$ 1.100), o título arriscado:",
+          "Aplicar R$ 1.000 num título arriscado dá 90% de chance de receber R$ 1.200 e 10% de receber zero. Comparado com receber R$ 1.100 com certeza, o título arriscado:",
           "É pior: vale 1.080 em média e pode perder tudo",
           [
             "É melhor, porque promete R$ 1.200 ao final",
@@ -452,6 +458,7 @@ export const rendaFixa: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "Escolher renda fixa",
       objective:
         "Comparar alternativas de renda fixa considerando objetivo, prazo, liquidez, custos e risco.",
@@ -484,7 +491,7 @@ export const rendaFixa: SkillPack = {
         ),
         c(
           "escolher",
-          "No item anterior, qual aplicação rende mais líquido?",
+          "A aplicação A rende 11% ao ano e paga 15% de imposto sobre o rendimento. A aplicação B rende 9,5% ao ano, isenta. Sem outros custos, qual rende mais líquido?",
           "B, com 9,5% contra 9,35%",
           ["A, porque 11% é maior", "Empatam"],
           "A diferença é pequena, mas B vence.",

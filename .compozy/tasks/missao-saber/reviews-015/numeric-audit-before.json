@@ -1,0 +1,27 @@
+{
+  "lessons": 319,
+  "items": 2960,
+  "numeric": 905,
+  "formats": {
+    "choice": 1705,
+    "numeric": 905,
+    "ordering": 175,
+    "justification": 175
+  },
+  "rejectedPrintedAnswers": [
+    {
+      "id": "fracoes-formatos-2",
+      "prompt": "Escreva o comprimento de meia unidade. Você pode usar decimal ou fração.",
+      "value": 0.5,
+      "printed": "0,5",
+      "forms": ["decimal", "fraction"],
+      "unit": {
+        "symbol": "m",
+        "aliases": ["metro", "metros"],
+        "required": true
+      },
+      "printedAccepted": false,
+      "explanation": "Meia unidade pode ser escrita como 1/2 ou 0,5."
+    }
+  ]
+}

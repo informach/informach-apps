@@ -10,6 +10,7 @@ import { financeLessons } from "./finance";
 import { formatSamplesLesson } from "./format-samples";
 import { geometryLessons } from "./geometry";
 import { reasoningLessons } from "./reasoning";
+import { buildRecoveryLessons } from "./recovery";
 import { packLessons, packMissionIds } from "./skill-factory";
 import { skillPacks } from "./skills";
 import { trackDefinitions } from "./tracks";
@@ -21,9 +22,9 @@ import {
   type TrackDefinition,
 } from "./types";
 
-/* As doze habilidades de 6º/7º são congeladas: seus itens têm hash de revisão
-   e não podem mudar. As habilidades das outras faixas entram por `skillPacks`,
-   e as trilhas por `trackDefinitions`; este arquivo só junta as duas origens. */
+/* As doze habilidades de 6º/7º têm versões e hashes de revisão; correções
+   publicam uma nova versão e preservam os snapshots das sessões anteriores.
+   Outras faixas entram por `skillPacks` e trilhas por `trackDefinitions`. */
 
 const legacySkillNames: Record<SkillId, string> = {
   fracoes: "Frações e referência",
@@ -233,10 +234,13 @@ export const assessmentBanks: Lesson[] = courses.flatMap((currentCourse) =>
     return parsed.data;
   }),
 );
-export const contentUnits: Lesson[] = [...lessons, ...assessmentBanks];
+export const recoveryLessons = buildRecoveryLessons(skillNames, lessons);
+export const contentUnits: Lesson[] = [...lessons, ...assessmentBanks, ...recoveryLessons];
 
 export function findLesson(id: string) {
-  return lessons.find((lesson) => lesson.id === id);
+  return (
+    lessons.find((lesson) => lesson.id === id) ?? recoveryLessons.find((lesson) => lesson.id === id)
+  );
 }
 export function findContentUnit(id: string) {
   return contentUnits.find((lesson) => lesson.id === id);
@@ -248,6 +252,13 @@ export function courseLessons(currentCourse: Course) {
   return currentCourse.path
     .map((id) => findLesson(id))
     .filter((lesson): lesson is Lesson => !!lesson);
+}
+/** Recovery supplements the path; it does not change course completion. */
+export function coursePracticeLessons(currentCourse: Course) {
+  return [
+    ...courseLessons(currentCourse),
+    ...recoveryLessons.filter((lesson) => currentCourse.skills.includes(lesson.skillId)),
+  ];
 }
 export function courseAssessmentBanks(currentCourse: Course) {
   return assessmentBanks.filter(

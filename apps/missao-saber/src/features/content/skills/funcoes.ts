@@ -1,3 +1,4 @@
+import { functionGraphs } from "../figures";
 import { c, n, type SkillPack } from "../skill-factory";
 
 /**
@@ -292,6 +293,7 @@ export const funcoes: SkillPack = {
       ],
     },
     {
+      version: 2,
       title: "Ler o gráfico",
       objective:
         "Extrair informações de gráficos: crescimento, sinal, máximos, interseções e transformações.",
@@ -300,7 +302,7 @@ export const funcoes: SkillPack = {
       specs: [
         c(
           "grafico",
-          "O gráfico de y = f(x) + 3, comparado ao de y = f(x), está:",
+          "Observe f (contínua) e g (tracejada). Como o gráfico de g foi obtido a partir de f?",
           "Deslocado 3 unidades para cima",
           ["Deslocado 3 unidades para a direita", "Esticado 3 vezes"],
           "Somar fora da função move o gráfico na vertical.",
@@ -310,14 +312,14 @@ export const funcoes: SkillPack = {
         ),
         n(
           "grafico",
-          "O gráfico de uma função afim passa por (0, 4) e (2, 0). Qual é f(−1)?",
+          "Leia a reta desenhada: qual é o valor de f(−1)?",
           6,
           "a = (0 − 4)/2 = −2; f(x) = −2x + 4; f(−1) = 6.",
           { misreads: [{ value: 2, feedback: "2 é f(1); em x = −1 a reta sobe para 6." }] },
         ),
         c(
           "grafico",
-          "Uma função é positiva para x < 1, zero em x = 1 e negativa para x > 1. Ela pode ser:",
+          "Qual fórmula corresponde à reta desenhada? Observe o ponto onde ela cruza o eixo x e o sinal de cada lado.",
           "f(x) = 1 − x",
           ["f(x) = x − 1", "f(x) = (x − 1)²"],
           "1 − x é positivo antes de 1 e negativo depois.",
@@ -327,7 +329,7 @@ export const funcoes: SkillPack = {
         ),
         c(
           "grafico",
-          "O gráfico de y = f(x − 2), comparado ao de y = f(x), está:",
+          "Compare os vértices de f (contínua) e g (tracejada). O gráfico de g está:",
           "Deslocado 2 unidades para a direita",
           ["Deslocado 2 unidades para a esquerda", "Deslocado 2 unidades para baixo"],
           "f(x − 2) atinge em x o valor que f atingia em x − 2: a curva anda para a direita.",
@@ -337,7 +339,7 @@ export const funcoes: SkillPack = {
         ),
         n(
           "grafico",
-          "O gráfico de y = x² − 4 cruza o eixo x em dois pontos. Qual é a distância entre eles?",
+          "Observe a parábola. Qual é a distância, no eixo x, entre os dois pontos em que ela cruza esse eixo?",
           4,
           "Raízes −2 e 2: distância 4.",
           {
@@ -346,7 +348,7 @@ export const funcoes: SkillPack = {
         ),
         c(
           "grafico",
-          "O gráfico de y = −f(x) é o de y = f(x):",
+          "Compare as duas retas. Mantendo cada x e trocando o sinal de y, o gráfico de g (tracejada) é o de f (contínua):",
           "Refletido em relação ao eixo x",
           ["Refletido em relação ao eixo y", "Deslocado para baixo"],
           "Trocar o sinal da saída vira o gráfico de cabeça para baixo.",
@@ -356,14 +358,14 @@ export const funcoes: SkillPack = {
         ),
         n(
           "grafico",
-          "Uma função quadrática tem gráfico com vértice em (2, −1) e passa por (0, 3). Qual é o valor de f(4)?",
+          "Leia a parábola desenhada. Use sua simetria em relação a x = 2: qual é o valor de f(4)?",
           3,
           "4 é simétrico de 0 em relação a x = 2: f(4) = f(0) = 3.",
           { misreads: [{ value: -1, feedback: "−1 é o valor no vértice, em x = 2." }] },
         ),
         c(
           "grafico",
-          "Se o gráfico de f é uma reta crescente e o de g é uma reta decrescente, quantas vezes eles se cruzam?",
+          "Observe as retas f e g. Prolongando-as em ambas as direções, quantas vezes elas se cruzam?",
           "Exatamente uma vez",
           ["Nenhuma", "Duas vezes"],
           "Inclinações diferentes: um único ponto de encontro.",
@@ -374,7 +376,7 @@ export const funcoes: SkillPack = {
             ],
           },
         ),
-      ],
+      ].map((spec, index) => ({ ...spec, figure: functionGraphs[index] })),
     },
     {
       title: "Funções para modelar",
