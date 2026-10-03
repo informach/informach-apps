@@ -1,0 +1,1 @@
+ALTER TABLE "missao_saber"."lab_executions" ADD COLUMN "events" jsonb DEFAULT '[]'::jsonb NOT NULL;

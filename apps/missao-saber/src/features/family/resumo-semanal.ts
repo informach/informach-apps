@@ -3,6 +3,7 @@ import { renderEmailElement } from "@informach/emails";
 import { createElement } from "react";
 import { homeSupportFor } from "../content/apoio-em-casa";
 import { resolvedCourse, skillNames } from "../content/catalog";
+import { laboratoryReport } from "../labs/runtime/family-report";
 import { repeatedDifficulties, skillStates, weeklyEvidence } from "../learning/engine";
 import { weeklyNarrative } from "../learning/relato";
 import { getProfiles, history, listFamiliesForWeeklyReport } from "../learning/repository";
@@ -63,7 +64,15 @@ export async function buildWeeklySummary(
     blocos.push({
       id: profile.id,
       nome: profile.nickname,
-      linhas: narrative.linhas,
+      linhas: [
+        ...narrative.linhas,
+        ...(
+          await laboratoryReport(userId, profile.id, new Date(`${weekStart(now)}T00:00:00-03:00`))
+        ).map(
+          (entry) =>
+            `Laboratório: ${entry.title}. ${entry.status}. ${entry.summary} Isso não altera a evidência de autonomia.`,
+        ),
+      ],
       apoio: homeSupportFor(nextSkill ?? repeated[0]?.skillId ?? "") ?? [],
     });
   }

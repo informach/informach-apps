@@ -13,7 +13,7 @@ import { Etiqueta } from "@/components/ui/pagina";
 import { PainelDevolutiva } from "@/components/ui/painel-devolutiva";
 import { ProgressoSegmentado } from "@/components/ui/progresso-segmentado";
 import { explorerBreakFor } from "@/features/content/pausas";
-import { Lab } from "@/features/labs/components/labs";
+import { MissionLab } from "@/features/labs/runtime/mission-lab";
 import {
   answerAction,
   hintAction,
@@ -146,6 +146,7 @@ export function Player({
   const [pending, start] = useTransition();
   const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
   const [readingSupport, setReadingSupport] = useState(initial.readingSupport);
+  const [labBusy, setLabBusy] = useState(false);
   const leituraUsada = useRef(initial.readingSupport);
   /* O registro do apoio roda em paralelo à leitura, mas não pode perder a
      corrida para a última resposta: se a sessão fechasse antes da marca, o
@@ -157,6 +158,32 @@ export function Player({
   const assessment = view.mode === "exam" || view.mode === "diagnostic";
   const promptRef = useRef<HTMLParagraphElement>(null);
   const currentItemId = item?.id;
+  const draftKey =
+    !assessment && currentItemId
+      ? `missao-answer:${view.profileId}:${view.id}:${currentItemId}`
+      : null;
+  const answered = Boolean(result);
+  useEffect(() => {
+    if (!draftKey || answered) return;
+    try {
+      const savedAnswer = sessionStorage.getItem(draftKey);
+      if (savedAnswer !== null && savedAnswer.length <= 10000) setChoice(savedAnswer);
+    } catch {
+      setError("Este navegador não conseguiu recuperar a resposta ainda não enviada.");
+    }
+  }, [draftKey, answered]);
+  function changeResponse(value: string) {
+    setChoice(value);
+    if (draftKey) {
+      try {
+        sessionStorage.setItem(draftKey, value);
+      } catch {
+        setError(
+          "A resposta está nesta tela, mas não pôde ser guardada neste aparelho. Envie antes de sair da missão.",
+        );
+      }
+    }
+  }
   useEffect(() => {
     if (currentItemId) promptRef.current?.focus();
   }, [currentItemId]);
@@ -402,7 +429,7 @@ export function Player({
     );
 
   function submit(answer: string) {
-    if (!item) return;
+    if (!item || labBusy) return;
     start(async () => {
       setError("");
       try {
@@ -559,21 +586,19 @@ export function Player({
           item={item}
           value={choice}
           disabled={pending || feedback}
-          onChange={setChoice}
+          onChange={changeResponse}
         />
       </fieldset>
 
-      {item.exploration && !feedback && (
-        <details className="mt-5 rounded-card border-2 border-ceu/40 bg-ceu-claro p-4">
-          <summary className="cursor-pointer font-display font-semibold text-tinta">
-            Explorar antes de responder
-          </summary>
-          <p className="mt-2 text-sm text-tinta">{item.exploration.instruction}</p>
-          <p className="mt-1 text-xs text-tinta-suave">{item.exploration.alternativeText}</p>
-          <div className="mt-3">
-            <Lab kind={item.exploration.kind} />
-          </div>
-        </details>
+      {!assessment && !feedback && (
+        <MissionLab
+          key={`lab-${item.id}`}
+          profileId={view.profileId}
+          sessionId={view.id}
+          itemId={item.id}
+          experiences={view.laboratory[item.id] ?? []}
+          onBusy={setLabBusy}
+        />
       )}
 
       {!assessment && !feedback && (
@@ -617,16 +642,6 @@ export function Player({
               </div>
             ))}
           </div>
-          {view.lesson.lab && itemHints.length > 0 && (
-            <details className="mt-4">
-              <summary className="cursor-pointer font-semibold text-tinta-suave underline underline-offset-4 hover:text-tinta">
-                Explorar uma ferramenta de apoio
-              </summary>
-              <div className="mt-3">
-                <Lab kind={view.lesson.lab} />
-              </div>
-            </details>
-          )}
         </div>
       )}
 
@@ -644,7 +659,7 @@ export function Player({
           <BotaoChapa
             type="button"
             tom="contorno"
-            disabled={pending}
+            disabled={pending || labBusy}
             onClick={() => submit("__skip__")}
           >
             Ainda não sei
@@ -654,6 +669,7 @@ export function Player({
             medida="g"
             disabled={
               pending ||
+              labBusy ||
               !choice.trim() ||
               (item.type === "justification" && choice.trim().length < item.response.minLength)
             }

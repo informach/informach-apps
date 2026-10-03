@@ -23,6 +23,7 @@ import { lessonSchema, publicLesson } from "../content/types";
 import { weekStart } from "../family/desafio";
 import { allowedProfileIds } from "../family/profile-access";
 import { schoolYear } from "../family/school-year";
+import { experiencesForItem } from "../labs/runtime/catalog";
 import { gradeAnswer, reviewDateLabel, skillStates, weeklyEvidence } from "./engine";
 import { availableLessons, recommend } from "./recommendation";
 import { recoveryRelease } from "./recovery";
@@ -273,6 +274,11 @@ export async function sessionView(userId: string, sessionId: string) {
   }
   return {
     nextStep,
+    laboratory: assessmentMode
+      ? {}
+      : Object.fromEntries(
+          lesson.items.map((item) => [item.id, experiencesForItem(lesson.id, item.id)]),
+        ),
     skillLabels: Object.fromEntries(
       lesson.items.map((item) => [item.skillId, skillNames[item.skillId] ?? item.skillId]),
     ),

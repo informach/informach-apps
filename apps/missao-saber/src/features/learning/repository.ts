@@ -23,6 +23,7 @@ import {
   missaoFamilies as families,
   missaoFamilyChallenges as familyChallenges,
   missaoHints as hints,
+  missaoLabExecutions as labExecutions,
   missaoNotes as notes,
   missaoProfiles as profiles,
   missaoReports as reports,
@@ -47,6 +48,7 @@ import { type Lesson, lessonSchema } from "../content/types";
 import { itemHash } from "../content/version";
 import { allowedProfileIds } from "../family/profile-access";
 import { effectiveGrade } from "../family/school-year";
+import { labAttachmentSchema } from "../labs/runtime/schemas";
 import { type Evidence, gradeAnswer } from "./engine";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -904,6 +906,7 @@ export async function notebookPage(
       const lesson = snapshot ? lessonSchema.parse(snapshot) : null;
       return {
         ...note,
+        labAttachment: note.labAttachment ? labAttachmentSchema.parse(note.labAttachment) : null,
         context:
           note.sessionId && lesson
             ? {
@@ -1358,6 +1361,9 @@ export async function exportFamily(userId: string) {
       notes: ids.length ? await tx.select().from(notes).where(inArray(notes.profileId, ids)) : [],
       experiments: ids.length
         ? await tx.select().from(experiments).where(inArray(experiments.profileId, ids))
+        : [],
+      labExecutions: ids.length
+        ? await tx.select().from(labExecutions).where(inArray(labExecutions.profileId, ids))
         : [],
       reports: await tx.select().from(reports).where(eq(reports.userId, userId)),
       challenges: await tx

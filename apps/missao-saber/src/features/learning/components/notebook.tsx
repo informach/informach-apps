@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { BotaoChapa } from "@/components/ui/botao-chapa";
 import { Chapa } from "@/components/ui/chapa";
+import type { LabAttachment } from "@/features/labs/runtime/schemas";
 import { useServerAction } from "@/lib/use-server-action";
 import { archiveNoteAction, editNoteAction, noteAction, removeNoteAction } from "../actions";
 import type { NoteContext } from "../repository";
@@ -15,6 +16,7 @@ type Entry = {
   createdAt: string;
   archivedAt: string | null;
   context: NoteContext | null;
+  labAttachment?: LabAttachment | null;
 };
 
 function NoteEntry({ note, profileId }: { note: Entry; profileId: string }) {
@@ -48,6 +50,49 @@ function NoteEntry({ note, profileId }: { note: Entry; profileId: string }) {
           <Link className="mt-2 inline-block underline" href={`/missao/${note.context.sessionId}`}>
             Revisitar missão
           </Link>
+        </details>
+      )}
+      {note.labAttachment && (
+        <details className="mt-3 text-sm text-tinta-suave">
+          <summary className="min-h-11 cursor-pointer font-semibold">
+            Investigação: {note.labAttachment.title}
+          </summary>
+          <p className="mt-2 font-semibold">{note.labAttachment.skill}</p>
+          <p className="mt-2">{note.labAttachment.question}</p>
+          <p className="mt-2">
+            Previsão: {note.labAttachment.document.prediction || "Não registrada por escrito"}
+          </p>
+          <p className="mt-2">Montagem: {note.labAttachment.summary}</p>
+          <p className="mt-2">
+            Observação: {note.labAttachment.document.observation || "Não registrada por escrito"}
+          </p>
+          <p className="mt-2">
+            Explicação: {note.labAttachment.document.explanation || "Não registrada por escrito"}
+          </p>
+          {note.labAttachment.transfer && (
+            <div className="mt-3 border-t border-sombra pt-3">
+              <p className="font-semibold">Novo caso</p>
+              <p className="mt-2">{note.labAttachment.transfer.question}</p>
+              <p className="mt-2">Montagem do novo caso: {note.labAttachment.transfer.summary}</p>
+              <p className="mt-2">
+                Sua resposta:{" "}
+                {note.labAttachment.document.transferAnswer || "Não registrada por escrito"}
+              </p>
+            </div>
+          )}
+          {note.labAttachment.assessment && (
+            <p className="mt-2">Devolutiva do novo caso: {note.labAttachment.assessment.message}</p>
+          )}
+          <Link className="mt-3 inline-block underline" href={`/laboratorio?note=${note.id}`}>
+            Reabrir a montagem guardada
+          </Link>
+          <Link
+            className="mt-3 block underline"
+            href={`/laboratorio?exec=${note.labAttachment.executionId}`}
+          >
+            Continuar a investigação atual
+          </Link>
+          <p className="mt-2">Este registro preserva a montagem da data em que foi guardado.</p>
         </details>
       )}
       {editing ? (

@@ -35,6 +35,19 @@ try {
       to_regclass('missao_saber.releases') is null as releases_removed,
       to_regclass('missao_saber.content_controls') is not null as content_controls_present,
       to_regclass('missao_saber.report_updates') is not null as report_updates_present,
+      to_regclass('missao_saber.lab_executions') is not null as lab_executions_present,
+      (
+        select count(*) = 2 from information_schema.columns
+        where table_schema = 'missao_saber' and table_name = 'lab_executions'
+          and is_nullable = 'NO'
+          and ((column_name = 'events' and data_type = 'jsonb')
+            or (column_name = 'request_source' and data_type = 'text'))
+      ) as lab_history_and_idempotency_present,
+      exists (
+        select 1 from information_schema.columns
+        where table_schema = 'missao_saber' and table_name = 'notes'
+          and column_name = 'lab_attachment' and data_type = 'jsonb'
+      ) as lab_notebook_attachment_present,
       exists (
         select 1
         from information_schema.columns
@@ -116,6 +129,9 @@ try {
     releases_removed: true,
     content_controls_present: true,
     report_updates_present: true,
+    lab_executions_present: true,
+    lab_history_and_idempotency_present: true,
+    lab_notebook_attachment_present: true,
     confirmed_at_present: true,
     profile_access_present: true,
     report_request_key_present: true,

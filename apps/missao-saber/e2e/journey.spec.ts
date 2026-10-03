@@ -136,12 +136,13 @@ test("parent signup, verified profile, learning, saved lab, report and profile s
   }
   await expect(page.getByRole("heading", { name: "Uma ideia para levar com você." })).toBeVisible();
   await page.goto("/laboratorio");
-  const grid = page
-    .locator(".lab")
-    .filter({ has: page.getByRole("heading", { name: "A área muda. E o contorno?" }) });
-  await grid.getByRole("button", { name: "Linha 1, coluna 1", exact: true }).click();
-  await grid.getByRole("button", { name: "Salvar experimento para continuar depois" }).click();
-  await expect(grid.getByText(/Experimento salvo na sua conta/)).toBeVisible();
+  await page.getByRole("button", { name: "Começar investigação", exact: true }).click();
+  const investigation = page.getByRole("region", { name: "Experiência do laboratório" });
+  const prediction = investigation.locator("textarea").first();
+  await prediction.fill("Vou comparar as partes antes de escolher.");
+  await investigation.getByRole("button", { name: "Salvar agora", exact: true }).click();
+  await expect(investigation.getByText("Salvo na conta.", { exact: true })).toBeVisible();
+  const labUrl = page.url();
   await page.screenshot({ path: test.info().outputPath("laboratorio.png"), fullPage: true });
   await page.goto("/caderno");
   await page
@@ -149,10 +150,10 @@ test("parent signup, verified profile, learning, saved lab, report and profile s
     .fill("Tirar o canto mantém o contorno porque dois lados saem e dois aparecem.");
   await page.getByRole("button", { name: "Guardar descoberta" }).click();
   await expect(page.getByText("Descoberta guardada.", { exact: true })).toBeVisible();
-  await page.goto("/laboratorio");
+  await page.goto(labUrl);
   await expect(
-    page.getByRole("button", { name: "Linha 1, coluna 1", exact: true }),
-  ).toHaveAttribute("aria-pressed", "false");
+    page.getByRole("region", { name: "Experiência do laboratório" }).locator("textarea").first(),
+  ).toHaveValue("Vou comparar as partes antes de escolher.");
   // "Meu espaço" passou a carregar dados reais e a escolha de tema; ambos
   // eram interface nova sem nenhuma cobertura.
   await page.goto("/meu-espaco");
@@ -188,7 +189,10 @@ test("parent signup, verified profile, learning, saved lab, report and profile s
   // Uma tentativa por item respondido: a missão de 6 mais o diagnóstico inteiro.
   expect(payload.attempts).toHaveLength(6 + totalDiagnostico);
   expect(payload.notes).toHaveLength(1);
-  expect(payload.experiments).toHaveLength(1);
+  expect(payload.labExecutions).toHaveLength(1);
+  expect(payload.labExecutions[0].document.prediction).toBe(
+    "Vou comparar as partes antes de escolher.",
+  );
   expect(payload.reports).toHaveLength(1);
   await page.goto("/familia");
   await expect(page.getByRole("button", { name: "Escolher mensal" }).first()).toBeDisabled();
