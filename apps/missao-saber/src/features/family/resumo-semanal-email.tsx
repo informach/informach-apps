@@ -34,7 +34,7 @@ export function ResumoSemanalEmail({
       appName="Missão Saber"
       title="O que aconteceu nesta semana"
       preheader={`Resumo de ${listaPtBr(blocos.map((bloco) => bloco.nome))}`}
-      cta={{ href: `${appUrl}/familia`, label: "Ver o relatório completo" }}
+      cta={{ href: `${appUrl}/familia/acompanhamento`, label: "Ver o relatório completo" }}
       unsubscribeUrl={unsubscribeUrl}
     >
       {blocos.map((bloco) => (

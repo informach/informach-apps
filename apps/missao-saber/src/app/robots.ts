@@ -26,5 +26,6 @@ const PRIVADAS = [
   "/familia",
   "/manutencao",
   "/entrar",
+  "/estudar",
   "/api/",
 ];

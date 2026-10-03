@@ -65,7 +65,7 @@ export const billing = createBillingService({
   sendEmail: emails.sendEmail,
   renderTemplate: emails.renderTemplate,
   buildUnsubscribeUrl,
-  manageBillingUrl: `${env.NEXT_PUBLIC_APP_URL}/familia`,
+  manageBillingUrl: `${env.NEXT_PUBLIC_APP_URL}/familia/conta`,
 });
 export async function getAccess(userId: string) {
   const subscription = await entitlement(userId);
@@ -89,8 +89,8 @@ export async function checkout(userId: string, productId: string) {
         subject: { type: "user", id: userId },
         actorId: userId,
         productId,
-        successUrl: `${env.NEXT_PUBLIC_APP_URL}/familia?pagamento=recebido`,
-        cancelUrl: `${env.NEXT_PUBLIC_APP_URL}/familia`,
+        successUrl: `${env.NEXT_PUBLIC_APP_URL}/familia/conta?pagamento=recebido`,
+        cancelUrl: `${env.NEXT_PUBLIC_APP_URL}/familia/conta`,
       })
       .catch((error: unknown) => {
         if (error instanceof CheckoutPendingError)
@@ -184,7 +184,7 @@ export function portal(userId: string) {
   return withBillingLifecycle(userId, () =>
     billing.createPortalSession({
       subject: { type: "user", id: userId },
-      returnUrl: `${env.NEXT_PUBLIC_APP_URL}/familia`,
+      returnUrl: `${env.NEXT_PUBLIC_APP_URL}/familia/conta`,
     }),
   );
 }

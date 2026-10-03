@@ -28,8 +28,8 @@ export default async function Review() {
     <>
       <CabecalhoPagina
         etiqueta={<Etiqueta tom="sol">Lembrar é reconstruir</Etiqueta>}
-        titulo="Bom te reencontrar, ideia."
-        apoio="Revisões distribuídas no tempo ajudam a recuperar uma estratégia. Uma resposta repetida não conta como um problema novo."
+        titulo={data.profile.grade <= 5 ? "Vamos rever uma ideia?" : "Revisar e conectar ideias."}
+        apoio="Revisar em outros dias ajuda a lembrar como resolver. Você pode tentar de novo, pedir uma pista e experimentar outro caminho."
       />
 
       {!pendentes.length && (
@@ -91,11 +91,20 @@ export default async function Review() {
                 {skillNames[state.skillId]}
               </h2>
               <p className="mt-1.5 mb-4 text-sm text-tinta-suave">
-                {state.independentFamilies} estratégias distintas com primeiro acerto sem pistas.{" "}
                 {state.level === "independent"
-                  ? "Há evidências em mais de um dia."
-                  : "Continue variando os problemas e reencontrando a ideia em outros dias."}
+                  ? "Você já conseguiu resolver sozinho em situações diferentes. Vamos reencontrar essa ideia."
+                  : "Experimente outros problemas e volte a essa ideia em dias diferentes. Pedir ajuda faz parte."}
               </p>
+              <details className="mb-4 text-sm text-tinta-suave">
+                <summary className="min-h-11 cursor-pointer">
+                  Como este progresso é observado
+                </summary>
+                <p>
+                  {state.independentFamilies} estratégias distintas com primeiro acerto sem pistas.
+                  A autonomia também considera evidências em dias diferentes; repetir uma resposta
+                  não conta como uma estratégia nova.
+                </p>
+              </details>
               <div className="mt-auto">
                 {lesson && !fresh && (
                   <p className="mb-3 text-sm text-tinta-suave">

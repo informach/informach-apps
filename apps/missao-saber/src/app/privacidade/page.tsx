@@ -14,7 +14,7 @@ export default function Privacy() {
         </a>
       </header>
       <main id="conteudo" className="prosa">
-        <span className="eyebrow">ÚLTIMA ATUALIZAÇÃO · 26/09/2026</span>
+        <span className="eyebrow">ÚLTIMA ATUALIZAÇÃO · 03/10/2026</span>
         <h1>Privacidade, com clareza.</h1>
         <p>
           O Missão Saber é operado pela Informach Núcleo de Aprendizagem Ltda, CNPJ
@@ -29,8 +29,8 @@ export default function Privacy() {
           responsável quiser, mês e ano de nascimento, usados só para sugerir o ano escolar. Não
           pedimos nome completo do estudante, escola, CPF ou data completa de nascimento. O
           responsável confirma a criação do perfil e sua autorização. O tratamento deve atender ao
-          melhor interesse da criança ou do adolescente; somente o responsável possui conta e
-          credenciais.
+          melhor interesse da criança ou do adolescente. A conta é do responsável; o estudante pode
+          usar uma conexão restrita aos perfis autorizados, sem e-mail ou senha próprios.
         </p>
         <h2>O que guardamos para ensinar</h2>
         <p>
@@ -75,6 +75,22 @@ export default function Privacy() {
           autenticado precisa de internet; não promete funcionamento offline.
         </p>
         <h2>Seus controles</h2>
+        <p>
+          Em Conta → Aparelhos de estudo, o responsável escolhe quais perfis um aparelho pode usar e
+          pode encerrar esse acesso. Códigos de conexão valem dez minutos, são de uso único e têm
+          limite de tentativas. Guardamos apenas resumos criptográficos de códigos e credenciais. O
+          acesso temporário dura até 12 horas; lembrar um aparelho pessoal permite até 30 dias.
+          Entrar em estudo encerra a sessão adulta naquele aparelho. Para voltar à área do
+          responsável, é preciso entrar novamente.
+        </p>
+        <p>
+          O responsável pode acompanhar tentativas, pistas, reflexões e investigações e exportar os
+          registros da família. O caderno não é um diário privado. Registros operacionais de conexão
+          usam identificadores técnicos, sem copiar respostas ou textos de reflexão. Contadores de
+          tentativas e códigos vencidos são removidos pela manutenção após 24 horas; conexões
+          expiradas ou revogadas, após 30 dias. Eventos de segurança seguem a retenção operacional
+          de cinco anos, com acesso restrito à operação autorizada.
+        </p>
         <p>
           Na área Família, com acesso confirmado recentemente, é possível exportar os dados, sair da
           conta, gerenciar a assinatura, encerrar o Missão Saber e apagar seus dados pedagógicos ou

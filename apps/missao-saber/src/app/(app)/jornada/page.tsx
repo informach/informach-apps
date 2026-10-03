@@ -2,6 +2,7 @@ import { cn } from "@informach/ui/lib/utils";
 import { CoursePicker, StartButton } from "@/components/controls";
 import { EmptyProfile } from "@/components/empty-profile";
 import { BarraProgresso } from "@/components/ui/barra-progresso";
+import { LinkChapa } from "@/components/ui/botao-chapa";
 import { tomClaro } from "@/components/ui/chapa";
 import { Horizonte, tomDoCurso } from "@/components/ui/horizonte";
 import { type EstadoNo, NoTrilha } from "@/components/ui/no-trilha";
@@ -15,7 +16,7 @@ import { RecoveryOptions } from "@/features/learning/components/recovery-options
 import { courseProgress } from "@/features/learning/recommendation";
 import { currentDashboard } from "@/lib/view";
 
-export const metadata = { title: "Minha jornada" };
+export const metadata = { title: "Minha trilha" };
 
 export default async function Journey() {
   const data = await currentDashboard();
@@ -54,13 +55,28 @@ export default async function Journey() {
       <header className="mb-6">
         <Etiqueta tom="uva">Passos pequenos, conexões grandes</Etiqueta>
         <h1 className="mt-2 font-display text-3xl leading-tight font-semibold text-tinta sm:text-4xl">
-          Minha jornada.
+          Minha trilha.
         </h1>
         <p className="mt-2 max-w-2xl text-tinta-suave">
           Você pode retomar os fundamentos ou explorar outra estratégia. O caminho se constrói com
           compreensão.
         </p>
       </header>
+
+      <nav aria-label="Atividades da trilha" className="mb-7 flex flex-wrap gap-3">
+        <LinkChapa href="/revisao" tom="contorno" medida="p">
+          Revisar
+        </LinkChapa>
+        <LinkChapa href="/simulados" tom="contorno" medida="p">
+          Simulados
+        </LinkChapa>
+        <LinkChapa href="/historico" tom="contorno" medida="p">
+          Minha atividade
+        </LinkChapa>
+        <LinkChapa href="/meu-espaco" tom="contorno" medida="p">
+          Minhas preferências
+        </LinkChapa>
+      </nav>
 
       {data.courseTransition && (
         <p

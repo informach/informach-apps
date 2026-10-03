@@ -77,8 +77,14 @@ export default function Home() {
             Planos
           </a>
           <LinkChapa href="/entrar" tom="contorno" medida="p">
-            Entrar <ArrowUpRight size={16} aria-hidden="true" />
+            Responsável <ArrowUpRight size={16} aria-hidden="true" />
           </LinkChapa>
+          <Link
+            href="/estudar"
+            className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4"
+          >
+            Estudante
+          </Link>
         </nav>
       </header>
 

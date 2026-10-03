@@ -1,7 +1,10 @@
 import "server-only";
 import { createAuth } from "@informach/auth";
 import { createServerHelpers } from "@informach/auth/server";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { cache } from "react";
+import { safeDestination } from "@/features/study-access/policy";
 import { buildUnsubscribeUrl, emails } from "./emails";
 import { env } from "./env";
 import { authObservability } from "./observability";
@@ -13,6 +16,9 @@ export const authResult = createAuth({
   secret: env.BETTER_AUTH_SECRET,
   trustedOrigins: [env.NEXT_PUBLIC_APP_URL],
   secondaryStorage: authSecondaryStorage,
+  // Handing this device to a learner revokes the adult session immediately,
+  // including requests which still carry the former signed session-data cookie.
+  session: { cookieCache: { enabled: false } },
   observability: authObservability,
   rateLimitRules: {
     "/sign-up/email": { window: 3600, max: 5 },
@@ -58,4 +64,9 @@ const helpers = createServerHelpers(authResult, { signInPath: "/entrar" });
 export const getCurrentUser = cache(helpers.getCurrentUserServer);
 export const getSession = cache(helpers.getServerSession);
 export const requireUser = helpers.requireUserServer;
-export const requirePageUser = helpers.redirectIfUnauthenticated;
+export async function requirePageUser(next?: string) {
+  const destination = safeDestination(next ?? (await headers()).get("x-missao-path"), "parent");
+  const user = await helpers.redirectIfUnauthenticated(destination);
+  if (!user.emailVerified) redirect(`/entrar?confirmar=1&next=${encodeURIComponent(destination)}`);
+  return user;
+}

@@ -54,7 +54,7 @@ export function StartButton({
         {pending ? "Abrindo…" : children}
       </BotaoChapa>
       {error && (
-        <p role="alert" className="mt-2 text-sm font-semibold text-coral-fundo">
+        <p role="alert" className="mt-2 text-sm font-semibold text-coral-solido">
           {error}
         </p>
       )}
@@ -135,7 +135,7 @@ export function CoursePicker({
         ))}
       </select>
       {error && (
-        <p role="alert" className="mt-2 text-sm font-semibold text-coral-fundo">
+        <p role="alert" className="mt-2 text-sm font-semibold text-coral-solido">
           {error}
         </p>
       )}

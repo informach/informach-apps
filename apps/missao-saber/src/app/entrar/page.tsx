@@ -1,16 +1,17 @@
+import Link from "next/link";
 import { AuthForm } from "@/components/auth-form";
 import { Brand } from "@/components/brand";
-import { Mascote } from "@/components/mascote";
 import { Etiqueta } from "@/components/ui/pagina";
+import { safeDestination } from "@/features/study-access/policy";
 
 export const metadata = { title: "Entrar" };
 
 export default async function Login({
   searchParams,
 }: {
-  searchParams: Promise<{ confirmar?: string }>;
+  searchParams: Promise<{ confirmar?: string; next?: string }>;
 }) {
-  const { confirmar } = await searchParams;
+  const { confirmar, next } = await searchParams;
   return (
     <main
       id="conteudo"
@@ -21,15 +22,18 @@ export default async function Login({
         <div className="mt-8">
           <Etiqueta tom="verde">Conta do responsável</Etiqueta>
           <h1 className="mt-3 font-display text-3xl leading-tight font-semibold text-tinta sm:text-4xl">
-            Um pequeno hábito.
-            <br />
-            Grandes descobertas.
+            Entre na área do responsável.
           </h1>
           <p className="mt-4 max-w-md text-tinta-suave">
             Acompanhe o que seu estudante está entendendo, com espaço para tentar, pensar e pedir
             ajuda.
           </p>
-          <Mascote humor="acolhendo" tamanho="g" className="mt-6 max-lg:hidden" />
+          <Link
+            href="/estudar"
+            className="mt-6 inline-flex min-h-12 items-center rounded-controle border-2 border-sombra px-4 font-semibold text-tinta"
+          >
+            Sou estudante · entrar para estudar
+          </Link>
         </div>
         <p className="mt-8 max-w-md text-sm text-tinta-suave">
           Se você já usa a Agenda da Turma ou o Cozya, pode entrar com sua conta Informach.
@@ -41,6 +45,7 @@ export default async function Login({
           As primeiras missões de cada trilha são gratuitas. Sem cartão.
         </p>
         <AuthForm
+          next={safeDestination(next, "parent")}
           initialMode={confirmar ? "verify" : "login"}
           initialMessage={
             confirmar

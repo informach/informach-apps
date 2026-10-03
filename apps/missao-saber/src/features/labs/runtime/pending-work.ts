@@ -29,7 +29,13 @@ export function clearLocalLearningDrafts(storage: Pick<Storage, "length" | "key"
   const keys: string[] = [];
   for (let index = 0; index < storage.length; index++) {
     const key = storage.key(index);
-    if (key?.startsWith("missao-lab:") || key?.startsWith("missao-answer:")) keys.push(key);
+    if (
+      key?.startsWith("missao-lab:") ||
+      key?.startsWith("missao-answer:") ||
+      key?.startsWith("missao-note:") ||
+      key?.startsWith("missao-setup:")
+    )
+      keys.push(key);
   }
   for (const key of keys) storage.removeItem(key);
 }

@@ -4,7 +4,6 @@ import { CabecalhoPagina, Etiqueta } from "@/components/ui/pagina";
 import { Notebook } from "@/features/learning/components/notebook";
 import { notebookPage, readNoteContext } from "@/features/learning/repository";
 import { notebookQuerySchema } from "@/features/learning/schemas";
-import { requirePageUser } from "@/lib/auth";
 import { AppError } from "@/lib/errors";
 import { currentDashboard } from "@/lib/view";
 
@@ -17,7 +16,6 @@ export default async function Notes({
 }) {
   const data = await currentDashboard();
   if (!data.profile) return <EmptyProfile />;
-  const user = await requirePageUser();
   const parsed = notebookQuerySchema.safeParse(await searchParams);
   if (!parsed.success)
     return (
@@ -31,13 +29,13 @@ export default async function Notes({
   const query = parsed.data;
   const result = await (async () => {
     try {
-      const notes = await notebookPage(user.id, data.profile.id, {
+      const notes = await notebookPage(data.userId, data.profile.id, {
         archived: query.archived === "1",
         search: query.q,
         cursor: query.after,
       });
       const context = query.session
-        ? await readNoteContext(user.id, data.profile.id, query.session, query.item)
+        ? await readNoteContext(data.userId, data.profile.id, query.session, query.item)
         : undefined;
       return { notes, context };
     } catch (error) {
@@ -69,8 +67,13 @@ export default async function Notes({
         titulo="Meu caderno de descobertas."
         apoio="Uma hipótese, um desenho descrito, uma explicação que finalmente fez sentido. Este espaço é seu."
       />
+      <p className="mb-5 text-sm text-tinta-suave">
+        Seu responsável pode acompanhar tentativas, uso de pistas e registros da aprendizagem,
+        incluindo reflexões e investigações. Evite escrever dados pessoais; este caderno não é um
+        diário privado.
+      </p>
       <Notebook
-        key={data.profile.id}
+        key={`${data.profile.id}:${context?.sessionId ?? "general"}:${context?.itemId ?? ""}`}
         profileId={data.profile.id}
         context={context}
         activeCount={notes.activeCount}

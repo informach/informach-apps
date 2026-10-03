@@ -9,6 +9,7 @@ import {
   users,
 } from "@informach/db/schema";
 import { expect, type Page, test } from "@playwright/test";
+import { enterStudy, prepareProfile, startMission } from "./family-helpers";
 
 async function profile(page: Page, baseURL: string | undefined, nickname: string) {
   if (!baseURL) throw new Error("Missing isolated app URL");
@@ -20,6 +21,7 @@ async function profile(page: Page, baseURL: string | undefined, nickname: string
     origin: baseURL,
     "x-forwarded-for": `198.18.${client[0]}.${client[1]}`,
   };
+  await page.setExtraHTTPHeaders({ "x-forwarded-for": headers["x-forwarded-for"] });
   const signup = await page.request.post("/api/auth/sign-up/email", {
     headers,
     data: { email, password, name: "Revisão da experiência" },
@@ -31,14 +33,8 @@ async function profile(page: Page, baseURL: string | undefined, nickname: string
     data: { email, password },
   });
   expect(login.ok(), await login.text()).toBe(true);
-  await page.goto("/familia");
-  const form = page.locator("form", { hasText: "Uma nova jornada" });
-  await form.getByLabel("Apelido do estudante").fill(nickname);
-  await form.getByLabel("Ano escolar", { exact: true }).selectOption("6");
-  await form.getByLabel("Primeira trilha").selectOption("olitef-n1");
-  await form.getByRole("checkbox").check();
-  await form.getByRole("button", { name: "Criar perfil e explorar" }).click();
-  await expect(page.getByRole("heading", { name: `Olá, ${nickname}.` })).toBeVisible();
+  await prepareProfile(page, nickname, "6", "olitef-n1");
+  await enterStudy(page, nickname);
   return { email };
 }
 
@@ -108,7 +104,7 @@ test("acomoda o maior apelido permitido e a devolutiva numa tela de 320 pixels",
       .toBeLessThanOrEqual(bounds.width + 1);
   }
   await page.goto("/hoje");
-  await page.getByRole("button", { name: "Começar descoberta" }).click();
+  await startMission(page).click();
   await page.getByRole("radio").first().check();
   await page.getByRole("button", { name: "Conferir minha ideia" }).click();
   const feedback = page.getByRole("status").filter({ hasText: "Esta tentativa foi registrada" });
@@ -178,7 +174,7 @@ test("caderno guarda contexto, permite editar, buscar, arquivar e restaurar", as
   baseURL,
 }) => {
   await profile(page, baseURL, "Nina");
-  await page.getByRole("button", { name: "Começar descoberta" }).click();
+  await startMission(page).click();
   const prompt = await page.locator("p[id^='enunciado-']").innerText();
   await page.getByRole("link", { name: "Anotar uma descoberta sobre esta questão" }).click();
   await expect(page.getByRole("checkbox", { name: /Vincular à missão/ })).toBeChecked();
@@ -258,7 +254,7 @@ test("recuperação oferece três estratégias e libera o segundo encontro em ou
   baseURL,
 }) => {
   await profile(page, baseURL, "Iara");
-  await page.getByRole("button", { name: "Começar descoberta" }).click();
+  await startMission(page).click();
   await page.getByRole("button", { name: "Ainda não sei", exact: true }).click();
   await expect(page.getByRole("button", { name: "Continuar", exact: true })).toBeVisible();
   await page.goto("/jornada");

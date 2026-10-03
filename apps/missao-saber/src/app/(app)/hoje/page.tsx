@@ -28,6 +28,7 @@ import {
   skillNames,
 } from "@/features/content/catalog";
 import { inGrade } from "@/features/family/school-year";
+import { eligibleExperiences } from "@/features/labs/runtime/catalog";
 import { CourseCompletion } from "@/features/learning/components/course-completion";
 import { localDay, localDaysApart } from "@/features/learning/engine";
 import { availableLessons, courseProgress, recommend } from "@/features/learning/recommendation";
@@ -35,7 +36,11 @@ import { currentDashboard } from "@/lib/view";
 
 export const metadata = { title: "Hoje" };
 
-export default async function Today() {
+export default async function Today({
+  searchParams,
+}: {
+  searchParams: Promise<{ encerrado?: string }>;
+}) {
   const data = await currentDashboard();
   if (!data.profile) return <EmptyProfile />;
   const profile = data.profile;
@@ -104,6 +109,20 @@ export default async function Today() {
     .filter((state) => state.dueOn <= localDay(agora))
     .sort((a, b) => a.dueOn.localeCompare(b.dueOn))[0];
   const desafio = data.challenge;
+  const firstStudy = data.attemptedItemIds.length === 0;
+  const { encerrado } = await searchParams;
+  const finishedToday =
+    encerrado === "1" &&
+    data.recent.some(
+      (session) => session.completedAt && localDay(session.completedAt) === localDay(agora),
+    );
+  const lab = eligibleExperiences({
+    grade: profile.grade,
+    courseId: course.id,
+    paid: data.access.paid,
+    profileAllowed: data.profileAllowed,
+    contentStates: data.contentStates,
+  }).find((experience) => experience.lessonId === (paused?.lessonId ?? recommended?.id));
 
   return (
     <>
@@ -135,6 +154,19 @@ export default async function Today() {
           </h1>
         </div>
       </header>
+
+      {finishedToday && (
+        <section
+          className="mb-6 rounded-card border border-verde-fundo bg-verde-claro p-5"
+          role="status"
+        >
+          <h2 className="font-display text-xl font-semibold">Seu estudo de hoje está guardado.</h2>
+          <p className="mt-2">
+            Você pode descansar e voltar quando quiser. Se preferir continuar aprendendo, as opções
+            abaixo seguem disponíveis.
+          </p>
+        </section>
+      )}
 
       {reencontro && (
         <FalaFaisca humor="acolhendo" tom="lima" titulo="Bom te ver de novo." className="mb-5">
@@ -182,13 +214,18 @@ export default async function Today() {
                       medida="g"
                       largo
                     >
-                      Começar descoberta <ArrowRight size={19} aria-hidden="true" />
+                      {firstStudy
+                        ? "Começar minha primeira missão"
+                        : recommendation?.mode === "review"
+                          ? "Revisar esta ideia"
+                          : "Começar missão"}{" "}
+                      <ArrowRight size={19} aria-hidden="true" />
                     </StartButton>
                   )
                 )}
                 <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-tinta-suave">
-                  <Clock3 size={16} aria-hidden="true" /> cerca de {data.family?.dailyMinutes ?? 10}{" "}
-                  min no seu ritmo
+                  <Clock3 size={16} aria-hidden="true" /> Seu combinado:{" "}
+                  {data.family?.dailyMinutes ?? 10} minutos
                 </span>
               </div>
             </div>
@@ -221,35 +258,45 @@ export default async function Today() {
         </Chapa>
       ) : null}
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-3">
-        <Ladrilho
-          valor={data.weekly.practiceDays}
-          sufixo="/ 7"
-          rotulo="dias com descobertas nesta semana"
-          tom="lima"
-          extra={<BolhasSemana dias={data.weekly.practiceDays} />}
-        />
-        <Ladrilho
-          valor={autonomas}
-          rotulo="habilidades que você já resolve sem ajuda"
-          tom="verde"
-        />
-        <Ladrilho
-          valor={data.weekly.withHelp}
-          rotulo="tentativas com pistas: aprender tem apoio"
-          tom="sol"
-        />
-      </div>
+      {firstStudy ? (
+        <section className="mt-5 rounded-card border border-sombra bg-creme p-5">
+          <h2 className="font-display text-xl font-semibold">Pode tentar. Pode pedir uma pista.</h2>
+          <p className="mt-2 text-sm text-tinta-suave">
+            Leia a situação, escolha uma resposta e confira sua ideia. As pistas e a leitura em voz
+            alta estão disponíveis quando precisar. Seu percurso começa com esta missão.
+          </p>
+        </section>
+      ) : (
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <Ladrilho
+            valor={data.weekly.practiceDays}
+            sufixo="/ 7"
+            rotulo="dias com descobertas nesta semana"
+            tom="lima"
+            extra={<BolhasSemana dias={data.weekly.practiceDays} />}
+          />
+          <Ladrilho
+            valor={autonomas}
+            rotulo="habilidades que você já resolve sem ajuda"
+            tom="verde"
+          />
+          <Ladrilho
+            valor={data.weekly.withHelp}
+            rotulo="tentativas com pistas: aprender tem apoio"
+            tom="sol"
+          />
+        </div>
+      )}
 
       <div className="mt-9 mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-display text-2xl font-semibold text-tinta">
-          Seu próximo pequeno passo
+          Outras formas de explorar
         </h2>
         <Link
           href="/jornada"
           className="font-semibold text-tinta-suave underline underline-offset-4 hover:text-tinta"
         >
-          Ver minha jornada ↗
+          Ver minha trilha ↗
         </Link>
       </div>
 
@@ -257,11 +304,11 @@ export default async function Today() {
         <Chapa tom="uva" className="flex flex-col">
           <Compass size={30} strokeWidth={2.3} aria-hidden="true" className="text-tinta" />
           <h3 className="mt-3 font-display text-lg font-semibold text-tinta">
-            {diagnosed ? "Reconheça seu caminho" : "Encontre seu ponto de partida"}
+            {diagnosed ? "Rever meu ponto de partida" : "Já estudou esses assuntos?"}
           </h3>
           <p className="mt-1.5 mb-4 text-sm text-tinta-suave">
-            Um diagnóstico breve orienta o treino. “Ainda não sei” também ajuda a escolher o próximo
-            passo.
+            O diagnóstico é opcional: ajuda a escolher por onde continuar quando você já conhece
+            parte da trilha. Você pode começar pela missão indicada e fazê-lo depois.
           </p>
           <div className="mt-auto">
             <StartButton
@@ -282,14 +329,19 @@ export default async function Today() {
           </div>
         </Chapa>
 
-        <Link href="/laboratorio" className="no-underline">
+        <Link
+          href={lab ? `/laboratorio?ideia=${encodeURIComponent(lab.id)}` : "/laboratorio"}
+          className="no-underline"
+        >
           <Chapa tom="ceu" interativa className="flex h-full flex-col">
             <FlaskConical size={30} strokeWidth={2.3} aria-hidden="true" className="text-tinta" />
             <h3 className="mt-3 font-display text-lg font-semibold text-tinta">
-              Mexa. Observe. Descubra.
+              Quer visualizar esta ideia?
             </h3>
             <p className="mt-1.5 text-sm text-tinta-suave">
-              Porcentagens, malhas e grupos: ideias que você pode manipular.
+              {lab
+                ? `${lab.skill}: explore com ${lab.toolName.toLocaleLowerCase("pt-BR")}.`
+                : "Escolha uma representação da sua trilha, faça uma previsão e experimente."}
             </p>
             <span className="mt-auto pt-4 font-semibold text-tinta">Abrir laboratório →</span>
           </Chapa>

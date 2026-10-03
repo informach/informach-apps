@@ -5,7 +5,6 @@ import { SeletorTema } from "@/components/seletor-tema";
 import { Chapa, type Tom } from "@/components/ui/chapa";
 import { CabecalhoPagina, Etiqueta } from "@/components/ui/pagina";
 import { countNotes, lastExamDate } from "@/features/learning/repository";
-import { getCurrentUser } from "@/lib/auth";
 import { currentDashboard } from "@/lib/view";
 
 export const metadata: Metadata = { title: "Meu espaço" };
@@ -21,14 +20,12 @@ const dia = (date: Date) => date.toLocaleDateString("pt-BR", { timeZone: "Americ
  */
 export default async function MeuEspacoPage() {
   const data = await currentDashboard();
-  const user = await getCurrentUser();
-  const [descobertas, ultimoSimulado] =
-    user && data.profile
-      ? await Promise.all([
-          countNotes(user.id, data.profile.id),
-          lastExamDate(user.id, data.profile.id),
-        ])
-      : [0, null];
+  const [descobertas, ultimoSimulado] = data.profile
+    ? await Promise.all([
+        countNotes(data.userId, data.profile.id),
+        lastExamDate(data.userId, data.profile.id),
+      ])
+    : [0, null];
   const ultimoPercurso = data.recent[0];
 
   const destinos: {

@@ -10,11 +10,11 @@ import {
 } from "@informach/ui/components/dialog";
 import { cn } from "@informach/ui/lib/utils";
 import { ChevronsUpDown } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { gradeLabel } from "@/features/family/school-year";
 import { flushPendingLabs } from "@/features/labs/runtime/pending-work";
 import { selectProfileAction } from "@/features/learning/actions";
+import { announceContextChange } from "@/features/study-access/context-change";
 import { useServerAction } from "@/lib/use-server-action";
 import { Avatar } from "./avatares";
 
@@ -28,7 +28,6 @@ type Perfil = { id: string; nickname: string; avatar: string; grade: number };
  * único perfil o controle não é interativo — não há o que trocar.
  */
 export function ProfileSwitcher({ profiles, selected }: { profiles: Perfil[]; selected?: string }) {
-  const router = useRouter();
   const [aberto, setAberto] = useState(false);
   const [pending, start] = useServerAction();
   const [error, setError] = useState("");
@@ -87,7 +86,8 @@ export function ProfileSwitcher({ profiles, selected }: { profiles: Perfil[]; se
                         const result = await selectProfileAction(p.id);
                         if (result.ok) {
                           setAberto(false);
-                          router.push("/hoje");
+                          announceContextChange("/hoje");
+                          window.location.assign("/hoje");
                         } else setError(result.error);
                       } catch {
                         setError("Não foi possível trocar de perfil.");
@@ -118,7 +118,7 @@ export function ProfileSwitcher({ profiles, selected }: { profiles: Perfil[]; se
           })}
         </ul>
         {error && (
-          <p role="alert" className="text-sm font-semibold text-coral-fundo">
+          <p role="alert" className="text-sm font-semibold text-coral-solido">
             {error}
           </p>
         )}

@@ -2,8 +2,9 @@
 import { Input } from "@informach/ui/components/input";
 import { Label } from "@informach/ui/components/label";
 import { cn } from "@informach/ui/lib/utils";
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { completeParentSignInAction } from "@/features/study-access/actions";
+import { announceContextChange } from "@/features/study-access/context-change";
 import { authClient } from "@/lib/auth-client";
 import { BotaoChapa } from "./ui/botao-chapa";
 
@@ -23,9 +24,11 @@ function limite(error: { status?: number } | null | undefined) {
 export function AuthForm({
   initialMode = "login",
   initialMessage = "",
+  next = "/familia",
 }: {
   initialMode?: Mode;
   initialMessage?: string;
+  next?: string;
 }) {
   const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState("");
@@ -35,10 +38,14 @@ export function AuthForm({
   const [consent, setConsent] = useState(false);
   const [message, setMessage] = useState(initialMessage);
   const [pending, start] = useTransition();
-  const router = useRouter();
-  function navigate() {
-    router.push("/familia");
-    router.refresh();
+  async function navigate() {
+    const result = await completeParentSignInAction(next);
+    if (!result.ok) {
+      setMessage(result.error);
+      return;
+    }
+    announceContextChange("/familia");
+    window.location.assign(result.data.destination);
   }
   return (
     <div>
@@ -94,7 +101,7 @@ export function AuthForm({
                   );
                   return;
                 }
-                navigate();
+                await navigate();
               } else if (mode === "verify") {
                 const result = await authClient.emailOtp.verifyEmail({ email, otp });
                 if (result.error) {
@@ -110,7 +117,7 @@ export function AuthForm({
                     setMessage("E-mail confirmado. Entre para continuar.");
                     return;
                   }
-                  navigate();
+                  await navigate();
                 } else {
                   setMode("login");
                   setMessage("E-mail confirmado. Entre para continuar.");
@@ -123,7 +130,7 @@ export function AuthForm({
                   );
                   return;
                 }
-                navigate();
+                await navigate();
               } else if (mode === "reset") {
                 const result = await authClient.emailOtp.requestPasswordReset({ email });
                 if (result.error) {

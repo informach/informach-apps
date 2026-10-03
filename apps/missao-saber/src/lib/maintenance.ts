@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { maintainBilling } from "@/features/billing/maintenance";
+import { cleanupStudyAccess } from "@/features/study-access/repository";
 import { redis } from "./redis";
 
 const stateSchema = z.object({
@@ -25,6 +26,7 @@ export async function runMaintenance() {
     const saved = await redis.get(stateKey);
     const state = stateSchema.parse(saved ? JSON.parse(saved) : {});
     if (state.nextRun > Date.now()) return { status: "scheduled" };
+    await cleanupStudyAccess();
     const result = await maintainBilling({
       reconciliation: state.reconciliation,
       dunning: state.dunning,

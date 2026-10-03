@@ -138,6 +138,9 @@ const pares: {
   { frente: "--ms-tinta", fundo: "--ms-creme" },
   { frente: "--ms-tinta-suave", fundo: "--ms-papel" },
   { frente: "--ms-tinta-suave", fundo: "--ms-creme" },
+  // Mensagens de erro dos formulários de preparação e conexão.
+  { frente: "--ms-coral-solido", fundo: "--ms-papel" },
+  { frente: "--ms-coral-solido", fundo: "--ms-creme" },
   { frente: "--ms-tinta", fundo: "--ms-verde-claro" },
   { frente: "--ms-tinta", fundo: "--ms-uva-claro" },
   { frente: "--ms-tinta", fundo: "--ms-sol-claro" },

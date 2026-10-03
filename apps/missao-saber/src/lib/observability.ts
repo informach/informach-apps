@@ -22,7 +22,12 @@ export const packageLogger = {
 
 /** Eventos de domínio do Missão Saber: só IDs e nomes de campo, ver docs/audit-payload-policy.md. */
 export type MissaoAuditEvent = {
-  eventType: "missao.profile_updated" | "missao.consent_recorded";
+  eventType:
+    | "missao.profile_updated"
+    | "missao.consent_recorded"
+    | "missao.study_connected"
+    | "missao.study_code_issued"
+    | "missao.study_revoked";
   actorId: string;
   payload: Record<string, unknown>;
 };

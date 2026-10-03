@@ -6,7 +6,6 @@ import type { Tom } from "@/components/ui/chapa";
 import { Chapa } from "@/components/ui/chapa";
 import { CabecalhoPagina, Etiqueta } from "@/components/ui/pagina";
 import { learningHistory } from "@/features/learning/service";
-import { getCurrentUser } from "@/lib/auth";
 import { currentDashboard } from "@/lib/view";
 
 const modes = { mission: "Missão", review: "Revisão", diagnostic: "Diagnóstico", exam: "Simulado" };
@@ -27,11 +26,9 @@ export default async function HistoryPage({
 }) {
   const data = await currentDashboard();
   if (!data.profile) return <EmptyProfile />;
-  const user = await getCurrentUser();
-  if (!user) return null;
   const params = await searchParams;
   const cursor = params.antes;
-  const history = await learningHistory(user.id, data.profile.id, cursor).catch(
+  const history = await learningHistory(data.userId, data.profile.id, cursor).catch(
     (error: unknown) => {
       if (error instanceof ZodError) notFound();
       throw error;
