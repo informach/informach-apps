@@ -205,6 +205,54 @@ test("caderno guarda contexto, permite editar, buscar, arquivar e restaurar", as
   await expect(note).toContainText("Usei 50%_");
 });
 
+test("caderno aguarda os controles estarem prontos antes de restaurar após navegação", async ({
+  page,
+  baseURL,
+}) => {
+  await profile(page, baseURL, "Lua");
+  await page.goto("/caderno");
+  await page.getByLabel("Hoje eu descobri que…").fill("Comparei duas representações da metade.");
+  await page.getByRole("button", { name: "Guardar descoberta" }).click();
+  const note = page.locator("[data-note-id]");
+  await expect(note).toHaveCount(1);
+  await note.getByRole("button", { name: "Arquivar", exact: true }).click();
+  await expect(note).toHaveCount(0);
+
+  let release = () => {};
+  const scripts = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  // A navegação e o HTML são reais. Somente os scripts externos chegam depois,
+  // reproduzindo uma conexão móvel em que o HTML aparece antes da hidratação.
+  await page.route("**/_next/static/**/*.js", async (route) => {
+    await scripts;
+    await route.continue();
+  });
+  const restore = note.getByRole("button", { name: "Restaurar", exact: true });
+  try {
+    await page.goto("/caderno?archived=1", { waitUntil: "commit" });
+    await expect(restore).toBeVisible();
+    await expect(restore).toBeDisabled();
+  } finally {
+    release();
+  }
+  await expect(restore).toBeEnabled();
+  const restored = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      Boolean(response.request().headers()["next-action"]) &&
+      new URL(response.url()).pathname === "/caderno",
+  );
+  await restore.click();
+  expect((await restored).ok()).toBe(true);
+  await expect(note).toHaveCount(0);
+  await page.reload();
+  await expect(note).toHaveCount(0);
+  await page.getByLabel("Mostrar", { exact: true }).selectOption("0");
+  await page.getByRole("button", { name: "Buscar", exact: true }).click();
+  await expect(note).toContainText("Comparei duas representações da metade.");
+});
+
 test("recuperação oferece três estratégias e libera o segundo encontro em outro dia", async ({
   page,
   baseURL,

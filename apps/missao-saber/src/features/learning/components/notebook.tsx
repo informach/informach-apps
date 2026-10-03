@@ -2,7 +2,7 @@
 import { Label } from "@informach/ui/components/label";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { BotaoChapa } from "@/components/ui/botao-chapa";
 import { Chapa } from "@/components/ui/chapa";
 import type { LabAttachment } from "@/features/labs/runtime/schemas";
@@ -19,7 +19,11 @@ type Entry = {
   labAttachment?: LabAttachment | null;
 };
 
-function NoteEntry({ note, profileId }: { note: Entry; profileId: string }) {
+const subscribeReady = () => () => {};
+const clientReady = () => true;
+const serverReady = () => false;
+
+function NoteEntry({ note, profileId, ready }: { note: Entry; profileId: string; ready: boolean }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(note.text);
   const [message, setMessage] = useState("");
@@ -119,7 +123,7 @@ function NoteEntry({ note, profileId }: { note: Entry; profileId: string }) {
           <textarea
             id={`note-${note.id}`}
             value={text}
-            disabled={pending}
+            disabled={!ready || pending}
             onChange={(event) => setText(event.target.value)}
             minLength={3}
             maxLength={1000}
@@ -128,14 +132,14 @@ function NoteEntry({ note, profileId }: { note: Entry; profileId: string }) {
             className="mt-2 w-full rounded-controle border-2 border-sombra p-3"
           />
           <div className="mt-2 flex flex-wrap gap-2">
-            <BotaoChapa type="submit" medida="p" disabled={pending}>
+            <BotaoChapa type="submit" medida="p" disabled={!ready || pending}>
               Salvar alteração
             </BotaoChapa>
             <BotaoChapa
               type="button"
               tom="contorno"
               medida="p"
-              disabled={pending}
+              disabled={!ready || pending}
               onClick={() => setEditing(false)}
             >
               Cancelar edição
@@ -151,7 +155,7 @@ function NoteEntry({ note, profileId }: { note: Entry; profileId: string }) {
         {!editing && (
           <button
             type="button"
-            disabled={pending}
+            disabled={!ready || pending}
             onClick={() => {
               setText(note.text);
               setEditing(true);
@@ -161,12 +165,12 @@ function NoteEntry({ note, profileId }: { note: Entry; profileId: string }) {
             Editar
           </button>
         )}
-        <button type="button" disabled={pending || editing} onClick={archive}>
+        <button type="button" disabled={!ready || pending || editing} onClick={archive}>
           {note.archivedAt ? "Restaurar" : "Arquivar"}
         </button>
         <button
           type="button"
-          disabled={pending || editing}
+          disabled={!ready || pending || editing}
           onClick={() => {
             if (
               !window.confirm(
@@ -216,6 +220,9 @@ export function Notebook({
   const [message, setMessage] = useState("");
   const [includeContext, setIncludeContext] = useState(true);
   const [pending, start] = useServerAction();
+  // O filtro GET e o acesso direto entregam HTML antes dos listeners. Só
+  // habilite controles React quando puderem realmente receber a interação.
+  const ready = useSyncExternalStore(subscribeReady, clientReady, serverReady);
   const router = useRouter();
   return (
     <>
@@ -252,6 +259,7 @@ export function Notebook({
         <textarea
           id="descoberta"
           value={text}
+          disabled={!ready}
           onChange={(e) => setText(e.target.value)}
           minLength={3}
           maxLength={1000}
@@ -265,6 +273,7 @@ export function Notebook({
             <input
               type="checkbox"
               checked={includeContext}
+              disabled={!ready}
               onChange={(event) => setIncludeContext(event.target.checked)}
               className="mt-1"
             />
@@ -279,7 +288,11 @@ export function Notebook({
         <p className="mt-2 text-sm text-tinta-suave">
           {activeCount} de 100 anotações ativas. Arquivar preserva suas ideias e libera espaço.
         </p>
-        <BotaoChapa type="submit" className="mt-3" disabled={pending || activeCount >= 100}>
+        <BotaoChapa
+          type="submit"
+          className="mt-3"
+          disabled={!ready || pending || activeCount >= 100}
+        >
           Guardar descoberta
         </BotaoChapa>
         <p role="status" className="mt-2 text-sm font-semibold text-tinta">
@@ -333,7 +346,7 @@ export function Notebook({
       )}
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         {notes.map((note) => (
-          <NoteEntry key={note.id} profileId={profileId} note={note} />
+          <NoteEntry key={note.id} profileId={profileId} note={note} ready={ready} />
         ))}
       </div>
     </>

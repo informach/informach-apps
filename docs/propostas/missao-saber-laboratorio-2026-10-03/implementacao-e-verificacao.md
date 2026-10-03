@@ -28,6 +28,7 @@ O [inventário JSON](./cobertura-implementada.json) é reproduzível com `pnpm -
 | Missão → laboratório → caderno | Remontar o componente criava outra investigação. A identidade inclui a origem da missão; novas solicitações concorrentes retomam a mesma execução, e cópias explícitas continuam independentes. A resposta ainda não enviada da missão é preservada. O botão de retorno nomeia o destino real, mesmo quando a execução da missão é aberta pela biblioteca. |
 | Lista de investigações | Voltar após editar uma montagem antiga podia mostrar a data anterior. A lista recebe a revisão e a data confirmadas pelo salvamento no servidor, sem depender de recarregar a página nem acrescentar uma requisição para fechar o editor. |
 | Snapshots do caderno | Perder a resposta de uma gravação e depois editar podia reutilizar a chave antiga. A intenção agora considera documento, avaliação e revisão confirmada; retries da mesma intenção são idempotentes. Editar A→B→A também permite guardar nova revisão. Anexos preservam versão e ano de lançamento, inclusive após mudança do perfil. |
+| Hidratação do caderno | O HTML da navegação por filtro habilitava ações antes dos listeners. Os controles React aguardam a hidratação; o rascunho continua editável durante o salvamento. Regressão retém scripts, confirma o bloqueio, libera e verifica restauração com um clique, POST real e persistência após reload. |
 | Rascunhos e logout | Falha de autorização podia impedir sair; logout SPA concorria com uma resposta RSC privada anterior. Há descarte explícito, encerramento dos escritores/guardas, limpeza dos dois armazenamentos e navegação completa após revogar a sessão. Outras abas recebem o encerramento. Escritas assíncronas atrasadas não recriam dados locais. |
 | Relatório familiar | Ordenar pela última edição podia ocultar uma descoberta recente atrás de experiências antigas. A consulta filtra e ordena pela data do marco antes de limitar resultados. O texto distingue investigação com apoio de autonomia. |
 | Frações e unidades | Campos aceitam frações e decimal com ponto/vírgula; a unidade fixa no rótulo é implícita. Partições proporcionais não são tratadas como divisões diferentes. Unidades incompatíveis são recusadas. Faixa, região e reta mantêm a mesma referência. |
@@ -79,8 +80,8 @@ Output summary:
 - Unitários: 2.689 aprovados em sete pacotes; Missão Saber: 36 arquivos, 1.440 testes.
 - TypeScript: 12 successful, 12 total; nenhum resultado em cache.
 - Integração: Test Files 24 passed (24); Tests 92 passed (92).
-- Navegador: 52 passed; desktop e Pixel 7; retries: 0.
-- Build: cinco aplicações compiladas; 5 successful, 5 total.
+- Navegador: 54 passed; desktop e Pixel 7; retries: 0.
+- Build: 5 successful, 5 total; Missão Saber recompilado, quatro aplicações sem alterações reutilizadas do cache.
 - Cobertura: families=19, modes=379, experiences=1522, items=2972.
 - Diff: nenhum erro de whitespace.
 Warnings: sem avisos de lint/tipos/build. PostgreSQL emitiu NOTICE de extensões existentes e truncamento de identificador em migração anterior. Cenários negativos de e-mail geraram os logs de erro esperados com transporte em memória, sem envio externo.
@@ -101,3 +102,13 @@ As migrations `0065`–`0067` são aditivas: tabela de execuções, anexo opcion
 Antes do push, um dump de produção foi restaurado em PostgreSQL local descartável: origem e restauração coincidiram em 65 migrations, 103 tabelas e 13 usuários; 15.836.517 bytes, SHA-256 `533cf70bca9c153e06ea0371651ae0a42ca94fa2fbb842d58d031d1656e21a9d`. O banco temporário e o dump local foram removidos após a verificação. Isso testa o procedimento de restauração, não representa um dump local retido como backup.
 
 Após o merge/push, a publicação exige acompanhar CI, migrador no commit novo, deployments do Missão Saber/Cozya/Agenda e seus endpoints de readiness e health, além de `production:verify-schema` com 68 migrations. Os IDs e o resultado efetivo dessa etapa são registrados no CI/Railway e na resposta de entrega, pois a verificação de produção ocorre depois deste commit. Não executar `db:push` nem restaurar automaticamente o banco compartilhado para reverter código.
+
+## Achado do primeiro CI e nova verificação
+
+O primeiro push (`ca38ebf`) publicou a expansão: migrador e três aplicações ficaram saudáveis, com 68 migrations e o SHA correto. O [CI 37124575756](https://github.com/informach/informach-apps/actions/runs/37124575756) aprovou 51 dos 52 cenários do Missão Saber, mas falhou ao restaurar uma anotação no celular. Esse resultado não foi tratado como aprovação.
+
+Doze repetições locais do fluxo comum passaram, mas a investigação encontrou uma janela real de hidratação: a navegação documental do filtro entrega HTML antes dos scripts, com o botão Restaurar habilitado sem listener. Um novo teste reteve os scripts e falhou com `Expected: disabled / Received: enabled`. Após a correção, passou em desktop e celular, enviando a ação real e confirmando a restauração após recarregar. O trace original do CI não foi disponibilizado pelo workflow, portanto o log original sozinho não comprova a causa; o cenário controlado comprova e protege a falha estrutural identificada. O CI agora publica as evidências preservadas quando houver falha.
+
+A rodada local seguinte aprovou 53 cenários e sofreu um `ECONNRESET` no POST de cadastro usado para preparar outra conta de teste, antes de abrir o laboratório. O trace foi preservado em `tmp/verification/e60b11425134fbeebfb3c4b7`; a causa da interrupção de transporte não foi isolada nem é apresentada como corrigida. A suíte foi executada novamente, sem alterar código ou política de retries.
+
+A correção recebeu revisão independente, seguida da rodada completa registrada acima: 2.689 unitários, 92 integrações, 54 cenários de navegador, tipos, lint, formatação e build. Não houve aumento de timeout, retries, remoção de asserções ou desativação de testes.
