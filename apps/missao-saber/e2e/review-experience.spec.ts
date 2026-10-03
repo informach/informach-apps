@@ -249,6 +249,34 @@ test("caderno aguarda os controles estarem prontos antes de restaurar após nave
   await expect(note).toContainText("Comparei duas representações da metade.");
 });
 
+test("começar missão aguarda o botão estar pronto em vez de perder o toque", async ({
+  page,
+  baseURL,
+}) => {
+  await profile(page, baseURL, "Lua");
+  let release = () => {};
+  const scripts = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  // Mesmo recurso do teste do caderno: HTML real, scripts atrasados, como numa
+  // conexão móvel em que o botão aparece antes de ter listener.
+  await page.route("**/_next/static/**/*.js", async (route) => {
+    await scripts;
+    await route.continue();
+  });
+  const start = startMission(page);
+  try {
+    await page.goto("/hoje", { waitUntil: "commit" });
+    await expect(start).toBeVisible();
+    await expect(start).toBeDisabled();
+  } finally {
+    release();
+  }
+  await start.click();
+  await expect(page).toHaveURL(/\/missao\//);
+  await expect(page.getByRole("radio").first()).toBeVisible();
+});
+
 test("recuperação oferece três estratégias e libera o segundo encontro em outro dia", async ({
   page,
   baseURL,

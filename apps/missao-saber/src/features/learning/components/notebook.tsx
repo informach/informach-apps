@@ -2,10 +2,11 @@
 import { Label } from "@informach/ui/components/label";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { BotaoChapa } from "@/components/ui/botao-chapa";
 import { Chapa } from "@/components/ui/chapa";
 import type { LabAttachment } from "@/features/labs/runtime/schemas";
+import { useHydrated } from "@/lib/use-hydrated";
 import { useServerAction } from "@/lib/use-server-action";
 import { archiveNoteAction, editNoteAction, noteAction, removeNoteAction } from "../actions";
 import type { NoteContext } from "../repository";
@@ -19,10 +20,6 @@ type Entry = {
   context: NoteContext | null;
   labAttachment?: LabAttachment | null;
 };
-
-const subscribeReady = () => () => {};
-const clientReady = () => true;
-const serverReady = () => false;
 
 function NoteEntry({ note, profileId, ready }: { note: Entry; profileId: string; ready: boolean }) {
   const [editing, setEditing] = useState(false);
@@ -236,7 +233,7 @@ export function Notebook({
   const [pending, start] = useServerAction();
   // O filtro GET e o acesso direto entregam HTML antes dos listeners. Só
   // habilite controles React quando puderem realmente receber a interação.
-  const ready = useSyncExternalStore(subscribeReady, clientReady, serverReady);
+  const ready = useHydrated();
   const router = useRouter();
   return (
     <>
