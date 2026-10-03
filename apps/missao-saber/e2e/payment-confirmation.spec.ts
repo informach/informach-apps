@@ -33,7 +33,7 @@ test("confirmação de pagamento continua consultando após a primeira resposta 
   page.on("response", (response) => {
     const url = new URL(response.url());
     if (
-      url.pathname === "/familia" &&
+      url.pathname === "/familia/conta" &&
       url.searchParams.get("pagamento") === "recebido" &&
       response.request().headers().rsc === "1" &&
       response.ok()

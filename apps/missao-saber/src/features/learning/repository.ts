@@ -1306,7 +1306,7 @@ export async function clearFamilyChallenge(userId: string, weekStart: string) {
     .delete(familyChallenges)
     .where(and(eq(familyChallenges.userId, userId), eq(familyChallenges.weekStart, weekStart)));
 }
-export async function familyReports(userId: string) {
+export async function familyReports(userId: string, profileId?: string) {
   return db
     .select({
       id: reports.id,
@@ -1321,7 +1321,9 @@ export async function familyReports(userId: string) {
       resolvedAt: reports.resolvedAt,
     })
     .from(reports)
-    .where(eq(reports.userId, userId))
+    .where(
+      and(eq(reports.userId, userId), profileId ? eq(reports.profileId, profileId) : undefined),
+    )
     .orderBy(desc(reports.createdAt), desc(reports.id))
     .limit(100);
 }

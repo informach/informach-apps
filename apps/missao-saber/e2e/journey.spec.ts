@@ -1,15 +1,10 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { db, eq } from "@informach/db";
-import {
-  customers,
-  missaoAttempts,
-  missaoSessions,
-  sessions,
-  subscriptions,
-} from "@informach/db/schema";
+import { customers, missaoAttempts, missaoSessions, subscriptions } from "@informach/db/schema";
 import { expect, type Page, test } from "@playwright/test";
+import { enterStudy, openStudy, parentLogin, prepareProfile, startMission } from "./family-helpers";
 
 async function verificationCode(email: string) {
   const directory = process.env.EMAIL_SANDBOX_DIR;
@@ -31,22 +26,16 @@ async function verificationCode(email: string) {
     .toBe(6);
   return code;
 }
-/** O formulário de novo perfil; o de edição repete os mesmos rótulos dentro de cada card. */
-function formularioNovoPerfil(page: Page) {
-  return page.locator("form", { hasText: "Uma nova jornada" });
-}
 async function criarPerfil(page: Page, apelido: string) {
-  const form = formularioNovoPerfil(page);
-  await form.getByLabel("Apelido do estudante").fill(apelido);
-  // O formulário abre no primeiro ano do catálogo; a jornada de teste é do 6º ano, OLITEF N1.
-  await form.getByLabel("Ano escolar", { exact: true }).selectOption("6");
-  await form.getByLabel("Primeira trilha").selectOption("olitef-n1");
-  await form.getByRole("checkbox").check();
-  await form.getByRole("button", { name: "Criar perfil e explorar" }).click();
+  await prepareProfile(page, apelido);
+  const shared = (await page.getByLabel(/Permitir trocar entre/).count()) > 0;
+  await enterStudy(page, apelido, shared);
 }
 
 /** Cadastra um responsável, confirma o e-mail e cria o primeiro perfil (6º ano, OLITEF). */
 async function criarContaComPerfil(page: Page, apelido: string) {
+  const client = createHash("sha256").update(test.info().testId).digest();
+  await page.setExtraHTTPHeaders({ "x-forwarded-for": `198.22.${client[0]}.${client[1]}` });
   const email = `missao-${randomUUID()}@example.test`;
   await page.goto("/entrar");
   await page.getByRole("button", { name: "Criar conta", exact: true }).click();
@@ -99,7 +88,7 @@ test("parent signup, verified profile, learning, saved lab, report and profile s
   page.on("pageerror", (error) => runtimeErrors.push(error.message));
   const email = await criarContaComPerfil(page, "Sol");
   await page.screenshot({ path: test.info().outputPath("hoje.png"), fullPage: true });
-  await page.getByRole("button", { name: "Começar descoberta" }).click();
+  await startMission(page).click();
   await expect(page).toHaveURL(/\/missao\//);
   await page.getByRole("button", { name: /Quero uma pista/ }).click();
   await expect(page.getByText(/Pista 1\./)).toBeVisible();
@@ -135,6 +124,10 @@ test("parent signup, verified profile, learning, saved lab, report and profile s
       .click();
   }
   await expect(page.getByRole("heading", { name: "Uma ideia para levar com você." })).toBeVisible();
+  await page.getByRole("link", { name: "Encerrar por hoje", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Seu estudo de hoje está guardado." }),
+  ).toBeVisible();
   await page.goto("/laboratorio");
   await page.getByRole("button", { name: "Começar investigação", exact: true }).click();
   const investigation = page.getByRole("region", { name: "Experiência do laboratório" });
@@ -183,6 +176,8 @@ test("parent signup, verified profile, learning, saved lab, report and profile s
   for (let i = 0; i < totalDiagnostico; i++)
     await page.getByRole("button", { name: "Ainda não sei", exact: true }).click();
   await expect(page.getByRole("button", { name: "Continuar por esta ideia" })).toBeVisible();
+  expect((await page.request.get("/api/familia/exportar")).status()).toBe(401);
+  await parentLogin(page, email);
   const exported = await page.request.get("/api/familia/exportar");
   expect(exported.status()).toBe(200);
   const payload = await exported.json();
@@ -194,7 +189,7 @@ test("parent signup, verified profile, learning, saved lab, report and profile s
     "Vou comparar as partes antes de escolher.",
   );
   expect(payload.reports).toHaveLength(1);
-  await page.goto("/familia");
+  await page.goto("/familia/conta");
   await expect(page.getByRole("button", { name: "Escolher mensal" }).first()).toBeDisabled();
   const userId = payload.profiles[0].userId;
   // Fill more than one history page using complete, versioned snapshots. The
@@ -248,7 +243,7 @@ test("parent signup, verified profile, learning, saved lab, report and profile s
         sourceAttempts.map((attempt) => ({ ...attempt, id: randomUUID(), sessionId: copy.id })),
       ),
     );
-  await page.goto("/hoje");
+  await openStudy(page, "Sol");
   await expect(page.getByRole("link", { name: "Retomar missão" })).toHaveAttribute(
     "href",
     `/missao/${oldPause.id}`,
@@ -263,7 +258,6 @@ test("parent signup, verified profile, learning, saved lab, report and profile s
   // Resume check finished; remove only this isolated pause so later profile-
   // switch assertions retain their original next-mission starting state.
   await db.delete(missaoSessions).where(eq(missaoSessions.id, oldPause.id));
-  await page.goto("/familia");
   const [customer] = await db
     .insert(customers)
     .values({
@@ -335,19 +329,23 @@ test("parent signup, verified profile, learning, saved lab, report and profile s
   await expect(orderingSummary).toContainText(
     "Sua resposta: Dividir 20 em 4 partes iguais → Reconhecer que uma parte vale 5",
   );
-  await page.goto("/familia");
+  await parentLogin(page, email);
   await criarPerfil(page, "Lua");
   await expect(page.getByRole("heading", { name: "Olá, Lua." })).toBeVisible();
-  await page.goto("/familia");
+  await parentLogin(page, email);
   await criarPerfil(page, "Nina");
   await expect(page.getByRole("heading", { name: "Olá, Nina." })).toBeVisible();
   await page.getByRole("button", { name: /Trocar de estudante/ }).click();
   await page.getByRole("button", { name: /^Sol/ }).click();
   await expect(page.getByRole("heading", { name: "Olá, Sol." })).toBeVisible();
-  await page.getByRole("button", { name: "Começar descoberta" }).click();
+  await startMission(page).click();
   await expect(page).toHaveURL(/\/missao\//);
 
+  const solMission = page.url();
+  await parentLogin(page, email);
   const familyExport = await (await page.request.get("/api/familia/exportar")).json();
+  await openStudy(page, "Sol", true);
+  await page.goto(solMission);
   const lua = familyExport.profiles.find(
     (profile: { nickname: string; id: string }) => profile.nickname === "Lua",
   );
@@ -368,7 +366,7 @@ test("parent signup, verified profile, learning, saved lab, report and profile s
   const secondDevice = await secondContext.newPage();
   await secondDevice.goto("/hoje");
   await expect(secondDevice.getByRole("heading", { name: "Olá, Lua." })).toBeVisible();
-  await secondDevice.getByRole("button", { name: "Começar descoberta" }).click();
+  await startMission(secondDevice).click();
   await expect(secondDevice).toHaveURL(/\/missao\//);
   expect(new URL(secondDevice.url()).pathname).not.toBe(new URL(page.url()).pathname);
 
@@ -381,29 +379,17 @@ test("parent signup, verified profile, learning, saved lab, report and profile s
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
   ).toBe(true);
   expect(runtimeErrors).toEqual([]);
-  await db
-    .update(sessions)
-    .set({ createdAt: new Date(Date.now() - 11 * 60_000) })
-    .where(eq(sessions.userId, userId));
-  await page.context().clearCookies({ name: /session_data/ });
-  await page.goto("/familia");
-  // Sessão antiga: o relatório continua legível, mas assinatura, dados e novos
-  // perfis pedem confirmação de acesso, e a exportação recusa no servidor.
-  await expect(page.getByRole("heading", { name: "O aprendizado, mais de perto." })).toBeVisible();
-  await expect(page.getByText("Um cuidado com o espaço da família.").first()).toBeVisible();
-  await expect(page.getByRole("link", { name: "Exportar dados em JSON" })).toHaveCount(0);
-  expect((await page.request.get("/api/familia/exportar")).status()).toBe(403);
   await page.getByRole("button", { name: "Sair da conta", exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
   await page.goto("/hoje");
-  await expect(page).toHaveURL(/\/entrar/);
+  await expect(page).toHaveURL(/\/estudar/);
 });
 test("changing the track on the journey updates the card and the path without a reload", async ({
   page,
 }) => {
-  await criarContaComPerfil(page, "Sol");
+  const email = await criarContaComPerfil(page, "Sol");
   // Navegação de cliente, como no uso real: a jornada abre a partir de "Hoje".
-  await page.getByRole("link", { name: /Ver minha jornada/ }).click();
+  await page.getByRole("link", { name: /Ver minha trilha/ }).click();
   await expect(page).toHaveURL(/\/jornada$/);
   const cartao = page.locator("main section").first();
   await expect(cartao.getByRole("heading", { level: 2 })).toHaveText("Dinheiro com propósito");
@@ -424,13 +410,13 @@ test("changing the track on the journey updates the card and the path without a 
 
   // "Hoje" recomenda a partir da trilha nova, e a jornada mantém a escolha ao voltar.
   await page.goto("/hoje");
-  await page.getByRole("link", { name: /Ver minha jornada/ }).click();
+  await page.getByRole("link", { name: /Ver minha trilha/ }).click();
   await expect(page.getByLabel("Sua trilha")).toHaveValue("canguru-e");
   await expect(cartao.getByRole("heading", { level: 2 })).toHaveText("Olhar de explorador");
 
   // Na família, o mês de nascimento sugere o ano pela regra de corte e a
   // responsável pode confirmar ou corrigir; a trilha acompanha o ano.
-  await page.goto("/familia");
+  await parentLogin(page, email, undefined, "/familia/estudantes");
   const edicao = page.locator("details", { hasText: "Editar perfil" }).first();
   await edicao.locator("summary").click();
   // Doze anos completos até 31 de março: 7º ano pela regra de corte.
@@ -445,14 +431,15 @@ test("changing the track on the journey updates the card and the path without a 
   await edicao.getByLabel(/Autorizo guardar o mês e ano de nascimento/).check();
   await edicao.getByRole("button", { name: "Salvar perfil" }).click();
   await expect(edicao.getByText("Perfil atualizado.")).toBeVisible();
-  await expect(page.getByText("Sol · 7º ano")).toBeVisible();
+  await expect(page.getByText(/7º ano · Canguru/)).toBeVisible();
+  await openStudy(page, "Sol");
   await page.goto("/jornada");
   await expect(page.getByLabel("Sua trilha")).toHaveValue("canguru-b");
   await expect(page.getByText("Canguru · B · 7º ano")).toBeVisible();
 });
 test("unauthenticated access and operational endpoints fail closed", async ({ page }) => {
   await page.goto("/hoje");
-  await expect(page).toHaveURL(/\/entrar/);
+  await expect(page).toHaveURL(/\/estudar/);
   expect((await page.request.post("/api/jobs/billing")).status()).toBe(401);
   expect((await page.request.post("/api/webhooks/stripe", { data: "{}" })).status()).toBe(400);
 });

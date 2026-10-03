@@ -745,7 +745,7 @@ export function BillingButton({
       >
         {pending ? "Abrindo…" : children}
       </BotaoChapa>
-      <p role="status" className="mt-1.5 text-sm font-medium wrap-anywhere text-coral-fundo">
+      <p role="status" className="mt-1.5 text-sm font-medium wrap-anywhere text-coral-solido">
         {message}
       </p>
     </div>

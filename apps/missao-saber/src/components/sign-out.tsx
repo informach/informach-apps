@@ -96,14 +96,14 @@ export function SignOut() {
         <button
           type="button"
           disabled={pending}
-          className="rounded-md font-semibold text-coral-fundo underline"
+          className="rounded-md font-semibold text-coral-solido underline"
           onClick={() => start(() => leave(true))}
         >
           Sair e apagar rascunhos deste aparelho
         </button>
       )}
       {error && (
-        <span role="alert" className="font-semibold text-coral-fundo">
+        <span role="alert" className="font-semibold text-coral-solido">
           {error}
         </span>
       )}

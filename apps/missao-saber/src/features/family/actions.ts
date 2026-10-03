@@ -42,7 +42,7 @@ export async function familyChallengeAction(goal: number) {
 export async function weeklyReportEmailAction(enabled: boolean) {
   return runAction(async () => {
     await setWeeklyReportEmail((await verifiedUser()).id, z.boolean().parse(enabled));
-    revalidatePath("/familia");
+    revalidatePath("/familia/conta");
   });
 }
 export async function checkoutAction(productId: string) {
@@ -60,14 +60,14 @@ export async function changePlanAction(productId: string, retainedProfileId?: st
     z.string().max(80).parse(productId);
     const retained = z.string().uuid().optional().parse(retainedProfileId);
     const result = await changePlan((await recentParent()).id, productId, retained);
-    revalidatePath("/familia");
+    revalidatePath("/familia/conta");
     return result;
   });
 }
 export async function reactivateAction() {
   return runAction(async () => {
     await reactivate((await recentParent()).id);
-    revalidatePath("/familia");
+    revalidatePath("/familia/conta");
   });
 }
 export async function clearAction(confirmation: string) {

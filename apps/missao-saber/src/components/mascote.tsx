@@ -115,6 +115,7 @@ export function Mascote({
   const inclina = humor === "comemorando" ? "-6deg" : humor === "pensando" ? "4deg" : "0deg";
   return (
     <svg
+      data-study-decoration="mascot"
       viewBox="0 0 120 120"
       width={px}
       height={px}

@@ -27,6 +27,7 @@ const PECAS = Array.from({ length: 14 }, (_, i) => ({
 export function Confete() {
   return (
     <div
+      data-study-decoration="celebration"
       aria-hidden="true"
       className="pointer-events-none absolute inset-x-0 top-0 h-64 overflow-hidden motion-reduce:hidden"
     >

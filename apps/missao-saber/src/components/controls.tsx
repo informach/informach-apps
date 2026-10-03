@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import type { SessionMode } from "@/features/content/types";
 import { courseAction, startAction } from "@/features/learning/actions";
+import { useHydrated } from "@/lib/use-hydrated";
 import { BotaoChapa } from "./ui/botao-chapa";
 import type { Tom } from "./ui/chapa";
 
@@ -30,6 +31,8 @@ export function StartButton({
   const [pending, start] = useTransition();
   const [error, setError] = useState("");
   const [key] = useState(() => crypto.randomUUID());
+  // Botão sem formulário: antes da hidratação o clique não faz nada.
+  const hydrated = useHydrated();
   return (
     <div className={largo ? "w-full" : undefined}>
       <BotaoChapa
@@ -37,7 +40,7 @@ export function StartButton({
         tom={tom}
         medida={medida}
         className={largo ? "w-full" : undefined}
-        disabled={pending || disabled}
+        disabled={!hydrated || pending || disabled}
         onClick={() =>
           start(async () => {
             setError("");
@@ -54,7 +57,7 @@ export function StartButton({
         {pending ? "Abrindo…" : children}
       </BotaoChapa>
       {error && (
-        <p role="alert" className="mt-2 text-sm font-semibold text-coral-fundo">
+        <p role="alert" className="mt-2 text-sm font-semibold text-coral-solido">
           {error}
         </p>
       )}
@@ -135,7 +138,7 @@ export function CoursePicker({
         ))}
       </select>
       {error && (
-        <p role="alert" className="mt-2 text-sm font-semibold text-coral-fundo">
+        <p role="alert" className="mt-2 text-sm font-semibold text-coral-solido">
           {error}
         </p>
       )}

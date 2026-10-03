@@ -10,6 +10,7 @@ import {
   users,
 } from "@informach/db/schema";
 import { expect, type Page, test } from "@playwright/test";
+import { enterStudy, parentLogin, prepareProfile, startMission } from "./family-helpers";
 
 async function setup(page: Page, baseURL?: string) {
   if (!baseURL) throw new Error("Missing isolated origin");
@@ -17,6 +18,7 @@ async function setup(page: Page, baseURL?: string) {
   const password = "Laboratorio-Local-2026!";
   const client = createHash("sha256").update(test.info().testId).digest();
   const headers = { origin: baseURL, "x-forwarded-for": `198.19.${client[0]}.${client[1]}` };
+  await page.setExtraHTTPHeaders({ "x-forwarded-for": headers["x-forwarded-for"] });
   const signup = await page.request.post("/api/auth/sign-up/email", {
     headers,
     data: { email, password, name: "Laboratório local" },
@@ -28,14 +30,8 @@ async function setup(page: Page, baseURL?: string) {
     data: { email, password },
   });
   expect(login.ok(), await login.text()).toBe(true);
-  await page.goto("/familia");
-  const form = page.locator("form", { hasText: "Uma nova jornada" });
-  await form.getByLabel("Apelido do estudante").fill("Lua");
-  await form.getByLabel("Ano escolar", { exact: true }).selectOption("6");
-  await form.getByLabel("Primeira trilha").selectOption("canguru-e");
-  await form.getByRole("checkbox").check();
-  await form.getByRole("button", { name: "Criar perfil e explorar" }).click();
-  await expect(page.getByRole("heading", { name: "Olá, Lua." })).toBeVisible();
+  await prepareProfile(page, "Lua", "6", "canguru-e");
+  await enterStudy(page, "Lua");
   return { email };
 }
 const lab = (page: Page) => page.getByRole("region", { name: "Experiência do laboratório" });
@@ -155,7 +151,7 @@ test("mission answer survives exploration and repeated opening uses the latest s
   baseURL,
 }) => {
   await setup(page, baseURL);
-  await page.getByRole("button", { name: "Começar descoberta", exact: true }).click();
+  await startMission(page).click();
   const choice = page.getByRole("radio").first();
   await choice.check();
   await page
@@ -252,14 +248,9 @@ test("profile changes save pending work and keep each school band isolated", asy
 }) => {
   const { email } = await setup(page, baseURL);
   await paidFamily(email);
-  await page.goto("/familia");
-  const form = page.locator("form", { hasText: "Uma nova jornada" });
-  await form.getByLabel("Apelido do estudante").fill("Sol");
-  await form.getByLabel("Ano escolar", { exact: true }).selectOption("3");
-  await form.getByLabel("Primeira trilha").selectOption("canguru-p");
-  await form.getByRole("checkbox").check();
-  await form.getByRole("button", { name: "Criar perfil e explorar" }).click();
-  await expect(page.getByRole("heading", { name: "Olá, Sol." })).toBeVisible();
+  await parentLogin(page, email, "Laboratorio-Local-2026!");
+  await prepareProfile(page, "Sol", "3", "canguru-p");
+  await enterStudy(page, "Sol", true);
   await page.goto("/laboratorio");
   await page.getByRole("button", { name: "Começar investigação", exact: true }).click();
   await expect(lab(page)).toBeVisible();

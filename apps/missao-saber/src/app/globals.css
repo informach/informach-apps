@@ -535,3 +535,19 @@ button:disabled {
     transition: none !important;
   }
 }
+
+/* Shared structure, age-appropriate emphasis; reading and hints remain available. */
+[data-audience="parent"],
+[data-school-band="secondary"] {
+  --font-display: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+}
+[data-school-band="middle"] [data-study-decoration="mascot"],
+[data-school-band="secondary"] [data-study-decoration] {
+  display: none;
+}
+[data-school-band="secondary"] {
+  --radius-heroi: 1rem;
+  --radius-card: 0.75rem;
+  --shadow-chapa: 0 1px 2px var(--ms-sombra);
+  --shadow-chapa-lg: 0 1px 2px var(--ms-sombra);
+}

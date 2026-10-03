@@ -2,13 +2,15 @@
 import { Label } from "@informach/ui/components/label";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { BotaoChapa } from "@/components/ui/botao-chapa";
 import { Chapa } from "@/components/ui/chapa";
 import type { LabAttachment } from "@/features/labs/runtime/schemas";
+import { useHydrated } from "@/lib/use-hydrated";
 import { useServerAction } from "@/lib/use-server-action";
 import { archiveNoteAction, editNoteAction, noteAction, removeNoteAction } from "../actions";
 import type { NoteContext } from "../repository";
+import { useNoteDraft } from "./use-note-draft";
 
 type Entry = {
   id: string;
@@ -19,13 +21,10 @@ type Entry = {
   labAttachment?: LabAttachment | null;
 };
 
-const subscribeReady = () => () => {};
-const clientReady = () => true;
-const serverReady = () => false;
-
 function NoteEntry({ note, profileId, ready }: { note: Entry; profileId: string; ready: boolean }) {
   const [editing, setEditing] = useState(false);
-  const [text, setText] = useState(note.text);
+  const draft = useNoteDraft(`${profileId}:edit:${note.id}`, note.text);
+  const { text, change: setText } = draft;
   const [message, setMessage] = useState("");
   const [pending, start] = useServerAction();
   const router = useRouter();
@@ -109,6 +108,7 @@ function NoteEntry({ note, profileId, ready }: { note: Entry; profileId: string;
                 const sent = text;
                 const result = await editNoteAction({ profileId, id: note.id, text: sent });
                 if (result.ok) {
+                  draft.confirm(sent, false);
                   setEditing(false);
                   setMessage("Alteração guardada.");
                   router.refresh();
@@ -140,11 +140,20 @@ function NoteEntry({ note, profileId, ready }: { note: Entry; profileId: string;
               tom="contorno"
               medida="p"
               disabled={!ready || pending}
-              onClick={() => setEditing(false)}
+              onClick={() => {
+                draft.discard();
+                setEditing(false);
+              }}
             >
               Cancelar edição
             </BotaoChapa>
           </div>
+          {draft.storageError && (
+            <p role="status" className="mt-2 text-sm text-tinta-suave">
+              Este navegador não permitiu guardar o rascunho. Copie seu texto antes de sair desta
+              tela.
+            </p>
+          )}
         </form>
       ) : (
         <p className="mt-2 mb-4 text-[1.05rem] leading-relaxed whitespace-pre-wrap wrap-anywhere text-tinta italic">
@@ -157,7 +166,6 @@ function NoteEntry({ note, profileId, ready }: { note: Entry; profileId: string;
             type="button"
             disabled={!ready || pending}
             onClick={() => {
-              setText(note.text);
               setEditing(true);
               setMessage("");
             }}
@@ -216,13 +224,16 @@ export function Notebook({
   archived: boolean;
   search: string;
 }) {
-  const [text, setText] = useState("");
+  const draft = useNoteDraft(
+    `${profileId}:new:${context?.sessionId ?? "general"}:${context?.itemId ?? ""}`,
+  );
+  const { text, change: setText } = draft;
   const [message, setMessage] = useState("");
   const [includeContext, setIncludeContext] = useState(true);
   const [pending, start] = useServerAction();
   // O filtro GET e o acesso direto entregam HTML antes dos listeners. Só
   // habilite controles React quando puderem realmente receber a interação.
-  const ready = useSyncExternalStore(subscribeReady, clientReady, serverReady);
+  const ready = useHydrated();
   const router = useRouter();
   return (
     <>
@@ -241,7 +252,7 @@ export function Notebook({
                     : undefined,
               });
               if (result.ok) {
-                setText((current) => (current === text ? "" : current));
+                draft.confirm(text, true);
                 setMessage("Descoberta guardada.");
                 router.refresh();
               } else setMessage(result.error);
@@ -284,6 +295,11 @@ export function Notebook({
         )}
         <p className="mt-1.5 text-xs text-tinta-suave">
           Até 1.000 caracteres. Use apenas ideias e raciocínios; não inclua dados pessoais.
+        </p>
+        <p className="mt-2 text-xs text-tinta-suave">
+          {draft.storageError
+            ? "Este navegador não permitiu guardar o rascunho. Copie seu texto antes de sair desta tela."
+            : "O rascunho fica nesta aba para este estudante. Para salvar na conta, use Guardar descoberta."}
         </p>
         <p className="mt-2 text-sm text-tinta-suave">
           {activeCount} de 100 anotações ativas. Arquivar preserva suas ideias e libera espaço.

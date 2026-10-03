@@ -35,7 +35,7 @@ export async function maintainBilling(
             appName: "Missão Saber",
             attempt,
             maxAttempts: 3,
-            updatePaymentUrl: `${env.NEXT_PUBLIC_APP_URL}/familia`,
+            updatePaymentUrl: `${env.NEXT_PUBLIC_APP_URL}/familia/conta`,
             unsubscribeUrl,
           });
           const result = await emails.sendEmail({

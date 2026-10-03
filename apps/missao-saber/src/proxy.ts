@@ -22,6 +22,8 @@ export function proxy(request: NextRequest) {
   const headers = new Headers(request.headers);
   headers.set("Content-Security-Policy", csp);
   headers.set("x-nonce", nonce);
+  // Overwrite caller-supplied values; layouts use this only for safe return paths.
+  headers.set("x-missao-path", `${request.nextUrl.pathname}${request.nextUrl.search}`);
   const response = NextResponse.next({ request: { headers } });
   response.headers.set("Content-Security-Policy", csp);
   return response;

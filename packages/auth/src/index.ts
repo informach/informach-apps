@@ -70,6 +70,8 @@ function transientMessageKey(prefix: string): string {
 
 export type CreateAuthSessionConfig = {
   cookieCache?: {
+    /** Apps with immediate role handoff can opt out without changing other apps. */
+    enabled?: boolean;
     maxAge?: number;
   };
 };
@@ -529,7 +531,7 @@ function createAuthInstance(config: CreateAuthConfig) {
     trustedOrigins: config.trustedOrigins,
     session: {
       cookieCache: {
-        enabled: true,
+        enabled: config.session?.cookieCache?.enabled ?? true,
         maxAge: cookieCacheMaxAge,
       },
       ...(cacheRoleOnSession

@@ -91,6 +91,71 @@ export const missaoProfiles = missaoSaber.table(
   ],
 );
 
+/** Study credentials are independent from the adult's Informach session. */
+export const missaoStudyDevices = missaoSaber.table(
+  "study_devices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => missaoFamilies.userId, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    label: text("label").notNull(),
+    remember: boolean("remember").notNull().default(false),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    connectedAt: timestamp("connected_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: time("created_at"),
+  },
+  (t) => [
+    uniqueIndex("missao_study_token_hash").on(t.tokenHash),
+    index("missao_study_device_owner").on(t.userId),
+    index("missao_study_device_expiry").on(t.expiresAt),
+    check("missao_study_label_length", sql`length(${t.label}) between 2 and 60`),
+  ],
+);
+
+export const missaoStudyDeviceProfiles = missaoSaber.table(
+  "study_device_profiles",
+  {
+    deviceId: uuid("device_id")
+      .notNull()
+      .references(() => missaoStudyDevices.id, { onDelete: "cascade" }),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => missaoProfiles.id, { onDelete: "cascade" }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.deviceId, t.profileId] }),
+    index("missao_study_profile_device").on(t.profileId),
+  ],
+);
+
+export const missaoStudyCodes = missaoSaber.table(
+  "study_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    deviceId: uuid("device_id")
+      .notNull()
+      .references(() => missaoStudyDevices.id, { onDelete: "cascade" }),
+    codeHash: text("code_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: time("created_at"),
+  },
+  (t) => [
+    uniqueIndex("missao_study_code_hash").on(t.codeHash),
+    index("missao_study_code_expiry").on(t.expiresAt),
+  ],
+);
+
+/** HMAC keys, never raw addresses; old windows are deleted by maintenance. */
+export const missaoStudyAccessLimits = missaoSaber.table("study_access_limits", {
+  key: text("key").primaryKey(),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+  attempts: integer("attempts").notNull(),
+});
+
 export const missaoSessions = missaoSaber.table(
   "sessions",
   {

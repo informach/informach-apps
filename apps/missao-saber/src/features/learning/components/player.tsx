@@ -284,7 +284,7 @@ export function Player({
           </LinkChapa>
         </div>
         {error && (
-          <p role="alert" className="mt-3 text-sm font-semibold text-coral-fundo">
+          <p role="alert" className="mt-3 text-sm font-semibold text-coral-solido">
             {error}
           </p>
         )}
@@ -307,6 +307,9 @@ export function Player({
             Uma ideia para levar com você.
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-tinta-suave">
+            Suas respostas desta missão estão guardadas. Você trabalhou: {view.lesson.objective}
+          </p>
+          <p className="mx-auto mt-3 max-w-xl text-sm text-tinta-suave">
             Você acertou {correct} de {objective.length} questões.{" "}
             {view.saved.filter((s) => s.helpCount > 0).length} tiveram pistas. Esse registro ajuda a
             escolher o próximo passo.
@@ -326,13 +329,16 @@ export function Player({
             </p>
           )}
           <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <LinkChapa href="/hoje" medida="g">
-              Voltar ao meu dia
+            <LinkChapa href="/hoje?encerrado=1" medida="g">
+              Encerrar por hoje
             </LinkChapa>
             <LinkChapa href="/caderno" tom="contorno" medida="g">
               Registrar uma descoberta
             </LinkChapa>
           </div>
+          <p className="mt-3 text-sm text-tinta-suave">
+            Registrar uma descoberta é opcional. Você pode fazer isso depois.
+          </p>
         </div>
 
         {view.nextStep && (

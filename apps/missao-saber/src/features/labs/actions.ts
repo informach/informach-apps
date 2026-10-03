@@ -1,6 +1,7 @@
 "use server";
 import { z } from "zod";
-import { runAction, verifiedUser } from "@/lib/action";
+import { requireStudyProfile } from "@/features/study-access/server";
+import { runAction } from "@/lib/action";
 import { saveExperiment } from "./repository";
 import { experimentSchema } from "./schemas";
 
@@ -13,6 +14,11 @@ export async function experimentAction(input: unknown) {
         state: experimentSchema,
       })
       .parse(input);
-    return saveExperiment((await verifiedUser()).id, data.profileId, data.state, data.revision);
+    return saveExperiment(
+      (await requireStudyProfile(data.profileId)).userId,
+      data.profileId,
+      data.state,
+      data.revision,
+    );
   });
 }

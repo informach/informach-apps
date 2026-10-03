@@ -1,13 +1,14 @@
 import "server-only";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import { cache } from "react";
 import { dashboard } from "@/features/learning/service";
-import { getCurrentUser } from "./auth";
+import { requireStudyPage } from "@/features/study-access/server";
 
 export const currentDashboard = cache(async () => {
-  const user = await getCurrentUser();
-  if (!user) redirect("/entrar");
-  const selected = (await cookies()).get("ms-profile")?.value;
-  return dashboard(user.id, selected, { fallbackToFirst: true });
+  const identity = await requireStudyPage();
+  const data = await dashboard(identity.userId, identity.profileId);
+  return {
+    ...data,
+    userId: identity.userId,
+    profiles: data.profiles.filter((profile) => identity.profileIds.includes(profile.id)),
+  };
 });

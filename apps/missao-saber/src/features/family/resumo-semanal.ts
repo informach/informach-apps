@@ -89,7 +89,7 @@ export async function buildWeeklySummary(
       ...(bloco.apoio.length ? ["Para conversar em casa, sem tela:", ...bloco.apoio] : []),
       "",
     ]),
-    `Ver o relatório completo: ${appUrl}/familia`,
+    `Ver o relatório completo: ${appUrl}/familia/acompanhamento`,
     rodape,
     ...(unsubscribeUrl ? [`Para não receber mais este resumo: ${unsubscribeUrl}`] : []),
   ].join("\n");

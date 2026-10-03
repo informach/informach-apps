@@ -51,6 +51,8 @@ Eventos `missao.*` registram o que o responsável fez com os perfis das criança
 - `missao.profile_updated`: `{ profileId, fields }`, onde `fields` lista só os nomes dos campos alterados (`nickname`, `avatar`, `grade`, `birthMonth`, `courseId`).
 - `missao.consent_recorded`: `{ profileId, scope, version }`, com `scope` igual a `profile` (criação do perfil) ou `birth_month` (mês de nascimento informado pela primeira vez na edição) e `version` igual à versão da política aceita. É append-only: a linha `families.consent_version` guarda só o estado atual, e o histórico fica aqui.
 
+Eventos de acesso restrito: `missao.study_code_issued` e `missao.study_revoked` usam somente `{ deviceId }`; `missao.study_connected` usa `{ deviceId, profileIds }`. O ator é o titular técnico da conexão, inclusive no resgate de código: o evento não comprova presença do adulto. Nunca incluir código, token, hash de credencial, nome do aparelho, IP, apelido ou texto do estudante. Finalidade: investigar emissão e encerramento de acesso. Acesso restrito à operação autorizada, com a retenção padrão de segurança acima. Esses eventos não são métricas de aprendizagem.
+
 ## Eventos da Agenda da Turma
 
 Eventos `agenda.*` registram mutações de domínio do app `agenda-da-turma` com payload mínimo de IDs e flags operacionais. Não gravar nomes de estudantes, nomes de matérias, títulos, descrições ou conteúdo livre de atividades.

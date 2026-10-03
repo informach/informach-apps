@@ -550,6 +550,10 @@ describe("createAuth — email plugin selection (config.email)", () => {
 });
 
 describe("createAuth — session cookie cache", () => {
+  it("allows an app to require immediate server validation", () => {
+    createAuth({ ...makeConfig(), session: { cookieCache: { enabled: false } } });
+    expect(captureConfig().session?.cookieCache?.enabled).toBe(false);
+  });
   beforeEach(() => vi.clearAllMocks());
 
   it("enables cookie cache with a 300s default", () => {

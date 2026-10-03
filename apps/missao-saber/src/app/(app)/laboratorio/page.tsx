@@ -12,7 +12,6 @@ import {
   readLab,
   readLabNote,
 } from "@/features/labs/runtime/repository";
-import { requirePageUser } from "@/lib/auth";
 import { AppError } from "@/lib/errors";
 import { currentDashboard } from "@/lib/view";
 
@@ -24,9 +23,12 @@ export default async function Laboratory({
 }) {
   const data = await currentDashboard();
   if (!data.profile || !data.course) return <EmptyProfile />;
-  const user = await requirePageUser();
   const query = z
-    .object({ exec: z.string().uuid().optional(), note: z.string().uuid().optional() })
+    .object({
+      exec: z.string().uuid().optional(),
+      note: z.string().uuid().optional(),
+      ideia: z.string().max(160).optional(),
+    })
     .safeParse(await searchParams);
   const experiences = eligibleExperiences({
     grade: data.profile.grade,
@@ -35,14 +37,14 @@ export default async function Laboratory({
     profileAllowed: data.profileAllowed,
     contentStates: data.contentStates,
   });
-  const saved = await listLabs(user.id, data.profile.id);
-  const legacy = await legacyLabChoices(user.id, data.profile.id, experiences);
+  const saved = await listLabs(data.userId, data.profile.id);
+  const legacy = await legacyLabChoices(data.userId, data.profile.id, experiences);
   let initial = null;
   let snapshot: Awaited<ReturnType<typeof readLabNote>> | undefined;
   let error = query.success ? "" : "O endereço desta experiência é inválido.";
   if (query.success && query.data.exec) {
     try {
-      initial = await readLab(user.id, { profileId: data.profile.id, id: query.data.exec });
+      initial = await readLab(data.userId, { profileId: data.profile.id, id: query.data.exec });
     } catch (cause) {
       if (cause instanceof AppError) error = cause.message;
       else throw cause;
@@ -50,7 +52,7 @@ export default async function Laboratory({
   }
   if (query.success && query.data.note) {
     try {
-      snapshot = await readLabNote(user.id, data.profile.id, query.data.note);
+      snapshot = await readLabNote(data.userId, data.profile.id, query.data.note);
     } catch (cause) {
       if (cause instanceof AppError) error = cause.message;
       else throw cause;
@@ -62,6 +64,9 @@ export default async function Laboratory({
     attemptedItemIds: data.attemptedItemIds,
     pausedLessonId: data.paused?.lessonId,
   });
+  const contextual = query.success
+    ? experiences.find((experience) => experience.id === query.data.ideia)
+    : undefined;
   return (
     <>
       <CabecalhoPagina
@@ -82,7 +87,9 @@ export default async function Laboratory({
         profileId={data.profile.id}
         experiences={experiences}
         saved={saved}
-        recommendation={recommendation}
+        recommendation={
+          contextual ? { ...recommendation, primaryId: contextual.id } : recommendation
+        }
         initial={initial}
         snapshot={snapshot}
         legacy={legacy}
