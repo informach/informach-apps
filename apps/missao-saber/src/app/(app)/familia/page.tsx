@@ -37,6 +37,7 @@ import {
 } from "@/features/family/components/family-controls";
 import { suggestedGoal } from "@/features/family/desafio";
 import { birthMonthValue, gradeLabel, gradeOptions } from "@/features/family/school-year";
+import { laboratoryReport } from "@/features/labs/runtime/family-report";
 import { EvidenceProgress } from "@/features/learning/components/evidence-progress";
 import {
   repeatedDifficulties,
@@ -126,6 +127,7 @@ export default async function Family({
       const repeatedDifficulty = repeatedDifficulties(evidence, now);
       return {
         profile,
+        laboratory: await laboratoryReport(user.id, profile.id),
         evidence,
         reflections,
         weekly,
@@ -279,6 +281,7 @@ export default async function Family({
               repeatedDifficulty,
               nextSkill,
               narrative,
+              laboratory,
               support,
             }) => (
               <Card key={profile.id} className="min-w-0">
@@ -293,6 +296,27 @@ export default async function Family({
                   </p>
                 </CardHeader>
                 <CardContent>
+                  {laboratory.length > 0 && (
+                    <details className="mb-4 rounded-lg border border-border p-4">
+                      <summary className="cursor-pointer font-semibold">
+                        Investigações no laboratório
+                      </summary>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Exploração e autoavaliação são registradas separadamente da autonomia nas
+                        missões.
+                      </p>
+                      <ul className="mt-3 grid gap-3">
+                        {laboratory.map((entry) => (
+                          <li key={entry.id} className="text-sm">
+                            <strong>{entry.title}</strong>
+                            <p>{entry.status}.</p>
+                            <p>{entry.summary}</p>
+                            <p className="mt-1">Próximo passo: {entry.next}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
                   {/* A leitura da semana em frases, antes dos números. Composta
                       por regras a partir da mesma evidência que a tabela abaixo
                       exibe — nenhum adjetivo de capacidade, nenhuma alegação de

@@ -1,0 +1,305 @@
+{
+  "generatedAt": "2026-10-03T12:21:40.578Z",
+  "families": 19,
+  "modes": 379,
+  "experiences": 1522,
+  "lessons": 407,
+  "skills": 58,
+  "items": 2972,
+  "teachingFamilies": 888,
+  "tools": [
+    {
+      "family": "L01",
+      "name": "Contar, agrupar e desenhar",
+      "modes": 13
+    },
+    {
+      "family": "L02",
+      "name": "Frações e inteiro de referência",
+      "modes": 12
+    },
+    {
+      "family": "L03",
+      "name": "Razões e porcentagens",
+      "modes": 19
+    },
+    {
+      "family": "L04",
+      "name": "Medidas e tempo",
+      "modes": 10
+    },
+    {
+      "family": "L05",
+      "name": "Construção de figuras e áreas",
+      "modes": 15
+    },
+    {
+      "family": "L06",
+      "name": "Transformações e semelhança",
+      "modes": 18
+    },
+    {
+      "family": "L07",
+      "name": "Caminhos e coordenadas",
+      "modes": 16
+    },
+    {
+      "family": "L19",
+      "name": "Sólidos, vistas e planificações",
+      "modes": 10
+    },
+    {
+      "family": "L08",
+      "name": "Balanças e álgebra",
+      "modes": 29
+    },
+    {
+      "family": "L09",
+      "name": "Padrões e sequências",
+      "modes": 30
+    },
+    {
+      "family": "L10",
+      "name": "Números, divisores e restos",
+      "modes": 18
+    },
+    {
+      "family": "L11",
+      "name": "Funções e gráficos",
+      "modes": 14
+    },
+    {
+      "family": "L18",
+      "name": "Geometria plana e trigonometria",
+      "modes": 17
+    },
+    {
+      "family": "L12",
+      "name": "Casos, combinações e gavetas",
+      "modes": 32
+    },
+    {
+      "family": "L13",
+      "name": "Probabilidade e simulação",
+      "modes": 16
+    },
+    {
+      "family": "L14",
+      "name": "Tabelas e dados",
+      "modes": 7
+    },
+    {
+      "family": "L15",
+      "name": "Lógica, argumentos e provas",
+      "modes": 42
+    },
+    {
+      "family": "L16",
+      "name": "Compras e orçamento",
+      "modes": 21
+    },
+    {
+      "family": "L17",
+      "name": "Dinheiro no tempo e cenários",
+      "modes": 40
+    }
+  ],
+  "courses": [
+    {
+      "id": "olitef-n1",
+      "grades": [6, 7],
+      "eligible": [
+        {
+          "grade": 6,
+          "experiences": 221
+        },
+        {
+          "grade": 7,
+          "experiences": 221
+        }
+      ]
+    },
+    {
+      "id": "canguru-e",
+      "grades": [5, 6],
+      "eligible": [
+        {
+          "grade": 5,
+          "experiences": 220
+        },
+        {
+          "grade": 6,
+          "experiences": 220
+        }
+      ]
+    },
+    {
+      "id": "canguru-b",
+      "grades": [7, 8],
+      "eligible": [
+        {
+          "grade": 7,
+          "experiences": 330
+        },
+        {
+          "grade": 8,
+          "experiences": 330
+        }
+      ]
+    },
+    {
+      "id": "obmep-n1",
+      "grades": [6, 7],
+      "eligible": [
+        {
+          "grade": 6,
+          "experiences": 335
+        },
+        {
+          "grade": 7,
+          "experiences": 335
+        }
+      ]
+    },
+    {
+      "id": "obmep-n2",
+      "grades": [8, 9],
+      "eligible": [
+        {
+          "grade": 8,
+          "experiences": 193
+        },
+        {
+          "grade": 9,
+          "experiences": 193
+        }
+      ]
+    },
+    {
+      "id": "canguru-c",
+      "grades": [9],
+      "eligible": [
+        {
+          "grade": 9,
+          "experiences": 164
+        }
+      ]
+    },
+    {
+      "id": "olitef-n2",
+      "grades": [8, 9],
+      "eligible": [
+        {
+          "grade": 8,
+          "experiences": 133
+        },
+        {
+          "grade": 9,
+          "experiences": 133
+        }
+      ]
+    },
+    {
+      "id": "canguru-p",
+      "grades": [3, 4],
+      "eligible": [
+        {
+          "grade": 3,
+          "experiences": 122
+        },
+        {
+          "grade": 4,
+          "experiences": 122
+        }
+      ]
+    },
+    {
+      "id": "mirim-2",
+      "grades": [4, 5],
+      "eligible": [
+        {
+          "grade": 4,
+          "experiences": 105
+        },
+        {
+          "grade": 5,
+          "experiences": 105
+        }
+      ]
+    },
+    {
+      "id": "obmep-n3",
+      "grades": [10, 11, 12],
+      "eligible": [
+        {
+          "grade": 10,
+          "experiences": 149
+        },
+        {
+          "grade": 11,
+          "experiences": 149
+        },
+        {
+          "grade": 12,
+          "experiences": 149
+        }
+      ]
+    },
+    {
+      "id": "canguru-j",
+      "grades": [10, 11],
+      "eligible": [
+        {
+          "grade": 10,
+          "experiences": 181
+        },
+        {
+          "grade": 11,
+          "experiences": 181
+        }
+      ]
+    },
+    {
+      "id": "canguru-s",
+      "grades": [12],
+      "eligible": [
+        {
+          "grade": 12,
+          "experiences": 116
+        }
+      ]
+    },
+    {
+      "id": "olitef-n3",
+      "grades": [10, 11, 12],
+      "eligible": [
+        {
+          "grade": 10,
+          "experiences": 84
+        },
+        {
+          "grade": 11,
+          "experiences": 84
+        },
+        {
+          "grade": 12,
+          "experiences": 84
+        }
+      ]
+    },
+    {
+      "id": "mirim-1",
+      "grades": [2, 3],
+      "eligible": [
+        {
+          "grade": 2,
+          "experiences": 86
+        },
+        {
+          "grade": 3,
+          "experiences": 86
+        }
+      ]
+    }
+  ]
+}

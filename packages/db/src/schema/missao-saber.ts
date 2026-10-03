@@ -172,6 +172,7 @@ export const missaoNotes = missaoSaber.table(
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     sessionId: uuid("session_id").references(() => missaoSessions.id, { onDelete: "set null" }),
     itemId: text("item_id"),
+    labAttachment: jsonb("lab_attachment").$type<Record<string, unknown>>(),
     createdAt: time("created_at"),
   },
   (t) => [
@@ -268,4 +269,43 @@ export const missaoExperiments = missaoSaber.table(
     updatedAt: time("updated_at"),
   },
   (t) => [uniqueIndex("missao_experiment_profile_kind").on(t.profileId, t.kind)],
+);
+
+/** Versioned laboratory runs. Legacy experiments remain intact. */
+export const missaoLabExecutions = missaoSaber.table(
+  "lab_executions",
+  {
+    id: uuid("id").primaryKey(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => missaoProfiles.id, { onDelete: "cascade" }),
+    experienceId: text("experience_id").notNull(),
+    version: integer("version").notNull(),
+    grade: integer("grade").notNull(),
+    courseId: text("course_id").notNull(),
+    document: jsonb("document").$type<Record<string, unknown>>().notNull(),
+    requestSource: text("request_source").notNull().default("new"),
+    assessment: jsonb("assessment").$type<Record<string, unknown>>(),
+    context: jsonb("context").$type<{ sessionId: string; itemId: string }>(),
+    legacy: jsonb("legacy").$type<Record<string, unknown>>(),
+    events: jsonb("events")
+      .$type<
+        {
+          kind: "explored" | "investigation_concluded" | "transfer_solved" | "transfer_reflected";
+          at: string;
+          revision: number;
+          summary: string;
+        }[]
+      >()
+      .notNull()
+      .default([]),
+    revision: integer("revision").notNull().default(1),
+    createdAt: time("created_at"),
+    updatedAt: time("updated_at"),
+  },
+  (t) => [
+    index("missao_lab_profile_updated").on(t.profileId, t.updatedAt),
+    check("missao_lab_revision", sql`${t.revision} > 0 and ${t.version} > 0`),
+    check("missao_lab_grade", sql`${t.grade} between 1 and 12`),
+  ],
 );

@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
-import { existsSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { config as loadEnv } from "dotenv";
@@ -108,8 +108,28 @@ try {
     );
   } else if (mode === "e2e") {
     run(["exec", "next", "build"], app);
-    run(["exec", "playwright", "test"], app);
-  } else run(["exec", "vitest", "run", "--config", "vitest.integration.config.ts"], app);
+    run(["exec", "playwright", "test", ...process.argv.slice(3)], app);
+  } else
+    run(
+      [
+        "exec",
+        "vitest",
+        "run",
+        "--config",
+        "vitest.integration.config.ts",
+        ...process.argv.slice(3),
+      ],
+      app,
+    );
+} catch (error) {
+  const results = generatedPaths[1];
+  if (results && existsSync(results)) {
+    const evidence = resolve(app, "tmp/verification", e2eRunId);
+    mkdirSync(evidence, { recursive: true });
+    cpSync(results, evidence, { recursive: true });
+    console.error(`[missao] Failure traces and screenshots preserved: ${evidence}`);
+  }
+  throw error;
 } finally {
   for (const generatedPath of generatedPaths)
     rmSync(generatedPath, { recursive: true, force: true });

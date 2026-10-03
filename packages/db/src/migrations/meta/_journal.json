@@ -456,6 +456,27 @@
       "when": 1790951251241,
       "tag": "0064_missao_notebook_weekly_batches",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1791018580533,
+      "tag": "0065_unknown_steel_serpent",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1791019743864,
+      "tag": "0066_violet_tomorrow_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1791020498042,
+      "tag": "0067_solid_longshot",
+      "breakpoints": true
     }
   ]
 }

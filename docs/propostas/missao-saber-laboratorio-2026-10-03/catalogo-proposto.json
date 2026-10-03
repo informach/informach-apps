@@ -1,0 +1,1136 @@
+{
+  "date": "2026-10-03",
+  "baseCommit": "718f3e4",
+  "status": "proposta-nao-implementada",
+  "tools": {
+    "L01": "Contar, agrupar e desenhar",
+    "L02": "Frações e inteiro de referência",
+    "L03": "Razões e porcentagens",
+    "L04": "Medidas e tempo",
+    "L05": "Construção de figuras e áreas",
+    "L06": "Transformações e semelhança",
+    "L07": "Caminhos e coordenadas",
+    "L08": "Balanças e álgebra",
+    "L09": "Padrões e sequências",
+    "L10": "Números, divisores e restos",
+    "L11": "Funções e gráficos",
+    "L12": "Casos, combinações e gavetas",
+    "L13": "Probabilidade e simulação",
+    "L14": "Tabelas e dados",
+    "L15": "Lógica, argumentos e provas",
+    "L16": "Compras e orçamento",
+    "L17": "Dinheiro no tempo e cenários",
+    "L18": "Triângulos e trigonometria",
+    "L19": "Sólidos, vistas e planificações"
+  },
+  "skills": [
+    {
+      "id": "fracoes",
+      "name": "Frações e referência",
+      "courses": [
+        {
+          "id": "olitef-n1",
+          "grades": [6, 7]
+        },
+        {
+          "id": "canguru-e",
+          "grades": [5, 6]
+        },
+        {
+          "id": "canguru-b",
+          "grades": [7, 8]
+        },
+        {
+          "id": "obmep-n1",
+          "grades": [6, 7]
+        }
+      ],
+      "modes": [
+        "L02.partes-iguais",
+        "L02.comparar-referencias",
+        "L02.equivalencia-e-razao",
+        "L02.operacoes-e-receitas",
+        "L02.argumentar-referencias"
+      ]
+    },
+    {
+      "id": "porcentagem",
+      "name": "Porcentagem",
+      "courses": [
+        {
+          "id": "olitef-n1",
+          "grades": [6, 7]
+        }
+      ],
+      "modes": [
+        "L03.base-percentual",
+        "L03.mudancas-sucessivas",
+        "L03.razao-sobre-base",
+        "L03.aumento-e-desconto",
+        "L03.base-desconhecida"
+      ]
+    },
+    {
+      "id": "precos",
+      "name": "Comparação de preços",
+      "courses": [
+        {
+          "id": "olitef-n1",
+          "grades": [6, 7]
+        }
+      ],
+      "modes": [
+        "L16.preco-unitario",
+        "L16.pacotes-sobras-e-total",
+        "L16.unidade-comum",
+        "L16.frete-perdas-e-condicoes",
+        "L16.quantidade-util-e-frequencia"
+      ]
+    },
+    {
+      "id": "orcamento",
+      "name": "Planejamento financeiro",
+      "courses": [
+        {
+          "id": "olitef-n1",
+          "grades": [6, 7]
+        }
+      ],
+      "modes": [
+        "L16.entradas-e-saidas",
+        "L16.periodos-e-condicoes",
+        "L16.categorias-sem-duplicar",
+        "L16.meta-prazo-contribuicao",
+        "L16.imprevistos-e-margem"
+      ]
+    },
+    {
+      "id": "medidas",
+      "name": "Área e perímetro",
+      "courses": [
+        {
+          "id": "canguru-e",
+          "grades": [5, 6]
+        },
+        {
+          "id": "canguru-b",
+          "grades": [7, 8]
+        },
+        {
+          "id": "obmep-n1",
+          "grades": [6, 7]
+        }
+      ],
+      "modes": [
+        "L05.area-e-contorno",
+        "L05.retirar-canto-e-borda",
+        "L05.unidades-area-perimetro",
+        "L05.decompor-e-recortar",
+        "L04.conversoes+L06.escalas"
+      ]
+    },
+    {
+      "id": "simetria",
+      "name": "Simetria e transformações",
+      "courses": [
+        {
+          "id": "canguru-e",
+          "grades": [5, 6]
+        },
+        {
+          "id": "canguru-b",
+          "grades": [7, 8]
+        }
+      ],
+      "modes": [
+        "L06.refletir",
+        "L06.mover-e-preservar",
+        "L06.construir-reflexao",
+        "L06.reflexao-rotacao-translacao",
+        "L06.compor-transformacoes"
+      ]
+    },
+    {
+      "id": "contagem",
+      "name": "Contagem organizada",
+      "courses": [
+        {
+          "id": "canguru-e",
+          "grades": [5, 6]
+        },
+        {
+          "id": "canguru-b",
+          "grades": [7, 8]
+        },
+        {
+          "id": "obmep-n1",
+          "grades": [6, 7]
+        }
+      ],
+      "modes": [
+        "L12.arvore-de-escolhas",
+        "L12.casos-e-complementar",
+        "L12.listar-sem-repetir",
+        "L12.soma-ou-produto",
+        "L12.restricoes-e-exaustao"
+      ]
+    },
+    {
+      "id": "gavetas",
+      "name": "Princípio das gavetas",
+      "courses": [
+        {
+          "id": "obmep-n1",
+          "grades": [6, 7]
+        }
+      ],
+      "modes": [
+        "L12.possivel-ou-garantido",
+        "L12.categorias-e-repeticao",
+        "L12.primeira-repeticao",
+        "L12.pior-caso",
+        "L12.teto-media+L10.classes-de-resto"
+      ]
+    },
+    {
+      "id": "probabilidade",
+      "name": "Probabilidade",
+      "courses": [
+        {
+          "id": "olitef-n1",
+          "grades": [6, 7]
+        },
+        {
+          "id": "canguru-b",
+          "grades": [7, 8]
+        }
+      ],
+      "modes": [
+        "L13.favoraveis-e-possiveis",
+        "L13.reposicao-e-ordem",
+        "L13.comparar-chances",
+        "L13.arvore-com-sem-reposicao",
+        "L13.frequencia-e-teoria"
+      ]
+    },
+    {
+      "id": "paridade",
+      "name": "Paridade e restos",
+      "courses": [
+        {
+          "id": "canguru-b",
+          "grades": [7, 8]
+        },
+        {
+          "id": "obmep-n1",
+          "grades": [6, 7]
+        }
+      ],
+      "modes": [
+        "L10.pares-e-restos",
+        "L10.invariante+L15.impossibilidade",
+        "L10.paridade",
+        "L10.classes-e-multiplos",
+        "L10.ciclos-e-algarismos"
+      ]
+    },
+    {
+      "id": "padroes",
+      "name": "Padrões e generalização",
+      "courses": [
+        {
+          "id": "canguru-e",
+          "grades": [5, 6]
+        },
+        {
+          "id": "obmep-n1",
+          "grades": [6, 7]
+        }
+      ],
+      "modes": [
+        "L09.testar-regras",
+        "L09.posicao-e-quantidade",
+        "L09.regra-com-exemplos",
+        "L09.termo-geral",
+        "L09.diferencas-ciclos-recorrencias"
+      ]
+    },
+    {
+      "id": "logica",
+      "name": "Lógica e argumentos",
+      "courses": [
+        {
+          "id": "canguru-e",
+          "grades": [5, 6]
+        },
+        {
+          "id": "canguru-b",
+          "grades": [7, 8]
+        },
+        {
+          "id": "obmep-n1",
+          "grades": [6, 7]
+        }
+      ],
+      "modes": [
+        "L15.necessario-ou-possivel",
+        "L15.contraexemplos",
+        "L15.pistas-e-eliminacao",
+        "L15.implicacoes",
+        "L15.negacao-e-contraexemplo"
+      ]
+    },
+    {
+      "id": "proporcao",
+      "name": "Razão e proporção",
+      "courses": [
+        {
+          "id": "obmep-n2",
+          "grades": [8, 9]
+        },
+        {
+          "id": "canguru-c",
+          "grades": [9]
+        },
+        {
+          "id": "olitef-n2",
+          "grades": [8, 9]
+        }
+      ],
+      "modes": [
+        "L03.parte-parte-e-todo",
+        "L03.taxa-unitaria",
+        "L03.grandezas-e-unidades",
+        "L03.inversa-produto-constante",
+        "L03.partilha-e-grandezas-compostas"
+      ]
+    },
+    {
+      "id": "equacoes",
+      "name": "Equações e incógnitas",
+      "courses": [
+        {
+          "id": "obmep-n2",
+          "grades": [8, 9]
+        },
+        {
+          "id": "canguru-c",
+          "grades": [9]
+        }
+      ],
+      "modes": [
+        "L08.traduzir-e-resolver",
+        "L08.dois-lados-e-parenteses",
+        "L08.modelar-e-interpretar",
+        "L08.sistemas-substituir-eliminar",
+        "L08.modelar+L15.justificar"
+      ]
+    },
+    {
+      "id": "semelhanca",
+      "name": "Semelhança e escala",
+      "courses": [
+        {
+          "id": "obmep-n2",
+          "grades": [8, 9]
+        },
+        {
+          "id": "canguru-c",
+          "grades": [9]
+        }
+      ],
+      "modes": [
+        "L06.forma-e-razao",
+        "L06.correspondencia-de-lados",
+        "L06.tales",
+        "L06.escala-e-area",
+        "L06.criterios+L15.justificar"
+      ]
+    },
+    {
+      "id": "pitagoras",
+      "name": "Pitágoras e distâncias",
+      "courses": [
+        {
+          "id": "obmep-n2",
+          "grades": [8, 9]
+        }
+      ],
+      "modes": [
+        "L18.catetos-hipotenusa-e-quadrados",
+        "L18.cateto-desconhecido",
+        "L18.alturas-diagonais",
+        "L18.altura-para-area",
+        "L18.classificar-distancias+L19.diagonal-espacial"
+      ]
+    },
+    {
+      "id": "restos",
+      "name": "Restos e divisibilidade",
+      "courses": [
+        {
+          "id": "obmep-n2",
+          "grades": [8, 9]
+        }
+      ],
+      "modes": [
+        "L10.quociente-e-resto",
+        "L10.divisibilidade",
+        "L10.aritmetica-modular",
+        "L10.multiplas-condicoes",
+        "L10.restos+L15.impossibilidade"
+      ]
+    },
+    {
+      "id": "contagem-casos",
+      "name": "Contagem por casos",
+      "courses": [
+        {
+          "id": "obmep-n2",
+          "grades": [8, 9]
+        },
+        {
+          "id": "canguru-c",
+          "grades": [9]
+        }
+      ],
+      "modes": [
+        "L12.produto",
+        "L12.casos-e-complementar",
+        "L12.filas-anagramas",
+        "L12.escolhas-sem-ordem",
+        "L12.restricoes-caminhos-e-distribuicoes"
+      ]
+    },
+    {
+      "id": "invariantes",
+      "name": "Invariantes e argumentos",
+      "courses": [
+        {
+          "id": "obmep-n2",
+          "grades": [8, 9]
+        }
+      ],
+      "modes": [
+        "L10.processos-invariantes",
+        "L05.coloracao-e-cobertura",
+        "L15.extremos",
+        "L12.contagem-dupla",
+        "L15.argumento-completo"
+      ]
+    },
+    {
+      "id": "coordenadas",
+      "name": "Plano cartesiano",
+      "courses": [
+        {
+          "id": "canguru-c",
+          "grades": [9]
+        }
+      ],
+      "modes": [
+        "L07.pontos-quadrantes",
+        "L07.deslocamentos-caminhos",
+        "L07.distancias-e-areas",
+        "L06.refletir-no-plano",
+        "L07.problemas-com-transformacoes"
+      ]
+    },
+    {
+      "id": "logica-n2",
+      "name": "Lógica e dedução",
+      "courses": [
+        {
+          "id": "canguru-c",
+          "grades": [9]
+        }
+      ],
+      "modes": [
+        "L15.verdade-mentira",
+        "L15.tabela-logica",
+        "L15.encadear-implicacoes",
+        "L09.maquina-de-instrucoes",
+        "L15.quantificadores"
+      ]
+    },
+    {
+      "id": "porcentagem-n2",
+      "name": "Porcentagem com base certa",
+      "courses": [
+        {
+          "id": "olitef-n2",
+          "grades": [8, 9]
+        }
+      ],
+      "modes": [
+        "L03.base-e-acima-de-cem",
+        "L03.fatores-sucessivos",
+        "L03.recuperar-base",
+        "L16.ofertas+L14.percentuais-em-dados",
+        "L03.promocoes-impostos-e-critica"
+      ]
+    },
+    {
+      "id": "juros",
+      "name": "Juros e parcelamento",
+      "courses": [
+        {
+          "id": "olitef-n2",
+          "grades": [8, 9]
+        }
+      ],
+      "modes": [
+        "L17.juros-simples",
+        "L17.juros-compostos",
+        "L17.entrada-e-parcelas",
+        "L17.divida-versus-poupar",
+        "L17.comparar-creditos"
+      ]
+    },
+    {
+      "id": "orcamento-n2",
+      "name": "Orçamento e escolhas",
+      "courses": [
+        {
+          "id": "olitef-n2",
+          "grades": [8, 9]
+        }
+      ],
+      "modes": [
+        "L16.receitas-despesas-saldo",
+        "L16.custo-oportunidade",
+        "L16.limites-e-prioridades",
+        "L16.metas-e-imprevistos",
+        "L16.justificar-replanejamento"
+      ]
+    },
+    {
+      "id": "inflacao",
+      "name": "Inflação e poder de compra",
+      "courses": [
+        {
+          "id": "olitef-n2",
+          "grades": [8, 9]
+        }
+      ],
+      "modes": [
+        "L17.cesta-e-poder-compra",
+        "L17.nominal-real",
+        "L17.indice-ponderado",
+        "L17.valores-no-tempo+L14.graficos",
+        "L17.analisar-afirmacoes"
+      ]
+    },
+    {
+      "id": "investimentos",
+      "name": "Investimentos e risco",
+      "courses": [
+        {
+          "id": "olitef-n2",
+          "grades": [8, 9]
+        }
+      ],
+      "modes": [
+        "L17.rendimento-e-premissas",
+        "L17.crescimento-e-aportes",
+        "L17.risco-liquidez-prazo",
+        "L17.diversificacao",
+        "L17.objetivos-custos-cenarios"
+      ]
+    },
+    {
+      "id": "contagem-inicial",
+      "name": "Contar com organização",
+      "courses": [
+        {
+          "id": "canguru-p",
+          "grades": [3, 4]
+        },
+        {
+          "id": "mirim-2",
+          "grades": [4, 5]
+        }
+      ],
+      "modes": [
+        "L01.agrupar-e-contar",
+        "L01.repartir-com-sobras",
+        "L12.combinacoes-visuais",
+        "L19.pecas-e-faces-ocultas",
+        "L01.problemas-de-contagem"
+      ]
+    },
+    {
+      "id": "padroes-iniciais",
+      "name": "Descobrir padrões",
+      "courses": [
+        {
+          "id": "canguru-p",
+          "grades": [3, 4]
+        },
+        {
+          "id": "mirim-2",
+          "grades": [4, 5]
+        }
+      ],
+      "modes": [
+        "L09.repetir-e-crescer",
+        "L09.posicao-distante",
+        "L09.ciclos",
+        "L09.quadros-e-figuras",
+        "L09.prever-e-explicar"
+      ]
+    },
+    {
+      "id": "orientacao-espacial",
+      "name": "Localizar e mover",
+      "courses": [
+        {
+          "id": "canguru-p",
+          "grades": [3, 4]
+        },
+        {
+          "id": "mirim-2",
+          "grades": [4, 5]
+        }
+      ],
+      "modes": [
+        "L07.posicoes",
+        "L07.instrucoes-malha",
+        "L07.giros",
+        "L19.vistas+L06.espelhos",
+        "L07.mapas"
+      ]
+    },
+    {
+      "id": "composicao-de-figuras",
+      "name": "Montar figuras",
+      "courses": [
+        {
+          "id": "canguru-p",
+          "grades": [3, 4]
+        },
+        {
+          "id": "mirim-2",
+          "grades": [4, 5]
+        }
+      ],
+      "modes": [
+        "L05.montar-com-pecas",
+        "L05.lados-compartilhados",
+        "L06.dobrar-cortar-abrir",
+        "L05.cobrir-regiao",
+        "L06.girar-ou-refletir"
+      ]
+    },
+    {
+      "id": "tempo-e-medidas",
+      "name": "Tempo e medidas",
+      "courses": [
+        {
+          "id": "canguru-p",
+          "grades": [3, 4]
+        },
+        {
+          "id": "mirim-2",
+          "grades": [4, 5]
+        }
+      ],
+      "modes": [
+        "L04.relogio-e-duracao",
+        "L04.calendario",
+        "L04.regua-e-comprimentos",
+        "L04.massas-capacidades",
+        "L04.escolher-unidade"
+      ]
+    },
+    {
+      "id": "balancas",
+      "name": "Balanças e trocas",
+      "courses": [
+        {
+          "id": "canguru-p",
+          "grades": [3, 4]
+        }
+      ],
+      "modes": [
+        "L08.comparar-pratos",
+        "L08.trocas-equivalentes",
+        "L08.ordenar-pesos",
+        "L08.peso-desconhecido",
+        "L08.numero-escondido"
+      ]
+    },
+    {
+      "id": "caminhos",
+      "name": "Caminhos e escolhas",
+      "courses": [
+        {
+          "id": "canguru-p",
+          "grades": [3, 4]
+        }
+      ],
+      "modes": [
+        "L07.enumerar-caminhos",
+        "L07.distancia-total",
+        "L07.restricoes",
+        "L07.labirinto-e-retrocesso",
+        "L07.multiplos-criterios"
+      ]
+    },
+    {
+      "id": "tabelas",
+      "name": "Ler tabelas",
+      "courses": [
+        {
+          "id": "mirim-2",
+          "grades": [4, 5]
+        }
+      ],
+      "modes": [
+        "L14.linha-coluna",
+        "L14.totais-diferencas",
+        "L14.tabela-barras",
+        "L14.completar-valores",
+        "L14.cruzar-e-julgar"
+      ]
+    },
+    {
+      "id": "funcoes",
+      "name": "Funções e gráficos",
+      "courses": [
+        {
+          "id": "obmep-n3",
+          "grades": [10, 11, 12]
+        },
+        {
+          "id": "canguru-j",
+          "grades": [10, 11]
+        }
+      ],
+      "modes": [
+        "L11.relacao-dominio-imagem",
+        "L11.afim",
+        "L11.quadratica",
+        "L11.ler-transformar-graficos",
+        "L11.modelar-compor-inverter"
+      ]
+    },
+    {
+      "id": "recorrencias",
+      "name": "Sequências e recorrências",
+      "courses": [
+        {
+          "id": "obmep-n3",
+          "grades": [10, 11, 12]
+        },
+        {
+          "id": "canguru-j",
+          "grades": [10, 11]
+        }
+      ],
+      "modes": [
+        "L09.pa-termo",
+        "L09.pa-soma",
+        "L09.pg-termo-soma",
+        "L09.recorrencia",
+        "L09.modelos-crescimento"
+      ]
+    },
+    {
+      "id": "estruturas-numericas",
+      "name": "Estruturas numéricas",
+      "courses": [
+        {
+          "id": "obmep-n3",
+          "grades": [10, 11, 12]
+        }
+      ],
+      "modes": [
+        "L10.primos-divisores",
+        "L10.mdc-mmc",
+        "L10.modulo-potencias",
+        "L10.digitos-bases",
+        "L10.inteiros+L15.provas"
+      ]
+    },
+    {
+      "id": "geometria-plana",
+      "name": "Geometria plana",
+      "courses": [
+        {
+          "id": "obmep-n3",
+          "grades": [10, 11, 12]
+        },
+        {
+          "id": "canguru-j",
+          "grades": [10, 11]
+        }
+      ],
+      "modes": [
+        "L18.angulos-e-paralelas",
+        "L06.semelhanca",
+        "L05.cortar-completar-area",
+        "L18.circulos-e-tangentes",
+        "L15.provas-geometricas+L18.construcoes"
+      ]
+    },
+    {
+      "id": "combinacoes",
+      "name": "Contagem e combinações",
+      "courses": [
+        {
+          "id": "obmep-n3",
+          "grades": [10, 11, 12]
+        },
+        {
+          "id": "canguru-j",
+          "grades": [10, 11]
+        },
+        {
+          "id": "canguru-s",
+          "grades": [12]
+        }
+      ],
+      "modes": [
+        "L12.soma-produto",
+        "L12.arranjo-combinacao",
+        "L12.complementar-inclusao-exclusao",
+        "L12.repeticoes-distribuicoes",
+        "L12.multiplas-restricoes"
+      ]
+    },
+    {
+      "id": "probabilidade-em",
+      "name": "Probabilidade",
+      "courses": [
+        {
+          "id": "obmep-n3",
+          "grades": [10, 11, 12]
+        },
+        {
+          "id": "canguru-s",
+          "grades": [12]
+        }
+      ],
+      "modes": [
+        "L13.espaco-amostral",
+        "L13.contagem-combinatoria",
+        "L13.uniao-complemento-independencia",
+        "L13.condicional-arvore-tabela",
+        "L13.valor-esperado-e-risco"
+      ]
+    },
+    {
+      "id": "argumentacao-em",
+      "name": "Argumentar e provar",
+      "courses": [
+        {
+          "id": "obmep-n3",
+          "grades": [10, 11, 12]
+        }
+      ],
+      "modes": [
+        "L15.implicacao-reciproca-contrapositiva",
+        "L15.casos-e-absurdo",
+        "L12.gavetas+L10.invariantes",
+        "L15.revisar-prova",
+        "L15.escrever-prova"
+      ]
+    },
+    {
+      "id": "polinomios",
+      "name": "Polinômios",
+      "courses": [
+        {
+          "id": "canguru-j",
+          "grades": [10, 11]
+        }
+      ],
+      "modes": [
+        "L08.termos-grau-coeficientes",
+        "L08.fatoracao-raizes",
+        "L08.divisao-e-resto",
+        "L08.girard+L11.raizes-graficas",
+        "L08.identidades+L15.justificar"
+      ]
+    },
+    {
+      "id": "inducao",
+      "name": "Indução e generalização",
+      "courses": [
+        {
+          "id": "canguru-j",
+          "grades": [10, 11]
+        }
+      ],
+      "modes": [
+        "L09.casos-e-conjecturas",
+        "L15.base-e-passo",
+        "L15.inducao-somas-desigualdades",
+        "L09.processos+L15.inducao",
+        "L15.conjectura-ou-teorema"
+      ]
+    },
+    {
+      "id": "coordenadas-em",
+      "name": "Geometria analítica",
+      "courses": [
+        {
+          "id": "canguru-j",
+          "grades": [10, 11]
+        }
+      ],
+      "modes": [
+        "L07.distancia-ponto-medio",
+        "L11.retas-inclinacao",
+        "L11.intersecoes-sistemas",
+        "L11.circunferencia+L05.area-coordenadas",
+        "L07.coordenadas+L15.prova"
+      ]
+    },
+    {
+      "id": "equacoes-em",
+      "name": "Equações e inequações",
+      "courses": [
+        {
+          "id": "canguru-s",
+          "grades": [12]
+        }
+      ],
+      "modes": [
+        "L08.quadraticas-e-substituicao",
+        "L08.sistemas+L11.intersecoes",
+        "L08.modulo-radicais-e-dominio",
+        "L08.exponenciais-logaritmos",
+        "L08.inequacoes+L11.intervalos-sinais"
+      ]
+    },
+    {
+      "id": "trigonometria",
+      "name": "Trigonometria",
+      "courses": [
+        {
+          "id": "canguru-s",
+          "grades": [12]
+        }
+      ],
+      "modes": [
+        "L18.razoes-triangulo",
+        "L18.angulos-notaveis",
+        "L18.lei-senos-cossenos",
+        "L18.area-seno",
+        "L18.alturas-distancias-navegacao"
+      ]
+    },
+    {
+      "id": "espaco",
+      "name": "Geometria espacial",
+      "courses": [
+        {
+          "id": "canguru-s",
+          "grades": [12]
+        }
+      ],
+      "modes": [
+        "L19.poliedros-euler",
+        "L19.planificacoes-area",
+        "L19.volumes",
+        "L19.cortes-vistas-projecoes",
+        "L19.coordenadas-capacidade-embalagem"
+      ]
+    },
+    {
+      "id": "logica-em",
+      "name": "Lógica e dedução",
+      "courses": [
+        {
+          "id": "canguru-s",
+          "grades": [12]
+        }
+      ],
+      "modes": [
+        "L15.conectivos-tabela-verdade",
+        "L15.quantificadores-negacao",
+        "L15.verdade-mentira",
+        "L15.tabela-deducao",
+        "L15.validade-falacias"
+      ]
+    },
+    {
+      "id": "modelos-financeiros",
+      "name": "Modelos financeiros",
+      "courses": [
+        {
+          "id": "olitef-n3",
+          "grades": [10, 11, 12]
+        }
+      ],
+      "modes": [
+        "L17.linear-exponencial",
+        "L17.parametros-graficos",
+        "L17.ponto-equilibrio",
+        "L17.taxas-equivalentes",
+        "L17.modelar-premissas"
+      ]
+    },
+    {
+      "id": "equivalencia-temporal",
+      "name": "Dinheiro em datas diferentes",
+      "courses": [
+        {
+          "id": "olitef-n3",
+          "grades": [10, 11, 12]
+        }
+      ],
+      "modes": [
+        "L17.presente-futuro",
+        "L17.valor-presente-parcelas",
+        "L17.antecipacao-atraso",
+        "L17.fluxos-em-datas",
+        "L17.comparar-premissas"
+      ]
+    },
+    {
+      "id": "renda-fixa",
+      "name": "Renda fixa",
+      "courses": [
+        {
+          "id": "olitef-n3",
+          "grades": [10, 11, 12]
+        }
+      ],
+      "modes": [
+        "L17.prefixado-posfixado-inflacao",
+        "L17.prazo-carencia-liquidez",
+        "L17.impostos-taxas-liquido",
+        "L17.credito-garantias",
+        "L17.comparar-objetivos"
+      ]
+    },
+    {
+      "id": "renda-variavel",
+      "name": "Renda variável",
+      "courses": [
+        {
+          "id": "olitef-n3",
+          "grades": [10, 11, 12]
+        }
+      ],
+      "modes": [
+        "L17.preco-retorno",
+        "L17.oscilacao-perdas",
+        "L17.pesos-carteira",
+        "L17.medias-e-passado",
+        "L17.cenarios-carteira"
+      ]
+    },
+    {
+      "id": "cenarios",
+      "name": "Análise de cenários",
+      "courses": [
+        {
+          "id": "olitef-n3",
+          "grades": [10, 11, 12]
+        }
+      ],
+      "modes": [
+        "L17.dados-premissas-faltantes",
+        "L17.sensibilidade",
+        "L17.tres-cenarios",
+        "L17.multiplos-criterios",
+        "L17.conclusao-condicional"
+      ]
+    },
+    {
+      "id": "contar-e-comparar",
+      "name": "Contar e comparar",
+      "courses": [
+        {
+          "id": "mirim-1",
+          "grades": [2, 3]
+        }
+      ],
+      "modes": [
+        "L01.dezenas-ate-cem",
+        "L01.mais-menos",
+        "L01.juntar-tirar",
+        "L01.dobro-metade-grupos",
+        "L01.representar-e-conferir"
+      ]
+    },
+    {
+      "id": "formas-e-posicoes",
+      "name": "Formas e posições",
+      "courses": [
+        {
+          "id": "mirim-1",
+          "grades": [2, 3]
+        }
+      ],
+      "modes": [
+        "L05.formas-planas",
+        "L19.solidos-basicos",
+        "L07.posicoes",
+        "L07.passos",
+        "L05.montar+L19.vistas"
+      ]
+    },
+    {
+      "id": "sequencias-iniciais",
+      "name": "Sequências",
+      "courses": [
+        {
+          "id": "mirim-1",
+          "grades": [2, 3]
+        }
+      ],
+      "modes": [
+        "L09.padrao-repetido",
+        "L01.pulos-na-reta",
+        "L09.crescer-diminuir",
+        "L09.figuras-crescentes",
+        "L09.lacunas"
+      ]
+    },
+    {
+      "id": "medir-e-comparar",
+      "name": "Medir e comparar",
+      "courses": [
+        {
+          "id": "mirim-1",
+          "grades": [2, 3]
+        }
+      ],
+      "modes": [
+        "L04.unidades-e-regua",
+        "L04.capacidade+L08.massas",
+        "L04.horas-e-calendario",
+        "L16.moedas-preco-troco",
+        "L04.problemas-medidas"
+      ]
+    },
+    {
+      "id": "problemas-com-desenho",
+      "name": "Resolver com desenho",
+      "courses": [
+        {
+          "id": "mirim-1",
+          "grades": [2, 3]
+        }
+      ],
+      "modes": [
+        "L01.bolinhas-tracinhos",
+        "L01.partilha",
+        "L15.pistas-com-desenho",
+        "L15.testar-casos-visuais",
+        "L01.passos-e-explicacao"
+      ]
+    }
+  ],
+  "totals": {
+    "skills": 58,
+    "missions": 291,
+    "recovery": 116,
+    "toolFamilies": 19
+  }
+}

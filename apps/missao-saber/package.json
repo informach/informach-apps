@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:integration": "node scripts/isolated.mjs integration",
     "e2e": "node scripts/isolated.mjs e2e",
+    "laboratory:coverage": "node scripts/laboratory-coverage.mjs",
     "preview:setup": "node scripts/isolated.mjs preview",
     "providers:setup": "node scripts/provider-homologation.mjs setup",
     "providers:serve": "node scripts/provider-homologation.mjs serve",

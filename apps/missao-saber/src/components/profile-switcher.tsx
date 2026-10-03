@@ -13,6 +13,7 @@ import { ChevronsUpDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { gradeLabel } from "@/features/family/school-year";
+import { flushPendingLabs } from "@/features/labs/runtime/pending-work";
 import { selectProfileAction } from "@/features/learning/actions";
 import { useServerAction } from "@/lib/use-server-action";
 import { Avatar } from "./avatares";
@@ -77,6 +78,12 @@ export function ProfileSwitcher({ profiles, selected }: { profiles: Perfil[]; se
                     start(async () => {
                       setError("");
                       try {
+                        if (!(await flushPendingLabs())) {
+                          setError(
+                            "Salve sua investigação ou guarde uma cópia antes de trocar de estudante.",
+                          );
+                          return;
+                        }
                         const result = await selectProfileAction(p.id);
                         if (result.ok) {
                           setAberto(false);

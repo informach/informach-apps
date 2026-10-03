@@ -1,0 +1,1 @@
+ALTER TABLE "missao_saber"."lab_executions" ADD COLUMN "request_source" text DEFAULT 'new' NOT NULL;
