@@ -4,7 +4,14 @@ import path from "node:path";
 import { db, eq } from "@informach/db";
 import { customers, missaoAttempts, missaoSessions, subscriptions } from "@informach/db/schema";
 import { expect, type Page, test } from "@playwright/test";
-import { enterStudy, openStudy, parentLogin, prepareProfile, startMission } from "./family-helpers";
+import {
+  closeDevice,
+  enterStudy,
+  openStudy,
+  parentLogin,
+  prepareProfile,
+  startMission,
+} from "./family-helpers";
 
 async function verificationCode(email: string) {
   const directory = process.env.EMAIL_SANDBOX_DIR;
@@ -374,7 +381,7 @@ test("parent signup, verified profile, learning, saved lab, report and profile s
   await expect(page.getByRole("heading", { name: "Olá, Sol." })).toBeVisible();
   await secondDevice.goto("/hoje");
   await expect(secondDevice.getByRole("heading", { name: "Olá, Lua." })).toBeVisible();
-  await secondContext.close();
+  await closeDevice(secondContext);
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
   ).toBe(true);

@@ -3,7 +3,13 @@ import { mkdirSync } from "node:fs";
 import { db, eq } from "@informach/db";
 import { missaoProfiles, missaoStudyDevices, sessions, users } from "@informach/db/schema";
 import { expect, type Page, type Response, test } from "@playwright/test";
-import { enterStudy, parentLogin, prepareProfile, startMission } from "./family-helpers";
+import {
+  closeDevice,
+  enterStudy,
+  parentLogin,
+  prepareProfile,
+  startMission,
+} from "./family-helpers";
 
 async function parent(page: Page, baseURL: string | undefined) {
   if (!baseURL) throw new Error("Missing isolated URL");
@@ -69,7 +75,7 @@ test("first access, explicit handoff, adult revocation and sibling isolation", a
     await stale.addCookies(adultCookies);
     expect((await stale.request.get("/api/familia/exportar")).status()).toBe(401);
   } finally {
-    await stale.close();
+    await closeDevice(stale);
   }
   expect((await page.request.get("/api/familia/exportar")).status()).toBe(401);
   for (const route of [
@@ -186,7 +192,7 @@ test("one-use device code, invalid origins, revocation of live actions and safe 
       .where(eq(missaoStudyDevices.userId, owner.userId));
     expect(rows.every((row) => row.revokedAt !== null)).toBe(true);
   } finally {
-    await context.close();
+    await closeDevice(context);
   }
 });
 
@@ -411,7 +417,7 @@ for (const selection of ["handoff", "switch"] as const) {
         await cookieExpiry(connection, "ms-study"),
       );
     } finally {
-      await restarted.close();
+      await closeDevice(restarted);
     }
   });
 }
