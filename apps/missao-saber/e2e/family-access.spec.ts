@@ -3,7 +3,13 @@ import { mkdirSync } from "node:fs";
 import { db, eq } from "@informach/db";
 import { missaoProfiles, missaoStudyDevices, sessions, users } from "@informach/db/schema";
 import { expect, type Page, type Response, test } from "@playwright/test";
-import { enterStudy, parentLogin, prepareProfile, startMission } from "./family-helpers";
+import {
+  closeDevice,
+  enterStudy,
+  parentLogin,
+  prepareProfile,
+  startMission,
+} from "./family-helpers";
 
 async function parent(page: Page, baseURL: string | undefined) {
   if (!baseURL) throw new Error("Missing isolated URL");
@@ -20,7 +26,11 @@ async function parent(page: Page, baseURL: string | undefined) {
     .returning();
   if (!user) throw new Error("Missing owner");
   expect((await page.request.post("/api/auth/sign-in/email", { headers, data })).ok()).toBe(true);
-  return { email, userId: user.id, headers };
+  // Outro aparelho da mesma casa sai pelo mesmo endereço. Sem isto, todo
+  // contexto extra caía no balde "unidentified" do limite de códigos de
+  // conexão, compartilhado entre os testes da suíte inteira.
+  const device = { baseURL, extraHTTPHeaders: { "x-forwarded-for": headers["x-forwarded-for"] } };
+  return { email, userId: user.id, headers, device };
 }
 
 async function cookieExpiry(response: Response, name: string) {
@@ -60,12 +70,12 @@ test("first access, explicit handoff, adult revocation and sibling isolation", a
   await expect(page.getByText("Pode tentar. Pode pedir uma pista.")).toBeVisible();
   await expect(page.getByText(/Seu combinado: 10 minutos/)).toBeVisible();
   await expect(page.getByText("dias com descobertas nesta semana")).toHaveCount(0);
-  const stale = await browser.newContext({ baseURL });
+  const stale = await browser.newContext(owner.device);
   try {
     await stale.addCookies(adultCookies);
     expect((await stale.request.get("/api/familia/exportar")).status()).toBe(401);
   } finally {
-    await stale.close();
+    await closeDevice(stale);
   }
   expect((await page.request.get("/api/familia/exportar")).status()).toBe(401);
   for (const route of [
@@ -134,7 +144,7 @@ test("one-use device code, invalid origins, revocation of live actions and safe 
     /[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{5}-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{5}/,
   )?.[0];
   if (!code) throw new Error("Missing connection code");
-  const context = await browser.newContext({ baseURL });
+  const context = await browser.newContext(owner.device);
   try {
     const learner = await context.newPage();
     const badOrigin = await context.request.post("/api/estudo/conectar", {
@@ -182,7 +192,7 @@ test("one-use device code, invalid origins, revocation of live actions and safe 
       .where(eq(missaoStudyDevices.userId, owner.userId));
     expect(rows.every((row) => row.revokedAt !== null)).toBe(true);
   } finally {
-    await context.close();
+    await closeDevice(context);
   }
 });
 
@@ -395,7 +405,7 @@ for (const selection of ["handoff", "switch"] as const) {
     }
     // A new browser session restores persistent cookies, but not session cookies.
     const persistent = (await page.context().cookies()).filter((cookie) => cookie.expires > 0);
-    const restarted = await browser.newContext({ baseURL });
+    const restarted = await browser.newContext(owner.device);
     try {
       await restarted.addCookies(persistent);
       const restored = await restarted.newPage();
@@ -407,7 +417,7 @@ for (const selection of ["handoff", "switch"] as const) {
         await cookieExpiry(connection, "ms-study"),
       );
     } finally {
-      await restarted.close();
+      await closeDevice(restarted);
     }
   });
 }

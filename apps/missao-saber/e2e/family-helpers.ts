@@ -1,4 +1,23 @@
-import { expect, type Page } from "@playwright/test";
+import { type BrowserContext, expect, type Page } from "@playwright/test";
+
+/**
+ * Fecha um contexto extra (outro aparelho, navegador reaberto) só depois que o
+ * service worker de cada página dele estiver ativo.
+ *
+ * O Chromium headless cai com SIGSEGV ao descartar um contexto enquanto o
+ * worker ainda instala, e isso derrubava a desmontagem do teste seguinte com
+ * "browserContext.close: Target page, context or browser has been closed".
+ * Medido no CI em 04/10/2026 (PR #5): fechar logo após o `load` derrubou o
+ * navegador em menos de um minuto; esperar `navigator.serviceWorker.ready`
+ * passou 150 vezes em 150. O app registra o worker no `load` de toda página.
+ */
+export async function closeDevice(context: BrowserContext) {
+  for (const page of context.pages())
+    await page.evaluate(async () => {
+      await navigator.serviceWorker.ready;
+    });
+  await context.close();
+}
 
 export async function prepareProfile(
   page: Page,

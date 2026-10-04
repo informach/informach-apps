@@ -109,3 +109,17 @@ jobs:
           path: apps/missao-saber/tmp/verification/
           if-no-files-found: ignore
           retention-days: 7
+
+      # Agenda e Cozya gravam o trace no retry (`trace: on-first-retry`). Sem
+      # este upload ele morria com o runner, e uma falha intermitente só deixava
+      # a mensagem do expect para investigar.
+      - name: Preserve Agenda and Cozya failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results-${{ github.run_attempt }}
+          path: |
+            apps/agenda-da-turma/test-results/
+            apps/cozya/test-results/
+          if-no-files-found: ignore
+          retention-days: 7

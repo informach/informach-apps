@@ -83,7 +83,7 @@ export function UnifiedActivityCard({
       ? getSubjectTintedClassByIndex(view.subjectColorIndex)
       : presentation.surface;
 
-  const { isDone, isExiting, optimisticallyHidden, pending, queued, handleToggle, retry } =
+  const { ready, isDone, isExiting, optimisticallyHidden, pending, queued, handleToggle, retry } =
     useCardToggle({
       initialStatus: view.status === "done" ? "done" : "pending",
       taskId: view.toggle?.id,
@@ -147,7 +147,7 @@ export function UnifiedActivityCard({
                     : "border-foreground/20 bg-background/60 hover:bg-background",
                 )}
                 aria-label={`${isDone ? "Reabrir" : "Marcar como feito em casa"}: ${view.title}`}
-                disabled={pending}
+                disabled={!ready || pending}
                 onClick={() => handleToggle(!isDone)}
               >
                 {isDone ? (

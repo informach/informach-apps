@@ -1,10 +1,10 @@
 "use client";
 import { Label } from "@informach/ui/components/label";
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import type { SessionMode } from "@/features/content/types";
 import { courseAction, startAction } from "@/features/learning/actions";
-import { useHydrated } from "@/lib/use-hydrated";
 import { BotaoChapa } from "./ui/botao-chapa";
 import type { Tom } from "./ui/chapa";
 

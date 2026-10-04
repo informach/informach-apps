@@ -1,12 +1,12 @@
 "use client";
 import { Label } from "@informach/ui/components/label";
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { BotaoChapa } from "@/components/ui/botao-chapa";
 import { Chapa } from "@/components/ui/chapa";
 import type { LabAttachment } from "@/features/labs/runtime/schemas";
-import { useHydrated } from "@/lib/use-hydrated";
 import { useServerAction } from "@/lib/use-server-action";
 import { archiveNoteAction, editNoteAction, noteAction, removeNoteAction } from "../actions";
 import type { NoteContext } from "../repository";
