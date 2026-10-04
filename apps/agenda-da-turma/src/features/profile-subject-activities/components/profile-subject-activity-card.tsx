@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@informach/ui/components/dropdown-menu";
 import { toast } from "@informach/ui/components/sonner";
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { cn } from "@informach/ui/lib/utils";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -38,6 +39,8 @@ export function ProfileSubjectActivityCard({ activity, profileSubjectName }: Pro
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  // Mesmo motivo do `ready` de `useCardToggle`: antes de hidratar, o toque some.
+  const hydrated = useHydrated();
 
   const TypeIcon = getActivityTypeIcon(activity.type);
   const isDone = activity.status === "done";
@@ -77,7 +80,7 @@ export function ProfileSubjectActivityCard({ activity, profileSubjectName }: Pro
           <Checkbox
             checked={isDone}
             onCheckedChange={(v) => handleToggle(v === true)}
-            disabled={pending}
+            disabled={!hydrated || pending}
             aria-label={`Marcar "${activity.title}" como ${isDone ? "pendente" : "concluída"}`}
             className="mt-0.5"
           />

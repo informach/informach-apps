@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@informach/ui/components/button";
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { cn } from "@informach/ui/lib/utils";
 import { Check, ChevronLeft, ChevronRight, LogOut, PartyPopper } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -198,6 +199,9 @@ function ActivityStage({
   onNext: () => void;
 }) {
   const item = entry.item;
+  // Os três botões só agem por JS. Antes de hidratar, o "Feito!" da criança
+  // sumia sem nada acontecer (o mesmo defeito do `ready` de `useCardToggle`).
+  const hydrated = useHydrated();
   const presentation = getActivityPresentation(item.type);
   const TypeIcon = presentation.icon;
   const SubjectIcon = item.subjectName ? getSubjectIcon(item.subjectName) : TypeIcon;
@@ -254,7 +258,7 @@ function ActivityStage({
       <Button
         type="button"
         onClick={onDone}
-        disabled={saving}
+        disabled={!hydrated || saving}
         // `touch-manipulation` tira o atraso de 300 ms e o zoom de duplo toque:
         // o dedo de uma criança repete o toque, e o botão precisa responder ao
         // primeiro sem guardar o segundo.
@@ -269,7 +273,7 @@ function ActivityStage({
           <Button
             variant="ghost"
             onClick={onPrev}
-            disabled={position === 1}
+            disabled={!hydrated || position === 1}
             className="h-12 rounded-xl"
           >
             <ChevronLeft aria-hidden />
@@ -281,7 +285,7 @@ function ActivityStage({
           <Button
             variant="ghost"
             onClick={onNext}
-            disabled={position === remainingCount}
+            disabled={!hydrated || position === remainingCount}
             className="h-12 rounded-xl"
           >
             Depois

@@ -722,6 +722,8 @@ Os três requisitos que a decisão anterior listava como condição para existir
 
 A decisão de insistir no que foi **recusado** nunca é do app: conflito de versão vira linha na folha, com a atividade a um toque. Reenviar sozinho seria decidir pela pessoa que mudou a atividade do outro lado — que era exatamente a objeção que segurou esta fila.
 
+**O botão de concluir nasce desabilitado e habilita ao hidratar** (`ready` de `useCardToggle`, `useHydrated` de `@informach/ui/hooks/use-hydrated` no card de extracurricular e no modo criança). A lista de `/atividades` fica num Suspense (`loading.tsx`) que hidrata depois do resto, e até lá o card aparece inteiro sem `onClick`. Um toque nesse intervalo sumia sem aviso, e se a rede caísse em seguida a conclusão nem chegava à fila. Medido em 04/10/2026 com a CPU da página a 1/6: cortar a rede antes da hidratação perdia o clique 3 vezes em 3; esperar a hidratação acertava 4 em 4. Era isso que fazia o `offline-queue.spec.ts` oscilar no CI. **Não tirar o `!ready`**: ele é o que torna o defeito visível em vez de silencioso.
+
 A fila vive em `features/offline-queue/`: `queue.ts` é puro (classificação, ordem, contagem, frase) e tem os testes; `store.ts` é o IndexedDB (`agenda-writes`, no mesmo feitio de `share-target.ts`, sem biblioteca e sem lançar para quem chama); `client.ts` envia e esvazia; `OfflineQueueFlusher` mora nos dois shells e escuta montagem, `online`, visibilidade e o recado do worker.
 
 O CSP em `next.config.ts` já libera `manifest-src 'self'` e `worker-src 'self' blob:`. **Ao mexer no que o service worker guarda, atualizar esta seção junto** — foi a divergência entre o texto e o código que se instalou aqui antes.

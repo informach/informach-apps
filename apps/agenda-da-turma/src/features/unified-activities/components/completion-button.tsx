@@ -33,7 +33,7 @@ export function ActivityCompletionButton({
   const [error, setError] = useState("");
   const queueOwner = useQueueOwner();
 
-  const { isDone, pending, queued, handleToggle } = useCardToggle({
+  const { ready, isDone, pending, queued, handleToggle } = useCardToggle({
     initialStatus,
     taskId: id,
     optimisticHideWhenDone: false,
@@ -54,7 +54,7 @@ export function ActivityCompletionButton({
         variant={isDone ? "secondary" : "outline"}
         className={cn("min-h-11", isDone && "bg-chart-2/20 text-foreground hover:bg-chart-2/30")}
         aria-label={`${isDone ? "Reabrir" : "Marcar como feito em casa"}: ${title}`}
-        disabled={pending}
+        disabled={!ready || pending}
         onClick={() => handleToggle(!isDone)}
       >
         {isDone ? (

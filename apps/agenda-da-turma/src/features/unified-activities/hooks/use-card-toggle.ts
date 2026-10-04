@@ -1,5 +1,6 @@
 "use client";
 
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { isQueued } from "@/features/offline-queue/client";
@@ -70,6 +71,7 @@ export function useCardToggle({
 }: Args) {
   const router = useRouter();
   const queueOwner = useQueueOwner();
+  const ready = useHydrated();
   const [optimisticStatus, setOptimisticStatus] = useState<Status>(initialStatus);
   const [isExiting, setIsExiting] = useState(false);
   const [optimisticallyHidden, setOptimisticallyHidden] = useState(false);
@@ -208,6 +210,15 @@ export function useCardToggle({
   };
 
   return {
+    /**
+     * O botão já recebe o toque.
+     *
+     * Antes da hidratação o card aparece inteiro e o `onClick` ainda não existe.
+     * Um toque nesse intervalo sumia sem nada acontecer, e no portão da escola,
+     * com a rede lenta, o intervalo dura segundos. Se a rede cai logo depois, a
+     * conclusão nem chega à fila. Os botões usam `disabled={!ready || pending}`.
+     */
+    ready,
     isDone: optimisticStatus === "done",
     isExiting,
     optimisticallyHidden,
