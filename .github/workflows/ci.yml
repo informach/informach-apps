@@ -1,8 +1,10 @@
 name: CI
 
+# DIAGNÓSTICO TEMPORÁRIO (branch diag/chromium-sw-dispose): não vai para a main.
+# Mede se descartar um contexto com o service worker instalando derruba o
+# Chromium headless no Linux.
+
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
 
@@ -58,54 +60,20 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm check
-
-      - run: pnpm typecheck
-
-      - run: pnpm test
-
       - run: pnpm db:migrate
-
-      - run: pnpm --filter @informach/cozya test:integration
-
-      - run: pnpm --filter @informach/missao-saber test:integration
-
-      - run: pnpm --filter @informach/cozya eval
-        env:
-          EVAL_PREFLIGHT: "1"
 
       - run: pnpm --filter @informach/agenda-da-turma exec playwright install --with-deps chromium
 
-      - run: pnpm --filter @informach/cozya e2e
-
-      - run: pnpm --filter @informach/agenda-da-turma e2e
-
-      - run: pnpm --filter @informach/missao-saber e2e
-
-      - run: pnpm build
+      - name: Stress context disposal
+        run: pnpm --filter @informach/missao-saber e2e e2e/zz-stress-context.spec.ts --project=desktop
         env:
-          BETTER_AUTH_URL: https://ci.example.com
-          NEXT_PUBLIC_APP_URL: https://ci.example.com
-          EMAIL_SANDBOX_MODE: live
-          SENDGRID_WEBHOOK_PUBLIC_KEY: ci-build-placeholder
-          STRIPE_SECRET_KEY: sk_live_ci_build_placeholder
-          STRIPE_MODE: prod
-          STRIPE_PORTAL_CONFIGURATION_ID: bpc_ci_build_placeholder
-          MISSAO_INDIVIDUAL_MONTHLY_PRICE: price_ci_individual_monthly
-          MISSAO_INDIVIDUAL_ANNUAL_PRICE: price_ci_individual_annual
-          MISSAO_FAMILY_MONTHLY_PRICE: price_ci_family_monthly
-          MISSAO_FAMILY_ANNUAL_PRICE: price_ci_family_annual
-          SENTRY_DSN: https://public@ci.example.com/1
-          NEXT_PUBLIC_SENTRY_DSN: https://public@ci.example.com/1
-          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          DEBUG: pw:browser
 
-      - name: Preserve Missao Saber failure evidence
-        if: failure()
+      - name: Preserve evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: missao-saber-verification-${{ github.run_attempt }}
+          name: diag-${{ github.run_attempt }}
           path: apps/missao-saber/tmp/verification/
           if-no-files-found: ignore
-          retention-days: 7
+          retention-days: 3
