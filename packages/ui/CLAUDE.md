@@ -16,6 +16,8 @@ packages/ui/
 └── src/
     ├── index.ts                 # public API mínima — só `cn`
     ├── styles.css               # tokens + utilities cross-cutting
+    ├── hooks/
+    │   └── use-hydrated.ts      # `false` até hidratar; desabilita controles só-JS
     ├── lib/
     │   └── utils.ts             # `cn()` (clsx + tailwind-merge)
     └── components/
@@ -163,7 +165,18 @@ import { Dialog, DialogContent } from "@informach/ui/components/dialog";
 import { ModeToggle } from "@informach/ui/components/mode-toggle";
 ```
 
-`src/index.ts` só exporta `cn`. Subpaths `./components/*`, `./lib/utils` e `./styles.css` estão declarados em `exports`.
+`src/index.ts` só exporta `cn`. Subpaths `./components/*`, `./hooks/*`, `./lib/utils` e `./styles.css` estão declarados em `exports`.
+
+### Botão que só age por JS: `useHydrated`
+
+```tsx
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
+
+const hydrated = useHydrated();
+<Button disabled={!hydrated || pending} onClick={…} />
+```
+
+O HTML do servidor aparece antes dos listeners, e um toque nesse intervalo se perde sem aviso. Vale para todo controle sem formulário por trás (`type="button"` com `onClick`) que a pessoa costuma tocar logo ao abrir a tela. Os dois casos que motivaram o hook estão no comentário dele; nos dois o E2E ficava intermitente no CI e o defeito era real para quem usa rede móvel.
 
 Os apps adicionam `@informach/ui` em `transpilePackages` no `next.config.ts` — necessário porque o package é consumido como TypeScript source.
 
