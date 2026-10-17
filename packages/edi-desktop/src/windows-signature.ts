@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { z } from "zod";
+import { windowsPowerShellEnvironment } from "./windows-powershell";
 
 const execute = promisify(execFile);
 const verificationScript = `
@@ -32,7 +33,11 @@ export async function verifyWindowsBinary(path: string, publisher: string) {
       windowsHide: true,
       timeout: 60000,
       maxBuffer: 16384,
-      env: { ...process.env, EDI_VERIFY_TARGET: path, EDI_VERIFY_PUBLISHER: publisher },
+      env: windowsPowerShellEnvironment({
+        ...process.env,
+        EDI_VERIFY_TARGET: path,
+        EDI_VERIFY_PUBLISHER: publisher,
+      }),
     },
   );
   return signatureSchema.parse(JSON.parse(result.stdout.trim()));

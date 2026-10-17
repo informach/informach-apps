@@ -1,4 +1,5 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
+import { windowsPowerShellEnvironment } from "@informach/edi-desktop/windows-powershell";
 import { nativeResourcePath } from "./native-resources.ts";
 
 export { executeGuided } from "../shared/guidedRunner.ts";
@@ -20,7 +21,7 @@ export class GuidedInput {
     this.child = spawn(
       "powershell.exe",
       ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", nativeResourcePath("guided-input.ps1")],
-      { windowsHide: true },
+      { windowsHide: true, env: windowsPowerShellEnvironment() },
     );
     let buffer = "";
     this.ready = new Promise((resolve, reject) => {

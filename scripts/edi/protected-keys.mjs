@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { createPrivateKey, createPublicKey, sign, verify } from "node:crypto";
+import { windowsPowerShellEnvironment } from "../../packages/edi-desktop/src/windows-powershell.ts";
 
 export function dpapi(value, decrypt = false) {
   if (process.platform !== "win32") throw new Error("DPAPI requires Windows");
@@ -14,15 +15,13 @@ export function dpapi(value, decrypt = false) {
         "-NoProfile",
         "-NonInteractive",
         "-EncodedCommand",
-        Buffer.from(
-          `$ErrorActionPreference='Stop'; Import-Module "$PSHOME/Modules/Microsoft.PowerShell.Security/Microsoft.PowerShell.Security.psd1"; ${script}`,
-          "utf16le",
-        ).toString("base64"),
+        Buffer.from(`$ErrorActionPreference='Stop'; ${script}`, "utf16le").toString("base64"),
       ],
       {
         input: value,
         encoding: "utf8",
         windowsHide: true,
+        env: windowsPowerShellEnvironment(),
         stdio: ["pipe", "pipe", "pipe"],
       },
     );

@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { EDI_DESKTOP_APPS } from "../../packages/config/src/edi-tools.ts";
 import { buildArtifactSchema } from "../../packages/edi-contracts/src/index.ts";
+import { windowsPowerShellEnvironment } from "../../packages/edi-desktop/src/windows-powershell.ts";
 
 if (
   process.platform !== "win32" ||
@@ -70,28 +71,37 @@ for (const version of versions) {
 }
 const [before, after] = descriptors;
 if (!before || !after) throw new Error("Both build descriptors are required");
-await run("powershell.exe", [
-  "-NoLogo",
-  "-NoProfile",
-  "-NonInteractive",
-  "-File",
-  resolve("scripts/edi/installer-upgrade.ps1"),
-  "-InstallerA",
-  resolve(".cache/edi-release", before.version, app.id, `${app.id}-${before.version}-win-x64.exe`),
-  "-InstallerB",
-  resolve(".cache/edi-release", after.version, app.id, `${app.id}-${after.version}-win-x64.exe`),
-  "-AppId",
-  app.id,
-  "-ProductName",
-  app.name,
-  "-VersionA",
-  before.version,
-  "-VersionB",
-  after.version,
-  "-Sha512A",
-  before.artifact.sha512,
-  "-Sha512B",
-  after.artifact.sha512,
-  "-ResultFile",
-  resolve(".cache/edi-upgrade-results", `${app.id}.json`),
-]);
+await run(
+  "powershell.exe",
+  [
+    "-NoLogo",
+    "-NoProfile",
+    "-NonInteractive",
+    "-File",
+    resolve("scripts/edi/installer-upgrade.ps1"),
+    "-InstallerA",
+    resolve(
+      ".cache/edi-release",
+      before.version,
+      app.id,
+      `${app.id}-${before.version}-win-x64.exe`,
+    ),
+    "-InstallerB",
+    resolve(".cache/edi-release", after.version, app.id, `${app.id}-${after.version}-win-x64.exe`),
+    "-AppId",
+    app.id,
+    "-ProductName",
+    app.name,
+    "-VersionA",
+    before.version,
+    "-VersionB",
+    after.version,
+    "-Sha512A",
+    before.artifact.sha512,
+    "-Sha512B",
+    after.artifact.sha512,
+    "-ResultFile",
+    resolve(".cache/edi-upgrade-results", `${app.id}.json`),
+  ],
+  windowsPowerShellEnvironment(environment),
+);

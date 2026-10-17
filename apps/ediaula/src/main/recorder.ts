@@ -2,6 +2,7 @@ import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { mkdirSync, mkdtempSync } from "node:fs";
 import { copyFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { windowsPowerShellEnvironment } from "@informach/edi-desktop/windows-powershell";
 import { app } from "electron";
 import {
   type CaptureMonitor,
@@ -38,7 +39,7 @@ function spawnHook(list = false, keys = false): ChildProcessWithoutNullStreams {
       ...(list ? ["-List"] : []),
       ...(keys ? ["-Keys"] : []),
     ],
-    { windowsHide: true },
+    { windowsHide: true, env: windowsPowerShellEnvironment() },
   );
 }
 

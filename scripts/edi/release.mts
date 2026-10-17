@@ -20,6 +20,7 @@ import {
   verifyInstalledApplication,
   writeInstallationReceipt,
 } from "../../packages/edi-desktop/src/installation-integrity";
+import { windowsPowerShellEnvironment } from "../../packages/edi-desktop/src/windows-powershell.ts";
 import { fetchPublicRelease } from "../../packages/edi-releases/src/public";
 import { publishGithubRelease } from "./github-publication.mts";
 import { installerConfiguration } from "./installer-config.mts";
@@ -142,7 +143,12 @@ async function buildInstaller() {
         "-Sha512",
         digest.sha512,
       ],
-      { windowsHide: true, timeout: 600000, maxBuffer: 32768 },
+      {
+        windowsHide: true,
+        timeout: 600000,
+        maxBuffer: 32768,
+        env: windowsPowerShellEnvironment(),
+      },
     );
   }
   console.log(`Verified pilot installer: ${appId} ${version} (${digest.size} bytes)`);
