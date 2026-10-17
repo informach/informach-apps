@@ -12,6 +12,8 @@ Um app é um **monolito Next.js 15+ App Router** que sobe individualmente em pro
 
 Cada app tem seu domínio público, seu conjunto de variáveis de ambiente, seu pipeline de build e sua porta local. Apps **não** se importam mutuamente — se duas precisam compartilhar lógica, a lógica vira package.
 
+O contato público e os links de suporte dentro das contas vêm de `@informach/config/contact` (`INFORMACH_CONTACT`). O canal aprovado é o direct do Instagram; páginas públicas não exibem endereço de e-mail para contato. Isso não altera o uso do e-mail do usuário no cadastro, na conta ou na autenticação.
+
 ---
 
 ## Layout interno

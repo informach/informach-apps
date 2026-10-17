@@ -2,6 +2,7 @@ import { Buffer } from "node:buffer";
 import { hostname } from "node:os";
 import { setTimeout as delay } from "node:timers/promises";
 import {
+  type accessDenialSchema,
   activationResponseSchema,
   compareReleaseVersions,
   DEVICE_CODE_GRANT,
@@ -32,6 +33,18 @@ const codeSchema = z.object({
 const oauthErrorSchema = z.object({ error: z.string().min(1).max(200) });
 const updateRequiredReason =
   "Atualize este aplicativo para continuar. Seu trabalho pode ser recuperado.";
+/** People read the status reason in the Hub and in each tool; never show a raw denial code. */
+const denialReasons: Record<z.infer<typeof accessDenialSchema>, string> = {
+  subscription_required:
+    "Esta conta não tem uma assinatura ativa. Assine em Minha assinatura para abrir as ferramentas.",
+  payment_required: "O último pagamento não foi confirmado. Atualize o cartão em Minha assinatura.",
+  suspended: "O acesso desta conta está suspenso. Seus arquivos continuam neste computador.",
+  device_revoked: "Este computador foi desconectado da conta. Conecte de novo para continuar.",
+  device_limit: "Limite de computadores atingido. Desconecte um deles em Minha conta.",
+  session_revoked: "A sessão foi encerrada. Conecte sua conta de novo.",
+  update_required: updateRequiredReason,
+  invalid_proof: "Não foi possível confirmar este computador. Conecte sua conta de novo.",
+};
 class RemoteError extends Error {
   constructor(
     readonly status: number,
@@ -227,7 +240,7 @@ export function createDesktopController(
             data.session = null;
           emit({
             state: "restricted",
-            reason: response.reason === "update_required" ? updateRequiredReason : response.reason,
+            reason: denialReasons[response.reason],
             userId: session.userId,
             expiresAt: null,
             offline: false,
@@ -496,7 +509,7 @@ export function createDesktopController(
           state: "restricted",
           reason:
             error instanceof RemoteError && error.code === "device_limit"
-              ? "Limite de computadores atingido. Desative um dispositivo na sua conta."
+              ? denialReasons.device_limit
               : "A conexão não foi concluída. Tente novamente.",
           expiresAt: null,
         });

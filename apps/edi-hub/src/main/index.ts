@@ -26,6 +26,9 @@ const installations = createInstallationManager({
   directory: desktop.dataDirectory,
   acceptRelease: desktop.acceptRelease,
   fileSystem: electronInstallationFileSystem,
+  onActivity: (activity) => {
+    if (window && !window.isDestroyed()) window.webContents.send("hub:activity", activity);
+  },
 });
 let window: BrowserWindow | undefined;
 let automaticUpdates: ReturnType<typeof setInterval> | undefined;
@@ -35,7 +38,7 @@ function createWindow() {
     height: 860,
     minWidth: 900,
     minHeight: 660,
-    backgroundColor: "#f5f3ed",
+    backgroundColor: "#F4F1EA",
     title: "Edi Hub",
     autoHideMenuBar: true,
     webPreferences: {

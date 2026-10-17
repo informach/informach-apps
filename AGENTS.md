@@ -40,6 +40,7 @@ O cadastro de apps web fica em `packages/config/src/apps.ts` e `domains.ts`. O c
 - PostgreSQL é compartilhado, com schemas por domínio. Isolamento de conta, app e permissões deve aparecer nas consultas, não apenas na interface. A existência de RBAC genérico não substitui permissões específicas por criança ou dispositivo.
 - Better Auth, Stripe, SendGrid, Redis e Sentry seguem os contratos dos packages e de cada app. Providers e variáveis são configurados na composição do app; não duplicar clientes ou políticas comerciais em componentes.
 - IA paga passa pela reserva e confirmação/liberação de créditos, preservando o `runId` entre billing, execução e telemetria. Não embutir credenciais nos clientes.
+- Páginas públicas e links de suporte das contas usam o direct do Instagram definido em `@informach/config/contact`. Não publicar e-mail de contato nem duplicar o endereço nos apps; o e-mail da própria conta continua fazendo parte dos fluxos de autenticação.
 
 ## Onde ler os detalhes
 

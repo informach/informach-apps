@@ -22,16 +22,30 @@ export type Installation = {
   busy: boolean;
   error: string | null;
 };
+/** Live state of an installation, so the Hub can show real progress instead of a spinner. */
+export type InstallActivity = {
+  id: EdiToolId;
+  phase: "downloading" | "installing";
+  /** Share of the installer already downloaded and verified in size, from 0 to 1. */
+  progress: number;
+};
 export function createInstallationManager(
   config: DesktopConfig & {
     localAppData: string;
     directory: string;
     acceptRelease: (manifest: ReleaseManifest) => Promise<void>;
     fileSystem: InstallationFileSystem;
+    onActivity?: (activity: InstallActivity[]) => void;
   },
 ) {
   const busy = new Set<EdiToolId>();
   const errors = new Map<EdiToolId, string>();
+  const activity = new Map<EdiToolId, InstallActivity>();
+  function report(id: EdiToolId, next: Omit<InstallActivity, "id"> | null) {
+    if (next) activity.set(id, { id, ...next });
+    else activity.delete(id);
+    config.onActivity?.([...activity.values()]);
+  }
   const executable = (id: EdiToolId) => {
     const tool = EDI_TOOLS.find((item) => item.id === id);
     if (!tool) throw new Error("Unknown Edi tool");
@@ -74,6 +88,7 @@ export function createInstallationManager(
       );
     busy.add(id);
     errors.delete(id);
+    report(id, { phase: "downloading", progress: 0 });
     let releaseLock: (() => Promise<void>) | undefined;
     let download: string | undefined;
     try {
@@ -96,6 +111,7 @@ export function createInstallationManager(
       const response = await githubResponse(artifact.url);
       if (!response.ok || !response.body) throw new Error("Não foi possível baixar o instalador.");
       let size = 0;
+      let reportedPercent = 0;
       const digest = createHash("sha512");
       const verifier = new Transform({
         transform(chunk: Buffer, _encoding, callback) {
@@ -105,6 +121,12 @@ export function createInstallationManager(
             return;
           }
           digest.update(chunk);
+          // One update per whole percent keeps IPC quiet on large installers.
+          const percent = Math.floor((size / artifact.size) * 100);
+          if (percent > reportedPercent) {
+            reportedPercent = percent;
+            report(id, { phase: "downloading", progress: size / artifact.size });
+          }
           callback(null, chunk);
         },
       });
@@ -129,6 +151,7 @@ export function createInstallationManager(
       );
       if (size !== artifact.size || digest.digest("base64") !== artifact.sha512)
         throw new Error("A integridade do instalador não confere.");
+      report(id, { phase: "installing", progress: 1 });
       await execute(download, ["/S"], { windowsHide: true, timeout: 600000 });
       const receipt = await verifyInstalledApplication({
         directory: dirname(executable(id).path),
@@ -156,6 +179,7 @@ export function createInstallationManager(
           if (releaseLock) await releaseLock();
         } finally {
           busy.delete(id);
+          report(id, null);
         }
       }
     }

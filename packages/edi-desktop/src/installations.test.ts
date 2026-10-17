@@ -7,7 +7,7 @@ import { EDI_DESKTOP_APPS } from "@informach/config/edi-tools";
 import { releaseArtifactUrl } from "@informach/edi-contracts";
 import { signRelease } from "@informach/edi-contracts/release-signature";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
-import { createInstallationManager } from "./installations";
+import { createInstallationManager, type InstallActivity } from "./installations";
 
 // Keep signature verification, streaming, filesystem and inter-process locks real.
 // The native execution boundary is tested with actual NSIS in edi-upgrade.yml.
@@ -60,6 +60,7 @@ async function fixture() {
     pair.privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
   );
   let mode: "interrupted" | "corrupted" | "complete" = "interrupted";
+  const activity: InstallActivity[][] = [];
   vi.stubGlobal("fetch", async (url: URL) => {
     if (url.pathname.endsWith("edi-release.json")) return Response.json(signed);
     if (mode === "complete") return new Response(installer);
@@ -90,8 +91,10 @@ async function fixture() {
     directory,
     acceptRelease: async () => {},
     fileSystem: { ...promises, createReadStream },
+    onActivity: (snapshot) => activity.push(snapshot),
   });
   return {
+    activity,
     directory,
     installer,
     manager,
@@ -126,5 +129,17 @@ describe("installer download recovery", () => {
       "Fixture stopped at native installer execution",
     );
     expect(execution.files).toEqual([f.installer]);
+  });
+  it("reports download and installation progress and clears it at the end", async () => {
+    const f = await fixture();
+    f.setMode("complete");
+    await expect(f.manager.install("edisvg")).rejects.toThrow(
+      "Fixture stopped at native installer execution",
+    );
+    const phases = f.activity.map((snapshot) => snapshot[0]?.phase ?? "idle");
+    expect(phases[0]).toBe("downloading");
+    expect(f.activity).toContainEqual([{ id: "edisvg", phase: "downloading", progress: 1 }]);
+    expect(phases.indexOf("installing")).toBeGreaterThan(phases.lastIndexOf("downloading"));
+    expect(f.activity.at(-1)).toEqual([]);
   });
 });

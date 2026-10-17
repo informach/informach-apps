@@ -134,22 +134,32 @@ try {
   });
   assert.equal(oversized.status, 413);
   assert.deepEqual(await oversized.json(), { error: "payload_too_large" });
-  const account = await request("/conta");
-  if (account.status === 307) {
-    assert.equal(account.headers.get("location"), "/entrar");
-    await account.body?.cancel();
-  } else {
-    // Next.js emits a refresh meta tag if the RSC stream has already started.
-    assert.equal(account.status, 200);
-    const page = await account.text();
-    assert.ok(
-      /<meta[^>]+http-equiv="refresh"[^>]+content="[0-9]+;url=\/entrar"/.test(page),
-      "Expected the documented streamed redirect to /entrar",
-    );
-    assert.ok(
-      !page.includes("Sua assinatura"),
-      "Anonymous account response must contain no account content",
-    );
+  for (const [path, next, creating] of [
+    ["/conta", "/conta", false],
+    ["/conta?plano=mensal", "/conta?plano=mensal", true],
+    ["/conta?plano=anual", "/conta?plano=anual", true],
+  ] as const) {
+    const account = await request(path);
+    let location: string | null;
+    if (account.status === 307) {
+      location = account.headers.get("location");
+      await account.body?.cancel();
+    } else {
+      // Next.js emits a refresh meta tag if the RSC stream has already started.
+      assert.equal(account.status, 200);
+      const page = await account.text();
+      location =
+        /<meta[^>]+http-equiv="refresh"[^>]+content="[0-9]+;url=([^"]+)"/
+          .exec(page)?.[1]
+          ?.replaceAll("&amp;", "&") ?? null;
+      assert.ok(!page.includes("account-grid"), "Anonymous response must contain no account UI");
+    }
+    assert.ok(location, "Expected an anonymous redirect to sign-in");
+    const destination = new URL(location, origin);
+    assert.equal(destination.origin, origin);
+    assert.equal(destination.pathname, "/entrar");
+    assert.equal(destination.searchParams.get("next"), next);
+    assert.equal(destination.searchParams.get("criar"), creating ? "1" : null);
   }
   const device = await request("/api/auth/device/code", {
     method: "POST",

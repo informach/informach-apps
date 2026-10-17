@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { tsImport } from "tsx/esm/api";
 import { build } from "vite";
+import { windowsPowerShellEnvironment } from "../../packages/edi-desktop/src/windows-powershell.ts";
 
 /** Runs the production inventory reader inside Electron, without installing an application. */
 export async function verifyNativeInstallationIntegrity(root: string, electronPath: string) {
@@ -75,4 +76,29 @@ export async function verifyNativeInstallationIntegrity(root: string, electronPa
     },
   );
   console.log(result.stdout.trim());
+  const guiProfile = join(root, "isolated GUI profile");
+  await mkdir(guiProfile, { recursive: true });
+  const gui = await promisify(execFile)(
+    "powershell.exe",
+    [
+      "-NoLogo",
+      "-NoProfile",
+      "-NonInteractive",
+      "-File",
+      fileURLToPath(new URL("./verify-gui-launcher.ps1", import.meta.url)),
+      "-Electron",
+      electronPath,
+      "-Fixture",
+      fileURLToPath(new URL("./native-window.fixture.cjs", import.meta.url)),
+      "-Profile",
+      guiProfile,
+    ],
+    {
+      env: windowsPowerShellEnvironment(environment),
+      windowsHide: true,
+      timeout: 30000,
+      maxBuffer: 32768,
+    },
+  );
+  console.log(gui.stdout.trim());
 }

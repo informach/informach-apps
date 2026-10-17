@@ -36,9 +36,11 @@ function Assert-InstalledVersion([string]$Target, [string]$Version) {
   }
 }
 
-function Start-VerifiedApplication([string]$Target) {
+function Start-VerifiedApplication([string]$Target, [string[]]$Arguments = @()) {
   Add-Type -AssemblyName UIAutomationClient
-  $process = Start-Process -FilePath $Target -ArgumentList '--force-renderer-accessibility' -PassThru -WindowStyle Hidden
+  # This is the interactive GUI under test, not an installer/background helper.
+  # SW_HIDE suppresses Electron's first BrowserWindow and defeats UI Automation.
+  $process = Start-Process -FilePath $Target -ArgumentList (@('--force-renderer-accessibility') + $Arguments) -PassThru -WindowStyle Normal
   try {
     if (!$process.WaitForInputIdle(60000)) { throw 'Application did not reach input readiness.' }
     $deadline = [DateTime]::UtcNow.AddSeconds(60)

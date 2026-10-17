@@ -256,6 +256,9 @@ describe("native subscription authorization", () => {
     f.mode("denied");
     await f.controller.refresh();
     expect(f.data.leases).toEqual({});
+    expect(f.controller.status().reason).toBe(
+      "Esta conta não tem uma assinatura ativa. Assine em Minha assinatura para abrir as ferramentas.",
+    );
     f.mode("offline");
     await f.controller.refresh();
     expect(() => f.controller.assertAccess()).toThrow("edi_access_restricted");

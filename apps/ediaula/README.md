@@ -17,7 +17,7 @@ npm run dev        # abre o app em modo de desenvolvimento
 ```
 
 **Sem terminal:** `npm run shortcut` compila o app e cria o atalho **EdiAula** na Área de Trabalho e no Menu Iniciar
-(ícone em `resources/`, gerado por `scripts/make-icon.ps1`). O atalho abre a versão compilada em `out/`;
+(ícone em `resources/`, gerado para a suíte inteira por `scripts/edi/make-icons.ps1` na raiz). O atalho abre a versão compilada em `out/`;
 depois de mudar o código, rode `npm run build` (ou `npm run shortcut` de novo) para o atalho pegar a versão nova.
 
 Outros comandos:

@@ -1,0 +1,314 @@
+/* Entrar e conectar computador. Importado depois de globals.css pelo layout raiz. */
+.auth-layout {
+  display: flex;
+  flex-wrap: wrap;
+  min-height: 100vh;
+}
+.auth-column {
+  flex: 1 1 520px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 24px var(--gutter) 32px;
+}
+.auth-column > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.auth-column > header .wordmark__text {
+  font-size: 32px;
+}
+.auth-main {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding-block: 48px;
+}
+.auth-panel {
+  width: 100%;
+  max-width: 420px;
+  display: grid;
+  gap: 14px;
+}
+.auth-form {
+  display: grid;
+  gap: 14px;
+}
+.auth-form form {
+  display: grid;
+  gap: 18px;
+  margin-top: 16px;
+}
+.auth-form .eyebrow {
+  margin-top: 20px;
+}
+.auth-aside__facts {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--mat-muted);
+}
+.auth-legal {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--pencil);
+}
+.auth-aside {
+  flex: 1 1 480px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.auth-aside__content {
+  display: grid;
+  gap: 28px;
+  padding: clamp(40px, 7vw, 96px) clamp(16px, 5vw, 72px) 40px;
+}
+.aside-tools {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  max-width: 460px;
+}
+.aside-tools li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgb(244 241 234 / 0.06);
+}
+.aside-tools small {
+  display: block;
+  font-size: 14px;
+  color: var(--mat-muted);
+}
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--paper-deep);
+}
+.tabs button {
+  flex: 1;
+  min-height: 44px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--pencil);
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+}
+.tabs button[aria-selected="true"] {
+  background: var(--card-paper);
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgb(27 31 36 / 0.12);
+}
+.field {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.field-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.field-head .link-button {
+  min-height: 32px;
+  font-size: 13px;
+}
+.input {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 14px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--card-paper);
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 400;
+}
+.input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+.input--code {
+  min-height: 76px;
+  padding: 0 20px;
+  border: 2px solid var(--ink);
+  border-radius: 14px;
+  font-family: var(--font-mono);
+  font-size: clamp(26px, 4vw, 34px);
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+.input--otp {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  letter-spacing: 0.4em;
+}
+.auth-secondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+}
+.hint-card {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-top: 12px;
+  padding: 16px 18px;
+  border: 1px dashed #b9b4a8;
+  border-radius: 12px;
+  font-size: 14px;
+  color: var(--pencil);
+}
+.hint-card > svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--ink);
+}
+
+/* Conectar */
+.narrow {
+  max-width: 600px;
+  margin-inline: auto;
+  display: grid;
+  gap: 16px;
+}
+.connect-form {
+  margin-top: 16px;
+}
+.stepper {
+  list-style: none;
+  margin: 0 0 24px;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.stepper li {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--paper-deep);
+  color: var(--pencil);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.stepper .is-done {
+  background: #c8e64a;
+  color: var(--ink);
+}
+.stepper .is-current {
+  background: var(--ink);
+  color: var(--paper);
+}
+.review-card {
+  margin-top: 12px;
+  border: 2px solid var(--ink);
+  border-radius: 18px;
+  background: var(--card-paper);
+  overflow: hidden;
+}
+.review-card__head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  border-bottom: 1px solid var(--line);
+}
+.review-card__head small {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--pencil);
+}
+.permissions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  padding: 20px;
+}
+.permissions__title {
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+.permissions ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  font-size: 15px;
+}
+.permissions li {
+  display: flex;
+  gap: 10px;
+}
+.permissions .is-allowed,
+.permissions .is-denied {
+  flex: none;
+  margin-top: 3px;
+}
+.permissions .is-allowed {
+  color: #1f7a4d;
+}
+.permissions .is-denied {
+  color: var(--danger);
+}
+.review-card__slots {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background: var(--paper-deep);
+  font-size: 15px;
+}
+.slot-bar {
+  display: flex;
+  gap: 6px;
+}
+.slot-bar span {
+  flex: 1;
+  min-width: 40px;
+  height: 10px;
+  border-radius: 4px;
+  border: 1.5px dashed var(--pencil);
+}
+.slot-bar .is-used {
+  border: 0;
+  background: var(--ink);
+}
+.slot-bar .is-next {
+  border: 2px solid var(--ink);
+  background: var(--amber);
+}
+.result-mark {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: #c8e64a;
+}
+.result-mark--neutral {
+  background: var(--paper-deep);
+  border: 2px solid var(--ink);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}

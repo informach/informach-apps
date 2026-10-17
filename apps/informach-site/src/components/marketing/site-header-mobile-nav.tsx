@@ -3,13 +3,13 @@
 import { Button } from "@informach/ui/components/button";
 import {
   Sheet,
-  SheetClose,
   SheetContent,
   SheetDescription,
   SheetTitle,
   SheetTrigger,
 } from "@informach/ui/components/sheet";
 import { Menu } from "lucide-react";
+import { type MouseEvent, useRef, useState } from "react";
 
 export type MobileNavLink = {
   href: string;
@@ -18,43 +18,67 @@ export type MobileNavLink = {
 
 export type SiteHeaderMobileNavProps = {
   links: ReadonlyArray<MobileNavLink>;
-  communityUrl: string;
+  cta: MobileNavLink;
 };
 
-export function SiteHeaderMobileNav({ links, communityUrl }: SiteHeaderMobileNavProps) {
+/**
+ * Enquanto a gaveta está aberta, a rolagem da página fica travada e o salto da
+ * âncora se perde. O link só guarda o destino; a navegação acontece depois que
+ * a gaveta termina de fechar e devolve a rolagem.
+ */
+export function SiteHeaderMobileNav({ links, cta }: SiteHeaderMobileNavProps) {
+  const [open, setOpen] = useState(false);
+  const pendingHref = useRef<string | null>(null);
+
+  function goTo(event: MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+    pendingHref.current = event.currentTarget.getAttribute("href");
+    setOpen(false);
+  }
+
   return (
-    <Sheet>
+    <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Abrir menu">
+        <Button variant="ghost" size="icon" aria-label="Abrir menu" className="size-11">
           <Menu className="size-5" aria-hidden />
         </Button>
       </SheetTrigger>
-      <SheetContent side="right" className="w-72">
+      <SheetContent
+        side="right"
+        className="w-80 bg-paper"
+        onCloseAutoFocus={(event) => {
+          const href = pendingHref.current;
+          if (!href) return;
+          pendingHref.current = null;
+          event.preventDefault();
+          window.location.assign(href);
+        }}
+      >
         <SheetTitle className="sr-only">Menu</SheetTitle>
         <SheetDescription className="sr-only">
           Navegação principal do site da Informach.
         </SheetDescription>
-        <div className="mt-8 flex flex-col gap-1">
+        <nav aria-label="Principal" className="mt-10 flex flex-col gap-1 px-2">
           {links.map((link) => (
-            <SheetClose asChild key={link.href}>
-              <a
-                href={link.href}
-                className="rounded-md px-3 py-3 text-base font-medium text-foreground transition-colors hover:bg-accent"
-              >
-                {link.label}
-              </a>
-            </SheetClose>
+            <a
+              key={link.href}
+              href={link.href}
+              onClick={goTo}
+              className="rounded-xl px-3 py-3 text-base font-semibold text-ink transition-colors hover:bg-sand"
+            >
+              {link.label}
+            </a>
           ))}
-          <div className="mt-6 border-t border-border pt-6">
-            <SheetClose asChild>
-              <Button asChild>
-                <a href={communityUrl} target="_blank" rel="noopener noreferrer">
-                  Entrar na comunidade
-                </a>
-              </Button>
-            </SheetClose>
+          <div className="mt-6 border-t border-line-warm pt-6">
+            <a
+              href={cta.href}
+              onClick={goTo}
+              className="flex min-h-12 items-center justify-center rounded-full bg-ink px-4 text-[15px] font-bold whitespace-nowrap text-paper no-underline"
+            >
+              {cta.label}
+            </a>
           </div>
-        </div>
+        </nav>
       </SheetContent>
     </Sheet>
   );

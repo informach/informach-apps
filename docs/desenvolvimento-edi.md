@@ -183,6 +183,7 @@ Para verificar automaticamente os estados de acesso sem providers reais, use `pn
 | Operação segura exposta à interface | Preload do app em `src/preload` |
 | Sessão, licença local, integridade, atualização ou preservação de jobs | `packages/edi-desktop` |
 | Catálogo de ferramentas e identidades Windows | `packages/config/src/edi-tools.ts` |
+| Cor e glifo de cada ferramenta, usados pelo portal e pelo Hub | `packages/config/src/edi-brand.ts`; ícones Windows por `scripts/edi/make-icons.ps1` |
 | Conta, checkout, páginas e rotas HTTP | `apps/edi` |
 | Regra de licença e persistência comercial do servidor | `packages/edi-licensing`; schema/migrations em `packages/db` |
 | Manifesto e descoberta de release pública assinada | `packages/edi-contracts` e `packages/edi-releases` |
@@ -288,9 +289,9 @@ Uma alteração diária deve ter escopo, testes, documentação e revisão antes
 ## 10. Acrescentar uma ferramenta
 
 1. Defina a responsabilidade, formato de documento e limites da ferramenta. Crie `apps/<id>` com nome `@informach/<id>`, scripts reais de desenvolvimento/build/test/typecheck, main/preload/renderer separados e interfaces novas em React/TypeScript.
-2. Registre o ID, nome, identidade Windows única e extensões em `packages/config/src/edi-tools.ts`. Esse é o catálogo da suíte; não crie uma segunda lista no Hub, no portal ou em scripts PowerShell.
+2. Registre o ID, nome, identidade Windows única e extensões em `packages/config/src/edi-tools.ts`. Esse é o catálogo da suíte; não crie uma segunda lista no Hub, no portal ou em scripts PowerShell. A identidade visual fica em `packages/config/src/edi-brand.ts`, cujo tipo exige uma entrada por ferramenta; o único espelho é o desenho dos ícones em `scripts/edi/make-icons.ps1`, que não importa TypeScript e deve mudar junto.
 3. Integre `ediBuildOptions`, `createEdiDesktop`, `exposeEdiBridge`/`protectEditor`, IPC autorizado e recuperação adequada. A ferramenta deve validar acesso quando aberta diretamente e compartilhar o contrato de sessão, licença, inventário e atualização.
-4. Implemente formato versionado, persistência segura e perfis isolados. Inclua ícone, notices e recursos nativos físicos quando necessários. Declare os exports públicos de um package novo e identifique seus consumidores.
+4. Implemente formato versionado, persistência segura e perfis isolados. Inclua cor e glifo em `edi-brand.ts`, o desenho em `make-icons.ps1` e rode o script para gerar `resources/icon.{png,ico}`; acrescente notices e recursos nativos físicos quando necessários. Declare os exports públicos de um package novo e identifique seus consumidores.
 5. Atualize contratos e testes afetados pelo novo catálogo. **O release atual valida explicitamente seis apps e sete assets** em `edi-contracts/src/index.ts` e `scripts/edi/github-publication.mts`; a ampliação exige revisar essa cardinalidade, o manifesto e sua compatibilidade com clientes já distribuídos. O schema `packages/db/src/schema/edi.ts` também mantém a constraint `edi_artifacts_app_chk` com os IDs permitidos: atualize a definição e gere uma nova migration compatível, sem editar a migration já aplicada. Apenas adicionar uma entrada ao catálogo ainda não basta.
 6. Acrescente os cenários específicos da ferramenta ao harness nativo e valide bridge bloqueada, login/expiração, recuperação, arquivo existente, abertura direta, instalação e upgrade. As matrizes de workflow são derivadas do catálogo, mas os casos de comportamento não surgem automaticamente.
 7. Verifique o conjunto de consumidores, documentação, portal e pipeline antes de incluir a ferramenta numa release completa. Não publique uma suíte com parte dos instaladores ausente.

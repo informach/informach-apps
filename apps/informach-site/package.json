@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@informach/config": "workspace:*",
     "@informach/ui": "workspace:*",
     "lucide-react": "^0.469.0",
     "next": "^16.4.2",

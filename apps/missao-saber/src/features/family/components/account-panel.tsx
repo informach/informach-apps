@@ -1,3 +1,4 @@
+import { INFORMACH_CONTACT } from "@informach/config/contact";
 import { Card, CardContent, CardHeader, CardTitle } from "@informach/ui/components/card";
 import Link from "next/link";
 import { LinkChapa } from "@/components/ui/botao-chapa";
@@ -226,10 +227,10 @@ export async function AccountPanel({ payment }: { payment?: string }) {
         )}
         <p className="mt-4 text-sm text-muted-foreground">
           <a
-            href="mailto:contato@casaldevgames.com"
+            href={INFORMACH_CONTACT.directMessageUrl}
             className="font-medium text-foreground underline underline-offset-4"
           >
-            Suporte e solicitações sobre a conta Informach
+            Suporte e solicitações pelo direct do Instagram
           </a>{" "}
           ·{" "}
           <Link

@@ -1,8 +1,9 @@
+import { INFORMACH_CONTACT } from "@informach/config/contact";
 import type { Metadata } from "next";
 
 const TITLE = "Política de Privacidade. Cozya";
 const DESCRIPTION = "Como o Cozya trata receitas, planejamento, preferências e dados da conta.";
-const LAST_UPDATED = "11 de setembro de 2026";
+const LAST_UPDATED = "17 de outubro de 2026";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -24,7 +25,7 @@ export default function PrivacyPolicyPage() {
       <div className="mt-10 space-y-10 text-base leading-relaxed text-foreground">
         <Section title="1. Quem é o controlador dos seus dados">
           <p>
-            <strong>Informach — Núcleo de Aprendizagem Ltda</strong>, CNPJ{" "}
+            <strong>Informach Núcleo de Aprendizagem Ltda</strong>, CNPJ{" "}
             <strong>43.588.758/0001-03</strong>, é a controladora dos dados pessoais tratados pelo
             Cozya. Esta Política descreve como a gente coleta, usa, compartilha e protege essas
             informações, e quais são os seus direitos enquanto titular dos dados.
@@ -34,12 +35,9 @@ export default function PrivacyPolicyPage() {
         <Section title="2. Encarregado pelo tratamento de dados (DPO)">
           <p>
             O canal oficial pra tratar de privacidade, exercer seus direitos e tirar dúvidas sobre
-            esta Política é{" "}
-            <a className="underline underline-offset-2" href="mailto:contato@casaldevgames.com">
-              contato@casaldevgames.com
-            </a>
-            . A gente responde dentro do prazo previsto na LGPD (até 15 dias para confirmação de
-            tratamento e acesso, conforme o art. 19).
+            esta Política é o direct do Instagram, em <DirectLink />. A gente responde dentro do
+            prazo previsto na LGPD (até 15 dias para confirmação de tratamento e acesso, conforme o
+            art. 19).
           </p>
         </Section>
 
@@ -227,12 +225,9 @@ export default function PrivacyPolicyPage() {
             <li>opor-se ao tratamento, nos limites da lei.</li>
           </ul>
           <p>
-            Pra exercer qualquer direito, escreve pra{" "}
-            <a className="underline underline-offset-2" href="mailto:contato@casaldevgames.com">
-              contato@casaldevgames.com
-            </a>{" "}
-            ou usa as opções autosserviço dentro do app. A gente confirma o recebimento e responde
-            no prazo legal.
+            Pra exercer qualquer direito, manda uma mensagem no direct do Instagram, em{" "}
+            <DirectLink />, ou usa as opções autosserviço dentro do app. A gente confirma o
+            recebimento e responde no prazo legal.
           </p>
         </Section>
 
@@ -285,11 +280,8 @@ export default function PrivacyPolicyPage() {
 
         <Section title="14. Contato">
           <p>
-            Dúvidas, solicitações de direitos LGPD ou qualquer assunto relacionado a privacidade:{" "}
-            <a className="underline underline-offset-2" href="mailto:contato@casaldevgames.com">
-              contato@casaldevgames.com
-            </a>
-            .
+            Dúvidas, solicitações de direitos LGPD ou qualquer assunto relacionado a privacidade:
+            direct do Instagram, em <DirectLink />.
           </p>
         </Section>
       </div>
@@ -303,5 +295,14 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <h2 className="text-xl font-semibold tracking-tight md:text-2xl">{title}</h2>
       <div className="space-y-3 text-muted-foreground">{children}</div>
     </section>
+  );
+}
+
+/** Canal público de contato: o direct do Instagram, nunca um endereço de e-mail. */
+function DirectLink() {
+  return (
+    <a className="underline underline-offset-2" href={INFORMACH_CONTACT.directMessageUrl}>
+      @{INFORMACH_CONTACT.instagramHandle}
+    </a>
   );
 }

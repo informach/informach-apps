@@ -1,3 +1,4 @@
+import { INFORMACH_CONTACT } from "@informach/config/contact";
 import { Brand } from "@/components/brand";
 import { catalogCourses, catalogGrades } from "@/features/content/catalog";
 import { gradeRangeSentence } from "@/features/family/school-year";
@@ -16,7 +17,7 @@ export default function Terms() {
         </a>
       </header>
       <main id="conteudo" className="prosa">
-        <span className="eyebrow">ÚLTIMA ATUALIZAÇÃO · 26/09/2026</span>
+        <span className="eyebrow">ÚLTIMA ATUALIZAÇÃO · 17/10/2026</span>
         <h1>Termos do Missão Saber.</h1>
         <p>
           O Missão Saber é oferecido pela Informach Núcleo de Aprendizagem Ltda, CNPJ
@@ -65,11 +66,10 @@ export default function Terms() {
         <p>
           Problemas de conteúdo podem ser relatados na missão. Podemos pausar uma atividade durante
           uma correção, preservando o histórico já realizado. Para suporte, cancelamento, reembolso
-          ou exercício de direitos, use{" "}
-          <a href="mailto:contato@casaldevgames.com">contato@casaldevgames.com</a>. Estes termos não
-          afastam direitos assegurados ao consumidor. Para compras feitas pela internet, pedidos de
-          arrependimento dentro do prazo legal de sete dias podem ser enviados por esse canal.
-          Outros reembolsos são analisados conforme o caso e a legislação aplicável.
+          ou exercício de direitos, mande uma mensagem no direct do Instagram, em <DirectLink />.
+          Estes termos não afastam direitos assegurados ao consumidor. Para compras feitas pela
+          internet, pedidos de arrependimento dentro do prazo legal de sete dias podem ser enviados
+          por esse canal. Outros reembolsos são analisados conforme o caso e a legislação aplicável.
         </p>
         <p>
           Leia a <a href="/privacidade">política de privacidade do app</a> e os{" "}
@@ -78,4 +78,9 @@ export default function Terms() {
       </main>
     </>
   );
+}
+
+/** Canal público de contato: o direct do Instagram, nunca um endereço de e-mail. */
+function DirectLink() {
+  return <a href={INFORMACH_CONTACT.directMessageUrl}>@{INFORMACH_CONTACT.instagramHandle}</a>;
 }

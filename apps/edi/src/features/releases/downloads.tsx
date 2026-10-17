@@ -1,55 +1,140 @@
-import { EDI_DESKTOP_APPS } from "@informach/config/edi-tools";
+import { EDI_HUB, EDI_TOOLS } from "@informach/config/edi-tools";
 import type { ReleaseManifest } from "@informach/edi-contracts";
+import { cache } from "react";
+import { HubIcon, ToolIcon } from "../../components/site/brand";
+import { AlertIcon, DownloadIcon, ShieldIcon } from "../../components/site/icons";
 import { logger } from "../../lib/logger";
 import { getReleases } from "../../lib/releases";
-export async function Downloads() {
-  let manifest: ReleaseManifest | null = null;
-  let message = "O primeiro instalador homologado ainda não foi publicado.";
+import { formatInstallerSize, windowsPublisherCertified } from "./format";
+
+type Catalog =
+  | { state: "published"; manifest: ReleaseManifest }
+  | { state: "pending" }
+  | { state: "unavailable" };
+
+// One manifest lookup per request, shared by the Hub card and the tool list.
+const loadCatalog = cache(async (): Promise<Catalog> => {
   try {
-    manifest = await getReleases().active("stable");
-    if (manifest) message = `Versão ${manifest.version} · Windows 64 bits`;
+    const manifest = await getReleases().active("stable");
+    return manifest ? { state: "published", manifest } : { state: "pending" };
   } catch (error) {
     logger.warn(
       { errorType: error instanceof Error ? error.name : "unknown" },
       "release.downloads_unavailable",
     );
-    message =
-      "O catálogo está temporariamente indisponível. Nenhum instalador não verificado é oferecido aqui.";
+    return { state: "unavailable" };
   }
+});
+
+const UNPUBLISHED: Record<Exclude<Catalog["state"], "published">, string> = {
+  pending: "O primeiro instalador homologado ainda não foi publicado.",
+  unavailable:
+    "O catálogo está fora do ar agora. Nenhum instalador sem verificação é oferecido aqui. Tente de novo em alguns minutos.",
+};
+
+/** Download card for the Hub, fed by the signed public manifest. */
+export async function HubDownload() {
+  const catalog = await loadCatalog();
+  const artifact =
+    catalog.state === "published"
+      ? catalog.manifest.artifacts.find((item) => item.appId === EDI_HUB.id)
+      : undefined;
   return (
-    <section aria-label="Instaladores do piloto">
-      <p role="status">{message}</p>
-      <div className="tools">
-        {EDI_DESKTOP_APPS.map((app) => {
-          const artifact = manifest?.artifacts.find((item) => item.appId === app.id);
-          return (
-            <article className="tool" key={app.id}>
-              <h2>{app.name}</h2>
-              <p>
-                {app.id === "edi-hub"
-                  ? "Instale e gerencie as cinco ferramentas da sua bancada."
-                  : "A interface é preservada. Funções ainda em desenvolvimento serão concluídas em etapas posteriores."}
-              </p>
-              {artifact ? (
-                <>
-                  <a className="button" href={artifact.url}>
-                    Baixar instalador do piloto
-                  </a>
-                  <small>Integridade verificada pelo manifesto da suíte · sem Authenticode</small>
-                  {app.id === "ediaula" && (
-                    <small>
-                      O EdiAula usa FFmpeg e FFprobe sob GPLv3 como programas separados. As licenças
-                      e fontes correspondentes acompanham o instalador, em
-                      resources/native-media/Corresponding-Source.tar.xz.
-                    </small>
-                  )}
-                </>
-              ) : (
-                <span className="muted">Aguardando publicação homologada</span>
-              )}
-            </article>
-          );
-        })}
+    <div className="download-card mat">
+      <div className="download-card__body">
+        <div className="download-card__app">
+          <HubIcon />
+          <span>
+            <strong className="display-4">Edi Hub para Windows</strong>
+            <small>
+              {catalog.state === "published" && artifact
+                ? `versão ${catalog.manifest.version} · 64 bits · ${formatInstallerSize(artifact.size)}`
+                : "Windows 64 bits"}
+            </small>
+          </span>
+        </div>
+        {catalog.state === "published" && artifact ? (
+          <a className="button button--primary button--lg button--block" href={artifact.url}>
+            <DownloadIcon size={20} />
+            Baixar o Edi Hub
+          </a>
+        ) : (
+          <p className="download-card__status" role="status">
+            {catalog.state === "published" ? UNPUBLISHED.pending : UNPUBLISHED[catalog.state]}
+          </p>
+        )}
+        <p className="download-card__trust">
+          <ShieldIcon size={18} />
+          Cada instalador é conferido antes de aparecer aqui. Baixe sempre por edi.informach.com.br.
+        </p>
+      </div>
+      <span className="ruler" aria-hidden="true" />
+    </div>
+  );
+}
+
+/** Individual installers for each tool, from the same manifest. */
+export async function ToolDownloads() {
+  const catalog = await loadCatalog();
+  return (
+    <ul className="tool-list">
+      {EDI_TOOLS.map((tool) => {
+        const artifact =
+          catalog.state === "published"
+            ? catalog.manifest.artifacts.find((item) => item.appId === tool.id)
+            : undefined;
+        return (
+          <li key={tool.id}>
+            <ToolIcon tool={tool.id} />
+            <span className="tool-list__name">
+              <strong>{tool.name}</strong>
+              <span>{tool.description}</span>
+            </span>
+            {catalog.state === "published" && artifact ? (
+              <>
+                <span className="tool-list__meta">
+                  versão {catalog.manifest.version} · {formatInstallerSize(artifact.size)}
+                </span>
+                <a className="button button--outline button--sm" href={artifact.url}>
+                  Baixar
+                  <span className="visually-hidden"> o {tool.name}</span>
+                </a>
+              </>
+            ) : (
+              <span className="tool-list__meta">Aguardando publicação</span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** Explains the SmartScreen warning while the Hub installer lacks a recognised publisher. */
+export async function WindowsWarning() {
+  const catalog = await loadCatalog();
+  const hub =
+    catalog.state === "published"
+      ? catalog.manifest.artifacts.find((item) => item.appId === EDI_HUB.id)
+      : undefined;
+  if (hub && windowsPublisherCertified(hub.publisher)) return null;
+  return (
+    <section id="aviso-windows" className="container" aria-labelledby="aviso">
+      <div className="notice notice--strong">
+        <AlertIcon size={26} />
+        <div>
+          <h2 id="aviso" className="display-4">
+            Versão piloto: o Windows pode estranhar.
+          </h2>
+          <p>
+            Este instalador ainda não tem o certificado de publicador reconhecido pelo Windows. Se
+            aparecer “O Windows protegeu o computador”, confira se o arquivo veio deste site, clique
+            em <strong>Mais informações</strong> e depois em <strong>Executar assim mesmo</strong>.
+          </p>
+          <p className="muted small">
+            Em computadores de escola ou de empresa, a instalação pode depender da equipe de TI.
+          </p>
+        </div>
       </div>
     </section>
   );

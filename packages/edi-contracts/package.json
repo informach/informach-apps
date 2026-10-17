@@ -10,7 +10,8 @@
     "./verify": "./src/verify.ts",
     "./proof": "./src/proof.ts",
     "./release-signature": "./src/release-signature.ts",
-    "./json-response": "./src/json-response.ts"
+    "./json-response": "./src/json-response.ts",
+    "./device-code": "./src/device-code.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

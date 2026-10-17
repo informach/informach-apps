@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import { DirectLink } from "@/components/marketing/direct-link";
 import { SITE } from "@/lib/site";
 
 const TITLE = "Política de Privacidade";
 const DESCRIPTION =
   "Como a Informach coleta, usa e protege os dados pessoais dos usuários dos seus apps, em conformidade com a LGPD (Lei nº 13.709/2018).";
-const LAST_UPDATED = "9 de maio de 2026";
+const LAST_UPDATED = "17 de outubro de 2026";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -33,21 +34,18 @@ export default function PrivacyPolicyPage() {
           </p>
           <p>
             Cada app da Informach pode ter detalhamentos específicos na sua própria política de
-            privacidade — quando houver, ela complementa esta política guarda-chuva.
+            privacidade; quando houver, ela complementa esta política guarda-chuva.
           </p>
         </Section>
 
         <Section title="2. Encarregado pelo tratamento de dados (DPO)">
           <p>
             O canal oficial pra tratar de privacidade, exercer seus direitos e tirar dúvidas sobre
-            esta Política é{" "}
-            <a className="underline underline-offset-2" href={`mailto:${SITE.contactEmail}`}>
-              {SITE.contactEmail}
-            </a>
-            . A gente responde dentro do prazo previsto na LGPD (até 15 dias para confirmação de
-            tratamento e acesso, conforme o art. 19).
+            esta Política é o direct do Instagram, em <DirectLink />. A gente responde dentro do
+            prazo previsto na LGPD (até 15 dias para confirmação de tratamento e acesso, conforme o
+            art. 19).
           </p>
-          {/* TODO(legal): nomear formalmente Encarregado pelo Tratamento de Dados (DPO) — pessoa física ou jurídica — antes de operar em escala. */}
+          {/* TODO(legal): nomear formalmente Encarregado pelo Tratamento de Dados (DPO), pessoa física ou jurídica, antes de operar em escala. */}
         </Section>
 
         <Section title="3. Quais dados coletamos">
@@ -62,10 +60,12 @@ export default function PrivacyPolicyPage() {
               dados que você produz dentro de cada produto.
             </li>
             <li>
-              <strong>Dados de uso da IA:</strong> registro de chamadas (qual feature, modelo
-              utilizado, contagem de tokens, custo em créditos) pra fins de cobrança e auditoria. A
-              gente não armazena prompts e respostas após o processamento, exceto quando você decide
-              salvar o resultado.
+              <strong>Dados de uso da IA:</strong> registro de cada tarefa de IA (qual recurso,
+              modelo utilizado, contagem de tokens e créditos descontados) pra cobrança, controle do
+              saldo e auditoria, sem o conteúdo enviado. O material que você manda para a IA e o
+              resultado ficam guardados só quando você salva o resultado ou pelo prazo que a
+              política de cada app descreve, como a prévia de uma receita no Cozya ou o anexo de um
+              recado na Agenda da Turma.
             </li>
             <li>
               <strong>Dados de cobrança:</strong> identificadores Stripe (customer ID, subscription
@@ -98,19 +98,19 @@ export default function PrivacyPolicyPage() {
         <Section title="5. Bases legais (LGPD art. 7)">
           <ul className="list-disc space-y-2 pl-6">
             <li>
-              <strong>Execução de contrato</strong> (art. 7º, V) — para tudo que é necessário pra
+              <strong>Execução de contrato</strong> (art. 7º, V): para tudo que é necessário pra
               prestar o serviço que você contratou.
             </li>
             <li>
-              <strong>Cumprimento de obrigação legal ou regulatória</strong> (art. 7º, II) — para
+              <strong>Cumprimento de obrigação legal ou regulatória</strong> (art. 7º, II): para
               guarda fiscal de documentos e atendimento a autoridades.
             </li>
             <li>
-              <strong>Legítimo interesse</strong> (art. 7º, IX) — para segurança, prevenção a fraude
+              <strong>Legítimo interesse</strong> (art. 7º, IX): para segurança, prevenção a fraude
               e melhoria do produto, sempre com avaliação de impacto e minimização de dados.
             </li>
             <li>
-              <strong>Consentimento</strong> (art. 7º, I) — para qualquer comunicação opcional. Se
+              <strong>Consentimento</strong> (art. 7º, I): para qualquer comunicação opcional. Se
               isso passar a ser usado, você será solicitado a optar expressamente.
             </li>
           </ul>
@@ -123,21 +123,28 @@ export default function PrivacyPolicyPage() {
           </p>
           <ul className="list-disc space-y-2 pl-6">
             <li>
-              <strong>Stripe</strong> (Stripe Inc., EUA) — pagamentos e cobrança recorrente.
+              <strong>Stripe</strong> (Stripe Inc., EUA): pagamentos e cobrança recorrente.
             </li>
             <li>
-              <strong>SendGrid</strong> (Twilio Inc., EUA) — envio de e-mails transacionais.
+              <strong>SendGrid</strong> (Twilio Inc., EUA): envio de e-mails transacionais.
             </li>
             <li>
-              <strong>OpenRouter</strong> (Mintplex Labs, EUA) — gateway pra modelos de IA da OpenAI
-              e parceiros, processando os prompts em tempo real e descartando após a resposta.
+              <strong>OpenRouter</strong> (OpenRouter, Inc., EUA): serviço que dá acesso a modelos
+              de IA de vários provedores numa conta só. A Informach contrata o OpenRouter e paga
+              pelo uso; você não precisa ter conta lá. Quando você usa um recurso de IA, o material
+              necessário para a tarefa (texto, imagem ou áudio) passa pelo OpenRouter até o modelo
+              escolhido, hoje da OpenAI, e a resposta volta pelo mesmo caminho. Pela política do
+              OpenRouter, ele não guarda o conteúdo dos pedidos e respostas por padrão e registra
+              metadados técnicos, como quantidade de tokens e tempo de resposta. Cada provedor de
+              modelo segue a própria política de retenção, então não afirmamos descarte imediato por
+              todos eles.
             </li>
             <li>
-              <strong>Sentry</strong> (Functional Software Inc., EUA) — monitoramento de erros e
+              <strong>Sentry</strong> (Functional Software Inc., EUA): monitoramento de erros e
               performance, com filtragem automática de dados sensíveis antes do envio.
             </li>
             <li>
-              <strong>Google</strong> (Alphabet Inc., EUA) — quando você opta por entrar com Google
+              <strong>Google</strong> (Alphabet Inc., EUA): quando você opta por entrar com Google
               (OAuth) num app que ofereça essa opção.
             </li>
           </ul>
@@ -200,12 +207,9 @@ export default function PrivacyPolicyPage() {
             <li>opor-se ao tratamento, nos limites da lei.</li>
           </ul>
           <p>
-            Pra exercer qualquer direito, escreve pra{" "}
-            <a className="underline underline-offset-2" href={`mailto:${SITE.contactEmail}`}>
-              {SITE.contactEmail}
-            </a>{" "}
-            ou usa as opções de autosserviço dentro do próprio app. A gente confirma o recebimento e
-            responde no prazo legal.
+            Pra exercer qualquer direito, manda uma mensagem no direct do Instagram, em{" "}
+            <DirectLink />, ou usa as opções de autosserviço dentro do próprio app. A gente confirma
+            o recebimento e responde no prazo legal.
           </p>
         </Section>
 
@@ -239,9 +243,34 @@ export default function PrivacyPolicyPage() {
 
         <Section title="12. Crianças e adolescentes">
           <p>
-            Os apps da Informach são destinados a maiores de 18 anos. A gente não coleta
-            intencionalmente dados de crianças e adolescentes. Se você é responsável por um menor
-            que tenha criado conta sem autorização, entre em contato e a gente exclui imediatamente.
+            Quem abre uma conta Informach é sempre um adulto, maior de 18 anos. Alguns produtos são
+            feitos para crianças e adolescentes usarem com a família, sempre sob supervisão do
+            responsável: na Missão Saber e na Agenda da Turma, o responsável cria o perfil da
+            criança dentro da própria conta. A criança não tem e-mail nem senha nesses perfis, e o
+            responsável acompanha o que ela faz pela área da família de cada app.
+          </p>
+          <p>
+            Tratamos os dados da criança ou do adolescente para prestar o serviço que o responsável
+            contratou, sempre no melhor interesse deles, como pede o art. 14 da LGPD. Pedimos só o
+            necessário para o produto funcionar, não usamos esses dados para publicidade e não
+            existem anúncios nem perfis públicos de crianças nos nossos produtos. O responsável pode
+            consultar, exportar, corrigir e apagar os dados dos perfis pela própria conta, a
+            qualquer momento. A política de cada app detalha o que entra no perfil.
+          </p>
+          <p>
+            O Sistema Zero, onde crianças aprendem programação criando jogos, tem Área dos pais e
+            política própria, em{" "}
+            <a
+              className="underline underline-offset-2"
+              href="https://sistemazero.com.br/kids/privacidade"
+            >
+              sistemazero.com.br/kids/privacidade
+            </a>
+            .
+          </p>
+          <p>
+            Se você é responsável por um menor que abriu uma conta sem autorização, fale com a gente
+            pelo direct do Instagram, em <DirectLink />, e a gente exclui a conta.
           </p>
         </Section>
 
@@ -259,11 +288,8 @@ export default function PrivacyPolicyPage() {
 
         <Section title="14. Contato">
           <p>
-            Dúvidas, solicitações de direitos LGPD ou qualquer assunto relacionado a privacidade:{" "}
-            <a className="underline underline-offset-2" href={`mailto:${SITE.contactEmail}`}>
-              {SITE.contactEmail}
-            </a>
-            .
+            Dúvidas, solicitações de direitos LGPD ou qualquer assunto relacionado a privacidade:
+            direct do Instagram, em <DirectLink />.
           </p>
         </Section>
       </div>

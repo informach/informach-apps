@@ -29,7 +29,7 @@ O start executa o servidor standalone com `HOSTNAME=0.0.0.0` e respeita o `PORT`
 | `EDI_LICENSE_PRIVATE_KEY` | Chave privada de licença recuperada do backup protegido, somente no backend |
 | `EDI_DISTRIBUTION_REPOSITORY` | `informach/edi-releases` |
 | `EDI_UPDATE_PUBLIC_KEYS` | Mapa público de atualização igual ao ambiente `edi-release` do GitHub |
-| `EDI_BILLING_ENABLED` | `false` até a homologação comercial |
+| `EDI_BILLING_ENABLED` | `false` até a homologação comercial. Junto com os preços, também alterna a página de vendas e a conta entre fase piloto (criar conta e baixar o Hub) e lançamento (assinar) |
 | `STRIPE_MODE` | `prod` em produção; testes comerciais em ambiente isolado |
 | `STRIPE_SECRET_KEY` | Chave live da conta existente, transferida do armazenamento protegido; nunca em `NEXT_PUBLIC_*` |
 | `STRIPE_WEBHOOK_SECRET` | Segredo exclusivo do endpoint snapshot Edi live |

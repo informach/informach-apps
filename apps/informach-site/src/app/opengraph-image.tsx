@@ -1,82 +1,148 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
+import { SITE_PRODUCTS, type SiteProduct } from "@/lib/products";
 import { SITE } from "@/lib/site";
 
-export const alt = "Informach — Apps com IA pra dores reais do dia a dia.";
+export const alt =
+  "Informach: feito em casa, para a sua família. Programação para crianças, olimpíadas, rotina da escola, jantar da semana e aulas gravadas.";
 export const size = { width: 1200, height: 630 } as const;
 export const contentType = "image/png";
 
+/*
+ * A imagem é gerada no build, lendo arquivos do disco. Cada caminho é literal:
+ * caminho montado em tempo de execução faz o Next rastrear o projeto inteiro
+ * para dentro do pacote standalone.
+ */
+const read = {
+  sphere: () => readFile(join(process.cwd(), "src", "app", "icon.png")),
+  wordmark: () => readFile(join(process.cwd(), "public", "logo-informach-dark.svg")),
+  zappy: () => readFile(join(process.cwd(), "assets", "og", "zappy.png")),
+  jakarta400: () => readFile(join(process.cwd(), "assets", "og", "PlusJakartaSans-400.ttf")),
+  jakarta800: () => readFile(join(process.cwd(), "assets", "og", "PlusJakartaSans-800.ttf")),
+};
+
+const ICONS: Partial<Record<SiteProduct["slug"], () => Promise<Buffer>>> = {
+  "missao-saber": () => readFile(join(process.cwd(), "public", "produtos", "missao-saber.png")),
+  "agenda-da-turma": () =>
+    readFile(join(process.cwd(), "public", "produtos", "agenda-da-turma.svg")),
+  cozya: () => readFile(join(process.cwd(), "public", "produtos", "cozya.svg")),
+  edi: () => readFile(join(process.cwd(), "public", "produtos", "edi.png")),
+};
+
+const toDataUrl = (bytes: Buffer, mime: string) =>
+  `data:${mime};base64,${bytes.toString("base64")}`;
+const mimeOf = (path: string) => (path.endsWith(".svg") ? "image/svg+xml" : "image/png");
+
+async function productIcon(product: SiteProduct) {
+  const load = ICONS[product.slug];
+  if (!load) throw new Error(`Imagem social sem ícone para ${product.slug}`);
+  return toDataUrl(await load(), mimeOf(product.icon));
+}
+
 export default async function Image() {
-  const iconPath = join(process.cwd(), "src", "app", "icon.png");
-  const iconBuffer = await readFile(iconPath);
-  const iconDataUrl = `data:image/png;base64,${iconBuffer.toString("base64")}`;
+  const [sphereBytes, wordmarkBytes, zappyBytes, jakarta400, jakarta800, icons] = await Promise.all(
+    [
+      read.sphere(),
+      read.wordmark(),
+      read.zappy(),
+      read.jakarta400(),
+      read.jakarta800(),
+      Promise.all(
+        SITE_PRODUCTS.filter((product) => product.slug !== "sistema-zero").map(productIcon),
+      ),
+    ],
+  );
+  const sphere = toDataUrl(sphereBytes, "image/png");
+  const wordmark = toDataUrl(wordmarkBytes, "image/svg+xml");
+  const zappy = toDataUrl(zappyBytes, "image/png");
+  const sistemaZero = SITE_PRODUCTS.find((product) => product.slug === "sistema-zero");
 
   return new ImageResponse(
     <div
       style={{
         width: "100%",
         height: "100%",
+        position: "relative",
+        overflow: "hidden",
         display: "flex",
         flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        padding: "80px",
-        background: "linear-gradient(135deg, #173247 0%, #0F2030 60%, #0A1825 100%)",
-        color: "#ffffff",
-        fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+        justifyContent: "space-between",
+        padding: "64px 72px",
+        background: "#173247",
+        color: "#F8F5EF",
+        fontFamily: "Plus Jakarta Sans",
       }}
     >
       <div
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "32px",
-          marginBottom: "48px",
+          position: "absolute",
+          right: -150,
+          top: -150,
+          width: 560,
+          height: 560,
+          borderRadius: 9999,
+          border: "2px dashed rgba(248,245,239,0.18)",
         }}
-      >
-        <img src={iconDataUrl} alt="" width={140} height={140} />
+      />
+      <img
+        src={sphere}
+        alt=""
+        width={150}
+        height={150}
+        style={{ position: "absolute", right: 70, top: 70 }}
+      />
+      <img src={wordmark} alt="" width={254} height={52} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 22, maxWidth: 820 }}>
         <div
           style={{
             display: "flex",
-            fontSize: 96,
+            flexDirection: "column",
+            fontSize: 76,
             fontWeight: 800,
-            letterSpacing: "-2px",
-            lineHeight: 1,
+            lineHeight: 0.98,
+            letterSpacing: "-0.035em",
           }}
         >
-          Informach
+          <div style={{ display: "flex" }}>Feito em casa, para a</div>
+          <div style={{ display: "flex" }}>
+            <span style={{ color: "#F0A979" }}>sua família</span>.
+          </div>
+        </div>
+        <div style={{ display: "flex", fontSize: 26, fontWeight: 400, color: "#D7E0E8" }}>
+          Programação para crianças, olimpíadas, rotina da escola, jantar da semana e aulas
+          gravadas.
         </div>
       </div>
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: "8px",
-          maxWidth: 920,
-          textAlign: "center",
-          fontSize: 52,
-          fontWeight: 600,
-          lineHeight: 1.15,
-          letterSpacing: "-1px",
-        }}
-      >
-        <div style={{ display: "flex", color: "#ffffff" }}>Apps com IA pra dores reais</div>
-        <div style={{ display: "flex", color: "#E89870" }}>do dia a dia.</div>
-      </div>
-      <div
-        style={{
-          display: "flex",
-          marginTop: 56,
-          fontSize: 24,
-          opacity: 0.65,
-          letterSpacing: "0.5px",
-        }}
-      >
-        {SITE.url.replace("https://", "")}
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "flex-end",
+            width: 54,
+            height: 54,
+            borderRadius: 16,
+            overflow: "hidden",
+            background: sistemaZero?.brand.background,
+          }}
+        >
+          <img src={zappy} alt="" width={41} height={52} style={{ marginBottom: -4 }} />
+        </div>
+        {icons.map((icon) => (
+          <img key={icon} src={icon} alt="" width={54} height={54} style={{ borderRadius: 16 }} />
+        ))}
+        <div style={{ display: "flex", marginLeft: 12, fontSize: 22, fontWeight: 800 }}>
+          {SITE.url.replace("https://", "")}
+        </div>
       </div>
     </div>,
-    { ...size },
+    {
+      ...size,
+      fonts: [
+        { name: "Plus Jakarta Sans", data: jakarta400, weight: 400, style: "normal" },
+        { name: "Plus Jakarta Sans", data: jakarta800, weight: 800, style: "normal" },
+      ],
+    },
   );
 }

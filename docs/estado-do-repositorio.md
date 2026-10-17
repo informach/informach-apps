@@ -17,12 +17,13 @@ Decisões aprovadas: uma assinatura da suíte, preços registrados no catálogo 
 As cinco ferramentas foram importadas e integradas ao Hub. Preservar interfaces e funcionalidades existentes é requisito da integração; a regressão funcional completa ainda está no review. A conclusão dos recursos ainda ausentes dos editores está fora dessa frente. Testes e builds locais não significam que o produto foi publicado ou que o full review está aprovado.
 
 - [Lotes, verificações e pendências Edi](propostas/edi-suite-2026-10-16/implementacao.md): fonte de verdade do andamento e das evidências.
+- [Identidade visual, páginas e Hub](propostas/edi-suite-2026-10-16/implementacao.md#identidade-visual-páginas-e-hub-17102026): direção "bancada e marca-texto" aplicada em 17/10 ao portal, ao Hub e aos seis ícones, com pendências de suporte e requisitos.
 - [Full review da implementação](propostas/edi-suite-2026-10-16/full-review.md): revisão global executada em 16/10/2026, reprovada para entrega; registra achados, prioridades e verificações. Uma exportação do EdiAula apagou um sentinela preexistente em perfil descartável; nenhum projeto real foi acessado.
 - [Implantação do portal](../apps/edi/PRODUCAO.md): destino `https://edi.informach.com.br` no Railway, variáveis, pre-deploy e homologação.
 - [Distribuição do piloto](propostas/edi-suite-2026-10-16/distribuicao-piloto.md): GitHub, credencial de publicação, assinatura própria e limites do piloto.
 - [Padrão desktop](arquitetura-desktop.md): desenvolvimento das ferramentas atuais e futuras.
 - [Guia prático Edi](desenvolvimento-edi.md): execução local do Hub/editores, desenvolvimento de funcionalidades, inclusão de ferramentas e testes; solicitado pelo titular nesta frente.
-- [Correções do review](propostas/edi-suite-2026-10-16/correcoes.md): histórico R01–R10. A frente atual corrigiu a cadeia restante e obteve auditoria de produção sem vulnerabilidades conhecidas; isso não dispensa os demais gates de operação e distribuição.
+- [Correções do review](propostas/edi-suite-2026-10-16/correcoes.md): histórico de R01 a R10. A frente atual corrigiu a cadeia restante e obteve auditoria de produção sem vulnerabilidades conhecidas; isso não dispensa os demais gates de operação e distribuição.
 - [Operação provisionada](propostas/edi-suite-2026-10-16/producao-operacao.md), [Stripe](propostas/edi-suite-2026-10-16/producao-stripe.md), [preservação de trabalhos](propostas/edi-suite-2026-10-16/producao-jobs.md) e [Windows](propostas/edi-suite-2026-10-16/producao-windows.md): evidências e pendências da implantação atual.
 
 O diagnóstico inicial de 17/10 está preservado na [consulta operacional](propostas/edi-suite-2026-10-16/implementacao.md#consulta-de-prontidão-em-17102026). Desde então, foram corrigidas as dependências, criados portal/cron/Sentry no Railway e homologados pagamentos e webhooks em Stripe de teste. O domínio chega ao Railway por HTTPS, mas o portal ainda não tem deploy saudável. A configuração Edi passou para IaC; os demais serviços não foram migrados. Preço aprovado: R$ 49,90/mês ou R$ 499/ano, com IA paga separada.
@@ -31,7 +32,17 @@ O [PR #6](https://github.com/informach/informach-apps/pull/6), inicialmente em d
 
 Próximos passos: concluir os gates remotos da correção, aplicar migrations pelo migrator e implantar o portal. Depois verificar login/e-mail, imagem e configurações Stripe finais, cron monitorado e publicação assinada. Integração Git, configuração de variáveis e testes locais não comprovam implantação nem distribuição; conferir também os deploys automáticos dos consumidores afetados.
 
-A correção do cursor passou na suíte remota de mídia. A instalação seguinte de Hub e EdiCaptura revelou outro bloqueio: o filesystem virtual do Electron impedia a leitura física do ASAR pelo verificador de integridade. A correção usa um adapter explícito de `original-fs` no desktop e acrescenta regressão no Electron real; sua homologação de instalação ainda precisa passar antes do merge.
+A correção do cursor passou na suíte remota de mídia. A instalação seguinte de Hub e EdiCaptura revelou outro bloqueio: o filesystem virtual do Electron impedia a leitura física do ASAR pelo verificador de integridade. A correção usa um adapter explícito de `original-fs` no desktop e acrescenta regressão no Electron real. A regressão nativa passou nos seis apps; a homologação dos instaladores ainda precisa passar antes do merge.
+
+O titular autorizou incluir os trabalhos da sessão paralela na próxima subida e confirmou o conjunto como finalizado. O visual do Edi, a home institucional e a padronização do contato foram copiados para o worktree isolado, com snapshot e integração das correções posteriores de produção. O checkout original e as configurações pessoais foram preservados. Os gates agora precisam validar esse conjunto integrado.
+
+## Home institucional e contato público
+
+Em 17/10/2026, a home de `informach.com.br` foi refeita conforme a proposta aprovada em canvas e incluída, por autorização do titular, na integração da próxima subida Edi. Ela apresenta os cinco produtos, com seção própria para a Comunidade dos Criadores do Sistema Zero (crianças de 9 a 14 anos, vendida em `sistemazero.com.br`) e Helena e Júlio como quem faz. Conteúdo, tokens e regras em [`apps/informach-site/CLAUDE.md`](../apps/informach-site/CLAUDE.md).
+
+Decisão do titular: nenhuma página pública mostra e-mail de contato. O canal é o direct do Instagram `@criecomhelenaejulio`, lido de `@informach/config/contact`. Aplicado ao site institucional e às páginas de Termos e Privacidade do Cozya e da Missão Saber.
+
+Também em 17/10, a pedido da titular: a cláusula 12 da privacidade guarda-chuva passou a tratar crianças e adolescentes que usam os produtos sob supervisão do responsável; a descrição do OpenRouter foi corrigida (OpenRouter, Inc., contratado e pago pela Informach, com retenção própria de cada provedor) e os Termos explicam a cota de créditos de IA; o suporte dentro da conta da Missão Saber também passou para o direct. Pendências: revisão jurídica geral dos textos legais antes do go-live; nova medição Lighthouse após o deploy; manter os preços do Sistema Zero em `src/lib/products.ts` iguais aos da página de oferta. O deploy do portal Edi, de que depende o link da Suíte Edi na home, é acompanhado na frente do Edi.
 
 ## Ambiente de desenvolvimento
 

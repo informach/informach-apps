@@ -1,3 +1,4 @@
+import { INFORMACH_CONTACT } from "@informach/config/contact";
 import { Brand } from "@/components/brand";
 export const metadata = { title: "Privacidade" };
 
@@ -14,13 +15,12 @@ export default function Privacy() {
         </a>
       </header>
       <main id="conteudo" className="prosa">
-        <span className="eyebrow">ÚLTIMA ATUALIZAÇÃO · 03/10/2026</span>
+        <span className="eyebrow">ÚLTIMA ATUALIZAÇÃO · 17/10/2026</span>
         <h1>Privacidade, com clareza.</h1>
         <p>
           O Missão Saber é operado pela Informach Núcleo de Aprendizagem Ltda, CNPJ
-          43.588.758/0001-03. Contato:{" "}
-          <a href="mailto:contato@casaldevgames.com">contato@casaldevgames.com</a>. Esse também é o
-          canal para exercer direitos de privacidade.
+          43.588.758/0001-03. Fale com a gente pelo direct do Instagram, em <DirectLink />. Esse
+          também é o canal para exercer direitos de privacidade.
         </p>
         <h2>Conta do responsável e perfis</h2>
         <p>
@@ -103,7 +103,7 @@ export default function Privacy() {
           Você pode pedir confirmação e acesso aos dados, correção, portabilidade, informação sobre
           compartilhamentos, anonimização, bloqueio ou eliminação quando cabível, revogação de
           consentimento e oposição ao tratamento, nos termos da LGPD. Use os controles do app ou o
-          e-mail de contato acima.
+          direct do Instagram indicado acima.
         </p>
         <h2>Conservação</h2>
         <p>
@@ -121,4 +121,9 @@ export default function Privacy() {
       </main>
     </>
   );
+}
+
+/** Canal público de contato: o direct do Instagram, nunca um endereço de e-mail. */
+function DirectLink() {
+  return <a href={INFORMACH_CONTACT.directMessageUrl}>@{INFORMACH_CONTACT.instagramHandle}</a>;
 }

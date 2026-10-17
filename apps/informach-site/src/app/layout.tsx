@@ -1,9 +1,9 @@
 import { Toaster } from "@informach/ui/components/sonner";
 import { ThemeProvider } from "@informach/ui/components/theme-provider";
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Nunito, Plus_Jakarta_Sans } from "next/font/google";
 import type { ReactNode } from "react";
-import { APPS } from "@/lib/apps";
+import { SITE_PRODUCTS } from "@/lib/products";
 import { SITE } from "@/lib/site";
 import "./globals.css";
 
@@ -12,9 +12,16 @@ const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
 });
 
-const TITLE = "Informach. Apps com IA pra dores reais do dia a dia.";
+/* Fonte arredondada da seção do Sistema Zero, a mesma do site dele. */
+const nunito = Nunito({
+  variable: "--font-nunito",
+  subsets: ["latin"],
+  weight: ["800", "900"],
+});
+
+const TITLE = "Informach: feito em casa, para a sua família";
 const DESCRIPTION =
-  "A Informach faz apps com IA pra resolver dores reais do dia a dia. Pra quem quer solução pronta, conheça nossos produtos. Pra quem quer aprender a construir, entre na Comunidade Sistema Zero.";
+  "Somos Helena e Júlio, desenvolvedores e pais do André. Fazemos o Sistema Zero, onde crianças de 9 a 14 anos aprendem programação criando jogos, e também a Missão Saber, a Agenda da Turma, o Cozya e a Suíte Edi.";
 
 export const metadata: Metadata = {
   title: { default: TITLE, template: "%s · Informach" },
@@ -55,8 +62,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a1825" },
+    { media: "(prefers-color-scheme: light)", color: "#f8f5ef" },
+    { media: "(prefers-color-scheme: dark)", color: "#0e1a25" },
   ],
 };
 
@@ -70,9 +77,14 @@ const jsonLd = {
       alternateName: SITE.name,
       url: SITE.url,
       logo: `${SITE.url}/logo-informach-light.svg`,
-      email: SITE.contactEmail,
       taxID: SITE.cnpj,
-      sameAs: [SITE.communityUrl, ...APPS.map((app) => app.url)],
+      contactPoint: {
+        "@type": "ContactPoint",
+        contactType: "customer support",
+        url: SITE.contact.directMessageUrl,
+        availableLanguage: "pt-BR",
+      },
+      sameAs: [SITE.instagramUrl, ...SITE_PRODUCTS.map((product) => product.url)],
     },
     {
       "@type": "WebSite",
@@ -88,8 +100,12 @@ const jsonLd = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
-      <body className={jakarta.variable} suppressHydrationWarning>
+    <html
+      lang="pt-BR"
+      className={`${jakarta.variable} ${nunito.variable}`}
+      suppressHydrationWarning
+    >
+      <body suppressHydrationWarning>
         <ThemeProvider>
           {children}
           <Toaster />
