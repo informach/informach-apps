@@ -35,7 +35,7 @@ export function ExportPdfButton({ isPro, profileFilter, anchorIso }: Props) {
           return;
         }
         if (result.error.code === "SUBSCRIPTION_REQUIRED") {
-          router.push("/upgrade");
+          router.push("/upgrade?motivo=imprimir");
           return;
         }
         toast.error("Não foi possível montar a semana para imprimir.");

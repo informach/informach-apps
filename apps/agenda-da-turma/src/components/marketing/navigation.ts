@@ -1,5 +1,6 @@
 export const SALES_NAVIGATION = [
-  { href: "/#demonstracao", label: "Como funciona" },
-  { href: "/#familia", label: "Para a família" },
+  { href: "/#como-funciona", label: "Como funciona" },
+  { href: "/#turma", label: "A turma" },
   { href: "/#planos", label: "Planos" },
+  { href: "/#perguntas", label: "Perguntas" },
 ] as const;

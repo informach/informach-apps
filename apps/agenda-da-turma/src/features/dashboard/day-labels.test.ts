@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  addSchoolDaysIso,
   dayDistance,
   dayMonthLabel,
   daysBetweenIso,
@@ -63,6 +64,15 @@ describe("day labels", () => {
     // Sábado e domingo também apontam para segunda.
     expect(nextSchoolDayIso("2026-10-24")).toBe("2026-10-26");
     expect(nextSchoolDayIso("2026-10-25")).toBe("2026-10-26");
+  });
+
+  it("counts school days, never landing on a weekend", () => {
+    expect(addSchoolDaysIso(monday, 1)).toBe("2026-10-20");
+    expect(addSchoolDaysIso(monday, 5)).toBe("2026-10-26");
+    // Sábado: a primeira aula é segunda, a terceira é quarta.
+    expect(addSchoolDaysIso("2026-10-24", 1)).toBe("2026-10-26");
+    expect(addSchoolDaysIso("2026-10-24", 3)).toBe("2026-10-28");
+    expect(addSchoolDaysIso(monday, 0)).toBe(monday);
   });
 
   it("formats the time without zeros", () => {

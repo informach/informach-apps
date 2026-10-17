@@ -1,49 +1,54 @@
 import styles from "../sales.module.css";
+
+const POINTS = [
+  {
+    title: "A escola disse",
+    text: "A data está no recado, e o trecho fica guardado junto da atividade.",
+  },
+  {
+    title: "Na próxima aula",
+    text: "Sem data no recado, a Agenda olha o horário da turma e avisa que fez a conta.",
+  },
+  {
+    title: "A confirmar",
+    text: "Sem data e sem horário, fica a confirmar. Nada de “amanhã” chutado.",
+  },
+  {
+    title: "Sem sinal no portão",
+    text: "Marcar como feito funciona sem internet e sobe sozinho quando a rede volta.",
+  },
+];
+
 export function Trust() {
   return (
     <section
-      className={[styles.wrap, styles.section, styles.trust].join(" ")}
+      id="confianca"
       aria-labelledby="trust-title"
+      className="scroll-mt-6 border-y border-foreground/15 bg-muted/40 py-16 md:py-24"
     >
-      <div className={styles.change}>
-        <span className={[styles.pill, styles.blue].join(" ")}>RETIFICAÇÃO CONFERIDA</span>
-        <h3>Enviar autorização</h3>
-        <div className={styles.changeDates}>
-          <del>14/09</del>
-          <span className={styles.changeArrow} aria-hidden="true">
-            →
-          </span>
-          <span className="sr-only">alterado para</span>
-          <span>16/09</span>
+      <div className={[styles.wrap, "space-y-8"].join(" ")}>
+        <div className="space-y-3">
+          <p className="text-[13px] font-extrabold uppercase tracking-[0.14em] text-primary-ink">
+            Por que dá para confiar
+          </p>
+          <h2
+            id="trust-title"
+            className="max-w-[44rem] text-balance text-[30px] font-extrabold leading-tight tracking-tight sm:text-[40px]"
+          >
+            Nenhuma data entra na sua semana sem você ver de onde ela saiu.
+          </h2>
         </div>
-        <p>
-          Retificação importada e confirmada pela família.
-          <br />O histórico preserva a mudança.
-        </p>
-        <p className={styles.fine}>Exemplo fictício. A entrada do novo recado é feita por você.</p>
-      </div>
-      <div>
-        <p className={styles.eyebrow}>Clareza também é poder conferir</p>
-        <h2 id="trust-title">Você sabe de onde veio. E decide o que fica.</h2>
-        <p>
-          Confira a publicação e os trechos de origem antes de salvar. Mudou o prazo? Importe a
-          retificação e confirme a atualização da atividade existente.
-        </p>
-        <p>
-          Quando a escola não informa uma data, o prazo fica a confirmar. Você pode escolher uma
-          data de preparação, identificada como planejamento da família.
-        </p>
-        <p>
-          No portão da escola, sem sinal, marcar como feito continua funcionando. A Agenda guarda a
-          sua decisão no aparelho, avisa que ela ainda não subiu e envia sozinha quando a rede
-          voltar.
-        </p>
-        <div className={styles.trustPoints}>
-          <span>Revisão antes de salvar</span>
-          <span>Histórico de mudanças</span>
-          <span>Acesso por criança</span>
-          <span>Funciona sem rede</span>
-        </div>
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {POINTS.map((point) => (
+            <li
+              key={point.title}
+              className="space-y-2 rounded-[20px] border border-foreground/15 bg-background p-5"
+            >
+              <h3 className="text-lg font-extrabold tracking-tight">{point.title}</h3>
+              <p className="text-[15px] leading-relaxed text-foreground/80">{point.text}</p>
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );

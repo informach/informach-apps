@@ -267,8 +267,8 @@ export function NotificationPreferencesPanel({
       {!enabled ? (
         <p className="text-sm text-muted-foreground">
           Resumos e lembretes fazem parte da assinatura da família.{" "}
-          <Link href="/upgrade" className="text-primary-ink underline">
-            Ver plano
+          <Link href="/upgrade?motivo=lembretes" className="text-primary-ink underline">
+            Ver o Pro
           </Link>
         </p>
       ) : null}

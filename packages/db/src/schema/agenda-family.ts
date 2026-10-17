@@ -490,11 +490,12 @@ export const agendaProductEvents = agenda.table(
     source: text("source"),
     count: integer("count"),
     durationMs: integer("duration_ms"),
+    // Só tipo: a coluna é jsonb, e as variantes antigas continuam no banco.
     landingContext: jsonb("landing_context").$type<{
-      variant: "family-routine-v1";
-      placement?: "hero" | "demo" | "pricing" | "final";
+      variant: "family-routine-v1" | "pagina-do-dia-v1";
+      placement?: "hero" | "demo" | "pricing" | "final" | "sticky";
       selection?: { plan: "free" } | { plan: "pro"; cycle: "monthly" | "annual" };
-      scenario?: "passeio" | "prova" | "material";
+      scenario?: "cartaz" | "passeio" | "prova" | "material";
       action?: "scenario" | "plan" | "complete";
       firstCta?: boolean;
     }>(),

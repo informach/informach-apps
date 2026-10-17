@@ -123,7 +123,7 @@ export function StudentFormDialog({ open, onOpenChange, isPro, currentCount, pro
           if (!result.error.isPro) {
             toast.error("O plano grátis tem uma criança", {
               description: `No Pro cabem até ${proLimit} crianças, cada uma com a sua turma e o seu horário.`,
-              action: { label: "Ver planos", onClick: () => router.push("/upgrade") },
+              action: { label: "Ver o Pro", onClick: () => router.push("/upgrade?motivo=crianca") },
             });
           } else {
             toast.error("Já são três crianças", {
@@ -183,7 +183,7 @@ export function StudentFormDialog({ open, onOpenChange, isPro, currentCount, pro
               </div>
               {isPro ? null : (
                 <Button asChild>
-                  <Link href="/upgrade">Conhecer o Pro</Link>
+                  <Link href="/upgrade?motivo=crianca">Conhecer o Pro</Link>
                 </Button>
               )}
             </div>

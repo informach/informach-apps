@@ -52,7 +52,16 @@ type LoginMode = "password" | "otp";
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
-export function LoginForm({ nextPath, defaultEmail }: { nextPath: string; defaultEmail?: string }) {
+export function LoginForm({
+  nextPath,
+  signupHref,
+  defaultEmail,
+}: {
+  nextPath: string;
+  /** O cadastro, com o destino só quando ele veio na URL do login. */
+  signupHref: string;
+  defaultEmail?: string;
+}) {
   const router = useRouter();
   const [step, setStep] = useState<Step>({ kind: "auth" });
   const [mode, setMode] = useState<LoginMode>("password");
@@ -161,10 +170,7 @@ export function LoginForm({ nextPath, defaultEmail }: { nextPath: string; defaul
         {step.kind === "auth" && (
           <CardFooter className="justify-center pt-2 text-sm text-muted-foreground">
             Ainda não tem conta?{" "}
-            <Link
-              href={`/signup?next=${encodeURIComponent(nextPath)}`}
-              className="ml-1 font-medium text-primary-ink hover:underline"
-            >
+            <Link href={signupHref} className="ml-1 font-medium text-primary-ink hover:underline">
               Criar conta
             </Link>
           </CardFooter>

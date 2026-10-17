@@ -41,9 +41,8 @@ test("first steps guide the setup, react to what exists and can be dismissed", a
       data: { email, password: "FirstSteps!Synthetic2026" },
     });
     expect(login.ok()).toBe(true);
-    await page.goto("/choose-plan");
-    await page.getByRole("button", { name: "Começar grátis", exact: true }).click();
-    await expect(page).toHaveURL(/dashboard/);
+    // O grátis vale por padrão: depois do login, a conta vai direto para Hoje.
+    await page.goto("/dashboard");
 
     const section = page.getByRole("region", { name: "Primeiros passos" });
     await expect(section).toBeVisible();

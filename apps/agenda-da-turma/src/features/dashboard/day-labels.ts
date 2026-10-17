@@ -169,6 +169,18 @@ export function nextSchoolDayIso(todayIso: string = todayLocalIso()): string {
   return candidate;
 }
 
+/**
+ * O dia de aula que fica `count` dias de aula depois de hoje, pulando sábado e
+ * domingo. É como a escola conta "daqui a três aulas", e é o que a
+ * demonstração da página de vendas usa para a escola nunca marcar prova num
+ * domingo.
+ */
+export function addSchoolDaysIso(fromIso: string, count: number): string {
+  let day = fromIso;
+  for (let step = 0; step < count; step += 1) day = nextSchoolDayIso(day);
+  return day;
+}
+
 export function isLocalIsoDate(value: string | null | undefined): value is string {
   return typeof value === "string" && isValidLocalIsoDate(value);
 }

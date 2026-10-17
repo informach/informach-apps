@@ -35,12 +35,9 @@ async function register(context: BrowserContext, baseURL: string, label: string)
   expect(verified.ok()).toBe(true);
   return { email, userId };
 }
+// O grátis vale por padrão: depois do código, a conta já está em Hoje.
 async function selectFree(page: Page) {
-  await page.goto("/choose-plan");
-  await Promise.all([
-    page.waitForURL(/\/dashboard$/),
-    page.getByRole("button", { name: "Começar grátis", exact: true }).click(),
-  ]);
+  await page.goto("/dashboard");
   await expect(page).toHaveURL(/dashboard/);
 }
 test.afterEach(async () => {

@@ -2,24 +2,23 @@ import { z } from "zod";
 
 const emailSchema = z.string().trim().toLowerCase().email("Informe um email válido.");
 
-export const signupSchema = z
-  .object({
-    name: z
-      .string()
-      .trim()
-      .min(2, "Informe seu nome (mínimo 2 caracteres).")
-      .max(120, "O nome pode ter no máximo 120 caracteres."),
-    email: emailSchema,
-    password: z
-      .string()
-      .min(8, "A senha deve ter pelo menos 8 caracteres.")
-      .max(72, "A senha pode ter no máximo 72 caracteres."),
-    confirmPassword: z.string(),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    path: ["confirmPassword"],
-    message: "As senhas não coincidem.",
-  });
+/**
+ * Uma senha só, com "Mostrar" no campo. Repetir a senha era mais um campo no
+ * celular para conferir o que um botão mostra; e quem erra a senha no cadastro
+ * entra pelo código do e-mail, que é o caminho de qualquer jeito.
+ */
+export const signupSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(2, "Escreva seu nome (pelo menos 2 letras).")
+    .max(120, "O nome pode ter no máximo 120 caracteres."),
+  email: emailSchema,
+  password: z
+    .string()
+    .min(8, "A senha precisa de pelo menos 8 caracteres.")
+    .max(72, "A senha pode ter no máximo 72 caracteres."),
+});
 
 export type SignupInput = z.infer<typeof signupSchema>;
 

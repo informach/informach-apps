@@ -135,7 +135,7 @@ Para adicionar nova feature de IA:
 apps/agenda-da-turma/
 ├── src/
 │   ├── app/                       # Next 16 app router
-│   │   ├── (auth)/                # /login, /signup, /choose-plan (passo 3 onboarding)
+│   │   ├── (auth)/                # /login, /signup (quatro passos); /choose-plan só redireciona para /upgrade
 │   │   ├── (app)/                 # autenticadas
 │   │   │   ├── dashboard/         # "Hoje": horário do dia, rotina, rascunhos a conferir
 │   │   │   ├── atividades/        # lista + `[id]` (detalhe único) + `nova` (formulário único)
@@ -144,7 +144,7 @@ apps/agenda-da-turma/
 │   │   │   ├── familia/           # crianças, turmas, adultos e ajustes
 │   │   │   ├── perfis/, turmas/   # redirect 307 para Família + telas profundas (extras, matérias)
 │   │   │   ├── settings/billing/  # plano + saldo + packs (Pro) + history + portal
-│   │   │   └── upgrade/           # PlanCards sem stepper, só Pro (Free → Pro)
+│   │   │   └── upgrade/           # UpgradeOffer: o Pro na hora certa, com o motivo de quem chegou
 │   │   ├── api/                   # webhooks/jobs + as poucas rotas do app
 │   │   │   ├── auth/[...all]/     # Better Auth handler
 │   │   │   ├── webhooks/{stripe,sendgrid}/
@@ -164,7 +164,7 @@ apps/agenda-da-turma/
 │   │   ├── account/               # exportação e exclusão (LGPD)
 │   │   ├── activities/            # folha Adicionar, lista, aceite de compartilhadas e o fato publicado na turma
 │   │   ├── ai/                    # helpers cross-feature: _http-errors, image-utils, _shared (withAiRouteGuards)
-│   │   ├── billing/               # plan-cards, plan-card, credit-balance-card, credit-packs, history (paridade cozya)
+│   │   ├── billing/               # upgrade-offer, plan-card, credit-balance-card, credit-packs, history, plans-content (preços e franquias do catálogo)
 │   │   ├── calendar/              # /calendario: views mês/semana/dia, blips, day-cell, vista rápida, range/grid
 │   │   ├── calendar-feed/         # token do feed ICS (hash em repouso, girável)
 │   │   ├── dashboard/             # Hoje: horário do dia (em lote), folhas, faixa da semana, semana para imprimir, datas com TZ São Paulo
@@ -174,7 +174,7 @@ apps/agenda-da-turma/
 │   │   ├── notices/               # recado, leitura, rascunho e o CRUD de toda atividade (dívida de nome, ver §6)
 │   │   ├── notifications/         # resumo diário, resumo de domingo, lembretes, push e retenção
 │   │   ├── offline-queue/         # a fila de conclusões que esperam a rede (§9)
-│   │   ├── onboarding/            # signup-form (3 passos), login-form, plan-cards usado em /choose-plan + /upgrade
+│   │   ├── onboarding/            # signup-form (quatro passos), signup-flow (para onde vai depois do código), login-form
 │   │   ├── profile-subjects/      # matérias extracurriculares + o predicado de matéria pausada (§6)
 │   │   ├── students/              # perfis de estudante (CRUD, dialogs, avatar com chart-N, widgets do dashboard)
 │   │   ├── study-plan/            # plano de estudo determinístico para prova e trabalho
@@ -184,7 +184,7 @@ apps/agenda-da-turma/
 │   │   └── unified-activities/    # a projeção única: card, detalhe, carga do dia, toggle otimista
 │   ├── components/
 │   │   ├── brand/agenda-logo.tsx  # logotipo SVG inline (theme-aware)
-│   │   ├── app-shell/             # AppHeader + UserMenu (avatar com Meus perfis / Minhas turmas / billing / sair)
+│   │   ├── app-shell/             # AppHeader (logotipo, tema e conta) + UserMenu (assinatura, conta e sair)
 │   │   └── site-header.tsx        # header /login + /signup (logo + ModeToggle); evolui pra dashboard depois
 │   ├── lib/
 │   │   ├── env.ts                 # Zod-validated envs
@@ -224,13 +224,28 @@ Notificação `auth.signup-attempt-on-existing` está wired e dispara para **tod
 - LGPD: `accountDeletion.onBeforeDelete` chama `billing.cancelBillingForSubject` (cancela assinaturas; saldos e linhas históricas ficam por retenção fiscal).
 - Webhook handlers transacionais (`billing.payment-success` / `subscription-renewed` / `subscription-canceled` / `credits-purchased`) e dunning (`billing.payment-failed` via cron) usam `appName: APPS.agendaDaTurma.name` ("Agenda da Turma") nos templates.
 
-### Onboarding em 3 passos
+### Cadastro em quatro passos, plano fora dele (outubro de 2026)
 
-1. **Cadastro** — name + email + password → `/signup`.
-2. **Verificação** — OTP 6 dígitos → reenviar com cooldown de 60s.
-3. **Plano** — `/choose-plan`, free vs Pro mensal/anual; Free vai pra `/dashboard?welcome=...`, Pro abre Stripe Checkout.
+A escolha de plano saiu do cadastro: **o grátis vale por padrão e o Pro aparece quando faz falta**. Antes o cadastro terminava em `/choose-plan`, antes de a pessoa ver a Agenda fazer qualquer coisa, e o Pro anual escolhido na página de vendas se perdia ali (o `/signup` só lia `next` e a escolha abria no mensal).
 
-Stepper (`features/onboarding/components/onboarding-stepper.tsx`) usa `currentStep: 1 | 2 | 3`. Após OTP verify, `signup-form.tsx` redireciona pra `/choose-plan` por default (override possível via prop `verifiedRedirectTo`).
+1. **Conta**: nome, e-mail e uma senha só, com "Mostrar" no campo.
+2. **Código**: OTP de 6 números, reenviar depois de 60 s.
+3. **Criança**: só o nome (`createStudentProfileAction`, e a escolha fica lembrada neste aparelho para a folha "O que chegou?").
+4. **Recado**: os três caminhos (foto, mensagem, falar) para `/recados/novo?modo=…&perfil=…`, ou "Ir para Hoje sem recado".
+
+Para onde vai depois do código é uma regra pura e testada, `afterVerification` em `features/onboarding/signup-flow.ts`:
+
+- o convite de outro adulto (`?next=/familia/convite…`) vai direto ao destino e não cadastra criança;
+- `?plan=pro&cycle=` (ou `?next=/upgrade?cycle=`, o Pro que chegou pelo login) abre o pagamento **na confirmação do código**, no ciclo escolhido; se o pagamento não abrir, a pessoa tenta de novo ou segue no grátis, e o passo a passo passa a ser o da criança;
+- **qualquer outro `next` não pula a criança.** O proxy põe `?next=` em toda rota protegida, inclusive Hoje e o início do aplicativo instalado, e com a regra antiga a conta nova ficava sem criança. Esse destino vem depois dela (o convite de uma turma, por exemplo); `/dashboard` e nenhum destino terminam no primeiro recado. O "Criar conta" do login só repassa o `next` que veio na URL.
+
+O passo a passo no topo (`OnboardingStepper`) mostra só as etapas do caminho da pessoa ("Passo 2 de 4: Código"). O passo da criança tem "Fazer isso depois", e todo `next` passa por `safeInternalPath` (`lib/url.ts`), que recusa barra invertida e caractere de controle: o navegador transforma os dois em `//outro-site` na hora de navegar.
+
+**O ciclo não se perde em nenhum caminho de quem já tem conta.** `proOfferHref(cycle)` é o endereço da oferta (`/upgrade?cycle=anual|mensal`) e é usado por: `/signup` com sessão e `?plan=pro` (quem recarrega depois do código), o "Entrar" do cadastro de quem escolheu o Pro, a volta de um pagamento cancelado (`cancelUrl` em `features/onboarding/service.ts`), a sessão que vence na própria oferta e `/choose-plan`, que virou uma rota (`route.ts`) que só redireciona para lá, com 307, e continua existindo para links antigos.
+
+**O Pro na hora certa** (`/upgrade`, `UpgradeOffer`): a página abre respondendo ao motivo de quem chegou (`?motivo=imprimir|crianca|adulto|lembretes`; sem motivo conhecido ela olha a franquia: "Os recados de teste acabaram.", que é o caso do fim da franquia na folha Adicionar). Cada porta do Pro manda o seu motivo: "Imprimir a semana", a segunda criança, o convite de outro adulto e os lembretes. O titular que já assina vai para `/settings/billing`; o adulto convidado de uma casa Pro, sem criança própria, lê que tudo do Pro já vale para ele. Quem cuida junto numa casa Pro e cadastrou os próprios filhos no grátis vê a oferta: esta página é a única porta do pagamento fora do cadastro. **Não repor o "Seja Pro" no cabeçalho**: ele saiu justamente porque anunciava o Pro em todas as telas do grátis.
+
+Os números do plano (franquia, leituras por mês, crianças, adultos, atividades em aberto, o ditado que conta como dois, o menor pacote e "pague 10 meses, use 12") saem de `features/billing/plans-content.ts`, derivados do catálogo e dos limites do app, e a mensagem de franquia esgotada (`features/notices/messages.ts`) lê os mesmos. Número de plano escrito à mão na interface fica velho na primeira mudança de catálogo.
 
 ---
 
@@ -816,7 +831,16 @@ custo volta a cair no timeout do primeiro teste que a tocar.
 - Métricas aceitam somente metadados definidos no schema. Não registrar recado, anexo, nome de criança ou tokens privados. `pilot:report` usa consulta somente de leitura e eventos de fatura para pagamentos.
 - Corpus de IA é opt-in (`test:ai-eval`) e usa provedor real; exemplos fictícios não provam precisão em recados reais. Integração e navegador exigem banco local e fixtures sintéticas.
 
-## Página inicial e aquisição (setembro de 2026)
+## Página inicial e aquisição (setembro de 2026, refeita em outubro)
+
+**A página do dia (outubro de 2026).** A landing segue o canvas da proposta (`docs/propostas/agenda-pagina-do-dia-2026-10-17/`): o recado que chega virando a página do dia, "Como funciona" em três passos, a demonstração com o cartaz de provas, a página do dia, a turma que recebe junto, a vez da criança, por que dá para confiar, "Quem faz", planos, perguntas e o fechamento, com a barra fixa do botão no celular. `LANDING_VARIANT` passou a `pagina-do-dia-v1`, e o contrato ainda aceita `family-routine-v1` de uma aba aberta antes do deploy; `sticky` e o cenário `cartaz` entraram no contrato (o tipo do `landing_context` mudou, a coluna continua a mesma jsonb).
+
+- **"Quem faz" não publica texto inventado.** O canvas previa duas frases e uma foto dos fundadores; até elas chegarem, a seção diz só o que é fato (a Agenda é um app da Informach) e o direct do Instagram. O contato vem de `@informach/config/contact` (`INFORMACH_CONTACT`), como nos outros apps, e nenhuma página pública mostra e-mail.
+- `sales.module.css` ficou com a base herdada, o cabeçalho com o menu do celular, os botões, as perguntas e a barra fixa. As regras por elemento fora de camada venciam qualquer utilitário do Tailwind e saíram; as seções usam os tokens do app em Tailwind.
+- A demonstração conta as datas a partir de hoje no fuso de São Paulo (a página é renderizada a cada pedido) e mostra o que foi salvo dia a dia, até o último dia do recado.
+- `opengraph-image.tsx` é a figura do link no grupo da turma, e o `metadataBase` do layout raiz faz os endereços dela e do canônico saírem absolutos.
+
+O registro de setembro, que continua valendo onde a página de outubro não mudou:
 
 - A home está em `src/app/(marketing)/page.tsx`. A implementação da proposta está documentada em `docs/propostas/agenda-vendas-2026-09-12/IMPLEMENTACAO.md`.
 - `components/marketing/sales.module.css` usa a fonte Jakarta e os tokens existentes, com estilos restritos ao layout público. O app autenticado mantém seu layout.

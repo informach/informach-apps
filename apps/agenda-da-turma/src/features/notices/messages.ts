@@ -1,3 +1,6 @@
+import { DICTATION_NOTE, PRO_READS_PER_MONTH } from "@/features/billing/plans-content";
+import { FREE_NOTICE_TRIAL } from "./trial-reserve";
+
 export function noticeErrorMessage(code: string) {
   const messages: Record<string, string> = {
     INVALID_SOURCE_SCOPE:
@@ -18,8 +21,9 @@ export function noticeErrorMessage(code: string) {
     DAILY_LIMIT: "Chegou o limite de leituras de hoje. Amanhã dá para mandar de novo.",
     TRIAL_BUSY:
       "As leituras grátis de hoje acabaram para todo mundo. Tente amanhã ou escreva a atividade.",
-    TRIAL_ENDED:
-      "Os 5 recados de teste acabaram. No Pro, a Agenda lê 70 recados por mês (ditado conta como dois).",
+    // Os números saem do catálogo e da franquia: escritos aqui, ficavam velhos
+    // na primeira mudança de plano.
+    TRIAL_ENDED: `Os ${FREE_NOTICE_TRIAL} recados de teste acabaram. No Pro, a Agenda lê ${PRO_READS_PER_MONTH} recados por mês (${DICTATION_NOTE}).`,
     NO_ACTIONS:
       "Não achei nenhuma atividade clara neste recado. Confira o conteúdo ou escreva a atividade. Essa tentativa não gastou leitura.",
     PARSE_FAILED: "Não consegui ler o recado. Tente de novo em instantes, ou escreva a atividade.",

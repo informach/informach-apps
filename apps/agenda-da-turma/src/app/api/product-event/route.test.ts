@@ -19,7 +19,7 @@ vi.mock("@/lib/rate-limit", async (importOriginal) => {
 });
 vi.mock("@/lib/redis", () => ({ redis: null }));
 
-const view = { event: "landing_view", variant: "family-routine-v1" };
+const view = { event: "landing_view", variant: "pagina-do-dia-v1" };
 function request(body?: unknown, headers: Record<string, string> = {}) {
   return new Request("https://agenda.test/api/product-event", {
     method: "POST",

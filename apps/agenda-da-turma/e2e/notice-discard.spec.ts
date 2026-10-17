@@ -87,9 +87,8 @@ test("discarding a draft persists: trash in the review, and discard from the das
       data: { email, password: "NoticeDiscard!Synthetic2026" },
     });
     expect(login.ok()).toBe(true);
-    await page.goto("/choose-plan");
-    await page.getByRole("button", { name: "Começar grátis", exact: true }).click();
-    await expect(page).toHaveURL(/dashboard/);
+    // O grátis vale por padrão: depois do login, a conta vai direto para Hoje.
+    await page.goto("/dashboard");
     const [child] = await db
       .insert(agendaStudentProfiles)
       .values({ userId: id, name: "Criança navegador" })

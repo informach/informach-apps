@@ -1,14 +1,21 @@
 import styles from "../sales.module.css";
 import { SalesCta, TrialNote } from "../sales-cta";
+
 export function FinalCta() {
   return (
-    <section className={[styles.wrap, styles.closing].join(" ")} aria-labelledby="closing-title">
-      <h2 id="closing-title">O próximo recado já pode chegar a uma rotina mais clara.</h2>
-      <p>
-        Comece com o cartaz que está na sua galeria ou com a mensagem que chegou no grupo. Confira
-        as atividades e veja como fica mais fácil acompanhar.
-      </p>
-      <SalesCta placement="final" />
+    <section
+      aria-labelledby="closing-title"
+      className={[styles.wrap, "space-y-5 py-16 text-center md:py-24"].join(" ")}
+    >
+      <h2
+        id="closing-title"
+        className="mx-auto max-w-[40rem] text-balance text-[30px] font-extrabold leading-tight tracking-tight sm:text-[40px]"
+      >
+        Qual recado está na sua cabeça agora? Comece por ele.
+      </h2>
+      <div className="flex justify-center">
+        <SalesCta placement="final" label="Organizar esse recado" />
+      </div>
       <TrialNote />
     </section>
   );

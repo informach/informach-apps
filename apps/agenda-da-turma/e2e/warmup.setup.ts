@@ -58,7 +58,6 @@ const SIGNED_IN: Route[] = [
   { path: "/atividades", method: "GET" },
   { path: "/atividades/nova", method: "GET" },
   { path: "/recados/novo", method: "GET" },
-  { path: "/choose-plan", method: "GET" },
   { path: "/dashboard", method: "GET" },
   { path: "/calendario", method: "GET" },
   { path: "/familia", method: "GET" },
@@ -68,6 +67,8 @@ const SIGNED_IN: Route[] = [
   { path: "/perfis", method: "GET" },
   { path: "/turmas", method: "GET" },
   { path: "/upgrade", method: "GET" },
+  // Só redireciona para a oferta, mas a rota compila na primeira chamada.
+  { path: "/choose-plan", method: "GET" },
   { path: "/recados", method: "GET" },
   { path: "/settings/account", method: "GET" },
   { path: `/atividades/${MISSING}`, method: "GET" },

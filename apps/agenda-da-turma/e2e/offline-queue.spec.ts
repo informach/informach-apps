@@ -46,9 +46,8 @@ async function familyWithTask(page: Page, context: BrowserContext, baseURL: stri
     data: { email, password: "OfflineQueue!Synthetic2026" },
   });
   expect(login.ok()).toBe(true);
-  await page.goto("/choose-plan");
-  await page.getByRole("button", { name: "Começar grátis", exact: true }).click();
-  await expect(page).toHaveURL(/dashboard/);
+  // O grátis vale por padrão: depois do login, a conta vai direto para Hoje.
+  await page.goto("/dashboard");
 
   const [child] = await db
     .insert(agendaStudentProfiles)
