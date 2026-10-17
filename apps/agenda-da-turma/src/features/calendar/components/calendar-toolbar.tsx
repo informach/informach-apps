@@ -125,6 +125,7 @@ export function CalendarToolbar({
           </Button>
           <AddSheet
             profileId={profileFilter}
+            profiles={profiles}
             entitlement={addEntitlement}
             label="Adicionar de um recado"
             icon="sparkles"

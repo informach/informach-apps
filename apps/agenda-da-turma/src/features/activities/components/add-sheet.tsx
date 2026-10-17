@@ -9,62 +9,61 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@informach/ui/components/sheet";
-import { Camera, ClipboardType, Mic, Pencil, Plus, Sparkles } from "lucide-react";
+import { cn } from "@informach/ui/lib/utils";
+import { Camera, MessageSquareText, Mic, Pencil, Plus, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import type { AddEntitlement } from "@/features/notices/entitlement";
+import { readLastChild, rememberLastChild } from "@/features/notices/last-child";
+import { StudentAvatar } from "@/features/students/components/student-avatar";
 
 /**
- * O gesto único de trazer uma atividade para dentro.
+ * O gesto único de trazer uma atividade para dentro: "O que chegou?".
  *
  * Antes deste componente o mesmo destino (`/recados/novo`) era alcançado por
- * quatro rótulos diferentes — "Importar mensagem ou foto", "Organizar recado",
- * "Organizar um recado" e "Tirar foto da agenda ou do caderno" — e um quinto
- * caminho, Pro-only, vivia escondido num `<details>` chamado ora "Ferramentas
- * por matéria", ora "Importar atividades". Quem usa não tinha como saber que
- * eram a mesma coisa, nem por que um cobrava e o outro não.
+ * quatro rótulos diferentes, e um quinto caminho, Pro-only, vivia escondido num
+ * `<details>`. Agora há um caminho por tipo de entrada, todos desembocando na
+ * mesma revisão, e a franquia aparece uma vez, no rodapé.
  *
- * Agora há um caminho por tipo de entrada, e todos desembocam na mesma tela de
- * revisão. A franquia aparece uma vez, aqui no rodapé, em vez de selos "Pro"
- * espalhados por três telas.
+ * A criança vem antes do caminho, no topo da folha, lembrando a última
+ * escolhida neste aparelho: numa casa com dois filhos, escolher para quem é o
+ * recado era um campo no meio do formulário, depois de a pessoa já ter tirado
+ * a foto.
  */
 const OPTIONS = [
   {
     key: "foto",
     href: "/recados/novo?modo=foto",
     icon: Camera,
-    label: "Foto ou arquivo",
-    hint: "Agenda, caderno, comunicado, print, PDF",
-    tint: "bg-primary/10 text-primary-ink",
+    label: "Foto",
+    hint: "agenda, caderno, cartaz ou print",
   },
   {
     key: "colar",
     href: "/recados/novo?modo=colar",
-    icon: ClipboardType,
-    label: "Colar mensagem",
-    hint: "Teams, Batista ID, WhatsApp",
-    tint: "bg-chart-2/15 text-chart-2-ink",
+    icon: MessageSquareText,
+    label: "Mensagem",
+    hint: "colar, ou compartilhar do WhatsApp",
   },
   {
     key: "falar",
     href: "/recados/novo?modo=falar",
     icon: Mic,
     label: "Falar",
-    hint: "Ditar a atividade, de mãos ocupadas",
-    tint: "bg-chart-3/15 text-chart-3-ink",
+    hint: "de mãos ocupadas",
   },
   {
     key: "escrever",
     href: "/atividades/nova",
     icon: Pencil,
     label: "Escrever",
-    hint: "Digitar direto, sem IA",
-    tint: "bg-chart-4/15 text-chart-4-ink",
+    hint: "você digita, sem leitura",
   },
 ] as const;
 
 export function AddSheet({
   profileId,
+  profiles = [],
   entitlement,
   label = "Adicionar",
   hideLabel = false,
@@ -73,7 +72,10 @@ export function AddSheet({
   size,
   className,
 }: {
+  /** A criança em foco na tela de onde a folha abriu (`?perfil=`). */
   profileId?: string | null;
+  /** As crianças que este adulto acompanha, para escolher no topo da folha. */
+  profiles?: Array<{ id: string; name: string }>;
   /**
    * Plano e franquia **do titular** da criança em foco, não de quem está
    * olhando: um segundo adulto convidado usa o plano da família.
@@ -88,13 +90,29 @@ export function AddSheet({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [chosen, setChosen] = useState<string | null>(null);
+  const known = (id: string | null | undefined) =>
+    id && profiles.some((p) => p.id === id) ? id : null;
+  // A escolha desta abertura, depois a criança da tela, depois a última deste
+  // aparelho. Lido ao abrir, e não no render inicial: `localStorage` não existe
+  // no servidor.
+  const selected = known(chosen) ?? known(profileId) ?? profiles[0]?.id ?? null;
   const withProfile = (href: string) => {
-    if (!profileId) return href;
-    return `${href}${href.includes("?") ? "&" : "?"}perfil=${encodeURIComponent(profileId)}`;
+    if (!selected) return href;
+    return `${href}${href.includes("?") ? "&" : "?"}perfil=${encodeURIComponent(selected)}`;
   };
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet
+      open={open}
+      onOpenChange={(next) => {
+        // Cada abertura começa de novo: a criança da tela, ou a última deste
+        // aparelho. A escolha de uma abertura não vale para a seguinte, porque
+        // o rodapé mora no layout e sobrevive à navegação.
+        if (next) setChosen(profileId ? null : known(readLastChild()));
+        setOpen(next);
+      }}
+    >
       {/*
         O gatilho é construído aqui dentro, e não recebido como elemento: um
         elemento criado num Server Component não sobrevive ao `asChild` do
@@ -118,74 +136,124 @@ export function AddSheet({
       </SheetTrigger>
       <SheetContent side="bottom" className="mx-auto max-w-lg rounded-t-3xl p-0">
         <SheetHeader className="space-y-1 px-5 pt-5 text-left">
-          <SheetTitle>Adicionar</SheetTitle>
-          <SheetDescription>Como você quer trazer essa atividade?</SheetDescription>
+          <SheetTitle className="text-2xl font-extrabold tracking-tight">O que chegou?</SheetTitle>
+          <SheetDescription className="sr-only">
+            Escolha para quem é e por onde o recado chegou.
+          </SheetDescription>
         </SheetHeader>
-        <ul className="mt-4 flex flex-col">
-          {OPTIONS.map(({ key, href, icon: Icon, label, hint, tint }) => (
-            <li key={key} className="border-t">
+        {profiles.length > 1 ? (
+          <fieldset className="mt-3 px-5">
+            <legend className="mb-2 text-sm font-semibold text-muted-foreground">Para</legend>
+            <div className="flex flex-wrap gap-2">
+              {profiles.map((p) => {
+                const on = p.id === selected;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setChosen(p.id)}
+                    className={cn(
+                      "inline-flex min-h-11 items-center gap-2 rounded-full pl-1.5 pr-4 text-sm font-bold",
+                      on
+                        ? "bg-foreground text-background"
+                        : "border border-foreground/15 bg-background hover:bg-muted",
+                    )}
+                  >
+                    <StudentAvatar name={p.name} size="pill" className="border" />
+                    {p.name}
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+        ) : null}
+        <ul className="mt-4 grid grid-cols-2 gap-2 px-5">
+          {OPTIONS.map(({ key, href, icon: Icon, label, hint }) => (
+            <li key={key}>
               <Link
                 href={withProfile(href)}
-                onClick={() => setOpen(false)}
-                className="flex min-h-16 items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/60 focus-visible:bg-muted/60"
+                onClick={() => {
+                  if (selected) rememberLastChild(selected);
+                  setOpen(false);
+                }}
+                className="flex h-full min-h-24 flex-col gap-2 rounded-2xl border border-foreground/15 p-3.5 transition-colors hover:bg-muted/60 focus-visible:bg-muted/60"
               >
-                <span
-                  className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${tint}`}
-                >
-                  <Icon className="size-5" aria-hidden />
-                </span>
+                <Icon className="size-6" aria-hidden />
                 <span className="min-w-0">
-                  <span className="block font-semibold">{label}</span>
-                  <span className="block text-sm text-muted-foreground">{hint}</span>
+                  <span className="block text-[15px] font-extrabold">{label}</span>
+                  <span className="block text-sm leading-snug text-muted-foreground">{hint}</span>
                 </span>
               </Link>
             </li>
           ))}
         </ul>
         {/*
-          Quando a franquia acaba, o rodapé deixa de ser um aviso seco.
-          Ele dizia "As importações de teste acabaram" — o custo, sem o
-          benefício. Aqui a mesma franquia é contada do lado do que a família
-          ganhou, e o convite ao Pro vem no único momento em que ele responde a
-          uma pergunta que a pessoa acabou de fazer. Escrever à mão continua
-          livre, e continua na lista acima.
+          Quando a franquia acaba, o rodapé deixa de ser um aviso seco: a mesma
+          franquia é contada do lado do que a família ganhou, e o convite ao Pro
+          vem no único momento em que ele responde a uma pergunta que a pessoa
+          acabou de fazer. Escrever à mão continua livre, e continua na lista.
         */}
         {!entitlement.isPro && entitlement.trialLeft === 0 ? (
-          <div className="space-y-3 border-t bg-secondary/10 px-5 py-4">
+          <div className="mt-4 space-y-3 border-t border-foreground/15 px-5 py-4">
             <p className="text-sm">
+              Os recados de teste acabaram.
               {entitlement.organizedFromNotices > 0 ? (
                 <>
-                  A leitura já virou{" "}
-                  <strong className="font-semibold">
+                  {" "}
+                  Com eles, a Agenda organizou{" "}
+                  <strong className="font-bold">
                     {entitlement.organizedFromNotices === 1
                       ? "1 atividade"
                       : `${entitlement.organizedFromNotices} atividades`}
                   </strong>{" "}
-                  na rotina de vocês. As importações de teste acabaram.
+                  para vocês.
                 </>
-              ) : (
-                "As importações de teste acabaram."
-              )}
+              ) : null}
             </p>
-            <Button asChild size="sm" className="w-full">
+            <Button asChild className="min-h-11 w-full rounded-xl font-bold">
               <Link href="/upgrade" onClick={() => setOpen(false)}>
-                Continuar com o Pro
+                Ver o Pro
               </Link>
             </Button>
-            <p className="text-xs text-muted-foreground">
-              Escrever à mão continua livre, sem limite.
-            </p>
+            <p className="text-sm text-muted-foreground">Escrever à mão continua livre.</p>
           </div>
         ) : (
-          <p className="border-t bg-muted/40 px-5 py-3 text-sm text-muted-foreground">
-            Você confere tudo antes de salvar.{" "}
+          <p className="mt-4 border-t border-foreground/15 px-5 py-3 text-sm text-muted-foreground">
+            Você confere antes de salvar.{" "}
             {entitlement.isPro ? (
-              "Cada importação usa 1 crédito; por voz, 2."
+              entitlement.readsLeft === null ? null : entitlement.readsLeft === 0 ? (
+                // Sem leitura, os caminhos de foto, mensagem e fala respondem
+                // com erro: melhor dizer antes, e dizer a saída. Escrever
+                // continua livre.
+                <>
+                  <strong className="font-bold text-foreground">
+                    As leituras deste mês acabaram.
+                  </strong>{" "}
+                  {entitlement.isBillingOwner ? (
+                    <Link
+                      href="/settings/billing"
+                      onClick={() => setOpen(false)}
+                      className="font-bold text-primary-ink underline"
+                    >
+                      Ver mais leituras
+                    </Link>
+                  ) : (
+                    "Quem assina a Agenda pode comprar mais."
+                  )}
+                </>
+              ) : (
+                <strong className="font-bold text-foreground">
+                  {entitlement.readsLeft === 1
+                    ? "Sobra 1 leitura (ditado usa duas)."
+                    : `Sobram ${entitlement.readsLeft} leituras.`}
+                </strong>
+              )
             ) : (
-              <strong className="font-semibold text-foreground">
+              <strong className="font-bold text-foreground">
                 {entitlement.trialLeft === 1
-                  ? "Resta 1 importação grátis."
-                  : `Restam ${entitlement.trialLeft} importações grátis.`}
+                  ? "A Agenda ainda lê 1 recado de graça."
+                  : `A Agenda ainda lê ${entitlement.trialLeft} recados de graça.`}
               </strong>
             )}
           </p>

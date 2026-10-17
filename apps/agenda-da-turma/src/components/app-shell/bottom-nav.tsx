@@ -28,7 +28,14 @@ const items = [
 const tabClass =
   "flex min-h-16 flex-col items-center justify-center gap-1 text-xs transition-colors";
 
-export function BottomNav({ entitlement }: { entitlement: AddEntitlement }) {
+export function BottomNav({
+  entitlement,
+  profiles,
+}: {
+  entitlement: AddEntitlement;
+  /** Para a folha "O que chegou?" começar escolhendo a criança. */
+  profiles: Array<{ id: string; name: string }>;
+}) {
   const path = usePathname();
   // A criança escolhida viaja com a navegação. É o que o card de atalhos do
   // dashboard fazia, e é o motivo de ele ter deixado de ser necessário.
@@ -69,6 +76,7 @@ export function BottomNav({ entitlement }: { entitlement: AddEntitlement }) {
         <div className="flex min-h-16 flex-col items-center justify-center">
           <AddSheet
             profileId={profileId}
+            profiles={profiles}
             entitlement={entitlement}
             label="Adicionar"
             hideLabel

@@ -105,12 +105,18 @@ test("two adults, private child access, completion, revocation and confirmed del
   subscriptionId = subscription.id;
   await page.goto("/recados/novo");
   await page.getByLabel("Nome", { exact: true }).fill("Criança A fictícia");
-  await page.getByRole("button", { name: "Criar perfil", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Cadastrar manualmente" })).toBeEnabled();
-  await page.getByRole("button", { name: "Cadastrar manualmente" }).click();
+  await page.getByRole("button", { name: "Adicionar criança", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Escrever à mão" })).toBeEnabled();
+  await page.getByRole("button", { name: "Escrever à mão" }).click();
   await page.getByLabel("Atividade", { exact: true }).fill("Preparar mochila fictícia");
   await page.getByRole("combobox", { name: "Tipo", exact: true }).selectOption("material");
   await page.getByRole("button", { name: "Salvar 1 atividade", exact: true }).click();
+  await expect(
+    page.getByRole("heading", {
+      name: "Pronto. 1 atividade está na Agenda de Criança A fictícia.",
+    }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Ver as atividades", exact: true }).click();
   await expect(page).toHaveURL(/atividades/);
   await expect(
     page.getByRole("link", { name: "Preparar mochila fictícia", exact: true }),

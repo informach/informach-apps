@@ -207,24 +207,27 @@ export function UnifiedActivityCard({
               >
                 {view.title}
               </Link>
-              <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[13px] font-medium text-muted-foreground">
+              {/* Texto corrido, e não flex com quebra: com flex o texto inteiro
+                  descia de linha e deixava o ponto sozinho em cima. */}
+              <p className="mt-0.5 break-words text-[13px] font-medium leading-snug text-muted-foreground">
                 {view.subjectName ? (
                   <span
                     aria-hidden
                     className={cn(
-                      "size-2 shrink-0 rounded-full",
+                      "mr-1.5 inline-block size-2 rounded-full align-[1px]",
                       view.subjectColorIndex !== null
                         ? DOT_CLASS[view.subjectColorIndex]
                         : "bg-foreground/60",
                     )}
                   />
                 ) : (
-                  <TypeIcon className="size-3.5 shrink-0" aria-hidden />
+                  <TypeIcon className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />
                 )}
-                <span>{meta.join(" · ")}</span>
+                {meta.join(" · ")}
                 {view.shared ? (
-                  <span className="inline-flex items-center gap-1">
-                    · <Users className="size-3.5" aria-hidden />
+                  <span className="whitespace-nowrap">
+                    {" · "}
+                    <Users className="mr-0.5 inline size-3.5 align-[-2px]" aria-hidden />
                     turma
                   </span>
                 ) : null}

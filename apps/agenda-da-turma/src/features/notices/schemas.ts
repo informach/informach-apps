@@ -86,7 +86,11 @@ export const parseNoticeSchema = z
 
 export const extractedActionSchema = z.object({
   type: activityTypeSchema,
-  title: z.string().trim().min(1).max(180),
+  title: z
+    .string()
+    .trim()
+    .min(1, "Escreva o que precisa ser feito.")
+    .max(180, "O título pode ter até 180 caracteres."),
   description: z.string().max(3000).nullable(),
   dueAt: dateSchema.nullable(),
   dateOrigin: z.enum(["unspecified", "school", "relative"]),

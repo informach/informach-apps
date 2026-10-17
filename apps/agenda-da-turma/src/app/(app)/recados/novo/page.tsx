@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { z } from "zod";
+import { BackButton } from "@/components/app-shell/back-button";
 import { getIsProForUser } from "@/features/billing/server-cache";
 import { listAccessibleProfiles } from "@/features/family/access";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
@@ -11,21 +11,13 @@ import { getNotificationPreferences } from "@/features/notifications/service";
 import { listSubjectOptionsByProfile } from "@/features/subjects/options-service";
 import { requireUserServer } from "@/lib/auth";
 
-export const metadata = { title: "Adicionar atividade" };
+export const metadata = { title: "Trazer um recado" };
 
 /**
- * `?modo=` vem da folha Adicionar e diz por onde a pessoa escolheu entrar.
- * Não são fluxos diferentes: mudam só o subtítulo e o campo que recebe o foco.
+ * `?modo=` vem da folha "O que chegou?" e diz por onde a pessoa escolheu
+ * entrar. Não são fluxos diferentes: muda o que vem primeiro na tela (a
+ * câmera, o campo de colar, o microfone) e o que recebe o foco.
  */
-const MODE_HINTS = {
-  foto: "Envie a foto da agenda, do caderno ou o anexo que a escola mandou. Você confere tudo antes de salvar.",
-  colar:
-    "Cole a publicação do Teams, do Batista ID ou de onde o recado chegou. Você confere tudo antes de salvar.",
-  falar:
-    "Dite o que a criança precisa fazer. A transcrição aparece para você conferir antes de salvar.",
-  compartilhado:
-    "Chegou pelo compartilhamento do seu telefone. Confira a criança e o conteúdo antes de salvar.",
-} as const;
 const captureModeSchema = z.enum(["foto", "colar", "falar", "compartilhado"]);
 
 export default async function NewNoticePage({
@@ -60,18 +52,13 @@ export default async function NewNoticePage({
       }
     | undefined;
   /*
-   * Mensagem encaminhada por e-mail: ela entra no formulário como texto e
-   * anexo, e vira recado só quando a pessoa escolhe a criança e manda ler.
-   * Encaminhar não consome crédito; organizar é que consome.
-   */
-  /*
    * `?retomar=` que não resolve não derruba a tela.
    *
    * Descartar a última atividade da revisão tira o recado de `ready` e a ação
    * revalida a rotina; se esta página respondesse "não encontrado" aí, ela
    * trocaria de árvore no meio da resposta e levaria junto o que a pessoa
    * tivesse acabado de escrever à mão. Um rascunho que sumiu vira o formulário
-   * de importação com um aviso — que é o que sobrou de verdade.
+   * de um recado novo com um aviso, que é o que sobrou de verdade.
    */
   let resumeUnavailable = false;
   if (params.retomar) {
@@ -91,24 +78,13 @@ export default async function NewNoticePage({
     else resumeUnavailable = true;
   }
   return (
-    <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 pb-28 sm:px-8">
-      <Link href="/atividades" className="text-sm text-muted-foreground underline">
-        Voltar às atividades
-      </Link>
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Adicionar atividade</h1>
-        <p className="mt-2 text-muted-foreground">
-          {captureMode
-            ? MODE_HINTS[captureMode]
-            : "Transforme mensagens, anexos e fotos da agenda ou do caderno em atividades. Confira os detalhes antes de salvar."}
-        </p>
-      </header>
-      {resumeUnavailable ? (
-        <p role="status" className="rounded-lg border bg-muted/40 p-4 text-sm">
-          Aquele recado não está mais esperando conferência: ele foi salvo ou descartado. Dá para
-          mandar um recado novo aqui.
-        </p>
-      ) : null}
+    <main className="mx-auto max-w-3xl space-y-5 px-4 pb-28 pt-5 sm:px-8 sm:pt-8">
+      <div className="flex items-center gap-2">
+        <BackButton href="/dashboard" label="Voltar para Hoje" />
+        <h1 className="text-[28px] font-extrabold leading-tight tracking-tight">
+          Trazer um recado
+        </h1>
+      </div>
       <CaptureForm
         /*
          * A chave são os PARÂMETROS da URL, não o rascunho resolvido.
@@ -136,6 +112,7 @@ export default async function NewNoticePage({
         defaultProfileId={params.perfil}
         defaultText={typeof params.texto === "string" ? params.texto.slice(0, 4000) : undefined}
         defaultSource={noticeSourceSchema.catch("teams").parse(params.origem)}
+        resumeUnavailable={resumeUnavailable}
       />
     </main>
   );

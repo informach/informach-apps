@@ -94,6 +94,7 @@ export function ActivitiesSection({
           </Button>
           <AddSheet
             profileId={activeFilter?.id ?? null}
+            profiles={profiles}
             entitlement={addEntitlement}
             label="Adicionar de um recado"
             icon="sparkles"

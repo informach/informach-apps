@@ -32,3 +32,20 @@ Commits `012ec6d` e `c7a8c21`.
 ### Verificação da fase 2
 
 Typecheck e Biome limpos; testes unitários e de integração passando; E2E da configuração padrão passando com o `.next` limpo, depois de consertar o aquecimento: ele compilava só a página de login, porque o proxy redireciona as rotas protegidas sem sessão. Agora uma conta sintética entra e aquece as rotas e as páginas que a suíte visita.
+
+## Fase 3: trazer um recado em três toques
+
+- **"O que chegou?"** (`AddSheet`): a criança no topo, lembrando a última deste aparelho (`notices/last-child.ts`), e os quatro caminhos (Foto, Mensagem, Falar, Escrever). O rodapé diz quantas leituras sobram no saldo de quem assina, ou quantos recados de teste faltam; quando acabam, o adulto convidado lê que quem assina pode comprar mais, em vez de cair na própria assinatura vazia.
+- **"Trazer um recado"** (`/recados/novo`): o caminho escolhido vem primeiro (a câmera, o campo de colar, o microfone), e origem, observação, data e link moram em "Mais opções". Enquanto a Agenda lê, a tela diz o que ela está fazendo.
+- **Revisão em cartões curtos**: título, matéria, data e de onde veio a data. O cartão abre sozinho quando precisa da pessoa (sem título, matéria que não casou, correção de prazo, lembrete que já passou, e quando vai para a turma, porque essa caixa não pode ser marcada sem ninguém ver). "Tirar" chega ao servidor na hora e tem "Desfazer" enquanto a revisão está aberta.
+- **Privacidade do original** num interruptor, "O recado fala só de Clara", com a mesma regra de antes: desligado por padrão.
+- **"Pronto"** no lugar do redirecionamento: o que entrou na semana, a primeira data, "Ver na semana", "Trazer outro recado". Escrever à mão continua voltando para Atividades.
+- Copy dos campos: "Mandar para a turma", "Toda semana, depois de feita", "Na próxima aula de Matemática", "(fora da escola)", e "ainda sem data" quando a atividade não veio de recado. Saiu o caminho morto do anexo por e-mail.
+
+### O que a revisão da fase 3 achou
+
+Consertado: a caixa "Mandar para a turma" marcada dentro de um cartão fechado; o lembrete vencido escondido e contado como "chega no horário"; o aviso de rascunho vencido aparecendo em cima do "Pronto" de quem acabou de salvar, e a URL que não limpava; a folha guardando a escolha de criança de uma abertura para a outra; o cadastro à mão trocando de criança depois da primeira atividade; o erro de validação apontando para um campo escondido; a conversa do WhatsApp sumindo dentro de "Mais opções" na Foto; a ordem das crianças instável no rodapé; nomes acessíveis ("Tirar a atividade 1"), foco depois de salvar e textos que diziam mais do que a regra garante.
+
+### Verificação da fase 3
+
+Typecheck e Biome limpos; unitários (578) e integração (88) passando; E2E dos fluxos de captura passando. O aquecimento passou a pedir também os scripts de cada página: sem isso, o primeiro teste que abria a página pagava a compilação do lado do navegador e o `next dev` recarregava a tela no meio do clique. Com a máquina a 100% de CPU por outras sessões, uma rodada ainda falhou por tempo e passou na seguinte.

@@ -16,4 +16,14 @@ export type AddEntitlement = {
    * acabou e a conta não é Pro — nos outros casos vem zero, porque ninguém o lê.
    */
   organizedFromNotices: number;
+  /**
+   * Leituras que sobram no saldo do titular, para o Pro ver na folha "O que
+   * chegou?". `null` fora do Pro: o gratuito conta pelos recados de teste.
+   */
+  readsLeft: number | null;
+  /**
+   * Quem está olhando é quem assina. Só ele compra leituras: o adulto convidado
+   * que tocasse "ver mais leituras" cairia na própria assinatura, vazia.
+   */
+  isBillingOwner: boolean;
 };

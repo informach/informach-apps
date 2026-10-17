@@ -110,6 +110,22 @@ test("aquece as rotas pesadas do servidor de desenvolvimento", async ({ request,
     const bounced =
       status >= 300 && status < 400 && new URL(location, baseURL).pathname === "/login";
     expect(bounced, `${method} ${route} não chegou à rota`).toBe(false);
+    // A página compila em duas metades: o servidor no pedido do HTML, e os
+    // pedaços do navegador só quando alguém pede cada script. Sem pedir os
+    // scripts aqui, o primeiro teste que abre a página pagava essa segunda
+    // compilação, e o `next dev` recarregava a página no meio do clique
+    // ("[Fast Refresh] rebuilding" logo depois de carregar).
+    if (method === "GET" && status === 200) {
+      const html = await response.text();
+      const scripts = [...html.matchAll(/<script[^>]+src="(\/_next\/[^"]+)"/g)].map(
+        (match) => match[1],
+      );
+      await Promise.all(
+        [...new Set(scripts)].map((src) =>
+          request.get(`${baseURL}${src}`, { timeout: WARMUP_TIMEOUT, failOnStatusCode: false }),
+        ),
+      );
+    }
   };
   try {
     for (const route of PUBLIC) await warm(route);

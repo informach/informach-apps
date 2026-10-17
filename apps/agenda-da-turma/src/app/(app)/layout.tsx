@@ -6,6 +6,7 @@ import { ServiceWorkerRegistrar } from "@/components/app-shell/service-worker";
 import { getAddEntitlement } from "@/features/notices/trial";
 import { OfflineQueueFlusher } from "@/features/offline-queue/components/offline-queue-flusher";
 import { QueueOwnerProvider } from "@/features/offline-queue/owner";
+import { listStudentProfilesForUser } from "@/features/students/service";
 import { redirectIfUnauthenticated } from "@/lib/auth";
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
@@ -39,5 +40,16 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 }
 
 async function BottomNavSlot({ userId }: { userId: string }) {
-  return <BottomNav entitlement={await getAddEntitlement(userId)} />;
+  const [entitlement, profiles] = await Promise.all([
+    getAddEntitlement(userId),
+    // A lista ordenada por criação: é a ordem das pílulas em Hoje, Atividades
+    // e Calendário, e a primeira é a criança escolhida quando nada mais diz.
+    listStudentProfilesForUser(userId),
+  ]);
+  return (
+    <BottomNav
+      entitlement={entitlement}
+      profiles={profiles.map((profile) => ({ id: profile.id, name: profile.name }))}
+    />
+  );
 }
