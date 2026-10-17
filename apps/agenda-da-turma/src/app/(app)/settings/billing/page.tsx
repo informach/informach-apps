@@ -143,9 +143,7 @@ async function ExpiringCard({ userId }: UserArg) {
   return (
     <Card className="border-border/60">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          Vencem em breve
-        </CardTitle>
+        <CardTitle className="text-sm font-medium text-muted-foreground">Vencem em breve</CardTitle>
         <WalletCards className="size-4 text-muted-foreground" aria-hidden />
       </CardHeader>
       <CardContent className="space-y-2">
@@ -194,9 +192,7 @@ async function HistorySection({ userId }: UserArg) {
                 >
                   <div>
                     <p className="font-medium">{ledgerLabel(entry.entryType)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDate(entry.createdAt)}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{formatDate(entry.createdAt)}</p>
                   </div>
                   <span className="font-mono tabular-nums">
                     {entry.amount > 0 ? "+" : ""}
@@ -289,7 +285,7 @@ function ledgerLabel(type: string): string {
       purchase: "Pacote de leituras",
       bonus_grant: "Leituras do mês, do Pro",
       promo_grant: "Leituras para experimentar",
-      consumption: "Recado lido",
+      consumption: "Leitura usada",
       refund: "Estorno",
       expiration: "Venceram",
       adjustment: "Ajuste",

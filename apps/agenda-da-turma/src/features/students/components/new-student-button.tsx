@@ -35,7 +35,7 @@ export function NewStudentButton({
         title={
           limitReached
             ? isPro
-              ? `Você já tem ${limit} perfis (máximo do plano Pro).`
+              ? `Já são ${limit} crianças, o máximo do Pro.`
               : `O plano grátis tem ${limit} criança. No Pro cabem até três.`
             : undefined
         }

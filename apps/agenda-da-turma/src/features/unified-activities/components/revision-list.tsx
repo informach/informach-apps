@@ -35,6 +35,7 @@ const WHEN = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "America/Sao_Paulo",
   day: "numeric",
   month: "long",
+  year: "numeric",
   hour: "2-digit",
   minute: "2-digit",
 });
@@ -49,9 +50,7 @@ export function ActivityRevisionList({ revisions }: { revisions: ActivityRevisio
             <p className="font-medium">
               Versão {revision.version} · {revision.actor ?? "Conta excluída"}
             </p>
-            <p className="text-muted-foreground">
-              {WHEN.format(revision.createdAt)}
-            </p>
+            <p className="text-muted-foreground">{WHEN.format(revision.createdAt)}</p>
             {revision.previous.dueAt !== revision.current.dueAt ? (
               <p>
                 A data mudou de {readableDay(revision.previous.dueAt)} para{" "}

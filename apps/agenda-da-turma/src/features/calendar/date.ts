@@ -98,9 +98,18 @@ export function formatMonthLabel(anchor: string): string {
 }
 
 // "11 a 17 de maio", "31 de maio a 6 de junho". O mesmo rótulo do resumo da
-// semana por e-mail: uma semana não pode ter dois nomes.
-export function formatWeekRangeLabel(fromIso: string, toIso: string): string {
-  return weekRangeLabel(fromIso, toIso);
+// semana por e-mail: uma semana não pode ter dois nomes. Fora do ano corrente,
+// o ano entra no fim, como no cabeçalho do mês ("Maio de 2027").
+export function formatWeekRangeLabel(
+  fromIso: string,
+  toIso: string,
+  todayIso: string = todayLocalIso(),
+): string {
+  const label = weekRangeLabel(fromIso, toIso);
+  const year = toIso.slice(0, 4);
+  return fromIso.slice(0, 4) === year && year !== todayIso.slice(0, 4)
+    ? `${label} de ${year}`
+    : label;
 }
 
 // "Segunda, 12 de maio de 2026"

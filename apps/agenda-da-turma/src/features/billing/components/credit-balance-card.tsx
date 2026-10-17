@@ -48,7 +48,8 @@ export function CreditBalanceCard({ available, total, reserved, monthlyCap }: Pr
                 </button>
               </TooltipTrigger>
               <TooltipContent className="max-w-xs">
-                Cada recado que a Agenda lê usa uma leitura, mesmo que vire várias atividades. Ditado usa duas.
+                Cada recado que a Agenda lê usa uma leitura, mesmo que vire várias atividades.
+                Ditado usa duas.
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -87,7 +88,7 @@ export function CreditBalanceCard({ available, total, reserved, monthlyCap }: Pr
               ? `A barra mostra o mês. As leituras de pacotes não vencem${reserved > 0 ? `, e ${formatNumber(reserved)} estão em uso agora` : ""}.`
               : reserved > 0
                 ? `${formatNumber(reserved)} em uso agora, numa leitura em andamento.`
-                : "Renova junto com a assinatura."
+                : "Renova todo mês."
             : "No Pro, a Agenda lê 70 recados por mês."}
         </p>
       </CardContent>

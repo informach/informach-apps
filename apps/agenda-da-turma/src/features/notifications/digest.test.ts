@@ -28,7 +28,9 @@ describe("whenPhrase", () => {
 
 describe("digestLine", () => {
   it("names child and subject, and who takes care only when someone does", () => {
-    expect(digestLine(item(), today)).toBe("Clara · Matemática: Páginas 32 e 33 do livro, para hoje.");
+    expect(digestLine(item(), today)).toBe(
+      "Clara · Matemática: Páginas 32 e 33 do livro, para hoje.",
+    );
     expect(digestLine(item({ subjectName: null, assignedName: "Ana" }), today)).toBe(
       "Clara: Páginas 32 e 33 do livro, para hoje. Ana cuida.",
     );
@@ -40,14 +42,22 @@ describe("digestLine", () => {
 
 describe("buildDailyDigest", () => {
   it("is honest about what it covers", () => {
-    expect(buildDailyDigest([item()], { todayIso: today })?.title).toBe("Para hoje: 1 atividade");
+    expect(buildDailyDigest([item()], { todayIso: today })?.title).toBe("Na Agenda: 1 para hoje");
     expect(buildDailyDigest([item({ dueAt: "2026-10-20" })], { todayIso: today })?.title).toBe(
-      "Amanhã: 1 atividade",
+      "Na Agenda: 1 para amanhã",
     );
     expect(
       buildDailyDigest([item(), item({ dueAt: "2026-10-20", title: "Outra" })], { todayIso: today })
         ?.title,
-    ).toBe("Hoje e amanhã: 2 atividades");
+    ).toBe("Na Agenda: 1 para hoje e 1 para amanhã");
+  });
+  it("never calls an undated or late activity 'for today'", () => {
+    const digest = buildDailyDigest([item({ dueAt: null }), item({ dueAt: "2026-10-16" })], {
+      todayIso: today,
+    });
+    expect(digest?.title).toBe("Na Agenda: 1 atrasada e 1 sem data");
+    expect(digest?.push.body).toBe("1 atrasada e 1 sem data.");
+    expect(digest?.title).not.toContain("hoje");
   });
   it("leaves the rest of the week to the weekly digest", () => {
     expect(buildDailyDigest([item({ dueAt: "2026-10-22" })], { todayIso: today })).toBeNull();
@@ -76,28 +86,43 @@ describe("buildDailyDigest", () => {
       { todayIso: today },
     );
     expect(digest?.push).toEqual({
-      title: "Hoje e amanhã na Agenda",
-      body: "1 para hoje, 1 passou do prazo e 1 para amanhã.",
+      title: "O resumo do dia na Agenda",
+      body: "1 para hoje, 1 atrasada e 1 para amanhã.",
     });
     expect(JSON.stringify(digest?.push)).not.toMatch(/Clara|Matemática|Páginas/);
   });
-  it("caps the e-mail at twenty lines", () => {
+  it("caps the e-mail at twenty lines, with the right plural", () => {
     const many = Array.from({ length: 23 }, (_, i) => item({ title: `Item ${i}` }));
     const lines = buildDailyDigest(many, { todayIso: today })?.lines ?? [];
     expect(lines).toHaveLength(21);
     expect(lines.at(-1)).toBe("Mais 3 atividades. Abra a Agenda para ver todas.");
+    const one = Array.from({ length: 21 }, (_, i) => item({ title: `Item ${i}` }));
+    expect(buildDailyDigest(one, { todayIso: today })?.lines.at(-1)).toBe(
+      "Mais 1 atividade. Abra a Agenda para ver todas.",
+    );
   });
 });
 
 describe("buildReminder", () => {
-  it("names the activity in the e-mail and only the day on the lock screen", () => {
+  it("names the activity only inside the e-mail, never on the lock screen", () => {
     const reminder = buildReminder(item({ title: "Enviar autorização", dueAt: "2026-10-20" }), {
       todayIso: today,
     });
-    expect(reminder.title).toBe("Lembrete: Enviar autorização (Clara)");
+    expect(reminder.title).toBe("Lembrete da Agenda: uma atividade é para amanhã");
+    expect(reminder.lines[0]).toContain("Clara");
+    expect(reminder.lines[0]).toContain("Enviar autorização");
     expect(reminder.push).toEqual({
       title: "Lembrete da Agenda",
       body: "Uma atividade é para amanhã.",
     });
+    expect(`${reminder.title} ${reminder.push.body}`).not.toMatch(/Clara|autorização/);
+  });
+  it("uses the weekday only inside the week", () => {
+    expect(buildReminder(item({ dueAt: "2026-10-22" }), { todayIso: today }).push.body).toBe(
+      "Uma atividade é para quinta.",
+    );
+    expect(buildReminder(item({ dueAt: "2026-11-12" }), { todayIso: today }).push.body).toBe(
+      "Uma atividade é para qui, 12 nov.",
+    );
   });
 });

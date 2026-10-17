@@ -191,14 +191,15 @@ export function CreateTurmaDialog({ open, onOpenChange, profiles, defaultProfile
               </DialogTitle>
               <DialogDescription>
                 {shareCode.created
-                  ? "A turma foi criada e a criança já está nela, como a turma deste ano."
+                  ? "A turma foi criada e a criança já está nela, como a turma atual dela."
                   : "A criança entrou na turma que você já tinha criado."}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                Mande este código para as outras famílias da turma. Com ele, elas entram e recebem o que vocês mandarem:
+                Mande este código para as outras famílias da turma. Com ele, elas entram e recebem o
+                que vocês mandarem:
               </p>
               <div className="flex items-center gap-2 rounded-lg border bg-muted/40 p-3">
                 <span className="flex-1 font-mono text-2xl tracking-widest">{shareCode.code}</span>
@@ -220,8 +221,8 @@ export function CreateTurmaDialog({ open, onOpenChange, profiles, defaultProfile
             <DialogHeader>
               <DialogTitle>Nova turma</DialogTitle>
               <DialogDescription>
-                A turma junta as famílias da mesma sala. Se outra família já criou, peça o
-                convite e entre por código.
+                A turma junta as famílias da mesma sala. Se outra família já criou, peça o convite e
+                entre por código.
               </DialogDescription>
             </DialogHeader>
 

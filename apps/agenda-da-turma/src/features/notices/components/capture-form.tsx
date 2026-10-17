@@ -384,7 +384,7 @@ export function CaptureForm({
     );
     setBusy(false);
     if (!result.ok) {
-      setError("Não foi possível criar o perfil. Confira o nome e o limite do seu plano.");
+      setError("Não foi possível adicionar a criança. Confira o nome e o limite do seu plano.");
       return;
     }
     setProfiles([...profiles, { id: result.value.id, name: childName.trim() }]);
@@ -923,9 +923,10 @@ export function CaptureForm({
           </div>
           <p className="text-sm text-muted-foreground">
             {isPro
-              ? "1 crédito por importação, mesmo com várias atividades; ditar usa 2."
-              : "Experimente 5 importações gratuitas, sem cartão. Depois, o Pro inclui 70 créditos por mês."}{" "}
-            Você revisa antes de salvar. O conteúdo será enviado ao serviço de IA para extração.
+              ? "Usa 1 leitura, mesmo que vire várias atividades; ditado usa 2."
+              : "Os 5 primeiros recados são por nossa conta. Depois, o Pro lê 70 por mês."}{" "}
+            Você confere antes de salvar. Para ler, o conteúdo passa por um serviço de inteligência
+            artificial.
           </p>
           <div className="flex flex-wrap gap-3">
             <Button onClick={extract} disabled={busy || (!text.trim() && !attachment)}>
@@ -1182,8 +1183,8 @@ export function CaptureForm({
           {mode === "capture" && noticeId && !noticeConfirmed ? (
             <>
               <p className="text-xs text-muted-foreground">
-                Voltar à importação guarda este rascunho em “Falta conferir antes de salvar”, e
-                retomar não consome outro crédito. Para não guardar, descarte o recado.
+                Voltar guarda o recado em Hoje, como “ficou sem conferir”, e continuar depois não
+                gasta outra leitura. Para não guardar, descarte o recado.
               </p>
               <DiscardNoticeDialog
                 open={discardOpen}

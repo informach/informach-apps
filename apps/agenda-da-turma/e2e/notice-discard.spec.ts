@@ -156,7 +156,7 @@ test("discarding a draft persists: trash in the review, and discard from the das
       page.getByRole("heading", { name: /ficou sem conferir|ficaram sem conferir/ }),
     ).toBeVisible();
     await page
-      .getByRole("button", { name: "Descartar importação de Microsoft Teams", exact: true })
+      .getByRole("button", { name: "Descartar o recado de Microsoft Teams", exact: true })
       .click();
     await page.getByRole("button", { name: "Descartar", exact: true }).click();
     await expect(page.getByText("Recado descartado.")).toBeVisible();

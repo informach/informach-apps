@@ -1,6 +1,7 @@
 import { addDaysIso } from "@/features/dashboard/date";
 import {
   dayDistance,
+  daysBetweenIso,
   formatClockTime,
   shortDayLabel,
   weekdayLong,
@@ -9,12 +10,13 @@ import {
 /**
  * O texto do resumo diário e do lembrete.
  *
- * Duas mensagens saem de cada aviso: a do e-mail, que a família lê sozinha na
- * caixa dela e pode nomear a criança, e a do celular, que aparece na tela
- * bloqueada. A política de privacidade promete que a tela bloqueada não mostra
- * nome de criança nem conteúdo escolar, então o push leva só contagens e dias.
- * As duas versões nascem aqui, juntas, para que uma mudança no texto de uma não
- * esqueça a promessa da outra.
+ * Duas mensagens saem de cada aviso: o corpo do e-mail, que a família lê
+ * dentro da caixa dela e pode nomear a criança, e o que aparece na tela
+ * bloqueada: o push inteiro e o ASSUNTO do e-mail, que o aplicativo de e-mail
+ * também mostra ali. A política de privacidade promete que a tela bloqueada
+ * não mostra nome de criança nem conteúdo escolar, então assunto e push levam
+ * só contagens e dias. As versões nascem aqui, juntas, para que uma mudança no
+ * texto de uma não esqueça a promessa da outra.
  *
  * Puro: testado sem banco, sem provedor e sem relógio.
  */
@@ -77,9 +79,27 @@ function capLines(lines: string[]): string[] {
   return lines.length > MAX_DIGEST_LINES
     ? [
         ...lines.slice(0, MAX_DIGEST_LINES),
-        `Mais ${lines.length - MAX_DIGEST_LINES} atividades. Abra a Agenda para ver todas.`,
+        `Mais ${count(lines.length - MAX_DIGEST_LINES, "atividade", "atividades")}. Abra a Agenda para ver todas.`,
       ]
     : lines;
+}
+
+/**
+ * "2 para hoje, 1 atrasada, 1 sem data e 3 para amanhã": cada grupo com o seu
+ * nome, para o assunto e o push não chamarem de "hoje" o que está sem data.
+ */
+function digestCounts(items: readonly DigestItem[], todayIso: string) {
+  const tomorrow = addDaysIso(todayIso, 1);
+  const forToday = items.filter((item) => item.dueAt === todayIso).length;
+  const late = items.filter((item) => item.dueAt && item.dueAt < todayIso).length;
+  const undated = items.filter((item) => !item.dueAt).length;
+  const forTomorrow = items.filter((item) => item.dueAt === tomorrow).length;
+  const parts: string[] = [];
+  if (forToday) parts.push(`${forToday} para hoje`);
+  if (late) parts.push(late === 1 ? "1 atrasada" : `${late} atrasadas`);
+  if (undated) parts.push(`${undated} sem data`);
+  if (forTomorrow) parts.push(`${forTomorrow} para amanhã`);
+  return joinWithAnd(parts);
 }
 
 /**
@@ -101,52 +121,44 @@ export function buildDailyDigest(
     if (byRank !== 0) return byRank;
     return `${a.dueAt ?? ""}${a.time ?? ""}`.localeCompare(`${b.dueAt ?? ""}${b.time ?? ""}`);
   });
-  const late = sorted.filter((item) => item.dueAt && item.dueAt < today).length;
-  const forTomorrow = sorted.filter((item) => item.dueAt === tomorrow).length;
-  const forNow = sorted.length - forTomorrow;
-
-  const total = count(sorted.length, "atividade", "atividades");
-  const title =
-    forNow && forTomorrow
-      ? `Hoje e amanhã: ${total}`
-      : forNow
-        ? `Para hoje: ${total}`
-        : `Amanhã: ${total}`;
-
-  const pushParts: string[] = [];
-  const onTime = forNow - late;
-  if (onTime) pushParts.push(`${onTime} para hoje`);
-  if (late) pushParts.push(late === 1 ? "1 passou do prazo" : `${late} passaram do prazo`);
-  if (forTomorrow) pushParts.push(`${forTomorrow} para amanhã`);
-  const body = `${joinWithAnd(pushParts)}.`;
+  const summary = digestCounts(sorted, today);
 
   return {
-    title,
+    title: `Na Agenda: ${summary}`,
     lines: capLines(sorted.map((item) => digestLine(item, today))),
-    push: { title: "Hoje e amanhã na Agenda", body: capitalizeFirst(body) },
+    push: { title: "O resumo do dia na Agenda", body: `${capitalizeFirst(summary)}.` },
   };
 }
 
-/** O lembrete de uma atividade, com hora marcada pela família. */
+/**
+ * O lembrete de uma atividade, com hora marcada pela família.
+ *
+ * O assunto não nomeia a criança nem a atividade (ele aparece na tela
+ * bloqueada); o corpo do e-mail nomeia.
+ */
 export function buildReminder(item: DigestItem, options: { todayIso: string }): RoutineMessageText {
   const today = options.todayIso;
-  let body: string;
-  if (!item.dueAt) body = "Uma atividade está sem data marcada.";
+  let when: string;
+  if (!item.dueAt) when = "está sem data marcada";
   else {
     const distance = dayDistance(item.dueAt, today);
-    body =
+    when =
       distance === "late"
-        ? "Uma atividade passou do prazo."
+        ? "passou do prazo"
         : distance === "today"
-          ? "Uma atividade é para hoje."
+          ? "é para hoje"
           : distance === "tomorrow"
-            ? "Uma atividade é para amanhã."
-            : `Uma atividade é para ${weekdayLong(item.dueAt).toLowerCase()}.`;
+            ? "é para amanhã"
+            : // O dia da semana só ajuda dentro da semana; mais longe, a data.
+              daysBetweenIso(today, item.dueAt) < 7
+              ? `é para ${weekdayLong(item.dueAt).toLowerCase()}`
+              : `é para ${shortDayLabel(item.dueAt, today)}`;
   }
+  const sentence = `Uma atividade ${when}.`;
   return {
-    title: `Lembrete: ${item.title} (${item.profileName})`,
+    title: `Lembrete da Agenda: uma atividade ${when}`,
     lines: [digestLine(item, today)],
-    push: { title: "Lembrete da Agenda", body },
+    push: { title: "Lembrete da Agenda", body: sentence },
   };
 }
 

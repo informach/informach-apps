@@ -54,7 +54,12 @@ const MONTH_SHORT = [
 
 function parts(iso: string) {
   const date = parseLocalIso(iso);
-  return { weekday: date.getDay(), day: date.getDate(), month: date.getMonth(), year: date.getFullYear() };
+  return {
+    weekday: date.getDay(),
+    day: date.getDate(),
+    month: date.getMonth(),
+    year: date.getFullYear(),
+  };
 }
 
 function capitalize(text: string) {

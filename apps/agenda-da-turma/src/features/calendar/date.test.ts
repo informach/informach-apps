@@ -225,8 +225,17 @@ describe("formatters (pt-BR)", () => {
   });
 
   it("formatWeekRangeLabel collapses same-month into one mention", () => {
-    expect(formatWeekRangeLabel("2026-05-10", "2026-05-16")).toBe("10 a 16 de maio");
-    expect(formatWeekRangeLabel("2026-05-31", "2026-06-06")).toBe("31 de maio a 6 de junho");
+    expect(formatWeekRangeLabel("2026-05-10", "2026-05-16", "2026-05-12")).toBe("10 a 16 de maio");
+    expect(formatWeekRangeLabel("2026-05-31", "2026-06-06", "2026-05-12")).toBe(
+      "31 de maio a 6 de junho",
+    );
+    // Em outro ano, o ano aparece; na virada, `weekRangeLabel` já o escreve.
+    expect(formatWeekRangeLabel("2027-05-09", "2027-05-15", "2026-05-12")).toBe(
+      "9 a 15 de maio de 2027",
+    );
+    expect(formatWeekRangeLabel("2026-12-27", "2027-01-02", "2026-05-12")).toBe(
+      "27 de dezembro de 2026 a 2 de janeiro de 2027",
+    );
   });
 
   it("formatDayLabel returns 'Weekday, DD de Month de YYYY'", () => {

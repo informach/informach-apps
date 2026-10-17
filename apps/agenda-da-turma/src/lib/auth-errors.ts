@@ -13,7 +13,7 @@ const MESSAGES: Record<string, string> = {
   INVALID_PASSWORD: "A senha não confere.",
   INVALID_EMAIL: "Confira o e-mail digitado.",
   USER_NOT_FOUND: "Não achamos uma conta com esse e-mail.",
-  EMAIL_NOT_VERIFIED: "Falta confirmar o e-mail. Mandamos um código para você.",
+  EMAIL_NOT_VERIFIED: "Falta confirmar o e-mail. Entre pela aba Código para receber um.",
   PASSWORD_TOO_SHORT: "A senha precisa de pelo menos 8 caracteres.",
   PASSWORD_TOO_LONG: "A senha pode ter no máximo 72 caracteres.",
   USER_ALREADY_EXISTS: "Já existe uma conta com esse e-mail.",

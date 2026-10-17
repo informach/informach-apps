@@ -93,7 +93,7 @@ export function StudentFormDialog({ open, onOpenChange, isPro, currentCount, pro
           }
           if (result.error.code === "NOT_FOUND") {
             toast.error("Não achamos essa criança", {
-              description: "Pode ter sido removido em outra aba.",
+              description: "Ela pode ter saído da Agenda em outra aba.",
             });
             onOpenChange(false);
             router.refresh();
@@ -126,8 +126,8 @@ export function StudentFormDialog({ open, onOpenChange, isPro, currentCount, pro
               action: { label: "Ver planos", onClick: () => router.push("/upgrade") },
             });
           } else {
-            toast.error("Limite de perfis atingido", {
-              description: `Você já tem ${result.error.current} de ${result.error.limit} perfis no plano Pro.`,
+            toast.error("Já são três crianças", {
+              description: `Você tem ${result.error.current} de ${result.error.limit} crianças, o máximo do Pro.`,
             });
           }
           return;
@@ -177,7 +177,7 @@ export function StudentFormDialog({ open, onOpenChange, isPro, currentCount, pro
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {isPro
-                    ? `Plano Pro permite até ${proLimit} perfis.`
+                    ? `O Pro acompanha até ${proLimit} crianças.`
                     : `No Pro cabem até ${proLimit} crianças, cada uma com a sua turma e o seu horário.`}
                 </p>
               </div>

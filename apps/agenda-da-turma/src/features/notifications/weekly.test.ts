@@ -65,7 +65,11 @@ describe("buildWeeklyDigestLines", () => {
 describe("buildWeeklyDigest", () => {
   it("puts the full day in the subject line", () => {
     const digest = buildWeeklyDigest(
-      [item({ dueAt: "2026-10-01" }), item({ dueAt: "2026-10-01", title: "B" }), item({ dueAt: "2026-10-01", title: "C" })],
+      [
+        item({ dueAt: "2026-10-01" }),
+        item({ dueAt: "2026-10-01", title: "B" }),
+        item({ dueAt: "2026-10-01", title: "C" }),
+      ],
       { todayIso: today },
     );
     expect(digest?.title).toBe("De 27 de setembro a 3 de outubro: quinta está cheia");
@@ -78,7 +82,11 @@ describe("buildWeeklyDigest", () => {
   });
   it("keeps names and titles off the lock screen", () => {
     const digest = buildWeeklyDigest(
-      [item({ subjectName: "Ciências" }), item({ title: "Maquete", dueAt: "2026-09-29" }), item({ title: "Lição" })],
+      [
+        item({ subjectName: "Ciências" }),
+        item({ title: "Maquete", dueAt: "2026-09-29" }),
+        item({ title: "Lição" }),
+      ],
       { todayIso: today },
     );
     expect(digest?.push.body).toBe("3 atividades nos próximos sete dias. Terça está cheia.");

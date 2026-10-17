@@ -32,7 +32,7 @@ export function ProfileSubjectsList({ profileId, subjects }: Props) {
         <p className="text-sm text-muted-foreground">
           {tab === "active"
             ? "Nenhuma atividade extra ativa. Natação, inglês, reforço: adicione a primeira."
-            : "Nenhuma matéria pausada no momento."}
+            : "Nenhuma atividade extra pausada agora."}
         </p>
       ) : (
         <div className="space-y-3">

@@ -17,10 +17,7 @@ export default async function FamilyChildrenPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 pb-28 md:px-8">
-      <FamilyHeader
-        current="/familia"
-        subtitle="Quem a Agenda acompanha."
-      />
+      <FamilyHeader current="/familia" subtitle="Quem a Agenda acompanha." />
       <StudentsSection
         currentUserId={user.id}
         profiles={profiles}

@@ -165,9 +165,7 @@ export function ProfileSubjectFormDialog({ open, onOpenChange, profileId, subjec
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            {isEdit ? "Editar atividade extra" : "Nova atividade extra"}
-          </DialogTitle>
+          <DialogTitle>{isEdit ? "Editar atividade extra" : "Nova atividade extra"}</DialogTitle>
           <DialogDescription>
             Atividades fora da escola, como jazz, futebol, natação ou reforço. Elas aparecem nas
             matérias do dia junto com as da turma.

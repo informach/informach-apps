@@ -48,8 +48,8 @@ export default async function ProfileExtrasPage({ params }: Props) {
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Atividades extras</h1>
           <p className="text-sm text-muted-foreground">
             O que acontece fora da escola, como jazz, futebol, natação ou reforço. Aparece em Hoje
-            junto com as aulas da turma, e dá para pausar quando a criança der um tempo, sem perder o
-            histórico.
+            junto com as aulas da turma, e dá para pausar quando a criança der um tempo, sem perder
+            o histórico.
           </p>
         </div>
         <NewProfileSubjectButton

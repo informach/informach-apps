@@ -42,7 +42,7 @@ export function DeleteStudentDialog({ open, onOpenChange, profileId, profileName
         }
         if (result.error.code === "NOT_FOUND") {
           toast.error("Essa criança já tinha saído da Agenda", {
-            description: "Pode ter sido removido em outra aba.",
+            description: "Ela pode ter saído em outra aba.",
           });
         } else {
           toast.error("Não foi possível excluir.", {
@@ -64,7 +64,7 @@ export function DeleteStudentDialog({ open, onOpenChange, profileId, profileName
         <AlertDialogHeader>
           <AlertDialogTitle>Remover {profileName} da Agenda?</AlertDialogTitle>
           <AlertDialogDescription>
-            Isso apaga as atividades e o histórico dela nesta conta, e não dá para desfazer.
+            Isso apaga as atividades e o histórico desta criança na conta, e não dá para desfazer.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

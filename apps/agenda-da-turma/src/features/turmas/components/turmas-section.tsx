@@ -84,9 +84,7 @@ export function TurmasSection({
             <GraduationCap className="size-6" aria-hidden />
           </span>
           <div className="space-y-1">
-            <p className="text-base font-semibold text-foreground">
-              Primeiro, a criança
-            </p>
+            <p className="text-base font-semibold text-foreground">Primeiro, a criança</p>
             <p className="text-sm text-muted-foreground">
               A turma é de cada criança. Adicione a criança e depois escolha a turma dela.
             </p>

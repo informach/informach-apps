@@ -44,7 +44,7 @@ export default async function ProfileSubjectDetailPage({ params }: Props) {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 md:px-8">
       <header className="flex items-start gap-2">
-        <BackButton href={`/perfis/${profileId}/extras`} label="Voltar para matérias" />
+        <BackButton href={`/perfis/${profileId}/extras`} label="Voltar para as atividades extras" />
         <div className="flex-1 space-y-2">
           <div className="flex items-center gap-3">
             <span

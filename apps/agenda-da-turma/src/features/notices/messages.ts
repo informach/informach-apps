@@ -6,13 +6,11 @@ export function noticeErrorMessage(code: string) {
       "Já existe uma atividade parecida com outra data. Confira se este recado corrige a anterior ou se é uma atividade nova.",
     INVALID_CORRECTION:
       "A correção escolhida não bate mais com o que está na tela. Confira as atividades e escolha de novo.",
-    INVALID_PROFILE:
-      "Escolha uma das crianças que você acompanha.",
+    INVALID_PROFILE: "Escolha uma das crianças que você acompanha.",
     INVALID_SUBJECT:
       "Essa matéria não pertence à turma atual da criança. Escolha outra ou deixe sem matéria.",
     VERIFY_EMAIL: "Confirme seu e-mail antes de mandar o primeiro recado.",
-    AI_DISABLED:
-      "A leitura de recados está fora do ar agora. Dá para escrever a atividade.",
+    AI_DISABLED: "A leitura de recados está fora do ar agora. Dá para escrever a atividade.",
     INVALID_ATTACHMENT: "Use uma imagem JPG, PNG ou WebP, ou um PDF válido, de até 5 MB.",
     SELECT_PDF_PAGES: "Selecione de uma a três páginas válidas do PDF.",
     PROCESSING:
@@ -24,8 +22,7 @@ export function noticeErrorMessage(code: string) {
       "Os 5 recados de teste acabaram. No Pro, a Agenda lê 70 recados por mês (ditado conta como dois).",
     NO_ACTIONS:
       "Não achei nenhuma atividade clara neste recado. Confira o conteúdo ou escreva a atividade. Essa tentativa não gastou leitura.",
-    PARSE_FAILED:
-      "Não consegui ler o recado. Tente de novo em instantes, ou escreva a atividade.",
+    PARSE_FAILED: "Não consegui ler o recado. Tente de novo em instantes, ou escreva a atividade.",
     VOICE_TRIAL_SPENT:
       "O ditado de teste acabou. As leituras que restam ficam guardadas para seus recados: mande foto ou mensagem, ou escreva a atividade.",
     INSUFFICIENT_CREDITS:
@@ -37,8 +34,7 @@ export function noticeErrorMessage(code: string) {
     NOTICE_DISCARDED:
       "Alguém da família descartou este recado. Peça para quem mandou retomar, ou escreva a atividade.",
     NOT_FOUND: "Este item não está disponível para sua conta.",
-    VERSION_CONFLICT:
-      "Outro adulto mudou esta atividade agora. Atualize a página e edite de novo.",
+    VERSION_CONFLICT: "Outro adulto mudou esta atividade agora. Atualize a página e edite de novo.",
     INVALID_ASSIGNEE: "Esse adulto não acompanha mais a criança. Escolha outra pessoa.",
     ALREADY_CANCELED:
       "Esta atividade foi cancelada e o histórico ficou guardado. Se ela voltou a valer, cadastre-a de novo. Assim quem recebeu entende o que aconteceu.",
@@ -53,8 +49,7 @@ export function noticeErrorMessage(code: string) {
     PRO_REQUIRED: "Lembretes personalizados e repetição semanal fazem parte do Pro.",
     ACTIVITY_LIMIT_REACHED:
       "O plano grátis tem até 20 atividades em aberto. Marque algumas como feitas para abrir espaço; o histórico fica guardado.",
-    DUPLICATE_IN_REVIEW:
-      "Há duas atividades iguais para a mesma criança. Tire uma delas.",
+    DUPLICATE_IN_REVIEW: "Há duas atividades iguais para a mesma criança. Tire uma delas.",
     POSSIBLE_DUPLICATES:
       "Já existe uma atividade com o mesmo nome, tipo e data. Abra a que existe para corrigir, ou confirme que é outra.",
     // Fila offline. Sem estas linhas, uma queda de rede recebia "confira os

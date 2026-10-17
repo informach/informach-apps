@@ -62,9 +62,7 @@ export default async function NoticesPage({
               <DiscardDraftButton noticeId={draft.id} label={SOURCE_LABELS[draft.source]} />
             </div>
           ))}
-          <p className="text-xs text-muted-foreground">
-            Continuar não gasta outra leitura.
-          </p>
+          <p className="text-xs text-muted-foreground">Continuar não gasta outra leitura.</p>
         </section>
       ) : null}
       {profiles.length > 1 ? (
