@@ -4,8 +4,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
-function harness({ holdPermission = false, failSave = false } = {}) {
-  let begin, stop, recover, grantPermission;
+function harness({ holdPermission = false, failSave = false, deferStopEvents = false } = {}) {
+  let begin, stop, recover, grantPermission, completeStop;
   let failedSave = failSave;
   const saved = [],
     errors = [],
@@ -23,11 +23,15 @@ function harness({ holdPermission = false, failSave = false } = {}) {
     state = "inactive";
     start() {
       this.state = "recording";
+      if (deferStopEvents) this.ondataavailable({ data: new Blob(["first frames;"]) });
     }
     stop() {
       this.state = "inactive";
-      this.ondataavailable({ data: new Blob(["recoverable frames"]) });
-      void this.onstop();
+      completeStop = async () => {
+        this.ondataavailable({ data: new Blob(["recoverable frames"]) });
+        await this.onstop();
+      };
+      if (!deferStopEvents) void completeStop();
     }
   }
   const context = {
@@ -93,6 +97,7 @@ function harness({ holdPermission = false, failSave = false } = {}) {
       }),
     stop: () => stop(),
     recover: () => recover(),
+    completeStop: () => completeStop(),
     grant: () => grantPermission(),
     saved,
     errors,
@@ -128,4 +133,22 @@ test("bloqueio recebido antes do evento de início não abre uma nova captura", 
   await h.start();
   assert.deepEqual(h.saved, []);
   assert.match(h.errors[0], /antes do primeiro quadro/);
+});
+
+test("recuperação concorrente aguarda o último dataavailable e onstop antes de salvar", async () => {
+  const h = harness({ deferStopEvents: true });
+  await h.start();
+  h.stop();
+  let recovered = false;
+  const recovery = h.recover().then(() => {
+    recovered = true;
+  });
+  await new Promise(setImmediate);
+  assert.deepEqual(h.saved, []);
+  assert.equal(recovered, false);
+  await h.completeStop();
+  await recovery;
+  assert.deepEqual(h.saved, ["first frames;recoverable frames"]);
+  await h.recover();
+  assert.equal(h.saved.length, 1);
 });

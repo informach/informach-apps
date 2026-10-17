@@ -443,9 +443,14 @@ async function finishCapture(overlap = null) {
     return;
   }
   const active = capture;
-  if (active?.mode !== "scroll" || active.finishing) return;
+  if (active?.mode !== "scroll") return;
+  if (active.finishPromise) return active.finishPromise;
   active.finishing = true;
   clearTimeout(active.scrollTimer);
+  active.finishPromise = finishScrollCapture(active, overlap);
+  return active.finishPromise;
+}
+async function finishScrollCapture(active, overlap) {
   try {
     await active.pending;
     if (capture !== active) return;
@@ -478,6 +483,8 @@ async function finishCapture(overlap = null) {
       scheduleScroll(active);
     }
     throw error;
+  } finally {
+    active.finishPromise = null;
   }
 }
 function controlState() {

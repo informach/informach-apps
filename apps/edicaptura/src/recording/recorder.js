@@ -20,7 +20,9 @@ export function setupRecording(api, toast) {
     pendingStop = true;
     const state = recording;
     if (!state) return Promise.resolve();
-    if (state.recorder?.state === "inactive") return persist(state);
+    // stop() makes MediaRecorder inactive before its final dataavailable/onstop
+    // events. Only onstop confirms that every chunk is available for persistence.
+    if (state.finalChunksReady) return persist(state);
     state.stopRequested = true;
     const completion = new Promise((resolve, reject) => state.waiters.push({ resolve, reject }));
     if (state.recorder?.state === "recording") state.recorder.stop();
@@ -97,6 +99,7 @@ export function setupRecording(api, toast) {
         toast(e.error?.message || "Falha ao gravar vídeo. Preservando os quadros disponíveis.");
       };
       recorder.onstop = async () => {
+        state.finalChunksReady = true;
         release(state);
         if (state.failed) return;
         try {

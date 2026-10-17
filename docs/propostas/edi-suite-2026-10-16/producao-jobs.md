@@ -13,6 +13,16 @@ Implementação local na frente de produção Edi. Este registro não comprova d
 
 ## Verificações
 
+### Recuperação concorrente do vídeo e da rolagem — revisão final
+
+O `MediaRecorder` muda para `inactive` antes de entregar o último `dataavailable` e o evento `onstop`. A revisão final identificou que um pedido de recuperação concorrente ao encerramento automático podia salvar apenas os chunks anteriores. A finalização agora aguarda `onstop` para permitir persistência ou nova tentativa; chamadas concorrentes compartilham o salvamento em andamento. Os bytes continuam disponíveis quando a escrita falha.
+
+A regressão sobre o código real do renderer, com eventos do navegador controlados na fronteira, falhou antes da correção: salvou `first frames;` antes da entrega final. Após a correção, confirmou nenhuma escrita nem confirmação antecipada, concatenação dos dois chunks e uma única persistência.
+
+Na rolagem, o segundo pedido também retornava antes de terminar o primeiro. A finalização agora compartilha uma Promise e propaga sucesso ou erro a todos os pedidos; uma falha conserva os trechos e permite nova tentativa. As duas regressões falharam antes da correção, por confirmação antecipada e por ausência da rejeição de disco esperada, e passaram depois.
+
+Os três arquivos focados (`recording-preservation`, `scroll-session` e `control-feedback`) passaram `15/15`, incluindo falha de disco e retry. Biome passou nos quatro arquivos de código/teste, mantendo três warnings e três infos de trechos preexistentes de `main.cjs`; `git diff --check` passou nos cinco arquivos da correção. EdiCaptura não declara script de typecheck; não foram executados builds concorrentes nem captura de tela real nesta revisão.
+
 ### Revisão do bloqueio por versão mínima
 
 Uma ferramenta abaixo da versão mínima não pode apagar a licença compartilhada das versões atualizadas. O controller agora preserva o grant e registra `licenseVersionDeniedThrough` no cofre protegido: versões recusadas continuam bloqueadas após reinício ou falha de rede, enquanto ferramentas mais novas mantêm acesso e jobs. Um grant assinado que incorpora o novo piso substitui essa recusa; a autorização explícita da própria versão recusada também permite uma revisão deliberada da política no servidor. O campo é opcional para permitir a leitura dos cofres anteriores.
