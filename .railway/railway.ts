@@ -29,7 +29,7 @@ const REGION = "us-west2";
 // aplicar é o passo de lançamento. Nunca apague o bloco do serviço para
 // "limpar" o plano: num arquivo do projeto inteiro, isso apaga o serviço.
 /** Bastidores no ar: domínio, segredos e o merge do app vêm antes (apps/admin/PRODUCAO.md). */
-const ADMIN_LAUNCHED = false;
+const ADMIN_LAUNCHED = true;
 /** Cron de conciliação do Edi: só depois da distribuição assinada e da cobrança homologada (apps/edi/PRODUCAO.md). */
 const EDI_RECONCILE_ACTIVE = true;
 
