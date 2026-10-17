@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Faq } from "@/components/marketing/sections/faq";
 import { FinalCta } from "@/components/marketing/sections/final-cta";
+import { Founders } from "@/components/marketing/sections/founders";
 import { Hero } from "@/components/marketing/sections/hero";
 import { KitchenDemo } from "@/components/marketing/sections/kitchen-demo";
 import { Market } from "@/components/marketing/sections/market";
@@ -54,6 +55,7 @@ export default function MarketingHome() {
       <Market />
       <RepeatWeek />
       <Pricing />
+      <Founders />
       <Faq />
       <FinalCta />
     </>

@@ -1,4 +1,3 @@
-import { ArrowDown } from "lucide-react";
 import Image from "next/image";
 import { CozyaMark } from "@/components/brand/cozya-logo";
 import { LunchboxIcon } from "@/components/brand/lunchbox-icon";
@@ -20,7 +19,7 @@ export function Hero() {
         </p>
         <TrialCta id="primeiro-convite" />
         <a className="landing-text-link hero-demo-link" href="#como-funciona">
-          <ArrowDown size={17} aria-hidden /> Ver uma semana de exemplo
+          Ver uma semana de exemplo
         </a>
       </div>
       <div className="hero-scene">

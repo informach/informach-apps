@@ -54,7 +54,9 @@ export function WeekStory() {
             <h3>Hoje tem strogonoff.</h3>
             <div className="story-note">
               <p className="story-step">Passo 3 de 4</p>
-              <p>Volte o frango, junte o champignon e o ketchup e cozinhe por 10 minutos.</p>
+              <p>
+                Volte o frango, junte o champignon, o ketchup e a mostarda e cozinhe por 10 minutos.
+              </p>
               <p className="story-timer">Marcar 10 minutos</p>
             </div>
           </li>

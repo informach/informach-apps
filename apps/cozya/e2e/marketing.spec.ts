@@ -157,16 +157,37 @@ test("public copy, offer, FAQ and signup links work without JavaScript", async (
     await expect(page.locator("#primeiro-convite")).toContainText(
       "14 dias grátis, sem cartão. Não vira assinatura sozinho.",
     );
-    await expect(page.locator(".plan-option").first().locator(".plan-price")).toHaveText(
-      /R\$\s*14,90\/mês/,
-    );
-    await expect(page.locator(".plan-option-best .plan-price")).toHaveText(/R\$\s*149,00\/ano/);
-    await expect(
-      page.getByRole("link", { name: "Assinar o Pro mensal", exact: true }),
-    ).toHaveAttribute("href", "/signup?plan=pro&cycle=mensal");
+    // The cycle is a pair of native radios: the annual price shows first and the monthly one is
+    // a tap away, without JavaScript.
+    const pro = page.locator(".landing-plan-pro");
+    await expect(pro.locator('[data-cycle="anual"] .plan-price')).toHaveText(/R\$\s*149\s*por ano/);
     await expect(
       page.getByRole("link", { name: "Assinar o Pro anual", exact: true }),
     ).toHaveAttribute("href", "/signup?plan=pro&cycle=anual");
+    await expect(page.getByRole("link", { name: "Assinar o Pro mensal", exact: true })).toHaveCount(
+      0,
+    );
+    await pro.getByText("Mensal", { exact: true }).click();
+    await expect(pro.locator('[data-cycle="mensal"] .plan-price')).toHaveText(
+      /R\$\s*14,90\s*por mês/,
+    );
+    await expect(
+      page.getByRole("link", { name: "Assinar o Pro mensal", exact: true }),
+    ).toHaveAttribute("href", "/signup?plan=pro&cycle=mensal");
+    await expect(page.getByRole("link", { name: "Assinar o Pro anual", exact: true })).toHaveCount(
+      0,
+    );
+    // Who makes it: the same photo and words as the Informach site, and the Instagram direct.
+    const founders = page.locator("#quem-faz");
+    await expect(founders.getByRole("heading", { level: 2 })).toHaveText(
+      "Uma família que faz tecnologia para outras famílias.",
+    );
+    await expect(
+      founders.getByRole("img", { name: "Helena e Júlio sorrindo, lado a lado" }),
+    ).toBeVisible();
+    await expect(
+      founders.getByRole("link", { name: "Fale com a gente no Instagram: @criecomhelenaejulio" }),
+    ).toHaveAttribute("href", "https://ig.me/m/criecomhelenaejulio");
     const faq = page
       .locator("#perguntas details")
       .filter({ hasText: "Preciso de cartão para experimentar?" });

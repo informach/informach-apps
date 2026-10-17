@@ -1,5 +1,4 @@
 import { ModeToggle } from "@informach/ui/components/mode-toggle";
-import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { CozyaLogo } from "@/components/brand/cozya-logo";
 import { SiteHeaderMobileNav } from "./site-header-mobile-nav";
@@ -41,7 +40,7 @@ export function SiteHeader({ variant = "marketing" }: SiteHeaderProps) {
         </nav>
         <div className="landing-header-account">
           <Link href="/login" className="landing-header-login">
-            Entrar <ArrowUpRight size={17} aria-hidden />
+            Entrar
           </Link>
           <Link href="/signup" className="landing-button landing-button-primary landing-header-cta">
             Começar grátis

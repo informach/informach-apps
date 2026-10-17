@@ -12,7 +12,7 @@ const QUESTIONS = [
   },
   {
     q: "O que acontece depois dos 14 dias?",
-    a: "Se você não assinar, a conta fica no Free. Suas receitas, o modo cozinha e as listas que já existem continuam. Novas semanas e a IA ficam no Pro. Nada é apagado.",
+    a: "Se você não assinar, a conta fica no Free. Suas receitas, o modo cozinha e as listas que já existem continuam. Novas semanas e a IA ficam no Pro. Nada é apagado, nem as receitas acima de 15.",
   },
   {
     q: "A lista sabe o que já tenho em casa?",

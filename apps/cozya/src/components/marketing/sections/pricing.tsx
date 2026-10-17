@@ -3,24 +3,54 @@ import Link from "next/link";
 import {
   ANNUAL_SAVINGS,
   ANNUAL_SAVINGS_PCT,
-  ANNUAL_TOTAL,
   PRICING,
+  WHOLE_PRICES,
 } from "@/features/billing/plans-content";
 
 const PRO = [
-  "Semanas sem limite, com mesa e marmitas",
+  "Semana com mesa e marmitas, quantas semanas quiser",
   "Lista do mercado somada, com despensa",
   "Modo cozinha e repetir a semana",
   "Receitas sem limite",
-  "50 créditos de IA por mês, também no anual",
+  "50 créditos de IA por mês, também no anual. Cada receita trazida, encontrada ou adaptada usa 1.",
 ];
 
 const FREE = [
   "Até 15 receitas escritas do seu jeito",
   "Modo cozinha em todas as suas receitas",
   "As semanas e listas que você já montou",
-  "Compartilhar receita pelo WhatsApp",
+  "Mandar receita pelo WhatsApp",
 ];
+
+const CYCLES = [
+  {
+    value: "anual",
+    price: WHOLE_PRICES.annual,
+    period: "por ano",
+    note: `Equivale a ${PRICING.annual.price} por mês. Você economiza ${ANNUAL_SAVINGS} em relação a 12 mensalidades.`,
+    cta: "Assinar o Pro anual",
+  },
+  {
+    value: "mensal",
+    price: WHOLE_PRICES.monthly,
+    period: "por mês",
+    note: "Cobrado todo mês. Cancele pela conta quando quiser.",
+    cta: "Assinar o Pro mensal",
+  },
+] as const;
+
+function FeatureList({ items }: { items: readonly string[] }) {
+  return (
+    <ul>
+      {items.map((feature) => (
+        <li key={feature}>
+          <Check size={18} strokeWidth={2.6} aria-hidden />
+          <span>{feature}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export function Pricing() {
   return (
@@ -50,75 +80,62 @@ export function Pricing() {
           </li>
         </ol>
         <div className="pricing-grid">
+          {/* Native radios switch the cycle, so the offer also works without JavaScript. */}
           <article className="landing-plan landing-plan-pro" aria-labelledby="pro-title">
-            <h3 id="pro-title">Cozya Pro</h3>
-            <div className="plan-options">
-              <div className="plan-option">
-                <span className="plan-option-label">Mensal</span>
-                <p className="plan-price">
-                  {PRICING.monthly.price}
-                  <span className="plan-period">/mês</span>
-                </p>
-                <p className="plan-billing-note">Cobrado todo mês.</p>
-                <Link
-                  className="landing-button landing-button-outline"
-                  href="/signup?plan=pro&cycle=mensal"
-                >
-                  Assinar o Pro mensal
-                </Link>
-              </div>
-              <div className="plan-option plan-option-best">
-                <span className="plan-option-label">
-                  Anual <em>economize {ANNUAL_SAVINGS_PCT}%</em>
-                </span>
-                <p className="plan-price">
-                  {ANNUAL_TOTAL}
-                  <span className="plan-period">/ano</span>
-                </p>
-                <p className="plan-billing-note">
-                  Equivale a {PRICING.annual.price} por mês: {ANNUAL_SAVINGS} a menos que 12
-                  mensalidades.
-                </p>
-                <Link
-                  className="landing-button landing-button-primary"
-                  href="/signup?plan=pro&cycle=anual"
-                >
-                  Assinar o Pro anual
-                </Link>
-              </div>
+            <div className="plan-head">
+              <h3 id="pro-title">Cozya Pro</h3>
+              <fieldset className="plan-cycle">
+                <legend className="sr-only">Ciclo de cobrança</legend>
+                <label>
+                  <input type="radio" name="ciclo-pro" value="mensal" />
+                  Mensal
+                </label>
+                <label>
+                  <input type="radio" name="ciclo-pro" value="anual" defaultChecked />
+                  Anual · economize {ANNUAL_SAVINGS_PCT}%
+                </label>
+              </fieldset>
             </div>
-            <ul>
-              {PRO.map((feature) => (
-                <li key={feature}>
-                  <Check size={17} aria-hidden />
-                  <span>{feature}</span>
-                </li>
-              ))}
-            </ul>
+            {CYCLES.map((cycle) => (
+              <div key={cycle.value} className="plan-cycle-price" data-cycle={cycle.value}>
+                <p className="plan-price">
+                  {cycle.price}
+                  <span className="plan-period">{cycle.period}</span>
+                </p>
+                <p className="plan-billing-note">{cycle.note}</p>
+              </div>
+            ))}
+            <FeatureList items={PRO} />
+            {CYCLES.map((cycle) => (
+              <Link
+                key={cycle.value}
+                data-cycle={cycle.value}
+                className="landing-button landing-button-primary plan-cta"
+                href={`/signup?plan=pro&cycle=${cycle.value}`}
+              >
+                {cycle.cta}
+              </Link>
+            ))}
           </article>
           <article className="landing-plan landing-plan-free" aria-labelledby="free-title">
-            <h3 id="free-title">Cozya Free</h3>
-            <p className="plan-price">R$ 0</p>
-            <p className="plan-billing-note">
-              É onde a conta fica se você não assinar depois do teste.
-            </p>
-            <ul>
-              {FREE.map((feature) => (
-                <li key={feature}>
-                  <Check size={17} aria-hidden />
-                  <span>{feature}</span>
-                </li>
-              ))}
-            </ul>
-            <Link href="/signup" className="landing-button landing-button-outline">
+            <div className="plan-head">
+              <h3 id="free-title">Cozya Free</h3>
+            </div>
+            <div className="plan-cycle-price">
+              <p className="plan-price">R$ 0</p>
+              <p className="plan-billing-note">
+                É onde a conta fica se você não assinar depois do teste.
+              </p>
+            </div>
+            <FeatureList items={FREE} />
+            <Link href="/signup" className="landing-button landing-button-outline plan-cta">
               Começar grátis <ArrowRight size={18} aria-hidden />
             </Link>
           </article>
         </div>
         <p className="pricing-credit-note">
-          Cada receita que a IA traz, encontra ou adapta usa 1 crédito, e ditar uma busca também; se
-          a IA não conseguir, o crédito volta. Escrever do seu jeito, planejar, montar a lista e
-          cozinhar não usam créditos.
+          Ditar uma busca também usa 1 crédito, e se a IA não conseguir, o crédito volta. Escrever
+          do seu jeito, planejar, montar a lista e cozinhar não usam créditos.
         </p>
       </div>
     </section>
