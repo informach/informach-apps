@@ -7,6 +7,8 @@ import { probeAll, readStoredStatus } from "@/lib/services";
 import {
   aiTaskOutcome,
   creditTotals,
+  isOverdueStatus,
+  isProStatus,
   planLabel,
   summarizeScheduled,
   summarizeSubscriptions,
@@ -173,7 +175,7 @@ export async function getProductView(
 
   const others = new Map<string, number>();
   for (const row of statusRows) {
-    if (row.app !== product || ["active", "trialing", "past_due"].includes(row.status)) continue;
+    if (row.app !== product || isProStatus(row.status) || isOverdueStatus(row.status)) continue;
     others.set(row.status, (others.get(row.status) ?? 0) + row.total);
   }
   const plans: Pair[] = [

@@ -279,8 +279,8 @@ const adminWeekly = {
   weekLabel: "de 12 a 18 de outubro",
   newAccounts: 1,
   products: [
-    { name: "Cozya", proSubscribers: "148", revenue: "R$ 2.079" },
-    { name: "Agenda da Turma", proSubscribers: "87", revenue: "R$ 1.675" },
+    { name: "Cozya", proSubscribers: 148, revenue: "R$ 2.079" },
+    { name: "Agenda da Turma", proSubscribers: 1, revenue: "R$ 1.675" },
   ],
   revenueTotal: "R$ 3.754",
   aiCost: "US$ 38,40",
@@ -320,6 +320,10 @@ describe("Bastidores templates", () => {
     });
     expect(result.subject).toBe("Resumo da semana no Bastidores, de 12 a 18 de outubro");
     expect(result.text).toContain("Chegou 1 conta nova na semana.");
+    // "Assinantes" serve a todos os produtos: Pro, planos da Missão Saber e assinatura da Suíte Edi.
+    expect(result.text).toContain("Cozya: 148 assinantes, R$ 2.079 por mês.");
+    expect(result.text).toContain("Agenda da Turma: 1 assinante, R$ 1.675 por mês.");
+    expect(result.text).not.toContain("plano Pro");
     expect(result.text).toContain("1 execução com falha");
     expect(result.text).toContain("Nenhum custo de IA informado");
     expect(result.text).toContain("Nenhum serviço ficou fora do ar");

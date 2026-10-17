@@ -187,7 +187,7 @@ export function MoneyPage({ view }: { view: MoneyView }) {
           aria-labelledby="atrasos"
           className="grid min-w-0 flex-[1_1_420px] content-start gap-3 rounded-[18px] border border-line-warm bg-surface p-5"
         >
-          <SectionTitle id="atrasos" aside="o Stripe faz as novas tentativas">
+          <SectionTitle id="atrasos" aside="o Stripe tenta de novo enquanto houver tentativas">
             Pagamentos em atraso
           </SectionTitle>
           {view.pastDue.length === 0 ? (

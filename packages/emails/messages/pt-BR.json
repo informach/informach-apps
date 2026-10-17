@@ -25,7 +25,7 @@
     "title": "Resumo da semana, {weekLabel}",
     "accounts": "{newAccounts, plural, =0 {Nenhuma conta nova chegou na semana.} one {Chegou <strong>#</strong> conta nova na semana.} other {Chegaram <strong>#</strong> contas novas na semana.}}",
     "productsTitle": "Assinaturas e receita por mês",
-    "productLine": "{name}: <strong>{proSubscribers}</strong> com plano Pro, {revenue} por mês.",
+    "productLine": "{name}: <strong>{proSubscribers, plural, one {# assinante} other {# assinantes}}</strong>, {revenue} por mês.",
     "revenueTotal": "Somando os produtos, <strong>{revenueTotal}</strong> por mês, estimados pelo preço de tabela das assinaturas ativas.",
     "operationTitle": "Operação",
     "aiCost": "A IA custou <strong>{aiCost}</strong> na semana, contando só o que o provedor informou.",

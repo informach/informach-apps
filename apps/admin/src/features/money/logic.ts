@@ -17,6 +17,26 @@ export function monthlyListCents(productId: string): number | null {
     : product.listPrice.amountCents;
 }
 
+/**
+ * Receita estimada por mês, em centavos, pelo preço de tabela: só assinaturas
+ * `active` (teste grátis ainda não paga, `past_due` não pagou), com o anual
+ * dividido por 12 e arredondado por plano (`monthlyListCents`). É a conta do
+ * Painel, de Dinheiro, de Produtos e do resumo da semana, e por arredondar por
+ * plano a soma dos produtos é igual ao total. `total` é a contagem da linha
+ * agrupada; sem ele, a linha é uma assinatura.
+ */
+export function monthlyRevenueCents(
+  rows: ReadonlyArray<{ productId: string; status: string; total?: number }>,
+): number {
+  let cents = 0;
+  for (const row of rows) {
+    if (row.status !== "active") continue;
+    const monthly = monthlyListCents(row.productId);
+    if (monthly !== null) cents += monthly * (row.total ?? 1);
+  }
+  return cents;
+}
+
 /** Preço de tabela do ciclo (o que a pessoa paga por renovação), em centavos. */
 export function cycleListCents(productId: string): number | null {
   const product = findProduct(productId);
@@ -54,6 +74,7 @@ export type AppSubscriptions = {
   monthly: number;
   annual: number;
   trialing: number;
+  /** Em atraso, pela regra de `OVERDUE_STATUSES` (`past_due` e `unpaid`). */
   pastDue: number;
   /** Receita estimada por mês, em centavos, só das assinaturas `active`. */
   mrrCents: number;
@@ -66,9 +87,21 @@ export function isProStatus(status: string): boolean {
 }
 
 /**
+ * "Em atraso": a renovação não foi paga. `past_due` ainda tem tentativas do
+ * Stripe; `unpaid` esgotou as tentativas e o acesso pago está suspenso. As duas
+ * contam igual em Pessoas, no Painel, em Dinheiro e em Produtos.
+ */
+export const OVERDUE_STATUSES = ["past_due", "unpaid"] as const;
+
+export function isOverdueStatus(status: string): boolean {
+  return (OVERDUE_STATUSES as readonly string[]).includes(status);
+}
+
+/**
  * Agrupa as contagens por app. Pro segue `PRO_STATUSES` do pacote de cobrança
  * (`active` e `trialing`). Só `active` entra na receita: `trialing` é Pro sem
- * cobrança ainda, e `past_due` não é Pro nem receita até o pagamento passar.
+ * cobrança ainda, e as em atraso (`OVERDUE_STATUSES`) não são Pro nem receita
+ * até o pagamento passar.
  */
 export function summarizeSubscriptions(rows: StatusRow[]): Map<ProductKey, AppSubscriptions> {
   const result = new Map<ProductKey, AppSubscriptions>();
@@ -89,11 +122,10 @@ export function summarizeSubscriptions(rows: StatusRow[]): Map<ProductKey, AppSu
     if (row.status === "active") {
       if (productInterval(row.productId) === "year") entry.annual += row.total;
       else entry.monthly += row.total;
-      const monthly = monthlyListCents(row.productId);
-      if (monthly === null) entry.unpriced += row.total;
-      else entry.mrrCents += monthly * row.total;
+      if (monthlyListCents(row.productId) === null) entry.unpriced += row.total;
+      else entry.mrrCents += monthlyRevenueCents([row]);
     } else if (row.status === "trialing") entry.trialing += row.total;
-    else if (row.status === "past_due") entry.pastDue += row.total;
+    else if (isOverdueStatus(row.status)) entry.pastDue += row.total;
     if (isProStatus(row.status)) entry.pro += row.total;
     result.set(row.app, entry);
   }

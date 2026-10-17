@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { monthlyRevenueCents, outagesFromAlertKeys, previousWeek, weekLabel } from "./weekly-logic";
+import { monthlyRevenueCents, summarizeSubscriptions } from "../money/logic";
+import { outagesFromAlertKeys, previousWeek, weekLabel } from "./weekly-logic";
 
 describe("resumo da semana", () => {
   it("resume a semana anterior, de segunda a segunda em Brasília", () => {
@@ -28,9 +29,43 @@ describe("resumo da semana", () => {
         { productId: "cozya_pro_monthly", status: "active" },
         { productId: "cozya_pro_annual", status: "active" },
         { productId: "cozya_pro_monthly", status: "trialing" },
+        { productId: "cozya_pro_monthly", status: "past_due" },
         { productId: "produto_que_nao_existe", status: "active" },
       ]),
     ).toBe(1490 + Math.round(14900 / 12));
+  });
+
+  it("dá a mesma receita do Painel, por produto e no total", () => {
+    // Uma linha por assinatura, como o resumo da semana lê do banco.
+    const subscriptions = [
+      { app: "cozya", productId: "cozya_pro_annual", status: "active" },
+      { app: "cozya", productId: "cozya_pro_annual", status: "active" },
+      { app: "cozya", productId: "cozya_pro_monthly", status: "active" },
+      { app: "cozya", productId: "cozya_pro_annual", status: "trialing" },
+      { app: "missao-saber", productId: "missao_family_annual", status: "active" },
+      { app: "missao-saber", productId: "missao_individual_monthly", status: "active" },
+    ];
+    // As mesmas, agrupadas por status, como o Painel e Dinheiro leem.
+    const grouped = new Map<
+      string,
+      { app: string; productId: string; status: string; total: number }
+    >();
+    for (const item of subscriptions) {
+      const key = `${item.app}|${item.productId}|${item.status}`;
+      const row = grouped.get(key) ?? { ...item, total: 0 };
+      row.total += 1;
+      grouped.set(key, row);
+    }
+    const panel = summarizeSubscriptions([...grouped.values()]);
+    for (const app of ["cozya", "missao-saber"] as const) {
+      expect(monthlyRevenueCents(subscriptions.filter((item) => item.app === app))).toBe(
+        panel.get(app)?.mrrCents,
+      );
+    }
+    const panelTotal = [...panel.values()].reduce((sum, entry) => sum + entry.mrrCents, 0);
+    expect(monthlyRevenueCents(subscriptions)).toBe(panelTotal);
+    // Duas anuais do Cozya arredondam por plano, como no Painel: 2 × 1.242, não 2.483.
+    expect(panel.get("cozya")?.mrrCents).toBe(2 * Math.round(14900 / 12) + 1490);
   });
 
   it("reconstrói as quedas pelas chaves dos avisos, uma por queda", () => {

@@ -1,8 +1,9 @@
 import "server-only";
 import { getEmails } from "@/lib/emails";
 import { getEnv } from "@/lib/env";
-import { formatBRL, formatDuration, formatNumber, formatUSD } from "@/lib/format";
+import { formatBRL, formatDuration, formatUSD } from "@/lib/format";
 import { PRODUCT_KEYS, productName, SERVICES, type ServiceKey } from "@/lib/products";
+import { monthlyRevenueCents } from "../money/logic";
 import { ROUTINES } from "../operations/routines";
 import {
   alertKeysBetween,
@@ -12,7 +13,7 @@ import {
   reportedAiCostBetween,
 } from "./repository";
 import { ownerRecipients, sendToAll } from "./send";
-import { monthlyRevenueCents, outagesFromAlertKeys, previousWeek, weekLabel } from "./weekly-logic";
+import { outagesFromAlertKeys, previousWeek, weekLabel } from "./weekly-logic";
 
 function routineLabel(app: string, job: string): string {
   const routine = ROUTINES.find((item) => item.app === app && item.job === job);
@@ -49,7 +50,7 @@ export async function runAdminWeekly(now: Date = new Date()): Promise<WeeklyResu
     const own = subscriptions.filter((item) => item.app === key);
     return {
       name: productName(key),
-      proSubscribers: formatNumber(own.length),
+      proSubscribers: own.length,
       revenue: formatBRL(monthlyRevenueCents(own)),
     };
   });
