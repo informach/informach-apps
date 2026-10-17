@@ -66,6 +66,12 @@ O primeiro build do migrator ainda usava Nixpacks e selecionou Node 24.10, abaix
 
 O titular confirmou que a homologação deve culminar em compras liberadas, sem mensagens públicas de piloto ou de vendas futuras. O texto de venda, downloads, site e distribuição foi ajustado para essa fase, preservando a informação real de ausência de Authenticode e o bloqueio operacional enquanto a cobrança estiver desabilitada. Os gates precisam validar a revisão final antes da ativação; o conjunto em edição pelas outras sessões continua reservado para o próximo deploy.
 
+## EdiAula: o que falta para substituir o Camtasia
+
+Em 17/10/2026, a pedido da titular, foi feita uma análise de leitura do EdiAula (código igual ao de `origin/main` em `0415ff4`), com foco na gravação de aula e de tela: [análise](propostas/ediaula-2026-10-17/analise.md). Ela lista ajustes, melhorias e funcionalidades a implementar em gravação, editor, exportação e IA, com prioridade, referências no código e duas medições de exportação.
+
+A titular pediu a implementação, em lotes, na branch `feat/ediaula-camtasia` (worktree `informach-ediaula-camtasia`), com PR em rascunho no fim e merge só com a aprovação dela. O eixo é o fluxo real de produção: gravar a voz com tratamento automático, gerar o avatar no HeyGen manualmente, importar o MP4 sincronizado pela voz, gravar a tela sobre a narração e editar; a publicação é manual na plataforma do Sistema Zero. Ficam fora, por decisão dela: IA paga da suíte, HeyGen pela API, voz sintética e publicação direta. O andamento por lote fica na própria análise.
+
 ## Operação dos produtos existentes
 
 - [Missão Saber](../apps/missao-saber/PRODUCAO.md): produção, migrations, Stripe, cron e observabilidade.
