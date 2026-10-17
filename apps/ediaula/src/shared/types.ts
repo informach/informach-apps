@@ -251,7 +251,9 @@ export interface RelinkSearch {
   canceled: boolean;
 }
 
-export type Encoder = "nvenc" | "x264";
+/** H.264 encoder for exports and proxies: NVIDIA, AMD, Media Foundation hardware, or the CPU. */
+export const ENCODERS = ["nvenc", "amf", "mf", "x264"] as const;
+export type Encoder = (typeof ENCODERS)[number];
 
 export interface ExportSpec {
   outPath: string;

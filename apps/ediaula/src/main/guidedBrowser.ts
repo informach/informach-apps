@@ -52,6 +52,11 @@ export async function openGuidedBrowser(url: string): Promise<void> {
   await lesson.loadURL(address);
 }
 
+/** Native handle of the lesson window while it is open, as the cursor helper names windows. */
+export function guidedBrowserWindowIds(): string[] {
+  return lesson && !lesson.isDestroyed() ? [windowId(lesson)] : [];
+}
+
 function windowId(window: BrowserWindow): string {
   const handle = window.getNativeWindowHandle();
   return (handle.length >= 8 ? handle.readBigUInt64LE() : BigInt(handle.readUInt32LE())).toString();

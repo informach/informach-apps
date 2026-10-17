@@ -27,7 +27,7 @@ import {
   tailProgressExpr,
   withTransitions,
 } from "./transitions.ts";
-import type { Asset, ExportSpec, Project } from "./types.ts";
+import type { Asset, Encoder, ExportSpec, Project } from "./types.ts";
 import { zoomExprs, zoomsIn } from "./zoom.ts";
 import { entryView, zoomLayerFilter } from "./zoomLayer.ts";
 
@@ -441,39 +441,7 @@ export function buildExportPlan(source: Project, spec: ExportSpec): ExportPlan {
     }
   }
 
-  const kbps = Math.round(spec.videoBitrate);
-  const video =
-    spec.encoder === "nvenc"
-      ? [
-          "-c:v",
-          "h264_nvenc",
-          "-preset",
-          "p5",
-          "-rc",
-          "vbr",
-          "-b:v",
-          `${kbps}k`,
-          "-maxrate",
-          `${Math.round(kbps * 1.5)}k`,
-          "-bufsize",
-          `${kbps * 2}k`,
-          "-profile:v",
-          "high",
-        ]
-      : [
-          "-c:v",
-          "libx264",
-          "-preset",
-          "medium",
-          "-b:v",
-          `${kbps}k`,
-          "-maxrate",
-          `${Math.round(kbps * 1.5)}k`,
-          "-bufsize",
-          `${kbps * 2}k`,
-          "-profile:v",
-          "high",
-        ];
+  const video = exportVideoArgs(spec.encoder, Math.round(spec.videoBitrate));
 
   if (audioOnly)
     return {
@@ -501,8 +469,6 @@ export function buildExportPlan(source: Project, spec: ExportSpec): ExportPlan {
     "-map",
     "[aout]",
     ...video,
-    "-pix_fmt",
-    "yuv420p",
     "-r",
     String(fps),
     "-c:a",
@@ -519,6 +485,126 @@ export function buildExportPlan(source: Project, spec: ExportSpec): ExportPlan {
   ];
 
   return { inputArgs, filter: graph.join(";\n"), outputArgs, duration };
+}
+
+/**
+ * Pixel format handed to the encoder: Media Foundation hardware encoders take only NV12, though
+ * FFmpeg also offers them YUV 4:2:0 planar.
+ */
+export const encoderPixelFormat = (encoder: Encoder): string[] => [
+  "-pix_fmt",
+  encoder === "mf" ? "nv12" : "yuv420p",
+];
+
+/** H.264 at a target bitrate with a 1.5× peak, High profile, for each encoder. */
+export function exportVideoArgs(encoder: Encoder, kbps: number): string[] {
+  return [...exportCodecArgs(encoder, kbps), ...encoderPixelFormat(encoder)];
+}
+
+function exportCodecArgs(encoder: Encoder, kbps: number): string[] {
+  const rate = ["-b:v", `${kbps}k`, "-maxrate", `${Math.round(kbps * 1.5)}k`];
+  switch (encoder) {
+    case "nvenc":
+      return [
+        "-c:v",
+        "h264_nvenc",
+        "-preset",
+        "p5",
+        "-rc",
+        "vbr",
+        ...rate,
+        "-bufsize",
+        `${kbps * 2}k`,
+        "-profile:v",
+        "high",
+      ];
+    case "amf":
+      return [
+        "-c:v",
+        "h264_amf",
+        "-usage",
+        "transcoding",
+        "-quality",
+        "quality",
+        "-rc",
+        "vbr_peak",
+        ...rate,
+        "-bufsize",
+        `${kbps * 2}k`,
+        "-profile:v",
+        "high",
+      ];
+    case "mf":
+      // Media Foundation takes the profile as a number (100 is High) and no buffer size.
+      return [
+        "-c:v",
+        "h264_mf",
+        "-hw_encoding",
+        "1",
+        "-rate_control",
+        "pc_vbr",
+        "-scenario",
+        "archive",
+        ...rate,
+        "-profile:v",
+        "100",
+      ];
+    case "x264":
+      return [
+        "-c:v",
+        "libx264",
+        "-preset",
+        "medium",
+        ...rate,
+        "-bufsize",
+        `${kbps * 2}k`,
+        "-profile:v",
+        "high",
+      ];
+  }
+}
+
+/** 720p working copies: short GOP for scrubbing, quality over size. */
+export function proxyVideoArgs(encoder: Encoder): string[] {
+  return [...proxyCodecArgs(encoder), ...encoderPixelFormat(encoder)];
+}
+
+function proxyCodecArgs(encoder: Encoder): string[] {
+  const gop = ["-g", "15"];
+  switch (encoder) {
+    case "nvenc":
+      return ["-c:v", "h264_nvenc", "-preset", "p2", "-cq", "28", ...gop];
+    case "amf":
+      return [
+        "-c:v",
+        "h264_amf",
+        "-usage",
+        "transcoding",
+        "-quality",
+        "speed",
+        "-rc",
+        "cqp",
+        "-qp_i",
+        "26",
+        "-qp_p",
+        "28",
+        ...gop,
+      ];
+    case "mf":
+      return [
+        "-c:v",
+        "h264_mf",
+        "-hw_encoding",
+        "1",
+        "-rate_control",
+        "u_vbr",
+        "-b:v",
+        "4000k",
+        ...gop,
+      ];
+    case "x264":
+      return ["-c:v", "libx264", "-preset", "veryfast", "-crf", "26", ...gop];
+  }
 }
 
 /** Tempo change keeping the pitch: atempo takes 0.5 to 2, so larger changes chain several. */

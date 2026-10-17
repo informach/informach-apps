@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ExportSpec, Project } from "./types.ts";
+import { ENCODERS, type ExportSpec, type Project } from "./types.ts";
 
 const number = z.number().min(-1e9).max(1e9);
 const time = z
@@ -317,7 +317,7 @@ export const exportSpecSchema = z.strictObject({
   fps: z.number().positive().max(240),
   videoBitrate: z.number().positive().max(1000000),
   normalizeLoudness: z.boolean(),
-  encoder: z.enum(["nvenc", "x264"]),
+  encoder: z.enum(ENCODERS),
   speech: z
     .array(z.tuple([time, time]))
     .max(20000)

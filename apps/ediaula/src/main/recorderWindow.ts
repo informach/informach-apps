@@ -11,9 +11,19 @@ import {
   session,
 } from "electron";
 import { type GuidedPlan, type GuidedTarget, scheduleGuided } from "../shared/guidedRecording.ts";
-import type { CaptureMonitor, MarkerKind, RecordOptions } from "../shared/recording.ts";
+import {
+  type CaptureMonitor,
+  type MarkerKind,
+  RECORDER_HOTKEYS,
+  type RecordOptions,
+} from "../shared/recording.ts";
 import { prepareGuidedNarration, probe } from "./ffmpeg.ts";
-import { captureBrowserTarget, openGuidedBrowser, resolveBrowserTarget } from "./guidedBrowser.ts";
+import {
+  captureBrowserTarget,
+  guidedBrowserWindowIds,
+  openGuidedBrowser,
+  resolveBrowserTarget,
+} from "./guidedBrowser.ts";
 import { executeGuided, GuidedInput } from "./guidedRecording.ts";
 import * as rec from "./recorder.ts";
 
@@ -32,13 +42,7 @@ export interface RecorderContext {
 let overlay: BrowserWindow | null = null;
 let context: RecorderContext = { teleprompter: [] };
 let monitors: CaptureMonitor[] = [];
-const HOTKEYS: [string, string][] = [
-  ["F8", "guided-target"],
-  ["F9", "toggle"],
-  ["F10", "stop"],
-  ["CommandOrControl+M", "marker"],
-  ["CommandOrControl+R", "retake"],
-];
+const HOTKEYS = RECORDER_HOTKEYS.map((k): [string, string] => [k.accelerator, k.name]);
 
 const dipRect = (m: CaptureMonitor): Electron.Rectangle =>
   screen.screenToDipRect(null, { x: m.x, y: m.y, width: m.width, height: m.height });
@@ -333,7 +337,8 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
         )
           region = undefined;
       }
-      await rec.prepare({ ...opts, region }, monitors);
+      // Keys typed in the lesson window still show on screen; it belongs to this process too.
+      await rec.prepare({ ...opts, region }, monitors, guidedBrowserWindowIds());
       captureBounds = {
         x: m.x + (region?.x ?? 0),
         y: m.y + (region?.y ?? 0),

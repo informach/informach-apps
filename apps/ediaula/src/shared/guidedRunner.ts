@@ -1,9 +1,5 @@
-import {
-  type GuidedPlan,
-  type GuidedTarget,
-  scheduleGuided,
-  smoothPointer,
-} from "./guidedRecording.ts";
+import { type GuidedPlan, type GuidedTarget, scheduleGuided } from "./guidedRecording.ts";
+import type { GlideResult } from "./helperProtocol.ts";
 
 export interface GuidedDriver {
   command<T = void>(data: Record<string, unknown>): Promise<T>;
@@ -30,6 +26,51 @@ export async function executeGuided(
     }
     check();
   };
+  /**
+   * One glide per movement: the helper interpolates it on its own clock with smoothPointer's
+   * curve, so a slow main process no longer makes the pointer stutter. A pause halts it where it
+   * is and the same curve resumes afterwards; a helper that falls behind stops instead of jumping.
+   */
+  const glide = async (from: { x: number; y: number }, to: GuidedTarget): Promise<void> => {
+    let at = 0;
+    for (;;) {
+      await wait(0);
+      let done: { value: GlideResult } | { error: unknown } | undefined;
+      void input
+        .command<GlideResult>({
+          op: "glide",
+          x: to.x,
+          y: to.y,
+          from: { x: from.x, y: from.y },
+          duration: plan.move,
+          at,
+        })
+        .then(
+          (value) => {
+            done = { value };
+          },
+          (error: unknown) => {
+            done = { error };
+          },
+        );
+      let halted = false;
+      while (!done) {
+        await sleep(16);
+        if (!done && !halted && (paused() || signal.aborted)) {
+          halted = true;
+          await input.command({ op: "halt" });
+        }
+      }
+      if ("error" in done) throw done.error;
+      if (done.value.late)
+        throw new Error(
+          "O movimento atrasou. A gravação foi pausada para evitar um salto do cursor.",
+        );
+      check();
+      if (done.value.at >= 1) return;
+      at = done.value.at;
+    }
+  };
   const keyCodes: Record<string, number> = {
     Enter: 13,
     Tab: 9,
@@ -55,29 +96,7 @@ export async function executeGuided(
       throw new Error(
         "A localização do alvo atrasou. Revise a etapa para preservar a antecipação da fala.",
       );
-    const movementStart = time();
-    let lastTick = movementStart;
-    while (time() - movementStart < plan.move) {
-      await wait(0);
-      if (time() - lastTick > 0.1)
-        throw new Error(
-          "O movimento atrasou. A gravação foi pausada para evitar um salto do cursor.",
-        );
-      lastTick = time();
-      const t = smoothPointer((time() - movementStart) / plan.move);
-      await input.command({
-        op: "move",
-        x: Math.round(from.x + (target.x - from.x) * t),
-        y: Math.round(from.y + (target.y - from.y) * t),
-      });
-      await sleep(16);
-    }
-    await wait(0);
-    if (time() - lastTick > 0.1)
-      throw new Error(
-        "O movimento atrasou. A gravação foi pausada para evitar um salto do cursor.",
-      );
-    await input.command({ op: "move", x: target.x, y: target.y });
+    await glide(from, target);
     const arrived = time();
     if (arrived > s.arriveAt + 0.1 || arrived >= s.speechAt)
       throw new Error(
