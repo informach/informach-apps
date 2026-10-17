@@ -83,10 +83,7 @@ export const SITE_PRODUCTS: readonly SiteProduct[] = [
       "Revisões nos dias certos e simulados",
     ],
     price: `A partir de ${monthlyPrice("missao_individual_monthly")} por mês`,
-    cta: {
-      label: "Experimentar sem cadastro",
-      href: appUrl("missaoSaber", "/experimentar"),
-    },
+    cta: { label: "Conhecer a Missão Saber", href: appUrl("missaoSaber") },
     icon: "/produtos/missao-saber.png",
     brand: { background: "#1E5A44", foreground: "#EAF6DD", link: "#1E5A44" },
   },
