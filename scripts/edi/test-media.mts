@@ -19,9 +19,25 @@ for (const binary of [ffmpeg, ffprobe]) {
     throw new Error("Native media license differs from the redistributable GPLv3 recipe");
 }
 for (const [option, capabilities] of [
-  ["-encoders", ["libx264", "libvpx-vp9", "libmp3lame", "h264_nvenc", "aac", "png"]],
+  [
+    "-encoders",
+    ["libx264", "libvpx-vp9", "libmp3lame", "h264_nvenc", "h264_amf", "h264_mf", "aac", "png"],
+  ],
   ["-decoders", ["libdav1d", "h264", "hevc", "vp9"]],
-  ["-filters", ["subtitles", "ddagrab", "overlay", "chromakey", "geq", "amix", "afftdn"]],
+  [
+    "-filters",
+    [
+      "subtitles",
+      "ddagrab",
+      "scale_d3d11",
+      "hwupload",
+      "overlay",
+      "chromakey",
+      "geq",
+      "amix",
+      "afftdn",
+    ],
+  ],
   ["-demuxers", ["dshow", "mov", "matroska", "image2"]],
 ] as const) {
   const result = await execute(ffmpeg, ["-hide_banner", option], {

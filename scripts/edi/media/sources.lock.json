@@ -89,5 +89,12 @@
     "url": "https://codeload.github.com/videolan/dav1d/tar.gz/refs/tags/1.5.4",
     "file": "dav1d-1.5.4.tar.gz",
     "sha256": "a1d5b63d2d38ec9bd03acf643caa51fa22edd1e89c5a109c4807717216bbec07"
+  },
+  {
+    "name": "amf",
+    "version": "1.5.2",
+    "url": "https://github.com/GPUOpen-LibrariesAndSDKs/AMF/releases/download/v1.5.2/AMF-headers-v1.5.2.tar.gz",
+    "file": "AMF-headers-v1.5.2.tar.gz",
+    "sha256": "d3c12eb324edf05e214608b6a395a51dd95770ed9d45520185d6c3a206811c99"
   }
 ]

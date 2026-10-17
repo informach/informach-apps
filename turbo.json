@@ -1,6 +1,6 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
-  "globalPassThroughEnv": ["npm_execpath"],
+  "globalPassThroughEnv": ["npm_execpath", "JOBS"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
