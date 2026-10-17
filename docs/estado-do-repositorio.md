@@ -82,7 +82,7 @@ Em produção desde 17/10/2026, por volta de 15:40 UTC, sem redeploy: parcial `e
 
 Em 17/10/2026 a titular aprovou a proposta em canvas para o Cozya e pediu para aplicá-la e corrigir os defeitos. Implementada na branch `feat/cozya-hoje-tem` e levada ao [PR #10](https://github.com/informach/informach-apps/pull/10), com a migração `0074_cozya_hoje_tem`. O app passa a abrir no Hoje, o teste começa na primeira receita colocada na semana, e a marmita vira um número separado da mesa. A lista do mercado ganha duas fases e envio pelo WhatsApp. O modo cozinha mostra um passo por tela e termina com "Como foi?". A página de vendas foi reescrita. Decisões, defeitos corrigidos, migração e verificação estão no [registro da implementação](propostas/cozya-hoje-tem-2026-10-17/implementacao.md); contratos atuais no [guia do Cozya](../apps/cozya/CLAUDE.md).
 
-Pendências: a seção "Quem faz" depende de texto e foto da titular. A migração do Cozya foi regenerada como `0074_cozya_hoje_tem`, depois das duas do Bastidores (`0072_happy_patch` e `0073_warm_nemesis`).
+Na mesma tarde, a pedido da titular, a entrega foi conferida tela por tela contra o canvas e ajustada para ficar igual às pranchas; a seção "Quem faz" entrou com a foto e o texto do site da Informach ([conferência](propostas/cozya-hoje-tem-2026-10-17/implementacao.md#conferência-contra-o-canvas)). A migração do Cozya foi regenerada como `0074_cozya_hoje_tem`, depois das duas do Bastidores (`0072_happy_patch` e `0073_warm_nemesis`). Pendências: a foto do prato enviada pela própria casa depende de armazenamento de arquivos, a decidir pela titular; mostrar as telas a cinco casas é passo de produto dela, não de implementação.
 
 ## Ambiente de desenvolvimento
 
