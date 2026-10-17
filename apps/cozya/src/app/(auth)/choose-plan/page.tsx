@@ -3,7 +3,7 @@ import { parseCycleQueryParam } from "@/features/billing/plans-content";
 import { redirectIfUnauthenticated } from "@/lib/auth";
 
 export const metadata = {
-  title: "Escolha seu plano — Cozya",
+  title: "Escolha como começar | Cozya",
 };
 
 export default async function ChoosePlanPage({

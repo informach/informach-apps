@@ -36,6 +36,6 @@ export function buildWhatsappShareUrl(recipe: ShareableRecipe): string {
     lines.push("", "*Finalização:*", recipe.finishing);
   }
   if (recipe.sourceName || recipe.sourceUrl)
-    lines.push("", `Fonte: ${[recipe.sourceName, recipe.sourceUrl].filter(Boolean).join(" — ")}`);
+    lines.push("", `Fonte: ${[recipe.sourceName, recipe.sourceUrl].filter(Boolean).join(" · ")}`);
   return `https://wa.me/?text=${encodeURIComponent(lines.join("\n"))}`;
 }

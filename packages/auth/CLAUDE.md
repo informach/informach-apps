@@ -73,6 +73,7 @@ Todas as colunas declaradas em `packages/db/src/schema/core.ts` (source of truth
 | Magic link (login passwordless) | Plugin `magicLink` carregado por default. Template `auth.magic-link` (cria user na primeira ocorrência — limitação Better Auth 1.x). App pode desabilitar via `email.signIn.magicLink: false`. |
 | OTP sign-in (login passwordless) | OPT-IN via `email.signIn.otp: true`. Habilita `signIn.emailOtp({ email })` com template `auth.sign-in-otp`. |
 | Cookie session cache | Default 300s (`session.cookieCache.maxAge`); override por config |
+| Duração da sessão | Padrão do Better Auth; `session.expiresIn` e `session.updateAge` (segundos) mudam por app. Com `expiresIn`, ele é também o teto: `session.create.before` corta qualquer `expiresAt` além dele, inclusive o dia que o Better Auth dá a `rememberMe: false` (`cappedSessionExpiry`). O Bastidores usa 12 horas sem renovação |
 | Rate limit | Defaults endurecidos contra enumeration (ver tabela em §3.4) |
 | Audit log | `AuditEventType` tipados → `audit.events` |
 | ID generator | `crypto.randomUUID()` para todas as tabelas |
@@ -91,7 +92,7 @@ Apps podem combinar email/senha com OTP no mesmo produto. Ativar `email.signIn.o
 | Organizations (multi-tenant) | `organizations: { enabled: true, allowUserToCreateOrganization? }` | `organizations`, `members`, `invitations` |
 | Google OAuth | `socialProviders: { google: { clientId, clientSecret, redirectURI? } }` | — |
 | Passkey (WebAuthn) | `passkey: { enabled: true, rpName?, rpID?, origin? }` | `passkeys` |
-| 2FA TOTP + backup codes | `twoFactor: { enabled: true, issuer? }` | `two_factors` |
+| 2FA TOTP + backup codes | `twoFactor: { enabled: true, issuer? }`. Quando um pedido liga as duas etapas (`/two-factor/verify-totp` ou `/two-factor/enable` com a sessão dizendo "sem duas etapas" e a sessão nova dizendo "com"), o `hooks.after` encerra todas as outras sessões da conta pelo `internalAdapter`, mantendo só a nova; se a limpeza falhar, a nova também sai, a resposta vira `SESSION_CLEANUP_FAILED` e sai o evento de segurança `two_factor_session_cleanup_failed` | `two_factors` |
 | Account deletion (LGPD) | `accountDeletion: { enabled: true, sendDeleteEmail?, onBeforeDelete?, onAfterDelete? }` | — |
 | Cache role on session | `cacheRoleOnSession: true` | reaproveita `sessions.role` |
 | Secondary storage (Redis/KV) | `secondaryStorage: SecondaryStorage` | — |
@@ -121,7 +122,17 @@ Helpers expostos pelo `createAuth()` result:
 - `requireRole(headers, role): Promise<User>` (joga `UnauthorizedError` ou `ForbiddenError`)
 - `requireAdmin(headers): Promise<User>` (atalho para `requireRole(_, "admin")`)
 
-Manipulação de role/ban deve passar pelos helpers explícitos `setUserRole(headers, targetUserId, role)` e `setUserBanState(headers, input)`. Eles aplicam `users.set_role` / `users.ban`, atualizam `core.users`, logam `user.role_changed` / `user.banned` / `user.unbanned` e revogam sessões quando necessário. Não use `databaseHooks.user.update.*` para esse side effect: o hook do Better Auth recebe os dados do update, não o alvo confiável da alteração.
+`isUserBanned(user)` é exportado do root para quem precisa aplicar a mesma regra de banimento (o Bastidores confere papel e banimento direto em `core.users` a cada pedido).
+
+Atenção: com `secondaryStorage`, as sessões ficam só no Redis do app. Apagar linhas de `core.sessions` (o que `setUserBanState` faz) não desconecta ninguém em Cozya, Agenda ou Missão; use `revokeCachedSessions` de `@informach/auth/sessions` com o armazenamento de cada app, como faz o Bastidores. O cache em cookie (5 minutos no Cozya e na Agenda) ainda pode manter a sessão viva por esse tempo.
+
+Manipulação de role/ban deve passar pelos helpers explícitos `setUserRole(headers, targetUserId, role, options?)` e `setUserBanState(headers, input)`. Eles aplicam `users.set_role` / `users.ban`, atualizam `core.users`, logam `user.role_changed` (`{ targetId, previousRole, newRole, reason? }`) / `user.banned` / `user.unbanned` (`{ targetId, reason }`) e revogam sessões quando necessário. Não use `databaseHooks.user.update.*` para esse side effect: o hook do Better Auth recebe os dados do update, não o alvo confiável da alteração.
+
+Os dois rodam numa transação que começa com `pg_advisory_xact_lock` (chave `informach:auth:owner-change`) e só então leem a conta. Rebaixar ou banir o último owner ativo (papel owner e sem banimento valendo) lança `LastOwnerError` (subclasse de `ForbiddenError`); como toda mudança passa pela mesma trava, dois owners rebaixando um ao outro ao mesmo tempo não zeram a casa. Opções:
+
+- `strictAudit: true` grava o evento dentro da transação (`logAuditEventStrict` com a transação como `writer`): sem registro, nada muda e sai `AuditPersistenceError`. Padrão `false`, com o evento depois do commit e falha best-effort, como antes.
+- `reason` (texto curto da equipe) vai no evento. Em `setUserBanState`, o padrão é `banReason` no banimento; no desbanimento, `reason` é o único lugar do motivo.
+- `revokeSessions: true` em `setUserRole` apaga, na mesma transação, as sessões da conta em `core.sessions` e os aparelhos confiados das duas etapas.
 
 ### 3.4 Rate limits default
 
@@ -169,9 +180,16 @@ billing.checkout_started        billing.payment_succeeded   billing.credits_cons
 billing.subscription_created    billing.payment_failed      billing.credits_refunded
 billing.subscription_updated    billing.credits_granted     billing.credits_warning_sent
 billing.subscription_canceled
+
+admin.user_viewed         admin.verification_resent   admin.audit_exported
+admin.sessions_revoked    admin.edi_device_disconnected
 ```
 
+Os eventos `admin.*` são emitidos pelo Bastidores (`apps/admin`) em nome de quem agiu; payloads em `docs/audit-payload-policy.md`.
+
 Cada `logAuditEvent(eventType, actorId, payload)` insere em `audit.events` e dispara `observability.onAuditEvent`. Se o INSERT falhar, o fluxo continua e `observability.onAuditPersistenceFailure` recebe `{ eventType, actorId, payloadKeys, error }` sanitizado. **Hooks são try/catch-ados internamente** — falha em APM ou no banco de audit não derruba o auth.
+
+Forma estrita, opcional: `logAuditEventStrict(eventType, actorId, payload, { writer?, hooks? })` avisa a observabilidade do mesmo jeito e, se o INSERT falhar, lança `AuditPersistenceError` (com `eventType`). `writer` aceita uma transação Drizzle, para o evento entrar junto com a mudança. Serve a quem só pode mostrar um dado ou concluir uma ação com o rastro gravado (o Bastidores); os demais apps seguem com a forma padrão.
 Nos apps atuais, `authObservability` em `src/lib/observability.ts` transforma audit em breadcrumbs Sentry usando `payloadKeys` em vez de payload bruto.
 
 A função `logAuditEvent` é **re-exportada do root** (`import { logAuditEvent } from "@informach/auth"`) para que outros packages do monorepo (`@informach/billing`, `@informach/emails`) possam wirar `config.onAudit` callback sem importar de sub-paths internos. Apps tipicamente fazem:
@@ -192,7 +210,7 @@ Politica de payload/PII: [`docs/audit-payload-policy.md`](../../docs/audit-paylo
 
 ### 3.6 Security events (observability)
 
-`AuthSecurityEventType`: `rate_limit_hit`, `role_mismatch`, `banned_user_signin_attempt`, `two_factor_failed`, `session_revoked`. Atualmente emitidos em runtime: `rate_limit_hit` (status 429 no middleware), `two_factor_failed` (verify-totp/verify-backup-code com status ≥ 400), `session_revoked` (delete em `databaseHooks.session.delete.after`). Os demais types existem para uso futuro.
+`AuthSecurityEventType`: `rate_limit_hit`, `role_mismatch`, `banned_user_signin_attempt`, `two_factor_failed`, `session_revoked`, `two_factor_session_cleanup_failed`. Atualmente emitidos em runtime: `rate_limit_hit` (status 429 no middleware), `two_factor_failed` (verify-totp/verify-backup-code com status ≥ 400), `session_revoked` (delete em `databaseHooks.session.delete.after`), `banned_user_signin_attempt` (`session.create.before`) e `two_factor_session_cleanup_failed` (as duas etapas ligaram e as outras sessões não puderam ser encerradas). `role_mismatch` existe para uso futuro.
 Nos apps, `authObservability.onSecurityEvent` loga warning no pino e envia `auth.security.<type>` sanitizado para `Sentry.captureMessage`.
 
 ### 3.7 Email templates
@@ -473,6 +491,7 @@ Wiring real em `apps/<app>/src/lib/env.ts` (`@t3-oss/env-nextjs`).
 | `@informach/auth/server-actions` | `createActionFactory`, `Result`, `ok`/`err`, `RateLimitStorage`, `postgresRateLimitStorage` | server actions |
 | `@informach/auth/redis-rate-limit-storage` | `redisRateLimitStorage` (fixed-window via MULTI/EXPIRE NX) | `apps/<app>/src/lib/action.ts` em prod |
 | `@informach/auth/maintenance` | `cleanup*` funções | route handlers de cron job |
+| `@informach/auth/sessions` | `listCachedSessions`, `revokeCachedSessions` (sessões no Redis de um app, sem token nem IP) e `revokeTrustedDevices(userId, writer?)` (apaga os registros `trust-device-*` da conta em `core.verifications`, para a senha não bastar na próxima entrada em app com duas etapas; verificações no Redis precisariam de outro caminho) | Bastidores |
 
 ### 5.3 Tipos exportados
 
@@ -486,7 +505,10 @@ Wiring real em `apps/<app>/src/lib/env.ts` (`@t3-oss/env-nextjs`).
 
 | Arquivo | Cobertura |
 |---|---|
-| `create-auth.test.ts` | Factory: defaults, opt-ins, plugins habilitados condicionalmente |
+| `create-auth.test.ts` | Factory: defaults, opt-ins, plugins habilitados condicionalmente; papel e banimento sob trava (último owner, concorrência simulada, auditoria estrita na transação); encerramento das outras sessões ao ligar as duas etapas; teto da sessão |
+| `plugin-schema.test.ts` | Toda coluna que os plugins opcionais (duas etapas, organizações, passkey) exigem existe no schema Drizzle; falha antes de um app ligar o plugin e quebrar com "Drizzle schema mismatch" |
+| `sessions.test.ts` | Listar e encerrar sessões guardadas no Redis de um app, sem expor token nem IP; apagar só os aparelhos confiados da conta |
+| `audit.test.ts` | Falha de gravação best-effort na forma padrão; forma estrita que lança `AuditPersistenceError` e grava pela transação recebida |
 | `helpers.test.ts` | `requireUser/Role`, `assertPermission`, helpers de organization |
 | `permissions.test.ts` | Matrix de roles × permissions, `roleHasPermission` |
 | `proxy.test.ts` | Path matching, redirects sign-in/forbidden, role enforcement |

@@ -18,12 +18,23 @@ export const mealSchema = z
     slot: z.enum(["lunch", "dinner"]),
     recipeId: z.string().uuid().nullable(),
     label: z.string().trim().max(120),
+    /** Everything cooked: the table plus the lunchboxes. */
     servings: z.number().int().min(1).max(100),
+    lunchboxServings: z.number().int().min(0).max(100).default(0),
   })
   .refine(
     (meal) => meal.recipeId || meal.label.length > 0,
     "Escolha uma receita ou descreva a refeição",
+  )
+  .refine(
+    (meal) => meal.lunchboxServings <= meal.servings,
+    "As marmitas fazem parte das porções preparadas",
   );
+export const cookingFeedbackSchema = z.object({
+  recipeId: z.string().uuid(),
+  verdict: z.enum(["again", "tweak", "skip"]),
+  note: z.string().trim().max(500).default(""),
+});
 export const cookingInputSchema = z.object({
   recipeId: z.string().uuid(),
   servings: z.number().int().min(1).max(100).optional(),

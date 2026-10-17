@@ -206,7 +206,7 @@ Overrides ficam em `overrides[]` (ex: `noConsole: "off"` em `scripts/**`).
 **Recomendado**: um Postgres compartilhado, schemas SQL nativos por domínio (`core`, `billing`, `audit`, `ai`, `agenda`, `cozya`...). O package `db` declara via `pgSchema("nome").table(...)` e mantém migrations sob versão.
 
 Por quê:
-- Auth, billing, emails e auditoria (schemas `core`, `billing` e `audit`) servem os apps reais. Compartilhar tabelas é o caso de uso; o app `admin` ainda é só scaffold e não deve declarar deps internas enquanto não tiver wiring.
+- Auth, billing, emails e auditoria (schemas `core`, `billing` e `audit`) servem os apps reais. Compartilhar tabelas é o caso de uso; o `admin` (Bastidores) lê esses schemas por uma conexão só de leitura e escreve apenas pelas funções dos pacotes (banir, papel, auditoria) e no schema `ops`.
 - Schemas SQL dão isolamento lógico e permissões por role. Se um app só precisa ler `core` e escrever em `<dominio_app>`, dá pra restringir.
 - Migrations centralizadas evitam corrida de migrations entre apps que sobem em paralelo.
 - Backup e operação ficam em uma fonte só.
@@ -290,7 +290,7 @@ CI **não** faz deploy. CI valida lint, tipos, testes unitários, migrations, E2
 
 Cada app vira um service no mesmo project Railway, todos apontando para o mesmo repositório GitHub.
 
-O portal Edi e `cron-edi-reconcile` usam a configuração IaC `.railway/railway.ts`, com parcial nomeada `edi` e validação dos IDs do projeto/ambiente. A API atual rejeitou a associação de um novo `railway.toml` ao Edi em 17/10/2026; as configurações legadas dos demais serviços continuam preservadas. A parcial permite uma adoção gradual, sem declarar ou recriar Postgres/Redis e sem assumir a configuração dos outros apps. Alterações na IaC exigem `railway config plan` e revisão antes de `railway config apply`, conforme o [runbook do Edi](../apps/edi/PRODUCAO.md#serviço-railway); o push de código não substitui essa aplicação.
+Todos os serviços do projeto Railway (apps, migrator, crons, Postgres, Redis e volumes) são descritos em `.railway/railway.ts`, IaC do projeto inteiro, com validação dos IDs do projeto e do ambiente. O Config as Code por app (`railway.toml`) foi descontinuado pelo Railway, deixa de ser lido em 01/12/2026 e foi removido do repo. Alterações exigem `railway config plan` e revisão antes de `railway config apply`, conforme [`docs/deploy-runbook.md`](deploy-runbook.md#infraestrutura-como-código-railway-iac); o push de código não aplica a configuração.
 
 Configuração por app:
 - **Root directory**: `/` (raiz do monorepo). Necessário porque o app depende de `packages/*`.
@@ -336,7 +336,7 @@ Como a referência se materializa em um caso real (org `informach`):
 ```
 informach-platform/
 ├── apps/
-│   ├── admin/                  # @informach/admin (scaffold; sem auth/billing/db por enquanto)
+│   ├── admin/                  # @informach/admin (Bastidores, console da equipe)
 │   ├── agenda-da-turma/        # @informach/agenda-da-turma
 │   └── cozya/                  # @informach/cozya
 └── packages/

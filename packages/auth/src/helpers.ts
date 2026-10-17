@@ -20,6 +20,18 @@ export class ForbiddenError extends Error {
   }
 }
 
+/**
+ * A mudança deixaria a casa sem nenhum owner ativo (com papel owner e sem
+ * banimento valendo). Conferido no banco, sob trava, em `setUserRole` e
+ * `setUserBanState`.
+ */
+export class LastOwnerError extends ForbiddenError {
+  constructor() {
+    super("the last active owner cannot be demoted or banned");
+    this.name = "LastOwnerError";
+  }
+}
+
 export class NotFoundError extends Error {
   constructor(resource: string) {
     super(`@informach/auth: ${resource} not found`);

@@ -2,16 +2,18 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 import { getIsProForUser } from "@/features/billing/server-cache";
 import { getKitchenAccess } from "@/features/kitchen/access";
-import { CookingView } from "@/features/kitchen/components/cooking-view";
+import { cookedAgo } from "@/features/kitchen/dates";
 import { getCookingSession } from "@/features/kitchen/repository";
+import { RecipeOverview } from "@/features/recipes/components/recipe-overview";
 import { RefineRecipeDialog } from "@/features/recipes/components/refine-recipe-dialog";
 import { countRecipesByUser, findRecipeByIdForUser } from "@/features/recipes/repository";
 import { requireUserServer } from "@/lib/auth";
 
 export const metadata = {
-  title: "Preparar receita | Cozya",
+  title: "Receita | Cozya",
   robots: { index: false, follow: false },
 };
+
 export default async function RecipePage({
   params,
   searchParams,
@@ -21,36 +23,36 @@ export default async function RecipePage({
 }) {
   const [user, { id }, query] = await Promise.all([requireUserServer(), params, searchParams]);
   if (!z.string().uuid().safeParse(id).success) notFound();
-  const [recipe, session, isPro] = await Promise.all([
+  const [recipe, session, isPro, access, recipeCount] = await Promise.all([
     findRecipeByIdForUser(user.id, id),
     getCookingSession(user.id, id),
     getIsProForUser(user.id),
-  ]);
-  if (!recipe) notFound();
-  const [access, recipeCount] = await Promise.all([
     getKitchenAccess(user.id),
     countRecipesByUser(user.id),
   ]);
-  const currentSession =
-    session?.recipeVersion.getTime() === recipe.contentUpdatedAt.getTime() ? session : null;
-  const requestedServings = z.coerce.number().int().min(1).max(100).safeParse(query.porcoes).data;
-  const servings = requestedServings ?? currentSession?.servings ?? recipe.servings ?? 2;
-  const visibleSession =
-    currentSession && currentSession.servings !== servings
-      ? { ...currentSession, checkedIngredients: [] }
-      : currentSession;
+  if (!recipe) notFound();
+  const requested = z.coerce.number().int().min(1).max(100).safeParse(query.porcoes).data;
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-8 md:px-8">
-      <CookingView
-        key={`${recipe.id}:${recipe.contentUpdatedAt.toISOString()}:${requestedServings ?? "saved"}`}
+    <main className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8 md:py-10">
+      <RecipeOverview
+        key={`${recipe.id}:${recipe.updatedAt.toISOString()}`}
         recipe={recipe}
-        initialSession={visibleSession}
-        initialServings={servings}
+        note={session?.note ?? null}
+        cooked={
+          session?.verdict === "skip"
+            ? "você disse que não repetiria"
+            : session?.lastCookedAt
+              ? cookedAgo(session.lastCookedAt)
+              : "ainda não fez"
+        }
+        initialServings={requested ?? recipe.servings ?? access.profile?.householdSize ?? 2}
         isPro={isPro}
+        currentCount={recipeCount}
         adaptation={
           <RefineRecipeDialog
             recipe={recipe}
             canUseAi={access.canUseAi}
+            trialAvailable={!access.isPro && !access.profile?.trialStartedAt}
             isPro={isPro}
             currentCount={recipeCount}
           />

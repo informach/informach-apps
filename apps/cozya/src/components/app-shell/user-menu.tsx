@@ -1,5 +1,6 @@
 "use client";
 
+import { INFORMACH_CONTACT } from "@informach/config/contact";
 import { Avatar, AvatarFallback, AvatarImage } from "@informach/ui/components/avatar";
 import { Button } from "@informach/ui/components/button";
 import {
@@ -10,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@informach/ui/components/dropdown-menu";
-import { CreditCard, LogOut } from "lucide-react";
+import { CreditCard, LogOut, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
@@ -71,6 +72,12 @@ export function UserMenu({ user }: { user: UserMenuUser }) {
             <CreditCard className="mr-2 size-4" aria-hidden />
             Gerenciar assinatura
           </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <a href={INFORMACH_CONTACT.directMessageUrl} target="_blank" rel="noopener noreferrer">
+            <MessageCircle className="mr-2 size-4" aria-hidden />
+            Fale com a gente
+          </a>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem

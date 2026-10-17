@@ -6,6 +6,37 @@
       "mailtoPrefix": "Ou envie um email para"
     }
   },
+  "adminAlert": {
+    "subject": "{kind, select, down {{serviceName} está fora do ar} other {{serviceName} voltou ao ar}}",
+    "preheaderDown": "Duas verificações seguidas sem resposta desde {downSince}.",
+    "preheaderUp": "Voltou a responder às {upAt}, depois de {duration} fora do ar.",
+    "titleDown": "{serviceName} está fora do ar",
+    "titleUp": "{serviceName} voltou ao ar",
+    "bodyDown": "Desde <strong>{downSince}</strong>, o Bastidores confere o serviço {serviceName} e não recebe resposta boa: {problem}.",
+    "bodyDownNoReason": "Desde <strong>{downSince}</strong>, o Bastidores confere o serviço {serviceName} e não recebe resposta boa.",
+    "bodyUp": "{serviceName} voltou a responder às <strong>{upAt}</strong>, depois de <strong>{duration}</strong> fora do ar. A queda começou em {downSince}.",
+    "instructionDown": "Em Operação estão a versão que estava servindo e o link para o Railway. Quando o serviço voltar, mandamos outro aviso.",
+    "instructionUp": "Se a queda veio de um deploy, vale conferir em Operação se a versão servindo agora é a esperada.",
+    "cta": "Abrir Operação"
+  },
+  "adminWeeklySummary": {
+    "subject": "Resumo da semana no Bastidores, {weekLabel}",
+    "preheader": "Contas novas, assinaturas, custo de IA e o que falhou {weekLabel}.",
+    "title": "Resumo da semana, {weekLabel}",
+    "accounts": "{newAccounts, plural, =0 {Nenhuma conta nova chegou na semana.} one {Chegou <strong>#</strong> conta nova na semana.} other {Chegaram <strong>#</strong> contas novas na semana.}}",
+    "productsTitle": "Assinaturas e receita por mês",
+    "productLine": "{name}: <strong>{proSubscribers}</strong> com plano Pro, {revenue} por mês.",
+    "revenueTotal": "Somando os produtos, <strong>{revenueTotal}</strong> por mês, estimados pelo preço de tabela das assinaturas ativas.",
+    "operationTitle": "Operação",
+    "aiCost": "A IA custou <strong>{aiCost}</strong> na semana, contando só o que o provedor informou.",
+    "aiCostNone": "Nenhum custo de IA informado pelo provedor na semana.",
+    "outagesNone": "Nenhum serviço ficou fora do ar a ponto de gerar aviso.",
+    "outageLine": "{name} ficou fora do ar por {duration}.",
+    "routinesNone": "Todas as rotinas agendadas rodaram sem falha.",
+    "routineLine": "{label}: {failures, plural, one {# execução com falha} other {# execuções com falha}}.",
+    "instruction": "Os detalhes de cada número estão no painel do Bastidores.",
+    "cta": "Abrir o painel"
+  },
   "verification": {
     "subject": "{appName} — verifique seu email",
     "preheader": "Confirme seu email para acessar o {appName}.",
@@ -40,6 +71,16 @@
     "instruction": "Use o código abaixo para definir uma nova senha. Se não foi você, ignore este email.",
     "otpLabel": "Código de redefinição",
     "expiresIn": "O código expira em {minutes} minutos."
+  },
+  "twoFactorSetupEmailOtp": {
+    "subject": "Seu código para ativar as duas etapas no {appName}",
+    "preheader": "Use o código abaixo para continuar a ativação das duas etapas no {appName}.",
+    "title": "Confirme que este e-mail é seu",
+    "body": "Você começou a ativar as duas etapas no <strong>{appName}</strong>.",
+    "instruction": "Digite o código abaixo na tela de ativação. Ele mostra que esta caixa de e-mail é sua antes de ligar um aplicativo autenticador à conta.",
+    "otpLabel": "Código de ativação",
+    "expiresIn": "O código vale por {minutes} minutos e só uma vez.",
+    "notYou": "Se não foi você, não digite o código em lugar nenhum: alguém pode estar usando a sua senha. Troque a senha da conta assim que puder."
   },
   "passwordReset": {
     "subject": "{appName} — recuperação de senha",

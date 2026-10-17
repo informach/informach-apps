@@ -38,7 +38,7 @@ export function CreditBalanceCard({ available, total, reserved, monthlyCap }: Pr
     <Card className="border-border/60">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-          Créditos disponíveis
+          Créditos de IA que ainda tem
           <TooltipProvider delayDuration={200}>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -51,8 +51,8 @@ export function CreditBalanceCard({ available, total, reserved, monthlyCap }: Pr
                 </button>
               </TooltipTrigger>
               <TooltipContent className="max-w-xs">
-                Cada vez que a IA é usada (gerar, extrair, refinar) consome 1 crédito — independente
-                de você salvar a receita ou não.
+                Cada receita que a IA traz, encontra ou adapta usa 1 crédito, mesmo que você não
+                guarde, e ditar uma busca também. Se a IA não conseguir, o crédito volta.
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -64,8 +64,8 @@ export function CreditBalanceCard({ available, total, reserved, monthlyCap }: Pr
           <div className="text-3xl font-semibold tabular-nums tracking-tight">
             {formatNumber(available)}
             {hasPlan ? (
-              <span className="ml-1 text-base font-normal text-muted-foreground tabular-nums">
-                / {formatNumber(monthlyCap)}
+              <span className="ml-1.5 text-base font-normal text-muted-foreground tabular-nums">
+                de {formatNumber(monthlyCap)} este mês
               </span>
             ) : null}
           </div>
@@ -88,11 +88,11 @@ export function CreditBalanceCard({ available, total, reserved, monthlyCap }: Pr
         <p className="text-xs text-muted-foreground">
           {hasPlan
             ? extras > 0
-              ? `Barra mostra o ciclo mensal. Extras de pacotes não expiram${reserved > 0 ? ` · ${formatNumber(reserved)} reservados em chamadas em andamento` : ""}.`
+              ? `A barra mostra o mês. Créditos extras de pacotes não vencem com o ciclo${reserved > 0 ? ` · ${formatNumber(reserved)} reservados agora` : ""}.`
               : reserved > 0
-                ? `${formatNumber(reserved)} reservados em chamadas em andamento.`
-                : `Renova ao final do ciclo da sua assinatura.`
-            : "Assine o Cozya Pro para liberar créditos de IA."}
+                ? `${formatNumber(reserved)} reservados para uma receita em andamento.`
+                : `Voltam a ser ${formatNumber(monthlyCap)} na próxima liberação mensal.`
+            : "Os créditos de IA fazem parte do Pro."}
         </p>
       </CardContent>
     </Card>

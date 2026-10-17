@@ -37,3 +37,8 @@ export async function getRecentRecipePreviews(userId: string) {
       : [];
   });
 }
+
+/** How many drafts can still be recovered, so the link only shows when there is one. */
+export async function listRecentPreviewCount(userId: string) {
+  return (await getRecentRecipePreviews(userId)).length;
+}

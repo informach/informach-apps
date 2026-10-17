@@ -14,11 +14,16 @@ export default async function RecoverRecipesPage() {
   ]);
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-4 py-8">
-      <Link href="/dashboard" className="inline-flex min-h-11 items-center text-sm underline">
-        Voltar às receitas
+      <Link
+        href="/receitas"
+        className="inline-flex min-h-11 items-center text-sm font-bold underline"
+      >
+        Voltar para Suas receitas
       </Link>
       <div>
-        <h1 className="text-2xl font-semibold">Resultados recentes da IA</h1>
+        <h1 className="text-[30px] font-extrabold tracking-display">
+          Receitas que a IA organizou há pouco
+        </h1>
         <p className="mt-2 text-muted-foreground">
           Se a conexão caiu ou você fechou a tela, recupere aqui os resultados concluídos nas
           últimas 24 horas, sem nova cobrança. Eles ainda precisam da sua revisão.

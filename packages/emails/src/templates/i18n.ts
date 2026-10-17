@@ -13,6 +13,8 @@ const MESSAGES: Record<Locale, Messages> = {
 
 export type EmailNamespace =
   | "common"
+  | "adminAlert"
+  | "adminWeeklySummary"
   | "verification"
   | "verifyEmailOtp"
   | "signInEmailOtp"
@@ -22,6 +24,7 @@ export type EmailNamespace =
   | "invitation"
   | "accountDeletion"
   | "signupAttemptOnExisting"
+  | "twoFactorSetupEmailOtp"
   | "paymentSuccess"
   | "paymentFailed"
   | "subscriptionRenewed"

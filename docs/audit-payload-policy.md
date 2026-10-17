@@ -41,7 +41,7 @@ Eventos de billing devem registrar o ator quando a ação veio de usuário auten
 ## Observabilidade
 
 - Sentry/APM deve receber `payloadKeys`, `eventType`, `actorId` e erro sanitizado, não o payload completo.
-- Falha de persistência do audit permanece best-effort e deve ser reportada via `observability.onAuditPersistenceFailure`.
+- Falha de persistência do audit permanece best-effort e deve ser reportada via `observability.onAuditPersistenceFailure`. A exceção é opcional e explícita: `logAuditEventStrict` (em `@informach/auth`) reporta do mesmo jeito e lança `AuditPersistenceError`, para quem não pode mostrar o dado nem concluir a ação sem o rastro. Hoje só o Bastidores usa.
 - Novo evento exige atualizar a union `AuditEventType`, a union do package emissor quando existir, docs e testes de wiring.
 
 ## Eventos do Missão Saber
@@ -63,3 +63,17 @@ Eventos atuais:
 - `agenda.turma_created_or_joined`, `agenda.turma_joined_by_code`, `agenda.turma_set_active`, `agenda.turma_left`, `agenda.turma_updated`, `agenda.turma_deleted`
 - `agenda.subject_created`, `agenda.subject_updated`, `agenda.subject_deleted`
 - `agenda.activity_created`, `agenda.activity_updated`, `agenda.activity_deleted`, `agenda.activity_status_set`, `agenda.activity_shared_response`
+
+## Eventos do Bastidores
+
+Eventos `admin.*` registram consultas e ações da equipe no Bastidores (`apps/admin`). O ator é sempre a conta owner ou admin que agiu; a conta afetada vai em `targetId`. Nada de conteúdo da pessoa, e-mail, IP ou dado de aparelho além do ID.
+
+- `admin.user_viewed`: `{ targetId }`. Gravado ao abrir a ficha de uma pessoa; a mesma pessoa da equipe olhando a mesma ficha em menos de 10 minutos não gera nova linha.
+- `admin.sessions_revoked`: `{ targetId, count, apps, reason }`, com `apps` listando os slugs alcançados.
+- `admin.verification_resent`: `{ targetId, app }`.
+- `admin.edi_device_disconnected`: `{ targetId, deviceId, reason }`.
+- `admin.audit_exported`: `{ filters, rows }`, com `filters` só nos nomes e valores dos filtros (tipo, período, IDs).
+
+Banimento e papel usam os eventos do pacote de autenticação, também em nome de quem agiu: `user.banned` e `user.unbanned` com `{ targetId, reason }`, e `user.role_changed` com `{ targetId, previousRole, newRole, reason }` (o script do primeiro owner grava `source` no lugar de `reason`). Toda ação que muda algo leva motivo, inclusive desbanir e mudar papel. `reason` é texto curto (até 280 caracteres) escrito pela equipe para explicar a ação; a tela orienta a não colar mensagens da pessoa nem dados além do necessário.
+
+No Bastidores a gravação é estrita: abrir a ficha e exportar a auditoria só mostram os dados com o evento gravado; banir, desbanir e mudar papel gravam o evento na mesma transação da mudança; encerrar sessões, reenviar confirmação e desconectar computador mostram erro e reportam `audit.change_unrecorded` quando a mudança aconteceu e o evento não gravou.

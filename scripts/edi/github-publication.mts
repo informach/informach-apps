@@ -45,6 +45,10 @@ async function sha256(path: string) {
   }
   return { name: basename(path), size, digest: `sha256:${hash.digest("hex")}` };
 }
+// The release listing can lag a write by a few seconds: edi-v0.1.1 was created and still
+// missing from the listing one second later. Re-read with backoff before giving up.
+const LISTING_RETRY_DELAYS_MS = [1000, 2000, 4000, 8000, 15000];
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 /** Resume incomplete drafts without overwriting assets; publish only a complete suite. */
 export async function publishGithubRelease(
   options: {
@@ -57,6 +61,7 @@ export async function publishGithubRelease(
   command: Command = async (args) =>
     (await execute("gh", args, { windowsHide: true, timeout: 900000, maxBuffer: 2 * 1024 ** 2 }))
       .stdout,
+  wait: (ms: number) => Promise<void> = sleep,
 ) {
   const repository = githubRepositorySchema.parse(options.repository);
   const version = releaseVersionSchema.parse(options.version);
@@ -97,6 +102,15 @@ export async function publishGithubRelease(
       throw new Error("GitHub release identity or channel does not match the requested version");
     return parsed;
   }
+  async function readUntil(done: (item: z.infer<typeof releaseSchema> | null) => boolean) {
+    let current = await read();
+    for (const delay of LISTING_RETRY_DELAYS_MS) {
+      if (done(current)) break;
+      await wait(delay);
+      current = await read();
+    }
+    return current;
+  }
   let release = await read();
   if (release && !release.body.includes(provenance))
     throw new Error("Version already belongs to different source provenance");
@@ -118,7 +132,7 @@ export async function publishGithubRelease(
       `Suíte Edi ${version}`,
       `--notes=${options.notes}\n\n${provenance}`,
     ]);
-    release = await read();
+    release = await readUntil((item) => item?.draft === true);
     if (!release?.draft) throw new Error("GitHub draft release was not confirmed");
   }
   for (let index = 0; index < expected.length; index++) {
@@ -143,7 +157,7 @@ export async function publishGithubRelease(
     "--draft=false",
     ...(beta ? ["--prerelease"] : ["--latest"]),
   ]);
-  const published = await read();
+  const published = await readUntil((item) => item?.draft === false);
   if (
     !published ||
     published.draft ||

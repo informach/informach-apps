@@ -5,27 +5,25 @@ export type BillingCycle = "monthly" | "annual";
 export type PlanFeature = { label: string; included: boolean };
 
 export const FREE_FEATURES: PlanFeature[] = [
-  { label: "Cadastro manual de receitas", included: true },
-  { label: "Busca por nome e favoritos", included: true },
-  { label: "Compartilhar pelo WhatsApp", included: true },
-  { label: "Uso direto no navegador do celular", included: true },
-  { label: "Até 15 receitas no acervo gratuito", included: true },
-  { label: "Teste: 3 operações de IA e 14 dias de planejamento", included: true },
-  { label: "Preparo e listas já criadas continuam acessíveis", included: true },
+  { label: "14 dias para planejar, com 3 créditos de IA, sem cartão", included: true },
+  { label: "Até 15 receitas escritas do seu jeito", included: true },
+  { label: "Modo cozinha em todas as suas receitas", included: true },
+  { label: "As semanas e listas que você já montou", included: true },
+  { label: "Compartilhar receita pelo WhatsApp", included: true },
 ];
 
 export const PRO_FEATURES: PlanFeature[] = [
-  { label: "Planejamento semanal com porções e marmitas", included: true },
-  { label: "Lista de compras somada por ingredientes compatíveis", included: true },
-  { label: "Repetir a semana e acompanhar o preparo", included: true },
-  { label: "Receitas ilimitadas", included: true },
-  { label: "Captura por voz, foto e texto", included: true },
-  { label: "Geração com busca na web", included: true },
-  { label: "50 créditos de IA renovados todo mês", included: true },
-  { label: "Pacotes extras avulsos quando precisar", included: true },
+  { label: "Semanas sem limite, com mesa e marmitas", included: true },
+  { label: "Lista do mercado somada, com despensa", included: true },
+  { label: "Modo cozinha e repetir a semana", included: true },
+  { label: "Receitas sem limite", included: true },
+  { label: "Trazer receita por foto, texto ou voz", included: true },
+  { label: "Encontrar receitas com fonte na web", included: true },
+  { label: "50 créditos de IA por mês, também no anual", included: true },
+  { label: "Créditos extras quando precisar", included: true },
 ];
 
-// Preços derivados de `packages/config/src/products.ts` — fonte oficial.
+// Preços derivados de `packages/config/src/products.ts`, a fonte oficial.
 // Divergência entre UI e Stripe Dashboard é bug (root CLAUDE.md §8.1).
 const monthlyProduct = findProduct("cozya_pro_monthly");
 const annualProduct = findProduct("cozya_pro_annual");
@@ -45,8 +43,20 @@ const monthlyCents = monthlyProduct.listPrice.amountCents;
 const annualCents = annualProduct.listPrice.amountCents;
 const annualMonthlyEquivalentCents = Math.round(annualCents / 12);
 export const ANNUAL_SAVINGS_PCT = Math.round((1 - annualCents / (monthlyCents * 12)) * 100);
-export const ANNUAL_TOTAL = BRL.format(annualCents / 100);
 export const ANNUAL_SAVINGS = BRL.format((monthlyCents * 12 - annualCents) / 100);
+
+/** "R$ 149" and "R$ 14,90": the cents only when there are cents, as a price tag reads. */
+function wholePrice(cents: number) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
+  }).format(cents / 100);
+}
+export const WHOLE_PRICES = {
+  monthly: wholePrice(monthlyCents),
+  annual: wholePrice(annualCents),
+} as const;
 
 export const PRICING: Record<
   BillingCycle,
@@ -61,7 +71,7 @@ export const PRICING: Record<
   annual: {
     price: BRL.format(annualMonthlyEquivalentCents / 100),
     period: "/mês",
-    note: `${BRL.format(annualCents / 100)}/ano. Economize ~${ANNUAL_SAVINGS_PCT}%`,
+    note: `${BRL.format(annualCents / 100)} por ano. Economize ${ANNUAL_SAVINGS_PCT}%`,
     tabLabel: "Anual",
   },
 };

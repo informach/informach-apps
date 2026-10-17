@@ -66,3 +66,41 @@ export function CozyaLogo({ className, "aria-label": ariaLabel, ...props }: Cozy
     </svg>
   );
 }
+
+/** Only the orange square of the logo, for small places such as an app mockup. */
+export function CozyaMark({ className, ...props }: CozyaLogoProps) {
+  return (
+    <svg viewBox="0 1 256 256" fill="none" aria-hidden className={className} {...props}>
+      <rect y="1" width="256" height="256" rx="32" fill="#FF7A3D" />
+      <path
+        d="M152.129 157.121C159.412 152.377 168.935 149.457 176.466 153.799L178.11 154.747C185.777 159.167 188.508 169.145 182.422 175.569C169.919 188.766 152.217 197 132.59 197C94.7087 197 64 166.332 64 128.5C64 90.6685 94.7087 60 132.59 60C152.217 60 169.919 68.2335 182.422 81.4309C188.508 87.8553 185.777 97.8326 178.11 102.253L177.303 102.718C169.629 107.144 159.902 104.029 152.549 99.0866C147 95.3566 140.318 93.1797 133.126 93.1797C113.889 93.1797 98.2948 108.754 98.2948 127.965C98.2948 147.176 113.889 162.75 133.126 162.75C140.137 162.75 146.664 160.681 152.129 157.121Z"
+        fill="white"
+      />
+      <path
+        d="M120 128.522L129.333 137.043L148 120"
+        stroke="white"
+        strokeWidth="16"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <rect
+        x="148"
+        y="170"
+        width="38"
+        height="32"
+        rx="16"
+        transform="rotate(90 148 170)"
+        fill="white"
+      />
+      <rect
+        x="148"
+        y="49"
+        width="31"
+        height="32"
+        rx="15.5"
+        transform="rotate(90 148 49)"
+        fill="white"
+      />
+    </svg>
+  );
+}

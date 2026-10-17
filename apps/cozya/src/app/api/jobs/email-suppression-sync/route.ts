@@ -1,5 +1,6 @@
 import { syncEmailSuppressions } from "@/features/emails/service";
 import { rejectUnauthorizedCron } from "@/lib/cron";
+import { recordJob } from "@/lib/job-runs";
 
 export const runtime = "nodejs";
 
@@ -9,6 +10,6 @@ export async function POST(request: Request): Promise<Response> {
     return unauthorized;
   }
 
-  const result = await syncEmailSuppressions();
+  const result = await recordJob("email-suppression-sync", syncEmailSuppressions);
   return Response.json(result);
 }

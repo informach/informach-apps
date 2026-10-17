@@ -12,6 +12,9 @@ export type ProductEvent =
   | "shopping_used"
   | "cooking_started"
   | "cooking_completed"
+  | "cooking_feedback"
+  | "today_viewed"
+  | "list_shared"
   | "offer_seen";
 
 /** Fixed event vocabulary, opaque identifiers only; never ingredient, prompt or profile content. */

@@ -20,6 +20,8 @@ import {
 import { SendEmailInputSchema } from "./schemas";
 
 export type EmailCategory =
+  | "admin.alert"
+  | "admin.weekly-summary"
   | "agenda.routine"
   | "auth.verify-email"
   | "auth.verify-email-otp"
@@ -30,6 +32,7 @@ export type EmailCategory =
   | "auth.invitation"
   | "auth.account-deletion"
   | "auth.signup-attempt-on-existing"
+  | "auth.two-factor-setup-otp"
   | "billing.payment-success"
   | "billing.payment-failed"
   | "billing.subscription-renewed"
@@ -117,9 +120,12 @@ const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(r
 function shouldPersistBody(category: EmailCategory): boolean {
   // School reminders and the weekly study digest must be regenerated after
   // checking current access, status and consent. Persisting their bodies would
-  // let a generic retry send outdated data about a child.
+  // let a generic retry send outdated data about a child. Bastidores alerts and
+  // summaries are rebuilt by their own job (same messageKey) from current
+  // service state; a generic retry from another app would resend a stale alert.
   return (
     !category.startsWith("auth.") &&
+    !category.startsWith("admin.") &&
     category !== "agenda.routine" &&
     category !== "missao.weekly-report"
   );

@@ -2,6 +2,8 @@ import { render } from "@react-email/render";
 import { describe, expect, it } from "vitest";
 import { renderTemplate } from "../templates";
 import { AccountDeletionEmail } from "../templates/accountDeletion";
+import { AdminAlertEmail } from "../templates/adminAlert";
+import { AdminWeeklySummaryEmail } from "../templates/adminWeeklySummary";
 import { BillingCreditsWarningEmail } from "../templates/billingCreditsWarning";
 import { CreditsPurchasedEmail } from "../templates/creditsPurchased";
 import { ForgetPasswordEmailOtp } from "../templates/forgetPasswordEmailOtp";
@@ -13,6 +15,7 @@ import { PaymentSuccessEmail } from "../templates/paymentSuccess";
 import { SignInEmailOtp } from "../templates/signInEmailOtp";
 import { SubscriptionCanceledEmail } from "../templates/subscriptionCanceled";
 import { SubscriptionRenewedEmail } from "../templates/subscriptionRenewed";
+import { TwoFactorSetupEmailOtp } from "../templates/twoFactorSetupEmailOtp";
 import { VerificationEmail } from "../templates/verification";
 import { VerifyEmailOtp } from "../templates/verifyEmailOtp";
 
@@ -261,6 +264,101 @@ describe("renderTemplate", () => {
   });
 });
 
+const adminAlertDown = {
+  appName: "Bastidores",
+  kind: "down" as const,
+  serviceName: "Suíte Edi",
+  downSince: "17 de outubro, 13:58",
+  problem: "não respondeu em 10 segundos",
+  ctaUrl: "https://admin.example.com/operacao",
+  unsubscribeUrl: baseProps.unsubscribeUrl,
+};
+
+const adminWeekly = {
+  appName: "Bastidores",
+  weekLabel: "de 12 a 18 de outubro",
+  newAccounts: 1,
+  products: [
+    { name: "Cozya", proSubscribers: "148", revenue: "R$ 2.079" },
+    { name: "Agenda da Turma", proSubscribers: "87", revenue: "R$ 1.675" },
+  ],
+  revenueTotal: "R$ 3.754",
+  aiCost: "US$ 38,40",
+  failedRoutines: [{ label: "Conciliar cobrança com o Stripe, Cozya", failures: 1 }],
+  outages: [{ name: "Suíte Edi", duration: "34 minutos" }],
+  ctaUrl: "https://admin.example.com/",
+  unsubscribeUrl: baseProps.unsubscribeUrl,
+};
+
+describe("Bastidores templates", () => {
+  it("renders the down alert with the service, the start and the reason", async () => {
+    const result = await renderTemplate("admin.alert", adminAlertDown);
+    expect(result.subject).toBe("Suíte Edi está fora do ar");
+    expect(result.text).toContain("17 de outubro, 13:58");
+    expect(result.text).toContain("não respondeu em 10 segundos");
+    expect(result.html).toContain("https://admin.example.com/operacao");
+  });
+
+  it("renders the recovery alert with the duration", async () => {
+    const result = await renderTemplate("admin.alert", {
+      ...adminAlertDown,
+      kind: "up",
+      problem: undefined,
+      upAt: "14:32",
+      duration: "34 minutos",
+    });
+    expect(result.subject).toBe("Suíte Edi voltou ao ar");
+    expect(result.text).toContain("34 minutos");
+    expect(result.text).not.toContain("não respondeu");
+  });
+
+  it("renders the weekly summary with singular counts and empty sections", async () => {
+    const result = await renderTemplate("admin.weekly-summary", {
+      ...adminWeekly,
+      aiCost: null,
+      outages: [],
+    });
+    expect(result.subject).toBe("Resumo da semana no Bastidores, de 12 a 18 de outubro");
+    expect(result.text).toContain("Chegou 1 conta nova na semana.");
+    expect(result.text).toContain("1 execução com falha");
+    expect(result.text).toContain("Nenhum custo de IA informado");
+    expect(result.text).toContain("Nenhum serviço ficou fora do ar");
+  });
+
+  it("renders the two-factor setup code without a CTA or unsubscribe link", async () => {
+    const result = await renderTemplate("auth.two-factor-setup-otp", {
+      appName: "Bastidores",
+      otp: "482913",
+      expiresInMinutes: 10,
+    });
+    expect(result.subject).toBe("Seu código para ativar as duas etapas no Bastidores");
+    expect(result.text).toContain("482913");
+    expect(result.text).toContain("10 minutos e só uma vez");
+    expect(result.html).not.toContain("Cancele a assinatura");
+  });
+
+  it("never uses a dash as punctuation in its copy", async () => {
+    const down = await renderTemplate("admin.alert", adminAlertDown);
+    const weekly = await renderTemplate("admin.weekly-summary", adminWeekly);
+    const setup = await renderTemplate("auth.two-factor-setup-otp", {
+      appName: "Bastidores",
+      otp: "482913",
+      expiresInMinutes: 10,
+    });
+    for (const text of [
+      down.subject,
+      down.text,
+      weekly.subject,
+      weekly.text,
+      setup.subject,
+      setup.text,
+    ]) {
+      const dashes = [0x2013, 0x2014].map((code) => String.fromCharCode(code));
+      expect(dashes.some((dash) => text.includes(dash))).toBe(false);
+    }
+  });
+});
+
 describe("template snapshots", () => {
   it("VerificationEmail HTML matches snapshot", async () => {
     const html = await render(<VerificationEmail {...baseProps} />);
@@ -429,6 +527,23 @@ describe("template snapshots", () => {
         unsubscribeMailto={baseProps.unsubscribeMailto}
       />,
     );
+    expect(html).toMatchSnapshot();
+  });
+
+  it("TwoFactorSetupEmailOtp HTML matches snapshot", async () => {
+    const html = await render(
+      <TwoFactorSetupEmailOtp appName="Bastidores" otp="482913" expiresInMinutes={10} />,
+    );
+    expect(html).toMatchSnapshot();
+  });
+
+  it("AdminAlertEmail HTML matches snapshot", async () => {
+    const html = await render(<AdminAlertEmail {...adminAlertDown} />);
+    expect(html).toMatchSnapshot();
+  });
+
+  it("AdminWeeklySummaryEmail HTML matches snapshot", async () => {
+    const html = await render(<AdminWeeklySummaryEmail {...adminWeekly} />);
     expect(html).toMatchSnapshot();
   });
 });

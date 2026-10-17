@@ -21,7 +21,7 @@ import { requireUserServer } from "@/lib/auth";
 import { env } from "@/lib/env";
 
 export const metadata = {
-  title: "Plano e cobrança — Cozya",
+  title: "Plano e cobrança | Cozya",
 };
 
 // Each major section streams independently so a slow query never blocks the
@@ -34,12 +34,14 @@ export default async function BillingSettingsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
           <Button asChild variant="ghost" size="sm" className="-ml-2">
-            <Link href="/dashboard">
+            <Link href="/hoje">
               <ArrowLeft className="mr-2 size-4" aria-hidden />
-              Dashboard
+              Voltar para Hoje
             </Link>
           </Button>
-          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Plano e cobrança</h1>
+          <h1 className="text-[30px] font-extrabold tracking-display md:text-4xl">
+            Plano e cobrança
+          </h1>
           <p className="max-w-2xl text-sm text-muted-foreground">
             Acompanhe assinatura, créditos de IA e histórico recente de consumo.
           </p>

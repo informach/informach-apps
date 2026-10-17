@@ -56,7 +56,7 @@ export function AccountSettings({
             onChange={(e) => setSize(e.target.valueAsNumber)}
           />
           <p className="text-xs text-muted-foreground">
-            Esse será o número inicial de porções nas novas refeições.
+            É o número que aparece em "Na mesa" quando você planeja uma refeição.
           </p>
         </div>
         <div className="space-y-2">

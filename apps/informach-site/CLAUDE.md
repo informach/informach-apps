@@ -191,4 +191,4 @@ Build estático: todas as rotas ○ (Static), inclusive `/sitemap.xml`, `/robots
 9. **Contraste**: texto pequeno sobre papel usa `ink-muted` ou `sphere-ink`; não usar opacidade em texto de 12 a 14px. Texto até 18px sobre cor de marca precisa de 4,5:1 (por isso `sphere-strong` no botão do topo). Alvos de toque com 44px, inclusive os links do rodapé; o `ModeToggle` do `@informach/ui` tem 40px.
 10. **Menu do celular**: o link guarda o destino e navega depois que a gaveta fecha (`onCloseAutoFocus`). Com a gaveta aberta a rolagem fica travada e o salto da âncora se perde.
 11. **`metadataBase`** só muda se o domínio mudar.
-12. **Deploy e dependências:** o `watchPatterns` de `railway.toml` cobre o site, `packages/config`, `packages/ui` e os arquivos raiz de build. Mudanças no catálogo de preços/domínios ou contato precisam gerar novo build do site estático.
+12. **Deploy e dependências:** o `watchPatterns` do serviço `informach-site` em `.railway/railway.ts` cobre o site, `packages/config`, `packages/ui` e os arquivos raiz de build. Mudanças no catálogo de preços e domínios ou no contato precisam gerar novo build do site estático.

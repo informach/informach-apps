@@ -4,54 +4,46 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@informach/ui/componen
 import { ArrowRight, Check, ChefHat, Minus, Plus, RotateCcw, ShoppingBasket } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";
+import { LunchboxIcon } from "@/components/brand/lunchbox-icon";
 import { CATEGORIES, scaleIngredient } from "@/features/kitchen/ingredients";
 import { DEMO_MEALS, DEMO_OMELET, demoShopping } from "../demo-data";
 import { useDemoReady } from "../use-demo-ready";
 
 const STAGES = [
-  {
-    value: "week",
-    number: "01",
-    label: "Sua semana",
-    title: "Escolha o que vai à mesa.",
-    description:
-      "Três jantares já são um começo. Experimente mudar as porções da omelete para incluir as marmitas.",
-  },
-  {
-    value: "shopping",
-    number: "02",
-    label: "Suas compras",
-    title: "Leve as escolhas para a lista.",
-    description:
-      "Os ingredientes das três receitas ficam reunidos por categoria. Marque o que já tem antes de sair.",
-  },
-  {
-    value: "cooking",
-    number: "03",
-    label: "Na cozinha",
-    title: "Um passo de cada vez.",
-    description:
-      "Com a receita aberta, acompanhe os ingredientes e marque as etapas do preparo. Seu próximo jantar está encaminhado.",
-  },
+  { value: "week", number: "01", label: "Sua semana" },
+  { value: "shopping", number: "02", label: "No mercado" },
+  { value: "cooking", number: "03", label: "Na cozinha" },
 ] as const;
+
+const AISLES = (Object.keys(CATEGORIES) as (keyof typeof CATEGORIES)[]).filter(
+  (category) => category !== "despensa",
+);
+
+function plural(count: number, one: string, many: string) {
+  return `${count} ${count === 1 ? one : many}`;
+}
 
 export function KitchenDemo() {
   const ready = useDemoReady();
   const [tab, setTab] = useState("week");
-  const [portions, setPortions] = useState(2);
+  const [table, setTable] = useState(2);
+  const [lunchboxes, setLunchboxes] = useState(0);
   const [listPortions, setListPortions] = useState<number | null>(null);
   const [have, setHave] = useState<string[]>([]);
   const [completed, setCompleted] = useState<string[]>([]);
   const shoppingTab = useRef<HTMLButtonElement>(null);
   const cookingTab = useRef<HTMLButtonElement>(null);
   const weekTab = useRef<HTMLButtonElement>(null);
+  const portions = table + lunchboxes;
   const lines = listPortions === null ? [] : demoShopping(listPortions);
+  const toBuy = lines.filter((line) => line.category !== "despensa");
+  const pantry = lines.filter((line) => line.category === "despensa");
   const outdated = listPortions !== null && listPortions !== portions;
-  const stage = STAGES.find((item) => item.value === tab) ?? STAGES[0];
   const steps = DEMO_OMELET.preparation.split("\n");
 
-  function generateList() {
+  function makeList() {
     const next = demoShopping(portions);
+    // Checks survive only where the amount did not change, like the app's list.
     setHave((previous) =>
       previous.filter((key) => {
         const before = lines.find((line) => line.key === key);
@@ -66,12 +58,22 @@ export function KitchenDemo() {
 
   function reset() {
     setTab("week");
-    setPortions(2);
+    setTable(2);
+    setLunchboxes(0);
     setListPortions(null);
     setHave([]);
     setCompleted([]);
     weekTab.current?.focus();
   }
+
+  const hint =
+    lunchboxes === 0
+      ? `${plural(table, "pessoa", "pessoas")} na mesa, sem marmita. Vai levar almoço amanhã? Some uma marmita.`
+      : `${table} na mesa + ${plural(lunchboxes, "marmita", "marmitas")} = ${portions} porções. ${
+          portions === 2
+            ? "A receita rende 2, fica certinho."
+            : "A receita rende 2; as quantidades se ajustam."
+        }`;
 
   return (
     <section
@@ -81,25 +83,18 @@ export function KitchenDemo() {
     >
       <div className="landing-section-heading">
         <div>
-          <p className="landing-eyebrow">Veja a rotina acontecer</p>
+          <p className="landing-eyebrow">Experimente aqui, sem cadastro</p>
           <h2 id="demo-title" className="landing-title">
-            Da receita salva
-            <br />à mesa posta.
+            Da receita salva à mesa posta.
           </h2>
         </div>
         <p className="landing-description">
-          Comece com três refeições. Escolha os dias, ajuste as porções e gere as compras. Na
-          cozinha, acompanhe cada etapa.
+          Três jantares de exemplo. Mude quantos comem a omelete e quantas marmitas quer, veja a
+          lista mudar e acompanhe o preparo.
         </p>
       </div>
       <Tabs value={tab} onValueChange={setTab} className="kitchen-demo" aria-busy={!ready}>
-        <div className="demo-topbar">
-          <span>
-            <span className="landing-dot" /> Exemplo de uso
-          </span>
-          <span>Experimente aqui, sem cadastro</span>
-        </div>
-        <TabsList className="demo-tabs" aria-label="Etapas da rotina no Cozya">
+        <TabsList className="demo-tabs" aria-label="Etapas do exemplo">
           {STAGES.map((item) => (
             <TabsTrigger
               ref={
@@ -119,250 +114,266 @@ export function KitchenDemo() {
             </TabsTrigger>
           ))}
         </TabsList>
-        <div className="demo-body">
-          <aside className="demo-guide">
-            <span className="demo-guide-number" aria-hidden>
-              {stage.number}
-            </span>
-            <h3>{stage.title}</h3>
-            <p>{stage.description}</p>
-            <button
-              type="button"
-              className="landing-text-link demo-reset"
-              disabled={!ready}
-              onClick={reset}
-            >
-              <RotateCcw size={15} aria-hidden /> Recomeçar exemplo
-            </button>
-          </aside>
-          <div className="demo-workspace">
-            <TabsContent value="week" className="demo-panel">
-              <div className="demo-panel-heading">
-                <div>
-                  <span className="landing-mini-label">SEU PLANEJAMENTO</span>
-                  <h3>Uma semana com a sua cara</h3>
-                </div>
-                <span className="demo-counter">3 refeições</span>
-              </div>
-              <div className="demo-meals">
-                {DEMO_MEALS.map((meal) => (
-                  <div
-                    key={meal.id}
-                    className={`demo-meal ${meal.id === "omelet" ? "demo-meal-active" : ""}`}
-                  >
-                    <div className="demo-meal-day">
-                      <strong>{meal.shortDay}</strong>
-                      <span>Jantar</span>
-                    </div>
-                    <div className="demo-meal-detail">
-                      <h4>{meal.recipe.name}</h4>
-                      <span>
-                        {meal.id === "omelet"
-                          ? "Experimente ajustar as porções"
-                          : `${meal.portions} porções planejadas`}
+        <div className="demo-panel-wrap">
+          <TabsContent value="week" className="demo-panel">
+            <ul className="demo-meals">
+              {DEMO_MEALS.map((meal) =>
+                meal.id === "omelet" ? (
+                  <li key={meal.id} className="demo-meal demo-meal-active">
+                    <div className="demo-meal-row">
+                      <strong className="demo-meal-day">{meal.shortDay}</strong>
+                      <span className="demo-meal-name">
+                        {meal.recipe.name} <small>· a receita rende 2</small>
                       </span>
                     </div>
-                    {meal.id === "omelet" && (
-                      <fieldset className="demo-stepper" aria-label="Porções da omelete">
+                    <div className="demo-steppers">
+                      <fieldset className="demo-stepper">
+                        <legend>Na mesa</legend>
                         <button
                           type="button"
-                          disabled={!ready || portions <= 2}
-                          onClick={() => setPortions((value) => value - 2)}
-                          aria-label="Diminuir porções da omelete"
+                          disabled={!ready || table <= 1}
+                          onClick={() => setTable((value) => value - 1)}
+                          aria-label="Menos uma pessoa na mesa"
                         >
                           <Minus size={16} aria-hidden />
                         </button>
-                        <output aria-live="polite" aria-label="Porções da omelete">
-                          {portions}
+                        <output aria-live="polite" aria-label="Pessoas na mesa">
+                          {table}
                         </output>
                         <button
                           type="button"
-                          disabled={!ready || portions >= 6}
-                          onClick={() => setPortions((value) => value + 2)}
-                          aria-label="Aumentar porções da omelete"
+                          disabled={!ready || table >= 6}
+                          onClick={() => setTable((value) => value + 1)}
+                          aria-label="Mais uma pessoa na mesa"
                         >
                           <Plus size={16} aria-hidden />
                         </button>
                       </fieldset>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <p className="demo-hint" role="status">
-                {portions === 2
-                  ? "2 porções para o jantar. Vai separar marmitas? Experimente 4."
-                  : portions === 4
-                    ? "4 porções: 2 para o jantar + 2 para levar amanhã."
-                    : "6 porções para dividir como sua rotina pedir."}
-              </p>
-              <button
-                type="button"
-                className="landing-button landing-button-navy demo-next"
-                disabled={!ready}
-                onClick={generateList}
-              >
-                <ShoppingBasket size={18} aria-hidden />
-                {listPortions === null ? "Gerar lista de compras" : "Atualizar lista de compras"}
-                <ArrowRight size={17} aria-hidden />
-              </button>
-            </TabsContent>
-            <TabsContent value="shopping" className="demo-panel">
-              <div className="demo-panel-heading">
-                <div>
-                  <span className="landing-mini-label">ANTES DE IR AO MERCADO</span>
-                  <h3>Suas compras, reunidas</h3>
-                </div>
-                <ShoppingBasket size={22} aria-hidden />
-              </div>
-              {listPortions === null ? (
-                <div className="demo-empty">
-                  <ShoppingBasket size={36} aria-hidden />
-                  <p>
-                    Suas três refeições já estão no exemplo. Gere a lista para ver os ingredientes
-                    juntos.
-                  </p>
-                  <button
-                    type="button"
-                    className="landing-button landing-button-navy"
-                    onClick={generateList}
-                  >
-                    Gerar lista de compras <ArrowRight size={16} aria-hidden />
-                  </button>
-                </div>
-              ) : (
-                <>
-                  {outdated && (
-                    <div className="demo-update" role="status">
-                      <p>As porções mudaram. Atualize a lista para levar as novas quantidades.</p>
-                      <button type="button" className="landing-text-link" onClick={generateList}>
-                        Atualizar lista de compras <RotateCcw size={15} aria-hidden />
-                      </button>
+                      <fieldset className="demo-stepper demo-stepper-peach">
+                        <legend>
+                          <LunchboxIcon width={16} height={16} /> Marmitas
+                        </legend>
+                        <button
+                          type="button"
+                          disabled={!ready || lunchboxes <= 0}
+                          onClick={() => setLunchboxes((value) => value - 1)}
+                          aria-label="Menos uma marmita"
+                        >
+                          <Minus size={16} aria-hidden />
+                        </button>
+                        <output aria-live="polite" aria-label="Marmitas">
+                          {lunchboxes}
+                        </output>
+                        <button
+                          type="button"
+                          disabled={!ready || lunchboxes >= 4}
+                          onClick={() => setLunchboxes((value) => value + 1)}
+                          aria-label="Mais uma marmita"
+                        >
+                          <Plus size={16} aria-hidden />
+                        </button>
+                      </fieldset>
                     </div>
-                  )}
-                  <p className="demo-shopping-summary" role="status">
-                    {lines.length - have.length} de {lines.length} itens para conferir · omelete
-                    para {listPortions} porções
-                  </p>
-                  <section className="demo-shopping-scroll" aria-label="Ingredientes da semana">
-                    {Object.entries(CATEGORIES).map(([category, label]) => {
-                      const group = lines.filter((line) => line.category === category);
-                      if (!group.length) return null;
-                      return (
-                        <div className="demo-shopping-group" key={category}>
-                          <h4>{label}</h4>
-                          <ul>
-                            {group.map((line) => (
-                              <li key={line.key}>
-                                <label
-                                  className={have.includes(line.key) ? "demo-item-checked" : ""}
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={have.includes(line.key)}
-                                    onChange={(event) => {
-                                      const checked = event.currentTarget.checked;
-                                      setHave((previous) =>
-                                        checked
-                                          ? [...previous, line.key]
-                                          : previous.filter((key) => key !== line.key),
-                                      );
-                                    }}
-                                  />
-                                  <span className="demo-checkmark">
-                                    <Check size={14} aria-hidden />
-                                  </span>
-                                  <span className="demo-item-name">
-                                    {line.name}
-                                    <small>{line.amount}</small>
-                                    {line.note && (
-                                      <small className="demo-item-note">{line.note}</small>
-                                    )}
-                                  </span>
-                                  <span className="demo-have-label">Já tenho</span>
-                                </label>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      );
-                    })}
-                  </section>
-                  <button
-                    type="button"
-                    className="landing-button landing-button-navy demo-next"
-                    onClick={() => {
-                      setTab("cooking");
-                      cookingTab.current?.focus();
-                    }}
-                  >
-                    <ChefHat size={18} aria-hidden /> Ver o preparo{" "}
-                    <ArrowRight size={17} aria-hidden />
-                  </button>
-                </>
-              )}
-            </TabsContent>
-            <TabsContent value="cooking" className="demo-panel">
-              <div className="demo-panel-heading">
-                <div>
-                  <span className="landing-mini-label">TERÇA · JANTAR</span>
-                  <h3>Omelete de abobrinha</h3>
-                </div>
-                <span className="demo-counter">{portions} porções</span>
-              </div>
-              <div className="demo-cooking-ingredients">
-                {DEMO_OMELET.parsedIngredients.map((ingredient) => (
-                  <span key={ingredient.original}>
-                    {scaleIngredient(ingredient, DEMO_OMELET.servings, portions)}
-                  </span>
-                ))}
-              </div>
-              <p className="demo-shopping-summary" role="status">
-                {completed.length} de {steps.length} etapas concluídas
-              </p>
-              <ol className="demo-cooking-steps">
-                {steps.map((step, index) => (
-                  <li key={step}>
-                    <label className={completed.includes(step) ? "demo-item-checked" : ""}>
-                      <input
-                        type="checkbox"
-                        checked={completed.includes(step)}
-                        onChange={(event) => {
-                          const checked = event.currentTarget.checked;
-                          setCompleted((previous) =>
-                            checked
-                              ? [...previous, step]
-                              : previous.filter((item) => item !== step),
-                          );
-                        }}
-                      />
-                      <span className="demo-step-number" aria-hidden>
-                        {completed.includes(step) ? <Check size={16} /> : index + 1}
-                      </span>
-                      <span className="demo-step-text">{step}</span>
-                    </label>
+                    <p className="demo-hint" role="status">
+                      {hint}
+                    </p>
                   </li>
-                ))}
-              </ol>
-              <div className="demo-cooking-finish" role="status">
-                {completed.length === steps.length
-                  ? "Preparo acompanhado. Agora leve essa organização para a sua semana."
-                  : "Marque uma etapa para experimentar o modo de preparo."}
+                ) : (
+                  <li key={meal.id} className="demo-meal">
+                    <div className="demo-meal-row">
+                      <strong className="demo-meal-day">{meal.shortDay}</strong>
+                      <span className="demo-meal-name">{meal.recipe.name}</span>
+                      <span className="demo-meal-portions">{meal.portions} porções</span>
+                    </div>
+                  </li>
+                ),
+              )}
+            </ul>
+            <button
+              type="button"
+              className="landing-button landing-button-navy demo-next"
+              disabled={!ready}
+              onClick={makeList}
+            >
+              <ShoppingBasket size={18} aria-hidden />
+              {listPortions === null ? "Montar a lista do mercado" : "Atualizar a lista do mercado"}
+            </button>
+          </TabsContent>
+          <TabsContent value="shopping" className="demo-panel">
+            {listPortions === null ? (
+              <div className="demo-empty">
+                <ShoppingBasket size={36} aria-hidden />
+                <p>Os três jantares já estão na semana. Monte a lista para ver o que comprar.</p>
+                <button
+                  type="button"
+                  className="landing-button landing-button-navy"
+                  onClick={makeList}
+                >
+                  Montar a lista do mercado <ArrowRight size={16} aria-hidden />
+                </button>
               </div>
-              <Link href="/signup" className="landing-button landing-button-navy demo-next">
-                Planejar minha semana grátis <ArrowRight size={17} aria-hidden />
-              </Link>
-            </TabsContent>
-          </div>
+            ) : (
+              <>
+                {outdated && (
+                  <div className="demo-update" role="status">
+                    <p>A semana mudou: a omelete agora é para {portions}.</p>
+                    <button
+                      type="button"
+                      className="landing-button landing-button-navy"
+                      onClick={makeList}
+                    >
+                      <RotateCcw size={15} aria-hidden /> Atualizar a lista
+                    </button>
+                  </div>
+                )}
+                <p className="demo-shopping-summary" role="status">
+                  {toBuy.length - have.length} de {toBuy.length} para pegar · toque no que já tem ou
+                  já pegou
+                </p>
+                <div className="demo-shopping-scroll">
+                  {AISLES.map((category) => {
+                    const group = toBuy.filter((line) => line.category === category);
+                    if (!group.length) return null;
+                    return (
+                      <section
+                        className="demo-shopping-group"
+                        key={category}
+                        aria-label={CATEGORIES[category]}
+                      >
+                        <h3>{CATEGORIES[category]}</h3>
+                        <ul>
+                          {group.map((line) => (
+                            <li key={line.key}>
+                              <label className={have.includes(line.key) ? "demo-item-checked" : ""}>
+                                <input
+                                  type="checkbox"
+                                  checked={have.includes(line.key)}
+                                  onChange={(event) => {
+                                    const checked = event.currentTarget.checked;
+                                    setHave((previous) =>
+                                      checked
+                                        ? [...previous, line.key]
+                                        : previous.filter((key) => key !== line.key),
+                                    );
+                                  }}
+                                />
+                                <span className="demo-checkmark">
+                                  <Check size={14} aria-hidden />
+                                </span>
+                                <span className="demo-item-name">
+                                  {line.name}
+                                  {line.note && <small>{line.note}</small>}
+                                </span>
+                                <span className="demo-item-amount">{line.amount}</span>
+                              </label>
+                            </li>
+                          ))}
+                        </ul>
+                      </section>
+                    );
+                  })}
+                  {pantry.length > 0 && (
+                    <p className="demo-pantry">
+                      <b>Na despensa:</b>{" "}
+                      {new Intl.ListFormat("pt-BR", { type: "conjunction" }).format(
+                        pantry.map((line) => line.name.toLocaleLowerCase("pt-BR")),
+                      )}
+                      . Tem tudo?
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="landing-button landing-button-navy demo-next"
+                  onClick={() => {
+                    setTab("cooking");
+                    cookingTab.current?.focus();
+                  }}
+                >
+                  <ChefHat size={18} aria-hidden /> Ver o preparo da omelete
+                </button>
+              </>
+            )}
+          </TabsContent>
+          <TabsContent value="cooking" className="demo-panel">
+            <div className="demo-cooking">
+              <div className="demo-cooking-head">
+                <span className="landing-mini-label">TERÇA · JANTAR</span>
+                <h3>Omelete de abobrinha</h3>
+                <p className="demo-cooking-tags">
+                  <span>{table} na mesa</span>
+                  {lunchboxes > 0 && (
+                    <span className="tag-peach">
+                      <LunchboxIcon width={14} height={14} />+{" "}
+                      {plural(lunchboxes, "marmita", "marmitas")}
+                    </span>
+                  )}
+                </p>
+                <ul className="demo-cooking-ingredients">
+                  {DEMO_OMELET.parsedIngredients.map((ingredient) => (
+                    <li key={ingredient.original}>
+                      {scaleIngredient(ingredient, DEMO_OMELET.servings, portions)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="demo-shopping-summary" role="status">
+                  {completed.length} de {steps.length} passos feitos
+                </p>
+                <ol className="demo-cooking-steps">
+                  {steps.map((step, index) => (
+                    <li key={step}>
+                      <label className={completed.includes(step) ? "demo-item-checked" : ""}>
+                        <input
+                          type="checkbox"
+                          checked={completed.includes(step)}
+                          onChange={(event) => {
+                            const checked = event.currentTarget.checked;
+                            setCompleted((previous) =>
+                              checked
+                                ? [...previous, step]
+                                : previous.filter((item) => item !== step),
+                            );
+                          }}
+                        />
+                        <span className="demo-step-number" aria-hidden>
+                          {completed.includes(step) ? <Check size={16} /> : index + 1}
+                        </span>
+                        <span className="demo-step-text">{step}</span>
+                      </label>
+                    </li>
+                  ))}
+                </ol>
+                <p className="demo-cooking-finish" role="status">
+                  {completed.length === steps.length
+                    ? "Pronto! No app, aqui entra o “Como foi?” e uma nota para a próxima vez."
+                    : "Toque num passo para marcar. No app, cada passo ocupa a tela inteira."}
+                </p>
+                <Link href="/signup" className="landing-button landing-button-primary demo-next">
+                  Montar minha semana grátis <ArrowRight size={17} aria-hidden />
+                </Link>
+              </div>
+            </div>
+          </TabsContent>
         </div>
       </Tabs>
-      <noscript>
+      <div className="demo-foot">
         <p className="demo-footnote">
-          Ative o JavaScript do navegador para interagir com este exemplo.
+          Receitas de exemplo, ainda sem teste em cozinha. Nada do que você faz aqui é salvo.
         </p>
+        <button
+          type="button"
+          className="landing-text-link demo-reset"
+          disabled={!ready}
+          onClick={reset}
+        >
+          <RotateCcw size={15} aria-hidden /> Recomeçar exemplo
+        </button>
+      </div>
+      <noscript>
+        <p className="demo-footnote">Ative o JavaScript do navegador para mexer neste exemplo.</p>
       </noscript>
-      <p className="demo-footnote">
-        Uma demonstração com receitas de exemplo. Suas escolhas aqui não são salvas na conta.
-      </p>
     </section>
   );
 }

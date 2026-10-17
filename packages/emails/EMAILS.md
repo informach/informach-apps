@@ -13,6 +13,8 @@ Os templates HTML enviados pelo package são **componentes React Email** renderi
 | `MagicLinkEmail` | `auth.magic-link` | Sign-in passwordless |
 | `InvitationEmail` | `auth.invitation` | Convite a uma organization (organizations enabled) |
 | `AccountDeletionEmail` | `auth.account-deletion` | Confirmação de exclusão de conta (LGPD) |
+| `AdminAlertEmail` | `admin.alert` | Bastidores: serviço fora do ar em duas verificações seguidas, e de volta |
+| `AdminWeeklySummaryEmail` | `admin.weekly-summary` | Bastidores: resumo da semana para as contas owner, segunda de manhã |
 
 Todos compartilham `<EmailLayout appName preheader title body cta unsubscribeUrl unsubscribeMailto />`.
 
