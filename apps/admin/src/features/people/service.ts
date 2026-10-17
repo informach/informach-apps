@@ -1,4 +1,5 @@
 import { findProduct } from "@informach/config";
+import type { EmailCategory } from "@informach/emails";
 import { formatDate, formatDay, formatNumber } from "@/lib/format";
 import {
   appPhrase,
@@ -15,6 +16,7 @@ import {
   subscriptionIdOf,
   subscriptionLinks,
 } from "../audit/subscription-links";
+import { OVERDUE_STATUSES } from "../money/logic";
 
 /**
  * Regras puras da ficha e da lista de pessoas: o que cada estado quer dizer em
@@ -120,10 +122,11 @@ export function planScope(plan: PlanFilter, product: ProductKey | null): PlanSco
         cozyaDemo: product === null || product === "cozya",
       };
     case "atraso":
-      return { statuses: ["past_due", "unpaid"], without: false, app, cozyaDemo: false };
+      // A mesma definição do Painel e de Dinheiro.
+      return { statuses: [...OVERDUE_STATUSES], without: false, app, cozyaDemo: false };
     case "gratis":
       return {
-        statuses: ["active", "trialing", "past_due", "unpaid"],
+        statuses: ["active", "trialing", ...OVERDUE_STATUSES],
         without: true,
         app,
         cozyaDemo: false,
@@ -196,8 +199,14 @@ export type PlanState = {
  * Fim de período marcado não é sempre cancelamento: a troca de plano agendada
  * também marca, e guarda o plano novo em `pendingProductId`. E quem marcou pode
  * ter sido a pessoa no app ou a equipe no Stripe, então a frase não diz quem.
+ *
+ * O preço de tabela do plano é valor de receita, que só owner vê: ele só entra
+ * na frase com `showPrice`, e quem chama passa `true` só para owner.
  */
-export function describeSubscription(sub: SubscriptionFacts): PlanState {
+export function describeSubscription(
+  sub: SubscriptionFacts,
+  { showPrice = false }: { showPrice?: boolean } = {},
+): PlanState {
   const plan = planLabel(sub.productId);
   switch (sub.status) {
     case "trialing": {
@@ -227,7 +236,7 @@ export function describeSubscription(sub: SubscriptionFacts): PlanState {
           line: `Cancelamento agendado, vale até ${formatDay(sub.currentPeriodEnd)}`,
         };
       const since = sub.confirmedAt ?? sub.createdAt;
-      const price = listPriceLine(sub.productId);
+      const price = showPrice ? listPriceLine(sub.productId) : null;
       return {
         kind: "assinante",
         tone: "ok",
@@ -362,6 +371,7 @@ export function describeUserAgent(ua: string | null | undefined): string {
 // E-mails
 // ---------------------------------------------------------------------------
 
+/** Toda categoria do pacote de e-mails tem nome aqui; categoria nova sem nome não compila. */
 const EMAIL_CATEGORY: Record<string, string> = {
   "auth.verify-email": "Link para confirmar o e-mail",
   "auth.verify-email-otp": "Código para confirmar o e-mail",
@@ -372,6 +382,7 @@ const EMAIL_CATEGORY: Record<string, string> = {
   "auth.invitation": "Convite",
   "auth.account-deletion": "Confirmação de exclusão da conta",
   "auth.signup-attempt-on-existing": "Aviso de tentativa de cadastro",
+  "auth.two-factor-setup-otp": "Código para ativar as duas etapas",
   "billing.payment-success": "Recibo de pagamento",
   "billing.payment-failed": "Aviso de pagamento recusado",
   "billing.subscription-renewed": "Aviso de renovação",
@@ -382,7 +393,7 @@ const EMAIL_CATEGORY: Record<string, string> = {
   "missao.weekly-report": "Resumo semanal da Missão Saber",
   "admin.alert": "Aviso do Bastidores",
   "admin.weekly-summary": "Resumo da semana do Bastidores",
-};
+} satisfies Record<EmailCategory, string>;
 
 export function emailCategoryLabel(category: string): string {
   return EMAIL_CATEGORY[category] ?? "E-mail do sistema";
@@ -821,31 +832,86 @@ export function isBanActive(
   return banned && (!banExpiresAt || banExpiresAt.getTime() > now.getTime());
 }
 
-/** Frase do resultado de encerrar sessões, honesta sobre o cache em cookie. */
-export function sessionsRevokedMessage(input: {
-  databaseCount: number;
+/** Quantas das sessões apagadas ainda estavam valendo. */
+export function countLiveSessions(
+  rows: ReadonlyArray<{ expiresAt: Date }>,
+  now: Date = new Date(),
+): number {
+  return rows.filter((row) => row.expiresAt.getTime() > now.getTime()).length;
+}
+
+/** O que `revokeEverywhere` conseguiu fazer, parte por parte (`null` é a parte que falhou). */
+export type RevokeOutcome = {
+  databaseCount: number | null;
+  trustedDevices?: number | null;
   perApp: Array<{ name: string; count: number | null; cookieCacheMinutes: number }>;
-}): string {
-  const reached = input.perApp.filter((app) => app.count !== null);
+};
+
+/** Total de sessões encerradas, contando só as partes que responderam. */
+export function revokedTotal(input: RevokeOutcome): number {
+  return (input.databaseCount ?? 0) + input.perApp.reduce((sum, app) => sum + (app.count ?? 0), 0);
+}
+
+/** Frases do que faltou, para a tela não dizer que tudo saiu. Vazio quando nada falhou. */
+export function revokeGaps(input: RevokeOutcome): string[] {
+  const gaps: string[] = [];
+  if (input.databaseCount === null)
+    gaps.push(
+      "Não deu para encerrar as sessões do Bastidores e da Suíte Edi no navegador: elas continuam abertas.",
+    );
   const missed = input.perApp.filter((app) => app.count === null).map((app) => app.name);
-  const total = input.databaseCount + reached.reduce((sum, app) => sum + (app.count ?? 0), 0);
+  if (missed.length)
+    gaps.push(`Não deu para alcançar ${joinNames(missed)}: as sessões de lá continuam abertas.`);
+  if (input.trustedDevices === null)
+    gaps.push("Não deu para apagar os aparelhos confiados das duas etapas.");
+  if (gaps.length) gaps.push("Tente encerrar as sessões de novo em alguns minutos.");
+  return gaps;
+}
+
+/** Frase do resultado de encerrar sessões, honesta sobre o cache em cookie e sobre o que faltou. */
+export function sessionsRevokedMessage(input: RevokeOutcome): string {
+  const total = revokedTotal(input);
   const parts = [
     total === 0
       ? "Não havia sessão aberta."
       : `${total === 1 ? "1 sessão encerrada" : `${formatNumber(total)} sessões encerradas`}.`,
   ];
-  const slow = reached
-    .filter((app) => app.cookieCacheMinutes > 0 && (app.count ?? 0) > 0)
+  const slow = input.perApp
+    .filter((app) => app.count !== null && app.cookieCacheMinutes > 0 && app.count > 0)
     .map((app) => app.name);
   if (slow.length)
     parts.push(
       `${joinNames(slow)} pode${slow.length > 1 ? "m" : ""} levar até 5 minutos para pedir a entrada de novo.`,
     );
-  if (missed.length)
-    parts.push(
-      `Não deu para alcançar ${joinNames(missed)}: as sessões de lá continuam abertas. Tente de novo em alguns minutos.`,
-    );
+  parts.push(...revokeGaps(input));
   return parts.join(" ");
+}
+
+/**
+ * Frase do banimento já gravado. O banimento faz commit antes de encerrar as
+ * sessões nos produtos, então a frase sempre começa pelo que foi feito e diz o
+ * que faltou. `revoke` é `null` quando o encerramento nem chegou a responder.
+ */
+export function bannedMessage(input: {
+  period: string;
+  revoke: RevokeOutcome | null;
+  audited: string;
+}): { message: string; incomplete: boolean } {
+  const gaps = input.revoke
+    ? revokeGaps(input.revoke)
+    : [
+        'Só que não deu para encerrar as sessões que já estavam abertas, e elas continuam valendo até serem encerradas. Use "Encerrar sessões" em alguns minutos.',
+      ];
+  const parts = [
+    `Conta banida ${input.period}.`,
+    gaps.length
+      ? "A pessoa não consegue abrir sessão nova enquanto o banimento valer."
+      : "A pessoa sai de todos os produtos; no Cozya e na Agenda da Turma isso pode levar até 5 minutos.",
+    ...gaps,
+    "Assinaturas não foram canceladas: se for o caso, cancele no Stripe.",
+    input.audited,
+  ];
+  return { message: parts.join(" "), incomplete: gaps.length > 0 };
 }
 
 export function joinNames(names: string[]): string {

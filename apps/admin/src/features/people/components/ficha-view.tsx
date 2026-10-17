@@ -129,6 +129,7 @@ export function FichaView({ ficha, staff }: { ficha: Ficha; staff: Staff }) {
           }))}
           verificationProductsDetected={ficha.verificationProductsDetected}
           hasEdiComputer={ficha.edi.some((computer) => computer.connected)}
+          missaoStudyDevices={ficha.missaoStudyDevices}
           activeSubscriptionNames={ficha.activeSubscriptionProducts.map(
             (key) => PRODUCTS[key].name,
           )}

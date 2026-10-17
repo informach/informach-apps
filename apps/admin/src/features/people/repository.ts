@@ -41,6 +41,7 @@ import { readDb } from "@/lib/read-db";
 import { eventsAboutPerson } from "../audit/repository";
 import {
   COZYA_DEMO_DAYS,
+  countLiveSessions,
   likePattern,
   PAGE_SIZE,
   type PeopleFilters,
@@ -563,12 +564,17 @@ export async function actionTarget(id: string) {
 // ---------------------------------------------------------------------------
 
 /** Apaga as sessões guardadas no Postgres (Suíte Edi e Bastidores). Devolve quantas. */
-export async function deleteDatabaseSessions(userId: string): Promise<number> {
+/**
+ * Apaga todas as sessões da conta guardadas no Postgres, as vencidas junto, e
+ * devolve quantas estavam valendo: a tela diz "N sessões encerradas" e não deve
+ * contar uma sessão que já tinha acabado.
+ */
+export async function deleteDatabaseSessions(userId: string, now = new Date()): Promise<number> {
   const removed = await db
     .delete(sessions)
     .where(eq(sessions.userId, userId))
-    .returning({ id: sessions.id });
-  return removed.length;
+    .returning({ expiresAt: sessions.expiresAt });
+  return countLiveSessions(removed, now);
 }
 
 export async function disconnectEdiComputer(userId: string, deviceId: string): Promise<boolean> {

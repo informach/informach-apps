@@ -1,4 +1,7 @@
+import { EMAIL_CATEGORIES } from "@informach/emails";
 import { describe, expect, it } from "vitest";
+import { emailCategoryLabel as operationsLabel } from "../operations/email-labels";
+import { emailCategoryLabel as personLabel } from "../people/service";
 import {
   type AttentionItem,
   attentionHeadline,
@@ -194,5 +197,19 @@ describe("rotinas no Precisa de você", () => {
       { app: "agenda-da-turma", label: "Conciliar cobrança com o Stripe", state: "failed" },
     ]);
     expect(item?.title).toBe("2 rotinas falharam");
+  });
+});
+
+describe("rótulos das categorias de e-mail", () => {
+  it("toda categoria do pacote tem nome no Painel, em Operação e na ficha", () => {
+    for (const category of EMAIL_CATEGORIES) {
+      expect(emailCategoryPhrase(category, 2), category).not.toContain(category);
+      expect(operationsLabel(category), category).not.toBe("Outros e-mails");
+      expect(personLabel(category), category).not.toBe("E-mail do sistema");
+    }
+    expect(emailCategoryPhrase("auth.two-factor-setup-otp", 2)).toBe(
+      "2 códigos de ativação das duas etapas",
+    );
+    expect(operationsLabel("auth.two-factor-setup-otp")).toBe("Ativação das duas etapas");
   });
 });

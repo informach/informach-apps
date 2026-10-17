@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { type ActionResult, AUDITED, auditChange, reasonSchema, staffAction } from "@/lib/action";
 import { getAuth } from "@/lib/auth";
+import { reportOperationalError } from "@/lib/observability";
 import { PRODUCT_KEYS, PRODUCTS } from "@/lib/products";
 import { isStaffRole } from "@/lib/roles";
 import { actionTarget, disconnectEdiComputer } from "./repository";
@@ -11,17 +12,19 @@ import {
   BAN_REASONS,
   type BanDuration,
   banEndsAt,
+  bannedMessage,
   composeReason,
   DEVICE_REASONS,
   isBanActive,
-  joinNames,
   productBy,
   ROLE_REASONS,
+  revokedTotal,
+  revokeGaps,
   SESSION_REASONS,
   sessionsRevokedMessage,
   UNBAN_REASONS,
 } from "./service";
-import { revokeEverywhere } from "./sessions";
+import { type RevokeResult, revokeEverywhere } from "./sessions";
 import { requestVerificationCode } from "./verification";
 
 const userId = z.string().regex(/^[A-Za-z0-9_-]{1,80}$/);
@@ -48,17 +51,18 @@ export const revokeSessionsAction = staffAction({
     if (!target) return { ok: false, error: "Essa conta não existe mais." };
     const result = await revokeEverywhere(target.id);
     const reached = result.perApp.filter((app) => app.count !== null);
-    return auditChange(
+    const outcome = await auditChange(
       staff,
       "admin.sessions_revoked",
       {
         targetId: target.id,
-        count: result.databaseCount + reached.reduce((sum, app) => sum + (app.count ?? 0), 0),
+        count: revokedTotal(result),
         apps: reached.map((app) => app.app),
         reason: reason.data,
       },
       sessionsRevokedMessage(result),
     );
+    return outcome.ok && revokeGaps(result).length ? { ...outcome, incomplete: true } : outcome;
   },
 });
 
@@ -132,23 +136,23 @@ export const banAction = staffAction({
       banExpiresAt: endsAt,
       strictAudit: true,
     });
-    const result = await revokeEverywhere(target.id);
-    const missed = result.perApp.filter((app) => app.count === null).map((app) => app.name);
+    // Daqui em diante o banimento já está gravado: nenhuma falha pode virar
+    // "nada foi alterado". `revokeEverywhere` devolve as partes que faltaram, e
+    // o `catch` cobre o que ele não previu.
+    let revoke: RevokeResult | null;
+    try {
+      revoke = await revokeEverywhere(target.id);
+    } catch (error) {
+      reportOperationalError("sessions.revoke_failed", error, {
+        actorId: staff.id,
+        targetId: target.id,
+      });
+      revoke = null;
+    }
     const period =
       input.duration === "sempre" ? "sem data para acabar" : `por ${BAN_DURATIONS[input.duration]}`;
-    return {
-      ok: true,
-      message: [
-        `Conta banida ${period}. A pessoa sai de todos os produtos; no Cozya e na Agenda da Turma isso pode levar até 5 minutos.`,
-        missed.length
-          ? `Não deu para alcançar ${joinNames(missed)}: tente encerrar as sessões de novo em alguns minutos.`
-          : "",
-        "Assinaturas não foram canceladas: se for o caso, cancele no Stripe.",
-        AUDITED,
-      ]
-        .filter(Boolean)
-        .join(" "),
-    };
+    const { message, incomplete } = bannedMessage({ period, revoke, audited: AUDITED });
+    return { ok: true, message, incomplete };
   },
 });
 

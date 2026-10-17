@@ -1,8 +1,11 @@
+import type { EmailCategory } from "@informach/emails";
+
 /**
  * Nome em português de cada categoria de e-mail, agrupando as que a equipe lê
  * como uma coisa só (os dois jeitos de confirmar e-mail, por exemplo). Só
  * categoria e situação aparecem no Bastidores; assunto, corpo e destinatário
- * nunca são lidos.
+ * nunca são lidos. O `satisfies` exige toda categoria do pacote de e-mails:
+ * categoria nova sem rótulo não compila.
  */
 const CATEGORY_LABELS: Record<string, string> = {
   "auth.verify-email": "Confirmação de e-mail",
@@ -14,6 +17,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   "auth.invitation": "Convite",
   "auth.account-deletion": "Exclusão de conta",
   "auth.signup-attempt-on-existing": "Aviso de cadastro repetido",
+  "auth.two-factor-setup-otp": "Ativação das duas etapas",
   "billing.payment-success": "Recibos e cobrança",
   "billing.payment-failed": "Recibos e cobrança",
   "billing.subscription-renewed": "Recibos e cobrança",
@@ -24,7 +28,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   "missao.weekly-report": "Resumo semanal da Missão Saber",
   "admin.alert": "Avisos do Bastidores",
   "admin.weekly-summary": "Resumo da semana do Bastidores",
-};
+} satisfies Record<EmailCategory, string>;
 
 export function emailCategoryLabel(category: string): string {
   return CATEGORY_LABELS[category] ?? "Outros e-mails";

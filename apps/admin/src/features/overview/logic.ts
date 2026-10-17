@@ -1,3 +1,4 @@
+import type { EmailCategory } from "@informach/emails";
 import type { Tone } from "@/components/status";
 import { emailOutcome } from "../operations/email-labels";
 import { inProduct } from "./phrases";
@@ -130,6 +131,7 @@ export function barHeights(points: SeriesPoint[]): number[] {
 }
 
 /** Nome humano das categorias de e-mail. Categoria nova cai no nome técnico, em mono. */
+/** Toda categoria do pacote de e-mails tem nome aqui; categoria nova sem nome não compila. */
 export const EMAIL_CATEGORY_LABEL: Record<string, { one: string; many: string }> = {
   "auth.verify-email": { one: "link de confirmação", many: "links de confirmação" },
   "auth.verify-email-otp": { one: "código de confirmação", many: "códigos de confirmação" },
@@ -140,6 +142,10 @@ export const EMAIL_CATEGORY_LABEL: Record<string, { one: string; many: string }>
   "auth.invitation": { one: "convite", many: "convites" },
   "auth.account-deletion": { one: "aviso de exclusão", many: "avisos de exclusão" },
   "auth.signup-attempt-on-existing": { one: "aviso de cadastro", many: "avisos de cadastro" },
+  "auth.two-factor-setup-otp": {
+    one: "código de ativação das duas etapas",
+    many: "códigos de ativação das duas etapas",
+  },
   "billing.payment-success": { one: "recibo", many: "recibos" },
   "billing.payment-failed": { one: "aviso de pagamento", many: "avisos de pagamento" },
   "billing.subscription-renewed": { one: "aviso de renovação", many: "avisos de renovação" },
@@ -153,7 +159,7 @@ export const EMAIL_CATEGORY_LABEL: Record<string, { one: string; many: string }>
   "missao.weekly-report": { one: "resumo da Missão", many: "resumos da Missão" },
   "admin.alert": { one: "aviso do Bastidores", many: "avisos do Bastidores" },
   "admin.weekly-summary": { one: "resumo do Bastidores", many: "resumos do Bastidores" },
-};
+} satisfies Record<EmailCategory, { one: string; many: string }>;
 
 export function emailCategoryPhrase(category: string, count: number): string {
   const label = EMAIL_CATEGORY_LABEL[category];

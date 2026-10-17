@@ -5,6 +5,7 @@ import { auditAs } from "@/lib/action";
 import { formatDay } from "@/lib/format";
 import { isProductKey, PRODUCT_KEYS, PRODUCTS, type ProductKey } from "@/lib/products";
 import { isStaffRole } from "@/lib/roles";
+import { isOverdueStatus } from "../money/logic";
 import {
   creditBalances,
   databaseSessions,
@@ -53,9 +54,11 @@ function planFor(
   rows: SubscriptionRow[],
   cozyaTrialStartedAt: Date | null,
   now: Date,
+  /** Preço de tabela na frase do plano: valor de receita, só para owner. */
+  showPrice = false,
 ): { state: PlanState | null; label: string; tone: Tone; row: SubscriptionRow | null } {
   const row = currentSubscription(rows);
-  const state = row ? describeSubscription(row) : null;
+  const state = row ? describeSubscription(row, { showPrice }) : null;
   if (state && state.kind !== "cancelada" && state.kind !== "outro")
     return { state, label: state.short, tone: state.tone, row };
   if (product === "cozya") {
@@ -109,7 +112,7 @@ export async function loadPeople(filters: PeopleFilters) {
         label: row.banExpiresAt ? `Banida até ${formatDay(row.banExpiresAt)}` : "Banida, sem data",
       });
     if (!row.emailVerified) pills.push({ tone: "warn", label: "E-mail não confirmado" });
-    if (mine.some((sub) => sub.status === "past_due" || sub.status === "unpaid"))
+    if (mine.some((sub) => isOverdueStatus(sub.status)))
       pills.push({ tone: "bad", label: "Pagamento em atraso" });
     if (isStaffRole(row.role)) pills.push({ tone: "info", label: `Equipe, ${row.role}` });
     if (!pills.length) pills.push({ tone: "ok", label: "E-mail confirmado" });
@@ -200,7 +203,7 @@ export async function loadFicha(id: string, staff: Staff) {
     >,
   ) => {
     const rows = subscriptions.filter((sub) => sub.app === product);
-    const plan = planFor(product, rows, usage.cozya.trialStartedAt, now);
+    const plan = planFor(product, rows, usage.cozya.trialStartedAt, now, staff.role === "owner");
     products.push({
       product,
       planLabel:
@@ -323,6 +326,8 @@ export async function loadFicha(id: string, staff: Staff) {
       connected: device.connected,
     })),
     activeSubscriptionProducts,
+    /** Aparelhos de estudo da Missão Saber: têm acesso próprio, que encerrar sessões não alcança. */
+    missaoStudyDevices: usage.missao.studyDevices,
     // Conta sem confirmação quase nunca usou produto ainda: aí a equipe escolhe
     // entre todos, perguntando à pessoa onde ela se cadastrou.
     verificationProducts: products.length
