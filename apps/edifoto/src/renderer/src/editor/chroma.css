@@ -1,0 +1,87 @@
+.chroma-modal {
+  width: min(1180px, 96vw);
+}
+.chroma-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 24px;
+  padding: 20px;
+  overflow: auto;
+  min-height: 0;
+}
+.chroma-preview-column {
+  min-width: 0;
+}
+.chroma-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.chroma-preview {
+  height: min(54vh, 620px);
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+}
+.chroma-checker {
+  background-color: #777;
+  background-image: conic-gradient(#999 25%, transparent 0 50%, #999 0 75%, transparent 0);
+  background-size: 20px 20px;
+}
+.chroma-preview canvas {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.chroma-zoom {
+  display: block;
+}
+.chroma-zoom canvas {
+  max-width: none;
+  max-height: none;
+}
+.chroma-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.chroma-controls p,
+.chroma-caption {
+  font-size: 12px;
+  color: var(--text-2);
+  line-height: 1.5;
+  margin: 0;
+}
+.chroma-caption {
+  margin-top: 10px;
+}
+.chroma-color {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.chroma-color input {
+  width: 36px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+}
+.chroma-color span {
+  font-family: monospace;
+}
+.chroma-modal .modal-foot > span:first-child {
+  font-size: 12px;
+  color: var(--text-2);
+}
+@media (max-width: 800px) {
+  .chroma-body {
+    grid-template-columns: 1fr;
+  }
+  .chroma-preview {
+    height: 35vh;
+  }
+}

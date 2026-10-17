@@ -1,4 +1,4 @@
-<svg width="1440" height="257" viewBox="0 0 1440 257" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="1440" height="257" viewBox="0 0 1440 257" fill="none" xmlns="http://www.w3.org/2000/svg"><title>Agenda da Turma</title>
 <rect y="1" width="256" height="256" rx="32" fill="#006FFD"/>
 <path d="M114 128.522L123.333 137.043L142 120" stroke="#006FFD" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M64 150.655C64 99.2924 105.638 57 157 57H176C184.837 57 192 64.1634 192 73V200H113C85.938 200 64 177.717 64 150.655Z" fill="white"/>

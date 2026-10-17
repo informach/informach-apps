@@ -1,0 +1,47 @@
+{
+  "name": "@informach/edi",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -p 3006",
+    "build": "next build && node scripts/build-standalone.mjs",
+    "start": "node scripts/start.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "setup:oauth": "tsx scripts/setup-oauth.ts"
+  },
+  "dependencies": {
+    "@fontsource-variable/plus-jakarta-sans": "^5.3.0",
+    "@informach/auth": "workspace:*",
+    "@informach/billing": "workspace:*",
+    "@informach/config": "workspace:*",
+    "@informach/db": "workspace:*",
+    "@informach/edi-contracts": "workspace:*",
+    "@informach/edi-licensing": "workspace:*",
+    "@informach/edi-releases": "workspace:*",
+    "@informach/emails": "workspace:*",
+    "@informach/ui": "workspace:*",
+    "next": "^16.4.2",
+    "pino": "^9.14.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "server-only": "^0.0.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@testing-library/react": "16.3.3",
+    "@types/node": "^24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "esbuild": "^0.28.2",
+    "jsdom": "30.1.3",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  }
+}

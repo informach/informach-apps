@@ -1,0 +1,210 @@
+[
+  {
+    "family": "Plus Jakarta Sans",
+    "group": "Padrão",
+    "files": [
+      {
+        "weight": 400,
+        "file": "PlusJakartaSans-400.ttf"
+      },
+      {
+        "weight": 600,
+        "file": "PlusJakartaSans-600.ttf"
+      },
+      {
+        "weight": 700,
+        "file": "PlusJakartaSans-700.ttf"
+      },
+      {
+        "weight": 800,
+        "file": "PlusJakartaSans-800.ttf"
+      }
+    ]
+  },
+  {
+    "family": "Inter",
+    "group": "Limpa",
+    "files": [
+      {
+        "weight": 400,
+        "file": "Inter-400.ttf"
+      },
+      {
+        "weight": 600,
+        "file": "Inter-600.ttf"
+      },
+      {
+        "weight": 700,
+        "file": "Inter-700.ttf"
+      },
+      {
+        "weight": 800,
+        "file": "Inter-800.ttf"
+      }
+    ]
+  },
+  {
+    "family": "Nunito",
+    "group": "Arredondada",
+    "files": [
+      {
+        "weight": 400,
+        "file": "Nunito-400.ttf"
+      },
+      {
+        "weight": 600,
+        "file": "Nunito-600.ttf"
+      },
+      {
+        "weight": 700,
+        "file": "Nunito-700.ttf"
+      },
+      {
+        "weight": 800,
+        "file": "Nunito-800.ttf"
+      },
+      {
+        "weight": 900,
+        "file": "Nunito-900.ttf"
+      }
+    ]
+  },
+  {
+    "family": "Fredoka",
+    "group": "Infantil",
+    "files": [
+      {
+        "weight": 400,
+        "file": "Fredoka-400.ttf"
+      },
+      {
+        "weight": 600,
+        "file": "Fredoka-600.ttf"
+      },
+      {
+        "weight": 700,
+        "file": "Fredoka-700.ttf"
+      }
+    ]
+  },
+  {
+    "family": "Baloo 2",
+    "group": "Infantil",
+    "files": [
+      {
+        "weight": 400,
+        "file": "Baloo2-400.ttf"
+      },
+      {
+        "weight": 600,
+        "file": "Baloo2-600.ttf"
+      },
+      {
+        "weight": 700,
+        "file": "Baloo2-700.ttf"
+      },
+      {
+        "weight": 800,
+        "file": "Baloo2-800.ttf"
+      }
+    ]
+  },
+  {
+    "family": "Poppins",
+    "group": "Geométrica",
+    "files": [
+      {
+        "weight": 400,
+        "file": "Poppins-400.ttf"
+      },
+      {
+        "weight": 600,
+        "file": "Poppins-600.ttf"
+      },
+      {
+        "weight": 700,
+        "file": "Poppins-700.ttf"
+      },
+      {
+        "weight": 800,
+        "file": "Poppins-800.ttf"
+      }
+    ]
+  },
+  {
+    "family": "Montserrat",
+    "group": "Geométrica",
+    "files": [
+      {
+        "weight": 400,
+        "file": "Montserrat-400.ttf"
+      },
+      {
+        "weight": 600,
+        "file": "Montserrat-600.ttf"
+      },
+      {
+        "weight": 700,
+        "file": "Montserrat-700.ttf"
+      },
+      {
+        "weight": 800,
+        "file": "Montserrat-800.ttf"
+      }
+    ]
+  },
+  {
+    "family": "Lilita One",
+    "group": "Títulos",
+    "files": [
+      {
+        "weight": 400,
+        "file": "LilitaOne-400.ttf"
+      }
+    ]
+  },
+  {
+    "family": "Bebas Neue",
+    "group": "Títulos",
+    "files": [
+      {
+        "weight": 400,
+        "file": "BebasNeue-400.ttf"
+      }
+    ]
+  },
+  {
+    "family": "Bangers",
+    "group": "Quadrinhos",
+    "files": [
+      {
+        "weight": 400,
+        "file": "Bangers-400.ttf"
+      }
+    ]
+  },
+  {
+    "family": "Comic Neue",
+    "group": "Quadrinhos",
+    "files": [
+      {
+        "weight": 400,
+        "file": "ComicNeue-400.ttf"
+      },
+      {
+        "weight": 700,
+        "file": "ComicNeue-700.ttf"
+      }
+    ]
+  },
+  {
+    "family": "Patrick Hand",
+    "group": "Escrita à mão",
+    "files": [
+      {
+        "weight": 400,
+        "file": "PatrickHand-400.ttf"
+      }
+    ]
+  }
+]

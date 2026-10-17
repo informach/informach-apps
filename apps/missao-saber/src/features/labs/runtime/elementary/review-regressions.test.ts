@@ -201,17 +201,15 @@ describe("independent elementary review regressions", () => {
     { tool: measuresTool, mode: "relogio-e-duracao", answer: "85 minutos", wrong: "85 h" },
     { tool: solidsTool, mode: "diagonal-espacial", answer: "7,8102 cm", wrong: "7,8102 cm²" },
     { tool: solidsTool, mode: "volumes", answer: "169,646 cm³", wrong: "169,646 cm²" },
-  ])("accepts the requested unit and rejects a different dimension in $mode", ({
-    tool,
-    mode,
-    answer,
-    wrong,
-  }) => {
-    const launch = context(tool, mode);
-    const state = tool.activity(launch).initialState;
-    expect(tool.assess(launch, state, answer).correct).toBe(true);
-    expect(tool.assess(launch, state, wrong).correct).toBe(false);
-  });
+  ])(
+    "accepts the requested unit and rejects a different dimension in $mode",
+    ({ tool, mode, answer, wrong }) => {
+      const launch = context(tool, mode);
+      const state = tool.activity(launch).initialState;
+      expect(tool.assess(launch, state, answer).correct).toBe(true);
+      expect(tool.assess(launch, state, wrong).correct).toBe(false);
+    },
+  );
 
   it("accepts metres for a completed map route", () => {
     const launch = context(routesTool, "mapas");

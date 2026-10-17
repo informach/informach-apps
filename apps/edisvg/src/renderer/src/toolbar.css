@@ -1,0 +1,102 @@
+/* Geometry and tokens from edisvg.pen / Tool Rail. */
+.workspace {
+  grid-template-columns: 56px 232px minmax(280px, 1fr) 280px;
+}
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 4;
+  width: 56px;
+  padding: 10px 8px;
+  gap: 4px;
+  background: #15171c;
+  border-right: 1px solid #262a33;
+}
+.rail > .tool-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #9ba1ae;
+}
+.rail > .tool-button:nth-child(n) {
+  margin-bottom: 0;
+}
+.tool-button svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+}
+.rail > [data-tool="bone"] {
+  color: #ff7ad9;
+}
+.rail > .tool-button:hover {
+  background: #1c1f26;
+}
+.rail > .tool-button.chosen {
+  color: #4fe3c1;
+  background: #1c1f26;
+  border-color: #4fe3c1;
+}
+.rail > .tool-button:focus-visible {
+  outline: 2px solid #eceef2;
+  outline-offset: 2px;
+}
+.rail > [aria-disabled="true"] {
+  cursor: not-allowed;
+}
+.tool-separator {
+  display: block;
+  width: 24px;
+  height: 1px;
+  flex: 0 0 1px;
+  background: #262a33;
+}
+.tool-tooltip {
+  display: none;
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 8px 10px;
+  width: max-content;
+  max-width: 280px;
+  color: #eceef2;
+  background: #1c1f26;
+  border: 1px solid #262a33;
+  border-radius: 4px;
+  font: 12px / 1.5 sans-serif;
+  text-align: left;
+  white-space: normal;
+  pointer-events: none;
+}
+.tool-button:hover .tool-tooltip,
+.tool-button:focus-visible .tool-tooltip {
+  display: block;
+}
+@media (min-width: 1600px) {
+  .workspace {
+    grid-template-columns: 56px 280px minmax(280px, 1fr) 320px;
+  }
+}
+@media (max-width: 900px) {
+  .workspace {
+    grid-template-columns: 56px 190px minmax(0, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .workspace {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+}

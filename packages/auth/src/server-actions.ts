@@ -4,7 +4,6 @@ import { rateLimit as rateLimitTable } from "@informach/db/schema";
 import { sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { unstable_rethrow } from "next/navigation";
-import type { z } from "zod";
 import type { AuditEventType } from "./audit";
 import { logAuditEvent } from "./audit";
 import {
@@ -157,8 +156,9 @@ export type ActionFactoryConfig<TUser, TSession> = {
   rateLimitStorage?: RateLimitStorage;
 };
 
-type ActionConfig<TSchema extends z.ZodTypeAny> = {
-  schema?: TSchema;
+type InputSchema<T> = { parse(input: unknown): T };
+type ActionConfig<TInput> = {
+  schema: InputSchema<TInput>;
   auth?: ActionAuthConfig;
   rateLimit?: ActionRateLimitConfig;
   audit?: AuditEventType;
@@ -171,35 +171,35 @@ async function defaultRequestHeaders(): Promise<Headers> {
   return value as unknown as Headers;
 }
 
-class ActionBuilder<TUser, TSession, TSchema extends z.ZodTypeAny> {
+class ActionBuilder<TUser, TSession, TInput> {
   constructor(
     private readonly factory: ActionFactoryConfig<TUser, TSession>,
     private readonly getRequestHeaders: RequestHeadersProvider,
-    private readonly config: ActionConfig<TSchema> = {},
+    private readonly config: ActionConfig<TInput>,
   ) {}
 
-  input<S extends z.ZodTypeAny>(schema: S): ActionBuilder<TUser, TSession, S> {
+  input<S>(schema: InputSchema<S>): ActionBuilder<TUser, TSession, S> {
     return new ActionBuilder(this.factory, this.getRequestHeaders, {
       ...this.config,
       schema,
-    } as ActionConfig<S>);
+    });
   }
 
-  auth(opts: ActionAuthConfig): ActionBuilder<TUser, TSession, TSchema> {
+  auth(opts: ActionAuthConfig): ActionBuilder<TUser, TSession, TInput> {
     return new ActionBuilder(this.factory, this.getRequestHeaders, {
       ...this.config,
       auth: opts,
     });
   }
 
-  rateLimit(opts: ActionRateLimitConfig): ActionBuilder<TUser, TSession, TSchema> {
+  rateLimit(opts: ActionRateLimitConfig): ActionBuilder<TUser, TSession, TInput> {
     return new ActionBuilder(this.factory, this.getRequestHeaders, {
       ...this.config,
       rateLimit: opts,
     });
   }
 
-  audit(eventType: AuditEventType): ActionBuilder<TUser, TSession, TSchema> {
+  audit(eventType: AuditEventType): ActionBuilder<TUser, TSession, TInput> {
     return new ActionBuilder(this.factory, this.getRequestHeaders, {
       ...this.config,
       audit: eventType,
@@ -207,16 +207,14 @@ class ActionBuilder<TUser, TSession, TSchema extends z.ZodTypeAny> {
   }
 
   run<TOutput>(
-    handler: ActionHandler<z.infer<TSchema>, TUser, TOutput>,
+    handler: ActionHandler<TInput, TUser, TOutput>,
   ): (rawInput: unknown) => Promise<TOutput> {
     const { schema, auth, rateLimit, audit } = this.config;
     const factory = this.factory;
     const getRequestHeaders = this.getRequestHeaders;
 
     return async (rawInput: unknown) => {
-      const input = schema
-        ? (schema.parse(rawInput) as z.infer<TSchema>)
-        : (rawInput as z.infer<TSchema>);
+      const input = schema.parse(rawInput);
 
       const rateLimitScope = rateLimit?.scope ?? "auto";
       const needsAuthHeaders = auth !== undefined && auth.require !== "none";
@@ -323,7 +321,9 @@ export function createActionFactory<TUser, TSession>(
       "[@informach/auth] action factory rate-limit using Postgres fallback in production — set rateLimitStorage to redisRateLimitStorage(...) for proper scale.",
     );
   }
-  const action = new ActionBuilder<TUser, TSession, z.ZodTypeAny>(config, getRequestHeaders);
+  const action = new ActionBuilder<TUser, TSession, unknown>(config, getRequestHeaders, {
+    schema: { parse: (input) => input },
+  });
   return {
     action,
     ok,

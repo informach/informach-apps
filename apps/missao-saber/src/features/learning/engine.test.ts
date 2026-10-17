@@ -384,11 +384,14 @@ describe("original pilot content", () => {
     ["gavetas-2", 4, 5 * 2 + 1],
     ["padroes-2", 3, 3 + 19 * 4],
     ["padroes-2", 4, (10 * 11) / 2],
-  ])("checks quantitative editorial edge case %s / %i independently", (lessonId, index, expected) => {
-    const item = findLesson(lessonId)?.items[index];
-    if (item?.type !== "choice") throw new Error("Missing choice fixture");
-    expect(Number(item.answer)).toBeCloseTo(expected);
-  });
+  ])(
+    "checks quantitative editorial edge case %s / %i independently",
+    (lessonId, index, expected) => {
+      const item = findLesson(lessonId)?.items[index];
+      if (item?.type !== "choice") throw new Error("Missing choice fixture");
+      expect(Number(item.answer)).toBeCloseTo(expected);
+    },
+  );
 });
 
 describe("diagnosis and available recommendations", () => {

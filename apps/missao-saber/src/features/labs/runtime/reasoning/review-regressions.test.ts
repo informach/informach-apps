@@ -183,17 +183,15 @@ describe("transferência conserva dados e retira respostas prontas", () => {
       given: "Peso inicial do grupo A",
     },
   ];
-  it.each(cases)("$mode retém a tarefa sem a resposta derivada", ({
-    family,
-    mode,
-    result,
-    given,
-  }) => {
-    const context = launch(family, mode);
-    expect(render(context)).toContain(result);
-    expect(render(context, true)).not.toContain(result);
-    expect(render(context, true)).toContain(given);
-  });
+  it.each(cases)(
+    "$mode retém a tarefa sem a resposta derivada",
+    ({ family, mode, result, given }) => {
+      const context = launch(family, mode);
+      expect(render(context)).toContain(result);
+      expect(render(context, true)).not.toContain(result);
+      expect(render(context, true)).toContain(given);
+    },
+  );
   it("a lacuna conserva o total dado mesmo sem totais calculados", () => {
     expect(render(launch("L14", "completar-valores"), true)).toContain("20 (objetivo)");
   });
@@ -252,23 +250,25 @@ describe("cartas e tabela de eliminação", () => {
 });
 
 describe("construções exigidas pela atividade de contagem", () => {
-  it.each([
-    "subconjuntos",
-    "anagramas-com-repeticao",
-  ])("%s exige todos os casos marcados e aceita qualquer ordem", (mode) => {
-    for (const variant of [0, 1] as const) {
-      const context = launch("L12", mode, 8, variant);
-      const state = parseEnumeration(context, combinatoricsTool.activity(context).initialState);
-      const selected = enumeratedCases(state).reverse();
-      const answer = String(selected.length);
-      expect(combinatoricsTool.assess(context, state, answer).correct).toBe(false);
-      expect(
-        combinatoricsTool.assess(context, { ...state, selected: selected.slice(1) }, answer)
-          .correct,
-      ).toBe(false);
-      expect(combinatoricsTool.assess(context, { ...state, selected }, answer).correct).toBe(true);
-    }
-  });
+  it.each(["subconjuntos", "anagramas-com-repeticao"])(
+    "%s exige todos os casos marcados e aceita qualquer ordem",
+    (mode) => {
+      for (const variant of [0, 1] as const) {
+        const context = launch("L12", mode, 8, variant);
+        const state = parseEnumeration(context, combinatoricsTool.activity(context).initialState);
+        const selected = enumeratedCases(state).reverse();
+        const answer = String(selected.length);
+        expect(combinatoricsTool.assess(context, state, answer).correct).toBe(false);
+        expect(
+          combinatoricsTool.assess(context, { ...state, selected: selected.slice(1) }, answer)
+            .correct,
+        ).toBe(false);
+        expect(combinatoricsTool.assess(context, { ...state, selected }, answer).correct).toBe(
+          true,
+        );
+      }
+    },
+  );
   it("permutações explica filas sem exibir condições de senhas", () => {
     const markup = render(launch("L12", "permutacoes"));
     expect(markup).toContain("Todos os objetos participam uma única vez");

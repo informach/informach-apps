@@ -1,0 +1,144 @@
+.path-properties {
+  border-bottom: 1px solid var(--line);
+}
+.path-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.path-heading h3 {
+  margin: 0;
+  color: var(--mint);
+}
+.path-heading button,
+.path-primary {
+  border: 1px solid #4fe3c166;
+  color: var(--mint);
+}
+.path-primary {
+  width: 100%;
+  white-space: normal;
+}
+.path-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 12px 0;
+}
+.path-actions button {
+  border: 1px solid var(--line);
+  font-size: 11px;
+  white-space: normal;
+  min-height: 32px;
+}
+.path-properties .micro {
+  line-height: 1.6;
+}
+.vertex-arm {
+  stroke: #168cce;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.vertex-anchor,
+.vertex-handle {
+  fill: #fff;
+  stroke: #168cce;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  cursor: move;
+}
+.vertex-anchor.is-active {
+  fill: #4fe3c1;
+  stroke: #06231c;
+}
+.scene-artwork > svg:focus {
+  outline: none;
+}
+.vertex-editing-label {
+  color: var(--mint);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.app-version {
+  font-size: 9px;
+  color: var(--muted);
+  font-weight: 400;
+}
+.scene-tree-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  color: var(--text);
+}
+.scene-tree-heading small {
+  margin-left: auto;
+}
+.vertex-mode-bar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2px;
+  padding: 3px;
+  margin: 8px 0 14px;
+  background: #101114;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}
+.vertex-mode-bar button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 32px;
+  min-width: 0;
+  padding: 0;
+  color: #9ba1ae;
+  border: 1px solid transparent;
+  border-radius: 3px;
+}
+.vertex-mode-bar button:hover {
+  color: #eceef2;
+  background: #262a33;
+}
+.vertex-mode-bar button[aria-pressed="true"] {
+  color: #4fe3c1;
+  background: #203630;
+  border-color: #4fe3c155;
+}
+.vertex-mode-bar button:focus-visible {
+  outline: 2px solid #4fe3c1;
+  outline-offset: 1px;
+}
+.vertex-mode-bar button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.vertex-mode-bar svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.vertex-mode-bar .mode-curve {
+  opacity: 0.35;
+}
+.vertex-mode-tip {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 7px;
+  background: #262a33;
+  color: #eceef2;
+  border-radius: 3px;
+  font-size: 10px;
+  z-index: 5;
+  pointer-events: none;
+}
+.vertex-mode-bar button:hover .vertex-mode-tip,
+.vertex-mode-bar button:focus-visible .vertex-mode-tip {
+  display: block;
+}

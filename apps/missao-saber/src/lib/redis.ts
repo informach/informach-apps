@@ -1,4 +1,5 @@
 import "server-only";
+import { redisStorage } from "@better-auth/redis-storage";
 import type { SecondaryStorage } from "@informach/auth";
 import Redis from "ioredis";
 import { env } from "./env";
@@ -19,14 +20,5 @@ redis?.on("error", () => logger.error("redis.connection_failed"));
 export { redis };
 
 export const authSecondaryStorage: SecondaryStorage | undefined = redis
-  ? {
-      get: (key) => redis.get(`missao-saber:auth:${key}`),
-      async set(key, value, ttl) {
-        if (ttl) await redis.set(`missao-saber:auth:${key}`, value, "EX", ttl);
-        else await redis.set(`missao-saber:auth:${key}`, value);
-      },
-      async delete(key) {
-        await redis.del(`missao-saber:auth:${key}`);
-      },
-    }
+  ? redisStorage({ client: redis, keyPrefix: "missao-saber:auth:" })
   : undefined;

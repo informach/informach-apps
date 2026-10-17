@@ -1,3 +1,4 @@
+import { oauthDeviceAuthorizationClient } from "@better-auth/oauth-provider/client";
 import { passkeyClient } from "@better-auth/passkey/client";
 import {
   emailOTPClient,
@@ -29,6 +30,7 @@ export type CreateAuthClientConfig = {
   email?: CreateAuthClientEmailConfig;
   organizations?: boolean;
   passkey?: boolean;
+  desktopOAuth?: boolean;
   twoFactor?: boolean | { onRedirect?: () => void };
 };
 
@@ -56,6 +58,7 @@ export function createInformachAuthClient(config: CreateAuthClientConfig) {
   return createAuthClient({
     baseURL: config.baseURL,
     plugins: [
+      ...(config.desktopOAuth ? ([oauthDeviceAuthorizationClient()] as const) : ([] as const)),
       ...(magicLinkClientRequired(config.email) ? ([magicLinkClient()] as const) : ([] as const)),
       ...(emailOtpClientRequired(config.email) ? ([emailOTPClient()] as const) : ([] as const)),
       ...(config.organizations ? ([organizationClient()] as const) : ([] as const)),

@@ -1,0 +1,35 @@
+/* Design tokens — mirror the variables in ediaula.pen. */
+:root {
+  --bg: #0d0e11;
+  --panel: #15171c;
+  --panel-2: #1c1f26;
+  --panel-3: #232731;
+  --line: #262a33;
+  --text-1: #eceef2;
+  --text-2: #9ba1ae;
+  --text-3: #646a78;
+  --accent: #c8f031;
+  --on-accent: #12140a;
+  --blue: #3d6bff;
+  --rec: #ff4d4d;
+  --violet: #9b7bff;
+  --amber: #ffb547;
+
+  --clip-video: #1f3a8a;
+  --clip-image: #4a5a12;
+  --clip-audio: #0e4d47;
+  --clip-audio-wave: #3fd3c2;
+  --clip-video-wave: #8fb0ff;
+
+  --font-ui: "Inter Variable", Inter, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
+  --font-display: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", var(--font-ui);
+
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 14px;
+
+  --topbar-h: 52px;
+  /* Room for the native minimize/maximize/close buttons drawn over the top bar. */
+  --window-controls-w: 140px;
+}

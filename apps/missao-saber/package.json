@@ -27,32 +27,33 @@
     "stripe:listen": "node scripts/stripe-listen.mjs"
   },
   "dependencies": {
+    "@better-auth/redis-storage": "1.7.10",
     "@informach/auth": "workspace:*",
     "@informach/billing": "workspace:*",
     "@informach/config": "workspace:*",
     "@informach/db": "workspace:*",
     "@informach/emails": "workspace:*",
     "@informach/ui": "workspace:*",
-    "@sentry/nextjs": "^10.51.0",
-    "ioredis": "^5.10.1",
+    "@sentry/nextjs": "^10.76.2",
+    "ioredis": "^5.11.1",
     "lucide-react": "^0.469.0",
-    "next": "^16.2.6",
-    "pino": "^9.5.0",
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5",
+    "next": "^16.4.2",
+    "pino": "^9.14.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "server-only": "^0.0.1",
-    "zod": "^3.24.1"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@playwright/test": "^1.49.1",
-    "@tailwindcss/postcss": "^4.2.4",
-    "@types/node": "^20.17.10",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "dotenv": "^16.4.7",
-    "postgres": "^3.4.5",
-    "tailwindcss": "^4.2.4",
-    "typescript": "^5.6.3",
-    "vitest": "^2.1.9"
+    "@playwright/test": "^1.64.1",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "dotenv": "^16.6.1",
+    "postgres": "^3.4.9",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
   }
 }

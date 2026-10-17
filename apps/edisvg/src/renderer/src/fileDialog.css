@@ -1,0 +1,166 @@
+.file-dialog {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  border-radius: 12px;
+  overflow: auto;
+}
+.file-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 24px 20px;
+}
+.file-dialog-header h2 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.3;
+  letter-spacing: -0.5px;
+}
+.file-dialog-header p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.file-dialog-header > button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 24px;
+  line-height: 1;
+}
+.file-dialog-actions {
+  padding: 0 12px 16px;
+  display: grid;
+  gap: 4px;
+}
+.file-dialog-action {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 12px;
+  text-align: left;
+  white-space: normal;
+  border-radius: 7px;
+}
+.file-action-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  height: 36px;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-size: 22px;
+  color: var(--text);
+}
+.file-action-copy {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  flex: 1;
+}
+.file-action-copy strong {
+  font-size: 14px;
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--text);
+}
+.file-action-copy > span {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.file-dialog kbd {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 400;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.file-dialog-save {
+  border-top: 1px solid var(--line);
+  padding: 20px 24px 24px;
+}
+.file-save-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.file-save-heading h3 {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0;
+  font-weight: 500;
+  color: var(--text);
+}
+.file-save-heading > span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.file-save-buttons {
+  display: flex;
+  gap: 10px;
+}
+.file-save-buttons > button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex: 1;
+  min-height: 42px;
+  padding: 10px 12px;
+  font-size: 13px;
+  border: 1px solid #3a404c;
+  border-radius: 6px;
+}
+.file-save-buttons > button.primary {
+  border-color: var(--mint);
+}
+.file-save-buttons > .primary kbd {
+  color: #174c40;
+}
+.file-dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 24px;
+  border-top: 1px solid var(--line);
+  background: #111318;
+}
+.file-dialog-footer > span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.file-dialog-footer > button {
+  min-height: 36px;
+  font-size: 12px;
+  color: var(--text);
+}
+.file-dialog button:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 2px;
+}
+@media (max-width: 440px) {
+  .file-save-buttons {
+    flex-direction: column;
+  }
+  .file-dialog-action {
+    gap: 10px;
+  }
+  .file-dialog-action kbd {
+    display: none;
+  }
+  .file-dialog-header,
+  .file-dialog-save {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}

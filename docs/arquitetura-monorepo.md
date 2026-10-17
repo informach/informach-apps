@@ -1,6 +1,8 @@
-# Arquitetura de monorepo Next.js
+# Arquitetura do monorepo
 
-Referência transversal para iniciar qualquer monorepo de produtos web da casa. Foca em **como o repositório se organiza como um todo** — tooling, layout, regras, CI/CD, deploy. Para o que vai dentro de cada app, ver [`arquitetura-apps.md`](./arquitetura-apps.md). Para o que vai dentro de cada package, ver [`arquitetura-packages.md`](./arquitetura-packages.md).
+Referência transversal para os produtos da casa. Foca em **como o repositório se organiza como um todo** — tooling, layout, regras, CI/CD e distribuição. Para apps web, ver [`arquitetura-apps.md`](./arquitetura-apps.md); para ferramentas desktop, ver [`arquitetura-desktop.md`](./arquitetura-desktop.md). Para packages, ver [`arquitetura-packages.md`](./arquitetura-packages.md).
+
+O [AGENTS.md da raiz](../AGENTS.md) é a entrada comum para as orientações de trabalho. O [estado do repositório](estado-do-repositorio.md) aponta para a frente atual e seus registros de implementação. Atualize este documento quando uma mudança alterar as regras transversais; versões efetivas e comandos vêm dos manifests, lockfile e workflows.
 
 ---
 
@@ -14,17 +16,17 @@ Custos aceitos: tooling mais sofisticado (workspace manager + task runner), e bl
 
 ## Stack
 
-Versões estáveis atuais, todas confirmadas via Context7:
+Base de referência das aplicações web existentes. Os manifests e o lockfile definem as versões efetivamente adotadas; a matriz candidata de atualização e o padrão das ferramentas desktop estão em [`arquitetura-desktop.md`](./arquitetura-desktop.md). Uma versão candidata exige homologação antes de substituir a base do repositório.
 
 | Área | Escolha | Por quê |
 |---|---|---|
 | Workspace manager | **pnpm 9+** | Hardlinks, lockfile determinístico, suporte nativo a workspaces, compatível com Turborepo. |
 | Task runner | **Turborepo 2** | Cache local + remoto, grafo de dependências, paralelismo. Chave do config é `tasks` (não `pipeline`). |
-| Runtime | **Node.js 22.13+** | Requisito do Mastra v1 usado por `@informach/ai-core`; dev, CI e produção devem usar a mesma linha. |
+| Runtime | **Node.js 24.15+** | `engines`, `.nvmrc` e CI alinhados em 24.15.0. |
 | Linguagem | **TypeScript 5+** | Estendido por `tsconfig.base.json` na raiz. |
-| Lint + format | **Biome 2** | Único binário substitui ESLint + Prettier. Schema atual: `https://biomejs.dev/schemas/2.0.0/schema.json`. |
+| Lint + format | **Biome 2.5.15** | Único binário substitui ESLint + Prettier. Schema atual: `https://biomejs.dev/schemas/2.5.15/schema.json`. |
 | Estilo | **Tailwind CSS v4** | CSS-first via `@import "tailwindcss"`, tokens em `@theme`, escaneamento extra com `@source`. Sem `tailwind.config.js`. |
-| App framework | **Next.js 15+ App Router** | RSC, Server Actions, `output: "standalone"`, `outputFileTracingRoot` essencial para monorepo. |
+| App framework | **Next.js 16.4.2 App Router** | RSC, Server Actions, `output: "standalone"`, `outputFileTracingRoot` essencial para monorepo. |
 | ORM | **Drizzle ORM** | Sem codegen no build, SQL-native, `pgSchema` para schemas SQL nativos por domínio. |
 | DB | **PostgreSQL 16+** | Provider único compartilhado, schemas SQL para isolamento lógico. |
 | CI | **GitHub Actions** | Mesma máquina/cache do dev típico, sem custo extra de plataforma. |
@@ -38,7 +40,7 @@ Proibidos por escolha: ESLint, Prettier, Tailwind v3, Vercel como default, Prism
 
 ```
 <repo>/
-├── apps/                       # apps deployáveis; cada um sobe sozinho
+├── apps/                       # apps web deployáveis e ferramentas desktop distribuíveis
 │   └── <app>/
 ├── packages/                   # bibliotecas internas; nunca deployadas
 │   └── <pkg>/
@@ -107,7 +109,7 @@ Padrão consolidado:
     "start:<app>": "pnpm --filter @<org>/<app> start",
 
     "db:generate": "pnpm --filter @<org>/db db:generate",
-    "db:migrate":  "pnpm --filter @<org>/db db:migrate && pnpm --filter @<org>/ai-core mastra:migrate",
+    "db:migrate":  "pnpm --filter @<org>/db db:migrate && pnpm --filter @<org>/db db:backfill-tasks && pnpm --filter @<org>/ai-core mastra:migrate",
     "db:studio":   "pnpm --filter @<org>/db db:studio",
     "db:push":     "pnpm --filter @<org>/db db:push"
   }
@@ -153,13 +155,13 @@ Substitui ESLint + Prettier. Configurado uma vez na raiz, herdado.
 
 ```json
 {
-  "$schema": "https://biomejs.dev/schemas/2.0.0/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
   "files": {
-    "ignore": ["node_modules", ".next", "dist", ".turbo"]
+    "includes": ["**", "!**/node_modules", "!**/.next", "!**/dist", "!**/.turbo"]
   },
   "linter": {
     "enabled": true,
-    "rules": { "recommended": true }
+    "rules": { "preset": "recommended" }
   },
   "formatter": {
     "enabled": true,
@@ -268,7 +270,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22.13.0
+          node-version: 24.15.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
@@ -293,7 +295,7 @@ Configuração por app:
 - **Build command**: `pnpm install --frozen-lockfile && pnpm build:<app>`.
 - **Start command**: `pnpm start:<app>`.
 - **Watch paths**: `apps/<app>/**`, `packages/**`. Evita rebuild quando outro app muda.
-- **Public networking port**: `8080` (pegadinha — Railway mapeia 8080 externo para a porta do container; setar 3000 quebra. Documentado nas notas locais).
+- **Porta e interface**: escutar em `0.0.0.0` e respeitar o `PORT` injetado pelo Railway. O target port do domínio e a porta do healthcheck devem coincidir com o serviço; não impor `8080` ou uma porta local como regra universal. [Healthcheck e PORT](https://docs.railway.com/deployments/healthchecks).
 - **Variáveis**: específicas por app. `DATABASE_URL` referenciada do service Postgres (`${{Postgres.DATABASE_URL}}`).
 
 Postgres é um service só, compartilhado por todos os apps. Redis (se houver workers) idem.

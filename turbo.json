@@ -3,9 +3,21 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**", "!.next/dev/**", "dist/**"],
+      "outputs": [".next/**", "!.next/cache/**", "!.next/dev/**", "dist/**", "out/**"],
       "env": [
         "NODE_ENV",
+        "EDI_COMMERCIAL_BUILD",
+        "EDI_PORTAL_URL",
+        "EDI_DESKTOP_CLIENT_ID",
+        "EDI_LICENSE_PUBLIC_KEYS",
+        "EDI_DISTRIBUTION_REPOSITORY",
+        "EDI_UPDATE_PUBLIC_KEYS",
+        "EDI_RELEASE_TAG",
+        "EDI_BILLING_ENABLED",
+        "EDI_MONTHLY_PRICE_DEV",
+        "EDI_MONTHLY_PRICE_PROD",
+        "EDI_ANNUAL_PRICE_DEV",
+        "EDI_ANNUAL_PRICE_PROD",
         "DATABASE_URL",
         "BETTER_AUTH_SECRET",
         "BETTER_AUTH_URL",

@@ -195,8 +195,8 @@ describe("handleSubscriptionLifecycle — productId drift via metadata", () => {
       { products },
     );
     expect(result.upserted).toBe(true);
-    expect(
-      (calls.find((call) => call.mode === "values")?.args[0] as Record<string, unknown>).status,
-    ).toBe("past_due");
+    expect(calls.find((call) => call.mode === "values")?.args[0]).toMatchObject({
+      status: "past_due",
+    });
   });
 });

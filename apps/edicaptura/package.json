@@ -1,0 +1,25 @@
+{
+  "name": "@informach/edicaptura",
+  "version": "0.2.2",
+  "description": "Captura de tela, vídeo e anotações para Windows",
+  "author": "EdiCaptura",
+  "private": true,
+  "main": "out/main/main.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "start": "electron-vite preview",
+    "build": "electron-vite build",
+    "test": "node --test src/capture/*.test.cjs src/main/*.test.cjs",
+    "test:e2e": "node tests/smoke.cjs",
+    "pack": "node scripts/package.cjs",
+    "dist": "node scripts/package.cjs --zip"
+  },
+  "dependencies": {
+    "@informach/edi-desktop": "workspace:*"
+  },
+  "devDependencies": {
+    "electron": "44.8.0",
+    "electron-vite": "^6.0.0",
+    "vite": "^8.3.4"
+  }
+}

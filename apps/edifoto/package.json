@@ -1,0 +1,38 @@
+{
+  "name": "@informach/edifoto",
+  "version": "0.2.0",
+  "description": "Editor de fotos com foco em modos de mesclagem e edição do dia a dia, com agente de IA.",
+  "private": true,
+  "main": "./out/main/index.js",
+  "author": "Crie com Helena e Julio",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc -b tsconfig.node.json tsconfig.web.json --force",
+    "test": "node --test \"tests/**/*.test.ts\"",
+    "shortcut": "electron-vite build && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create-shortcuts.ps1"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.134.0",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@informach/edi-desktop": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "lucide-react": "^1.58.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "zod": "^4.6.7",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "electron": "44.8.0",
+    "electron-vite": "^6.0.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
+  }
+}

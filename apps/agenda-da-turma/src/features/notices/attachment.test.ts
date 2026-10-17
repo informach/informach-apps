@@ -27,16 +27,14 @@ describe("school attachments", () => {
     );
     expect(output.getPages().map((p) => p.getWidth())).toEqual([200, 400]);
   });
-  it.each([
-    [1, 1],
-    [0],
-    [5],
-    [1, 2, 3, 4],
-  ])("rejects invalid selected pages %j", async (...pages) => {
-    await expect(prepareNoticeAttachment({ ...(await pdfInput()), pages })).rejects.toThrow(
-      "SELECT_PDF_PAGES",
-    );
-  });
+  it.each([[1, 1], [0], [5], [1, 2, 3, 4]])(
+    "rejects invalid selected pages %j",
+    async (...pages) => {
+      await expect(prepareNoticeAttachment({ ...(await pdfInput()), pages })).rejects.toThrow(
+        "SELECT_PDF_PAGES",
+      );
+    },
+  );
   it("does not accept a renamed text file as an image", async () => {
     await expect(
       prepareNoticeAttachment({

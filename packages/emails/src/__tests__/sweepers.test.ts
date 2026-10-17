@@ -187,7 +187,7 @@ describe("retryFailedDeliveries", () => {
     expect(result.failed).toBe(0);
     expect(result.skipped).toBe(0);
 
-    const msg = (send as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as {
+    const msg = (send as Mock).mock.calls[0]?.[0] as {
       headers: Record<string, string>;
       customArgs: Record<string, string>;
       categories: string[];
@@ -354,3 +354,5 @@ describe("retryFailedDeliveries", () => {
     expect(result.skipped).toBe(1);
   });
 });
+
+import type { Mock } from "vitest";

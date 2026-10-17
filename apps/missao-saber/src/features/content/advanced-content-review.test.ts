@@ -83,19 +83,16 @@ const standaloneCalculations: Array<{
   },
 ];
 
-it.each(standaloneCalculations)("solves $pack-$mission-$question using its own prompt", ({
-  pack,
-  mission,
-  question,
-  dataCount,
-  solve,
-}) => {
-  const item = skillPacks.find((p) => p.id === pack)?.missions[mission - 1]?.specs[question - 1];
-  if (!item) throw new Error(`Missing ${pack}-${mission}-${question}`);
-  const data = numbers(item.prompt);
-  expect(data).toHaveLength(dataCount);
-  const expected =
-    Math.round((solve((index) => numberAt(data, index)) + Number.EPSILON) * 100) / 100;
-  const actual = item.kind === "numeric" ? item.value : numberAt(numbers(item.answer), 0);
-  expect(actual).toBeCloseTo(expected, 8);
-});
+it.each(standaloneCalculations)(
+  "solves $pack-$mission-$question using its own prompt",
+  ({ pack, mission, question, dataCount, solve }) => {
+    const item = skillPacks.find((p) => p.id === pack)?.missions[mission - 1]?.specs[question - 1];
+    if (!item) throw new Error(`Missing ${pack}-${mission}-${question}`);
+    const data = numbers(item.prompt);
+    expect(data).toHaveLength(dataCount);
+    const expected =
+      Math.round((solve((index) => numberAt(data, index)) + Number.EPSILON) * 100) / 100;
+    const actual = item.kind === "numeric" ? item.value : numberAt(numbers(item.answer), 0);
+    expect(actual).toBeCloseTo(expected, 8);
+  },
+);

@@ -1,0 +1,23 @@
+.export-queue-launcher {
+  position: fixed;
+  right: 18px;
+  bottom: 34px;
+  z-index: 40;
+  box-shadow: 0 3px 14px #0006;
+}
+.export-queue-list {
+  padding: 0 24px;
+  max-height: 55vh;
+  overflow-y: auto;
+}
+.export-queue-item {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+.export-queue-item .path {
+  overflow-wrap: anywhere;
+  margin: 8px 0 12px;
+}
+.export-queue-item .row-10 {
+  margin-top: 8px;
+}

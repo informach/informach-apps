@@ -1,0 +1,104 @@
+{
+  "version": 2,
+  "name": "E01 Formas",
+  "animation": "Parado",
+  "transforms": {
+    "x": 0,
+    "y": 0,
+    "rotation": 0,
+    "opacity": 100,
+    "sx": 1,
+    "sy": 1
+  },
+  "keys": [],
+  "keysByAnimation": {
+    "Parado": [],
+    "Acenar": [],
+    "Pular": []
+  },
+  "modes": {
+    "Parado": "loop",
+    "Acenar": "ping-pong",
+    "Pular": "once"
+  },
+  "inputs": {
+    "humor": 0.6,
+    "acenando": false
+  },
+  "scene": {
+    "viewBox": [
+      0,
+      0,
+      1080,
+      1080
+    ],
+    "nodes": [
+      {
+        "id": "node-grupo",
+        "name": "Grupo",
+        "tag": "g",
+        "attrs": {},
+        "children": [
+          {
+            "id": "node-retangulo",
+            "name": "Ret?ngulo",
+            "tag": "rect",
+            "attrs": {
+              "x": "100",
+              "y": "150",
+              "width": "240",
+              "height": "180",
+              "fill": "#4fe3c1"
+            },
+            "children": [],
+            "text": "",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "rotation": 0,
+              "opacity": 100,
+              "sx": 1,
+              "sy": 1
+            },
+            "visible": true,
+            "locked": false
+          },
+          {
+            "id": "node-circulo",
+            "name": "C?rculo",
+            "tag": "circle",
+            "attrs": {
+              "cx": "500",
+              "cy": "240",
+              "r": "90",
+              "fill": "#ffb547"
+            },
+            "children": [],
+            "text": "",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "rotation": 0,
+              "opacity": 100,
+              "sx": 1,
+              "sy": 1
+            },
+            "visible": true,
+            "locked": false
+          }
+        ],
+        "text": "",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "rotation": 0,
+          "opacity": 100,
+          "sx": 1,
+          "sy": 1
+        },
+        "visible": true,
+        "locked": false
+      }
+    ]
+  }
+}

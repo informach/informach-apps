@@ -23,6 +23,7 @@ import { organization } from "better-auth/plugins/organization";
 import { twoFactor } from "better-auth/plugins/two-factor";
 import { eq } from "drizzle-orm";
 import { configureObservability, logAuditEvent } from "./audit";
+import { type DesktopOAuthConfig, desktopOAuthPlugins, desktopOAuthSchema } from "./desktop-oauth";
 import {
   buildHelpers,
   ForbiddenError,
@@ -239,6 +240,7 @@ export type CreateAuthConfig = {
   socialProviders?: CreateAuthSocialProvidersConfig;
   passkey?: CreateAuthPasskeyConfig;
   twoFactor?: CreateAuthTwoFactorConfig;
+  desktopOAuth?: DesktopOAuthConfig;
   /**
    * Per-app choice of email-based flows: verification, passwordless sign-in,
    * password reset. See {@link CreateAuthEmailConfig} for defaults.
@@ -457,6 +459,7 @@ function buildPlugins(config: CreateAuthConfig, flows: EmailFlowSelection): Bett
   if (passkeyPlugin) plugins.push(passkeyPlugin);
   const twoFactorPlugin = buildTwoFactorPlugin(config);
   if (twoFactorPlugin) plugins.push(twoFactorPlugin);
+  if (config.desktopOAuth) plugins.push(...desktopOAuthPlugins(config.desktopOAuth));
   return plugins;
 }
 
@@ -521,6 +524,7 @@ function createAuthInstance(config: CreateAuthConfig) {
           : {}),
         ...(passkeyEnabled ? { passkey: passkeys } : {}),
         ...(twoFactorEnabled ? { twoFactor: twoFactors } : {}),
+        ...(config.desktopOAuth ? desktopOAuthSchema() : {}),
       },
     }),
     advanced: {

@@ -13,45 +13,43 @@ const action = {
   sourceExcerpt: "Enviar autorização até 16/09/2026.",
 };
 describe("school notice date provenance", () => {
-  it.each([
-    "Anotado em 15/09/2026",
-    "Data da anotação: 15/09/2026",
-    "Escrito em 2026-09-15",
-  ])("uses an explicit writing date for notebook deadlines: %s", (sourceExcerpt) => {
-    const result = validateNoticeExtraction(
-      {
-        actions: [
-          {
-            ...action,
-            type: "task",
-            dateOrigin: "relative",
-            sourceExcerpt: "Para casa: entregar amanhã.",
-          },
-        ],
-        warnings: [],
-        publicationReference: { date: "2026-09-15", sourceExcerpt },
-      },
-      null,
-    );
-    expect(result.actions[0]?.dueAt).toBe("2026-09-16");
-    expect(result.publicationReference?.date).toBe("2026-09-15");
-  });
-  it.each([
-    "Foto tirada em 15/09/2026",
-    "15/09/2026",
-    "Prova em 15/09/2026",
-  ])("does not infer a notebook writing date from %s", (sourceExcerpt) => {
-    const result = validateNoticeExtraction(
-      {
-        actions: [{ ...action, dateOrigin: "relative" }],
-        warnings: [],
-        publicationReference: { date: "2026-09-15", sourceExcerpt },
-      },
-      null,
-    );
-    expect(result.actions[0]?.dueAt).toBeNull();
-    expect(result.publicationReference).toBeNull();
-  });
+  it.each(["Anotado em 15/09/2026", "Data da anotação: 15/09/2026", "Escrito em 2026-09-15"])(
+    "uses an explicit writing date for notebook deadlines: %s",
+    (sourceExcerpt) => {
+      const result = validateNoticeExtraction(
+        {
+          actions: [
+            {
+              ...action,
+              type: "task",
+              dateOrigin: "relative",
+              sourceExcerpt: "Para casa: entregar amanhã.",
+            },
+          ],
+          warnings: [],
+          publicationReference: { date: "2026-09-15", sourceExcerpt },
+        },
+        null,
+      );
+      expect(result.actions[0]?.dueAt).toBe("2026-09-16");
+      expect(result.publicationReference?.date).toBe("2026-09-15");
+    },
+  );
+  it.each(["Foto tirada em 15/09/2026", "15/09/2026", "Prova em 15/09/2026"])(
+    "does not infer a notebook writing date from %s",
+    (sourceExcerpt) => {
+      const result = validateNoticeExtraction(
+        {
+          actions: [{ ...action, dateOrigin: "relative" }],
+          warnings: [],
+          publicationReference: { date: "2026-09-15", sourceExcerpt },
+        },
+        null,
+      );
+      expect(result.actions[0]?.dueAt).toBeNull();
+      expect(result.publicationReference).toBeNull();
+    },
+  );
   it("accepts a notebook photo with no typed text", () => {
     expect(
       parseNoticeSchema.safeParse({
@@ -74,22 +72,22 @@ describe("school notice date provenance", () => {
     expect(result.actions[0]?.dueAt).toBe("2026-09-16");
     expect(result.publicationReference?.date).toBe("2026-09-15");
   });
-  it.each([
-    "Passeio em 15/09/2026",
-    "Publicado em 10/09/2026",
-  ])("does not accept unsupported publication evidence: %s", (sourceExcerpt) => {
-    const result = validateNoticeExtraction(
-      {
-        actions: [{ ...action, dateOrigin: "relative" }],
-        publicationReference: { date: "2026-09-15", sourceExcerpt },
-        warnings: [],
-      },
-      null,
-    );
-    expect(result.actions[0]?.dueAt).toBeNull();
-    expect(result.publicationReference).toBeNull();
-    expect(result.warnings.some((w) => w.includes("publicação"))).toBe(true);
-  });
+  it.each(["Passeio em 15/09/2026", "Publicado em 10/09/2026"])(
+    "does not accept unsupported publication evidence: %s",
+    (sourceExcerpt) => {
+      const result = validateNoticeExtraction(
+        {
+          actions: [{ ...action, dateOrigin: "relative" }],
+          publicationReference: { date: "2026-09-15", sourceExcerpt },
+          warnings: [],
+        },
+        null,
+      );
+      expect(result.actions[0]?.dueAt).toBeNull();
+      expect(result.publicationReference).toBeNull();
+      expect(result.warnings.some((w) => w.includes("publicação"))).toBe(true);
+    },
+  );
   it("requires confirmation when the supplied publication conflicts with the original", () => {
     const result = validateNoticeExtraction(
       {

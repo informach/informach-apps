@@ -1,0 +1,312 @@
+:root {
+  font-family: "Plus Jakarta Sans Variable", system-ui, sans-serif;
+  color: #222831;
+  background: #f5f3ed;
+  --paper: #f5f3ed;
+  --ink: #222831;
+  --pencil: #647079;
+  --line: #c8c9c3;
+  --marker: #f1b95b;
+  --worktop: #20272c;
+  font-synthesis: none;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button,
+a {
+  -webkit-app-region: no-drag;
+}
+button {
+  font: inherit;
+  cursor: pointer;
+  color: inherit;
+  border: 1px solid var(--line);
+  background: transparent;
+  border-radius: 7px;
+  padding: 11px 15px;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid #996600;
+  outline-offset: 4px;
+}
+.hub {
+  display: grid;
+  grid-template-columns: 210px 1fr;
+  min-height: 100vh;
+}
+.rail {
+  padding: 32px 24px;
+  background: var(--worktop);
+  color: var(--paper);
+  display: flex;
+  flex-direction: column;
+}
+.brand {
+  font-size: 46px;
+  font-weight: 850;
+  letter-spacing: -4px;
+}
+.brand span {
+  color: var(--marker);
+  margin-left: 6px;
+}
+.rail-title {
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 1.5;
+  margin: 36px 0;
+}
+.rail nav {
+  display: grid;
+  gap: 12px;
+}
+.rail nav a,
+.rail nav button {
+  color: var(--paper);
+  text-align: left;
+  text-decoration: none;
+  font-size: 13px;
+  border-color: #566069;
+  padding: 12px;
+}
+.rail nav a {
+  border-left: 3px solid var(--marker);
+  background: #303a42;
+}
+.rail-foot {
+  margin-top: auto;
+  padding-top: 80px;
+  font-size: 13px;
+  color: #d1d4d4;
+  line-height: 1.7;
+}
+.rail-foot small {
+  display: block;
+  padding-top: 14px;
+  color: #abb2b7;
+}
+main {
+  padding: 30px 36px 35px;
+}
+.topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  letter-spacing: 1.4px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 22px;
+}
+.badge {
+  border: 1px solid #c8a564;
+  background: #faf0db;
+  padding: 8px 11px;
+  border-radius: 20px;
+  letter-spacing: 0;
+  font-size: 12px;
+}
+.badge.valid {
+  border-color: #95b39b;
+  background: #e7efe5;
+}
+.intro {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 32px;
+  margin: 38px 0;
+}
+.eyebrow {
+  font-size: 10px;
+  letter-spacing: 1.8px;
+  font-weight: 700;
+  color: var(--pencil);
+}
+h1 {
+  font-size: clamp(30px, 3.5vw, 48px);
+  letter-spacing: -2px;
+  line-height: 1.16;
+  font-weight: 750;
+  margin: 17px 0;
+}
+.intro-copy > p:not(.eyebrow) {
+  max-width: 440px;
+  font-size: 14px;
+  color: var(--pencil);
+  line-height: 1.8;
+}
+.account-card {
+  border: 1px solid var(--line);
+  padding: 21px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #eeeee7;
+  border-radius: 10px;
+}
+.account-card p {
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+}
+.account-card small {
+  font-size: 10px;
+  color: var(--pencil);
+}
+.primary {
+  background: var(--marker);
+  border-color: #b98531;
+  font-weight: 700;
+  font-size: 12px;
+}
+.code {
+  font: 700 24px monospace;
+  letter-spacing: 3px;
+}
+.notice {
+  padding: 15px;
+  border: 1px solid #c48d64;
+  background: #fcf0e2;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 15px;
+  margin: 28px 0 20px;
+}
+h2 {
+  font-size: 19px;
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+.section-heading > span {
+  font-size: 10px;
+  color: var(--pencil);
+}
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.tool {
+  border: 1px solid var(--line);
+  padding: 22px 19px 17px;
+  border-radius: 10px;
+  background: #fbfaf5;
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  min-height: 252px;
+}
+.tool-mark {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  border: 1px solid #a9b2ac;
+  border-radius: 9px;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  background: #e7ebe1;
+  color: #2c4c45;
+}
+.tool-edicaptura .tool-mark {
+  background: #eee5d2;
+  color: #785e30;
+}
+.tool-edifoto .tool-mark {
+  background: #eadfea;
+  color: #694d6f;
+}
+.tool-edipdf .tool-mark {
+  background: #eee0d8;
+  color: #794d39;
+}
+.tool-edisvg .tool-mark {
+  background: #dce9ed;
+  color: #345768;
+}
+.tool h3 {
+  font-size: 17px;
+  letter-spacing: -0.5px;
+  margin: 16px 0 6px;
+}
+.tool > p {
+  color: var(--pencil);
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0 0 14px;
+}
+.tool > small {
+  font-size: 10px;
+  color: var(--pencil);
+  margin-top: auto;
+}
+.tool > button {
+  font-size: 12px;
+  width: 100%;
+  text-align: left;
+  margin-top: 12px;
+  font-weight: 650;
+}
+.tool .tool-error {
+  font-size: 11px;
+  color: #8b462e;
+  margin: 12px 0 0;
+}
+.work-note {
+  margin-top: 28px;
+  padding: 24px 0 0;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--pencil);
+}
+.work-note strong {
+  color: var(--ink);
+}
+.work-note p {
+  max-width: 640px;
+  margin: 7px 0;
+}
+.work-note > span {
+  font-size: 10px;
+}
+@media (max-width: 1000px) {
+  .hub {
+    grid-template-columns: 170px 1fr;
+  }
+  main {
+    padding: 24px;
+  }
+  .intro {
+    grid-template-columns: 1fr 240px;
+    gap: 20px;
+  }
+  .rail {
+    padding: 24px 18px;
+  }
+  .tool-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  h1 {
+    font-size: 35px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto;
+  }
+}

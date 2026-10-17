@@ -6,7 +6,7 @@
 
 ## 1. Propósito
 
-`@informach/auth` é o wrapper opinativo de **Better Auth 1.6.9** (pinned) usado pelos apps Next.js do monorepo `informach-platform` (`agenda-da-turma`, `cozya`, futuros). Ele encapsula:
+`@informach/auth` é o wrapper opinativo de **Better Auth 1.7.10** (pinned) usado pelos apps Next.js do monorepo `informach-apps` (incluindo Edi). Ele encapsula:
 
 - A construção da instância Better Auth com schema, plugins, hooks de audit e templates de email pré-amarrados.
 - Helpers tipados para RSC, route handlers, proxy (Next 16) e server actions.
@@ -445,7 +445,7 @@ Wiring real em `apps/<app>/src/lib/env.ts` (`@t3-oss/env-nextjs`).
 
 ### 5.1 Decisões fixadas
 
-1. **Better Auth como dependency real, não fork.** Versões `better-auth` e `@better-auth/passkey` pinadas em `1.6.9` exato (sem caret) em `package.json`. Subir versão exige rodar testes + typecheck, ler release notes, atualizar este doc.
+1. **Better Auth como dependency real, não fork.** Versões `better-auth`, `@better-auth/passkey` e `@better-auth/oauth-provider` pinadas em `1.7.10` exato (sem caret) em `package.json`. Subir versão exige rodar testes + typecheck, ler release notes, atualizar este doc.
 2. **RBAC custom, não plugin `admin()`.** O plugin oficial expõe endpoints `/admin/*` (impersonate, ban, list-users) que não foram pedidos como produto e expandem superfície de ataque. Implementação custom em `permissions.ts` + `helpers.ts` cobre o caso atual.
 3. **Multi-tenancy via `organization` é opt-in por app, não global.** Cozya e Agenda da Turma hoje rodam single-user; Agenda planeja perfis de filhos (modelo Netflix-household) num schema próprio do app, não via plugin de organização. Plugin permanece como capability disponível para apps futuros que precisem de multi-tenant real.
 4. **Schema source of truth é Drizzle (`packages/db/src/schema/core.ts`), não Better Auth CLI.** Misturar `npx better-auth migrate` com `drizzle-kit generate` causa conflitos. Quando Better Auth 1.x adiciona `additionalFields` ou plugin novo, declaramos manualmente em `core.ts` e mapeamos via `schema:` no `drizzleAdapter`.
@@ -504,7 +504,7 @@ Apps **não rodam estes testes** — fica isolado no package. Para teste E2E rea
 
 Quando trabalhar neste package:
 
-1. **Antes de mexer em qualquer coisa que toque Better Auth API**, consultar `context7` ou `mcp__context7__query-docs` com a versão `1.6.9` — a API muda entre minor versions.
+1. **Antes de mexer em qualquer coisa que toque Better Auth API**, consultar documentação oficial e os tipos/fontes instalados de `1.7.10`; Context7 pode ainda indexar uma versão anterior — a API muda entre minor versions.
 2. **Não habilitar nenhuma feature opt-in sem confirmar com o usuário.** Cada feature carrega custo de schema/middleware/UI. Default é off.
 3. **Nunca quebrar tipos exportados** sem upgrade major do package — `User`, `Session`, `Role`, `Permission`, `AuditEventType` são consumidos pelos apps.
 4. **Schema novo ou mudança em coluna?** Editar `packages/db/src/schema/core.ts`, gerar migration via `pnpm db:generate`, mapear no `drizzleAdapter` em `index.ts`. Nunca rodar `npx better-auth migrate`.
@@ -513,7 +513,7 @@ Quando trabalhar neste package:
 7. **Não emitir eventos de audit fora de `logAuditEvent`** — caso contrário `observability.onAuditEvent` não recebe.
 8. **Mudanças na matriz de permissions** (`PERMISSIONS` em `permissions.ts`): atualizar tabela em §3.3 deste doc + testes em `permissions.test.ts`.
 9. **Adicionar plugin Better Auth novo** = tarefa em fase própria. Ordem: schema (Drizzle) → tipos no `CreateAuthConfig` → wire em `buildPlugins` → client equivalente em `client.ts` → testes → este doc + `PRODUCTION.md`.
-10. **Versão pinada** (`better-auth@1.6.9`): subir é decisão consciente. Sempre rodar `pnpm --filter @informach/auth test && pnpm --filter @informach/auth typecheck` antes de aplicar.
+10. **Versão pinada** (`better-auth@1.7.10`): subir é decisão consciente. Sempre rodar `pnpm --filter @informach/auth test && pnpm --filter @informach/auth typecheck` e as integrações PostgreSQL antes de aplicar.
 
 ---
 
@@ -528,3 +528,9 @@ Itens validados como possíveis evoluções, sem compromisso de prioridade:
 - Plugin `admin()` oficial (se algum dia precisar de impersonation com UI pronta).
 
 Para retomar trabalho de fase, perguntar ao usuário qual fase está autorizada — cada fase é entregável independente. Histórico de fases entregues vive na memory (`auth_roadmap.md`).
+
+## Contrato Edi (16/10/2026)
+
+O subpath `@informach/auth/desktop-oauth` implementa device grant com client público native, sem secret, consentimento obrigatório, scopes `edi:license edi:devices offline_access`, access token de 300 s e refresh de 30 dias com rotação/replay denial. O pre-deploy idempotente confere a política completa do client/resource e falha diante de drift, sem overwrite silencioso. Não criar endpoint público de provisionamento.
+
+Edi escolhe confirmação/reset por OTP. O formulário permite retomar cadastro após reload e reenviar confirmação; login sem e-mail verificado continua proibido. Cooldown na UI não substitui os rate limits persistentes do backend. `pnpm edi:test:integration` cobre drift, device grant/refresh/replay e OTP expirado/inválido/reenvio/confirmação em PostgreSQL descartável. Os demais apps conservam suas opções de autenticação.

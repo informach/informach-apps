@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type FakeRedis = {
-  incr: ReturnType<typeof vi.fn>;
-  expire: ReturnType<typeof vi.fn>;
-  ttl: ReturnType<typeof vi.fn>;
+  incr: Mock;
+  expire: Mock;
+  ttl: Mock;
 };
 
 let counter = 0;
@@ -113,3 +113,5 @@ describe("COZYA_RATE_LIMITS", () => {
     expect(aiInvokeKey("user-123")).toBe("cozya.ai.invoke:user:user-123");
   });
 });
+
+import type { Mock } from "vitest";

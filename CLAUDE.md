@@ -2,17 +2,21 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**Read [AGENTS.md](AGENTS.md) first.** It is the shared entry point for repository context, provider choices, safety rules and mandatory documentation maintenance. Then read [docs/estado-do-repositorio.md](docs/estado-do-repositorio.md) for the active work and the applicable local guides. Keep common policy in `AGENTS.md`; the summaries below do not replace current app-specific contracts or operational evidence.
+
 ## Workspace
 
-`informach-platform` is a pnpm + Turborepo monorepo (pnpm@9.15.0, turbo@2.9.6, TypeScript 5.6, Node ≥20, Biome 2.4 for lint+format).
+`informach-apps` (historically `informach-platform`) is a pnpm + Turborepo monorepo. Resolve runtime/tool versions from root `package.json`, `pnpm-lock.yaml` and CI, not this summary. The current Node requirement is ≥24.15.0; the older `.nvmrc` divergence is tracked in the work-state document. Biome handles lint and formatting.
 
 - **Apps** (`apps/`):
   - `admin` (port 3003) — scaffold, no auth/billing/db wiring yet; keep dependencies minimal until it becomes a real app.
-  - `agenda-da-turma` (port 3001) — single-user (sem organizations; modelo Netflix-household — perfis de filhos vivem na conta do responsável como sub-entidades). Auth + billing + emails 100% wired (paridade UX com cozya: onboarding com escolha de plano, `/settings/billing`, `/upgrade`, packs de crédito). Features de agenda implementadas: perfis (Free 1 / Pro 3), turmas compartilhadas com código de 12 chars (que também é link de convite), matérias por turma, atividades CRUD com paginação keyset e status per-perfil, calendário (mês/semana/dia), dashboard com KPIs/buckets. IA via OpenRouter, com franquia inicial gratuita — leitura de recado (`agenda.notices.parse`, que separa por matéria e devolve a pista) e cadastro de matérias por voz/imagem (`agenda.subjects.parse_*`); os parsers de atividade em lote foram removidos por não terem cliente. Modelos `openai/gpt-4o`, `openai/gpt-4o-mini`, `openai/gpt-4o-transcribe`. PWA instalável com service worker: push, leitura offline do esqueleto, alvo de compartilhamento do sistema e fila de conclusões que sobem quando a rede volta (`agenda.idempotent_writes` + `POST /api/tasks/[id]/status`). Entrada de recado por foto, colar, ditado, compartilhamento do sistema e exportação do WhatsApp. Planejamento determinístico: carga do dia, plano de estudo e resumo semanal. Landing pública na rota `/`. Sentry, Vitest + Playwright.
+  - `agenda-da-turma` (port 3001) — family school routine, unified activities and notices, child profiles and invited adults with per-child permissions. Billing belongs to the holder; Better Auth organizations are disabled. Do not collapse invited-adult identity into the holder. Product rules, limits and current flows are in the app's `CLAUDE.md`.
   - `cozya` (port 3002) — single-user (no organizations), Sentry, Vitest + Playwright.
   - `missao-saber` (port 3005) — single-user com perfis familiares, preparação autoral para olimpíadas escolares, Sentry, Vitest + Playwright. Auth, billing, banco, e-mails e UI vêm dos packages compartilhados.
   - `informach-site` (port 3004) — landing institucional pública (`informach.com.br`). Sem auth/billing/db/AI; só Next + `@informach/ui`. Hospeda Termos e Privacidade guarda-chuva da holding (Stripe Customer Portal aponta pra cá).
-- **Packages** (`packages/`, scope `@informach/*`): `db`, `auth`, `billing`, `emails`, `ai-core`, `config`, `ui`. All consumed as TypeScript source — none have a build step.
+  - `edi` (port 3006) — suite portal, subscriptions and desktop licensing; follows the existing Railway setup at `edi.informach.com.br`, with deployment still pending as documented in `apps/edi/PRODUCAO.md`.
+  - `edi-hub`, `ediaula`, `edicaptura`, `edifoto`, `edipdf`, `edisvg` — Electron suite under integration. Preserve existing interfaces; completing missing editor features is outside the integration scope. Read `docs/arquitetura-desktop.md` and the Edi implementation record before changes.
+- **Packages** (`packages/`, scope `@informach/*`): `db`, `auth`, `billing`, `emails`, `ai-core`, `config`, `ui`, `edi-contracts`, `edi-desktop`, `edi-licensing`, `edi-releases`. All consumed as TypeScript source — none have a build step.
 
 Per-package deep guides exist and should be consulted before non-trivial changes:
 - `packages/auth/CLAUDE.md`
@@ -22,34 +26,36 @@ Per-package deep guides exist and should be consulted before non-trivial changes
 - `apps/agenda-da-turma/CLAUDE.md`
 - `apps/cozya/CLAUDE.md`
 - `apps/informach-site/CLAUDE.md`
+- `apps/missao-saber/README.md` and `apps/missao-saber/PRODUCAO.md`
+- `apps/edi/PRODUCAO.md`
 
-Cross-cutting docs in `docs/`: `arquitetura-monorepo.md`, `arquitetura-apps.md`, `arquitetura-packages.md`, `audit-payload-policy.md`, `deploy-runbook.md` (Railway/Stripe/Sentry — passo-a-passo de deploy de app, derivado do cozya), `adr/0001-uso-de-monorepo.md`.
+Cross-cutting docs in `docs/`: `arquitetura-monorepo.md`, `arquitetura-apps.md`, `arquitetura-desktop.md`, `arquitetura-packages.md`, `audit-payload-policy.md`, `deploy-runbook.md` (Railway/Stripe/Sentry — passo-a-passo de deploy de app, derivado do cozya), `adr/0001-uso-de-monorepo.md`. Current work is indexed in `docs/estado-do-repositorio.md`; keep evidence and temporary blockers in the relevant implementation/operation record.
 
 ## Commands
 
 ### Workspace-wide (root scripts)
 - `pnpm dev` / `pnpm build` / `pnpm typecheck` / `pnpm test` — Turbo across the workspace.
 - `pnpm check` / `pnpm lint` / `pnpm format` — Biome (not ESLint/Prettier).
-- `pnpm db:generate` / `pnpm db:studio` / `pnpm db:push` — delegated to `@informach/db` (Drizzle Kit). `pnpm db:migrate` runs `@informach/db db:migrate` and then `@informach/ai-core mastra:migrate`.
+- `pnpm db:generate` / `pnpm db:studio` / `pnpm db:push` — delegated to `@informach/db` (Drizzle Kit); never use `db:push` in production. `pnpm db:migrate` runs Drizzle migrations, the task backfill and Mastra storage initialization, as defined in root `package.json`.
 
 ### Per app
-- `pnpm dev:admin` | `pnpm dev:agenda-da-turma` | `pnpm dev:cozya` | `pnpm dev:missao-saber` | `pnpm dev:informach-site`
+- `pnpm dev:admin` | `pnpm dev:agenda-da-turma` | `pnpm dev:cozya` | `pnpm dev:missao-saber` | `pnpm dev:informach-site` | `pnpm dev:edi`
 - `pnpm build:<app>` | `pnpm start:<app>`
 
 ### Single test
-- Vitest: `pnpm --filter @informach/<app> vitest run path/to/file.test.ts -t "test name"`
+- Vitest: `pnpm --filter @informach/<app> exec vitest run path/to/file.test.ts -t "test name"`
 - Playwright E2E: `pnpm --filter @informach/<app> exec playwright test <file>`
 
 ## Architecture pillars
 
 ### Packages are consumed as TypeScript source
-Each package exposes its surface via `package.json` `exports` pointing at `src/`. Apps add every consumed `@informach/*` to `transpilePackages` in `next.config.ts`. **Never add a build step to a shared package** — see `docs/arquitetura-packages.md`.
+Each package exposes its surface via `package.json` `exports` pointing at `src/`. Next.js apps add every consumed `@informach/*` to `transpilePackages` in `next.config.ts`; Electron apps bundle those sources according to `docs/arquitetura-desktop.md`. **Never add a build step to a shared package** — see `docs/arquitetura-packages.md`.
 
 ### Auth and the Next 16 proxy
-- Better Auth 1.6.9 wrapped by `@informach/auth`. RBAC is custom (4 roles: owner/admin/member/guest, 8 permissions) — *not* the Better Auth admin plugin.
-- Apps use `src/proxy.ts` (Next 16's replacement for `middleware.ts`) calling `createAuthProxy(authResult, { publicPaths, requireAuth })` — see `apps/agenda-da-turma/src/proxy.ts` and `apps/cozya/src/proxy.ts`. New routing-level guards go through proxy.ts; consult context7 before touching Next routing primitives.
+- Better Auth is wrapped by `@informach/auth`; the installed family/plugins are declared together in its manifest. RBAC is custom (4 roles: owner/admin/member/guest, 8 permissions) — *not* the Better Auth admin plugin. App-specific family and device authorization remains separate from this generic RBAC.
+- Web apps with routing-level guards use `src/proxy.ts` (Next 16) and `createAuthProxy` — see Agenda and Cozya. Follow the current app's pattern and consult current docs before changing routing primitives. Proxy checks do not replace authentication/authorization inside Server Actions, Route Handlers and protected data access.
 - Cookie cache 5 min by default; role changes invalidate sessions immediately.
-- Ambos `agenda-da-turma` e `cozya` são single-user (sem organizations). `organizationsEnabled: false` no `createBillingService` e sem o plugin de organização no `createAuth`/`createInformachAuthClient`.
+- Em `agenda-da-turma` e `cozya`, a assinatura pertence ao usuário titular, sem Better Auth organizations: `organizationsEnabled: false` no `createBillingService` e sem o plugin de organização no `createAuth`/`createInformachAuthClient`. Na Agenda, isso não elimina a identidade própria e as permissões por criança dos adultos convidados.
 - **Email plugin choice is per-app via `config.email`** in `createAuth`/`createInformachAuthClient`: `verification: "otp" | "link"` (default `"otp"`), `signIn: { magicLink: bool, otp: bool }` (defaults `true`/`false`), `forgetPassword: "link" | "otp"` (default `"link"`). The package conditionally loads `magicLink`/`emailOTP` plugins and registers link callbacks (`sendVerificationEmail`/`sendResetPassword`) only when needed. **Cozya e Agenda da Turma são ambos OTP-only** (verification + sign-in + forget-password). See `packages/auth/CLAUDE.md` §3.2.
 - Account deletion (LGPD) calls `billing.cancelBillingForSubject` via the auth `onBeforeDelete` hook.
 - Audit is typed through `AuditEventType`; packages emit through app-wired `onAudit` callbacks and persistence failures are reported via `observability.onAuditPersistenceFailure`.
@@ -57,14 +63,14 @@ Each package exposes its surface via `package.json` `exports` pointing at `src/`
 ### Billing — Stripe Dahlia + reserve/commit credits
 - `stripe@^22.1.0` pinned with `apiVersion: '2026-04-22.dahlia'` (literal). Note Basil/Dahlia changes: `current_period_*` lives on `items.data[i]`, `checkout.session.completed` fires *before* the subscription event, `total_count` is removed, monetary math uses `Stripe.Decimal`. `invoices.retrieveUpcoming` was replaced by `invoices.createPreview` (used by `previewPlanChange`).
 - Two models in one API: subscriptions + credit packs for AI usage.
-- **Pro entitlement** lives in `packages/billing/src/access.ts`: `PRO_STATUSES = ["active", "trialing"]` + `hasProSubscription(subject)`. Single source of truth for every feature gate — never inline `status === "active"`. `past_due` is NOT Pro (card declined).
+- **Generic Pro subscription checks** live in `packages/billing/src/access.ts`: `PRO_STATUSES = ["active", "trialing"]` + `hasProSubscription(subject)`. Never inline `status === "active"`; `past_due` is not Pro. Product access may include additional rules: Cozya has `getKitchenAccess`, and Edi uses paid-period facts and signed licenses in `@informach/edi-licensing`. Do not replace those policies with a generic status check.
 - **Plan changes** (`switchPlan`/`reactivateSubscription`/`previewPlanChange`): immediate upgrades charge proration via `always_invoice`; downgrades schedule via `pending_product_id`/`pending_price_id` columns, applied by the `subscription.deleted` webhook handler. `paymentActionUrl` returned when invoice ends up unpaid (no default PM, SCA, decline).
 - **Reserve → commit/release** with a Postgres advisory lock per owner. Concurrent LLM calls must never debit balance directly.
 - **Credit packs are Pro-only** — `createCreditPackCheckout` rejects with `SubscriptionRequiredError` when subject lacks active Pro. UI hides the section for Free users.
 - **Single-subscription invariant** — `createSubscriptionCheckout` rejects with `AlreadySubscribedError` if the subject already has any active-ish row (active/trialing/past_due). Apps should route to `switchPlan`.
-- **Annual plans drip credits monthly** — annual `invoice.paid` does NOT grant 12× upfront; it seeds `next_credit_grant_at = now + 30d`, and the daily sweeper `grantPendingMonthlyBonusCredits` releases 100 every 30d. `subscription_update` invoices are excluded from cycle-grant logic.
+- **Annual plans drip configured credits monthly** — annual `invoice.paid` does NOT grant 12× upfront; it seeds `next_credit_grant_at = now + 30d`, and the daily sweeper `grantPendingMonthlyBonusCredits` releases the product's configured amount every 30d. `subscription_update` invoices are excluded from cycle-grant logic. Edi does not include paid AI consumption in its suite subscription.
 - **`priceId` is authoritative over `metadata.product_id`** in webhooks — Stripe metadata doesn't migrate when `subscriptions.update` swaps prices, so the package resolves products via `stripePriceId.{dev,prod}` first.
-- Owner subject sempre é `user` (ambos os apps são single-user). Isolamento entre apps é feito pela coluna `app` em `billing.customers` e `billing.credit_ledger` — UNIQUE composto `(provider, subjectType, subjectId, app)` permite que o mesmo `user.id` tenha 2 customers Stripe distintos (um por app). Cada `createBillingService` recebe `app: APPS.<app>.slug` no config.
+- Em `agenda-da-turma` e `cozya`, o owner subject de billing é `user`, independentemente dos perfis e das permissões de colaboração do produto. Isolamento entre apps é feito pela coluna `app` em `billing.customers` e `billing.credit_ledger` — UNIQUE composto `(provider, subjectType, subjectId, app)` permite customers Stripe distintos para o mesmo `user.id` em apps diferentes. Cada `createBillingService` recebe `app: APPS.<app>.slug` no config.
 - Idempotence in 3 layers: `webhookEvents` UNIQUE, table-level UNIQUE, `creditLedger.stripeEventId` UNIQUE. Idempotency keys for checkouts default to a 5-minute window when no nonce is supplied.
 - Sweepers: reconcile (1d), expire-bonus (1d), grant-monthly (1d, annual drip), release-reservations (5min), dunning-retry (6h).
 
@@ -77,7 +83,7 @@ Each package exposes its surface via `package.json` `exports` pointing at `src/`
 - Email audit events (`email.delivery_*`, `email.unsubscribe_recorded`, `email.suppression_recorded`) are optional via `onAudit`; payloads use `emailHash`/`emailDomain`, never raw recipient email.
 
 ### Database — Drizzle is the source of truth
-- All schema lives in `@informach/db` (no Better Auth CLI, no hand-written SQL). Postgres schemas: `core`, `billing`, `audit`, `ai`, `agenda`, `cozya`.
+- All application schema lives in `@informach/db`; do not generate a competing auth schema or rewrite applied migrations. SQL changes belong to the reviewed Drizzle migration workflow. Managed Postgres schemas are listed in `packages/db/drizzle.config.ts`, including `missao_saber` and `edi` in addition to the shared domains.
 - Schema changes flow through `pnpm db:generate` → `pnpm db:migrate`.
 - **O migrator é um service separado, e o healthcheck é que garante a ordem.** `checkSchemaReadiness()` (em `@informach/db`) compara a última migração do journal deste build com `max(created_at)` em `drizzle.__drizzle_migrations`. Os três apps expõem isso em `/api/ready`, que é o `healthcheckPath` no Railway: banco atrás do build → 503 → a instância nova não recebe tráfego. A pergunta é "atrás", nunca "diferente", então rollback do app sem desfazer migração continua passando. `/api/health` é outra coisa e não toca o banco de propósito — é ele que diz qual commit está servindo quando um deploy vai mal.
 - `audit.events` is append-only operational/compliance logging. Payload rules and LGPD/PII limits are documented in `docs/audit-payload-policy.md`.
@@ -93,5 +99,5 @@ Each package exposes its surface via `package.json` `exports` pointing at `src/`
 ## Build & CI conventions
 
 - **Turbo env list drives cache invalidation.** `turbo.json` `tasks.build.env` enumerates every variable that affects build output (`DATABASE_URL`, `BETTER_AUTH_*`, `SENDGRID_*`, `STRIPE_*`, `SENTRY_*`, `REDIS_URL`, `GOOGLE_*`, `NEXT_PUBLIC_APP_URL`, …). Any new build-affecting env must be added there or Turbo will silently serve stale output.
-- **Builds run with dummy envs.** Apps validate env via `@t3-oss/env-nextjs` (Zod). The DB client initializes lazily (Proxy) so `pnpm build` succeeds without a live database. Don't open real connections at module load.
+- **CI builds use isolated/placeholder envs.** Apps validate their own env with Zod or `@t3-oss/env-nextjs`, according to the consumer. The DB client initializes lazily (Proxy); don't open real connections at module load. A compiled build is not a production deployment or commercial homologation.
 - **External SDK pinning.** Before changing `stripe`, `better-auth`, `@sendgrid/mail`, or any versioned SDK, validate `apiVersion` and payload shapes via context7 + installed `@types/*`. Don't use `as any` to suppress a version mismatch — fix the type, then update both code and pin.

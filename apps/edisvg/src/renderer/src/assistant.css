@@ -1,0 +1,121 @@
+.assistant-panel {
+  position: fixed;
+  right: 0;
+  top: 52px;
+  bottom: 0;
+  width: 390px;
+  max-width: 95vw;
+  z-index: 5;
+  background: #15171c;
+  border-left: 1px solid #343944;
+  box-shadow: -12px 0 40px #0005;
+  display: flex;
+  flex-direction: column;
+}
+.assistant-panel[hidden] {
+  display: none;
+}
+.assistant-panel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.assistant-panel > header button {
+  font-size: 23px;
+}
+.assistant-settings {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+}
+.assistant-settings > label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+  margin: 7px 0;
+}
+.assistant-settings input,
+.assistant-settings select {
+  width: 210px;
+}
+.assistant-settings p {
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: 10px;
+}
+.assistant-settings details {
+  padding-top: 8px;
+}
+.assistant-settings summary {
+  cursor: pointer;
+  color: var(--mint);
+}
+.assistant-settings code {
+  display: block;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+  padding: 8px;
+  background: var(--bg);
+  margin: 5px 0;
+  user-select: text;
+}
+.assistant-messages {
+  flex: 1;
+  overflow: auto;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.chat-message {
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #1c1f26;
+  border-radius: 5px;
+}
+.chat-message.user {
+  background: #4fe3c115;
+  border: 1px solid #4fe3c125;
+}
+.chat-message.system {
+  color: var(--muted);
+  font-size: 10px;
+  padding: 3px 8px;
+  background: none;
+}
+.chat-message.error {
+  color: #ffaaa5;
+  background: #ff4d4d12;
+}
+.assistant-panel form {
+  border-top: 1px solid var(--line);
+  padding: 14px;
+}
+.assistant-panel textarea {
+  font: inherit;
+  width: 100%;
+  resize: vertical;
+  min-height: 65px;
+  max-height: 150px;
+  background: #0d0e11;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--text);
+  padding: 10px;
+}
+.assistant-panel form > div {
+  display: flex;
+  gap: 5px;
+  justify-content: flex-end;
+  margin-top: 9px;
+}
+.assistant-panel [data-reset] {
+  margin-right: auto;
+  font-size: 10px;
+}

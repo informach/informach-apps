@@ -5,9 +5,9 @@ vi.mock("server-only", () => ({}));
 
 const dbInsertChain: {
   rows: Array<{ count: number }>;
-  values: ReturnType<typeof vi.fn>;
-  onConflictDoUpdate: ReturnType<typeof vi.fn>;
-  returning: ReturnType<typeof vi.fn>;
+  values: Mock;
+  onConflictDoUpdate: Mock;
+  returning: Mock;
 } = {
   rows: [],
   values: vi.fn(() => dbInsertChain),
@@ -334,7 +334,7 @@ describe("createActionFactory — rate limit (custom storage)", () => {
     dbInsertChain.rows = [];
   });
 
-  function makeStorage(count: number): RateLimitStorage & { hit: ReturnType<typeof vi.fn> } {
+  function makeStorage(count: number): RateLimitStorage & { hit: Mock } {
     const hit = vi.fn(async () => ({ count, ttlSeconds: 60 }));
     return { hit };
   }
@@ -461,3 +461,5 @@ describe("createActionFactory — handler errors", () => {
     expect(onError).not.toHaveBeenCalled();
   });
 });
+
+import type { Mock } from "vitest";

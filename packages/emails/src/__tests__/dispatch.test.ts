@@ -233,7 +233,7 @@ describe("dispatchEmail live mode", () => {
 
     expect(result).toEqual({ ok: true, status: "sent", deliveryId: "fake-id" });
     expect(send).toHaveBeenCalledTimes(1);
-    const msg = (send as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as Record<string, unknown>;
+    const msg = (send as Mock).mock.calls[0]?.[0] as Record<string, unknown>;
     expect(msg.to).toBe("user@example.com");
     expect(msg.subject).toBe("Hello");
     expect((msg.headers as Record<string, string>)["List-Unsubscribe"]).toContain(
@@ -544,3 +544,5 @@ describe("dispatchEmail memory mode", () => {
     expect(entry?.customArgs.delivery_id).toBe("fake-id");
   });
 });
+
+import type { Mock } from "vitest";

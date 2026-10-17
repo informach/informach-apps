@@ -1,12 +1,19 @@
 # informach-platform
 
-Monorepo pnpm + Turborepo para produtos web da Informach. Os apps vivem em
-`apps/` e são deployados separadamente; os packages vivem em `packages/` e são
-bibliotecas internas consumidas como TypeScript fonte, sem `dist/` versionado.
+Monorepo pnpm + Turborepo para produtos web e ferramentas desktop da Informach.
+Os apps vivem em `apps/`; os web apps têm serviços separados no Railway, e as
+ferramentas Edi usam o fluxo próprio de distribuição desktop. Os packages vivem
+em `packages/` e são bibliotecas internas consumidas como TypeScript fonte, sem
+`dist/` versionado.
+
+Antes de trabalhar, leia o [AGENTS.md](AGENTS.md), guia permanente do repositório,
+e o [estado do trabalho](docs/estado-do-repositorio.md). O `CLAUDE.md` também
+direciona para essas referências. Atualizar a documentação faz parte de cada
+mudança de arquitetura, integração ou operação.
 
 ## Stack
 
-- Node.js `22.13.0+` conforme [.nvmrc](./.nvmrc)
+- Node.js `24.15.0+` conforme `engines` em [package.json](package.json); CI usa `24.15.0`
 - pnpm `9.15.0`
 - Turborepo `2.x`
 - TypeScript `5.x`
@@ -14,7 +21,7 @@ bibliotecas internas consumidas como TypeScript fonte, sem `dist/` versionado.
 - React `19.x`
 - Tailwind CSS `4.x`
 - Biome `2.x` para lint e format
-- Drizzle ORM + PostgreSQL 16
+- Drizzle ORM + PostgreSQL; Docker local usa 16 e o runner isolado Edi usa 18.4
 - Redis opcional para storage secundário do auth
 - Railway como alvo de deploy
 
@@ -25,9 +32,13 @@ bibliotecas internas consumidas como TypeScript fonte, sem `dist/` versionado.
 | App | Package | Porta local | Status |
 | --- | --- | --- | --- |
 | `admin` | `@informach/admin` | `3003` | Scaffold, sem wiring completo de auth/billing/db |
-| `agenda-da-turma` | `@informach/agenda-da-turma` | `3001` | App multi-tenant com Better Auth organizations |
+| `agenda-da-turma` | `@informach/agenda-da-turma` | `3001` | Titular, perfis de crianças e adultos convidados; sem Better Auth organizations |
 | `cozya` | `@informach/cozya` | `3002` | App single-user |
 | `missao-saber` | `@informach/missao-saber` | `3005` | Produto comercial autoral para olimpíadas, com perfis familiares e assinatura; [operação](apps/missao-saber/README.md) |
+| `informach-site` | `@informach/informach-site` | `3004` | Site institucional, termos e privacidade |
+| `edi` | `@informach/edi` | `3006` | Portal da suíte; implantação Railway e homologação pendentes; [operação](apps/edi/PRODUCAO.md) |
+| `edi-hub` | `@informach/edi-hub` | — | Central desktop da suíte, em integração |
+| `ediaula`, `edicaptura`, `edifoto`, `edipdf`, `edisvg` | `@informach/<ferramenta>` | — | Cinco apps Electron em desenvolvimento; [padrão](docs/arquitetura-desktop.md) |
 
 ### Packages
 
@@ -40,14 +51,21 @@ bibliotecas internas consumidas como TypeScript fonte, sem `dist/` versionado.
 | `@informach/ai-core` | Mastra, providers AI SDK, billing wrapper e telemetria IA |
 | `@informach/config` | Constantes compartilhadas |
 | `@informach/ui` | Design system, shadcn/ui e tokens Tailwind |
+| `@informach/edi-contracts` | Contratos públicos de licença, dispositivo e distribuição |
+| `@informach/edi-desktop` | SDK Electron de sessão, licença, arquivos, integridade e atualização |
+| `@informach/edi-licensing` | Política comercial e licenças, exclusiva do servidor |
+| `@informach/edi-releases` | Catálogo público de instaladores com verificação de assinatura |
 
 ## Setup Local
 
-1. Use Node 22.13+.
+1. Use a versão Node do manifest/CI. Neste estado do repositório:
 
    ```powershell
-   nvm use
+   nvm use 24.15.0
    ```
+
+   O `.nvmrc`, o requisito do manifest e a CI estão alinhados em `24.15.0`.
+   Instale essa versão se ela não estiver disponível.
 
 2. Ative a versão esperada do pnpm.
 
@@ -92,6 +110,7 @@ bibliotecas internas consumidas como TypeScript fonte, sem `dist/` versionado.
    pnpm dev:cozya
    pnpm dev:missao-saber
    pnpm dev:admin
+   pnpm dev:edi
    ```
 
 ## Comandos
@@ -106,11 +125,13 @@ bibliotecas internas consumidas como TypeScript fonte, sem `dist/` versionado.
 | `pnpm lint` | Biome lint |
 | `pnpm format` | Biome format com write |
 | `pnpm db:generate` | Gera migrations Drizzle |
-| `pnpm db:migrate` | Aplica migrations Drizzle e inicializa o storage Mastra |
+| `pnpm db:migrate` | Aplica migrations Drizzle, executa o backfill de tarefas e inicializa o storage Mastra |
 | `pnpm db:studio` | Abre Drizzle Studio |
-| `pnpm db:push` | Push direto do schema Drizzle |
+| `pnpm db:push` | Push direto do schema Drizzle, nunca em produção |
 
-Comandos por app seguem o padrão `dev:<app>`, `build:<app>` e `start:<app>`.
+Atalhos web por app seguem o padrão `dev:<app>`, `build:<app>` e `start:<app>`.
+Nos desktops, usar os scripts disponíveis no próprio workspace, por exemplo
+`pnpm --filter @informach/edi-hub dev`. Consultar o manifest antes de executar.
 
 ```powershell
 pnpm dev:agenda-da-turma
@@ -139,11 +160,14 @@ Schemas geridos pelo Drizzle:
 - `agenda`
 - `cozya`
 - `missao_saber`
+- `edi`
 
 O schema `ai_mastra` é exceção: ele pertence ao Mastra e fica fora do
 `schemaFilter` do Drizzle. A migration do repo cria o schema vazio; o migrator
-`pnpm db:migrate` também chama `PostgresStore.init()` para criar/atualizar as
-tabelas `mastra_*` fora do runtime dos apps.
+`pnpm db:migrate` também executa o backfill de tarefas e chama
+`PostgresStore.init()` para criar/atualizar as tabelas `mastra_*` fora do runtime
+dos apps. Migrations em produção passam pelo migrator compartilhado e pela
+barreira de readiness descritos no runbook.
 
 Fluxo normal para mudanças de schema:
 
@@ -180,13 +204,23 @@ pnpm build
 O build de CI usa variáveis placeholder para validar compilação sem depender de
 serviços externos reais.
 
+Os workflows Edi acrescentam integração com PostgreSQL isolado, verificação
+nativa Windows e o pipeline de release dos seis aplicativos. O release desktop
+é disparado por tag/release `edi-v*`, não por qualquer push de código. Estado,
+limites e homologações pendentes estão no [registro Edi](docs/propostas/edi-suite-2026-10-16/implementacao.md).
+
 ## Documentação
 
+- [AGENTS.md](AGENTS.md): entrada comum para agentes, contexto permanente e regra de manutenção documental
+- [docs/estado-do-repositorio.md](docs/estado-do-repositorio.md): frente atual, decisões e continuidade entre sessões
 - [docs/arquitetura-monorepo.md](./docs/arquitetura-monorepo.md): stack, layout, CI/CD e regras globais
 - [docs/arquitetura-apps.md](./docs/arquitetura-apps.md): estrutura interna dos apps Next.js
+- [docs/arquitetura-desktop.md](./docs/arquitetura-desktop.md): padrão de desenvolvimento, segurança e distribuição das ferramentas desktop
 - [docs/arquitetura-packages.md](./docs/arquitetura-packages.md): contratos dos packages compartilhados
 - [docs/audit-payload-policy.md](./docs/audit-payload-policy.md): política de payloads de auditoria
 - [docs/adr/0001-uso-de-monorepo.md](./docs/adr/0001-uso-de-monorepo.md): decisão arquitetural do monorepo
+- [docs/deploy-runbook.md](docs/deploy-runbook.md): operação compartilhada no Railway e provedores
+- [apps/edi/PRODUCAO.md](apps/edi/PRODUCAO.md): implantação e operação do portal Edi
 
 Guias profundos por package:
 

@@ -1,0 +1,14 @@
+size=       0kB time=00:00:00.00 bitrate=N/A speed=N/A    [silencedetect @ 000001e69951cf80] silence_start: 6.26419
+[silencedetect @ 000001e69951cf80] silence_end: 9.65212 | silence_duration: 3.38794
+[silencedetect @ 000001e69951cf80] silence_start: 14.4101
+[silencedetect @ 000001e69951cf80] silence_end: 15.3836 | silence_duration: 0.9735
+[silencedetect @ 000001e69951cf80] silence_start: 17.3665
+[silencedetect @ 000001e69951cf80] silence_end: 18.9875 | silence_duration: 1.621
+[silencedetect @ 000001e69951cf80] silence_start: 21.6771
+[silencedetect @ 000001e69951cf80] silence_end: 22.7097 | silence_duration: 1.03256
+[silencedetect @ 000001e69951cf80] silence_start: 24.3845
+[silencedetect @ 000001e69951cf80] silence_end: 25.4563 | silence_duration: 1.07175
+[silencedetect @ 000001e69951cf80] silence_start: 26.8353
+[silencedetect @ 000001e69951cf80] silence_end: 29.3268 | silence_duration: 2.4915
+[silencedetect @ 000001e69951cf80] silence_start: 35.251
+[silencedetect @ 000001e69951cf80] silence_end: 36.1242 | silence_duration: 0.873188

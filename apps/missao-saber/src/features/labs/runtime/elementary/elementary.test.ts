@@ -93,32 +93,20 @@ describe("elementary tool contracts", () => {
 });
 
 describe("rational input and fraction construction", () => {
-  it.each([
-    "1/2",
-    "2/4",
-    "0,5",
-    "0.5",
-    ".5",
-    "0,50",
-    " 1 / 2 ",
-  ])("accepts equivalent input %s exactly", (value) => {
-    const actual = readRational(value);
-    expect(actual).not.toBeNull();
-    if (actual) expect(equalRational(actual, rational(1n, 2n))).toBe(true);
-  });
-  it.each([
-    "",
-    "1/0",
-    "1/2/3",
-    "Infinity",
-    "0x10",
-    "1e3",
-    "Math.random()",
-    "1,2,3",
-    "1 m",
-  ])("rejects invalid or unconfigured input %s", (value) => {
-    expect(readRational(value)).toBeNull();
-  });
+  it.each(["1/2", "2/4", "0,5", "0.5", ".5", "0,50", " 1 / 2 "])(
+    "accepts equivalent input %s exactly",
+    (value) => {
+      const actual = readRational(value);
+      expect(actual).not.toBeNull();
+      if (actual) expect(equalRational(actual, rational(1n, 2n))).toBe(true);
+    },
+  );
+  it.each(["", "1/0", "1/2/3", "Infinity", "0x10", "1e3", "Math.random()", "1,2,3", "1 m"])(
+    "rejects invalid or unconfigured input %s",
+    (value) => {
+      expect(readRational(value)).toBeNull();
+    },
+  );
   it("uses area weights rather than the number of painted regions and accepts implicit metres", () => {
     const context = launch(fractionsTool, "fracao-decimal-unidade");
     const state = parseFractions(context, fractionsTool.activity(context).initialState);

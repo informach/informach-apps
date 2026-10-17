@@ -71,21 +71,17 @@ describe("getProSubscription", () => {
   // The query itself filters by `inArray(status, PRO_STATUSES)`, so when the
   // user only has e.g. a past_due subscription, the SELECT returns no rows —
   // which is what we simulate here.
-  it.each([
-    "past_due",
-    "unpaid",
-    "incomplete",
-    "incomplete_expired",
-    "canceled",
-    "paused",
-  ])("returns null when subject only has %s", async (_status) => {
-    const { db } = createFakeDb({ selectQueue: [[]] });
-    const result = await getProSubscription(
-      { db: db as never, provider: "stripe", app: "test-app" },
-      subject,
-    );
-    expect(result).toBeNull();
-  });
+  it.each(["past_due", "unpaid", "incomplete", "incomplete_expired", "canceled", "paused"])(
+    "returns null when subject only has %s",
+    async (_status) => {
+      const { db } = createFakeDb({ selectQueue: [[]] });
+      const result = await getProSubscription(
+        { db: db as never, provider: "stripe", app: "test-app" },
+        subject,
+      );
+      expect(result).toBeNull();
+    },
+  );
 
   it("returns null when subject has no subscription at all", async () => {
     const { db } = createFakeDb({ selectQueue: [[]] });
