@@ -169,6 +169,10 @@ export const twoFactors = core.table(
     secret: text("secret").notNull(),
     backupCodes: text("backup_codes").notNull(),
     verified: boolean("verified").notNull().default(false),
+    /** Códigos errados seguidos; o plugin `twoFactor` (Better Auth 1.7) bloqueia ao passar do limite. */
+    failedVerificationCount: integer("failed_verification_count").notNull().default(0),
+    /** Até quando a verificação fica bloqueada depois de códigos errados demais. */
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
   },
   (t) => [index("two_factors_user_id_idx").on(t.userId)],
 );

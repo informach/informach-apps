@@ -1,5 +1,6 @@
 import { expireBillingMonthlyBonusCredits } from "@/features/billing/service";
 import { rejectUnauthorizedCron } from "@/lib/cron";
+import { recordJob } from "@/lib/job-runs";
 
 export const runtime = "nodejs";
 
@@ -10,6 +11,6 @@ export async function POST(request: Request): Promise<Response> {
     return unauthorized;
   }
 
-  const result = await expireBillingMonthlyBonusCredits();
+  const result = await recordJob("billing-expire-bonus", expireBillingMonthlyBonusCredits);
   return Response.json(result);
 }

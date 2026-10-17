@@ -522,7 +522,7 @@ Schema: `agenda.states` (27 rows IBGE), `agenda.cities` (~5570 rows IBGE, FK pra
 2. `cities.ts` — pra cada estado, fetch `/api/v1/localidades/estados/{UF}/municipios` + upsert (~30s).
 3. `schools.ts` — busca o CSV em duas localizações no root do repo, em ordem: (a) `escolas_inep.csv.gz` (~11MB, **rastreado em git** — Railway Migrator usa essa fonte) descomprimido em runtime via `zlib.createGunzip()`; (b) `escolas_inep.csv` (~74MB, gitignored, opção dev). Stream via `papaparse`, batch upsert de 1000 rows (~30s). Resolve `cityIbgeCode` por lookup `(UF, normalized name)` contra `agenda.cities` (já seedado). Sem nenhum dos dois o seed loga warning e segue (estados+cidades funcionam mesmo assim, mas combobox de escolas fica vazio).
 
-**Em produção (Railway)**: `infrastructure/railway/migrator.toml` startCommand é `pnpm db:migrate && pnpm db:seed && pnpm db:seed:reference` — o migrator service redeploy popula tudo automaticamente. O `escolas_inep.csv.gz` está no repo e é parte do build do migrator.
+**Em produção (Railway)**: o start do serviço `migrator` em `.railway/railway.ts` é `pnpm db:migrate && pnpm db:seed && pnpm db:seed:reference`; um redeploy do migrator popula tudo automaticamente. O `escolas_inep.csv.gz` está no repo e é parte do build do migrator.
 
 **Caso especial documentado**: rows do INEP cujo nome é exatamente `"COLEGIO BATISTA MINEIRO"` (sem sufixo de unidade) são renomeadas no insert pra `"COLEGIO BATISTA MINEIRO - UNIDADE FLORESTA"` — desambiguação solicitada pela usuária. Outras variantes (`"...- UNIDADE BETIM"`, etc) passam intactas.
 
@@ -666,7 +666,7 @@ Neutros (`background, foreground, card, popover, muted, accent, border, input, s
   do app.
 
 - ~~Wiring Railway~~ — o service `@informach/agenda-da-turma` existe, está
-  `RUNNING`, aponta para `/apps/agenda-da-turma/railway.toml` e responde em
+  `RUNNING`, é configurado pelo bloco dele em `.railway/railway.ts` e responde em
   `agenda-da-turma.informach.com.br`. Os sete `cron-perapp-*` já têm
   `agenda-da-turma.informach.com.br` em `APP_DOMAINS`.
 - ~~Price IDs live~~ — os cinco estão preenchidos em `products.ts` e conferidos
@@ -809,7 +809,7 @@ custo volta a cair no timeout do primeiro teste que a tocar.
 - Toda alteração de turma ativa revalida participação dentro do bloqueio de turma/perfil usado na revogação. `active_turma_id` sozinho não concede acesso. Histórico escolar autoriza cada snapshot; versões privadas anteriores à publicação não são devolvidas ao destinatário.
 - O parser aceita referência de publicação identificada no original, com trecho de evidência. `noticeGenerationSchema` exige o campo nullable para geração estruturada; leitura de rascunhos anteriores aceita sua ausência. O mesmo vale para `subjectHint`, com um detalhe: `.required()` do Zod é raso, então o item de `actions` recebe `extractedActionSchema.required({ subjectHint: true })` à parte — o OpenRouter manda `json_schema.strict: true` e o Mastra não aplica o preparo estrito da OpenAI ao provider "openrouter", logo toda propriedade precisa estar em `required` (nullable serve, optional não). Ausência ou conflito da referência mantém datas relativas em aberto.
 - `features/activities/pending-limit.ts` é a contagem única de pendências. As escritas de escola/extras/recados e reabertura usam o mesmo lock. Status de cada família é privado; correção compartilhada não o apaga.
-- `features/notifications/delivery.ts` reconstrói a mensagem antes de enviar, respeita consentimento/silêncio/plano/acesso e usa claim idempotente. Resultado `deferred` do pacote de e-mail não cancela a notificação nem esgota tentativas; `unknown` exige reconciliação antes de reenviar. Finalização confere a reserva atual. Scheduler chama `routine:job` a cada cinco minutos e percorre cursores.
+- `features/notifications/delivery.ts` reconstrói a mensagem antes de enviar, respeita consentimento/silêncio/plano/acesso e usa claim idempotente. Resultado `deferred` do pacote de e-mail não cancela a notificação nem esgota tentativas; `unknown` exige reconciliação antes de reenviar. Finalização confere a reserva atual. O cron `cron-agenda-routine` do Railway (imagem `node:24-alpine`, declarado em `.railway/railway.ts`) roda `scripts/run-routine-job.mjs` a cada cinco minutos e percorre os cursores até o fim. O texto do script entra no start command quando o plano da IaC é montado: mudar o script só vale no cron depois de `railway config apply`. Ele só passou a existir em 17/10/2026: até ali a rotina nunca tinha rodado em produção.
 - `features/account/deletion.ts` cancela billing antes de limpar dados; falha preserva a conta. FKs de autoria permitem anonimização de atividades aceitas por outras famílias. Não prometer apagamento de cópias externas ou registros fiscais.
 - Migrações 0035/0036 foram geradas pelo Drizzle. Os snapshots fazem parte da mudança. Não executar `db:push` em produção.
 - Métricas aceitam somente metadados definidos no schema. Não registrar recado, anexo, nome de criança ou tokens privados. `pilot:report` usa consulta somente de leitura e eventos de fatura para pagamentos.

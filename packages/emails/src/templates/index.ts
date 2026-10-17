@@ -1,6 +1,8 @@
 import { render } from "@react-email/render";
 import { createElement, type ReactElement } from "react";
 import { AccountDeletionEmail, type AccountDeletionEmailProps } from "./accountDeletion";
+import { AdminAlertEmail, type AdminAlertEmailProps } from "./adminAlert";
+import { AdminWeeklySummaryEmail, type AdminWeeklySummaryEmailProps } from "./adminWeeklySummary";
 import {
   BillingCreditsWarningEmail,
   type BillingCreditsWarningEmailProps,
@@ -30,6 +32,8 @@ import { VerificationEmail, type VerificationEmailProps } from "./verification";
 import { VerifyEmailOtp, type VerifyEmailOtpProps } from "./verifyEmailOtp";
 
 export { AccountDeletionEmail } from "./accountDeletion";
+export { AdminAlertEmail } from "./adminAlert";
+export { AdminWeeklySummaryEmail } from "./adminWeeklySummary";
 export {
   BillingCreditsWarningEmail,
   type CreditsWarningThreshold,
@@ -55,6 +59,8 @@ export { VerificationEmail } from "./verification";
 export { VerifyEmailOtp } from "./verifyEmailOtp";
 export type {
   AccountDeletionEmailProps,
+  AdminAlertEmailProps,
+  AdminWeeklySummaryEmailProps,
   BillingCreditsWarningEmailProps,
   CreditsPurchasedEmailProps,
   ForgetPasswordEmailOtpProps,
@@ -72,6 +78,8 @@ export type {
 };
 
 export type EmailCategory =
+  | "admin.alert"
+  | "admin.weekly-summary"
   | "auth.verify-email"
   | "auth.verify-email-otp"
   | "auth.sign-in-otp"
@@ -89,6 +97,8 @@ export type EmailCategory =
   | "billing.credits-warning";
 
 export type RenderTemplatePropsByCategory = {
+  "admin.alert": AdminAlertEmailProps;
+  "admin.weekly-summary": AdminWeeklySummaryEmailProps;
   "auth.verify-email": VerificationEmailProps;
   "auth.verify-email-otp": VerifyEmailOtpProps;
   "auth.sign-in-otp": SignInEmailOtpProps;
@@ -118,6 +128,8 @@ export type RenderTemplate = <Category extends EmailCategory>(
 ) => Promise<RenderTemplateResult>;
 
 type SubjectNamespace =
+  | "adminAlert"
+  | "adminWeeklySummary"
   | "verification"
   | "verifyEmailOtp"
   | "signInEmailOtp"
@@ -143,6 +155,16 @@ type CategoryEntry<Category extends EmailCategory> = {
 const CATEGORY_REGISTRY: {
   [Category in EmailCategory]: CategoryEntry<Category>;
 } = {
+  "admin.alert": {
+    component: AdminAlertEmail,
+    subjectNamespace: "adminAlert",
+    subjectValues: ({ kind, serviceName }) => ({ kind, serviceName }),
+  },
+  "admin.weekly-summary": {
+    component: AdminWeeklySummaryEmail,
+    subjectNamespace: "adminWeeklySummary",
+    subjectValues: ({ weekLabel }) => ({ weekLabel }),
+  },
   "auth.verify-email": {
     component: VerificationEmail,
     subjectNamespace: "verification",

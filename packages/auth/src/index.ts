@@ -48,6 +48,7 @@ export type {
 export { PERMISSIONS, roleHasPermission } from "./permissions";
 export {
   ForbiddenError,
+  isUserBanned,
   NotFoundError,
   NotImplementedError,
   OrganizationsDisabledError,
@@ -75,6 +76,10 @@ export type CreateAuthSessionConfig = {
     enabled?: boolean;
     maxAge?: number;
   };
+  /** Session lifetime in seconds. Default: Better Auth's 7 days. */
+  expiresIn?: number;
+  /** How often, in seconds, an active session is extended. Default: Better Auth's 1 day. */
+  updateAge?: number;
 };
 
 export type AllowUserToCreateOrganization =
@@ -152,6 +157,13 @@ export type CreateAuthEmailConfig = {
    * Default: `"link"`.
    */
   forgetPassword?: "link" | "otp";
+  /**
+   * Cria a sessão logo depois de confirmar o e-mail (código ou link). Padrão
+   * `true`, para o cadastro seguir direto para o app. Apps com segunda etapa
+   * obrigatória (o Bastidores) desligam: confirmar e-mail não pode virar entrada
+   * sem passar pelo código do autenticador.
+   */
+  autoSignInAfterVerification?: boolean;
   /**
    * Disparado quando alguém tenta cadastrar com e-mail já existente. Recebe
    * o usuário EXISTENTE (não o tentante). Use para enviar notificação de
@@ -538,6 +550,8 @@ function createAuthInstance(config: CreateAuthConfig) {
         enabled: config.session?.cookieCache?.enabled ?? true,
         maxAge: cookieCacheMaxAge,
       },
+      ...(config.session?.expiresIn ? { expiresIn: config.session.expiresIn } : {}),
+      ...(config.session?.updateAge ? { updateAge: config.session.updateAge } : {}),
       ...(cacheRoleOnSession
         ? {
             additionalFields: {
@@ -685,13 +699,13 @@ function createAuthInstance(config: CreateAuthConfig) {
           }),
     },
     emailVerification: {
-      // `sendOnSignUp` + `autoSignInAfterVerification` are always set so Better
+      // `sendOnSignUp` is always set and `autoSignInAfterVerification` defaults to true so Better
       // Auth fires a verification flow at signup and auto-creates a session
       // after `/email-otp/verify-email` or `/verify-email` returns OK.
       // The actual delivery is link-based when `email.verification === "link"`,
       // OTP-based otherwise (overrideDefaultEmailVerification on the OTP plugin).
       sendOnSignUp: true,
-      autoSignInAfterVerification: true,
+      autoSignInAfterVerification: config.email?.autoSignInAfterVerification ?? true,
       ...(flows.verificationOtp
         ? {}
         : {
@@ -757,6 +771,8 @@ function createAuthInstance(config: CreateAuthConfig) {
           },
           after: async (session) => {
             await logAuditEvent("session.created", session.userId, {
+              // Contas são compartilhadas: sem o nome do app, a auditoria não diz onde a pessoa entrou.
+              appName: config.appName,
               sessionId: session.id,
               ipAddress: session.ipAddress ?? null,
               userAgent: session.userAgent ?? null,
@@ -841,7 +857,9 @@ function createAuthInstance(config: CreateAuthConfig) {
       after: createAuthMiddleware(async (ctx) => {
         const path = ctx.path;
         const session = ctx.context.session;
-        const userId = session?.user?.id ?? null;
+        // No login com duas etapas ainda não há sessão aberta: quem confirmou o
+        // código é o dono da sessão que acabou de nascer.
+        const userId = session?.user?.id ?? ctx.context.newSession?.user?.id ?? null;
         const status = returnedStatus(ctx);
         const succeeded = returnedSuccessfully(status);
 

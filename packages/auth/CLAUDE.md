@@ -73,6 +73,7 @@ Todas as colunas declaradas em `packages/db/src/schema/core.ts` (source of truth
 | Magic link (login passwordless) | Plugin `magicLink` carregado por default. Template `auth.magic-link` (cria user na primeira ocorrência — limitação Better Auth 1.x). App pode desabilitar via `email.signIn.magicLink: false`. |
 | OTP sign-in (login passwordless) | OPT-IN via `email.signIn.otp: true`. Habilita `signIn.emailOtp({ email })` com template `auth.sign-in-otp`. |
 | Cookie session cache | Default 300s (`session.cookieCache.maxAge`); override por config |
+| Duração da sessão | Padrão do Better Auth; `session.expiresIn` e `session.updateAge` (segundos) mudam por app. O Bastidores usa 12 horas sem renovação |
 | Rate limit | Defaults endurecidos contra enumeration (ver tabela em §3.4) |
 | Audit log | `AuditEventType` tipados → `audit.events` |
 | ID generator | `crypto.randomUUID()` para todas as tabelas |
@@ -120,6 +121,10 @@ Helpers expostos pelo `createAuth()` result:
 - `assertPermission(user, permission): void`
 - `requireRole(headers, role): Promise<User>` (joga `UnauthorizedError` ou `ForbiddenError`)
 - `requireAdmin(headers): Promise<User>` (atalho para `requireRole(_, "admin")`)
+
+`isUserBanned(user)` é exportado do root para quem precisa aplicar a mesma regra de banimento (o Bastidores confere papel e banimento direto em `core.users` a cada pedido).
+
+Atenção: com `secondaryStorage`, as sessões ficam só no Redis do app. Apagar linhas de `core.sessions` (o que `setUserBanState` faz) não desconecta ninguém em Cozya, Agenda ou Missão; use `revokeCachedSessions` de `@informach/auth/sessions` com o armazenamento de cada app, como faz o Bastidores. O cache em cookie (5 minutos no Cozya e na Agenda) ainda pode manter a sessão viva por esse tempo.
 
 Manipulação de role/ban deve passar pelos helpers explícitos `setUserRole(headers, targetUserId, role)` e `setUserBanState(headers, input)`. Eles aplicam `users.set_role` / `users.ban`, atualizam `core.users`, logam `user.role_changed` / `user.banned` / `user.unbanned` e revogam sessões quando necessário. Não use `databaseHooks.user.update.*` para esse side effect: o hook do Better Auth recebe os dados do update, não o alvo confiável da alteração.
 
@@ -169,7 +174,12 @@ billing.checkout_started        billing.payment_succeeded   billing.credits_cons
 billing.subscription_created    billing.payment_failed      billing.credits_refunded
 billing.subscription_updated    billing.credits_granted     billing.credits_warning_sent
 billing.subscription_canceled
+
+admin.user_viewed         admin.verification_resent   admin.audit_exported
+admin.sessions_revoked    admin.edi_device_disconnected
 ```
+
+Os eventos `admin.*` são emitidos pelo Bastidores (`apps/admin`) em nome de quem agiu; payloads em `docs/audit-payload-policy.md`.
 
 Cada `logAuditEvent(eventType, actorId, payload)` insere em `audit.events` e dispara `observability.onAuditEvent`. Se o INSERT falhar, o fluxo continua e `observability.onAuditPersistenceFailure` recebe `{ eventType, actorId, payloadKeys, error }` sanitizado. **Hooks são try/catch-ados internamente** — falha em APM ou no banco de audit não derruba o auth.
 Nos apps atuais, `authObservability` em `src/lib/observability.ts` transforma audit em breadcrumbs Sentry usando `payloadKeys` em vez de payload bruto.
@@ -473,6 +483,7 @@ Wiring real em `apps/<app>/src/lib/env.ts` (`@t3-oss/env-nextjs`).
 | `@informach/auth/server-actions` | `createActionFactory`, `Result`, `ok`/`err`, `RateLimitStorage`, `postgresRateLimitStorage` | server actions |
 | `@informach/auth/redis-rate-limit-storage` | `redisRateLimitStorage` (fixed-window via MULTI/EXPIRE NX) | `apps/<app>/src/lib/action.ts` em prod |
 | `@informach/auth/maintenance` | `cleanup*` funções | route handlers de cron job |
+| `@informach/auth/sessions` | `listCachedSessions`, `revokeCachedSessions` (sessões no Redis de um app, sem token nem IP) | Bastidores |
 
 ### 5.3 Tipos exportados
 
@@ -487,6 +498,8 @@ Wiring real em `apps/<app>/src/lib/env.ts` (`@t3-oss/env-nextjs`).
 | Arquivo | Cobertura |
 |---|---|
 | `create-auth.test.ts` | Factory: defaults, opt-ins, plugins habilitados condicionalmente |
+| `plugin-schema.test.ts` | Toda coluna que os plugins opcionais (duas etapas, organizações, passkey) exigem existe no schema Drizzle; falha antes de um app ligar o plugin e quebrar com "Drizzle schema mismatch" |
+| `sessions.test.ts` | Listar e encerrar sessões guardadas no Redis de um app, sem expor token nem IP |
 | `helpers.test.ts` | `requireUser/Role`, `assertPermission`, helpers de organization |
 | `permissions.test.ts` | Matrix de roles × permissions, `roleHasPermission` |
 | `proxy.test.ts` | Path matching, redirects sign-in/forbidden, role enforcement |

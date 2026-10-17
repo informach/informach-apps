@@ -505,6 +505,20 @@
       "when": 1792192768613,
       "tag": "0071_nebulous_chamber",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1792246636069,
+      "tag": "0072_happy_patch",
+      "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1792253587172,
+      "tag": "0073_warm_nemesis",
+      "breakpoints": true
     }
   ]
 }

@@ -6,10 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Workspace
 
-`informach-apps` (historically `informach-platform`) is a pnpm + Turborepo monorepo. Resolve runtime/tool versions from root `package.json`, `pnpm-lock.yaml` and CI, not this summary. The current Node requirement is ≥24.15.0; the older `.nvmrc` divergence is tracked in the work-state document. Biome handles lint and formatting.
+`informach-apps` (historically `informach-platform`) is a pnpm + Turborepo monorepo. Resolve runtime/tool versions from root `package.json`, `pnpm-lock.yaml` and CI, not this summary. The current Node requirement is ≥24.15.0; `.nvmrc` (24.15.0) is also what Railway builds with, through `RAILPACK_NODE_VERSION` in `.railway/railway.ts`. Biome handles lint and formatting.
 
 - **Apps** (`apps/`):
-  - `admin` (port 3003) — scaffold, no auth/billing/db wiring yet; keep dependencies minimal until it becomes a real app.
+  - `admin` (port 3003): **Bastidores**, staff console at `admin.informach.com.br`: owner/admin roles with mandatory TOTP two-factor, read-only DB connection for screens, `admin.*` audit events (opening a person's page is audited), no impersonation and no family content. Rules and data sources in `apps/admin/CLAUDE.md`; deploy in `apps/admin/PRODUCAO.md`.
   - `agenda-da-turma` (port 3001) — family school routine, unified activities and notices, child profiles and invited adults with per-child permissions. Billing belongs to the holder; Better Auth organizations are disabled. Do not collapse invited-adult identity into the holder. Product rules, limits and current flows are in the app's `CLAUDE.md`.
   - `cozya` (port 3002) — single-user (no organizations), Sentry, Vitest + Playwright.
   - `missao-saber` (port 3005) — single-user com perfis familiares, preparação autoral para olimpíadas escolares, Sentry, Vitest + Playwright. Auth, billing, banco, e-mails e UI vêm dos packages compartilhados.
@@ -27,6 +27,7 @@ Per-package deep guides exist and should be consulted before non-trivial changes
 - `apps/cozya/CLAUDE.md`
 - `apps/informach-site/CLAUDE.md`
 - `apps/missao-saber/README.md` and `apps/missao-saber/PRODUCAO.md`
+- `apps/admin/CLAUDE.md` and `apps/admin/PRODUCAO.md`
 - `apps/edi/PRODUCAO.md`
 
 Cross-cutting docs in `docs/`: `arquitetura-monorepo.md`, `arquitetura-apps.md`, `arquitetura-desktop.md`, `arquitetura-packages.md`, `audit-payload-policy.md`, `deploy-runbook.md` (Railway/Stripe/Sentry — passo-a-passo de deploy de app, derivado do cozya), `adr/0001-uso-de-monorepo.md`. Current work is indexed in `docs/estado-do-repositorio.md`; keep evidence and temporary blockers in the relevant implementation/operation record.
@@ -87,6 +88,7 @@ Each package exposes its surface via `package.json` `exports` pointing at `src/`
 - Schema changes flow through `pnpm db:generate` → `pnpm db:migrate`.
 - **O migrator é um service separado, e o healthcheck é que garante a ordem.** `checkSchemaReadiness()` (em `@informach/db`) compara a última migração do journal deste build com `max(created_at)` em `drizzle.__drizzle_migrations`. Os três apps expõem isso em `/api/ready`, que é o `healthcheckPath` no Railway: banco atrás do build → 503 → a instância nova não recebe tráfego. A pergunta é "atrás", nunca "diferente", então rollback do app sem desfazer migração continua passando. `/api/health` é outra coisa e não toca o banco de propósito — é ele que diz qual commit está servindo quando um deploy vai mal.
 - `audit.events` is append-only operational/compliance logging. Payload rules and LGPD/PII limits are documented in `docs/audit-payload-policy.md`.
+- The `ops` schema (`job_runs`, `service_status`) holds operation facts read by the Bastidores, never personal data. Every scheduled `/api/jobs/*` routine wraps its work in `recordJobRun({ app, job }, fn)` from `@informach/db`, which stores only numeric/boolean fields of the result. Read-only dashboards use `createReadOnlyDatabase(url)` (every transaction opens with `default_transaction_read_only`).
 - **Exception**: Mastra owns the `ai_mastra` schema (tables `mastra_threads`, `mastra_messages`, `mastra_traces`, `mastra_scorers`, `mastra_evals`, `mastra_workflow_snapshot`, `mastra_resources`). `ai_mastra` is intentionally absent from `drizzle.config.ts` `schemaFilter` so `db:generate` never proposes DROP. Migration `0010_create_ai_mastra_schema.sql` creates the empty schema, and `pnpm db:migrate` runs `PostgresStore.init()` to create/update Mastra tables outside app runtime.
 
 ### AI agents — Mastra base in `@informach/ai-core`

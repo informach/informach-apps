@@ -1,5 +1,6 @@
 import { recoverStaleEmailDeliveries } from "@/features/emails/service";
 import { rejectUnauthorizedCron } from "@/lib/cron";
+import { recordJob } from "@/lib/job-runs";
 
 export const runtime = "nodejs";
 
@@ -9,6 +10,6 @@ export async function POST(request: Request): Promise<Response> {
     return unauthorized;
   }
 
-  const result = await recoverStaleEmailDeliveries();
+  const result = await recordJob("email-recover-stale", recoverStaleEmailDeliveries);
   return Response.json(result);
 }

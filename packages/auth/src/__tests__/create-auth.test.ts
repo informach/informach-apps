@@ -158,6 +158,8 @@ type CapturedBetterAuthOptions = {
   trustedOrigins?: string[];
   session?: {
     cookieCache?: { enabled?: boolean; maxAge?: number };
+    expiresIn?: number;
+    updateAge?: number;
     additionalFields?: Record<string, AdditionalFieldSpec>;
   };
   user?: {
@@ -334,6 +336,12 @@ describe("createAuth — Better Auth wiring", () => {
     expect(cfg.emailAndPassword?.revokeSessionsOnPasswordReset).toBe(true);
     expect(cfg.emailVerification?.sendOnSignUp).toBe(true);
     expect(cfg.emailVerification?.autoSignInAfterVerification).toBe(true);
+  });
+
+  it("lets an app with mandatory second factor turn off sign-in after e-mail verification", () => {
+    createAuth({ ...makeConfig(), email: { autoSignInAfterVerification: false } });
+    const cfg = captureConfig();
+    expect(cfg.emailVerification?.autoSignInAfterVerification).toBe(false);
   });
 
   it("does NOT register a link-based sendVerificationEmail callback (OTP plugin owns verification)", () => {
@@ -553,6 +561,14 @@ describe("createAuth — session cookie cache", () => {
   it("allows an app to require immediate server validation", () => {
     createAuth({ ...makeConfig(), session: { cookieCache: { enabled: false } } });
     expect(captureConfig().session?.cookieCache?.enabled).toBe(false);
+  });
+  it("lets an app shorten the session lifetime and keeps the default otherwise", () => {
+    createAuth({ ...makeConfig(), session: { expiresIn: 43_200, updateAge: 3_600 } });
+    expect(captureConfig().session?.expiresIn).toBe(43_200);
+    expect(captureConfig().session?.updateAge).toBe(3_600);
+    vi.clearAllMocks();
+    createAuth(makeConfig());
+    expect(captureConfig().session?.expiresIn).toBeUndefined();
   });
   beforeEach(() => vi.clearAllMocks());
 
@@ -1013,6 +1029,7 @@ describe("createAuth — audit hooks", () => {
     expect(args.actorId).toBe("u1");
     expect((args.payload as Record<string, unknown>).sessionId).toBe("s1");
     expect((args.payload as Record<string, unknown>).ipAddress).toBe("1.2.3.4");
+    expect((args.payload as Record<string, unknown>).appName).toBe(makeConfig().appName);
   });
 
   it("databaseHooks.session.delete.after writes a session.revoked audit event", async () => {
@@ -1238,6 +1255,21 @@ describe("createAuth — audit hooks", () => {
     expect(onSecurityEvent).toHaveBeenCalledWith(
       expect.objectContaining({ type: "two_factor_failed", userId: "u1" }),
     );
+  });
+
+  it("hooks.after attributes a sign-in second factor to the session it just created", async () => {
+    createAuth(makeConfig());
+    const handler = mockedAuthMiddleware.mock.calls.at(-1)?.[0] as (ctx: unknown) => Promise<void>;
+    // No login, ainda não há sessão aberta: o dono é o da sessão que acabou de nascer.
+    await handler({
+      path: "/two-factor/verify-totp",
+      context: { session: null, newSession: { user: { id: "u7" } }, returned: { status: 200 } },
+      body: {},
+    });
+    expect(dbInsertChain.values.mock.calls.at(-1)?.[0]).toMatchObject({
+      eventType: "auth.two_factor_verified",
+      actorId: "u7",
+    });
   });
 
   it("hooks.after for /two-factor/verify-backup-code logs auth.backup_code_used on success", async () => {

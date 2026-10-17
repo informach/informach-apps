@@ -63,3 +63,15 @@ Eventos atuais:
 - `agenda.turma_created_or_joined`, `agenda.turma_joined_by_code`, `agenda.turma_set_active`, `agenda.turma_left`, `agenda.turma_updated`, `agenda.turma_deleted`
 - `agenda.subject_created`, `agenda.subject_updated`, `agenda.subject_deleted`
 - `agenda.activity_created`, `agenda.activity_updated`, `agenda.activity_deleted`, `agenda.activity_status_set`, `agenda.activity_shared_response`
+
+## Eventos do Bastidores
+
+Eventos `admin.*` registram consultas e ações da equipe no Bastidores (`apps/admin`). O ator é sempre a conta owner ou admin que agiu; a conta afetada vai em `targetId`. Nada de conteúdo da pessoa, e-mail, IP ou dado de aparelho além do ID.
+
+- `admin.user_viewed`: `{ targetId }`. Gravado ao abrir a ficha de uma pessoa; a mesma pessoa da equipe olhando a mesma ficha em menos de 10 minutos não gera nova linha.
+- `admin.sessions_revoked`: `{ targetId, count, apps, reason }`, com `apps` listando os slugs alcançados.
+- `admin.verification_resent`: `{ targetId, app }`.
+- `admin.edi_device_disconnected`: `{ targetId, deviceId, reason }`.
+- `admin.audit_exported`: `{ filters, rows }`, com `filters` só nos nomes e valores dos filtros (tipo, período, IDs).
+
+Banimento e papel usam os eventos do pacote de autenticação (`user.banned`, `user.unbanned`, `user.role_changed`), também em nome de quem agiu. `reason` é texto curto (até 280 caracteres) escrito pela equipe para explicar a ação; a tela orienta a não colar mensagens da pessoa nem dados além do necessário.

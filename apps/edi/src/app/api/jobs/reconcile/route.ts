@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { getEnv } from "@/lib/env";
+import { recordJob } from "@/lib/job-runs";
 import { runReconciliation } from "@/lib/jobs";
 export async function POST(request: Request) {
   const env = getEnv();
@@ -9,6 +10,6 @@ export async function POST(request: Request) {
     return new Response(null, { status: 401 });
   if (env.EDI_BILLING_ENABLED !== "true")
     return Response.json({ error: "billing_disabled" }, { status: 503 });
-  const result = await runReconciliation();
+  const result = await recordJob("reconcile", runReconciliation);
   return Response.json(result);
 }

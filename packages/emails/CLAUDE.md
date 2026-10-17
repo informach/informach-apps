@@ -127,6 +127,8 @@ Mapeamento `EmailCategory → componente React Email`:
 | `billing.subscription-canceled` | `SubscriptionCanceledEmail` | `appName, productName, accessUntil, reactivateUrl` |
 | `billing.credits-purchased` | `CreditsPurchasedEmail` | `appName, creditAmount, balanceAfter, dashboardUrl` |
 | `billing.credits-warning` | `BillingCreditsWarningEmail` | `appName, remaining, total, threshold (50\|80\|100), ctaUrl` |
+| `admin.alert` | `AdminAlertEmail` | `appName, kind (down\|up), serviceName, downSince, upAt?, duration?, problem?, ctaUrl` |
+| `admin.weekly-summary` | `AdminWeeklySummaryEmail` | `appName, weekLabel, newAccounts, products[], revenueTotal, aiCost, failedRoutines[], outages[], ctaUrl` |
 
 Todos aceitam `unsubscribeUrl?`, `unsubscribeMailto?`, `preheader?` e `locale?` (default `"pt-BR"`).
 
@@ -135,6 +137,8 @@ Retorna `{ html: string; text: string; subject: string }`. Internamente usa `ren
 **Categorias `billing.*`** são consumidas por `@informach/billing` (4 via webhook handlers — `payment-success` / `subscription-renewed` / `subscription-canceled` / `credits-purchased`) e pelo dunning sweeper das apps (`payment-failed`). `billing.credits-warning` é disparada por trigger app-side (sweeper diário ou pós-`commitReservation`) para notificar 50%/80%/100% do cap mensal — disparo é responsabilidade do app, package só fornece o template. Strings PT-BR vivem em `messages/pt-BR.json` sob namespaces `paymentSuccess`/`paymentFailed`/`subscriptionRenewed`/`subscriptionCanceled`/`creditsPurchased`/`billingCreditsWarning`. Ver `@informach/billing/CLAUDE.md` §3.8 para o ciclo completo.
 
 **Categorias montadas pelo app, sem template do package.** `agenda.routine` e `missao.weekly-report` descrevem dados de uma criança e são montadas no próprio app, no momento do envio. Elas entram em `EMAIL_CATEGORIES` e na union de `dispatch.ts`, mas **não** no registro de templates nem no i18n — a checklist da regra 3 abaixo se aplica só às letras (a) e (b) para esse tipo de categoria. As duas também são excluídas de `shouldPersistBody`: persistir o corpo deixaria uma retentativa genérica reenviar uma leitura desatualizada sobre a criança.
+
+**Categorias `admin.*`** são do Bastidores (`apps/admin`) e vão só para a equipe: o aviso de serviço fora do ar e de volta (`admin.alert`, rotina `admin-watch`) e o resumo da semana para as contas owner (`admin.weekly-summary`, rotina `admin-weekly`). Os textos chegam já formatados pelo app e não levam nome, e-mail ou conteúdo de pessoa. O corpo não é persistido (`shouldPersistBody`): a própria rotina reconstrói a mensagem a partir do estado atual e reenvia com a mesma `messageKey`, enquanto uma retentativa genérica de outro app reenviaria um aviso vencido.
 
 > **`EmailCategory` está declarado em DOIS lugares:** (a) como Zod enum em `schemas.ts:EMAIL_CATEGORIES`, usado por `dispatchEmail` validation; (b) como string union em `templates/index.ts`, usado por `renderTemplate`. Adicionar nova categoria exige atualizar AMBOS — TypeScript pega o segundo, mas o primeiro é runtime check do `dispatch`. Ver §7 regra 3.
 

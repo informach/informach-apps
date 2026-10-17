@@ -72,7 +72,13 @@ export type AuditEventType =
   | "missao.study_connected"
   | "missao.study_code_issued"
   | "missao.study_revoked"
-  | "missao.consent_recorded";
+  | "missao.consent_recorded"
+  // Bastidores (apps/admin): consultas e ações da equipe sobre uma conta.
+  | "admin.user_viewed"
+  | "admin.sessions_revoked"
+  | "admin.verification_resent"
+  | "admin.edi_device_disconnected"
+  | "admin.audit_exported";
 
 export type AuditPayload = Record<string, unknown>;
 

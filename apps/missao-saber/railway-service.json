@@ -1,9 +1,0 @@
-{
-  "rootDirectory": "/",
-  "buildCommand": "pnpm install --frozen-lockfile --prod=false && pnpm build:missao-saber",
-  "startCommand": "pnpm start:missao-saber",
-  "healthcheckPath": "/api/ready",
-  "healthcheckTimeout": 60,
-  "restartPolicyType": "ON_FAILURE",
-  "restartPolicyMaxRetries": 3
-}
