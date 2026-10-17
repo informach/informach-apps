@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import type { EmailCategory } from "@informach/emails";
+import type { DispatchResult, EmailCategory } from "@informach/emails";
 import { emailUnsubscribeUrl, getEmails, ownerEmails } from "@/lib/emails";
 import { getEnv } from "@/lib/env";
 import { reportOperationalError } from "@/lib/observability";
@@ -26,6 +26,27 @@ export async function ownerRecipients(): Promise<string[]> {
   return unique(await ownerEmails());
 }
 
+/**
+ * Quantas vezes um envio de desfecho desconhecido é refeito com chave nova.
+ *
+ * O `email-recover-stale` dos outros apps marca `unknown` uma tentativa que
+ * ficou 30 minutos em `sending` sem aceite do SendGrid, e o pacote de e-mails
+ * nunca reenvia `unknown` sozinho, porque o provedor pode ter aceitado antes da
+ * queda: a mesma chave responde `deferred` para sempre. Para um aviso da
+ * equipe, ficar sem o aviso é pior que receber duas vezes, então a próxima
+ * passada tenta a mesma mensagem com a chave seguinte (`:reenvio-1`, ...).
+ *
+ * O que de fato saiu não repete: quando o aceite do SendGrid chega pelo webhook,
+ * a chave original vira `already-sent` e a corrente para nela; e uma chave
+ * nova que já saiu também para a corrente na passada seguinte.
+ */
+export const UNKNOWN_RESEND_LIMIT = 3;
+
+/** Chave da tentativa `attempt`: a 0 é a original; as seguintes ganham `:reenvio-N`. */
+export function attemptMessageKey(base: string, attempt: number): string {
+  return attempt === 0 ? base : `${base}:reenvio-${attempt}`;
+}
+
 export type SendToAllResult = {
   /** Nada ficou para tentar de novo: cada pessoa recebeu, já tinha recebido ou foi bloqueada de vez. */
   delivered: boolean;
@@ -41,7 +62,8 @@ export type SendToAllResult = {
  * Envia a mesma mensagem para cada pessoa, com `messageKey` por destinatário.
  * Envio pulado não é envio: ele não entra em `sent`, e quem chama decide o que
  * dizer quando ninguém recebeu. `delivered: true` só quer dizer que não sobrou
- * nada para a próxima rodada, que reenvia só para quem falhou.
+ * nada para a próxima rodada, que reenvia só para quem falhou. Uma chave presa
+ * em desfecho desconhecido segue para a próxima (`UNKNOWN_RESEND_LIMIT`).
  */
 export async function sendToAll(input: {
   category: AdminCategory;
@@ -57,16 +79,22 @@ export async function sendToAll(input: {
     const unsubscribeUrl = emailUnsubscribeUrl(recipient, input.category);
     try {
       const { html, text, subject } = await input.render(unsubscribeUrl);
-      const result = await getEmails().sendEmail({
-        to: recipient,
-        category: input.category,
-        messageKey: input.messageKey(recipientKey(recipient)),
-        subject,
-        html,
-        text,
-        unsubscribeUrl,
-      });
-      if (result.ok) sent += 1;
+      const base = input.messageKey(recipientKey(recipient));
+      let result: DispatchResult | null = null;
+      for (let attempt = 0; attempt <= UNKNOWN_RESEND_LIMIT; attempt++) {
+        result = await getEmails().sendEmail({
+          to: recipient,
+          category: input.category,
+          messageKey: attemptMessageKey(base, attempt),
+          subject,
+          html,
+          text,
+          unsubscribeUrl,
+        });
+        if (result.ok || result.status !== "deferred" || result.reason !== "outcome-unknown") break;
+      }
+      if (!result) failed += 1;
+      else if (result.ok) sent += 1;
       else if (result.status === "skipped") skipped += 1;
       else failed += 1;
     } catch (error) {
