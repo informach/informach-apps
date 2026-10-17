@@ -41,7 +41,7 @@ export function DeleteStudentDialog({ open, onOpenChange, profileId, profileName
           return;
         }
         if (result.error.code === "NOT_FOUND") {
-          toast.error("Perfil já não existe", {
+          toast.error("Essa criança já tinha saído da Agenda", {
             description: "Pode ter sido removido em outra aba.",
           });
         } else {
@@ -51,7 +51,7 @@ export function DeleteStudentDialog({ open, onOpenChange, profileId, profileName
           return;
         }
       } else {
-        toast.success("Perfil excluído");
+        toast.success("Criança removida da Agenda");
       }
       onOpenChange(false);
       router.refresh();
@@ -62,9 +62,9 @@ export function DeleteStudentDialog({ open, onOpenChange, profileId, profileName
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Excluir perfil?</AlertDialogTitle>
+          <AlertDialogTitle>Remover {profileName} da Agenda?</AlertDialogTitle>
           <AlertDialogDescription>
-            Esta ação é permanente. O perfil &quot;{profileName}&quot; será removido.
+            Isso apaga as atividades e o histórico dela nesta conta, e não dá para desfazer.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

@@ -10,6 +10,7 @@ import {
   todayLocalIso,
   toLocalIso,
 } from "@/features/dashboard/date";
+import { weekRangeLabel } from "@/features/dashboard/day-labels";
 import type { MonthGridCell } from "./types";
 
 export { addDaysIso, parseLocalIso, todayLocalIso, toLocalIso };
@@ -76,10 +77,6 @@ const MONTH_YEAR_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
   year: "numeric",
 });
 
-const SHORT_MONTH_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
-  month: "short",
-});
-
 const WEEKDAY_LONG_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
   weekday: "long",
 });
@@ -100,20 +97,10 @@ export function formatMonthLabel(anchor: string): string {
   return capitalizeFirst(MONTH_YEAR_FORMATTER.format(parseLocalIso(anchor)));
 }
 
-// "11 – 17 de mai · 2026" (intervalo de uma semana). Mostra mês uma vez quando
-// igual nos dois lados; senão "11 mai – 03 jun · 2026".
+// "11 a 17 de maio", "31 de maio a 6 de junho". O mesmo rótulo do resumo da
+// semana por e-mail: uma semana não pode ter dois nomes.
 export function formatWeekRangeLabel(fromIso: string, toIso: string): string {
-  const from = parseLocalIso(fromIso);
-  const to = parseLocalIso(toIso);
-  const fromMonth = SHORT_MONTH_FORMATTER.format(from).replace(/\.$/, "");
-  const toMonth = SHORT_MONTH_FORMATTER.format(to).replace(/\.$/, "");
-  const fromDay = String(from.getDate()).padStart(2, "0");
-  const toDay = String(to.getDate()).padStart(2, "0");
-  const year = to.getFullYear();
-  if (fromMonth === toMonth) {
-    return `${fromDay} – ${toDay} de ${fromMonth} · ${year}`;
-  }
-  return `${fromDay} ${fromMonth} – ${toDay} ${toMonth} · ${year}`;
+  return weekRangeLabel(fromIso, toIso);
 }
 
 // "Segunda, 12 de maio de 2026"

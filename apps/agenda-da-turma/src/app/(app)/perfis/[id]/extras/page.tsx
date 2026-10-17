@@ -15,7 +15,7 @@ type Props = {
 };
 
 export const metadata = {
-  title: "Matérias extracurriculares",
+  title: "Atividades extras",
 };
 
 export default async function ProfileExtrasPage({ params }: Props) {
@@ -36,8 +36,8 @@ export default async function ProfileExtrasPage({ params }: Props) {
   const reachedLimit = activeCount >= limit;
   const disabledTitle = reachedLimit
     ? isPro
-      ? `Limite de ${limit} matérias ativas por perfil`
-      : `Plano Free permite ${limit} matéria por perfil. Pause uma para criar outra ou faça upgrade pro Pro.`
+      ? `Cada criança pode ter até ${limit} atividades extras ativas`
+      : `No plano grátis, cada criança tem ${limit} atividade extra. Pause uma para criar outra, ou conheça o Pro.`
     : undefined;
 
   return (
@@ -45,13 +45,11 @@ export default async function ProfileExtrasPage({ params }: Props) {
       <header className="flex items-start gap-2">
         <BackButton href="/familia" label="Voltar para as crianças" />
         <div className="flex-1 space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-            Matérias extracurriculares
-          </h1>
+          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Atividades extras</h1>
           <p className="text-sm text-muted-foreground">
-            Atividades fora do horário da escola, como jazz, futebol, natação ou reforço. Elas
-            aparecem nas matérias do dia junto com as da turma e podem ser pausadas quando seu filho
-            der uma pausa, sem perder o histórico.
+            O que acontece fora da escola, como jazz, futebol, natação ou reforço. Aparece em Hoje
+            junto com as aulas da turma, e dá para pausar quando a criança der um tempo, sem perder o
+            histórico.
           </p>
         </div>
         <NewProfileSubjectButton

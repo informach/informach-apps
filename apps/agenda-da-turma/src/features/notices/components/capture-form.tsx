@@ -960,7 +960,7 @@ export function CaptureForm({
             </p>
           </div>
           {warnings.length ? (
-            <ul className="list-disc space-y-1 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 pl-8 text-sm">
+            <ul className="list-disc space-y-1 rounded-lg border border-chart-4/40 bg-chart-4/5 p-4 pl-8 text-sm">
               {warnings.map((warning) => (
                 <li key={warning}>{warning}</li>
               ))}
@@ -1067,7 +1067,7 @@ export function CaptureForm({
                 }
               />
               {corrections.some((c) => c.index === index) ? (
-                <label className="grid gap-2 rounded-lg border border-amber-500 p-4 text-sm">
+                <label className="grid gap-2 rounded-lg border border-chart-4/60 p-4 text-sm">
                   <span className="font-medium">O prazo desta atividade mudou?</span>
                   <select
                     className="min-h-11 rounded-md border bg-background px-3"
@@ -1128,7 +1128,7 @@ export function CaptureForm({
             Adicionar atividade
           </Button>
           {duplicates.length ? (
-            <div className="space-y-3 rounded-lg border border-amber-500 p-4">
+            <div className="space-y-3 rounded-lg border border-chart-4/60 p-4">
               <p className="font-medium">Itens semelhantes na agenda</p>
               {duplicates.map((d) => (
                 <Link
@@ -1199,7 +1199,7 @@ export function CaptureForm({
         </section>
       )}
       {!drafts.length && warnings.length ? (
-        <div role="status" className="space-y-2 rounded-lg border border-amber-500/40 p-4 text-sm">
+        <div role="status" className="space-y-2 rounded-lg border border-chart-4/40 p-4 text-sm">
           {warnings.map((warning) => (
             <p key={warning}>{warning}</p>
           ))}

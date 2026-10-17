@@ -75,8 +75,8 @@ export function CommitmentWidget({
       >
         <Check className="size-5 shrink-0 text-chart-2-ink" aria-hidden />
         <p className="text-sm font-medium">
-          Combinado. O resumo chega por e-mail todo dia no horário escolhido — dá para mudar em
-          Família › Ajustes.
+          Combinado. O resumo chega por e-mail todo dia no horário escolhido. Dá para mudar em
+          Família, na aba Ajustes.
         </p>
       </section>
     );

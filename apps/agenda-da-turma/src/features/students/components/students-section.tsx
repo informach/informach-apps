@@ -25,10 +25,10 @@ export function StudentsSection({ profiles, isPro, currentCount, limit, currentU
             </span>
             <div className="space-y-1">
               <p className="text-base font-semibold text-foreground">
-                Nenhum perfil de estudante ainda
+                Nenhuma criança por aqui ainda
               </p>
               <p className="text-sm text-muted-foreground">
-                Crie um perfil para organizar a rotina de cada criança.
+                Comece pelo nome. A rotina de cada criança fica separada.
               </p>
             </div>
             <NewStudentButton isPro={isPro} currentCount={currentCount} limit={limit} />
@@ -42,8 +42,8 @@ export function StudentsSection({ profiles, isPro, currentCount, limit, currentU
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          {currentCount} de {limit} {limit === 1 ? "perfil" : "perfis"}
-          {!isPro ? " (plano Free)" : ""}
+          {currentCount} de {limit} {limit === 1 ? "criança" : "crianças"}
+          {!isPro ? " no plano grátis" : ""}
         </p>
         <NewStudentButton isPro={isPro} currentCount={currentCount} limit={limit} size="sm" />
       </div>

@@ -19,7 +19,7 @@ export default async function FamilyChildrenPage() {
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 pb-28 md:px-8">
       <FamilyHeader
         current="/familia"
-        subtitle="Um perfil por criança organiza a rotina escolar de cada uma."
+        subtitle="Quem a Agenda acompanha."
       />
       <StudentsSection
         currentUserId={user.id}

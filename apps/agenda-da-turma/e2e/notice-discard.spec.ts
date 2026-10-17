@@ -122,7 +122,7 @@ test("discarding a draft persists: trash in the review, and discard from the das
     ).toBeVisible();
     expect(await statusOf(draft.id)).toBe("discarded");
     await page.goto("/dashboard");
-    await expect(page.getByText("Falta conferir antes de salvar")).toHaveCount(0);
+    await expect(page.getByText(/ficou sem conferir|ficaram sem conferir/)).toHaveCount(0);
 
     // Descartar a última atividade lida não pode levar junto o que a pessoa
     // escreveu à mão nesta tela.
@@ -153,7 +153,7 @@ test("discarding a draft persists: trash in the review, and discard from the das
     const second = await seedDraft(id, profileId, ["Trazer autorização"]);
     await page.goto("/dashboard");
     await expect(
-      page.getByRole("heading", { name: "Falta conferir antes de salvar", exact: true }),
+      page.getByRole("heading", { name: /ficou sem conferir|ficaram sem conferir/ }),
     ).toBeVisible();
     await page
       .getByRole("button", { name: "Descartar importação de Microsoft Teams", exact: true })
@@ -161,7 +161,7 @@ test("discarding a draft persists: trash in the review, and discard from the das
     await page.getByRole("button", { name: "Descartar", exact: true }).click();
     await expect(page.getByText("Recado descartado.")).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Falta conferir antes de salvar", exact: true }),
+      page.getByRole("heading", { name: /ficou sem conferir|ficaram sem conferir/ }),
     ).toHaveCount(0);
     expect(await statusOf(second.id)).toBe("discarded");
   } finally {

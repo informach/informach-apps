@@ -79,7 +79,7 @@ export function StudentCard({ profile, isPro, currentCount, currentUserId }: Pro
                 <DropdownMenuItem asChild>
                   <Link href={`/perfis/${profile.id}/extras`}>
                     <Sparkles className="mr-2 size-4" aria-hidden />
-                    Extracurriculares
+                    Atividades extras
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

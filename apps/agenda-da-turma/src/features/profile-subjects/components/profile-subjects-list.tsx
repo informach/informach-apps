@@ -31,7 +31,7 @@ export function ProfileSubjectsList({ profileId, subjects }: Props) {
       {visible.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           {tab === "active"
-            ? "Nenhuma matéria extracurricular ativa. Adicione uma para começar."
+            ? "Nenhuma atividade extra ativa. Natação, inglês, reforço: adicione a primeira."
             : "Nenhuma matéria pausada no momento."}
         </p>
       ) : (

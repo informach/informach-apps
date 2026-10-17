@@ -8,16 +8,16 @@ import {
   users,
 } from "@informach/db/schema";
 import webpush from "web-push";
-import { addDaysIso, todayLocalIso } from "@/features/dashboard/date";
+import { todayLocalIso } from "@/features/dashboard/date";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { listNoticeActions } from "@/features/notices/repository";
 import { purgeExpiredIdempotentWrites } from "@/features/offline-queue/repository";
-import { ACTIVITY_TYPE_LABELS } from "@/features/unified-activities/activity-types";
 import { buildEmailUnsubscribeUrl, emails } from "@/lib/emails";
 import { env } from "@/lib/env";
+import { buildDailyDigest, buildReminder, type DigestItem, type PushText } from "./digest";
 import { isAllowedPushEndpoint, isQuietHour } from "./schemas";
 import { getNotificationPreferences } from "./service";
-import { buildWeeklyDigestLines } from "./weekly";
+import { buildWeeklyDigest } from "./weekly";
 
 export function saoPauloHour(now: Date) {
   return Number(
@@ -44,7 +44,24 @@ const escapeHtml = (text: string) =>
     /[&<>"']/g,
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c,
   );
-type Message = { key: string; title: string; lines: string[]; path: string };
+/** O e-mail diz isto uma vez, no rodapé; a tela do app não repete em cada lista. */
+const EMAIL_FOOTNOTE = "Marcar como feito vale só para a sua casa: a escola não recebe aviso.";
+
+type NoticeRow = Awaited<ReturnType<typeof listNoticeActions>>[number];
+
+function toDigestItem(row: NoticeRow): DigestItem {
+  return {
+    profileName: row.profileName,
+    title: row.action.title,
+    subjectName: row.subjectName,
+    dueAt: row.action.dueAt,
+    time: row.action.time,
+    assignedName: row.assignedName,
+  };
+}
+
+/** `title` é o assunto do e-mail; `push` é o texto da tela bloqueada, sem nomes. */
+type Message = { key: string; title: string; lines: string[]; path: string; push: PushText };
 
 async function claim(userId: string, channel: "email" | "push", messageKey: string, now: Date) {
   await db
@@ -105,7 +122,6 @@ async function defer(id: string, now: Date) {
 async function currentMessages(userId: string, now: Date): Promise<Message[]> {
   const prefs = await getNotificationPreferences(userId);
   const today = todayLocalIso(now);
-  const tomorrow = addDaysIso(today, 1);
   const hour = saoPauloHour(now);
   if (isQuietHour(hour, prefs.quietStart, prefs.quietEnd)) return [];
   const entitlement = await getFamilyEntitlements(userId);
@@ -126,46 +142,26 @@ async function currentMessages(userId: string, now: Date): Promise<Message[]> {
     hour === prefs.weeklyDigestHour &&
     weekdayInSaoPaulo(now) === prefs.weeklyDigestDay
   ) {
-    const lines = buildWeeklyDigestLines(
-      eligible.map(({ action, profileName }) => ({
+    const weekly = buildWeeklyDigest(
+      eligible.map(({ action, profileName, subjectName }) => ({
         profileName,
         title: action.title,
         type: action.type,
+        subjectName,
         dueAt: action.dueAt,
         estimatedMinutes: action.estimatedMinutes,
         status: action.status,
       })),
       { todayIso: today },
     );
-    if (lines.length)
-      messages.push({
-        key: `weekly:${today}`,
-        title: "A semana que vem na sua casa",
-        lines,
-        path: "/calendario?view=week",
-      });
+    if (weekly) messages.push({ key: `weekly:${today}`, ...weekly, path: "/calendario?view=week" });
   }
   if (hour === prefs.digestHour) {
-    const relevant = eligible.filter(({ action: a }) => !a.dueAt || a.dueAt <= tomorrow);
-    const lines = relevant.map(
-      (r) =>
-        `${r.profileName}: ${ACTIVITY_TYPE_LABELS[r.action.type]}, ${r.action.title}. ${r.action.dueAt ? `Data: ${r.action.dueAt}` : "Prazo a confirmar"}${r.action.time ? ` às ${r.action.time}` : ""}. Responsável: ${r.assignedName ?? "a combinar"}.`,
-    );
-    if (lines.length)
-      messages.push({
-        key: `digest:${today}`,
-        title: "Sua rotina para amanhã",
-        lines:
-          lines.length > 20
-            ? [
-                ...lines.slice(0, 20),
-                `Mais ${lines.length - 20} atividades na rotina. Abra o app para conferir todas.`,
-              ]
-            : lines,
-        path: "/dashboard",
-      });
+    const daily = buildDailyDigest(eligible.map(toDigestItem), { todayIso: today });
+    if (daily) messages.push({ key: `digest:${today}`, ...daily, path: "/dashboard" });
   }
-  for (const { action: a, profileName } of eligible) {
+  for (const row of eligible) {
+    const a = row.action;
     if (
       a.reminderAt &&
       a.reminderAt <= now &&
@@ -173,10 +169,7 @@ async function currentMessages(userId: string, now: Date): Promise<Message[]> {
     )
       messages.push({
         key: `action:${a.id}:v${a.version}`,
-        title: "Uma atividade da família precisa de atenção",
-        lines: [
-          `${profileName}: ${a.title}. Data: ${a.dueAt ?? "a confirmar"}${a.time ? ` às ${a.time}` : ""}.`,
-        ],
+        ...buildReminder(toDigestItem(row), { todayIso: today }),
         path: `/atividades/${a.id}`,
       });
   }
@@ -251,7 +244,7 @@ export async function deliverRoutineNotifications(
             }
             const unsubscribeUrl = buildEmailUnsubscribeUrl(userId, "agenda.routine");
             const url = `${env.NEXT_PUBLIC_APP_URL}${fresh.path}`;
-            const text = `${fresh.title}\n\n${fresh.lines.join("\n")}\n\nAbrir rotina: ${url}\n\nFeito em casa não substitui entregas e autorizações no canal oficial.\nDesativar estes e-mails: ${unsubscribeUrl}`;
+            const text = `${fresh.title}\n\n${fresh.lines.join("\n")}\n\nAbrir a Agenda: ${url}\n\n${EMAIL_FOOTNOTE}\nNão quero mais receber: ${unsubscribeUrl}`;
             const result = await emails.sendEmail({
               to: recipient.email,
               userId,
@@ -259,7 +252,7 @@ export async function deliverRoutineNotifications(
               messageKey: `agenda:${userId}:${message.key}`,
               subject: fresh.title,
               text,
-              html: `<h1>${escapeHtml(fresh.title)}</h1><ul>${fresh.lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul><p><a href="${escapeHtml(url)}">Abrir rotina</a></p><p>Feito em casa não substitui entregas e autorizações no canal oficial.</p><p><a href="${escapeHtml(unsubscribeUrl)}">Desativar estes e-mails</a></p>`,
+              html: `<h1>${escapeHtml(fresh.title)}</h1><ul>${fresh.lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul><p><a href="${escapeHtml(url)}">Abrir a Agenda</a></p><p>${escapeHtml(EMAIL_FOOTNOTE)}</p><p><a href="${escapeHtml(unsubscribeUrl)}">Não quero mais receber</a></p>`,
               unsubscribeUrl,
             });
             if (result.status === "deferred") await defer(delivery.id, now);
@@ -302,15 +295,18 @@ export async function deliverRoutineNotifications(
               await finish(delivery.id, "canceled", now);
               continue;
             }
-            // Lock-screen text omits children's names and school content.
+            // A tela bloqueada nunca mostra nome de criança nem conteúdo escolar
+            // (promessa da política de privacidade). `fresh.title` é o assunto
+            // do e-mail e pode nomear a criança; o push usa só `fresh.push`,
+            // montado e testado sem esses dados em `digest.ts` e `weekly.ts`.
             await webpush.sendNotification(
               {
                 endpoint: subscription.endpoint,
                 keys: { p256dh: subscription.p256dh, auth: subscription.auth },
               },
               JSON.stringify({
-                title: fresh.title,
-                body: "Abra a Agenda da Turma para conferir as atividades.",
+                title: fresh.push.title,
+                body: fresh.push.body,
                 url: fresh.path,
                 tag: delivery.id,
               }),

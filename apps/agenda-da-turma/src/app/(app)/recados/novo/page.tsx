@@ -105,8 +105,8 @@ export default async function NewNoticePage({
       </header>
       {resumeUnavailable ? (
         <p role="status" className="rounded-lg border bg-muted/40 p-4 text-sm">
-          Aquele rascunho não está mais aguardando revisão: ele foi salvo ou descartado. Você pode
-          começar uma importação nova aqui.
+          Aquele recado não está mais esperando conferência: ele foi salvo ou descartado. Dá para
+          mandar um recado novo aqui.
         </p>
       ) : null}
       <CaptureForm

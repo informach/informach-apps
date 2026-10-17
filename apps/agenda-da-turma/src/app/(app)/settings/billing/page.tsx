@@ -32,11 +32,11 @@ export default async function BillingSettingsPage() {
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 md:px-8">
       <header className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-2">
-          <BackButton href="/dashboard" label="Voltar para o dashboard" />
+          <BackButton href="/dashboard" label="Voltar para Hoje" />
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Plano e cobrança</h1>
             <p className="max-w-2xl text-sm text-muted-foreground">
-              Acompanhe assinatura, créditos de IA e histórico recente de consumo.
+              A assinatura, as leituras de recado do mês e o que já foi usado.
             </p>
           </div>
         </div>
@@ -144,7 +144,7 @@ async function ExpiringCard({ userId }: UserArg) {
     <Card className="border-border/60">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">
-          Expiram em breve
+          Vencem em breve
         </CardTitle>
         <WalletCards className="size-4 text-muted-foreground" aria-hidden />
       </CardHeader>
@@ -155,7 +155,7 @@ async function ExpiringCard({ userId }: UserArg) {
         <p className="text-xs text-muted-foreground">
           {balance.expiringSoon.firstExpiresAt
             ? `Primeiro vencimento em ${formatDate(balance.expiringSoon.firstExpiresAt)}.`
-            : "Nenhum crédito vencendo nos próximos 7 dias."}
+            : "Nenhuma leitura vencendo nos próximos 7 dias."}
         </p>
       </CardContent>
     </Card>
@@ -178,7 +178,7 @@ async function HistorySection({ userId }: UserArg) {
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold tracking-tight">Créditos recebidos</h2>
+        <h2 className="text-lg font-semibold tracking-tight">Leituras recebidas e usadas</h2>
         {history.nextCursor ? (
           <span className="text-xs text-muted-foreground">Mostrando entradas recentes</span>
         ) : null}
@@ -196,7 +196,6 @@ async function HistorySection({ userId }: UserArg) {
                     <p className="font-medium">{ledgerLabel(entry.entryType)}</p>
                     <p className="text-xs text-muted-foreground">
                       {formatDate(entry.createdAt)}
-                      {entry.productSku ? ` · ${entry.productSku}` : ""}
                     </p>
                   </div>
                   <span className="font-mono tabular-nums">
@@ -204,14 +203,14 @@ async function HistorySection({ userId }: UserArg) {
                     {formatNumber(entry.amount)}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {entry.expiresAt ? `Expira ${formatDate(entry.expiresAt)}` : "Sem expiração"}
+                    {entry.expiresAt ? `Vence em ${formatDate(entry.expiresAt)}` : "Não vence"}
                   </span>
                 </div>
               ))}
             </div>
           ) : (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-              Nenhum crédito recebido ainda.
+              Nada por aqui ainda.
             </div>
           )}
         </CardContent>
@@ -287,12 +286,12 @@ function HistorySkeleton() {
 function ledgerLabel(type: string): string {
   return (
     {
-      purchase: "Compra de créditos",
-      bonus_grant: "Bônus da assinatura",
-      promo_grant: "Crédito promocional",
-      consumption: "Uso de IA",
+      purchase: "Pacote de leituras",
+      bonus_grant: "Leituras do mês, do Pro",
+      promo_grant: "Leituras para experimentar",
+      consumption: "Recado lido",
       refund: "Estorno",
-      expiration: "Expiração",
+      expiration: "Venceram",
       adjustment: "Ajuste",
     }[type] ?? type
   );

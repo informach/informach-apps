@@ -20,10 +20,10 @@ export function GroupAccessPanel({
   return (
     <div className="space-y-6">
       <section className="space-y-3 rounded-xl border p-5">
-        <h2 className="text-lg font-semibold">Convite para o grupo privado</h2>
+        <h2 className="text-lg font-semibold">Convite da turma</h2>
         <p className="text-sm text-muted-foreground">
-          Quem recebe o código pode entrar no grupo. Compartilhe apenas com responsáveis conhecidos.
-          Este grupo é organizado pelas famílias e não comprova vínculo oficial com a escola.
+          Quem tem o código entra na turma e pode colocar uma criança nela. Mande só para famílias
+          que você conhece. A turma é organizada pelas famílias, não pela escola.
         </p>
         <code className="block break-all rounded bg-muted p-3 text-lg">{code}</code>
         <Button

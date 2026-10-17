@@ -93,7 +93,7 @@ export function ProfileSubjectFormDialog({ open, onOpenChange, profileId, subjec
           }
           if (result.error.code === "DUPLICATE_NAME") {
             form.setError("name", {
-              message: "Já existe uma matéria com esse nome neste perfil",
+              message: "Essa criança já tem uma atividade extra com esse nome",
             });
             return;
           }
@@ -124,14 +124,14 @@ export function ProfileSubjectFormDialog({ open, onOpenChange, profileId, subjec
           return;
         }
         if (result.error.code === "PROFILE_NOT_FOUND") {
-          toast.error("Perfil não encontrado.");
+          toast.error("Não achamos essa criança.");
           onOpenChange(false);
           router.refresh();
           return;
         }
         if (result.error.code === "DUPLICATE_NAME") {
           form.setError("name", {
-            message: "Já existe uma matéria com esse nome neste perfil",
+            message: "Essa criança já tem uma atividade extra com esse nome",
           });
           return;
         }
@@ -139,12 +139,12 @@ export function ProfileSubjectFormDialog({ open, onOpenChange, profileId, subjec
           const { isPro, limit } = result.error;
           toast.error(
             isPro
-              ? `Limite de ${limit} matérias extracurriculares por perfil atingido.`
-              : `Plano Free permite ${limit} matéria extracurricular por perfil.`,
+              ? `Cada criança pode ter até ${limit} atividades extras.`
+              : `No plano grátis, cada criança tem ${limit} atividade extra.`,
             {
               description: isPro
-                ? "Remova matérias não usadas para abrir espaço."
-                : "Faça upgrade pro Pro para cadastrar até 10 por perfil.",
+                ? "Pause ou exclua uma que não está em uso para abrir espaço."
+                : "No Pro, cada criança pode ter até 10.",
             },
           );
           onOpenChange(false);
@@ -166,7 +166,7 @@ export function ProfileSubjectFormDialog({ open, onOpenChange, profileId, subjec
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? "Editar matéria extracurricular" : "Nova matéria extracurricular"}
+            {isEdit ? "Editar atividade extra" : "Nova atividade extra"}
           </DialogTitle>
           <DialogDescription>
             Atividades fora da escola, como jazz, futebol, natação ou reforço. Elas aparecem nas

@@ -20,9 +20,9 @@ export function CreditPacksSection({ packs }: Props) {
   return (
     <section className="space-y-3">
       <div>
-        <h2 className="text-lg font-semibold tracking-tight">Comprar créditos</h2>
+        <h2 className="text-lg font-semibold tracking-tight">Mais leituras</h2>
         <p className="text-sm text-muted-foreground">
-          Pacotes avulsos que se somam ao saldo. Não expiram.
+          Para quando o mês aperta. Somam às leituras do Pro e não vencem.
         </p>
       </div>
       <div className="grid gap-3 md:grid-cols-3">
@@ -51,7 +51,7 @@ function PackCard({ pack }: { pack: Product }) {
           });
         } else if (result.error.code === "NO_PRO_SUBSCRIPTION") {
           toast("Disponível só para assinantes Pro.", {
-            description: "Assine o Pro para comprar pacotes de crédito.",
+            description: "Os pacotes de leituras são para quem já tem o Pro.",
           });
         } else if (result.error.code === "PACK_NOT_CONFIGURED") {
           toast("Pacote ainda não disponível.", {
@@ -76,12 +76,14 @@ function PackCard({ pack }: { pack: Product }) {
   return (
     <Card className="border-border/60">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{pack.name}</CardTitle>
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          {credits > 0 ? `${new Intl.NumberFormat("pt-BR").format(credits)} leituras` : pack.name}
+        </CardTitle>
         <Sparkles className="size-4 text-muted-foreground" aria-hidden />
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="text-3xl font-semibold tabular-nums tracking-tight">
-          {priceLabel ?? `+${new Intl.NumberFormat("pt-BR").format(credits)} créditos`}
+          {priceLabel ?? `+${new Intl.NumberFormat("pt-BR").format(credits)} leituras`}
         </div>
         <Button type="button" size="sm" onClick={buy} disabled={pending} className="w-full">
           {isLoading ? (

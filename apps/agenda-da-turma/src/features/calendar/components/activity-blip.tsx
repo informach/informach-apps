@@ -58,7 +58,7 @@ export function ActivityBlip({ item, onSelect }: Props) {
     : isDone
       ? "concluída"
       : (URGENCY_A11Y_LABEL[urgency] ?? URGENCY_A11Y_LABEL.upcoming);
-  const sourceLabel = isExtra ? " (extracurricular)" : "";
+  const sourceLabel = isExtra ? " (fora da escola)" : "";
   const ariaLabel =
     `${typeLabel} de ${subjectName}${sourceLabel}: ${item.title}` +
     `, de ${item.profileName}, ${statusLabel}`;

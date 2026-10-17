@@ -361,7 +361,7 @@ export function ActionFields({
             </button>
           ) : null}
           {value.reminderAt && new Date(value.reminderAt).valueOf() < Date.now() ? (
-            <span className="font-normal text-amber-700 dark:text-amber-400">
+            <span className="font-normal text-chart-4-ink">
               Esse horário já passou. Escolha um horário futuro para receber o aviso.
             </span>
           ) : null}

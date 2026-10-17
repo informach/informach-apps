@@ -27,6 +27,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { emailOtp, signUp } from "@/lib/auth-client";
+import { describeAuthError } from "@/lib/auth-errors";
 import { type OtpInput, otpSchema, type SignupInput, signupSchema } from "../schemas";
 import { OnboardingStepper } from "./onboarding-stepper";
 
@@ -157,7 +158,7 @@ function FormStep({
         return;
       }
       toast.error("Não foi possível criar sua conta.", {
-        description: error.message ?? "Tente novamente em instantes.",
+        description: describeAuthError(error, "Tente de novo em instantes."),
       });
       return;
     }
@@ -293,7 +294,7 @@ function OtpStep({
       }
       if (code === "OTP_EXPIRED" || /expired/i.test(message)) {
         toast.error("O código expirou.", {
-          description: 'Clique em "Reenviar código" para gerar um novo.',
+          description: "Toque em Reenviar código para receber outro.",
         });
         form.resetField("otp");
         return;
@@ -305,7 +306,7 @@ function OtpStep({
         return;
       }
       toast.error("Não foi possível verificar.", {
-        description: message || "Tente novamente em instantes.",
+        description: describeAuthError(error, "Tente de novo em instantes."),
       });
       return;
     }
@@ -323,7 +324,7 @@ function OtpStep({
       });
       if (error) {
         toast.error("Não foi possível reenviar o código.", {
-          description: error.message ?? "Tente novamente em instantes.",
+          description: describeAuthError(error, "Tente de novo em instantes."),
         });
         return;
       }

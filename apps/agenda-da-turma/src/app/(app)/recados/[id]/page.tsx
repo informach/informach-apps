@@ -15,7 +15,7 @@ export default async function NoticeOriginalPage({ params }: { params: Promise<{
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) notFound();
   const source = await getNoticeSource(user.id, id);
-  if (!source || source.status !== "confirmed") notFound();
+  if (source?.status !== "confirmed") notFound();
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 pb-28 sm:px-8">
       <Link href="/recados" className="text-sm underline">

@@ -225,11 +225,8 @@ describe("formatters (pt-BR)", () => {
   });
 
   it("formatWeekRangeLabel collapses same-month into one mention", () => {
-    const label = formatWeekRangeLabel("2026-05-10", "2026-05-16");
-    expect(label).toContain("10");
-    expect(label).toContain("16");
-    expect(label).toContain("mai");
-    expect(label).toContain("2026");
+    expect(formatWeekRangeLabel("2026-05-10", "2026-05-16")).toBe("10 a 16 de maio");
+    expect(formatWeekRangeLabel("2026-05-31", "2026-06-06")).toBe("31 de maio a 6 de junho");
   });
 
   it("formatDayLabel returns 'Weekday, DD de Month de YYYY'", () => {

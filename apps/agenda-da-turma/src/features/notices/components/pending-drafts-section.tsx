@@ -1,6 +1,8 @@
 import { Button } from "@informach/ui/components/button";
 import { FileClock } from "lucide-react";
 import Link from "next/link";
+import { todayLocalIso } from "@/features/dashboard/date";
+import { shortDayLabel } from "@/features/dashboard/day-labels";
 import { listReadyNotices } from "@/features/notices/repository";
 import { SOURCE_LABELS } from "@/features/notices/schemas";
 import { DiscardDraftButton } from "./discard-draft-button";
@@ -37,12 +39,12 @@ export async function PendingDraftsSection({ userId }: { userId: string }) {
         </span>
         <div className="min-w-0">
           <h2 id="pending-drafts-title" className="text-lg font-semibold">
-            Falta conferir antes de salvar
+            {drafts.length === 1
+              ? "Um recado ficou sem conferir"
+              : `${drafts.length} recados ficaram sem conferir`}
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {drafts.length === 1
-              ? "Uma importação ficou pela metade. Retomar não consome outro crédito."
-              : `${drafts.length} importações ficaram pela metade. Retomar não consome outro crédito.`}
+            A Agenda já leu. Falta você conferir e salvar, e continuar não gasta outra leitura.
           </p>
         </div>
       </div>
@@ -55,8 +57,8 @@ export async function PendingDraftsSection({ userId }: { userId: string }) {
               className="min-h-11 min-w-0 flex-1 justify-start rounded-xl border-chart-4/30 bg-background text-foreground hover:bg-chart-4/10 hover:text-foreground"
             >
               <Link href={`/recados/novo?retomar=${draft.id}`}>
-                Retomar {SOURCE_LABELS[draft.source]}, de{" "}
-                {draft.createdAt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+                Continuar: {SOURCE_LABELS[draft.source]},{" "}
+                {shortDayLabel(todayLocalIso(draft.createdAt))}
               </Link>
             </Button>
             <DiscardDraftButton noticeId={draft.id} label={SOURCE_LABELS[draft.source]} />

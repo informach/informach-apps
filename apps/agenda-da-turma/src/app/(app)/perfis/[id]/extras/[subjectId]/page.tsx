@@ -56,7 +56,7 @@ export default async function ProfileSubjectDetailPage({ params }: Props) {
               <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">{subject.name}</h1>
               <Badge variant="outline">
                 <Sparkles className="mr-1 size-3" aria-hidden />
-                Extracurricular
+                Fora da escola
               </Badge>
               {isPaused ? (
                 <Badge

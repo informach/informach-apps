@@ -77,8 +77,7 @@ export function DeleteProfileSubjectDialog({
                 {pendingActivitiesCount === 1
                   ? "atividade pendente vinculada será excluída junto"
                   : "atividades pendentes vinculadas serão excluídas junto"}
-                . Se quiser apenas pausar enquanto seu filho descansa, use o botão
-                &quot;Pausar&quot; em vez de excluir.
+                . Se a criança só vai dar uma pausa, use Pausar em vez de excluir.
               </>
             ) : null}
           </AlertDialogDescription>

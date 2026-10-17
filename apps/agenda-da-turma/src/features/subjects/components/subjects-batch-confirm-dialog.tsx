@@ -210,7 +210,7 @@ export function SubjectsBatchConfirmDialog({
     <Dialog open={open} onOpenChange={(o) => !submitting && onOpenChange(o)}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Confirmar matérias detectadas pela IA</DialogTitle>
+          <DialogTitle>Confira as matérias encontradas</DialogTitle>
           <DialogDescription>
             Revise e edite a lista antes de salvar. Você pode remover linhas ou adicionar novas
             manualmente. O nome do professor é opcional.

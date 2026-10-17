@@ -222,7 +222,7 @@ describe("weekly digest", () => {
     await deliverRoutineNotifications(sundaySixPm);
     const outbox = emails.getOutbox();
     expect(outbox).toHaveLength(1);
-    expect(outbox[0]?.subject).toBe("A semana que vem na sua casa");
+    expect(outbox[0]?.subject).toBe("A semana de 4 a 10 de outubro");
     expect(outbox[0]?.text).toContain("Prova de Ciências");
 
     // Rodar de novo na mesma hora não manda outro.

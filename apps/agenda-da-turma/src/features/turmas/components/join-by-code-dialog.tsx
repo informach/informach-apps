@@ -85,7 +85,7 @@ export function JoinByCodeDialog({ open, onOpenChange, profiles, defaultProfileI
           return;
         }
         if (result.error.code === "PROFILE_NOT_FOUND") {
-          toast.error("Perfil não encontrado");
+          toast.error("Não achamos essa criança");
           return;
         }
         toast.error("Não foi possível entrar na turma.");
@@ -113,11 +113,11 @@ export function JoinByCodeDialog({ open, onOpenChange, profiles, defaultProfileI
               name="profileId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Estudante</FormLabel>
+                  <FormLabel>Criança</FormLabel>
                   <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione um perfil" />
+                        <SelectValue placeholder="Escolha a criança" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>

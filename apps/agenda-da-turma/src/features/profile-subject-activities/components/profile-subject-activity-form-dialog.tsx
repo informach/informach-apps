@@ -155,8 +155,8 @@ export function ProfileSubjectActivityFormDialog({
         }
         if (result.error.code === "ACTIVITY_LIMIT_REACHED") {
           const { limit } = result.error;
-          toast.error(`Limite de ${limit} atividades atingido no plano Free.`, {
-            description: "Conclua ou exclua atividades antigas, ou faça upgrade pro Pro.",
+          toast.error(`O plano grátis tem até ${limit} atividades em aberto.`, {
+            description: "Marque algumas como feitas para abrir espaço, ou conheça o Pro.",
           });
           onOpenChange(false);
           return;

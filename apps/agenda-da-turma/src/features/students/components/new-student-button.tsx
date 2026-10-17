@@ -36,12 +36,12 @@ export function NewStudentButton({
           limitReached
             ? isPro
               ? `Você já tem ${limit} perfis (máximo do plano Pro).`
-              : `Plano Free permite ${limit} perfil. Faça upgrade pra criar mais.`
+              : `O plano grátis tem ${limit} criança. No Pro cabem até três.`
             : undefined
         }
       >
         <Plus className="mr-2 size-4" aria-hidden />
-        Novo perfil
+        Adicionar criança
       </Button>
 
       <StudentFormDialog

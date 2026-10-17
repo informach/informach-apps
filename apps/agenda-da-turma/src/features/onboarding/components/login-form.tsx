@@ -28,6 +28,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { type Control, type FieldValues, type Path, useForm } from "react-hook-form";
 import { emailOtp, forgetPassword, signIn } from "@/lib/auth-client";
+import { describeAuthError } from "@/lib/auth-errors";
 import {
   type ForgotPasswordInput,
   forgotPasswordSchema,
@@ -74,12 +75,12 @@ export function LoginForm({ nextPath, defaultEmail }: { nextPath: string; defaul
 
   const description =
     step.kind === "auth"
-      ? "Use sua senha ou entre com um código enviado por email."
+      ? "Use sua senha ou peça um código por e-mail."
       : step.kind === "reset-email"
-        ? "Enviaremos um código de verificação para seu email."
+        ? "Mandamos um código para o seu e-mail."
         : step.kind === "reset-otp"
           ? `Digite o código enviado para ${step.email}.`
-          : `Enviamos um código de 6 dígitos para ${step.email}.`;
+          : `Mandamos um código de 6 números para ${step.email}.`;
 
   return (
     <div className="w-full max-w-md">
@@ -195,7 +196,7 @@ function PasswordStep({
 
     if (error) {
       toast.error("Não foi possível entrar.", {
-        description: error.message ?? "Verifique email e senha e tente novamente.",
+        description: describeAuthError(error, "Confira o e-mail e a senha e tente de novo."),
       });
       return;
     }
@@ -211,7 +212,7 @@ function PasswordStep({
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>E-mail</FormLabel>
               <FormControl>
                 <Input
                   type="email"
@@ -285,7 +286,7 @@ function EmailOtpRequestStep({
 
     if (error) {
       toast.error("Não foi possível enviar o código.", {
-        description: error.message ?? "Tente novamente em instantes.",
+        description: describeAuthError(error, "Tente de novo em instantes."),
       });
       return;
     }
@@ -301,7 +302,7 @@ function EmailOtpRequestStep({
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>E-mail</FormLabel>
               <FormControl>
                 <Input
                   type="email"
@@ -344,7 +345,7 @@ function ResetEmailStep({
 
     if (error) {
       toast.error("Não foi possível enviar o código.", {
-        description: error.message ?? "Tente novamente em instantes.",
+        description: describeAuthError(error, "Tente de novo em instantes."),
       });
       return;
     }
@@ -360,7 +361,7 @@ function ResetEmailStep({
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>E-mail</FormLabel>
               <FormControl>
                 <Input
                   type="email"
@@ -431,7 +432,7 @@ function OtpStep({
       });
       if (error) {
         toast.error("Não foi possível reenviar o código.", {
-          description: error.message ?? "Tente novamente em instantes.",
+          description: describeAuthError(error, "Tente de novo em instantes."),
         });
         return;
       }
@@ -511,7 +512,7 @@ function ResetPasswordStep({
       const { error } = await forgetPassword.emailOtp({ email });
       if (error) {
         toast.error("Não foi possível reenviar o código.", {
-          description: error.message ?? "Tente novamente em instantes.",
+          description: describeAuthError(error, "Tente de novo em instantes."),
         });
         return;
       }
@@ -664,7 +665,7 @@ function handleOtpError(
   }
   if (code === "OTP_EXPIRED" || /expired/i.test(message)) {
     toast.error("O código expirou.", {
-      description: 'Clique em "Reenviar código" para gerar um novo.',
+      description: "Toque em Reenviar código para receber outro.",
     });
     return;
   }
@@ -675,6 +676,6 @@ function handleOtpError(
     return;
   }
   toast.error("Não foi possível concluir a confirmação.", {
-    description: message || "Tente novamente em instantes.",
+    description: describeAuthError(error, "Tente de novo em instantes."),
   });
 }

@@ -147,8 +147,8 @@ export function CreateTurmaDialog({ open, onOpenChange, profiles, defaultProfile
           return;
         }
         if (result.error.code === "PROFILE_NOT_FOUND") {
-          toast.error("Perfil não encontrado", {
-            description: "Selecione um perfil válido.",
+          toast.error("Não achamos essa criança", {
+            description: "Escolha uma das crianças da lista.",
           });
           return;
         }
@@ -191,14 +191,14 @@ export function CreateTurmaDialog({ open, onOpenChange, profiles, defaultProfile
               </DialogTitle>
               <DialogDescription>
                 {shareCode.created
-                  ? "A turma foi criada e seu estudante já está vinculado a ela como ativa."
-                  : "Seu estudante foi vinculado ao grupo que você já criou."}
+                  ? "A turma foi criada e a criança já está nela, como a turma deste ano."
+                  : "A criança entrou na turma que você já tinha criado."}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                Compartilhe esse código com outros responsáveis pra que entrem na mesma turma:
+                Mande este código para as outras famílias da turma. Com ele, elas entram e recebem o que vocês mandarem:
               </p>
               <div className="flex items-center gap-2 rounded-lg border bg-muted/40 p-3">
                 <span className="flex-1 font-mono text-2xl tracking-widest">{shareCode.code}</span>
@@ -220,8 +220,8 @@ export function CreateTurmaDialog({ open, onOpenChange, profiles, defaultProfile
             <DialogHeader>
               <DialogTitle>Nova turma</DialogTitle>
               <DialogDescription>
-                Crie um grupo privado para organizar a turma. Para participar de um grupo de outra
-                família, use o código de convite.
+                A turma junta as famílias da mesma sala. Se outra família já criou, peça o
+                convite e entre por código.
               </DialogDescription>
             </DialogHeader>
 
@@ -256,11 +256,11 @@ export function CreateTurmaDialog({ open, onOpenChange, profiles, defaultProfile
                   name="profileId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Estudante</FormLabel>
+                      <FormLabel>Criança</FormLabel>
                       <Select value={field.value} onValueChange={field.onChange}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Selecione um perfil" />
+                            <SelectValue placeholder="Escolha a criança" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
