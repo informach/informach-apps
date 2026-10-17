@@ -11,7 +11,7 @@ import { compareReleaseVersions, type ReleaseManifest } from "@informach/edi-con
 import { fetchPublicRelease, githubResponse } from "@informach/edi-releases/public";
 import { lock } from "proper-lockfile";
 import type { DesktopConfig } from "./contracts";
-import { verifyInstalledApplication } from "./installation-integrity";
+import { type InstallationFileSystem, verifyInstalledApplication } from "./installation-integrity";
 
 const execute = promisify(execFile);
 export type Installation = {
@@ -27,6 +27,7 @@ export function createInstallationManager(
     localAppData: string;
     directory: string;
     acceptRelease: (manifest: ReleaseManifest) => Promise<void>;
+    fileSystem: InstallationFileSystem;
   },
 ) {
   const busy = new Set<EdiToolId>();
@@ -52,6 +53,7 @@ export function createInstallationManager(
       appId: id,
       trustedKeys: config.updateKeys,
       verifyFiles,
+      fileSystem: config.fileSystem,
     });
     return receipt.version;
   }
@@ -133,6 +135,7 @@ export function createInstallationManager(
         appId: id,
         version: manifest.version,
         trustedKeys: config.updateKeys,
+        fileSystem: config.fileSystem,
       });
       if (receipt.sourceCommit !== manifest.sourceCommit)
         throw new Error("O instalador terminou sem confirmar a versão esperada.");

@@ -58,16 +58,49 @@ function Start-VerifiedApplication([string]$Target) {
     }
     throw 'The verified application did not display its account access gate.'
   } catch {
-    Stop-TestApplication $process
-    throw
+    $startupFailure = $_
+    [Console]::Error.WriteLine("Application startup failed: $($startupFailure.Exception.Message)")
+    Write-ApplicationDiagnostics $process
+    try { Stop-TestApplication $process } catch {
+      [Console]::Error.WriteLine("Application cleanup also failed: $($_.Exception.Message)")
+    }
+    throw $startupFailure
+  }
+}
+
+function Write-ApplicationDiagnostics([System.Diagnostics.Process]$Process) {
+  try {
+    $Process.Refresh()
+    [Console]::Error.WriteLine("Application process: id=$($Process.Id), exited=$($Process.HasExited), mainWindow=$($Process.MainWindowHandle), title=$($Process.MainWindowTitle)")
+    if ($Process.HasExited) { return }
+    Add-Type -AssemblyName UIAutomationClient
+    $condition = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $Process.Id)
+    $windows = [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $condition)
+    $remaining = 30
+    foreach ($window in $windows) {
+      $nodes = $window.FindAll([System.Windows.Automation.TreeScope]::Subtree, [System.Windows.Automation.Condition]::TrueCondition)
+      foreach ($node in $nodes) {
+        if ($remaining -le 0) { break }
+        $current = $node.Current
+        $name = $current.Name
+        if ($name.Length -gt 240) { $name = $name.Substring(0, 240) }
+        [Console]::Error.WriteLine("Application UI: type=$($current.ControlType.ProgrammaticName), enabled=$($current.IsEnabled), offscreen=$($current.IsOffscreen), name=$name")
+        $remaining--
+      }
+    }
+  } catch {
+    [Console]::Error.WriteLine("Application diagnostics failed: $($_.Exception.Message)")
   }
 }
 
 function Stop-TestApplication([System.Diagnostics.Process]$Process) {
   $Process.Refresh()
   if (!$Process.HasExited) {
-    [void]$Process.CloseMainWindow()
-    if (!$Process.WaitForExit(30000)) { throw 'Application refused a normal close; no process was terminated.' }
+    $requested = $Process.CloseMainWindow()
+    if (!$Process.WaitForExit(30000)) {
+      Write-ApplicationDiagnostics $Process
+      throw "Application refused a normal close (request accepted: $requested); no process was terminated."
+    }
   }
 }
 

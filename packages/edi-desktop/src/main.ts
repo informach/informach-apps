@@ -21,6 +21,7 @@ import { z } from "zod";
 import { configureDesktopAccess } from "./access";
 import { desktopConfigSchema, recoveryResultSchema } from "./contracts";
 import { createDesktopController } from "./controller";
+import { electronInstallationFileSystem } from "./electron-installation-filesystem";
 import { createFileAuthority, validateIpcValues } from "./files";
 import { gateHtml } from "./gate-html";
 import { verifyInstalledApplication } from "./installation-integrity";
@@ -498,6 +499,7 @@ export function createEdiDesktop(options: {
           appId: options.appId,
           version: app.getVersion(),
           trustedKeys: config.updateKeys,
+          fileSystem: electronInstallationFileSystem,
         });
         updater = createSignedUpdater({
           appId: options.appId,

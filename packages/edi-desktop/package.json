@@ -12,6 +12,7 @@
     "./renderer": "./src/renderer.ts",
     "./installations": "./src/installations.ts",
     "./installation-integrity": "./src/installation-integrity.ts",
+    "./electron-installation-filesystem": "./src/electron-installation-filesystem.ts",
     "./access": "./src/access.ts",
     "./jobs": "./src/jobs.ts",
     "./mcp-config": "./src/mcp-config.ts",

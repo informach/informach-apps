@@ -31,6 +31,8 @@ O [PR #6](https://github.com/informach/informach-apps/pull/6), inicialmente em d
 
 Próximos passos: concluir os gates remotos da correção, aplicar migrations pelo migrator e implantar o portal. Depois verificar login/e-mail, imagem e configurações Stripe finais, cron monitorado e publicação assinada. Integração Git, configuração de variáveis e testes locais não comprovam implantação nem distribuição; conferir também os deploys automáticos dos consumidores afetados.
 
+A correção do cursor passou na suíte remota de mídia. A instalação seguinte de Hub e EdiCaptura revelou outro bloqueio: o filesystem virtual do Electron impedia a leitura física do ASAR pelo verificador de integridade. A correção usa um adapter explícito de `original-fs` no desktop e acrescenta regressão no Electron real; sua homologação de instalação ainda precisa passar antes do merge.
+
 ## Ambiente de desenvolvimento
 
 `.nvmrc` e os workflows usam Node `24.15.0`, alinhados ao requisito `>=24.15.0` do manifest. Usar pnpm `9.15.0`, fixado em `packageManager`.

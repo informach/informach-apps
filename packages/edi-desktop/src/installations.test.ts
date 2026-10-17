@@ -1,4 +1,5 @@
 import { createHash, generateKeyPairSync } from "node:crypto";
+import { createReadStream, promises } from "node:fs";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -88,6 +89,7 @@ async function fixture() {
     localAppData: join(directory, "local"),
     directory,
     acceptRelease: async () => {},
+    fileSystem: { ...promises, createReadStream },
   });
   return {
     directory,

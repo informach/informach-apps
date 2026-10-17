@@ -13,6 +13,7 @@ import { EDI_DESKTOP_APPS, EDI_TOOLS } from "../../packages/config/src/edi-tools
 import { desktopAppIdSchema, leaseClaimsSchema } from "../../packages/edi-contracts/src/index.ts";
 import type { VaultData } from "../../packages/edi-desktop/src/vault";
 import { windowsPowerShellEnvironment } from "../../packages/edi-desktop/src/windows-powershell.ts";
+import { verifyNativeInstallationIntegrity } from "./native-installation.mts";
 
 declare const ediNativeFixture: {
   readIdentity(): Promise<unknown>;
@@ -202,6 +203,7 @@ async function verifyNativeDialog(page: Page, openerName: string, dialogName: st
 }
 const runFailures: unknown[] = [];
 try {
+  await verifyNativeInstallationIntegrity(root, electronPath);
   for (const id of applications) {
     console.log(`Native verification: ${id}`);
     const applicationRoot = resolve("apps", id);

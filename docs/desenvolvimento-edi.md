@@ -203,6 +203,8 @@ Uma operação longa já autorizada deve registrar seu ciclo com `desktopJobs.be
 
 ASAR é o arquivo virtual de aplicação que o Electron consegue ler. Um FFmpeg ou PowerShell externo não consegue abrir um caminho dentro dele. No EdiAula, `native-resources.ts` resolve fontes e scripts de cursor/entrada em `process.resourcesPath` quando empacotado; `installer-config.mts` os copia por `extraResources` e os exclui do ASAR. `fonts.json` pode continuar no ASAR porque é lido pelo Electron.
 
+Para conferir o inventário assinado, o hash precisa dos bytes físicos do arquivo ASAR inteiro. O `fs` normal do Electron apresenta esse arquivo como uma pasta virtual; por isso o startup e o gerenciador de instalações do Hub fornecem `electronInstallationFileSystem`, baseado em `original-fs`, ao verificador compartilhado. Os scripts Node de empacotamento usam o filesystem Node. Preserve essa composição ao acrescentar um consumidor; não altere globalmente o comportamento de ASAR do processo.
+
 FFmpeg/FFprobe de desenvolvimento vêm dos wrappers em `devDependencies`; o app instalado usa exclusivamente `resources/native-media/bin`. Novos recursos usados por subprocessos precisam de caminho físico, inclusão no pacote, licenças/notices e cobertura no inventário assinado. Teste também o empacotamento: funcionar por `app.getAppPath()` em desenvolvimento não comprova funcionamento instalado.
 
 ## 7. Verificar a mudança

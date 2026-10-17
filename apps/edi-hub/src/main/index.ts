@@ -1,6 +1,7 @@
 import { join, resolve } from "node:path";
 import { toolIdSchema } from "@informach/edi-contracts";
 import { desktopConfigSchema } from "@informach/edi-desktop/contracts";
+import { electronInstallationFileSystem } from "@informach/edi-desktop/electron-installation-filesystem";
 import { createInstallationManager } from "@informach/edi-desktop/installations";
 import { createEdiDesktop, desktopIpc } from "@informach/edi-desktop/main";
 import { app, BrowserWindow, dialog } from "electron";
@@ -24,6 +25,7 @@ const installations = createInstallationManager({
   localAppData: process.env.LOCALAPPDATA ?? app.getPath("appData"),
   directory: desktop.dataDirectory,
   acceptRelease: desktop.acceptRelease,
+  fileSystem: electronInstallationFileSystem,
 });
 let window: BrowserWindow | undefined;
 let automaticUpdates: ReturnType<typeof setInterval> | undefined;
