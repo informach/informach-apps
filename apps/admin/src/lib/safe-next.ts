@@ -1,6 +1,19 @@
 /** Origem fictícia: só serve para comparar, e o resultado sai sem ela. */
 const BASE = "https://bastidores.invalid";
 const HOME = "/";
+/** Para onde vai um `next` que apontava para uma rota de API. */
+const AUDIT = "/auditoria";
+
+/**
+ * Marca da ficha aberta pelo `next` da entrada. A navegação depois da senha e
+ * do código sai da própria tela de entrada (`Sec-Fetch-Site: same-origin`), mas
+ * quem escolheu o destino foi o link de fora que levou até ela; a página da
+ * ficha trata a marca como navegação de fora e pergunta antes de gravar.
+ */
+export const FICHA_CONFIRM_PARAM = "confirmar";
+
+/** Ficha de uma pessoa: `/pessoas/<id>`, com ou sem barra no fim. */
+const FICHA_PATH = /^\/pessoas\/[^/]+\/?$/;
 
 function hasControlCharacter(value: string): boolean {
   for (const char of value) {
@@ -24,6 +37,12 @@ function looksLikeOtherHost(path: string): boolean {
  * de linha somem antes de o navegador seguir o endereço, e `/\t/x` vira `//x`),
  * barra dupla, barra invertida e as mesmas coisas escondidas em percent-encoding
  * (`/%2F%2Fx`, `/%09/x`). Qualquer dúvida volta para o painel.
+ *
+ * Duas regras a mais, porque a navegação depois da entrada sai de dentro do
+ * Bastidores e passaria pelas travas de `Sec-Fetch-Site`: rota de API nunca é
+ * destino (um link para `/api/auditoria/export` exportaria e gravaria sem
+ * clique), e volta para a tela da Auditoria; a ficha ganha a marca
+ * `FICHA_CONFIRM_PARAM`, e a página pergunta antes de abrir e gravar a consulta.
  */
 export function safeNext(value: string | string[] | null | undefined): string {
   const next = Array.isArray(value) ? value[0] : value;
@@ -47,5 +66,25 @@ export function safeNext(value: string | string[] | null | undefined): string {
   }
   if (looksLikeOtherHost(path) || looksLikeOtherHost(decoded) || hasControlCharacter(decoded))
     return HOME;
+
+  // O roteamento compara o caminho já decodificado: `/%61pi/...` também é API.
+  let pathname: string;
+  try {
+    pathname = decodeURIComponent(url.pathname).toLowerCase();
+  } catch {
+    return HOME;
+  }
+  if (pathname === "/api" || pathname.startsWith("/api/")) return AUDIT;
+  if (FICHA_PATH.test(pathname)) {
+    url.searchParams.set(FICHA_CONFIRM_PARAM, "1");
+    return `${url.pathname}${url.search}${url.hash}`;
+  }
   return path;
+}
+
+/** A ficha chegou pelo `next` da entrada, e não por um clique de dentro. */
+export function cameFromSignInNext(
+  searchParams: Record<string, string | string[] | undefined>,
+): boolean {
+  return searchParams[FICHA_CONFIRM_PARAM] !== undefined;
 }
