@@ -23,6 +23,7 @@
     "@informach/edi-releases": "workspace:*",
     "@informach/emails": "workspace:*",
     "@informach/ui": "workspace:*",
+    "@sentry/nextjs": "10.76.2",
     "next": "^16.4.2",
     "pino": "^9.14.0",
     "react": "19.3.1",

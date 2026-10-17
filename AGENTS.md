@@ -49,6 +49,7 @@ O cadastro de apps web fica em `packages/config/src/apps.ts` e `domains.ts`. O c
 | Organização e contratos dos packages | [Arquitetura dos packages](docs/arquitetura-packages.md) e `packages/<package>/CLAUDE.md`, quando existir |
 | Apps Next.js | [Arquitetura web](docs/arquitetura-apps.md), [regras dos apps](apps/AGENTS.md) e guia local |
 | Ferramentas Electron e novas ferramentas Edi | [Arquitetura desktop](docs/arquitetura-desktop.md) e [regras dos apps](apps/AGENTS.md) |
+| Executar, desenvolver e testar o Hub e as ferramentas | [Guia de desenvolvimento Edi](docs/desenvolvimento-edi.md) |
 | Auditoria, dados pessoais e logs | [Política de auditoria](docs/audit-payload-policy.md) |
 | Deploy, provedores e migrations em produção | [Runbook de deploy](docs/deploy-runbook.md) e configuração Railway do app |
 | Missão Saber publicado | [Operação do Missão Saber](apps/missao-saber/PRODUCAO.md) |
@@ -74,7 +75,7 @@ Escolha verificações proporcionais à mudança. Testes de interface e banco us
 
 ## Deploy e segurança operacional
 
-- Cada web app tem sua configuração Railway versionada e usa a raiz do monorepo. Respeite `PORT`, a interface de rede e o start standalone adotado pelo app. Não alterar serviços existentes para adaptar um novo produto.
+- Cada web app tem sua configuração Railway versionada e usa a raiz do monorepo. O Edi e seu cron usam `.railway/railway.ts` (IaC, parcial `edi`); os demais mantêm suas configurações existentes. Revisar o plano do Railway antes de aplicar e rejeitar alterações em recursos fora da frente. Respeite `PORT`, a interface de rede e o start standalone adotado pelo app. Não alterar serviços existentes para adaptar um novo produto.
 - O migrator compartilhado é separado dos apps. `/api/ready` protege a promoção de um build cujo banco esteja atrás; `/api/health` identifica o processo/commit e não comprova prontidão do banco. Não remover essa barreira para passar um deploy.
 - Mudanças de schema passam pelo fluxo Drizzle e por revisão de compatibilidade. Não reescrever migrations aplicadas nem usar `db:push` em produção. `ai_mastra` pertence ao Mastra e fica fora do `schemaFilter` do Drizzle.
 - Segredos ficam no provedor ou em arquivos locais ignorados, nunca em documentação, histórico Git, logs, screenshots, renderer ou `NEXT_PUBLIC_*`. Documente nomes, finalidade e local de configuração, não valores.

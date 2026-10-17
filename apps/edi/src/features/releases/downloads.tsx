@@ -36,6 +36,13 @@ export async function Downloads() {
                     Baixar instalador do piloto
                   </a>
                   <small>Integridade verificada pelo manifesto da suíte · sem Authenticode</small>
+                  {app.id === "ediaula" && (
+                    <small>
+                      O EdiAula usa FFmpeg e FFprobe sob GPLv3 como programas separados. As licenças
+                      e fontes correspondentes acompanham o instalador, em
+                      resources/native-media/Corresponding-Source.tar.xz.
+                    </small>
+                  )}
                 </>
               ) : (
                 <span className="muted">Aguardando publicação homologada</span>

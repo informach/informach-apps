@@ -4,7 +4,7 @@ Antes de criar ou alterar um app, leia o [AGENTS.md da raiz](../AGENTS.md), o [e
 
 - Todos os apps: `docs/arquitetura-monorepo.md`, `docs/arquitetura-packages.md` e `docs/audit-payload-policy.md`.
 - Apps web Next.js: `docs/arquitetura-apps.md`.
-- Apps desktop e novas ferramentas Edi: `docs/arquitetura-desktop.md`.
+- Apps desktop e novas ferramentas Edi: `docs/arquitetura-desktop.md` e o guia prático `docs/desenvolvimento-edi.md`.
 
 ## Regras comuns
 

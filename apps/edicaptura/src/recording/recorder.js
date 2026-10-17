@@ -1,5 +1,37 @@
 export function setupRecording(api, toast) {
   let recording = null;
+  let pendingStop = false;
+  async function persist(state) {
+    if (state.saving) return state.saving;
+    state.saving = (async () => {
+      const blob = new Blob(state.chunks, { type: "video/webm" });
+      if (!blob.size) throw new Error("A gravação não gerou quadros.");
+      await api.recordSave(new Uint8Array(await blob.arrayBuffer()));
+      if (recording === state) recording = null;
+      toast("Gravação salva na biblioteca.");
+    })();
+    try {
+      await state.saving;
+    } finally {
+      state.saving = null;
+    }
+  }
+  function finish() {
+    pendingStop = true;
+    const state = recording;
+    if (!state) return Promise.resolve();
+    if (state.recorder?.state === "inactive") return persist(state);
+    state.stopRequested = true;
+    const completion = new Promise((resolve, reject) => state.waiters.push({ resolve, reject }));
+    if (state.recorder?.state === "recording") state.recorder.stop();
+    return completion;
+  }
+  function settle(state, error) {
+    for (const waiter of state.waiters.splice(0)) {
+      if (error) waiter.reject(error);
+      else waiter.resolve();
+    }
+  }
   function release(state) {
     clearInterval(state.timer);
     clearTimeout(state.limit);
@@ -13,9 +45,10 @@ export function setupRecording(api, toast) {
   }
   window.addEventListener("edicaptura-record", async ({ detail: { rect, display } }) => {
     if (recording) return;
-    const state = { chunks: [], bytes: 0 };
+    const state = { chunks: [], bytes: 0, waiters: [] };
     recording = state;
     try {
+      if (pendingStop) throw new Error("Gravação encerrada antes do primeiro quadro.");
       toast("Iniciando gravação…");
       state.stream = await navigator.mediaDevices.getDisplayMedia({
         video: { frameRate: 30 },
@@ -61,28 +94,25 @@ export function setupRecording(api, toast) {
         }
       };
       recorder.onerror = async (e) => {
-        state.failed = true;
-        release(state);
-        recording = null;
-        await api.recordFailed(e.error?.message || "Falha ao gravar vídeo.");
+        toast(e.error?.message || "Falha ao gravar vídeo. Preservando os quadros disponíveis.");
       };
       recorder.onstop = async () => {
         release(state);
-        recording = null;
         if (state.failed) return;
         try {
-          const blob = new Blob(state.chunks, { type: "video/webm" });
-          if (!blob.size) throw new Error("A gravação não gerou quadros.");
-          await api.recordSave(new Uint8Array(await blob.arrayBuffer()));
-          toast("Gravação salva na biblioteca.");
+          await persist(state);
+          settle(state);
         } catch (e) {
-          await api.recordFailed(e.message);
+          // Keep the bytes in memory so recovery can retry a failed disk write.
+          toast(e.message);
+          settle(state, e);
         }
       };
       state.stream.getVideoTracks()[0].onended = () => {
         if (recorder.state === "recording") recorder.stop();
       };
       recorder.start(1000);
+      if (state.stopRequested) recorder.stop();
       toast("Gravando região");
       state.limit = setTimeout(
         () => {
@@ -95,10 +125,12 @@ export function setupRecording(api, toast) {
       state.failed = true;
       release(state);
       recording = null;
+      settle(state, e);
       await api.recordFailed(e.message);
     }
   });
   api.onStop(() => {
-    if (recording?.recorder?.state === "recording") recording.recorder.stop();
+    void finish().catch((error) => toast(error.message));
   });
+  return finish;
 }

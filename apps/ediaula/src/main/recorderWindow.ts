@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { type DesktopJob, desktopJobs } from "@informach/edi-desktop/jobs";
 import { desktopFiles, desktopIpc as ipcMain } from "@informach/edi-desktop/main";
 import {
   app,
@@ -48,6 +49,7 @@ function place(m: CaptureMonitor): void {
 }
 
 export function registerRecorder(getMain: () => BrowserWindow | null): void {
+  let recordingJob: DesktopJob | undefined;
   let guided: { input: GuidedInput; controller: AbortController; paused: boolean } | null = null;
   let picking = false;
   let browsing = false;
@@ -67,6 +69,8 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
   });
 
   const close = (): void => {
+    recordingJob?.finish();
+    recordingJob = undefined;
     endGuided();
     for (const [key] of HOTKEYS) globalShortcut.unregister(key);
     const o = overlay;
@@ -196,6 +200,8 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
   ipcMain.handle("recorder:reset", async () => {
     endGuided();
     await rec.cancel();
+    recordingJob?.finish();
+    recordingJob = undefined;
     captureBounds = null;
     overlay?.show();
     overlay?.setIgnoreMouseEvents(false);
@@ -336,7 +342,24 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
       };
     },
   );
-  ipcMain.handle("recorder:start", () => rec.start());
+  ipcMain.handle("recorder:start", async () => {
+    if (recordingJob) throw new Error("Gravação já iniciada.");
+    recordingJob = desktopJobs.begin({
+      preserveForMs: 0,
+      stop: async () => {
+        endGuided();
+        overlay?.webContents.send("recorder:hotkey", "preserve");
+        await rec.preserve();
+      },
+    });
+    try {
+      await rec.start();
+    } catch (error) {
+      recordingJob.finish();
+      recordingJob = undefined;
+      throw error;
+    }
+  });
   ipcMain.handle("recorder:systemAudio", (_e, bytes: Uint8Array, startedAt: number) =>
     rec.saveSystemAudio(bytes, startedAt),
   );

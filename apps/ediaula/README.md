@@ -316,6 +316,8 @@ segurança automáticas em `Projetos/.backups`; tempo de edição medido por aul
 
 ## Estrutura
 
+Quando a licença deixa de autorizar o uso, novas tarefas ficam bloqueadas. A gravação e a execução guiada param imediatamente; o vídeo permanece em `Documentos/EdiAula/Gravações`, em pasta exclusiva por sessão. Segmentos usam MP4 fragmentado para permitir recuperação de uma interrupção. Uma falha de finalização informa a pasta preservada. Exportação, proxy, chroma e transcrição já iniciados têm até 30 minutos para concluir, sem reiniciar esse prazo; uma exportação interrompida não substitui os arquivos anteriores. Consulte [o registro de preservação](../../docs/propostas/edi-suite-2026-10-16/producao-jobs.md).
+
 ```
 src/main       processo principal: FFmpeg, projetos, protocolo media://, IPC
 src/preload    ponte segura window.api

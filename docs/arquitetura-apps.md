@@ -239,6 +239,8 @@ Zod em toda fronteira:
 - **Ready endpoint**: `app/api/ready/route.ts` é o que o provider usa como healthcheck. Chama `checkSchemaReadiness()` de `@informach/db` e responde 503 enquanto o banco estiver atrás da última migração deste build, para que uma instância publicada antes do migrator não receba tráfego. A comparação é "atrás", nunca "diferente": rollback do app sem desfazer migração continua passando.
 - **Edge runtime**: não. Tudo Node. Pino e drivers de DB queremos em Node, e Railway é Node.
 
+O Edi usa o mesmo SDK, com política mais restrita nesta etapa: captura apenas erros do servidor e check-ins do cron. `lib/observability.ts` centraliza falhas operacionais e `lib/telemetry.ts` reconstrói os eventos com campos permitidos, sem mensagens livres ou contexto de requisição. Logs Sentry, traces e captura no browser ficam desativados. A configuração e os limites estão no [guia de operação do Edi](../apps/edi/PRODUCAO.md#observabilidade-e-cron).
+
 ---
 
 ## Testes

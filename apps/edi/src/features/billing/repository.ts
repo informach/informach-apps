@@ -35,14 +35,18 @@ export async function enqueueBillingCustomer(
         .limit(1)
     )[0];
     if (!customer) return false;
-    await tx
+    const queued = await tx
       .insert(ediOutbox)
       .values({
         dedupeKey: `stripe:${eventId}:${customerId}`,
         kind: "reconcile_entitlement",
         subjectId: customerId,
       })
-      .onConflictDoNothing({ target: ediOutbox.dedupeKey });
+      .onConflictDoNothing({ target: ediOutbox.dedupeKey })
+      .returning({ id: ediOutbox.id });
+    // A replay of an already reconciled adverse event must not suspend a
+    // recovered account without creating new work to reconcile it again.
+    if (queued.length === 0) return true;
     if (suspend)
       await tx
         .insert(ediEntitlements)

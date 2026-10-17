@@ -87,9 +87,9 @@ function harness() {
     fs.readFileSync(path.join(__dirname, "main.cjs"), "utf8") +
       `
     capture=initial;library=storage;getScreen=load;
-    controller={isDestroyed:()=>false,destroy(){},webContents:{send(){}}};
+    controller={isDestroyed:()=>false,destroy(){},hide(){},webContents:{send(){}}};
     monitorState=()=>({displays:[]});send=(name,data)=>{};
-    globalThis.api={next:nextSegment,finish:finishCapture,cleanup,state:()=>capture};`,
+    globalThis.api={next:nextSegment,finish:finishCapture,cleanup,preserve:()=>preserveCapture(capture),state:()=>capture};`,
     context,
   );
   return {
@@ -182,4 +182,20 @@ test("automático não confirma nem acrescenta imagem sem correspondência", asy
   await h.api.next(true);
   await h.api.next(true);
   assert.equal(h.api.state().segments.length, 1);
+});
+
+test("expiração finaliza os trechos autorizados e não captura novos após falha de salvamento", async () => {
+  const h = harness();
+  await h.api.next(false);
+  h.setFail(true);
+  await assert.rejects(h.api.preserve(), /disk full/);
+  assert.equal(h.api.state().restricted, true);
+  const count = h.api.state().segments.length;
+  await h.api.next(false);
+  await h.api.next(true);
+  assert.equal(h.api.state().segments.length, count);
+  h.setFail(false);
+  await h.api.finish(null);
+  assert.equal(h.saved[0].height, 140);
+  assert.equal(h.api.state(), null);
 });

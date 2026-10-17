@@ -3,7 +3,7 @@ import { type CreateAuthResult, createAuth } from "@informach/auth";
 import { createDesktopTokenVerifier } from "@informach/auth/desktop";
 import { emailUnsubscribeUrl, getEmails } from "./emails";
 import { getEnv } from "./env";
-import { logger } from "./logger";
+import { reportOperationalError } from "./observability";
 
 let instance: CreateAuthResult | undefined;
 export function getAuth() {
@@ -25,7 +25,8 @@ export function getAuth() {
     buildUnsubscribeUrl: emailUnsubscribeUrl,
     email: { verification: "otp", signIn: { magicLink: false }, forgetPassword: "otp" },
     observability: {
-      onAuditPersistenceFailure: () => logger.error("auth.audit_persistence_failed"),
+      onAuditPersistenceFailure: (event) =>
+        reportOperationalError("auth.audit_persistence_failed", undefined, event),
     },
   });
   return instance;

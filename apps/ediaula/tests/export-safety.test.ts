@@ -8,7 +8,9 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
 import { createFileAuthority } from "@informach/edi-desktop/files";
+import { createDesktopJobs, JOB_PRESERVATION_MS } from "@informach/edi-desktop/jobs";
 import { exportLesson } from "../src/main/export-lesson.ts";
+import { filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
 import { exportSpecSchema, projectSchema } from "../src/shared/project-schema.ts";
 import type { ExportSpec, Project } from "../src/shared/types.ts";
 
@@ -46,6 +48,7 @@ async function fixture() {
     assertRelatedExport: (primary: string, path: string) =>
       authority.assertRelatedExport(primary, path),
     fontsDirectory: root,
+    filterScriptOption: "-/filter_complex" as const,
     check: () => {},
     async writeFilterScript(content: string) {
       const path = join(root, `${randomUUID()}.filter`);
@@ -123,6 +126,46 @@ test("successful export commits all outputs and leaves no staging/filter files",
       "lesson.vtt",
     ]);
   } finally {
+    await rm(f.root, { recursive: true });
+  }
+});
+
+test("license preservation deadline interrupts export without replacing any previous output", async () => {
+  const f = await fixture();
+  let licensed = true;
+  let time = 0;
+  const cancellation = new AbortController();
+  const jobs = createDesktopJobs({
+    assertAccess: () => {
+      if (!licensed) throw new Error("restricted");
+    },
+    onStopError: (error) => {
+      throw error;
+    },
+    monotonic: () => time,
+    wallClock: () => time,
+  });
+  const job = jobs.begin({ stop: () => cancellation.abort() });
+  try {
+    await f.authority.grantWrite(f.primary);
+    await assert.rejects(
+      () =>
+        exportLesson(project, f.spec, {
+          ...f.deps,
+          check: () => job.check(),
+          async run(args) {
+            await f.deps.run(args);
+            licensed = false;
+            jobs.setAccess(false);
+            time += JOB_PRESERVATION_MS;
+          },
+        }),
+      /preservation_expired/,
+    );
+    assert.equal(cancellation.signal.aborted, true);
+    await f.unchanged();
+  } finally {
+    job.finish();
     await rm(f.root, { recursive: true });
   }
 });
@@ -218,14 +261,8 @@ test("real FFmpeg export accepts selected inputs and commits video, captions and
   try {
     const require = createRequire(import.meta.url);
     const ffmpeg: unknown = require("ffmpeg-static");
-    const ffprobe: unknown = require("ffprobe-static");
-    if (
-      typeof ffmpeg !== "string" ||
-      !ffprobe ||
-      typeof ffprobe !== "object" ||
-      !("path" in ffprobe) ||
-      typeof ffprobe.path !== "string"
-    )
+    const ffprobe: unknown = require("@derhuerst/ffprobe-static");
+    if (typeof ffmpeg !== "string" || typeof ffprobe !== "string")
       throw new Error("Native FFmpeg tools missing");
     const execute = promisify(execFile);
     const source = join(f.root, "source.png");
@@ -274,10 +311,11 @@ test("real FFmpeg export accepts selected inputs and commits video, captions and
     };
     await exportLesson(document, f.spec, {
       ...f.deps,
+      filterScriptOption: await filterScriptOption(ffmpeg),
       run: (args) => execute(ffmpeg, args, { windowsHide: true }),
     });
     const probe = await execute(
-      ffprobe.path,
+      ffprobe,
       ["-v", "error", "-show_entries", "stream=codec_type,width,height", "-of", "json", f.primary],
       { windowsHide: true },
     );

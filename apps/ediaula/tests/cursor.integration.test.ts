@@ -5,12 +5,14 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
 import { buildTrack, DEFAULT_CURSOR_FX, spritePositions } from "../src/shared/cursor.ts";
 import { buildExportPlan } from "../src/shared/exportPlan.ts";
 import type { Project } from "../src/shared/types.ts";
 
 const require = createRequire(import.meta.url);
 const FFMPEG: string = require("ffmpeg-static");
+const FILTER_SCRIPT_OPTION = await filterScriptOption(FFMPEG);
 
 test("export draws the moving pointer sprite and zooms the recording like the preview", {
   timeout: 120_000,
@@ -160,7 +162,7 @@ test("export draws the moving pointer sprite and zooms the recording like the pr
     "-v",
     "error",
     ...plan.inputArgs,
-    "-filter_complex_script",
+    FILTER_SCRIPT_OPTION,
     script,
     ...plan.outputArgs,
   ]);

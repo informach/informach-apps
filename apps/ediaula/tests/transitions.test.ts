@@ -5,12 +5,14 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
 import { buildExportPlan } from "../src/shared/exportPlan.ts";
 import { type DerivedClip, withTransitions } from "../src/shared/transitions.ts";
 import type { Asset, Project } from "../src/shared/types.ts";
 
 const require = createRequire(import.meta.url);
 const FFMPEG: string = require("ffmpeg-static");
+const FILTER_SCRIPT_OPTION = await filterScriptOption(FFMPEG);
 
 const video = (id: string, path: string, duration: number): Asset => ({
   id,
@@ -121,7 +123,7 @@ test("export: halfway through a dissolve both scenes are mixed, and the sound of
     "-v",
     "error",
     ...plan.inputArgs,
-    "-filter_complex_script",
+    FILTER_SCRIPT_OPTION,
     script,
     ...plan.outputArgs,
   ]);

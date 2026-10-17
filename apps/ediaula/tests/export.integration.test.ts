@@ -5,12 +5,14 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
 import { buildExportPlan } from "../src/shared/exportPlan.ts";
 import type { Encoder, Project } from "../src/shared/types.ts";
 
 const require = createRequire(import.meta.url);
 const FFMPEG: string = require("ffmpeg-static");
-const FFPROBE: string = require("ffprobe-static").path;
+const FILTER_SCRIPT_OPTION = await filterScriptOption(FFMPEG);
+const FFPROBE: string = require("@derhuerst/ffprobe-static");
 
 const dir = mkdtempSync(join(tmpdir(), "ediaula-it-"));
 const ff = (args: string[]): void => {
@@ -149,7 +151,7 @@ test("renders a multi-track project to a valid MP4", { timeout: 180_000 }, () =>
   });
   const script = join(dir, "filter.txt");
   writeFileSync(script, plan.filter);
-  ff([...plan.inputArgs, "-filter_complex_script", script, ...plan.outputArgs]);
+  ff([...plan.inputArgs, FILTER_SCRIPT_OPTION, script, ...plan.outputArgs]);
 
   assert.ok(existsSync(outPath));
   const info = probe(outPath);

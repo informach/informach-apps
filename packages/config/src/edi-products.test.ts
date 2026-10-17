@@ -7,8 +7,8 @@ describe("Edi suite commercial catalog", () => {
     const products = PRODUCTS.filter((product) => product.app === "edi");
     expect(products).toHaveLength(2);
     expect(products.map((product) => [product.id, product.interval, product.listPrice])).toEqual([
-      ["edi_suite_monthly", "month", { amountCents: 2990, currency: "BRL" }],
-      ["edi_suite_annual", "year", { amountCents: 29900, currency: "BRL" }],
+      ["edi_suite_monthly", "month", { amountCents: 4990, currency: "BRL" }],
+      ["edi_suite_annual", "year", { amountCents: 49900, currency: "BRL" }],
     ]);
     expect(products.every((product) => !product.bonusCreditsPerMonth)).toBe(true);
   });

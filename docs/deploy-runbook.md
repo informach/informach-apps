@@ -145,6 +145,8 @@ Não há MCP do SendGrid. Tudo Dashboard:
 
 ## Fase 3 — Railway project + service do app
 
+**Atualização de 17/10/2026 — Edi:** o portal e seu cron são geridos pela parcial `edi` de `.railway/railway.ts`. A API do Railway rejeita a associação de um novo arquivo TOML nesse serviço; usar o [procedimento IaC do Edi](../apps/edi/PRODUCAO.md#serviço-railway). As instruções TOML abaixo registram a configuração dos serviços existentes e não autorizam migrá-los junto com o Edi. Conferir o plano e não aplicar exclusões ou mudanças de outros produtos.
+
 ### 3.1 Project (Manual Dashboard, 1× por monorepo)
 
 `railway add --repo <owner>/<repo>` falha com `Unauthorized` em CLI non-interactive (OAuth scope dependency). Caminho real: Dashboard → New Project → **Deploy from GitHub repo** → selecionar repo. Railway auto-detecta o monorepo e cria 1 service por package em `apps/`. Nomes ficam como `@informach/<app>`.

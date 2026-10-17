@@ -33,7 +33,7 @@ import { entryView, zoomLayerFilter } from "./zoomLayer.ts";
 export interface ExportPlan {
   /** ffmpeg arguments before the filter graph (inputs). */
   inputArgs: string[];
-  /** Contents for -filter_complex_script. */
+  /** Contents of the file-backed FFmpeg filter graph. */
   filter: string;
   /** ffmpeg arguments after the filter graph (maps, codecs, output). */
   outputArgs: string[];
@@ -250,12 +250,12 @@ export function buildExportPlan(source: Project, spec: ExportSpec): ExportPlan {
               ? `[${ci}:v]fps=${fps},${retime}[spr${layer}]`
               : `[${ci}:v]${retime},fps=${fps}[spr${layer}]`,
           );
+          // Drive commands from the secondary (sprite) input that framesync reads
+          // for each overlay. The main input can be read ahead of that frame.
           const moved = commands
-            ? `[${src}]sendcmd=c='${commands}'[mv${layer}];[mv${layer}]`
-            : `[${src}]`;
-          graph.push(
-            `${moved}[spr${layer}]${name}=x=${first[0]}:y=${first[1]}:eof_action=pass[cur${layer}]`,
-          );
+            ? `[spr${layer}]sendcmd=c='${commands}'[mv${layer}];[${src}][mv${layer}]`
+            : `[${src}][spr${layer}]`;
+          graph.push(`${moved}${name}=x=${first[0]}:y=${first[1]}:eof_action=pass[cur${layer}]`);
           src = `cur${layer}`;
         }
         const zooms = (clip.zooms ?? []).filter(
@@ -426,16 +426,18 @@ export function buildExportPlan(source: Project, spec: ExportSpec): ExportPlan {
   if (audioLabels.length === 0 && musicLabels.length === 0) {
     graph.push(`anullsrc=r=48000:cl=stereo,atrim=0:${n(duration)}[aout]`);
   } else if (musicLabels.length === 0) {
-    graph.push(`${mixOf(audioLabels)}${loud},apad[aout]`);
+    graph.push(`${mixOf(audioLabels)}${loud},apad=whole_dur=${n(duration)}[aout]`);
   } else {
     // Music ducking: the music follows an envelope that drops while anyone speaks (same curve as the preview).
     const duck = duckExpr(spec.speech ?? speechSpans(project));
     const music = `${mixOf(musicLabels)}${duck === "1" ? "" : `,volume='${duck}':eval=frame`}`;
-    if (audioLabels.length === 0) graph.push(`${music}${loud},apad[aout]`);
+    if (audioLabels.length === 0) graph.push(`${music}${loud},apad=whole_dur=${n(duration)}[aout]`);
     else {
       graph.push(`${music}[ducked]`);
       graph.push(`${mixOf(audioLabels)}[voice]`);
-      graph.push(`[voice][ducked]amix=inputs=2:normalize=0:duration=longest${loud},apad[aout]`);
+      graph.push(
+        `[voice][ducked]amix=inputs=2:normalize=0:duration=longest${loud},apad=whole_dur=${n(duration)}[aout]`,
+      );
     }
   }
 

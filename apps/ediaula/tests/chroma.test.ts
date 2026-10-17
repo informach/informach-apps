@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
 import {
   DEFAULT_KEY,
   detectScreen,
@@ -181,6 +182,7 @@ test("export reads keyed avatars from the transparent video and their sound from
 
 const require = createRequire(import.meta.url);
 const FFMPEG: string = require("ffmpeg-static");
+const FILTER_SCRIPT_OPTION = await filterScriptOption(FFMPEG);
 
 test("end to end: keyed avatar video composites with transparency over the lesson", {
   timeout: 120_000,
@@ -282,7 +284,7 @@ test("end to end: keyed avatar video composites with transparency over the lesso
     "-v",
     "error",
     ...plan.inputArgs,
-    "-filter_complex_script",
+    FILTER_SCRIPT_OPTION,
     script,
     ...plan.outputArgs,
   ]);

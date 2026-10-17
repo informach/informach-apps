@@ -75,6 +75,7 @@ export function protectEditor() {
       for (const [label, action] of [
         ["Conectar conta", api.connect],
         ["Verificar acesso", api.refresh],
+        ["Buscar atualização", api.checkUpdate],
         ["Minha assinatura", api.account],
         ["Salvar trabalho existente", api.recover],
       ] satisfies [string, () => Promise<void>][]) {

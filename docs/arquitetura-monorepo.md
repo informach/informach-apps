@@ -290,6 +290,8 @@ CI **não** faz deploy. CI valida lint, tipos, testes unitários, migrations, E2
 
 Cada app vira um service no mesmo project Railway, todos apontando para o mesmo repositório GitHub.
 
+O portal Edi e `cron-edi-reconcile` usam a configuração IaC `.railway/railway.ts`, com parcial nomeada `edi` e validação dos IDs do projeto/ambiente. A API atual rejeitou a associação de um novo `railway.toml` ao Edi em 17/10/2026; as configurações legadas dos demais serviços continuam preservadas. A parcial permite uma adoção gradual, sem declarar ou recriar Postgres/Redis e sem assumir a configuração dos outros apps. Alterações na IaC exigem `railway config plan` e revisão antes de `railway config apply`, conforme o [runbook do Edi](../apps/edi/PRODUCAO.md#serviço-railway); o push de código não substitui essa aplicação.
+
 Configuração por app:
 - **Root directory**: `/` (raiz do monorepo). Necessário porque o app depende de `packages/*`.
 - **Build command**: `pnpm install --frozen-lockfile && pnpm build:<app>`.

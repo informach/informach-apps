@@ -1,4 +1,5 @@
 "use client";
+import { PRODUCTS } from "@informach/config";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { authClient } from "../../lib/auth-client";
@@ -72,21 +73,20 @@ export function AccountView({
             </p>
           )}
           <div className="actions">
-            <button
-              type="button"
-              disabled={busy || !billingReady || !account.user.emailVerified}
-              onClick={() => run(() => checkoutAction("edi_suite_monthly"))}
-            >
-              R$ 29,90 / mês
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              disabled={busy || !billingReady || !account.user.emailVerified}
-              onClick={() => run(() => checkoutAction("edi_suite_annual"))}
-            >
-              R$ 299 / ano
-            </button>
+            {PRODUCTS.filter((product) => product.app === "edi").map((product) => (
+              <button
+                key={product.id}
+                type="button"
+                className={product.interval === "year" ? "secondary" : undefined}
+                disabled={busy || !billingReady || !account.user.emailVerified}
+                onClick={() => run(() => checkoutAction(product.id))}
+              >
+                {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
+                  (product.listPrice?.amountCents ?? 0) / 100,
+                )}{" "}
+                / {product.interval === "month" ? "mês" : "ano"}
+              </button>
+            ))}
           </div>
           {account.plans.length > 0 && (
             <button

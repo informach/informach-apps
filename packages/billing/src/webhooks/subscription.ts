@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { type BillingEmailDeps, sendBillingEmail } from "./../billing-emails";
 import { type Logger, safeLog } from "./../logger";
 import type { BillingProviderClient } from "./../providers";
+import { cancelsAtPeriodEnd } from "./../providers/stripe-cancellation";
 import type { BillingAuditEvent, BillingProvider, SubscriptionStatus } from "./../types";
 
 const ANNUAL_DRIP_INTERVAL_MS = 30 * 86_400_000;
@@ -194,7 +195,10 @@ export async function handleSubscriptionLifecycle(
   const period = extractCurrentPeriod(subscription.items);
   const periodStart = period.start ?? new Date();
   const periodEnd = period.end ?? new Date();
-  const cancelAtPeriodEnd = subscription.cancel_at_period_end
+  const cancelAtPeriodEnd = cancelsAtPeriodEnd(
+    subscription,
+    period.end ? period.end.getTime() / 1000 : null,
+  )
     ? (unixToDate(subscription.cancel_at) ?? periodEnd)
     : null;
   const canceledAt = isDeletion

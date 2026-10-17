@@ -135,12 +135,14 @@ async function buildInstaller() {
         installer,
         "-AppId",
         appId,
+        "-ProductName",
+        EDI_DESKTOP_APPS.find((app) => app.id === appId)?.name ?? appId,
         "-Version",
         version,
         "-Sha512",
         digest.sha512,
       ],
-      { windowsHide: true, timeout: 240000, maxBuffer: 32768 },
+      { windowsHide: true, timeout: 600000, maxBuffer: 32768 },
     );
   }
   console.log(`Verified pilot installer: ${appId} ${version} (${digest.size} bytes)`);

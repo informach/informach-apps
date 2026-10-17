@@ -20,6 +20,7 @@ export function createLicenseSigner(config: {
     input: Pick<LeaseClaims, "sub" | "deviceId" | "keyThumbprint" | "activationId" | "revision"> & {
       paidThrough: Date;
       now: Date;
+      minimumClientVersion: string;
     },
   ): string => {
     const iat = Math.floor(input.now.getTime() / 1000);
@@ -34,6 +35,7 @@ export function createLicenseSigner(config: {
       keyThumbprint: input.keyThumbprint,
       activationId: input.activationId,
       revision: input.revision,
+      minimumClientVersion: input.minimumClientVersion,
       tools: EDI_TOOLS.map((tool) => tool.id),
       iat,
       nbf: iat,

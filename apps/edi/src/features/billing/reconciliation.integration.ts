@@ -118,6 +118,22 @@ async function waitForContendedLock() {
 }
 
 describe("billing reconciliation and webhook serialization in PostgreSQL", () => {
+  it("does not suspend a reconciled account again when an old adverse webhook is replayed", async () => {
+    const item = await fixture();
+    const adverseEventId = `evt_${randomUUID()}`;
+    await withCustomerBillingLifecycle(item.customerId, () =>
+      enqueueBillingCustomer(item.customerId, adverseEventId, true),
+    );
+    expect(await item.entitlement()).toMatchObject({ suspended: true });
+    await item.run(async () => item.snapshot);
+    const restored = await item.entitlement();
+    expect(restored).toMatchObject({ suspended: false, paidThrough: item.snapshot.end });
+    await withCustomerBillingLifecycle(item.customerId, () =>
+      enqueueBillingCustomer(item.customerId, adverseEventId, true),
+    );
+    expect(await item.entitlement()).toEqual(restored);
+  });
+
   it("visits accounts beyond 25 permanent failures, with independent backoff and freshness", async () => {
     const accounts = [];
     for (let i = 0; i < 31; i++) accounts.push(await fixture());

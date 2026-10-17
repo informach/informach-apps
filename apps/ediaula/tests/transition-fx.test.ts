@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
 import { buildExportPlan } from "../src/shared/exportPlan.ts";
 import {
   colorFxShapes,
@@ -22,6 +23,7 @@ import type { Project } from "../src/shared/types.ts";
 
 const require = createRequire(import.meta.url);
 const FFMPEG: string = require("ffmpeg-static");
+const FILTER_SCRIPT_OPTION = await filterScriptOption(FFMPEG);
 
 const dir = mkdtempSync(join(tmpdir(), "ediaula-tfx-"));
 const clipFile = (name: string, color: string): string => {
@@ -110,7 +112,7 @@ function frame(p: Project, t: number): (x: number, y: number) => string {
     "-v",
     "error",
     ...plan.inputArgs,
-    "-filter_complex_script",
+    FILTER_SCRIPT_OPTION,
     script,
     ...plan.outputArgs,
   ]);

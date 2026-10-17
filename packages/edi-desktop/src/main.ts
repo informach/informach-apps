@@ -24,6 +24,7 @@ import { createDesktopController } from "./controller";
 import { createFileAuthority, validateIpcValues } from "./files";
 import { gateHtml } from "./gate-html";
 import { verifyInstalledApplication } from "./installation-integrity";
+import { desktopJobs } from "./jobs";
 import { createReleaseAcceptance } from "./release-policy";
 import { createSignedUpdater, UPDATE_VERIFIER_MARKER } from "./update-provider";
 import { createVault } from "./vault";
@@ -122,6 +123,7 @@ export function createEdiDesktop(options: {
     );
   };
   const safeRefresh = () => {
+    desktopJobs.checkDeadlines();
     controller?.refresh().catch((error: unknown) => {
       logFailure("license_validation_failed", error);
     });
@@ -313,6 +315,7 @@ export function createEdiDesktop(options: {
   };
   return {
     ipc: desktopIpc,
+    jobs: desktopJobs,
     dataDirectory: directory,
     assertAccess: () => requireController().assertAccess(),
     acceptRelease: (manifest: ReleaseManifest) => {
@@ -360,6 +363,7 @@ export function createEdiDesktop(options: {
           return;
         }
         if (timer) clearInterval(timer);
+        desktopJobs.dispose();
         if (expiryTimer) clearTimeout(expiryTimer);
         unsubscribeVault?.close();
         powerMonitor.removeListener("resume", safeRefresh);
@@ -393,9 +397,11 @@ export function createEdiDesktop(options: {
       controller = createDesktopController({
         ...config,
         appId: options.appId,
+        clientVersion: app.getVersion(),
         vault,
         openExternal: (url) => shell.openExternal(url),
         changed: (status) => {
+          desktopJobs.setAccess(status.state === "licensed");
           for (const window of BrowserWindow.getAllWindows())
             window.webContents.send("edi:status-changed", status);
           if (expiryTimer) clearTimeout(expiryTimer);

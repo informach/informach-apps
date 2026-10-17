@@ -3,9 +3,11 @@ import { hostname } from "node:os";
 import { setTimeout as delay } from "node:timers/promises";
 import {
   activationResponseSchema,
+  compareReleaseVersions,
   DEVICE_CODE_GRANT,
   type DesktopAppId,
   licenseResponseSchema,
+  releaseVersionSchema,
 } from "@informach/edi-contracts";
 import { readBoundedJson } from "@informach/edi-contracts/json-response";
 import { type RequestProof, signRequestProof } from "@informach/edi-contracts/proof";
@@ -28,6 +30,8 @@ const codeSchema = z.object({
   interval: z.number().int().positive().max(30),
 });
 const oauthErrorSchema = z.object({ error: z.string().min(1).max(200) });
+const updateRequiredReason =
+  "Atualize este aplicativo para continuar. Seu trabalho pode ser recuperado.";
 class RemoteError extends Error {
   constructor(
     readonly status: number,
@@ -44,6 +48,7 @@ export function createDesktopController(
     "portalUrl" | "clientId" | "environment" | "trustedKeys" | "publisher" | "downloadHost"
   > & {
     appId: DesktopAppId;
+    clientVersion: string;
     vault: Vault;
     changed: (status: DesktopStatus) => void;
     openExternal: (url: string) => Promise<void>;
@@ -52,6 +57,7 @@ export function createDesktopController(
   },
 ) {
   const base = new URL(config.portalUrl).origin;
+  const clientVersion = releaseVersionSchema.parse(config.clientVersion);
   const audience = `${base}/api/desktop`;
   const toolId = config.appId === "edi-hub" ? "ediaula" : config.appId;
   const clock = config.now ?? Date.now;
@@ -151,11 +157,18 @@ export function createDesktopController(
       keyThumbprint: data.keyThumbprint,
       activationId: session.activationId,
       minimumRevision: 0,
+      clientVersion,
       toolId,
       now: new Date(clock()),
       lastTrustedTime: new Date(data.lastTrustedTime),
     });
-    return result.valid ? result.claims : null;
+    if (
+      result.valid &&
+      data.licenseVersionDeniedThrough &&
+      compareReleaseVersions(clientVersion, data.licenseVersionDeniedThrough) <= 0
+    )
+      return { valid: false, reason: "update_required" } as const;
+    return result;
   }
   async function validate() {
     await config.vault.use(async (data) => {
@@ -197,15 +210,24 @@ export function createDesktopController(
             deviceId: data.deviceId,
             sessionId: session.sessionId,
             toolId,
+            clientVersion,
           }),
         );
         if (response.status === "denied") {
-          data.leases = {};
+          if (response.reason === "update_required") {
+            // A version refusal is not a device/account revocation. Persist it
+            // without deleting grants used by newer apps in this shared vault.
+            if (
+              !data.licenseVersionDeniedThrough ||
+              compareReleaseVersions(clientVersion, data.licenseVersionDeniedThrough) > 0
+            )
+              data.licenseVersionDeniedThrough = clientVersion;
+          } else data.leases = {};
           if (["device_revoked", "session_revoked", "suspended"].includes(response.reason))
             data.session = null;
           emit({
             state: "restricted",
-            reason: response.reason,
+            reason: response.reason === "update_required" ? updateRequiredReason : response.reason,
             userId: session.userId,
             expiresAt: null,
             offline: false,
@@ -222,6 +244,7 @@ export function createDesktopController(
           keyThumbprint: data.keyThumbprint,
           activationId: session.activationId,
           minimumRevision: 0,
+          clientVersion,
           toolId,
           now: new Date(clock()),
           lastTrustedTime: new Date(data.lastTrustedTime),
@@ -229,6 +252,15 @@ export function createDesktopController(
         if (!result.valid || Math.abs(response.serverTime - result.claims.iat * 1000) > 2000)
           throw new RemoteError(403, "invalid_license");
         for (const entitledTool of result.claims.tools) data.leases[entitledTool] = response.lease;
+        if (
+          data.licenseVersionDeniedThrough &&
+          (compareReleaseVersions(
+            result.claims.minimumClientVersion,
+            data.licenseVersionDeniedThrough,
+          ) > 0 ||
+            compareReleaseVersions(clientVersion, data.licenseVersionDeniedThrough) <= 0)
+        )
+          delete data.licenseVersionDeniedThrough;
         data.lastTrustedTime = Math.max(data.lastTrustedTime, response.serverTime, clock());
         emit({
           state: "licensed",
@@ -242,7 +274,8 @@ export function createDesktopController(
           ? error instanceof TypeError ||
             (error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name))
           : [502, 503, 504].includes(error.status);
-        const claims = temporary ? cachedAccess(data) : null;
+        const cached = temporary ? cachedAccess(data) : null;
+        const claims = cached?.valid ? cached.claims : null;
         if (claims) {
           data.lastTrustedTime = Math.max(data.lastTrustedTime, clock());
           emit({
@@ -253,14 +286,17 @@ export function createDesktopController(
             offline: true,
           });
         } else {
-          data.leases = {};
+          const updateRequired = cached?.valid === false && cached.reason === "update_required";
+          if (!updateRequired) data.leases = {};
           if (error instanceof RemoteError && [400, 401, 403].includes(error.status))
             data.session = null;
           emit({
             state: "restricted",
-            reason: temporary
-              ? "Não foi possível validar o acesso. Conecte-se à internet."
-              : "A sessão precisa ser validada novamente.",
+            reason: updateRequired
+              ? updateRequiredReason
+              : temporary
+                ? "Não foi possível validar o acesso. Conecte-se à internet."
+                : "A sessão precisa ser validada novamente.",
             expiresAt: null,
             offline: false,
           });
@@ -301,12 +337,16 @@ export function createDesktopController(
     },
     async synchronize() {
       await config.vault.use(async (data) => {
-        const claims = cachedAccess(data);
+        const cached = cachedAccess(data);
+        const claims = cached?.valid ? cached.claims : null;
         if (!claims) {
           if (status.state === "licensed" || (!data.session && status.userId))
             emit({
               state: "restricted",
-              reason: "O acesso foi encerrado neste computador. Valide sua conta novamente.",
+              reason:
+                cached?.valid === false && cached.reason === "update_required"
+                  ? updateRequiredReason
+                  : "O acesso foi encerrado neste computador. Valide sua conta novamente.",
               userId: data.session?.userId ?? null,
               expiresAt: null,
               offline: false,

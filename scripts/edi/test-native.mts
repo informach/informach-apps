@@ -83,6 +83,7 @@ async function seedLease(application: ElectronApplication, ttl: number) {
     ...identity,
     activationId,
     revision: 0,
+    minimumClientVersion: "0.0.0",
     tools: EDI_TOOLS.map((tool) => tool.id),
     iat: now,
     nbf: now,

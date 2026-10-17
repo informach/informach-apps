@@ -2,6 +2,8 @@
 
 Este é o padrão de arquitetura e desenvolvimento para novas ferramentas desktop do monorepo e para a integração dos aplicativos existentes à suíte Edi. Complementa a [arquitetura do monorepo](arquitetura-monorepo.md), a [arquitetura dos packages](arquitetura-packages.md) e a [política de auditoria](audit-payload-policy.md).
 
+Para executar o Hub e os editores, preparar o ambiente local, desenvolver funcionalidades, adicionar uma ferramenta e escolher os testes, siga o [guia prático de desenvolvimento Edi](desenvolvimento-edi.md). Este documento define as fronteiras e regras; o guia apresenta os comandos e o fluxo diário.
+
 As regras deste documento orientam novos desenvolvimentos desde sua criação. A migração do código existente e a automação de CI descritas na proposta Edi serão implementadas por etapas; a existência deste padrão não significa que os aplicativos já foram migrados ou que a publicação automática já está ativa.
 
 ## 1 Escopo e princípios
@@ -50,7 +52,7 @@ O Node externo não substitui o Node embutido no Electron. Código do processo p
 
 A matriz final deverá ser fixada nas configurações compartilhadas e no lockfile, sem versões divergentes por ferramenta. A migração de Zod 3 para 4, de Node, pnpm, TypeScript e dos packages compartilhados será validada também em Agenda da Turma, Cozya, Missão Saber e demais consumidores afetados. Dependência que ainda exija uma linha diferente terá fronteira documentada e tipos próprios, sem conversão forçada de schemas.
 
-Estado após correções locais: cinco ferramentas importadas com Electron 44.8.0; React/React DOM 19.3.1 e Better Auth/plugins 1.7.10 alinhados. Novos contratos Edi usam Zod 4.6.7; consumidores web legados ainda usam Zod 3 e aguardam migração específica. Node local é 24.15.0, pnpm 9.15.0, TypeScript compartilhado 5.9.3 e Vitest 5.0.5 com Vite 8.3.4; versões candidatas não substituem esses valores automaticamente. Há warning de peer `better-call`/Zod nos consumidores web, registrado como pendência de homologação, não suprimido. O PostgreSQL 18.4 dos testes usa binários portáteis somente no runner Windows, não é dependência de runtime dos apps. O [registro de correções](propostas/edi-suite-2026-10-16/correcoes.md) registra a dependência residual que continua bloqueante, conforme decisão do usuário.
+Estado após correções locais: cinco ferramentas importadas com Electron 44.8.0; React/React DOM 19.3.1 e Better Auth/plugins 1.7.10 alinhados. Novos contratos Edi usam Zod 4.6.7; consumidores web legados ainda usam Zod 3 e aguardam migração específica. Node local é 24.15.0, pnpm 9.15.0, TypeScript compartilhado 5.9.3 e Vitest 5.0.5 com Vite 8.3.4; versões candidatas não substituem esses valores automaticamente. Há warning de peer `better-call`/Zod nos consumidores web, registrado como pendência de homologação, não suprimido. O PostgreSQL 18.4 dos testes usa binários portáteis somente no runner Windows, não é dependência de runtime dos apps. A cadeia residual de dependências do [review anterior](propostas/edi-suite-2026-10-16/correcoes.md) foi corrigida na frente de produção de 17/10; `pnpm audit --prod` passou sem vulnerabilidades conhecidas. Os demais gates operacionais e de distribuição permanecem separados, conforme o [registro atual](propostas/edi-suite-2026-10-16/producao-operacao.md).
 
 Electron deverá permanecer em uma linha suportada e receber atualizações de segurança. A política oficial mantém as três últimas linhas estáveis, com a versão minor atual de cada linha. [Política de suporte do Electron](https://www.electronjs.org/docs/latest/tutorial/electron-timelines).
 
@@ -134,6 +136,8 @@ A licença será validada em cada ferramenta, inclusive aberta por associação 
 
 Revogação explícita invalida o cache; falha de comunicação preserva apenas o prazo já autorizado. Logout compartilhado deverá alcançar ferramentas abertas e revogar as credenciais pertinentes no servidor. Conta, atualização, suporte e recuperação do trabalho continuarão disponíveis em modo restrito.
 
+Operações longas já autorizadas usam `@informach/edi-desktop/jobs`. O main registra cada operação antes de iniciá-la, encerra o registro ao concluir e verifica o permit antes de novas etapas e do commit de saída. O primeiro bloqueio fixa uma janela máxima de 30 minutos, conferida por timer e relógios monotônico/de parede; eventos repetidos, troca de status e retorno da suspensão não renovam a janela. O permit não é persistido nem exposto ao renderer. Novas operações continuam exigindo licença. EdiAula interrompe gravação e automação guiada imediatamente e preserva MP4; exportação, proxy, chroma e transcrição podem finalizar dentro da janela. EdiCaptura encerra vídeo e rolagem imediatamente, mantendo os bytes/trechos para recuperação se o salvamento falhar. Evidências e limites em [preservação de jobs](propostas/edi-suite-2026-10-16/producao-jobs.md).
+
 As regras comerciais e os prazos estão na [proposta Edi](propostas/edi-suite-2026-10-16/proposta.md). Não duplicar números ou listas de status nos aplicativos.
 
 ## 9 Scripts e verificação
@@ -159,6 +163,8 @@ Mudanças em GPU, captura, impressão, atalhos globais e integração com monito
 ## 10 Release automático
 
 Todas as ferramentas usam `electron-builder`, NSIS e `electron-updater`, com identidade estável e instaladores por usuário Windows. No piloto aprovado, a distribuição usa GitHub Releases público, sem certificado Authenticode contratado. Manifestos e inventários de instalação são assinados com Ed25519; o cliente verifica as chaves públicas incorporadas, os hashes e os tamanhos antes de executar uma atualização. Essa assinatura não identifica um publicador confiável para o Windows, que pode avisar ou bloquear o executável. Não desabilitar proteções do sistema. A [decisão de distribuição do piloto](propostas/edi-suite-2026-10-16/distribuicao-piloto.md) rege essa etapa.
+
+Dependências nativas distribuídas precisam de origem fixada, teste dos executáveis e licenças/fontes correspondentes dentro do artefato. No EdiAula, `edi:media:build` compila FFmpeg/FFprobe a partir de `scripts/edi/media/sources.lock.json`; `edi:media:test` verifica capacidades e regressões no Windows. O build empacotado usa somente `resources/native-media/bin`, incluído no inventário assinado, e acompanha `Corresponding-Source.tar.xz`. Os wrappers npm ficam no desenvolvimento. O release deve consumir o artefato verificado do mesmo workflow, sem buscar uma versão nativa flutuante no computador do cliente. A [homologação Windows](propostas/edi-suite-2026-10-16/producao-windows.md) registra o estado executado.
 
 A suíte terá uma versão comercial por release, derivada de tag SemVer `edi-vX.Y.Z` ou `edi-vX.Y.Z-beta.N`. Cada artefato declarará a ferramenta, versão, commit, plataforma, arquitetura e contratos suportados. Uma versão comercial não poderá ser reutilizada para bytes diferentes depois de publicada.
 

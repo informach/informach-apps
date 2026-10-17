@@ -4,7 +4,7 @@ import { ActivationError } from "@informach/edi-licensing/devices";
 import { ZodError } from "zod";
 import { getDesktopVerifier } from "../../lib/auth";
 import { getLicensing } from "../../lib/licensing";
-import { logger } from "../../lib/logger";
+import { reportOperationalError } from "../../lib/observability";
 import {
   InvalidRequestBodyError,
   PayloadTooLargeError,
@@ -54,10 +54,7 @@ export async function desktopRequest(
         error.name.startsWith("JOSE"))
     )
       return Response.json({ error: "unauthorized" }, { status: 401, headers: responseHeaders });
-    logger.error(
-      { operation, errorType: error instanceof Error ? error.name : "unknown" },
-      "desktop.request_failed",
-    );
+    reportOperationalError("desktop.request_failed", error, { operation });
     return Response.json(
       { error: "service_unavailable" },
       { status: 503, headers: responseHeaders },

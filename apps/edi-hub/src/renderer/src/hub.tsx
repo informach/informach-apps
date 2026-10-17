@@ -1,4 +1,5 @@
 import { EDI_TOOLS, type EdiToolId } from "@informach/config/edi-tools";
+import { PRODUCTS } from "@informach/config/products";
 import type { DesktopStatus } from "@informach/edi-desktop/contracts";
 import { useEffect, useState } from "react";
 import type { Installation } from "../../shared/hub";
@@ -225,7 +226,17 @@ export function Hub() {
             Arquivos locais são preservados. As atualizações baixam automaticamente; uma ferramenta
             aberta nunca é encerrada à força.
           </p>
-          <span>R$ 29,90/mês · R$ 299/ano · consumo pago de IA separado</span>
+          <span>
+            {PRODUCTS.filter((product) => product.app === "edi")
+              .map(
+                (product) =>
+                  `${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
+                    (product.listPrice?.amountCents ?? 0) / 100,
+                  )}/${product.interval === "month" ? "mês" : "ano"}`,
+              )
+              .join(" · ")}{" "}
+            · consumo pago de IA separado
+          </span>
         </footer>
       </main>
     </div>

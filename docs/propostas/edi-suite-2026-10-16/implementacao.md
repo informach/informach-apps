@@ -1,10 +1,21 @@
 # Implementação da suíte Edi
 
-Branch de trabalho: `feat/edi-suite`. A implementação preserva as interfaces e exclui a conclusão de funcionalidades ainda ausentes dos editores.
+Branch atual: `fix/edi-production`, derivada de `main` após a integração de `feat/edi-suite`. A implementação preserva as interfaces e exclui a conclusão de funcionalidades ainda ausentes dos editores.
 
 Atualização da remediação: [correcoes.md](correcoes.md) registra R02–R10 corrigidos, gates locais repetidos e R01 ainda bloqueante para release e operação comercial por decisão expressa do usuário. Na rodada de remediação não houve commit/merge/push, publicação ou deploy. Em pedido posterior, o usuário autorizou explicitamente commit de tudo, merge e push para `main`, sem liberar publicação ou cobrança. A dependência indireta restante precisa de correção/substituição validada; não aceitar exceção temporária.
 
-## Lotes e revisões
+## Entrada em produção — trabalho autorizado em 17/10/2026
+
+Após a consulta abaixo, o titular solicitou corrigir os bloqueios, colocar o Edi Hub em produção e provisionar o Stripe completo em teste/produção, com imagem, preços, Portal e webhook. Essa autorização inclui integração Git e publicação necessárias após os gates; não autoriza cobrar clientes de teste em produção nem omitir falhas. A alteração local pessoal em `.claude/settings.local.json` continua fora da entrega.
+
+- Compatibilidade Zod dos resolvers web corrigida sem trocar schemas; cadeias transitivas vulneráveis substituídas por dependências mantidas. `pnpm audit --prod` retornou exit 0, sem vulnerabilidades conhecidas, nesta frente. O bloqueio R01 não usa exceção de segurança; a regressão transversal ainda está sendo concluída.
+- Versão mínima assinada e validada no servidor/desktop, bloqueio uniforme de novos jobs e preservação de gravações/projetos implementados. Evidências em [preservação de trabalhos](producao-jobs.md).
+- Stripe real de teste homologado com banco descartável e entrega HTTP pelo CLI; catálogo de produção provisionado com cobrança desabilitada. Oferta atual aprovada em 17/10: R$ 49,90/mês ou R$ 499/ano. Recursos e verificações em [produção Stripe](producao-stripe.md).
+- Portal, cron, domínio, chaves e Sentry provisionados. Configuração Railway usa IaC parcial limitada ao Edi. Migrations e deploy saudável ainda pendentes; detalhes em [operação](producao-operacao.md).
+- Backup portátil cifrado recuperado e corrupção rejeitada. Ícones, inventário de dependências, compilação própria de mídia e workflow de upgrade Windows em homologação; ver [Windows](producao-windows.md) e [distribuição](distribuicao-piloto.md).
+- Ainda não houve publicação desktop, cobrança real nem declaração de homologação final. Próximos gates: regressão e build geral, integração CI/upgrade, migrator/portal, entrega de e-mail, imagem Stripe pública, cron monitorado e release assinado.
+
+## Lotes e revisões anteriores à entrada em produção
 
 | Lote | Escopo | Estado | Revisão |
 | --- | --- | --- | --- |
@@ -16,9 +27,28 @@ Atualização da remediação: [correcoes.md](correcoes.md) registra R02–R10 c
 | 6 | Verificação transversal e revisão completa | Remediação revisada; R01 e homologações mantêm entrega bloqueada | Tipos/testes/builds/lint passaram; nove achados corrigidos, evidências no registro de correções |
 | 7 | Commit, merge e push para main | Concluído por pedido explícito posterior | Implementação `abef0ab`, merge `22098c8` e push em `origin/main` confirmados; bloqueio de release mantido |
 
+## Consulta de prontidão em 17/10/2026
+
+Diagnóstico solicitado para identificar o que falta para operar o Edi Hub em produção. Checkout em `main`, HEAD `f3bfbd3`; alteração local preexistente em `.claude/settings.local.json` preservada. A consulta aos provedores foi somente de leitura; não houve correção de código, instalação, aprovação de deployment, deploy, publicação ou cobrança.
+
+| Verificação atual | Evidência | Implicação |
+| --- | --- | --- |
+| CI principal | [Run 38991582306](https://github.com/informach/informach-apps/actions/runs/38991582306): instalação congelada e lint passaram; `pnpm typecheck` falhou com oito TS2345 no Cozya, em formulários de login, cadastro e receita, por schemas Zod 3 incompatíveis com o tipo esperado pelo resolver | Corrigir a resolução/compatibilidade e repetir os gates; testes, integrações web, E2E e build posteriores foram pulados nesse run. O resultado remoto não confirma os gates locais históricos |
+| Integração Edi | [Banco](https://github.com/informach/informach-apps/actions/runs/38991582327) e [verificação nativa](https://github.com/informach/informach-apps/actions/runs/38991582310) concluídos com sucesso no mesmo HEAD | Evidência remota dos escopos desses workflows; não comprova Stripe, instalação ou upgrade A→B |
+| Auditoria | `pnpm audit --prod` executado nesta consulta retornou exit 1, com uma vulnerabilidade moderada em `sprintf-js`; o lockfile também mantém essa dependência | R01 e o gate de release continuam abertos; o [advisory](https://github.com/advisories/GHSA-hp3w-g68c-fv3c) ainda informa ausência de versão corrigida |
+| Railway | Autenticação e listagem do projeto `informach-apps` confirmadas; nenhum serviço Edi na lista. Deployment `443c5b9a-bd22-44a9-ac46-2e0ca0c1568d` do migrator, commit `22098c8`, está em `NEEDS_APPROVAL`; o deployment documental posterior foi `SKIPPED` | A falta de conexão registrada na sessão anterior deixou de ser o impedimento nesta sessão. Serviço e backend Edi ainda precisam de implantação; não se confirmou a aplicação das migrations em produção |
+| DNS e HTTP | `Resolve-DnsName edi.informach.com.br -Type A` retornou nome inexistente; `curl.exe -I --max-time 15 https://edi.informach.com.br/api/ready` retornou exit 6, sem resolver o host | Portal e readiness não estão acessíveis nesse domínio |
+| Distribuição | `gh release list --repo informach/edi-releases --limit 10 --json tagName,isDraft,isPrerelease,publishedAt` retornou `[]`; nomes dos secrets/variables esperados do ambiente privado confirmados | Ainda não há release para download. Presença de secret não comprova permissão de publicação; a cópia desnecessária de `EDI_DISTRIBUTION_TOKEN` ainda existe nos secrets do repositório público, sem leitura do valor |
+
+Ordem de fechamento: corrigir CI/R01 e validar consumidores; preparar ambiente isolado para homologar Stripe, login, licença e entrega de e-mail; conferir migrations e implantar o portal no Railway com DNS/HTTPS, chaves e reconciliação monitorada; homologar instalação/upgrade e preservação de projetos/perfis; testar restauração portátil das chaves e o canal de distribuição; realizar o aceite final antes da publicação e da habilitação comercial.
+
+Continuam pendentes os cenários de upgrade A→B, interrupção/retomada, app aberto e recuperação com projetos representativos. A política mínima de versão do cliente e o tratamento uniforme de jobs já iniciados na expiração da licença permanecem lacunas do review, a implementar ou delimitar explicitamente no escopo aprovado. Ícones/apresentação e conteúdo final dos instaladores também exigem revisão. Não reutilizar os artefatos de teste com chaves efêmeras/portal `.invalid` como distribuição comercial.
+
+Esta consulta não repetiu builds, testes funcionais ou homologação comercial e não inspecionou a conta Stripe, o estado interno do banco de produção ou a saúde de todos os serviços existentes. Os resultados históricos de remediação permanecem em [correcoes.md](correcoes.md); esta seção atualiza apenas as evidências acima.
+
 ## Configuração comercial
 
-O titular **aprovou R$ 29,90/mês ou R$ 299/ano**, sem consumo pago de IA incluído, e confirmou comercialização por **pessoa jurídica (CNPJ)**. Isso não autoriza cobranças antes da homologação. O catálogo registra os valores aprovados; os IDs Stripe permanecem vazios até o provisionamento verificado.
+O titular **aprovou R$ 49,90/mês ou R$ 499/ano em 17/10/2026**, substituindo os valores iniciais de R$ 29,90/R$ 299 após reavaliar o posicionamento da suíte. Consumo pago de IA permanece separado e a comercialização por **pessoa jurídica (CNPJ)**. A aprovação dos valores não dispensa homologação. O catálogo central registra a oferta vigente; os IDs Stripe de teste e produção são configurados no ambiente do Edi e registrados na [homologação Stripe](producao-stripe.md).
 
 O piloto aprovado usa GitHub e assinaturas próprias Ed25519, sem contratar Authenticode ou storage/CDN. A assinatura Stripe permanece; a mudança afeta somente a distribuição dos programas. O Windows não reconhecerá um publicador certificado e poderá avisar ou bloquear a instalação. A [decisão e o manual do piloto](distribuicao-piloto.md) são a referência vigente.
 

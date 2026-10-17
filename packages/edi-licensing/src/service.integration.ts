@@ -89,6 +89,7 @@ async function fixture() {
   const service = createDesktopLicenseService({
     db,
     audience: `${issuer}/api/desktop`,
+    minimumClientVersion: "0.1.0",
     sign: createLicenseSigner({
       privateKeyPem: signing.privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
       kid: "integration",
@@ -125,10 +126,15 @@ async function fixture() {
     activationRequest.raw,
     activationRequest.proof,
   );
-  const licenseRequest = () =>
+  const licenseRequest = (clientVersion = "0.1.0") =>
     request(
       "/api/desktop/license",
-      { deviceId: input.deviceId, sessionId: activation.sessionId, toolId: "edifoto" },
+      {
+        deviceId: input.deviceId,
+        sessionId: activation.sessionId,
+        toolId: "edifoto",
+        clientVersion,
+      },
       activation.sessionId,
     );
   return {
@@ -147,6 +153,46 @@ async function fixture() {
   };
 }
 describe("native license service with real PostgreSQL", () => {
+  it("denies an old client and permits renewal after updating without changing its activation", async () => {
+    const f = await fixture();
+    const old = f.licenseRequest("0.0.9");
+    expect(await f.service.license(f.principal, old.raw, old.proof)).toMatchObject({
+      status: "denied",
+      reason: "update_required",
+    });
+    const updated = f.licenseRequest("0.1.0");
+    expect(await f.service.license(f.principal, updated.raw, updated.proof)).toMatchObject({
+      status: "granted",
+    });
+  });
+  it.each(["entitlement", "dispute", "refund"] as const)(
+    "prioritizes %s restrictions over an outdated client version",
+    async (restriction) => {
+      const f = await fixture();
+      const initial = f.licenseRequest();
+      expect(await f.service.license(f.principal, initial.raw, initial.proof)).toMatchObject({
+        status: "granted",
+      });
+      if (restriction === "entitlement") {
+        await db
+          .update(ediEntitlements)
+          .set({ suspended: true })
+          .where(eq(ediEntitlements.userId, f.principal.userId));
+      } else {
+        await db
+          .update(subscriptionPaymentPeriods)
+          .set(restriction === "dispute" ? { disputed: true } : { fullyRefunded: true })
+          .where(eq(subscriptionPaymentPeriods.subscriptionId, f.subscription.id));
+      }
+      for (const version of ["0.0.9", "0.1.0"]) {
+        const request = f.licenseRequest(version);
+        expect(await f.service.license(f.principal, request.raw, request.proof)).toMatchObject({
+          status: "denied",
+          reason: restriction === "refund" ? "subscription_required" : "suspended",
+        });
+      }
+    },
+  );
   it("binds a signed lease to the device and rejects replay of the same signed request", async () => {
     const f = await fixture();
     const request = f.licenseRequest();
@@ -165,6 +211,7 @@ describe("native license service with real PostgreSQL", () => {
         keyThumbprint: f.activation.keyThumbprint,
         activationId: f.activation.activationId,
         minimumRevision: 0,
+        clientVersion: "0.1.0",
         toolId: "edifoto",
         now: f.now(),
         lastTrustedTime: f.now(),

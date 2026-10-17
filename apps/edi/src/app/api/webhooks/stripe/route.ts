@@ -1,6 +1,6 @@
 import { WebhookSignatureError } from "@informach/billing";
 import { processStripeWebhook } from "@/features/billing/webhook";
-import { logger } from "@/lib/logger";
+import { reportOperationalError } from "@/lib/observability";
 import { InvalidRequestBodyError, PayloadTooLargeError } from "@/lib/request-body";
 export async function POST(request: Request) {
   try {
@@ -12,10 +12,7 @@ export async function POST(request: Request) {
       return Response.json({ error: "invalid_input" }, { status: 400 });
     if (error instanceof WebhookSignatureError)
       return Response.json({ error: "invalid_signature" }, { status: 400 });
-    logger.error(
-      { errorType: error instanceof Error ? error.name : "unknown" },
-      "stripe.webhook_failed",
-    );
+    reportOperationalError("stripe.webhook_failed", error);
     return Response.json({ error: "webhook_retry_required" }, { status: 503 });
   }
 }

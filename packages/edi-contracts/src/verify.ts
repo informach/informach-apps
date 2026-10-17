@@ -2,9 +2,11 @@ import { createPublicKey, verify } from "node:crypto";
 import type { EdiToolId } from "@informach/config/edi-tools";
 import {
   CLOCK_SKEW_SECONDS,
+  compareReleaseVersions,
   type LeaseClaims,
   leaseClaimsSchema,
   leaseHeaderSchema,
+  releaseVersionSchema,
 } from "./index";
 
 export type LeaseVerification =
@@ -17,6 +19,7 @@ export type LeaseVerification =
         | "invalid_signature"
         | "wrong_binding"
         | "expired"
+        | "update_required"
         | "clock_rollback";
     };
 
@@ -31,6 +34,7 @@ export function verifyLicense(
     keyThumbprint: string;
     activationId: string;
     minimumRevision: number;
+    clientVersion: string;
     toolId: EdiToolId;
     now: Date;
     lastTrustedTime: Date;
@@ -71,6 +75,8 @@ export function verifyLicense(
   )
     return { valid: false, reason: "invalid_signature" };
   const lease = claims.data;
+  if (!releaseVersionSchema.safeParse(context.clientVersion).success)
+    return { valid: false, reason: "malformed" };
   if (
     lease.iss !== context.issuer ||
     lease.environment !== context.environment ||
@@ -90,5 +96,9 @@ export function verifyLicense(
   // Skew never extends paid access or expiry; it only tolerates a slightly fast issuer clock.
   if (now >= lease.exp || now >= lease.paidThrough || now + CLOCK_SKEW_SECONDS < lease.nbf)
     return { valid: false, reason: "expired" };
+  // A version-specific refusal must not mask a shared binding, expiry or clock
+  // failure: callers may preserve other apps' leases only for update_required.
+  if (compareReleaseVersions(context.clientVersion, lease.minimumClientVersion) < 0)
+    return { valid: false, reason: "update_required" };
   return { valid: true, claims: lease };
 }

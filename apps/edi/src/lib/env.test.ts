@@ -11,6 +11,19 @@ describe("commercial environment", () => {
   it("allows isolated development without enabling billing", () => {
     expect(envSchema.parse(base).EDI_BILLING_ENABLED).toBe("false");
   });
+  it("keeps telemetry optional locally and rejects malformed configured DSNs", () => {
+    expect(envSchema.parse(base).SENTRY_DSN).toBe("");
+    expect(
+      envSchema.parse({ ...base, SENTRY_DSN: "https://public@example.invalid/1" }).SENTRY_DSN,
+    ).toBe("https://public@example.invalid/1");
+    expect(envSchema.safeParse({ ...base, SENTRY_DSN: "not-a-dsn" }).success).toBe(false);
+    expect(envSchema.safeParse({ ...base, SENTRY_DSN: "https://example.invalid" }).success).toBe(
+      false,
+    );
+    expect(
+      envSchema.safeParse({ ...base, SENTRY_DSN: "http://public@example.invalid/1" }).success,
+    ).toBe(false);
+  });
   it("rejects insecure production and incomplete billing", () => {
     expect(envSchema.safeParse({ ...base, NODE_ENV: "production" }).success).toBe(false);
     expect(envSchema.safeParse({ ...base, EDI_BILLING_ENABLED: "true" }).success).toBe(false);

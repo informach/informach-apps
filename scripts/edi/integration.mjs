@@ -82,10 +82,18 @@ try {
   started = true;
   console.log("[edi] Temporary loopback PostgreSQL started; no existing database is used.");
   run(["--filter", "@informach/db", "db:migrate"]);
-  run(["--filter", "@informach/auth", "test:integration"]);
-  run(["--filter", "@informach/edi-licensing", "test:integration"]);
-  run(["--filter", "@informach/edi", "test:integration"]);
-  if (process.argv.includes("--portal")) run(["exec", "node", "scripts/edi/test-portal.mts"]);
+  if (process.argv.includes("--stripe-http")) {
+    run(["exec", "tsx", "scripts/edi/stripe-webhook-http.mts"]);
+  } else if (process.argv.includes("--stripe")) {
+    // Explicit opt-in: its key is independently validated as test-only by the
+    // suite. Keep the normal verification network/provider-free.
+    run(["exec", "tsx", "scripts/edi/stripe-homologation.mts"]);
+  } else {
+    run(["--filter", "@informach/auth", "test:integration"]);
+    run(["--filter", "@informach/edi-licensing", "test:integration"]);
+    run(["--filter", "@informach/edi", "test:integration"]);
+    if (process.argv.includes("--portal")) run(["exec", "node", "scripts/edi/test-portal.mts"]);
+  }
 } catch (error) {
   failures.push(error);
 }

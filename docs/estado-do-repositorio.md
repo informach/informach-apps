@@ -1,6 +1,6 @@
 # Estado do trabalho no repositório
 
-Atualizado em 16/10/2026. Este é o índice de continuidade entre sessões. As regras permanentes ficam no [AGENTS.md](../AGENTS.md); resultados de testes, lotes e configuração operacional ficam nos registros específicos abaixo. Atualizar este índice quando a frente, as decisões ou o próximo passo mudarem.
+Atualizado em 17/10/2026. Este é o índice de continuidade entre sessões. As regras permanentes ficam no [AGENTS.md](../AGENTS.md); resultados de testes, lotes e configuração operacional ficam nos registros específicos abaixo. Atualizar este índice quando a frente, as decisões ou o próximo passo mudarem.
 
 ## Contexto confirmado
 
@@ -10,7 +10,7 @@ Atualizado em 16/10/2026. Este é o índice de continuidade entre sessões. As r
 
 ## Frente em andamento
 
-Suíte Edi, desenvolvida na branch `feat/edi-suite` e integrada em `main` a pedido explícito do usuário. Commit de implementação `abef0ab`; merge `22098c8`, enviado para `origin/main` e conferido por fetch e igualdade dos hashes. Os 782 arquivos da entrega foram commitados; caches, credenciais e instaladores gerados ficaram fora. Essa integração não libera distribuição, cobrança ou implantação do Edi. Conferir `git status` e o histórico ao retomar e preservar trabalho existente.
+Entrada em produção da suíte Edi, na branch `fix/edi-production`. A implementação anterior de `feat/edi-suite` foi integrada em `main` (`abef0ab`, merge `22098c8`). Em 17/10, após a consulta de prontidão, o titular autorizou corrigir os bloqueios, implantar o portal/Hub e configurar integralmente Stripe teste/produção. A publicação continua condicionada aos gates, sem cobrança real de teste. Conferir `git status` e preservar a alteração pessoal em `.claude/settings.local.json`.
 
 Decisões aprovadas: uma assinatura da suíte, preços registrados no catálogo e no documento de implementação, comercialização por empresa/CNPJ e consumo pago de IA separado. O piloto usa GitHub e chaves próprias Ed25519, sem contratar certificado Authenticode ou CDN. Não habilitar cobranças reais antes da homologação.
 
@@ -21,9 +21,13 @@ As cinco ferramentas foram importadas e integradas ao Hub. Preservar interfaces 
 - [Implantação do portal](../apps/edi/PRODUCAO.md): destino `https://edi.informach.com.br` no Railway, variáveis, pre-deploy e homologação.
 - [Distribuição do piloto](propostas/edi-suite-2026-10-16/distribuicao-piloto.md): GitHub, credencial de publicação, assinatura própria e limites do piloto.
 - [Padrão desktop](arquitetura-desktop.md): desenvolvimento das ferramentas atuais e futuras.
-- [Correções do review](propostas/edi-suite-2026-10-16/correcoes.md): R02–R10 corrigidos e gates locais repetidos. R01 teve redução de 151 para um alerta moderado de produção, mas permanece bloqueante para release e operação comercial; não aceitar exceção nem publicar. A autorização posterior de integração em `main` não encerra R01. Consultar esse registro antes de repetir achados históricos.
+- [Guia prático Edi](desenvolvimento-edi.md): execução local do Hub/editores, desenvolvimento de funcionalidades, inclusão de ferramentas e testes; solicitado pelo titular nesta frente.
+- [Correções do review](propostas/edi-suite-2026-10-16/correcoes.md): histórico R01–R10. A frente atual corrigiu a cadeia restante e obteve auditoria de produção sem vulnerabilidades conhecidas; isso não dispensa os demais gates de operação e distribuição.
+- [Operação provisionada](propostas/edi-suite-2026-10-16/producao-operacao.md), [Stripe](propostas/edi-suite-2026-10-16/producao-stripe.md), [preservação de trabalhos](propostas/edi-suite-2026-10-16/producao-jobs.md) e [Windows](propostas/edi-suite-2026-10-16/producao-windows.md): evidências e pendências da implantação atual.
 
-Próximos passos: acompanhar os workflows disparados pelo push sem presumir aprovação remota; resolver a dependência indireta sprintf-js por correção/substituição validada, sem ocultar o alerta ou presumir autorização para reescrever os produtos existentes; fechar as homologações de instalação/upgrade, Stripe e operação antes de publicar. O gate `pnpm audit --prod` do release permanece bloqueante. A configuração do serviço, DNS e deploy do Edi depende de acesso autenticado ao Railway; na última sessão de implementação, a integração não estava conectada. Revalidar o acesso antes de solicitar qualquer ação ao usuário. Integração Git não comprova implantação, publicação ou homologação; eventuais deploys automáticos dos serviços existentes devem ser conferidos no Railway.
+O diagnóstico inicial de 17/10 está preservado na [consulta operacional](propostas/edi-suite-2026-10-16/implementacao.md#consulta-de-prontidão-em-17102026). Desde então, foram corrigidas as dependências, criados portal/cron/Sentry no Railway e homologados pagamentos e webhooks em Stripe de teste. O domínio chega ao Railway por HTTPS, mas o portal ainda não tem deploy saudável. A configuração Edi passou para IaC; os demais serviços não foram migrados. Preço aprovado: R$ 49,90/mês ou R$ 499/ano, com IA paga separada.
+
+Próximos passos: concluir regressão/build geral e CI, verificar upgrade dos instaladores com mídia compilada e fontes correspondentes, aplicar migrations pelo migrator e implantar o portal. Depois verificar login/e-mail, imagem e configurações Stripe finais, cron monitorado e publicação assinada. Integração Git, configuração de variáveis e testes locais não comprovam implantação nem distribuição; conferir também os deploys automáticos dos consumidores afetados.
 
 ## Ambiente de desenvolvimento
 

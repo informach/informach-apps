@@ -1,6 +1,5 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
-import { join } from "node:path";
-import { app } from "electron";
+import { nativeResourcePath } from "./native-resources.ts";
 
 export { executeGuided } from "../shared/guidedRunner.ts";
 
@@ -20,13 +19,7 @@ export class GuidedInput {
   constructor() {
     this.child = spawn(
       "powershell.exe",
-      [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        join(app.getAppPath(), "resources", "guided-input.ps1"),
-      ],
+      ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", nativeResourcePath("guided-input.ps1")],
       { windowsHide: true },
     );
     let buffer = "";

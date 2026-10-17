@@ -1,0 +1,302 @@
+Bundled EdiAula font notices
+
+Copyright, reserved names and versions below are reproduced from the name table of the existing TTF files. Font bytes have not been changed by this notice update.
+
+Each listed font remains under the SIL Open Font License 1.1 reproduced below. License text: https://openfontlicense.org/documents/OFL.txt (retrieved 2026-10-17).
+
+
+Baloo2-400.ttf
+Copyright 2019 The Baloo 2 Project Authors (https://github.com/EkType/Baloo2)
+Version 1.700
+SHA-256: 1b11c3c65465e3c87a2c1699ecf10fa7a3da9fb7e4ac50a1ae275781ff65eacc
+
+
+Baloo2-600.ttf
+Copyright 2019 The Baloo 2 Project Authors (https://github.com/EkType/Baloo2)
+Version 1.700
+SHA-256: 393259b936ba314be8a928c37a7bbfde9fc09b442b6b6de5e610f093daf5ad53
+
+
+Baloo2-700.ttf
+Copyright 2019 The Baloo 2 Project Authors (https://github.com/EkType/Baloo2)
+Version 1.700
+SHA-256: 99a6754d6cc35c0dd6935077d20e569cfd73c7ecd210765c43fd67819eb6f62a
+
+
+Baloo2-800.ttf
+Copyright 2019 The Baloo 2 Project Authors (https://github.com/EkType/Baloo2)
+Version 1.700
+SHA-256: db932b3668b6188413fcde58993f7667371033579f131d524cfed3f83c62d7e2
+
+
+Bangers-400.ttf
+Copyright 2010 The Bangers Project Authors (https://github.com/googlefonts/bangers)
+Version 2.100; ttfautohint (v1.8.4.7-5d5b);gftools[0.9.31]
+SHA-256: a5ad3f06658ecd92705c3499cf000ff5b0c0c6f49641f7b3a6531dcee4bdb4c0
+
+
+BebasNeue-400.ttf
+Copyright 2019 The Bebas Neue Project Authors (https://github.com/dharmatype/Bebas-Neue)
+Version 2.000
+SHA-256: 939fea723dad24504f40faadc34eeffadfbbee558754f70c3c736e13786b0ab6
+
+
+ComicNeue-400.ttf
+Copyright 2014 The Comic Neue Project Authors (https://github.com/crozynski/comicneue)
+Version 2.003
+SHA-256: eb2986a22ec07d266f11f9e6efa8a03bebad0ebc1f28377d1f751c172620115c
+
+
+ComicNeue-700.ttf
+Copyright 2014 The Comic Neue Project Authors (https://github.com/crozynski/comicneue)
+Version 2.003
+SHA-256: c5949dd254b2b71894f2278368c63378b7fbbdc589df18e64164305135014f38
+
+
+Fredoka-400.ttf
+Copyright 2016 The Fredoka Project Authors (https://github.com/hafontia/Fredoka-One)
+Version 2.001
+SHA-256: 7fe52d17e4c5c80ec74c9b26cb635d593e72cfc30cc189dab7a0babece57e153
+
+
+Fredoka-600.ttf
+Copyright 2016 The Fredoka Project Authors (https://github.com/hafontia/Fredoka-One)
+Version 2.001
+SHA-256: 594cd6463e8eccef94423fba8e0114c137492f6415af4b414b21b73abcb644a8
+
+
+Fredoka-700.ttf
+Copyright 2016 The Fredoka Project Authors (https://github.com/hafontia/Fredoka-One)
+Version 2.001
+SHA-256: a7d1d662d6afe2bc7f9ba11dc6247eb06d9587c2210fee04d9edb83d555670c2
+
+
+Inter-400.ttf
+Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter)
+Version 4.001;git-66647c0bb
+SHA-256: 1b08e7fc267a5c7e1d614100f604b83e7e8a0be241f0f288faa2b3ac93a683ba
+
+
+Inter-600.ttf
+Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter)
+Version 4.001;git-66647c0bb
+SHA-256: e7a1aaf7eda9f2fad4131725fa556265ec75ca7b2d756260173a040363e8d4f7
+
+
+Inter-700.ttf
+Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter)
+Version 4.001;git-66647c0bb
+SHA-256: b37284b5701b6b168dfc770aa1a4ac492106422fd3ba76bc7641e37434e8019c
+
+
+Inter-800.ttf
+Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter)
+Version 4.001;git-66647c0bb
+SHA-256: eec66af7f2337bd34fe6e801cf92ededcb57a20c0d7bc40a61d4eefcbe3dd40c
+
+
+LilitaOne-400.ttf
+Copyright (c) 2011 Juan Montoreano (juan@remolacha.biz), with Reserved Font Names "Lilita One"
+Version 1.002
+SHA-256: 26ad0d77404141ff7af714353cdf23c980841829dd270fc26e6c2dfcf654bd6d
+
+
+Montserrat-400.ttf
+Copyright 2011 The Montserrat Project Authors (https://github.com/JulietaUla/Montserrat)
+Version 9.000
+SHA-256: 84f3d3275dfb159dd311c61828fd754a82ec31c377120518e2cd3e7d34394e96
+
+
+Montserrat-600.ttf
+Copyright 2011 The Montserrat Project Authors (https://github.com/JulietaUla/Montserrat)
+Version 9.000
+SHA-256: c535bb158e8cfc3c27654f73aa68a87732899e7d9b10d8496b68605a56d947a7
+
+
+Montserrat-700.ttf
+Copyright 2011 The Montserrat Project Authors (https://github.com/JulietaUla/Montserrat)
+Version 9.000
+SHA-256: 247f052d2f5b84a5bbe7831c3b08a71ca391ff54f1dfb9be88a3d3da569e3a38
+
+
+Montserrat-800.ttf
+Copyright 2011 The Montserrat Project Authors (https://github.com/JulietaUla/Montserrat)
+Version 9.000
+SHA-256: f0123e28dc0c4cac86559d1ffe587dded6ec57a4819956f56fcf6ad31d696eed
+
+
+Nunito-400.ttf
+Copyright 2014 The Nunito Project Authors (https://github.com/googlefonts/nunito)
+Version 3.602
+SHA-256: 9ecbdba35fa74f10a1a916c31649b802a12deb9e66c7b1fe4650afcfd4d16971
+
+
+Nunito-600.ttf
+Copyright 2014 The Nunito Project Authors (https://github.com/googlefonts/nunito)
+Version 3.602
+SHA-256: 1506fc96971e84d1a4ca89f0d1157a881b9ce217bbfa05d2b3c9e3c8f6723091
+
+
+Nunito-700.ttf
+Copyright 2014 The Nunito Project Authors (https://github.com/googlefonts/nunito)
+Version 3.602
+SHA-256: 1a025dfce6e6e03bbe31ba82277ec5ed96df8b8dd58b3df6267269490b90b1dc
+
+
+Nunito-800.ttf
+Copyright 2014 The Nunito Project Authors (https://github.com/googlefonts/nunito)
+Version 3.602
+SHA-256: c5776505c7b3df3c3ca763477b795d6bbc6517760bede0462ab77d1fb44954a6
+
+
+Nunito-900.ttf
+Copyright 2014 The Nunito Project Authors (https://github.com/googlefonts/nunito)
+Version 3.602
+SHA-256: 9caa6d5464d4438c3092a05d47952099e208862cacd5f655acb64012a1a15e78
+
+
+PatrickHand-400.ttf
+Copyright (c) 2012 Patrick Wagesreiter (mail@patrickwagesreiter.at)
+Version 1.003;PS 001.003;hotconv 1.0.70;makeotf.lib2.5.58329; ttfautohint (v0.94.20-1c74) -l 8 -r 50 -G 200 -x 14 -w "gGD" -c -f
+SHA-256: 8a384204c8ab3e9ed82954d46d8110a66fb5d7acf8f6b64c6f3980c1d0c01993
+
+
+PlusJakartaSans-400.ttf
+Copyright 2020 The Plus Jakarta Sans Project Authors (https://github.com/tokotype/PlusJakartaSans)
+Version 2.071;gftools[0.9.30]
+SHA-256: 076831b98043f50f829b6c91db3be4a844641f1c95bccff5c886ed87c661a852
+
+
+PlusJakartaSans-600.ttf
+Copyright 2020 The Plus Jakarta Sans Project Authors (https://github.com/tokotype/PlusJakartaSans)
+Version 2.071;gftools[0.9.30]
+SHA-256: 50357df108c5d297ec4ece76aeddf49561f3794f67af077cfc2c711b7a75b439
+
+
+PlusJakartaSans-700.ttf
+Copyright 2020 The Plus Jakarta Sans Project Authors (https://github.com/tokotype/PlusJakartaSans)
+Version 2.071;gftools[0.9.30]
+SHA-256: 32971ad7976930539a11c79ce91ce84092df7f25c5be716b594601842f10a7ae
+
+
+PlusJakartaSans-800.ttf
+Copyright 2020 The Plus Jakarta Sans Project Authors (https://github.com/tokotype/PlusJakartaSans)
+Version 2.071;gftools[0.9.30]
+SHA-256: d9e0ddb4a15a0054ad84b4ded3b4b9f354a0b7df426e21a1363d6933728da9d5
+
+
+Poppins-400.ttf
+Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins)
+4.004
+SHA-256: cdedb1729acac414ed01744a11da7badb86adf13108e7bd3fa161b9323f7fe54
+
+
+Poppins-600.ttf
+Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins)
+4.004
+SHA-256: dae40ca7b35fe7501bda2e4140a6860b1db47330be5d3c8ab6971fd83a70e9a5
+
+
+Poppins-700.ttf
+Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins)
+4.004
+SHA-256: 1984efdda0fbe207d7ac20feac2ba7c2768c92a90094b02a206c9d58cc30ff2e
+
+
+Poppins-800.ttf
+Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins)
+4.004
+SHA-256: 5e8a5c3c2a56c3bc1b135645ca9637b9b64dc3fed5fbf85cb5ed144e06bb6d48
+
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+This license is copied below, and is also available with a FAQ at:
+https://openfontlicense.org
+
+
+-----------------------------------------------------------
+SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
+-----------------------------------------------------------
+
+PREAMBLE
+The goals of the Open Font License (OFL) are to stimulate worldwide
+development of collaborative font projects, to support the font creation
+efforts of academic and linguistic communities, and to provide a free and
+open framework in which fonts may be shared and improved in partnership
+with others.
+
+The OFL allows the licensed fonts to be used, studied, modified and
+redistributed freely as long as they are not sold by themselves. The
+fonts, including any derivative works, can be bundled, embedded,
+redistributed and/or sold with any software provided that any reserved
+names are not used by derivative works. The fonts and derivatives,
+however, cannot be released under any other type of license. The
+requirement for fonts to remain under this license does not apply
+to any document created using the fonts or their derivatives.
+
+DEFINITIONS
+"Font Software" refers to the set of files released by the Copyright
+Holder(s) under this license and clearly marked as such. This may
+include source files, build scripts and documentation.
+
+"Reserved Font Name" refers to any names specified as such after the
+copyright statement(s).
+
+"Original Version" refers to the collection of Font Software components as
+distributed by the Copyright Holder(s).
+
+"Modified Version" refers to any derivative made by adding to, deleting,
+or substituting -- in part or in whole -- any of the components of the
+Original Version, by changing formats or by porting the Font Software to a
+new environment.
+
+"Author" refers to any designer, engineer, programmer, technical
+writer or other person who contributed to the Font Software.
+
+PERMISSION & CONDITIONS
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of the Font Software, to use, study, copy, merge, embed, modify,
+redistribute, and sell modified and unmodified copies of the Font
+Software, subject to the following conditions:
+
+1) Neither the Font Software nor any of its individual components,
+in Original or Modified Versions, may be sold by itself.
+
+2) Original or Modified Versions of the Font Software may be bundled,
+redistributed and/or sold with any software, provided that each copy
+contains the above copyright notice and this license. These can be
+included either as stand-alone text files, human-readable headers or
+in the appropriate machine-readable metadata fields within text or
+binary files as long as those fields can be easily viewed by the user.
+
+3) No Modified Version of the Font Software may use the Reserved Font
+Name(s) unless explicit written permission is granted by the corresponding
+Copyright Holder. This restriction only applies to the primary font name as
+presented to the users.
+
+4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font
+Software shall not be used to promote, endorse or advertise any
+Modified Version, except to acknowledge the contribution(s) of the
+Copyright Holder(s) and the Author(s) or with their explicit written
+permission.
+
+5) The Font Software, modified or unmodified, in part or in whole,
+must be distributed entirely under this license, and must not be
+distributed under any other license. The requirement for fonts to
+remain under this license does not apply to any document created
+using the Font Software.
+
+TERMINATION
+This license becomes null and void if any of the above conditions are
+not met.
+
+DISCLAIMER
+THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT
+OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
+DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
+OTHER DEALINGS IN THE FONT SOFTWARE.

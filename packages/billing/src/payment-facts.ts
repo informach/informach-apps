@@ -3,6 +3,7 @@ import type { Database } from "@informach/db";
 import { subscriptionPaymentPeriods } from "@informach/db/schema";
 import { lte } from "drizzle-orm";
 import Stripe from "stripe";
+import { cancelsAtPeriodEnd } from "./providers/stripe-cancellation";
 
 export type PaidPeriodFact = {
   invoiceId: string;
@@ -97,7 +98,11 @@ export function createStripePaymentFactReader(config: { secretKey: string; clien
         productIds.add(product.id);
       }
       if (productIds.size !== 1) throw new Error("Suite prices must belong to one product");
-      const portal = await stripe.billingPortal.configurations.retrieve(portalConfigurationId);
+      const portal = await stripe.billingPortal.configurations.retrieve(portalConfigurationId, {
+        // Stripe omits the allowed products unless explicitly expanded. Without
+        // this, a valid portal is rejected and every Edi checkout is blocked.
+        expand: ["features.subscription_update.products"],
+      });
       const updates = portal.features.subscription_update;
       if (
         !portal.active ||
@@ -225,7 +230,7 @@ export function createStripePaymentFactReader(config: { secretKey: string; clien
         end: new Date(item.current_period_end * 1000),
         trialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1000) : null,
         canceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null,
-        cancelAtPeriodEnd: subscription.cancel_at_period_end,
+        cancelAtPeriodEnd: cancelsAtPeriodEnd(subscription, item.current_period_end),
         periods,
         observedAt,
       };

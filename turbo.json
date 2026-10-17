@@ -1,5 +1,6 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
+  "globalPassThroughEnv": ["npm_execpath"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -10,6 +11,7 @@
         "EDI_PORTAL_URL",
         "EDI_DESKTOP_CLIENT_ID",
         "EDI_LICENSE_PUBLIC_KEYS",
+        "EDI_MINIMUM_CLIENT_VERSION",
         "EDI_DISTRIBUTION_REPOSITORY",
         "EDI_UPDATE_PUBLIC_KEYS",
         "EDI_RELEASE_TAG",

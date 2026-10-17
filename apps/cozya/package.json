@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@better-auth/redis-storage": "1.7.10",
-    "@hookform/resolvers": "^3.10.0",
+    "@hookform/resolvers": "5.9.2",
     "@informach/ai-core": "workspace:*",
     "@informach/auth": "workspace:*",
     "@informach/billing": "workspace:*",

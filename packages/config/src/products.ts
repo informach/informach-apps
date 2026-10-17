@@ -61,7 +61,7 @@ export const PRODUCTS: readonly Product[] = [
     tier: "suite",
     interval: "month",
     stripePriceId: { dev: "", prod: "" },
-    listPrice: { amountCents: 2990, currency: "BRL" },
+    listPrice: { amountCents: 4990, currency: "BRL" },
   },
   {
     id: "edi_suite_annual",
@@ -73,7 +73,7 @@ export const PRODUCTS: readonly Product[] = [
     tier: "suite",
     interval: "year",
     stripePriceId: { dev: "", prod: "" },
-    listPrice: { amountCents: 29900, currency: "BRL" },
+    listPrice: { amountCents: 49900, currency: "BRL" },
   },
   {
     id: "missao_individual_monthly",

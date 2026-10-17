@@ -212,7 +212,7 @@ export interface BillingProviderClient {
   createSubscription?(input: ProviderCreateSubscriptionInput): Promise<ProviderSubscriptionDetails>;
 
   /**
-   * Clears the cancel_at_period_end flag on the provider so the subscription
+   * Clears the provider's scheduled cancellation (flag and explicit timestamp) so the subscription
    * keeps renewing. Returns the updated summary so callers can update locally.
    */
   reactivateSubscription?(

@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
 import { buildExportPlan } from "../src/shared/exportPlan.ts";
 import {
   type Keyframe,
@@ -59,6 +60,7 @@ test("keyframes: smooth travel between positions, the export curve matches the p
 
 const require = createRequire(import.meta.url);
 const FFMPEG: string = require("ffmpeg-static");
+const FILTER_SCRIPT_OPTION = await filterScriptOption(FFMPEG);
 
 test("export: a keyframed picture travels and grows like in the preview", {
   timeout: 60_000,
@@ -137,7 +139,7 @@ test("export: a keyframed picture travels and grows like in the preview", {
     "-v",
     "error",
     ...plan.inputArgs,
-    "-filter_complex_script",
+    FILTER_SCRIPT_OPTION,
     script,
     ...plan.outputArgs,
   ]);

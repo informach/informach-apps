@@ -1,15 +1,26 @@
 import { generateKeyPairSync, randomUUID, sign } from "node:crypto";
-import { leaseClaimsSchema } from "@informach/edi-contracts";
+import { type DesktopAppId, leaseClaimsSchema } from "@informach/edi-contracts";
 import { describe, expect, it } from "vitest";
+import type { DesktopStatus } from "./contracts";
 import { createDesktopController } from "./controller";
+import { createDesktopJobs } from "./jobs";
 import type { Vault, VaultData } from "./vault";
+import { vaultSchema } from "./vault";
 
 const keys = generateKeyPairSync("ed25519");
 const issuer = "http://localhost:3006";
 const publicPem = keys.publicKey.export({ type: "spki", format: "pem" }).toString();
-function fixture() {
+function fixture(
+  options: {
+    data?: VaultData;
+    appId?: DesktopAppId;
+    clientVersion?: string;
+    minimumClientVersion?: string;
+    changed?: (status: DesktopStatus) => void;
+  } = {},
+) {
   let time = Date.parse("2026-10-16T12:00:00Z");
-  const data: VaultData = {
+  const data: VaultData = options.data ?? {
     version: 1,
     deviceId: randomUUID(),
     privateKey: keys.privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
@@ -35,6 +46,7 @@ function fixture() {
   let mode:
     | "granted"
     | "denied"
+    | "update-required"
     | "offline"
     | "503"
     | "503-html"
@@ -63,8 +75,12 @@ function fixture() {
           },
         }),
       );
-    if (mode === "denied")
-      return Response.json({ status: "denied", reason: "subscription_required", serverTime: time });
+    if (mode === "denied" || mode === "update-required")
+      return Response.json({
+        status: "denied",
+        reason: mode === "update-required" ? "update_required" : "subscription_required",
+        serverTime: time,
+      });
     const session = data.session;
     if (!session) throw new Error("Session required for fixture");
     const now = Math.floor(time / 1000);
@@ -78,6 +94,7 @@ function fixture() {
       keyThumbprint: data.keyThumbprint,
       activationId: session.activationId,
       revision: 0,
+      minimumClientVersion: options.minimumClientVersion ?? "0.1.0",
       tools: ["ediaula", "edifoto"],
       iat: now,
       nbf: now,
@@ -101,11 +118,12 @@ function fixture() {
     publisher: "",
     downloadHost: "",
     trustedKeys: { test: publicPem },
-    appId: "edifoto",
+    appId: options.appId ?? "edifoto",
+    clientVersion: options.clientVersion ?? "0.1.0",
     vault,
     fetch: transport,
     now: () => time,
-    changed: () => {},
+    changed: options.changed ?? (() => {}),
     openExternal: async () => {},
   });
   return {
@@ -120,6 +138,106 @@ function fixture() {
   };
 }
 describe("native subscription authorization", () => {
+  it("isolates an outdated app without revoking a current app or interrupting its recording", async () => {
+    let jobs: ReturnType<typeof createDesktopJobs> | undefined;
+    const current = fixture({
+      clientVersion: "0.2.0",
+      changed: (status) => jobs?.setAccess(status.state === "licensed"),
+    });
+    const old = fixture({ data: current.data, appId: "ediaula" });
+    jobs = createDesktopJobs({
+      assertAccess: () => current.controller.assertAccess(),
+      onStopError: () => {},
+    });
+    await current.controller.refresh();
+    const lease = current.data.leases.edifoto;
+    let stopped = false;
+    const recording = jobs.begin({
+      preserveForMs: 0,
+      stop: () => {
+        stopped = true;
+      },
+    });
+    try {
+      old.mode("update-required");
+      await old.controller.refresh();
+      expect(() => old.controller.assertAccess()).toThrow("edi_access_restricted");
+      expect(current.data.session).not.toBeNull();
+      await current.controller.synchronize();
+      expect(current.controller.status().state).toBe("licensed");
+      expect(current.data.leases.edifoto).toBe(lease);
+      recording.check();
+      expect(stopped).toBe(false);
+
+      // Persist/reload the cofre so denial cannot be bypassed by restarting
+      // while the shared lease was issued before the minimum was raised.
+      const restored = fixture({
+        data: vaultSchema.parse(JSON.parse(JSON.stringify(current.data))),
+        appId: "ediaula",
+      });
+      restored.mode("offline");
+      await restored.controller.refresh();
+      expect(() => restored.controller.assertAccess()).toThrow("edi_access_restricted");
+      expect(restored.data.leases.edifoto).toBe(lease);
+
+      old.mode("offline");
+      await old.controller.refresh();
+      await old.controller.synchronize();
+      await current.controller.synchronize();
+      expect(old.controller.status().state).toBe("restricted");
+      expect(current.controller.status().state).toBe("licensed");
+      recording.check();
+      expect(stopped).toBe(false);
+
+      const upgraded = fixture({
+        data: current.data,
+        appId: "ediaula",
+        clientVersion: "0.2.0",
+        minimumClientVersion: "0.2.0",
+      });
+      await upgraded.controller.refresh();
+      expect(upgraded.controller.status().state).toBe("licensed");
+      expect(current.data.licenseVersionDeniedThrough).toBeUndefined();
+      old.mode("offline");
+      await old.controller.refresh();
+      await current.controller.synchronize();
+      expect(old.controller.status().state).toBe("restricted");
+      expect(current.controller.status().state).toBe("licensed");
+
+      // A financially denied lease is still global and stops the other app.
+      old.mode("denied");
+      await old.controller.refresh();
+      await current.controller.synchronize();
+      expect(current.controller.status().state).toBe("restricted");
+      expect(stopped).toBe(true);
+    } finally {
+      recording.finish();
+      jobs.dispose();
+    }
+  });
+
+  it("keeps the new signed lease when an outdated app is offline", async () => {
+    const current = fixture({ clientVersion: "0.2.0", minimumClientVersion: "0.2.0" });
+    await current.controller.refresh();
+    const old = fixture({ data: current.data, appId: "ediaula" });
+    old.mode("offline");
+    await old.controller.refresh();
+    await current.controller.synchronize();
+    expect(old.controller.status().state).toBe("restricted");
+    expect(current.controller.status().state).toBe("licensed");
+  });
+
+  it("still invalidates the shared lease on clock rollback when its version also requires an update", async () => {
+    const current = fixture({ clientVersion: "0.2.0", minimumClientVersion: "0.2.0" });
+    await current.controller.refresh();
+    const old = fixture({ data: current.data, appId: "ediaula" });
+    old.mode("offline");
+    old.advance(-120000);
+    await old.controller.refresh();
+    await current.controller.synchronize();
+    expect(Object.keys(current.data.leases)).toHaveLength(0);
+    expect(current.controller.status().state).toBe("restricted");
+  });
   it("validates a signed lease and supports an unexpired offline lease", async () => {
     const f = fixture();
     await f.controller.refresh();
