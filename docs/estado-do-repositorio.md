@@ -10,7 +10,7 @@ Atualizado em 16/10/2026. Este é o índice de continuidade entre sessões. As r
 
 ## Frente em andamento
 
-Suíte Edi, desenvolvida na branch `feat/edi-suite`. Em 16/10/2026, após o registro das correções e do bloqueio residual, o usuário pediu explicitamente commit de tudo, merge e push para `main`. Essa autorização permite integrar o código, mas não libera distribuição, cobrança ou implantação do Edi. Conferir `git status` e o histórico para confirmar a execução e preservar trabalho existente.
+Suíte Edi, desenvolvida na branch `feat/edi-suite` e integrada em `main` a pedido explícito do usuário. Commit de implementação `abef0ab`; merge `22098c8`, enviado para `origin/main` e conferido por fetch e igualdade dos hashes. Os 782 arquivos da entrega foram commitados; caches, credenciais e instaladores gerados ficaram fora. Essa integração não libera distribuição, cobrança ou implantação do Edi. Conferir `git status` e o histórico ao retomar e preservar trabalho existente.
 
 Decisões aprovadas: uma assinatura da suíte, preços registrados no catálogo e no documento de implementação, comercialização por empresa/CNPJ e consumo pago de IA separado. O piloto usa GitHub e chaves próprias Ed25519, sem contratar certificado Authenticode ou CDN. Não habilitar cobranças reais antes da homologação.
 
@@ -23,7 +23,7 @@ As cinco ferramentas foram importadas e integradas ao Hub. Preservar interfaces 
 - [Padrão desktop](arquitetura-desktop.md): desenvolvimento das ferramentas atuais e futuras.
 - [Correções do review](propostas/edi-suite-2026-10-16/correcoes.md): R02–R10 corrigidos e gates locais repetidos. R01 teve redução de 151 para um alerta moderado de produção, mas permanece bloqueante para release e operação comercial; não aceitar exceção nem publicar. A autorização posterior de integração em `main` não encerra R01. Consultar esse registro antes de repetir achados históricos.
 
-Próximos passos: concluir e verificar o commit, merge e push explicitamente solicitados; resolver a dependência indireta sprintf-js por correção/substituição validada, sem ocultar o alerta ou presumir autorização para reescrever os produtos existentes; fechar as homologações de instalação/upgrade, Stripe e operação antes de publicar. O gate `pnpm audit --prod` do release permanece bloqueante. A configuração do serviço, DNS e deploy do Edi depende de acesso autenticado ao Railway; na última sessão de implementação, a integração não estava conectada. Revalidar o acesso antes de solicitar qualquer ação ao usuário. Integração Git não comprova implantação, publicação ou homologação.
+Próximos passos: acompanhar os workflows disparados pelo push sem presumir aprovação remota; resolver a dependência indireta sprintf-js por correção/substituição validada, sem ocultar o alerta ou presumir autorização para reescrever os produtos existentes; fechar as homologações de instalação/upgrade, Stripe e operação antes de publicar. O gate `pnpm audit --prod` do release permanece bloqueante. A configuração do serviço, DNS e deploy do Edi depende de acesso autenticado ao Railway; na última sessão de implementação, a integração não estava conectada. Revalidar o acesso antes de solicitar qualquer ação ao usuário. Integração Git não comprova implantação, publicação ou homologação; eventuais deploys automáticos dos serviços existentes devem ser conferidos no Railway.
 
 ## Ambiente de desenvolvimento
 

@@ -14,7 +14,7 @@ Atualização da remediação: [correcoes.md](correcoes.md) registra R02–R10 c
 | 4 | SDK desktop, segurança, licença nas ferramentas e Edi Hub | Integrado aos seis apps; verificação nativa aprovada no escopo testado | 32 testes SDK e seis apps nativos passaram; rollback, capabilities, piso e foco testados; recuperação completa ainda pendente |
 | 5 | Instaladores, assinatura própria, release e atualização automáticos | Piloto recompilado; publicação bloqueada | Seis NSIS recompilados/verificados com chaves efêmeras; 21 testes de tooling passaram; auditoria agora bloqueia release; instalação e upgrade ponta a ponta pendentes |
 | 6 | Verificação transversal e revisão completa | Remediação revisada; R01 e homologações mantêm entrega bloqueada | Tipos/testes/builds/lint passaram; nove achados corrigidos, evidências no registro de correções |
-| 7 | Commit, merge e push para main | Autorizado explicitamente; em execução | Conferência de remoto, arquivos, segredos e gates antes da integração; bloqueio de release mantido |
+| 7 | Commit, merge e push para main | Concluído por pedido explícito posterior | Implementação `abef0ab`, merge `22098c8` e push em `origin/main` confirmados; bloqueio de release mantido |
 
 ## Configuração comercial
 
