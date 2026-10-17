@@ -13,10 +13,12 @@
 # Root Directory do service = "/" (raiz do monorepo) — pnpm workspace precisa
 # do repo inteiro pra resolver os pacotes @informach/* via TypeScript source
 # (mesmo padrão do service cozya).
+# Runtime: definir RAILPACK_NODE_VERSION=24.15.0 no serviço. O engines mínimo
+# não fixa a versão; conferir a versão resolvida no log do build.
 
 [build]
-builder = "NIXPACKS"
-buildCommand = "pnpm install --frozen-lockfile"
+builder = "RAILPACK"
+buildCommand = "pnpm install --frozen-lockfile --prod=false"
 
 [deploy]
 startCommand = "pnpm db:migrate && pnpm db:seed && pnpm db:seed:reference"

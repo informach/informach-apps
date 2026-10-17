@@ -164,7 +164,7 @@ Cada app tem um `apps/<app>/railway.toml` versionado. Pattern do cozya:
 ```toml
 # apps/<app>/railway.toml
 [build]
-builder = "NIXPACKS"
+builder = "RAILPACK"
 # `--prod=false` força devDeps (turbo, biome, tsx) mesmo com NODE_ENV=production
 buildCommand = "pnpm install --frozen-lockfile --prod=false && pnpm build:<app>"
 
@@ -223,14 +223,14 @@ Service one-off que roda `pnpm db:migrate && pnpm db:seed && pnpm db:seed:refere
 2. Settings → Source → conectar ao repo
 3. Settings → Source → Root Directory: `/`
 4. Settings → Source → **Config Path**: `infrastructure/railway/migrator.toml`
-5. MCP `set-variables`: `DATABASE_URL=${{Postgres.DATABASE_URL}}`
+5. MCP `set-variables`: `DATABASE_URL=${{Postgres.DATABASE_URL}}` e `RAILPACK_NODE_VERSION=24.15.0`.
 6. **Watch Paths** (opcional mas recomendado): `packages/db/**`, `packages/ai-core/src/mastra/**`, `packages/ai-core/scripts/**`, `packages/billing/src/seeds/**`, `escolas_inep.csv.gz` — assim só re-deploya quando schema/seed mudar, não a cada push.
 
 ```toml
 # infrastructure/railway/migrator.toml
 [build]
-builder = "NIXPACKS"
-buildCommand = "pnpm install --frozen-lockfile"
+builder = "RAILPACK"
+buildCommand = "pnpm install --frozen-lockfile --prod=false"
 
 [deploy]
 startCommand = "pnpm db:migrate && pnpm db:seed && pnpm db:seed:reference"
@@ -278,7 +278,7 @@ restartPolicyType = "NEVER"
 > inverte e a migração precisa ser quebrada em duas releases. Ver
 > `packages/db/CLAUDE.md`.
 
-> **Gotcha**: o migrator precisa de `tsx` (devDep) pra rodar `packages/db/src/migrate.ts` e `packages/ai-core/scripts/migrate-mastra-storage.ts`. Como o migrator service NÃO tem `NODE_ENV=production`, devDeps são instaladas por default — funciona sem `--prod=false`. Cozya app, sim, precisa do flag (ver Fase 3.3).
+> **Runtime e dependências do migrator:** `tsx` é necessário para executar as migrations; a instalação usa `--prod=false` explicitamente. Em 17/10/2026, o Nixpacks legado resolveu Node 24.10 apesar do mínimo 24.15 do repositório. Use Railpack e `RAILPACK_NODE_VERSION=24.15.0`, e confira a versão efetivamente instalada no log. O [Railpack dá prioridade à variável](https://railpack.com/languages/node/#nodejs) sobre `engines.node` e `.nvmrc`; o mínimo do manifest sozinho não fixa uma versão exata. Se limpar o Config Path de um serviço legado durante a correção, transfira também build/start/restart para o serviço antes de redeployar, pois os campos podem existir apenas no arquivo antigo.
 
 ---
 
