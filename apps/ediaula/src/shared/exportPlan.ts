@@ -233,11 +233,14 @@ export function buildExportPlan(source: Project, spec: ExportSpec): ExportPlan {
         const dc = clip as DerivedClip;
         const short =
           dc.tail && asset.kind === "video" ? (sourceEnd(clip) - sourceLength(asset)) / speed : 0;
-        const hold = short > 0.01 ? `,tpad=stop_mode=clone:stop_duration=${n(short + 0.1)}` : "";
+        // Extend the decoded source before fps normalizes EOF. Pad in source
+        // seconds so retiming also scales the held frames with the clip.
+        const hold =
+          short > 0.01 ? `tpad=stop_mode=clone:stop_duration=${n((short + 0.1) * speed)},` : "";
         graph.push(
           speed === 1
-            ? `[${videoIn}:v]fps=${fps},${retime}${hold}[${src}]`
-            : `[${videoIn}:v]${retime},fps=${fps}${hold}[${src}]`,
+            ? `[${videoIn}:v]${hold}fps=${fps},${retime}[${src}]`
+            : `[${videoIn}:v]${hold}${retime},fps=${fps}[${src}]`,
         );
         const cursor = asset.cursor ? spec.cursors?.[asset.id] : undefined;
         if (cursor) {

@@ -26,6 +26,10 @@ A configuração passou para `.railway/railway.ts` após a API rejeitar o Config
 
 ## Evidências locais e pendências
 
+O commit `3c90cdc` foi publicado na branch `fix/edi-production` e abriu o [PR #6](https://github.com/informach/informach-apps/pull/6) em draft. A alteração pessoal em `.claude/settings.local.json` ficou fora do commit. Os workflows de CI, banco, Electron e mídia/upgrade Windows foram iniciados no GitHub; os resultados remotos ainda precisam ser conferidos antes do merge.
+
+A primeira execução remota aprovou [banco/portal](https://github.com/informach/informach-apps/actions/runs/39025609082) e [Electron nos seis apps](https://github.com/informach/informach-apps/actions/runs/39025609077). O [CI geral](https://github.com/informach/informach-apps/actions/runs/39025609141) passou em lint/tipos e encontrou sete falhas de transição no FFmpeg Linux. A causa foi reproduzida em Docker e corrigida na ordem de extensão do último quadro; testes originais mantidos e cobertura acrescentada para velocidades 0,5×/2×. Depois da correção, os quatro gates locais gerais foram repetidos com exit 0: 21 tarefas de tipos, 19 de testes mais 31 testes do tooling e 12 builds; o lint manteve 462 warnings e 66 infos, sem erros. A suíte de mídia própria passou com 173 testes. Detalhes e limites em [producao-windows.md](producao-windows.md); o CI remoto do novo commit ainda precisa passar.
+
 - `pnpm build:edi`: exit 0, standalone e pre-deploy empacotados.
 - `pnpm edi:test:integration --portal`: exit 0; 3 testes auth, 12 licença/dispositivo e 7 cobrança/concorrência, migrations completas em PostgreSQL descartável; pre-deploy repetido e encerramento da conexão; readiness, página, 10 assets, sessão, conta, device flow e cobrança desabilitada por HTTP.
 - Backup `age` recuperado em processo separado e corrupção rejeitada, conforme [distribuição](distribuicao-piloto.md).

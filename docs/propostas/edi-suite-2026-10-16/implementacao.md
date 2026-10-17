@@ -2,7 +2,7 @@
 
 Branch atual: `fix/edi-production`, derivada de `main` após a integração de `feat/edi-suite`. A implementação preserva as interfaces e exclui a conclusão de funcionalidades ainda ausentes dos editores.
 
-Atualização da remediação: [correcoes.md](correcoes.md) registra R02–R10 corrigidos, gates locais repetidos e R01 ainda bloqueante para release e operação comercial por decisão expressa do usuário. Na rodada de remediação não houve commit/merge/push, publicação ou deploy. Em pedido posterior, o usuário autorizou explicitamente commit de tudo, merge e push para `main`, sem liberar publicação ou cobrança. A dependência indireta restante precisa de correção/substituição validada; não aceitar exceção temporária.
+Histórico da remediação: [correcoes.md](correcoes.md) registra R02–R10 corrigidos e a integração anterior em `main`, quando R01 ainda bloqueava o release. A frente autorizada de 17/10 corrigiu a dependência restante, sem exceção de segurança, e está descrita a seguir. O estado atual de deploy e publicação fica em [producao-operacao.md](producao-operacao.md).
 
 ## Entrada em produção — trabalho autorizado em 17/10/2026
 
@@ -13,7 +13,8 @@ Após a consulta abaixo, o titular solicitou corrigir os bloqueios, colocar o Ed
 - Stripe real de teste homologado com banco descartável e entrega HTTP pelo CLI; catálogo de produção provisionado com cobrança desabilitada. Oferta atual aprovada em 17/10: R$ 49,90/mês ou R$ 499/ano. Recursos e verificações em [produção Stripe](producao-stripe.md).
 - Portal, cron, domínio, chaves e Sentry provisionados. Configuração Railway usa IaC parcial limitada ao Edi. Migrations e deploy saudável ainda pendentes; detalhes em [operação](producao-operacao.md).
 - Backup portátil cifrado recuperado e corrupção rejeitada. Ícones, inventário de dependências, compilação própria de mídia e workflow de upgrade Windows em homologação; ver [Windows](producao-windows.md) e [distribuição](distribuicao-piloto.md).
-- Ainda não houve publicação desktop, cobrança real nem declaração de homologação final. Próximos gates: regressão e build geral, integração CI/upgrade, migrator/portal, entrega de e-mail, imagem Stripe pública, cron monitorado e release assinado.
+- O guia solicitado pelo titular está em [desenvolvimento-edi.md](../../desenvolvimento-edi.md), com execução local, login/licença, organização das funcionalidades, novas ferramentas, testes e distribuição. Os gates locais gerais passaram; o commit `3c90cdc` abriu o [PR #6](https://github.com/informach/informach-apps/pull/6) para as verificações remotas.
+- Ainda não houve publicação desktop, cobrança real nem declaração de homologação final. Próximos gates: CI/upgrade Windows, migrator/portal, entrega de e-mail, imagem Stripe pública, cron monitorado e release assinado.
 
 ## Lotes e revisões anteriores à entrada em produção
 

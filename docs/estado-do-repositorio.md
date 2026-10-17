@@ -27,7 +27,7 @@ As cinco ferramentas foram importadas e integradas ao Hub. Preservar interfaces 
 
 O diagnóstico inicial de 17/10 está preservado na [consulta operacional](propostas/edi-suite-2026-10-16/implementacao.md#consulta-de-prontidão-em-17102026). Desde então, foram corrigidas as dependências, criados portal/cron/Sentry no Railway e homologados pagamentos e webhooks em Stripe de teste. O domínio chega ao Railway por HTTPS, mas o portal ainda não tem deploy saudável. A configuração Edi passou para IaC; os demais serviços não foram migrados. Preço aprovado: R$ 49,90/mês ou R$ 499/ano, com IA paga separada.
 
-Próximos passos: concluir regressão/build geral e CI, verificar upgrade dos instaladores com mídia compilada e fontes correspondentes, aplicar migrations pelo migrator e implantar o portal. Depois verificar login/e-mail, imagem e configurações Stripe finais, cron monitorado e publicação assinada. Integração Git, configuração de variáveis e testes locais não comprovam implantação nem distribuição; conferir também os deploys automáticos dos consumidores afetados.
+Os gates locais gerais e a regressão EdiAula com mídia própria passaram. O [PR #6](https://github.com/informach/informach-apps/pull/6), inicialmente em draft, executa CI, integração de banco, testes nativos e upgrade dos instaladores no Windows. Próximos passos: concluir esses gates remotos, aplicar migrations pelo migrator e implantar o portal. Depois verificar login/e-mail, imagem e configurações Stripe finais, cron monitorado e publicação assinada. Integração Git, configuração de variáveis e testes locais não comprovam implantação nem distribuição; conferir também os deploys automáticos dos consumidores afetados.
 
 ## Ambiente de desenvolvimento
 

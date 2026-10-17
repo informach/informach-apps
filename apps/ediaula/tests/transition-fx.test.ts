@@ -168,6 +168,21 @@ test("export: circles open in the middle and close toward it", { timeout: 60_000
   assert.equal(close(2, 2), "b");
 });
 
+test("export: transition tails hold the source end at slower and faster playback speeds", {
+  timeout: 60_000,
+}, () => {
+  for (const speed of [0.5, 2]) {
+    const duration = Math.min(1, 1 / speed);
+    const p = project("wipe-right", duration);
+    p.clips[0].speed = speed;
+    p.clips[0].duration = 2 / speed;
+    p.clips[1].start = p.clips[0].duration;
+    const px = frame(p, p.clips[1].start + duration / 2);
+    assert.equal(px(30, 88), "b", `incoming scene at speed ${speed}`);
+    assert.equal(px(286, 88), "r", `held outgoing scene at speed ${speed}`);
+  }
+});
+
 const rgb = (v: string): number[] =>
   v.startsWith("?") ? v.slice(1).split(",").map(Number) : v === "r" ? [255, 0, 0] : [0, 0, 255];
 
