@@ -17,8 +17,9 @@ import { useCardToggle } from "../hooks/use-card-toggle";
  * Quando todo título de card passou a abrir a atividade, o detalhe virou um
  * destino sem a ação mais comum: dava para editar, cancelar e ler o histórico,
  * mas não para dizer que já foi feito: a pessoa tinha que voltar ao card. O
- * controle aqui é o mesmo do card, com os mesmos rótulos, e mora numa barra
- * fixa no pé do detalhe, onde o polegar alcança.
+ * controle aqui é o mesmo do card, e mora numa barra fixa no pé do detalhe,
+ * onde o polegar alcança. Na tela ele diz "Feito", como na prancha; o nome
+ * acessível continua "Marcar como feito", o mesmo do card.
  */
 export function ActivityCompletionButton({
   id,
@@ -69,7 +70,7 @@ export function ActivityCompletionButton({
       <Button
         variant={isDone ? "outline" : "default"}
         className={cn(
-          "h-14 w-full rounded-2xl text-base font-extrabold",
+          "h-14 w-full rounded-2xl text-[17px] font-extrabold",
           isDone
             ? "border-chart-2/50 bg-background text-foreground hover:bg-chart-2/10"
             : "shadow-solid-primary",
@@ -85,8 +86,8 @@ export function ActivityCompletionButton({
           </>
         ) : (
           <>
-            <span className="mr-2 size-5 rounded-full border-2 border-current" aria-hidden />
-            Marcar como feito
+            <Check className="mr-1 size-[22px]" strokeWidth={2.6} aria-hidden />
+            Feito
           </>
         )}
       </Button>

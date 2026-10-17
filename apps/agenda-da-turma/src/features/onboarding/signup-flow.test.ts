@@ -62,7 +62,7 @@ describe("signupSteps", () => {
       "Conta",
       "Código",
       "Criança",
-      "Recado",
+      "Primeiro recado",
     ]);
     expect(signupSteps({ kind: "child", continueTo: "/turmas/entrar?codigo=X" })).toEqual([
       "Conta",

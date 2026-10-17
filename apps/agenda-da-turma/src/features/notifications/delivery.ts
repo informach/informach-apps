@@ -8,17 +8,26 @@ import {
   users,
 } from "@informach/db/schema";
 import webpush from "web-push";
-import { upcomingWeekAnchorIso } from "@/features/calendar/date";
-import { todayLocalIso } from "@/features/dashboard/date";
+import { addDaysIso, todayLocalIso } from "@/features/dashboard/date";
+import { buildBackpack } from "@/features/dashboard/page-of-day";
+import { getTodaySubjectsForProfiles } from "@/features/dashboard/today-subjects-service";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { listNoticeActions } from "@/features/notices/repository";
 import { purgeExpiredIdempotentWrites } from "@/features/offline-queue/repository";
+import { listSubjectKits } from "@/features/subject-kits/service";
 import { buildEmailUnsubscribeUrl, emails } from "@/lib/emails";
 import { env } from "@/lib/env";
 import { buildDailyDigest, buildReminder, type DigestItem, type PushText } from "./digest";
 import { isAllowedPushEndpoint, isQuietHour } from "./schemas";
 import { getNotificationPreferences } from "./service";
-import { buildWeeklyDigest } from "./weekly";
+import { buildWeeklyDigest, weeklyWindow } from "./weekly";
+import {
+  buildWeeklyEmail,
+  renderWeeklyEmailHtml,
+  renderWeeklyEmailText,
+  type WeeklyBackpack,
+  type WeeklyEmail,
+} from "./weekly-email";
 
 export function saoPauloHour(now: Date) {
   return Number(
@@ -61,8 +70,47 @@ function toDigestItem(row: NoticeRow): DigestItem {
   };
 }
 
-/** `title` é o assunto do e-mail; `push` é o texto da tela bloqueada, sem nomes. */
-type Message = { key: string; title: string; lines: string[]; path: string; push: PushText };
+/**
+ * `title` é o assunto do e-mail; `push` é o texto da tela bloqueada, sem nomes.
+ * O resumo de domingo leva também o e-mail desenhado (`weeklyEmail`).
+ */
+type Message = {
+  key: string;
+  title: string;
+  lines: string[];
+  path: string;
+  push: PushText;
+  weeklyEmail?: WeeklyEmail;
+};
+
+/**
+ * A mochila de cada dia da semana do resumo, por criança: o "levar sempre" das
+ * aulas daquele dia. Sai do mesmo horário e dos mesmos kits que Hoje usa à
+ * noite (`buildBackpack`), só que para cada dia da semana.
+ */
+async function weeklyBackpacks(
+  userId: string,
+  profileIds: readonly string[],
+  window: { fromIso: string; toIso: string },
+): Promise<Record<string, WeeklyBackpack[]>> {
+  if (profileIds.length === 0) return {};
+  const kits = Object.fromEntries(await listSubjectKits(userId, [...profileIds]));
+  const days: string[] = [];
+  for (let iso = window.fromIso; iso <= window.toIso; iso = addDaysIso(iso, 1)) days.push(iso);
+  const schedules = await Promise.all(
+    days.map((dateIso) => getTodaySubjectsForProfiles(userId, { dateIso })),
+  );
+  return Object.fromEntries(
+    days.map((iso, index) => [
+      iso,
+      buildBackpack({
+        schedule: (schedules[index] ?? []).filter((view) => profileIds.includes(view.profileId)),
+        kits,
+        tomorrow: [],
+      }).map(({ profileName, items, onlyFrom }) => ({ profileName, items, onlyFrom })),
+    ]),
+  );
+}
 
 async function claim(userId: string, channel: "email" | "push", messageKey: string, now: Date) {
   await db
@@ -143,24 +191,39 @@ async function currentMessages(userId: string, now: Date): Promise<Message[]> {
     hour === prefs.weeklyDigestHour &&
     weekdayInSaoPaulo(now) === prefs.weeklyDigestDay
   ) {
-    const weekly = buildWeeklyDigest(
-      eligible.map(({ action, profileName, subjectName }) => ({
-        profileName,
-        title: action.title,
-        type: action.type,
-        subjectName,
-        dueAt: action.dueAt,
-        estimatedMinutes: action.estimatedMinutes,
-        status: action.status,
-      })),
-      { todayIso: today },
-    );
+    const items = eligible.map(({ action, profileName, subjectName, subjectColorIndex }) => ({
+      profileName,
+      title: action.title,
+      type: action.type,
+      subjectName,
+      subjectColorIndex,
+      dueAt: action.dueAt,
+      time: action.time,
+      location: action.location,
+      estimatedMinutes: action.estimatedMinutes,
+      status: action.status,
+    }));
+    const weekly = buildWeeklyDigest(items, { todayIso: today });
+    const week = weeklyWindow(today, items);
     // A semana que o resumo descreve, e não a que termina hoje (domingo).
     if (weekly)
       messages.push({
         key: `weekly:${today}`,
         ...weekly,
-        path: `/calendario?date=${upcomingWeekAnchorIso(today)}`,
+        path: `/calendario?date=${week.fromIso}`,
+        weeklyEmail: buildWeeklyEmail({
+          todayIso: today,
+          items,
+          backpacks: await weeklyBackpacks(
+            userId,
+            entitlement.proProfileIds,
+            // A mochila de cada dia que o e-mail mostra, a partir de hoje.
+            { fromIso: today, toIso: week.toIso },
+          ),
+          subject: weekly.title,
+          digestDay: prefs.weeklyDigestDay,
+          digestHour: prefs.weeklyDigestHour,
+        }),
       });
   }
   if (hour === prefs.digestHour) {
@@ -251,7 +314,16 @@ export async function deliverRoutineNotifications(
             }
             const unsubscribeUrl = buildEmailUnsubscribeUrl(userId, "agenda.routine");
             const url = `${env.NEXT_PUBLIC_APP_URL}${fresh.path}`;
-            const text = `${fresh.title}\n\n${fresh.lines.join("\n")}\n\nAbrir a Agenda: ${url}\n\n${EMAIL_FOOTNOTE}\nNão quero mais receber: ${unsubscribeUrl}`;
+            const links = {
+              weekUrl: url,
+              settingsUrl: `${env.NEXT_PUBLIC_APP_URL}/familia/ajustes`,
+              unsubscribeUrl,
+              logoUrl: `${env.NEXT_PUBLIC_APP_URL}/web-app-manifest-192x192.png`,
+              footnote: EMAIL_FOOTNOTE,
+            };
+            const text = fresh.weeklyEmail
+              ? renderWeeklyEmailText(fresh.weeklyEmail, links)
+              : `${fresh.title}\n\n${fresh.lines.join("\n")}\n\nAbrir a Agenda: ${url}\n\n${EMAIL_FOOTNOTE}\nNão quero mais receber: ${unsubscribeUrl}`;
             const result = await emails.sendEmail({
               to: recipient.email,
               userId,
@@ -259,7 +331,9 @@ export async function deliverRoutineNotifications(
               messageKey: `agenda:${userId}:${message.key}`,
               subject: fresh.title,
               text,
-              html: `<h1>${escapeHtml(fresh.title)}</h1><ul>${fresh.lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul><p><a href="${escapeHtml(url)}">Abrir a Agenda</a></p><p>${escapeHtml(EMAIL_FOOTNOTE)}</p><p><a href="${escapeHtml(unsubscribeUrl)}">Não quero mais receber</a></p>`,
+              html: fresh.weeklyEmail
+                ? renderWeeklyEmailHtml(fresh.weeklyEmail, links)
+                : `<h1>${escapeHtml(fresh.title)}</h1><ul>${fresh.lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul><p><a href="${escapeHtml(url)}">Abrir a Agenda</a></p><p>${escapeHtml(EMAIL_FOOTNOTE)}</p><p><a href="${escapeHtml(unsubscribeUrl)}">Não quero mais receber</a></p>`,
               unsubscribeUrl,
             });
             if (result.status === "deferred") await defer(delivery.id, now);

@@ -48,7 +48,7 @@ export function signupSteps(path: AfterVerification): string[] {
   if (path.kind === "checkout") return ["Conta", "Código", "Pagamento"];
   return path.continueTo
     ? ["Conta", "Código", "Criança"]
-    : ["Conta", "Código", "Criança", "Recado"];
+    : ["Conta", "Código", "Criança", "Primeiro recado"];
 }
 
 /**

@@ -10,21 +10,24 @@ import { RoutineView } from "./routine-view";
 export async function RoutineSection({
   userId,
   profileFilter,
-  showBackpack,
+  evening,
+  header,
+  pills,
+  notices,
   school,
+  shared,
   commitment,
 }: {
   userId: string;
   profileFilter: string | null;
-  /**
-   * Falso à noite, quando a mochila já é o primeiro bloco da página. O horário
-   * de amanhã continua sendo lido (a consulta é memorizada por requisição e a
-   * mochila do topo já pagou por ela): sem ele, "Amanhã" dizia "livre por
-   * enquanto" logo abaixo de uma mochila cheia.
-   */
-  showBackpack: boolean;
-  /** "Hoje na escola", com o seu próprio Suspense, entre "Para hoje" e "Amanhã". */
-  school?: ReactNode;
+  /** Depois das 18h a página vira a mochila de amanhã. */
+  evening: boolean;
+  header: ReactNode;
+  pills: ReactNode;
+  notices: ReactNode;
+  /** "Hoje na escola", com o seu próprio Suspense. */
+  school: ReactNode;
+  shared: ReactNode;
   /** O convite do resumo, que só faz sentido para quem já tem rotina. */
   commitment?: ReactNode;
 }) {
@@ -34,18 +37,14 @@ export async function RoutineSection({
     // Sem `profileFilter`: a sequência é da casa, não da criança em foco.
     listFamilyCompletionDays(userId),
   ]);
-  // "Levar sempre" acompanha a mochila nos DOIS lugares em que ela aparece: de
-  // dia dentro de "Amanhã", à noite no topo. A mesma tela não pode mostrar
-  // conteúdo diferente conforme a hora. À noite a lista de dentro não aparece,
-  // e os itens não precisam ser lidos.
-  const tomorrowKits = showBackpack
-    ? Object.fromEntries(
-        await listSubjectKits(
-          userId,
-          tomorrowSchedule.map((view) => view.profileId),
-        ),
-      )
-    : {};
+  // "Levar sempre" acompanha a mochila nos dois arranjos da página: de dia
+  // dentro de "Amanhã", à noite como a própria página.
+  const tomorrowKits = Object.fromEntries(
+    await listSubjectKits(
+      userId,
+      tomorrowSchedule.map((view) => view.profileId),
+    ),
+  );
   const hasRoutine =
     snapshot.doneToday > 0 ||
     snapshot.buckets.attention.length +
@@ -59,13 +58,17 @@ export async function RoutineSection({
       buckets={snapshot.buckets}
       tomorrowSchedule={tomorrowSchedule}
       tomorrowKits={tomorrowKits}
-      showBackpackRow={showBackpack}
+      evening={evening}
       doneToday={snapshot.doneToday}
       streakDays={countStreakDays(completionDays, snapshot.todayIso)}
       streakCountsToday={completionDays.includes(snapshot.todayIso)}
       currentUserId={userId}
       profileFilter={profileFilter}
+      header={header}
+      pills={pills}
+      notices={notices}
       school={school}
+      shared={shared}
       commitment={hasRoutine ? commitment : null}
     />
   );

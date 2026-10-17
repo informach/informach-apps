@@ -17,6 +17,12 @@ export function formatEstimate(minutes: number): string {
   return rest === 0 ? `${hours}h` : `${hours}h${String(rest).padStart(2, "0")}`;
 }
 
+/** "30 minutos", "1h", "1h30": por extenso quando cabe numa frase ("Cerca de 30 minutos"). */
+export function formatEstimateLong(minutes: number): string {
+  if (minutes === 1) return "1 minuto";
+  return minutes < 60 ? `${minutes} minutos` : formatEstimate(minutes);
+}
+
 /**
  * Soma as estimativas de um bucket.
  *

@@ -54,9 +54,12 @@ export function SubjectKitDialog({
   /**
    * `chip`: a própria aula vira o gatilho, como pílula com o ponto da cor da
    * matéria (é assim que "Hoje na escola" lista as aulas). `button`: o botão
-   * "Levar sempre" ao lado de uma linha que já nomeia a matéria.
+   * "Levar sempre" ao lado de uma linha que já nomeia a matéria. `text`: o
+   * nome da aula como texto corrido, do jeito que "Hoje na escola" mostra no
+   * canvas ("Matemática, Português"), e ainda assim abre o "levar sempre"; a
+   * área de toque cresce para os lados sem mudar o desenho.
    */
-  variant?: "button" | "chip";
+  variant?: "button" | "chip" | "text";
   colorIndex?: number | null;
   /** Complemento da pílula: "fora da escola", "reveza com Artes". */
   note?: string | null;
@@ -71,7 +74,18 @@ export function SubjectKitDialog({
 
   return (
     <>
-      {variant === "chip" ? (
+      {variant === "text" ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label={`${subjectName}${note ? `, ${note}` : ""}. Levar sempre${
+            initialItems.length ? `: ${initialItems.join(", ")}` : ""
+          }`}
+          className="relative rounded-sm text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring after:absolute after:-inset-x-1 after:-inset-y-3 after:content-['']"
+        >
+          {subjectName}
+        </button>
+      ) : variant === "chip" ? (
         <button
           type="button"
           onClick={() => setOpen(true)}

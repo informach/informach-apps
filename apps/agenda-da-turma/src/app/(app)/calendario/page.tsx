@@ -5,7 +5,7 @@ import { getCalendarSnapshot } from "@/features/calendar/service";
 import type { CalendarView as CalendarViewKind } from "@/features/calendar/types";
 import { ExportPdfButton } from "@/features/dashboard/components/export-pdf-button";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
-import { ChildFilter } from "@/features/students/components/child-filter";
+import { FilteredByChild } from "@/features/students/components/child-filter";
 import { listStudentProfilesForUser } from "@/features/students/service";
 import { requireUserServer } from "@/lib/auth";
 
@@ -74,7 +74,12 @@ export default async function CalendarPage({ searchParams }: Props) {
   };
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 pb-28 pt-5 md:px-8 md:pt-8">
+    <main className="mx-auto flex w-full max-w-3xl flex-col gap-3.5 px-4 pb-28 pt-3.5 md:px-8 md:pt-8">
+      <FilteredByChild
+        profiles={profiles}
+        current={profileFilter}
+        clearHref={hrefWith({ perfil: null })}
+      />
       <CalendarView
         userId={user.id}
         view={view}
@@ -83,20 +88,13 @@ export default async function CalendarPage({ searchParams }: Props) {
         profileFilter={profileFilter}
         items={snapshot.items}
         undated={snapshot.undated}
-        filter={
-          <ChildFilter
-            profiles={profiles}
-            current={profileFilter}
-            hrefFor={(perfil) => hrefWith({ perfil })}
-          />
-        }
         hrefs={hrefs}
       />
       {view === "week" ? (
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3">
           <Link
             href={profileFilter ? `/atividades?perfil=${profileFilter}` : "/atividades"}
-            className="inline-flex min-h-11 items-center text-sm font-bold text-primary-ink"
+            className="inline-flex min-h-11 items-center text-sm font-bold text-primary-ink underline"
           >
             Lista de todas as atividades
           </Link>
@@ -104,6 +102,7 @@ export default async function CalendarPage({ searchParams }: Props) {
             isPro={entitlements.enabled}
             profileFilter={profileFilter}
             anchorIso={anchorIso}
+            className="h-auto min-h-11 max-w-[176px] shrink-0 whitespace-normal rounded-xl bg-background px-3 py-1.5 text-left text-sm font-bold leading-tight [&_svg]:size-5"
           />
         </div>
       ) : null}

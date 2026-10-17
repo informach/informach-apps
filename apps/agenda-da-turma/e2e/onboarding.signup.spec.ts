@@ -119,7 +119,7 @@ test("o cadastro grátis termina no primeiro recado da criança", async ({ page,
   const email = `agenda-signup-ui-${randomUUID()}@e2e.local`;
 
   await page.goto("/signup");
-  await expect(page.getByText("Passo 1 de 4: Conta")).toBeVisible();
+  await expect(page.getByRole("img", { name: "Passo 1 de 4: Conta" })).toBeVisible();
   await page.getByLabel("Seu nome").fill("Responsável fictício");
   await page.getByLabel("E-mail").fill(email);
   await page.getByLabel("Senha").fill("Signup!Synthetic2026");
@@ -128,7 +128,7 @@ test("o cadastro grátis termina no primeiro recado da criança", async ({ page,
   await page.getByRole("button", { name: "Criar conta" }).click();
 
   await expect(page.getByRole("heading", { name: "Confira seu e-mail" })).toBeVisible();
-  await expect(page.getByText("Passo 2 de 4: Código")).toBeVisible();
+  await expect(page.getByRole("img", { name: "Passo 2 de 4: Código" })).toBeVisible();
   const [user] = await db.select({ id: users.id }).from(users).where(eq(users.email, email));
   if (!user) throw new Error("A conta não foi criada");
   created.push(user.id);
@@ -138,22 +138,25 @@ test("o cadastro grátis termina no primeiro recado da criança", async ({ page,
 
   // Sem escolha de plano no meio: o grátis vale, e o cadastro segue na criança.
   await expect(page.getByRole("heading", { name: "Como se chama a criança?" })).toBeVisible();
-  await expect(page.getByText("Passo 3 de 4: Criança")).toBeVisible();
+  await expect(page.getByRole("img", { name: "Passo 3 de 4: Criança" })).toBeVisible();
   await page.getByLabel("Nome", { exact: true }).fill("Clara fictícia");
   await page.getByRole("button", { name: "Continuar" }).click();
 
   await expect(
     page.getByRole("heading", { name: "Agora, o primeiro recado de Clara fictícia." }),
   ).toBeVisible();
-  await expect(page.getByText("Passo 4 de 4: Recado")).toBeVisible();
+  await expect(page.getByRole("img", { name: "Passo 4 de 4: Primeiro recado" })).toBeVisible();
   const [child] = await db
     .select({ id: agendaStudentProfiles.id })
     .from(agendaStudentProfiles)
     .where(eq(agendaStudentProfiles.userId, user.id));
   if (!child) throw new Error("A criança não foi guardada");
-  await expect(page.getByRole("link", { name: /Tirar uma foto/ })).toHaveAttribute(
+  // "Tirar uma foto" abre a câmera daqui mesmo (a tela do recado já chega com
+  // a foto); colar e falar levam à tela do recado da criança.
+  await expect(page.getByLabel(/Tirar uma foto/)).toHaveAttribute("type", "file");
+  await expect(page.getByRole("link", { name: /Colar uma mensagem/ })).toHaveAttribute(
     "href",
-    `/recados/novo?modo=foto&perfil=${child.id}`,
+    `/recados/novo?modo=colar&perfil=${child.id}`,
   );
   await page.getByRole("link", { name: "Ir para Hoje sem recado" }).click();
   await expect(page).toHaveURL(/\/dashboard$/);

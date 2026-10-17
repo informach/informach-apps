@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@informach/ui/lib/utils";
-import { Check, Minus } from "lucide-react";
+import { Minus } from "lucide-react";
 import { useState } from "react";
 import {
   type BillingCycle,
@@ -12,26 +12,27 @@ import {
   PRO_FEATURES,
   SMALLEST_PACK_PRICE,
 } from "@/features/billing/plans-content";
-import styles from "../sales.module.css";
+import { EYEBROW, H2, SEC, SEC_LIGHT, SHEET, WRAP } from "../landing-ui";
 import { SalesCta } from "../sales-cta";
 
 const TRIAL_WORDS: Record<number, string> = { 3: "três", 4: "quatro", 5: "cinco", 6: "seis" };
 
 function Features({ items }: { items: PlanFeature[] }) {
   return (
-    <ul className="space-y-2.5">
+    <ul className="flex flex-col gap-3 text-base leading-[1.45]">
       {items.map((feature) => (
         <li
           key={feature.label}
-          className={cn(
-            "flex items-start gap-2.5 text-[15px] leading-snug",
-            !feature.included && "text-muted-foreground",
-          )}
+          className={cn("flex gap-2.5", !feature.included && "text-muted-foreground")}
         >
+          {/* O traço do que não está incluído é desenhado, e não um caractere de
+              travessão: a página não leva travessão no texto. */}
           {feature.included ? (
-            <Check className="mt-0.5 size-4 shrink-0 text-chart-2-ink" aria-hidden />
+            <b aria-hidden className="text-chart-2-ink">
+              ✓
+            </b>
           ) : (
-            <Minus className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <Minus aria-hidden className="mt-[3px] size-4 shrink-0" strokeWidth={2.5} />
           )}
           <span>
             {feature.label}
@@ -43,30 +44,22 @@ function Features({ items }: { items: PlanFeature[] }) {
   );
 }
 
+/** Os dois planos, como na prancha: o ciclo num seletor no meio e os dois cartões lado a lado. */
 export function Pricing() {
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
   const price = PRICING[cycle];
   return (
-    <section
-      id="planos"
-      aria-labelledby="pricing-title"
-      className="scroll-mt-6 border-y border-foreground/15 bg-muted/40 py-16 md:py-24"
-    >
-      <div className={[styles.wrap, "space-y-8"].join(" ")}>
-        <div className="space-y-3">
-          <p className="text-[13px] font-extrabold uppercase tracking-[0.14em] text-primary-ink">
-            Planos
-          </p>
-          <h2
-            id="pricing-title"
-            className="text-balance text-[30px] font-extrabold leading-tight tracking-tight sm:text-[40px]"
-          >
+    <section id="planos" aria-labelledby="pricing-title" className={`${SEC} ${SEC_LIGHT}`}>
+      <div className={`${WRAP} flex flex-col items-center gap-10`}>
+        <div className="flex max-w-[720px] flex-col items-center gap-4 text-center">
+          <p className={EYEBROW}>Planos</p>
+          <h2 id="pricing-title" className={H2}>
             Experimente com {TRIAL_WORDS[FREE_TRIAL_READS] ?? FREE_TRIAL_READS} recados. Fique se a
             semana melhorar.
           </h2>
         </div>
-        <fieldset className="flex flex-wrap gap-2">
-          <legend className="sr-only">Como pagar o Pro</legend>
+        <fieldset className="flex gap-1 rounded-[14px] bg-card p-1">
+          <legend className="sr-only">Ciclo de cobrança</legend>
           {(["monthly", "annual"] as const).map((option) => (
             <button
               key={option}
@@ -74,56 +67,59 @@ export function Pricing() {
               aria-pressed={cycle === option}
               onClick={() => setCycle(option)}
               className={cn(
-                "inline-flex min-h-11 items-center rounded-full px-4 text-sm font-bold",
+                "min-h-11 rounded-[11px] px-4 text-[15px] font-bold",
                 cycle === option
-                  ? "bg-foreground text-background"
-                  : "border border-foreground/15 bg-background hover:bg-muted",
+                  ? "bg-background text-foreground shadow-[0_1px_0_var(--line-solid)]"
+                  : "text-foreground/75 hover:text-foreground",
               )}
             >
               {PRICING[option].tabLabel}
             </button>
           ))}
         </fieldset>
-        <div className="grid gap-5 md:grid-cols-2">
-          <article className="flex flex-col gap-5 rounded-[20px] border border-foreground/15 bg-background p-6">
-            <div className="space-y-1">
-              <h3 className="text-2xl font-extrabold tracking-tight">Grátis</h3>
-              <p className="text-[15px] text-muted-foreground">
+        <div className="grid w-full max-w-[960px] grid-cols-[repeat(auto-fit,minmax(min(360px,100%),1fr))] gap-5">
+          <article className={cn(SHEET, "flex flex-col gap-[18px] bg-app-ground p-8")}>
+            <div>
+              <h3 className="text-[22px] font-bold">Grátis</h3>
+              <p className="mt-1.5 text-base text-muted-foreground">
                 Para experimentar com uma criança.
               </p>
             </div>
-            <p className="text-4xl font-extrabold tracking-tight">R$ 0</p>
+            <p className="text-[52px] font-extrabold leading-tight tracking-[-0.04em]">R$ 0</p>
             <Features items={FREE_FEATURES} />
-            <div className="mt-auto">
-              <SalesCta placement="pricing" secondary label="Começar com um recado" />
-            </div>
+            <SalesCta
+              placement="pricing"
+              secondary
+              label="Começar com um recado"
+              className="mt-auto"
+            />
           </article>
-          <article className="flex flex-col gap-5 rounded-[20px] border-2 border-primary/50 bg-background p-6">
-            <div className="space-y-1">
-              <h3 className="text-2xl font-extrabold tracking-tight">Pro</h3>
-              <p className="text-[15px] text-muted-foreground">
+          <article className={cn(SHEET, "flex flex-col gap-[18px] border-2 border-primary p-8")}>
+            <div>
+              <h3 className="text-[22px] font-bold">Pro</h3>
+              <p className="mt-1.5 text-base text-muted-foreground">
                 Para a casa inteira acompanhar junto.
               </p>
             </div>
-            <div aria-live="polite" aria-atomic="true">
-              <p className="flex items-baseline gap-1.5">
-                <span className="text-4xl font-extrabold tracking-tight">{price.price}</span>
-                <span className="text-sm text-muted-foreground">{price.period}</span>
+            <div aria-live="polite" aria-atomic="true" className="flex flex-col gap-2.5">
+              <p className="flex flex-wrap items-baseline gap-2">
+                <span className="text-[52px] font-extrabold leading-tight tracking-[-0.04em]">
+                  {price.price}
+                </span>
+                <span className="text-lg text-muted-foreground">{price.periodWords}</span>
               </p>
-              <p className="mt-1 text-sm text-muted-foreground">{price.note}</p>
+              <p className="-mt-2 text-[15px] text-foreground/80">{price.landingNote}</p>
             </div>
             <Features items={PRO_FEATURES} />
-            <div className="mt-auto">
-              <SalesCta placement="pricing" cycle={cycle} />
-            </div>
+            <SalesCta placement="pricing" cycle={cycle} className="mt-auto" />
+            <p className="text-sm leading-normal text-muted-foreground">
+              Cancele quando quiser. O que já está na Agenda continua lá para consultar.
+              {SMALLEST_PACK_PRICE
+                ? ` Se as leituras acabarem antes do fim do mês, dá para comprar mais a partir de ${SMALLEST_PACK_PRICE}.`
+                : ""}
+            </p>
           </article>
         </div>
-        <p className="max-w-[46rem] text-sm text-muted-foreground">
-          Cancele quando quiser. O que já está na Agenda continua lá para consultar.
-          {SMALLEST_PACK_PRICE
-            ? ` Se as leituras acabarem antes do fim do mês, dá para comprar mais a partir de ${SMALLEST_PACK_PRICE}.`
-            : ""}
-        </p>
       </div>
     </section>
   );

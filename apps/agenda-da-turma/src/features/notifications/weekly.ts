@@ -1,11 +1,12 @@
-import { addDaysIso } from "@/features/dashboard/date";
+import { addDaysIso, parseLocalIso } from "@/features/dashboard/date";
 import { daysBetweenIso, weekdayLong, weekRangeLabel } from "@/features/dashboard/day-labels";
 import type { ACTIVITY_TYPE_LABELS } from "@/features/unified-activities/activity-types";
 import { type DayLoad, formatDayLoad, summarizeDayLoad } from "@/features/unified-activities/load";
 import type { RoutineMessageText } from "./digest";
 
 /**
- * O resumo de domingo: a semana que vem, enquanto ainda dá para organizá-la.
+ * O resumo de domingo: a semana de aula que vem, enquanto ainda dá para
+ * organizá-la.
  *
  * O resumo diário responde "o que é para amanhã", e responde tarde demais para
  * um trabalho que leva o fim de semana. Este responde "o que vem pela frente" e
@@ -14,7 +15,6 @@ import type { RoutineMessageText } from "./digest";
  *
  * Puro: a montagem das linhas é testada sem banco, sem provedor e sem relógio.
  */
-export const WEEKLY_DIGEST_DAYS = 7;
 /** O mesmo teto de linhas do resumo diário. */
 export const MAX_WEEKLY_LINES = 20;
 
@@ -28,6 +28,36 @@ export type WeeklyItem = {
   status?: string | null;
 };
 
+/**
+ * A semana que o resumo descreve, como no canvas ("A semana de 19 a 23 de
+ * outubro"): os dias de aula que vêm. De segunda a quinta, de hoje até sexta;
+ * de sexta a domingo, a segunda a sexta seguinte. O sábado e o domingo daquela
+ * semana entram só quando têm alguma coisa marcada.
+ */
+export function weeklyWindow(
+  todayIso: string,
+  items: ReadonlyArray<{ dueAt: string | null; status?: string | null }> = [],
+): { fromIso: string; toIso: string } {
+  const weekday = parseLocalIso(todayIso).getDay();
+  const fromIso =
+    weekday >= 1 && weekday <= 4
+      ? todayIso
+      : addDaysIso(todayIso, weekday === 5 ? 3 : weekday === 6 ? 2 : 1);
+  const fridayIso = addDaysIso(fromIso, 5 - parseLocalIso(fromIso).getDay());
+  const weekendDue = items
+    .filter(
+      (item) =>
+        item.dueAt &&
+        item.dueAt > fridayIso &&
+        item.dueAt <= addDaysIso(fridayIso, 2) &&
+        item.status !== "done" &&
+        item.status !== "canceled",
+    )
+    .map((item) => item.dueAt as string)
+    .sort();
+  return { fromIso, toIso: weekendDue.at(-1) ?? fridayIso };
+}
+
 /** "Hoje", "Amanhã" ou "Quinta, 22". */
 function dayLabel(iso: string, todayIso: string): string {
   const distance = daysBetweenIso(todayIso, iso);
@@ -37,7 +67,7 @@ function dayLabel(iso: string, todayIso: string): string {
 }
 
 /** "quinta está cheia", "sábado está cheio", "amanhã está cheio". */
-function fullDayPhrase(iso: string, todayIso: string): string {
+export function fullDayPhrase(iso: string, todayIso: string): string {
   const distance = daysBetweenIso(todayIso, iso);
   if (distance === 0) return "hoje está cheio";
   if (distance === 1) return "amanhã está cheio";
@@ -48,16 +78,34 @@ function fullDayPhrase(iso: string, todayIso: string): string {
     : `${weekday} está cheia`;
 }
 
-function relevantItems(items: readonly WeeklyItem[], todayIso: string) {
-  const lastIso = addDaysIso(todayIso, WEEKLY_DIGEST_DAYS - 1);
+function windowDays(fromIso: string, toIso: string) {
+  return daysBetweenIso(fromIso, toIso) + 1;
+}
+
+function relevantItems<T extends WeeklyItem>(items: readonly T[], fromIso: string, toIso: string) {
   return items.filter(
     (item) =>
       item.dueAt &&
-      item.dueAt >= todayIso &&
-      item.dueAt <= lastIso &&
+      item.dueAt >= fromIso &&
+      item.dueAt <= toIso &&
       item.status !== "done" &&
       item.status !== "canceled",
   );
+}
+
+/**
+ * A carga de cada dia, de hoje até o fim da semana do resumo, pela mesma conta de
+ * Hoje e da Semana. A semana do título começa em `fromIso`, mas as linhas começam
+ * em hoje: de sexta a domingo, o que vence antes da segunda não pode sumir.
+ */
+export function weeklyLoad(items: readonly WeeklyItem[], todayIso: string) {
+  const { fromIso, toIso } = weeklyWindow(todayIso, items);
+  return {
+    fromIso,
+    toIso,
+    startIso: todayIso,
+    window: summarizeDayLoad(items, { fromIso: todayIso, days: windowDays(todayIso, toIso) }),
+  };
 }
 
 function fullDays(window: DayLoad[]) {
@@ -65,7 +113,8 @@ function fullDays(window: DayLoad[]) {
 }
 
 /**
- * Uma linha por dia com alguma coisa, mais um aviso dos dias cheios.
+ * Uma linha por dia com alguma coisa, mais um aviso dos dias cheios. É o texto
+ * puro do e-mail (a versão sem HTML) e a base do assunto.
  *
  * Devolve lista vazia quando a semana está livre: um e-mail dizendo "nada esta
  * semana" é exatamente o tipo de mensagem que faz a família desligar os avisos.
@@ -74,8 +123,8 @@ export function buildWeeklyDigestLines(
   items: readonly WeeklyItem[],
   options: { todayIso: string },
 ): string[] {
-  const window = summarizeDayLoad(items, { fromIso: options.todayIso, days: WEEKLY_DIGEST_DAYS });
-  const relevant = relevantItems(items, options.todayIso);
+  const { startIso, toIso, window } = weeklyLoad(items, options.todayIso);
+  const relevant = relevantItems(items, startIso, toIso);
   if (!relevant.length) return [];
 
   const lines = window
@@ -123,18 +172,19 @@ export function buildWeeklyDigest(
   const lines = buildWeeklyDigestLines(items, options);
   if (!lines.length) return null;
   const today = options.todayIso;
-  const lastIso = addDaysIso(today, WEEKLY_DIGEST_DAYS - 1);
-  const window = summarizeDayLoad(items, { fromIso: today, days: WEEKLY_DIGEST_DAYS });
+  const { fromIso, toIso, startIso, window } = weeklyLoad(items, today);
   const firstFull = fullDays(window)[0];
-  const total = relevantItems(items, today).length;
-  const range = weekRangeLabel(today, lastIso);
+  const total = relevantItems(items, startIso, toIso).length;
+  const range = weekRangeLabel(fromIso, toIso);
   const fullPhrase = firstFull ? fullDayPhrase(firstFull.iso, today) : null;
   return {
     title: fullPhrase ? `De ${range}: ${fullPhrase}` : `A semana de ${range}`,
     lines,
     push: {
       title: "A semana que vem na Agenda",
-      body: `${total === 1 ? "1 atividade" : `${total} atividades`} nos próximos sete dias.${
+      body: `${total === 1 ? "1 atividade" : `${total} atividades`} até ${weekdayLong(
+        toIso,
+      ).toLowerCase()}, dia ${Number(toIso.slice(8, 10))}.${
         fullPhrase ? ` ${fullPhrase.charAt(0).toUpperCase()}${fullPhrase.slice(1)}.` : ""
       }`,
     },

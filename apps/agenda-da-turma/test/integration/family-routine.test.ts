@@ -41,6 +41,7 @@ import type { NoticeActionInput } from "@/features/notices/schemas";
 import {
   confirmNotice,
   setNoticeActionStatus,
+  shareSavedWithTurma,
   updateNoticeAction,
 } from "@/features/notices/service";
 import { deliverRoutineNotifications } from "@/features/notifications/delivery";
@@ -334,6 +335,45 @@ describe("private groups and shared activities", () => {
       createdByUserId: null,
       status: "done",
       title: "Prova remarcada",
+    });
+  });
+  it("manda para a turma depois de salvar só o que pode ir, e só para quem acessa a criança", async () => {
+    // O "Pronto" do recado pergunta "Mandar para a turma?" e manda os ids que
+    // acabaram de entrar; a gravação é a mesma da edição.
+    const saved = value(
+      await confirmNotice(owner, {
+        noticeId: null,
+        allowDuplicates: true,
+        actions: [
+          {
+            ...action("Prova para a turma"),
+            type: "exam",
+            subjectId: subject,
+            dateOrigin: "school",
+          },
+          action("Sem matéria da turma"),
+        ],
+      }),
+    );
+    expect(saved.indices).toEqual([0, 1]);
+    // Outra família não publica o que não acessa.
+    expect(value(await shareSavedWithTurma(other, { ids: saved.ids }))).toEqual({
+      shared: 0,
+      skipped: 2,
+    });
+    expect(value(await shareSavedWithTurma(owner, { ids: saved.ids }))).toEqual({
+      shared: 1,
+      skipped: 1,
+    });
+    const [published] = await db
+      .select()
+      .from(agendaTasks)
+      .where(eq(agendaTasks.id, saved.ids[0] ?? ""));
+    expect(published?.sharedActivityId).toBeTruthy();
+    // Mandar de novo não publica duas vezes.
+    expect(value(await shareSavedWithTurma(owner, { ids: saved.ids }))).toEqual({
+      shared: 0,
+      skipped: 2,
     });
   });
   it("publishes cancellation and revision to an existing private calendar link", async () => {

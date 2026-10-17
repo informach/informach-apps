@@ -1,76 +1,82 @@
-import { ArrowDown } from "lucide-react";
-import styles from "../sales.module.css";
+import { cn } from "@informach/ui/lib/utils";
+import { DOT, GRID2, H2, LEAD, SEC, WRAP } from "../landing-ui";
+
+const CARD = "flex flex-col gap-2.5 rounded-[20px] bg-background px-[22px] py-5 text-foreground";
+const TAG =
+  "inline-flex h-9 items-center whitespace-nowrap rounded-full border border-background/20 bg-background/10 px-3.5 text-[13px] font-bold text-background";
 
 /**
- * A turma recebe junto. Estava só no FAQ e numa letra miúda dos planos, e é o
- * jeito que a Agenda chega a outras famílias: uma organiza o cartaz e a turma
- * inteira recebe as mesmas atividades para aceitar.
+ * A turma recebe junto, na faixa escura da prancha: uma família organiza o
+ * cartaz e a turma inteira recebe as mesmas atividades para aceitar.
+ *
+ * Escuro com os tokens: o fundo é a cor do texto e o texto é a cor do fundo,
+ * então no tema escuro a faixa se inverte junto com o resto da página.
  */
 export function Turma() {
   return (
     <section
       id="turma"
       aria-labelledby="turma-title"
-      className="scroll-mt-6 border-y border-foreground/15 bg-muted/40 py-16 md:py-24"
+      className={`${SEC} bg-foreground text-background`}
     >
-      <div className={[styles.wrap, "grid gap-10 lg:grid-cols-2 lg:items-center"].join(" ")}>
-        <div className="space-y-4">
-          <p className="text-[13px] font-extrabold uppercase tracking-[0.14em] text-primary-ink">
+      <div className={`${WRAP} ${GRID2}`}>
+        <div className="flex flex-col gap-[22px]">
+          <p className="text-[13px] font-extrabold uppercase tracking-[0.14em] text-[color:color-mix(in_oklch,var(--primary)_55%,var(--background))]">
             A turma recebe junto
           </p>
-          <h2
-            id="turma-title"
-            className="text-balance text-[30px] font-extrabold leading-tight tracking-tight sm:text-[40px]"
-          >
+          <h2 id="turma-title" className={cn(H2, "text-background")}>
             Uma família organiza o cartaz de provas, e a turma toda recebe.
           </h2>
-          <p className="text-[16px] leading-relaxed text-foreground/80">
+          <p className={cn(LEAD, "text-background/85")}>
             Quando alguém da turma traz o calendário de provas para a Agenda, as outras famílias
             recebem as mesmas atividades e só aceitam. Se a escola mudar a data, quem mandou corrige
             para todo mundo. Quem vai cuidar, o lembrete e o que já foi feito continuam sendo só de
             cada casa.
           </p>
-          <ul className="flex flex-wrap gap-2 text-sm font-bold">
+          <ul className="flex flex-wrap gap-3">
             {["Receber é grátis", "Mandar para a turma é do Pro", "A turma entra por um link"].map(
               (item) => (
-                <li
-                  key={item}
-                  className="rounded-full border border-foreground/15 bg-background px-3 py-1"
-                >
+                <li key={item} className={TAG}>
                   {item}
                 </li>
               ),
             )}
           </ul>
         </div>
-        <div className="mx-auto grid w-full max-w-[420px] gap-3">
-          <figure className="space-y-3 rounded-[20px] border border-foreground/15 bg-background p-4">
-            <figcaption className="text-[12px] font-extrabold uppercase tracking-[0.12em] text-muted-foreground">
-              Família da Clara
-            </figcaption>
-            <p className="text-[16px] font-extrabold">Mandar 4 provas para a turma do 3º B?</p>
-            <p className="text-sm text-muted-foreground">
+        <div className="flex w-full max-w-[460px] flex-col gap-3.5 justify-self-center">
+          <div className={CARD}>
+            <span className="text-[13px] font-extrabold text-muted-foreground">
+              FAMÍLIA DA CLARA
+            </span>
+            <b className="text-[19px]">Mandar 4 provas para a turma do 3º B?</b>
+            <span className="text-[15px] text-foreground/80">
               As outras famílias recebem e decidem se aceitam.
-            </p>
-            <p className="inline-flex min-h-10 items-center rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground">
+            </span>
+            <span className="inline-flex min-h-11 items-center self-start rounded-xl bg-primary px-[18px] font-bold text-primary-foreground">
               Mandar para a turma
-            </p>
-          </figure>
-          <ArrowDown className="mx-auto size-5 text-muted-foreground" aria-hidden />
-          <figure className="space-y-2 rounded-[20px] border border-foreground/15 bg-background p-4">
-            <figcaption className="text-[12px] font-extrabold uppercase tracking-[0.12em] text-muted-foreground">
-              Outra família do 3º B · plano grátis
-            </figcaption>
-            <p className="text-[16px] font-extrabold">4 atividades da turma esperando você</p>
-            <ul className="text-sm text-muted-foreground">
-              <li>Prova de Português · qui, 22</li>
-              <li>Prova de Matemática · ter, 27</li>
-              <li>e mais 2</li>
-            </ul>
-            <p className="inline-flex min-h-10 items-center rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground">
+            </span>
+          </div>
+          <div aria-hidden className="self-center text-2xl text-background/50">
+            ↓
+          </div>
+          <div className={CARD}>
+            <span className="text-[13px] font-extrabold text-muted-foreground">
+              OUTRA FAMÍLIA DO 3º B · PLANO GRÁTIS
+            </span>
+            <b className="text-[19px]">4 atividades da turma esperando você</b>
+            <div className="flex flex-col gap-1.5 text-[15px]">
+              <span>
+                <span className={`${DOT} bg-chart-2`} /> Prova de Português · qui, 22
+              </span>
+              <span>
+                <span className={`${DOT} bg-chart-1`} /> Prova de Matemática · ter, 27
+              </span>
+              <span className="text-muted-foreground">e mais 2</span>
+            </div>
+            <span className="inline-flex min-h-11 items-center self-start rounded-xl border-[1.5px] border-foreground px-[18px] font-bold">
               Aceitar as 4
-            </p>
-          </figure>
+            </span>
+          </div>
         </div>
       </div>
     </section>

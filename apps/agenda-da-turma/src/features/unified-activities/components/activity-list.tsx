@@ -10,6 +10,14 @@ import type { ReactNode } from "react";
  * linha separada por um fio. O título da folha ("Para hoje", "Amanhã, terça")
  * é opcional; sem ele, a primeira linha não desenha o fio de cima.
  */
+/**
+ * O link no título de uma folha ("Ver tudo", "Horário", "Abrir"): sublinhado e
+ * do tamanho do texto, como no canvas. O alvo de toque cresce por um
+ * pseudo-elemento, e não pela altura do link, para o título não engordar.
+ */
+export const SHEET_LINK =
+  "relative text-sm font-bold text-primary-ink underline after:absolute after:-inset-x-2 after:-inset-y-3.5 after:content-['']";
+
 export function ActivitySheet({
   title,
   aside,
@@ -35,8 +43,11 @@ export function ActivitySheet({
       )}
     >
       {title ? (
-        <div className="flex items-baseline justify-between gap-3 px-4 pb-2.5 pt-4 sm:px-5">
-          <h2 id={labelledBy} className="text-xl font-extrabold tracking-tight">
+        <div className="flex items-baseline justify-between gap-3 px-[18px] pb-2.5 pt-4 lg:px-5">
+          <h2
+            id={labelledBy}
+            className="text-[21px] font-extrabold leading-[normal] tracking-[-0.02em] lg:text-xl"
+          >
             {title}
           </h2>
           {aside ? (

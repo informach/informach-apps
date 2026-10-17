@@ -29,24 +29,29 @@ const DOT_CLASS: Record<number, string> = {
  * O que outra família da turma mandou, esperando um sim.
  *
  * Era um cartão em degradê com selo de tipo e selo de prazo pintados, no fim
- * de Hoje, sempre aberto. Virou uma linha ("2 atividades da turma do 3º ano B
- * esperando você"), que abre as mesmas linhas da agenda: o título, a matéria
- * pelo ponto da cor, quem mandou e, à direita, quando é.
+ * de Hoje, sempre aberto. Virou a linha tracejada do canvas ("2 atividades
+ * da turma do 3º B esperando você"), que abre as mesmas linhas da agenda: o
+ * título, a matéria pelo ponto da cor, quem mandou e, à direita, quando é.
  */
 export function SharedActivitiesWidget({ items }: Props) {
   if (items.length === 0) return null;
   const turmas = new Set(items.map((item) => turmaLabel(item)));
-  const where = turmas.size === 1 ? `da turma do ${[...turmas][0]}` : "das turmas";
+  const count = items.length === 1 ? "Uma atividade" : `${items.length} atividades`;
 
   return (
-    <details className="group overflow-hidden rounded-[20px] border border-foreground/15 bg-background">
-      <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 sm:px-5 [&::-webkit-details-marker]:hidden">
-        <Users className="size-5 shrink-0" aria-hidden />
-        <span className="min-w-0 flex-1 text-[15px] leading-snug">
-          <strong>
-            {items.length === 1 ? "Uma atividade" : `${items.length} atividades`} {where}
-          </strong>{" "}
-          esperando você
+    <details className="group overflow-hidden rounded-[18px] border-[1.5px] border-dashed border-primary/45 bg-primary/5">
+      <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3.5 lg:px-[18px] lg:py-4 [&::-webkit-details-marker]:hidden">
+        <Users className="size-[22px] shrink-0 text-primary-ink lg:hidden" aria-hidden />
+        <span className="min-w-0 flex-1 text-[15px] leading-[1.4]">
+          {turmas.size === 1 ? (
+            <>
+              <strong>{count} da turma</strong> do {[...turmas][0]} esperando você
+            </>
+          ) : (
+            <>
+              <strong>{count} das turmas</strong> esperando você
+            </>
+          )}
         </span>
         <span className="shrink-0 text-sm font-bold text-primary-ink group-open:hidden">Ver</span>
         <span className="hidden shrink-0 text-sm font-bold text-primary-ink group-open:inline">
@@ -72,8 +77,9 @@ export function SharedActivitiesWidget({ items }: Props) {
   );
 }
 
+/** "3º B", como a turma aparece no canvas. */
 function turmaLabel(item: Pick<PendingSharedActivity, "grade" | "classLetter">) {
-  return `${item.grade.replace(/[^0-9]/g, "")}º ano ${item.classLetter}`;
+  return `${item.grade.replace(/[^0-9]/g, "")}º ${item.classLetter}`;
 }
 
 /**

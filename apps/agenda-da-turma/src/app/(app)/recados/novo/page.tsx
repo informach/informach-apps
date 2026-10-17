@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { BackButton } from "@/components/app-shell/back-button";
 import { getIsProForUser } from "@/features/billing/server-cache";
 import { listAccessibleProfiles } from "@/features/family/access";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
@@ -9,6 +8,7 @@ import { type DraftExtraction, noticeSourceSchema } from "@/features/notices/sch
 import { getNoticeDraft } from "@/features/notices/service";
 import { getNotificationPreferences } from "@/features/notifications/service";
 import { listSubjectOptionsByProfile } from "@/features/subjects/options-service";
+import { listTurmasForCurrentUser } from "@/features/turmas/service";
 import { requireUserServer } from "@/lib/auth";
 
 export const metadata = { title: "Trazer um recado" };
@@ -29,12 +29,14 @@ export default async function NewNoticePage({
     origem?: string;
     modo?: string;
     texto?: string;
+    /** Uma foto entregue pela folha "O que chegou?": remonta o formulário. */
+    foto?: string;
   }>;
 }) {
   const user = await requireUserServer();
   const params = await searchParams;
   const captureMode = captureModeSchema.safeParse(params.modo).data;
-  const [profiles, adults, entitlement, ownerIsPro, subjectOptions, notificationPrefs] =
+  const [profiles, adults, entitlement, ownerIsPro, subjectOptions, notificationPrefs, turmas] =
     await Promise.all([
       listAccessibleProfiles(user.id),
       listAssignableAdults(user.id),
@@ -42,7 +44,19 @@ export default async function NewNoticePage({
       getIsProForUser(user.id),
       listSubjectOptionsByProfile(user.id),
       getNotificationPreferences(user.id),
+      listTurmasForCurrentUser(user.id),
     ]);
+  // "3º B" da turma ativa de cada criança, para "Mandar para a turma do 3º B?".
+  const turmaLabels = Object.fromEntries(
+    turmas.flatMap((turma) =>
+      turma.members
+        .filter((member) => member.isActive)
+        .map((member) => [
+          member.profileId,
+          `${turma.grade.replace(/[^0-9]/g, "")}º ${turma.classLetter}`,
+        ]),
+    ),
+  );
   let initialNotice:
     | {
         id: string;
@@ -77,14 +91,10 @@ export default async function NewNoticePage({
       };
     else resumeUnavailable = true;
   }
+  // Sem cabeçalho de página: como no canvas, a tela é a foto, a leitura, a
+  // revisão e o "Pronto", cada uma com o seu título e o "Cancelar" de cima.
   return (
-    <main className="mx-auto max-w-3xl space-y-5 px-4 pb-28 pt-5 sm:px-8 sm:pt-8">
-      <div className="flex items-center gap-2">
-        <BackButton href="/dashboard" label="Voltar para Hoje" />
-        <h1 className="text-[28px] font-extrabold leading-tight tracking-tight">
-          Trazer um recado
-        </h1>
-      </div>
+    <main className="mx-auto max-w-3xl px-4 lg:pt-6">
       <CaptureForm
         /*
          * A chave são os PARÂMETROS da URL, não o rascunho resolvido.
@@ -99,7 +109,11 @@ export default async function NewNoticePage({
          * INICIAL: numa navegação de cliente entre duas URLs de texto colado,
          * sem remontagem, o conteúdo da primeira ficaria na tela.
          */
-        key={[params.retomar, params.texto ? "colado" : ""].filter(Boolean).join("|") || "new"}
+        key={
+          [params.retomar, params.texto ? "colado" : "", params.modo, params.perfil, params.foto]
+            .filter(Boolean)
+            .join("|") || "new"
+        }
         profiles={profiles.map((p) => ({ id: p.id, name: p.name }))}
         adults={adults}
         subjectOptions={subjectOptions}
@@ -113,6 +127,10 @@ export default async function NewNoticePage({
         defaultText={typeof params.texto === "string" ? params.texto.slice(0, 4000) : undefined}
         defaultSource={noticeSourceSchema.catch("teams").parse(params.origem)}
         resumeUnavailable={resumeUnavailable}
+        viewerId={user.id}
+        viewerIsOwner={profiles.length === 0 || profiles.some((p) => p.userId === user.id)}
+        ownProfileIds={profiles.filter((p) => p.userId === user.id).map((p) => p.id)}
+        turmaLabels={turmaLabels}
       />
     </main>
   );

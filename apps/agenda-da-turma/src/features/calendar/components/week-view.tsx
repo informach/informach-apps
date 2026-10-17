@@ -50,19 +50,17 @@ function WeekItem({ item }: { item: TaskRow }) {
     <li>
       <Link
         href={`/atividades/${item.id}`}
-        className="flex min-h-11 items-start gap-2.5 rounded-lg py-1 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex min-h-11 items-start gap-2 rounded-lg py-1 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
+        {/* Sem matéria, o ponto é da cor do texto, como o passeio no canvas. */}
         <span
           aria-hidden
-          className={cn(
-            "mt-[7px] size-2.5 shrink-0 rounded-full",
-            dot ?? "border-[1.5px] border-foreground/50",
-          )}
+          className={cn("mt-1.5 size-[9px] shrink-0 rounded-full", dot ?? "bg-foreground")}
         />
         <span className="min-w-0">
           <span
             className={cn(
-              "block text-[15px] font-bold leading-snug",
+              "block text-[15px] font-bold leading-[1.35]",
               done && "text-muted-foreground line-through",
             )}
           >
@@ -136,7 +134,7 @@ export function WeekView({ anchorIso, todayIso, items, undated, newActivityHref 
               id={weekDayAnchor(iso)}
               className={cn(
                 "grid scroll-mt-24 grid-cols-[62px_1fr] gap-2.5 border-t border-foreground/15 py-3.5 pl-4 pr-3.5 first:border-t-0",
-                isToday ? "bg-primary/5" : full && "bg-chart-4/10",
+                isToday ? "bg-primary/6" : full && "bg-chart-4/8",
               )}
             >
               <h2 className="flex flex-col items-start">
@@ -162,8 +160,8 @@ export function WeekView({ anchorIso, todayIso, items, undated, newActivityHref 
                 <span
                   aria-hidden
                   className={cn(
-                    "text-[30px] font-extrabold leading-none tracking-tight tabular-nums",
-                    weekend && dayItems.length === 0 && "text-muted-foreground",
+                    "text-[30px] font-extrabold leading-none tracking-[-0.04em] tabular-nums",
+                    weekend && dayItems.length === 0 && "text-foreground/55",
                   )}
                 >
                   {Number(iso.slice(8))}

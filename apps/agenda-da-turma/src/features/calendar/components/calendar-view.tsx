@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { type ComponentProps, type ReactNode, useCallback, useMemo, useRef, useState } from "react";
+import { type ComponentProps, useCallback, useMemo, useRef, useState } from "react";
 import type { TaskRow } from "@/features/unified-activities/task-repository";
 import type { CalendarView as CalendarViewKind } from "../types";
 import { ActivityDetailDialog } from "./activity-detail-dialog";
@@ -18,8 +18,6 @@ type Props = {
   items: TaskRow[];
   /** As atividades em aberto sem data, para a linha recolhida da semana. */
   undated: TaskRow[];
-  /** O filtro de criança, montado no servidor (`ChildFilter`). */
-  filter: ReactNode;
   /** Os endereços da barra, montados no servidor com a criança e a data. */
   hrefs: ComponentProps<typeof CalendarToolbar>["hrefs"];
 };
@@ -35,7 +33,6 @@ export function CalendarView({
   profileFilter,
   items,
   undated,
-  filter,
   hrefs,
 }: Props) {
   const router = useRouter();
@@ -74,14 +71,8 @@ export function CalendarView({
   );
 
   return (
-    <div className="space-y-4">
-      <CalendarToolbar
-        view={view}
-        anchorIso={anchorIso}
-        todayIso={todayIso}
-        filter={filter}
-        hrefs={hrefs}
-      />
+    <div className="space-y-3">
+      <CalendarToolbar view={view} anchorIso={anchorIso} todayIso={todayIso} hrefs={hrefs} />
 
       {view === "week" ? (
         <WeekView

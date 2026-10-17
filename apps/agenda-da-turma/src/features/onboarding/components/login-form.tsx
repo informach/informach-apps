@@ -27,6 +27,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { type Control, type FieldValues, type Path, useForm } from "react-hook-form";
+import { AgendaSymbol } from "@/components/brand/agenda-logo";
 import { emailOtp, forgetPassword, signIn } from "@/lib/auth-client";
 import { describeAuthError } from "@/lib/auth-errors";
 import {
@@ -92,7 +93,16 @@ export function LoginForm({
           : `Mandamos um código de 6 números para ${step.email}.`;
 
   return (
-    <div className="w-full max-w-md">
+    <div className="w-full max-w-md space-y-5 px-5 pb-10 pt-5 lg:py-14">
+      {/* O símbolo no canto, como no cadastro: sem o cabeçalho de antes, é
+          ele que leva de volta à página inicial. */}
+      <Link
+        href="/"
+        aria-label="Agenda da Turma, página inicial"
+        className="flex min-h-11 w-fit items-center"
+      >
+        <AgendaSymbol aria-hidden />
+      </Link>
       <Card className="border-border/60 shadow-sm">
         <CardHeader className="space-y-2 pb-4 text-center">
           {step.kind !== "auth" && (

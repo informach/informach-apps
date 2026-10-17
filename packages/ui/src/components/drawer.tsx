@@ -32,8 +32,11 @@ DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName;
 
 const DrawerContent = React.forwardRef<
   React.ElementRef<typeof DrawerPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content> & {
+    /** Ajusta a alça de arrastar (tamanho, cor, margem) ao desenho do app. */
+    handleClassName?: string;
+  }
+>(({ className, children, handleClassName, ...props }, ref) => (
   <DrawerPortal>
     <DrawerOverlay />
     <DrawerPrimitive.Content
@@ -44,7 +47,10 @@ const DrawerContent = React.forwardRef<
       )}
       {...props}
     >
-      <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
+      <div
+        aria-hidden
+        className={cn("mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted", handleClassName)}
+      />
       {children}
     </DrawerPrimitive.Content>
   </DrawerPortal>

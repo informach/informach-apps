@@ -1,19 +1,25 @@
+import { todayLocalIso } from "@/features/dashboard/date";
 import { listAccessibleProfiles } from "@/features/family/access";
 import { EditNoticeAction } from "@/features/notices/components/edit-action";
-import { OriginalNotice } from "@/features/notices/components/original-notice";
 import {
   getNoticeActionHistory,
   getNoticeSource,
   listAssignableAdults,
 } from "@/features/notices/repository";
 import { StudyPlanSection } from "@/features/study-plan/components/study-plan-section";
-import { listStudySessions, STUDY_PLAN_TYPES } from "@/features/study-plan/service";
+import {
+  listStudySessions,
+  proposeStudyPlan,
+  STUDY_PLAN_TYPES,
+} from "@/features/study-plan/service";
 import { listSubjectOptionsByProfile } from "@/features/subjects/options-service";
 import { billing } from "@/lib/billing";
 import { taskToActionInput } from "../edit-defaults";
 import type { TaskRow } from "../task-repository";
 import { toActivityView } from "../view";
+import { ActivityMoreMenu } from "./activity-more-menu";
 import { ActivityRead } from "./activity-read";
+import { ActivitySource, noticeWhereSentence } from "./activity-source";
 import { ActivityCompletionButton } from "./completion-button";
 import { ActivityDetailShell } from "./detail-shell";
 import { ActivityRevisionList } from "./revision-list";
@@ -88,19 +94,43 @@ export async function ActivityDetail({
     );
   }
 
-  const [history, source, studySessions] = await Promise.all([
+  const canPlanStudy =
+    !canceled && Boolean(task.dueAt) && STUDY_PLAN_TYPES.some((type) => type === task.type);
+  const [history, source, studySessions, adults] = await Promise.all([
     getNoticeActionHistory(userId, task.id),
     task.noticeId ? getNoticeSource(userId, task.noticeId) : null,
     listStudySessions(userId, task.id),
+    task.noticeId ? listAssignableAdults(userId) : [],
   ]);
-  const canPlanStudy =
-    !canceled && Boolean(task.dueAt) && STUDY_PLAN_TYPES.some((type) => type === task.type);
+  // A proposta só faz sentido antes de existir plano: com sessões na rotina, a
+  // folha mostra os dias delas.
+  const proposal =
+    canPlanStudy && task.dueAt && studySessions.length === 0
+      ? await proposeStudyPlan(userId, {
+          id: task.id,
+          profileId: task.profileId,
+          dueAt: task.dueAt,
+          estimatedMinutes: task.estimatedMinutes,
+        })
+      : null;
+  const sender = source?.createdByUserId
+    ? adults
+        .find((adult) => adult.userId === source.createdByUserId)
+        ?.name?.trim()
+        .split(/\s+/)[0]
+    : null;
 
   return (
     <ActivityRead
       task={task}
       canEdit
       sharedByMe={task.createdByUserId === userId}
+      more={
+        view.manage && view.toggle ? (
+          <ActivityMoreMenu id={task.id} version={view.toggle.version} title={task.title} />
+        ) : null
+      }
+      whereSentence={source ? noticeWhereSentence(source) : null}
       completion={
         view.toggle ? (
           <ActivityCompletionButton
@@ -119,6 +149,8 @@ export async function ActivityDetail({
           <div id="plano-de-estudo" className="scroll-mt-4">
             <StudyPlanSection
               taskId={task.id}
+              proposal={proposal}
+              todayIso={todayLocalIso()}
               sessions={studySessions.map((session) => ({
                 id: session.id,
                 title: session.title,
@@ -131,11 +163,24 @@ export async function ActivityDetail({
       }
       original={
         source ? (
-          <OriginalNotice source={source} title="De onde veio" />
+          <ActivitySource
+            source={source}
+            excerpt={task.sourceExcerpt}
+            senderName={sender ?? null}
+          />
         ) : task.noticeId ? (
-          <p className="text-sm text-muted-foreground">
-            O recado completo aparece para quem acompanha todas as crianças dele.
-          </p>
+          <div className="space-y-2">
+            {/* O trecho é da própria atividade: quem não vê o recado inteiro
+                continua lendo de onde ela saiu. */}
+            {task.sourceExcerpt ? (
+              <blockquote className="break-words rounded-xl border border-foreground/15 bg-background px-3.5 py-3 text-base leading-normal">
+                “{task.sourceExcerpt}”
+              </blockquote>
+            ) : null}
+            <p className="text-sm text-muted-foreground">
+              O recado completo aparece para quem acompanha todas as crianças dele.
+            </p>
+          </div>
         ) : null
       }
       history={<ActivityRevisionList revisions={history} heading={false} />}

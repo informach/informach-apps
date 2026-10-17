@@ -1,51 +1,57 @@
-import styles from "../sales.module.css";
+import { cn } from "@informach/ui/lib/utils";
+import { DOT, EYEBROW, GRID2, H2, LEAD, Phone, SEC, WRAP } from "../landing-ui";
 
-/** A vez da criança: estava escondida na pergunta 9 do FAQ. */
+/** A vez da criança, como na prancha: o celular com uma atividade e o "Feito!", e o porquê ao lado. */
 export function KidTurn() {
   return (
-    <section
-      id="crianca"
-      aria-labelledby="kid-title"
-      className={[
-        styles.wrap,
-        "grid scroll-mt-6 gap-10 py-16 md:py-24 lg:grid-cols-[0.8fr_1.2fr] lg:items-center",
-      ].join(" ")}
-    >
-      <figure
-        aria-label="A vez da criança no celular, com dados de exemplo"
-        className="mx-auto w-full max-w-[300px] space-y-4 rounded-[28px] border-[6px] border-foreground bg-background p-5 text-center"
-      >
-        <p className="text-[22px] font-extrabold">Oi, Clara!</p>
-        <p className="text-sm font-semibold text-muted-foreground">1 de 3 feitas</p>
-        <div className="space-y-1 rounded-2xl border border-foreground/15 p-4 text-left">
-          <p className="text-[13px] font-bold text-muted-foreground">Matemática</p>
-          <p className="text-[18px] font-extrabold leading-snug">Páginas 32 e 33 do livro</p>
-          <p className="text-sm font-semibold">É para hoje</p>
+    <section id="crianca" aria-labelledby="kid-title" className={SEC}>
+      <div className={`${WRAP} ${GRID2}`}>
+        <div className="flex justify-center">
+          <Phone
+            className="h-[560px] w-[280px]"
+            scale={0.672}
+            screenClassName="box-border flex flex-col gap-5 px-5 py-6"
+            label="A vez da criança, com uma atividade e o botão Feito"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex size-[52px] items-center justify-center rounded-full border-2 border-chart-4/50 bg-chart-4/25 text-xl font-extrabold">
+                C
+              </span>
+              <div>
+                <b className="text-2xl">Oi, Clara!</b>
+                <div className="text-base text-muted-foreground">1 de 3 feitas</div>
+              </div>
+            </div>
+            <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-[28px] border border-foreground/15 bg-background p-6 text-center">
+              <span className="flex items-center gap-2 text-base font-bold">
+                <span className={cn(DOT, "size-3 bg-chart-1")} />
+                Matemática
+              </span>
+              <b className="text-[34px] leading-[1.1] tracking-[-0.03em]">
+                Páginas 32 e 33 do livro
+              </b>
+              <span className="text-lg text-foreground/80">É para hoje</span>
+            </div>
+            <span className="flex min-h-[72px] items-center justify-center rounded-[20px] bg-primary text-[26px] font-extrabold text-primary-foreground shadow-[0_4px_0_0_var(--primary-solid)]">
+              Feito!
+            </span>
+          </Phone>
         </div>
-        <p className="flex min-h-14 items-center justify-center rounded-2xl bg-primary text-lg font-extrabold text-primary-foreground">
-          Feito!
-        </p>
-      </figure>
-      <div className="space-y-4">
-        <p className="text-[13px] font-extrabold uppercase tracking-[0.14em] text-primary-ink">
-          A vez da criança
-        </p>
-        <h2
-          id="kid-title"
-          className="text-balance text-[30px] font-extrabold leading-tight tracking-tight sm:text-[40px]"
-        >
-          Na hora da lição, passe o celular.
-        </h2>
-        <p className="text-[16px] leading-relaxed text-foreground/80">
-          A criança vê uma atividade por vez e um botão grande de Feito!. Não tem menu, não tem
-          cobrança e não tem prazo em vermelho: o que passou vira “é para hoje”, e o que é para o
-          próximo dia de aula aparece também, porque quem estuda de manhã faz antes.
-        </p>
-        <p className="text-[16px] leading-relaxed text-foreground/80">
-          Também não tem ponto, ranking ou comparação entre irmãos. Para devolver o celular, é só
-          segurar o botão de sair.
-        </p>
-        <p className="text-sm font-semibold text-muted-foreground">Está no plano grátis.</p>
+        <div className="flex flex-col gap-[22px]">
+          <p className={EYEBROW}>A vez da criança</p>
+          <h2 id="kid-title" className={H2}>
+            Na hora da lição, passe o celular.
+          </h2>
+          <p className={LEAD}>
+            A criança vê uma atividade por vez e um botão grande de Feito!. Não tem menu, não tem
+            cobrança e não tem prazo em vermelho: o que passou vira “é para hoje”.
+          </p>
+          <p className={LEAD}>
+            Também não tem ponto, ranking ou comparação entre irmãos. Para devolver o celular, é só
+            segurar o botão de sair.
+          </p>
+          <p className="text-sm text-muted-foreground">Está no plano grátis.</p>
+        </div>
       </div>
     </section>
   );

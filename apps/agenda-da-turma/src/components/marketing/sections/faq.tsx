@@ -1,3 +1,5 @@
+import { cn } from "@informach/ui/lib/utils";
+import { EYEBROW, GRID2, H2, SEC, WRAP } from "../landing-ui";
 import styles from "../sales.module.css";
 
 /** Sete perguntas, as que as famílias fazem de verdade antes de começar. */
@@ -32,34 +34,27 @@ const QUESTIONS = [
   ],
 ] as const;
 
+/** As perguntas da prancha: a primeira já aberta, as outras a um toque. */
 export function Faq() {
   return (
-    <section
-      id="perguntas"
-      aria-labelledby="faq-title"
-      className={[
-        styles.wrap,
-        "grid scroll-mt-6 gap-8 py-16 md:py-24 lg:grid-cols-[0.8fr_1.2fr]",
-      ].join(" ")}
-    >
-      <div className="space-y-3">
-        <p className="text-[13px] font-extrabold uppercase tracking-[0.14em] text-primary-ink">
-          Perguntas
-        </p>
-        <h2
-          id="faq-title"
-          className="text-balance text-[30px] font-extrabold leading-tight tracking-tight sm:text-[36px]"
-        >
-          O que as famílias perguntam antes de começar.
-        </h2>
-      </div>
-      <div className={styles.faq}>
-        {QUESTIONS.map(([question, answer]) => (
-          <details key={question}>
-            <summary>{question}</summary>
-            <p className="pb-4 text-[16px] leading-relaxed text-foreground/80">{answer}</p>
-          </details>
-        ))}
+    <section id="perguntas" aria-labelledby="faq-title" className={SEC}>
+      <div className={cn(WRAP, GRID2, "items-start")}>
+        <div className="flex flex-col gap-4">
+          <p className={EYEBROW}>Perguntas</p>
+          <h2 id="faq-title" className={H2}>
+            O que as famílias perguntam antes de começar.
+          </h2>
+        </div>
+        <div className={styles.faq}>
+          {QUESTIONS.map(([question, answer], index) => (
+            <details key={question} open={index === 0}>
+              <summary>{question}</summary>
+              <p className="mb-[22px] max-w-[640px] text-[17px] leading-[1.6] text-foreground/80">
+                {answer}
+              </p>
+            </details>
+          ))}
+        </div>
       </div>
     </section>
   );

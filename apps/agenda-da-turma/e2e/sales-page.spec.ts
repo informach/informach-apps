@@ -30,20 +30,25 @@ test("demo keeps school deadlines intact, supports keyboard and emits bounded an
 
   const demo = page.locator("#demonstracao");
   // O cartaz de provas abre a demonstração: uma atividade por matéria.
-  await expect(demo.getByText("A Agenda achou 4 provas para Clara")).toBeVisible();
-  await expect(demo.getByText(/Inglês não está nas matérias de Clara/)).toBeVisible();
+  await expect(demo.getByText("A Agenda achou 4 atividades para a Clara")).toBeVisible();
+  await expect(demo.getByText(/Inglês não está nas matérias da Clara/)).toBeVisible();
 
   // Passeio: a autorização tem a data da escola; o boné não tem data, e
   // planejar para a véspera é uma decisão da família, dita como tal.
   await demo.getByRole("button", { name: "Passeio", exact: true }).click();
-  await expect(demo.getByText("A Agenda achou 3 atividades para Clara")).toBeVisible();
-  await expect(demo.getByText("Material · sem data, a confirmar")).toBeVisible();
+  await expect(demo.getByText("A Agenda achou 3 atividades para a Clara")).toBeVisible();
+  const bone = demo.locator("li").filter({ hasText: "Separar boné e garrafa" });
+  await expect(bone).toContainText("a confirmar");
+  await expect(bone).toContainText("o recado não diz quando");
   const plan = demo.getByRole("button", { name: "Planejar para a véspera" });
   await plan.focus();
   await page.keyboard.press("Enter");
-  await expect(demo.getByRole("button", { name: /^Planejado para / })).toBeDisabled();
-  await expect(demo.getByText(/^Material · .+, planejado por vocês$/)).toBeVisible();
-  await expect(demo.getByText(/^Autorização · .+, a escola disse$/)).toBeVisible();
+  await expect(plan).toHaveCount(0);
+  await expect(bone).toContainText(DAY);
+  await expect(bone).toContainText("planejado por vocês");
+  await expect(
+    demo.locator("li").filter({ hasText: "Enviar autorização do passeio" }),
+  ).toContainText("a escola disse");
 
   // Tirar e Manter pelo teclado, e o botão de salvar acompanha a conta.
   const remove = demo.getByRole("button", { name: "Tirar: Passeio ao museu" });
@@ -53,14 +58,15 @@ test("demo keeps school deadlines intact, supports keyboard and emits bounded an
   await expect(demo.getByRole("button", { name: "Salvar 2 atividades" })).toBeVisible();
   await demo.getByRole("button", { name: "Manter: Passeio ao museu" }).click();
   await demo.getByRole("button", { name: "Salvar 3 atividades" }).click();
-  await expect(demo.getByText("Salvo na agenda de Clara")).toBeVisible();
+  await expect(demo.getByText("Salvo na semana da Clara")).toBeVisible();
+  await expect(demo.getByText("Assim fica a semana.")).toBeVisible();
   await expect(demo.getByText("Passeio ao museu", { exact: true })).toBeVisible();
   await demo.getByRole("button", { name: "Recomeçar o teste" }).click();
 
   // O cartaz vai além de sete dias: as quatro provas continuam no salvo, cada
   // uma no seu dia. Era uma grade de sete dias e três delas sumiam.
   await demo.getByRole("button", { name: "Cartaz de provas", exact: true }).click();
-  await demo.getByRole("button", { name: "Salvar 4 provas" }).click();
+  await demo.getByRole("button", { name: "Salvar 4 atividades" }).click();
   for (const title of [
     "Prova de Português",
     "Prova de Matemática",
@@ -71,8 +77,8 @@ test("demo keeps school deadlines intact, supports keyboard and emits bounded an
   await expect(demo.locator("li").filter({ hasText: "Prova de Inglês" })).toContainText(DAY);
 
   await demo.getByRole("button", { name: "Recomeçar o teste" }).click();
-  await demo.getByRole("button", { name: "Material", exact: true }).click();
-  await expect(demo.getByText("A Agenda achou 1 atividade para Clara")).toBeVisible();
+  await demo.getByRole("button", { name: "Lista de material", exact: true }).click();
+  await expect(demo.getByText("A Agenda achou 1 atividade para a Clara")).toBeVisible();
 
   await expect.poll(() => events.filter((e) => e.action === "complete").length).toBe(2);
   expect(events.filter((e) => e.action === "plan")).toHaveLength(1);
@@ -120,7 +126,9 @@ for (const selection of ["free", "monthly", "annual"] as const) {
         : "Crie a conta para assinar o Pro",
     );
     await expect(
-      page.getByText(selection === "free" ? "Passo 1 de 4: Conta" : "Passo 1 de 3: Conta"),
+      page.getByRole("img", {
+        name: selection === "free" ? "Passo 1 de 4: Conta" : "Passo 1 de 3: Conta",
+      }),
     ).toBeVisible();
     await expect.poll(() => events.filter((e) => e.event === "landing_cta").length).toBe(1);
     expect(events.find((e) => e.event === "landing_cta")).toMatchObject({
@@ -142,17 +150,16 @@ test("responsive light and dark layouts, FAQ keyboard, contact and legal navigat
   await page.route("**/api/product-event", (route) => route.fulfill({ status: 204 }));
   await page.goto("/");
   // Confirm hydration through a visible interaction before taking screenshots.
-  await page.getByRole("button", { name: "Material", exact: true }).click();
-  await expect(page.getByText("A Agenda achou 1 atividade para Clara")).toBeVisible();
+  await page.getByRole("button", { name: "Lista de material", exact: true }).click();
+  await expect(page.getByText("A Agenda achou 1 atividade para a Clara")).toBeVisible();
   await page.getByRole("button", { name: "Cartaz de provas", exact: true }).click();
-  await expect(page.getByText("A Agenda achou 4 provas para Clara")).toBeVisible();
+  await expect(page.getByText("A Agenda achou 4 atividades para a Clara")).toBeVisible();
 
   // Nenhum e-mail de contato na página pública: o canal é o direct.
   expect(await page.locator('a[href^="mailto:"]').count()).toBe(0);
-  await expect(page.getByRole("link", { name: "Mandar um direct" })).toHaveAttribute(
-    "href",
-    "https://ig.me/m/criecomhelenaejulio",
-  );
+  await expect(
+    page.getByRole("link", { name: "Fale com a gente no direct do @criecomhelenaejulio" }),
+  ).toHaveAttribute("href", "https://ig.me/m/criecomhelenaejulio");
   // "Quem faz" usa a foto e o texto do site da Informach, servidos daqui.
   const who = page.locator("#quem-faz");
   await expect(who.getByRole("heading", { level: 2 })).toHaveText(
@@ -173,7 +180,7 @@ test("responsive light and dark layouts, FAQ keyboard, contact and legal navigat
     await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
     for (const width of [1440, 768, 390, 320]) {
       await page.setViewportSize({ width, height: 1000 });
-      // Um "Entrar" por largura: na barra do computador ou ao lado do menu.
+      // Um "Entrar" em toda largura, no canto da barra de cima.
       await expect(
         page
           .getByRole("banner")
@@ -193,15 +200,12 @@ test("responsive light and dark layouts, FAQ keyboard, contact and legal navigat
     }
   }
 
-  // No celular, a navegação mora num menu que abre com o teclado.
+  // No celular, como no canvas, a barra de cima é o símbolo e "Entrar"; as
+  // seções ficam na barra do computador e no rodapé.
   await page.setViewportSize({ width: 390, height: 1000 });
-  await page.locator("summary").filter({ hasText: "Menu" }).focus();
-  await page.keyboard.press("Enter");
-  await expect(
-    page.getByRole("navigation", { name: "Menu" }).getByRole("link", { name: "Planos" }),
-  ).toBeVisible();
-  await page.keyboard.press("Enter");
+  await expect(page.getByRole("navigation", { name: "Seções" })).toBeHidden();
   await page.setViewportSize({ width: 1440, height: 1000 });
+  await expect(page.getByRole("navigation", { name: "Seções" })).toBeVisible();
 
   const question = page.locator("summary").filter({ hasText: "Marcar como feito avisa a escola?" });
   await question.focus();

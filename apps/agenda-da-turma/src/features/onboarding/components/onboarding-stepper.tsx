@@ -9,8 +9,9 @@ export type OnboardingStepperProps = {
 };
 
 /**
- * As etapas do cadastro, no topo: "Passo 2 de 4: Código" e uma barra por
- * etapa, a atual mais comprida.
+ * As etapas do cadastro, no canto de cima: uma barra por etapa, a atual mais
+ * comprida, como no canvas. O texto ("Passo 2 de 4: Código") é o nome da
+ * figura para quem usa leitor de tela; na tela, as barras bastam.
  *
  * Eram sempre três círculos numerados (cadastro, verificação, plano). O plano
  * saiu do cadastro e o caminho passou a depender de quem chega: quem escolheu
@@ -20,33 +21,24 @@ export type OnboardingStepperProps = {
 export function OnboardingStepper({ steps, currentStep, className }: OnboardingStepperProps) {
   const current = steps[currentStep - 1] ?? "";
   return (
-    <div className={cn("flex items-center justify-between gap-3", className)}>
-      <p className="text-sm font-bold text-muted-foreground">
-        Passo {currentStep} de {steps.length}: {current}
-      </p>
-      <ol aria-label="Etapas do cadastro" className="flex items-center gap-1.5">
-        {steps.map((label, index) => {
-          const step = index + 1;
-          const done = step < currentStep;
-          const isCurrent = step === currentStep;
-          return (
-            <li key={label} aria-current={isCurrent ? "step" : undefined}>
-              <span
-                aria-hidden
-                className={cn(
-                  "block h-2 rounded-full transition-[width] duration-200 motion-reduce:transition-none",
-                  isCurrent ? "w-7" : "w-3",
-                  done || isCurrent ? "bg-foreground" : "bg-foreground/15",
-                )}
-              />
-              <span className="sr-only">
-                {label}
-                {done ? " (feita)" : ""}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
+    <div
+      role="img"
+      aria-label={`Passo ${currentStep} de ${steps.length}: ${current}`}
+      className={cn("flex gap-1.5", className)}
+    >
+      {steps.map((label, index) => {
+        const step = index + 1;
+        return (
+          <span
+            key={label}
+            className={cn(
+              "block h-2 rounded-full transition-[width] duration-200 motion-reduce:transition-none",
+              step === currentStep ? "w-7" : "w-3",
+              step <= currentStep ? "bg-foreground" : "bg-foreground/15",
+            )}
+          />
+        );
+      })}
     </div>
   );
 }

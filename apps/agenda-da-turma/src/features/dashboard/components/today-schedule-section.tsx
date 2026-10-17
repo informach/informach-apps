@@ -4,34 +4,70 @@ import Link from "next/link";
 import { StudentAvatar } from "@/features/students/components/student-avatar";
 import { SubjectKitDialog } from "@/features/subject-kits/components/subject-kit-dialog";
 import { listSubjectKits } from "@/features/subject-kits/service";
+import { SHEET_LINK } from "@/features/unified-activities/components/activity-list";
 import { getTodaySubjectsForProfiles, type TodaySubjectsView } from "../today-subjects-service";
 
+/** As aulas de hoje em texto corrido; cada nome abre o "levar sempre" daquela aula. */
+function SubjectNames({ view, kits }: { view: TodaySubjectsView; kits: Record<string, string[]> }) {
+  if (view.subjects.length === 0)
+    return (
+      <>
+        {view.classDay === null
+          ? "Sem aula hoje. Bom descanso!"
+          : view.turmaId
+            ? "Nenhuma aula no horário de hoje."
+            : "Sem turma ainda."}
+      </>
+    );
+  return (
+    <>
+      {view.subjects.map((subject, index) => (
+        <span key={subject.id}>
+          {index > 0 ? ", " : null}
+          <SubjectKitDialog
+            variant="text"
+            note={
+              subject.source === "extra"
+                ? "fora da escola"
+                : subject.isAlternating
+                  ? subject.alternatingPairName
+                    ? `reveza com ${subject.alternatingPairName}`
+                    : "quinzenal"
+                  : null
+            }
+            profileId={view.profileId}
+            subjectId={subject.source === "turma" ? subject.id : null}
+            profileSubjectId={subject.source === "extra" ? subject.id : null}
+            subjectName={subject.name}
+            profileName={view.profileName}
+            items={kits[`${view.profileId}:${subject.id}`] ?? []}
+          />
+        </span>
+      ))}
+    </>
+  );
+}
+
+/**
+ * Uma criança por linha. No celular: o avatar, o nome, as aulas e "A vez de
+ * Clara" como botão. No computador, a tabela do canvas: nome, aulas e o link.
+ */
 function ProfileSchedule({
   view,
   kits,
-  showTurmaLink,
 }: {
   view: TodaySubjectsView;
   kits: Record<string, string[]>;
-  /** Com crianças em turmas diferentes, cada linha leva ao horário da sua. */
-  showTurmaLink: boolean;
 }) {
-  const isWeekend = view.classDay === null;
   return (
-    <li className="space-y-2.5 border-t border-foreground/15 px-4 py-3 first:border-t-0 sm:px-5">
-      <div className="flex items-center gap-3">
-        <StudentAvatar name={view.profileName} size="row" />
+    <li className="border-t border-foreground/15">
+      <div className="flex min-h-16 items-center gap-3 py-2.5 pl-3.5 pr-3.5 lg:hidden">
+        <StudentAvatar name={view.profileName} size="line" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-bold">{view.profileName}</p>
-          {view.subjects.length === 0 ? (
-            <p className="text-[13px] text-muted-foreground">
-              {isWeekend
-                ? "Sem aula hoje. Bom descanso!"
-                : view.turmaId
-                  ? "Nenhuma aula no horário de hoje."
-                  : "Sem turma ainda."}
-            </p>
-          ) : null}
+          <p className="text-[13px] font-medium text-muted-foreground">
+            <SubjectNames view={view} kits={kits} />
+          </p>
         </div>
         {/*
           A porta da vez da criança onde o telefone costuma ser passado: a linha
@@ -39,49 +75,20 @@ function ProfileSchedule({
         */}
         <Link
           href={`/crianca/${view.profileId}`}
-          className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-foreground/15 bg-background px-3 text-sm font-bold hover:bg-muted"
+          className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-foreground/15 bg-background px-3.5 text-sm font-bold hover:bg-muted"
         >
-          <Hand className="size-4" aria-hidden />A vez de {view.profileName}
+          <Hand className="size-[18px]" aria-hidden />A vez de {view.profileName}
         </Link>
       </div>
-      {view.subjects.length > 0 ? (
-        <ul
-          className="flex flex-wrap gap-1.5 pl-12"
-          aria-label={`Aulas de ${view.profileName} hoje`}
-        >
-          {view.subjects.map((subject) => (
-            <li key={subject.id}>
-              <SubjectKitDialog
-                variant="chip"
-                colorIndex={subject.colorIndex}
-                note={
-                  subject.source === "extra"
-                    ? "fora da escola"
-                    : subject.isAlternating
-                      ? subject.alternatingPairName
-                        ? `reveza com ${subject.alternatingPairName}`
-                        : "quinzenal"
-                      : null
-                }
-                profileId={view.profileId}
-                subjectId={subject.source === "turma" ? subject.id : null}
-                profileSubjectId={subject.source === "extra" ? subject.id : null}
-                subjectName={subject.name}
-                profileName={view.profileName}
-                items={kits[`${view.profileId}:${subject.id}`] ?? []}
-              />
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {showTurmaLink && view.turmaId ? (
-        <Link
-          href={`/turmas/${view.turmaId}/materias`}
-          className="ml-12 inline-flex min-h-11 items-center text-[13px] font-bold text-primary-ink"
-        >
-          Horário da turma
+      <div className="hidden grid-cols-[70px_1fr_auto] items-center gap-2.5 px-5 py-3 text-sm leading-[normal] lg:grid">
+        <b className="truncate">{view.profileName}</b>
+        <span className="min-w-0">
+          <SubjectNames view={view} kits={kits} />
+        </span>
+        <Link href={`/crianca/${view.profileId}`} className={SHEET_LINK}>
+          A vez de {view.profileName}
         </Link>
-      ) : null}
+      </div>
     </li>
   );
 }
@@ -120,35 +127,31 @@ export async function loadTodaySchedule(
 export async function TodayScheduleSection({ data }: { data: Promise<TodaySchedule> }) {
   const { views, kits } = await data;
   if (views.length === 0) return null;
-  const turmaIds = [...new Set(views.map((view) => view.turmaId).filter(Boolean))];
-  const singleTurma = turmaIds.length === 1 ? turmaIds[0] : null;
+  // "Horário" leva à turma da primeira criança que tem uma; quem tem crianças
+  // em turmas diferentes chega às outras por Família.
+  const firstTurma = views.find((view) => view.turmaId)?.turmaId ?? null;
 
   return (
     <section
       aria-labelledby="today-schedule-title"
       className="overflow-hidden rounded-[20px] border border-foreground/15 bg-background"
     >
-      <div className="flex items-baseline justify-between gap-3 px-4 pb-1 pt-4 sm:px-5">
-        <h2 id="today-schedule-title" className="text-xl font-extrabold tracking-tight">
+      <div className="flex items-baseline justify-between gap-3 px-[18px] pb-2.5 pt-4 lg:px-5">
+        <h2
+          id="today-schedule-title"
+          className="text-[21px] font-extrabold leading-[normal] tracking-[-0.02em] lg:text-xl"
+        >
           Hoje na escola
         </h2>
-        {singleTurma ? (
-          <Link
-            href={`/turmas/${singleTurma}/materias`}
-            className="inline-flex min-h-11 items-center text-sm font-bold text-primary-ink"
-          >
+        {firstTurma ? (
+          <Link href={`/turmas/${firstTurma}/materias`} className={`${SHEET_LINK} lg:hidden`}>
             Horário
           </Link>
         ) : null}
       </div>
       <ul>
         {views.map((view) => (
-          <ProfileSchedule
-            key={view.profileId}
-            view={view}
-            kits={kits}
-            showTurmaLink={turmaIds.length > 1}
-          />
+          <ProfileSchedule key={view.profileId} view={view} kits={kits} />
         ))}
       </ul>
     </section>

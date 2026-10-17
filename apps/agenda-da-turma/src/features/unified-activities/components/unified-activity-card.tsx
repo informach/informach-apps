@@ -1,29 +1,20 @@
 "use client";
 
 import { Button } from "@informach/ui/components/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@informach/ui/components/dropdown-menu";
 import { toast } from "@informach/ui/components/sonner";
 import { cn } from "@informach/ui/lib/utils";
-import { Check, MoreVertical, Pencil, RotateCcw, Users, X } from "lucide-react";
+import { Check, RotateCcw, Users, X } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
-import { setNoticeStatusAction } from "@/features/notices/actions";
+import { useEffect, useRef, useState } from "react";
 import { noticeErrorMessage } from "@/features/notices/messages";
 import { submitTaskStatus } from "@/features/offline-queue/client";
 import { QueuedBadge } from "@/features/offline-queue/components/queued-badge";
 import { useQueueOwner } from "@/features/offline-queue/owner";
-import { catchActionResult, isActionRejected } from "@/lib/action-result";
+import { isActionRejected } from "@/lib/action-result";
 import { ACTIVITY_TYPE_LABELS } from "../activity-types";
 import { describeDue } from "../due";
 import { useCardToggle } from "../hooks/use-card-toggle";
 import type { ActivityOverviewItem } from "../overview-types";
-import { getActivityPresentation } from "../presentation";
 import { toActivityView } from "../view";
 import { DueChip } from "./due-chip";
 
@@ -32,6 +23,10 @@ type Props = {
   currentUserId: string;
   /** Nos buckets da rotina o item some ao ser concluído, com colapso animado. */
   optimisticHideWhenDone?: boolean;
+  /** À noite, dentro da mochila de cada criança, a linha não leva o chip do dia. */
+  hideChip?: boolean;
+  /** Na folha de uma criança, o nome dela já está no topo: a linha não repete. */
+  hideProfile?: boolean;
   onStatusSuccess?: (
     entry: ActivityOverviewItem,
     previousStatus: "pending" | "done",
@@ -68,14 +63,12 @@ function firstDoneMessage() {
 
 /**
  * Uma atividade, uma linha da agenda. É o único card do app: a rotina, a lista
- * de Atividades, o dia do calendário e a vista rápida usam este componente.
+ * de Atividades e a vista rápida do mês usam este componente.
  *
- * Ele diz quatro coisas, nesta ordem de leitura: o título (que abre o
- * detalhe), a matéria (pelo ponto da cor e pelo nome) e a criança, e, à
- * direita, quando é. Hora, local, origem da data, tempo estimado e versão
- * moram no detalhe. Antes eram até sete selos por card, o fundo pintado com a
- * cor da matéria e o selo do tipo pintado com outra cor, e "Informado no
- * original" repetido em todos.
+ * Como no canvas, ele diz três coisas: o título (que abre o detalhe), a
+ * matéria pelo ponto da cor e pelo nome, a criança (e "na próxima aula" quando
+ * a data veio do horário), e, à direita, quando é. Editar e cancelar moram no
+ * detalhe, a um toque: o menu de três pontos que ficava em cada linha saiu.
  *
  * O alvo de concluir continua de 44 px e só habilita depois de hidratar
  * (`ready`); o estado "sobe quando a rede voltar" continua visível; concluir
@@ -85,14 +78,13 @@ export function UnifiedActivityCard({
   entry,
   currentUserId,
   optimisticHideWhenDone = false,
+  hideChip = false,
+  hideProfile = false,
   onStatusSuccess,
 }: Props) {
-  const router = useRouter();
   const view = toActivityView(entry, currentUserId);
   const [error, setError] = useState("");
   const queueOwner = useQueueOwner();
-  const [confirmCancel, setConfirmCancel] = useState(false);
-  const [canceling, startCancel] = useTransition();
   // Em Hoje a linha concluída sai da lista no refresh, e o "Desfazer" do aviso
   // roda com o card já desmontado: um erro ali precisa de outro lugar para
   // aparecer além da própria linha.
@@ -105,8 +97,6 @@ export function UnifiedActivityCard({
   }, []);
 
   const isCanceled = view.status === "canceled";
-  const presentation = getActivityPresentation(view.type);
-  const TypeIcon = presentation.icon;
 
   const { ready, isDone, isExiting, optimisticallyHidden, pending, queued, handleToggle, retry } =
     useCardToggle({
@@ -154,8 +144,9 @@ export function UnifiedActivityCard({
 
   const meta = [
     view.subjectName ?? ACTIVITY_TYPE_LABELS[view.type],
-    view.profileName,
+    hideProfile ? null : view.profileName,
     view.isExtra ? "fora da escola" : null,
+    entry.item.dateOrigin === "schedule" ? "na próxima aula" : null,
     view.assignedName ? `${view.assignedName} cuida` : null,
   ].filter(Boolean);
 
@@ -170,8 +161,8 @@ export function UnifiedActivityCard({
       )}
     >
       <div className="overflow-hidden">
-        <article className="border-t border-foreground/15 py-2 pl-1.5 pr-2 sm:pr-3">
-          <div className="flex items-center gap-2">
+        <article className="border-t border-foreground/15 py-2.5 pl-2 pr-3.5 lg:pl-3 lg:pr-5">
+          <div className="flex min-h-11 items-center gap-3 lg:gap-3.5">
             {view.toggle ? (
               <button
                 type="button"
@@ -188,7 +179,7 @@ export function UnifiedActivityCard({
                     <Check className="size-4" strokeWidth={3} aria-hidden />
                   </span>
                 ) : (
-                  <span className="size-6 rounded-full border-2 border-foreground/40" />
+                  <span className="size-6 rounded-full border-2 border-foreground/35" />
                 )}
               </button>
             ) : (
@@ -197,7 +188,7 @@ export function UnifiedActivityCard({
               </span>
             )}
 
-            <div className="min-w-0 flex-1 py-1">
+            <div className="min-w-0 flex-1">
               <Link
                 href={view.detailHref}
                 className={cn(
@@ -209,20 +200,18 @@ export function UnifiedActivityCard({
               </Link>
               {/* Texto corrido, e não flex com quebra: com flex o texto inteiro
                   descia de linha e deixava o ponto sozinho em cima. */}
-              <p className="mt-0.5 break-words text-[13px] font-medium leading-snug text-muted-foreground">
+              <p className="mt-[3px] break-words text-[13px] font-medium leading-snug text-muted-foreground">
                 {view.subjectName ? (
                   <span
                     aria-hidden
                     className={cn(
-                      "mr-1.5 inline-block size-2 rounded-full align-[1px]",
+                      "mr-1.5 inline-block size-[9px] rounded-full align-[0px]",
                       view.subjectColorIndex !== null
                         ? DOT_CLASS[view.subjectColorIndex]
                         : "bg-foreground/60",
                     )}
                   />
-                ) : (
-                  <TypeIcon className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />
-                )}
+                ) : null}
                 {meta.join(" · ")}
                 {view.shared ? (
                   <span className="whitespace-nowrap">
@@ -243,82 +232,8 @@ export function UnifiedActivityCard({
               ) : null}
             </div>
 
-            <DueChip due={due} />
-
-            {view.manage ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-11 shrink-0 rounded-full"
-                    aria-label={`Ações para ${view.title}`}
-                  >
-                    <MoreVertical className="size-4" aria-hidden />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem asChild>
-                    <Link href={`${view.detailHref}?editar=1`}>
-                      <Pencil className="mr-2 size-4" aria-hidden />
-                      Editar
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="text-destructive-ink focus:text-destructive-ink"
-                    onSelect={() => setConfirmCancel(true)}
-                  >
-                    <X className="mr-2 size-4" aria-hidden />
-                    Cancelar atividade
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : null}
+            {hideChip ? null : <DueChip due={due} />}
           </div>
-
-          {/* Confirmar antes de cancelar, aqui mesmo: o menu abre e fecha na
-              linha, e mandar a pessoa para outra tela só para confirmar faria
-              perder o lugar na lista. */}
-          {confirmCancel && view.toggle ? (
-            <div className="mb-1 ml-12 mt-2 space-y-3 rounded-xl border border-destructive/30 p-3">
-              <p className="text-sm">
-                Cancelar esta atividade? Ela sai da lista do que falta e para de gerar lembretes. O
-                histórico fica.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  disabled={canceling}
-                  onClick={() => {
-                    const target = view.toggle;
-                    if (!target) return;
-                    startCancel(async () => {
-                      const result = await catchActionResult(() =>
-                        setNoticeStatusAction({
-                          id: target.id,
-                          version: target.version,
-                          status: "canceled",
-                        }),
-                      );
-                      setConfirmCancel(false);
-                      if (!result.ok) {
-                        setError(toggleErrorMessage(result.error));
-                        return;
-                      }
-                      setError("");
-                      router.refresh();
-                    });
-                  }}
-                >
-                  Confirmar cancelamento
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => setConfirmCancel(false)}>
-                  Voltar
-                </Button>
-              </div>
-            </div>
-          ) : null}
 
           {error ? (
             <div role="alert" className="mb-1 ml-12 mt-1 flex flex-wrap items-center gap-2">

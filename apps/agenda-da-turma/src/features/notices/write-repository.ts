@@ -367,7 +367,13 @@ export async function insertConfirmedNotice(
         // A retificação que veio no recado alcança a turma pelo mesmo caminho
         // da edição manual — publicar, despublicar e corrigir são a mesma
         // decisão, e é por isso que moram numa função só.
-        const sharing = await reconcileSharing(tx, userId, isPro, previous, action, published);
+        // Corrigir pelo recado nunca tira da turma: a captura não mostra a caixa
+        // marcada para o que já foi, e despublicar é decisão da edição.
+        const keepShared = {
+          ...action,
+          shareWithTurma: action.shareWithTurma || previous.sharedActivityId !== null,
+        };
+        const sharing = await reconcileSharing(tx, userId, isPro, previous, keepShared, published);
         if (!sharing.ok) return err({ code: sharing.code } as const);
         const [current] = await tx
           .update(agendaTasks)
@@ -437,7 +443,9 @@ export async function insertConfirmedNotice(
         count: ids.length,
         source,
       });
-    return ok({ alreadyConfirmed: ids.length === 0, ids });
+    // `indices[i]` é a posição, na revisão, da atividade que virou `ids[i]`: o
+    // "Pronto" precisa saber quais acabaram de entrar para oferecer a turma.
+    return ok({ alreadyConfirmed: ids.length === 0, ids, indices: values.map((v) => v.index) });
   });
 }
 

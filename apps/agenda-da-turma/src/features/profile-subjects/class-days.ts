@@ -72,3 +72,37 @@ export function formatExtraClassDaysShort(days: readonly AgendaExtracurricularDa
     .map((d) => EXTRA_CLASS_DAY_LABEL_SHORT[d])
     .join(" · ");
 }
+
+const DAY_PLURAL: Readonly<Record<AgendaExtracurricularDay, string>> = {
+  mon: "segundas",
+  tue: "terças",
+  wed: "quartas",
+  thu: "quintas",
+  fri: "sextas",
+  sat: "sábados",
+  sun: "domingos",
+};
+
+/**
+ * A linha das atividades extras na folha da criança, como no canvas:
+ * "Natação às terças e sábados" com uma só; com mais, os nomes ("Natação e
+ * Balé"). Sem extras, `null`, e a folha mostra a escola.
+ */
+export function extrasLine(
+  extras: ReadonlyArray<{ name: string; classDays: readonly AgendaExtracurricularDay[] }>,
+): string | null {
+  if (extras.length === 0) return null;
+  if (extras.length > 1) {
+    const names = extras.map((extra) => extra.name);
+    return `${names.slice(0, -1).join(", ")} e ${names[names.length - 1]}`;
+  }
+  const [only] = extras;
+  if (!only) return null;
+  const days = EXTRA_CLASS_DAY_VALUES.filter((day) => only.classDays.includes(day));
+  const [first] = days;
+  if (!first) return only.name;
+  const words = days.map((day) => DAY_PLURAL[day]);
+  const joined =
+    words.length === 1 ? words[0] : `${words.slice(0, -1).join(", ")} e ${words[words.length - 1]}`;
+  return `${only.name} ${first === "sat" || first === "sun" ? "aos" : "às"} ${joined}`;
+}

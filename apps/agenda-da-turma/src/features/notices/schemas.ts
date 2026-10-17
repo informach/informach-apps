@@ -275,6 +275,10 @@ export const confirmNoticeSchema = z.object({
     .max(30)
     .optional(),
 });
+/** "Mandar para a turma", depois de salvar: as atividades que acabaram de entrar. */
+export const shareSavedWithTurmaSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(30),
+});
 export const updateNoticeActionSchema = z.object({
   id: z.string().uuid(),
   version: z.number().int().positive(),

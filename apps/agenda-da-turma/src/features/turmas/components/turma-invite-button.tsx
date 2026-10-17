@@ -2,7 +2,7 @@
 
 import { Button } from "@informach/ui/components/button";
 import { useHydrated } from "@informach/ui/hooks/use-hydrated";
-import { Share2 } from "lucide-react";
+import { ShareIcon } from "@/components/icons/canvas-icons";
 import { shareTurmaInvite } from "../share-invite";
 
 /** "Convidar": o link da turma para mandar no grupo das famílias. */
@@ -13,12 +13,12 @@ export function TurmaInviteButton({ code, label }: { code: string; label: string
     <Button
       type="button"
       variant="outline"
-      className="min-h-11 shrink-0 rounded-xl font-bold"
+      className="min-h-11 shrink-0 rounded-xl bg-background px-3 font-bold"
       disabled={!hydrated}
       aria-label={`Convidar famílias para a turma ${label}`}
       onClick={() => void shareTurmaInvite({ code, label })}
     >
-      <Share2 className="size-4" aria-hidden />
+      <ShareIcon className="size-[18px]" />
       Convidar
     </Button>
   );

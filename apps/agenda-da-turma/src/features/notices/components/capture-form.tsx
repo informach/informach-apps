@@ -5,7 +5,7 @@ import { Input } from "@informach/ui/components/input";
 import { toast } from "@informach/ui/components/sonner";
 import { SpeechInput } from "@informach/ui/components/speech-input";
 import { cn } from "@informach/ui/lib/utils";
-import { Camera, FileUp, Loader2, Plus } from "lucide-react";
+import { Camera, Check, FileUp, Loader2, Plus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -13,23 +13,28 @@ import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { handleAiHttpError } from "@/features/ai/_http-errors";
 import { todayLocalIso } from "@/features/dashboard/date";
-import {
-  dayMonthLabel,
-  formatClockTime,
-  longDayLabel,
-  shortDayLabel,
-  weekdayLong,
-} from "@/features/dashboard/day-labels";
+import { formatClockTime, longDayLabel, shortDayLabel } from "@/features/dashboard/day-labels";
 import { createStudentProfileAction } from "@/features/students/actions";
-import { StudentAvatar } from "@/features/students/components/student-avatar";
 import type { SubjectOptionsByProfile } from "@/features/subjects/options-service";
 import { ACTIVITY_TYPE_LABELS } from "@/features/unified-activities/activity-types";
 import { catchActionResult } from "@/lib/action-result";
-import { confirmNoticeAction, discardDraftActionAction } from "../actions";
+import {
+  confirmNoticeAction,
+  discardDraftActionAction,
+  shareSavedWithTurmaAction,
+} from "../actions";
 import { draftFromExtractedAction } from "../draft-from-extraction";
 import { readLastChild, rememberLastChild } from "../last-child";
 import { noticeErrorMessage } from "../messages";
+import { takeHandedPhoto } from "../photo-handoff";
 import { buildPdfFromPhotos, MAX_PHOTOS, type Photo } from "../photo-pdf";
+import {
+  countedNoun,
+  firstDueSentence,
+  pluralNoun,
+  remindersSentence,
+  singularNoun,
+} from "../review-words";
 import {
   clampNoticeText,
   confirmNoticeSchema,
@@ -118,10 +123,17 @@ function joinNames(names: string[]) {
 /** O que ficou salvo, para o painel de "Pronto" no lugar do redirecionamento. */
 type SavedSummary = {
   count: number;
+  /** Os tipos do que entrou, para dizer "4 provas" e não "4 atividades". */
+  types: string[];
   profileIds: string[];
   firstDue: string | null;
-  reminders: number;
-  shared: number;
+  /** A frase dos lembretes ("Os lembretes chegam dois dias antes…"), ou vazia. */
+  reminders: string;
+  /** O que acabou de entrar e pode ir para a turma: a pergunta do "Pronto". */
+  shareIds: string[];
+  shareTypes: string[];
+  /** "3º B" quando tudo é de uma turma só. */
+  turma: string | null;
 };
 
 const responseSchema = z.object({
@@ -150,7 +162,22 @@ export function CaptureForm({
   defaultSource = "teams",
   defaultText = "",
   resumeUnavailable = false,
+  viewerId = "",
+  viewerIsOwner = true,
+  ownProfileIds,
+  turmaLabels = {},
 }: {
+  /** Quem está trazendo o recado, para a frase de quem mais vê o original. */
+  viewerId?: string;
+  /** Quem está aqui é o titular: o original "fica só com você". */
+  viewerIsOwner?: boolean;
+  /**
+   * As crianças da própria conta de quem traz o recado. Quem é titular de uma
+   * casa e convidado de outra lê a frase certa para a criança escolhida.
+   */
+  ownProfileIds?: readonly string[];
+  /** "3º B" por criança, para a pergunta "Mandar para a turma do 3º B?". */
+  turmaLabels?: Record<string, string>;
   profiles: RoutineProfile[];
   adults: AssignableAdult[];
   subjectOptions: SubjectOptionsByProfile;
@@ -216,16 +243,16 @@ export function CaptureForm({
    * parâmetro e "Trazer outro recado" precisa limpá-la.
    */
   const [resumed] = useState(Boolean(initialNotice));
-  /**
-   * Compartilhar com a turma nasce marcado quando faz sentido para ela: matéria
-   * da turma, prazo da escola e Pro. Anotação de caderno nunca: ali é a letra
-   * de uma criança, não o enunciado que a escola mandou para todo mundo.
-   */
   /** A criança é de uma casa Pro? (Perfil convidado herda o plano do titular.) */
   const isProForProfile = (pid: string) =>
     proProfileIds.includes(pid) || (ownerIsPro && !initialProfiles.some((p) => p.id === pid));
-  const sharesByDefault = (pid: string, origin: z.infer<typeof noticeSourceSchema>) =>
-    origin !== "notebook" && isProForProfile(pid);
+  /*
+   * Mandar para a turma não nasce marcado na revisão (`defaultShare: false`
+   * abaixo): como no canvas, a
+   * pergunta vem uma vez, no "Pronto" ("Mandar para a turma do 3º B?"), para
+   * o que pode ir (matéria da turma, prazo da escola, casa Pro). Uma caixa
+   * marcada por padrão abria cada linha da revisão para ela ficar à vista.
+   */
   const [sourceUrl, setSourceUrl] = useState("");
   const [publishedAt, setPublishedAt] = useState("");
   // Todo caminho que escreve texto sem passar pelo teclado passa por aqui: o
@@ -261,7 +288,7 @@ export function CaptureForm({
               // aqui era a mesma expressão escrita duas vezes, e retomar um
               // rascunho é exatamente o caminho em que ninguém olharia se as
               // duas tivessem divergido.
-              defaultShare: sharesByDefault(initialNotice.profileId, initialNotice.source),
+              defaultShare: false,
               suggestReminders: suggestReminders && isProForProfile(initialNotice.profileId),
               todayIso: todayLocalIso(),
             },
@@ -277,7 +304,21 @@ export function CaptureForm({
   const [duplicates, setDuplicates] = useState<Array<{ id: string; title: string }>>([]);
   const [allowDuplicates, setAllowDuplicates] = useState(false);
   const [appliedProfileIds, setAppliedProfileIds] = useState<string[]>([]);
+  // "O recado fala só de Clara" nasce desmarcado: o original pode falar de
+  // outras crianças, e mostrá-lo aos outros adultos da casa é escolha de quem
+  // trouxe o recado (regra da fase 3, mantida sobre o desenho do canvas).
   const [shareOriginal, setShareOriginal] = useState(false);
+  /** A pergunta da turma no "Pronto": perguntar, mandando, mandado ou "agora não". */
+  const [shareStep, setShareStep] = useState<"ask" | "sending" | "done" | "skipped">("ask");
+  /** Quantas foram de fato para a turma, pela resposta do servidor. */
+  const [sharedCount, setSharedCount] = useState(0);
+  /**
+   * Para quem é o recado só aparece como escolha quando a folha não disse: o
+   * canvas chega em "Foto para Clara" com a criança já escolhida.
+   */
+  const [askChild] = useState(
+    () => !initialNotice && !initialProfiles.some((p) => p.id === defaultProfileId),
+  );
   const [sourceProfileIds, setSourceProfileIds] = useState<string[]>([]);
   const [publicationReference, setPublicationReference] = useState(
     initialNotice?.extraction.publicationReference ?? null,
@@ -334,10 +375,22 @@ export function CaptureForm({
     };
     // Só na montagem: a leitura consome o que estava guardado.
   }, [captureMode]);
+  // A foto tirada na própria folha "O que chegou?" (ver `photo-handoff.ts`).
+  // Com ela na tela, o foco não vai para a câmera: a foto já está ali.
+  const photoHanded = useRef(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: só na montagem
+  useEffect(() => {
+    if (captureMode !== "foto") return;
+    const handed = takeHandedPhoto();
+    if (!handed) return;
+    photoHanded.current = true;
+    setSource("notebook");
+    void chooseFile(handed);
+  }, []);
   // O caminho escolhido na folha "O que chegou?" decide o que vem primeiro na
   // tela e leva o foco até ele: a câmera, o campo de colar ou o microfone.
   useEffect(() => {
-    if (!captureMode) return;
+    if (!captureMode || photoHanded.current) return;
     const targetId =
       captureMode === "foto"
         ? "notice-camera"
@@ -659,7 +712,7 @@ export function CaptureForm({
           // senão ela responderia "já foi salvo" e não removeria nada.
           actionId: result.data.alreadyConfirmed ? undefined : id,
           ...draftFromExtractedAction(item, profileId, subjectOptions[profileId] ?? [], {
-            defaultShare: sharesByDefault(profileId, source),
+            defaultShare: false,
             suggestReminders: suggestReminders && isPro,
             todayIso: todayLocalIso(),
           }),
@@ -724,19 +777,62 @@ export function CaptureForm({
       .map((item) => item.dueAt)
       .filter((date): date is string => Boolean(date))
       .sort();
+    // O que pode ir para a turma, entre o que acabou de entrar: matéria da
+    // turma, prazo que a escola deu e casa Pro. A gravação confere de novo.
+    const shareable = result.value.ids
+      .map((id, position) => ({
+        id,
+        action: parsed.data.actions[result.value.indices[position] ?? -1],
+      }))
+      .filter((item): item is { id: string; action: NoticeActionInput } =>
+        Boolean(
+          item.action &&
+            !item.action.shareWithTurma &&
+            item.action.subjectId &&
+            item.action.dueAt &&
+            (item.action.dateOrigin === "school" || item.action.dateOrigin === "relative") &&
+            profileTurmas[item.action.profileId] &&
+            isProForProfile(item.action.profileId),
+        ),
+      );
+    const turmas = [...new Set(shareable.map((item) => turmaLabels[item.action.profileId] ?? ""))];
+    setShareStep("ask");
     setSaved({
       count: parsed.data.actions.length,
+      types: parsed.data.actions.map((item) => item.type),
       profileIds: savedProfileIds,
       firstDue: dates[0] ?? null,
-      // Só os que ainda vão chegar: um lembrete que já passou não "chega no
-      // horário marcado".
-      reminders: parsed.data.actions.filter(
-        (item) => item.reminderAt && new Date(item.reminderAt).valueOf() > Date.now(),
-      ).length,
-      shared: parsed.data.actions.filter((item) => item.shareWithTurma).length,
+      // Só os que ainda vão chegar: um lembrete que já passou não chega.
+      reminders: remindersSentence(parsed.data.actions),
+      shareIds: shareable.map((item) => item.id),
+      shareTypes: shareable.map((item) => item.action.type),
+      turma: turmas.length === 1 && turmas[0] ? turmas[0] : null,
     });
     resetToImport();
     window.scrollTo({ top: 0 });
+    router.refresh();
+  }
+
+  /** "Mandar para a turma", no "Pronto": a mesma gravação da edição, uma por atividade. */
+  async function shareSaved() {
+    if (!saved?.shareIds.length) return;
+    setShareStep("sending");
+    const result = await catchActionResult(() =>
+      shareSavedWithTurmaAction({ ids: saved.shareIds }),
+    );
+    if (!result.ok) {
+      setShareStep("ask");
+      toast.error(noticeErrorMessage(result.error.code));
+      return;
+    }
+    setSharedCount(result.value.shared);
+    setShareStep("done");
+    if (result.value.skipped)
+      toast(
+        result.value.skipped === 1
+          ? "Uma não pôde ir para a turma. Ela continua na agenda de vocês."
+          : `${result.value.skipped} não puderam ir para a turma. Elas continuam na agenda de vocês.`,
+      );
     router.refresh();
   }
 
@@ -760,6 +856,8 @@ export function CaptureForm({
   const primary = captureMode ?? "generic";
   const inReview =
     !saved && profiles.length > 0 && !whatsAppMessages && !reading && drafts.length > 0;
+  const importStep =
+    !saved && profiles.length > 0 && !whatsAppMessages && !reading && drafts.length === 0;
   const errorBox = (
     <p role="alert" className="rounded-2xl bg-destructive/10 p-4 text-sm text-destructive-ink">
       {error}
@@ -790,9 +888,9 @@ export function CaptureForm({
   // Fechada quando a leitura já respondeu tudo; aberta quando falta algo que
   // só a pessoa sabe, ou quando é ela quem está escrevendo.
   //
-  // "Mandar para a turma" nasce marcado em algumas atividades, e a regra é que
-  // a caixa fique à vista na revisão: um cartão fechado mandaria para a turma
-  // inteira sem ninguém ver. Lembrete que já passou também abre, com o aviso.
+  // "Mandar para a turma" nasce desmarcado (a pergunta vem no "Pronto"), mas se
+  // a pessoa marcar a caixa, o cartão fica aberto: fechado, mandaria para a
+  // turma inteira sem ninguém ver. Lembrete que já passou também abre, com o aviso.
   const needsAttention = (draft: Draft, index: number) =>
     !noticeId ||
     !draft.value.title.trim() ||
@@ -803,12 +901,36 @@ export function CaptureForm({
   const isOpen = (draft: Draft, index: number) =>
     openDrafts[draft.key] ?? needsAttention(draft, index);
 
+  const isImage = Boolean(attachment?.dataUrl.startsWith("data:image/"));
+  const shownPhoto = photos.at(-1)?.dataUrl ?? (isImage ? attachment?.dataUrl : null) ?? null;
+  const pageNumber = photos.length || (attachment ? 1 : 0);
+  const dictation = primary === "falar";
+
+  const photoInput = (id: string, onFile: (file: File | undefined) => void, disabled = busy) => (
+    <input
+      id={id}
+      className="sr-only"
+      type="file"
+      capture="environment"
+      accept="image/jpeg,image/png,image/webp"
+      disabled={disabled}
+      onChange={(e) => {
+        onFile(e.target.files?.[0]);
+        e.target.value = "";
+      }}
+    />
+  );
   const fileButton = (
     <label
       htmlFor="notice-file"
-      className="inline-flex min-h-14 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-foreground/15 bg-background px-4 text-[15px] font-bold focus-within:ring-2 focus-within:ring-ring hover:bg-muted"
+      className={cn(
+        "inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border px-3.5 text-sm font-bold focus-within:ring-2 focus-within:ring-ring",
+        primary === "foto"
+          ? "border-background/40 text-background hover:bg-background/10"
+          : "border-foreground/15 bg-background hover:bg-muted",
+      )}
     >
-      <FileUp className="size-5" aria-hidden /> Escolher arquivo
+      <FileUp className="size-[18px]" aria-hidden /> Escolher arquivo
       <input
         id="notice-file"
         className="sr-only"
@@ -831,29 +953,20 @@ export function CaptureForm({
   const cameraButton = (
     <label
       htmlFor="notice-camera"
-      className="inline-flex min-h-14 cursor-pointer items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-[15px] font-bold text-primary-foreground shadow-solid-primary focus-within:ring-2 focus-within:ring-ring"
+      className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary px-4 text-[15px] font-bold text-primary-foreground shadow-solid-primary focus-within:ring-2 focus-within:ring-ring"
     >
       <Camera className="size-5" aria-hidden /> Tirar foto
-      <input
-        id="notice-camera"
-        className="sr-only"
-        type="file"
-        capture="environment"
-        accept="image/jpeg,image/png,image/webp"
-        disabled={busy}
-        onChange={(e) => {
-          setSource("notebook");
-          void chooseFile(e.target.files?.[0]);
-          e.target.value = "";
-        }}
-      />
+      {photoInput("notice-camera", (file) => {
+        setSource("notebook");
+        void chooseFile(file);
+      })}
     </label>
   );
   const textField = (
     <label htmlFor="notice-text" className="grid gap-2 text-sm font-semibold">
       {primary === "foto" || source === "notebook"
         ? "Observação para acompanhar a foto (opcional)"
-        : primary === "falar"
+        : dictation
           ? "O que você falou"
           : "Cole a mensagem ou publicação"}
       <textarea
@@ -863,7 +976,7 @@ export function CaptureForm({
           textIsPrimary ? "min-h-40" : "min-h-24",
         )}
         placeholder={
-          primary === "falar"
+          dictation
             ? "O texto do que você falar aparece aqui, para conferir."
             : "Ex.: O passeio será na sexta-feira. Entreguem a autorização até quarta."
         }
@@ -889,8 +1002,8 @@ export function CaptureForm({
   const voiceField = (
     <div
       className={cn(
-        "flex items-center gap-3 rounded-2xl border border-foreground/15 p-3",
-        primary === "falar" && "p-4",
+        "flex items-center gap-3 rounded-2xl border border-foreground/15 bg-background p-3",
+        dictation && "p-4",
       )}
     >
       {/* `SpeechInput` é um botão só de ícone: o rótulo visível vive ao lado, e o
@@ -898,9 +1011,9 @@ export function CaptureForm({
       <SpeechInput
         id="notice-voice"
         type="button"
-        variant={primary === "falar" ? "default" : "outline"}
+        variant={dictation ? "default" : "outline"}
         aria-label="Ditar a atividade"
-        className={cn("shrink-0 rounded-full", primary === "falar" ? "size-16" : "size-11")}
+        className={cn("shrink-0 rounded-full", dictation ? "size-16" : "size-11")}
         disabled={busy || !profileId}
         maxDurationMs={120_000}
         onAudioRecorded={transcribeAudio}
@@ -913,20 +1026,70 @@ export function CaptureForm({
       />
       <p className="text-sm">
         <span className="font-bold">
-          {primary === "falar" ? "Toque e conte o que precisa ser feito." : "Ditar a atividade."}
+          {dictation ? "Toque e conte o que precisa ser feito." : "Ditar a atividade."}
         </span>{" "}
         <span className="text-muted-foreground">
-          O texto aparece {primary === "falar" ? "abaixo" : "no campo"} para você conferir antes de
-          mandar ler.
+          O texto aparece {dictation ? "abaixo" : "no campo"} para você conferir antes de mandar
+          ler.
         </span>
       </p>
     </div>
   );
+  /** As pílulas de criança, só quando a folha não disse para quem é. */
+  const childPills =
+    askChild && profiles.length > 1 ? (
+      <fieldset className="flex flex-wrap items-center gap-2 pb-3">
+        <legend className="sr-only">Para qual criança</legend>
+        <span aria-hidden className="mr-0.5 text-sm font-semibold text-muted-foreground">
+          Para
+        </span>
+        {profiles.map((p) => {
+          const on = p.id === profileId;
+          return (
+            <button
+              key={p.id}
+              type="button"
+              aria-pressed={on}
+              onClick={() => setProfileId(p.id)}
+              className={cn(
+                "inline-flex min-h-10 relative after:absolute after:inset-x-0 after:-inset-y-0.5 after:content-[''] items-center rounded-full px-4 text-sm font-bold",
+                on
+                  ? "bg-foreground text-background"
+                  : "border border-foreground/20 bg-background hover:bg-muted",
+              )}
+            >
+              {p.name}
+            </button>
+          );
+        })}
+      </fieldset>
+    ) : null;
+  // O que fica a confirmar na revisão: as atividades, quem mais acompanha as
+  // crianças delas, e as palavras do título e do botão.
+  const draftTypes = drafts.map((d) => d.value.type);
+  // Todas do mesmo tipo, o título já diz qual ("4 provas"); misturadas, cada
+  // linha diz o seu.
+  const mixedTypes = new Set(draftTypes).size > 1;
+  const otherAdults = [
+    ...new Set(
+      adults
+        .filter((adult) => requiredSourceIds.includes(adult.profileId) && adult.userId !== viewerId)
+        .map((adult) => adult.name.trim().split(/\s+/)[0] ?? adult.name),
+    ),
+  ];
+  const originalWord = isImage ? "a foto" : "o recado";
+  const ownsSource =
+    ownProfileIds && requiredSourceIds.length
+      ? requiredSourceIds.every((id) => ownProfileIds.includes(id))
+      : viewerIsOwner;
+  const keptWith = ownsSource ? "só com você" : "só com você e com quem assina a Agenda";
+  const sticky =
+    "sticky -mx-4 mt-4 border-t border-foreground/15 bg-app-ground px-4 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))]";
 
   return (
-    <div className="space-y-5">
+    <div data-immersive={mode === "capture" ? "" : undefined} className="flex flex-col">
       {resumeUnavailable && !saved ? (
-        <p role="status" className="rounded-2xl bg-muted p-4 text-sm">
+        <p role="status" className="mt-4 rounded-2xl bg-muted p-4 text-sm">
           Aquele recado não está mais esperando conferência: ele foi salvo ou descartado. Dá para
           mandar um recado novo aqui.
         </p>
@@ -935,59 +1098,95 @@ export function CaptureForm({
         <section
           role="status"
           aria-labelledby="capture-saved-title"
-          className="space-y-3 rounded-[20px] border border-foreground/15 bg-background p-5"
+          className="flex min-h-[calc(100dvh-4rem)] flex-col gap-[18px] px-1 pt-10 pb-6 lg:min-h-0"
         >
-          <h2
+          <span className="flex size-16 items-center justify-center rounded-full bg-chart-2/18">
+            <Check className="size-8 text-chart-2-ink" strokeWidth={2.6} aria-hidden />
+          </span>
+          <h1
             id="capture-saved-title"
             ref={savedHeading}
             tabIndex={-1}
-            className="text-2xl font-extrabold tracking-tight outline-none"
+            className="text-[32px] font-extrabold leading-[1.08] tracking-[-0.04em] outline-none"
           >
-            Pronto. {saved.count === 1 ? "1 atividade está" : `${saved.count} atividades estão`}{" "}
+            Pronto. {countedNoun(saved.types)} {saved.count === 1 ? "está" : "estão"}{" "}
             {saved.firstDue ? "na semana" : "na Agenda"} de{" "}
             {joinNames(saved.profileIds.map(profileName).filter(Boolean))}.
-          </h2>
-          <p className="text-[15px] text-muted-foreground">
+          </h1>
+          <p className="text-base leading-normal text-foreground/80">
             {saved.firstDue
-              ? `${saved.count === 1 ? "Ela é para" : "A primeira é para"} ${weekdayLong(saved.firstDue).toLowerCase()}, ${dayMonthLabel(saved.firstDue, todayIso)}.`
+              ? firstDueSentence(saved.count, saved.firstDue, todayIso)
               : "Sem data por enquanto: fica em Para hoje até alguém marcar o dia."}
-            {saved.reminders ? " Os lembretes chegam no horário marcado." : ""}
-            {saved.shared
-              ? saved.shared === 1
-                ? " Uma foi para a turma."
-                : ` ${saved.shared} foram para a turma.`
-              : ""}
+            {saved.reminders ? ` ${saved.reminders}` : ""}
           </p>
-          <div className="flex flex-wrap gap-2">
-            <Button asChild className="min-h-11 rounded-xl font-bold">
-              <Link
-                href={`/calendario?view=week${saved.firstDue ? `&date=${saved.firstDue}` : ""}${saved.profileIds.length === 1 ? `&perfil=${saved.profileIds[0]}` : ""}`}
-              >
-                Ver na semana
-              </Link>
-            </Button>
-            <Button variant="outline" className="min-h-11 rounded-xl" onClick={startOver}>
+          {saved.shareIds.length && shareStep !== "skipped" ? (
+            <div className="mt-1.5 flex flex-col gap-2.5 rounded-[20px] border border-foreground/15 bg-background p-[18px]">
+              {shareStep === "done" ? (
+                <p className="text-[15px] font-bold">
+                  {sharedCount === 0
+                    ? "Nenhuma foi para a turma. Elas continuam na agenda de vocês."
+                    : `${sharedCount === 1 ? "Foi" : "Foram"} para a turma${saved.turma ? ` do ${saved.turma}` : ""}. As outras famílias decidem se aceitam.`}
+                </p>
+              ) : (
+                <>
+                  <h2 className="text-lg font-bold">
+                    Mandar para a turma{saved.turma ? ` do ${saved.turma}` : ""}?
+                  </h2>
+                  <p className="text-sm leading-normal text-foreground/80">
+                    As outras famílias recebem{" "}
+                    {saved.shareIds.length === 1 ? "a mesma" : "as mesmas"}{" "}
+                    {saved.shareIds.length === 1
+                      ? singularNoun(saved.shareTypes)
+                      : pluralNoun(saved.shareTypes)}{" "}
+                    e decidem se aceitam. Se a escola mudar uma data, você corrige para todo mundo.
+                  </p>
+                  <div className="mt-1 flex flex-wrap gap-2.5">
+                    <button
+                      type="button"
+                      disabled={shareStep === "sending"}
+                      onClick={shareSaved}
+                      className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-foreground px-4 text-[15px] font-bold text-background disabled:opacity-60"
+                    >
+                      {shareStep === "sending" ? (
+                        <Loader2 className="size-4 animate-spin" aria-hidden />
+                      ) : null}
+                      Mandar para a turma
+                    </button>
+                    <button
+                      type="button"
+                      disabled={shareStep === "sending"}
+                      onClick={() => setShareStep("skipped")}
+                      className="inline-flex min-h-11 items-center px-3 text-[15px] font-bold hover:underline"
+                    >
+                      Agora não
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : null}
+          <div className="mt-auto flex flex-col gap-2.5 pt-4">
+            <Link
+              href={`/calendario?view=week${saved.firstDue ? `&date=${saved.firstDue}` : ""}${saved.profileIds.length === 1 ? `&perfil=${saved.profileIds[0]}` : ""}`}
+              className="flex min-h-14 items-center justify-center rounded-2xl bg-primary text-[17px] font-extrabold text-primary-foreground shadow-solid-primary"
+            >
+              Ver na semana
+            </Link>
+            <button
+              type="button"
+              onClick={startOver}
+              className="min-h-11 text-[15px] font-bold text-primary-ink hover:underline"
+            >
               Trazer outro recado
-            </Button>
-            <Button asChild variant="ghost" className="min-h-11 rounded-xl">
-              <Link
-                href={
-                  saved.profileIds.length === 1
-                    ? `/atividades?perfil=${saved.profileIds[0]}`
-                    : "/atividades"
-                }
-              >
-                Ver as atividades
-              </Link>
-            </Button>
+            </button>
           </div>
         </section>
       ) : !profiles.length ? (
         <section
           key="create-profile"
-          className="space-y-4 rounded-[20px] border border-foreground/15 bg-background p-5"
+          className="mt-4 space-y-4 rounded-[20px] border border-foreground/15 bg-background p-5"
         >
-          <h2 className="text-xl font-extrabold tracking-tight">Como se chama a criança?</h2>
+          <h1 className="text-xl font-extrabold tracking-tight">Como se chama a criança?</h1>
           <p className="text-sm text-muted-foreground">
             Só o nome basta. Escola, turma e horário podem vir depois.
           </p>
@@ -1010,172 +1209,193 @@ export function CaptureForm({
           </Button>
         </section>
       ) : whatsAppMessages ? (
-        <WhatsAppPicker
-          key="whatsapp-picker"
-          messages={whatsAppMessages}
-          busy={busy}
-          onCancel={() => setWhatsAppMessages(null)}
-          onUse={(picked) => {
-            // O texto leva a data de cada mensagem, e a mais recente vira a
-            // publicação: sem isso, um "entregar amanhã" de terça vira um
-            // prazo de hoje. `setText` corta no teto: dez mensagens longas
-            // passam de 16 000 caracteres com facilidade.
-            setText(buildNoticeTextFromMessages(picked));
-            // Só quando as mensagens escolhidas trazem data: apagar o que a
-            // pessoa digitou à mão seria perder a referência de publicação.
-            const latest = latestMessageDate(picked);
-            if (latest) setPublishedAt(latest);
-            setWhatsAppMessages(null);
-          }}
-        />
+        <div className="mt-4">
+          <WhatsAppPicker
+            key="whatsapp-picker"
+            messages={whatsAppMessages}
+            busy={busy}
+            onCancel={() => setWhatsAppMessages(null)}
+            onUse={(picked) => {
+              // O texto leva a data de cada mensagem, e a mais recente vira a
+              // publicação: sem isso, um "entregar amanhã" de terça vira um
+              // prazo de hoje. `setText` corta no teto: dez mensagens longas
+              // passam de 16 000 caracteres com facilidade.
+              setText(buildNoticeTextFromMessages(picked));
+              // Só quando as mensagens escolhidas trazem data: apagar o que a
+              // pessoa digitou à mão seria perder a referência de publicação.
+              const latest = latestMessageDate(picked);
+              if (latest) setPublishedAt(latest);
+              setWhatsAppMessages(null);
+            }}
+          />
+        </div>
       ) : reading ? (
         <section
           role="status"
           aria-live="polite"
-          className="flex items-start gap-4 rounded-[20px] border border-foreground/15 bg-background p-5"
+          className="flex min-h-[calc(100dvh-6rem)] flex-col items-center justify-center gap-[22px] px-6 text-center lg:min-h-[480px]"
         >
-          <Loader2 className="mt-1 size-6 shrink-0 animate-spin" aria-hidden />
-          <div className="space-y-1">
-            <h2 className="text-xl font-extrabold tracking-tight">Lendo o recado de {childName}</h2>
-            <p className="text-[15px] text-muted-foreground">
-              A Agenda separa uma atividade por matéria e por prazo. Se a escola não deu data, fica
-              a confirmar.
-            </p>
+          <div className="flex gap-2.5" aria-hidden>
+            <span className="size-3.5 rounded-full bg-primary motion-safe:animate-pulse" />
+            <span className="size-3.5 rounded-full bg-primary/55 motion-safe:animate-pulse motion-safe:[animation-delay:200ms]" />
+            <span className="size-3.5 rounded-full bg-primary/25 motion-safe:animate-pulse motion-safe:[animation-delay:400ms]" />
           </div>
+          <h1 className="text-[28px] font-extrabold leading-[1.15] tracking-[-0.03em]">
+            Lendo{" "}
+            {isImage || photos.length ? "a foto" : primary === "colar" ? "a mensagem" : "o recado"}{" "}
+            de {childName}
+          </h1>
+          <p className="text-base leading-[1.55] text-foreground/80">
+            A Agenda separa uma atividade por matéria e por prazo. Se a escola não deu data, fica a
+            confirmar.
+          </p>
         </section>
       ) : !drafts.length ? (
         <section
           key="capture-notice"
           aria-labelledby="capture-title"
-          className="space-y-5 rounded-[20px] border border-foreground/15 bg-background p-4 sm:p-6"
+          className={cn(
+            "flex flex-col",
+            primary === "foto" && "min-h-[calc(100dvh-1rem)] lg:min-h-0",
+          )}
         >
-          <h2 id="capture-title" className="text-xl font-extrabold tracking-tight">
-            {formTitle}
-          </h2>
-          {profiles.length > 1 ? (
-            <fieldset>
-              <legend className="mb-2 text-sm font-semibold text-muted-foreground">
-                Para qual criança?
-              </legend>
-              <div className="flex flex-wrap gap-2">
-                {profiles.map((p) => {
-                  const on = p.id === profileId;
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      aria-pressed={on}
-                      onClick={() => setProfileId(p.id)}
-                      className={cn(
-                        "inline-flex min-h-11 items-center gap-2 rounded-full pl-1.5 pr-4 text-sm font-bold",
-                        on
-                          ? "bg-foreground text-background"
-                          : "border border-foreground/15 bg-background hover:bg-muted",
-                      )}
-                    >
-                      <StudentAvatar name={p.name} size="pill" className="border" />
-                      {p.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </fieldset>
-          ) : null}
+          <div className="-mx-2 flex h-14 items-center justify-between gap-2">
+            <Link
+              href="/dashboard"
+              className="flex min-h-11 items-center px-3 text-[15px] font-bold"
+            >
+              Cancelar
+            </Link>
+            <h1 id="capture-title" className="truncate text-base font-bold">
+              {formTitle}
+            </h1>
+            <span className="w-[84px] shrink-0" aria-hidden />
+          </div>
+          {childPills}
 
           {primary === "foto" ? (
-            <div className="grid gap-2 sm:grid-cols-2">
-              {cameraButton}
-              {fileButton}
+            <div className="relative mt-1 flex h-[calc(100dvh-18.25rem)] min-h-[340px] items-center justify-center overflow-hidden rounded-[22px] bg-foreground lg:h-[480px]">
+              {shownPhoto ? (
+                <>
+                  <Image
+                    src={shownPhoto}
+                    alt="Foto selecionada para leitura"
+                    width={800}
+                    height={1000}
+                    unoptimized
+                    className="max-h-full w-full object-contain"
+                  />
+                  <span className="absolute left-3.5 top-3.5 inline-flex h-7 items-center rounded-full bg-foreground/70 px-2.5 text-[13px] font-bold text-background">
+                    Página {pageNumber} de até {MAX_PHOTOS}
+                  </span>
+                </>
+              ) : attachment ? (
+                <p className="flex items-center gap-2 px-6 text-center text-[15px] font-bold text-background">
+                  <FileUp className="size-5 shrink-0" aria-hidden />
+                  <span className="break-all">{attachment.name}</span>
+                </p>
+              ) : (
+                <div className="flex max-w-[280px] flex-col items-center gap-3 text-center">
+                  {cameraButton}
+                  {fileButton}
+                  <p className="text-sm leading-normal text-background/75">
+                    Fotografe a página inteira, com boa luz e sem cortar as anotações. Agenda de
+                    duas páginas vira um recado só: tire a primeira e toque em Outra página.
+                  </p>
+                </div>
+              )}
             </div>
           ) : null}
-          {primary === "falar" ? voiceField : null}
-          {textIsPrimary ? textField : null}
-          {primary === "colar" ? (
-            <div className="space-y-2">
-              {fileButton}
-              <p className="text-sm text-muted-foreground">
-                Print, PDF ou a conversa exportada do WhatsApp (.txt), sem mídia: você escolhe as
-                mensagens.
-              </p>
-            </div>
-          ) : null}
-          {primary === "generic" || primary === "compartilhado" ? (
-            <div className="space-y-3">
-              <div className="grid gap-2 sm:grid-cols-2">
-                {cameraButton}
-                {fileButton}
-              </div>
-              {voiceField}
+          {primary === "foto" && attachment ? (
+            <div className="flex gap-2.5 pt-3.5">
+              {isImage || photos.length ? (
+                <label
+                  htmlFor="notice-more-photos"
+                  className="inline-flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-foreground/15 bg-background px-3.5 text-sm font-bold focus-within:ring-2 focus-within:ring-ring hover:bg-muted"
+                >
+                  <Plus className="size-[18px]" aria-hidden />
+                  Outra página
+                  {photoInput(
+                    "notice-more-photos",
+                    (file) => void addPhoto(file),
+                    busy || photos.length >= MAX_PHOTOS,
+                  )}
+                </label>
+              ) : null}
+              <label
+                htmlFor="notice-retake"
+                className="inline-flex min-h-11 flex-1 cursor-pointer items-center justify-center rounded-xl border border-foreground/15 bg-background px-3.5 text-sm font-bold focus-within:ring-2 focus-within:ring-ring hover:bg-muted"
+              >
+                {isImage || photos.length ? "Tirar de novo" : "Trocar arquivo"}
+                {photoInput("notice-retake", (file) => {
+                  setSource("notebook");
+                  void chooseFile(file);
+                })}
+              </label>
             </div>
           ) : null}
 
-          {attachment ? (
-            <div className="space-y-3 rounded-2xl border border-foreground/15 p-3">
-              <p className="break-words text-sm font-semibold">
-                {photos.length > 1
-                  ? `${photos.length} páginas, de até ${MAX_PHOTOS}, num PDF só`
-                  : attachment.dataUrl.startsWith("data:image/")
-                    ? `Página 1 de até ${MAX_PHOTOS}`
-                    : `Arquivo: ${attachment.name}`}
-              </p>
-              {attachment.dataUrl.startsWith("data:image/") ? (
-                <Image
-                  src={attachment.dataUrl}
-                  alt="Foto selecionada para leitura"
-                  width={800}
-                  height={600}
-                  unoptimized
-                  className="max-h-72 w-full rounded-xl object-contain"
-                />
+          {primary !== "foto" ? (
+            <div className="mt-1 flex flex-col gap-3">
+              {dictation ? voiceField : null}
+              {textIsPrimary ? textField : null}
+              {primary === "colar" ? (
+                <div className="space-y-2">
+                  {fileButton}
+                  <p className="text-sm text-muted-foreground">
+                    Print, PDF ou a conversa exportada do WhatsApp (.txt), sem mídia: você escolhe
+                    as mensagens.
+                  </p>
+                </div>
               ) : null}
-              <div className="flex flex-wrap gap-2">
-                {photos.length || attachment.dataUrl.startsWith("data:image/") ? (
-                  <label
-                    htmlFor="notice-more-photos"
-                    className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-foreground/15 px-4 text-sm font-bold focus-within:ring-2 focus-within:ring-ring hover:bg-muted"
-                  >
-                    <Plus className="size-4" aria-hidden />
-                    Outra página
-                    <input
-                      id="notice-more-photos"
-                      className="sr-only"
-                      type="file"
-                      capture="environment"
-                      accept="image/jpeg,image/png,image/webp"
-                      disabled={busy || photos.length >= MAX_PHOTOS}
-                      onChange={(e) => {
-                        void addPhoto(e.target.files?.[0]);
-                        e.target.value = "";
-                      }}
+              {primary === "generic" || primary === "compartilhado" ? (
+                <div className="space-y-3">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {cameraButton}
+                    {fileButton}
+                  </div>
+                  {voiceField}
+                </div>
+              ) : null}
+              {attachment ? (
+                <div className="space-y-3 rounded-2xl border border-foreground/15 bg-background p-3">
+                  <p className="break-words text-sm font-semibold">
+                    {photos.length > 1
+                      ? `${photos.length} páginas, de até ${MAX_PHOTOS}, num PDF só`
+                      : isImage
+                        ? `Página 1 de até ${MAX_PHOTOS}`
+                        : `Arquivo: ${attachment.name}`}
+                  </p>
+                  {isImage ? (
+                    <Image
+                      src={attachment.dataUrl}
+                      alt="Foto selecionada para leitura"
+                      width={800}
+                      height={600}
+                      unoptimized
+                      className="max-h-72 w-full rounded-xl object-contain"
                     />
-                  </label>
-                ) : null}
-                <Button
-                  variant="ghost"
-                  className="min-h-11 rounded-xl"
-                  disabled={busy}
-                  onClick={() => {
-                    setAttachment(null);
-                    setPhotos([]);
-                    setPageCount(0);
-                    setPages([]);
-                  }}
-                >
-                  {attachment.dataUrl.startsWith("data:image/") || photos.length
-                    ? "Tirar de novo"
-                    : "Trocar arquivo"}
-                </Button>
-              </div>
+                  ) : null}
+                  <Button
+                    variant="ghost"
+                    className="min-h-11 rounded-xl"
+                    disabled={busy}
+                    onClick={() => {
+                      setAttachment(null);
+                      setPhotos([]);
+                      setPageCount(0);
+                      setPages([]);
+                    }}
+                  >
+                    Trocar arquivo
+                  </Button>
+                </div>
+              ) : null}
             </div>
-          ) : primary === "foto" ? (
-            <p className="text-sm text-muted-foreground">
-              Fotografe a página inteira, com boa luz e sem cortar as anotações. Agenda de duas
-              páginas vira um recado só: tire a primeira e toque em Outra página.
-            </p>
           ) : null}
 
           {pageCount > 0 && !photos.length ? (
-            <fieldset className="space-y-3 rounded-2xl border border-foreground/15 p-4">
+            <fieldset className="mt-3 space-y-3 rounded-2xl border border-foreground/15 bg-background p-4">
               <legend className="px-1 text-sm font-semibold">
                 PDF com {pageCount} páginas. Escolha até 3
               </legend>
@@ -1206,18 +1426,12 @@ export function CaptureForm({
 
           {/* O que quase ninguém precisa mexer fica a um toque, e não entre a
               pessoa e o botão de ler. */}
-          <details className="group rounded-2xl border border-foreground/15">
-            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 text-sm font-bold [&::-webkit-details-marker]:hidden">
-              <span>
-                Mais opções{" "}
-                <span className="font-normal text-muted-foreground">
-                  ({primary === "foto" ? "observação, " : ""}de onde veio, data e link)
-                </span>
-              </span>
-              <span className="text-primary-ink group-open:hidden">Abrir</span>
-              <span className="hidden text-primary-ink group-open:inline">Fechar</span>
+          <details className="mt-2.5 border-t border-foreground/15">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center text-[15px] font-bold [&::-webkit-details-marker]:hidden">
+              Mais opções:{" "}
+              {primary === "foto" ? "observação, data e link" : "de onde veio, data e link"}
             </summary>
-            <div className="grid gap-4 border-t border-foreground/15 p-4">
+            <div className="grid gap-4 pb-3">
               {textIsPrimary ? null : textField}
               <label htmlFor="notice-source" className="grid gap-2 text-sm font-semibold">
                 De onde veio o recado?
@@ -1269,55 +1483,40 @@ export function CaptureForm({
             </div>
           </details>
 
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
+          {error ? <div className="pt-2">{errorBox}</div> : null}
+          <div className="mt-auto flex flex-col gap-2.5 pb-5 pt-3">
+            <button
+              type="button"
+              onClick={extract}
+              disabled={busy || (!text.trim() && !attachment)}
+              className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[17px] font-extrabold text-primary-foreground shadow-solid-primary disabled:opacity-50"
+            >
+              {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
+              Ler o recado
+            </button>
+            <p className="text-center text-[13px] leading-normal text-muted-foreground">
               {isPro
-                ? "Usa 1 leitura, mesmo que vire várias atividades. Ditado usa 2."
-                : "Os primeiros recados são por nossa conta. Depois, o Pro lê 70 por mês."}{" "}
-              Nada é salvo antes de você conferir. Para ler, o conteúdo passa por um serviço de
-              inteligência artificial.
+                ? `Usa ${dictation ? "2 leituras" : "1 leitura"}. Nada é salvo antes de você conferir.`
+                : `Os primeiros recados são por nossa conta. Nada é salvo antes de você conferir.`}{" "}
+              A leitura passa por um serviço de inteligência artificial.
             </p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                onClick={extract}
-                disabled={busy || (!text.trim() && !attachment)}
-                className="min-h-12 rounded-xl px-6 text-base font-extrabold"
-              >
-                {busy ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden /> : null}
-                Ler o recado
-              </Button>
-              <Button
-                variant="ghost"
-                className="min-h-12 rounded-xl"
-                disabled={busy}
-                onClick={() => {
-                  setNoticeId(null);
-                  setWarnings([]);
-                  setAppliedProfileIds([]);
-                  setSourceProfileIds([]);
-                  setShareOriginal(false);
-                  setPublicationReference(null);
-                  resetDecisions();
-                  setDrafts([blankAction(profileId)]);
-                }}
-              >
-                Escrever à mão
-              </Button>
-            </div>
           </div>
         </section>
       ) : (
-        <section key="review-actions" aria-labelledby="review-title" className="space-y-4">
+        <section key="review-actions" aria-labelledby="review-title" className="flex flex-col">
           {mode === "manual" ? null : (
-            <div>
-              <h2 id="review-title" className="text-2xl font-extrabold tracking-tight">
+            <div className="flex flex-col gap-1 px-1 pb-2.5 pt-[18px]">
+              <h1
+                id="review-title"
+                className="text-[26px] font-extrabold leading-[1.1] tracking-[-0.03em]"
+              >
                 {noticeId
-                  ? `A Agenda achou ${drafts.length === 1 ? "1 atividade" : `${drafts.length} atividades`} para ${draftNames}`
+                  ? `Achei ${countedNoun(draftTypes)} para ${draftNames}`
                   : drafts.length === 1
                     ? "Escreva a atividade"
                     : "Escreva as atividades"}
-              </h2>
-              <p className="mt-1 text-[15px] text-muted-foreground">
+              </h1>
+              <p className="text-[15px] text-muted-foreground">
                 {noticeId
                   ? "Confira as datas. O que a escola não disse fica a confirmar."
                   : "Sem leitura: fica como você escrever."}
@@ -1325,14 +1524,14 @@ export function CaptureForm({
             </div>
           )}
           {warnings.length ? (
-            <ul className="list-disc space-y-1 rounded-2xl bg-chart-4/10 p-4 pl-8 text-sm">
+            <ul className="mb-3 list-disc space-y-1 rounded-2xl bg-chart-4/10 p-4 pl-8 text-sm">
               {warnings.map((warning) => (
                 <li key={warning}>{warning}</li>
               ))}
             </ul>
           ) : null}
           {appliedProfileIds.length ? (
-            <p role="status" className="rounded-2xl bg-muted p-4 text-sm">
+            <p role="status" className="mb-3 rounded-2xl bg-muted p-4 text-sm">
               Este recado já foi lido para{" "}
               {joinNames(
                 profiles.filter((p) => appliedProfileIds.includes(p.id)).map((p) => p.name),
@@ -1342,7 +1541,7 @@ export function CaptureForm({
             </p>
           ) : null}
           {publicationReference ? (
-            <div className="rounded-2xl border border-foreground/15 p-4 text-sm">
+            <div className="mb-3 rounded-2xl border border-foreground/15 bg-background p-4 text-sm">
               <p className="font-bold">
                 O recado é de {longDayLabel(publicationReference.date, todayIso).toLowerCase()}.
               </p>
@@ -1354,171 +1553,183 @@ export function CaptureForm({
             </div>
           ) : null}
 
-          {drafts.map((draft, index) => {
-            const subject = subjectFor(draft.value);
-            const open = isOpen(draft, index);
-            const regionId = `${draft.key}-details`;
-            const due = draft.value.dueAt
-              ? `${shortDayLabel(draft.value.dueAt, todayIso)}${draft.value.time ? ` · ${formatClockTime(draft.value.time)}` : ""}`
-              : "Sem data";
-            return (
-              <article
-                key={draft.key}
-                className="overflow-hidden rounded-[20px] border border-foreground/15 bg-background"
-              >
-                <div className="flex items-start gap-3 p-4">
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "mt-2 size-2.5 shrink-0 rounded-full",
-                      subject
-                        ? (DOT_CLASS[subject.colorIndex] ?? "bg-foreground/70")
-                        : "border-[1.5px] border-dashed border-muted-foreground",
-                    )}
-                  />
-                  <div className="min-w-0 flex-1 space-y-0.5">
-                    <h3 className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">
-                      Atividade {index + 1}
-                    </h3>
-                    <p className="break-words text-base font-bold leading-snug">
-                      {draft.value.title.trim() || "Sem título ainda"}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {[
-                        ACTIVITY_TYPE_LABELS[draft.value.type],
-                        subject?.name ?? "Sem matéria",
-                        draft.value.dueAt
-                          ? `${due}, ${ORIGIN_SHORT[draft.value.dateOrigin]}`
-                          : "Sem data, a confirmar",
-                        draft.value.shareWithTurma ? "vai para a turma" : null,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </p>
-                    {draft.subjectHint && !subject ? (
-                      <p className="text-sm font-semibold text-chart-4-ink">
-                        {draft.subjectHint} não está nas matérias de{" "}
-                        {profileName(draft.value.profileId)}.
-                      </p>
-                    ) : null}
-                  </div>
-                  <Button
-                    variant="outline"
-                    className="min-h-11 min-w-16 shrink-0 rounded-xl font-bold"
-                    aria-label={`Tirar a atividade ${index + 1}`}
-                    disabled={busy || (mode === "manual" && drafts.length === 1)}
-                    onClick={() => void removeDraft(draft)}
-                  >
-                    Tirar
-                  </Button>
-                </div>
-                <button
-                  type="button"
-                  aria-expanded={open}
-                  aria-controls={regionId}
-                  aria-label={`${open ? "Fechar os detalhes" : "Ver e mudar os detalhes"} da atividade ${index + 1}`}
-                  onClick={() => setOpenDrafts((current) => ({ ...current, [draft.key]: !open }))}
-                  className="flex min-h-11 w-full items-center border-t border-foreground/15 px-4 text-left text-sm font-bold text-primary-ink hover:bg-muted/60"
-                >
-                  {open ? "Fechar os detalhes" : "Ver e mudar os detalhes"}
-                </button>
-                <div id={regionId} hidden={!open} className="border-t border-foreground/15 p-4">
-                  <ActionFields
-                    subjectOptions={subjectOptions}
-                    profileTurmas={profileTurmas}
-                    subjectHint={draft.subjectHint ?? null}
-                    fromNotice={Boolean(noticeId) && Boolean(draft.actionId)}
-                    prefix={draft.key}
-                    value={draft.value}
-                    onChange={(value) => {
-                      setDrafts((current) =>
-                        current.map((d) => (d.key === draft.key ? { ...d, value } : d)),
-                      );
-                      resetDecisions();
-                    }}
-                    profiles={profiles}
-                    adults={adults}
-                    isPro={
-                      proProfileIds.includes(draft.value.profileId) ||
-                      (ownerIsPro && !initialProfiles.some((p) => p.id === draft.value.profileId))
-                    }
-                  />
-                </div>
-                {corrections.some((c) => c.index === index) ? (
-                  <label className="mx-4 mb-4 grid min-w-0 gap-2 rounded-2xl bg-chart-4/10 p-4 text-sm">
-                    <span className="font-bold">O prazo desta atividade mudou?</span>
-                    <select
-                      className="min-h-11 w-full min-w-0 rounded-xl border bg-background px-3"
-                      aria-label={`Correção da atividade ${index + 1}`}
-                      value={(() => {
-                        const r = resolutions.find((r) => r.index === index);
-                        return r?.kind === "replace" ? r.actionId : (r?.kind ?? "");
-                      })()}
-                      onChange={(e) => {
-                        const selected = corrections.find(
-                          (c) => c.index === index && c.id === e.target.value,
-                        );
-                        setResolutions([
-                          ...resolutions.filter((r) => r.index !== index),
-                          ...(selected
-                            ? [
-                                {
-                                  index,
-                                  kind: "replace" as const,
-                                  actionId: selected.id,
-                                  version: selected.version,
-                                },
-                              ]
-                            : e.target.value === "separate"
-                              ? [{ index, kind: "separate" as const }]
-                              : []),
-                        ]);
-                      }}
+          <ul className="overflow-hidden rounded-[20px] border border-foreground/15 bg-background">
+            {drafts.map((draft, index) => {
+              const subject = subjectFor(draft.value);
+              const open = isOpen(draft, index);
+              const regionId = `${draft.key}-details`;
+              const title = draft.value.title.trim() || "Sem título ainda";
+              return (
+                <li key={draft.key} className="border-t border-foreground/15 first:border-t-0">
+                  <div className="flex items-start gap-3 py-3.5 pl-4 pr-3.5">
+                    {/* A linha inteira abre os detalhes, como tocar numa linha
+                        da agenda: o canvas não tem um "ver detalhes" à parte. */}
+                    <button
+                      type="button"
+                      aria-expanded={open}
+                      aria-controls={regionId}
+                      onClick={() =>
+                        setOpenDrafts((current) => ({ ...current, [draft.key]: !open }))
+                      }
+                      className="flex min-w-0 flex-1 flex-col items-start gap-[5px] rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      <option value="">Escolha o que fazer com este recado</option>
-                      <option value="separate">É outra atividade; manter as duas</option>
-                      {corrections
-                        .filter((c) => c.index === index)
-                        .map((c) => (
-                          <option key={c.id} value={c.id}>
-                            Corrigir: {c.title}, para{" "}
-                            {c.dueAt ? shortDayLabel(c.dueAt, todayIso) : "a confirmar"}
-                          </option>
-                        ))}
-                    </select>
-                    <span className="text-muted-foreground">
-                      Ao corrigir, o que já foi feito e o histórico continuam. O lembrete de antes é
-                      trocado pelo desta revisão.
-                    </span>
-                  </label>
-                ) : null}
-              </article>
-            );
-          })}
+                      <span className="break-words text-base font-bold leading-snug">{title}</span>
+                      <span className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+                        <span
+                          aria-hidden
+                          className={cn(
+                            "size-[9px] shrink-0 rounded-full",
+                            subject
+                              ? (DOT_CLASS[subject.colorIndex] ?? "bg-foreground/70")
+                              : "border-[1.5px] border-dashed border-muted-foreground",
+                          )}
+                        />
+                        {subject?.name ?? "Sem matéria"}
+                        {mixedTypes ? ` · ${ACTIVITY_TYPE_LABELS[draft.value.type]}` : ""}
+                      </span>
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex h-7 items-center rounded-full border border-foreground/15 px-2.5 text-[13px] font-bold">
+                          {draft.value.dueAt
+                            ? `${shortDayLabel(draft.value.dueAt, todayIso)}${draft.value.time ? ` · ${formatClockTime(draft.value.time)}` : ""}`
+                            : "sem data"}
+                        </span>
+                        <span className="text-[13px] font-semibold text-foreground/75">
+                          {draft.value.dueAt ? ORIGIN_SHORT[draft.value.dateOrigin] : "a confirmar"}
+                          {draft.value.shareWithTurma ? " · vai para a turma" : ""}
+                        </span>
+                      </span>
+                      {draft.subjectHint && !subject ? (
+                        <span className="text-[13px] font-semibold leading-[1.4] text-chart-4-ink">
+                          {draft.subjectHint} não está nas matérias de{" "}
+                          {profileName(draft.value.profileId)}.{" "}
+                          <span className="underline">Escolher a matéria</span>
+                        </span>
+                      ) : null}
+                      <span className="sr-only">
+                        {open ? "Fechar os detalhes" : "Ver e mudar os detalhes"}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex min-h-11 min-w-[68px] shrink-0 items-center justify-center rounded-xl border border-foreground/20 px-2.5 text-sm font-bold hover:bg-muted disabled:opacity-50"
+                      aria-label={`Tirar a atividade ${index + 1}`}
+                      disabled={busy || (mode === "manual" && drafts.length === 1)}
+                      onClick={() => void removeDraft(draft)}
+                    >
+                      Tirar
+                    </button>
+                  </div>
+                  <div
+                    id={regionId}
+                    hidden={!open}
+                    className="border-t border-foreground/15 px-4 pb-2 pt-4"
+                  >
+                    <ActionFields
+                      subjectOptions={subjectOptions}
+                      profileTurmas={profileTurmas}
+                      subjectHint={draft.subjectHint ?? null}
+                      fromNotice={Boolean(noticeId) && Boolean(draft.actionId)}
+                      prefix={draft.key}
+                      value={draft.value}
+                      onChange={(value) => {
+                        setDrafts((current) =>
+                          current.map((d) => (d.key === draft.key ? { ...d, value } : d)),
+                        );
+                        resetDecisions();
+                      }}
+                      profiles={profiles}
+                      adults={adults}
+                      isPro={
+                        proProfileIds.includes(draft.value.profileId) ||
+                        (ownerIsPro && !initialProfiles.some((p) => p.id === draft.value.profileId))
+                      }
+                    />
+                    <button
+                      type="button"
+                      className="mt-2 inline-flex min-h-11 items-center text-sm font-bold text-primary-ink hover:underline"
+                      onClick={() =>
+                        setOpenDrafts((current) => ({ ...current, [draft.key]: false }))
+                      }
+                    >
+                      Fechar os detalhes
+                    </button>
+                  </div>
+                  {corrections.some((c) => c.index === index) ? (
+                    <label className="mx-4 mb-4 grid min-w-0 gap-2 rounded-2xl bg-chart-4/10 p-4 text-sm">
+                      <span className="font-bold">O prazo desta atividade mudou?</span>
+                      <select
+                        className="min-h-11 w-full min-w-0 rounded-xl border bg-background px-3"
+                        aria-label={`Correção da atividade ${index + 1}`}
+                        value={(() => {
+                          const r = resolutions.find((r) => r.index === index);
+                          return r?.kind === "replace" ? r.actionId : (r?.kind ?? "");
+                        })()}
+                        onChange={(e) => {
+                          const selected = corrections.find(
+                            (c) => c.index === index && c.id === e.target.value,
+                          );
+                          setResolutions([
+                            ...resolutions.filter((r) => r.index !== index),
+                            ...(selected
+                              ? [
+                                  {
+                                    index,
+                                    kind: "replace" as const,
+                                    actionId: selected.id,
+                                    version: selected.version,
+                                  },
+                                ]
+                              : e.target.value === "separate"
+                                ? [{ index, kind: "separate" as const }]
+                                : []),
+                          ]);
+                        }}
+                      >
+                        <option value="">Escolha o que fazer com este recado</option>
+                        <option value="separate">É outra atividade; manter as duas</option>
+                        {corrections
+                          .filter((c) => c.index === index)
+                          .map((c) => (
+                            <option key={c.id} value={c.id}>
+                              Corrigir: {c.title}, para{" "}
+                              {c.dueAt ? shortDayLabel(c.dueAt, todayIso) : "a confirmar"}
+                            </option>
+                          ))}
+                      </select>
+                      <span className="text-muted-foreground">
+                        Ao corrigir, o que já foi feito e o histórico continuam. O lembrete de antes
+                        é trocado pelo desta revisão.
+                      </span>
+                    </label>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
 
           {noticeId ? (
-            <div className="space-y-3 rounded-[20px] border border-foreground/15 bg-background p-4">
-              <div className="flex items-start gap-3">
+            <div className="px-1 pb-2 pt-4">
+              <label htmlFor="share-original" className="flex cursor-pointer items-start gap-3">
                 <input
                   id="share-original"
                   type="checkbox"
-                  role="switch"
-                  aria-checked={shareOriginal}
-                  className="mt-1 size-5 shrink-0 accent-primary"
+                  className="mt-0.5 size-[22px] shrink-0 accent-primary"
                   checked={shareOriginal}
                   onChange={(e) => setShareOriginal(e.target.checked)}
                 />
-                <label htmlFor="share-original" className="grid gap-0.5 text-sm">
-                  <span className="text-[15px] font-bold">O recado fala só de {sourceNames}</span>
+                <span className="text-sm leading-[1.45]">
+                  <b className="block text-[15px]">O recado fala só de {sourceNames}</b>
                   <span className="text-muted-foreground">
-                    Ligado, quem acompanha {sourceNames} também vê o original. Se ele falar de outra
-                    criança, deixe desligado: aí o original fica só com quem mandou e com quem
-                    assina a Agenda.
+                    Assim{" "}
+                    {otherAdults.length
+                      ? `${joinNames(otherAdults)} também ${otherAdults.length === 1 ? "pode" : "podem"}`
+                      : `quem acompanha ${sourceNames} também pode`}{" "}
+                    ver {originalWord}. Se falar de outra criança, {originalWord} fica {keptWith}.
                   </span>
-                </label>
-              </div>
+                </span>
+              </label>
               {shareOriginal && profiles.some((p) => !requiredSourceIds.includes(p.id)) ? (
-                <fieldset className="space-y-1 border-t border-foreground/15 pt-3">
+                <fieldset className="ml-[34px] mt-3 space-y-1 border-t border-foreground/15 pt-3">
                   <legend className="text-sm font-semibold">
                     O recado também fala de outra criança daqui?
                   </legend>
@@ -1545,20 +1756,68 @@ export function CaptureForm({
             </div>
           ) : null}
 
-          <Button
-            variant="outline"
-            className="min-h-11 rounded-xl"
-            onClick={() => {
-              setDrafts([...drafts, blankAction(profileId)]);
-              resetDecisions();
-            }}
-            disabled={drafts.length >= 30}
-          >
-            <Plus className="mr-2 size-4" aria-hidden />
-            Adicionar atividade
-          </Button>
+          {/* O que o canvas não desenha e a casa ainda precisa: escrever uma
+              que a leitura não achou, deixar para depois e descartar. */}
+          <div className="flex flex-wrap gap-x-4 px-1">
+            <button
+              type="button"
+              className="inline-flex min-h-11 items-center text-sm font-bold text-primary-ink hover:underline disabled:opacity-50"
+              onClick={() => {
+                setDrafts([...drafts, blankAction(profileId)]);
+                resetDecisions();
+              }}
+              disabled={drafts.length >= 30}
+            >
+              Escrever mais uma
+            </button>
+            {mode === "manual" ? (
+              <button
+                type="button"
+                className="inline-flex min-h-11 items-center text-sm font-bold hover:underline"
+                disabled={busy}
+                onClick={() => router.push("/atividades")}
+              >
+                Cancelar
+              </button>
+            ) : noticeId && !noticeConfirmed ? (
+              <>
+                <Link
+                  href="/dashboard"
+                  className="inline-flex min-h-11 items-center text-sm font-bold hover:underline"
+                >
+                  Continuar depois
+                </Link>
+                <button
+                  type="button"
+                  className="inline-flex min-h-11 items-center text-sm font-bold text-destructive-ink hover:underline"
+                  disabled={busy}
+                  onClick={() => setDiscardOpen(true)}
+                >
+                  Descartar o recado
+                </button>
+                <DiscardNoticeDialog
+                  open={discardOpen}
+                  onOpenChange={setDiscardOpen}
+                  noticeId={noticeId}
+                  onDiscarded={() => {
+                    router.push("/dashboard");
+                    router.refresh();
+                  }}
+                />
+              </>
+            ) : (
+              <button
+                type="button"
+                className="inline-flex min-h-11 items-center text-sm font-bold hover:underline"
+                disabled={busy}
+                onClick={resetToImport}
+              >
+                Voltar ao recado
+              </button>
+            )}
+          </div>
           {duplicates.length ? (
-            <div className="space-y-3 rounded-2xl bg-chart-4/10 p-4">
+            <div className="mt-3 space-y-3 rounded-2xl bg-chart-4/10 p-4">
               <p className="font-bold">Parecido com o que já está na agenda</p>
               {duplicates.map((d) => (
                 <Link
@@ -1579,71 +1838,35 @@ export function CaptureForm({
               </label>
             </div>
           ) : null}
-          {/* Na revisão o erro fica junto do botão que o causou, e não no fim
-              da página, depois do aviso de "voltar guarda o recado". */}
-          {error ? errorBox : null}
-          <div className="flex flex-wrap gap-2">
-            <Button
+          {/* Na revisão o erro fica junto do botão que o causou. */}
+          {error ? <div className="mt-3">{errorBox}</div> : null}
+          <div
+            className={cn(
+              sticky,
+              mode === "manual"
+                ? "bottom-[calc(72px+env(safe-area-inset-bottom))] lg:bottom-0"
+                : "bottom-0",
+            )}
+          >
+            <button
+              type="button"
               disabled={busy}
               onClick={save}
-              className="min-h-12 rounded-xl px-6 text-base font-extrabold"
+              className="flex min-h-14 w-full items-center justify-center rounded-2xl bg-primary text-[17px] font-extrabold text-primary-foreground shadow-solid-primary disabled:opacity-60"
             >
-              {busy
-                ? "Salvando…"
-                : `Salvar ${drafts.length} atividade${drafts.length === 1 ? "" : "s"}`}
-            </Button>
-            <Button
-              variant="ghost"
-              className="min-h-12 rounded-xl"
-              disabled={busy}
-              onClick={() => {
-                if (mode === "manual") {
-                  router.push("/atividades");
-                  return;
-                }
-                resetToImport();
-              }}
-            >
-              {mode === "manual" ? "Cancelar" : "Voltar ao recado"}
-            </Button>
-            {mode === "capture" && noticeId && !noticeConfirmed ? (
-              <Button
-                variant="ghost"
-                className="min-h-12 rounded-xl text-destructive-ink hover:text-destructive-ink"
-                disabled={busy}
-                onClick={() => setDiscardOpen(true)}
-              >
-                Descartar recado
-              </Button>
-            ) : null}
+              {busy ? "Salvando…" : `Salvar ${countedNoun(draftTypes)}`}
+            </button>
           </div>
-          {mode === "capture" && noticeId && !noticeConfirmed ? (
-            <>
-              <p className="text-sm text-muted-foreground">
-                Voltar guarda o recado em Hoje, como “ficou sem conferir”, e continuar depois não
-                gasta outra leitura. Para não guardar, descarte o recado.
-              </p>
-              <DiscardNoticeDialog
-                open={discardOpen}
-                onOpenChange={setDiscardOpen}
-                noticeId={noticeId}
-                onDiscarded={() => {
-                  router.push("/dashboard");
-                  router.refresh();
-                }}
-              />
-            </>
-          ) : null}
         </section>
       )}
       {!drafts.length && !reading && !saved && warnings.length ? (
-        <div role="status" className="space-y-2 rounded-2xl bg-chart-4/10 p-4 text-sm">
+        <div role="status" className="mt-3 space-y-2 rounded-2xl bg-chart-4/10 p-4 text-sm">
           {warnings.map((warning) => (
             <p key={warning}>{warning}</p>
           ))}
         </div>
       ) : null}
-      {error && !inReview ? errorBox : null}
+      {error && !inReview && !importStep ? <div className="mt-3">{errorBox}</div> : null}
     </div>
   );
 }

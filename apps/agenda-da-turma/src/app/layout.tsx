@@ -46,8 +46,11 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   // into dynamic rendering too; a statically cached script cannot share it.
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
-      <body className={jakarta.variable} suppressHydrationWarning>
+    // A variável da fonte mora no `<html>`: `--font-sans` é calculada no
+    // `:root` (globals.css), e com a variável só no `<body>` a declaração
+    // inteira caía. O app todo saía na fonte do sistema, e não em Plus Jakarta.
+    <html lang="pt-BR" className={jakarta.variable} suppressHydrationWarning>
+      <body suppressHydrationWarning>
         <ThemeProvider nonce={nonce}>
           {children}
           <Toaster />

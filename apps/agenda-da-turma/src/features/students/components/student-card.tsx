@@ -21,6 +21,8 @@ import { StudentFormDialog } from "./student-form-dialog";
 type Props = {
   currentUserId: string;
   profile: StudentProfileWithActiveTurma;
+  /** "Natação às terças e sábados": no lugar da escola, quando a criança tem extras. */
+  extras?: string | null;
   isPro: boolean;
   currentCount: number;
 };
@@ -39,7 +41,7 @@ const ghost =
  * para ela. O horário e as extras são da conta de quem cadastrou (a turma é do
  * titular, ver o guia do app), então o adulto convidado vê as atividades.
  */
-export function StudentCard({ profile, isPro, currentCount, currentUserId }: Props) {
+export function StudentCard({ profile, extras = null, isPro, currentCount, currentUserId }: Props) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const isOwner = profile.userId === currentUserId;
@@ -59,13 +61,15 @@ export function StudentCard({ profile, isPro, currentCount, currentUserId }: Pro
         <div className="flex items-center gap-3.5">
           <StudentAvatar name={profile.name} size="lg" className="shrink-0" />
           <div className="min-w-0 flex-1">
-            <h2 id={`crianca-${profile.id}`} className="truncate text-xl font-extrabold">
+            <h2 id={`crianca-${profile.id}`} className="truncate text-xl font-bold">
               {profile.name}
             </h2>
-            <p className="text-sm leading-snug text-muted-foreground">
+            {/* A segunda linha é o que muda a semana: as extras quando há,
+                a escola quando não, como nas duas folhas da prancha. */}
+            <p className="text-sm leading-[1.4] text-muted-foreground">
               {facts.join(" · ")}
-              {profile.activeTurma ? (
-                <span className="block truncate">{profile.activeTurma.schoolName}</span>
+              {extras || profile.activeTurma ? (
+                <span className="block truncate">{extras ?? profile.activeTurma?.schoolName}</span>
               ) : null}
             </p>
           </div>

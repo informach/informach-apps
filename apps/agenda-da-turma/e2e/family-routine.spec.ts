@@ -103,18 +103,14 @@ test("two adults, private child access, completion, revocation and confirmed del
   await page.goto("/recados/novo");
   await page.getByLabel("Nome", { exact: true }).fill("Criança A fictícia");
   await page.getByRole("button", { name: "Adicionar criança", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Escrever à mão" })).toBeEnabled();
-  await page.getByRole("button", { name: "Escrever à mão" }).click();
+  // Com a criança criada, a tela do recado segue para o recado; escrever à mão
+  // é o caminho "Escrever" da folha, o formulário de sempre.
+  await expect(page.getByRole("button", { name: "Ler o recado", exact: true })).toBeVisible();
+  await page.goto("/atividades/nova");
   await page.getByLabel("Atividade", { exact: true }).fill("Preparar mochila fictícia");
   await page.getByRole("combobox", { name: "Tipo", exact: true }).selectOption("material");
-  await page.getByRole("button", { name: "Salvar 1 atividade", exact: true }).click();
-  await expect(
-    page.getByRole("heading", {
-      name: "Pronto. 1 atividade está na Agenda de Criança A fictícia.",
-    }),
-  ).toBeVisible();
-  await page.getByRole("link", { name: "Ver as atividades", exact: true }).click();
-  await expect(page).toHaveURL(/atividades/);
+  await page.getByRole("button", { name: "Salvar 1 material", exact: true }).click();
+  await expect(page).toHaveURL(/\/atividades\?perfil=/);
   await expect(
     page.getByRole("link", { name: "Preparar mochila fictícia", exact: true }),
   ).toBeVisible();

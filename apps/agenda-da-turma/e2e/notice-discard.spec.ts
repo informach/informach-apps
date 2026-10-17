@@ -98,14 +98,16 @@ test("discarding a draft persists: trash in the review, and discard from the das
     // A lixeira da revisão chega ao servidor: recarregar não traz a ação de volta.
     const draft = await seedDraft(id, profileId, ["Fazer páginas 20 e 21", "Levar tesoura"]);
     await page.goto(`/recados/novo?retomar=${draft.id}`);
-    await expect(page.getByRole("heading", { name: "Atividade 2", exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Tirar a atividade 1", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Atividade 2", exact: true })).toHaveCount(0);
-    // A atividade lida aparece em cartão curto: o título, sem o formulário aberto.
+    const tirar = (n: number) =>
+      page.getByRole("button", { name: `Tirar a atividade ${n}`, exact: true });
+    await expect(tirar(2)).toBeVisible();
+    await tirar(1).click();
+    await expect(tirar(2)).toHaveCount(0);
+    // A atividade lida aparece numa linha curta: o título, sem o formulário aberto.
     await expect(page.getByText("Levar tesoura", { exact: true })).toBeVisible();
     await page.reload();
-    await expect(page.getByRole("heading", { name: "Atividade 1", exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Atividade 2", exact: true })).toHaveCount(0);
+    await expect(tirar(1)).toBeVisible();
+    await expect(tirar(2)).toHaveCount(0);
     await expect(page.getByText("Levar tesoura", { exact: true })).toBeVisible();
     expect(await statusOf(draft.id)).toBe("ready");
 
@@ -124,8 +126,8 @@ test("discarding a draft persists: trash in the review, and discard from the das
     // escreveu à mão nesta tela.
     const withManual = await seedDraft(id, profileId, ["Estudar para a prova"]);
     await page.goto(`/recados/novo?retomar=${withManual.id}`);
-    await page.getByRole("button", { name: "Adicionar atividade", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Atividade 2", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Escrever mais uma", exact: true }).click();
+    await expect(tirar(2)).toBeVisible();
     // A atividade lida fica fechada; a nova, escrita aqui, abre o formulário.
     await page.getByRole("textbox", { name: "Atividade", exact: true }).fill("Comprar cartolina");
     await page.getByRole("button", { name: "Tirar a atividade 1", exact: true }).click();

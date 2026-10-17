@@ -4,6 +4,7 @@ import { Card, CardContent } from "@informach/ui/components/card";
 import { Users } from "lucide-react";
 import Link from "next/link";
 import { TurmaInviteButton } from "@/features/turmas/components/turma-invite-button";
+import { SHEET_LINK } from "@/features/unified-activities/components/activity-list";
 import type { StudentProfileWithActiveTurma } from "../types";
 import { NewStudentButton } from "./new-student-button";
 import { StudentCard } from "./student-card";
@@ -20,6 +21,8 @@ export type Caretakers = {
 type Props = {
   currentUserId: string;
   profiles: StudentProfileWithActiveTurma[];
+  /** "Natação às terças e sábados", por criança; `null` mostra a escola. */
+  extrasByProfile?: Record<string, string | null>;
   isPro: boolean;
   currentCount: number;
   limit: number;
@@ -29,6 +32,19 @@ type Props = {
   turmaInvites: Array<{ id: string; code: string; label: string }>;
 };
 
+/** As iniciais do adulto ("AN", "LE"), no círculo cinza da prancha. */
+function AdultInitials({ name }: { name: string }) {
+  const first = name.trim().split(/\s+/)[0] ?? name;
+  return (
+    <span
+      aria-hidden
+      className="flex size-9 shrink-0 items-center justify-center rounded-full bg-card text-[13px] font-extrabold uppercase"
+    >
+      {first.slice(0, 2)}
+    </span>
+  );
+}
+
 function listNames(names: string[]) {
   if (names.length <= 1) return names.join("");
   return `${names.slice(0, -1).join(", ")} e ${names[names.length - 1]}`;
@@ -36,6 +52,7 @@ function listNames(names: string[]) {
 
 export function StudentsSection({
   profiles,
+  extrasByProfile = {},
   isPro,
   currentCount,
   limit,
@@ -71,6 +88,7 @@ export function StudentsSection({
           currentUserId={currentUserId}
           key={profile.id}
           profile={profile}
+          extras={extrasByProfile[profile.id] ?? null}
           isPro={isPro}
           currentCount={currentCount}
         />
@@ -91,26 +109,29 @@ export function StudentsSection({
           className="overflow-hidden rounded-[20px] border border-foreground/15 bg-background"
         >
           <div className="flex items-baseline justify-between gap-3 px-[18px] pb-1.5 pt-4">
-            <h2 id="quem-cuida" className="text-[19px] font-extrabold">
+            <h2 id="quem-cuida" className="text-[19px] font-bold">
               Quem cuida junto
             </h2>
-            <Link
-              href="/familia/adultos"
-              className="inline-flex min-h-11 items-center text-sm font-bold text-primary-ink"
-            >
+            <Link href="/familia/adultos" className={SHEET_LINK}>
               {caretakers.other || caretakers.pendingInvites ? "Mudar" : "Convidar"}
             </Link>
           </div>
           <ul>
-            <li className="border-t border-foreground/15 px-[18px] py-3 text-[15px]">
-              <b>{caretakers.you}</b> · você
+            <li className="flex items-center gap-3 border-t border-foreground/15 px-[18px] py-3 text-[15px]">
+              <AdultInitials name={caretakers.you} />
+              <span>
+                <b>{caretakers.you}</b> · você
+              </span>
             </li>
             {caretakers.other ? (
-              <li className="border-t border-foreground/15 px-[18px] py-3 text-[15px]">
-                <b>{caretakers.other.name}</b> ·{" "}
-                {caretakers.other.sees.length
-                  ? `vê ${listNames(caretakers.other.sees)}`
-                  : "ainda não vê nenhuma criança"}
+              <li className="flex items-center gap-3 border-t border-foreground/15 px-[18px] py-3 text-[15px]">
+                <AdultInitials name={caretakers.other.name} />
+                <span>
+                  <b>{caretakers.other.name}</b> ·{" "}
+                  {caretakers.other.sees.length
+                    ? `vê ${listNames(caretakers.other.sees)}`
+                    : "ainda não vê nenhuma criança"}
+                </span>
               </li>
             ) : null}
             {caretakers.pendingInvites ? (
@@ -137,7 +158,7 @@ export function StudentsSection({
           aria-labelledby={`turma-${turma.id}`}
           className="flex items-center gap-3 rounded-[20px] border border-foreground/15 bg-background px-[18px] py-4"
         >
-          <div className="min-w-0 flex-1 text-[15px] leading-snug">
+          <div className="min-w-0 flex-1 text-[15px] leading-[1.45]">
             <h2 id={`turma-${turma.id}`} className="font-bold">
               Turma do {turma.label}
             </h2>

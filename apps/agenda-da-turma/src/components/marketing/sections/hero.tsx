@@ -1,111 +1,126 @@
-import { Share2 } from "lucide-react";
-import styles from "../sales.module.css";
+import { cn } from "@informach/ui/lib/utils";
+import { BackpackIcon, ShareIcon } from "@/components/icons/canvas-icons";
+import {
+  CHECK,
+  CHIP,
+  DOT,
+  EYEBROW,
+  GRID2,
+  LEAD,
+  META,
+  Phone,
+  ROW,
+  SHEET,
+  WRAP,
+} from "../landing-ui";
 import { SalesCta, TrialNote } from "../sales-cta";
 
 const POSTER = [
-  { subject: "Português", date: "22/10", topic: "interpretação", dot: "bg-chart-2" },
-  { subject: "Matemática", date: "27/10", topic: "tabuada", dot: "bg-chart-1" },
-  { subject: "Ciências", date: "29/10", topic: "ciclo da água", dot: "bg-chart-3" },
-  { subject: "Inglês", date: "30/10", topic: "unit 4", dot: "bg-chart-5" },
+  "Português · 22/10 · interpretação",
+  "Matemática · 27/10 · tabuada",
+  "Ciências · 29/10 · ciclo da água",
+  "Inglês · 30/10 · unit 4",
 ];
 
 const TODAY = [
   {
     title: "Enviar autorização do passeio",
     meta: "Autorização · Clara",
+    dot: null,
     chip: "Passou",
-    tone: "late",
+    tone: "bg-destructive/14 text-destructive-ink",
   },
-  { title: "Páginas 32 e 33 do livro", meta: "Matemática · Clara", chip: "Hoje", tone: "today" },
+  {
+    title: "Páginas 32 e 33 do livro",
+    meta: "Matemática · Clara",
+    dot: "bg-chart-1",
+    chip: "Hoje",
+    tone: "bg-foreground text-background",
+  },
   {
     title: "Exercícios 1 a 10 da apostila",
     meta: "Matemática · Miguel",
+    dot: "bg-chart-1",
     chip: "Hoje",
-    tone: "today",
+    tone: "bg-foreground text-background",
   },
-] as const;
+];
 
 /**
- * O que chega e o que vira: o cartaz de provas e a mensagem do grupo à
- * esquerda, a página do dia no celular à direita. São telas desenhadas para
- * explicar, com nomes de exemplo, e não fotos do app de alguém.
+ * O que chega e o que vira, como na prancha: o cartaz de provas escrito à mão,
+ * a mensagem do grupo e o "Compartilhar com a Agenda" à esquerda, e a página
+ * do dia no celular à direita. No celular a cena inteira encolhe (`zoom`),
+ * como no canvas, em vez de se rearrumar.
  */
-function HeroVisual() {
+function HeroArt() {
   return (
-    <div className="relative mx-auto grid w-full max-w-[560px] gap-4 sm:grid-cols-[1fr_1fr] sm:items-start">
-      <div className="space-y-4">
-        <figure className="rotate-[-1.5deg] rounded-2xl border border-foreground/15 bg-chart-4/10 p-4">
-          <figcaption className="text-[13px] font-extrabold uppercase tracking-wider">
-            Avaliações · 3º ano B
-          </figcaption>
-          <ul className="mt-2 space-y-1.5 font-mono text-[13px]">
-            {POSTER.map((row) => (
-              <li key={row.subject}>
-                {row.subject} · {row.date} · {row.topic}
-              </li>
-            ))}
-          </ul>
-        </figure>
-        <figure className="rounded-2xl border border-foreground/15 bg-background p-4">
-          <figcaption className="text-[13px] font-bold text-muted-foreground">
-            Grupo das famílias · 3º B
-          </figcaption>
-          <p className="mt-2 rounded-xl rounded-tl-sm bg-chart-2/15 px-3 py-2 text-[14px] leading-snug">
-            O passeio ao museu é quarta, às 8h. Autorização assinada até terça!
-          </p>
-          <p className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-bold">
-            <Share2 className="size-4" aria-hidden />
-            Compartilhar com a Agenda
-          </p>
-        </figure>
+    <div
+      role="img"
+      aria-label="Um cartaz de provas virando a página do dia no celular"
+      className="relative mx-auto h-[640px] w-[540px] max-[760px]:[zoom:0.64] max-[380px]:[zoom:0.5]"
+    >
+      <div className="absolute left-0 top-10 w-[270px] -rotate-[5deg] rounded-md border border-foreground/15 bg-background px-5 pb-6 pt-[22px] text-sm leading-normal shadow-[0_14px_30px_-12px_color-mix(in_oklch,var(--foreground)_30%,transparent)]">
+        <div className="absolute -top-3 left-[100px] h-6 w-[76px] rotate-[3deg] rounded-sm bg-chart-4/30" />
+        <div className="mb-2.5 text-[15px] font-extrabold">Avaliações · 3º ano B</div>
+        <div className="flex flex-col gap-1 font-[family-name:var(--font-caveat)] text-[22px] leading-[1.25] text-foreground/90">
+          {POSTER.map((line) => (
+            <span key={line}>{line}</span>
+          ))}
+        </div>
       </div>
-      <figure
-        aria-label="A página do dia no celular, com dados de exemplo"
-        className="rounded-[28px] border-[6px] border-foreground bg-background p-3 shadow-solid"
-      >
-        <p className="text-[12px] font-semibold text-muted-foreground">Bom dia, Ana</p>
-        <p className="text-[22px] font-extrabold leading-tight tracking-tight">Segunda, 19</p>
-        <p className="mt-1 text-[12.5px] leading-snug text-muted-foreground">
-          Três coisas para hoje e uma que passou do prazo.
-        </p>
-        <div className="mt-2.5 overflow-hidden rounded-2xl border border-foreground/15">
-          <p className="flex items-baseline justify-between px-3 pb-1 pt-2.5 text-[15px] font-extrabold">
-            Para hoje <span className="text-[12px] font-bold text-muted-foreground">4</span>
-          </p>
-          <ul>
+      <div className="absolute left-[18px] top-[330px] w-[250px] rounded-[18px] rounded-bl-[4px] border border-foreground/15 bg-background px-4 py-3.5 shadow-[0_10px_24px_-14px_color-mix(in_oklch,var(--foreground)_35%,transparent)]">
+        <div className="mb-1 text-xs font-extrabold text-chart-2-ink">
+          Grupo das famílias · 3º B
+        </div>
+        <div className="text-sm leading-[1.45]">
+          O passeio ao museu é quarta, às 8h. Autorização assinada até terça!
+        </div>
+      </div>
+      <div className="absolute left-[150px] top-[470px] flex items-center gap-2 rounded-full border border-foreground/15 bg-background px-3.5 py-2 text-sm font-bold text-primary-ink">
+        <ShareIcon className="size-[18px]" strokeWidth={2.2} />
+        Compartilhar com a Agenda
+      </div>
+      <Phone className="absolute right-0 top-0">
+        <div className="flex flex-col gap-1.5 px-5 pt-[22px]">
+          <span className="text-[15px] text-muted-foreground">Bom dia, Ana</span>
+          <span className="text-[44px] font-extrabold leading-none tracking-[-0.045em]">
+            Segunda, 19
+          </span>
+          <span className="mt-1 text-base leading-[1.45] text-foreground/80">
+            Três coisas para hoje e uma que passou do prazo.
+          </span>
+        </div>
+        <div className="px-4 pt-[18px]">
+          <div className={cn(SHEET, "overflow-hidden rounded-[18px]")}>
+            <div className="flex items-center justify-between px-4 py-3.5">
+              <b className="text-[19px]">Para hoje</b>
+              <span className="text-sm text-muted-foreground">4</span>
+            </div>
             {TODAY.map((item) => (
-              <li
-                key={item.title}
-                className="flex items-start gap-2 border-t border-foreground/15 px-3 py-2"
-              >
-                <span
-                  aria-hidden
-                  className="mt-0.5 size-4 shrink-0 rounded-full border-2 border-foreground/40"
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[12.5px] font-bold leading-snug">{item.title}</span>
-                  <span className="block text-[11px] text-muted-foreground">{item.meta}</span>
-                </span>
-                <span
-                  className={
-                    item.tone === "late"
-                      ? "rounded-full bg-destructive/15 px-2 py-0.5 text-[10.5px] font-bold text-destructive-ink"
-                      : "rounded-full bg-foreground px-2 py-0.5 text-[10.5px] font-bold text-background"
-                  }
-                >
-                  {item.chip}
-                </span>
-              </li>
+              <div key={item.title} className={ROW}>
+                <span className={CHECK} />
+                <div className="min-w-0 flex-1">
+                  <b className="text-base">{item.title}</b>
+                  <div className={META}>
+                    {item.dot ? <span className={`${DOT} ${item.dot}`} /> : null}
+                    {item.meta}
+                  </div>
+                </div>
+                <span className={`${CHIP} ${item.tone}`}>{item.chip}</span>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
-        <div className="mt-2.5 rounded-2xl border border-foreground/15 px-3 py-2.5">
-          <p className="text-[14px] font-extrabold">Amanhã, terça</p>
-          <p className="text-[12px] text-muted-foreground">
-            Rolo de papel e cola, e a touca da natação
-          </p>
+        <div className="px-4 pt-3.5">
+          <div className={cn(SHEET, "flex flex-col gap-2.5 rounded-[18px] px-4 py-3.5")}>
+            <b className="text-[19px]">Amanhã, terça</b>
+            <div className="flex items-center gap-2.5 text-[15px]">
+              <BackpackIcon className="size-5 shrink-0" />
+              <span>Rolo de papel e cola, e a touca da natação</span>
+            </div>
+          </div>
         </div>
-      </figure>
+      </Phone>
     </div>
   );
 }
@@ -115,61 +130,53 @@ const CHANNELS = ["grupo do WhatsApp", "Teams", "Batista ID", "agenda de papel",
 export function Hero() {
   return (
     <>
-      <section
-        aria-labelledby="hero-title"
-        className={[
-          styles.wrap,
-          "grid gap-10 pb-14 pt-6 lg:grid-cols-[1.05fr_1fr] lg:items-center lg:pt-12",
-        ].join(" ")}
-      >
-        <div className="space-y-5">
-          <p className="text-[13px] font-extrabold uppercase tracking-[0.14em] text-primary-ink">
-            Para famílias com filhos do 1º ao 9º ano
-          </p>
-          <h1
-            id="hero-title"
-            className="text-balance text-[40px] font-extrabold leading-[1.05] tracking-tight sm:text-[56px]"
-          >
-            A rotina da escola não precisa morar na sua{" "}
-            <em className="not-italic text-primary-ink">cabeça.</em>
-          </h1>
-          <p className="max-w-[34rem] text-[17px] leading-relaxed text-foreground/85">
-            Chegou recado no grupo, tem foto da agenda na galeria, veio o cartaz de provas? Mande do
-            jeito que chegou. A Agenda separa o que é para fazer, até quando e o que vai na mochila,
-            e você confere antes de salvar.
-          </p>
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-            <SalesCta placement="hero" />
-            <a
-              href="#demonstracao"
-              className="inline-flex min-h-11 items-center font-bold text-primary-ink underline-offset-4 hover:underline"
+      <section aria-labelledby="hero-title" className="pb-14 pt-[72px]">
+        <div className={`${WRAP} ${GRID2}`}>
+          <div className="flex flex-col gap-[26px]">
+            <p className={EYEBROW}>Para famílias com filhos do 1º ao 9º ano</p>
+            <h1
+              id="hero-title"
+              className="m-0 text-balance text-[46px] font-extrabold leading-[0.98] tracking-[-0.05em] min-[761px]:text-[clamp(46px,6vw,82px)]"
             >
-              Fazer o teste aqui
-            </a>
+              A rotina da escola não precisa morar na sua{" "}
+              <span className="text-primary">cabeça.</span>
+            </h1>
+            <p className={LEAD}>
+              Chegou recado no grupo, tem foto da agenda na galeria, veio o cartaz de provas? Mande
+              do jeito que chegou. A Agenda separa o que é para fazer, até quando e o que vai na
+              mochila, e você confere antes de salvar.
+            </p>
+            <div className="flex flex-wrap items-center gap-3.5">
+              <SalesCta placement="hero" arrow />
+              <a
+                href="#demonstracao"
+                className="px-1.5 py-3 text-base font-bold text-foreground underline hover:text-primary-ink"
+              >
+                Fazer o teste aqui
+              </a>
+            </div>
+            <TrialNote />
           </div>
-          <TrialNote />
+          <HeroArt />
         </div>
-        <HeroVisual />
       </section>
-      <div className="border-y border-foreground/15 bg-muted/40">
-        <div
-          className={[styles.wrap, "flex flex-wrap items-center gap-x-4 gap-y-3 py-5"].join(" ")}
-        >
-          <p className="text-[15px] font-bold">
+      <section className="border-y border-foreground/15 bg-background">
+        <div className={`${WRAP} flex flex-wrap items-center justify-between gap-5 py-[26px]`}>
+          <p className="max-w-[560px] text-[17px] font-semibold leading-normal">
             A escola não precisa mudar nada. O recado vem de onde já vem:
           </p>
-          <ul className="flex flex-wrap gap-2">
+          <ul className="flex flex-wrap gap-2.5">
             {CHANNELS.map((channel) => (
               <li
                 key={channel}
-                className="rounded-full border border-foreground/15 bg-background px-3 py-1 text-sm font-semibold"
+                className={cn(CHIP, "h-10 border border-foreground/15 px-4 text-[15px]")}
               >
                 {channel}
               </li>
             ))}
           </ul>
         </div>
-      </div>
+      </section>
     </>
   );
 }

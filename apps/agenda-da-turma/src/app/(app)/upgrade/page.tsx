@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { UpgradeOffer } from "@/features/billing/components/upgrade-offer";
 import {
+  FREE_TRIAL_READS,
   PRO_ADULTS,
   PRO_READS_PER_MONTH,
   parseCycleQueryParam,
@@ -64,7 +65,9 @@ export default async function UpgradePage({
   const ownsChildren = profiles.some((profile) => profile.userId === user.id);
   if (family.enabled && !ownsChildren) {
     return (
-      <main className="mx-auto w-full max-w-md space-y-3 px-4 py-10">
+      // Sem rodapé nesta tela (o BottomNav some em /upgrade): `data-immersive`
+      // tira a reserva de altura dele, e "Voltar para Hoje" é a saída.
+      <main data-immersive className="mx-auto w-full max-w-md space-y-3 px-4 py-10">
         <h1 className="text-[28px] font-extrabold leading-tight tracking-tight">
           A casa já tem o Pro.
         </h1>
@@ -82,11 +85,16 @@ export default async function UpgradePage({
   }
 
   const trialEnded = entitlement.trialLeft === 0;
+  // "para Clara" quando a casa tem uma criança só; com mais, "para vocês".
+  const ownChildren = profiles.filter((profile) => profile.userId === user.id);
+  const forWhom = ownChildren.length === 1 ? (ownChildren[0]?.name ?? "vocês") : "vocês";
   // `Object.hasOwn`, e não `in`: `?motivo=toString` acharia o protótipo.
   const known =
     reason && Object.hasOwn(REASONS, reason) ? REASONS[reason as keyof typeof REASONS] : null;
   const { title, description } = known ?? {
-    title: trialEnded ? "Os recados de teste acabaram." : "O Pro é para a casa inteira.",
+    title: trialEnded
+      ? `Os ${FREE_TRIAL_READS} recados de teste acabaram.`
+      : "O Pro é para a casa inteira.",
     description: trialEnded
       ? `${
           entitlement.organizedFromNotices > 0
@@ -94,14 +102,14 @@ export default async function UpgradePage({
                 entitlement.organizedFromNotices === 1
                   ? "1 atividade"
                   : `${entitlement.organizedFromNotices} atividades`
-              } para vocês. `
+              } para ${forWhom}. `
             : ""
         }Para continuar mandando recados para ela ler, o Pro tem ${PRO_READS_PER_MONTH} leituras por mês.`
       : `Até ${PRO_STUDENT_PROFILE_LIMIT} crianças, ${PRO_ADULTS} adultos, ${PRO_READS_PER_MONTH} recados lidos por mês, resumos e lembretes.`,
   };
 
   return (
-    <main className="flex w-full justify-center px-4 py-8 md:py-14">
+    <main className="flex w-full justify-center px-4 pb-6 pt-[18px] md:py-14">
       <UpgradeOffer
         title={title}
         description={description}

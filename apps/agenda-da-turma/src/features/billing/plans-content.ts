@@ -69,7 +69,7 @@ export const FREE_FEATURES: PlanFeature[] = [
   },
   { label: "Recebe o que a turma manda", included: true },
   { label: "Hoje, semana, plano de estudo e a vez da criança", included: true },
-  { label: "Resumos, lembretes e segundo adulto", included: false },
+  { label: "Sem resumos, lembretes e segundo adulto", included: false },
 ];
 export const PRO_FEATURES: PlanFeature[] = [
   {
@@ -89,21 +89,54 @@ export const PRO_FEATURES: PlanFeature[] = [
   { label: "A agenda no calendário do celular e a semana para imprimir", included: true },
 ];
 
+/**
+ * As quatro linhas do Pro na tela de assinar do app (`/upgrade`), como no
+ * canvas: mais curtas que as da página de vendas, que explica o plano inteiro.
+ */
+export const PRO_OFFER_FEATURES: PlanFeature[] = [
+  { label: `${PRO_READS_PER_MONTH} recados lidos por mês`, included: true },
+  {
+    label: `Até ${PRO_STUDENT_PROFILE_LIMIT} crianças e um segundo adulto com login próprio`,
+    included: true,
+  },
+  { label: "Resumo do dia e da semana, e lembretes no celular", included: true },
+  { label: "Mandar atividades para a turma", included: true },
+];
+
+const MONTH_WORDS: Record<number, string> = { 9: "Nove", 10: "Dez", 11: "Onze" };
+
 export const PRICING: Record<
   BillingCycle,
-  { price: string; period: string; note: string; tabLabel: string }
+  {
+    price: string;
+    period: string;
+    /** "por mês", ao lado do preço na tela de assinar do app. */
+    periodWords: string;
+    note: string;
+    tabLabel: string;
+    /** O rótulo curto do ciclo no app ("Anual: 10 meses, use 12"). */
+    shortTabLabel: string;
+    /** A conta por extenso, na página de vendas ("Dez vezes R$ 19,90, cobrado uma vez por ano."). */
+    landingNote: string;
+  }
 > = {
   monthly: {
     price: BRL.format(monthlyCents / 100),
     period: "/mês",
+    periodWords: "por mês",
     note: "Cobrado todo mês.",
     tabLabel: "Mensal",
+    shortTabLabel: "Mensal",
+    landingNote: "Cobrado todo mês.",
   },
   annual: {
     price: BRL.format(annualCents / 100),
     period: "/ano",
+    periodWords: "por ano",
     note: `Cobrado anualmente. Equivale a ${BRL.format(annualMonthlyEquivalentCents / 100)} por mês, ${BRL.format((monthlyCents * 12 - annualCents) / 100)} a menos no ano.`,
     tabLabel: ANNUAL_MONTHS_PAID ? `Anual: pague ${ANNUAL_MONTHS_PAID} meses, use 12` : "Anual",
+    shortTabLabel: ANNUAL_MONTHS_PAID ? `Anual: ${ANNUAL_MONTHS_PAID} meses, use 12` : "Anual",
+    landingNote: `${ANNUAL_MONTHS_PAID && MONTH_WORDS[ANNUAL_MONTHS_PAID] ? `${MONTH_WORDS[ANNUAL_MONTHS_PAID]} vezes ${BRL.format(monthlyCents / 100)}, cobrado` : "Cobrado"} uma vez por ano. Dá ${BRL.format(annualMonthlyEquivalentCents / 100)} por mês.`,
   },
 };
 

@@ -4,7 +4,8 @@ import { getSubjectAvatarClassByIndex } from "@/features/subjects/utils";
 import { getAvatarColorIndex, getInitials } from "../utils";
 
 /**
- * Tamanhos declarados, e não só uma classe de caixa.
+ * Tamanhos declarados, e não só uma classe de caixa. A borda acompanha o
+ * tamanho, como no canvas: 1 px até 36 px, 2 px nos maiores.
  *
  * O componente aceitava `className="size-5"` mas mantinha `text-sm` fixo no
  * fallback: duas iniciais de 14px em semibold não cabem numa caixa de 20px, e o
@@ -12,15 +13,20 @@ import { getAvatarColorIndex, getInitials } from "../utils";
  * corpo do texto e quantas iniciais cabem.
  */
 const SIZES = {
-  chip: { box: "size-5", text: "text-[9px]", letters: 1 },
+  chip: { box: "size-5 border", text: "text-[9px]", letters: 1 },
+  /** Ao lado do nome da criança, no topo do detalhe da atividade. */
+  detail: { box: "size-[26px] border", text: "text-[11px]", letters: 1 },
   /** Dentro das pílulas de filtro e de escolha da criança. */
-  pill: { box: "size-7", text: "text-[11px]", letters: 1 },
-  /** Nas linhas das folhas de Hoje (escola, mochila). */
-  row: { box: "size-9", text: "text-xs", letters: 2 },
-  sm: { box: "size-11", text: "text-sm", letters: 2 },
-  md: { box: "size-12", text: "text-sm", letters: 2 },
+  pill: { box: "size-7 border", text: "text-[11px]", letters: 1 },
+  /** Nas linhas das folhas de Hoje (escola, mochila da noite). */
+  line: { box: "size-[30px] border", text: "text-xs", letters: 1 },
+  /** A folha de cada criança na mochila da noite. */
+  sheet: { box: "size-[34px] border", text: "text-[13px]", letters: 1 },
+  row: { box: "size-9 border", text: "text-[13px]", letters: 2 },
+  sm: { box: "size-11 border-2", text: "text-sm", letters: 2 },
+  md: { box: "size-12 border-2", text: "text-sm", letters: 2 },
   /** A folha da criança em Família e a vez da criança. */
-  lg: { box: "size-14", text: "text-xl", letters: 1 },
+  lg: { box: "size-14 border-2", text: "text-xl", letters: 1 },
 } as const;
 
 type Props = {
@@ -49,12 +55,12 @@ export function StudentAvatar({ name, size = "md", className }: Props) {
       aria-hidden
       className={cn(
         box,
-        "border-2 text-foreground",
+        "text-foreground",
         getSubjectAvatarClassByIndex(getAvatarColorIndex(name)),
         className,
       )}
     >
-      <AvatarFallback className={cn("bg-transparent font-semibold text-foreground", text)}>
+      <AvatarFallback className={cn("bg-transparent font-extrabold text-foreground", text)}>
         {getInitials(name).slice(0, letters)}
       </AvatarFallback>
     </Avatar>

@@ -103,7 +103,9 @@ export async function listRoutineIndex(
     WHERE status = 'pending'
       AND (${options.profileFilter}::uuid IS NULL OR profile_id = ${options.profileFilter}::uuid)
       AND (due_at IS NULL OR due_at <= ${options.weekEndIso}::date)
-    ORDER BY due_at ASC NULLS FIRST, created_at ASC, id ASC
+    -- O que passou primeiro, depois o de hoje, e o que está sem data por último,
+    -- como em "Para hoje" no canvas.
+    ORDER BY due_at ASC NULLS LAST, created_at ASC, id ASC
     LIMIT ${ROUTINE_MAX_ITEMS}
   `,
   );

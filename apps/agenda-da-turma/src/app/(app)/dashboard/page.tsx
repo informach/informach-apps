@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { MobileTopBar } from "@/components/app-shell/app-header";
 import { SharedActivitiesSection } from "@/features/activities/components/shared-activities-section";
 import { getIsProForUser } from "@/features/billing/server-cache";
 import { RoutineSection, RoutineSkeleton } from "@/features/dashboard/components/routine-section";
@@ -8,7 +9,6 @@ import {
   TodayScheduleSection,
   TodayScheduleSkeleton,
 } from "@/features/dashboard/components/today-schedule-section";
-import { TomorrowBackpackSection } from "@/features/dashboard/components/tomorrow-backpack-section";
 import { isEveningInApp, todayLocalIso } from "@/features/dashboard/date";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { TodayViewedBeacon } from "@/features/metrics/components/today-viewed-beacon";
@@ -17,7 +17,7 @@ import { CommitmentWidget } from "@/features/notifications/components/commitment
 import { getNotificationPreferences } from "@/features/notifications/service";
 import { FirstStepsSection } from "@/features/onboarding/components/first-steps-section";
 import { WelcomeFlash } from "@/features/onboarding/components/welcome-flash";
-import { ChildFilter } from "@/features/students/components/child-filter";
+import { ChildFilter, FilteredByChild } from "@/features/students/components/child-filter";
 import { listStudentProfilesForUser } from "@/features/students/service";
 import { requireUserServer } from "@/lib/auth";
 
@@ -74,18 +74,38 @@ export default async function DashboardPage({ searchParams }: Props) {
   // Começa agora, sem esperar: ver `loadTodaySchedule`. O `catch` vazio só
   // evita o aviso de rejeição não tratada; quem espera a promessa ainda recebe
   // o erro e o mostra no seu próprio limite.
-  const schoolData = loadTodaySchedule(user.id, profileFilter);
-  schoolData.catch(() => {});
+  // À noite a tela não mostra o horário de hoje (como na prancha da noite),
+  // então nem consulta.
+  const schoolData = evening ? null : loadTodaySchedule(user.id, profileFilter);
+  schoolData?.catch(() => {});
 
-  return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 pb-28 pt-5 md:px-8 md:pt-8">
-      <TodayViewedBeacon todayIso={todayIso} userId={user.id} />
-      <TodayHeader todayIso={todayIso} userName={user.name} />
-      <ChildFilter
-        profiles={profiles}
-        current={profileFilter}
-        hrefFor={(profileId) => (profileId ? `/dashboard?perfil=${profileId}` : "/dashboard")}
-      />
+  const pillsHref = (profileId: string | null) =>
+    profileId ? `/dashboard?perfil=${profileId}` : "/dashboard";
+  // No celular as pílulas levam o avatar e ficam abaixo da frase; no
+  // computador vão ao lado da data, só com o nome, como nas duas pranchas.
+  const pills = <ChildFilter profiles={profiles} current={profileFilter} hrefFor={pillsHref} />;
+  const header = (
+    <TodayHeader
+      todayIso={todayIso}
+      userName={user.name}
+      evening={evening}
+      filter={
+        evening ? (
+          <FilteredByChild
+            profiles={profiles}
+            current={profileFilter}
+            clearHref={pillsHref(null)}
+          />
+        ) : (
+          <ChildFilter plain profiles={profiles} current={profileFilter} hrefFor={pillsHref} />
+        )
+      }
+    />
+  );
+  // O que é do estado da conta, e não do dia: os primeiros passos, o recado
+  // que ficou sem conferir, as boas-vindas do Pro.
+  const notices = (
+    <>
       <Suspense fallback={null}>
         <FirstStepsSection
           userId={user.id}
@@ -101,41 +121,63 @@ export default async function DashboardPage({ searchParams }: Props) {
       <Suspense fallback={null}>
         <PendingDraftsSection userId={user.id} />
       </Suspense>
-      {evening ? (
-        // `fallback={null}`: a mochila não existe no sábado à noite nem sem
-        // horário cadastrado, e um esqueleto piscando empurraria a página.
-        <Suspense fallback={null}>
-          <TomorrowBackpackSection userId={user.id} profileFilter={profileFilter} />
-        </Suspense>
-      ) : null}
+    </>
+  );
+  const shared = (
+    <Suspense fallback={null}>
+      <SharedActivitiesSection userId={user.id} />
+    </Suspense>
+  );
+
+  return (
+    <main className="mx-auto w-full max-w-[1180px] px-4 pb-28 lg:px-5 lg:pb-16 lg:pt-7">
+      <MobileTopBar />
+      <TodayViewedBeacon todayIso={todayIso} userId={user.id} />
       {/* Sem criança ainda, a rotina diria "nada para hoje" e mostraria uma
           semana vazia: a conta nova pareceria resolvida. Ficam só os primeiros
           passos, que é o que falta de verdade. */}
-      {profiles.length === 0 ? null : (
-        <Suspense fallback={<RoutineSkeleton />}>
-          <RoutineSection
-            userId={user.id}
-            profileFilter={profileFilter}
-            showBackpack={!evening}
-            school={
-              <Suspense fallback={<TodayScheduleSkeleton />}>
-                <TodayScheduleSection data={schoolData} />
-              </Suspense>
+      {profiles.length === 0 ? (
+        <div className="space-y-4 pt-2">
+          {header}
+          {notices}
+        </div>
+      ) : (
+        <div className="pt-2 lg:pt-0">
+          <Suspense
+            fallback={
+              <div className="space-y-4">
+                {header}
+                <RoutineSkeleton />
+              </div>
             }
-            commitment={
-              shouldAskForCommitment ? (
-                <CommitmentWidget
-                  dismissedKey={`agenda:commitment-dismissed:${user.id}`}
-                  current={notificationPrefs}
-                />
-              ) : null
-            }
-          />
-        </Suspense>
+          >
+            <RoutineSection
+              userId={user.id}
+              profileFilter={profileFilter}
+              evening={evening}
+              header={header}
+              pills={evening ? null : pills}
+              notices={notices}
+              school={
+                schoolData ? (
+                  <Suspense fallback={<TodayScheduleSkeleton />}>
+                    <TodayScheduleSection data={schoolData} />
+                  </Suspense>
+                ) : null
+              }
+              shared={shared}
+              commitment={
+                shouldAskForCommitment ? (
+                  <CommitmentWidget
+                    dismissedKey={`agenda:commitment-dismissed:${user.id}`}
+                    current={notificationPrefs}
+                  />
+                ) : null
+              }
+            />
+          </Suspense>
+        </div>
       )}
-      <Suspense fallback={null}>
-        <SharedActivitiesSection userId={user.id} />
-      </Suspense>
     </main>
   );
 }

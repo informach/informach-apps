@@ -25,7 +25,10 @@ export type FamilySection = (typeof SECTIONS)[number]["href"];
 
 export function FamilyTabs({ current }: { current: FamilySection }) {
   return (
-    <nav aria-label="Seções da família" className="flex flex-wrap gap-2 text-sm">
+    <nav
+      aria-label="Seções da família"
+      className="-mx-4 flex gap-2 overflow-x-auto px-4 text-sm [scrollbar-width:none]"
+    >
       {SECTIONS.map(({ href, label }) => {
         const active = href === current;
         return (
@@ -34,7 +37,7 @@ export function FamilyTabs({ current }: { current: FamilySection }) {
             href={href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "inline-flex min-h-11 items-center rounded-full border px-4 font-bold transition-colors",
+              "inline-flex min-h-10 relative after:absolute after:inset-x-0 after:-inset-y-0.5 after:content-[''] shrink-0 items-center rounded-full border px-3.5 font-bold transition-colors",
               active
                 ? "border-foreground bg-foreground text-background"
                 : "border-foreground/15 bg-background hover:bg-muted",
@@ -54,9 +57,9 @@ export function FamilyTabs({ current }: { current: FamilySection }) {
  */
 export function FamilyHeader({ current, subtitle }: { current: FamilySection; subtitle?: string }) {
   return (
-    <header className="space-y-3.5">
+    <header className="space-y-3.5 px-1">
       <div className="space-y-1">
-        <h1 className="text-[34px] font-extrabold leading-none tracking-tight">Família</h1>
+        <h1 className="text-[34px] font-extrabold leading-tight tracking-[-0.04em]">Família</h1>
         {subtitle ? <p className="text-sm text-muted-foreground">{subtitle}</p> : null}
       </div>
       <FamilyTabs current={current} />

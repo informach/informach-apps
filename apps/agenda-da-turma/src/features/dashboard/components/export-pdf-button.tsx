@@ -3,6 +3,7 @@
 import { Badge } from "@informach/ui/components/badge";
 import { Button } from "@informach/ui/components/button";
 import { toast } from "@informach/ui/components/sonner";
+import { cn } from "@informach/ui/lib/utils";
 import { Loader2, Printer } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
@@ -15,10 +16,11 @@ type Props = {
   profileFilter: string | null;
   /** Um dia da semana que o calendário está mostrando. */
   anchorIso: string;
+  className?: string;
 };
 
 /** "Imprimir a semana": a semana do calendário, num PDF para a porta da geladeira. */
-export function ExportPdfButton({ isPro, profileFilter, anchorIso }: Props) {
+export function ExportPdfButton({ isPro, profileFilter, anchorIso, className }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -56,7 +58,13 @@ export function ExportPdfButton({ isPro, profileFilter, anchorIso }: Props) {
   return (
     // No grátis o botão não fica desligado: um toque leva ao Pro, que é onde a
     // semana para imprimir mora. Botão cinza sem saída é beco.
-    <Button variant="outline" size="sm" className="min-h-11" onClick={onClick} disabled={pending}>
+    <Button
+      variant="outline"
+      size="sm"
+      className={cn("min-h-11", className)}
+      onClick={onClick}
+      disabled={pending}
+    >
       {pending ? (
         <Loader2 className="size-4 animate-spin" aria-hidden />
       ) : (

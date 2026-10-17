@@ -1,24 +1,27 @@
 "use client";
 
-import { Button } from "@informach/ui/components/button";
 import { toast } from "@informach/ui/components/sonner";
 import { cn } from "@informach/ui/lib/utils";
-import { Check, Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { startProCheckoutAction } from "@/features/onboarding/actions";
 import { proOfferHref } from "@/features/onboarding/signup-flow";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
-import { type BillingCycle, PRICING, PRO_FEATURES } from "../plans-content";
+import { type BillingCycle, PRICING, PRO_OFFER_FEATURES } from "../plans-content";
 
 /**
- * O Pro na hora certa: o cartão de assinatura de `/upgrade`.
+ * O Pro na hora certa: a tela de assinar de `/upgrade`.
  *
  * Quem chega aqui acabou de esbarrar em alguma coisa (os recados de teste
  * acabaram, a segunda criança, o segundo adulto, a semana para imprimir), e a
  * página abre dizendo o quê, em vez de uma tabela de planos. O título e a
  * frase vêm da página; aqui ficam o ciclo, o preço e o botão.
+ *
+ * O desenho é o do canvas: o "X" para sair, o título grande, o cartão do Pro
+ * com borda azul e o ciclo num seletor de duas partes, e o grátis numa frase
+ * só, com a volta para Hoje.
  */
 export function UpgradeOffer({
   title,
@@ -61,20 +64,28 @@ export function UpgradeOffer({
     });
 
   return (
-    <div className="w-full max-w-md space-y-5">
-      <header className="space-y-2">
-        <h1 className="text-[28px] font-extrabold leading-tight tracking-tight">{title}</h1>
-        <p className="text-[15px] leading-relaxed text-muted-foreground">{description}</p>
+    <div data-immersive className="flex w-full max-w-md flex-col gap-4">
+      <Link
+        href="/dashboard"
+        aria-label="Fechar"
+        className="-ml-1 flex size-11 items-center justify-center rounded-xl hover:bg-muted"
+      >
+        <X className="size-6" aria-hidden />
+      </Link>
+
+      <header className="flex flex-col gap-2.5 px-1">
+        <h1 className="text-[32px] font-extrabold leading-[1.08] tracking-[-0.04em]">{title}</h1>
+        <p className="text-base leading-normal text-foreground/80">{description}</p>
       </header>
 
       <section
         aria-labelledby="upgrade-plan-title"
-        className="space-y-4 rounded-[20px] border border-foreground/15 bg-background p-5"
+        className="flex flex-col gap-3.5 rounded-[22px] border-2 border-primary bg-background p-5"
       >
         <h2 id="upgrade-plan-title" className="sr-only">
           Pro
         </h2>
-        <fieldset className="flex flex-wrap gap-2">
+        <fieldset className="flex gap-1 rounded-xl bg-card p-1">
           <legend className="sr-only">Como pagar</legend>
           {(["monthly", "annual"] as const).map((option) => (
             <button
@@ -83,55 +94,56 @@ export function UpgradeOffer({
               aria-pressed={cycle === option}
               onClick={() => setCycle(option)}
               className={cn(
-                "inline-flex min-h-11 items-center rounded-full px-4 text-sm font-bold",
-                cycle === option
-                  ? "bg-foreground text-background"
-                  : "border border-foreground/15 bg-background hover:bg-muted",
+                "min-h-10 relative after:absolute after:inset-x-0 after:-inset-y-0.5 after:content-[''] flex-1 rounded-[9px] px-2 text-sm font-bold leading-tight",
+                cycle === option ? "bg-background" : "text-foreground/75 hover:text-foreground",
               )}
             >
-              {PRICING[option].tabLabel}
+              {PRICING[option].shortTabLabel}
             </button>
           ))}
         </fieldset>
         <div aria-live="polite" aria-atomic="true">
-          <p className="flex items-baseline gap-1.5">
-            <span className="text-4xl font-extrabold tracking-tight">{price.price}</span>
-            <span className="text-sm text-muted-foreground">{price.period}</span>
+          <p className="flex items-baseline gap-2">
+            <span className="text-[40px] font-extrabold leading-tight tracking-[-0.04em]">
+              {price.price}
+            </span>
+            <span className="text-base text-muted-foreground">{price.periodWords}</span>
           </p>
-          <p className="mt-1 text-sm text-muted-foreground">{price.note}</p>
+          {/* O anual é cobrado de uma vez: a conta do ano precisa estar à vista
+              antes do pagamento. O mensal se explica sozinho, como no canvas. */}
+          {cycle === "annual" ? (
+            <p className="mt-1 text-sm text-muted-foreground">{price.note}</p>
+          ) : null}
         </div>
-        <ul className="space-y-2.5">
-          {PRO_FEATURES.map((feature) => (
-            <li key={feature.label} className="flex items-start gap-2.5 text-[15px]">
-              <Check className="mt-0.5 size-4 shrink-0 text-chart-2-ink" aria-hidden />
+        <ul className="flex flex-col gap-2.5">
+          {PRO_OFFER_FEATURES.map((feature) => (
+            <li key={feature.label} className="flex gap-2.5 text-[15px] leading-[1.45]">
+              <span aria-hidden className="font-bold text-chart-2-ink">
+                ✓
+              </span>
               {feature.label}
             </li>
           ))}
         </ul>
-        <Button
-          size="lg"
-          className="min-h-12 w-full rounded-xl text-base font-extrabold shadow-solid-primary"
+        <button
+          type="button"
+          className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-primary text-[17px] font-extrabold text-primary-foreground shadow-solid-primary disabled:opacity-60"
           onClick={subscribe}
           disabled={pending}
         >
-          {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : null}
+          {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
           Assinar o Pro
-        </Button>
-        <p className="text-center text-sm text-muted-foreground">Cancele quando quiser.</p>
+        </button>
+        <p className="text-center text-[13px] text-muted-foreground">Cancele quando quiser.</p>
       </section>
 
-      <section className="space-y-1 text-[15px]">
-        <p className="font-bold">Prefere continuar no grátis?</p>
-        <p className="text-muted-foreground">
-          Escrever à mão continua livre, e tudo o que já está na Agenda fica onde está.
-        </p>
-        <Link
-          href="/dashboard"
-          className="inline-flex min-h-11 items-center font-bold text-primary-ink"
-        >
+      <p className="px-1 text-[15px] leading-normal text-foreground/80">
+        <b className="text-foreground">Prefere continuar no grátis?</b> Escrever à mão continua
+        livre, e tudo o que já está na Agenda fica onde está.{" "}
+        <Link href="/dashboard" className="font-bold text-primary-ink underline">
           Voltar para Hoje
         </Link>
-      </section>
+      </p>
     </div>
   );
 }
