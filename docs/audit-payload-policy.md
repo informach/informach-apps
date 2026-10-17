@@ -41,7 +41,7 @@ Eventos de billing devem registrar o ator quando a ação veio de usuário auten
 ## Observabilidade
 
 - Sentry/APM deve receber `payloadKeys`, `eventType`, `actorId` e erro sanitizado, não o payload completo.
-- Falha de persistência do audit permanece best-effort e deve ser reportada via `observability.onAuditPersistenceFailure`.
+- Falha de persistência do audit permanece best-effort e deve ser reportada via `observability.onAuditPersistenceFailure`. A exceção é opcional e explícita: `logAuditEventStrict` (em `@informach/auth`) reporta do mesmo jeito e lança `AuditPersistenceError`, para quem não pode mostrar o dado nem concluir a ação sem o rastro. Hoje só o Bastidores usa.
 - Novo evento exige atualizar a union `AuditEventType`, a union do package emissor quando existir, docs e testes de wiring.
 
 ## Eventos do Missão Saber
@@ -74,4 +74,6 @@ Eventos `admin.*` registram consultas e ações da equipe no Bastidores (`apps/a
 - `admin.edi_device_disconnected`: `{ targetId, deviceId, reason }`.
 - `admin.audit_exported`: `{ filters, rows }`, com `filters` só nos nomes e valores dos filtros (tipo, período, IDs).
 
-Banimento e papel usam os eventos do pacote de autenticação (`user.banned`, `user.unbanned`, `user.role_changed`), também em nome de quem agiu. `reason` é texto curto (até 280 caracteres) escrito pela equipe para explicar a ação; a tela orienta a não colar mensagens da pessoa nem dados além do necessário.
+Banimento e papel usam os eventos do pacote de autenticação, também em nome de quem agiu: `user.banned` e `user.unbanned` com `{ targetId, reason }`, e `user.role_changed` com `{ targetId, previousRole, newRole, reason }` (o script do primeiro owner grava `source` no lugar de `reason`). Toda ação que muda algo leva motivo, inclusive desbanir e mudar papel. `reason` é texto curto (até 280 caracteres) escrito pela equipe para explicar a ação; a tela orienta a não colar mensagens da pessoa nem dados além do necessário.
+
+No Bastidores a gravação é estrita: abrir a ficha e exportar a auditoria só mostram os dados com o evento gravado; banir, desbanir e mudar papel gravam o evento na mesma transação da mudança; encerrar sessões, reenviar confirmação e desconectar computador mostram erro e reportam `audit.change_unrecorded` quando a mudança aconteceu e o evento não gravou.

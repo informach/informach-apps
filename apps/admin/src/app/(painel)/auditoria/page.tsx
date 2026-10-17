@@ -2,6 +2,7 @@ import { Download, Info } from "lucide-react";
 import type { Metadata, Route } from "next";
 import Link from "next/link";
 import { Empty, Note, PageHeader } from "@/components/blocks";
+import { FormMessage } from "@/components/form";
 import { AuditFilterBar } from "@/features/audit/components/audit-filters";
 import { AuditList } from "@/features/audit/components/audit-list";
 import {
@@ -14,6 +15,18 @@ import { getAuditPage } from "@/features/audit/service";
 import { requireStaff } from "@/lib/access";
 
 export const metadata: Metadata = { title: "Auditoria" };
+
+/** Por que a exportação voltou sem arquivo (`features/audit/export.ts`). */
+const EXPORT_NOTICES: Record<string, { tone: "info" | "bad"; text: string }> = {
+  confirmar: {
+    tone: "info",
+    text: "Para exportar, use o botão Exportar CSV desta tela. A exportação entra na auditoria em seu nome, então só sai de um clique aqui dentro.",
+  },
+  falhou: {
+    tone: "bad",
+    text: "Não deu para registrar a exportação na auditoria, então o arquivo não foi gerado. Tente de novo em instantes.",
+  },
+};
 export const dynamic = "force-dynamic";
 
 export default async function AuditoriaPage({
@@ -22,7 +35,9 @@ export default async function AuditoriaPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const staff = await requireStaff();
-  const filters = parseAuditFilters(await searchParams);
+  const params = await searchParams;
+  const filters = parseAuditFilters(params);
+  const exportNotice = EXPORT_NOTICES[String(params.exportacao ?? "")] ?? null;
   const page = await getAuditPage(filters);
   const group = AUDIT_GROUPS.find((item) => item.key === filters.group)?.label ?? "Tudo";
   const period = AUDIT_PERIODS.find((item) => item.key === filters.period)?.label ?? "";
@@ -43,6 +58,10 @@ export default async function AuditoriaPage({
           </a>
         ) : null}
       </PageHeader>
+
+      {exportNotice && staff.role === "owner" ? (
+        <FormMessage tone={exportNotice.tone}>{exportNotice.text}</FormMessage>
+      ) : null}
 
       <AuditFilterBar filters={filters} />
 

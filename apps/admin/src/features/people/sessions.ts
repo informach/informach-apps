@@ -3,6 +3,7 @@ import {
   type CachedSession,
   listCachedSessions,
   revokeCachedSessions,
+  revokeTrustedDevices,
 } from "@informach/auth/sessions";
 import { reportOperationalError } from "@/lib/observability";
 import { REDIS_SESSION_APPS, type RedisSessionApp, sessionStore } from "@/lib/redis";
@@ -33,6 +34,8 @@ export async function cachedSessionsByApp(userId: string): Promise<AppSessions[]
 
 export type RevokeResult = {
   databaseCount: number;
+  /** Aparelhos confiados das duas etapas apagados (o cookie que dispensaria o código). */
+  trustedDevices: number;
   perApp: Array<{
     app: RedisSessionApp;
     name: string;
@@ -43,12 +46,14 @@ export type RevokeResult = {
 
 /**
  * Encerra a conta em todos os produtos: apaga `core.sessions` (Suíte Edi e
- * Bastidores) e as sessões do Redis de cada app. O computador da Suíte Edi
- * segue com a própria licença, que não é sessão.
+ * Bastidores), as sessões do Redis de cada app e os aparelhos confiados das
+ * duas etapas, que deixariam a senha bastar na próxima entrada. O computador da
+ * Suíte Edi segue com a própria licença, que não é sessão.
  */
 export async function revokeEverywhere(userId: string): Promise<RevokeResult> {
-  const [databaseCount, perApp] = await Promise.all([
+  const [databaseCount, trustedDevices, perApp] = await Promise.all([
     deleteDatabaseSessions(userId),
+    revokeTrustedDevices(userId),
     Promise.all(
       REDIS_SESSION_APPS.map(async ({ app, name, cookieCacheMinutes }) => {
         const store = sessionStore(app);
@@ -67,5 +72,5 @@ export async function revokeEverywhere(userId: string): Promise<RevokeResult> {
       }),
     ),
   ]);
-  return { databaseCount, perApp };
+  return { databaseCount, trustedDevices, perApp };
 }

@@ -111,6 +111,15 @@ export function filtersQuery(filters: AuditFilters, override: Partial<AuditFilte
   return query ? `?${query}` : "";
 }
 
+/** Motivo de a exportação voltar para a tela sem arquivo, lido pela página da Auditoria. */
+export type ExportRefusal = "confirmar" | "falhou";
+
+/** Volta para a Auditoria com os mesmos filtros e o motivo de não ter gerado o arquivo. */
+export function exportReturnPath(params: Params, reason: ExportRefusal): string {
+  const query = filtersQuery({ ...parseAuditFilters(params), page: 1 });
+  return `/auditoria${query}${query ? "&" : "?"}exportacao=${reason}`;
+}
+
 /** Início do período. `startOfToday` vem de fora para o teste controlar o relógio. */
 export function periodStart(period: AuditPeriodKey, now: Date, startOfToday: Date): Date | null {
   if (period === "hoje") return startOfToday;

@@ -20,7 +20,14 @@ function routineLabel(app: string, job: string): string {
   return `${routine?.label ?? job}, ${where}`;
 }
 
-export type WeeklyResult = { recipients: number; sent: number; failed: number; week: string };
+export type WeeklyResult = {
+  recipients: number;
+  sent: number;
+  /** Descadastro ou bloqueio do provedor: o resumo da semana obedece ao descadastro. */
+  skipped: number;
+  failed: number;
+  week: string;
+};
 
 /**
  * Resumo da semana para as contas owner (cron segunda e terça, 08:00 em
@@ -77,5 +84,11 @@ export async function runAdminWeekly(now: Date = new Date()): Promise<WeeklyResu
         unsubscribeUrl,
       }),
   });
-  return { recipients: recipients.length, sent: sent.sent, failed: sent.failed, week };
+  return {
+    recipients: recipients.length,
+    sent: sent.sent,
+    skipped: sent.skipped,
+    failed: sent.failed,
+    week,
+  };
 }

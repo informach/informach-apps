@@ -45,7 +45,10 @@ export const envSchema = z
     SENTRY_ORG_SLUG: z.string().default(""),
     /** Token de leitura do Sentry (escopo event:read), opcional, para contar erros abertos. */
     SENTRY_READ_TOKEN: z.string().default(""),
-    /** Quem recebe os avisos e o resumo da semana, além das contas owner. */
+    /**
+     * Quem recebe os avisos de queda de serviço, além das contas owner. O resumo
+     * da semana, que traz receita, vai só para as contas owner.
+     */
     ADMIN_ALERT_EMAILS: csv,
     LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
     SENTRY_DSN: sentryDsn,

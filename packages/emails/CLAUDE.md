@@ -105,7 +105,7 @@ Fluxo (linhas em `dispatch.ts`):
 7. **Retry** — em erro `transient` (408/425/429/5xx): backoff polinomial `attempt^4 + 2s ±15%` (de `retry.ts:11`), até `inlineRetryAttempts` (default 3). Em erro `permanent` (400/401/403/413): aborta no primeiro fail.
 8. Em sucesso: `status='sent'`, `providerMessageId = headers['x-message-id']`, audit `email.delivery_sent`.
 9. Em falha após retries: `status='failed'`, `lastError` populado, audit `email.delivery_failed` e log `error` ao esgotar as tentativas inline. `retryFailedDeliveries` reativa apenas as categorias com corpo persistido e autorizadas para retry genérico. Corpos `auth.*` nunca são persistidos: o responsável precisa solicitar novo código/link depois de resolvida a falha. A resposta pública de auth preserva a proteção contra enumeração de contas; o alerta operacional não inclui destinatário, OTP ou corpo.
-10. Bloqueios por suppression/unsubscribe emitem `email.delivery_skipped`.
+10. Bloqueios por suppression/unsubscribe emitem `email.delivery_skipped`. Descadastro não bloqueia `auth.*` nem `admin.alert` (`shouldRespectUnsubscribe`).
 
 ### 3.3 `renderTemplate(category, props, opts?)` — renderização de templates
 Mapeamento `EmailCategory → componente React Email`:
@@ -121,6 +121,7 @@ Mapeamento `EmailCategory → componente React Email`:
 | `auth.invitation` | `InvitationEmail` | `appName, inviterName, organizationName, url` |
 | `auth.account-deletion` | `AccountDeletionEmail` | `appName, url` |
 | `auth.signup-attempt-on-existing` | `SignupAttemptOnExistingEmail` | `appName, loginUrl` |
+| `auth.two-factor-setup-otp` | `TwoFactorSetupEmailOtp` | `appName, otp, expiresInMinutes` (código que prova a caixa de e-mail antes de ativar as duas etapas, no Bastidores) |
 | `billing.payment-success` | `PaymentSuccessEmail` | `appName, productName, amountFormatted, manageBillingUrl` |
 | `billing.payment-failed` | `PaymentFailedEmail` | `appName, attempt, maxAttempts, updatePaymentUrl` |
 | `billing.subscription-renewed` | `SubscriptionRenewedEmail` | `appName, productName, nextBillingDate, manageBillingUrl` |
@@ -138,7 +139,7 @@ Retorna `{ html: string; text: string; subject: string }`. Internamente usa `ren
 
 **Categorias montadas pelo app, sem template do package.** `agenda.routine` e `missao.weekly-report` descrevem dados de uma criança e são montadas no próprio app, no momento do envio. Elas entram em `EMAIL_CATEGORIES` e na union de `dispatch.ts`, mas **não** no registro de templates nem no i18n — a checklist da regra 3 abaixo se aplica só às letras (a) e (b) para esse tipo de categoria. As duas também são excluídas de `shouldPersistBody`: persistir o corpo deixaria uma retentativa genérica reenviar uma leitura desatualizada sobre a criança.
 
-**Categorias `admin.*`** são do Bastidores (`apps/admin`) e vão só para a equipe: o aviso de serviço fora do ar e de volta (`admin.alert`, rotina `admin-watch`) e o resumo da semana para as contas owner (`admin.weekly-summary`, rotina `admin-weekly`). Os textos chegam já formatados pelo app e não levam nome, e-mail ou conteúdo de pessoa. O corpo não é persistido (`shouldPersistBody`): a própria rotina reconstrói a mensagem a partir do estado atual e reenvia com a mesma `messageKey`, enquanto uma retentativa genérica de outro app reenviaria um aviso vencido.
+**Categorias `admin.*`** são do Bastidores (`apps/admin`) e vão só para a equipe: o aviso de serviço fora do ar e de volta (`admin.alert`, rotina `admin-watch`) e o resumo da semana para as contas owner (`admin.weekly-summary`, rotina `admin-weekly`). O aviso de queda é operacional e não obedece ao descadastro, como os e-mails `auth.*` (`shouldRespectUnsubscribe` em `delivery-policy.ts`); o resumo da semana obedece. Supressão por bounce ou spam vale para todas as categorias. Os textos chegam já formatados pelo app e não levam nome, e-mail ou conteúdo de pessoa. O corpo não é persistido (`shouldPersistBody`): a própria rotina reconstrói a mensagem a partir do estado atual e reenvia com a mesma `messageKey`, enquanto uma retentativa genérica de outro app reenviaria um aviso vencido.
 
 > **`EmailCategory` está declarado em DOIS lugares:** (a) como Zod enum em `schemas.ts:EMAIL_CATEGORIES`, usado por `dispatchEmail` validation; (b) como string union em `templates/index.ts`, usado por `renderTemplate`. Adicionar nova categoria exige atualizar AMBOS — TypeScript pega o segundo, mas o primeiro é runtime check do `dispatch`. Ver §7 regra 3.
 
@@ -345,7 +346,8 @@ Vitest 5.0.5 em `src/__tests__/`, com JSX automático via Oxc/Vite 8. Renderiza�
 
 | Arquivo | Cobertura |
 |---|---|
-| `dispatch.test.ts` | Validação Zod, sandbox/memory mode, live, idempotência, retry/permanent classification, audit sent/skipped/failed |
+| `dispatch.test.ts` | Validação Zod, sandbox/memory mode, live, idempotência, retry/permanent classification, audit sent/skipped/failed, aviso de queda que passa pelo descadastro e resumo da semana que não passa |
+| `delivery-policy.test.ts` | Quais categorias obedecem ao descadastro |
 | `webhook.test.ts` | Signed verification, parsing de eventos, transições de status, audit suppression/unsubscribe |
 | `retry.test.ts` | `nextAttemptDelaySeconds`, `classifySendgridError` |
 | `sweepers.test.ts` | `recoverStaleDeliveries`, `retryFailedDeliveries`, `syncSendgridSuppressions`, audit retry/suppression |

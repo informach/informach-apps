@@ -24,6 +24,7 @@ export type EmailNamespace =
   | "invitation"
   | "accountDeletion"
   | "signupAttemptOnExisting"
+  | "twoFactorSetupEmailOtp"
   | "paymentSuccess"
   | "paymentFailed"
   | "subscriptionRenewed"

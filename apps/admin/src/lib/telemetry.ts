@@ -8,8 +8,17 @@ export const operationalErrors = [
   "job.failed",
   "service.probe_failed",
   "alert.delivery_failed",
+  "alert.delivery_skipped",
   "redis.unavailable",
   "package.operation_failed",
+  /** A mudança aconteceu, mas o evento não entrou na auditoria. */
+  "audit.change_unrecorded",
+  /** As duas etapas foram ligadas e as outras sessões não puderam ser encerradas. */
+  "auth.session_cleanup_failed",
+  /** Conta sem acesso ao Bastidores cuja sessão não pôde ser encerrada no servidor. */
+  "access.session_end_failed",
+  /** O código por e-mail da ativação das duas etapas não saiu. */
+  "two_factor.code_not_sent",
 ] as const;
 export type OperationalError = (typeof operationalErrors)[number];
 

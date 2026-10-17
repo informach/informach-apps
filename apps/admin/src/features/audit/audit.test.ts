@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { csvCell, toCsv } from "./csv";
 import {
   BILLING_CUSTOMER_PAYLOAD_KEY,
+  exportReturnPath,
   filtersQuery,
   GROUP_MATCH,
   groupOf,
@@ -360,6 +361,21 @@ describe("filtros da auditoria", () => {
     expect(periodStart("hoje", now, today)).toEqual(today);
     expect(periodStart("7d", now, today)).toEqual(new Date("2026-10-10T15:00:00Z"));
     expect(periodStart("tudo", now, today)).toBeNull();
+  });
+});
+
+describe("volta da exportação sem arquivo", () => {
+  it("mantém os filtros e diz o motivo", () => {
+    expect(exportReturnPath({ grupo: "equipe", periodo: "30d", pagina: "3" }, "falhou")).toBe(
+      "/auditoria?grupo=equipe&periodo=30d&exportacao=falhou",
+    );
+    expect(exportReturnPath({}, "confirmar")).toBe("/auditoria?exportacao=confirmar");
+  });
+
+  it("não leva para a tela nada além dos filtros conhecidos", () => {
+    expect(exportReturnPath({ grupo: "x", next: "//evil.example" }, "confirmar")).toBe(
+      "/auditoria?exportacao=confirmar",
+    );
   });
 });
 

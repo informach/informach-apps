@@ -2,6 +2,7 @@ import "server-only";
 import { getEmails } from "@/lib/emails";
 import { getEnv } from "@/lib/env";
 import { formatDuration, formatTime, TIME_ZONE } from "@/lib/format";
+import { reportOperationalError } from "@/lib/observability";
 import { SERVICES, type ServiceKey } from "@/lib/products";
 import { probeAll, problemText, readStoredStatus } from "@/lib/services";
 import { type Alert, alertMessageKey, decideTransition, reachedDetail } from "./decide";
@@ -25,6 +26,11 @@ function sinceText(date: Date): string {
   return `${day}, ${formatTime(date)}`;
 }
 
+/**
+ * O aviso de queda é operacional: chega mesmo para quem se descadastrou (a
+ * política do pacote de e-mails não o bloqueia), então o rodapé não oferece o
+ * link de descadastro. Só bounce ou denúncia de spam param a entrega.
+ */
 async function sendAlert(alert: Alert, recipients: readonly string[]) {
   const env = getEnv();
   const serviceName = SERVICES[alert.service as ServiceKey]?.name ?? alert.service;
@@ -34,7 +40,7 @@ async function sendAlert(alert: Alert, recipients: readonly string[]) {
     category: "admin.alert",
     recipients,
     messageKey: (recipient) => alertMessageKey(alert, recipient),
-    render: (unsubscribeUrl) =>
+    render: () =>
       alert.kind === "down"
         ? emails.renderTemplate("admin.alert", {
             appName: "Bastidores",
@@ -43,7 +49,6 @@ async function sendAlert(alert: Alert, recipients: readonly string[]) {
             downSince: sinceText(alert.downSince),
             problem: alert.problem ?? undefined,
             ctaUrl,
-            unsubscribeUrl,
           })
         : emails.renderTemplate("admin.alert", {
             appName: "Bastidores",
@@ -53,7 +58,6 @@ async function sendAlert(alert: Alert, recipients: readonly string[]) {
             upAt: formatTime(alert.upAt),
             duration: formatDuration(alert.upAt.getTime() - alert.downSince.getTime()),
             ctaUrl,
-            unsubscribeUrl,
           }),
   });
 }
@@ -64,6 +68,8 @@ export type WatchResult = {
   slow: number;
   alertsSent: number;
   alertsPending: number;
+  /** Avisos que não chegaram a ninguém porque todo destinatário estava bloqueado pelo provedor. */
+  alertsUndelivered: number;
   pruned: number;
 };
 
@@ -81,6 +87,7 @@ export async function runAdminWatch(now: Date = new Date()): Promise<WatchResult
     slow: 0,
     alertsSent: 0,
     alertsPending: 0,
+    alertsUndelivered: 0,
     pruned: 0,
   };
 
@@ -103,9 +110,16 @@ export async function runAdminWatch(now: Date = new Date()): Promise<WatchResult
     if (!decision.alert) continue;
     recipients ??= await alertRecipients();
     const sent = await sendAlert(decision.alert, recipients);
+    if (sent.skipped > 0)
+      // Só bounce ou spam bloqueiam o aviso de queda: alguém da lista não está recebendo.
+      reportOperationalError("alert.delivery_skipped", undefined, {
+        category: "admin.alert",
+        service: check.key,
+      });
     if (sent.delivered) {
       await markAlerted(check.key, now);
-      result.alertsSent += 1;
+      if (sent.sent > 0) result.alertsSent += 1;
+      else result.alertsUndelivered += 1;
     } else {
       // Quem já recebeu não recebe de novo (a chave é por pessoa); a próxima
       // passada tenta só quem faltou. Se a queda chegou a alguém, a volta

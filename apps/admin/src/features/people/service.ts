@@ -583,13 +583,16 @@ export function describeEvent(
     case "user.role_changed": {
       const role = text(payload, "newRole");
       const roleText = role && /^[a-z]{3,10}$/.test(role) ? role : "outro";
-      if (aboutOther) return { ...base, title: `Mudou o papel de outra conta para ${roleText}` };
+      const detail = reason ? `Motivo: ${reason}` : null;
+      if (aboutOther)
+        return { ...base, title: `Mudou o papel de outra conta para ${roleText}`, detail };
       const viaScript = text(payload, "source")?.startsWith("bootstrap-owner")
         ? "O script do primeiro owner"
         : null;
       return {
         ...base,
         title: `${byOther ?? viaScript ?? "Alguém"} mudou o papel desta conta para ${roleText}`,
+        detail,
       };
     }
     case "user.banned":
@@ -600,9 +603,11 @@ export function describeEvent(
         title: `${byOther ?? "A equipe"} baniu a conta`,
         detail: reason ? `Motivo: ${reason}` : null,
       };
-    case "user.unbanned":
-      if (aboutOther) return { ...base, title: "Desbaniu outra conta" };
-      return { ...base, title: `${byOther ?? "A equipe"} desbaniu a conta` };
+    case "user.unbanned": {
+      const detail = reason ? `Motivo: ${reason}` : null;
+      if (aboutOther) return { ...base, title: "Desbaniu outra conta", detail };
+      return { ...base, title: `${byOther ?? "A equipe"} desbaniu a conta`, detail };
+    }
     case "admin.sessions_revoked": {
       const count = int(payload, "count") ?? 0;
       const sessions = count === 1 ? "1 sessão" : `${formatNumber(count)} sessões`;
@@ -776,6 +781,17 @@ export const SESSION_REASONS = [
 export const DEVICE_REASONS = [
   "A pessoa pediu pelo direct",
   "Computador perdido ou roubado",
+  "Outro motivo",
+] as const;
+export const UNBAN_REASONS = [
+  "Banimento feito por engano",
+  "Situação resolvida com a pessoa",
+  "Outro motivo",
+] as const;
+export const ROLE_REASONS = [
+  "Entrou para a equipe",
+  "Mudou de função na equipe",
+  "Saiu da equipe",
   "Outro motivo",
 ] as const;
 export const BAN_DURATIONS = {

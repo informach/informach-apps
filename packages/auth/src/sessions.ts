@@ -1,4 +1,7 @@
+import { type Database, db } from "@informach/db";
+import { verifications } from "@informach/db/schema";
 import type { SecondaryStorage } from "better-auth";
+import { and, eq, like } from "drizzle-orm";
 
 /**
  * Sessões que o Better Auth guarda no armazenamento secundário (Redis) de um app.
@@ -13,6 +16,8 @@ import type { SecondaryStorage } from "better-auth";
  *
  * Estas funções leem e encerram essas sessões por fora do app (o Bastidores
  * encerra as sessões de uma conta em todos os produtos). O token nunca sai daqui.
+ * No fim, `revokeTrustedDevices` apaga os aparelhos confiados das duas etapas,
+ * que deixariam a senha bastar mesmo depois de encerrar as sessões.
  */
 export type SessionStore = Pick<SecondaryStorage, "get" | "set" | "delete">;
 
@@ -89,4 +94,38 @@ export async function revokeCachedSessions(store: SessionStore, userId: string):
   for (const { token } of list) await store.delete(token);
   await store.delete(activeSessionsKey(userId));
   return list.length;
+}
+
+/**
+ * Prefixo dos registros de "confiar neste aparelho" do plugin de duas etapas do
+ * Better Auth 1.7 em `core.verifications`: `identifier` é
+ * `trust-device-<aleatório>` e `value` é o id da conta. Enquanto um registro
+ * desses vale (30 dias), o cookie do aparelho dispensa o código e a senha basta.
+ */
+export const TRUST_DEVICE_IDENTIFIER_PREFIX = "trust-device-";
+
+/** Quem apaga: o cliente do banco ou uma transação aberta por quem chama. */
+export type TrustedDeviceWriter = Pick<Database, "delete">;
+
+/**
+ * Apaga todos os aparelhos confiados da conta, para que a próxima entrada peça
+ * o código de novo em qualquer app com duas etapas. Vale para as verificações
+ * guardadas no Postgres; um app que guarde verificações no Redis
+ * (`secondaryStorage`) precisaria de outro caminho, e hoje nenhum app com duas
+ * etapas faz isso. Devolve quantos registros saíram.
+ */
+export async function revokeTrustedDevices(
+  userId: string,
+  writer: TrustedDeviceWriter = db,
+): Promise<number> {
+  const removed = await writer
+    .delete(verifications)
+    .where(
+      and(
+        eq(verifications.value, userId),
+        like(verifications.identifier, `${TRUST_DEVICE_IDENTIFIER_PREFIX}%`),
+      ),
+    )
+    .returning({ id: verifications.id });
+  return removed.length;
 }

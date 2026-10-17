@@ -72,6 +72,16 @@
     "otpLabel": "Código de redefinição",
     "expiresIn": "O código expira em {minutes} minutos."
   },
+  "twoFactorSetupEmailOtp": {
+    "subject": "Seu código para ativar as duas etapas no {appName}",
+    "preheader": "Use o código abaixo para continuar a ativação das duas etapas no {appName}.",
+    "title": "Confirme que este e-mail é seu",
+    "body": "Você começou a ativar as duas etapas no <strong>{appName}</strong>.",
+    "instruction": "Digite o código abaixo na tela de ativação. Ele mostra que esta caixa de e-mail é sua antes de ligar um aplicativo autenticador à conta.",
+    "otpLabel": "Código de ativação",
+    "expiresIn": "O código vale por {minutes} minutos e só uma vez.",
+    "notYou": "Se não foi você, não digite o código em lugar nenhum: alguém pode estar usando a sua senha. Troque a senha da conta assim que puder."
+  },
   "passwordReset": {
     "subject": "{appName} — recuperação de senha",
     "preheader": "Recuperação de senha no {appName}.",

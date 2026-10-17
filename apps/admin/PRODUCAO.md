@@ -1,6 +1,6 @@
 # Bastidores em produção
 
-Serviço `@informach/admin` (`67f2d87b-02cb-422a-b019-aa57cd584d14`) no projeto `informach-apps`, ambiente `production`, em `https://admin.informach.com.br`. A configuração do serviço e dos dois crons (`cron-admin-watch`, a cada 5 minutos, e `cron-admin-weekly`, segunda e terça às 11:00 UTC, com envio único por semana) está em [`.railway/railway.ts`](../../.railway/railway.ts). Fluxo geral de IaC no [runbook](../../docs/deploy-runbook.md#infraestrutura-como-código-railway-iac).
+Serviço `@informach/admin` (`67f2d87b-02cb-422a-b019-aa57cd584d14`) no projeto `informach-apps`, ambiente `production`, em `https://admin.informach.com.br`. A configuração do serviço e dos dois crons (`cron-admin-watch`, a cada 5 minutos, e `cron-admin-weekly`, segunda e terça às 11:00 UTC, com envio único por semana) está em [`.railway/railway.ts`](../../.railway/railway.ts). Os dois crons usam a imagem `alpine/curl` fixada por digest, a mesma dos outros crons novos. Fluxo geral de IaC no [runbook](../../docs/deploy-runbook.md#infraestrutura-como-código-railway-iac).
 
 ## Primeira publicação, nesta ordem
 
@@ -22,19 +22,20 @@ Serviço `@informach/admin` (`67f2d87b-02cb-422a-b019-aa57cd584d14`) no projeto 
    railway run --service Postgres -- sh -c 'DATABASE_URL="$DATABASE_PUBLIC_URL" pnpm --filter @informach/admin bootstrap-owner <email>'
    ```
 
-   O script grava `user.role_changed` com `source: "bootstrap-owner"`. A pessoa precisa já ter conta em algum produto. Os demais (admin para o suporte, ou outro owner) são promovidos por esse owner na ficha de cada pessoa, em "Mudar papel".
-6. **Primeira entrada.** Em `admin.informach.com.br`, "Criar ou trocar a senha" manda um código para o e-mail (só sai para contas owner ou admin). Com a senha, a entrada leva à ativação das duas etapas: QR no aplicativo autenticador, códigos de recuperação guardados e o primeiro código. Sem duas etapas ativas, nenhuma tela abre.
+   O script grava `user.role_changed` com `source: "bootstrap-owner"`. A pessoa precisa já ter conta em algum produto, com o e-mail confirmado, e não pode estar banida; o script recusa os dois casos. Na mesma transação ele encerra as sessões que a conta já tinha no Postgres (Bastidores e Suíte Edi no navegador) e os aparelhos confiados das duas etapas. Os demais (admin para o suporte, ou outro owner) são promovidos por esse owner na ficha de cada pessoa, em "Mudar papel", com motivo; a mudança também encerra as sessões da pessoa, e a casa nunca fica sem owner ativo.
+6. **Primeira entrada.** Em `admin.informach.com.br`, "Criar ou trocar a senha" manda um código para o e-mail (só sai para contas owner ou admin). Com a senha, a entrada leva à ativação das duas etapas: primeiro um código no e-mail da conta, que prova a caixa de e-mail (a senha é a mesma dos produtos e sozinha não basta), depois a senha, o QR no aplicativo autenticador, os códigos de recuperação guardados e o primeiro código. Ao terminar, as outras sessões da conta são encerradas. Sem duas etapas ativas, nenhuma tela abre, e toda entrada seguinte pede o código do aplicativo (lembrar o aparelho é recusado).
 
 ## Conferência depois do deploy
 
 - `GET /api/health` devolve o commit; `GET /api/ready` responde 200.
-- Abrir uma ficha grava `admin.user_viewed` na Auditoria, com o nome de quem abriu.
+- Abrir uma ficha grava `admin.user_viewed` na Auditoria, com o nome de quem abriu. Uma ficha aberta por link de fora do Bastidores mostra antes "Abrir esta ficha?".
+- "Exportar CSV" baixa o arquivo pelo botão da tela; o mesmo endereço colado na barra volta para a Auditoria com a explicação.
 - Em Operação, a rotina "Vigia" aparece com execução nos últimos 5 minutos, e cada serviço mostra "desde" depois da primeira volta da vigia.
-- Os avisos de queda chegam às contas owner e a `ADMIN_ALERT_EMAILS`, quando definido.
+- Os avisos de queda chegam às contas owner e a `ADMIN_ALERT_EMAILS`, quando definido, mesmo para quem se descadastrou; o resumo da semana vai só para as contas owner e obedece ao descadastro.
 
 ## Opcional
 
-- **Mais gente nos avisos.** Além das contas owner, `ADMIN_ALERT_EMAILS` (separado por vírgula) recebe os avisos de queda. Gravar no Railway e acrescentar `ADMIN_ALERT_EMAILS: preserve()` no bloco do admin, senão o plano propõe apagar a variável.
+- **Mais gente nos avisos.** Além das contas owner, `ADMIN_ALERT_EMAILS` (separado por vírgula) recebe os avisos de queda (não o resumo da semana). Gravar no Railway e acrescentar `ADMIN_ALERT_EMAILS: preserve()` no bloco do admin, senão o plano propõe apagar a variável.
 
 - **Usuário de banco só de leitura.** Mesmo sem ele, a conexão das telas abre toda transação em modo só leitura (`default_transaction_read_only`). Com ele, nem um engano de configuração escreve. Criar no Postgres e gravar `READONLY_DATABASE_URL` (como `preserve()` no arquivo):
 

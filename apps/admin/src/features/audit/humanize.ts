@@ -153,13 +153,21 @@ const PHRASES: Record<string, (ctx: Context) => SentencePart[]> = {
   "user.password_changed": () => [t("Trocou a senha")],
   "user.role_changed": (ctx) => {
     const role = str(ctx.payload, "newRole");
-    return withTarget("Mudou o papel de ", ctx, role ? ` para ${ROLE_NAMES[role] ?? role}` : "");
+    const why = reason(ctx.payload);
+    return withTarget(
+      "Mudou o papel de ",
+      ctx,
+      `${role ? ` para ${ROLE_NAMES[role] ?? role}` : ""}${why ? `, motivo: ${why}` : ""}`,
+    );
   },
   "user.banned": (ctx) => {
     const why = reason(ctx.payload);
     return withTarget("Baniu ", ctx, why ? `, motivo: ${why}` : "");
   },
-  "user.unbanned": (ctx) => withTarget("Desbaniu ", ctx),
+  "user.unbanned": (ctx) => {
+    const why = reason(ctx.payload);
+    return withTarget("Desbaniu ", ctx, why ? `, motivo: ${why}` : "");
+  },
   "user.deletion_requested": () => [t("Pediu a exclusão da conta")],
   "user.deleted": () => [t("Uma conta foi excluída")],
   "account.linked": () => [t("Conectou um login externo à conta")],

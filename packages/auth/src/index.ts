@@ -21,13 +21,14 @@ import { emailOTP } from "better-auth/plugins/email-otp";
 import { magicLink } from "better-auth/plugins/magic-link";
 import { organization } from "better-auth/plugins/organization";
 import { twoFactor } from "better-auth/plugins/two-factor";
-import { eq } from "drizzle-orm";
-import { configureObservability, logAuditEvent } from "./audit";
+import { and, eq, ne, sql } from "drizzle-orm";
+import { configureObservability, logAuditEvent, logAuditEventStrict } from "./audit";
 import { type DesktopOAuthConfig, desktopOAuthPlugins, desktopOAuthSchema } from "./desktop-oauth";
 import {
   buildHelpers,
   ForbiddenError,
   isUserBanned,
+  LastOwnerError,
   NotFoundError,
   NotImplementedError,
   OrganizationsDisabledError,
@@ -35,10 +36,11 @@ import {
 } from "./helpers";
 import type { AuthSecurityEvent, ObservabilityHooks } from "./observability";
 import { isRole, type Permission, ROLES, type Role } from "./permissions";
+import { revokeTrustedDevices } from "./sessions";
 
 export type { SecondaryStorage } from "better-auth";
-export type { AuditEventType, AuditPayload } from "./audit";
-export { logAuditEvent } from "./audit";
+export type { AuditEventType, AuditPayload, AuditWriter } from "./audit";
+export { AuditPersistenceError, logAuditEvent, logAuditEventStrict } from "./audit";
 export type {
   AuthAuditEvent,
   AuthSecurityEvent,
@@ -49,6 +51,7 @@ export { PERMISSIONS, roleHasPermission } from "./permissions";
 export {
   ForbiddenError,
   isUserBanned,
+  LastOwnerError,
   NotFoundError,
   NotImplementedError,
   OrganizationsDisabledError,
@@ -76,7 +79,11 @@ export type CreateAuthSessionConfig = {
     enabled?: boolean;
     maxAge?: number;
   };
-  /** Session lifetime in seconds. Default: Better Auth's 7 days. */
+  /**
+   * Session lifetime in seconds. Default: Better Auth's 7 days. When set, it is
+   * also a ceiling: no session outlives it, not even one created with
+   * `rememberMe: false`, which Better Auth would otherwise give 1 day.
+   */
   expiresIn?: number;
   /** How often, in seconds, an active session is extended. Default: Better Auth's 1 day. */
   updateAge?: number;
@@ -505,6 +512,85 @@ function userIdOf(user: unknown): string | null {
   return typeof id === "string" ? id : null;
 }
 
+/**
+ * Com `session.expiresIn`, nenhuma sessão passa desse prazo. O Better Auth dá 1
+ * dia a quem entra com `rememberMe: false` (e às sessões nascidas da segunda
+ * etapa depois disso), o que num app de sessão curta seria mais tempo, não
+ * menos. Devolve o `expiresAt` novo, ou nada quando o atual já cabe.
+ */
+export function cappedSessionExpiry(
+  expiresAt: unknown,
+  maxSeconds: number | undefined,
+  now: number = Date.now(),
+): { expiresAt?: Date } {
+  if (!maxSeconds) return {};
+  const limit = now + maxSeconds * 1000;
+  const current =
+    expiresAt instanceof Date
+      ? expiresAt.getTime()
+      : typeof expiresAt === "string" || typeof expiresAt === "number"
+        ? new Date(expiresAt).getTime()
+        : Number.NaN;
+  if (Number.isFinite(current) && current <= limit) return {};
+  return { expiresAt: new Date(limit) };
+}
+
+type TwoFactorHookContext = {
+  context?: {
+    session?: { user?: { id?: string; twoFactorEnabled?: boolean | null } } | null;
+    newSession?: {
+      session?: { token?: string };
+      user?: { id?: string; twoFactorEnabled?: boolean | null };
+    } | null;
+    internalAdapter?: {
+      listSessions: (userId: string) => Promise<Array<{ token: string }>>;
+      deleteSessions: (tokens: string[]) => Promise<unknown>;
+    };
+  };
+};
+
+/**
+ * Quando a conta liga as duas etapas neste pedido (a sessão de quem pediu ainda
+ * dizia "sem duas etapas" e a sessão nova já diz "com"), encerra todas as outras
+ * sessões dela. Antes da ativação a senha bastava para abrir sessão; sem esta
+ * limpeza, uma sessão aberta só com a senha passaria a valer como completa.
+ * Fica só a sessão nova que o plugin acabou de criar para quem ativou.
+ *
+ * Se a limpeza falhar, a sessão nova também sai (ninguém fica dentro com as
+ * antigas abertas), a observabilidade recebe `two_factor_session_cleanup_failed`
+ * e a resposta vira erro.
+ */
+async function revokeOtherSessionsWhenTwoFactorTurnsOn(
+  config: CreateAuthConfig,
+  ctx: unknown,
+): Promise<void> {
+  const context = (ctx as TwoFactorHookContext).context;
+  const before = context?.session?.user;
+  const after = context?.newSession;
+  if (!before?.id || before.twoFactorEnabled === true) return;
+  if (after?.user?.id !== before.id || after.user.twoFactorEnabled !== true) return;
+  const keep = after.session?.token;
+  const adapter = context?.internalAdapter;
+  try {
+    if (!keep || !adapter) throw new Error("session context unavailable");
+    const others = (await adapter.listSessions(before.id))
+      .map((session) => session.token)
+      .filter((token) => token !== keep);
+    if (others.length) await adapter.deleteSessions(others);
+  } catch (error) {
+    if (keep && adapter) await adapter.deleteSessions([keep]).catch(() => undefined);
+    emitSecurityEvent(config, {
+      type: "two_factor_session_cleanup_failed",
+      userId: before.id,
+      metadata: { error: error instanceof Error ? error.name : "UnknownError" },
+    });
+    throw new APIError("INTERNAL_SERVER_ERROR", {
+      code: "SESSION_CLEANUP_FAILED",
+      message: "Two-factor is on, but other sessions could not be revoked. Sign in again.",
+    });
+  }
+}
+
 function createAuthInstance(config: CreateAuthConfig) {
   configureObservability(config.observability);
 
@@ -743,7 +829,7 @@ function createAuthInstance(config: CreateAuthConfig) {
       },
       session: {
         create: {
-          before: async (session: { userId: string }, ctx: unknown) => {
+          before: async (session: { userId: string; expiresAt?: Date }, ctx: unknown) => {
             const adapter = (ctx as { context?: { adapter?: AuthAdapterFindOne } } | null)?.context
               ?.adapter;
             const user = await adapter?.findOne?.<{
@@ -766,6 +852,7 @@ function createAuthInstance(config: CreateAuthConfig) {
               data: {
                 ...session,
                 ...(cacheRoleOnSession ? { role: user?.role ?? null } : {}),
+                ...cappedSessionExpiry(session.expiresAt, config.session?.expiresIn),
               },
             };
           },
@@ -939,7 +1026,10 @@ function createAuthInstance(config: CreateAuthConfig) {
           return;
         }
         if (path === "/two-factor/enable") {
-          if (succeeded) await logAuditEvent("auth.two_factor_enabled", userId, {});
+          if (succeeded) {
+            await revokeOtherSessionsWhenTwoFactorTurnsOn(config, ctx);
+            await logAuditEvent("auth.two_factor_enabled", userId, {});
+          }
           return;
         }
         if (path === "/two-factor/disable") {
@@ -954,6 +1044,7 @@ function createAuthInstance(config: CreateAuthConfig) {
               metadata: { method: "totp", status },
             });
           } else {
+            await revokeOtherSessionsWhenTwoFactorTurnsOn(config, ctx);
             await logAuditEvent("auth.two_factor_verified", userId, {});
           }
           return;
@@ -1021,48 +1112,131 @@ export type CreateAuthResult = {
     member: { id: string; userId?: string; organizationId?: string; role?: string };
     organization: { id: string; name?: string; slug?: string } | null;
   }>;
-  setUserRole: (headers: Headers, targetUserId: string, role: Role) => Promise<void>;
+  setUserRole: (
+    headers: Headers,
+    targetUserId: string,
+    role: Role,
+    options?: SetUserRoleOptions,
+  ) => Promise<void>;
   setUserBanState: (headers: Headers, input: SetUserBanStateInput) => Promise<void>;
 };
 
-export type SetUserBanStateInput = {
+/**
+ * Forma da gravação na auditoria das mudanças de papel e banimento.
+ * - `strictAudit: false` (padrão): o evento é gravado depois da mudança e uma
+ *   falha de gravação não desfaz nada (`logAuditEvent`).
+ * - `strictAudit: true`: o evento entra na mesma transação da mudança; se a
+ *   gravação falhar, nada muda e sai `AuditPersistenceError`.
+ */
+type StrictAuditOption = { strictAudit?: boolean };
+
+export type SetUserRoleOptions = StrictAuditOption & {
+  /** Motivo escrito por quem mudou, gravado no evento `user.role_changed`. */
+  reason?: string | null;
+  /**
+   * Encerra as sessões da conta guardadas no Postgres e os aparelhos confiados
+   * das duas etapas, na mesma transação. Sessões no Redis de cada app seguem
+   * por `revokeCachedSessions`.
+   */
+  revokeSessions?: boolean;
+};
+
+export type SetUserBanStateInput = StrictAuditOption & {
   userId: string;
   banned: boolean;
   banReason?: string | null;
   banExpiresAt?: Date | null;
+  /**
+   * Motivo gravado no evento. No banimento, o padrão é `banReason`; no
+   * desbanimento, é o único lugar do motivo.
+   */
+  reason?: string | null;
 };
+
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** Chave da trava que serializa toda mudança capaz de tirar um owner. */
+const OWNER_CHANGE_LOCK = "informach:auth:owner-change";
+
+/**
+ * Abre a mudança de papel ou banimento: pega a trava das mudanças de owner e só
+ * então lê a conta. Com todas as mudanças passando pela mesma trava, a leitura
+ * seguinte já vê o que a anterior gravou, então dois owners rebaixando um ao
+ * outro ao mesmo tempo não zeram a casa.
+ */
+async function lockedTarget(tx: Transaction, userId: string) {
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${OWNER_CHANGE_LOCK}))`);
+  const [target] = await tx
+    .select({ role: users.role, banned: users.banned, banExpiresAt: users.banExpiresAt })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (!target) throw new NotFoundError("target user");
+  return target;
+}
+
+/** Recusa a mudança quando a conta é o último owner com papel e sem banimento valendo. */
+async function assertAnotherActiveOwner(tx: Transaction, userId: string): Promise<void> {
+  const [row] = await tx
+    .select({ total: sql<number>`count(*)::int` })
+    .from(users)
+    .where(
+      and(
+        eq(users.role, "owner"),
+        ne(users.id, userId),
+        sql`(${users.banned} is not true or (${users.banExpiresAt} is not null and ${users.banExpiresAt} <= now()))`,
+      ),
+    );
+  if (!row || Number(row.total) < 1) throw new LastOwnerError();
+}
 
 export function createAuth(config: CreateAuthConfig): CreateAuthResult {
   const auth = createAuthInstance(config);
   const helpers = buildHelpers<User, Session>(auth);
 
-  async function setUserRole(headers: Headers, targetUserId: string, role: Role): Promise<void> {
+  async function setUserRole(
+    headers: Headers,
+    targetUserId: string,
+    role: Role,
+    options: SetUserRoleOptions = {},
+  ): Promise<void> {
     const actor = await helpers.requireUser(headers);
     helpers.assertPermission(actor, "users.set_role");
     if (!targetUserId) throw new ForbiddenError("target user id is required");
     if (!isRole(role)) throw new ForbiddenError(`unknown role "${role}"`);
-
-    const [updated] = await db
-      .update(users)
-      .set({ role, updatedAt: new Date() })
-      .where(eq(users.id, targetUserId))
-      .returning({ id: users.id });
-
-    if (!updated) throw new NotFoundError("target user");
-
-    await logAuditEvent("user.role_changed", userIdOf(actor), {
+    const actorId = userIdOf(actor);
+    const reason = options.reason ?? null;
+    const payloadFor = (previousRole: string | null) => ({
       targetId: targetUserId,
+      previousRole,
       newRole: role,
+      ...(reason ? { reason } : {}),
     });
-    if (config.cacheRoleOnSession === true) {
-      await db.delete(sessions).where(eq(sessions.userId, targetUserId));
-    }
+
+    const previousRole = await db.transaction(async (tx) => {
+      const target = await lockedTarget(tx, targetUserId);
+      if (target.role === "owner" && role !== "owner" && !isUserBanned(target))
+        await assertAnotherActiveOwner(tx, targetUserId);
+      await tx.update(users).set({ role, updatedAt: new Date() }).where(eq(users.id, targetUserId));
+      if (options.strictAudit)
+        await logAuditEventStrict("user.role_changed", actorId, payloadFor(target.role ?? null), {
+          writer: tx,
+        });
+      if (options.revokeSessions || config.cacheRoleOnSession === true)
+        await tx.delete(sessions).where(eq(sessions.userId, targetUserId));
+      if (options.revokeSessions) await revokeTrustedDevices(targetUserId, tx);
+      return target.role ?? null;
+    });
+
+    if (!options.strictAudit)
+      await logAuditEvent("user.role_changed", actorId, payloadFor(previousRole));
   }
 
   async function setUserBanState(headers: Headers, input: SetUserBanStateInput): Promise<void> {
     const actor = await helpers.requireUser(headers);
     helpers.assertPermission(actor, "users.ban");
     if (!input.userId) throw new ForbiddenError("target user id is required");
+    const actorId = userIdOf(actor);
 
     const banState = {
       banned: input.banned,
@@ -1070,22 +1244,23 @@ export function createAuth(config: CreateAuthConfig): CreateAuthResult {
       banExpiresAt: input.banned ? (input.banExpiresAt ?? null) : null,
       updatedAt: new Date(),
     };
-
-    const [updated] = await db
-      .update(users)
-      .set(banState)
-      .where(eq(users.id, input.userId))
-      .returning({ id: users.id });
-
-    if (!updated) throw new NotFoundError("target user");
-
-    await logAuditEvent(input.banned ? "user.banned" : "user.unbanned", userIdOf(actor), {
+    const eventType = input.banned ? "user.banned" : "user.unbanned";
+    const payload = {
       targetId: input.userId,
-      reason: input.banned ? (input.banReason ?? null) : null,
+      reason: input.reason ?? (input.banned ? (input.banReason ?? null) : null),
+    };
+
+    await db.transaction(async (tx) => {
+      const target = await lockedTarget(tx, input.userId);
+      if (isUserBanned(banState) && target.role === "owner" && !isUserBanned(target))
+        await assertAnotherActiveOwner(tx, input.userId);
+      await tx.update(users).set(banState).where(eq(users.id, input.userId));
+      if (input.strictAudit) await logAuditEventStrict(eventType, actorId, payload, { writer: tx });
+      if (isUserBanned(banState))
+        await tx.delete(sessions).where(eq(sessions.userId, input.userId));
     });
-    if (isUserBanned(banState)) {
-      await db.delete(sessions).where(eq(sessions.userId, input.userId));
-    }
+
+    if (!input.strictAudit) await logAuditEvent(eventType, actorId, payload);
   }
 
   return {

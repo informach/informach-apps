@@ -17,7 +17,9 @@ import {
   BAN_REASONS,
   type BanDuration,
   joinNames,
+  ROLE_REASONS,
   SESSION_REASONS,
+  UNBAN_REASONS,
 } from "../service";
 import { Choice, ConfirmSheet, NoteField } from "./confirm-sheet";
 
@@ -64,6 +66,8 @@ export function PersonActions({
   const [product, setProduct] = useState<ProductKey | "">(verificationProducts[0]?.key ?? "");
   const [sessionReason, setSessionReason] = useState<string>(SESSION_REASONS[0]);
   const [banReason, setBanReason] = useState<string>(BAN_REASONS[0]);
+  const [unbanReason, setUnbanReason] = useState<string>(UNBAN_REASONS[0]);
+  const [roleReason, setRoleReason] = useState<string>(ROLE_REASONS[0]);
   const [duration, setDuration] = useState<BanDuration>("7");
   const [note, setNote] = useState("");
   const [role, setRole] = useState(person.role === "member" ? "admin" : "member");
@@ -153,12 +157,10 @@ export function PersonActions({
               variant="ghost"
               className="justify-self-start"
               disabled={pending}
-              onClick={() =>
-                run(
-                  () => unbanAction({ userId: person.id }),
-                  () => setJustBanned(false),
-                )
-              }
+              onClick={() => {
+                setUnbanReason(UNBAN_REASONS[0]);
+                open("unban");
+              }}
             >
               Desbanir agora
             </Button>
@@ -320,7 +322,25 @@ export function PersonActions({
         ]}
         onClose={() => setSheet(null)}
       >
-        <AuditLine name={staff.firstName} withReason={false} />
+        <Choice
+          id="desbanir-motivo"
+          label="Motivo"
+          value={unbanReason}
+          options={UNBAN_REASONS}
+          onChange={setUnbanReason}
+        />
+        <NoteField
+          id="desbanir-nota"
+          label={
+            otherReason(unbanReason)
+              ? "Qual o motivo (sem dados pessoais)"
+              : "Nota para a equipe (opcional, sem dados pessoais)"
+          }
+          required={otherReason(unbanReason)}
+          value={note}
+          onChange={setNote}
+        />
+        <AuditLine name={staff.firstName} />
         <SheetError result={sheet === "unban" ? result : null} />
         <SheetButtons
           pending={pending}
@@ -328,7 +348,12 @@ export function PersonActions({
           onCancel={() => setSheet(null)}
           onConfirm={() =>
             run(
-              () => unbanAction({ userId: person.id }),
+              () =>
+                unbanAction({
+                  userId: person.id,
+                  reason: unbanReason,
+                  note: note || undefined,
+                }),
               () => setJustBanned(false),
             )
           }
@@ -342,7 +367,8 @@ export function PersonActions({
           `Hoje a conta tem o papel ${person.role}.`,
           role === "member"
             ? "Com member, a conta perde o acesso ao Bastidores no próximo clique."
-            : "Com papel de equipe, a pessoa entra no Bastidores depois de criar uma senha e ativar as duas etapas.",
+            : "Com papel de equipe, a pessoa entra no Bastidores depois de criar uma senha, confirmar o e-mail e ativar as duas etapas.",
+          "As sessões abertas da conta no Bastidores e na Suíte Edi, no navegador, são encerradas.",
           "Nos produtos nada muda: planos, créditos e dados continuam iguais.",
         ]}
         onClose={() => setSheet(null)}
@@ -354,7 +380,25 @@ export function PersonActions({
           options={ROLE_OPTIONS}
           onChange={setRole}
         />
-        <AuditLine name={staff.firstName} withReason={false} />
+        <Choice
+          id="papel-motivo"
+          label="Motivo"
+          value={roleReason}
+          options={ROLE_REASONS}
+          onChange={setRoleReason}
+        />
+        <NoteField
+          id="papel-nota"
+          label={
+            otherReason(roleReason)
+              ? "Qual o motivo (sem dados pessoais)"
+              : "Nota para a equipe (opcional, sem dados pessoais)"
+          }
+          required={otherReason(roleReason)}
+          value={note}
+          onChange={setNote}
+        />
+        <AuditLine name={staff.firstName} />
         <SheetError result={sheet === "role" ? result : null} />
         <SheetButtons
           pending={pending}
@@ -362,7 +406,12 @@ export function PersonActions({
           onCancel={() => setSheet(null)}
           onConfirm={() =>
             run(() =>
-              changeRoleAction({ userId: person.id, role: role as "member" | "admin" | "owner" }),
+              changeRoleAction({
+                userId: person.id,
+                role: role as "member" | "admin" | "owner",
+                reason: roleReason,
+                note: note || undefined,
+              }),
             )
           }
         />
@@ -371,11 +420,11 @@ export function PersonActions({
   );
 }
 
-function AuditLine({ name, withReason = true }: { name: string; withReason?: boolean }) {
+/** Toda ação que muda algo pede motivo, e o motivo vai junto para a auditoria. */
+function AuditLine({ name }: { name: string }) {
   return (
     <p className="m-0 text-[13px] text-ink-muted">
-      Fica registrado na auditoria em nome de {name}
-      {withReason ? ", com o motivo" : ""}.
+      Fica registrado na auditoria em nome de {name}, com o motivo.
     </p>
   );
 }

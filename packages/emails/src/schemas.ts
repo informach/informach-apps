@@ -13,6 +13,7 @@ export const EMAIL_CATEGORIES = [
   "auth.invitation",
   "auth.account-deletion",
   "auth.signup-attempt-on-existing",
+  "auth.two-factor-setup-otp",
   "billing.payment-success",
   "billing.payment-failed",
   "billing.subscription-renewed",

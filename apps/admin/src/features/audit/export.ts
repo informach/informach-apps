@@ -21,7 +21,8 @@ function safeApp(payload: Record<string, unknown>): string {
  * Exporta a auditoria com os mesmos filtros da tela. Só para contas owner.
  * Saem apenas horário, tipo de evento, IDs, app e os nomes dos campos
  * guardados, nunca os valores do payload. A exportação entra na própria
- * auditoria (`admin.audit_exported`) em nome de quem exportou.
+ * auditoria (`admin.audit_exported`) em nome de quem exportou, na forma
+ * estrita: sem o registro, o arquivo não é devolvido (`AuditPersistenceError`).
  */
 export async function exportAuditCsv(
   params: Record<string, string | string[] | undefined>,

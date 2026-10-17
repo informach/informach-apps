@@ -26,20 +26,32 @@ export async function ownerRecipients(): Promise<string[]> {
   return unique(await ownerEmails());
 }
 
+export type SendToAllResult = {
+  /** Nada ficou para tentar de novo: cada pessoa recebeu, já tinha recebido ou foi bloqueada de vez. */
+  delivered: boolean;
+  /** Quem recebeu de fato (agora ou numa rodada anterior). */
+  sent: number;
+  /** Bloqueado de vez pelo provedor (bounce ou spam) ou por descadastro; não conta como enviado. */
+  skipped: number;
+  /** Falha que a próxima rodada tenta de novo. */
+  failed: number;
+};
+
 /**
  * Envia a mesma mensagem para cada pessoa, com `messageKey` por destinatário.
- * Devolve `delivered: true` só se todas saíram (ou já tinham saído, ou foram
- * bloqueadas de propósito); qualquer falha deixa para a próxima rodada, que
- * reenvia só para quem faltou.
+ * Envio pulado não é envio: ele não entra em `sent`, e quem chama decide o que
+ * dizer quando ninguém recebeu. `delivered: true` só quer dizer que não sobrou
+ * nada para a próxima rodada, que reenvia só para quem falhou.
  */
 export async function sendToAll(input: {
   category: AdminCategory;
   recipients: readonly string[];
   messageKey: (recipientKey: string) => string;
-  /** Monta o e-mail já com o link de descadastro daquela pessoa. */
+  /** Monta o e-mail; o link de descadastro daquela pessoa vem junto, para quem quiser mostrar. */
   render: (unsubscribeUrl: string) => Promise<{ html: string; text: string; subject: string }>;
-}): Promise<{ delivered: boolean; sent: number; failed: number }> {
+}): Promise<SendToAllResult> {
   let sent = 0;
+  let skipped = 0;
   let failed = 0;
   for (const recipient of input.recipients) {
     const unsubscribeUrl = emailUnsubscribeUrl(recipient, input.category);
@@ -54,12 +66,13 @@ export async function sendToAll(input: {
         text,
         unsubscribeUrl,
       });
-      if (result.ok || result.status === "skipped") sent += 1;
+      if (result.ok) sent += 1;
+      else if (result.status === "skipped") skipped += 1;
       else failed += 1;
     } catch (error) {
       failed += 1;
       reportOperationalError("alert.delivery_failed", error, { category: input.category });
     }
   }
-  return { delivered: failed === 0, sent, failed };
+  return { delivered: failed === 0, sent, skipped, failed };
 }

@@ -28,6 +28,7 @@ import {
   SubscriptionRenewedEmail,
   type SubscriptionRenewedEmailProps,
 } from "./subscriptionRenewed";
+import { TwoFactorSetupEmailOtp, type TwoFactorSetupEmailOtpProps } from "./twoFactorSetupEmailOtp";
 import { VerificationEmail, type VerificationEmailProps } from "./verification";
 import { VerifyEmailOtp, type VerifyEmailOtpProps } from "./verifyEmailOtp";
 
@@ -55,6 +56,7 @@ export { SignInEmailOtp } from "./signInEmailOtp";
 export { SignupAttemptOnExistingEmail } from "./signupAttemptOnExisting";
 export { SubscriptionCanceledEmail } from "./subscriptionCanceled";
 export { SubscriptionRenewedEmail } from "./subscriptionRenewed";
+export { TwoFactorSetupEmailOtp } from "./twoFactorSetupEmailOtp";
 export { VerificationEmail } from "./verification";
 export { VerifyEmailOtp } from "./verifyEmailOtp";
 export type {
@@ -73,6 +75,7 @@ export type {
   SignupAttemptOnExistingEmailProps,
   SubscriptionCanceledEmailProps,
   SubscriptionRenewedEmailProps,
+  TwoFactorSetupEmailOtpProps,
   VerificationEmailProps,
   VerifyEmailOtpProps,
 };
@@ -89,6 +92,7 @@ export type EmailCategory =
   | "auth.invitation"
   | "auth.account-deletion"
   | "auth.signup-attempt-on-existing"
+  | "auth.two-factor-setup-otp"
   | "billing.payment-success"
   | "billing.payment-failed"
   | "billing.subscription-renewed"
@@ -108,6 +112,7 @@ export type RenderTemplatePropsByCategory = {
   "auth.invitation": InvitationEmailProps;
   "auth.account-deletion": AccountDeletionEmailProps;
   "auth.signup-attempt-on-existing": SignupAttemptOnExistingEmailProps;
+  "auth.two-factor-setup-otp": TwoFactorSetupEmailOtpProps;
   "billing.payment-success": PaymentSuccessEmailProps;
   "billing.payment-failed": PaymentFailedEmailProps;
   "billing.subscription-renewed": SubscriptionRenewedEmailProps;
@@ -139,6 +144,7 @@ type SubjectNamespace =
   | "invitation"
   | "accountDeletion"
   | "signupAttemptOnExisting"
+  | "twoFactorSetupEmailOtp"
   | "paymentSuccess"
   | "paymentFailed"
   | "subscriptionRenewed"
@@ -211,6 +217,11 @@ const CATEGORY_REGISTRY: {
   "auth.signup-attempt-on-existing": {
     component: SignupAttemptOnExistingEmail,
     subjectNamespace: "signupAttemptOnExisting",
+    subjectValues: ({ appName }) => ({ appName }),
+  },
+  "auth.two-factor-setup-otp": {
+    component: TwoFactorSetupEmailOtp,
+    subjectNamespace: "twoFactorSetupEmailOtp",
     subjectValues: ({ appName }) => ({ appName }),
   },
   "billing.payment-success": {

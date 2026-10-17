@@ -397,9 +397,13 @@ export default defineRailway((ctx) => {
 
   // Vigia (a cada 5 minutos) e resumo da semana (segunda, 8h em Brasília; a
   // terça só reenvia o que falhou na segunda, o envio é único por semana).
+  // Imagem fixada por digest, a mesma dos outros crons novos: uma `latest`
+  // trocada no registro não muda o que roda com o CRON_SECRET do admin.
   const adminCron = (name: string, schedule: string, job: string) =>
     service(`cron-admin-${name}`, {
-      source: image("alpine/curl:latest"),
+      source: image(
+        "alpine/curl@sha256:d7720f8cffb47e7a80d01fb2c1b38562fab0e436948537e9b77dc312d29d12d6",
+      ),
       start: `sh -c 'curl --fail-with-body --silent --show-error --connect-timeout 15 --max-time 120 --request POST --header "Authorization: Bearer $CRON_SECRET" "$ADMIN_URL/api/jobs/${job}"'`,
       replicas: { [REGION]: 1 },
       deploy: { cronSchedule: schedule, restartPolicyType: "NEVER" },

@@ -32,7 +32,8 @@ export function adminWatchJob(): Promise<WatchResult> {
   return recorded(
     "admin-watch",
     () => runAdminWatch(),
-    (result) => result.alertsPending > 0,
+    // Aviso que não chegou a ninguém (todo destinatário bloqueado) também é falha da passada.
+    (result) => result.alertsPending > 0 || result.alertsUndelivered > 0,
   );
 }
 

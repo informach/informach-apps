@@ -15,6 +15,7 @@ import { PaymentSuccessEmail } from "../templates/paymentSuccess";
 import { SignInEmailOtp } from "../templates/signInEmailOtp";
 import { SubscriptionCanceledEmail } from "../templates/subscriptionCanceled";
 import { SubscriptionRenewedEmail } from "../templates/subscriptionRenewed";
+import { TwoFactorSetupEmailOtp } from "../templates/twoFactorSetupEmailOtp";
 import { VerificationEmail } from "../templates/verification";
 import { VerifyEmailOtp } from "../templates/verifyEmailOtp";
 
@@ -324,10 +325,34 @@ describe("Bastidores templates", () => {
     expect(result.text).toContain("Nenhum serviço ficou fora do ar");
   });
 
+  it("renders the two-factor setup code without a CTA or unsubscribe link", async () => {
+    const result = await renderTemplate("auth.two-factor-setup-otp", {
+      appName: "Bastidores",
+      otp: "482913",
+      expiresInMinutes: 10,
+    });
+    expect(result.subject).toBe("Seu código para ativar as duas etapas no Bastidores");
+    expect(result.text).toContain("482913");
+    expect(result.text).toContain("10 minutos e só uma vez");
+    expect(result.html).not.toContain("Cancele a assinatura");
+  });
+
   it("never uses a dash as punctuation in its copy", async () => {
     const down = await renderTemplate("admin.alert", adminAlertDown);
     const weekly = await renderTemplate("admin.weekly-summary", adminWeekly);
-    for (const text of [down.subject, down.text, weekly.subject, weekly.text]) {
+    const setup = await renderTemplate("auth.two-factor-setup-otp", {
+      appName: "Bastidores",
+      otp: "482913",
+      expiresInMinutes: 10,
+    });
+    for (const text of [
+      down.subject,
+      down.text,
+      weekly.subject,
+      weekly.text,
+      setup.subject,
+      setup.text,
+    ]) {
       const dashes = [0x2013, 0x2014].map((code) => String.fromCharCode(code));
       expect(dashes.some((dash) => text.includes(dash))).toBe(false);
     }
@@ -501,6 +526,13 @@ describe("template snapshots", () => {
         unsubscribeUrl={baseProps.unsubscribeUrl}
         unsubscribeMailto={baseProps.unsubscribeMailto}
       />,
+    );
+    expect(html).toMatchSnapshot();
+  });
+
+  it("TwoFactorSetupEmailOtp HTML matches snapshot", async () => {
+    const html = await render(
+      <TwoFactorSetupEmailOtp appName="Bastidores" otp="482913" expiresInMinutes={10} />,
     );
     expect(html).toMatchSnapshot();
   });

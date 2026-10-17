@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { Button, CodeInput, Field, FormMessage, TextInput } from "@/components/form";
 import { authClient } from "@/lib/auth-client";
+import { safeNext } from "@/lib/safe-next";
 
 type Step = "senha" | "codigo" | "recuperacao" | "nova-senha-email" | "nova-senha-codigo";
 type Message = { tone: "ok" | "bad" | "info"; text: string } | null;
@@ -43,7 +44,8 @@ export function EntrarForm({ next }: { next: string }) {
   }
 
   function finish() {
-    router.replace(next as Route);
+    // O servidor já filtrou `next`; a mesma regra de novo antes de navegar.
+    router.replace(safeNext(next) as Route);
     router.refresh();
   }
 

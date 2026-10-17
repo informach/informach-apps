@@ -146,7 +146,10 @@ export type FichaSession = { product: string; device: string; lastActiveAt: Date
 
 /**
  * Tudo que a ficha mostra, já em frases. Abrir a ficha grava `admin.user_viewed`
- * em nome de quem abriu, uma vez a cada 10 minutos por pessoa da equipe.
+ * em nome de quem abriu, uma vez a cada 10 minutos por pessoa da equipe, antes
+ * de buscar o resto da conta (só a existência é conferida antes). A gravação é
+ * estrita: se falhar, sai `AuditPersistenceError`, nada da conta sai daqui e a
+ * página pede para tentar de novo.
  */
 export async function loadFicha(id: string, staff: Staff) {
   if (!ID.test(id)) return null;

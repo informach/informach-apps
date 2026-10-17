@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useMemo, useState } from "react";
 import { encode } from "uqr";
 import { Button, CodeInput, Field, FormMessage, TextInput } from "@/components/form";
+import { confirmSetupCodeAction, sendSetupCodeAction } from "@/features/two-factor/actions";
 import { authClient } from "@/lib/auth-client";
 
 type Message = { tone: "ok" | "bad" | "info"; text: string } | null;
@@ -29,6 +30,12 @@ function QrCode({ value }: { value: string }) {
   );
 }
 
+/** Código de erro que a rota ou o Better Auth devolvem no corpo. */
+function errorCode(error: unknown): string | undefined {
+  const code = (error as { code?: unknown } | null)?.code;
+  return typeof code === "string" ? code : undefined;
+}
+
 function secretOf(uri: string): string {
   try {
     return new URL(uri).searchParams.get("secret") ?? "";
@@ -37,8 +44,19 @@ function secretOf(uri: string): string {
   }
 }
 
-export function TwoFactorSetup({ email }: { email: string }) {
+export function TwoFactorSetup({
+  email,
+  emailConfirmed,
+}: {
+  email: string;
+  /** A sessão já tem a prova por e-mail, ainda válida: começa pela senha. */
+  emailConfirmed: boolean;
+}) {
   const router = useRouter();
+  const [confirmed, setConfirmed] = useState(emailConfirmed);
+  const [codeSent, setCodeSent] = useState(false);
+  const [emailCode, setEmailCode] = useState("");
+  const [signInAgain, setSignInAgain] = useState(false);
   const [password, setPassword] = useState("");
   const [setup, setSetup] = useState<{ uri: string; backupCodes: string[] } | null>(null);
   const [saved, setSaved] = useState(false);
@@ -61,10 +79,48 @@ export function TwoFactorSetup({ email }: { email: string }) {
     }
   }
 
+  function onSendCode() {
+    void run(async () => {
+      const result = await sendSetupCodeAction({});
+      if (!result.ok) {
+        setMessage({ tone: "bad", text: result.error });
+        return;
+      }
+      setCodeSent(true);
+      setEmailCode("");
+      setMessage({ tone: "info", text: result.message });
+    });
+  }
+
+  function onConfirmCode(event: FormEvent) {
+    event.preventDefault();
+    void run(async () => {
+      const result = await confirmSetupCodeAction({ code: emailCode });
+      if (!result.ok) {
+        setMessage({ tone: "bad", text: result.error });
+        return;
+      }
+      setConfirmed(true);
+      setEmailCode("");
+      setMessage({ tone: "ok", text: result.message });
+    });
+  }
+
   function onPassword(event: FormEvent) {
     event.preventDefault();
     void run(async () => {
       const result = await authClient.twoFactor.enable({ password });
+      if (result.error?.status === 403 || errorCode(result.error) === "EMAIL_CODE_REQUIRED") {
+        // A prova venceu (10 minutos) ou já foi usada numa ativação anterior.
+        setConfirmed(false);
+        setCodeSent(false);
+        setPassword("");
+        setMessage({
+          tone: "bad",
+          text: "A confirmação do e-mail venceu ou já foi usada. Peça um código novo.",
+        });
+        return;
+      }
       if (result.error || !result.data) {
         setMessage({ tone: "bad", text: "Senha não confere." });
         return;
@@ -82,6 +138,16 @@ export function TwoFactorSetup({ email }: { email: string }) {
     event.preventDefault();
     void run(async () => {
       const result = await authClient.twoFactor.verifyTotp({ code: code.replace(/\s+/g, "") });
+      if (errorCode(result.error) === "SESSION_CLEANUP_FAILED") {
+        // As duas etapas ligaram, mas as outras sessões não saíram: por
+        // segurança, a desta tela também foi encerrada.
+        setSignInAgain(true);
+        setMessage({
+          tone: "bad",
+          text: "As duas etapas foram ativadas, mas não deu para encerrar as outras sessões da conta, e por segurança esta também foi encerrada. Entre de novo com a senha e o código do aplicativo.",
+        });
+        return;
+      }
       if (result.error) {
         setMessage({
           tone: "bad",
@@ -94,10 +160,51 @@ export function TwoFactorSetup({ email }: { email: string }) {
     });
   }
 
+  if (!confirmed) {
+    return (
+      <div className="grid w-full max-w-[460px] gap-4">
+        <h2 className="m-0 text-2xl font-extrabold">1. Confirme o e-mail</h2>
+        <p className="m-0 text-ink-soft">
+          Antes de ligar o autenticador, confirme que a caixa de e-mail de <strong>{email}</strong>{" "}
+          é sua. O código de 6 números vai para lá e vale por 10 minutos.
+        </p>
+        {message ? <FormMessage tone={message.tone}>{message.text}</FormMessage> : null}
+        {codeSent ? (
+          <form onSubmit={onConfirmCode} className="grid gap-4">
+            <Field label="Código do e-mail" htmlFor="duas-etapas-email-codigo">
+              <CodeInput
+                id="duas-etapas-email-codigo"
+                required
+                maxLength={7}
+                value={emailCode}
+                onChange={(event) => setEmailCode(event.target.value)}
+              />
+            </Field>
+            <Button type="submit" disabled={busy}>
+              {busy ? "Conferindo..." : "Confirmar código"}
+            </Button>
+            <Button
+              variant="quiet"
+              className="justify-self-start"
+              disabled={busy}
+              onClick={onSendCode}
+            >
+              Mandar outro código
+            </Button>
+          </form>
+        ) : (
+          <Button disabled={busy} onClick={onSendCode}>
+            {busy ? "Enviando..." : "Enviar código para o e-mail"}
+          </Button>
+        )}
+      </div>
+    );
+  }
+
   if (!setup) {
     return (
       <form onSubmit={onPassword} className="grid w-full max-w-[460px] gap-4">
-        <h2 className="m-0 text-2xl font-extrabold">1. Confirme a senha</h2>
+        <h2 className="m-0 text-2xl font-extrabold">2. Confirme a senha</h2>
         <p className="m-0 text-ink-soft">
           Vamos gerar a chave do autenticador para <strong>{email}</strong>. Tenha à mão um
           aplicativo como Google Authenticator, Microsoft Authenticator ou 1Password.
@@ -126,7 +233,7 @@ export function TwoFactorSetup({ email }: { email: string }) {
     <div className="grid w-full max-w-[640px] gap-8">
       <section aria-labelledby="passo-qr" className="grid gap-4">
         <h2 id="passo-qr" className="m-0 text-2xl font-extrabold">
-          2. Leia o código no aplicativo
+          3. Leia o código no aplicativo
         </h2>
         <div className="flex flex-wrap items-start gap-6">
           <QrCode value={setup.uri} />
@@ -142,7 +249,7 @@ export function TwoFactorSetup({ email }: { email: string }) {
 
       <section aria-labelledby="passo-recuperacao" className="grid gap-3">
         <h2 id="passo-recuperacao" className="m-0 text-2xl font-extrabold">
-          3. Guarde os códigos de recuperação
+          4. Guarde os códigos de recuperação
         </h2>
         <p className="m-0 text-ink-soft">
           Se perder o celular, cada código abaixo entra uma vez no lugar do aplicativo. Guarde num
@@ -184,7 +291,7 @@ export function TwoFactorSetup({ email }: { email: string }) {
 
       <form onSubmit={onVerify} aria-labelledby="passo-codigo" className="grid max-w-[420px] gap-4">
         <h2 id="passo-codigo" className="m-0 text-2xl font-extrabold">
-          4. Digite o código do aplicativo
+          5. Digite o código do aplicativo
         </h2>
         {message ? <FormMessage tone={message.tone}>{message.text}</FormMessage> : null}
         <Field label="Código de 6 números" htmlFor="duas-etapas-codigo">
@@ -196,9 +303,13 @@ export function TwoFactorSetup({ email }: { email: string }) {
             onChange={(event) => setCode(event.target.value)}
           />
         </Field>
-        <Button type="submit" variant="action" disabled={busy || !saved}>
-          {busy ? "Conferindo..." : "Ativar e entrar"}
-        </Button>
+        {signInAgain ? (
+          <Button onClick={() => router.replace("/entrar")}>Entrar de novo</Button>
+        ) : (
+          <Button type="submit" variant="action" disabled={busy || !saved}>
+            {busy ? "Conferindo..." : "Ativar e entrar"}
+          </Button>
+        )}
         {!saved ? (
           <p className="m-0 text-[13px] text-ink-muted">
             Marque que guardou os códigos para continuar.

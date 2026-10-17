@@ -4,7 +4,12 @@ import { emailUnsubscribeUrl, getEmails, sendStaffOnlyEmail } from "./emails";
 import { getEnv } from "./env";
 import { reportOperationalError } from "./observability";
 
-/** Sessão do Bastidores: um expediente. Passou disso, entra de novo com senha e código. */
+/**
+ * Sessão do Bastidores: um expediente. Passou disso, entra de novo com senha e
+ * código. O pacote usa `expiresIn` também como teto, então nem `rememberMe:
+ * false` (1 dia no Better Auth) estica a sessão; `updateAge` igual impede a
+ * renovação.
+ */
 const SESSION_SECONDS = 12 * 60 * 60;
 
 let instance: CreateAuthResult | undefined;
@@ -17,7 +22,9 @@ let instance: CreateAuthResult | undefined;
  * - link mágico e entrada por código no e-mail não carregam;
  * - confirmar e-mail não cria sessão (`autoSignInAfterVerification: false`).
  * A senha é criada ou trocada pelo código enviado ao e-mail, que só sai para
- * contas da equipe (ver `sendStaffOnlyEmail`).
+ * contas da equipe (ver `sendStaffOnlyEmail`). A ativação das duas etapas pede
+ * antes um código no e-mail (`features/two-factor`), e ligar as duas etapas
+ * encerra as outras sessões da conta (no pacote, depois de `verify-totp`).
  */
 export function getAuth(): CreateAuthResult {
   if (instance) return instance;
@@ -47,6 +54,12 @@ export function getAuth(): CreateAuthResult {
     observability: {
       onAuditPersistenceFailure: (event) =>
         reportOperationalError("auth.audit_persistence_failed", undefined, event),
+      onSecurityEvent: (event) => {
+        if (event.type === "two_factor_session_cleanup_failed")
+          reportOperationalError("auth.session_cleanup_failed", undefined, {
+            actorId: event.userId,
+          });
+      },
     },
   });
   return instance;

@@ -1,5 +1,14 @@
+import { verifications } from "@informach/db/schema";
+import type { SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
-import { listCachedSessions, revokeCachedSessions, type SessionStore } from "../sessions";
+import {
+  listCachedSessions,
+  revokeCachedSessions,
+  revokeTrustedDevices,
+  type SessionStore,
+  TRUST_DEVICE_IDENTIFIER_PREFIX,
+} from "../sessions";
 
 function memoryStore(entries: Record<string, string>): SessionStore & { keys(): string[] } {
   const map = new Map(Object.entries(entries));
@@ -63,5 +72,32 @@ describe("cached sessions in secondary storage", () => {
     const store = memoryStore({ "active-sessions-u1": "{not json" });
     expect(await listCachedSessions(store, "u1", now)).toEqual([]);
     expect(await revokeCachedSessions(memoryStore({}), "u1")).toBe(0);
+  });
+});
+
+describe("trusted devices of the two-factor plugin", () => {
+  it("deletes only the trust-device records whose value is the account id", async () => {
+    let condition: unknown;
+    const writer = {
+      delete: (table: unknown) => {
+        expect(table).toBe(verifications);
+        return {
+          where: (where: unknown) => {
+            condition = where;
+            return { returning: async () => [{ id: "v1" }, { id: "v2" }] };
+          },
+        };
+      },
+    };
+    await expect(revokeTrustedDevices("u1", writer as never)).resolves.toBe(2);
+    const query = new PgDialect().sqlToQuery(condition as SQL);
+    expect(query.sql).toBe(
+      '("core"."verifications"."value" = $1 and "core"."verifications"."identifier" like $2)',
+    );
+    expect(query.params).toEqual(["u1", "trust-device-%"]);
+  });
+
+  it("uses the identifier prefix the installed Better Auth writes", () => {
+    expect(TRUST_DEVICE_IDENTIFIER_PREFIX).toBe("trust-device-");
   });
 });

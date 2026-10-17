@@ -7,15 +7,19 @@
  *   DATABASE_URL=... pnpm --filter @informach/admin bootstrap-owner pessoa@informach.com.br
  *
  * Não cria conta nem senha: a pessoa entra em algum produto antes, e a senha do
- * Bastidores é criada por ela mesma, pelo código no e-mail.
+ * Bastidores é criada por ela mesma, pelo código no e-mail. Recusa conta banida
+ * ou com e-mail ainda não confirmado, e encerra as sessões que a conta já tinha
+ * no Bastidores (e na Suíte Edi, no navegador): o papel novo só vale numa
+ * entrada nova, com e-mail confirmado na ativação das duas etapas.
  *
  * `--emergencia` aceita rodar mesmo com owners existentes, para o caso raro em
  * que todos perderam o acesso (celular e códigos de recuperação). Fica gravado
  * na auditoria como tal. Em produção, rode só com a titular de acordo.
  */
-import { logAuditEvent } from "@informach/auth";
+import { isUserBanned, logAuditEventStrict } from "@informach/auth";
+import { revokeTrustedDevices } from "@informach/auth/sessions";
 import { count, db, eq } from "@informach/db";
-import { users } from "@informach/db/schema";
+import { sessions, users } from "@informach/db/schema";
 
 async function main() {
   const args = process.argv.slice(2);
@@ -39,7 +43,13 @@ async function main() {
   }
 
   const [account] = await db
-    .select({ id: users.id, role: users.role })
+    .select({
+      id: users.id,
+      role: users.role,
+      emailVerified: users.emailVerified,
+      banned: users.banned,
+      banExpiresAt: users.banExpiresAt,
+    })
     .from(users)
     .where(eq(users.email, email))
     .limit(1);
@@ -49,22 +59,48 @@ async function main() {
     );
     process.exit(1);
   }
+  if (isUserBanned(account)) {
+    console.error("A conta está banida e não conseguiria entrar como owner. Escolha outra conta.");
+    process.exit(1);
+  }
+  if (!account.emailVerified) {
+    console.error(
+      "O e-mail desta conta ainda não foi confirmado. A pessoa confirma o e-mail no produto em que se cadastrou e o script roda de novo.",
+    );
+    process.exit(1);
+  }
   if (account.role === "owner") {
     console.log("A conta já é owner. Nada mudou.");
     process.exit(0);
   }
 
-  await db
-    .update(users)
-    .set({ role: "owner", updatedAt: new Date() })
-    .where(eq(users.id, account.id));
-  await logAuditEvent("user.role_changed", null, {
-    targetId: account.id,
-    previousRole: account.role,
-    newRole: "owner",
-    source: emergency ? "bootstrap-owner:emergencia" : "bootstrap-owner",
+  // Tudo ou nada: papel, sessões, aparelhos confiados e o registro na auditoria.
+  const revoked = await db.transaction(async (tx) => {
+    await tx
+      .update(users)
+      .set({ role: "owner", updatedAt: new Date() })
+      .where(eq(users.id, account.id));
+    const ended = await tx
+      .delete(sessions)
+      .where(eq(sessions.userId, account.id))
+      .returning({ id: sessions.id });
+    await revokeTrustedDevices(account.id, tx);
+    await logAuditEventStrict(
+      "user.role_changed",
+      null,
+      {
+        targetId: account.id,
+        previousRole: account.role,
+        newRole: "owner",
+        source: emergency ? "bootstrap-owner:emergencia" : "bootstrap-owner",
+      },
+      { writer: tx },
+    );
+    return ended.length;
   });
-  console.log(`Conta ${account.id} agora é owner.`);
+  console.log(
+    `Conta ${account.id} agora é owner. ${revoked === 1 ? "1 sessão aberta foi encerrada" : `${revoked} sessões abertas foram encerradas`}; a entrada no Bastidores começa do zero.`,
+  );
   process.exit(0);
 }
 

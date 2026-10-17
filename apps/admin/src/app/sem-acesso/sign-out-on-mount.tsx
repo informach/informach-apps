@@ -3,7 +3,10 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { authClient } from "@/lib/auth-client";
 
-/** Encerra na hora a sessão de quem entrou sem papel, para ela não ficar aberta. */
+/**
+ * A sessão de quem entrou sem papel já foi apagada no servidor, no ponto em que
+ * o acesso foi negado (`getStaffState`). Aqui só sai o cookie do navegador.
+ */
 export function SignOutOnMount() {
   useEffect(() => {
     void authClient.signOut().catch(() => undefined);

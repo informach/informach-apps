@@ -3,23 +3,18 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Brand } from "@/components/brand";
 import { getStaffState } from "@/lib/access";
+import { safeNext } from "@/lib/safe-next";
 import { EntrarForm } from "./entrar-form";
 
 export const metadata: Metadata = { title: "Entrar" };
 export const dynamic = "force-dynamic";
-
-/** Só caminhos internos; nada de `//outro-site` vindo da barra de endereço. */
-function safeNext(value: string | string[] | undefined): string {
-  const next = Array.isArray(value) ? value[0] : value;
-  if (!next?.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) return "/";
-  return next;
-}
 
 export default async function EntrarPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  // Só um caminho do próprio Bastidores; nada de `//outro-site` vindo da barra de endereço.
   const next = safeNext((await searchParams).next);
   const state = await getStaffState();
   if (state.kind === "staff") redirect(next as "/");
