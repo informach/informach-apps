@@ -110,3 +110,29 @@ Fica registrado: na Semana, as atividades sem data saem de `getRoutineSnapshot` 
 ### Verificação da fase 5
 
 Typecheck e Biome limpos; unitários (595) e integração (88) passando. O E2E roda depois da conferência com o canvas, pelo mesmo motivo da fase 4 (memória da máquina), e o resultado está lá.
+
+## Conferência contra o canvas
+
+Pedido da Helena em 17/10/2026: o visual tem que ficar igual às pranchas, com uma exceção só, a vez da criança, que segue a decisão posterior registrada na proposta. Uma rodada ajustou cada tela, da landing e do app, à prancha correspondente (layout, ordem dos blocos, tipografia, cores, espaçamentos, ícones e copy literal), e uma revisão própria dessa rodada achou defeitos que foram corrigidos antes do commit:
+
+- corrigir pelo recado uma atividade que já está na turma não a tira mais da turma; despublicar é decisão da edição;
+- à noite, toda criança com algo amanhã aparece na mochila, mesmo sem aula nem material;
+- o resumo semanal começa hoje: o que vence no domingo, ou de sexta a domingo, não some; o link abre a semana do resumo e o push diz até que dia conta;
+- o adulto convidado não vê as extras da criança;
+- o "Pronto" diz quantas atividades foram de fato para a turma, e a gravação recusa no servidor o prazo que não veio da escola;
+- o "Adicionar" do computador leva a criança da tela, e a foto da folha remonta o formulário em vez de ficar presa para o recado seguinte;
+- "Só de Clara · Ver todas" onde as pílulas de criança não aparecem (Hoje à noite e a Semana);
+- o trecho do recado aparece para quem não vê o recado inteiro;
+- alvos de toque de 44 px sem mudar o desenho, "A casa já tem o Pro." sem vão no rodapé, o nome da marca escondido no cabeçalho do celular;
+- "Dia cheio: 1 trabalho" no singular, e à noite a página não consulta mais o horário de hoje.
+
+### Diferenças que ficaram
+
+- **A vez da criança** segue a decisão posterior (o que vence até a próxima aula, "Quer adiantar?").
+- **"O recado fala só de Clara" nasce desmarcado.** A prancha desenha a caixa marcada, mas ela decide se os outros adultos da casa veem o original, que pode falar de outras crianças; vale a regra de privacidade da fase 3.
+- **A foto de "Quem faz" é quadrada**, com até 360 px: o arquivo publicado tem 360 por 360 e sairia ampliado e cortado no quadro de 4 por 3.
+
+### Verificação da conferência
+
+Capturas com a família do canvas (`tmp/canvas/shots.spec.ts`, fora do git), comparadas lado a lado com as pranchas renderizadas: Hoje no celular e no computador, a noite, a Semana, a Família e a landing inteira em 1440 px batem com as pranchas, a não ser pelos dados do dia. A prancha da captura é interativa e não se renderiza parada; ela foi conferida pela copy literal. Typecheck e Biome limpos; unitários 617 de 617; integração 89 de 89 num banco descartável com a cadeia inteira de migrações e os dados de referência. O E2E e o build rodam no CI do PR.
+

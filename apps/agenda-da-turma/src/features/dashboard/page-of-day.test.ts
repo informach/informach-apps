@@ -109,6 +109,19 @@ describe("fullDayDetail", () => {
   });
 });
 
+describe("weekRows num dia cheio com uma coisa só", () => {
+  it("says 1 trabalho, not 1 trabalhos", () => {
+    const rows = weekRows({
+      todayIso: "2026-10-17",
+      days: [{ iso: "2026-10-21", full: true }],
+      openToday: 0,
+      lateToday: 0,
+      things: [thing({ dueAt: "2026-10-21", type: "project", title: "Maquete" })],
+    });
+    expect(rows.find((row) => row.full)?.text).toBe("1 trabalho");
+  });
+});
+
 describe("fullDayCount", () => {
   it("counts the full day by type, like the evening shortcut in the canvas", () => {
     expect(fullDayCount([{ type: "exam" }, { type: "exam" }])).toBe("2 provas");

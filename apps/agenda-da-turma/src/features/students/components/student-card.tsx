@@ -28,7 +28,7 @@ type Props = {
 };
 
 const ghost =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-foreground/15 bg-background px-3 text-sm font-bold hover:bg-muted";
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-[12px] border border-foreground/15 bg-background px-3 text-sm font-bold hover:bg-muted";
 
 /**
  * Uma criança, uma folha: quem é (idade, turma e escola), "A vez de Clara" à

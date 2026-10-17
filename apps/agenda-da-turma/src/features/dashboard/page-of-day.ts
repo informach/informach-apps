@@ -173,11 +173,8 @@ export function weekRows(input: {
     }
     const ofDay = input.things.filter((thing) => thing.dueAt === day.iso);
     if (ofDay.length === 0) return [];
-    const types = new Set(ofDay.map((thing) => thing.type));
-    const count =
-      types.size === 1
-        ? `${ofDay.length} ${PLURAL[ofDay[0]?.type ?? ""] ?? "coisas"}`
-        : `${ofDay.length} coisas`;
+    // "1 trabalho", "2 provas", "3 coisas": a mesma conta da faixa e da noite.
+    const count = fullDayCount(ofDay);
     if (day.full)
       return [{ iso: day.iso, label, today: false, full: true, lead: "Dia cheio:", text: count }];
     if (ofDay.length > 1)
