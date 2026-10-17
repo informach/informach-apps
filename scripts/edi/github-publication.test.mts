@@ -33,6 +33,10 @@ async function fixture() {
     edits: number;
     apiError?: Error;
     confirmPublication: boolean;
+    /** Listing reads that still miss a just-created release, as GitHub does for a moment. */
+    hiddenReads: number;
+    /** Listing reads that still show the release as a draft after publication. */
+    staleDraftReads: number;
   } = {
     release: null,
     uploads: 0,
@@ -40,12 +44,22 @@ async function fixture() {
     corrupt: false,
     edits: 0,
     confirmPublication: true,
+    hiddenReads: 0,
+    staleDraftReads: 0,
   };
   const command = async (args: string[]): Promise<string> => {
     if (args[0] === "api") {
       if (state.apiError) throw state.apiError;
       if (args.includes("--slurp")) {
         if (!args.includes("--paginate")) throw new Error("Draft lookup requires pagination");
+        if (state.release && state.hiddenReads > 0) {
+          state.hiddenReads--;
+          return JSON.stringify([[], []]);
+        }
+        if (state.release && !state.release.draft && state.staleDraftReads > 0) {
+          state.staleDraftReads--;
+          return JSON.stringify([[], [{ ...state.release, draft: true }]]);
+        }
         return JSON.stringify([[], state.release ? [state.release] : []]);
       }
       if (!state.release || state.release.draft)
@@ -94,7 +108,11 @@ async function fixture() {
     body: provenance,
     assets: [],
   });
-  return { options, state, command, draft };
+  const waits: number[] = [];
+  const wait = async (ms: number) => {
+    waits.push(ms);
+  };
+  return { options, state, command, draft, waits, wait };
 }
 describe("atomic GitHub suite publication", () => {
   it("refuses ambiguous draft identities across listing pages", async () => {
@@ -199,9 +217,37 @@ describe("atomic GitHub suite publication", () => {
     expect(state.uploads).toBe(0);
   });
   it("requires a confirmed public release after the final publish command", async () => {
-    const { options, state, command } = await fixture();
+    const { options, state, command, wait, waits } = await fixture();
     state.confirmPublication = false;
-    await expect(publishGithubRelease(options, command)).rejects.toThrow("could not be confirmed");
+    await expect(publishGithubRelease(options, command, wait)).rejects.toThrow(
+      "could not be confirmed",
+    );
     expect(state.release?.draft).toBe(true);
+    expect(waits).toEqual([1000, 2000, 4000, 8000, 15000]);
+  });
+  it("waits for a lagging listing to show the draft it just created", async () => {
+    const { options, state, command, wait, waits } = await fixture();
+    state.hiddenReads = 2;
+    expect(await publishGithubRelease(options, command, wait)).toEqual({ reused: false });
+    expect(waits).toEqual([1000, 2000]);
+    expect(state.release?.draft).toBe(false);
+    expect(state.uploads).toBe(7);
+  });
+  it("stops before uploading when the created draft never appears in the listing", async () => {
+    const { options, state, command, wait, waits } = await fixture();
+    state.hiddenReads = Number.POSITIVE_INFINITY;
+    await expect(publishGithubRelease(options, command, wait)).rejects.toThrow(
+      "draft release was not confirmed",
+    );
+    expect(waits).toEqual([1000, 2000, 4000, 8000, 15000]);
+    expect(state.uploads).toBe(0);
+    expect(state.edits).toBe(0);
+  });
+  it("waits for a lagging listing to confirm the publication", async () => {
+    const { options, state, command, wait, waits } = await fixture();
+    state.staleDraftReads = 1;
+    expect(await publishGithubRelease(options, command, wait)).toEqual({ reused: false });
+    expect(waits).toEqual([1000]);
+    expect(state.edits).toBe(1);
   });
 });
