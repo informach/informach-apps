@@ -122,7 +122,7 @@ export function PricingSection({
               Criar minha conta
             </Link>
             <p className="price-card__note">
-              As assinaturas abrem ao fim da homologação. Nenhuma cobrança é feita antes disso.
+              As assinaturas estão temporariamente indisponíveis. Nenhuma cobrança será feita.
             </p>
           </>
         )}

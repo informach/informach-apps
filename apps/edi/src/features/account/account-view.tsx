@@ -185,8 +185,7 @@ export function AccountView({
 }
 
 function Onboarding({ billingReady }: { billingReady: boolean }) {
-  // Na fase piloto ainda não dá para assinar: o passo atual passa a ser o Hub,
-  // que já pode ser baixado e conectado.
+  // While billing is unavailable, the Hub can still be downloaded and connected.
   return (
     <ol className="onboarding" aria-label="Seus próximos passos">
       <li className="is-done">
@@ -206,7 +205,7 @@ function Onboarding({ billingReady }: { billingReady: boolean }) {
         <span>
           <strong>Escolha o plano</strong>
           <span className="onboarding__sub">
-            {billingReady ? "você está aqui" : "abre quando a homologação terminar"}
+            {billingReady ? "você está aqui" : "temporariamente indisponível"}
           </span>
         </span>
       </li>
@@ -266,9 +265,9 @@ function PlanPicker({
       {!billingReady && (
         <p className="notice notice--warn">
           <span>
-            <strong>As assinaturas abrem quando a homologação terminar.</strong> Nenhuma cobrança é
-            feita aqui por enquanto. Você já pode <Link href="/downloads">baixar o Edi Hub</Link> e
-            conectar o computador; as ferramentas abrem quando a assinatura começar.
+            <strong>Assinaturas temporariamente indisponíveis.</strong> Nenhuma cobrança é feita
+            aqui por enquanto. Você pode <Link href="/downloads">baixar o Edi Hub</Link> e conectar
+            o computador; as ferramentas abrem quando a assinatura começar.
           </span>
         </p>
       )}

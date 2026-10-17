@@ -60,6 +60,8 @@ O primeiro build do migrator ainda usava Nixpacks e selecionou Node 24.10, abaix
 
 Às 15:42 UTC, o portal `0457f0c` estava saudável por HTTPS: health e readiness 200, login e proteção da conta conferidos, imagem pública igual ao arquivo aprovado. O migrator concluiu as 72 migrations do histórico, incluindo `0069`–`0071`; `0072` continua fora desta subida. Às 15:43 UTC, o único OTP autorizado foi enviado e teve entrega confirmada pelo webhook assinado. A cobrança segue desabilitada até concluir instaladores, configurações Stripe finais e cron. A repetição nativa em main encontrou um timeout de abertura do PDF não reproduzido; o harness está sendo alinhado ao launcher padrão e recebe diagnóstico, mantendo os limites e verificações. Evidências detalhadas nos registros operacional e Windows.
 
+O titular confirmou que a homologação deve culminar em compras liberadas, sem mensagens públicas de piloto ou de vendas futuras. O texto de venda, downloads, site e distribuição foi ajustado para essa fase, preservando a informação real de ausência de Authenticode e o bloqueio operacional enquanto a cobrança estiver desabilitada. Os gates precisam validar a revisão final antes da ativação; o conjunto em edição pelas outras sessões continua reservado para o próximo deploy.
+
 ## Operação dos produtos existentes
 
 - [Missão Saber](../apps/missao-saber/PRODUCAO.md): produção, migrations, Stripe, cron e observabilidade.

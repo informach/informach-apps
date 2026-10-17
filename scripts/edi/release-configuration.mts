@@ -30,7 +30,7 @@ export function releaseEnvironment(environment: NodeJS.ProcessEnv): Record<strin
     portalUrl: environment.EDI_PORTAL_URL,
     clientId: environment.EDI_DESKTOP_CLIENT_ID,
     environment: "production",
-    publisher: "Informach — piloto sem Authenticode",
+    publisher: "Informach — sem Authenticode",
     downloadHost: "github.com",
     distributionRepository: environment.EDI_DISTRIBUTION_REPOSITORY,
     updateChannel: version.includes("-beta.") ? "beta" : "stable",

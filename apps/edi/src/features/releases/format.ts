@@ -1,6 +1,6 @@
 /**
  * A Windows-recognised publisher is an Authenticode certificate subject (CN=…, O=…),
- * the same shape the desktop verifier requires. Pilot releases name the suite's own
+ * the same shape the desktop verifier requires. Uncertified releases name the suite's own
  * signing instead, so Windows may warn before running them.
  */
 export function windowsPublisherCertified(publisher: string) {
