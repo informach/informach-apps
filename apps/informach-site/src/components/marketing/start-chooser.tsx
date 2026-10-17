@@ -73,7 +73,7 @@ export function StartChooser() {
               sete dias para conhecer com reembolso integral
             </>
           }
-          cta={{ label: "Conhecer o Sistema Zero", href: "#sistema-zero" }}
+          cta={{ label: "Conhecer o Sistema Zero", href: SISTEMA_ZERO.communityOffer }}
           ctaClassName="bg-sz-blue text-white"
           visual={
             <Image
