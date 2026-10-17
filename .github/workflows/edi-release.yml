@@ -1,4 +1,4 @@
-name: Edi pilot release
+name: Edi release
 on:
   push:
     tags: ["edi-v*"]

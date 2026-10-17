@@ -10,7 +10,9 @@ Atualizado em 17/10/2026. Este é o índice de continuidade entre sessões. As r
 
 ## Frente em andamento
 
-Entrada em produção da suíte Edi, na branch `fix/edi-production`. A implementação anterior de `feat/edi-suite` foi integrada em `main` (`abef0ab`, merge `22098c8`). Em 17/10, após a consulta de prontidão, o titular autorizou corrigir os bloqueios, implantar o portal/Hub e configurar integralmente Stripe teste/produção. A publicação continua condicionada aos gates, sem cobrança real de teste. Conferir `git status` e preservar a alteração pessoal em `.claude/settings.local.json`.
+Publicação comercial da suíte Edi. Os PRs #6 e #7 foram integrados em `main`; o portal comercial `d201d6f` está saudável por HTTPS, com banco migrado, uma entrega OTP real confirmada e Stripe teste/produção configurados. A tag `edi-v0.1.0`, no mesmo commit, aprovou os seis instaladores finais, mas a publicação falhou ao consultar um rascunho pela rota exclusiva de versões publicadas. O rascunho vazio foi preservado; a correção usa listagem autenticada e paginada, com 11 testes de publicação, preparando `edi-v0.1.1` sem mover a tag anterior. Falta concluir a publicação corrigida e a verificação pública antes de liberar a cobrança e ativar o cron monitorado. Não foi feita cobrança real de teste.
+
+O titular determinou que a homologação deve terminar com compras liberadas e sem mensagens públicas de piloto. Portal, downloads, site e distribuição já receberam essa apresentação; a ausência de Authenticode continua explícita. A frente usa o worktree isolado `informach-edi-production-verify`. O checkout original, a configuração pessoal em `.claude/settings.local.json` e os ajustes de IaC global/admin/auth/`0072` ainda em andamento foram preservados para outra subida.
 
 Decisões aprovadas: uma assinatura da suíte, preços registrados no catálogo e no documento de implementação, comercialização por empresa/CNPJ e consumo pago de IA separado. O piloto usa GitHub e chaves próprias Ed25519, sem contratar certificado Authenticode ou CDN. Não habilitar cobranças reais antes da homologação.
 
@@ -18,7 +20,7 @@ As cinco ferramentas foram importadas e integradas ao Hub. Preservar interfaces 
 
 - [Lotes, verificações e pendências Edi](propostas/edi-suite-2026-10-16/implementacao.md): fonte de verdade do andamento e das evidências.
 - [Identidade visual, páginas e Hub](propostas/edi-suite-2026-10-16/implementacao.md#identidade-visual-páginas-e-hub-17102026): direção "bancada e marca-texto" aplicada em 17/10 ao portal, ao Hub e aos seis ícones, com pendências de suporte e requisitos.
-- [Full review da implementação](propostas/edi-suite-2026-10-16/full-review.md): revisão global executada em 16/10/2026, reprovada para entrega; registra achados, prioridades e verificações. Uma exportação do EdiAula apagou um sentinela preexistente em perfil descartável; nenhum projeto real foi acessado.
+- [Full review da implementação](propostas/edi-suite-2026-10-16/full-review.md): diagnóstico histórico de 16/10 e remediação dos achados; conferir os registros atuais de operação e Windows antes de interpretar os achados como pendências ainda abertas. Nenhum projeto real foi usado nos testes.
 - [Implantação do portal](../apps/edi/PRODUCAO.md): destino `https://edi.informach.com.br` no Railway, variáveis, pre-deploy e homologação.
 - [Distribuição do piloto](propostas/edi-suite-2026-10-16/distribuicao-piloto.md): GitHub, credencial de publicação, assinatura própria e limites do piloto.
 - [Padrão desktop](arquitetura-desktop.md): desenvolvimento das ferramentas atuais e futuras.
@@ -26,7 +28,9 @@ As cinco ferramentas foram importadas e integradas ao Hub. Preservar interfaces 
 - [Correções do review](propostas/edi-suite-2026-10-16/correcoes.md): histórico de R01 a R10. A frente atual corrigiu a cadeia restante e obteve auditoria de produção sem vulnerabilidades conhecidas; isso não dispensa os demais gates de operação e distribuição.
 - [Operação provisionada](propostas/edi-suite-2026-10-16/producao-operacao.md), [Stripe](propostas/edi-suite-2026-10-16/producao-stripe.md), [preservação de trabalhos](propostas/edi-suite-2026-10-16/producao-jobs.md) e [Windows](propostas/edi-suite-2026-10-16/producao-windows.md): evidências e pendências da implantação atual.
 
-O diagnóstico inicial de 17/10 está preservado na [consulta operacional](propostas/edi-suite-2026-10-16/implementacao.md#consulta-de-prontidão-em-17102026). Desde então, foram corrigidas as dependências, criados portal/cron/Sentry no Railway e homologados pagamentos e webhooks em Stripe de teste. O domínio chega ao Railway por HTTPS, mas o portal ainda não tem deploy saudável. A configuração Edi passou para IaC; os demais serviços não foram migrados. Preço aprovado: R$ 49,90/mês ou R$ 499/ano, com IA paga separada.
+### Histórico das etapas anteriores
+
+O diagnóstico inicial de 17/10 está preservado na [consulta operacional](propostas/edi-suite-2026-10-16/implementacao.md#consulta-de-prontidão-em-17102026). Naquela etapa foram corrigidas as dependências, criados portal/cron/Sentry no Railway e homologados pagamentos e webhooks em Stripe de teste, mas ainda não havia deploy saudável. O Edi passou para IaC parcial; os demais serviços mantiveram seus contratos legados. Preço aprovado: R$ 49,90/mês ou R$ 499/ano, com IA paga separada.
 
 O [PR #6](https://github.com/informach/informach-apps/pull/6), inicialmente em draft, executa CI, integração de banco, testes nativos e upgrade dos instaladores no Windows. Depois dos primeiros gates locais e remotos, a repetição Windows revelou uma falha intermitente na sincronização do cursor exportado pelo EdiAula. O diagnóstico reproduziu a falha com o bundle exato do CI; a correção elimina comandos mutáveis e calcula as coordenadas pelo timestamp do frame. A evidência, a regressão ampliada e o estado dos instaladores estão no registro Windows. A implantação usa um worktree isolado para preservar a sessão paralela de identidade visual confirmada pelo titular.
 
