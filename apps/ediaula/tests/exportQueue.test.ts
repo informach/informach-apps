@@ -124,3 +124,19 @@ test("duplicate output paths are rejected while the destination is reserved", as
   q.remove("one");
   assert.equal(q.items.length, 0);
 });
+
+test("a queued export keeps the cursor positions as a typed array", () => {
+  const q = new ExportQueue(
+    () => new Promise<void>(() => {}),
+    () => {},
+  );
+  const positions = Int32Array.of(1, 2, 3, 4);
+  q.add({
+    ...item("cursor"),
+    spec: { ...spec, cursors: { a: { sprite: "C:/cache/a.webm", size: 32, fps: 30, positions } } },
+  });
+  const kept = q.items[0].spec.cursors?.a.positions;
+  assert.ok(kept instanceof Int32Array);
+  assert.notEqual(kept, positions, "the queue owns its copy");
+  assert.deepEqual(Array.from(kept), [1, 2, 3, 4]);
+});

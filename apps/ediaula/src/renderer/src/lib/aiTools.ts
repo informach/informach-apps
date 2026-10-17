@@ -75,6 +75,14 @@ function requireProject(): Project {
   return p;
 }
 
+/** The open project has to be on disk before the assistant switches to another one. */
+async function saveBeforeLeaving(): Promise<void> {
+  if (!(await useProject.getState().flush()))
+    throw new ToolError(
+      `O projeto aberto não pôde ser salvo (${useProject.getState().saveError ?? "erro desconhecido"}). Peça para a pessoa resolver o salvamento antes de trocar de projeto.`,
+    );
+}
+
 async function wordsOf(
   p: Project,
 ): Promise<{ transcripts: Map<string, Transcript>; words: TimelineWord[] }> {
@@ -953,7 +961,7 @@ const handlers: {
   },
 
   async open_project({ path }) {
-    await useProject.getState().saveNow();
+    await saveBeforeLeaving();
     await actions.openProject(path);
     const p = useProject.getState().project;
     if (!p) throw new ToolError(`Não foi possível abrir ${path}.`);
@@ -961,7 +969,7 @@ const handlers: {
   },
 
   async create_project({ name, course }) {
-    await useProject.getState().saveNow();
+    await saveBeforeLeaving();
     const { path, project } = await window.api.createProject(name, course, {
       width: 1920,
       height: 1080,

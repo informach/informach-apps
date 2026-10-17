@@ -559,9 +559,11 @@ export function MotionPathSection({ clip }: { clip: Clip }): ReactNode {
                 className="zoom-go"
                 onClick={() => playback.seek(clip.start + k.t)}
               >
-                <span className="mono">{fmt(clip.start + k.t)}</span>
+                <span className="mono">{fmt(Math.max(0, clip.start + k.t))}</span>
                 <span className="muted">
                   {Math.round(k.x * 100)}%, {Math.round(k.y * 100)}% · {Math.round(k.scale * 100)}%
+                  {/* A piece of a cut clip keeps the positions just around it, so the glide stays the same. */}
+                  {k.t < 0 ? " · antes do clipe" : k.t > clip.duration ? " · depois do clipe" : ""}
                 </span>
               </button>
               <button

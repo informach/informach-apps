@@ -22,7 +22,7 @@ test("cursor coordinates preserve source trim, speed and the final position", ()
     sprite: "cursor.webm",
     size: 8,
     fps: 4,
-    positions: [1, 2, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24],
+    positions: Int32Array.of(1, 2, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24),
   };
   const fast = cursorOverlayExpressions(cursor, { in: 0.25, duration: 1.5, speed: 2 }, 2);
   assert.deepEqual(
@@ -42,7 +42,12 @@ test("cursor coordinates preserve source trim, speed and the final position", ()
 });
 
 test("frame lookup is stable around fractional timestamps and compresses stationary coordinates", () => {
-  const cursor = { sprite: "cursor.webm", size: 8, fps: 30, positions: [10, 20, 30, 20, 50, 20] };
+  const cursor = {
+    sprite: "cursor.webm",
+    size: 8,
+    fps: 30,
+    positions: Int32Array.of(10, 20, 30, 20, 50, 20),
+  };
   const expression = cursorOverlayExpressions(cursor, { in: 0, duration: 0.1 }, 30);
   assert.equal(expression.y, "20");
   for (const time of [1 / 30 - 1e-9, 1 / 30, 1 / 30 + 1e-9])
@@ -55,10 +60,9 @@ const FILTER_SCRIPT_OPTION = await filterScriptOption(FFMPEG);
 
 test("FFmpeg parses a long cursor recording and selects a late frame without expression depth overflow", () => {
   const frames = 100_001;
-  const positions = Array.from({ length: frames }, (_, frame) => [
-    frame % 44,
-    (frame * 3) % 44,
-  ]).flat();
+  const positions = Int32Array.from(
+    Array.from({ length: frames }, (_, frame) => [frame % 44, (frame * 3) % 44]).flat(),
+  );
   const expressions = cursorOverlayExpressions(
     { sprite: "cursor.webm", size: 8, fps: 30, positions },
     { in: 0, duration: frames / 30 },

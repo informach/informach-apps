@@ -1,7 +1,7 @@
 import { withRenderKeys } from "@informach/edi-desktop/renderer";
 import { AVATAR_FADE, MOTIONS, type Motion } from "@shared/compose";
 import { type LessonTemplate, TEMPLATES } from "@shared/templates";
-import { newId, projectDuration } from "@shared/timeline";
+import { adjacency, newId, projectDuration } from "@shared/timeline";
 import {
   COLOR_SETS,
   DEFAULT_TRANSITION,
@@ -322,9 +322,8 @@ function TransitionColors({ clipId, colors }: { clipId: string; colors: string[]
 /** Cuts between scenes: clips that start where another one ends on the same video track. */
 function cutClips(p: Project): Clip[] {
   const pictures = new Set(p.assets.filter((a) => a.kind !== "audio").map((a) => a.id));
-  return p.clips.filter(
-    (c) => pictures.has(c.assetId) && !c.annotation && previousClip(p.clips, c),
-  );
+  const previous = adjacency(p.clips);
+  return p.clips.filter((c) => pictures.has(c.assetId) && !c.annotation && previous.has(c.id));
 }
 
 export function TransitionsPanel(): ReactNode {

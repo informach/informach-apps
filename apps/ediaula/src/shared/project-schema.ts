@@ -6,6 +6,11 @@ const time = z
   .number()
   .min(0)
   .max(7 * 86400);
+/** Seconds relative to a clip's start: a piece of a moving clip keeps the keyframe just before it. */
+const offset = z
+  .number()
+  .min(-7 * 86400)
+  .max(7 * 86400);
 const text = z.string().max(1024 * 1024);
 const id = z.string().min(1).max(200);
 const path = z
@@ -183,7 +188,7 @@ const clip = z.looseObject({
   enter: motion.optional(),
   exit: motion.optional(),
   keyframes: z
-    .array(z.looseObject({ t: time, x: number, y: number, scale: number.positive() }))
+    .array(z.looseObject({ t: offset, x: number, y: number, scale: number.positive() }))
     .max(20000)
     .optional(),
   transition: z
@@ -324,7 +329,13 @@ export const exportSpecSchema = z.strictObject({
         sprite: path.min(1),
         size: z.number().positive().max(16384),
         fps: z.number().positive().max(240),
-        positions: z.array(number).max(2000000),
+        // Two coordinates per source frame of the whole recording: one IPC value, any length.
+        positions: z
+          .instanceof(Int32Array)
+          .refine(
+            (values) => values.length % 2 === 0 && values.length <= 4_000_000,
+            "Invalid cursor positions",
+          ),
       }),
     )
     .optional(),

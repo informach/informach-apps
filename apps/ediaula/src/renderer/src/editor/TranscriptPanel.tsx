@@ -510,11 +510,12 @@ function TranscriptText({ model }: { model: TextModel }): ReactNode {
   }, [issues, words]);
   const activeIds = useMemo(() => new Set(active.map((i) => i.id)), [active]);
 
-  // Selection changes are mirrored as a timeline range so the Delete key can cut it.
+  // Selection changes are mirrored as a timeline range so the Delete key can cut it. Selecting
+  // words is the latest selection, so a selected cut on the timeline lets go.
   useEffect(() => {
-    useApp.getState().set({
-      textCut: sel && words[sel[0]] && words[sel[1]] ? wordsRange(words, sel[0], sel[1]) : null,
-    });
+    const textCut =
+      sel && words[sel[0]] && words[sel[1]] ? wordsRange(words, sel[0], sel[1]) : null;
+    useApp.getState().set(textCut ? { textCut, junction: null } : { textCut });
   }, [sel, words]);
   useEffect(() => {
     if (!textCut) setSelection(null);

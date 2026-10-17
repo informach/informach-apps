@@ -257,8 +257,9 @@ export interface CursorSprite {
   sprite: string;
   size: number;
   fps: number;
-  /** Top-left of the sprite in source video pixels, [x0, y0, x1, y1, …] per frame. */
-  positions: number[];
+  /** Top-left of the sprite in source video pixels, [x0, y0, x1, y1, …] per frame. A typed array
+   *  crosses IPC as a single value, so recordings of any length fit the limit. */
+  positions: Int32Array;
 }
 
 export interface JobProgress {
@@ -345,6 +346,18 @@ export interface EdiAulaApi {
   pickMedia(): Promise<string[]>;
   pickProject(): Promise<string | null>;
   pickExportPath(defaultName: string): Promise<string | null>;
+  /** Where to save a copy of the project (.ediaula); the chosen path becomes writable. */
+  pickProjectCopyPath(defaultName: string): Promise<string | null>;
+  /** Missing media: the user points at the file; it becomes readable. */
+  relinkPick(name: string): Promise<string | null>;
+  /**
+   * Looks for missing media in a folder the user picks (or the one of the last relink, when
+   * `sameFolder`), by file name and size. Returns asset id → path, each one readable.
+   */
+  relinkFolder(
+    wanted: { key: string; name: string; size: number }[],
+    sameFolder: boolean,
+  ): Promise<Record<string, string>>;
   probe(path: string): Promise<ProbeResult>;
   thumbnail(path: string, kind: AssetKind, duration: number): Promise<string>;
   waveform(path: string): Promise<string>;
@@ -431,10 +444,12 @@ export interface EdiAulaApi {
     course: string | undefined,
     settings: ProjectSettings,
   ): Promise<{ path: string; project: Project }>;
+  /** Sent as JSON text, a single IPC value however long the lesson is. */
   saveProject(path: string, project: Project): Promise<void>;
   openProject(path: string): Promise<Project>;
   recentProjects(): Promise<RecentEntry[]>;
   removeRecent(path: string): Promise<void>;
+  /** The project goes as JSON text, like saveProject; the cursor positions stay typed arrays. */
   startExport(jobId: string, project: Project, spec: ExportSpec): Promise<void>;
   cancelJob(jobId: string): Promise<void>;
   showInFolder(path: string): Promise<void>;

@@ -8,7 +8,7 @@ import type { Clip } from "./types.ts";
  */
 
 export interface Keyframe {
-  /** Seconds from the start of the clip. */
+  /** Seconds from the start of the clip (negative: before it, kept by a piece of a longer clip). */
   t: number;
   x: number;
   y: number;
@@ -50,6 +50,9 @@ export function transformAt(
 
 const num = (v: number): string => (Math.round(v * 100000) / 100000).toString();
 const sm = (p: string): string => `(clip(${p},0,1)*clip(${p},0,1)*(3-2*clip(${p},0,1)))`;
+/** `expr` minus `v`, written so a negative keyframe time reads "+2" instead of "--2". */
+const minus = (expr: string, v: number): string =>
+  num(v).startsWith("-") ? `${expr}+${num(-v)}` : `${expr}-${num(v)}`;
 
 /** ffmpeg expression for one property along the keyframes, `local` being clip-local seconds. */
 function propExpr(kfs: Keyframe[], local: string, key: "x" | "y" | "scale"): string {
@@ -57,7 +60,7 @@ function propExpr(kfs: Keyframe[], local: string, key: "x" | "y" | "scale"): str
   for (let i = kfs.length - 1; i >= 1; i--) {
     const a = kfs[i - 1];
     const b = kfs[i];
-    const k = sm(`(${local}-${num(a.t)})/${num(Math.max(1e-3, b.t - a.t))}`);
+    const k = sm(`(${minus(local, a.t)})/${num(Math.max(1e-3, b.t - a.t))}`);
     expr = `if(lt(${local},${num(b.t)}),${num(a[key])}+(${num(b[key] - a[key])})*${k},${expr})`;
   }
   return `if(lte(${local},${num(kfs[0].t)}),${num(kfs[0][key])},${expr})`;

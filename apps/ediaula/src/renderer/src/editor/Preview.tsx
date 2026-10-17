@@ -10,6 +10,7 @@ import {
   type Transform,
 } from "@shared/compose";
 import { transformAt, upsertKeyframe } from "@shared/keyframes";
+import { driftCorrection } from "@shared/playbackSync";
 import { clipEnd, clipSpeed, projectDuration, sourceAt } from "@shared/timeline";
 import {
   type DerivedClip,
@@ -65,7 +66,6 @@ import { ZoomTarget } from "./ZoomTarget";
 /** Clips are mounted a little before they start so the decoder is warm when they appear. */
 const PRELOAD_AHEAD = 4;
 const KEEP_BEHIND = 1;
-const DRIFT_PLAYING = 0.3;
 /** Screen pixels within which a dragged clip snaps to the frame center and edges. */
 const SNAP_PX = 8;
 
@@ -151,7 +151,8 @@ export function Preview(): ReactNode {
   const settings = project?.settings ?? { width: 1920, height: 1080, fps: 30 };
   const scale = size.w / settings.width;
 
-  // Fit the stage to the available area, keeping the project's aspect ratio.
+  // Fit the stage to the available area, keeping the project's aspect ratio. Full screen shows
+  // the area itself (not just the stage), so this same measure fills the screen.
   useLayoutEffect(() => {
     const el = areaRef.current;
     if (!el) return;
@@ -324,12 +325,15 @@ export function Preview(): ReactNode {
         // The clip's own speed multiplies the playback rate (the browser keeps the pitch, like atempo).
         const r = rate * clipSpeed(c);
         if (active && playing && rate > 0) {
-          if (el.playbackRate !== r) el.playbackRate = r;
           if (el.paused) {
+            if (el.playbackRate !== r) el.playbackRate = r;
             el.currentTime = local;
             void el.play().catch(() => undefined);
-          } else if (Math.abs(el.currentTime - local) > DRIFT_PLAYING * r) {
-            el.currentTime = local;
+          } else {
+            // Picture and the cut-out avatar's voice follow the clock the same way (shared/playbackSync.ts).
+            const fix = driftCorrection(el.currentTime, local, r, frame, el.playbackRate !== r);
+            if (fix.seek) el.currentTime = local;
+            if (el.playbackRate !== fix.rate) el.playbackRate = fix.rate;
           }
         } else {
           if (!el.paused) el.pause();
@@ -531,7 +535,7 @@ export function Preview(): ReactNode {
           aria-label="Prévia da aula. Transformações também disponíveis no painel de propriedades."
           ref={stageRef}
           style={{ width: size.w, height: size.h }}
-          onDoubleClick={() => void stageRef.current?.requestFullscreen()}
+          onDoubleClick={() => void areaRef.current?.requestFullscreen()}
           onPointerDown={() => useProject.getState().select([])}
         >
           {mounted.map((c) => {
@@ -678,7 +682,7 @@ export function Preview(): ReactNode {
 
       <Transport
         fps={settings.fps}
-        onFullscreen={() => void stageRef.current?.requestFullscreen()}
+        onFullscreen={() => void areaRef.current?.requestFullscreen()}
       />
     </section>
   );

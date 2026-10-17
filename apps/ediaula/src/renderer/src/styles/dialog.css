@@ -183,6 +183,13 @@
   color: var(--amber);
   font-size: 12px;
   line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.export-warning p {
+  margin: 0;
 }
 .export-progress {
   display: flex;

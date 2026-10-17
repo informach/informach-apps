@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { bytes, duration } from "@/lib/format";
+import { reconnectMissing } from "@/lib/importMedia";
 import { useApp } from "@/state/app";
 import { exportQueue, useExportQueue } from "@/state/exportQueue";
 import { playback } from "@/state/playback";
@@ -328,10 +329,15 @@ export function ExportDialog(): ReactNode {
               </div>
             )}
             {missing.length > 0 && (
-              <p className="export-warning">
-                {missing.length} arquivo(s) usados na timeline não foram encontrados:{" "}
-                {missing.map((a) => a.name).join(", ")}. Reimporte antes de exportar.
-              </p>
+              <div className="export-warning">
+                <p>
+                  {missing.length} arquivo(s) usados na timeline não foram encontrados:{" "}
+                  {missing.map((a) => a.name).join(", ")}. Reconecte antes de exportar.
+                </p>
+                <Button size="sm" onClick={() => void reconnectMissing()}>
+                  {missing.length === 1 ? "Reconectar…" : "Procurar em uma pasta…"}
+                </Button>
+              </div>
             )}
           </div>
         </div>

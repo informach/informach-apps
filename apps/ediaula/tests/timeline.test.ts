@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { buildExportPlan } from "../src/shared/exportPlan.ts";
 import {
+  adjacency,
+  clipEnd,
+  clipIndex,
+  clipsBetween,
   closeGaps,
   defaultTracks,
   overwriteRange,
@@ -17,6 +21,7 @@ import {
   trackLabels,
   trimClip,
 } from "../src/shared/timeline.ts";
+import { previousClip } from "../src/shared/transitions.ts";
 import type { Asset, Clip } from "../src/shared/types.ts";
 
 const clip = (id: string, start: number, duration: number, extra: Partial<Clip> = {}): Clip => ({
@@ -194,10 +199,15 @@ test("rippleDelete with several clips shifts by the total removed", () => {
   near(out.find((c) => c.id === "d")!.start, 5);
 });
 
-test("closeGaps packs clips back to back", () => {
-  const out = closeGaps([clip("a", 3, 5), clip("b", 12, 5)], "t1");
-  near(out.find((c) => c.id === "a")!.start, 0);
-  near(out.find((c) => c.id === "b")!.start, 5);
+test("closeGaps packs one track back to back from its first clip, not from 0:00", () => {
+  const out = closeGaps(
+    [clip("a", 3, 5), clip("b", 12, 5), clip("x", 20, 1, { trackId: "t2" })],
+    "t1",
+  );
+  const start = (id: string): number => out.find((c) => c.id === id)?.start ?? Number.NaN;
+  near(start("a"), 3);
+  near(start("b"), 8);
+  near(start("x"), 20);
 });
 
 test("trimClip respects source bounds", () => {
@@ -331,4 +341,59 @@ test("pasteClips: back on its own track when free, otherwise above, never coveri
     d.ids.map((id) => d.clips.find((x) => x.id === id)!.start),
     [30, 34],
   );
+});
+
+test("adjacency finds the same cuts as previousClip, fast enough for 1,500 clips", () => {
+  const clips: Clip[] = [];
+  let seed = 7;
+  const rnd = (): number => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 2 ** 32;
+  };
+  for (const trackId of ["t1", "t2", "t3"]) {
+    let at = 0;
+    for (let i = 0; i < 500; i++) {
+      const duration = 0.5 + rnd() * 3;
+      // Mostly back to back (cuts of the cleanup), sometimes a gap, sometimes a hair apart.
+      const gap = rnd() < 0.7 ? 0 : rnd() < 0.5 ? 0.01 : 0.5 + rnd();
+      at += gap;
+      clips.push(clip(`${trackId}-${i}`, at, duration, { trackId }));
+      at += duration;
+    }
+  }
+  clips.sort(() => rnd() - 0.5);
+  const begin = performance.now();
+  const pairs = adjacency(clips);
+  const elapsed = performance.now() - begin;
+  for (const c of clips) assert.equal(pairs.get(c.id), previousClip(clips, c), c.id);
+  assert.ok(pairs.size > 900, `${pairs.size} cuts`);
+  assert.ok(elapsed < 200, `${elapsed.toFixed(1)} ms`);
+});
+
+test("clipsBetween returns exactly the clips of a track inside a time window", () => {
+  const clips = [
+    clip("a", 0, 10),
+    clip("long", 2, 50),
+    clip("b", 12, 3),
+    clip("c", 20, 3),
+    clip("d", 40, 3),
+    clip("x", 21, 3, { trackId: "t2" }),
+  ];
+  const track = clipIndex(clips).get("t1");
+  assert.ok(track);
+  const ids = (from: number, to: number): string[] =>
+    clipsBetween(track, from, to)
+      .map((c) => c.id)
+      .sort();
+  assert.deepEqual(ids(16, 19), ["long"]);
+  assert.deepEqual(ids(14, 21), ["b", "c", "long"]);
+  assert.deepEqual(ids(60, 70), []);
+  for (let from = 0; from < 60; from += 2.5)
+    assert.deepEqual(
+      ids(from, from + 4),
+      clips
+        .filter((c) => c.trackId === "t1" && clipEnd(c) >= from && c.start <= from + 4)
+        .map((c) => c.id)
+        .sort(),
+    );
 });

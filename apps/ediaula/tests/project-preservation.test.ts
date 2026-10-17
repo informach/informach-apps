@@ -19,7 +19,7 @@ const hooks = registerHooks({
     return nextResolve(specifier, context);
   },
 });
-const { openProject, saveProject } = await import("../src/main/projects.ts");
+const { openProject, parseProjectText, saveProject } = await import("../src/main/projects.ts");
 hooks.deregister();
 after(() => rm(root, { recursive: true }));
 
@@ -62,4 +62,43 @@ test("dados inválidos e destino indisponível não substituem o projeto existen
   assert.deepEqual(await readFile(path), previous);
   await saveProject(path, { ...original, name: "Recuperado" });
   assert.equal((await openProject(path)).name, "Recuperado");
+});
+
+test("o projeto chega ao processo principal como texto e é validado como um arquivo", () => {
+  assert.deepEqual(parseProjectText(JSON.stringify(original)), original);
+  assert.throws(() => parseProjectText(original), /inválido/);
+  assert.throws(() => parseProjectText("{"));
+  assert.throws(() => parseProjectText(JSON.stringify({ ...original, version: 2 })));
+  assert.throws(() => parseProjectText(" ".repeat(32 * 1024 ** 2 + 1)), /32 MB/);
+});
+
+test("projeto antigo com todos os zooms em cada pedaço reabre só com os zooms de cada um", async () => {
+  const zoom = (id: string, start: number) => ({
+    id,
+    start,
+    end: start + 3,
+    scale: 1.8,
+    focus: [{ t: start + 1, x: 0.4, y: 0.4 }],
+  });
+  const zooms = [zoom("a", 1), zoom("b", 12), zoom("c", 25)];
+  const piece = (id: string, start: number, at: number) => ({
+    id,
+    assetId: "screen",
+    trackId: "v",
+    start,
+    in: at,
+    duration: 10,
+    volume: 1,
+    zooms,
+  });
+  const path = join(root, "legacy.ediaula");
+  await saveProject(path, {
+    ...original,
+    clips: [piece("p1", 0, 0), piece("p2", 10, 10), piece("p3", 20, 20)],
+  });
+  const opened = await openProject(path);
+  assert.deepEqual(
+    opened.clips.map((c) => c.zooms?.map((z) => z.id)),
+    [["a"], ["b"], ["c"]],
+  );
 });

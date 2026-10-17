@@ -29,10 +29,7 @@ export function TopBar(): ReactNode {
 
   const openOther = async (): Promise<void> => {
     const path = await window.api.pickProject();
-    if (path) {
-      await useProject.getState().saveNow();
-      await actions.openProject(path);
-    }
+    if (path) await actions.openProject(path);
   };
 
   return (
@@ -171,10 +168,34 @@ export function TopBar(): ReactNode {
           {project?.course ? `${project.course} / ` : ""}
           {project?.name}
         </span>
-        <span className={`save-pill save-${saveState}`} title={saveError}>
+        <span className={`save-pill save-${saveError ? "error" : saveState}`} title={saveError}>
           <span className="dot" />
-          {SAVE_LABEL[saveState]}
+          {saveError && saveState === "saving"
+            ? "Tentando salvar…"
+            : SAVE_LABEL[saveError ? "error" : saveState]}
         </span>
+        {saveError && (
+          // Stays until a save succeeds: the work since the last save exists only in memory.
+          <span className="save-alert" role="alert">
+            <span className="save-alert-text" title={saveError}>
+              {saveError}
+            </span>
+            <Button
+              size="sm"
+              disabled={saveState === "saving"}
+              onClick={() => void useProject.getState().saveNow()}
+            >
+              Tentar de novo
+            </Button>
+            <Button
+              size="sm"
+              disabled={saveState === "saving"}
+              onClick={() => void useProject.getState().saveCopyAs()}
+            >
+              Salvar cópia…
+            </Button>
+          </span>
+        )}
       </div>
 
       <div className="topbar-right">

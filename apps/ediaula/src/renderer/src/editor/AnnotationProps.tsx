@@ -9,7 +9,7 @@ import {
 } from "@shared/annotation";
 import type { Clip } from "@shared/types";
 import { MessageSquareText } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { updateAnnotation } from "@/lib/annotations";
 import { Slider } from "./ClipVisual";
 import { FontPicker } from "./FontPicker";
@@ -80,21 +80,51 @@ function Chips<T extends string | number>({
   );
 }
 
+/**
+ * A text field of the annotation, written on blur and also when the section goes away (another
+ * clip selected, the panel closed): an unmounted field never gets its blur.
+ */
+function useAnnotationText(
+  clipId: string,
+  key: "text" | "kicker" | "subtitle",
+  saved: string,
+): [string, (value: string) => void, () => void] {
+  const [value, setValue] = useState(saved);
+  const draft = useRef<string | null>(null);
+  const savedRef = useRef(saved);
+  useLayoutEffect(() => {
+    savedRef.current = saved;
+    draft.current = null;
+    setValue(saved);
+  }, [saved]);
+  const commit = useRef((): void => {
+    const typed = draft.current;
+    draft.current = null;
+    if (typed !== null && typed !== savedRef.current)
+      void updateAnnotation(clipId, { [key]: typed });
+  });
+  useEffect(() => () => commit.current(), []);
+  const change = (next: string): void => {
+    draft.current = next;
+    setValue(next);
+  };
+  return [value, change, commit.current];
+}
+
 /** Editing an annotation redraws its picture; each change is one undo step. */
 export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
   const a = clip.annotation!;
   const set = (c: Partial<Annotation>): void => {
     void updateAnnotation(clip.id, c);
   };
-  const [text, setText] = useState(a.text ?? "");
-  useEffect(() => setText(a.text ?? ""), [a.text]);
+  const [text, setText, saveText] = useAnnotationText(clip.id, "text", a.text ?? "");
   const hasText = TEXT_KINDS.has(a.kind);
-  const [kicker, setKicker] = useState(a.kicker ?? "");
-  const [subtitle, setSubtitle] = useState(a.subtitle ?? "");
-  useEffect(() => {
-    setKicker(a.kicker ?? "");
-    setSubtitle(a.subtitle ?? "");
-  }, [a.kicker, a.subtitle]);
+  const [kicker, setKicker, saveKicker] = useAnnotationText(clip.id, "kicker", a.kicker ?? "");
+  const [subtitle, setSubtitle, saveSubtitle] = useAnnotationText(
+    clip.id,
+    "subtitle",
+    a.subtitle ?? "",
+  );
   const fullFrame = a.kind === "card" || (a.kind === "panel" && (a.boxWidth ?? 0) >= 1920);
   const ol = a.outline ?? defaultOutline(a);
   const setOutline = (c: Partial<Outline>): void => {
@@ -133,7 +163,7 @@ export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
               value={text}
               maxLength={3}
               onChange={(e) => setText(e.target.value)}
-              onBlur={() => text !== a.text && set({ text })}
+              onBlur={saveText}
             />
           ) : (
             <textarea
@@ -141,7 +171,7 @@ export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
               rows={a.kind === "label" ? 1 : 3}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              onBlur={() => text !== a.text && set({ text })}
+              onBlur={saveText}
               onKeyDown={(e) =>
                 e.key === "Enter" && e.ctrlKey && (e.currentTarget as HTMLTextAreaElement).blur()
               }
@@ -155,7 +185,7 @@ export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
             placeholder="Linha de baixo"
             value={subtitle}
             onChange={(e) => setSubtitle(e.target.value)}
-            onBlur={() => subtitle !== (a.subtitle ?? "") && set({ subtitle })}
+            onBlur={saveSubtitle}
           />
         )}
         {a.kind === "card" && (
@@ -173,14 +203,14 @@ export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
               placeholder="Linha de cima (curso)"
               value={kicker}
               onChange={(e) => setKicker(e.target.value)}
-              onBlur={() => kicker !== (a.kicker ?? "") && set({ kicker })}
+              onBlur={saveKicker}
             />
             <input
               className="input"
               placeholder="Linha de baixo"
               value={subtitle}
               onChange={(e) => setSubtitle(e.target.value)}
-              onBlur={() => subtitle !== (a.subtitle ?? "") && set({ subtitle })}
+              onBlur={saveSubtitle}
             />
           </>
         )}

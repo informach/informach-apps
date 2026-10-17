@@ -1,11 +1,19 @@
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { readFile, unlink, writeFile } from "node:fs/promises";
 import type { Server } from "node:http";
-import { extname, join } from "node:path";
+import { dirname, extname, join } from "node:path";
 import { Readable } from "node:stream";
 import { desktopJobs } from "@informach/edi-desktop/jobs";
 import { createEdiDesktop, desktopFiles, desktopIpc as ipcMain } from "@informach/edi-desktop/main";
-import { app, BrowserWindow, dialog, protocol, shell } from "electron";
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  type OpenDialogOptions,
+  protocol,
+  type SaveDialogOptions,
+  shell,
+} from "electron";
 import type { ChromaKey } from "../shared/chroma.ts";
 import type { FontFamily } from "../shared/fonts.ts";
 import type {
@@ -15,7 +23,6 @@ import type {
   AssistantEngine,
   AssistantEvent,
   JobProgress,
-  Project,
   ProjectSettings,
   WhisperVariant,
 } from "../shared/types.ts";
@@ -62,12 +69,14 @@ import {
   createProject,
   openProject,
   PROJECT_EXT,
+  parseProjectText,
   projectsDir,
   recentProjects,
   removeRecent,
   saveProject,
 } from "./projects.ts";
 import { registerRecorder } from "./recorderWindow.ts";
+import { findRelinked, relinkRequestSchema } from "./relink.ts";
 import { openRestrictedClaude } from "./restricted.ts";
 import {
   cancelDownload,
@@ -308,6 +317,12 @@ const MEDIA_FILTERS = [
   { name: "Todos os arquivos", extensions: ["*"] },
 ];
 
+/** Dialogs open over the editor window when it exists. */
+const saveDialog = (options: SaveDialogOptions) =>
+  win ? dialog.showSaveDialog(win, options) : dialog.showSaveDialog(options);
+const openDialog = (options: OpenDialogOptions) =>
+  win ? dialog.showOpenDialog(win, options) : dialog.showOpenDialog(options);
+
 function registerIpc(): void {
   ipcMain.handle("media:saveNarration", async (_e, bytes: Uint8Array) => {
     if (!(bytes instanceof Uint8Array) || !bytes.length || bytes.length > 256 * 1024 * 1024)
@@ -407,6 +422,56 @@ function registerIpc(): void {
     });
     return r.canceled ? null : r.filePaths[0];
   });
+  // The desktop SDK grants writing to the path this channel returns (packages/edi-desktop).
+  ipcMain.handle("dialog:save", async (_e, defaultName: unknown) => {
+    // Only a file name: the folder is the user's choice in the dialog.
+    const name = [...(typeof defaultName === "string" ? defaultName : "")]
+      .filter((character) => character.charCodeAt(0) >= 32 && !'<>:"/\\|?*'.includes(character))
+      .join("")
+      .trim()
+      .slice(0, 120);
+    const r = await saveDialog({
+      title: "Salvar cópia do projeto",
+      defaultPath: join(projectsDir(), `${name || "Aula"}.${PROJECT_EXT}`),
+      filters: [{ name: "Projeto EdiAula", extensions: [PROJECT_EXT] }],
+    });
+    if (r.canceled || !r.filePath) return null;
+    return extname(r.filePath).toLowerCase() === `.${PROJECT_EXT}`
+      ? r.filePath
+      : `${r.filePath}.${PROJECT_EXT}`;
+  });
+  // Reconnecting missing media: the user points at the file (or a folder) and only what was
+  // chosen there becomes readable.
+  let relinkFolder: string | null = null;
+  ipcMain.handle("media:relinkPick", async (_e, name: unknown) => {
+    const r = await openDialog({
+      title:
+        typeof name === "string" && name ? `Onde está ${name.slice(0, 200)}?` : "Reconectar mídia",
+      properties: ["openFile"],
+      filters: MEDIA_FILTERS,
+    });
+    const path = r.canceled ? undefined : r.filePaths[0];
+    if (!path) return null;
+    await desktopFiles.grantRead(path);
+    relinkFolder = dirname(path);
+    return path;
+  });
+  ipcMain.handle("media:relinkFolder", async (_e, raw: unknown, sameFolder: unknown) => {
+    const wanted = relinkRequestSchema.parse(raw);
+    let folder = sameFolder === true ? relinkFolder : null;
+    if (!folder) {
+      const r = await openDialog({
+        title: "Procurar as mídias ausentes nesta pasta",
+        properties: ["openDirectory"],
+      });
+      folder = r.canceled ? null : (r.filePaths[0] ?? null);
+    }
+    if (!folder) return {};
+    relinkFolder = folder;
+    const found = await findRelinked(folder, wanted);
+    for (const path of Object.values(found)) await desktopFiles.grantRead(path);
+    return found;
+  });
   ipcMain.handle("dialog:export", async (_e, defaultName: string) => {
     const audio = /\.mp3$/i.test(defaultName);
     const r = await dialog.showSaveDialog(win!, {
@@ -495,8 +560,8 @@ function registerIpc(): void {
     (_e, name: string, course: string | undefined, settings: ProjectSettings) =>
       createProject(name, course, settings),
   );
-  ipcMain.handle("project:save", (_e, path: string, project: Project) =>
-    saveProject(path, project),
+  ipcMain.handle("project:save", (_e, path: string, text: unknown) =>
+    saveProject(path, parseProjectText(text)),
   );
   ipcMain.handle("project:open", async (_e, path: string) => {
     const project = await openProject(path);
@@ -551,7 +616,7 @@ function registerIpc(): void {
       job.check();
     };
     try {
-      await exportLesson(project, spec, {
+      await exportLesson(parseProjectText(project), spec, {
         assertRead: desktopFiles.assertRead,
         assertWrite: desktopFiles.assertWrite,
         assertRelatedExport: desktopFiles.assertRelatedExport,

@@ -4,12 +4,13 @@ import { copySelection, cutSelection, paste } from "@/lib/clipboard";
 import { askPasteProps, copyProps } from "@/lib/clipProps";
 import { useEditTimer } from "@/lib/editTimer";
 import { importMedia } from "@/lib/importMedia";
+import { confirmLeave } from "@/lib/leaveGuard";
 import { zoomBy, zoomToFit } from "@/lib/timelineView";
 import { cutRangesInteractive } from "@/lib/transcripts";
 import { setTransition } from "@/lib/transitions";
 import { type LeftPanel as LeftPanelKind, useApp } from "@/state/app";
 import { playback } from "@/state/playback";
-import { useProject } from "@/state/project";
+import { hasUnsavedWork, useProject } from "@/state/project";
 import { AnnotationsPanel } from "./AnnotationsPanel";
 import { CursorPathDialog } from "./CursorPathDialog";
 import { ExportDialog } from "./ExportDialog";
@@ -43,9 +44,13 @@ const isTyping = (e: KeyboardEvent): boolean => {
   );
 };
 
+/** A dialog (palette, export queue, save failure…) is in front: the timeline keys wait. */
+const dialogOpen = (): boolean => !!document.querySelector("dialog[open]");
+
 function handleKey(e: KeyboardEvent): void {
   if (
     isTyping(e) ||
+    dialogOpen() ||
     useApp.getState().exportOpen ||
     useApp.getState().settingsOpen ||
     useApp.getState().speedClips ||
@@ -235,8 +240,20 @@ export function Editor(): ReactNode {
 
   useEffect(() => {
     window.addEventListener("keydown", handleKey);
-    const beforeUnload = (): void => {
-      void useProject.getState().saveNow();
+    // Closing the window waits for the save, like the export queue holds it (ExportQueuePanel),
+    // and then closes it again: by then nothing is left unsaved, or it was let go on purpose.
+    const beforeUnload = (e: BeforeUnloadEvent): void => {
+      if (!hasUnsavedWork()) return;
+      e.preventDefault();
+      e.returnValue = "";
+      void confirmLeave().then((ok) => {
+        if (!ok) return;
+        if (hasUnsavedWork()) {
+          useProject.getState().close();
+          useApp.getState().set({ screen: "home", exportOpen: false });
+        }
+        window.close();
+      });
     };
     window.addEventListener("beforeunload", beforeUnload);
     return () => {

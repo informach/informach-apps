@@ -95,7 +95,7 @@ test("export draws the moving pointer sprite and zooms the recording like the pr
     cursorFx,
     3,
   );
-  const positions = Array.from(spritePositions(track, 30, 3, S));
+  const positions = spritePositions(track, 30, 3, S);
 
   const p: Project = {
     version: 1,

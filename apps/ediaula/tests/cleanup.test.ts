@@ -5,6 +5,7 @@ import {
   analyze,
   applyCuts,
   buildSrt,
+  closeCommonGaps,
   cutTargets,
   findQuote,
   mergeRanges,
@@ -285,4 +286,38 @@ test("protected ranges follow the clip through cuts and block overlapping cuts",
   assert.ok(Math.abs(after.start - (before.start - 2)) < 1e-6);
   assert.equal(protectedConflicts(withProt, [[before.start - 0.5, before.start + 0.5]]).length, 1);
   assert.equal(protectedConflicts(withProt, [[0, 1]]).length, 0);
+});
+
+test("closing gaps keeps every track in sync and only removes stretches empty on all of them", () => {
+  const at = (trackId: string, id: string, start: number, duration: number): Clip => ({
+    id,
+    assetId: "a",
+    trackId,
+    start,
+    in: start,
+    duration,
+    volume: 1,
+  });
+  const clips = [
+    at("voz", "v1", 2, 5),
+    at("voz", "v2", 9, 4),
+    at("voz", "v3", 20, 5),
+    // A balloon over the second phrase and one in the pause before the third.
+    at("baloes", "b1", 10, 2),
+    at("baloes", "b2", 15, 1),
+    at("musica", "m", 0, 25),
+  ];
+  const out = closeCommonGaps({ clips }, new Set(["voz", "baloes"]));
+  const start = (id: string): number => out.find((c) => c.id === id)?.start ?? Number.NaN;
+  // Empty everywhere: 0 to 2, 7 to 9, 13 to 15 and 16 to 20; the balloon at 15 keeps its spot.
+  assert.deepEqual(["v1", "v2", "b1", "b2", "v3"].map(start), [0, 5, 6, 9, 10]);
+  assert.equal(start("b1") - start("v2"), 1, "the balloon stays one second into the phrase");
+  // The music bed is not shifted; it ends with the lesson.
+  const music = out.find((c) => c.id === "m");
+  assert.deepEqual([music?.start, music?.duration], [0, 15]);
+  assert.equal(
+    closeCommonGaps({ clips: out }, new Set(["voz", "baloes"])),
+    out,
+    "nothing left to close",
+  );
 });
