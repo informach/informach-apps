@@ -131,13 +131,22 @@ export default function PrivacyPolicyPage() {
             <li>
               <strong>OpenRouter</strong> (OpenRouter, Inc., EUA): serviço que dá acesso a modelos
               de IA de vários provedores numa conta só. A Informach contrata o OpenRouter e paga
-              pelo uso; você não precisa ter conta lá. Quando você usa um recurso de IA, o material
-              necessário para a tarefa (texto, imagem ou áudio) passa pelo OpenRouter até o modelo
-              escolhido, hoje da OpenAI, e a resposta volta pelo mesmo caminho. Pela política do
-              OpenRouter, ele não guarda o conteúdo dos pedidos e respostas por padrão e registra
-              metadados técnicos, como quantidade de tokens e tempo de resposta. Cada provedor de
-              modelo segue a própria política de retenção, então não afirmamos descarte imediato por
-              todos eles.
+              pelo uso; você não precisa ter conta lá. Quando você usa um recurso de IA no Cozya ou
+              na Agenda da Turma, o material necessário para a tarefa (texto, imagem, PDF ou áudio)
+              passa pelo OpenRouter até o modelo escolhido, hoje da OpenAI, e a resposta volta pelo
+              mesmo caminho. Se esse modelo estiver fora do ar, a tarefa pode ir para um modelo
+              reserva de outro provedor, como a Anthropic na leitura de fotos de receitas do Cozya.
+              Na pesquisa de receitas do Cozya, o pedido também é usado numa busca na web feita pelo
+              OpenRouter com o serviço Exa. Pela política do OpenRouter, ele não guarda o conteúdo
+              dos pedidos e respostas por padrão e registra metadados técnicos, como quantidade de
+              tokens e tempo de resposta. Cada provedor de modelo segue a própria política de
+              retenção, então não afirmamos descarte imediato por todos eles.
+            </li>
+            <li>
+              <strong>Na Suíte Edi</strong>, a IA usa a sua própria conta do Claude ou do ChatGPT,
+              ou a sua chave da Anthropic, guardada criptografada no seu computador. O conteúdo vai
+              do seu computador direto para esse serviço, sem passar pelo OpenRouter nem pela
+              Informach, e segue a política dele.
             </li>
             <li>
               <strong>Sentry</strong> (Functional Software Inc., EUA): monitoramento de erros e
@@ -158,9 +167,10 @@ export default function PrivacyPolicyPage() {
         <Section title="7. Transferência internacional">
           <p>
             Os operadores listados acima processam dados em servidores nos Estados Unidos e na União
-            Europeia. As transferências internacionais são realizadas com base na execução do
-            contrato (LGPD art. 33, V) e nos padrões contratuais e técnicos adotados pelos próprios
-            fornecedores (cláusulas-padrão, criptografia em trânsito, controles de acesso).
+            Europeia. As transferências internacionais são realizadas quando necessárias para a
+            execução do contrato (LGPD art. 33, IX, combinado com o art. 7º, V) e com os padrões
+            contratuais e técnicos adotados pelos próprios fornecedores (cláusulas-padrão,
+            criptografia em trânsito, controles de acesso).
           </p>
         </Section>
 
@@ -170,9 +180,11 @@ export default function PrivacyPolicyPage() {
               <strong>Dados da conta e conteúdos dos apps:</strong> enquanto a conta estiver ativa.
             </li>
             <li>
-              <strong>Após exclusão da conta:</strong> os dados pessoais são removidos
-              imediatamente; a Informach cancela assinaturas ativas e libera créditos no mesmo
-              processo.
+              <strong>Após exclusão da conta:</strong> os dados pessoais saem do banco ativo no
+              mesmo processo, e a Informach cancela assinaturas ativas e libera créditos. Cópias
+              residuais em backup deixam de existir conforme a rotação dos backups, hoje em até 89
+              dias. Atividades que outras famílias já usam na Agenda da Turma ficam sem autoria
+              vinculada à sua conta.
             </li>
             <li>
               <strong>Registros fiscais e de pagamento:</strong> retidos pelo prazo legal de até 5
@@ -180,8 +192,8 @@ export default function PrivacyPolicyPage() {
               dissociada quando possível.
             </li>
             <li>
-              <strong>Logs de auditoria e segurança:</strong> mantidos por até 12 meses para
-              investigação de incidentes.
+              <strong>Logs de auditoria e segurança:</strong> mantidos por até cinco anos, com
+              acesso restrito, para investigação de incidentes e cumprimento de obrigações legais.
             </li>
           </ul>
         </Section>

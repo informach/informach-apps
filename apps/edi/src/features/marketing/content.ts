@@ -1,4 +1,5 @@
 import type { EdiToolId } from "@informach/config/edi-tools";
+import { OFFLINE_HOURS } from "../../lib/desktop-limits";
 
 /** Sales copy for each tool. Only features present in the current editors, with their limits. */
 export type ToolFeature = {
@@ -107,8 +108,7 @@ export const FAQ: readonly { question: string; answer: string }[] = [
   },
   {
     question: "Preciso estar conectado à internet?",
-    answer:
-      "Só para conectar o computador e para renovar o acesso de vez em quando. Depois disso, as ferramentas funcionam por até 72 horas sem rede.",
+    answer: `Só para conectar o computador e para renovar o acesso de vez em quando. Depois disso, as ferramentas funcionam por até ${OFFLINE_HOURS} horas sem rede.`,
   },
   {
     question: "A IA está incluída na assinatura?",

@@ -226,7 +226,7 @@ export default function PrivacyPolicyPage() {
           </ul>
           <p>
             Pra exercer qualquer direito, manda uma mensagem no direct do Instagram, em{" "}
-            <DirectLink />, ou usa as opções autosserviço dentro do app. A gente confirma o
+            <DirectLink />, ou usa as opções de autosserviço dentro do app. A gente confirma o
             recebimento e responde no prazo legal.
           </p>
         </Section>

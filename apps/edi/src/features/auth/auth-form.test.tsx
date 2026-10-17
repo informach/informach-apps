@@ -25,7 +25,8 @@ vi.mock("../../lib/auth-client", () => ({
     forgetPassword: { emailOtp: endpoints.forget },
   },
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
+const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => router }));
 beforeEach(() => {
   vi.resetAllMocks();
   endpoints.resend.mockResolvedValue({ error: null });
@@ -88,5 +89,23 @@ describe("pending email verification recovery", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Entrar$/ }));
     await waitFor(() => expect(screen.getByLabelText("Código recebido por e-mail")).toBeTruthy());
     expect(screen.queryByLabelText("Senha")).toBeNull();
+  });
+});
+describe("return path and first tab", () => {
+  it("sends a signed-in visitor to the allowlisted destination it came from", async () => {
+    endpoints.signIn.mockResolvedValue({ error: null });
+    render(<AuthForm next="/conectar" />);
+    fireEvent.change(screen.getByLabelText("E-mail"), { target: { value: "marina@example.test" } });
+    fireEvent.change(screen.getByLabelText("Senha"), { target: { value: "password123" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Entrar$/ }));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/conectar"));
+    expect(router.refresh).toHaveBeenCalled();
+  });
+  it("opens on the sign-up tab when the visitor came to subscribe", () => {
+    render(<AuthForm initialMode="signup" />);
+    expect(screen.getByRole("tab", { name: "Criar conta" }).getAttribute("aria-selected")).toBe(
+      "true",
+    );
+    expect(screen.getByRole("tab", { name: "Entrar" }).getAttribute("aria-selected")).toBe("false");
   });
 });

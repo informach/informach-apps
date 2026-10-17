@@ -44,10 +44,15 @@ export function PricingToggle({
 export function PricingSection({
   pricing,
   billingOpen,
+  deviceLimit,
+  offlineHours,
   children,
 }: {
   pricing: Pricing;
   billingOpen: boolean;
+  /** Limites do contrato desktop, lidos no servidor. */
+  deviceLimit: number;
+  offlineHours: number;
   children: React.ReactNode;
 }) {
   const [plan, setPlan] = useState<SuitePlan>("mensal");
@@ -81,7 +86,7 @@ export function PricingSection({
           </li>
           <li>
             <CheckIcon size={18} />
-            Até 2 computadores com Windows
+            Até {deviceLimit} computadores com Windows
           </li>
           <li>
             <CheckIcon size={18} />
@@ -89,7 +94,7 @@ export function PricingSection({
           </li>
           <li>
             <CheckIcon size={18} />
-            Uso sem internet por até 72 horas
+            Uso sem internet por até {offlineHours} horas
           </li>
           <li className="check-list__excluded">
             <MinusIcon size={18} />

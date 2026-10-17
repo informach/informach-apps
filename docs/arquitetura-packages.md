@@ -220,6 +220,7 @@ Listas estáticas, sem lógica:
 - Produtos e SKUs.
 - Domínios sugeridos por ambiente.
 - Feature flags estáticas (ligadas/desligadas em build, não dinâmicas).
+- Canal público de contato (`INFORMACH_CONTACT`, direct do Instagram), lido por toda página que oferece contato. Páginas não mostram e-mail.
 
 Layout:
 
@@ -231,7 +232,10 @@ packages/config/
     ├── index.ts
     ├── apps.ts        # APPS = { admin: {...}, agendaDaTurma: {...}, ... }
     ├── products.ts
-    └── domains.ts
+    ├── domains.ts
+    ├── edi-tools.ts   # ferramentas da Suíte Edi (ids, nomes, descrições)
+    ├── edi-brand.ts   # cores e glifos das ferramentas Edi, usados pelo portal e pelo Hub
+    └── contact.ts     # INFORMACH_CONTACT, exportado em "@informach/config/contact"
 ```
 
 ### 6. AI primitives — `ai-core`

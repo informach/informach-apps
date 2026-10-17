@@ -1,19 +1,30 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Suspense } from "react";
 import { SiteFooter } from "@/components/site/footer";
-import { MarketingHeader } from "@/components/site/headers";
+import { AccountHeader, MarketingHeader } from "@/components/site/headers";
 import { FileIcon } from "@/components/site/icons";
 import { billingConfigured } from "@/features/billing/catalog";
 import { HubDownload, ToolDownloads, WindowsWarning } from "@/features/releases/downloads";
+import { getAuth } from "@/lib/auth";
+import { OFFLINE_HOURS } from "@/lib/desktop-limits";
 import { getEnv } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Downloads" };
 
-export default function DownloadsPage() {
+export default async function DownloadsPage() {
+  // Quem chega pela navegação da conta continua vendo o cabeçalho da conta.
+  // headers() antes de getAuth(): o env só é lido depois de a rota virar dinâmica.
+  const incoming = new Headers(await headers());
+  const user = await getAuth().getCurrentUser(incoming);
   return (
     <>
-      <MarketingHeader current="downloads" billingOpen={billingConfigured(getEnv())} />
+      {user ? (
+        <AccountHeader name={user.name} current="downloads" />
+      ) : (
+        <MarketingHeader current="downloads" billingOpen={billingConfigured(getEnv())} />
+      )}
       <main id="conteudo">
         <section className="container download-hero" aria-labelledby="titulo">
           <div>
@@ -99,7 +110,7 @@ export default function DownloadsPage() {
             </div>
             <div className="spec">
               <span className="eyebrow">Internet</span>
-              <strong>Para conectar e a cada 72 horas</strong>
+              <strong>Para conectar e a cada {OFFLINE_HOURS} horas</strong>
               <p>No resto do tempo, as ferramentas trabalham sem rede.</p>
             </div>
             <div className="spec">

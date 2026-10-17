@@ -19,7 +19,6 @@ import type { SuitePlan, suitePricing } from "../billing/pricing";
 import { billingPortalAction, checkoutAction, deactivateDeviceAction } from "./actions";
 import type { AccountView as Account } from "./presenter";
 
-const DEVICE_LIMIT = 2;
 type Pricing = ReturnType<typeof suitePricing>;
 
 function useAction() {
@@ -47,12 +46,17 @@ export function AccountView({
   pricing,
   initialPlan,
   checkout,
+  deviceLimit,
+  offlineHours,
 }: {
   account: Account;
   billingReady: boolean;
   pricing: Pricing;
   initialPlan: SuitePlan;
   checkout: "success" | "canceled" | null;
+  /** Limites do contrato desktop, lidos no servidor. */
+  deviceLimit: number;
+  offlineHours: number;
 }) {
   const hydrated = useHydrated();
   const router = useRouter();
@@ -67,7 +71,7 @@ export function AccountView({
           <h1 className="display-1">
             {firstVisit ? "Boas-vindas" : "Olá"}, {account.user.name}.
           </h1>
-          <p className="mono muted">{account.user.email}</p>
+          <p className="mono muted account-head__email">{account.user.email}</p>
         </div>
       </div>
 
@@ -94,7 +98,7 @@ export function AccountView({
         </p>
       )}
 
-      {firstVisit && <Onboarding />}
+      {firstVisit && <Onboarding billingReady={billingReady} />}
 
       <div className="account-grid">
         {subscription.kind === "none" ? (
@@ -105,6 +109,8 @@ export function AccountView({
             emailVerified={account.user.emailVerified}
             returning={subscription.returning}
             action={action}
+            deviceLimit={deviceLimit}
+            offlineHours={offlineHours}
           />
         ) : (
           <SubscriptionPanel
@@ -115,7 +121,7 @@ export function AccountView({
             action={action}
           />
         )}
-        <DevicesPanel devices={account.devices} />
+        <DevicesPanel devices={account.devices} deviceLimit={deviceLimit} />
       </div>
       <p role="status" aria-live="polite" className="form-message form-message--error">
         {action.message}
@@ -178,7 +184,9 @@ export function AccountView({
   );
 }
 
-function Onboarding() {
+function Onboarding({ billingReady }: { billingReady: boolean }) {
+  // Na fase piloto ainda não dá para assinar: o passo atual passa a ser o Hub,
+  // que já pode ser baixado e conectado.
   return (
     <ol className="onboarding" aria-label="Seus próximos passos">
       <li className="is-done">
@@ -190,14 +198,22 @@ function Onboarding() {
           <span className="onboarding__sub">e-mail confirmado</span>
         </span>
       </li>
-      <li className="is-current" aria-current="step">
+      <li
+        className={billingReady ? "is-current" : undefined}
+        aria-current={billingReady ? "step" : undefined}
+      >
         <span className="onboarding__mark">2</span>
         <span>
           <strong>Escolha o plano</strong>
-          <span className="onboarding__sub">você está aqui</span>
+          <span className="onboarding__sub">
+            {billingReady ? "você está aqui" : "abre quando a homologação terminar"}
+          </span>
         </span>
       </li>
-      <li>
+      <li
+        className={billingReady ? undefined : "is-current"}
+        aria-current={billingReady ? undefined : "step"}
+      >
         <span className="onboarding__mark">3</span>
         <span>
           <strong>Baixe o Edi Hub</strong>
@@ -224,6 +240,8 @@ function PlanPicker({
   emailVerified,
   returning,
   action,
+  deviceLimit,
+  offlineHours,
 }: {
   pricing: Pricing;
   initialPlan: SuitePlan;
@@ -231,6 +249,8 @@ function PlanPicker({
   emailVerified: boolean;
   returning: boolean;
   action: Action;
+  deviceLimit: number;
+  offlineHours: number;
 }) {
   const hydrated = useHydrated();
   const [plan, setPlan] = useState<SuitePlan>(initialPlan);
@@ -247,8 +267,8 @@ function PlanPicker({
         <p className="notice notice--warn">
           <span>
             <strong>As assinaturas abrem quando a homologação terminar.</strong> Nenhuma cobrança é
-            feita aqui por enquanto. Enquanto isso, você já pode{" "}
-            <Link href="/downloads">baixar o Edi Hub piloto</Link>.
+            feita aqui por enquanto. Você já pode <Link href="/downloads">baixar o Edi Hub</Link> e
+            conectar o computador; as ferramentas abrem quando a assinatura começar.
           </span>
         </p>
       )}
@@ -332,7 +352,8 @@ function PlanPicker({
         </li>
         <li>
           <CheckIcon size={16} />
-          Até 2 computadores, todas as atualizações e uso sem internet por até 72 horas
+          Até {deviceLimit} computadores, todas as atualizações e uso sem internet por até{" "}
+          {offlineHours} horas
         </li>
         <li className="check-list__excluded">
           <MinusIcon size={16} />
@@ -473,16 +494,22 @@ function SubscriptionPanel({
   );
 }
 
-function DevicesPanel({ devices }: { devices: Account["devices"] }) {
+function DevicesPanel({
+  devices,
+  deviceLimit,
+}: {
+  devices: Account["devices"];
+  deviceLimit: number;
+}) {
   const hydrated = useHydrated();
   const action = useAction();
   const [confirming, setConfirming] = useState<string | null>(null);
-  const free = Math.max(DEVICE_LIMIT - devices.length, 0);
+  const free = Math.max(deviceLimit - devices.length, 0);
   return (
     <section className="panel" aria-labelledby="computadores">
       <span className="eyebrow">Computadores</span>
       <h2 id="computadores" className="display-3">
-        {devices.length} de {DEVICE_LIMIT} conectados
+        {devices.length} de {deviceLimit} conectados
       </h2>
       <span className="slot-bar" aria-hidden="true">
         {devices.map((device) => (

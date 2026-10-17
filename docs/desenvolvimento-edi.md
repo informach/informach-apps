@@ -183,7 +183,8 @@ Para verificar automaticamente os estados de acesso sem providers reais, use `pn
 | Operação segura exposta à interface | Preload do app em `src/preload` |
 | Sessão, licença local, integridade, atualização ou preservação de jobs | `packages/edi-desktop` |
 | Catálogo de ferramentas e identidades Windows | `packages/config/src/edi-tools.ts` |
-| Cor e glifo de cada ferramenta, usados pelo portal e pelo Hub | `packages/config/src/edi-brand.ts`; ícones Windows por `scripts/edi/make-icons.ps1` |
+| Cor e glifo de cada ferramenta, usados pelo portal e pelo Hub | `packages/config/src/edi-brand.ts`; ícones Windows por `scripts/edi/make-icons.ps1`, com os mesmos cantos arredondados do SVG |
+| Texto e próxima ação do Hub para cada estado de acesso | `apps/edi-hub/src/renderer/src/access-copy.ts`, uma entrada por `cause` do status desktop; falhas de IPC em `failure-copy.ts` |
 | Conta, checkout, páginas e rotas HTTP | `apps/edi` |
 | Regra de licença e persistência comercial do servidor | `packages/edi-licensing`; schema/migrations em `packages/db` |
 | Manifesto e descoberta de release pública assinada | `packages/edi-contracts` e `packages/edi-releases` |

@@ -1,4 +1,5 @@
 import { PRODUCTS } from "@informach/config";
+import { APPS } from "@informach/config/apps";
 
 export type Audience = "criancas" | "familia" | "quem-ensina";
 
@@ -29,6 +30,9 @@ const brl = (cents: number) =>
     currency: "BRL",
     minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
   }).format(cents / 100);
+
+/** Endereço público de um app do monorepo, a partir do domínio registrado em `APPS`. */
+const appUrl = (app: keyof typeof APPS, path = "") => `https://${APPS[app].domain}${path}`;
 
 function monthlyPrice(productId: string) {
   const product = PRODUCTS.find((item) => item.id === productId);
@@ -70,7 +74,7 @@ export const SITE_PRODUCTS: readonly SiteProduct[] = [
   {
     slug: "missao-saber",
     name: "Missão Saber",
-    url: "https://missao-saber.informach.com.br",
+    url: appUrl("missaoSaber"),
     audience: "criancas",
     promise: "Treino de olimpíada no ritmo da criança.",
     facts: [
@@ -81,7 +85,7 @@ export const SITE_PRODUCTS: readonly SiteProduct[] = [
     price: `A partir de ${monthlyPrice("missao_individual_monthly")} por mês`,
     cta: {
       label: "Experimentar sem cadastro",
-      href: "https://missao-saber.informach.com.br/experimentar",
+      href: appUrl("missaoSaber", "/experimentar"),
     },
     icon: "/produtos/missao-saber.png",
     brand: { background: "#1E5A44", foreground: "#EAF6DD", link: "#1E5A44" },
@@ -89,23 +93,24 @@ export const SITE_PRODUCTS: readonly SiteProduct[] = [
   {
     slug: "agenda-da-turma",
     name: "Agenda da Turma",
-    url: "https://agenda-da-turma.informach.com.br",
+    url: appUrl("agendaDaTurma"),
     audience: "familia",
     promise: "O recado da escola vira providência.",
     facts: [
       "Foto, mensagem ou conversa do WhatsApp",
-      "Dois adultos com acesso por criança",
+      "No Pro, dois adultos, com acesso definido por criança",
       "Uma tela só para a criança marcar o que fez",
     ],
     price: `Grátis para uma criança · Pro ${monthlyPrice("agenda_da_turma_pro_monthly")} por mês`,
-    cta: { label: "Conhecer a Agenda", href: "https://agenda-da-turma.informach.com.br" },
+    cta: { label: "Conhecer a Agenda", href: appUrl("agendaDaTurma") },
     icon: "/produtos/agenda-da-turma.svg",
-    brand: { background: "#006FFD", foreground: "#FFFFFF", link: "#0057C8" },
+    /* Azul da Agenda um tom abaixo de #006FFD: o texto branco de 13px precisa de 4,5:1 (fica 5,1:1). */
+    brand: { background: "#0066EB", foreground: "#FFFFFF", link: "#0057C8" },
   },
   {
     slug: "cozya",
     name: "Cozya",
-    url: "https://cozya.informach.com.br",
+    url: appUrl("cozya"),
     audience: "familia",
     promise: "O jantar da semana decidido no domingo.",
     facts: [
@@ -114,14 +119,14 @@ export const SITE_PRODUCTS: readonly SiteProduct[] = [
       "Lista de compras somada e modo de preparo",
     ],
     price: `14 dias sem cartão · Pro ${monthlyPrice("cozya_pro_monthly")} por mês`,
-    cta: { label: "Conhecer o Cozya", href: "https://cozya.informach.com.br" },
+    cta: { label: "Conhecer o Cozya", href: appUrl("cozya") },
     icon: "/produtos/cozya.svg",
     brand: { background: "#FF7A3D", foreground: "#173247", link: "#B4501C" },
   },
   {
     slug: "edi",
     name: "Suíte Edi",
-    url: "https://edi.informach.com.br",
+    url: appUrl("edi"),
     audience: "quem-ensina",
     promise: "A aula inteira numa bancada só.",
     facts: [
@@ -130,7 +135,7 @@ export const SITE_PRODUCTS: readonly SiteProduct[] = [
       "Para Windows, arquivos no seu computador",
     ],
     price: `Fase piloto · ${monthlyPrice("edi_suite_monthly")} por mês na abertura`,
-    cta: { label: "Conhecer a Suíte Edi", href: "https://edi.informach.com.br" },
+    cta: { label: "Conhecer a Suíte Edi", href: appUrl("edi") },
     icon: "/produtos/edi.png",
     brand: { background: "#1F242A", foreground: "#F4F1EA", link: "#173247" },
   },

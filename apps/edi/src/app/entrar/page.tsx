@@ -7,6 +7,7 @@ import { ToolIcon, Wordmark } from "../../components/site/brand";
 import { MonitorIcon } from "../../components/site/icons";
 import { AuthForm } from "../../features/auth/auth-form";
 import { getAuth } from "../../lib/auth";
+import { DEVICE_LIMIT } from "../../lib/desktop-limits";
 import { safeReturnPath } from "../../lib/return-path";
 
 export const metadata: Metadata = { title: "Entrar" };
@@ -65,7 +66,7 @@ export default async function SignInPage({
             ))}
           </ul>
           <p className="auth-aside__facts">
-            Windows 64 bits · até 2 computadores · seus arquivos com você
+            Windows 64 bits · até {DEVICE_LIMIT} computadores · seus arquivos com você
           </p>
         </div>
         <span className="ruler" aria-hidden="true" />

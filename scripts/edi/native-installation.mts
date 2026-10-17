@@ -1,9 +1,10 @@
 import { execFile } from "node:child_process";
 import { generateKeyPairSync } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { copyFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { Platform, build as packageApplication } from "electron-builder";
 import { tsImport } from "tsx/esm/api";
 import { build } from "vite";
 import { windowsPowerShellEnvironment } from "../../packages/edi-desktop/src/windows-powershell.ts";
@@ -101,4 +102,105 @@ export async function verifyNativeInstallationIntegrity(root: string, electronPa
     },
   );
   console.log(gui.stdout.trim());
+  await verifyNativeManager(root, electronPath, environment);
+}
+
+async function verifyNativeManager(
+  root: string,
+  electronPath: string,
+  environment: NodeJS.ProcessEnv,
+) {
+  const {
+    writeInstallationReceipt,
+  }: typeof import("../../packages/edi-desktop/src/installation-integrity.ts") = await tsImport(
+    "../../packages/edi-desktop/src/installation-integrity.ts",
+    import.meta.url,
+  );
+  const localAppData = join(root, "manager-local");
+  const directory = join(localAppData, "Programs/Edi/EdiFoto");
+  const application = join(root, "manager-application");
+  await mkdir(application, { recursive: true });
+  const result = join(root, "manager-window-result.json");
+  const profile = join(root, "manager-tool-profile");
+  const managerProfile = join(root, "manager-profile");
+  await mkdir(profile, { recursive: true });
+  await mkdir(managerProfile, { recursive: true });
+  await copyFile(
+    fileURLToPath(new URL("./native-manager-window.fixture.cjs", import.meta.url)),
+    join(application, "main.cjs"),
+  );
+  await writeFile(
+    join(application, "package.json"),
+    JSON.stringify({
+      name: "edi-manager-fixture",
+      version: "1.0.0",
+      main: "main.cjs",
+      description: "Isolated installation manager verification",
+      author: "Informach",
+    }),
+  );
+  await writeFile(join(application, "configuration.json"), JSON.stringify({ profile, result }));
+  const packageOutput = join(root, "manager-package");
+  // Use the declared public packager and the already downloaded Electron runtime
+  // to produce a real ASAR. This never invokes NSIS or changes the user's system.
+  await packageApplication({
+    projectDir: application,
+    targets: Platform.WINDOWS.createTarget(["dir"]),
+    publish: "never",
+    config: {
+      appId: "com.informach.edi-manager-fixture",
+      productName: "EdiFoto",
+      electronVersion: (await readFile(join(dirname(electronPath), "version"), "utf8")).trim(),
+      electronDist: dirname(electronPath),
+      directories: { output: packageOutput },
+      files: ["main.cjs", "configuration.json", "package.json"],
+      asar: true,
+      npmRebuild: false,
+      win: { signAndEditExecutable: false },
+    },
+  });
+  await mkdir(dirname(directory), { recursive: true });
+  await rename(join(packageOutput, "win-unpacked"), directory);
+  // The fixture tests the manager/ASAR/GUI contract, using the unmodified runtime
+  // already available locally. PE editing and NSIS run only on disposable CI:
+  // local Code Integrity policy can reject newly edited temporary executables.
+  await copyFile(electronPath, join(directory, "EdiFoto.exe"));
+  const pair = generateKeyPairSync("ed25519");
+  const trustedKeys = {
+    manager: pair.publicKey.export({ type: "spki", format: "pem" }).toString(),
+  };
+  await writeInstallationReceipt({
+    directory,
+    appId: "edifoto",
+    version: "1.0.0",
+    sourceCommit: "b".repeat(40),
+    keyId: "manager",
+    privateKey: pair.privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
+  });
+  const configuration = join(root, "manager-configuration.json");
+  await writeFile(
+    configuration,
+    JSON.stringify({ localAppData, profile: managerProfile, result, trustedKeys }),
+  );
+  const output = join(root, "manager-runner");
+  await build({
+    configFile: false,
+    logLevel: "error",
+    ssr: { noExternal: true, external: ["electron", "original-fs"] },
+    build: {
+      ssr: fileURLToPath(new URL("./native-manager.fixture.mts", import.meta.url)),
+      outDir: output,
+      emptyOutDir: false,
+      rollupOptions: {
+        external: ["electron", "original-fs"],
+        output: { format: "cjs", entryFileNames: "verify.cjs" },
+      },
+    },
+  });
+  const execution = await promisify(execFile)(
+    electronPath,
+    [join(output, "verify.cjs"), configuration],
+    { env: environment, windowsHide: true, timeout: 30_000, maxBuffer: 32768 },
+  );
+  console.log(execution.stdout.trim());
 }

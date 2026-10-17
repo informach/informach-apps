@@ -7,6 +7,7 @@ import { getAccount } from "../../features/account/service";
 import { DeviceApproval } from "../../features/auth/device-approval";
 import { billingConfigured } from "../../features/billing/catalog";
 import { getAuth } from "../../lib/auth";
+import { DEVICE_LIMIT } from "../../lib/desktop-limits";
 import { getEnv } from "../../lib/env";
 
 export const metadata: Metadata = { title: "Conectar computador" };
@@ -51,6 +52,7 @@ export default async function ConnectPage() {
         <DeviceApproval
           email={user.email}
           devicesInUse={account.devices.length}
+          deviceLimit={DEVICE_LIMIT}
           accessAllowed={account.access.allowed}
         />
       </main>

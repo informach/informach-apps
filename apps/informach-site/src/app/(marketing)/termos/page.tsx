@@ -63,12 +63,35 @@ export default function TermsOfUsePage() {
 
         <Section title="3. Apps da Informach">
           <p>
-            Hoje a Informach opera os apps listados em{" "}
-            <a className="underline underline-offset-2" href="/#produtos">
-              {SITE.url.replace("https://", "")}/#produtos
+            Hoje a Informach opera os produtos apresentados em{" "}
+            <a className="underline underline-offset-2" href="/">
+              {SITE.url.replace("https://", "")}
             </a>
-            . Outros apps podem ser lançados ao longo do tempo e também serão publicados nessa
-            lista.
+            . Outros podem ser lançados ao longo do tempo e também serão publicados lá.
+          </p>
+          <p>
+            <strong>Termos específicos da Missão Saber:</strong>{" "}
+            <a
+              className="underline underline-offset-2"
+              href="https://missao-saber.informach.com.br/termos"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              missao-saber.informach.com.br/termos
+            </a>
+            .
+          </p>
+          <p>
+            <strong>Termos específicos do Sistema Zero:</strong>{" "}
+            <a
+              className="underline underline-offset-2"
+              href="https://sistemazero.com.br/kids/termos"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              sistemazero.com.br/kids/termos
+            </a>
+            .
           </p>
           <p>
             <strong>Termos específicos do Cozya:</strong>{" "}
@@ -159,13 +182,19 @@ export default function TermsOfUsePage() {
             Termos.
           </p>
           <p>
-            Nos apps que têm recursos de IA, o uso é contado em créditos. Os planos pagos incluem
-            uma cota de créditos por mês, alguns planos gratuitos trazem uma franquia para testar e,
-            onde houver, assinantes podem comprar pacotes avulsos. Cada tarefa de IA concluída
-            desconta créditos do saldo da sua conta naquele app; quando a tarefa falha, o crédito
-            não é descontado. A Informach contrata e paga os serviços de IA usados pelos apps, como
-            o OpenRouter, e você não precisa de conta em nenhum deles. A cota, o custo das tarefas e
-            a validade dos créditos aparecem na página de planos de cada app.
+            Nos apps com IA incluída no plano, como o Cozya e a Agenda da Turma, o uso é contado em
+            créditos. Os planos pagos incluem uma cota de créditos por mês, alguns planos gratuitos
+            trazem uma franquia para testar e, onde houver, assinantes podem comprar pacotes
+            avulsos. Cada tarefa de IA concluída desconta créditos do saldo da conta titular naquele
+            app. Quando a tarefa falha, o crédito reservado é liberado; se a falha só aparecer
+            depois do desconto, o app devolve o crédito. Nesses apps, a Informach contrata e paga os
+            serviços de IA, como o OpenRouter, e você não precisa de conta em nenhum deles. A cota,
+            o custo das tarefas e a validade dos créditos aparecem na página de planos de cada app.
+          </p>
+          <p>
+            A Suíte Edi funciona de outro jeito: a assinatura não inclui IA, e as ferramentas usam a
+            sua própria conta do Claude ou do ChatGPT, ou uma chave da Anthropic, com o consumo
+            cobrado por esses serviços.
           </p>
         </Section>
 

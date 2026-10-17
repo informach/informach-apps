@@ -8,6 +8,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@informach/ui/components/sheet";
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { Menu } from "lucide-react";
 import { type MouseEvent, useRef, useState } from "react";
 
@@ -27,6 +28,7 @@ export type SiteHeaderMobileNavProps = {
  * a gaveta termina de fechar e devolve a rolagem.
  */
 export function SiteHeaderMobileNav({ links, cta }: SiteHeaderMobileNavProps) {
+  const hydrated = useHydrated();
   const [open, setOpen] = useState(false);
   const pendingHref = useRef<string | null>(null);
 
@@ -39,7 +41,13 @@ export function SiteHeaderMobileNav({ links, cta }: SiteHeaderMobileNavProps) {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Abrir menu" className="size-11">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Abrir menu"
+          disabled={!hydrated}
+          className="size-11"
+        >
           <Menu className="size-5" aria-hidden />
         </Button>
       </SheetTrigger>

@@ -8,7 +8,7 @@ As regras deste documento orientam novos desenvolvimentos desde sua criação. A
 
 ## 1 Escopo e princípios
 
-As interfaces, identidades visuais e fluxos existentes serão preservados. A integração à suíte deve uniformizar arquitetura, contratos, segurança, dependências compartilhadas, instalação, licença e atualização. Funcionalidades ainda em construção pertencem ao backlog de cada ferramenta e não serão concluídas como requisito indireto da integração.
+As interfaces e os fluxos existentes serão preservados. A identidade visual da suíte segue a direção "bancada e marca-texto", aprovada em 17/10/2026: cores, glifos e ícones de cada ferramenta vêm de `@informach/config/edi-brand`, e os ícones do Windows são gerados por `scripts/edi/make-icons.ps1` com o mesmo desenho. A integração à suíte deve uniformizar arquitetura, contratos, segurança, dependências compartilhadas, instalação, licença e atualização. Funcionalidades ainda em construção pertencem ao backlog de cada ferramenta e não serão concluídas como requisito indireto da integração.
 
 Novas ferramentas usarão a base aprovada neste documento. Nas existentes, mudanças estruturais serão feitas por fronteiras verificáveis, preservando documentos e recursos já funcionais. Uma migração de renderer só será realizada quando necessária para um requisito técnico comprovado; ela deverá conservar a interface e ter testes de regressão.
 
@@ -122,7 +122,7 @@ Testes usarão perfis e cópias isolados. Não registrar tokens, prompts, docume
 
 ## 7 Interface e estado
 
-Reutilizar tokens, tipografia, ícones e componentes de `@informach/ui` quando compatíveis. As telas de conta, licença, progresso e atualização terão comportamento comum. A disposição dos editores existentes será preservada; uniformização não será uma revisão visual geral.
+Reutilizar tokens, tipografia, ícones e componentes de `@informach/ui` quando compatíveis. As telas de conta, licença, progresso e atualização terão comportamento comum. A disposição dos editores existentes será preservada; uniformização não será uma revisão visual geral. Ícones, Hub e telas de conta seguem a identidade da suíte.
 
 Componentes React usarão estado local por padrão; Zustand será usado onde houver estado compartilhado de interface. O documento e seu histórico ficarão em operações de domínio testáveis, reutilizáveis pela interface e pelo MCP. Evitar regras diferentes para cliques, atalhos e agentes.
 
@@ -134,7 +134,7 @@ A conta web e o acesso desktop usarão identidade compartilhada, com credenciais
 
 A licença será validada em cada ferramenta, inclusive aberta por associação de arquivo, IPC, atalho ou MCP. O processo principal verificará operações privilegiadas; comandos locais do editor também respeitarão o estado de autorização. A autorização offline será assinada pelo servidor e limitada ao período comercial confirmado.
 
-Revogação explícita invalida o cache; falha de comunicação preserva apenas o prazo já autorizado. Logout compartilhado deverá alcançar ferramentas abertas e revogar as credenciais pertinentes no servidor. Conta, atualização, suporte e recuperação do trabalho continuarão disponíveis em modo restrito.
+O status desktop traz `cause`, código estável definido pelo controlador para cada estado restrito: sem sessão, sem internet, validação vencida, sessão a validar, armazenamento indisponível, conexão não concluída e cada recusa de licença. Telas escolhem texto e próxima ação por ele, nunca por `reason` ou pela presença de `userId`; `userId` existe só enquanto a sessão está guardada no cofre. Revogação explícita invalida o cache; falha de comunicação preserva apenas o prazo já autorizado. Logout compartilhado deverá alcançar ferramentas abertas e revogar as credenciais pertinentes no servidor. Conta, atualização, suporte e recuperação do trabalho continuarão disponíveis em modo restrito.
 
 Operações longas já autorizadas usam `@informach/edi-desktop/jobs`. O main registra cada operação antes de iniciá-la, encerra o registro ao concluir e verifica o permit antes de novas etapas e do commit de saída. O primeiro bloqueio fixa uma janela máxima de 30 minutos, conferida por timer e relógios monotônico/de parede; eventos repetidos, troca de status e retorno da suspensão não renovam a janela. O permit não é persistido nem exposto ao renderer. Novas operações continuam exigindo licença. EdiAula interrompe gravação e automação guiada imediatamente e preserva MP4; exportação, proxy, chroma e transcrição podem finalizar dentro da janela. EdiCaptura encerra vídeo e rolagem imediatamente, mantendo os bytes/trechos para recuperação se o salvamento falhar. Evidências e limites em [preservação de jobs](propostas/edi-suite-2026-10-16/producao-jobs.md).
 

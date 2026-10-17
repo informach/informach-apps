@@ -28,6 +28,19 @@ function New-RoundedRectangle([single]$x, [single]$y, [single]$width, [single]$h
   return $path
 }
 function Point([single]$x, [single]$y) { return [Drawing.PointF]::new($x, $y) }
+# One rounded corner of EdiCaptura: a straight leg, a 1.5-unit arc, another leg.
+# GDI+ angles run clockwise from the x axis, as SVG's do with y pointing down.
+function New-Corner([single[]]$from, [single[]]$arc, [single]$start, [single[]]$to) {
+  $path = New-Object Drawing.Drawing2D.GraphicsPath
+  $path.AddLine($from[0], $from[1], $from[2], $from[3])
+  $path.AddArc($arc[0], $arc[1], 3, 3, $start, 90)
+  $path.AddLine($to[0], $to[1], $to[2], $to[3])
+  return $path
+}
+function Draw-Path($graphics, $pen, $path) {
+  $graphics.DrawPath($pen, $path)
+  $path.Dispose()
+}
 
 function Draw-Glyph($graphics, [string]$id) {
   # The glyph box is 24 units; 7.2 px per unit centres it in the 256 px tile.
@@ -45,10 +58,10 @@ function Draw-Glyph($graphics, [string]$id) {
       $graphics.DrawLine($pen, 22, 9.5, 22, 14.5)
     }
     'edicaptura' {
-      $graphics.DrawLines($pen, [Drawing.PointF[]]@((Point 4 8.5), (Point 4 4), (Point 8.5 4)))
-      $graphics.DrawLines($pen, [Drawing.PointF[]]@((Point 15.5 4), (Point 20 4), (Point 20 8.5)))
-      $graphics.DrawLines($pen, [Drawing.PointF[]]@((Point 20 15.5), (Point 20 20), (Point 15.5 20)))
-      $graphics.DrawLines($pen, [Drawing.PointF[]]@((Point 8.5 20), (Point 4 20), (Point 4 15.5)))
+      Draw-Path $graphics $pen (New-Corner @(4, 8.5, 4, 5.5) @(4, 4) 180 @(5.5, 4, 8.5, 4))
+      Draw-Path $graphics $pen (New-Corner @(15.5, 4, 18.5, 4) @(17, 4) 270 @(20, 5.5, 20, 8.5))
+      Draw-Path $graphics $pen (New-Corner @(20, 15.5, 20, 18.5) @(17, 17) 0 @(18.5, 20, 15.5, 20))
+      Draw-Path $graphics $pen (New-Corner @(8.5, 20, 5.5, 20) @(4, 17) 90 @(4, 18.5, 4, 15.5))
       $graphics.DrawEllipse($pen, 9.2, 9.2, 5.6, 5.6)
     }
     'edifoto' {
@@ -56,17 +69,27 @@ function Draw-Glyph($graphics, [string]$id) {
       $graphics.DrawEllipse($pen, 9.5, 6.5, 11, 11)
     }
     'edipdf' {
-      $graphics.DrawPolygon($pen, [Drawing.PointF[]]@((Point 14 3), (Point 6 3), (Point 6 21), (Point 18 21), (Point 18 7)))
+      # Page with three 1.5-unit rounded corners and the folded one cut straight.
+      $page = New-Object Drawing.Drawing2D.GraphicsPath
+      $page.AddLine(14, 3, 7.5, 3)
+      $page.AddArc(6, 3, 3, 3, 270, -90)
+      $page.AddLine(6, 4.5, 6, 19.5)
+      $page.AddArc(6, 18, 3, 3, 180, -90)
+      $page.AddLine(7.5, 21, 16.5, 21)
+      $page.AddArc(15, 18, 3, 3, 90, -90)
+      $page.AddLine(18, 19.5, 18, 7)
+      $page.CloseFigure()
+      Draw-Path $graphics $pen $page
       $graphics.DrawLines($pen, [Drawing.PointF[]]@((Point 14 3), (Point 14 7), (Point 18 7)))
     }
     'edisvg' {
       $graphics.DrawBezier($pen, 5, 18, 5, 9, 19, 9, 19, 18)
       $graphics.DrawLine($pen, 5, 17, 7.3, 7.5)
       $graphics.DrawLine($pen, 19, 17, 16.7, 7.5)
-      $graphics.DrawRectangle($pen, 3, 17, 4, 4)
-      $graphics.DrawRectangle($pen, 17, 17, 4, 4)
-      $graphics.DrawRectangle($pen, 6, 4, 3, 3)
-      $graphics.DrawRectangle($pen, 15, 4, 3, 3)
+      Draw-Path $graphics $pen (New-RoundedRectangle 3 17 4 4 1)
+      Draw-Path $graphics $pen (New-RoundedRectangle 17 17 4 4 1)
+      Draw-Path $graphics $pen (New-RoundedRectangle 6 4 3 3 0.8)
+      Draw-Path $graphics $pen (New-RoundedRectangle 15 4 3 3 0.8)
     }
   }
   $pen.Dispose()

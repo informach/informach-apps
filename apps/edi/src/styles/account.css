@@ -12,6 +12,10 @@
 .account-head p {
   margin-top: 10px;
 }
+/* E-mails longos de secretaria quebram em vez de empurrar a página para o lado. */
+.account-head__email {
+  overflow-wrap: anywhere;
+}
 .account-grid {
   margin-top: 32px;
   display: flex;
@@ -365,7 +369,7 @@
 .help-links a {
   display: inline-flex;
   align-items: center;
-  min-height: 40px;
+  min-height: 44px;
 }
 .loading {
   display: grid;

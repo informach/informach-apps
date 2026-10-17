@@ -470,7 +470,9 @@ Sem isso o app retorna **503 silencioso** em `POST /api/webhooks/sendgrid` (gate
 
 ## Fase 11 — Cron services (♻ ADD, não recriar)
 
-**Estratégia híbrida**: 9 services no Railway, INDEPENDENTE de quantos apps. Adicionar app novo = só editar `APP_DOMAINS` nos 7 per-app crons.
+**Estratégia compartilhada dos apps web existentes**: 9 services atendem os contratos de manutenção abaixo. Um novo app só entra em `APP_DOMAINS` quando implementar cada contrato correspondente.
+
+**Exceção Edi:** o desktop usa fatos financeiros e licenças assinadas, com reconciliação própria. `cron-edi-reconcile`, declarado em `.railway/railway.ts`, chama `POST /api/jobs/reconcile` a cada cinco minutos e é habilitado junto com a cobrança homologada. Não incluir o domínio Edi nos sete crons per-app por padrão. A limpeza global de autenticação, as suppressions e o webhook SendGrid compartilhados já abrangem as tabelas comuns. O retry genérico de e-mail exclui categorias `auth.*`; códigos OTP são reenviados pela pessoa, com os limites de autenticação. Ver [operação Edi](../apps/edi/PRODUCAO.md).
 
 ### Setup inicial (1× por monorepo)
 
@@ -523,7 +525,7 @@ sh -c 'for d in $APP_DOMAINS; do curl -fsS -X POST -H "Authorization: Bearer $CR
 
 ### Adicionar app novo (admin futuro)
 
-**Não criar novos cron services**. Em cada um dos 7 cron-perapp:
+Para apps que implementem os mesmos sete contratos, reutilizar os cron services existentes. Em cada cron aplicável:
 1. Settings → Variables → editar `APP_DOMAINS`
 2. Adicionar com space-separated: `APP_DOMAINS=cozya.informach.com.br agenda-da-turma.informach.com.br admin.informach.com.br`
 

@@ -17,7 +17,7 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 border-b border-line-warm bg-paper/90 backdrop-blur supports-[backdrop-filter]:bg-paper/75">
       <div className="mx-auto flex h-[72px] max-w-[1240px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-10">
         <Link href="/" className="flex min-h-11 items-center" aria-label="Informach, início">
-          <InformachLogo className="h-9 w-auto md:h-10" priority />
+          <InformachLogo className="h-9 w-auto md:h-10" preload />
         </Link>
 
         <nav

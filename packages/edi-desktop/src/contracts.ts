@@ -1,4 +1,4 @@
-import { githubRepositorySchema } from "@informach/edi-contracts";
+import { accessDenialSchema, githubRepositorySchema } from "@informach/edi-contracts";
 import { z } from "zod";
 export const desktopConfigSchema = z
   .strictObject({
@@ -33,9 +33,26 @@ export const desktopConfigSchema = z
       context.addIssue({ code: "custom", message: "Development authentication must use loopback" });
   });
 export type DesktopConfig = z.infer<typeof desktopConfigSchema>;
+/**
+ * Why access is restricted, set by the controller so each screen picks the next
+ * step from a stable code instead of guessing from `reason` or `userId`. Null while
+ * licensed or connecting. Denial values mirror `accessDenialSchema`.
+ */
+export const desktopStatusCauseSchema = z.enum([
+  "signed_out",
+  "offline",
+  "expired",
+  "revalidate",
+  "unavailable",
+  "connect_failed",
+  ...accessDenialSchema.options,
+]);
+export type DesktopStatusCause = z.infer<typeof desktopStatusCauseSchema>;
 export const desktopStatusSchema = z.strictObject({
   state: z.enum(["restricted", "connecting", "licensed"]),
+  cause: desktopStatusCauseSchema.nullable(),
   reason: z.string().max(200),
+  /** Account of the session kept in this computer's vault, or null when there is none. */
   userId: z.string().nullable(),
   expiresAt: z.string().nullable(),
   offline: z.boolean(),

@@ -26,6 +26,8 @@
   --line-warm: #e6dfd3;
   --orbit: #d8cdbc;
   --sphere: #c65a24;
+  /* Preenchimento de botão com texto de 16px: branco sobre #b4501c dá 5,1:1 (sobre a esfera, 4,3:1). */
+  --sphere-strong: #b4501c;
   --on-sphere: #ffffff;
   --sphere-ink: #8a4a23;
   --night: #173247;
@@ -74,6 +76,7 @@
   --line-warm: #26384a;
   --orbit: #34495d;
   --sphere: #e57a45;
+  --sphere-strong: #e57a45;
   --on-sphere: #0e1a25;
   --sphere-ink: #f0a979;
   --night: #0a141d;
@@ -122,6 +125,7 @@
   --color-line-warm: var(--line-warm);
   --color-orbit: var(--orbit);
   --color-sphere: var(--sphere);
+  --color-sphere-strong: var(--sphere-strong);
   --color-on-sphere: var(--on-sphere);
   --color-sphere-ink: var(--sphere-ink);
   --color-night: var(--night);

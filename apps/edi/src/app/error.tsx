@@ -1,7 +1,9 @@
 "use client";
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { SimpleHeader } from "../components/site/headers";
 
 export default function ErrorPage({ reset }: { reset: () => void }) {
+  const hydrated = useHydrated();
   return (
     <>
       <SimpleHeader />
@@ -13,7 +15,12 @@ export default function ErrorPage({ reset }: { reset: () => void }) {
             Não foi possível carregar esta área. Seus arquivos no computador não foram alterados.
           </p>
           <div className="actions">
-            <button type="button" className="button button--primary" onClick={reset}>
+            <button
+              type="button"
+              className="button button--primary"
+              disabled={!hydrated}
+              onClick={reset}
+            >
               Tentar novamente
             </button>
           </div>

@@ -33,7 +33,7 @@ const PRINCIPLES: readonly { title: string; body: string; icon: ReactNode }[] = 
   },
   {
     title: "Criança protegida",
-    body: "A conta da criança fica ligada a um adulto, e não há publicidade dirigida a ela.",
+    body: "O perfil da criança fica na conta de um adulto, e não há publicidade dirigida a ela.",
     icon: (
       <Icon>
         <path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z" />

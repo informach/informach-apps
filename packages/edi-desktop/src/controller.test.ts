@@ -46,6 +46,7 @@ function fixture(
   let mode:
     | "granted"
     | "denied"
+    | "revoked"
     | "update-required"
     | "offline"
     | "503"
@@ -75,6 +76,8 @@ function fixture(
           },
         }),
       );
+    if (mode === "revoked")
+      return Response.json({ status: "denied", reason: "device_revoked", serverTime: time });
     if (mode === "denied" || mode === "update-required")
       return Response.json({
         status: "denied",
@@ -330,5 +333,46 @@ describe("native subscription authorization", () => {
     await f.controller.synchronize();
     expect(f.controller.status().state).toBe("restricted");
     expect(f.controller.status().userId).toBeNull();
+  });
+});
+describe("restricted status cause", () => {
+  it("names account denials and keeps userId only while a session is kept", async () => {
+    const f = fixture();
+    f.mode("denied");
+    await f.controller.refresh();
+    expect(f.controller.status()).toMatchObject({
+      state: "restricted",
+      cause: "subscription_required",
+      userId: "user",
+    });
+    f.mode("revoked");
+    await f.controller.refresh();
+    expect(f.data.session).toBeNull();
+    expect(f.controller.status()).toMatchObject({ cause: "device_revoked", userId: null });
+    await f.controller.refresh();
+    expect(f.controller.status()).toMatchObject({ cause: "signed_out", userId: null });
+  });
+  it("tells offline, expired, update and revalidation apart from account problems", async () => {
+    const offline = fixture();
+    offline.mode("offline");
+    await offline.controller.refresh();
+    expect(offline.controller.status()).toMatchObject({ cause: "offline", userId: "user" });
+
+    const expired = fixture();
+    await expired.controller.refresh();
+    expect(expired.controller.status()).toMatchObject({ state: "licensed", cause: null });
+    expired.advance(3600 * 1000 + 1);
+    expired.controller.expire();
+    expect(expired.controller.status()).toMatchObject({ state: "restricted", cause: "expired" });
+
+    const update = fixture();
+    update.mode("update-required");
+    await update.controller.refresh();
+    expect(update.controller.status()).toMatchObject({ cause: "update_required", userId: "user" });
+
+    const rejected = fixture();
+    rejected.mode("401-html");
+    await rejected.controller.refresh();
+    expect(rejected.controller.status()).toMatchObject({ cause: "revalidate", userId: null });
   });
 });

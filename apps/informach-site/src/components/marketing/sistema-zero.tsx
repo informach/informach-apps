@@ -24,8 +24,7 @@ function Logo({ className }: { className: string }) {
       />
       <Image
         src="/sistema-zero/logo-escuro.svg"
-        alt=""
-        aria-hidden
+        alt="Sistema Zero Kids"
         width={300}
         height={23}
         unoptimized
@@ -105,6 +104,7 @@ export function SistemaZero() {
               alt=""
               width={360}
               height={458}
+              sizes="(min-width: 640px) 114px, 19vw"
               className="absolute right-[2%] bottom-[-4%] h-auto w-[19%]"
             />
           </div>

@@ -9,6 +9,7 @@ import { presentAccount } from "../../features/account/presenter";
 import { billingConfigured } from "../../features/billing/catalog";
 import { planFromParam, suitePricing } from "../../features/billing/pricing";
 import { getAuth } from "../../lib/auth";
+import { DEVICE_LIMIT, OFFLINE_HOURS } from "../../lib/desktop-limits";
 import { getEnv } from "../../lib/env";
 
 export const metadata: Metadata = { title: "Minha conta" };
@@ -38,6 +39,8 @@ export default async function AccountPage({
           billingReady={billingConfigured(getEnv())}
           pricing={pricing}
           initialPlan={plan ?? "mensal"}
+          deviceLimit={DEVICE_LIMIT}
+          offlineHours={OFFLINE_HOURS}
           checkout={
             params.checkout === "success"
               ? "success"

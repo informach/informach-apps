@@ -153,6 +153,12 @@ try {
           .exec(page)?.[1]
           ?.replaceAll("&amp;", "&") ?? null;
       assert.ok(!page.includes("account-grid"), "Anonymous response must contain no account UI");
+      assert.ok(
+        !["Suas cinco ferramentas", "conectados", "Seus arquivos ficam com você"].some((text) =>
+          page.includes(text),
+        ),
+        "Anonymous account response must contain no account content",
+      );
     }
     assert.ok(location, "Expected an anonymous redirect to sign-in");
     const destination = new URL(location, origin);

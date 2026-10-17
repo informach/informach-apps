@@ -115,6 +115,8 @@ Limites enforced antes da IA: máx 5 MB e 3 páginas (validação via
 Fluxo de voz custa 2 créditos (transcribe + parse). Fluxo de imagem e
 fluxo de PDF custam 1 crédito cada.
 
+**Nenhum agente da Agenda exporta traces (17/10/2026).** O leitor de recados nunca exportou; os leitores de matérias exportavam pelo `createDefaultObservability`, que grava entrada e saída de cada chamada (foto do horário, transcrição) em `ai_mastra.mastra_ai_spans`, sem rotina de exclusão. Saiu do `getMastra()`, e a política guarda-chuva promete que o conteúdo enviado à IA só fica guardado quando a família salva o resultado ou pelos prazos desta página. **Não religar sem uma retenção e sem atualizar as duas políticas.** As linhas antigas em produção (`"serviceName" = 'agenda-da-turma'`) continuam lá até uma limpeza autorizada.
+
 Seed em `packages/billing/src/seeds/credit-pricing.ts` (`AGENDA_PRICING_SEED` + `seedAgendaCreditPricing`) idempotente. Rodar `pnpm db:seed` insere rows em `billing.credit_pricing`.
 
 Para adicionar nova feature de IA:

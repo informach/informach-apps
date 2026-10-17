@@ -21,6 +21,7 @@ import {
   TOOL_ILLUSTRATIONS,
 } from "../features/marketing/illustrations";
 import { PricingSection } from "../features/marketing/pricing-section";
+import { DEVICE_LIMIT, OFFLINE_HOURS } from "../lib/desktop-limits";
 import { getEnv } from "../lib/env";
 
 // Pilot and launch copy depend on the billing switch of the running environment.
@@ -36,8 +37,9 @@ export default function Home() {
     <>
       {!billingOpen && (
         <p className="pilot-banner">
-          <strong>Fase piloto.</strong> As assinaturas abrem quando a homologação terminar. Crie sua
-          conta e baixe o Edi Hub para conhecer as ferramentas.
+          <strong>Fase piloto.</strong> As assinaturas abrem quando a homologação terminar. Você já
+          pode criar a conta, baixar o Edi Hub e conectar o computador; as ferramentas abrem com a
+          assinatura.
         </p>
       )}
       <div className="mat">
@@ -77,7 +79,7 @@ export default function Home() {
                 </Link>
               </div>
               <p className="hero__facts">
-                Windows 64 bits · até 2 computadores ·{" "}
+                Windows 64 bits · até {DEVICE_LIMIT} computadores ·{" "}
                 {billingOpen ? "cancele quando quiser" : "seus arquivos com você"}
               </p>
             </div>
@@ -237,8 +239,8 @@ export default function Home() {
                 <OfflineIcon size={28} />
                 <h3 className="display-4">Funciona sem internet</h3>
                 <p>
-                  Depois de conectar, as ferramentas seguem liberadas por até 72 horas longe da
-                  rede.
+                  Depois de conectar, as ferramentas seguem liberadas por até {OFFLINE_HOURS} horas
+                  longe da rede.
                 </p>
               </div>
               <div className="feature-card">
@@ -300,7 +302,12 @@ export default function Home() {
 
         <section id="precos" className="section section--rule" aria-label="Preço">
           <div className="container">
-            <PricingSection pricing={pricing} billingOpen={billingOpen}>
+            <PricingSection
+              pricing={pricing}
+              billingOpen={billingOpen}
+              deviceLimit={DEVICE_LIMIT}
+              offlineHours={OFFLINE_HOURS}
+            >
               <span className="eyebrow">Preço</span>
               <h2 className="display-2">Uma assinatura. A bancada inteira.</h2>
               <p className="lede">

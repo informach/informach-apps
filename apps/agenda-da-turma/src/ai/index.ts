@@ -1,12 +1,7 @@
 import "server-only";
 
 import { createDefaultLogger } from "@informach/ai-core/logger";
-import {
-  createDefaultObservability,
-  createMastra,
-  createPostgresStore,
-  createSharedMemory,
-} from "@informach/ai-core/mastra";
+import { createMastra, createPostgresStore, createSharedMemory } from "@informach/ai-core/mastra";
 import { env } from "@/lib/env";
 import { getOpenRouter } from "@/lib/openrouter";
 import { AGENDA_MODELS } from "./models";
@@ -59,6 +54,10 @@ export function getMastra(): Mastra {
     memory,
   });
 
+  // Sem exportador de traces, como o leitor de recados: o exportador padrão
+  // grava a entrada e a saída de cada chamada (foto do horário, transcrição)
+  // em `ai_mastra`, sem prazo de exclusão. A chamada cobrável já registra
+  // status e tokens sem guardar o conteúdo da escola.
   cached = createMastra({
     agents: {
       subjectsParser,
@@ -66,7 +65,6 @@ export function getMastra(): Mastra {
     },
     storage,
     logger: createDefaultLogger({ name: "agenda-da-turma", level: env.MASTRA_LOG_LEVEL }),
-    observability: createDefaultObservability({ serviceName: "agenda-da-turma" }),
   });
   return cached;
 }

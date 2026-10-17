@@ -87,12 +87,46 @@ describe("account presentation", () => {
       kind: "none",
       returning: true,
     });
+    // The access projection reports an ended paid period as payment_required.
+    // Without an open charge, the customer must see the plans to subscribe again.
     expect(
       presentAccount(
         account({ access: { allowed: false, reason: "payment_required" }, plans: [ended] }),
         now,
         suitePricing(),
+      ).subscription,
+    ).toEqual({ kind: "none", returning: true });
+    expect(
+      presentAccount(
+        account({
+          access: { allowed: false, reason: "payment_required" },
+          plans: [{ ...ended, status: "past_due" }],
+        }),
+        now,
+        suitePricing(),
       ).subscription.kind,
     ).toBe("payment_required");
+  });
+
+  it("does not promise a renewal for a subscription already canceled with paid time left", () => {
+    const view = presentAccount(
+      account({
+        access: { allowed: true, paidThrough: "2026-11-01T18:00:00Z" },
+        plans: [
+          {
+            status: "canceled",
+            productId: "edi_suite_monthly",
+            periodEnd: "2026-11-17T18:00:00Z",
+            cancelAtPeriodEnd: false,
+          },
+        ],
+      }),
+      now,
+      suitePricing(),
+    );
+    if (view.subscription.kind !== "active") throw new Error("expected active");
+    expect(view.subscription.ending).toBe(true);
+    expect(view.subscription.dateLabel).toBe("Acesso até");
+    expect(view.subscription.date).toBe("1 de novembro de 2026");
   });
 });

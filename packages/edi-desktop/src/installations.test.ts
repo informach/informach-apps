@@ -1,12 +1,14 @@
 import { createHash, generateKeyPairSync } from "node:crypto";
 import { createReadStream, promises } from "node:fs";
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { EDI_DESKTOP_APPS } from "@informach/config/edi-tools";
 import { releaseArtifactUrl } from "@informach/edi-contracts";
 import { signRelease } from "@informach/edi-contracts/release-signature";
+import { lock } from "proper-lockfile";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
+import { writeInstallationReceipt } from "./installation-integrity";
 import { createInstallationManager, type InstallActivity } from "./installations";
 
 // Keep signature verification, streaming, filesystem and inter-process locks real.
@@ -77,6 +79,7 @@ async function fixture() {
       }),
     );
   });
+  const fileSystem = { ...promises, createReadStream };
   const manager = createInstallationManager({
     portalUrl: "https://edi-test.invalid",
     clientId: "test",
@@ -90,12 +93,32 @@ async function fixture() {
     localAppData: join(directory, "local"),
     directory,
     acceptRelease: async () => {},
-    fileSystem: { ...promises, createReadStream },
+    fileSystem,
     onActivity: (snapshot) => activity.push(snapshot),
   });
+  /** Puts a signed installation of the tool on disk, as NSIS would leave it. */
+  async function installed(id: (typeof EDI_DESKTOP_APPS)[number]["id"], version: string) {
+    const app = EDI_DESKTOP_APPS.find((item) => item.id === id);
+    if (!app) throw new Error("Unknown fixture app");
+    const root = join(directory, "local", "Programs", "Edi", app.name);
+    await mkdir(join(root, "resources"), { recursive: true });
+    await writeFile(join(root, `${app.name}.exe`), "installed executable");
+    await writeFile(join(root, "resources", "app.asar"), "installed application");
+    await rm(join(root, "resources", "edi-installation.json"), { force: true });
+    await writeInstallationReceipt({
+      directory: root,
+      appId: id,
+      version,
+      sourceCommit: "a".repeat(40),
+      keyId: "test",
+      privateKey: pair.privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
+    });
+  }
   return {
     activity,
     directory,
+    fileSystem,
+    installed,
     installer,
     manager,
     setMode: (value: typeof mode) => {
@@ -104,15 +127,33 @@ async function fixture() {
   };
 }
 
+/** People read a sentence in Portuguese; the technical failure stays in `cause`. */
+async function expectFailure(attempt: Promise<void>, cause: string) {
+  const failure = await attempt.then(
+    () => null,
+    (error: unknown) => error,
+  );
+  expect(failure).toBeInstanceOf(Error);
+  expect((failure as Error).message).toBe(
+    "Não foi possível instalar agora. Confira a internet e tente de novo.",
+  );
+  expect(((failure as Error).cause as Error).message).toContain(cause);
+}
+
 describe("installer download recovery", () => {
   it("removes partial files, releases the runtime lock, and permits a verified complete retry", async () => {
     const f = await fixture();
-    await expect(f.manager.install("edisvg")).rejects.toThrow("Network interrupted");
+    await expectFailure(f.manager.install("edisvg"), "Network interrupted");
     expect(execution.files).toEqual([]);
     expect(await readdir(f.directory)).toEqual([]);
-    expect((await f.manager.list()).find((app) => app.id === "edisvg")?.busy).toBe(false);
+    const card = (await f.manager.list()).find((app) => app.id === "edisvg");
+    expect(card?.busy).toBe(false);
+    expect(card?.error).toBe(
+      "Não foi possível instalar agora. Confira a internet e tente de novo.",
+    );
     f.setMode("complete");
-    await expect(f.manager.install("edisvg")).rejects.toThrow(
+    await expectFailure(
+      f.manager.install("edisvg"),
       "Fixture stopped at native installer execution",
     );
     expect(execution.files).toEqual([f.installer]);
@@ -121,19 +162,63 @@ describe("installer download recovery", () => {
   it("rejects same-size modified bytes before executing and permits a later retry", async () => {
     const f = await fixture();
     f.setMode("corrupted");
-    await expect(f.manager.install("edisvg")).rejects.toThrow("integridade");
+    await expect(f.manager.install("edisvg")).rejects.toThrow(
+      "A integridade do instalador não confere.",
+    );
     expect(execution.files).toEqual([]);
     expect(await readdir(f.directory)).toEqual([]);
     f.setMode("complete");
-    await expect(f.manager.install("edisvg")).rejects.toThrow(
+    await expectFailure(
+      f.manager.install("edisvg"),
       "Fixture stopped at native installer execution",
     );
     expect(execution.files).toEqual([f.installer]);
   });
+  it("checks an up-to-date tool without progress, download or its runtime lock", async () => {
+    const f = await fixture();
+    f.setMode("complete");
+    await f.installed("edisvg", "1.0.1");
+    // The tool is open: it holds its runtime lock for its whole lifetime.
+    const releaseRunning = await lock(join(f.directory, "edisvg.runtime"), {
+      realpath: false,
+      retries: 0,
+    });
+    onTestFinished(() => releaseRunning());
+    await expect(f.manager.install("edisvg")).resolves.toBeUndefined();
+    await f.manager.updateInstalled();
+    expect(f.activity).toEqual([]);
+    expect(execution.files).toEqual([]);
+    const card = (await f.manager.list()).find((app) => app.id === "edisvg");
+    expect(card).toMatchObject({ installed: true, version: "1.0.1", error: null });
+  });
+  it("does not downgrade a tool updated by another process during the initial check", async () => {
+    const f = await fixture();
+    f.setMode("complete");
+    await f.installed("edisvg", "1.0.0");
+    let replaced = false;
+    // Another updater finishes after our receipt was read, before we own the runtime
+    // lock. Keep real signatures, files and locks; only coordinate that race here.
+    f.fileSystem.readFile = new Proxy(f.fileSystem.readFile, {
+      apply: async (target, receiver, args) => {
+        const bytes = await Reflect.apply(target, receiver, args);
+        if (!replaced && String(args[0]).endsWith("edi-installation.json")) {
+          replaced = true;
+          await f.installed("edisvg", "1.0.2");
+        }
+        return bytes;
+      },
+    });
+    await expect(f.manager.install("edisvg")).resolves.toBeUndefined();
+    expect(replaced).toBe(true);
+    expect(f.activity).toEqual([]);
+    expect(execution.files).toEqual([]);
+    expect((await f.manager.list()).find((app) => app.id === "edisvg")?.version).toBe("1.0.2");
+  });
   it("reports download and installation progress and clears it at the end", async () => {
     const f = await fixture();
     f.setMode("complete");
-    await expect(f.manager.install("edisvg")).rejects.toThrow(
+    await expectFailure(
+      f.manager.install("edisvg"),
       "Fixture stopped at native installer execution",
     );
     const phases = f.activity.map((snapshot) => snapshot[0]?.phase ?? "idle");

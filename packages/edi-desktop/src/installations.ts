@@ -14,6 +14,10 @@ import type { DesktopConfig } from "./contracts";
 import { type InstallationFileSystem, verifyInstalledApplication } from "./installation-integrity";
 
 const execute = promisify(execFile);
+/** A failure written for people. Anything else reaches the Hub as a generic sentence. */
+class InstallError extends Error {}
+const installFailure = "Não foi possível instalar agora. Confira a internet e tente de novo.";
+const integrityFailure = "A instalação existente não passou na verificação de integridade.";
 export type Installation = {
   id: EdiToolId;
   installed: boolean;
@@ -43,7 +47,7 @@ export function createInstallationManager(
   const activity = new Map<EdiToolId, InstallActivity>();
   function report(id: EdiToolId, next: Omit<InstallActivity, "id"> | null) {
     if (next) activity.set(id, { id, ...next });
-    else activity.delete(id);
+    else if (!activity.delete(id)) return;
     config.onActivity?.([...activity.values()]);
   }
   const executable = (id: EdiToolId) => {
@@ -81,17 +85,25 @@ export function createInstallationManager(
     return manifest;
   }
   async function install(id: EdiToolId) {
-    if (busy.has(id)) throw new Error("Já existe uma instalação em andamento.");
+    if (busy.has(id)) throw new InstallError("Já existe uma instalação em andamento.");
     if (config.environment !== "production")
-      throw new Error(
+      throw new InstallError(
         "Instaladores comerciais não estão disponíveis neste build de desenvolvimento.",
       );
     busy.add(id);
     errors.delete(id);
-    report(id, { phase: "downloading", progress: 0 });
     let releaseLock: (() => Promise<void>) | undefined;
     let download: string | undefined;
     try {
+      const manifest = await release();
+      if (!manifest) throw new InstallError("Nenhum instalador homologado foi publicado.");
+      const artifact = manifest.artifacts.find((item) => item.appId === id);
+      if (!artifact || artifact.size > 2 * 1024 ** 3)
+        throw new InstallError("Instalador inválido ou excessivamente grande.");
+      // Reading the installed version needs no lock. Checking it first keeps the periodic
+      // update of an open, up-to-date tool from asking the person to close it.
+      const current = await installed(id);
+      if (current && compareReleaseVersions(manifest.version, current) <= 0) return;
       await mkdir(config.directory, { recursive: true, mode: 0o700 });
       // The same heartbeat lock is held for the complete lifetime of each tool.
       releaseLock = await lock(join(config.directory, `${id}.runtime`), {
@@ -100,16 +112,17 @@ export function createInstallationManager(
         update: 5000,
         retries: 0,
       });
-      const manifest = await release();
-      if (!manifest) throw new Error("Nenhum instalador homologado foi publicado.");
-      const artifact = manifest.artifacts.find((item) => item.appId === id);
-      if (!artifact || artifact.size > 2 * 1024 ** 3)
-        throw new Error("Instalador inválido ou excessivamente grande.");
-      const current = await installed(id);
-      if (current && compareReleaseVersions(manifest.version, current) <= 0) return;
+      // A different updater may have completed between the early check and this lock.
+      // Re-read its signed installation before deciding to replace any files.
+      const lockedCurrent = await installed(id);
+      if (lockedCurrent && compareReleaseVersions(manifest.version, lockedCurrent) <= 0) return;
+      // Only now there is something to show: checking an up-to-date tool must not hide
+      // its Abrir button behind a download that never happens.
+      report(id, { phase: "downloading", progress: 0 });
       download = join(config.directory, `${id}.${randomUUID()}.exe`);
       const response = await githubResponse(artifact.url);
-      if (!response.ok || !response.body) throw new Error("Não foi possível baixar o instalador.");
+      if (!response.ok || !response.body)
+        throw new InstallError("Não foi possível baixar o instalador.");
       let size = 0;
       let reportedPercent = 0;
       const digest = createHash("sha512");
@@ -117,7 +130,7 @@ export function createInstallationManager(
         transform(chunk: Buffer, _encoding, callback) {
           size += chunk.length;
           if (size > artifact.size) {
-            callback(new Error("Downloaded artifact exceeds the declared size"));
+            callback(new InstallError("O download veio maior que o esperado e foi descartado."));
             return;
           }
           digest.update(chunk);
@@ -150,7 +163,7 @@ export function createInstallationManager(
         createWriteStream(download, { flags: "wx", mode: 0o600 }),
       );
       if (size !== artifact.size || digest.digest("base64") !== artifact.sha512)
-        throw new Error("A integridade do instalador não confere.");
+        throw new InstallError("A integridade do instalador não confere.");
       report(id, { phase: "installing", progress: 1 });
       await execute(download, ["/S"], { windowsHide: true, timeout: 600000 });
       const receipt = await verifyInstalledApplication({
@@ -161,16 +174,16 @@ export function createInstallationManager(
         fileSystem: config.fileSystem,
       });
       if (receipt.sourceCommit !== manifest.sourceCommit)
-        throw new Error("O instalador terminou sem confirmar a versão esperada.");
+        throw new InstallError("O instalador terminou sem confirmar a versão esperada.");
     } catch (error) {
       const message =
         error instanceof Error && "code" in error && error.code === "ELOCKED"
           ? "Feche esta ferramenta para instalar a atualização. Seu trabalho não será interrompido."
-          : error instanceof Error
+          : error instanceof InstallError
             ? error.message
-            : "Falha na instalação";
+            : installFailure;
       errors.set(id, message);
-      throw new Error(message, { cause: error });
+      throw new InstallError(message, { cause: error });
     } finally {
       try {
         if (download) await rm(download, { force: true });
@@ -201,7 +214,7 @@ export function createInstallationManager(
           try {
             version = await installed(tool.id, false);
           } catch {
-            error = "A instalação existente não passou na verificação de integridade.";
+            error = integrityFailure;
           }
           return {
             id: tool.id,
@@ -220,7 +233,7 @@ export function createInstallationManager(
       const child = spawn(executable(id).path, [], {
         detached: true,
         stdio: "ignore",
-        windowsHide: true,
+        windowsHide: false,
       });
       await new Promise<void>((resolve, reject) => {
         child.once("spawn", resolve);
@@ -230,11 +243,17 @@ export function createInstallationManager(
     },
     async updateInstalled() {
       for (const tool of EDI_TOOLS) {
+        // A tool the person is installing right now is already being brought up to date.
+        if (busy.has(tool.id)) continue;
+        let current: string | null;
         try {
-          if (await installed(tool.id)) await install(tool.id);
-        } catch (error) {
-          errors.set(tool.id, error instanceof Error ? error.message : "Atualização indisponível");
+          current = await installed(tool.id);
+        } catch {
+          errors.set(tool.id, integrityFailure);
+          continue;
         }
+        // install() records its own failure in `errors`, already written for people.
+        if (current) await install(tool.id).catch(() => undefined);
       }
     },
   };

@@ -48,7 +48,7 @@ export function Hero() {
         <div className="mt-2 flex flex-wrap gap-3">
           <a
             href="#comecar"
-            className="inline-flex min-h-[54px] items-center rounded-full bg-sphere px-6 text-base font-extrabold text-on-sphere no-underline transition-colors hover:brightness-95"
+            className="inline-flex min-h-[54px] items-center rounded-full bg-sphere-strong px-6 text-base font-extrabold text-on-sphere no-underline transition-colors hover:brightness-95"
           >
             Encontrar o produto certo
           </a>
@@ -74,7 +74,8 @@ export function Hero() {
             alt=""
             width={512}
             height={512}
-            priority
+            sizes="(min-width: 560px) 136px, 26vw"
+            preload
             className="absolute top-1/2 left-1/2 size-[26%] -translate-x-1/2 -translate-y-1/2"
           />
           {ORBIT.map((point) => {

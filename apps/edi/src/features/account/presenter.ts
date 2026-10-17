@@ -61,7 +61,14 @@ export function describeLastSeen(iso: string, now: Date) {
   return `visto em ${shortDate.format(seen)}`;
 }
 
-const ACTIVE_STATUSES = new Set(["active", "trialing", "past_due"]);
+// Só para escolher o que mostrar. Quem decide o acesso é `accountAccess`, pelos
+// períodos pagos; estes conjuntos não liberam nada.
+const CURRENT_STATUSES = new Set(["active", "trialing", "past_due"]);
+const RENEWING_STATUSES = new Set(["active", "trialing"]);
+// Cobrança em aberto que o cliente resolve atualizando o cartão. Fora disso,
+// `payment_required` é só um período pago que acabou (assinatura encerrada), e
+// a pessoa precisa ver os planos para assinar de novo.
+const PAYMENT_PROBLEM_STATUSES = new Set(["past_due", "unpaid", "incomplete", "paused"]);
 
 export function presentAccount(
   account: AccountSnapshot,
@@ -69,12 +76,15 @@ export function presentAccount(
   pricing: ReturnType<typeof suitePricing>,
 ): AccountView {
   const current =
-    account.plans.find((plan) => ACTIVE_STATUSES.has(plan.status)) ?? account.plans[0];
+    account.plans.find((plan) => CURRENT_STATUSES.has(plan.status)) ?? account.plans[0];
   let subscription: SubscriptionView;
   if (account.access.allowed) {
     const annual = current?.productId === pricing.annual.productId;
     const monthly = current?.productId === pricing.monthly.productId;
-    const ending = Boolean(current?.cancelAtPeriodEnd);
+    // Cancelada no fim do período, ou já encerrada com período pago restante:
+    // nos dois casos não renova.
+    const ending =
+      !current || Boolean(current.cancelAtPeriodEnd) || !RENEWING_STATUSES.has(current.status);
     subscription = {
       kind: "active",
       planLabel: annual
@@ -84,10 +94,13 @@ export function presentAccount(
           : null,
       monthly,
       ending,
-      dateLabel: ending || !current ? "Acesso até" : "Renova em",
-      date: formatLongDate(ending || !current ? account.access.paidThrough : current.periodEnd),
+      dateLabel: ending ? "Acesso até" : "Renova em",
+      date: formatLongDate(current && !ending ? current.periodEnd : account.access.paidThrough),
     };
-  } else if (account.access.reason === "payment_required") {
+  } else if (
+    account.access.reason === "payment_required" &&
+    account.plans.some((plan) => PAYMENT_PROBLEM_STATUSES.has(plan.status))
+  ) {
     subscription = { kind: "payment_required" };
   } else if (account.access.reason === "suspended") {
     subscription = { kind: "suspended" };

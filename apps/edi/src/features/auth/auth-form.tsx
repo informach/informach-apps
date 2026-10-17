@@ -162,7 +162,7 @@ export function AuthForm({
             type="button"
             role="tab"
             aria-selected={mode === "login"}
-            disabled={busy}
+            disabled={!hydrated || busy}
             onClick={() => switchTo("login")}
           >
             Entrar
@@ -171,7 +171,7 @@ export function AuthForm({
             type="button"
             role="tab"
             aria-selected={mode === "signup"}
-            disabled={busy}
+            disabled={!hydrated || busy}
             onClick={() => switchTo("signup")}
           >
             Criar conta
@@ -181,7 +181,7 @@ export function AuthForm({
         <button
           className="link-button"
           type="button"
-          disabled={busy}
+          disabled={!hydrated || busy}
           onClick={() => switchTo("login")}
         >
           Voltar para entrar
@@ -293,7 +293,7 @@ export function AuthForm({
           <button
             className="link-button"
             type="button"
-            disabled={busy || resendCoolingDown}
+            disabled={!hydrated || busy || resendCoolingDown}
             onClick={resendVerification}
           >
             {resendCoolingDown ? "Aguarde para reenviar" : "Reenviar código de confirmação"}
@@ -303,7 +303,7 @@ export function AuthForm({
           <button
             className="link-button"
             type="button"
-            disabled={busy}
+            disabled={!hydrated || busy}
             onClick={() => {
               setMode("verify");
               setOtp("");

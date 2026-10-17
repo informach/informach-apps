@@ -3,7 +3,8 @@ import Image from "next/image";
 
 export type InformachLogoProps = {
   className?: string;
-  priority?: boolean;
+  /** Pré-carrega o arquivo: só para o logo do cabeçalho, visível no primeiro quadro. */
+  preload?: boolean;
   /** `onDark` fixa a versão clara do wordmark, para fundos escuros nos dois temas. */
   tone?: "theme" | "onDark";
 };
@@ -16,7 +17,7 @@ const ASPECT = { width: 498, height: 102 } as const;
  * padrão não otimiza SVGs e, sem `unoptimized`, a qualidade vinha ruim).
  * Light/dark via switch CSS para evitar flicker no SSR.
  */
-export function InformachLogo({ className, priority = false, tone = "theme" }: InformachLogoProps) {
+export function InformachLogo({ className, preload = false, tone = "theme" }: InformachLogoProps) {
   if (tone === "onDark")
     return (
       <Image
@@ -24,7 +25,7 @@ export function InformachLogo({ className, priority = false, tone = "theme" }: I
         alt="Informach"
         width={ASPECT.width}
         height={ASPECT.height}
-        priority={priority}
+        preload={preload}
         unoptimized
         className={className}
       />
@@ -36,7 +37,7 @@ export function InformachLogo({ className, priority = false, tone = "theme" }: I
         alt="Informach"
         width={ASPECT.width}
         height={ASPECT.height}
-        priority={priority}
+        preload={preload}
         unoptimized
         className={cn("dark:hidden", className)}
       />
@@ -46,7 +47,7 @@ export function InformachLogo({ className, priority = false, tone = "theme" }: I
         aria-hidden
         width={ASPECT.width}
         height={ASPECT.height}
-        priority={priority}
+        preload={preload}
         unoptimized
         className={cn("hidden dark:block", className)}
       />

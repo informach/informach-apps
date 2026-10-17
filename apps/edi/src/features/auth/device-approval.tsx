@@ -6,14 +6,15 @@ import {
 } from "@informach/edi-contracts/device-code";
 import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { HubIcon } from "../../components/site/brand";
 import { CheckIcon, CloseIcon } from "../../components/site/icons";
+import { SignOutButton } from "../../components/site/sign-out-button";
 import { authClient } from "../../lib/auth-client";
+import { ordinalSlot } from "../../lib/slots";
 
 type Step = "codigo" | "revisar" | "pronto" | "negado";
 const ORDER: Record<Step, number> = { codigo: 1, revisar: 2, pronto: 3, negado: 3 };
-const DEVICE_LIMIT = 2;
 
 function stepClass(step: Step, position: number) {
   const at = ORDER[step];
@@ -23,14 +24,30 @@ function stepClass(step: Step, position: number) {
 export function DeviceApproval({
   email,
   devicesInUse,
+  deviceLimit,
   accessAllowed,
 }: {
   email: string;
   devicesInUse: number;
+  /** Vagas por conta, lidas do contrato no servidor. */
+  deviceLimit: number;
   accessAllowed: boolean;
 }) {
   const hydrated = useHydrated();
-  const [step, setStep] = useState<Step>("codigo");
+  const [step, setStepState] = useState<Step>("codigo");
+  // Cada etapa troca a tela inteira. O foco vai para o novo título, senão cai no
+  // corpo da página e o leitor de tela não anuncia o resultado.
+  const focusNextHeading = useRef(false);
+  const headingRef = (node: HTMLHeadingElement | null) => {
+    if (node && focusNextHeading.current) {
+      focusNextHeading.current = false;
+      node.focus();
+    }
+  };
+  function setStep(next: Step) {
+    focusNextHeading.current = true;
+    setStepState(next);
+  }
   const [code, setCode] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -108,7 +125,9 @@ export function DeviceApproval({
       {step === "codigo" && (
         <>
           <span className="eyebrow">Conectar computador</span>
-          <h1 className="display-2">Digite o código que apareceu no Edi Hub.</h1>
+          <h1 className="display-2" ref={headingRef} tabIndex={-1}>
+            Digite o código que apareceu no Edi Hub.
+          </h1>
           <p className="lede">São 8 letras e números. O código vale por 10 minutos.</p>
           <form className="narrow connect-form" onSubmit={inspect}>
             <label className="field" htmlFor="user-code">
@@ -157,7 +176,9 @@ export function DeviceApproval({
       {step === "revisar" && (
         <>
           <span className="eyebrow">Confira antes de autorizar</span>
-          <h1 className="display-2">Este pedido é seu?</h1>
+          <h1 className="display-2" ref={headingRef} tabIndex={-1}>
+            Este pedido é seu?
+          </h1>
           <div className="review-card">
             <div className="review-card__head">
               <HubIcon size="md" />
@@ -204,14 +225,14 @@ export function DeviceApproval({
             </div>
             <div className="review-card__slots">
               <span>
-                {devicesInUse >= DEVICE_LIMIT
-                  ? "Seus 2 computadores já estão conectados. Se este é um computador novo, desconecte um deles em Minha conta antes de autorizar."
-                  : devicesInUse === 1
-                    ? "Vai ocupar a segunda vaga da sua conta. Para trocar depois, desconecte um em Minha conta."
-                    : "Vai ocupar a primeira das 2 vagas da sua conta."}
+                {devicesInUse >= deviceLimit
+                  ? `Seus ${deviceLimit} computadores já estão conectados. Se este é um computador novo, desconecte um deles em Minha conta antes de autorizar.`
+                  : devicesInUse === 0
+                    ? `Vai ocupar a primeira das ${deviceLimit} vagas da sua conta.`
+                    : `Vai ocupar a ${ordinalSlot(devicesInUse + 1)} vaga da sua conta. Para trocar depois, desconecte um em Minha conta.`}
               </span>
               <span className="slot-bar" aria-hidden="true">
-                {Array.from({ length: DEVICE_LIMIT }, (_, slot) => slot).map((slot) => (
+                {Array.from({ length: deviceLimit }, (_, slot) => slot).map((slot) => (
                   <span
                     key={`vaga-${slot + 1}`}
                     className={
@@ -264,13 +285,22 @@ export function DeviceApproval({
           <span className="result-mark" aria-hidden="true">
             <CheckIcon size={40} />
           </span>
-          <h1 className="display-2">Pronto, computador conectado.</h1>
-          <p className="lede">
-            Pode voltar ao Edi Hub. Em alguns segundos ele libera as ferramentas sozinho.
-          </p>
+          <h1 className="display-2" ref={headingRef} tabIndex={-1}>
+            Pronto, computador conectado.
+          </h1>
+          {accessAllowed ? (
+            <p className="lede">
+              Pode voltar ao Edi Hub. Em alguns segundos ele libera as ferramentas sozinho.
+            </p>
+          ) : (
+            <p className="lede">
+              O computador ficou ligado à sua conta. As ferramentas aparecem no Edi Hub, mas só
+              abrem quando a sua assinatura começar.
+            </p>
+          )}
           <div className="actions">
             <Link className="button button--ink button--lg" href="/conta">
-              Ver meus computadores
+              {accessAllowed ? "Ver meus computadores" : "Ir para Minha conta"}
             </Link>
           </div>
         </>
@@ -281,15 +311,23 @@ export function DeviceApproval({
           <span className="result-mark result-mark--neutral" aria-hidden="true">
             <CloseIcon size={36} />
           </span>
-          <h1 className="display-2">Pedido recusado.</h1>
+          <h1 className="display-2" ref={headingRef} tabIndex={-1}>
+            Pedido recusado.
+          </h1>
           <p className="lede">
-            Nenhum computador foi conectado. Se você não reconhece esse pedido, redefina sua senha
-            pela tela de entrada.
+            Nenhum computador foi conectado. Se você não reconhece esse pedido, troque a senha: saia
+            da conta e, na tela de entrada, use Esqueci a senha.
           </p>
           <div className="actions">
-            <button type="button" className="button button--outline button--lg" onClick={restart}>
+            <button
+              type="button"
+              className="button button--outline button--lg"
+              disabled={!hydrated}
+              onClick={restart}
+            >
               Digitar outro código
             </button>
+            <SignOutButton />
           </div>
         </>
       )}

@@ -4,7 +4,7 @@ import { SITE_PRODUCTS } from "@/lib/products";
 import { SITE } from "@/lib/site";
 
 const LINK_CLASS =
-  "inline-flex min-h-8 items-center text-[#D7E0E8] underline-offset-4 transition-colors hover:text-white hover:underline";
+  "inline-flex min-h-11 items-center text-[#D7E0E8] underline-offset-4 transition-colors hover:text-white hover:underline";
 
 export function SiteFooter() {
   const year = new Date().getFullYear();

@@ -35,7 +35,7 @@ function Panel({
         <p className="text-[15px]">{price}</p>
         <a
           href={cta.href}
-          className={`inline-flex min-h-[52px] items-center rounded-full px-[22px] font-extrabold no-underline ${ctaClassName}`}
+          className={`inline-flex min-h-[52px] items-center rounded-full px-[22px] py-2.5 leading-tight font-extrabold no-underline ${ctaClassName}`}
         >
           {cta.label}
         </a>
@@ -100,7 +100,8 @@ export function StartChooser() {
           cta={productBySlug("missao-saber").cta}
           ctaClassName="bg-[#1E5A44] text-white"
           visual={
-            <div className="grid grid-cols-3 gap-2.5">
+            /* No celular os números viram linhas: em três colunas, "2.960" não cabe abaixo de ~460px. */
+            <div className="grid gap-2.5 min-[460px]:grid-cols-3">
               {[
                 ["291", "missões"],
                 ["2.960", "atividades autorais"],
@@ -108,7 +109,7 @@ export function StartChooser() {
               ].map(([value, label]) => (
                 <div
                   key={label}
-                  className="grid gap-1 rounded-[18px] bg-[#1E5A44] p-4 text-[#EAF6DD]"
+                  className="flex items-baseline gap-3 rounded-[18px] bg-[#1E5A44] px-4 py-3 text-[#EAF6DD] min-[460px]:grid min-[460px]:gap-1 min-[460px]:p-4"
                 >
                   <strong className="text-3xl leading-none">{value}</strong>
                   <span className="text-[13px]">{label}</span>
@@ -129,7 +130,7 @@ export function StartChooser() {
           body="Mande a foto da agenda, cole a mensagem ou exporte a conversa do WhatsApp. Você confere e a rotina da semana se organiza."
           price={<strong>{productBySlug("agenda-da-turma").price}</strong>}
           cta={productBySlug("agenda-da-turma").cta}
-          ctaClassName="bg-[#006FFD] text-white"
+          ctaClassName="bg-[#0066EB] text-white"
           visual={
             <div
               role="img"

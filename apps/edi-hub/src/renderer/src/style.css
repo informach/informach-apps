@@ -18,7 +18,8 @@
   --amber-hover: #e2a52c;
   --lime: #c8e64a;
   --danger: #a52c2c;
-  --focus: #c47f00;
+  /* Pelo menos 3:1 no papel (3,64), no papel fundo (3,35), no cartão (4,03) e no tapete (3,81). */
+  --focus: #b06f00;
   font-family: var(--font-sans);
   color: var(--ink);
   background: var(--paper);
@@ -319,6 +320,12 @@ p {
 }
 .connect__copy li span {
   display: block;
+  font-size: 14px;
+  color: var(--pencil);
+}
+.connect__signout {
+  justify-self: start;
+  min-height: 44px;
   font-size: 14px;
   color: var(--pencil);
 }

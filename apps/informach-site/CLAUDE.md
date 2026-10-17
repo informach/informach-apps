@@ -91,10 +91,11 @@ Direção "Feito em casa", aprovada em 17/10/2026 na proposta em canvas: papel, 
 | `surface` | `#ffffff` | `#162736` | cartões |
 | `ink` / `ink-soft` / `ink-muted` | marinho `#173247` e tons | claros | texto |
 | `sphere` / `sphere-ink` | `#c65a24` / `#8a4a23` | `#e57a45` / `#f0a979` | laranja da esfera; `sphere-ink` para texto pequeno |
+| `sphere-strong` | `#b4501c` | `#e57a45` | fundo de botão com texto de 16px: branco sobre a esfera dá só 4,3:1 |
 | `night` | `#173247` | `#0a141d` | seletor e rodapé |
 | `sz-*` | azul do Sistema Zero | variação escura | seção do Sistema Zero |
 
-Cada produto aparece com a cor do próprio site (`brand` em `products.ts`). O Sistema Zero usa as cores do logotipo oficial (`#012C73`, `#0074FC`, `#FDB002`) e a Nunito, como no site dele. Em fundo escuro, o link do cartão usa `ink`, porque as cores de marca não têm contraste ali.
+Cada produto aparece com a cor do próprio site (`brand` em `products.ts`), ajustada quando o texto branco não chega a 4,5:1: a Agenda usa `#0066EB` (5,1:1) em vez do `#006FFD` do app (4,48:1). O Sistema Zero usa as cores do logotipo oficial (`#012C73`, `#0074FC`, `#FDB002`) e a Nunito, como no site dele. Em fundo escuro, o link do cartão usa `ink`, porque as cores de marca não têm contraste ali.
 
 A Plus Jakarta Sans tem espaço largo antes de vírgula e ponto em tamanho grande. É o desenho da fonte, o mesmo nos outros apps; não compensar com margens negativas.
 
@@ -128,7 +129,7 @@ A Plus Jakarta Sans tem espaço largo antes de vírgula e ponto em tamanho grand
 | Mudar | Arquivo |
 |---|---|
 | Razão social, CNPJ, tagline, contato | `src/lib/site.ts` (contato vem de `@informach/config/contact`) |
-| Produtos: promessa, fatos, preço, CTA, cores | `src/lib/products.ts` |
+| Produtos: promessa, fatos, preço, CTA, cores | `src/lib/products.ts` (endereços dos apps vêm de `APPS`, em `@informach/config/apps`) |
 | Preços dos apps do monorepo | `packages/config/src/products.ts` (o site lê de lá) |
 | Preços e links do Sistema Zero | `SISTEMA_ZERO` em `src/lib/products.ts`, conferidos na página de oferta |
 | Seletor "por onde começar" | `src/components/marketing/start-chooser.tsx` |
@@ -145,11 +146,11 @@ Copy em português, humanizada e **sem travessão** (nem `—` nem `–`).
 
 ## 8. Páginas legais (guarda-chuva)
 
-`/termos` e `/privacidade` tratam a Informach como entidade legal e como contratante do serviço de cobrança Stripe. Cada app tem termos próprios (ex.: `cozya.informach.com.br/termos`).
+`/termos` e `/privacidade` tratam a Informach como entidade legal e como contratante do serviço de cobrança Stripe. O Cozya, a Missão Saber e o Sistema Zero têm termos próprios (`cozya.informach.com.br/termos`, `missao-saber.informach.com.br/termos` e `sistemazero.com.br/kids/termos`), linkados na cláusula 3. A Agenda da Turma tem só a página de dados da família, que complementa a política guarda-chuva, e a Suíte Edi usa estes Termos e esta Política diretamente.
 
 - O canal de contato e de direitos LGPD é o direct do Instagram (`DirectLink`), nunca um endereço de e-mail.
 - Cláusula 12 da privacidade (revista em 17/10/2026, por decisão da titular): a conta é sempre de um adulto; crianças e adolescentes usam Missão Saber e Agenda por perfis criados e supervisionados pelo responsável, no melhor interesse deles (art. 14 da LGPD), sem publicidade nem perfis públicos. O Sistema Zero tem política própria em `sistemazero.com.br/kids/privacidade`, com a Informach como controladora. Os Termos (seção 4) remetem a essa cláusula.
-- OpenRouter: a empresa é a OpenRouter, Inc. (EUA). A Informach contrata e paga; o usuário não tem conta lá. Pela política do OpenRouter, ele não guarda o conteúdo por padrão e registra metadados; os provedores de modelo têm retenção própria, então a política não promete descarte imediato. Os Termos (seção 8) explicam a cota de créditos por app. Ao trocar de provedor ou de modelo, revisar os dois textos.
+- OpenRouter: a empresa é a OpenRouter, Inc. (EUA). A Informach contrata e paga; o usuário não tem conta lá. Pela política do OpenRouter, ele não guarda o conteúdo por padrão e registra metadados; os provedores de modelo têm retenção própria, então a política não promete descarte imediato. A política cita o modelo reserva da Anthropic e a busca Exa do Cozya, e diz que a IA da Suíte Edi vai do computador da pessoa direto para a conta dela no Claude ou no ChatGPT. Os Termos (seção 8) explicam a cota de créditos do Cozya e da Agenda e que a assinatura Edi não inclui IA. Ao trocar de provedor, modelo, fallback ou forma de cobrança da IA, revisar os dois textos.
 - Há marcadores `TODO(legal)` para reembolso, limitação de responsabilidade e nomeação formal do encarregado. **Revisão jurídica antes do go-live continua obrigatória**; os textos acima foram escritos com base nos produtos e nas fontes públicas, não substituem essa revisão.
 - Após o deploy, trocar no Stripe Dashboard (Settings → Billing → Customer Portal) as URLs de Termos e Privacidade. Operação manual, fora do código.
 
@@ -181,12 +182,13 @@ Build estático: todas as rotas ○ (Static), inclusive `/sitemap.xml`, `/robots
 
 1. **Não adicionar deps de SaaS** (`@informach/auth`, `@informach/billing`, `@informach/db`, `@informach/ai-core`, `@sentry/nextjs`, `@t3-oss/env-nextjs` etc.). `@informach/config` é permitido: só constantes de catálogo e contato.
 2. **Nenhum e-mail de contato em página pública.** O canal é o direct do Instagram `@criecomhelenaejulio`, lido de `INFORMACH_CONTACT`; não repetir o endereço nem o handle no código.
-3. **URL de produto**: confirmar na documentação do app antes de usar.
-4. **Logos via `<Image unoptimized>`**; não trocar por `<img>` nem tirar o `unoptimized`.
+3. **URL de produto**: vem de `APPS` (`@informach/config/apps`) para os apps do monorepo; não repetir domínio no site. O Sistema Zero é externo e fica em `SISTEMA_ZERO`.
+4. **Logos via `<Image unoptimized>`**; não trocar por `<img>` nem tirar o `unoptimized`. Na troca claro/escuro, as duas versões levam o mesmo `alt` quando não há rótulo em volta: a escondida sai da árvore de acessibilidade pelo `display: none`. Pré-carga com `preload` (o `priority` está obsoleto no Next 16.4) e `sizes` em toda imagem que aparece menor que o arquivo.
 5. **Conteúdo legal aqui é diferente do de cada app.** Não copiar texto entre eles; este é guarda-chuva.
 6. **Rota nova**: atualizar `src/app/sitemap.ts` na mesma entrega.
 7. **Headline ou produtos mudaram**: conferir `/opengraph-image` visualmente.
-8. **Botões que só funcionam com JavaScript** ficam `disabled` até a hidratação (`useHydrated`). Sem JavaScript, o seletor mostra o primeiro painel e o resto da página continua legível.
-9. **Contraste**: texto pequeno sobre papel usa `ink-muted` ou `sphere-ink`; não usar opacidade em texto de 12 a 14px.
+8. **Botões que só funcionam com JavaScript** ficam `disabled` até a hidratação (`useHydrated`): os do seletor e o botão do menu do celular. Sem JavaScript, o seletor mostra o primeiro painel, o resto da página continua legível e as âncoras do rodapé seguem funcionando.
+9. **Contraste**: texto pequeno sobre papel usa `ink-muted` ou `sphere-ink`; não usar opacidade em texto de 12 a 14px. Texto até 18px sobre cor de marca precisa de 4,5:1 (por isso `sphere-strong` no botão do topo). Alvos de toque com 44px, inclusive os links do rodapé; o `ModeToggle` do `@informach/ui` tem 40px.
 10. **Menu do celular**: o link guarda o destino e navega depois que a gaveta fecha (`onCloseAutoFocus`). Com a gaveta aberta a rolagem fica travada e o salto da âncora se perde.
 11. **`metadataBase`** só muda se o domínio mudar.
+12. **Deploy e dependências:** o `watchPatterns` de `railway.toml` cobre o site, `packages/config`, `packages/ui` e os arquivos raiz de build. Mudanças no catálogo de preços/domínios ou contato precisam gerar novo build do site estático.

@@ -27,6 +27,7 @@ export function ProductMark({
           alt=""
           width={360}
           height={458}
+          sizes={`${Math.round(size * 0.76)}px`}
           className="absolute inset-x-[12%] bottom-[-6%] h-auto w-[76%]"
         />
       </span>

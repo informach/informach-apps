@@ -2,17 +2,23 @@ import { EDI_TOOL_BRAND, type EdiGlyphShape } from "@informach/config/edi-brand"
 import { EDI_TOOLS, type EdiToolId } from "@informach/config/edi-tools";
 import { formatDeviceUserCode } from "@informach/edi-contracts/device-code";
 import type { DesktopStatus } from "@informach/edi-desktop/contracts";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { InstallActivity, Installation } from "../../shared/hub";
-import { describeAccess, hubUpdateNotice } from "./access-copy";
+import { describeAccess, hubUpdateNotice, restrictedPanel } from "./access-copy";
+import { failureMessage, type HubAction } from "./failure-copy";
 import { installationAction } from "./installation-action";
+
+/** Session operations change the same vault, so only one of them runs at a time. */
+const SESSION_ACTIONS = ["connect", "logout", "refresh"];
 
 function useHub() {
   const [status, setStatus] = useState<DesktopStatus | null>(null);
   const [tools, setTools] = useState<Installation[]>([]);
   const [activity, setActivity] = useState<InstallActivity[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
+  // Busy is tracked per action and per tool: installing one tool keeps the others usable.
+  const running = useRef(new Set<string>());
+  const [busy, setBusy] = useState<readonly string[]>([]);
   useEffect(() => {
     let mounted = true;
     const stopStatus = window.ediSuite.onStatus((next) => {
@@ -44,34 +50,41 @@ function useHub() {
       stopActivity();
     };
   }, []);
-  async function run(name: string, action: () => Promise<void>) {
-    if (busy) return;
-    setBusy(name);
+  /**
+   * `failure` names the copy shown when the action fails. Without it the outcome is
+   * already on screen: session actions update the status, installs update the card.
+   */
+  async function run(name: string, action: () => Promise<void>, failure?: HubAction) {
+    if (running.current.has(name)) return;
+    running.current.add(name);
+    setBusy([...running.current]);
     setError(null);
     try {
       await action();
-    } catch (failure) {
-      setError(
-        failure instanceof Error ? failure.message : "Não foi possível concluir. Tente de novo.",
-      );
+    } catch (cause) {
+      if (failure) setError(failureMessage(failure, cause));
     } finally {
-      setBusy(null);
+      running.current.delete(name);
+      setBusy([...running.current]);
     }
   }
   async function toolAction(id: EdiToolId) {
     const tool = tools.find((item) => item.id === id);
+    if (installationAction(tool) === "open") {
+      await run(id, () => window.ediHub.open(id), "open");
+      return;
+    }
     await run(id, async () => {
-      if (installationAction(tool) === "open") await window.ediHub.open(id);
-      else {
-        try {
-          await window.ediHub.install(id);
-        } finally {
-          setTools(await window.ediHub.list());
-        }
+      try {
+        await window.ediHub.install(id);
+      } finally {
+        setTools(await window.ediHub.list());
       }
     });
   }
-  return { status, tools, activity, error, busy, run, toolAction };
+  const isBusy = (name: string) => busy.includes(name);
+  const sessionBusy = SESSION_ACTIONS.some(isBusy);
+  return { status, tools, activity, error, isBusy, sessionBusy, run, toolAction };
 }
 
 function Glyph({ shapes }: { shapes: readonly EdiGlyphShape[] }) {
@@ -128,9 +141,11 @@ function portalHost(uri: string | null) {
 }
 
 export function Hub() {
-  const { status, tools, activity, error, busy, run, toolAction } = useHub();
+  const { status, tools, activity, error, isBusy, sessionBusy, run, toolAction } = useHub();
   const licensed = status?.state === "licensed";
+  const hasSession = Boolean(status?.userId);
   const access = describeAccess(status);
+  const panel = restrictedPanel(access, hasSession);
   const updateNotice = hubUpdateNotice(status?.update);
   const installedCount = tools.filter((tool) => tool.installed).length;
   const [copied, setCopied] = useState(false);
@@ -147,9 +162,9 @@ export function Hub() {
           </a>
           <button
             type="button"
-            disabled={Boolean(busy)}
+            disabled={isBusy("updates")}
             onClick={() => {
-              void run("updates", window.ediSuite.checkUpdate);
+              void run("updates", window.ediSuite.checkUpdate, "updates");
             }}
           >
             Atualizações
@@ -157,9 +172,9 @@ export function Hub() {
           </button>
           <button
             type="button"
-            disabled={Boolean(busy)}
+            disabled={isBusy("account")}
             onClick={() => {
-              void run("account", window.ediSuite.account);
+              void run("account", window.ediSuite.account, "account");
             }}
           >
             Minha assinatura <span aria-hidden="true">↗</span>
@@ -168,12 +183,12 @@ export function Hub() {
         <section className={`account-card account-card--${access.tone}`} aria-live="polite">
           <strong className="account-card__title">{access.title}</strong>
           {access.detail && <p>{access.detail}</p>}
-          {licensed && (
+          {hasSession && (
             <span className="account-card__links">
               <button
                 type="button"
                 className="link-button"
-                disabled={Boolean(busy)}
+                disabled={sessionBusy}
                 onClick={() => {
                   void run("refresh", window.ediSuite.refresh);
                 }}
@@ -183,9 +198,9 @@ export function Hub() {
               <button
                 type="button"
                 className="link-button"
-                disabled={Boolean(busy)}
+                disabled={sessionBusy}
                 onClick={() => {
-                  void run("logout", window.ediSuite.logout);
+                  void run("logout", window.ediSuite.logout, "logout");
                 }}
               >
                 Sair deste computador
@@ -258,56 +273,91 @@ export function Hub() {
                   <span className="mono">vale por 10 minutos · depois é só pedir outro</span>
                 </div>
               </>
-            ) : access.action === "subscription" ? (
-              <div className="connect__copy">
-                <h2 id="conectar">As ferramentas estão bloqueadas nesta conta.</h2>
-                <p>{status.reason}</p>
-                <span className="actions">
-                  <button
-                    type="button"
-                    className="button button--primary"
-                    disabled={Boolean(busy)}
-                    onClick={() => {
-                      void run("account", window.ediSuite.account);
-                    }}
-                  >
-                    Minha assinatura <span aria-hidden="true">↗</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="button button--outline"
-                    disabled={Boolean(busy)}
-                    onClick={() => {
-                      void run("refresh", window.ediSuite.refresh);
-                    }}
-                  >
-                    Verificar de novo
-                  </button>
-                </span>
-              </div>
             ) : (
               <div className="connect__copy">
-                <h2 id="conectar">Conecte sua conta para abrir as ferramentas.</h2>
+                <h2 id="conectar">{access.heading}</h2>
                 <p>
-                  O Hub abre o navegador para você entrar e mostra um código para confirmar que este
-                  computador é seu.
+                  {status.cause === "signed_out" && !hasSession
+                    ? "O Hub abre o navegador para você entrar e mostra um código para confirmar que este computador é seu."
+                    : status.reason}
                 </p>
                 <span className="actions">
+                  {panel.primary === "subscription" || panel.primary === "devices" ? (
+                    <button
+                      type="button"
+                      className="button button--primary"
+                      disabled={isBusy("account")}
+                      onClick={() => {
+                        void run("account", window.ediSuite.account, "account");
+                      }}
+                    >
+                      {panel.primary === "devices" ? "Gerenciar computadores" : "Minha assinatura"}{" "}
+                      <span aria-hidden="true">↗</span>
+                    </button>
+                  ) : panel.primary === "update" ? (
+                    <button
+                      type="button"
+                      className="button button--primary"
+                      disabled={isBusy("updates")}
+                      onClick={() => {
+                        void run("updates", window.ediSuite.checkUpdate, "updates");
+                      }}
+                    >
+                      Buscar atualização
+                    </button>
+                  ) : panel.primary === "retry" ? (
+                    <button
+                      type="button"
+                      className="button button--primary"
+                      disabled={sessionBusy}
+                      onClick={() => {
+                        void run("refresh", window.ediSuite.refresh);
+                      }}
+                    >
+                      Verificar de novo
+                    </button>
+                  ) : null}
                   <button
                     type="button"
-                    className="button button--primary"
-                    disabled={Boolean(busy) || status.state === "connecting"}
+                    className={
+                      panel.primary === "connect"
+                        ? "button button--primary"
+                        : "button button--outline"
+                    }
+                    disabled={sessionBusy || status.state === "connecting"}
                     onClick={() => {
                       setCopied(false);
                       void run("connect", window.ediSuite.connect);
                     }}
                   >
-                    {status.state === "connecting"
-                      ? "Abrindo o navegador…"
-                      : "Conectar minha conta"}{" "}
+                    {status.state === "connecting" ? "Abrindo o navegador…" : panel.connectLabel}{" "}
                     <span aria-hidden="true">↗</span>
                   </button>
+                  {panel.retry && (
+                    <button
+                      type="button"
+                      className="button button--outline"
+                      disabled={sessionBusy}
+                      onClick={() => {
+                        void run("refresh", window.ediSuite.refresh);
+                      }}
+                    >
+                      Verificar de novo
+                    </button>
+                  )}
                 </span>
+                {panel.signOut && (
+                  <button
+                    type="button"
+                    className="link-button connect__signout"
+                    disabled={sessionBusy}
+                    onClick={() => {
+                      void run("logout", window.ediSuite.logout, "logout");
+                    }}
+                  >
+                    Sair deste computador
+                  </button>
+                )}
               </div>
             )}
           </section>
@@ -353,7 +403,9 @@ export function Hub() {
                       aria-label={`Instalação do ${tool.name}`}
                       aria-valuemin={0}
                       aria-valuemax={100}
-                      aria-valuenow={percent}
+                      // While the installer runs the bar is indeterminate: no value to announce.
+                      aria-valuenow={progress.phase === "installing" ? undefined : percent}
+                      aria-valuetext={progress.phase === "installing" ? "Instalando" : undefined}
                     >
                       <span
                         className={
@@ -375,7 +427,7 @@ export function Hub() {
                     type="button"
                     className={action === "open" ? "button button--ink" : "button button--outline"}
                     disabled={
-                      Boolean(busy) ||
+                      isBusy(tool.id) ||
                       (action !== "open" && !installation?.available) ||
                       (action === "open" && !licensed)
                     }
@@ -383,7 +435,7 @@ export function Hub() {
                       void toolAction(tool.id);
                     }}
                   >
-                    {busy === tool.id
+                    {isBusy(tool.id)
                       ? "Aguarde…"
                       : action === "open"
                         ? "Abrir"
