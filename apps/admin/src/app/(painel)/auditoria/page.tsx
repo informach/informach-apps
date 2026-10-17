@@ -103,8 +103,10 @@ export default async function AuditoriaPage({
       <div className="grid gap-2">
         <Note>
           <Info aria-hidden="true" className="mr-1.5 inline size-3.5 align-[-2px]" />O registro
-          guarda IDs e nomes de campos, nunca conteúdo, senha, código ou e-mail bruto, como manda a
-          política de auditoria. A frase em português é montada na tela a partir desses campos.
+          nunca guarda conteúdo, senha ou código. Alguns eventos guardam o e-mail da conta
+          (cadastro, pedido de código de acesso, pedido de troca de senha e troca de e-mail) e a
+          entrada guarda o IP. A tela e o CSV não mostram esses valores: a frase em português é
+          montada a partir dos campos, e o CSV lista só os nomes dos campos guardados.
         </Note>
         <Note>
           As linhas em azul são consultas e ações da equipe: abrir ficha, encerrar sessões, banir,
