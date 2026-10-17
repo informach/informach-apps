@@ -31,7 +31,7 @@ const REGION = "us-west2";
 /** Bastidores no ar: domínio, segredos e o merge do app vêm antes (apps/admin/PRODUCAO.md). */
 const ADMIN_LAUNCHED = false;
 /** Cron de conciliação do Edi: só depois da distribuição assinada e da cobrança homologada (apps/edi/PRODUCAO.md). */
-const EDI_RECONCILE_ACTIVE = false;
+const EDI_RECONCILE_ACTIVE = true;
 
 // O Railpack escolhe o Node pela variável abaixo; a versão vem do .nvmrc, a
 // mesma do CI e do desenvolvimento.
