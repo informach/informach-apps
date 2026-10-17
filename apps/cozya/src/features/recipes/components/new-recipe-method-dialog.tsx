@@ -16,6 +16,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useState, useTransition } from "react";
 import { startTrialAction } from "@/features/kitchen/actions";
+import { TRIAL_CREDITS, TRIAL_DAYS } from "@/features/kitchen/trial";
 import { catchActionResult } from "./action-errors";
 
 type Method = "image" | "text" | "voice" | "prompt" | "manual";
@@ -97,7 +98,9 @@ export function NewRecipeMethodDialog({
         setBlocked(true);
         return;
       }
-      toast.success("Seus 14 dias grátis começaram. Você tem 3 créditos de IA.");
+      toast.success(
+        `Seus ${TRIAL_DAYS} dias grátis começaram. Você tem ${TRIAL_CREDITS} créditos de IA.`,
+      );
       router.refresh();
       onPick(method);
     });
@@ -184,7 +187,7 @@ export function NewRecipeMethodDialog({
             {canUseAi
               ? `${credits !== null ? `Você tem ${credits} ${credits === 1 ? "crédito" : "créditos"} de IA. ` : ""}O crédito só é usado quando a IA entrega uma receita; se ela não conseguir, ele volta.`
               : trialAvailable
-                ? "Os 14 dias grátis incluem 3 créditos de IA, um por receita. Tocar numa opção com crédito começa o teste. Sem cartão."
+                ? `Os ${TRIAL_DAYS} dias grátis incluem ${TRIAL_CREDITS} créditos de IA, um por receita. Tocar numa opção com crédito começa o teste. Sem cartão.`
                 : "Escrever do seu jeito não usa crédito."}
           </p>
         )}

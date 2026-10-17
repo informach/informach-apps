@@ -10,6 +10,7 @@ import { Check, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { recordOfferSeenAction } from "@/features/kitchen/event-actions";
+import { TRIAL_DAYS } from "@/features/kitchen/trial";
 import { selectFreePlanAction, startProCheckoutAction } from "@/features/onboarding/actions";
 import { OnboardingStepper } from "@/features/onboarding/components/onboarding-stepper";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
@@ -20,6 +21,7 @@ import {
   type PlanFeature,
   PRICING,
   PRO_FEATURES,
+  PRO_MONTHLY_CREDITS,
 } from "../plans-content";
 
 export type PlanCardsProps = {
@@ -116,7 +118,7 @@ export function PlanCards({
         </Title>
         <p className="mx-auto max-w-md text-pretty text-[15px] text-muted-foreground md:text-base">
           {showFreePlan
-            ? "Comece com 14 dias grátis ou assine o Pro agora. Dá para mudar quando quiser."
+            ? `Comece com ${TRIAL_DAYS} dias grátis ou assine o Pro agora. Dá para mudar quando quiser.`
             : "A semana inteira: planejar, comprar e cozinhar. Cancele pela conta quando quiser."}
         </p>
       </header>
@@ -149,7 +151,7 @@ export function PlanCards({
                 <span className="text-sm text-muted-foreground">para sempre</span>
               </div>
               <CardTitle className="text-base font-normal text-muted-foreground">
-                Para começar sem pagar: 14 dias de planejamento e, depois, o Free.
+                Para começar sem pagar: {TRIAL_DAYS} dias de planejamento e, depois, o Free.
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-1 flex-col justify-between gap-6">
@@ -180,7 +182,7 @@ export function PlanCards({
             </div>
             <p className="text-xs text-muted-foreground">{proPlan.note}</p>
             <CardTitle className="text-base font-normal text-muted-foreground">
-              Planejar, comprar e cozinhar, com 50 créditos de IA por mês.
+              Planejar, comprar e cozinhar, com {PRO_MONTHLY_CREDITS} créditos de IA por mês.
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-1 flex-col justify-between gap-6">

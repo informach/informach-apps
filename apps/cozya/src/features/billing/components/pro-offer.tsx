@@ -9,7 +9,13 @@ import { useEffect, useState, useTransition } from "react";
 import { recordOfferSeenAction } from "@/features/kitchen/event-actions";
 import { startProCheckoutAction } from "@/features/onboarding/actions";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
-import { ANNUAL_SAVINGS_PCT, type BillingCycle, PRICING, WHOLE_PRICES } from "../plans-content";
+import {
+  ANNUAL_SAVINGS_PCT,
+  type BillingCycle,
+  PRICING,
+  PRO_MONTHLY_CREDITS,
+  WHOLE_PRICES,
+} from "../plans-content";
 
 const CYCLES: Record<
   BillingCycle,
@@ -26,7 +32,7 @@ const CYCLES: Record<
     label: `Anual · ${ANNUAL_SAVINGS_PCT}% a menos`,
     price: WHOLE_PRICES.annual,
     period: "por ano",
-    note: `Equivale a ${PRICING.annual.price} por mês. Os 50 créditos chegam todo mês, também no anual.`,
+    note: `Equivale a ${PRICING.annual.price} por mês. Os ${PRO_MONTHLY_CREDITS} créditos chegam todo mês, também no anual.`,
     cta: "Assinar o Pro anual",
   },
 };
@@ -123,8 +129,8 @@ export function ProOffer({
         {plan.cta}
       </Button>
       <p className="text-[13px] leading-snug text-muted-foreground">
-        Semanas sem limite, lista do mercado, modo cozinha e 50 créditos de IA por mês. Cancele pela
-        conta quando quiser.
+        Semanas sem limite, lista do mercado, modo cozinha e {PRO_MONTHLY_CREDITS} créditos de IA
+        por mês. Cancele pela conta quando quiser.
       </p>
     </section>
   );

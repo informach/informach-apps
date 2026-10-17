@@ -61,9 +61,7 @@ export default async function WeekPage({
             .map((line) => line.name.toLocaleLowerCase("pt-BR")),
         }}
         firstWeek={params.primeira === "1"}
-        carryOver={
-          sunday.find((meal) => meal.slot === "dinner" && meal.lunchboxServings > 0) ?? null
-        }
+        carryOver={sunday.filter((meal) => meal.lunchboxServings > 0)}
       />
     </main>
   );

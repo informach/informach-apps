@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { startTrialAction } from "@/features/kitchen/actions";
+import { TRIAL_CREDITS, TRIAL_DAYS } from "@/features/kitchen/trial";
 import type { Recipe } from "../types";
 import { catchActionResult } from "./action-errors";
 import { RecipeFormDialog } from "./recipe-form-dialog";
@@ -78,8 +79,8 @@ export function RefineRecipeDialog({
             trialAvailable ? (
               <div className="space-y-3">
                 <p>
-                  Os 14 dias grátis incluem 3 créditos de IA, um por receita trazida ou adaptada.
-                  Sem cartão.
+                  Os {TRIAL_DAYS} dias grátis incluem {TRIAL_CREDITS} créditos de IA, um por receita
+                  trazida ou adaptada. Sem cartão.
                 </p>
                 <Button
                   className="min-h-11"
@@ -96,7 +97,7 @@ export function RefineRecipeDialog({
                     router.refresh();
                   }}
                 >
-                  {activating ? "Começando…" : "Começar os 14 dias e continuar"}
+                  {activating ? "Começando…" : `Começar os ${TRIAL_DAYS} dias e continuar`}
                 </Button>
               </div>
             ) : (
