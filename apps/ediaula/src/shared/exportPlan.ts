@@ -10,6 +10,7 @@ import {
   shadowOffset,
   shadowReach,
 } from "./compose.ts";
+import { cursorOverlayExpressions } from "./cursor-expressions.ts";
 import { keyframeExprs } from "./keyframes.ts";
 import { clipEnd, clipSpeed, projectDuration, sourceEnd, sourceLength } from "./timeline.ts";
 import {
@@ -26,7 +27,7 @@ import {
   tailProgressExpr,
   withTransitions,
 } from "./transitions.ts";
-import type { Asset, Clip, CursorSprite, ExportSpec, Project } from "./types.ts";
+import type { Asset, ExportSpec, Project } from "./types.ts";
 import { zoomExprs } from "./zoom.ts";
 import { entryView, zoomLayerFilter } from "./zoomLayer.ts";
 
@@ -247,18 +248,15 @@ export function buildExportPlan(source: Project, spec: ExportSpec): ExportPlan {
           const ci = inputIndex++;
           inputArgs.push("-c:v", "libvpx-vp9", ...trim, "-i", cursor.sprite);
           const name = `overlay@k${layer}`;
-          const { first, commands } = cursorCommands(cursor, clip, fps, name);
+          const coordinates = cursorOverlayExpressions(cursor, clip, fps);
           graph.push(
             speed === 1
               ? `[${ci}:v]fps=${fps},${retime}[spr${layer}]`
               : `[${ci}:v]${retime},fps=${fps}[spr${layer}]`,
           );
-          // Drive commands from the secondary (sprite) input that framesync reads
-          // for each overlay. The main input can be read ahead of that frame.
-          const moved = commands
-            ? `[spr${layer}]sendcmd=c='${commands}'[mv${layer}];[${src}][mv${layer}]`
-            : `[${src}][spr${layer}]`;
-          graph.push(`${moved}${name}=x=${first[0]}:y=${first[1]}:eof_action=pass[cur${layer}]`);
+          graph.push(
+            `[${src}][spr${layer}]${name}=x='${coordinates.x}':y='${coordinates.y}':eval=frame:eof_action=pass[cur${layer}]`,
+          );
           src = `cur${layer}`;
         }
         const zooms = (clip.zooms ?? []).filter(
@@ -539,35 +537,4 @@ export function atempo(speed: number): string {
   }
   parts.push(s);
   return parts.map((p) => `atempo=${n(p)},`).join("");
-}
-
-/**
- * sendcmd script moving the pointer sprite: one command per output frame where its position
- * changes, in clip-local seconds (the sprite follows the source time in + t).
- */
-function cursorCommands(
-  c: CursorSprite,
-  clip: Clip,
-  fps: number,
-  target: string,
-): { first: [number, number]; commands: string } {
-  const total = c.positions.length / 2;
-  const at = (k: number): [number, number] => {
-    const i = Math.min(
-      total - 1,
-      Math.max(0, Math.round((clip.in + (k / fps) * clipSpeed(clip)) * c.fps)),
-    );
-    return [c.positions[i * 2], c.positions[i * 2 + 1]];
-  };
-  const first = at(0);
-  const out: string[] = [];
-  let last = first;
-  const frames = Math.ceil(clip.duration * fps);
-  for (let k = 1; k < frames; k++) {
-    const p = at(k);
-    if (p[0] === last[0] && p[1] === last[1]) continue;
-    out.push(`${(k / fps).toFixed(4)} ${target} x ${p[0]}, ${target} y ${p[1]};`);
-    last = p;
-  }
-  return { first, commands: out.join(" ") };
 }
