@@ -1,3 +1,4 @@
+import { closeCommonGaps } from "@shared/cleanup";
 import {
   closeGaps,
   makeClip,
@@ -13,7 +14,9 @@ import type { Asset, Project, Track } from "@shared/types";
 import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
-import { checkAssets, importMedia } from "./importMedia";
+import { importMedia } from "./importMedia";
+import { confirmLeave } from "./leaveGuard";
+import { checkAssets } from "./relink";
 
 const lockedTracks = (p: Project): Set<string> =>
   new Set(p.tracks.filter((t) => t.locked).map((t) => t.id));
@@ -64,14 +67,22 @@ export const actions = {
     useProject.getState().select([]);
   },
 
+  /**
+   * Closes the stretches where no unlocked track has anything, moving every track together so
+   * balloons, avatar, zoom and voice stay in sync. Music beds keep playing and end with the lesson.
+   */
   closeGaps(): void {
     const { project, commit } = useProject.getState();
     if (!project) return;
-    commit((p) => {
-      let clips = p.clips;
-      for (const t of p.tracks) if (!t.locked) clips = closeGaps(clips, t.id);
-      return { ...p, clips };
-    });
+    const targets = new Set(project.tracks.filter((t) => !t.locked && !t.music).map((t) => t.id));
+    commit((p) => ({ ...p, clips: closeCommonGaps(p, targets, lockedTracks(p)) }));
+  },
+
+  /** Packs one track's clips back to back from its first clip (the track's own menu). */
+  closeTrackGaps(trackId: string): void {
+    const { project, commit } = useProject.getState();
+    if (!project || project.tracks.find((t) => t.id === trackId)?.locked) return;
+    commit((p) => ({ ...p, clips: closeGaps(p.clips, trackId) }));
   },
 
   /** Appends assets to the end of their default track. */
@@ -153,6 +164,7 @@ export const actions = {
 
   async openProject(path: string): Promise<void> {
     const { toast, set } = useApp.getState();
+    if (!(await confirmLeave())) return;
     try {
       const project = await window.api.openProject(path);
       playback.pause();
@@ -167,7 +179,7 @@ export const actions = {
 
   async goHome(): Promise<void> {
     playback.pause();
-    await useProject.getState().saveNow();
+    if (!(await confirmLeave())) return;
     useProject.getState().close();
     useApp.getState().set({ screen: "home", exportOpen: false });
   },

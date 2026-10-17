@@ -1,7 +1,7 @@
 import { type CursorFx, DEFAULT_CURSOR_FX, editedCursorAt } from "@shared/cursor";
 import { clipEnd, sourceAt, sourceEnd, timelineAt } from "@shared/timeline";
 import type { Asset, Clip } from "@shared/types";
-import { autoZooms, DEFAULT_AUTO_ZOOM, type Zoom } from "@shared/zoom";
+import { autoZooms, DEFAULT_AUTO_ZOOM, editZoomsIn, type Zoom, zoomsIn } from "@shared/zoom";
 import { Crosshair, MousePointer2, Plus, Trash2, Wand2, X, ZoomIn } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { useApp } from "@/state/app";
@@ -96,10 +96,19 @@ function ToggleRow({
   );
 }
 
-function updateZooms(clipId: string, fn: (z: Zoom[]) => Zoom[]): void {
+/**
+ * Edits the zooms this clip shows. They belong to the recording (shared/zoom.ts): the other
+ * clips of it see the change over the same moments, and a zoom taken out stays out.
+ */
+function updateZooms(clip: Clip, fn: (z: Zoom[]) => Zoom[]): void {
   useProject.getState().commit((p) => ({
     ...p,
-    clips: p.clips.map((c) => (c.id === clipId ? { ...c, zooms: fn(c.zooms ?? []) } : c)),
+    assets: p.assets.map((a) => {
+      if (a.id !== clip.assetId) return a;
+      const { zooms: old, ...rest } = a;
+      const zooms = editZoomsIn(old, clip.in, sourceEnd(clip), fn);
+      return zooms ? { ...rest, zooms } : rest;
+    }),
   }));
 }
 
@@ -126,18 +135,14 @@ export async function applyAutoZoom(
   const zooms = autoZooms(adjusted, asset.duration, { ...DEFAULT_AUTO_ZOOM, scale }).filter(
     (z) => z.end > clip.in && z.start < sourceEnd(clip),
   );
-  updateZooms(clip.id, (old) =>
-    [...old.filter((z) => !z.auto), ...zooms].sort((a, b) => a.start - b.start),
-  );
+  updateZooms(clip, (old) => [...old.filter((z) => !z.auto), ...zooms]);
   return zooms.length;
 }
 
 export function ZoomSection({ clip, asset }: { clip: Clip; asset: Asset }): ReactNode {
-  const [scale, setScale] = useState(
-    clip.zooms?.find((z) => z.auto)?.scale ?? DEFAULT_AUTO_ZOOM.scale,
-  );
+  const zooms = zoomsIn(asset.zooms, clip.in, sourceEnd(clip));
+  const [scale, setScale] = useState(zooms.find((z) => z.auto)?.scale ?? DEFAULT_AUTO_ZOOM.scale);
   const time = usePlayback((s) => s.time);
-  const zooms = (clip.zooms ?? []).filter((z) => z.end > clip.in && z.start < sourceEnd(clip));
   const toTimeline = (src: number): number => timelineAt(clip, src);
   const toast = useApp((s) => s.toast);
 
@@ -164,7 +169,7 @@ export function ZoomSection({ clip, asset }: { clip: Clip; asset: Asset }): Reac
       scale,
       focus: [focus],
     };
-    updateZooms(clip.id, (old) => [...old, z].sort((a, b) => a.start - b.start));
+    updateZooms(clip, (old) => [...old, z]);
   };
 
   return (
@@ -174,7 +179,7 @@ export function ZoomSection({ clip, asset }: { clip: Clip; asset: Asset }): Reac
           <ZoomIn size={13} /> Zoom
         </h3>
         {zooms.length > 0 && (
-          <button type="button" className="link-btn" onClick={() => updateZooms(clip.id, () => [])}>
+          <button type="button" className="link-btn" onClick={() => updateZooms(clip, () => [])}>
             <Trash2 size={12} /> Tirar todos
           </button>
         )}
@@ -187,7 +192,7 @@ export function ZoomSection({ clip, asset }: { clip: Clip; asset: Asset }): Reac
         step={0.05}
         onCommit={(v) => {
           setScale(v);
-          if (zooms.length) updateZooms(clip.id, (old) => old.map((z) => ({ ...z, scale: v })));
+          if (zooms.length) updateZooms(clip, (old) => old.map((z) => ({ ...z, scale: v })));
         }}
       />
       <div className="row-6">
@@ -242,7 +247,7 @@ export function ZoomSection({ clip, asset }: { clip: Clip; asset: Asset }): Reac
                 type="button"
                 className="icon-btn"
                 title="Tirar este zoom"
-                onClick={() => updateZooms(clip.id, (old) => old.filter((x) => x.id !== z.id))}
+                onClick={() => updateZooms(clip, (old) => old.filter((x) => x.id !== z.id))}
               >
                 <X size={12} />
               </button>

@@ -57,9 +57,10 @@ export function setTransition(
 
 /** Selects a cut on the timeline and shows the transitions panel. */
 export function selectJunction(clipId: string | null): void {
-  useApp
-    .getState()
-    .set({ junction: clipId, ...(clipId ? { leftPanel: "transitions" as const } : {}) });
+  useApp.getState().set({
+    junction: clipId,
+    ...(clipId ? { leftPanel: "transitions" as const, textCut: null } : {}),
+  });
   if (clipId) useProject.getState().select([]);
 }
 

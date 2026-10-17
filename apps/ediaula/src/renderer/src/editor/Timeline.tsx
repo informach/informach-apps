@@ -1,8 +1,11 @@
 import { focusOnMount } from "@informach/edi-desktop/renderer";
 import { timelineProtected } from "@shared/cleanup";
 import {
+  adjacency,
   clipEnd,
+  clipIndex,
   clipSpeed,
+  clipsBetween,
   placeClips,
   projectDuration,
   rippleMoveFrom,
@@ -12,7 +15,7 @@ import {
   trackLabels,
   trimClip,
 } from "@shared/timeline";
-import { previousClip, TRANSITIONS, type TransitionKind } from "@shared/transitions";
+import { TRANSITIONS, type TransitionKind } from "@shared/transitions";
 import type { Asset, Clip, Project, Track } from "@shared/types";
 import {
   ArrowRightLeft,
@@ -47,6 +50,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -61,7 +65,7 @@ import { selectJunction, setTransition, TRANSITION_DRAG } from "@/lib/transition
 import { useApp, ZOOM_MAX, ZOOM_MIN } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
 import { assetMap, useProject } from "@/state/project";
-import { IconButton, Kbd } from "@/ui";
+import { ContextMenu, IconButton, Kbd } from "@/ui";
 import { ClipMenu } from "./ClipMenu";
 import { ASSET_MIME } from "./Library";
 import { NarrationPanel } from "./NarrationPanel";
@@ -76,6 +80,20 @@ const RULER_H = 28;
 const SNAP_PX = 8;
 const EPS = 1e-6;
 const TICK_STEPS = [0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 1200, 1800, 3600];
+/** Pixels beyond the visible part of the timeline still drawn, so scrolling never shows a hole. */
+const OVERSCAN_PX = 200;
+
+/**
+ * A callback that keeps the same identity across renders but always runs the latest `fn`, so
+ * memoized clips are not redrawn just because the timeline rendered again.
+ */
+function useStableHandler<A extends unknown[]>(fn: (...args: A) => void): (...args: A) => void {
+  const latest = useRef(fn);
+  useLayoutEffect(() => {
+    latest.current = fn;
+  });
+  return useCallback((...args: A) => latest.current(...args), []);
+}
 
 interface PreviewState {
   clips: Map<string, Clip>;
@@ -320,6 +338,9 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
 
   const [menu, setMenu] = useState<{ x: number; y: number; clipId: string } | null>(null);
   const closeMenu = useCallback(() => setMenu(null), []);
+  const [trackMenu, setTrackMenu] = useState<{ x: number; y: number; trackId: string } | null>(
+    null,
+  );
   const onClipMenu = useCallback((e: React.MouseEvent, clip: Clip): void => {
     e.preventDefault();
     e.stopPropagation();
@@ -328,29 +349,33 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
     setMenu({ x: e.clientX, y: e.clientY, clipId: clip.id });
   }, []);
 
-  const onClipDown = (e: React.PointerEvent, clip: Clip, part: "body" | "start" | "end"): void => {
-    if (e.button !== 0) return;
-    e.stopPropagation();
-    if (isLocked(clip)) return;
-    if (tool === "cut" && part === "body") {
-      let t = xToTime(e.clientX);
-      if (snapping) t = snapTime(t, [usePlayback.getState().time], SNAP_PX / zoom).time;
-      actions.splitClipAt(clip.id, t);
-      return;
-    }
-    const { select } = useProject.getState();
-    let sel = selection;
-    if (e.ctrlKey || e.shiftKey) {
-      sel = sel.includes(clip.id) ? sel.filter((id) => id !== clip.id) : [...sel, clip.id];
-      select(sel);
-      if (!sel.includes(clip.id)) return;
-    } else if (!sel.includes(clip.id)) {
-      sel = [clip.id];
-      select(sel);
-    }
-    if (part === "body") beginMove(e, clip, sel);
-    else beginTrim(clip, part);
-  };
+  const onClipDown = useStableHandler(
+    (e: React.PointerEvent, clip: Clip, part: "body" | "start" | "end"): void => {
+      if (e.button !== 0) return;
+      e.stopPropagation();
+      if (isLocked(clip)) return;
+      if (tool === "cut" && part === "body") {
+        let t = xToTime(e.clientX);
+        if (snapping) t = snapTime(t, [usePlayback.getState().time], SNAP_PX / zoom).time;
+        actions.splitClipAt(clip.id, t);
+        return;
+      }
+      const { select } = useProject.getState();
+      // Clicking a clip is the latest selection: Delete acts on it, not on words picked before.
+      if (useApp.getState().textCut) useApp.getState().set({ textCut: null });
+      let sel = selection;
+      if (e.ctrlKey || e.shiftKey) {
+        sel = sel.includes(clip.id) ? sel.filter((id) => id !== clip.id) : [...sel, clip.id];
+        select(sel);
+        if (!sel.includes(clip.id)) return;
+      } else if (!sel.includes(clip.id)) {
+        sel = [clip.id];
+        select(sel);
+      }
+      if (part === "body") beginMove(e, clip, sel);
+      else beginTrim(clip, part);
+    },
+  );
 
   const onPlayheadDown = (
     e: React.PointerEvent,
@@ -479,9 +504,23 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
     if (paths.length) actions.placeAssets(await importMedia(paths), track, time);
   };
 
-  const shown = preview ? project.clips.map((c) => preview.clips.get(c.id) ?? c) : project.clips;
+  const shown = useMemo(
+    () => (preview ? project.clips.map((c) => preview.clips.get(c.id) ?? c) : project.clips),
+    [preview, project.clips],
+  );
   const selectedSet = new Set(selection);
+  // Only what is on screen is drawn, looked up per track by position: long lessons have
+  // thousands of clips.
+  const byTrack = useMemo(() => clipIndex(shown), [shown]);
+  const previous = useMemo(() => adjacency(project.clips), [project.clips]);
+  const visibleFrom = Math.max(0, (view.left - OVERSCAN_PX) / zoom);
+  const visibleTo = (view.left + view.width + OVERSCAN_PX) / zoom;
+  const laneTops = new Map<string, number>();
   let laneTop = RULER_H;
+  for (const t of tracks) {
+    laneTops.set(t.id, laneTop);
+    laneTop += trackH(t);
+  }
 
   return (
     <div className={`tl tool-${tool}`}>
@@ -547,7 +586,11 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
               key={t.id}
               track={t}
               label={labels.get(t.id)!}
-              empty={!project.clips.some((c) => c.trackId === t.id)}
+              empty={!byTrack.has(t.id)}
+              onMenu={(e) => {
+                e.preventDefault();
+                setTrackMenu({ x: e.clientX, y: e.clientY, trackId: t.id });
+              }}
             />
           ))}
           <div style={{ height: 40 }} />
@@ -591,8 +634,7 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
           >
             <Ruler zoom={zoom} left={view.left} width={view.width} onPointerDown={onRulerDown} />
             {tracks.map((t) => {
-              const top = laneTop;
-              laneTop += trackH(t);
+              const top = laneTops.get(t.id) ?? RULER_H;
               return (
                 <div
                   key={t.id}
@@ -608,29 +650,28 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
                 </div>
               );
             })}
-            {shown.map((c) => {
-              const top =
-                RULER_H +
-                tracks.slice(0, trackIndex.get(c.trackId)).reduce((h, t) => h + trackH(t), 0);
-              const track = tracks[trackIndex.get(c.trackId)!];
-              if (!track) return null;
-              return (
-                <ClipView
-                  key={c.id}
-                  clip={c}
-                  asset={assets.get(c.assetId)}
-                  track={track}
-                  top={top}
-                  height={trackH(track)}
-                  zoom={zoom}
-                  selected={selectedSet.has(c.id)}
-                  dragging={!!preview?.clips.has(c.id)}
-                  viewLeft={view.left}
-                  viewWidth={view.width}
-                  onPointerDown={onClipDown}
-                  onContextMenu={onClipMenu}
-                />
-              );
+            {tracks.flatMap((track) => {
+              const on = byTrack.get(track.id);
+              const top = laneTops.get(track.id) ?? RULER_H;
+              return on
+                ? clipsBetween(on, visibleFrom, visibleTo).map((c) => (
+                    <ClipView
+                      key={c.id}
+                      clip={c}
+                      asset={assets.get(c.assetId)}
+                      track={track}
+                      top={top}
+                      height={trackH(track)}
+                      zoom={zoom}
+                      selected={selectedSet.has(c.id)}
+                      dragging={!!preview?.clips.has(c.id)}
+                      viewLeft={view.left}
+                      viewWidth={view.width}
+                      onPointerDown={onClipDown}
+                      onContextMenu={onClipMenu}
+                    />
+                  ))
+                : [];
             })}
             {cleanupMarks
               .filter((m) => m.end * zoom >= view.left && m.start * zoom <= view.left + view.width)
@@ -660,12 +701,12 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
               />
             ))}
             {project.clips
-              .filter((c) => previousClip(project.clips, c))
+              .filter((c) => previous.has(c.id) && c.start >= visibleFrom && c.start <= visibleTo)
               .map((c) => {
-                const lane =
-                  RULER_H +
-                  tracks.slice(0, trackIndex.get(c.trackId)).reduce((h, t) => h + trackH(t), 0);
-                const h = trackH(tracks[trackIndex.get(c.trackId)!]);
+                const track = tracks[trackIndex.get(c.trackId) ?? -1];
+                if (!track) return null;
+                const lane = laneTops.get(c.trackId) ?? RULER_H;
+                const h = trackH(track);
                 const tr = c.transition;
                 const label = tr
                   ? (TRANSITIONS.find((x) => x.id === tr.kind)?.label ?? tr.kind)
@@ -800,6 +841,24 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
         </div>
       </div>
       {menu && <ClipMenu x={menu.x} y={menu.y} clipId={menu.clipId} onClose={closeMenu} />}
+      {trackMenu && (
+        <ContextMenu
+          x={trackMenu.x}
+          y={trackMenu.y}
+          onClose={() => setTrackMenu(null)}
+          items={[
+            {
+              icon: FoldHorizontal,
+              label: "Fechar lacunas desta faixa",
+              hint: "Encosta os clipes a partir do primeiro; as outras faixas não mudam",
+              disabled:
+                !byTrack.has(trackMenu.trackId) ||
+                !!tracks.find((t) => t.id === trackMenu.trackId)?.locked,
+              onSelect: () => actions.closeTrackGaps(trackMenu.trackId),
+            },
+          ]}
+        />
+      )}
     </div>
   );
 }
@@ -878,7 +937,7 @@ function Toolbar(): ReactNode {
           type="button"
           className="tool"
           onClick={actions.closeGaps}
-          title="Remove todos os espaços vazios entre clipes"
+          title="Remove os trechos vazios em todas as faixas ao mesmo tempo, mantendo a sincronia. Para uma faixa só, use o botão direito no nome dela."
         >
           <FoldHorizontal size={14} /> Fechar lacunas
         </button>
@@ -958,16 +1017,20 @@ function TrackHeader({
   track,
   label,
   empty,
+  onMenu,
 }: {
   track: Track;
   label: string;
   empty: boolean;
+  onMenu: (e: React.MouseEvent) => void;
 }): ReactNode {
   const [editing, setEditing] = useState(false);
   return (
-    <div
+    <fieldset
       className={`track-head track-head-${track.kind} ${trackH(track) < 44 ? "is-short" : ""}`}
       style={{ height: trackH(track) }}
+      aria-label={`Faixa ${label}: ${track.name}. Botão direito para mais opções.`}
+      onContextMenu={onMenu}
     >
       <span className={`track-tag tag-${track.kind}`}>{label}</span>
       {editing ? (
@@ -1052,7 +1115,7 @@ function TrackHeader({
         onDoubleClick={() => actions.updateTrack(track.id, { height: undefined })}
         title="Arraste para mudar a altura da faixa · dois cliques voltam ao normal"
       />
-    </div>
+    </fieldset>
   );
 }
 
@@ -1359,7 +1422,7 @@ function recordingMarks(
   for (const c of project.clips) {
     const toT = (src: number): number => timelineAt(c, src);
     const inside = (src: number): boolean => src >= c.in && src <= sourceEnd(c);
-    for (const z of c.zooms ?? []) {
+    for (const z of assets.get(c.assetId)?.zooms ?? []) {
       const a = Math.max(c.in, z.start);
       const b = Math.min(sourceEnd(c), z.end);
       if (b > a)

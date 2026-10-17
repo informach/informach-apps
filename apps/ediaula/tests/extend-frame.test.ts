@@ -8,6 +8,7 @@ import { test } from "node:test";
 import { filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
 import { buildExportPlan } from "../src/shared/exportPlan.ts";
 import { transformAt } from "../src/shared/keyframes.ts";
+import { projectSchema } from "../src/shared/project-schema.ts";
 import {
   extendFrame,
   parseDuration,
@@ -27,6 +28,22 @@ const clip: Clip = {
   speed: 2,
   volume: 1,
 };
+
+/** The edited clips must still save: the project schema is what every save checks. */
+function assertSavable(clips: Clip[]): void {
+  const result = projectSchema.safeParse({
+    version: 1,
+    id: "p",
+    name: "Aula",
+    createdAt: 0,
+    updatedAt: 0,
+    settings: { width: 1920, height: 1080, fps: 30 },
+    assets: [],
+    tracks: [],
+    clips,
+  });
+  assert.ok(result.success, JSON.stringify(result.error?.issues.slice(0, 3)));
+}
 
 test("duration input accepts clock times and decimal comma, rejecting malformed and invalid values", () => {
   for (const [text, seconds] of [
@@ -68,14 +85,36 @@ test("extend frame preserves footage, inserts silence and ripples only its track
     other,
   );
   assert.equal(clip.duration, 4);
+  assertSavable(clips);
 });
 
 test("extension at either edge creates no empty segment; movement resumes continuously", () => {
+  const edged = {
+    ...clip,
+    fadeIn: 0.3,
+    fadeOut: 0.3,
+    transition: { kind: "dissolve" as const, duration: 0.5 },
+  };
   for (const at of [0, 4]) {
-    const out = extendFrame([clip], "c", at, 2, "still").clips;
+    const out = extendFrame([edged], "c", at, 2, "still").clips;
     assert.equal(out.length, 2);
     assert.ok(out.every((c) => c.duration > 0));
     assert.equal(out.find((c) => c.assetId === "v")!.duration, 4);
+    // The held picture takes the edge it now occupies: entrance first, exit last.
+    const still = out.find((c) => c.assetId === "still");
+    const footage = out.find((c) => c.assetId === "v");
+    assert.ok(still && footage);
+    if (at === 0) {
+      assert.deepEqual(
+        [still.fadeIn, still.transition?.kind, footage.fadeIn],
+        [0.3, "dissolve", undefined],
+      );
+      assert.equal(footage.fadeOut, 0.3);
+    } else {
+      assert.deepEqual([still.fadeOut, footage.fadeOut], [0.3, undefined]);
+      assert.equal(footage.transition?.kind, "dissolve");
+    }
+    assertSavable(out);
   }
   const moving = {
     ...clip,
@@ -89,6 +128,12 @@ test("extension at either edge creates no empty segment; movement resumes contin
   assert.deepEqual(clips.find((c) => c.id === stillId)!.transform, transformAt(moving, 2));
   for (const delta of [0, 0.5, 1])
     assert.deepEqual(transformAt(right, 5 + delta), transformAt(moving, 2 + delta));
+  // The movement after the held picture starts before its piece: a negative keyframe (E1).
+  assert.deepEqual(
+    right.keyframes?.map((k) => k.t),
+    [-2, 2],
+  );
+  assertSavable(clips);
   assert.throws(() => extendFrame([clip], "c", 5, 3, "still"));
   assert.throws(() => extendFrame([clip], "c", 2, NaN, "still"));
 });

@@ -25,7 +25,7 @@ import { inPalette } from "@shared/palettes";
 import { clipEnd, newId, newTrackName } from "@shared/timeline";
 import type { Asset, Clip, Project, Track } from "@shared/types";
 import { usePlayback } from "@/state/playback";
-import { useProject } from "@/state/project";
+import { trackEdit, useProject } from "@/state/project";
 import { ensureFont } from "./fonts";
 import { importMedia } from "./importMedia";
 import { activePalette, projectFont } from "./palettes";
@@ -603,11 +603,29 @@ export async function addAnnotation(
   return id;
 }
 
-/** Redraws an annotation after an edit, keeping where it is and how big it was made. */
-export async function updateAnnotation(
-  clipId: string,
-  changes: Partial<Annotation>,
-): Promise<void> {
+/** Redraws of the same clip, one after another, so each starts from the previous result. */
+const redraws = new Map<string, Promise<void>>();
+
+/**
+ * Redraws an annotation after an edit, keeping where it is and how big it was made. The edit
+ * reaches the project only when the picture is ready, so it is tracked (trackEdit) until then:
+ * leaving the project waits for it.
+ */
+export function updateAnnotation(clipId: string, changes: Partial<Annotation>): Promise<void> {
+  const previous = redraws.get(clipId) ?? Promise.resolve();
+  const next = previous.then(() => redrawAnnotation(clipId, changes));
+  const settled = next.then(
+    () => undefined,
+    () => undefined,
+  );
+  redraws.set(clipId, settled);
+  void settled.then(() => {
+    if (redraws.get(clipId) === settled) redraws.delete(clipId);
+  });
+  return trackEdit(next);
+}
+
+async function redrawAnnotation(clipId: string, changes: Partial<Annotation>): Promise<void> {
   const p = useProject.getState().project;
   const clip = p?.clips.find((c) => c.id === clipId);
   const asset = clip && p?.assets.find((a) => a.id === clip.assetId);

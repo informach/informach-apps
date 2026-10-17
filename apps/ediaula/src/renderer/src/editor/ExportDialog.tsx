@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { bytes, duration } from "@/lib/format";
+import { needsRelink, reconnectMissing } from "@/lib/relink";
 import { useApp } from "@/state/app";
 import { exportQueue, useExportQueue } from "@/state/exportQueue";
 import { playback } from "@/state/playback";
@@ -109,9 +110,11 @@ export function ExportDialog(): ReactNode {
   const even = (v: number): number => Math.round(v / 2) * 2;
   const width = even(height * ratio);
   const sizeEstimate = (((isAudio ? 0 : bitrate) + 192) * 1000 * total) / 8;
+  // Same list the export refuses (state/exportQueue.ts): missing files and missing cursor data.
   const missing = project.assets.filter(
-    (a) => a.missing && project.clips.some((c) => c.assetId === a.id),
+    (a) => (a.missing || a.cursorMissing) && project.clips.some((c) => c.assetId === a.id),
   );
+  const toFind = missing.filter(needsRelink).length;
 
   useEffect(() => playback.pause(), []);
 
@@ -328,10 +331,24 @@ export function ExportDialog(): ReactNode {
               </div>
             )}
             {missing.length > 0 && (
-              <p className="export-warning">
-                {missing.length} arquivo(s) usados na timeline não foram encontrados:{" "}
-                {missing.map((a) => a.name).join(", ")}. Reimporte antes de exportar.
-              </p>
+              <div className="export-warning">
+                <p>
+                  {missing.length === 1
+                    ? "1 arquivo usado na timeline não foi encontrado"
+                    : `${missing.length} arquivos usados na timeline não foram encontrados`}
+                  : {missing.map((a) => a.name).join(", ")}.{" "}
+                  {toFind
+                    ? "Reconecte antes de exportar."
+                    : "São imagens do próprio editor: dá para desenhar de novo."}
+                </p>
+                <Button size="sm" onClick={() => void reconnectMissing()}>
+                  {toFind === 0
+                    ? "Desenhar de novo"
+                    : toFind === 1
+                      ? "Reconectar…"
+                      : "Procurar em uma pasta…"}
+                </Button>
+              </div>
             )}
           </div>
         </div>

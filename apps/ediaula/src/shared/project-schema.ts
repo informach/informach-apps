@@ -6,6 +6,11 @@ const time = z
   .number()
   .min(0)
   .max(7 * 86400);
+/** Seconds relative to a clip's start: a piece of a moving clip keeps the keyframe just before it. */
+const offset = z
+  .number()
+  .min(-7 * 86400)
+  .max(7 * 86400);
 const text = z.string().max(1024 * 1024);
 const id = z.string().min(1).max(200);
 const path = z
@@ -114,6 +119,19 @@ const annotation = z.looseObject({
   ink: color.optional(),
   accent: color.optional(),
 });
+const zooms = z
+  .array(
+    z.looseObject({
+      id,
+      start: time,
+      end: time,
+      scale: number.positive(),
+      focus: z.array(z.looseObject({ t: time, x: number, y: number })).max(20000),
+      auto: z.boolean().optional(),
+      ease: time.optional(),
+    }),
+  )
+  .max(20000);
 const asset = z.looseObject({
   id,
   name: text,
@@ -136,7 +154,9 @@ const asset = z.looseObject({
   vfr: z.boolean().optional(),
   generated: z.enum(["annotation", "effect"]).optional(),
   cursor: path.optional(),
+  cursorMissing: z.boolean().optional(),
   cursorFx: cursorFx.optional(),
+  zooms: zooms.optional(),
   markers: z
     .array(z.looseObject({ t: time, kind: z.enum(["marker", "retake"]) }))
     .max(20000)
@@ -183,7 +203,7 @@ const clip = z.looseObject({
   enter: motion.optional(),
   exit: motion.optional(),
   keyframes: z
-    .array(z.looseObject({ t: time, x: number, y: number, scale: number.positive() }))
+    .array(z.looseObject({ t: offset, x: number, y: number, scale: number.positive() }))
     .max(20000)
     .optional(),
   transition: z
@@ -214,20 +234,8 @@ const clip = z.looseObject({
     })
     .optional(),
   annotation: annotation.optional(),
-  zooms: z
-    .array(
-      z.looseObject({
-        id,
-        start: time,
-        end: time,
-        scale: number.positive(),
-        focus: z.array(z.looseObject({ t: time, x: number, y: number })).max(20000),
-        auto: z.boolean().optional(),
-        ease: time.optional(),
-      }),
-    )
-    .max(20000)
-    .optional(),
+  // Older projects kept the zooms on each clip; opening moves them to the media.
+  zooms: zooms.optional(),
   zoomLayer: z
     .looseObject({
       scale: number.positive(),
@@ -238,6 +246,8 @@ const clip = z.looseObject({
       easeIn: time.optional(),
       easeOut: time.optional(),
       ease: time.optional(),
+      origin: time.optional(),
+      length: number.positive().optional(),
     })
     .optional(),
   insertId: id.optional(),
@@ -324,7 +334,13 @@ export const exportSpecSchema = z.strictObject({
         sprite: path.min(1),
         size: z.number().positive().max(16384),
         fps: z.number().positive().max(240),
-        positions: z.array(number).max(2000000),
+        // Two coordinates per source frame of the whole recording: one IPC value, any length.
+        positions: z
+          .instanceof(Int32Array)
+          .refine(
+            (values) => values.length % 2 === 0 && values.length <= 4_000_000,
+            "Invalid cursor positions",
+          ),
       }),
     )
     .optional(),

@@ -3,6 +3,7 @@ import { readFile, stat } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { atomicWrite } from "@informach/edi-desktop/files";
 import { app } from "electron";
+import { normalizeProject } from "../shared/project-normalize.ts";
 import { projectSchema, projectSettingsSchema } from "../shared/project-schema.ts";
 import { defaultTracks, newId, projectDuration } from "../shared/timeline.ts";
 import type { Project, ProjectSettings, RecentEntry } from "../shared/types.ts";
@@ -71,23 +72,51 @@ function backup(path: string): void {
     unlinkSync(join(dir, old));
 }
 
+/** Largest project file the editor reads, and so the largest it writes. */
+const MAX_PROJECT_BYTES = 32 * 1024 ** 2;
+const TOO_LARGE = "Projeto maior que 32 MB.";
+
+/**
+ * The renderer sends the project as JSON text: one IPC value however long the lesson is (the
+ * structure limit of the desktop SDK counts every field of an object). This only reads it, with
+ * the same size limit as a file; the schema check happens once, where the project is used
+ * (saveProject, exportLesson).
+ */
+export function projectJson(text: unknown): unknown {
+  if (typeof text !== "string") throw new Error("Projeto inválido.");
+  if (Buffer.byteLength(text) > MAX_PROJECT_BYTES) throw new Error(TOO_LARGE);
+  return JSON.parse(text);
+}
+
+/** The recent list is a convenience: failing to update it never fails a save or an open. */
+async function remember(path: string, project: Project): Promise<void> {
+  try {
+    await touchRecent(path, project);
+  } catch (err) {
+    console.warn("recent projects not updated", err);
+  }
+}
+
 export async function saveProject(path: string, rawProject: unknown): Promise<void> {
   const project = projectSchema.parse(rawProject);
+  const content = JSON.stringify(project, null, 1);
+  // Refused before touching the file: a project that could not be opened again is not saved.
+  if (Buffer.byteLength(content) > MAX_PROJECT_BYTES) throw new Error(TOO_LARGE);
   try {
     backup(path);
   } catch (err) {
     console.warn("backup failed", err);
   }
-  await atomicWrite(path, JSON.stringify(project, null, 1));
-  await touchRecent(path, project);
+  await atomicWrite(path, content);
+  await remember(path, project);
 }
 
 export async function openProject(path: string): Promise<Project> {
-  if ((await stat(path)).size > 32 * 1024 ** 2) throw new Error("Projeto maior que 32 MB.");
+  if ((await stat(path)).size > MAX_PROJECT_BYTES) throw new Error(TOO_LARGE);
   const content = await readFile(path, "utf8");
-  if (Buffer.byteLength(content) > 32 * 1024 ** 2) throw new Error("Projeto maior que 32 MB.");
-  const project = projectSchema.parse(JSON.parse(content));
-  await touchRecent(path, project);
+  if (Buffer.byteLength(content) > MAX_PROJECT_BYTES) throw new Error(TOO_LARGE);
+  const project = normalizeProject(projectSchema.parse(JSON.parse(content)));
+  await remember(path, project);
   return project;
 }
 

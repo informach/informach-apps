@@ -1,4 +1,4 @@
-import { clipEnd } from "./timeline.ts";
+import { adjacency, CUT_TOUCH, clipEnd } from "./timeline.ts";
 import type { Clip, Project } from "./types.ts";
 
 /**
@@ -177,14 +177,13 @@ export const isColorFx = (k: TransitionKind | undefined): k is ColorFxKind =>
 export const isCutFx = (k: TransitionKind): k is "glitch" | ColorFxKind =>
   k === "glitch" || isColorFx(k);
 
-/** Clips closer than this count as touching. */
-const TOUCH = 0.02;
-
-/** The clip that ends where `clip` starts, on the same track. */
+/** The clip that ends where `clip` starts, on the same track (adjacency() finds every pair). */
 export function previousClip(clips: Clip[], clip: Clip): Clip | undefined {
   return clips.find(
     (c) =>
-      c.id !== clip.id && c.trackId === clip.trackId && Math.abs(clipEnd(c) - clip.start) < TOUCH,
+      c.id !== clip.id &&
+      c.trackId === clip.trackId &&
+      Math.abs(clipEnd(c) - clip.start) < CUT_TOUCH,
   );
 }
 
@@ -212,9 +211,10 @@ export function withTransitions(project: Project): DerivedProject {
   if (!project.clips.some((c) => c.transition)) return project;
   const clips = new Map<string, DerivedClip>(project.clips.map((c) => [c.id, { ...c }]));
   const cutFx: CutFx[] = [];
+  const previous = adjacency(project.clips);
   for (const b of project.clips) {
     if (!b.transition) continue;
-    const a = previousClip(project.clips, b);
+    const a = previous.get(b.id);
     if (!a) continue;
     const kind = b.transition.kind;
     const d = Math.max(0.1, Math.min(b.transition.duration, b.duration / 2, a.duration / 2));

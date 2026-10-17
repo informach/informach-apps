@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect } from "react";
 import { Editor } from "./editor/Editor";
 import { ExportQueuePanel } from "./editor/ExportQueuePanel";
+import { SaveFailedDialog } from "./editor/SaveFailedDialog";
 import { runAiTool } from "./lib/aiTools";
 import { listenRecordings } from "./lib/recording";
 import { SettingsModal } from "./settings/SettingsModal";
@@ -8,7 +9,7 @@ import "./state/assistant";
 import { registerEdiRecovery } from "@informach/edi-desktop/renderer";
 import { Home } from "./home/Home";
 import { listenToJobs, useApp } from "./state/app";
-import { useProject } from "./state/project";
+import { settleEdits, useProject } from "./state/project";
 
 export function App(): ReactNode {
   const screen = useApp((s) => s.screen);
@@ -17,8 +18,8 @@ export function App(): ReactNode {
   useEffect(
     () =>
       registerEdiRecovery(async () => {
-        await useProject.getState().saveNow();
-        if (useProject.getState().saveState === "error") throw new Error("Recovery save failed");
+        await settleEdits();
+        if (!(await useProject.getState().flush())) throw new Error("Recovery save failed");
       }),
     [],
   );
@@ -42,6 +43,7 @@ export function App(): ReactNode {
       {screen === "home" ? <Home /> : <Editor />}
       {settingsOpen && <SettingsModal />}
       <ExportQueuePanel />
+      <SaveFailedDialog />
       <div className="toasts" aria-live="polite">
         {toasts.map((t) => (
           <div key={t.id} className={`toast toast-${t.tone}`}>

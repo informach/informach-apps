@@ -108,18 +108,3 @@ export async function makeProxy(asset: Asset): Promise<void> {
     endJob(jobId);
   }
 }
-
-/** Marks assets whose files disappeared and resumes proxies interrupted by closing the app. */
-export async function checkAssets(): Promise<void> {
-  const project = useProject.getState().project;
-  if (!project?.assets.length) return;
-  const exists = await window.api.exists(project.assets.map((a) => a.path));
-  project.assets.forEach((a, i) => {
-    const missing = !exists[i];
-    if (!!a.missing !== missing) useProject.getState().patchAsset(a.id, { missing });
-    if (!missing && a.proxyStatus === "pending") void makeProxy(a);
-    // A transcription interrupted by closing the app has to be started again.
-    if (a.transcriptStatus === "pending")
-      useProject.getState().patchAsset(a.id, { transcriptStatus: undefined });
-  });
-}

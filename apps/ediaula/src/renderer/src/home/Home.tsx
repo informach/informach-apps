@@ -20,6 +20,7 @@ import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { actions } from "@/lib/actions";
 import { formatEditTime } from "@/lib/editTimer";
 import { duration, relativeTime } from "@/lib/format";
+import { confirmLeave } from "@/lib/leaveGuard";
 import { mediaUrl } from "@/lib/media";
 import { openRecorder } from "@/lib/recording";
 import { useApp } from "@/state/app";
@@ -69,6 +70,7 @@ export function Home(): ReactNode {
     courseName: string | undefined,
     settings: ProjectSettings,
   ): Promise<void> => {
+    if (!(await confirmLeave())) return;
     const { path, project } = await window.api.createProject(name, courseName, settings);
     useProject.getState().load(path, project);
     useApp.getState().set({ screen: "editor" });

@@ -1,9 +1,20 @@
 import type { Asset } from "@shared/types";
-import { AlertTriangle, Film, Image, Loader, Music, Plus, Search, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  Film,
+  FolderSearch,
+  Image,
+  Loader,
+  Music,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { actions } from "@/lib/actions";
 import { duration } from "@/lib/format";
 import { mediaUrl } from "@/lib/media";
+import { needsRelink, relinkAsset, relinkMissingInFolder } from "@/lib/relink";
 import { type LibraryFilter, useApp } from "@/state/app";
 import { useProject } from "@/state/project";
 import { Badge, Chip } from "@/ui";
@@ -27,6 +38,7 @@ export function Library(): ReactNode {
   const set = useApp((s) => s.set);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
+  const missing = assets.filter(needsRelink).length;
 
   const shown = assets.filter(
     (a) =>
@@ -55,6 +67,24 @@ export function Library(): ReactNode {
           onChange={(e) => setQuery(e.target.value)}
         />
       </label>
+      {missing > 0 && (
+        <div className="lib-missing">
+          <AlertTriangle size={13} />
+          <span className="spacer">
+            {missing === 1
+              ? "1 arquivo não foi encontrado"
+              : `${missing} arquivos não foram encontrados`}
+          </span>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => void relinkMissingInFolder()}
+            title="Escolha a pasta para onde os arquivos foram movidos; procuro pelo nome e pelo tamanho"
+          >
+            <FolderSearch size={13} /> Procurar em uma pasta…
+          </button>
+        </div>
+      )}
       <div className="row-6">
         {FILTERS.map(([id, label]) => (
           <Chip key={id} active={filter === id} onClick={() => set({ libraryFilter: id })}>
@@ -76,7 +106,7 @@ export function Library(): ReactNode {
               key={a.id}
               asset={a}
               selected={selected === a.id}
-              used={!!usage?.some((c) => c.assetId === a.id)}
+              uses={usage?.filter((c) => c.assetId === a.id).length ?? 0}
               onSelect={() => setSelected(a.id)}
             />
           ))}
@@ -92,12 +122,13 @@ export function Library(): ReactNode {
 function AssetCard({
   asset,
   selected,
-  used,
+  uses,
   onSelect,
 }: {
   asset: Asset;
   selected: boolean;
-  used: boolean;
+  /** Clips on the timeline playing this media. */
+  uses: number;
   onSelect: () => void;
 }): ReactNode {
   const Icon = KIND_ICON[asset.kind];
@@ -140,10 +171,23 @@ function AssetCard({
           <Icon size={22} className="media-icon" />
         )}
         <div className="media-badges">
-          {asset.missing && (
-            <Badge tone="amber">
-              <AlertTriangle size={10} /> Arquivo sumiu
-            </Badge>
+          {(asset.missing || asset.cursorMissing) && (
+            <button
+              type="button"
+              className="badge badge-amber badge-button"
+              title={
+                asset.missing
+                  ? "Mostrar onde está o arquivo agora. Os cortes e ajustes continuam."
+                  : "Mostrar onde estão os dados do cursor desta gravação (cursor.json)."
+              }
+              onClick={(e) => {
+                e.stopPropagation();
+                void relinkAsset(asset.id);
+              }}
+            >
+              <AlertTriangle size={10} /> {asset.missing ? "Arquivo sumiu" : "Cursor sumiu"} ·
+              Reconectar…
+            </button>
           )}
           {is4k && <Badge tone="muted">4K</Badge>}
           {asset.vfr && <Badge tone="muted">VFR</Badge>}
@@ -161,9 +205,16 @@ function AssetCard({
           type="button"
           className="media-remove"
           style={{ zIndex: 2 }}
-          title={used ? "Remover da biblioteca e da timeline" : "Remover da biblioteca"}
+          title={uses ? "Remover da biblioteca e da timeline" : "Remover da biblioteca"}
           onClick={(e) => {
             e.stopPropagation();
+            if (
+              uses &&
+              !confirm(
+                `Remover ${asset.name}? ${uses === 1 ? "1 clipe da timeline usa esta mídia e também será removido" : `${uses} clipes da timeline usam esta mídia e também serão removidos`}. Ctrl+Z desfaz.`,
+              )
+            )
+              return;
             actions.removeAsset(asset.id);
           }}
         >

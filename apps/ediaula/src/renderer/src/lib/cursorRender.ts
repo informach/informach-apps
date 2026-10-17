@@ -52,7 +52,8 @@ export async function ensureCursorSprites(
         fps,
         signal,
       );
-    out[asset.id] = { sprite, size, fps, positions: Array.from(positions) };
+    // Kept typed: an Int32Array crosses IPC as one value, so a long recording fits the limit.
+    out[asset.id] = { sprite, size, fps, positions };
   }
   return out;
 }

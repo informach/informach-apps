@@ -95,7 +95,7 @@ test("export draws the moving pointer sprite and zooms the recording like the pr
     cursorFx,
     3,
   );
-  const positions = Array.from(spritePositions(track, 30, 3, S));
+  const positions = spritePositions(track, 30, 3, S);
 
   const p: Project = {
     version: 1,
@@ -119,19 +119,7 @@ test("export draws the moving pointer sprite and zooms the recording like the pr
         size: 1,
         proxyStatus: "none",
         cursor: join(dir, "cursor.json"),
-      },
-    ],
-    tracks: [{ id: "v", kind: "video", name: "Tela", muted: false, hidden: false, locked: false }],
-    // From 2 s on, 2× zoom centered where the pointer is.
-    clips: [
-      {
-        id: "c",
-        assetId: "a",
-        trackId: "v",
-        start: 0,
-        in: 0,
-        duration: 3,
-        volume: 1,
+        // From 2 s on, 2× zoom centered where the pointer is (zooms belong to the media).
         zooms: [
           {
             id: "z",
@@ -141,6 +129,18 @@ test("export draws the moving pointer sprite and zooms the recording like the pr
             focus: [{ t: 1.6, x: 400 / 640, y: 250 / 360 }],
           },
         ],
+      },
+    ],
+    tracks: [{ id: "v", kind: "video", name: "Tela", muted: false, hidden: false, locked: false }],
+    clips: [
+      {
+        id: "c",
+        assetId: "a",
+        trackId: "v",
+        start: 0,
+        in: 0,
+        duration: 3,
+        volume: 1,
       },
     ],
   };
@@ -213,10 +213,10 @@ test("export draws the moving pointer sprite and zooms the recording like the pr
   // The cursor uses source time after trimming/retiming, independently of the
   // clip's offset in the final timeline.
   for (const speed of [0.5, 2]) {
-    const clip = { ...p.clips[0], start: 0.5, in: 0.8, duration: 1, speed, zooms: [] };
+    const clip = { ...p.clips[0], start: 0.5, in: 0.8, duration: 1, speed };
     const retimed = join(dir, `retimed-${speed}.mp4`);
     const retimedPlan = buildExportPlan(
-      { ...p, clips: [clip] },
+      { ...p, assets: [{ ...p.assets[0], zooms: undefined }], clips: [clip] },
       {
         outPath: retimed,
         width: 640,

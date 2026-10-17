@@ -242,9 +242,19 @@ export function applyCuts(
   targets: Set<string>,
   keepTrackIds: Set<string> = new Set(),
 ): Clip[] {
+  return cutSorted(clips, mergeRanges(ranges), targets, keepTrackIds);
+}
+
+/** applyCuts() over ranges already sorted and apart from each other. */
+function cutSorted(
+  clips: Clip[],
+  ranges: [number, number][],
+  targets: Set<string>,
+  keepTrackIds: Set<string>,
+): Clip[] {
   const oldEnd = contentEnd(clips, targets);
   let out = clips;
-  for (const [s, e] of mergeRanges(ranges).reverse()) out = rippleDeleteRange(out, s, e, targets);
+  for (const [s, e] of [...ranges].reverse()) out = rippleDeleteRange(out, s, e, targets);
   const newEnd = contentEnd(out, targets);
   if (newEnd >= oldEnd) return out;
   return out
@@ -257,6 +267,36 @@ export function applyCuts(
         ? { ...c, duration: newEnd - c.start }
         : c,
     );
+}
+
+/** Gaps shorter than this (rounding left over by earlier edits) are not worth a cut. */
+const MIN_GAP = 1e-4;
+
+/**
+ * Closes only the stretches where none of the target tracks has anything, pulling everything
+ * after each one left on all of them at once (applyCuts). Balloons, avatar, zoom layers and the
+ * voice keep their distance to each other. Tracks outside `targets` are not moved: a music bed
+ * ends with the lesson, while `keepTrackIds` (locked tracks) are left exactly as they are.
+ */
+export function closeCommonGaps(
+  project: Pick<Project, "clips">,
+  targets: Set<string>,
+  keepTrackIds: Set<string> = new Set(),
+): Clip[] {
+  const busy = mergeRanges(
+    project.clips
+      .filter((c) => targets.has(c.trackId))
+      .map((c): [number, number] => [c.start, clipEnd(c)]),
+    0,
+  );
+  const gaps: [number, number][] = [];
+  let cursor = 0;
+  for (const [start, end] of busy) {
+    if (start - cursor > MIN_GAP) gaps.push([cursor, start]);
+    cursor = Math.max(cursor, end);
+  }
+  // Already apart: merging them again (applyCuts) could swallow a very short clip between two gaps.
+  return gaps.length ? cutSorted(project.clips, gaps, targets, keepTrackIds) : project.clips;
 }
 
 /**

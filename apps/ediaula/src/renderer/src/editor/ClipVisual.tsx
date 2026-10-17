@@ -509,6 +509,10 @@ export function MotionPathSection({ clip }: { clip: Clip }): ReactNode {
   const local = Math.max(0, Math.min(clip.duration, time - clip.start));
   const inside = time >= clip.start && time <= clip.start + clip.duration;
   const kfs = clip.keyframes ?? [];
+  // A piece of a cut clip keeps the positions of the whole clip, so the glide stays the same
+  // and comes back when the piece is made longer; the list shows the ones inside it.
+  const shown = kfs.filter((k) => k.t >= -1e-6 && k.t <= clip.duration + 1e-6);
+  const outside = kfs.length - shown.length;
   const mark = (): void => {
     updateClip(clip.id, (c) => {
       const now = transformAt(c, time);
@@ -550,9 +554,17 @@ export function MotionPathSection({ clip }: { clip: Clip }): ReactNode {
       <Button size="sm" variant="secondary" disabled={!inside} onClick={mark}>
         Marcar posição aqui ({fmt(clip.start + local)})
       </Button>
-      {kfs.length > 0 && (
+      {outside > 0 && (
+        <p className="props-hint muted">
+          {outside === 1
+            ? "Mais 1 posição fora deste trecho do clipe."
+            : `Mais ${outside} posições fora deste trecho do clipe.`}{" "}
+          Elas voltam a valer se você aumentar o clipe pela borda.
+        </p>
+      )}
+      {shown.length > 0 && (
         <ul className="zoom-list">
-          {kfs.map((k) => (
+          {shown.map((k) => (
             <li key={k.t}>
               <button
                 type="button"

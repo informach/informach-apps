@@ -61,7 +61,7 @@ export function ExtendFrameDialog(): ReactNode {
         sourceTime,
         !!asset.key,
       );
-      if (asset.cursor || clip.zooms?.length) {
+      if (asset.cursor || asset.zooms?.length) {
         const image = new Image();
         // media:// is a separate origin; request its CORS-enabled image before drawing to canvas.
         image.crossOrigin = "anonymous";
@@ -71,7 +71,7 @@ export function ExtendFrameDialog(): ReactNode {
         canvas.width = asset.width;
         canvas.height = asset.height;
         const ctx = canvas.getContext("2d")!;
-        const view = zoomAt(clip.zooms, sourceTime);
+        const view = zoomAt(asset.zooms, sourceTime);
         ctx.translate(
           (0.5 - view.cx * view.scale) * canvas.width,
           (0.5 - view.cy * view.scale) * canvas.height,
