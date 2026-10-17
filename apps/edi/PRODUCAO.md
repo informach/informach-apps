@@ -1,6 +1,6 @@
 # Operação do portal da suíte Edi
 
-Portal publicado: `https://edi.informach.com.br`, no projeto Railway existente. Em 17/10/2026, o deploy `0457f0c` passou `/api/health` e `/api/ready`, com as migrations `0069`–`0071` aplicadas pelo migrator compartilhado. O único OTP autorizado teve entrega confirmada. A assinatura comercial permanece desabilitada até concluir distribuição e cron. O [registro operacional](../../docs/propostas/edi-suite-2026-10-16/producao-operacao.md) distingue recursos configurados de verificações concluídas.
+Portal publicado: `https://edi.informach.com.br`, no projeto Railway existente. Em 17/10/2026, a revisão comercial `d201d6f` passou `/api/health` e `/api/ready`, com as migrations `0069`–`0071` aplicadas pelo migrator compartilhado. O único OTP autorizado teve entrega confirmada. A tag `edi-v0.1.0` aprovou os seis instaladores, mas falhou na confirmação do rascunho GitHub vazio; a correção do publicador prepara `edi-v0.1.1`, sem mover a tag anterior; a assinatura comercial permanece desabilitada até concluir distribuição e cron. O [registro operacional](../../docs/propostas/edi-suite-2026-10-16/producao-operacao.md) distingue recursos configurados de verificações concluídas.
 
 ## Serviço Railway
 

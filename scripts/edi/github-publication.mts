@@ -65,7 +65,7 @@ export async function publishGithubRelease(
   const tag = `edi-v${version}`;
   const beta = version.includes("-beta.");
   const provenance = `<!-- edi-source:${options.sourceCommit} -->`;
-  const endpoint = `repos/${repository}/releases/tags/${tag}`;
+  const endpoint = `repos/${repository}/releases?per_page=100`;
   const expectedNames = new Set([
     ...EDI_DESKTOP_APPS.map((app) => `${app.id}-${version}-win-x64.exe`),
     "edi-release.json",
@@ -83,22 +83,19 @@ export async function publishGithubRelease(
       ),
     );
   async function read() {
-    try {
-      const raw: unknown = JSON.parse(await command(["api", endpoint]));
-      const parsed = releaseSchema.parse(raw);
-      if (parsed.tag_name !== tag || parsed.prerelease !== beta)
-        throw new Error("GitHub release identity or channel does not match the requested version");
-      return parsed;
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        "stderr" in error &&
-        typeof error.stderr === "string" &&
-        error.stderr.includes("(HTTP 404)")
-      )
-        return null;
-      throw error;
-    }
+    // The by-tag endpoint only returns published releases. Authenticated listing
+    // includes drafts; paginate so an older interrupted draft remains resumable.
+    const raw: unknown = JSON.parse(await command(["api", "--paginate", "--slurp", endpoint]));
+    const matches = z
+      .array(z.array(releaseSchema))
+      .parse(raw)
+      .flat()
+      .filter((item) => item.tag_name === tag);
+    if (matches.length > 1) throw new Error("Multiple GitHub releases have the requested tag");
+    const parsed = matches[0] ?? null;
+    if (parsed && parsed.prerelease !== beta)
+      throw new Error("GitHub release identity or channel does not match the requested version");
+    return parsed;
   }
   let release = await read();
   if (release && !release.body.includes(provenance))

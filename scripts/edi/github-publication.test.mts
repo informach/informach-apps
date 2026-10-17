@@ -44,7 +44,11 @@ async function fixture() {
   const command = async (args: string[]): Promise<string> => {
     if (args[0] === "api") {
       if (state.apiError) throw state.apiError;
-      if (!state.release)
+      if (args.includes("--slurp")) {
+        if (!args.includes("--paginate")) throw new Error("Draft lookup requires pagination");
+        return JSON.stringify([[], state.release ? [state.release] : []]);
+      }
+      if (!state.release || state.release.draft)
         throw Object.assign(new Error("Not Found"), { stderr: "gh: Not Found (HTTP 404)" });
       return JSON.stringify(state.release);
     }
@@ -80,7 +84,7 @@ async function fixture() {
     repository: "informach/edi-releases",
     version,
     sourceCommit,
-    notes: "Piloto",
+    notes: "Suíte Edi",
     files,
   };
   const draft = (): Release => ({
@@ -93,6 +97,22 @@ async function fixture() {
   return { options, state, command, draft };
 }
 describe("atomic GitHub suite publication", () => {
+  it("refuses ambiguous draft identities across listing pages", async () => {
+    const { options, state, command, draft } = await fixture();
+    await expect(
+      publishGithubRelease(options, async (args) =>
+        args[0] === "api" ? JSON.stringify([[draft()], [draft()]]) : command(args),
+      ),
+    ).rejects.toThrow("Multiple GitHub releases");
+    expect(state.uploads).toBe(0);
+    expect(state.edits).toBe(0);
+  });
+  it("does not treat a missing listing endpoint as permission to create a release", async () => {
+    const { options, state, command } = await fixture();
+    state.apiError = Object.assign(new Error("Not Found"), { stderr: "gh: Not Found (HTTP 404)" });
+    await expect(publishGithubRelease(options, command)).rejects.toThrow("Not Found");
+    expect(state.release).toBeNull();
+  });
   it("publishes exactly six installers and the manifest, with remote digest confirmation", async () => {
     const { options, state, command } = await fixture();
     expect(await publishGithubRelease(options, command)).toEqual({ reused: false });
