@@ -58,6 +58,8 @@ O complemento integrado em `d59c836` passou nos gates remotos de banco e Electro
 
 O primeiro build do migrator ainda usava Nixpacks e selecionou Node 24.10, abaixo do requisito 24.15. Foi cancelado antes de executar migrations. O serviço passou a Railpack com `RAILPACK_NODE_VERSION=24.15.0`, instalação congelada com devDependencies, o mesmo start de migrations/seeds e reinício `NEVER`. O Config Path antigo foi limpo durante a correção; a referência versionada também foi corrigida, para restaurar o vínculo depois de integrar essa alteração. A adoção de IaC do projeto inteiro continua fora desta subida.
 
+Às 15:42 UTC, o portal `0457f0c` estava saudável por HTTPS: health e readiness 200, login e proteção da conta conferidos, imagem pública igual ao arquivo aprovado. O migrator concluiu as 72 migrations do histórico, incluindo `0069`–`0071`; `0072` continua fora desta subida. Às 15:43 UTC, o único OTP autorizado foi enviado e teve entrega confirmada pelo webhook assinado. A cobrança segue desabilitada até concluir instaladores, configurações Stripe finais e cron. A repetição nativa em main encontrou um timeout de abertura do PDF não reproduzido; o harness está sendo alinhado ao launcher padrão e recebe diagnóstico, mantendo os limites e verificações. Evidências detalhadas nos registros operacional e Windows.
+
 ## Operação dos produtos existentes
 
 - [Missão Saber](../apps/missao-saber/PRODUCAO.md): produção, migrations, Stripe, cron e observabilidade.

@@ -280,6 +280,8 @@ restartPolicyType = "NEVER"
 
 > **Runtime e dependências do migrator:** `tsx` é necessário para executar as migrations; a instalação usa `--prod=false` explicitamente. Em 17/10/2026, o Nixpacks legado resolveu Node 24.10 apesar do mínimo 24.15 do repositório. Use Railpack e `RAILPACK_NODE_VERSION=24.15.0`, e confira a versão efetivamente instalada no log. O [Railpack dá prioridade à variável](https://railpack.com/languages/node/#nodejs) sobre `engines.node` e `.nvmrc`; o mínimo do manifest sozinho não fixa uma versão exata. Se limpar o Config Path de um serviço legado durante a correção, transfira também build/start/restart para o serviço antes de redeployar, pois os campos podem existir apenas no arquivo antigo.
 
+A mesma versão `RAILPACK_NODE_VERSION=24.15.0` é configurada por serviço nos apps web desta implantação. Os TOMLs legados de Cozya, Agenda e site também usam Railpack; Missão Saber e Edi já usavam esse builder. Isso corrige o driver/runtime sem adotar a IaC do projeto inteiro ainda em edição.
+
 ---
 
 ## Fase 5 — Variables (per-app service)

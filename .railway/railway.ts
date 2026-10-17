@@ -1,4 +1,4 @@
-import { defineRailway, github, preserve, project, service } from "railway/iac";
+import { defineRailway, github, image, preserve, project, service } from "railway/iac";
 
 // Adopt only Edi during the transition from legacy per-app Config as Code.
 // Other services in this monorepo retain their existing configuration and ownership.
@@ -51,6 +51,7 @@ export default defineRailway((ctx) => {
     domains: [{ domain: "edi.informach.com.br", port: 3006 }],
     env: {
       NODE_ENV: "production",
+      RAILPACK_NODE_VERSION: "24.15.0",
       PORT: "3006",
       NEXT_PUBLIC_APP_URL: "https://edi.informach.com.br",
       BETTER_AUTH_URL: "https://edi.informach.com.br",
@@ -79,7 +80,10 @@ export default defineRailway((ctx) => {
   });
 
   const reconcile = service("cron-edi-reconcile", {
-    // The image source is enabled after the portal is ready and billing is homologated.
+    // Apply this activation only after signed distribution and billing are ready.
+    source: image(
+      "alpine/curl@sha256:d7720f8cffb47e7a80d01fb2c1b38562fab0e436948537e9b77dc312d29d12d6",
+    ),
     deploy: {
       cronSchedule: "*/5 * * * *",
       restartPolicyType: "NEVER",

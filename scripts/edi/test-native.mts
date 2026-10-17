@@ -13,6 +13,7 @@ import { EDI_DESKTOP_APPS, EDI_TOOLS } from "../../packages/config/src/edi-tools
 import { desktopAppIdSchema, leaseClaimsSchema } from "../../packages/edi-contracts/src/index.ts";
 import type { VaultData } from "../../packages/edi-desktop/src/vault";
 import { windowsPowerShellEnvironment } from "../../packages/edi-desktop/src/windows-powershell.ts";
+import { observeNativeStartup } from "./native-diagnostics.mts";
 import { verifyNativeInstallationIntegrity } from "./native-installation.mts";
 
 declare const ediNativeFixture: {
@@ -222,7 +223,8 @@ try {
       .parse(JSON.parse(await readFile(join(applicationRoot, "package.json"), "utf8")));
     await access(join(applicationRoot, manifest.main));
     const application = await _electron.launch({
-      executablePath: electronPath,
+      // The standard workspace launcher holds app readiness until Playwright is
+      // connected. executablePath is for custom apps and omits that loader.
       args: ["-r", resolve("scripts/edi/fixtures/native-vault.cjs"), applicationRoot],
       cwd: applicationRoot,
       env: {
@@ -236,13 +238,23 @@ try {
         EDICAPTURA_TEST_PROFILE: userData,
       },
     });
+    const startup = observeNativeStartup(application, [root, resolve("."), tmpdir()]);
     let closed = false;
     application.once("close", () => {
       closed = true;
     });
     const failures: unknown[] = [];
+    let startupFailed = false;
     try {
-      const first = await application.firstWindow();
+      assert.equal(await application.evaluate(() => process.execPath), electronPath);
+      const first = await application.firstWindow().catch(async (error: unknown) => {
+        startupFailed = true;
+        console.error(
+          `Native startup diagnostic (${id}):`,
+          JSON.stringify(await startup.snapshot()),
+        );
+        throw error;
+      });
       await first.waitForFunction(() => typeof window.ediSuite !== "undefined");
       assert.equal(
         await first.evaluate(async () => (await window.ediSuite.status()).state),
@@ -466,6 +478,9 @@ try {
       } catch (error) {
         failures.push(error);
       }
+      if (startupFailed)
+        console.error(`Native startup cleanup (${id}):`, JSON.stringify(await startup.snapshot()));
+      startup.dispose();
     }
     raiseFailures(failures, `Native verification and cleanup failed: ${id}`);
   }

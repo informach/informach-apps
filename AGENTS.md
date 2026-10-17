@@ -23,7 +23,7 @@ O código fica no repositório privado `informach/informach-apps`. Os aplicativo
 | `apps/admin` | Scaffold administrativo, ainda sem integração completa de auth, billing e banco | Porta 3003 |
 | `apps/informach-site` | Site institucional, termos e privacidade; sem auth, billing, banco ou IA | Porta 3004 |
 | `apps/missao-saber` | Preparação para olimpíadas escolares, com assinatura e perfis familiares | Porta 3005 |
-| `apps/edi` | Portal, conta, cobrança, autenticação e licenças da suíte Edi; destino `edi.informach.com.br` no Railway | Porta 3006; implantação pendente conforme runbook |
+| `apps/edi` | Portal, conta, cobrança, autenticação e licenças da suíte Edi; `edi.informach.com.br` no Railway | Porta 3006; estado comercial e distribuição no runbook |
 | `apps/edi-hub` | Central desktop de instalação, acesso e atualização da suíte | Electron, sem porta web fixa |
 | `apps/ediaula`, `apps/edicaptura`, `apps/edifoto`, `apps/edipdf`, `apps/edisvg` | Cinco ferramentas criativas em desenvolvimento | Electron, sem porta web fixa |
 

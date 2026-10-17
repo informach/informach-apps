@@ -1,6 +1,6 @@
 # Operação do portal da suíte Edi
 
-Destino: `https://edi.informach.com.br`, no projeto Railway existente. O serviço, o domínio, o PostgreSQL compartilhado e os segredos do backend foram configurados; a aplicação das migrations e o deploy saudável ainda estão pendentes nesta etapa. A assinatura comercial permanece desabilitada até a homologação. O [registro operacional](../../docs/propostas/edi-suite-2026-10-16/producao-operacao.md) distingue recursos configurados de verificações concluídas.
+Portal publicado: `https://edi.informach.com.br`, no projeto Railway existente. Em 17/10/2026, o deploy `0457f0c` passou `/api/health` e `/api/ready`, com as migrations `0069`–`0071` aplicadas pelo migrator compartilhado. O único OTP autorizado teve entrega confirmada. A assinatura comercial permanece desabilitada até concluir distribuição e cron. O [registro operacional](../../docs/propostas/edi-suite-2026-10-16/producao-operacao.md) distingue recursos configurados de verificações concluídas.
 
 ## Serviço Railway
 
@@ -17,6 +17,7 @@ O start executa o servidor standalone com `HOSTNAME=0.0.0.0` e respeita o `PORT`
 | Variável | Configuração |
 | --- | --- |
 | `NODE_ENV` | `production` |
+| `RAILPACK_NODE_VERSION` | `24.15.0`, alinhado ao manifest e ao CI |
 | `NEXT_PUBLIC_APP_URL` e `BETTER_AUTH_URL` | `https://edi.informach.com.br`, sem barra final |
 | `DATABASE_URL` | Referência ao PostgreSQL compartilhado do projeto |
 | `BETTER_AUTH_SECRET` | Segredo forte configurado no serviço; seguir a política de identidade dos apps existentes |
