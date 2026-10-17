@@ -16,9 +16,9 @@ const api: EdiAulaApi = {
   pickProject: () => ipcRenderer.invoke("dialog:project"),
   pickExportPath: (defaultName) => ipcRenderer.invoke("dialog:export", defaultName),
   pickProjectCopyPath: (defaultName) => ipcRenderer.invoke("dialog:save", defaultName),
-  relinkPick: (name) => ipcRenderer.invoke("media:relinkPick", name),
-  relinkFolder: (wanted, sameFolder) =>
-    ipcRenderer.invoke("media:relinkFolder", wanted, sameFolder),
+  relinkPick: (request) => ipcRenderer.invoke("media:relinkPick", request),
+  relinkCursor: (oldPath) => ipcRenderer.invoke("media:relinkCursor", oldPath),
+  relinkFolder: (wanted, token) => ipcRenderer.invoke("media:relinkFolder", wanted, token),
   probe: (path) => ipcRenderer.invoke("media:probe", path),
   thumbnail: (path, kind, duration) => ipcRenderer.invoke("media:thumb", path, kind, duration),
   waveform: (path) => ipcRenderer.invoke("media:waveform", path),
@@ -81,12 +81,12 @@ const api: EdiAulaApi = {
   exists: (paths) => ipcRenderer.invoke("fs:exists", paths),
   createProject: (name, course, settings) =>
     ipcRenderer.invoke("project:create", name, course, settings),
-  saveProject: (path, project) => ipcRenderer.invoke("project:save", path, JSON.stringify(project)),
+  saveProject: (path, projectJson) => ipcRenderer.invoke("project:save", path, projectJson),
   openProject: (path) => ipcRenderer.invoke("project:open", path),
   recentProjects: () => ipcRenderer.invoke("project:recent"),
   removeRecent: (path) => ipcRenderer.invoke("project:removeRecent", path),
-  startExport: (jobId, project, spec) =>
-    ipcRenderer.invoke("export:start", jobId, JSON.stringify(project), spec),
+  startExport: (jobId, projectJson, spec) =>
+    ipcRenderer.invoke("export:start", jobId, projectJson, spec),
   cancelJob: (jobId) => ipcRenderer.invoke("job:cancel", jobId),
   showInFolder: (path) => ipcRenderer.invoke("shell:showItem", path),
   onProgress: (cb) => {

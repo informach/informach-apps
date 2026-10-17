@@ -17,6 +17,7 @@ export const ASSET_RUNTIME_FIELDS = [
   "keyedId",
   "keyStatus",
   "missing",
+  "cursorMissing",
   // Written once by the recorder when a recording comes in.
   "cursor",
   "markers",
@@ -62,22 +63,32 @@ export function restoreSnapshot(snapshot: Project, current: Project, now: number
   return out;
 }
 
+export type RelinkChanges = Partial<Pick<Asset, "path" | "size" | "cursor">>;
+
 /**
- * A media file found again somewhere else: every snapshot that still points at the old path
- * gets the new one, so undoing never brings the broken link back.
+ * A media file (or the cursor data next to it) found again somewhere else: every snapshot that
+ * still points at the old place gets the new one, so undoing never brings the broken link back.
  */
-export function relinkIn(
-  p: Project,
-  id: string,
-  oldPath: string,
-  changes: Pick<Asset, "path" | "size">,
-): Project {
+export function relinkIn(p: Project, before: Asset, changes: RelinkChanges): Project {
+  const { path, size, cursor } = changes;
   let changed = false;
   const assets = p.assets.map((a) => {
-    if (a.id !== id || a.path !== oldPath) return a;
+    if (a.id !== before.id) return a;
+    const movesPath = path !== undefined && a.path === before.path;
+    const movesCursor = cursor !== undefined && a.cursor === before.cursor;
+    if (!movesPath && !movesCursor) return a;
     changed = true;
-    const { missing: _gone, ...rest } = a;
-    return { ...rest, ...changes };
+    const next: Asset = { ...a };
+    if (movesPath) {
+      next.path = path;
+      if (size !== undefined) next.size = size;
+      delete next.missing;
+    }
+    if (movesCursor) {
+      next.cursor = cursor;
+      delete next.cursorMissing;
+    }
+    return next;
   });
   return changed ? { ...p, assets } : p;
 }

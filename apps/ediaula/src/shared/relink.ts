@@ -13,7 +13,10 @@ export const fileName = (path: string): string => path.split(/[\\/]/).pop() ?? p
  * same kind, the same length (±0.5 s) and the same frame size. Cuts, zooms, cursor and
  * captions are in the media's own time and pixels, so anything else would shift them.
  */
-export function relinkMismatch(asset: Asset, found: ProbeResult): string | null {
+export function relinkMismatch(
+  asset: Pick<Asset, "kind" | "duration" | "width" | "height">,
+  found: ProbeResult,
+): string | null {
   if (found.kind !== asset.kind) return "o tipo de mídia é diferente";
   if (
     asset.kind !== "image" &&

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { validateIpcValues } from "../../../packages/edi-desktop/src/files.ts";
 import { ExportQueue } from "../src/shared/exportQueue.ts";
+import { exportSpecSchema } from "../src/shared/project-schema.ts";
 import type { ExportSpec, Project } from "../src/shared/types.ts";
 
 const project: Project = {
@@ -125,9 +127,12 @@ test("duplicate output paths are rejected while the destination is reserved", as
   assert.equal(q.items.length, 0);
 });
 
-test("a queued export keeps the cursor positions as a typed array", () => {
+test("cursor positions stay a typed array from the queue to the main process", () => {
+  let started: ExportSpec | undefined;
   const q = new ExportQueue(
-    () => new Promise<void>(() => {}),
+    async (i) => {
+      started = i.spec;
+    },
     () => {},
   );
   const positions = Int32Array.of(1, 2, 3, 4);
@@ -135,8 +140,22 @@ test("a queued export keeps the cursor positions as a typed array", () => {
     ...item("cursor"),
     spec: { ...spec, cursors: { a: { sprite: "C:/cache/a.webm", size: 32, fps: 30, positions } } },
   });
-  const kept = q.items[0].spec.cursors?.a.positions;
-  assert.ok(kept instanceof Int32Array);
-  assert.notEqual(kept, positions, "the queue owns its copy");
-  assert.deepEqual(Array.from(kept), [1, 2, 3, 4]);
+  const queued = q.items[0].spec;
+  assert.ok(queued.cursors?.a.positions instanceof Int32Array, "the queue's copy");
+  assert.notEqual(queued.cursors?.a.positions, positions, "the queue owns its copy");
+  assert.ok(started?.cursors?.a.positions instanceof Int32Array, "the runner gets it typed");
+  // export:start: Electron clones the arguments, the desktop SDK checks them, then the schema.
+  const [, json, sent] = structuredClone(["job", JSON.stringify(project), queued] as const);
+  validateIpcValues(["job", json, sent]);
+  const parsed = exportSpecSchema.parse(sent);
+  assert.ok(parsed.cursors?.a.positions instanceof Int32Array);
+  assert.deepEqual(Array.from(parsed.cursors?.a.positions ?? []), [1, 2, 3, 4]);
+  // As a plain list (what Array.from used to send) the main process refuses it.
+  assert.equal(
+    exportSpecSchema.safeParse({
+      ...sent,
+      cursors: { a: { ...sent.cursors?.a, positions: [1, 2, 3, 4] } },
+    }).success,
+    false,
+  );
 });

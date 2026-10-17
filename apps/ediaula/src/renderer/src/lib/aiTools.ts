@@ -22,16 +22,17 @@ import {
 import { buildEditingTemplate } from "@shared/editingTemplate";
 import { sectionLabel } from "@shared/script";
 import { templateById } from "@shared/templates";
-import { clipSpeed, newId, projectDuration, trackLabels } from "@shared/timeline";
+import { clipSpeed, newId, projectDuration, sourceEnd, trackLabels } from "@shared/timeline";
 import { DEFAULT_TRANSITION, previousClip } from "@shared/transitions";
-import type { Project, Transcript } from "@shared/types";
+import type { Clip, Project, Transcript } from "@shared/types";
+import { editZoomsIn, type Zoom, zoomsIn } from "@shared/zoom";
 import { setCaptions } from "@/editor/CaptionSettings";
 import { addMusic, setDenoise, setTrackMusic } from "@/editor/RailPanels";
 import { applyAutoZoom, setCursorFx } from "@/editor/RecordingProps";
 import { applySpeed, hasSpeed, speedLabel } from "@/lib/speed";
 import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
-import { useProject } from "@/state/project";
+import { settleEdits, useProject } from "@/state/project";
 import { actions } from "./actions";
 import { addAnnotation, addCard, addImageOverlay, updateAnnotation } from "./annotations";
 import { importMedia } from "./importMedia";
@@ -77,6 +78,7 @@ function requireProject(): Project {
 
 /** The open project has to be on disk before the assistant switches to another one. */
 async function saveBeforeLeaving(): Promise<void> {
+  await settleEdits();
   if (!(await useProject.getState().flush()))
     throw new ToolError(
       `O projeto aberto não pôde ser salvo (${useProject.getState().saveError ?? "erro desconhecido"}). Peça para a pessoa resolver o salvamento antes de trocar de projeto.`,
@@ -232,6 +234,10 @@ const handlers: {
     }
     const labels = trackLabels(p.tracks);
     const assets = new Map(p.assets.map((a) => [a.id, a]));
+    const zoomCount = (c: Clip): string => {
+      const n = zoomsIn(assets.get(c.assetId)?.zooms, c.in, sourceEnd(c)).length;
+      return n ? ` ${n} zoom(s)` : "";
+    };
     const lines = [
       `Projeto: ${p.name}${p.course ? ` · curso: ${p.course}` : ""}`,
       `Formato: ${p.settings.width}x${p.settings.height} ${p.settings.fps} fps · duração ${t(projectDuration(p))} · cursor em ${t(usePlayback.getState().time)}`,
@@ -243,7 +249,7 @@ const handlers: {
         .filter(Boolean)
         .join(", ");
       lines.push(
-        `- ${labels.get(tr.id)} ${tr.name}${flags ? ` (${flags})` : ""}: ${clips.length ? clips.map((c) => `[${c.id}] ${assets.get(c.assetId)?.name ?? "?"} ${t(c.start)}–${t(c.start + c.duration)}${c.insertId ? ` (inserção ${c.insertId})` : ""}${c.transform ? ` pos x=${c.transform.x.toFixed(2)} y=${c.transform.y.toFixed(2)} escala=${c.transform.scale.toFixed(2)}` : ""}${c.fadeIn || c.fadeOut ? " dissolve" : ""}${c.zooms?.length ? ` ${c.zooms.length} zoom(s)` : ""}${clipSpeed(c) !== 1 ? ` velocidade ${clipSpeed(c)}x` : ""}`).join("; ") : "vazia"}`,
+        `- ${labels.get(tr.id)} ${tr.name}${flags ? ` (${flags})` : ""}: ${clips.length ? clips.map((c) => `[${c.id}] ${assets.get(c.assetId)?.name ?? "?"} ${t(c.start)}–${t(c.start + c.duration)}${c.insertId ? ` (inserção ${c.insertId})` : ""}${c.transform ? ` pos x=${c.transform.x.toFixed(2)} y=${c.transform.y.toFixed(2)} escala=${c.transform.scale.toFixed(2)}` : ""}${c.fadeIn || c.fadeOut ? " dissolve" : ""}${zoomCount(c)}${clipSpeed(c) !== 1 ? ` velocidade ${clipSpeed(c)}x` : ""}`).join("; ") : "vazia"}`,
       );
     }
     lines.push("Mídias:");
@@ -606,10 +612,19 @@ const handlers: {
           : "Nenhuma gravação do EdiAula na timeline (só elas guardam os cliques).",
       );
     if (remove) {
-      const ids = new Set(clips.map((c) => c.id));
+      // The zooms belong to the recording: take out the ones over each clip's stretch of it.
       useProject.getState().commit((q) => ({
         ...q,
-        clips: q.clips.map((c) => (ids.has(c.id) ? { ...c, zooms: undefined } : c)),
+        assets: q.assets.map((a) => {
+          const over = clips.filter((c) => c.assetId === a.id);
+          if (!over.length || !a.zooms) return a;
+          const { zooms: _all, ...rest } = a;
+          const zooms = over.reduce<Zoom[] | undefined>(
+            (left, c) => editZoomsIn(left, c.in, sourceEnd(c), () => []),
+            a.zooms,
+          );
+          return zooms ? { ...rest, zooms } : rest;
+        }),
       }));
       return `Zooms removidos de ${clips.length} clipe(s).`;
     }

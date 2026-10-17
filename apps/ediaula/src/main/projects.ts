@@ -78,12 +78,23 @@ const TOO_LARGE = "Projeto maior que 32 MB.";
 
 /**
  * The renderer sends the project as JSON text: one IPC value however long the lesson is (the
- * structure limit of the desktop SDK counts every field of an object). Validated like a file.
+ * structure limit of the desktop SDK counts every field of an object). This only reads it, with
+ * the same size limit as a file; the schema check happens once, where the project is used
+ * (saveProject, exportLesson).
  */
-export function parseProjectText(text: unknown): Project {
+export function projectJson(text: unknown): unknown {
   if (typeof text !== "string") throw new Error("Projeto inválido.");
   if (Buffer.byteLength(text) > MAX_PROJECT_BYTES) throw new Error(TOO_LARGE);
-  return projectSchema.parse(JSON.parse(text));
+  return JSON.parse(text);
+}
+
+/** The recent list is a convenience: failing to update it never fails a save or an open. */
+async function remember(path: string, project: Project): Promise<void> {
+  try {
+    await touchRecent(path, project);
+  } catch (err) {
+    console.warn("recent projects not updated", err);
+  }
 }
 
 export async function saveProject(path: string, rawProject: unknown): Promise<void> {
@@ -97,7 +108,7 @@ export async function saveProject(path: string, rawProject: unknown): Promise<vo
     console.warn("backup failed", err);
   }
   await atomicWrite(path, content);
-  await touchRecent(path, project);
+  await remember(path, project);
 }
 
 export async function openProject(path: string): Promise<Project> {
@@ -105,7 +116,7 @@ export async function openProject(path: string): Promise<Project> {
   const content = await readFile(path, "utf8");
   if (Buffer.byteLength(content) > MAX_PROJECT_BYTES) throw new Error(TOO_LARGE);
   const project = normalizeProject(projectSchema.parse(JSON.parse(content)));
-  await touchRecent(path, project);
+  await remember(path, project);
   return project;
 }
 

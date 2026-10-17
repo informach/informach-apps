@@ -1,6 +1,5 @@
 import { focusOnMount } from "@informach/edi-desktop/renderer";
 import { timelineProtected } from "@shared/cleanup";
-import { zoomBankOf } from "@shared/pieces";
 import {
   adjacency,
   clipEnd,
@@ -311,8 +310,6 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
       ...neighbours.filter((c) => c.start >= clipEnd(clip) - EPS).map((c) => c.start),
     );
     const cands = snapCandidates(new Set([clip.id]));
-    // Making the clip longer brings back the recording's zooms it now covers.
-    const bank = zoomBankOf(project, clip.assetId);
     let result: Clip | null = null;
     listen(
       (ev) => {
@@ -324,7 +321,7 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
           if (s.snapped) snap = s.time;
         }
         t = edge === "start" ? Math.max(t, lower) : Math.min(t, upper);
-        result = trimClip(clip, edge, t, asset, bank);
+        result = trimClip(clip, edge, t, asset);
         setPreview({ clips: new Map([[clip.id, result]]), snap });
       },
       () => {
@@ -1425,7 +1422,7 @@ function recordingMarks(
   for (const c of project.clips) {
     const toT = (src: number): number => timelineAt(c, src);
     const inside = (src: number): boolean => src >= c.in && src <= sourceEnd(c);
-    for (const z of c.zooms ?? []) {
+    for (const z of assets.get(c.assetId)?.zooms ?? []) {
       const a = Math.max(c.in, z.start);
       const b = Math.min(sourceEnd(c), z.end);
       if (b > a)

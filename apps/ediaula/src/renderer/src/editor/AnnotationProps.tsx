@@ -11,6 +11,7 @@ import type { Clip } from "@shared/types";
 import { MessageSquareText } from "lucide-react";
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { updateAnnotation } from "@/lib/annotations";
+import { registerDraft } from "@/state/project";
 import { Slider } from "./ClipVisual";
 import { FontPicker } from "./FontPicker";
 import { ShadowControls } from "./ShadowControls";
@@ -82,7 +83,9 @@ function Chips<T extends string | number>({
 
 /**
  * A text field of the annotation, written on blur and also when the section goes away (another
- * clip selected, the panel closed): an unmounted field never gets its blur.
+ * clip selected, the panel closed): an unmounted field never gets its blur. While something is
+ * typed and not written yet it is a draft of the project (registerDraft), so leaving the
+ * project or closing the window writes it first.
  */
 function useAnnotationText(
   clipId: string,
@@ -91,21 +94,27 @@ function useAnnotationText(
 ): [string, (value: string) => void, () => void] {
   const [value, setValue] = useState(saved);
   const draft = useRef<string | null>(null);
+  const forget = useRef<(() => void) | null>(null);
   const savedRef = useRef(saved);
   useLayoutEffect(() => {
     savedRef.current = saved;
     draft.current = null;
+    forget.current?.();
+    forget.current = null;
     setValue(saved);
   }, [saved]);
   const commit = useRef((): void => {
     const typed = draft.current;
     draft.current = null;
+    forget.current?.();
+    forget.current = null;
     if (typed !== null && typed !== savedRef.current)
       void updateAnnotation(clipId, { [key]: typed });
   });
   useEffect(() => () => commit.current(), []);
   const change = (next: string): void => {
     draft.current = next;
+    forget.current ??= registerDraft(commit.current);
     setValue(next);
   };
   return [value, change, commit.current];

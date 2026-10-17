@@ -343,31 +343,52 @@ test("pasteClips: back on its own track when free, otherwise above, never coveri
   );
 });
 
-test("adjacency finds the same cuts as previousClip, fast enough for 1,500 clips", () => {
+/** Clips of a cleaned-up lesson: mostly back to back, sometimes a gap, sometimes a hair apart. */
+function lessonClips(perTrack: number, seed: number): Clip[] {
   const clips: Clip[] = [];
-  let seed = 7;
   const rnd = (): number => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
     return seed / 2 ** 32;
   };
   for (const trackId of ["t1", "t2", "t3"]) {
     let at = 0;
-    for (let i = 0; i < 500; i++) {
+    for (let i = 0; i < perTrack; i++) {
       const duration = 0.5 + rnd() * 3;
-      // Mostly back to back (cuts of the cleanup), sometimes a gap, sometimes a hair apart.
       const gap = rnd() < 0.7 ? 0 : rnd() < 0.5 ? 0.01 : 0.5 + rnd();
       at += gap;
       clips.push(clip(`${trackId}-${i}`, at, duration, { trackId }));
       at += duration;
     }
   }
-  clips.sort(() => rnd() - 0.5);
-  const begin = performance.now();
+  return clips.sort(() => rnd() - 0.5);
+}
+
+/** How many clip fields adjacency() reads: a scan of every clip per clip would grow as n². */
+function readsOf(clips: Clip[]): number {
+  let reads = 0;
+  const watched = clips.map(
+    (c) =>
+      new Proxy(c, {
+        get(target, key, receiver) {
+          reads++;
+          return Reflect.get(target, key, receiver);
+        },
+      }),
+  );
+  adjacency(watched);
+  return reads;
+}
+
+test("adjacency finds the same cuts as previousClip for 1,500 clips, reading each clip a few times", () => {
+  const clips = lessonClips(500, 7);
   const pairs = adjacency(clips);
-  const elapsed = performance.now() - begin;
   for (const c of clips) assert.equal(pairs.get(c.id), previousClip(clips, c), c.id);
   assert.ok(pairs.size > 900, `${pairs.size} cuts`);
-  assert.ok(elapsed < 200, `${elapsed.toFixed(1)} ms`);
+  const small = readsOf(lessonClips(250, 3));
+  const large = readsOf(lessonClips(1000, 3));
+  assert.ok(large / 3000 < 30, `${(large / 3000).toFixed(1)} reads per clip`);
+  // Four times the clips, about four times the reads (a quadratic search would read 16 times more).
+  assert.ok(large / small < 4.5, `${small} → ${large} reads`);
 });
 
 test("clipsBetween returns exactly the clips of a track inside a time window", () => {

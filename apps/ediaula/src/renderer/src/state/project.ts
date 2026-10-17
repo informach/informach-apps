@@ -1,4 +1,6 @@
-import { relinkIn, restoreSnapshot } from "@shared/history";
+import { type RelinkChanges, relinkIn, restoreSnapshot } from "@shared/history";
+import { fileName } from "@shared/relink";
+import { newId } from "@shared/timeline";
 import type { Asset, Project } from "@shared/types";
 import { create } from "zustand";
 import { useApp } from "./app";
@@ -33,8 +35,9 @@ interface ProjectStore {
    */
   patch(fn: (p: Project) => Project): void;
   patchAsset(id: string, changes: Partial<Asset>): void;
-  /** The media file was found elsewhere: the new path replaces the old one in the whole history. */
-  relinkAsset(id: string, changes: Pick<Asset, "path" | "size">): void;
+  /** The media file (or its cursor data) was found elsewhere: the new place replaces the old
+   *  one in the whole history. */
+  relinkAsset(id: string, changes: RelinkChanges): void;
   undo(): void;
   redo(): void;
   select(ids: string[]): void;
@@ -125,7 +128,7 @@ export const useProject = create<ProjectStore>((set, get) => ({
     const { project, past, future } = get();
     const old = project?.assets.find((a) => a.id === id);
     if (!project || !old) return;
-    const relink = (p: Project): Project => relinkIn(p, id, old.path, changes);
+    const relink = (p: Project): Project => relinkIn(p, old, changes);
     set({ project: relink(project), past: past.map(relink), future: future.map(relink) });
   },
 
@@ -176,7 +179,7 @@ export const useProject = create<ProjectStore>((set, get) => ({
       }
       set({ saveState: "saving" });
       try {
-        await window.api.saveProject(path, project);
+        await window.api.saveProject(path, JSON.stringify(project));
         if (get().path !== path) return true;
         lastSaved = project;
         set(
@@ -204,29 +207,88 @@ export const useProject = create<ProjectStore>((set, get) => ({
   saveCopyAs: async () => {
     const { project } = get();
     if (!project) return false;
-    const target = await window.api.pickProjectCopyPath(`${project.name} (cópia)`);
-    if (!target) return false;
+    const { toast } = useApp.getState();
+    let target: string | null;
     try {
-      await window.api.saveProject(target, project);
+      target = await window.api.pickProjectCopyPath(`${project.name} (cópia)`);
+    } catch (err) {
+      toast(`Não foi possível escolher onde salvar a cópia: ${message(err)}`, "error");
+      return false;
+    }
+    if (!target) return false;
+    // The copy is a lesson of its own: named after its file and with its own id, so the recent
+    // list and the export marks tell it apart from the original.
+    const file = fileName(target);
+    const identity = {
+      id: newId("p"),
+      name: file.toLowerCase().endsWith(".ediaula") ? file.slice(0, -".ediaula".length) : file,
+    };
+    const copy: Project = { ...project, ...identity };
+    try {
+      await window.api.saveProject(target, JSON.stringify(copy));
     } catch (err) {
       set({ saveState: "error", saveError: message(err) });
       return false;
     }
     // The original location is the one failing: autosave goes on in the copy.
     clearTimeout(timer);
-    const current = get().project === project;
-    set({ path: target, saveState: current ? "saved" : "pending", saveError: undefined });
-    lastSaved = project;
+    const rename = (p: Project): Project => ({ ...p, ...identity });
+    const { project: now, past, future } = get();
+    const current = now === project;
+    set({
+      path: target,
+      project: current ? copy : now && rename(now),
+      past: past.map(rename),
+      future: future.map(rename),
+      saveState: current ? "saved" : "pending",
+      saveError: undefined,
+    });
+    lastSaved = current ? copy : null;
     if (!current) void get().saveNow();
-    useApp.getState().toast(`Cópia salva em ${target}. A edição continua nela.`, "success");
+    toast(`Cópia salva em ${target}. A edição continua nela.`, "success");
     return true;
   },
 }));
 
-/** True while some change is not on disk yet (or is being written). */
+/**
+ * Edits still on their way into the project (an annotation being redrawn) and text typed in a
+ * field but not committed yet. Leaving the project (settleEdits) commits the drafts and waits
+ * for both before the last save, so neither is lost by closing the window or going home.
+ */
+const pendingEdits = new Set<Promise<unknown>>();
+const drafts = new Map<symbol, () => void>();
+
+export function trackEdit<T>(work: Promise<T>): Promise<T> {
+  pendingEdits.add(work);
+  const done = (): void => {
+    pendingEdits.delete(work);
+  };
+  work.then(done, done);
+  return work;
+}
+
+/** A field with uncommitted text: `commit` writes it. Returns the function that forgets it. */
+export function registerDraft(commit: () => void): () => void {
+  const key = Symbol("draft");
+  drafts.set(key, commit);
+  return () => {
+    drafts.delete(key);
+  };
+}
+
+export async function settleEdits(): Promise<void> {
+  for (const commit of [...drafts.values()]) commit();
+  while (pendingEdits.size) await Promise.allSettled([...pendingEdits]);
+}
+
+/** True while some change is not on disk yet (or is being written, typed or redrawn). */
 export const hasUnsavedWork = (): boolean => {
   const { project } = useProject.getState();
-  return !!project && (project !== lastSaved || inFlight !== null);
+  return (
+    drafts.size > 0 ||
+    pendingEdits.size > 0 ||
+    (!!project && (project !== lastSaved || inFlight !== null))
+  );
 };
 
 // Autosave shortly after every change. A failure stays on screen until a save succeeds.

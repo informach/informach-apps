@@ -1,12 +1,17 @@
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Loader } from "lucide-react";
 import type { ReactNode } from "react";
 import { type LeaveChoice, useLeavePrompt } from "@/lib/leaveGuard";
 import { Button, Modal } from "@/ui";
 
 /** Asked by confirmLeave() when the project could not be saved before leaving it. */
 export function SaveFailedDialog(): ReactNode {
-  const { error, busy, answer } = useLeavePrompt();
-  if (error === null) return null;
+  const { error, busy, saving, answer } = useLeavePrompt();
+  if (error === null)
+    return saving ? (
+      <div className="leave-saving" role="status">
+        <Loader size={14} className="spin" /> Salvando antes de fechar…
+      </div>
+    ) : null;
   const choose = (choice: LeaveChoice): void => answer?.(choice);
   return (
     <Modal label="Não foi possível salvar" width={600} onClose={() => choose("cancel")}>

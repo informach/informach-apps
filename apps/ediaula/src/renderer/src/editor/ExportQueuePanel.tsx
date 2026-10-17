@@ -1,7 +1,7 @@
 import { FolderOpen, ListVideo, X } from "lucide-react";
 import { type ReactNode, useEffect } from "react";
 import { useApp } from "@/state/app";
-import { exportQueue, retryExport, useExportQueue } from "@/state/exportQueue";
+import { exportQueue, exportsPending, retryExport, useExportQueue } from "@/state/exportQueue";
 import { Button, IconButton, Modal, Progress } from "@/ui";
 import "./exportQueue.css";
 
@@ -20,12 +20,7 @@ export function ExportQueuePanel(): ReactNode {
   const pending = items.filter((i) => ["waiting", "preparing", "exporting"].includes(i.state));
   useEffect(() => {
     const onClose = (e: BeforeUnloadEvent): void => {
-      if (
-        !useExportQueue
-          .getState()
-          .items.some((i) => ["waiting", "preparing", "exporting"].includes(i.state))
-      )
-        return;
+      if (!exportsPending()) return;
       e.preventDefault();
       e.returnValue = "";
       useExportQueue.setState({ open: true });

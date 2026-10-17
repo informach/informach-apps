@@ -31,6 +31,32 @@ export interface Zoom {
 /** Seconds to zoom in and out. */
 export const ZOOM_EASE = 0.7;
 
+/**
+ * Zooms belong to the media (Asset.zooms), in its own seconds, like the cursor: every clip of
+ * a recording shows the ones over its stretch of the source, so cutting, trimming and
+ * trimming back never loses or duplicates one. These are the ones acting on [from, to).
+ */
+export const zoomsIn = (zooms: Zoom[] | undefined, from: number, to: number): Zoom[] =>
+  (zooms ?? []).filter((z) => z.end > from && z.start < to);
+
+/**
+ * The media's zooms after editing the ones a clip shows (over [from, to)) with `fn`; the zooms
+ * elsewhere in the recording stay as they are. undefined when none is left.
+ */
+export function editZoomsIn(
+  zooms: Zoom[] | undefined,
+  from: number,
+  to: number,
+  fn: (inside: Zoom[]) => Zoom[],
+): Zoom[] | undefined {
+  const inside = zoomsIn(zooms, from, to);
+  const ids = new Set(inside.map((z) => z.id));
+  const next = [...(zooms ?? []).filter((z) => !ids.has(z.id)), ...fn(inside)].sort(
+    (a, b) => a.start - b.start,
+  );
+  return next.length ? next : undefined;
+}
+
 export interface View {
   scale: number;
   /** Center of the view, fractions of the source frame. */

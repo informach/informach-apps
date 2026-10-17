@@ -28,7 +28,7 @@ import {
   withTransitions,
 } from "./transitions.ts";
 import type { Asset, ExportSpec, Project } from "./types.ts";
-import { zoomExprs } from "./zoom.ts";
+import { zoomExprs, zoomsIn } from "./zoom.ts";
 import { entryView, zoomLayerFilter } from "./zoomLayer.ts";
 
 export interface ExportPlan {
@@ -259,9 +259,8 @@ export function buildExportPlan(source: Project, spec: ExportSpec): ExportPlan {
           );
           src = `cur${layer}`;
         }
-        const zooms = (clip.zooms ?? []).filter(
-          (z) => z.end > clip.in && z.start < sourceEnd(clip),
-        );
+        // The media's zooms over what this clip (and its transition tail) plays.
+        const zooms = zoomsIn(asset.zooms, clip.in, sourceEnd(clip));
         if (zooms.length) {
           // The view at source time in + frame/fps x speed, warped to fill the frame (smooth, sub-pixel).
           const e = zoomExprs(

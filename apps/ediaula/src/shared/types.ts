@@ -42,12 +42,17 @@ export interface Asset {
   generated?: "annotation" | "effect";
   /** Cursor data (CursorData JSON) of a screen recording made in EdiAula; the video has no pointer. */
   cursor?: string;
+  /** The cursor data file is not where `cursor` says (the video may still be there). */
+  cursorMissing?: boolean;
   /** How the recorded pointer is drawn; absent = defaults. */
   cursorFx?: CursorFx;
   /** Markers set while recording (Ctrl+M) and passages to redo (Ctrl+R), source seconds. */
   markers?: { t: number; kind: MarkerKind }[];
   /** Solid screen color detected at import (avatar recorded on blue or green), '#RRGGBB'. */
   screen?: string;
+  /** Zooms on this media (automatic from clicks, or by hand), in its own seconds: every clip
+   *  of it shows the ones over its stretch of the source (shared/zoom.ts). */
+  zooms?: Zoom[];
   /** Background removal for every clip of this media. */
   key?: ChromaKey;
   /** Cached video with transparency for `key` (used by preview and export) and the key it was made with. */
@@ -148,8 +153,6 @@ export interface Clip {
   transition?: Transition;
   /** Annotation this clip shows (its asset is the rendered picture). */
   annotation?: Annotation;
-  /** Zooms on this clip (automatic from clicks, or by hand), in source seconds. */
-  zooms?: Zoom[];
   /** Zoom layer: everything on the tracks below it is zoomed while it lasts (it shows nothing itself). */
   zoomLayer?: ZoomLayer;
   /** Script insert this clip plays (F1P1-D01), when it was placed from the script. */
@@ -220,6 +223,32 @@ export interface ProbeResult {
   size: number;
   videoCodec?: string;
   vfr?: boolean;
+}
+
+/** A missing media looked for in a folder (main/relink.ts). */
+export interface RelinkWanted {
+  key: string;
+  /** File name and size in bytes on disk. */
+  name: string;
+  size: number;
+  /** What the found file must probe as. */
+  kind: AssetKind;
+  duration: number;
+  width: number;
+  height: number;
+  oldPath: string;
+  /** Files that lived next to it and follow it (the cursor data). */
+  companions: string[];
+}
+
+export interface RelinkSearch {
+  /** Asset id → where it is now, and old → new path of its companions. */
+  found: Record<string, { path: string; size: number; companions: Record<string, string> }>;
+  /** Files with the right name and size that were another media. */
+  refused: number;
+  /** The folder had more files than a search looks at. */
+  truncated: boolean;
+  canceled: boolean;
 }
 
 export type Encoder = "nvenc" | "x264";
@@ -348,16 +377,21 @@ export interface EdiAulaApi {
   pickExportPath(defaultName: string): Promise<string | null>;
   /** Where to save a copy of the project (.ediaula); the chosen path becomes writable. */
   pickProjectCopyPath(defaultName: string): Promise<string | null>;
-  /** Missing media: the user points at the file; it becomes readable. */
-  relinkPick(name: string): Promise<string | null>;
   /**
-   * Looks for missing media in a folder the user picks (or the one of the last relink, when
-   * `sameFolder`), by file name and size. Returns asset id → path, each one readable.
+   * Missing media: the user points at the file; it becomes readable, with the companions
+   * (cursor data) found next to it, and `token` lets one search look in that same folder.
    */
-  relinkFolder(
-    wanted: { key: string; name: string; size: number }[],
-    sameFolder: boolean,
-  ): Promise<Record<string, string>>;
+  relinkPick(request: {
+    oldPath: string;
+    companions: string[];
+  }): Promise<{ path: string; token: string; companions: Record<string, string> } | null>;
+  /** The cursor data of a recording, picked by the user. */
+  relinkCursor(oldPath: string): Promise<string | null>;
+  /**
+   * Looks for missing media in a folder the user picks (or, with `token`, in the folder of the
+   * last pick), by file name and size, keeping only files that probe as the same media.
+   */
+  relinkFolder(wanted: RelinkWanted[], token?: string): Promise<RelinkSearch>;
   probe(path: string): Promise<ProbeResult>;
   thumbnail(path: string, kind: AssetKind, duration: number): Promise<string>;
   waveform(path: string): Promise<string>;
@@ -444,13 +478,14 @@ export interface EdiAulaApi {
     course: string | undefined,
     settings: ProjectSettings,
   ): Promise<{ path: string; project: Project }>;
-  /** Sent as JSON text, a single IPC value however long the lesson is. */
-  saveProject(path: string, project: Project): Promise<void>;
+  /** The project as JSON text (JSON.stringify in the page, so only a string crosses to the
+   *  preload and to the main process): a single IPC value however long the lesson is. */
+  saveProject(path: string, projectJson: string): Promise<void>;
   openProject(path: string): Promise<Project>;
   recentProjects(): Promise<RecentEntry[]>;
   removeRecent(path: string): Promise<void>;
-  /** The project goes as JSON text, like saveProject; the cursor positions stay typed arrays. */
-  startExport(jobId: string, project: Project, spec: ExportSpec): Promise<void>;
+  /** The project as JSON text, like saveProject; the cursor positions stay typed arrays. */
+  startExport(jobId: string, projectJson: string, spec: ExportSpec): Promise<void>;
   cancelJob(jobId: string): Promise<void>;
   showInFolder(path: string): Promise<void>;
   onProgress(cb: (p: JobProgress) => void): () => void;

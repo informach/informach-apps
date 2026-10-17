@@ -3,8 +3,7 @@ import { test } from "node:test";
 // The desktop SDK's own IPC structure check, the one every editor call goes through.
 import { validateIpcValues } from "../../../packages/edi-desktop/src/files.ts";
 import { applyCuts, closeCommonGaps, rippleDeleteRange } from "../src/shared/cleanup.ts";
-import { zoomBankOf } from "../src/shared/pieces.ts";
-import { compactProject } from "../src/shared/project-normalize.ts";
+import { normalizeProject } from "../src/shared/project-normalize.ts";
 import { exportSpecSchema, projectSchema } from "../src/shared/project-schema.ts";
 import {
   clipEnd,
@@ -95,7 +94,7 @@ function lesson(): Project {
     updatedAt: 0,
     settings: { width: 1920, height: 1080, fps: 30 },
     assets: [
-      asset("screen", "video", { cursor: "C:/aulas/cursor.json" }),
+      asset("screen", "video", { cursor: "C:/aulas/cursor.json", zooms: ZOOMS }),
       asset("avatar", "video", {
         key: { color: "#00B140", threshold: 0.4, softness: 0.1, despill: 0.5, choke: 0 },
       }),
@@ -140,7 +139,6 @@ function lesson(): Project {
         in: 0,
         duration: LESSON,
         volume: 1,
-        zooms: ZOOMS,
       },
       {
         id: "music-clip",
@@ -164,8 +162,12 @@ function valid(project: Project, step: string): void {
   validateIpcValues(["job", JSON.stringify(project), { outPath: "C:/aulas/longa.mp4" }]);
   // Even as a structure it stays far from the limit: the pieces do not pile up data.
   assert.doesNotThrow(() => validateIpcValues(["job", project]), `${step}: IPC structure`);
-  const carried = project.clips.reduce((n, c) => n + (c.zooms?.length ?? 0), 0);
-  assert.ok(carried <= ZOOMS.length * 2, `${step}: ${carried} zooms carried by the pieces`);
+  // The zooms stay once, on the media, however many pieces the recording is cut into.
+  assert.ok(
+    project.clips.every((c) => !("zooms" in c)),
+    `${step}: zooms on a clip`,
+  );
+  assert.equal(project.assets.find((a) => a.id === "screen")?.zooms?.length, ZOOMS.length);
 }
 
 const targets = new Set(["n", "z", "a", "v"]);
@@ -198,7 +200,7 @@ test("a 25-minute lesson stays savable and exportable through every timeline ope
     const c = pieces[Math.floor(rnd() * pieces.length)];
     const edge = rnd() < 0.5 ? "start" : "end";
     const time = edge === "start" ? c.start - 4 : clipEnd(c) + 4;
-    const trimmed = trimClip(c, edge, time, screen, zoomBankOf(p, "screen"));
+    const trimmed = trimClip(c, edge, time, screen);
     p = { ...p, clips: placeClips(p.clips, [trimmed]) };
   }
   valid(p, "trim");
@@ -228,14 +230,15 @@ test("a 25-minute lesson stays savable and exportable through every timeline ope
   p = { ...p, clips: closeCommonGaps(p, targets) };
   valid(p, "close gaps");
 
-  // Before pieces.ts every piece of the recording carried all 300 zooms: that project could
-  // no longer be sent, and opening it compacts it back (project-normalize.ts).
-  const legacy: Project = {
+  // Older projects had every piece of the recording carrying all 300 zooms: that project could
+  // no longer be sent, and opening it moves the zooms back to the media (project-normalize.ts).
+  const legacy = {
     ...p,
+    assets: p.assets.map(({ zooms: _zooms, ...a }) => a),
     clips: p.clips.map((c) => (c.assetId === "screen" ? { ...c, zooms: ZOOMS } : c)),
   };
   assert.throws(() => validateIpcValues(["job", legacy]), /exceeds limit/);
-  valid(compactProject(legacy), "compacted legacy project");
+  valid(normalizeProject(projectSchema.parse(legacy)), "legacy project opened again");
 });
 
 test("the cursor of a 27-minute recording reaches the export as one IPC value", () => {

@@ -321,3 +321,33 @@ test("closing gaps keeps every track in sync and only removes stretches empty on
     "nothing left to close",
   );
 });
+
+test("closing gaps never cuts or shortens a locked track", () => {
+  const at = (trackId: string, id: string, start: number, duration: number): Clip => ({
+    id,
+    assetId: "a",
+    trackId,
+    start,
+    in: 0,
+    duration,
+    volume: 1,
+  });
+  // Voice at 0 to 10 and 15 to 25; a locked track with clips at 0 to 18 and 21 to 25.
+  const locked = [at("travada", "l1", 0, 18), at("travada", "l2", 21, 4)];
+  const out = closeCommonGaps(
+    { clips: [at("voz", "v1", 0, 10), at("voz", "v2", 15, 10), ...locked] },
+    new Set(["voz"]),
+    new Set(["travada"]),
+  );
+  assert.deepEqual(
+    out.filter((c) => c.trackId === "voz").map((c) => [c.start, c.duration]),
+    [
+      [0, 10],
+      [10, 10],
+    ],
+  );
+  assert.deepEqual(
+    out.filter((c) => c.trackId === "travada"),
+    locked,
+  );
+});

@@ -1,19 +1,20 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { applyCuts } from "../src/shared/cleanup.ts";
+import { applyCuts, rippleDeleteRange } from "../src/shared/cleanup.ts";
 import { transformAt } from "../src/shared/keyframes.ts";
-import { bracketKeyframes, piece, zoomBankOf } from "../src/shared/pieces.ts";
+import { piece } from "../src/shared/pieces.ts";
 import {
+  adjacency,
   clipEnd,
   overwriteRange,
   sourceAt,
+  sourceEnd,
   splitAt,
-  splitClip,
   trimClip,
 } from "../src/shared/timeline.ts";
 import type { Asset, Clip, Project } from "../src/shared/types.ts";
-import { type Zoom, zoomAt } from "../src/shared/zoom.ts";
-import { zoomsOver } from "../src/shared/zoomLayer.ts";
+import { editZoomsIn, type Zoom, zoomAt, zoomsIn } from "../src/shared/zoom.ts";
+import { editLayer, zoomsOver } from "../src/shared/zoomLayer.ts";
 
 const zoom = (id: string, start: number, end: number): Zoom => ({
   id,
@@ -26,7 +27,30 @@ const zoom = (id: string, start: number, end: number): Zoom => ({
   ],
 });
 
-/** A recording played at 1.5×, moving, zoomed, fading in and out, after a dissolve. */
+const screen: Asset = {
+  id: "screen",
+  name: "Tela",
+  path: "C:/aulas/tela.mp4",
+  kind: "video",
+  duration: 120,
+  width: 1920,
+  height: 1080,
+  fps: 30,
+  hasVideo: true,
+  hasAudio: true,
+  size: 10,
+  proxyStatus: "none",
+  zooms: [
+    zoom("z1", 11, 14),
+    zoom("z2", 15, 17.5),
+    zoom("z3", 19, 23),
+    zoom("z4", 26, 28),
+    zoom("z5", 31, 35),
+    zoom("z6", 37, 39.5),
+  ],
+};
+
+/** A recording played at 1.5×, moving, fading in and out, after a dissolve. */
 const recording: Clip = {
   id: "rec",
   assetId: "screen",
@@ -48,14 +72,6 @@ const recording: Clip = {
     { t: 15, x: 0.5, y: 0.5, scale: 1 },
     { t: 20, x: 0.8, y: 0.3, scale: 1.4 },
   ],
-  zooms: [
-    zoom("z1", 11, 14),
-    zoom("z2", 15, 17.5),
-    zoom("z3", 19, 23),
-    zoom("z4", 26, 28),
-    zoom("z5", 31, 35),
-    zoom("z6", 37, 39.5),
-  ],
 };
 
 const near = (a: number, b: number, what: string): void => {
@@ -64,33 +80,33 @@ const near = (a: number, b: number, what: string): void => {
 
 const sorted = (clips: Clip[]): Clip[] => [...clips].sort((a, b) => a.start - b.start);
 
-test("pieces keep the movement and the zooms of the original at every moment", () => {
-  const pieces = sorted(splitAt([recording], 9, new Set()));
-  const more = sorted(pieces.flatMap((c) => splitAt([c], 14.5, new Set())));
-  const all = sorted(more.flatMap((c) => splitAt([c], 20.25, new Set())));
+/** What a clip shows at timeline time t: its movement and the media's zoom there. */
+function sameMoment(a: Clip, ta: number, b: Clip, tb: number, what: string): void {
+  const ma = transformAt(a, ta);
+  const mb = transformAt(b, tb);
+  near(ma.x, mb.x, `${what} x`);
+  near(ma.y, mb.y, `${what} y`);
+  near(ma.scale, mb.scale, `${what} scale`);
+  const za = zoomAt(zoomsIn(screen.zooms, a.in, sourceEnd(a)), sourceAt(a, ta));
+  const zb = zoomAt(screen.zooms, sourceAt(b, tb));
+  near(za.scale, zb.scale, `${what} zoom`);
+  near(za.cx, zb.cx, `${what} zoom x`);
+  near(za.cy, zb.cy, `${what} zoom y`);
+}
+
+test("pieces keep the movement and show the media's zooms of the original at every moment", () => {
+  const all = sorted(
+    [9, 14.5, 20.25].reduce<Clip[]>((clips, t) => splitAt(clips, t, new Set()), [recording]),
+  );
   assert.equal(all.length, 4);
   for (const p of all) {
-    for (let t = p.start; t < clipEnd(p); t += 0.125) {
-      const a = transformAt(p, t);
-      const b = transformAt(recording, t);
-      near(a.x, b.x, `x at ${t}`);
-      near(a.y, b.y, `y at ${t}`);
-      near(a.scale, b.scale, `scale at ${t}`);
-      const za = zoomAt(p.zooms, sourceAt(p, t));
-      const zb = zoomAt(recording.zooms, sourceAt(recording, t));
-      near(za.scale, zb.scale, `zoom at ${t}`);
-      near(za.cx, zb.cx, `zoom x at ${t}`);
-      near(za.cy, zb.cy, `zoom y at ${t}`);
-    }
-    // Only what the piece can show travels with it.
-    const from = p.in;
-    const to = p.in + p.duration * 1.5;
-    assert.ok((p.zooms ?? []).every((z) => z.end > from && z.start < to));
-    assert.ok((p.keyframes ?? []).length <= 4);
+    for (let t = p.start; t < clipEnd(p); t += 0.125) sameMoment(p, t, recording, t, `at ${t}`);
+    assert.equal(p.keyframes?.length, 5, "every piece keeps the whole movement");
+    assert.ok(!("zooms" in p), "zooms stay on the media");
   }
 });
 
-test("entrance and transition on the first piece only, exit on the last, ids unique", () => {
+test("a cut through the middle leaves the entrance on the first piece and the exit on the last", () => {
   const all = sorted(
     [9, 14.5, 20.25].reduce<Clip[]>((clips, t) => splitAt(clips, t, new Set()), [recording]),
   );
@@ -98,24 +114,15 @@ test("entrance and transition on the first piece only, exit on the last, ids uni
   const last = all[all.length - 1];
   assert.equal(first.id, "rec");
   assert.deepEqual(first.transition, recording.transition);
-  assert.equal(first.fadeIn, 0.5);
-  assert.equal(first.enter, "pop");
-  assert.equal(last.fadeOut, 0.4);
-  assert.equal(last.exit, "fade");
-  for (const p of rest) {
-    assert.equal(p.transition, undefined);
-    assert.equal(p.fadeIn, undefined);
-    assert.equal(p.enter, undefined);
-    assert.ok(!("transition" in p) && !("fadeIn" in p), "no keys left set to undefined");
-  }
-  for (const p of all.slice(0, -1)) {
-    assert.equal(p.fadeOut, undefined);
-    assert.equal(p.exit, undefined);
-  }
+  assert.deepEqual([first.fadeIn, first.enter], [0.5, "pop"]);
+  assert.deepEqual([last.fadeOut, last.exit], [0.4, "fade"]);
+  for (const p of rest)
+    assert.ok(!("transition" in p) && !("fadeIn" in p) && !("enter" in p), "no inner entrance");
+  for (const p of all.slice(0, -1)) assert.ok(!("fadeOut" in p) && !("exit" in p), "no inner exit");
   assert.equal(new Set(all.map((c) => c.id)).size, all.length);
 });
 
-test("text cuts in an avatar with dissolves leave one fade in and one fade out", () => {
+test("text cuts in the middle of an avatar with dissolves leave one fade in and one fade out", () => {
   const avatar: Clip = {
     id: "avatar",
     assetId: "heygen",
@@ -138,7 +145,6 @@ test("text cuts in an avatar with dissolves leave one fade in and one fade out",
       new Set(["a"]),
     ),
   );
-  assert.equal(out.length, 4);
   assert.deepEqual(
     out.map((c) => [c.fadeIn ?? 0, c.fadeOut ?? 0]),
     [
@@ -150,100 +156,186 @@ test("text cuts in an avatar with dissolves leave one fade in and one fade out",
   );
 });
 
-test("an overwritten head keeps the clip's id but not its entrance", () => {
-  const out = overwriteRange([recording], "v", 0, 7);
-  assert.equal(out.length, 1);
-  assert.equal(out[0].id, "rec");
-  assert.equal(out[0].start, 7);
-  assert.equal(out[0].transition, undefined);
-  assert.equal(out[0].fadeOut, 0.4);
-});
-
-test("trims keep the clip and move its edge effects along; a longer clip gets its zooms back", () => {
-  const parts = splitClip(recording, 15);
-  assert.ok(parts);
-  const [left, right] = parts;
-  assert.ok(!right.zooms?.some((z) => z.id === "z3"), "z3 ends before the right piece");
-  const bank = zoomBankOf({ clips: [left, right] }, "screen");
-  assert.equal(bank.length, recording.zooms?.length);
-  const asset = { kind: "video", duration: 120 } as Asset;
-  const longer = trimClip(right, "start", 12, asset, bank);
-  assert.equal(longer.id, right.id);
-  assert.equal(longer.start, 12);
-  assert.ok(
-    longer.zooms?.some((z) => z.id === "z3"),
-    "z3 is back",
-  );
-  for (let t = 12; t < clipEnd(longer); t += 0.25) {
-    near(
-      zoomAt(longer.zooms, sourceAt(longer, t)).scale,
-      zoomAt(recording.zooms, sourceAt(recording, t)).scale,
-      `zoom at ${t}`,
-    );
-    // The movement is the original from the first keyframe the piece kept (t = 14) and holds
-    // that position before it: keyframes have no bank, only the bracket of the piece.
-    const expected = transformAt(recording, Math.max(t, 14));
-    near(transformAt(longer, t).x, expected.x, `x at ${t}`);
-  }
-  const shorter = trimClip(left, "end", 10, asset);
-  assert.equal(shorter.id, "rec");
-  assert.equal(shorter.fadeOut, undefined, "a split-off exit does not come back with a trim");
-  const trimmedEnd = trimClip(recording, "end", 20, asset);
-  assert.equal(trimmedEnd.fadeOut, 0.4, "a trimmed end keeps the exit");
-  assert.ok(!trimmedEnd.zooms?.some((z) => z.id === "z6"), "zooms past the new end are left out");
-});
-
-test("keyframes are cut to the bracket around the piece", () => {
-  const kfs = recording.keyframes ?? [];
-  assert.deepEqual(
-    bracketKeyframes(kfs, 5, 6).map((k) => k.t),
-    [-1, 4, 10],
-  );
-  assert.deepEqual(
-    bracketKeyframes(kfs, 0, 20).map((k) => k.t),
-    [0, 4, 9, 15, 20],
-  );
-  assert.deepEqual(
-    bracketKeyframes([...kfs].reverse(), 16, 2).map((k) => k.t),
-    [-1, 4],
-  );
-  assert.deepEqual(
-    piece(recording, 10, 16).keyframes?.map((k) => k.t),
-    [-1, 4, 10],
-  );
-});
-
-test("a zoom layer cut in two keeps the same view across the cut", () => {
-  const tracks = [
-    { id: "z", kind: "video" as const, name: "Zoom", muted: false, hidden: false, locked: false },
-    { id: "v", kind: "video" as const, name: "Aula", muted: false, hidden: false, locked: false },
-  ];
-  const layer: Clip = {
-    id: "layer",
-    assetId: "fx",
-    trackId: "z",
-    start: 2,
+test("cutting a head or a tail keeps the transition, fades and motion of that edge", () => {
+  // A|B with a dissolve into B; the cleanup removes the silence around the cut, 9.4 to 10.6 s.
+  const a: Clip = { id: "A", assetId: "x", trackId: "v", start: 0, in: 0, duration: 10, volume: 1 };
+  const b: Clip = {
+    id: "B",
+    assetId: "y",
+    trackId: "v",
+    start: 10,
     in: 0,
-    duration: 6,
-    volume: 0,
-    zoomLayer: { scale: 2, x: 0.3, y: 0.4, zoomIn: true, zoomOut: true, easeIn: 0.6, easeOut: 0.6 },
+    duration: 10,
+    volume: 1,
+    transition: { kind: "dissolve", duration: 0.6 },
   };
+  const out = rippleDeleteRange([a, b], 9.4, 10.6, new Set(["v"]));
+  const kept = out.find((c) => c.assetId === "y");
+  assert.equal(kept?.id, "B");
+  assert.deepEqual(kept?.transition, b.transition, "the dissolve stays on the cut");
+  assert.equal(adjacency(out).get("B")?.id, "A", "and the two clips still touch");
+  // An avatar whose head and tail are cut keeps coming in and going out the same way.
+  const avatar: Clip = {
+    id: "avatar",
+    assetId: "heygen",
+    trackId: "a",
+    start: 0,
+    in: 0,
+    duration: 30,
+    volume: 1,
+    fadeIn: 0.3,
+    enter: "slide-up",
+    fadeOut: 0.3,
+    exit: "fade",
+  };
+  const trimmed = applyCuts(
+    [avatar],
+    [
+      [0, 2],
+      [27, 30],
+    ],
+    new Set(["a"]),
+  );
+  assert.equal(trimmed.length, 1);
+  assert.deepEqual(
+    [trimmed[0].fadeIn, trimmed[0].enter, trimmed[0].fadeOut, trimmed[0].exit],
+    [0.3, "slide-up", 0.3, "fade"],
+  );
+  // Placing a clip over the head keeps the clip, its id and its entrance.
+  const covered = overwriteRange([recording], "v", 0, 7);
+  assert.equal(covered.length, 1);
+  assert.deepEqual(
+    [covered[0].id, covered[0].start, covered[0].transition?.kind, covered[0].fadeIn],
+    ["rec", 7, "dissolve", 0.5],
+  );
+});
+
+test("trimming a clip short and back out brings its movement and zooms back", () => {
+  const clip: Clip = {
+    id: "c",
+    assetId: "screen",
+    trackId: "v",
+    start: 0,
+    in: 0,
+    duration: 20,
+    volume: 1,
+    keyframes: [
+      { t: 0, x: 0.2, y: 0.5, scale: 1 },
+      { t: 10, x: 0.6, y: 0.5, scale: 1 },
+      { t: 20, x: 0.9, y: 0.5, scale: 1 },
+    ],
+  };
+  const media = { ...screen, zooms: [zoom("cut", 8, 10), zoom("late", 15, 18)] };
+  const short = trimClip(clip, "end", 8, media);
+  assert.equal(zoomsIn(media.zooms, short.in, sourceEnd(short)).length, 0);
+  const back = trimClip(short, "end", 20, media);
+  assert.deepEqual(back, clip);
+  assert.deepEqual(
+    zoomsIn(media.zooms, back.in, sourceEnd(back)).map((z) => z.id),
+    ["cut", "late"],
+  );
+  // The same through a cleanup cut of the tail, and through a cut in the middle undone by
+  // dragging the start of what is left back over the removed stretch.
+  const cut = applyCuts([clip], [[8, 20]], new Set(["v"]));
+  assert.deepEqual(trimClip(cut[0], "end", 20, media), clip);
+  const [, right] = sorted(applyCuts([clip], [[5, 12]], new Set(["v"])));
+  assert.equal(zoomsIn(media.zooms, right.in, sourceEnd(right)).length, 1, "only the late one");
+  const restored = trimClip(right, "start", 0, media);
+  assert.equal(restored.in, 7, "back over the removed stretch, as far as the timeline allows");
+  for (let t = 0; t < clipEnd(restored); t += 0.25)
+    near(transformAt(restored, t).x, transformAt(clip, t + 7).x, `x at ${t}`);
+  assert.deepEqual(
+    zoomsIn(media.zooms, restored.in, sourceEnd(restored)).map((z) => z.id),
+    ["cut", "late"],
+  );
+});
+
+test("a zoom taken out of a clip does not come back when the clip is made longer", () => {
+  const clip: Clip = {
+    id: "c",
+    assetId: "screen",
+    trackId: "v",
+    start: 0,
+    in: 0,
+    duration: 10,
+    volume: 1,
+  };
+  const before = [zoom("early", 2, 4), zoom("late", 15, 18)];
+  const after = editZoomsIn(before, clip.in, sourceEnd(clip), (inside) =>
+    inside.filter((z) => z.id !== "early"),
+  );
+  assert.deepEqual(
+    after?.map((z) => z.id),
+    ["late"],
+    "only the clip's zooms are edited",
+  );
+  const longer = trimClip(clip, "end", 20, { ...screen, zooms: after });
+  assert.deepEqual(
+    zoomsIn(after, longer.in, sourceEnd(longer)).map((z) => z.id),
+    ["late"],
+  );
+});
+
+const tracks = [
+  { id: "z", kind: "video" as const, name: "Zoom", muted: false, hidden: false, locked: false },
+  { id: "v", kind: "video" as const, name: "Aula", muted: false, hidden: false, locked: false },
+];
+const layer: Clip = {
+  id: "layer",
+  assetId: "fx",
+  trackId: "z",
+  start: 2,
+  in: 0,
+  duration: 6,
+  volume: 0,
+  zoomLayer: { scale: 2, x: 0.3, y: 0.4, zoomIn: true, zoomOut: true, easeIn: 0.6, easeOut: 0.6 },
+};
+
+function sameViews(cut: Clip[], what: string): void {
   const whole: Pick<Project, "clips" | "tracks"> = { tracks, clips: [layer] };
-  const parts = splitClip(layer, 5);
-  assert.ok(parts);
-  const [left, right] = parts;
-  assert.equal(left.zoomLayer?.zoomOut, false);
-  assert.equal(right.zoomLayer?.zoomIn, false);
-  assert.equal(right.zoomLayer?.zoomOut, true);
-  const cut: Pick<Project, "clips" | "tracks"> = { tracks, clips: [left, right] };
-  for (let t = 1.5; t < 8.5; t += 0.05) {
-    const a = zoomsOver(cut, 1, t);
+  for (let t = 1.5; t < 8.5; t += 0.02) {
+    const a = zoomsOver({ tracks, clips: cut }, 1, t);
     const b = zoomsOver(whole, 1, t);
-    assert.equal(a.length, b.length, `views at ${t}`);
+    assert.equal(a.length, b.length, `${what}: views at ${t}`);
     a.forEach((v, i) => {
-      near(v.scale, b[i].scale, `scale at ${t}`);
-      near(v.cx, b[i].cx, `x at ${t}`);
-      near(v.cy, b[i].cy, `y at ${t}`);
+      near(v.scale, b[i].scale, `${what}: scale at ${t}`);
+      near(v.cx, b[i].cx, `${what}: x at ${t}`);
+      near(v.cy, b[i].cy, `${what}: y at ${t}`);
     });
   }
+}
+
+test("a zoom layer cut anywhere keeps the same view and the same pace", () => {
+  sameViews(splitAt([layer], 5, new Set()), "cut in the middle");
+  // Pieces shorter than twice the ease, cut inside the way in and inside the way out.
+  const short = [2.3, 2.8, 7.3, 7.6].reduce<Clip[]>(
+    (clips, t) => splitAt(clips, t, new Set()),
+    [layer],
+  );
+  assert.equal(short.length, 5);
+  sameViews(short, "short pieces");
+});
+
+test("a zoom layer whose head is cut away still zooms in from its new start", () => {
+  const [cut] = overwriteRange([layer], "z", 0, 4);
+  assert.equal(cut.start, 4);
+  const view = (t: number) => zoomsOver({ tracks, clips: [cut] }, 1, t)[0];
+  assert.ok(view(4.1).scale < 1.5, "starts out near normal");
+  near(view(4.7).scale, 2, "reaches the zoom after the ease");
+  // A piece starting already zoomed (a cut in the middle) stays so when its start is trimmed.
+  const [, right] = sorted(splitAt([layer], 5, new Set()));
+  const trimmed = piece(right, 4, clipEnd(right), { head: true });
+  near(zoomsOver({ tracks, clips: [trimmed] }, 1, 4.01)[0].scale, 2, "no new way in");
+});
+
+test("a way in or out set by hand on a piece happens at the piece's own edge", () => {
+  const [left, right] = sorted(splitAt([layer], 5, new Set()));
+  assert.ok(right.zoomLayer?.origin, "the right piece starts inside the curve");
+  const edited = { ...right, zoomLayer: editLayer(right, { zoomIn: true, easeIn: 0.5 }) };
+  const view = (t: number) => zoomsOver({ tracks, clips: [left, edited] }, 1, t)[0];
+  assert.ok(view(5.05).scale < 2, "zooms in again from its start");
+  near(view(5.6).scale, 2, "and is there after its ease");
+  near(view(7.7).scale, zoomsOver({ tracks, clips: [layer] }, 1, 7.7)[0].scale, "same way out");
+  const plain = editLayer(layer, { zoomOut: false });
+  assert.ok(!("origin" in plain) && !("length" in plain), "a whole layer stays plain");
 });

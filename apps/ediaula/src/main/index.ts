@@ -1,7 +1,8 @@
+import { randomUUID } from "node:crypto";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { readFile, unlink, writeFile } from "node:fs/promises";
 import type { Server } from "node:http";
-import { dirname, extname, join } from "node:path";
+import { basename, dirname, extname, join } from "node:path";
 import { Readable } from "node:stream";
 import { desktopJobs } from "@informach/edi-desktop/jobs";
 import { createEdiDesktop, desktopFiles, desktopIpc as ipcMain } from "@informach/edi-desktop/main";
@@ -69,14 +70,20 @@ import {
   createProject,
   openProject,
   PROJECT_EXT,
-  parseProjectText,
+  projectJson,
   projectsDir,
   recentProjects,
   removeRecent,
   saveProject,
 } from "./projects.ts";
 import { registerRecorder } from "./recorderWindow.ts";
-import { findRelinked, relinkRequestSchema } from "./relink.ts";
+import {
+  findCompanions,
+  findRelinked,
+  MEDIA_EXTENSIONS,
+  relinkPickSchema,
+  relinkRequestSchema,
+} from "./relink.ts";
 import { openRestrictedClaude } from "./restricted.ts";
 import {
   cancelDownload,
@@ -294,26 +301,7 @@ async function runSnapshot(w: BrowserWindow, out: string): Promise<void> {
 }
 
 const MEDIA_FILTERS = [
-  {
-    name: "Mídia",
-    extensions: [
-      "mp4",
-      "mov",
-      "m4v",
-      "mkv",
-      "webm",
-      "mp3",
-      "wav",
-      "m4a",
-      "aac",
-      "ogg",
-      "flac",
-      "png",
-      "jpg",
-      "jpeg",
-      "webp",
-    ],
-  },
+  { name: "Mídia", extensions: MEDIA_EXTENSIONS },
   { name: "Todos os arquivos", extensions: ["*"] },
 ];
 
@@ -328,7 +316,6 @@ function registerIpc(): void {
     if (!(bytes instanceof Uint8Array) || !bytes.length || bytes.length > 256 * 1024 * 1024)
       throw new Error("Gravação vazia ou maior que 256 MB.");
     const { mkdir } = await import("node:fs/promises");
-    const { randomUUID } = await import("node:crypto");
     const dir = join(app.getPath("documents"), "EdiAula", "Narracoes");
     await mkdir(dir, { recursive: true });
     const id = randomUUID();
@@ -440,37 +427,61 @@ function registerIpc(): void {
       ? r.filePath
       : `${r.filePath}.${PROJECT_EXT}`;
   });
-  // Reconnecting missing media: the user points at the file (or a folder) and only what was
-  // chosen there becomes readable.
-  let relinkFolder: string | null = null;
-  ipcMain.handle("media:relinkPick", async (_e, name: unknown) => {
+  // Reconnecting missing media: the user points at the file (or at a folder) and only what was
+  // chosen there, checked to be the same media, becomes readable. Picking a file lets the next
+  // search look in its folder once (a single-use token, replaced by every new pick).
+  const relinkFolders = new Map<string, string>();
+  const noSearch = { found: {}, refused: 0, truncated: false, canceled: true };
+  ipcMain.handle("media:relinkPick", async (_e, raw: unknown) => {
+    const request = relinkPickSchema.parse(raw);
     const r = await openDialog({
-      title:
-        typeof name === "string" && name ? `Onde está ${name.slice(0, 200)}?` : "Reconectar mídia",
+      title: `Onde está ${basename(request.oldPath)}?`,
       properties: ["openFile"],
       filters: MEDIA_FILTERS,
     });
     const path = r.canceled ? undefined : r.filePaths[0];
     if (!path) return null;
     await desktopFiles.grantRead(path);
-    relinkFolder = dirname(path);
+    const companions = await findCompanions(request.oldPath, path, request.companions);
+    for (const file of Object.values(companions)) await desktopFiles.grantRead(file);
+    const token = randomUUID();
+    relinkFolders.clear();
+    relinkFolders.set(token, dirname(path));
+    return { path, token, companions };
+  });
+  ipcMain.handle("media:relinkCursor", async (_e, oldPath: unknown) => {
+    const r = await openDialog({
+      title: `Onde está ${typeof oldPath === "string" ? basename(oldPath) : "cursor.json"}?`,
+      properties: ["openFile"],
+      filters: [{ name: "Dados do cursor", extensions: ["json"] }],
+    });
+    const path = r.canceled ? undefined : r.filePaths[0];
+    if (!path) return null;
+    if (extname(path).toLowerCase() !== ".json")
+      throw new Error("Escolha o arquivo de dados do cursor da gravação (.json).");
+    await desktopFiles.grantRead(path);
     return path;
   });
-  ipcMain.handle("media:relinkFolder", async (_e, raw: unknown, sameFolder: unknown) => {
+  ipcMain.handle("media:relinkFolder", async (_e, raw: unknown, token: unknown) => {
     const wanted = relinkRequestSchema.parse(raw);
-    let folder = sameFolder === true ? relinkFolder : null;
-    if (!folder) {
+    let folder: string | undefined;
+    if (typeof token === "string") {
+      folder = relinkFolders.get(token);
+      relinkFolders.delete(token);
+    } else {
       const r = await openDialog({
         title: "Procurar as mídias ausentes nesta pasta",
         properties: ["openDirectory"],
       });
-      folder = r.canceled ? null : (r.filePaths[0] ?? null);
+      folder = r.canceled ? undefined : r.filePaths[0];
     }
-    if (!folder) return {};
-    relinkFolder = folder;
-    const found = await findRelinked(folder, wanted);
-    for (const path of Object.values(found)) await desktopFiles.grantRead(path);
-    return found;
+    if (!folder) return noSearch;
+    const result = await findRelinked(folder, wanted, probe);
+    for (const item of Object.values(result.found)) {
+      await desktopFiles.grantRead(item.path);
+      for (const file of Object.values(item.companions)) await desktopFiles.grantRead(file);
+    }
+    return { ...result, canceled: false };
   });
   ipcMain.handle("dialog:export", async (_e, defaultName: string) => {
     const audio = /\.mp3$/i.test(defaultName);
@@ -561,7 +572,7 @@ function registerIpc(): void {
       createProject(name, course, settings),
   );
   ipcMain.handle("project:save", (_e, path: string, text: unknown) =>
-    saveProject(path, parseProjectText(text)),
+    saveProject(path, projectJson(text)),
   );
   ipcMain.handle("project:open", async (_e, path: string) => {
     const project = await openProject(path);
@@ -616,7 +627,7 @@ function registerIpc(): void {
       job.check();
     };
     try {
-      await exportLesson(parseProjectText(project), spec, {
+      await exportLesson(projectJson(project), spec, {
         assertRead: desktopFiles.assertRead,
         assertWrite: desktopFiles.assertWrite,
         assertRelatedExport: desktopFiles.assertRelatedExport,

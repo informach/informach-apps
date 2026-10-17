@@ -119,6 +119,19 @@ const annotation = z.looseObject({
   ink: color.optional(),
   accent: color.optional(),
 });
+const zooms = z
+  .array(
+    z.looseObject({
+      id,
+      start: time,
+      end: time,
+      scale: number.positive(),
+      focus: z.array(z.looseObject({ t: time, x: number, y: number })).max(20000),
+      auto: z.boolean().optional(),
+      ease: time.optional(),
+    }),
+  )
+  .max(20000);
 const asset = z.looseObject({
   id,
   name: text,
@@ -141,7 +154,9 @@ const asset = z.looseObject({
   vfr: z.boolean().optional(),
   generated: z.enum(["annotation", "effect"]).optional(),
   cursor: path.optional(),
+  cursorMissing: z.boolean().optional(),
   cursorFx: cursorFx.optional(),
+  zooms: zooms.optional(),
   markers: z
     .array(z.looseObject({ t: time, kind: z.enum(["marker", "retake"]) }))
     .max(20000)
@@ -219,20 +234,8 @@ const clip = z.looseObject({
     })
     .optional(),
   annotation: annotation.optional(),
-  zooms: z
-    .array(
-      z.looseObject({
-        id,
-        start: time,
-        end: time,
-        scale: number.positive(),
-        focus: z.array(z.looseObject({ t: time, x: number, y: number })).max(20000),
-        auto: z.boolean().optional(),
-        ease: time.optional(),
-      }),
-    )
-    .max(20000)
-    .optional(),
+  // Older projects kept the zooms on each clip; opening moves them to the media.
+  zooms: zooms.optional(),
   zoomLayer: z
     .looseObject({
       scale: number.positive(),
@@ -243,6 +246,8 @@ const clip = z.looseObject({
       easeIn: time.optional(),
       easeOut: time.optional(),
       ease: time.optional(),
+      origin: time.optional(),
+      length: number.positive().optional(),
     })
     .optional(),
   insertId: id.optional(),

@@ -11,7 +11,7 @@ import {
 } from "@shared/compose";
 import { transformAt, upsertKeyframe } from "@shared/keyframes";
 import { driftCorrection } from "@shared/playbackSync";
-import { clipEnd, clipSpeed, projectDuration, sourceAt } from "@shared/timeline";
+import { clipEnd, clipSpeed, projectDuration, sourceAt, sourceEnd } from "@shared/timeline";
 import {
   type DerivedClip,
   FOLD,
@@ -26,7 +26,7 @@ import {
   withTransitions,
 } from "@shared/transitions";
 import type { Asset, Clip, Project } from "@shared/types";
-import { zoomAt } from "@shared/zoom";
+import { zoomAt, zoomsIn } from "@shared/zoom";
 import { zoomAffine, zoomsOver } from "@shared/zoomLayer";
 import {
   ChevronLeft,
@@ -192,6 +192,12 @@ export function Preview(): ReactNode {
     const order = new Map(project.tracks.map((t, i) => [t.id, i]));
     const clips = new Map(project.clips.map((c) => [c.id, c]));
     const mounted = new Set(mountKey.split(","));
+    // The media's zooms over each mounted clip's stretch of the source.
+    const zoomsOf = new Map(
+      project.clips
+        .filter((c) => mounted.has(c.id))
+        .map((c) => [c.id, zoomsIn(assets.get(c.assetId)?.zooms, c.in, sourceEnd(c))]),
+    );
     const frame = 1 / project.settings.fps;
 
     const sync = (): void => {
@@ -271,10 +277,11 @@ export function Preview(): ReactNode {
           });
         }
         // Zoom: the same view the export computes, from the source time on screen.
-        if (content && c.zooms?.length) {
+        const zooms = zoomsOf.get(id);
+        if (content && zooms?.length) {
           const el = media.current.get(id);
           const src = el instanceof HTMLVideoElement && active ? el.currentTime : sourceAt(c, t);
-          const v = zoomAt(c.zooms, src);
+          const v = zoomAt(zooms, src);
           content.style.transform = `translate(${(0.5 - v.cx * v.scale) * 100}%, ${(0.5 - v.cy * v.scale) * 100}%) scale(${v.scale})`;
         } else if (content) content.style.transform = "";
         // Zoom layers above this track: the same view as the export, applied to this layer.

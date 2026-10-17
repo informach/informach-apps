@@ -3,7 +3,6 @@ import { AVATAR_FADE, defaultTransformFor } from "./compose.ts";
 import { transformAt } from "./keyframes.ts";
 import { piece } from "./pieces.ts";
 import type { Asset, Clip, Project, ProjectSettings, Track } from "./types.ts";
-import type { Zoom } from "./zoom.ts";
 
 export { clipEnd, clipSpeed, newId, sourceAt, sourceEnd, timelineAt } from "./clipTime.ts";
 
@@ -176,13 +175,12 @@ export function overwriteRange(
       out.push(c);
       continue;
     }
-    const left = c.start < start - EPS ? piece(c, c.start, start) : null;
-    if (left) out.push(left);
-    if (cEnd > end + EPS) {
-      const right = piece(c, end, cEnd);
-      // With its head covered, what is left is still the same clip.
-      out.push(left ? right : { ...right, id: c.id });
-    }
+    const hasLeft = c.start < start - EPS;
+    const hasRight = cEnd > end + EPS;
+    // Only a cut through the middle takes the inner edges' entrance and exit away: cutting off
+    // the head or the tail just moves that edge, with its transition, fade or motion.
+    if (hasLeft) out.push(piece(c, c.start, start, { tail: !hasRight }));
+    if (hasRight) out.push(piece(c, end, cEnd, { head: !hasLeft }));
   }
   return out;
 }
@@ -268,26 +266,25 @@ export function sourceLength(asset: Asset | undefined): number {
 
 /**
  * Applies a trim of one edge, honouring the source bounds. Movement keyframes stay on the same
- * moments of the footage; a longer clip gets back the zooms of `zoomBank` it now covers.
+ * moments of the footage, so trimming back out brings the movement back.
  */
 export function trimClip(
   c: Clip,
   edge: "start" | "end",
   time: number,
   asset: Asset | undefined,
-  zoomBank?: Zoom[],
 ): Clip {
   const srcLen = sourceLength(asset);
   if (edge === "start") {
     const minStart = Math.max(0, timelineAt(c, 0));
     const maxStart = clipEnd(c) - MIN_CLIP;
     const start = Math.min(Math.max(time, minStart), maxStart);
-    const out = piece(c, start, clipEnd(c), { head: true, zoomBank });
+    const out = piece(c, start, clipEnd(c), { head: true });
     return out.in < 0 ? { ...out, in: 0 } : out;
   }
   const maxEnd = timelineAt(c, srcLen);
   const end = Math.min(Math.max(time, c.start + MIN_CLIP), maxEnd);
-  return piece(c, c.start, end, { tail: true, zoomBank });
+  return piece(c, c.start, end, { tail: true });
 }
 
 /**

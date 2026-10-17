@@ -9,7 +9,7 @@ import "./state/assistant";
 import { registerEdiRecovery } from "@informach/edi-desktop/renderer";
 import { Home } from "./home/Home";
 import { listenToJobs, useApp } from "./state/app";
-import { useProject } from "./state/project";
+import { settleEdits, useProject } from "./state/project";
 
 export function App(): ReactNode {
   const screen = useApp((s) => s.screen);
@@ -18,6 +18,7 @@ export function App(): ReactNode {
   useEffect(
     () =>
       registerEdiRecovery(async () => {
+        await settleEdits();
         if (!(await useProject.getState().flush())) throw new Error("Recovery save failed");
       }),
     [],

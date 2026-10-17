@@ -17,6 +17,12 @@ export const useExportQueue = create<{ items: ExportItem[]; open: boolean }>(() 
   open: false,
 }));
 
+/** Some export is waiting or running: closing the window has to wait for the queue. */
+export const exportsPending = (): boolean =>
+  useExportQueue
+    .getState()
+    .items.some((i) => i.state === "waiting" || i.state === "preparing" || i.state === "exporting");
+
 export const exportQueue = new ExportQueue(
   async (item, signal, status) => {
     const { project, spec, id } = item;
@@ -33,6 +39,11 @@ export const exportQueue = new ExportQueue(
       const missing = project.assets.filter((a) => used.has(a.id) && a.missing);
       if (missing.length)
         throw new Error(`Mídias ausentes: ${missing.map((a) => a.name).join(", ")}`);
+      const noCursor = project.assets.filter((a) => used.has(a.id) && a.cursorMissing);
+      if (noCursor.length)
+        throw new Error(
+          `Dados do cursor ausentes: ${noCursor.map((a) => a.name).join(", ")}. Reconecte pela biblioteca.`,
+        );
       const transcribed = project.assets.filter(
         (a) => a.transcript && a.transcriptStatus === "ready",
       );
@@ -82,7 +93,7 @@ export const exportQueue = new ExportQueue(
       }
       status("exporting", "Exportando…");
       useApp.getState().startJob(id, `Exportando: ${project.name}`);
-      await window.api.startExport(id, project, spec);
+      await window.api.startExport(id, JSON.stringify(project), spec);
       check();
       const current = useProject.getState().project;
       if (current?.id === project.id && current.updatedAt === project.updatedAt) {

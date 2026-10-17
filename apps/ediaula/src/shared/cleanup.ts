@@ -275,9 +275,14 @@ const MIN_GAP = 1e-4;
 /**
  * Closes only the stretches where none of the target tracks has anything, pulling everything
  * after each one left on all of them at once (applyCuts). Balloons, avatar, zoom layers and the
- * voice keep their distance to each other; tracks outside `targets` (locked, music) stay put.
+ * voice keep their distance to each other. Tracks outside `targets` are not moved: a music bed
+ * ends with the lesson, while `keepTrackIds` (locked tracks) are left exactly as they are.
  */
-export function closeCommonGaps(project: Pick<Project, "clips">, targets: Set<string>): Clip[] {
+export function closeCommonGaps(
+  project: Pick<Project, "clips">,
+  targets: Set<string>,
+  keepTrackIds: Set<string> = new Set(),
+): Clip[] {
   const busy = mergeRanges(
     project.clips
       .filter((c) => targets.has(c.trackId))
@@ -291,7 +296,7 @@ export function closeCommonGaps(project: Pick<Project, "clips">, targets: Set<st
     cursor = Math.max(cursor, end);
   }
   // Already apart: merging them again (applyCuts) could swallow a very short clip between two gaps.
-  return gaps.length ? cutSorted(project.clips, gaps, targets, new Set()) : project.clips;
+  return gaps.length ? cutSorted(project.clips, gaps, targets, keepTrackIds) : project.clips;
 }
 
 /**

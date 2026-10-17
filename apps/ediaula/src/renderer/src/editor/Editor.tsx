@@ -9,6 +9,7 @@ import { zoomBy, zoomToFit } from "@/lib/timelineView";
 import { cutRangesInteractive } from "@/lib/transcripts";
 import { setTransition } from "@/lib/transitions";
 import { type LeftPanel as LeftPanelKind, useApp } from "@/state/app";
+import { exportsPending } from "@/state/exportQueue";
 import { playback } from "@/state/playback";
 import { hasUnsavedWork, useProject } from "@/state/project";
 import { AnnotationsPanel } from "./AnnotationsPanel";
@@ -243,7 +244,9 @@ export function Editor(): ReactNode {
     // Closing the window waits for the save, like the export queue holds it (ExportQueuePanel),
     // and then closes it again: by then nothing is left unsaved, or it was let go on purpose.
     const beforeUnload = (e: BeforeUnloadEvent): void => {
-      if (!hasUnsavedWork()) return;
+      // While exports are queued the window stays open anyway (ExportQueuePanel explains), so
+      // nothing is saved or let go here.
+      if (exportsPending() || !hasUnsavedWork()) return;
       e.preventDefault();
       e.returnValue = "";
       void confirmLeave().then((ok) => {

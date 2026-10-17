@@ -81,11 +81,40 @@ test("history snapshots are shared when nothing about the media changed", () => 
 test("relinking a media replaces the old path everywhere it is still used", () => {
   const missing = { ...avatar, missing: true };
   const p = project([missing, { ...avatar, id: "other" }]);
-  const out = relinkIn(p, "avatar", avatar.path, { path: "D:/novo/avatar.mp4", size: 11 });
+  const out = relinkIn(p, missing, { path: "D:/novo/avatar.mp4", size: 11 });
   assert.equal(out.assets[0].path, "D:/novo/avatar.mp4");
   assert.equal(out.assets[0].size, 11);
   assert.ok(!("missing" in out.assets[0]));
   assert.equal(out.assets[1], p.assets[1]);
   const redrawn = project([{ ...avatar, path: "C:/cache/other.png" }]);
-  assert.equal(relinkIn(redrawn, "avatar", avatar.path, { path: "x", size: 1 }), redrawn);
+  assert.equal(relinkIn(redrawn, missing, { path: "x", size: 1 }), redrawn);
+});
+
+test("relinking a recording moves its cursor data too, in every snapshot that had it", () => {
+  const recording: Asset = {
+    ...avatar,
+    id: "screen",
+    path: "C:/Gravações/1/tela.mp4",
+    cursor: "C:/Gravações/1/cursor.json",
+    missing: true,
+    cursorMissing: true,
+  };
+  const p = project([recording]);
+  const moved = relinkIn(p, recording, {
+    path: "D:/Aulas/1/tela.mp4",
+    size: 12,
+    cursor: "D:/Aulas/1/cursor.json",
+  });
+  const a = moved.assets[0];
+  assert.deepEqual(
+    [a.path, a.size, a.cursor],
+    ["D:/Aulas/1/tela.mp4", 12, "D:/Aulas/1/cursor.json"],
+  );
+  assert.ok(!("missing" in a) && !("cursorMissing" in a));
+  // Only the cursor data was lost: the video stays where it is.
+  const onlyCursor = relinkIn(project([{ ...recording, missing: false }]), recording, {
+    cursor: "E:/cursor.json",
+  }).assets[0];
+  assert.deepEqual([onlyCursor.path, onlyCursor.cursor], [recording.path, "E:/cursor.json"]);
+  assert.ok(!("cursorMissing" in onlyCursor));
 });

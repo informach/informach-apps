@@ -14,8 +14,9 @@ import type { Asset, Project, Track } from "@shared/types";
 import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
-import { checkAssets, importMedia } from "./importMedia";
+import { importMedia } from "./importMedia";
 import { confirmLeave } from "./leaveGuard";
+import { checkAssets } from "./relink";
 
 const lockedTracks = (p: Project): Set<string> =>
   new Set(p.tracks.filter((t) => t.locked).map((t) => t.id));
@@ -74,7 +75,7 @@ export const actions = {
     const { project, commit } = useProject.getState();
     if (!project) return;
     const targets = new Set(project.tracks.filter((t) => !t.locked && !t.music).map((t) => t.id));
-    commit((p) => ({ ...p, clips: closeCommonGaps(p, targets) }));
+    commit((p) => ({ ...p, clips: closeCommonGaps(p, targets, lockedTracks(p)) }));
   },
 
   /** Packs one track's clips back to back from its first clip (the track's own menu). */

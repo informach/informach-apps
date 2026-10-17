@@ -1,5 +1,6 @@
-import { clipSpeed, projectDuration } from "./timeline.ts";
+import { clipSpeed, projectDuration, sourceEnd } from "./timeline.ts";
 import type { Project } from "./types.ts";
+import { zoomsIn } from "./zoom.ts";
 
 const clean = (text: string): string =>
   text
@@ -100,6 +101,14 @@ export function buildEditingTemplate(
     "Tempos de início e duração estão em segundos da timeline. `sourceIn` e zooms do clipe usam o tempo da mídia original; keyframes usam segundos relativos ao início do clipe. Posições x/y do transform são frações do quadro. A escala 1 ajusta a mídia inteira ao quadro.",
     "",
   );
+  const zoomsOf = (c: Project["clips"][number]) => {
+    const zooms = zoomsIn(
+      project.assets.find((a) => a.id === c.assetId)?.zooms,
+      c.in,
+      sourceEnd(c),
+    );
+    return zooms.length ? zooms : undefined;
+  };
   for (const [index, c] of clips.entries()) {
     const annotation = c.annotation ? { ...c.annotation, balloonGeometry: undefined } : undefined;
     const anchor = words
@@ -131,7 +140,7 @@ export function buildEditingTemplate(
         transition: c.transition,
         annotation,
         keyframes: c.keyframes,
-        zooms: c.zooms,
+        zooms: zoomsOf(c),
         zoomLayer: c.zoomLayer,
         insertId: c.insertId,
       }),

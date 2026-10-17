@@ -13,8 +13,8 @@ import {
 import { type ReactNode, useState } from "react";
 import { actions } from "@/lib/actions";
 import { duration } from "@/lib/format";
-import { relinkAsset, relinkMissingInFolder } from "@/lib/importMedia";
 import { mediaUrl } from "@/lib/media";
+import { needsRelink, relinkAsset, relinkMissingInFolder } from "@/lib/relink";
 import { type LibraryFilter, useApp } from "@/state/app";
 import { useProject } from "@/state/project";
 import { Badge, Chip } from "@/ui";
@@ -38,7 +38,7 @@ export function Library(): ReactNode {
   const set = useApp((s) => s.set);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
-  const missing = assets.filter((a) => a.missing && !a.generated).length;
+  const missing = assets.filter(needsRelink).length;
 
   const shown = assets.filter(
     (a) =>
@@ -171,17 +171,22 @@ function AssetCard({
           <Icon size={22} className="media-icon" />
         )}
         <div className="media-badges">
-          {asset.missing && (
+          {(asset.missing || asset.cursorMissing) && (
             <button
               type="button"
               className="badge badge-amber badge-button"
-              title="Mostrar onde está o arquivo agora. Os cortes e ajustes continuam."
+              title={
+                asset.missing
+                  ? "Mostrar onde está o arquivo agora. Os cortes e ajustes continuam."
+                  : "Mostrar onde estão os dados do cursor desta gravação (cursor.json)."
+              }
               onClick={(e) => {
                 e.stopPropagation();
                 void relinkAsset(asset.id);
               }}
             >
-              <AlertTriangle size={10} /> Arquivo sumiu · Reconectar…
+              <AlertTriangle size={10} /> {asset.missing ? "Arquivo sumiu" : "Cursor sumiu"} ·
+              Reconectar…
             </button>
           )}
           {is4k && <Badge tone="muted">4K</Badge>}
@@ -206,7 +211,7 @@ function AssetCard({
             if (
               uses &&
               !confirm(
-                `Remover ${asset.name}? ${uses === 1 ? "1 clipe da timeline usa" : `${uses} clipes da timeline usam`} esta mídia e também será${uses === 1 ? "" : "o"} removido${uses === 1 ? "" : "s"}. Ctrl+Z desfaz.`,
+                `Remover ${asset.name}? ${uses === 1 ? "1 clipe da timeline usa esta mídia e também será removido" : `${uses} clipes da timeline usam esta mídia e também serão removidos`}. Ctrl+Z desfaz.`,
               )
             )
               return;
