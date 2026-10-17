@@ -1,7 +1,6 @@
 "use client";
 
-import { Button } from "@informach/ui/components/button";
-import { CalendarHeart, Check } from "lucide-react";
+import { Check, Mail, X } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { noticeErrorMessage } from "@/features/notices/messages";
 import { catchActionResult } from "@/lib/action-result";
@@ -23,12 +22,16 @@ import type { NotificationPreferences } from "../schemas";
  *
  * Só ativa e-mail. Push depende de VAPID e de permissão do navegador, e pedir
  * as duas coisas de uma vez no primeiro dia é o jeito de não ganhar nenhuma.
+ *
+ * Era um card de quatro botões e uma confirmação, e ficava no topo de Hoje,
+ * antes da primeira atividade. Virou uma linha no fim da página: um toque no
+ * horário já combina, e mudar depois fica em Família, na aba Ajustes.
  */
 const HOURS = [
-  { hour: 7, label: "De manhã", hint: "7h" },
-  { hour: 12, label: "No almoço", hint: "12h" },
-  { hour: 18, label: "Fim da tarde", hint: "18h" },
-  { hour: 20, label: "Depois do jantar", hint: "20h" },
+  { hour: 7, label: "7h", spoken: "às 7h, de manhã" },
+  { hour: 12, label: "12h", spoken: "às 12h, no almoço" },
+  { hour: 18, label: "18h", spoken: "às 18h, no fim da tarde" },
+  { hour: 20, label: "20h", spoken: "às 20h, depois do jantar" },
 ] as const;
 
 export function CommitmentWidget({
@@ -45,7 +48,6 @@ export function CommitmentWidget({
    */
   current: NotificationPreferences;
 }) {
-  const [chosen, setChosen] = useState<number | null>(null);
   const [done, setDone] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [error, setError] = useState("");
@@ -71,19 +73,18 @@ export function CommitmentWidget({
         // substituído por esta seção, e sem a live region quem usa leitor de tela
         // só perdia o foco, sem saber que deu certo.
         role="status"
-        className="flex items-center gap-3 rounded-2xl border border-chart-2/40 bg-chart-2/10 p-4"
+        className="flex items-center gap-3 rounded-[20px] border border-foreground/15 bg-background px-4 py-3 sm:px-5"
       >
         <Check className="size-5 shrink-0 text-chart-2-ink" aria-hidden />
-        <p className="text-sm font-medium">
-          Combinado. O resumo chega por e-mail todo dia no horário escolhido. Dá para mudar em
-          Família, na aba Ajustes.
+        <p className="text-sm">
+          Combinado. O resumo chega por e-mail todo dia nesse horário. Dá para mudar em Família, na
+          aba Ajustes.
         </p>
       </section>
     );
   }
 
-  const commit = () => {
-    if (chosen === null) return;
+  const commit = (chosen: number) => {
     startSaving(async () => {
       const result = await catchActionResult(() =>
         saveNotificationPreferencesAction({
@@ -104,69 +105,58 @@ export function CommitmentWidget({
     });
   };
 
+  const dismiss = () => {
+    // Esconder é só desta sessão, e de propósito: gravar "não quero" exigiria
+    // uma coluna para uma recusa que a pessoa talvez só esteja adiando.
+    // Combinar o horário faz a linha sumir de vez, porque as preferências
+    // deixam de estar vazias.
+    try {
+      sessionStorage.setItem(dismissedKey, "1");
+    } catch {
+      /* Modo privado: some só até recarregar. */
+    }
+    setHidden(true);
+  };
+
   return (
     <section
       aria-labelledby="commitment-title"
-      className="space-y-4 rounded-2xl border border-secondary/30 bg-card p-5"
+      className="rounded-[20px] border border-foreground/15 bg-background px-4 py-3 sm:px-5"
     >
       <div className="flex items-start gap-3">
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-secondary/15 text-secondary">
-          <CalendarHeart className="size-6" aria-hidden />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h2 id="commitment-title" className="text-lg font-bold tracking-tight">
-            Que horas vocês querem conferir a agenda juntos?
+        <Mail className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden />
+        <div className="min-w-0 flex-1 space-y-2">
+          <h2 id="commitment-title" className="text-[15px] font-bold leading-snug">
+            Quer o resumo do dia por e-mail? Escolha a hora.
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Um resumo do que precisa de atenção, uma vez por dia, no horário que a casa escolher.
-          </p>
+          <div className="flex flex-wrap gap-2">
+            {HOURS.map(({ hour, label, spoken }) => (
+              <button
+                key={hour}
+                type="button"
+                disabled={saving}
+                aria-label={`Receber o resumo ${spoken}`}
+                onClick={() => commit(hour)}
+                className="inline-flex min-h-11 min-w-14 items-center justify-center rounded-full border border-foreground/15 px-4 text-sm font-bold tabular-nums transition-colors hover:bg-muted disabled:opacity-60"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {error ? (
+            <p role="alert" className="text-sm text-destructive-ink">
+              {error}
+            </p>
+          ) : null}
         </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {HOURS.map(({ hour, label, hint }) => (
-          <button
-            key={hour}
-            type="button"
-            aria-pressed={chosen === hour}
-            onClick={() => setChosen(hour)}
-            className={`min-h-16 rounded-xl border px-3 py-2 text-left transition-colors ${
-              chosen === hour ? "border-primary/40 bg-primary/10" : "hover:bg-muted"
-            }`}
-          >
-            <span className="block text-sm font-semibold">{label}</span>
-            <span className="block text-xs tabular-nums text-muted-foreground">{hint}</span>
-          </button>
-        ))}
-      </div>
-
-      {error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
-
-      <div className="flex flex-wrap items-center gap-2">
-        <Button onClick={commit} disabled={chosen === null || saving}>
-          Combinado
-        </Button>
-        <Button
-          variant="ghost"
-          onClick={() => {
-            // Esconder é só desta sessão, e de propósito: gravar "não quero"
-            // exigiria uma coluna para uma recusa que a pessoa talvez só esteja
-            // adiando. Combinar o horário faz o card sumir de vez, porque as
-            // preferências deixam de estar vazias.
-            try {
-              sessionStorage.setItem(dismissedKey, "1");
-            } catch {
-              /* Modo privado: some só até recarregar. */
-            }
-            setHidden(true);
-          }}
+        <button
+          type="button"
+          onClick={dismiss}
+          aria-label="Agora não"
+          className="-mr-2 -mt-1 inline-flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"
         >
-          Agora não
-        </Button>
+          <X className="size-5" aria-hidden />
+        </button>
       </div>
     </section>
   );

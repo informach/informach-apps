@@ -40,10 +40,17 @@ const WHEN = new Intl.DateTimeFormat("pt-BR", {
   minute: "2-digit",
 });
 
-export function ActivityRevisionList({ revisions }: { revisions: ActivityRevision[] }) {
+export function ActivityRevisionList({
+  revisions,
+  heading = true,
+}: {
+  revisions: ActivityRevision[];
+  /** No detalhe de leitura o histórico mora num `<details>` que já tem título. */
+  heading?: boolean;
+}) {
   return (
     <section className="space-y-3">
-      <h2 className="text-lg font-semibold">Histórico de alterações</h2>
+      {heading ? <h2 className="text-lg font-semibold">Histórico de alterações</h2> : null}
       {revisions.length ? (
         revisions.map((revision) => (
           <article key={revision.version} className="space-y-1 rounded-lg border p-4 text-sm">

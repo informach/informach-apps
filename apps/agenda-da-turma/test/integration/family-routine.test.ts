@@ -435,6 +435,28 @@ describe("family permissions and action lifecycle", () => {
     );
     expect((await getNoticeAction(owner, id))?.action.assignedToUserId).toBeNull();
   });
+  it("só a edição do conteúdo conta como mudança depois de salva, e a versão nova volta", async () => {
+    // O card dizia "Mudou depois de salva" a partir de `version > 1`, e concluir
+    // e reabrir também sobem a versão. E o "Desfazer" precisa da versão nova
+    // na resposta, ou esbarra em conflito.
+    const created = value(
+      await confirmNotice(owner, {
+        noticeId: null,
+        allowDuplicates: true,
+        actions: [action("Mudou ou não mudou")],
+      }),
+    );
+    const id = required(created.ids[0]);
+    const edited = async () =>
+      (await listTasksInDateRange(owner, range)).find((task) => task.id === id)?.editedAfterSave;
+    expect(await edited()).toBe(false);
+    const done = value(await setNoticeActionStatus(owner, { id, version: 1, status: "done" }));
+    expect(done).toMatchObject({ id, version: 2 });
+    value(await setNoticeActionStatus(owner, { id, version: 2, status: "pending" }));
+    expect(await edited()).toBe(false);
+    value(await updateNoticeAction(owner, { id, version: 3, action: action("Mudou de verdade") }));
+    expect(await edited()).toBe(true);
+  });
   it("prevents replay duplication and hides mixed-child original documents from a scoped guest", async () => {
     const { token } = await invite();
     value(await acceptFamilyInvitation(guest, token));

@@ -11,7 +11,7 @@ import {
   activityTypeSchema,
 } from "@/features/unified-activities/activity-types";
 import { ESTIMATE_PRESETS, formatEstimate } from "@/features/unified-activities/estimate";
-import { DATE_ORIGIN_LABELS, type NoticeActionInput } from "../schemas";
+import { DATE_ORIGIN_LABELS, type NoticeActionInput, UNSPECIFIED_WITHOUT_NOTICE } from "../schemas";
 
 const selectStyle = "h-11 w-full rounded-md border border-input bg-background px-3 text-sm";
 const labelStyle = "grid gap-1.5 text-sm font-medium";
@@ -30,6 +30,7 @@ export function ActionFields({
   shareLocked = false,
   subjectHint = null,
   profileTurmas,
+  fromNotice = false,
 }: {
   value: NoticeActionInput;
   onChange: (value: NoticeActionInput) => void;
@@ -58,6 +59,8 @@ export function ActionFields({
    * precisa vincular a turma antes. Ausente, o destino é a lista de turmas.
    */
   profileTurmas?: Record<string, string | null>;
+  /** A atividade veio de um recado lido: só então "o recado não deu data" é verdade. */
+  fromNotice?: boolean;
 }) {
   const subjectsForProfile = subjectOptions[value.profileId] ?? [];
   const activeTurmaId = profileTurmas?.[value.profileId] ?? null;
@@ -250,7 +253,9 @@ export function ActionFields({
           }
         />
         <span id={`${prefix}-date-origin`} className="font-normal text-muted-foreground">
-          {DATE_ORIGIN_LABELS[value.dateOrigin]}
+          {value.dateOrigin === "unspecified" && !fromNotice
+            ? UNSPECIFIED_WITHOUT_NOTICE
+            : DATE_ORIGIN_LABELS[value.dateOrigin]}
         </span>
       </label>
       <label className={labelStyle} htmlFor={`${prefix}-time`}>

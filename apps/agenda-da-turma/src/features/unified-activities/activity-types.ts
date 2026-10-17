@@ -28,7 +28,7 @@ export const ACTIVITY_TYPES = [
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 
 export const ACTIVITY_TYPE_LABELS: Record<ActivityType, string> = {
-  task: "Para casa (tarefa)",
+  task: "Para casa",
   exam: "Prova",
   project: "Trabalho",
   reminder: "Lembrete",

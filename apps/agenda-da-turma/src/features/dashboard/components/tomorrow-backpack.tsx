@@ -1,28 +1,21 @@
 import { Backpack } from "lucide-react";
+import { StudentAvatar } from "@/features/students/components/student-avatar";
 import type { TodaySubjectsView } from "../today-subjects-service";
 
 /**
- * "Na mochila de amanhã": as matérias do dia seguinte de cada criança.
+ * A mochila de amanhã, no topo de Hoje depois das 18h.
  *
- * Sai de dado que já existe — o horário que a família cadastrou, com o
- * revezamento quinzenal aplicado — e responde a pergunta concreta das nove da
- * noite. Morava dentro do segundo bucket da rotina, abaixo dos KPIs e do
- * primeiro bucket, justamente na hora em que ela é feita.
- *
- * Agora tem dois lugares, e o dashboard escolhe pela hora: de dia continua no
- * bucket "preparar para amanhã", à noite sobe para o topo da página. Nada
- * aparece ou some por causa da hora — só troca de lugar.
+ * À noite a pergunta da casa deixa de ser "o que tem hoje" e passa a ser "o
+ * que vai na mochila". Uma linha por criança, com as aulas de amanhã e o que
+ * cada uma pede sempre ("levar sempre"). Os materiais pedidos em atividades
+ * aparecem em "Amanhã", logo abaixo, onde se marcam como feitos.
  */
 export function TomorrowBackpack({
   schedule,
   kits = {},
-  emphasis = false,
 }: {
   schedule: TodaySubjectsView[];
-  /** Itens de "levar sempre", por `${profileId}:${subjectId}`. */
   kits?: Record<string, string[]>;
-  /** No topo da página ela é o assunto; dentro do bucket, um apoio. */
-  emphasis?: boolean;
 }) {
   const withClasses = schedule.filter((view) => view.subjects.length > 0);
   if (withClasses.length === 0) return null;
@@ -30,46 +23,38 @@ export function TomorrowBackpack({
   return (
     <section
       aria-labelledby="tomorrow-backpack-title"
-      className={
-        emphasis
-          ? "rounded-2xl border border-chart-1/30 bg-card p-5"
-          : "rounded-2xl border border-chart-1/25 bg-chart-1/5 p-4"
-      }
+      className="overflow-hidden rounded-[20px] border border-foreground/15 bg-background"
     >
-      <h2
-        id="tomorrow-backpack-title"
-        className={
-          emphasis
-            ? "flex items-center gap-2 text-xl font-bold tracking-tight"
-            : "flex items-center gap-2 text-sm font-semibold"
-        }
-      >
-        <Backpack
-          className={
-            emphasis ? "size-6 shrink-0 text-chart-1-ink" : "size-4 shrink-0 text-chart-1-ink"
-          }
-          aria-hidden
-        />
-        Na mochila de amanhã
-      </h2>
-      <ul className={emphasis ? "mt-3 space-y-2" : "mt-2 space-y-1"}>
-        {withClasses.map((view) => (
-          <li key={view.profileId} className="break-words text-sm text-muted-foreground">
-            <span className="font-semibold text-foreground">{view.profileName}:</span>{" "}
-            {view.subjects
-              .map((subject) => {
-                const items = kits[`${view.profileId}:${subject.id}`] ?? [];
-                return items.length ? `${subject.name} (${items.join(", ")})` : subject.name;
-              })
-              .join(" · ")}
-          </li>
-        ))}
+      <div className="flex items-center gap-3 px-4 pb-2 pt-4 sm:px-5">
+        <Backpack className="size-6 shrink-0" aria-hidden />
+        <h2 id="tomorrow-backpack-title" className="text-xl font-extrabold tracking-tight">
+          A mochila de amanhã
+        </h2>
+      </div>
+      <ul>
+        {withClasses.map((view) => {
+          const items = view.subjects.flatMap(
+            (subject) => kits[`${view.profileId}:${subject.id}`] ?? [],
+          );
+          return (
+            <li
+              key={view.profileId}
+              className="flex items-start gap-3 border-t border-foreground/15 px-4 py-3 sm:px-5"
+            >
+              <StudentAvatar name={view.profileName} size="row" />
+              <div className="min-w-0 text-[15px] leading-snug">
+                <p className="font-bold">{view.profileName}</p>
+                <p className="text-muted-foreground">
+                  {view.subjects.map((subject) => subject.name).join(", ")}
+                </p>
+                {items.length ? (
+                  <p className="mt-0.5 font-semibold">Leva {items.join(", ")}</p>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
       </ul>
-      {emphasis ? (
-        <p className="mt-3 text-xs text-muted-foreground">
-          Sai do horário que vocês cadastraram. Os materiais pedidos aparecem na rotina, abaixo.
-        </p>
-      ) : null}
     </section>
   );
 }

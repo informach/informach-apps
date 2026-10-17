@@ -11,12 +11,21 @@ import {
 } from "@informach/ui/components/dialog";
 import { Input } from "@informach/ui/components/input";
 import { toast } from "@informach/ui/components/sonner";
+import { cn } from "@informach/ui/lib/utils";
 import { Backpack, Loader2, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { catchActionResult } from "@/lib/action-result";
 import { saveSubjectKitAction } from "../actions";
 import { MAX_KIT_ITEM_LENGTH, MAX_KIT_ITEMS } from "../schemas";
+
+const CHIP_DOT: Record<number, string> = {
+  1: "bg-chart-1",
+  2: "bg-chart-2",
+  3: "bg-chart-3",
+  4: "bg-chart-4",
+  5: "bg-chart-5",
+};
 
 /**
  * "Levar sempre": o que vai na mochila toda vez que a matéria tem aula.
@@ -32,6 +41,9 @@ export function SubjectKitDialog({
   subjectName,
   profileName,
   items: initialItems,
+  variant = "button",
+  colorIndex = null,
+  note = null,
 }: {
   profileId: string;
   subjectId: string | null;
@@ -39,6 +51,15 @@ export function SubjectKitDialog({
   subjectName: string;
   profileName: string;
   items: string[];
+  /**
+   * `chip`: a própria aula vira o gatilho, como pílula com o ponto da cor da
+   * matéria (é assim que "Hoje na escola" lista as aulas). `button`: o botão
+   * "Levar sempre" ao lado de uma linha que já nomeia a matéria.
+   */
+  variant?: "button" | "chip";
+  colorIndex?: number | null;
+  /** Complemento da pílula: "fora da escola", "reveza com Artes". */
+  note?: string | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -50,16 +71,43 @@ export function SubjectKitDialog({
 
   return (
     <>
-      <Button
-        type="button"
-        size="sm"
-        variant="ghost"
-        className="h-8 shrink-0 gap-1.5 text-xs"
-        onClick={() => setOpen(true)}
-      >
-        <Backpack className="size-3.5" aria-hidden />
-        {initialItems.length ? `Levar sempre (${initialItems.length})` : "Levar sempre"}
-      </Button>
+      {variant === "chip" ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label={`${subjectName}${note ? `, ${note}` : ""}. Levar sempre${
+            initialItems.length ? `: ${initialItems.join(", ")}` : ""
+          }`}
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-foreground/15 bg-background px-3 text-[13px] font-semibold hover:bg-muted"
+        >
+          <span
+            aria-hidden
+            className={cn(
+              "size-2 shrink-0 rounded-full",
+              colorIndex ? CHIP_DOT[colorIndex] : "bg-foreground/60",
+            )}
+          />
+          {subjectName}
+          {note ? <span className="font-medium text-muted-foreground">· {note}</span> : null}
+          {initialItems.length ? (
+            <span className="inline-flex items-center gap-1 font-medium text-muted-foreground">
+              <Backpack className="size-3.5" aria-hidden />
+              {initialItems.join(", ")}
+            </span>
+          ) : null}
+        </button>
+      ) : (
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="h-8 shrink-0 gap-1.5 text-xs"
+          onClick={() => setOpen(true)}
+        >
+          <Backpack className="size-3.5" aria-hidden />
+          {initialItems.length ? `Levar sempre (${initialItems.length})` : "Levar sempre"}
+        </Button>
+      )}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>

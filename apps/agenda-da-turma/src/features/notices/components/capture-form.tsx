@@ -1052,6 +1052,7 @@ export function CaptureForm({
                 subjectOptions={subjectOptions}
                 profileTurmas={profileTurmas}
                 subjectHint={draft.subjectHint ?? null}
+                fromNotice={Boolean(noticeId) && Boolean(draft.actionId)}
                 prefix={draft.key}
                 value={draft.value}
                 onChange={(value) => {

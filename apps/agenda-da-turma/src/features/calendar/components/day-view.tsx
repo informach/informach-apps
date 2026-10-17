@@ -2,6 +2,7 @@
 
 import { Button } from "@informach/ui/components/button";
 import { Plus } from "lucide-react";
+import { ActivitySheet } from "@/features/unified-activities/components/activity-list";
 import { UnifiedActivityCard } from "@/features/unified-activities/components/unified-activity-card";
 import type { ActivityOverviewItem } from "@/features/unified-activities/overview-types";
 import { formatDayLabel } from "../date";
@@ -29,16 +30,17 @@ export function DayView({ anchorIso, items, currentUserId, onCreateForDay }: Pro
         <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-muted/20 p-8 text-center">
           <p className="text-sm font-medium text-foreground">Sem atividades neste dia</p>
           <p className="text-xs text-muted-foreground">
-            Clique em &quot;Nova atividade&quot; para cadastrar uma para {formatDayLabel(anchorIso)}
-            .
+            Toque em Nova atividade para marcar uma em {formatDayLabel(anchorIso)}.
           </p>
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
+        <ActivitySheet>
           {items.map((entry) => (
-            <UnifiedActivityCard key={entry.key} entry={entry} currentUserId={currentUserId} />
+            <li key={entry.key}>
+              <UnifiedActivityCard entry={entry} currentUserId={currentUserId} />
+            </li>
           ))}
-        </div>
+        </ActivitySheet>
       )}
     </section>
   );

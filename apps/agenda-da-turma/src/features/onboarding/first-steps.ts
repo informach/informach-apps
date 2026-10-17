@@ -2,12 +2,16 @@
  * Os primeiros passos da casa, calculados do que já existe.
  *
  * Não há uma coluna dizendo "onboarding concluído": cada passo é uma pergunta
- * que o próprio banco responde. Assim ele nunca mente — apagar a única criança
+ * que o próprio banco responde. Assim ele nunca mente: apagar a única criança
  * traz o primeiro passo de volta, e ninguém precisa reconciliar um estado
  * paralelo.
  *
  * Puro de propósito: a trilha é a mesma coisa que os três widgets soltos
  * mediam, e é ela que vira teste.
+ *
+ * A ordem é a do valor: depois da criança vem o primeiro recado, que é o que a
+ * família veio fazer. Turma e horário deixam a Agenda mais esperta, mas podem
+ * esperar o primeiro "deu certo".
  */
 export type FirstStep = {
   id: "crianca" | "turma" | "horario" | "atividade";
@@ -23,7 +27,7 @@ export type FirstStepsInput = {
   profilesWithoutTurma: number;
   /**
    * Turmas ativas das crianças da casa que ainda não têm nenhuma matéria com
-   * dias de aula — de qualquer criador. Criar matéria é direito de qualquer
+   * dias de aula, de qualquer criador. Criar matéria é direito de qualquer
    * membro da turma, então o passo é acionável mesmo para quem entrou por
    * código em vez de criar a turma.
    */
@@ -40,19 +44,26 @@ export function computeFirstSteps(input: FirstStepsInput): FirstStep[] {
   return [
     {
       id: "crianca",
-      title: "Cadastre quem você acompanha",
-      description: "Só o nome basta. Escola e turma podem vir depois.",
+      title: "Diga quem a Agenda acompanha",
+      description: "Só o nome basta. Escola, turma e horário podem vir depois.",
       href: "/familia",
-      cta: "Criar perfil",
+      cta: "Adicionar criança",
       done: hasProfile,
     },
     {
+      id: "atividade",
+      title: "Traga o primeiro recado",
+      description: "Foto, print, PDF ou ditado. Você confere tudo antes de salvar.",
+      href: "/recados/novo?modo=foto",
+      cta: "Trazer um recado",
+      done: input.activityCount > 0,
+    },
+    {
       id: "turma",
-      title: "Vincule a uma turma",
-      description:
-        "A turma traz as matérias e permite receber as atividades que outras famílias cadastram.",
+      title: "Coloque na turma",
+      description: "A turma traz as matérias e recebe junto o que outras famílias organizam.",
       href: "/familia/turmas",
-      cta: "Ver turmas",
+      cta: "Colocar na turma",
       done: hasTurma,
     },
     {
@@ -65,14 +76,6 @@ export function computeFirstSteps(input: FirstStepsInput): FirstStep[] {
         : "/familia/turmas",
       cta: "Cadastrar matérias",
       done: hasTurma && input.turmasNeedingSchedule.length === 0,
-    },
-    {
-      id: "atividade",
-      title: "Traga o primeiro recado",
-      description: "Foto, print, PDF ou ditado. Você confere tudo antes de salvar.",
-      href: "/recados/novo?modo=foto",
-      cta: "Adicionar atividade",
-      done: input.activityCount > 0,
     },
   ];
 }

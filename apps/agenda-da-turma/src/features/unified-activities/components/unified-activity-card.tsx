@@ -1,6 +1,5 @@
 "use client";
 
-import { Badge } from "@informach/ui/components/badge";
 import { Button } from "@informach/ui/components/button";
 import {
   DropdownMenu,
@@ -8,25 +7,25 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@informach/ui/components/dropdown-menu";
+import { toast } from "@informach/ui/components/sonner";
 import { cn } from "@informach/ui/lib/utils";
-import { Check, MoreVertical, Pencil, RotateCcw, Sparkles, Timer, Trash2 } from "lucide-react";
+import { Check, MoreVertical, Pencil, RotateCcw, Users, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { setNoticeStatusAction } from "@/features/notices/actions";
 import { noticeErrorMessage } from "@/features/notices/messages";
 import { submitTaskStatus } from "@/features/offline-queue/client";
 import { QueuedBadge } from "@/features/offline-queue/components/queued-badge";
 import { useQueueOwner } from "@/features/offline-queue/owner";
-import { StudentAvatar } from "@/features/students/components/student-avatar";
-import { getSubjectTintedClassByIndex } from "@/features/subjects/utils";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
 import { ACTIVITY_TYPE_LABELS } from "../activity-types";
-import { formatEstimate } from "../estimate";
+import { describeDue } from "../due";
 import { useCardToggle } from "../hooks/use-card-toggle";
 import type { ActivityOverviewItem } from "../overview-types";
 import { getActivityPresentation } from "../presentation";
-import { getViewDueBadge, toActivityView } from "../view";
+import { toActivityView } from "../view";
+import { DueChip } from "./due-chip";
 
 type Props = {
   entry: ActivityOverviewItem;
@@ -40,25 +39,47 @@ type Props = {
   ) => void;
 };
 
+const DOT_CLASS: Record<number, string> = {
+  1: "bg-chart-1",
+  2: "bg-chart-2",
+  3: "bg-chart-3",
+  4: "bg-chart-4",
+  5: "bg-chart-5",
+};
+
+/** Lembrado por aparelho: a explicação longa aparece no primeiro Feito, depois fica curta. */
+const FIRST_DONE_KEY = "agenda:first-done-explained";
+
 function toggleErrorMessage(error: { code: string }): string {
   if (isActionRejected(error))
     return "Não foi possível atualizar. Atualize a página e tente de novo.";
   return noticeErrorMessage(error.code);
 }
 
+function firstDoneMessage() {
+  try {
+    if (window.localStorage.getItem(FIRST_DONE_KEY)) return "Feito.";
+    window.localStorage.setItem(FIRST_DONE_KEY, "1");
+  } catch {
+    // Sem armazenamento, a explicação aparece sempre: melhor repetir do que omitir.
+  }
+  return "Marcado aqui. A escola não recebe aviso.";
+}
+
 /**
- * O card da rotina, um só para as três fontes.
+ * Uma atividade, uma linha da agenda. É o único card do app: a rotina, a lista
+ * de Atividades, o dia do calendário e a vista rápida usam este componente.
  *
- * Antes eram três: um `Card` com checkbox para a atividade da turma, um
- * `<article>` com botão de 44 px para a que veio de recado, e um terceiro,
- * inline, para a extracurricular. Cada um mostrava o prazo de um jeito, abria
- * um destino diferente ao toque no título — ou nenhum — e tratava erro num
- * lugar diferente. A origem é invisível no card, mas decidia o que a família
- * podia fazer.
+ * Ele diz quatro coisas, nesta ordem de leitura: o título (que abre o
+ * detalhe), a matéria (pelo ponto da cor e pelo nome) e a criança, e, à
+ * direita, quando é. Hora, local, origem da data, tempo estimado e versão
+ * moram no detalhe. Antes eram até sete selos por card, o fundo pintado com a
+ * cor da matéria e o selo do tipo pintado com outra cor, e "Informado no
+ * original" repetido em todos.
  *
- * A forma que ficou é a de melhor toque: alvo de 44 px, título que sempre
- * abre a atividade, prazo em badge mesmo quando não há prazo, e o menu de
- * ações quando a pessoa pode editar.
+ * O alvo de concluir continua de 44 px e só habilita depois de hidratar
+ * (`ready`); o estado "sobe quando a rede voltar" continua visível; concluir
+ * passa pela rota idempotente da fila offline.
  */
 export function UnifiedActivityCard({
   entry,
@@ -72,30 +93,35 @@ export function UnifiedActivityCard({
   const queueOwner = useQueueOwner();
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [canceling, startCancel] = useTransition();
+  // Em Hoje a linha concluída sai da lista no refresh, e o "Desfazer" do aviso
+  // roda com o card já desmontado: um erro ali precisa de outro lugar para
+  // aparecer além da própria linha.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const isCanceled = view.status === "canceled";
   const presentation = getActivityPresentation(view.type);
   const TypeIcon = presentation.icon;
-  // Com matéria vinculada o card é lido pela cor dela — é assim que a família
-  // reconhece a rotina. Sem vínculo, segue a cor do tipo.
-  const surface =
-    view.subjectColorIndex !== null
-      ? getSubjectTintedClassByIndex(view.subjectColorIndex)
-      : presentation.surface;
 
   const { ready, isDone, isExiting, optimisticallyHidden, pending, queued, handleToggle, retry } =
     useCardToggle({
       initialStatus: view.status === "done" ? "done" : "pending",
+      version: view.toggle?.version,
       taskId: view.toggle?.id,
       optimisticHideWhenDone: optimisticHideWhenDone && !isCanceled,
       // Concluir e reabrir passam pela rota idempotente, não pela server action:
       // é o único caminho que sobrevive a uma rede que sumiu no meio, porque a
       // chave de idempotência deixa o aparelho repetir sem gravar duas vezes.
-      toggleAction: (next) =>
+      toggleAction: (next, version) =>
         view.toggle
           ? submitTaskStatus({
               id: view.toggle.id,
-              version: view.toggle.version,
+              version: version ?? view.toggle.version,
               status: next,
               title: view.title,
               userId: queueOwner,
@@ -104,18 +130,34 @@ export function UnifiedActivityCard({
       onSuccess: (previousStatus, nextStatus) => {
         setError("");
         onStatusSuccess?.(entry, previousStatus, nextStatus);
+        if (nextStatus === "done")
+          toast(firstDoneMessage(), {
+            action: { label: "Desfazer", onClick: () => handleToggle(false) },
+          });
       },
-      onError: (actionError) => setError(toggleErrorMessage(actionError)),
+      onError: (actionError) => {
+        const message = toggleErrorMessage(actionError);
+        if (mounted.current) setError(message);
+        else toast.error(message);
+      },
     });
 
   // O estado otimista manda nos dois sentidos: reabrir precisa devolver o
-  // badge de urgência na hora, e não só depois que o servidor responder.
-  const due = getViewDueBadge({
-    ...view,
-    status: view.status === "canceled" ? "canceled" : isDone ? "done" : "pending",
+  // prazo na hora, e não só depois que o servidor responder.
+  const due = describeDue({
+    dueAt: view.dueAt,
+    time: view.time,
+    status: isCanceled ? "canceled" : isDone ? "done" : "pending",
   });
 
   if (optimisticallyHidden) return null;
+
+  const meta = [
+    view.subjectName ?? ACTIVITY_TYPE_LABELS[view.type],
+    view.profileName,
+    view.isExtra ? "fora da escola" : null,
+    view.assignedName ? `${view.assignedName} cuida` : null,
+  ].filter(Boolean);
 
   return (
     <div
@@ -128,127 +170,77 @@ export function UnifiedActivityCard({
       )}
     >
       <div className="overflow-hidden">
-        <article
-          className={cn(
-            "rounded-2xl border p-4 sm:p-5",
-            !isCanceled && !isDone ? surface : "border-border bg-card",
-            isDone && "opacity-70",
-          )}
-        >
-          <div className="flex items-start gap-3">
+        <article className="border-t border-foreground/15 py-2 pl-1.5 pr-2 sm:pr-3">
+          <div className="flex items-center gap-2">
             {view.toggle ? (
-              <Button
-                size="icon"
-                variant={isDone ? "secondary" : "outline"}
+              <button
+                type="button"
                 className={cn(
-                  "size-11 shrink-0 rounded-2xl",
-                  isDone
-                    ? "bg-chart-2/20 text-foreground hover:bg-chart-2/30"
-                    : "border-foreground/20 bg-background/60 hover:bg-background",
+                  "flex size-11 shrink-0 items-center justify-center rounded-full outline-none",
+                  "focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default",
                 )}
-                aria-label={`${isDone ? "Reabrir" : "Marcar como feito em casa"}: ${view.title}`}
+                aria-label={`${isDone ? "Reabrir" : "Marcar como feito"}: ${view.title}`}
                 disabled={!ready || pending}
                 onClick={() => handleToggle(!isDone)}
               >
                 {isDone ? (
-                  <Check className="size-5" aria-hidden />
+                  <span className="flex size-6 items-center justify-center rounded-full bg-chart-2 text-background">
+                    <Check className="size-4" strokeWidth={3} aria-hidden />
+                  </span>
                 ) : (
-                  <span className="size-4 rounded-full border-2 border-foreground/60" />
+                  <span className="size-6 rounded-full border-2 border-foreground/40" />
                 )}
-              </Button>
-            ) : null}
+              </button>
+            ) : (
+              <span className="flex size-11 shrink-0 items-center justify-center" aria-hidden>
+                <X className="size-4 text-muted-foreground" />
+              </span>
+            )}
 
-            <div className="min-w-0 flex-1">
-              {/*
-                O título vem primeiro.
-                Antes a primeira linha era o nome da criança somado ao badge de
-                tipo, e o título só aparecia depois, no mesmo peso do resto —
-                numa lista de vinte, a varredura virava "Maria, Maria, João" em
-                vez de "Prova de Ciências". O nome é filtro, não identidade do
-                item: desceu para a linha de contexto, como pastilha com o
-                avatar, onde continua reconhecível de relance.
-              */}
+            <div className="min-w-0 flex-1 py-1">
               <Link
                 href={view.detailHref}
                 className={cn(
-                  "block break-words text-[17px] font-bold leading-snug tracking-tight hover:underline",
+                  "block break-words text-base font-bold leading-snug hover:underline",
                   (isCanceled || isDone) && "text-muted-foreground line-through",
                 )}
               >
                 {view.title}
               </Link>
-
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <Badge variant={due.variant}>{due.label}</Badge>
-                {queued ? <QueuedBadge className="font-normal" /> : null}
-                {view.estimatedMinutes !== null ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-lg border bg-background/60 px-2 py-1 text-xs font-medium">
-                    <Timer className="size-3.5" aria-hidden />
-                    {formatEstimate(view.estimatedMinutes)}
+              <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[13px] font-medium text-muted-foreground">
+                {view.subjectName ? (
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "size-2 shrink-0 rounded-full",
+                      view.subjectColorIndex !== null
+                        ? DOT_CLASS[view.subjectColorIndex]
+                        : "bg-foreground/60",
+                    )}
+                  />
+                ) : (
+                  <TypeIcon className="size-3.5 shrink-0" aria-hidden />
+                )}
+                <span>{meta.join(" · ")}</span>
+                {view.shared ? (
+                  <span className="inline-flex items-center gap-1">
+                    · <Users className="size-3.5" aria-hidden />
+                    turma
                   </span>
                 ) : null}
-                <span className="inline-flex min-w-0 items-center gap-1.5 rounded-lg border bg-background/60 py-0.5 pl-0.5 pr-2 text-xs font-medium">
-                  <StudentAvatar name={view.profileName} size="chip" className="border" />
-                  <span className="min-w-0 truncate">{view.profileName}</span>
-                </span>
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs font-medium text-foreground",
-                    presentation.surface,
-                  )}
-                >
-                  <TypeIcon className="size-3.5" aria-hidden />
-                  {ACTIVITY_TYPE_LABELS[view.type]}
-                </span>
-                {view.shared ? (
-                  <Badge variant="outline" className="font-normal">
-                    Compartilhada
-                  </Badge>
-                ) : null}
-                {view.isExtra ? (
-                  <Badge variant="outline" className="font-normal">
-                    <Sparkles className="mr-1 size-3" aria-hidden />
-                    Extra
-                  </Badge>
-                ) : null}
-              </div>
-
-              {view.subjectName || view.contextLine ? (
-                <p className="mt-2 break-words text-xs font-medium text-foreground/80">
-                  {[view.subjectName, view.contextLine].filter(Boolean).join(" · ")}
-                </p>
-              ) : null}
-
-              {view.description ? (
-                <p
-                  className={cn(
-                    "mt-2 whitespace-pre-wrap break-words text-sm text-foreground/90",
-                    isDone && "text-muted-foreground line-through",
-                  )}
-                >
-                  {view.description}
-                </p>
-              ) : null}
-
-              {view.location ? (
-                <p className="mt-1 break-words text-xs text-foreground/80">{view.location}</p>
-              ) : null}
-              {view.assignment ? (
-                <p className="mt-1 break-words text-xs text-foreground/80">{view.assignment}</p>
-              ) : null}
-              {view.provenance ? (
-                <p className="mt-1 text-xs text-foreground/80">{view.provenance}</p>
-              ) : null}
-
-              {view.version !== null && view.version > 1 ? (
+              </p>
+              {queued ? <QueuedBadge className="mt-1.5 font-normal" /> : null}
+              {view.editedAfterSave && !isDone ? (
                 <Link
-                  href={view.detailHref}
-                  className="mt-2 block text-xs font-semibold text-primary-ink underline"
+                  href={`${view.detailHref}?historico=1#historico`}
+                  className="inline-flex min-h-11 items-center text-xs font-semibold text-primary-ink underline"
                 >
-                  Atualizada · versão {view.version} · ver antes e depois
+                  Mudou depois de salva · ver o que mudou
                 </Link>
               ) : null}
             </div>
+
+            <DueChip due={due} />
 
             {view.manage ? (
               <DropdownMenu>
@@ -256,7 +248,7 @@ export function UnifiedActivityCard({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="size-11 shrink-0 rounded-2xl"
+                    className="size-11 shrink-0 rounded-full"
                     aria-label={`Ações para ${view.title}`}
                   >
                     <MoreVertical className="size-4" aria-hidden />
@@ -264,16 +256,16 @@ export function UnifiedActivityCard({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem asChild>
-                    <Link href={view.detailHref}>
+                    <Link href={`${view.detailHref}?editar=1`}>
                       <Pencil className="mr-2 size-4" aria-hidden />
                       Editar
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
+                    className="text-destructive-ink focus:text-destructive-ink"
                     onSelect={() => setConfirmCancel(true)}
                   >
-                    <Trash2 className="mr-2 size-4" aria-hidden />
+                    <X className="mr-2 size-4" aria-hidden />
                     Cancelar atividade
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -281,13 +273,13 @@ export function UnifiedActivityCard({
             ) : null}
           </div>
 
-          {/* Confirmar antes de cancelar, aqui mesmo: o menu abre e fecha no
-              card, e mandar a pessoa para outra tela só para confirmar faria
+          {/* Confirmar antes de cancelar, aqui mesmo: o menu abre e fecha na
+              linha, e mandar a pessoa para outra tela só para confirmar faria
               perder o lugar na lista. */}
           {confirmCancel && view.toggle ? (
-            <div className="mt-3 space-y-3 rounded-lg border border-destructive/30 p-3">
+            <div className="mb-1 ml-12 mt-2 space-y-3 rounded-xl border border-destructive/30 p-3">
               <p className="text-sm">
-                Cancelar esta atividade? Ela sai das pendências e deixa de gerar lembretes; o
+                Cancelar esta atividade? Ela sai da lista do que falta e para de gerar lembretes. O
                 histórico fica.
               </p>
               <div className="flex flex-wrap gap-2">
@@ -326,11 +318,8 @@ export function UnifiedActivityCard({
           ) : null}
 
           {error ? (
-            <div role="alert" className="mt-3 flex flex-wrap items-center gap-2">
-              <p className="text-sm text-destructive">{error}</p>
-              {/* Insistir é o caminho honesto enquanto não há fila: a versão já
-                  foi atualizada pela falha, então a segunda tentativa não repete
-                  o mesmo conflito. */}
+            <div role="alert" className="mb-1 ml-12 mt-1 flex flex-wrap items-center gap-2">
+              <p className="text-sm text-destructive-ink">{error}</p>
               {retry ? (
                 <Button size="sm" variant="outline" disabled={pending} onClick={retry}>
                   <RotateCcw className="mr-1.5 size-3.5" aria-hidden />

@@ -157,7 +157,7 @@ test("two adults, private child access, completion, revocation and confirmed del
     await expect(guestPage.getByText("Criança B restrita", { exact: true })).toHaveCount(0);
     await guestPage
       .getByRole("button", {
-        name: "Marcar como feito em casa: Preparar mochila fictícia",
+        name: "Marcar como feito: Preparar mochila fictícia",
         exact: true,
       })
       .click();

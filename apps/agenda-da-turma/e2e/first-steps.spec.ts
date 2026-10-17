@@ -48,13 +48,18 @@ test("first steps guide the setup, react to what exists and can be dismissed", a
     const section = page.getByRole("region", { name: "Primeiros passos" });
     await expect(section).toBeVisible();
     await expect(section.getByText("0 de 4 prontos", { exact: false })).toBeVisible();
-    await expect(section.getByRole("link", { name: "Criar perfil", exact: true })).toBeVisible();
+    await expect(
+      section.getByRole("link", { name: "Adicionar criança", exact: true }),
+    ).toBeVisible();
 
     // A trilha lê o banco: cadastrar a criança fecha o primeiro passo sozinho.
     await db.insert(agendaStudentProfiles).values({ userId: id, name: "Criança fictícia" });
     await page.reload();
     await expect(section.getByText("1 de 4 prontos", { exact: false })).toBeVisible();
-    await expect(section.getByRole("link", { name: "Ver turmas", exact: true })).toBeVisible();
+    // Depois da criança, o primeiro recado: é o que a família veio fazer.
+    await expect(
+      section.getByRole("link", { name: "Trazer um recado", exact: true }),
+    ).toBeVisible();
 
     await section.getByRole("button", { name: "Dispensar", exact: true }).click();
     await expect(section).toHaveCount(0);

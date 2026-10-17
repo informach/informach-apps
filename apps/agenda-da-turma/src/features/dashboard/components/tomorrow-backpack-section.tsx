@@ -1,5 +1,5 @@
 import { listSubjectKits } from "@/features/subject-kits/service";
-import { getTomorrowSubjectsForProfiles } from "../today-subjects-service";
+import { getTomorrowSubjectsCached } from "../schedule-cache";
 import { TomorrowBackpack } from "./tomorrow-backpack";
 
 /**
@@ -16,12 +16,12 @@ export async function TomorrowBackpackSection({
   userId: string;
   profileFilter: string | null;
 }) {
-  const schedule = await getTomorrowSubjectsForProfiles(userId, { profileFilter });
+  const schedule = await getTomorrowSubjectsCached(userId, profileFilter);
   // "Levar sempre" é o que a mochila de amanhã existe para lembrar: tênis na
   // educação física vale toda semana e nunca virou atividade.
   const kits = await listSubjectKits(
     userId,
     schedule.map((view) => view.profileId),
   );
-  return <TomorrowBackpack schedule={schedule} kits={Object.fromEntries(kits)} emphasis />;
+  return <TomorrowBackpack schedule={schedule} kits={Object.fromEntries(kits)} />;
 }

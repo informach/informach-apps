@@ -3,28 +3,34 @@
 import { Badge } from "@informach/ui/components/badge";
 import { Button } from "@informach/ui/components/button";
 import { toast } from "@informach/ui/components/sonner";
-import { Download, Loader2 } from "lucide-react";
+import { Loader2, Printer } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { catchActionResult, isActionRejected } from "@/lib/action-result";
-import { exportDashboardPdfDataAction } from "../actions";
+import { exportWeekPdfDataAction } from "../actions";
 
 type Props = {
+  /** O plano da família, e não o de quem toca: o convidado de uma casa Pro imprime. */
   isPro: boolean;
   profileFilter: string | null;
+  /** Um dia da semana que o calendário está mostrando. */
+  anchorIso: string;
 };
 
-export function ExportPdfButton({ isPro, profileFilter }: Props) {
+/** "Imprimir a semana": a semana do calendário, num PDF para a porta da geladeira. */
+export function ExportPdfButton({ isPro, profileFilter, anchorIso }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
   function onClick() {
     startTransition(async () => {
-      const result = await catchActionResult(() => exportDashboardPdfDataAction({ profileFilter }));
+      const result = await catchActionResult(() =>
+        exportWeekPdfDataAction({ profileFilter, anchorIso }),
+      );
       if (!result.ok) {
         if (isActionRejected(result.error)) {
-          toast.error("Não foi possível gerar o PDF.", {
-            description: "Atualize a página e tente novamente.",
+          toast.error("Não foi possível montar a semana para imprimir.", {
+            description: "Atualize a página e tente de novo.",
           });
           return;
         }
@@ -32,29 +38,31 @@ export function ExportPdfButton({ isPro, profileFilter }: Props) {
           router.push("/upgrade");
           return;
         }
-        toast.error("Não foi possível gerar o PDF.");
+        toast.error("Não foi possível montar a semana para imprimir.");
         return;
       }
 
       try {
-        const { buildDashboardPdf } = await import("../pdf");
-        await buildDashboardPdf(result.value);
+        const { buildWeekPdf } = await import("../pdf");
+        await buildWeekPdf(result.value);
       } catch {
-        toast.error("Falha ao montar o PDF.", {
-          description: "Tente novamente em instantes.",
+        toast.error("Não foi possível montar o PDF.", {
+          description: "Tente de novo em instantes.",
         });
       }
     });
   }
 
   return (
-    <Button variant="outline" size="sm" onClick={onClick} disabled={pending || !isPro}>
+    // No grátis o botão não fica desligado: um toque leva ao Pro, que é onde a
+    // semana para imprimir mora. Botão cinza sem saída é beco.
+    <Button variant="outline" size="sm" className="min-h-11" onClick={onClick} disabled={pending}>
       {pending ? (
         <Loader2 className="size-4 animate-spin" aria-hidden />
       ) : (
-        <Download className="size-4" aria-hidden />
+        <Printer className="size-4" aria-hidden />
       )}
-      Exportar PDF
+      Imprimir a semana
       {!isPro ? <Badge variant="secondary">Pro</Badge> : null}
     </Button>
   );

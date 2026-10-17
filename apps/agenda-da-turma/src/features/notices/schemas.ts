@@ -31,12 +31,20 @@ export const SOURCE_LABELS = {
   whatsapp: "Grupo do WhatsApp",
   other: "Outra origem",
 };
+/**
+ * De onde veio a data, nas palavras da família. O mesmo vocabulário no
+ * formulário, na revisão do recado e no detalhe: "a escola disse" é o
+ * argumento de confiança da Agenda, e não pode ter três nomes.
+ */
+/** Sem data numa atividade que não veio de recado: não há recado para culpar. */
+export const UNSPECIFIED_WITHOUT_NOTICE = "A confirmar: ainda sem data";
+
 export const DATE_ORIGIN_LABELS = {
-  unspecified: "Prazo não informado",
-  school: "Informado no original",
-  relative: "Calculado a partir do original",
-  family: "Planejado pela família",
-  schedule: "Calculado pelo horário da matéria",
+  unspecified: "A confirmar: o recado não deu data",
+  school: "A escola disse",
+  relative: "Calculada a partir do recado",
+  family: "Planejado por vocês",
+  schedule: "Na próxima aula, pelo horário",
 };
 
 export const dateSchema = z

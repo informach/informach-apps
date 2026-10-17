@@ -96,7 +96,7 @@ test("offline queue: completing without network reaches the server when it retur
     const title = await familyWithTask(page, context, baseURL, id);
 
     await page.goto("/atividades");
-    const toggle = page.getByRole("button", { name: `Marcar como feito em casa: ${title}` });
+    const toggle = page.getByRole("button", { name: `Marcar como feito: ${title}` });
     await expect(toggle).toBeVisible();
     // "Já carregada" é o botão pronto para o toque, e não só desenhado. A lista
     // fica num Suspense (`loading.tsx`) que hidrata depois do resto; num runner
@@ -162,7 +162,7 @@ test("completion button stays disabled until the list hydrates", async ({
       await scripts;
       await route.continue();
     });
-    const toggle = page.getByRole("button", { name: `Marcar como feito em casa: ${title}` });
+    const toggle = page.getByRole("button", { name: `Marcar como feito: ${title}` });
     try {
       await page.goto("/atividades", { waitUntil: "commit" });
       await expect(toggle).toBeVisible();
@@ -175,6 +175,34 @@ test("completion button stays disabled until the list hydrates", async ({
     // O toque chegou ao servidor: é a prova que importa, e não depende de o
     // card continuar na lista depois do `router.refresh()`.
     await expect.poll(() => taskStatus(title), { timeout: 20_000 }).toBe("done");
+  } finally {
+    await removeFamily(id);
+  }
+});
+
+/**
+ * "Desfazer" logo depois de "Feito", em Hoje.
+ *
+ * Concluir sobe a versão da atividade. O aviso de "Desfazer" é do card que
+ * acabou de sair da lista, e mandava a versão de antes: o servidor respondia
+ * conflito e o toque não fazia nada. A versão nova agora volta na resposta e o
+ * card a guarda.
+ */
+test("undo right after done reopens the activity on Hoje", async ({ page, context, baseURL }) => {
+  test.setTimeout(180_000);
+  if (!baseURL) throw new Error("Local app required");
+  const id = `offline-queue-undo-${randomUUID()}`;
+  try {
+    const title = await familyWithTask(page, context, baseURL, id);
+    await page.goto("/dashboard");
+    const toggle = page.getByRole("button", { name: `Marcar como feito: ${title}` });
+    await expect(toggle).toBeEnabled();
+    await toggle.click();
+    await expect.poll(() => taskStatus(title), { timeout: 20_000 }).toBe("done");
+    await page.getByRole("button", { name: "Desfazer", exact: true }).click();
+    await expect.poll(() => taskStatus(title), { timeout: 20_000 }).toBe("pending");
+    // A linha volta para "Para hoje", pronta para ser concluída de novo.
+    await expect(toggle).toBeVisible();
   } finally {
     await removeFamily(id);
   }

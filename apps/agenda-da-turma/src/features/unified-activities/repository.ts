@@ -2,7 +2,6 @@ import "server-only";
 import { db, sql } from "@informach/db";
 import { agendaStudentProfiles, agendaTasks } from "@informach/db/schema";
 import { APP_TIME_ZONE } from "@/features/dashboard/date";
-import type { DashboardCounters } from "@/features/dashboard/types";
 import { accessibleProfileCondition } from "@/features/family/access";
 import { activeProfileSubjectCondition } from "@/features/profile-subjects/visibility";
 import { type ActivityOverviewOptions, OVERVIEW_PAGE_SIZE } from "./overview-types";
@@ -110,60 +109,28 @@ export async function listRoutineIndex(
   );
 }
 
-// KPIs contados sobre a mesma projeção — antes os contadores olhavam só turma
-// e extras, então o número podia discordar da lista logo abaixo dele.
-export async function getRoutineCounters(
+/**
+ * Quantas a família concluiu hoje, na mesma projeção da rotina.
+ *
+ * Conta pela CONCLUSÃO, não pelo prazo: o fecho do dia reconhece quando a
+ * família cuidou, e uma atividade sem prazo cuidada hoje conta igual.
+ * `completed_at` é timestamptz; a conversão para o fuso do app é o que impede a
+ * virada às 21h de contar no dia seguinte. Era uma das cinco contagens dos
+ * cards do topo de Hoje; os cards saíram e as outras quatro não tinham mais
+ * quem as lesse.
+ */
+export async function countDoneToday(
   userId: string,
-  options: {
-    profileFilter: string | null;
-    todayIso: string;
-    tomorrowIso: string;
-    weekEndIso: string;
-    weekAgoIso: string;
-  },
-): Promise<DashboardCounters & { doneToday: number }> {
-  const rows = await db.execute<{
-    overdue: string;
-    today: string;
-    week: string;
-    done_recent: string;
-    done_today: string;
-  }>(sql`
+  options: { profileFilter: string | null; todayIso: string },
+): Promise<number> {
+  const rows = await db.execute<{ done_today: string }>(sql`
     ${activityIndexCte(userId)}
-    SELECT
-      COUNT(*) FILTER (WHERE status = 'pending' AND due_at < ${options.todayIso}::date) AS overdue,
-      COUNT(*) FILTER (WHERE status = 'pending' AND due_at = ${options.todayIso}::date) AS today,
-      COUNT(*) FILTER (
-        WHERE status = 'pending'
-          AND due_at BETWEEN ${options.tomorrowIso}::date AND ${options.weekEndIso}::date
-      ) AS week,
-      -- Pela CONCLUSÃO, não pelo prazo: "concluídas nos últimos 7 dias" quer
-      -- dizer o que a família cuidou, inclusive o que estava atrasado há
-      -- semanas. A janela "recentes" da lista usa a mesma coluna.
-      COUNT(*) FILTER (
-        WHERE status = 'done'
-          AND completed_at IS NOT NULL
-          AND (completed_at AT TIME ZONE ${APP_TIME_ZONE})::date
-              BETWEEN ${options.weekAgoIso}::date AND ${options.todayIso}::date
-      ) AS done_recent,
-      -- Concluídas HOJE conta pela conclusão, não pelo prazo: o fecho do dia
-      -- reconhece quando a família cuidou, e uma atividade sem prazo cuidada
-      -- hoje conta igual. completed_at é timestamptz; a conversão para o fuso
-      -- do app é o que impede a virada às 21h de contar no dia seguinte.
-      COUNT(*) FILTER (
-        WHERE status = 'done'
-          AND completed_at IS NOT NULL
-          AND (completed_at AT TIME ZONE ${APP_TIME_ZONE})::date = ${options.todayIso}::date
-      ) AS done_today
+    SELECT COUNT(*) AS done_today
     FROM activity_index
-    WHERE (${options.profileFilter}::uuid IS NULL OR profile_id = ${options.profileFilter}::uuid)
+    WHERE status = 'done'
+      AND completed_at IS NOT NULL
+      AND (completed_at AT TIME ZONE ${APP_TIME_ZONE})::date = ${options.todayIso}::date
+      AND (${options.profileFilter}::uuid IS NULL OR profile_id = ${options.profileFilter}::uuid)
   `);
-  const row = rows[0];
-  return {
-    overdue: Number(row?.overdue ?? 0),
-    today: Number(row?.today ?? 0),
-    week: Number(row?.week ?? 0),
-    doneRecent: Number(row?.done_recent ?? 0),
-    doneToday: Number(row?.done_today ?? 0),
-  };
+  return Number(rows[0]?.done_today ?? 0);
 }

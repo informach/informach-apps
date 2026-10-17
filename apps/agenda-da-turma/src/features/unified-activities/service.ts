@@ -1,13 +1,12 @@
 import "server-only";
 import { addDaysIso, todayLocalIso } from "@/features/dashboard/date";
-import type { DashboardCounters } from "@/features/dashboard/types";
 import {
   type ActivityOverviewItem,
   type ActivityOverviewOptions,
   dueWindowRange,
   OVERVIEW_PAGE_SIZE,
 } from "./overview-types";
-import { getRoutineCounters, listActivityOverviewIndex, listRoutineIndex } from "./repository";
+import { countDoneToday, listActivityOverviewIndex, listRoutineIndex } from "./repository";
 import type { RoutineBuckets } from "./routine-types";
 import { listTasksByIds } from "./task-repository";
 
@@ -50,23 +49,20 @@ export async function getActivityOverview(userId: string, options: ActivityOverv
 export type RoutineSnapshot = {
   todayIso: string;
   buckets: RoutineBuckets;
-  counters: DashboardCounters;
   /**
-   * Quantas a família concluiu hoje. Fica FORA de `counters` de propósito: os
-   * quatro KPIs são os quatro cards da tela, e `getDashboardCounters` (a
-   * exportação em PDF) usa o mesmo tipo. Este número não é card — é o que
-   * distingue "o dia fechou" de "nunca houve nada".
+   * Quantas a família concluiu hoje. Não é placar: é o que distingue "o dia
+   * fechou" de "nunca houve nada".
    */
   doneToday: number;
 };
 
 /**
- * A rotina do dashboard: os três buckets e os KPIs, ambos derivados da mesma
- * projeção das três fontes. Antes o dashboard misturava
- * `listNoticeActions` com `getDashboardSnapshot` no componente e ainda
- * chamava o snapshot uma segunda vez dentro de um bloco recolhido — a mesma
- * atividade aparecia duas vezes, em dois formatos, e os contadores ignoravam
- * os recados.
+ * A rotina de Hoje: os três buckets e o que foi concluído hoje, sobre a mesma
+ * projeção das atividades. Antes o dashboard misturava `listNoticeActions` com
+ * um snapshot próprio no componente e ainda chamava o snapshot uma segunda vez
+ * dentro de um bloco recolhido: a mesma atividade aparecia duas vezes, em dois
+ * formatos, e os contadores ignoravam os recados. A vez da criança lê esta
+ * mesma função.
  */
 export async function getRoutineSnapshot(
   userId: string,
@@ -79,9 +75,9 @@ export async function getRoutineSnapshot(
     tomorrowIso: addDaysIso(todayIso, 1),
     weekEndIso: addDaysIso(todayIso, 7),
   };
-  const [index, counters] = await Promise.all([
+  const [index, doneToday] = await Promise.all([
     listRoutineIndex(userId, range),
-    getRoutineCounters(userId, { ...range, weekAgoIso: addDaysIso(todayIso, -7) }),
+    countDoneToday(userId, { profileFilter: options.profileFilter, todayIso }),
   ]);
   const items = await hydrateIndexRows(userId, index);
   const buckets: RoutineBuckets = { attention: [], tomorrow: [], week: [] };
@@ -89,6 +85,5 @@ export async function getRoutineSnapshot(
     const item = items.get(row.id);
     if (item) buckets[row.bucket].push(item);
   }
-  const { doneToday, ...kpis } = counters;
-  return { todayIso, buckets, counters: kpis, doneToday };
+  return { todayIso, buckets, doneToday };
 }

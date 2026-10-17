@@ -13,6 +13,10 @@ import { getAvatarColorIndex, getInitials } from "../utils";
  */
 const SIZES = {
   chip: { box: "size-5", text: "text-[9px]", letters: 1 },
+  /** Dentro das pílulas de filtro e de escolha da criança. */
+  pill: { box: "size-7", text: "text-[11px]", letters: 1 },
+  /** Nas linhas das folhas de Hoje (escola, mochila). */
+  row: { box: "size-9", text: "text-xs", letters: 2 },
   sm: { box: "size-11", text: "text-sm", letters: 2 },
   md: { box: "size-12", text: "text-sm", letters: 2 },
 } as const;
@@ -37,7 +41,10 @@ type Props = {
 export function StudentAvatar({ name, size = "md", className }: Props) {
   const { box, text, letters } = SIZES[size];
   return (
+    // Decorativo: em todo lugar o nome da criança está escrito ao lado. Sem o
+    // aria-hidden, as iniciais entravam no nome do link ("AAna").
     <Avatar
+      aria-hidden
       className={cn(
         box,
         "border-2 text-foreground",

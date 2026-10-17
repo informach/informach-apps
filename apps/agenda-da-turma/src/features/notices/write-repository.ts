@@ -873,7 +873,10 @@ export async function setNoticeActionStatusWithinTx(
     .for("update");
   if (!previous) return err({ code: "NOT_FOUND" } as const);
   if (previous.version !== input.version) return err({ code: "VERSION_CONFLICT" } as const);
-  if (previous.status === input.status) return ok({ id: input.id });
+  // A versão volta junto: é ela que deixa o mesmo card concluir e, logo em
+  // seguida, desfazer. Sem ela o "Desfazer" mandava a versão de antes e
+  // esbarrava sempre em VERSION_CONFLICT.
+  if (previous.status === input.status) return ok({ id: input.id, version: previous.version });
   // Cancelar alcança a turma; reabrir só a própria cópia deixaria as outras
   // famílias canceladas sem ninguém saber. O que foi cancelado fica no
   // histórico e vira uma atividade nova quando voltar a valer.
@@ -947,5 +950,5 @@ export async function setNoticeActionStatusWithinTx(
         });
     }
   }
-  return ok({ id: input.id });
+  return ok({ id: input.id, version: current.version });
 }

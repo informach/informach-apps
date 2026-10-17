@@ -30,7 +30,12 @@ export const taskStatusBodySchema = z.object({
  * aparelho uma resposta que ninguém escreveu.
  */
 export const writeReceiptSchema = z.union([
-  z.object({ ok: z.literal(true), value: z.object({ id: z.string() }) }),
+  z.object({
+    ok: z.literal(true),
+    // Opcional: recibos gravados antes de a versão voltar na resposta
+    // continuam legíveis, e quem os recebe busca a versão no próximo refresh.
+    value: z.object({ id: z.string(), version: z.number().int().positive().optional() }),
+  }),
   z.object({ ok: z.literal(false), error: z.object({ code: z.string() }) }),
 ]);
 

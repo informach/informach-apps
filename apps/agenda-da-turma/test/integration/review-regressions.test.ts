@@ -475,8 +475,11 @@ describe("Review regressions", () => {
     };
     const listed = async () =>
       (await getActivityOverview(owner, options)).items.map((entry) => entry.item.id);
+    // Hoje não tem mais os números do topo: o que conta é a linha em "Para hoje".
     const routineToday = async () =>
-      (await getRoutineSnapshot(owner, { profileFilter: child })).counters.today;
+      (await getRoutineSnapshot(owner, { profileFilter: child })).buckets.attention.map(
+        (entry) => entry.item.id,
+      );
 
     const calendarIds = async () =>
       (
@@ -492,7 +495,7 @@ describe("Review regressions", () => {
     expect(await listed()).toContain(taskId);
     expect(await calendarIds()).toContain(taskId);
     expect(await digestIds()).toContain(taskId);
-    const withActive = await routineToday();
+    expect(await routineToday()).toContain(taskId);
     const pendingWithActive = await countPendingActivities(db, owner);
 
     await db
@@ -502,7 +505,7 @@ describe("Review regressions", () => {
 
     // Pausada: some dos dois ao mesmo tempo — é essa simultaneidade que importa.
     expect(await listed()).not.toContain(taskId);
-    expect(await routineToday()).toBe(withActive - 1);
+    expect(await routineToday()).not.toContain(taskId);
 
     // O LIMITE do plano gratuito conta o mesmo que a tela mostra. Sem isto a
     // família lê 15 pendências e é recusada ao cadastrar a 16ª, sem causa visível.
@@ -519,7 +522,7 @@ describe("Review regressions", () => {
       .set({ status: "active", pausedAt: null })
       .where(eq(agendaProfileSubjects.id, extraId));
     expect(await listed()).toContain(taskId);
-    expect(await routineToday()).toBe(withActive);
+    expect(await routineToday()).toContain(taskId);
     expect(await countPendingActivities(db, owner)).toBe(pendingWithActive);
     expect(await calendarIds()).toContain(taskId);
     expect(await digestIds()).toContain(taskId);

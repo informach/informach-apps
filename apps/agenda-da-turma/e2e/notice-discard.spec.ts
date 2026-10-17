@@ -143,7 +143,7 @@ test("discarding a draft persists: trash in the review, and discard from the das
     // E um `?retomar=` vencido abre a importação com um aviso, nunca um erro.
     await page.reload();
     await expect(
-      page.getByText("Aquele rascunho não está mais aguardando revisão", { exact: false }),
+      page.getByText("Aquele recado não está mais esperando conferência", { exact: false }),
     ).toBeVisible();
     await expect(
       page.getByRole("combobox", { name: "Para qual criança?", exact: true }),
