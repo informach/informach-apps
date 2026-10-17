@@ -13,6 +13,7 @@ process.env.EMAIL_SANDBOX_DIR = EMAIL_SANDBOX_DIR;
 export default defineConfig({
   testDir: "./e2e",
   timeout: process.env.CI ? 60_000 : 30_000,
+  expect: { timeout: process.env.CI ? 15_000 : 5_000 },
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

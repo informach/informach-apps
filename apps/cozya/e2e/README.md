@@ -4,8 +4,8 @@ Playwright cobre os fluxos de auth por email do Cozya que dependem de OTP: signu
 
 ## Pré-requisitos
 
-1. Postgres rodando (`docker compose up -d` na raiz).
-2. Migrations aplicadas: `pnpm db:migrate`.
+1. PostgreSQL e Redis locais dedicados aos testes, sem reutilizar instâncias ou dados de produção.
+2. Migrations aplicadas: `pnpm db:migrate`, com `DATABASE_URL` apontando explicitamente para o banco isolado.
 3. `.env.local` com no mínimo:
    - `DATABASE_URL`
    - `BETTER_AUTH_SECRET` (qualquer string ≥ 32 chars)
@@ -19,17 +19,21 @@ Playwright cobre os fluxos de auth por email do Cozya que dependem de OTP: signu
    - `STRIPE_SECRET_KEY=sk_test_e2e`
    - `STRIPE_WEBHOOK_SECRET=whsec_e2e`
    - `OPENROUTER_API_KEY=sk-or-e2e`
-   - `REDIS_URL` vazio ou um Redis local ativo. A config do Playwright força vazio para usar Postgres nos testes.
-4. Browsers do Playwright: `pnpm e2e:install` (uma vez). Em CI Linux, use `pnpm --filter @informach/cozya exec playwright install --with-deps chromium`.
+   - Redis de teste ativo: o `webServer` da config usa `redis://localhost:6379/12`. Esse endereço deve pertencer ao ambiente de teste. Para outra porta, inicie o servidor Next separadamente com seu `REDIS_URL` isolado e use `E2E_SKIP_WEBSERVER=1`.
+4. Browsers do Playwright: `pnpm --filter @informach/cozya e2e:install` (uma vez por versão instalada). Em CI Linux, use `pnpm --filter @informach/cozya exec playwright install --with-deps chromium`.
 
 ## Comandos
 
 ```bash
-pnpm e2e            # headless
-pnpm e2e:ui         # interactive UI
+pnpm --filter @informach/cozya e2e     # headless, a partir da raiz
+pnpm --filter @informach/cozya e2e:ui  # interface interativa
 ```
 
-A `playwright.config.ts` sobe `pnpm dev` automaticamente (`webServer`). Para rodar contra um server já em pé, use `E2E_SKIP_WEBSERVER=1 pnpm e2e`.
+A `playwright.config.ts` sobe `pnpm exec next dev -p 3102` automaticamente (`webServer`); `E2E_PORT` permite escolher outra porta. Para rodar contra um servidor isolado já iniciado, defina `E2E_SKIP_WEBSERVER=1` e `E2E_BASE_URL` com a mesma origem local usada por `BETTER_AUTH_URL` e `NEXT_PUBLIC_APP_URL`, além do mesmo `EMAIL_SANDBOX_DIR`. Os contextos de navegador são criados pelo Playwright, sem usar o perfil pessoal.
+
+## Tempos de espera no CI
+
+As asserções aguardam até 15 segundos com `CI=1` e 5 segundos localmente. O CI usa `next dev`, que compila rotas sob demanda: a navegação pode ultrapassar o padrão de 5 segundos apesar de a ação e a resposta HTTP terem concluído com sucesso. A espera continua condicionada ao resultado de cada asserção; não há pausa fixa, remoção de critérios ou retries adicionais. O aquecimento de rotas pesadas e os limites de ação/teste existentes permanecem. Diagnóstico e resultado da rodada: [registro operacional de 17/10/2026](../../../docs/reviews/cozya-2026-09-11/operacao-e-piloto.md#estabilidade-do-e2e-no-ci--17102026).
 
 ## Como funciona o sandbox de email
 
