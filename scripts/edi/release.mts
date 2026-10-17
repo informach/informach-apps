@@ -89,6 +89,21 @@ async function buildInstaller() {
     version,
     trustedKeys: { [keyId]: expectedPublic },
   });
+  await execute(
+    "powershell.exe",
+    [
+      "-NoLogo",
+      "-NoProfile",
+      "-NonInteractive",
+      "-File",
+      resolve("scripts/edi/verify-package-metadata.ps1"),
+      "-Target",
+      resolve(unpacked, `${config.productName}.exe`),
+      "-Version",
+      version,
+    ],
+    { windowsHide: true, timeout: 30000, maxBuffer: 32768, env: windowsPowerShellEnvironment() },
+  );
   if (process.env.EDI_PACKAGE_LAYOUT_ONLY === "true") {
     console.log(`Verified packaged application layout: ${appId} ${version}`);
     return;

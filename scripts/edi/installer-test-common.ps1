@@ -22,7 +22,11 @@ function Invoke-TestInstaller([string]$Installer) {
 
 function Assert-InstalledVersion([string]$Target, [string]$Version) {
   $binary = Get-Item -LiteralPath $Target
-  if ($binary.VersionInfo.ProductVersion.Split('+')[0] -ne $Version) { throw 'Installed version mismatch.' }
+  # electron-builder preserves the complete SemVer in FileVersion. ProductVersion
+  # is the numeric Windows resource (e.g. 0.0.0.0 for both beta.1 and beta.2).
+  if ($binary.VersionInfo.FileVersion -cne $Version) {
+    throw "Installed version mismatch: expected $Version, found $($binary.VersionInfo.FileVersion)."
+  }
   $directory = Split-Path -Parent $Target
   foreach ($notice in @('LICENSE.electron.txt', 'LICENSES.chromium.html', 'resources/THIRD-PARTY-NOTICES.txt')) {
     $path = Join-Path $directory $notice

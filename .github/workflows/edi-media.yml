@@ -23,8 +23,17 @@ jobs:
           node-version: 24.15.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Restore media bundle for these exact build inputs
+        id: media-cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: .cache/edi-native-media/windows-x64
+          key: edi-media-windows-x64-node24.15.0-v1-${{ hashFiles('scripts/edi/media/**', 'scripts/edi/build-media.mts', 'scripts/edi/media-bundle.mts', 'pnpm-lock.yaml') }}
       - name: Cross-compile the pinned sources and preserve complete build inputs
+        if: steps.media-cache.outputs.cache-hit != 'true'
         run: pnpm edi:media:build
+      - name: Verify recipe, corresponding source and every cached or built byte
+        run: node --input-type=module -e 'import { verifyNativeMediaBundle } from "./scripts/edi/media-bundle.mts"; await verifyNativeMediaBundle();'
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: edi-native-media-windows-x64
