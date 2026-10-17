@@ -1685,6 +1685,8 @@ describe("createAuth: duas etapas ligadas encerram as outras sessões", () => {
     return {
       listSessions: vi.fn(async () => tokens.map((token) => ({ token }))),
       deleteSessions: vi.fn(async () => undefined),
+      deleteUserSessions: vi.fn(async (_userId: string) => undefined),
+      updateUser: vi.fn(async (_userId: string, _data: Record<string, unknown>) => undefined),
     };
   }
 
@@ -1735,7 +1737,7 @@ describe("createAuth: duas etapas ligadas encerram as outras sessões", () => {
     expect(adapter.deleteSessions).toHaveBeenCalledWith(["antiga"]);
   });
 
-  it("fails closed: if the cleanup fails, the new session goes too and the response is an error", async () => {
+  it("fails closed: if the cleanup fails, every session of the account goes and the response is an error", async () => {
     const onSecurityEvent = vi.fn();
     const handler = afterHook({ onSecurityEvent });
     const adapter = adapterWith([]);
@@ -1743,9 +1745,48 @@ describe("createAuth: duas etapas ligadas encerram as outras sessões", () => {
     await expect(handler(activation(adapter))).rejects.toMatchObject({
       body: { code: "SESSION_CLEANUP_FAILED" },
     });
-    expect(adapter.deleteSessions).toHaveBeenCalledWith(["nova"]);
+    // two_factor_enabled já está gravado: as sessões antigas, abertas só com a
+    // senha, não podem sobrar, então saem todas, não só a nova.
+    expect(adapter.deleteUserSessions).toHaveBeenCalledWith("u1");
+    expect(adapter.updateUser).not.toHaveBeenCalled();
     expect(onSecurityEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "two_factor_session_cleanup_failed", userId: "u1" }),
+      expect.objectContaining({
+        type: "two_factor_session_cleanup_failed",
+        userId: "u1",
+        metadata: expect.objectContaining({ fallback: "all_sessions_revoked" }),
+      }),
+    );
+  });
+
+  it("also fails closed when deleting the old sessions fails: two-factor is turned back off", async () => {
+    const onSecurityEvent = vi.fn();
+    const handler = afterHook({ onSecurityEvent });
+    const adapter = adapterWith(["antiga", "nova"]);
+    adapter.deleteSessions.mockRejectedValueOnce(new Error("database unavailable"));
+    adapter.deleteUserSessions.mockRejectedValueOnce(new Error("database unavailable"));
+    await expect(handler(activation(adapter))).rejects.toMatchObject({
+      body: { code: "SESSION_CLEANUP_FAILED" },
+    });
+    expect(adapter.updateUser).toHaveBeenCalledWith("u1", { twoFactorEnabled: false });
+    expect(onSecurityEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({ fallback: "two_factor_reverted" }),
+      }),
+    );
+  });
+
+  it("reports when nothing could close the account", async () => {
+    const onSecurityEvent = vi.fn();
+    const handler = afterHook({ onSecurityEvent });
+    const adapter = adapterWith([]);
+    adapter.listSessions.mockRejectedValueOnce(new Error("database unavailable"));
+    adapter.deleteUserSessions.mockRejectedValueOnce(new Error("database unavailable"));
+    adapter.updateUser.mockRejectedValueOnce(new Error("database unavailable"));
+    await expect(handler(activation(adapter))).rejects.toMatchObject({
+      body: { code: "SESSION_CLEANUP_FAILED" },
+    });
+    expect(onSecurityEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ metadata: expect.objectContaining({ fallback: "failed" }) }),
     );
   });
 });

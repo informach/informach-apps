@@ -139,12 +139,12 @@ export function TwoFactorSetup({
     void run(async () => {
       const result = await authClient.twoFactor.verifyTotp({ code: code.replace(/\s+/g, "") });
       if (errorCode(result.error) === "SESSION_CLEANUP_FAILED") {
-        // As duas etapas ligaram, mas as outras sessões não saíram: por
-        // segurança, a desta tela também foi encerrada.
+        // A limpeza das outras sessões falhou: o pacote encerrou todas as
+        // sessões da conta (esta junto) ou, se nem isso deu, desfez a ativação.
         setSignInAgain(true);
         setMessage({
           tone: "bad",
-          text: "As duas etapas foram ativadas, mas não deu para encerrar as outras sessões da conta, e por segurança esta também foi encerrada. Entre de novo com a senha e o código do aplicativo.",
+          text: "Não deu para concluir a ativação com segurança, então todas as sessões da conta foram encerradas, inclusive esta. Entre de novo com a senha. Se o Bastidores pedir a ativação das duas etapas outra vez, refaça desde o código no e-mail.",
         });
         return;
       }

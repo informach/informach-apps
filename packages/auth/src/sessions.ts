@@ -60,6 +60,22 @@ async function references(store: SessionStore, userId: string): Promise<SessionR
   );
 }
 
+type CachedPayload = { session?: Record<string, unknown> } | null;
+
+/**
+ * Lê a sessão de uma referência ainda dentro do prazo. Referência vencida, ou
+ * cujo registro já saiu do armazenamento, não é sessão valendo.
+ */
+async function liveSession(
+  store: SessionStore,
+  reference: SessionReference,
+  now: number,
+): Promise<Record<string, unknown> | null> {
+  if (reference.expiresAt <= now) return null;
+  const cached = parseJson(await store.get(reference.token)) as CachedPayload;
+  return cached?.session ?? null;
+}
+
 /** Sessões ainda válidas da conta neste armazenamento, sem token nem IP. */
 export async function listCachedSessions(
   store: SessionStore,
@@ -68,12 +84,9 @@ export async function listCachedSessions(
 ): Promise<CachedSession[]> {
   const sessions: CachedSession[] = [];
   for (const reference of await references(store, userId)) {
-    if (reference.expiresAt <= now) continue;
-    const cached = parseJson(await store.get(reference.token)) as {
-      session?: Record<string, unknown>;
-    } | null;
-    if (!cached?.session) continue;
-    const { createdAt, updatedAt, expiresAt, userAgent } = cached.session;
+    const session = await liveSession(store, reference, now);
+    if (!session) continue;
+    const { createdAt, updatedAt, expiresAt, userAgent } = session;
     sessions.push({
       createdAt: asDate(createdAt),
       updatedAt: asDate(updatedAt),
@@ -86,14 +99,23 @@ export async function listCachedSessions(
 
 /**
  * Encerra todas as sessões da conta neste armazenamento: apaga cada sessão e a
- * lista. Devolve quantas sessões foram apagadas. O próximo pedido da pessoa no
- * app não encontra a sessão e ela precisa entrar de novo.
+ * lista, inclusive as referências vencidas. Devolve quantas estavam valendo,
+ * pelo mesmo critério de `listCachedSessions`, para a tela não contar como
+ * encerrada uma sessão que já tinha acabado. O próximo pedido da pessoa no app
+ * não encontra a sessão e ela precisa entrar de novo.
  */
-export async function revokeCachedSessions(store: SessionStore, userId: string): Promise<number> {
-  const list = await references(store, userId);
-  for (const { token } of list) await store.delete(token);
+export async function revokeCachedSessions(
+  store: SessionStore,
+  userId: string,
+  now = Date.now(),
+): Promise<number> {
+  let live = 0;
+  for (const reference of await references(store, userId)) {
+    if (await liveSession(store, reference, now)) live++;
+    await store.delete(reference.token);
+  }
   await store.delete(activeSessionsKey(userId));
-  return list.length;
+  return live;
 }
 
 /**

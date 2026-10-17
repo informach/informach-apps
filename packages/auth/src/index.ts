@@ -545,9 +545,40 @@ type TwoFactorHookContext = {
     internalAdapter?: {
       listSessions: (userId: string) => Promise<Array<{ token: string }>>;
       deleteSessions: (tokens: string[]) => Promise<unknown>;
+      deleteUserSessions: (userId: string) => Promise<unknown>;
+      updateUser: (userId: string, data: Record<string, unknown>) => Promise<unknown>;
     };
   };
 };
+
+/** O que sobrou de pé quando a limpeza das outras sessões falhou. */
+export type TwoFactorCleanupFallback = "all_sessions_revoked" | "two_factor_reverted" | "failed";
+
+/**
+ * Fecha a conta quando a limpeza normal falhou. Neste ponto `two_factor_enabled`
+ * já está gravado, então qualquer sessão que sobrar, inclusive as antigas abertas
+ * só com a senha, vale como completa para quem confere a coluna. Primeiro saem
+ * todas as sessões da conta (a nova junto); se nem isso der, as duas etapas são
+ * desfeitas, e a conta volta a precisar da ativação antes de valer como completa.
+ */
+async function failClosedAfterTwoFactorCleanup(
+  userId: string,
+  adapter: NonNullable<TwoFactorHookContext["context"]>["internalAdapter"],
+): Promise<TwoFactorCleanupFallback> {
+  if (!adapter) return "failed";
+  try {
+    await adapter.deleteUserSessions(userId);
+    return "all_sessions_revoked";
+  } catch {
+    // Segue para desfazer as duas etapas.
+  }
+  try {
+    await adapter.updateUser(userId, { twoFactorEnabled: false });
+    return "two_factor_reverted";
+  } catch {
+    return "failed";
+  }
+}
 
 /**
  * Quando a conta liga as duas etapas neste pedido (a sessão de quem pediu ainda
@@ -556,9 +587,11 @@ type TwoFactorHookContext = {
  * limpeza, uma sessão aberta só com a senha passaria a valer como completa.
  * Fica só a sessão nova que o plugin acabou de criar para quem ativou.
  *
- * Se a limpeza falhar, a sessão nova também sai (ninguém fica dentro com as
- * antigas abertas), a observabilidade recebe `two_factor_session_cleanup_failed`
- * e a resposta vira erro.
+ * Se a limpeza falhar, nenhuma sessão da conta fica de pé: saem todas, a nova
+ * junto, e se nem isso der as duas etapas são desfeitas
+ * (`failClosedAfterTwoFactorCleanup`). A observabilidade recebe
+ * `two_factor_session_cleanup_failed`, com o desfecho em `metadata.fallback`, e
+ * a resposta vira erro.
  */
 async function revokeOtherSessionsWhenTwoFactorTurnsOn(
   config: CreateAuthConfig,
@@ -578,15 +611,16 @@ async function revokeOtherSessionsWhenTwoFactorTurnsOn(
       .filter((token) => token !== keep);
     if (others.length) await adapter.deleteSessions(others);
   } catch (error) {
-    if (keep && adapter) await adapter.deleteSessions([keep]).catch(() => undefined);
+    const fallback = await failClosedAfterTwoFactorCleanup(before.id, adapter);
     emitSecurityEvent(config, {
       type: "two_factor_session_cleanup_failed",
       userId: before.id,
-      metadata: { error: error instanceof Error ? error.name : "UnknownError" },
+      metadata: { error: error instanceof Error ? error.name : "UnknownError", fallback },
     });
     throw new APIError("INTERNAL_SERVER_ERROR", {
       code: "SESSION_CLEANUP_FAILED",
-      message: "Two-factor is on, but other sessions could not be revoked. Sign in again.",
+      message:
+        "Two-factor activation could not finish safely; the account's sessions were ended. Sign in again.",
     });
   }
 }
