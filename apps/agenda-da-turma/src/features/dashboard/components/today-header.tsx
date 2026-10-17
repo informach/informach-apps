@@ -49,6 +49,9 @@ export function TodayHeader({
         <h1 className="text-[42px] font-extrabold leading-[1.02] tracking-[-0.05em]">
           A mochila de amanhã
         </h1>
+        {/* À noite não há pílulas: com uma criança só na tela, a linha
+            "Só de Clara · Ver todas" diz isso e devolve as outras. */}
+        {filter}
       </header>
     );
 

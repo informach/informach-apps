@@ -50,6 +50,13 @@ export function singularNoun(types: readonly string[]): string {
   return (type && SINGULAR[type]) ?? "atividade";
 }
 
+/** Trabalho, material, lembrete e evento são masculinos; o resto, e a mistura, femininos. */
+const MASCULINE = new Set(["project", "material", "reminder", "event"]);
+export function isMasculine(types: readonly string[]): boolean {
+  const type = commonType(types);
+  return Boolean(type && MASCULINE.has(type));
+}
+
 /** "provas", para "recebem as mesmas provas"; "atividades" quando misturadas. */
 export function pluralNoun(types: readonly string[]): string {
   const type = commonType(types);
@@ -62,9 +69,15 @@ function dayPhrase(iso: string, todayIso: string) {
   return `${weekdayLong(iso).toLowerCase()}, ${near ? Number(iso.slice(8)) : dayMonthLabel(iso, todayIso)}`;
 }
 
-/** "A primeira é quinta, 22." ou, com uma só, "É para quinta, 22." */
-export function firstDueSentence(count: number, firstDue: string, todayIso: string): string {
-  return `${count === 1 ? "É para" : "A primeira é"} ${dayPhrase(firstDue, todayIso)}.`;
+/** "A primeira é quinta, 22.", "O primeiro é quinta, 22." ou, com uma só, "É para quinta, 22." */
+export function firstDueSentence(
+  count: number,
+  firstDue: string,
+  todayIso: string,
+  types: readonly string[] = [],
+): string {
+  const lead = count === 1 ? "É para" : isMasculine(types) ? "O primeiro é" : "A primeira é";
+  return `${lead} ${dayPhrase(firstDue, todayIso)}.`;
 }
 
 type ReminderItem = { type: string; dueAt: string | null; reminderAt: string | null };

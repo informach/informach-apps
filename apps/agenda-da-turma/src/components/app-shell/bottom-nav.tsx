@@ -1,4 +1,5 @@
 "use client";
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { cn } from "@informach/ui/lib/utils";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -23,6 +24,11 @@ export function BottomNav({
   profiles: Array<{ id: string; name: string }>;
 }) {
   const path = usePathname();
+  // O rodapé chega por streaming (ver o layout) e pode hidratar depois de uma
+  // navegação já começada, com outro endereço. A aba só acende depois da
+  // hidratação: servidor e primeira pintura no navegador desenham igual, e o
+  // React não encontra uma aba acesa no HTML e outra no cliente.
+  const hydrated = useHydrated();
   // A criança escolhida viaja com a navegação.
   const profileId = useSearchParams().get("perfil");
   const [first, second, third, fourth] = APP_DESTINATIONS;
@@ -32,7 +38,7 @@ export function BottomNav({
   if (path.startsWith("/recados/novo") || path === "/upgrade") return null;
 
   const tab = (item: (typeof APP_DESTINATIONS)[number]) => {
-    const active = isActiveDestination(path, item.href);
+    const active = hydrated && isActiveDestination(path, item.href);
     const Icon = item.icon;
     return (
       <Link

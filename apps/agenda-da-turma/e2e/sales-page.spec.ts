@@ -101,6 +101,9 @@ for (const selection of ["free", "monthly", "annual"] as const) {
       "aria-pressed",
       "true",
     );
+    // O seletor só habilita depois da hidratação: daí em diante o clique conta
+    // e o rastreador da página já está ouvindo os botões.
+    await expect(pricing.getByRole("button", { name: "Mensal", exact: true })).toBeEnabled();
     await expect(pricing).toContainText("19,90");
     if (selection === "annual") {
       await pricing.getByRole("button", { name: /^Anual/ }).click();
@@ -168,6 +171,11 @@ test("responsive light and dark layouts, FAQ keyboard, contact and legal navigat
   await expect(
     who.getByRole("img", { name: "Helena e Júlio sorrindo, lado a lado" }),
   ).toBeVisible();
+  // A foto fica no fim da página e carrega quando chega perto da tela.
+  await who.getByRole("img").scrollIntoViewIfNeeded();
+  await expect
+    .poll(() => who.getByRole("img").evaluate((img) => (img as HTMLImageElement).naturalWidth))
+    .toBeGreaterThan(0);
   expect(
     await who.getByRole("img").evaluate((img) => (img as HTMLImageElement).naturalWidth),
   ).toBeGreaterThan(0);

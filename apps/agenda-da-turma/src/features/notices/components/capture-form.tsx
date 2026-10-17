@@ -31,6 +31,7 @@ import { buildPdfFromPhotos, MAX_PHOTOS, type Photo } from "../photo-pdf";
 import {
   countedNoun,
   firstDueSentence,
+  isMasculine,
   pluralNoun,
   remindersSentence,
   singularNoun,
@@ -1115,8 +1116,8 @@ export function CaptureForm({
           </h1>
           <p className="text-base leading-normal text-foreground/80">
             {saved.firstDue
-              ? firstDueSentence(saved.count, saved.firstDue, todayIso)
-              : "Sem data por enquanto: fica em Para hoje até alguém marcar o dia."}
+              ? firstDueSentence(saved.count, saved.firstDue, todayIso, saved.types)
+              : `Sem data por enquanto: ${saved.count === 1 ? "fica" : "ficam"} em Para hoje até alguém marcar o dia.`}
             {saved.reminders ? ` ${saved.reminders}` : ""}
           </p>
           {saved.shareIds.length && shareStep !== "skipped" ? (
@@ -1124,7 +1125,7 @@ export function CaptureForm({
               {shareStep === "done" ? (
                 <p className="text-[15px] font-bold">
                   {sharedCount === 0
-                    ? "Nenhuma foi para a turma. Elas continuam na agenda de vocês."
+                    ? `Não deu para mandar para a turma: ${saved.shareIds.length === 1 ? "fica" : "ficam"} só na agenda de vocês.`
                     : `${sharedCount === 1 ? "Foi" : "Foram"} para a turma${saved.turma ? ` do ${saved.turma}` : ""}. As outras famílias decidem se aceitam.`}
                 </p>
               ) : (
@@ -1134,7 +1135,13 @@ export function CaptureForm({
                   </h2>
                   <p className="text-sm leading-normal text-foreground/80">
                     As outras famílias recebem{" "}
-                    {saved.shareIds.length === 1 ? "a mesma" : "as mesmas"}{" "}
+                    {isMasculine(saved.shareTypes)
+                      ? saved.shareIds.length === 1
+                        ? "o mesmo"
+                        : "os mesmos"
+                      : saved.shareIds.length === 1
+                        ? "a mesma"
+                        : "as mesmas"}{" "}
                     {saved.shareIds.length === 1
                       ? singularNoun(saved.shareTypes)
                       : pluralNoun(saved.shareTypes)}{" "}
@@ -1823,7 +1830,7 @@ export function CaptureForm({
                 <Link
                   key={d.id}
                   className="block text-sm font-semibold text-primary-ink underline"
-                  href={`/recados/acoes/${d.id}`}
+                  href={`/atividades/${d.id}`}
                 >
                   {d.title}, abrir para corrigir
                 </Link>

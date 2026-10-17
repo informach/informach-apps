@@ -550,11 +550,15 @@ function ExitButton({ onExit }: { onExit: () => void }) {
     if (timer.current) clearInterval(timer.current);
     timer.current = null;
     setProgress(0);
-    // A flag também zera aqui: um `pointerdown` que termina em `pointerleave`
-    // não dispara clique, e a flag presa engolia o próximo clique sintetizado
-    // por leitor de tela.
-    usedPointer.current = false;
   }, []);
+  // Dedo que escorregou para fora ou gesto cancelado não viram clique: a flag
+  // zera aqui, senão engoliria o próximo clique sintetizado por leitor de tela.
+  // Depois do `pointerup` ela fica ligada, porque o `click` vem logo em seguida
+  // e precisa saber que foi dedo (é ele que zera).
+  const abandon = useCallback(() => {
+    stop();
+    usedPointer.current = false;
+  }, [stop]);
 
   // Segurar e sair da aba deixaria o intervalo correndo.
   useEffect(() => stop, [stop]);
@@ -584,13 +588,16 @@ function ExitButton({ onExit }: { onExit: () => void }) {
       className="relative flex w-[76px] shrink-0 touch-none select-none flex-col items-center gap-1 overflow-hidden rounded-2xl px-1 py-2 text-[11px] font-bold leading-tight text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onPointerDown={start}
       onPointerUp={stop}
-      onPointerLeave={stop}
-      onPointerCancel={stop}
+      onPointerLeave={abandon}
+      onPointerCancel={abandon}
       onClick={() => {
-        // Só chega aqui sem ponteiro: clique sintetizado por tecnologia
-        // assistiva. Com dedo ou mouse, `pointerup` já passou por `stop` e a
-        // flag ainda está ligada no mesmo ciclo do clique.
-        if (usedPointer.current) return;
+        // Com dedo ou mouse, o clique vem depois do `pointerup` com a flag
+        // ligada: soltar antes do tempo não sai, só segurar até o fim. Sem
+        // ponteiro, é clique sintetizado por tecnologia assistiva, e sai.
+        if (usedPointer.current) {
+          usedPointer.current = false;
+          return;
+        }
         onExit();
       }}
       onKeyDown={(event) => {

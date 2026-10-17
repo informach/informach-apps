@@ -23,6 +23,7 @@ import {
   users,
 } from "@informach/db/schema";
 import { expect, test } from "@playwright/test";
+import { waitForAppHydration, waitForHydration } from "./fixtures/hydration";
 
 function required<T>(value: T | undefined): T {
   if (value === undefined) throw new Error("Missing browser fixture");
@@ -407,9 +408,15 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
     // formulário fica a um toque, em Editar.
     for (const version of [2, 3]) {
       await page.goto("/atividades");
-      await page
-        .getByRole("link", { name: `Atividade versão ${version - 1}`, exact: true })
-        .click();
+      const title = page.getByRole("link", {
+        name: `Atividade versão ${version - 1}`,
+        exact: true,
+      });
+      await waitForHydration(title);
+      await waitForAppHydration(page);
+      await title.click();
+      // A leitura também compila na primeira visita: o "Editar" só existe depois dela.
+      await expect(page).toHaveURL(/\/atividades\/[0-9a-f-]{36}$/, { timeout: 30_000 });
       await page.getByRole("link", { name: "Editar", exact: true }).click();
       // A primeira visita ao detalhe compila a página no `next dev`, e isso não
       // cabe nos 5 s de um `expect` local. O orçamento é desta espera, não do teste.

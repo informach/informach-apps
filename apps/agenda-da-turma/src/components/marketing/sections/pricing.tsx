@@ -1,5 +1,6 @@
 "use client";
 
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { cn } from "@informach/ui/lib/utils";
 import { Minus } from "lucide-react";
 import { useState } from "react";
@@ -47,6 +48,9 @@ function Features({ items }: { items: PlanFeature[] }) {
 /** Os dois planos, como na prancha: o ciclo num seletor no meio e os dois cartões lado a lado. */
 export function Pricing() {
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
+  // O seletor só troca o preço depois da hidratação: antes dela, num celular
+  // lento, o toque se perderia e a página continuaria no mensal sem dizer nada.
+  const hydrated = useHydrated();
   const price = PRICING[cycle];
   return (
     <section id="planos" aria-labelledby="pricing-title" className={`${SEC} ${SEC_LIGHT}`}>
@@ -65,6 +69,7 @@ export function Pricing() {
               key={option}
               type="button"
               aria-pressed={cycle === option}
+              disabled={!hydrated}
               onClick={() => setCycle(option)}
               className={cn(
                 "min-h-11 rounded-[11px] px-4 text-[15px] font-bold",

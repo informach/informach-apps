@@ -46,14 +46,20 @@ const TYPE_NOUNS: Record<string, string> = {
   study: "estudo",
 };
 
-/** "material de Ciências", "prova de Inglês", ou o título quando não há matéria. */
+/**
+ * "material de Ciências", "prova de Inglês". Sem matéria, um evento vai pelo
+ * nome ("passeio ao museu"), e o resto pelo tipo ("material", "tarefa"): os
+ * títulos costumam ser ordens ("Levar rolo de papel"), e "Amanhã tem levar
+ * rolo de papel" não é frase.
+ */
 export function describeThing(item: {
   type: string;
   title: string;
   subjectName: string | null;
 }): string {
   if (item.subjectName) return `${TYPE_NOUNS[item.type] ?? "atividade"} de ${item.subjectName}`;
-  return item.title.charAt(0).toLowerCase() + item.title.slice(1);
+  if (item.type === "event") return item.title.charAt(0).toLowerCase() + item.title.slice(1);
+  return TYPE_NOUNS[item.type] ?? "atividade";
 }
 
 /**

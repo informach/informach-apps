@@ -159,7 +159,12 @@ test("a vez da criança vai até a próxima aula, desfaz o toque errado e oferec
     await expect(page.getByText(kidLabel(later, today))).toBeVisible();
 
     // Sair é segurar; o leitor de tela ativa com um clique só.
-    await expect(page.getByRole("button", { name: /^Segure para devolver/ })).toBeVisible();
+    const exit = page.getByRole("button", { name: /^Segure para devolver/ });
+    await expect(exit).toBeVisible();
+    // Um toque de dedo (pointerdown, pointerup e click) não tira a criança da vez.
+    await exit.click();
+    await page.waitForTimeout(500);
+    await expect(exit).toBeVisible();
   } finally {
     await removeFamily(id);
   }

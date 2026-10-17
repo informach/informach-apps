@@ -20,6 +20,9 @@ describe("the words of the notice review", () => {
   it("says when the first one is, near or far", () => {
     expect(firstDueSentence(4, "2026-10-22", "2026-10-19")).toBe("A primeira é quinta, 22.");
     expect(firstDueSentence(1, "2026-10-22", "2026-10-19")).toBe("É para quinta, 22.");
+    expect(firstDueSentence(3, "2026-10-22", "2026-10-19", ["project", "project"])).toBe(
+      "O primeiro é quinta, 22.",
+    );
     expect(firstDueSentence(2, "2026-11-26", "2026-10-19")).toBe(
       "A primeira é quinta, 26 de novembro.",
     );

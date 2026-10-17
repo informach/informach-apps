@@ -136,3 +136,25 @@ Pedido da Helena em 17/10/2026: o visual tem que ficar igual às pranchas, com u
 
 Capturas com a família do canvas (`tmp/canvas/shots.spec.ts`, fora do git), comparadas lado a lado com as pranchas renderizadas: Hoje no celular e no computador, a noite, a Semana, a Família e a landing inteira em 1440 px batem com as pranchas, a não ser pelos dados do dia. A prancha da captura é interativa e não se renderiza parada; ela foi conferida pela copy literal. Typecheck e Biome limpos; unitários 617 de 617; integração 89 de 89 num banco descartável com a cadeia inteira de migrações e os dados de referência. O E2E e o build rodam no CI do PR.
 
+## Review completo de 17/10 à noite
+
+Antes do merge, um review completo do PR, só de leitura, e a rodada do E2E no CI acharam o que segue, corrigido nesta rodada:
+
+- **Correção pelo recado de atividade que está na turma:** continua na turma e leva a data nova às outras famílias quando a correção traz data e matéria; sem uma delas, vale a regra de antes (sai da turma se ninguém aceitou, é recusada se já aceitaram), como a edição faz. Teste de integração dos dois casos.
+- **"Mandar para a turma" no "Pronto"** não grava mais uma revisão sem mudança de conteúdo, e o card deixou de dizer "Mudou depois de salva" (teste de integração).
+- **À noite**, o "Só de Clara · Ver todas" aparece de fato (o cabeçalho da noite não desenhava o filtro).
+- **A frase do topo de Hoje** não usa mais o título como nome: sem matéria, um evento vai pelo nome e o resto pelo tipo ("Amanhã tem material", e não "Amanhã tem levar rolo de papel").
+- **Sair da vez da criança** exige mesmo segurar: um toque simples saía, porque o `pointerup` apagava a marca de que o toque foi de dedo (E2E novo).
+- **Concordância no "Pronto":** "o mesmo trabalho", "O primeiro é" para trabalhos, "fica"/"ficam", e a frase de quando nada foi para a turma.
+- **"Foto" na folha "O que chegou?"** volta a aceitar PDF, como a "Foto ou arquivo" de antes.
+- **Os endereços antigos** (`/recados/acoes/<id>`, `/atividades/<id>/historico`, `/perfis`, `/turmas`) redirecionam em `next.config.ts`, com 307 antes de renderizar; feitos pela página, o layout ia para o navegador no endereço antigo.
+- **O rodapé acende a aba depois da hidratação.** Ele chega por streaming e podia hidratar já no endereço de uma navegação começada, com outra aba acesa (aviso de hidratação no console, achado pelo E2E).
+- **O seletor de ciclo dos planos** só habilita depois da hidratação: no CI lento, o toque no "Anual" se perdia e a página ficava no mensal.
+- **Testes:** o E2E espera a hidratação antes de clicar num título de atividade (`e2e/fixtures/hydration.ts`) e a foto de "Quem faz" carregar antes de medir.
+
+Ficam registrados, sem mudança nesta rodada: o resumo semanal de segunda a quinta cobre de hoje até sexta (escolha da fase 1); o e-mail semanal não tem teto de linhas; a mesma prova de duas crianças da mesma turma, mandada pelo "Pronto", vira dois fatos na turma; o "Desfazer" do "Tirar" volta a atividade só na tela; "Hoje na escola" e o e-mail semanal mostram as extras ao adulto convidado, enquanto Família as esconde dele (decisão da Helena); a cena ilustrativa do topo da landing segue a prancha.
+
+### Verificação
+
+Typecheck e Biome limpos; unitários 618 de 618; integração 90 de 90 num banco descartável; E2E de `sales-page`, `review-fixes` e `week-family-kid` 11 de 11 contra o `next dev`, com o `review-fixes` repetido até passar três vezes seguidas sem aviso de hidratação.
+

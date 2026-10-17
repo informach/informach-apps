@@ -50,6 +50,16 @@ export function actionFingerprint(action: Pick<NoticeActionInput, "title" | "due
     .digest("hex");
 }
 
+/** O que muda a cada gravação sem ser conteúdo: versão, datas de gravação e o vínculo com a turma. */
+const BOOKKEEPING = new Set(["version", "updatedAt", "sharedActivityId", "fingerprint"]);
+
+/** A gravação mudou algo que a família escreveu, e não só a contabilidade da linha? */
+export function contentChanged(previous: object, current: object): boolean {
+  const content = (row: object) =>
+    JSON.stringify(Object.entries(row).filter(([key]) => !BOOKKEEPING.has(key)));
+  return content(previous) !== content(current);
+}
+
 async function validAssignee(tx: AgendaTransaction, ownerId: string, input: NoticeActionInput) {
   if (!input.assignedToUserId || input.assignedToUserId === ownerId) return true;
   const [guest] = await tx
@@ -367,11 +377,17 @@ export async function insertConfirmedNotice(
         // A retificação que veio no recado alcança a turma pelo mesmo caminho
         // da edição manual — publicar, despublicar e corrigir são a mesma
         // decisão, e é por isso que moram numa função só.
-        // Corrigir pelo recado nunca tira da turma: a captura não mostra a caixa
-        // marcada para o que já foi, e despublicar é decisão da edição.
+        // Corrigir pelo recado mantém na turma o que já foi, quando a correção
+        // ainda traz a data e a matéria: é assim que a data nova chega às outras
+        // famílias. Sem uma delas, vale a regra de antes (despublicar se ninguém
+        // aceitou, recusar se já aceitaram), como a edição faz com
+        // SHARED_REQUIRES_SCHOOL_FIELDS: uma cópia sem data ligada à turma
+        // deixaria as outras famílias com a data velha, sem aviso.
         const keepShared = {
           ...action,
-          shareWithTurma: action.shareWithTurma || previous.sharedActivityId !== null,
+          shareWithTurma:
+            action.shareWithTurma ||
+            (previous.sharedActivityId !== null && Boolean(action.dueAt && action.subjectId)),
         };
         const sharing = await reconcileSharing(tx, userId, isPro, previous, keepShared, published);
         if (!sharing.ok) return err({ code: sharing.code } as const);
@@ -624,13 +640,17 @@ export async function updateNoticeActionAtomically(
     if (publishedBySelf && sharedActivityId)
       await publishActivityCorrection(tx, sharedActivityId, userId, current);
     await cancelActionDeliveries(tx, previous.id, previous.version);
-    await tx.insert(agendaActivityRevisions).values({
-      taskId: input.id,
-      actorId: userId,
-      version: current.version,
-      previous,
-      current,
-    });
+    // Mandar para a turma pelo "Pronto" passa por aqui sem mudar o conteúdo: a
+    // versão sobe (é ela que segura a concorrência), mas não há revisão, senão o
+    // card diria "Mudou depois de salva" e o histórico mostraria uma versão igual.
+    if (contentChanged(previous, current))
+      await tx.insert(agendaActivityRevisions).values({
+        taskId: input.id,
+        actorId: userId,
+        version: current.version,
+        previous,
+        current,
+      });
     return ok({ id: input.id });
   });
 }

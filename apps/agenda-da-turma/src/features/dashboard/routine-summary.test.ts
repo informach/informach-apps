@@ -72,3 +72,17 @@ describe("the words of the page", () => {
     );
   });
 });
+
+describe("describeThing", () => {
+  it("never puts an order in the sentence: without a subject, the type names it", () => {
+    expect(
+      describeThing({ type: "material", title: "Levar rolo de papel e cola", subjectName: null }),
+    ).toBe("material");
+    expect(describeThing({ type: "event", title: "Passeio ao museu", subjectName: null })).toBe(
+      "passeio ao museu",
+    );
+    expect(describeThing({ type: "exam", title: "Prova", subjectName: "Inglês" })).toBe(
+      "prova de Inglês",
+    );
+  });
+});
