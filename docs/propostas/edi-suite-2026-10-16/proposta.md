@@ -49,7 +49,7 @@ O Edi Hub será o aplicativo central no Windows. Ele permitirá entrar na conta,
 
 Cada ferramenta poderá ser aberta diretamente por atalho ou associação de arquivo. Nessa abertura, usará a mesma conta e a mesma licença da suíte. O Hub não será a única barreira de acesso.
 
-O plano inicial é individual, com cobrança mensal de **R$ 29,90** ou anual de **R$ 299**, valores aprovados pelo titular em 16/10/2026. Os dois intervalos habilitarão as mesmas cinco ferramentas disponíveis, em até dois dispositivos, sem consumo pago de IA incluído. Trial ficará desabilitado inicialmente. A comercialização será feita por pessoa jurídica (CNPJ). A aprovação dos valores não autoriza cobrança antes da homologação. Planos para equipes podem ser adicionados depois usando o suporte existente a titulares do tipo organização, com regras próprias de membros e assentos.
+O plano inicial é individual, com cobrança mensal de **R$ 49,90** ou anual de **R$ 499**, valores aprovados pelo titular em 17/10/2026 em substituição à oferta inicial de R$ 29,90/R$ 299. Os dois intervalos habilitarão as mesmas cinco ferramentas disponíveis, em até dois dispositivos, sem consumo pago de IA incluído. Trial ficará desabilitado inicialmente. A comercialização será feita por pessoa jurídica (CNPJ). A aprovação dos valores não autoriza cobrança antes da homologação. Planos para equipes podem ser adicionados depois usando o suporte existente a titulares do tipo organização, com regras próprias de membros e assentos.
 
 As interfaces estão em desenvolvimento avançado e serão preservadas, incluindo disposição, identidade e fluxos já construídos. O escopo desta entrega é uniformizar a base de desenvolvimento, integrar conta e assinatura, aplicar licença e automatizar distribuição e atualização. Uma revisão visual geral ou a conclusão de funcionalidades pendentes não faz parte desta entrega.
 
@@ -428,7 +428,7 @@ Políticas iniciais sugeridas para o planejamento:
 | Marca e produto | Suíte Edi com Edi Hub como central desktop |
 | Plataforma de lançamento | Windows x64, versões suportadas definidas após validar o Electron adotado |
 | Oferta | Uma assinatura individual para todas as ferramentas disponíveis |
-| Cobrança aprovada | R$ 29,90/mês ou R$ 299/ano, com as mesmas funcionalidades |
+| Cobrança aprovada | R$ 49,90/mês ou R$ 499/ano (revisão aprovada em 17/10/2026), com as mesmas funcionalidades |
 | Titular comercial | Pessoa jurídica (CNPJ); publicador Windows usa a identidade empresarial validada |
 | Trial | Desabilitado inicialmente |
 | Dispositivos | Dois computadores por conta, contando a suíte como uma ativação |

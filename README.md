@@ -37,7 +37,7 @@ mudança de arquitetura, integração ou operação.
 | `missao-saber` | `@informach/missao-saber` | `3005` | Produto comercial autoral para olimpíadas, com perfis familiares e assinatura; [operação](apps/missao-saber/README.md) |
 | `informach-site` | `@informach/informach-site` | `3004` | Site institucional, termos e privacidade |
 | `edi` | `@informach/edi` | `3006` | Portal da suíte; implantação Railway e homologação pendentes; [operação](apps/edi/PRODUCAO.md) |
-| `edi-hub` | `@informach/edi-hub` | — | Central desktop da suíte, em integração |
+| `edi-hub` | `@informach/edi-hub` | — | Central desktop da suíte; [desenvolvimento e testes](docs/desenvolvimento-edi.md) |
 | `ediaula`, `edicaptura`, `edifoto`, `edipdf`, `edisvg` | `@informach/<ferramenta>` | — | Cinco apps Electron em desenvolvimento; [padrão](docs/arquitetura-desktop.md) |
 
 ### Packages
@@ -132,6 +132,9 @@ mudança de arquitetura, integração ou operação.
 Atalhos web por app seguem o padrão `dev:<app>`, `build:<app>` e `start:<app>`.
 Nos desktops, usar os scripts disponíveis no próprio workspace, por exemplo
 `pnpm --filter @informach/edi-hub dev`. Consultar o manifest antes de executar.
+O [guia de desenvolvimento Edi](docs/desenvolvimento-edi.md) mostra como preparar
+perfis isolados, iniciar o Hub e cada editor, configurar login/licença local,
+adicionar funcionalidades ou ferramentas e verificar o pacote Windows.
 
 ```powershell
 pnpm dev:agenda-da-turma

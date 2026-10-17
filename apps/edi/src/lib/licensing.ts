@@ -12,6 +12,7 @@ export function getLicensing() {
   service = createDesktopLicenseService({
     db,
     audience: `${env.NEXT_PUBLIC_APP_URL}/api/desktop`,
+    minimumClientVersion: env.EDI_MINIMUM_CLIENT_VERSION,
     sign: createLicenseSigner({
       privateKeyPem: env.EDI_LICENSE_PRIVATE_KEY.replaceAll("\\n", "\n"),
       kid: env.EDI_LICENSE_KEY_ID,

@@ -2,10 +2,13 @@ import { Buffer } from "node:buffer";
 import { hostname } from "node:os";
 import { setTimeout as delay } from "node:timers/promises";
 import {
+  type accessDenialSchema,
   activationResponseSchema,
+  compareReleaseVersions,
   DEVICE_CODE_GRANT,
   type DesktopAppId,
   licenseResponseSchema,
+  releaseVersionSchema,
 } from "@informach/edi-contracts";
 import { readBoundedJson } from "@informach/edi-contracts/json-response";
 import { type RequestProof, signRequestProof } from "@informach/edi-contracts/proof";
@@ -28,6 +31,26 @@ const codeSchema = z.object({
   interval: z.number().int().positive().max(30),
 });
 const oauthErrorSchema = z.object({ error: z.string().min(1).max(200) });
+const updateRequiredReason =
+  "Atualize este aplicativo para continuar. Seu trabalho pode ser recuperado.";
+/** People read the status reason in the Hub and in each tool; never show a raw denial code. */
+const denialReasons: Record<z.infer<typeof accessDenialSchema>, string> = {
+  subscription_required:
+    "Esta conta não tem uma assinatura ativa. Assine em Minha assinatura para abrir as ferramentas.",
+  payment_required: "O último pagamento não foi confirmado. Atualize o cartão em Minha assinatura.",
+  suspended: "O acesso desta conta está suspenso. Seus arquivos continuam neste computador.",
+  device_revoked: "Este computador foi desconectado da conta. Conecte de novo para continuar.",
+  device_limit: "Limite de computadores atingido. Desconecte um deles em Minha conta.",
+  session_revoked: "A sessão foi encerrada. Conecte sua conta de novo.",
+  update_required: updateRequiredReason,
+  invalid_proof: "Não foi possível confirmar este computador. Conecte sua conta de novo.",
+};
+const connectReasons = {
+  expired: "O código venceu antes da autorização. Peça outro em Conectar minha conta.",
+  denied: "O pedido foi recusado no navegador. Conecte de novo quando quiser.",
+  offline: "Sem conexão com o site da Suíte Edi. Confira a internet e tente de novo.",
+  failed: "A conexão não foi concluída. Tente novamente.",
+} as const;
 class RemoteError extends Error {
   constructor(
     readonly status: number,
@@ -38,12 +61,20 @@ class RemoteError extends Error {
     this.name = "RemoteError";
   }
 }
+/** Network failures and gateway outages: a cached lease may still be used. */
+function isTemporary(error: unknown) {
+  return error instanceof RemoteError
+    ? [502, 503, 504].includes(error.status)
+    : error instanceof TypeError ||
+        (error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name));
+}
 export function createDesktopController(
   config: Pick<
     DesktopConfig,
     "portalUrl" | "clientId" | "environment" | "trustedKeys" | "publisher" | "downloadHost"
   > & {
     appId: DesktopAppId;
+    clientVersion: string;
     vault: Vault;
     changed: (status: DesktopStatus) => void;
     openExternal: (url: string) => Promise<void>;
@@ -52,12 +83,14 @@ export function createDesktopController(
   },
 ) {
   const base = new URL(config.portalUrl).origin;
+  const clientVersion = releaseVersionSchema.parse(config.clientVersion);
   const audience = `${base}/api/desktop`;
   const toolId = config.appId === "edi-hub" ? "ediaula" : config.appId;
   const clock = config.now ?? Date.now;
   const transport = config.fetch ?? fetch;
   let status: DesktopStatus = {
     state: "restricted",
+    cause: "signed_out",
     reason: "Conecte sua conta para validar a assinatura.",
     userId: null,
     expiresAt: null,
@@ -151,11 +184,18 @@ export function createDesktopController(
       keyThumbprint: data.keyThumbprint,
       activationId: session.activationId,
       minimumRevision: 0,
+      clientVersion,
       toolId,
       now: new Date(clock()),
       lastTrustedTime: new Date(data.lastTrustedTime),
     });
-    return result.valid ? result.claims : null;
+    if (
+      result.valid &&
+      data.licenseVersionDeniedThrough &&
+      compareReleaseVersions(clientVersion, data.licenseVersionDeniedThrough) <= 0
+    )
+      return { valid: false, reason: "update_required" } as const;
+    return result;
   }
   async function validate() {
     await config.vault.use(async (data) => {
@@ -166,6 +206,7 @@ export function createDesktopController(
           data.session = null;
           emit({
             state: "restricted",
+            cause: "signed_out",
             userId: null,
             expiresAt: null,
             offline: false,
@@ -197,16 +238,26 @@ export function createDesktopController(
             deviceId: data.deviceId,
             sessionId: session.sessionId,
             toolId,
+            clientVersion,
           }),
         );
         if (response.status === "denied") {
-          data.leases = {};
+          if (response.reason === "update_required") {
+            // A version refusal is not a device/account revocation. Persist it
+            // without deleting grants used by newer apps in this shared vault.
+            if (
+              !data.licenseVersionDeniedThrough ||
+              compareReleaseVersions(clientVersion, data.licenseVersionDeniedThrough) > 0
+            )
+              data.licenseVersionDeniedThrough = clientVersion;
+          } else data.leases = {};
           if (["device_revoked", "session_revoked", "suspended"].includes(response.reason))
             data.session = null;
           emit({
             state: "restricted",
-            reason: response.reason,
-            userId: session.userId,
+            cause: response.reason,
+            reason: denialReasons[response.reason],
+            userId: data.session?.userId ?? null,
             expiresAt: null,
             offline: false,
           });
@@ -222,6 +273,7 @@ export function createDesktopController(
           keyThumbprint: data.keyThumbprint,
           activationId: session.activationId,
           minimumRevision: 0,
+          clientVersion,
           toolId,
           now: new Date(clock()),
           lastTrustedTime: new Date(data.lastTrustedTime),
@@ -229,38 +281,52 @@ export function createDesktopController(
         if (!result.valid || Math.abs(response.serverTime - result.claims.iat * 1000) > 2000)
           throw new RemoteError(403, "invalid_license");
         for (const entitledTool of result.claims.tools) data.leases[entitledTool] = response.lease;
+        if (
+          data.licenseVersionDeniedThrough &&
+          (compareReleaseVersions(
+            result.claims.minimumClientVersion,
+            data.licenseVersionDeniedThrough,
+          ) > 0 ||
+            compareReleaseVersions(clientVersion, data.licenseVersionDeniedThrough) <= 0)
+        )
+          delete data.licenseVersionDeniedThrough;
         data.lastTrustedTime = Math.max(data.lastTrustedTime, response.serverTime, clock());
         emit({
           state: "licensed",
+          cause: null,
           reason: "Assinatura validada",
           userId: session.userId,
           expiresAt: new Date(result.claims.exp * 1000).toISOString(),
           offline: false,
         });
       } catch (error) {
-        const temporary = !(error instanceof RemoteError)
-          ? error instanceof TypeError ||
-            (error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name))
-          : [502, 503, 504].includes(error.status);
-        const claims = temporary ? cachedAccess(data) : null;
+        const temporary = isTemporary(error);
+        const cached = temporary ? cachedAccess(data) : null;
+        const claims = cached?.valid ? cached.claims : null;
         if (claims) {
           data.lastTrustedTime = Math.max(data.lastTrustedTime, clock());
           emit({
             state: "licensed",
+            cause: null,
             reason: "Acesso offline temporário",
             userId: claims.sub,
             expiresAt: new Date(claims.exp * 1000).toISOString(),
             offline: true,
           });
         } else {
-          data.leases = {};
+          const updateRequired = cached?.valid === false && cached.reason === "update_required";
+          if (!updateRequired) data.leases = {};
           if (error instanceof RemoteError && [400, 401, 403].includes(error.status))
             data.session = null;
           emit({
             state: "restricted",
-            reason: temporary
-              ? "Não foi possível validar o acesso. Conecte-se à internet."
-              : "A sessão precisa ser validada novamente.",
+            cause: updateRequired ? "update_required" : temporary ? "offline" : "revalidate",
+            reason: updateRequired
+              ? updateRequiredReason
+              : temporary
+                ? "Não foi possível validar o acesso. Conecte-se à internet."
+                : "A sessão precisa ser validada novamente.",
+            userId: data.session?.userId ?? null,
             expiresAt: null,
             offline: false,
           });
@@ -273,6 +339,7 @@ export function createDesktopController(
       .catch((error: unknown) => {
         emit({
           state: "restricted",
+          cause: "unavailable",
           reason: "A sessão protegida está indisponível.",
           expiresAt: null,
           offline: false,
@@ -294,6 +361,7 @@ export function createDesktopController(
       )
         emit({
           state: "restricted",
+          cause: "expired",
           reason: "A validação expirou. Conecte-se para renovar o acesso.",
           expiresAt: null,
           offline: false,
@@ -301,12 +369,17 @@ export function createDesktopController(
     },
     async synchronize() {
       await config.vault.use(async (data) => {
-        const claims = cachedAccess(data);
+        const cached = cachedAccess(data);
+        const claims = cached?.valid ? cached.claims : null;
         if (!claims) {
+          const updateRequired = cached?.valid === false && cached.reason === "update_required";
           if (status.state === "licensed" || (!data.session && status.userId))
             emit({
               state: "restricted",
-              reason: "O acesso foi encerrado neste computador. Valide sua conta novamente.",
+              cause: updateRequired ? "update_required" : data.session ? "expired" : "signed_out",
+              reason: updateRequired
+                ? updateRequiredReason
+                : "O acesso foi encerrado neste computador. Valide sua conta novamente.",
               userId: data.session?.userId ?? null,
               expiresAt: null,
               offline: false,
@@ -320,6 +393,7 @@ export function createDesktopController(
         )
           emit({
             state: "licensed",
+            cause: null,
             userId: claims.sub,
             expiresAt: new Date(claims.exp * 1000).toISOString(),
             reason: "Assinatura validada",
@@ -342,7 +416,7 @@ export function createDesktopController(
       if (login) return;
       login = new AbortController();
       const { signal } = login;
-      emit({ state: "connecting", reason: "Autorize este computador no navegador." });
+      emit({ state: "connecting", cause: null, reason: "Autorize este computador no navegador." });
       try {
         const code = codeSchema.parse(
           await request(
@@ -450,14 +524,22 @@ export function createDesktopController(
           await refresh();
           return;
         }
-        throw new Error("Device authorization expired");
+        throw new RemoteError(400, "expired_token");
       } catch (error) {
+        const code = error instanceof RemoteError ? error.code : null;
         emit({
           state: "restricted",
+          cause: code === "device_limit" ? "device_limit" : "connect_failed",
           reason:
-            error instanceof RemoteError && error.code === "device_limit"
-              ? "Limite de computadores atingido. Desative um dispositivo na sua conta."
-              : "A conexão não foi concluída. Tente novamente.",
+            code === "device_limit"
+              ? denialReasons.device_limit
+              : code === "expired_token"
+                ? connectReasons.expired
+                : code === "access_denied"
+                  ? connectReasons.denied
+                  : !signal.aborted && isTemporary(error)
+                    ? connectReasons.offline
+                    : connectReasons.failed,
           expiresAt: null,
         });
         if (!signal.aborted) throw error;
@@ -486,6 +568,7 @@ export function createDesktopController(
       });
       emit({
         state: "restricted",
+        cause: "signed_out",
         userId: null,
         expiresAt: null,
         offline: false,

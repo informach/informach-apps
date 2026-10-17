@@ -10,7 +10,9 @@
     "./apps": "./src/apps.ts",
     "./products": "./src/products.ts",
     "./domains": "./src/domains.ts",
-    "./edi-tools": "./src/edi-tools.ts"
+    "./edi-tools": "./src/edi-tools.ts",
+    "./edi-brand": "./src/edi-brand.ts",
+    "./contact": "./src/contact.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

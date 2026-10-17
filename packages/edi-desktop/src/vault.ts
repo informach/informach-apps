@@ -24,6 +24,9 @@ export const vaultSchema = z.strictObject({
   keyThumbprint: z.string(),
   session: sessionSchema.nullable(),
   leases: z.record(z.string(), z.string()),
+  // Inclusive version refusal, until a signed grant supersedes it. Shared
+  // licenses remain available to newer applications during a rolling update.
+  licenseVersionDeniedThrough: releaseVersionSchema.optional(),
   lastTrustedTime: z.number().nonnegative(),
   mcpTokens: z.record(z.string(), z.string().regex(/^[a-f0-9]{64}$/)).default({}),
   boundUserId: z.string().nullable().default(null),

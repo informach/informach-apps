@@ -102,7 +102,9 @@ export function renderKeyed(
   duration: number,
   key: ChromaKey,
   onProgress: (ratio: number) => void,
+  signal?: AbortSignal,
 ): Promise<string> {
+  signal?.throwIfAborted();
   const out = join(cacheDir(path), `key-${keyId(key)}.webm`);
   if (existsSync(out)) return Promise.resolve(out);
   const tmp = out.replace(".webm", `.${randomUUID()}.part.webm`);
@@ -189,6 +191,7 @@ export function renderKeyed(
     let filled = 0;
 
     const cleanup = (): void => {
+      signal?.removeEventListener("abort", abort);
       running.delete(jobId);
       for (const wk of workers) void wk.terminate();
     };
@@ -202,6 +205,8 @@ export function renderKeyed(
       reject(err);
     };
     running.set(jobId, () => fail(new Error("Cancelado")));
+    const abort = (): void => fail(new Error("edi_job_preservation_expired"));
+    signal?.addEventListener("abort", abort, { once: true });
 
     const busy = (): boolean =>
       inflight + waiting.length + done.size >= poolSize * 3 ||
@@ -284,6 +289,7 @@ export function renderKeyed(
       finished = true;
       cleanup();
       try {
+        signal?.throwIfAborted();
         if (existsSync(out)) await rm(tmp, { force: true });
         else await rename(tmp, out);
         onProgress(1);

@@ -87,9 +87,9 @@ function harness() {
     fs.readFileSync(path.join(__dirname, "main.cjs"), "utf8") +
       `
     capture=initial;library=storage;getScreen=load;
-    controller={isDestroyed:()=>false,destroy(){},webContents:{send(){}}};
+    controller={isDestroyed:()=>false,destroy(){},hide(){},webContents:{send(){}}};
     monitorState=()=>({displays:[]});send=(name,data)=>{};
-    globalThis.api={next:nextSegment,finish:finishCapture,cleanup,state:()=>capture};`,
+    globalThis.api={next:nextSegment,finish:finishCapture,cleanup,preserve:()=>preserveCapture(capture),state:()=>capture};`,
     context,
   );
   return {
@@ -182,4 +182,58 @@ test("automático não confirma nem acrescenta imagem sem correspondência", asy
   await h.api.next(true);
   await h.api.next(true);
   assert.equal(h.api.state().segments.length, 1);
+});
+
+test("expiração finaliza os trechos autorizados e não captura novos após falha de salvamento", async () => {
+  const h = harness();
+  await h.api.next(false);
+  h.setFail(true);
+  await assert.rejects(h.api.preserve(), /disk full/);
+  assert.equal(h.api.state().restricted, true);
+  const count = h.api.state().segments.length;
+  await h.api.next(false);
+  await h.api.next(true);
+  assert.equal(h.api.state().segments.length, count);
+  h.setFail(false);
+  await h.api.finish(null);
+  assert.equal(h.saved[0].height, 140);
+  assert.equal(h.api.state(), null);
+});
+
+test("recuperação concorrente aguarda a finalização da rolagem e salva uma única imagem", async () => {
+  const h = harness();
+  h.hold();
+  const next = h.api.next(false);
+  const preservation = h.api.preserve();
+  let recovered = false;
+  const recovery = h.api.finish(null).then(() => {
+    recovered = true;
+  });
+  await new Promise(setImmediate);
+  assert.equal(recovered, false);
+  assert.equal(h.saved.length, 0);
+  h.release();
+  await Promise.all([next, preservation, recovery]);
+  assert.equal(h.saved.length, 1);
+  assert.equal(h.saved[0].height, 140);
+  assert.equal(h.api.state(), null);
+});
+
+test("falha da finalização concorrente chega a todos os pedidos e permite repetir", async () => {
+  const h = harness();
+  h.hold();
+  h.setFail(true);
+  const next = h.api.next(false);
+  const preservation = assert.rejects(h.api.preserve(), /disk full/);
+  const recovery = assert.rejects(h.api.finish(null), /disk full/);
+  h.release();
+  await Promise.all([next, preservation, recovery]);
+  assert.equal(h.saved.length, 0);
+  assert.equal(h.api.state().finishing, false);
+  assert.equal(h.api.state().restricted, true);
+  h.setFail(false);
+  await h.api.finish(null);
+  assert.equal(h.saved.length, 1);
+  assert.equal(h.saved[0].height, 140);
+  assert.equal(h.api.state(), null);
 });

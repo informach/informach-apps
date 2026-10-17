@@ -9,10 +9,17 @@ export const installationSchema = z.strictObject({
   error: z.string().nullable(),
 });
 export type Installation = z.infer<typeof installationSchema>;
+export const installActivitySchema = z.strictObject({
+  id: toolIdSchema,
+  phase: z.enum(["downloading", "installing"]),
+  progress: z.number().min(0).max(1),
+});
+export type InstallActivity = z.infer<typeof installActivitySchema>;
 export interface HubBridge {
   list(): Promise<Installation[]>;
   install(toolId: z.infer<typeof toolIdSchema>): Promise<void>;
   open(toolId: z.infer<typeof toolIdSchema>): Promise<void>;
+  onActivity(callback: (activity: InstallActivity[]) => void): () => void;
 }
 declare global {
   interface Window {

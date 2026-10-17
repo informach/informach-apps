@@ -1,0 +1,68 @@
+name: Edi Windows installer upgrades
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      source_ref:
+        required: false
+        type: string
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/edi*/**"
+      - "packages/edi-*/**"
+      - "packages/config/src/edi-tools.ts"
+      - "scripts/edi/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/edi-media.yml"
+      - ".github/workflows/edi-upgrade.yml"
+      - ".github/workflows/edi-upgrade-app.yml"
+permissions:
+  contents: read
+jobs:
+  media:
+    uses: ./.github/workflows/edi-media.yml
+    with:
+      source_ref: ${{ inputs.source_ref || github.sha }}
+  catalog:
+    runs-on: ubuntu-24.04
+    outputs:
+      applications: ${{ steps.catalog.outputs.applications }}
+      media_application: ${{ steps.catalog.outputs.media_application }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ inputs.source_ref || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.15.0
+      - name: Discover applications from the suite catalog
+        id: catalog
+        run: |
+          node --input-type=module <<'NODE' >> "$GITHUB_OUTPUT"
+          import { EDI_DESKTOP_APPS } from "./packages/config/src/edi-tools.ts";
+          const media = EDI_DESKTOP_APPS.find(app => app.id === "ediaula");
+          if (!media) throw new Error("The suite catalog must include EdiAula");
+          console.log("applications=" + JSON.stringify(EDI_DESKTOP_APPS.filter(app => app !== media).map(app => app.id)));
+          console.log("media_application=" + media.id);
+          NODE
+  upgrade:
+    needs: catalog
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        app: ${{ fromJSON(needs.catalog.outputs.applications) }}
+    uses: ./.github/workflows/edi-upgrade-app.yml
+    with:
+      source_ref: ${{ inputs.source_ref || github.sha }}
+      app: ${{ matrix.app }}
+  upgrade-media:
+    needs: [catalog, media]
+    uses: ./.github/workflows/edi-upgrade-app.yml
+    with:
+      source_ref: ${{ inputs.source_ref || github.sha }}
+      app: ${{ needs.catalog.outputs.media_application }}

@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import { DirectLink } from "@/components/marketing/direct-link";
 import { SITE } from "@/lib/site";
 
 const TITLE = "Termos de Uso";
 const DESCRIPTION =
-  "Termos de uso aplicáveis aos sites e produtos operados pela Informach — Núcleo de Aprendizagem Ltda.";
-const LAST_UPDATED = "9 de maio de 2026";
+  "Termos de uso aplicáveis aos sites e produtos operados pela Informach Núcleo de Aprendizagem Ltda.";
+const LAST_UPDATED = "17 de outubro de 2026";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -28,11 +29,8 @@ export default function TermsOfUsePage() {
           <p>
             Estes Termos são oferecidos pela <strong>{SITE.legalName}</strong>, pessoa jurídica de
             direito privado inscrita no CNPJ sob o nº <strong>{SITE.cnpj}</strong> ("Informach", "a
-            gente"). Pra falar com a gente sobre estes Termos, use{" "}
-            <a className="underline underline-offset-2" href={`mailto:${SITE.contactEmail}`}>
-              {SITE.contactEmail}
-            </a>
-            .
+            gente"). Pra falar com a gente sobre estes Termos, mande uma mensagem no direct do
+            Instagram, em <DirectLink />.
           </p>
           <p>
             A Informach desenvolve e opera produtos digitais ("apps") com inteligência artificial
@@ -65,12 +63,35 @@ export default function TermsOfUsePage() {
 
         <Section title="3. Apps da Informach">
           <p>
-            Hoje a Informach opera os apps listados em{" "}
-            <a className="underline underline-offset-2" href="/#apps">
-              {SITE.url.replace("https://", "")}/#apps
+            Hoje a Informach opera os produtos apresentados em{" "}
+            <a className="underline underline-offset-2" href="/">
+              {SITE.url.replace("https://", "")}
             </a>
-            . Outros apps podem ser lançados ao longo do tempo e também serão publicados nessa
-            lista.
+            . Outros podem ser lançados ao longo do tempo e também serão publicados lá.
+          </p>
+          <p>
+            <strong>Termos específicos da Missão Saber:</strong>{" "}
+            <a
+              className="underline underline-offset-2"
+              href="https://missao-saber.informach.com.br/termos"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              missao-saber.informach.com.br/termos
+            </a>
+            .
+          </p>
+          <p>
+            <strong>Termos específicos do Sistema Zero:</strong>{" "}
+            <a
+              className="underline underline-offset-2"
+              href="https://sistemazero.com.br/kids/termos"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              sistemazero.com.br/kids/termos
+            </a>
+            .
           </p>
           <p>
             <strong>Termos específicos do Cozya:</strong>{" "}
@@ -91,6 +112,15 @@ export default function TermsOfUsePage() {
             Pra criar conta nos apps você precisa ter pelo menos 18 anos, fornecer informações
             verdadeiras e manter seus dados de acesso em segurança. Você é responsável por toda
             atividade realizada na sua conta. Se notar uso indevido, fala com a gente imediatamente.
+          </p>
+          <p>
+            Crianças e adolescentes usam os produtos feitos para eles por perfis que o responsável
+            cria dentro da própria conta, e o responsável acompanha e responde pelo uso desses
+            perfis. O tratamento dos dados deles está na cláusula 12 da{" "}
+            <a className="underline underline-offset-2" href="/privacidade">
+              Política de Privacidade
+            </a>
+            .
           </p>
         </Section>
 
@@ -151,6 +181,21 @@ export default function TermsOfUsePage() {
             jurídico, financeiro, alimentar). Cada app traz limitações específicas em seus próprios
             Termos.
           </p>
+          <p>
+            Nos apps com IA incluída no plano, como o Cozya e a Agenda da Turma, o uso é contado em
+            créditos. Os planos pagos incluem uma cota de créditos por mês, alguns planos gratuitos
+            trazem uma franquia para testar e, onde houver, assinantes podem comprar pacotes
+            avulsos. Cada tarefa de IA concluída desconta créditos do saldo da conta titular naquele
+            app. Quando a tarefa falha, o crédito reservado é liberado; se a falha só aparecer
+            depois do desconto, o app devolve o crédito. Nesses apps, a Informach contrata e paga os
+            serviços de IA, como o OpenRouter, e você não precisa de conta em nenhum deles. A cota,
+            o custo das tarefas e a validade dos créditos aparecem na página de planos de cada app.
+          </p>
+          <p>
+            A Suíte Edi funciona de outro jeito: a assinatura não inclui IA, e as ferramentas usam a
+            sua própria conta do Claude ou do ChatGPT, ou uma chave da Anthropic, com o consumo
+            cobrado por esses serviços.
+          </p>
         </Section>
 
         <Section title="9. Disponibilidade e manutenção">
@@ -206,11 +251,8 @@ export default function TermsOfUsePage() {
 
         <Section title="14. Contato">
           <p>
-            Pra dúvidas, solicitações ou notificações relacionadas a estes Termos:{" "}
-            <a className="underline underline-offset-2" href={`mailto:${SITE.contactEmail}`}>
-              {SITE.contactEmail}
-            </a>
-            .
+            Pra dúvidas, solicitações ou notificações relacionadas a estes Termos: direct do
+            Instagram, em <DirectLink />.
           </p>
         </Section>
       </div>

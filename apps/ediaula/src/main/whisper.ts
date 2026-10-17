@@ -217,7 +217,9 @@ export async function transcribe(
   language: string,
   glossary: string[],
   onProgress: (r: number) => void,
+  signal?: AbortSignal,
 ): Promise<string> {
+  signal?.throwIfAborted();
   const status = await engineStatus();
   if (!status.bin) throw new Error("Motor de transcrição não instalado.");
   if (!status.model) throw new Error("Nenhum modelo de transcrição encontrado.");
@@ -235,6 +237,7 @@ export async function transcribe(
     ["-y", "-v", "error", "-i", path, "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", wav],
     {
       jobId,
+      signal,
       duration,
       onProgress: (r) => onProgress(r * 0.08),
     },
@@ -244,7 +247,7 @@ export async function transcribe(
     const child = spawn(
       FFMPEG,
       ["-i", wav, "-af", "silencedetect=noise=-35dB:d=0.35", "-f", "null", "-"],
-      { windowsHide: true },
+      { windowsHide: true, signal },
     );
     let err = "";
     child.stderr.on("data", (d: Buffer) => (err += d.toString()));
@@ -276,7 +279,12 @@ export async function transcribe(
   if (status.variant === "cpu") args.push("-ng");
 
   await new Promise<void>((resolve, reject) => {
-    const child = spawn(status.bin!, args, { windowsHide: true, cwd: join(status.bin!, "..") });
+    signal?.throwIfAborted();
+    const child = spawn(status.bin!, args, {
+      windowsHide: true,
+      cwd: join(status.bin!, ".."),
+      signal,
+    });
     let tail = "";
     const onData = (d: Buffer): void => {
       const text = d.toString();
@@ -301,6 +309,7 @@ export async function transcribe(
 
   const json = JSON.parse(await readFile(`${base}.json`, "utf8"));
   const transcript = makeTranscript(json, silences, status.model.name, language, duration);
+  signal?.throwIfAborted();
   await writeFile(out, JSON.stringify(transcript));
   await rm(`${base}.json`, { force: true });
   await rm(wav, { force: true });

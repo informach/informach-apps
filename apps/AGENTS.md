@@ -4,12 +4,13 @@ Antes de criar ou alterar um app, leia o [AGENTS.md da raiz](../AGENTS.md), o [e
 
 - Todos os apps: `docs/arquitetura-monorepo.md`, `docs/arquitetura-packages.md` e `docs/audit-payload-policy.md`.
 - Apps web Next.js: `docs/arquitetura-apps.md`.
-- Apps desktop e novas ferramentas Edi: `docs/arquitetura-desktop.md`.
+- Apps desktop e novas ferramentas Edi: `docs/arquitetura-desktop.md` e o guia prático `docs/desenvolvimento-edi.md`.
 
 ## Regras comuns
 
 - Apps consomem packages por `workspace:*`; apps não importam outros apps.
 - Preserve alterações do usuário, dados, formatos e interfaces fora do escopo solicitado.
+- Páginas públicas e links de suporte dentro das contas não mostram endereço de e-mail para contato. O canal é o direct do Instagram, lido de `@informach/config/contact` (`INFORMACH_CONTACT`); não repita o endereço no código.
 - Use as dependências homologadas e o lockfile da raiz. Versões candidatas documentadas não estão automaticamente aprovadas.
 - Código novo deve ter contratos explícitos, validação nas entradas e testes proporcionais ao risco.
 - Corrija a causa de falhas; não use supressões, casts inseguros, catches vazios ou delays arbitrários para esconder problemas.

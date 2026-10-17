@@ -1,0 +1,137 @@
+# Homologação de distribuição Windows — 17/10/2026
+
+Esta frente complementa o [manual do piloto](distribuicao-piloto.md). Instalação no perfil pessoal não foi usada como atalho para homologação: os scripts de instalação exigem `CI=true`, `GITHUB_ACTIONS=true`, `RUNNER_OS=Windows` e `RUNNER_ENVIRONMENT=github-hosted`.
+
+## Instaladores e atualização
+
+O workflow `.github/workflows/edi-upgrade.yml` descobre os seis aplicativos pelo catálogo e gera duas versões NSIS com a mesma identidade Ed25519 efêmera. Cada build instala, verifica a abertura com inventário assinado e gate de conta, desinstala e confere sentinelas nos diretórios do perfil, da suíte e de documentos. Em seguida, `installer-upgrade.ps1` verifica a transição A→B:
+
+- recusa da instalação manual com A aberto, código 32 e processo preservado;
+- timeout de 30 segundos do handoff de atualização, mantendo A e seus dados intactos;
+- espera pelo fechamento normal no handoff NSIS `/S --updated` usado pelo updater;
+- versão B instalada e aberta com seu inventário assinado;
+- rejeição de arquivo parcial, nova tentativa com os bytes completos e preservação dos sentinelas;
+- uninstall que mantém os bytes preexistentes de perfil e documentos.
+
+O resultado estruturado de cada app fica no artefato `edi-upgrade-<app>-<tentativa>`. O script exige perfil limpo para a instalação inicial. O registro desse workflow precisa apontar para a execução remota efetivamente aprovada; a existência do YAML não é evidência de instalação.
+
+A versão PE é comparada pelo `FileVersion` completo, incluindo `-beta.N`. O electron-builder 26.15.3 preserva ali o SemVer e grava `ProductVersion` no formato numérico Windows; este último não distingue as versões beta. `verify-package-metadata.ps1` confere versão e notices no pacote inventariado antes de gerar NSIS, sem executar o EXE. A mesma conferência é repetida após instalar e atualizar, além da verificação criptográfica de inventário/versão durante a abertura.
+
+Subprocessos `powershell.exe` recebem o ambiente preparado por `@informach/edi-desktop/windows-powershell`. O helper remove somente `PSModulePath`, sem alterar o ambiente do processo pai, para que o Windows PowerShell reconstrua seus caminhos de módulos. Node/Electron iniciado por PowerShell 7 pode herdar caminhos incompatíveis e perder comandos como `Get-FileHash` e `Add-Type`; esse comportamento e a preparação do processo filho estão [documentados pela Microsoft](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_psmodulepath#starting-windows-powershell). O contrato cobre instalação/upgrade, automação nativa, DPAPI, assinatura Windows e os dois helpers do EdiAula. A descoberta do executável pelo `PATH` e as demais variáveis são preservadas.
+
+`packages/edi-desktop/src/installations.test.ts` exercita o downloader real do Hub com resposta HTTP interrompida e bytes adulterados, verificando hashes, remoção dos temporários, liberação do lock e possibilidade de retry. Somente a execução do EXE é substituída nesse teste; o NSIS real pertence ao runner. O handoff NSIS e esses testes separados não são uma simulação de rede completa do `electron-updater` rodando dentro de um editor instalado.
+
+## Ícones e avisos de terceiros
+
+Os seis instaladores/executáveis usam explicitamente seus recursos `resources/icon.ico`. Desde 17/10/2026 os seis ícones seguem a família visual da suíte (cor de marca-texto por ferramenta, glifo em tinta e o Hub com cinco barras) e são gerados por `scripts/edi/make-icons.ps1`, que espelha `packages/config/src/edi-brand.ts`. Os geradores próprios do EdiAula e do EdiPDF foram removidos.
+
+`third-party-notices.mts` inclui os textos LICENSE/NOTICE/README distribuídos pelas dependências de produção, inclusive transitivas e fontes incorporadas pelo Vite. O arquivo gerado fica em `resources/THIRD-PARTY-NOTICES.txt` e integra o inventário assinado. As licenças do Electron e do Chromium permanecem ao lado do executável; o smoke exige esses três arquivos.
+
+Os 34 TTFs de exportação do EdiAula têm copyrights, nomes reservados, versões e SHA-256 registrados em `resources/fonts/LICENSES.txt`, reproduzidos dos metadados dos próprios arquivos, junto do [texto oficial OFL 1.1](https://openfontlicense.org/open-font-license-official-text/). Os TTFs existentes não foram alterados nesta correção.
+
+Fontes, `cursor-hook.ps1` e `guided-input.ps1` são recursos externos usados por FFmpeg/PowerShell. O empacotamento os coloca em `resources/`, fora do ASAR e sem cópia duplicada dentro dele; `nativeResourcePath` seleciona esse caminho quando instalado. Todos continuam no inventário assinado. A busca dos subprocessos dos cinco editores encontrou esses três caminhos no EdiAula; os demais caminhos de recursos identificados eram lidos pelo Electron ou apontavam para executáveis externos já fora do ASAR.
+
+## FFmpeg e fontes correspondentes
+
+A inspeção Windows identificou FFmpeg 6.1.1 e FFprobe 4.0.2, ambos GPLv3, nos pacotes anteriores. O wrapper MIT de `ffprobe-static` não representava a licença do programa nativo. O FFprobe de desenvolvimento Windows foi alinhado ao mesmo fornecedor/versão do FFmpeg com `@derhuerst/ffprobe-static@5.3.0`. Os dois wrappers agora são dependências de desenvolvimento; o build instalado usa exclusivamente `resources/native-media/bin`, sem override por ambiente. O pacote `ffmpeg-static@5.3.0` fornece versões distintas por plataforma: no Linux do CI, o executável verificado foi 7.0.2; no Windows de desenvolvimento, 6.1.1.
+
+Para a distribuição, `scripts/edi/media/` define build próprio do FFmpeg/FFprobe 9.0.2 com compilador MinGW em imagem Ubuntu fixada por digest. `sources.lock.json` fixa URL, versão/commit e SHA-256 de cada fonte. A receita inclui os codecs e filtros exigidos pelos argumentos atuais do editor: x264, VP9, MP3, ASS/fontes, AV1 e as interfaces de captura/aceleração Windows. Não há download de binários nativos durante o uso instalado.
+
+A composição detecta a versão do executável de forma assíncrona e cacheada: FFmpeg 6 recebe `-filter_complex_script`; FFmpeg 7 ou superior usa `-/filter_complex`, mantendo o grafo em arquivo. As coordenadas do cursor são expressões imutáveis avaliadas pelo timestamp do próprio overlay, depois do recorte e da mudança de velocidade. Uma árvore balanceada seleciona a posição de cada quadro, comprimindo coordenadas consecutivas iguais e mantendo profundidade logarítmica mesmo em gravações longas. Isso elimina comandos `sendcmd` que alteravam a posição global durante a leitura antecipada dos ramos pelo FFmpeg, sem limitar threads ou afrouxar as verificações de pixels.
+
+O preenchimento de silêncio usa `apad=whole_dur=<duração do projeto>`. Antes, o produtor infinito de áudio podia continuar executando no FFmpeg 9 apesar do limite na saída. O diagnóstico reproduziu quatro travamentos em 60 renders paralelos do mesmo projeto; com a fonte limitada à duração real, os mesmos 60 terminaram. Os testes de duração, mixagem e silêncio continuam verificando o resultado renderizado.
+
+O CI Linux revelou perda da cauda das transições quando o arquivo de origem terminava: `tpad` vinha depois de `fps`, cujo tratamento de EOF nessa versão encerrava a fonte antes da extensão. A extensão agora ocorre antes de `fps`/`setpts`, em segundos da fonte, incluindo o fator de velocidade. As asserções de pixels existentes foram preservadas e um novo caso verifica velocidades 0,5× e 2×.
+
+O pacote gerado contém os EXEs, licenças e `Corresponding-Source.tar.xz`, com todas as fontes originais das bibliotecas, receitas, configuração FFmpeg e inventário do compilador. Esses arquivos seguem dentro do instalador EdiAula e do seu inventário assinado, preservando os sete assets públicos da suíte. A construção segue a orientação do projeto para [distribuir fontes correspondentes aos binários](https://ffmpeg.org/legal.html); o registro documenta os artefatos e não declara uma revisão jurídica externa.
+
+Comandos:
+
+```powershell
+pnpm edi:media:build
+pnpm edi:media:test
+pnpm edi:test:package --installer ediaula
+```
+
+O primeiro requer Docker Linux e compila as fontes. O segundo exige Windows, confere identidade/integridade e capacidades dos EXEs e roda toda a suíte de testes EdiAula usando esses binários. `edi-media.yml` faz a mesma compilação em Linux e verificação em Windows, preservando `edi-native-media-windows-x64` e `edi-native-media-verification`. O upgrade do EdiAula espera essa homologação e usa o mesmo artefato. Os outros cinco apps iniciam após a descoberta do catálogo, usando o mesmo workflow reutilizável de instalação, sem esperar a mídia; os seis upgrades e a suíte completa de mídia continuam obrigatórios para publicar.
+
+O job Linux usa cache do bundle com chave por conteúdo das receitas, scripts de build/validação, lockfile e versão Node, sem chave alternativa genérica. Um cache restaurado passa novamente pelas verificações de receita, fontes correspondentes, inventário e hashes antes do upload; a suíte Windows é sempre executada. Cache ausente exige compilação. A [visibilidade do cache depende da ref](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#restrictions-for-accessing-a-cache): o cache de um PR pode acelerar novas rodadas daquele PR, mas não é automaticamente reutilizado por `main` ou por outra tag. Não há entrada para importar bundle de um run externo.
+
+## Evidência local desta rodada
+
+- Typecheck do tooling, EdiAula e SDK desktop passou após os novos contratos.
+- Os 31 testes do tooling passaram na rodada atual. A suíte completa EdiAula passou com 172 testes, sem skips, após corrigir o carregamento de dependências de desenvolvimento em módulos ESM; os wrappers não são carregados pelo app instalado.
+- Dois testes do downloader do Hub passaram; três testes do inventário de mídia rejeitaram fontes ausentes/adulteradas, receita divergente e arquivos adicionais.
+- Onze testes reais de formatos/exportação passaram com FFprobe de desenvolvimento 6.1.1; `pnpm audit --prod` permaneceu sem alertas após essa alteração. Isso não é uma auditoria de CVEs dos executáveis nativos.
+- `pnpm edi:test:package --installer edi-hub` gerou e verificou o NSIS `0.0.0-beta.32504`, 113.235.274 bytes, com ícone próprio e notices. Chaves efêmeras; não instalado nem publicado.
+- `pnpm edi:test:package --installer ediaula` gerou e verificou o NSIS `0.0.0-beta.36228`, 200.364.039 bytes. Esta evidência cobre o layout de recursos anterior à última alteração do grafo de exportação; o instalador do commit final será refeito no workflow. Chaves efêmeras; não instalado nem publicado.
+- A inspeção do ASAR confirmou ausência de duplicatas das 34 fontes e dos dois PS1; os recursos externos, avisos e fontes correspondentes estão no inventário assinado. O FFmpeg do diretório empacotado renderizou ASS e selecionou `PlusJakartaSans-Regular` das fontes distribuídas. Os dois PS1 empacotados passaram pelo parser PowerShell.
+- Os quatro scripts PowerShell foram analisados pelo parser; o bloqueio de execução local do instalador foi exercitado e recusou este perfil.
+- O build próprio terminou com receita `4e50132f011d239065c9b9a9c288515528386b45ab7f2511d06b89f08345b9bb`. Os EXEs Windows executaram e atenderam às verificações de versão 9.0.2, licença e capacidades. `Corresponding-Source.tar.xz` tem 54.216.152 bytes e contém as 13 fontes originais, receitas, configuração e inventário do compilador.
+- `pnpm edi:media:test` passou após as correções finais do grafo: 172 testes EdiAula usando os EXEs próprios 9.0.2, sem falhas, skips ou cancelamentos; 50,5 segundos. Resultado em `.cache/edi-media-verification.json`. O teste de cursor/zoom também passou com o binário de desenvolvimento 6.1.1; a rodada geral do repositório verifica novamente esse ambiente no snapshot final.
+- Após reproduzir as sete falhas de transição do CI Linux, os 16 testes de transições passaram com Node 24.15.0/FFmpeg 7.0.2 em Docker e com FFmpeg 6.1.1 Windows. O typecheck da EdiAula passou. A suíte própria 9.0.2 foi repetida no grafo corrigido: **173/173**, sem falhas, skips ou cancelamentos, em 57,5 segundos (`.cache/edi-own-media-transition-fixed.log`).
+
+A homologação remota A→B ainda precisa de execução aprovada dos seis apps no workflow Windows. O build próprio e os testes locais acima estão concluídos; não substituem instalação/upgrade no runner. Também permanece separado o aceite em hardware representativo de captura/GPU e com projetos reais copiados para ambiente descartável.
+
+## Evidência remota e correção de execução PowerShell
+
+- No [run 39025609108](https://github.com/informach/informach-apps/actions/runs/39025609108), PR com head `3c90cdc`, a compilação própria Linux e a homologação Windows da mídia passaram. O job `117380603380` executou **172/172** testes EdiAula com os EXEs próprios; esse resultado pertence àquele snapshot, anterior à correção de cauda de transições.
+- No [run 39026445710](https://github.com/informach/informach-apps/actions/runs/39026445710), PR com head `89b84fa`, o job de verificação Windows `117382197140` também passou: **173/173**, agora com a regressão de velocidade/cauda incluída. Esse resultado não inclui a correção PowerShell posterior.
+- No run `39025609108`, os seis jobs de upgrade geraram seus instaladores A, mas falharam antes de instalar: `Get-FileHash` não carregou na criação dos sentinelas. A causa foi o `PSModulePath` herdado de PowerShell 7 → Node → Windows PowerShell 5.1; o mesmo erro foi confirmado nos logs dos seis aplicativos.
+- A reprodução local segura falhou com ambiente herdado e passou com o ambiente do filho corrigido, sem executar instaladores. Após a correção, **45/45 testes do SDK**, **31/31 testes do tooling** e os typechecks SDK/EdiAula/tooling passaram. O teste nativo do helper carregou UI Automation e os seis comandos Windows necessários; um roundtrip DPAPI com valor sem segredo também passou. `guided-input.ps1 -Check` compilou e `cursor-hook.ps1 -List` enumerou monitores pelo Node com o ambiente corrigido, sem instalar aplicativo ou ativar gravação.
+- `pnpm edi:test:native edisvg` passou no checkout isolado após o build geral: gate, licença offline válida, expiração, bloqueio IPC e diálogo nativo de fechamento com rascunho preservado. Executado diretamente por Node/PowerShell 7, sem shim de `PATH`, com chaves efêmeras e perfil isolado; a limpeza terminou com sucesso. Log local: `.cache/edi-production/native-edisvg-powershell-fixed.log`.
+- Os resultados acima não aprovam a transição A→B. A próxima execução Windows deve confirmar o ciclo completo dos seis instaladores no commit que contém esta correção.
+
+## Verificação do SemVer Windows
+
+No [run 39028538502](https://github.com/informach/informach-apps/actions/runs/39028538502), PR com head `737914b`, a compilação e a mídia Windows passaram novamente (**173/173**, zero falhas/skips). Os instaladores avançaram até a instalação silenciosa, mas Hub, EdiAula e Captura rejeitaram a conferência de versão: o teste usava `ProductVersion`, que é numérico. A leitura dos EXEs locais confirmou `FileVersion=0.0.0-beta.32504` para Hub e `0.0.0-beta.36228` para Aula, com `ProductVersion=0.0.0.0` em ambos. O código da versão fixada do builder confirma esse contrato.
+
+Após corrigir a conferência para `FileVersion`, o novo preflight passou nos dois pacotes reais e rejeitou `0.0.0-beta.99999` nos dois, preservando a distinção entre prereleases. Nenhum EXE foi executado nesse teste local. SDK **45/45**, tooling **31/31** e typechecks SDK/tooling passaram. O novo preflight ainda precisa da próxima execução GitHub que alcance os instaladores; a homologação A→B permanece pendente.
+
+## Cursor determinístico e cache remoto
+
+Os runs [39030699758](https://github.com/informach/informach-apps/actions/runs/39030699758), head `3106f6a`, e [39032377523](https://github.com/informach/informach-apps/actions/runs/39032377523), head `1859bc3`, terminaram com **172/173** testes de mídia: a mesma asserção do cursor na curva Bezier falhou. Os jobs de instalação foram pulados pela dependência da mídia, portanto não há evidência de A→B nesses runs. O primeiro compilou e salvou o bundle; o segundo restaurou a chave exata, dispensou a compilação e repetiu a validação de integridade e toda a suíte Windows. O cache funcionou sem importar artefato de outro run por parâmetro.
+
+O bundle exato de `39030699758` foi baixado para diagnóstico. A falha apareceu na quinta repetição com afinidade de duas CPUs aplicada somente ao processo de teste, sem alterar argumentos/threads do FFmpeg. O vídeo e o filtro estão preservados em `.cache/edi-production/cursor-failure-3106-two-cpus/`. Nos quadros 29, 30 e 31, os centros vermelhos medidos foram `(103,5; 121,5)`, `(349,5; 281,5)` e `(349,5; 281,5)`: atraso seguido de antecipação da trajetória, não um deslocamento fixo da curva. Mover `sendcmd` entre os ramos não eliminava esse estado compartilhado.
+
+A regressão preserva todas as asserções anteriores e verifica também os quadros adjacentes da curva, recorte de 0,8 s, velocidades 0,5×/2× e início deslocado 0,5 s na timeline. Outro teste passa uma trajetória de **100.001 amostras** pelo parser/exportador real e confere o pixel do quadro 71.357, sem renderizar a gravação inteira. Os quatro testes focados passaram com FFmpeg 6.1.1 de desenvolvimento e com o bundle 9.0.2 do run; typecheck EdiAula e Biome dos quatro arquivos também passaram.
+
+Com a correção, **60/60 repetições em duas CPUs** passaram, incluindo os três renders de cursor/zoom e velocidade por repetição. Um render adicional com o bundle do CI confirmou os centros dos quadros 29–31 em `(149,5; 181,5)`, `(249,5; 249,5)` e `(349,5; 281,5)`, respeitando a trajetória amostrada e o arredondamento de pixel do overlay YUV. `pnpm edi:media:test` validou integridade/capacidades do mesmo bundle e passou **176/176**, sem falhas, skips ou cancelamentos, em 90,2 segundos. Evidências locais: `.cache/edi-production/cursor-immutable-two-cpus-*.log`, `.cache/edi-production/cursor-confirm-ci9/` e `.cache/edi-production/media-immutable-cursor-final.log`. A verificação remota subsequente e os bloqueios encontrados na instalação estão registrados abaixo.
+
+## Inventário físico no Electron
+
+No [run 39033703382](https://github.com/informach/informach-apps/actions/runs/39033703382), head `933ef213`, o bundle foi restaurado/validado e a mídia Windows passou **176/176**, sem falhas, skips ou cancelamentos, em 157,4 segundos. O log está em `.cache/edi-production/media-verify-run39033703382.log`. Hub e Captura chegaram à instalação e conferência de `FileVersion`, mas falharam durante a abertura: o cleanup reportou recusa de fechamento e mascarou o erro anterior. Os dois logs estão preservados em `.cache/edi-production/{hub,captura}-upgrade-run39033703382.log`. O run Windows foi cancelado após esses dois resultados para corrigir o leitor de inventário comum; o CI geral não foi cancelado. Não houve aprovação A→B.
+
+A reprodução com Electron 44.8.0 e perfil isolado confirmou um bloqueio determinístico: `node:fs.stat(app.asar)` informa diretório/tamanho zero e `createReadStream` não lê os bytes físicos do arquivo. O mesmo pacote, lido por `original-fs`, retorna os 16.313.013 bytes e seu hash real. Assim, o leitor que funcionava no CLI Node rejeitava o ASAR ao verificar uma instalação dentro do Electron. Esse experimento não executou nem instalou o produto empacotado; log `.cache/edi-production/electron-asar-check.log`.
+
+`InstallationFileSystem` agora explicita o acesso ao disco. A composição Electron injeta `original-fs` no startup dos seis apps e no gerenciador do Hub, incluindo abertura de ferramenta instalada e conferência após instalação. O CLI de empacotamento mantém o filesystem Node. Não há `process.noAsar`, alteração global do filesystem nem fallback silencioso. O build comum marca o módulo nativo `original-fs` como externo.
+
+O gate `pnpm edi:test:native` começa com uma fixture ASAR válida gerada pelo `@electron/asar` e mantida fixa no teste. O produtor Node assina o inventário; o leitor real, compilado pelo Vite e executado no Electron com perfil isolado, aceita os bytes originais e rejeita adulteração de ASAR, EXE e receipt. A entrada da fixture é validada por Zod. A resolução TS dos helpers Node usa a API isolada do `tsx`, sem transformar as funções que o Playwright envia ao renderer. O smoke PowerShell agora registra o erro de abertura, estado do processo e árvore de acessibilidade antes do cleanup; eventual falha ao fechar é registrada separadamente, preservando o erro original e sem terminar o processo à força.
+
+Evidência local desse lote: **45/45 SDK**, **31/31 tooling**, typechecks SDK/Hub/tooling, build Hub, parser PowerShell e diff-check passaram. A nova regressão Electron passou, inclusive após validação Zod. `pnpm edi:test:native edi-hub edisvg` também passou: fixture de inventário, gate, licença offline assinada, expiração, bloqueio IPC e limpeza dos perfis; log `.cache/edi-production/native-physical-asar-final.log`. O teste nativo não instala NSIS. A próxima execução remota deve confirmar abertura instalada e o ciclo A→B dos seis apps.
+
+## Janela interativa no teste do instalador
+
+No head `60b109bd`, [native 39034982832](https://github.com/informach/informach-apps/actions/runs/39034982832) passou a nova regressão ASAR e os seis aplicativos. No [Windows 39034982912](https://github.com/informach/informach-apps/actions/runs/39034982912), a mídia passou novamente **176/176**, sem skips ou cancelamentos. Hub, Captura e Foto instalaram, mas o diagnóstico mostrou processo vivo com `MainWindowHandle=0`, título vazio e sem árvore acessível. A primeira janela era suprimida pelo próprio launcher de teste: `Start-Process -WindowStyle Hidden`. O restante desse run Windows foi cancelado após preservar os três logs e reproduzir a causa comum; CI geral/DB continuaram.
+
+A reprodução com Electron em perfil isolado mostrou `BrowserWindow.isVisible()=false` sob `Hidden`; o handle só apareceu depois de um `window.show()` explícito na fixture diagnóstica. O helper agora usa `WindowStyle Normal` somente para a aplicação GUI que o teste precisa observar/controlar. Instaladores silenciosos e helpers de fundo continuam ocultos. Não houve alteração na interface do produto, nos limites de espera ou na regra de fechamento normal.
+
+O início de `edi:test:native` também exercita o mesmo launcher PowerShell com uma fixture Electron, perfil isolado com espaços no caminho, botão real de conexão exposto por UI Automation e fechamento normal. A regressão falhou com `Hidden` e passou com `Normal`, sem terminar processos à força. A fixture encerra naturalmente se a validação falhar. Logs locais: `.cache/edi-production/native-gui-launcher-red.log` e `native-gui-launcher-green.log`; os logs remotos ficam em `.cache/edi-production/job-<job>-run39034982912.log`. Biome dos arquivos alterados, typecheck e **31/31 testes do tooling**, parsers dos dois PS1 e diff-check passaram. Essa correção ainda precisa do próximo ciclo remoto dos seis instaladores.
+
+## Abertura de ferramentas pelo Hub
+
+A revisão do lote integrado encontrou a mesma causa no caminho de produto: `createInstallationManager.open` usava `spawn` com `windowsHide:true`. Uma fixture Electron descartável confirmou que essa opção também suprime a primeira janela GUI, mesmo com `detached:true` e `stdio:ignore`. O gerenciador agora passa `windowsHide:false` somente ao abrir a ferramenta interativa; a execução silenciosa do instalador continua oculta.
+
+A regressão nativa chama o gerenciador real dentro do Electron, com o adapter físico e uma ferramenta portátil produzida pela API pública do `electron-builder` já declarado. O teste empacota um ASAR real usando o runtime fixado, assina seu inventário com chave efêmera e verifica que `manager.open` exibe a janela, seguido de fechamento normal. Não usa NSIS, registro, perfil pessoal, mocks de spawn ou dependência transitiva. O resultado da janela é gravado atomicamente fora da instalação e o teste espera o processo terminar antes de limpar o diretório temporário. A mesma regressão falhou com `windowsHide:true` e passou com `false`; logs locais `.cache/edi-production/native-manager-red.log` e `native-manager-green.log`. Essa correção é posterior ao head `d39ee837`; os resultados remotos desse head não a homologam.
+
+Uma repetição local foi bloqueada por Code Integrity, eventos 3033/3077, ao executar o PE temporário editado pelo builder; evidência `native-manager-code-integrity.log`. A fixture preserva os bytes originais do runtime Electron já disponível, depois de o builder gerar o ASAR e antes de assinar o inventário. Isso mantém a verificação real de `manager.open`, filesystem e GUI, sem alterar a política do sistema nem inserir retentativas. O PE final modificado e o instalador NSIS continuam sendo homologados exclusivamente nos runners Windows descartáveis.
+
+## Espera e encerramento do helper de captura guiada
+
+O head `d39ee837` passou nos seis ciclos A→B e nos 176 testes de mídia do [run 39036085094](https://github.com/informach/informach-apps/actions/runs/39036085094). Depois do complemento visual, o head `d59c836` passou no [gate nativo 39038750776](https://github.com/informach/informach-apps/actions/runs/39038750776), incluindo a abertura real pelo Hub. Porém, no [Windows 39038750837](https://github.com/informach/informach-apps/actions/runs/39038750837), a mídia terminou com 175 testes aprovados e um cancelamento por timeout de 20 segundos em `guidedNative.test.ts`. Todos os testes de cursor e FFmpeg passaram; esse resultado não aprova a suíte completa nem a publicação.
+
+O teste não usava o adapter de ambiente PowerShell do produto, não consumia stderr e não ligava o processo filho ao cancelamento do `node:test`. Assim, o log não distinguia a espera de inicialização da espera de respostas, e o timeout podia deixar o helper em execução. O harness passa a usar o mesmo ambiente de `GuidedInput`, valida as respostas, registra fase/exit/stderr limitado, liga o filho ao signal e espera o encerramento por EOF ou cancelamento. O limite de 20 segundos e as duas operações verificadas foram mantidos. Uma regressão adicional verifica o aborto e a saída efetiva do processo próprio.
+
+A amostragem original passou localmente em 653 ms e, com afinidade de duas CPUs e o bundle remoto, em 483 ms. Um experimento com o caminho de módulos do PowerShell 7 também compilou nos dois ambientes. Portanto, não foi comprovada a causa do atraso daquela execução remota; a diferença de ambiente e a falta de diagnóstico/cleanup são defeitos verificados do harness, não uma explicação presumida para o timeout. Os próximos gates precisam confirmar o conjunto e conservar o novo diagnóstico caso a falha se repita. Evidências: `.cache/edi-production/guided-native-d59-baseline.log`, `guided-env-check.log` e `job-117413914879-run39038750837.log`.
+
+Com o harness atualizado, a suíte Windows completa passou **177/177**, sem falhas, cancelamentos ou skips, usando o bundle próprio 9.0.2 em 58,4 segundos (`media-d59-guided-contract-final.log`). A rodada geral posterior passou `pnpm check` (461 warnings e 64 infos existentes, nenhum erro), `pnpm typecheck` (21 tarefas e tooling), `pnpm test` (19 tarefas e 31 testes do tooling) e `pnpm build` (12 tarefas). Os logs estão em `.cache/edi-production/guided-final-*.log`. Essas evidências locais não substituem os próximos gates remotos.

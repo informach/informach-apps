@@ -5,6 +5,15 @@ export const MAX_LEASE_SECONDS = 72 * 60 * 60;
 export const MAX_DEVICE_ACTIVATIONS = 2;
 export const CLOCK_SKEW_SECONDS = 60;
 export const DEVICE_CODE_GRANT = "urn:ietf:params:oauth:grant-type:device_code";
+export const releaseVersionSchema = z
+  .string()
+  .max(80)
+  .regex(/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-beta\.(?:0|[1-9]\d*))?$/)
+  .refine(
+    (version) =>
+      version.split(/\.|-beta\./).every((part) => /^\d+$/.test(part) && BigInt(part) <= 65535n),
+    { message: "Version components must fit Windows version resources" },
+  );
 
 export const toolIdSchema = z.enum(EDI_TOOLS.map((tool) => tool.id));
 export const desktopAppIdSchema = z.enum([
@@ -34,6 +43,7 @@ export const leaseClaimsSchema = z
     keyThumbprint: keyThumbprintSchema,
     activationId: z.uuid(),
     revision: z.int().nonnegative(),
+    minimumClientVersion: releaseVersionSchema,
     tools: z
       .array(toolIdSchema)
       .min(1)
@@ -68,6 +78,7 @@ export const licenseRequestSchema = z.strictObject({
   deviceId: z.uuid(),
   sessionId: z.uuid(),
   toolId: toolIdSchema,
+  clientVersion: releaseVersionSchema,
 });
 export const activationResponseSchema = z.strictObject({
   userId: z.string().min(1),
@@ -103,17 +114,6 @@ export const licenseResponseSchema = z.discriminatedUnion("status", [
 ]);
 export type LicenseResponse = z.infer<typeof licenseResponseSchema>;
 
-export const releaseVersionSchema = z
-  .string()
-  .max(80)
-  .regex(/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-beta\.(?:0|[1-9]\d*))?$/)
-  .refine(
-    (version) =>
-      version.split(/\.|-beta\./).every((part) => /^\d+$/.test(part) && BigInt(part) <= 65535n),
-    {
-      message: "Version components must fit Windows version resources",
-    },
-  );
 export const artifactSchema = z.strictObject({
   appId: desktopAppIdSchema,
   platform: z.literal("win32"),

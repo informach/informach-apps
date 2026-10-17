@@ -7,33 +7,59 @@
 :root {
   --font-sans: var(--font-jakarta), "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jakarta), "Plus Jakarta Sans", ui-monospace, monospace;
+  --font-rounded: var(--font-nunito), "Nunito", ui-rounded, system-ui, sans-serif;
 }
 
 /* ============================================================
-   APP OVERRIDES — Informach (institucional)
-   Identidade da holding: Navy #173247 como primary (sóbrio,
-   institucional) + Terracota/sienna #A65835 como secondary
-   (destaque quente, deliberadamente distinto do laranja vivo
-   #FF7A3D que pertence ao Cozya).
-   Cream/Surface/Border permanecem como o package (escala de
-   cinza compartilhada).
+   Identidade "Feito em casa" (proposta aprovada em 17/10/2026).
+   A casa usa papel, marinho e o laranja da esfera do ícone.
+   Cada produto entra com a cor do próprio site; o Sistema Zero
+   usa as cores do logotipo oficial (#012C73, #0074FC, #FDB002).
    ============================================================ */
 :root {
+  --paper: #f8f5ef;
+  --sand: #efe8dc;
+  --surface: #ffffff;
+  --ink: #173247;
+  --ink-soft: #3d5266;
+  --ink-muted: #4a5d70;
+  --line-warm: #e6dfd3;
+  --orbit: #d8cdbc;
+  --sphere: #c65a24;
+  /* Preenchimento de botão com texto de 16px: branco sobre #b4501c dá 5,1:1 (sobre a esfera, 4,3:1). */
+  --sphere-strong: #b4501c;
+  --on-sphere: #ffffff;
+  --sphere-ink: #8a4a23;
+  --night: #173247;
+  --night-ink: #f8f5ef;
+  --night-accent: #f0a979;
+
+  --sz-surface: #eef2fb;
+  --sz-card: #ffffff;
+  --sz-line: #d5def5;
+  --sz-ink: #012c73;
+  --sz-ink-soft: #33415c;
+  --sz-blue: #0062d6;
+  --sz-blue-ink: #0062d6;
+  --sz-chip: #e6edff;
+  --sz-sun: #fff2c4;
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+
   /* Navy #173247 */
   --primary: oklch(0.2701 0.0432 248.6);
   --primary-foreground: oklch(1 0 0);
-
-  /* Terracota/sienna ~#A65835 */
-  --secondary: oklch(0.5 0.1 45);
-  --secondary-foreground: oklch(1 0 0);
-
+  /* Laranja da esfera #C65A24 */
+  --secondary: #c65a24;
+  --secondary-foreground: #ffffff;
   --ring: oklch(0.2701 0.0432 248.6);
 
-  --chart-1: oklch(0.2701 0.0432 248.6); /* navy */
-  --chart-2: oklch(0.5 0.1 45); /* terracota */
-  --chart-3: oklch(0.45 0.08 245); /* navy claro */
-  --chart-4: oklch(0.65 0.09 50); /* terra clara */
-  --chart-5: oklch(0.7 0.015 50); /* warm gray */
+  --chart-1: oklch(0.2701 0.0432 248.6);
+  --chart-2: #c65a24;
+  --chart-3: oklch(0.45 0.08 245);
+  --chart-4: oklch(0.65 0.09 50);
+  --chart-5: oklch(0.7 0.015 50);
 
   --sidebar-primary: oklch(0.2701 0.0432 248.6);
   --sidebar-primary-foreground: oklch(1 0 0);
@@ -41,17 +67,44 @@
 }
 
 .dark {
-  /* Navy levantado pra ganhar contraste contra fundo escuro. */
+  --paper: #0e1a25;
+  --sand: #13212e;
+  --surface: #162736;
+  --ink: #eef2f6;
+  --ink-soft: #c2cdd8;
+  --ink-muted: #a7b4c1;
+  --line-warm: #26384a;
+  --orbit: #34495d;
+  --sphere: #e57a45;
+  --sphere-strong: #e57a45;
+  --on-sphere: #0e1a25;
+  --sphere-ink: #f0a979;
+  --night: #0a141d;
+  --night-ink: #eef2f6;
+  --night-accent: #f0a979;
+
+  --sz-surface: #0f1b33;
+  --sz-card: #162644;
+  --sz-line: #26395f;
+  --sz-ink: #e6ecfa;
+  --sz-ink-soft: #b8c5e3;
+  /* O botão mantém o azul com texto branco (5,6:1) nos dois temas. */
+  --sz-blue: #0062d6;
+  --sz-blue-ink: #8bb6ff;
+  --sz-chip: #1e3460;
+  --sz-sun: #4a3d12;
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+
   --primary: oklch(0.7 0.075 245);
   --primary-foreground: oklch(0.1591 0 0);
-
-  --secondary: oklch(0.65 0.1 45);
-  --secondary-foreground: oklch(0.1591 0 0);
-
+  --secondary: #e57a45;
+  --secondary-foreground: #0e1a25;
   --ring: oklch(0.7 0.075 245);
 
   --chart-1: oklch(0.7 0.075 245);
-  --chart-2: oklch(0.65 0.1 45);
+  --chart-2: #e57a45;
   --chart-3: oklch(0.55 0.1 245);
   --chart-4: oklch(0.78 0.09 50);
   --chart-5: oklch(0.7 0.015 50);
@@ -59,4 +112,43 @@
   --sidebar-primary: oklch(0.7 0.075 245);
   --sidebar-primary-foreground: oklch(0.1591 0 0);
   --sidebar-ring: oklch(0.7 0.075 245);
+}
+
+@theme inline {
+  --font-rounded: var(--font-rounded);
+  --color-paper: var(--paper);
+  --color-sand: var(--sand);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-muted: var(--ink-muted);
+  --color-line-warm: var(--line-warm);
+  --color-orbit: var(--orbit);
+  --color-sphere: var(--sphere);
+  --color-sphere-strong: var(--sphere-strong);
+  --color-on-sphere: var(--on-sphere);
+  --color-sphere-ink: var(--sphere-ink);
+  --color-night: var(--night);
+  --color-night-ink: var(--night-ink);
+  --color-night-accent: var(--night-accent);
+  --color-sz-surface: var(--sz-surface);
+  --color-sz-card: var(--sz-card);
+  --color-sz-line: var(--sz-line);
+  --color-sz-ink: var(--sz-ink);
+  --color-sz-ink-soft: var(--sz-ink-soft);
+  --color-sz-blue: var(--sz-blue);
+  --color-sz-blue-ink: var(--sz-blue-ink);
+  --color-sz-chip: var(--sz-chip);
+  --color-sz-sun: var(--sz-sun);
+}
+
+/* O cabeçalho é fixo: as âncoras param logo abaixo dele. */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }

@@ -12,6 +12,8 @@ Um app é um **monolito Next.js 15+ App Router** que sobe individualmente em pro
 
 Cada app tem seu domínio público, seu conjunto de variáveis de ambiente, seu pipeline de build e sua porta local. Apps **não** se importam mutuamente — se duas precisam compartilhar lógica, a lógica vira package.
 
+O contato público e os links de suporte dentro das contas vêm de `@informach/config/contact` (`INFORMACH_CONTACT`). O canal aprovado é o direct do Instagram; páginas públicas não exibem endereço de e-mail para contato. Isso não altera o uso do e-mail do usuário no cadastro, na conta ou na autenticação.
+
 ---
 
 ## Layout interno
@@ -238,6 +240,8 @@ Zod em toda fronteira:
 - **Health endpoint**: `app/api/health/route.ts` retornando 200 com timestamp + commit SHA. Não toca o banco, e é isso que o torna útil — ele responde qual commit está servindo mesmo quando o deploy vai mal.
 - **Ready endpoint**: `app/api/ready/route.ts` é o que o provider usa como healthcheck. Chama `checkSchemaReadiness()` de `@informach/db` e responde 503 enquanto o banco estiver atrás da última migração deste build, para que uma instância publicada antes do migrator não receba tráfego. A comparação é "atrás", nunca "diferente": rollback do app sem desfazer migração continua passando.
 - **Edge runtime**: não. Tudo Node. Pino e drivers de DB queremos em Node, e Railway é Node.
+
+O Edi usa o mesmo SDK, com política mais restrita nesta etapa: captura apenas erros do servidor e check-ins do cron. `lib/observability.ts` centraliza falhas operacionais e `lib/telemetry.ts` reconstrói os eventos com campos permitidos, sem mensagens livres ou contexto de requisição. Logs Sentry, traces e captura no browser ficam desativados. A configuração e os limites estão no [guia de operação do Edi](../apps/edi/PRODUCAO.md#observabilidade-e-cron).
 
 ---
 

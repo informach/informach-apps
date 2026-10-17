@@ -12,6 +12,8 @@ const {
 const { createEdiDesktop, desktopIpc: ipcMain } = require("@informach/edi-desktop/main");
 const path = require("node:path");
 const fs = require("node:fs/promises");
+const { randomUUID } = require("node:crypto");
+const { atomicWrite } = require("@informach/edi-desktop/files");
 const { pathToFileURL } = require("node:url");
 const { Library } = require("./library.cjs");
 const { signature, difference, findOverlap, stitchBitmaps } = require("../capture/scroll.cjs");
@@ -26,7 +28,10 @@ const desktop = createEdiDesktop({
   appId: "edicaptura",
   preloadPath: path.join(__dirname, "../preload/edi-gate.cjs"),
   rendererRoot: path.join(__dirname, "../renderer"),
-  getRecoveryWindow: () => editor,
+  getRecoveryWindow: () =>
+    capture?.mode === "scroll" || (capture?.mode === "video" && capture.recordStarted)
+      ? controller
+      : editor,
   recoveryChannels: [
     "app:close",
     "app:status",
@@ -34,7 +39,9 @@ const desktop = createEdiDesktop({
     "library:save",
     "record:save",
     "record:failed",
+    "record:ready",
     "control:finish",
+    "control:state",
     "capture:cancel",
   ],
 });
@@ -131,11 +138,24 @@ function closeCaptureFrames() {
   captureFrames = [];
 }
 function cleanup() {
+  capture?.job?.finish();
   clearTimeout(capture?.scrollTimer);
   closeOverlay();
   closeController();
   closeCaptureFrames();
   capture = null;
+  showEditor();
+}
+function completeCapture(active) {
+  if (capture !== active) return;
+  if (!active.restricted) return cleanup();
+  // Keep this WebContents alive until the recovery IPC acknowledgment.
+  active.job?.finish();
+  clearTimeout(active.scrollTimer);
+  closeOverlay();
+  closeCaptureFrames();
+  capture = null;
+  controller?.hide();
   showEditor();
 }
 function monitorState() {
@@ -210,10 +230,11 @@ async function getScreen(display) {
   return { image, sourceId: source.id };
 }
 async function beginCapture() {
-  desktop.assertAccess();
   if (starting || capture) return;
   starting = true;
   try {
+    desktop.assertAccess();
+    closeController();
     const display = chooseDisplay(
       screen.getAllDisplays(),
       monitorPreference,
@@ -222,7 +243,12 @@ async function beginCapture() {
     editor.hide();
     await delay(250);
     const { image, sourceId } = await getScreen(display);
-    capture = { display, image, sourceId, mode: "select" };
+    const active = { display, image, sourceId, mode: "select" };
+    active.job = desktop.jobs.begin({
+      preserveForMs: 0,
+      stop: () => preserveCapture(active),
+    });
+    capture = active;
     overlay = createWindow("overlay", {
       ...display.bounds,
       minWidth: 1,
@@ -244,6 +270,7 @@ async function beginCapture() {
     overlay.on("closed", () => {
       overlay = null;
       if (capture?.mode === "select") {
+        capture.job?.finish();
         capture = null;
         showEditor();
       }
@@ -321,7 +348,8 @@ async function selectRegion({ rect, mode }) {
 }
 function scheduleScroll(active) {
   clearTimeout(active.scrollTimer);
-  if (capture !== active || active.finishing || active.segments.length >= 30) return;
+  if (capture !== active || active.restricted || active.finishing || active.segments.length >= 30)
+    return;
   active.scrollTimer = setTimeout(async () => {
     await nextSegment(true);
     scheduleScroll(active);
@@ -329,7 +357,7 @@ function scheduleScroll(active) {
 }
 async function nextSegment(automatic = false, manualOverlap = null) {
   const active = capture;
-  if (active?.mode !== "scroll" || active.finishing) return;
+  if (active?.mode !== "scroll" || active.restricted || active.finishing) return;
   if (active.pending) {
     await active.pending;
     if (!automatic && capture === active) return nextSegment(false, manualOverlap);
@@ -401,15 +429,28 @@ async function nextSegment(automatic = false, manualOverlap = null) {
     active.pending = null;
   }
 }
-async function finishCapture(overlap) {
+async function preserveCapture(active) {
+  if (capture !== active) return;
+  active.restricted = true;
+  clearTimeout(active.scrollTimer);
+  if (active.mode === "video" && active.recordStarted) stopRecording();
+  else if (active.mode === "scroll") await finishCapture(null);
+  else cleanup();
+}
+async function finishCapture(overlap = null) {
   if (capture?.mode === "video") {
     stopRecording();
     return;
   }
   const active = capture;
-  if (active?.mode !== "scroll" || active.finishing) return;
+  if (active?.mode !== "scroll") return;
+  if (active.finishPromise) return active.finishPromise;
   active.finishing = true;
   clearTimeout(active.scrollTimer);
+  active.finishPromise = finishScrollCapture(active, overlap);
+  return active.finishPromise;
+}
+async function finishScrollCapture(active, overlap) {
   try {
     await active.pending;
     if (capture !== active) return;
@@ -432,7 +473,7 @@ async function finishCapture(overlap) {
     const entry = await library.save({ name: "Captura com rolagem", kind: "image" }, image.toPNG());
     const doc = await library.read(entry.id);
     if (capture === active) {
-      cleanup();
+      completeCapture(active);
       send("document", doc);
       send("notice", { message: frames.length + " trecho(s) salvo(s) em uma imagem." });
     }
@@ -442,6 +483,8 @@ async function finishCapture(overlap) {
       scheduleScroll(active);
     }
     throw error;
+  } finally {
+    active.finishPromise = null;
   }
 }
 function controlState() {
@@ -613,6 +656,7 @@ async function initialize() {
       filters: [{ name: "Imagens", extensions: ["png", "jpg", "jpeg", "webp"] }],
     });
     if (result.canceled) return null;
+    desktop.assertAccess();
     const stat = await fs.stat(result.filePaths[0]);
     if (stat.size > 50_000_000) throw new Error("Escolha uma imagem de até 50 MB.");
     const image = nativeImage.createFromPath(result.filePaths[0]);
@@ -647,7 +691,8 @@ async function initialize() {
         : format === "jpg"
           ? nativeImage.createFromBuffer(pngBytes(dataUrl)).toJPEG(92)
           : pngBytes(dataUrl);
-    await fs.writeFile(result.filePath, bytes);
+    desktop.assertAccess();
+    await atomicWrite(result.filePath, bytes);
     return result.filePath;
   });
   handle("control:state", ["controller"], controlState);
@@ -656,6 +701,7 @@ async function initialize() {
   handle("record:begin", ["controller"], async () => {
     if (capture?.mode !== "video" || capture.recordStarted) return;
     capture.recordStarted = true;
+    capture.recoveryPath = path.join(app.getPath("userData"), "recovery", `${randomUUID()}.webm`);
     controller.show();
     controller.focus();
     const payload = JSON.stringify({ rect: capture.rect, display: capture.display.size });
@@ -666,20 +712,26 @@ async function initialize() {
   });
   handle("record:ready", ["controller"], () => true);
   handle("record:save", ["controller"], async (bytes) => {
-    if (capture?.mode !== "video") throw new Error("Gravação encerrada.");
+    if (capture?.mode !== "video" || !capture.recordStarted) throw new Error("Gravação encerrada.");
+    const active = capture;
     try {
       if (!(bytes instanceof Uint8Array) || bytes.byteLength > 400_000_000)
         throw new Error("Vídeo excedeu 400 MB.");
+      await fs.mkdir(path.dirname(active.recoveryPath), { recursive: true });
+      await atomicWrite(active.recoveryPath, bytes);
       const entry = await library.save(
         { name: `Gravação ${new Date().toLocaleString("pt-BR")}`, kind: "video" },
         Buffer.from(bytes),
       );
-      cleanup();
+      await fs.unlink(active.recoveryPath);
+      completeCapture(active);
       send("document", await library.read(entry.id));
       return true;
     } catch (error) {
-      cleanup();
-      throw error;
+      throw new Error(
+        `Não foi possível concluir o salvamento. Tente Salvar trabalho existente novamente. Cópia de recuperação, se gravada: ${active.recoveryPath}`,
+        { cause: error },
+      );
     }
   });
   handle("record:failed", ["controller"], (message) => {

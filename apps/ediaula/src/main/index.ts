@@ -3,6 +3,7 @@ import { readFile, unlink, writeFile } from "node:fs/promises";
 import type { Server } from "node:http";
 import { extname, join } from "node:path";
 import { Readable } from "node:stream";
+import { desktopJobs } from "@informach/edi-desktop/jobs";
 import { createEdiDesktop, desktopFiles, desktopIpc as ipcMain } from "@informach/edi-desktop/main";
 import { app, BrowserWindow, dialog, protocol, shell } from "electron";
 import type { ChromaKey } from "../shared/chroma.ts";
@@ -52,9 +53,11 @@ import {
   waveform,
   writeFilterScript,
 } from "./ffmpeg.ts";
+import { filterScriptOption } from "./ffmpeg-arguments.ts";
 import { getGlossary, setGlossary } from "./glossary.ts";
 import { cancelKey, detectScreenColor, grabFrame, renderKeyed } from "./keying.ts";
 import { startMcpServer } from "./mcpServer.ts";
+import { nativeResourcePath } from "./native-resources.ts";
 import {
   createProject,
   openProject,
@@ -94,11 +97,13 @@ const desktop = createEdiDesktop({
     "recorder:cancel",
     "recorder:systemAudio",
     "recorder:elapsed",
+    "recorder:guidedCancel",
+    "recorder:interactive",
     "app:dirty",
   ],
 });
 
-const FONTS_DIR = join(app.getAppPath(), "resources", "fonts");
+const FONTS_DIR = nativeResourcePath("fonts");
 const bundledFonts = async (): Promise<FontFamily[]> => {
   const fonts: FontFamily[] = JSON.parse(
     await readFile(join(app.getAppPath(), "resources", "fonts.json"), "utf8"),
@@ -203,6 +208,17 @@ async function serveMedia(request: Request): Promise<Response> {
 
 let win: BrowserWindow | null = null;
 const exportJobs = new Map<string, { cancelled: boolean }>();
+async function processingJob<T>(action: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const cancellation = new AbortController();
+  const job = desktopJobs.begin({ stop: () => cancellation.abort() });
+  try {
+    const result = await action(cancellation.signal);
+    job.check();
+    return result;
+  } finally {
+    job.finish();
+  }
+}
 
 const sendProgress = (p: JobProgress): void => {
   win?.webContents.send("job:progress", p);
@@ -413,7 +429,9 @@ function registerIpc(): void {
   ipcMain.handle(
     "media:proxy",
     (_e, jobId: string, path: string, duration: number, cfrFps?: number) =>
-      proxy(jobId, path, duration, (ratio) => sendProgress({ id: jobId, ratio }), cfrFps),
+      processingJob((signal) =>
+        proxy(jobId, path, duration, (ratio) => sendProgress({ id: jobId, ratio }), cfrFps, signal),
+      ),
   );
   ipcMain.handle("media:saveGenerated", async (_e, bytes: Uint8Array, ext: string) => {
     const { createHash } = await import("node:crypto");
@@ -452,8 +470,18 @@ function registerIpc(): void {
       duration: number,
       key: ChromaKey,
     ) =>
-      renderKeyed(jobId, path, width, height, fps, duration, key, (ratio) =>
-        sendProgress({ id: jobId, ratio }),
+      processingJob((signal) =>
+        renderKeyed(
+          jobId,
+          path,
+          width,
+          height,
+          fps,
+          duration,
+          key,
+          (ratio) => sendProgress({ id: jobId, ratio }),
+          signal,
+        ),
       ),
   );
   ipcMain.handle("glossary:get", (_e, course: string) => getGlossary(course));
@@ -515,9 +543,12 @@ function registerIpc(): void {
     if (typeof jobId !== "string" || !jobId.length || jobId.length > 200 || exportJobs.has(jobId))
       throw new Error("Identificador de exportação inválido ou já em uso.");
     const state = { cancelled: false };
+    const cancellation = new AbortController();
+    const job = desktopJobs.begin({ stop: () => cancellation.abort() });
     exportJobs.set(jobId, state);
     const check = (): void => {
       if (state.cancelled) throw new Error("Cancelado");
+      job.check();
     };
     try {
       await exportLesson(project, spec, {
@@ -525,17 +556,20 @@ function registerIpc(): void {
         assertWrite: desktopFiles.assertWrite,
         assertRelatedExport: desktopFiles.assertRelatedExport,
         fontsDirectory: FONTS_DIR,
+        filterScriptOption: await filterScriptOption(FFMPEG),
         writeFilterScript,
         check,
         run: (args, duration) =>
           run(FFMPEG, args, {
             jobId,
+            signal: cancellation.signal,
             duration,
             onProgress: (ratio) => sendProgress({ id: jobId, ratio }),
           }),
       });
       sendProgress({ id: jobId, ratio: 1 });
     } finally {
+      job.finish();
       exportJobs.delete(jobId);
     }
   });
@@ -556,8 +590,16 @@ function registerIpc(): void {
   ipcMain.handle(
     "whisper:transcribe",
     (_e, jobId: string, path: string, duration: number, language: string, glossary: string[]) =>
-      transcribe(jobId, path, duration, language, glossary ?? [], (ratio) =>
-        sendProgress({ id: jobId, ratio }),
+      processingJob((signal) =>
+        transcribe(
+          jobId,
+          path,
+          duration,
+          language,
+          glossary ?? [],
+          (ratio) => sendProgress({ id: jobId, ratio }),
+          signal,
+        ),
       ),
   );
   ipcMain.handle("shell:showItem", (_e, path: string) => shell.showItemInFolder(path));

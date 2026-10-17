@@ -6,7 +6,7 @@ export const EDI_TOOLS = [
     name: "EdiAula",
     sourceFolder: "EDIAULA",
     windowsAppId: "br.com.informach.ediaula",
-    description: "Edição de vídeo e preparação de aulas",
+    description: "Grave e edite a aula pelo texto",
     projectExtensions: ["ediaula"],
   },
   {
@@ -14,7 +14,7 @@ export const EDI_TOOLS = [
     name: "EdiCaptura",
     sourceFolder: "EDICAPTURA",
     windowsAppId: "br.com.informach.edicaptura",
-    description: "Captura de tela, gravação e anotações",
+    description: "Capture a tela e explique",
     projectExtensions: [],
   },
   {
@@ -22,7 +22,7 @@ export const EDI_TOOLS = [
     name: "EdiFoto",
     sourceFolder: "EDIFOTO",
     windowsAppId: "br.com.informach.edifoto",
-    description: "Edição de imagens, camadas e composição",
+    description: "Trate imagens com camadas",
     projectExtensions: ["edifoto"],
   },
   {
@@ -30,7 +30,7 @@ export const EDI_TOOLS = [
     name: "EdiPDF",
     sourceFolder: "EDIPDF",
     windowsAppId: "br.com.informach.edipdf",
-    description: "Organização e edição de documentos PDF",
+    description: "Organize, preencha e assine PDFs",
     projectExtensions: ["pdf"],
   },
   {
@@ -38,7 +38,7 @@ export const EDI_TOOLS = [
     name: "EdiSVG",
     sourceFolder: "EDISVG",
     windowsAppId: "br.com.informach.edisvg",
-    description: "Criação e animação vetorial SVG",
+    description: "Anime ilustrações vetoriais",
     projectExtensions: ["edisvg"],
   },
 ] as const;

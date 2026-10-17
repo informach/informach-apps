@@ -11,7 +11,7 @@ if (
   throw new Error("Use pnpm test:integration for a disposable local database");
 export default defineConfig({
   // O e-mail semanal é JSX sem `import React`, como o Next compila.
-  esbuild: { jsx: "automatic" },
+  oxc: { jsx: { runtime: "automatic" } },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),

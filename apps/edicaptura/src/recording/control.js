@@ -76,9 +76,10 @@ api.onControl((value) => {
   render();
 });
 api.onControlError(error);
-setupRecording(api, (message) => {
+const finishRecording = setupRecording(api, (message) => {
   $("title").textContent = message;
 });
+window.ediSuite.onRecovery(() => (state?.mode === "scroll" ? api.finish(null) : finishRecording()));
 if (state?.mode === "video") {
   try {
     await api.beginRecording();

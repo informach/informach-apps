@@ -1,8 +1,12 @@
 # Correções do full review
 
-Rodada iniciada em 16/10/2026 na branch `feat/edi-suite`, HEAD de referência `54c8cee`. O diagnóstico original em [full-review.md](full-review.md) permanece histórico; esta é a evidência de remediação. Sem commit, merge, push, publicação, deploy ou cobrança real nesta rodada.
+**Atualização de 17/10/2026:** a frente `fix/edi-production` corrigiu a cadeia restante de R01 com substituição mantida do parser de front matter, compatibilidade verificada no consumidor Mastra e atualização da cadeia do downloader Electron. `pnpm audit --prod` passou sem vulnerabilidades conhecidas, sem ignores. O titular também autorizou corrigir e implantar o Edi; essa autorização mantém os gates comerciais e de distribuição. O [registro operacional atual](producao-operacao.md) e os registros [Stripe](producao-stripe.md), [trabalhos](producao-jobs.md) e [Windows](producao-windows.md) contêm as evidências posteriores. Os resultados abaixo preservam a rodada anterior e não representam o estado final da implantação.
 
-**R02–R10 corrigidos; R01 continua bloqueante para release e operação comercial.** O usuário confirmou expressamente que não aceita exceção temporária para a dependência remanescente. Posteriormente, pediu explicitamente commit de tudo, merge e push para `main`: essa autorização substitui a restrição anterior de integração Git, mas não encerra R01 nem autoriza publicar, cobrar ou implantar o Edi. As homologações externas do relatório original também não foram dispensadas.
+## Histórico da rodada de 16/10
+
+Rodada iniciada em 16/10/2026 na branch `feat/edi-suite`, HEAD de referência `54c8cee`. O diagnóstico original em [full-review.md](full-review.md) permanece histórico. Naquele momento ainda não havia commit, merge, push, publicação, deploy ou cobrança real desta rodada.
+
+**Resultado registrado em 16/10: R02–R10 corrigidos; R01 ainda bloqueante para release e operação comercial.** O usuário confirmou expressamente que não aceitava exceção temporária para a dependência remanescente. Posteriormente, pediu commit de tudo, merge e push para `main`; naquele pedido, a autorização cobria a integração Git. A autorização operacional posterior e a correção de R01 estão registradas na atualização acima. As homologações externas do relatório original não foram dispensadas.
 
 ## Lote de segurança e contratos
 
@@ -23,7 +27,7 @@ Revisão do lote: substituição de vários arquivos não é uma transação at�
 
 Na revisão complementar, `cursor:cached` e `media:probe` passaram a conceder leitura dos resultados derivados no main, preservando o uso legítimo das capabilities. O ID de sprite aceita somente caracteres de cache key, inclusive decimais usados pelo gerador; rejeita separadores, drive e NUL. Isso impede que um ID do renderer escolha outra pasta. Jobs duplicados não substituem o processo anterior. Saves só limpam temporários efetivamente criados; falha na limpeza após commit informa que os destinos finais foram preservados.
 
-## Lote de dependências — R01 parcialmente remediado, bloqueante
+## Lote de dependências de 16/10 — R01 então parcialmente remediado
 
 Atualização compatível e lockfile regenerado, sem `audit --fix --force`, mudanças silenciosas da API comercial ou supressão de advisories:
 

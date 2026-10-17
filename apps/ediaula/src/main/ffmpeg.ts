@@ -2,16 +2,25 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, statSync } from "node:fs";
 import { rename, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { basename, extname, join } from "node:path";
 import { app } from "electron";
-import ffmpegStatic from "ffmpeg-static";
-import ffprobeStatic from "ffprobe-static";
 import type { AssetKind, Encoder, ProbeResult } from "../shared/types.ts";
 
-// Packaged builds keep binaries outside the asar archive.
-const unpacked = (p: string): string => p.replace("app.asar", "app.asar.unpacked");
-export const FFMPEG = unpacked(ffmpegStatic as unknown as string);
-export const FFPROBE = unpacked(ffprobeStatic.path);
+function nativeMediaBinary(name: "ffmpeg" | "ffprobe"): string {
+  // Release binaries and their complete corresponding source are signed together
+  // in the installation inventory. Environment overrides apply only in development.
+  if (app.isPackaged) return join(process.resourcesPath, "native-media", "bin", `${name}.exe`);
+  const developmentRequire = createRequire(import.meta.url);
+  const binary: unknown =
+    name === "ffmpeg"
+      ? developmentRequire("ffmpeg-static")
+      : developmentRequire("@derhuerst/ffprobe-static");
+  if (typeof binary !== "string") throw new Error(`${name} is unavailable for this platform`);
+  return binary;
+}
+export const FFMPEG = nativeMediaBinary("ffmpeg");
+export const FFPROBE = nativeMediaBinary("ffprobe");
 
 const IMAGE_EXT = new Set([".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".tif", ".tiff"]);
 
@@ -19,6 +28,7 @@ const running = new Map<string, ChildProcess>();
 
 export interface RunOptions {
   jobId?: string;
+  signal?: AbortSignal;
   /** Total seconds of output, used to turn ffmpeg's out_time into a 0..1 ratio. */
   duration?: number;
   onProgress?: (ratio: number) => void;
@@ -28,12 +38,14 @@ export interface RunOptions {
 /** Runs ffmpeg/ffprobe, resolving with stdout text. Rejects with the tail of stderr on failure. */
 export function run(bin: string, args: string[], opts: RunOptions = {}): Promise<string> {
   return new Promise((resolve, reject) => {
+    opts.signal?.throwIfAborted();
     const withProgress = !!opts.onProgress && bin === FFMPEG;
     const fullArgs = withProgress ? ["-progress", "pipe:2", "-nostats", ...args] : args;
-    const child = spawn(bin, fullArgs, { windowsHide: true });
+    const child = spawn(bin, fullArgs, { windowsHide: true, signal: opts.signal });
     if (opts.jobId) running.set(opts.jobId, child);
     let stdout = "";
     let stderr = "";
+    let failure: Error | undefined;
     child.stdout.on("data", (d: Buffer) => {
       if (opts.onStdout) opts.onStdout(d);
       else stdout += d.toString();
@@ -48,10 +60,15 @@ export function run(bin: string, args: string[], opts: RunOptions = {}): Promise
         if (last) opts.onProgress!(Math.min(1, Number(last[1]) / 1e6 / opts.duration));
       }
     });
-    child.on("error", reject);
+    child.on("error", (error) => {
+      failure = error;
+    });
     child.on("close", (code, signal) => {
       if (opts.jobId) running.delete(opts.jobId);
-      if (code === 0) resolve(stdout);
+      // Wait until the file handles close before the caller removes staged output.
+      if (failure) reject(failure);
+      else if (opts.signal?.aborted) reject(opts.signal.reason);
+      else if (code === 0) resolve(stdout);
       else if (signal || code === null) reject(new Error("Cancelado"));
       else
         reject(
@@ -278,6 +295,7 @@ export async function proxy(
   duration: number,
   onProgress: (r: number) => void,
   cfrFps?: number,
+  signal?: AbortSignal,
 ): Promise<string> {
   const out = join(cacheDir(path), "proxy.mp4");
   if (existsSync(out)) return out;
@@ -315,8 +333,10 @@ export async function proxy(
       jobId,
       duration,
       onProgress,
+      signal,
     },
   );
+  signal?.throwIfAborted();
   await rename(tmp, out);
   return out;
 }

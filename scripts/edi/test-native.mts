@@ -12,6 +12,8 @@ import { z } from "zod";
 import { EDI_DESKTOP_APPS, EDI_TOOLS } from "../../packages/config/src/edi-tools.ts";
 import { desktopAppIdSchema, leaseClaimsSchema } from "../../packages/edi-contracts/src/index.ts";
 import type { VaultData } from "../../packages/edi-desktop/src/vault";
+import { windowsPowerShellEnvironment } from "../../packages/edi-desktop/src/windows-powershell.ts";
+import { verifyNativeInstallationIntegrity } from "./native-installation.mts";
 
 declare const ediNativeFixture: {
   readIdentity(): Promise<unknown>;
@@ -83,6 +85,7 @@ async function seedLease(application: ElectronApplication, ttl: number) {
     ...identity,
     activationId,
     revision: 0,
+    minimumClientVersion: "0.0.0",
     tools: EDI_TOOLS.map((tool) => tool.id),
     iat: now,
     nbf: now,
@@ -200,6 +203,7 @@ async function verifyNativeDialog(page: Page, openerName: string, dialogName: st
 }
 const runFailures: unknown[] = [];
 try {
+  await verifyNativeInstallationIntegrity(root, electronPath);
   for (const id of applications) {
     console.log(`Native verification: ${id}`);
     const applicationRoot = resolve("apps", id);
@@ -416,7 +420,12 @@ try {
             "-Choice",
             "Cancelar",
           ],
-          { windowsHide: true, timeout: 30000, maxBuffer: 32768 },
+          {
+            windowsHide: true,
+            timeout: 30000,
+            maxBuffer: 32768,
+            env: windowsPowerShellEnvironment(),
+          },
         );
         assert.equal(editor.isClosed(), false, "Canceling close must preserve the existing draft");
         assert.ok(await editor.evaluate(() => localStorage.getItem("edisvg-project")));
@@ -444,7 +453,12 @@ try {
                 "-TestProcessId",
                 String(nativePid),
               ],
-              { windowsHide: true, timeout: 30000, maxBuffer: 32768 },
+              {
+                windowsHide: true,
+                timeout: 30000,
+                maxBuffer: 32768,
+                env: windowsPowerShellEnvironment(),
+              },
             );
           const result = await closing;
           if ("error" in result) failures.push(result.error);

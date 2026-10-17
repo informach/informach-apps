@@ -17,7 +17,7 @@ npm run dev        # abre o app em modo de desenvolvimento
 ```
 
 **Sem terminal:** `npm run shortcut` compila o app e cria o atalho **EdiAula** na Área de Trabalho e no Menu Iniciar
-(ícone em `resources/`, gerado por `scripts/make-icon.ps1`). O atalho abre a versão compilada em `out/`;
+(ícone em `resources/`, gerado para a suíte inteira por `scripts/edi/make-icons.ps1` na raiz). O atalho abre a versão compilada em `out/`;
 depois de mudar o código, rode `npm run build` (ou `npm run shortcut` de novo) para o atalho pegar a versão nova.
 
 Outros comandos:
@@ -315,6 +315,8 @@ segurança automáticas em `Projetos/.backups`; tempo de edição medido por aul
 - A conclusão das etapas encerra a gravação automaticamente. A correspondência de alvos e a sincronização final devem ser revisadas na aula real antes de publicar.
 
 ## Estrutura
+
+Quando a licença deixa de autorizar o uso, novas tarefas ficam bloqueadas. A gravação e a execução guiada param imediatamente; o vídeo permanece em `Documentos/EdiAula/Gravações`, em pasta exclusiva por sessão. Segmentos usam MP4 fragmentado para permitir recuperação de uma interrupção. Uma falha de finalização informa a pasta preservada. Exportação, proxy, chroma e transcrição já iniciados têm até 30 minutos para concluir, sem reiniciar esse prazo; uma exportação interrompida não substitui os arquivos anteriores. Consulte [o registro de preservação](../../docs/propostas/edi-suite-2026-10-16/producao-jobs.md).
 
 ```
 src/main       processo principal: FFmpeg, projetos, protocolo media://, IPC

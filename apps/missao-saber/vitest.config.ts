@@ -2,9 +2,8 @@ import path from "node:path";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  oxc: { jsx: { runtime: "automatic" } },
   // O e-mail semanal é JSX sem `import React`, como o Next compila.
-  esbuild: { jsx: "automatic" },
+  oxc: { jsx: { runtime: "automatic" } },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),

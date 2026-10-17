@@ -1,6 +1,6 @@
 # Distribuição e atualização do piloto Edi
 
-Decisão aprovada em 16 de outubro de 2026: usar GitHub Releases e assinaturas criptográficas próprias, sem contratar certificado Authenticode ou armazenamento/CDN. A assinatura de acesso à suíte continua no Stripe, por R$ 29,90/mês ou R$ 299/ano, e só poderá cobrar após homologação. Esta decisão substitui a distribuição originalmente proposta; não altera o backlog funcional dos editores.
+Decisão aprovada em 16 de outubro de 2026: usar GitHub Releases e assinaturas criptográficas próprias, sem contratar certificado Authenticode ou armazenamento/CDN. A assinatura de acesso à suíte continua no Stripe, por R$ 49,90/mês ou R$ 499/ano (valores revisados e aprovados em 17/10/2026), e só poderá cobrar após homologação. Esta decisão substitui a distribuição originalmente proposta; não altera o backlog funcional dos editores.
 
 ## Proteções e limites
 
@@ -19,7 +19,7 @@ A chave privada de atualização fica somente no secret do workflow autorizado e
 - Secret `EDI_UPDATE_SIGNING_PRIVATE_KEY` configurado e chave pública de atualização publicada para transparência.
 - Secret `EDI_DISTRIBUTION_TOKEN` confirmado no ambiente `edi-release` do repositório privado; permissão efetiva ainda não testada em publicação.
 - Variables `EDI_DISTRIBUTION_REPOSITORY`, `EDI_UPDATE_SIGNING_KEY_ID`, `EDI_UPDATE_PUBLIC_KEYS`, `EDI_LICENSE_PUBLIC_KEYS` e `EDI_DESKTOP_CLIENT_ID` configuradas.
-- Chaves distintas geradas; backup local DPAPI em `.cache/edi-configuration/keys.v1.dpapi`. O script `pnpm edi:setup:github` reutiliza esse backup e recusa substituir chaves se não conseguir lê-lo.
+- Chaves distintas geradas; backup local DPAPI em `.cache/edi-configuration/keys.v1.dpapi`. O script `pnpm edi:setup:github` exige também backup portátil `age` e verifica sua recuperação antes de configurar o GitHub. Backup local ilegível bloqueia a operação.
 - `EDI_PORTAL_URL=https://edi.informach.com.br` configurada. O portal seguirá o Railway e a infraestrutura dos outros apps, conforme definido pelo titular.
 
 Ainda faltam o deploy Railway/DNS com a chave de licença, a confirmação operacional da credencial e a homologação ponta a ponta. O [runbook do portal](../../../apps/edi/PRODUCAO.md) descreve essa implantação. O [registro de implementação](implementacao.md) reúne resultados e pendências; nenhum instalador foi publicado até esta revisão.
@@ -35,7 +35,7 @@ Escolher expiração e registrar a data de renovação. Token expirado, revogado
 1. Concluir os checks e o review do commit, integrá-lo a `main` e atualizar `scripts/edi/release-notes.json`.
 2. Criar e enviar uma tag nova `edi-vX.Y.Z` ou `edi-vX.Y.Z-beta.N`. Também é possível publicar a Release correspondente no repositório privado ou executar manualmente o workflow com a tag existente. Um push comum de código não é uma publicação de aplicativo.
 3. O workflow verifica que o commit pertence ao histórico de `main`, valida configurações e presença das credenciais, exige readiness do portal e executa lint, tipos e testes, incluindo integração PostgreSQL no mesmo ref de origem. As variables do ambiente são lidas nos steps, depois da inicialização do job, conforme o [ciclo de vida documentado pelo GitHub](https://docs.github.com/en/actions/reference/workflows-and-actions/variables).
-4. A matriz Windows, derivada do catálogo, testa cada app nativamente com perfis isolados e licenças efêmeras, sem bypass no produto, e preserva as capturas. Depois compila o app comercial pelo lockfile, aplica os fuses, assina o inventário final e gera NSIS sem certificado externo. O smoke de instalação roda somente no runner Windows isolado. As capturas de teste não integram os assets de distribuição.
+4. O fluxo exige a homologação A→B de `edi-upgrade.yml`, incluindo a compilação/verificação de mídia nativa com suas fontes correspondentes. A matriz Windows, derivada do catálogo, testa cada app nativamente com perfis isolados e licenças efêmeras, sem bypass no produto, e preserva as capturas. Depois compila o app comercial pelo lockfile, aplica os fuses, assina o inventário final e gera NSIS sem certificado externo. O smoke de instalação e desinstalação roda somente no runner Windows descartável, preservando sentinelas de perfil/documentos. As capturas de teste não integram os assets de distribuição. Procedimentos, evidências e limites ficam no [registro Windows](producao-windows.md).
 5. O job de publicação confere os seis descriptors, versão, commit e bytes. Prepara um draft no repositório público e envia somente os arquivos faltantes. Um arquivo já enviado com bytes diferentes bloqueia a tentativa; não há sobrescrita.
 6. Antes de publicar, confirma exatamente sete assets e seus digests SHA-256 calculados pelo GitHub. Só então torna a release pública e confirma o resultado. Releases imutáveis não podem receber alterações posteriores; correções recebem outra versão. [Releases imutáveis](https://docs.github.com/en/repositories/releasing-projects-on-github/about-immutable-releases).
 
@@ -54,6 +54,25 @@ O canal estável nunca oferece beta automaticamente. Versões mais antigas que a
 ## Chaves e recuperação
 
 O backup DPAPI depende do usuário e do perfil Windows atuais. Copiar apenas esse arquivo para outro computador **não** constitui recuperação portátil. Antes de distribuir amplamente, guardar uma cópia cifrada recuperável em meio separado, proteger a credencial de recuperação e testar a restauração sem publicar ou trocar as chaves. Nunca armazenar chave privada no repositório público nem no histórico Git.
+
+Em 17/10/2026 o backup do perfil anterior não estava disponível neste computador e o repositório público ainda não tinha releases. Foi feita inicialização explícita **antes da primeira distribuição**, com novas identidades `edi-update-2026-10-17-a92e135e` e `edi-license-2026-10-17-a92e135e`. O script só admite `--initialize-unpublished` quando não há nenhuma release, inclusive draft. Depois do primeiro release, ausência de backup exige restauração, nunca regeneração silenciosa.
+
+A cópia portátil foi cifrada com `age` 1.3.2 para a identidade SSH Ed25519 de recuperação já existente do operador, fora do checkout, em `C:/Users/tocha/.config/informach/edi/signing-keys-2026-10-17.age`. A chave SSH continua separada em seu armazenamento original. Recuperação em outro processo validou os dois pares Ed25519 por assinatura; alteração de um byte do arquivo foi rejeitada. Isso comprova recuperação portátil, não comprova que o operador já guardou a identidade SSH e o arquivo em outro equipamento ou cofre.
+
+Com `age` instalado no PATH (ou `EDI_AGE_BINARY` apontando para seu executável), os comandos são:
+
+```powershell
+pnpm edi:setup:github --backup <arquivo.age> --recipient <chave-publica-de-recuperacao> --identity <identidade-de-recuperacao>
+node scripts/edi/recover-keys.mjs --backup <arquivo.age> --identity <identidade-de-recuperacao>
+# Somente se a cópia DPAPI local não existir:
+node scripts/edi/recover-keys.mjs --backup <arquivo.age> --identity <identidade-de-recuperacao> --restore
+```
+
+O teste padrão não escreve arquivos. `--restore` cria um novo DPAPI para o usuário Windows atual e se recusa a sobrescrever um existente. Material privado transita por stdin/memória, sem aparecer nos argumentos, logs ou Git. O provisionador `scripts/edi/provision-backend.mjs` exige IDs explícitos de projeto/ambiente/serviço e conserva os segredos existentes; uma identidade de licença divergente bloqueia a operação. `--railway` permite indicar o executável nativo quando o CLI foi instalado por um shim npm no Windows.
+
+Antes de qualquer gravação, os provisionadores comparam IDs e chaves públicas com o backend, o ambiente privado e o catálogo público. Também recusam âncoras adicionais, pares repetidos e mapas ausentes após a primeira publicação. Um backup antigo não pode substituir silenciosamente uma rotação posterior. A importação opcional `--stripe-env <arquivo>` aceita somente as sete variáveis de bootstrap Stripe, exige arquivo fora do checkout, modo `prod` e cobrança desabilitada; os valores são transferidos por stdin e conferidos sem impressão.
+
+A versão mínima do cliente é enviada pelo desktop e incluída na licença assinada. `EDI_MINIMUM_CLIENT_VERSION` inicia em `0.1.0`; aumentar esse piso é uma decisão operacional para correção crítica, preservando a política de compatibilidade de 90 dias/duas versões anteriores em mudanças normais. Clientes abaixo do piso recebem `update_required`, mantendo acesso à atualização e recuperação de arquivos.
 
 Uma rotação planejada deve distribuir primeiro um build que confie nas chaves antiga e nova, assinado com a antiga; após a adoção desse build, usar a nova chave e retirar a antiga em versão posterior. Clientes antigos não passam a confiar na chave nova pela simples alteração de `update-public-keys.json`. Em caso de comprometimento, suspender publicação, revogar a credencial de CI e preparar uma recuperação explícita; não prometer revogação retroativa de clientes offline.
 

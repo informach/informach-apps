@@ -1,4 +1,5 @@
 import { createPrivateKey } from "node:crypto";
+import { releaseVersionSchema } from "@informach/edi-contracts";
 import { z } from "zod";
 
 function isLicensePrivateKey(pem: string) {
@@ -29,10 +30,27 @@ export const envSchema = z
     EDI_LICENSE_PRIVATE_KEY: z.string().max(8192).default(""),
     EDI_LICENSE_KEY_ID: z.string().max(80).default(""),
     EDI_DESKTOP_CLIENT_ID: z.string().min(1).max(128).default("edi-desktop-development"),
+    EDI_MINIMUM_CLIENT_VERSION: releaseVersionSchema.default("0.1.0"),
     EDI_DISTRIBUTION_REPOSITORY: z.string().default("informach/edi-releases"),
     EDI_UPDATE_PUBLIC_KEYS: z.string().default("{}"),
     CRON_SECRET: z.string().min(32),
     LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+    SENTRY_DSN: z
+      .union([
+        z.url({ protocol: /^https$/ }).refine((value) => {
+          if (!URL.canParse(value)) return false;
+          const dsn = new URL(value);
+          return (
+            Boolean(dsn.username) &&
+            !dsn.password &&
+            /\/\d+$/.test(dsn.pathname) &&
+            !dsn.search &&
+            !dsn.hash
+          );
+        }, "Sentry requires an HTTPS DSN with public key and project ID"),
+        z.literal(""),
+      ])
+      .default(""),
   })
   .superRefine((env, ctx) => {
     const origin = URL.canParse(env.NEXT_PUBLIC_APP_URL) ? new URL(env.NEXT_PUBLIC_APP_URL) : null;

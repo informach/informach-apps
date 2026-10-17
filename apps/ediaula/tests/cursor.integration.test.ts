@@ -5,12 +5,14 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
 import { buildTrack, DEFAULT_CURSOR_FX, spritePositions } from "../src/shared/cursor.ts";
 import { buildExportPlan } from "../src/shared/exportPlan.ts";
 import type { Project } from "../src/shared/types.ts";
 
 const require = createRequire(import.meta.url);
 const FFMPEG: string = require("ffmpeg-static");
+const FILTER_SCRIPT_OPTION = await filterScriptOption(FFMPEG);
 
 test("export draws the moving pointer sprite and zooms the recording like the preview", {
   timeout: 120_000,
@@ -160,12 +162,12 @@ test("export draws the moving pointer sprite and zooms the recording like the pr
     "-v",
     "error",
     ...plan.inputArgs,
-    "-filter_complex_script",
+    FILTER_SCRIPT_OPTION,
     script,
     ...plan.outputArgs,
   ]);
 
-  const px = (t: number, x: number, y: number): number[] =>
+  const px = (t: number, x: number, y: number, video = out): number[] =>
     Array.from(
       execFileSync(FFMPEG, [
         "-v",
@@ -173,7 +175,7 @@ test("export draws the moving pointer sprite and zooms the recording like the pr
         "-ss",
         String(t),
         "-i",
-        out,
+        video,
         "-frames:v",
         "1",
         "-vf",
@@ -191,11 +193,16 @@ test("export draws the moving pointer sprite and zooms the recording like the pr
     `pointer at (100,100) in the first second: ${px(0.5, 100, 100)}`,
   );
   assert.ok(!red(px(0.5, 400, 250)), "not yet at its second spot");
-  assert.ok(red(px(1.3, 400, 250)), `moved by the sendcmd script: ${px(1.3, 400, 250)}`);
+  assert.ok(red(px(1.3, 400, 250)), `moved along the cursor track: ${px(1.3, 400, 250)}`);
   assert.ok(
     red(px(1, 250, 250)),
     "Bezier handles curve the exported cursor away from the straight segment",
   );
+  for (let frame = 27; frame <= 33; frame++) {
+    const x = positions[frame * 2] + S / 2;
+    const y = positions[frame * 2 + 1] + S / 2;
+    assert.ok(red(px(frame / 30, x, y)), `cursor follows the exact sampled path at frame ${frame}`);
+  }
   // Fully zoomed (after 1.6 + 0.7 s): 2x around the pointer, which lands in the middle of the frame
   // (view x 240..560, y 160..340: (400-240)*2 = 320, (250-160)*2 = 180), twice as big.
   assert.ok(red(px(2.6, 320, 180)), "zoomed pointer at the center: " + px(2.6, 320, 180));
@@ -203,4 +210,43 @@ test("export draws the moving pointer sprite and zooms the recording like the pr
     red(px(2.6, 306, 166)) && red(px(2.6, 334, 194)) && !red(px(2.6, 346, 206)),
     "and twice as big",
   );
+  // The cursor uses source time after trimming/retiming, independently of the
+  // clip's offset in the final timeline.
+  for (const speed of [0.5, 2]) {
+    const clip = { ...p.clips[0], start: 0.5, in: 0.8, duration: 1, speed, zooms: [] };
+    const retimed = join(dir, `retimed-${speed}.mp4`);
+    const retimedPlan = buildExportPlan(
+      { ...p, clips: [clip] },
+      {
+        outPath: retimed,
+        width: 640,
+        height: 360,
+        fps: 30,
+        videoBitrate: 3000,
+        normalizeLoudness: false,
+        encoder: "x264",
+        cursors: { a: { sprite, size: S, fps: 30, positions } },
+      },
+    );
+    const retimedScript = join(dir, `retimed-${speed}.txt`);
+    writeFileSync(retimedScript, retimedPlan.filter);
+    execFileSync(FFMPEG, [
+      "-y",
+      "-v",
+      "error",
+      ...retimedPlan.inputArgs,
+      FILTER_SCRIPT_OPTION,
+      retimedScript,
+      ...retimedPlan.outputArgs,
+    ]);
+    for (const frame of [0, 3, 6, 9, 12, 18, 24]) {
+      const sourceFrame = Math.round((clip.in + (frame / 30) * speed) * 30);
+      const x = positions[sourceFrame * 2] + S / 2;
+      const y = positions[sourceFrame * 2 + 1] + S / 2;
+      assert.ok(
+        red(px(clip.start + frame / 30, x, y, retimed)),
+        `trimmed cursor at speed ${speed}, output frame ${frame}, source frame ${sourceFrame}`,
+      );
+    }
+  }
 });

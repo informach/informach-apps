@@ -4,6 +4,7 @@ import { withStagedFiles } from "@informach/edi-desktop/files";
 import { buildExportPlan } from "../shared/exportPlan.ts";
 import { exportSpecSchema, projectSchema } from "../shared/project-schema.ts";
 import type { ExportSpec } from "../shared/types.ts";
+import type { FilterScriptOption } from "./ffmpeg-arguments.ts";
 
 /** WebVTT is SRT with a header and dots in timestamps. */
 function srtToVtt(srt: string): string {
@@ -20,6 +21,7 @@ export async function exportLesson(
     run: (args: string[], duration?: number) => Promise<unknown>;
     writeFilterScript: (text: string, kind?: string) => Promise<string>;
     fontsDirectory: string;
+    filterScriptOption: FilterScriptOption;
     check: () => void;
   },
 ) {
@@ -78,7 +80,7 @@ export async function exportLesson(
             "-v",
             "error",
             ...plan.inputArgs,
-            "-filter_complex_script",
+            deps.filterScriptOption,
             filter,
             ...plan.outputArgs,
           ],

@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
 import { buildAss, DEFAULT_CAPTION_STYLE } from "../src/shared/captions.ts";
 import {
   DEFAULT_TRANSFORM,
@@ -17,6 +18,7 @@ import type { Clip, Project } from "../src/shared/types.ts";
 
 const require = createRequire(import.meta.url);
 const FFMPEG: string = require("ffmpeg-static");
+const FILTER_SCRIPT_OPTION = await filterScriptOption(FFMPEG);
 
 // Sizes are 1080p pixels: on this 360-line frame the shadow moves 60/3 = 20 px (14 px right, 14 down).
 const SHADOW: Shadow = { distance: 60, angle: 45, blur: 6, opacity: 1, color: "#000000" };
@@ -114,7 +116,7 @@ function frameAt(p: Project, dir: string, t: number): (x: number, y: number) => 
     "-v",
     "error",
     ...plan.inputArgs,
-    "-filter_complex_script",
+    FILTER_SCRIPT_OPTION,
     script,
     ...plan.outputArgs,
   ]);

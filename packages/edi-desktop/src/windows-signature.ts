@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { z } from "zod";
+import { windowsPowerShellEnvironment } from "./windows-powershell";
 
 const execute = promisify(execFile);
 const verificationScript = `
@@ -9,7 +10,7 @@ $sig=Get-AuthenticodeSignature -LiteralPath $env:EDI_VERIFY_TARGET
 if ($sig.Status -ne 'Valid' -or !$sig.SignerCertificate -or !$sig.TimeStamperCertificate) { throw 'Invalid or untimestamped signature' }
 if ($sig.SignerCertificate.Subject -cne $env:EDI_VERIFY_PUBLISHER) { throw 'Unexpected publisher' }
 $info=(Get-Item -LiteralPath $env:EDI_VERIFY_TARGET).VersionInfo
-@{ publisher=$sig.SignerCertificate.Subject; version=$info.ProductVersion; product=$info.ProductName } | ConvertTo-Json -Compress
+@{ publisher=$sig.SignerCertificate.Subject; version=$info.FileVersion; product=$info.ProductName } | ConvertTo-Json -Compress
 `;
 const signatureSchema = z.object({
   publisher: z.string(),
@@ -32,7 +33,11 @@ export async function verifyWindowsBinary(path: string, publisher: string) {
       windowsHide: true,
       timeout: 60000,
       maxBuffer: 16384,
-      env: { ...process.env, EDI_VERIFY_TARGET: path, EDI_VERIFY_PUBLISHER: publisher },
+      env: windowsPowerShellEnvironment({
+        ...process.env,
+        EDI_VERIFY_TARGET: path,
+        EDI_VERIFY_PUBLISHER: publisher,
+      }),
     },
   );
   return signatureSchema.parse(JSON.parse(result.stdout.trim()));

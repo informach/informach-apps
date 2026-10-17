@@ -46,16 +46,18 @@ O Windows ou outro aplicativo pode reservar Print Screen; nesse caso a interface
 
 Os projetos ficam em `%APPDATA%/edicaptura/captures` (o diretório exato depende do nome de aplicativo atribuído pelo Electron). PNGs originais e anotações JSON são armazenados separadamente; vídeos são WebM. **Pixelizar protege a exportação visual, mas não elimina o original da biblioteca**: compartilhe a imagem exportada, não os arquivos do projeto, quando houver dados sensíveis. O app usa `contextIsolation`, sandbox, preload restrito e validação de origem no IPC. Não carrega conteúdo remoto.
 
+Quando a licença deixa de autorizar o uso, vídeo e rolagem em andamento são encerrados e salvos; nenhuma nova captura começa. Se o disco falhar, os bytes/trechos continuam disponíveis para repetir **Salvar trabalho existente**. Antes de integrar um vídeo à biblioteca, o main grava uma cópia em `%APPDATA%/edicaptura/recovery`; ela só é removida depois do salvamento. A mensagem de erro informa o caminho quando a finalização falha. Uma falha do próprio disco pode impedir essa cópia: mantenha a janela aberta enquanto libera espaço. Exportações usam substituição atômica. Evidências em [preservação de jobs](../../docs/propostas/edi-suite-2026-10-16/producao-jobs.md).
+
 ## Testar e distribuir
 
 ```powershell
-npm.cmd test
-npm.cmd run test:e2e
-npm.cmd run pack
-npm.cmd run dist
+pnpm --filter @informach/edicaptura test
+pnpm --filter @informach/edicaptura build
+pnpm edi:test:native
+pnpm edi:test:package --installer
 ```
 
-`pack` cria `release/EdiCaptura-Windows-0.2.2/EdiCaptura.exe` e os arquivos necessários. `dist` gera `release/EdiCaptura-Windows.zip`. Distribua a pasta inteira ou o ZIP; o executável depende dos arquivos ao lado dele. A distribuição não tem assinatura digital nem atualização automática.
+EdiCaptura integra o release da suíte pela tag `edi-v*`, usando instalador, inventário e manifesto assinados Ed25519 e atualização pelo SDK compartilhado. Os antigos scripts `pack`/`dist` não são o canal comercial. Siga a [distribuição do piloto](../../docs/propostas/edi-suite-2026-10-16/distribuicao-piloto.md); as assinaturas próprias não equivalem a certificado Authenticode reconhecido pelo Windows.
 
 O plano e os limites da versão estão em [PLANO.md](PLANO.md).
 

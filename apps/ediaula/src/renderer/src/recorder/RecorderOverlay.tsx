@@ -84,6 +84,7 @@ export function RecorderOverlay(): ReactNode {
   const [guidedPlan, setGuidedPlan] = useState<GuidedPlan>({ ...GUIDED_DEFAULTS, steps: [] });
   const [guidedBusy, setGuidedBusy] = useState(false);
   const guidedFailed = useRef(false);
+  const preservationRequested = useRef(false);
   const guidedAudio = useRef<HTMLAudioElement | null>(null);
   const guidedOffset = useRef<number | null>(null);
   const system = useRef<{
@@ -166,21 +167,23 @@ export function RecorderOverlay(): ReactNode {
 
   const finishSystemAudio = useCallback(async (): Promise<void> => {
     const s = system.current;
-    system.current = null;
     if (!s) return;
-    await new Promise<void>((resolve) => {
-      s.rec.onstop = () => resolve();
-      s.rec.stop();
-    });
+    if (s.rec.state !== "inactive")
+      await new Promise<void>((resolve) => {
+        s.rec.onstop = () => resolve();
+        s.rec.stop();
+      });
     s.stream.getTracks().forEach((t) => {
       t.stop();
     });
     const bytes = new Uint8Array(await new Blob(s.chunks, { type: "audio/webm" }).arrayBuffer());
     if (bytes.length) await window.api.recorder.systemAudio(bytes, s.startedAt);
+    system.current = null;
   }, []);
 
   const begin = useCallback(async () => {
     if (!monitor || phaseRef.current !== "setup" || guidedBusy) return;
+    preservationRequested.current = false;
     setError(null);
     if (guidedMode) {
       try {
@@ -222,10 +225,17 @@ export function RecorderOverlay(): ReactNode {
         })(),
       ]);
       await window.api.recorder.start();
-      if (systemOn && !(guidedMode && guidedPlan.audio))
+      if (!preservationRequested.current && systemOn && !(guidedMode && guidedPlan.audio))
         await startSystemAudio().catch((e) =>
           setError(`Áudio do PC indisponível: ${(e as Error).message}`),
         );
+      if (preservationRequested.current) {
+        phaseRef.current = "saving";
+        setPhase("saving");
+        await finishSystemAudio();
+        await window.api.recorder.stop();
+        return;
+      }
       setPhase("recording");
       phaseRef.current = "recording";
       void window.api.recorder.interactive(false);
@@ -256,6 +266,7 @@ export function RecorderOverlay(): ReactNode {
     guidedPlan,
     guidedBusy,
     startSystemAudio,
+    finishSystemAudio,
   ]);
 
   useEffect(() => {
@@ -326,7 +337,8 @@ export function RecorderOverlay(): ReactNode {
       await window.api.recorder.stop();
     } catch (err) {
       setError(String((err as Error).message));
-      setPhase("setup");
+      phaseRef.current = "paused";
+      setPhase("paused");
     }
   }, [finishSystemAudio]);
 
@@ -345,6 +357,11 @@ export function RecorderOverlay(): ReactNode {
   useEffect(
     () =>
       window.api.recorder.onHotkey((name) => {
+        if (name === "preserve") {
+          preservationRequested.current = true;
+          void stop();
+          return;
+        }
         if (name === "guided-done") {
           void stop();
           return;

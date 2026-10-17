@@ -36,7 +36,7 @@ test("som e confirmação só ocorrem quando aumenta o número de fotos", async 
     .readFileSync(path.join(__dirname, "../recording/control.js"), "utf8")
     .replace(/^import .*;\r?\n/gm, "");
   await vm.runInNewContext(`(async()=>{${source}})()`, {
-    window: { edi: api },
+    window: { edi: api, ediSuite: { onRecovery() {} } },
     document: {
       getElementById: element,
       createElement: () => ({}),

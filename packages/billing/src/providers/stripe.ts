@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { CheckoutPendingError, WebhookSignatureError } from "../errors";
 import type { SubjectRef } from "../types";
+import { cancelsAtPeriodEnd } from "./stripe-cancellation";
 import type {
   BillingProviderClient,
   ProviderCancelSubscriptionInput,
@@ -393,7 +394,7 @@ function summarizeSubscription(subscription: Stripe.Subscription): ProviderSubsc
   return {
     id: subscription.id,
     status: subscription.status,
-    cancelAtPeriodEnd: subscription.cancel_at_period_end,
+    cancelAtPeriodEnd: cancelsAtPeriodEnd(subscription, periodEnd),
     currentPeriodEnd: periodEnd ? new Date(periodEnd * 1000) : null,
     latestInvoice: extractLatestInvoice(subscription.latest_invoice),
   };

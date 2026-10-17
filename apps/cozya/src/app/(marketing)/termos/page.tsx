@@ -1,9 +1,10 @@
+import { INFORMACH_CONTACT } from "@informach/config/contact";
 import type { Metadata } from "next";
 
 const TITLE = "Termos de Uso. Cozya";
 const DESCRIPTION =
   "Termos de uso do Cozya, serviço operado pela Informach Núcleo de Aprendizagem Ltda.";
-const LAST_UPDATED = "8 de maio de 2026";
+const LAST_UPDATED = "17 de outubro de 2026";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -25,13 +26,10 @@ export default function TermsOfUsePage() {
       <div className="mt-10 space-y-10 text-base leading-relaxed text-foreground">
         <Section title="1. Quem opera o Cozya">
           <p>
-            O Cozya é operado pela <strong>Informach — Núcleo de Aprendizagem Ltda</strong>, pessoa
+            O Cozya é operado pela <strong>Informach Núcleo de Aprendizagem Ltda</strong>, pessoa
             jurídica de direito privado inscrita no CNPJ sob o nº{" "}
-            <strong>43.588.758/0001-03</strong>. Para falar com a gente sobre estes Termos, use{" "}
-            <a className="underline underline-offset-2" href="mailto:contato@casaldevgames.com">
-              contato@casaldevgames.com
-            </a>
-            .
+            <strong>43.588.758/0001-03</strong>. Para falar com a gente sobre estes Termos, mande
+            uma mensagem no direct do Instagram, em <DirectLink />.
           </p>
           <p>
             Ao criar uma conta ou usar o Cozya, você concorda com estes Termos de Uso e com nossa{" "}
@@ -181,11 +179,8 @@ export default function TermsOfUsePage() {
 
         <Section title="13. Contato">
           <p>
-            Pra dúvidas, solicitações ou notificações relacionadas a estes Termos:{" "}
-            <a className="underline underline-offset-2" href="mailto:contato@casaldevgames.com">
-              contato@casaldevgames.com
-            </a>
-            .
+            Pra dúvidas, solicitações ou notificações relacionadas a estes Termos: direct do
+            Instagram, em <DirectLink />.
           </p>
         </Section>
       </div>
@@ -199,5 +194,14 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <h2 className="text-xl font-semibold tracking-tight md:text-2xl">{title}</h2>
       <div className="space-y-3 text-muted-foreground">{children}</div>
     </section>
+  );
+}
+
+/** Canal público de contato: o direct do Instagram, nunca um endereço de e-mail. */
+function DirectLink() {
+  return (
+    <a className="underline underline-offset-2" href={INFORMACH_CONTACT.directMessageUrl}>
+      @{INFORMACH_CONTACT.instagramHandle}
+    </a>
   );
 }

@@ -6,7 +6,7 @@ Versão comercial funcional para estudantes do 2º ano à 3ª série do ensino m
 
 ## Abrir localmente
 
-Requisitos: Node 22.13+, pnpm 9.15 e PostgreSQL local. O projeto usa os packages do monorepo.
+Requisitos: Node 24.15.0, pnpm 9.15.0 e PostgreSQL local, conforme manifest e CI do monorepo. O projeto usa os packages compartilhados.
 
 ```powershell
 pnpm install --frozen-lockfile
@@ -31,6 +31,8 @@ pnpm build:missao-saber
 ```
 
 Integração e E2E criam e removem seu próprio banco local; recusam banco remoto ou banco compartilhado. O E2E usa Chromium em desktop e Pixel 7, porta 3105 e artefatos com um identificador aleatório por execução. Ele compila e inicia uma aplicação de produção isolada para não disputar o cache do preview. Quando a porta estiver ocupada por outra sessão, defina `MISSAO_E2E_PORT`. E-mails são sandbox e a Stripe não recebe requisições de pagamento. Fixtures de assinatura são inseridas somente no banco descartável. Um encerramento abrupto do processo pode deixar um banco ou diretório de teste; confirme o nome exato antes de removê-lo manualmente.
+
+Os três configs Vitest (unitário, integração e ferramentas) usam `oxc.jsx.runtime = "automatic"` para transformar os templates TSX com o Vite 8 fixado no lockfile, conforme o [guia de migração do Vite](https://vite.dev/guide/migration). O `jsx: preserve` herdado do Next não deve chegar sem transformação à execução dos testes de e-mail.
 
 ## Decisões principais
 

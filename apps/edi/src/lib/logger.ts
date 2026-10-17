@@ -8,9 +8,3 @@ export const logger = pino({
     censor: "[redacted]",
   },
 });
-export const packageLogger = {
-  debug: (message: string, context?: object) => logger.debug(context ?? {}, message),
-  info: (message: string, context?: object) => logger.info(context ?? {}, message),
-  warn: (message: string, context?: object) => logger.warn(context ?? {}, message),
-  error: (message: string, context?: object) => logger.error(context ?? {}, message),
-};

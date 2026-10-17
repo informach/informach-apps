@@ -1,5 +1,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 
 const config: NextConfig = {
@@ -30,4 +31,19 @@ const config: NextConfig = {
     ];
   },
 };
-export default config;
+export default withSentryConfig(config, {
+  telemetry: false,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: !process.env.CI,
+  sourcemaps: {
+    disable: !(
+      process.env.SENTRY_AUTH_TOKEN &&
+      process.env.SENTRY_ORG &&
+      process.env.SENTRY_PROJECT
+    ),
+    deleteSourcemapsAfterUpload: true,
+  },
+  webpack: { treeshake: { removeDebugLogging: true } },
+});

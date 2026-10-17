@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
 import { buildExportPlan } from "../src/shared/exportPlan.ts";
 import { transformAt } from "../src/shared/keyframes.ts";
 import {
@@ -94,7 +95,7 @@ test("extension at either edge creates no empty segment; movement resumes contin
 
 test("export holds the chosen picture and resumes the video with silence only during the extension", {
   timeout: 60000,
-}, () => {
+}, async () => {
   const ffmpeg: string = createRequire(import.meta.url)("ffmpeg-static");
   const dir = mkdtempSync(join(tmpdir(), "ediaula-extend-"));
   const source = join(dir, "source.mp4"),
@@ -175,7 +176,7 @@ test("export holds the chosen picture and resumes the video with silence only du
     "-v",
     "error",
     ...plan.inputArgs,
-    "-filter_complex_script",
+    await filterScriptOption(ffmpeg),
     filter,
     ...plan.outputArgs,
   ]);

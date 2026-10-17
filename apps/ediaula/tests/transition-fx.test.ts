@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
 import { buildExportPlan } from "../src/shared/exportPlan.ts";
 import {
   colorFxShapes,
@@ -22,6 +23,7 @@ import type { Project } from "../src/shared/types.ts";
 
 const require = createRequire(import.meta.url);
 const FFMPEG: string = require("ffmpeg-static");
+const FILTER_SCRIPT_OPTION = await filterScriptOption(FFMPEG);
 
 const dir = mkdtempSync(join(tmpdir(), "ediaula-tfx-"));
 const clipFile = (name: string, color: string): string => {
@@ -110,7 +112,7 @@ function frame(p: Project, t: number): (x: number, y: number) => string {
     "-v",
     "error",
     ...plan.inputArgs,
-    "-filter_complex_script",
+    FILTER_SCRIPT_OPTION,
     script,
     ...plan.outputArgs,
   ]);
@@ -164,6 +166,21 @@ test("export: circles open in the middle and close toward it", { timeout: 60_000
   const close = frame(project("circle-close"), MID);
   assert.equal(close(158, 88), "r");
   assert.equal(close(2, 2), "b");
+});
+
+test("export: transition tails hold the source end at slower and faster playback speeds", {
+  timeout: 60_000,
+}, () => {
+  for (const speed of [0.5, 2]) {
+    const duration = Math.min(1, 1 / speed);
+    const p = project("wipe-right", duration);
+    p.clips[0].speed = speed;
+    p.clips[0].duration = 2 / speed;
+    p.clips[1].start = p.clips[0].duration;
+    const px = frame(p, p.clips[1].start + duration / 2);
+    assert.equal(px(30, 88), "b", `incoming scene at speed ${speed}`);
+    assert.equal(px(286, 88), "r", `held outgoing scene at speed ${speed}`);
+  }
 });
 
 const rgb = (v: string): number[] =>

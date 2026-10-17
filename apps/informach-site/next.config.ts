@@ -4,7 +4,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: path.join(__dirname, "../../"),
-  transpilePackages: ["@informach/ui"],
+  transpilePackages: ["@informach/config", "@informach/ui"],
   typedRoutes: true,
 };
 

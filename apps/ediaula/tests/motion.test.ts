@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
 import { animAt, isMoving, type Motion, motionExprs } from "../src/shared/compose.ts";
 import { buildExportPlan } from "../src/shared/exportPlan.ts";
 import type { Project } from "../src/shared/types.ts";
@@ -53,6 +54,7 @@ test("pop overshoots a little, fades in over its first third, and plain fades st
 
 const require = createRequire(import.meta.url);
 const FFMPEG: string = require("ffmpeg-static");
+const FILTER_SCRIPT_OPTION = await filterScriptOption(FFMPEG);
 
 test("export: a picture popping in grows around its own center", { timeout: 60_000 }, () => {
   const dir = mkdtempSync(join(tmpdir(), "ediaula-motion-"));
@@ -128,7 +130,7 @@ test("export: a picture popping in grows around its own center", { timeout: 60_0
     "-v",
     "error",
     ...plan.inputArgs,
-    "-filter_complex_script",
+    FILTER_SCRIPT_OPTION,
     script,
     ...plan.outputArgs,
   ]);

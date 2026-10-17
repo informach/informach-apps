@@ -1,0 +1,45 @@
+name: Edi Windows installer upgrade for one app
+on:
+  workflow_call:
+    inputs:
+      source_ref:
+        required: false
+        type: string
+      app:
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  upgrade:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ inputs.source_ref || github.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        if: inputs.app == 'ediaula'
+        with:
+          name: edi-native-media-windows-x64
+          path: .cache/edi-native-media/windows-x64
+      - name: Install and upgrade two independently signed Windows versions
+        run: pnpm edi:test:upgrade $env:EDI_UPGRADE_APP
+        env:
+          EDI_UPGRADE_APP: ${{ inputs.app }}
+      - name: Preserve upgrade verification evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: edi-upgrade-${{ inputs.app }}-${{ github.run_attempt }}
+          path: .cache/edi-upgrade-results/*.json
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 7

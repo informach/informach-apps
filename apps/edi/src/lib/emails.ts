@@ -8,11 +8,15 @@ import {
 } from "@informach/emails";
 import { processUnsubscribe } from "@informach/emails/unsubscribe";
 import { getEnv } from "./env";
-import { logger, packageLogger } from "./logger";
+import { packageLogger, reportOperationalError } from "./observability";
 
 const audit = (event: EmailAuditEvent) => {
-  void logAuditEvent(event.eventType, event.actorId, event.payload).catch(() =>
-    logger.error("email.audit_persistence_failed"),
+  void logAuditEvent(event.eventType, event.actorId, event.payload).catch((error) =>
+    reportOperationalError("email.audit_persistence_failed", error, {
+      eventType: event.eventType,
+      actorId: event.actorId,
+      payloadKeys: Object.keys(event.payload),
+    }),
   );
 };
 let instance: ReturnType<typeof createEmailService> | undefined;

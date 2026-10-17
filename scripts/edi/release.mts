@@ -20,6 +20,7 @@ import {
   verifyInstalledApplication,
   writeInstallationReceipt,
 } from "../../packages/edi-desktop/src/installation-integrity";
+import { windowsPowerShellEnvironment } from "../../packages/edi-desktop/src/windows-powershell.ts";
 import { fetchPublicRelease } from "../../packages/edi-releases/src/public";
 import { publishGithubRelease } from "./github-publication.mts";
 import { installerConfiguration } from "./installer-config.mts";
@@ -88,6 +89,21 @@ async function buildInstaller() {
     version,
     trustedKeys: { [keyId]: expectedPublic },
   });
+  await execute(
+    "powershell.exe",
+    [
+      "-NoLogo",
+      "-NoProfile",
+      "-NonInteractive",
+      "-File",
+      resolve("scripts/edi/verify-package-metadata.ps1"),
+      "-Target",
+      resolve(unpacked, `${config.productName}.exe`),
+      "-Version",
+      version,
+    ],
+    { windowsHide: true, timeout: 30000, maxBuffer: 32768, env: windowsPowerShellEnvironment() },
+  );
   if (process.env.EDI_PACKAGE_LAYOUT_ONLY === "true") {
     console.log(`Verified packaged application layout: ${appId} ${version}`);
     return;
@@ -135,12 +151,19 @@ async function buildInstaller() {
         installer,
         "-AppId",
         appId,
+        "-ProductName",
+        EDI_DESKTOP_APPS.find((app) => app.id === appId)?.name ?? appId,
         "-Version",
         version,
         "-Sha512",
         digest.sha512,
       ],
-      { windowsHide: true, timeout: 240000, maxBuffer: 32768 },
+      {
+        windowsHide: true,
+        timeout: 600000,
+        maxBuffer: 32768,
+        env: windowsPowerShellEnvironment(),
+      },
     );
   }
   console.log(`Verified pilot installer: ${appId} ${version} (${digest.size} bytes)`);

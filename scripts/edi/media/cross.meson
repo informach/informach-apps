@@ -1,0 +1,20 @@
+[binaries]
+c = 'x86_64-w64-mingw32-gcc'
+cpp = 'x86_64-w64-mingw32-g++'
+ar = 'x86_64-w64-mingw32-ar'
+strip = 'x86_64-w64-mingw32-strip'
+windres = 'x86_64-w64-mingw32-windres'
+nasm = 'nasm'
+pkg-config = 'pkg-config'
+[host_machine]
+system = 'windows'
+cpu_family = 'x86_64'
+cpu = 'x86_64'
+endian = 'little'
+[properties]
+needs_exe_wrapper = true
+[built-in options]
+c_args = ['-O2', '-D_WIN32_WINNT=0x0A00', '-I/opt/edi-media/include']
+cpp_args = ['-O2', '-D_WIN32_WINNT=0x0A00', '-I/opt/edi-media/include']
+c_link_args = ['-static', '-L/opt/edi-media/lib']
+cpp_link_args = ['-static', '-L/opt/edi-media/lib']

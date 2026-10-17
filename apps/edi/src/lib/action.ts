@@ -1,10 +1,11 @@
 import "server-only";
 import { createActionFactory } from "@informach/auth/server-actions";
 import { getAuth } from "./auth";
-import { logger } from "./logger";
+import { reportOperationalError } from "./observability";
 export function getActions() {
   return createActionFactory({
     helpers: getAuth(),
-    onError: ({ actorId }) => logger.error({ actorId }, "action.unexpected_failure"),
+    onError: ({ error, actorId }) =>
+      reportOperationalError("action.unexpected_failure", error, { actorId }),
   }).action;
 }

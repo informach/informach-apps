@@ -1,10 +1,37 @@
 "use client";
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { authClient } from "../../lib/auth-client";
-export function AuthForm() {
+import type { ReturnPath } from "../../lib/return-path";
+
+type Mode = "login" | "signup" | "verify" | "reset";
+const HEADINGS: Record<Mode, { title: string; lede: string }> = {
+  login: { title: "Bom te ver de novo.", lede: "A mesma conta vale no site e no Edi Hub." },
+  signup: {
+    title: "Comece pela sua conta.",
+    lede: "Uma conta para as cinco ferramentas. Depois você escolhe o plano.",
+  },
+  verify: {
+    title: "Confirme seu e-mail.",
+    lede: "Digite o código de 6 números que enviamos para o seu e-mail.",
+  },
+  reset: {
+    title: "Crie uma senha nova.",
+    lede: "Use o código que enviamos para o seu e-mail junto com a senha nova.",
+  },
+};
+
+export function AuthForm({
+  initialMode = "login",
+  next = "/conta",
+}: {
+  initialMode?: "login" | "signup";
+  next?: ReturnPath;
+}) {
   const router = useRouter();
-  const [mode, setMode] = useState<"login" | "signup" | "verify" | "reset">("login");
+  const hydrated = useHydrated();
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -93,7 +120,7 @@ export function AuthForm() {
           setMessage(result.error.message ?? "Confira seu e-mail e senha.");
           return;
         }
-        router.push("/conta");
+        router.push(next);
         router.refresh();
       }
     } catch {
@@ -122,25 +149,56 @@ export function AuthForm() {
       setBusy(false);
     }
   }
+  function switchTo(target: "login" | "signup") {
+    setMode(target);
+    setOtp("");
+    setMessage("");
+  }
   return (
-    <section className="auth-panel">
+    <section className="auth-form" aria-labelledby="auth-title">
+      {mode === "login" || mode === "signup" ? (
+        <div className="tabs" role="tablist" aria-label="Acesso">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === "login"}
+            disabled={!hydrated || busy}
+            onClick={() => switchTo("login")}
+          >
+            Entrar
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === "signup"}
+            disabled={!hydrated || busy}
+            onClick={() => switchTo("signup")}
+          >
+            Criar conta
+          </button>
+        </div>
+      ) : (
+        <button
+          className="link-button"
+          type="button"
+          disabled={!hydrated || busy}
+          onClick={() => switchTo("login")}
+        >
+          Voltar para entrar
+        </button>
+      )}
       <span className="eyebrow">Sua conta Edi</span>
-      <h1>
-        {mode === "signup"
-          ? "Comece pela sua conta."
-          : mode === "verify"
-            ? "Confirme seu e-mail."
-            : mode === "reset"
-              ? "Uma nova senha."
-              : "Bom ter você aqui."}
+      <h1 id="auth-title" className="display-2">
+        {HEADINGS[mode].title}
       </h1>
-      <p className="muted">Uma conta para toda a sua bancada criativa.</p>
+      <p className="muted">{HEADINGS[mode].lede}</p>
       <form onSubmit={submit}>
         {mode === "signup" && (
-          <label htmlFor="nome">
+          <label className="field" htmlFor="nome">
             Nome
             <input
               id="nome"
+              className="input"
               name="name"
               autoComplete="name"
               required
@@ -150,10 +208,11 @@ export function AuthForm() {
             />
           </label>
         )}
-        <label htmlFor="email">
+        <label className="field" htmlFor="email">
           E-mail
           <input
             id="email"
+            className="input"
             name="email"
             type="email"
             autoComplete="email"
@@ -166,10 +225,23 @@ export function AuthForm() {
           />
         </label>
         {mode !== "verify" && (
-          <label htmlFor="senha">
-            {mode === "reset" ? "Nova senha" : "Senha"}
+          <div className="field">
+            <div className="field-head">
+              <label htmlFor="senha">{mode === "reset" ? "Nova senha" : "Senha"}</label>
+              {mode === "login" && (
+                <button
+                  className="link-button"
+                  type="button"
+                  disabled={busy || !hydrated}
+                  onClick={reset}
+                >
+                  Esqueci a senha
+                </button>
+              )}
+            </div>
             <input
               id="senha"
+              className="input"
               name="password"
               type="password"
               autoComplete={mode === "login" ? "current-password" : "new-password"}
@@ -178,13 +250,14 @@ export function AuthForm() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
             />
-          </label>
+          </div>
         )}
         {(mode === "verify" || mode === "reset") && (
-          <label htmlFor="codigo">
+          <label className="field" htmlFor="codigo">
             Código recebido por e-mail
             <input
               id="codigo"
+              className="input input--otp"
               name="otp"
               inputMode="numeric"
               autoComplete="one-time-code"
@@ -196,10 +269,14 @@ export function AuthForm() {
             />
           </label>
         )}
-        <p aria-live="polite" className="small" role="status">
+        <p aria-live="polite" className="form-message" role="status">
           {message}
         </p>
-        <button type="submit" disabled={busy}>
+        <button
+          className="button button--primary button--lg button--block"
+          type="submit"
+          disabled={busy || !hydrated}
+        >
           {busy
             ? "Aguarde…"
             : mode === "signup"
@@ -211,21 +288,22 @@ export function AuthForm() {
                   : "Entrar"}
         </button>
       </form>
-      <div className="actions section">
-        {mode === "verify" ? (
+      <div className="auth-secondary">
+        {mode === "verify" && (
           <button
-            className="secondary"
+            className="link-button"
             type="button"
-            disabled={busy || resendCoolingDown}
+            disabled={!hydrated || busy || resendCoolingDown}
             onClick={resendVerification}
           >
             {resendCoolingDown ? "Aguarde para reenviar" : "Reenviar código de confirmação"}
           </button>
-        ) : (
+        )}
+        {mode === "login" && (
           <button
-            className="secondary"
+            className="link-button"
             type="button"
-            disabled={busy}
+            disabled={!hydrated || busy}
             onClick={() => {
               setMode("verify");
               setOtp("");
@@ -238,34 +316,6 @@ export function AuthForm() {
             Confirmar cadastro pendente
           </button>
         )}
-        {mode === "verify" && (
-          <button
-            className="secondary"
-            type="button"
-            disabled={busy}
-            onClick={() => {
-              setMode("login");
-              setOtp("");
-              setMessage("");
-            }}
-          >
-            Voltar para entrar
-          </button>
-        )}
-        <button
-          className="secondary"
-          type="button"
-          disabled={busy}
-          onClick={() => {
-            setMode(mode === "signup" ? "login" : "signup");
-            setMessage("");
-          }}
-        >
-          {mode === "signup" ? "Já tenho uma conta" : "Criar uma conta"}
-        </button>
-        <button className="secondary" type="button" disabled={busy} onClick={reset}>
-          Esqueci a senha
-        </button>
       </div>
     </section>
   );

@@ -3,6 +3,8 @@ import type { Configuration } from "electron-builder";
 import { EDI_DESKTOP_APPS } from "../../packages/config/src/edi-tools";
 import { desktopAppIdSchema, releaseVersionSchema } from "../../packages/edi-contracts/src/index";
 import { desktopConfigSchema } from "../../packages/edi-desktop/src/contracts";
+import { nativeMediaDirectory, verifyNativeMediaBundle } from "./media-bundle.mts";
+import { writeThirdPartyNotices } from "./third-party-notices.mts";
 export function installerConfiguration(rawId: unknown, rawVersion: unknown): Configuration {
   const appId = desktopAppIdSchema.parse(rawId);
   const version = releaseVersionSchema.parse(rawVersion);
@@ -34,8 +36,37 @@ export function installerConfiguration(rawId: unknown, rawVersion: unknown): Con
       output: resolve(".cache", "edi-release", version, app.id),
     },
     extraMetadata: { version, ediSourceCommit: process.env.EDI_SOURCE_COMMIT },
-    files: ["out/**/*", "resources/**/*", "package.json", "!**/*.map", "!**/tests/**"],
+    files: [
+      "out/**/*",
+      "resources/**/*",
+      "package.json",
+      "!**/*.map",
+      "!**/tests/**",
+      ...(appId === "ediaula"
+        ? ["!resources/fonts/**", "!resources/cursor-hook.ps1", "!resources/guided-input.ps1"]
+        : []),
+    ],
     asar: true,
+    extraResources:
+      appId === "ediaula"
+        ? [
+            {
+              from: nativeMediaDirectory,
+              to: "native-media",
+              filter: ["**/*"],
+            },
+            ...["fonts", "cursor-hook.ps1", "guided-input.ps1"].map((name) => ({
+              from: resolve("apps/ediaula/resources", name),
+              to: name,
+            })),
+          ]
+        : [],
+    beforePack: async () => {
+      if (appId === "ediaula") await verifyNativeMediaBundle();
+    },
+    afterPack: async (context) => {
+      await writeThirdPartyNotices(appId, resolve(context.appOutDir, "resources"));
+    },
     forceCodeSigning: false,
     artifactName: `${app.id}-${version}-win-x64.exe`,
     electronVersion: "44.8.0",
@@ -53,6 +84,7 @@ export function installerConfiguration(rawId: unknown, rawVersion: unknown): Con
       channel: version.includes("-beta.") ? "beta" : "latest",
     },
     win: {
+      icon: resolve("apps", app.id, "resources/icon.ico"),
       target: [{ target: "nsis", arch: ["x64"] }],
       verifyUpdateCodeSignature: true,
       signtoolOptions: {
@@ -62,6 +94,8 @@ export function installerConfiguration(rawId: unknown, rawVersion: unknown): Con
       },
     },
     nsis: {
+      installerIcon: resolve("apps", app.id, "resources/icon.ico"),
+      uninstallerIcon: resolve("apps", app.id, "resources/icon.ico"),
       oneClick: true,
       perMachine: false,
       allowElevation: false,

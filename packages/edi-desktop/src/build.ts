@@ -28,7 +28,10 @@ export function ediBuildOptions(options: { mainEntry?: string; preloadEntry?: st
           ],
         },
         commonjsOptions: { include: [/node_modules/, /src[\\/]main/, /src[\\/]capture/] },
-        rollupOptions: { input: resolve(options.mainEntry ?? "src/main/index.ts") },
+        rollupOptions: {
+          input: resolve(options.mainEntry ?? "src/main/index.ts"),
+          external: ["original-fs"],
+        },
       },
     },
     preload: {

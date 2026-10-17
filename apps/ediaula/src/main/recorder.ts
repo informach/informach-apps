@@ -1,7 +1,8 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, mkdtempSync } from "node:fs";
 import { copyFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { windowsPowerShellEnvironment } from "@informach/edi-desktop/windows-powershell";
 import { app } from "electron";
 import {
   type CaptureMonitor,
@@ -14,6 +15,7 @@ import {
   type RecordOptions,
 } from "../shared/recording.ts";
 import { detectEncoder, FFMPEG, probe, run, writeFilterScript } from "./ffmpeg.ts";
+import { nativeResourcePath } from "./native-resources.ts";
 
 /**
  * Screen recording: the monitor (or a region of it) through Desktop Duplication without the
@@ -23,7 +25,7 @@ import { detectEncoder, FFMPEG, probe, run, writeFilterScript } from "./ffmpeg.t
  */
 
 const qpc = (): number => Number(process.hrtime.bigint()) / 1e6;
-const hookScript = (): string => join(app.getAppPath(), "resources", "cursor-hook.ps1");
+const hookScript = (): string => nativeResourcePath("cursor-hook.ps1");
 
 function spawnHook(list = false, keys = false): ChildProcessWithoutNullStreams {
   return spawn(
@@ -37,7 +39,7 @@ function spawnHook(list = false, keys = false): ChildProcessWithoutNullStreams {
       ...(list ? ["-List"] : []),
       ...(keys ? ["-Keys"] : []),
     ],
-    { windowsHide: true },
+    { windowsHide: true, env: windowsPowerShellEnvironment() },
   );
 }
 
@@ -140,6 +142,10 @@ interface Segment {
 }
 
 interface Session {
+  preserved?: boolean;
+  starting?: Promise<void>;
+  closing?: Promise<void>;
+  failure?: unknown;
   narration?: { path: string; offset: number };
   opts: RecordOptions;
   monitor: CaptureMonitor;
@@ -190,26 +196,41 @@ export async function prepare(opts: RecordOptions, monitors: CaptureMonitor[]): 
   if (session) return;
   const monitor = monitors.find((m) => m.index === opts.monitor);
   if (!monitor || monitor.output < 0) throw new Error("Não consegui capturar esta tela.");
-  const dir = join(recordingsDir(), stamp());
-  mkdirSync(dir, { recursive: true });
+  const dir = mkdtempSync(join(recordingsDir(), `${stamp()}-`));
   const hook = spawnHook(false, !!opts.keys);
   const events: string[] = [];
   let buf = "";
   const ready = new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(
+      () => reject(new Error("O capturador de cursor não iniciou.")),
+      8000,
+    );
+    const failed = (error: Error): void => {
+      clearTimeout(timeout);
+      reject(error);
+    };
     hook.stdout.on("data", (d: Buffer) => {
       buf += d.toString();
       const lines = buf.split("\n");
       buf = lines.pop()!;
       for (const l of lines) {
-        if (l.startsWith("READY")) resolve();
-        else if (/^[MDUWK] /.test(l)) events.push(l.trim());
+        if (l.startsWith("READY")) {
+          clearTimeout(timeout);
+          resolve();
+        } else if (/^[MDUWK] /.test(l)) events.push(l.trim());
       }
     });
-    hook.on("error", reject);
-    setTimeout(() => resolve(), 8000);
+    hook.on("error", failed);
+    hook.once("close", () => failed(new Error("O capturador de cursor foi encerrado.")));
   });
   session = { opts, monitor, dir, hook, events, segments: [], current: null, markers: [] };
-  await ready;
+  try {
+    await ready;
+  } catch (error) {
+    hook.kill();
+    session = null;
+    throw error;
+  }
 }
 
 async function startSegment(s: Session): Promise<void> {
@@ -282,15 +303,30 @@ async function startSegment(s: Session): Promise<void> {
   }
   args.push("-map", "0:v", "-vf", "hwdownload,format=bgra", ...video, "-pix_fmt", "yuv420p");
   if (micIn >= 0) args.push("-map", `${micIn}:a`, "-c:a", "aac", "-b:a", "192k", "-ar", "48000");
-  args.push(seg.screen);
-  if (camIn >= 0) args.push("-map", `${camIn}:v`, ...video, "-pix_fmt", "yuv420p", seg.camera!);
+  // Fragments remain readable if recording is interrupted before normal finalization.
+  args.push("-movflags", "+frag_keyframe+empty_moov", seg.screen);
+  if (camIn >= 0)
+    args.push(
+      "-map",
+      `${camIn}:v`,
+      ...video,
+      "-pix_fmt",
+      "yuv420p",
+      "-movflags",
+      "+frag_keyframe+empty_moov",
+      seg.camera!,
+    );
 
   const proc = spawn(FFMPEG, args, { windowsHide: true });
   let err = "";
   let best = Infinity;
   let progressBlocks = 0;
   let resolveFirst: () => void = () => undefined;
-  const firstFrame = new Promise<void>((r) => (resolveFirst = r));
+  let rejectFirst: (error: Error) => void = () => undefined;
+  const firstFrame = new Promise<void>((resolve, reject) => {
+    resolveFirst = resolve;
+    rejectFirst = reject;
+  });
   proc.stderr.on("data", (d: Buffer) => {
     const text = d.toString();
     err = (err + text).slice(-4000);
@@ -304,11 +340,17 @@ async function startSegment(s: Session): Promise<void> {
     }
   });
   const done = new Promise<void>((resolve, reject) => {
+    const fail = (error: Error): void => {
+      rejectFirst(error);
+      reject(error);
+    };
+    proc.on("error", fail);
     proc.on("close", (code) => {
-      resolveFirst();
-      if (code === 0 || code === 255) resolve();
-      else
-        reject(
+      if (code === 0 || code === 255) {
+        resolveFirst();
+        resolve();
+      } else
+        fail(
           new Error(
             err
               .split("\n")
@@ -319,23 +361,44 @@ async function startSegment(s: Session): Promise<void> {
         );
     });
   });
+  // Observe background failure immediately; stopping/resuming reports it to the caller.
+  void done.catch((error: unknown) => {
+    s.failure = error;
+  });
   s.current = { proc, seg, firstFrame, done };
   await Promise.race([firstFrame, done]);
 }
 
 async function closeSegment(s: Session): Promise<void> {
+  await s.starting;
+  if (s.closing) return s.closing;
   const cur = s.current;
   if (!cur) return;
-  s.current = null;
-  cur.proc.stdin.write("q");
-  await cur.done;
-  cur.seg.duration = (await probe(cur.seg.screen)).duration;
-  s.segments.push(cur.seg);
+  s.closing = (async () => {
+    cur.proc.stdin.write("q");
+    await cur.done;
+    cur.seg.duration = (await probe(cur.seg.screen)).duration;
+    s.segments.push(cur.seg);
+    s.current = null;
+  })();
+  try {
+    await s.closing;
+  } finally {
+    s.closing = undefined;
+  }
 }
 
 export async function start(): Promise<void> {
-  if (!session) throw new Error("Gravação não preparada.");
-  await startSegment(session);
+  const s = session;
+  if (!s || s.preserved) throw new Error("Gravação não preparada ou já preservada.");
+  if (s.failure) throw s.failure;
+  if (s.current || s.starting) throw new Error("Gravação já iniciada.");
+  s.starting = startSegment(s);
+  try {
+    await s.starting;
+  } finally {
+    s.starting = undefined;
+  }
 }
 
 export async function pause(): Promise<void> {
@@ -343,7 +406,16 @@ export async function pause(): Promise<void> {
 }
 
 export async function resume(): Promise<void> {
-  if (session && !session.current) await startSegment(session);
+  if (session && !session.current) await start();
+}
+
+/** Stop acquiring frames now; keep the session for audio delivery and finalization. */
+export async function preserve(): Promise<void> {
+  const s = session;
+  if (!s) return;
+  s.preserved = true;
+  await closeSegment(s);
+  s.hook.kill();
 }
 
 export function mark(kind: MarkerKind): void {
@@ -362,6 +434,10 @@ export function elapsed(): number {
 
 export async function cancel(): Promise<void> {
   const s = session;
+  if (s?.preserved) {
+    await stop();
+    return;
+  }
   session = null;
   if (!s) return;
   s.hook.kill();
@@ -432,6 +508,20 @@ export async function saveSystemAudio(bytes: Uint8Array, startedAt: number): Pro
 export async function stop(): Promise<RecordingResult> {
   const s = session;
   if (!s) throw new Error("Nenhuma gravação em andamento.");
+  s.preserved = true;
+  try {
+    return await finalizeRecording(s);
+  } catch (error) {
+    s.hook.kill();
+    session = null;
+    throw new Error(
+      `Não foi possível finalizar a gravação. Os arquivos foram mantidos em ${s.dir}.`,
+      { cause: error },
+    );
+  }
+}
+
+async function finalizeRecording(s: Session): Promise<RecordingResult> {
   await closeSegment(s);
   session = null;
   s.hook.kill();

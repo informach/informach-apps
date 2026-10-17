@@ -19,6 +19,7 @@ const binding = {
   keyThumbprint: "a".repeat(64),
   activationId: randomUUID(),
   revision: 2,
+  minimumClientVersion: "0.1.0",
 };
 const context = {
   trustedKeys: { test: pair.publicKey.export({ type: "spki", format: "pem" }).toString() },
@@ -29,6 +30,7 @@ const context = {
   keyThumbprint: binding.keyThumbprint,
   activationId: binding.activationId,
   minimumRevision: 2,
+  clientVersion: "0.1.0",
   toolId: "edipdf" as const,
   now,
   lastTrustedTime: now,
@@ -36,6 +38,13 @@ const context = {
 const paidThrough = new Date(now.getTime() + 30 * 86400000);
 
 describe("signed offline licenses", () => {
+  it("enforces the signed version floor when another app renews the shared offline lease", () => {
+    const token = signer({ ...binding, now, paidThrough, minimumClientVersion: "0.2.0" });
+    expect(verifyLicense(token, context)).toEqual({ valid: false, reason: "update_required" });
+    expect(verifyLicense(token, { ...context, clientVersion: "0.2.0-beta.1" }).valid).toBe(false);
+    expect(verifyLicense(token, { ...context, clientVersion: "0.2.0" }).valid).toBe(true);
+    expect(verifyLicense(token, { ...context, clientVersion: "invalid" }).valid).toBe(false);
+  });
   it("signs verifiable device-bound grants capped to 72h", () => {
     const token = signer({ ...binding, now, paidThrough });
     const result = verifyLicense(token, context);

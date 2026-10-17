@@ -12,10 +12,12 @@ import {
 } from "@informach/db/schema";
 import {
   activationRequestSchema,
+  compareReleaseVersions,
   DEVICE_CODE_GRANT,
   type LicenseResponse,
   licenseRequestSchema,
   logoutRequestSchema,
+  releaseVersionSchema,
 } from "@informach/edi-contracts";
 import { type RequestProof, verifyRequestProof } from "@informach/edi-contracts/proof";
 import { and, desc, eq, gt, inArray, isNull } from "drizzle-orm";
@@ -137,9 +139,11 @@ export function createDesktopLicenseService(config: {
   db: Database;
   audience: string;
   sign: ReturnType<typeof createLicenseSigner>;
+  minimumClientVersion: string;
   now?: () => Date;
 }) {
   const { db } = config;
+  const minimumClientVersion = releaseVersionSchema.parse(config.minimumClientVersion);
   const clock = config.now ?? (() => new Date());
   function proof(
     raw: string,
@@ -298,12 +302,17 @@ export function createDesktopLicenseService(config: {
         const decision = await accountAccess(tx, principal.userId, now, { requireFresh: true });
         if (!decision.allowed)
           return { status: "denied", reason: decision.reason, serverTime: now.getTime() };
+        // Commercial restrictions invalidate shared access across app versions;
+        // a version-only refusal preserves the grants used by updated apps.
+        if (compareReleaseVersions(input.clientVersion, minimumClientVersion) < 0)
+          return { status: "denied", reason: "update_required", serverTime: now.getTime() };
         const lease = config.sign({
           sub: principal.userId,
           deviceId: binding.device.id,
           keyThumbprint: binding.device.keyThumbprint,
           activationId: current.activation.id,
           revision: current.activation.revision,
+          minimumClientVersion,
           now,
           paidThrough: decision.paidThrough,
         });

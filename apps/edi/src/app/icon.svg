@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="titulo">
+  <title id="titulo">Suíte Edi</title>
+  <rect width="64" height="64" rx="16" fill="#262C33"/>
+  <rect x="7.5" y="19" width="7" height="26" rx="1.5" fill="#C8E64A"/>
+  <rect x="18" y="19" width="7" height="26" rx="1.5" fill="#5ED3B3"/>
+  <rect x="28.5" y="19" width="7" height="26" rx="1.5" fill="#FF8F7E"/>
+  <rect x="39" y="19" width="7" height="26" rx="1.5" fill="#8CB6FF"/>
+  <rect x="49.5" y="19" width="7" height="26" rx="1.5" fill="#C2A5FF"/>
+</svg>

@@ -10,6 +10,7 @@ import {
   shadowOffset,
   shadowReach,
 } from "./compose.ts";
+import { cursorOverlayExpressions } from "./cursor-expressions.ts";
 import { keyframeExprs } from "./keyframes.ts";
 import { clipEnd, clipSpeed, projectDuration, sourceEnd, sourceLength } from "./timeline.ts";
 import {
@@ -26,14 +27,14 @@ import {
   tailProgressExpr,
   withTransitions,
 } from "./transitions.ts";
-import type { Asset, Clip, CursorSprite, ExportSpec, Project } from "./types.ts";
+import type { Asset, ExportSpec, Project } from "./types.ts";
 import { zoomExprs } from "./zoom.ts";
 import { entryView, zoomLayerFilter } from "./zoomLayer.ts";
 
 export interface ExportPlan {
   /** ffmpeg arguments before the filter graph (inputs). */
   inputArgs: string[];
-  /** Contents for -filter_complex_script. */
+  /** Contents of the file-backed FFmpeg filter graph. */
   filter: string;
   /** ffmpeg arguments after the filter graph (maps, codecs, output). */
   outputArgs: string[];
@@ -233,28 +234,28 @@ export function buildExportPlan(source: Project, spec: ExportSpec): ExportPlan {
         const dc = clip as DerivedClip;
         const short =
           dc.tail && asset.kind === "video" ? (sourceEnd(clip) - sourceLength(asset)) / speed : 0;
-        const hold = short > 0.01 ? `,tpad=stop_mode=clone:stop_duration=${n(short + 0.1)}` : "";
+        // Extend the decoded source before fps normalizes EOF. Pad in source
+        // seconds so retiming also scales the held frames with the clip.
+        const hold =
+          short > 0.01 ? `tpad=stop_mode=clone:stop_duration=${n((short + 0.1) * speed)},` : "";
         graph.push(
           speed === 1
-            ? `[${videoIn}:v]fps=${fps},${retime}${hold}[${src}]`
-            : `[${videoIn}:v]${retime},fps=${fps}${hold}[${src}]`,
+            ? `[${videoIn}:v]${hold}fps=${fps},${retime}[${src}]`
+            : `[${videoIn}:v]${hold}${retime},fps=${fps}[${src}]`,
         );
         const cursor = asset.cursor ? spec.cursors?.[asset.id] : undefined;
         if (cursor) {
           const ci = inputIndex++;
           inputArgs.push("-c:v", "libvpx-vp9", ...trim, "-i", cursor.sprite);
           const name = `overlay@k${layer}`;
-          const { first, commands } = cursorCommands(cursor, clip, fps, name);
+          const coordinates = cursorOverlayExpressions(cursor, clip, fps);
           graph.push(
             speed === 1
               ? `[${ci}:v]fps=${fps},${retime}[spr${layer}]`
               : `[${ci}:v]${retime},fps=${fps}[spr${layer}]`,
           );
-          const moved = commands
-            ? `[${src}]sendcmd=c='${commands}'[mv${layer}];[mv${layer}]`
-            : `[${src}]`;
           graph.push(
-            `${moved}[spr${layer}]${name}=x=${first[0]}:y=${first[1]}:eof_action=pass[cur${layer}]`,
+            `[${src}][spr${layer}]${name}=x='${coordinates.x}':y='${coordinates.y}':eval=frame:eof_action=pass[cur${layer}]`,
           );
           src = `cur${layer}`;
         }
@@ -426,16 +427,18 @@ export function buildExportPlan(source: Project, spec: ExportSpec): ExportPlan {
   if (audioLabels.length === 0 && musicLabels.length === 0) {
     graph.push(`anullsrc=r=48000:cl=stereo,atrim=0:${n(duration)}[aout]`);
   } else if (musicLabels.length === 0) {
-    graph.push(`${mixOf(audioLabels)}${loud},apad[aout]`);
+    graph.push(`${mixOf(audioLabels)}${loud},apad=whole_dur=${n(duration)}[aout]`);
   } else {
     // Music ducking: the music follows an envelope that drops while anyone speaks (same curve as the preview).
     const duck = duckExpr(spec.speech ?? speechSpans(project));
     const music = `${mixOf(musicLabels)}${duck === "1" ? "" : `,volume='${duck}':eval=frame`}`;
-    if (audioLabels.length === 0) graph.push(`${music}${loud},apad[aout]`);
+    if (audioLabels.length === 0) graph.push(`${music}${loud},apad=whole_dur=${n(duration)}[aout]`);
     else {
       graph.push(`${music}[ducked]`);
       graph.push(`${mixOf(audioLabels)}[voice]`);
-      graph.push(`[voice][ducked]amix=inputs=2:normalize=0:duration=longest${loud},apad[aout]`);
+      graph.push(
+        `[voice][ducked]amix=inputs=2:normalize=0:duration=longest${loud},apad=whole_dur=${n(duration)}[aout]`,
+      );
     }
   }
 
@@ -534,35 +537,4 @@ export function atempo(speed: number): string {
   }
   parts.push(s);
   return parts.map((p) => `atempo=${n(p)},`).join("");
-}
-
-/**
- * sendcmd script moving the pointer sprite: one command per output frame where its position
- * changes, in clip-local seconds (the sprite follows the source time in + t).
- */
-function cursorCommands(
-  c: CursorSprite,
-  clip: Clip,
-  fps: number,
-  target: string,
-): { first: [number, number]; commands: string } {
-  const total = c.positions.length / 2;
-  const at = (k: number): [number, number] => {
-    const i = Math.min(
-      total - 1,
-      Math.max(0, Math.round((clip.in + (k / fps) * clipSpeed(clip)) * c.fps)),
-    );
-    return [c.positions[i * 2], c.positions[i * 2 + 1]];
-  };
-  const first = at(0);
-  const out: string[] = [];
-  let last = first;
-  const frames = Math.ceil(clip.duration * fps);
-  for (let k = 1; k < frames; k++) {
-    const p = at(k);
-    if (p[0] === last[0] && p[1] === last[1]) continue;
-    out.push(`${(k / fps).toFixed(4)} ${target} x ${p[0]}, ${target} y ${p[1]};`);
-    last = p;
-  }
-  return { first, commands: out.join(" ") };
 }

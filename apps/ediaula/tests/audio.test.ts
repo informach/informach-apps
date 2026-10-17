@@ -5,12 +5,14 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
 import { DUCKING, duckExpr, duckGain, speechSpans } from "../src/shared/audio.ts";
 import { buildExportPlan, DENOISE } from "../src/shared/exportPlan.ts";
 import type { Project } from "../src/shared/types.ts";
 
 const require = createRequire(import.meta.url);
 const FFMPEG: string = require("ffmpeg-static");
+const FILTER_SCRIPT_OPTION = await filterScriptOption(FFMPEG);
 
 const asset = (id: string, path = `${id}.wav`, duration = 10) => ({
   id,
@@ -126,7 +128,7 @@ test("export: music on a music track is lowered while the voice plays, denoise g
     "-v",
     "error",
     ...plan.inputArgs,
-    "-filter_complex_script",
+    FILTER_SCRIPT_OPTION,
     script,
     ...plan.outputArgs,
   ]);

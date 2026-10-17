@@ -7,7 +7,7 @@ import { billingConfigured, ediProducts } from "../features/billing/catalog";
 import { withBillingLifecycle } from "../features/billing/lifecycle";
 import { emailUnsubscribeUrl, getEmails } from "./emails";
 import { getEnv } from "./env";
-import { logger, packageLogger } from "./logger";
+import { packageLogger, reportOperationalError } from "./observability";
 
 let instance: ReturnType<typeof createBillingService> | undefined;
 export function getBilling() {
@@ -43,8 +43,12 @@ export function getBilling() {
       return user.email;
     },
     onAudit: (event) => {
-      void logAuditEvent(event.eventType, event.actorId, event.payload).catch(() =>
-        logger.error("billing.audit_persistence_failed"),
+      void logAuditEvent(event.eventType, event.actorId, event.payload).catch((error) =>
+        reportOperationalError("billing.audit_persistence_failed", error, {
+          eventType: event.eventType,
+          actorId: event.actorId,
+          payloadKeys: Object.keys(event.payload),
+        }),
       );
     },
   });

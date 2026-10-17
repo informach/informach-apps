@@ -1,1 +1,3 @@
-{}
+{
+  "0.1.0": "Primeiro piloto público da Suíte Edi para Windows 64 bits. O Edi Hub reúne instalação, acesso e atualizações do EdiAula, EdiCaptura, EdiFoto, EdiPDF e EdiSVG. A conta e a assinatura são gerenciadas em edi.informach.com.br. Instaladores e atualizações têm integridade verificada pelas assinaturas próprias da suíte; este piloto não possui certificado Authenticode e pode exibir alertas do Windows. As ferramentas permanecem em evolução. O EdiAula inclui as licenças e fontes correspondentes dos seus programas auxiliares de mídia. Consumo pago de IA não está incluído na assinatura."
+}

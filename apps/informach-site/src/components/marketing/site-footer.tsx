@@ -1,115 +1,54 @@
 import Link from "next/link";
 import { InformachLogo } from "@/components/marketing/informach-logo";
-import { APPS } from "@/lib/apps";
+import { SITE_PRODUCTS } from "@/lib/products";
 import { SITE } from "@/lib/site";
 
-const COMPANY_LINKS = [
-  { href: "/#manifesto", label: "Manifesto" },
-  { href: "/#apps", label: "Apps" },
-  { href: "/#comunidade", label: "Comunidade" },
-] as const;
-
-const LEGAL_LINKS = [
-  { href: "/termos", label: "Termos de uso" },
-  { href: "/privacidade", label: "Privacidade" },
-] as const;
+const LINK_CLASS =
+  "inline-flex min-h-11 items-center text-[#D7E0E8] underline-offset-4 transition-colors hover:text-white hover:underline";
 
 export function SiteFooter() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-border/60 bg-background">
-      <div className="container mx-auto px-4 py-14">
-        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
-          <div className="space-y-3">
-            <Link href="/" className="flex items-center" aria-label="Informach, início">
-              <InformachLogo className="h-7 w-auto" />
+    <footer className="bg-night text-[#D7E0E8]">
+      <div className="mx-auto grid max-w-[1240px] gap-10 px-4 pt-14 pb-8 sm:px-6 lg:px-10">
+        <div className="flex flex-wrap justify-between gap-10">
+          <div className="grid max-w-[340px] content-start gap-3">
+            <Link href="/" className="justify-self-start" aria-label="Informach, início">
+              <InformachLogo tone="onDark" className="h-10 w-auto" />
             </Link>
-            <p className="max-w-xs text-sm text-muted-foreground leading-relaxed">{SITE.tagline}</p>
-            <p className="max-w-xs text-xs text-muted-foreground leading-relaxed">
-              {SITE.legalName}
-              <br />
-              CNPJ {SITE.cnpj}
-            </p>
+            <p className="text-sm">{SITE.tagline}</p>
           </div>
 
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Apps</h3>
-            <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
-              {APPS.map((app) => (
-                <li key={app.slug}>
-                  <a
-                    href={app.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="transition-colors hover:text-foreground"
-                  >
-                    {app.name}
-                  </a>
-                </li>
-              ))}
-              <li className="text-muted-foreground">Mais em breve</li>
-            </ul>
-          </div>
+          <nav aria-label="Produtos" className="grid content-start gap-1 text-sm">
+            <h2 className="mb-1 text-sm font-bold text-white">Produtos</h2>
+            {SITE_PRODUCTS.map((product) => (
+              <a key={product.slug} href={product.url} className={LINK_CLASS}>
+                {product.name}
+              </a>
+            ))}
+          </nav>
 
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Empresa</h3>
-            <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
-              {COMPANY_LINKS.map((link) => (
-                <li key={link.href}>
-                  <a href={link.href} className="transition-colors hover:text-foreground">
-                    {link.label}
-                  </a>
-                </li>
-              ))}
-              <li>
-                <a
-                  href={SITE.communityUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="transition-colors hover:text-foreground"
-                >
-                  {SITE.communityName}
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Legal</h3>
-            <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
-              {LEGAL_LINKS.map((link) => (
-                <li key={link.href}>
-                  <Link href={link.href} className="transition-colors hover:text-foreground">
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-              <li>
-                <a
-                  href={`mailto:${SITE.contactEmail}`}
-                  className="transition-colors hover:text-foreground"
-                >
-                  Contato
-                </a>
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-border/60 pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center">
-          <p>
-            &copy; {year} {SITE.legalName}. Todos os direitos reservados.
-          </p>
-          <p>
-            <a
-              href={`mailto:${SITE.contactEmail}`}
-              className="transition-colors hover:text-foreground"
-            >
-              {SITE.contactEmail}
+          <nav aria-label="Empresa" className="grid content-start gap-1 text-sm">
+            <h2 className="mb-1 text-sm font-bold text-white">Empresa</h2>
+            <a href="/#quem-faz" className={LINK_CLASS}>
+              Quem faz
             </a>
-          </p>
+            <a href={SITE.contact.directMessageUrl} className={LINK_CLASS}>
+              Direct no Instagram
+            </a>
+            <Link href="/termos" className={LINK_CLASS}>
+              Termos de uso
+            </Link>
+            <Link href="/privacidade" className={LINK_CLASS}>
+              Privacidade
+            </Link>
+          </nav>
         </div>
+
+        <p className="border-t border-[#D7E0E8]/20 pt-6 text-[13px]">
+          © {year} {SITE.legalName} · CNPJ {SITE.cnpj}
+        </p>
       </div>
     </footer>
   );
