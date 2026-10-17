@@ -52,6 +52,8 @@ Full review de tudo o que foi feito em 17/10 (portal e Hub Edi, home, páginas l
 
 `.nvmrc` e os workflows usam Node `24.15.0`, alinhados ao requisito `>=24.15.0` do manifest. Usar pnpm `9.15.0`, fixado em `packageManager`.
 
+O complemento integrado em `d59c836` passou nos gates remotos de banco e Electron, incluindo abertura das ferramentas pelo Hub. A rodada Windows encontrou um timeout isolado no helper de captura guiada: 175 testes de mídia passaram e um foi cancelado. O atraso não foi reproduzido localmente; o teste recebeu alinhamento com o ambiente do produto e controle de diagnóstico/encerramento, mantendo seu limite. A nova evidência e os gates pendentes estão no [registro Windows](propostas/edi-suite-2026-10-16/producao-windows.md#espera-e-encerramento-do-helper-de-captura-guiada). Merge e publicação continuam pendentes.
+
 ## Operação dos produtos existentes
 
 - [Missão Saber](../apps/missao-saber/PRODUCAO.md): produção, migrations, Stripe, cron e observabilidade.
