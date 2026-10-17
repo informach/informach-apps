@@ -24,7 +24,7 @@ import { PricingSection } from "../features/marketing/pricing-section";
 import { DEVICE_LIMIT, OFFLINE_HOURS } from "../lib/desktop-limits";
 import { getEnv } from "../lib/env";
 
-// Pilot and launch copy depend on the billing switch of the running environment.
+// Purchase availability follows the running environment's billing configuration.
 export const dynamic = "force-dynamic";
 
 const toolName = (id: (typeof EDI_TOOLS)[number]["id"]) =>
@@ -36,10 +36,9 @@ export default function Home() {
   return (
     <>
       {!billingOpen && (
-        <p className="pilot-banner">
-          <strong>Fase piloto.</strong> As assinaturas abrem quando a homologação terminar. Você já
-          pode criar a conta, baixar o Edi Hub e conectar o computador; as ferramentas abrem com a
-          assinatura.
+        <p className="availability-banner">
+          <strong>Assinaturas temporariamente indisponíveis.</strong> Você pode criar a conta,
+          baixar o Edi Hub e conectar o computador; as ferramentas abrem com a assinatura.
         </p>
       )}
       <div className="mat">
@@ -369,7 +368,7 @@ export default function Home() {
                 <Link className="button button--ink button--lg" href="/downloads">
                   Baixar o Edi Hub
                 </Link>
-                <span className="small">Versão piloto para Windows 64 bits</span>
+                <span className="small">Para Windows 64 bits</span>
               </div>
             )}
           </div>

@@ -488,7 +488,7 @@ p {
   min-height: 44px;
   color: var(--paper);
 }
-.pilot-banner {
+.availability-banner {
   background: var(--amber);
   color: var(--ink);
   font-size: 14px;

@@ -3,7 +3,7 @@ import { formatInstallerSize, windowsPublisherCertified } from "./format";
 
 describe("download presentation", () => {
   it("only treats an Authenticode subject as a Windows-recognised publisher", () => {
-    expect(windowsPublisherCertified("Informach — piloto sem Authenticode")).toBe(false);
+    expect(windowsPublisherCertified("Informach — sem Authenticode")).toBe(false);
     expect(windowsPublisherCertified("CN=Informach Ltda, O=Informach Ltda, C=BR")).toBe(true);
   });
   it("shows installer sizes in megabytes", () => {

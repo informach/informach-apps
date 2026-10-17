@@ -124,7 +124,7 @@ export async function WindowsWarning() {
         <AlertIcon size={26} />
         <div>
           <h2 id="aviso" className="display-4">
-            Versão piloto: o Windows pode estranhar.
+            O Windows pode exibir um aviso de publicador.
           </h2>
           <p>
             Este instalador ainda não tem o certificado de publicador reconhecido pelo Windows. Se

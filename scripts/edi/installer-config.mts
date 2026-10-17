@@ -13,7 +13,7 @@ export function installerConfiguration(rawId: unknown, rawVersion: unknown): Con
   const config = desktopConfigSchema.parse({
     portalUrl: process.env.EDI_PORTAL_URL,
     clientId: process.env.EDI_DESKTOP_CLIENT_ID,
-    publisher: process.env.EDI_PUBLISHER ?? "Informach — piloto sem Authenticode",
+    publisher: process.env.EDI_PUBLISHER ?? "Informach — sem Authenticode",
     downloadHost: process.env.EDI_DOWNLOAD_HOST ?? "github.com",
     distributionRepository: process.env.EDI_DISTRIBUTION_REPOSITORY ?? "informach/edi-releases",
     updateKeys: JSON.parse(process.env.EDI_UPDATE_PUBLIC_KEYS ?? "{}"),

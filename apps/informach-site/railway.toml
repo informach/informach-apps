@@ -8,7 +8,7 @@
 # Healthcheck = "/" (root estático), não /api/health (não existe).
 
 [build]
-builder = "NIXPACKS"
+builder = "RAILPACK"
 # `--prod=false` força a instalação de devDependencies mesmo com NODE_ENV=production
 # no env do service. Sem isso, pnpm pula tailwindcss + typescript (devDeps) e o
 # `next build` quebra. `next build` em si continua produzindo bundle de produção

@@ -4,7 +4,7 @@
 # do repo inteiro pra resolver os pacotes @informach/* via TypeScript source.
 
 [build]
-builder = "NIXPACKS"
+builder = "RAILPACK"
 watchPatterns = [
   "/apps/cozya/**",
   "/packages/ai-core/**",

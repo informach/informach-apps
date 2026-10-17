@@ -4,7 +4,7 @@
 # resolver os pacotes @informach/* via TypeScript source.
 
 [build]
-builder = "NIXPACKS"
+builder = "RAILPACK"
 watchPatterns = [
   "/apps/agenda-da-turma/**",
   "/packages/ai-core/**",

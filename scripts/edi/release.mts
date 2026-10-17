@@ -56,7 +56,7 @@ async function buildInstaller() {
     throw new Error("Windows installers require a Windows build host");
   const appId = desktopAppIdSchema.parse(process.argv[3]);
   if (process.env.CSC_LINK || process.env.CSC_KEY_PASSWORD || process.env.WIN_CSC_LINK)
-    throw new Error("This pilot builds without an external Authenticode identity");
+    throw new Error("This distribution builds without an external Authenticode identity");
   await mkdir(folder, { recursive: true });
   const packageManager = process.env.npm_execpath;
   if (!packageManager || !isAbsolute(packageManager) || basename(packageManager) !== "pnpm.cjs")
@@ -132,7 +132,7 @@ async function buildInstaller() {
     arch: "x64",
     url: releaseArtifactUrl(repository, version, appId),
     ...digest,
-    publisher: "Informach — piloto sem Authenticode",
+    publisher: "Informach — sem Authenticode",
   };
   await writeFile(
     resolve(folder, appId, `${appId}.artifact.json`),
@@ -166,7 +166,7 @@ async function buildInstaller() {
       },
     );
   }
-  console.log(`Verified pilot installer: ${appId} ${version} (${digest.size} bytes)`);
+  console.log(`Verified installer: ${appId} ${version} (${digest.size} bytes)`);
 }
 async function publish() {
   const head = (await execute("git", ["rev-parse", "HEAD"])).stdout.trim();
@@ -195,7 +195,7 @@ async function publish() {
   const note =
     notes && typeof notes === "object" && Object.hasOwn(notes, version)
       ? Reflect.get(notes, version)
-      : "Atualização da Suíte Edi — piloto.";
+      : "Atualização da Suíte Edi.";
   const publishedAt = new Date(
     (await execute("git", ["show", "-s", "--format=%cI", sourceCommit])).stdout.trim(),
   ).toISOString();

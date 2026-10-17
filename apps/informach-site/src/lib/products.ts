@@ -134,7 +134,7 @@ export const SITE_PRODUCTS: readonly SiteProduct[] = [
       "Prints explicados, capas, PDFs e vetores",
       "Para Windows, arquivos no seu computador",
     ],
-    price: `Fase piloto · ${monthlyPrice("edi_suite_monthly")} por mês na abertura`,
+    price: `${monthlyPrice("edi_suite_monthly")} por mês`,
     cta: { label: "Conhecer a Suíte Edi", href: appUrl("edi") },
     icon: "/produtos/edi.png",
     brand: { background: "#1F242A", foreground: "#F4F1EA", link: "#173247" },
