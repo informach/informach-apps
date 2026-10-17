@@ -8,6 +8,7 @@ import {
   users,
 } from "@informach/db/schema";
 import webpush from "web-push";
+import { upcomingWeekAnchorIso } from "@/features/calendar/date";
 import { todayLocalIso } from "@/features/dashboard/date";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { listNoticeActions } from "@/features/notices/repository";
@@ -154,7 +155,13 @@ async function currentMessages(userId: string, now: Date): Promise<Message[]> {
       })),
       { todayIso: today },
     );
-    if (weekly) messages.push({ key: `weekly:${today}`, ...weekly, path: "/calendario?view=week" });
+    // A semana que o resumo descreve, e não a que termina hoje (domingo).
+    if (weekly)
+      messages.push({
+        key: `weekly:${today}`,
+        ...weekly,
+        path: `/calendario?date=${upcomingWeekAnchorIso(today)}`,
+      });
   }
   if (hour === prefs.digestHour) {
     const daily = buildDailyDigest(eligible.map(toDigestItem), { todayIso: today });

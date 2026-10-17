@@ -56,11 +56,11 @@ Typecheck e Biome limpos; unitários (578) e integração (88) passando; E2E dos
 
 ## Fase 4: página de vendas e primeiro acesso
 
-A sessão que começou esta fase caiu por falta de memória da máquina com os rascunhos instalados e sem revisão; eles foram conferidos contra o canvas e os testes, e o que não batia foi refeito.
+Commit `2315e2a`. A sessão que começou esta fase caiu por falta de memória da máquina com os rascunhos instalados e sem revisão; eles foram conferidos contra o canvas e os testes, e o que não batia foi refeito.
 
 - **A landing do canvas**: o recado que chega (o cartaz de provas e a mensagem do grupo) virando a página do dia no celular, os canais de onde o recado já vem, "Como funciona" em três passos, a demonstração, a página do dia (de manhã e à noite, e o resumo de domingo), a turma que recebe junto, a vez da criança, "Por que dá para confiar", "Quem faz", planos, perguntas e o fechamento, com a barra fixa do botão no celular e a figura do link para o grupo da turma (`opengraph-image.tsx`, com `metadataBase` no layout raiz).
 - **A demonstração** começa no cartaz de provas, conta as datas em dias de aula a partir de hoje (no fuso de São Paulo), diz de onde veio cada data ("a escola disse", "a confirmar", "planejado por vocês"), tem Tirar e Manter, e o salvo mostra cada atividade no seu dia.
-- **"Quem faz" sem texto inventado**: só o fato (a Agenda é um app da Informach) e o direct do Instagram, de `@informach/config/contact`, como nos outros apps. O texto e a foto dos fundadores entram quando eles mandarem.
+- **"Quem faz" sem texto inventado**: só o fato (a Agenda é um app da Informach) e o direct do Instagram, de `@informach/config/contact`, como nos outros apps. No mesmo dia a Helena decidiu usar o texto e a foto do site institucional (ver a fase 5).
 - **O cadastro em quatro passos**: conta (uma senha só, com "Mostrar"), código, o nome da criança e o primeiro recado (foto, mensagem ou falar, já com a criança escolhida). O passo a passo diz "Passo 2 de 4: Código".
 - **Plano fora do cadastro.** O grátis vale por padrão. Quem escolheu o Pro na landing vai ao pagamento na confirmação do código, no ciclo escolhido. O anual não se perde mais em nenhum caminho de quem já tem conta (login, recarga depois do código, pagamento cancelado, sessão vencida na oferta), porque todos passam por `proOfferHref`. `/choose-plan` virou uma rota que redireciona para a oferta, para os links antigos.
 - **O Pro na hora certa** (`/upgrade`, `UpgradeOffer`): a página responde ao motivo de quem chegou ("A semana em PDF faz parte do Pro.", a segunda criança, o segundo adulto, os lembretes, os recados de teste que acabaram). O botão "Seja Pro" saiu do cabeçalho.
@@ -83,4 +83,30 @@ Fica registrado, sem mudança: a métrica "primeiro recado salvo por variante" n
 
 ### Verificação da fase 4
 
-Typecheck e Biome limpos; unitários (588) e integração (88) passando; `playwright test --list` coleta 24 testes em 13 arquivos. O E2E não rodou nesta fase: a máquina estava com 1 a 4 GB de memória livre por causa de outras sessões, abaixo dos 5 GB combinados para subir o `next dev`. Ele roda inteiro, com o `.next` limpo, no estado final da fase 5, e o resultado (com o que for das specs desta fase) está na verificação da fase 5.
+Typecheck e Biome limpos; unitários (588) e integração (88) passando; `playwright test --list` coleta 24 testes em 13 arquivos. O E2E não rodou nesta fase: a máquina estava com 1 a 4 GB de memória livre por causa de outras sessões, abaixo dos 5 GB combinados para subir o `next dev`. Ele roda inteiro, com o `.next` limpo, depois da conferência com o canvas, e o resultado está lá.
+
+## Fase 5: semana, família e criança
+
+- **A aba Calendário vira Semana** (a rota continua `/calendario`, que é o que e-mails, notificações e links guardados usam). Abre na semana; o mês fica a um toque. A semana começa na segunda em todo o calendário (`WEEK_STARTS_ON`), como a página da agenda da mochila: a semana na tela, a grade do mês e a semana impressa.
+- **A semana como a agenda de papel**: uma linha por dia, o dia da semana e o número à esquerda, o que vence à direita, hoje marcado e "dia cheio" pela mesma conta do resumo de domingo. A atividade é uma linha que abre a leitura ("Matemática · Clara · na próxima aula · cerca de 30 min"); o dia vazio tem "+" com a data e a criança; o que está sem data fica em "Sem data marcada · 2", saído da rotina de Hoje; no pé, "Lista de todas as atividades" e "Imprimir a semana". A barra é toda de links, e o filtro de criança são as mesmas pílulas de Hoje (`ChildFilter`). A vista do dia saiu (a semana já mostra cada dia inteiro), e a faixa da semana de Hoje leva ao dia dentro da semana.
+- **Família › Crianças**: uma folha por criança com "A vez de Clara" à vista, "Horário da turma" (ou "Vincular a turma") e "Atividades extras"; "Adicionar criança (1 de 1)" tracejado; "Quem cuida junto"; e uma linha por turma ativa com "Convidar" (o convite de `TurmaCard`, agora em `share-invite.ts`). O adulto convidado vê a folha das crianças que acompanha, com "Ver as atividades", sem horário, extras, adultos nem código da turma.
+- **A vez da criança vai até a próxima aula** (a decisão posterior da proposta): `splitKidTurn` recorta os mesmos buckets de `getRoutineSnapshot` em `todo` ("Para hoje" mais o que vence até `nextSchoolDayIso`) e `ahead` (o resto dos próximos dias, até onde vai "A semana" de Hoje). "Oi, Clara!", "É para hoje", "É para amanhã", "É para segunda". Feito fica na tela com "Desfazer" até "Próxima" ou "Terminar", e no fim "Quer adiantar?".
+- **"Quem faz" com a foto e o texto do site da Informach**, por decisão da Helena em 17/10/2026: o título "Uma família que faz tecnologia para outras famílias.", o parágrafo de Helena e Júlio e o critério "só sai daqui o que a gente usaria em casa", adaptados só no que a página pede (lá o texto fala dos produtos "desta página" e do Sistema Zero). A foto foi copiada para `public/helena-julio.webp` deste app, e o contato continua o direct do Instagram.
+- A landing passa a dizer que a vez da criança mostra o que é para o próximo dia de aula, agora que isso é verdade.
+
+### O que a revisão da fase 5 achou
+
+Consertado:
+
+- **Um refresh trocava a lista embaixo da criança.** A tela lia as listas das props, e o refresh (o de um conflito, ou o do `OfflineQueueFlusher` quando a fila sobe) traz só o pendente: o que ela acabou de fazer sumia com o "Desfazer", e a posição apontava para outra atividade. As listas agora são da sessão; das props novas vêm só as versões e o que segue pendente no servidor, e depois de um conflito é o servidor que decide se a atividade está feita.
+- A versão guardada vencia a do servidor e repetia o conflito sem fim; um duplo toque sem rede pulava o "Desfazer" ("Próxima" nasce no mesmo lugar e agora espera um instante); o "Quer adiantar?" ia um dia além do que Hoje mostra e dizia "esta semana" numa sexta; o anúncio para leitor de tela nascia junto com o conteúdo (agora é uma região viva fixa).
+- O link do resumo de domingo e o "Ver tudo" de Hoje abriam, no fim de semana, a semana que estava terminando: com a semana na segunda, eles levam à semana que vem (`upcomingWeekAnchorIso`).
+- Os controles da Semana eram botões que só agiam depois de hidratar; viraram links montados no servidor. O "Adicionar criança" tracejado também espera a hidratação, e voltou a aparecer para quem cuida junto, que pode cadastrar os próprios filhos.
+- A regex do `review-fixes.spec.ts` tinha perdido as barras e nunca casaria; o teste novo procura a atividade pela criança da execução, e ganhou o caso de quem cuida junto em Família.
+- Do mês para a semana, a semana de hoje quando o mês é o de hoje. Guia do app com um travessão e com a vista do dia que não existe mais.
+
+Fica registrado: na Semana, as atividades sem data saem de `getRoutineSnapshot` inteiro (até 200 linhas) para que nunca discordem de Hoje, o que custa uma consulta maior que a necessária; e o teste da criança desfazendo um Feito sem rede não existe (o da fila offline cobre o card do adulto).
+
+### Verificação da fase 5
+
+Typecheck e Biome limpos; unitários (595) e integração (88) passando. O E2E roda depois da conferência com o canvas, pelo mesmo motivo da fase 4 (memória da máquina), e o resultado está lá.

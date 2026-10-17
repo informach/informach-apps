@@ -1,5 +1,6 @@
 import { cn } from "@informach/ui/lib/utils";
 import Link from "next/link";
+import { weekDayAnchor } from "@/features/calendar/date";
 import { weekdayShort } from "../day-labels";
 
 export type WeekStripDay = {
@@ -40,12 +41,14 @@ export function WeekStrip({
       {days.map((day) => {
         const isToday = day.iso === todayIso;
         const count = day.dots.length;
-        const params = new URLSearchParams({ view: "day", date: day.iso });
+        // O dia dentro da Semana, e não mais a vista de um dia só: a semana
+        // mostra o dia inteiro e o que vem em volta dele.
+        const params = new URLSearchParams({ date: day.iso });
         if (profileFilter) params.set("perfil", profileFilter);
         return (
           <li key={day.iso}>
             <Link
-              href={`/calendario?${params}`}
+              href={`/calendario?${params}#${weekDayAnchor(day.iso)}`}
               aria-label={`${weekdayShort(day.iso)}, ${Number(day.iso.slice(8))}: ${
                 count === 0 ? "nada marcado" : count === 1 ? "1 atividade" : `${count} atividades`
               }${day.full ? ", dia cheio" : ""}`}

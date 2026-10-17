@@ -4,6 +4,7 @@ import { Backpack, Flame } from "lucide-react";
 import Link from "next/link";
 import { type ReactNode, useEffect, useState } from "react";
 import { DayClosedIllustration } from "@/components/illustrations";
+import { upcomingWeekAnchorIso } from "@/features/calendar/date";
 import { ActivitySheet } from "@/features/unified-activities/components/activity-list";
 import { UnifiedActivityCard } from "@/features/unified-activities/components/unified-activity-card";
 import { formatDayLoad, summarizeDayLoad } from "@/features/unified-activities/load";
@@ -227,7 +228,8 @@ export function RoutineView({
                 A semana
               </h2>
               <Link
-                href={`/calendario?view=week${profileFilter ? `&perfil=${profileFilter}` : ""}`}
+                // No fim de semana, a faixa já fala mais da semana que vem.
+                href={`/calendario?date=${upcomingWeekAnchorIso(todayIso)}${profileFilter ? `&perfil=${profileFilter}` : ""}`}
                 className="inline-flex min-h-11 items-center text-sm font-bold text-primary-ink"
               >
                 Ver tudo

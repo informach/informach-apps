@@ -34,10 +34,10 @@ export function FamilyTabs({ current }: { current: FamilySection }) {
             href={href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "min-h-11 rounded-full border px-4 py-2 transition-colors",
+              "inline-flex min-h-11 items-center rounded-full border px-4 font-bold transition-colors",
               active
-                ? "border-primary/30 bg-primary/10 font-semibold text-foreground"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                ? "border-foreground bg-foreground text-background"
+                : "border-foreground/15 bg-background hover:bg-muted",
             )}
           >
             {label}
@@ -48,13 +48,16 @@ export function FamilyTabs({ current }: { current: FamilySection }) {
   );
 }
 
-/** Cabeçalho compartilhado pelas quatro seções. */
-export function FamilyHeader({ current, subtitle }: { current: FamilySection; subtitle: string }) {
+/**
+ * Cabeçalho compartilhado pelas quatro seções. Crianças não tem subtítulo: as
+ * folhas das crianças dizem o que a seção é.
+ */
+export function FamilyHeader({ current, subtitle }: { current: FamilySection; subtitle?: string }) {
   return (
-    <header className="space-y-4">
+    <header className="space-y-3.5">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Família</h1>
-        <p className="text-sm text-muted-foreground">{subtitle}</p>
+        <h1 className="text-[34px] font-extrabold leading-none tracking-tight">Família</h1>
+        {subtitle ? <p className="text-sm text-muted-foreground">{subtitle}</p> : null}
       </div>
       <FamilyTabs current={current} />
     </header>

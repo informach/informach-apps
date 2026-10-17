@@ -38,7 +38,8 @@ export function KidTurn() {
         </h2>
         <p className="text-[16px] leading-relaxed text-foreground/80">
           A criança vê uma atividade por vez e um botão grande de Feito!. Não tem menu, não tem
-          cobrança e não tem prazo em vermelho: o que passou vira “é para hoje”.
+          cobrança e não tem prazo em vermelho: o que passou vira “é para hoje”, e o que é para o
+          próximo dia de aula aparece também, porque quem estuda de manhã faz antes.
         </p>
         <p className="text-[16px] leading-relaxed text-foreground/80">
           Também não tem ponto, ranking ou comparação entre irmãos. Para devolver o celular, é só

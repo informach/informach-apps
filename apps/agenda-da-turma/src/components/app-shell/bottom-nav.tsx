@@ -21,7 +21,9 @@ import type { AddEntitlement } from "@/features/notices/entitlement";
 const items = [
   { href: "/dashboard", label: "Hoje", icon: House },
   { href: "/atividades", label: "Atividades", icon: ListChecks },
-  { href: "/calendario", label: "Calendário", icon: CalendarDays },
+  // A aba Semana mora em `/calendario`: o endereço continua o mesmo para os
+  // e-mails, as notificações e os links guardados.
+  { href: "/calendario", label: "Semana", icon: CalendarDays },
   { href: "/familia", label: "Família", icon: UsersRound },
 ];
 

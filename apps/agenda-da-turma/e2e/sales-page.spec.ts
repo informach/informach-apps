@@ -149,10 +149,21 @@ test("responsive light and dark layouts, FAQ keyboard, contact and legal navigat
 
   // Nenhum e-mail de contato na página pública: o canal é o direct.
   expect(await page.locator('a[href^="mailto:"]').count()).toBe(0);
-  await expect(page.getByRole("link", { name: "@criecomhelenaejulio" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Mandar um direct" })).toHaveAttribute(
     "href",
     "https://ig.me/m/criecomhelenaejulio",
   );
+  // "Quem faz" usa a foto e o texto do site da Informach, servidos daqui.
+  const who = page.locator("#quem-faz");
+  await expect(who.getByRole("heading", { level: 2 })).toHaveText(
+    "Uma família que faz tecnologia para outras famílias.",
+  );
+  await expect(
+    who.getByRole("img", { name: "Helena e Júlio sorrindo, lado a lado" }),
+  ).toBeVisible();
+  expect(
+    await who.getByRole("img").evaluate((img) => (img as HTMLImageElement).naturalWidth),
+  ).toBeGreaterThan(0);
   // Nenhum travessão no texto visível.
   expect(await page.locator("body").innerText()).not.toMatch(
     new RegExp(`[${String.fromCharCode(0x2013, 0x2014)}]`),

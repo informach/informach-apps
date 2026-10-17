@@ -19,6 +19,8 @@ const SIZES = {
   row: { box: "size-9", text: "text-xs", letters: 2 },
   sm: { box: "size-11", text: "text-sm", letters: 2 },
   md: { box: "size-12", text: "text-sm", letters: 2 },
+  /** A folha da criança em Família e a vez da criança. */
+  lg: { box: "size-14", text: "text-xl", letters: 1 },
 } as const;
 
 type Props = {

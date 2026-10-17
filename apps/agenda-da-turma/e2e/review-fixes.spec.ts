@@ -184,7 +184,7 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       for (const [label, route] of [
         ["Hoje", "/dashboard"],
         ["Atividades", "/atividades"],
-        ["Calendário", "/calendario"],
+        ["Semana", "/calendario"],
       ] as const) {
         await expect(mainNav.getByRole("link", { name: label, exact: true })).toHaveAttribute(
           "href",
@@ -332,16 +332,24 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       await expect(
         page.getByRole("button", { name: "Ações para Cadastro direto: Trabalho", exact: true }),
       ).toBeVisible();
-      // O calendário leva ao mesmo formulário, já com o dia tocado.
+      // A Semana leva ao mesmo formulário, já com o dia tocado e a criança:
+      // o "+" de um dia vazio da semana que vem.
       await page.goto(`/calendario?date=${date}&perfil=${child.id}`);
-      await page.getByRole("button", { name: "Nova atividade", exact: true }).click();
-      await expect(page).toHaveURL(`/atividades/nova?perfil=${child.id}`);
+      await page.getByRole("link", { name: "Próxima semana", exact: true }).click();
+      await expect(page).toHaveURL(/[?&]date=\d{4}-\d{2}-\d{2}/);
+      await page
+        .getByRole("link", { name: /^Adicionar para / })
+        .first()
+        .click();
+      await expect(page).toHaveURL(
+        new RegExp(`/atividades/nova\\?data=\\d{4}-\\d{2}-\\d{2}&perfil=${child.id}$`),
+      );
       // Tocar num dia leva ao mesmo formulário com a data já preenchida.
       // No celular a vista do mês é agenda vertical — a grade 7×6 fica para
       // `md` — então o alvo é o "+" do cartão de hoje, e não a célula. O nome
       // acessível traz a data por extenso, não o ISO, então a busca é pelo
       // prefixo dentro do cartão marcado como "Hoje".
-      await page.goto(`/calendario?date=${date}&perfil=${child.id}`);
+      await page.goto(`/calendario?view=month&date=${date}&perfil=${child.id}`);
       const todayCard = page
         .getByRole("article")
         .filter({ has: page.getByText("Hoje", { exact: true }) })
@@ -419,15 +427,11 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
         .toBe(version);
     }
     for (const version of [4, 5]) {
+      // Na Semana, a atividade é uma linha que abre a leitura.
       await page.goto(`/calendario?date=${date}`);
       await page
-        .getByRole("button", {
-          name: new RegExp(`tarefa de Matéria de revisão: Atividade versão ${version - 1}`),
-        })
-        .click();
-      await page
-        .getByRole("dialog")
-        .getByRole("link", { name: `Atividade versão ${version - 1}`, exact: true })
+        .getByRole("list", { name: "Os dias da semana" })
+        .getByRole("link", { name: new RegExp(`^Atividade versão ${version - 1}`) })
         .click();
       await expect(page).toHaveURL(/\/atividades\/[0-9a-f-]{36}$/);
       await expect(

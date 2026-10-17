@@ -1,117 +1,201 @@
-"use client";
-
-import { Button } from "@informach/ui/components/button";
 import { cn } from "@informach/ui/lib/utils";
 import { Plus } from "lucide-react";
-import { useMemo } from "react";
-import type { TaskRow } from "@/features/unified-activities/task-repository";
+import Link from "next/link";
 import {
-  buildWeekDays,
-  formatDayLabel,
-  parseLocalIso,
-  todayLocalIso,
-  WEEKDAY_SHORT_LABELS_SUNDAY_FIRST,
-} from "../date";
-import { ActivityBlip } from "./activity-blip";
+  formatClockTime,
+  longDayLabel,
+  weekdayLong,
+  weekdayShort,
+} from "@/features/dashboard/day-labels";
+import { ACTIVITY_TYPE_LABELS } from "@/features/unified-activities/activity-types";
+import { formatEstimate } from "@/features/unified-activities/estimate";
+import { summarizeDayLoad } from "@/features/unified-activities/load";
+import type { TaskRow } from "@/features/unified-activities/task-repository";
+import { buildWeekDays, parseLocalIso, weekDayAnchor } from "../date";
 
 type Props = {
   anchorIso: string;
+  todayIso: string;
   items: TaskRow[];
-  onSelectActivity: (item: TaskRow) => void;
-  onCreateForDay: (iso: string) => void;
+  /** As atividades em aberto sem data, que nenhum dia pode mostrar. */
+  undated: TaskRow[];
+  newActivityHref: (iso: string) => string;
 };
 
-// Vista semanal: 7 colunas em desktop, lista vertical com seções por dia em
-// mobile. Cabeçalho de cada coluna: weekday curto + dia/mês; "hoje" ganha
-// pílula primary. Click no fundo da coluna abre create dialog do dia.
-export function WeekView({ anchorIso, items, onSelectActivity, onCreateForDay }: Props) {
-  const days = useMemo(() => buildWeekDays(anchorIso), [anchorIso]);
-  const today = todayLocalIso();
+const DOT_CLASS: Record<number, string> = {
+  1: "bg-chart-1",
+  2: "bg-chart-2",
+  3: "bg-chart-3",
+  4: "bg-chart-4",
+  5: "bg-chart-5",
+};
 
-  const itemsByDate = useMemo(() => {
-    const map = new Map<string, TaskRow[]>();
-    for (const item of items) {
-      // Sem prazo não há coluna: a atividade fica na rotina e na lista, sem
-      // ganhar uma data fictícia só para caber na semana.
-      if (!item.dueAt) continue;
-      const list = map.get(item.dueAt) ?? [];
-      list.push(item);
-      map.set(item.dueAt, list);
-    }
-    return map;
-  }, [items]);
+/**
+ * Matéria (ou o tipo, sem matéria), criança e o que muda o dia: "na próxima
+ * aula" quando a data veio do horário, o local e o tempo que a família estimou.
+ */
+function metaLine(item: TaskRow): string {
+  const parts = [item.subjectName ?? ACTIVITY_TYPE_LABELS[item.type], item.profileName];
+  if (item.dateOrigin === "schedule") parts.push("na próxima aula");
+  if (item.location) parts.push(item.location);
+  if (item.estimatedMinutes && item.estimatedMinutes > 0)
+    parts.push(`cerca de ${formatEstimate(item.estimatedMinutes)}`);
+  return parts.join(" · ");
+}
+
+function WeekItem({ item }: { item: TaskRow }) {
+  const done = item.status === "done";
+  const dot = item.subjectColorIndex !== null ? DOT_CLASS[item.subjectColorIndex] : undefined;
+  return (
+    <li>
+      <Link
+        href={`/atividades/${item.id}`}
+        className="flex min-h-11 items-start gap-2.5 rounded-lg py-1 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <span
+          aria-hidden
+          className={cn(
+            "mt-[7px] size-2.5 shrink-0 rounded-full",
+            dot ?? "border-[1.5px] border-foreground/50",
+          )}
+        />
+        <span className="min-w-0">
+          <span
+            className={cn(
+              "block text-[15px] font-bold leading-snug",
+              done && "text-muted-foreground line-through",
+            )}
+          >
+            {item.title}
+            {item.time ? ` · ${formatClockTime(item.time)}` : ""}
+            {done ? <span className="sr-only"> (feita)</span> : null}
+          </span>
+          <span className="block text-[13px] text-muted-foreground">{metaLine(item)}</span>
+        </span>
+      </Link>
+    </li>
+  );
+}
+
+/**
+ * A semana, como a página da agenda de papel: uma linha por dia, de segunda a
+ * domingo, com o dia da semana e o número à esquerda e o que vence nele à
+ * direita. Hoje vem marcado, o dia cheio avisa ("dia cheio", pela mesma conta
+ * do resumo de domingo) e o que não tem data fica numa linha recolhida em
+ * cima, porque dia nenhum pode mostrá-lo.
+ *
+ * A atividade aqui é uma linha que abre o detalhe, como o blip no mês. Marcar
+ * como feito é em Hoje e em Atividades, no card de sempre.
+ */
+export function WeekView({ anchorIso, todayIso, items, undated, newActivityHref }: Props) {
+  const days = buildWeekDays(anchorIso);
+  const load = new Map(
+    summarizeDayLoad(items, { fromIso: days[0] ?? anchorIso, days: days.length }).map((day) => [
+      day.iso,
+      day.level,
+    ]),
+  );
+  const byDay = new Map<string, TaskRow[]>(days.map((iso) => [iso, []]));
+  const ordered = [...items].sort(
+    (a, b) =>
+      (a.time ?? "99:99").localeCompare(b.time ?? "99:99") ||
+      a.profileName.localeCompare(b.profileName, "pt-BR") ||
+      a.title.localeCompare(b.title, "pt-BR"),
+  );
+  for (const item of ordered) if (item.dueAt) byDay.get(item.dueAt)?.push(item);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-muted-foreground/20 bg-card">
-      {/* Separadores entre colunas (desktop) ou linhas (mobile). `--border`
-          acompanha `--card` no tema base, então a grade usa um divisor
-          semântico com opacidade baixa para aparecer em light/dark. */}
-      <div className="grid grid-cols-1 divide-y divide-muted-foreground/20 md:grid-cols-7 md:divide-x md:divide-y-0">
-        {days.map((iso, index) => {
-          const dayItems = itemsByDate.get(iso) ?? [];
-          const isToday = iso === today;
-          const dayNumber = parseLocalIso(iso).getDate();
-          const monthNumber = parseLocalIso(iso).getMonth() + 1;
-          const weekdayLabel = WEEKDAY_SHORT_LABELS_SUNDAY_FIRST[index] ?? "";
+    <div className="space-y-3">
+      {undated.length ? (
+        <details className="group rounded-[18px] border-[1.5px] border-dashed border-foreground/25 bg-background px-4">
+          <summary className="flex min-h-[52px] cursor-pointer list-none items-center justify-between gap-3 text-[15px] font-bold [&::-webkit-details-marker]:hidden">
+            <span>Sem data marcada · {undated.length}</span>
+            <span className="text-sm text-primary-ink group-open:hidden">Ver</span>
+            <span className="hidden text-sm text-primary-ink group-open:inline">Esconder</span>
+          </summary>
+          <ul className="space-y-0.5 pb-3">
+            {undated.map((item) => (
+              <WeekItem key={item.id} item={item} />
+            ))}
+          </ul>
+        </details>
+      ) : null}
 
+      <ol
+        aria-label="Os dias da semana"
+        className="overflow-hidden rounded-[20px] border border-foreground/15 bg-background"
+      >
+        {days.map((iso) => {
+          const dayItems = byDay.get(iso) ?? [];
+          const isToday = iso === todayIso;
+          const full = load.get(iso) === "cheio";
+          const weekend = [0, 6].includes(parseLocalIso(iso).getDay());
           return (
-            <div key={iso} className="group relative flex flex-col">
-              <div
-                className={cn(
-                  "flex items-center justify-between border-b border-muted-foreground/20 bg-muted/30 px-3 py-2",
-                  isToday && "bg-primary/10",
-                )}
-              >
-                <div className="flex items-baseline gap-2">
-                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    {weekdayLabel}
-                  </span>
-                  <span
-                    className={cn(
-                      "text-sm font-semibold tabular-nums",
-                      isToday && "text-primary-ink",
-                    )}
-                  >
-                    {String(dayNumber).padStart(2, "0")}/{String(monthNumber).padStart(2, "0")}
-                  </span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-6 opacity-0 transition-opacity group-hover:opacity-100"
-                  onClick={() => onCreateForDay(iso)}
-                  // Mesma grafia de `day-cell` e `month-agenda`: o mesmo
-                  // controle era anunciado de três jeitos em duas vistas.
-                  aria-label={`Criar atividade em ${formatDayLabel(iso)}`}
+            <li
+              key={iso}
+              id={weekDayAnchor(iso)}
+              className={cn(
+                "grid scroll-mt-24 grid-cols-[62px_1fr] gap-2.5 border-t border-foreground/15 py-3.5 pl-4 pr-3.5 first:border-t-0",
+                isToday ? "bg-primary/5" : full && "bg-chart-4/10",
+              )}
+            >
+              <h2 className="flex flex-col items-start">
+                <span className="sr-only">
+                  {longDayLabel(iso, todayIso)}
+                  {isToday ? ", hoje" : ""}
+                  {full ? ", dia cheio" : ""}
+                </span>
+                <span
+                  aria-hidden
+                  className={cn(
+                    "text-xs font-extrabold uppercase tracking-[0.08em]",
+                    isToday
+                      ? "text-primary-ink"
+                      : full
+                        ? "text-chart-4-ink"
+                        : "text-muted-foreground",
+                  )}
                 >
-                  <Plus className="size-3.5" aria-hidden />
-                </Button>
-              </div>
-              {/* Click no espaço vazio da coluna cria atividade no dia */}
-              <button
-                type="button"
-                onClick={() => onCreateForDay(iso)}
-                className="absolute inset-0 top-[2.625rem] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                aria-label={`Espaço vazio de ${formatDayLabel(iso)}, criar atividade`}
-                tabIndex={-1}
-              />
-              <div className="relative z-10 flex min-h-[18rem] flex-col gap-1 p-2">
-                {dayItems.length === 0 ? (
-                  <p className="px-1 pt-1 text-xs text-muted-foreground/70">Sem atividades</p>
-                ) : (
-                  dayItems.map((item) => (
-                    <ActivityBlip
-                      key={item.id}
-                      item={item}
-                      onSelect={() => onSelectActivity(item)}
-                    />
-                  ))
-                )}
-              </div>
-            </div>
+                  {weekdayShort(iso)}
+                  {isToday ? " · hoje" : ""}
+                </span>
+                <span
+                  aria-hidden
+                  className={cn(
+                    "text-[30px] font-extrabold leading-none tracking-tight tabular-nums",
+                    weekend && dayItems.length === 0 && "text-muted-foreground",
+                  )}
+                >
+                  {Number(iso.slice(8))}
+                </span>
+                {full ? (
+                  <span aria-hidden className="mt-1.5 text-xs font-extrabold text-chart-4-ink">
+                    dia cheio
+                  </span>
+                ) : null}
+              </h2>
+              {dayItems.length ? (
+                <ul className="min-w-0">
+                  {dayItems.map((item) => (
+                    <WeekItem key={item.id} item={item} />
+                  ))}
+                </ul>
+              ) : (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm text-muted-foreground">Nada marcado</span>
+                  <Link
+                    href={newActivityHref(iso)}
+                    aria-label={`Adicionar para ${weekdayLong(iso).toLowerCase()}, ${Number(iso.slice(8))}`}
+                    className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-foreground/15 hover:bg-muted"
+                  >
+                    <Plus className="size-5" aria-hidden />
+                  </Link>
+                </div>
+              )}
+            </li>
           );
         })}
-      </div>
+      </ol>
     </div>
   );
 }

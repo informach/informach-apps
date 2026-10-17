@@ -19,7 +19,8 @@ type Props = {
 // - Extras ganham borda dashed sutil pra diferenciar visualmente da turma
 //   sem trocar a cor (mesma paleta chart-N, ícone do tipo igual).
 // - Sinal de status sobreposto:
-//   - done → opacidade reduzida + line-through no texto.
+//   - done → texto apagado pela cor + line-through. Nunca opacidade: ela
+//     cairia sobre o ícone tintado e o levaria de volta a ~2,3:1.
 //   - overdue → borda esquerda destructive grossa (lateral pra não trocar a
 //     cor da matéria, só sinalizar urgência).
 //   - due_soon (hoje/amanhã) → anel sutil chart-4 (laranja "atenção").
@@ -81,12 +82,14 @@ export function ActivityBlip({ item, onSelect }: Props) {
         isExtra && "border-dashed",
         isOverdue && "border-l-2 border-l-destructive",
         isDueSoon && "ring-1 ring-chart-4/40",
-        (isDone || canceled) && "opacity-60",
       )}
       aria-label={ariaLabel}
     >
       <TypeIcon
-        className={cn("size-3 shrink-0", getSubjectTextClassByIndex(colorIndex))}
+        className={cn(
+          "size-3 shrink-0",
+          isDone || canceled ? "text-muted-foreground" : getSubjectTextClassByIndex(colorIndex),
+        )}
         aria-hidden
       />
       <span

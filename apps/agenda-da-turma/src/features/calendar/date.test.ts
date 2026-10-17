@@ -14,6 +14,7 @@ import {
   shiftAnchor,
   startOfMonthIso,
   startOfWeekIso,
+  upcomingWeekAnchorIso,
 } from "./date";
 
 describe("todayLocalIso (São Paulo TZ-aware)", () => {
@@ -96,23 +97,23 @@ describe("startOfMonthIso / endOfMonthIso", () => {
   });
 });
 
-describe("startOfWeekIso / endOfWeekIso (Sunday-first)", () => {
-  it("returns Sunday of the anchor's week", () => {
-    // 2026-05-12 is a Tuesday; Sunday before is 2026-05-10
-    expect(startOfWeekIso("2026-05-12")).toBe("2026-05-10");
-    // 2026-05-10 itself is a Sunday — start of week is itself
-    expect(startOfWeekIso("2026-05-10")).toBe("2026-05-10");
+describe("startOfWeekIso / endOfWeekIso (Monday-first, como a agenda da mochila)", () => {
+  it("returns Monday of the anchor's week", () => {
+    // 2026-05-12 is a Tuesday; the Monday before is 2026-05-11
+    expect(startOfWeekIso("2026-05-12")).toBe("2026-05-11");
+    // 2026-05-10 is a Sunday: it closes the week that began on 2026-05-04
+    expect(startOfWeekIso("2026-05-10")).toBe("2026-05-04");
   });
 
-  it("returns Saturday of the anchor's week", () => {
-    expect(endOfWeekIso("2026-05-12")).toBe("2026-05-16");
-    expect(endOfWeekIso("2026-05-10")).toBe("2026-05-16");
+  it("returns Sunday of the anchor's week", () => {
+    expect(endOfWeekIso("2026-05-12")).toBe("2026-05-17");
+    expect(endOfWeekIso("2026-05-10")).toBe("2026-05-10");
   });
 
   it("handles month-crossing weeks", () => {
-    // 2026-05-01 is a Friday; Sunday before is 2026-04-26
-    expect(startOfWeekIso("2026-05-01")).toBe("2026-04-26");
-    expect(endOfWeekIso("2026-05-01")).toBe("2026-05-02");
+    // 2026-05-01 is a Friday; the Monday before is 2026-04-27
+    expect(startOfWeekIso("2026-05-01")).toBe("2026-04-27");
+    expect(endOfWeekIso("2026-05-01")).toBe("2026-05-03");
   });
 });
 
@@ -123,9 +124,9 @@ describe("buildMonthGrid", () => {
     expect(buildMonthGrid("2026-12-01")).toHaveLength(42);
   });
 
-  it("first cell is a Sunday and within or just before the anchor month", () => {
+  it("first cell is a Monday and within or just before the anchor month", () => {
     const grid = buildMonthGrid("2026-05-12");
-    expect(grid[0]?.iso).toBe("2026-04-26"); // Sunday before May 1
+    expect(grid[0]?.iso).toBe("2026-04-27"); // Monday before May 1
     expect(grid[0]?.inMonth).toBe(false);
   });
 
@@ -145,48 +146,36 @@ describe("buildMonthGrid", () => {
 });
 
 describe("buildWeekDays", () => {
-  it("returns 7 days starting from Sunday", () => {
+  it("returns 7 days from Monday to Sunday", () => {
     const days = buildWeekDays("2026-05-12");
     expect(days).toEqual([
-      "2026-05-10",
       "2026-05-11",
       "2026-05-12",
       "2026-05-13",
       "2026-05-14",
       "2026-05-15",
       "2026-05-16",
+      "2026-05-17",
     ]);
   });
 });
 
 describe("rangeForView", () => {
-  it("day view returns a single-day range", () => {
-    expect(rangeForView("2026-05-12", "day")).toEqual({
-      fromIso: "2026-05-12",
-      toIso: "2026-05-12",
-    });
-  });
-
-  it("week view returns Sunday→Saturday", () => {
+  it("week view returns Monday to Sunday", () => {
     expect(rangeForView("2026-05-12", "week")).toEqual({
-      fromIso: "2026-05-10",
-      toIso: "2026-05-16",
+      fromIso: "2026-05-11",
+      toIso: "2026-05-17",
     });
   });
 
   it("month view returns the full grid range (covers spillover)", () => {
     const r = rangeForView("2026-05-12", "month");
-    expect(r.fromIso).toBe("2026-04-26");
+    expect(r.fromIso).toBe("2026-04-27");
     expect(r.toIso.startsWith("2026-06")).toBe(true);
   });
 });
 
 describe("shiftAnchor", () => {
-  it("day ±1", () => {
-    expect(shiftAnchor("2026-05-12", "day", 1)).toBe("2026-05-13");
-    expect(shiftAnchor("2026-05-12", "day", -1)).toBe("2026-05-11");
-  });
-
   it("week ±7 days", () => {
     expect(shiftAnchor("2026-05-12", "week", 1)).toBe("2026-05-19");
     expect(shiftAnchor("2026-05-12", "week", -1)).toBe("2026-05-05");
@@ -247,5 +236,13 @@ describe("formatters (pt-BR)", () => {
     expect(label).toContain("2026");
     // First char uppercase
     expect(label.charAt(0)).toBe(label.charAt(0).toUpperCase());
+  });
+});
+
+describe("upcomingWeekAnchorIso", () => {
+  it("stays on this week on school days and moves to the next one on the weekend", () => {
+    expect(upcomingWeekAnchorIso("2026-10-21")).toBe("2026-10-21"); // quarta
+    expect(upcomingWeekAnchorIso("2026-10-24")).toBe("2026-10-26"); // sábado
+    expect(upcomingWeekAnchorIso("2026-10-25")).toBe("2026-10-26"); // domingo
   });
 });

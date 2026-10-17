@@ -1,5 +1,3 @@
-import { cn } from "@informach/ui/lib/utils";
-import Link from "next/link";
 import { Suspense } from "react";
 import { SharedActivitiesSection } from "@/features/activities/components/shared-activities-section";
 import { getIsProForUser } from "@/features/billing/server-cache";
@@ -19,7 +17,7 @@ import { CommitmentWidget } from "@/features/notifications/components/commitment
 import { getNotificationPreferences } from "@/features/notifications/service";
 import { FirstStepsSection } from "@/features/onboarding/components/first-steps-section";
 import { WelcomeFlash } from "@/features/onboarding/components/welcome-flash";
-import { StudentAvatar } from "@/features/students/components/student-avatar";
+import { ChildFilter } from "@/features/students/components/child-filter";
 import { listStudentProfilesForUser } from "@/features/students/service";
 import { requireUserServer } from "@/lib/auth";
 
@@ -83,38 +81,11 @@ export default async function DashboardPage({ searchParams }: Props) {
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 pb-28 pt-5 md:px-8 md:pt-8">
       <TodayViewedBeacon todayIso={todayIso} userId={user.id} />
       <TodayHeader todayIso={todayIso} userName={user.name} />
-      {profiles.length > 1 ? (
-        <nav aria-label="Filtrar por criança" className="flex flex-wrap gap-2">
-          <Link
-            className={cn(
-              "inline-flex min-h-11 items-center rounded-full px-4 text-sm font-bold",
-              !profileFilter
-                ? "bg-foreground text-background"
-                : "border border-foreground/15 bg-background hover:bg-muted",
-            )}
-            aria-current={!profileFilter ? "page" : undefined}
-            href="/dashboard"
-          >
-            Todas
-          </Link>
-          {profiles.map((p) => (
-            <Link
-              key={p.id}
-              href={`/dashboard?perfil=${p.id}`}
-              aria-current={profileFilter === p.id ? "page" : undefined}
-              className={cn(
-                "inline-flex min-h-11 items-center gap-2 rounded-full pl-1.5 pr-4 text-sm font-bold",
-                profileFilter === p.id
-                  ? "bg-foreground text-background"
-                  : "border border-foreground/15 bg-background hover:bg-muted",
-              )}
-            >
-              <StudentAvatar name={p.name} size="pill" className="border" />
-              {p.name}
-            </Link>
-          ))}
-        </nav>
-      ) : null}
+      <ChildFilter
+        profiles={profiles}
+        current={profileFilter}
+        hrefFor={(profileId) => (profileId ? `/dashboard?perfil=${profileId}` : "/dashboard")}
+      />
       <Suspense fallback={null}>
         <FirstStepsSection
           userId={user.id}
