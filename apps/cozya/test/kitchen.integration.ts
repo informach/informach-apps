@@ -3,6 +3,7 @@ import { createPostgresStore } from "@informach/ai-core/mastra";
 import { and, db, eq, inArray } from "@informach/db";
 import {
   cozyaAiOperations,
+  cozyaCookingSessions,
   cozyaProfiles,
   cozyaRecipes,
   cozyaTrialClaims,
@@ -26,9 +27,11 @@ import {
   generateShoppingList,
   getCookingSession,
   getShoppingList,
+  getTrialSummary,
   getWeekMeals,
   removeShoppingExtra,
   repeatWeek,
+  saveCookingFeedback,
   saveMeal,
   setShoppingItemState,
   updateCookingSession,
@@ -115,28 +118,109 @@ describe("local PostgreSQL: household lifecycle", () => {
         recipeId,
         label: "",
         servings: 4,
+        lunchboxServings: 0,
       }),
     ).toBe(false);
     for (const day of ["2027-02-01", "2027-02-02", "2027-02-03"])
       expect(
-        await saveMeal(first.id, { day, slot: "dinner", recipeId, label: "", servings: 4 }),
+        await saveMeal(first.id, {
+          day,
+          slot: "dinner",
+          recipeId,
+          label: "",
+          servings: 4,
+          lunchboxServings: day === "2027-02-01" ? 1 : 0,
+        }),
       ).toBe(true);
+    expect((await getWeekMeals(first.id, mealWeek))[0]?.lunchboxServings).toBe(1);
     await generateShoppingList(first.id, mealWeek);
     let list = await getShoppingList(first.id, mealWeek);
-    const eggs = list?.items.find((item) => item.name === "ovos");
-    expect(eggs?.amount).toBe("12 un");
+    expect(list?.stale).toBe(false);
+    const eggs = list?.items.find((item) => item.name === "Ovos");
+    expect(eggs?.amount).toBe("12");
     if (!eggs) throw new Error("Expected consolidated eggs");
     expect(await getShoppingList(second.id, mealWeek)).toBeNull();
     expect(await setShoppingItemState(second.id, eggs.id, "bought")).toHaveLength(0);
     await setShoppingItemState(first.id, eggs.id, "have");
     await generateShoppingList(first.id, mealWeek);
     list = await getShoppingList(first.id, mealWeek);
-    expect(list?.items.find((item) => item.name === "ovos")?.state).toBe("have");
-    await saveMeal(first.id, { day: mealWeek, slot: "dinner", recipeId, label: "", servings: 2 });
+    expect(list?.items.find((item) => item.name === "Ovos")?.state).toBe("have");
+    await saveMeal(first.id, {
+      day: mealWeek,
+      slot: "dinner",
+      recipeId,
+      label: "",
+      servings: 2,
+      lunchboxServings: 0,
+    });
+    // The list notices that the week changed before anyone regenerates it.
+    expect((await getShoppingList(first.id, mealWeek))?.stale).toBe(true);
     await generateShoppingList(first.id, mealWeek);
-    expect(
-      (await getShoppingList(first.id, mealWeek))?.items.find((item) => item.name === "ovos"),
-    ).toMatchObject({ amount: "10 un", state: "todo" });
+    list = await getShoppingList(first.id, mealWeek);
+    expect(list?.stale).toBe(false);
+    expect(list?.items.find((item) => item.name === "Ovos")).toMatchObject({
+      amount: "10",
+      state: "todo",
+    });
+  });
+  it("asks about pantry basics once and starts them as already in the house", async () => {
+    const pantryWeek = "2027-04-05";
+    const seasoned = await insertRecipe({
+      userId: first.id,
+      ...recipeInput,
+      name: "Arroz temperado de teste",
+      ingredients:
+        "1 xícara de arroz\n2 dentes de alho picados\n2 colheres de sopa de óleo\nsal a gosto\nágua quente",
+    });
+    const plain = await insertRecipe({
+      userId: first.id,
+      ...recipeInput,
+      name: "Feijão de teste",
+      ingredients: "500 g de feijão\n1 dente de alho\nsal a gosto",
+    });
+    for (const [day, id] of [
+      ["2027-04-05", seasoned.id],
+      ["2027-04-06", plain.id],
+    ] as const)
+      await saveMeal(first.id, {
+        day,
+        slot: "dinner",
+        recipeId: id,
+        label: "",
+        servings: 2,
+        lunchboxServings: 0,
+      });
+    await generateShoppingList(first.id, pantryWeek);
+    const items = (await getShoppingList(first.id, pantryWeek))?.items ?? [];
+    expect(items.filter((item) => item.name === "Sal")).toHaveLength(1);
+    expect(items.find((item) => item.name === "Sal")).toMatchObject({
+      category: "despensa",
+      state: "have",
+    });
+    expect(items.find((item) => item.name === "Alho")).toMatchObject({
+      amount: "3 dentes",
+      state: "todo",
+    });
+    expect(items.some((item) => /água/i.test(item.name))).toBe(false);
+    // The oil the person said is missing stays missing when more portions change its amount.
+    const oil = items.find((item) => item.name === "Óleo");
+    expect(oil).toMatchObject({ category: "despensa", state: "have" });
+    await setShoppingItemState(first.id, oil?.id ?? "", "todo");
+    await saveMeal(first.id, {
+      day: "2027-04-05",
+      slot: "dinner",
+      recipeId: seasoned.id,
+      label: "",
+      servings: 4,
+      lunchboxServings: 0,
+    });
+    await generateShoppingList(first.id, pantryWeek);
+    const after = (await getShoppingList(first.id, pantryWeek))?.items ?? [];
+    expect(after.find((item) => item.name === "Óleo")?.amount).not.toBe(oil?.amount);
+    expect(after.find((item) => item.name === "Óleo")).toMatchObject({ state: "todo" });
+    expect(after.find((item) => item.name === "Sal")).toMatchObject({ state: "have" });
+    // Later tests count this household's recipes; remove only the two created here.
+    await db.delete(cozyaRecipes).where(inArray(cozyaRecipes.id, [seasoned.id, plain.id]));
   });
   it("repeats a week without overwriting existing meals", async () => {
     await saveMeal(first.id, {
@@ -145,10 +229,20 @@ describe("local PostgreSQL: household lifecycle", () => {
       recipeId: null,
       label: "Jantar fora",
       servings: 2,
+      lunchboxServings: 0,
     });
     expect(await repeatWeek(first.id, "2027-02-08")).toBe(2);
     expect(await repeatWeek(first.id, "2027-02-08")).toBe(0);
     expect((await getWeekMeals(first.id, "2027-02-08"))[0]?.label).toBe("Jantar fora");
+  });
+  it("summarizes what the household did since the trial started, for its own account only", async () => {
+    const since = new Date(Date.now() - 400 * 86400000);
+    const summary = await getTrialSummary(first.id, since);
+    expect(summary.meals).toBeGreaterThan(0);
+    expect(summary.recipes).toBeGreaterThan(0);
+    expect(typeof summary.lists).toBe("number");
+    expect(typeof summary.cooked).toBe("number");
+    expect((await getTrialSummary(second.id, since)).meals).toBe(0);
   });
   it("removes only owned manual shopping extras and keeps the removal on regeneration", async () => {
     const list = await getShoppingList(first.id, mealWeek);
@@ -216,6 +310,39 @@ describe("local PostgreSQL: household lifecycle", () => {
     });
     expect(changed?.completedSteps).toEqual([]);
     expect(changed?.timerEndsAt).toBeNull();
+  });
+  it("keeps the note for next time across preparations and starts a new one the next day", async () => {
+    await updateCookingSession(first.id, { recipeId, operation: { type: "complete" } });
+    expect(
+      await saveCookingFeedback(second.id, { recipeId, verdict: "tweak", note: "Intruso" }),
+    ).toBeNull();
+    const noted = await saveCookingFeedback(first.id, {
+      recipeId,
+      verdict: "tweak",
+      note: "Menos sal na próxima.",
+    });
+    expect(noted).toMatchObject({ verdict: "tweak", note: "Menos sal na próxima." });
+    // A preparation finished yesterday is history: the next mark starts over.
+    await db
+      .update(cozyaCookingSessions)
+      .set({ cookedAt: new Date(Date.now() - 2 * 86400000) })
+      .where(
+        and(eq(cozyaCookingSessions.userId, first.id), eq(cozyaCookingSessions.recipeId, recipeId)),
+      );
+    const fresh = await updateCookingSession(first.id, {
+      recipeId,
+      operation: { type: "step", index: 0, checked: true },
+    });
+    expect(fresh).toMatchObject({
+      cookedAt: null,
+      completedSteps: [0],
+      // The new preparation keeps when the recipe was last cooked.
+      lastCookedAt: expect.any(Date),
+      verdict: "tweak",
+      note: "Menos sal na próxima.",
+    });
+    await updateCookingSession(first.id, { recipeId, operation: { type: "reset" } });
+    expect((await getCookingSession(first.id, recipeId))?.note).toBe("Menos sal na próxima.");
   });
   it("runs one task for simultaneous retries, replays its result, and blocks another owner or changed payload", async () => {
     const key = randomUUID();

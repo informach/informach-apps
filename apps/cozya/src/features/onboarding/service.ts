@@ -28,7 +28,7 @@ export async function startProCheckout(input: {
       subject: { type: "user", id: input.userId },
       actorId: input.userId,
       productId,
-      successUrl: `${env.NEXT_PUBLIC_APP_URL}/dashboard?welcome=1`,
+      successUrl: `${env.NEXT_PUBLIC_APP_URL}/hoje`,
       cancelUrl: `${env.NEXT_PUBLIC_APP_URL}/choose-plan?cycle=${input.cycle === "annual" ? "anual" : "mensal"}`,
     });
     return { ok: true, value: { url: result.url } };

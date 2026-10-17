@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, count, db, eq, inArray, sql } from "@informach/db";
+import { and, asc, count, type Database, db, desc, eq, inArray, sql } from "@informach/db";
 import {
   cozyaCookingSessions,
   cozyaMeals,
@@ -8,29 +8,78 @@ import {
   cozyaShoppingLists,
 } from "@informach/db/schema";
 import type { z } from "zod";
-import { addDays, weekStart } from "./dates";
-import { consolidateShopping, parseIngredients } from "./ingredients";
-import type { cookingInputSchema, mealSchema } from "./schemas";
+import { addDays, localDay, weekStart } from "./dates";
+import { consolidateShopping, parseIngredients, type ShoppingLine } from "./ingredients";
+import type { cookingFeedbackSchema, cookingInputSchema, mealSchema } from "./schemas";
+
+type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
+type DbClient = Database | Tx;
 
 export async function getWeekMeals(userId: string, week: string) {
+  return getMealsBetween(userId, week, addDays(week, 7));
+}
+
+/** Meals from `from` (inclusive) to `to` (exclusive), in day and slot order. */
+export async function getMealsBetween(userId: string, from: string, to: string) {
   return db
     .select()
     .from(cozyaMeals)
     .where(
       and(
         eq(cozyaMeals.userId, userId),
-        sql`${cozyaMeals.day} >= ${week} AND ${cozyaMeals.day} < ${addDays(week, 7)}`,
+        sql`${cozyaMeals.day} >= ${from} AND ${cozyaMeals.day} < ${to}`,
       ),
     )
     .orderBy(asc(cozyaMeals.day), asc(cozyaMeals.slot));
 }
 
+/** One setup at a time per account: a double tap or a retried request runs after the first. */
+export async function withAccountLock<T>(userId: string, scope: string, run: () => Promise<T>) {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`cozya:${scope}:${userId}`}))`);
+    return run();
+  });
+}
+
+export async function hasAnyMeal(userId: string) {
+  const [row] = await db
+    .select({ id: cozyaMeals.id })
+    .from(cozyaMeals)
+    .where(eq(cozyaMeals.userId, userId))
+    .limit(1);
+  return Boolean(row);
+}
+
+/** Recipes to choose from: favorites first, with the last time each one was cooked. */
 export async function getRecipeChoices(userId: string) {
   return db
-    .select({ id: cozyaRecipes.id, name: cozyaRecipes.name, servings: cozyaRecipes.servings })
+    .select({
+      id: cozyaRecipes.id,
+      name: cozyaRecipes.name,
+      servings: cozyaRecipes.servings,
+      totalMinutes: cozyaRecipes.totalMinutes,
+      isFavorite: cozyaRecipes.isFavorite,
+      lastCookedAt: cozyaCookingSessions.lastCookedAt,
+      verdict: cozyaCookingSessions.verdict,
+    })
     .from(cozyaRecipes)
+    .leftJoin(
+      cozyaCookingSessions,
+      and(
+        eq(cozyaCookingSessions.recipeId, cozyaRecipes.id),
+        eq(cozyaCookingSessions.userId, userId),
+      ),
+    )
     .where(eq(cozyaRecipes.userId, userId))
-    .orderBy(asc(cozyaRecipes.name));
+    .orderBy(desc(cozyaRecipes.isFavorite), asc(cozyaRecipes.name));
+}
+
+export async function getRecipesByIds(userId: string, ids: string[]) {
+  if (!ids.length) return [];
+  return db
+    .select()
+    .from(cozyaRecipes)
+    .where(and(eq(cozyaRecipes.userId, userId), inArray(cozyaRecipes.id, ids)));
 }
 
 export async function saveMeal(userId: string, input: z.infer<typeof mealSchema>) {
@@ -98,6 +147,7 @@ export async function repeatWeek(userId: string, week: string) {
           recipeId: meal.recipeId,
           label: meal.label,
           servings: meal.servings,
+          lunchboxServings: meal.lunchboxServings,
         })),
       )
       .onConflictDoNothing()
@@ -106,18 +156,71 @@ export async function repeatWeek(userId: string, week: string) {
   });
 }
 
+/** What the week's meals ask for today, with the current ingredient rules. */
+async function plannedShoppingLines(
+  client: DbClient,
+  userId: string,
+  week: string,
+): Promise<ShoppingLine[]> {
+  const meals = await client
+    .select()
+    .from(cozyaMeals)
+    .where(
+      and(
+        eq(cozyaMeals.userId, userId),
+        sql`${cozyaMeals.day} >= ${week} AND ${cozyaMeals.day} < ${addDays(week, 7)}`,
+      ),
+    );
+  const recipeIds = meals.flatMap((meal) => (meal.recipeId ? [meal.recipeId] : []));
+  const recipes = recipeIds.length
+    ? await client
+        .select()
+        .from(cozyaRecipes)
+        .where(and(eq(cozyaRecipes.userId, userId), inArray(cozyaRecipes.id, recipeIds)))
+    : [];
+  return consolidateShopping(
+    meals.flatMap((meal) => {
+      const recipe = recipes.find((r) => r.id === meal.recipeId);
+      return recipe
+        ? [
+            {
+              recipeId: recipe.id,
+              name: recipe.name,
+              baseServings: recipe.servings,
+              servings: meal.servings,
+              // Parse the person's text with today's rules; the stored snapshot predates them.
+              ingredients: parseIngredients(recipe.ingredients),
+            },
+          ]
+        : [];
+    }),
+  );
+}
+
+function lineSignature(line: { key: string; amount: string; note: string }) {
+  return `${line.key}\u0000${line.amount}\u0000${line.note}`;
+}
+
 export async function getShoppingList(userId: string, week: string) {
   const [list] = await db
     .select()
     .from(cozyaShoppingLists)
     .where(and(eq(cozyaShoppingLists.userId, userId), eq(cozyaShoppingLists.week, week)));
   if (!list) return null;
-  const items = await db
-    .select()
-    .from(cozyaShoppingItems)
-    .where(eq(cozyaShoppingItems.listId, list.id))
-    .orderBy(asc(cozyaShoppingItems.category), asc(cozyaShoppingItems.name));
-  return { ...list, items };
+  const [items, planned] = await Promise.all([
+    db
+      .select()
+      .from(cozyaShoppingItems)
+      .where(eq(cozyaShoppingItems.listId, list.id))
+      .orderBy(asc(cozyaShoppingItems.category), asc(cozyaShoppingItems.name)),
+    plannedShoppingLines(db, userId, week),
+  ]);
+  const stored = items.filter((item) => !item.key.startsWith("manual:")).map(lineSignature);
+  const expected = planned.map(lineSignature);
+  // The week changed after the list was made: a meal, a portion or a recipe.
+  const stale =
+    stored.length !== expected.length || expected.some((signature) => !stored.includes(signature));
+  return { ...list, items, stale };
 }
 
 export async function generateShoppingList(userId: string, week: string) {
@@ -125,38 +228,7 @@ export async function generateShoppingList(userId: string, week: string) {
     await tx.execute(
       sql`SELECT pg_advisory_xact_lock(hashtext(${`cozya:week:${userId}:${week}`}))`,
     );
-    const meals = await tx
-      .select()
-      .from(cozyaMeals)
-      .where(
-        and(
-          eq(cozyaMeals.userId, userId),
-          sql`${cozyaMeals.day} >= ${week} AND ${cozyaMeals.day} < ${addDays(week, 7)}`,
-        ),
-      );
-    const recipeIds = meals.flatMap((meal) => (meal.recipeId ? [meal.recipeId] : []));
-    const recipes = recipeIds.length
-      ? await tx
-          .select()
-          .from(cozyaRecipes)
-          .where(and(eq(cozyaRecipes.userId, userId), inArray(cozyaRecipes.id, recipeIds)))
-      : [];
-    const lines = consolidateShopping(
-      meals.flatMap((meal) => {
-        const recipe = recipes.find((r) => r.id === meal.recipeId);
-        return recipe
-          ? [
-              {
-                recipeId: recipe.id,
-                name: recipe.name,
-                baseServings: recipe.servings,
-                servings: meal.servings,
-                ingredients: recipe.structuredIngredients ?? parseIngredients(recipe.ingredients),
-              },
-            ]
-          : [];
-      }),
-    );
+    const lines = await plannedShoppingLines(tx, userId, week);
     const [list] = await tx
       .insert(cozyaShoppingLists)
       .values({ userId, week })
@@ -187,7 +259,13 @@ export async function generateShoppingList(userId: string, week: string) {
             (item) =>
               item.key === line.key && item.amount === line.amount && item.note === line.note,
           );
-          return { ...line, listId: list.id, state: old?.state ?? "todo" };
+          // Pantry basics start as "in the house"; the person taps only what is missing, and
+          // what they said is missing stays missing when another recipe changes the amount.
+          const missing =
+            line.category === "despensa" &&
+            previous.some((item) => item.key === line.key && item.state === "todo");
+          const fresh = line.category === "despensa" && !missing ? "have" : "todo";
+          return { ...line, listId: list.id, state: old?.state ?? fresh };
         }),
       );
     return list.id;
@@ -219,6 +297,19 @@ export async function getCookingSession(userId: string, recipeId: string) {
       and(eq(cozyaCookingSessions.userId, userId), eq(cozyaCookingSessions.recipeId, recipeId)),
     );
   return session ?? null;
+}
+
+export async function getCookingSessions(userId: string, recipeIds: string[]) {
+  if (!recipeIds.length) return [];
+  return db
+    .select()
+    .from(cozyaCookingSessions)
+    .where(
+      and(
+        eq(cozyaCookingSessions.userId, userId),
+        inArray(cozyaCookingSessions.recipeId, recipeIds),
+      ),
+    );
 }
 
 export async function removeShoppingExtra(userId: string, id: string) {
@@ -254,10 +345,13 @@ export async function updateCookingSession(
         and(eq(cozyaCookingSessions.userId, userId), eq(cozyaCookingSessions.recipeId, recipe.id)),
       );
     const sameVersion = previous?.recipeVersion.getTime() === recipe.contentUpdatedAt.getTime();
-    const reset = !sameVersion || input.operation.type === "reset";
+    // A preparation finished on another day is history: today's first mark starts a new one.
+    const finishedBefore = previous?.cookedAt ? localDay(previous.cookedAt) !== localDay() : false;
+    const reset = !sameVersion || finishedBefore || input.operation.type === "reset";
     const servings =
       input.servings ?? (sameVersion ? previous?.servings : null) ?? recipe.servings ?? 2;
     const portionsChanged = previous?.servings !== servings;
+    // Verdict and note are left out on purpose: they belong to the recipe, not to one preparation.
     const values = {
       userId,
       recipeId: recipe.id,
@@ -267,6 +361,8 @@ export async function updateCookingSession(
       completedSteps: reset ? [] : (previous?.completedSteps ?? []),
       timerEndsAt: reset ? null : (previous?.timerEndsAt ?? null),
       cookedAt: reset ? null : (previous?.cookedAt ?? null),
+      // History outlives the preparation: a new day's first mark must not erase it.
+      lastCookedAt: previous?.lastCookedAt ?? null,
       updatedAt: new Date(),
     };
     const op = input.operation;
@@ -282,7 +378,10 @@ export async function updateCookingSession(
     }
     if (op.type === "timer")
       values.timerEndsAt = op.minutes ? new Date(Date.now() + op.minutes * 60000) : null;
-    if (op.type === "complete") values.cookedAt ??= new Date();
+    if (op.type === "complete") {
+      values.cookedAt ??= new Date();
+      values.lastCookedAt = values.cookedAt;
+    }
     const [session] = await tx
       .insert(cozyaCookingSessions)
       .values(values)
@@ -293,6 +392,54 @@ export async function updateCookingSession(
       .returning();
     return session ?? null;
   });
+}
+
+/** "Como foi?": one verdict and one note per recipe; the new note replaces the old one. */
+export async function saveCookingFeedback(
+  userId: string,
+  input: z.infer<typeof cookingFeedbackSchema>,
+) {
+  const [session] = await db
+    .update(cozyaCookingSessions)
+    .set({
+      verdict: input.verdict,
+      note: input.note || null,
+      notedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(cozyaCookingSessions.userId, userId),
+        eq(cozyaCookingSessions.recipeId, input.recipeId),
+      ),
+    )
+    .returning();
+  return session ?? null;
+}
+
+/** What the household did since the trial began, for the "Sua semana continua aqui" page. */
+export async function getTrialSummary(userId: string, since: Date) {
+  const day = localDay(since);
+  // Raw SQL parameters go as text; postgres-js does not serialize Date here.
+  const at = since.toISOString();
+  const [row] = await db.execute<{
+    meals: number;
+    lists: number;
+    recipes: number;
+    cooked: number;
+  }>(sql`SELECT
+      (SELECT count(*)::int FROM ${cozyaMeals} WHERE ${cozyaMeals.userId} = ${userId} AND ${cozyaMeals.recipeId} IS NOT NULL AND ${cozyaMeals.day} >= ${day}) AS meals,
+      (SELECT count(DISTINCT ${cozyaShoppingLists.id})::int FROM ${cozyaShoppingLists} JOIN ${cozyaShoppingItems} ON ${cozyaShoppingItems.listId} = ${cozyaShoppingLists.id}
+        WHERE ${cozyaShoppingLists.userId} = ${userId} AND ${cozyaShoppingLists.generatedAt} >= ${at}::timestamptz
+          AND (${cozyaShoppingItems.state} = 'bought' OR (${cozyaShoppingItems.state} = 'have' AND ${cozyaShoppingItems.category} <> 'despensa'))) AS lists,
+      (SELECT count(*)::int FROM ${cozyaRecipes} WHERE ${cozyaRecipes.userId} = ${userId} AND ${cozyaRecipes.createdAt} >= ${at}::timestamptz) AS recipes,
+      (SELECT count(*)::int FROM cozya.product_events WHERE user_id = ${userId} AND name = 'cooking_completed' AND occurred_at >= ${at}::timestamptz) AS cooked`);
+  return {
+    meals: Number(row?.meals ?? 0),
+    lists: Number(row?.lists ?? 0),
+    recipes: Number(row?.recipes ?? 0),
+    cooked: Number(row?.cooked ?? 0),
+  };
 }
 
 export async function addShoppingExtra(

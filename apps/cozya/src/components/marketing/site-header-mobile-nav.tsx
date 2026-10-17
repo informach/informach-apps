@@ -51,7 +51,7 @@ export function SiteHeaderMobileNav({ links }: SiteHeaderMobileNavProps) {
             </SheetClose>
             <SheetClose asChild>
               <Button className="min-h-11" asChild>
-                <Link href="/signup">Planejar minha semana grátis</Link>
+                <Link href="/signup">Montar minha semana grátis</Link>
               </Button>
             </SheetClose>
           </div>

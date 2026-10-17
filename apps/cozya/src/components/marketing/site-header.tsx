@@ -6,8 +6,9 @@ import { SiteHeaderMobileNav } from "./site-header-mobile-nav";
 
 const NAV_LINKS = [
   { href: "/#como-funciona", label: "Como funciona" },
-  { href: "/#recursos", label: "Suas receitas" },
+  { href: "/#mercado", label: "No mercado" },
   { href: "/#planos", label: "Planos" },
+  { href: "/#perguntas", label: "Perguntas" },
 ] as const;
 
 export type SiteHeaderVariant = "marketing" | "auth";
@@ -39,8 +40,11 @@ export function SiteHeader({ variant = "marketing" }: SiteHeaderProps) {
           ))}
         </nav>
         <div className="landing-header-account">
-          <Link href="/login">
+          <Link href="/login" className="landing-header-login">
             Entrar <ArrowUpRight size={17} aria-hidden />
+          </Link>
+          <Link href="/signup" className="landing-button landing-button-primary landing-header-cta">
+            Começar grátis
           </Link>
           <div className="landing-mobile-menu">
             <SiteHeaderMobileNav links={NAV_LINKS} />

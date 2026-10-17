@@ -112,13 +112,17 @@ export const cozyaMeals = cozya.table(
     slot: text("slot", { enum: ["lunch", "dinner"] }).notNull(),
     recipeId: uuid("recipe_id").references(() => cozyaRecipes.id, { onDelete: "set null" }),
     label: text("label").notNull(),
+    /** Total portions cooked: the table plus the lunchboxes. */
     servings: integer("servings").notNull(),
+    /** Portions of `servings` set aside as lunchboxes for the next day. */
+    lunchboxServings: integer("lunchbox_servings").notNull().default(0),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
     uniqueIndex("cozya_meals_user_day_slot_idx").on(t.userId, t.day, t.slot),
     check("cozya_meals_servings_check", sql`${t.servings} between 1 and 100`),
     check("cozya_meals_slot_check", sql`${t.slot} in ('lunch', 'dinner')`),
+    check("cozya_meals_lunchbox_check", sql`${t.lunchboxServings} between 0 and ${t.servings}`),
   ],
 );
 
@@ -172,12 +176,24 @@ export const cozyaCookingSessions = cozya.table(
     checkedIngredients: jsonb("checked_ingredients").$type<number[]>().notNull().default([]),
     completedSteps: jsonb("completed_steps").$type<number[]>().notNull().default([]),
     timerEndsAt: timestamp("timer_ends_at", { withTimezone: true }),
+    /** End of the current preparation; the first mark on another day starts a new one and clears it. */
     cookedAt: timestamp("cooked_at", { withTimezone: true }),
+    /** When the recipe was last cooked. History for the week and "Faz tempo": never cleared. */
+    lastCookedAt: timestamp("last_cooked_at", { withTimezone: true }),
+    /** "Como foi?" after cooking. Survives new preparations and content edits. */
+    verdict: text("verdict", { enum: ["again", "tweak", "skip"] }),
+    note: text("note"),
+    notedAt: timestamp("noted_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
     uniqueIndex("cozya_cooking_user_recipe_idx").on(t.userId, t.recipeId),
     check("cozya_cooking_servings_check", sql`${t.servings} between 1 and 100`),
+    check(
+      "cozya_cooking_verdict_check",
+      sql`${t.verdict} is null or ${t.verdict} in ('again', 'tweak', 'skip')`,
+    ),
+    check("cozya_cooking_note_check", sql`${t.note} is null or char_length(${t.note}) <= 500`),
   ],
 );
 

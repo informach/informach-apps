@@ -1,100 +1,146 @@
 "use client";
 
 import { Button } from "@informach/ui/components/button";
-import { Card, CardContent } from "@informach/ui/components/card";
 import { Input } from "@informach/ui/components/input";
-import { ChefHat, ChevronLeft, ChevronRight, Loader2, Search } from "lucide-react";
+import { cn } from "@informach/ui/lib/utils";
+import { ChevronLeft, ChevronRight, Loader2, Search } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import type { RecipeFilter } from "../repository";
 import type { RecipeSummary } from "../types";
 import { NewRecipeButton } from "./new-recipe-button";
 import { RecipeCard } from "./recipe-card";
 import { RecipeVoiceSearch } from "./recipe-voice-search";
+
+const SEARCH_DEBOUNCE_MS = 300;
+
+const FILTERS: { value: RecipeFilter | null; label: string }[] = [
+  { value: null, label: "Todas" },
+  { value: "favoritas", label: "Favoritas" },
+  { value: "rapidas", label: "Até 45 min" },
+  { value: "rendem", label: "Rendem 4 ou mais" },
+  { value: "tempo", label: "Faz tempo" },
+];
 
 type Props = {
   recipes: RecipeSummary[];
   isPro: boolean;
   currentCount: number;
   query: string;
+  filter: RecipeFilter | null;
   page: number;
   hasNextPage: boolean;
-  canUseAi?: boolean;
+  canUseAi: boolean;
+  trialAvailable: boolean;
+  weekRecipeIds: string[];
+  credits: number | null;
+  hasRecentPreviews: boolean;
+  openBring: boolean;
 };
 
-const SEARCH_DEBOUNCE_MS = 300;
+function buildHref(query: string, filter: RecipeFilter | null, page: number): string {
+  const params = new URLSearchParams();
+  if (query) params.set("q", query);
+  if (filter) params.set("filtro", filter);
+  if (page > 1) params.set("page", String(page));
+  const search = params.toString();
+  return search ? `/receitas?${search}` : "/receitas";
+}
 
 export function RecipesSection({
   recipes,
   isPro,
   currentCount,
   query,
+  filter,
   page,
   hasNextPage,
-  canUseAi = isPro,
+  canUseAi,
+  trialAvailable,
+  weekRecipeIds,
+  credits,
+  hasRecentPreviews,
+  openBring,
 }: Props) {
-  if (currentCount === 0 && !query) {
+  const now = useMemo(() => new Date(), []);
+  const bring = (
+    <NewRecipeButton
+      isPro={isPro}
+      canUseAi={canUseAi}
+      trialAvailable={trialAvailable}
+      currentCount={currentCount}
+      credits={credits}
+      hasRecentPreviews={hasRecentPreviews}
+      defaultOpen={openBring}
+    />
+  );
+
+  if (currentCount === 0 && !query && !filter)
     return (
-      <div className="mx-auto w-full max-w-3xl space-y-4">
-        <div className="flex justify-end">
-          <NewRecipeButton isPro={isPro} canUseAi={canUseAi} currentCount={currentCount} />
+      <div className="space-y-4">
+        {bring}
+        <div className="space-y-2 rounded-3xl border-[1.5px] border-dashed border-input p-6 text-center md:p-8">
+          <p className="text-lg font-extrabold">Ainda não tem receitas aqui.</p>
+          <p className="text-muted-foreground">
+            Traga a receita do caderno, o print guardado ou escreva do seu jeito. Ou comece pela
+            coleção logo abaixo.
+          </p>
         </div>
-        <Card className="rounded-2xl border-dashed">
-          <CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-            <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-brand-ink">
-              <ChefHat className="size-6" aria-hidden />
-            </span>
-            <div className="space-y-1">
-              <p className="text-base font-semibold text-foreground">Nenhuma receita ainda</p>
-              <p className="text-sm text-muted-foreground">
-                Clique em <span className="font-medium text-foreground">Nova receita</span> para
-                começar.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     );
-  }
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <SearchBar isPro={canUseAi} initialQuery={query} />
-        <NewRecipeButton isPro={isPro} canUseAi={canUseAi} currentCount={currentCount} />
-      </div>
-
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-medium text-muted-foreground">Receitas salvas</h2>
-        {query ? (
-          <p className="truncate text-xs text-muted-foreground">Busca: &ldquo;{query}&rdquo;</p>
-        ) : null}
-      </div>
+    <div className="space-y-4">
+      {bring}
+      <SearchBar canUseAi={canUseAi} initialQuery={query} filter={filter} />
+      <nav aria-label="Filtros" className="flex flex-wrap gap-2">
+        {FILTERS.map((item) => {
+          const active = item.value === filter;
+          return (
+            <Link
+              key={item.label}
+              href={buildHref(query, item.value, 1)}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "inline-flex min-h-11 items-center rounded-full border-[1.5px] px-3.5 text-sm font-bold outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                active
+                  ? "border-foreground bg-secondary text-secondary-foreground"
+                  : "border-border bg-card hover:border-input",
+              )}
+            >
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+      <p role="status" className="text-sm font-bold text-muted-foreground">
+        {filter === "tempo"
+          ? `${recipes.length} ${recipes.length === 1 ? "receita que você não faz" : "receitas que você não faz"} há mais de um mês`
+          : query
+            ? `${recipes.length} ${recipes.length === 1 ? "receita" : "receitas"} com “${query}”`
+            : `${recipes.length} ${recipes.length === 1 ? "receita" : "receitas"}`}
+      </p>
 
       {recipes.length === 0 ? (
-        <Card className="rounded-2xl border-dashed">
-          <CardContent className="flex flex-col items-center justify-center gap-2 py-10 text-center">
-            <p className="text-sm font-medium text-foreground">
-              {query
-                ? `Nenhuma receita encontrada para "${query}".`
-                : "Nenhuma receita nesta página."}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {query
-                ? "Tente outro termo ou verifique a digitação."
-                : "Volte para a página anterior ou cadastre uma nova receita."}
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {recipes.map((recipe) => (
-            <RecipeCard key={recipe.id} recipe={recipe} isPro={isPro} currentCount={currentCount} />
-          ))}
+        <div className="space-y-1 rounded-2xl bg-muted p-5 text-center">
+          <p className="font-bold">Nenhuma receita por aqui.</p>
+          <p className="text-sm text-muted-foreground">
+            {query ? "Tente outra palavra, um ingrediente ou outro filtro." : "Tente outro filtro."}
+          </p>
         </div>
+      ) : (
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {recipes.map((recipe) => (
+            <li key={recipe.id} className="flex">
+              <RecipeCard recipe={recipe} inWeek={weekRecipeIds.includes(recipe.id)} now={now} />
+            </li>
+          ))}
+        </ul>
       )}
 
       {page > 1 || hasNextPage ? (
-        <Pagination query={query} page={page} hasNextPage={hasNextPage} />
+        <Pagination query={query} filter={filter} page={page} hasNextPage={hasNextPage} />
       ) : null}
     </div>
   );
@@ -102,10 +148,12 @@ export function RecipesSection({
 
 function Pagination({
   query,
+  filter,
   page,
   hasNextPage,
 }: {
   query: string;
+  filter: RecipeFilter | null;
   page: number;
   hasNextPage: boolean;
 }) {
@@ -116,7 +164,7 @@ function Pagination({
   const goTo = (direction: "prev" | "next", targetPage: number) => {
     setPendingDirection(direction);
     startTransition(() => {
-      router.push(buildDashboardHref(query, targetPage), { scroll: false });
+      router.push(buildHref(query, filter, targetPage), { scroll: false });
     });
   };
 
@@ -132,7 +180,7 @@ function Pagination({
         <Button
           type="button"
           variant="outline"
-          size="sm"
+          className="min-h-11"
           onClick={() => goTo("prev", page - 1)}
           disabled={isPending}
         >
@@ -141,7 +189,7 @@ function Pagination({
           ) : (
             <ChevronLeft className="mr-2 size-4" aria-hidden />
           )}
-          Anterior
+          Anteriores
         </Button>
       ) : (
         <span aria-hidden />
@@ -151,11 +199,11 @@ function Pagination({
         <Button
           type="button"
           variant="outline"
-          size="sm"
+          className="min-h-11"
           onClick={() => goTo("next", page + 1)}
           disabled={isPending}
         >
-          Próxima
+          Mais receitas
           {pendingDirection === "next" ? (
             <Loader2 className="ml-2 size-4 animate-spin" aria-hidden />
           ) : (
@@ -169,7 +217,15 @@ function Pagination({
   );
 }
 
-function SearchBar({ isPro, initialQuery }: { isPro: boolean; initialQuery: string }) {
+function SearchBar({
+  canUseAi,
+  initialQuery,
+  filter,
+}: {
+  canUseAi: boolean;
+  initialQuery: string;
+  filter: RecipeFilter | null;
+}) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [value, setValue] = useState(initialQuery);
@@ -191,7 +247,7 @@ function SearchBar({ isPro, initialQuery }: { isPro: boolean; initialQuery: stri
     if (lastPushedRef.current === next) return;
     lastPushedRef.current = next;
     startTransition(() => {
-      router.replace(buildDashboardHref(next, 1), { scroll: false });
+      router.replace(buildHref(next, filter, 1), { scroll: false });
     });
   };
 
@@ -209,32 +265,24 @@ function SearchBar({ isPro, initialQuery }: { isPro: boolean; initialQuery: stri
   };
 
   return (
-    <div className="relative flex-1">
+    <div className="relative">
       <Search
-        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+        className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
         aria-hidden
       />
       <Input
         type="search"
         name="q"
-        placeholder="O que vamos fazer?"
+        placeholder="Nome ou ingrediente: frango, abobrinha"
         value={value}
         onChange={onChange}
-        className="h-12 pl-10 pr-14"
-        aria-label="Buscar receitas pelo título"
+        className="h-12 rounded-xl bg-card pr-14 pl-10"
+        aria-label="Buscar receitas pelo nome ou ingrediente"
         autoComplete="off"
       />
-      <div className="absolute right-1.5 top-1/2 -translate-y-1/2">
-        <RecipeVoiceSearch isPro={isPro} onTranscribed={onTranscribed} />
+      <div className="absolute top-1/2 right-1.5 -translate-y-1/2">
+        <RecipeVoiceSearch isPro={canUseAi} onTranscribed={onTranscribed} />
       </div>
     </div>
   );
-}
-
-function buildDashboardHref(query: string, page: number): string {
-  const params = new URLSearchParams();
-  if (query) params.set("q", query);
-  if (page > 1) params.set("page", String(page));
-  const search = params.toString();
-  return search ? `/dashboard?${search}` : "/dashboard";
 }

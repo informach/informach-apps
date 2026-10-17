@@ -15,84 +15,49 @@ type Props = {
   isPro: boolean;
   currentCount: number;
   canUseAi?: boolean;
+  trialAvailable?: boolean;
+  credits?: number | null;
+  hasRecentPreviews?: boolean;
+  /** Opens the sheet on arrival, e.g. from "Prefiro trazer uma receita minha". */
+  defaultOpen?: boolean;
 };
 
 type View = "closed" | "picker" | "voice" | "text" | "image" | "prompt" | "manual";
+type AiMethod = "voice" | "text" | "image" | "prompt";
 
-export function NewRecipeButton({ isPro, currentCount, canUseAi = isPro }: Props) {
-  const [view, setView] = useState<View>("closed");
+const REVIEW: Record<AiMethod, { title: string; description: string }> = {
+  voice: {
+    title: "Confira a receita do áudio",
+    description: "Confira o que entendi do seu áudio e ajuste o que precisar antes de guardar.",
+  },
+  text: {
+    title: "Confira a receita do texto",
+    description: "Confira o que entendi do texto e ajuste o que precisar antes de guardar.",
+  },
+  image: {
+    title: "Confira a receita da foto",
+    description: "Confira o que entendi da foto e ajuste o que precisar antes de guardar.",
+  },
+  prompt: {
+    title: "Confira a receita encontrada",
+    description: "Confira a receita que encontrei e ajuste o que precisar antes de guardar.",
+  },
+};
+
+export function NewRecipeButton({
+  isPro,
+  currentCount,
+  canUseAi = isPro,
+  trialAvailable = false,
+  credits = null,
+  hasRecentPreviews = false,
+  defaultOpen = false,
+}: Props) {
+  const [view, setView] = useState<View>(defaultOpen ? "picker" : "closed");
   const [defaultValues, setDefaultValues] = useState<RecipeFormValues | null>(null);
 
-  const handlePickManual = () => {
-    setDefaultValues(null);
-    setView("manual");
-  };
-
-  const handlePickPrompt = () => {
-    setView("prompt");
-  };
-
-  const handlePickVoice = () => {
-    setView("voice");
-  };
-
-  const handlePickText = () => {
-    setView("text");
-  };
-
-  const handlePickImage = () => {
-    setView("image");
-  };
-
-  const handleParsedFromVoice = (recipe: ParsedRecipeFields) => {
-    setDefaultValues({
-      ...recipe,
-      name: recipe.name,
-      ingredients: recipe.ingredients,
-      preparation: recipe.preparation,
-      finishing: recipe.finishing,
-      isFavorite: false,
-      creationMethod: "voice",
-    });
-    setView("manual");
-  };
-
-  const handleParsedFromText = (recipe: ParsedRecipeFields) => {
-    setDefaultValues({
-      ...recipe,
-      name: recipe.name,
-      ingredients: recipe.ingredients,
-      preparation: recipe.preparation,
-      finishing: recipe.finishing,
-      isFavorite: false,
-      creationMethod: "text",
-    });
-    setView("manual");
-  };
-
-  const handleParsedFromImage = (recipe: ParsedRecipeFields) => {
-    setDefaultValues({
-      ...recipe,
-      name: recipe.name,
-      ingredients: recipe.ingredients,
-      preparation: recipe.preparation,
-      finishing: recipe.finishing,
-      isFavorite: false,
-      creationMethod: "image",
-    });
-    setView("manual");
-  };
-
-  const handleParsedFromPrompt = (recipe: ParsedRecipeFields) => {
-    setDefaultValues({
-      ...recipe,
-      name: recipe.name,
-      ingredients: recipe.ingredients,
-      preparation: recipe.preparation,
-      finishing: recipe.finishing,
-      isFavorite: false,
-      creationMethod: "prompt",
-    });
+  const parsed = (method: AiMethod) => (recipe: ParsedRecipeFields) => {
+    setDefaultValues({ ...recipe, isFavorite: false, creationMethod: method });
     setView("manual");
   };
 
@@ -100,91 +65,61 @@ export function NewRecipeButton({ isPro, currentCount, canUseAi = isPro }: Props
     setView("closed");
     setDefaultValues(null);
   };
+  const closeWith = (open: boolean) => {
+    if (!open) handleClose();
+  };
 
-  const prefilledOrigin = defaultValues?.creationMethod;
-  const formTitle =
-    prefilledOrigin === "voice"
-      ? "Revisar receita por voz"
-      : prefilledOrigin === "text"
-        ? "Revisar receita colada"
-        : prefilledOrigin === "image"
-          ? "Revisar receita por foto"
-          : prefilledOrigin === "prompt"
-            ? "Revisar receita encontrada"
-            : undefined;
-  const formDescription =
-    prefilledOrigin === "voice"
-      ? "Confira o que entendi do seu áudio e ajuste se precisar antes de salvar."
-      : prefilledOrigin === "text"
-        ? "Confira o que entendi do texto e ajuste se precisar antes de salvar."
-        : prefilledOrigin === "image"
-          ? "Confira o que entendi da foto e ajuste se precisar antes de salvar."
-          : prefilledOrigin === "prompt"
-            ? "Confira a receita que encontrei e ajuste se precisar antes de salvar."
-            : undefined;
+  const origin = defaultValues?.creationMethod;
+  const review = origin && origin !== "manual" ? REVIEW[origin] : undefined;
 
   return (
     <>
-      <Button className="h-12" onClick={() => setView("picker")}>
-        <Plus className="mr-2 size-4" aria-hidden />
-        Nova receita
+      <Button
+        className="h-[52px] w-full rounded-2xl text-base font-extrabold sm:w-auto sm:px-6"
+        onClick={() => setView("picker")}
+      >
+        <Plus className="size-5" strokeWidth={2.6} aria-hidden />
+        Trazer uma receita
       </Button>
 
       <NewRecipeMethodDialog
         open={view === "picker"}
-        onOpenChange={(open) => {
-          if (!open) handleClose();
-        }}
+        onOpenChange={closeWith}
         canUseAi={canUseAi}
-        onPickManual={handlePickManual}
-        onPickPrompt={handlePickPrompt}
-        onPickVoice={handlePickVoice}
-        onPickText={handlePickText}
-        onPickImage={handlePickImage}
+        trialAvailable={trialAvailable}
+        credits={credits}
+        hasRecentPreviews={hasRecentPreviews}
+        onPick={(method) => {
+          if (method === "manual") setDefaultValues(null);
+          setView(method);
+        }}
       />
 
       <PromptRecipeDialog
         open={view === "prompt"}
-        onOpenChange={(open) => {
-          if (!open) handleClose();
-        }}
-        onParsed={handleParsedFromPrompt}
+        onOpenChange={closeWith}
+        onParsed={parsed("prompt")}
       />
-
       <VoiceRecipeDialog
         open={view === "voice"}
-        onOpenChange={(open) => {
-          if (!open) handleClose();
-        }}
-        onParsed={handleParsedFromVoice}
+        onOpenChange={closeWith}
+        onParsed={parsed("voice")}
       />
-
-      <TextRecipeDialog
-        open={view === "text"}
-        onOpenChange={(open) => {
-          if (!open) handleClose();
-        }}
-        onParsed={handleParsedFromText}
-      />
-
+      <TextRecipeDialog open={view === "text"} onOpenChange={closeWith} onParsed={parsed("text")} />
       <ImageRecipeDialog
         open={view === "image"}
-        onOpenChange={(open) => {
-          if (!open) handleClose();
-        }}
-        onParsed={handleParsedFromImage}
+        onOpenChange={closeWith}
+        onParsed={parsed("image")}
       />
 
       <RecipeFormDialog
         open={view === "manual"}
-        onOpenChange={(open) => {
-          if (!open) handleClose();
-        }}
+        onOpenChange={closeWith}
         isPro={isPro}
         currentCount={currentCount}
         defaultValues={defaultValues ?? undefined}
-        title={formTitle}
-        description={formDescription}
+        title={review?.title}
+        description={review?.description}
       />
     </>
   );

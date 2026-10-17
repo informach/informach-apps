@@ -3,7 +3,7 @@ import { LoginForm } from "@/features/onboarding/components/login-form";
 import { getCurrentUserServer } from "@/lib/auth";
 
 export const metadata = {
-  title: "Entrar — Cozya",
+  title: "Entrar | Cozya",
 };
 
 export default async function LoginPage({
@@ -12,7 +12,7 @@ export default async function LoginPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const nextPath = safeInternalPath(paramValue(params.next), "/dashboard");
+  const nextPath = safeInternalPath(paramValue(params.next), "/hoje");
   const defaultEmail = safeEmailHint(paramValue(params.email));
   const user = await getCurrentUserServer();
 

@@ -8,24 +8,34 @@ import {
   DialogTitle,
 } from "@informach/ui/components/dialog";
 import { Label } from "@informach/ui/components/label";
+import { toast } from "@informach/ui/components/sonner";
 import { Textarea } from "@informach/ui/components/textarea";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { startTrialAction } from "@/features/kitchen/actions";
 import type { Recipe } from "../types";
+import { catchActionResult } from "./action-errors";
 import { RecipeFormDialog } from "./recipe-form-dialog";
 import { type ParsedRecipeFields, useAiRequest } from "./use-ai-request";
 
 export function RefineRecipeDialog({
   recipe,
   canUseAi,
+  trialAvailable = false,
   isPro,
   currentCount,
 }: {
   recipe: Recipe;
   canUseAi: boolean;
+  /** No trial yet: the dialog offers to start the 14 free days instead of sending to plans. */
+  trialAvailable?: boolean;
   isPro: boolean;
   currentCount: number;
 }) {
+  const router = useRouter();
+  const [trialStarted, setTrialStarted] = useState(false);
+  const [activating, setActivating] = useState(false);
   const [open, setOpen] = useState(false);
   const [request, setRequest] = useState("");
   const [processing, setProcessing] = useState(false);
@@ -43,7 +53,11 @@ export function RefineRecipeDialog({
   };
   return (
     <>
-      <Button variant="outline" className="min-h-11 print:hidden" onClick={() => setOpen(true)}>
+      <Button
+        variant="outline"
+        className="min-h-11 rounded-xl bg-card print:hidden"
+        onClick={() => setOpen(true)}
+      >
         Adaptar com IA · 1 crédito
       </Button>
       <Dialog
@@ -60,13 +74,41 @@ export function RefineRecipeDialog({
               cópia; o original é preservado.
             </DialogDescription>
           </DialogHeader>
-          {!canUseAi ? (
-            <div className="space-y-3">
-              <p>Ative o teste gratuito ou assine o Pro para adaptar com IA.</p>
-              <Button asChild>
-                <Link href="/dashboard">Ver meu acesso</Link>
-              </Button>
-            </div>
+          {!canUseAi && !trialStarted ? (
+            trialAvailable ? (
+              <div className="space-y-3">
+                <p>
+                  Os 14 dias grátis incluem 3 créditos de IA, um por receita trazida ou adaptada.
+                  Sem cartão.
+                </p>
+                <Button
+                  className="min-h-11"
+                  disabled={activating}
+                  onClick={async () => {
+                    setActivating(true);
+                    const result = await catchActionResult(() => startTrialAction({}));
+                    setActivating(false);
+                    if (!result.ok) {
+                      toast.error("Não foi possível começar o teste.");
+                      return;
+                    }
+                    setTrialStarted(true);
+                    router.refresh();
+                  }}
+                >
+                  {activating ? "Começando…" : "Começar os 14 dias e continuar"}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p>
+                  A ajuda da IA faz parte do Pro. Escrever ou editar do seu jeito continua livre.
+                </p>
+                <Button asChild className="min-h-11">
+                  <Link href="/upgrade">Conhecer o Pro</Link>
+                </Button>
+              </div>
+            )
           ) : (
             <>
               <div className="space-y-2">
@@ -183,7 +225,7 @@ export function RefineRecipeDialog({
             sourceUrl: recipe.sourceUrl ?? null,
             sourceName: recipe.sourceName
               ? `Adaptação de ${recipe.sourceName}`.slice(0, 200)
-              : "Adaptação com IA — revisar antes de preparar",
+              : "Adaptação com IA: confira antes de preparar",
           }}
         />
       )}

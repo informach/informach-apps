@@ -37,6 +37,7 @@ export const DEMO_MEALS = [
 
 export const DEMO_OMELET = DEMO_MEALS[1].recipe;
 
+/** The real consolidation, with the omelette cooked for the table plus the lunchboxes. */
 export function demoShopping(omeletPortions: number) {
   return consolidateShopping(
     DEMO_MEALS.map((meal) => ({

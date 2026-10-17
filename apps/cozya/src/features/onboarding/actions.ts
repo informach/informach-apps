@@ -23,5 +23,5 @@ export const selectFreePlanAction = action
   .auth({ require: "user" })
   .rateLimit({ key: "onboarding-select-free", max: 10, window: "5m" })
   .run(async () => {
-    return ok({ redirectTo: "/dashboard" } as const);
+    return ok({ redirectTo: "/hoje" } as const);
   });

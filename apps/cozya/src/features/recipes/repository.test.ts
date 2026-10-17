@@ -46,9 +46,18 @@ vi.mock("@informach/db/schema", () => ({
   cozyaRecipes: {
     createdAt: "created_at",
     id: "id",
+    ingredients: "ingredients",
     isFavorite: "is_favorite",
     name: "name",
+    servings: "servings",
+    totalMinutes: "total_minutes",
     userId: "user_id",
+  },
+  cozyaCookingSessions: {
+    lastCookedAt: "last_cooked_at",
+    recipeId: "recipe_id",
+    userId: "session_user_id",
+    verdict: "verdict",
   },
 }));
 
@@ -98,24 +107,27 @@ function selectListResult(
   rows: unknown[],
   capture?: { orderArgs?: unknown[]; limitArg?: number; offsetArg?: number },
 ) {
-  return {
-    from: vi.fn(() => ({
-      where: vi.fn(() => ({
-        orderBy: vi.fn((...args: unknown[]) => {
-          if (capture) capture.orderArgs = args;
+  const where = vi.fn(() => ({
+    orderBy: vi.fn((...args: unknown[]) => {
+      if (capture) capture.orderArgs = args;
+      return {
+        limit: vi.fn((limit: number) => {
+          if (capture) capture.limitArg = limit;
           return {
-            limit: vi.fn((limit: number) => {
-              if (capture) capture.limitArg = limit;
-              return {
-                offset: vi.fn((offset: number) => {
-                  if (capture) capture.offsetArg = offset;
-                  return Promise.resolve(rows);
-                }),
-              };
+            offset: vi.fn((offset: number) => {
+              if (capture) capture.offsetArg = offset;
+              return Promise.resolve(rows);
             }),
           };
         }),
-      })),
+      };
+    }),
+  }));
+  return {
+    from: vi.fn(() => ({
+      // The card list joins the last preparation of each recipe.
+      leftJoin: vi.fn(() => ({ where })),
+      where,
     })),
   };
 }
@@ -217,7 +229,7 @@ describe("findRecipesPageByUser", () => {
     expect(capture.offsetArg).toBe(1);
   });
 
-  it("tokenizes the search input and AND-matches each word against the name", async () => {
+  it("tokenizes the search input and AND-matches each word against the name or ingredients", async () => {
     dbMocks.db.select.mockReturnValue(selectListResult([recipe]));
     dbMocks.sql.mockClear();
 

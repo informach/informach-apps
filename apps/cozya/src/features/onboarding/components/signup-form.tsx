@@ -35,9 +35,12 @@ type Step = { kind: "form" } | { kind: "otp"; email: string; name: string };
 const RESEND_COOLDOWN_SECONDS = 60;
 
 export function SignupForm({
-  verifiedRedirectTo = "/dashboard?welcome=1",
+  verifiedRedirectTo = "/hoje",
+  withPlan = false,
 }: {
   verifiedRedirectTo?: string;
+  /** Only who chose the Pro on the sales page has a plan step after the code. */
+  withPlan?: boolean;
 }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>({ kind: "form" });
@@ -52,7 +55,7 @@ export function SignupForm({
 
   return (
     <div className="w-full max-w-md space-y-6">
-      <OnboardingStepper currentStep={step.kind === "form" ? 1 : 2} />
+      <OnboardingStepper currentStep={step.kind === "form" ? 1 : 2} withPlan={withPlan} />
 
       <Card className="border-border/60 shadow-sm">
         <CardHeader className="space-y-2 pb-4 text-center">
@@ -65,11 +68,11 @@ export function SignupForm({
             </span>
           )}
           <CardTitle className="text-2xl font-semibold tracking-tight">
-            {step.kind === "form" ? "Crie sua conta" : "Confirme seu email"}
+            {step.kind === "form" ? "Crie sua conta" : "Confirme seu e-mail"}
           </CardTitle>
           <CardDescription className="leading-relaxed">
             {step.kind === "form" ? (
-              <>Comece em segundos. Sem cartão pra começar.</>
+              <>Só nome, e-mail e senha. Sem cartão.</>
             ) : (
               <>
                 Enviamos um código de 6 dígitos para{" "}
@@ -186,7 +189,7 @@ function FormStep({
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>E-mail</FormLabel>
               <FormControl>
                 <Input
                   type="email"

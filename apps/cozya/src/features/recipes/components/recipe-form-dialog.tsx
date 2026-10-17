@@ -101,6 +101,17 @@ export function RecipeFormDialog({
     }
   }, [open, recipe, defaultValues, form]);
 
+  const isAiDraft =
+    !isEdit && !!defaultValues?.creationMethod && defaultValues.creationMethod !== "manual";
+  const watchedServings = form.watch("servings");
+  const watchedIngredients = form.watch("ingredients") ?? "";
+  // "2 de farinha": a number with no measure. Never guessed; the person is asked to confirm.
+  const unclearMeasures = watchedIngredients
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => /^\d+(?:[.,]\d+)?(?:\s+\d+\/\d+)?\s+de\s+/i.test(line))
+    .slice(0, 3);
+
   const hasUnsavedChanges = open && form.formState.isDirty;
   useEffect(() => {
     if (!hasUnsavedChanges) return;
@@ -156,9 +167,9 @@ export function RecipeFormDialog({
           return;
         }
         if (result.error.code === "PLAN_LIMIT_REACHED") {
-          toast.error("Limite do plano Free atingido", {
-            description: `Você já cadastrou ${result.error.current} de ${result.error.limit} receitas. Atualize para Pro pra cadastrar receitas ilimitadas.`,
-            action: { label: "Ver planos", onClick: () => router.push("/upgrade") },
+          toast.error(`O Free guarda até ${result.error.limit} receitas.`, {
+            description: "Para guardar mais, assine o Pro. As que você já tem continuam aqui.",
+            action: { label: "Conhecer o Pro", onClick: () => router.push("/upgrade") },
           });
           return;
         }
@@ -167,7 +178,7 @@ export function RecipeFormDialog({
         });
         return;
       }
-      toast.success("Receita criada");
+      toast.success("Receita guardada");
       form.reset(EMPTY_DEFAULTS);
       onOpenChange(false);
       router.refresh();
@@ -188,12 +199,12 @@ export function RecipeFormDialog({
     onOpenChange(next);
   };
 
-  const resolvedTitle = title ?? (isEdit ? "Editar receita" : "Nova receita");
+  const resolvedTitle = title ?? (isEdit ? "Editar receita" : "Escrever do meu jeito");
   const resolvedDescription =
     description ??
     (isEdit
-      ? "Atualize ingredientes, preparo ou finalização da sua receita."
-      : "Salve sua receita no Cozya com ingredientes, preparo e finalização.");
+      ? "Mudar ingredientes ou passos recomeça o preparo que estiver em andamento."
+      : "Nome, ingredientes e passos. Sem crédito.");
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -211,15 +222,14 @@ export function RecipeFormDialog({
               </span>
               <div className="space-y-1">
                 <p className="text-base font-semibold text-foreground">
-                  Você atingiu o limite do plano Free
+                  O Free guarda até {FREE_RECIPE_LIMIT} receitas.
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {FREE_RECIPE_LIMIT} receitas é o máximo no plano gratuito. Atualize pra Pro e
-                  cadastre sem limite.
+                  Para guardar mais, assine o Pro. As receitas que você já tem continuam aqui.
                 </p>
               </div>
               <Button asChild>
-                <Link href="/upgrade">Ver planos Pro</Link>
+                <Link href="/upgrade">Conhecer o Pro</Link>
               </Button>
             </div>
             <DialogFooter>
@@ -240,7 +250,7 @@ export function RecipeFormDialog({
                     <FormControl>
                       <Input
                         autoFocus
-                        placeholder="Ex: Bolo de cenoura com cobertura de chocolate"
+                        placeholder="Ex.: Bolo de cenoura com cobertura de chocolate"
                         {...field}
                       />
                     </FormControl>
@@ -263,13 +273,50 @@ export function RecipeFormDialog({
                       />
                     </FormControl>
                     <FormDescription>
-                      Liste um ingrediente por linha. Quantidades serão usadas na lista de compras;
-                      confira o rendimento.
+                      Um por linha. As quantidades vão para a lista do mercado.
                     </FormDescription>
+                    {unclearMeasures.length > 0 && (
+                      <ul className="space-y-1 rounded-xl bg-peach p-3 text-sm text-peach-ink">
+                        {unclearMeasures.map((line) => (
+                          <li key={line}>
+                            Confira a medida: “{line}” não diz se são xícaras, colheres ou gramas.
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {isAiDraft && (watchedServings === null || watchedServings === undefined) && (
+                <fieldset className="space-y-2.5 rounded-2xl bg-peach p-4 text-peach-ink">
+                  <legend className="float-left mb-2.5 w-full font-bold">
+                    A receita não diz quantas porções rende. Quantas são?
+                  </legend>
+                  <div className="flex flex-wrap gap-2">
+                    {[2, 4, 6, 8, 12].map((count) => (
+                      <button
+                        key={count}
+                        type="button"
+                        onClick={() =>
+                          form.setValue("servings", count, {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          })
+                        }
+                        className="min-h-11 min-w-12 rounded-full bg-card px-4 font-extrabold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        {count}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-sm">
+                    Sem isso, o Cozya não ajusta as quantidades nem soma na lista. Se não souber
+                    agora, deixe em branco.
+                  </p>
+                </fieldset>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <FormField
@@ -277,7 +324,7 @@ export function RecipeFormDialog({
                   name="servings"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Rendimento (porções)</FormLabel>
+                      <FormLabel>Quanto rende (porções)</FormLabel>
                       <FormControl>
                         <Input
                           type="number"

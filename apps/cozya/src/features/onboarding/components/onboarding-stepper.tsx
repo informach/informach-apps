@@ -6,23 +6,33 @@ import { Check } from "lucide-react";
 type Step = { id: 1 | 2 | 3; label: string };
 
 const STEPS: readonly Step[] = [
-  { id: 1, label: "Cadastro" },
-  { id: 2, label: "Verificação" },
+  { id: 1, label: "Conta" },
+  { id: 2, label: "Código" },
   { id: 3, label: "Plano" },
 ] as const;
 
 export type OnboardingStepperProps = {
   currentStep: 1 | 2 | 3;
+  /** The plan step exists only for who chose the Pro on the sales page. */
+  withPlan?: boolean;
   className?: string;
 };
 
-export function OnboardingStepper({ currentStep, className }: OnboardingStepperProps) {
+export function OnboardingStepper({
+  currentStep,
+  withPlan = true,
+  className,
+}: OnboardingStepperProps) {
+  const steps = withPlan ? STEPS : STEPS.filter((step) => step.id !== 3);
   return (
-    <ol aria-label="Etapas do cadastro" className={cn("grid w-full grid-cols-3", className)}>
-      {STEPS.map((step, index) => {
+    <ol
+      aria-label="Etapas do cadastro"
+      className={cn("grid w-full", withPlan ? "grid-cols-3" : "grid-cols-2", className)}
+    >
+      {steps.map((step, index) => {
         const isCompleted = step.id < currentStep;
         const isCurrent = step.id === currentStep;
-        const isLast = index === STEPS.length - 1;
+        const isLast = index === steps.length - 1;
 
         return (
           <li

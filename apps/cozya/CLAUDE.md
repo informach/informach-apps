@@ -1,15 +1,15 @@
-# Cozya — produto e contratos de implementação
+# Cozya: produto e contratos de implementação
 
-Atualizado em 11/09/2026. A implementação aprovada está em `docs/reviews/cozya-2026-09-11/implementacao.md`; operação e piloto em `operacao-e-piloto.md` na mesma pasta.
+Atualizado em 17/10/2026. A base aprovada está em `docs/reviews/cozya-2026-09-11/implementacao.md`; operação e piloto em `operacao-e-piloto.md` na mesma pasta. A reformulação "Hoje tem" (Hoje como casa, marmitas, lista em duas fases, modo cozinha com "Como foi?" e nova página de vendas) está em `docs/propostas/cozya-hoje-tem-2026-10-17/implementacao.md`.
 
 ## Produto e preço
 
-Ciclo principal: guardar uma receita → planejar refeições e porções → consolidar compras → cozinhar com progresso → repetir a semana.
+Ciclo principal: abrir no Hoje → escolher as receitas da semana com mesa e marmitas → levar a lista do mercado → cozinhar passo a passo e dizer como foi → repetir a semana.
 
 - **Manter R$ 14,90/mês e R$ 149/ano**, conforme instrução expressa do usuário. Não alterar preços ou Price IDs nesta entrega.
 - Pro: 50 créditos mensais, inclusive no anual por liberação mensal. Receitas sem limite comercial e planejamento/compras.
 - Free: até 15 receitas simultâneas. Acervo, preparo e listas já criadas continuam acessíveis depois do teste.
-- Demonstração ativada explicitamente: 14 dias de planejamento e 3 créditos de IA, sem cartão, com e-mail verificado. `getKitchenAccess` centraliza acesso; `hasProSubscription` continua controlando a compra de pacotes.
+- Teste de 14 dias com planejamento e 3 créditos de IA, sem cartão, com e-mail verificado e um por e-mail. Começa sozinho na primeira refeição com receita da própria casa colocada na semana (`ensurePlanning` em `features/kitchen/actions.ts`) ou ao escolher um caminho com IA em "Trazer uma receita"; não há botão de "ativar". Refeição sem receita nunca gasta o teste. A primeira semana roda com trava por conta (`withAccountLock`) e não planeja de novo se já há refeições. `getKitchenAccess` centraliza acesso; `hasProSubscription` continua controlando a compra de pacotes. A oferta do Pro só aparece no fim do teste.
 - Pacotes existentes preservados: 10/R$ 6,90; 20/R$ 12,90; 30/R$ 17,90. A conta correta do crédito mensal é 14,90/50 = R$ 0,298. Não afirmar margem sem medir custos, taxas e suporte.
 
 ## IA e cobrança
@@ -38,15 +38,19 @@ Ciclo principal: guardar uma receita → planejar refeições e porções → co
 
 - Tabelas do domínio em `packages/db/src/schema/cozya.ts`; gerar migrations com `pnpm db:generate`. Aplicar Drizzle + Mastra com `pnpm db:migrate`.
 - Toda consulta/mutação inclui o proprietário autenticado. Limite Free e planejamento usam bloqueios transacionais para concorrência; checklists salvam intenções individuais para não sobrescrever progresso simultâneo.
-- Ingredientes conservadores: preservar texto, converter somente unidades compatíveis (kg/g, l/ml). Medidas desconhecidas, intervalos e rendimento ausente exigem conferência. Sem densidades ou equivalências inventadas.
-- `/semana`, `/compras`, `/receitas/[id]`, `/settings/account`. Preparo conserva `contentUpdatedAt`, porções, progresso e horário absoluto do timer; alterar conteúdo culinário reinicia o progresso. Favorito/nome/origem não reiniciam. Aplicar novas porções limpa somente ingredientes marcados e retira o parâmetro antigo da URL. Wake lock depende do navegador/visibilidade.
-- Confirmar descarte de rascunhos, áreas de toque de 44px, descrição de diálogos, foco visível, redução de movimento. Laranja da marca usa texto marinho; textos de destaque usam `brand-ink`.
-- PWA com entrada `/dashboard`; requer internet. Não prometer offline, push ou instalação validada em todos os sistemas.
+- Ingredientes conservadores (`features/kitchen/ingredients.ts`): preservar texto, converter somente unidades compatíveis (kg/g, l/ml). Medidas desconhecidas, intervalos e rendimento ausente exigem conferência. Sem densidades ou equivalências inventadas. O preparo sai do nome e vira nota ("alho picado" e "alho amassado" somam numa linha); básicos de despensa e "a gosto" viram a pergunta da despensa; água de cozimento não entra na lista. Escalar com fator 1 ou sem rendimento devolve a linha original. Na lista, o que se compra inteiro (unidade) é arredondado para cima; na receita, não. A lista recalcula as linhas planejadas pelas regras atuais na leitura e marca `stale` quando diferem das gravadas; ao atualizar, só voltam para pegar os itens cuja quantidade mudou, e a despensa marcada como "falta" continua faltando. Na impressão, uma regra global esconde botões; as linhas da lista usam `data-print="keep"`.
+- Refeição tem `servings` (total) e `lunchbox_servings` (marmitas, entre 0 e o total). A marmita do jantar aparece no almoço do dia seguinte sem criar refeição; a lista soma o total.
+- Rotas: `/hoje` (casa; `/dashboard` redireciona), `/semana` (`?week=` e `?editar=<dia>:<lunch|dinner>`), `/compras` (`?fase=antes|mercado`), `/receitas`, `/receitas/[id]`, `/receitas/[id]/cozinhar` (grupo `(cook)`, sem cabeçalho; `?porcoes=`, `?marmitas=`, `?etapa=fim`), `/settings/account`. Preparo conserva `contentUpdatedAt`, porções, progresso e horário absoluto do timer; alterar conteúdo culinário reinicia o progresso. Favorito/nome/origem não reiniciam. Mudar as porções limpa somente ingredientes marcados. Wake lock depende do navegador/visibilidade.
+- "Como foi?" grava `verdict` (`again`, `tweak`, `skip`) e `note` (até 500 caracteres) em `cozya.cooking_sessions`. A nota aparece no Hoje, na receita e no modo cozinha da próxima vez; "não repetiria" tira a receita do filtro "Faz tempo".
+- `cooked_at` é o fim do preparo atual: o primeiro toque num dia novo começa outro preparo e o limpa. "Feita há…", a escolha da semana e "Faz tempo" leem `last_cooked_at`, que só muda ao concluir. Rótulos de dia usam dias de calendário em São Paulo (`daysBetween`, `cookedAgo` em `dates.ts`).
+- A marmita derivada do jantar anterior nunca é a refeição a cozinhar no Hoje: aparece em "Também hoje". `/semana` carrega o jantar do domingo anterior para mostrar a marmita de segunda.
+- Confirmar descarte de rascunhos, áreas de toque de 44px, descrição de diálogos, foco visível, redução de movimento. Laranja da marca usa texto marinho; textos de destaque usam `brand-ink`. Tokens do app (papel, tinta, laranja, sálvia, pêssego, com modo escuro) ficam em `app/globals.css`.
+- PWA com entrada `/hoje`; requer internet. Não prometer offline, push ou instalação validada em todos os sistemas.
 - Coleção inicial é autoral e revisável; ainda sem teste culinário humano. Adaptação de IA salva uma cópia após revisão. Não prometer adequação clínica ou ausência de alérgenos.
 
 ## Página pública de vendas
 
-- Narrativa implementada: jantar decidido → demonstração de semana/compras/preparo → marmitas → acervo → repetição → oferta/FAQ. Especificação em `docs/proposals/cozya-home-2026-09-11/proposta.md`.
+- Narrativa implementada em 17/10/2026: "O que tem pra janta? Já está decidido." → a semana em quatro momentos → demonstração de semana (mesa e marmitas), mercado e cozinha → caderno da família → marmita → mercado com WhatsApp → repetir a semana → planos → perguntas → convite final. Registro em `docs/propostas/cozya-hoje-tem-2026-10-17/implementacao.md`; a versão anterior está em `docs/proposals/cozya-home-2026-09-11/proposta.md`. Contato público só pelo direct do Instagram (`INFORMACH_CONTACT`). Seção "Quem faz" pendente de texto e foto da titular.
 - Paleta editorial clara em `app/(marketing)/marketing.css`, com variáveis locais à `.cozya-marketing`. Não sobrescrever o tema da área autenticada.
 - Demonstrações são locais, identificadas como exemplos e sem chamadas de IA, billing ou gravação na conta. `demo-data.ts` usa a coleção inicial e as funções reais de consolidação/porções. Alterar porções exige atualizar compras; marcações de quantidades alteradas são limpas e as demais preservadas.
 - Controles de demonstração ficam desabilitados até a hidratação. Conteúdo público, FAQ nativo, preços e links de cadastro são legíveis sem JavaScript; isso não implica suporte sem JavaScript ao aplicativo autenticado.
@@ -67,7 +71,7 @@ Ciclo principal: guardar uma receita → planejar refeições e porções → co
 
 - `pnpm check`, `pnpm typecheck`, `pnpm test`, `pnpm build` no monorepo. Para máquinas com poucos recursos, `pnpm exec turbo test --concurrency=1` evita competição entre suítes.
 - `pnpm --filter @informach/cozya test:integration`: PostgreSQL local com permissão de criar banco e Redis DB12. O runner cria/migra/remove exatamente um banco descartável `cozya_review_<uuid>`; a configuração recusa execução direta sobre o banco normal. Nunca truncate de tabelas compartilhadas.
-- `pnpm --filter @informach/cozya e2e`: servidor local 3102, e-mails sandbox, IA/Stripe com chaves de teste não funcionais. Jornadas OTP, cozinha móvel e gravação cancelada.
+- `pnpm --filter @informach/cozya e2e`: servidor local 3102, e-mails sandbox, IA/Stripe com chaves de teste não funcionais. Jornadas OTP, primeira semana, semana com marmitas, lista nas duas fases, modo cozinha com "Como foi?", página de vendas de 320 a 1440 px e gravação cancelada. Para reaproveitar um `next dev` já aberto: `E2E_SKIP_WEBSERVER=1 E2E_BASE_URL=http://localhost:<porta>`.
 - Eval pago opcional: `pnpm --filter @informach/cozya eval`. Variáveis: `EVAL_PREFLIGHT=1` sem chamadas; `EVAL_FILTER` para subconjunto; `EVAL_JUDGES=1` adiciona juízes LLM; `EVAL_SNAPSHOT=1` grava baseline somente após conjunto completo aprovado. Não remover casos para ocultar regressão.
 - 22 casos, 5 imagens sintéticas autorais. Fidelidade crítica avalia medidas, rendimento, incompletude, injeção e adaptação; disponibilidade de busca é métrica separada. Recusa segura não equivale a receita encontrada. Consultar baseline e metadados reais, sem apresentar testes sintéticos como validação culinária humana.
 

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { and, count, type Database, db, desc, eq, sql } from "@informach/db";
-import { type CozyaIngredient, cozyaRecipes } from "@informach/db/schema";
+import { type CozyaIngredient, cozyaCookingSessions, cozyaRecipes } from "@informach/db/schema";
 import type { Recipe, RecipeListPage, RecipeSummary } from "./types";
 
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
@@ -24,10 +24,13 @@ export type NewRecipePayload = {
 
 export type InsertWithinLimitResult = { ok: true; recipe: Recipe } | { ok: false; current: number };
 
+export type RecipeFilter = "favoritas" | "rapidas" | "rendem" | "tempo";
+
 export type RecipeListOptions = {
   search?: string;
   page?: number;
   limit?: number;
+  filter?: RecipeFilter;
 };
 
 const DEFAULT_RECIPE_PAGE_SIZE = 50;
@@ -84,23 +87,33 @@ export async function findRecipesPageByUser(
 ): Promise<RecipeListPage> {
   const limit = normalizeRecipeLimit(options.limit);
   const page = normalizeRecipePage(options.page);
-  // Projection: skips `preparation` and `finishing` — the heaviest text
-  // columns. The list view doesn't need them; detail/edit dialogs fetch the
-  // full row separately via `findRecipeByIdForUser`.
+  // Projection: skips `preparation` and `finishing`, the heaviest text columns. The list only
+  // needs the card; the recipe page reads the full row via `findRecipeByIdForUser`.
   const rows = await db
     .select({
       id: cozyaRecipes.id,
       userId: cozyaRecipes.userId,
       name: cozyaRecipes.name,
       ingredients: cozyaRecipes.ingredients,
+      servings: cozyaRecipes.servings,
+      totalMinutes: cozyaRecipes.totalMinutes,
       isFavorite: cozyaRecipes.isFavorite,
       creationMethod: cozyaRecipes.creationMethod,
       createdAt: cozyaRecipes.createdAt,
       updatedAt: cozyaRecipes.updatedAt,
       contentUpdatedAt: cozyaRecipes.contentUpdatedAt,
+      lastCookedAt: cozyaCookingSessions.lastCookedAt,
+      verdict: cozyaCookingSessions.verdict,
     })
     .from(cozyaRecipes)
-    .where(recipesWhereClause(userId, options.search))
+    .leftJoin(
+      cozyaCookingSessions,
+      and(
+        eq(cozyaCookingSessions.recipeId, cozyaRecipes.id),
+        eq(cozyaCookingSessions.userId, cozyaRecipes.userId),
+      ),
+    )
+    .where(recipesWhereClause(userId, options.search, options.filter))
     .orderBy(desc(cozyaRecipes.isFavorite), desc(cozyaRecipes.createdAt))
     .limit(limit + 1)
     .offset((page - 1) * limit);
@@ -218,15 +231,40 @@ function normalizeRecipePage(page: number | undefined): number {
   return Math.max(Math.floor(page ?? 1), 1);
 }
 
-function recipesWhereClause(userId: string, search: string | undefined) {
-  const tokens = tokenizeRecipeSearch(search);
-  if (tokens.length === 0) return eq(cozyaRecipes.userId, userId);
+function filterClause(filter: RecipeFilter | undefined) {
+  switch (filter) {
+    case "favoritas":
+      return eq(cozyaRecipes.isFavorite, true);
+    case "rapidas":
+      return sql`${cozyaRecipes.totalMinutes} <= 45`;
+    case "rendem":
+      return sql`${cozyaRecipes.servings} >= 4`;
+    case "tempo":
+      // Never cooked, or not for a month; "não repetiria" stays out of the suggestions.
+      return sql`(${cozyaCookingSessions.lastCookedAt} is null or ${cozyaCookingSessions.lastCookedAt} < now() - interval '30 days') and ${cozyaCookingSessions.verdict} is distinct from 'skip'`;
+    default:
+      return undefined;
+  }
+}
 
-  const tokenClauses = tokens.map(
-    (token) =>
-      sql`cozya.unaccent_immutable(${cozyaRecipes.name}) ilike cozya.unaccent_immutable(${buildLikePattern(token)}) escape ${"\\"}`,
+function recipesWhereClause(userId: string, search: string | undefined, filter?: RecipeFilter) {
+  const tokens = tokenizeRecipeSearch(search);
+  const byFilter = filterClause(filter);
+  if (tokens.length === 0)
+    return byFilter
+      ? (and(eq(cozyaRecipes.userId, userId), byFilter) ?? eq(cozyaRecipes.userId, userId))
+      : eq(cozyaRecipes.userId, userId);
+
+  // Each word must appear in the name or in the ingredients: "frango" finds the strogonoff.
+  const tokenClauses = tokens.map((token) => {
+    const pattern = buildLikePattern(token);
+    return sql`(cozya.unaccent_immutable(${cozyaRecipes.name}) ilike cozya.unaccent_immutable(${pattern}) escape ${"\\"} or cozya.unaccent_immutable(${cozyaRecipes.ingredients}) ilike cozya.unaccent_immutable(${pattern}) escape ${"\\"})`;
+  });
+  const clause = and(
+    eq(cozyaRecipes.userId, userId),
+    ...tokenClauses,
+    ...(byFilter ? [byFilter] : []),
   );
-  const clause = and(eq(cozyaRecipes.userId, userId), ...tokenClauses);
   if (!clause) return eq(cozyaRecipes.userId, userId);
   return clause;
 }

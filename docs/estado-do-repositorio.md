@@ -76,6 +76,12 @@ O Railway descontinuou o Config as Code (`railway.toml`/`railway.json`), que dei
 
 Em produção desde 17/10/2026, por volta de 15:40 UTC, sem redeploy: parcial `edi` liberada, Config file path esvaziado e valores do arquivo gravados em Cozya, Agenda, site e migrator. O plano do projeto inteiro está zerado, salvo o bloco do Bastidores, que entra no lançamento dele. Na mesma tarde a titular mesclou o PR #6 (`0457f0c`): o migrator rodou, e Cozya, Missão, Edi e site passaram a servir esse commit, com a Agenda em build. Até esta branch chegar à `main`, não aplicar o `.railway/railway.ts` antigo da `main` (parcial `edi`).
 
+## Cozya, "Hoje tem"
+
+Em 17/10/2026 a titular aprovou a proposta em canvas para o Cozya e pediu para aplicá-la e corrigir os defeitos. Implementada na branch `feat/cozya-hoje-tem`, num worktree isolado com banco local próprio, ainda sem commit, PR ou deploy. O app passa a abrir no Hoje, o teste começa na primeira receita colocada na semana, e a marmita vira um número separado da mesa. A lista do mercado ganha duas fases e envio pelo WhatsApp. O modo cozinha mostra um passo por tela e termina com "Como foi?". A página de vendas foi reescrita. Decisões, defeitos corrigidos, migração e verificação estão no [registro da implementação](propostas/cozya-hoje-tem-2026-10-17/implementacao.md); contratos atuais no [guia do Cozya](../apps/cozya/CLAUDE.md).
+
+Pendências: a seção "Quem faz" depende de texto e foto da titular. A migração do Cozya foi regenerada como `0074_cozya_hoje_tem`, depois das duas do Bastidores (`0072_happy_patch` e `0073_warm_nemesis`).
+
 ## Ambiente de desenvolvimento
 
 `.nvmrc` e os workflows usam Node `24.15.0`, alinhados ao requisito `>=24.15.0` do manifest. Usar pnpm `9.15.0`, fixado em `packageManager`.

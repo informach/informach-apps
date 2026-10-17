@@ -1,32 +1,48 @@
 "use client";
 
 import { ArrowRight, Check, Repeat2, RotateCcw } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DEMO_MEALS } from "../demo-data";
 import { useDemoReady } from "../use-demo-ready";
+
+/** This week's Wednesday was planned before repeating: it must stay as it is. */
+const ALREADY_PLANNED = "Batata e brócolis de assadeira";
 
 export function RepeatWeek() {
   const ready = useDemoReady();
   const [repeated, setRepeated] = useState(false);
+  const touched = useRef(false);
+  const repeatButton = useRef<HTMLButtonElement>(null);
+  const resetButton = useRef<HTMLButtonElement>(null);
+  // The pressed button disappears or turns disabled: keep the keyboard on the next action.
+  useEffect(() => {
+    if (!touched.current) return;
+    (repeated ? resetButton : repeatButton).current?.focus();
+  }, [repeated]);
+  const choose = (value: boolean) => {
+    touched.current = true;
+    setRepeated(value);
+  };
   return (
-    <section className="landing-shell repeat-section" aria-labelledby="repeat-title">
-      <div className="repeat-heading">
+    <section
+      className="landing-shell landing-section repeat-section"
+      aria-labelledby="repeat-title"
+    >
+      <div className="landing-section-heading">
         <div>
-          <p className="landing-eyebrow">Seu próximo começo já está aqui</p>
+          <p className="landing-eyebrow">Na semana seguinte</p>
           <h2 className="landing-title" id="repeat-title">
-            Uma semana que funciona
-            <br />
-            merece se repetir.
+            Uma semana que funcionou merece se repetir.
           </h2>
         </div>
         <p className="landing-description">
-          Reaproveite as refeições da semana anterior, troque o que quiser e atualize a lista. Suas
-          favoritas continuam à mão para a próxima rodada.
+          Repita a semana passada nos dias que ainda estão livres, troque o que quiser e monte a
+          lista de novo. Planejar, montar a lista e cozinhar não usam créditos.
         </p>
       </div>
-      <section className="repeat-example" aria-label="Exemplo de repetição da semana">
-        <div className="repeat-week repeat-previous">
-          <p className="landing-mini-label">SEMANA ANTERIOR</p>
+      <section className="repeat-example" aria-label="Exemplo de repetir a semana">
+        <div className="repeat-week">
+          <p className="landing-mini-label">SEMANA PASSADA</p>
           <ul>
             {DEMO_MEALS.map((meal) => (
               <li key={meal.id}>
@@ -41,15 +57,13 @@ export function RepeatWeek() {
           <ArrowRight size={24} />
         </div>
         <div className="repeat-week repeat-current">
-          <p className="landing-mini-label">SUA PRÓXIMA SEMANA · EXEMPLO</p>
+          <p className="landing-mini-label">ESTA SEMANA · EXEMPLO</p>
           <ul>
             {DEMO_MEALS.map((meal) => (
               <li key={meal.id} className={repeated || meal.id === "rice" ? "" : "repeat-empty"}>
                 <span>{meal.shortDay}</span>
                 <strong>
-                  {repeated || meal.id === "rice"
-                    ? meal.recipe.name
-                    : "Espaço para uma escolha sua"}
+                  {meal.id === "rice" ? ALREADY_PLANNED : repeated ? meal.recipe.name : "Dia livre"}
                 </strong>
                 {meal.id === "rice" ? (
                   <small>Já planejado</small>
@@ -65,27 +79,29 @@ export function RepeatWeek() {
         <button
           type="button"
           className="landing-button landing-button-navy"
+          ref={repeatButton}
           disabled={!ready || repeated}
-          onClick={() => setRepeated(true)}
+          onClick={() => choose(true)}
         >
           <Repeat2 size={18} aria-hidden />
-          {repeated ? "Refeições copiadas" : "Repetir semana anterior"}
+          {repeated ? "Semana repetida" : "Repetir a semana passada"}
         </button>
-        <p role="status">
+        <p role="status" className="repeat-status">
           {repeated
-            ? "2 refeições copiadas. A quarta-feira que você já planejou foi preservada."
-            : "Experimente: as refeições preenchem os horários que ainda estão livres."}
+            ? "2 jantares copiados para os dias livres. A quarta que você já tinha planejado ficou como estava."
+            : "Experimente: só os dias livres recebem as refeições da semana passada."}
         </p>
         {repeated && (
-          <button type="button" className="landing-text-link" onClick={() => setRepeated(false)}>
+          <button
+            ref={resetButton}
+            type="button"
+            className="landing-text-link"
+            onClick={() => choose(false)}
+          >
             <RotateCcw size={15} aria-hidden /> Recomeçar
           </button>
         )}
       </div>
-      <p className="repeat-credit-note">
-        <Check size={16} aria-hidden /> Planejar, ajustar porções e acompanhar o preparo não consome
-        créditos de IA.
-      </p>
     </section>
   );
 }
