@@ -33,38 +33,59 @@ function errorNameOf(error: unknown) {
   return "UnknownError";
 }
 
-/**
- * Executa a rotina e registra a execução em `ops.job_runs`. O registro é
- * best-effort: se o banco falhar ao gravar, a rotina roda igual e o erro dela
- * (se houver) continua sendo lançado para quem chamou.
- */
-export async function recordJobRun<T>(meta: JobRunMeta, run: () => Promise<T>): Promise<T> {
-  let id: string | null = null;
+function safeSummary(result: unknown): Record<string, number | boolean> {
+  try {
+    return summarizeJobResult(result);
+  } catch {
+    // Um getter que lança no resultado não pode virar falha da rotina.
+    return {};
+  }
+}
+
+async function startJobRun(meta: JobRunMeta): Promise<string | null> {
   try {
     const [row] = await db
       .insert(jobRuns)
       .values({ app: meta.app, job: meta.job })
       .returning({ id: jobRuns.id });
-    id = row?.id ?? null;
+    return row?.id ?? null;
   } catch {
-    id = null;
+    return null;
   }
+}
+
+type JobRunOutcome =
+  | { ok: true; summary: Record<string, number | boolean> }
+  | { ok: false; errorName: string };
+
+async function finishJobRun(id: string, outcome: JobRunOutcome): Promise<void> {
   try {
-    const result = await run();
-    if (id)
-      await db
-        .update(jobRuns)
-        .set({ finishedAt: new Date(), ok: true, summary: summarizeJobResult(result) })
-        .where(eq(jobRuns.id, id))
-        .catch(() => undefined);
-    return result;
+    await db
+      .update(jobRuns)
+      .set({ finishedAt: new Date(), ...outcome })
+      .where(eq(jobRuns.id, id));
+  } catch {
+    // Best-effort: a linha fica sem desfecho, a rotina não.
+  }
+}
+
+/**
+ * Executa a rotina e registra a execução em `ops.job_runs`. O registro é
+ * best-effort: se o banco falhar ao gravar (inclusive de forma síncrona, como
+ * sem DATABASE_URL), a rotina roda igual, devolve o próprio resultado e o erro
+ * dela (se houver) continua sendo lançado para quem chamou. A gravação do
+ * desfecho fica fora do `try` da rotina, para que uma falha ao registrar o
+ * sucesso nunca seja tratada como falha da rotina.
+ */
+export async function recordJobRun<T>(meta: JobRunMeta, run: () => Promise<T>): Promise<T> {
+  const id = await startJobRun(meta);
+  let result: T;
+  try {
+    result = await run();
   } catch (error) {
-    if (id)
-      await db
-        .update(jobRuns)
-        .set({ finishedAt: new Date(), ok: false, errorName: errorNameOf(error) })
-        .where(eq(jobRuns.id, id))
-        .catch(() => undefined);
+    if (id) await finishJobRun(id, { ok: false, errorName: errorNameOf(error) });
     throw error;
   }
+  if (id) await finishJobRun(id, { ok: true, summary: safeSummary(result) });
+  return result;
 }
