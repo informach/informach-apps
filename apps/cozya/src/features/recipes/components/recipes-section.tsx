@@ -6,7 +6,7 @@ import { cn } from "@informach/ui/lib/utils";
 import { ChevronLeft, ChevronRight, Loader2, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import type { RecipeFilter } from "../repository";
 import type { RecipeSummary } from "../types";
 import { NewRecipeButton } from "./new-recipe-button";
@@ -63,7 +63,6 @@ export function RecipesSection({
   hasRecentPreviews,
   openBring,
 }: Props) {
-  const now = useMemo(() => new Date(), []);
   const bring = (
     <NewRecipeButton
       isPro={isPro}
@@ -93,7 +92,12 @@ export function RecipesSection({
   return (
     <div className="space-y-4">
       {bring}
-      <SearchBar canUseAi={canUseAi} initialQuery={query} filter={filter} />
+      <SearchBar
+        canUseAi={canUseAi}
+        trialAvailable={trialAvailable}
+        initialQuery={query}
+        filter={filter}
+      />
       <nav aria-label="Filtros" className="flex flex-wrap gap-2">
         {FILTERS.map((item) => {
           const active = item.value === filter;
@@ -133,7 +137,7 @@ export function RecipesSection({
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {recipes.map((recipe) => (
             <li key={recipe.id} className="flex">
-              <RecipeCard recipe={recipe} inWeek={weekRecipeIds.includes(recipe.id)} now={now} />
+              <RecipeCard recipe={recipe} inWeek={weekRecipeIds.includes(recipe.id)} />
             </li>
           ))}
         </ul>
@@ -219,10 +223,12 @@ function Pagination({
 
 function SearchBar({
   canUseAi,
+  trialAvailable,
   initialQuery,
   filter,
 }: {
   canUseAi: boolean;
+  trialAvailable: boolean;
   initialQuery: string;
   filter: RecipeFilter | null;
 }) {
@@ -281,7 +287,11 @@ function SearchBar({
         autoComplete="off"
       />
       <div className="absolute top-1/2 right-1.5 -translate-y-1/2">
-        <RecipeVoiceSearch isPro={canUseAi} onTranscribed={onTranscribed} />
+        <RecipeVoiceSearch
+          isPro={canUseAi}
+          trialAvailable={trialAvailable}
+          onTranscribed={onTranscribed}
+        />
       </div>
     </div>
   );

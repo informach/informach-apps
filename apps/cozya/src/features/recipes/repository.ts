@@ -99,6 +99,8 @@ export async function findRecipesPageByUser(
       totalMinutes: cozyaRecipes.totalMinutes,
       isFavorite: cozyaRecipes.isFavorite,
       creationMethod: cozyaRecipes.creationMethod,
+      // The collection recipes show their dish photo on the card.
+      sourceName: cozyaRecipes.sourceName,
       createdAt: cozyaRecipes.createdAt,
       updatedAt: cozyaRecipes.updatedAt,
       contentUpdatedAt: cozyaRecipes.contentUpdatedAt,

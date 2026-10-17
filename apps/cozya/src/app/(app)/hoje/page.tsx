@@ -7,16 +7,25 @@ import { getKitchenAccess } from "@/features/kitchen/access";
 import { FirstWeek } from "@/features/kitchen/components/first-week";
 import { MissingForMeal } from "@/features/kitchen/components/missing-for-meal";
 import { TodayViewed } from "@/features/kitchen/components/today-viewed";
-import { daysBetween, localDay, longDayLabel, weekdayName } from "@/features/kitchen/dates";
+import {
+  daysBetween,
+  localDay,
+  longDayLabel,
+  weekdayName,
+  weekStart,
+} from "@/features/kitchen/dates";
 import { getRecipeChoices, hasAnyMeal } from "@/features/kitchen/repository";
 import { STARTER_RECIPES } from "@/features/kitchen/starter-recipes";
 import { getTodayData, type TodayMeal } from "@/features/kitchen/today";
+import { recipePhoto } from "@/features/recipes/photos";
 import { requireUserServer } from "@/lib/auth";
 
 export const metadata = { title: "Hoje | Cozya" };
 
 const SLOT = { lunch: "Almoço", dinner: "Jantar" } as const;
 const VERDICT = { again: "faria de novo", tweak: "com ajustes", skip: "não repetiria" } as const;
+/** The meal the cooking mode is for: "terça à noite". */
+const MEAL_PARAM = { lunch: "almoco", dinner: "jantar" } as const;
 
 function MealTags({ meal }: { meal: TodayMeal }) {
   if (!meal.recipeId) return null;
@@ -43,7 +52,8 @@ function MealTags({ meal }: { meal: TodayMeal }) {
   );
 }
 
-function MealRow({ meal }: { meal: TodayMeal }) {
+/** A planned meal, or the lunchbox set aside at a dinner: "pronta hoje" seen from today. */
+function MealRow({ meal, lunchboxTag }: { meal: TodayMeal; lunchboxTag: string }) {
   return (
     <li className="flex min-h-14 items-center gap-3 border-t border-border py-3">
       <span className="w-16 shrink-0 text-sm font-bold text-muted-foreground">
@@ -53,7 +63,7 @@ function MealRow({ meal }: { meal: TodayMeal }) {
       {meal.kind === "lunchbox" ? (
         <span className="inline-flex min-h-7 shrink-0 items-center gap-1 rounded-full bg-peach px-2.5 text-xs font-bold text-peach-ink">
           <LunchboxIcon className="size-3.5" />
-          marmita
+          {lunchboxTag}
         </span>
       ) : meal.recipeId ? (
         <span className="shrink-0 text-sm font-bold text-muted-foreground">
@@ -76,13 +86,14 @@ export default async function TodayPage() {
   if (!started && canEdit) {
     const own = (await getRecipeChoices(user.id)).slice(0, 6);
     return (
-      <main className="mx-auto w-full max-w-5xl px-4 py-8 md:px-8 md:py-12">
+      <main className="mx-auto w-full max-w-[1200px] px-5 py-5 md:px-10 md:py-12">
         <FirstWeek
           own={own.map((recipe) => ({
             key: `own:${recipe.id}`,
             id: recipe.id,
             name: recipe.name,
             servings: recipe.servings,
+            photo: recipePhoto(recipe),
           }))}
           starters={STARTER_RECIPES.filter(
             (starter) => !own.some((recipe) => recipe.name === starter.name),
@@ -91,6 +102,7 @@ export default async function TodayPage() {
             index: STARTER_RECIPES.indexOf(starter),
             name: starter.name,
             servings: starter.servings ?? null,
+            photo: recipePhoto(starter),
           }))}
           trialPending={trialAvailable}
         />
@@ -112,7 +124,7 @@ export default async function TodayPage() {
     `/semana?week=${data.week}&editar=${meal.day}:${meal.slot}`;
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-10">
+    <main className="mx-auto w-full max-w-[1200px] px-5 py-5 md:px-10 md:py-10">
       <TodayViewed />
       <div className="grid gap-8 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] md:gap-12">
         <div className="space-y-6">
@@ -129,9 +141,16 @@ export default async function TodayPage() {
                 </span>
                 Hoje teve
               </p>
-              <p className="text-2xl font-extrabold leading-tight tracking-display">
-                {data.evening.label}
-              </p>
+              {/* Without a next meal, what was cooked tonight is the title of the page. */}
+              {next ? (
+                <p className="text-[26px] font-extrabold leading-tight tracking-display">
+                  {data.evening.label}
+                </p>
+              ) : (
+                <h1 className="text-[26px] font-extrabold leading-tight tracking-display">
+                  {data.evening.label}
+                </h1>
+              )}
               <p className="text-sm text-muted-foreground">
                 Cozinhado às {data.evening.cookedTime}
                 {data.evening.verdict ? ` · ${VERDICT[data.evening.verdict]}` : ""}
@@ -174,7 +193,7 @@ export default async function TodayPage() {
               {next.recipeId && !data.evening && (
                 <Button asChild className="h-14 w-full rounded-2xl text-[17px] font-extrabold">
                   <Link
-                    href={`/receitas/${next.recipeId}/cozinhar?porcoes=${next.servings}&marmitas=${next.lunchboxServings}`}
+                    href={`/receitas/${next.recipeId}/cozinhar?porcoes=${next.servings}&marmitas=${next.lunchboxServings}&refeicao=${MEAL_PARAM[next.slot]}`}
                   >
                     Começar a cozinhar
                     <ArrowRight className="size-5" aria-hidden />
@@ -203,7 +222,7 @@ export default async function TodayPage() {
                     className="min-h-12 rounded-2xl text-[15px] font-bold"
                   >
                     <Link
-                      href={`/receitas/${next.recipeId}/cozinhar?porcoes=${next.servings}&marmitas=${next.lunchboxServings}&etapa=fim`}
+                      href={`/receitas/${next.recipeId}/cozinhar?porcoes=${next.servings}&marmitas=${next.lunchboxServings}&refeicao=${MEAL_PARAM[next.slot]}&etapa=fim`}
                     >
                       Já cozinhei
                     </Link>
@@ -258,6 +277,16 @@ export default async function TodayPage() {
               week={data.week}
             />
           )}
+          {data.allAtHome && next && (
+            <p
+              role="status"
+              className="flex items-center gap-3 rounded-[18px] bg-sage-soft p-4 font-bold text-sage-ink"
+            >
+              <Check className="size-[22px] shrink-0" strokeWidth={2.6} aria-hidden />
+              Tudo em casa para o {SLOT[next.slot].toLowerCase()} de{" "}
+              {data.evening ? "amanhã" : "hoje"}.
+            </p>
+          )}
 
           {others.length > 0 && (
             <section aria-labelledby="tambem-hoje">
@@ -269,7 +298,7 @@ export default async function TodayPage() {
               </h2>
               <ul>
                 {others.map((meal) => (
-                  <MealRow key={`${meal.slot}:${meal.kind}`} meal={meal} />
+                  <MealRow key={`${meal.slot}:${meal.kind}`} meal={meal} lunchboxTag="de ontem" />
                 ))}
               </ul>
             </section>
@@ -326,7 +355,11 @@ export default async function TodayPage() {
                 {data.tomorrowMeals
                   .filter((meal) => meal !== next)
                   .map((meal) => (
-                    <MealRow key={`${meal.slot}:${meal.kind}`} meal={meal} />
+                    <MealRow
+                      key={`${meal.slot}:${meal.kind}`}
+                      meal={meal}
+                      lunchboxTag="pronta hoje"
+                    />
                   ))}
               </ul>
             ) : (
@@ -372,17 +405,22 @@ export default async function TodayPage() {
                   </span>
                   <span className="sr-only">
                     {`${weekdayName(dot.day)}${dot.isToday ? ", hoje" : ""}: ${
-                      dot.planned ? "planejado" : "sem plano"
+                      dot.state === "no-recipe"
+                        ? "sem receita"
+                        : dot.planned
+                          ? "planejado"
+                          : "sem plano"
                     }`}
                   </span>
                   <span
                     aria-hidden
                     className={cn(
-                      "flex size-10 items-center justify-center rounded-full text-[13px] font-bold",
+                      "flex size-[38px] items-center justify-center rounded-full text-[13px] font-bold",
                       dot.state === "today" && "bg-primary text-primary-foreground",
                       dot.state === "past" && "bg-sage-soft text-sage-ink",
                       dot.state === "past-empty" && "bg-muted text-muted-foreground",
                       dot.state === "planned" && "bg-card ring-1 ring-border",
+                      dot.state === "no-recipe" && "bg-muted text-muted-foreground",
                       dot.state === "free" &&
                         "border-[1.5px] border-dashed border-input text-muted-foreground",
                     )}
@@ -396,15 +434,20 @@ export default async function TodayPage() {
                 </li>
               ))}
             </ol>
-            {canEdit && data.openDaysPhrase && data.firstOpenDay && (
-              <p className="text-sm text-muted-foreground">
-                {data.openDaysPhrase}{" "}
-                <Link
-                  href={`/semana?week=${data.week}&editar=${data.firstOpenDay}:dinner`}
-                  className="font-bold text-foreground underline underline-offset-4"
-                >
-                  Planejar
-                </Link>
+            {data.weekPhrase && (
+              <p className="text-sm leading-normal text-muted-foreground">
+                {data.weekPhrase}
+                {canEdit && data.firstOpenDay && (
+                  <>
+                    {" "}
+                    <Link
+                      href={`/semana?week=${data.week}&editar=${data.firstOpenDay}:dinner`}
+                      className="font-bold text-foreground underline underline-offset-4"
+                    >
+                      Planejar {weekdayName(data.firstOpenDay)}
+                    </Link>
+                  </>
+                )}
               </p>
             )}
           </section>
@@ -425,7 +468,11 @@ export default async function TodayPage() {
                     ? "A semana mudou. Atualize a lista"
                     : data.list.todo === 0
                       ? "Tudo em casa"
-                      : `${data.list.todo} de ${data.list.total} ${data.list.todo === 1 ? "item" : "itens"} para pegar`}
+                      : `${data.list.total - data.list.todo} de ${data.list.total} em casa${
+                          data.missing.length && next && weekStart(next.day) === data.week
+                            ? ` · ${data.missing.length === 1 ? "falta" : "faltam"} ${data.missingPhrase}`
+                            : ""
+                        }`}
               </span>
             </span>
             <ChevronRight className="size-5 text-muted-foreground" aria-hidden />

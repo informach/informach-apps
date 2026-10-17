@@ -43,6 +43,7 @@ export function CookingMode({
   note,
   verdict: initialVerdict,
   startAtFeedback,
+  when,
 }: {
   recipe: Recipe;
   initialSession: Session | null;
@@ -51,6 +52,8 @@ export function CookingMode({
   note: string | null;
   verdict: Verdict | null;
   startAtFeedback: boolean;
+  /** The meal of the plan this preparation is for, and today and tomorrow in São Paulo. */
+  when: { meal: "lunch" | "dinner" | null; today: string; tomorrow: string };
 }) {
   const router = useRouter();
   const hydrated = useHydrated();
@@ -114,13 +117,17 @@ export function CookingMode({
             <Check className="size-8" strokeWidth={2.8} aria-hidden />
           </span>
           <h1 className="text-[40px] font-extrabold leading-none tracking-display">Bom apetite!</h1>
-          <p className="text-base leading-relaxed text-muted-foreground">
-            {recipe.name}, {portionsLabel(servings, lunchboxes)}.
-            {lunchboxes > 0 ? " A marmita já está contada para amanhã." : ""}
+          <p className="text-base leading-normal text-ink-soft">
+            {when.meal
+              ? `${recipe.name}, ${when.today} ${when.meal === "dinner" ? "à noite" : "no almoço"}.`
+              : `${recipe.name}, ${portionsLabel(servings, lunchboxes)}.`}
+            {lunchboxes > 0
+              ? ` A marmita de ${when.tomorrow} está contada: ${lunchboxes} ${lunchboxes === 1 ? "porção separada" : "porções separadas"}.`
+              : ""}
           </p>
         </div>
         <fieldset className="space-y-3">
-          <legend className="mb-3 text-xl font-extrabold">Como foi?</legend>
+          <legend className="mb-3 text-[19px] font-bold">Como foi?</legend>
           <div className="grid grid-cols-3 gap-2">
             {VERDICTS.map((option) => (
               <button
@@ -156,15 +163,17 @@ export function CookingMode({
             placeholder="Ex.: metade do ketchup ficou ótimo; dobrar o champignon"
             className="rounded-2xl bg-card text-base"
           />
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm leading-normal text-muted-foreground">
             {verdict === "skip"
-              ? "Ela continua nas suas receitas, mas sai das sugestões de quem faz tempo."
-              : "A nota aparece no Hoje e no modo cozinha quando a receita voltar para a semana."}
+              ? "Ela sai das sugestões de “faz tempo”, mas continua nas suas receitas."
+              : verdict === "tweak"
+                ? "A nota aparece no Hoje e no modo cozinha quando a receita voltar para a semana."
+                : "Ela entra nas sugestões quando fizer tempo, e a nota aparece no topo da receita."}
           </p>
         </div>
         {note && (
           <p className="rounded-2xl bg-muted p-4 text-sm leading-relaxed">
-            Da última vez você anotou: “{note}”.{" "}
+            Da última vez você anotou: “{note}”{/[.!?…]$/.test(note) ? "" : "."}{" "}
             {text.trim() ? "A nota nova fica no lugar dela." : "Sem nota nova, ela continua."}
           </p>
         )}
@@ -234,7 +243,9 @@ export function CookingMode({
         <p className="text-sm font-extrabold uppercase tracking-[0.14em] text-brand-ink">
           Passo {step + 1} de {steps.length}
         </p>
-        <p className="text-[26px] font-semibold leading-[1.35] md:text-3xl">{current}</p>
+        <p className="text-[29px] font-semibold leading-[1.3] tracking-[-0.01em] md:text-[32px]">
+          {current}
+        </p>
 
         {note && (
           <div className="rounded-2xl bg-card p-4 text-[15px] leading-snug ring-1 ring-border">
@@ -336,14 +347,14 @@ export function CookingMode({
       <div className="grid grid-cols-[120px_1fr] gap-2.5">
         <Button
           variant="outline"
-          className="h-[60px] rounded-2xl bg-card text-[17px] font-bold"
+          className="h-[60px] rounded-[18px] border-[1.5px] border-input bg-transparent text-lg font-extrabold"
           disabled={!hydrated || step === 0}
           onClick={() => setStep(step - 1)}
         >
           Voltar
         </Button>
         <Button
-          className="h-[60px] rounded-2xl text-[17px] font-extrabold"
+          className="h-[60px] rounded-[18px] text-lg font-extrabold"
           disabled={!hydrated || pending}
           onClick={goNext}
         >

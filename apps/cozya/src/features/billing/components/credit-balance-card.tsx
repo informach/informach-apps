@@ -64,8 +64,8 @@ export function CreditBalanceCard({ available, total, reserved, monthlyCap }: Pr
           <div className="text-3xl font-semibold tabular-nums tracking-tight">
             {formatNumber(available)}
             {hasPlan ? (
-              <span className="ml-1 text-base font-normal text-muted-foreground tabular-nums">
-                / {formatNumber(monthlyCap)}
+              <span className="ml-1.5 text-base font-normal text-muted-foreground tabular-nums">
+                de {formatNumber(monthlyCap)} este mês
               </span>
             ) : null}
           </div>

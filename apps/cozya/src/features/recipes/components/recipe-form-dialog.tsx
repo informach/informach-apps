@@ -46,6 +46,14 @@ type Props = {
   onSaved?: () => void;
 };
 
+/** What the person checks the AI draft against, by where the recipe came from. */
+const CHECK_AGAINST: Record<string, string> = {
+  image: "a foto",
+  text: "o texto",
+  voice: "o que você contou",
+  prompt: "a fonte",
+};
+
 const EMPTY_DEFAULTS: RecipeFormValues = {
   name: "",
   ingredients: "",
@@ -104,6 +112,8 @@ export function RecipeFormDialog({
   const isAiDraft =
     !isEdit && !!defaultValues?.creationMethod && defaultValues.creationMethod !== "manual";
   const watchedServings = form.watch("servings");
+  // An AI draft never guesses the yield: it is answered before the recipe is kept.
+  const needsYield = isAiDraft && (watchedServings === null || watchedServings === undefined);
   const watchedIngredients = form.watch("ingredients") ?? "";
   // "2 de farinha": a number with no measure. Never guessed; the person is asked to confirm.
   const unclearMeasures = watchedIngredients
@@ -289,9 +299,9 @@ export function RecipeFormDialog({
                 )}
               />
 
-              {isAiDraft && (watchedServings === null || watchedServings === undefined) && (
-                <fieldset className="space-y-2.5 rounded-2xl bg-peach p-4 text-peach-ink">
-                  <legend className="float-left mb-2.5 w-full font-bold">
+              {needsYield && (
+                <fieldset className="space-y-2.5 rounded-2xl bg-peach p-3.5 text-peach-ink">
+                  <legend className="float-left mb-2.5 w-full text-[15px] leading-snug font-bold">
                     A receita não diz quantas porções rende. Quantas são?
                   </legend>
                   <div className="flex flex-wrap gap-2">
@@ -310,10 +320,16 @@ export function RecipeFormDialog({
                         {count}
                       </button>
                     ))}
+                    <button
+                      type="button"
+                      onClick={() => form.setFocus("servings")}
+                      className="min-h-11 rounded-full bg-card px-4 font-extrabold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      Outro
+                    </button>
                   </div>
-                  <p className="text-sm">
-                    Sem isso, o Cozya não ajusta as quantidades nem soma na lista. Se não souber
-                    agora, deixe em branco.
+                  <p className="text-[13px] leading-snug">
+                    Sem isso o Cozya não ajusta as quantidades nem soma na lista.
                   </p>
                 </fieldset>
               )}
@@ -485,11 +501,23 @@ export function RecipeFormDialog({
                 >
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={submitting}>
+                <Button type="submit" disabled={submitting || needsYield}>
                   {submitting ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden /> : null}
-                  {isEdit ? "Salvar alterações" : "Salvar"}
+                  {isEdit
+                    ? "Salvar alterações"
+                    : isAiDraft
+                      ? needsYield
+                        ? "Responda o rendimento para guardar"
+                        : "Guardar receita"
+                      : "Salvar"}
                 </Button>
               </DialogFooter>
+              {isAiDraft && (
+                <p className="text-center text-xs text-muted-foreground">
+                  1 crédito usado. Organizada com IA: confira as medidas com{" "}
+                  {CHECK_AGAINST[defaultValues?.creationMethod ?? ""] ?? "a fonte"}.
+                </p>
+              )}
             </form>
           </Form>
         )}

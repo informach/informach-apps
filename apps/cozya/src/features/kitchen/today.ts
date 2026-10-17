@@ -33,7 +33,8 @@ export type WeekDot = {
   short: string;
   isToday: boolean;
   planned: boolean;
-  state: "past" | "past-empty" | "today" | "planned" | "free";
+  /** Planned, but only with meals that have no recipe: "Sexta é pedir comida". */
+  state: "past" | "past-empty" | "today" | "planned" | "no-recipe" | "free";
 };
 
 function hourInSaoPaulo(now = new Date()) {
@@ -153,16 +154,16 @@ export async function getTodayData(userId: string, now = new Date()) {
     next && weekStart(next.day) !== week
       ? await getShoppingList(userId, weekStart(next.day))
       : list;
-  const missing = (nextList?.items ?? []).filter(
-    (item) => keys.has(item.key) && item.state === "todo",
-  );
+  const forNext = (nextList?.items ?? []).filter((item) => keys.has(item.key));
+  const missing = forNext.filter((item) => item.state === "todo");
 
   const listItems = (list?.items ?? []).filter(
     (item) => item.category !== "despensa" || item.state === "todo",
   );
   const weekDays: WeekDot[] = Array.from({ length: 7 }, (_, index) => {
     const day = addDays(week, index);
-    const has = meals.some((meal) => meal.day === day);
+    const ofDay = meals.filter((meal) => meal.day === day);
+    const has = ofDay.length > 0;
     return {
       day,
       short: weekdayShort(day),
@@ -175,14 +176,31 @@ export async function getTodayData(userId: string, now = new Date()) {
             ? has
               ? "past"
               : "past-empty"
-            : has
-              ? "planned"
-              : "free",
+            : !has
+              ? "free"
+              : ofDay.every((meal) => !meal.recipeId)
+                ? "no-recipe"
+                : "planned",
     };
   });
   const openDays = weekDays
     .filter((dot) => dot.state === "free")
     .map((dot) => weekdayName(dot.day));
+  // "Sexta é pedir comida.": the days ahead that are decided without a recipe.
+  const noRecipePhrases = weekDays
+    .filter((dot) => dot.state === "no-recipe")
+    .slice(0, 2)
+    .map((dot) => {
+      const labels = [
+        ...new Set(
+          meals
+            .filter((meal) => meal.day === dot.day)
+            .map((meal) => meal.label.toLocaleLowerCase("pt-BR")),
+        ),
+      ];
+      const name = weekdayName(dot.day);
+      return `${name.charAt(0).toUpperCase()}${name.slice(1)} é ${listPhrase(labels)}.`;
+    });
 
   return {
     today,
@@ -195,10 +213,17 @@ export async function getTodayData(userId: string, now = new Date()) {
     evening: evening ? dinner : null,
     missing: missing.map((item) => ({ id: item.id, name: item.name.toLocaleLowerCase("pt-BR") })),
     missingPhrase: listPhrase(missing.map((item) => item.name.toLocaleLowerCase("pt-BR"))),
+    /** The list has what the next meal needs and nothing of it is still to buy. */
+    allAtHome: forNext.length > 0 && missing.length === 0,
     weekDays,
-    openDaysPhrase: openDays.length
-      ? `${listPhrase(openDays).replace(/^./, (c) => c.toUpperCase())} ${openDays.length === 1 ? "ainda está" : "ainda estão"} em aberto.`
-      : null,
+    weekPhrase: [
+      ...noRecipePhrases,
+      openDays.length
+        ? `${listPhrase(openDays).replace(/^./, (c) => c.toUpperCase())} ${openDays.length === 1 ? "ainda está" : "ainda estão"} em aberto.`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(" "),
     firstOpenDay: weekDays.find((dot) => dot.state === "free")?.day ?? null,
     list: list
       ? {

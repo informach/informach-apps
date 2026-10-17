@@ -59,6 +59,8 @@ export async function getRecipeChoices(userId: string) {
       servings: cozyaRecipes.servings,
       totalMinutes: cozyaRecipes.totalMinutes,
       isFavorite: cozyaRecipes.isFavorite,
+      sourceName: cozyaRecipes.sourceName,
+      ingredients: cozyaRecipes.ingredients,
       lastCookedAt: cozyaCookingSessions.lastCookedAt,
       verdict: cozyaCookingSessions.verdict,
     })
@@ -199,6 +201,11 @@ async function plannedShoppingLines(
 
 function lineSignature(line: { key: string; amount: string; note: string }) {
   return `${line.key}\u0000${line.amount}\u0000${line.note}`;
+}
+
+/** What the list of this week holds, or would hold, from the meals planned: a count before "Montar". */
+export function previewShoppingLines(userId: string, week: string) {
+  return plannedShoppingLines(db, userId, week);
 }
 
 export async function getShoppingList(userId: string, week: string) {

@@ -23,16 +23,15 @@ export function AppNavigation({ variant }: { variant: "top" | "bottom" }) {
   if (variant === "top")
     return (
       <nav aria-label="Navegação principal" className="hidden gap-1 md:flex print:hidden">
-        {items.map(({ href, label, icon: Icon }) => {
+        {items.map(({ href, label }) => {
           const active = isActive(pathname, href);
           return (
             <Link
               key={href}
               href={href}
               aria-current={active ? "page" : undefined}
-              className={`flex min-h-11 items-center gap-2 rounded-xl px-3.5 text-[15px] font-bold outline-none focus-visible:ring-2 focus-visible:ring-ring ${active ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"}`}
+              className={`flex min-h-11 items-center rounded-xl px-3.5 text-[15px] font-bold outline-none focus-visible:ring-2 focus-visible:ring-ring ${active ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"}`}
             >
-              <Icon className="size-4" aria-hidden />
               {label}
             </Link>
           );
@@ -51,7 +50,7 @@ export function AppNavigation({ variant }: { variant: "top" | "bottom" }) {
             key={href}
             href={href}
             aria-current={active ? "page" : undefined}
-            className={`flex min-h-[68px] flex-col items-center justify-center gap-1 text-xs font-bold outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${active ? "text-brand-ink" : "text-muted-foreground"}`}
+            className={`flex min-h-[76px] flex-col items-center justify-center gap-1 text-xs font-bold outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${active ? "text-brand-ink" : "text-muted-foreground"}`}
           >
             <Icon className="size-[22px]" aria-hidden />
             {label}

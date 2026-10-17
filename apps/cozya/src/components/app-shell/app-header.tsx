@@ -3,6 +3,7 @@ import { ModeToggle } from "@informach/ui/components/mode-toggle";
 import Link from "next/link";
 import { CozyaLogo } from "@/components/brand/cozya-logo";
 import { getKitchenAccess } from "@/features/kitchen/access";
+import { daysBetween } from "@/features/kitchen/dates";
 import { requireUserServer } from "@/lib/auth";
 import { AppNavigation } from "./app-navigation";
 import { UserMenu } from "./user-menu";
@@ -10,10 +11,15 @@ import { UserMenu } from "./user-menu";
 export async function AppHeader() {
   const user = await requireUserServer();
   const access = await getKitchenAccess(user.id);
+  // Calendar days in São Paulo, as on Hoje: the last day of the trial reads "último dia".
   const trialDaysLeft =
-    access.trialActive && access.trialEndsAt
-      ? Math.max(1, Math.ceil((access.trialEndsAt.getTime() - Date.now()) / 86400000))
-      : null;
+    access.trialActive && access.trialEndsAt ? daysBetween(new Date(), access.trialEndsAt) : null;
+  const trialLabel =
+    trialDaysLeft === null
+      ? ""
+      : trialDaysLeft <= 0
+        ? "Teste: último dia"
+        : `Teste: ${trialDaysLeft} ${trialDaysLeft === 1 ? "dia" : "dias"}`;
   // Selling before someone has used the kitchen pushes them away: the offer appears after the trial.
   const trialEnded = !access.isPro && !access.trialActive && !!access.profile?.trialStartedAt;
 
@@ -25,9 +31,9 @@ export async function AppHeader() {
       >
         Pular para o conteúdo
       </a>
-      <div className="mx-auto flex h-16 max-w-5xl items-center gap-6 px-4 md:px-8">
+      <div className="mx-auto flex h-16 max-w-[1200px] items-center gap-7 px-4 md:h-[72px] md:px-10">
         <Link href="/hoje" className="flex shrink-0 items-center" aria-label="Cozya, Hoje">
-          <CozyaLogo className="h-8 w-auto text-secondary dark:text-foreground" />
+          <CozyaLogo className="h-[30px] w-auto text-secondary dark:text-foreground" />
         </Link>
         <AppNavigation variant="top" />
 
@@ -38,12 +44,12 @@ export async function AppHeader() {
                 href="/upgrade"
                 className="inline-flex min-h-9 items-center rounded-full bg-muted px-3 text-xs font-bold text-foreground hover:bg-accent"
               >
-                Teste: {trialDaysLeft} {trialDaysLeft === 1 ? "dia" : "dias"}
+                {trialLabel}
               </Link>
             ) : (
               // During the trial the chip only informs; the offer comes in the last three days.
               <span className="inline-flex min-h-9 items-center rounded-full bg-muted px-3 text-xs font-bold text-foreground">
-                Teste: {trialDaysLeft} {trialDaysLeft === 1 ? "dia" : "dias"}
+                {trialLabel}
               </span>
             )
           ) : trialEnded ? (

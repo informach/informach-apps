@@ -11,7 +11,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       <AppHeader />
       <div
         id="app-content"
-        className="flex-1 pb-[calc(84px+env(safe-area-inset-bottom))] md:pb-0"
+        className="flex-1 pb-[calc(92px+env(safe-area-inset-bottom))] md:pb-0"
         tabIndex={-1}
       >
         {children}

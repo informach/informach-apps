@@ -11,18 +11,26 @@ function relativeLabel(week: string) {
   return week < current ? "Semana anterior" : "Mais adiante";
 }
 
+/**
+ * "19 a 25 de outubro" between two arrows. On a phone it is centered and says which week it is;
+ * on a computer it sits to the left and, when given, says how the week is going.
+ */
 export function WeekNavigation({
   week,
   path,
-  title,
+  detail,
 }: {
   week: string;
   path: "/semana" | "/compras";
-  title?: "h1" | "p";
+  /** "5 refeições com receita, domingo em aberto", shown on wide screens. */
+  detail?: string;
 }) {
-  const Heading = title ?? "h1";
+  const relative = relativeLabel(week);
   return (
-    <nav aria-label="Navegar entre semanas" className="flex items-center justify-between gap-3">
+    <nav
+      aria-label="Navegar entre semanas"
+      className="flex items-center justify-between gap-2.5 md:justify-start md:gap-3.5"
+    >
       <Button
         asChild
         variant="outline"
@@ -33,11 +41,18 @@ export function WeekNavigation({
           <ChevronLeft className="size-5" aria-hidden />
         </Link>
       </Button>
-      <div className="min-w-0 text-center">
-        <Heading className="text-2xl font-extrabold tracking-display md:text-3xl">
+      <div className="min-w-0 text-center md:text-left">
+        <h1 className="text-2xl font-extrabold tracking-display md:text-4xl">
           {weekRangeLabel(week)}
-        </Heading>
-        <p className="text-sm text-muted-foreground">{relativeLabel(week)}</p>
+        </h1>
+        {detail ? (
+          <>
+            <p className="text-[13px] text-muted-foreground md:hidden">{relative}</p>
+            <p className="hidden text-[15px] text-muted-foreground md:block">{detail}</p>
+          </>
+        ) : (
+          <p className="text-[13px] text-muted-foreground md:text-[15px]">{relative}</p>
+        )}
       </div>
       <Button
         asChild

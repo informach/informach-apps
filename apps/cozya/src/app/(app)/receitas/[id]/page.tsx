@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 import { getIsProForUser } from "@/features/billing/server-cache";
 import { getKitchenAccess } from "@/features/kitchen/access";
+import { cookedAgo } from "@/features/kitchen/dates";
 import { getCookingSession } from "@/features/kitchen/repository";
 import { RecipeOverview } from "@/features/recipes/components/recipe-overview";
 import { RefineRecipeDialog } from "@/features/recipes/components/refine-recipe-dialog";
@@ -37,6 +38,13 @@ export default async function RecipePage({
         key={`${recipe.id}:${recipe.updatedAt.toISOString()}`}
         recipe={recipe}
         note={session?.note ?? null}
+        cooked={
+          session?.verdict === "skip"
+            ? "você disse que não repetiria"
+            : session?.lastCookedAt
+              ? cookedAgo(session.lastCookedAt)
+              : "ainda não fez"
+        }
         initialServings={requested ?? recipe.servings ?? access.profile?.householdSize ?? 2}
         isPro={isPro}
         currentCount={recipeCount}

@@ -28,6 +28,7 @@ export function ShoppingList({
   listId,
   week,
   weekLabel,
+  subtitle,
   items,
   canPlan,
   stale,
@@ -36,6 +37,8 @@ export function ShoppingList({
   listId: string;
   week: string;
   weekLabel: string;
+  /** "16 itens para 5 refeições · 19 a 25 de outubro" */
+  subtitle: string;
   items: Item[];
   canPlan: boolean;
   stale: boolean;
@@ -73,17 +76,20 @@ export function ShoppingList({
 
   const pantry = optimistic.filter((item) => shoppingCategory(item.category) === "despensa");
   const aisles = optimistic.filter((item) => shoppingCategory(item.category) !== "despensa");
-  const toFetch = [
-    ...aisles.filter((item) => item.state !== "have"),
-    ...pantry.filter((item) => item.state !== "have"),
-  ];
-  const atHome = aisles.filter((item) => item.state === "have").length;
+  const toFetch = aisles.filter((item) => item.state !== "have");
+  const atHome = aisles.length - toFetch.length;
   const picked = toFetch.filter((item) => item.state === "bought").length;
   const missingPantry = pantry.filter((item) => item.state === "todo").length;
   const status =
     phase === "antes"
-      ? `Toque no que já tem em casa. ${atHome} de ${aisles.length} ${aisles.length === 1 ? "item" : "itens"} ${atHome === 1 ? "está" : "estão"} em casa.`
-      : `${picked} de ${toFetch.length} no carrinho${atHome ? ` · ${atHome} já em casa` : ""}`;
+      ? `Toque no que já tem em casa. ${atHome} ${atHome === 1 ? "item já está" : "itens já estão"} em casa.`
+      : [
+          `${picked} de ${toFetch.length} no carrinho`,
+          missingPantry ? `mais ${missingPantry} da despensa` : null,
+          atHome ? `${atHome} já em casa` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ");
 
   const row = (item: Item) => {
     const home = item.state === "have";
@@ -159,27 +165,27 @@ export function ShoppingList({
   };
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center gap-2 print:hidden">
-        <Button asChild variant="outline" className="min-h-11 rounded-xl bg-card">
-          <a
-            href={buildShoppingWhatsappUrl(weekLabel, optimistic)}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => void catchActionResult(() => recordListSharedAction({ week }))}
-          >
-            <Send className="size-4" aria-hidden />
-            Mandar pelo WhatsApp
-          </a>
-        </Button>
-        <Button
-          variant="outline"
-          className="min-h-11 rounded-xl bg-card"
-          onClick={() => window.print()}
-        >
-          <Printer className="size-4" aria-hidden />
-          Imprimir
-        </Button>
+    <div className="space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-[30px] font-extrabold leading-tight tracking-display md:text-4xl">
+            Lista do mercado
+          </h1>
+          <p className="text-sm text-muted-foreground">{subtitle}</p>
+        </div>
+        <div className="shrink-0 print:hidden">
+          <Button asChild variant="outline" size="icon" className="size-11 rounded-xl bg-card">
+            <a
+              href={buildShoppingWhatsappUrl(weekLabel, optimistic)}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Mandar a lista pelo WhatsApp"
+              onClick={() => void catchActionResult(() => recordListSharedAction({ week }))}
+            >
+              <Send className="size-5" aria-hidden />
+            </a>
+          </Button>
+        </div>
       </div>
 
       {stale && (
@@ -206,7 +212,7 @@ export function ShoppingList({
         </div>
       )}
 
-      <fieldset className="grid grid-cols-2 rounded-xl bg-muted p-1 print:hidden">
+      <fieldset className="grid grid-cols-2 rounded-[14px] bg-muted p-1 print:hidden">
         <legend className="sr-only">Fase da compra</legend>
         {(["antes", "mercado"] as const).map((value) => (
           <button
@@ -216,7 +222,7 @@ export function ShoppingList({
             disabled={!hydrated}
             onClick={() => choosePhase(value)}
             className={cn(
-              "min-h-11 rounded-lg text-[15px] font-bold outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "min-h-11 rounded-[10px] text-[15px] font-bold outline-none focus-visible:ring-2 focus-visible:ring-ring",
               phase === value ? "bg-card shadow-sm" : "text-muted-foreground",
             )}
           >
@@ -224,7 +230,7 @@ export function ShoppingList({
           </button>
         ))}
       </fieldset>
-      <p role="status" className="text-[15px] font-bold print:hidden">
+      <p role="status" className="text-[15px] leading-snug font-bold print:hidden">
         {status}
       </p>
 
@@ -360,6 +366,16 @@ export function ShoppingList({
             + Algo mais para a casa
           </button>
         )}
+      </div>
+      <div className="flex justify-center print:hidden">
+        <Button
+          variant="ghost"
+          className="min-h-11 font-bold underline-offset-4 hover:underline"
+          onClick={() => window.print()}
+        >
+          <Printer className="size-4" aria-hidden />
+          Imprimir a lista
+        </Button>
       </div>
     </div>
   );

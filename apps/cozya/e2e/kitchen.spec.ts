@@ -117,11 +117,18 @@ test("first week, plan with lunchboxes, shop, cook and say how it went on a phon
     JSON.stringify({ measuredAt: new Date().toISOString(), primaryButton: contrast }, null, 2),
   );
   await putOnDays.click();
+  // Step 2 of 3: the dinners are on the days; step 3: the shopping list.
+  await expect(page).toHaveURL(/\/semana\?primeira=1$/, COMPILE);
+  await expect(page.getByText(/^Passo 2 de 3\./)).toBeVisible();
+  await expect(page.getByText(/^Teste: 1[34] dias$/)).toBeVisible();
+  await page.getByRole("button", { name: /^Montar a lista do mercado \d+ ite/ }).click();
+  await expect(page).toHaveURL(/\/compras\?week=[\d-]+&primeira=1$/, COMPILE);
+  await expect(page.getByText(/^Passo 3 de 3\./)).toBeVisible();
+  await page.goto("/hoje");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     new RegExp(`^(${STARTERS.join("|")})$`),
     COMPILE,
   );
-  await expect(page.getByText(/^Teste: 1[34] dias$/)).toBeVisible();
   await expect(page.getByRole("link", { name: /^Começar a cozinhar/ })).toBeVisible();
 
   // A recipe of the house, written by hand, then edited.
@@ -167,7 +174,11 @@ test("first week, plan with lunchboxes, shop, cook and say how it went on a phon
   const week = futureWeek(8);
   await page.goto(`/semana?week=${week}`);
   for (let meal = 0; meal < 3; meal++) {
-    await page.getByRole("button", { name: "+ Jantar", exact: true }).first().click();
+    // On a phone an empty day is one "Planejar segunda" button.
+    await page
+      .getByRole("button", { name: /^Planejar / })
+      .first()
+      .click();
     await expect(dialog.getByRole("heading", { name: "O que vai ter?" })).toBeVisible();
     await dialog.getByRole("button", { name: /^Omelete atualizada E2E/ }).click();
     await expect(dialog.locator('p[role="status"]')).toContainText("2 + 0 = 2 porções");
@@ -179,7 +190,10 @@ test("first week, plan with lunchboxes, shop, cook and say how it went on a phon
     await dialog.getByRole("button", { name: /^Colocar n[ao] / }).click();
     await expect(dialog).toHaveCount(0);
   }
-  await page.getByRole("button", { name: "+ Jantar", exact: true }).first().click();
+  await page
+    .getByRole("button", { name: /^Planejar / })
+    .first()
+    .click();
   await dialog.getByRole("button", { name: "Sem receita", exact: true }).click();
   await dialog.getByRole("button", { name: "Pedir comida", exact: true }).click();
   await dialog.getByRole("button", { name: /^Colocar n[ao] / }).click();
@@ -191,7 +205,7 @@ test("first week, plan with lunchboxes, shop, cook and say how it went on a phon
   // Each dinner's lunchboxes show up at the next day's lunch.
   await expect(page.getByRole("img", { name: "Marmita", exact: true })).toHaveCount(3);
 
-  await page.getByRole("button", { name: "Montar a lista do mercado", exact: true }).click();
+  await page.getByRole("button", { name: /^Montar a lista do mercado/ }).click();
   await expect(page).toHaveURL(new RegExp(`/compras\\?week=${week}`), COMPILE);
   await expect(page.getByRole("heading", { name: "Lista do mercado", level: 1 })).toBeVisible();
   const eggs = page.getByRole("button", { name: /^Ovos/ });
@@ -221,7 +235,7 @@ test("first week, plan with lunchboxes, shop, cook and say how it went on a phon
   await cheese.click();
   await expect(cheese).toHaveAttribute("aria-pressed", "false");
   const message = await page
-    .getByRole("link", { name: "Mandar pelo WhatsApp" })
+    .getByRole("link", { name: "Mandar a lista pelo WhatsApp", exact: true })
     .getAttribute("href");
   if (!message) throw new Error("Expected list sharing URL");
   const text = new URL(message).searchParams.get("text") ?? "";
@@ -257,7 +271,7 @@ test("first week, plan with lunchboxes, shop, cook and say how it went on a phon
   await expect(dialog.locator('p[role="status"]')).toContainText("2 + 0 = 2 porções");
   await dialog.getByRole("button", { name: /^Colocar n[ao] / }).click();
   await expect(dialog).toHaveCount(0);
-  await page.getByRole("button", { name: "Atualizar a lista do mercado", exact: true }).click();
+  await page.getByRole("button", { name: /^Atualizar a lista do mercado/ }).click();
   await expect(page).toHaveURL(new RegExp(`/compras\\?week=${week}`), COMPILE);
   await expect(eggs).toContainText("15");
   await expect(page.getByText("A semana mudou desde que a lista foi montada.")).toHaveCount(0);
@@ -294,10 +308,7 @@ test("first week, plan with lunchboxes, shop, cook and say how it went on a phon
   await expect(page).toHaveURL(/\/hoje$/, COMPILE);
   await page.goto(recipePath);
   await expect(page.getByText("“Menos queijo na próxima.”", { exact: true })).toBeVisible();
-  await page.goto("/receitas");
-  await expect(page.getByRole("link", { name: /^Omelete atualizada E2E/ })).toContainText(
-    "Feita hoje",
-  );
+  await expect(page.getByText(/ · feita hoje$/)).toBeVisible();
 
   await page.goto("/hoje");
   await page.getByRole("button", { name: "Alternar tema", exact: true }).click();

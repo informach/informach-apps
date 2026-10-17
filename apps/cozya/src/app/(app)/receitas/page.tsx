@@ -50,7 +50,7 @@ export default async function RecipesPage({
     : null;
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 md:px-8 md:py-10">
+    <main className="mx-auto w-full max-w-[1200px] space-y-3.5 px-5 py-5 md:space-y-6 md:px-10 md:py-10">
       <div className="space-y-1">
         <h1 className="text-[30px] font-extrabold tracking-display md:text-4xl">Suas receitas</h1>
         <p className="text-[15px] text-muted-foreground">

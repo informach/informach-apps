@@ -11,8 +11,11 @@ import { toast } from "@informach/ui/components/sonner";
 import { SpeechInput } from "@informach/ui/components/speech-input";
 import { Mic } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import { z } from "zod";
+import { startTrialAction } from "@/features/kitchen/actions";
+import { catchActionResult } from "./action-errors";
 import { useRecoverableAiRequest } from "./use-ai-request";
 
 const transcriptSchema = z.union([
@@ -21,12 +24,30 @@ const transcriptSchema = z.union([
 ]);
 
 export function RecipeVoiceSearch({
-  isPro: canUseAi,
+  isPro,
+  trialAvailable,
   onTranscribed,
 }: {
   isPro: boolean;
+  /** No trial yet: the locked AI offers to start the 14 days, not the plans. */
+  trialAvailable: boolean;
   onTranscribed: (text: string) => void;
 }) {
+  const router = useRouter();
+  const [started, setStarted] = useState(false);
+  const [starting, startTransition] = useTransition();
+  const canUseAi = isPro || started;
+  const startTrial = () =>
+    startTransition(async () => {
+      const result = await catchActionResult(() => startTrialAction({}));
+      if (!result.ok) {
+        toast.error("Não foi possível começar o teste. Tente de novo.");
+        return;
+      }
+      toast.success("Seus 14 dias grátis começaram. Você tem 3 créditos de IA.");
+      setStarted(true);
+      router.refresh();
+    });
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -77,10 +98,10 @@ export function RecipeVoiceSearch({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Ditar uma busca no seu acervo</DialogTitle>
+            <DialogTitle>Ditar uma busca nas suas receitas</DialogTitle>
             <DialogDescription>
               A transcrição custa 1 crédito quando concluída. Digitar no campo de busca é gratuito.
-              Esta opção procura receitas que você já salvou.
+              A busca procura nas receitas que você já guardou.
             </DialogDescription>
           </DialogHeader>
           {canUseAi ? (
@@ -110,14 +131,24 @@ export function RecipeVoiceSearch({
                 </Button>
               )}
             </div>
+          ) : trialAvailable ? (
+            <div className="space-y-3 rounded-2xl bg-muted p-4">
+              <p className="text-sm leading-normal">
+                Seus 14 dias grátis incluem 3 créditos de IA, um por receita. Sem cartão.
+              </p>
+              <Button className="min-h-11" disabled={starting} onClick={startTrial}>
+                Ativar e continuar
+              </Button>
+            </div>
           ) : (
-            <p className="text-sm">
-              Ative o teste gratuito nas receitas ou{" "}
-              <Link className="underline" href="/upgrade">
-                conheça o Pro
-              </Link>{" "}
-              para usar IA.
-            </p>
+            <div className="space-y-3 rounded-2xl bg-muted p-4">
+              <p className="text-sm leading-normal">
+                A ajuda da IA faz parte do Pro. Digitar no campo de busca continua grátis.
+              </p>
+              <Button asChild className="min-h-11">
+                <Link href="/upgrade">Conhecer o Pro</Link>
+              </Button>
+            </div>
           )}
         </DialogContent>
       </Dialog>

@@ -45,6 +45,8 @@
   --success-foreground: #ffffff;
 
   --cozya-accent-ink: #a44119;
+  /* Texto corrido de apoio: mais escuro que o cinza dos rótulos. */
+  --cozya-ink-soft: #2e4556;
   --cozya-sage: #486d50;
   --cozya-sage-soft: #e7ede3;
   --cozya-sage-ink: #2f4a35;
@@ -93,6 +95,7 @@
   --success-foreground: #0f2231;
 
   --cozya-accent-ink: #ffb48a;
+  --cozya-ink-soft: #c9d3da;
   --cozya-sage: #9cc3a5;
   --cozya-sage-soft: #1f3a2d;
   --cozya-sage-ink: #9cc3a5;
@@ -124,6 +127,7 @@
   --color-peach-line: var(--cozya-peach-line);
   --color-peach-ink: var(--cozya-peach-ink);
   --color-brand-ink: var(--cozya-accent-ink);
+  --color-ink-soft: var(--cozya-ink-soft);
 }
 
 /* Títulos grandes com ar entre as palavras: −0,03em, nunca menos. */

@@ -3,6 +3,7 @@
 import { Button } from "@informach/ui/components/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -10,7 +11,7 @@ import {
 } from "@informach/ui/components/dialog";
 import { toast } from "@informach/ui/components/sonner";
 import { cn } from "@informach/ui/lib/utils";
-import { Camera, ClipboardPaste, Mic, Pencil, Search } from "lucide-react";
+import { Camera, ClipboardPaste, Mic, Pencil, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useState, useTransition } from "react";
@@ -110,15 +111,26 @@ export function NewRecipeMethodDialog({
         onOpenChange(value);
       }}
     >
-      <DialogContent className="max-h-[92dvh] gap-4 overflow-y-auto rounded-3xl sm:max-w-lg">
-        <DialogHeader className="text-left">
-          <DialogTitle className="text-2xl font-extrabold tracking-display">
-            Trazer uma receita
-          </DialogTitle>
-          <DialogDescription>
-            De onde ela vem? Você sempre confere antes de guardar.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent
+        showCloseButton={false}
+        className="max-h-[92dvh] gap-3.5 overflow-y-auto rounded-3xl px-5 pt-5 pb-[22px] sm:max-w-lg sm:p-6 max-sm:top-auto max-sm:bottom-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:rounded-t-[26px] max-sm:border-x-0 max-sm:border-b-0"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <DialogHeader className="text-left">
+            <DialogTitle className="text-[28px] font-extrabold tracking-display">
+              Trazer uma receita
+            </DialogTitle>
+          </DialogHeader>
+          <DialogClose
+            aria-label="Fechar"
+            className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <X className="size-[18px]" strokeWidth={2.4} aria-hidden />
+          </DialogClose>
+        </div>
+        <DialogDescription className="text-[15px] leading-normal text-ink-soft">
+          De onde ela vem? Você sempre confere antes de guardar.
+        </DialogDescription>
 
         <ul className="space-y-2">
           {METHODS.map(({ method, icon, title, hint, ai }, index) => (

@@ -1,4 +1,5 @@
 import { cn } from "@informach/ui/lib/utils";
+import Image from "next/image";
 
 const PALETTE = [
   "bg-[#FFE7D1] text-[#F2B48C] dark:bg-[#3D2A1E] dark:text-[#6E4A33]",
@@ -17,10 +18,28 @@ function hash(value: string) {
 }
 
 /**
- * A typographic cover: the first word of the name, very large, cropped by the card.
- * Purely decorative; the name itself is always printed next to it.
+ * The cover of a recipe. With a photo of the dish, the photo fills it; otherwise the first word
+ * of the name, very large, cropped by the card. Purely decorative: the name is always printed
+ * next to it.
  */
-export function RecipeCover({ name, className }: { name: string; className?: string }) {
+export function RecipeCover({
+  name,
+  photo,
+  sizes = "(max-width: 767px) 50vw, 280px",
+  className,
+}: {
+  name: string;
+  photo?: string | null;
+  /** How wide the cover is shown, so the photo is served at that size. */
+  sizes?: string;
+  className?: string;
+}) {
+  if (photo)
+    return (
+      <div aria-hidden className={cn("relative overflow-hidden bg-muted", className)}>
+        <Image src={photo} alt="" fill sizes={sizes} className="object-cover" />
+      </div>
+    );
   const word = name.trim().split(/\s+/)[0] ?? name;
   return (
     <div

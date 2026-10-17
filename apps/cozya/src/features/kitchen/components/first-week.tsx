@@ -10,8 +10,9 @@ import { useState, useTransition } from "react";
 import { catchActionResult } from "@/features/recipes/components/action-errors";
 import { RecipeCover } from "@/features/recipes/components/recipe-cover";
 import { planFirstWeekAction } from "../actions";
+import { FirstWeekSteps } from "./first-week-steps";
 
-type Option = { key: string; name: string; servings: number | null };
+type Option = { key: string; name: string; servings: number | null; photo: string | null };
 
 const MAX_PICKS = 4;
 
@@ -57,7 +58,8 @@ export function FirstWeek({
         return;
       }
       toast.success(`Pronto: ${result.value.planned} jantares a partir de hoje.`);
-      router.refresh();
+      // Step 2 of 3: the days, then the list.
+      router.push("/semana?primeira=1");
     });
 
   const renderOption = (option: Option) => {
@@ -76,6 +78,8 @@ export function FirstWeek({
         >
           <RecipeCover
             name={option.name}
+            photo={option.photo}
+            sizes="48px"
             className="size-12 shrink-0 rounded-xl [&_span]:text-3xl"
           />
           <span className="flex min-w-0 flex-1 flex-col">
@@ -100,29 +104,28 @@ export function FirstWeek({
   };
 
   return (
-    <section aria-labelledby="first-week-title" className="mx-auto w-full max-w-xl space-y-6">
-      <div className="space-y-3">
-        <p className="text-[15px] font-bold text-brand-ink">Que bom ter você aqui.</p>
+    <section aria-labelledby="first-week-title" className="mx-auto w-full max-w-xl space-y-[18px]">
+      <div className="space-y-2.5">
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="text-[15px] font-bold text-brand-ink">Que bom ter você aqui.</p>
+          <p className="shrink-0 text-[13px] font-bold text-muted-foreground">Passo 1 de 3</p>
+        </div>
         <h1
           id="first-week-title"
           className="text-[34px] font-extrabold leading-[1.02] tracking-display md:text-5xl"
         >
           Vamos montar sua primeira semana.
         </h1>
-        <p className="text-base leading-relaxed text-muted-foreground">
+        <p className="text-[15px] leading-normal text-ink-soft">
           Três receitas, três dias e a lista do mercado.
           {trialPending
             ? " Seus 14 dias grátis começam quando a primeira receita entrar na semana. Sem cartão."
             : ""}
         </p>
       </div>
-      <div className="grid grid-cols-3 gap-1.5" aria-hidden>
-        <span className="h-1.5 rounded-full bg-primary" />
-        <span className="h-1.5 rounded-full bg-border" />
-        <span className="h-1.5 rounded-full bg-border" />
-      </div>
+      <FirstWeekSteps step={1} />
       <div className="flex items-baseline justify-between gap-4">
-        <h2 className="text-lg font-bold">Escolha três para começar</h2>
+        <h2 className="text-[17px] font-bold">Escolha três para começar</h2>
         <p role="status" className="text-sm font-bold text-muted-foreground">
           {picked.length <= 3 ? `${picked.length} de 3` : `${picked.length} escolhidas`}
         </p>
@@ -164,7 +167,10 @@ export function FirstWeek({
         </div>
       ) : (
         <Button
-          className="h-14 w-full rounded-2xl text-[17px] font-extrabold"
+          className={cn(
+            "h-14 w-full rounded-2xl text-[17px] font-extrabold",
+            missing > 0 && "disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100",
+          )}
           disabled={!hydrated || pending || missing > 0}
           onClick={submit}
         >

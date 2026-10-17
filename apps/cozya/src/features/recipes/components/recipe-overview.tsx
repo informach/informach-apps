@@ -2,6 +2,7 @@
 import { Button } from "@informach/ui/components/button";
 import { toast } from "@informach/ui/components/sonner";
 import { useHydrated } from "@informach/ui/hooks/use-hydrated";
+import { cn } from "@informach/ui/lib/utils";
 import {
   ArrowLeft,
   ArrowRight,
@@ -19,6 +20,7 @@ import { type ReactNode, useState, useTransition } from "react";
 import { parseIngredients, scaleIngredient } from "@/features/kitchen/ingredients";
 import { keyedLines } from "@/features/kitchen/list-keys";
 import { toggleRecipeFavoriteAction } from "../actions";
+import { recipePhoto } from "../photos";
 import { buildWhatsappShareUrl } from "../share";
 import type { Recipe } from "../types";
 import { catchActionResult } from "./action-errors";
@@ -30,6 +32,7 @@ import { RecipeFormDialog } from "./recipe-form-dialog";
 export function RecipeOverview({
   recipe,
   note,
+  cooked,
   initialServings,
   isPro,
   currentCount,
@@ -37,6 +40,8 @@ export function RecipeOverview({
 }: {
   recipe: Recipe;
   note: string | null;
+  /** "feita há 2 semanas", worked out on the server so the page reads the same after hydration. */
+  cooked: string;
   initialServings: number;
   isPro: boolean;
   currentCount: number;
@@ -50,6 +55,7 @@ export function RecipeOverview({
   const [favorite, setFavorite] = useState(recipe.isFavorite);
   const [pending, startTransition] = useTransition();
   const ingredients = parseIngredients(recipe.ingredients);
+  const photo = recipePhoto(recipe);
   const steps = recipe.preparation
     .split(/\r?\n/)
     .map((step) => step.trim())
@@ -57,6 +63,7 @@ export function RecipeOverview({
   const meta = [
     recipe.servings ? `A receita rende ${recipe.servings}` : "Rendimento ainda não informado",
     recipe.totalMinutes ? `${recipe.totalMinutes} min` : null,
+    cooked,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -73,7 +80,12 @@ export function RecipeOverview({
         </Link>
         <RecipeCover
           name={recipe.name}
-          className="h-28 rounded-3xl print:hidden [&_span]:text-[5.5rem]"
+          photo={photo}
+          sizes="(max-width: 767px) 100vw, 704px"
+          className={cn(
+            "rounded-3xl print:hidden",
+            photo ? "h-48 md:h-64" : "h-28 [&_span]:text-[5.5rem]",
+          )}
         />
         <div className="space-y-2">
           <h1 className="text-[34px] font-extrabold leading-[1.02] tracking-display md:text-5xl">

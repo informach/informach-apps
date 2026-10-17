@@ -1,3 +1,4 @@
+import { STARTER_SOURCE } from "@/features/recipes/photos";
 import type { RecipeFormValues } from "@/features/recipes/schemas";
 
 // Original editorial drafts created for Cozya. No third-party text or tested-recipe claim.
@@ -13,7 +14,7 @@ export const STARTER_RECIPES: readonly RecipeFormValues[] = [
     finishing: "Sirva após o preparo.",
     isFavorite: false,
     creationMethod: "manual",
-    sourceName: "Coleção Cozya · rascunho autoral, sem teste em cozinha",
+    sourceName: STARTER_SOURCE,
     sourceUrl: null,
   },
   {
@@ -27,7 +28,7 @@ export const STARTER_RECIPES: readonly RecipeFormValues[] = [
     finishing: "Solte os grãos com um garfo antes de servir.",
     isFavorite: false,
     creationMethod: "manual",
-    sourceName: "Coleção Cozya · rascunho autoral, sem teste em cozinha",
+    sourceName: STARTER_SOURCE,
     sourceUrl: null,
   },
   {
@@ -40,7 +41,7 @@ export const STARTER_RECIPES: readonly RecipeFormValues[] = [
     finishing: "Divida em duas porções e sirva.",
     isFavorite: false,
     creationMethod: "manual",
-    sourceName: "Coleção Cozya · rascunho autoral, sem teste em cozinha",
+    sourceName: STARTER_SOURCE,
     sourceUrl: null,
   },
   {
@@ -54,7 +55,7 @@ export const STARTER_RECIPES: readonly RecipeFormValues[] = [
     finishing: "Use como acompanhamento para a refeição da semana.",
     isFavorite: false,
     creationMethod: "manual",
-    sourceName: "Coleção Cozya · rascunho autoral, sem teste em cozinha",
+    sourceName: STARTER_SOURCE,
     sourceUrl: null,
   },
 ];

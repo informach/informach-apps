@@ -1,5 +1,4 @@
 import { getKitchenAccess } from "@/features/kitchen/access";
-import { WeekNavigation } from "@/features/kitchen/components/week-navigation";
 import { WeekPlanner } from "@/features/kitchen/components/week-planner";
 import { addDays, localDay, weekStart } from "@/features/kitchen/dates";
 import {
@@ -7,6 +6,7 @@ import {
   getRecipeChoices,
   getShoppingList,
   getWeekMeals,
+  previewShoppingLines,
 } from "@/features/kitchen/repository";
 import { daySchema, weekSchema } from "@/features/kitchen/schemas";
 import { requireUserServer } from "@/lib/auth";
@@ -23,7 +23,7 @@ function parseEdit(value: string | undefined) {
 export default async function WeekPage({
   searchParams,
 }: {
-  searchParams: Promise<{ week?: string; editar?: string }>;
+  searchParams: Promise<{ week?: string; editar?: string; primeira?: string }>;
 }) {
   const [user, params] = await Promise.all([requireUserServer(), searchParams]);
   const edit = parseEdit(params.editar);
@@ -33,16 +33,16 @@ export default async function WeekPage({
     edit && (edit.day < requested || edit.day >= addDays(requested, 7))
       ? weekStart(edit.day)
       : requested;
-  const [access, recipes, meals, list, sunday] = await Promise.all([
+  const [access, recipes, meals, list, sunday, lines] = await Promise.all([
     getKitchenAccess(user.id),
     getRecipeChoices(user.id),
     getWeekMeals(user.id, week),
     getShoppingList(user.id, week),
     getMealsBetween(user.id, addDays(week, -1), week),
+    previewShoppingLines(user.id, week),
   ]);
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-5 px-4 py-6 md:px-8 md:py-10">
-      <WeekNavigation week={week} path="/semana" />
+    <main className="mx-auto w-full max-w-[1200px] px-4 py-5 md:px-10 md:py-8">
       <WeekPlanner
         key={`${week}:${params.editar ?? ""}`}
         week={week}
@@ -54,6 +54,13 @@ export default async function WeekPage({
         householdSize={access.profile?.householdSize ?? 2}
         initialEdit={edit}
         list={!list ? "none" : list.stale ? "stale" : "fresh"}
+        shopping={{
+          items: lines.filter((line) => line.category !== "despensa").length,
+          pantry: lines
+            .filter((line) => line.category === "despensa")
+            .map((line) => line.name.toLocaleLowerCase("pt-BR")),
+        }}
+        firstWeek={params.primeira === "1"}
         carryOver={
           sunday.find((meal) => meal.slot === "dinner" && meal.lunchboxServings > 0) ?? null
         }

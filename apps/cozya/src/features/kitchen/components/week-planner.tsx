@@ -12,7 +12,7 @@ import { Label } from "@informach/ui/components/label";
 import { toast } from "@informach/ui/components/sonner";
 import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { cn } from "@informach/ui/lib/utils";
-import { Minus, Plus, Repeat2, Search, Star } from "lucide-react";
+import { Minus, Plus, Repeat2, Search, Star, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -24,18 +24,17 @@ import {
   repeatWeekAction,
   saveMealAction,
 } from "../actions";
-import { addDays, cookedAgo, longDayLabel, weekdayName, weekdayShort } from "../dates";
+import { addDays, longDayLabel, weekdayName, weekdayShort } from "../dates";
+import {
+  byFavoriteAndTime,
+  choiceMeta,
+  matchesSearch,
+  type RecipeChoice,
+  suggestionsFor,
+} from "../recipe-choices";
 import type { Meal } from "../types";
-
-export type RecipeChoice = {
-  id: string;
-  name: string;
-  servings: number | null;
-  totalMinutes: number | null;
-  isFavorite: boolean;
-  lastCookedAt: Date | null;
-  verdict: "again" | "tweak" | "skip" | null;
-};
+import { FirstWeekSteps } from "./first-week-steps";
+import { WeekNavigation } from "./week-navigation";
 
 type Slot = "lunch" | "dinner";
 const SLOT: Record<Slot, string> = { lunch: "Almoço", dinner: "Jantar" };
@@ -59,12 +58,10 @@ function onDay(day: string) {
   return `${name === "sábado" || name === "domingo" ? "no" : "na"} ${name}`;
 }
 
-function choiceMeta(recipe: RecipeChoice, now: Date) {
-  const parts = [recipe.servings ? `rende ${recipe.servings}` : "rendimento a conferir"];
-  if (recipe.verdict === "skip") parts.push("você disse que não repetiria");
-  else parts.push(recipe.lastCookedAt ? cookedAgo(recipe.lastCookedAt, now) : "ainda não fez");
-  const text = parts.join(" · ");
-  return text.charAt(0).toUpperCase() + text.slice(1);
+/** "a quinta", "o domingo" */
+function theDay(day: string) {
+  const name = weekdayName(day);
+  return `${name === "sábado" || name === "domingo" ? "o" : "a"} ${name}`;
 }
 
 function Stepper({
@@ -104,7 +101,7 @@ function Stepper({
       <output
         aria-live="polite"
         aria-label={label}
-        className="min-w-7 text-center text-[17px] font-extrabold"
+        className="min-w-[26px] text-center text-[17px] font-extrabold"
       >
         {value}
       </output>
@@ -121,6 +118,13 @@ function Stepper({
   );
 }
 
+const CELL =
+  "flex w-full items-center gap-2.5 rounded-xl border px-3 py-1.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-11 md:min-h-28 md:flex-col md:items-start md:gap-1.5 md:rounded-2xl md:p-3";
+const CELL_LABEL =
+  "w-14 shrink-0 text-[11px] font-extrabold uppercase tracking-[0.06em] md:w-auto md:tracking-[0.08em]";
+const EMPTY_CELL =
+  "flex items-center justify-center gap-1 rounded-xl border-[1.5px] border-dashed border-input text-sm font-bold text-muted-foreground outline-none hover:border-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring";
+
 export function WeekPlanner({
   week,
   today,
@@ -131,6 +135,8 @@ export function WeekPlanner({
   householdSize,
   initialEdit,
   list,
+  shopping,
+  firstWeek,
   carryOver,
 }: {
   week: string;
@@ -143,6 +149,10 @@ export function WeekPlanner({
   householdSize: number;
   initialEdit: { day: string; slot: Slot } | null;
   list: "none" | "fresh" | "stale";
+  /** What the list of this week holds from the planned meals: items to buy and the pantry. */
+  shopping: { items: number; pantry: string[] };
+  /** Arrived from the first week: step 2 of 3. */
+  firstWeek: boolean;
   /** Sunday's dinner before this week, whose lunchboxes are Monday's lunch. */
   carryOver: Meal | null;
 }) {
@@ -185,10 +195,11 @@ export function WeekPlanner({
   const [editor, setEditor] = useState<Editor | null>(() =>
     initialEdit && canEdit ? editorFor(initialEdit.day, initialEdit.slot) : null,
   );
-  const startEdit = (day: string, slot: Slot) => {
-    setDirty(false);
+  const startEdit = (day: string, slot: Slot, recipeId?: string) => {
+    setDirty(!!recipeId);
     setSearch("");
-    setEditor(editorFor(day, slot));
+    const next = editorFor(day, slot);
+    setEditor(recipeId ? { ...next, mode: "recipe", recipeId } : next);
   };
   const change = (value: Partial<Editor>) => {
     setEditor((previous) => (previous ? { ...previous, ...value } : null));
@@ -218,14 +229,19 @@ export function WeekPlanner({
     .filter(Boolean)
     .join(", ");
 
-  const selected = recipes.find((recipe) => recipe.id === editor?.recipeId) ?? null;
-  const visible = recipes.filter((recipe) =>
-    recipe.name
-      .normalize("NFD")
-      .replace(/\p{M}/gu, "")
-      .toLowerCase()
-      .includes(search.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim()),
+  const ranked = useMemo(() => [...recipes].sort(byFavoriteAndTime), [recipes]);
+  const suggestions = useMemo(
+    () =>
+      suggestionsFor(
+        recipes,
+        new Set(meals.flatMap((meal) => (meal.recipeId ? [meal.recipeId] : []))),
+        now,
+      ),
+    [recipes, meals, now],
   );
+  const selected = recipes.find((recipe) => recipe.id === editor?.recipeId) ?? null;
+  const query = search.trim();
+  const visible = query ? ranked.filter((recipe) => matchesSearch(recipe, query)) : ranked;
   const total = editor ? editor.table + editor.lunchbox : 0;
   const portionsHint = (() => {
     if (editor?.mode !== "recipe") return "";
@@ -295,13 +311,76 @@ export function WeekPlanner({
     });
   };
 
+  const repeat = () =>
+    startTransition(async () => {
+      const result = await catchActionResult(() => repeatWeekAction({ week }));
+      if (!result.ok) toast.error("Não foi possível repetir a semana.");
+      else
+        toast.success(
+          result.value
+            ? `${result.value} ${result.value === 1 ? "refeição copiada" : "refeições copiadas"} para os dias livres. O que já estava planejado ficou como estava.`
+            : "Nada para copiar: a semana passada não tinha refeições nos dias livres.",
+        );
+    });
+
   const disabled = !hydrated || pending;
+  const listPath = `/compras?week=${week}${firstWeek ? "&primeira=1" : ""}`;
+  const openList = () =>
+    // Without planning access the list that exists can still be opened, not rebuilt.
+    list === "fresh" || !canPlan
+      ? router.push(listPath)
+      : startTransition(async () => {
+          const result = await catchActionResult(() => generateShoppingAction({ week }));
+          if (!result.ok) toast.error("Não foi possível montar a lista.");
+          else router.push(listPath);
+        });
+  const listLabel = pending
+    ? "Um instante…"
+    : list === "fresh" || !canPlan
+      ? "Abrir a lista do mercado"
+      : list === "stale"
+        ? "Atualizar a lista do mercado"
+        : "Montar a lista do mercado";
+  const itemsLabel = `${shopping.items} ${shopping.items === 1 ? "item" : "itens"}`;
+  const listButton = (className: string) =>
+    meals.length > 0 ? (
+      <Button
+        className={className}
+        disabled={disabled || (!canPlan && list === "none")}
+        onClick={openList}
+      >
+        {listLabel}{" "}
+        {shopping.items > 0 && !pending && (
+          <span className="rounded-full bg-primary-foreground/12 px-2 py-0.5 text-[13px] font-bold md:text-[13px]">
+            {itemsLabel}
+          </span>
+        )}
+      </Button>
+    ) : null;
+  const openDay = openDays[0] ?? null;
+  const showSuggestions = canEdit && openDay !== null && suggestions.length > 0;
 
   return (
-    <div className="space-y-5">
-      {summary && (
-        <p className="text-center text-[15px] text-muted-foreground md:text-left">{summary}.</p>
-      )}
+    <div className="space-y-4 md:space-y-6">
+      {firstWeek && <FirstWeekSteps step={2} />}
+
+      <div className="flex flex-col gap-3.5 md:flex-row md:items-end md:justify-between md:gap-6">
+        <WeekNavigation week={week} path="/semana" detail={summary || undefined} />
+        <div className="hidden shrink-0 gap-2.5 md:flex">
+          {canPlan && (
+            <Button
+              variant="outline"
+              className="min-h-12 rounded-[14px] border-[1.5px] border-input bg-transparent px-[18px] text-[15px] font-bold"
+              disabled={disabled}
+              onClick={repeat}
+            >
+              Repetir a semana passada
+            </Button>
+          )}
+          {listButton("min-h-12 rounded-[14px] px-5 text-[15px] font-extrabold")}
+        </div>
+      </div>
+      {summary && <p className="text-[15px] leading-snug text-ink-soft md:hidden">{summary}.</p>}
 
       {!canEdit && (
         <div role="status" className="space-y-2 rounded-2xl bg-muted p-4">
@@ -323,6 +402,7 @@ export function WeekPlanner({
       <ol className="divide-y divide-border md:grid md:grid-cols-7 md:gap-3 md:divide-y-0">
         {days.map((day) => {
           const isToday = day === today;
+          const editable = canEdit && day >= today;
           const lunch = meals.find((meal) => meal.day === day && meal.slot === "lunch");
           const dinner = meals.find((meal) => meal.day === day && meal.slot === "dinner");
           const previousDinner =
@@ -330,95 +410,124 @@ export function WeekPlanner({
             (day === week ? (carryOver ?? undefined) : undefined);
           const lunchbox =
             !lunch && previousDinner && previousDinner.lunchboxServings > 0 ? previousDinner : null;
-          const slotButton = (slot: Slot, meal: Meal | undefined) =>
-            meal ? (
+          const empty = !lunch && !lunchbox && !dinner;
+          const mealCell = (slot: Slot, meal: Meal) => {
+            const table = meal.servings - meal.lunchboxServings;
+            return (
               <button
                 type="button"
                 disabled={disabled || !canEdit}
                 onClick={() => startEdit(day, slot)}
                 aria-label={`${SLOT[slot]} de ${weekdayName(day)}: ${meal.label}. Trocar`}
                 className={cn(
-                  "flex min-h-12 w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default",
-                  meal.recipeId ? "border-border bg-card" : "border-transparent bg-muted",
+                  CELL,
+                  "disabled:cursor-default",
+                  meal.recipeId ? "border-border bg-card" : "border-muted bg-muted",
                   isToday && slot === "dinner" && meal.recipeId && "border-2 border-primary",
                 )}
               >
-                <span className="w-14 shrink-0 text-[11px] font-extrabold uppercase tracking-[0.06em] text-muted-foreground md:hidden">
-                  {SLOT[slot]}
-                </span>
+                <span className={cn(CELL_LABEL, "text-muted-foreground")}>{SLOT[slot]}</span>
                 <span
                   className={cn(
-                    "min-w-0 flex-1 text-[15px] leading-snug",
+                    "min-w-0 flex-1 text-[15px] leading-tight md:flex-none md:leading-[1.3]",
                     meal.recipeId ? "font-bold" : "font-semibold",
                   )}
                 >
                   {meal.label}
                 </span>
                 {meal.recipeId && (
-                  <span className="shrink-0 text-xs font-bold text-muted-foreground">
-                    {meal.servings - meal.lunchboxServings}
-                    {meal.lunchboxServings ? ` + ${meal.lunchboxServings}` : ""}
+                  <span className="shrink-0 text-xs font-bold whitespace-nowrap text-muted-foreground md:mt-auto">
+                    <span className="md:hidden">
+                      {table}
+                      {meal.lunchboxServings ? ` + ${meal.lunchboxServings}` : ""}
+                    </span>
+                    <span className="hidden md:inline">
+                      {meal.lunchboxServings
+                        ? `${table} + ${meal.lunchboxServings} ${meal.lunchboxServings === 1 ? "marmita" : "marmitas"}`
+                        : `${table} na mesa`}
+                    </span>
                   </span>
                 )}
               </button>
-            ) : null;
+            );
+          };
+          const emptyCell = (slot: Slot) =>
+            editable ? (
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => startEdit(day, slot)}
+                className={cn(EMPTY_CELL, "hidden min-h-28 rounded-2xl md:flex")}
+              >
+                + {SLOT[slot]}
+              </button>
+            ) : (
+              <span aria-hidden className="hidden min-h-28 md:block" />
+            );
           return (
             <li
               key={day}
               className={cn(
-                "grid grid-cols-[52px_1fr] gap-3 py-3 md:flex md:flex-col md:rounded-2xl md:p-2",
-                isToday && "-mx-4 bg-peach/60 px-4 md:mx-0 md:px-2",
+                "grid grid-cols-[52px_1fr] gap-3 py-3 md:flex md:flex-col md:gap-2 md:py-0",
+                isToday && "-mx-4 bg-peach/60 px-4 md:-m-1.5 md:rounded-[18px] md:p-1.5",
               )}
             >
               <div
                 className={cn(
-                  "flex flex-col text-xs font-extrabold tracking-[0.06em]",
+                  "flex flex-col text-xs font-extrabold tracking-[0.06em] md:px-0.5 md:pt-1 md:pb-2 md:tracking-[0.08em]",
                   isToday ? "text-brand-ink" : "text-muted-foreground",
                 )}
               >
                 {isToday ? "HOJE" : weekdayShort(day)}
                 <span
                   className={cn(
-                    "text-[22px] leading-tight tracking-display",
+                    "text-[22px] leading-[1.1] tracking-display md:text-[26px]",
                     isToday ? "text-brand-ink" : "text-foreground",
                   )}
                 >
                   {Number(day.slice(8))}
                 </span>
               </div>
-              <div className="flex min-w-0 flex-col gap-1.5">
-                {lunch
-                  ? slotButton("lunch", lunch)
-                  : lunchbox && (
-                      <div className="flex min-h-11 items-center gap-2.5 rounded-xl border border-peach-line bg-peach px-3 py-2 text-peach-ink">
-                        <span className="w-14 shrink-0 text-[11px] font-extrabold uppercase tracking-[0.06em] md:hidden">
-                          Almoço
-                        </span>
-                        <span className="min-w-0 flex-1 text-[14px] font-semibold leading-snug">
-                          {lunchbox.label}
-                        </span>
-                        <LunchboxIcon
-                          className="size-4 shrink-0"
-                          role="img"
-                          aria-hidden={false}
-                          aria-label="Marmita"
-                        />
-                      </div>
-                    )}
-                {slotButton("dinner", dinner)}
-                {day < today && !lunch && !lunchbox && !dinner && (
-                  <span className="flex min-h-10 items-center text-sm text-muted-foreground">
-                    Nada planejado
-                  </span>
+              <div className="flex min-w-0 flex-col gap-1.5 md:gap-2">
+                {lunch ? (
+                  mealCell("lunch", lunch)
+                ) : lunchbox ? (
+                  <div className={cn(CELL, "border-peach-line bg-peach/60 text-peach-ink")}>
+                    <span className={CELL_LABEL}>Almoço</span>
+                    <span className="min-w-0 flex-1 text-[15px] leading-tight font-semibold md:flex-none md:leading-[1.3]">
+                      {lunchbox.label}
+                    </span>
+                    <LunchboxIcon
+                      className="size-4 shrink-0 md:mt-auto"
+                      role="img"
+                      aria-hidden={false}
+                      aria-label="Marmita"
+                    />
+                  </div>
+                ) : (
+                  emptyCell("lunch")
                 )}
-                {canEdit && day >= today && ((!lunch && !lunchbox) || !dinner) && (
-                  <div className="flex flex-wrap gap-1.5">
+                {dinner ? mealCell("dinner", dinner) : emptyCell("dinner")}
+
+                {editable && empty ? (
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => startEdit(day, "dinner")}
+                    className={cn(EMPTY_CELL, "min-h-11 w-full text-[15px] md:hidden")}
+                  >
+                    <Plus className="size-[18px]" strokeWidth={2.4} aria-hidden />
+                    Planejar {weekdayName(day)}
+                  </button>
+                ) : editable && ((!lunch && !lunchbox) || !dinner) ? (
+                  // On a phone the missing meal of a planned day is a small chip.
+                  <div className="flex flex-wrap gap-1.5 md:hidden">
                     {!lunch && !lunchbox && (
                       <button
                         type="button"
                         disabled={disabled}
                         onClick={() => startEdit(day, "lunch")}
-                        className="min-h-11 rounded-xl border-[1.5px] border-dashed border-input px-3 text-sm font-bold text-muted-foreground outline-none hover:border-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                        className={cn(EMPTY_CELL, "min-h-11 px-3")}
                       >
                         + Almoço
                       </button>
@@ -428,12 +537,17 @@ export function WeekPlanner({
                         type="button"
                         disabled={disabled}
                         onClick={() => startEdit(day, "dinner")}
-                        className="min-h-11 rounded-xl border-[1.5px] border-dashed border-input px-3 text-sm font-bold text-muted-foreground outline-none hover:border-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                        className={cn(EMPTY_CELL, "min-h-11 px-3")}
                       >
                         + Jantar
                       </button>
                     )}
                   </div>
+                ) : null}
+                {day < today && empty && (
+                  <span className="flex min-h-10 items-center text-sm text-muted-foreground md:hidden">
+                    Nada planejado
+                  </span>
                 )}
               </div>
             </li>
@@ -441,55 +555,70 @@ export function WeekPlanner({
         })}
       </ol>
 
-      {canPlan && (
-        <div className="flex items-center gap-3 rounded-2xl bg-muted p-3.5 text-sm">
-          <Repeat2 className="size-5 shrink-0" aria-hidden />
-          <span className="flex-1">A semana passada também deu certo?</span>
-          <Button
-            variant="ghost"
-            className="min-h-11 font-bold underline underline-offset-4"
-            disabled={disabled}
-            onClick={() =>
-              startTransition(async () => {
-                const result = await catchActionResult(() => repeatWeekAction({ week }));
-                if (!result.ok) toast.error("Não foi possível repetir a semana.");
-                else
-                  toast.success(
-                    result.value
-                      ? `${result.value} ${result.value === 1 ? "refeição copiada" : "refeições copiadas"} para os dias livres. O que já estava planejado ficou como estava.`
-                      : "Nada para copiar: a semana passada não tinha refeições nos dias livres.",
-                  );
-              })
-            }
-          >
-            Repetir nos dias livres
-          </Button>
-        </div>
-      )}
+      <div className="space-y-3 md:hidden">
+        {canPlan && (
+          <div className="flex items-center gap-2.5 rounded-[14px] bg-muted px-3.5 py-3 text-sm leading-snug">
+            <Repeat2 className="size-[18px] shrink-0" aria-hidden />
+            <span>
+              A semana passada também deu certo?{" "}
+              <button
+                type="button"
+                className="inline-flex min-h-11 items-center font-bold underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                disabled={disabled}
+                onClick={repeat}
+              >
+                Repetir nos dias livres
+              </button>
+            </span>
+          </div>
+        )}
+        {listButton("h-14 w-full rounded-2xl text-[17px] font-extrabold")}
+      </div>
 
-      {meals.length > 0 && (
-        <Button
-          className="h-14 w-full rounded-2xl text-[17px] font-extrabold"
-          disabled={disabled || (!canPlan && list === "none")}
-          onClick={() =>
-            // Without planning access the list that exists can still be opened, not rebuilt.
-            list === "fresh" || !canPlan
-              ? router.push(`/compras?week=${week}`)
-              : startTransition(async () => {
-                  const result = await catchActionResult(() => generateShoppingAction({ week }));
-                  if (!result.ok) toast.error("Não foi possível montar a lista.");
-                  else router.push(`/compras?week=${week}`);
-                })
-          }
-        >
-          {pending
-            ? "Um instante…"
-            : list === "fresh" || !canPlan
-              ? "Abrir a lista do mercado"
-              : list === "stale"
-                ? "Atualizar a lista do mercado"
-                : "Montar a lista do mercado"}
-        </Button>
+      {(shopping.items > 0 || showSuggestions) && (
+        <div className="hidden gap-4 md:mt-2 md:grid md:grid-cols-[1.4fr_1fr]">
+          {showSuggestions && openDay ? (
+            <section
+              aria-labelledby="sugestoes"
+              className="space-y-2.5 rounded-[18px] bg-card px-5 py-[18px] ring-1 ring-border"
+            >
+              <h2 id="sugestoes" className="font-bold">
+                Para escolher {theDay(openDay)}
+              </h2>
+              <ul className="flex flex-wrap gap-2">
+                {suggestions.map(({ recipe, reason }) => (
+                  <li key={recipe.id}>
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => startEdit(openDay, "dinner", recipe.id)}
+                      className="inline-flex min-h-11 items-center rounded-full bg-muted px-3 text-sm font-bold outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {recipe.name} · {reason}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : (
+            <span aria-hidden />
+          )}
+          {shopping.items > 0 && (
+            <section
+              aria-labelledby="lista-resumo"
+              className="space-y-1.5 rounded-[18px] bg-muted px-5 py-[18px] text-[15px] leading-normal"
+            >
+              <h2 id="lista-resumo" className="font-bold">
+                Lista do mercado
+              </h2>
+              <p className="text-muted-foreground">
+                {itemsLabel} para {withRecipe} {withRecipe === 1 ? "refeição" : "refeições"}.
+                {shopping.pantry.length > 0 &&
+                  ` Na despensa: ${new Intl.ListFormat("pt-BR", { type: "conjunction" }).format(shopping.pantry)}.`}
+              </p>
+            </section>
+          )}
+        </div>
       )}
 
       <Dialog
@@ -498,22 +627,36 @@ export function WeekPlanner({
           if (!value) close();
         }}
       >
-        <DialogContent className="max-h-[92dvh] gap-4 overflow-y-auto rounded-3xl sm:max-w-lg">
+        <DialogContent
+          showCloseButton={false}
+          className="max-h-[92dvh] gap-3.5 overflow-y-auto rounded-3xl px-5 pt-2.5 pb-[22px] sm:max-w-lg sm:p-6 max-sm:top-auto max-sm:bottom-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:rounded-t-[26px] max-sm:border-x-0 max-sm:border-b-0"
+        >
           {editor && (
             <>
-              <DialogHeader className="text-left">
-                <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-brand-ink">
-                  {longDayLabel(editor.day)} · {SLOT[editor.slot]}
-                </p>
-                <DialogTitle className="text-2xl font-extrabold tracking-display">
-                  O que vai ter?
-                </DialogTitle>
-                <DialogDescription>
-                  Uma receita das suas ou uma refeição sem receita, que não entra na lista do
-                  mercado.
-                </DialogDescription>
-              </DialogHeader>
-              <fieldset className="grid grid-cols-2 rounded-xl bg-muted p-1">
+              <span aria-hidden className="mx-auto h-[5px] w-11 rounded-full bg-input sm:hidden" />
+              <div className="flex items-start justify-between gap-3">
+                <DialogHeader className="space-y-1 text-left">
+                  <p className="text-[13px] font-extrabold uppercase tracking-[0.12em] text-brand-ink">
+                    {longDayLabel(editor.day).replace(/ de \S+$/, "")} · {SLOT[editor.slot]}
+                  </p>
+                  <DialogTitle className="text-[26px] font-extrabold tracking-[-0.02em]">
+                    O que vai ter?
+                  </DialogTitle>
+                  <DialogDescription className="sr-only">
+                    Uma receita das suas ou uma refeição sem receita, que não entra na lista do
+                    mercado.
+                  </DialogDescription>
+                </DialogHeader>
+                <button
+                  type="button"
+                  onClick={close}
+                  aria-label="Fechar"
+                  className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <X className="size-[18px]" strokeWidth={2.4} aria-hidden />
+                </button>
+              </div>
+              <fieldset className="grid grid-cols-2 rounded-[14px] bg-muted p-1">
                 <legend className="sr-only">Tipo de refeição</legend>
                 {(["recipe", "free"] as const).map((mode) => (
                   <button
@@ -522,7 +665,7 @@ export function WeekPlanner({
                     aria-pressed={editor.mode === mode}
                     onClick={() => change({ mode })}
                     className={cn(
-                      "min-h-11 rounded-lg text-[15px] font-bold outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      "min-h-11 rounded-[10px] text-[15px] font-bold outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       editor.mode === mode ? "bg-card shadow-sm" : "text-muted-foreground",
                     )}
                   >
@@ -532,19 +675,19 @@ export function WeekPlanner({
               </fieldset>
 
               {editor.mode === "recipe" ? (
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   <div className="relative">
                     <Search
-                      className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
+                      className="pointer-events-none absolute top-1/2 left-3.5 size-[18px] -translate-y-1/2 text-muted-foreground"
                       aria-hidden
                     />
                     <Input
                       type="search"
                       aria-label="Buscar receita"
-                      placeholder="Buscar pelo nome"
+                      placeholder="Buscar por nome ou ingrediente"
                       value={search}
                       onChange={(event) => setSearch(event.target.value)}
-                      className="h-12 rounded-xl bg-card pl-10"
+                      className="h-12 rounded-[14px] bg-card pl-10 text-base"
                     />
                   </div>
                   {recipes.length === 0 ? (
@@ -558,79 +701,59 @@ export function WeekPlanner({
                       </Link>
                     </p>
                   ) : (
-                    <ul className="max-h-64 space-y-1.5 overflow-y-auto" aria-label="Suas receitas">
-                      {visible.map((recipe) => {
-                        const on = editor.recipeId === recipe.id;
-                        return (
-                          <li key={recipe.id}>
-                            <button
-                              type="button"
-                              aria-pressed={on}
-                              onClick={() => change({ recipeId: recipe.id })}
-                              className={cn(
-                                "flex min-h-14 w-full items-center gap-3 rounded-xl border-[1.5px] bg-card px-3 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                                on ? "border-foreground" : "border-border",
-                              )}
-                            >
-                              <span
-                                aria-hidden
-                                className={cn(
-                                  "size-[22px] shrink-0 rounded-full border-2",
-                                  on ? "border-[7px] border-foreground" : "border-input",
-                                )}
-                              />
-                              <span className="flex min-w-0 flex-1 flex-col">
-                                <span className="font-bold leading-snug">{recipe.name}</span>
-                                <span className="text-[13px] text-muted-foreground">
-                                  {choiceMeta(recipe, now)}
-                                </span>
-                              </span>
-                              {recipe.isFavorite && (
-                                <Star
-                                  className="size-4 shrink-0 fill-current text-brand-ink"
-                                  aria-label="Favorita"
-                                />
-                              )}
-                            </button>
-                          </li>
-                        );
-                      })}
-                      {visible.length === 0 && (
-                        <li className="p-3 text-sm text-muted-foreground">
-                          Nenhuma receita com esse nome.
-                        </li>
+                    <>
+                      {!query && (
+                        <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-muted-foreground">
+                          Favoritas e faz tempo
+                        </p>
                       )}
-                    </ul>
+                      <ul className="max-h-64 space-y-2 overflow-y-auto" aria-label="Suas receitas">
+                        {visible.map((recipe) => {
+                          const on = editor.recipeId === recipe.id;
+                          return (
+                            <li key={recipe.id}>
+                              <button
+                                type="button"
+                                aria-pressed={on}
+                                onClick={() => change({ recipeId: recipe.id })}
+                                className={cn(
+                                  "flex min-h-14 w-full items-center gap-3 rounded-[14px] border-[1.5px] px-3 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                                  on ? "border-foreground bg-card" : "border-border bg-card",
+                                )}
+                              >
+                                <span
+                                  aria-hidden
+                                  className={cn(
+                                    "size-[22px] shrink-0 rounded-full border-2",
+                                    on ? "border-[7px] border-foreground" : "border-input",
+                                  )}
+                                />
+                                <span className="flex min-w-0 flex-1 flex-col gap-px">
+                                  <span className="text-[15px] font-bold leading-tight">
+                                    {recipe.name}
+                                  </span>
+                                  <span className="text-[13px] text-muted-foreground">
+                                    {choiceMeta(recipe, now)}
+                                  </span>
+                                </span>
+                                {recipe.isFavorite && (
+                                  <Star
+                                    className="size-4 shrink-0 fill-current text-brand-ink"
+                                    aria-label="Favorita"
+                                  />
+                                )}
+                              </button>
+                            </li>
+                          );
+                        })}
+                        {visible.length === 0 && (
+                          <li className="p-3 text-sm text-muted-foreground">
+                            Nenhuma receita com esse nome ou ingrediente.
+                          </li>
+                        )}
+                      </ul>
+                    </>
                   )}
-                  <div className="space-y-2.5 border-t border-border pt-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="font-bold">Na mesa</span>
-                      <Stepper
-                        label="Na mesa"
-                        value={editor.table}
-                        min={editor.lunchbox > 0 ? 0 : 1}
-                        max={50}
-                        onChange={(table) => change({ table })}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="flex items-center gap-2 font-bold text-peach-ink">
-                        <LunchboxIcon className="size-[18px]" />
-                        Marmitas
-                      </span>
-                      <Stepper
-                        label="Marmitas"
-                        tone="peach"
-                        value={editor.lunchbox}
-                        min={editor.table > 0 ? 0 : 1}
-                        max={50}
-                        onChange={(lunchbox) => change({ lunchbox })}
-                      />
-                    </div>
-                    <p role="status" className="rounded-xl bg-muted p-3 text-sm leading-relaxed">
-                      {portionsHint}
-                    </p>
-                  </div>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -665,10 +788,47 @@ export function WeekPlanner({
                       />
                     </div>
                   )}
+                  <p className="text-sm leading-normal text-muted-foreground">
+                    Sem receita, a refeição não entra na lista do mercado.
+                  </p>
                 </div>
               )}
 
-              <div className="flex flex-col gap-2 border-t border-border pt-4">
+              <div className="flex flex-col gap-3 border-t border-border pt-3.5">
+                {editor.mode === "recipe" && (
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-bold">Na mesa</span>
+                      <Stepper
+                        label="Na mesa"
+                        value={editor.table}
+                        min={editor.lunchbox > 0 ? 0 : 1}
+                        max={50}
+                        onChange={(table) => change({ table })}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="flex items-center gap-2 font-bold text-peach-ink">
+                        <LunchboxIcon className="size-[18px]" />
+                        Marmitas
+                      </span>
+                      <Stepper
+                        label="Marmitas"
+                        tone="peach"
+                        value={editor.lunchbox}
+                        min={editor.table > 0 ? 0 : 1}
+                        max={50}
+                        onChange={(lunchbox) => change({ lunchbox })}
+                      />
+                    </div>
+                    <p
+                      role="status"
+                      className="rounded-xl bg-muted px-3 py-2.5 text-sm leading-snug"
+                    >
+                      {portionsHint}
+                    </p>
+                  </div>
+                )}
                 <Button
                   className="h-14 rounded-2xl text-[17px] font-extrabold"
                   disabled={disabled || !canSave}

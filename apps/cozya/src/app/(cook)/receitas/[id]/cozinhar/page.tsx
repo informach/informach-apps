@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { CookingMode } from "@/features/kitchen/components/cooking-mode";
-import { localDay } from "@/features/kitchen/dates";
+import { addDays, localDay, weekdayName } from "@/features/kitchen/dates";
 import { getCookingSession } from "@/features/kitchen/repository";
 import { findRecipeByIdForUser } from "@/features/recipes/repository";
 import { requireUserServer } from "@/lib/auth";
@@ -16,7 +16,12 @@ export default async function CookingPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ porcoes?: string; marmitas?: string; etapa?: string }>;
+  searchParams: Promise<{
+    porcoes?: string;
+    marmitas?: string;
+    etapa?: string;
+    refeicao?: string;
+  }>;
 }) {
   const [user, { id }, query] = await Promise.all([requireUserServer(), params, searchParams]);
   if (!z.string().uuid().safeParse(id).success) notFound();
@@ -47,6 +52,11 @@ export default async function CookingPage({
       note={stored?.note ?? null}
       verdict={stored?.verdict ?? null}
       startAtFeedback={query.etapa === "fim"}
+      when={{
+        meal: query.refeicao === "jantar" ? "dinner" : query.refeicao === "almoco" ? "lunch" : null,
+        today: weekdayName(localDay()),
+        tomorrow: weekdayName(addDays(localDay(), 1)),
+      }}
     />
   );
 }
