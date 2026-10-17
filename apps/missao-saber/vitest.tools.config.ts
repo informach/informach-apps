@@ -4,7 +4,7 @@ import { defineConfig } from "vitest/config";
 /* Ferramentas de autoria que precisam carregar o catálogo com os mesmos
    aliases dos testes. Rodar com `pnpm exec vitest run --config vitest.tools.config.ts`. */
 export default defineConfig({
-  esbuild: { jsx: "automatic" },
+  oxc: { jsx: { runtime: "automatic" } },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),
