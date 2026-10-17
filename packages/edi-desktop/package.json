@@ -1,0 +1,40 @@
+{
+  "name": "@informach/edi-desktop",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./main": "./src/main.ts",
+    "./preload": "./src/preload.ts",
+    "./gate-preload": "./src/gate-preload.ts",
+    "./build": "./src/build.ts",
+    "./contracts": "./src/contracts.ts",
+    "./renderer": "./src/renderer.ts",
+    "./installations": "./src/installations.ts",
+    "./installation-integrity": "./src/installation-integrity.ts",
+    "./access": "./src/access.ts",
+    "./mcp-config": "./src/mcp-config.ts",
+    "./files": "./src/files.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@informach/config": "workspace:*",
+    "@informach/edi-contracts": "workspace:*",
+    "@informach/edi-releases": "workspace:*",
+    "electron-updater": "6.8.9",
+    "proper-lockfile": "4.1.2",
+    "toml-eslint-parser": "1.0.3",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/proper-lockfile": "^4.1.4",
+    "electron": "44.8.0",
+    "electron-vite": "6.0.0",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  }
+}

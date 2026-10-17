@@ -43,7 +43,8 @@ describe("notification consent and timing", () => {
     "https://169.254.169.254/latest/meta-data",
     "https://attacker.test/push",
   ])("rejects arbitrary outbound endpoint %s", (url) =>
-    expect(isAllowedPushEndpoint(url)).toBe(false));
+    expect(isAllowedPushEndpoint(url)).toBe(false),
+  );
   it.each([
     "https://fcm.googleapis.com/fcm/send/test",
     "https://web.push.apple.com/test",

@@ -1,0 +1,22 @@
+const { test } = require("node:test");
+const assert = require("node:assert/strict");
+test("cronômetro contabiliza somente o vídeo ativo, inclusive após múltiplas pausas", async () => {
+  const { RecordingClock } = await import("../recording/clock.mjs");
+  let time = 0;
+  const clock = new RecordingClock(() => time);
+  time = 100;
+  assert.equal(clock.elapsed(), 0);
+  clock.resume();
+  time = 1100;
+  clock.pause();
+  time = 9000;
+  assert.equal(clock.elapsed(), 1000);
+  clock.pause();
+  clock.resume();
+  clock.resume();
+  time = 9500;
+  assert.equal(clock.elapsed(), 1500);
+  clock.pause();
+  time = 10000;
+  assert.equal(clock.elapsed(), 1500);
+});

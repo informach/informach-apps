@@ -13,7 +13,8 @@
     "./seeds": "./src/seeds/index.ts",
     "./subscriptions": "./src/subscriptions.ts",
     "./sweepers": "./src/sweepers.ts",
-    "./webhooks": "./src/webhooks/index.ts"
+    "./webhooks": "./src/webhooks/index.ts",
+    "./payment-facts": "./src/payment-facts.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -25,17 +26,17 @@
     "@informach/config": "workspace:*",
     "@informach/db": "workspace:*",
     "@informach/emails": "workspace:*",
-    "drizzle-orm": "^0.45.2",
-    "stripe": "^22.1.0"
+    "drizzle-orm": "^0.45.4",
+    "stripe": "22.1.0"
   },
   "devDependencies": {
-    "@types/node": "^20.17.10",
-    "dotenv": "^16.4.7",
-    "postgres": "^3.4.5",
-    "tsx": "^4.19.2",
-    "typescript": "^5.6.3",
-    "vitest": "^2.1.9",
-    "zod": "^3.24.1"
+    "@types/node": "^24.19.2",
+    "dotenv": "^16.6.1",
+    "postgres": "^3.4.9",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5",
+    "zod": "^3.25.76"
   },
   "peerDependencies": {
     "zod": "^3.24.1"

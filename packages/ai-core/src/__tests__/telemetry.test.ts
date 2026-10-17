@@ -75,7 +75,7 @@ describe("AgentRunRecorder", () => {
     const before = Date.now();
     await recorder.finish({ runId: "run-1", status: "succeeded" });
     const after = Date.now();
-    const call = (store.updateRun as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+    const call = (store.updateRun as Mock).mock.calls[0]?.[0];
     expect(call?.finishedAt).toBeInstanceOf(Date);
     expect(call?.finishedAt.getTime()).toBeGreaterThanOrEqual(before);
     expect(call?.finishedAt.getTime()).toBeLessThanOrEqual(after);
@@ -95,3 +95,5 @@ describe("calculateTokenUsage", () => {
     expect(calculateTokenUsage(0, 0).totalTokens).toBe(0);
   });
 });
+
+import type { Mock } from "vitest";

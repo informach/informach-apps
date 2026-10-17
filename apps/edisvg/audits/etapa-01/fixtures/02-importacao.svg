@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480">
+  <g id="Corpo" transform="translate(30 40)" fill="#4fe3c1">
+    <rect id="Torso" x="60" y="80" width="180" height="220" rx="16"/>
+    <circle id="Cabeca" cx="150" cy="60" r="50" fill="#ffb547"/>
+    <path id="Braco" d="M240 100 C300 60 340 100 300 180" fill="none" stroke="#9b7bff" stroke-width="12"/>
+  </g>
+  <text id="Legenda" x="40" y="440" font-size="24" fill="#15171c">EdiSVG — referência de importação</text>
+</svg>

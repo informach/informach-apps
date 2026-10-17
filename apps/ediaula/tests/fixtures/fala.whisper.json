@@ -1,0 +1,150 @@
+{
+  "transcription": [
+    {
+      "tokens": [
+        { "text": "[_BEG_]", "offsets": { "from": 0, "to": 0 }, "p": 0.931, "t_dtw": -1 },
+        { "text": " Bom", "offsets": { "from": 110, "to": 420 }, "p": 0.64, "t_dtw": 36 },
+        { "text": ",", "offsets": { "from": 420, "to": 450 }, "p": 0.946, "t_dtw": 70 },
+        { "text": " pessoal", "offsets": { "from": 810, "to": 1440 }, "p": 0.942, "t_dtw": 128 },
+        { "text": ",", "offsets": { "from": 1730, "to": 2000 }, "p": 0.97, "t_dtw": 164 },
+        { "text": " hoje", "offsets": { "from": 2020, "to": 2310 }, "p": 0.877, "t_dtw": 206 },
+        { "text": " a", "offsets": { "from": 2310, "to": 2400 }, "p": 0.969, "t_dtw": 226 },
+        { "text": " gente", "offsets": { "from": 2400, "to": 2800 }, "p": 0.993, "t_dtw": 254 },
+        { "text": " vai", "offsets": { "from": 2800, "to": 3040 }, "p": 0.993, "t_dtw": 286 },
+        { "text": " falar", "offsets": { "from": 3040, "to": 3350 }, "p": 0.983, "t_dtw": 330 },
+        { "text": " sobre", "offsets": { "from": 3540, "to": 3840 }, "p": 0.97, "t_dtw": 374 },
+        { "text": " o", "offsets": { "from": 3840, "to": 3920 }, "p": 0.973, "t_dtw": 392 },
+        { "text": " olhar", "offsets": { "from": 3920, "to": 4320 }, "p": 0.935, "t_dtw": 418 },
+        { "text": " e", "offsets": { "from": 4320, "to": 4400 }, "p": 0.989, "t_dtw": 438 },
+        { "text": " a", "offsets": { "from": 4400, "to": 4480 }, "p": 0.985, "t_dtw": 448 },
+        { "text": " esc", "offsets": { "from": 4480, "to": 4580 }, "p": 0.975, "t_dtw": 478 },
+        { "text": "uta", "offsets": { "from": 4760, "to": 4880 }, "p": 0.994, "t_dtw": 500 },
+        { "text": " dentro", "offsets": { "from": 4980, "to": 5440 }, "p": 0.976, "t_dtw": 542 },
+        { "text": " da", "offsets": { "from": 5440, "to": 5600 }, "p": 0.997, "t_dtw": 572 },
+        { "text": " sala", "offsets": { "from": 5600, "to": 5920 }, "p": 0.997, "t_dtw": 618 },
+        { "text": ".", "offsets": { "from": 5920, "to": 6230 }, "p": 0.941, "t_dtw": 706 },
+        { "text": "[_TT_312]", "offsets": { "from": 6240, "to": 6240 }, "p": 0.034, "t_dtw": -1 }
+      ]
+    },
+    {
+      "tokens": [
+        { "text": " N", "offsets": { "from": 9220, "to": 9220 }, "p": 0.989, "t_dtw": 984 },
+        { "text": "é", "offsets": { "from": 9220, "to": 9220 }, "p": 0.971, "t_dtw": 994 },
+        { "text": ",", "offsets": { "from": 9220, "to": 9220 }, "p": 0.731, "t_dtw": 1014 },
+        { "text": " então", "offsets": { "from": 9220, "to": 9220 }, "p": 0.993, "t_dtw": 1056 },
+        { "text": " antes", "offsets": { "from": 9220, "to": 9220 }, "p": 0.954, "t_dtw": 1100 },
+        { "text": " de", "offsets": { "from": 9220, "to": 9220 }, "p": 0.999, "t_dtw": 1126 },
+        { "text": " ens", "offsets": { "from": 9330, "to": 9380 }, "p": 0.998, "t_dtw": 1154 },
+        { "text": "inar", "offsets": { "from": 9380, "to": 10030 }, "p": 1, "t_dtw": 1190 },
+        { "text": ",", "offsets": { "from": 10040, "to": 10370 }, "p": 0.995, "t_dtw": 1226 },
+        { "text": " a", "offsets": { "from": 10370, "to": 10530 }, "p": 0.99, "t_dtw": 1240 },
+        { "text": " gente", "offsets": { "from": 10530, "to": 11360 }, "p": 1, "t_dtw": 1268 },
+        {
+          "text": " precisa",
+          "offsets": { "from": 11360, "to": 12520 },
+          "p": 0.998,
+          "t_dtw": 1336
+        },
+        { "text": " observ", "offsets": { "from": 12520, "to": 13510 }, "p": 0.997, "t_dtw": 1386 },
+        { "text": "ar", "offsets": { "from": 13510, "to": 13800 }, "p": 1, "t_dtw": 1440 },
+        { "text": ".", "offsets": { "from": 13980, "to": 14400 }, "p": 0.892, "t_dtw": 1494 },
+        { "text": "[_TT_720]", "offsets": { "from": 14400, "to": 14400 }, "p": 0.27, "t_dtw": -1 }
+      ]
+    },
+    {
+      "tokens": [
+        { "text": " Ol", "offsets": { "from": 15360, "to": 15360 }, "p": 0.998, "t_dtw": 1556 },
+        { "text": "har", "offsets": { "from": 15360, "to": 15360 }, "p": 0.999, "t_dtw": 1574 },
+        { "text": " de", "offsets": { "from": 15360, "to": 15360 }, "p": 1, "t_dtw": 1594 },
+        {
+          "text": " verdade",
+          "offsets": { "from": 15470, "to": 15790 },
+          "p": 0.999,
+          "t_dtw": 1644
+        },
+        { "text": " pra", "offsets": { "from": 16170, "to": 16360 }, "p": 0.768, "t_dtw": 1676 },
+        { "text": " tur", "offsets": { "from": 16450, "to": 16710 }, "p": 0.992, "t_dtw": 1708 },
+        { "text": "ma", "offsets": { "from": 16710, "to": 16800 }, "p": 1, "t_dtw": 1730 },
+        { "text": ".", "offsets": { "from": 17090, "to": 17320 }, "p": 0.999, "t_dtw": 1804 },
+        { "text": "[_TT_866]", "offsets": { "from": 17320, "to": 17320 }, "p": 0.583, "t_dtw": -1 }
+      ]
+    },
+    {
+      "tokens": [
+        { "text": " Quem", "offsets": { "from": 18980, "to": 18980 }, "p": 0.998, "t_dtw": 1914 },
+        { "text": " está", "offsets": { "from": 18980, "to": 18980 }, "p": 0.997, "t_dtw": 1950 },
+        {
+          "text": " particip",
+          "offsets": { "from": 19090, "to": 19400 },
+          "p": 0.999,
+          "t_dtw": 2002
+        },
+        { "text": "ando", "offsets": { "from": 19400, "to": 19920 }, "p": 1, "t_dtw": 2054 },
+        { "text": ",", "offsets": { "from": 20070, "to": 20180 }, "p": 0.784, "t_dtw": 2082 },
+        { "text": " quem", "offsets": { "from": 20180, "to": 20420 }, "p": 0.999, "t_dtw": 2116 },
+        { "text": " está", "offsets": { "from": 20710, "to": 21220 }, "p": 0.999, "t_dtw": 2160 },
+        { "text": "?", "offsets": { "from": 21220, "to": 21620 }, "p": 0.81, "t_dtw": 2214 },
+        { "text": "[_TT_1081]", "offsets": { "from": 21620, "to": 21620 }, "p": 0.565, "t_dtw": -1 }
+      ]
+    },
+    {
+      "tokens": [
+        { "text": " Quem", "offsets": { "from": 22580, "to": 22580 }, "p": 1, "t_dtw": 2286 },
+        { "text": " está", "offsets": { "from": 22580, "to": 22580 }, "p": 0.997, "t_dtw": 2322 },
+        {
+          "text": " particip",
+          "offsets": { "from": 22690, "to": 23470 },
+          "p": 0.999,
+          "t_dtw": 2374
+        },
+        { "text": "ando", "offsets": { "from": 23470, "to": 23930 }, "p": 1, "t_dtw": 2430 },
+        { "text": "?", "offsets": { "from": 23930, "to": 24020 }, "p": 0.998, "t_dtw": 2484 },
+        { "text": "[_TT_1215]", "offsets": { "from": 24300, "to": 24300 }, "p": 0.491, "t_dtw": -1 }
+      ]
+    },
+    {
+      "tokens": [
+        { "text": " Quem", "offsets": { "from": 25340, "to": 25340 }, "p": 1, "t_dtw": 2560 },
+        { "text": " ficou", "offsets": { "from": 25450, "to": 25510 }, "p": 1, "t_dtw": 2606 },
+        { "text": " de", "offsets": { "from": 25510, "to": 25770 }, "p": 1, "t_dtw": 2628 },
+        { "text": " fora", "offsets": { "from": 25780, "to": 26320 }, "p": 0.999, "t_dtw": 2672 },
+        { "text": "?", "offsets": { "from": 26430, "to": 26730 }, "p": 1, "t_dtw": 2732 },
+        { "text": "[_TT_1337]", "offsets": { "from": 26740, "to": 26740 }, "p": 0.8, "t_dtw": -1 }
+      ]
+    },
+    {
+      "tokens": [
+        { "text": "[_BEG_]", "offsets": { "from": 28740, "to": 28740 }, "p": 0.99, "t_dtw": -1 },
+        { "text": " E", "offsets": { "from": 28840, "to": 28840 }, "p": 0.987, "t_dtw": 2944 },
+        { "text": " isso", "offsets": { "from": 28850, "to": 29170 }, "p": 0.995, "t_dtw": 2974 },
+        { "text": " vale", "offsets": { "from": 29550, "to": 29700 }, "p": 0.999, "t_dtw": 3014 },
+        { "text": " pra", "offsets": { "from": 29830, "to": 30020 }, "p": 0.936, "t_dtw": 3040 },
+        {
+          "text": " qualquer",
+          "offsets": { "from": 30020, "to": 30880 },
+          "p": 0.997,
+          "t_dtw": 3098
+        },
+        { "text": " fa", "offsets": { "from": 30880, "to": 31090 }, "p": 0.991, "t_dtw": 3136 },
+        { "text": "ixa", "offsets": { "from": 31090, "to": 31410 }, "p": 0.998, "t_dtw": 3158 },
+        { "text": " et", "offsets": { "from": 31410, "to": 31620 }, "p": 0.996, "t_dtw": 3188 },
+        { "text": "ária", "offsets": { "from": 31620, "to": 32050 }, "p": 0.987, "t_dtw": 3220 },
+        { "text": ",", "offsets": { "from": 32050, "to": 32080 }, "p": 0.998, "t_dtw": 3244 },
+        { "text": " tipo", "offsets": { "from": 32280, "to": 32690 }, "p": 0.989, "t_dtw": 3296 },
+        { "text": ",", "offsets": { "from": 32690, "to": 32970 }, "p": 0.998, "t_dtw": 3320 },
+        { "text": " do", "offsets": { "from": 32980, "to": 33130 }, "p": 0.978, "t_dtw": 3346 },
+        { "text": " infant", "offsets": { "from": 33130, "to": 33590 }, "p": 0.993, "t_dtw": 3376 },
+        { "text": "il", "offsets": { "from": 33590, "to": 33740 }, "p": 0.999, "t_dtw": 3410 },
+        { "text": " ao", "offsets": { "from": 33740, "to": 33840 }, "p": 0.997, "t_dtw": 3430 },
+        {
+          "text": " fundamental",
+          "offsets": { "from": 33910, "to": 34730 },
+          "p": 0.999,
+          "t_dtw": 3496
+        },
+        { "text": ".", "offsets": { "from": 34730, "to": 34970 }, "p": 0.987, "t_dtw": 3496 },
+        { "text": "[_TT_312]", "offsets": { "from": 34980, "to": 34980 }, "p": 0.629, "t_dtw": -1 }
+      ]
+    }
+  ]
+}

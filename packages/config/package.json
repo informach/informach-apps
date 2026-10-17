@@ -9,12 +9,15 @@
     ".": "./src/index.ts",
     "./apps": "./src/apps.ts",
     "./products": "./src/products.ts",
-    "./domains": "./src/domains.ts"
+    "./domains": "./src/domains.ts",
+    "./edi-tools": "./src/edi-tools.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "devDependencies": {
-    "typescript": "^5.6.3"
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
   }
 }

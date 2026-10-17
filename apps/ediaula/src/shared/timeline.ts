@@ -1,0 +1,437 @@
+import { AVATAR_FADE, defaultTransformFor } from "./compose.ts";
+import { transformAt } from "./keyframes.ts";
+import type { Asset, Clip, Project, ProjectSettings, Track } from "./types.ts";
+
+/** Shortest clip the editor allows, in seconds. */
+export const MIN_CLIP = 1 / 30;
+const EPS = 1e-6;
+
+export const clipEnd = (c: Clip): number => c.start + c.duration;
+
+/** Move the unlocked clips starting at/after the playhead as one block. */
+export function rippleMoveFrom(
+  clips: Clip[],
+  tracks: Track[],
+  at: number,
+  delta: number,
+): { clips: Clip[]; delta: number } {
+  if (!Number.isFinite(at) || !Number.isFinite(delta)) return { clips, delta: 0 };
+  const unlocked = new Set(tracks.filter((t) => !t.locked).map((t) => t.id));
+  const moving = new Set(
+    clips.filter((c) => unlocked.has(c.trackId) && c.start >= at - EPS).map((c) => c.id),
+  );
+  if (!moving.size) return { clips, delta: 0 };
+  let minimum = -Math.max(0, at);
+  for (const c of clips) {
+    if (!moving.has(c.id)) continue;
+    minimum = Math.max(minimum, -c.start);
+    for (const other of clips) {
+      if (other.trackId === c.trackId && !moving.has(other.id)) {
+        minimum = Math.max(minimum, Math.min(0, clipEnd(other) - c.start));
+      }
+    }
+  }
+  const applied = Math.max(minimum, delta);
+  return {
+    clips:
+      applied === 0
+        ? clips
+        : clips.map((c) => (moving.has(c.id) ? { ...c, start: c.start + applied } : c)),
+    delta: applied,
+  };
+}
+
+/** Playback speed of a clip (2 = twice as fast); 1 when not set. */
+export const clipSpeed = (c: Pick<Clip, "speed">): number => c.speed ?? 1;
+/** Source time (seconds of the original file) shown at timeline time `t`. */
+export const sourceAt = (c: Pick<Clip, "start" | "in" | "speed">, t: number): number =>
+  c.in + (t - c.start) * clipSpeed(c);
+/** Timeline time at which source time `src` shows. */
+export const timelineAt = (c: Pick<Clip, "start" | "in" | "speed">, src: number): number =>
+  c.start + (src - c.in) / clipSpeed(c);
+/** End of the clip's stretch of the source. */
+export const sourceEnd = (c: Pick<Clip, "in" | "duration" | "speed">): number =>
+  c.in + c.duration * clipSpeed(c);
+
+export const SPEED_MIN = 0.25;
+export const SPEED_MAX = 8;
+
+/** Seconds, mm:ss or hh:mm:ss, with decimal seconds (comma or dot). */
+export function parseDuration(text: string): number | null {
+  const value = text.trim().replace(",", ".");
+  if (!/^\d+(?::\d{1,2}){0,2}(?:\.\d+)?$/.test(value)) return null;
+  const parts = value.split(":").map(Number);
+  if (parts.slice(1).some((n) => n >= 60)) return null;
+  const seconds = parts.reduce((total, n) => total * 60 + n, 0);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+}
+
+/** Same source footage, played in the requested total duration. */
+export function speedForDuration(clips: Clip[], seconds: number): number | null {
+  if (!clips.length || !Number.isFinite(seconds) || seconds <= 0) return null;
+  const speed = clips.reduce((sum, c) => sum + c.duration * clipSpeed(c), 0) / seconds;
+  if (
+    speed < SPEED_MIN ||
+    speed > SPEED_MAX ||
+    clips.some((c) => (c.duration * clipSpeed(c)) / speed < MIN_CLIP)
+  )
+    return null;
+  return speed;
+}
+
+/** Insert a silent still on this track and resume the original footage after it. */
+export function extendFrame(
+  clips: Clip[],
+  id: string,
+  at: number,
+  seconds: number,
+  stillAssetId: string,
+): { clips: Clip[]; stillId: string } {
+  const c = clips.find((x) => x.id === id);
+  if (
+    !c ||
+    !Number.isFinite(at) ||
+    at < c.start ||
+    at > clipEnd(c) ||
+    !Number.isFinite(seconds) ||
+    seconds < MIN_CLIP
+  )
+    throw new Error("Tempo de extensão inválido.");
+  const local = at - c.start;
+  const stillId = newId("c");
+  const still: Clip = {
+    id: stillId,
+    assetId: stillAssetId,
+    trackId: c.trackId,
+    start: at,
+    in: 0,
+    duration: seconds,
+    volume: 0,
+    transform: transformAt(c, at),
+  };
+  const out = clips
+    .filter((x) => x.id !== id)
+    .map((x) =>
+      x.trackId === c.trackId && x.start >= at - EPS ? { ...x, start: x.start + seconds } : x,
+    );
+  if (local > EPS) out.push({ ...c, duration: local, fadeOut: undefined, exit: undefined });
+  else Object.assign(still, { transition: c.transition });
+  out.push(still);
+  if (clipEnd(c) - at > EPS)
+    out.push({
+      ...c,
+      id: local > EPS ? newId("c") : c.id,
+      start: at + seconds,
+      in: sourceAt(c, at),
+      duration: clipEnd(c) - at,
+      fadeIn: undefined,
+      enter: undefined,
+      transition: undefined,
+      keyframes: c.keyframes?.map((k) => ({ ...k, t: k.t - local })),
+    });
+  return { clips: out, stillId };
+}
+
+/**
+ * Changes a clip's speed keeping the same stretch of the source: faster makes it shorter, slower
+ * longer. With `ripple` the clips after it on its track move by the difference (nothing is covered
+ * and no gap is left); without it, a longer clip covers what follows. Movement keyframes stretch along.
+ */
+export function setClipSpeed(clips: Clip[], id: string, speed: number, ripple: boolean): Clip[] {
+  const c = clips.find((x) => x.id === id);
+  if (!c || !Number.isFinite(speed)) return clips;
+  const s = Math.min(SPEED_MAX, Math.max(SPEED_MIN, speed));
+  const k = clipSpeed(c) / s;
+  const duration = Math.max(MIN_CLIP, c.duration * k);
+  const delta = duration - c.duration;
+  const { speed: _old, ...rest } = c;
+  const changed: Clip = {
+    ...rest,
+    duration,
+    ...(Math.abs(s - 1) < 1e-12 ? {} : { speed: s }),
+    ...(c.keyframes?.length ? { keyframes: c.keyframes.map((f) => ({ ...f, t: f.t * k })) } : {}),
+  };
+  const others = clips.filter((x) => x.id !== id);
+  if (ripple)
+    return [
+      ...others.map((x) =>
+        x.trackId === c.trackId && x.start >= clipEnd(c) - EPS
+          ? { ...x, start: Math.max(0, x.start + delta) }
+          : x,
+      ),
+      changed,
+    ];
+  return placeClips(others, [changed]);
+}
+
+export function projectDuration(p: Pick<Project, "clips">): number {
+  let end = 0;
+  for (const c of p.clips) end = Math.max(end, clipEnd(c));
+  return end;
+}
+
+export function newId(prefix = ""): string {
+  return prefix + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+}
+
+/**
+ * Clears [start, end) on a track, trimming, splitting or removing clips that overlap it
+ * (Premiere-style overwrite). Clips listed in `except` are left untouched.
+ */
+export function overwriteRange(
+  clips: Clip[],
+  trackId: string,
+  start: number,
+  end: number,
+  except: Set<string> = new Set(),
+): Clip[] {
+  const out: Clip[] = [];
+  for (const c of clips) {
+    const cEnd = clipEnd(c);
+    if (c.trackId !== trackId || except.has(c.id) || cEnd <= start + EPS || c.start >= end - EPS) {
+      out.push(c);
+      continue;
+    }
+    if (c.start < start - EPS) {
+      out.push({ ...c, duration: start - c.start });
+    }
+    if (cEnd > end + EPS) {
+      const cut = end - c.start;
+      out.push({
+        ...c,
+        id: c.start < start - EPS ? newId("c") : c.id,
+        start: end,
+        in: c.in + cut * clipSpeed(c),
+        duration: cEnd - end,
+      });
+    }
+  }
+  return out;
+}
+
+/** Splits a clip at timeline time `t`. Returns null when `t` is not strictly inside the clip. */
+export function splitClip(c: Clip, t: number): [Clip, Clip] | null {
+  if (t <= c.start + MIN_CLIP || t >= clipEnd(c) - MIN_CLIP) return null;
+  // The fade-in stays with the first part and the fade-out with the second.
+  const left = { ...c, duration: t - c.start, fadeOut: undefined };
+  const right = {
+    ...c,
+    id: newId("c"),
+    start: t,
+    in: sourceAt(c, t),
+    duration: clipEnd(c) - t,
+    fadeIn: undefined,
+  };
+  return [left, right];
+}
+
+/** Splits every clip in `ids` (or every clip under the playhead when `ids` is empty) at `t`. */
+export function splitAt(
+  clips: Clip[],
+  t: number,
+  ids: Set<string>,
+  lockedTracks: Set<string> = new Set(),
+): Clip[] {
+  const out: Clip[] = [];
+  for (const c of clips) {
+    const target = (ids.size === 0 || ids.has(c.id)) && !lockedTracks.has(c.trackId);
+    const parts = target ? splitClip(c, t) : null;
+    if (parts) out.push(...parts);
+    else out.push(c);
+  }
+  return out;
+}
+
+/** Removes clips and closes the gap they leave on their own track. */
+export function rippleDelete(clips: Clip[], ids: Set<string>): Clip[] {
+  const removed = clips.filter((c) => ids.has(c.id));
+  let out = clips.filter((c) => !ids.has(c.id));
+  // Process from the latest removed clip backwards so earlier shifts don't disturb later ranges.
+  removed.sort((a, b) => b.start - a.start);
+  for (const r of removed) {
+    out = out.map((c) =>
+      c.trackId === r.trackId && c.start >= clipEnd(r) - EPS
+        ? { ...c, start: Math.max(0, c.start - r.duration) }
+        : c,
+    );
+  }
+  return out;
+}
+
+/** Packs all clips of a track back-to-back from their first position, removing every gap. */
+export function closeGaps(clips: Clip[], trackId: string): Clip[] {
+  const on = clips.filter((c) => c.trackId === trackId).sort((a, b) => a.start - b.start);
+  const moved = new Map<string, number>();
+  let cursor = 0;
+  for (const c of on) {
+    moved.set(c.id, cursor);
+    cursor += c.duration;
+  }
+  return clips.map((c) => (moved.has(c.id) ? { ...c, start: moved.get(c.id)! } : c));
+}
+
+/** Returns the candidate closest to `t` within `threshold`, or `t` itself. */
+export function snapTime(
+  t: number,
+  candidates: number[],
+  threshold: number,
+): { time: number; snapped: boolean } {
+  let best = t;
+  let bestDist = threshold;
+  for (const c of candidates) {
+    const d = Math.abs(c - t);
+    if (d < bestDist) {
+      best = c;
+      bestDist = d;
+    }
+  }
+  return { time: best, snapped: best !== t };
+}
+
+/** Maximum source length available to a clip (Infinity for still images). */
+export function sourceLength(asset: Asset | undefined): number {
+  if (!asset || asset.kind === "image" || asset.duration <= 0) return Infinity;
+  return asset.duration;
+}
+
+/** Applies a trim of one edge, honouring the source bounds. */
+export function trimClip(
+  c: Clip,
+  edge: "start" | "end",
+  time: number,
+  asset: Asset | undefined,
+): Clip {
+  const srcLen = sourceLength(asset);
+  if (edge === "start") {
+    const minStart = Math.max(0, timelineAt(c, 0));
+    const maxStart = clipEnd(c) - MIN_CLIP;
+    const start = Math.min(Math.max(time, minStart), maxStart);
+    const delta = start - c.start;
+    return { ...c, start, in: Math.max(0, sourceAt(c, start)), duration: c.duration - delta };
+  }
+  const maxEnd = timelineAt(c, srcLen);
+  const end = Math.min(Math.max(time, c.start + MIN_CLIP), maxEnd);
+  return { ...c, duration: end - c.start };
+}
+
+/** Default length for still images dropped on the timeline. */
+export const IMAGE_DEFAULT_DURATION = 5;
+
+export function makeClip(
+  asset: Asset,
+  trackId: string,
+  start: number,
+  frame?: Pick<ProjectSettings, "width" | "height">,
+): Clip {
+  const duration =
+    asset.kind === "image" || asset.duration <= 0 ? IMAGE_DEFAULT_DURATION : asset.duration;
+  const clip: Clip = {
+    id: newId("c"),
+    assetId: asset.id,
+    trackId,
+    start: Math.max(0, start),
+    in: 0,
+    duration,
+    volume: 1,
+  };
+  // Avatars come in already placed beside the content, with a short dissolve.
+  const transform = frame && defaultTransformFor(asset, frame);
+  if (transform) Object.assign(clip, { transform, fadeIn: AVATAR_FADE, fadeOut: AVATAR_FADE });
+  return clip;
+}
+
+/** Places clips on the timeline, overwriting whatever was under them. */
+export function placeClips(clips: Clip[], placed: Clip[]): Clip[] {
+  const ids = new Set(placed.map((c) => c.id));
+  let out = clips.filter((c) => !ids.has(c.id));
+  for (const c of placed) out = overwriteRange(out, c.trackId, c.start, clipEnd(c), ids);
+  return [...out, ...placed];
+}
+
+/** Every track takes every kind of clip (like Camtasia); only a locked track refuses. */
+export function trackAccepts(track: Track, _asset?: Asset): boolean {
+  return !track.locked;
+}
+
+export function trackEnd(clips: Clip[], trackId: string): number {
+  let end = 0;
+  for (const c of clips) if (c.trackId === trackId) end = Math.max(end, clipEnd(c));
+  return end;
+}
+
+export function defaultTracks(): Track[] {
+  const t = (kind: Track["kind"], name: string): Track => ({
+    id: newId("t"),
+    kind,
+    name,
+    muted: false,
+    hidden: false,
+    locked: false,
+  });
+  return [
+    t("video", "Faixa 4"),
+    t("video", "Faixa 3"),
+    t("audio", "Faixa 2"),
+    t("audio", "Faixa 1"),
+  ];
+}
+
+/** Labels by position, counted from the bottom like Camtasia: the top track is drawn in front. */
+export function trackLabels(tracks: Track[]): Map<string, string> {
+  return new Map(tracks.map((t, i) => [t.id, `F${tracks.length - i}`]));
+}
+
+/** A neutral name for a new track ("Faixa 5"): names do not limit what a track can hold. */
+export function newTrackName(tracks: Track[]): string {
+  let n = tracks.length + 1;
+  while (tracks.some((t) => t.name === `Faixa ${n}`)) n++;
+  return `Faixa ${n}`;
+}
+
+/**
+ * Pastes copied clips with the earliest one starting at `at`, keeping their spacing. Each goes back
+ * to its own track when that stretch is free; otherwise to the first free track above it, or to a
+ * new track right above it (like Camtasia), so pasting never covers what is already there.
+ */
+export function pasteClips(
+  tracks: Track[],
+  clips: Clip[],
+  copied: Clip[],
+  at: number,
+): { tracks: Track[]; clips: Clip[]; ids: string[] } {
+  if (!copied.length) return { tracks, clips, ids: [] };
+  const shift = at - Math.min(...copied.map((c) => c.start));
+  let outTracks = tracks;
+  let outClips = clips;
+  const ids: string[] = [];
+  const free = (trackId: string, start: number, end: number): boolean =>
+    !outClips.some((c) => c.trackId === trackId && c.start < end - EPS && clipEnd(c) > start + EPS);
+  for (const c of [...copied].sort((a, b) => a.start - b.start)) {
+    const start = Math.max(0, c.start + shift);
+    const end = start + c.duration;
+    const home = outTracks.findIndex((t) => t.id === c.trackId);
+    let track =
+      home < 0
+        ? undefined
+        : outTracks
+            .slice(0, home + 1)
+            .reverse()
+            .find((t) => !t.locked && free(t.id, start, end));
+    if (!track) {
+      track = {
+        id: newId("t"),
+        kind: home < 0 ? "video" : outTracks[home].kind,
+        name: newTrackName(outTracks),
+        muted: false,
+        hidden: false,
+        locked: false,
+      };
+      const i = Math.max(0, home);
+      outTracks = [...outTracks.slice(0, i), track, ...outTracks.slice(i)];
+    }
+    const id = newId("c");
+    ids.push(id);
+    outClips = [...outClips, { ...structuredClone(c), id, trackId: track.id, start }];
+  }
+  return { tracks: outTracks, clips: outClips, ids };
+}

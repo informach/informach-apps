@@ -66,9 +66,9 @@ const dbDeleteChain = {
 };
 const dbUpdateChain: {
   rows: Array<Record<string, unknown>>;
-  set: ReturnType<typeof vi.fn>;
-  where: ReturnType<typeof vi.fn>;
-  returning: ReturnType<typeof vi.fn>;
+  set: Mock;
+  where: Mock;
+  returning: Mock;
 } = {
   rows: [],
   set: vi.fn(() => dbUpdateChain),
@@ -79,9 +79,9 @@ const dbUpdateChain: {
 // Tests reset `dbSelectChain.rows` to control the return value.
 const dbSelectChain: {
   rows: Array<Record<string, unknown>>;
-  from: ReturnType<typeof vi.fn>;
+  from: Mock;
   where: ReturnType<typeof vi.fn>;
-  limit: ReturnType<typeof vi.fn>;
+  limit: Mock;
 } = {
   rows: [],
   from: vi.fn(() => dbSelectChain),
@@ -243,8 +243,8 @@ function captureConfig(): CapturedBetterAuthOptions {
 
 function makeConfig(
   overrides: {
-    sendEmail?: ReturnType<typeof vi.fn>;
-    renderTemplate?: ReturnType<typeof vi.fn>;
+    sendEmail?: Mock;
+    renderTemplate?: Mock;
     disableSignup?: boolean;
     cookieCacheMaxAge?: number;
     organizationsEnabled?: boolean;
@@ -595,7 +595,13 @@ describe("createAuth — rate limit", () => {
   });
 
   it("switches storage to secondary-storage when secondaryStorage is provided", () => {
-    const secondary = { get: vi.fn(), set: vi.fn(), delete: vi.fn() };
+    const secondary = {
+      get: vi.fn(),
+      set: vi.fn(),
+      delete: vi.fn(),
+      getAndDelete: vi.fn(),
+      increment: vi.fn(),
+    };
     createAuth({ ...makeConfig(), secondaryStorage: secondary });
     expect(captureConfig().rateLimit?.storage).toBe("secondary-storage");
   });
@@ -637,7 +643,13 @@ describe("createAuth — secondaryStorage passthrough", () => {
   });
 
   it("passes the secondaryStorage instance through to betterAuth", () => {
-    const secondary = { get: vi.fn(), set: vi.fn(), delete: vi.fn() };
+    const secondary = {
+      get: vi.fn(),
+      set: vi.fn(),
+      delete: vi.fn(),
+      getAndDelete: vi.fn(),
+      increment: vi.fn(),
+    };
     createAuth({ ...makeConfig(), secondaryStorage: secondary });
     expect(captureConfig().secondaryStorage).toBe(secondary);
   });
@@ -1286,7 +1298,7 @@ describe("createAuth — role/ban management helpers", () => {
 
   function mockCurrentSession(user: { id: string; role: string }) {
     const authInstance = mockedBetterAuth.mock.results.at(-1)?.value as {
-      api: { getSession: ReturnType<typeof vi.fn> };
+      api: { getSession: Mock };
     };
     authInstance.api.getSession.mockResolvedValue({ user, session: { id: "s1" } });
   }
@@ -1864,3 +1876,5 @@ describe("createAuth — return shape", () => {
     expect(typeof result.setUserBanState).toBe("function");
   });
 });
+
+import type { Mock } from "vitest";

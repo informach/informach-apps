@@ -4,6 +4,8 @@ node_modules/
 # Build output
 .next/
 dist/
+out/
+release/
 .turbo/
 *.tsbuildinfo
 next-env.d.ts

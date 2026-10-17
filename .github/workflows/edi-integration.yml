@@ -1,0 +1,55 @@
+name: Edi database integration
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_call:
+    inputs:
+      source_ref:
+        description: Exact source version under verification
+        required: false
+        type: string
+permissions:
+  contents: read
+jobs:
+  database:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18.4
+        env:
+          POSTGRES_USER: edi_check
+          POSTGRES_PASSWORD: disposable-ci-password
+          POSTGRES_DB: edi_integration
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U edi_check -d edi_integration"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://edi_check:disposable-ci-password@127.0.0.1:5432/edi_integration
+      EDI_ISOLATED_DATABASE: "1"
+      NEXT_PUBLIC_APP_URL: https://edi.example.test
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ inputs.source_ref || github.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Apply the complete migration history to the disposable database
+        run: pnpm --filter @informach/db db:migrate
+      - name: Verify desktop OAuth, device transactions and billing concurrency
+        run: pnpm --workspace-concurrency=1 --filter @informach/auth --filter @informach/edi-licensing --filter @informach/edi test:integration
+      - name: Build the actual standalone portal and OAuth deployment command
+        run: pnpm build:edi
+      - name: Verify standalone assets, authentication, OAuth and disabled billing over HTTP
+        run: pnpm exec node scripts/edi/test-portal.mts

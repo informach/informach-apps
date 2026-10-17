@@ -337,7 +337,7 @@ Crons seguem o mesmo padrão (Bearer + invoke da função do `./sweepers`).
 
 ## 6. Testes
 
-Vitest 2.1.9 em `src/__tests__/`:
+Vitest 5.0.5 em `src/__tests__/`, com JSX automático via Oxc/Vite 8. Renderização atual: `@react-email/components@1.0.12` e `@react-email/render@2.1.1`. Ao atualizar o renderer, revisar conteúdo, links e HTML dos snapshots, não apenas aceitá-los novamente.
 
 | Arquivo | Cobertura |
 |---|---|

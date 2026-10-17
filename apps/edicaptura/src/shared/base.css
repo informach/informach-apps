@@ -1,0 +1,152 @@
+:root {
+  font-family: Inter, "Segoe UI", sans-serif;
+  color: #202733;
+  background: #f5f6f8;
+  font-synthesis: none;
+  font-size: 13px;
+  color-scheme: light;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+  border: 1px solid #dfe4eb;
+  border-radius: 6px;
+  background: #fff;
+  color: inherit;
+  padding: 9px 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+button:hover {
+  background: #eef3fc;
+  border-color: #bbcbe4;
+}
+button:active {
+  transform: translateY(1px);
+}
+button:disabled {
+  opacity: 0.42;
+  cursor: default;
+  transform: none;
+}
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid #0062ff;
+  outline-offset: 3px;
+}
+.primary {
+  background: #0062ff;
+  border-color: #0062ff;
+  color: white;
+}
+.primary:hover {
+  background: #0052da;
+  color: white;
+}
+.danger {
+  color: #d43e4c;
+}
+svg {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+}
+input,
+select {
+  border: 1px solid #dce2ea;
+  border-radius: 5px;
+  padding: 8px;
+  background: #fff;
+  color: #202733;
+  min-width: 0;
+}
+input[type="range"] {
+  accent-color: #0062ff;
+  padding: 0;
+}
+input[type="color"] {
+  padding: 2px;
+  height: 32px;
+  width: 42px;
+}
+.muted {
+  color: #758194;
+}
+.spacer {
+  flex: 1;
+}
+.icon-button {
+  padding: 9px;
+}
+.hidden,
+[hidden] {
+  display: none !important;
+}
+.toast {
+  position: fixed;
+  bottom: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1f2d42;
+  color: #fff;
+  box-shadow: 0 8px 28px #14243b30;
+  padding: 13px 22px;
+  border-radius: 8px;
+  max-width: 80vw;
+  z-index: 100;
+  white-space: pre-wrap;
+}
+.toast.error {
+  background: #9e2839;
+}
+kbd {
+  font-family: inherit;
+  font-size: 11px;
+  border: 1px solid #dce2ea;
+  border-radius: 4px;
+  padding: 3px 6px;
+  color: #6b7789;
+}
+dialog {
+  border: 1px solid #e0e5ee;
+  border-radius: 12px;
+  padding: 26px;
+  color: #202733;
+  max-width: 480px;
+  box-shadow: 0 20px 80px #0a162b33;
+}
+dialog::backdrop {
+  background: #0f1b3555;
+}
+dialog form {
+  display: grid;
+  gap: 16px;
+}
+dialog h2 {
+  margin: 0;
+}
+dialog footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+dialog input {
+  width: 100%;
+}
+dialog p {
+  line-height: 1.6;
+}

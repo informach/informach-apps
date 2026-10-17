@@ -1,0 +1,165 @@
+name: Edi pilot release
+on:
+  push:
+    tags: ["edi-v*"]
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing Edi version tag on main
+        required: true
+        type: string
+concurrency:
+  group: edi-release-publication
+  cancel-in-progress: false
+permissions:
+  contents: read
+env:
+  EDI_RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
+  EDI_COMMERCIAL_BUILD: "true"
+jobs:
+  database:
+    if: startsWith(inputs.tag || github.event.release.tag_name || github.ref_name, 'edi-v')
+    uses: ./.github/workflows/edi-integration.yml
+    with:
+      source_ref: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
+  review:
+    if: startsWith(inputs.tag || github.event.release.tag_name || github.ref_name, 'edi-v')
+    runs-on: ubuntu-24.04
+    environment: edi-release
+    outputs:
+      applications: ${{ steps.catalog.outputs.applications }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.EDI_RELEASE_TAG }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require reviewed main ancestry
+        run: git merge-base --is-ancestor HEAD origin/main
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Block release on unresolved production dependency advisories
+        run: pnpm audit --prod
+      - name: Validate protected environment before generating installers
+        run: pnpm exec tsx scripts/edi/prepare-runner.mts --check-secrets --check-portal
+        env:
+          EDI_PORTAL_URL: ${{ vars.EDI_PORTAL_URL }}
+          EDI_DESKTOP_CLIENT_ID: ${{ vars.EDI_DESKTOP_CLIENT_ID }}
+          EDI_LICENSE_PUBLIC_KEYS: ${{ vars.EDI_LICENSE_PUBLIC_KEYS }}
+          EDI_DISTRIBUTION_REPOSITORY: ${{ vars.EDI_DISTRIBUTION_REPOSITORY }}
+          EDI_UPDATE_PUBLIC_KEYS: ${{ vars.EDI_UPDATE_PUBLIC_KEYS }}
+          EDI_UPDATE_SIGNING_KEY_ID: ${{ vars.EDI_UPDATE_SIGNING_KEY_ID }}
+          EDI_HAS_UPDATE_SIGNING_KEY: ${{ secrets.EDI_UPDATE_SIGNING_PRIVATE_KEY != '' }}
+          EDI_HAS_DISTRIBUTION_TOKEN: ${{ secrets.EDI_DISTRIBUTION_TOKEN != '' }}
+      - run: pnpm check
+      - run: pnpm typecheck
+      - run: pnpm test
+      - name: Discover applications from the suite catalog
+        id: catalog
+        run: pnpm exec tsx -e 'import { EDI_DESKTOP_APPS } from "./packages/config/src/edi-tools.ts"; console.log("applications=" + JSON.stringify(EDI_DESKTOP_APPS.map(app => app.id)))' >> "$GITHUB_OUTPUT"
+  installers:
+    needs: [review, database]
+    environment: edi-release
+    runs-on: windows-2025
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        app: ${{ fromJSON(needs.review.outputs.applications) }}
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.EDI_RELEASE_TAG }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require reviewed main ancestry
+        run: git merge-base --is-ancestor HEAD origin/main
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Load protected public configuration at runner time
+        run: pnpm exec tsx scripts/edi/prepare-runner.mts
+        env:
+          EDI_PORTAL_URL: ${{ vars.EDI_PORTAL_URL }}
+          EDI_DESKTOP_CLIENT_ID: ${{ vars.EDI_DESKTOP_CLIENT_ID }}
+          EDI_LICENSE_PUBLIC_KEYS: ${{ vars.EDI_LICENSE_PUBLIC_KEYS }}
+          EDI_DISTRIBUTION_REPOSITORY: ${{ vars.EDI_DISTRIBUTION_REPOSITORY }}
+          EDI_UPDATE_PUBLIC_KEYS: ${{ vars.EDI_UPDATE_PUBLIC_KEYS }}
+          EDI_UPDATE_SIGNING_KEY_ID: ${{ vars.EDI_UPDATE_SIGNING_KEY_ID }}
+      - name: Pin source provenance
+        shell: pwsh
+        run: '"EDI_SOURCE_COMMIT=$(git rev-parse HEAD)" >> $env:GITHUB_ENV'
+      - name: Verify native license lifecycle with isolated profiles
+        run: pnpm edi:test:native ${{ matrix.app }}
+      - name: Preserve native verification screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: edi-native-${{ matrix.app }}
+          path: .cache/edi-native-results/*.png
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 7
+      - name: Build, sign inventory and install-test
+        run: pnpm edi:installer ${{ matrix.app }}
+        env:
+          EDI_UPDATE_SIGNING_PRIVATE_KEY: ${{ secrets.EDI_UPDATE_SIGNING_PRIVATE_KEY }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: edi-installer-${{ matrix.app }}
+          path: |
+            .cache/edi-release/*/${{ matrix.app }}/*.exe
+            .cache/edi-release/*/${{ matrix.app }}/*.artifact.json
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 7
+          compression-level: 0
+  publish:
+    needs: installers
+    environment: edi-release
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.EDI_RELEASE_TAG }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Load protected public configuration at runner time
+        run: pnpm exec tsx scripts/edi/prepare-runner.mts
+        env:
+          EDI_PORTAL_URL: ${{ vars.EDI_PORTAL_URL }}
+          EDI_DESKTOP_CLIENT_ID: ${{ vars.EDI_DESKTOP_CLIENT_ID }}
+          EDI_LICENSE_PUBLIC_KEYS: ${{ vars.EDI_LICENSE_PUBLIC_KEYS }}
+          EDI_DISTRIBUTION_REPOSITORY: ${{ vars.EDI_DISTRIBUTION_REPOSITORY }}
+          EDI_UPDATE_PUBLIC_KEYS: ${{ vars.EDI_UPDATE_PUBLIC_KEYS }}
+          EDI_UPDATE_SIGNING_KEY_ID: ${{ vars.EDI_UPDATE_SIGNING_KEY_ID }}
+      - name: Restore verified application artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: edi-installer-*
+          path: .cache/edi-artifacts
+      - name: Assemble suite release
+        run: |
+          echo "EDI_SOURCE_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          pnpm exec tsx scripts/edi/assemble-artifacts.mts
+      - name: Publish the complete verified suite
+        run: pnpm edi:publish
+        env:
+          EDI_UPDATE_SIGNING_PRIVATE_KEY: ${{ secrets.EDI_UPDATE_SIGNING_PRIVATE_KEY }}
+          GH_TOKEN: ${{ secrets.EDI_DISTRIBUTION_TOKEN }}

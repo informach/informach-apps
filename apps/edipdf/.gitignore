@@ -1,0 +1,6 @@
+node_modules/
+out/
+*.tsbuildinfo
+src/renderer/public/pdfjs/
+.review/
+.file-test-*/

@@ -11,15 +11,15 @@ import type { Role } from "../permissions";
 type TestUser = { id: string; email: string; role?: Role; banned?: boolean; banExpiresAt?: Date };
 type TestSession = { id: string; expiresAt: Date };
 
-function makeAuth(getSessionImpl: ReturnType<typeof vi.fn>) {
+function makeAuth(getSessionImpl: Mock) {
   return { api: { getSession: getSessionImpl } };
 }
 
 function makeOrgAuth(opts: {
   user?: TestUser | null;
-  getActiveMember?: ReturnType<typeof vi.fn>;
-  getFullOrganization?: ReturnType<typeof vi.fn>;
-  listOrganizations?: ReturnType<typeof vi.fn>;
+  getActiveMember?: Mock;
+  getFullOrganization?: Mock;
+  listOrganizations?: Mock;
 }) {
   const session = opts.user
     ? { user: opts.user, session: { id: "s1", expiresAt: new Date() } }
@@ -35,7 +35,7 @@ function makeOrgAuth(opts: {
 }
 
 describe("buildHelpers.getSession", () => {
-  let getSessionMock: ReturnType<typeof vi.fn>;
+  let getSessionMock: Mock;
 
   beforeEach(() => {
     getSessionMock = vi.fn();
@@ -317,3 +317,5 @@ describe("buildHelpers — organization helpers", () => {
     await expect(helpers.requireOrgMember(new Headers())).rejects.toBeInstanceOf(UnauthorizedError);
   });
 });
+
+import type { Mock } from "vitest";

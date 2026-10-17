@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.4.13/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
   "files": {
     "includes": [
       "**",
@@ -11,6 +11,10 @@
       "!.cache",
       "!apps/*/tmp",
       "!**/dist",
+      "!**/out",
+      "!**/release",
+      "!apps/edipdf/src/renderer/public/pdfjs",
+      "!apps/edisvg/audits/etapa-01/fixtures",
       "!**/__snapshots__",
       "!**/test-results",
       "!**/test-results-*",
@@ -29,7 +33,7 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "preset": "recommended"
     }
   },
   "formatter": {
@@ -65,6 +69,16 @@
     }
   },
   "overrides": [
+    {
+      "includes": ["apps/edifoto/src/renderer/src/engine/compositor.ts"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "useHookAtTopLevel": { "level": "error", "options": { "ignore": ["useProgram"] } }
+          }
+        }
+      }
+    },
     {
       "includes": ["apps/*/src/app/**/{opengraph-image,twitter-image}.tsx"],
       "linter": {

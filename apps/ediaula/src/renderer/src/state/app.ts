@@ -1,0 +1,135 @@
+import type { AppInfo, JobProgress } from "@shared/types";
+import { create } from "zustand";
+
+export type Tool = "select" | "cut";
+export type SideTab = "transcript" | "script" | "assistant" | "properties";
+export type LibraryFilter = "all" | "video" | "audio" | "image";
+
+export interface Job {
+  id: string;
+  label: string;
+  ratio: number;
+}
+
+export interface CleanupMark {
+  start: number;
+  end: number;
+  kind: "filler" | "silence" | "repeat";
+}
+
+export interface ProposalItem {
+  start: number;
+  end: number;
+  reason: string;
+  /** Quoted words, re-resolved if the project changed before applying. */
+  text?: string;
+  near?: number;
+}
+
+export interface Proposal {
+  title: string;
+  items: ProposalItem[];
+  revision: number;
+}
+
+export interface Toast {
+  id: number;
+  text: string;
+  tone: "info" | "error" | "success";
+}
+
+export type LeftPanel =
+  | "media"
+  | "annotations"
+  | "templates"
+  | "transitions"
+  | "motions"
+  | "audio"
+  | "captions"
+  | "zoom";
+
+interface AppStore {
+  screen: "home" | "editor";
+  info: AppInfo | null;
+  /** Timeline zoom in pixels per second. */
+  zoom: number;
+  tool: Tool;
+  snapping: boolean;
+  sideTab: SideTab;
+  libraryFilter: LibraryFilter;
+  /** What the left panel shows. */
+  leftPanel: LeftPanel;
+  exportOpen: boolean;
+  /** Clips whose speed is being changed (the speed dialog is open). */
+  speedClips: string[] | null;
+  extendClip: string | null;
+  cursorClip: string | null;
+  /** Clips receiving copied properties (the paste-properties dialog is open). */
+  pastePropsClips: string[] | null;
+  settingsOpen: boolean;
+  jobs: Record<string, Job>;
+  toasts: Toast[];
+  /** Pending automatic cuts, drawn on the timeline while the transcript panel is open. */
+  cleanupMarks: CleanupMark[];
+  /** Timeline range of the words selected in the transcript (Delete cuts it). */
+  textCut: [number, number] | null;
+  /** Cuts suggested by the AI, waiting for the user's approval. */
+  proposal: Proposal | null;
+  /** The cut selected on the timeline (id of the clip that starts there), for transitions. */
+  junction: string | null;
+  set(partial: Partial<AppStore>): void;
+  startJob(id: string, label: string): void;
+  endJob(id: string): void;
+  toast(text: string, tone?: Toast["tone"]): void;
+}
+
+let toastId = 0;
+
+export const useApp = create<AppStore>((set, get) => ({
+  screen: "home",
+  info: null,
+  zoom: 40,
+  tool: "select",
+  snapping: true,
+  sideTab: "transcript",
+  libraryFilter: "all",
+  leftPanel: "media",
+  exportOpen: false,
+  speedClips: null,
+  extendClip: null,
+  cursorClip: null,
+  pastePropsClips: null,
+  settingsOpen: false,
+  jobs: {},
+  toasts: [],
+  cleanupMarks: [],
+  textCut: null,
+  proposal: null,
+  junction: null,
+  set: (partial) => set(partial),
+  startJob: (id, label) => set({ jobs: { ...get().jobs, [id]: { id, label, ratio: 0 } } }),
+  endJob: (id) => {
+    const jobs = { ...get().jobs };
+    delete jobs[id];
+    set({ jobs });
+  },
+  toast: (text, tone = "info") => {
+    const id = ++toastId;
+    set({ toasts: [...get().toasts, { id, text, tone }] });
+    setTimeout(
+      () => set({ toasts: get().toasts.filter((t) => t.id !== id) }),
+      tone === "error" ? 7000 : 3500,
+    );
+  },
+}));
+
+export function listenToJobs(): () => void {
+  return window.api.onProgress((p: JobProgress) => {
+    const job = useApp.getState().jobs[p.id];
+    if (job)
+      useApp.setState({ jobs: { ...useApp.getState().jobs, [p.id]: { ...job, ratio: p.ratio } } });
+  });
+}
+
+export const ZOOM_MIN = 2;
+export const ZOOM_MAX = 400;

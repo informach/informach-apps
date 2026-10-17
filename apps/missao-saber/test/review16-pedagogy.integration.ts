@@ -74,45 +74,45 @@ describe("revisão 16: continuidade e condições da avaliação", () => {
     expect(continued.interrupted).toBe(false);
   });
 
-  it.each([
-    "first",
-    "last",
-  ] as const)("persiste apoio com a resposta %s sem depender da marca separada", async (position) => {
-    const { owner, profile } = await family();
-    const session = await begin(owner, {
-      profileId: profile.id,
-      lessonId: "diagnostic:canguru-e",
-      mode: "diagnostic",
-      requestKey: randomUUID(),
-    });
-    let view = await sessionView(owner, session.id);
-    expect(view.readingSupport).toBe(false);
-    // The separate reading marker never reached the server. The answer carries
-    // the fact that audio was used, even if it is the final answer of the session.
-    const inputs = view.lesson.items.map((item, index, items) => ({
-      sessionId: session.id,
-      itemId: item.id,
-      answer: "__skip__",
-      requestKey: randomUUID(),
-      readingSupport: index === (position === "first" ? 0 : items.length - 1),
-    }));
-    for (const input of inputs) view = await answer(owner, input);
-    expect(view.completed).toBe(true);
-    expect(view.readingSupport).toBe(true);
-    const [persisted] = await db
-      .select()
-      .from(missaoSessions)
-      .where(eq(missaoSessions.id, session.id));
-    expect(persisted?.readingSupport).toBe(true);
-    expect(persisted?.completedAt).not.toBeNull();
-    const last = inputs.at(-1);
-    if (!last) throw new Error("Missing final answer");
-    // Retrying the response cannot add an attempt or erase a support declaration.
-    expect((await answer(owner, { ...last, readingSupport: false })).readingSupport).toBe(true);
-    const attempts = await db
-      .select()
-      .from(missaoAttempts)
-      .where(eq(missaoAttempts.sessionId, session.id));
-    expect(attempts).toHaveLength(inputs.length);
-  });
+  it.each(["first", "last"] as const)(
+    "persiste apoio com a resposta %s sem depender da marca separada",
+    async (position) => {
+      const { owner, profile } = await family();
+      const session = await begin(owner, {
+        profileId: profile.id,
+        lessonId: "diagnostic:canguru-e",
+        mode: "diagnostic",
+        requestKey: randomUUID(),
+      });
+      let view = await sessionView(owner, session.id);
+      expect(view.readingSupport).toBe(false);
+      // The separate reading marker never reached the server. The answer carries
+      // the fact that audio was used, even if it is the final answer of the session.
+      const inputs = view.lesson.items.map((item, index, items) => ({
+        sessionId: session.id,
+        itemId: item.id,
+        answer: "__skip__",
+        requestKey: randomUUID(),
+        readingSupport: index === (position === "first" ? 0 : items.length - 1),
+      }));
+      for (const input of inputs) view = await answer(owner, input);
+      expect(view.completed).toBe(true);
+      expect(view.readingSupport).toBe(true);
+      const [persisted] = await db
+        .select()
+        .from(missaoSessions)
+        .where(eq(missaoSessions.id, session.id));
+      expect(persisted?.readingSupport).toBe(true);
+      expect(persisted?.completedAt).not.toBeNull();
+      const last = inputs.at(-1);
+      if (!last) throw new Error("Missing final answer");
+      // Retrying the response cannot add an attempt or erase a support declaration.
+      expect((await answer(owner, { ...last, readingSupport: false })).readingSupport).toBe(true);
+      const attempts = await db
+        .select()
+        .from(missaoAttempts)
+        .where(eq(missaoAttempts.sessionId, session.id));
+      expect(attempts).toHaveLength(inputs.length);
+    },
+  );
 });

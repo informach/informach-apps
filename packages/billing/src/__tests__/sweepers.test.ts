@@ -70,10 +70,9 @@ describe("retryFailedDunningEmails", () => {
     expect(calls.find((call) => call.mode === "set")?.args[0]).toMatchObject({
       metadata: { dunning: { pending: false, attempts: 0 } },
     });
-    expect(
-      (calls.find((call) => call.mode === "set")?.args[0] as { metadata: { dunning: unknown } })
-        .metadata.dunning,
-    ).not.toHaveProperty("lastSentAt");
+    expect(calls.find((call) => call.mode === "set")?.args[0]).not.toHaveProperty(
+      "metadata.dunning.lastSentAt",
+    );
   });
 
   it("invokes send for eligible past_due subs and updates metadata", async () => {

@@ -1,0 +1,543 @@
+.tl {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tl-toolbar {
+  height: 44px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+}
+.tl-toolbar .sep {
+  width: 1px;
+  height: 20px;
+  background: var(--line);
+  margin: 0 6px;
+}
+.tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border-radius: 6px;
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.tool:hover:not(:disabled) {
+  color: var(--text-1);
+  background: var(--panel-2);
+}
+.tool.is-active {
+  background: var(--panel-2);
+  border-color: var(--line);
+  color: var(--text-1);
+}
+.tool.is-active svg,
+.tool.is-on svg {
+  color: var(--accent);
+}
+.zoom-slider {
+  width: 140px;
+}
+
+.tl-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.tl-heads {
+  width: 190px;
+  flex: none;
+  overflow: hidden;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+}
+.ruler-head {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--line);
+}
+.add-track {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-size: 11px;
+  color: var(--text-3);
+  border: 1px solid var(--line);
+}
+.add-track:hover {
+  color: var(--text-1);
+}
+.track-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px 0 10px;
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
+}
+/* Bottom edge of a track header: drag to change the track height. */
+.track-resize {
+  margin: 0;
+  border: 0;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 7px;
+  cursor: ns-resize;
+  z-index: 2;
+}
+.track-resize:hover,
+body.is-resizing-track .track-resize:hover {
+  background: linear-gradient(
+    transparent 3px,
+    var(--accent) 3px,
+    var(--accent) 5px,
+    transparent 5px
+  );
+}
+body.is-resizing-track,
+body.is-resizing-track * {
+  cursor: ns-resize !important;
+}
+.track-head.is-short .icon-btn {
+  width: 20px;
+  height: 20px;
+}
+.track-head .icon-btn {
+  width: 24px;
+  height: 24px;
+  color: var(--text-3);
+}
+.track-head .icon-btn.is-active {
+  color: var(--amber);
+}
+.track-remove {
+  opacity: 0;
+}
+.track-head:hover .track-remove {
+  opacity: 1;
+}
+.track-tag {
+  width: 26px;
+  text-align: center;
+  padding: 2px 0;
+  border-radius: 4px;
+  background: var(--panel-2);
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  flex: none;
+}
+.track-name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.track-name-input {
+  width: 80px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 5px;
+  outline: none;
+}
+
+.tl-scroll {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  background: var(--bg);
+  position: relative;
+}
+.tl-content {
+  position: relative;
+}
+
+.ruler {
+  position: sticky;
+  top: 0;
+  height: 28px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  z-index: 20;
+  cursor: col-resize;
+  overflow: hidden;
+}
+.tick {
+  position: absolute;
+  bottom: 0;
+  width: 1px;
+  height: 5px;
+  background: var(--line);
+}
+.tick-major {
+  height: 10px;
+  background: var(--text-3);
+}
+.tick span {
+  position: absolute;
+  left: 4px;
+  bottom: 11px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.lane {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-bottom: 1px solid var(--line);
+}
+.lane.is-locked {
+  background: repeating-linear-gradient(135deg, transparent 0 8px, #ffffff05 8px 16px);
+}
+.drop-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  z-index: 28;
+  pointer-events: none;
+}
+
+.clip {
+  position: absolute;
+  border-radius: 5px;
+  overflow: hidden;
+  border: 1px solid #ffffff1a;
+  cursor: grab;
+  z-index: 5;
+}
+.tool-cut .clip {
+  cursor: crosshair;
+}
+.clip-video {
+  background: var(--clip-video);
+}
+.clip-image {
+  background: var(--clip-image);
+}
+.clip-audio {
+  background: var(--clip-audio);
+}
+/* Zoom layer: a striped band, so it reads as an effect over the tracks below, not as media. */
+.clip-zoomfx {
+  background:
+    repeating-linear-gradient(
+      135deg,
+      rgba(200, 240, 49, 0.32) 0 8px,
+      rgba(200, 240, 49, 0.16) 8px 16px
+    ),
+    #2a3013;
+  border: 1px solid rgba(200, 240, 49, 0.7);
+}
+.clip.is-selected {
+  border: 2px solid var(--accent);
+  z-index: 6;
+}
+.clip.is-dragging {
+  opacity: 0.85;
+  z-index: 8;
+  box-shadow: 0 8px 24px #00000080;
+}
+.clip.is-missing {
+  background: repeating-linear-gradient(135deg, #5a1f2e 0 8px, #3a1520 8px 16px);
+}
+.clip.is-hidden .clip-thumbs {
+  opacity: 0.15;
+}
+.clip.is-muted .clip-wave {
+  opacity: 0.25;
+}
+.clip-thumbs {
+  position: absolute;
+  inset: 0 0 18px 0;
+  background-size: auto 100%;
+  background-repeat: repeat-x;
+  opacity: 0.55;
+}
+.clip-image .clip-thumbs {
+  inset: 0;
+}
+.clip-wave {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 18px;
+  background: #0d0e1166;
+}
+.clip-wave.is-full {
+  top: 18px;
+  height: auto;
+  background: none;
+}
+.waveform {
+  position: absolute;
+  top: 0;
+  height: 100%;
+}
+.clip-label {
+  position: sticky;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  padding: 4px 7px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 2px #00000099;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.clip-label span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.clip-speed {
+  font-size: 10px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--amber);
+  color: #12140a;
+  font-weight: 700;
+}
+.clip-vol {
+  font-size: 10px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: #00000066;
+}
+.trim {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+  z-index: 2;
+}
+.trim-start {
+  left: 0;
+}
+.trim-end {
+  right: 0;
+}
+.clip:hover .trim,
+.clip.is-selected .trim {
+  background: #ffffff22;
+}
+.tool-cut .trim {
+  display: none;
+}
+
+.snap-line {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  background: var(--amber);
+  z-index: 15;
+  pointer-events: none;
+}
+.playhead {
+  position: absolute;
+  top: 14px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--accent);
+  z-index: 25;
+  pointer-events: none;
+}
+.playhead-head {
+  position: absolute;
+  top: 2px;
+  width: 12px;
+  height: 14px;
+  margin-left: -6px;
+  background: var(--accent);
+  clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%);
+  z-index: 26;
+  pointer-events: none;
+}
+.tl-interval-info {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 3px 12px;
+  flex-shrink: 0;
+  color: var(--text-3);
+  font-size: 11px;
+  border-bottom: 1px solid var(--line);
+}
+.tl-interval-tooltip {
+  position: fixed;
+  z-index: 1000;
+  width: 242px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel-2);
+  color: var(--text-1);
+  box-shadow: 0 3px 12px #0006;
+  font-size: 11px;
+  pointer-events: none;
+}
+.tl-interval-tooltip > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.tl-interval-tooltip b {
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 500;
+}
+.tl-interval-info b {
+  color: var(--text-1);
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 500;
+  margin-left: 6px;
+}
+.tl-interval-fill {
+  position: absolute;
+  top: 0;
+  background: #479cff26;
+  border-inline: 1px solid #75b7ff;
+  z-index: 20;
+  pointer-events: none;
+}
+.tl-interval-handle {
+  position: absolute;
+  top: 1px;
+  width: 13px;
+  height: 13px;
+  padding: 0;
+  border: 1px solid #ffffff70;
+  z-index: 29;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.tl-interval-handle.is-start {
+  margin-left: -19px;
+  background: #6ca939;
+  border-radius: 3px 0 0 3px;
+}
+.tl-interval-handle.is-end {
+  margin-left: 6px;
+  background: #d55750;
+  border-radius: 0 3px 3px 0;
+}
+.playhead-hit {
+  position: absolute;
+  top: 0;
+  width: 12px;
+  margin-left: -6px;
+  z-index: 27;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.tl-empty {
+  position: absolute;
+  color: var(--text-3);
+  font-size: 12.5px;
+  pointer-events: none;
+}
+
+.zoom-band {
+  position: absolute;
+  top: 14px;
+  height: 5px;
+  background: var(--amber);
+  border-radius: 2px;
+  opacity: 0.9;
+  z-index: 21;
+  pointer-events: auto;
+}
+.rec-mark {
+  position: absolute;
+  top: 12px;
+  width: 0;
+  height: 0;
+  margin-left: -5px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 9px solid var(--blue);
+  z-index: 22;
+}
+.rec-mark-retake {
+  border-top-color: var(--rec);
+}
+.transition-mark {
+  position: absolute;
+  height: 12px;
+  margin-top: 2px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, rgba(155, 123, 255, 0.95), rgba(200, 240, 49, 0.95));
+  box-shadow: 0 0 0 1.5px rgba(13, 14, 17, 0.9);
+  z-index: 23;
+  pointer-events: none;
+}
+
+/* Cuts between touching clips: click to pick a transition, drop one from the panel. */
+.junction {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  z-index: 26;
+}
+.junction span {
+  width: 11px;
+  height: 11px;
+  transform: rotate(45deg);
+  border-radius: 2px;
+  background: var(--panel-3);
+  border: 1.5px solid var(--text-3);
+  transition: transform 0.12s ease;
+}
+.junction:hover span,
+.junction.is-drop span {
+  transform: rotate(45deg) scale(1.35);
+  border-color: var(--accent);
+}
+.junction.has-transition span {
+  background: linear-gradient(135deg, var(--violet), var(--accent));
+  border-color: rgba(13, 14, 17, 0.9);
+}
+.junction.is-selected span {
+  transform: rotate(45deg) scale(1.45);
+  box-shadow:
+    0 0 0 2px var(--panel),
+    0 0 0 4px var(--accent);
+}

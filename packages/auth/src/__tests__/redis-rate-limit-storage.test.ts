@@ -5,10 +5,10 @@ vi.mock("server-only", () => ({}));
 import { type RedisRateLimitClient, redisRateLimitStorage } from "../redis-rate-limit-storage";
 
 type MultiCalls = {
-  incr: ReturnType<typeof vi.fn>;
-  expire: ReturnType<typeof vi.fn>;
-  ttl: ReturnType<typeof vi.fn>;
-  exec: ReturnType<typeof vi.fn>;
+  incr: Mock;
+  expire: Mock;
+  ttl: Mock;
+  exec: Mock;
 };
 
 function makeMockClient(execResult: Array<[Error | null, unknown]> | null): {
@@ -110,3 +110,5 @@ describe("redisRateLimitStorage", () => {
     expect(calls.incr).toHaveBeenCalledWith(`k:${expectedBucket}`);
   });
 });
+
+import type { Mock } from "vitest";

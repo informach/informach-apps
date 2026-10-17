@@ -2,6 +2,8 @@
 
 Como um app dentro de `apps/<app>/` se organiza por dentro. Para o monorepo como um todo (workspaces, scripts, deploy), ver [`arquitetura-monorepo.md`](./arquitetura-monorepo.md). Para os packages que ele consome, ver [`arquitetura-packages.md`](./arquitetura-packages.md).
 
+Este documento se aplica aos apps web Next.js. Ferramentas Electron seguem [`arquitetura-desktop.md`](./arquitetura-desktop.md).
+
 ---
 
 ## O que é um app

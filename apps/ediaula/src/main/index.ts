@@ -1,0 +1,714 @@
+import { createReadStream, existsSync, statSync } from "node:fs";
+import { readFile, unlink, writeFile } from "node:fs/promises";
+import type { Server } from "node:http";
+import { extname, join } from "node:path";
+import { Readable } from "node:stream";
+import { createEdiDesktop, desktopFiles, desktopIpc as ipcMain } from "@informach/edi-desktop/main";
+import { app, BrowserWindow, dialog, protocol, shell } from "electron";
+import type { ChromaKey } from "../shared/chroma.ts";
+import type { FontFamily } from "../shared/fonts.ts";
+import type {
+  AiClientId,
+  AiSettingsView,
+  AssetKind,
+  AssistantEngine,
+  AssistantEvent,
+  JobProgress,
+  Project,
+  ProjectSettings,
+  WhisperVariant,
+} from "../shared/types.ts";
+import { callTool } from "./aiBridge.ts";
+import {
+  clientStatus,
+  connectClient,
+  DEFAULT_MCP_PORT,
+  DEFAULT_MODEL,
+  decryptKey,
+  encryptKey,
+  mcpUrl,
+  readStored,
+  writeStored,
+} from "./aiSettings.ts";
+import { resetConversation, sendMessage, stopConversation, testKey } from "./assistant.ts";
+import { registerCursorSprites } from "./cursorSprite.ts";
+import {
+  inAppRunActive,
+  resetEngineSession,
+  runClaudeCode,
+  runCodex,
+  stopEngineRun,
+} from "./engines.ts";
+import { exportLesson } from "./export-lesson.ts";
+import {
+  cancel,
+  detectEncoder,
+  FFMPEG,
+  probe,
+  proxy,
+  run,
+  stillFrame,
+  thumbnail,
+  waveform,
+  writeFilterScript,
+} from "./ffmpeg.ts";
+import { getGlossary, setGlossary } from "./glossary.ts";
+import { cancelKey, detectScreenColor, grabFrame, renderKeyed } from "./keying.ts";
+import { startMcpServer } from "./mcpServer.ts";
+import {
+  createProject,
+  openProject,
+  PROJECT_EXT,
+  projectsDir,
+  recentProjects,
+  removeRecent,
+  saveProject,
+} from "./projects.ts";
+import { registerRecorder } from "./recorderWindow.ts";
+import { openRestrictedClaude } from "./restricted.ts";
+import {
+  cancelDownload,
+  cancelWhisper,
+  engineStatus,
+  installEngine,
+  installModel,
+  selectModel,
+  transcribe,
+} from "./whisper.ts";
+
+app.setPath("userData", join(app.getPath("appData"), "ediaula"));
+const desktop = createEdiDesktop({
+  appId: "ediaula",
+  preloadPath: join(__dirname, "../preload/edi-gate.cjs"),
+  rendererRoot: join(__dirname, "../renderer"),
+  getRecoveryWindow: () => win,
+  recoveryChannels: [
+    "app:info",
+    "project:save",
+    "project:recent",
+    "job:cancel",
+    "assistant:stop",
+    "assistant:reset",
+    "ai:result",
+    "recorder:stop",
+    "recorder:cancel",
+    "recorder:systemAudio",
+    "recorder:elapsed",
+    "app:dirty",
+  ],
+});
+
+const FONTS_DIR = join(app.getAppPath(), "resources", "fonts");
+const bundledFonts = async (): Promise<FontFamily[]> => {
+  const fonts: FontFamily[] = JSON.parse(
+    await readFile(join(app.getAppPath(), "resources", "fonts.json"), "utf8"),
+  );
+  for (const family of fonts)
+    for (const item of family.files) {
+      if (!/^[A-Za-z0-9_.-]+\.(?:ttf|otf|woff2?)$/i.test(item.file))
+        throw new Error("Invalid bundled font filename");
+      await desktopFiles.grantRead(join(FONTS_DIR, item.file));
+    }
+  return fonts;
+};
+
+const MIME: Record<string, string> = {
+  ".mp4": "video/mp4",
+  ".m4v": "video/mp4",
+  ".mov": "video/quicktime",
+  ".webm": "video/webm",
+  ".mkv": "video/x-matroska",
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".m4a": "audio/mp4",
+  ".aac": "audio/aac",
+  ".ogg": "audio/ogg",
+  ".flac": "audio/flac",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".json": "application/json",
+};
+
+// Lets automated checks run against a throwaway profile instead of the user's real projects.
+if (!app.isPackaged && process.env.EDIAULA_USER_DATA) {
+  app.setPath("userData", process.env.EDIAULA_USER_DATA);
+  app.setPath("documents", join(process.env.EDIAULA_USER_DATA, "documents"));
+}
+
+// media://local/<encoded absolute path> serves local files to the renderer with HTTP range support,
+// which <video> needs for seeking.
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "media",
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      stream: true,
+      bypassCSP: true,
+      corsEnabled: true,
+    },
+  },
+]);
+
+// The dev renderer runs on http://localhost, so fetch() of media:// needs CORS headers.
+const CORS = { "Access-Control-Allow-Origin": "*" };
+
+async function serveMedia(request: Request): Promise<Response> {
+  const path = decodeURIComponent(new URL(request.url).pathname.slice(1));
+  await desktopFiles.assertRead(path);
+  if (!existsSync(path)) return new Response("not found", { status: 404, headers: CORS });
+  const size = statSync(path).size;
+  const type = MIME[extname(path).toLowerCase()] ?? "application/octet-stream";
+  const range = /bytes=(\d*)-(\d*)/.exec(request.headers.get("range") ?? "");
+  if (!range) {
+    const body = Readable.toWeb(createReadStream(path)) as ReadableStream;
+    return new Response(body, {
+      status: 200,
+      headers: {
+        ...CORS,
+        "Content-Type": type,
+        "Content-Length": String(size),
+        "Accept-Ranges": "bytes",
+      },
+    });
+  }
+  let start = range[1] ? Number(range[1]) : 0;
+  let end = range[2] ? Number(range[2]) : size - 1;
+  if (!range[1] && range[2]) {
+    start = size - Number(range[2]);
+    end = size - 1;
+  }
+  end = Math.min(end, size - 1);
+  if (start > end)
+    return new Response(null, {
+      status: 416,
+      headers: { ...CORS, "Content-Range": `bytes */${size}` },
+    });
+  const body = Readable.toWeb(createReadStream(path, { start, end })) as ReadableStream;
+  return new Response(body, {
+    status: 206,
+    headers: {
+      ...CORS,
+      "Content-Type": type,
+      "Content-Length": String(end - start + 1),
+      "Content-Range": `bytes ${start}-${end}/${size}`,
+      "Accept-Ranges": "bytes",
+    },
+  });
+}
+
+let win: BrowserWindow | null = null;
+const exportJobs = new Map<string, { cancelled: boolean }>();
+
+const sendProgress = (p: JobProgress): void => {
+  win?.webContents.send("job:progress", p);
+};
+
+function createWindow(): void {
+  win = new BrowserWindow({
+    width: 1600,
+    height: 960,
+    minWidth: 1280,
+    minHeight: 760,
+    show: false,
+    backgroundColor: "#0D0E11",
+    title: "EdiAula",
+    icon: join(app.getAppPath(), "resources", "icon.ico"),
+    titleBarStyle: "hidden",
+    titleBarOverlay: { color: "#15171C", symbolColor: "#9BA1AE", height: 52 },
+    webPreferences: {
+      preload: join(__dirname, "../preload/index.cjs"),
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      devTools: !app.isPackaged,
+      backgroundThrottling: false,
+    },
+  });
+  win.once("ready-to-show", () => {
+    win?.maximize();
+    win?.show();
+  });
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    void shell.openExternal(url);
+    return { action: "deny" };
+  });
+  if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL)
+    void win.loadURL(process.env.ELECTRON_RENDERER_URL);
+  else void win.loadFile(join(__dirname, "../renderer/index.html"));
+  if (!app.isPackaged && process.env.EDIAULA_SNAPSHOT)
+    void runSnapshot(win, process.env.EDIAULA_SNAPSHOT);
+}
+
+/**
+ * Development aid: EDIAULA_SNAPSHOT=out.png runs the optional EDIAULA_SNAPSHOT_JS file in the
+ * renderer, waits EDIAULA_SNAPSHOT_DELAY ms, saves a screenshot of the window and quits.
+ */
+async function runSnapshot(w: BrowserWindow, out: string): Promise<void> {
+  const { readFile, writeFile } = await import("node:fs/promises");
+  await new Promise<void>((r) => w.webContents.once("did-finish-load", () => r()));
+  await new Promise((r) => setTimeout(r, 1500));
+  const scriptPath = process.env.EDIAULA_SNAPSHOT_JS;
+  if (scriptPath) {
+    try {
+      const result = await w.webContents.executeJavaScript(await readFile(scriptPath, "utf8"));
+      if (result !== undefined) console.log("[snapshot script]", JSON.stringify(result));
+    } catch (err) {
+      console.error("[snapshot script failed]", err);
+    }
+  }
+  await new Promise((r) => setTimeout(r, Number(process.env.EDIAULA_SNAPSHOT_DELAY ?? 2000)));
+  const image = await w.webContents.capturePage();
+  await writeFile(out, image.toPNG());
+  console.log("[snapshot saved]", out);
+  app.quit();
+}
+
+const MEDIA_FILTERS = [
+  {
+    name: "Mídia",
+    extensions: [
+      "mp4",
+      "mov",
+      "m4v",
+      "mkv",
+      "webm",
+      "mp3",
+      "wav",
+      "m4a",
+      "aac",
+      "ogg",
+      "flac",
+      "png",
+      "jpg",
+      "jpeg",
+      "webp",
+    ],
+  },
+  { name: "Todos os arquivos", extensions: ["*"] },
+];
+
+function registerIpc(): void {
+  ipcMain.handle("media:saveNarration", async (_e, bytes: Uint8Array) => {
+    if (!(bytes instanceof Uint8Array) || !bytes.length || bytes.length > 256 * 1024 * 1024)
+      throw new Error("Gravação vazia ou maior que 256 MB.");
+    const { mkdir } = await import("node:fs/promises");
+    const { randomUUID } = await import("node:crypto");
+    const dir = join(app.getPath("documents"), "EdiAula", "Narracoes");
+    await mkdir(dir, { recursive: true });
+    const id = randomUUID();
+    const input = join(dir, `${id}.webm`);
+    const output = join(dir, `${id}.wav`);
+    try {
+      await writeFile(input, bytes);
+      await run(FFMPEG, [
+        "-y",
+        "-i",
+        input,
+        "-vn",
+        "-ac",
+        "1",
+        "-ar",
+        "48000",
+        "-c:a",
+        "pcm_s16le",
+        output,
+      ]);
+      return output;
+    } catch (err) {
+      await unlink(output).catch(() => {});
+      throw err;
+    } finally {
+      await unlink(input).catch(() => {});
+    }
+  });
+  ipcMain.handle("editing-template:save", async (_e, name: string, content: string) => {
+    if (typeof content !== "string" || Buffer.byteLength(content, "utf8") > 2_000_000)
+      throw new Error("Modelo inválido ou maior que 2 MB.");
+    const safe =
+      [...String(name)]
+        .filter((character) => character.charCodeAt(0) >= 32 && !'<>:"/\\|?*'.includes(character))
+        .join("")
+        .trim()
+        .replace(/\.md$/i, "") || "Modelo de edição";
+    const result = await dialog.showSaveDialog(win!, {
+      title: "Salvar modelo de edição",
+      defaultPath: join(app.getPath("documents"), `${safe}.md`),
+      filters: [{ name: "Markdown", extensions: ["md"] }],
+    });
+    if (result.canceled || !result.filePath) return null;
+    const path = result.filePath.toLowerCase().endsWith(".md")
+      ? result.filePath
+      : `${result.filePath}.md`;
+    await writeFile(path, content, "utf8");
+    return path;
+  });
+  ipcMain.handle("editing-template:read", async () => {
+    const result = await dialog.showOpenDialog(win!, {
+      title: "Ler modelo de edição",
+      properties: ["openFile"],
+      filters: [{ name: "Markdown", extensions: ["md"] }],
+    });
+    if (result.canceled || !result.filePaths[0]) return null;
+    const path = result.filePaths[0];
+    if (extname(path).toLowerCase() !== ".md" || statSync(path).size > 2_000_000)
+      throw new Error("Selecione um arquivo Markdown de até 2 MB.");
+    return { path, content: await readFile(path, "utf8") };
+  });
+  const palettesFile = (): string => join(app.getPath("userData"), "palettes.json");
+  ipcMain.handle("palettes:list", async () =>
+    JSON.parse(await readFile(palettesFile(), "utf8").catch(() => "[]")),
+  );
+  ipcMain.handle("palettes:save", (_e, list: unknown[]) =>
+    writeFile(palettesFile(), JSON.stringify(list, null, 2)),
+  );
+  ipcMain.handle("app:info", async () => ({
+    encoder: await detectEncoder(),
+    version: app.getVersion(),
+    projectsDir: projectsDir(),
+    fontsDir: FONTS_DIR,
+    fonts: await bundledFonts(),
+  }));
+
+  ipcMain.handle("dialog:media", async () => {
+    const r = await dialog.showOpenDialog(win!, {
+      title: "Importar mídia",
+      properties: ["openFile", "multiSelections"],
+      filters: MEDIA_FILTERS,
+    });
+    return r.canceled ? [] : r.filePaths;
+  });
+  ipcMain.handle("dialog:project", async () => {
+    const r = await dialog.showOpenDialog(win!, {
+      title: "Abrir projeto",
+      defaultPath: projectsDir(),
+      properties: ["openFile"],
+      filters: [{ name: "Projeto EdiAula", extensions: [PROJECT_EXT] }],
+    });
+    return r.canceled ? null : r.filePaths[0];
+  });
+  ipcMain.handle("dialog:export", async (_e, defaultName: string) => {
+    const audio = /\.mp3$/i.test(defaultName);
+    const r = await dialog.showSaveDialog(win!, {
+      title: audio ? "Exportar áudio" : "Exportar vídeo",
+      defaultPath: join(app.getPath(audio ? "music" : "videos"), defaultName),
+      filters: [
+        audio
+          ? { name: "Áudio MP3", extensions: ["mp3"] }
+          : { name: "Vídeo MP4", extensions: ["mp4"] },
+      ],
+    });
+    return r.canceled ? null : r.filePath;
+  });
+
+  ipcMain.handle("media:probe", (_e, path: string) => probe(path));
+  ipcMain.handle("media:thumb", (_e, path: string, kind: AssetKind, duration: number) =>
+    thumbnail(path, kind, duration),
+  );
+  ipcMain.handle("media:waveform", (_e, path: string) => waveform(path));
+  ipcMain.handle(
+    "media:proxy",
+    (_e, jobId: string, path: string, duration: number, cfrFps?: number) =>
+      proxy(jobId, path, duration, (ratio) => sendProgress({ id: jobId, ratio }), cfrFps),
+  );
+  ipcMain.handle("media:saveGenerated", async (_e, bytes: Uint8Array, ext: string) => {
+    const { createHash } = await import("node:crypto");
+    const { mkdirSync } = await import("node:fs");
+    const dir = join(app.getPath("userData"), "cache", "generated");
+    mkdirSync(dir, { recursive: true });
+    const path = join(
+      dir,
+      `${createHash("sha1").update(bytes).digest("hex").slice(0, 20)}.${ext.replace(/[^a-z0-9]/gi, "") || "png"}`,
+    );
+    if (!existsSync(path)) await writeFile(path, bytes);
+    return path;
+  });
+  ipcMain.handle("media:still", (_e, path: string, t: number, alpha?: boolean) =>
+    stillFrame(path, t, alpha),
+  );
+  ipcMain.handle(
+    "key:detect",
+    (_e, path: string, duration: number, width: number, height: number) =>
+      detectScreenColor(path, duration, width, height),
+  );
+  ipcMain.handle(
+    "key:frame",
+    (_e, path: string, t: number, width: number, height: number, maxSide?: number) =>
+      grabFrame(path, t, width, height, maxSide),
+  );
+  ipcMain.handle(
+    "key:render",
+    (
+      _e,
+      jobId: string,
+      path: string,
+      width: number,
+      height: number,
+      fps: number,
+      duration: number,
+      key: ChromaKey,
+    ) =>
+      renderKeyed(jobId, path, width, height, fps, duration, key, (ratio) =>
+        sendProgress({ id: jobId, ratio }),
+      ),
+  );
+  ipcMain.handle("glossary:get", (_e, course: string) => getGlossary(course));
+  ipcMain.handle("glossary:set", (_e, course: string, terms: string[]) =>
+    setGlossary(course, terms),
+  );
+  ipcMain.handle("fs:exists", (_e, paths: string[]) => paths.map((p) => existsSync(p)));
+
+  ipcMain.handle(
+    "project:create",
+    (_e, name: string, course: string | undefined, settings: ProjectSettings) =>
+      createProject(name, course, settings),
+  );
+  ipcMain.handle("project:save", (_e, path: string, project: Project) =>
+    saveProject(path, project),
+  );
+  ipcMain.handle("project:open", async (_e, path: string) => {
+    const project = await openProject(path);
+    if (!Array.isArray(project.assets) || project.assets.length > 5000)
+      throw new Error("O projeto contém um catálogo de mídia inválido ou excessivamente grande.");
+    const references: string[] = [];
+    for (const asset of project.assets) {
+      if (!asset || typeof asset !== "object") throw new Error("Referência de mídia inválida.");
+      for (const field of ["path", "thumb", "proxy", "waveform", "transcript", "cursor", "keyed"]) {
+        const value: unknown = Reflect.get(asset, field);
+        if (value === undefined || value === "") continue;
+        if (typeof value !== "string" || value.length > 32768)
+          throw new Error("Caminho de mídia inválido.");
+        references.push(value);
+      }
+    }
+    const linked = [...new Set(references)];
+    if (linked.length) {
+      const answer = await dialog.showMessageBox(win!, {
+        type: "question",
+        title: "Arquivos vinculados ao projeto",
+        message: `Permitir acesso aos ${linked.length} arquivos usados por este projeto?`,
+        detail: `${linked.slice(0, 20).join("\n")}\n\nAutorize somente projetos confiáveis. Arquivos de rede podem exigir autenticação do Windows no servidor indicado.`,
+        buttons: ["Permitir arquivos vinculados", "Cancelar"],
+        defaultId: 1,
+        cancelId: 1,
+      });
+      if (answer.response !== 0)
+        throw new Error("Abertura do projeto cancelada; nenhum arquivo foi alterado.");
+      for (const linkedPath of linked) {
+        try {
+          await desktopFiles.grantRead(linkedPath);
+        } catch (error) {
+          if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
+        }
+      }
+    }
+    return project;
+  });
+  ipcMain.handle("project:recent", () => recentProjects());
+  ipcMain.handle("project:removeRecent", (_e, path: string) => removeRecent(path));
+
+  ipcMain.handle("export:start", async (_e, jobId: unknown, project: unknown, spec: unknown) => {
+    if (typeof jobId !== "string" || !jobId.length || jobId.length > 200 || exportJobs.has(jobId))
+      throw new Error("Identificador de exportação inválido ou já em uso.");
+    const state = { cancelled: false };
+    exportJobs.set(jobId, state);
+    const check = (): void => {
+      if (state.cancelled) throw new Error("Cancelado");
+    };
+    try {
+      await exportLesson(project, spec, {
+        assertRead: desktopFiles.assertRead,
+        assertWrite: desktopFiles.assertWrite,
+        assertRelatedExport: desktopFiles.assertRelatedExport,
+        fontsDirectory: FONTS_DIR,
+        writeFilterScript,
+        check,
+        run: (args, duration) =>
+          run(FFMPEG, args, {
+            jobId,
+            duration,
+            onProgress: (ratio) => sendProgress({ id: jobId, ratio }),
+          }),
+      });
+      sendProgress({ id: jobId, ratio: 1 });
+    } finally {
+      exportJobs.delete(jobId);
+    }
+  });
+  ipcMain.handle("job:cancel", (_e, jobId: string) => {
+    const exporting = exportJobs.get(jobId);
+    if (exporting) exporting.cancelled = true;
+    if (!cancelDownload(jobId) && !cancelWhisper(jobId) && !cancelKey(jobId)) cancel(jobId);
+  });
+
+  ipcMain.handle("whisper:status", () => engineStatus());
+  ipcMain.handle("whisper:installEngine", (_e, jobId: string, variant: WhisperVariant) =>
+    installEngine(jobId, variant, (ratio) => sendProgress({ id: jobId, ratio })),
+  );
+  ipcMain.handle("whisper:installModel", (_e, jobId: string, name: string) =>
+    installModel(jobId, name, (ratio) => sendProgress({ id: jobId, ratio })),
+  );
+  ipcMain.handle("whisper:selectModel", (_e, path: string) => selectModel(path));
+  ipcMain.handle(
+    "whisper:transcribe",
+    (_e, jobId: string, path: string, duration: number, language: string, glossary: string[]) =>
+      transcribe(jobId, path, duration, language, glossary ?? [], (ratio) =>
+        sendProgress({ id: jobId, ratio }),
+      ),
+  );
+  ipcMain.handle("shell:showItem", (_e, path: string) => shell.showItemInFolder(path));
+}
+
+/* ----- AI: MCP server for Claude Code / Codex, settings and the in-app assistant ----- */
+
+let mcp: { server: Server | null; port: number; error?: string } = {
+  server: null,
+  port: DEFAULT_MCP_PORT,
+};
+
+async function applyMcp(): Promise<void> {
+  const stored = await readStored();
+  const enabled = stored.mcpEnabled ?? true;
+  const port = stored.mcpPort ?? DEFAULT_MCP_PORT;
+  if (mcp.server && (!enabled || mcp.port !== port)) {
+    await new Promise<void>((r) => mcp.server!.close(() => r()));
+    mcp = { server: null, port };
+  }
+  if (enabled && !mcp.server) {
+    try {
+      const server = await startMcpServer(port, (name, input) =>
+        callTool(win, name, input, inAppRunActive() ? "assistant" : "mcp"),
+      );
+      mcp = { server, port };
+    } catch (err) {
+      mcp = {
+        server: null,
+        port,
+        error:
+          (err as NodeJS.ErrnoException).code === "EADDRINUSE"
+            ? `A porta ${port} já está em uso por outro programa.`
+            : (err as Error).message,
+      };
+    }
+  }
+}
+
+async function aiView(): Promise<AiSettingsView> {
+  const stored = await readStored();
+  const key = decryptKey(stored.apiKeyEnc);
+  return {
+    engine: stored.engine ?? (key ? "api" : "claude-code"),
+    claudeModel: stored.claudeModel ?? "default",
+    hasApiKey: !!key,
+    apiKeyHint: key ? `…${key.slice(-4)}` : undefined,
+    model: stored.model ?? DEFAULT_MODEL,
+    mcpEnabled: stored.mcpEnabled ?? true,
+    mcpPort: mcp.port,
+    mcpUrl: mcpUrl(mcp.port),
+    mcpRunning: !!mcp.server,
+    mcpError: mcp.error,
+  };
+}
+
+function registerAiIpc(): void {
+  ipcMain.handle("ai:settings", () => aiView());
+  ipcMain.handle(
+    "ai:saveSettings",
+    async (
+      _e,
+      changes: {
+        apiKey?: string | null;
+        model?: string;
+        mcpEnabled?: boolean;
+        engine?: AssistantEngine;
+        claudeModel?: string;
+      },
+    ) => {
+      const stored = await readStored();
+      if (changes.apiKey === null) delete stored.apiKeyEnc;
+      else if (changes.apiKey) stored.apiKeyEnc = encryptKey(changes.apiKey.trim());
+      if (changes.model) stored.model = changes.model;
+      if (changes.mcpEnabled !== undefined) stored.mcpEnabled = changes.mcpEnabled;
+      if (changes.engine) stored.engine = changes.engine;
+      if (changes.claudeModel) stored.claudeModel = changes.claudeModel;
+      await writeStored(stored);
+      await applyMcp();
+      return aiView();
+    },
+  );
+  ipcMain.handle("ai:testKey", () => testKey());
+  ipcMain.handle("ai:clients", () => clientStatus(mcp.port));
+  ipcMain.handle("ai:connect", (_e, id: AiClientId) => connectClient(id, mcp.port));
+  ipcMain.handle("ai:openRestrictedClaude", () => openRestrictedClaude(mcp.port));
+  ipcMain.handle("assistant:send", async (_e, conversationId: string, text: string) => {
+    const view = await aiView();
+    const emit = (ev: AssistantEvent): void => {
+      if (win && !win.isDestroyed()) win.webContents.send("assistant:event", conversationId, ev);
+    };
+    if (view.engine === "api") return sendMessage(win, conversationId, text);
+    if (!view.mcpRunning) {
+      emit({
+        type: "error",
+        message:
+          "A conexão do EdiAula com a IA está desligada. Ligue em Configurações › Inteligência artificial.",
+      });
+      emit({ type: "done" });
+      return;
+    }
+    if (view.engine === "claude-code")
+      return runClaudeCode(conversationId, text, mcp.port, view.claudeModel, emit);
+    return runCodex(conversationId, text, mcp.port, emit);
+  });
+  ipcMain.handle("assistant:stop", (_e, conversationId: string) => {
+    if (!stopEngineRun(conversationId)) stopConversation(conversationId);
+  });
+  ipcMain.handle("assistant:reset", (_e, conversationId: string) => {
+    resetEngineSession(conversationId);
+    resetConversation(conversationId);
+  });
+}
+
+/** Same id as the desktop shortcut, so the open window groups with the pinned icon. */
+export const APP_USER_MODEL_ID = "br.com.informach.ediaula";
+if (process.platform === "win32") app.setAppUserModelId(APP_USER_MODEL_ID);
+
+// One EdiAula at a time (two would fight over the AI connection port): a second launch
+// brings the open window to the front instead.
+if (!app.requestSingleInstanceLock()) app.quit();
+app.on("second-instance", () => {
+  if (!win) return;
+  if (win.isMinimized()) win.restore();
+  win.focus();
+});
+
+app
+  .whenReady()
+  .then(async () => {
+    await desktop.start();
+    protocol.handle("media", serveMedia);
+    registerIpc();
+    registerAiIpc();
+    registerRecorder(() => win);
+    registerCursorSprites();
+    createWindow();
+    void applyMcp();
+    void detectEncoder();
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+  })
+  .catch((error: unknown) => {
+    dialog.showErrorBox(
+      "EdiAula",
+      error instanceof Error ? error.message : "Falha ao validar o acesso",
+    );
+    app.quit();
+  });
+
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") app.quit();
+});

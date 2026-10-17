@@ -5,4 +5,6 @@ export * from "./audit";
 export * from "./billing";
 export * from "./core";
 export * from "./cozya";
+export * from "./edi";
 export * from "./missao-saber";
+export * from "./oauth";

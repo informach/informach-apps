@@ -1,0 +1,29 @@
+{
+  "name": "@informach/edisvg",
+  "version": "0.5.4",
+  "private": true,
+  "type": "module",
+  "description": "Estúdio desktop de animação SVG com Claude Code e Codex",
+  "author": "Crie com Helena e Julio",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "test": "node --test src/shared/*.test.js src/renderer/src/*.test.js src/main/*.test.js",
+    "check": "node scripts/check.mjs",
+    "desktop": "electron .",
+    "package": "npm run build && node scripts/package.mjs",
+    "shortcut": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create-shortcut.ps1"
+  },
+  "dependencies": {
+    "@informach/edi-desktop": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "electron": "44.8.0",
+    "electron-vite": "6.0.0",
+    "vite": "8.3.4"
+  }
+}

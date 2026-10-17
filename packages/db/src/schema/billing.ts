@@ -150,6 +150,38 @@ export const subscriptions = billing.table(
   ],
 );
 
+// A paid zero-value invoice is valid (coupon/credit); refunds and disputes are
+// reconciled against this exact invoice, never against an unrelated renewal.
+export const subscriptionPaymentPeriods = billing.table(
+  "subscription_payment_periods",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    subscriptionId: uuid("subscription_id")
+      .notNull()
+      .references(() => subscriptions.id, { onDelete: "restrict" }),
+    provider: billingProviderEnum("provider").notNull(),
+    providerInvoiceId: text("provider_invoice_id").notNull(),
+    providerLineId: text("provider_line_id").notNull(),
+    providerPriceId: text("provider_price_id").notNull(),
+    periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
+    periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
+    paidAt: timestamp("paid_at", { withTimezone: true }).notNull(),
+    fullyRefunded: boolean("fully_refunded").notNull().default(false),
+    disputed: boolean("disputed").notNull().default(false),
+    reconciledAt: timestamp("reconciled_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("subscription_payment_period_line_uniq").on(
+      t.provider,
+      t.providerInvoiceId,
+      t.providerLineId,
+    ),
+    index("subscription_payment_period_subscription_idx").on(t.subscriptionId, t.periodEnd),
+    index("subscription_payment_period_invoice_idx").on(t.provider, t.providerInvoiceId),
+    check("subscription_payment_period_range_chk", sql`${t.periodEnd} > ${t.periodStart}`),
+  ],
+);
+
 export const oneTimePayments = billing.table(
   "one_time_payments",
   {

@@ -5,6 +5,11 @@ export type AppMetadata = {
 };
 
 export const APPS = {
+  edi: {
+    slug: "edi",
+    name: "Suíte Edi",
+    domain: "edi.informach.com.br",
+  },
   missaoSaber: {
     slug: "missao-saber",
     name: "Missão Saber",

@@ -20,17 +20,12 @@ describe("contrato entre enunciado, campo e correção", () => {
     expect(responseLabel(publicItem(item), "__skip__")).toBe("Ainda não sei");
   });
 
-  it.each([
-    "0,5",
-    "0.5",
-    "1/2",
-    "2/4",
-    "1 / 2",
-    "0,5 m",
-    "1/2 metro",
-  ])("aceita meia unidade escrita como %s sem exigir a unidade do rótulo", (answer) => {
-    expect(gradeAnswer(sample, answer)).toMatchObject({ valid: true, correct: true });
-  });
+  it.each(["0,5", "0.5", "1/2", "2/4", "1 / 2", "0,5 m", "1/2 metro"])(
+    "aceita meia unidade escrita como %s sem exigir a unidade do rótulo",
+    (answer) => {
+      expect(gradeAnswer(sample, answer)).toMatchObject({ valid: true, correct: true });
+    },
+  );
 
   it("também aceita o valor sem unidade em uma sessão congelada antes da correção", () => {
     const frozen = {
@@ -55,16 +50,10 @@ describe("contrato entre enunciado, campo e correção", () => {
     expect(markup).toContain("/");
   });
 
-  it.each([
-    "0,5 cm",
-    "1/(1+1)",
-    "1/0",
-    "",
-    "NaN",
-    "Infinity",
-    "1 // 2",
-  ])("não transforma uma entrada inválida em acerto: %s", (answer) =>
-    expect(gradeAnswer(sample, answer).valid).toBe(false));
+  it.each(["0,5 cm", "1/(1+1)", "1/0", "", "NaN", "Infinity", "1 // 2"])(
+    "não transforma uma entrada inválida em acerto: %s",
+    (answer) => expect(gradeAnswer(sample, answer).valid).toBe(false),
+  );
 
   it("aceita a notação monetária brasileira quando a unidade da questão é real", () => {
     const item = findLesson("precos-3")?.items.find((entry) => entry.id === "precos-3-7");

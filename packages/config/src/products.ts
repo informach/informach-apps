@@ -52,6 +52,30 @@ export type Product = {
 // - Free: sem IA (só cadastro manual com limite de receitas)
 export const PRODUCTS: readonly Product[] = [
   {
+    id: "edi_suite_monthly",
+    app: "edi",
+    kind: "subscription",
+    name: "Suíte Edi",
+    description:
+      "Cinco ferramentas criativas, até dois dispositivos e atualizações. Consumo pago de IA não incluído.",
+    tier: "suite",
+    interval: "month",
+    stripePriceId: { dev: "", prod: "" },
+    listPrice: { amountCents: 2990, currency: "BRL" },
+  },
+  {
+    id: "edi_suite_annual",
+    app: "edi",
+    kind: "subscription",
+    name: "Suíte Edi anual",
+    description:
+      "Acesso anual à suíte, até dois dispositivos e atualizações. Consumo pago de IA não incluído.",
+    tier: "suite",
+    interval: "year",
+    stripePriceId: { dev: "", prod: "" },
+    listPrice: { amountCents: 29900, currency: "BRL" },
+  },
+  {
     id: "missao_individual_monthly",
     app: "missao-saber",
     kind: "subscription",
@@ -283,5 +307,6 @@ export function findProduct(productId: ProductId): Product | undefined {
 }
 
 export function findProductByPriceId(priceId: string): Product | undefined {
+  if (!isStripePriceIdConfigured(priceId)) return undefined;
   return PRODUCTS.find((p) => p.stripePriceId.dev === priceId || p.stripePriceId.prod === priceId);
 }

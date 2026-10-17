@@ -259,7 +259,7 @@ Payloads seguem [`docs/audit-payload-policy.md`](../../docs/audit-payload-policy
 
 ### 3.11 Pro entitlement (`access.ts`) — single source of truth
 
-Toda decisão de "esse subject é Pro agora?" passa por `getProSubscription` / `hasProSubscription` em `src/access.ts`. Existe uma constante única:
+Nos produtos web com o contrato Pro por status, a decisão de "esse subject é Pro agora?" passa por `getProSubscription` / `hasProSubscription` em `src/access.ts`. **A licença desktop Edi não usa esse contrato:** exige fatos pagos e reconciliação atual, conforme a seção Edi abaixo. Existe uma constante única para Pro:
 
 ```ts
 export const PRO_STATUSES = ["active", "trialing"] as const;
@@ -556,7 +556,7 @@ Todos os errors: `BillingError`, `NotImplementedError`, `InvalidProductError`, `
 
 ### 5.4 Deps relevantes
 
-- **`stripe@^22.1.0`** (PIN literal `'2026-04-22.dahlia'`) — bumpar major exige re-validar literal e re-testar handlers contra novo payload shape
+- **`stripe@22.1.0`** (SDK e API `'2026-04-22.dahlia'` fixos) — até um upgrade minor pode alterar `LatestApiVersion`. Atualizar SDK e literal juntos somente após revisar contratos/payloads e repetir os testes; não usar casts para esconder divergência.
 - **`drizzle-orm@^0.45.2`** — para SELECT/INSERT/UPDATE typed + `db.execute(sql\`...\`)` para advisory lock e raw SQL de balance
 - **`@informach/db`** — schema source of truth e Drizzle client
 - **`@informach/auth`** — `logAuditEvent` (apps wireiam) + `AuditEventType` (inclui os 9 `billing.*`)
@@ -631,7 +631,7 @@ Para integração real → Stripe CLI test mode + Playwright nos apps em `mode: 
 
 14. **Mudanças nos audit event types `billing.*`** exigem atualização em `@informach/auth/src/audit.ts` (union estrita) + tabela em `@informach/auth/CLAUDE.md` §3.5 + revisão da política de payload em `docs/audit-payload-policy.md`.
 
-15. **Feature gate Pro? Sempre `hasProSubscription`.** Nunca inline `subscription.status === "active"` ou `inArray(status, [...])` — a regra muda (vide §3.11), e o helper centraliza. Ele já cobre o grace period pós-cancel-at-period-end e exclui past_due automaticamente.
+15. **Feature gate Pro dos produtos web? `hasProSubscription`.** Nunca inline `subscription.status === "active"` ou `inArray(status, [...])` — a regra muda (vide §3.11), e o helper centraliza. Ele já cobre o grace period pós-cancel-at-period-end e exclui past_due automaticamente. **Licenças Edi são a exceção explícita: `@informach/edi-licensing`, não o gate Pro.**
 
 16. **Webhook handler resolvendo `productId`?** Sempre via `priceId` no catálogo (`stripePriceId.{dev,prod}` match), nunca diretamente via `subscription.metadata.product_id`. Stripe metadata fica stale após `subscriptions.update` swap de price. Quando os dois divergem, logar warn `metadata_product_drift`.
 
@@ -659,3 +659,11 @@ Pendências:
 - **Atualizar `subscription.metadata.product_id` no Stripe pós-`switchPlan(immediate)`** — hoje o package usa priceId como autoridade (ver §5.1 #16), mas atualizar metadata via `stripe.subscriptions.update({ metadata })` deixaria o estado externo limpo também. Hygiene, não correção.
 
 Para retomar trabalho de fase, perguntar ao usuário qual fase está autorizada — cada fase é entregável independente. Histórico de fases entregues vive na memory (`billing_architecture.md`).
+
+## Contrato de pagamento/licença Edi (16/10/2026)
+
+`@informach/billing/payment-facts` exporta o leitor Stripe de snapshots e a persistência dos períodos pagos. A licença Edi usa `@informach/edi-licensing`: status isolado não prova pagamento. Períodos pagos, reembolsos/disputas, suspensão, dispositivos e freshness participam da decisão. Não substituir por `hasProSubscription`; essa exceção não altera o Pro dos produtos web existentes.
+
+O portal mantém outbox e reconciliação periódica serializada pelo lifecycle de cobrança. `edi.billing_reconciliations` separa tentativas/backoff de `edi.entitlements.reconciled_at`, que só avança após persistência bem-sucedida. Falhas não renovam freshness/licença. Sucesso periódico: 6 h; reserva após início/interrupção: 10 min; backoff: 30 s exponencial, máximo 6 h. Outbox mantém retry próprio.
+
+`pnpm edi:test:integration` cobre mais de 25 contas com falhas permanentes, rollback e concorrência com suspensão em PostgreSQL descartável. Não equivale a compra Stripe ponta a ponta: cobrança real continua desabilitada até homologação. Ver [portal Edi](../../apps/edi/PRODUCAO.md) e [arquitetura desktop](../../docs/arquitetura-desktop.md).

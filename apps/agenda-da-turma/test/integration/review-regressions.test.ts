@@ -1245,72 +1245,73 @@ describe("Review regressions", () => {
       "2030-09-16",
     ]);
   });
-  it.each([
-    "failed",
-    "sent",
-    "delivered",
-  ] as const)("F07 defers interrupted/unknown mail without exhausting retries, then reconciles %s", async (resolvedStatus) => {
-    const now = new Date("2030-09-13T15:00:00Z");
-    const a = value(
-      await confirmNotice(owner, {
-        noticeId: null,
-        actions: [{ ...action(), reminderAt: new Date(now.valueOf() - 20 * 60000).toISOString() }],
-        allowDuplicates: false,
-      }),
-    );
-    await db
-      .insert(agendaNotificationPreferences)
-      .values({ userId: owner, emailEnabled: true, digestHour: 19, quietStart: 21, quietEnd: 7 });
-    const key = `action:${a.ids[0]}:v1`;
-    const interruptedAttempt = resolvedStatus === "failed" ? 3 : 1;
-    await db.insert(agendaNotificationDeliveries).values({
-      userId: owner,
-      messageKey: key,
-      channel: "email",
-      status: "processing",
-      attempts: interruptedAttempt,
-      lastAttemptAt: new Date(now.valueOf() - 11 * 60000),
-    });
-    await db.insert(emailDeliveries).values({
-      id: randomUUID(),
-      recipient: `${owner}@e2e.local`,
-      category: "agenda.routine",
-      messageKey: `agenda:${owner}:${key}`,
-      subject: "Synthetic review reminder",
-      userId: owner,
-      status: "sending",
-      sendingStartedAt: new Date(),
-      sendAttempts: 1,
-    });
-    const options = { afterUserId: owner.slice(0, -5), limit: 1 };
-    await deliverRoutineNotifications(now, options);
-    await db
-      .update(emailDeliveries)
-      .set({ status: "unknown" })
-      .where(eq(emailDeliveries.userId, owner));
-    for (let attempt = 1; attempt <= 5; attempt++)
-      await deliverRoutineNotifications(new Date(now.valueOf() + attempt * 11 * 60000), options);
-    const waiting = await db
-      .select()
-      .from(agendaNotificationDeliveries)
-      .where(eq(agendaNotificationDeliveries.userId, owner));
-    expect(waiting[0]?.status).toBe("failed");
-    expect(waiting[0]?.attempts).toBe(interruptedAttempt - 1);
-    expect(emails.getOutbox()).toHaveLength(0);
-    await db
-      .update(emailDeliveries)
-      .set({ status: resolvedStatus })
-      .where(eq(emailDeliveries.userId, owner));
-    await deliverRoutineNotifications(new Date(now.valueOf() + 70 * 60000), options);
-    expect(emails.getOutbox()).toHaveLength(resolvedStatus === "failed" ? 1 : 0);
-    const finished = await db
-      .select()
-      .from(agendaNotificationDeliveries)
-      .where(eq(agendaNotificationDeliveries.userId, owner));
-    expect(finished[0]?.status).toBe("sent");
-    await deliverRoutineNotifications(new Date(now.valueOf() + 85 * 60000), options);
-    expect(emails.getOutbox()).toHaveLength(resolvedStatus === "failed" ? 1 : 0);
-  });
+  it.each(["failed", "sent", "delivered"] as const)(
+    "F07 defers interrupted/unknown mail without exhausting retries, then reconciles %s",
+    async (resolvedStatus) => {
+      const now = new Date("2030-09-13T15:00:00Z");
+      const a = value(
+        await confirmNotice(owner, {
+          noticeId: null,
+          actions: [
+            { ...action(), reminderAt: new Date(now.valueOf() - 20 * 60000).toISOString() },
+          ],
+          allowDuplicates: false,
+        }),
+      );
+      await db
+        .insert(agendaNotificationPreferences)
+        .values({ userId: owner, emailEnabled: true, digestHour: 19, quietStart: 21, quietEnd: 7 });
+      const key = `action:${a.ids[0]}:v1`;
+      const interruptedAttempt = resolvedStatus === "failed" ? 3 : 1;
+      await db.insert(agendaNotificationDeliveries).values({
+        userId: owner,
+        messageKey: key,
+        channel: "email",
+        status: "processing",
+        attempts: interruptedAttempt,
+        lastAttemptAt: new Date(now.valueOf() - 11 * 60000),
+      });
+      await db.insert(emailDeliveries).values({
+        id: randomUUID(),
+        recipient: `${owner}@e2e.local`,
+        category: "agenda.routine",
+        messageKey: `agenda:${owner}:${key}`,
+        subject: "Synthetic review reminder",
+        userId: owner,
+        status: "sending",
+        sendingStartedAt: new Date(),
+        sendAttempts: 1,
+      });
+      const options = { afterUserId: owner.slice(0, -5), limit: 1 };
+      await deliverRoutineNotifications(now, options);
+      await db
+        .update(emailDeliveries)
+        .set({ status: "unknown" })
+        .where(eq(emailDeliveries.userId, owner));
+      for (let attempt = 1; attempt <= 5; attempt++)
+        await deliverRoutineNotifications(new Date(now.valueOf() + attempt * 11 * 60000), options);
+      const waiting = await db
+        .select()
+        .from(agendaNotificationDeliveries)
+        .where(eq(agendaNotificationDeliveries.userId, owner));
+      expect(waiting[0]?.status).toBe("failed");
+      expect(waiting[0]?.attempts).toBe(interruptedAttempt - 1);
+      expect(emails.getOutbox()).toHaveLength(0);
+      await db
+        .update(emailDeliveries)
+        .set({ status: resolvedStatus })
+        .where(eq(emailDeliveries.userId, owner));
+      await deliverRoutineNotifications(new Date(now.valueOf() + 70 * 60000), options);
+      expect(emails.getOutbox()).toHaveLength(resolvedStatus === "failed" ? 1 : 0);
+      const finished = await db
+        .select()
+        .from(agendaNotificationDeliveries)
+        .where(eq(agendaNotificationDeliveries.userId, owner));
+      expect(finished[0]?.status).toBe("sent");
+      await deliverRoutineNotifications(new Date(now.valueOf() + 85 * 60000), options);
+      expect(emails.getOutbox()).toHaveLength(resolvedStatus === "failed" ? 1 : 0);
+    },
+  );
   it("F08 ignores late completion and output from the replaced attempt", async () => {
     const input = parseNoticeSchema.parse({
       profileId: child,

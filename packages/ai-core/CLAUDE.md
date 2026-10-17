@@ -23,15 +23,15 @@
 
 ## 2. Runtime e versões externas
 
-Este package roda em **Node.js 22.13+**. O requisito vem do Mastra v1; mantenha `.nvmrc`, `package.json#engines` e CI na mesma linha antes de mexer em `@mastra/*`.
+Este repositório roda em **Node.js 24.15+**, conforme manifest, `.nvmrc` e CI. Mantenha os três alinhados antes de mexer em `@mastra/*`.
 
 Dependências externas com contrato sensível:
 
 | Família | Versão atual | Regra |
 | --- | --- | --- |
-| Mastra | `@mastra/core@1.31.0`, `@mastra/pg@1.9.4`, `@mastra/memory@1.17.4`, `@mastra/loggers@1.1.1`, `@mastra/observability@1.11.1` | pin literal; validar upgrade via Context7 antes de alterar |
-| AI SDK providers | `@ai-sdk/anthropic@3.0.74`, `@ai-sdk/openai@3.0.58`, `@openrouter/ai-sdk-provider@2.9.0` | wrappers recebem `apiKey` do app; não usar default provider que lê env |
-| Node types | `@types/node@^22.13.0` | acompanha runtime mínimo |
+| Mastra | `@mastra/core@1.78.0`, `@mastra/pg@1.31.2`, `@mastra/memory@1.38.0`, `@mastra/loggers@1.3.8`, `@mastra/observability@1.20.1` | pin literal; validar upgrade via Context7 antes de alterar |
+| AI SDK providers | `@ai-sdk/anthropic@3.0.133`, `@ai-sdk/openai@3.0.130`, `@openrouter/ai-sdk-provider@2.9.0` | wrappers recebem `apiKey` do app; não usar default provider que lê env |
+| Node types | `@types/node@^24.19.2` | acompanha a linha do runtime mínimo |
 
 Notas confirmadas via Context7:
 
@@ -84,7 +84,7 @@ Duas camadas separadas vivem no mesmo Postgres compartilhado, em schemas diferen
 | `ai` | nosso código (Drizzle) | `agent_runs`, `usage_logs` | `pnpm db:generate`/`db:migrate` |
 | `ai_mastra` | Mastra storage | `mastra_threads`, `mastra_messages`, `mastra_traces`, `mastra_scorers`, `mastra_evals`, `mastra_workflow_snapshot`, `mastra_resources` | `pnpm db:migrate` chama `PostgresStore.init()` após as migrations Drizzle |
 
-`drizzle.config.ts` mantém `schemaFilter` apenas com `["core","agenda","cozya","audit","ai","billing"]` — `ai_mastra` deliberadamente fora, então `db:generate` nunca propõe DROP nas tabelas geridas pelo Mastra.
+`packages/db/drizzle.config.ts` define os schemas administrados pelo Drizzle; `ai_mastra` fica deliberadamente fora, então `db:generate` nunca deve propor DROP nas tabelas geridas pelo Mastra. Consultar a lista no arquivo, sem manter uma segunda lista desatualizada aqui.
 
 A ligação entre os dois é o `runId` (UUID): `ai.agent_runs.id` ≡ `billing.creditLedger.runId` ≡ `ai_mastra.mastra_traces.runId` ≡ `withCredits` `reservation.id`. `runBillableAiCall` preserva esse contrato para chamadas simples; em fluxos manuais, `withCredits` prealoca o UUID antes de chamar `reserveCredits`, então o `reservation.id` já nasce igual ao `runId` persistido no billing. **Sempre** que invocar `agent.generate(input, { runId })`, passe o mesmo UUID que veio do billing.
 
@@ -225,7 +225,7 @@ const recorder = createAgentRunRecorder({ store: createDrizzleAgentRunStore(db) 
 
 const out = await runBillableAiCall({
   billing,
-  owner: { type: "organization", id: activeOrgId }, // user.id em cozya
+  owner: { type: "user", id: session.user.id }, // titular; organizations somente em produtos que adotem esse contrato
   app: "agenda-da-turma",
   agent: "triagem",
   feature: "triagem.generate",
@@ -249,7 +249,7 @@ const usage = {
 `computeCreditsFromUsage` exige inteiros não negativos e `totalTokens === promptTokens + completionTokens`. `withCredits` também exige `estimatedAmount` e `actualAmount` como inteiros positivos. Falha de validação antes da reserva não toca billing; falha depois da reserva libera com `reason: "validation_failed"`.
 
 Owner por app:
-- `agenda-da-turma`: `{ type: "organization", id: activeOrgId }` (multi-tenant, Better Auth organizations).
+- `agenda-da-turma`: `{ type: "user", id: session.user.id }` (titular, perfis familiares e permissões por criança; sem Better Auth organizations).
 - `cozya`: `{ type: "user", id: session.user.id }` (single-user).
 
 ---
@@ -258,7 +258,7 @@ Owner por app:
 
 1. **Schema `ai_mastra` separado** para tabelas geridas pelo Mastra. Drizzle continua dono exclusivo de `ai`. Decidido para manter o invariante "Drizzle é fonte de verdade" sem tornar este package refém de mudanças de schema entre versões do Mastra.
 2. **Init do Mastra via migrator**. `pnpm db:migrate` roda Drizzle e depois `PostgresStore.init()`; apps em produção devem usar `disableInit: true` para não fazer DDL em runtime. Migration custom `0010_create_ai_mastra_schema.sql` só cria o schema vazio — DDL de tabelas fica com o init oficial do Mastra.
-3. **AI SDK providers linha 3.x** — exigidos pelo `@mastra/core@1.31.0`. Não voltar para providers 2.x sem validar a compatibilidade Mastra/AI SDK via Context7.
+3. **AI SDK providers linha 3.x** — compatíveis com a linha Mastra v1 adotada. Não voltar para providers 2.x sem validar a compatibilidade Mastra/AI SDK via Context7.
 4. **Sem pgvector / sem RAG** por padrão. Vector store é opt-in: para habilitar, adicionar `@mastra/pg` `PgVector` numa factory paralela à `createSharedMemory` e criar `CREATE EXTENSION IF NOT EXISTS vector` em migration custom.
 5. **`runId` compartilhado** entre `runBillableAiCall`/`withCredits` (reservation.id), `agent.generate({ runId })` e `recorder.start/finish`. Sem isso, perdemos correlação billing↔agente↔mastra_traces.
 6. **Pool separado**: `@informach/db` usa driver `postgres-js`; `@mastra/pg` usa `pg`. Dois pools no mesmo Postgres é aceitável — não tentar reaproveitar.

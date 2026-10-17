@@ -1,0 +1,133 @@
+.scene-padding {
+  padding: 16px;
+}
+.scene-artboard {
+  max-height: 80%;
+  background: #fff;
+}
+.scene-artwork,
+.scene-artwork > svg {
+  width: 100%;
+  height: 100%;
+}
+.scene-artwork {
+  transform-origin: 50% 50%;
+}
+.scene-artwork [data-object] {
+  cursor: pointer;
+}
+.scene-name {
+  display: block;
+  width: 100%;
+  margin: 10px 0;
+}
+.scene-flags {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0 24px;
+}
+.property input:disabled {
+  opacity: 0.5;
+}
+.scene-artboard svg {
+  overflow: visible;
+}
+
+.scene-tools {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+.scene-tools button {
+  border: 1px solid var(--line);
+  white-space: normal;
+  min-height: 34px;
+  font-size: 11px;
+}
+.scene-field {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.scene-field input {
+  width: 100%;
+  padding: 8px;
+}
+.scene-field + h3 {
+  margin-top: 24px;
+}
+.scene-tools button:disabled {
+  cursor: not-allowed;
+}
+.layer[data-scene-select] {
+  cursor: pointer;
+  font-size: 11px;
+}
+.layer-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: text;
+}
+.layer-name input {
+  width: 100%;
+  min-width: 0;
+  height: 22px;
+  padding: 1px 4px;
+  font: inherit;
+  color: var(--text);
+  background: #101114;
+  border: 1px solid #4fe3c1;
+  border-radius: 2px;
+  outline: none;
+}
+.layer[data-scene-select]:focus-visible {
+  outline: 1px solid #4fe3c1;
+  outline-offset: -1px;
+}
+.stage[data-tool="pen"] .scene-artwork,
+.stage[data-tool="pen"] [data-object] {
+  cursor: crosshair;
+}
+
+.stage {
+  touch-action: none;
+}
+.stage[data-tool="hand"],
+.stage[data-tool="hand"] [data-object] {
+  cursor: grab;
+}
+.stage.panning {
+  cursor: grabbing;
+}
+.stage[data-tool="zoom"] {
+  cursor: zoom-in;
+}
+.stage[data-tool="shapes"] .scene-artwork,
+.stage[data-tool="shapes"] [data-object] {
+  cursor: crosshair;
+}
+.stage[data-tool="text"] .scene-artwork,
+.stage[data-tool="text"] [data-object] {
+  cursor: text;
+}
+.selection-outline {
+  fill: none;
+  stroke: #168cce;
+  stroke-width: 1.5;
+  stroke-dasharray: 5 3;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.rail button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.canvas-hint {
+  pointer-events: none;
+}
