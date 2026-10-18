@@ -28,6 +28,8 @@ Saídas de arquivos passam por capabilities e helpers de escrita compartilhados.
 
 O EdiPDF amplia os formatos documentais de saída do SDK para texto, dados, Office, OpenDocument, TIFF e arquivos de anexos. `supportsOutputExtension` centraliza essa lista; uma extensão aceita não concede acesso ao destino. `file:write-copy` passa pela mesma capability e proteção de recuperação de `file:write`. O app revalida identidade/cópia para preservar originais e publica lotes em diretório exclusivo. O corpus e os limites ficam no [full review do EdiPDF](reviews/edipdf-2026-10-18/full-review-entrega.md).
 
+O cofre de sessão compartilhado aceita um encerramento explícito que recusa novas operações e aguarda todas as operações já aceitas, inclusive a liberação do lock. O SDK inicia essa etapa em `will-quit`, depois de os editores aceitarem fechar e da verificação do instalador pendente; cancelar um salvamento não encerra o cofre. O lock de execução só é liberado após essa drenagem. Não apagar locks para contornar um encerramento incompleto.
+
 A matriz abaixo registra candidatos estáveis consultados em 16/10/2026 nos registros oficiais. É uma referência para homologação, não uma declaração de versões já instaladas ou verificadas contra todos os consumidores do monorepo.
 
 | Componente | Versão candidata | Aplicação |

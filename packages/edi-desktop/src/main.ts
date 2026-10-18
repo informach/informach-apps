@@ -116,6 +116,9 @@ export function createEdiDesktop(options: {
   let expiryTimer: ReturnType<typeof setTimeout> | undefined;
   let unsubscribeVault: ReturnType<typeof watch> | undefined;
   let runtimeLock: (() => Promise<void>) | undefined;
+  let sessionVault: ReturnType<typeof createVault> | undefined;
+  let vaultClosing = false;
+  let vaultClosed = false;
   let quitting = false;
   let pendingInstaller: string | undefined;
   let verifyingQuit = false;
@@ -401,6 +404,24 @@ export function createEdiDesktop(options: {
         if (expiryTimer) clearTimeout(expiryTimer);
         unsubscribeVault?.close();
         powerMonitor.removeListener("resume", safeRefresh);
+        if (sessionVault && !vaultClosed) {
+          // will-quit runs only after every editor has accepted closing. A canceled save must
+          // leave the vault usable; an accepted quit must await pending writes and lock release.
+          event.preventDefault();
+          if (!vaultClosing) {
+            vaultClosing = true;
+            void sessionVault.close().then(
+              () => {
+                vaultClosed = true;
+                app.quit();
+              },
+              (error: unknown) => {
+                logFailure("session_vault_shutdown_failed", error);
+              },
+            );
+          }
+          return;
+        }
         if (runtimeLock) {
           try {
             unlockSync(join(directory, `${options.appId}.runtime`), { realpath: false });
@@ -416,6 +437,7 @@ export function createEdiDesktop(options: {
         seal: (value) => safeStorage.encryptString(value),
         unseal: (value) => safeStorage.decryptString(value),
       });
+      sessionVault = vault;
       releaseAcceptance = createReleaseAcceptance({
         vault,
         currentVersion: app.getVersion(),

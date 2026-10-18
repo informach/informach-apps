@@ -55,51 +55,72 @@ export function createVault(config: {
   directory: string;
   seal: (plain: string) => Buffer;
   unseal: (sealed: Buffer) => string;
-}): Vault {
+}): Vault & { close(): Promise<void> } {
   const target = join(config.directory, "session.v1.bin");
+  const active = new Set<Promise<void>>();
+  let closed = false;
   return {
-    async use(operation) {
-      await mkdir(config.directory, { recursive: true, mode: 0o700 });
-      const release = await lock(target, {
-        realpath: false,
-        stale: 30000,
-        update: 5000,
-        retries: { retries: 30, minTimeout: 100, maxTimeout: 1000, randomize: true },
-      });
-      try {
-        let data: VaultData;
-        let existed = false;
-        try {
-          const bytes = await readFile(target);
-          if (bytes.byteLength > 1048576) throw new Error("Encrypted session exceeds limit");
-          data = vaultSchema.parse(JSON.parse(config.unseal(bytes)));
-          existed = true;
-        } catch (error) {
-          if (!(error instanceof Error && "code" in error && error.code === "ENOENT"))
-            throw new Error(
-              "Não foi possível abrir a sessão protegida. Nenhum acesso foi liberado.",
-              { cause: error },
-            );
-          data = {
-            version: 1,
-            ...createDeviceIdentity(),
-            session: null,
-            leases: {},
-            lastTrustedTime: 0,
-            mcpTokens: {},
-            boundUserId: null,
-            updateFloors: {},
-          };
-        }
-        const before = JSON.stringify(data);
-        const result = await operation(data);
-        const after = JSON.stringify(vaultSchema.parse(data));
-        if (existed && before === after) return result;
-        await atomicWrite(target, config.seal(after));
-        return result;
-      } finally {
-        await release();
-      }
+    close() {
+      closed = true;
+      return Promise.all([...active]).then(() => undefined);
+    },
+    use(operation) {
+      if (closed) return Promise.reject(new Error("O cofre de sessão está encerrando."));
+      const result = run(operation);
+      // Callers retain their operation's result/error; shutdown tracks completion through release().
+      const finished = result.then(
+        () => {
+          active.delete(finished);
+        },
+        () => {
+          active.delete(finished);
+        },
+      );
+      active.add(finished);
+      return result;
     },
   };
+  async function run<T>(operation: (data: VaultData) => Promise<T>): Promise<T> {
+    await mkdir(config.directory, { recursive: true, mode: 0o700 });
+    const release = await lock(target, {
+      realpath: false,
+      stale: 30000,
+      update: 5000,
+      retries: { retries: 30, minTimeout: 100, maxTimeout: 1000, randomize: true },
+    });
+    try {
+      let data: VaultData;
+      let existed = false;
+      try {
+        const bytes = await readFile(target);
+        if (bytes.byteLength > 1048576) throw new Error("Encrypted session exceeds limit");
+        data = vaultSchema.parse(JSON.parse(config.unseal(bytes)));
+        existed = true;
+      } catch (error) {
+        if (!(error instanceof Error && "code" in error && error.code === "ENOENT"))
+          throw new Error(
+            "Não foi possível abrir a sessão protegida. Nenhum acesso foi liberado.",
+            { cause: error },
+          );
+        data = {
+          version: 1,
+          ...createDeviceIdentity(),
+          session: null,
+          leases: {},
+          lastTrustedTime: 0,
+          mcpTokens: {},
+          boundUserId: null,
+          updateFloors: {},
+        };
+      }
+      const before = JSON.stringify(data);
+      const result = await operation(data);
+      const after = JSON.stringify(vaultSchema.parse(data));
+      if (existed && before === after) return result;
+      await atomicWrite(target, config.seal(after));
+      return result;
+    } finally {
+      await release();
+    }
+  }
 }

@@ -33,15 +33,15 @@
 | M04 — busca | Revisão efetiva e geometria por glifo revisadas | Textos complexos, colunas e OCR amplo |
 | M05 — texto/seleção | Caixas, quebra, alinhamento, listas/fontes e alças com gestos revisados | Fluxo multipágina e ortografia local opcional |
 | M06 — anotações | Seleção múltipla, grupos, Alt interno, alinhamento, ordem, bloqueio e comentários | Clipboard Windows isolado, interação Alt nativa e agrupamento de histórico em corpus amplo |
-| M07 — formulários | Tipos comuns, dados/máscaras, Tab/fontes/preparação atômica e rótulos/valores revisados; coordenadas fracionárias corrigidas na configuração | Matriz de rotação/cor/alinhamento/múltiplas aparições e XFA |
+| M07 — formulários | Tipos comuns, dados/máscaras, Tab/fontes/preparação atômica e rótulos/valores revisados; coordenadas fracionárias, orientação do controle e alinhamento corrigidos; 64 combinações e campo girado salvo/reaberto conferidos | Corpus de rotação própria/cor/alinhamento/múltiplas aparições e XFA |
 | M08 — organizar/juntar/dividir | Intervalos/seletores, grupos explícitos, junção/revisão e divisão por marcadores/tamanho real revisados com retomada | Corpus/performance; substituição com preservação de referências |
 | M09 — compactação | Meta real, melhor resultado, qualidade/placements e retomada revisados | Ampliar formatos/perfis de cor com corpus; nunca prometer meta impossível |
 | M10 — desempenho | Workers, filas, virtualização e orçamentos implementados | Medições comparáveis de abertura/edição/memória em corpus grande |
 | M11 — lotes | Manifesto, progresso, interrupção/retomada e destino exclusivo revisados | Novos modos, relatório final ampliado e repetição dirigida de falhas |
 | M12 — impressão | Preparação vetorial/raster restrito, intervalos, livreto e revisão aprovados | Driver, duplex e papel físico; hardware ausente nesta sessão |
-| M13 — marcas/numeração | Intervalos/capa/exceções, margens/fontes, cabeçalhos/rodapés, estilos/Bates, rótulos PDF e prévia real implementados, com testes/tipos | Aceite nativo e corpus amplo do complemento |
+| M13 — marcas/numeração | Intervalos/capa/exceções, margens/fontes, cabeçalhos/rodapés, estilos/Bates, rótulos PDF e prévia real aprovados em testes e no percurso nativo; prévia conservada ao rolar opções | Corpus amplo do complemento; gates de publicação no full review |
 | M14 — acessibilidade da interface | Foco modal, nomes, teclado/estados e preferências revisados | Novos controles e leitor de tela real/contraste/redução de movimento |
-| M15 — assinatura gráfica | Traços, cor, iniciais/data, opt-in e retenção local | Rotação/recorte/limpeza de fundo e colocação direta/corpus de caneta |
+| M15 — assinatura gráfica | Traços vetoriais, cor, data, opt-in, rotação, recorte/limpeza com prévia, posição por mouse/teclado e conjunto limitado à página; perfil nativo aprovado | Corpus de caneta/toque/fotografias/fontes do sistema; gates de publicação no full review |
 | M16 — preferências/recentes | Tema/interface/atalhos/painéis, fixação, sessão e retenção | Revisão integrada final e corpus de restauração |
 
 ## Implementações
@@ -68,6 +68,6 @@
 | I18 — extração/conferência | Tabelas com origem/geometria e exportação revisadas | Correção direta, campos/confiança e consistência de datas/valores |
 | I19 — preparação por finalidade | Pendente | Receitas configuráveis, prévia, relatório e execução local |
 | I20 — compartilhamento online | Excluído | Sem serviços novos, convites ou acompanhamento hospedado |
-| I21 — recursos especializados | Perfil inicial de Bates em marcas/numeração, com testes/tipos | Aceite nativo de Bates; carimbos, medição, camadas, portfólio, mídia e matriz XFA conforme perfis locais |
+| I21 — recursos especializados | Perfil inicial de Bates em marcas/numeração, com testes e percurso nativo aprovado | Carimbos, medição, camadas, portfólio, mídia e matriz XFA conforme perfis locais |
 
 As exclusões não cancelam os complementos locais. A falta de hardware/permissão de teste é distinta de código ausente: está registrada sem simular homologação e sem interromper as frentes independentes.

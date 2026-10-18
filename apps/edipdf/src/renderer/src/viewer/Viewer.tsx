@@ -23,7 +23,7 @@ export function Viewer({ doc }: { doc: DocState }): React.ReactElement {
   const tool = useApp((state) => state.tool);
   const stageRef = useRef<HTMLDivElement>(null);
   const pageEls = useRef(new Map<string, HTMLElement>());
-  const [viewport, setViewport] = useState({ top: 0, height: 800, width: 1000 });
+  const [viewport, setViewport] = useState({ top: 0, height: 0, width: 0 });
   const scale = doc.zoom * PT_TO_PX,
     pages = doc.content.pages;
   const mode = doc.pageLayout ?? "continuous",
@@ -33,6 +33,20 @@ export function Viewer({ doc }: { doc: DocState }): React.ReactElement {
     () => pageLayoutGeometry(sizes, scale, mode, singlePage, PAD, GAP),
     [sizes, scale, mode, singlePage],
   );
+  const fittedZoom = (() => {
+    if (!doc.fit || !geometry.rows.length || viewport.width <= 0 || viewport.height <= 0)
+      return null;
+    const contentWidth = (geometry.width - PAD * 2 - (mode === "spread" ? GAP : 0)) / scale;
+    const current = sizes[doc.currentPage] ?? sizes[0];
+    const byWidth =
+      (viewport.width - PAD * 2 - (mode === "spread" ? GAP : 0) - 4) / (contentWidth * PT_TO_PX);
+    const byPage = Math.min(byWidth, (viewport.height - PAD * 2) / (current.h * PT_TO_PX));
+    return Math.max(
+      MIN_ZOOM,
+      Math.min(MAX_ZOOM, doc.fit === "width" ? Math.min(byWidth, 1.4) : byPage),
+    );
+  })();
+  const fitting = !!doc.fit && (fittedZoom === null || Math.abs(fittedZoom - doc.zoom) > 0.001);
   const layout = useRef({ geometry, pages, scale, currentPage: doc.currentPage });
   useLayoutEffect(() => {
     layout.current = { geometry, pages, scale, currentPage: doc.currentPage };
@@ -110,53 +124,63 @@ export function Viewer({ doc }: { doc: DocState }): React.ReactElement {
   }, [capturePosition]);
 
   useEffect(() => {
-    if (mode === "single") return;
-    const probe = viewport.top + viewport.height * 0.3;
+    if (mode === "single" || viewport.height <= 0 || fitting || doc.scrollRequest) return;
+    const el = stageRef.current;
+    if (
+      !el ||
+      el.scrollTop !== viewport.top ||
+      el.clientWidth !== viewport.width ||
+      el.clientHeight !== viewport.height
+    )
+      return;
+    const probe = el.scrollTop + el.clientHeight * 0.3;
     const row = visiblePageRows(geometry.rows, probe, probe + GAP + 1)[0];
     if (row && !row.indices.includes(doc.currentPage))
       patchDoc(doc.id, { currentPage: row.indices[0] });
-  }, [viewport.top, viewport.height, geometry, mode, doc.id, doc.currentPage]);
-
-  useEffect(() => {
-    if (!doc.fit || !geometry.rows.length) return;
-    const contentWidth = (geometry.width - PAD * 2 - (mode === "spread" ? GAP : 0)) / scale;
-    const current = sizes[doc.currentPage] ?? sizes[0];
-    const byWidth =
-      (viewport.width - PAD * 2 - (mode === "spread" ? GAP : 0) - 4) / (contentWidth * PT_TO_PX);
-    const byPage = Math.min(byWidth, (viewport.height - PAD * 2) / (current.h * PT_TO_PX));
-    const zoom = Math.max(
-      MIN_ZOOM,
-      Math.min(MAX_ZOOM, doc.fit === "width" ? Math.min(byWidth, 1.4) : byPage),
-    );
-    if (Math.abs(zoom - doc.zoom) > 0.001) patchDoc(doc.id, { zoom });
   }, [
-    doc.fit,
-    doc.currentPage,
-    doc.zoom,
-    doc.id,
+    viewport.top,
     viewport.width,
     viewport.height,
     geometry,
-    sizes,
-    scale,
     mode,
+    doc.id,
+    doc.currentPage,
+    fitting,
+    doc.scrollRequest,
   ]);
+
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    if (el.clientWidth !== viewport.width || el.clientHeight !== viewport.height) {
+      setViewport({ top: el.scrollTop, height: el.clientHeight, width: el.clientWidth });
+      return;
+    }
+    if (fittedZoom !== null && Math.abs(fittedZoom - doc.zoom) > 0.001)
+      patchDoc(doc.id, { zoom: fittedZoom });
+  }, [fittedZoom, doc.zoom, doc.id, viewport.width, viewport.height]);
 
   const previousScale = useRef(scale);
   useLayoutEffect(() => {
     const el = stageRef.current,
       previous = previousScale.current;
     previousScale.current = scale;
-    if (!el || previous === scale || el.scrollTop === 0) return;
+    if (!el || previous === scale || el.scrollTop === 0 || doc.scrollRequest) return;
     const centre = el.scrollTop + el.clientHeight / 2;
     el.scrollTop = Math.max(0, PAD + ((centre - PAD) * scale) / previous - el.clientHeight / 2);
     el.scrollLeft = Math.max(0, (el.scrollWidth - el.clientWidth) / 2);
-  }, [scale]);
+    setViewport({ top: el.scrollTop, height: el.clientHeight, width: el.clientWidth });
+  }, [scale, doc.scrollRequest]);
 
   useLayoutEffect(() => {
     const request = doc.scrollRequest,
       el = stageRef.current;
     if (!request || !el) return;
+    if (el.clientWidth !== viewport.width || el.clientHeight !== viewport.height) {
+      setViewport({ top: el.scrollTop, height: el.clientHeight, width: el.clientWidth });
+      return;
+    }
+    if (fitting || viewport.width <= 0 || viewport.height <= 0) return;
     const top = geometry.tops[request.page];
     if (top === undefined) {
       patchDoc(doc.id, { scrollRequest: null });
@@ -169,8 +193,9 @@ export function Viewer({ doc }: { doc: DocState }): React.ReactElement {
           ? top + request.y * scale - el.clientHeight / 3
           : top - 12;
     if (request.left !== undefined) el.scrollLeft = request.left * scale;
+    setViewport({ top: el.scrollTop, height: el.clientHeight, width: el.clientWidth });
     patchDoc(doc.id, { scrollRequest: null });
-  }, [doc.scrollRequest, doc.id, geometry, scale]);
+  }, [doc.scrollRequest, doc.id, geometry, scale, fitting, viewport.width, viewport.height]);
 
   useEffect(() => {
     const el = stageRef.current;

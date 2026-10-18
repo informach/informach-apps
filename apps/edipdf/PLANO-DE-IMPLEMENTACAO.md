@@ -30,7 +30,7 @@ Cada lote exige testes proporcionais, tipos, build, análise do diff e review re
 
 Complementos atuais: [formulários revisados](../../docs/reviews/edipdf-2026-10-18/review-formularios-complemento.md), [clipboard em homologação](../../docs/reviews/edipdf-2026-10-18/review-clipboard-parcial.md) e [capacidade/risco dos Form XObjects](../../docs/reviews/edipdf-2026-10-18/probe-form-objects.md). O teste nativo do clipboard exige uma estação Windows exclusiva; a falta dessa permissão não autoriza usar o clipboard pessoal nem interrompe os demais complementos.
 
-## Integração e revisão do lote 4
+## Histórico da integração e revisão do lote 4
 
 As tarefas usam chamada autenticada no main, `desktop.jobs.begin/check/finish`, MessagePort e workers locais. A fila reserva bytes/quantidade, permite uma etapa de CPU por vez e mostra progresso/interrupção/revisão. Resultados completos e checkpoints ficam protegidos com retomada explícita. A saída exige nova escolha de destino e commit seguro; nenhuma tarefa substitui silenciosamente a revisão aberta.
 
