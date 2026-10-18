@@ -133,6 +133,7 @@ const api: EdiAulaApi = {
   installEngine: (jobId, variant) => ipcRenderer.invoke("whisper:installEngine", jobId, variant),
   installModel: (jobId, name) => ipcRenderer.invoke("whisper:installModel", jobId, name),
   selectModel: (path) => ipcRenderer.invoke("whisper:selectModel", path),
+  setExternalModels: (on) => ipcRenderer.invoke("whisper:externalModels", on),
   transcribe: (jobId, path, duration, language, glossary) =>
     ipcRenderer.invoke("whisper:transcribe", jobId, path, duration, language, glossary),
   getGlossary: (course) => ipcRenderer.invoke("glossary:get", course),

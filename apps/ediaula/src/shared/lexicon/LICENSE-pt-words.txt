@@ -1,0 +1,17 @@
+ptWords.ts: Portuguese word list used by the EdiAula glossary
+
+Derived from "pt_br_50k.txt" of FrequencyWords by Hermit Dave
+https://github.com/hermitdave/FrequencyWords
+commit 525f9b560de45753a5ea01069454e72e9aa541c6
+SHA-256 of the source file: a61d6f2ede97c5daad5fb3907b72a228f0aff12668be6d24da590d20804fa611
+
+The source lists word frequencies of the OpenSubtitles 2018 corpus (http://opus.nlpl.eu/).
+FrequencyWords content is licensed under the Creative Commons Attribution-ShareAlike 4.0
+International License (CC BY-SA 4.0): https://creativecommons.org/licenses/by-sa/4.0/
+
+Changes: only the words were kept (no counts); tokens with anything other than letters were
+dropped; words were lowercased, stripped of accents, deduplicated, sorted and front-coded.
+The derived list (ptWords.ts) is shared under the same license, CC BY-SA 4.0. It is data used
+by the program; the EdiAula source code is not licensed under CC BY-SA.
+
+Regenerate with: node scripts/build-pt-lexicon.mjs

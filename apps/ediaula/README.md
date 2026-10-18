@@ -64,7 +64,7 @@ assim entrada de verdade) só rodam com `EDIAULA_NATIVE_INPUT_TESTS=1`; `pnpm ed
 ## Etapa 2 (pronta)
 
 - Transcrição local com whisper.cpp (instalado pelo próprio app na primeira vez: GPU NVIDIA ou CPU)
-- Modelo `large-v3-turbo` (recomendado) ou qualquer `ggml-*.bin` em `C:\whisper-cpp`
+- Modelo `large-v3-turbo` (recomendado) ou `small`; os `ggml-*.bin` de `C:\whisper-cpp` entram só se você marcar a opção no painel, e o app avisa que não os confere
 - Tempos por palavra com DTW + silêncios medidos pelo FFmpeg
 - Painel de transcrição: clique numa palavra para ir até ela, selecione palavras e aperte Delete para cortar
 - Limpeza automática: vícios de fala ("né", "tipo,", "ahn"…), frases repetidas e silêncios longos, com contagem e tempo economizado
@@ -72,6 +72,16 @@ assim entrada de verdade) só rodam com `EDIAULA_NATIVE_INPUT_TESTS=1`; `pnpm ed
 - Legenda `.srt` gerada da transcrição editada, salva junto do MP4
 
 O motor e os modelos ficam em `%APPDATA%\ediaula\whisper`.
+
+**Downloads conferidos.** O motor (build `b5454` do whisper.cpp, a versão noturna da v1.9.5), os dois modelos oferecidos e o modelo Silero de detecção de voz têm SHA-256 e tamanho fixados em `src/main/whisperAssets.ts`, tirados do que o GitHub publica para cada arquivo da release e do SHA-256 que o Hugging Face lista para cada modelo, numa revisão fixa do repositório. O hash é calculado durante o download (`src/main/download.ts`) e conferido antes de o arquivo ir para o lugar: se não bater, o `.part` é apagado e nada é instalado. Dois pedidos do mesmo arquivo ao mesmo tempo viram um download só. O zip do motor é extraído numa pasta temporária, cada arquivo é conferido contra `src/main/whisperManifest.ts` (gerado por `scripts/build-whisper-manifest.mjs` a partir dos zips oficiais conferidos) e só então o motor em uso é posto de lado e trocado pelo novo; se a troca falhar, o antigo volta, e o zip só é apagado depois do sucesso. Motor e modelos instalados antes desta conferência são conferidos na primeira transcrição; o que não bater sai da lista e precisa ser baixado de novo. Os nomes das pastas e arquivos temporários são gerados pelo app, nunca a partir do que chega da interface.
+
+**Retomada.** Um download interrompido deixa o `.part` e um `.part.json` (endereço, ETag e tamanho). A tentativa seguinte confere de novo o que já está no disco e pede só o resto (`Range` com `If-Range`); um servidor que não aceita continuar manda o arquivo inteiro, e o download recomeça do zero. Um `.part` com mais de 7 dias é apagado quando o app abre.
+
+**Detecção de voz e alucinação.** Quando o `whisper-cli --help` lista `--vad`, a transcrição usa `--vad --vad-model` com o Silero (baixado junto com o motor, conferido antes de cada uso e baixado de novo se não bater, com tempo limite). Com VAD, o JSON do whisper.cpp deixa os tempos das palavras no áudio encurtado; o app lê a tabela de trechos que ele registra no log, confere que veio inteira e devolve cada palavra ao tempo do arquivo (`src/shared/whisperParse.ts`). Sem a tabela inteira, a transcrição é feita de novo sem VAD; quando o VAD não acha fala nenhuma, o resultado vazio vale. Se o whisper falhar com VAD, o modelo do VAD é apagado e a transcrição segue sem ele. O arquivo de cache leva no nome o modo que rodou de fato. O filtro de alucinação marca, sem apagar: palavras de confiança baixa no meio de um silêncio de 0,5 s ou mais (onde o VAD ouviu fala não conta como silêncio), créditos de legenda ("Legendas pela comunidade Amara.org") e despedidas de vídeo ("Obrigado por assistir", "Inscreva-se no canal") mal ouvidas ou em silêncio sem confiança. As palavras marcadas não aparecem no texto, mas ficam como marca discreta na transcrição e voltam com um clique. O whisper usa os núcleos do processador menos dois (de 2 a 16), e o WAV e o JSON temporários são apagados também quando a transcrição falha.
+
+**Glossário corrigindo na leitura.** O glossário do curso (até 60 termos; acima disso o app recusa e avisa) e os nomes do roteiro corrigem o texto quando a transcrição é lida (`src/shared/glossary.ts`): sem acento nem caixa, pelo som ("Zapi" vira "Zappy"), juntando palavras partidas ("de binha" vira "Debinha"), com até uma letra de diferença em nomes de até 5 letras e duas acima disso. Uma palavra que existe em português nunca é trocada, nem muda de caixa: a lista de 48 mil palavras em `src/shared/lexicon/` vem da lista de frequência FrequencyWords (legendas do OpenSubtitles, licença CC BY-SA 4.0, registrada em `LICENSE-pt-words.txt`; gerada por `scripts/build-pt-lexicon.mjs`). Toda troca que não seja só de caixa ou acento exige que o whisper estivesse inseguro (confiança abaixo de 0,8). Do roteiro entram só os falantes, os nomes de várias palavras ("Sistema Zero", "Chave do Farol") e palavras que não existem em português ("Zappy"); botões como "Salvar" e "Executar" ficam de fora. As palavras que o glossário mudou ficam marcadas, com a dica "corrigido pelo glossário: era X". Mudar o glossário corrige na hora, sem transcrever de novo; o campo fica na aba Transcrição, em **Glossário do curso**. O glossário fica guardado por curso, fora do projeto, e não volta com Ctrl+Z. Só os 20 termos mais citados no roteiro entram no prompt do whisper.
+
+**Editor de palavras.** Duplo clique numa palavra da transcrição (ou F2 e Enter pelo teclado) abre a correção. Enter ou um clique fora confirma, Esc cancela, e o foco volta para a palavra. Dá para aplicar em todas as ocorrências (o editor mostra quantas são; "esta" e "está" contam como palavras diferentes), adicionar ao glossário do curso, mover o começo e o fim em passos de 50 ms, ouvir a palavra com 0,3 s antes e depois e começar uma legenda nova naquela palavra. Texto vazio tira a palavra da transcrição sem cortar o vídeo; a palavra tirada fica como marca discreta e volta com um clique. Uma palavra juntada pelo glossário é editada inteira, e mexer numa palavra corrigida guarda a correção junto; digitar o que o whisper ouviu desfaz uma troca errada do glossário naquela palavra. As correções ficam no projeto (`wordEdits` de cada mídia, no tempo da fonte, com o texto e o tempo originais), acompanham cortes e divisões e entram no Ctrl+Z; numa transcrição refeita, cada correção procura a mesma palavra a até 1 s de onde estava, e o painel avisa quantas não acharam lugar. São aplicadas num lugar só, onde as palavras da mídia são lidas (`src/shared/wordEdits.ts`), então legenda gravada, `.srt`, `.vtt`, karaokê, prévia e IA veem o texto corrigido. Palavras de confiança baixa aparecem sublinhadas em laranja.
 
 ## Inteligência artificial
 
@@ -171,7 +181,7 @@ EdiAula pergunta numa janela do Windows, sem travar as outras ferramentas, e a p
 - **Encaixar** uma inserção nunca move uma faixa travada: se uma faixa travada tem algo depois do ponto onde seria
   preciso abrir espaço, o encaixe vira uma proposta com aviso e nada muda. Os templates de tela cheia fazem o mesmo:
   com uma faixa travada que ficaria para trás, eles não são inseridos e o aviso diz qual destravar.
-- **Glossário por curso** (nomes, personagens, blocos) melhora a transcrição e orienta a IA.
+- **Glossário por curso** (nomes, personagens, blocos) corrige a transcrição na leitura e orienta a IA.
 
 **Outros:** vídeos com taxa de quadros variável ganham cópia de trabalho com taxa fixa; cópias de
 segurança automáticas em `Projetos/.backups`; tempo de edição medido por aula; exportação com
@@ -350,6 +360,10 @@ segurança automáticas em `Projetos/.backups`; tempo de edição medido por aul
 - **Legenda no vídeo** (Propriedades do projeto, com nada selecionado, ou na exportação): da transcrição editada,
   estilos "Palavra acende" (karaokê verde-limão), contorno ou caixa escura; embaixo, no meio ou em cima. A prévia
   mostra igual; a exportação desenha com libass (`shared/captions.ts`). No vertical, linhas mais curtas e mais altas.
+- **Legenda por legenda** (barra lateral › Legendas, com a legenda no vídeo ligada): a lista de todas as legendas.
+  Clique numa palavra para começar uma legenda nova nela (`captionBreaks`); **Juntar à anterior** desfaz a quebra.
+  O pincel dá a uma legenda só a sua posição, tamanho ou cor (`cueStyles`), e **Como as outras** volta ao estilo do
+  projeto. Quebras e estilos valem igual na prévia e na exportação; o `.srt` continua com a divisão automática.
 - **Movimento por keyframes** (Propriedades › Movimento): marque posições em momentos diferentes; o clipe desliza
   entre elas. Com keyframes, arrastar no vídeo ajusta a posição daquele momento (`shared/keyframes.ts`).
 - **Áudio do PC** na gravação (loopback do Windows pelo Chromium), numa faixa própria já alinhada e cortada nas

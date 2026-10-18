@@ -29,7 +29,6 @@ import type {
   AssistantEvent,
   JobProgress,
   ProjectSettings,
-  WhisperVariant,
 } from "../shared/types.ts";
 import { requestApproval } from "./aiApproval.ts";
 import { callTool } from "./aiBridge.ts";
@@ -106,9 +105,28 @@ import {
   engineStatus,
   installEngine,
   installModel,
+  isEngineVariant,
+  isModelName,
+  removeStaleDownloads,
   selectModel,
+  setExternalModels,
   transcribe,
 } from "./whisper.ts";
+
+/* What the renderer may ask of the transcription engine: ids and names never become paths. */
+const jobIdSchema = z.string().regex(/^[\w-]{1,64}$/);
+const variantSchema = z.string().refine(isEngineVariant, "Variante de motor desconhecida.");
+const modelNameSchema = z.string().refine(isModelName, "Modelo desconhecido.");
+const transcribeSchema = z.tuple([
+  jobIdSchema,
+  z.string().min(1).max(32768),
+  z
+    .number()
+    .nonnegative()
+    .max(7 * 86400),
+  z.string().regex(/^[a-z]{2,3}$/),
+  z.array(z.string().max(200)).max(60),
+]);
 
 app.setPath("userData", join(app.getPath("appData"), "ediaula"));
 const desktop = createEdiDesktop({
@@ -609,9 +627,14 @@ function registerIpc(): void {
         ),
       ),
   );
-  ipcMain.handle("glossary:get", (_e, course: string) => getGlossary(course));
-  ipcMain.handle("glossary:set", (_e, course: string, terms: string[]) =>
-    setGlossary(course, terms),
+  ipcMain.handle("glossary:get", (_e, course: unknown) =>
+    getGlossary(z.string().max(1024).parse(course)),
+  );
+  ipcMain.handle("glossary:set", (_e, course: unknown, terms: unknown) =>
+    setGlossary(
+      z.string().max(1024).parse(course),
+      z.array(z.string().max(200)).max(1000).parse(terms),
+    ),
   );
   ipcMain.handle("fs:exists", (_e, paths: string[]) => paths.map((p) => existsSync(p)));
 
@@ -706,28 +729,38 @@ function registerIpc(): void {
   });
 
   ipcMain.handle("whisper:status", () => engineStatus());
-  ipcMain.handle("whisper:installEngine", (_e, jobId: string, variant: WhisperVariant) =>
-    installEngine(jobId, variant, (ratio) => sendProgress({ id: jobId, ratio })),
+  ipcMain.handle("whisper:installEngine", (_e, rawId: unknown, rawVariant: unknown) => {
+    const jobId = jobIdSchema.parse(rawId);
+    const variant = variantSchema.parse(rawVariant);
+    if (!isEngineVariant(variant)) throw new Error("Variante de motor desconhecida.");
+    return installEngine(jobId, variant, (ratio) => sendProgress({ id: jobId, ratio }));
+  });
+  ipcMain.handle("whisper:installModel", (_e, rawId: unknown, rawName: unknown) => {
+    const jobId = jobIdSchema.parse(rawId);
+    return installModel(jobId, modelNameSchema.parse(rawName), (ratio) =>
+      sendProgress({ id: jobId, ratio }),
+    );
+  });
+  ipcMain.handle("whisper:selectModel", (_e, path: unknown) =>
+    selectModel(z.string().min(1).max(32768).parse(path)),
   );
-  ipcMain.handle("whisper:installModel", (_e, jobId: string, name: string) =>
-    installModel(jobId, name, (ratio) => sendProgress({ id: jobId, ratio })),
+  ipcMain.handle("whisper:externalModels", (_e, on: unknown) =>
+    setExternalModels(z.boolean().parse(on)),
   );
-  ipcMain.handle("whisper:selectModel", (_e, path: string) => selectModel(path));
-  ipcMain.handle(
-    "whisper:transcribe",
-    (_e, jobId: string, path: string, duration: number, language: string, glossary: string[]) =>
-      processingJob(jobId, "transcription", (signal) =>
-        transcribe(
-          jobId,
-          path,
-          duration,
-          language,
-          glossary ?? [],
-          (ratio) => sendProgress({ id: jobId, ratio }),
-          signal,
-        ),
+  ipcMain.handle("whisper:transcribe", (_e, ...raw: unknown[]) => {
+    const [jobId, path, duration, language, glossary] = transcribeSchema.parse(raw);
+    return processingJob(jobId, "transcription", (signal) =>
+      transcribe(
+        jobId,
+        path,
+        duration,
+        language,
+        glossary,
+        (ratio) => sendProgress({ id: jobId, ratio }),
+        signal,
       ),
-  );
+    );
+  });
   ipcMain.handle("shell:showItem", (_e, path: string) => shell.showItemInFolder(path));
 }
 
@@ -975,6 +1008,9 @@ app
     // A file of an earlier version may still hold the old permanent token.
     migrateRestrictedConfig(mcp.port);
     void detectEncoder();
+    removeStaleDownloads().catch((err: unknown) =>
+      console.warn("[whisper] could not clean old unfinished downloads:", err),
+    );
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });

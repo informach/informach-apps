@@ -92,7 +92,8 @@ export function timelineWords(
       const mid = (w.start + w.end) / 2;
       if (mid < from || mid >= to) return;
       out.push({
-        key: `${c.assetId}:${i}`,
+        // The index as recognized: corrections that drop or join words keep the keys stable.
+        key: `${c.assetId}:${w.i ?? i}`,
         clipId: c.id,
         text: w.text,
         start: Math.max(c.start, timelineAt(c, w.start)),

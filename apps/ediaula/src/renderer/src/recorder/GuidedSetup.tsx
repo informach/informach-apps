@@ -87,7 +87,8 @@ export function GuidedSetup({
       const response = await fetch(mediaUrl(transcript));
       if (!response.ok) throw new Error("Não foi possível ler a transcrição.");
       const data: Transcript = await response.json();
-      const steps = stepsFromWords(data.words);
+      // Words the hallucination filter set aside are not narration.
+      const steps = stepsFromWords(data.words.filter((w) => !w.dropped));
       change({ ...plan, audio: { path, duration: info.duration }, steps });
       if (!steps.length)
         setError(

@@ -65,6 +65,7 @@ import { type Commit, personCommit, useProject } from "@/state/project";
 import { Button, Toggle } from "@/ui";
 import { CaptionSettings } from "./CaptionSettings";
 import { MotionPathSection, Slider } from "./ClipVisual";
+import { CueList } from "./CueList";
 import { FontPicker } from "./FontPicker";
 import { PaletteSection } from "./PaletteEditor";
 import { Swatches } from "./Swatches";
@@ -730,9 +731,10 @@ export function CaptionsPanel(): ReactNode {
     <Panel title="Legendas" icon={Captions}>
       <CaptionSettings />
       <p className="muted ann-hint">
-        A legenda sai da transcrição já editada: o que foi cortado não aparece. O arquivo .srt é
-        gerado na exportação, separado.
+        A legenda sai da transcrição já editada: o que foi cortado não aparece e as palavras
+        corrigidas saem corrigidas. O arquivo .srt é gerado na exportação, separado.
       </p>
+      <CueList />
       {!transcribed && (
         <Button icon={Captions} onClick={() => useApp.getState().set({ sideTab: "transcript" })}>
           Abrir transcrição

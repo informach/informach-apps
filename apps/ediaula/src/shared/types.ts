@@ -2,7 +2,7 @@ import type { Effort } from "./aiModels.ts";
 import type { StoredProposal } from "./anchors.ts";
 import type { Annotation } from "./annotation.ts";
 import type { CameraChoice, CameraMode } from "./camera.ts";
-import type { CaptionStyle } from "./captions.ts";
+import type { CaptionStyle, CueStyleEntry } from "./captions.ts";
 import type { ChromaKey } from "./chroma.ts";
 import type { Motion, Transform } from "./compose.ts";
 import type { CursorFx } from "./cursor.ts";
@@ -79,6 +79,26 @@ export interface Asset {
   keyed?: string;
   keyedId?: string;
   keyStatus?: "pending" | "ready" | "error";
+  /** Corrections to this media's transcript, by word, in its own seconds (shared/wordEdits.ts). */
+  wordEdits?: WordEdit[];
+}
+
+/**
+ * A hand correction of word `i` of the transcript (its index as whisper wrote it): new text, new
+ * times (source seconds), removed from the text, or `keep`: stays as whisper heard it (the
+ * glossary leaves it alone, and a word the hallucination filter set aside comes back). `was` and
+ * `at` are the recognized text and start it was made on: a transcript made again gets the
+ * correction on the same word nearby, or not at all.
+ */
+export interface WordEdit {
+  i: number;
+  text?: string;
+  start?: number;
+  end?: number;
+  del?: boolean;
+  keep?: boolean;
+  was?: string;
+  at?: number;
 }
 
 /**
@@ -100,6 +120,14 @@ export interface Word {
   text: string;
   /** Recognition confidence, 0..1. */
   p: number;
+  /** Index in the transcript as recognized, once corrections removed or joined words before it. */
+  i?: number;
+  /** What whisper heard, when the glossary changed the text. */
+  heard?: string;
+  /** Indexes (as recognized) of the words the glossary joined into this one. */
+  joined?: number[];
+  /** Set aside by the hallucination filter (shared/whisperParse.ts); hidden until restored. */
+  dropped?: "silence" | "credit" | "signoff";
 }
 
 export interface Transcript {
@@ -110,6 +138,10 @@ export interface Transcript {
   words: Word[];
   /** Silent stretches of the source audio, [start, end] in seconds. */
   silences: [number, number][];
+  /** Speech stretches the VAD kept, [start, end] in source seconds (absent without VAD). */
+  speech?: [number, number][];
+  /** As read (shared/wordEdits.ts): hand corrections that found no word to apply to. */
+  lostEdits?: number;
 }
 
 export type WhisperVariant = "cuda" | "cpu";
@@ -118,6 +150,8 @@ export interface WhisperModelInfo {
   name: string;
   path: string;
   size: number;
+  /** Not one of the models EdiAula downloads and checks (C:\whisper-cpp, or another file). */
+  unchecked?: boolean;
 }
 
 export interface EngineStatus {
@@ -127,6 +161,8 @@ export interface EngineStatus {
   models: WhisperModelInfo[];
   /** An NVIDIA GPU is available, so the CUDA build is recommended. */
   gpu: boolean;
+  /** The person chose to list models EdiAula cannot check (C:\whisper-cpp). */
+  externalModels: boolean;
 }
 
 export type TrackKind = "video" | "audio";
@@ -198,6 +234,10 @@ export interface Project {
   protected?: ProtectedRange[];
   /** Captions drawn into the video at export, and how they look. */
   captions?: CaptionStyle & { burn: boolean };
+  /** Word keys (asset:index) where a caption is forced to start. */
+  captionBreaks?: string[];
+  /** Looks of single captions, by the key of their first word. */
+  cueStyles?: CueStyleEntry[];
   /** Color palette the lesson's annotations and templates use (id; default EdiAula). */
   palette?: string;
   /** Use the palette's fonts too (titles and text) instead of the default typeface. */
@@ -588,6 +628,8 @@ export interface EdiAulaApi {
   installEngine(jobId: string, variant: WhisperVariant): Promise<EngineStatus>;
   installModel(jobId: string, name: string): Promise<EngineStatus>;
   selectModel(path: string): Promise<EngineStatus>;
+  /** Lists (or stops listing) the models of C:\whisper-cpp, which are not checked. */
+  setExternalModels(on: boolean): Promise<EngineStatus>;
   transcribe(
     jobId: string,
     path: string,

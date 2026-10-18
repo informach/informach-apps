@@ -10,12 +10,15 @@ import {
   timelineSilences,
   timelineWords,
 } from "@shared/cleanup";
+import { promptTerms } from "@shared/glossary";
 import { newId } from "@shared/timeline";
 import type { Asset, EngineStatus, Project, Transcript } from "@shared/types";
-import { useEffect, useMemo, useState } from "react";
+import { transcriptView } from "@shared/wordEdits";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
 import { useApp } from "@/state/app";
 import { type Commit, personCommit, useProject } from "@/state/project";
+import { projectCorrectionTerms, useCorrectionTerms } from "./glossaryStore";
 import { mediaUrl } from "./media";
 
 const cache = new Map<string, Promise<Transcript>>();
@@ -33,14 +36,30 @@ export function loadTranscript(path: string): Promise<Transcript> {
   return p;
 }
 
-/** Transcripts of every transcribed asset in the project, keyed by asset id. */
+/** Corrected views by transcript as recognized; made again only when edits or terms change. */
+const views = new WeakMap<
+  Transcript,
+  { edits: Asset["wordEdits"]; terms: string; view: Transcript }
+>();
+
+/** A media's transcript as the editor reads it: hand corrections and glossary applied. */
+function readable(raw: Transcript, asset: Asset | undefined, terms: string[]): Transcript {
+  const key = terms.join("|");
+  const known = views.get(raw);
+  if (known && known.edits === asset?.wordEdits && known.terms === key) return known.view;
+  const view = transcriptView(raw, asset?.wordEdits, terms);
+  views.set(raw, { edits: asset?.wordEdits, terms: key, view });
+  return view;
+}
+
+/** Transcripts of every transcribed asset in the project (corrected), keyed by asset id. */
 export function useTranscripts(project: Project | null): Map<string, Transcript> {
   const parameters = new URLSearchParams();
   for (const asset of project?.assets ?? [])
     if (asset.transcript && asset.transcriptStatus === "ready")
       parameters.append(asset.id, asset.transcript);
   const key = parameters.toString();
-  const [map, setMap] = useState(new Map<string, Transcript>());
+  const [raw, setRaw] = useState(new Map<string, Transcript>());
   useEffect(() => {
     let alive = true;
     Promise.all(
@@ -52,13 +71,25 @@ export function useTranscripts(project: Project | null): Map<string, Transcript>
         }
       }),
     ).then((list) => {
-      if (alive) setMap(new Map(list.filter((x): x is readonly [string, Transcript] => !!x)));
+      if (alive) setRaw(new Map(list.filter((x): x is readonly [string, Transcript] => !!x)));
     });
     return () => {
       alive = false;
     };
   }, [key]);
-  return map;
+  const terms = useCorrectionTerms(project);
+  const assets = project?.assets;
+  const last = useRef(new Map<string, Transcript>());
+  return useMemo(() => {
+    const byId = new Map((assets ?? []).map((a) => [a.id, a]));
+    const out = new Map<string, Transcript>();
+    for (const [id, tr] of raw) out.set(id, readable(tr, byId.get(id), terms));
+    // Nothing corrected differently: the same map, so what depends on it is not recomputed.
+    const prev = last.current;
+    if (prev.size === out.size && [...out].every(([id, tr]) => prev.get(id) === tr)) return prev;
+    last.current = out;
+    return out;
+  }, [raw, assets, terms]);
 }
 
 export interface CleanupState {
@@ -87,11 +118,18 @@ export const useCleanup = create<
   },
 }));
 
-/** Loads the transcripts of every transcribed asset of a project. */
+/** The corrected transcript of one transcribed asset of a project. */
+export async function loadAssetTranscript(p: Project, a: Asset): Promise<Transcript> {
+  if (!a.transcript) throw new Error(`${a.name} ainda não foi transcrita.`);
+  const [raw, terms] = await Promise.all([loadTranscript(a.transcript), projectCorrectionTerms(p)]);
+  return readable(raw, a, terms);
+}
+
+/** Loads the (corrected) transcripts of every transcribed asset of a project. */
 export async function loadProjectTranscripts(p: Project): Promise<Map<string, Transcript>> {
   const ready = p.assets.filter((a) => a.transcript && a.transcriptStatus === "ready");
   const loaded = await Promise.all(
-    ready.map(async (a) => [a.id, await loadTranscript(a.transcript!)] as [string, Transcript]),
+    ready.map(async (a) => [a.id, await loadAssetTranscript(p, a)] as [string, Transcript]),
   );
   return new Map(loaded);
 }
@@ -216,7 +254,11 @@ export const useTranscribing = create<Record<string, string>>(() => ({}));
 export async function transcribeAssets(assets: Asset[], language: string): Promise<void> {
   const { startJob, endJob, toast } = useApp.getState();
   const { patchAsset } = useProject.getState();
-  const glossary = await window.api.getGlossary(useProject.getState().project?.course ?? "");
+  const project = useProject.getState().project;
+  // The names the script mentions most go into whisper's prompt; the rest correct on reading.
+  const glossary = project
+    ? promptTerms(await projectCorrectionTerms(project), project.script?.text)
+    : [];
   // One at a time: the GPU is shared, and the first result shows up sooner.
   for (const a of assets) {
     const jobId = newId("job");

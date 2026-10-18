@@ -168,6 +168,21 @@ const asset = z.looseObject({
   keyed: path.optional(),
   keyedId: id.optional(),
   keyStatus: z.enum(["pending", "ready", "error"]).optional(),
+  wordEdits: z
+    .array(
+      z.looseObject({
+        i: z.int().nonnegative().max(10_000_000),
+        text: text.optional(),
+        start: time.optional(),
+        end: time.optional(),
+        del: z.boolean().optional(),
+        keep: z.boolean().optional(),
+        was: text.optional(),
+        at: time.optional(),
+      }),
+    )
+    .max(20000)
+    .optional(),
 });
 const track = z.looseObject({
   id,
@@ -335,6 +350,18 @@ export const projectSchema = z
         highlight: color.optional(),
         burn: z.boolean(),
       })
+      .optional(),
+    captionBreaks: z.array(text).max(20000).optional(),
+    cueStyles: z
+      .array(
+        z.looseObject({
+          key: text,
+          position: z.enum(["bottom", "middle", "top"]).optional(),
+          size: number.positive().optional(),
+          color: color.optional(),
+        }),
+      )
+      .max(20000)
       .optional(),
     palette: id.optional(),
     paletteFonts: z.boolean().optional(),
