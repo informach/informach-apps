@@ -234,3 +234,299 @@ Cada etapa precisa de testes que hoje não existem: carga com centenas de clipes
 - Nenhum item foi aprovado para implementação. A titular decide a ordem e o escopo.
 - Os achados "provável" (G9, E3, E8, E9, X7, X10, I3) precisam de reprodução antes da correção.
 - A troca dos ajudantes PowerShell por executável nativo e a ampliação do build de mídia afetam a distribuição assinada da suíte e seguem `docs/arquitetura-desktop.md` e o registro Windows.
+
+## Estado em 18/10/2026
+
+Em 17/10/2026 a titular pediu a implementação deste documento. O trabalho foi feito na branch `feat/ediaula-camtasia` (worktree `informach-ediaula-camtasia`), criada a partir de `origin/main` em `0415ff4`, em lotes: cada lote teve implementação, verificação, review independente do diff, um commit com as correções do review e um merge na branch. Em 18/10/2026 a branch está em `6e55f459`, com as correções das três revisões gerais do lote 15 (IA, editor e exportação, gravação), sem push e sem PR; a verificação completa da branch está rodando agora, e o merge na `main` depende da aprovação da titular. O plano aprovado foi seguido na ordem dele, com três acréscimos pedidos pela titular no caminho: o lote visual, o modo "Voz e câmera" e o áudio do PC sem o som do app.
+
+Cada "Feito" abaixo foi conferido no código desta branch, pelo arquivo ou pelo teste citado. Caminhos sem prefixo continuam relativos a `apps/ediaula/`.
+
+**Estados:** **Feito** é implementado e conferido no código. **Parcial** é implementado em parte, ou implementado sem a prova que o próprio item pede (uma medição ou uma máquina que não tivemos). **Pendente** não entrou. **Fora por decisão** foi tirado do escopo pela titular em 17/10/2026.
+
+**Resumo:** dos 76 itens numerados (G1 a G26, E1 a E15, X1 a X16 e I1 a I19), 71 estão feitos, 4 parciais (G9, G10, G11 e E13) e 1 pendente (E14). Dos 88 itens sem número das listas de melhorias e do que faltava implementar, 76 estão feitos, 6 parciais, 2 pendentes e 4 fora por decisão. No total, 147 feitos, 10 parciais, 3 pendentes e 4 fora por decisão.
+
+### Lotes e commits
+
+| Lote | Merge | Commits do lote |
+| --- | --- | --- |
+| Análise (este documento) | `c76ab517` | `c76ab517` |
+| 1. Salvamento e timeline sem perda de trabalho | `69697bfd` | `9a6eff56`, `df75a129` |
+| 3. Auxiliar nativo e FFmpeg com AMF e Media Foundation | `41daf2f2` | `99ce793b`, `2444a04a`, `652b6617` |
+| 2. IA segura e consistente | `ada62f33` | `9af69e1e` (edi-desktop), `87a6f898`, `dbe320d8` |
+| 4. Sessão de gravação confiável | `34d0daf3` | `193b0290`, `c499cfb0` |
+| 8. Whisper conferido, glossário e editor de palavras | `f4174c4d` | `21400ed8`, `6294aaf0`; licença do léxico em `1fa64422` |
+| Teste nativo com o projeto em texto JSON | sem merge | `eef03194` |
+| 5. Voz, vídeo do apresentador e tela | `28c23f8b` | `717f4bbc`, `731828d9` |
+| Teste visual de ponta a ponta | `2af8e1d9` | `29946826` |
+| 6. Limpeza que respeita a aula | `877825ff` | `693cbde3`, `a767344c` |
+| 7. Exportação por trechos, cor e som | `6e96c511` | `f56f87c6` (edi-desktop), `13c8b2b6`, `9cf949fb`, `4be19380`, `8a1821be` |
+| 11. Preparar aula, revisão e verificação | `5318f8a0` | `762b56c7`, `a44206dc` |
+| 9. Modo guiado pela página da aula | `e833499c` | `5895ab10`, `416e6145` |
+| 12. Melhorias do editor | `e80e3edc` | `797897b0`, `fd57c475` |
+| 14. IA que vê, regrava, traduz e entrega | `f1aeac05` | `7ebe26e8`, `a0112a75` |
+| Visual: correções do teste visual, apresentador e Voz e câmera | `12d2833a` | `1026dc3f`, `0f5020f3` |
+| 13. Grupos, marcadores, efeitos e exportações extras | `952f8a51` | `ee3f1036`, `a670eee7` |
+| 10. Gravação, cursor, zoom e acabamento | `82d8b687` | `1e801849`, `2acc8815` |
+| `origin/main` trazida para a branch | `70f06077` | |
+| 15. Revisão geral da IA | `ebfdde1b` | `376f9278` |
+| 15. Revisão geral do editor e da exportação | `4b3c3d21` | `030374ad` |
+| 15. Revisão geral da gravação | `6e55f459` | `4d3fd4b9` |
+
+### Gravação de aula e de tela (G1 a G26)
+
+| # | Item | Estado | Lote | Observação |
+| --- | --- | --- | --- | --- |
+| G1 | Falha no meio da gravação aparece | Feito | 4 | Um FFmpeg por fonte; tela ou microfone que param pausam a gravação com "Retomar" e "Parar e salvar" (`src/main/recording/session.ts`, `RecorderOverlay.tsx`); `tests/recording-preservation.test.ts`. |
+| G2 | Capturador do cursor vigiado | Feito | 3 | `ediaula-helper.exe` com batimento e gancho reinstalado; `src/main/nativeHelper.ts` reinicia o auxiliar até três vezes por minuto e a pílula mostra "sem cursor"; `tests/nativeHelper.test.ts`. |
+| G3 | Queda do app não perde a gravação | Feito | 4 | Diário `sessao.jsonl`, `cursor.jsonl` do auxiliar, áudio do PC em partes no disco e o modal "Gravação interrompida" (`src/main/recording/recovery.ts`, `src/renderer/src/home/OrphanRecordings.tsx`); `tests/recordingJournal.test.ts`. |
+| G4 | Gravação longa exporta | Feito | 1 | Posições do cursor como `Int32Array` (`src/renderer/src/lib/cursorRender.ts`). |
+| G5 | Cliques nos controles fora do vídeo | Feito | 4 | Retângulos do gravador enviados ao auxiliar (`recorder:uiRects`); trechos sobre os controles marcados no `cursor.json` v2. |
+| G6 | Pausa sem fechar o FFmpeg | Feito | 4 e 15 | A pausa só anota no diário e vira corte na importação; pausa acima de 5 min fecha tela e câmera para poupar disco. Os segundos pausados ficam anotados em cada mídia (`src/shared/pausedMedia.ts`) e não voltam ao editor nem ao pacote; nos arquivos originais eles continuam (ver Pendências). |
+| G7 | Medidor do microfone certo, também durante a gravação | Feito | 4 | Nível vem do mesmo processo que grava; na preparação o medidor abre o mesmo dispositivo dshow. |
+| G8 | Áudio do PC sincronizado | Feito | 2 e 4 | Alinhamento por trecho na finalização; `cutTargets` leva microfone e áudio do PC (`src/shared/cleanup.ts`, `asset.recording.role`). |
+| G9 | Sincronia da câmera e deriva do microfone | Parcial | 4 | `aresample` assíncrono no microfone, atraso da câmera ajustável e teste sintético de flash e bipe. Falta o take real de 20 min com claquete. |
+| G10 | Intel e AMD pela GPU | Parcial | 3 | AMF e Media Foundation no build (`scripts/edi/media`), detector em `src/main/encoders.ts` e `src/shared/encoderChoice.ts`. Sem teste em máquina Intel ou AMD. |
+| G11 | Ajudantes sem PowerShell | Parcial | 3 | `native/helper/*.cs` compilado pelo `csc.exe`; os `.ps1` saíram. Falta testar com AppLocker e Defender, e o executável não tem Authenticode. |
+| G12 | Trabalhos de fundo esperam a gravação | Feito | 4 | `src/main/scheduler.ts`; `tests/scheduler.test.ts`. |
+| G13 | Teclas na tela sem os atalhos do gravador | Feito | 3 | O auxiliar recebe as teclas que nunca aparecem (`src/shared/helperProtocol.ts`). |
+| G14 | Atalhos só durante a gravação e conflitos avisados | Feito | 4 | `src/shared/hotkeys.ts` (`hotkeyConflicts`), com Ctrl+Shift+M e Ctrl+Shift+R; `tests/hotkeys.test.ts`. |
+| G15 | Cor marcada e conversão pela GPU | Feito | 3 e 4 | `src/shared/captureArgs.ts` com BT.709 e tags; caminho da GPU com `scale_d3d11` quando o detector aprova. |
+| G16 | Câmera no modo que ela oferece | Feito | 4 | `src/shared/camera.ts` (`chooseCameraMode`); `tests/camera.test.ts`. |
+| G17 | Escolhas do gravador salvas | Feito | 4 | `userData/recorder.json` (`src/main/recorderSettings.ts`); `tests/recorderSettings.test.ts`. |
+| G18 | Todas as formas do cursor | Feito | 10 | Vetores para as formas do Windows e imagem real nos cursores próprios (`cursorDraw.ts`, `cursorImages.ts`). |
+| G19 | Suavização presa ao clique | Feito | 10 | Mola para a frente e para trás em `buildTrack`; erro abaixo de 0,5 px no clique (`tests/cursor-effects.test.ts`). |
+| G20 | Ctrl+R pelas palavras | Feito | 10 | `retakeCutsFromWords` em `src/shared/recording.ts`; `tests/retake-words.test.ts`. |
+| G21 | Câmera na timeline e arquivo comum | Feito | 4 | Câmera ganha faixa própria (`src/shared/recordingImport.ts`); as partes viram `tela.mp4` comum na finalização. |
+| G22 | Narração por cima sem processamento e na mesma faixa | Feito | 10 | `NarrationPanel.tsx` com eco, ruído e ganho desligados; `src/shared/narration.ts` reaproveita a faixa "Narração". |
+| G23 | Plano guiado salvo e retomável | Feito | 9 | Plano v2 no projeto e rascunho contra queda (`src/shared/guidedPlan.ts`); `tests/guided-plan-v2.test.ts`, `tests/guided-store.test.ts`. |
+| G24 | Ações que faltavam no guiado | Feito | 9 | Arrastar, rolar, duplo clique, passar o mouse, esperar e atalhos com modificador. |
+| G25 | Alvo estável | Feito | 9 | `src/shared/locators.ts` (testid, papel, rótulo, Blockly) e URL por URLPattern; `tests/locators.test.ts`. |
+| G26 | Movimento sem PowerShell | Feito | 3 e 9 | `glide` no auxiliar para outros programas; na janela da aula, CDP sem mexer no mouse real (`src/main/guidedCdp.ts`). |
+
+### Editor e timeline (E1 a E15)
+
+| # | Item | Estado | Lote | Observação |
+| --- | --- | --- | --- | --- |
+| E1 | Estender quadro com Movimento salva | Feito | 1 | Schema aceita keyframe antes do início do pedaço; `tests/extend-frame.test.ts` valida o schema. |
+| E2 | Erro de salvamento não descarta o trabalho | Feito | 1 | `src/renderer/src/lib/leaveGuard.ts` e `SaveFailedDialog.tsx`; mensagem em português por tipo de erro desde o lote visual. |
+| E3 | Projeto longo continua salvando | Feito | 1 | Zooms passaram para a mídia; `tests/timeline-invariants.test.ts` com 25 min e 200 cortes. |
+| E4 | Dividir e cortar sem duplicar transição | Feito | 1 | `src/shared/pieces.ts`; `tests/pieces.test.ts`. |
+| E5 | Ctrl+Z desfaz a remoção de fundo | Feito | 1 | `patch` só toca campos de runtime (`src/renderer/src/state/project.ts`). |
+| E6 | Delete com clipe selecionado apaga o clipe | Feito | 1 | Selecionar um clipe zera o corte por texto (`Timeline.tsx`, `state/project.ts`). |
+| E7 | Fechar lacunas sem empilhar tudo | Feito | 1 | `closeCommonGaps` em `src/shared/cleanup.ts`, com as faixas travadas intactas. |
+| E8 | Timeline rápida em aula longa | Feito | 1 | `adjacency` em O(n log n) e handlers estáveis; o teste conta as leituras. |
+| E9 | Prévia sem tranco e com a boca no tempo | Feito | 1 e 13 | Deriva corrigida por `playbackRate` e um par de elementos por mídia, com a voz como relógio do avatar (`previewPool.ts`, `mediaPool.ts`); `tests/preview-pool.test.ts`. |
+| E10 | Tela cheia no tamanho certo | Feito | 1 | Tamanho medido na área da prévia. |
+| E11 | Atalhos esperam diálogos abertos | Feito | 1 | `dialogOpen()` em `Editor.tsx`. |
+| E12 | Lixeira confirma e texto de anotação não se perde | Feito | 1 | `confirm` em `Library.tsx`; texto salvo ao desmontar em `AnnotationProps.tsx`. |
+| E13 | Autosave e histórico mais leves | Parcial | 1 e 15 | O projeto vai como texto JSON, é validado uma vez por salvamento e, desde `030374ad`, é gravado compacto, com aviso perto de 80% do teto de 32 MB e teto de pontos de desenho por aula (`src/shared/projectSize.ts`); os dados que o app descobre sobre a mídia saíram do desfazer. O main ainda valida o projeto inteiro a cada salvamento (`saveProject` em `src/main/projects.ts`). |
+| E14 | Timeline por teclado e leitor de tela | Pendente | | Só as alças de altura e o rótulo da faixa recebem foco; clipes e junções não. Não estava no plano. |
+| E15 | Reconectar mídia ausente | Feito | 1 | `src/shared/relink.ts` e `media:relinkFolder`, levando o `cursor.json` junto; `tests/relink.test.ts`. |
+
+### Exportação, áudio e legenda (X1 a X16)
+
+| # | Item | Estado | Lote | Observação |
+| --- | --- | --- | --- | --- |
+| X1 | Linha de comando dentro do limite | Feito | 7 | Exportação por trechos (`src/shared/export/segments.ts`); com 25 min e 200 cortes cada comando fica abaixo de 8 mil caracteres (`tests/export-segments.test.ts`). |
+| X2 | Efeitos fixos calculados uma vez | Feito | 7 | Máscara, anel e sombra em PNG (`src/main/export/fxAssets.ts`); `perspective` só onde há zoom; `tests/export-fx.test.ts`. |
+| X3 | Silêncio só onde nenhuma fonte fala | Feito | 6 | `audibleSilences` e `speechIntervals` em `src/shared/cleanup.ts`; `tests/cleanup-sources.test.ts`. |
+| X4 | Podcast exporta | Feito | 7 | Bitrate 0 aceito para áudio puro no schema. |
+| X5 | Vertical em 1080 × 1920 | Feito | 7 | Resolução pelo lado menor (`ExportDialog.tsx`); `tests/export-orientation.test.ts`. |
+| X6 | Cores certas | Feito | 7 | `src/shared/export/color.ts`; lima #C8F031 conferido em `tests/export-color.test.ts`. |
+| X7 | Emendas sem estalo e fades no som | Feito | 7 | Microfades de 8 ms e fades de clipe, transição e música (`src/shared/export/audioPlan.ts`). |
+| X8 | Plano B do codificador | Feito | 7 | Trecho refeito pela cadeia até o x264 (`isEncoderFailure`, `src/main/export/renderSegments.ts`). |
+| X9 | Legenda sem duplicar nem ouvir faixa muda | Feito | 7 | `captionWords` em `src/shared/captions.ts`. |
+| X10 | Alfa preservado | Feito | 7 | libvpx-vp9 na leitura e proxy VP9 para vídeo transparente. |
+| X11 | Whisper e modelos conferidos | Feito | 8 | SHA-256 e tamanho fixados, retomada por Range (`src/main/download.ts`, `whisperAssets.ts`); `tests/download.test.ts`. |
+| X12 | Loudness exato e ruído tratado por fonte | Feito | 5 e 7 | Duas passadas de loudness na exportação; voz tratada por fonte, em cache, igual na prévia e na exportação, com A/B. |
+| X13 | Whisper com detecção de voz | Feito | 8 | `--vad` quando o `whisper-cli` lista a opção, filtro de alucinação em `whisperParse.ts` e 20 termos no prompt. |
+| X14 | Trabalhos pesados no agendador e caches com teto | Feito | 4 e 7 | Vagas do agendador, caches LRU e limpeza das pastas `.edi-output` órfãs. |
+| X15 | Texto do botão | Feito | 7 | "Adicionar à fila" e "Adicionando…" em `ExportDialog.tsx`. |
+| X16 | Progresso, VTT e SRT | Feito | 7 e 8 | Progresso por fase e trecho, `webVtt()` no main e legendas de até 42 caracteres por linha (`captions.ts`). |
+
+### IA, roteiro e automação (I1 a I19)
+
+| # | Item | Estado | Lote | Observação |
+| --- | --- | --- | --- | --- |
+| I1 | Proposta presa ao projeto | Feito | 2 | `src/shared/anchors.ts`; proposta de outra aula é recusada; `tests/proposal-anchors.test.ts`. |
+| I2 | Codex sem cmd.exe | Feito | 2 | Spawn sem shell e mensagem pela entrada padrão (`src/main/engineArgs.ts`); `tests/engine-args.test.ts`. |
+| I3 | Claude Code pelo `.cmd` não trava o desfazer | Feito | 2 | Atalho do npm resolvido para o programa e `done` sempre emitido. |
+| I4 | Limpeza protege a demonstração e "Limpar a aula" propõe | Feito | 6 | `src/shared/activity.ts` e imagem parada por `freezedetect`; a proposta é montada no computador, sem IA. |
+| I5 | Limpeza por locutor | Feito | 6 | Vícios e repetições só na fala da professora; o apresentador nunca é cortado. |
+| I6 | Repetição com distância máxima | Feito | 6 | Lacuna máxima entre tomadas, e demonstração no meio não conta como repetição. |
+| I7 | IA respeita as escolhas do painel | Feito | 6 | `project.cleanup` e `cleanupPlan` únicos para o painel e a IA. |
+| I8 | Desfazer por origem e turno preso à aula | Feito | 2 | `src/shared/history.ts`; `tests/history.test.ts`. |
+| I9 | Sem foto velha sobrescrevendo | Feito | 2 | Escritas em fila (`src/shared/toolQueue.ts`) e estado relido no commit; `tests/tool-queue.test.ts`. |
+| I10 | "Fora do roteiro" em português falado | Feito | 6 | `src/shared/ptSpeech.ts`, seção confirmada e recusa acima de 35%; `tests/script-align-pt.test.ts`. |
+| I11 | Proposta ancorada na mídia | Feito | 2 | Âncora no tempo da mídia, chave de palavra e texto. |
+| I12 | `transcribe` transcreve tudo o que falta | Feito | 2 | Sem duplicar a voz do vídeo do apresentador. |
+| I13 | Configuração manual do MCP funciona | Feito | 2 | Trechos com o cabeçalho de autorização e `mcp-remote@0.15.1` (`SettingsModal.tsx`). |
+| I14 | Codex restrito às ferramentas do editor | Feito | 2 e 15 | `src/main/mcpGuard.ts` encerra o processo que age fora do editor; autoteste por versão; `tests/mcp-guard.test.ts`. |
+| I15 | Prompt pela entrada padrão | Feito | 2 | Sem limite de linha de comando nem texto lido como opção. |
+| I16 | Modelo, esforço e consumo | Feito | 2 e 15 | `claude-opus-5-5` como padrão (`src/shared/aiModels.ts`), esforço sempre enviado, compactação, custo por pedido e transcrição em janelas de 10 min. |
+| I17 | Token MCP com escopo e caminhos conferidos | Feito | 2 e 15 | Concessões com read, propose e write, validade e revogação (`packages/edi-desktop`); `src/main/aiPaths.ts` recusa rede e fluxos alternativos; `tests/ai-paths.test.ts`, `tests/ai-permissions.test.ts`. |
+| I18 | Inserções respeitam faixa travada | Feito | 2 e 6 | `src/shared/inserts.ts` bloqueia o encaixe com faixa travada depois do ponto; `tests/inserts.test.ts`. |
+| I19 | Núcleo da IA com testes | Feito | 2 a 15 | `engine-*`, `history`, `tool-queue`, `proposal-anchors`, `ai-*`, `mcp-guard`, `assistant-request`, `l15-ai-tools` e `l15-ia-review` em `tests/`. |
+
+### Itens sem número
+
+Os itens das listas de melhorias e do que faltava implementar recebem aqui o número da seção e a ordem em que aparecem: 1.2.1 é o primeiro item de 1.2. Em 2.2 o primeiro item é o E15, que já está na tabela acima.
+
+| # | Item | Estado | Lote | Observação |
+| --- | --- | --- | --- | --- |
+| 1.2.1 | 60 fps, qualidade e resolução da aula | Feito | 10 | Opções do gravador e o preset "resolução da aula". |
+| 1.2.2 | Região com presets, proporção travada, tamanho digitado e janela | Feito | 10 | `src/shared/region.ts`; `tests/region.test.ts`. |
+| 1.2.3 | Zoom automático ao importar, editável e unificado | Feito | 10 | Mesmo painel e mesmo retângulo da camada de zoom; `tests/zoom-edit.test.ts`. |
+| 1.2.4 | Microfone em faixa própria | Feito | 4 | Faixa "Voz" na importação. |
+| 1.2.5 | Teleprompter com atalho e avanço pela voz | Feito | 4 e 5 | Ctrl+Shift+↓ e Ctrl+Shift+↑, passador de slides e `src/shared/voiceFollow.ts`. |
+| 1.2.6 | Descartar o take sem fechar o gravador | Feito | 10 | Vai para a Lixeira, com confirmação. |
+| 1.2.7 | Gravações dentro do projeto | Parcial | 1 e 13 | Continuam em `Documentos/EdiAula/Gravações`; reconectar mídia e o pacote da aula resolvem a mudança de PC. |
+| 1.2.8 | Efeitos de cursor | Feito | 10 | Lupa, holofote, som de clique, halo na cor da paleta e efeito por trecho (`src/shared/clickSound.ts`). |
+| 1.3.1 | Painel de saúde | Feito | 4 | Microfone, disco, quadros perdidos, cursor e "a máquina não acompanha". |
+| 1.3.2 | Recuperar gravação interrompida | Feito | 4 | Ver G3. |
+| 1.3.3 | Pausa sem parar a captura | Feito | 4 | Ver G6. |
+| 1.3.4 | Gravar fala por fala | Feito | 5 | Modo Só voz com tomadas por fala (`src/shared/voiceTakes.ts`); a tomada repetida vira item da proposta de limpeza. |
+| 1.3.5 | "Preparar aula" ao parar | Feito | 11 | `src/shared/prepare.ts`; `tests/prepare-order.test.ts`. |
+| 1.3.6 | Gravar a plataforma pelo navegador do app | Feito | 9 | `src/main/guidedCdp.ts` e `guidedCapture.ts`; `tests/guided-cdp.test.ts`. |
+| 1.3.7 | Zoom pelo conteúdo | Feito | 10 | Cursor de texto pelo auxiliar e detecção de cena no proxy. |
+| 1.3.8 | Captura de janela | Parcial | 10 | "Janela…" encaixa a região na janela e a mantém à frente; uma janela coberta não é capturada (decisão técnica do plano). |
+| 1.3.9 | Cursor real | Feito | 3 e 10 | Imagem do cursor guardada por hash pelo auxiliar. |
+| 1.3.10 | Fundo da webcam por IA e enquadramentos | Feito | 10 | `src/shared/personKey.ts` e `cameraFraming.ts`; `tests/personKey.test.ts`. Três componentes do wasm aguardam a revisão jurídica (ver Pendências). |
+| 1.3.11 | Desenho na tela durante a gravação | Feito | 10 | `src/shared/drawing.ts`; `tests/drawing.test.ts`. |
+| 2.2.2 | Intervalo em todas as faixas, aparar com ripple e inserir empurrando | Feito | 12 | `src/shared/ripple.ts`; `tests/ripple.test.ts`. |
+| 2.2.3 | Ímã em palavras, silêncios, marcadores e quadros | Feito | 12 | `src/shared/snap.ts`; `tests/snap.test.ts`. |
+| 2.2.4 | Seleção por retângulo, à direita, da faixa e propriedades em lote | Feito | 12 | |
+| 2.2.5 | Precisão de quadro e JKL com som | Feito | 12 | `media:audioSnippet`; `tests/scrub-snippets.test.ts`. |
+| 2.2.6 | Miniaturas, fade, curva de volume e ruído com prévia | Feito | 5, 12 e 13 | `media:filmstrip`, envelope em `src/shared/gain.ts` e A/B da voz tratada. |
+| 2.2.7 | Reordenar faixas, solo, valores numéricos, girar e espelhar | Feito | 12 | |
+| 2.2.8 | Estender quadro em todas as faixas | Feito | 12 | |
+| 2.2.9 | Modelos do curso, duplicar, renomear, cópia de segurança e formato | Feito | 12 | `reframeProject`; `tests/reframe.test.ts`, `tests/project-rename.test.ts`. |
+| 2.2.10 | Portabilidade dos itens gerados | Feito | 12 e 13 | Itens gerados são refeitos quando somem; pacote da aula. |
+| 2.2.11 | Testes de schema e IPC depois de cada operação | Feito | 1 | `tests/timeline-invariants.test.ts`. |
+| 2.3.1 | Grupos | Feito | 13 | `src/shared/groups.ts`; `tests/groups.test.ts`. |
+| 2.3.2 | Biblioteca entre projetos e favoritos | Feito | 13 | `src/shared/library.ts` e `userData/library.json`. |
+| 2.3.3 | Editor de legenda e transcrição | Feito | 8 | `Asset.wordEdits`, quebras e estilo por legenda; `tests/wordEdits.test.ts`. |
+| 2.3.4 | Desfoque e holofote de região | Feito | 13 | Desfoque, pixelado e holofote, seguindo a gravação. |
+| 2.3.5 | Substituir mídia mantendo as edições | Feito | 13 | `src/shared/replaceAsset.ts`. |
+| 2.3.6 | Marcadores e capítulos | Feito | 13 | `src/shared/markers.ts` e capítulos no MP4; `tests/markers.test.ts`. |
+| 2.3.7 | Faixa magnética | Feito | 13 | `src/shared/magnetic.ts`. |
+| 2.3.8 | Separar áudio do vídeo | Feito | 13 | Para cortes em J e L. |
+| 2.3.9 | Envelope de volume e "destacar" faixa | Feito | 13 | `tests/gain-envelope.test.ts`. |
+| 2.3.10 | Efeitos visuais | Parcial | 13 | Cor, moldura de notebook e de celular e fundo da aula (cor, gradiente ou imagem) em `src/shared/look.ts`; máscara e fundo animado não entraram. |
+| 2.3.11 | Animação por palavra e seta que se desenha | Feito | 13 | `src/shared/reveal.ts`. |
+| 2.3.12 | Verificação antes de exportar | Feito | 11 | `src/shared/preflight.ts`; `tests/preflight.test.ts`. |
+| 2.3.13 | Revisão rápida dos cortes | Feito | 11 | `src/shared/seams.ts`; `tests/seams.test.ts`. |
+| 2.3.14 | Navegação por palavra, frase e silêncio | Feito | 13 | |
+| 2.3.15 | Quizzes para a plataforma | Feito | 14 | Quiz conferido dentro do `<aula>.plataforma.json`; sem SCORM. |
+| 3.2.1 | Editor de legenda | Feito | 8 | Ver 2.3.3. |
+| 3.2.2 | Qualidade por CRF ou CQ, com AQ e lookahead no NVENC | Feito | 7 | |
+| 3.2.3 | Rascunho rápido com proxies e decodificação pela GPU | Parcial | 7 | Há o perfil "Rascunho para revisão" (720p), mas a exportação não lê os proxies nem decodifica pela GPU. |
+| 3.2.4 | 60 fps | Feito | 10 | Gravação a 60 fps e projeto 1920 × 1080 a 60 fps. |
+| 3.2.5 | HEVC e AV1 | Pendente | | A exportação sai só em H.264. |
+| 3.2.6 | AMF e QSV no build | Feito | 3 | QSV pelo Media Foundation. Ver G10. |
+| 3.2.7 | Cadeia de voz | Feito | 5 e 7 | `src/shared/voiceChain.ts`; `tests/voiceChain.test.ts`. |
+| 3.2.8 | Redução de ruído por IA | Feito | 5 | `arnndn` com `resources/rnnoise/sh.rnnn`. |
+| 3.2.9 | Parâmetros da limpeza visíveis | Feito | 6 | Pausa mínima e tipos no painel de Transcrição. |
+| 3.2.10 | Vários formatos num clique e lote por curso | Parcial | 14 | Lote por curso feito (`src/shared/courseSplit.ts`); vários formatos num clique, não. |
+| 3.2.11 | Fila que sobrevive ao fechar o app | Feito | 7 | `export-queue.json` com retomada. |
+| 3.2.12 | Ducking configurável | Feito | 7 | |
+| 3.2.13 | Escolha da miniatura | Feito | 14 | `set_thumbnail` e o cartão da plataforma. |
+| 3.2.14 | Avatar recortado acima de 1920 px | Pendente | | `KEY_MAX_SIDE` continua em 1920 (`src/shared/chroma.ts`). |
+| 3.3.1 | Reconectar mídia ausente | Feito | 1 | Ver E15. |
+| 3.3.2 | Render por segmentos com cache | Feito | 7 | Ver X1; `tests/export-cache.test.ts`. |
+| 3.3.3 | Exportar intervalo e quadro em PNG | Feito | 13 | `export:framePng`. |
+| 3.3.4 | Projeto empacotado em zip | Feito | 13 | Ver A6 em "O que entrou além da análise". |
+| 3.3.5 | Capítulos e título no MP4 | Feito | 7 e 13 | |
+| 3.3.6 | Limpeza contextual com a IA | Parcial | 6 | Vícios, falsos começos e repetições pela regra local, e a IA propõe pela mesma limpeza (`find_cleanup`). Respiração não é tratada como item próprio. |
+| 3.3.7 | Stems de voz e música | Feito | 13 | |
+| 3.3.8 | Legendas traduzidas | Feito | 14 | `translate_captions` e arquivos `.<lang>.srt` e `.vtt`; `tests/caption-translate.test.ts`. |
+| 3.3.9 | Dublagem | Fora por decisão | | Voz sintética ficou fora. |
+| 3.3.10 | Ferramenta de exportação para a IA | Feito | 14 | `export_video` e `get_export_status`; `tests/export-video-tool.test.ts`. |
+| 3.3.11 | Publicação direta | Fora por decisão | | O app prepara os arquivos e a subida é manual. |
+| 4.2.1 | Proposta item a item, "ouvir pulando o corte" e salva no projeto | Feito | 2 e 11 | ReviewBar. |
+| 4.2.2 | Correção da transcrição pelo glossário | Feito | 8 | `src/shared/glossary.ts`; `tests/glossary.test.ts`. |
+| 4.2.3 | Limpeza consciente da tela e do locutor | Feito | 6 | Ver I4 e I5. |
+| 4.2.4 | Ferramentas por chave de palavra | Feito | 2 | |
+| 4.2.5 | Rascunho para qualquer edição da IA | Feito | 11 | `src/shared/projectDiff.ts`; `tests/projectDiff.test.ts`. |
+| 4.2.6 | Alinhamento para português falado | Feito | 6 | Ver I10. |
+| 4.2.7 | Inserções em lote e IDs no "Na tela" | Feito | 6 | "Encaixar todas" e `place_inserts`. |
+| 4.2.8 | Narração guiada pelo roteiro | Feito | 14 | |
+| 4.2.9 | Painel com progresso, custo e "o que mudou" | Feito | 14 | Ver A7 em "O que entrou além da análise". |
+| 4.2.10 | Modelo de edição com regras | Feito | 11 e 12 | `src/shared/courseTemplate.ts` e `apply_editing_template`; `tests/course-template.test.ts`. |
+| 4.3.1 | Do roteiro ao vídeo num clique | Feito | 11 | Preparar aula. |
+| 4.3.2 | IA que vê o quadro | Feito | 14 | `get_frame` com região e limite de tamanho; `tests/frame-grab.test.ts`. |
+| 4.3.3 | Verificação antes de exportar | Feito | 11 | Ver 2.3.12. |
+| 4.3.4 | Regravação assistida das falas | Feito | 14 | `tests/retake-lines.test.ts`. |
+| 4.3.5 | Falas do avatar pela API do HeyGen | Fora por decisão | | |
+| 4.3.6 | IA paga da suíte | Fora por decisão | | Continuam a chave própria, o Claude Code e o Codex. |
+| 4.3.7 | Aprender com a aula anterior | Feito | 14 | `src/shared/learning.ts`; `tests/learning.test.ts`. |
+| 4.3.8 | Saídas para a plataforma | Feito | 14 | `src/shared/platformPackage.ts`; `tests/platform-package.test.ts`. |
+| 4.3.9 | Lote por curso | Feito | 14 | `splitBySections` e "Produzir todas"; `tests/course-split.test.ts`. |
+
+### O que entrou além da análise
+
+| # | Item | Lote | Onde |
+| --- | --- | --- | --- |
+| A1 | Fluxo voz → apresentador → tela: gravar só a voz com teleprompter, tratar, limpar, exportar a voz em WAV com o mestre da voz, importar o vídeo do apresentador encaixado pela voz (correlação por FFT) e gravar a tela ouvindo a narração, com "Regravar a tela neste intervalo" | 5 e visual | `src/shared/audioSync.ts`, `voiceMaster.ts`, `presenterImport.ts`, `overNarration.ts` e `src/main/presenterVideo.ts`; `tests/presenterFlow.test.ts`, `tests/audioSync.test.ts` |
+| A2 | Interface sem marca: o vídeo gerado fora do app é do "apresentador" (avatar ou pessoa) em botões, pastas ("Voz exportada") e clipes; aulas salvas com o valor antigo `heygen` abrem com o novo | visual | `1026dc3f`; `Clip.mutedFor: "presenter"` em `src/shared/project-normalize.ts` |
+| A3 | Modo "Voz e câmera": tudo do Só voz com a câmera num processo próprio; a voz vai para "Voz" e o vídeo para "Apresentador", mudo e alinhado | visual | `1026dc3f`, `0f5020f3`; `src/shared/compose.ts`, `src/shared/prepare.ts` |
+| A4 | Áudio do PC sem nenhum som do app: process loopback do WASAPI no auxiliar, excluindo a árvore de processos do EdiAula, com reserva pelo Chromium | visual e 10 | `native/helper/AudioLoopback.cs`, `src/shared/systemAudio.ts`; `tests/systemLoopback.test.ts` e `tests/systemAudioExclusion.test.ts` (com `EDIAULA_SOUND_TESTS=1`) |
+| A5 | Desenho na tela com caneta, marca-texto e seta, quadro branco e quadro negro, página nova e desfazer, importados como clipes "Desenho" e "Quadro" | 10 | `src/shared/drawing.ts`, `src/main/drawingVideo.ts`; `tests/drawing.test.ts`, `tests/board.test.ts` |
+| A6 | Pacote da aula: projeto com as mídias em ZIP64, índice conferido antes de extrair, caminhos só dentro de `media/` e id novo ao abrir | 13 | `src/shared/projectPackage.ts`, `src/main/zip.ts`; `tests/zip-package.test.ts`, `tests/package-safety.test.ts` |
+| A7 | Assistente do Lote 14: etapa e porcentagem de cada ferramenta, cancelar a ferramenta em curso, custo, "O que mudou" com "Ir até" e "Desfazer este pedido", conversa guardada por aula e texto do Codex aos poucos | 14 | `src/renderer/src/editor/AssistantPanel.tsx`, `src/renderer/src/state/assistant.ts`, `src/main/conversations.ts` |
+| A8 | Teste visual de ponta a ponta com mídia sintética, perfil isolado e uma passada em 1366 × 768, que falha com qualquer erro de página, de console ou de IPC | teste visual e visual | `scripts/edi/visual-ediaula.mts`, `scripts/edi/native-harness.mts` |
+| A9 | Revisão geral do lote 15, em três partes, todas com as correções na branch. **IA** (`376f9278`): histórico sem edição local, resultados antigos limpos pela API, Parar que responde às ferramentas pendentes, projeto da chamada fixado na entrada, capítulos numa fonte só, `ai.json` gravado de forma atômica e tokens que vencem 30 dias depois do último uso. **Editor e exportação** (`030374ad`): seguir a gravação resolvido por instante, igual na prévia e na exportação (`PLAN_VERSION` 3 invalida os trechos de antes), trechos iguais renderizados uma vez, som separado marcado como `soundOnly`, faixa magnética com o grupo, zoom e keyframes como soma de rampas, cor na faixa limitada, imagens dos cursores no pacote, projeto salvo compacto e abrir e salvar só com `.ediaula` escolhido pela pessoa. **Gravação** (`4d3fd4b9`): arrasto do guiado que nunca deixa o botão preso, regravação do intervalo que tira câmera, áudio do PC e desenho do take antigo, descarte confirmado dentro da pílula, pausas anotadas em cada mídia e fora do pacote, diário que vai ao disco na hora, áudio do PC nativo que reabre sozinho, modos de tela só no Windows 10 2004 ou mais novo, ajustes de copy e acessibilidade e os avisos de terceiros do wasm e do `arnndn` copiados das fontes oficiais | 15 | `376f9278`, `030374ad`, `4d3fd4b9`; `tests/l15-ia-review.test.ts`, `tests/l15-ai-tools.test.ts`, `tests/zip-package.test.ts`, `tests/package-safety.test.ts` |
+
+## Decisões registradas
+
+- **Escopo, pela titular em 17/10/2026.** Ficam fora a IA paga da suíte (continuam a chave própria, o Claude Code e o Codex), as falas do avatar pela API do HeyGen, a voz sintética (overdub e dublagem) e a publicação direta. A tradução de legenda entrou, pelo motor de IA já configurado. O fluxo real dela é gravar a voz, gerar o vídeo do avatar fora do app (ela usa o HeyGen), importar o vídeo, gravar a tela sobre a voz, editar e subir manualmente na plataforma do Sistema Zero. Nada depende de serviço externo pago.
+- **Interface sem marca, pela titular em 18/10/2026.** Nenhum título, botão, pasta ou clipe cita marca: quem aparece no vídeo importado é o "apresentador". O HeyGen aparece só em documentos, como exemplo, e num comentário de código que explica o padrão de 5 min por arquivo (limite de 32 MB do envio dele).
+- **"Voz e câmera" é um modo próprio** ao lado de Só voz, e não uma opção dentro dele (titular, 18/10/2026).
+- **RNNoise mantido (titular, 18/10/2026).** O modelo `sh.rnnn` (GregorR/rnnoise-models) não traz arquivo de licença; o autor declara no README dele que os modelos não têm direito autoral (`resources/rnnoise/README.md`). O modelo entra na revisão jurídica geral pendente antes do lançamento. Se o jurídico pedir, a troca é pelo `afftdn` com perfil aprendido no trecho mais quieto, caminho que já existe e é testado (`src/shared/voiceChain.ts`).
+- **Léxico do glossário.** A lista de 48 mil palavras vem do FrequencyWords `pt_br_50k`, licença CC BY-SA 4.0, com a atribuição em `src/shared/lexicon/LICENSE-pt-words.txt` e no `THIRD-PARTY-NOTICES` do EdiAula (`1fa64422`).
+- **Decisões técnicas do plano.** Um executável próprio em C# 5 (`ediaula-helper.exe`, compilado pelo `csc.exe` do .NET Framework 4.x) no lugar dos dois `.ps1`; captura contínua, com a pausa virando corte; diário em disco e recuperação; cadeia de codificador NVENC, AMF, Media Foundation e x264; exportação por trechos com cache; modo guiado da plataforma web pelo Chrome DevTools Protocol, em resolução fixa; "Janela" é a região encaixada no retângulo da janela e mantida à frente, sem captura de janela coberta.
+
+## Pendências
+
+### Teste manual
+
+- **Intel e AMD:** gravar e exportar por AMF, Media Foundation e QSV numa máquina de cada fabricante. Esta máquina só tem NVIDIA; o detector e o plano B foram testados só com NVENC e x264.
+- **AppLocker:** abrir o gravador e o modo guiado num PC com AppLocker ou Constrained Language Mode, como os de escola.
+- **Defender:** varredura e comportamento do antivírus com o `ediaula-helper.exe`, que instala ganchos de mouse e teclado e não tem Authenticode.
+- **Take de 20 min com claquete:** medir a deriva entre microfone, tela e câmera e o atraso de abertura da câmera (G9). O teste automático usa flash e bipe sintéticos.
+- **Segmentação da webcam com pessoa real:** o teste usa vídeo sintético (máscara não vazia e alfa no arquivo). Falta uma gravação real com uma pessoa na frente da câmera, com cabelo, mãos e fundo comum.
+- **Uso real das telas novas:** elas passaram por typecheck, build e pelo teste visual com mídia sintética; nenhuma foi usada pela titular numa aula de verdade.
+
+### A implementar
+
+- **Apagar a pausa nos arquivos originais do take.** Como a captura continua durante a pausa, o que a câmera, a tela e o microfone gravaram nesses segundos fica nos arquivos da pasta da gravação. Desde `4d3fd4b9` esse conteúdo não volta ao editor (nenhum aparo entra nos segundos pausados) nem sai no pacote da aula (as mídias vão com a pausa em preto e silêncio, e a transcrição sem as palavras ditas ali), e o editor avisa ao importar. Apagar nos próprios arquivos ficou pendente pelo custo: refazer a tela leva cerca de um terço da duração do take (2 min de 1080p30 levaram de 35 a 39 s nesta máquina), uns 20 min para uma aula de uma hora, com mais uma perda de qualidade e o dobro de disco enquanto roda.
+- **E14, HEVC e AV1, avatar acima de 1920 px** e os parciais das tabelas acima.
+
+### Revisão jurídica
+
+Antes do lançamento, junto com a revisão jurídica geral já registrada para os textos legais:
+
+- o modelo RNNoise sem arquivo de licença (ver Decisões registradas);
+- o léxico CC BY-SA 4.0 embutido no renderer, que pede atribuição e compartilhamento pela mesma licença;
+- os componentes compilados dentro do WebAssembly do `@mediapipe/tasks-vision` 1.0.1, que roda a segmentação da webcam. O aviso `resources/segmentation/WASM-NOTICES.txt`, desde `4d3fd4b9`, traz as bibliotecas achadas nos arquivos com as versões fixadas pela tag v1.0.0 do MediaPipe e os textos de licença copiados das fontes oficiais. Ficam pendentes para a revisão jurídica ML Drift, gloop e a infraestrutura ODML, para os quais não se achou código-fonte nem licença públicos; o Google distribui o pacote inteiro como Apache 2.0.
+
+### Limites conhecidos
+
+- **Windows anterior ao 10 versão 2004 (build 19041):** nele o Windows não deixa a janela do gravador fora da captura, só a pinta de preto, e a gravação sairia preta. Os modos que gravam a tela (Tela, Tela sobre a narração e o guiado na tela) recusam começar, com aviso (`screenCaptureProblem` em `src/shared/systemAudio.ts`, chamado em `src/main/recorder.ts`). Só voz e Voz e câmera não gravam a tela nem o áudio do PC e seguem funcionando. Como o áudio do PC só existe nos modos de tela, ele também não grava nesses Windows.
+- **Reserva do áudio do PC:** se o process loopback do auxiliar não abrir no começo do take, o áudio do PC cai para o Chromium com `restrictOwnAudio`, que exclui só a janela que captura. O som de outra janela do EdiAula entra na faixa (medido nesta máquina: -13 dB, contra cerca de -83 dB pelo auxiliar). Nos modos em que o gravador toca uma voz, sem a exclusão confirmada, o áudio do PC fica desligado com aviso (`systemAudioPlan`).
+- **Janela coberta:** "Janela…" grava a região da tela, então o que estiver por cima da janela escolhida entra no vídeo.
+- **Avatar acima de 1920 px:** a remoção de fundo trabalha até 1920 px no lado maior (3.2.14).
+- **FFmpeg de desenvolvimento:** no FFmpeg 6 dos wrappers de desenvolvimento a voz é tratada pelo `afftdn`, porque o `arnndn` deu resultados diferentes para o mesmo arquivo; o app instalado usa o RNNoise do FFmpeg 9.0.2 do pacote. A voz soa diferente nos dois.
+- **Sem Authenticode:** a suíte é verificada por Ed25519, que não identifica um publicador para o Windows (`docs/arquitetura-desktop.md`).
+
+### Riscos registrados pelos lotes
+
+- **Áudio do PC nativo com três novas aberturas por take.** Desde `4d3fd4b9`, se o `ediaula-helper.exe` do loopback parar no meio, a gravação segue, o aviso aparece e a captura abre de novo na hora, numa parte nova alinhada pela primeira amostra dela; numa pausa, abre com a retomada (`MAX_LOOPBACK_REOPEN` em `src/main/recording/session.ts`). Depois de três novas aberturas no mesmo take, uma nova queda deixa o resto dele sem o áudio do PC, e o trecho entre cada queda e a parte seguinte vira silêncio.
+- **Janela mantida à frente depois de uma queda.** A janela posta por cima fica anotada no perfil (`janelas-na-frente.json`) e volta ao normal na próxima abertura se o app e o auxiliar caírem juntos, mas só se o computador não tiver reiniciado no meio (`4d3fd4b9`).
+- **Cursor de texto liga a acessibilidade do Chromium.** Para o zoom que segue a digitação, o auxiliar lê o cursor de texto pela automação de interface; no Chrome e em apps Electron isso liga a árvore de acessibilidade inteira e custa velocidade ao programa gravado (`native/helper/Caret.cs`). Só roda com o zoom automático ligado nas opções do gravador.
+- **Edição de contexto da API não provada contra a API real.** A limpeza de resultados antigos (`clear_tool_uses_20250919`) e a compactação (`compact_20260112`), com os betas `context-management-2025-06-27` e `compact-2026-01-12` (`src/shared/aiModels.ts`), foram conferidas só pelo formato do pedido (`tests/assistant-request.test.ts`, `tests/l15-ia-review.test.ts`), nunca numa chamada à API da Anthropic.
+- **Codex conferido por versão.** A restrição depende da lista de eventos permitidos e do `codex features list` da versão instalada (`dbe320d8`); uma versão nova que mude os eventos faz o processo ser encerrado ou o autoteste falhar até a lista ser atualizada.
+- **VAD pelo log do whisper.** Os tempos com VAD voltam ao arquivo pela tabela `vad_segment_info` do log do `whisper-cli`; sem ela, a transcrição é refeita sem VAD (`21400ed8`).
+- **Modo guiado e páginas de outro site.** Quadros de outro site dentro da página da aula não são lidos (a marcação avisa), e abrir o DevTools desliga a automação (`5895ab10`, `416e6145`).
+- **Encaixe do vídeo do apresentador.** Com confiança baixa ou dois arquivos que servem igual, o vídeo não entra sozinho e vira palpite para conferir; um vídeo com som muito diferente da voz exportada pode não encaixar.
+- **Remoção de fundo da webcam:** custa cerca de 12 ms por quadro a 256 px, em segundo plano; numa máquina lenta, a fila de trabalho demora mais depois da gravação.

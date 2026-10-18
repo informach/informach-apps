@@ -667,7 +667,7 @@ marca: quem aparece no vídeo é o **apresentador**.
   20 min para uma aula de uma hora, além de mais uma perda de qualidade e o dobro de disco enquanto roda.
 - **Windows 10 versão 2004 ou mais novo para gravar a tela:** antes dela o Windows não deixa a janela do
   gravador fora da captura (só a pinta de preto), e ela cobre a tela inteira. Nessas versões os modos de
-  tela recusam começar, com o aviso; Só voz segue funcionando.
+  tela recusam começar, com o aviso; Só voz e Voz e câmera seguem funcionando.
 - **Desenho na tela:** durante a gravação, **Ctrl+Shift+D** (ou o lápis na pílula, nos modos Tela e Tela sobre a
   narração) liga o desenho sobre o gravador, com as cores da paleta da aula, três espessuras e **Apagar tudo**. O
   desenho não entra no vídeo: cada traço vai com o tempo dele para o diário da sessão e, na importação, vira um clipe
@@ -893,9 +893,8 @@ marca: quem aparece no vídeo é o **apresentador**.
   `restrictOwnAudio` (`src/shared/systemAudio.ts`): o som que a própria janela do gravador toca fica de fora, mas o
   de outra janela do EdiAula entra, por isso tudo o que o gravador toca durante a gravação toca na janela dele. O
   processamento de voz do Chromium (cancelamento de eco, supressão de ruído, ganho automático) fica desligado nessa
-  faixa. Quando nem o process loopback existe (anterior ao Windows 10 2004), o áudio do PC fica desligado, com aviso,
-  nos modos em que o gravador toca uma voz (Tela sobre a narração e guiado com narração), e nos outros segue com o
-  loopback comum e um aviso.
+  faixa. A reserva vale quando o process loopback não abre no começo do take. Antes do Windows 10 2004 não há áudio
+  do PC: ele só existe nos modos de tela, e esses modos recusam começar nessas versões.
 - Medido nesta máquina com Electron 44 (`tests/systemAudioExclusion.test.ts`, com `EDIAULA_SOUND_TESTS=1`): pelo
   auxiliar, um tom tocado numa janela do app cai de -13 dB (captura sem exclusão) para cerca de -83 dB, e em outra
   janela do app também; o tom de outro programa fica em -30 dB. Pela reserva do Chromium, o tom da janela que captura
