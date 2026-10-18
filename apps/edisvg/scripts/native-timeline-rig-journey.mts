@@ -136,7 +136,8 @@ export async function verifyNativeTimelineRig(
       await testing.getByRole("button", { name: "Fechar teste", exact: true }).click();
     const close = page.locator("#clip-dialog[open] [data-close-key]");
     if (await close.count()) await close.click();
-    for (let index = 0; index < edits; index++) await page.locator('[data-action="undo"]').click();
+    // The menu buttons are intentionally hidden at narrower native window sizes.
+    for (let index = 0; index < edits; index++) await page.keyboard.press("Control+z");
     await page.waitForFunction(
       (before) => localStorage.getItem("edisvg-project") === before,
       before,

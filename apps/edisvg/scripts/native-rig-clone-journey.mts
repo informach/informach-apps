@@ -114,7 +114,8 @@ export async function verifyNativeRigClone(
     const testing = page.getByRole("dialog", { name: "Testar interação", exact: true });
     if (await testing.count())
       await testing.getByRole("button", { name: "Fechar teste", exact: true }).click();
-    for (let index = 0; index < edits; index++) await page.locator('[data-action="undo"]').click();
+    // The menu buttons are intentionally hidden at narrower native window sizes.
+    for (let index = 0; index < edits; index++) await page.keyboard.press("Control+z");
     await page.waitForFunction(
       (expected) => localStorage.getItem("edisvg-project") === expected,
       before,
