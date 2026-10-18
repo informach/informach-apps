@@ -580,3 +580,67 @@ test("stopping the take rejects at once; the timing signature ignores targets", 
   assert.notEqual(planTiming(moved), planTiming(plan));
   assert.notEqual(planTiming({ ...plan, tempos: { ...plan.tempos, after: 2 } }), planTiming(plan));
 });
+
+test("a drag stopped or failing midway always lets the button go", async () => {
+  const plan = webPlan([
+    {
+      id: "a",
+      at: 0,
+      speech: "Arraste",
+      action: "drag",
+      target: on("Nome"),
+      to: { target: on("Próxima") },
+    },
+  ]);
+  for (const ending of ["abort", "fail"] as const) {
+    const controller = new AbortController();
+    const page = new FakePage(null, async () => undefined, points);
+    page.glide = async (_from, to, _duration, drag) => {
+      page.events.push({ t: -1, op: drag ? "drag" : "glide", ...to });
+      if (!drag) {
+        page.pointer = to;
+        return;
+      }
+      page.pointer = { x: 700, y: 550 };
+      if (ending === "abort") controller.abort();
+      throw new Error(ending === "abort" ? "Automação interrompida." : "O cursor travou.");
+    };
+    await assert.rejects(
+      runGuided(plan, page, instantClock(controller.signal), controller.signal),
+      ending === "abort" ? /interrompida/ : /travou/,
+    );
+    const ops = page.events.map((e) => e.op).filter((op) => !op.startsWith("locate"));
+    assert.deepEqual(ops, ["glide", "press", "drag", "release"], ending);
+    // Let go where the pointer stopped, not at the drop.
+    assert.deepEqual(
+      page.events.filter((e) => e.op === "release").map((e) => [e.x, e.y]),
+      [[700, 550]],
+    );
+  }
+});
+
+test("a release that fails after a broken drag is reported with the first error", async () => {
+  const plan = webPlan([
+    {
+      id: "a",
+      at: 0,
+      speech: "Arraste",
+      action: "drag",
+      target: on("Nome"),
+      to: { target: on("Próxima") },
+    },
+  ]);
+  const controller = new AbortController();
+  const page = new FakePage(null, async () => undefined, points);
+  page.glide = async (_from, to, _duration, drag) => {
+    if (drag) throw new Error("O cursor travou.");
+    page.pointer = to;
+  };
+  page.release = async () => {
+    throw new Error("Sem resposta.");
+  };
+  await assert.rejects(
+    runGuided(plan, page, instantClock(controller.signal), controller.signal),
+    /O cursor travou\. O botão do mouse pode ter ficado pressionado: Sem resposta\./,
+  );
+});

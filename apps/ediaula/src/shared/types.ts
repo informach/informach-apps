@@ -118,8 +118,11 @@ export interface Asset {
   cursorFx?: CursorFx;
   /** Markers set while recording (Ctrl+Shift+M) and passages to redo (Ctrl+Shift+R), source seconds. */
   markers?: { t: number; kind: MarkerKind }[];
-  /** The take this file belongs to (its folder) and which of its sources it is. */
-  recording?: { id: string; role: RecordingRole };
+  /**
+   * The take this file belongs to (its folder) and which of its sources it is; `paused`, the
+   * source seconds recorded during the take's pauses, which no clip may reach.
+   */
+  recording?: { id: string; role: RecordingRole; paused?: [number, number][] };
   /** guided-run.json of a guided take in the lesson window: its steps, actions and holds. */
   guidedRun?: string;
   /** Solid screen color detected at import (avatar recorded on blue or green), '#RRGGBB'. */

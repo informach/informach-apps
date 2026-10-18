@@ -1,6 +1,6 @@
 import { existsSync, readdirSync } from "node:fs";
 import { rm } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { type DesktopJob, desktopJobs } from "@informach/edi-desktop/jobs";
 import { desktopFiles, desktopIpc as ipcMain } from "@informach/edi-desktop/main";
 import {
@@ -233,6 +233,8 @@ function takeFiles(result: RecordingResult): string[] {
     result.guidedRun,
     ...(result.screenParts ?? []).flatMap((p) => [p.path, p.cursor]),
     ...(result.cameraParts ?? []).map((p) => p.path),
+    ...(result.microphoneParts ?? []).map((p) => p.path),
+    ...(result.systemParts ?? []).map((p) => p.path),
   ].filter((path): path is string => typeof path === "string" && path.length > 0);
   const images = join(result.dir, "cursors");
   if (existsSync(images))
@@ -247,8 +249,13 @@ function takeFiles(result: RecordingResult): string[] {
  */
 export async function grantTake(result: RecordingResult): Promise<RecordingResult> {
   const problems: string[] = [];
+  const folder = resolve(result.dir);
   for (const path of takeFiles(result))
     try {
+      // Only the take's own files: never a path that leaves its folder.
+      const rel = relative(folder, resolve(path));
+      if (!rel || rel.startsWith("..") || isAbsolute(rel))
+        throw new Error("fora da pasta da gravação, não liberado");
       await desktopFiles.grantRead(path);
     } catch (error) {
       problems.push(`${path}: ${error instanceof Error ? error.message : String(error)}`);
@@ -273,6 +280,11 @@ function place(m: CaptureMonitor): void {
 }
 
 export function registerRecorder(getMain: () => BrowserWindow | null): void {
+  // A window a take kept in front when the app went down goes back to its place.
+  if (process.platform === "win32")
+    void rec
+      .restoreRaised()
+      .catch((error: unknown) => console.warn("[recorder] janelas na frente:", error));
   let recordingJob: DesktopJob | undefined;
   let guided: { input: GuidedInput; controller: AbortController; paused: boolean } | null = null;
   /** A guided take in the lesson window (main/guidedCapture.ts). */
@@ -282,6 +294,8 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     plan: GuidedPlanV2;
     from: number;
     replace?: string;
+    /** Lets its folder be offered as interrupted again (it is not recording any more). */
+    release: () => void;
   } | null = null;
   let verifying: AbortController | null = null;
   let marking: MarkSession | null = null;
@@ -296,6 +310,24 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
   let takeHasScreen = false;
   /** "Janela…": the window the next take follows. */
   let followTarget: { hwnd: string; front: boolean } | null = null;
+  /**
+   * A discarded take goes to the Recycle Bin, or is removed when the bin refuses it; one that
+   * cannot be removed either is reported with where its files stayed.
+   */
+  const throwAway = async (dir: string): Promise<void> => {
+    try {
+      await shell.trashItem(dir);
+    } catch (trashError) {
+      try {
+        await rm(dir, { recursive: true, force: true });
+      } catch (error) {
+        throw new Error(
+          `O take foi descartado, mas os arquivos não puderam ir para a Lixeira nem ser apagados. Eles ficaram em ${dir}.`,
+          { cause: new AggregateError([trashError, error]) },
+        );
+      }
+    }
+  };
   const endGuided = (): void => {
     guided?.controller.abort();
     guided?.input.close();
@@ -499,6 +531,11 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
       unregisterHotkeys(sessionKeys);
       sessionKeys = [];
     }
+    // The drawing belongs to the take: stopped or thrown away, it is over here too.
+    if (!active || status.phase === "stopping") {
+      drawingNow = false;
+      stuckDrawing = false;
+    }
   };
   /** The editor's view of a take in the lesson window (background work waits for it too). */
   const webState = (active: boolean): void => {
@@ -539,11 +576,22 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
       };
       return { result: granted, run };
     } catch (error) {
-      // Nothing was recorded (the page never opened): the empty folder goes.
-      if (error instanceof Error && error.message === "Nada foi gravado.")
+      // Nothing was recorded (the page never opened, no frame written): the empty folder goes.
+      // A take with frames whose files did not finalize stays, to be recovered.
+      if (
+        error instanceof Error &&
+        error.message === "Nada foi gravado." &&
+        current.take.frames === 0
+      )
         await rm(current.take.dir, { recursive: true, force: true });
+      else if (current.take.frames > 0)
+        throw new Error(
+          `${error instanceof Error ? error.message : String(error)} Os arquivos ficaram em ${current.take.dir} e a gravação aparece entre as interrompidas.`,
+          { cause: error },
+        );
       throw error;
     } finally {
+      current.release();
       current.job.finish();
       if (web === current) web = null;
       webState(false);
@@ -553,12 +601,14 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     const current = web;
     if (!current) return;
     web = null;
-    await current.take.cancel();
-    current.job.finish();
-    webState(false);
-    await shell
-      .trashItem(current.take.dir)
-      .catch(() => rm(current.take.dir, { recursive: true, force: true }));
+    try {
+      await current.take.cancel();
+    } finally {
+      current.release();
+      current.job.finish();
+      webState(false);
+    }
+    await throwAway(current.take.dir);
   };
 
   rec.subscribe((message) => {
@@ -789,12 +839,17 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
   });
   ipcMain.handle("recorder:discard", async () => {
     endGuided();
-    await rec.discard((dir) => shell.trashItem(dir));
-    recordingJob?.finish();
-    recordingJob = undefined;
-    captureBounds = null;
-    overlay?.show();
-    overlay?.setIgnoreMouseEvents(false);
+    try {
+      await rec.discard(throwAway);
+    } finally {
+      // A discard that failed still ends the take here: the recorder goes back to setting up.
+      recordingJob?.finish();
+      recordingJob = undefined;
+      captureBounds = null;
+      drawingNow = false;
+      overlay?.show();
+      overlay?.setIgnoreMouseEvents(false);
+    }
   });
   // Takes the app did not finish (main window, after the license gate).
   ipcMain.handle("recorder:orphans", () => rec.orphans());
@@ -956,7 +1011,15 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
       const signal = state.controller.signal;
       const paused = (): boolean => state.paused;
       const clock = screenClock(() => rec.elapsed() - origin, paused, signal);
-      const driver = new HelperDriver({ input: state.input, clock, paused, signal, resolveTarget });
+      const driver = new HelperDriver({
+        input: state.input,
+        clock,
+        paused,
+        signal,
+        resolveTarget,
+        // The pause let go of a drag: a marker shows where it was taken up again.
+        onDragPause: () => rec.mark("marker"),
+      });
       void runGuided(plan, driver, clock, signal)
         .then(() => {
           if (!signal.aborted) overlay?.webContents.send("recorder:hotkey", "guided-done");
@@ -1111,7 +1174,14 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
         await stopWeb().catch(() => undefined);
       },
     });
-    web = { take, job, plan, from, ...(replace ? { replace } : {}) };
+    web = {
+      take,
+      job,
+      plan,
+      from,
+      ...(replace ? { replace } : {}),
+      release: rec.holdTakeDir(take.dir),
+    };
     webState(true);
   });
   ipcMain.handle("recorder:guidedWebPause", () => web?.take.pause());

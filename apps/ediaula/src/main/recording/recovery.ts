@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { open, readdir, readFile, stat } from "node:fs/promises";
-import { basename, join, relative, resolve } from "node:path";
+import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import type { OrphanTake, RecordingResult } from "../../shared/recording.ts";
 import {
   JOURNAL_FILE,
@@ -35,8 +35,52 @@ async function finishedResult(dir: string): Promise<RecordingResult | null> {
   const result = value as Partial<RecordingResult>;
   if (result.version !== 2 || typeof result.duration !== "number" || !Array.isArray(result.pauses))
     return null;
-  // The folder is where it is now, whatever path it had when it was written.
-  return { ...(result as RecordingResult), dir };
+  // The folder is where it is now, whatever path it had when it was written; a file outside it
+  // makes the result unusable, and the take is finalized again from its journal.
+  try {
+    return rebaseResult(result as RecordingResult, dir);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The take's files where its folder is now. Every path of gravacao.json must lie inside the
+ * folder the take was written in (its `dir` then): one outside it is refused, so a result that
+ * was moved or edited never makes the editor read a file that is not the take's own.
+ */
+export function rebaseResult(result: RecordingResult, dir: string): RecordingResult {
+  const written = resolve(typeof result.dir === "string" && result.dir ? result.dir : dir);
+  const inside = (path: string): string => {
+    const rel = relative(written, resolve(written, path));
+    if (!rel || rel.startsWith("..") || isAbsolute(rel))
+      throw new Error("A gravação aponta para arquivos fora da pasta dela.");
+    return join(dir, rel);
+  };
+  const maybe = (path: string | undefined): string | undefined =>
+    typeof path === "string" && path ? inside(path) : undefined;
+  const piece = <T extends { path: string; cursor?: string }>(p: T): T => ({
+    ...p,
+    path: inside(p.path),
+    ...(p.cursor ? { cursor: inside(p.cursor) } : {}),
+  });
+  const out: RecordingResult = { ...result, dir };
+  for (const key of [
+    "screen",
+    "cursor",
+    "microphone",
+    "systemAudio",
+    "narration",
+    "guidedRun",
+  ] as const) {
+    const value = maybe(result[key]);
+    if (value) out[key] = value;
+  }
+  if (result.screenParts) out.screenParts = result.screenParts.map(piece);
+  if (result.cameraParts) out.cameraParts = result.cameraParts.map(piece);
+  if (result.microphoneParts) out.microphoneParts = result.microphoneParts.map(piece);
+  if (result.systemParts) out.systemParts = result.systemParts.map(piece);
+  return out;
 }
 
 async function inspect(dir: string): Promise<OrphanTake | null> {
@@ -96,14 +140,18 @@ async function inspect(dir: string): Promise<OrphanTake | null> {
   };
 }
 
-/** Unfinished takes under `root`, newest first; `active` is the take recording now. */
-export async function scanOrphans(root: string, active?: string): Promise<OrphanTake[]> {
+/** Unfinished takes under `root`, newest first; `active`, the takes recording now. */
+export async function scanOrphans(
+  root: string,
+  active: readonly string[] = [],
+): Promise<OrphanTake[]> {
   if (!existsSync(root)) return [];
+  const busy = new Set(active.map((d) => resolve(d).toLowerCase()));
   const found: OrphanTake[] = [];
   for (const entry of await readdir(root, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
     const dir = join(root, entry.name);
-    if (active && resolve(dir) === resolve(active)) continue;
+    if (busy.has(resolve(dir).toLowerCase())) continue;
     const take = await inspect(dir);
     if (take) found.push(take);
   }
@@ -111,7 +159,11 @@ export async function scanOrphans(root: string, active?: string): Promise<Orphan
 }
 
 /** The folder is a take under `root` waiting to be imported (not the one recording now). */
-export async function isOrphan(root: string, dir: string, active?: string): Promise<boolean> {
+export async function isOrphan(
+  root: string,
+  dir: string,
+  active: readonly string[] = [],
+): Promise<boolean> {
   const takes = await scanOrphans(root, active);
   return takes.some((t) => resolve(t.dir) === resolve(dir));
 }

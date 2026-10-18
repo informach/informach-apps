@@ -76,6 +76,51 @@ export const MAX_STROKES = 5000;
 export const MAX_DRAWING_POINTS = 100_000;
 /** Thicknesses offered while drawing, pixels of a 1080-pixel frame. */
 export const DRAWING_WIDTHS = [4, 8, 14] as const;
+/** How each thickness is read aloud and shown. */
+export const DRAWING_WIDTH_NAMES = ["Fina", "Média", "Grossa"] as const;
+
+/**
+ * A color's name for a person (the screen reader, a tooltip): the pen's colors come from the
+ * lesson's palette as hex codes, which say nothing out loud. Named by hue and lightness.
+ */
+export function colorName(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return "Cor personalizada";
+  const n = Number.parseInt(m[1], 16);
+  const r = ((n >> 16) & 255) / 255;
+  const g = ((n >> 8) & 255) / 255;
+  const b = (n & 255) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const light = (max + min) / 2;
+  const chroma = max - min;
+  if (chroma < 0.08 || (light < 0.12 && chroma < 0.2))
+    return light > 0.9 ? "Branco" : light < 0.15 ? "Preto" : light > 0.6 ? "Cinza-claro" : "Cinza";
+  let hue =
+    max === r ? ((g - b) / chroma) % 6 : max === g ? (b - r) / chroma + 2 : (r - g) / chroma + 4;
+  hue = (hue * 60 + 360) % 360;
+  const base =
+    hue < 15 || hue >= 345
+      ? "Vermelho"
+      : hue < 40
+        ? "Laranja"
+        : hue < 65
+          ? "Amarelo"
+          : hue < 90
+            ? "Verde-limão"
+            : hue < 160
+              ? "Verde"
+              : hue < 195
+                ? "Ciano"
+                : hue < 248
+                  ? "Azul"
+                  : hue < 290
+                    ? "Violeta"
+                    : "Rosa";
+  if (light < 0.25) return `${base} escuro`;
+  if (light > 0.82) return `${base} claro`;
+  return base;
+}
 
 /** A stroke's points thinned evenly to at most `max`, keeping the first and the last. */
 export function thinPoints<T>(points: readonly T[], max = MAX_STROKE_POINTS): T[] {

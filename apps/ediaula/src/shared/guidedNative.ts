@@ -35,6 +35,9 @@ export class HelperDriver implements GuidedDriver {
   /** Where the last approach found the target: its window is checked again before acting. */
   private approach: GuidedTarget | null = null;
   private glides = 0;
+  /** The left button is down (a drag): a pause lets it go and a stop never sends a second up. */
+  private holding = false;
+  private readonly onDragPause?: (p: Point) => void;
 
   constructor(options: {
     input: HelperCommands;
@@ -44,6 +47,8 @@ export class HelperDriver implements GuidedDriver {
     sleep?: (ms: number) => Promise<void>;
     /** Elements of the lesson window looked up again (main/guidedBrowser.ts); positions as they are. */
     resolveTarget?: (target: GuidedTarget) => Promise<GuidedTarget>;
+    /** A pause let the button of a drag go at this point; it is pressed there again on resume. */
+    onDragPause?: (p: Point) => void;
   }) {
     this.input = options.input;
     this.clock = options.clock;
@@ -51,6 +56,7 @@ export class HelperDriver implements GuidedDriver {
     this.signal = options.signal;
     this.sleep = options.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
     this.resolveTarget = options.resolveTarget ?? (async (target) => target);
+    this.onDragPause = options.onDragPause;
   }
 
   sample(): Promise<Point> {
@@ -81,11 +87,19 @@ export class HelperDriver implements GuidedDriver {
    * curve, so a slow main process no longer makes the pointer stutter. A pause halts it where it
    * is and the same curve resumes afterwards; a helper that falls behind stops instead of jumping.
    * Each glide has a token, so a halt that crosses the glide's own end cannot stop the next one.
+   * A drag never keeps the button down through a pause, while the teacher has the mouse: it lets
+   * go where the curve stopped and, on resume, presses again at that same point before going on.
    */
-  async glide(from: Point, to: Point, duration: number): Promise<void> {
+  async glide(from: Point, to: Point, duration: number, drag?: boolean): Promise<void> {
     let at = 0;
+    let lifted: Point | null = null;
     for (;;) {
       await this.clock.wait(0);
+      if (lifted) {
+        await this.input.command({ op: "move", x: lifted.x, y: lifted.y });
+        await this.press();
+        lifted = null;
+      }
       const token = `glide-${++this.glides}`;
       let done: { value: GlideResult } | { error: unknown } | undefined;
       void this.input
@@ -123,6 +137,11 @@ export class HelperDriver implements GuidedDriver {
       if (this.signal.aborted) throw new Error(STOPPED);
       if (done.value.at >= 1) return;
       at = done.value.at;
+      if (drag) {
+        lifted = { x: done.value.x, y: done.value.y };
+        await this.release();
+        this.onDragPause?.(lifted);
+      }
     }
   }
 
@@ -142,10 +161,13 @@ export class HelperDriver implements GuidedDriver {
 
   async press(): Promise<void> {
     await this.input.command({ op: "down", button: "left" });
+    this.holding = true;
   }
 
   async release(): Promise<void> {
+    if (!this.holding) return;
     await this.input.command({ op: "up", button: "left" });
+    this.holding = false;
   }
 
   /** Notches of the wheel (120 each), down and right positive. */

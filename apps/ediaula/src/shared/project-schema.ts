@@ -273,7 +273,16 @@ const asset = z.looseObject({
     .array(z.looseObject({ t: time, kind: z.enum(["marker", "retake"]) }))
     .max(20000)
     .optional(),
-  recording: z.looseObject({ id: text, role: z.enum(RECORDING_ROLES) }).optional(),
+  recording: z
+    .looseObject({
+      id: text,
+      role: z.enum(RECORDING_ROLES),
+      paused: z
+        .array(z.tuple([time, time]))
+        .max(10000)
+        .optional(),
+    })
+    .optional(),
   drawing: drawingSchema.optional(),
   guidedRun: path.optional(),
   screen: color.optional(),

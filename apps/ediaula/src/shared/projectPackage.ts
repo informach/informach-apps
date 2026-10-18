@@ -52,9 +52,24 @@ const extOf = (path: string): string => {
 };
 const baseOf = (path: string): string => path.split(/[\\/]/).pop() ?? path;
 
+/**
+ * A file to store: its name inside the archive and where it is now. A take's media recorded
+ * during the pauses carries those seconds (`blank`): it goes with them black and silent, and its
+ * transcript without the words said there (shared/pausedMedia.ts).
+ */
+export interface PackFile {
+  name: string;
+  path: string;
+  blank?: {
+    paused: [number, number][];
+    kind: "media" | "transcript";
+    video: boolean;
+    audio: boolean;
+  };
+}
+
 export interface PackPlan {
-  /** Files to store: name inside the archive and where it is now. */
-  files: { name: string; path: string }[];
+  files: PackFile[];
   /** The project as it goes into the archive, its paths relative to it. */
   project: Project;
   /** Exported voices left out because their files are gone (they cannot be matched again). */
@@ -83,20 +98,30 @@ const drawnName = (a: Asset): string =>
  * themselves must be there; main/package.ts asks to reconnect them).
  */
 export function packPlan(p: Project, exists: (path: string) => boolean = () => true): PackPlan {
-  const files: { name: string; path: string }[] = [];
+  const files: PackFile[] = [];
   const taken = new Set<string>();
-  const store = (label: string, path: string): string => {
+  const store = (label: string, path: string, blank?: PackFile["blank"]): string => {
     let name = `${PACKAGE_MEDIA}${packName(label)}`;
     for (let i = 2; taken.has(name.toLowerCase()); i++)
       name = `${PACKAGE_MEDIA}${packName(`${i}-${label}`)}`;
     taken.add(name.toLowerCase());
-    files.push({ name, path });
+    files.push(blank ? { name, path, blank } : { name, path });
     return name;
   };
   const place = (asset: Asset, field: Carried, path: string): string => {
     const own = baseOf(path);
     const label = SUFFIX[field] ? `${SUFFIX[field]}${extOf(own) || ".json"}` : own;
-    return store(`${asset.id}-${label}`, path);
+    const paused = asset.recording?.paused;
+    const blank =
+      paused?.length && (field === "path" || field === "transcript")
+        ? {
+            paused,
+            kind: field === "path" ? ("media" as const) : ("transcript" as const),
+            video: asset.hasVideo,
+            audio: asset.hasAudio,
+          }
+        : undefined;
+    return store(`${asset.id}-${label}`, path, blank);
   };
   const assets = p.assets.map((a) => {
     const out = withoutCaches(a);

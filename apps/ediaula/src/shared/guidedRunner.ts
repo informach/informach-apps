@@ -138,7 +138,25 @@ export class GuidedStepError extends Error {
 }
 
 export const STOPPED = "Automação interrompida.";
+
 const moved = (a: Point, b: Point): boolean => Math.abs(a.x - b.x) > 2 || Math.abs(a.y - b.y) > 2;
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
+/**
+ * Lets the button of an interrupted drag go where the pointer is. A release that fails too is
+ * reported with the first error, never instead of it.
+ */
+async function letGo(driver: GuidedDriver, cause: unknown): Promise<void> {
+  try {
+    await driver.release(await driver.sample());
+  } catch (error) {
+    throw new Error(
+      `${messageOf(cause)} O botão do mouse pode ter ficado pressionado: ${messageOf(error)}`,
+      { cause },
+    );
+  }
+}
 
 export async function runGuided(
   plan: GuidedPlanV2,
@@ -267,8 +285,16 @@ export async function runGuided(
         const from = point ?? (await driver.sample());
         const to = drop ?? (await driver.destination(step, from, timeout));
         await driver.press(from);
-        await driver.glide(from, to, span(move), true);
-        await driver.release(to);
+        let held = true;
+        try {
+          await driver.glide(from, to, span(move), true);
+          held = false;
+          await driver.release(to);
+        } catch (cause) {
+          // Stopped or failed mid-drag: the button never stays down after the run.
+          if (held) await letGo(driver, cause);
+          throw cause;
+        }
         log?.act("drag", at, clock.time(), s.index);
         break;
       }

@@ -2,6 +2,8 @@ import {
   BOARD_COLORS,
   BOARD_INK,
   type BoardKind,
+  colorName,
+  DRAWING_WIDTH_NAMES,
   DRAWING_WIDTHS,
   type DrawingTool,
   MAX_STROKE_POINTS,
@@ -112,6 +114,8 @@ export function DrawLayer({
   const measuring = useRef(false);
   const exit = useRef(onExit);
   exit.current = onExit;
+  /** Ends the stroke under way as if the pen lifted (set below, read by the effects). */
+  const lift = useRef<() => void>(() => undefined);
   /** Sends `send` with the main process's clock at this moment (QPC ms), now or once it is known. */
   const stamp = useCallback((send: (qpc: number) => void): void => {
     const now = performance.now();
@@ -199,7 +203,12 @@ export function DrawLayer({
           measuring.current = false;
         });
     }
-    if (!on) switchBoard(null);
+    if (!on) {
+      // A pause (or leaving the drawing) mid-stroke ends the stroke there: its points stay on
+      // the take's clock, and nothing drawn after the pause joins it.
+      lift.current();
+      switchBoard(null);
+    }
     return () => {
       drawing.on = false;
     };
@@ -270,6 +279,7 @@ export function DrawLayer({
     if (o !== null) send(o);
     else pending.current.push(send);
   };
+  lift.current = up;
   const clear = useCallback((): void => {
     strokes.current = [];
     current.current = null;
@@ -357,20 +367,21 @@ export function DrawLayer({
               key={c}
               className={`rec-draw-color ${c === color ? "is-active" : ""}`}
               style={{ background: c }}
-              title={`Cor ${c}`}
-              aria-label={`Cor ${c}`}
+              title={colorName(c)}
+              aria-label={`Cor ${colorName(c)}`}
+              aria-pressed={c === color}
               onClick={() => setColor(c)}
             />
           ))}
           <span className="rec-draw-sep" />
-          {DRAWING_WIDTHS.map((w) => (
+          {DRAWING_WIDTHS.map((w, i) => (
             <button
               type="button"
               key={w}
               className={`rec-draw-width ${w === width ? "is-active" : ""}`}
-              title={
-                w === DRAWING_WIDTHS[0] ? "Fino" : w === DRAWING_WIDTHS[1] ? "Médio" : "Grosso"
-              }
+              title={`Espessura ${DRAWING_WIDTH_NAMES[i].toLowerCase()}`}
+              aria-label={`Espessura ${DRAWING_WIDTH_NAMES[i].toLowerCase()}`}
+              aria-pressed={w === width}
               onClick={() => setWidth(w)}
             >
               <i style={{ width: w + 2, height: w + 2 }} />
@@ -381,6 +392,7 @@ export function DrawLayer({
             type="button"
             className={board === "white" ? "is-active" : undefined}
             title="Quadro branco (B)"
+            aria-pressed={board === "white"}
             onClick={() => switchBoard(board === "white" ? null : "white")}
           >
             <span className="rec-board-dot is-white" /> Branco
@@ -389,6 +401,7 @@ export function DrawLayer({
             type="button"
             className={board === "black" ? "is-active" : undefined}
             title="Quadro negro (N)"
+            aria-pressed={board === "black"}
             onClick={() => switchBoard(board === "black" ? null : "black")}
           >
             <span className="rec-board-dot is-black" /> Negro
@@ -397,7 +410,12 @@ export function DrawLayer({
           <button type="button" title="Apagar tudo" onClick={clear}>
             <Eraser size={15} /> Apagar tudo
           </button>
-          <button type="button" title={`Parar de desenhar (Esc ou ${toggleKey})`} onClick={onExit}>
+          <button
+            type="button"
+            title={`Parar de desenhar (Esc ou ${toggleKey})`}
+            aria-label="Parar de desenhar"
+            onClick={onExit}
+          >
             <X size={15} />
           </button>
         </fieldset>

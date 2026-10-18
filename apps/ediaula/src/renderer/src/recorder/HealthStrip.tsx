@@ -1,3 +1,4 @@
+import { plural } from "@shared/plural";
 import { dbfs, type RecorderHealth, SILENCE_DBFS } from "@shared/recordingHealth";
 import { AlertTriangle, HardDrive, MousePointer2 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -49,7 +50,7 @@ export function HealthStrip({ health }: { health: RecorderHealth | null }): Reac
       )}
       {health.frames && health.frames.lost > 0 && (
         <span className="rec-health-warn" title="Quadros que o codificador não conseguiu gravar">
-          {health.frames.lost} quadros perdidos
+          {plural(health.frames.lost, "quadro perdido", "quadros perdidos")}
         </span>
       )}
       {health.cursor !== "ok" && health.cursor !== "none" && (

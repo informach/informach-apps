@@ -59,6 +59,7 @@ import {
   X,
 } from "lucide-react";
 import {
+  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
   useCallback,
@@ -162,6 +163,15 @@ type RegionChoice = RegionPreset | "window";
  * underneath, and tells the cursor helper where they are (the pointer over them is not part of
  * the video).
  */
+/** What a screen reader calls each group of the recorder's controls. */
+const GROUP_LABELS: Record<string, string> = {
+  pill: "Controles da gravação",
+  alert: "Aviso da gravação",
+  "voice-prompter": "Falas da gravação de voz",
+  karaoke: "Narração que está tocando",
+  teleprompter: "Teleprompter",
+};
+
 function Interactive({
   children,
   className,
@@ -178,7 +188,7 @@ function Interactive({
     <fieldset
       ref={ref}
       className={className}
-      aria-label="Controles da gravação"
+      aria-label={GROUP_LABELS[id] ?? "Controles do gravador"}
       onMouseEnter={() => active && void window.api.recorder.interactive(true)}
       // While drawing, the whole window keeps the mouse (the pen is on it).
       onMouseLeave={() => active && !drawing.on && void window.api.recorder.interactive(false)}
@@ -207,6 +217,8 @@ export function RecorderOverlay(): ReactNode {
   const [palette, setPalette] = useState<string[]>([]);
   /** Drawing on the screen during the take. */
   const [drawOn, setDrawOn] = useState(false);
+  /** The pill asks before a discard (the take goes to the Recycle Bin). */
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const drawAllowed = useRef(false);
   const [mic, setMic] = useState<string>("");
   /** The camera of the screen modes and the presenter's camera of "Voz e câmera", each kept. */
@@ -507,12 +519,19 @@ export function RecorderOverlay(): ReactNode {
   useEffect(() => {
     if (phase !== "recording" && drawOn) setDrawOn(false);
   }, [phase, drawOn]);
+  useEffect(() => {
+    if (phase !== "recording" && phase !== "paused") setConfirmDiscard(false);
+  }, [phase]);
   const drewBefore = useRef(false);
   useEffect(() => {
     if (drawOn === drewBefore.current) return;
     drewBefore.current = drawOn;
-    // Back in setup (a discard) or saving, the window already takes the mouse as it should.
-    if (phaseRef.current !== "recording" && phaseRef.current !== "paused") return;
+    // Turning it off always reaches the main process (a stop or a discard ends the drawing too);
+    // back in setup or saving, the window already takes the mouse as it should.
+    if (phaseRef.current !== "recording" && phaseRef.current !== "paused") {
+      if (!drawOn) void window.api.recorder.drawMode(false);
+      return;
+    }
     void window.api.recorder.drawMode(drawOn);
     // Leaving the drawing with the pointer on a control (the pill's pause) keeps it clickable.
     const overControls = [...document.querySelectorAll(".rec-root fieldset")].some((el) =>
@@ -719,8 +738,6 @@ export function RecorderOverlay(): ReactNode {
 
   const discardWeb = useCallback(async () => {
     if (!webRef.current) return;
-    if (!window.confirm("Descartar este take? Ele vai para a Lixeira e o plano fica como está."))
-      return;
     await window.api.recorder.guidedWebDiscard().catch((err: unknown) => setError(cleanError(err)));
     setWeb(null);
   }, []);
@@ -1058,13 +1075,14 @@ export function RecorderOverlay(): ReactNode {
     return () => clearInterval(id);
   }, [mode, phase]);
 
-  /** Throws this take away (Recycle Bin) and goes back to setting up. */
+  /**
+   * Throws this take away (Recycle Bin) and goes back to setting up. Asked inside the pill, never
+   * in a dialog of the system: one would show in the video and its click would count as the
+   * lesson's.
+   */
   const discard = useCallback(async () => {
+    setConfirmDiscard(false);
     if (phaseRef.current !== "recording" && phaseRef.current !== "paused") return;
-    if (
-      !window.confirm("Descartar este take? Ele vai para a Lixeira e o gravador volta ao começo.")
-    )
-      return;
     guidedAudio.current?.pause();
     guidedOffset.current = null;
     player.current?.stop();
@@ -1196,14 +1214,14 @@ export function RecorderOverlay(): ReactNode {
         />
       )}
       {error && recording && !alert && (
-        <div className="rec-flash">
+        <div className="rec-flash" role="alert">
           {error} · {keyOf("stop")} para salvar e encerrar.
         </div>
       )}
       {alert && recording && (
         <Interactive className="rec-alert" active={recording} id="alert">
-          <AlertTriangle size={16} className="warn-icon" />
-          <span>{alert.message}</span>
+          <AlertTriangle size={16} className="warn-icon" aria-hidden="true" />
+          <span role="alert">{alert.message}</span>
           {alert.actions.includes("resume") && (
             <button type="button" disabled={resuming} onClick={() => void togglePause()}>
               {resuming ? <Loader size={14} className="spin" /> : <Play size={14} />} Retomar
@@ -1307,7 +1325,11 @@ export function RecorderOverlay(): ReactNode {
       )}
 
       {phase === "countdown" && <div className="rec-countdown">{count}</div>}
-      {flash && <div className="rec-flash">{flash}</div>}
+      {flash && (
+        <div className="rec-flash" role="status" aria-live="polite">
+          {flash}
+        </div>
+      )}
 
       {phase === "setup" || phase === "countdown" ? (
         <div className="rec-dock">
@@ -1319,9 +1341,13 @@ export function RecorderOverlay(): ReactNode {
               onClose={() => setOptionsOpen(false)}
             />
           )}
-          {error && <div className="rec-error">{error}</div>}
+          {error && (
+            <div className="rec-error" role="alert">
+              {error}
+            </div>
+          )}
           {badKeys.length > 0 && (
-            <div className="rec-error">
+            <div className="rec-error" role="alert">
               {badKeys
                 .map(
                   (r) =>
@@ -1593,6 +1619,7 @@ export function RecorderOverlay(): ReactNode {
                 type="button"
                 className="rec-icon"
                 title={prompterOn ? "Esconder teleprompter" : "Mostrar teleprompter"}
+                aria-label={prompterOn ? "Esconder teleprompter" : "Mostrar teleprompter"}
                 onClick={() =>
                   change({
                     teleprompter: { ...settings.teleprompter, on: !settings.teleprompter.on },
@@ -1606,6 +1633,7 @@ export function RecorderOverlay(): ReactNode {
               type="button"
               className="rec-icon"
               title="Opções do gravador"
+              aria-label="Opções do gravador"
               onClick={() => setOptionsOpen((o) => !o)}
             >
               <Settings2 size={16} />
@@ -1614,6 +1642,7 @@ export function RecorderOverlay(): ReactNode {
               type="button"
               className="rec-icon"
               title="Fechar sem gravar"
+              aria-label="Fechar sem gravar"
               onClick={() => void window.api.recorder.cancel()}
             >
               <X size={16} />
@@ -1672,6 +1701,7 @@ export function RecorderOverlay(): ReactNode {
               <button
                 type="button"
                 title={`Pausar / continuar (${keyOf("toggle")})`}
+                aria-label={phase === "paused" ? "Continuar a gravação" : "Pausar a gravação"}
                 disabled={resuming}
                 onClick={() => void togglePause()}
               >
@@ -1680,6 +1710,7 @@ export function RecorderOverlay(): ReactNode {
               <button
                 type="button"
                 title={`Marcador (${keyOf("marker")})`}
+                aria-label={markers > 0 ? `Marcador, ${markers} até agora` : "Marcador"}
                 onClick={() => void mark("marker")}
               >
                 <Bookmark size={15} />
@@ -1687,7 +1718,8 @@ export function RecorderOverlay(): ReactNode {
               </button>
               <button
                 type="button"
-                title={`Refazer o último trecho (${keyOf("retake")})`}
+                title={`${voiceMode ? "Refazer esta tomada" : "Refazer o último trecho"} (${keyOf("retake")})`}
+                aria-label={voiceMode ? "Refazer esta tomada" : "Refazer o último trecho"}
                 onClick={() => void mark("retake")}
               >
                 <RotateCcw size={15} />
@@ -1697,19 +1729,36 @@ export function RecorderOverlay(): ReactNode {
                   type="button"
                   className={drawOn ? "is-active" : ""}
                   title={`Desenhar na tela (${keyOf("draw")}): o desenho entra na aula, não no vídeo`}
+                  aria-label="Desenhar na tela"
+                  aria-pressed={drawOn}
                   disabled={phase !== "recording"}
                   onClick={() => setDrawOn((on) => !on)}
                 >
                   <PenLine size={15} />
                 </button>
               )}
-              <button
-                type="button"
-                title="Descartar este take e recomeçar"
-                onClick={() => void discard()}
-              >
-                <Trash2 size={15} />
-              </button>
+              {confirmDiscard ? (
+                <>
+                  <span className="rec-paused" role="alert">
+                    Descartar este take? Ele vai para a Lixeira e o gravador volta ao começo.
+                  </span>
+                  <button type="button" className="rec-stop" onClick={() => void discard()}>
+                    <Trash2 size={13} /> Descartar
+                  </button>
+                  <button type="button" onClick={() => setConfirmDiscard(false)}>
+                    Continuar
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  title="Descartar este take e recomeçar"
+                  aria-label="Descartar este take e recomeçar"
+                  onClick={() => setConfirmDiscard(true)}
+                >
+                  <Trash2 size={15} />
+                </button>
+              )}
               <button
                 type="button"
                 className="rec-stop"
@@ -1795,6 +1844,57 @@ function SizeField({
 }
 
 /** Region of the screen to record: drag inside to move, handles to resize, size typed in. */
+/** What each handle of the region does, for the screen reader. */
+const HANDLE_LABELS: Record<string, string> = {
+  nw: "canto superior esquerdo",
+  n: "borda de cima",
+  ne: "canto superior direito",
+  e: "borda direita",
+  se: "canto inferior direito",
+  s: "borda de baixo",
+  sw: "canto inferior esquerdo",
+  w: "borda esquerda",
+};
+
+/**
+ * The region moved ("move") or resized from a handle ("nw", "e"…) by dx, dy window pixels from
+ * `r0`, kept inside the window and at least 80 pixels on each side.
+ */
+function reshapeRegion(r0: Rect, mode: string, dx: number, dy: number): Rect {
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  let { x, y, width, height } = r0;
+  if (mode === "move") {
+    x = Math.min(Math.max(0, x + dx), W - width);
+    y = Math.min(Math.max(0, y + dy), H - height);
+  } else {
+    if (mode.includes("w")) {
+      x = Math.min(Math.max(0, r0.x + dx), r0.x + r0.width - 80);
+      width = r0.x + r0.width - x;
+    }
+    if (mode.includes("e")) width = Math.min(Math.max(80, r0.width + dx), W - r0.x);
+    if (mode.includes("n")) {
+      y = Math.min(Math.max(0, r0.y + dy), r0.y + r0.height - 80);
+      height = r0.y + r0.height - y;
+    }
+    if (mode.includes("s")) height = Math.min(Math.max(80, r0.height + dy), H - r0.y);
+  }
+  return {
+    x: Math.round(x),
+    y: Math.round(y),
+    width: Math.round(width),
+    height: Math.round(height),
+  };
+}
+
+/** Arrow keys on a handle: one pixel, ten with Shift. */
+const ARROWS: Record<string, [number, number]> = {
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1],
+};
+
 function RegionFrame({
   region,
   onChange,
@@ -1822,40 +1922,22 @@ function RegionFrame({
     const sx = e.clientX;
     const sy = e.clientY;
     const r0 = region;
-    const W = window.innerWidth;
-    const H = window.innerHeight;
-    const move = (ev: PointerEvent): void => {
-      const dx = ev.clientX - sx;
-      const dy = ev.clientY - sy;
-      let { x, y, width, height } = r0;
-      if (mode === "move") {
-        x = Math.min(Math.max(0, x + dx), W - width);
-        y = Math.min(Math.max(0, y + dy), H - height);
-      } else {
-        if (mode.includes("w")) {
-          x = Math.min(Math.max(0, r0.x + dx), r0.x + r0.width - 80);
-          width = r0.x + r0.width - x;
-        }
-        if (mode.includes("e")) width = Math.min(Math.max(80, r0.width + dx), W - r0.x);
-        if (mode.includes("n")) {
-          y = Math.min(Math.max(0, r0.y + dy), r0.y + r0.height - 80);
-          height = r0.y + r0.height - y;
-        }
-        if (mode.includes("s")) height = Math.min(Math.max(80, r0.height + dy), H - r0.y);
-      }
-      onChange({
-        x: Math.round(x),
-        y: Math.round(y),
-        width: Math.round(width),
-        height: Math.round(height),
-      });
-    };
+    const move = (ev: PointerEvent): void =>
+      onChange(reshapeRegion(r0, mode, ev.clientX - sx, ev.clientY - sy));
     const up = (): void => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
+  };
+  const nudge = (e: ReactKeyboardEvent, mode: string): void => {
+    const step = ARROWS[e.key];
+    if (!editable || !step) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const by = e.shiftKey ? 10 : 1;
+    onChange(reshapeRegion(region, mode, step[0] * by, step[1] * by));
   };
   const style = { left: region.x, top: region.y, width: region.width, height: region.height };
   return (
@@ -1867,7 +1949,17 @@ function RegionFrame({
       {editable && (
         <>
           <span className="rec-region-tag">
-            <ScanLine size={13} /> Região
+            <button
+              type="button"
+              className="rec-region-move"
+              title="Mover a região (setas; Shift move de 10 em 10)"
+              aria-label="Mover a região com as setas do teclado"
+              onPointerDown={(e) => drag(e, "move")}
+              onKeyDown={(e) => nudge(e, "move")}
+            >
+              <ScanLine size={13} />
+            </button>{" "}
+            Região
             <SizeField label="Largura" value={size.w} onCommit={(width) => onSize({ width })} />
             ×
             <SizeField label="Altura" value={size.h} onCommit={(height) => onSize({ height })} />
@@ -1883,7 +1975,14 @@ function RegionFrame({
             </button>
           </span>
           {["nw", "n", "ne", "e", "se", "s", "sw", "w"].map((h) => (
-            <span key={h} className={`rec-handle h-${h}`} onPointerDown={(e) => drag(e, h)} />
+            <button
+              type="button"
+              key={h}
+              className={`rec-handle h-${h}`}
+              aria-label={`Redimensionar pela ${HANDLE_LABELS[h]} com as setas do teclado`}
+              onPointerDown={(e) => drag(e, h)}
+              onKeyDown={(e) => nudge(e, h)}
+            />
           ))}
         </>
       )}
@@ -2041,7 +2140,13 @@ function Teleprompter({
           <strong>Roteiro · Teleprompter</strong>
           <small>Só você vê: não entra na gravação · {nextKey} próxima fala</small>
         </div>
-        <button type="button" className="rec-icon" title="Esconder" onClick={onHide}>
+        <button
+          type="button"
+          className="rec-icon"
+          title="Esconder"
+          aria-label="Esconder o teleprompter"
+          onClick={onHide}
+        >
           <EyeOff size={15} />
         </button>
       </div>

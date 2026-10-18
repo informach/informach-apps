@@ -1,4 +1,4 @@
-import { clipEnd, clipSpeed, newId, timelineAt } from "./clipTime.ts";
+import { clipEnd, clipSpeed, newId, sourceRoom, timelineAt } from "./clipTime.ts";
 import { AVATAR_FADE, defaultTransformFor } from "./compose.ts";
 import { scaleGain } from "./gain.ts";
 import { regroupCopies } from "./groups.ts";
@@ -6,7 +6,15 @@ import { transformAt } from "./keyframes.ts";
 import { piece } from "./pieces.ts";
 import type { Asset, Clip, Project, ProjectSettings, Track } from "./types.ts";
 
-export { clipEnd, clipSpeed, newId, sourceAt, sourceEnd, timelineAt } from "./clipTime.ts";
+export {
+  clipEnd,
+  clipSpeed,
+  newId,
+  sourceAt,
+  sourceEnd,
+  sourceRoom,
+  timelineAt,
+} from "./clipTime.ts";
 
 /** Shortest clip the editor allows, in seconds. */
 export const MIN_CLIP = 1 / 30;
@@ -291,8 +299,9 @@ export function sourceLength(asset: Asset | undefined): number {
 }
 
 /**
- * Applies a trim of one edge, honouring the source bounds. Movement keyframes stay on the same
- * moments of the footage, so trimming back out brings the movement back.
+ * Applies a trim of one edge, honouring the source bounds (and a take's pauses, sourceRoom).
+ * Movement keyframes stay on the same moments of the footage, so trimming back out brings the
+ * movement back.
  */
 export function trimClip(
   c: Clip,
@@ -300,9 +309,9 @@ export function trimClip(
   time: number,
   asset: Asset | undefined,
 ): Clip {
-  const srcLen = sourceLength(asset);
+  const [srcFrom, srcLen] = sourceRoom(c, asset);
   if (edge === "start") {
-    const minStart = Math.max(0, timelineAt(c, 0));
+    const minStart = Math.max(0, timelineAt(c, srcFrom));
     const maxStart = clipEnd(c) - MIN_CLIP;
     const start = Math.min(Math.max(time, minStart), maxStart);
     const out = piece(c, start, clipEnd(c), { head: true });

@@ -4,6 +4,7 @@ import { ClipMeter, micCheck } from "../src/shared/recordingHealth.ts";
 import {
   FOLLOW_RATE,
   FollowWindow,
+  isWhisperServer,
   lineDoneAt,
   lineEndAt,
   lineEndHeard,
@@ -113,4 +114,14 @@ test("o fim da fala é o fim da última palavra, e só conta o que veio depois d
   // The same words heard before the line appeared (it came up at 12000) are the line before.
   assert.equal(lineDoneAt("Abra a plataforma.", words, 10000, 12000), null);
   assert.equal(lineDoneAt("Agora clique no botão verde.", words, 10000, 12000), 13900);
+});
+
+test("o microfone só vai para o whisper-server, nunca para outro programa na porta", () => {
+  assert.equal(isWhisperServer("whisper.cpp", ""), true);
+  assert.equal(
+    isWhisperServer(null, "<html><head><title>Whisper.cpp Server</title></head></html>"),
+    true,
+  );
+  assert.equal(isWhisperServer("nginx", "<title>Bem-vindo</title>"), false);
+  assert.equal(isWhisperServer(null, ""), false);
 });

@@ -7,7 +7,8 @@ namespace EdiAula.Helper
 {
     /// <summary>
     /// Captures the system hand and two cursors built here (one with alpha, one monochrome with
-    /// inverting pixels) through the hook's capture path, writes their PNGs and prints what it saw.
+    /// inverting pixels) through the hook's capture path, writes their PNGs and prints what it saw,
+    /// and what the input mode would let go of after a scripted drag and a partial shortcut.
     /// </summary>
     internal static class SelfTest
     {
@@ -41,6 +42,13 @@ namespace EdiAula.Helper
             finally
             {
                 NativeMethods.DestroyIcon(mono);
+            }
+            b.Append("],\"held\":[");
+            string[] held = InputMode.HeldAfterScript();
+            for (int i = 0; i < held.Length; i++)
+            {
+                if (i > 0) b.Append(',');
+                Json.Str(b, held[i]);
             }
             b.Append("]}");
             LineWriter.StandardOutput().Write(b.ToString(), true);

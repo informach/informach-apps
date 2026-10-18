@@ -39,9 +39,8 @@ const hooks = registerHooks({
     return nextResolve(specifier, context);
   },
 });
-const { HookClient, InputClient, helperPath, listDisplays, qpc } = await import(
-  "../src/main/nativeHelper.ts"
-);
+const { HookClient, InputClient, helperPath, listDisplays, qpc, restoreRaisedWindows } =
+  await import("../src/main/nativeHelper.ts");
 hooks.deregister();
 
 const root = await mkdtemp(join(tmpdir(), "ediaula-native-helper-"));
@@ -205,7 +204,7 @@ test("a stalled reader blocks neither the hook nor the journal, and no click is 
   assert.equal((await journal(dir)).length, hook.events.length);
 });
 
-test("selftest captures the hand, an alpha cursor and an inverting cursor with stable hashes", {
+test("selftest captures the hand, an alpha cursor and an inverting cursor with stable hashes, and lets go of held input", {
   skip,
   timeout: 20000,
 }, async () => {
@@ -227,6 +226,7 @@ test("selftest captures the hand, an alpha cursor and an inverting cursor with s
         ring: number[];
         corner: number[];
       }[];
+      held: string[];
     };
   };
   const first = await run(join(root, "self-1"));
@@ -235,6 +235,9 @@ test("selftest captures the hand, an alpha cursor and an inverting cursor with s
     first.cursors.map((c) => c.id),
     second.cursors.map((c) => c.id),
   );
+  // A drag cut short and a shortcut Windows took in part: the button and Ctrl are let go of,
+  // the keys first after a failed shortcut, everything when the input ends.
+  assert.deepEqual(first.held, ["k17", "left", "|", "left", "ok"]);
   const [hand, alpha, mono] = first.cursors;
   assert.equal(hand.name, "hand");
   assert.match(hand.id, /^[0-9a-f]{16}$/);
@@ -447,4 +450,25 @@ test("HookClient rejects a helper that never becomes ready", { skip, timeout: 20
   const client = new HookClient({ executable: join(root, "missing-helper.exe") });
   await assert.rejects(client.start(), /capturador de cursor/);
   await client.kill();
+});
+
+test("windows a run that went down left in front go back at the next start, once", {
+  skip,
+  timeout: 20000,
+}, async () => {
+  const file = join(root, "janelas-na-frente.json");
+  const now = Date.now();
+  // A handle that is no window any more: the helper skips it, and the note goes.
+  await writeFile(file, JSON.stringify({ at: now - 1000, windows: ["1"] }));
+  assert.deepEqual(await restoreRaisedWindows(file, executable, now, now - 60_000), []);
+  assert.equal(existsSync(file), false);
+  // From before the computer started: the handles mean nothing now, nothing is touched.
+  await writeFile(file, JSON.stringify({ at: now - 120_000, windows: ["1"] }));
+  assert.deepEqual(await restoreRaisedWindows(file, "nao-existe.exe", now, now - 60_000), []);
+  assert.equal(existsSync(file), false);
+  // A note that does not read as one is dropped; no note at all is nothing to do.
+  await writeFile(file, "{");
+  assert.deepEqual(await restoreRaisedWindows(file, "nao-existe.exe", now, now - 60_000), []);
+  assert.equal(existsSync(file), false);
+  assert.deepEqual(await restoreRaisedWindows(file, "nao-existe.exe"), []);
 });

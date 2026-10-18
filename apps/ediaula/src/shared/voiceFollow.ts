@@ -222,3 +222,15 @@ export function wavBytes(samples: Int16Array, rate = FOLLOW_RATE): Uint8Array<Ar
   for (let i = 0; i < samples.length; i++) v.setInt16(44 + i * 2, samples[i], true);
   return out;
 }
+
+/**
+ * The answer at the root of the recognizer's port is whisper.cpp's server: its "Server" header
+ * (newer builds) or the page it serves there. Another program that took the port in the meantime
+ * never gets the microphone.
+ */
+export function isWhisperServer(server: string | null, body: string): boolean {
+  return (
+    server?.trim().toLowerCase() === "whisper.cpp" ||
+    body.includes("<title>Whisper.cpp Server</title>")
+  );
+}

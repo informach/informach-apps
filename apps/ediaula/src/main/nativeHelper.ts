@@ -1,7 +1,9 @@
 import { type ChildProcessWithoutNullStreams, execFile, spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
-import { release } from "node:os";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { release, uptime } from "node:os";
 import { createInterface } from "node:readline";
+import { z } from "zod";
 import type { HelperCommands } from "../shared/guidedNative.ts";
 import {
   type DisplayList,
@@ -76,7 +78,63 @@ export interface HookOptions {
   executable?: string;
   /** Automated tests only: events carrying this mark are recorded and withheld from other apps. */
   testTag?: number;
+  /**
+   * Where the windows raised above the others are noted while they are (in the app's profile):
+   * if the app and the helper both go down, the next start puts them back (restoreRaisedWindows).
+   */
+  raisedFile?: string;
 }
+
+/** The windows a helper raised, as noted in the profile, and when. */
+interface RaisedNote {
+  at: number;
+  windows: string[];
+}
+
+/**
+ * Puts back the windows noted in `file` by a run that went down before it could (the app and its
+ * helper killed together). Only a note from since the computer started counts: after a restart
+ * the handles mean other windows. The note goes either way.
+ */
+export async function restoreRaisedWindows(
+  file: string,
+  executable = helperPath(),
+  now = Date.now(),
+  bootedAt = now - uptime() * 1000,
+): Promise<string[]> {
+  let note: RaisedNote;
+  try {
+    const value: unknown = JSON.parse(readFileSync(file, "utf8"));
+    note = raisedNoteSchema.parse(value);
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return [];
+    rmSync(file, { force: true });
+    return [];
+  }
+  rmSync(file, { force: true });
+  if (note.at < bootedAt || !note.windows.length) return [];
+  return new Promise<string[]>((resolve, reject) =>
+    execFile(
+      executable,
+      ["unfront", ...note.windows],
+      { windowsHide: true, timeout: 10000 },
+      (error, stdout) => {
+        if (error) {
+          reject(new Error(`Não consegui devolver janelas à ordem normal: ${error.message}`));
+          return;
+        }
+        const line = /\{"e":"unfront".*\}/.exec(stdout)?.[0];
+        resolve(line ? unfrontLineSchema.parse(JSON.parse(line)).hwnds : []);
+      },
+    ),
+  );
+}
+
+const raisedNoteSchema = z.strictObject({
+  at: z.number().finite(),
+  windows: z.array(z.string().regex(/^-?\d{1,20}$/)).max(64),
+});
+const unfrontLineSchema = z.strictObject({ e: z.literal("unfront"), hwnds: z.array(z.string()) });
 
 interface HookClientEvents {
   event: [HookEvent];
@@ -192,11 +250,29 @@ export class HookClient extends EventEmitter<HookClientEvents> {
     if (this.child && this.alive) this.child.stdin.write(`${JSON.stringify(command)}\n`);
   }
 
+  /** Notes the raised windows in the profile, or takes the note away when there are none. */
+  private noteRaised(): void {
+    const file = this.options.raisedFile;
+    if (!file) return;
+    try {
+      if (this.raised.size) {
+        const note: RaisedNote = { at: Date.now(), windows: [...this.raised] };
+        writeFileSync(file, JSON.stringify(note));
+      } else rmSync(file, { force: true });
+    } catch (error) {
+      this.emit(
+        "warning",
+        `Não consegui anotar as janelas na frente: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
   /** Puts back the windows a helper raised and can no longer restore itself. */
   private async unfront(): Promise<void> {
     if (!this.raised.size) return;
     const windows = [...this.raised];
     this.raised.clear();
+    this.noteRaised();
     await new Promise<void>((resolve) =>
       execFile(
         this.options.executable ?? helperPath(),
@@ -274,6 +350,7 @@ export class HookClient extends EventEmitter<HookClientEvents> {
         else if (event.e === "front") {
           if (event.on) this.raised.add(event.hwnd);
           else this.raised.delete(event.hwnd);
+          this.noteRaised();
         }
         this.emit("event", event);
       });
@@ -429,7 +506,12 @@ export class InputClient implements HelperCommands {
       p.reject(error);
     }
     this.pending.clear();
-    this.child.kill();
+    // Ending the input lets the helper halt its glide and let go of any button or key it holds;
+    // only one that does not exit soon is killed.
+    if (this.child.exitCode !== null || this.child.signalCode !== null) return;
+    const kill = setTimeout(() => this.child.kill(), 1500);
+    this.child.once("exit", () => clearTimeout(kill));
+    this.child.stdin.end();
   }
 }
 

@@ -7,6 +7,7 @@ import { after, test } from "node:test";
 import { FRAGMENTED_MP4 } from "../src/shared/captureArgs.ts";
 import { normalizeCursorData } from "../src/shared/cursorData.ts";
 import {
+  colorName,
   type Drawing,
   drawingAt,
   drawingClips,
@@ -234,4 +235,16 @@ test("só os cliques dentro do modo desenho caem", () => {
     [1, 5],
   );
   assert.equal(dropDrawingClicks(data, []), data);
+});
+
+test("the pen's colors have names a person can read", () => {
+  assert.deepEqual(
+    ["#C8F031", "#FF4D4D", "#FFD60A", "#3D6BFF", "#FFFFFF", "#12140A", "#2FBF71", "#9B7BFF"].map(
+      colorName,
+    ),
+    ["Verde-limão", "Vermelho", "Amarelo", "Azul", "Branco", "Preto", "Verde", "Violeta"],
+  );
+  assert.equal(colorName("#0B2A6B"), "Azul escuro");
+  assert.equal(colorName("#808080"), "Cinza");
+  assert.equal(colorName("verde"), "Cor personalizada");
 });

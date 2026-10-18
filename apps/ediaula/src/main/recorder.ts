@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { mkdirSync, mkdtempSync } from "node:fs";
 import { copyFile, rm } from "node:fs/promises";
+import { release } from "node:os";
 import { extname, join } from "node:path";
 import { app } from "electron";
 import {
@@ -30,9 +31,10 @@ import type {
   RecordOptions,
 } from "../shared/recording.ts";
 import { type MicLevel, pcmLevels, type RecorderHealth } from "../shared/recordingHealth.ts";
+import { screenCaptureProblem } from "../shared/systemAudio.ts";
 import { detectCaptureEncoder, reportCaptureFailure } from "./encoders.ts";
 import { FFMPEG } from "./ffmpeg.ts";
-import { HookClient, listDisplays } from "./nativeHelper.ts";
+import { HookClient, listDisplays, restoreRaisedWindows } from "./nativeHelper.ts";
 import {
   isTake,
   markTakeImported,
@@ -88,6 +90,15 @@ export function subscribe(listener: (message: RecorderMessage) => void): () => v
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
+
+/** Where the windows a take keeps above the others are noted while it does (the profile). */
+const raisedWindowsFile = (): string => join(app.getPath("userData"), "janelas-na-frente.json");
+
+/**
+ * At start: windows a take raised above the others and that nothing put back (the app and its
+ * helper went down together) go back to the normal order.
+ */
+export const restoreRaised = (): Promise<string[]> => restoreRaisedWindows(raisedWindowsFile());
 
 export const isRecording = (): boolean => !!session;
 /** A take is being prepared (helper starting, encoder being tested). */
@@ -274,6 +285,8 @@ async function prepareTake(
     opts.monitor === undefined ? null : (monitors.find((m) => m.index === opts.monitor) ?? null);
   if (opts.monitor !== undefined && (!monitor || monitor.output < 0))
     throw new Error("Não consegui capturar esta tela.");
+  const captureProblem = monitor ? screenCaptureProblem(process.platform, release()) : null;
+  if (captureProblem) throw new Error(captureProblem);
   if (!monitor && !opts.microphone) throw new Error("Escolha a tela ou um microfone para gravar.");
   const dir = createTakeDir();
   // Keys typed while the recorder itself is in front are not part of the lesson. Until the take
@@ -287,6 +300,7 @@ async function prepareTake(
         journal: dir,
         uiPid: process.pid,
         paused: true,
+        raisedFile: raisedWindowsFile(),
       })
     : null;
   let encoder: CaptureEncoder | null = null;
@@ -482,8 +496,13 @@ export async function discard(trash: (dir: string) => Promise<void>): Promise<vo
   const s = session;
   if (!s) return;
   session = null;
-  await s.cancel(trash);
-  broadcast({ type: "status", status: NO_SESSION });
+  try {
+    await s.cancel(trash);
+  } finally {
+    // Even a folder that could not go ends the take: the window, the shortcuts and the
+    // background work hear that nothing is recording.
+    broadcast({ type: "status", status: NO_SESSION });
+  }
 }
 
 /** Stops and finalizes the take; asked again (or while it runs), the same answer comes back. */
@@ -504,10 +523,23 @@ export function stop(): Promise<RecordingResult> {
 
 // ---- takes the app did not finish -----------------------------------------------------------
 
-export const orphans = (): Promise<OrphanTake[]> => scanOrphans(recordingsDir(), session?.dir);
+/** Folders of takes recording outside the session (a guided take in the lesson window). */
+const busy = new Set<string>();
+
+/** A take recording in `dir` that is not this module's session: never offered as interrupted. */
+export function holdTakeDir(dir: string): () => void {
+  busy.add(dir);
+  return () => {
+    busy.delete(dir);
+  };
+}
+
+const recordingNow = (): string[] => [...(session ? [session.dir] : []), ...busy];
+
+export const orphans = (): Promise<OrphanTake[]> => scanOrphans(recordingsDir(), recordingNow());
 
 export const isOrphan = (dir: string): Promise<boolean> =>
-  orphanIn(recordingsDir(), dir, session?.dir);
+  orphanIn(recordingsDir(), dir, recordingNow());
 
 export async function recoverOrphan(dir: string): Promise<RecordingResult> {
   if (!(await isOrphan(dir))) throw new Error("Essa pasta não é uma gravação interrompida.");

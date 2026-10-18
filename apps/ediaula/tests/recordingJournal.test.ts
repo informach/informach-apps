@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { SessionJournal } from "../src/main/recording/journal.ts";
 import {
   type JournalLine,
   keptRanges,
@@ -167,4 +168,30 @@ test("the screen sets the take's clock; without it, the microphone does", () => 
   );
   assert.equal(referenceSource(voice), "mic");
   assert.equal(referenceSource(replayJournal(text(begin))), null);
+});
+
+test("the lines a recovery cannot rebuild reach the disk at once; the voice anchors wait", () => {
+  const synced: string[] = [];
+  let pending = "";
+  const journal = new SessionJournal("C:/take", undefined, {
+    write: (line) => {
+      pending = JSON.parse(line).k;
+    },
+    sync: () => synced.push(pending),
+    close: () => undefined,
+  });
+  const lines: JournalLine[] = [
+    begin,
+    { k: "first", src: "screen", part: 0, qpc: 1000, file: "tela.mp4" },
+    { k: "over", qpc: 1500, at: 12 },
+    { k: "pause", qpc: 2000 },
+    { k: "resume", qpc: 3000 },
+    { k: "drawMode", qpc: 3500, on: true },
+    { k: "end", src: "screen", part: 0, qpc: 4000 },
+    { k: "over", qpc: 4500, at: 14 },
+  ];
+  for (const line of lines) journal.write(line);
+  assert.deepEqual(synced, ["begin", "first", "pause", "resume", "drawMode", "end"]);
+  journal.close();
+  assert.deepEqual(synced.at(-1), "over");
 });

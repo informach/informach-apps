@@ -22,7 +22,9 @@ namespace EdiAula.Helper
     /// it prints {"ready":true}, reads {id, op, ...} per line and answers {id, ok, result|error}.
     /// Commands run in order on one thread, except "halt", which stops a glide at once. A glide
     /// carries a token; "halt" names it, so a halt that arrives before its glide starts still
-    /// applies, and one that arrives after it ended answers halted: false.
+    /// applies, and one that arrives after it ended answers halted: false. Whatever it pressed and
+    /// did not let go of (a drag cut short, a shortcut Windows took only in part) goes up when its
+    /// input ends or the process fails, so the teacher never gets a button or a key stuck down.
     /// </summary>
     internal static class InputMode
     {
@@ -34,6 +36,9 @@ namespace EdiAula.Helper
         private static readonly HashSet<string> queuedGlides = new HashSet<string>();
         private static readonly HashSet<string> haltedGlides = new HashSet<string>();
         private static string activeGlide;
+        private static readonly HeldInput held = new HeldInput();
+        // The input ended: commands still queued are refused instead of run.
+        private static volatile bool closing;
 
         public static int Run(Options options)
         {
@@ -48,9 +53,30 @@ namespace EdiAula.Helper
             executor.IsBackground = true;
             // Glide steps keep a 120 Hz pace with 100 ms of slack: same priority as the hook thread.
             executor.Priority = ThreadPriority.Highest;
+            AppDomain.CurrentDomain.UnhandledException += delegate { ReleaseHeld(false); };
             executor.Start();
             output.Write("{\"ready\":true}", true);
             JavaScriptSerializer parser = new JavaScriptSerializer();
+            try
+            {
+                Read(parser, work);
+            }
+            finally
+            {
+                closing = true;
+                lock (glides)
+                {
+                    if (activeGlide != null) haltedGlides.Add(activeGlide);
+                }
+                work.CompleteAdding();
+                executor.Join();
+                ReleaseHeld(false);
+            }
+            return 0;
+        }
+
+        private static void Read(JavaScriptSerializer parser, BlockingCollection<KeyValuePair<object, Dictionary<string, object>>> work)
+        {
             using (StreamReader input = LineWriter.StandardInput())
             {
                 string line;
@@ -93,9 +119,36 @@ namespace EdiAula.Helper
                     work.Add(new KeyValuePair<object, Dictionary<string, object>>(id, c));
                 }
             }
-            work.CompleteAdding();
-            executor.Join();
-            return 0;
+        }
+
+        /// <summary>Lets go of what the helper still holds down (only the keys, after a failed shortcut).</summary>
+        private static void ReleaseHeld(bool keysOnly)
+        {
+            INPUT[] ups = held.Take(keysOnly);
+            if (ups.Length > 0) Send(ups);
+        }
+
+        /// <summary>The self-test's script: a drag cut short and a shortcut Windows took in part.</summary>
+        public static string[] HeldAfterScript()
+        {
+            HeldInput h = new HeldInput();
+            INPUT[] drag = new INPUT[] { MouseInput(NativeMethods.MOUSEEVENTF_LEFTDOWN, 0, 0, 0) };
+            h.Track(drag, 1);
+            INPUT[] combo = new INPUT[] { KeyInput(0x11, false), KeyInput(0x41, false), KeyInput(0x41, true), KeyInput(0x11, true) };
+            h.Track(combo, 3);
+            INPUT[] click = new INPUT[] { MouseInput(NativeMethods.MOUSEEVENTF_RIGHTDOWN, 0, 0, 0), MouseInput(NativeMethods.MOUSEEVENTF_RIGHTUP, 0, 0, 0) };
+            h.Track(click, 2);
+            string[] before = h.Names();
+            INPUT[] keys = h.Take(true);
+            string[] after = h.Names();
+            INPUT[] rest = h.Take(false);
+            bool keysUp = keys.Length == 1 && (keys[0].Data.Key.Flags & NativeMethods.KEYEVENTF_KEYUP) != 0;
+            bool buttonUp = rest.Length == 1 && rest[0].Data.Mouse.Flags == NativeMethods.MOUSEEVENTF_LEFTUP;
+            List<string> result = new List<string>(before);
+            result.Add("|");
+            result.AddRange(after);
+            result.Add(keysUp && buttonUp && h.Names().Length == 0 ? "ok" : "wrong");
+            return result.ToArray();
         }
 
         /// <summary>Marks the glide to stop; false when it already ended (or never existed).</summary>
@@ -112,6 +165,11 @@ namespace EdiAula.Helper
 
         private static void Execute(object id, Dictionary<string, object> c)
         {
+            if (closing)
+            {
+                Reply(id, false, "Automação interrompida.");
+                return;
+            }
             string result;
             try
             {
@@ -236,9 +294,12 @@ namespace EdiAula.Helper
             return input;
         }
 
+        /// <summary>Every input goes out here, so the buttons and keys left down are known.</summary>
         private static bool Send(INPUT[] inputs)
         {
-            return NativeMethods.SendInput((uint)inputs.Length, inputs, InputSize) == inputs.Length;
+            uint sent = NativeMethods.SendInput((uint)inputs.Length, inputs, InputSize);
+            held.Track(inputs, (int)sent);
+            return sent == inputs.Length;
         }
 
         /// <summary>
@@ -324,7 +385,11 @@ namespace EdiAula.Helper
                 down = KeyInput(value, false);
                 up = KeyInput(value, true);
             }
-            if (!Send(new INPUT[] { down, up })) throw new HelperError("Windows recusou a tecla.");
+            if (!Send(new INPUT[] { down, up }))
+            {
+                ReleaseHeld(true);
+                throw new HelperError("Windows recusou a tecla.");
+            }
         }
 
         private static void Combo(Dictionary<string, object> c)
@@ -342,7 +407,12 @@ namespace EdiAula.Helper
             inputs.Add(KeyInput(vk, false));
             inputs.Add(KeyInput(vk, true));
             for (int i = modifiers.Count - 1; i >= 0; i--) inputs.Add(KeyInput(modifiers[i], true));
-            if (!Send(inputs.ToArray())) throw new HelperError("Windows recusou o atalho.");
+            if (!Send(inputs.ToArray()))
+            {
+                // Windows may have taken the modifiers and not the rest: none of them stays down.
+                ReleaseHeld(true);
+                throw new HelperError("Windows recusou o atalho.");
+            }
         }
 
         /// <summary>Same curve as smoothPointer in src/shared/guidedRecording.ts.</summary>
@@ -448,6 +518,88 @@ namespace EdiAula.Helper
             if (halted) b.Append(",\"halted\":true");
             b.Append('}');
             return b.ToString();
+        }
+    }
+
+    /// <summary>
+    /// The buttons and keys sent down and not yet up, each with the input that lets go of it.
+    /// Only what Windows took counts (SendInput may take the first inputs of a batch and not the rest).
+    /// </summary>
+    internal sealed class HeldInput
+    {
+        private readonly object sync = new object();
+        private readonly Dictionary<string, INPUT> ups = new Dictionary<string, INPUT>();
+
+        public void Track(INPUT[] inputs, int sent)
+        {
+            lock (sync)
+                for (int i = 0; i < sent && i < inputs.Length; i++) Track(inputs[i]);
+        }
+
+        private void Track(INPUT input)
+        {
+            if (input.Type == NativeMethods.INPUT_MOUSE)
+            {
+                Button(input, "left", NativeMethods.MOUSEEVENTF_LEFTDOWN, NativeMethods.MOUSEEVENTF_LEFTUP);
+                Button(input, "right", NativeMethods.MOUSEEVENTF_RIGHTDOWN, NativeMethods.MOUSEEVENTF_RIGHTUP);
+                Button(input, "middle", NativeMethods.MOUSEEVENTF_MIDDLEDOWN, NativeMethods.MOUSEEVENTF_MIDDLEUP);
+                return;
+            }
+            if (input.Type != NativeMethods.INPUT_KEYBOARD) return;
+            uint flags = input.Data.Key.Flags;
+            string name = (flags & NativeMethods.KEYEVENTF_UNICODE) != 0 ? "u" + input.Data.Key.Scan : "k" + input.Data.Key.Vk;
+            if ((flags & NativeMethods.KEYEVENTF_KEYUP) != 0)
+            {
+                ups.Remove(name);
+                return;
+            }
+            INPUT up = input;
+            up.Data.Key.Flags = flags | NativeMethods.KEYEVENTF_KEYUP;
+            ups[name] = up;
+        }
+
+        private void Button(INPUT input, string name, uint downFlag, uint upFlag)
+        {
+            uint flags = input.Data.Mouse.Flags;
+            if ((flags & downFlag) != 0)
+            {
+                INPUT up = input;
+                up.Data.Mouse.Flags = upFlag;
+                up.Data.Mouse.Dx = 0;
+                up.Data.Mouse.Dy = 0;
+                up.Data.Mouse.MouseData = 0;
+                ups[name] = up;
+            }
+            if ((flags & upFlag) != 0) ups.Remove(name);
+        }
+
+        /// <summary>The inputs that let go of everything held (or only of the keys), forgotten here.</summary>
+        public INPUT[] Take(bool keysOnly)
+        {
+            lock (sync)
+            {
+                List<INPUT> result = new List<INPUT>();
+                List<string> names = new List<string>();
+                foreach (KeyValuePair<string, INPUT> item in ups)
+                {
+                    if (keysOnly && item.Value.Type != NativeMethods.INPUT_KEYBOARD) continue;
+                    result.Add(item.Value);
+                    names.Add(item.Key);
+                }
+                foreach (string name in names) ups.Remove(name);
+                return result.ToArray();
+            }
+        }
+
+        /// <summary>What is held, sorted, for the self-test.</summary>
+        public string[] Names()
+        {
+            lock (sync)
+            {
+                List<string> names = new List<string>(ups.Keys);
+                names.Sort(StringComparer.Ordinal);
+                return names.ToArray();
+            }
         }
     }
 }
