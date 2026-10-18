@@ -106,6 +106,9 @@ interface PassResult {
   stderr: string;
 }
 
+/** FFmpeg options that turn its AVX-512 code paths off (the processor's other ones stay). */
+export const NO_AVX512 = ["-cpuflags", "-avx512-avx512icl"];
+
 /**
  * One FFmpeg run; resolves with what it printed (stderr keeps its last 64 kB, where loudnorm
  * writes its JSON). `onBytes` takes stdout as it comes instead of keeping it.
@@ -259,6 +262,10 @@ export async function treatVoice(o: TreatOptions): Promise<TreatResult> {
       [
         "-hide_banner",
         "-nostats",
+        // Without FFmpeg's AVX-512 code: on a GitHub runner whose processor has it, the chain
+        // (RNNoise) left the hiss under the voice 14 dB louder than on the processors without
+        // it, with the same binary and input. The chain is audio at 48 kHz; AVX2 is enough.
+        ...NO_AVX512,
         "-y",
         "-i",
         o.source,

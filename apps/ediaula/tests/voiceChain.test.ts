@@ -12,7 +12,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
-import { tmpdir } from "node:os";
+import { cpus, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -190,6 +190,8 @@ for (const [label, ffmpeg] of [
       plain,
     ]);
     const untreated = snr(plain);
+    // Which processor ran it: the AVX-512 ones gave a weaker reduction before NO_AVX512.
+    t.diagnostic(`${label}: processador ${cpus()[0]?.model ?? "?"}`);
     t.diagnostic(
       `${label}: chiado sob a fala ${before.under.toFixed(1)} dB abaixo da voz; sem redução ${untreated.under.toFixed(1)} dB; com ${after.under.toFixed(1)} dB`,
     );
