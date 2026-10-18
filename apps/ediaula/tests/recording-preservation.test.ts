@@ -1186,3 +1186,70 @@ test("a native capture of the computer's sound that stops is a warning: the take
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("a long pause ends the native part of the computer's sound and the resume opens another", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "ediaula-native-system-pause-"));
+  const loopbacks: FakeLoopback[] = [];
+  const session = new RecordingSession({
+    opts: { fps: 30, microphone: "Fake Mic", systemAudio: true, systemAudioRoute: "native" },
+    monitor: null,
+    dir,
+    ffmpeg: FFMPEG,
+    encoder: null,
+    hook: null,
+    longPauseMs: 300,
+    loopback: (file) => {
+      const fake = new FakeLoopback(file);
+      loopbacks.push(fake);
+      return fake;
+    },
+  });
+  try {
+    await session.start();
+    await wait(1000);
+    await session.pause();
+    await wait(1200);
+    await session.resume();
+    await wait(1000);
+    const saved = await session.stop();
+    assert.equal(loopbacks.length, 2);
+    const replay = replayJournal(await readFile(join(dir, JOURNAL_FILE), "utf8"));
+    assert.deepEqual(
+      replay.parts.system.map((p) => p.file),
+      ["sistema-0.wav", "sistema-1.wav"],
+    );
+    assert.ok(replay.parts.system.every((p) => p.end !== undefined));
+    assert.ok(saved.systemAudio, JSON.stringify(saved));
+    // The pause is not in it: the sound is as long as the take.
+    assert.ok(Math.abs((await probe(saved.systemAudio)).duration - saved.duration) < 0.15);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("a native capture of the computer's sound that does not open hands it to the fallback", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "ediaula-native-system-fallback-"));
+  const session = new RecordingSession({
+    opts: { fps: 30, microphone: "Fake Mic", systemAudio: true, systemAudioRoute: "native" },
+    monitor: null,
+    dir,
+    ffmpeg: FFMPEG,
+    encoder: null,
+    hook: null,
+    loopback: (file) => {
+      const fake = new FakeLoopback(file);
+      fake.start = () => Promise.reject(new Error("o Windows recusou a captura"));
+      return fake;
+    },
+  });
+  try {
+    const started = await session.start();
+    assert.equal(started.systemFallback, true);
+    assert.equal(session.status().phase, "recording");
+    const saved = await session.stop();
+    assert.ok(saved.microphone);
+    assert.match(saved.warnings?.join(" ") ?? "", /captura de reserva/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

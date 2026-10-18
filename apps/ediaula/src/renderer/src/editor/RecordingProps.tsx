@@ -19,6 +19,7 @@ import {
   editZoomsIn,
   focusIndexAt,
   removeZoom,
+  replaceAutoZooms,
   sceneZooms,
   setZoomFocus,
   updateZoom,
@@ -406,11 +407,20 @@ export async function applyAutoZoom(
 ): Promise<number> {
   const data = await zoomData(asset);
   if (!data) return 0;
-  const zooms = autoZooms(data, asset.duration, { ...DEFAULT_AUTO_ZOOM, scale }).filter(
-    (z) => z.end > clip.in && z.start < sourceEnd(clip),
+  const zooms = autoZooms(data, asset.duration, { ...DEFAULT_AUTO_ZOOM, scale }, () =>
+    newId("z"),
+  ).filter((z) => z.end > clip.in && z.start < sourceEnd(clip));
+  let placed = 0;
+  updateZooms(
+    clip,
+    (old) => {
+      const next = replaceAutoZooms(old, zooms);
+      placed = next.filter((z) => z.auto).length;
+      return next;
+    },
+    commit,
   );
-  updateZooms(clip, (old) => [...old.filter((z) => !z.auto), ...zooms], commit);
-  return zooms.length;
+  return placed;
 }
 
 /**
@@ -425,7 +435,9 @@ export async function autoZoomRecording(
   if (asset.zooms?.length) return 0;
   const data = await zoomData(asset);
   if (!data) return 0;
-  const zooms = autoZooms(data, asset.duration, { ...DEFAULT_AUTO_ZOOM, exclude });
+  const zooms = autoZooms(data, asset.duration, { ...DEFAULT_AUTO_ZOOM, exclude }, () =>
+    newId("z"),
+  );
   if (zooms.length) setAssetZooms(asset.id, () => zooms, commit);
   return zooms.length;
 }
@@ -463,7 +475,7 @@ export function ZoomSection({ clip, asset }: { clip: Clip; asset: Asset }): Reac
         };
     }
     const z: Zoom = {
-      id: `m${Date.now()}`,
+      id: newId("z"),
       start: Math.max(clip.in, src - 0.5),
       end: Math.min(sourceEnd(clip), src + 3),
       scale,
@@ -483,9 +495,9 @@ export function ZoomSection({ clip, asset }: { clip: Clip; asset: Asset }): Reac
       const input = asset.proxyStatus === "ready" && asset.proxy ? asset.proxy : asset.path;
       const changes = await window.api.scenes(jobId, asset.path, input, asset.duration);
       const data = asset.cursor ? await loadCursorData(asset.cursor) : null;
-      const found = sceneZooms(changes, data, asset.duration, asset.zooms ?? []).filter(
-        (z) => z.end > clip.in && z.start < sourceEnd(clip),
-      );
+      const found = sceneZooms(changes, data, asset.duration, asset.zooms ?? [])
+        .filter((z) => z.end > clip.in && z.start < sourceEnd(clip))
+        .map((z) => ({ ...z, id: newId("z") }));
       setProposals(found);
       if (!found.length) toast("Nenhuma mudança grande de tela neste trecho.", "info");
     } catch (error) {

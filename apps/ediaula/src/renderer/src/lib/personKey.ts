@@ -37,14 +37,23 @@ function getWorker(): Promise<Worker> {
       if (reply.id === undefined) return markFailed(error);
       pending.get(reply.id)?.reject(error);
       pending.delete(reply.id);
+      // The runtime may be broken after a failure inside it: the next render starts a new one.
+      drop();
+    };
+    const drop = (): void => {
+      if (worker !== current) return;
+      port.terminate();
+      worker = null;
+      const gone = new Error("A IA local foi reiniciada.");
+      for (const p of pending.values()) p.reject(gone);
+      pending.clear();
     };
     port.onerror = (event) => {
       const error = new Error(event.message || "A IA local parou.");
       markFailed(error);
       for (const p of pending.values()) p.reject(error);
       pending.clear();
-      port.terminate();
-      worker = null;
+      drop();
     };
     const current = { port, ready };
     worker = current;
@@ -60,12 +69,7 @@ function getWorker(): Promise<Worker> {
       (error: unknown) => markFailed(error instanceof Error ? error : new Error(String(error))),
     );
     // A worker that could not load is made again next time.
-    ready.catch(() => {
-      if (worker === current) {
-        port.terminate();
-        worker = null;
-      }
-    });
+    ready.catch(drop);
   }
   const { port, ready } = worker;
   return ready.then(() => port);

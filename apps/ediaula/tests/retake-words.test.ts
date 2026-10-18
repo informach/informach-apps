@@ -53,6 +53,36 @@ test("a long silence also ends a sentence; markers that are not Ctrl+R are left 
   assert.deepEqual(cuts, []);
   const again = [...words, ...said("e o barco chega na costa", 9)];
   const [[start, end]] = retakeCutsFromWords([{ t: 8, kind: "retake" }], again);
-  assert.ok(start > 1.8 && start < 4.2, `start ${start}`);
-  assert.ok(end > 8 && end < 9, `end ${end}`);
+  // From 0.15 s before the first "e o barco" to 0.15 s before the second one.
+  assert.ok(Math.abs(start - 4.05) < 0.005, `start ${start}`);
+  assert.ok(Math.abs(end - 8.85) < 0.005, `end ${end}`);
+});
+
+test("two common words said again are no sign of where the passage was first said", () => {
+  const words = [
+    // "é o" said long before, in another sentence.
+    ...said("A luz do farol é o primeiro sinal.", 0),
+    ...said("Depois disso o barco", 4),
+    // The press, and the passage again: "é o caminho" was never said before.
+    ...said("é o caminho mais curto.", 7),
+  ];
+  const cuts = retakeCutsFromWords([{ t: 6.5, kind: "retake" }], words);
+  assert.equal(cuts.length, 1);
+  const [start, end] = cuts[0];
+  // Not from the old "é o" (1.5 s): from the sentence the press interrupted ("Depois").
+  assert.ok(Math.abs(start - 3.85) < 0.005, `start ${start}`);
+  assert.ok(Math.abs(end - 6.85) < 0.005, `end ${end}`);
+});
+
+test("the passage said again is looked for only in the 20 s before the press", () => {
+  const words = [
+    ...said("Agora clique no botão verde.", 0),
+    ...said("Isso abre a janela das opções do jogo.", 25),
+    ...said("Depois disso", 30),
+    ...said("Agora clique no botão azul.", 33),
+  ];
+  const [[start]] = retakeCutsFromWords([{ t: 32.5, kind: "retake" }], words);
+  // The "Agora clique no" of the first second is too far back: the cut starts at the sentence
+  // the press interrupted ("Depois").
+  assert.ok(Math.abs(start - 29.85) < 0.005, `start ${start}`);
 });

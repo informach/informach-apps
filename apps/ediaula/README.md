@@ -634,7 +634,20 @@ marca: quem aparece no vídeo é o **apresentador**.
   "Desenho" numa faixa livre acima da tela, alinhado ao take e animado como foi feito (o traço aparece aos poucos),
   igual na prévia e na exportação (`src/shared/drawing.ts`). No modo desenho o gravador recebe o mouse: o clique
   não chega ao programa de baixo, e os cliques e arrastos da caneta ficam de fora do zoom automático, do som de
-  clique, da onda e da proteção de atividade da limpeza.
+  clique, da onda e da proteção de atividade da limpeza. O desenho funciona nos modos com tela, e só neles o atalho
+  fica registrado; o que se desenha nos primeiros instantes, antes de o relógio do gravador ser medido, entra no
+  take com o tempo certo. Esc devolve o teclado ao programa gravado, e se a janela do gravador parar de responder
+  com o desenho ligado o mouse volta na hora para a tela.
+- **O desenho no projeto:** fica guardado uma vez só, na mídia do vídeo dele (`Asset.drawing`); cada clipe guarda só
+  o trecho que mostra. As posições vão com quatro casas, e um desenho enorme é limitado (5000 traços, 100 mil pontos
+  ao todo, com aviso na importação), para o projeto continuar salvando. Um "Apagar tudo" antes do primeiro traço é
+  descartado. O vídeo do desenho é feito em segundo plano, na fila do trabalho pesado e com progresso, sem segurar a
+  importação: só os quadros em que algo muda são desenhados, cada imagem diferente uma vez só (guardada pelo que
+  mostra), e o vídeo segura cada uma até a próxima (taxa variável), então meia hora parada vira um quadro. Os clipes
+  entram num passo de desfazer próprio quando o vídeo fica pronto, e não entram se a importação foi desfeita. Cada
+  clipe de desenho entra no grupo do clipe de tela em que está: mover, aparar a mesma ponta e a faixa magnética
+  levam os dois juntos (Alt + clique seleciona só o clipe do desenho, para editar), e "Lado a lado" leva os traços
+  com a tela e devolve os dois ao lugar de antes.
 - **Ferramentas do desenho:** caneta, marca-texto translúcido e seta; com Shift o traço sai reto. A cor começa pelo
   destaque da paleta da aula e troca pela paleta.
 - **Quadro branco e quadro negro:** no modo desenho, com o gravador em foco, **B** põe um quadro branco por cima da
@@ -646,8 +659,11 @@ marca: quem aparece no vídeo é o **apresentador**.
 - Na importação, cada trecho com quadro vira um clipe de anotação "Quadro": o fundo na cor do quadro cobrindo a tela,
   os traços animados por cima e o cursor da gravação desenhado acima do quadro, como a ponta da caneta; cada página
   nova é um corte entre dois clipes. Nas propriedades dá para trocar a cor do quadro e apagar um traço específico
-  (de um Quadro ou de um Desenho): o vídeo do desenho é feito de novo, e a prévia e a exportação mudam juntas. Cortar,
-  aparar e apagar o clipe é como em qualquer clipe. O zoom automático não age nos trechos com quadro.
+  (de um Quadro ou de um Desenho; a lista mostra só os traços que aparecem naquele clipe): o vídeo do desenho é
+  feito de novo, só nas imagens que mudaram, e a prévia e a exportação mudam juntas. Cortar, aparar e apagar o clipe
+  é como em qualquer clipe. O desenho é uma fronteira do zoom automático: nada feito com a caneta vira zoom, e um
+  zoom nunca atravessa o desenho (o clique antes e o clique depois dão dois zooms); as sugestões pelas mudanças de
+  tela também pulam esses trechos. O pacote da aula leva o desenho no projeto e faz o vídeo de novo ao abrir.
 - **Cada fonte é um processo:** tela, microfone e câmera gravam em FFmpeg separados, então a falha de um não
   derruba os outros. Se a tela ou o microfone param (disco, dispositivo desligado, driver), a gravação pausa sozinha
   e o aviso oferece **Retomar** (reabre a fonte numa parte nova) ou **Parar e salvar**. Retomar abre só o que
@@ -826,8 +842,11 @@ marca: quem aparece no vídeo é o **apresentador**.
   entra, de nenhuma janela, então a voz da aula no modo Tela sobre a narração e a narração do modo guiado não entram
   duplicadas. Ele grava `sistema-0.wav` (PCM 16 bits, 48 kHz, estéreo) na pasta do take, no relógio da gravação
   (lacunas viram silêncio), em partes no disco, e uma parte cortada por uma queda é recuperada como as outras. Precisa
-  do Windows 10 versão 2004 ou mais novo; o app confere uma vez por execução. Se o auxiliar parar no meio, a gravação
-  segue sem o áudio do PC e avisa.
+  do Windows 10 versão 2004 ou mais novo; o app confere enquanto a resposta for não (uma falha passageira não tira
+  essa captura pelo resto da execução) e guarda o sim. Se a captura nativa não abrir no começo, o gravador passa
+  para a reserva abaixo; se o auxiliar parar no meio, a gravação segue sem o áudio do PC e avisa. Numa pausa longa
+  (mais de 5 minutos) a parte do áudio do PC fecha com a tela, e a retomada abre `sistema-1.wav`, para o arquivo não
+  crescer com a pausa inteira.
 - **Reserva do áudio do PC:** num Windows sem esse modo, o áudio do PC vai pelo loopback do Windows no Chromium com
   `restrictOwnAudio` (`src/shared/systemAudio.ts`): o som que a própria janela do gravador toca fica de fora, mas o
   de outra janela do EdiAula entra, por isso tudo o que o gravador toca durante a gravação toca na janela dele. O

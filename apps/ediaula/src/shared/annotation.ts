@@ -1,5 +1,4 @@
 import type { Motion, Shadow } from "./compose.ts";
-import type { Drawing } from "./drawing.ts";
 
 /**
  * Annotations drawn by EdiAula (arrows, speech balloons, notes, labels, titles, highlight boxes,
@@ -186,8 +185,6 @@ export interface Annotation {
   accent?: string;
   /** Comes in word by word (with the words' times when they are said) or drawn like a stroke. */
   reveal?: "words" | "draw";
-  /** "drawing" and "board": the strokes and boards, in seconds of the clip's source (its video). */
-  drawing?: Drawing;
 }
 
 export interface Outline {

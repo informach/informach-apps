@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
+import { createRequire, registerHooks } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -13,6 +13,70 @@ import type { CursorSprite, Project } from "../src/shared/types.ts";
 const require = createRequire(import.meta.url);
 const FFMPEG: string = require("ffmpeg-static");
 const FILTER_SCRIPT_OPTION = await filterScriptOption(FFMPEG);
+
+// The editor's own drawing of the spotlight (lib/cursorDraw.ts), outside the browser.
+const src = new URL("../src/", import.meta.url);
+const hooks = registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier.startsWith("@shared/"))
+      return { url: new URL(`shared/${specifier.slice(8)}.ts`, src).href, shortCircuit: true };
+    return nextResolve(specifier, context);
+  },
+});
+Object.assign(globalThis, { Path2D: class {} });
+const { paintSpotlightPicture, spotlightPictureSize } = await import(
+  "../src/renderer/src/lib/cursorDraw.ts"
+);
+hooks.deregister();
+
+/**
+ * The little of a 2D canvas the spotlight uses (a radial gradient filling the picture), drawn
+ * into RGBA bytes: each pixel takes the gradient's alpha at its distance, interpolated between
+ * the color stops as a canvas does.
+ */
+class GradientRaster {
+  readonly data: Uint8Array;
+  readonly width: number;
+  readonly height: number;
+  fillStyle: unknown = null;
+  constructor(width: number, height: number) {
+    this.width = width;
+    this.height = height;
+    this.data = new Uint8Array(width * height * 4);
+  }
+  save(): void {}
+  restore(): void {}
+  createRadialGradient(_x0: number, _y0: number, _r0: number, x: number, y: number, r: number) {
+    const stops: [number, number][] = [];
+    return {
+      x,
+      y,
+      r,
+      stops,
+      addColorStop(offset: number, color: string): void {
+        const alpha = Number(/,\s*([\d.]+)\)\s*$/.exec(color)?.[1] ?? 1);
+        stops.push([offset, alpha]);
+      },
+    };
+  }
+  fillRect(): void {
+    const g = this.fillStyle as { x: number; y: number; r: number; stops: [number, number][] };
+    for (let py = 0; py < this.height; py++)
+      for (let px = 0; px < this.width; px++) {
+        const t = Math.min(1, Math.hypot(px + 0.5 - g.x, py + 0.5 - g.y) / g.r);
+        let alpha = g.stops.at(-1)?.[1] ?? 0;
+        for (let i = 1; i < g.stops.length; i++) {
+          const [a, va] = g.stops[i - 1];
+          const [b, vb] = g.stops[i];
+          if (t <= b) {
+            alpha = b > a ? va + ((t - a) / (b - a)) * (vb - va) : vb;
+            break;
+          }
+        }
+        this.data[(py * this.width + px) * 4 + 3] = Math.round(alpha * 255);
+      }
+  }
+}
 
 /**
  * The cursor effects the export draws around the pointer sprite (src/shared/export/videoPlan.ts),
@@ -44,14 +108,33 @@ test("export: magnifier, spotlight and click sound around the pointer", {
     { input: Buffer.alloc(S * S * 4 * 90) },
   );
   assert.equal(empty.status, 0, empty.stderr?.toString());
-  // The spotlight's picture as the editor draws it: the recording's size, the lit circle (half
-  // of a 100 px radius) in its middle, the rest at 60%.
-  const spot = join(dir, "holofote.png");
-  execFileSync(FFMPEG, [
-    ...["-y", "-v", "error", "-f", "lavfi", "-i", `color=c=black:s=${W}x${H}`, "-vf"],
-    `format=rgba,geq=r=0:g=0:b=0:a='if(lt(hypot(X-${W / 2},Y-${H / 2}),50),0,153)'`,
-    ...["-frames:v", "1", spot],
-  ]);
+  // The spotlight's picture drawn by the editor's own code (lib/cursorDraw.ts, as
+  // lib/cursorRender.ts makes it): half the recording's size, a 100 px light around the pointer,
+  // the rest 60% darker.
+  const data = { width: W, height: H };
+  const size = spotlightPictureSize(data);
+  const spotlightOf = (name: string, radius: number): string => {
+    const out = join(dir, `${name}.png`);
+    const raster = new GradientRaster(size.width, size.height);
+    paintSpotlightPicture(raster, data, {
+      spotlight: true,
+      spotlightRadius: radius / H,
+      spotlightDim: 0.6,
+    });
+    const png = spawnSync(
+      FFMPEG,
+      [
+        ...["-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgba"],
+        ...["-s", `${size.width}x${size.height}`, "-i", "-", "-frames:v", "1", out],
+      ],
+      { input: Buffer.from(raster.data) },
+    );
+    assert.equal(png.status, 0, png.stderr?.toString());
+    return out;
+  };
+  const spot = spotlightOf("holofote", 100);
+  // A light smaller than the magnifier: what the magnifier shows around it is not darkened.
+  const narrow = spotlightOf("holofote-estreito", 10);
   // The click sound, a press at 1 s of the recording, written as the app writes it.
   const clicks = join(dir, "cliques.flac");
   const samples = new Float32Array(CLICK_RATE * 3);
@@ -60,7 +143,7 @@ test("export: magnifier, spotlight and click sound around the pointer", {
     FFMPEG,
     [
       ...["-y", "-v", "error", "-f", "f32le", "-ar", String(CLICK_RATE), "-ac", "1"],
-      ...["-i", "-", "-c:a", "flac", clicks],
+      ...["-i", "-", "-af", "pan=stereo|c0=c0|c1=c0", "-c:a", "flac", clicks],
     ],
     { input: Buffer.from(samples.buffer) },
   );
@@ -136,6 +219,23 @@ test("export: magnifier, spotlight and click sound around the pointer", {
     cursor({ spotlight: { picture: spot, width: W, height: H, on: [[0, 3]] }, clicks }),
   );
 
+  const both = render(
+    "lupa-e-holofote",
+    cursor({
+      magnifier: { radius: 40, side: 40, on: [[0, 3]] },
+      spotlight: { picture: narrow, width: W, height: H, on: [[0, 3]] },
+    }),
+  );
+  // The magnifier goes over the spotlight and enlarges the recording itself, as in the preview:
+  // 30 px right of the pointer it shows the screen 15 px away, outside the narrow light, at its
+  // own gray (64), not darkened.
+  assert.ok(
+    gray(both, 1, 330, 180) > 52,
+    `the magnifier over the spotlight: ${gray(both, 1, 330, 180)}`,
+  );
+  // Outside the magnifier the spotlight still darkens.
+  assert.ok(gray(both, 1, 60, 60) < 40, `outside both: ${gray(both, 1, 60, 60)}`);
+
   // Twice as large around the pointer: a point 3 px off the square's corner is white now.
   assert.ok(gray(plain, 1, 304, 184) < 100, `without the magnifier: ${gray(plain, 1, 304, 184)}`);
   assert.ok(gray(lens, 1, 304, 184) > 200, `under the magnifier: ${gray(lens, 1, 304, 184)}`);
@@ -162,6 +262,7 @@ test("export: magnifier, spotlight and click sound around the pointer", {
     assert.ok(max, stderr);
     return max === "-inf" ? Number.NEGATIVE_INFINITY : Number(max);
   };
-  assert.ok(level(0.95, 0.1) > -12, `the click: ${level(0.95, 0.1)} dB`);
+  // At its full level (0.8 of a peak of 0.9 is -2.9 dB): no 3 dB lost to a mono upmix.
+  assert.ok(level(0.95, 0.1) > -3.5, `the click: ${level(0.95, 0.1)} dB`);
   assert.ok(level(1.5, 1) < -60, `silence after it: ${level(1.5, 1)} dB`);
 });

@@ -17,14 +17,15 @@ export type Redraw =
 
 export function redrawPlan(
   project: Pick<Project, "assets" | "clips">,
-  asset: Pick<Asset, "id" | "generated" | "still">,
+  asset: Pick<Asset, "id" | "generated" | "still" | "drawing">,
 ): Redraw | null {
   if (asset.generated === "annotation") {
+    // A take's drawing is kept on its media, whatever clips of it are left.
+    if (asset.drawing) return { how: "drawing", drawing: asset.drawing };
     const annotation = project.clips.find(
       (c) => c.assetId === asset.id && c.annotation,
     )?.annotation;
-    if (annotation && isDrawingKind(annotation.kind))
-      return annotation.drawing ? { how: "drawing", drawing: annotation.drawing } : null;
+    if (annotation && isDrawingKind(annotation.kind)) return null;
     return annotation ? { how: "annotation", annotation } : null;
   }
   if (asset.generated === "effect") return { how: "effect" };

@@ -288,6 +288,12 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
   let picking = false;
   let browsing = false;
   let captureBounds: { x: number; y: number; width: number; height: number } | null = null;
+  /** The drawing mode is on (the recorder window holds the mouse). */
+  let drawingNow = false;
+  /** It was turned off here because the page stopped answering. */
+  let stuckDrawing = false;
+  /** The take being prepared records a screen (the drawing shortcut belongs to it). */
+  let takeHasScreen = false;
   /** "Janela…": the window the next take follows. */
   let followTarget: { hwnd: string; front: boolean } | null = null;
   const endGuided = (): void => {
@@ -487,7 +493,7 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
       });
     // Marker, redo and the teleprompter keys belong to the take (G14).
     if ((status.phase === "recording" || status.phase === "paused") && !sessionKeys.length) {
-      sessionKeys = sessionHotkeys(settings.clicker);
+      sessionKeys = sessionHotkeys(settings.clicker, takeHasScreen);
       registerHotkeys(sessionKeys);
     } else if (!active || status.phase === "stopping") {
       unregisterHotkeys(sessionKeys);
@@ -663,6 +669,21 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
         // A failure has already reached the editor through finishTake.
         finishTake().catch(() => undefined);
       close();
+    });
+    // A page that stops answering while drawing would hold the mouse of the whole screen: the
+    // clicks go back to the programs underneath, and the drawing ends when it answers again.
+    overlay.on("unresponsive", () => {
+      if (!drawingNow) return;
+      drawingNow = false;
+      rec.drawMode(false);
+      overlay?.setIgnoreMouseEvents(true, { forward: true });
+      overlay?.blur();
+      stuckDrawing = true;
+    });
+    overlay.on("responsive", () => {
+      if (!stuckDrawing) return;
+      stuckDrawing = false;
+      overlay?.webContents.send("recorder:hotkey", "draw-off");
     });
     // The recorder's page died (not the app): what was recorded is kept, and the editor says so.
     overlay.webContents.on("render-process-gone", (_e, details) => {
@@ -1147,6 +1168,7 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
       } else if (!opts.camera) throw new Error("Escolha a câmera para gravar voz e câmera.");
     }
     if (!isVoiceMode(opts.mode)) opts.follow = undefined;
+    takeHasScreen = opts.monitor !== undefined;
     if (opts.mode !== "over") opts.over = undefined;
     await rec.prepare({ ...opts, region }, monitors, {
       // Keys typed in the lesson window still show on screen; it belongs to this process too.
@@ -1177,7 +1199,7 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
       },
     });
     try {
-      await rec.start();
+      return await rec.start();
     } catch (error) {
       recordingJob.finish();
       recordingJob = undefined;
@@ -1227,9 +1249,11 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     const points: [number, number, number][] = [];
     for (let i = 0; i + 2 < stroke.points.length; i += 3)
       points.push([
-        clamp(stroke.points[i], -1, 2),
-        clamp(stroke.points[i + 1], -1, 2),
-        Math.max(0, stroke.points[i + 2]),
+        // Ten-thousandths of the frame and whole milliseconds: as fine as the eye and the
+        // clock, and a short project file.
+        Math.round(clamp(stroke.points[i], -1, 2) * 1e4) / 1e4,
+        Math.round(clamp(stroke.points[i + 1], -1, 2) * 1e4) / 1e4,
+        Math.round(Math.max(0, stroke.points[i + 2])),
       ]);
     if (!points.length) return;
     rec.drawStroke({
@@ -1249,9 +1273,13 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
   ipcMain.handle("recorder:drawUndo", (_e, at: unknown) => rec.drawUndo(moment.parse(at)));
   ipcMain.handle("recorder:drawMode", (_e, on: unknown) => {
     const drawing = z.boolean().parse(on);
+    const was = drawingNow;
+    drawingNow = drawing;
     rec.drawMode(drawing);
-    // The board's keys (B, N, P, Ctrl+Z, Esc) reach the recorder window while drawing.
+    // The board's keys (B, N, P, Ctrl+Z, Esc) reach the recorder window while drawing; leaving
+    // it hands the keyboard back to the program being recorded (the next window under this one).
     if (drawing) overlay?.focus();
+    else if (was) overlay?.blur();
   });
   ipcMain.handle("recorder:mark", (_e, kind: unknown) =>
     rec.mark(z.enum(["marker", "retake"]).parse(kind) satisfies MarkerKind),

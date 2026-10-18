@@ -7,6 +7,7 @@ import {
   type Drawing,
   type DrawingBoard,
   type DrawingTool,
+  limitDrawing,
   MAX_STROKE_POINTS,
 } from "./drawing.ts";
 import { CAPTURE_SOURCES, RECORD_MODES } from "./recording.ts";
@@ -419,12 +420,16 @@ export function keptRanges(
 /**
  * The strokes drawn on the screen in seconds of the take (shared/drawing.ts): each starts where
  * its first point fell, and its points keep their own rhythm. Strokes started while paused, and
- * the clears, go to where the take goes on. Null when nothing was drawn.
+ * the clears, go to where the take goes on. An "apagar tudo" before the first stroke or board
+ * takes nothing away and is left out. The drawing is held to the project's limits
+ * (shared/drawing.ts limitDrawing); what that leaves out goes to `warnings`. Null when nothing
+ * was drawn.
  */
 export function drawingInTake(
   replay: Pick<JournalReplay, "strokes" | "clears"> &
     Partial<Pick<JournalReplay, "boards" | "pages" | "undos">>,
   segments: readonly CaptureSegment[],
+  warnings: string[] = [],
 ): Drawing | null {
   const boardsQpc = replay.boards ?? [];
   if ((!replay.strokes.length && !boardsQpc.length) || !segments.length) return null;
@@ -458,16 +463,33 @@ export function drawingInTake(
       ...(until !== undefined ? { until: at(until) } : {}),
     };
   });
-  const clears = replay.clears.map(at).sort((a, b) => a - b);
   // A board still up at the stop lasts to the end of the take.
   const boards: DrawingBoard[] = boardsQpc
     .map((b) => ({ start: at(b.from), end: at(b.to), color: BOARD_COLORS[b.kind] }))
     .filter((b) => b.end > b.start);
-  const pages = (replay.pages ?? []).map(at).sort((a, b) => a - b);
-  return {
+  const first = Math.min(...strokes.map((s) => s.t), ...boards.map((b) => b.start));
+  // Wiping before anything is on screen does nothing.
+  const clears = replay.clears
+    .map(at)
+    .filter((c) => c > first)
+    .sort((a, b) => a - b);
+  const pages = (replay.pages ?? [])
+    .map(at)
+    .filter((c) => c > first)
+    .sort((a, b) => a - b);
+  const { drawing, cut } = limitDrawing({
     strokes,
     clears,
     ...(boards.length ? { boards } : {}),
     ...(pages.length ? { pages } : {}),
-  };
+  });
+  if (cut.strokes)
+    warnings.push(
+      `O desenho na tela passou de ${drawing.strokes.length} traços: os ${cut.strokes} últimos ficaram de fora.`,
+    );
+  if (cut.thinned)
+    warnings.push(
+      "O desenho na tela era muito longo: os traços foram simplificados para caber no projeto.",
+    );
+  return drawing;
 }

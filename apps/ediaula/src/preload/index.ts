@@ -64,8 +64,9 @@ const api: EdiAulaApi = {
     cached: (id) => ipcRenderer.invoke("drawing:cached", id),
     begin: (jobId, id, width, height, fps) =>
       ipcRenderer.invoke("drawing:begin", jobId, id, width, height, fps),
-    frames: (jobId, frames, counts) => ipcRenderer.invoke("drawing:frames", jobId, frames, counts),
-    end: (jobId) => ipcRenderer.invoke("drawing:end", jobId),
+    missing: (jobId, keys) => ipcRenderer.invoke("drawing:missing", jobId, keys),
+    frame: (jobId, key, png) => ipcRenderer.invoke("drawing:frame", jobId, key, png),
+    end: (jobId, frames, total) => ipcRenderer.invoke("drawing:end", jobId, frames, total),
     cancel: (jobId) => ipcRenderer.invoke("drawing:cancel", jobId),
   },
   cursorSprite: {

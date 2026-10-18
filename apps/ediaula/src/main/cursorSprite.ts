@@ -1,7 +1,7 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { rename, rm } from "node:fs/promises";
-import { desktopIpc as ipcMain } from "@informach/edi-desktop/main";
+import { desktopFiles, desktopIpc as ipcMain } from "@informach/edi-desktop/main";
 import { z } from "zod";
 import { CLICK_RATE, clickSamples, fillClicks } from "../shared/clickSound.ts";
 import { cursorClicksPath, cursorSpritePath } from "./cursor-sprite-path.ts";
@@ -48,7 +48,9 @@ async function writeClicks(
     FFMPEG,
     [
       ...["-y", "-v", "error", "-f", "f32le", "-ar", String(CLICK_RATE), "-ac", "1"],
-      ...["-i", "-", "-c:a", "flac", tmp],
+      // The same click in both channels at full level, as the preview plays it (an upmix of
+      // mono would take 3 dB off).
+      ...["-i", "-", "-af", "pan=stereo|c0=c0|c1=c0", "-c:a", "flac", tmp],
     ],
     { windowsHide: true },
   );
@@ -179,6 +181,8 @@ export function registerCursorSprites(): void {
     "cursor:clicks",
     async (_e, path: unknown, id: unknown, times: unknown, volume: unknown, duration: unknown) => {
       const media = z.string().min(1).max(32768).parse(path);
+      // The cache sits beside a media the editor was given, never beside any path.
+      await desktopFiles.assertRead(media);
       const out = cursorClicksPath(cacheDir(media), id);
       if (existsSync(out)) return out;
       const sorted = [...clickTimes.parse(times)].sort((a, b) => a - b);

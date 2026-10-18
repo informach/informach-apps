@@ -56,8 +56,16 @@ export const REQUIRED_HOTKEYS: readonly HotkeyAction[] = ["toggle", "stop"];
 const CLICKER: readonly HotkeyAction[] = ["clickerNext", "clickerPrev"];
 
 /** Shortcuts registered only while a take is running. */
-export function sessionHotkeys(clicker: boolean): HotkeyAction[] {
-  return ["marker", "retake", "lineNext", "linePrev", "draw", ...(clicker ? CLICKER : [])];
+export function sessionHotkeys(clicker: boolean, screen = true): HotkeyAction[] {
+  return [
+    "marker",
+    "retake",
+    "lineNext",
+    "linePrev",
+    // Drawing goes over a screen: a voice take leaves the shortcut to the other programs.
+    ...(screen ? (["draw"] as const) : []),
+    ...(clicker ? CLICKER : []),
+  ];
 }
 
 /** Every shortcut in use with these settings. */

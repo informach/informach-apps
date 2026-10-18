@@ -17,6 +17,9 @@ import "./narration.css";
  * same treatment as the recorded voice; a draft thrown away ends the wait.
  */
 function treatWhenApplied(projectId: string, assetId: string): void {
+  // The draft the narration went into: once it is applied, thrown away or replaced by another
+  // one, there is nothing more to wait for.
+  const draft = useProject.getState().draft?.id;
   const stop = useProject.subscribe((s) => {
     if (s.project?.id !== projectId) {
       stop();
@@ -25,7 +28,7 @@ function treatWhenApplied(projectId: string, assetId: string): void {
     if (s.project.assets.some((a) => a.id === assetId)) {
       stop();
       void treatVoices([assetId], "teacher");
-    } else if (!s.draft) stop();
+    } else if (!s.draft || s.draft.id !== draft) stop();
   });
 }
 

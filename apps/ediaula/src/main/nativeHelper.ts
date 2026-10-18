@@ -435,24 +435,34 @@ export class InputClient implements HelperCommands {
 
 // ---- the computer's sound without the app (loopback mode) ----------------------------------
 
-let probed: Promise<boolean> | null = null;
+/** The probe worked once in this run: the answer stays. */
+let loopbackWorks = false;
+/** A probe under way, shared by whoever asks meanwhile. */
+let probing: Promise<boolean> | null = null;
 
 /**
  * Whether the helper can capture the computer's sound without the app's own process tree: a
- * Windows with process loopback, and an activation that really works (asked once per run).
+ * Windows with process loopback, and an activation that really works. A yes is kept for the
+ * run; a no is asked again next time (the audio service may have been restarting, a device
+ * changing), so a passing failure does not cost the native route for the rest of the run.
  */
 export function processLoopbackAvailable(executable = helperPath()): Promise<boolean> {
   if (process.platform !== "win32" || windowsBuild(release()) < PROCESS_LOOPBACK_BUILD)
     return Promise.resolve(false);
-  probed ??= new Promise<boolean>((resolve) => {
+  if (loopbackWorks) return Promise.resolve(true);
+  probing ??= new Promise<boolean>((resolve) => {
     execFile(
       executable,
       ["loopback", "--probe"],
       { windowsHide: true, timeout: 10000 },
       (error, stdout) => resolve(!error && stdout.includes('"aprobe"')),
     );
+  }).then((ok) => {
+    probing = null;
+    if (ok) loopbackWorks = true;
+    return ok;
   });
-  return probed;
+  return probing;
 }
 
 interface LoopbackClientEvents {

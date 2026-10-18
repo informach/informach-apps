@@ -1,4 +1,3 @@
-import { clickSamples } from "@shared/clickSound";
 import {
   buildTrack,
   CURSOR_EFFECT_DEFAULTS,
@@ -56,43 +55,27 @@ export function useCursorData(path: string | undefined): CursorData | null {
 
 export const cursorFxOf = (a: Asset): CursorFx => ({ ...DEFAULT_CURSOR_FX, ...a.cursorFx });
 
-/** The click sound, made once per window (shared/clickSound.ts) and played through Web Audio. */
-let clickAudio: { context: AudioContext; buffer: AudioBuffer } | null = null;
-function playClick(volume: number): void {
-  if (!clickAudio) {
-    const context = new AudioContext();
-    const samples = clickSamples(context.sampleRate);
-    const buffer = context.createBuffer(1, samples.length, context.sampleRate);
-    buffer.copyToChannel(samples, 0);
-    clickAudio = { context, buffer };
-  }
-  const { context, buffer } = clickAudio;
-  if (context.state === "suspended") void context.resume();
-  const source = context.createBufferSource();
-  source.buffer = buffer;
-  const gain = context.createGain();
-  gain.gain.value = volume;
-  source.connect(gain).connect(context.destination);
-  source.start();
-}
-
 /**
  * The recorded pointer, drawn over its screen recording in the preview with the same drawing as
  * the export (lib/cursorDraw.ts): the spotlight, the magnifier (from the video on screen), the
  * click rings and the pointer, as the cursor effects of each moment say. While playing, each
- * press sounds the click when the click sound is on. It reads the time from the video element
- * itself, so it stays on the exact frame while playing, scrubbing or paused.
+ * press sounds the click when the click sound is on and the pointer shows then (`playClick`
+ * says where it goes: the preview's mix, with its limiter, and only when the clip's track is
+ * heard, as in the export). It reads the time from the video element itself, so it stays on the
+ * exact frame while playing, scrubbing or paused.
  */
 export function CursorLayer({
   asset,
   getVideo,
   width,
   height,
+  playClick,
 }: {
   asset: Asset;
   getVideo: () => HTMLVideoElement | undefined;
   width: number;
   height: number;
+  playClick: (volume: number) => void;
 }): ReactNode {
   const data = useCursorData(asset.cursor);
   const fx = useMemo(() => cursorFxOf(asset), [asset]);
@@ -114,6 +97,9 @@ export function CursorLayer({
     };
   }, [data, asset.cursor]);
   const canvas = useRef<HTMLCanvasElement>(null);
+  // The newest one, without drawing the layer again when the preview hands a new function.
+  const click = useRef(playClick);
+  click.current = playClick;
 
   useEffect(() => {
     const el = canvas.current;
@@ -133,7 +119,7 @@ export function CursorLayer({
       if (t !== last) {
         // A press passed while playing (not a jump of the playhead) sounds once.
         if (v && !v.paused && last >= 0 && t > last && t - last < 0.25 && volume > 0)
-          for (const at of sounds) if (at > last && at <= t) playClick(volume);
+          for (const at of sounds) if (at > last && at <= t) click.current(volume);
         last = t;
         ctx.clearRect(0, 0, el.width, el.height);
         drawCursorScene(ctx, {

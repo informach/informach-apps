@@ -322,7 +322,13 @@ export const fxIntervals = (
 
 /** Press times (source seconds) that sound a click. */
 export function clickSoundTimes(data: Pick<CursorData, "clicks">, fx: CursorFx): number[] {
-  return data.clicks.filter((c) => fxAt(fx, c[0]).clickSound).map((c) => c[0]);
+  // A click of a moment the pointer is hidden makes no sound, as it makes no ripple.
+  return data.clicks
+    .filter((c) => {
+      const f = fxAt(fx, c[0]);
+      return f.clickSound && !f.hidden;
+    })
+    .map((c) => c[0]);
 }
 
 /** Radius of the magnifier in recording pixels, and how much it enlarges. */

@@ -186,18 +186,25 @@ function caretAt(data: CursorData, t: number): [number, number] | null {
  * One zoom per burst of clicks and typing: it starts a little before the first one, pans to
  * each click (and follows a drag to where it was released) and to the text cursor while
  * something is typed, and ends a little after the last one. Clicks over the recorder's own
- * controls (the stretches where the pointer was hidden) never get a zoom.
+ * controls (the stretches where the pointer was hidden) never get a zoom. Drawing on the screen
+ * (CursorData.drawing, which holds the boards too) is a border: nothing in it makes a zoom, and
+ * no zoom goes across it (the click before it and the one after it are two zooms, each kept off
+ * the drawing). Each zoom gets an id of its own from `newId`.
  */
 export function autoZooms(
   data: CursorData,
   duration: number,
   opts: AutoZoomOptions = DEFAULT_AUTO_ZOOM,
+  newId: (n: number, start: number) => string = (n, start) => `z${n}-${Math.round(start * 1000)}`,
 ): Zoom[] {
   const W = data.width;
   const H = data.height;
   const inside = (x: number, y: number): boolean => x >= 0 && y >= 0 && x <= W && y <= H;
   const points: ZoomFocus[] = [];
-  const excluded = (t: number): boolean => within(data.hidden, t) || within(opts.exclude ?? [], t);
+  const borders = [...(data.drawing ?? []), ...(opts.exclude ?? [])];
+  const excluded = (t: number): boolean => within(data.hidden, t) || within(borders, t);
+  /** A border lies between seconds a and b. */
+  const across = (a: number, b: number): boolean => borders.some(([x, y]) => x < b && y > a);
   for (const c of data.clicks) {
     if (c[3] !== 0 || !inside(c[1], c[2]) || excluded(c[0])) continue;
     points.push({ t: c[0], x: c[1] / W, y: c[2] / H });
@@ -232,21 +239,20 @@ export function autoZooms(
   let group: ZoomFocus[] = [];
   const flush = (): void => {
     if (!group.length) return;
-    const start = Math.max(0, group[0].t - opts.lead);
-    const end = Math.min(duration, group[group.length - 1].t + opts.hold);
+    const first = group[0].t;
+    const last = group[group.length - 1].t;
+    // The lead and the hold stop at a border.
+    const before = Math.max(0, ...borders.filter(([, y]) => y <= first).map(([, y]) => y));
+    const after = Math.min(duration, ...borders.filter(([x]) => x >= last).map(([x]) => x));
+    const start = Math.max(0, first - opts.lead, before);
+    const end = Math.min(duration, last + opts.hold, after);
     if (end - start >= 1.2)
-      zooms.push({
-        id: `z${zooms.length + 1}-${Math.round(start * 1000)}`,
-        start,
-        end,
-        scale: opts.scale,
-        focus: group,
-        auto: true,
-      });
+      zooms.push({ id: "", start, end, scale: opts.scale, focus: group, auto: true });
     group = [];
   };
   for (const p of kept) {
-    if (group.length && p.t - group[group.length - 1].t > opts.gap) flush();
+    const prev = group[group.length - 1];
+    if (prev && (p.t - prev.t > opts.gap || across(prev.t, p.t))) flush();
     group.push(p);
   }
   flush();
@@ -254,12 +260,21 @@ export function autoZooms(
   const merged: Zoom[] = [];
   for (const z of zooms) {
     const prev = merged[merged.length - 1];
-    if (prev && z.start - prev.end < ZOOM_EASE * 2) {
+    if (prev && z.start - prev.end < ZOOM_EASE * 2 && !across(prev.end, z.start)) {
       prev.end = z.end;
       prev.focus = [...prev.focus, ...z.focus];
     } else merged.push(z);
   }
-  return merged;
+  return merged.map((z, i) => ({ ...z, id: newId(i + 1, z.start) }));
+}
+
+/**
+ * "Zoom automático" run again over zooms already there: the automatic ones of before give way to
+ * `fresh`; a zoom edited by hand stays, and no new automatic zoom goes over it.
+ */
+export function replaceAutoZooms(old: readonly Zoom[], fresh: readonly Zoom[]): Zoom[] {
+  const kept = old.filter((z) => !z.auto);
+  return [...kept, ...fresh.filter((z) => !kept.some((k) => k.end > z.start && k.start < z.end))];
 }
 
 // ---- Zoom where the screen changes a lot (a scene change found in the proxy). ----
@@ -298,11 +313,18 @@ export function sceneZooms(
   data: CursorData | null,
   duration: number,
   existing: readonly Zoom[] = [],
-  opts: { scale?: number; lead?: number; length?: number } = {},
+  opts: {
+    scale?: number;
+    lead?: number;
+    length?: number;
+    /** Source stretches with no zoom (a board over the screen); drawing on it is one already. */
+    exclude?: readonly [number, number][];
+  } = {},
 ): Zoom[] {
   const scale = opts.scale ?? 1.5;
   const lead = opts.lead ?? 0.3;
   const length = opts.length ?? 3;
+  const borders = [...(data?.drawing ?? []), ...(opts.exclude ?? [])];
   const out: Zoom[] = [];
   for (let i = 0; i < changes.length; i++) {
     const t = changes[i];
@@ -313,6 +335,8 @@ export function sceneZooms(
     const end = Math.min(duration, start + length);
     if (end - start < 1.2) continue;
     if ([...existing, ...out].some((z) => z.end > start - 0.5 && z.start < end + 0.5)) continue;
+    // A change on the board, or with the pen out: the screen is not what changes there.
+    if (borders.some(([a, b]) => a < end && b > t)) continue;
     const at = data ? positionAt(data, t + 1) : null;
     const focus =
       at && data
@@ -360,7 +384,11 @@ export function moveZoomEdge(
 ): Zoom[] | undefined {
   return editOne(zooms, id, (z) => {
     const start = edge === "start" ? Math.max(0, Math.min(t, z.end - MIN_ZOOM_LENGTH)) : z.start;
-    const end = edge === "end" ? Math.min(duration, Math.max(t, z.start + MIN_ZOOM_LENGTH)) : z.end;
+    // The end stays after the start, also for a zoom that went past the end of the media.
+    const end = Math.max(
+      start + MIN_ZOOM_LENGTH,
+      edge === "end" ? Math.min(duration, Math.max(t, z.start + MIN_ZOOM_LENGTH)) : z.end,
+    );
     const focus = z.focus.map((f) => ({ ...f, t: Math.min(end, Math.max(start, f.t)) }));
     const { auto: _auto, ...rest } = z;
     return { ...rest, start, end, focus };

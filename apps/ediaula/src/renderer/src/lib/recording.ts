@@ -497,9 +497,10 @@ export async function importRecording(r: RecordingResult): Promise<void> {
     });
   const roleIds = (role: string): string[] =>
     layout?.roles.filter((x) => x.role === role).map((x) => x.assetId) ?? [];
-  // What was drawn on the screen during the take, as a "desenho" clip over it.
+  // What was drawn on the screen during the take, as "desenho" and "quadro" clips over it: its
+  // video is drawn in the background, and the clips come in when it is ready.
   if (r.drawing?.strokes.length || r.drawing?.boards?.length)
-    await placeTakeDrawing(r, layout).catch((error: unknown) =>
+    void placeTakeDrawing(r, layout, take).catch((error: unknown) =>
       toast(
         `O desenho feito na tela não entrou na aula: ${error instanceof Error ? error.message : String(error)}`,
         "error",
@@ -640,16 +641,18 @@ async function proposeRetakes(voiceId: string, markers: RecordingResult["markers
   // place (a proposal applied or thrown away is left alone).
   const id = asset.id;
   const projectId = p.id;
+  const waiting = (q: Project): boolean =>
+    (q.proposals ?? []).some((x) => x.by === "gravacao" && x.title === title);
   const stop = useProject.subscribe((s) => {
     const now = s.project;
-    if (!now || now.id !== projectId) {
+    const voice = now?.assets.find((a) => a.id === id);
+    // Another lesson, the voice gone, or the proposal applied or thrown away: nothing to replace.
+    if (!now || now.id !== projectId || !voice || !waiting(now)) {
       stop();
       return;
     }
-    const voice = now.assets.find((a) => a.id === id);
-    if (voice?.transcriptStatus !== "ready") return;
+    if (voice.transcriptStatus !== "ready") return;
     stop();
-    if (!(now.proposals ?? []).some((x) => x.by === "gravacao" && x.title === title)) return;
     void retakeWordCuts(now, voice, markers).then((cuts) =>
       cuts ? showRetakes(now, id, title, cuts, "pelas palavras") : undefined,
     );

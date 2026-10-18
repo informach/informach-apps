@@ -47,6 +47,9 @@ interface Job {
   partial: Buffer;
   filled: number;
   decoded: boolean;
+  /** Frames handed to the renderer, and masks it gave back: the video has one of each. */
+  handed: number;
+  masked: number;
   failure: Error | null;
   /** Wakes a `take` waiting for frames. */
   wake: (() => void) | null;
@@ -190,6 +193,8 @@ export function registerPersonKey(): void {
       partial: Buffer.allocUnsafe(frameBytes),
       filled: 0,
       decoded: false,
+      handed: 0,
+      masked: 0,
       failure: null,
       wake: null,
       release,
@@ -247,6 +252,7 @@ export function registerPersonKey(): void {
     job.wake = null;
     if (job.failure) throw job.failure;
     const taken = job.frames.splice(0, BATCH);
+    job.handed += taken.length;
     if (job.frames.length < AHEAD / 2) job.dec.stdout.resume();
     const data = new Uint8Array(taken.length * job.frameBytes);
     taken.forEach((frame, i) => {
@@ -264,6 +270,11 @@ export function registerPersonKey(): void {
       throw new Error("Máscaras inválidas.");
     touch(jobId, job);
     if (job.failure) throw job.failure;
+    // Never more masks than frames handed over: each frame gets its own, in order.
+    const count = masks.length / job.maskBytes;
+    if (job.masked + count > job.handed)
+      throw new Error("A IA local devolveu mais máscaras do que quadros.");
+    job.masked += count;
     if (job.enc.stdin.write(masks)) return;
     // Room again, or the encoder is gone (then its failure is the answer).
     const stdin = job.enc.stdin;
@@ -287,6 +298,12 @@ export function registerPersonKey(): void {
     clearTimeout(job.idle);
     try {
       if (job.failure) throw job.failure;
+      // Every frame of the video went to the model and came back as a mask: a missing one
+      // would shift the person against the picture from there on.
+      if (!job.decoded || job.frames.length || job.masked !== job.handed)
+        throw new Error(
+          `O recorte ficou incompleto: ${job.masked} máscaras para ${job.handed + job.frames.length} quadros.`,
+        );
       job.enc.stdin.end();
       await job.encoded;
       if (existsSync(job.out)) await rm(job.tmp, { force: true });

@@ -160,6 +160,8 @@ test("a WAV part cut short by a crash (open-ended header, half a sample) is stil
   assert.ok(Math.abs((await onset(result.systemAudio)) - 1.5) < 0.05);
 });
 
+// A probe that fails (a helper that is not there) is not kept: the real one below asks again.
+const failedFirst = await processLoopbackAvailable(join(root, "nao-existe.exe"));
 const helper = helperPath();
 const skipHelper =
   process.platform !== "win32"
@@ -169,6 +171,13 @@ const skipHelper =
       : (await processLoopbackAvailable(helper))
         ? false
         : "this Windows has no process loopback";
+
+test("a failed probe of the native route is not kept for the rest of the run", {
+  skip: skipHelper,
+}, () => {
+  // skipHelper is false only when the real helper's probe, asked after the failed one, said yes.
+  assert.equal(failedFirst, false);
+});
 
 /** The data size the header says, and the bytes after the header. */
 async function header(path: string): Promise<{ said: number; held: number }> {

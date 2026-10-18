@@ -168,8 +168,10 @@ export function framingOf(
 
 /**
  * Frames every clip of the camera `cameraId`. "Lado a lado" also puts the screen of the same
- * take in the other half; leaving it puts back the screen clips still where it put them.
- * `border` is the corner shapes' border when the clip has none yet (the course's accent).
+ * take in the other half, with what was drawn over it (the take's drawing clips go where the
+ * screen goes); leaving it puts back the clips still where it put them, each in the place it had
+ * before (Clip.besideFrom). `border` is the corner shapes' border when the clip has none yet
+ * (the course's accent).
  */
 export function frameCamera(
   project: Project,
@@ -183,7 +185,12 @@ export function frameCamera(
   const take = camera.recording?.id;
   const screens = new Map(
     project.assets
-      .filter((a) => take && a.recording?.id === take && a.recording.role === "screen")
+      .filter(
+        (a) =>
+          take &&
+          a.recording?.id === take &&
+          (a.recording.role === "screen" || a.recording.role === "drawing"),
+      )
       .map((a) => [a.id, a]),
   );
   return {
@@ -203,10 +210,18 @@ export function frameCamera(
       const screen = screens.get(c.assetId);
       if (!screen) return c;
       const beside = screenBesideCamera(screen, frame);
-      if (framing === "side") return { ...c, transform: beside };
-      if (!same(c.transform, beside)) return c;
-      const { transform: _transform, ...rest } = c;
-      return rest;
+      if (framing === "side") {
+        if (same(c.transform, beside)) return c;
+        // The place it had, to go back to (null: fit to the frame).
+        return { ...c, transform: beside, besideFrom: c.transform ?? null };
+      }
+      const { transform: _transform, besideFrom, ...rest } = c;
+      // Moved by hand since: it stays where the person put it.
+      if (!same(c.transform, beside))
+        return besideFrom === undefined
+          ? c
+          : { ...rest, ...(c.transform ? { transform: c.transform } : {}) };
+      return besideFrom ? { ...rest, transform: besideFrom } : rest;
     }),
   };
 }

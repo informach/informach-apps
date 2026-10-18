@@ -173,7 +173,10 @@ test("os traços vão para o diário e o finalize entrega o desenho no tempo da 
   assert.deepEqual(span, [1.5, 2.5]);
   assert.ok(span);
   let n = 0;
-  const clips = drawingClips(layout.pieces, span, "drawing", "t-draw", () => `c${++n}`);
+  const laid = drawingClips(layout.pieces, span, "drawing", "t-draw", () => `c${++n}`);
+  // Each one lies over the screen clip of its stretch (they go together, as one group).
+  assert.equal(laid[0]?.screen, layout.pieces[1].screen[0]?.id);
+  const clips = laid.map((x) => x.clip);
   assert.equal(clips.length, 1);
   assert.equal(clips[0].in, 0);
   assert.equal(clips[0].duration, 1);
@@ -187,6 +190,7 @@ test("os traços vão para o diário e o finalize entrega o desenho no tempo da 
     duration: 1,
     generated: "annotation",
     alpha: true,
+    drawing: own,
   };
   const project: Project = {
     version: 1,
@@ -204,12 +208,12 @@ test("os traços vão para o diário e o finalize entrega o desenho no tempo da 
       ...layout.clips,
       ...clips.map((c) => ({
         ...c,
-        annotation: { kind: "drawing" as const, color: "#FF4D4D", drawing: own },
+        annotation: { kind: "drawing" as const, color: "#FF4D4D" },
       })),
     ],
   };
   projectSchema.parse(project);
-  // A video that went missing is drawn again from the clip's strokes.
+  // A video that went missing is drawn again from the strokes its media keeps.
   assert.deepEqual(redrawPlan(project, asset), { how: "drawing", drawing: own });
 });
 

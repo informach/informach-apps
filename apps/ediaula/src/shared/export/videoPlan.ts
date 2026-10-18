@@ -424,7 +424,7 @@ export function buildVideoWindowPlan(
     const pts = `setpts=round((PTS${shift})${speed === 1 ? "" : `/${us(speed)}`})`;
     const clock = (s: number): string => us((s - p.clip.in - p.tolerance) / speed);
     return (
-      `[${read.labels[index]}]${pts},trim=start=${clock(p.from)}:end=${clock(p.until)},` +
+      `[${read.labels[index]}]${pts},setpts='max(PTS,${clock(p.from)}/TB)',trim=start=${clock(p.from)}:end=${clock(p.until)},` +
       `fps=${rate},tpad=stop_mode=clone:stop=-1,fps=${rate}:start_time=${us(p.frames.k0 / fps)},` +
       `trim=end_frame=${p.frames.k1 - p.frames.k0}`
     );
@@ -686,6 +686,16 @@ export function buildVideoWindowPlan(
           .filter(([a, b]) => b > piece.S - 1 / fps && a < piece.E)
           .map(([a, b]) => `between(t,${us((a - clip.in) / speed)},${us((b - clip.in) / speed)})`)
           .join("+");
+      const lens = cursor.magnifier;
+      const magnified = lens ? during(lens.on) : "";
+      // The magnifier enlarges the recording itself, and goes over the spotlight (as in the
+      // preview, lib/cursorDraw.ts drawCursorScene): its square is taken before the dimming.
+      let lensSource = "";
+      if (lens && magnified) {
+        graph.push(`[${src}]split[pre${L}][lens${L}]`);
+        src = `pre${L}`;
+        lensSource = `lens${L}`;
+      }
       const spot = cursor.spotlight;
       const lit = spot ? during(spot.on) : "";
       if (spot && lit) {
@@ -699,17 +709,14 @@ export function buildVideoWindowPlan(
         );
         src = `lit${L}`;
       }
-      const lens = cursor.magnifier;
-      const magnified = lens ? during(lens.on) : "";
       if (lens && magnified) {
         // The square around the pointer (clamped inside the frame, as the preview does), enlarged
         // and cut round, laid back over the pointer before the sprite draws its ring.
         const d = lens.radius * 2;
         const r0 = lens.radius;
         graph.push(
-          `[${src}]split[mag${L}][lens${L}]`,
-          `[lens${L}]crop=w=${lens.side}:h=${lens.side}:x='clip(${cx}-${lens.side / 2},0,iw-ow)':y='clip(${cy}-${lens.side / 2},0,ih-oh)':exact=1,scale=${d}:${d}:flags=bicubic,format=yuva420p,geq=lum='lum(X,Y)':cb='cb(X,Y)':cr='cr(X,Y)':a='clip(255*(${r0}+0.5-hypot(X+0.5-${r0},Y+0.5-${r0})),0,255)'[round${L}]`,
-          `[mag${L}][round${L}]overlay=x='${cx}-${r0}':y='${cy}-${r0}':eval=frame:eof_action=pass:enable='${magnified}'[magd${L}]`,
+          `[${lensSource}]crop=w=${lens.side}:h=${lens.side}:x='clip(${cx}-${lens.side / 2},0,iw-ow)':y='clip(${cy}-${lens.side / 2},0,ih-oh)':exact=1,scale=${d}:${d}:flags=bicubic,format=yuva420p,geq=lum='lum(X,Y)':cb='cb(X,Y)':cr='cr(X,Y)':a='clip(255*(${r0}+0.5-hypot(X+0.5-${r0},Y+0.5-${r0})),0,255)'[round${L}]`,
+          `[${src}][round${L}]overlay=x='${cx}-${r0}':y='${cy}-${r0}':eval=frame:eof_action=pass:enable='${magnified}'[magd${L}]`,
         );
         src = `magd${L}`;
       }

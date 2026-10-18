@@ -82,15 +82,21 @@ export interface SessionSetup {
    * mode, leaving out this process's whole tree). Tests replace it.
    */
   loopback?: (file: string) => SystemLoopback;
+  /** Tests only: a pause longer than this closes the parts (LONG_PAUSE_MS). */
+  longPauseMs?: number;
 }
 
 /** What the session needs of main/nativeHelper.ts LoopbackClient. */
 export type SystemLoopback = Pick<LoopbackClient, "start" | "stop" | "kill" | "on">;
 
-/** The native route's part of the computer's sound (shared/systemAudio.ts). */
-export const NATIVE_SYSTEM_FILE = "sistema-0.wav";
+/** The native route's parts of the computer's sound (shared/systemAudio.ts); a long pause ends one. */
+export const nativeSystemFile = (part: number): string => `sistema-${part}.wav`;
+export const NATIVE_SYSTEM_FILE = nativeSystemFile(0);
 
-/** A pause longer than this closes the screen and camera parts. */
+/**
+ * A pause longer than this closes the screen and camera parts, and the native capture of the
+ * computer's sound (which would go on writing the whole pause).
+ */
 export const LONG_PAUSE_MS = 5 * 60 * 1000;
 /** Most bytes of the computer's sound in one call. */
 export const MAX_SYSTEM_CHUNK = 8 * 1024 * 1024;
@@ -153,6 +159,9 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
   /** The helper capturing the computer's sound on the native route. */
   private loopback: SystemLoopback | null = null;
   private readonly makeLoopback: (file: string) => SystemLoopback;
+  /** The long pause closed the native capture of the computer's sound: it reopens on resume. */
+  private loopbackClosed = false;
+  private readonly longPauseMs: number;
   private lastRects = "";
   /** When the teleprompter last moved (QPC ms): a line never starts before the one before it. */
   private lastLineAt = 0;
@@ -174,6 +183,7 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
     this.deviceName = setup.deviceName ?? ((_kind, name) => name);
     this.makeLoopback =
       setup.loopback ?? ((file) => new LoopbackClient({ excludePid: process.pid, file }));
+    this.longPauseMs = setup.longPauseMs ?? LONG_PAUSE_MS;
     this.journal = new SessionJournal(
       setup.dir,
       (error) => this.journalFailed(error),
@@ -239,7 +249,11 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
     return next;
   }
 
-  start(): Promise<void> {
+  /**
+   * Starts every source. The answer says whether the native capture of the computer's sound
+   * failed to open: the recorder window then records it with Chromium's capture instead.
+   */
+  start(): Promise<{ systemFallback: boolean }> {
     return this.serial(async () => {
       if (this.preserved) throw new Error("Gravação não preparada ou já preservada.");
       if (this.phase !== "prepared") throw new Error("Gravação já iniciada.");
@@ -266,8 +280,13 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
           : failure.reason;
       }
       if (camera.status === "rejected") this.cameraFailed(errorText(camera.reason), true);
-      // A capture of the computer's sound that did not open costs only that track.
-      if (system.status === "rejected") this.systemFailed(errorText(system.reason));
+      // The native capture of the computer's sound that did not open hands it to the window's
+      // own capture (the fallback route), which writes the same track.
+      const systemFallback = system.status === "rejected";
+      if (system.status === "rejected")
+        this.warnings.push(
+          `A captura do áudio do PC sem o som do app não abriu (${errorText(system.reason)}); a gravação usou a captura de reserva.`,
+        );
       const reference = this.procs.screen ?? this.procs.mic;
       if (!reference || reference.first === null) {
         await this.closeAll(true);
@@ -278,6 +297,7 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
       this.phase = "recording";
       this.startHealth();
       this.emitStatus();
+      return { systemFallback };
     });
   }
 
@@ -343,6 +363,11 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
             (error: unknown) => this.cameraFailed(errorText(error), true),
           );
         this.reopening = false;
+      }
+      // The computer's sound goes on in a new part; one that does not open costs only it.
+      if (this.loopbackClosed) {
+        this.loopbackClosed = false;
+        await this.openLoopback().catch((error: unknown) => this.systemFailed(errorText(error)));
       }
       this.closed.clear();
       const at = qpc();
@@ -612,7 +637,7 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
     clearTimeout(this.longPause);
     this.longPause = setTimeout(
       () => void this.closeWhilePaused(["screen", "camera"]),
-      LONG_PAUSE_MS,
+      this.longPauseMs,
     );
   }
 
@@ -631,6 +656,13 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
       for (const src of running) this.closed.add(src);
       this.emitStatus();
       await this.closeSources(running);
+      // The native capture writes on the wall clock: the pause would be all silence on disk.
+      const loopback = this.loopback;
+      if (loopback) {
+        this.loopback = null;
+        this.loopbackClosed = true;
+        await loopback.stop();
+      }
     });
   }
 
@@ -806,17 +838,18 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
 
   /** The native route: the helper writes sistema-0.wav, its first and last sample in the journal. */
   private async openLoopback(): Promise<void> {
-    const file = NATIVE_SYSTEM_FILE;
+    const part = this.parts.system++;
+    const file = nativeSystemFile(part);
     const client = this.makeLoopback(join(this.dir, file));
     client.on("first", (at) => {
       this.system.started = true;
       this.system.lastAt = qpc();
-      this.journal.write({ k: "first", src: "system", part: 0, qpc: at, file });
+      this.journal.write({ k: "first", src: "system", part, qpc: at, file });
     });
     client.on("beat", () => {
       this.system.lastAt = qpc();
     });
-    client.on("end", (at) => this.journal.write({ k: "end", src: "system", part: 0, qpc: at }));
+    client.on("end", (at) => this.journal.write({ k: "end", src: "system", part, qpc: at }));
     client.on("failure", (error) => {
       if (this.phase === "recording" || this.phase === "paused" || this.phase === "failed")
         this.systemFailed(error.message);

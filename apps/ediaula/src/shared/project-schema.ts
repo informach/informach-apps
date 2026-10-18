@@ -7,9 +7,9 @@ import {
   PROPOSAL_LIMIT,
 } from "./anchors.ts";
 import { LANGUAGE_CODE } from "./captionTranslate.ts";
-import { GAIN_LIMIT } from "./gain.ts";
 import { CURSOR_POINTERS } from "./cursor.ts";
 import { DRAWING_TOOLS, MAX_STROKE_POINTS, MAX_STROKES } from "./drawing.ts";
+import { GAIN_LIMIT } from "./gain.ts";
 import { guidedStoreSchema } from "./guidedPlan.ts";
 import { DEVICES, REGION_KINDS } from "./look.ts";
 import { MARKER_LIMIT } from "./markers.ts";
@@ -131,6 +131,35 @@ export const cursorFxSchema = z.looseObject({
     .max(2000)
     .optional(),
 });
+/**
+ * Strokes drawn on the screen during a take (shared/drawing.ts), in its video's own seconds. The
+ * moments are any number here: normalizeProject puts one that fell before 0 back at the start.
+ */
+const drawingSchema = z.looseObject({
+  strokes: z
+    .array(
+      z.looseObject({
+        t: number,
+        color,
+        width: number.positive(),
+        points: z
+          .array(z.tuple([number, number, number]))
+          .min(1)
+          .max(MAX_STROKE_POINTS),
+        tool: z.enum(DRAWING_TOOLS).optional(),
+        until: number.optional(),
+      }),
+    )
+    .max(MAX_STROKES),
+  clears: z.array(number).max(MAX_STROKES),
+  boards: z
+    .array(z.looseObject({ start: number, end: number, color }))
+    .max(MAX_STROKES)
+    .optional(),
+  pages: z.array(number).max(MAX_STROKES).optional(),
+  pointer: z.looseObject({ assetId: id, offset }).optional(),
+});
+
 export const annotationSchema = z.looseObject({
   kind: z.enum([
     "arrow",
@@ -186,33 +215,8 @@ export const annotationSchema = z.looseObject({
   ink: color.optional(),
   accent: color.optional(),
   reveal: z.enum(["words", "draw"]).optional(),
-  /** Strokes drawn on the screen during a take (shared/drawing.ts), in the clip's source seconds. */
-  drawing: z
-    .looseObject({
-      strokes: z
-        .array(
-          z.looseObject({
-            t: time,
-            color,
-            width: number.positive(),
-            points: z
-              .array(z.tuple([number, number, time]))
-              .min(1)
-              .max(MAX_STROKE_POINTS),
-            tool: z.enum(DRAWING_TOOLS).optional(),
-            until: time.optional(),
-          }),
-        )
-        .max(MAX_STROKES),
-      clears: z.array(time).max(MAX_STROKES),
-      boards: z
-        .array(z.looseObject({ start: time, end: time, color }))
-        .max(MAX_STROKES)
-        .optional(),
-      pages: z.array(time).max(MAX_STROKES).optional(),
-      pointer: z.looseObject({ assetId: id, offset }).optional(),
-    })
-    .optional(),
+  /** Projects of before the drawing moved to its media (Asset.drawing): normalizeProject moves it. */
+  drawing: drawingSchema.optional(),
 });
 const zooms = z
   .array(
@@ -270,6 +274,7 @@ const asset = z.looseObject({
     .max(20000)
     .optional(),
   recording: z.looseObject({ id: text, role: z.enum(RECORDING_ROLES) }).optional(),
+  drawing: drawingSchema.optional(),
   guidedRun: path.optional(),
   screen: color.optional(),
   key: chroma.optional(),
@@ -384,6 +389,7 @@ const clip = z.looseObject({
   speed: number.positive().optional(),
   denoise: z.boolean().optional(),
   transform: transform.optional(),
+  besideFrom: transform.nullable().optional(),
   fadeIn: time.optional(),
   fadeOut: time.optional(),
   enter: motion.optional(),

@@ -118,8 +118,12 @@ export function RecordingBands({
     const sourceOf = (clientX: number): number =>
       sourceAt(clip, Math.max(clip.start, Math.min(clipEnd(clip), xToTime(clientX))));
     let at = sourceOf(e.clientX);
+    // A click on an edge that does not drag it changes nothing (an automatic zoom stays one).
+    const x0 = e.clientX;
+    let moved = false;
     setDrag({ kind: band.kind, assetId: band.assetId, id: band.id, edge, at });
     const move = (ev: PointerEvent): void => {
+      if (Math.abs(ev.clientX - x0) > 2) moved = true;
       at = sourceOf(ev.clientX);
       setDrag({ kind: band.kind, assetId: band.assetId, id: band.id, edge, at });
     };
@@ -127,6 +131,7 @@ export function RecordingBands({
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       setDrag(null);
+      if (!moved) return;
       if (band.kind === "zoom")
         setAssetZooms(band.assetId, (zooms) =>
           moveZoomEdge(zooms, band.id, edge, at, asset.duration),

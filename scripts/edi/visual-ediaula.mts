@@ -2249,11 +2249,83 @@ try {
         .selectOption("3");
       await overlay.getByTitle("Opções do gravador").click();
       await region.selectOption("full");
+      // A second short take, drawn on a white board with a new page, goes into the lesson: the
+      // "quadro" clips it makes are looked at in the editor and then undone.
+      const clipsBefore = await editor.locator("fieldset.clip").count();
+      await overlay.locator(".rec-go").click();
+      await pill.locator(".rec-time").waitFor({ timeout: 60_000 });
+      await delay(1000);
+      await overlay.getByTitle(/^Desenhar na tela/).click();
+      await overlay.locator(".rec-draw.is-on").waitFor();
+      await overlay.keyboard.press("b");
+      await overlay.getByTitle("Quadro branco (B)").and(overlay.locator(".is-active")).waitFor();
+      const view = await overlay.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }));
+      const scribble = async (y: number): Promise<void> => {
+        const x = view.w / 2 - 220;
+        await overlay?.mouse.move(x, y);
+        await overlay?.mouse.down();
+        for (let i = 0; i <= 22; i++)
+          await overlay?.mouse.move(x + i * 20, y + Math.sin(i / 2.5) * 35);
+        await overlay?.mouse.up();
+      };
+      await scribble(view.h / 2 - 60);
+      await delay(600);
+      await overlay.keyboard.press("p");
+      await scribble(view.h / 2 + 40);
+      await delay(600);
+      await overlay.keyboard.press("Escape");
+      await overlay.locator(".rec-draw-tools").waitFor({ state: "detached" });
+      await delay(500);
       const closed = overlay.waitForEvent("close");
-      await overlay.getByTitle("Fechar sem gravar").click();
+      await overlay.getByTitle(/^Parar \(/).click();
       await closed;
       overlay = null;
       lastPage = editor;
+      // The take comes in at once; its drawing a moment later, once its video is drawn.
+      const board = editor.locator('fieldset.clip[aria-label="Clipe Desenho e quadro"]');
+      await board.first().waitFor({ timeout: 180_000 });
+      await settle(editor);
+      await withoutToasts(editor);
+      // The clip is in the group of its screen: Alt + click picks it alone, to edit it.
+      await board.first().click({ modifiers: ["Alt"] });
+      await side.locator(".tab", { hasText: "Propriedades" }).click();
+      const section = side.locator(".props-section", {
+        has: editor.getByRole("heading", { name: "Quadro" }),
+      });
+      await section.waitFor();
+      await capture(
+        section,
+        "quadro-no-editor-painel",
+        "Clipe Quadro no editor: a cor do quadro e os traços deste clipe",
+      );
+      // The playhead on the clip (a click on the ruler above it): the board and its stroke.
+      const clipBox = await board.first().boundingBox();
+      const rulerBox = await editor.locator(".ruler").boundingBox();
+      assert.ok(clipBox && rulerBox, "the board clip and the ruler");
+      await editor.mouse.click(clipBox.x + clipBox.width * 0.8, rulerBox.y + rulerBox.height / 2);
+      await settle(editor);
+      await capture(
+        editor.locator("section.preview"),
+        "quadro-no-editor-previa",
+        "Clipe Quadro na prévia: o quadro branco com o traço por cima da tela",
+      );
+      await capture(
+        editor.locator(".timeline-wrap"),
+        "quadro-no-editor-timeline",
+        "Os clipes do quadro, um por página, sobre a gravação",
+      );
+      // Undone, the drawing, the take's automatic zoom and the take: the lesson goes on as it was.
+      await editor.keyboard.press("Escape");
+      for (let undo = 0; undo < 6; undo++) {
+        if ((await editor.locator("fieldset.clip").count()) === clipsBefore) break;
+        await editor.keyboard.press("Control+z");
+        await delay(300);
+      }
+      await editor.waitForFunction(
+        (count) => document.querySelectorAll("fieldset.clip").length === count,
+        clipsBefore,
+      );
+      await savedSoon(editor);
     } finally {
       testWindow.kill();
       if (overlay && !overlay.isClosed()) await overlay.close().catch(() => undefined);

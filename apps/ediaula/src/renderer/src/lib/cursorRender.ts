@@ -13,8 +13,6 @@ import {
   magnifierSide,
   magnifies,
   ripplesAt,
-  spotlightDim,
-  spotlightRadius,
   spotlights,
   spritePositions,
   spriteSize,
@@ -24,11 +22,22 @@ import { newId } from "@shared/timeline";
 import type { CursorSprite, Project } from "@shared/types";
 import { cursorFxOf, loadCursorData } from "@/editor/CursorLayer";
 import { useApp } from "@/state/app";
-import { drawMagnifierRing, drawPointer, drawRipples, drawSpotlight } from "./cursorDraw";
+import {
+  drawMagnifierRing,
+  drawPointer,
+  drawRipples,
+  paintSpotlightPicture,
+  spotlightPictureSize,
+} from "./cursorDraw";
 import { type CursorImages, loadCursorImages } from "./cursorImages";
 
-/** Unique sprite frames sent to the main process per call. */
+/** Most unique sprite frames sent to the main process per call. */
 const BATCH = 48;
+/**
+ * Most bytes of frames held for one call: a large magnifier on a 4K screen makes a sprite of
+ * more than a thousand pixels a side, and 48 of them would be hundreds of megabytes.
+ */
+const BATCH_BYTES = 32 * 1024 * 1024;
 
 /** A short, stable key for a list of numbers (the cache name of the click sound). */
 function numbersKey(values: readonly number[], extra: string): string {
@@ -44,21 +53,11 @@ function numbersKey(values: readonly number[], extra: string): string {
  * function. Saved in the app's cache (same picture, same file).
  */
 async function spotlightPicture(data: CursorData, fx: CursorFx): Promise<string> {
-  const width = Math.max(2, Math.round(data.width / 2) * 2);
-  const height = Math.max(2, Math.round(data.height / 2) * 2);
+  const { width, height } = spotlightPictureSize(data);
   const canvas = new OffscreenCanvas(width, height);
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Não consegui desenhar o holofote.");
-  // Half scale: the circle of the recording's radius is half as large here.
-  drawSpotlight(
-    ctx,
-    width / 2,
-    height / 2,
-    spotlightRadius(data, fx) / 2,
-    spotlightDim(fx),
-    width,
-    height,
-  );
+  paintSpotlightPicture(ctx, data, fx);
   const blob = await canvas.convertToBlob({ type: "image/png" });
   return window.api.saveGenerated(new Uint8Array(await blob.arrayBuffer()), "png");
 }
@@ -79,14 +78,16 @@ export async function ensureCursorSprites(
     signal?.throwIfAborted();
     if (!asset.cursor || !used.has(asset.id) || asset.missing) continue;
     const fx = cursorFxOf(asset);
-    if (fx.hidden) continue;
+    // Hidden everywhere: nothing to draw. Hidden but shown in a stretch: drawn there.
+    if (!fxWhere(fx, (f) => !f.hidden, asset.duration).length) continue;
     const data = await loadCursorData(asset.cursor);
     const images = await loadCursorImages(asset.cursor, data).catch(() => undefined);
     const fps = asset.fps || 30;
     const track = buildTrack(data, fx, asset.duration);
     const size = spriteSize(data, fx);
     const positions = spritePositions(track, fps, asset.duration, size);
-    const id = `${cursorFxId(fx)}_${size}_${fps}`;
+    // The recorded pointer images, or the standard shapes when they did not load: two sprites.
+    const id = `${cursorFxId(fx)}_${size}_${fps}_${images ? "i" : "s"}`;
     let sprite = await window.api.cursorSprite.cached(asset.path, id);
     if (!sprite)
       sprite = await renderSprite(
@@ -129,7 +130,7 @@ export async function ensureCursorSprites(
     if (times.length && volume > 0)
       entry.clicks = await window.api.cursorSprite.clicks(
         asset.path,
-        numbersKey(times, `${volume.toFixed(3)}|${asset.duration.toFixed(3)}`),
+        numbersKey(times, `stereo|${volume.toFixed(3)}|${asset.duration.toFixed(3)}`),
         Float64Array.from(times),
         volume,
         asset.duration,
@@ -163,15 +164,16 @@ async function renderSprite(
     const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
     const frames = positions.length / 2;
     const bytes = size * size * 4;
+    const perBatch = Math.max(1, Math.min(BATCH, Math.floor(BATCH_BYTES / bytes)));
     const radius = Math.round(magnifierRadius(data, fx));
     const pixel = data.height / 1080;
-    let batch = new Uint8Array(BATCH * bytes);
+    let batch = new Uint8Array(perBatch * bytes);
     let counts: number[] = [];
     let lastKey = "";
     const flush = async (): Promise<void> => {
       if (!counts.length) return;
       await window.api.cursorSprite.frames(jobId, batch.slice(0, counts.length * bytes), counts);
-      batch = new Uint8Array(BATCH * bytes);
+      batch = new Uint8Array(perBatch * bytes);
       counts = [];
     };
     for (let i = 0; i < frames; i++) {
@@ -197,7 +199,7 @@ async function renderSprite(
       drawPointer(ctx, s, s.x - ox, s.y - oy, unit, f, images);
       batch.set(ctx.getImageData(0, 0, size, size).data, counts.length * bytes);
       counts.push(1);
-      if (counts.length === BATCH) {
+      if (counts.length === perBatch) {
         await flush();
         set({
           jobs: {

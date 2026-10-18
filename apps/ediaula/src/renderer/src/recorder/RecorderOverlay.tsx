@@ -581,11 +581,28 @@ export function RecorderOverlay(): ReactNode {
     setRegionChoice("window");
     void window.api.recorder.followWindow(w.hwnd, front);
     if (monitor && target.index !== monitor.index) {
-      // The recorder moves to that monitor first; the region follows once it has the new size.
+      // The recorder moves to that monitor first; the region follows once it is there (from the
+      // resize, or as soon as the move ends when that monitor has the same size and no resize
+      // comes).
       pendingRegion.current = snapped;
       setMonitor(target);
       change({ monitor: { x: target.x, y: target.y, width: target.width, height: target.height } });
-      void window.api.recorder.moveTo(target.index);
+      void window.api.recorder.moveTo(target.index).then(
+        () => {
+          const pending = pendingRegion.current;
+          pendingRegion.current = null;
+          if (!pending) return;
+          const r = toWindow(pending, target);
+          setRegion(r);
+          setSettings((s) => (s ? { ...s, region: { preset: "custom", rect: r } } : s));
+        },
+        (error: unknown) => {
+          pendingRegion.current = null;
+          setError(
+            `O gravador não passou para a outra tela: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        },
+      );
       return;
     }
     const r = toWindow(snapped, target);
@@ -851,10 +868,25 @@ export function RecorderOverlay(): ReactNode {
           }
         })(),
       ]);
-      await window.api.recorder.start();
+      const started = await window.api.recorder.start();
       setMarkers(0);
-      // On the native route the main process records it; Chromium's capture is the fallback.
-      if (!preservationRequested.current && systemOn && !native) {
+      // On the native route the main process records it; Chromium's capture is the fallback,
+      // also when the native one did not open (if it can leave out a voice this window plays).
+      const fallback =
+        native &&
+        started.systemFallback &&
+        systemAudioPlan({
+          wanted: true,
+          narrationPlays,
+          excludesApp: !narrationPlays || (await SystemAudio.excludesApp()),
+        }).record;
+      if (native && started.systemFallback && !fallback) {
+        setFlash(
+          "O áudio do PC ficou de fora: a captura sem o som do app não abriu, e a de reserva gravaria de novo a voz que o gravador toca.",
+        );
+        setTimeout(() => setFlash(null), 10000);
+      }
+      if (!preservationRequested.current && systemOn && (!native || fallback)) {
         system.current = await SystemAudio.start(setError).catch((e) => {
           setError(`Áudio do PC indisponível: ${(e as Error).message}`);
           return null;
@@ -1102,6 +1134,9 @@ export function RecorderOverlay(): ReactNode {
         else if (name === "line-prev") stepTo(-1);
         else if (name === "draw" && phaseRef.current === "recording" && drawAllowed.current)
           setDrawOn((on) => !on);
+        // The window stopped answering while drawing: the main process gave the mouse back to
+        // the screen, and the drawing ends here too.
+        else if (name === "draw-off") setDrawOn(false);
       }),
     [begin, togglePause, stop, mark, stepTo, toggleWeb, stopWeb],
   );

@@ -191,7 +191,7 @@ test("o schema aceita a aula com e sem quadro, e o editor troca a cor e apaga um
     generated: "annotation",
     alpha: true,
   };
-  const clip = (kind: "board" | "drawing", d: Drawing): Clip => ({
+  const clip = (kind: "board" | "drawing"): Clip => ({
     id: `c-${kind}`,
     assetId: "a",
     trackId: "t",
@@ -199,26 +199,26 @@ test("o schema aceita a aula com e sem quadro, e o editor troca a cor e apaga um
     in: 0,
     duration: 3,
     volume: 0,
-    annotation: { kind, color: "#FFFFFF", drawing: d },
+    annotation: { kind, color: "#FFFFFF" },
   });
-  const project = (c: Clip): Project => ({
+  const project = (c: Clip, d: Drawing): Project => ({
     version: 1,
     id: "p",
     name: "Aula",
     createdAt: 0,
     updatedAt: 0,
     settings: { width: 1920, height: 1080, fps: 30 },
-    assets: [asset],
+    assets: [{ ...asset, drawing: d }],
     tracks: [{ id: "t", kind: "video", name: "Faixa", muted: false, hidden: false, locked: false }],
     clips: [c],
   });
-  assert.ok(projectSchema.safeParse(project(clip("board", own))).success);
+  assert.ok(projectSchema.safeParse(project(clip("board"), own)).success);
   const plain: Drawing = { strokes: own.strokes.slice(0, 1), clears: [] };
-  assert.ok(projectSchema.safeParse(project(clip("drawing", plain))).success);
+  assert.ok(projectSchema.safeParse(project(clip("drawing"), plain)).success);
   const black = withBoardColor(own, 1, BOARD_COLORS.black);
   assert.equal(boardAt(black, 1)?.color, BOARD_COLORS.black);
   const fewer = withoutStroke(own, 0);
   assert.equal(fewer.strokes.length, own.strokes.length - 1);
   assert.equal(drawingAt(fewer, 2.9).length, 1);
-  assert.ok(projectSchema.safeParse(project(clip("board", fewer))).success);
+  assert.ok(projectSchema.safeParse(project(clip("board"), fewer)).success);
 });

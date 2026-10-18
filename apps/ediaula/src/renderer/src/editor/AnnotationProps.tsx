@@ -14,6 +14,7 @@ import {
   boardAt,
   type Drawing,
   type DrawingTool,
+  strokesIn,
   withBoardColor,
   withoutStroke,
 } from "@shared/drawing";
@@ -22,10 +23,10 @@ import type { Clip } from "@shared/types";
 import { MessageSquareText, PenLine, X } from "lucide-react";
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { updateAnnotation } from "@/lib/annotations";
-import { annotationStyle } from "@/lib/sharedLibrary";
 import { changeDrawing } from "@/lib/drawing";
+import { annotationStyle } from "@/lib/sharedLibrary";
 import { useApp } from "@/state/app";
-import { registerDraft } from "@/state/project";
+import { registerDraft, useProject } from "@/state/project";
 import { Slider } from "./ClipVisual";
 import { FontPicker } from "./FontPicker";
 import { FavoriteStyle, RevealRow } from "./LookSections";
@@ -142,15 +143,15 @@ export function DrawingSection({ clip }: { clip: Clip }): ReactNode {
   const toast = useApp((x) => x.toast);
   const [busy, setBusy] = useState(false);
   const a = clip.annotation;
-  const drawing = a?.drawing;
+  // The drawing is kept once, on the media of its video.
+  const drawing = useProject((s) => s.project?.assets.find((x) => x.id === clip.assetId)?.drawing);
   if (!a || !drawing) return null;
   const board = a.kind === "board";
-  // The strokes this clip shows (its stretch of the drawing's video), in the order they were made.
+  // The strokes this clip shows (its stretch of the drawing's video), in the order they were
+  // made: the ones a wipe, a new page or the board's edges took away before it are not here.
   const from = clip.in;
   const to = clip.in + clip.duration * (clip.speed ?? 1);
-  const shown = drawing.strokes
-    .map((s, index) => ({ s, index }))
-    .filter(({ s }) => s.t < to && (s.until ?? Number.POSITIVE_INFINITY) > from);
+  const shown = strokesIn(drawing, from, to).map((index) => ({ s: drawing.strokes[index], index }));
   const change = (fn: (d: Drawing) => Drawing): void => {
     setBusy(true);
     void changeDrawing(clip.assetId, fn)

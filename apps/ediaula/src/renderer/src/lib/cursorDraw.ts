@@ -276,8 +276,14 @@ export function drawMagnifierRing(
  * around (x, y). The export draws it once on a picture twice the recording's size and moves it
  * with the pointer, so both use this.
  */
+/** What the spotlight needs of a canvas (a plain one does, and so does a test's). */
+type SpotlightCtx = Pick<
+  Ctx,
+  "createRadialGradient" | "fillRect" | "save" | "restore" | "fillStyle"
+>;
+
 export function drawSpotlight(
-  ctx: Ctx,
+  ctx: SpotlightCtx,
   x: number,
   y: number,
   radius: number,
@@ -294,6 +300,36 @@ export function drawSpotlight(
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, width, height);
   ctx.restore();
+}
+
+/** Size of the spotlight's picture for the export: half of the recording's, even. */
+export const spotlightPictureSize = (
+  data: Pick<CursorData, "width" | "height">,
+): { width: number; height: number } => ({
+  width: Math.max(2, Math.round(data.width / 2) * 2),
+  height: Math.max(2, Math.round(data.height / 2) * 2),
+});
+
+/**
+ * The spotlight's picture the export moves with the pointer (twice its size, so the circle can
+ * go anywhere): dark with the lit circle in its middle, at half scale, drawn by the preview's own
+ * drawSpotlight.
+ */
+export function paintSpotlightPicture(
+  ctx: SpotlightCtx,
+  data: Pick<CursorData, "width" | "height">,
+  fx: CursorFx,
+): void {
+  const { width, height } = spotlightPictureSize(data);
+  drawSpotlight(
+    ctx,
+    width / 2,
+    height / 2,
+    spotlightRadius(data, fx) / 2,
+    spotlightDim(fx),
+    width,
+    height,
+  );
 }
 
 /** What draws a magnified picture: the recording itself, `width` × `height` pixels of it. */

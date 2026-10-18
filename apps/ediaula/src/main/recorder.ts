@@ -329,10 +329,10 @@ async function prepareTake(
   broadcast({ type: "status", status: s.status() });
 }
 
-export async function start(): Promise<void> {
+export async function start(): Promise<{ systemFallback: boolean }> {
   const s = session;
   if (!s || s.isPreserved) throw new Error("Gravação não preparada ou já preservada.");
-  await s.start();
+  return s.start();
 }
 
 export async function pause(): Promise<void> {

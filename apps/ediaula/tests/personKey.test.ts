@@ -99,6 +99,29 @@ function ffmpeg(args: string[], input?: Buffer): Promise<Buffer> {
  * Head with eyes and mouth, neck and shoulders, in skin and a dark shirt over a green wall, as a
  * webcam would see. Without the face the model at 256 pixels does not take it for a person.
  */
+/** lib/personKeyWorker.ts as one module, with @shared and its runtime in it (as the build makes it). */
+async function bundleWorker(dir: string): Promise<string> {
+  const { build } = await import("vite");
+  const outDir = join(dir, "worker");
+  await build({
+    configFile: false,
+    logLevel: "silent",
+    root: app,
+    resolve: { alias: { "@shared": join(app, "src", "shared") } },
+    build: {
+      outDir,
+      emptyOutDir: true,
+      minify: false,
+      lib: {
+        entry: join(app, "src", "renderer", "src", "lib", "personKeyWorker.ts"),
+        formats: ["es"],
+        fileName: () => "worker.mjs",
+      },
+    },
+  });
+  return join(outDir, "worker.mjs");
+}
+
 function silhouette(): string {
   const head = "lte(((X-320)/62)^2+((Y-175)/80)^2,1)";
   const neck = "lte(abs(X-320),28)*between(Y,230,310)";
@@ -138,7 +161,9 @@ test("a IA local acha a pessoa num vídeo sintético e o arquivo sai com alfa", 
     const framesFile = join(dir, "frames.rgba");
     await writeFile(framesFile, frames);
 
-    const confidenceFile = join(dir, "confidence.f32");
+    // The editor's own worker, bundled as the build bundles it (its runtime and the shared code).
+    const workerFile = await bundleWorker(dir);
+    const masksFile = join(dir, "masks.u8");
     const electron: unknown = require("electron");
     assert.equal(typeof electron, "string");
     const { stdout } = await run(
@@ -150,19 +175,17 @@ test("a IA local acha a pessoa num vídeo sintético e o arquivo sai com alfa", 
         `--height=${m.height}`,
         `--model=${MODEL}`,
         `--vision=${VISION}`,
-        `--out=${confidenceFile}`,
+        `--worker=${workerFile}`,
+        `--out=${masksFile}`,
       ],
       { windowsHide: true, timeout: 90_000 },
     );
     const line = stdout.split("\n").find((l) => l.startsWith("TIMES "));
     assert.ok(line, stdout);
-    const timing = JSON.parse(line.slice("TIMES ".length)) as { load: number; times: number[] };
-    const raw = await readFile(confidenceFile);
-    const confidence = new Float32Array(raw.buffer, raw.byteOffset, raw.length / 4);
+    const timing = JSON.parse(line.slice("TIMES ".length)) as { load: number; ms: number };
     const pixels = m.width * m.height;
-    assert.equal(confidence.length, total * pixels);
-    const masks = new Uint8Array(total * pixels);
-    confidenceToAlpha(confidence, masks);
+    const masks = new Uint8Array(await readFile(masksFile));
+    assert.equal(masks.length, total * pixels, "uma máscara por quadro");
     // The person is found: a good part of the frame, the head inside it and a corner out of it.
     let person = 0;
     for (const v of masks) if (v >= 128) person++;
@@ -171,8 +194,7 @@ test("a IA local acha a pessoa num vídeo sintético e o arquivo sai com alfa", 
     assert.ok(share > 0.05 && share < 0.8, `parte da pessoa no quadro: ${share}`);
     assert.ok(head > 128, `cabeça: ${head}`);
     assert.equal(masks[2 * m.width + 2], 0, "canto");
-    const steady = timing.times.slice(3);
-    const average = steady.reduce((s, t) => s + t, 0) / steady.length;
+    const average = timing.ms;
     console.log(
       `[IA local] ${m.width}×${m.height}: ${average.toFixed(1)} ms por quadro (${Math.round(1000 / average)} quadros por segundo), carga ${Math.round(timing.load)} ms, ${Math.round(share * 100)}% do quadro é pessoa`,
     );

@@ -397,16 +397,34 @@ const token = (text: string): string =>
     .toLowerCase()
     .replace(/[^\p{L}\p{N}]+/gu, "");
 
+/**
+ * Words said all the time (articles, prepositions, "é", "né"): two of them together match
+ * anywhere, so a pair made only of them never says where the passage was first said.
+ */
+const COMMON = new Set(
+  (
+    "a o as os um uma uns umas de da do das dos e é em no na nos nas num numa que se " +
+    "por pra para pro com sem ao aos à às eu tu ele ela nos vocês você isso isto esse essa " +
+    "aqui ali lá aí então né tá ta já mais mas ou como quando onde também muito bem vai " +
+    "vamos gente agora assim tem ter foi ser está esta"
+  )
+    .split(" ")
+    .map(token),
+);
+
+/** How far back (seconds) the passage said again is looked for. */
+const RETAKE_WINDOW = 20;
+
 /** Where a sentence ends: its last word closes it, or a long silence follows it. */
 const closes = (word: TakeWord, next: TakeWord | undefined): boolean =>
   /[.!?…]["»”)]*$/.test(word.text.trim()) || (!!next && next.start - word.end > 0.7);
 
 /**
  * Ranges (seconds of the take) to cut for each Ctrl+Shift+R by the words of the voice: the
- * teacher repeats what went wrong, so before the press it looks for the last time the first two
- * or three words said after it were said; the cut goes from there to where the passage starts
- * again. When they were not said before, it goes from the start of the sentence the press
- * interrupted. Each edge falls in the middle of the pause beside it (at most 0.15 s into it), so
+ * teacher repeats what went wrong, so before the press (up to 20 s back) it looks for the last
+ * time the first three words said after it were said, or the first two when they are not both
+ * common words; the cut goes from there to where the passage starts again. When they were not
+ * said before, it goes from the start of the sentence the press interrupted. Each edge falls in the middle of the pause beside it (at most 0.15 s into it), so
  * no syllable is clipped. Without a transcript, retakeCuts finds the pauses by the volume.
  */
 export function retakeCutsFromWords(
@@ -431,8 +449,9 @@ export function retakeCutsFromWords(
     for (const size of [3, 2]) {
       const wanted = list.slice(again, again + size).map((w) => token(w.text));
       if (wanted.length < size) continue;
+      if (size === 2 && wanted.every((t) => COMMON.has(t))) continue;
       for (let j = again - size; j >= 0; j--) {
-        if (list[j].start < m.t - 40) break;
+        if (list[j].start < m.t - RETAKE_WINDOW) break;
         if (wanted.every((t, k) => token(list[j + k].text) === t)) {
           from = j;
           break;
@@ -443,13 +462,14 @@ export function retakeCutsFromWords(
     if (from < 0) {
       // The start of the sentence the press interrupted.
       let j = again - 1;
-      while (j > 0 && !closes(list[j - 1], list[j]) && list[j - 1].start >= m.t - 40) j--;
+      while (j > 0 && !closes(list[j - 1], list[j]) && list[j - 1].start >= m.t - RETAKE_WINDOW)
+        j--;
       from = j;
     }
     if (from < 0 || from >= again) continue;
     const start = before(from);
     const end = before(again);
-    if (end - start > 0.2 && end - start <= 40) cuts.push([start, end]);
+    if (end - start > 0.2 && end - start <= RETAKE_WINDOW) cuts.push([start, end]);
   }
   return cuts;
 }

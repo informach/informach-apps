@@ -1,4 +1,6 @@
 import type { z } from "zod";
+import type { Annotation } from "./annotation.ts";
+import { type Drawing, sanitizeDrawing } from "./drawing.ts";
 import type { projectSchema } from "./project-schema.ts";
 import type { Project } from "./types.ts";
 import type { Zoom } from "./zoom.ts";
@@ -36,5 +38,32 @@ export function moveZoomsToMedia(stored: StoredProject): Project {
   return { ...stored, clips, assets };
 }
 
+/**
+ * The drawing of a take was kept on each of its clips (every page, every kept stretch carried all
+ * of it); it now lives once on its media (Asset.drawing). This moves it there and makes it sound:
+ * a moment that fell before 0 (an "apagar tudo" before the first stroke) is put back at the start.
+ */
+export function moveDrawingsToMedia(stored: StoredProject, p: Project): Project {
+  const moved = new Map<string, Drawing>();
+  const legacy = new Map<string, Annotation>();
+  for (const c of stored.clips) {
+    if (!c.annotation || !("drawing" in c.annotation)) continue;
+    const { drawing, ...annotation } = c.annotation;
+    legacy.set(c.id, annotation);
+    if (drawing && !moved.has(c.assetId)) moved.set(c.assetId, drawing);
+  }
+  if (!legacy.size && !p.assets.some((a) => a.drawing)) return p;
+  const clips = p.clips.map((c) => {
+    const annotation = legacy.get(c.id);
+    return annotation ? { ...c, annotation } : c;
+  });
+  const assets = p.assets.map((a) => {
+    const drawing = a.drawing ?? moved.get(a.id);
+    return drawing ? { ...a, drawing: sanitizeDrawing(drawing) } : a;
+  });
+  return { ...p, clips, assets };
+}
+
 /** Everything a project read from disk goes through before the editor uses it. */
-export const normalizeProject = (stored: StoredProject): Project => moveZoomsToMedia(stored);
+export const normalizeProject = (stored: StoredProject): Project =>
+  moveDrawingsToMedia(stored, moveZoomsToMedia(stored));

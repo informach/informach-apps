@@ -11,7 +11,7 @@ import type { ChromaKey } from "./chroma.ts";
 import type { Motion, Transform } from "./compose.ts";
 import type { CourseTemplate } from "./courseTemplate.ts";
 import type { CursorFx } from "./cursor.ts";
-import type { BoardKind, DrawingTool } from "./drawing.ts";
+import type { BoardKind, Drawing, DrawingTool } from "./drawing.ts";
 import type { FontFamily } from "./fonts.ts";
 import type { FrameGeometry } from "./frameGrab.ts";
 import type { GainPoint } from "./gain.ts";
@@ -59,7 +59,15 @@ import type { ZoomLayer } from "./zoomLayer.ts";
 export type AssetKind = "video" | "audio" | "image";
 
 /** What a file of an EdiAula recording is: the cuts of the take apply to all of them alike. */
-export const RECORDING_ROLES = ["screen", "mic", "camera", "system", "narration"] as const;
+export const RECORDING_ROLES = [
+  "screen",
+  "mic",
+  "camera",
+  "system",
+  "narration",
+  // The video of what was drawn on the screen during the take (shared/drawing.ts).
+  "drawing",
+] as const;
 export type RecordingRole = (typeof RECORDING_ROLES)[number];
 export type ProxyStatus = "none" | "pending" | "ready" | "error";
 
@@ -95,6 +103,11 @@ export interface Asset {
   generated?: "annotation" | "effect" | "still";
   /** The held frame of Estender quadro: which media and which of its seconds it shows. */
   still?: { assetId: string; t: number };
+  /**
+   * The video of a take's drawing (generated "annotation"): its strokes and boards, in the
+   * video's own seconds (shared/drawing.ts). Kept here once; its clips show stretches of it.
+   */
+  drawing?: Drawing;
   /** Sheet of small pictures along the video, for the clips on the timeline (main/ffmpeg.ts). */
   filmstrip?: Filmstrip;
   /** Cursor data (CursorData JSON) of a screen recording made in EdiAula; the video has no pointer. */
@@ -325,6 +338,11 @@ export interface Clip {
   denoise?: boolean;
   /** Position, size, crop and opacity in the frame; absent = fit to the frame. */
   transform?: Transform;
+  /**
+   * The place the clip had before "Lado a lado" put it beside the camera (null: fit to the
+   * frame), to go back to when the camera leaves that framing.
+   */
+  besideFrom?: Transform | null;
   /** Seconds of the entrance and exit animations (a dissolve unless enter/exit say otherwise). */
   fadeIn?: number;
   fadeOut?: number;
@@ -819,10 +837,18 @@ export interface EdiAulaApi {
   /** The video of a drawing made on the screen during a take (main/drawingVideo.ts). */
   drawingVideo: {
     cached(id: string): Promise<{ path: string; size: number } | null>;
+    /** Resolves once a slot of the background work is free. `fps` is a whole number. */
     begin(jobId: string, id: string, width: number, height: number, fps: number): Promise<void>;
-    /** `frames` holds `counts.length` RGBA frames back to back; frame k is written counts[k] times. */
-    frames(jobId: string, frames: Uint8Array, counts: number[]): Promise<void>;
-    end(jobId: string): Promise<{ path: string; size: number }>;
+    /** Which of these pictures (SHA-256 of what they show) are not made yet. */
+    missing(jobId: string, keys: string[]): Promise<string[]>;
+    /** One picture as a PNG of the video's size. */
+    frame(jobId: string, key: string, png: Uint8Array): Promise<void>;
+    /** The video: [picture, first frame] in order from frame 0, `total` frames in all. */
+    end(
+      jobId: string,
+      frames: [string, number][],
+      total: number,
+    ): Promise<{ path: string; size: number }>;
     cancel(jobId: string): Promise<void>;
   };
   cursorSprite: {
@@ -921,7 +947,8 @@ export interface EdiAulaApi {
         regionDip?: { x: number; y: number; width: number; height: number };
       },
     ): Promise<void>;
-    start(): Promise<void>;
+    /** `systemFallback`: the native capture of the computer's sound did not open. */
+    start(): Promise<{ systemFallback: boolean }>;
     /**
      * How the computer's sound is recorded here: "native" leaves out every sound of the app
      * (Windows 10 2004 or newer); "chromium" sends it from this window with systemChunk.

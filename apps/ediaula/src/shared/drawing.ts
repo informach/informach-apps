@@ -6,9 +6,10 @@ import type { Clip } from "./types.ts";
  * Drawing on the screen during a take (Ctrl+Shift+D by default). The strokes are drawn on the
  * recorder window, which never appears in the capture, and are kept as data: the session journal
  * has each stroke with its time and points, the finished take hands them over in seconds of the
- * take, and the import makes annotation clips from them, aligned with the screen. The clip's
- * picture is a video drawn frame by frame from these strokes (the stroke appears as it was made),
- * so the preview and the export show the same thing.
+ * take, and the import makes annotation clips from them, aligned with the screen. The drawing is
+ * kept once, on the media of its video (Asset.drawing); each clip shows a stretch of that video,
+ * drawn frame by frame from the strokes (the stroke appears as it was made), so the preview and
+ * the export show the same thing.
  *
  * In the drawing mode a board can go over the recorded region, white or black, to explain
  * something (the screen goes on being recorded underneath): each stretch with a board becomes a
@@ -20,7 +21,7 @@ export const DRAWING_TOOLS = ["pen", "marker", "arrow"] as const;
 export type DrawingTool = (typeof DRAWING_TOOLS)[number];
 
 export interface DrawingStroke {
-  /** Seconds when the stroke started (of the take, or of the drawing clip's own source). */
+  /** Seconds when the stroke started (of the take, or of the drawing's own video). */
   t: number;
   color: string;
   /** Thickness in pixels of a frame 1080 pixels tall. */
@@ -68,6 +69,11 @@ export interface Drawing {
 export const MAX_STROKE_POINTS = 4000;
 /** Most strokes in a take. */
 export const MAX_STROKES = 5000;
+/**
+ * Most points of a take's drawing, all strokes together: the drawing lives in the project file
+ * (Asset.drawing), which has to stay small enough to save. Past it every stroke is thinned alike.
+ */
+export const MAX_DRAWING_POINTS = 100_000;
 /** Thicknesses offered while drawing, pixels of a 1080-pixel frame. */
 export const DRAWING_WIDTHS = [4, 8, 14] as const;
 
@@ -99,8 +105,21 @@ const clearAfter = (d: Drawing, t: number): number | undefined =>
     .sort((a, b) => a - b)[0];
 
 /** When a stroke stops showing: undone, wiped, or never (Infinity). */
-const strokeGone = (d: Drawing, s: DrawingStroke): number =>
+export const strokeGone = (d: Drawing, s: DrawingStroke): number =>
   Math.min(s.until ?? Number.POSITIVE_INFINITY, clearAfter(d, s.t) ?? Number.POSITIVE_INFINITY);
+
+/**
+ * The strokes on screen at some moment of [from, to) (the drawing's own seconds), by index, in
+ * the order they were made: begun before `to`, and not yet undone or wiped (by "apagar tudo", a
+ * new page, a board going up or away) at `from`.
+ */
+export function strokesIn(d: Drawing, from: number, to: number): number[] {
+  const out: number[] = [];
+  d.strokes.forEach((s, i) => {
+    if (s.t < to && Math.max(strokeGone(d, s), strokeEnd(s)) > from) out.push(i);
+  });
+  return out;
+}
 
 /**
  * Where a drawing is on screen, in its own seconds: from its first stroke or board to the moment
@@ -117,25 +136,75 @@ export function drawingSpan(d: Drawing, duration: number): [number, number] | nu
   return end > start ? [start, end] : null;
 }
 
-/** The drawing with its times moved by `by` seconds (to the clip's own source seconds). */
-export const shiftDrawing = (d: Drawing, by: number): Drawing => ({
-  ...d,
-  strokes: d.strokes.map((s) => ({
-    ...s,
-    t: round(s.t + by),
-    ...(s.until !== undefined ? { until: round(s.until + by) } : {}),
-  })),
-  clears: d.clears.map((c) => round(c + by)),
-  ...(d.boards
-    ? {
-        boards: d.boards.map((b) => ({ ...b, start: round(b.start + by), end: round(b.end + by) })),
-      }
-    : {}),
-  ...(d.pages ? { pages: d.pages.map((p) => round(p + by)) } : {}),
-  ...(d.pointer ? { pointer: { ...d.pointer, offset: round(d.pointer.offset - by) } } : {}),
-});
-
 const round = (v: number): number => Math.round(v * 1000) / 1000;
+const fine = (v: number): number => Math.round(v * 1e4) / 1e4;
+
+/**
+ * The drawing with its times moved by `by` seconds (to the video's own seconds). Nothing goes
+ * before 0: a moment that would is the start, and a wipe that would (an "apagar tudo" before
+ * anything was drawn) is dropped, since it takes nothing away.
+ */
+export function shiftDrawing(d: Drawing, by: number): Drawing {
+  const at = (v: number): number => Math.max(0, round(v + by));
+  const kept = (list: readonly number[]): number[] => list.filter((c) => round(c + by) > 0).map(at);
+  return {
+    ...d,
+    strokes: d.strokes.map((s) => {
+      const t = at(s.t);
+      return { ...s, t, ...(s.until !== undefined ? { until: Math.max(t, at(s.until)) } : {}) };
+    }),
+    clears: kept(d.clears),
+    ...(d.boards
+      ? {
+          boards: d.boards.map((b) => {
+            const start = at(b.start);
+            return { ...b, start, end: Math.max(start, at(b.end)) };
+          }),
+        }
+      : {}),
+    ...(d.pages ? { pages: kept(d.pages) } : {}),
+    ...(d.pointer ? { pointer: { ...d.pointer, offset: round(d.pointer.offset - by) } } : {}),
+  };
+}
+
+/** A drawing read from a project, made sound: nothing before 0, nothing undone before it began. */
+export const sanitizeDrawing = (d: Drawing): Drawing => shiftDrawing(d, 0);
+
+/**
+ * A take's drawing held to the limits of the project file: at most MAX_STROKES strokes (the
+ * first ones), at most MAX_DRAWING_POINTS points in all (every stroke thinned alike, never below
+ * its two ends), positions to ten-thousandths of the frame and times to milliseconds. `cut` says
+ * what was left out, for a warning.
+ */
+export function limitDrawing(d: Drawing): {
+  drawing: Drawing;
+  cut: { strokes: number; thinned: boolean };
+} {
+  const strokes = [...d.strokes].sort((a, b) => a.t - b.t).slice(0, MAX_STROKES);
+  const total = strokes.reduce((n, s) => n + s.points.length, 0);
+  const share = total > MAX_DRAWING_POINTS ? MAX_DRAWING_POINTS / total : 1;
+  const limited = strokes.map((s) => ({
+    ...s,
+    t: round(s.t),
+    ...(s.until !== undefined ? { until: round(s.until) } : {}),
+    points: thinPoints(
+      s.points,
+      Math.min(MAX_STROKE_POINTS, Math.max(2, Math.floor(s.points.length * share))),
+    ).map(([x, y, t]): [number, number, number] => [fine(x), fine(y), round(t)]),
+  }));
+  const boards = d.boards?.slice(0, MAX_STROKES);
+  const pages = d.pages?.slice(0, MAX_STROKES).map(round);
+  return {
+    drawing: {
+      ...d,
+      strokes: limited,
+      clears: d.clears.slice(0, MAX_STROKES).map(round),
+      ...(boards ? { boards } : {}),
+      ...(pages ? { pages } : {}),
+    },
+    cut: { strokes: d.strokes.length - strokes.length, thinned: share < 1 },
+  };
+}
 
 /** One stroke as it shows at a moment: its points so far, the last one part of the way. */
 export interface VisibleStroke {
@@ -150,9 +219,9 @@ export function boardAt(d: Drawing, t: number): DrawingBoard | null {
   return (d.boards ?? []).find((b) => t >= b.start && t < b.end) ?? null;
 }
 
-/** What is on screen at second `t`: every stroke begun and not taken away, drawn up to `t`. */
-export function drawingAt(d: Drawing, t: number): VisibleStroke[] {
-  const out: VisibleStroke[] = [];
+/** The strokes on screen at `t`, each with what of it shows. */
+function visibleAt(d: Drawing, t: number): { stroke: DrawingStroke; shown: VisibleStroke }[] {
+  const out: { stroke: DrawingStroke; shown: VisibleStroke }[] = [];
   const gone = wipes(d);
   for (const s of d.strokes) {
     if (s.t > t) continue;
@@ -175,23 +244,94 @@ export function drawingAt(d: Drawing, t: number): VisibleStroke[] {
       break;
     }
     if (points.length)
-      out.push({ color: s.color, width: s.width, points, ...(s.tool ? { tool: s.tool } : {}) });
+      out.push({
+        stroke: s,
+        shown: { color: s.color, width: s.width, points, ...(s.tool ? { tool: s.tool } : {}) },
+      });
   }
   return out;
 }
 
+/** What is on screen at second `t`: every stroke begun and not taken away, drawn up to `t`. */
+export function drawingAt(d: Drawing, t: number): VisibleStroke[] {
+  return visibleAt(d, t).map((v) => v.shown);
+}
+
 /**
- * A key that changes exactly when the picture of `drawingAt` (and the board) changes, so a frame
- * equal to the one before is drawn once and repeated (the drawing stands still most of the time).
+ * The picture of the drawing at second `t`, as text: equal keys are equal pictures, at any time
+ * and in any drawing (each stroke is named by its start, look and first point, then by how much
+ * of it shows). Frames are drawn once per key and kept by it, so a stroke taken out in the
+ * editor redraws only the frames it was in.
  */
 export function drawingFrameKey(d: Drawing, t: number): string {
   const board = boardAt(d, t);
-  return `${board ? board.color : "-"}#${drawingAt(d, t)
-    .map((s) => {
-      const last = s.points.at(-1);
-      return `${s.points.length}:${last ? `${last[0].toFixed(4)},${last[1].toFixed(4)}` : ""}`;
+  return `${board ? board.color : "-"}#${visibleAt(d, t)
+    .map(({ stroke: s, shown }) => {
+      const first = s.points[0];
+      const last = shown.points.at(-1);
+      const look = `${s.t}/${s.color}/${s.width}/${s.tool ?? "pen"}/${first[0]},${first[1]}`;
+      return `${look}:${shown.points.length}:${last ? `${last[0].toFixed(4)},${last[1].toFixed(4)}` : ""}`;
     })
     .join("|")}`;
+}
+
+/**
+ * The frames of a drawing's video (its own seconds, `frames` of them at `fps`) where the
+ * picture may change: every frame while a stroke is being drawn or while `live` says so (the
+ * pointer over a board), and the first frame at or after each moment something appears or goes.
+ * The frames in between repeat the one before them.
+ */
+export function drawingChangeFrames(
+  d: Drawing,
+  fps: number,
+  frames: number,
+  live: readonly [number, number][] = [],
+): number[] {
+  const out = new Set<number>([0]);
+  const first = (t: number): number => Math.max(0, Math.ceil(t * fps - 1e-6));
+  const add = (i: number): void => {
+    if (i < frames) out.add(i);
+  };
+  const span = (a: number, b: number): void => {
+    const to = Math.min(frames - 1, first(b));
+    for (let i = first(a); i <= to; i++) out.add(i);
+  };
+  for (const s of d.strokes) {
+    span(s.t, strokeEnd(s));
+    if (s.until !== undefined) add(first(s.until));
+  }
+  for (const t of wipes(d)) add(first(t));
+  for (const [a, b] of live) span(a, b);
+  return [...out].sort((a, b) => a - b);
+}
+
+/**
+ * FFmpeg's concat list of a drawing's video (main/drawingVideo.ts): each picture from its first
+ * frame until the next one, `total` frames in all at `fps` (a whole number, so every time lands
+ * on a frame). The last picture is listed twice, its last frame on its own: FFmpeg ignores the
+ * duration of the last entry, and the video must last to its end.
+ */
+export function drawingConcat(
+  pictures: readonly { path: string; at: number }[],
+  total: number,
+  fps: number,
+): string {
+  const quoted = (p: string): string => `'${p.replace(/\\/g, "/").replace(/'/g, "'\\''")}'`;
+  const lines = ["ffconcat version 1.0"];
+  const entry = (path: string, frames: number): void => {
+    lines.push(`file ${quoted(path)}`, `option framerate ${fps}`);
+    lines.push(`duration ${(frames / fps).toFixed(6)}`);
+  };
+  pictures.forEach((p, i) => {
+    const next = i + 1 < pictures.length ? pictures[i + 1].at : total;
+    const frames = Math.max(1, next - p.at);
+    if (i + 1 < pictures.length || frames === 1) entry(p.path, frames);
+    else {
+      entry(p.path, frames - 1);
+      entry(p.path, 1);
+    }
+  });
+  return `${lines.join("\n")}\n`;
 }
 
 /**
@@ -214,11 +354,7 @@ export function drawingParts(
     parts.push({ from, to, kind: boardAt(d, (from + to) / 2) ? "board" : "drawing" });
   }
   // Stretches without a board and without a stroke on screen show nothing: no clip for them.
-  return parts.filter(
-    (p) =>
-      p.kind === "board" ||
-      d.strokes.some((s) => s.t < p.to && Math.max(strokeGone(d, s), strokeEnd(s)) > p.from),
-  );
+  return parts.filter((p) => p.kind === "board" || strokesIn(d, p.from, p.to).length > 0);
 }
 
 /** The drawing without stroke `index` (the editor takes one out). */
@@ -236,7 +372,7 @@ export const withBoardColor = (d: Drawing, t: number, color: string): Drawing =>
 /**
  * The drawing clips of a take: one per kept stretch of the take that the drawing covers, on
  * `trackId`, laid like the screen of that stretch. The drawing's video starts at take second
- * `span[0]`; each clip shows its part of it.
+ * `span[0]`; each clip shows its part of it, and `screen` is the screen clip it lies over.
  */
 export function drawingClips(
   pieces: readonly Pick<RecordingPieceLayout, "from" | "to" | "start" | "screen">[],
@@ -244,22 +380,25 @@ export function drawingClips(
   assetId: string,
   trackId: string,
   newId: () => string,
-): Clip[] {
-  const clips: Clip[] = [];
+): { clip: Clip; screen?: string }[] {
+  const clips: { clip: Clip; screen?: string }[] = [];
   for (const piece of pieces) {
     const a = Math.max(piece.from, span[0]);
     const b = Math.min(piece.to, span[1]);
     if (b - a < 1 / 30) continue;
     const screen = piece.screen[0];
     clips.push({
-      id: newId(),
-      assetId,
-      trackId,
-      start: piece.start + (a - piece.from),
-      in: a - span[0],
-      duration: b - a,
-      volume: 0,
-      ...(screen?.transform ? { transform: { ...screen.transform } } : {}),
+      clip: {
+        id: newId(),
+        assetId,
+        trackId,
+        start: piece.start + (a - piece.from),
+        in: a - span[0],
+        duration: b - a,
+        volume: 0,
+        ...(screen?.transform ? { transform: { ...screen.transform } } : {}),
+      },
+      ...(screen ? { screen: screen.id } : {}),
     });
   }
   return clips;
@@ -294,7 +433,8 @@ export function drawingVideoSize(width: number, height: number): { width: number
 /**
  * The clips of a take's drawing, one per part of it (shared/drawing.ts drawingParts) and per kept
  * stretch of the take it falls in, on `trackId`, laid like the screen of that stretch. The
- * drawing's video starts at take second `span[0]`; each clip shows its part of it.
+ * drawing's video starts at take second `span[0]`; each clip shows its part of it, and `screen`
+ * is the screen clip it lies over (they go together, as one group).
  */
 export function drawingPartClips(
   pieces: readonly Pick<RecordingPieceLayout, "from" | "to" | "start" | "screen">[],
@@ -303,16 +443,46 @@ export function drawingPartClips(
   assetId: string,
   trackId: string,
   newId: () => string,
-): { clip: Clip; kind: "drawing" | "board" }[] {
-  const out: { clip: Clip; kind: "drawing" | "board" }[] = [];
+): { clip: Clip; kind: "drawing" | "board"; screen?: string }[] {
+  const out: { clip: Clip; kind: "drawing" | "board"; screen?: string }[] = [];
   for (const part of parts)
-    for (const clip of drawingClips(
+    for (const { clip, screen } of drawingClips(
       pieces,
       [span[0] + part.from, span[0] + part.to],
       assetId,
       trackId,
       newId,
     ))
-      out.push({ clip: { ...clip, in: clip.in + part.from }, kind: part.kind });
+      out.push({
+        clip: { ...clip, in: clip.in + part.from },
+        kind: part.kind,
+        ...(screen ? { screen } : {}),
+      });
   return out;
+}
+
+/**
+ * The drawing clips placed with the take: each joins the group of the screen clip it lies over
+ * (a new group when that clip has none), so moving, trimming at the same edge or packing a
+ * magnetic track carries them along with the screen.
+ */
+export function groupWithScreens(
+  clips: readonly Clip[],
+  placed: readonly { clip: Clip; screen?: string }[],
+  newGroup: () => string,
+): { clips: Clip[]; placed: Clip[] } {
+  const groups = new Map<string, string>();
+  const next = clips.map((c) => {
+    if (!placed.some((p) => p.screen === c.id)) return c;
+    const groupId = c.groupId ?? newGroup();
+    groups.set(c.id, groupId);
+    return c.groupId ? c : { ...c, groupId };
+  });
+  return {
+    clips: next,
+    placed: placed.map(({ clip, screen }) => {
+      const groupId = screen ? groups.get(screen) : undefined;
+      return groupId ? { ...clip, groupId } : clip;
+    }),
+  };
 }

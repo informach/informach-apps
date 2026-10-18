@@ -104,6 +104,21 @@ export function DrawLayer({
   const strokes = useRef<LiveStroke[]>([]);
   const current = useRef<LiveStroke | null>(null);
   const offset = useRef<number | null>(null);
+  /**
+   * What was drawn before the clock was measured (the first moments after turning drawing on):
+   * sent once it is, each at its own moment.
+   */
+  const pending = useRef<((offset: number) => void)[]>([]);
+  const measuring = useRef(false);
+  const exit = useRef(onExit);
+  exit.current = onExit;
+  /** Sends `send` with the main process's clock at this moment (QPC ms), now or once it is known. */
+  const stamp = useCallback((send: (qpc: number) => void): void => {
+    const now = performance.now();
+    const o = offset.current;
+    if (o !== null) send(now + o);
+    else pending.current.push((known) => send(now + known));
+  }, []);
   const canvas = useRef<HTMLCanvasElement>(null);
   const boardRef = useRef(board);
   boardRef.current = board;
@@ -146,11 +161,10 @@ export function DrawLayer({
     (next: BoardKind | null): void => {
       const before = boardRef.current;
       if (before === next) return;
-      const at = offset.current === null ? null : performance.now() + offset.current;
-      if (at !== null) {
+      stamp((at) => {
         if (before) void window.api.recorder.drawBoard(false, before, at);
         if (next) void window.api.recorder.drawBoard(true, next, at);
-      }
+      });
       boardRef.current = next;
       setBoard(next);
       setColor(inkFor(next));
@@ -159,17 +173,32 @@ export function DrawLayer({
       current.current = null;
       paint();
     },
-    [inkFor, paint],
+    [inkFor, paint, stamp],
   );
 
   // The clock is measured when drawing is turned on, before the first stroke needs it; leaving
   // the drawing takes the board away.
   useEffect(() => {
     drawing.on = on;
-    if (on && offset.current === null)
-      void measureOffset().then((o) => {
-        offset.current = o;
-      });
+    if (on && offset.current === null && !measuring.current) {
+      measuring.current = true;
+      void measureOffset()
+        .then(
+          (o) => {
+            offset.current = o;
+            for (const send of pending.current.splice(0)) send(o);
+          },
+          (error: unknown) => {
+            // Without the clock nothing drawn could be placed in the take: drawing stops.
+            pending.current = [];
+            console.warn("[recorder] relógio do desenho:", error);
+            exit.current();
+          },
+        )
+        .finally(() => {
+          measuring.current = false;
+        });
+    }
     if (!on) switchBoard(null);
     return () => {
       drawing.on = false;
@@ -224,43 +253,43 @@ export function DrawLayer({
     if (!s) return;
     strokes.current.push(s);
     paint();
-    const o = offset.current;
-    if (o === null) return;
     const points = new Float32Array(s.points.length * 3);
     for (const [i, p] of s.points.entries()) points.set(p, i * 3);
-    void window.api.recorder
-      .drawStroke({
-        at: s.start + o,
-        color: s.color,
-        width: s.width,
-        points,
-        ...(s.tool !== "pen" ? { tool: s.tool } : {}),
-      })
-      .catch((error: unknown) => console.warn("[recorder] traço do desenho:", error));
+    const send = (o: number): void =>
+      void window.api.recorder
+        .drawStroke({
+          at: s.start + o,
+          color: s.color,
+          width: s.width,
+          points,
+          ...(s.tool !== "pen" ? { tool: s.tool } : {}),
+        })
+        .catch((error: unknown) => console.warn("[recorder] traço do desenho:", error));
+    // The stroke has its own start: only the clock may still be on its way.
+    const o = offset.current;
+    if (o !== null) send(o);
+    else pending.current.push(send);
   };
   const clear = useCallback((): void => {
     strokes.current = [];
     current.current = null;
     paint();
-    const t = offset.current === null ? null : performance.now() + offset.current;
-    if (t !== null) void window.api.recorder.drawClear(t);
-  }, [paint]);
+    stamp((t) => void window.api.recorder.drawClear(t));
+  }, [paint, stamp]);
   /** "Página nova": the board stays, the strokes on it go. */
   const newPage = useCallback((): void => {
     if (!boardRef.current) return;
     strokes.current = [];
     current.current = null;
     paint();
-    const t = offset.current === null ? null : performance.now() + offset.current;
-    if (t !== null) void window.api.recorder.drawPage(t);
-  }, [paint]);
+    stamp((t) => void window.api.recorder.drawPage(t));
+  }, [paint, stamp]);
   const undo = useCallback((): void => {
     if (current.current || !strokes.current.length) return;
     strokes.current.pop();
     paint();
-    const t = offset.current === null ? null : performance.now() + offset.current;
-    if (t !== null) void window.api.recorder.drawUndo(t);
-  }, [paint]);
+    stamp((t) => void window.api.recorder.drawUndo(t));
+  }, [paint, stamp]);
 
   // The board's keys, with the recorder window in focus.
   useEffect(() => {

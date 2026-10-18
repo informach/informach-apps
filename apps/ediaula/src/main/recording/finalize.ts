@@ -153,7 +153,24 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
   let systemAudio: string | undefined;
   let systemParts: RecordingPiece[] | undefined;
   const system = parts.system[0];
-  if (system) {
+  // More than one part: the native capture, closed by a long pause and opened again on resume
+  // (each part on the shared clock, like the microphone's).
+  const systemList = parts.system.length > 1 ? parts.system : system ? [system] : [];
+  if (system && systemList.length > 1) {
+    if (await roomFor(dir, systemList)) {
+      systemAudio = join(dir, "sistema.m4a");
+      await alignAudio(systemList, segments, systemAudio);
+      outputs.push({
+        path: systemAudio,
+        expected: duration,
+        parts: systemList.map((p) => p.path),
+        label: "O áudio do PC",
+      });
+    } else {
+      systemParts = placeParts(systemList, segments, offsets);
+      warnings.push("Faltou espaço para alinhar o áudio do PC: ele ficou como foi gravado.");
+    }
+  } else if (system) {
     const expected = system.end !== undefined ? (system.end - system.qpc) / 1000 : null;
     let tempo: number | undefined;
     let length = system.duration;
@@ -267,7 +284,7 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
         }
       : {};
   const lines = replay.lines.map((l) => ({ t: momentInTake(segments, l.qpc), index: l.index }));
-  const drawing = drawingInTake(replay, segments);
+  const drawing = drawingInTake(replay, segments, warnings);
   const over =
     replay.begin.mode === "over" && replay.begin.over
       ? {

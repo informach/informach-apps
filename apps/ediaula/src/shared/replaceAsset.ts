@@ -158,13 +158,18 @@ export function replaceAsset(
     if (old.cursorMissing) asset.cursorMissing = true;
   } else if (!next.cursor && old.cursor)
     warnings.push("O cursor gravado não acompanha o arquivo novo, que fica sem ele.");
-  // How the pointer is drawn stays; the hand-drawn paths follow the new timing.
+  // How the pointer is drawn stays; the hand-drawn paths and the stretches of effects follow
+  // the new timing.
   if (old.cursorFx && asset.cursor) {
     const points = (list: CursorPoint[]): CursorPoint[] =>
       list.map((pt) => ({ ...pt, t: f(pt.t) }));
+    const ranges = old.cursorFx.ranges
+      ?.map((r) => ({ ...r, start: f(r.start), end: f(r.end) }))
+      .filter((r) => r.end > r.start && r.start < length);
     asset.cursorFx = {
       ...old.cursorFx,
       ...(old.cursorFx.path ? { path: points(old.cursorFx.path) } : {}),
+      ...(ranges ? { ranges } : {}),
       ...(old.cursorFx.pathEdits
         ? {
             pathEdits: old.cursorFx.pathEdits.map((e) => ({
@@ -217,11 +222,28 @@ export function replaceAsset(
       duration: Math.min(c.duration, (length - from) / speed),
     });
   }
+  // What was drawn on the screen over the old file: the pen's tip over the boards follows the
+  // new one (on its clock) when it has the pointer; the strokes stay where they were drawn.
+  const drawnOver = p.assets.filter((a) => a.drawing?.pointer?.assetId === oldId);
+  if (drawnOver.length && map)
+    warnings.push(
+      "O desenho feito na tela durante a gravação não acompanha as falas do arquivo novo: confira se os traços ainda caem no lugar certo da tela.",
+    );
   const assets = p.assets
     .filter((a) => a.id !== oldId)
-    .map((a) =>
-      a.still?.assetId === oldId ? { ...a, still: { ...a.still, assetId: asset.id } } : a,
-    );
+    .map((a) => {
+      const pointer = a.drawing?.pointer;
+      if (a.drawing && pointer?.assetId === oldId) {
+        const { pointer: _old, ...drawing } = a.drawing;
+        return {
+          ...a,
+          drawing: asset.cursor
+            ? { ...drawing, pointer: { assetId: asset.id, offset: f(pointer.offset) } }
+            : drawing,
+        };
+      }
+      return a.still?.assetId === oldId ? { ...a, still: { ...a.still, assetId: asset.id } } : a;
+    });
   let project: Project = {
     ...p,
     assets: [...assets, asset],
