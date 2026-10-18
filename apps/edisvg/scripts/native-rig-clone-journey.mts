@@ -107,6 +107,9 @@ export async function verifyNativeRigClone(
     console.log(
       "Verified native UI trim authoring/duplication, distinct controllers, actual Testar geometry and reversible draft edits",
     );
+  } catch (error) {
+    console.error("Native rig clone journey failed before cleanup:", error);
+    throw error;
   } finally {
     const testing = page.getByRole("dialog", { name: "Testar interação", exact: true });
     if (await testing.count())
