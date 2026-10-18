@@ -1,4 +1,11 @@
-/** Screen recording made by EdiAula: sources, options, and the cursor data saved beside the video. */
+import type { CameraChoice } from "./camera.ts";
+import type { Drawing } from "./drawing.ts";
+import type { CaptureQuality } from "./encoderChoice.ts";
+import type { GuidedReplace, GuidedStore } from "./guidedPlan.ts";
+import type { SystemAudioRoute } from "./systemAudio.ts";
+import type { VoiceSegment } from "./voiceMaster.ts";
+
+/** Screen recording made by EdiAula: sources, options, and what a finished take hands over. */
 
 export interface CaptureMonitor {
   /** Order reported by Windows. */
@@ -16,6 +23,20 @@ export interface CaptureMonitor {
   dip?: { x: number; y: number; width: number; height: number };
 }
 
+/** A window "Janela…" can record: physical pixels of the virtual desktop. */
+export interface CaptureWindow {
+  /** Window handle as decimal text (the helper's `follow` and `front` take it). */
+  hwnd: string;
+  title: string;
+  /** Executable path, when Windows tells it. */
+  exe: string | null;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  minimized: boolean;
+}
+
 export interface CaptureSources {
   monitors: CaptureMonitor[];
   microphones: string[];
@@ -23,25 +44,135 @@ export interface CaptureSources {
 }
 
 export interface RecordOptions {
-  monitor: number;
+  /** Monitor to record; absent for a take without the screen (voice only). */
+  monitor?: number;
   /** Part of the monitor to record, physical pixels relative to its top-left; absent = whole monitor. */
   region?: { x: number; y: number; width: number; height: number };
   microphone?: string;
   camera?: string;
+  /** Webcam input mode (shared/camera.ts); absent = the device's default. */
+  cameraMode?: CameraChoice;
+  /** Milliseconds between a webcam frame being taken and FFmpeg receiving it. */
+  cameraLatency?: number;
   /** Log shortcut and navigation keys to show them on screen (never plain typing). */
   keys?: boolean;
   fps: number;
+  quality?: CaptureQuality;
+  /** Record the computer's sound (shared/systemAudio.ts). */
+  systemAudio?: boolean;
+  /**
+   * "native": the helper captures it without any sound of the app (sistema-0.wav);
+   * "chromium" (default): the recorder window sends it in chunks (recorder:systemChunk).
+   */
+  systemAudioRoute?: SystemAudioRoute;
+  /** "voice": only the microphone, kept as PCM; "voicecam": the same voice with the camera
+   *  recording the presenter beside it; "over": the screen over the lesson's voice. */
+  mode?: RecordMode;
+  /** "Só voz": the teleprompter follows the voice (a 16 kHz copy goes to the recognizer). */
+  follow?: boolean;
+  /** "Tela sobre a narração": where on the timeline the voice starts playing and, to redo the
+   *  screen in a stretch, where that stretch ends. */
+  over?: OverPlan;
+}
+
+export const RECORD_MODES = ["screen", "voice", "voicecam", "over"] as const;
+export type RecordMode = (typeof RECORD_MODES)[number];
+
+/** "Só voz" and "Voz e câmera": the voice kept as PCM, read line by line, without the screen. */
+export const isVoiceMode = (mode: RecordMode | undefined): boolean =>
+  mode === "voice" || mode === "voicecam";
+
+export interface OverPlan {
+  /** Timeline seconds the voice is played from. */
+  from: number;
+  /** Redo the screen only up to here (seconds of the timeline). */
+  to?: number;
+  /** Replace what the screen track has in [from, to]. */
+  replace?: boolean;
 }
 
 export type MarkerKind = "marker" | "retake";
 
-/** State pushed from the main process to the recorder window. */
-export interface RecorderState {
-  phase: "setup" | "countdown" | "recording" | "paused" | "saving";
-  /** Seconds recorded so far (excluding pauses). */
-  elapsed: number;
-  markers: number;
-  error?: string;
+/** What the editor hands the recorder when it opens it (main/recorderWindow.ts keeps it). */
+export interface RecorderContext {
+  /** Teleprompter paragraphs: the speech lines of the project's script section, in order. */
+  teleprompter: { speaker: string; text: string; avatar: boolean; insertId?: string }[];
+  title?: string;
+  /** "Na tela" directions of the section, each before the teleprompter line `before`. */
+  screenNotes?: { before: number; text: string }[];
+  /** The mode to open in ("Tela sobre a narração" from the timeline). */
+  mode?: RecordMode;
+  /** "Tela sobre a narração": the lesson's voice, as the editor has it now. */
+  over?: OverContext;
+  /** The open lesson: its guided plans are saved there (and as a draft against a crash). */
+  projectId?: string;
+  guided?: GuidedStore;
+  /** "Regravar e substituir": this media's guided take is recorded again with its plan. */
+  guidedReplace?: GuidedReplace;
+  /**
+   * "Regravar falas": the recorder opens in "Só voz" with only these teleprompter lines (indexes
+   * of `teleprompter`), the ones missing from the lesson or only partly in it, one take each.
+   */
+  retakeLines?: number[];
+  /** The open lesson's frame: the "Resolução da aula" region preset. */
+  lesson?: { width: number; height: number; fps: number };
+  /** The lesson's palette colors (#RRGGBB), for drawing on the screen. */
+  palette?: string[];
+}
+
+/** What the recorder needs to play the lesson's voice and show it while the screen is recorded. */
+export interface OverContext extends OverPlan {
+  /** Where the voice ends on the timeline. */
+  end: number;
+  /** The voice track as segments to render (shared/voiceMaster.ts voiceSegments). */
+  segments: VoiceSegment[];
+  /** Words of the voice at their timeline seconds, for the karaoke. */
+  words: { t: number; end: number; text: string }[];
+  /** "Na tela" directions at the timeline second they apply from. */
+  cues: { t: number; text: string }[];
+}
+
+/** Default frame rate of screen recordings. */
+export const RECORDING_FPS = 30;
+
+/** What a recording session is doing (main/recording/session.ts). */
+export const RECORDER_PHASES = [
+  "prepared",
+  "recording",
+  "paused",
+  "failed",
+  "stopping",
+  "finalized",
+] as const;
+export type RecorderPhase = (typeof RECORDER_PHASES)[number];
+
+/** Each source is its own process: one failing leaves the others recording. */
+export const CAPTURE_SOURCES = ["screen", "mic", "camera", "system", "cursor"] as const;
+export type CaptureSource = (typeof CAPTURE_SOURCES)[number];
+
+/** State pushed from the main process to the recorder and to the editor window. */
+export interface RecorderStatus {
+  /** null: no session (the recorder is being set up or was closed). */
+  phase: RecorderPhase | null;
+  /** Sources whose process stopped: the take is paused until they reopen. */
+  failed: CaptureSource[];
+  /** The pause closed some sources (a long pause, a full disk); resuming opens new parts. */
+  closed: boolean;
+  /** Sources are opening again right now. */
+  reopening: boolean;
+  /** Editor window only: background work and the next export wait for the take. */
+  holdBackground?: boolean;
+}
+
+/** Something the teacher has to know right away, with what can be done about it. */
+export interface RecorderEvent {
+  source: CaptureSource | "disk" | "machine";
+  level: "error" | "warning" | "info";
+  message: string;
+  /** "resume" reopens what failed and goes on; "stop" saves what was recorded. */
+  actions: ("resume" | "stop")[];
+  /** The recorder window has to stop and save now (the disk is full). */
+  request?: "stop";
 }
 
 export const CURSOR_SHAPES = [
@@ -61,26 +192,6 @@ export const CURSOR_SHAPES = [
   "hidden",
 ] as const;
 export type CursorShape = (typeof CURSOR_SHAPES)[number];
-
-/**
- * Cursor movements and clicks of a recording, in seconds of the video and pixels of the video
- * frame (so they follow the video through cuts, crops and zooms).
- */
-export interface CursorData {
-  version: 1;
-  width: number;
-  height: number;
-  /** [t, x, y, shape index into CURSOR_SHAPES] */
-  moves: [number, number, number, number][];
-  /** [t, x, y, button (0 left, 1 right, 2 middle), seconds held] */
-  clicks: [number, number, number, number, number][];
-  /** [t, x, y, wheel delta] */
-  wheel: [number, number, number, number][];
-  /** F9/Ctrl+M markers and Ctrl+R retakes, video seconds. */
-  markers: { t: number; kind: MarkerKind }[];
-  /** Shortcut and navigation keys pressed: [t, label] (e.g. "Ctrl+C", "→"). */
-  keys?: [number, string][];
-}
 
 const KEY_NAMES: Record<number, string> = {
   8: "⌫",
@@ -147,22 +258,93 @@ export function keyPills(keys: [number, string][]): KeyPill[] {
   return out.map(({ start, end, label }) => ({ start, end, label }));
 }
 
-export interface RecordingResult {
-  narration?: string;
-  narrationOffset?: number;
-  dir: string;
-  screen: string;
-  camera?: string;
-  /** Sound of the computer (loopback), and where it starts relative to the screen video (seconds). */
-  systemAudio?: string;
-  systemOffset?: number;
-  cursor: string;
+/**
+ * A piece of a file placed on the recording's own clock: `at` seconds of the take, from `in`
+ * seconds of the file, for `duration` seconds.
+ */
+export interface RecordingPiece {
+  path: string;
+  at: number;
+  in: number;
   duration: number;
-  markers: { t: number; kind: MarkerKind }[];
 }
 
 /**
- * Ranges (source seconds) to cut for each Ctrl+R "redo the last passage": from the middle of the
+ * A finished take (gravacao.json). Every time is in seconds of the take's own clock, which is
+ * the screen video's (or the microphone's in a take without the screen); pauses stay in the
+ * files and become cuts when the take is imported.
+ */
+export interface RecordingResult {
+  version: 2;
+  dir: string;
+  /** The screen video, joined; absent in a take without the screen or when kept in parts. */
+  screen?: string;
+  /** cursor.json of `screen`. */
+  cursor?: string;
+  /** Screen parts left as recorded (fragmented MP4) because the disk had no room to join them;
+   *  each has its own cursor data in its own seconds. */
+  screenParts?: (RecordingPiece & { cursor: string })[];
+  /** The microphone, already lined up with the take: second 0 is the take's second 0. */
+  microphone?: string;
+  /** The microphone as recorded, placed on the take's clock, when the disk had no room to line
+   *  it up. */
+  microphoneParts?: RecordingPiece[];
+  /** The computer's sound, lined up the same way (or in parts, likewise). */
+  systemAudio?: string;
+  systemParts?: RecordingPiece[];
+  /** Webcam files as recorded, placed on the take's clock. */
+  cameraParts?: RecordingPiece[];
+  /** The guided recording's narration, and where it starts in seconds of the take without the
+   *  pauses (the time the recorder counted). */
+  narration?: string;
+  narrationOffset?: number;
+  /** The narration is the voice taken from a video: the presenter's voice. */
+  narrationFromVideo?: boolean;
+  /** guided-run.json of a guided take in the lesson window (shared/guidedCursor.ts). */
+  guidedRun?: string;
+  /** "Regravar e substituir": the screen media this take replaces (never written to disk). */
+  replaceAsset?: string;
+  duration: number;
+  /** Stretches of the take recorded while paused (or after a failure): cut on import. */
+  pauses: [number, number][];
+  markers: { t: number; kind: MarkerKind }[];
+  /** Teleprompter line shown from each moment. */
+  lines?: { t: number; index: number }[];
+  /** Strokes drawn on the screen during the take, in seconds of the take (shared/drawing.ts). */
+  drawing?: Drawing;
+  /** What kind of take this was; absent for a screen recording. */
+  mode?: Exclude<RecordMode, "screen">;
+  /** "Tela sobre a narração": the plan, and at moments of the take (`t`, seconds without the
+   *  pauses removed) which timeline second of the voice was heard (`at`). */
+  over?: OverPlan & { anchors: { t: number; at: number }[] };
+  /** The cursor helper restarted or stopped during the take: the pointer may be missing there. */
+  cursorIssues?: string[];
+  /** The chosen encoder could not start and another one recorded. */
+  encoderIssues?: string[];
+  /** Other things that went wrong and were worked around (a source that stopped, a full disk). */
+  warnings?: string[];
+}
+
+/**
+ * A take that never reached a project, found at startup: unfinished (the app or the computer
+ * went down, or finalizing failed), or finished and never imported.
+ */
+export interface OrphanTake {
+  dir: string;
+  name: string;
+  /** Date.now() when the take was prepared. */
+  startedAt: number;
+  /** Bytes of media in the folder. */
+  size: number;
+  /** About how many seconds were recorded. */
+  seconds: number;
+  sources: ("screen" | "mic" | "camera" | "system")[];
+  /** Finished, only not imported: it opens as it is, with nothing to recover. */
+  finalized: boolean;
+}
+
+/**
+ * Ranges (source seconds) to cut for each Ctrl+Shift+R "redo the last passage": from the middle of the
  * pause before the flubbed passage to the middle of the pause after the key press, where the
  * teacher starts again. `peaks` is the audio envelope (0..1) at `pps` values per second.
  */
@@ -196,6 +378,98 @@ export function retakeCuts(
     const start = before ? mid(before) : Math.max(0, m.t - 10);
     const end = after ? Math.max(mid(after), m.t) : m.t;
     if (end - start > 0.2 && end - start <= 40) cuts.push([start, end]);
+  }
+  return cuts;
+}
+
+/** A word of the voice, in seconds of the take (the microphone's own seconds). */
+export interface TakeWord {
+  start: number;
+  end: number;
+  text: string;
+}
+
+/** A word as compared: lower case, without accents or punctuation. */
+const token = (text: string): string =>
+  text
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "");
+
+/**
+ * Words said all the time (articles, prepositions, "é", "né"): two of them together match
+ * anywhere, so a pair made only of them never says where the passage was first said.
+ */
+const COMMON = new Set(
+  (
+    "a o as os um uma uns umas de da do das dos e é em no na nos nas num numa que se " +
+    "por pra para pro com sem ao aos à às eu tu ele ela nos vocês você isso isto esse essa " +
+    "aqui ali lá aí então né tá ta já mais mas ou como quando onde também muito bem vai " +
+    "vamos gente agora assim tem ter foi ser está esta"
+  )
+    .split(" ")
+    .map(token),
+);
+
+/** How far back (seconds) the passage said again is looked for. */
+const RETAKE_WINDOW = 20;
+
+/** Where a sentence ends: its last word closes it, or a long silence follows it. */
+const closes = (word: TakeWord, next: TakeWord | undefined): boolean =>
+  /[.!?…]["»”)]*$/.test(word.text.trim()) || (!!next && next.start - word.end > 0.7);
+
+/**
+ * Ranges (seconds of the take) to cut for each Ctrl+Shift+R by the words of the voice: the
+ * teacher repeats what went wrong, so before the press (up to 20 s back) it looks for the last
+ * time the first three words said after it were said, or the first two when they are not both
+ * common words; the cut goes from there to where the passage starts again. When they were not
+ * said before, it goes from the start of the sentence the press interrupted. Each edge falls in the middle of the pause beside it (at most 0.15 s into it), so
+ * no syllable is clipped. Without a transcript, retakeCuts finds the pauses by the volume.
+ */
+export function retakeCutsFromWords(
+  markers: { t: number; kind: MarkerKind }[],
+  words: readonly TakeWord[],
+): [number, number][] {
+  const list = words
+    .filter((w) => token(w.text) && w.end >= w.start)
+    .sort((a, b) => a.start - b.start);
+  const cuts: [number, number][] = [];
+  const before = (i: number): number => {
+    const w = list[i];
+    const prev = list[i - 1];
+    return prev ? Math.max(prev.end, w.start - Math.min(0.15, (w.start - prev.end) / 2)) : w.start;
+  };
+  for (const m of markers) {
+    if (m.kind !== "retake") continue;
+    // The passage said again: the first words that start after the press.
+    const again = list.findIndex((w) => w.start >= m.t);
+    if (again < 0) continue;
+    let from = -1;
+    for (const size of [3, 2]) {
+      const wanted = list.slice(again, again + size).map((w) => token(w.text));
+      if (wanted.length < size) continue;
+      if (size === 2 && wanted.every((t) => COMMON.has(t))) continue;
+      for (let j = again - size; j >= 0; j--) {
+        if (list[j].start < m.t - RETAKE_WINDOW) break;
+        if (wanted.every((t, k) => token(list[j + k].text) === t)) {
+          from = j;
+          break;
+        }
+      }
+      if (from >= 0) break;
+    }
+    if (from < 0) {
+      // The start of the sentence the press interrupted.
+      let j = again - 1;
+      while (j > 0 && !closes(list[j - 1], list[j]) && list[j - 1].start >= m.t - RETAKE_WINDOW)
+        j--;
+      from = j;
+    }
+    if (from < 0 || from >= again) continue;
+    const start = before(from);
+    const end = before(again);
+    if (end - start > 0.2 && end - start <= RETAKE_WINDOW) cuts.push([start, end]);
   }
   return cuts;
 }

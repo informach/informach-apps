@@ -1,18 +1,24 @@
 import { DEFAULT_KEY } from "@shared/chroma";
 import { newId } from "@shared/timeline";
-import type { Asset } from "@shared/types";
+import type { Asset, ProbeResult } from "@shared/types";
 import { useApp } from "@/state/app";
 import { useProject } from "@/state/project";
+import { ensureFilmstrip } from "./filmstrip";
 import { baseName } from "./format";
 
 /** Sources above this height (or not H.264) get a 720p proxy for smooth playback. */
 const PROXY_ABOVE_HEIGHT = 1080;
 
+/**
+ * Media with transparency keep it in the preview: the browser plays VP8/VP9 with alpha itself,
+ * so those are played from the original unless they are large; anything else gets a VP9 proxy
+ * with alpha, never an H.264 one.
+ */
 export function needsProxy(a: Asset, codec?: string): boolean {
-  return (
-    a.kind === "video" &&
-    (a.height > PROXY_ABOVE_HEIGHT || (!!codec && codec !== "h264") || !!a.vfr)
-  );
+  if (a.kind !== "video") return false;
+  if (a.alpha)
+    return a.height > PROXY_ABOVE_HEIGHT || (!!codec && codec !== "vp9" && codec !== "vp8");
+  return a.height > PROXY_ABOVE_HEIGHT || (!!codec && codec !== "h264") || !!a.vfr;
 }
 
 /**
@@ -50,6 +56,7 @@ export async function importMedia(paths: string[]): Promise<Asset[]> {
         hasAudio: info.hasAudio,
         size: info.size,
         vfr: info.vfr,
+        ...(info.alpha ? { alpha: true } : {}),
         proxyStatus: "none",
         ...(screen ? { screen, key: { color: screen, ...DEFAULT_KEY } } : {}),
       };
@@ -68,7 +75,8 @@ export async function importMedia(paths: string[]): Promise<Asset[]> {
   return result;
 }
 
-async function enrich(asset: Asset, codec?: string): Promise<void> {
+/** Thumbnail, waveform and, when it needs one, the proxy of a media just added or replaced. */
+export async function enrich(asset: Asset, codec?: string): Promise<void> {
   const { patchAsset } = useProject.getState();
   try {
     if (asset.kind !== "audio") {
@@ -82,7 +90,13 @@ async function enrich(asset: Asset, codec?: string): Promise<void> {
   } catch (err) {
     console.warn("enrich failed", asset.path, err);
   }
-  if (needsProxy(asset, codec)) void makeProxy(asset);
+  // The filmstrip decodes the proxy when there is one (a 4K original would be slow to read).
+  const strip = (): void => {
+    const now = useProject.getState().project?.assets.find((a) => a.id === asset.id);
+    if (now) void ensureFilmstrip(now);
+  };
+  if (needsProxy(asset, codec)) void makeProxy(asset).then(strip);
+  else strip();
 }
 
 export async function makeProxy(asset: Asset): Promise<void> {
@@ -97,6 +111,7 @@ export async function makeProxy(asset: Asset): Promise<void> {
       asset.path,
       asset.duration,
       asset.vfr ? Math.round(asset.fps) || 30 : undefined,
+      asset.alpha,
     );
     patchAsset(asset.id, { proxy, proxyStatus: "ready" });
   } catch (err) {
@@ -109,17 +124,33 @@ export async function makeProxy(asset: Asset): Promise<void> {
   }
 }
 
-/** Marks assets whose files disappeared and resumes proxies interrupted by closing the app. */
-export async function checkAssets(): Promise<void> {
-  const project = useProject.getState().project;
-  if (!project?.assets.length) return;
-  const exists = await window.api.exists(project.assets.map((a) => a.path));
-  project.assets.forEach((a, i) => {
-    const missing = !exists[i];
-    if (!!a.missing !== missing) useProject.getState().patchAsset(a.id, { missing });
-    if (!missing && a.proxyStatus === "pending") void makeProxy(a);
-    // A transcription interrupted by closing the app has to be started again.
-    if (a.transcriptStatus === "pending")
-      useProject.getState().patchAsset(a.id, { transcriptStatus: undefined });
-  });
+/**
+ * Transparency of videos added before the app looked for it: probed once when the project opens
+ * (checkAssets). A transparent video keeps it in the preview: an H.264 proxy made for it is made
+ * again in VP9 with alpha, or dropped when the original plays as it is.
+ */
+export async function checkAlpha(): Promise<void> {
+  const assets = useProject.getState().project?.assets ?? [];
+  for (const a of assets) {
+    if (a.kind !== "video" || a.alpha !== undefined || a.missing || a.generated) continue;
+    let info: ProbeResult;
+    try {
+      info = await window.api.probe(a.path);
+    } catch (err) {
+      console.warn("alpha probe failed", a.path, err);
+      continue;
+    }
+    const { patchAsset } = useProject.getState();
+    if (!info.alpha) {
+      patchAsset(a.id, { alpha: false });
+      if (a.proxyStatus === "pending") void makeProxy({ ...a, alpha: false });
+      continue;
+    }
+    const asset: Asset = { ...a, alpha: true };
+    patchAsset(a.id, { alpha: true });
+    const opaqueProxy = !!a.proxy && !a.proxy.toLowerCase().endsWith(".webm");
+    if (needsProxy(asset, info.videoCodec)) {
+      if (opaqueProxy || a.proxyStatus !== "ready") void makeProxy(asset);
+    } else if (opaqueProxy) patchAsset(a.id, { proxy: undefined, proxyStatus: "none" });
+  }
 }

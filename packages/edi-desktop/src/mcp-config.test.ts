@@ -1,6 +1,17 @@
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import type { IncomingMessage } from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { getStaticTOMLValue, parseTOML } from "toml-eslint-parser";
 import { describe, expect, it } from "vitest";
-import { codexMcpConfiguration } from "./mcp-config";
+import {
+  authorizeLocalMcp,
+  configureDesktopAccess,
+  hashMcpToken,
+  listGrants,
+  type McpGrant,
+} from "./access";
+import { codexMcpConfiguration, configureMcpClient, isMcpClientConnected } from "./mcp-config";
 
 describe("targeted MCP client configuration edits", () => {
   it.each([
@@ -52,5 +63,60 @@ describe("targeted MCP client configuration edits", () => {
   it("rejects malformed configuration and unknown tool identities", () => {
     expect(() => codexMcpConfiguration("bad =", "edifoto", "url", "token")).toThrow();
     expect(() => codexMcpConfiguration("", "other", "url", "token")).toThrow();
+  });
+});
+
+describe("connecting a client", () => {
+  const request = (authorization: string) => ({ headers: { authorization } }) as IncomingMessage;
+  const claudeToken = async (home: string): Promise<string> =>
+    JSON.parse(await readFile(join(home, ".claude.json"), "utf8")).mcpServers.ediaula.headers
+      .Authorization;
+
+  it("keeps a working token, rotates only on Reconectar and ends the earlier version's token", async () => {
+    const home = await mkdtemp(join(tmpdir(), "edi-connect-"));
+    const stored = new Map<string, McpGrant>();
+    const legacy = "f".repeat(64);
+    configureDesktopAccess({
+      assertAccess: () => {},
+      grants: [
+        {
+          id: "00000000-0000-4000-8000-000000000009",
+          client: "legacy",
+          tokenHash: hashMcpToken(legacy),
+          scopes: ["read", "propose"],
+          createdAt: 1,
+        },
+      ],
+      store: {
+        add: async (grant) => {
+          stored.set(grant.id, grant);
+        },
+        remove: async (ids) => {
+          for (const id of ids) stored.delete(id);
+        },
+        touch: async () => {},
+      },
+    });
+    const config = { client: "claude-code" as const, home, name: "ediaula", port: 47321 };
+    try {
+      expect(await configureMcpClient(config)).toBe(true);
+      const first = await claudeToken(home);
+      expect(authorizeLocalMcp(request(first))?.client).toBe("claude-code");
+      expect(authorizeLocalMcp(request(`Bearer ${legacy}`))).toBeNull();
+      expect(await isMcpClientConnected(config)).toBe(true);
+      // Connecting again leaves the working token alone (an open client may write it back).
+      expect(await configureMcpClient(config)).toBe(false);
+      expect(await claudeToken(home)).toBe(first);
+      // Reconectar replaces it, and the old one stops working.
+      expect(await configureMcpClient({ ...config, rotate: true })).toBe(true);
+      const second = await claudeToken(home);
+      expect(second).not.toBe(first);
+      expect(authorizeLocalMcp(request(first))).toBeNull();
+      expect(authorizeLocalMcp(request(second))).not.toBeNull();
+      expect(listGrants().filter((g) => g.client === "claude-code")).toHaveLength(1);
+      expect([...stored.values()].map((g) => g.client)).toEqual(["claude-code"]);
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
   });
 });

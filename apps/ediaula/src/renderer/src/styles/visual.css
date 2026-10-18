@@ -30,6 +30,27 @@
   text-align: right;
   font-size: 11.5px;
 }
+/* A slider whose value can also be typed: the field takes the third column and a bit more. */
+.slider-row:has(.slider-input) {
+  grid-template-columns: 78px 1fr 84px;
+}
+.slider-input {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.slider-input .input {
+  width: 100%;
+  min-width: 0;
+  padding: 3px 5px;
+  font-size: 11.5px;
+  text-align: right;
+}
+.slider-input .muted {
+  flex: none;
+  width: 16px;
+  font-size: 11px;
+}
 .link-btn {
   display: inline-flex;
   align-items: center;
@@ -357,6 +378,14 @@
   flex-direction: column;
   gap: 4px;
 }
+.voice-split-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.voice-split-row .input {
+  width: 72px;
+}
 .tpl-field textarea {
   resize: vertical;
   font: inherit;
@@ -596,4 +625,93 @@
 .zoom-steps {
   flex-wrap: wrap;
   margin-top: 4px;
+}
+
+.props-section .region-zoom-note {
+  color: var(--amber);
+}
+
+/* A recording's zoom being edited, and the stretches of cursor effects. */
+.zoom-list li.is-selected .zoom-go,
+.cursor-range-list li.is-selected .zoom-go {
+  border-color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 12%, var(--panel-2));
+}
+.recording-zoom,
+.zoom-proposals,
+.cursor-ranges {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.cursor-range-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cursor-range-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cursor-range-list li.is-selected .zoom-go {
+  border-color: var(--violet);
+  background: color-mix(in srgb, var(--violet) 12%, var(--panel-2));
+}
+.cursor-range-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.cursor-range-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 8px;
+}
+.cursor-range-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+.cursor-range-grid .select {
+  padding: 5px 26px 5px 8px;
+  font-size: 11.5px;
+  background-position: right 8px center;
+}
+.row-6.wrap {
+  flex-wrap: wrap;
+}
+
+/* The strokes of a drawing or board clip, each one to take out. */
+.drawing-strokes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 220px;
+  overflow: auto;
+}
+.drawing-strokes li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.drawing-strokes li .icon-btn {
+  margin-left: auto;
+}
+.drawing-stroke-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
 }

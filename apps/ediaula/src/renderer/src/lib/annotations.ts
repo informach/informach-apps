@@ -1,6 +1,7 @@
 import {
   ANNOTATION_MOTION,
   ANNOTATION_PRESETS,
+  ANNOTATION_TEXT,
   type Annotation,
   type AnnotationKind,
   type BalloonGeometry,
@@ -8,6 +9,7 @@ import {
   CARD,
   defaultOutline,
   freeBalloonTip,
+  isDrawingKind,
   MEME,
   outlineStyle,
   preserveBalloonBody,
@@ -22,10 +24,11 @@ import {
 } from "@shared/compose";
 import { fontStack } from "@shared/fonts";
 import { inPalette } from "@shared/palettes";
+import type { RevealState } from "@shared/reveal";
 import { clipEnd, newId, newTrackName } from "@shared/timeline";
 import type { Asset, Clip, Project, Track } from "@shared/types";
 import { usePlayback } from "@/state/playback";
-import { useProject } from "@/state/project";
+import { basisOf, type Commit, personCommit, trackEdit, useProject } from "@/state/project";
 import { ensureFont } from "./fonts";
 import { importMedia } from "./importMedia";
 import { activePalette, projectFont } from "./palettes";
@@ -78,6 +81,7 @@ export async function renderAnnotation(
   a: Annotation,
   frameHeight: number,
   frameWidth = (frameHeight * 16) / 9,
+  reveal?: RevealState | null,
 ): Promise<Rendered> {
   const k = (frameHeight / 1080) * OVERSAMPLE;
   await document.fonts.load(`700 ${Math.round(40 * k)}px ${FONT}`).catch(() => undefined);
@@ -143,6 +147,31 @@ export async function renderAnnotation(
     return p;
   };
   let fullFrame = false;
+  // Coming in word by word (shared/reveal.ts): the layout is the whole text's, and only the
+  // first `budget` words are drawn, each line keeping its place.
+  let budget = reveal?.words ?? Number.POSITIVE_INFINITY;
+  const say = (line: string, x: number, draw: (text: string, x: number) => void): void => {
+    if (budget === Number.POSITIVE_INFINITY) {
+      draw(line, x);
+      return;
+    }
+    const words = line.split(/\s+/).filter(Boolean);
+    if (budget <= 0 || !words.length) return;
+    if (words.length <= budget) {
+      budget -= words.length;
+      draw(line, x);
+      return;
+    }
+    const part = words.slice(0, budget).join(" ");
+    budget = 0;
+    const align = ctx.textAlign;
+    const full = ctx.measureText(line).width;
+    ctx.textAlign = "left";
+    draw(part, align === "center" ? x - full / 2 : align === "right" ? x - full : x);
+    ctx.textAlign = align;
+  };
+  /** How much of a stroke shows (an arrow drawing itself), 1 when it is all there. */
+  const drawn = reveal?.draw ?? 1;
 
   switch (a.kind) {
     case "arrow":
@@ -173,8 +202,32 @@ export async function renderAnnotation(
       const E1: [number, number] = one ? [P1[0] - d1[0] * inset, P1[1] - d1[1] * inset] : P1;
       const E0: [number, number] = two ? [P0[0] - d0[0] * inset, P0[1] - d0[1] * inset] : P0;
       const shaft = new Path2D();
-      shaft.moveTo(E0[0], E0[1]);
-      shaft.quadraticCurveTo(C[0], C[1], E1[0], E1[1]);
+      if (drawn >= 1) {
+        shaft.moveTo(E0[0], E0[1]);
+        shaft.quadraticCurveTo(C[0], C[1], E1[0], E1[1]);
+      } else {
+        // The stroke drawn up to `drawn` of its length, from the tail.
+        const at = (u: number): [number, number] => [
+          (1 - u) * (1 - u) * E0[0] + 2 * (1 - u) * u * C[0] + u * u * E1[0],
+          (1 - u) * (1 - u) * E0[1] + 2 * (1 - u) * u * C[1] + u * u * E1[1],
+        ];
+        const steps = 48;
+        const pts = Array.from({ length: steps + 1 }, (_, i) => at(i / steps));
+        const lengths = [0];
+        for (let i = 1; i < pts.length; i++)
+          lengths.push(
+            lengths[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]),
+          );
+        const goal = lengths[steps] * Math.max(0, drawn);
+        shaft.moveTo(pts[0][0], pts[0][1]);
+        for (let i = 1; i < pts.length && lengths[i - 1] < goal; i++) {
+          const k = lengths[i] > goal ? (goal - lengths[i - 1]) / (lengths[i] - lengths[i - 1]) : 1;
+          shaft.lineTo(
+            pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * k,
+            pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * k,
+          );
+        }
+      }
       const headPath = (tip: [number, number], d: [number, number]): Path2D => {
         const nx = -d[1];
         const ny = d[0];
@@ -190,7 +243,11 @@ export async function renderAnnotation(
         p.closePath();
         return p;
       };
-      const tips = [...(one ? [headPath(P1, d1)] : []), ...(two ? [headPath(P0, d0)] : [])];
+      // The head at the tip comes when the stroke gets there; the one at the tail is there already.
+      const tips = [
+        ...(one && drawn >= 1 ? [headPath(P1, d1)] : []),
+        ...(two && drawn > 0 ? [headPath(P0, d0)] : []),
+      ];
       const cap: CanvasLineCap = style === "solid" ? "butt" : "round";
       const shaftDash =
         style === "dashed" ? [T * 1.8, T * 1.4] : style === "dotted" ? [0, T * 1.9] : [];
@@ -223,7 +280,7 @@ export async function renderAnnotation(
     case "balloon":
     case "note":
     case "label": {
-      const fs = a.fontSize ?? (a.kind === "label" ? 28 : 30);
+      const fs = a.fontSize ?? ANNOTATION_TEXT;
       ctx.font = font(fs);
       const maxW = (a.width ?? 420) * k;
       const lines = a.kind === "label" ? [a.text ?? ""] : wrap(ctx, a.text ?? "", maxW);
@@ -295,7 +352,8 @@ export async function renderAnnotation(
       const centered = a.kind === "balloon" && a.layout !== "left";
       ctx.textAlign = centered ? "center" : "left";
       lines.forEach((l, i) => {
-        ctx.fillText(l, centered ? x + bw / 2 : x + px, y + py + lh * (i + 0.5));
+        const ly = y + py + lh * (i + 0.5);
+        say(l, centered ? x + bw / 2 : x + px, (t, lx) => ctx.fillText(t, lx, ly));
       });
       break;
     }
@@ -315,13 +373,15 @@ export async function renderAnnotation(
       const x = centered ? pad * 2 + tw / 2 : pad * 2;
       lines.forEach((l, i) => {
         const y = pad * 2 + lh * (i + 0.5);
-        if (olw > 0) {
-          ctx.strokeStyle = ol.color;
-          ctx.lineWidth = olw * 2;
-          ctx.strokeText(l, x, y);
-        }
-        ctx.fillStyle = a.color;
-        ctx.fillText(l, x, y);
+        say(l, x, (t, lx) => {
+          if (olw > 0) {
+            ctx.strokeStyle = ol.color;
+            ctx.lineWidth = olw * 2;
+            ctx.strokeText(t, lx, y);
+          }
+          ctx.fillStyle = a.color;
+          ctx.fillText(t, lx, y);
+        });
       });
       shadow(24, 6, 0.45);
       break;
@@ -384,14 +444,14 @@ export async function renderAnnotation(
       ctx.font = font(a.fontSize ?? 96, 800);
       ctx.fillStyle = cardInk;
       lines.forEach((l, i) => {
-        ctx.fillText(l, left, y + lh * (i + 1));
+        say(l, left, (t, lx) => ctx.fillText(t, lx, y + lh * (i + 1)));
       });
       y += lh * lines.length + 30 * k;
       if (a.subtitle) {
         ctx.font = font(40, 600);
         ctx.globalAlpha = 0.8;
         wrap(ctx, a.subtitle, 1400 * k).forEach((l, i) => {
-          ctx.fillText(l, left, y + 52 * k * (i + 1));
+          say(l, left, (t, lx) => ctx.fillText(t, lx, y + 52 * k * (i + 1)));
         });
         ctx.globalAlpha = 1;
       }
@@ -417,11 +477,11 @@ export async function renderAnnotation(
       ctx.textBaseline = "alphabetic";
       ctx.fillStyle = "#FFFFFF";
       ctx.font = font(40, 800);
-      ctx.fillText(a.text ?? "", pad + bar + px, pad + 52 * k);
+      say(a.text ?? "", pad + bar + px, (t, lx) => ctx.fillText(t, lx, pad + 52 * k));
       if (a.subtitle) {
         ctx.fillStyle = a.color;
         ctx.font = font(28, 600);
-        ctx.fillText(a.subtitle, pad + bar + px, pad + 92 * k);
+        say(a.subtitle, pad + bar + px, (t, lx) => ctx.fillText(t, lx, pad + 92 * k));
       }
       break;
     }
@@ -543,8 +603,9 @@ export async function addAnnotation(
   kind: AnnotationKind,
   changes: Partial<Annotation> = {},
   opts: AddOptions = {},
+  commit: Commit = personCommit,
 ): Promise<string | null> {
-  const p = useProject.getState().project;
+  const p = basisOf(commit);
   if (!p) return null;
   const preset = ANNOTATION_PRESETS.find((x) => x.kind === kind)!;
   // Presets are written in EdiAula's colors; they come in the project's palette.
@@ -575,7 +636,7 @@ export async function addAnnotation(
   const start = Math.max(0, opts.at ?? usePlayback.getState().time);
   const duration = opts.duration ?? preset.duration;
   const id = newId("c");
-  useProject.getState().commit((q) => {
+  commit((q) => {
     const { tracks, track } = overlayTrack(q, start, start + duration);
     const clip: Clip = {
       id,
@@ -603,15 +664,46 @@ export async function addAnnotation(
   return id;
 }
 
-/** Redraws an annotation after an edit, keeping where it is and how big it was made. */
-export async function updateAnnotation(
+/** Redraws of the same clip, one after another, so each starts from the previous result. */
+const redraws = new Map<string, Promise<void>>();
+
+/**
+ * Redraws an annotation after an edit, keeping where it is and how big it was made. The edit
+ * reaches the project only when the picture is ready, so it is tracked (trackEdit) until then:
+ * leaving the project waits for it.
+ */
+export function updateAnnotation(
   clipId: string,
   changes: Partial<Annotation>,
+  commit: Commit = personCommit,
+): Promise<void> {
+  const previous = redraws.get(clipId) ?? Promise.resolve();
+  const next = previous.then(() => redrawAnnotation(clipId, changes, commit));
+  const settled = next.then(
+    () => undefined,
+    () => undefined,
+  );
+  redraws.set(clipId, settled);
+  void settled.then(() => {
+    if (redraws.get(clipId) === settled) redraws.delete(clipId);
+  });
+  return trackEdit(next);
+}
+
+async function redrawAnnotation(
+  clipId: string,
+  changes: Partial<Annotation>,
+  commit: Commit,
 ): Promise<void> {
   const p = useProject.getState().project;
   const clip = p?.clips.find((c) => c.id === clipId);
   const asset = clip && p?.assets.find((a) => a.id === clip.assetId);
   if (!p || !clip?.annotation || !asset) return;
+  // A drawing from the recording is a video of its strokes, not a picture drawn from fields.
+  if (isDrawingKind(clip.annotation.kind))
+    throw new Error(
+      "O desenho feito na gravação não muda de estilo: apague-o ou corte-o como um clipe.",
+    );
   const spec: Annotation = { ...clip.annotation, ...changes };
   const r = await renderAnnotation(spec, p.settings.height, p.settings.width);
   const path = await window.api.saveGenerated(r.bytes, "png");
@@ -619,7 +711,7 @@ export async function updateAnnotation(
   // Same on-screen size per pixel as before: rescale for the new picture's dimensions.
   const adjust = <T extends { x: number; y: number; scale: number }>(value: T): T =>
     preserveBalloonBody(value, asset, r, p.settings, clip.annotation?.balloonGeometry, r.balloon);
-  useProject.getState().commit((q) => {
+  commit((q) => {
     if (q.id !== p.id || q.clips.find((c) => c.id === clipId) !== clip) return q;
     // A copy (pasted or split) shares the picture: it gets its own, so the other one stays as it is.
     const shared = q.clips.some((c) => c.id !== clipId && c.assetId === asset.id);
@@ -656,6 +748,7 @@ export async function updateAnnotation(
 export async function addImageOverlay(
   path: string,
   opts: AddOptions & { placement?: "left" | "right" | "center" } = {},
+  commit: Commit = personCommit,
 ): Promise<string | null> {
   const [asset] = await importMedia([path]);
   const p = useProject.getState().project;
@@ -670,7 +763,7 @@ export async function addImageOverlay(
         ? { ...MEME.transform, x: 1 - MEME.transform.x }
         : { ...MEME.transform };
   const id = newId("c");
-  useProject.getState().commit((q) => {
+  commit((q) => {
     const { tracks, track } = overlayTrack(q, start, start + duration, "Memes");
     const clip: Clip = {
       id,
@@ -703,8 +796,9 @@ export async function addImageOverlay(
 export async function addCard(
   where: "start" | "end",
   texts: { kicker?: string; text?: string; subtitle?: string; color?: string } = {},
+  commit: Commit = personCommit,
 ): Promise<string | null> {
-  const p = useProject.getState().project;
+  const p = basisOf(commit);
   if (!p) return null;
   const doc = scriptDoc(p);
   const section = doc?.sections[p.script?.section ?? 0];
@@ -749,7 +843,7 @@ export async function addCard(
     generated: "annotation",
   };
   const id = newId("c");
-  useProject.getState().commit((q) => {
+  commit((q) => {
     let clips = q.clips;
     const end = q.clips.reduce((m, c) => Math.max(m, clipEnd(c)), 0);
     const start = where === "start" ? 0 : end;

@@ -5,6 +5,7 @@ import {
   analyze,
   applyCuts,
   buildSrt,
+  closeCommonGaps,
   cutTargets,
   findQuote,
   mergeRanges,
@@ -137,8 +138,15 @@ test("analysis finds the filler words, the repeated phrase and the long pauses",
     .flatMap((i) => i.words.map((k) => byKey.get(k)!.text));
   assert.deepEqual(repeats.sort(), ["Quem", "está", "está?", "participando,", "quem"].sort());
   const pauses = issues.filter((i) => i.kind === "silence");
-  assert.equal(pauses.length, 5, "pauses of one second or more");
-  for (const s of pauses) assert.ok(s.end > s.start);
+  // Five pauses of a second or more; the three right after a question ("Quem ficou de fora?")
+  // are thinking time and keep THINK_PAUSE, so only the two longer than that are shortened.
+  const said = (t: number): string =>
+    words.filter((w) => w.end <= t + 0.05).sort((a, b) => b.end - a.end)[0]?.text ?? "";
+  const long = timelineSilences(p, transcripts).filter(([s, e]) => e - s >= 1);
+  assert.equal(long.length, 5);
+  assert.equal(long.filter(([s]) => said(s).endsWith("?")).length, 3);
+  assert.equal(pauses.length, 2, "pauses of one second or more, not after a question");
+  for (const s of pauses) assert.ok(s.end > s.start && !said(s.span?.[0] ?? s.start).endsWith("?"));
 });
 
 test("removing the issues leaves the clean sentence, in sync on every speech track", () => {
@@ -285,4 +293,68 @@ test("protected ranges follow the clip through cuts and block overlapping cuts",
   assert.ok(Math.abs(after.start - (before.start - 2)) < 1e-6);
   assert.equal(protectedConflicts(withProt, [[before.start - 0.5, before.start + 0.5]]).length, 1);
   assert.equal(protectedConflicts(withProt, [[0, 1]]).length, 0);
+});
+
+test("closing gaps keeps every track in sync and only removes stretches empty on all of them", () => {
+  const at = (trackId: string, id: string, start: number, duration: number): Clip => ({
+    id,
+    assetId: "a",
+    trackId,
+    start,
+    in: start,
+    duration,
+    volume: 1,
+  });
+  const clips = [
+    at("voz", "v1", 2, 5),
+    at("voz", "v2", 9, 4),
+    at("voz", "v3", 20, 5),
+    // A balloon over the second phrase and one in the pause before the third.
+    at("baloes", "b1", 10, 2),
+    at("baloes", "b2", 15, 1),
+    at("musica", "m", 0, 25),
+  ];
+  const out = closeCommonGaps({ clips }, new Set(["voz", "baloes"]));
+  const start = (id: string): number => out.find((c) => c.id === id)?.start ?? Number.NaN;
+  // Empty everywhere: 0 to 2, 7 to 9, 13 to 15 and 16 to 20; the balloon at 15 keeps its spot.
+  assert.deepEqual(["v1", "v2", "b1", "b2", "v3"].map(start), [0, 5, 6, 9, 10]);
+  assert.equal(start("b1") - start("v2"), 1, "the balloon stays one second into the phrase");
+  // The music bed is not shifted; it ends with the lesson.
+  const music = out.find((c) => c.id === "m");
+  assert.deepEqual([music?.start, music?.duration], [0, 15]);
+  assert.equal(
+    closeCommonGaps({ clips: out }, new Set(["voz", "baloes"])),
+    out,
+    "nothing left to close",
+  );
+});
+
+test("closing gaps never cuts or shortens a locked track", () => {
+  const at = (trackId: string, id: string, start: number, duration: number): Clip => ({
+    id,
+    assetId: "a",
+    trackId,
+    start,
+    in: 0,
+    duration,
+    volume: 1,
+  });
+  // Voice at 0 to 10 and 15 to 25; a locked track with clips at 0 to 18 and 21 to 25.
+  const locked = [at("travada", "l1", 0, 18), at("travada", "l2", 21, 4)];
+  const out = closeCommonGaps(
+    { clips: [at("voz", "v1", 0, 10), at("voz", "v2", 15, 10), ...locked] },
+    new Set(["voz"]),
+    new Set(["travada"]),
+  );
+  assert.deepEqual(
+    out.filter((c) => c.trackId === "voz").map((c) => [c.start, c.duration]),
+    [
+      [0, 10],
+      [10, 10],
+    ],
+  );
+  assert.deepEqual(
+    out.filter((c) => c.trackId === "travada"),
+    locked,
+  );
 });

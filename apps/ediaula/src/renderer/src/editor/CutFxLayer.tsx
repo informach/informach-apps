@@ -5,6 +5,7 @@ import {
   exprFn,
   type FxShape,
   glitchShift,
+  glitchSlot,
 } from "@shared/transitions";
 import type { ReactNode } from "react";
 import { usePlayback } from "@/state/playback";
@@ -134,7 +135,8 @@ function Glitch({
   width: number;
   height: number;
 }): ReactNode {
-  const slot = Math.floor(t * 30);
+  // Slots count from the cut, as in the export, so a glitch looks the same wherever it is.
+  const slot = glitchSlot(t - fx.at);
   const amp = Math.max(0, Math.min(1, 1 - Math.abs(t - fx.at) / (fx.duration / 2)));
   const blocks: ReactNode[] = [];
   for (let row = 0; row < 18; row++)

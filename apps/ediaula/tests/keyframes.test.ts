@@ -169,3 +169,118 @@ test("export: a keyframed picture travels and grows like in the preview", {
   assert.ok(red(px(2, 512, 180)) && !red(px(2, 128, 180)), "ends on the right");
   assert.ok(red(px(2, 512 - 65, 180)) && !red(px(0.2, 128 + 45, 180)), "twice as big at the end");
 });
+
+test("keyframes before the clip's start (a piece of a moving clip) work in the preview and in ffmpeg", {
+  timeout: 60_000,
+}, () => {
+  const before: Keyframe[] = [
+    { t: -0.5, x: 0.2, y: 0.5, scale: 0.2 },
+    { t: 1.5, x: 0.8, y: 0.5, scale: 0.4 },
+  ];
+  const e = keyframeExprs(before, "(t-3)");
+  assert.ok(!/--/.test(e.x + e.y + e.scale), "no double minus in the expressions");
+  for (let t = 2.8; t < 5.5; t += 0.05) {
+    const v = keyframeAt(before, t - 3);
+    assert.ok(
+      Math.abs(evalFf(e.x, t) - v.x) < 1e-4 && Math.abs(evalFf(e.scale, t) - v.scale) < 1e-4,
+    );
+  }
+  const dir = mkdtempSync(join(tmpdir(), "ediaula-kf-neg-"));
+  const img = join(dir, "red.png");
+  execFileSync(FFMPEG, [
+    "-y",
+    "-v",
+    "error",
+    "-f",
+    "lavfi",
+    "-i",
+    "color=c=red:s=200x200",
+    "-frames:v",
+    "1",
+    img,
+  ]);
+  const p: Project = {
+    version: 1,
+    id: "p",
+    name: "x",
+    createdAt: 0,
+    updatedAt: 0,
+    settings: { width: 640, height: 360, fps: 30 },
+    assets: [
+      {
+        id: "i",
+        name: "i",
+        path: img,
+        kind: "image",
+        duration: 0,
+        width: 200,
+        height: 200,
+        fps: 0,
+        hasVideo: true,
+        hasAudio: false,
+        size: 1,
+        proxyStatus: "none",
+      },
+    ],
+    tracks: [
+      { id: "v", kind: "video", name: "Anotações", muted: false, hidden: false, locked: false },
+    ],
+    clips: [
+      {
+        id: "c",
+        assetId: "i",
+        trackId: "v",
+        start: 0,
+        in: 0,
+        duration: 2.5,
+        volume: 1,
+        keyframes: before,
+      },
+    ],
+  };
+  const out = join(dir, "out.mp4");
+  const plan = buildExportPlan(p, {
+    outPath: out,
+    width: 640,
+    height: 360,
+    fps: 30,
+    videoBitrate: 2000,
+    normalizeLoudness: false,
+    encoder: "x264",
+  });
+  const script = join(dir, "f.txt");
+  writeFileSync(script, plan.filter);
+  execFileSync(FFMPEG, [
+    "-y",
+    "-v",
+    "error",
+    ...plan.inputArgs,
+    FILTER_SCRIPT_OPTION,
+    script,
+    ...plan.outputArgs,
+  ]);
+  const red = (t: number, x: number): boolean => {
+    const c = execFileSync(FFMPEG, [
+      "-v",
+      "error",
+      "-ss",
+      String(t),
+      "-i",
+      out,
+      "-frames:v",
+      "1",
+      "-vf",
+      `crop=4:4:${x - 2}:178,scale=1:1`,
+      "-f",
+      "rawvideo",
+      "-pix_fmt",
+      "rgb24",
+      "-",
+    ]);
+    return c[0] > 150 && c[1] < 90;
+  };
+  // At 0.2 s the move that began half a second before the clip is already under way.
+  const at = keyframeAt(before, 0.2);
+  assert.ok(red(0.2, Math.round(at.x * 640)) && !red(0.2, 128), "already moving at the start");
+  assert.ok(red(2, 512) && !red(2, 128), "arrives on the right");
+});

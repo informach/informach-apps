@@ -1,5 +1,6 @@
+import { sumExpr } from "./exprSum.ts";
 import { clipEnd } from "./timeline.ts";
-import type { Project } from "./types.ts";
+import type { Project, Track } from "./types.ts";
 
 /**
  * Background music that steps aside for the voice. The moments someone speaks come from the
@@ -7,11 +8,30 @@ import type { Project } from "./types.ts";
  * them, the same curve in the preview and in the export.
  */
 
-/** Music level while someone speaks (0.25 = −12 dB) and seconds of each ramp. */
-export const DUCKING = { depth: 0.25, ramp: 0.35 };
+export interface Ducking {
+  /** Music level while someone speaks (0.25 = −12 dB). */
+  depth: number;
+  /** Seconds of each ramp. */
+  ramp: number;
+  /** Pauses shorter than this keep the music down, so it does not pump between sentences. */
+  hold: number;
+}
 
-/** Pauses shorter than this keep the music down, so it does not pump between sentences. */
-const HOLD = 0.8;
+export const DUCKING: Ducking = { depth: 0.25, ramp: 0.35, hold: 0.8 };
+
+/** The project's ducking (Áudio panel), each value falling back to the default. */
+export function duckingOf(project: Pick<Project, "audio">): Ducking {
+  const d = project.audio?.ducking;
+  return {
+    depth: d?.depth ?? DUCKING.depth,
+    ramp: d?.ramp ?? DUCKING.ramp,
+    hold: d?.hold ?? DUCKING.hold,
+  };
+}
+
+/** A music track steps aside for the voice unless it was set not to. */
+export const ducks = (track: Pick<Track, "music" | "duck">): boolean =>
+  !!track.music && track.duck !== false;
 
 interface SpeechWord {
   clipId: string;
@@ -25,6 +45,7 @@ export function speechSpans(
   words: SpeechWord[] = [],
   transcribed: Set<string> = new Set(),
   ramp = DUCKING.ramp,
+  hold = DUCKING.hold,
 ): [number, number][] {
   const tracks = new Map(project.tracks.map((t) => [t.id, t]));
   const assets = new Map(project.assets.map((a) => [a.id, a]));
@@ -39,7 +60,8 @@ export function speechSpans(
       track.muted ||
       !asset.hasAudio ||
       asset.kind === "image" ||
-      c.volume <= 0
+      c.volume <= 0 ||
+      c.mutedFor
     )
       continue;
     if (transcribed.has(asset.id)) {
@@ -51,7 +73,37 @@ export function speechSpans(
   for (const [a, b] of raw) {
     const last = out[out.length - 1];
     // Spans closer than two ramps would overlap their envelopes: they become one.
-    if (last && a - last[1] < 2 * ramp + HOLD) last[1] = Math.max(last[1], b);
+    if (last && a - last[1] < 2 * ramp + hold) last[1] = Math.max(last[1], b);
+    else out.push([a, b]);
+  }
+  return out;
+}
+
+/**
+ * When a highlighted track ("Destacar faixa") sounds: its audible clips, merged like the speech,
+ * so the other tracks step aside over the same envelope as the music does for the voice.
+ */
+export function spotlightSpans(
+  project: Pick<Project, "clips" | "tracks" | "assets">,
+  ramp = DUCKING.ramp,
+  hold = DUCKING.hold,
+): [number, number][] {
+  const lit = new Set(project.tracks.filter((t) => t.spotlight && !t.muted).map((t) => t.id));
+  if (!lit.size) return [];
+  const assets = new Map(project.assets.map((a) => [a.id, a]));
+  const raw: [number, number][] = [];
+  for (const c of project.clips) {
+    const asset = assets.get(c.assetId);
+    if (!lit.has(c.trackId) || !asset?.hasAudio || asset.kind === "image" || c.volume <= 0)
+      continue;
+    if (c.mutedFor) continue;
+    raw.push([c.start, clipEnd(c)]);
+  }
+  raw.sort((a, b) => a[0] - b[0]);
+  const out: [number, number][] = [];
+  for (const [a, b] of raw) {
+    const last = out[out.length - 1];
+    if (last && a - last[1] < 2 * ramp + hold) last[1] = Math.max(last[1], b);
     else out.push([a, b]);
   }
   return out;
@@ -88,5 +140,5 @@ export function duckExpr(
   const terms = spans.map(
     ([a, b]) => `clip((t-${n(a - ramp)})/${n(ramp)},0,1)*clip((${n(b + ramp)}-t)/${n(ramp)},0,1)`,
   );
-  return `1-${n(1 - depth)}*min(1,${terms.join("+")})`;
+  return `1-${n(1 - depth)}*min(1,${sumExpr(terms)})`;
 }

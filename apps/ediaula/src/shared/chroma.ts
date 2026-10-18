@@ -1,5 +1,5 @@
 /**
- * Chroma key ("remover fundo") for avatars rendered on a solid blue or green screen (HeyGen).
+ * Chroma key ("remover fundo") for avatars rendered on a solid blue or green screen.
  *
  * A color-difference keyer: a pixel's "key strength" is how much its dominant channel (blue or
  * green) exceeds the channel that is weakest in the screen color (red), relative to the screen's
@@ -25,6 +25,11 @@ export interface ChromaKey {
   despill: number;
   /** Shrinks the visible area by this many pixels (of the keyed video) to hide a leftover rim. */
   choke: number;
+  /**
+   * "person": the background is removed by the local person segmentation (shared/personKey.ts)
+   * instead of by color; the color fields are then unused. Absent: the color key.
+   */
+  mode?: "person";
 }
 
 export const DEFAULT_KEY: Omit<ChromaKey, "color"> = {
@@ -62,16 +67,21 @@ export const rgbToHex = (r: number, g: number, b: number): string =>
     .join("")
     .toUpperCase();
 
+/** Bump when the person segmentation's output changes so its cached alpha videos are rebuilt. */
+export const PERSON_KEY_VERSION = 1;
+
 /** Stable id of the parameters that change the keyed pixels (cache key). */
 export const keyId = (k: ChromaKey): string =>
-  [
-    KEY_VERSION,
-    k.color.toUpperCase().replace("#", ""),
-    k.threshold.toFixed(3),
-    k.softness.toFixed(3),
-    k.despill.toFixed(2),
-    Math.round(k.choke),
-  ].join("_");
+  k.mode === "person"
+    ? `${KEY_VERSION}_person_${PERSON_KEY_VERSION}`
+    : [
+        KEY_VERSION,
+        k.color.toUpperCase().replace("#", ""),
+        k.threshold.toFixed(3),
+        k.softness.toFixed(3),
+        k.despill.toFixed(2),
+        Math.round(k.choke),
+      ].join("_");
 
 interface KeyAxes {
   key: [number, number, number];

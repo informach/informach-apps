@@ -1,5 +1,14 @@
-import { clipSpeed, projectDuration } from "./timeline.ts";
-import type { Project } from "./types.ts";
+import { avatarMedia } from "./cleanup.ts";
+import {
+  courseTemplateFrom,
+  courseTemplateMarkdown,
+  isMusicTrack,
+  jsonBlock,
+} from "./courseTemplate.ts";
+import type { DirectionAnnotation } from "./screenDirections.ts";
+import { clipSpeed, projectDuration, sourceEnd } from "./timeline.ts";
+import type { Asset, Project } from "./types.ts";
+import { zoomsIn } from "./zoom.ts";
 
 const clean = (text: string): string =>
   text
@@ -8,17 +17,35 @@ const clean = (text: string): string =>
     .trim();
 const stamp = (seconds: number): string =>
   `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
-const jsonBlock = (value: unknown): string => {
-  const json = JSON.stringify(value, null, 2);
-  const fence = "`".repeat(Math.max(3, ...[...json.matchAll(/`+/g)].map((m) => m[0].length + 1)));
-  return `${fence}json\n${json}\n${fence}`;
-};
+/** What a media is for in the lesson, so the next lesson knows what to put in its place. */
+function mediaRole(project: Project, a: Asset): string {
+  const music = new Set(project.tracks.filter(isMusicTrack).map((t) => t.id));
+  const onMusic = project.clips.some((c) => c.assetId === a.id && music.has(c.trackId));
+  if (a.generated === "annotation") return "Anotação recriável";
+  if (a.generated === "effect") return "Camada de zoom, recriável";
+  if (a.kind === "image" && /^Quadro (estendido|parado)/i.test(a.name))
+    return "Quadro parado da tela, recriável";
+  if (a.cursor || a.recording?.role === "screen") return "Gravação de tela";
+  if (avatarMedia(project).has(a.id))
+    return a.key ? "Apresentador com fundo removido" : "Apresentador";
+  if (onMusic) return "Música de fundo, abaixa quando alguém fala";
+  if (a.recording?.role === "mic" || a.recording?.role === "narration" || a.voiceTakes?.length)
+    return "Voz da aula";
+  if (a.recording?.role === "system") return "Som do computador";
+  if (a.kind === "audio") return "Áudio: identificar se é voz ou música";
+  return "Mídia: identificar a função no novo projeto";
+}
 
-/** A portable reference, with semantic media slots instead of local paths or project IDs. */
+/**
+ * A portable reference, with semantic media slots instead of local paths or project IDs, and the
+ * course template (version 2) as a JSON block another lesson can apply. `directions` are the
+ * script's "Na tela" directions of this lesson (screenDirections), turned into rules.
+ */
 export function buildEditingTemplate(
   project: Project,
   words: { start: number; end: number; text: string }[] = [],
   notes = "",
+  opts: { directions?: readonly DirectionAnnotation[] } = {},
 ): string {
   const used = new Set(project.clips.map((c) => c.assetId));
   const assets = project.assets.filter((a) => used.has(a.id));
@@ -26,9 +53,9 @@ export function buildEditingTemplate(
   const tracks = new Map(project.tracks.map((t, i) => [t.id, `F${i + 1}`]));
   const clips = [...project.clips].sort((a, b) => a.start - b.start);
   const out = [
-    `# Modelo de edição — ${clean(project.name)}`,
+    `# Modelo de edição: ${clean(project.name)}`,
     "",
-    "Formato: EdiAula / modelo de referência v1",
+    "Formato: EdiAula / modelo de referência v2",
     "",
     `- Aula de referência: ${clean(project.name)}`,
     `- Curso: ${clean(project.course ?? "Não informado")}`,
@@ -60,7 +87,7 @@ export function buildEditingTemplate(
     "| --- | --- | --- | --- | --- | --- | --- |",
     ...project.tracks.map(
       (t) =>
-        `| ${tracks.get(t.id)} | ${clean(t.name)} | ${t.kind} | ${!!t.muted} | ${!!t.hidden} | ${!!t.locked} | ${!!t.music} |`,
+        `| ${tracks.get(t.id)} | ${clean(t.name)} | ${t.kind} | ${!!t.muted} | ${!!t.hidden} | ${!!t.locked} | ${isMusicTrack(t)} |`,
     ),
     "",
     "## Mídias a substituir",
@@ -69,20 +96,11 @@ export function buildEditingTemplate(
   for (const a of assets) {
     const { path: _path, pathEdits: _edits, ...cursorStyle } = a.cursorFx ?? {};
     out.push(
-      `### ${media.get(a.id)} — ${clean(a.name)}`,
+      `### ${media.get(a.id)} · ${clean(a.name)}`,
       "",
       jsonBlock({
         type: a.kind,
-        role:
-          a.generated === "annotation"
-            ? "Anotação recriável"
-            : a.cursor
-              ? "Gravação de tela"
-              : a.key
-                ? "Apresentador com fundo removido"
-                : a.kind === "audio"
-                  ? "Áudio — identificar voz ou música"
-                  : "Mídia — identificar função no novo projeto",
+        role: mediaRole(project, a),
         format: { width: a.width, height: a.height, fps: a.fps },
         backgroundRemoval: a.key,
         cursorStyle: a.cursor ? cursorStyle : undefined,
@@ -100,6 +118,14 @@ export function buildEditingTemplate(
     "Tempos de início e duração estão em segundos da timeline. `sourceIn` e zooms do clipe usam o tempo da mídia original; keyframes usam segundos relativos ao início do clipe. Posições x/y do transform são frações do quadro. A escala 1 ajusta a mídia inteira ao quadro.",
     "",
   );
+  const zoomsOf = (c: Project["clips"][number]) => {
+    const zooms = zoomsIn(
+      project.assets.find((a) => a.id === c.assetId)?.zooms,
+      c.in,
+      sourceEnd(c),
+    );
+    return zooms.length ? zooms : undefined;
+  };
   for (const [index, c] of clips.entries()) {
     const annotation = c.annotation ? { ...c.annotation, balloonGeometry: undefined } : undefined;
     const anchor = words
@@ -108,7 +134,7 @@ export function buildEditingTemplate(
       .map((w) => w.text)
       .join(" ");
     out.push(
-      `### ${index + 1}. ${stamp(c.start)} — ${clean(c.annotation?.text || assets.find((a) => a.id === c.assetId)?.name || "Clipe")}`,
+      `### ${index + 1}. ${stamp(c.start)} · ${clean(c.annotation?.text || assets.find((a) => a.id === c.assetId)?.name || "Clipe")}`,
       "",
       anchor
         ? `Fala de referência: ${clean(anchor)}`
@@ -131,7 +157,7 @@ export function buildEditingTemplate(
         transition: c.transition,
         annotation,
         keyframes: c.keyframes,
-        zooms: c.zooms,
+        zooms: zoomsOf(c),
         zoomLayer: c.zoomLayer,
         insertId: c.insertId,
       }),
@@ -162,6 +188,7 @@ export function buildEditingTemplate(
         .map((line) => clean(line)),
       "",
     );
+  out.push(courseTemplateMarkdown(courseTemplateFrom(project, opts)));
   out.push(
     "## Pedido sugerido ao assistente",
     "",

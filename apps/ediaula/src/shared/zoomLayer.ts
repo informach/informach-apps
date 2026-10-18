@@ -24,6 +24,12 @@ export interface ZoomLayer {
   easeOut?: number;
   /** Older projects: one duration for both. */
   ease?: number;
+  /**
+   * A piece of a longer layer (pieces.ts) plays its stretch of that layer's curve: the curve
+   * began `origin` seconds before the clip and lasts `length`. Absent: the clip itself.
+   */
+  origin?: number;
+  length?: number;
 }
 
 export const DEFAULT_ZOOM_LAYER: ZoomLayer = {
@@ -42,30 +48,72 @@ const n = (v: number): string => (Math.round(v * 10000) / 10000).toString();
 
 type LayerClip = Pick<Clip, "id" | "start" | "duration" | "trackId" | "zoomLayer">;
 
+/** Where the layer's in and out animation is laid out on the timeline (see ZoomLayer.origin). */
+export function layerCurve(c: Pick<Clip, "start" | "duration" | "zoomLayer">): {
+  start: number;
+  duration: number;
+} {
+  const z = c.zoomLayer;
+  return { start: c.start - (z?.origin ?? 0), duration: z?.length ?? c.duration };
+}
+
 export const viewOf = (c: Pick<Clip, "zoomLayer">): View => ({
   scale: c.zoomLayer!.scale,
   cx: c.zoomLayer!.x,
   cy: c.zoomLayer!.y,
 });
 
-/** Seconds of the way in and out, 0 when switched off, at most half the layer each. */
-export function zoomTimes(c: Pick<Clip, "duration" | "zoomLayer">): { inT: number; outT: number } {
+/**
+ * The layer after an edit by hand. A piece of a longer layer keeps that layer's curve, but a way
+ * in or out set on the piece happens at the piece's own edge, so that edge of the curve moves
+ * there (the other one stays).
+ */
+export function editLayer(
+  c: Pick<Clip, "start" | "duration" | "zoomLayer">,
+  changes: Partial<ZoomLayer>,
+): ZoomLayer {
+  const curve = layerCurve(c);
+  const inEdit = "zoomIn" in changes || "easeIn" in changes || "ease" in changes;
+  const outEdit = "zoomOut" in changes || "easeOut" in changes || "ease" in changes;
+  const start = inEdit ? c.start : curve.start;
+  const end = outEdit ? c.start + c.duration : curve.start + curve.duration;
+  const {
+    origin: _origin,
+    length: _length,
+    ...rest
+  } = {
+    ...(c.zoomLayer ?? DEFAULT_ZOOM_LAYER),
+    ...changes,
+  };
+  const origin = c.start - start;
+  const length = end - start;
+  return Math.abs(origin) < 1e-6 && Math.abs(length - c.duration) < 1e-6
+    ? rest
+    : { ...rest, origin, length };
+}
+
+/** Seconds of the way in and out, 0 when switched off, at most half the layer's curve each. */
+export function zoomTimes(c: Pick<Clip, "start" | "duration" | "zoomLayer">): {
+  inT: number;
+  outT: number;
+} {
   const z = c.zoomLayer!;
-  const half = c.duration / 2;
+  const half = layerCurve(c).duration / 2;
   return {
     inT: z.zoomIn === false ? 0 : Math.min(half, z.easeIn ?? z.ease ?? 0.6),
     outT: z.zoomOut === false ? 0 : Math.min(half, z.easeOut ?? z.ease ?? 0.6),
   };
 }
 
-/** The zoom layer ending where this one starts, on the same track. */
+/** The zoom layer ending where this one's curve starts, on the same track. */
 export function previousZoom(p: Pick<Project, "clips">, c: LayerClip): Clip | undefined {
+  const start = layerCurve(c).start;
   return p.clips.find(
     (o) =>
       o.id !== c.id &&
       o.zoomLayer &&
       o.trackId === c.trackId &&
-      Math.abs(o.start + o.duration - c.start) < TOUCH,
+      Math.abs(o.start + o.duration - start) < TOUCH,
   );
 }
 
@@ -94,10 +142,11 @@ const clampView = (v: View): View => ({
 /** The layer's view at timeline time t (inside the layer). */
 export function layerViewAt(c: LayerClip, t: number, from: View = NORMAL): View {
   const { inT, outT } = zoomTimes(c);
-  const end = c.start + c.duration;
+  const curve = layerCurve(c);
+  const end = curve.start + curve.duration;
   const target = viewOf(c);
-  if (inT > 0 && t < c.start + inT)
-    return clampView(mix(from, target, smooth((t - c.start) / inT)));
+  if (inT > 0 && t < curve.start + inT)
+    return clampView(mix(from, target, smooth((t - curve.start) / inT)));
   if (outT > 0 && t > end - outT) return clampView(mix(NORMAL, target, smooth((end - t) / outT)));
   return clampView(target);
 }
@@ -109,16 +158,17 @@ export function layerViewExprs(
   T: string,
 ): { scale: string; cx: string; cy: string } {
   const { inT, outT } = zoomTimes(c);
-  const end = c.start + c.duration;
+  const curve = layerCurve(c);
+  const end = curve.start + curve.duration;
   const target = viewOf(c);
   const sm = (x: string): string => `(clip(${x},0,1)*clip(${x},0,1)*(3-2*clip(${x},0,1)))`;
-  const kIn = inT > 0 ? sm(`(${T}-${n(c.start)})/${n(inT)}`) : "1";
+  const kIn = inT > 0 ? sm(`(${T}-${n(curve.start)})/${n(inT)}`) : "1";
   const kOut = outT > 0 ? sm(`(${n(end)}-${T})/${n(outT)}`) : "1";
   const part = (key: keyof View): string => {
     const a = `(${n(from[key])}+(${n(target[key] - from[key])})*${kIn})`;
     const b = `(${n(NORMAL[key])}+(${n(target[key] - NORMAL[key])})*${kOut})`;
     const steady = n(target[key]);
-    return `if(lt(${T},${n(c.start + inT)}),${inT > 0 ? a : steady},if(gt(${T},${n(end - outT)}),${outT > 0 ? b : steady},${steady}))`;
+    return `if(lt(${T},${n(curve.start + inT)}),${inT > 0 ? a : steady},if(gt(${T},${n(end - outT)}),${outT > 0 ? b : steady},${steady}))`;
   };
   const scale = `(${part("scale")})`;
   const center = (key: "cx" | "cy"): string => `clip(${part(key)},0.5/${scale},1-0.5/${scale})`;
@@ -171,12 +221,23 @@ export function zoomAffine(
   return { s, tx, ty };
 }
 
-/** ffmpeg perspective filter zooming a W × H composite as the layer says, frame by frame. */
-export function zoomLayerFilter(c: LayerClip, fps: number, from: View = NORMAL): string {
-  const e = layerViewExprs(c, from, `(in/${fps})`);
+/**
+ * The time of the frame being filtered, for filters without `t` (perspective): their `in` counts
+ * frames from 1, and the stream's first frame is frame `first` of the timeline (an export
+ * segment starts mid-lesson).
+ */
+export const frameClock = (fps: number, first = 0): string =>
+  `((in${first - 1 < 0 ? "" : "+"}${first - 1})/${fps})`;
+
+/**
+ * ffmpeg perspective filter zooming a W × H composite as the layer says, frame by frame, on a
+ * stream whose first frame is timeline frame `first`.
+ */
+export function zoomLayerFilter(c: LayerClip, fps: number, from: View = NORMAL, first = 0): string {
+  const e = layerViewExprs(c, from, frameClock(fps, first));
   const x0 = `(${e.cx}-0.5/${e.scale})*W`;
   const y0 = `(${e.cy}-0.5/${e.scale})*H`;
   const w = `W/${e.scale}`;
   const h = `H/${e.scale}`;
-  return `perspective=x0='${x0}':y0='${y0}':x1='${x0}+${w}':y1='${y0}':x2='${x0}':y2='${y0}+${h}':x3='${x0}+${w}':y3='${y0}+${h}':eval=frame:interpolation=linear:enable='between(t,${n(c.start)},${n(c.start + c.duration)})'`;
+  return `perspective=x0='${x0}':y0='${y0}':x1='${x0}+${w}':y1='${y0}':x2='${x0}':y2='${y0}+${h}':x3='${x0}+${w}':y3='${y0}+${h}':eval=frame:interpolation=linear:enable='between(t,${n(c.start - 0.5 / fps)},${n(c.start + c.duration - 0.5 / fps)})'`;
 }

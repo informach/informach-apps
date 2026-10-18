@@ -565,6 +565,9 @@ export function createDesktopController(
         }
         data.session = null;
         data.leases = {};
+        // Signing out of this computer also disconnects every AI client of every tool (the
+        // grant files go with it, main.ts).
+        data.mcpTokens = {};
       });
       emit({
         state: "restricted",

@@ -1,6 +1,6 @@
 import { clipSpeed, setClipSpeed } from "@shared/timeline";
 import type { Clip, Project } from "@shared/types";
-import { useProject } from "@/state/project";
+import { type Commit, personCommit, useProject } from "@/state/project";
 
 export const SPEED_PRESETS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4, 8];
 
@@ -18,7 +18,12 @@ export function speedLabel(speed: number): string {
  * Sets the speed of the given clips (those that have one), keeping what each one shows: faster
  * makes it shorter, slower longer. `ripple` moves what follows on each clip's track. One undo step.
  */
-export function applySpeed(ids: string[], speed: number, ripple: boolean): number {
+export function applySpeed(
+  ids: string[],
+  speed: number,
+  ripple: boolean,
+  commit: Commit = personCommit,
+): number {
   const p = useProject.getState().project;
   if (!p) return 0;
   const locked = new Set(p.tracks.filter((t) => t.locked).map((t) => t.id));
@@ -27,7 +32,7 @@ export function applySpeed(ids: string[], speed: number, ripple: boolean): numbe
     .filter((c) => ids.includes(c.id) && !locked.has(c.trackId) && hasSpeed(p, c))
     .sort((a, b) => b.start - a.start);
   if (!targets.length) return 0;
-  useProject.getState().commit((q) => ({
+  commit((q) => ({
     ...q,
     clips: targets.reduce((clips, c) => setClipSpeed(clips, c.id, speed, ripple), q.clips),
   }));

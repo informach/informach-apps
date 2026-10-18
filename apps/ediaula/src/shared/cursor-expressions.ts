@@ -3,21 +3,37 @@ import type { Clip, CursorSprite } from "./types.ts";
 
 type PositionChange = { frame: number; value: number };
 
-/** Immutable per-frame coordinates: framesync may read either input ahead. */
+/** The recording frame of the cursor data shown at frame `frame` of the clip. */
+export function cursorFrame(
+  cursor: Pick<CursorSprite, "positions" | "fps">,
+  clip: Pick<Clip, "in" | "speed">,
+  fps: number,
+  frame: number,
+): number {
+  const total = cursor.positions.length / 2;
+  return Math.min(
+    total - 1,
+    Math.max(0, Math.round((clip.in + (frame / fps) * clipSpeed(clip)) * cursor.fps)),
+  );
+}
+
+/**
+ * Immutable per-frame coordinates: framesync may read either input ahead. `frames` limits them
+ * to the clip's frames [from, to) that an export segment draws (default: the whole clip).
+ */
 export function cursorOverlayExpressions(
   cursor: CursorSprite,
   clip: Pick<Clip, "in" | "duration" | "speed">,
   fps: number,
+  frames?: { from: number; to: number },
 ): { x: string; y: string } {
   const total = cursor.positions.length / 2;
   if (!Number.isInteger(total) || total < 1) throw new Error("Cursor positions are missing");
   const changes: [PositionChange[], PositionChange[]] = [[], []];
-  const frames = Math.max(1, Math.ceil(clip.duration * fps));
-  for (let frame = 0; frame < frames; frame++) {
-    const sourceFrame = Math.min(
-      total - 1,
-      Math.max(0, Math.round((clip.in + (frame / fps) * clipSpeed(clip)) * cursor.fps)),
-    );
+  const first = Math.max(0, frames?.from ?? 0);
+  const last = Math.max(first + 1, frames?.to ?? Math.ceil(clip.duration * fps));
+  for (let frame = first; frame < last; frame++) {
+    const sourceFrame = cursorFrame(cursor, clip, fps, frame);
     for (const axis of [0, 1] as const) {
       const value = cursor.positions[sourceFrame * 2 + axis];
       if (!Number.isFinite(value)) throw new Error("Cursor position is not finite");

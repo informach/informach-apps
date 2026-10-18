@@ -18,12 +18,13 @@ import {
 import type { NsisUpdater } from "electron-updater";
 import { lock, unlockSync } from "proper-lockfile";
 import { z } from "zod";
-import { configureDesktopAccess } from "./access";
+import { clearAccess, configureDesktopAccess, replaceGrants } from "./access";
 import { desktopConfigSchema, recoveryResultSchema } from "./contracts";
 import { createDesktopController } from "./controller";
 import { electronInstallationFileSystem } from "./electron-installation-filesystem";
 import { createFileAuthority, validateIpcValues } from "./files";
 import { gateHtml } from "./gate-html";
+import { createGrantFile, migrateLegacyToken, removeAllGrantFiles } from "./grants";
 import { verifyInstalledApplication } from "./installation-integrity";
 import { desktopJobs } from "./jobs";
 import { createReleaseAcceptance } from "./release-policy";
@@ -47,6 +48,11 @@ export const desktopFiles = {
   assertWrite: (path: string) => files().assertWrite(path, false),
   assertRelatedExport: (primary: string, path: string) =>
     files().assertRelatedExport(primary, path),
+  /** For state the main process kept itself (a queue saved between sessions): whether a file
+   *  was chosen, and choosing it again when that state is read back. */
+  canRead: (path: string) => files().canRead(path),
+  canWrite: (path: string) => files().canWrite(path),
+  grantWrite: (path: string) => files().grantWrite(path),
 };
 /** Composition at the application-owned registration boundary, not mutation of Electron. */
 export const desktopIpc = {
@@ -91,6 +97,8 @@ export function createEdiDesktop(options: {
   recoveryChannels?: readonly string[];
   onRecovery?: () => void;
   getRecoveryWindow?: () => BrowserWindow | null | undefined;
+  /** The computer was signed out: stop AI runs and close windows that held MCP tokens. */
+  onSignedOut?: () => void;
 }) {
   const config = desktopConfigSchema.parse(JSON.parse(process.env.EDI_DESKTOP_CONFIG ?? "{}"));
   fileAuthority = createFileAuthority(
@@ -113,6 +121,10 @@ export function createEdiDesktop(options: {
   let verifyingQuit = false;
   let quitVerified = false;
   let releaseStartup: (() => void) | undefined;
+  let reloadGrants: (() => Promise<void>) | undefined;
+  /** No session on this computer any more: every MCP token goes, and the tool stops its AI runs. */
+  let signOut: (() => Promise<void>) | undefined;
+  let signedOut = false;
   const recoveryRequests = new Map<
     string,
     { senderId: number; complete: (saved: boolean) => void }
@@ -122,6 +134,16 @@ export function createEdiDesktop(options: {
     console.error(
       `[edi:${options.appId}] ${operation}: ${error instanceof Error ? error.name : "unknown"}`,
     );
+  };
+  const safeReloadGrants = () => {
+    reloadGrants?.().catch((error: unknown) => {
+      logFailure("mcp_grants_reload_failed", error);
+    });
+  };
+  const safeSignOut = () => {
+    signOut?.().catch((error: unknown) => {
+      logFailure("mcp_grants_sign_out_failed", error);
+    });
   };
   const safeRefresh = () => {
     desktopJobs.checkDeadlines();
@@ -388,13 +410,39 @@ export function createEdiDesktop(options: {
         currentVersion: app.getVersion(),
         channel: config.updateChannel,
       });
-      const token = await vault.use(async (data) => {
-        data.mcpTokens[options.appId] ??= randomBytes(32).toString("hex");
-        const value = data.mcpTokens[options.appId];
-        if (!value) throw new Error("Local MCP token missing");
-        return value;
+      const appId = options.appId;
+      const grantFile = createGrantFile({
+        directory,
+        appId,
+        seal: (value) => safeStorage.encryptString(value),
+        unseal: (value) => safeStorage.decryptString(value),
       });
-      configureDesktopAccess({ token, assertAccess: () => requireController().assertAccess() });
+      // The single permanent token of earlier versions keeps working for the clients already
+      // configured with it for 30 days, but only to read and propose; writing asks for approval.
+      await migrateLegacyToken({
+        appId,
+        grants: grantFile,
+        readToken: () => vault.use(async (data) => data.mcpTokens[appId]),
+        removeToken: () =>
+          vault.use(async (data) => {
+            delete data.mcpTokens[appId];
+          }),
+      });
+      // A token of this process only, for tools whose own engines use localMcpHeaders().
+      configureDesktopAccess({
+        token: randomBytes(32).toString("hex"),
+        assertAccess: () => requireController().assertAccess(),
+        grants: await grantFile.load(),
+        store: grantFile.store,
+      });
+      reloadGrants = async () => {
+        replaceGrants(await grantFile.load());
+      };
+      signOut = async () => {
+        clearAccess();
+        await removeAllGrantFiles(directory);
+        options.onSignedOut?.();
+      };
       controller = createDesktopController({
         ...config,
         appId: options.appId,
@@ -403,6 +451,11 @@ export function createEdiDesktop(options: {
         openExternal: (url) => shell.openExternal(url),
         changed: (status) => {
           desktopJobs.setAccess(status.state === "licensed");
+          // Signed out here or in another tool of the suite: no AI client keeps any access.
+          if (status.cause === "signed_out" && !signedOut) {
+            signedOut = true;
+            safeSignOut();
+          } else if (status.cause !== "signed_out") signedOut = false;
           for (const window of BrowserWindow.getAllWindows())
             window.webContents.send("edi:status-changed", status);
           if (expiryTimer) clearTimeout(expiryTimer);
@@ -440,7 +493,10 @@ export function createEdiDesktop(options: {
       const operations = {
         "edi:status": () => requireController().status(),
         "edi:connect": () => requireController().connect(),
-        "edi:logout": () => requireController().logout(),
+        "edi:logout": async () => {
+          await requireController().logout();
+          await signOut?.();
+        },
         "edi:refresh": () => requireController().refresh(),
         "edi:account": () => shell.openExternal(`${new URL(config.portalUrl).origin}/conta`),
         "edi:update": () => updater?.checkForUpdates(),
@@ -531,10 +587,12 @@ export function createEdiDesktop(options: {
       }
       await controller.refresh();
       unsubscribeVault = watch(directory, { persistent: false }, (_kind, name) => {
-        if (name === "session.v1.bin")
-          controller?.synchronize().catch((error: unknown) => {
-            logFailure("session_sync_failed", error);
-          });
+        if (name !== "session.v1.bin") return;
+        controller?.synchronize().catch((error: unknown) => {
+          logFailure("session_sync_failed", error);
+        });
+        // A logout or a revocation in another tool reaches this one's MCP grants too.
+        safeReloadGrants();
       });
       timer = setInterval(() => {
         safeRefresh();

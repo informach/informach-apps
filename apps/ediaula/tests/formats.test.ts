@@ -6,8 +6,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
-import { buildExportPlan } from "../src/shared/exportPlan.ts";
-import type { ExportSpec, Project } from "../src/shared/types.ts";
+import { buildExportPlan, exportVideoArgs } from "../src/shared/exportPlan.ts";
+import { exportSpecSchema } from "../src/shared/project-schema.ts";
+import { ENCODERS, type Encoder, type ExportSpec, type Project } from "../src/shared/types.ts";
 
 const require = createRequire(import.meta.url);
 const FFMPEG: string = require("ffmpeg-static");
@@ -65,7 +66,9 @@ function lesson(dir: string): Project {
   };
 }
 
-function render(p: Project, spec: ExportSpec, dir: string): void {
+/** Renders a spec exactly as the main process receives it: checked by its schema first. */
+function render(p: Project, raw: ExportSpec, dir: string): void {
+  const spec = exportSpecSchema.parse(raw);
   const plan = buildExportPlan(p, spec);
   const script = join(dir, `f-${Date.now()}.txt`);
   writeFileSync(script, plan.filter);
@@ -184,6 +187,55 @@ test("Podcast: only the mixed sound, as MP3, without drawing any video", {
   const s = probe(out).streams;
   assert.equal(s.length, 1);
   assert.equal(s[0].codec_name, "mp3");
+  // Without a bitrate only the sound can be exported.
+  assert.equal(exportSpecSchema.safeParse({ ...spec, audioOnly: false }).success, false);
+  assert.equal(exportSpecSchema.safeParse({ ...spec, audioOnly: undefined }).success, false);
+});
+
+test("a vertical lesson goes out at its own full size, without the vertical layout", {
+  timeout: 60_000,
+}, () => {
+  const dir = mkdtempSync(join(tmpdir(), "ediaula-fmt-"));
+  const video = join(dir, "vertical.mp4");
+  execFileSync(FFMPEG, [
+    "-y",
+    "-v",
+    "error",
+    "-f",
+    "lavfi",
+    "-i",
+    "testsrc2=s=360x640:r=30:d=1",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "ultrafast",
+    video,
+  ]);
+  const p = lesson(dir);
+  p.settings = { width: 360, height: 640, fps: 30 };
+  p.assets = [
+    { ...p.assets[0], path: video, width: 360, height: 640, duration: 1, hasAudio: false },
+  ];
+  p.clips = [{ ...p.clips[0], duration: 1 }];
+  const out = join(dir, "vertical-out.mp4");
+  // The dialog picks the short side: 360 is 360 × 640 for this lesson, and no `vertical`.
+  render(
+    p,
+    {
+      outPath: out,
+      width: 360,
+      height: 640,
+      fps: 30,
+      videoBitrate: 2000,
+      quality: "high",
+      normalizeLoudness: false,
+      encoder: "x264",
+    },
+    dir,
+  );
+  const v = probe(out).streams.find((s) => s.codec_type === "video");
+  assert.ok(v);
+  assert.deepEqual([v.width, v.height], [360, 640]);
 });
 
 test("circle mask with a border: transparent corners, picture inside, colored ring at the edge", {
@@ -308,3 +360,56 @@ test("circle mask with a border: transparent corners, picture inside, colored ri
   );
   assert.ok(ring[1] > 150 && ring[2] < 140, `lime ring at the top edge: ${ring}`);
 });
+
+/** Whether this FFmpeg build and this machine's GPU and driver can use the encoder at all. */
+function encodes(encoder: Encoder): boolean {
+  try {
+    execFileSync(
+      FFMPEG,
+      [
+        "-v",
+        "error",
+        "-f",
+        "lavfi",
+        "-i",
+        "color=s=256x256:d=0.2",
+        ...exportVideoArgs(encoder, 2000),
+        "-f",
+        "null",
+        "-",
+      ],
+      { stdio: "pipe" },
+    );
+    return true;
+  } catch {
+    return false; // missing from this build, or no such GPU here
+  }
+}
+
+for (const encoder of ENCODERS)
+  test(`exports a playable H.264 lesson with ${encoder} when this machine has it`, {
+    timeout: 60_000,
+    skip: !encodes(encoder) && `${encoder} is not available here`,
+  }, () => {
+    const dir = mkdtempSync(join(tmpdir(), "ediaula-fmt-"));
+    const out = join(dir, `aula-${encoder}.mp4`);
+    render(
+      lesson(dir),
+      {
+        outPath: out,
+        width: 640,
+        height: 360,
+        fps: 30,
+        videoBitrate: 2000,
+        normalizeLoudness: false,
+        encoder,
+      },
+      dir,
+    );
+    const streams = probe(out).streams;
+    const video = streams.find((s) => s.codec_type === "video");
+    assert.ok(video);
+    assert.equal(video.codec_name, "h264");
+    assert.deepEqual([video.width, video.height], [640, 360]);
+    assert.ok(streams.some((s) => s.codec_type === "audio"));
+  });

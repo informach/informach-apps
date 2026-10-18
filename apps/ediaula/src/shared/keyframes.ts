@@ -1,5 +1,6 @@
 import { DEFAULT_TRANSFORM, type Transform } from "./compose.ts";
 import type { Clip } from "./types.ts";
+import { sliceByTime, smoothSteps } from "./zoom.ts";
 
 /**
  * Free movement of a clip: positions and sizes marked at moments of the clip, with smooth
@@ -8,7 +9,7 @@ import type { Clip } from "./types.ts";
  */
 
 export interface Keyframe {
-  /** Seconds from the start of the clip. */
+  /** Seconds from the start of the clip (negative: before it, kept by a piece of a longer clip). */
   t: number;
   x: number;
   y: number;
@@ -49,29 +50,25 @@ export function transformAt(
 }
 
 const num = (v: number): string => (Math.round(v * 100000) / 100000).toString();
-const sm = (p: string): string => `(clip(${p},0,1)*clip(${p},0,1)*(3-2*clip(${p},0,1)))`;
 
-/** ffmpeg expression for one property along the keyframes, `local` being clip-local seconds. */
-function propExpr(kfs: Keyframe[], local: string, key: "x" | "y" | "scale"): string {
-  let expr = num(kfs[kfs.length - 1][key]);
-  for (let i = kfs.length - 1; i >= 1; i--) {
-    const a = kfs[i - 1];
-    const b = kfs[i];
-    const k = sm(`(${local}-${num(a.t)})/${num(Math.max(1e-3, b.t - a.t))}`);
-    expr = `if(lt(${local},${num(b.t)}),${num(a[key])}+(${num(b[key] - a[key])})*${k},${expr})`;
-  }
-  return `if(lte(${local},${num(kfs[0].t)}),${num(kfs[0][key])},${expr})`;
-}
-
+/**
+ * ffmpeg expressions for the keyframed x, y and scale, `local` being clip-local seconds: a flat
+ * sum of smooth steps (shared/zoom.ts smoothSteps), the same curve as keyframeAt. With `range`
+ * (clip-local seconds), only the keyframes that shape it there are written.
+ */
 export function keyframeExprs(
   kfs: Keyframe[],
   local: string,
+  range?: readonly [number, number],
 ): { x: string; y: string; scale: string } {
-  return {
-    x: propExpr(kfs, local, "x"),
-    y: propExpr(kfs, local, "y"),
-    scale: propExpr(kfs, local, "scale"),
-  };
+  const list = sliceByTime(kfs, range);
+  const prop = (key: "x" | "y" | "scale"): string =>
+    `(${smoothSteps(
+      list.map((k) => ({ t: k.t, v: k[key] })),
+      local,
+      num,
+    )})`;
+  return { x: prop("x"), y: prop("y"), scale: prop("scale") };
 }
 
 /** Adds or replaces the keyframe at clip-local `local` (within 1/20 s), keeping them in order. */

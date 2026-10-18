@@ -1,0 +1,109 @@
+[in#0 @ 0000023b14d16b80] DirectShow video device options (from video devices)
+[in#0 @ 0000023b14d16b80]  Pin "Capturar" (alternative pin name "0")
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=640x480 fps=5 max s=640x480 fps=30
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=640x480 fps=5 max s=640x480 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=160x90 fps=5 max s=160x90 fps=30
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=160x90 fps=5 max s=160x90 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=160x120 fps=5 max s=160x120 fps=30
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=160x120 fps=5 max s=160x120 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=176x144 fps=5 max s=176x144 fps=30
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=176x144 fps=5 max s=176x144 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=320x180 fps=5 max s=320x180 fps=30
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=320x180 fps=5 max s=320x180 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=320x240 fps=5 max s=320x240 fps=30
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=320x240 fps=5 max s=320x240 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=352x288 fps=5 max s=352x288 fps=30
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=352x288 fps=5 max s=352x288 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=432x240 fps=5 max s=432x240 fps=30
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=432x240 fps=5 max s=432x240 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=640x360 fps=5 max s=640x360 fps=30
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=640x360 fps=5 max s=640x360 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=800x448 fps=5 max s=800x448 fps=30
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=800x448 fps=5 max s=800x448 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=800x600 fps=5 max s=800x600 fps=24
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=800x600 fps=5 max s=800x600 fps=24 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=864x480 fps=5 max s=864x480 fps=24
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=864x480 fps=5 max s=864x480 fps=24 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=960x720 fps=5 max s=960x720 fps=15
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=960x720 fps=5 max s=960x720 fps=15 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=1024x576 fps=5 max s=1024x576 fps=15
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=1024x576 fps=5 max s=1024x576 fps=15 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=1280x720 fps=5 max s=1280x720 fps=10
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=1280x720 fps=5 max s=1280x720 fps=10 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=1600x896 fps=5 max s=1600x896 fps=7.5
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=1600x896 fps=5 max s=1600x896 fps=7.5 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=1920x1080 fps=5 max s=1920x1080 fps=5
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=1920x1080 fps=5 max s=1920x1080 fps=5 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=2304x1296 fps=2 max s=2304x1296 fps=2
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=2304x1296 fps=2 max s=2304x1296 fps=2 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=2304x1536 fps=2 max s=2304x1536 fps=2
+[in#0 @ 0000023b14d16b80]   pixel_format=yuyv422  min s=2304x1536 fps=2 max s=2304x1536 fps=2 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=640x480 fps=5 max s=640x480 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=640x480 fps=5 max s=640x480 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=160x90 fps=5 max s=160x90 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=160x90 fps=5 max s=160x90 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=160x120 fps=5 max s=160x120 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=160x120 fps=5 max s=160x120 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=176x144 fps=5 max s=176x144 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=176x144 fps=5 max s=176x144 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=320x180 fps=5 max s=320x180 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=320x180 fps=5 max s=320x180 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=320x240 fps=5 max s=320x240 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=320x240 fps=5 max s=320x240 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=352x288 fps=5 max s=352x288 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=352x288 fps=5 max s=352x288 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=432x240 fps=5 max s=432x240 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=432x240 fps=5 max s=432x240 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=640x360 fps=5 max s=640x360 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=640x360 fps=5 max s=640x360 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=800x448 fps=5 max s=800x448 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=800x448 fps=5 max s=800x448 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=800x600 fps=5 max s=800x600 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=800x600 fps=5 max s=800x600 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=864x480 fps=5 max s=864x480 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=864x480 fps=5 max s=864x480 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=960x720 fps=5 max s=960x720 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=960x720 fps=5 max s=960x720 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=1024x576 fps=5 max s=1024x576 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=1024x576 fps=5 max s=1024x576 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=1280x720 fps=5 max s=1280x720 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=1280x720 fps=5 max s=1280x720 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=1600x896 fps=5 max s=1600x896 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=1600x896 fps=5 max s=1600x896 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=1920x1080 fps=5 max s=1920x1080 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=h264  min s=1920x1080 fps=5 max s=1920x1080 fps=30 (tv, bt470bg/bt709/unknown, topleft)
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=640x480 fps=5 max s=640x480 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=640x480 fps=5 max s=640x480 fps=30 (pc, bt470bg/bt709/unknown, center)
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=160x90 fps=5 max s=160x90 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=160x90 fps=5 max s=160x90 fps=30 (pc, bt470bg/bt709/unknown, center)
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=160x120 fps=5 max s=160x120 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=160x120 fps=5 max s=160x120 fps=30 (pc, bt470bg/bt709/unknown, center)
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=176x144 fps=5 max s=176x144 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=176x144 fps=5 max s=176x144 fps=30 (pc, bt470bg/bt709/unknown, center)
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=320x180 fps=5 max s=320x180 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=320x180 fps=5 max s=320x180 fps=30 (pc, bt470bg/bt709/unknown, center)
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=320x240 fps=5 max s=320x240 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=320x240 fps=5 max s=320x240 fps=30 (pc, bt470bg/bt709/unknown, center)
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=352x288 fps=5 max s=352x288 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=352x288 fps=5 max s=352x288 fps=30 (pc, bt470bg/bt709/unknown, center)
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=432x240 fps=5 max s=432x240 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=432x240 fps=5 max s=432x240 fps=30 (pc, bt470bg/bt709/unknown, center)
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=640x360 fps=5 max s=640x360 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=640x360 fps=5 max s=640x360 fps=30 (pc, bt470bg/bt709/unknown, center)
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=800x448 fps=5 max s=800x448 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=800x448 fps=5 max s=800x448 fps=30 (pc, bt470bg/bt709/unknown, center)
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=800x600 fps=5 max s=800x600 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=800x600 fps=5 max s=800x600 fps=30 (pc, bt470bg/bt709/unknown, center)
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=864x480 fps=5 max s=864x480 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=864x480 fps=5 max s=864x480 fps=30 (pc, bt470bg/bt709/unknown, center)
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=960x720 fps=5 max s=960x720 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=960x720 fps=5 max s=960x720 fps=30 (pc, bt470bg/bt709/unknown, center)
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=1024x576 fps=5 max s=1024x576 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=1024x576 fps=5 max s=1024x576 fps=30 (pc, bt470bg/bt709/unknown, center)
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=1280x720 fps=5 max s=1280x720 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=1280x720 fps=5 max s=1280x720 fps=30 (pc, bt470bg/bt709/unknown, center)
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=1600x896 fps=5 max s=1600x896 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=1600x896 fps=5 max s=1600x896 fps=30 (pc, bt470bg/bt709/unknown, center)
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=1920x1080 fps=5 max s=1920x1080 fps=30
+[in#0 @ 0000023b14d16b80]   vcodec=mjpeg  min s=1920x1080 fps=5 max s=1920x1080 fps=30 (pc, bt470bg/bt709/unknown, center)
+Error opening input file video=HD Pro Webcam C920.

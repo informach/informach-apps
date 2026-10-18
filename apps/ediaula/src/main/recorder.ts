@@ -1,182 +1,162 @@
-import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdirSync, mkdtempSync } from "node:fs";
-import { copyFile, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
-import { windowsPowerShellEnvironment } from "@informach/edi-desktop/windows-powershell";
+import { copyFile, rm } from "node:fs/promises";
+import { release } from "node:os";
+import { extname, join } from "node:path";
 import { app } from "electron";
 import {
-  type CaptureMonitor,
-  type CaptureSources,
-  CURSOR_SHAPES,
-  type CursorData,
-  keyLabel,
-  type MarkerKind,
-  type RecordingResult,
-  type RecordOptions,
+  type CameraChoice,
+  type CameraMode,
+  chooseCameraMode,
+  parseDshowOptions,
+} from "../shared/camera.ts";
+import { cameraOptionsArgs, METER_RATE, microphoneMeterArgs } from "../shared/captureArgs.ts";
+import type { BoardKind, DrawingTool } from "../shared/drawing.ts";
+import { type DshowDevice, dshowName, parseDshowDevices } from "../shared/dshow.ts";
+import {
+  type CaptureEncoder,
+  type CaptureProfile,
+  captureEncoderLabel,
+} from "../shared/encoderChoice.ts";
+import { duplicationOutput } from "../shared/helperProtocol.ts";
+import type {
+  CaptureMonitor,
+  CaptureSources,
+  CaptureWindow,
+  MarkerKind,
+  OrphanTake,
+  RecorderEvent,
+  RecorderStatus,
+  RecordingResult,
+  RecordOptions,
 } from "../shared/recording.ts";
-import { detectEncoder, FFMPEG, probe, run, writeFilterScript } from "./ffmpeg.ts";
-import { nativeResourcePath } from "./native-resources.ts";
+import { type MicLevel, pcmLevels, type RecorderHealth } from "../shared/recordingHealth.ts";
+import { screenCaptureProblem } from "../shared/systemAudio.ts";
+import { detectCaptureEncoder, reportCaptureFailure } from "./encoders.ts";
+import { FFMPEG } from "./ffmpeg.ts";
+import { HookClient, listDisplays, restoreRaisedWindows } from "./nativeHelper.ts";
+import {
+  isTake,
+  markTakeImported,
+  isOrphan as orphanIn,
+  recoverOrphan as recoverTake,
+  scanOrphans,
+} from "./recording/recovery.ts";
+import { RecordingSession } from "./recording/session.ts";
 
 /**
- * Screen recording: the monitor (or a region of it) through Desktop Duplication without the
- * mouse pointer, the microphone and optionally the webcam in the same ffmpeg process, plus a
- * helper that logs every mouse move and click on the same clock. Pausing closes a segment;
- * stopping joins the segments and writes the cursor data in video time.
+ * The recorder as the rest of the app sees it: one take at a time, prepared, started, paused,
+ * stopped. The take itself lives in main/recording (session, sources, journal, health,
+ * finalization and recovery); this module keeps the current one and passes its status, events
+ * and health to whoever subscribed (the recorder window).
  */
 
-const qpc = (): number => Number(process.hrtime.bigint()) / 1e6;
-const hookScript = (): string => nativeResourcePath("cursor-hook.ps1");
+export type RecorderMessage =
+  | { type: "status"; status: RecorderStatus }
+  | { type: "event"; event: RecorderEvent }
+  | { type: "health"; health: RecorderHealth }
+  /** "Só voz" with following: the microphone's 16 kHz copy and when it arrived (QPC ms). */
+  | { type: "follow"; chunk: Buffer; at: number }
+  /** The teleprompter moved to a line (QPC ms). */
+  | { type: "line"; index: number; at: number };
 
-function spawnHook(list = false, keys = false): ChildProcessWithoutNullStreams {
-  return spawn(
-    "powershell.exe",
-    [
-      "-NoProfile",
-      "-ExecutionPolicy",
-      "Bypass",
-      "-File",
-      hookScript(),
-      ...(list ? ["-List"] : []),
-      ...(keys ? ["-Keys"] : []),
-    ],
-    { windowsHide: true, env: windowsPowerShellEnvironment() },
-  );
+const listeners = new Set<(message: RecorderMessage) => void>();
+let session: RecordingSession | null = null;
+let preparing: Promise<void> | null = null;
+/** Each prepare and each cancel moves this on; a prepare that finds it moved throws its take away. */
+let generation = 0;
+/** The stop of the last take, so asking twice gives one finalization and one answer. */
+let stopping: { session: RecordingSession; result: Promise<RecordingResult> } | null = null;
+/** DirectShow devices of the last listing, to open them by their alternative names. */
+let devices: { microphones: DshowDevice[]; cameras: DshowDevice[] } = {
+  microphones: [],
+  cameras: [],
+};
+
+const NO_SESSION: RecorderStatus = { phase: null, failed: [], closed: false, reopening: false };
+
+/** Every listener hears it; one that fails is reported and does not stop the take or the others. */
+function broadcast(message: RecorderMessage): void {
+  for (const listener of listeners)
+    try {
+      listener(message);
+    } catch (error) {
+      console.error(`[recorder] ${message.type} não entregue:`, error);
+    }
 }
 
-async function listMonitors(): Promise<Omit<CaptureMonitor, "output" | "label">[]> {
-  const child = spawnHook(true);
-  let out = "";
-  child.stdout.on("data", (d: Buffer) => (out += d.toString()));
-  await new Promise((r) => child.on("close", r));
-  return out
-    .split("\n")
-    .filter((l) => l.startsWith("MON "))
-    .map((l, index) => {
-      const [x, y, width, height, primary] = l.trim().split(" ").slice(1).map(Number);
-      return { index, x, y, width, height, primary: primary === 1 };
-    });
+/** Status, events and health of every take from now on. */
+export function subscribe(listener: (message: RecorderMessage) => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
 }
 
-/** Size of each Desktop Duplication output, to know which one shows which monitor. */
-let outputs: { width: number; height: number }[] | null = null;
-async function duplicationOutputs(count: number): Promise<{ width: number; height: number }[]> {
-  if (outputs) return outputs;
-  const found: { width: number; height: number }[] = [];
-  for (let i = 0; i < count + 1; i++) {
-    const text = await new Promise<string>((resolve) => {
-      const c = spawn(
-        FFMPEG,
-        [
-          "-hide_banner",
-          "-f",
-          "lavfi",
-          "-i",
-          `ddagrab=output_idx=${i}:framerate=5`,
-          "-frames:v",
-          "1",
-          "-f",
-          "null",
-          "-",
-        ],
-        { windowsHide: true },
-      );
-      let err = "";
-      c.stderr.on("data", (d: Buffer) => (err += d.toString()));
-      c.on("close", () => resolve(err));
-    });
-    const m = /Stream #0:0.*?, (\d+)x(\d+)/.exec(text);
-    if (!m) break;
-    found.push({ width: Number(m[1]), height: Number(m[2]) });
-  }
-  outputs = found;
-  return found;
-}
+/** Where the windows a take keeps above the others are noted while it does (the profile). */
+const raisedWindowsFile = (): string => join(app.getPath("userData"), "janelas-na-frente.json");
+
+/**
+ * At start: windows a take raised above the others and that nothing put back (the app and its
+ * helper went down together) go back to the normal order.
+ */
+export const restoreRaised = (): Promise<string[]> => restoreRaisedWindows(raisedWindowsFile());
+
+export const isRecording = (): boolean => !!session;
+/** A take is being prepared (helper starting, encoder being tested). */
+export const isPreparing = (): boolean => !!preparing;
+export const status = (): RecorderStatus => session?.status() ?? NO_SESSION;
+/** Folder of the take being recorded, if any. */
+export const activeDir = (): string | undefined => session?.dir;
 
 async function listDevices(): Promise<{ microphones: string[]; cameras: string[] }> {
-  const text = await new Promise<string>((resolve) => {
-    const c = spawn(
-      FFMPEG,
-      ["-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"],
-      { windowsHide: true },
-    );
+  devices = parseDshowDevices(
+    await ffmpegListing(["-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"]),
+  );
+  return {
+    microphones: devices.microphones.map((d) => d.name),
+    cameras: devices.cameras.map((d) => d.name),
+  };
+}
+
+/** What FFmpeg opens for a device the teacher chose by its friendly name. */
+const deviceName = (kind: "audio" | "video", name: string): string =>
+  dshowName(kind === "audio" ? devices.microphones : devices.cameras, name);
+
+/** FFmpeg's listings go to stderr and end with an error exit; only the text matters. */
+function ffmpegListing(args: string[]): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const c = spawn(FFMPEG, args, { windowsHide: true });
     let err = "";
     c.stderr.on("data", (d: Buffer) => (err += d.toString()));
+    c.on("error", reject);
     c.on("close", () => resolve(err));
   });
-  const microphones: string[] = [];
-  const cameras: string[] = [];
-  for (const m of text.matchAll(/"([^"]+)" \((audio|video)\)/g))
-    (m[2] === "audio" ? microphones : cameras).push(m[1]);
-  return { microphones, cameras };
 }
 
 export async function captureSources(): Promise<CaptureSources> {
-  const [mons, devices] = await Promise.all([listMonitors(), listDevices()]);
-  const outs = await duplicationOutputs(mons.length);
-  const used = new Set<number>();
-  const monitors = mons.map((m, i) => {
-    // Outputs and monitors usually come in the same order; match by size to be sure.
-    let output = outs.findIndex(
-      (o, j) => !used.has(j) && j === i && o.width === m.width && o.height === m.height,
-    );
-    if (output < 0)
-      output = outs.findIndex(
-        (o, j) => !used.has(j) && o.width === m.width && o.height === m.height,
-      );
-    if (output >= 0) used.add(output);
-    return {
-      ...m,
-      output,
-      label: `${m.primary ? "Tela principal" : `Tela ${i + 1}`} · ${m.width}×${m.height}`,
-    };
-  });
+  const [list, devices] = await Promise.all([listDisplays(), listDevices()]);
+  const monitors = list.monitors.map((m, i) => ({
+    index: m.index,
+    x: m.x,
+    y: m.y,
+    width: m.w,
+    height: m.h,
+    primary: m.primary,
+    // Matched by device name: Windows and DXGI may list the monitors in different orders.
+    output: duplicationOutput(list, m),
+    label: `${m.primary ? "Tela principal" : `Tela ${i + 1}`} · ${m.w}×${m.h}`,
+  }));
   return { monitors, ...devices };
 }
 
-interface Segment {
-  /** QPC ms of the first frame. */
-  start: number;
-  duration: number;
-  screen: string;
-  camera?: string;
-}
-
-interface Session {
-  preserved?: boolean;
-  starting?: Promise<void>;
-  closing?: Promise<void>;
-  failure?: unknown;
-  narration?: { path: string; offset: number };
-  opts: RecordOptions;
-  monitor: CaptureMonitor;
-  dir: string;
-  hook: ChildProcessWithoutNullStreams;
-  events: string[];
-  segments: Segment[];
-  current: {
-    proc: ChildProcessWithoutNullStreams;
-    seg: Segment;
-    firstFrame: Promise<void>;
-    done: Promise<void>;
-  } | null;
-  markers: { qpc: number; kind: MarkerKind }[];
-  system?: { path: string; offset: number };
-}
-
-let session: Session | null = null;
-
-export const isRecording = (): boolean => !!session;
-
-export async function setGuidedNarration(path: string, delay: number): Promise<number> {
-  const s = session;
-  if (!s) throw new Error("Gravação não iniciada.");
-  const { extname } = await import("node:path");
-  const dest = join(s.dir, `narracao${extname(path)}`);
-  await copyFile(path, dest);
-  if (session !== s) throw new Error("Gravação encerrada.");
-  const offset = elapsed() + delay;
-  s.narration = { path: dest, offset };
-  return offset;
+/** Webcam modes and the one the recorder would pick (shared/camera.ts). */
+export async function cameraModes(
+  device: string,
+  fps = 30,
+): Promise<{ modes: CameraMode[]; choice: CameraChoice | null }> {
+  const modes = parseDshowOptions(
+    await ffmpegListing(cameraOptionsArgs(deviceName("video", device))),
+  );
+  return { modes, choice: chooseCameraMode(modes, fps) };
 }
 
 function stamp(): string {
@@ -191,421 +171,383 @@ export function recordingsDir(): string {
   return dir;
 }
 
-/** Starts the mouse helper ahead of time (it takes a second to load). */
-export async function prepare(opts: RecordOptions, monitors: CaptureMonitor[]): Promise<void> {
-  if (session) return;
-  const monitor = monitors.find((m) => m.index === opts.monitor);
-  if (!monitor || monitor.output < 0) throw new Error("Não consegui capturar esta tela.");
-  const dir = mkdtempSync(join(recordingsDir(), `${stamp()}-`));
-  const hook = spawnHook(false, !!opts.keys);
-  const events: string[] = [];
-  let buf = "";
-  const ready = new Promise<void>((resolve, reject) => {
-    const timeout = setTimeout(
-      () => reject(new Error("O capturador de cursor não iniciou.")),
-      8000,
-    );
-    const failed = (error: Error): void => {
-      clearTimeout(timeout);
-      reject(error);
-    };
-    hook.stdout.on("data", (d: Buffer) => {
-      buf += d.toString();
-      const lines = buf.split("\n");
-      buf = lines.pop()!;
-      for (const l of lines) {
-        if (l.startsWith("READY")) {
-          clearTimeout(timeout);
-          resolve();
-        } else if (/^[MDUWK] /.test(l)) events.push(l.trim());
-      }
-    });
-    hook.on("error", failed);
-    hook.once("close", () => failed(new Error("O capturador de cursor foi encerrado.")));
+/** A new take's own folder in the recordings folder, named after now. */
+export const createTakeDir = (): string => mkdtempSync(join(recordingsDir(), `${stamp()}-`));
+
+/**
+ * What the encoder is chosen for: the whole monitor (a region is never larger) at the recording's
+ * frame rate. The recorder window detects it in the background with the same profile.
+ */
+export const captureProfile = (monitor: CaptureMonitor, fps: number): CaptureProfile => ({
+  output: monitor.output,
+  width: monitor.width,
+  height: monitor.height,
+  fps,
+});
+
+/** The encoder this screen will be recorded with, detected once and then remembered. */
+export async function encoderFor(monitor: CaptureMonitor, fps: number): Promise<string> {
+  if (monitor.output < 0) throw new Error("Não consegui capturar esta tela.");
+  return captureEncoderLabel(await detectCaptureEncoder(captureProfile(monitor, fps)));
+}
+
+// ---- level meter while the recorder is being set up ----------------------------------------
+
+let meter: ReturnType<typeof spawn> | null = null;
+
+/**
+ * Measures `device` (the very dshow device the take will record) until another one is chosen,
+ * the take is prepared or `null` comes in.
+ */
+export function monitorMic(device: string | null, onLevel: (level: MicLevel) => void): void {
+  stopMicMonitor();
+  if (!device || session) return;
+  const child = spawn(FFMPEG, microphoneMeterArgs(deviceName("audio", device)), {
+    windowsHide: true,
   });
-  session = { opts, monitor, dir, hook, events, segments: [], current: null, markers: [] };
-  try {
-    await ready;
-  } catch (error) {
-    hook.kill();
+  meter = child;
+  const block = (METER_RATE * 2) / 10;
+  let pending: Buffer[] = [];
+  let size = 0;
+  let err = "";
+  child.stdout?.on("data", (chunk: Buffer) => {
+    pending.push(chunk);
+    size += chunk.length;
+    if (size < block) return;
+    onLevel(pcmLevels(Buffer.concat(pending)));
+    pending = [];
+    size = 0;
+  });
+  child.stderr?.on("data", (d: Buffer) => {
+    err = (err + d.toString()).slice(-2000);
+  });
+  child.on("error", (error) => onLevel({ peak: 0, rms: 0, error: error.message }));
+  child.on("close", (code) => {
+    if (meter !== child) return;
+    meter = null;
+    if (code !== 0)
+      onLevel({ peak: 0, rms: 0, error: err.trim().split("\n").at(-1) || `código ${code}` });
+  });
+}
+
+export function stopMicMonitor(): void {
+  const child = meter;
+  meter = null;
+  child?.kill();
+}
+
+// ---- the take ------------------------------------------------------------------------------
+
+export interface PrepareContext {
+  /** Windows of this process whose keys still show on screen (the guided lesson window). */
+  keyWindows?: string[];
+  /** Keys the helper never shows (the recorder's own shortcuts), shared/hotkeys.ts. */
+  keyFilter?: { vk: number; m: number }[];
+  /**
+   * Note where the text cursor is, so the automatic zoom follows what is typed. It costs the
+   * recorded program some speed (Chromium turns on its accessibility tree), so it follows the
+   * automatic zoom of the recorder's options.
+   */
+  caret?: boolean;
+}
+
+/**
+ * Starts the cursor helper and settles the encoder ahead of time. A take prepared earlier and
+ * never started gives way to this one; a take under way is not touched.
+ */
+export function prepare(
+  opts: RecordOptions,
+  monitors: CaptureMonitor[],
+  context: PrepareContext = {},
+): Promise<void> {
+  if (session && session.phase !== "prepared")
+    return Promise.reject(new Error("Uma gravação já está em andamento."));
+  // Claimed before waiting, so a second prepare does not start another helper.
+  preparing ??= prepareTake(opts, monitors, context).finally(() => {
+    preparing = null;
+  });
+  return preparing;
+}
+
+async function prepareTake(
+  opts: RecordOptions,
+  monitors: CaptureMonitor[],
+  context: PrepareContext,
+): Promise<void> {
+  const old = session;
+  if (old) {
     session = null;
+    await old.cancel();
+  }
+  const ticket = ++generation;
+  stopMicMonitor();
+  const monitor =
+    opts.monitor === undefined ? null : (monitors.find((m) => m.index === opts.monitor) ?? null);
+  if (opts.monitor !== undefined && (!monitor || monitor.output < 0))
+    throw new Error("Não consegui capturar esta tela.");
+  const captureProblem = monitor ? screenCaptureProblem(process.platform, release()) : null;
+  if (captureProblem) throw new Error(captureProblem);
+  if (!monitor && !opts.microphone) throw new Error("Escolha a tela ou um microfone para gravar.");
+  const dir = createTakeDir();
+  // Keys typed while the recorder itself is in front are not part of the lesson. Until the take
+  // starts, the helper keeps nothing but the cursor shape.
+  const hook = monitor
+    ? new HookClient({
+        keys: !!opts.keys,
+        // The moments something was typed (never what): the cleanup keeps a silent typing whole.
+        typing: true,
+        caret: !!context.caret,
+        journal: dir,
+        uiPid: process.pid,
+        paused: true,
+        raisedFile: raisedWindowsFile(),
+      })
+    : null;
+  let encoder: CaptureEncoder | null = null;
+  try {
+    const [, detected] = await Promise.all([
+      hook?.start(),
+      monitor ? detectCaptureEncoder(captureProfile(monitor, opts.fps)) : null,
+    ]);
+    encoder = detected;
+  } catch (error) {
+    await hook?.kill();
+    await rm(dir, { recursive: true, force: true });
     throw error;
   }
+  // Cancelled (or closed) while it was being prepared: nothing of it stays.
+  if (ticket !== generation) {
+    await hook?.kill();
+    await rm(dir, { recursive: true, force: true });
+    throw new Error("A preparação da gravação foi cancelada.");
+  }
+  const s = new RecordingSession({
+    opts,
+    monitor,
+    dir,
+    ffmpeg: FFMPEG,
+    encoder,
+    hook,
+    deviceName,
+    reportEncoderFailure: (failed) =>
+      monitor ? reportCaptureFailure(captureProfile(monitor, opts.fps), failed) : Promise.resolve(),
+  });
+  s.on("status", (st) => broadcast({ type: "status", status: st }));
+  s.on("event", (event) => broadcast({ type: "event", event }));
+  s.on("health", (health) => broadcast({ type: "health", health }));
+  s.on("follow", (chunk, at) => broadcast({ type: "follow", chunk, at }));
+  s.on("line", (index, at) => broadcast({ type: "line", index, at }));
+  s.setKeyFilter(context.keyFilter ?? [], context.keyWindows ?? []);
+  session = s;
+  stopping = null;
+  broadcast({ type: "status", status: s.status() });
 }
 
-async function startSegment(s: Session): Promise<void> {
-  const { opts, monitor } = s;
-  const n = s.segments.length + (s.current ? 1 : 0);
-  const enc = await detectEncoder();
-  const video =
-    enc === "nvenc"
-      ? [
-          "-c:v",
-          "h264_nvenc",
-          "-preset",
-          "p4",
-          "-rc",
-          "vbr",
-          "-cq",
-          "18",
-          "-g",
-          String(opts.fps * 2),
-        ]
-      : ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "18", "-g", String(opts.fps * 2)];
-  const r = opts.region;
-  const grab = [
-    `output_idx=${monitor.output}`,
-    `framerate=${opts.fps}`,
-    "draw_mouse=0",
-    ...(r ? [`offset_x=${r.x}`, `offset_y=${r.y}`, `video_size=${r.width}x${r.height}`] : []),
-  ].join(":");
-  const seg: Segment = {
-    start: 0,
-    duration: 0,
-    screen: join(s.dir, `tela-${n}.mp4`),
-    camera: opts.camera ? join(s.dir, `camera-${n}.mp4`) : undefined,
-  };
-  const args = [
-    "-hide_banner",
-    "-y",
-    "-v",
-    "error",
-    "-stats_period",
-    "0.05",
-    "-progress",
-    "pipe:2",
-    "-f",
-    "lavfi",
-    "-i",
-    `ddagrab=${grab}`,
-  ];
-  let input = 1;
-  let micIn = -1;
-  let camIn = -1;
-  if (opts.microphone) {
-    args.push("-f", "dshow", "-audio_buffer_size", "50", "-i", `audio=${opts.microphone}`);
-    micIn = input++;
-  }
-  if (opts.camera) {
-    args.push(
-      "-f",
-      "dshow",
-      "-rtbufsize",
-      "512M",
-      "-video_size",
-      "1280x720",
-      "-framerate",
-      "30",
-      "-i",
-      `video=${opts.camera}`,
-    );
-    camIn = input++;
-  }
-  args.push("-map", "0:v", "-vf", "hwdownload,format=bgra", ...video, "-pix_fmt", "yuv420p");
-  if (micIn >= 0) args.push("-map", `${micIn}:a`, "-c:a", "aac", "-b:a", "192k", "-ar", "48000");
-  // Fragments remain readable if recording is interrupted before normal finalization.
-  args.push("-movflags", "+frag_keyframe+empty_moov", seg.screen);
-  if (camIn >= 0)
-    args.push(
-      "-map",
-      `${camIn}:v`,
-      ...video,
-      "-pix_fmt",
-      "yuv420p",
-      "-movflags",
-      "+frag_keyframe+empty_moov",
-      seg.camera!,
-    );
-
-  const proc = spawn(FFMPEG, args, { windowsHide: true });
-  let err = "";
-  let best = Infinity;
-  let progressBlocks = 0;
-  let resolveFirst: () => void = () => undefined;
-  let rejectFirst: (error: Error) => void = () => undefined;
-  const firstFrame = new Promise<void>((resolve, reject) => {
-    resolveFirst = resolve;
-    rejectFirst = reject;
-  });
-  proc.stderr.on("data", (d: Buffer) => {
-    const text = d.toString();
-    err = (err + text).slice(-4000);
-    // The first frame happened out_time ago; delays only make this estimate later, so keep the earliest.
-    for (const m of text.matchAll(/out_time_us=(\d+)/g)) {
-      const us = Number(m[1]);
-      if (us <= 0) continue;
-      best = Math.min(best, qpc() - us / 1000);
-      seg.start = best;
-      if (++progressBlocks === 1) resolveFirst();
-    }
-  });
-  const done = new Promise<void>((resolve, reject) => {
-    const fail = (error: Error): void => {
-      rejectFirst(error);
-      reject(error);
-    };
-    proc.on("error", fail);
-    proc.on("close", (code) => {
-      if (code === 0 || code === 255) {
-        resolveFirst();
-        resolve();
-      } else
-        fail(
-          new Error(
-            err
-              .split("\n")
-              .filter((l) => l && !/^\w+=/.test(l))
-              .slice(-4)
-              .join("\n") || `ffmpeg saiu com código ${code}`,
-          ),
-        );
-    });
-  });
-  // Observe background failure immediately; stopping/resuming reports it to the caller.
-  void done.catch((error: unknown) => {
-    s.failure = error;
-  });
-  s.current = { proc, seg, firstFrame, done };
-  await Promise.race([firstFrame, done]);
-}
-
-async function closeSegment(s: Session): Promise<void> {
-  await s.starting;
-  if (s.closing) return s.closing;
-  const cur = s.current;
-  if (!cur) return;
-  s.closing = (async () => {
-    cur.proc.stdin.write("q");
-    await cur.done;
-    cur.seg.duration = (await probe(cur.seg.screen)).duration;
-    s.segments.push(cur.seg);
-    s.current = null;
-  })();
-  try {
-    await s.closing;
-  } finally {
-    s.closing = undefined;
-  }
-}
-
-export async function start(): Promise<void> {
+export async function start(): Promise<{ systemFallback: boolean }> {
   const s = session;
-  if (!s || s.preserved) throw new Error("Gravação não preparada ou já preservada.");
-  if (s.failure) throw s.failure;
-  if (s.current || s.starting) throw new Error("Gravação já iniciada.");
-  s.starting = startSegment(s);
-  try {
-    await s.starting;
-  } finally {
-    s.starting = undefined;
-  }
+  if (!s || s.isPreserved) throw new Error("Gravação não preparada ou já preservada.");
+  return s.start();
 }
 
 export async function pause(): Promise<void> {
-  if (session?.current) await closeSegment(session);
+  await session?.pause();
 }
 
+/** Goes on after a pause, reopening whatever stopped (a source that failed, a long pause). */
 export async function resume(): Promise<void> {
-  if (session && !session.current) await start();
+  await session?.resume();
 }
 
-/** Stop acquiring frames now; keep the session for audio delivery and finalization. */
+/** Stop acquiring now; keep the session for the computer's sound and the finalization. */
 export async function preserve(): Promise<void> {
-  const s = session;
-  if (!s) return;
-  s.preserved = true;
-  await closeSegment(s);
-  s.hook.kill();
+  await session?.preserve();
 }
 
 export function mark(kind: MarkerKind): void {
-  session?.markers.push({ qpc: qpc(), kind });
+  session?.mark(kind);
 }
 
-/** Seconds recorded so far. */
+/** Seconds recorded so far, without the pauses. */
 export function elapsed(): number {
-  if (!session) return 0;
-  const done = session.segments.reduce((s, g) => s + g.duration, 0);
-  const cur = session.current?.seg.start
-    ? Math.max(0, qpc() - session.current.seg.start) / 1000
-    : 0;
-  return done + cur;
+  return session?.elapsed() ?? 0;
 }
 
-export async function cancel(): Promise<void> {
+export function systemChunk(bytes: Uint8Array, startedAt?: number, endedAt?: number): void {
+  if (!session) throw new Error("Nenhuma gravação em andamento.");
+  session.systemChunk(bytes, startedAt, endedAt);
+}
+
+export function uiRects(rects: { x: number; y: number; w: number; h: number }[]): void {
+  session?.uiRects(rects);
+}
+
+/** The teleprompter moved to a line (at `heard`, QPC ms, when the voice following saw it). */
+export function teleprompterLine(index: number, heard?: number): void {
+  session?.teleprompterLine(index, heard);
+}
+
+/** "Tela sobre a narração": the lesson's voice heard at timeline second `at`, at QPC `when`. */
+export function overAnchor(at: number, when: number): void {
+  session?.overAnchor(at, when);
+}
+
+/** "Janela…": the window the take follows, kept in front with `front` (null lets go). */
+export function followWindow(hwnd: string | null, front: boolean): void {
+  session?.followWindow(hwnd, front);
+}
+
+/** A stroke drawn on the screen; `at` and the points' times are QPC milliseconds. */
+export function drawStroke(stroke: {
+  at: number;
+  color: string;
+  width: number;
+  points: [number, number, number][];
+  tool?: DrawingTool;
+}): void {
+  session?.drawStroke(stroke);
+}
+
+export function drawClear(at: number): void {
+  session?.drawClear(at);
+}
+
+/** A board over the region, put up (on) or taken away at `at` (QPC ms). */
+export function drawBoard(on: boolean, kind: BoardKind, at: number): void {
+  session?.drawBoard(on, kind, at);
+}
+
+/** "Página nova" of the board at `at` (QPC ms). */
+export function drawPage(at: number): void {
+  session?.drawPage(at);
+}
+
+/** Ctrl+Z while drawing at `at` (QPC ms). */
+export function drawUndo(at: number): void {
+  session?.drawUndo(at);
+}
+
+export function drawMode(on: boolean): void {
+  session?.drawMode(on);
+}
+
+/**
+ * Windows a person could record with "Janela…" (physical pixels of the virtual desktop), without
+ * the app's own: the recorder, the editor and the lesson window all belong to this process.
+ */
+export async function captureWindows(): Promise<CaptureWindow[]> {
+  const list = await listDisplays();
+  return list.windows
+    .filter((w) => w.pid !== process.pid && w.w > 0 && w.h > 0)
+    .map((w) => ({
+      hwnd: w.hwnd,
+      title: w.title,
+      exe: w.exe,
+      x: w.x,
+      y: w.y,
+      width: w.w,
+      height: w.h,
+      minimized: w.min,
+    }));
+}
+
+export function setKeyFilter(block: { vk: number; m: number }[], allow: string[]): void {
+  session?.setKeyFilter(block, allow);
+}
+
+/** `fromVideo`: the narration is the voice taken from a video (the presenter's render). */
+export async function setGuidedNarration(
+  path: string,
+  delay: number,
+  fromVideo = false,
+): Promise<number> {
   const s = session;
-  if (s?.preserved) {
+  if (!s) throw new Error("Gravação não iniciada.");
+  const file = `narracao${extname(path)}`;
+  await copyFile(path, join(s.dir, file));
+  if (session !== s) throw new Error("Gravação encerrada.");
+  const offset = s.elapsed() + delay;
+  s.setNarration(file, offset, fromVideo);
+  return offset;
+}
+
+/**
+ * Ends the take without keeping it; a take preserved by the license is saved instead. A take
+ * still being prepared is called off: its preparation throws it away when it ends.
+ */
+export async function cancel(): Promise<void> {
+  generation++;
+  const pending = preparing;
+  // Its caller hears how it ended; here it only has to be over.
+  if (pending) await pending.then(noop, noop);
+  const s = session;
+  if (s?.isPreserved) {
     await stop();
     return;
   }
   session = null;
+  if (s) await s.cancel();
+  broadcast({ type: "status", status: NO_SESSION });
+}
+
+const noop = (): void => undefined;
+
+/** Throws the current take away (to the Recycle Bin through `trash`) and stays in the recorder. */
+export async function discard(trash: (dir: string) => Promise<void>): Promise<void> {
+  const s = session;
   if (!s) return;
-  s.hook.kill();
-  if (s.current) {
-    s.current.proc.kill("SIGKILL");
-    await s.current.done.catch(() => undefined);
-  }
-  await rm(s.dir, { recursive: true, force: true }).catch(() => undefined);
-}
-
-/** Maps a QPC time to video seconds across segments; -1 when it fell in a pause. */
-function toVideoTime(segments: Segment[], t: number): number {
-  let offset = 0;
-  for (const g of segments) {
-    if (t >= g.start && t <= g.start + g.duration * 1000) return offset + (t - g.start) / 1000;
-    offset += g.duration;
-  }
-  return -1;
-}
-
-async function concat(files: string[], out: string): Promise<void> {
-  if (files.length === 1) {
-    const { rename } = await import("node:fs/promises");
-    await rename(files[0], out);
-    return;
-  }
-  const list = await writeFilterScript(
-    files.map((f) => `file '${f.replace(/'/g, "'\\''")}'`).join("\n"),
-  );
-  await run(FFMPEG, [
-    "-y",
-    "-v",
-    "error",
-    "-f",
-    "concat",
-    "-safe",
-    "0",
-    "-i",
-    list,
-    "-c",
-    "copy",
-    "-movflags",
-    "+faststart",
-    out,
-  ]);
-  for (const f of files) await rm(f, { force: true });
-}
-
-/**
- * The computer's sound, recorded by the recorder window (Chromium loopback) while the screen was
- * captured; `startedAt` is its Date.now() at the first sample, used to line it up with the video.
- */
-export async function saveSystemAudio(bytes: Uint8Array, startedAt: number): Promise<void> {
-  const s = session;
-  const first = s?.segments[0] ?? s?.current?.seg;
-  if (!s || !first?.start) return;
-  // Wall-clock time of the first video frame, from the shared high-resolution clock.
-  const videoEpoch = Date.now() - (qpc() - first.start);
-  // MediaRecorder WebM has no duration in its header: remux the sound into a regular M4A.
-  const raw = join(s.dir, "sistema.raw.webm");
-  const path = join(s.dir, "sistema.m4a");
-  await writeFile(raw, bytes);
-  await run(FFMPEG, ["-y", "-v", "error", "-i", raw, "-c:a", "aac", "-b:a", "192k", path]);
-  await rm(raw, { force: true });
-  s.system = { path, offset: (startedAt - videoEpoch) / 1000 };
-}
-
-export async function stop(): Promise<RecordingResult> {
-  const s = session;
-  if (!s) throw new Error("Nenhuma gravação em andamento.");
-  s.preserved = true;
-  try {
-    return await finalizeRecording(s);
-  } catch (error) {
-    s.hook.kill();
-    session = null;
-    throw new Error(
-      `Não foi possível finalizar a gravação. Os arquivos foram mantidos em ${s.dir}.`,
-      { cause: error },
-    );
-  }
-}
-
-async function finalizeRecording(s: Session): Promise<RecordingResult> {
-  await closeSegment(s);
   session = null;
-  s.hook.kill();
-  if (!s.segments.length) throw new Error("Nada foi gravado.");
+  try {
+    await s.cancel(trash);
+  } finally {
+    // Even a folder that could not go ends the take: the window, the shortcuts and the
+    // background work hear that nothing is recording.
+    broadcast({ type: "status", status: NO_SESSION });
+  }
+}
 
-  const screen = join(s.dir, "tela.mp4");
-  await concat(
-    s.segments.map((g) => g.screen),
-    screen,
-  );
-  let camera: string | undefined;
-  if (s.opts.camera) {
-    camera = join(s.dir, "camera.mp4");
-    await concat(
-      s.segments.map((g) => g.camera!),
-      camera,
-    );
+/** Stops and finalizes the take; asked again (or while it runs), the same answer comes back. */
+export function stop(): Promise<RecordingResult> {
+  const s = session;
+  if (!s) {
+    if (stopping) return stopping.result;
+    return Promise.reject(new Error("Nenhuma gravação em andamento."));
   }
+  if (stopping?.session === s) return stopping.result;
+  const result = s.stop().finally(() => {
+    if (session === s) session = null;
+    broadcast({ type: "status", status: NO_SESSION });
+  });
+  stopping = { session: s, result };
+  return result;
+}
 
-  // Cursor events in video time and video pixels.
-  const r = s.opts.region ?? { x: 0, y: 0, width: s.monitor.width, height: s.monitor.height };
-  const ox = s.monitor.x + r.x;
-  const oy = s.monitor.y + r.y;
-  const data: CursorData = {
-    version: 1,
-    width: r.width,
-    height: r.height,
-    moves: [],
-    clicks: [],
-    wheel: [],
-    markers: [],
+// ---- takes the app did not finish -----------------------------------------------------------
+
+/** Folders of takes recording outside the session (a guided take in the lesson window). */
+const busy = new Set<string>();
+
+/** A take recording in `dir` that is not this module's session: never offered as interrupted. */
+export function holdTakeDir(dir: string): () => void {
+  busy.add(dir);
+  return () => {
+    busy.delete(dir);
   };
-  const downs = new Map<string, [number, number, number, number, number]>();
-  const round = (v: number): number => Math.round(v * 1000) / 1000;
-  for (const line of s.events) {
-    const [kind, ms, xs, ys, extra] = line.split(" ");
-    const t = toVideoTime(s.segments, Number(ms));
-    if (t < 0) continue;
-    const x = Number(xs) - ox;
-    const y = Number(ys) - oy;
-    if (kind === "M")
-      data.moves.push([
-        round(t),
-        x,
-        y,
-        Math.max(0, CURSOR_SHAPES.indexOf(extra as (typeof CURSOR_SHAPES)[number])),
-      ]);
-    else if (kind === "D") {
-      const click: [number, number, number, number, number] = [
-        round(t),
-        x,
-        y,
-        extra === "right" ? 1 : extra === "middle" ? 2 : 0,
-        0,
-      ];
-      data.clicks.push(click);
-      downs.set(extra, click);
-    } else if (kind === "U") {
-      const d = downs.get(extra);
-      if (d) d[4] = round(t - d[0]);
-      downs.delete(extra);
-    } else if (kind === "W") data.wheel.push([round(t), x, y, Number(extra)]);
-    else if (kind === "K") {
-      data.keys ??= [];
-      data.keys.push([round(t), keyLabel(Number(xs), ys)]);
-    }
-  }
-  for (const m of s.markers) {
-    const t = toVideoTime(s.segments, m.qpc);
-    data.markers.push({
-      t: round(t < 0 ? s.segments.reduce((a, g) => (g.start < m.qpc ? a + g.duration : a), 0) : t),
-      kind: m.kind,
-    });
-  }
-  const cursor = join(s.dir, "cursor.json");
-  await writeFile(cursor, JSON.stringify(data));
-  return {
-    dir: s.dir,
-    ...(s.narration ? { narration: s.narration.path, narrationOffset: s.narration.offset } : {}),
-    screen,
-    camera,
-    cursor,
-    duration: s.segments.reduce((a, g) => a + g.duration, 0),
-    markers: data.markers,
-    ...(s.system ? { systemAudio: s.system.path, systemOffset: s.system.offset } : {}),
-  };
+}
+
+const recordingNow = (): string[] => [...(session ? [session.dir] : []), ...busy];
+
+export const orphans = (): Promise<OrphanTake[]> => scanOrphans(recordingsDir(), recordingNow());
+
+export const isOrphan = (dir: string): Promise<boolean> =>
+  orphanIn(recordingsDir(), dir, recordingNow());
+
+export async function recoverOrphan(dir: string): Promise<RecordingResult> {
+  if (!(await isOrphan(dir))) throw new Error("Essa pasta não é uma gravação interrompida.");
+  return recoverTake(dir);
+}
+
+/** The editor placed the take in a project: it is not offered again. */
+export async function markImported(dir: string): Promise<void> {
+  if (!(await isTake(recordingsDir(), dir))) throw new Error("Essa pasta não é uma gravação.");
+  await markTakeImported(dir);
 }

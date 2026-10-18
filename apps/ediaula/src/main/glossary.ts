@@ -1,27 +1,51 @@
+import { randomUUID } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { app } from "electron";
+import {
+  GLOSSARY_LIMIT,
+  type GlossaryTerm,
+  normalizeGlossary,
+  readGlossary,
+} from "../shared/glossary.ts";
+import { renameWhenFree } from "./installCheck.ts";
 
 /** Names and terms of each course (characters, block names), used by transcription and the AI. */
 const file = (): string => join(app.getPath("userData"), "glossaries.json");
 const key = (course: string): string => course.trim().toLowerCase() || "(sem curso)";
 
-async function readAll(): Promise<Record<string, string[]>> {
+/**
+ * Every course glossary. A missing file is an empty set; a file that cannot be read or parsed is
+ * an error, so a save never writes over the glossaries of the other courses.
+ */
+async function readAll(): Promise<Record<string, unknown>> {
+  let text: string;
   try {
-    return JSON.parse(await readFile(file(), "utf8")) as Record<string, string[]>;
-  } catch {
-    return {};
+    text = await readFile(file(), "utf8");
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return {};
+    throw err;
   }
+  const all: unknown = JSON.parse(text);
+  if (!all || typeof all !== "object" || Array.isArray(all))
+    throw new Error("O arquivo de glossários está corrompido; nada foi gravado por cima dele.");
+  return all as Record<string, unknown>;
 }
 
-export async function getGlossary(course: string): Promise<string[]> {
-  return (await readAll())[key(course)] ?? [];
+/** A course glossary: terms as strings (older files) or {term, aliases}. */
+export async function getGlossary(course: string): Promise<GlossaryTerm[]> {
+  return readGlossary((await readAll())[key(course)]);
 }
 
-export async function setGlossary(course: string, terms: string[]): Promise<void> {
+/** Saves a course glossary through a temporary file, so a crash never leaves half a file. */
+export async function setGlossary(course: string, terms: GlossaryTerm[]): Promise<void> {
+  const clean = normalizeGlossary(terms);
+  if (clean.length > GLOSSARY_LIMIT)
+    throw new Error(`O glossário aceita até ${GLOSSARY_LIMIT} termos; este tem ${clean.length}.`);
   const all = await readAll();
-  const clean = [...new Set(terms.map((t) => t.trim()).filter(Boolean))].slice(0, 60);
   if (clean.length) all[key(course)] = clean;
   else delete all[key(course)];
-  await writeFile(file(), JSON.stringify(all, null, 1));
+  const tmp = `${file()}.${randomUUID()}.tmp`;
+  await writeFile(tmp, JSON.stringify(all, null, 1));
+  await renameWhenFree(tmp, file());
 }

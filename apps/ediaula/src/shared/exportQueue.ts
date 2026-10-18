@@ -6,8 +6,12 @@ export interface ExportItem {
   project: Project;
   spec: ExportSpec;
   captions: boolean;
+  /** Also the translated captions that are up to date, and the platform package. */
+  extras?: { translations?: boolean; platform?: boolean };
   state: ExportState;
   message?: string;
+  /** Why an export left from the last session cannot be resumed (a file or folder that is gone). */
+  blocked?: string;
 }
 
 /** Serial exports own their snapshots; editing or closing a project cannot change a queued job. */
@@ -15,13 +19,20 @@ export class ExportQueue {
   items: ExportItem[] = [];
   private active: AbortController | null = null;
   private working = false;
+  private held = false;
   private run: (
     item: ExportItem,
     signal: AbortSignal,
     status: (state: "preparing" | "exporting", message: string) => void,
   ) => Promise<void>;
   private changed: (items: ExportItem[]) => void;
+  private persist?: (pending: ExportItem[]) => void;
+  private persisted = "";
 
+  /**
+   * `persist` receives the items still to export whenever that list changes (an item added,
+   * finished or removed; not on every message), so the queue can survive the app.
+   */
   constructor(
     run: (
       item: ExportItem,
@@ -29,12 +40,14 @@ export class ExportQueue {
       status: (state: "preparing" | "exporting", message: string) => void,
     ) => Promise<void>,
     changed: (items: ExportItem[]) => void,
+    persist?: (pending: ExportItem[]) => void,
   ) {
     this.run = run;
     this.changed = changed;
+    this.persist = persist;
   }
 
-  add(item: Pick<ExportItem, "id" | "project" | "spec" | "captions">): void {
+  add(item: Pick<ExportItem, "id" | "project" | "spec" | "captions" | "extras">): void {
     const path = item.spec.outPath.replaceAll("\\", "/").toLowerCase();
     if (
       this.items.some(
@@ -57,6 +70,21 @@ export class ExportQueue {
     else if (item.state === "preparing" || item.state === "exporting") this.active?.abort();
   }
 
+  /**
+   * While a take records, the next export waits (the one already running goes on, at low
+   * priority); releasing the hold starts it.
+   */
+  hold(on: boolean): void {
+    if (this.held === on) return;
+    this.held = on;
+    this.emit();
+    if (!on) void this.pump();
+  }
+
+  get holding(): boolean {
+    return this.held;
+  }
+
   remove(id: string): void {
     this.items = this.items.filter(
       (i) => i.id !== id || ["preparing", "exporting"].includes(i.state),
@@ -66,6 +94,15 @@ export class ExportQueue {
 
   private emit(): void {
     this.changed([...this.items]);
+    if (!this.persist) return;
+    const pending = this.items.filter((i) =>
+      ["waiting", "preparing", "exporting"].includes(i.state),
+    );
+    // Kept as waiting whatever their state now: only joining or leaving the list changes it.
+    const key = pending.map((i) => i.id).join("|");
+    if (key === this.persisted) return;
+    this.persisted = key;
+    this.persist(pending);
   }
   private update(id: string, change: Partial<ExportItem>): void {
     this.items = this.items.map((i) => (i.id === id ? { ...i, ...change } : i));
@@ -78,7 +115,7 @@ export class ExportQueue {
     try {
       for (;;) {
         const item = this.items.find((i) => i.state === "waiting");
-        if (!item) break;
+        if (!item || this.held) break;
         const id = item.id;
         const controller = new AbortController();
         this.active = controller;

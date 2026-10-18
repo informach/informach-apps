@@ -53,10 +53,26 @@ html.is-recorder #root {
   position: absolute;
   width: 12px;
   height: 12px;
+  padding: 0;
   background: #fff;
   border: 2px solid var(--accent);
   border-radius: 3px;
   margin: -6px 0 0 -6px;
+}
+.rec-handle:focus-visible,
+.rec-region-move:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.rec-region-move {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: move;
 }
 .h-nw {
   left: 0;
@@ -137,8 +153,9 @@ html.is-recorder #root {
 .rec-error {
   padding: 8px 14px;
   border-radius: 8px;
-  background: rgba(255, 77, 77, 0.15);
-  border: 1px solid rgba(255, 77, 77, 0.5);
+  /* Opaque: the recorder floats over any desktop, light or dark. */
+  background: #3a1518;
+  border: 1px solid rgba(255, 77, 77, 0.6);
   color: #ffd0d0;
   font-size: 13px;
   max-width: 100%;
@@ -179,6 +196,7 @@ html.is-recorder #root {
 .rec-go small {
   color: var(--text-3);
   font-size: 11.5px;
+  white-space: nowrap;
 }
 .rec-dot {
   width: 56px;
@@ -191,7 +209,8 @@ html.is-recorder #root {
     inset 0 0 0 18px #fff;
 }
 .rec-src {
-  flex: 1;
+  /* Each source takes the width its choice needs; a long name gives way first. */
+  flex: 1 1 auto;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -222,6 +241,10 @@ html.is-recorder #root {
   letter-spacing: 0.06em;
 }
 .rec-src select {
+  /* As wide as the choice shown (not the longest option), so "Desligada" leaves room for the
+     monitor and microphone names. A name that still does not fit is cut (a select draws no
+     ellipsis): its full name is in the select's title. */
+  field-sizing: content;
   max-width: 100%;
   padding: 0;
   border: 0;
@@ -237,6 +260,29 @@ html.is-recorder #root {
 .rec-static {
   font-weight: 600;
   font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* A notebook screen (1366 px): the icons, the shortcut under "Gravar" (it is in the bar below)
+   and the cursor note give their room to the names of the sources. */
+@media (max-width: 1500px) {
+  .rec-src-icon,
+  .rec-go small,
+  .rec-src.is-info {
+    display: none;
+  }
+  .rec-go {
+    gap: 10px;
+    padding-right: 12px;
+  }
+  /* "Gravar as falas de" is said by the chips themselves. */
+  .vp-speakers small {
+    display: none;
+  }
+  .rec-icon {
+    flex: none;
+  }
 }
 .rec-meter {
   display: flex;
@@ -274,10 +320,16 @@ html.is-recorder #root {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 18px;
+  align-items: center;
+  gap: 6px 18px;
+  max-width: 100%;
+  padding: 6px 14px;
+  border-radius: 10px;
+  /* Readable over a light desktop as over a dark one. */
+  background: rgba(13, 14, 17, 0.9);
+  border: 1px solid var(--line);
   font-size: 12px;
   color: var(--text-2);
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
 }
 .rec-keys kbd {
   padding: 2px 6px;
@@ -350,6 +402,15 @@ html.is-recorder #root {
   font: 600 15px var(--font-mono);
   min-width: 52px;
 }
+.rec-encoder {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(13, 14, 17, 0.9);
+  border: 1px solid var(--line);
+  color: var(--text-2);
+  font-size: 12px;
+}
+
 .rec-paused {
   color: var(--amber);
   font-size: 12px;
@@ -362,12 +423,69 @@ html.is-recorder #root {
   outline: 3px solid var(--accent);
   pointer-events: none;
 }
+.rec-cam.is-presenter {
+  left: 28px;
+  top: 48px;
+  width: min(480px, calc(100vw - min(620px, 40vw) - 84px));
+  aspect-ratio: 16 / 9;
+  border-radius: 14px;
+}
 .rec-cam video {
   width: 100%;
   height: 100%;
   object-fit: cover;
   border-radius: 50%;
   transform: scaleX(-1);
+}
+.rec-cam.is-presenter video {
+  border-radius: 14px;
+  /* As the presenter will be seen in the lesson, not as a mirror. */
+  transform: none;
+}
+/* The preview did not open: why, and a way to try again (the overlay takes this click). */
+.rec-cam-problem {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  padding: 16px;
+  border-radius: inherit;
+  background: rgba(21, 23, 28, 0.94);
+  color: var(--text-2);
+  font-size: 12px;
+  text-align: center;
+  pointer-events: auto;
+}
+.rec-cam-problem p {
+  margin: 0;
+}
+.rec-cam-problem button {
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-3);
+  color: var(--text-1);
+  font: 600 12px var(--font-ui);
+  cursor: pointer;
+}
+/* "Voz e câmera" before a camera is chosen: where the presenter will be seen. */
+.rec-cam.is-empty {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  padding: 24px;
+  background: rgba(21, 23, 28, 0.94);
+  outline-style: dashed;
+  color: var(--text-2);
+  font-size: 13px;
+  text-align: center;
+}
+.rec-cam-hint {
+  margin: 0;
+  max-width: 300px;
 }
 .rec-cam span {
   position: absolute;
@@ -474,4 +592,545 @@ html.is-recorder #root {
   align-items: center;
   gap: 6px;
   color: var(--text-2);
+}
+
+/* Health of the take, inside the pill. */
+.rec-health {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-2);
+  max-width: 46vw;
+  overflow: hidden;
+}
+.rec-health > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.rec-health-warn {
+  color: var(--amber);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rec-meter.is-quiet i.is-on {
+  background: var(--amber);
+}
+
+/* A source stopped or the disk filled: what happened and what to do. */
+.rec-alert {
+  position: absolute;
+  left: 50%;
+  top: 40px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(900px, calc(100vw - 48px));
+  margin: 0;
+  padding: 10px 12px 10px 16px;
+  border-radius: 14px;
+  background: rgba(40, 18, 18, 0.96);
+  border: 1px solid rgba(255, 77, 77, 0.55);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  font-size: 13.5px;
+}
+.rec-alert button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--panel-3);
+  color: var(--text-1);
+  font: 600 12.5px var(--font-ui);
+  cursor: pointer;
+}
+.rec-alert .rec-stop {
+  background: var(--rec);
+  color: #fff;
+}
+
+/* Options of the recorder (frame rate, quality, shortcuts…). */
+.rec-options {
+  width: min(760px, 100%);
+  max-height: 52vh;
+  overflow-y: auto;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(21, 23, 28, 0.97);
+  border: 1px solid var(--line);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  font-size: 13px;
+}
+.rec-opt-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+  margin: 4px 0 10px;
+}
+.rec-opt-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 18px;
+  margin-bottom: 14px;
+}
+.rec-opt-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rec-opt-row > span {
+  color: var(--text-2);
+  font-size: 12px;
+}
+.rec-opt-hint {
+  color: var(--text-3);
+  font-size: 11px;
+}
+.rec-opt-row select,
+.rec-opt-row input {
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--text-1);
+  font: 500 12.5px var(--font-ui);
+}
+.rec-opt-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  grid-column: span 2;
+  color: var(--text-2);
+}
+.rec-opt-key {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--text-1);
+  font: 12px var(--font-mono);
+  text-align: left;
+  cursor: pointer;
+}
+.rec-opt-key.is-listening {
+  outline: 2px solid var(--accent);
+}
+.rec-opt-key.is-bad {
+  border-color: rgba(255, 77, 77, 0.7);
+}
+.rec-opt-bad {
+  color: #ffb3b3;
+  font-size: 11px;
+}
+
+/* "Só voz": the large teleprompter, in the middle of the screen. */
+.vp-wrap {
+  position: absolute;
+  left: 50%;
+  top: 48px;
+  transform: translateX(-50%);
+  width: min(1100px, calc(100vw - 96px));
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.vp-wrap.is-side {
+  left: auto;
+  right: 28px;
+  transform: none;
+  width: min(620px, 40vw);
+}
+.vp {
+  display: flex;
+  flex-direction: column;
+  border-radius: 18px;
+  background: rgba(21, 23, 28, 0.96);
+  border: 1px solid var(--line);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  max-height: calc(100vh - 300px);
+}
+.is-recording .vp,
+.is-paused .vp {
+  max-height: calc(100vh - 160px);
+}
+.vp-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--text-2);
+}
+.vp-status {
+  margin-left: auto;
+  color: var(--text-3);
+  font-size: 12px;
+}
+.vp-body {
+  overflow-y: auto;
+  padding: 14px 18px 22px;
+  line-height: 1.35;
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+.vp-line {
+  display: block;
+  width: 100%;
+  margin: 0 0 10px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: var(--text-3);
+  font: inherit;
+  font-size: 0.62em;
+  text-align: left;
+  cursor: pointer;
+}
+.vp-line.is-current {
+  color: #fff;
+  font-size: 1em;
+  background: rgba(200, 240, 49, 0.08);
+  box-shadow: inset 4px 0 0 var(--accent);
+}
+.vp-line.is-done {
+  color: var(--text-3);
+  opacity: 0.6;
+}
+.vp .vp-line small {
+  display: block;
+  font: 600 12px var(--font-ui);
+  color: #b39dff;
+}
+.vp-empty {
+  padding: 18px;
+  color: var(--text-2);
+  font: 500 15px var(--font-ui);
+}
+.vp-speakers {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  /* Many speakers wrap to another line instead of running under the buttons beside them. */
+  flex: 0 1 auto;
+  min-width: 0;
+  gap: 4px 8px;
+  margin: 0 0 0 8px;
+  padding: 0;
+  border: 0;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.vp-speakers label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--panel-3);
+  cursor: pointer;
+}
+.vp-speakers label.is-on {
+  color: var(--text-1);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.mic-test {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 420px;
+}
+.mic-test-go {
+  width: auto;
+  padding: 0 10px;
+  display: inline-flex;
+  flex: none;
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.mic-test-note {
+  font-size: 12px;
+  color: var(--text-2);
+}
+.mic-test-note.is-ok {
+  color: var(--accent);
+}
+.mic-test-note.is-bad {
+  color: var(--amber);
+}
+.rec-follow {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.rec-mode-note {
+  margin-left: 10px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+/* "Tela sobre a narração": the karaoke of the voice and the next "Na tela". */
+.karaoke-cues {
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+  color: var(--text-2);
+}
+.karaoke-cues p {
+  margin: 4px 0;
+}
+.karaoke-cues p.is-now {
+  color: #fff;
+}
+.karaoke-cues strong {
+  margin-right: 6px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(200, 240, 49, 0.15);
+  color: var(--accent);
+  font-size: 11px;
+}
+.karaoke-text span {
+  color: var(--text-3);
+}
+.karaoke-text span.is-said {
+  color: var(--text-2);
+}
+.karaoke-text span.is-now {
+  color: #fff;
+  background: rgba(200, 240, 49, 0.18);
+  border-radius: 6px;
+}
+.karaoke-note {
+  display: block;
+  color: var(--accent);
+  font: 600 12px var(--font-ui);
+}
+
+/* Region size typed in physical pixels, and its proportion lock. */
+.rec-region-size {
+  width: 62px;
+  height: 22px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.18);
+  color: inherit;
+  font: 700 12px var(--font-mono, var(--font-ui));
+  text-align: right;
+  cursor: text;
+}
+.rec-region-lock {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+}
+.rec-region-lock.is-on {
+  background: rgba(0, 0, 0, 0.18);
+  opacity: 1;
+}
+
+/* "Janela…": the windows to fit the region to. */
+.rec-windows {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(560px, calc(100% - 32px));
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(21, 23, 28, 0.97);
+  border: 1px solid var(--line);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  font-size: 13px;
+  z-index: 40;
+}
+.rec-windows .rec-opt-head strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+}
+.rec-windows p {
+  margin: 0;
+}
+.rec-windows-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rec-windows-list button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--panel-2);
+  color: var(--text-1);
+  font: 500 13px var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+}
+.rec-windows-title {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rec-windows-list button:hover,
+.rec-windows-list button.is-active {
+  border-color: var(--accent);
+}
+
+/* Drawing on the screen during the take (the recorder window is never captured). */
+.rec-draw {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.rec-draw.is-on {
+  pointer-events: auto;
+  cursor: crosshair;
+}
+.rec-draw-tools {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(13, 14, 17, 0.94);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  font-size: 12.5px;
+  z-index: 30;
+}
+.rec-draw-tools button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--panel-3);
+  color: var(--text-1);
+  font: 600 12px var(--font-ui);
+  cursor: pointer;
+}
+.rec-draw-tools .rec-draw-color {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+}
+.rec-draw-tools .rec-draw-color.is-active {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.rec-draw-tools .rec-draw-width {
+  width: 28px;
+  padding: 0;
+  justify-content: center;
+}
+.rec-draw-tools .rec-draw-width i {
+  display: block;
+  border-radius: 50%;
+  background: var(--text-1);
+}
+.rec-draw-tools .rec-draw-width.is-active {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.rec-draw-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--line);
+}
+.rec-pill button.is-active {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.rec-draw-tools button.is-active,
+.rec-draw-tools .rec-draw-tool.is-active {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.rec-draw-tools .rec-draw-tool {
+  width: 30px;
+  padding: 0;
+  justify-content: center;
+}
+.rec-board-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+.rec-board-dot.is-white {
+  background: #ffffff;
+}
+.rec-board-dot.is-black {
+  background: #1e2622;
+}
+/* The keys of the drawing mode: a discreet bar at the foot of the region, out of the capture. */
+.rec-draw-keys {
+  position: absolute;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 14px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(13, 14, 17, 0.78);
+  color: var(--text-2);
+  font: 500 11.5px var(--font-ui);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 29;
+}
+.rec-draw-keys kbd {
+  margin-right: 4px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--panel-3);
+  color: var(--text-1);
+  font: 600 11px var(--font-mono);
 }

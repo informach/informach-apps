@@ -1,0 +1,7 @@
+[in#0 @ 0000017e406b6b40] "HD Pro Webcam C920" (video)
+[in#0 @ 0000017e406b6b40]   Alternative name "@device_pnp_\\?\usb#vid_046d&pid_082d&mi_00#7&59d8c37&0&0000#{65e8773d-8f56-11d0-a3b9-00a0c9223196}\global"
+[in#0 @ 0000017e406b6b40] "Microfone (HD Pro Webcam C920)" (audio)
+[in#0 @ 0000017e406b6b40]   Alternative name "@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\wave_{70F00344-E773-45CF-AC9E-805FE4D4406F}"
+[in#0 @ 0000017e406b6b40] "Microfone (High Definition Audio Device)" (audio)
+[in#0 @ 0000017e406b6b40]   Alternative name "@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\wave_{A70E08F4-F95D-43B3-9ABC-4725BF6AC32D}"
+Error opening input file dummy.

@@ -15,11 +15,13 @@ import {
   ripplesAt,
   spritePositions,
 } from "../src/shared/cursor.ts";
-import { type CursorData, retakeCuts } from "../src/shared/recording.ts";
+import { type CursorData, normalizeCursorData } from "../src/shared/cursorData.ts";
+import { retakeCuts } from "../src/shared/recording.ts";
 import { sourceAt } from "../src/shared/timeline.ts";
 import { autoZooms, type Zoom, zoomAt, zoomExprs } from "../src/shared/zoom.ts";
 
-const data: CursorData = {
+// A version 1 file, as older recordings wrote it: the editor reads it as version 2.
+const data: CursorData = normalizeCursorData({
   version: 1,
   width: 1920,
   height: 1080,
@@ -36,7 +38,7 @@ const data: CursorData = {
   ],
   wheel: [],
   markers: [],
-};
+});
 
 test("manual cursor path reaches its anchors, interpolates smoothly and preserves original movement outside", () => {
   const path = [
@@ -255,7 +257,8 @@ test("the pointer track follows the recorded moves, smoothly when asked", () => 
   const smooth = buildTrack(data, { ...DEFAULT_CURSOR_FX, smooth: 0.8 }, 6);
   const mid = cursorAt(smooth, 1.02);
   assert.ok(mid.x > 100 && mid.x < 960, "still travelling right after the jump");
-  assert.ok(Math.abs(cursorAt(smooth, 2.4).x - 960) < 2, "settles on the target");
+  // Between the clicks (each one pins the pointer to where it clicked).
+  assert.ok(Math.abs(cursorAt(smooth, 1.6).x - 960) < 2, "settles on the target");
   assert.equal(ripplesAt(data, 1.3).length, 1);
   assert.equal(ripplesAt(data, 3).length, 0);
   const pos = spritePositions(raw, 30, 2, 100);
@@ -328,7 +331,7 @@ test("the export expression gives the same view as the preview", () => {
   }
 });
 
-test("Ctrl+R cuts from the pause before the flubbed passage to the pause after the key press", () => {
+test("Ctrl+Shift+R cuts from the pause before the flubbed passage to the pause after the key press", () => {
   // 100 values per second: speech 0–2 s, pause 2–2.6 s, flubbed passage 2.6–5 s (key at 5.2), pause 5–6 s, new take.
   const peaks = Array.from({ length: 900 }, (_, i) =>
     (i >= 200 && i < 260) || (i >= 500 && i < 600) ? 0.01 : 0.5,

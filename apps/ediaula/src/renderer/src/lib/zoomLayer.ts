@@ -1,13 +1,19 @@
 import { newId, newTrackName, placeClips } from "@shared/timeline";
 import type { Asset, Clip, Track } from "@shared/types";
-import { DEFAULT_ZOOM_LAYER, type ZoomLayer } from "@shared/zoomLayer";
+import { DEFAULT_ZOOM_LAYER, editLayer, type ZoomLayer } from "@shared/zoomLayer";
 import { usePlayback } from "@/state/playback";
-import { useProject } from "@/state/project";
+import { type Commit, personCommit, useProject } from "@/state/project";
 
 let blank: Promise<string> | null = null;
 
+/** The blank picture written again (its file was deleted): same name, so every layer finds it. */
+export function restoreBlankPicture(): Promise<string> {
+  blank = null;
+  return blankPicture();
+}
+
 /** A 1 × 1 transparent picture: zoom layers need an asset but show nothing themselves. */
-function blankPicture(): Promise<string> {
+export function blankPicture(): Promise<string> {
   blank ??= (async () => {
     const c = document.createElement("canvas");
     c.width = 1;
@@ -24,6 +30,7 @@ function blankPicture(): Promise<string> {
  */
 export async function addZoomLayer(
   opts: { at?: number; duration?: number; zoom?: Partial<ZoomLayer>; trackId?: string } = {},
+  commit: Commit = personCommit,
 ): Promise<string | null> {
   const p = useProject.getState().project;
   if (!p) return null;
@@ -45,7 +52,7 @@ export async function addZoomLayer(
   };
   const start = Math.max(0, opts.at ?? usePlayback.getState().time);
   const id = newId("c");
-  useProject.getState().commit((q) => {
+  commit((q) => {
     const existing = opts.trackId ? q.tracks.find((t) => t.id === opts.trackId) : undefined;
     const track: Track = existing ?? {
       id: newId("t"),
@@ -80,7 +87,7 @@ export function setZoomLayer(clipId: string, changes: Partial<ZoomLayer>): void 
   useProject.getState().commit((q) => ({
     ...q,
     clips: q.clips.map((c) =>
-      c.id === clipId && c.zoomLayer ? { ...c, zoomLayer: { ...c.zoomLayer, ...changes } } : c,
+      c.id === clipId && c.zoomLayer ? { ...c, zoomLayer: editLayer(c, changes) } : c,
     ),
   }));
 }

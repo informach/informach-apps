@@ -325,6 +325,14 @@ describe("native subscription authorization", () => {
     f.advance(-120000);
     expect(() => f.controller.assertAccess()).toThrow("edi_clock_rollback");
   });
+  it("signing out removes the earlier versions' MCP tokens with the session", async () => {
+    const f = fixture();
+    await f.controller.refresh();
+    f.data.mcpTokens = { edifoto: "c".repeat(64) };
+    await f.controller.logout();
+    expect(f.data.session).toBeNull();
+    expect(f.data.mcpTokens).toEqual({});
+  });
   it("observes shared logout without another network request", async () => {
     const f = fixture();
     await f.controller.refresh();

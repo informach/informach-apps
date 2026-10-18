@@ -6,13 +6,17 @@ import {
 } from "@shared/captions";
 import { Captions } from "lucide-react";
 import type { ReactNode } from "react";
-import { useProject } from "@/state/project";
+import { type Commit, personCommit, useProject } from "@/state/project";
 import { Toggle } from "@/ui";
 import { Slider } from "./ClipVisual";
 import { FontPicker } from "./FontPicker";
+import { FavoriteStyle } from "./LookSections";
 
-export function setCaptions(changes: Partial<CaptionStyle & { burn: boolean }>): void {
-  useProject.getState().commit((p) => ({
+export function setCaptions(
+  changes: Partial<CaptionStyle & { burn: boolean }>,
+  commit: Commit = personCommit,
+): void {
+  commit((p) => ({
     ...p,
     captions: { ...DEFAULT_CAPTION_STYLE, burn: false, ...p.captions, ...changes },
   }));
@@ -85,6 +89,14 @@ export function CaptionSettings(): ReactNode {
             step={0.1}
             format={(v) => `${v.toFixed(1)}%`}
             onCommit={(v) => setCaptions({ size: v })}
+          />
+          <FavoriteStyle
+            target="caption"
+            name="Legenda"
+            value={() => {
+              const { burn: _burn, ...look } = c;
+              return look;
+            }}
           />
         </>
       )}

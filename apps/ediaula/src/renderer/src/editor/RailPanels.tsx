@@ -1,7 +1,8 @@
 import { withRenderKeys } from "@informach/edi-desktop/renderer";
 import { AVATAR_FADE, MOTIONS, type Motion } from "@shared/compose";
+import { agree, plural } from "@shared/plural";
 import { type LessonTemplate, TEMPLATES } from "@shared/templates";
-import { newId, projectDuration } from "@shared/timeline";
+import { adjacency, newId, projectDuration } from "@shared/timeline";
 import {
   COLOR_SETS,
   DEFAULT_TRANSITION,
@@ -44,7 +45,13 @@ import {
 } from "lucide-react";
 import { Fragment, type ReactNode, useEffect, useState } from "react";
 import { importMedia } from "@/lib/importMedia";
-import { addTemplate, defaultValues, templateStart, templateThumb } from "@/lib/templates";
+import {
+  addTemplate,
+  defaultValues,
+  TemplateBlockedError,
+  templateStart,
+  templateThumb,
+} from "@/lib/templates";
 import {
   makeTransition,
   paletteColors,
@@ -55,13 +62,15 @@ import {
 } from "@/lib/transitions";
 import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
-import { useProject } from "@/state/project";
+import { type Commit, personCommit, useProject } from "@/state/project";
 import { Button, Toggle } from "@/ui";
 import { CaptionSettings } from "./CaptionSettings";
 import { MotionPathSection, Slider } from "./ClipVisual";
+import { CueList } from "./CueList";
 import { FontPicker } from "./FontPicker";
 import { PaletteSection } from "./PaletteEditor";
 import { Swatches } from "./Swatches";
+import { VoiceSection } from "./VoiceSection";
 
 const clock = (s: number): string =>
   `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
@@ -123,8 +132,15 @@ function TemplateCard({
         : `no cursor (${clock(time)})`;
   const insert = async (): Promise<void> => {
     setBusy(true);
-    const ids = await addTemplate(t.id, values);
-    setBusy(false);
+    let ids: string[] = [];
+    try {
+      ids = await addTemplate(t.id, values);
+    } catch (err) {
+      if (!(err instanceof TemplateBlockedError)) throw err;
+      useApp.getState().toast(err.message, "error");
+    } finally {
+      setBusy(false);
+    }
     if (ids.length) {
       const at = project ? templateStart(t, project) : 0;
       playback.seek(at + 0.01);
@@ -322,9 +338,8 @@ function TransitionColors({ clipId, colors }: { clipId: string; colors: string[]
 /** Cuts between scenes: clips that start where another one ends on the same video track. */
 function cutClips(p: Project): Clip[] {
   const pictures = new Set(p.assets.filter((a) => a.kind !== "audio").map((a) => a.id));
-  return p.clips.filter(
-    (c) => pictures.has(c.assetId) && !c.annotation && previousClip(p.clips, c),
-  );
+  const previous = adjacency(p.clips);
+  return p.clips.filter((c) => pictures.has(c.assetId) && !c.annotation && previous.has(c.id));
 }
 
 export function TransitionsPanel(): ReactNode {
@@ -365,7 +380,7 @@ export function TransitionsPanel(): ReactNode {
       .getState()
       .toast(
         kind
-          ? `Transição em ${ids.size} corte(s). Ctrl+Z desfaz.`
+          ? `Transição em ${plural(ids.size, "corte", "cortes")}. Ctrl+Z desfaz.`
           : "Transições removidas de todos os cortes. Ctrl+Z desfaz.",
         "success",
       );
@@ -417,7 +432,7 @@ export function TransitionsPanel(): ReactNode {
           Clique num corte (◆) na timeline e escolha a transição, ou arraste uma transição até o
           corte.{" "}
           {cuts.length
-            ? `Esta aula tem ${cuts.length} corte(s)${withTr ? `, ${withTr} com transição` : ""}.`
+            ? `Esta aula tem ${plural(cuts.length, "corte", "cortes")}${withTr ? `, ${withTr} com transição` : ""}.`
             : "Ainda não há cenas coladas."}
         </p>
       )}
@@ -454,7 +469,8 @@ export function TransitionsPanel(): ReactNode {
       <div className="props-section all-cuts">
         <h3>Todos os cortes</h3>
         <p className="props-hint muted">
-          Cuidado: vale para os {cuts.length} corte(s) da aula de uma vez.
+          Cuidado: vale para {cuts.length === 1 ? "o corte" : `os ${cuts.length} cortes`} da aula de
+          uma vez.
         </p>
         <Slider
           label="Duração"
@@ -488,7 +504,7 @@ export function MotionsPanel(): ReactNode {
   const selected = project.clips.filter((c) => selection.includes(c.id) && video.has(c.trackId));
   const targets = selected.length ? selected : project.clips.filter((c) => c.annotation);
   const label = selected.length
-    ? `${selected.length} clipe(s) selecionado(s)`
+    ? plural(selected.length, "clipe selecionado", "clipes selecionados")
     : `todas as anotações (${targets.length})`;
   const first = targets[0];
   const apply = (which: "enter" | "exit", m: Motion | null): void => {
@@ -560,7 +576,10 @@ export function MotionsPanel(): ReactNode {
 /* -------------------------------------------------------------------- Audio */
 
 /** Puts a music file on its own music track from 0:00, repeated to the end of the lesson, low. */
-export async function addMusic(path: string): Promise<string | null> {
+export async function addMusic(
+  path: string,
+  commit: Commit = personCommit,
+): Promise<string | null> {
   const [asset] = await importMedia([path]);
   const p = useProject.getState().project;
   if (!asset || !p || !asset.hasAudio || !asset.duration) return null;
@@ -587,22 +606,24 @@ export async function addMusic(path: string): Promise<string | null> {
       fadeIn: at === 0 ? 1 : undefined,
       fadeOut: at + asset.duration >= end ? 2 : undefined,
     });
-  useProject
-    .getState()
-    .commit((q) => ({ ...q, tracks: [...q.tracks, track], clips: [...q.clips, ...clips] }));
+  commit((q) => ({ ...q, tracks: [...q.tracks, track], clips: [...q.clips, ...clips] }));
   return track.id;
 }
 
-export function setTrackMusic(trackId: string, music: boolean): void {
-  useProject.getState().commit((q) => ({
+export function setTrackMusic(
+  trackId: string,
+  music: boolean,
+  commit: Commit = personCommit,
+): void {
+  commit((q) => ({
     ...q,
     tracks: q.tracks.map((t) => (t.id === trackId ? { ...t, music: music || undefined } : t)),
   }));
 }
 
-export function setDenoise(clipIds: string[], on: boolean): void {
+export function setDenoise(clipIds: string[], on: boolean, commit: Commit = personCommit): void {
   const ids = new Set(clipIds);
-  useProject.getState().commit((q) => ({
+  commit((q) => ({
     ...q,
     clips: q.clips.map((c) => (ids.has(c.id) ? { ...c, denoise: on || undefined } : c)),
   }));
@@ -639,6 +660,7 @@ export function AudioPanel(): ReactNode {
   };
   return (
     <Panel title="Áudio" icon={AudioLines}>
+      <VoiceSection />
       <div className="props-section">
         <h3>
           <Music size={13} /> Música de fundo
@@ -656,7 +678,7 @@ export function AudioPanel(): ReactNode {
             <div key={t.id} className="audio-track-row">
               <span>
                 <strong>{t.name}</strong>
-                <small className="muted"> · {n} clipe(s)</small>
+                <small className="muted"> · {plural(n, "clipe", "clipes")}</small>
               </span>
               <div className="audio-flag" title="Abaixa automaticamente quando alguém fala">
                 <small className="muted">Música</small>
@@ -687,8 +709,8 @@ export function AudioPanel(): ReactNode {
         <p className="props-hint muted">
           Tira chiado, ventilador e zumbido constante{" "}
           {selected.length
-            ? `dos ${selected.length} clipe(s) selecionado(s)`
-            : `de todas as falas (${voices.length} clipe(s))`}
+            ? `${agree(selected.length, "do", "dos")} ${plural(selected.length, "clipe selecionado", "clipes selecionados")}`
+            : `de todas as falas (${plural(voices.length, "clipe", "clipes")})`}
           . Aplicado na exportação.
         </p>
       </div>
@@ -713,9 +735,10 @@ export function CaptionsPanel(): ReactNode {
     <Panel title="Legendas" icon={Captions}>
       <CaptionSettings />
       <p className="muted ann-hint">
-        A legenda sai da transcrição já editada: o que foi cortado não aparece. O arquivo .srt é
-        gerado na exportação, separado.
+        A legenda sai da transcrição já editada: o que foi cortado não aparece e as palavras
+        corrigidas saem corrigidas. O arquivo .srt é gerado na exportação, separado.
       </p>
+      <CueList />
       {!transcribed && (
         <Button icon={Captions} onClick={() => useApp.getState().set({ sideTab: "transcript" })}>
           Abrir transcrição

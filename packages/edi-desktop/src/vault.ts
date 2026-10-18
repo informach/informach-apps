@@ -16,7 +16,13 @@ const sessionSchema = z.strictObject({
   accessExpiresAt: z.number(),
   sessionExpiresAt: z.string(),
 });
-export const vaultSchema = z.strictObject({
+/**
+ * The session vault is shared by every tool of the suite, and older tools read it with the
+ * fields they know. Keys a newer tool might add are tolerated and kept as they are when this
+ * version writes the vault back; this version itself adds none (MCP grants live in a file of
+ * each tool, grants.ts).
+ */
+export const vaultSchema = z.looseObject({
   version: z.literal(1),
   deviceId: z.uuid(),
   privateKey: z.string(),
@@ -28,6 +34,7 @@ export const vaultSchema = z.strictObject({
   // licenses remain available to newer applications during a rolling update.
   licenseVersionDeniedThrough: releaseVersionSchema.optional(),
   lastTrustedTime: z.number().nonnegative(),
+  // Tokens of earlier versions, moved to each tool's grant file on its next start.
   mcpTokens: z.record(z.string(), z.string().regex(/^[a-f0-9]{64}$/)).default({}),
   boundUserId: z.string().nullable().default(null),
   updateFloors: z.partialRecord(z.enum(["stable", "beta"]), releaseVersionSchema).default({}),

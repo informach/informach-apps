@@ -4,3 +4,5 @@ dist/
 *.log
 .vite/
 .tmp/
+# Compiled by scripts/build-native-helper.mjs from native/helper
+resources/native/

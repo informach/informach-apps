@@ -1,23 +1,32 @@
 import { withRenderKeys } from "@informach/edi-desktop/renderer";
+import { retakeLines } from "@shared/retake";
 import { type ScriptItem, type SpeechItem, sectionLabel, speechSeconds } from "@shared/script";
+import { CONFIRM_COVERAGE, type Substitution } from "@shared/scriptAlign";
 import { projectDuration } from "@shared/timeline";
 import {
   AlertTriangle,
   Check,
   ClipboardPaste,
   FileText,
+  HelpCircle,
+  Layers,
   Loader,
+  Mic,
   Monitor,
   Scissors,
   Sparkles,
+  SquareSplitHorizontal,
   Trash2,
   Wand2,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { duration as fmtDuration } from "@/lib/format";
+import { openRetake } from "@/lib/retake";
 import {
   insertedClip,
+  pendingInserts,
   placeInsert,
+  placeInserts,
   proposeOffScript,
   setScript,
   useScriptView,
@@ -27,6 +36,9 @@ import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
 import { Button } from "@/ui";
+import { CourseSplitDialog } from "./CourseSplitDialog";
+
+const percent = (share: number): string => `${Math.round(share * 100)}%`;
 
 const clock = (s: number): string =>
   `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
@@ -37,6 +49,7 @@ export function ScriptPanel(): ReactNode {
   const view = useScriptView(project, transcripts);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  const [splitting, setSplitting] = useState(false);
   const toast = useApp((s) => s.toast);
   if (!project) return null;
 
@@ -56,7 +69,7 @@ export function ScriptPanel(): ReactNode {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
         />
-        <div className="row-6">
+        <div className="row-6 script-empty-actions">
           <Button
             variant="secondary"
             icon={ClipboardPaste}
@@ -82,7 +95,8 @@ export function ScriptPanel(): ReactNode {
       </div>
     );
 
-  const { doc, index, section, alignment } = view;
+  const { doc, index, section, alignment, rank, confirmed } = view;
+  const scriptText = project.script.text;
   const total = projectDuration(project);
   const target = section.target;
   const narration = speechSeconds(section, doc.wordsPerMinute ?? 137);
@@ -103,6 +117,28 @@ export function ScriptPanel(): ReactNode {
     setBusy(null);
     toast(r.message, r.ok ? "success" : "error");
   };
+  const waiting = pendingInserts(project, section);
+  // Lines of the teacher not in the lesson, or only partly: recorded again in "Só voz".
+  const toRetake = transcribed ? retakeLines(section, alignment) : [];
+  const retake = async (): Promise<void> => {
+    setBusy("retake");
+    const r = await openRetake();
+    setBusy(null);
+    toast(r.message, r.ok ? "info" : "error");
+  };
+  const placeAll = async (): Promise<void> => {
+    setBusy("all");
+    const r = await placeInserts("all");
+    setBusy(null);
+    toast(r.message, r.ok ? "success" : "error");
+  };
+  // The best other section, to name it when the choice is close.
+  const runnerUp = rank
+    ? rank.scores.reduce(
+        (best, s, i) => (i !== index && (best < 0 || s > rank.scores[best]) ? i : best),
+        -1,
+      )
+    : -1;
 
   return (
     <div className="script">
@@ -111,11 +147,11 @@ export function ScriptPanel(): ReactNode {
         <select
           className="select"
           value={index}
-          onChange={(e) => setScript(project.script!.text, Number(e.target.value))}
+          onChange={(e) => setScript(scriptText, Number(e.target.value))}
           title={
             project.script.section === undefined
               ? "Escolhida automaticamente pela gravação"
-              : undefined
+              : "Escolhida por você"
           }
         >
           {doc.sections.map((s, i) => (
@@ -130,13 +166,37 @@ export function ScriptPanel(): ReactNode {
               className={`script-target ${durTone}`}
               title={`Narração estimada: ${fmtDuration(narration)} a ${doc.wordsPerMinute ?? 137} palavras/min`}
             >
-              Alvo {section.targetText?.replace(/\.$/, "") ?? `${target[0]}–${target[1]} s`} · agora{" "}
-              {fmtDuration(total)}
+              Alvo{" "}
+              {section.targetText
+                ?.replace(/\.$/, "")
+                .replace(/\bsegundos?\b/i, "s")
+                .replace(/\bminutos?\b/i, "min") ?? `${target[0]} a ${target[1]} s`}{" "}
+              · agora {fmtDuration(total)}
               {durTone === "is-under" ? " · curto" : durTone === "is-over" ? " · longo" : " ✓"}
             </span>
           )}
-          {section.videoId && <span className="mono muted">{section.videoId}</span>}
+          {section.videoId && <span className="mono muted script-video">{section.videoId}</span>}
         </div>
+        {transcribed && !confirmed && (
+          <div className="script-confirm" role="status">
+            <HelpCircle size={14} />
+            <span>
+              Esta gravação parece ser da {sectionLabel(section)},{" "}
+              {rank && rank.coverage >= CONFIRM_COVERAGE && runnerUp >= 0
+                ? `mas a ${sectionLabel(doc.sections[runnerUp])} combina quase o mesmo (${percent(rank.coverage)} e ${percent(rank.scores[runnerUp])} das palavras).`
+                : `mas só achei ${percent(rank?.coverage ?? 0)} das palavras dela.`}{" "}
+              É esta mesma? Se não for, escolha a seção certa na lista acima.
+            </span>
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={Check}
+              onClick={() => setScript(scriptText, index)}
+            >
+              É esta
+            </Button>
+          </div>
+        )}
         {transcribed ? (
           <div className="script-coverage">
             <span>
@@ -147,6 +207,12 @@ export function ScriptPanel(): ReactNode {
                 size="sm"
                 variant="secondary"
                 icon={Scissors}
+                disabled={!confirmed}
+                title={
+                  confirmed
+                    ? "Propor o corte do que foi falado fora do roteiro"
+                    : "Confirme a seção antes de propor cortes"
+                }
                 onClick={async () => {
                   const msg = await proposeOffScript();
                   toast(msg.split("\n")[0], "info");
@@ -174,6 +240,48 @@ export function ScriptPanel(): ReactNode {
         )}
       </div>
 
+      {toRetake.length > 0 && (
+        <div className="script-batch">
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={busy === "retake" ? Loader : Mic}
+            disabled={busy !== null || !confirmed}
+            title={
+              confirmed
+                ? "Abre o gravador em Só voz com o teleprompter só dessas falas, uma por tomada"
+                : "Confirme a seção antes de regravar"
+            }
+            onClick={() => void retake()}
+          >
+            Regravar falas ({toRetake.length})
+          </Button>
+          <span className="muted">
+            {toRetake.filter((l) => l.state === "missing").length} faltando e{" "}
+            {toRetake.filter((l) => l.state === "partial").length} pela metade. Na volta, cada fala
+            entra no lugar dela como rascunho.
+          </span>
+        </div>
+      )}
+
+      {transcribed && waiting.length > 1 && (
+        <div className="script-batch">
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={busy === "all" ? Loader : Layers}
+            disabled={busy !== null || !confirmed}
+            title={confirmed ? undefined : "Confirme a seção antes de encaixar todas"}
+            onClick={() => void placeAll()}
+          >
+            Encaixar todas ({waiting.length})
+          </Button>
+          <span className="muted">
+            Coloca cada fala do avatar depois da fala anterior, de uma vez só. Ctrl+Z desfaz tudo.
+          </span>
+        </div>
+      )}
+
       <div className="script-items">
         {withRenderKeys(section.items, (item) => JSON.stringify(item)).map(
           ({ key, value: it }, idx) => (
@@ -181,6 +289,7 @@ export function ScriptPanel(): ReactNode {
               key={key}
               item={it}
               line={lineOf(idx)}
+              swaps={alignment.substitutions.filter((x) => alignment.lines[x.line]?.item === idx)}
               transcribed={transcribed}
               placed={
                 it.kind === "speech" && it.insertId ? insertedClip(project, it.insertId) : undefined
@@ -193,6 +302,22 @@ export function ScriptPanel(): ReactNode {
       </div>
 
       <div className="script-foot">
+        {doc.sections.length > 1 && (
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={SquareSplitHorizontal}
+            disabled={!transcribed}
+            title={
+              transcribed
+                ? "Uma gravação longa com várias seções vira uma aula por seção"
+                : "Transcreva a gravação para achar as seções"
+            }
+            onClick={() => setSplitting(true)}
+          >
+            Dividir por seção
+          </Button>
+        )}
         <Button
           size="sm"
           variant="ghost"
@@ -204,6 +329,7 @@ export function ScriptPanel(): ReactNode {
           Tirar roteiro
         </Button>
       </div>
+      {splitting && <CourseSplitDialog close={() => setSplitting(false)} />}
     </div>
   );
 }
@@ -211,6 +337,7 @@ export function ScriptPanel(): ReactNode {
 function Item({
   item,
   line,
+  swaps,
   transcribed,
   placed,
   busy,
@@ -218,6 +345,8 @@ function Item({
 }: {
   item: ScriptItem;
   line?: { matched: number; total: number; start?: number; end?: number };
+  /** Numbers and names said differently from the script in this line. */
+  swaps: Substitution[];
   transcribed: boolean;
   placed?: { start: number };
   busy: string | null;
@@ -300,6 +429,12 @@ function Item({
         ) : null}
       </div>
       <p>{item.text}</p>
+      {swaps.map((x) => (
+        <p key={`${x.start}:${x.said}`} className="si-swap">
+          <AlertTriangle size={11} /> Disse "{x.said}" no lugar de "{x.written}" em {clock(x.start)}
+          . Confira se foi de propósito.
+        </p>
+      ))}
     </div>
   );
 }

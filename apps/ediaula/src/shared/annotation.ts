@@ -17,7 +17,11 @@ export type AnnotationKind =
   | "card"
   | "lowerthird"
   | "panel"
-  | "line";
+  | "line"
+  /** Strokes drawn on the screen during a take (shared/drawing.ts): a video, not a picture. */
+  | "drawing"
+  /** A white or black board put over the screen while drawing, with its strokes: a video too. */
+  | "board";
 export type Tail =
   | "none"
   | "bottom-left"
@@ -155,6 +159,9 @@ export interface Annotation {
   /** Opening/closing card: small line above the title (course) and line below it. */
   kicker?: string;
   subtitle?: string;
+  /** The "Na tela" direction of the script this annotation was made from (directionId), so
+   *  the same direction is not annotated twice. */
+  direction?: string;
   /** Opening/closing card layout; titles: how the lines line up. */
   layout?: "left" | "center";
   /** Typeface of the text (default: Plus Jakarta Sans). */
@@ -176,6 +183,8 @@ export interface Annotation {
   /** Palette colors: text on light backgrounds (default #12140A) and the card's accent (default lime). */
   ink?: string;
   accent?: string;
+  /** Comes in word by word (with the words' times when they are said) or drawn like a stroke. */
+  reveal?: "words" | "draw";
 }
 
 export interface Outline {
@@ -219,6 +228,12 @@ export function defaultOutline(a: Pick<Annotation, "kind" | "color" | "ink">): O
   }
 }
 
+/**
+ * Text size of balloons, notes and labels in 1080p pixels: 3.3% of the frame height, what a child
+ * of 9 to 14 reads on a phone (the check before exporting asks at least this much).
+ */
+export const ANNOTATION_TEXT = 36;
+
 export const PALETTE = [
   "#C8F031",
   "#FFD60A",
@@ -256,7 +271,7 @@ export const ANNOTATION_PRESETS: AnnotationPreset[] = [
       color: "#12140A",
       text: "Olha aqui!",
       width: 380,
-      fontSize: 32,
+      fontSize: ANNOTATION_TEXT,
       tail: "bottom-left",
     },
     duration: 3.5,
@@ -271,7 +286,7 @@ export const ANNOTATION_PRESETS: AnnotationPreset[] = [
       color: "#C8F031",
       text: "Dica: arraste o bloco até o encaixe.",
       width: 420,
-      fontSize: 30,
+      fontSize: ANNOTATION_TEXT,
     },
     duration: 4,
     enter: "slide-up",
@@ -280,7 +295,7 @@ export const ANNOTATION_PRESETS: AnnotationPreset[] = [
   {
     kind: "label",
     label: "Rótulo",
-    spec: { kind: "label", color: "#12140A", text: "Ao iniciar", fontSize: 28 },
+    spec: { kind: "label", color: "#12140A", text: "Ao iniciar", fontSize: ANNOTATION_TEXT },
     duration: 3,
     enter: "grow",
     exit: "fade",
@@ -364,7 +379,13 @@ export const KIND_LABEL: Record<AnnotationKind, string> = {
     string
   >),
   card: "Cartela",
+  drawing: "Desenho",
+  board: "Quadro",
 };
+
+/** The annotations made of a take's drawing (a video of its strokes, not a picture of fields). */
+export const isDrawingKind = (kind: AnnotationKind): boolean =>
+  kind === "drawing" || kind === "board";
 
 /** Full-screen opening and closing cards. */
 export const CARD = {

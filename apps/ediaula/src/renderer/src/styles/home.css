@@ -359,8 +359,24 @@
 .project-card:hover {
   border-color: #3a404d;
 }
+.pc-menu {
+  position: absolute;
+  top: 8px;
+  right: 38px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  background: #0d0e11cc;
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
 .project-card:hover .pc-remove,
-.project-card:focus-within .pc-remove {
+.project-card:focus-within .pc-remove,
+.project-card:hover .pc-menu,
+.project-card:focus-within .pc-menu {
   opacity: 1;
 }
 .project-thumb {
@@ -408,6 +424,11 @@
   color: #fff;
   opacity: 0;
   transition: opacity 0.12s;
+}
+.home-more {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 24px;
 }
 .pc-info {
   display: flex;

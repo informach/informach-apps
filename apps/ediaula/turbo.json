@@ -1,0 +1,21 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "outputs": [
+        "out/**",
+        "resources/native/ediaula-helper.exe",
+        "resources/native/ediaula-helper.json"
+      ],
+      "passThroughEnv": ["CSC"]
+    },
+    "dev": {
+      "passThroughEnv": ["CSC"]
+    },
+    "test": {
+      "env": ["EDIAULA_NATIVE_INPUT_TESTS"],
+      "passThroughEnv": ["CSC"]
+    }
+  }
+}

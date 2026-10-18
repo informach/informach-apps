@@ -1,6 +1,6 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
-  "globalPassThroughEnv": ["npm_execpath"],
+  "globalPassThroughEnv": ["npm_execpath", "JOBS"],
   "cacheMaxAge": "7d",
   "cacheMaxSize": "10GB",
   "tasks": {

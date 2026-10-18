@@ -8,6 +8,7 @@ import type { Worker } from "node:worker_threads";
 import { type ChromaKey, detectScreen, keyId, keySize } from "../shared/chroma.ts";
 import { cacheDir, FFMPEG } from "./ffmpeg.ts";
 import createKeyWorker from "./keyWorker?nodeWorker";
+import { scheduler } from "./scheduler.ts";
 
 const SCALE = "flags=lanczos+accurate_rnd+full_chroma_int";
 
@@ -105,6 +106,9 @@ export function renderKeyed(
   signal?: AbortSignal,
 ): Promise<string> {
   signal?.throwIfAborted();
+  // The local AI's key is made with the renderer's segmentation (main/personKey.ts).
+  if (key.mode === "person")
+    return Promise.reject(new Error("Esta remoção de fundo é feita pela IA local."));
   const out = join(cacheDir(path), `key-${keyId(key)}.webm`);
   if (existsSync(out)) return Promise.resolve(out);
   const tmp = out.replace(".webm", `.${randomUUID()}.part.webm`);
@@ -136,6 +140,7 @@ export function renderKeyed(
       ],
       { windowsHide: true },
     );
+    scheduler.track(dec);
     // A keyframe every second keeps scrubbing in the preview responsive.
     const enc = spawn(
       FFMPEG,
@@ -177,6 +182,7 @@ export function renderKeyed(
       ],
       { windowsHide: true },
     );
+    scheduler.track(enc);
 
     let finished = false;
     let decoded = false;

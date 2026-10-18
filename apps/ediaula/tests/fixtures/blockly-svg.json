@@ -1,0 +1,223 @@
+[
+  {
+    "tag": "svg",
+    "cls": ["blocklySvg"],
+    "rect": { "x": 200, "y": 0, "width": 1000, "height": 700 },
+    "children": [
+      {
+        "tag": "g",
+        "cls": ["blocklyWorkspace"],
+        "children": [
+          {
+            "tag": "g",
+            "cls": ["blocklyBlockCanvas"],
+            "transform": "translate(40, 30) scale(0.8)",
+            "children": [
+              {
+                "tag": "g",
+                "cls": ["blocklyDraggable"],
+                "key": "hat-1",
+                "rect": { "x": 240, "y": 30, "width": 170, "height": 96 },
+                "children": [
+                  {
+                    "tag": "path",
+                    "cls": ["blocklyPath"],
+                    "rect": { "x": 240, "y": 30, "width": 170, "height": 48 }
+                  },
+                  {
+                    "tag": "text",
+                    "cls": ["blocklyText"],
+                    "text": "quando clicar em",
+                    "rect": { "x": 252, "y": 46, "width": 112, "height": 16 }
+                  },
+                  {
+                    "tag": "g",
+                    "cls": ["blocklyDraggable"],
+                    "key": "move-1",
+                    "rect": { "x": 240, "y": 78, "width": 150, "height": 48 },
+                    "children": [
+                      {
+                        "tag": "path",
+                        "cls": ["blocklyPath"],
+                        "rect": { "x": 240, "y": 78, "width": 150, "height": 40 }
+                      },
+                      {
+                        "tag": "text",
+                        "cls": ["blocklyText"],
+                        "text": "mover",
+                        "rect": { "x": 252, "y": 90, "width": 40, "height": 16 }
+                      },
+                      {
+                        "tag": "g",
+                        "cls": ["blocklyEditableText"],
+                        "children": [
+                          {
+                            "tag": "text",
+                            "cls": ["blocklyText"],
+                            "text": "10",
+                            "rect": { "x": 298, "y": 90, "width": 16, "height": 16 }
+                          }
+                        ]
+                      },
+                      {
+                        "tag": "text",
+                        "cls": ["blocklyText"],
+                        "text": "passos",
+                        "rect": { "x": 320, "y": 90, "width": 44, "height": 16 }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "tag": "g",
+                "cls": ["blocklyDraggable"],
+                "key": "move-2",
+                "rect": { "x": 600, "y": 400, "width": 150, "height": 48 },
+                "children": [
+                  {
+                    "tag": "path",
+                    "cls": ["blocklyPath"],
+                    "rect": { "x": 600, "y": 400, "width": 150, "height": 40 }
+                  },
+                  {
+                    "tag": "text",
+                    "cls": ["blocklyText"],
+                    "text": "mover",
+                    "rect": { "x": 612, "y": 412, "width": 40, "height": 16 }
+                  },
+                  {
+                    "tag": "g",
+                    "cls": ["blocklyEditableText"],
+                    "children": [
+                      {
+                        "tag": "text",
+                        "cls": ["blocklyText"],
+                        "text": "25",
+                        "rect": { "x": 658, "y": 412, "width": 16, "height": 16 }
+                      }
+                    ]
+                  },
+                  {
+                    "tag": "text",
+                    "cls": ["blocklyText"],
+                    "text": "passos",
+                    "rect": { "x": 680, "y": 412, "width": 44, "height": 16 }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "tag": "svg",
+    "cls": ["blocklyFlyout"],
+    "rect": { "x": 90, "y": 0, "width": 110, "height": 700 },
+    "children": [
+      {
+        "tag": "g",
+        "cls": ["blocklyWorkspace"],
+        "children": [
+          {
+            "tag": "g",
+            "cls": ["blocklyBlockCanvas"],
+            "transform": "translate(0px, 0px) scale(0.8)",
+            "children": [
+              {
+                "tag": "g",
+                "cls": ["blocklyDraggable"],
+                "key": "flyout-move",
+                "rect": { "x": 100, "y": 40, "width": 90, "height": 40 },
+                "children": [
+                  {
+                    "tag": "path",
+                    "cls": ["blocklyPath"],
+                    "rect": { "x": 100, "y": 40, "width": 90, "height": 40 }
+                  },
+                  {
+                    "tag": "text",
+                    "cls": ["blocklyText"],
+                    "text": "mover",
+                    "rect": { "x": 110, "y": 52, "width": 30, "height": 16 }
+                  },
+                  {
+                    "tag": "g",
+                    "cls": ["blocklyEditableText"],
+                    "children": [
+                      {
+                        "tag": "text",
+                        "cls": ["blocklyText"],
+                        "text": "10",
+                        "rect": { "x": 144, "y": 52, "width": 12, "height": 16 }
+                      }
+                    ]
+                  },
+                  {
+                    "tag": "text",
+                    "cls": ["blocklyText"],
+                    "text": "passos",
+                    "rect": { "x": 158, "y": 52, "width": 30, "height": 16 }
+                  }
+                ]
+              },
+              {
+                "tag": "g",
+                "cls": ["blocklyDraggable", "blocklyDisabled"],
+                "key": "flyout-turn",
+                "rect": { "x": 100, "y": 100, "width": 90, "height": 40 },
+                "children": [
+                  {
+                    "tag": "path",
+                    "cls": ["blocklyPath"],
+                    "rect": { "x": 100, "y": 100, "width": 90, "height": 40 }
+                  },
+                  {
+                    "tag": "text",
+                    "cls": ["blocklyText"],
+                    "text": "girar 15 graus",
+                    "rect": { "x": 110, "y": 112, "width": 76, "height": 16 }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "tag": "div",
+    "cls": ["blocklyToolboxDiv"],
+    "children": [
+      {
+        "tag": "div",
+        "cls": ["blocklyToolboxCategory"],
+        "rect": { "x": 0, "y": 20, "width": 90, "height": 32 },
+        "children": [
+          {
+            "tag": "div",
+            "cls": ["blocklyTreeRow"],
+            "rect": { "x": 0, "y": 20, "width": 90, "height": 32 },
+            "children": [{ "tag": "span", "cls": ["blocklyTreeLabel"], "text": "Movimento" }]
+          }
+        ]
+      },
+      {
+        "tag": "div",
+        "cls": ["blocklyToolboxCategory"],
+        "rect": { "x": 0, "y": 56, "width": 90, "height": 32 },
+        "children": [
+          {
+            "tag": "div",
+            "cls": ["blocklyTreeRow"],
+            "rect": { "x": 0, "y": 56, "width": 90, "height": 32 },
+            "children": [{ "tag": "span", "cls": ["blocklyTreeLabel"], "text": "Aparência" }]
+          }
+        ]
+      }
+    ]
+  }
+]

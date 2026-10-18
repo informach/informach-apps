@@ -10,7 +10,7 @@ import {
   timelineAt,
   trimClip,
 } from "../src/shared/timeline.ts";
-import type { Asset, Clip, Project } from "../src/shared/types.ts";
+import type { Asset, Clip, Project, Transcript } from "../src/shared/types.ts";
 
 const clip = (o: Partial<Clip> = {}): Clip => ({
   id: "c",
@@ -82,10 +82,30 @@ test("split and trim honour the speed", () => {
 });
 
 test("transcript words land where the sped-up clip shows them", () => {
-  const p = { clips: [clip({ speed: 2 })] } as unknown as Project;
-  const tr = new Map([
-    ["v", { words: [{ text: "oi", start: 8, end: 9, p: 1 }], silences: [] }],
-  ]) as never;
+  const p: Project = {
+    version: 1,
+    id: "p",
+    name: "T",
+    createdAt: 0,
+    updatedAt: 0,
+    settings: { width: 1920, height: 1080, fps: 30 },
+    assets: [video],
+    tracks: [{ id: "t", kind: "video", name: "F1", muted: false, hidden: false, locked: false }],
+    clips: [clip({ speed: 2 })],
+  };
+  const tr = new Map<string, Transcript>([
+    [
+      "v",
+      {
+        version: 1,
+        model: "m",
+        language: "pt",
+        duration: 60,
+        words: [{ text: "oi", start: 8, end: 9, p: 1 }],
+        silences: [],
+      },
+    ],
+  ]);
   const [w] = timelineWords(p, tr);
   assert.equal(w.start, 12);
   assert.equal(w.end, 12.5);
@@ -120,15 +140,16 @@ test("export reads duration × speed of the source and retimes picture and sound
     encoder: "nvenc",
   });
   const i = plan.inputArgs.indexOf("C:/m/tela.mp4");
-  assert.deepEqual(plan.inputArgs.slice(i - 5, i + 1), [
-    "-ss",
-    "4",
-    "-t",
-    "12",
-    "-i",
-    "C:/m/tela.mp4",
-  ]);
-  assert.match(plan.filter, /setpts=\(PTS-STARTPTS\)\/2,fps=30/);
+  const read = plan.inputArgs.slice(i - 4, i + 1);
+  assert.deepEqual([read[0], read[1], read[3]], ["-noaccurate_seek", "-ss", "-i"]);
+  // From a source frame before the in-point (4 s); the picture stops at the end of the 12 s it
+  // covers at 2×, 6 s on the clip's clock (180 frames).
+  const seek = Number(read[2]);
+  assert.ok(seek < 4 && seek > 4 - 1 / 30 - 0.01, `seek ${read[2]}`);
+  assert.match(
+    plan.filter,
+    /setpts=round\(\(PTS-[\d.]+\/TB\)\/2\),setpts='max\(PTS,-[\d.]+\/TB\)',trim=start=-[\d.]+:end=5\.99\d*,fps=30,tpad=stop_mode=clone:stop=-1,fps=30:start_time=0,trim=end_frame=180/,
+  );
   assert.match(plan.filter, /atempo=2,volume=1/);
   assert.equal(plan.duration, 6);
 });

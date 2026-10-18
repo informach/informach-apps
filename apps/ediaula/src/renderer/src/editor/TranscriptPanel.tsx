@@ -7,7 +7,7 @@ import {
   wordsToSource,
 } from "@shared/cleanup";
 import { newId, trackLabels } from "@shared/timeline";
-import type { EngineStatus } from "@shared/types";
+import type { EngineStatus, Transcript } from "@shared/types";
 import {
   Captions,
   Check,
@@ -28,13 +28,16 @@ import {
 } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { bytes, duration, timecode } from "@/lib/format";
+import { blindNotes, proposeCleanup } from "@/lib/proposals";
 import {
-  cutRanges,
+  cleanError,
   cutRangesInteractive,
   runEngineInstall,
   runModelInstall,
+  setCleanup,
   speechCandidates,
   type TextModel,
+  toggleKept,
   transcribeAssets,
   useCleanup,
   useEngine,
@@ -43,10 +46,19 @@ import {
   useTranscripts,
   wordsRange,
 } from "@/lib/transcripts";
+import {
+  countLike,
+  type RemovedOnTimeline,
+  restoreWord,
+  shownByKey,
+  useRemovedWords,
+} from "@/lib/wordEditing";
 import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
 import { Button, Progress } from "@/ui";
+import { GlossaryField } from "./GlossaryField";
+import { WordEditor } from "./WordEditor";
 
 const LANGUAGES: [string, string][] = [
   ["pt", "Português"],
@@ -82,13 +94,17 @@ export function TranscriptPanel(): ReactNode {
 
   return (
     <div className="transcript">
-      <CleanupBar model={model} />
-      <TranscriptText model={model} />
+      <CleanupBar model={model} loading={model.loading} />
+      <details className="transcript-glossary">
+        <summary>Glossário do curso</summary>
+        <GlossaryField hint="Corrige os nomes no texto na hora, sem transcrever de novo. Vale para todas as aulas do curso e também orienta a IA." />
+      </details>
+      <TranscriptText model={model} transcripts={transcripts} />
       <div className="transcript-foot">
         <Info size={13} />
         <span>
-          Selecione palavras e aperte Delete para cortar o trecho do vídeo. Clique direito numa
-          marcação para mantê-la.
+          Selecione palavras e aperte Delete para cortar o trecho do vídeo. Duplo clique numa
+          palavra corrige o texto. Clique direito numa marcação para mantê-la.
         </span>
       </div>
     </div>
@@ -168,7 +184,7 @@ function EngineSetup({ status }: { status: EngineStatus }): ReactNode {
         <span className="step-num">{status.model ? <Check size={13} /> : 2}</span>
         <div className="setup-body">
           <strong>Modelo de idioma</strong>
-          {status.model && <ModelPicker status={status} />}
+          {status.model ? <ModelPicker status={status} /> : <ExternalModels status={status} />}
           {modelJob !== null ? (
             <>
               <span className="muted">Baixando modelo…</span>
@@ -213,23 +229,53 @@ function EngineSetup({ status }: { status: EngineStatus }): ReactNode {
   );
 }
 
+const engineError = (err: unknown): void => useApp.getState().toast(cleanError(err), "error");
+
 function ModelPicker({ status }: { status: EngineStatus }): ReactNode {
   if (!status.model) return null;
   return (
-    <select
-      className="select"
-      value={status.model.path}
-      onChange={async (e) =>
-        useEngine.setState({ status: await window.api.selectModel(e.target.value) })
-      }
-    >
-      {status.models.map((m) => (
-        <option key={m.path} value={m.path}>
-          {m.name} · {bytes(m.size)}
-          {m.path.toLowerCase().startsWith("c:\\whisper-cpp") ? " · C:\\whisper-cpp" : ""}
-        </option>
-      ))}
-    </select>
+    <>
+      <select
+        className="select"
+        value={status.model.path}
+        onChange={(e) =>
+          window.api
+            .selectModel(e.target.value)
+            .then((next) => useEngine.setState({ status: next }))
+            .catch(engineError)
+        }
+      >
+        {status.models.map((m) => (
+          <option key={m.path} value={m.path}>
+            {m.name} · {bytes(m.size)}
+            {m.unchecked ? " · não conferido" : ""}
+          </option>
+        ))}
+      </select>
+      <ExternalModels status={status} />
+    </>
+  );
+}
+
+/**
+ * Models kept in C:\whisper-cpp are listed only when the person asks: EdiAula cannot check
+ * them against a published hash.
+ */
+function ExternalModels({ status }: { status: EngineStatus }): ReactNode {
+  return (
+    <label className="w-edit-check muted small">
+      <input
+        type="checkbox"
+        checked={status.externalModels}
+        onChange={(e) =>
+          window.api
+            .setExternalModels(e.target.checked)
+            .then((next) => useEngine.setState({ status: next }))
+            .catch(engineError)
+        }
+      />
+      Usar também os modelos de C:\whisper-cpp. O EdiAula não confere esses arquivos.
+    </label>
   );
 }
 
@@ -245,14 +291,6 @@ function TranscribeStart({ status }: { status: EngineStatus }): ReactNode {
   const touched = useRef(false);
   const busy = Object.keys(running).length > 0;
   const firstId = candidates[0]?.asset.id;
-  const course = project.course ?? "";
-  const [glossary, setGlossaryText] = useState("");
-  useEffect(() => {
-    void window.api.getGlossary(course).then((terms) => setGlossaryText(terms.join(", ")));
-  }, [course]);
-  const saveGlossary = (): void => {
-    void window.api.setGlossary(course, glossary.split(/[,\n;]/));
-  };
   // Pre-select the main recording once it shows up on the timeline.
   useEffect(() => {
     if (!touched.current && firstId) setPicked(new Set([firstId]));
@@ -282,7 +320,7 @@ function TranscribeStart({ status }: { status: EngineStatus }): ReactNode {
         <Wand2 size={22} className="accent" />
         <strong>Transcrever a aula</strong>
         <p className="muted">
-          Escolha o áudio com a sua fala. Normalmente é só a gravação principal — transcrever duas
+          Escolha o áudio com a sua fala. Normalmente é só a gravação principal: transcrever duas
           fontes da mesma fala duplica o texto.
         </p>
       </div>
@@ -310,23 +348,10 @@ function TranscribeStart({ status }: { status: EngineStatus }): ReactNode {
           );
         })}
       </div>
-      <label className="field">
-        <span className="field-label">
-          Glossário {course ? `do curso ${course}` : "(projetos sem curso)"}
-        </span>
-        <textarea
-          className="input glossary"
-          rows={2}
-          value={glossary}
-          disabled={busy}
-          placeholder="Nomes e termos que a transcrição deve acertar. Ex.: Debinha, Zappy, bloco Quando clicar"
-          onChange={(e) => setGlossaryText(e.target.value)}
-          onBlur={saveGlossary}
-        />
-        <span className="field-hint">
-          Separe por vírgulas. Vale para todas as aulas deste curso e também orienta a IA.
-        </span>
-      </label>
+      <GlossaryField
+        disabled={busy}
+        hint="Separe por vírgulas. Vale para todas as aulas deste curso e também orienta a IA."
+      />
       <div className="row-10">
         <select
           className="select lang"
@@ -345,7 +370,6 @@ function TranscribeStart({ status }: { status: EngineStatus }): ReactNode {
           icon={Captions}
           disabled={busy || picked.size === 0}
           onClick={() => {
-            saveGlossary();
             void transcribeAssets(
               candidates.filter((c) => picked.has(c.asset.id)).map((c) => c.asset),
               language,
@@ -373,9 +397,9 @@ const KIND_META = {
   repeat: { label: "repetições", color: "var(--blue)" },
 } as const;
 
-function CleanupBar({ model }: { model: TextModel }): ReactNode {
+function CleanupBar({ model, loading }: { model: TextModel; loading: boolean }): ReactNode {
   const project = useProject((s) => s.project)!;
-  const { kinds, minSilence, set } = useCleanup();
+  const { kinds, minSilence } = model.choices;
   const counts = { filler: 0, silence: 0, repeat: 0 };
   for (const i of model.active) counts[i.kind]++;
   const labels = trackLabels(project.tracks);
@@ -383,14 +407,18 @@ function CleanupBar({ model }: { model: TextModel }): ReactNode {
   const spared = project.tracks.filter(
     (t) => !targets.has(t.id) && project.clips.some((c) => c.trackId === t.id),
   );
+  const notes = blindNotes(project, model.blind);
+  const [busy, setBusy] = useState(false);
 
-  const cutAll = (): void => {
-    const n = model.active.length;
-    cutRanges(model.active.map((i) => [i.start, i.end]));
-    useCleanup.getState().set({ kept: new Set() });
-    useApp
-      .getState()
-      .toast(`${n} cortes aplicados (${duration(model.saved)} a menos). Ctrl+Z desfaz.`, "success");
+  // Everything goes through the proposal bar, item by item, like the Assistente's button.
+  const propose = (): void => {
+    setBusy(true);
+    void proposeCleanup()
+      .then((r) => useApp.getState().toast(r.message.split("\n")[0], r.ok ? "info" : "error"))
+      .catch((err: unknown) =>
+        useApp.getState().toast(`Não consegui propor a limpeza: ${cleanError(err)}`, "error"),
+      )
+      .finally(() => setBusy(false));
   };
 
   return (
@@ -407,12 +435,12 @@ function CleanupBar({ model }: { model: TextModel }): ReactNode {
             type="button"
             key={k}
             className={`cleanup-card ${kinds[k] ? "" : "is-off"}`}
-            onClick={() => set({ kinds: { ...kinds, [k]: !kinds[k] } })}
+            onClick={() => setCleanup({ kinds: { ...kinds, [k]: !kinds[k] } })}
             title={kinds[k] ? "Clique para não cortar" : "Clique para incluir"}
           >
             <span className="row-6">
               <span className="swatch" style={{ background: KIND_META[k].color }} />
-              <strong>{kinds[k] ? counts[k] : "—"}</strong>
+              <strong>{kinds[k] ? counts[k] : "fora"}</strong>
             </span>
             <span className="muted">{KIND_META[k].label}</span>
           </button>
@@ -423,7 +451,7 @@ function CleanupBar({ model }: { model: TextModel }): ReactNode {
         <select
           className="select select-sm"
           value={minSilence}
-          onChange={(e) => set({ minSilence: Number(e.target.value) })}
+          onChange={(e) => setCleanup({ minSilence: Number(e.target.value) })}
         >
           {[0.5, 0.75, 1, 1.5, 2, 3].map((v) => (
             <option key={v} value={v}>
@@ -436,11 +464,35 @@ function CleanupBar({ model }: { model: TextModel }): ReactNode {
         variant="primary"
         icon={Scissors}
         className="w-full"
-        disabled={!model.active.length}
-        onClick={cutAll}
+        disabled={loading || busy || !model.active.length}
+        onClick={propose}
       >
-        Cortar tudo na timeline
+        {loading ? "Lendo o cursor, a tela e o som…" : "Propor a limpeza"}
       </Button>
+      <div className="cleanup-targets muted">
+        <Shield size={12} />
+        <span>
+          Só encurta pausa em que ninguém fala e a tela fica parada: imagem que muda, ponteiro que
+          se mexe, clique, arrasto, rolagem, atalho e digitação seguram a pausa. Depois de uma
+          pergunta, ou onde o roteiro pede para esperar, a pausa fica com 2,5 s.
+        </span>
+      </div>
+      {model.elsewhere > 0 && (
+        <div className="cleanup-targets muted">
+          <Info size={12} />
+          <span>
+            {model.elsewhere === 1
+              ? "1 sugestão já está na proposta da limpeza da voz."
+              : `${model.elsewhere} sugestões já estão na proposta da limpeza da voz.`}
+          </span>
+        </div>
+      )}
+      {notes.map((note) => (
+        <div key={note} className="cleanup-targets muted">
+          <Info size={12} />
+          <span>{note}</span>
+        </div>
+      ))}
       <div className="cleanup-targets muted">
         <ShieldCheck size={12} />
         <span>
@@ -459,9 +511,71 @@ function CleanupBar({ model }: { model: TextModel }): ReactNode {
 
 /* ---------- Text ---------- */
 
-function TranscriptText({ model }: { model: TextModel }): ReactNode {
+/** Below this confidence a word is marked for review. */
+const UNSURE = 0.5;
+
+/** Text of a word button's tooltip: what an issue, the glossary or the confidence say about it. */
+function wordTitle(
+  w: TimelineWord,
+  issue: Issue | undefined,
+  active: boolean,
+  heard: string | undefined,
+): string | undefined {
+  if (issue)
+    return active
+      ? `${KIND_META[issue.kind].label}. Clique direito para manter.`
+      : "Mantido. Clique direito para cortar.";
+  const notes: string[] = [];
+  if (heard) notes.push(`Corrigido pelo glossário: era "${heard}".`);
+  if (w.p < UNSURE) notes.push(`Confiança baixa (${Math.round(w.p * 100)}%).`);
+  return notes.length ? `${notes.join(" ")} Duplo clique ou F2 corrige.` : undefined;
+}
+
+/** First index whose word starts at or after `t` (words.length when none does). */
+function firstFrom(words: TimelineWord[], t: number): number {
+  let lo = 0;
+  let hi = words.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (words[mid].start < t) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+/** A word left out of the text, shown faded where it was said; a click brings it back. */
+function Ghost({ word }: { word: RemovedOnTimeline }): ReactNode {
+  const why =
+    word.removed === "dropped"
+      ? `O filtro tirou "${word.text}" por parecer invenção do Whisper.`
+      : `"${word.text}" foi tirada da transcrição.`;
+  return (
+    <button
+      type="button"
+      className="w-ghost"
+      title={`${why} Clique para restaurar.`}
+      aria-label={`Restaurar a palavra ${word.text}`}
+      onClick={() =>
+        restoreWord(word.key).catch((err: unknown) =>
+          useApp.getState().toast(`Não foi possível restaurar: ${cleanError(err)}`, "error"),
+        )
+      }
+    >
+      {word.text}
+    </button>
+  );
+}
+
+function TranscriptText({
+  model,
+  transcripts,
+}: {
+  model: TextModel;
+  transcripts: Map<string, Transcript>;
+}): ReactNode {
   const fps = useProject((s) => s.project?.settings.fps ?? 30);
-  const { kept, toggleKept, keepPause } = useCleanup();
+  const { keepPause } = model.choices;
+  const kept = model.keptIds;
   const textCut = useApp((s) => s.textCut);
   const [selection, setSelection] = useState<{
     words: TextModel["words"];
@@ -469,6 +583,8 @@ function TranscriptText({ model }: { model: TextModel }): ReactNode {
   } | null>(null);
   const dragging = useRef<number | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
+  /** Key of the word being corrected inline (double click). */
+  const [editing, setEditing] = useState<string | null>(null);
   const { words, issues, active } = model;
   const sel = selection?.words === words ? selection.range : null;
   const setSel = (range: [number, number] | null): void =>
@@ -476,6 +592,35 @@ function TranscriptText({ model }: { model: TextModel }): ReactNode {
 
   const index = useMemo(() => new Map(words.map((w, i) => [w.key, i])), [words]);
   const project = useProject((s) => s.project)!;
+  // The words as the transcript shows them (glossary marks, times in the media's seconds).
+  const shown = useMemo(() => shownByKey(transcripts), [transcripts]);
+  const lost = useMemo(
+    () => [...transcripts.values()].reduce((n, t) => n + (t.lostEdits ?? 0), 0),
+    [transcripts],
+  );
+  const occurrences = (like: string): number => countLike(transcripts, like);
+  // Words left out of the text, by the index of the word they come before.
+  const removed = useRemovedWords(project);
+  const ghostsBefore = useMemo(() => {
+    const map = new Map<number, RemovedOnTimeline[]>();
+    for (const g of removed) {
+      const at = firstFrom(words, g.start);
+      map.set(at, [...(map.get(at) ?? []), g]);
+    }
+    return map;
+  }, [removed, words]);
+  // Closing the editor gives the focus back to the word.
+  const [refocus, setRefocus] = useState<string | null>(null);
+  useEffect(() => {
+    if (editing || !refocus) return;
+    bodyRef.current?.querySelector<HTMLElement>(`[data-key="${CSS.escape(refocus)}"]`)?.focus();
+    setRefocus(null);
+  }, [editing, refocus]);
+  const openEditor = (key: string): void => {
+    dragging.current = null;
+    setSel(null);
+    setEditing(key);
+  };
   // Word keys inside protected passages, and which protection covers each.
   const protectedBy = useMemo(() => {
     const map = new Map<string, string>();
@@ -487,10 +632,10 @@ function TranscriptText({ model }: { model: TextModel }): ReactNode {
     return map;
   }, [project, words]);
 
-  // Word key -> issue, and word index -> silence issue that follows it.
+  // Word key -> issue, and word index -> silence issues that follow it.
   const { wordIssue, silenceAfter } = useMemo(() => {
     const wordIssue = new Map<string, Issue>();
-    const silenceAfter = new Map<number, Issue>();
+    const silenceAfter = new Map<number, Issue[]>();
     for (const i of issues) {
       if (i.kind === "silence") {
         let lo = 0;
@@ -503,18 +648,19 @@ function TranscriptText({ model }: { model: TextModel }): ReactNode {
             lo = mid + 1;
           } else hi = mid - 1;
         }
-        silenceAfter.set(at, i);
+        silenceAfter.set(at, [...(silenceAfter.get(at) ?? []), i]);
       } else for (const k of i.words) wordIssue.set(k, i);
     }
     return { wordIssue, silenceAfter };
   }, [issues, words]);
   const activeIds = useMemo(() => new Set(active.map((i) => i.id)), [active]);
 
-  // Selection changes are mirrored as a timeline range so the Delete key can cut it.
+  // Selection changes are mirrored as a timeline range so the Delete key can cut it. Selecting
+  // words is the latest selection, so a selected cut on the timeline lets go.
   useEffect(() => {
-    useApp.getState().set({
-      textCut: sel && words[sel[0]] && words[sel[1]] ? wordsRange(words, sel[0], sel[1]) : null,
-    });
+    const textCut =
+      sel && words[sel[0]] && words[sel[1]] ? wordsRange(words, sel[0], sel[1]) : null;
+    useApp.getState().set(textCut ? { textCut, junction: null } : { textCut });
   }, [sel, words]);
   useEffect(() => {
     if (!textCut) setSelection(null);
@@ -567,7 +713,8 @@ function TranscriptText({ model }: { model: TextModel }): ReactNode {
     if (issue)
       c += activeIds.has(issue.id) ? ` w-${issue.kind}` : kept.has(issue.id) ? " w-kept" : "";
     if (i >= lo && i <= hi) c += " is-sel";
-    if (w.p < 0.5) c += " w-unsure";
+    if (w.p < UNSURE) c += " w-unsure";
+    if (shown.get(w.key)?.heard) c += " w-glossed";
     if (protectedBy.has(w.key)) c += " w-protected";
     return c;
   };
@@ -575,6 +722,16 @@ function TranscriptText({ model }: { model: TextModel }): ReactNode {
   return (
     <>
       <div className="transcript-body" ref={bodyRef}>
+        <span id="w-unsure-hint" hidden>
+          Reconhecimento com confiança baixa. F2 abre a correção.
+        </span>
+        {lost > 0 && (
+          <div className="transcript-note">
+            {lost === 1
+              ? "1 correção feita antes não achou a palavra nesta transcrição."
+              : `${lost} correções feitas antes não acharam a palavra nesta transcrição.`}
+          </div>
+        )}
         {paras.map((para) => {
           return (
             <div key={para[0].key} className="para">
@@ -586,77 +743,104 @@ function TranscriptText({ model }: { model: TextModel }): ReactNode {
               >
                 {timecode(para[0].start, fps)}
               </button>
-              <p>
+              <div className="para-text">
                 {para.map((w) => {
                   const i = index.get(w.key)!;
-                  const silence = silenceAfter.get(i);
+                  const pauses = silenceAfter.get(i) ?? [];
                   const issue = wordIssue.get(w.key);
                   return (
                     <span key={w.key}>
-                      <button
-                        type="button"
-                        data-i={i}
-                        style={{
-                          border: 0,
-                          padding: 0,
-                          background: "none",
-                          color: "inherit",
-                          font: "inherit",
-                        }}
-                        onClick={(event) => {
-                          if (event.detail !== 0) return;
-                          setSel(event.shiftKey && sel ? [sel[0], i] : [i, i]);
-                          playback.pause();
-                          playback.seek(w.start);
-                        }}
-                        className={wordClass(w, i)}
-                        onMouseDown={(e) => {
-                          if (e.button !== 0) return;
-                          e.preventDefault();
-                          dragging.current = i;
-                          setSel(e.shiftKey && sel ? [sel[0], i] : [i, i]);
-                          playback.pause();
-                          playback.seek(w.start);
-                        }}
-                        onMouseEnter={() =>
-                          dragging.current !== null && setSel([dragging.current, i])
-                        }
-                        onContextMenu={(e) => {
-                          if (!issue) return;
-                          e.preventDefault();
-                          toggleKept(issue.id);
-                        }}
-                        title={
-                          issue
-                            ? activeIds.has(issue.id)
-                              ? `${KIND_META[issue.kind].label} — clique direito para manter`
-                              : "Mantido — clique direito para cortar"
-                            : undefined
-                        }
-                      >
-                        {i > 0 && /[.!?]$/.test(words[i - 1].text)
-                          ? w.text.charAt(0).toUpperCase() + w.text.slice(1)
-                          : w.text}
-                      </button>{" "}
-                      {silence && (
+                      {ghostsBefore.get(i)?.map((g) => (
+                        <Ghost key={g.key} word={g} />
+                      ))}
+                      {editing === w.key ? (
+                        <WordEditor
+                          word={w}
+                          shown={shown.get(w.key)}
+                          occurrences={occurrences}
+                          onClose={() => {
+                            setEditing(null);
+                            setRefocus(w.key);
+                          }}
+                        />
+                      ) : (
                         <button
                           type="button"
+                          data-i={i}
+                          data-key={w.key}
+                          aria-describedby={w.p < UNSURE ? "w-unsure-hint" : undefined}
+                          onKeyDown={(e) => {
+                            if (e.key !== "F2" && e.key !== "Enter") return;
+                            e.preventDefault();
+                            openEditor(w.key);
+                          }}
+                          style={{
+                            border: 0,
+                            padding: 0,
+                            background: "none",
+                            color: "inherit",
+                            font: "inherit",
+                          }}
+                          onClick={(event) => {
+                            if (event.detail !== 0) return;
+                            setSel(event.shiftKey && sel ? [sel[0], i] : [i, i]);
+                            playback.pause();
+                            playback.seek(w.start);
+                          }}
+                          className={wordClass(w, i)}
+                          onMouseDown={(e) => {
+                            if (e.button !== 0) return;
+                            e.preventDefault();
+                            dragging.current = i;
+                            setSel(e.shiftKey && sel ? [sel[0], i] : [i, i]);
+                            playback.pause();
+                            playback.seek(w.start);
+                          }}
+                          onMouseEnter={() =>
+                            dragging.current !== null && setSel([dragging.current, i])
+                          }
+                          onDoubleClick={() => openEditor(w.key)}
+                          onContextMenu={(e) => {
+                            if (!issue) return;
+                            e.preventDefault();
+                            toggleKept(issue);
+                          }}
+                          title={wordTitle(
+                            w,
+                            issue,
+                            !!issue && activeIds.has(issue.id),
+                            shown.get(w.key)?.heard,
+                          )}
+                        >
+                          {i > 0 && /[.!?]$/.test(words[i - 1].text)
+                            ? w.text.charAt(0).toUpperCase() + w.text.slice(1)
+                            : w.text}
+                        </button>
+                      )}{" "}
+                      {pauses.map((silence) => (
+                        <button
+                          type="button"
+                          key={silence.id}
                           className={`pause-pill ${activeIds.has(silence.id) ? "" : "is-kept"}`}
-                          onClick={() => toggleKept(silence.id)}
+                          onClick={() => toggleKept(silence)}
                           title={
                             activeIds.has(silence.id)
-                              ? "Silêncio será encurtado — clique para manter"
-                              : "Mantido — clique para encurtar"
+                              ? "Silêncio será encurtado. Clique para manter."
+                              : kept.has(silence.id)
+                                ? "Mantido. Clique para encurtar."
+                                : "Fora da limpeza (tipo desligado ou trecho protegido)."
                           }
                         >
                           <Pause size={9} />
                           {(silence.end - silence.start + keepPause).toFixed(1).replace(".", ",")}s
                         </button>
-                      )}
+                      ))}
                     </span>
                   );
                 })}
-              </p>
+                {para === paras[paras.length - 1] &&
+                  ghostsBefore.get(words.length)?.map((g) => <Ghost key={g.key} word={g} />)}
+              </div>
             </div>
           );
         })}

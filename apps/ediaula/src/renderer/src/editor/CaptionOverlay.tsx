@@ -4,24 +4,31 @@ import {
   CAPTION_HIGHLIGHT,
   type Cue,
   captionMargin,
+  captionWords,
   cueAt,
+  cueLayout,
   DEFAULT_CAPTION_STYLE,
   KEY_STYLE,
 } from "@shared/captions";
-import { timelineWords } from "@shared/cleanup";
 import type { Project } from "@shared/types";
 import { type ReactNode, useMemo } from "react";
 import { useTimelineKeys } from "@/lib/keysOnScreen";
 import { useTranscripts } from "@/lib/transcripts";
 import { usePlayback } from "@/state/playback";
 
-/** Caption cues of the current edit (the same ones the export burns in). */
-export function useCues(project: Project | null, vertical = false): Cue[] {
+/**
+ * Caption cues of the current edit (the same ones the export burns in): only what is heard, each
+ * word once, in shorter lines when the lesson is vertical.
+ */
+export function useCues(
+  project: Project | null,
+  vertical = !!project && project.settings.height > project.settings.width,
+): Cue[] {
   const transcripts = useTranscripts(project);
   return useMemo(
     () =>
       project && transcripts.size
-        ? buildCues(timelineWords(project, transcripts), vertical ? 22 : 42)
+        ? buildCues(captionWords(project, transcripts), vertical ? 22 : 42, 2, cueLayout(project))
         : [],
     [project, transcripts, vertical],
   );
@@ -39,9 +46,16 @@ export function CaptionOverlay({
 }): ReactNode {
   const cues = useCues(project);
   const t = usePlayback((s) => s.time);
-  const style = { ...DEFAULT_CAPTION_STYLE, ...project.captions };
   const cue = cueAt(cues, t);
   if (!cue) return null;
+  // A caption with its own look overrides the project's, as the export does with libass.
+  const style = {
+    ...DEFAULT_CAPTION_STYLE,
+    ...project.captions,
+    ...(cue.style?.position ? { position: cue.style.position } : {}),
+    ...(cue.style?.size ? { size: cue.style.size } : {}),
+  };
+  const textColor = cue.style?.color ?? "#fff";
   const fs = (style.size / 100) * height;
   const margin = captionMargin(style, height, false);
   const pos =
@@ -73,7 +87,7 @@ export function CaptionOverlay({
                 color:
                   style.look === "karaoke" && w.start <= t
                     ? (style.highlight ?? CAPTION_HIGHLIGHT)
-                    : "#fff",
+                    : textColor,
               }}
             >
               {w.text}

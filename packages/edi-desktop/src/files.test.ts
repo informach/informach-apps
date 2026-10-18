@@ -51,7 +51,52 @@ describe("selected-file capabilities", () => {
         "destino",
       );
       await expect(files.assertWrite(join(folder, "program.exe"), false)).rejects.toThrow();
+      // A packed lesson (EdiAula) is a ZIP picked in a save dialog.
+      const packed = join(root, "aula.zip");
+      await files.grantWrite(packed);
+      await expect(files.assertWrite(packed, false)).resolves.toBeTruthy();
+      // canWrite answers the same question without throwing, and false when the folder is gone.
+      await expect(files.canWrite(photo)).resolves.toBe(true);
+      await expect(files.canWrite(join(folder, "output.mp4"))).resolves.toBe(true);
+      await expect(files.canWrite(unselected)).resolves.toBe(false);
+      await expect(files.canWrite(join(root, "gone", "x.mp4"))).resolves.toBe(false);
+      await expect(files.canWrite("relative.mp4")).rejects.toThrow();
       expect(await readFile(project, "utf8")).toBe("project");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+  it("accepts only the captions, thumbnail and platform package of the exported video beside it", async () => {
+    const root = await mkdtemp(join(tmpdir(), "edi-related-test-"));
+    try {
+      const video = join(root, "Aula 3.mp4");
+      const files = createFileAuthority(["ediaula"]);
+      await files.grantWrite(video);
+      for (const name of [
+        "Aula 3.srt",
+        "Aula 3.vtt",
+        "Aula 3.jpg",
+        "Aula 3.en.srt",
+        "Aula 3.es.vtt",
+        "Aula 3.pt-BR.srt",
+        "Aula 3.plataforma.json",
+      ])
+        await expect(files.assertRelatedExport(video, join(root, name))).resolves.toBeTruthy();
+      for (const name of [
+        "Aula 3.json",
+        "Aula 3.en.jpg",
+        "Aula 3.outra.json",
+        "Aula 3.english-long.srt",
+        "Outra aula.en.srt",
+        "Aula 3.exe",
+      ])
+        await expect(files.assertRelatedExport(video, join(root, name))).rejects.toThrow(
+          "não pertence",
+        );
+      await mkdir(join(root, "sub"));
+      await expect(
+        files.assertRelatedExport(video, join(root, "sub", "Aula 3.en.srt")),
+      ).rejects.toThrow("não pertence");
     } finally {
       await rm(root, { recursive: true, force: true });
     }

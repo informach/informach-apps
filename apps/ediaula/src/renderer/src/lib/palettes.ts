@@ -1,4 +1,4 @@
-import type { Annotation } from "@shared/annotation";
+import { type Annotation, isDrawingKind } from "@shared/annotation";
 import { DEFAULT_CAPTION_STYLE } from "@shared/captions";
 import { DEFAULT_TRANSFORM } from "@shared/compose";
 import {
@@ -17,7 +17,7 @@ import {
 } from "@shared/palettes";
 import type { Project } from "@shared/types";
 import { create } from "zustand";
-import { useProject } from "@/state/project";
+import { basisOf, type Commit, personCommit, useProject } from "@/state/project";
 import { renderAnnotation } from "./annotations";
 
 interface PaletteStore {
@@ -107,8 +107,10 @@ export function recolorCount(p: Project): number {
 export async function applyPalette(
   id: string,
   opts: { recolor?: boolean; fonts?: boolean } = {},
+  commit: Commit = personCommit,
 ): Promise<number> {
-  const p = useProject.getState().project;
+  // In a draft, the annotations the draft added are recolored too.
+  const p = basisOf(commit);
   if (!p) return 0;
   const to = paletteById(id);
   const useFonts = opts.fonts ?? !!p.paletteFonts;
@@ -123,7 +125,8 @@ export async function applyPalette(
     { path: string; width: number; height: number; size: number; spec: Annotation }
   >();
   for (const c of p.clips) {
-    if (!c.annotation) continue;
+    // A drawing from the recording keeps the colors it was drawn with.
+    if (!c.annotation || isDrawingKind(c.annotation.kind)) continue;
     let spec = c.annotation;
     if (map) spec = recolorAnnotation(spec, map, to);
     if (refonting) spec = refont(spec, useFonts ? to : null, themed);
@@ -137,7 +140,7 @@ export async function applyPalette(
       spec,
     });
   }
-  useProject.getState().commit((q) => {
+  commit((q) => {
     const assetOf = new Map(q.assets.map((a) => [a.id, a]));
     const assets = new Map(q.assets.map((a) => [a.id, a]));
     const clips = q.clips.map((c) => {

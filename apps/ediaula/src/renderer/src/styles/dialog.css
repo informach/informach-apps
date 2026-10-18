@@ -30,6 +30,13 @@
   font-size: 17px;
   font-weight: 700;
 }
+.orphan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
 .modal-actions {
   display: flex;
   justify-content: flex-end;
@@ -175,6 +182,23 @@
   margin: 2px 0 0;
   font-size: 11.5px;
 }
+/* Shown while leaving the project waits for the save. */
+.leave-saving {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 20px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: 0 10px 30px #00000088;
+  font-size: 12px;
+}
 .export-warning {
   margin: 0;
   padding: 10px 12px;
@@ -183,6 +207,13 @@
   color: var(--amber);
   font-size: 12px;
   line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.export-warning p {
+  margin: 0;
 }
 .export-progress {
   display: flex;
@@ -206,6 +237,14 @@
 }
 .error-title {
   color: var(--rec);
+}
+.error-details summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-3);
+}
+.error-details[open] summary {
+  margin-bottom: 8px;
 }
 .error-box {
   margin: 0;
@@ -287,4 +326,46 @@
 .paste-prop-hint {
   display: block;
   font-size: 12px;
+}
+
+/* Cópias de segurança: one row per backup, the newest first. */
+.backup-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow: auto;
+}
+.backup-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+.backup-list li.is-confirming {
+  border-color: var(--accent);
+}
+.backup-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 12px;
+}
+/* Novo projeto: the course's template, when the course has one. */
+.setup-offer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
 }

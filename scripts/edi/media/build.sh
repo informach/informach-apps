@@ -88,12 +88,19 @@ case "$name" in
     ninja -C build -j"$JOBS"; ninja -C build install ;;
   nv-codec-headers)
     make PREFIX="$PREFIX" install ;;
+  amf)
+    # Headers only: the AMD runtime ships with the graphics driver and is loaded on demand.
+    mkdir -p "$PREFIX/include"; cp -R AMF "$PREFIX/include/AMF"
+    # The MIT notice lives inside each header; keep a copy beside the other component licenses.
+    sed -n '1,/^\/\/ THE SOFTWARE\.$/p' AMF/core/Version.h | sed -E 's|^// ?||' > LICENSE.txt
+    grep -q 'MIT license' LICENSE.txt ;;
   ffmpeg)
     ./configure --prefix="$PREFIX" --target-os=mingw32 --arch=x86_64 --enable-cross-compile --cross-prefix="$TARGET-" \
       --pkg-config=pkg-config --pkg-config-flags=--static --extra-cflags="$CPPFLAGS" --extra-ldflags="$LDFLAGS" \
       --extra-libs='-lstdc++ -lpthread' --disable-autodetect --disable-shared --enable-static --disable-debug --disable-doc --disable-ffplay \
       --enable-gpl --enable-version3 --enable-zlib --enable-iconv --enable-schannel --enable-libx264 --enable-libvpx --enable-libmp3lame \
-      --enable-libass --enable-libfreetype --enable-libharfbuzz --enable-libfribidi --enable-libdav1d --enable-ffnvcodec --enable-nvenc --enable-nvdec --enable-cuvid --enable-d3d11va --enable-dxva2
+      --enable-libass --enable-libfreetype --enable-libharfbuzz --enable-libfribidi --enable-libdav1d --enable-ffnvcodec --enable-nvenc --enable-nvdec --enable-cuvid --enable-d3d11va --enable-dxva2 \
+      --enable-mediafoundation --enable-amf
     make -j"$JOBS"; cp ffmpeg.exe ffprobe.exe /output/bin/ ;;
   *) echo "Unknown source component: $name" >&2; exit 1 ;;
 esac
