@@ -232,7 +232,7 @@
 .para-time:hover {
   color: var(--accent);
 }
-.para p {
+.para-text {
   margin: 4px 0 0;
   font-size: 14px;
   line-height: 1.75;
@@ -481,4 +481,38 @@
   margin-top: 6px;
   padding-top: 6px;
   border-top: 1px solid var(--line);
+}
+.w-glossed {
+  text-decoration: underline dotted #9b7bffb3;
+  text-underline-offset: 5px;
+}
+.w-ghost {
+  border: 0;
+  padding: 0 2px;
+  margin: 0 2px 0 0;
+  background: none;
+  font: inherit;
+  font-size: 11px;
+  color: var(--text-3);
+  text-decoration: line-through;
+  opacity: 0.7;
+  cursor: pointer;
+}
+.w-ghost:hover,
+.w-ghost:focus-visible {
+  opacity: 1;
+  color: var(--text-2);
+}
+.w-edit-label {
+  align-self: center;
+  color: var(--text-3);
+  font-size: 10.5px;
+}
+.transcript-note {
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: #ffb5471f;
+  color: var(--amber);
+  font-size: 11.5px;
 }

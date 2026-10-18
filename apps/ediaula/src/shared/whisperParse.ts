@@ -84,6 +84,55 @@ export function vadToSource(t: number, segs: VadSegment[]): number {
   return t;
 }
 
+export type VadOutcome =
+  /** Word times can be moved back onto the file with these segments. */
+  | { kind: "mapped"; segments: VadSegment[] }
+  /** The VAD found no speech: an empty transcript is the right answer. */
+  | { kind: "silent" }
+  /** The log does not carry the whole segment table: the times cannot be trusted. */
+  | { kind: "unmapped" };
+
+/** What a whisper run with `--vad` left: mapped times, no speech at all, or times to discard. */
+export function vadOutcome(log: string, json: WhisperJson): VadOutcome {
+  if (/Final speech segments after filtering: 0\b/.test(log) || !json.transcription.length)
+    return { kind: "silent" };
+  const detected = Number(/detected (\d+) speech segments/.exec(log)?.[1] ?? Number.NaN);
+  const segments = parseVadSegments(log);
+  return segments.length > 0 && segments.length === detected
+    ? { kind: "mapped", segments }
+    : { kind: "unmapped" };
+}
+
+/**
+ * whisper-cli's output, line by line per stream (stdout and stderr interleave at any byte): keeps
+ * the VAD lines and a tail for error messages.
+ */
+export class WhisperLog {
+  private partial: Record<"out" | "err", string> = { out: "", err: "" };
+  private vad: string[] = [];
+  tail = "";
+
+  push(stream: "out" | "err", text: string): void {
+    this.tail = (this.tail + text).slice(-4000);
+    const lines = (this.partial[stream] + text).split("\n");
+    this.partial[stream] = lines.pop() ?? "";
+    for (const line of lines) this.keep(line);
+  }
+
+  private keep(line: string): void {
+    if (/whisper_vad|vad_segment_info|speech segments/.test(line)) this.vad.push(line.trimEnd());
+  }
+
+  /** The VAD lines, including a last line without a line break on either stream. */
+  vadLog(): string {
+    for (const stream of ["out", "err"] as const) {
+      if (this.partial[stream]) this.keep(this.partial[stream]);
+      this.partial[stream] = "";
+    }
+    return this.vad.join("\n");
+  }
+}
+
 /** Token offsets (ms) and DTW marks (cs) moved from the shortened audio back onto the file. */
 export function remapVad(json: WhisperJson, segs: VadSegment[]): WhisperJson {
   if (!segs.length) return json;
@@ -106,6 +155,8 @@ export function remapVad(json: WhisperJson, segs: VadSegment[]): WhisperJson {
 
 /** Below this confidence a word heard in a long silence is taken as invented. */
 const LOW_P = 0.5;
+/** A video sign-off in silence still needs whisper to be this unsure to be set aside. */
+const SIGN_OFF_P = 0.7;
 /** Silences at least this long are where whisper makes things up. */
 const LONG_SILENCE = 0.5;
 
@@ -147,26 +198,55 @@ export interface HeardWord {
   p: number;
 }
 
-/** Share of a word spent inside long silences. */
-function silentShare(w: HeardWord, long: [number, number][]): number {
+export type DropReason = NonNullable<Word["dropped"]>;
+
+/**
+ * Where whisper had nothing to hear: long silences measured by ffmpeg, except where the VAD
+ * found speech (it hears speech under noise and music that silencedetect calls silence).
+ */
+function quietStretches(
+  silences: [number, number][],
+  speech: [number, number][],
+): [number, number][] {
+  const out: [number, number][] = [];
+  for (const [a, b] of silences) {
+    if (b - a < LONG_SILENCE) continue;
+    let from = a;
+    for (const [s, e] of speech) {
+      if (e <= from || s >= b) continue;
+      if (s > from) out.push([from, s]);
+      from = Math.max(from, e);
+    }
+    if (b > from) out.push([from, b]);
+  }
+  return out;
+}
+
+/** Share of a word spent in quiet stretches. */
+function quietShare(w: HeardWord, quiet: [number, number][]): number {
   const len = w.end - w.start;
-  if (len <= 0) return inside(w.start, long) ? 1 : 0;
-  let quiet = 0;
-  for (const [a, b] of long) quiet += Math.max(0, Math.min(b, w.end) - Math.max(a, w.start));
-  return quiet / len;
+  if (len <= 0) return inside(w.start, quiet) ? 1 : 0;
+  let q = 0;
+  for (const [a, b] of quiet) q += Math.max(0, Math.min(b, w.end) - Math.max(a, w.start));
+  return q / len;
 }
 
 /**
- * Removes what whisper invents: low-confidence words whose middle falls in a long silence, subtitle
- * credits ("Legendas pela comunidade Amara.org") anywhere, and video sign-offs ("Obrigado por
- * assistir", "Inscreva-se no canal") when they sit in silence or were barely heard.
+ * What whisper invents, word by word (undefined for real speech): low-confidence words whose
+ * middle falls in a long silence, subtitle credits ("Legendas pela comunidade Amara.org")
+ * anywhere, and video sign-offs ("Obrigado por assistir", "Inscreva-se no canal") barely heard,
+ * or in silence and not heard with confidence. `speech` (the VAD's stretches) is never silence.
+ * The words are only marked: the editor can bring any of them back.
  */
-export function dropHallucinations(words: HeardWord[], silences: [number, number][]): HeardWord[] {
-  const long = silences.filter(([a, b]) => b - a >= LONG_SILENCE);
-  const drop = new Set<number>();
-  words.forEach((w, i) => {
-    if (w.p < LOW_P && inside((w.start + w.end) / 2, long)) drop.add(i);
-  });
+export function findHallucinations(
+  words: HeardWord[],
+  silences: [number, number][],
+  speech: [number, number][] = [],
+): (DropReason | undefined)[] {
+  const quiet = quietStretches(silences, speech);
+  const out: (DropReason | undefined)[] = words.map((w) =>
+    w.p < LOW_P && inside((w.start + w.end) / 2, quiet) ? "silence" : undefined,
+  );
   const folded = words.map((w) => fold(w.text));
   const matchAt = (at: number, list: string[][]): number =>
     list.find((p) => p.every((part, j) => folded[at + j] === part))?.length ?? 0;
@@ -176,19 +256,28 @@ export function dropHallucinations(words: HeardWord[], silences: [number, number
     if (!n) continue;
     const span = words.slice(at, at + n);
     const meanP = span.reduce((s, w) => s + w.p, 0) / n;
-    const quiet = span.reduce((s, w) => s + silentShare(w, long), 0) / n;
-    if (credit || meanP < LOW_P || quiet >= 0.5) for (let j = 0; j < n; j++) drop.add(at + j);
+    const inQuiet = span.reduce((s, w) => s + quietShare(w, quiet), 0) / n >= 0.5;
+    const reason: DropReason | undefined = credit
+      ? "credit"
+      : meanP < LOW_P || (inQuiet && meanP < SIGN_OFF_P)
+        ? "signoff"
+        : undefined;
+    if (reason) for (let j = 0; j < n; j++) out[at + j] = reason;
     at += n - 1;
   }
-  return drop.size ? words.filter((_, i) => !drop.has(i)) : words;
+  return out;
 }
 
 /**
- * Turns whisper.cpp's full JSON (with DTW token timestamps) into words, drops what whisper
- * invented over silence, then snaps word edges that fall inside detected silences to the silence
- * boundaries, which are far more precise.
+ * Turns whisper.cpp's full JSON (with DTW token timestamps) into words, marks what whisper
+ * invented over silence (`dropped`), then snaps word edges that fall inside detected silences to
+ * the silence boundaries, which are far more precise. Marked words do not push the next word.
  */
-export function parseWhisper(json: WhisperJson, silences: [number, number][]): Word[] {
+export function parseWhisper(
+  json: WhisperJson,
+  silences: [number, number][],
+  speech: [number, number][] = [],
+): Word[] {
   const groups: WhisperToken[][] = [];
   for (const seg of json.transcription) {
     for (const tok of seg.tokens ?? []) {
@@ -219,9 +308,10 @@ export function parseWhisper(json: WhisperJson, silences: [number, number][]): W
     });
   }
 
+  const reasons = findHallucinations(heard, silences, speech);
   const words: Word[] = [];
-  for (const h of dropHallucinations(heard, silences)) {
-    const prevEnd = words.length ? words[words.length - 1].end : 0;
+  let prevEnd = 0;
+  heard.forEach((h, k) => {
     let start = Math.max(h.start, prevEnd, 0);
     let end = Math.max(h.end, start + MIN_WORD);
     const sStart = inside(start, silences);
@@ -229,13 +319,17 @@ export function parseWhisper(json: WhisperJson, silences: [number, number][]): W
     const sEnd = inside(end, silences);
     if (sEnd) end = sEnd[0];
     if (end <= start) end = start + MIN_WORD;
-    words.push({
+    const word: Word = {
       start: round(start),
       end: round(end),
       text: h.text,
       p: Math.round(h.p * 100) / 100,
-    });
-  }
+    };
+    const reason = reasons[k];
+    if (reason) word.dropped = reason;
+    else prevEnd = word.end;
+    words.push(word);
+  });
   return words;
 }
 
@@ -258,7 +352,10 @@ export function parseSilences(stderr: string, duration: number): [number, number
   return out;
 }
 
-/** The transcript of a whisper run; `vad` maps token times back when `--vad` shortened the audio. */
+/**
+ * The transcript of a whisper run; `vad` maps token times back when `--vad` shortened the audio,
+ * and its stretches are kept as the speech of the file.
+ */
 export function makeTranscript(
   json: WhisperJson,
   silences: [number, number][],
@@ -267,12 +364,14 @@ export function makeTranscript(
   duration: number,
   vad: VadSegment[] = [],
 ): Transcript {
+  const speech = vad.map((s): [number, number] => [s.origStart, s.origEnd]);
   return {
     version: 1,
     model,
     language,
     duration,
-    words: parseWhisper(remapVad(json, vad), silences),
+    words: parseWhisper(remapVad(json, vad), silences, speech),
     silences,
+    ...(speech.length ? { speech } : {}),
   };
 }

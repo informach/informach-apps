@@ -1,5 +1,9 @@
 /** Command line of whisper-cli (main/whisper.ts), kept apart so it can be checked in tests. */
 
+/** Job ids come from the renderer: letters, digits, "_" and "-" only, never a piece of a path. */
+export const isJobId = (id: unknown): id is string =>
+  typeof id === "string" && /^[\w-]{1,64}$/.test(id);
+
 /** Terms of the glossary that go into whisper's initial prompt; the rest only correct on reading. */
 export const PROMPT_TERMS = 20;
 

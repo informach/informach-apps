@@ -1,15 +1,22 @@
 import type { CueStyle } from "@shared/captions";
-import type { TimelineWord } from "@shared/cleanup";
-import { clipEnd, sourceAt } from "@shared/timeline";
-import type { Project, Transcript } from "@shared/types";
+import { type TimelineWord, timelineWords } from "@shared/cleanup";
+import { clipSpeed } from "@shared/timeline";
+import type { Asset, Project, Transcript, Word } from "@shared/types";
 import {
+  nudged,
+  type RemovedReason,
+  removedWords,
   transcriptView,
   type WordChange,
   withEditEverywhere,
-  withWordEdit,
+  withRestored,
+  withShownEdit,
+  wordsLike,
 } from "@shared/wordEdits";
+import { useEffect, useMemo, useState } from "react";
+import { playback, usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
-import { addToGlossary, projectCorrectionTerms } from "./glossaryStore";
+import { projectCorrectionTerms } from "./glossaryStore";
 import { loadTranscript } from "./transcripts";
 
 /**
@@ -26,29 +33,47 @@ export function wordRef(key: string): { assetId: string; i: number } | null {
 }
 
 /** The letters of a typed correction, without the punctuation around them. */
-const bareText = (text: string): string =>
+export const bareText = (text: string): string =>
   text.trim().replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
+
+const transcribed = (p: Project): (Asset & { transcript: string })[] =>
+  p.assets.filter(
+    (a): a is Asset & { transcript: string } => !!a.transcript && a.transcriptStatus === "ready",
+  );
 
 /** Transcripts as recognized of every transcribed media of the project. */
 async function recognized(p: Project): Promise<Map<string, Transcript>> {
-  const ready = p.assets.flatMap((a) =>
-    a.transcript && a.transcriptStatus === "ready" ? [{ id: a.id, path: a.transcript }] : [],
-  );
   return new Map(
-    await Promise.all(ready.map(async (a) => [a.id, await loadTranscript(a.path)] as const)),
+    await Promise.all(
+      transcribed(p).map(async (a) => [a.id, await loadTranscript(a.transcript)] as const),
+    ),
   );
+}
+
+/** Words shown in every media, by "asset:index" (the key of TimelineWord). */
+export function shownByKey(transcripts: Map<string, Transcript>): Map<string, Word> {
+  const out = new Map<string, Word>();
+  for (const [assetId, tr] of transcripts)
+    for (const w of tr.words) if (w.i !== undefined) out.set(`${assetId}:${w.i}`, w);
+  return out;
+}
+
+/** How many shown words, in every media, read like `like` (what "all occurrences" changes). */
+export function countLike(transcripts: Map<string, Transcript>, like: string): number {
+  let n = 0;
+  for (const tr of transcripts.values()) n += wordsLike(tr.words, like).length;
+  return n;
 }
 
 export interface WordEditOptions {
   /** Write the same text over every word that reads like this one, in every media. */
   everywhere?: boolean;
-  /** Add the text to the course glossary, which corrects it in the other lessons too. */
-  glossary?: boolean;
 }
 
 /**
- * Corrects one word of the transcript: new text, removed from the text (`del`, the video is not
- * cut) or new times. One Ctrl+Z undoes it, occurrences included.
+ * Corrects one shown word of the transcript: new text, removed from the text (`del`, the video
+ * is not cut) or new times. A word the glossary joined changes as a whole. One Ctrl+Z undoes it,
+ * occurrences included.
  */
 export async function editWord(
   word: TimelineWord,
@@ -58,22 +83,19 @@ export async function editWord(
   const ref = wordRef(word.key);
   const { project } = useProject.getState();
   if (!ref || !project) return;
-  const raws = await recognized(project);
-  if (!raws.get(ref.assetId)) return;
-  const typed = change.text?.trim() ?? "";
-  const core = bareText(typed);
-  const terms = opts.everywhere && core ? await projectCorrectionTerms(project) : [];
+  const [raws, terms] = await Promise.all([recognized(project), projectCorrectionTerms(project)]);
+  const core = bareText(change.text ?? "");
   useProject.getState().commit((p) => ({
     ...p,
     assets: p.assets.map((a) => {
       const raw = raws.get(a.id);
       if (!raw) return a;
       let edits = a.wordEdits;
-      if (opts.everywhere && core) {
-        const view = transcriptView(raw, edits, terms).words;
+      const view = transcriptView(raw, edits, terms).words;
+      const shown = a.id === ref.assetId ? view.find((w) => w.i === ref.i) : undefined;
+      if (opts.everywhere && core)
         edits = withEditEverywhere(edits, raw.words, view, word.text, core);
-      }
-      if (a.id === ref.assetId) edits = withWordEdit(edits, raw.words, ref.i, change);
+      if (shown) edits = withShownEdit(edits, raw.words, shown, change);
       if (edits === a.wordEdits) return a;
       const next = { ...a };
       if (edits?.length) next.wordEdits = edits;
@@ -81,19 +103,103 @@ export async function editWord(
       return next;
     }),
   }));
-  if (opts.glossary && core) await addToGlossary(project.course ?? "", core);
 }
 
-/** Moves the start or the end of a word to a moment of the timeline (within the word's clip). */
-export async function retimeWord(
+/**
+ * Moves the start or the end of a shown word by `delta` seconds of the timeline (converted to the
+ * media's own seconds through the clip's speed). Refused when the end would not stay after the
+ * start.
+ */
+export async function nudgeWord(
   word: TimelineWord,
+  shown: Word,
   edge: "start" | "end",
-  timelineTime: number,
+  delta: number,
 ): Promise<void> {
   const clip = useProject.getState().project?.clips.find((c) => c.id === word.clipId);
   if (!clip) return;
-  const t = Math.min(Math.max(timelineTime, clip.start), clipEnd(clip));
-  await editWord(word, { [edge]: Math.max(0, sourceAt(clip, t)) });
+  const change = nudged(shown, edge, delta * clipSpeed(clip));
+  if (!change) throw new Error("O fim da palavra precisa ficar depois do começo.");
+  await editWord(word, change);
+}
+
+/** Plays a word with 0.3 s around it, then stops (the editor stays open). */
+export function playWord(word: TimelineWord): void {
+  const stopAt = word.end + 0.3;
+  playback.pause();
+  playback.seek(Math.max(0, word.start - 0.3));
+  playback.play();
+  const stop = usePlayback.subscribe((s) => {
+    if (!s.playing) stop();
+    else if (s.time >= stopAt) {
+      stop();
+      playback.pause();
+    }
+  });
+}
+
+/** A recognized word left out of the text, placed on the timeline. */
+export interface RemovedOnTimeline extends TimelineWord {
+  removed: RemovedReason;
+}
+
+/** Words taken out by hand or set aside by the hallucination filter, where they would be heard. */
+export function useRemovedWords(project: Project | null): RemovedOnTimeline[] {
+  const [raws, setRaws] = useState(new Map<string, Transcript>());
+  const key = project
+    ? transcribed(project)
+        .map((a) => `${a.id}=${a.transcript}`)
+        .join("|")
+    : "";
+  useEffect(() => {
+    let alive = true;
+    const current = useProject.getState().project;
+    if (!current || !key) return;
+    recognized(current)
+      .then((map) => {
+        if (alive) setRaws(map);
+      })
+      .catch((err: unknown) => console.warn("[transcript] could not read the transcripts:", err));
+    return () => {
+      alive = false;
+    };
+  }, [key]);
+  return useMemo(() => {
+    if (!project) return [];
+    const reasons = new Map<string, RemovedReason>();
+    const removed = new Map<string, Transcript>();
+    for (const a of project.assets) {
+      const raw = raws.get(a.id);
+      if (!raw) continue;
+      const words = removedWords(raw.words, a.wordEdits);
+      for (const w of words) reasons.set(`${a.id}:${w.i}`, w.removed);
+      removed.set(a.id, { ...raw, words });
+    }
+    return timelineWords(project, removed).map((w) => ({
+      ...w,
+      removed: reasons.get(w.key) ?? "deleted",
+    }));
+  }, [project, raws]);
+}
+
+/** Brings a left-out word back into the text. */
+export async function restoreWord(key: string): Promise<void> {
+  const ref = wordRef(key);
+  const { project } = useProject.getState();
+  if (!ref || !project) return;
+  const raw = (await recognized(project)).get(ref.assetId);
+  if (!raw) return;
+  useProject.getState().commit((p) => ({
+    ...p,
+    assets: p.assets.map((a) => {
+      if (a.id !== ref.assetId) return a;
+      const edits = withRestored(a.wordEdits, raw.words, ref.i);
+      const next = { ...a };
+      if (edits.length) next.wordEdits = edits;
+      else delete next.wordEdits;
+      return next;
+    }),
+  }));
 }
 
 /** Starts a caption at this word, or lets it join the caption before again. */

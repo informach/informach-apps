@@ -1,14 +1,18 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildAss, buildCues, DEFAULT_CAPTION_STYLE } from "../src/shared/captions.ts";
+import { buildAss, buildCues, DEFAULT_CAPTION_STYLE, escapeAss } from "../src/shared/captions.ts";
 import { applyCuts, cutTargets, type TimelineWord, timelineWords } from "../src/shared/cleanup.ts";
 import { clipEnd, splitClip } from "../src/shared/timeline.ts";
-import type { Project, Transcript } from "../src/shared/types.ts";
+import type { Project, Transcript, Word, WordEdit } from "../src/shared/types.ts";
 import {
   applyWordEdits,
+  nudged,
+  removedWords,
   transcriptView,
   withEditEverywhere,
-  withWordEdit,
+  withRestored,
+  withShownEdit,
+  wordsLike,
 } from "../src/shared/wordEdits.ts";
 
 const heard: Transcript = {
@@ -30,7 +34,7 @@ const heard: Transcript = {
 };
 const TERMS = ["Zappy", "Debinha"];
 
-const project = (wordEdits: Project["assets"][number]["wordEdits"]): Project => ({
+const project = (wordEdits: WordEdit[] | undefined, speed?: number): Project => ({
   version: 1,
   id: "p",
   name: "Aula",
@@ -57,16 +61,34 @@ const project = (wordEdits: Project["assets"][number]["wordEdits"]): Project => 
     },
   ],
   tracks: [{ id: "a1", kind: "audio", name: "Voz", muted: false, hidden: false, locked: false }],
-  clips: [{ id: "c1", assetId: "voz", trackId: "a1", start: 0, in: 0, duration: 10, volume: 1 }],
+  clips: [
+    {
+      id: "c1",
+      assetId: "voz",
+      trackId: "a1",
+      start: 0,
+      in: 0,
+      duration: speed ? 10 / speed : 10,
+      volume: 1,
+      ...(speed ? { speed } : {}),
+    },
+  ],
 });
 
-const read = (p: Project): TimelineWord[] =>
-  timelineWords(p, new Map([["voz", transcriptView(heard, p.assets[0].wordEdits, TERMS)]]));
-const say = (words: TimelineWord[]): string => words.map((w) => w.text).join(" ");
+const read = (p: Project, tr: Transcript = heard): TimelineWord[] =>
+  timelineWords(p, new Map([["voz", transcriptView(tr, p.assets[0].wordEdits, TERMS)]]));
+const say = (words: { text: string }[]): string => words.map((w) => w.text).join(" ");
+const view = (edits: WordEdit[] | undefined, tr: Transcript = heard): Word[] =>
+  transcriptView(tr, edits, TERMS).words;
+const shown = (words: Word[], text: string): Word => {
+  const w = words.find((x) => x.text.startsWith(text));
+  assert.ok(w, `"${text}" is shown`);
+  return w;
+};
 
-const EDITS = [
-  { i: 2, text: "Tudo", was: "tudo" },
-  { i: 3, del: true, was: "bem?" },
+const EDITS: WordEdit[] = [
+  { i: 2, text: "Tudo", was: "tudo", at: 2 },
+  { i: 3, del: true, was: "bem?", at: 2.4 },
 ];
 
 test("hand corrections and the glossary are applied where the words are read", () => {
@@ -75,13 +97,13 @@ test("hand corrections and the glossary are applied where the words are read", (
   assert.deepEqual(
     words.map((w) => w.key),
     ["voz:0", "voz:1", "voz:2", "voz:4", "voz:5", "voz:7"],
-    "keys keep the recognized index, so later corrections still find their word",
+    "keys keep the recognized index, so later corrections (and AI proposals) find their word",
   );
   const debinha = words.find((w) => w.text === "Debinha");
   assert.deepEqual([debinha?.start, debinha?.end], [5, 5.6], "the joined name spans both parts");
 });
 
-test("corrections follow cuts and splits", () => {
+test("corrections follow cuts, splits and a clip played at another speed", () => {
   const p = project(EDITS);
   const targets = cutTargets(p);
   const cut = { ...p, clips: applyCuts(p.clips, [[0.95, 1.5]], targets) };
@@ -101,15 +123,32 @@ test("corrections follow cuts and splits", () => {
     afterSplit.slice(1).map((w) => w.clipId),
     [left.id, right.id, right.id, right.id],
   );
+
+  // At double speed, a new start in the media's seconds lands at half the time on the timeline.
+  const timed = withShownEdit(EDITS, heard.words, shown(view(EDITS), "Tudo"), { start: 2.1 });
+  const fast = read(project(timed, 2));
+  assert.equal(fast.find((w) => w.text === "Tudo")?.start, 1.05);
+  assert.deepEqual(nudged(shown(view(EDITS), "Tudo"), "start", 0.05 * 2), { start: 2.1 });
+  assert.equal(
+    nudged(shown(view(EDITS), "Tudo"), "end", -0.3),
+    null,
+    "the end stays after the start",
+  );
 });
 
-test("a correction made on another transcript of the media is not applied", () => {
-  const again = {
+test("a transcript made again gets each correction on the same word nearby", () => {
+  const again: Transcript = {
     ...heard,
-    words: heard.words.map((w, i) => (i === 2 ? { ...w, text: "todo" } : w)),
+    words: [{ text: "Bom", start: 0.1, end: 0.3, p: 0.9 }, ...heard.words].map((w, k) =>
+      k === 3 ? { ...w, start: 2.05 } : w,
+    ),
   };
-  const { words } = applyWordEdits(again.words, [{ i: 2, text: "Tudo", was: "tudo" }]);
-  assert.equal(words[2].text, "todo");
+  const edits: WordEdit[] = [...EDITS, { i: 7, text: "Fim", was: "acabou", at: 6 }];
+  const tr = transcriptView(again, edits, TERMS);
+  assert.equal(say(tr.words), "Bom Olá, Zappy. Tudo A Debinha chegou.");
+  assert.equal(tr.lostEdits, 1, "a correction with no word nearby is counted, not guessed");
+  const legacy = applyWordEdits(again.words, [{ i: 2, text: "Tudo", was: "tudo" }]);
+  assert.equal(legacy.lost, 1, "without its start an old correction cannot move");
 });
 
 test("new times are kept in source seconds and words stay in order", () => {
@@ -123,21 +162,76 @@ test("new times are kept in source seconds and words stay in order", () => {
   );
 });
 
-test("editing merges into earlier corrections and drops the ones that change nothing", () => {
-  let edits = withWordEdit(undefined, heard.words, 1, { text: "Zappy." });
-  edits = withWordEdit(edits, heard.words, 1, { start: 1.05 });
-  assert.deepEqual(edits, [{ i: 1, was: "Zapi.", text: "Zappy.", start: 1.05 }]);
-  edits = withWordEdit(edits, heard.words, 1, { text: "Zapi.", start: 1 });
-  assert.deepEqual(edits, [], "back to what whisper heard: nothing to keep");
+test("editing a word the glossary corrected keeps the correction", () => {
+  const before = view(undefined);
+  const zappy = shown(before, "Zappy");
+  // Moving its start keeps "Zappy" instead of falling back to "Zapi".
+  const moved = withShownEdit(undefined, heard.words, zappy, nudged(zappy, "start", 0.05) ?? {});
+  assert.equal(shown(view(moved), "Zappy").start, 1.05);
 
-  const everywhere = withEditEverywhere(
-    undefined,
-    heard.words,
-    applyWordEdits(heard.words, undefined).words,
-    "TUDO",
-    "Tudo",
+  // A joined word moves, changes and goes as a whole: "binha" never comes back alone.
+  const debinha = shown(before, "Debinha");
+  const longer = withShownEdit(undefined, heard.words, debinha, { end: 5.65 });
+  assert.equal(say(view(longer)), "Olá, Zappy. tudo bem? A Debinha chegou.");
+  assert.equal(shown(view(longer), "Debinha").end, 5.65);
+  const typed = withShownEdit(undefined, heard.words, debinha, { text: "Debinha!" });
+  assert.equal(say(view(typed)), "Olá, Zappy. tudo bem? A Debinha! chegou.");
+  const gone = withShownEdit(undefined, heard.words, debinha, { del: true });
+  assert.equal(say(view(gone)), "Olá, Zappy. tudo bem? A chegou.");
+  assert.deepEqual(
+    removedWords(heard.words, gone).map((w) => w.text),
+    ["de", "binha"],
   );
-  assert.deepEqual(everywhere, [{ i: 2, was: "tudo", text: "Tudo" }]);
+  assert.equal(say(view(withRestored(gone, heard.words, 5))), "Olá, Zappy. tudo bem? A de chegou.");
+
+  // Changing nothing changes nothing.
+  assert.equal(withShownEdit(EDITS, heard.words, zappy, { text: "Zappy." }), EDITS);
+});
+
+test("typing what was said undoes a wrong glossary correction", () => {
+  const zappy = shown(view(undefined), "Zappy");
+  const edits = withShownEdit(undefined, heard.words, zappy, { text: "Zapi." });
+  assert.deepEqual(edits, [{ i: 1, was: "Zapi.", at: 1, keep: true }]);
+  assert.equal(say(view(edits)), "Olá, Zapi. tudo bem? A Debinha chegou.");
+});
+
+test("all occurrences: same letters and accents, joined words as a whole", () => {
+  const twice: Transcript = {
+    ...heard,
+    words: [
+      { text: "Está", start: 0, end: 0.3, p: 0.9 },
+      { text: "esta", start: 0.4, end: 0.7, p: 0.9 },
+      { text: "de", start: 1, end: 1.2, p: 0.6 },
+      { text: "binha", start: 1.2, end: 1.5, p: 0.6 },
+      { text: "e", start: 2, end: 2.1, p: 0.9 },
+      { text: "de", start: 3, end: 3.2, p: 0.6 },
+      { text: "binha.", start: 3.2, end: 3.5, p: 0.6 },
+    ],
+  };
+  const words = view(undefined, twice);
+  assert.equal(wordsLike(words, "está,").length, 1, '"esta" is another word');
+  const accent = withEditEverywhere(undefined, twice.words, words, "está", "estará");
+  assert.equal(say(view(accent, twice)), "estará esta Debinha e Debinha.");
+  const both = withEditEverywhere(undefined, twice.words, words, "Debinha", "DEBINHA");
+  assert.equal(say(view(both, twice)), "Está esta DEBINHA e DEBINHA.");
+});
+
+test("words set aside as hallucinations are hidden, listed and can come back", () => {
+  const withNoise: Transcript = {
+    ...heard,
+    words: [...heard.words, { text: "Amara.org", start: 8, end: 8.4, p: 0.9, dropped: "credit" }],
+  };
+  assert.equal(say(view(undefined, withNoise)), "Olá, Zappy. tudo bem? A Debinha chegou.");
+  assert.deepEqual(
+    removedWords(withNoise.words, undefined).map((w) => [w.text, w.removed]),
+    [["Amara.org", "dropped"]],
+  );
+  const back = withRestored(undefined, withNoise.words, 8);
+  assert.equal(say(view(back, withNoise)), "Olá, Zappy. tudo bem? A Debinha chegou. Amara.org");
+});
+
+test("a backslash in a caption stays a backslash for libass", () => {
+  assert.equal(escapeAss("C:\\Nova {pasta}"), "C:\\\u2060Nova pasta");
 });
 
 /* ----- Captions: forced breaks and per-cue looks ----- */

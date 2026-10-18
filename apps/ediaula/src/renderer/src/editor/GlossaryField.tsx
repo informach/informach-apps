@@ -35,7 +35,9 @@ export function GlossaryField({ disabled, hint }: { disabled?: boolean; hint: st
         onChange={(e) => setDraft(e.target.value)}
         onBlur={save}
       />
-      <span className="field-hint">{hint}</span>
+      <span className="field-hint">
+        {hint} Até 60 termos. O glossário fica guardado por curso e não volta com Ctrl+Z.
+      </span>
     </label>
   );
 }

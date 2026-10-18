@@ -70,10 +70,20 @@ async function discard(dest: string): Promise<void> {
 async function hashFile(path: string, hash: Hash): Promise<number> {
   let bytes = 0;
   for await (const chunk of createReadStream(path)) {
-    hash.update(chunk as Buffer);
-    bytes += (chunk as Buffer).length;
+    const bytesRead: Buffer = chunk;
+    hash.update(bytesRead);
+    bytes += bytesRead.length;
   }
   return bytes;
+}
+
+/** The file at `path` is the one the publisher lists (size first, then SHA-256). */
+export async function verifyFile(path: string, expected: Expected): Promise<boolean> {
+  const st = await statOrNull(path);
+  if (!st || st.size !== expected.size) return false;
+  const hash = createHash("sha256");
+  await hashFile(path, hash);
+  return hash.digest("hex") === expected.sha256.toLowerCase();
 }
 
 /** "bytes 100-199/1000" → start and total. */
@@ -86,14 +96,35 @@ const cancelBody = async (res: Response): Promise<void> => {
   await res.body?.cancel();
 };
 
+/** Downloads in progress, by destination: a second request for the same file waits for the first. */
+const inFlight = new Map<string, Promise<void>>();
+
 /**
  * Downloads `url` to `dest`, hashing while it streams, and only renames it into place when the
  * size and SHA-256 match `expected`; a mismatch deletes the `.part`. An interrupted download
  * keeps its `.part` and a `.part.json` (url, ETag, size): the next attempt rehashes the bytes
  * already on disk and asks for the rest with `Range` + `If-Range`. A server that ignores the
- * range (or a file that changed) starts it over from zero.
+ * range (or a file that changed) starts it over from zero. Two downloads of the same `dest` at
+ * once share one transfer; a fresh `.part` is created exclusively (`wx`), so another process
+ * writing it makes this one fail instead of mixing bytes.
  */
-export async function downloadVerified(
+export function downloadVerified(
+  url: string,
+  dest: string,
+  expected: Expected,
+  signal: AbortSignal,
+  onProgress: (ratio: number) => void = () => undefined,
+): Promise<void> {
+  const running = inFlight.get(dest);
+  if (running) return running;
+  const started = transfer(url, dest, expected, signal, onProgress).finally(() =>
+    inFlight.delete(dest),
+  );
+  inFlight.set(dest, started);
+  return started;
+}
+
+async function transfer(
   url: string,
   dest: string,
   expected: Expected,
@@ -173,7 +204,7 @@ export async function downloadVerified(
     );
     // Written chunk by chunk and always closed cleanly: when the connection drops, every byte
     // received (and hashed) is on disk for the next attempt.
-    const out = createWriteStream(part, { flags: append ? "a" : "w" });
+    const out = createWriteStream(part, { flags: append ? "a" : "wx" });
     let failure: unknown = null;
     out.on("error", (err) => {
       failure ??= err;

@@ -24,8 +24,11 @@ interface Seen {
   ifRange?: string;
 }
 
-/** A local file server: `ranges` honours Range/If-Range; `cutAt` drops the first transfer midway. */
-async function serve(opts: { ranges: boolean; cutAt?: number }): Promise<{
+/**
+ * A local file server: `ranges` honours Range/If-Range; `cutAt` drops the first transfer midway;
+ * `wrongStart` answers a range from the beginning of the file instead.
+ */
+async function serve(opts: { ranges: boolean; cutAt?: number; wrongStart?: boolean }): Promise<{
   url: string;
   seen: Seen[];
   close: () => Promise<void>;
@@ -39,8 +42,13 @@ async function serve(opts: { ranges: boolean; cutAt?: number }): Promise<{
       ifRange: typeof ifRange === "string" ? ifRange : undefined,
     });
     const m = opts.ranges ? /^bytes=(\d+)-$/.exec(req.headers.range ?? "") : null;
+    if (m && ifRange === ETAG && Number(m[1]) >= payload.length) {
+      res.writeHead(416, { "content-range": `bytes */${payload.length}` });
+      res.end();
+      return;
+    }
     if (m && ifRange === ETAG) {
-      const start = Number(m[1]);
+      const start = opts.wrongStart ? 0 : Number(m[1]);
       res.writeHead(206, {
         etag: ETAG,
         "accept-ranges": "bytes",
@@ -168,4 +176,64 @@ test("unfinished downloads older than seven days are deleted at startup", async 
   assert.equal(existsSync(old), false);
   assert.equal(existsSync(`${old}.json`), false);
   assert.ok(existsSync(fresh));
+});
+
+test("two downloads of the same file at once share one transfer", async () => {
+  const server = await serve({ ranges: true });
+  const dest = join(root, "twice.bin");
+  try {
+    await Promise.all([run(server.url, dest), run(server.url, dest)]);
+    assert.equal(server.seen.length, 1);
+    assert.ok((await readFile(dest)).equals(payload));
+  } finally {
+    await server.close();
+  }
+});
+
+test("a range answered from the wrong offset is thrown away and the file starts over", async () => {
+  const server = await serve({ ranges: true, cutAt: 120 * 1024, wrongStart: true });
+  const dest = join(root, "offset.bin");
+  try {
+    await assert.rejects(run(server.url, dest));
+    await run(server.url, dest);
+    assert.ok(server.seen[1].range, "the rest was asked for");
+    assert.equal(server.seen[2].range, undefined, "then the whole file, from zero");
+    assert.ok((await readFile(dest)).equals(payload));
+  } finally {
+    await server.close();
+  }
+});
+
+test("a complete .part answered with 416 is checked and put in place", async () => {
+  const server = await serve({ ranges: true });
+  const dest = join(root, "complete.bin");
+  try {
+    await writeFile(`${dest}.part`, payload);
+    await writeFile(
+      `${dest}.part.json`,
+      JSON.stringify({ url: server.url, etag: ETAG, size: payload.length }),
+    );
+    await run(server.url, dest);
+    assert.deepEqual(server.seen, [{ range: `bytes=${payload.length}-`, ifRange: ETAG }]);
+    assert.ok((await readFile(dest)).equals(payload));
+  } finally {
+    await server.close();
+  }
+});
+
+test("a .part left by a download of another address is not resumed", async () => {
+  const server = await serve({ ranges: true });
+  const dest = join(root, "other.bin");
+  try {
+    await writeFile(`${dest}.part`, payload.subarray(0, 1000));
+    await writeFile(
+      `${dest}.part.json`,
+      JSON.stringify({ url: "http://127.0.0.1:1/elsewhere.bin", etag: ETAG, size: payload.length }),
+    );
+    await run(server.url, dest);
+    assert.equal(server.seen[0].range, undefined, "downloaded from zero");
+    assert.ok((await readFile(dest)).equals(payload));
+  } finally {
+    await server.close();
+  }
 });

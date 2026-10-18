@@ -1,11 +1,33 @@
+import { isPortugueseWord } from "./lexicon/index.ts";
 import type { ScriptDoc } from "./script.ts";
 import type { Word } from "./types.ts";
 
 /**
  * Names of the course written the way the course writes them ("Zapi" → "Zappy", "de binha" →
  * "Debinha"). Applied when a transcript is read, never stored: changing the glossary corrects
- * every lesson again without transcribing anything.
+ * every lesson again without transcribing anything. A real Portuguese word (shared/lexicon) is
+ * never swapped for a name, and only a word whisper was unsure about changes letters.
  */
+
+/** A heard form that is not the term letter for letter only changes below this confidence. */
+const UNSURE = 0.8;
+
+/** Terms a course glossary keeps. */
+export const GLOSSARY_LIMIT = 60;
+
+/** A glossary as it is saved: trimmed, without empty or repeated terms (in its order). */
+export function normalizeGlossary(terms: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of terms) {
+    const term = raw.trim().replace(/\s+/g, " ");
+    const k = foldText(term);
+    if (!k || seen.has(k)) continue;
+    seen.add(k);
+    out.push(term);
+  }
+  return out;
+}
 
 /** Lowercase, no accents, letters and digits only. */
 export const foldText = (s: string): string =>
@@ -26,47 +48,6 @@ export const soundKey = (s: string): string =>
     .replace(/k/g, "c")
     .replace(/^h/, "")
     .replace(/(.)\1+/g, "$1");
-
-/**
- * Frequent Portuguese words (folded). A word on this list is never swapped for a glossary term
- * that merely sounds like it ("casa" stays "casa" when the glossary has "Cassa").
- */
-const COMMON = new Set(
-  `a o as os um uma uns umas de do da dos das em no na nos nas num numa por pelo pela pelos pelas
-  para pra pro pros com sem sob sobre entre ate apos desde contra e ou mas nem que se como quando
-  onde porque pois entao tambem ja nao sim mais menos muito muita muitos muitas pouco pouca tudo
-  todo toda todos todas nada algo alguem ninguem cada outro outra outros outras mesmo mesma este
-  esta estes estas esse essa esses essas aquele aquela aqueles aquelas isso isto aquilo aqui ali
-  la ai ca eu tu voce voces ele ela eles elas gente me te lhe lhes mim ti si nosso nossa nossos
-  nossas seu sua seus suas meu minha meus minhas teu tua dele dela deles delas ser sou es era eram
-  foi fui foram sao sera seria estar estou estao estava estavam esteve ter tem tenho tinha temos
-  tem tiver ha haver fazer faz fez faco fazemos fiz faca ir vai vou vamos vao ia vem vir veio ver
-  vejo viu vemos olha olhe olhar poder pode posso podemos podia dizer diz disse digo falar fala
-  falou dar da dei deu saber sei sabe sabia querer quer quero queria ficar fica ficou deixar deixa
-  passar passa colocar coloca coloque clicar clica clique clicou apertar aperta arrastar arrasta
-  usar usa escolher escolhe achar acha pensar pensa chamar chama chamado chamada lembrar lembra
-  mostrar mostra precisar precisa comecar comeca terminar termina acabar acaba voltar volta entrar
-  entra sair sai abrir abre fechar fecha ligar liga desligar mudar muda mover move andar anda
-  correr corre pular pula girar gira virar vira subir sobe descer desce parar para esperar espera
-  repetir repete tentar tenta aprender aprende ensinar jogar joga brincar ganhar perder criar cria
-  escrever escreve ler le contar conta somar soma casa coisa coisas vez vezes dia dias ano anos
-  hora horas tempo agora depois antes sempre nunca hoje ontem amanha logo cedo tarde noite bem
-  mal bom boa bons boas melhor pior novo nova novos novas velho grande pequeno pequena primeiro
-  primeira segundo segunda terceiro ultimo ultima certo certa errado errada lado parte jeito forma
-  tipo ne viu pronto beleza legal otimo incrivel facil dificil igual diferente junto sozinho
-  jogo jogos aula aulas curso video videos exemplo numero numeros zero dois tres quatro cinco
-  seis sete oito nove dez onze doze vinte trinta cem mil meio metade seta setas direita esquerda
-  cima baixo frente tras dentro fora meio fim inicio final comeco personagem personagens programa
-  projeto computador celular tela telas botao botoes bloco blocos comando comandos codigo sistema
-  chave farol sinal luz carro carros caminho mapa nivel fase pontos ponto vida vidas crianca
-  criancas professor professora aluno alunos aluna alunas turma escola sala mundo pessoa pessoas
-  nome nomes palavra palavras letra letras cor cores verde azul vermelho vermelha amarelo amarela
-  preto preta branco branca rosa roxo laranja gato gata cachorro bola mesa porta janela agua fogo
-  terra ar sol lua estrela cidade pais mae pai filho filha amigo amiga amigos dedo dedinho mao
-  maos pe pes cabeca olho olhos boca nariz corpo coracao comida fruta animal animais peixe
-  passaro bicho historia problema resposta pergunta ideia certeza verdade mentira zap
-  whats`.split(/\s+/),
-);
 
 interface Term {
   /** As the course writes it. */
@@ -147,9 +128,11 @@ interface Match {
 /**
  * Writes the glossary terms where whisper heard something close to them, comparing without
  * accents or case and by sound. A term can be several words ("Sistema Zero", "Chave do Farol") and
- * a heard form can be split or joined ("de binha" → "Debinha"). Frequent Portuguese words are not
- * replaced by look-alikes, and two edits away only counts when whisper was unsure. Times and
- * confidence are kept; a joined word spans its parts and averages their confidence.
+ * a heard form can be split or joined ("de binha" → "Debinha"). Real Portuguese words are never
+ * replaced by look-alikes, and a change of letters needs whisper to have been unsure (p < 0.8).
+ * Times and confidence are kept; a joined word spans its parts, averages their confidence and
+ * lists their indexes (`joined`). Every changed word keeps what was heard (`heard`). Applying it
+ * again changes nothing.
  */
 export function correctWords<W extends Word>(
   words: W[],
@@ -187,16 +170,16 @@ export function correctWords<W extends Word>(
           known[t].set(key, dist);
         }
         if (dist > term.maxDist) continue;
-        const common = folded.slice(at, at + n).every((w) => COMMON.has(w));
+        const real = folded.slice(at, at + n).every(isPortugueseWord);
         if (n === 1) {
-          // A frequent word stays itself, and a short heard form has to sound exactly right.
-          if (common || plain.length < 3 || (plain.length <= 3 && dist > 0)) continue;
-        } else if (common && !exact && !(dist <= 1 && n === term.words)) {
-          // Several frequent words only when they spell the term, or miss it by one letter in
-          // the same number of words ("chave de farol").
+          // A real word stays itself (not even its case changes), and a short heard form has to
+          // sound exactly right.
+          if (real || plain.length < 3 || (plain.length <= 3 && dist > 0)) continue;
+        } else if (real && !exact) {
+          // Several real words only when they spell the term ("sistema zero").
           continue;
         }
-        if (dist >= 2 && words.slice(at, at + n).reduce((s, w) => s + w.p, 0) / n >= 0.8) continue;
+        if (!exact && words.slice(at, at + n).reduce((s, w) => s + w.p, 0) / n >= UNSURE) continue;
         matches.push({ at, n, term, dist });
       }
     });
@@ -226,7 +209,7 @@ export function correctWords<W extends Word>(
     const first = words[i];
     const last = words[i + m.n - 1];
     const text = replaceCore(first.text, m.term.text, last.text);
-    if (m.n === 1) out.push(text === first.text ? first : { ...first, text });
+    if (m.n === 1) out.push(text === first.text ? first : { ...first, text, heard: first.text });
     else {
       const parts = words.slice(i, i + m.n);
       out.push({
@@ -234,6 +217,8 @@ export function correctWords<W extends Word>(
         text,
         end: last.end,
         p: Math.round((parts.reduce((s, w) => s + w.p, 0) / m.n) * 100) / 100,
+        heard: parts.map((w) => w.text).join(" "),
+        joined: parts.map((w, k) => w.i ?? i + k),
       });
     }
     i += m.n - 1;
@@ -247,23 +232,24 @@ const CONNECTORS = new Set(["do", "da", "de", "dos", "das"]);
 const capitalized = (w: string): boolean => /^\p{Lu}/u.test(w);
 
 /**
- * Speakers and proper names of the script: the speakers ("Debinha (avatar)" → "Debinha") and runs
- * of capitalized words in the middle of a sentence, joined by do/da/de ("Sistema Zero",
- * "Chave do Farol").
+ * Names the script spells out: the speakers ("Debinha (avatar)" → "Debinha"), names of several
+ * words (capitalized in the middle of a sentence, joined by do/da/de: "Sistema Zero", "Chave do
+ * Farol") and single capitalized words that are not Portuguese words ("Zappy"; "Salvar" and
+ * "Executar" are buttons, not names).
  */
 export function scriptTerms(doc: ScriptDoc | null): string[] {
   if (!doc) return [];
   const count = new Map<string, number>();
-  const add = (t: string, n = 1): void => {
+  const add = (t: string, n = 1, speaker = false): void => {
     const name = t.replace(/[^\p{L}\p{N}\s-]/gu, "").trim();
     if (name.length < 3) return;
-    if (!name.includes(" ") && COMMON.has(foldText(name))) return;
+    if (!speaker && !name.includes(" ") && isPortugueseWord(foldText(name))) return;
     count.set(name, (count.get(name) ?? 0) + n);
   };
   for (const section of doc.sections)
     for (const item of section.items) {
       if (item.kind !== "speech") continue;
-      add(item.speaker.replace(/\s*\(.*\)\s*$/, ""), 100);
+      add(item.speaker.replace(/\s*\(.*\)\s*$/, ""), 100, true);
       const tokens = item.text.split(/\s+/).filter(Boolean);
       let run: string[] = [];
       const flush = (): void => {

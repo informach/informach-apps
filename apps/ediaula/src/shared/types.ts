@@ -85,8 +85,10 @@ export interface Asset {
 
 /**
  * A hand correction of word `i` of the transcript (its index as whisper wrote it): new text, new
- * times (source seconds) or removed from the text. `was` is the recognized text it was made on,
- * so a transcript made again does not receive corrections meant for other words.
+ * times (source seconds), removed from the text, or `keep`: stays as whisper heard it (the
+ * glossary leaves it alone, and a word the hallucination filter set aside comes back). `was` and
+ * `at` are the recognized text and start it was made on: a transcript made again gets the
+ * correction on the same word nearby, or not at all.
  */
 export interface WordEdit {
   i: number;
@@ -94,7 +96,9 @@ export interface WordEdit {
   start?: number;
   end?: number;
   del?: boolean;
+  keep?: boolean;
   was?: string;
+  at?: number;
 }
 
 /**
@@ -118,6 +122,12 @@ export interface Word {
   p: number;
   /** Index in the transcript as recognized, once corrections removed or joined words before it. */
   i?: number;
+  /** What whisper heard, when the glossary changed the text. */
+  heard?: string;
+  /** Indexes (as recognized) of the words the glossary joined into this one. */
+  joined?: number[];
+  /** Set aside by the hallucination filter (shared/whisperParse.ts); hidden until restored. */
+  dropped?: "silence" | "credit" | "signoff";
 }
 
 export interface Transcript {
@@ -128,6 +138,10 @@ export interface Transcript {
   words: Word[];
   /** Silent stretches of the source audio, [start, end] in seconds. */
   silences: [number, number][];
+  /** Speech stretches the VAD kept, [start, end] in source seconds (absent without VAD). */
+  speech?: [number, number][];
+  /** As read (shared/wordEdits.ts): hand corrections that found no word to apply to. */
+  lostEdits?: number;
 }
 
 export type WhisperVariant = "cuda" | "cpu";
@@ -136,6 +150,8 @@ export interface WhisperModelInfo {
   name: string;
   path: string;
   size: number;
+  /** Not one of the models EdiAula downloads and checks (C:\whisper-cpp, or another file). */
+  unchecked?: boolean;
 }
 
 export interface EngineStatus {
@@ -145,6 +161,8 @@ export interface EngineStatus {
   models: WhisperModelInfo[];
   /** An NVIDIA GPU is available, so the CUDA build is recommended. */
   gpu: boolean;
+  /** The person chose to list models EdiAula cannot check (C:\whisper-cpp). */
+  externalModels: boolean;
 }
 
 export type TrackKind = "video" | "audio";
@@ -610,6 +628,8 @@ export interface EdiAulaApi {
   installEngine(jobId: string, variant: WhisperVariant): Promise<EngineStatus>;
   installModel(jobId: string, name: string): Promise<EngineStatus>;
   selectModel(path: string): Promise<EngineStatus>;
+  /** Lists (or stops listing) the models of C:\whisper-cpp, which are not checked. */
+  setExternalModels(on: boolean): Promise<EngineStatus>;
   transcribe(
     jobId: string,
     path: string,

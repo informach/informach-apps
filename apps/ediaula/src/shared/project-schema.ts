@@ -176,7 +176,9 @@ const asset = z.looseObject({
         start: time.optional(),
         end: time.optional(),
         del: z.boolean().optional(),
+        keep: z.boolean().optional(),
         was: text.optional(),
+        at: time.optional(),
       }),
     )
     .max(20000)

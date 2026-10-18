@@ -120,10 +120,8 @@ export const useCleanup = create<
 
 /** The corrected transcript of one transcribed asset of a project. */
 export async function loadAssetTranscript(p: Project, a: Asset): Promise<Transcript> {
-  const [raw, terms] = await Promise.all([
-    loadTranscript(a.transcript!),
-    projectCorrectionTerms(p),
-  ]);
+  if (!a.transcript) throw new Error(`${a.name} ainda não foi transcrita.`);
+  const [raw, terms] = await Promise.all([loadTranscript(a.transcript), projectCorrectionTerms(p)]);
   return readable(raw, a, terms);
 }
 

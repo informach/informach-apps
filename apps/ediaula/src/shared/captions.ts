@@ -161,7 +161,12 @@ const assColor = (hex: string, alpha = 0): string => {
   return `&H${alpha.toString(16).padStart(2, "0").toUpperCase()}${h.slice(4, 6)}${h.slice(2, 4)}${h.slice(0, 2)}`.toUpperCase();
 };
 
-const escapeAss = (t: string): string => t.replace(/\\/g, "\\\\").replace(/[{}]/g, "");
+/**
+ * Spoken text as ASS dialogue: braces would open override blocks and a backslash before N, n or h
+ * is a line break or a hard space ("C:\Nova" would split). A word joiner (U+2060, invisible)
+ * after each backslash keeps it a plain character.
+ */
+export const escapeAss = (t: string): string => t.replace(/\\/g, "\\\u2060").replace(/[{}]/g, "");
 
 /** '#RRGGBB' → the inline override form &HBBGGRR&. */
 const assTagColor = (hex: string): string => {

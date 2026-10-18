@@ -1,4 +1,4 @@
-import { foldText, scriptTerms } from "@shared/glossary";
+import { foldText, GLOSSARY_LIMIT, normalizeGlossary, scriptTerms } from "@shared/glossary";
 import { parseScript } from "@shared/script";
 import type { Project } from "@shared/types";
 import { useEffect, useMemo } from "react";
@@ -24,7 +24,11 @@ const saving = new Map<string, Promise<string[]>>();
 export function courseGlossary(course = ""): Promise<string[]> {
   const key = courseKey(course);
   const writing = saving.get(key);
-  if (writing) return writing;
+  if (writing)
+    return writing.then(
+      () => courseGlossary(course),
+      () => courseGlossary(course),
+    );
   const known = useGlossaries.getState().byCourse[key];
   if (known) return Promise.resolve(known);
   let pending = loading.get(key);
@@ -41,8 +45,18 @@ export function courseGlossary(course = ""): Promise<string[]> {
   return pending;
 }
 
-/** Saves a course glossary; every open transcript is corrected again with it. */
-export function saveGlossary(course: string, terms: string[]): Promise<string[]> {
+/**
+ * Saves a course glossary; every open transcript is corrected again with it. More than
+ * GLOSSARY_LIMIT terms is refused (nothing is saved), never cut silently.
+ */
+export function saveGlossary(course: string, wanted: string[]): Promise<string[]> {
+  const terms = normalizeGlossary(wanted);
+  if (terms.length > GLOSSARY_LIMIT)
+    return Promise.reject(
+      new Error(
+        `O glossário aceita até ${GLOSSARY_LIMIT} termos e ficaria com ${terms.length}. Tire alguns antes de salvar.`,
+      ),
+    );
   const key = courseKey(course);
   // One save after the other; an earlier failure already went to whoever made that save.
   const earlier = saving.get(key);
@@ -66,10 +80,18 @@ export function saveGlossary(course: string, terms: string[]): Promise<string[]>
   return write;
 }
 
-/** Adds one term to a course glossary (nothing changes when it is already there). */
+/**
+ * Adds one term to a course glossary (nothing changes when it is already there). A full glossary
+ * refuses it with a message. The glossary is not part of the project, so Ctrl+Z does not take
+ * the term out.
+ */
 export async function addToGlossary(course: string, term: string): Promise<void> {
   const current = await courseGlossary(course);
   if (current.some((t) => foldText(t) === foldText(term))) return;
+  if (current.length >= GLOSSARY_LIMIT)
+    throw new Error(
+      `O glossário do curso já tem ${GLOSSARY_LIMIT} termos. Tire algum em Transcrição › Glossário do curso para incluir "${term}".`,
+    );
   await saveGlossary(course, [...current, term]);
 }
 
