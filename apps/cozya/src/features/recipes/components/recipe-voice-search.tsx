@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { z } from "zod";
 import { startTrialAction } from "@/features/kitchen/actions";
+import { TRIAL_CREDITS, TRIAL_DAYS } from "@/features/kitchen/trial";
 import { catchActionResult } from "./action-errors";
 import { useRecoverableAiRequest } from "./use-ai-request";
 
@@ -44,7 +45,9 @@ export function RecipeVoiceSearch({
         toast.error("Não foi possível começar o teste. Tente de novo.");
         return;
       }
-      toast.success("Seus 14 dias grátis começaram. Você tem 3 créditos de IA.");
+      toast.success(
+        `Seus ${TRIAL_DAYS} dias grátis começaram. Você tem ${TRIAL_CREDITS} créditos de IA.`,
+      );
       setStarted(true);
       router.refresh();
     });
@@ -134,7 +137,8 @@ export function RecipeVoiceSearch({
           ) : trialAvailable ? (
             <div className="space-y-3 rounded-2xl bg-muted p-4">
               <p className="text-sm leading-normal">
-                Seus 14 dias grátis incluem 3 créditos de IA, um por receita. Sem cartão.
+                Seus {TRIAL_DAYS} dias grátis incluem {TRIAL_CREDITS} créditos de IA, um por
+                receita. Sem cartão.
               </p>
               <Button className="min-h-11" disabled={starting} onClick={startTrial}>
                 Ativar e continuar

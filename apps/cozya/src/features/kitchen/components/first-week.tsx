@@ -10,6 +10,8 @@ import { useState, useTransition } from "react";
 import { catchActionResult } from "@/features/recipes/components/action-errors";
 import { RecipeCover } from "@/features/recipes/components/recipe-cover";
 import { planFirstWeekAction } from "../actions";
+import { localDay, weekdayName } from "../dates";
+import { TRIAL_DAYS } from "../trial";
 import { FirstWeekSteps } from "./first-week-steps";
 
 type Option = { key: string; name: string; servings: number | null; photo: string | null };
@@ -57,9 +59,16 @@ export function FirstWeek({
         toast.error("Não foi possível montar a semana. Tente de novo.");
         return;
       }
-      toast.success(`Pronto: ${result.value.planned} jantares a partir de hoje.`);
-      // Step 2 of 3: the days, then the list.
-      router.push("/semana?primeira=1");
+      const { planned, start, week } = result.value;
+      toast.success(
+        planned === 0
+          ? "Sua primeira semana já estava montada."
+          : `Pronto: ${planned} ${planned === 1 ? "jantar" : "jantares"} a partir de ${
+              start === localDay() ? "hoje" : weekdayName(start)
+            }.`,
+      );
+      // Step 2 of 3: the days, then the list of that same week.
+      router.push(`/semana?week=${week}&primeira=1`);
     });
 
   const renderOption = (option: Option) => {
@@ -119,7 +128,7 @@ export function FirstWeek({
         <p className="text-[15px] leading-normal text-ink-soft">
           Três receitas, três dias e a lista do mercado.
           {trialPending
-            ? " Seus 14 dias grátis começam quando a primeira receita entrar na semana. Sem cartão."
+            ? ` Seus ${TRIAL_DAYS} dias grátis começam quando a primeira receita entrar na semana. Sem cartão.`
             : ""}
         </p>
       </div>

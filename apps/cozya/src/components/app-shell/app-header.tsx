@@ -3,7 +3,7 @@ import { ModeToggle } from "@informach/ui/components/mode-toggle";
 import Link from "next/link";
 import { CozyaLogo } from "@/components/brand/cozya-logo";
 import { getKitchenAccess } from "@/features/kitchen/access";
-import { daysBetween } from "@/features/kitchen/dates";
+import { trialDaysLeft, trialEnded } from "@/features/kitchen/trial";
 import { requireUserServer } from "@/lib/auth";
 import { AppNavigation } from "./app-navigation";
 import { UserMenu } from "./user-menu";
@@ -12,16 +12,16 @@ export async function AppHeader() {
   const user = await requireUserServer();
   const access = await getKitchenAccess(user.id);
   // Calendar days in São Paulo, as on Hoje: the last day of the trial reads "último dia".
-  const trialDaysLeft =
-    access.trialActive && access.trialEndsAt ? daysBetween(new Date(), access.trialEndsAt) : null;
+  // Whoever subscribed during the trial is Pro, and the Pro header shows nothing of the trial.
+  const daysLeft = trialDaysLeft(access);
   const trialLabel =
-    trialDaysLeft === null
+    daysLeft === null
       ? ""
-      : trialDaysLeft <= 0
+      : daysLeft <= 0
         ? "Teste: último dia"
-        : `Teste: ${trialDaysLeft} ${trialDaysLeft === 1 ? "dia" : "dias"}`;
+        : `Teste: ${daysLeft} ${daysLeft === 1 ? "dia" : "dias"}`;
   // Selling before someone has used the kitchen pushes them away: the offer appears after the trial.
-  const trialEnded = !access.isPro && !access.trialActive && !!access.profile?.trialStartedAt;
+  const ended = trialEnded(access);
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-background/80 print:hidden">
@@ -38,8 +38,8 @@ export async function AppHeader() {
         <AppNavigation variant="top" />
 
         <div className="ml-auto flex items-center gap-2 [&_button]:min-h-11 [&_button]:min-w-11">
-          {trialDaysLeft !== null ? (
-            trialDaysLeft <= 3 ? (
+          {daysLeft !== null ? (
+            daysLeft <= 3 ? (
               <Link
                 href="/upgrade"
                 className="inline-flex min-h-9 items-center rounded-full bg-muted px-3 text-xs font-bold text-foreground hover:bg-accent"
@@ -52,7 +52,7 @@ export async function AppHeader() {
                 {trialLabel}
               </span>
             )
-          ) : trialEnded ? (
+          ) : ended ? (
             <Button asChild size="sm">
               <Link href="/upgrade">Assinar</Link>
             </Button>

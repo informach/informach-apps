@@ -1,10 +1,13 @@
 import { Check, Minus } from "lucide-react";
 import Link from "next/link";
 import { ProOffer } from "@/features/billing/components/pro-offer";
-import { parseCycleQueryParam } from "@/features/billing/plans-content";
+import { PRO_MONTHLY_CREDITS, parseCycleQueryParam } from "@/features/billing/plans-content";
+import { getBillingSubscriptionHistoryForUser } from "@/features/billing/server-cache";
 import { getKitchenAccess } from "@/features/kitchen/access";
-import { addDays, localDay, longDayLabel } from "@/features/kitchen/dates";
+import { daysBetween, localDay, longDayLabel } from "@/features/kitchen/dates";
 import { getTrialSummary } from "@/features/kitchen/repository";
+import { hasEverSubscribed, TRIAL_DAYS, trialEnded, trialRecap } from "@/features/kitchen/trial";
+import { FREE_RECIPE_LIMIT } from "@/features/recipes/limits";
 import { requireUserServer } from "@/lib/auth";
 
 export const metadata = {
@@ -33,12 +36,15 @@ export default async function UpgradePage({
   const params = await searchParams;
   const cycleParam = typeof params.cycle === "string" ? params.cycle : undefined;
   const access = await getKitchenAccess(user.id);
-  const trialStart = access.profile?.trialStartedAt ?? null;
-  const summary = trialStart && !access.isPro ? await getTrialSummary(user.id, trialStart) : null;
-  const endsAt = access.trialEndsAt;
-  const days = trialStart
-    ? Math.max(1, Math.ceil((Date.now() - trialStart.getTime()) / 86400000))
-    : 0;
+  // "Seu teste terminou" only for who just left the trial: never for who subscribed and
+  // cancelled, nor for who comes back months later. The numbers count the trial days only.
+  const everSubscribed =
+    trialEnded(access) && hasEverSubscribed(await getBillingSubscriptionHistoryForUser(user.id));
+  const recap = trialRecap(access, everSubscribed);
+  const summary = recap ? await getTrialSummary(user.id, recap) : null;
+  // The trial ends on this day, at the hour it began: that same day the account is in the Free.
+  const lastDay = recap ? localDay(recap.to) : null;
+  const daysSoFar = recap ? Math.min(TRIAL_DAYS, daysBetween(recap.from) + 1) : 0;
   const initialCycle = parseCycleQueryParam(cycleParam ?? "anual");
 
   return (
@@ -51,12 +57,12 @@ export default async function UpgradePage({
           Agora não
         </Link>
       </div>
-      {summary ? (
+      {recap && summary && lastDay ? (
         <>
           <section aria-labelledby="trial-title" className="space-y-2.5">
             <p className="text-[13px] font-extrabold uppercase tracking-[0.12em] text-brand-ink">
-              {access.trialActive && endsAt
-                ? `Seu teste termina ${longDayLabel(localDay(endsAt)).toLocaleLowerCase("pt-BR")}`
+              {recap.phase === "active"
+                ? `Seu teste termina ${longDayLabel(lastDay).toLocaleLowerCase("pt-BR")}`
                 : "Seu teste terminou"}
             </p>
             <h1
@@ -67,11 +73,11 @@ export default async function UpgradePage({
             </h1>
             <p className="text-base leading-normal text-ink-soft">
               Foi isso que a sua casa fez{" "}
-              {access.trialActive
-                ? days <= 1
+              {recap.phase === "active"
+                ? daysSoFar <= 1
                   ? "neste primeiro dia"
-                  : `nestes ${Math.min(days, 14)} dias`
-                : "nos 14 dias"}
+                  : `nestes ${daysSoFar} dias`
+                : `nos ${TRIAL_DAYS} dias`}
               :
             </p>
           </section>
@@ -96,8 +102,8 @@ export default async function UpgradePage({
           <ProOffer initialCycle={initialCycle} />
           <section aria-labelledby="free-title" className="space-y-2.5">
             <h2 id="free-title" className="font-bold">
-              {access.trialActive && endsAt
-                ? `Se não assinar, no dia ${dayOfMonth(addDays(localDay(endsAt), 1))} a conta fica no Free:`
+              {recap.phase === "active"
+                ? `Se não assinar, no dia ${dayOfMonth(lastDay)} a conta fica no Free:`
                 : "Agora a conta está no Free:"}
             </h2>
             <p className="flex gap-2.5 text-[15px] leading-normal text-ink-soft">
@@ -114,7 +120,8 @@ export default async function UpgradePage({
                 strokeWidth={2.6}
                 aria-hidden
               />
-              Novas semanas e a ajuda da IA param. Receitas novas só até o acervo chegar a 15.
+              Novas semanas e a ajuda da IA param. Receitas novas só até o acervo chegar a{" "}
+              {FREE_RECIPE_LIMIT}.
             </p>
           </section>
         </>
@@ -122,7 +129,8 @@ export default async function UpgradePage({
         <>
           <ProOffer initialCycle={initialCycle} titleAs="h1" />
           <p className="text-[15px] leading-normal text-muted-foreground">
-            Para a semana inteira: planejar, comprar e cozinhar, com 50 créditos de IA por mês.
+            Para a semana inteira: planejar, comprar e cozinhar, com {PRO_MONTHLY_CREDITS} créditos
+            de IA por mês.
           </p>
         </>
       )}

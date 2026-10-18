@@ -175,7 +175,7 @@ Estado: **já estava** (implementado na primeira entrega), **feito** (implementa
 | Plus Jakarta Sans e títulos com −0,03em | `globals.css` (`tracking-display`), `marketing.css` | Já estava. |
 | Assinatura "Hoje tem" em letra grande | `app/(app)/hoje/page.tsx` | Já estava. |
 | Selo da marmita, pêssego com o pote | `components/brand/lunchbox-icon.tsx`, Hoje, semana, modo cozinha | Já estava. |
-| Capa de receita: a primeira palavra sobre uma cor e, quando houver, a foto do prato | `features/recipes/components/recipe-cover.tsx`, `features/recipes/photos.ts` | Feito: a capa mostra a foto do prato quando o Cozya tem uma, nas receitas da coleção ("Macarrão com tomate e grão-de-bico" com `jantar.webp`, "Arroz com lentilha e cenoura" com `marmitas.webp`, as mesmas fotos da página de vendas e da prancha), no cartão, na primeira semana e na página da receita. A foto de uma receita da casa depende de armazenamento de arquivos (ver pendências). |
+| Capa de receita: a primeira palavra sobre uma cor e, quando houver, a foto do prato | `features/recipes/components/recipe-cover.tsx`, `features/recipes/photos.ts` | Feito: a capa mostra a foto do prato quando o Cozya tem uma, nas receitas da coleção ("Macarrão com tomate e grão-de-bico" com `jantar.webp`, "Arroz com lentilha e cenoura" com `marmitas.webp`, as mesmas fotos da página de vendas e da prancha), no cartão, na primeira semana e na página da receita. No review da noite, a foto do arroz saiu: ela mostra legumes assados que a receita não tem (ver "Review de 17/10 à noite"). A foto de uma receita da casa depende de armazenamento de arquivos (ver pendências). |
 | Quatro abas embaixo no celular, abas ao lado do logo no computador | `components/app-shell/app-navigation.tsx`, `app-header.tsx` | Já estava. Feito: no computador as abas são só texto, como na prancha, e o cabeçalho usa o mesmo contêiner de 1200 px do Hoje, da semana e das receitas, alinhando logo e conteúdo (diagnóstico 12). A barra de baixo tem 76 px. |
 | Voz: verbo de cozinha, números de mercado, custo antes do toque, sem promessa, "pra" só em fala, sem travessão | copy do app e da página | Já estava. Feito: a busca por voz ainda dizia "acervo" e "conheça o Pro". |
 | Diagnóstico 1 a 14 e os defeitos achados no caminho | "Defeitos corrigidos" acima | Já estava, menos três. Feito: a busca por voz trancada levava aos planos e agora oferece começar os 14 dias ("Ativar e continuar"); o computador mostrava um celular esticado e agora tem a grade da semana e o contêiner alinhado; a página não tinha quem faz. |
@@ -229,6 +229,51 @@ Estado: **já estava** (implementado na primeira entrega), **feito** (implementa
 - `pnpm --filter @informach/cozya test:integration` em banco descartável: 24 de 24.
 - E2E contra `next dev` local: `marketing.spec.ts` e `kitchen.spec.ts`, 6 de 6 com o aquecimento; os dois de entrada, 3 de 3. Cobrem a oferta sem JavaScript (anual primeiro, mensal pelo rádio), o "Quem faz", a primeira semana nos três passos e o dia vazio da semana no celular.
 - 37 capturas em 390 e 1280 px (26 telas e 11 recortes da página de vendas), comparadas com as pranchas, sem erros de página.
+
+## Review de 17/10 à noite
+
+Com o PR #10 em produção, a titular pediu um review completo do Cozya "Hoje tem", a correção do que fosse confirmado e o deploy. Cada achado foi conferido no código antes de mexer. Branch `fix/cozya-review`, criada de `origin/main` em `189d998`, no mesmo worktree, sem migração nova.
+
+### Achados médios
+
+1. **"Tudo em casa" para receita que não está na lista.** O Hoje procurava as chaves da receita na lista e dizia "tudo em casa" quando nada do que achava estava por comprar, sem conferir se a receita inteira estava lá nem se a lista estava em dia. Uma receita colocada na semana depois da lista, com só o sal em comum, recebia "tudo em casa". Agora `checkMealOnList` (`features/kitchen/meal-shopping.ts`) usa as mesmas linhas que a lista monta (`mealShoppingKeys`) e só responde "complete" com a lista em dia, todas as linhas da receita nela e nenhuma por comprar. Fora disso, o Hoje diz a verdade:
+   - receita que não está toda na lista: "A lista do mercado ainda não tem tudo para o jantar de hoje.";
+   - semana que mudou depois da lista: "A semana mudou depois que a lista foi montada. Confira as quantidades para o jantar de hoje.";
+   - nos dois casos, "Atualizar a lista" leva à lista da semana daquela refeição, para quem pode planejar.
+
+   O "Abrir a lista" do aviso do que falta também passou a abrir a semana da refeição: depois do jantar de domingo, a da semana seguinte, de onde os itens vêm.
+2. **Teste aparecendo para quem já é Pro.** O chip "Teste: N dias" (link para `/upgrade` nos três últimos dias) e o aviso "Seu teste termina…" só olhavam se o teste estava ativo. `trialDaysLeft` e `trialEnded` (`features/kitchen/trial.ts`) devolvem nada para o Pro, como a prancha de copy pede ("nada (no Pro)"); o cabeçalho e o Hoje usam as duas.
+3. **Foto que não é o prato.** `marmitas.webp` mostra legumes assados (brócolis, pimentão, abobrinha, cebola roxa) que o "Arroz com lentilha e cenoura" não leva: a associação saiu. `jantar.webp` foi conferida e é macarrão com tomate e grão-de-bico, com folhas de manjericão por cima como enfeite; ficou. O comentário que falava em "editorial shoot" agora diz que as fotos são imagens geradas por IA para a página de vendas, com o registro de origem.
+4. **Marmita do almoço que nunca aparecia.** Decisão: a promessa do editor vale. O canvas tem almoço com marmitas (o feijão da vó de sábado, "3 + 3"), o roteiro diz "O almoço de amanhã mostra a marmita de hoje", e o `CLAUDE.md` falava só do jantar por ser o caso comum, sem proibir o almoço. `lunchboxesFor` (`features/kitchen/lunchbox.ts`) deriva as marmitas do almoço e do jantar do dia anterior, sem gravar refeição, e é a mesma regra no Hoje e na Semana (que, na segunda, lê o domingo anterior inteiro). Um almoço planejado não esconde mais a marmita: os dois aparecem.
+5. **Primeira semana começada no sábado ou no domingo.** A lista vai de segunda a domingo. Cobrir dois pedaços de semana numa lista só pediria uma coluna nova na lista (migração) e uma regra para a segunda não entrar em duas listas. Sem migração, os jantares agora cabem numa lista: começam hoje quando cabem até domingo e, quando não cabem (sábado, domingo, ou quatro a partir de sexta), vão para a segunda seguinte, a semana que a casa vai comprar (`firstWeekDays` em `features/kitchen/first-week-days.ts`). A ação devolve a semana, e os passos 2 e 3 abrem essa semana e a lista dela; o aviso diz "a partir de hoje" ou "a partir de segunda". Consequência aceita: no fim de semana, o Hoje fica sem refeição para hoje até a pessoa escolher uma.
+6. **"Seu teste terminou" para quem não acabou de sair do teste.** `trialRecap` mostra o resumo durante o teste e até `TRIAL_RECAP_DAYS` (7) dias depois dele, só para quem nunca assinou (`hasEverSubscribed` lê o histórico de assinaturas; checkout que nunca foi pago não conta). Quem assinou e cancelou, ou volta meses depois, vê a oferta sem o resumo. `getTrialSummary` conta só a janela do teste: refeições dos dias do teste, e listas, receitas e preparos entre o começo e o fim.
+7. **Singular e plural em duas linhas.** A chave da lista passou a ser o nome no singular (`keyName` em `ingredients.ts`): "1 cebola picada" e "2 cebolas" somam numa linha, como a página promete. A regra cuida de "-ês" ("pão francês" e "pães franceses"), "-ões" e "-ães" escritos sem acento, "-éis" e "-ais"; o nome na lista continua como a receita escreve. Linhas gravadas antes da regra ("cebolas:un") são lidas por `canonicalShoppingKey`: a lista não vira "desatualizada" só por isso e, ao atualizar, o que estava marcado continua marcado.
+
+### Achados baixos
+
+- "Ralado" deixou de apagar o produto: "queijo ralado", "pão ralado" e "coco ralado" ficam com o nome inteiro (`SOLD_GRATED`); cenoura, abobrinha e gengibre continuam com o ralado como preparo.
+- Os números da copy vêm de onde a regra mora: `TRIAL_DAYS`, `TRIAL_CREDITS`, `FREE_RECIPE_LIMIT` e `PRO_MONTHLY_CREDITS`, lido do `bonusCreditsPerMonth` do catálogo (o `plans-content.ts` recusa mensal e anual com números diferentes). Além dos lugares do review, entraram os que repetiam os mesmos números: escolha do plano no cadastro, primeira semana, semana, "Trazer uma receita", busca por voz, adaptar com IA, convite final e descrição da página. Termos e Privacidade continuam literais, por serem texto jurídico datado.
+- `/upgrade`: "no dia {fim + 1} a conta fica no Free" virou o próprio dia do fim, porque o teste acaba nesse dia, na hora em que começou.
+- "Depois", à noite, não aparece mais vazio: a seção some quando amanhã só tem o jantar já mostrado em "Amanhã tem".
+- FAQ: o teste começa na primeira receita colocada na semana ou na primeira ajuda da IA, o que vier antes.
+- "Pronto: 0 jantares" ao repetir o envio virou "Sua primeira semana já estava montada.", e a tela abre a semana já montada.
+- Ao escalar, "2,5 pães francês" virou "2,5 pães franceses", e "brócolis" não vira mais "brócoli".
+
+### Riscos conhecidos, fora desta rodada
+
+- Teste para ex-assinante: quem assinou, cancelou e nunca começou o teste ainda ganha os 14 dias ao colocar uma receita na semana.
+- Veredito antigo no "Hoje teve": a linha mostra o "Como foi?" guardado na receita, que antes da resposta de hoje é o da vez anterior.
+- `?etapa=fim` reaberto pelo histórico do navegador registra o preparo de novo.
+- Receita sem rendimento no "o que falta": com a correção 1, o Hoje passou a achar na lista as linhas "Conferir" dessas receitas (há teste para isso), mas o aviso mostra a linha original, sem dizer que a quantidade é para conferir. O texto não foi revisto.
+- O histórico que o `UPDATE` da `0074` não recupera: receitas cujo `cooked_at` foi apagado por um preparo começado em outro dia, antes da migração, ficaram sem `last_cooked_at`, e não há de onde tirar a data.
+
+### Verificação do review
+
+- `pnpm --filter @informach/cozya typecheck`: aprovado.
+- Biome no app: sem erros; os 4 avisos são de arquivos que esta rodada não tocou.
+- `pnpm --filter @informach/cozya test`: 27 arquivos, 147 testes. Novos: `trial.test.ts` (teste com o Pro, resumo do fim do teste), `meal-shopping.test.ts` ("tudo em casa" só com a receita inteira numa lista em dia), `lunchbox.test.ts` (marmita do almoço e do jantar), `first-week-days.test.ts` (sábado, domingo e sexta com quatro), e em `ingredients.test.ts` singular e plural, ralado, chave antiga e "pães franceses"; em `photos.test.ts`, a foto que mostra outro prato.
+- `pnpm --filter @informach/cozya test:integration` em banco descartável: 25 de 25. Novo: o Hoje com banco real, do "falta" ao "tudo em casa", a receita que entra depois da lista, a lista desatualizada e a marmita do almoço no dia seguinte; o resumo do teste passou a ter limite final. Uma primeira rodada, antes do teste novo, caiu com o worker do Vitest encerrado pelo Windows (código 3221226505) em `maintenance.integration.ts`, arquivo que esta rodada não tocou; repetida em seguida, passou 24 de 24.
+- E2E e build ficam para o CI: a máquina estava com outro app rodando. `kitchen.spec.ts` foi ajustado para a primeira semana abrir `/semana?week=…&primeira=1` e, no sábado e no domingo, esperar o Hoje sem refeição para hoje.
 
 ## Fora desta entrega e pendências
 

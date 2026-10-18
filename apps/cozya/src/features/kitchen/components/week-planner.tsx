@@ -25,6 +25,7 @@ import {
   saveMealAction,
 } from "../actions";
 import { addDays, longDayLabel, weekdayName, weekdayShort } from "../dates";
+import { lunchboxesFor } from "../lunchbox";
 import {
   byFavoriteAndTime,
   choiceMeta,
@@ -32,6 +33,7 @@ import {
   type RecipeChoice,
   suggestionsFor,
 } from "../recipe-choices";
+import { TRIAL_DAYS } from "../trial";
 import type { Meal } from "../types";
 import { FirstWeekSteps } from "./first-week-steps";
 import { WeekNavigation } from "./week-navigation";
@@ -153,8 +155,8 @@ export function WeekPlanner({
   shopping: { items: number; pantry: string[] };
   /** Arrived from the first week: step 2 of 3. */
   firstWeek: boolean;
-  /** Sunday's dinner before this week, whose lunchboxes are Monday's lunch. */
-  carryOver: Meal | null;
+  /** The meals of the Sunday before this week that set lunchboxes aside: Monday's lunch. */
+  carryOver: Meal[];
 }) {
   const router = useRouter();
   const hydrated = useHydrated();
@@ -395,7 +397,8 @@ export function WeekPlanner({
       )}
       {trialAvailable && (
         <p role="status" className="rounded-2xl bg-muted p-4 text-sm">
-          Seus 14 dias grátis começam quando a primeira receita entrar na semana. Sem cartão.
+          Seus {TRIAL_DAYS} dias grátis começam quando a primeira receita entrar na semana. Sem
+          cartão.
         </p>
       )}
 
@@ -405,12 +408,9 @@ export function WeekPlanner({
           const editable = canEdit && day >= today;
           const lunch = meals.find((meal) => meal.day === day && meal.slot === "lunch");
           const dinner = meals.find((meal) => meal.day === day && meal.slot === "dinner");
-          const previousDinner =
-            meals.find((meal) => meal.day === addDays(day, -1) && meal.slot === "dinner") ??
-            (day === week ? (carryOver ?? undefined) : undefined);
-          const lunchbox =
-            !lunch && previousDinner && previousDinner.lunchboxServings > 0 ? previousDinner : null;
-          const empty = !lunch && !lunchbox && !dinner;
+          // What the day before set aside, at lunch or at dinner, is this day's lunch.
+          const lunchboxes = lunchboxesFor(day, day === week ? carryOver : meals);
+          const empty = !lunch && lunchboxes.length === 0 && !dinner;
           const mealCell = (slot: Slot, meal: Meal) => {
             const table = meal.servings - meal.lunchboxServings;
             return (
@@ -489,10 +489,11 @@ export function WeekPlanner({
                 </span>
               </div>
               <div className="flex min-w-0 flex-col gap-1.5 md:gap-2">
-                {lunch ? (
-                  mealCell("lunch", lunch)
-                ) : lunchbox ? (
-                  <div className={cn(CELL, "border-peach-line bg-peach/60 text-peach-ink")}>
+                {lunchboxes.map((lunchbox) => (
+                  <div
+                    key={lunchbox.id}
+                    className={cn(CELL, "border-peach-line bg-peach/60 text-peach-ink")}
+                  >
                     <span className={CELL_LABEL}>Almoço</span>
                     <span className="min-w-0 flex-1 text-[15px] leading-tight font-semibold md:flex-none md:leading-[1.3]">
                       {lunchbox.label}
@@ -504,9 +505,9 @@ export function WeekPlanner({
                       aria-label="Marmita"
                     />
                   </div>
-                ) : (
-                  emptyCell("lunch")
-                )}
+                ))}
+                {/* The lunchbox is the day's lunch: no empty lunch next to it. */}
+                {lunch ? mealCell("lunch", lunch) : lunchboxes.length === 0 && emptyCell("lunch")}
                 {dinner ? mealCell("dinner", dinner) : emptyCell("dinner")}
 
                 {editable && empty ? (
@@ -519,10 +520,10 @@ export function WeekPlanner({
                     <Plus className="size-[18px]" strokeWidth={2.4} aria-hidden />
                     Planejar {weekdayName(day)}
                   </button>
-                ) : editable && ((!lunch && !lunchbox) || !dinner) ? (
+                ) : editable && ((!lunch && lunchboxes.length === 0) || !dinner) ? (
                   // On a phone the missing meal of a planned day is a small chip.
                   <div className="flex flex-wrap gap-1.5 md:hidden">
-                    {!lunch && !lunchbox && (
+                    {!lunch && lunchboxes.length === 0 && (
                       <button
                         type="button"
                         disabled={disabled}

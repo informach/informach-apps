@@ -1,5 +1,7 @@
 import { INFORMACH_CONTACT } from "@informach/config/contact";
 import { ArrowUpRight, Plus } from "lucide-react";
+import { TRIAL_CREDITS, TRIAL_DAYS } from "@/features/kitchen/trial";
+import { FREE_RECIPE_LIMIT } from "@/features/recipes/limits";
 
 const QUESTIONS = [
   {
@@ -8,11 +10,11 @@ const QUESTIONS = [
   },
   {
     q: "Preciso de cartão para experimentar?",
-    a: "Não. Depois de confirmar o e-mail, seus 14 dias começam quando você colocar a primeira receita na semana, com 3 créditos de IA para o período. O teste é um por e-mail e não vira assinatura sozinho.",
+    a: `Não. Depois de confirmar o e-mail, seus ${TRIAL_DAYS} dias começam quando você coloca a primeira receita na semana ou quando escolhe a ajuda da IA pela primeira vez, o que vier antes. São ${TRIAL_CREDITS} créditos de IA para o período. O teste é um por e-mail e não vira assinatura sozinho.`,
   },
   {
-    q: "O que acontece depois dos 14 dias?",
-    a: "Se você não assinar, a conta fica no Free. Suas receitas, o modo cozinha e as listas que já existem continuam. Novas semanas e a IA ficam no Pro. Nada é apagado, nem as receitas acima de 15.",
+    q: `O que acontece depois dos ${TRIAL_DAYS} dias?`,
+    a: `Se você não assinar, a conta fica no Free. Suas receitas, o modo cozinha e as listas que já existem continuam. Novas semanas e a IA ficam no Pro. Nada é apagado, nem as receitas acima de ${FREE_RECIPE_LIMIT}.`,
   },
   {
     q: "A lista sabe o que já tenho em casa?",

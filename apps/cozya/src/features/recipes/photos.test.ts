@@ -18,4 +18,11 @@ describe("foto do prato na capa", () => {
     expect(recipePhoto({ name: "Macarrão da Bia", sourceName: STARTER_SOURCE })).toBeNull();
     expect(recipePhoto({ name: "Omelete de abobrinha", sourceName: STARTER_SOURCE })).toBeNull();
   });
+
+  it("não usa uma foto que mostra outro prato", () => {
+    // marmitas.webp tem legumes assados que o arroz com lentilha e cenoura não leva.
+    const rice = STARTER_RECIPES.find((item) => item.name === "Arroz com lentilha e cenoura");
+    expect(rice?.sourceName).toBe(STARTER_SOURCE);
+    expect(recipePhoto({ name: rice?.name ?? "", sourceName: rice?.sourceName })).toBeNull();
+  });
 });

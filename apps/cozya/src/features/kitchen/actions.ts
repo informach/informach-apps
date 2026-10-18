@@ -9,9 +9,11 @@ import { requireUserServer } from "@/lib/auth";
 import { getKitchenAccess, startKitchenTrial } from "./access";
 import { addDays, localDay, weekStart } from "./dates";
 import { recordProductEvent } from "./events";
+import { firstWeekDays } from "./first-week-days";
 import {
   addShoppingExtra,
   generateShoppingList,
+  getMealsBetween,
   getRecipeChoices,
   getRecipesByIds,
   getWeekMeals,
@@ -79,7 +81,10 @@ export const saveMealAction = action
     return ok(true);
   });
 
-/** First access: put the chosen recipes (own or starter drafts) on the next free dinners. */
+/**
+ * First access: put the chosen recipes (own or starter drafts) on dinners that fit one shopping
+ * list, and answer the week to open next: step 2 is that week, step 3 its list.
+ */
 export const planFirstWeekAction = action
   .input(
     z
@@ -102,8 +107,13 @@ export const planFirstWeekAction = action
   });
 
 async function planFirstWeek(userId: string, input: { starters: number[]; recipeIds: string[] }) {
-  // A second tap or a retry finds the week already planned and leaves it as it is.
-  if (await hasAnyMeal(userId)) return ok({ planned: 0 });
+  const today = localDay();
+  // A second tap or a retry finds the week already planned, leaves it as it is and opens it.
+  if (await hasAnyMeal(userId)) {
+    const [upcoming] = await getMealsBetween(userId, today, addDays(today, 14));
+    const start = upcoming?.day ?? today;
+    return ok({ planned: 0, start, week: weekStart(start) });
+  }
   const access = await ensurePlanning(userId, true);
   if (!access.ok) return err({ code: access.code });
   const starters = [...new Set(input.starters)].flatMap((index) => {
@@ -124,12 +134,12 @@ async function planFirstWeek(userId: string, input: { starters: number[]; recipe
     if (!created.ok) return err({ code: created.error.code } as const);
     recipes.push(created.value);
   }
-  // The account has no meals yet, so the dinners go on today and the days right after it.
+  // The account has no meals yet: every day is free, and the dinners fit one shopping list.
   const household = (await getKitchenAccess(userId)).profile?.householdSize ?? 2;
-  const days = recipes.map((_, index) => addDays(localDay(), index));
+  const days = firstWeekDays(today, recipes.length);
   for (const [index, recipe] of recipes.entries())
     await saveMeal(userId, {
-      day: days[index] ?? localDay(),
+      day: days[index] ?? today,
       slot: "dinner",
       recipeId: recipe.id,
       label: "",
@@ -138,7 +148,8 @@ async function planFirstWeek(userId: string, input: { starters: number[]; recipe
     });
   await recordPlanProgress(userId, days);
   refresh();
-  return ok({ planned: recipes.length });
+  const start = days[0] ?? today;
+  return ok({ planned: recipes.length, start, week: weekStart(start) });
 }
 
 export const removeMealAction = action

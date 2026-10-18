@@ -10,11 +10,11 @@ import { Pricing } from "@/components/marketing/sections/pricing";
 import { RecipeCollection } from "@/components/marketing/sections/recipe-collection";
 import { RepeatWeek } from "@/components/marketing/sections/repeat-week";
 import { WeekStory } from "@/components/marketing/sections/week-story";
+import { TRIAL_DAYS } from "@/features/kitchen/trial";
 import { env } from "@/lib/env";
 
 const TITLE = "Cozya: os jantares da semana decididos, com a lista do mercado";
-const DESCRIPTION =
-  "Escolha as receitas da semana, ajuste porções e marmitas e leve a lista do mercado somada. 14 dias grátis, sem cartão.";
+const DESCRIPTION = `Escolha as receitas da semana, ajuste porções e marmitas e leve a lista do mercado somada. ${TRIAL_DAYS} dias grátis, sem cartão.`;
 const SOCIAL_IMAGE = {
   url: "/marketing/cozya-social.png",
   width: 1200,
