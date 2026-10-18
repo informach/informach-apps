@@ -2,12 +2,13 @@ import type { WebContents } from "electron";
 import { z } from "zod";
 import type { FrameClock } from "../shared/frameClock.ts";
 import type { GuidedLogLine } from "../shared/guidedCursor.ts";
-import type {
-  Chord,
-  GuidedCondition,
-  GuidedStepTarget,
-  GuidedStepV2,
-  GuidedViewport,
+import {
+  type Chord,
+  type GuidedCondition,
+  type GuidedStepTarget,
+  type GuidedStepV2,
+  type GuidedViewport,
+  parseChord,
 } from "../shared/guidedPlan.ts";
 import { smoothPointer } from "../shared/guidedRecording.ts";
 import { type GuidedDriver, type PointerButton, STOPPED } from "../shared/guidedRunner.ts";
@@ -142,7 +143,12 @@ export type PageFacts =
       /** Top-left of the frame the element lives in, in page pixels. */
       offset: Point;
     }
-  | { ready: false; message: string };
+  | {
+      ready: false;
+      message: string;
+      /** The page is still loading: anything can still change. */
+      loading: boolean;
+    };
 
 export type Found =
   | {
@@ -154,6 +160,17 @@ export type Found =
     }
   | { ok: false; message: string; navigating: boolean };
 
+/** The page took longer than this to answer a command: it counts as busy, not broken. */
+const SEND_TIMEOUT = 10000;
+
+/** A command the page did not answer in time (it is loading, or a script holds it). */
+export class CdpTimeout extends Error {
+  constructor(method: string) {
+    super(`A página da aula não respondeu a tempo (${method}).`);
+    this.name = "CdpTimeout";
+  }
+}
+
 /** A marked element: its locator, and the point of the workspace when it was the background. */
 export interface MarkedElement {
   locator?: Locator;
@@ -164,6 +181,8 @@ export interface MarkedElement {
   url: string;
   /** Why no locator could be made. */
   problem?: string;
+  /** Something the teacher should know about the mark (a frame of another site). */
+  notice?: string;
 }
 
 const AX_IGNORED = new Set([
@@ -184,6 +203,8 @@ export class CdpDriver {
   private readonly listeners = new Map<string, Set<(params: Record<string, unknown>) => void>>();
   private detached: Error | null = null;
   private attached = false;
+  /** A confirmation the page asked for and the app refused, until a step reports it. */
+  private dialog: string | null = null;
 
   constructor(wc: WebContents) {
     this.wc = wc;
@@ -200,7 +221,7 @@ export class CdpDriver {
         debug.attach("1.3");
       } catch (cause) {
         throw new Error(
-          "Não consegui controlar a janela da aula. Feche o DevTools dela e tente de novo.",
+          "Não consegui controlar a janela da aula. Feche as ferramentas de desenvolvedor dela e tente de novo.",
           { cause },
         );
       }
@@ -209,6 +230,30 @@ export class CdpDriver {
     debug.on("message", this.onMessage);
     await this.send("Page.enable");
     await this.send("DOM.enable");
+  }
+
+  /**
+   * A box the page opened (alert, confirm, prompt, leaving the page) stops its scripts until it
+   * is answered. A message or leaving is accepted; a question is refused and the step says so:
+   * a guided take cannot show it, and choosing for the teacher would be a guess.
+   */
+  private answerDialog(params: Record<string, unknown>): void {
+    const type = typeof params.type === "string" ? params.type : "";
+    const message = typeof params.message === "string" ? params.message.slice(0, 200) : "";
+    const accept = type === "alert" || type === "beforeunload";
+    if (!accept)
+      this.dialog = `A página abriu uma pergunta (“${message}”) e o EdiAula a recusou. No modo guiado, use um caminho sem caixas de confirmação.`;
+    void this.send("Page.handleJavaScriptDialog", { accept }).catch((cause: unknown) => {
+      // The box stays open and the page waits on it: the next step says so.
+      this.dialog ??= `A página abriu uma caixa (“${message}”) e não consegui respondê-la (${cause instanceof Error ? cause.message : String(cause)}).`;
+    });
+  }
+
+  /** The question the page asked since the last call, if any. */
+  takeDialog(): string | null {
+    const dialog = this.dialog;
+    this.dialog = null;
+    return dialog;
   }
 
   detach(): void {
@@ -227,7 +272,7 @@ export class CdpDriver {
     this.attached = false;
     this.detached = new Error(
       /devtools/i.test(reason)
-        ? "O DevTools foi aberto na janela da aula e desligou a automação. Feche o DevTools e tente de novo."
+        ? "As ferramentas de desenvolvedor foram abertas na janela da aula e desligaram a automação. Feche-as e tente de novo."
         : `A automação da janela da aula foi desligada (${reason}).`,
     );
     for (const fns of this.listeners.values()) for (const fn of fns) fn({ __detached: true });
@@ -243,6 +288,7 @@ export class CdpDriver {
       if (typeof frame?.id === "string") this.worlds.delete(frame.id);
     } else if (method === "Page.frameDetached" && typeof params.frameId === "string")
       this.worlds.delete(params.frameId);
+    else if (method === "Page.javascriptDialogOpening") this.answerDialog(params);
     for (const fn of this.listeners.get(method) ?? []) fn(params);
   };
 
@@ -257,18 +303,52 @@ export class CdpDriver {
     return () => set.delete(fn);
   }
 
-  async send<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T> {
+  /** A command, given up after `timeout` ms (CdpTimeout): a page that hangs never hangs a step. */
+  async send<T = unknown>(
+    method: string,
+    params?: Record<string, unknown>,
+    timeout = SEND_TIMEOUT,
+  ): Promise<T> {
     if (this.detached) throw this.detached;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      return await this.wc.debugger.sendCommand(method, params);
+      return await Promise.race([
+        this.wc.debugger.sendCommand(method, params),
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => reject(new CdpTimeout(method)), timeout);
+        }),
+      ]);
     } catch (error) {
       if (this.detached) throw this.detached;
       throw error;
+    } finally {
+      clearTimeout(timer);
     }
   }
 
   url(): string {
     return this.wc.isDestroyed() ? "" : this.wc.getURL();
+  }
+
+  /** A navigation is under way: the next page has not answered yet. */
+  loading(): boolean {
+    return !this.wc.isDestroyed() && this.wc.isWaitingForResponse();
+  }
+
+  /**
+   * The page laid out at the plan's viewport inside a window of another size, scaled to fit:
+   * marking sees the same layout the take will. Returns the scale (window pixels per page pixel).
+   */
+  async emulateToFit(viewport: GuidedViewport, content: { width: number; height: number }) {
+    const scale = Math.min(1, content.width / viewport.width, content.height / viewport.height);
+    await this.send("Emulation.setDeviceMetricsOverride", {
+      width: viewport.width,
+      height: viewport.height,
+      deviceScaleFactor: 0,
+      mobile: false,
+      scale,
+    });
+    return scale;
   }
 
   async emulate(viewport: GuidedViewport): Promise<void> {
@@ -353,6 +433,18 @@ export class CdpDriver {
 
   insertText(text: string): Promise<unknown> {
     return this.send("Input.insertText", { text });
+  }
+
+  /** One typed character: the key down with its text, then up (code and vk when a key has it). */
+  async typed(char: string, code = "", vk = 0, modifiers = 0): Promise<void> {
+    const key = { key: char, code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk, modifiers };
+    await this.send("Input.dispatchKeyEvent", {
+      ...key,
+      type: "keyDown",
+      text: char,
+      unmodifiedText: char,
+    });
+    await this.send("Input.dispatchKeyEvent", { ...key, type: "keyUp" });
   }
 
   // ---- the isolated world -------------------------------------------------------------
@@ -446,6 +538,7 @@ export class CdpDriver {
   }
 
   private release(objectId: string | undefined): void {
+    // An object of a page that navigated away is gone already: nothing to release.
     if (objectId) void this.send("Runtime.releaseObject", { objectId }).catch(() => undefined);
   }
 
@@ -498,9 +591,18 @@ export class CdpDriver {
   /** What the page has for a locator now. */
   async facts(locator: Locator): Promise<PageFacts> {
     if (locator.url && !urlMatches(locator.url, this.url()))
-      return { ready: false, message: "A página desta etapa ainda não abriu." };
+      return {
+        ready: false,
+        message: "A página desta etapa ainda não abriu.",
+        loading: this.loading(),
+      };
     const frame = await this.frameFor(locator.frame);
-    if (!frame) return { ready: false, message: "O quadro da página desta etapa ainda não abriu." };
+    if (!frame)
+      return {
+        ready: false,
+        message: "O quadro da página desta etapa ainda não abriu.",
+        loading: this.loading(),
+      };
     const report = reportSchema.parse(
       await this.evaluate(
         frame.id,
@@ -549,7 +651,7 @@ export class CdpDriver {
   async find(locator: Locator): Promise<Found> {
     const facts = await this.facts(locator);
     if (!facts.ready) return { ok: false, message: facts.message, navigating: true };
-    const ranked = rankCandidates(locator, facts.matches, facts.view);
+    const ranked = rankCandidates(locator, facts.matches, facts.view, facts.canvas);
     if (!ranked.ok)
       return { ok: false, message: locateMessage(locator, ranked.problem), navigating: false };
     const p = actionPoint(locator, ranked.candidate);
@@ -563,9 +665,14 @@ export class CdpDriver {
     };
   }
 
+  /**
+   * The condition holds now. While a navigation is under way nothing holds yet (not even
+   * "hidden": the old page is still there); once another page came, the element is indeed hidden.
+   */
   async check(condition: GuidedCondition): Promise<boolean> {
     const facts = await this.facts(condition.locator);
-    if (!facts.ready) return condition.state === "hidden";
+    if (!facts.ready) return !facts.loading && condition.state === "hidden";
+    if (condition.state === "hidden" && this.loading()) return false;
     return conditionMet(condition.state, facts.matches);
   }
 
@@ -611,7 +718,12 @@ export class CdpDriver {
     });
   }
 
-  /** The node the inspect mode handed over, described in its own frame. */
+  /**
+   * The node the inspect mode handed over, described in its own frame: the frames are tried from
+   * the innermost out, and a frame's world only takes a node of its own document (an element of a
+   * same-site frame would otherwise be read in the page around it). Among equal matches the
+   * marked one is remembered by its order (`nth`) and, for a block, by its place in the workspace.
+   */
   async mark(backendNodeId: number, page: Point): Promise<MarkedElement> {
     const url = this.url();
     const tree = await this.frames();
@@ -621,7 +733,7 @@ export class CdpDriver {
       for (const child of node.childFrames ?? []) walk(child);
     };
     walk(tree);
-    for (const frame of all) {
+    for (const frame of all.reverse()) {
       const contextId = await this.world(frame.id);
       let objectId: string | undefined;
       try {
@@ -631,9 +743,19 @@ export class CdpDriver {
         });
         objectId = object.objectId;
       } catch {
+        // A node of another frame's document does not resolve in this one's world.
         continue;
       }
       if (!objectId) continue;
+      const own = await this.call(
+        objectId,
+        "function() { return globalThis.__ediaulaGuided.own(this); }",
+        [],
+      );
+      if (own.value !== true) {
+        this.release(objectId);
+        continue;
+      }
       const offset = await this.frameOffset(frame);
       const local = { x: page.x - offset.x, y: page.y - offset.y };
       const promoted = await this.call(
@@ -645,72 +767,121 @@ export class CdpDriver {
       this.release(objectId);
       if (!promoted.objectId) return { page, url, problem: "Não consegui ler esse elemento." };
       try {
-        const raw = describeSchema.parse(
-          (
-            await this.call(
-              promoted.objectId,
-              "function(p) { return globalThis.__ediaulaGuided.describe(this, p); }",
-              [local],
-            )
-          ).value,
-        );
-        const { node } = await this.send<{ node: { backendNodeId: number } }>("DOM.describeNode", {
-          objectId: promoted.objectId,
-        });
-        const ax = await this.send<{ nodes: AXNode[] }>("Accessibility.getPartialAXTree", {
-          backendNodeId: node.backendNodeId,
-          fetchRelatives: false,
-        }).catch(() => ({ nodes: [] }));
-        const roleValue = ax.nodes[0]?.role?.value;
-        const nameValue = ax.nodes[0]?.name?.value;
-        const role =
-          typeof roleValue === "string" && !AX_IGNORED.has(roleValue) ? roleValue : undefined;
-        const name = typeof nameValue === "string" ? nameValue : undefined;
-        let blockly: ElementDescription["blockly"];
-        let workspace: Point | undefined;
-        if (raw.blockly || raw.workspace) {
-          const nodes = z
-            .array(blocklyNodeSchema)
-            .parse(await this.evaluate(frame.id, "globalThis.__ediaulaGuided.blockly()"));
-          if (raw.blockly) {
-            const block = blocklyBlocks(nodes).find((b) => b.key === raw.blockly?.key);
-            if (block) blockly = { text: block.label || block.text, area: block.area };
-          } else {
-            const canvas = blocklyCanvas(nodes);
-            if (canvas) workspace = pageToWorkspace(canvas, local);
-          }
-        }
-        if (workspace) return { page, url, workspace };
-        const description: ElementDescription = {
-          tag: raw.tag,
-          text: raw.text,
-          ...(raw.testid ? { testid: raw.testid } : {}),
-          data: raw.data,
-          ...(raw.id ? { id: raw.id } : {}),
-          ...((role ?? raw.role) ? { role: role ?? raw.role } : {}),
-          ...(name ? { name } : {}),
-          ...(raw.label ? { label: raw.label } : {}),
-          ...(raw.css ? { css: raw.css } : {}),
-          ...(raw.path ? { path: raw.path } : {}),
-          ...(blockly ? { blockly } : {}),
-          kind: raw.kind,
-          rect: raw.rect,
-          cursor: raw.cursor,
-          view: raw.view,
-          url: frame.parentId ? url : raw.url,
-          ...(frame.parentId ? { frameUrl: raw.url } : {}),
-          point: raw.point,
-        };
-        try {
-          return { page, url, locator: buildLocator(description) };
-        } catch (error) {
-          return { page, url, problem: error instanceof Error ? error.message : String(error) };
-        }
+        return await this.describeMarked(frame, promoted.objectId, local, page, url);
       } finally {
         this.release(promoted.objectId);
       }
     }
     return { page, url, problem: "Esse elemento não está mais na página. Marque de novo." };
+  }
+
+  private async describeMarked(
+    frame: FrameTree["frame"],
+    objectId: string,
+    local: Point,
+    page: Point,
+    url: string,
+  ): Promise<MarkedElement> {
+    const raw = describeSchema.parse(
+      (
+        await this.call(
+          objectId,
+          "function(p) { return globalThis.__ediaulaGuided.describe(this, p); }",
+          [local],
+        )
+      ).value,
+    );
+    const { node } = await this.send<{ node: { backendNodeId: number } }>("DOM.describeNode", {
+      objectId,
+    });
+    // Without the accessibility tree the role comes from the element's own attributes.
+    const ax = await this.send<{ nodes: AXNode[] }>("Accessibility.getPartialAXTree", {
+      backendNodeId: node.backendNodeId,
+      fetchRelatives: false,
+    }).catch(() => ({ nodes: [] }));
+    const roleValue = ax.nodes[0]?.role?.value;
+    const nameValue = ax.nodes[0]?.name?.value;
+    const role =
+      typeof roleValue === "string" && !AX_IGNORED.has(roleValue) ? roleValue : undefined;
+    const name = typeof nameValue === "string" ? nameValue.slice(0, 200) : undefined;
+    let blockly: ElementDescription["blockly"];
+    let place: Point | undefined;
+    let blockKey: string | undefined;
+    if (raw.blockly || raw.workspace) {
+      const nodes = z
+        .array(blocklyNodeSchema)
+        .parse(await this.evaluate(frame.id, "globalThis.__ediaulaGuided.blockly()"));
+      const canvas = blocklyCanvas(nodes);
+      if (raw.blockly) {
+        const block = blocklyBlocks(nodes).find((b) => b.key === raw.blockly?.key);
+        if (block) {
+          blockly = { text: block.label || block.text, area: block.area };
+          blockKey = block.key;
+          if (canvas && block.area === "workspace")
+            place = pageToWorkspace(canvas, {
+              x: block.rect.x + block.rect.width / 2,
+              y: block.rect.y + block.rect.height / 2,
+            });
+        }
+      } else if (canvas) return { page, url, workspace: pageToWorkspace(canvas, local) };
+    }
+    const description: ElementDescription = {
+      tag: raw.tag,
+      text: raw.text,
+      ...(raw.testid ? { testid: raw.testid } : {}),
+      data: raw.data,
+      ...(raw.id ? { id: raw.id } : {}),
+      ...((role ?? raw.role) ? { role: role ?? raw.role } : {}),
+      ...(name ? { name } : {}),
+      ...(raw.label ? { label: raw.label } : {}),
+      ...(raw.css ? { css: raw.css } : {}),
+      ...(raw.path ? { path: raw.path } : {}),
+      ...(blockly ? { blockly } : {}),
+      ...(place ? { workspace: place } : {}),
+      kind: raw.kind,
+      rect: raw.rect,
+      cursor: raw.cursor,
+      view: raw.view,
+      url: frame.parentId ? url : raw.url,
+      ...(frame.parentId ? { frameUrl: raw.url } : {}),
+      point: raw.point,
+    };
+    let locator: Locator;
+    try {
+      locator = buildLocator(description);
+    } catch (error) {
+      return { page, url, problem: error instanceof Error ? error.message : String(error) };
+    }
+    // Equal matches now: which of them it is, in their order. Without an answer the nearest to
+    // the marked rectangle still tells them apart.
+    const facts = await this.facts(locator).catch(() => null);
+    if (facts?.ready)
+      for (const m of [...facts.matches].sort((a, b) => a.strategy - b.strategy)) {
+        const usable = m.candidates.filter((c) => c.visible && c.inView && c.enabled && !c.covered);
+        if (!usable.length) continue;
+        if (usable.length > 1) {
+          const index = usable.findIndex((c) =>
+            blockKey
+              ? c.key === blockKey
+              : Math.abs(c.rect.x - raw.rect.x) < 1.5 &&
+                Math.abs(c.rect.y - raw.rect.y) < 1.5 &&
+                Math.abs(c.rect.width - raw.rect.width) < 1.5,
+          );
+          if (index >= 0) locator.nth = index;
+        }
+        break;
+      }
+    return {
+      page,
+      url,
+      locator,
+      ...(raw.kind === "frame"
+        ? {
+            notice:
+              "Isto é um quadro de outro site dentro da página. O EdiAula vai agir no mesmo ponto dele, sem reconhecer os elementos de dentro.",
+          }
+        : {}),
+    };
   }
 }
 
@@ -733,10 +904,19 @@ const sleep = (ms: number, signal: AbortSignal): Promise<void> =>
 
 const STATE_TEXT = { visible: "visível", hidden: "oculto", enabled: "habilitado" } as const;
 
+/** Seconds a click holds the button, and between the two clicks of a double click. */
+export const CLICK_HOLD = 0.08;
+export const DOUBLE_GAP = 0.08;
+
 /**
  * The runner's driver in the lesson window. With a clock, every movement is one pointer event
  * per frame of the video and goes to the log; without one (preparing a take that starts later,
  * verifying a plan) movements are immediate and nothing is logged.
+ *
+ * A lookup that fails for a moment (the page busy or between two documents, a command that took
+ * too long) counts as "not yet" until the step's deadline; only the protocol going away, a
+ * question the page asked or the run being stopped end it at once. Time the take spends paused
+ * does not count against a deadline.
  */
 export class WebDriver implements GuidedDriver {
   readonly space = "page";
@@ -745,6 +925,7 @@ export class WebDriver implements GuidedDriver {
   private readonly clock: FrameClock | null;
   private readonly signal: AbortSignal;
   private readonly log: ((line: GuidedLogLine) => void) | null;
+  private readonly paintAfter: (() => Promise<void>) | null;
   private lastShape = "";
   /** The button press of a drag, until its release. */
   private pressing: Promise<unknown> | null = null;
@@ -756,12 +937,15 @@ export class WebDriver implements GuidedDriver {
       signal: AbortSignal;
       clock?: FrameClock;
       log?: (line: GuidedLogLine) => void;
+      /** Resolves at the page's next picture (or a little later when it does not change). */
+      paintAfter?: () => Promise<void>;
     },
   ) {
     this.cdp = cdp;
     this.clock = options.clock ?? null;
     this.signal = options.signal;
     this.log = options.clock ? (options.log ?? null) : null;
+    this.paintAfter = options.paintAfter ?? null;
     this.pointer = {
       x: Math.round(options.viewport.width / 2),
       y: Math.round(options.viewport.height / 2),
@@ -783,18 +967,46 @@ export class WebDriver implements GuidedDriver {
     return this.pointer;
   }
 
+  /** Seconds left before `timeout` runs out, not counting the time the take spent paused. */
+  private deadline(timeout: number): () => boolean {
+    const start = Date.now();
+    const paused = this.clock?.pausedTotal() ?? 0;
+    return () => Date.now() - start - ((this.clock?.pausedTotal() ?? 0) - paused) >= timeout * 1000;
+  }
+
+  /** What ends a step at once; anything else is the page not being ready yet. */
+  private fatal(error: unknown): boolean {
+    return (
+      this.signal.aborted ||
+      (error instanceof Error && (error === this.cdp.detachedError || error.message === STOPPED))
+    );
+  }
+
+  private question(): void {
+    const dialog = this.cdp.takeDialog();
+    if (dialog) throw new Error(dialog);
+  }
+
   /** Looks the element up until it is there and usable, or `timeout` seconds pass. */
   private async found(locator: Locator, timeout: number) {
-    const deadline = Date.now() + timeout * 1000;
+    const over = this.deadline(timeout);
     for (;;) {
       if (this.signal.aborted) throw new Error(STOPPED);
-      const found = await this.cdp.find(locator);
-      if (found.ok) return found;
-      if (found.navigating) this.clock?.relabel("navigation");
-      if (Date.now() >= deadline)
-        throw new Error(
-          found.navigating ? `${found.message} Esperei ${timeout} s.` : found.message,
-        );
+      this.question();
+      let message: string;
+      let navigating = false;
+      try {
+        const found = await this.cdp.find(locator);
+        if (found.ok) return found;
+        message = found.message;
+        navigating = found.navigating;
+      } catch (error) {
+        if (this.fatal(error)) throw error;
+        message = "A página da aula não respondeu a tempo.";
+        navigating = true;
+      }
+      if (navigating) this.clock?.relabel("navigation");
+      if (over()) throw new Error(navigating ? `${message} Esperei ${timeout} s.` : message);
       await sleep(100, this.signal);
     }
   }
@@ -812,11 +1024,14 @@ export class WebDriver implements GuidedDriver {
     const to = step.to;
     if (to?.point?.space === "page") return { x: to.point.x, y: to.point.y };
     if (to?.point?.space === "workspace") {
-      const deadline = Date.now() + timeout * 1000;
+      const over = this.deadline(timeout);
       for (;;) {
-        const canvas = await this.cdp.blocklyCanvas();
+        const canvas = await this.cdp.blocklyCanvas().catch((error: unknown) => {
+          if (this.fatal(error)) throw error;
+          return null;
+        });
         if (canvas) return workspaceToPage(canvas, to.point);
-        if (Date.now() >= deadline) throw new Error("A área de blocos não está na página.");
+        if (over()) throw new Error("A área de blocos não está na página.");
         await sleep(100, this.signal);
       }
     }
@@ -842,10 +1057,19 @@ export class WebDriver implements GuidedDriver {
         this.lastShape = key;
         this.log?.({ k: "shape", t: at, cursor, ...(editable ? { editable } : {}) });
       },
+      // The page did not say: the drawn pointer keeps its last shape, and the next lookup finds
+      // out whether the page is gone.
       () => undefined,
     );
   }
 
+  /**
+   * One pointer event per frame. In a drag the page draws each step a little after the event (it
+   * answers it, then paints), and the drawn hand must stay with the block it carries: so each
+   * frame sends the position of the next one and the video holds until the page has painted it
+   * ("paint"). Every frame then shows the block where the log puts the pointer, however slow the
+   * page is; the take only takes longer in wall time.
+   */
   glide(from: Point, to: Point, duration: number, drag = false): Promise<void> {
     const clock = this.clock;
     const buttons = drag ? { button: "left" as const, buttons: 1 } : {};
@@ -863,32 +1087,49 @@ export class WebDriver implements GuidedDriver {
       })();
     }
     const t0 = clock.time();
-    this.log?.({
-      k: "glide",
-      t: t0,
-      until: t0 + duration,
-      from,
-      to,
-      ...(drag ? { drag: true as const } : {}),
-    });
+    /** The second of the frame after the one at `t`, as the clock will give it. */
+    const next = (t: number): number => (Math.round(t * clock.fps) + 1) / clock.fps;
+    const paints = drag ? this.paintAfter : null;
+    const at = (t: number): Point => {
+      const u = Math.min(1, (t - t0) / duration);
+      if (u >= 1) return to;
+      const k = smoothPointer(u);
+      return { x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k };
+    };
+    this.log?.({ k: "glide", t: t0, until: t0 + duration, from, to, ...(drag ? { drag } : {}) });
     return new Promise<void>((resolve, reject) => {
-      const stop = (): void => {
-        off();
-        reject(new Error(STOPPED));
-      };
-      const off = clock.onFrame((t) => {
-        const u = Math.min(1, (t - t0) / duration);
-        const k = smoothPointer(u);
-        const p = { x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k };
-        this.pointer = u >= 1 ? to : p;
-        this.cdp.mouse("mouseMoved", this.pointer, buttons).catch((error: unknown) => {
-          off();
-          this.signal.removeEventListener("abort", stop);
-          reject(error);
-        });
-        if (u < 1) return false;
+      let painting = false;
+      const settle = (): void => {
         off();
         this.signal.removeEventListener("abort", stop);
+        if (painting) clock.resume("paint");
+        painting = false;
+      };
+      const fail = (error: unknown): void => {
+        settle();
+        reject(error);
+      };
+      const stop = (): void => fail(new Error(STOPPED));
+      const off = clock.onFrame((t) => {
+        const u = Math.min(1, (t - t0) / duration);
+        this.pointer = at(t);
+        if (paints) {
+          // This frame shows what the page painted for it; the next position goes out now.
+          if (u < 1) {
+            painting = true;
+            clock.hold("paint");
+            this.cdp
+              .mouse("mouseMoved", at(next(t)), buttons)
+              .then(() => paints())
+              .then(() => {
+                if (!painting) return;
+                painting = false;
+                clock.resume("paint");
+              }, fail);
+          }
+        } else this.cdp.mouse("mouseMoved", this.pointer, buttons).catch(fail);
+        if (u < 1) return false;
+        settle();
         this.noteShape(to, t);
         resolve();
         return true;
@@ -900,24 +1141,32 @@ export class WebDriver implements GuidedDriver {
 
   async ready(): Promise<void> {
     if (this.cdp.detachedError) throw this.cdp.detachedError;
+    this.question();
+  }
+
+  /** Holds for `seconds` of the video (nothing when untimed). */
+  private async hold(seconds: number): Promise<void> {
+    if (this.clock) await this.clock.wait(this.clock.time() + seconds);
   }
 
   /**
    * Buttons are logged at the second they go out, not when the page acknowledges them: the
-   * protocol keeps the events in order, and a busy page must not stretch a click or a drag.
+   * protocol keeps the events in order. A click holds the button a moment, and the two clicks of
+   * a double click are apart, as a hand would make them, so both show on the drawn pointer.
    */
   async click(p: Point, button: PointerButton, count: 1 | 2): Promise<void> {
     const pressed = button === "left" ? 1 : 2;
     const b = button === "left" ? 0 : 1;
-    const at = this.now();
-    const sent: Promise<unknown>[] = [];
     for (let i = 1; i <= count; i++) {
-      sent.push(this.cdp.mouse("mousePressed", p, { button, buttons: pressed, clickCount: i }));
-      sent.push(this.cdp.mouse("mouseReleased", p, { button, buttons: 0, clickCount: i }));
-      this.log?.({ k: "down", t: at, x: p.x, y: p.y, b });
-      this.log?.({ k: "up", t: at, x: p.x, y: p.y, b });
+      if (i > 1) await this.hold(DOUBLE_GAP);
+      this.log?.({ k: "down", t: this.now(), x: p.x, y: p.y, b });
+      const down = this.cdp.mouse("mousePressed", p, { button, buttons: pressed, clickCount: i });
+      down.catch(() => undefined);
+      await this.hold(CLICK_HOLD);
+      this.log?.({ k: "up", t: this.now(), x: p.x, y: p.y, b });
+      await down;
+      await this.cdp.mouse("mouseReleased", p, { button, buttons: 0, clickCount: i });
     }
-    await Promise.all(sent);
     this.noteShape(p, this.now());
   }
 
@@ -930,6 +1179,7 @@ export class WebDriver implements GuidedDriver {
     this.pressing = sent;
   }
 
+  /** The button goes up where the drag ended, at the second it goes out. */
   async release(p: Point): Promise<void> {
     const at = this.now();
     const pressed = this.pressing;
@@ -937,7 +1187,7 @@ export class WebDriver implements GuidedDriver {
     await pressed;
     await this.cdp.mouse("mouseReleased", p, { button: "left", buttons: 0, clickCount: 1 });
     this.log?.({ k: "up", t: at, x: p.x, y: p.y, b: 0 });
-    this.noteShape(p, this.now());
+    this.noteShape(p, at);
   }
 
   async wheel(p: Point, dx: number, dy: number): Promise<void> {
@@ -952,18 +1202,36 @@ export class WebDriver implements GuidedDriver {
     this.log?.({ k: "key", t: at, label: chord.label });
   }
 
+  /** A character typed as a key: down with its text, then up, as the page expects from a keyboard. */
   async text(char: string): Promise<void> {
-    await this.cdp.insertText(char);
+    if (/^[a-z]$/i.test(char)) {
+      const upper = char.toUpperCase();
+      // Shift is held for a capital, as on a keyboard.
+      await this.cdp.typed(char, `Key${upper}`, upper.charCodeAt(0), char === upper ? 8 : 0);
+      return;
+    }
+    const chord = parseChord(char === " " ? "Space" : char === "\n" ? "Enter" : char);
+    if (chord && !chord.ctrl && !chord.alt && !chord.meta && chord.text) {
+      await this.cdp.chord(chord);
+      return;
+    }
+    await this.cdp.typed(char);
   }
 
-  check(condition: GuidedCondition): Promise<boolean> {
-    return this.cdp.check(condition);
+  async check(condition: GuidedCondition): Promise<boolean> {
+    this.question();
+    try {
+      return await this.cdp.check(condition);
+    } catch (error) {
+      if (this.fatal(error)) throw error;
+      return false;
+    }
   }
 
   async until(condition: GuidedCondition, timeout: number): Promise<void> {
-    const deadline = Date.now() + timeout * 1000;
-    while (!(await this.cdp.check(condition))) {
-      if (Date.now() >= deadline)
+    const over = this.deadline(timeout);
+    while (!(await this.check(condition))) {
+      if (over())
         throw new Error(
           `Esperei ${timeout} s e “${locatorLabel(condition.locator)}” não ficou ${STATE_TEXT[condition.state]}.`,
         );

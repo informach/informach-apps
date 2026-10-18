@@ -22,6 +22,7 @@ import {
   guidedStoreSchema,
   MARK_PURPOSES,
   newestGuided,
+  planTiming,
   schedulePlan,
 } from "../shared/guidedPlan.ts";
 import type { GuidedTarget } from "../shared/guidedRecording.ts";
@@ -556,13 +557,20 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
 
   ipcMain.handle("recorder:open", async (_e, raw: unknown) => {
     const ctx: RecorderContext = contextSchema.parse(raw);
+    // A take under way belongs to the lesson it started in.
+    if (overlay && (rec.isRecording() || web) && ctx.projectId !== context.projectId)
+      throw new Error("O gravador está gravando outra aula. Termine o take antes de trocar.");
     // Plans edited before a crash come back from their draft.
     const draft = await readGuidedDraft(ctx.projectId ?? NO_PROJECT);
     const guidedPlans = newestGuided(ctx.guided, draft);
     context = { ...ctx, ...(guidedPlans ? { guided: guidedPlans } : {}) };
     if (guidedPlans && guidedPlans !== ctx.guided && ctx.projectId)
       main()?.webContents.send("recorder:guided", { projectId: ctx.projectId, store: guidedPlans });
-    if (overlay) return overlay.focus();
+    if (overlay) {
+      // Already open: it takes the new lesson's plans (or the media to record again).
+      overlay.webContents.send("recorder:contextChanged");
+      return overlay.focus();
+    }
     await loadSettings;
     settings = await readRecorderSettings();
     finishing = null;
@@ -765,7 +773,7 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     overlay?.setAlwaysOnTop(false);
     try {
       const result = await dialog.showOpenDialog(parent, {
-        title: "Escolher narração ou MP4 do HeyGen",
+        title: "Escolher a narração (áudio ou vídeo)",
         properties: ["openFile"],
         filters: [
           {
@@ -789,7 +797,13 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     browsing = true;
     overlay?.hide();
     try {
-      await openGuidedBrowser(url, hotkeyLabel(settings.hotkeys.guidedTarget));
+      await openGuidedBrowser(url, hotkeyLabel(settings.hotkeys.guidedTarget), () => {
+        // Closing the lesson window goes back to the recorder, as the shortcut does.
+        if (!browsing) return;
+        browsing = false;
+        overlay?.show();
+        overlay?.setIgnoreMouseEvents(false);
+      });
     } catch (err) {
       browsing = false;
       overlay?.show();
@@ -897,18 +911,44 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
 
   // ---- the lesson window: plans, marking, verification and its own takes ----
   /** The plans as edited in the recorder: kept for the next open, drafted, sent to the editor. */
-  ipcMain.handle("recorder:guidedSave", async (_e, raw: unknown) => {
+  ipcMain.handle("recorder:guidedSave", async (_e, raw: unknown, rawProject: unknown) => {
     const store = guidedStoreSchema.parse(raw);
+    // The plans belong to the lesson the recorder loaded them from, never to one opened since.
+    const projectId = z.string().min(1).max(200).nullable().parse(rawProject);
+    if (projectId !== (context.projectId ?? null))
+      throw new Error(
+        "Estes planos são de outra aula. Feche o gravador e abra-o de novo pela aula certa.",
+      );
     context = { ...context, guided: store };
     await writeGuidedDraft(context.projectId ?? NO_PROJECT, store);
     if (context.projectId)
       main()?.webContents.send("recorder:guided", { projectId: context.projectId, store });
   });
-  ipcMain.handle("recorder:guidedMark", async (_e, raw: unknown) => {
+  /**
+   * A take of a recorder opened without a lesson went into one the editor made for it: the plans
+   * go with it, and the recorder saves to that lesson from now on.
+   */
+  ipcMain.handle("recorder:guidedAdopt", async (_e, raw: unknown) => {
+    const projectId = z.string().min(1).max(200).parse(raw);
+    if (context.projectId) return context.projectId === projectId ? context.guided : null;
+    const store = context.guided;
+    context = { ...context, projectId };
+    if (store) await writeGuidedDraft(projectId, store);
+    overlay?.webContents.send("recorder:contextChanged");
+    return store ?? null;
+  });
+  ipcMain.handle("recorder:guidedMark", async (_e, raw: unknown, rawViewport: unknown) => {
     const purpose = z.enum(MARK_PURPOSES).parse(raw);
+    const viewport = z
+      .object({ width: z.int().min(320).max(3840), height: z.int().min(240).max(2160) })
+      .parse(rawViewport);
     if (marking || picking) throw new Error("Já há um alvo sendo marcado.");
     if (rec.isRecording() || web) throw new Error("Marque os alvos antes de gravar.");
-    const session = await markInLesson(purpose, hotkeyLabel(settings.hotkeys.guidedTarget));
+    const session = await markInLesson(
+      purpose,
+      hotkeyLabel(settings.hotkeys.guidedTarget),
+      viewport,
+    );
     marking = session;
     overlay?.hide();
     try {
@@ -968,6 +1008,16 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     if (missing.length)
       throw new Error(
         `Os atalhos de ${missing.map((a) => HOTKEY_LABELS[a].toLowerCase()).join(" e ")} não puderam ser registrados. Troque-os nas opções do gravador antes de gravar.`,
+      );
+    // "Regravar e substituir": the same plan, from the same step, with the same times.
+    const again = context.guidedReplace;
+    if (
+      again &&
+      again.planId === plan.id &&
+      (planTiming(plan) !== again.timing || from !== again.from)
+    )
+      throw new Error(
+        `Os tempos do plano mudaram desde a gravação de “${again.assetName}”: grave um take novo em vez de substituir.`,
       );
     const replace =
       context.guidedReplace && context.guidedReplace.planId === plan.id

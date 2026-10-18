@@ -11,6 +11,8 @@ import {
   stat,
   writeFile,
 } from "node:fs/promises";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { freemem } from "node:os";
 import { join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -39,6 +41,7 @@ const MIN_FREE_MB = 2000;
 const results = resolve(".cache/edi-visual-results");
 const ffmpeg = join(nativeMediaDirectory, "bin", "ffmpeg.exe");
 const scriptFixture = resolve("apps/ediaula/tests/fixtures/roteiro-farol-dia1.md");
+const lessonFixture = resolve("apps/ediaula/tests/fixtures/guided-blockly.html");
 const LEASE_SECONDS = 1800;
 
 /** Spoken by the Windows synthesizer: the start of the first section of the script fixture. */
@@ -246,6 +249,44 @@ async function step(
     // Late messages of this step (an IPC rejection that arrives after it) are judged by the next.
     expected = [];
   }
+}
+
+/** The lesson page of the guided mode, served on this machine only. */
+function serveLesson(): Promise<{ url: string; close: () => void }> {
+  const page = readFileSync(lessonFixture);
+  const server = createServer((request, response) => {
+    if (request.url?.startsWith("/aula"))
+      response.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(page);
+    else response.writeHead(204).end();
+  });
+  return new Promise((done) =>
+    server.listen(0, "127.0.0.1", () => {
+      const { port } = server.address() as AddressInfo;
+      done({
+        url: `http://127.0.0.1:${port}/aula?demora=0`,
+        close: () => {
+          server.closeAllConnections();
+          server.close();
+        },
+      });
+    }),
+  );
+}
+
+/**
+ * Closes the guided mode's lesson window, found by its title (which keeps the way back to the
+ * recorder whatever the page calls itself). Returns how many were closed.
+ */
+function closeLessonWindow(application: ElectronApplication): Promise<number> {
+  return application.evaluate(({ BrowserWindow }) => {
+    let closed = 0;
+    for (const window of BrowserWindow.getAllWindows())
+      if (window.getTitle().startsWith("EdiAula · Ambiente de aula")) {
+        window.destroy();
+        closed++;
+      }
+    return closed;
+  });
 }
 
 /* ---------- synthetic media ---------- */
@@ -895,6 +936,97 @@ try {
     await overlay.getByTitle("Fechar sem gravar").click();
     await closed;
     lastPage = editor;
+  });
+
+  await step("Gravador no modo guiado", async () => {
+    const lessonSite = await serveLesson();
+    let overlay: Page | null = null;
+    try {
+      const opened = first.application.waitForEvent("window");
+      await editor.locator("header.topbar").getByRole("button", { name: "Gravar tela" }).click();
+      overlay = await opened;
+      lastPage = overlay;
+      await overlay.locator(".rec-dock").waitFor({ timeout: 30_000 });
+      await overlay.locator("#recording-mode").selectOption("guided");
+      const setup = overlay.locator(".guided-setup");
+      await setup.waitFor();
+      const create = setup.getByRole("button", { name: "Criar um plano" });
+      if (await create.isVisible()) await create.click();
+      await setup
+        .getByRole("combobox", { name: "Onde a demonstração acontece" })
+        .selectOption("web");
+      await setup.getByRole("textbox", { name: "Endereço da aula" }).fill(lessonSite.url);
+      await setup
+        .getByRole("textbox", { name: "Roteiro da demonstração" })
+        .fill(
+          [
+            "Clique em Começar.",
+            "Arraste o bloco mover para baixo do bloco amarelo.",
+            "Dê um nome ao projeto e clique em Salvar.",
+          ].join("\n"),
+        );
+      await setup.getByRole("button", { name: "Criar etapas do roteiro" }).click();
+      await setup.getByRole("textbox", { name: "Fala da etapa 3" }).waitFor();
+      await captureOverlay(
+        overlay,
+        "gravador-guiado",
+        "Gravador no modo guiado, com o plano e as etapas",
+      );
+      await captureOverlay(setup, "gravador-guiado-plano", "Plano guiado (recorte)", ["escuro"]);
+      const fps = setup.getByRole("combobox", { name: "Quadros por segundo" });
+      await fps.selectOption("60");
+      await setup.locator(".guided-warning").waitFor();
+      await captureOverlay(
+        setup,
+        "gravador-guiado-60-quadros",
+        "Plano a 60 quadros, com o aviso de custo",
+        ["escuro"],
+      );
+      await fps.selectOption("30");
+      const lessonOpened = first.application.waitForEvent("window");
+      await setup.getByRole("button", { name: "Abrir janela da aula" }).click();
+      const lesson = await lessonOpened;
+      await lesson.getByRole("button", { name: "Começar" }).waitFor({ timeout: 30_000 });
+      await capture(lesson, "janela-da-aula", "Janela da aula com a página local");
+      await lesson.getByRole("button", { name: "Começar" }).click();
+      await lesson.locator("#editor.open").waitFor({ timeout: 15_000 });
+      await capture(lesson, "janela-da-aula-blocos", "Janela da aula com os blocos abertos");
+      const lessonClosed = lesson.waitForEvent("close", { timeout: 15_000 });
+      assert.equal(
+        await closeLessonWindow(first.application),
+        1,
+        "A janela da aula perdeu o título com o atalho de volta ao gravador",
+      );
+      await lessonClosed;
+      await setup.getByRole("combobox", { name: "Plano guiado" }).waitFor();
+      await captureOverlay(
+        overlay,
+        "gravador-guiado-depois-da-aula",
+        "Gravador no modo guiado depois de fechar a janela da aula",
+        ["escuro"],
+      );
+      await overlay.locator("#recording-mode").selectOption("screen");
+      const closed = overlay.waitForEvent("close");
+      await overlay.getByTitle("Fechar sem gravar").click();
+      await closed;
+    } finally {
+      lessonSite.close();
+      // Whatever failed on the way, neither window is left over the editor.
+      await closeLessonWindow(first.application).catch((error: unknown) =>
+        notes.push(`A janela da aula não fechou: ${describe(error)}`),
+      );
+      if (overlay && !overlay.isClosed()) {
+        const left = overlay;
+        await (async () => {
+          const closed = left.waitForEvent("close");
+          await left.getByTitle("Fechar sem gravar").click();
+          await closed;
+        })().catch((error: unknown) =>
+          notes.push(`O gravador não fechou depois do modo guiado: ${describe(error)}`),
+        );
+      }
+      lastPage = editor;
+    }
   });
 
   await step("Falha de salvamento", async () => {

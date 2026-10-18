@@ -98,8 +98,33 @@ export interface RunOptions {
   /** Stop before this step (the untimed preparation of "Continuar da etapa k"). */
   to?: number;
   log?: GuidedRunLog;
-  /** Verification: a failing step is reported here and the run goes on with the next one. */
-  onFailure?: (index: number, error: Error) => Promise<void>;
+  /** Verification: a failing step is reported here; the run goes on with the next one while
+   *  it answers true. */
+  onFailure?: (index: number, error: Error) => Promise<boolean>;
+}
+
+/**
+ * Failing steps in a row, for "Verificar plano": past `limit` of them the rest of the plan is not
+ * checked, since it depends on what failed (a page that never opened fails every step).
+ */
+export class FailureStreak {
+  private readonly limit: number;
+  private count = 0;
+  private failed = -1;
+  constructor(limit: number) {
+    this.limit = limit;
+  }
+  /** A step starts: the streak goes on only if the one before it failed. */
+  start(index: number): void {
+    if (this.failed !== index - 1) this.count = 0;
+  }
+  /** A step failed: whether to check the next one. */
+  fail(index: number): boolean {
+    if (this.failed !== index - 1) this.count = 0;
+    this.failed = index;
+    this.count++;
+    return this.count < this.limit;
+  }
 }
 
 /** A step that could not be done, with its index in the plan. */
@@ -179,15 +204,19 @@ export async function runGuided(
       clock.hold(actAt, "locate");
       const final = await driver.locate(step.target, "act", timeout);
       await clock.wait(0);
-      if (moved(final, target)) {
-        // The page moved it a little (a picture loaded): follow it. The screen cannot tell.
-        if (driver.space !== "page")
-          throw new Error("O alvo se moveu durante a aproximação. Revise a etapa.");
-        await driver.glide(target, final, span(Math.min(0.25, dwell)));
+      const shifted = moved(final, target);
+      if (shifted && driver.space !== "page")
+        throw new Error("O alvo se moveu durante a aproximação. Revise a etapa.");
+      if (step.action === "drag") drop = await driver.destination(step, final, timeout);
+      // The video goes on before the pointer follows: a correction never waits on itself.
+      clock.release();
+      if (shifted) {
+        // The page moved it a little (a picture loaded): follow it in the time left before the
+        // action, or at once when there is none.
+        const room = actAt - clock.time() - 0.05;
+        await driver.glide(target, final, span(Math.max(0, Math.min(0.25, dwell, room))));
         point = final;
       }
-      if (step.action === "drag") drop = await driver.destination(step, point, timeout);
-      clock.release();
       await driver.ready(step.target, "click");
       check();
       await clock.wait(0);
@@ -312,7 +341,7 @@ export async function runGuided(
       log?.step(s.index, "failed", message);
       const error = new GuidedStepError(s.index, message);
       if (!options.onFailure) throw error;
-      await options.onFailure(s.index, error);
+      if (!(await options.onFailure(s.index, error))) return;
       continue;
     }
     log?.step(s.index, "done");

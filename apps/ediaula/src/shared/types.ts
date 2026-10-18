@@ -18,6 +18,7 @@ import type {
   GuidedRunRecord,
   GuidedStore,
   GuidedTakeStatus,
+  GuidedViewport,
 } from "./guidedPlan.ts";
 import type { HotkeyReport } from "./hotkeys.ts";
 import type { Keyframe } from "./keyframes.ts";
@@ -663,12 +664,14 @@ export interface EdiAulaApi {
     onFollow(cb: (done: { line: number; at: number }) => void): () => void;
     onFollowState(cb: (s: { state: string; message: string }) => void): () => void;
     /** The plans as edited (sent a second after the last change): a draft, then the project. */
-    guidedSave(store: GuidedStore): Promise<void>;
+    guidedSave(store: GuidedStore, projectId: string | null): Promise<void>;
+    /** A take of a recorder opened without a lesson went into this one: its plans come along. */
+    guidedAdopt(projectId: string): Promise<GuidedStore | null>;
     /**
      * Marks an element in the lesson window: the teacher goes to it, presses the target key to
      * turn the inspector on and clicks it. null when it was called off.
      */
-    guidedMark(purpose: GuidedMarkPurpose): Promise<GuidedMark | null>;
+    guidedMark(purpose: GuidedMarkPurpose, viewport: GuidedViewport): Promise<GuidedMark | null>;
     /** A take of a lesson window plan from step `from`; progress comes by onGuidedStatus. */
     guidedWebStart(plan: GuidedPlanV2, from: number): Promise<void>;
     guidedWebPause(): Promise<void>;
@@ -683,6 +686,8 @@ export interface EdiAulaApi {
     onGuidedStatus(cb: (status: GuidedTakeStatus) => void): () => void;
     /** Editor window: the recorder saved the plans of a project. */
     onGuided(cb: (update: { projectId: string; store: GuidedStore }) => void): () => void;
+    /** Recorder window: it was opened again for another lesson or media; read the context again. */
+    onContextChanged(cb: () => void): () => void;
     sources(): Promise<CaptureSources & { current: number | null }>;
     moveTo(index: number): Promise<void>;
     /** Tests the encoders on this monitor at this rate once (seconds) and names the one that

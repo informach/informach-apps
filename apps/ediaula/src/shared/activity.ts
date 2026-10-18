@@ -50,8 +50,9 @@ export interface ScreenMotion {
 }
 
 /**
- * guided-run.json beside a guided recording: the steps the guided mode played and the stretches
- * where it held the recording waiting, in seconds of the video.
+ * guided-run.json beside a guided recording (shared/guidedCursor.ts, version 1): the steps the
+ * guided mode played and the stretches around where it held the recording waiting, in seconds of
+ * the video.
  */
 export interface GuidedRun {
   steps: { start: number; end: number }[];
@@ -75,14 +76,49 @@ const spans = (value: unknown): [number, number][] =>
     return r && r[1] > r[0] ? [r] : [];
   });
 
-/** Reads a guided-run.json; whatever is not a span of time is left out. */
+/**
+ * A hold has no length in the video (the writer stopped while the page went on): the picture
+ * jumps there. This much on each side of it is kept.
+ */
+export const HOLD_PAD = 0.5;
+
+/**
+ * Reads a guided-run.json (version 1 of shared/guidedCursor.ts, or the plain spans of earlier
+ * files); whatever is not a span of time is left out. A step counts from where the pointer set
+ * off to where its observation time ended, or as far as it really went; a step the take never
+ * reached is not in the video. Every interaction is kept with the margins of a click, and a hold
+ * (`at`, wall `duration`) with HOLD_PAD around the second it happened.
+ */
 export function normalizeGuidedRun(raw: unknown): GuidedRun {
   const field = (key: string): unknown =>
     raw && typeof raw === "object" ? Reflect.get(raw, key) : undefined;
-  return {
-    steps: spans(field("steps")).map(([start, end]) => ({ start, end })),
-    holds: spans(field("holds")),
+  const list = (key: string): unknown[] => {
+    const value = field(key);
+    return Array.isArray(value) ? value : [];
   };
+  const steps = list("steps").flatMap((s) => {
+    if (s && typeof s === "object" && Reflect.get(s, "status") === "pending") return [];
+    const r = span(s);
+    if (!r) return [];
+    const began = s && typeof s === "object" ? Reflect.get(s, "began") : undefined;
+    const finished = s && typeof s === "object" ? Reflect.get(s, "finished") : undefined;
+    const start = finite(began) ? Math.min(r[0], began) : r[0];
+    const end = finite(finished) ? Math.max(r[1], finished) : r[1];
+    return end > start ? [{ start, end }] : [];
+  });
+  for (const a of list("actions")) {
+    const t = a && typeof a === "object" ? Reflect.get(a, "t") : undefined;
+    const until = a && typeof a === "object" ? Reflect.get(a, "until") : undefined;
+    if (finite(t) && finite(until) && until >= t)
+      steps.push({ start: t - CLICK_BEFORE, end: until + CLICK_AFTER });
+  }
+  const holds = list("holds").flatMap((h): [number, number][] => {
+    const r = span(h);
+    if (r) return r[1] > r[0] ? [r] : [];
+    const at = h && typeof h === "object" ? Reflect.get(h, "at") : undefined;
+    return finite(at) ? [[Math.max(0, at - HOLD_PAD), at + HOLD_PAD]] : [];
+  });
+  return { steps, holds };
 }
 
 /** Reads a motion analysis file ({version: 1, frozen: [[a, b], …]}). */

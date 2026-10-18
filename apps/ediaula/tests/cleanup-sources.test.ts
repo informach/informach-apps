@@ -23,6 +23,7 @@ import {
   timelineWords,
 } from "../src/shared/cleanup.ts";
 import { normalizeCursorData } from "../src/shared/cursorData.ts";
+import type { GuidedRun as GuidedRunFile } from "../src/shared/guidedCursor.ts";
 import type { Asset, Clip, Project, Transcript } from "../src/shared/types.ts";
 
 // The cleanup plan of the renderer resolves the app's aliases; here they point at the sources.
@@ -347,6 +348,80 @@ test("pointing slowly, typing, scrolling and shortcuts hold a pause", () => {
   assert.ok(
     activityRanges(p, new Map(), new Map([["tela", run]])).every((a) => a.kind === "guided"),
   );
+});
+
+test("the steps, the interactions and the holds of a guided run keep their part of a pause", () => {
+  const p = lesson();
+  // guided-run.json as the guided mode writes it (shared/guidedCursor.ts, version 1), with the
+  // 10 s pause of the narration (20 to 30 s) in the middle of the take.
+  const file: GuidedRunFile = {
+    version: 1,
+    planId: "plano",
+    planName: "Farol",
+    timing: "t",
+    fps: 30,
+    viewport: { width: 1280, height: 720 },
+    from: 0,
+    narrationOffset: 0,
+    duration: 40,
+    status: "stopped",
+    steps: [
+      // Planned from 21 to 22.5; it began late and its observation ran on to 23.
+      {
+        index: 0,
+        id: "a",
+        speech: "",
+        action: "click",
+        start: 21,
+        act: 22,
+        end: 22.5,
+        began: 21.2,
+        finished: 23,
+        status: "done",
+      },
+      // Never reached: not in the video.
+      {
+        index: 1,
+        id: "b",
+        speech: "",
+        action: "click",
+        start: 28,
+        act: 28.5,
+        end: 29,
+        status: "pending",
+      },
+    ],
+    actions: [{ t: 25, until: 25.4, kind: "drag", step: 0 }],
+    // The writer waited 3 s for the page at 27.5 s: the picture jumps there.
+    holds: [{ at: 27.5, duration: 3, reason: "navigation" }],
+  };
+  const run = normalizeGuidedRun(JSON.parse(JSON.stringify(file)));
+  assert.deepEqual(run.steps, [
+    { start: 21, end: 23 },
+    { start: 25 - 0.6, end: 25.4 + 0.8 },
+  ]);
+  assert.deepEqual(run.holds, [[27, 28]]);
+  const activity = activityRanges(
+    p,
+    new Map([["tela", cursorWith({})]]),
+    new Map([["tela", file]]),
+    new Map([["tela", still]]),
+  );
+  const cut = silencesOf(
+    analyze(timelineWords(p, transcripts), audibleSilences(p, { transcripts }), {
+      minSilence: 1,
+      keepPause: 0.4,
+      activity,
+    }),
+  ).filter((i) => overlaps(i, 20, 30));
+  assert.ok(cut.length, "the stretches nobody acted in are still cut");
+  for (const i of cut) {
+    assert.ok(!overlaps(i, 21, 23), "the step stays");
+    assert.ok(!overlaps(i, 24.4, 26.2), "the drag stays");
+    assert.ok(!overlaps(i, 27, 28), "the hold stays");
+  }
+  // The pending step's seconds are not protected.
+  assert.ok(cut.some((i) => overlaps(i, 28.5, 29.5)));
 });
 
 test("only what is left of a pause around the activity, and long enough, is cut", () => {

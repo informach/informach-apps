@@ -13,8 +13,13 @@
  * Pure: the caller passes the wall clock (milliseconds) and writes the frames tick() returns.
  */
 
-export const HOLD_REASONS = ["locate", "wait", "navigation", "encoder", "pause"] as const;
+export const HOLD_REASONS = ["locate", "wait", "navigation", "encoder", "pause", "paint"] as const;
 export type HoldReason = (typeof HOLD_REASONS)[number];
+/**
+ * A drag holds every frame until the page painted it ("paint"), a few milliseconds each: only a
+ * wait as long as this (wall seconds) is a hold worth recording.
+ */
+const PAINT_RECORDED = 0.5;
 
 export interface HoldRecord {
   /** Second of the video where it held. */
@@ -55,6 +60,10 @@ export class FrameClock {
   private barrierReason: HoldReason = "wait";
   private readonly reasons = new Set<HoldReason>();
   private waiters: Waiter[] = [];
+  private readonly holdListeners = new Set<(hold: HoldRecord) => void>();
+  /** Wall milliseconds spent paused, and when the pause under way began. */
+  private pausedMs = 0;
+  private pausedSince: number | null = null;
   private readonly listeners = new Set<(t: number) => boolean | undefined>();
   private failure: Error | null = null;
 
@@ -162,6 +171,7 @@ export class FrameClock {
   hold(reason: HoldReason): void {
     if (this.reasons.has(reason)) return;
     this.reasons.add(reason);
+    if (reason === "pause") this.pausedSince = this.now();
     if (this.holdStart === null && this.origin !== null) {
       this.holdStart = this.now();
       this.holdReason = reason;
@@ -170,6 +180,10 @@ export class FrameClock {
 
   resume(reason: HoldReason): void {
     if (!this.reasons.delete(reason)) return;
+    if (reason === "pause" && this.pausedSince !== null) {
+      this.pausedMs += this.now() - this.pausedSince;
+      this.pausedSince = null;
+    }
     if (this.reasons.size) return;
     // A barrier still reached keeps holding; tick() sees it.
     if (this.frames < this.allowed()) this.endHold();
@@ -197,19 +211,32 @@ export class FrameClock {
       : Number.POSITIVE_INFINITY;
   }
 
+  /** Wall milliseconds the take has been paused so far (a deadline does not count them). */
+  pausedTotal(): number {
+    return this.pausedMs + (this.pausedSince !== null ? this.now() - this.pausedSince : 0);
+  }
+
+  /** Called with each hold as it ends, so it can be kept at once. Returns the unsubscribe. */
+  onHold(listener: (hold: HoldRecord) => void): () => void {
+    this.holdListeners.add(listener);
+    return () => this.holdListeners.delete(listener);
+  }
+
   private endHold(): void {
     if (this.holdStart === null) return;
     const now = this.now();
     const duration = Math.max(0, now - this.holdStart);
     this.heldMs += duration;
     this.holdStart = null;
-    if (duration > 0)
-      this.holds.push({
-        at: Math.round(this.time() * 1000) / 1000,
-        duration: Math.round(duration) / 1000,
-        reason: this.holdReason,
-        ...(this.step !== undefined ? { step: this.step } : {}),
-      });
+    if (duration <= 0 || (this.holdReason === "paint" && duration < PAINT_RECORDED * 1000)) return;
+    const hold: HoldRecord = {
+      at: Math.round(this.time() * 1000) / 1000,
+      duration: Math.round(duration) / 1000,
+      reason: this.holdReason,
+      ...(this.step !== undefined ? { step: this.step } : {}),
+    };
+    this.holds.push(hold);
+    for (const listener of [...this.holdListeners]) listener(hold);
   }
 
   private wake(): void {

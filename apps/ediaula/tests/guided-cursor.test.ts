@@ -92,6 +92,34 @@ test("the pointer passes through the click point at the click's second, a move p
   assert.deepEqual(normalizeCursorData(JSON.parse(JSON.stringify(data))).moves, data.moves);
 });
 
+test("a double click shows two clicks, each held a little; typing shows as moments", () => {
+  const lines: GuidedLogLine[] = [
+    begin,
+    { k: "move", t: 0, x: 300, y: 200 },
+    // As WebDriver.click logs a double click: two presses, each held CLICK_HOLD, DOUBLE_GAP apart.
+    { k: "down", t: 2.5, x: 300, y: 200, b: 0 },
+    { k: "up", t: 2.58, x: 300, y: 200, b: 0 },
+    { k: "down", t: 2.66, x: 300, y: 200, b: 0 },
+    { k: "up", t: 2.74, x: 300, y: 200, b: 0 },
+    { k: "act", t: 2.5, until: 2.74, kind: "doubleClick", step: 0 },
+    { k: "act", t: 3, until: 4.2, kind: "type", step: 0 },
+    { k: "key", t: 5, label: "Shift+Tab" },
+    { k: "end", t: 9.2, status: "done" },
+  ];
+  const data = synthesizeCursor(lines, viewport, 30, 9.2);
+  assert.deepEqual(
+    data.clicks.map((c) => [c[0], c[4]]),
+    [
+      [2.5, 0.08],
+      [2.66, 0.08],
+    ],
+  );
+  assert.deepEqual(data.typing, [3, 3.5, 4]);
+  assert.deepEqual(data.keys, [[5, "Shift+Tab"]]);
+  // The editor's activity sees the typing as well.
+  assert.deepEqual(normalizeCursorData(JSON.parse(JSON.stringify(data))).typing, [3, 3.5, 4]);
+});
+
 test("holds have no moves: the video's seconds go on from where the writer stopped", () => {
   const data = synthesizeCursor(log, viewport, 30, 9.2);
   // While the writer held at 4.5 the pointer stood still: after the click, nothing until the

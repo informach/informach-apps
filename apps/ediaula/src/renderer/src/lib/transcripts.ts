@@ -145,9 +145,9 @@ export async function loadProjectTranscripts(p: Project): Promise<Map<string, Tr
 
 /**
  * The files the cleanup reads besides the transcripts, one per line ("kind\tasset\tpath"): the
- * sound envelope ("e") of heard media with no transcript yet, the cursor data ("c") and the
- * motion analysis ("m") of the screen recordings on the timeline. File paths never hold tabs or
- * line breaks.
+ * sound envelope ("e") of heard media with no transcript yet, the cursor data ("c"), the
+ * guided-run.json of guided demonstrations ("g") and the motion analysis ("m") of the screen
+ * recordings on the timeline. File paths never hold tabs or line breaks.
  */
 function cleanupFiles(p: Project, transcripts: ReadonlyMap<string, Transcript>): string {
   const heard = new Set(audibleClips(p).map((c) => c.assetId));
@@ -159,9 +159,16 @@ function cleanupFiles(p: Project, transcripts: ReadonlyMap<string, Transcript>):
         ? [`e\t${a.id}\t${a.waveform}`]
         : []),
       ...(used.has(a.id) && a.cursor && !a.cursorMissing ? [`c\t${a.id}\t${a.cursor}`] : []),
+      ...(used.has(a.id) && a.guidedRun ? [`g\t${a.id}\t${a.guidedRun}`] : []),
       ...(screens.has(a.id) && a.motion ? [`m\t${a.id}\t${a.motion}`] : []),
     ])
     .join("\n");
+}
+
+async function loadGuidedRun(path: string): Promise<unknown> {
+  const r = await fetch(mediaUrl(path));
+  if (!r.ok) throw new Error(`Registro da demonstração não encontrado (${r.status})`);
+  return r.json();
 }
 
 async function loadMotion(path: string): Promise<ScreenMotion> {
@@ -181,6 +188,7 @@ async function readCleanupFiles(
   const envelopes = new Map<string, { peaksPerSecond: number; peaks: number[] }>();
   const cursors = new Map<string, unknown>();
   const screens = new Map<string, ScreenMotion | null>();
+  const guidedRuns = new Map<string, unknown>();
   const unseen: string[] = [];
   await Promise.all(
     files
@@ -194,6 +202,13 @@ async function readCleanupFiles(
           } catch (err) {
             // Without its envelope the whole clip counts as speech: nothing of it is cut as silence.
             console.warn(`[cleanup] the sound envelope of ${id} could not be read:`, err);
+          }
+        else if (kind === "g")
+          try {
+            guidedRuns.set(id, await loadGuidedRun(path));
+          } catch (err) {
+            // Without it the steps of that demonstration are kept by its cursor data alone.
+            console.warn(`[cleanup] the guided run of ${id} could not be read:`, err);
           }
         else if (kind === "m")
           try {
@@ -210,7 +225,7 @@ async function readCleanupFiles(
           }
       }),
   );
-  return { transcripts, envelopes, cursors, screens, unseen };
+  return { transcripts, envelopes, cursors, guidedRuns, screens, unseen };
 }
 
 /**

@@ -6,6 +6,7 @@ import {
   type GuidedStepTarget,
   type GuidedStepV2,
   type GuidedStore,
+  MAX_PLANS,
   newPlan,
   planTiming,
   schedulePlan,
@@ -13,7 +14,7 @@ import {
 } from "@shared/guidedPlan";
 import { type GuidedStep, stepsFromScript, stepsFromWords } from "@shared/guidedRecording";
 import type { Transcript } from "@shared/types";
-import { useEffect, useEffectEvent, useMemo, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { mediaUrl } from "@/lib/media";
 import { PreviewMedia } from "@/ui/PreviewMedia";
 import { GuidedStepRow, type MarkField } from "./GuidedStepRow";
@@ -51,12 +52,14 @@ export function resumeStep(store: GuidedStore, planId: string): number | null {
 const newPlanId = (): string => `plano-${crypto.randomUUID().slice(0, 8)}`;
 
 /** Steps proposed from the script or the narration: timing and speech, no target yet. */
+/** Proposed times to the hundredth of a second, as the teacher reads and types them. */
+const hundredth = (t: number): number => Math.round(t * 100) / 100;
 const proposed = (steps: GuidedStep[]): GuidedStepV2[] =>
   steps.map(({ id, speech, at, speechAt, action }) => ({
     id,
     speech,
-    at,
-    ...(speechAt !== undefined ? { speechAt } : {}),
+    at: hundredth(at),
+    ...(speechAt !== undefined ? { speechAt: hundredth(speechAt) } : {}),
     action,
   }));
 
@@ -70,6 +73,7 @@ export function GuidedSetup({
   onBusy,
   keys,
   replace,
+  problem,
   onStart,
 }: {
   store: GuidedStore;
@@ -82,6 +86,8 @@ export function GuidedSetup({
   /** The recorder's shortcuts as configured: target, start and pause, stop. */
   keys: { target: string; toggle: string; stop: string };
   replace?: GuidedReplace;
+  /** Why the plans cannot be saved as they are (a value to fix), or null. */
+  problem?: string | null;
   /** Records the plan from a step (the recorder's Gravar starts it from the first). */
   onStart: (from: number) => void;
 }) {
@@ -99,6 +105,10 @@ export function GuidedSetup({
     broken: BrokenStep[] | null;
   } | null>(null);
   const [renaming, setRenaming] = useState(false);
+  const [notice, setNotice] = useState("");
+  /** The plans as last handed to the recorder: edits that follow each other build on it. */
+  const storeRef = useRef(store);
+  storeRef.current = store;
   const audioCues = useMemo(
     () =>
       (plan?.steps ?? []).map((step, index, steps) => ({
@@ -118,31 +128,37 @@ export function GuidedSetup({
     return () => notifyBusy(false);
   }, [loading, picking, marking, verifying]);
 
-  const savePlan = (next: GuidedPlanV2): void => {
+  /** Changes one plan as it is now (after an await too), in one save. */
+  const editPlan = (id: string, edit: (plan: GuidedPlanV2) => GuidedPlanV2): void => {
     const now = Date.now();
-    onStore({
-      ...store,
-      plans: store.plans.map((p) => (p.id === next.id ? { ...next, updatedAt: now } : p)),
+    const current = storeRef.current;
+    const next: GuidedStore = {
+      ...current,
+      plans: current.plans.map((p) => (p.id === id ? { ...edit(p), updatedAt: now } : p)),
       updatedAt: now,
-    });
+    };
+    storeRef.current = next;
+    onStore(next);
   };
+  const savePlan = (next: GuidedPlanV2): void => editPlan(next.id, () => next);
   const change = (patch: Partial<GuidedPlanV2>): void => {
-    if (plan) savePlan({ ...plan, ...patch });
+    if (plan) editPlan(plan.id, (p) => ({ ...p, ...patch }));
   };
+  const withStep = (p: GuidedPlanV2, id: string, patch: Partial<GuidedStepV2>): GuidedPlanV2 => ({
+    ...p,
+    steps: p.steps.map((s) => {
+      if (s.id !== id) return s;
+      const next: GuidedStepV2 = { ...s, ...patch };
+      for (const key of Object.keys(patch) as (keyof GuidedStepV2)[])
+        if (patch[key] === undefined) delete next[key];
+      return next;
+    }),
+  });
   const updateStep = (id: string, patch: Partial<GuidedStepV2>): void => {
     if (!plan) return;
     // Old answers do not describe the changed step.
     if (verify?.broken) setVerify(null);
-    savePlan({
-      ...plan,
-      steps: plan.steps.map((s) => {
-        if (s.id !== id) return s;
-        const next: GuidedStepV2 = { ...s, ...patch };
-        for (const key of Object.keys(patch) as (keyof GuidedStepV2)[])
-          if (patch[key] === undefined) delete next[key];
-        return next;
-      }),
-    });
+    editPlan(plan.id, (p) => withStep(p, id, patch));
   };
 
   // Screen plans: the target key samples the real pointer (for programs outside the lesson).
@@ -201,24 +217,34 @@ export function GuidedSetup({
       setPicking({ id: step.id, field });
       return;
     }
+    if (!plan) return;
+    const id = plan.id;
     setMarking({ id: step.id, field });
+    setNotice("");
     try {
       const marked = await window.api.recorder.guidedMark(
         field === "to" ? "destination" : field === "target" ? "target" : "condition",
+        plan.viewport,
       );
       if (!marked) return;
       const locator = marked.locator;
+      let patch: Partial<GuidedStepV2>;
       if (field === "to")
-        updateStep(step.id, {
+        patch = {
           to: marked.workspace
             ? { point: { ...marked.workspace, space: "workspace" } }
             : { target: { locator } },
-        });
+        };
       else if (!locator) return;
-      else if (field === "target") updateStep(step.id, { target: { locator } });
-      else updateStep(step.id, { [field]: { locator, state: step[field]?.state ?? "visible" } });
-      // The first page marked is where the take starts, unless one was given.
-      if (!plan?.url) change({ url: marked.url });
+      else if (field === "target") patch = { target: { locator } };
+      else patch = { [field]: { locator, state: step[field]?.state ?? "visible" } };
+      if (verify?.broken) setVerify(null);
+      // One save: the target and, for the first page marked, where the take starts.
+      editPlan(id, (p) => ({
+        ...withStep(p, step.id, patch),
+        ...(p.url ? {} : { url: marked.url }),
+      }));
+      if (marked.notice) setNotice(marked.notice);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -343,7 +369,16 @@ export function GuidedSetup({
           )}
           <button
             type="button"
+            title={
+              store.plans.length >= MAX_PLANS
+                ? `Um projeto guarda até ${MAX_PLANS} planos. Exclua um que não use mais.`
+                : undefined
+            }
             onClick={() => {
+              if (store.plans.length >= MAX_PLANS) {
+                setError(`Um projeto guarda até ${MAX_PLANS} planos. Exclua um que não use mais.`);
+                return;
+              }
               const created = newPlan(newPlanId(), `Plano ${store.plans.length + 1}`, plan.mode);
               onStore({ ...store, plans: [...store.plans, created], updatedAt: Date.now() });
               onPlanId(created.id);
@@ -374,6 +409,16 @@ export function GuidedSetup({
               value={plan.mode}
               onChange={(e) => {
                 const mode = e.target.value === "screen" ? "screen" : "web";
+                const marked = plan.steps.filter(
+                  (s) => s.target || s.to || s.until || s.expect,
+                ).length;
+                if (
+                  marked &&
+                  !window.confirm(
+                    `Trocar onde a demonstração acontece apaga os alvos e as esperas marcados em ${marked === 1 ? "1 etapa" : `${marked} etapas`}: eles valem só para o lugar em que foram marcados. Trocar mesmo assim?`,
+                  )
+                )
+                  return;
                 // Targets of one kind mean nothing to the other.
                 savePlan({
                   ...plan,
@@ -444,6 +489,13 @@ export function GuidedSetup({
                 </select>
               </label>
             </div>
+            {plan.fps === 60 && (
+              <p className="guided-warning">
+                A 60 quadros a captura usa o dobro de processador e até 1,7 GB de memória, e numa
+                página com animação o vídeo pode esperar pelo codificador. Prefira 30, a não ser que
+                a aula precise de movimento muito fluido.
+              </p>
+            )}
             <p>
               Abra a aula e entre na plataforma. Para marcar um alvo, vá até ele na janela da aula,
               pressione {keys.target} e clique no elemento; {keys.target} de novo cancela. O login
@@ -473,14 +525,14 @@ export function GuidedSetup({
             Criar etapas do roteiro
           </button>
           <button type="button" onClick={() => void audio()}>
-            Importar áudio ou MP4 do HeyGen
+            Importar narração (áudio ou vídeo)
           </button>
         </div>
         <p>
-          Selecione o MP4 exportado pelo HeyGen. A voz é extraída automaticamente e usada para
-          ouvir, transcrever e sincronizar as ações. O arquivo original é preservado. Roteiro:
-          tempos estimados para narrar depois. Áudio: tempos de “clique” sugeridos pela transcrição;
-          revise-os antes de gravar.
+          Escolha o áudio da narração ou o vídeo do apresentador com a voz. Do vídeo, a voz é
+          separada automaticamente e usada para ouvir, transcrever e sincronizar as ações; o arquivo
+          original fica como está. Roteiro: tempos estimados para narrar depois. Áudio: tempos de
+          “clique” sugeridos pela transcrição; revise-os antes de gravar.
         </p>
         {plan.audio && (
           <div>
@@ -603,6 +655,8 @@ export function GuidedSetup({
         <p role="status">Marque na janela da aula: vá até o elemento e pressione {keys.target}.</p>
       )}
       {loading && <p role="status">Preparando o áudio e transcrevendo a narração…</p>}
+      {notice && <p role="status">{notice}</p>}
+      {problem && <p role="alert">{problem}</p>}
       {error && <p role="alert">{error}</p>}
       <p className="guided-validation">
         {validation ||
@@ -610,7 +664,7 @@ export function GuidedSetup({
       </p>
       <small>
         {web
-          ? "Cada alvo é reencontrado na página a cada etapa: identificação de teste, atributos, papel e nome, rótulo, texto, blocos do Blockly e, por último, a posição no HTML. Se a plataforma mudar, use Verificar plano e marque de novo só o que quebrou."
+          ? "Cada alvo é reencontrado na página a cada etapa: identificação de teste, atributos, papel e nome, rótulo, texto, blocos de programação (como os do Blockly) e, por último, a posição no HTML. Se a plataforma mudar, use Verificar plano e marque de novo só o que quebrou."
           : "Na janela de aula, botões são localizados novamente antes da ação. Jogos em canvas e quadros incorporados usam pontos relativos; em outros programas, posições fixas."}
       </small>
     </section>

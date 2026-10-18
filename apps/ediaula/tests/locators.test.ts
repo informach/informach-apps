@@ -12,6 +12,7 @@ import {
   buildLocator,
   type Candidate,
   conditionMet,
+  cursorKeyword,
   type ElementDescription,
   type Locator,
   locateMessage,
@@ -153,6 +154,86 @@ test("equal blocks are told apart by the marked rectangle, then a covered block 
   );
 });
 
+test("three equal blocks stacked: the marked one is found in a page of other proportions", () => {
+  // Marked at 1280 × 720, the middle one of three "mover passos" blocks stacked in the workspace.
+  const marking = { x: 240, y: 30, scale: 1 };
+  const ws = [40, 80, 120].map((y) => ({ x: 20, y }));
+  const block = (canvas: { x: number; y: number; scale: number }, at: { x: number; y: number }) => {
+    const p = workspaceToPage(canvas, at);
+    return candidate({
+      tag: "g",
+      text: "mover 10 passos",
+      rect: { x: p.x, y: p.y, width: 150 * canvas.scale, height: 40 * canvas.scale },
+    });
+  };
+  const marked = block(marking, ws[1]);
+  const strategy = { by: "blockly" as const, text: "mover passos", area: "workspace" as const };
+  const locator = buildLocator(
+    describe({
+      tag: "g",
+      text: "mover 10 passos",
+      blockly: strategy,
+      rect: marked.rect,
+      view,
+      workspace: pageToWorkspace(marking, { x: marked.rect.x + 75, y: marked.rect.y + 20 }),
+    }),
+  );
+  assert.deepEqual(locator.fingerprint.workspace, { x: 95, y: 100 });
+  // Recorded at 1280 × 1080 with the workspace zoomed in: the page grows, the blocks do not
+  // follow its proportions. The marked rectangle scaled to the page falls on the third block.
+  const tall = { width: 1280, height: 1080 };
+  const now = { x: 240, y: 60, scale: 1.25 };
+  const stacked = ws.map((at) => block(now, at));
+  const matches = [{ strategy: 0, candidates: stacked }];
+  const byPlace = rankCandidates(locator, matches, tall, now);
+  assert.ok(byPlace.ok);
+  assert.equal(byPlace.candidate, stacked[1]);
+  const byRect = rankCandidates({ ...locator, nth: undefined }, matches, tall);
+  assert.ok(!byRect.ok || byRect.candidate !== stacked[1], "the proportions alone mislead");
+  // Without the workspace's transform, the order among the equal ones decides.
+  assert.equal(locator.nth, undefined);
+  const byOrder = rankCandidates({ ...locator, nth: 1 }, matches, tall);
+  assert.ok(byOrder.ok && byOrder.candidate === stacked[1]);
+  // Three equal buttons the same way: their order, whatever the page's size.
+  const buttons = [100, 140, 180].map((y) =>
+    candidate({ rect: { x: 100, y, width: 80, height: 30 } }),
+  );
+  const button = buildLocator(describe({ rect: buttons[1].rect, view }));
+  const nth = rankCandidates({ ...button, nth: 1 }, [{ strategy: 0, candidates: buttons }], tall);
+  assert.ok(nth.ok && nth.candidate === buttons[1]);
+});
+
+test("whatever a real page reports fits the plan: long values are cut or left out", () => {
+  const locator = buildLocator(
+    describe({
+      tag: "x-painel.principal",
+      role: "button link",
+      name: "Próxima",
+      data: [
+        { name: "Weird_Name", value: "a" },
+        { name: "step", value: "dois" },
+      ],
+      path: `main > ${Array.from({ length: 200 }, (_, i) => `div:nth-of-type(${i + 1})`).join(" > ")}`.slice(
+        0,
+        3900,
+      ),
+      cursor: 'url("data:image/png;base64,iVBORw0KGgo") 4 4, url(mao.cur), pointer',
+      url: `https://plataforma.example/${"a(b)".repeat(900)}`,
+    }),
+  );
+  assert.equal(locator.fingerprint.cursor, "pointer");
+  assert.equal(cursorKeyword("auto"), "auto");
+  // A data name a selector cannot hold and a role that is not one are left out.
+  assert.deepEqual(
+    locator.strategies.filter((s) => s.by === "data" || s.by === "role").map((s) => s.by),
+    ["data"],
+  );
+  // The custom element's name does not fit a text strategy's tag: the text goes alone.
+  const text = locator.strategies.find((s) => s.by === "text");
+  assert.ok(text && !("tag" in text && text.tag));
+  assert.ok(locatorSchema.safeParse(locator).success, "the plan saves it");
+});
+
 test("the workspace transform converts points both ways; drops land under the target block", () => {
   assert.deepEqual(parseTransform("translate(12.5px, -4px) scale(1.25)"), {
     x: 12.5,
@@ -224,6 +305,10 @@ test("the locator keeps the stable strategies in order and refuses a structural 
   assert.deepEqual(block.strategies, [{ by: "blockly", text: "mover passos", area: "flyout" }]);
   assert.ok(locatorSchema.safeParse(locator).success);
   assert.equal(urlPatternOf("http://127.0.0.1:8123/a(b)"), "http://127.0.0.1:8123/a\\(b\\)");
+  // A frame its page wrote is named as it is.
+  assert.equal(urlPatternOf("about:srcdoc"), "about:srcdoc");
+  assert.ok(urlMatches(urlPatternOf("about:srcdoc"), "about:srcdoc"));
+  assert.ok(!urlMatches("about:srcdoc", "about:blank"));
 });
 
 test("ranking: unique usable wins, ties go to nth or to the marked spot, else the next strategy", () => {

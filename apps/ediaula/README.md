@@ -100,7 +100,7 @@ O motor e os modelos ficam em `%APPDATA%\ediaula\whisper`.
 
 **Limpeza que respeita a aula.** A aba Transcrição, as ferramentas `find_cleanup` e `apply_cleanup` da IA e o botão **Limpar a aula** do Assistente usam o mesmo cálculo (`src/renderer/src/lib/cleanupPlan.ts`), com as escolhas guardadas na aula (`project.cleanup`: o que foi marcado para manter, os tipos ligados, o silêncio mínimo e a pausa que fica). O que a pessoa manteve no painel, ou deixou de fora de uma proposta de limpeza antes de aplicar, fica mantido também quando a IA limpa. Vícios e repetições são identificados pela palavra; uma pausa, pelo trecho da mídia em que está (`s:<mídia>:<início>-<fim>`, ancorado na mídia da última palavra dita antes dela), e a marcação de manter vale para a mesma pausa mesmo depois de um corte que a encurta, de um clique que a divide ou de outra fonte transcrita depois.
 - **Silêncio só onde ninguém fala** (`audibleSilences` em `src/shared/cleanup.ts`): junta a fala de cada clipe que se ouve (faixa não muda, volume acima de 0, mídia com som, fora da faixa de música, fora do trecho em que a voz fica muda sob o som do apresentador). Com transcrição, a fala é o que não é silêncio nela, mais cada palavra que o whisper ouviu dentro de um silêncio do FFmpeg (com 0,15 s de margem) e os trechos que o VAD guardou: uma resposta baixinha da criança nunca vira pausa. Sem transcrição, vale o envelope do som (40 dB abaixo do pico do arquivo por 0,3 s é pausa); sem nenhum dos dois, o clipe inteiro conta como fala. O avatar encaixado numa pausa da narração não é cortado, e um trecho sem som nenhum (cartela, imagem) não é pausa.
-- **A tela parada também conta** (`src/shared/activity.ts`): numa gravação de tela, a limpeza só encurta uma pausa onde a imagem fica parada e ninguém fala. Onde a imagem fica parada é medido em segundo plano (o agendador espera a gravação terminar) pelo `freezedetect` do FFmpeg, a 5 quadros por segundo e 480 px, sobre o proxy quando está pronto ou sobre a própria mídia, e fica em cache ao lado da mídia (`asset.motion`). Enquanto essa análise não termina, nenhuma pausa daquela gravação é cortada, e o painel avisa. Além da imagem, seguram a pausa: qualquer movimento do ponteiro, mesmo devagar; cliques (de 0,6 s antes até 0,8 s depois); arrastos inteiros; rolagem; atalhos; digitação (só os instantes, veja **Teclas na tela**); e as etapas e esperas de um `guided-run.json` do modo guiado, quando ele existir (o leitor já aceita o arquivo; a gravação guiada passa a escrevê-lo no Lote 9). Lê o `cursor.json` v1 e v2. De um silêncio só se corta o que sobra e ainda tem o silêncio mínimo.
+- **A tela parada também conta** (`src/shared/activity.ts`): numa gravação de tela, a limpeza só encurta uma pausa onde a imagem fica parada e ninguém fala. Onde a imagem fica parada é medido em segundo plano (o agendador espera a gravação terminar) pelo `freezedetect` do FFmpeg, a 5 quadros por segundo e 480 px, sobre o proxy quando está pronto ou sobre a própria mídia, e fica em cache ao lado da mídia (`asset.motion`). Enquanto essa análise não termina, nenhuma pausa daquela gravação é cortada, e o painel avisa. Além da imagem, seguram a pausa: qualquer movimento do ponteiro, mesmo devagar; cliques (de 0,6 s antes até 0,8 s depois); arrastos inteiros; rolagem; atalhos; digitação (só os instantes, veja **Teclas na tela**); e as etapas, as interações e as esperas do `guided-run.json` que a gravação guiada escreve ao lado do vídeo (cada espera guarda meio segundo de cada lado do ponto em que o vídeo segurou; uma etapa que o take não alcançou não conta). Lê o `cursor.json` v1 e v2. De um silêncio só se corta o que sobra e ainda tem o silêncio mínimo.
 - **Pausa para pensar**: depois de uma pergunta, ou onde o roteiro pede para pausar, aguardar ou esperar entre duas falas, a pausa fica com 2,5 s em vez de 0,4 s.
 - **Vício e repetição só na fala da professora**: são procurados nas palavras de cada fonte da professora; o apresentador (avatar ou pessoa: mídia com fundo removido ou gravada num fundo de cor, o vídeo encaixado pela voz, a narração guiada tirada de um vídeo, um clipe encaixado do roteiro), o áudio do PC e fontes que não se ouvem ficam de fora. Entre as tomadas cabem no máximo 0,6 s (uma palavra), 1,5 s (duas) ou 3 s (três ou mais); uma ou duas palavras de novo depois de ponto final começam outra frase; com atividade na tela entre as tomadas é demonstração, não repetição. Contagens ("um, dois, três") e repetições de ênfase ("muito, muito", "vamos lá, vamos lá") ficam (lista `DEFAULT_INTENTIONAL`, trocável por `project.cleanup.intentional`). Um vício no meio de um arrasto ou de outra atividade fica, e um corte que pegaria a fala de outra fonte não é sugerido.
 - **Tudo vira proposta**: **Propor a limpeza**, no painel, e o botão rápido do Assistente montam a limpeza no computador, sem IA e sem custo, como proposta ancorada na mídia e revisada item a item na barra de proposta. `apply_cleanup` propõe por padrão (`mode: "propose"`, que basta a um app conectado só para ler e propor) e só corta direto com `mode: "apply"`, que é uma escrita. Enquanto a proposta da limpeza da voz espera, a limpeza geral deixa de fora o que ela já propõe, e o que a pessoa deixar de fora dela também fica mantido aqui.
@@ -634,60 +634,98 @@ HeyGen é usado pelo site dele, como sempre.
   gravador abre com o rascunho. Planos da versão 1 abrem migrados como planos de tela.
 - **Onde acontece:** **Na janela da aula** (recomendado) ou **Na tela, em outros programas**.
 - **Na janela da aula** o EdiAula não mexe no seu mouse. **Abrir janela da aula** abre a plataforma numa
-  janela isolada (sem acesso à ponte do editor; o login fica no perfil dessa janela). A demonstração roda pela
-  própria página, pelo Chrome DevTools Protocol (`main/guidedCdp.ts`): mouse com um evento por quadro (o
-  arrasto do Blockly recebe todos os eventos de ponteiro), duplo clique, roda, teclas com modificadores e
-  digitação. Abrir o DevTools nessa janela desliga a automação, com aviso.
+  janela isolada (sem acesso à ponte do editor; o login fica no perfil dessa janela). Essa janela não tem menu
+  (Ctrl+W e Ctrl+R da página não a fecham nem recarregam), só abre endereços da web, e a página só pode entrar
+  em tela cheia e copiar para a área de transferência: câmera, microfone, localização, notificações e o resto
+  são recusados (`main/guidedSession.ts`). A demonstração roda pela própria página, pelo Chrome DevTools
+  Protocol (`main/guidedCdp.ts`): mouse com um evento por quadro (um arrasto de blocos de programação, como os
+  do Blockly, recebe todos os eventos de ponteiro), clique com o botão segurado um instante, clique duplo como
+  dois cliques, roda, teclas com modificadores e digitação com uma tecla descendo e subindo por caractere.
+  Abrir as ferramentas de desenvolvedor nessa janela desliga a automação, com aviso: feche as ferramentas de
+  desenvolvedor e tente de novo.
+- **Página lenta ou ocupada:** a página conta como aberta quando o documento fica pronto, mesmo que uma imagem
+  nunca termine de carregar, e um redirecionamento é seguido; depois de 30 s sem abrir, o take para com aviso.
+  Cada comando à página desiste em 10 s. Uma consulta que falha por um momento (a página ocupada ou entre dois
+  documentos) é "ainda não" até a espera máxima da etapa; só a automação desligada, uma pergunta da página ou
+  parar o take encerram na hora. Enquanto uma navegação está em curso, nenhuma condição vale, nem "sumir". O
+  tempo pausado com **F9** não conta na espera máxima. Um aviso da página (alerta, sair da página) é aceito; uma
+  pergunta (confirmar, digitar) é recusada e a etapa diz qual foi.
 - **Captura em tamanho fixo** (`main/guidedCapture.ts`): uma janela fora da tela, na mesma sessão já logada,
   desenha a página em 1280 × 720 ou 1920 × 1080, escala 1, a 30 ou 60 quadros. O relógio do vídeo é a contagem
   de quadros: o último quadro se repete enquanto a página não muda. Quando a etapa espera (o alvo ainda
   carregando, uma navegação, uma condição), o vídeo segura: não sai quadro e a espera fica registrada. A ação
   acontece no segundo exato da narração, sem "O movimento atrasou". O codificador é o detectado para a tela, pelo
   caminho da CPU (BT.709), e o x264 entra se ele não aceitar. Durante o take, o gravador mostra uma prévia a 5
-  quadros por segundo, a etapa e o motivo de cada espera; **F9** pausa, **F10** para e salva.
+  quadros por segundo, a etapa e o motivo de cada espera; **F9** pausa, **F10** para e salva. Cada espera vai
+  para o registro do take assim que termina, e um take recuperado depois de uma queda entra no projeto com o
+  resultado dele. O quadro chega do Electron como uma cópia (`toBitmap`; o `getBitmap` desta versão é o mesmo
+  método), cerca de 8 MB por quadro a 1080p: a 60 quadros isso pesa, e o painel avisa ao escolher 60.
 - **Marcar alvos:** em cada etapa, **Marcar alvo**: vá até o elemento na janela da aula (navegando à vontade),
-  pressione **F8** para ligar o inspetor e clique nele; **F8** de novo cancela. O alvo vira um localizador
-  (`shared/locators.ts`) com várias estratégias, da mais estável à menos: identificação de teste, atributos
-  `data-`, id estável, papel e nome de acessibilidade, rótulo, texto, bloco do Blockly e, por último, o caminho
-  CSS (que nunca vale sozinho: só conta se o elemento ainda tiver a mesma tag e o mesmo texto). Na hora de agir,
-  vale o primeiro que encontrar um único elemento visível, habilitado e não coberto; empates vão para o mais
-  perto do retângulo marcado. A página precisa estar no endereço marcado (sem contar consulta e âncora).
-- **Blockly:** um bloco é achado pelo texto dos seus rótulos, no flyout, na área de trabalho ou como categoria
-  da caixa de ferramentas, e é pego pela borda esquerda. O destino de um arrasto é **abaixo de um bloco**
-  (marque o bloco) ou **um ponto da área de trabalho** (marque o fundo), convertido pela transformação do
-  `.blocklyBlockCanvas`: funciona com rolagem e zoom diferentes.
+  pressione **F8** para ligar o inspetor e clique nele; **F8** de novo cancela. Enquanto marca, a página fica no
+  tamanho de captura do plano, reduzida para caber na janela: o que se marca está onde o take vai agir, numa
+  tela de qualquer tamanho. O alvo vira um localizador (`shared/locators.ts`) com várias estratégias, da mais
+  estável à menos: identificação de teste, atributos `data-`, id estável, papel e nome de acessibilidade,
+  rótulo, texto, blocos de programação (como os do Blockly) e, por último, o caminho CSS (que nunca vale
+  sozinho: só conta se o elemento ainda tiver a mesma tag e o mesmo texto). Na hora de agir, vale o primeiro
+  que encontrar um único elemento visível, habilitado e não coberto. Entre elementos iguais vale, nesta ordem,
+  o lugar do bloco na área de trabalho (em unidades dela, que não mudam com rolagem, zoom ou tamanho da
+  página), a ordem dele entre os iguais quando foi marcado e o mais perto do retângulo marcado. A página
+  precisa estar no endereço marcado (sem contar consulta e âncora). Os valores guardados têm limite (textos
+  longos são cortados, um caminho CSS enorme fica de fora) e o plano é conferido na tela antes de salvar: um
+  valor inválido aparece com o que corrigir, e o plano só é salvo quando ele for válido. Um projeto guarda até
+  50 planos.
+- **Quadros (iframes):** um elemento num quadro do mesmo site é lido no próprio quadro, mesmo num quadro escrito
+  pela página. Um quadro de outro site (que o Chromium desenha em outro processo) não é aberto por dentro: ao
+  marcar, o painel avisa, e o EdiAula age no mesmo ponto do quadro, sem reconhecer os elementos de dentro.
+- **Blocos de programação (como os do Blockly):** um bloco é achado pelo texto dos seus rótulos, no flyout, na
+  área de trabalho ou como categoria da caixa de ferramentas, e é pego pela borda esquerda. O destino de um
+  arrasto é **abaixo de um bloco** (marque o bloco) ou **um ponto da área de trabalho** (marque o fundo),
+  convertido pela transformação do `.blocklyBlockCanvas`: funciona com rolagem e zoom diferentes. Num arrasto, a
+  página desenha cada passo um pouco depois do evento: cada quadro manda a posição do seguinte e o vídeo espera
+  a página desenhá-la, então a mão desenhada e o bloco ficam juntos em todos os quadros (no teste de fumaça, a
+  1 ou 2 pixels; a 60 quadros com a página animada e o codificador atrasado, um quadro ou outro a até 7),
+  por mais lenta que a página seja; o take só demora mais no relógio.
 - **Ações:** apontar, passar o mouse, clicar, clique duplo, clique direito, arrastar, rolar (uma distância ou até
   um elemento aparecer), clicar e digitar, tecla ou atalho (por exemplo **Ctrl+Shift+Z**) e esperar (um elemento
   aparecer, sumir ou ficar disponível). Cada etapa pode ter **Conferir depois** (a etapa só termina quando a
   condição vale) e uma **Espera máxima**.
 - **Verificar plano** roda o plano inteiro na janela fora da tela, sem gravar, e lista as etapas que falharam,
-  cada uma com uma foto da página naquele momento. Marque de novo só essas.
+  cada uma com uma foto da página naquele momento. Marque de novo só essas. Depois de 3 etapas seguidas com
+  falha a verificação para, porque as seguintes dependem delas.
 - **Continuar da etapa k:** quando um take para numa etapa (erro ou **F10**), salve o que foi gravado, corrija a
-  etapa e use **Continuar da etapa k**: as etapas anteriores são refeitas sem gravar e o take novo começa na
-  etapa k, com a narração cortada no mesmo ponto.
+  etapa e use **Continuar da etapa k**: as etapas anteriores são refeitas sem gravar, o ponteiro começa onde
+  elas o deixaram e o take novo começa na etapa k, com a narração cortada no mesmo ponto. Ao importar, o take
+  anterior do mesmo plano é cortado no segundo da narração em que o novo começa (a fala da etapa k menos a
+  antecedência) e o novo entra ali, em todas as faixas do take: a narração segue sem salto. Se houver outro
+  clipe depois do take anterior nessas faixas, o corte é só proposto e o take novo vai para o fim.
 - **Cursor e registro:** o cursor do vídeo é sintetizado do que a automação fez (`shared/guidedCursor.ts`):
   `cursor.json` versão 2 com um movimento por quadro enquanto ele anda, passando pelo ponto de cada clique no
   instante do clique, cliques com duração (o arrasto é um clique segurado), roda, atalhos com o rótulo e a forma
   tirada do cursor CSS do elemento (mão, texto). Ao lado fica `guided-run.json` (formato estável, versão 1): as
   etapas com os segundos planejados e reais, cada interação e cada espera. A mídia da tela guarda o caminho
-  dele (`guidedRun`). A pasta do take é um take comum: uma queda é recuperada como as outras, com cursor.
+  dele (`guidedRun`). A pasta do take é um take comum: uma queda é recuperada como as outras, com cursor. Os
+  planos que vieram com o take entram no projeto mesmo quando o gravador foi aberto sem ele.
+- **Planos de cada aula:** o gravador mostra os planos da aula para a qual foi aberto e salva neles; aberto de
+  novo para outra aula, troca os planos. Trocar **Onde acontece** num plano com alvos marcados pede confirmação,
+  porque os alvos de um lugar não valem no outro.
 - **Regravar e substituir:** na biblioteca, uma tela gravada assim tem **Regravar e substituir**. O gravador abre
-  com o mesmo plano e o take novo entra no lugar do antigo, nos mesmos clipes. Se os tempos do plano mudaram
-  desde a gravação, a substituição é recusada: grave um take novo.
+  com o mesmo plano e o take novo entra no lugar do antigo, nos mesmos clipes. Se os tempos do plano ou a etapa
+  inicial mudaram desde a gravação, ou o take novo tem outro tamanho ou outra taxa de quadros, a substituição é
+  recusada e o take entra como uma gravação nova.
 - **Custo medido** (Ryzen 5 5600G com 12 threads e RTX 3050, codificador NVENC pela CPU, página com uma animação
-  contínua, 22 s de vídeo, várias rodadas com outros trabalhos na máquina): a 1080p30, de 1,2 a 1,5 núcleo (10% a
-  13% da máquina), uns 650 a 730 MB nos processos do Electron e 200 MB no FFmpeg, e o vídeo quase nunca segurou
+  contínua, 22 s de vídeo, várias rodadas com outros trabalhos na máquina): a 1080p30, de 0,9 a 1,5 núcleo (8% a
+  13% da máquina), uns 650 a 860 MB nos processos do Electron e 200 MB no FFmpeg, e o vídeo quase nunca segurou
   pelo codificador (no máximo 1 s). A 1080p60, de 2,3 a 2,8 núcleos (19% a 23%), 770 MB a 1,7 GB no Electron, e
   o vídeo segurou pelo codificador de 1 s (máquina livre) a 60 s (máquina ocupada): a 60 não acompanha com
-  segurança. Com a página parada, 0,6 a 0,7 núcleo a 30 e 1,3 a 1,6 a 60. Por isso o padrão é 30.
+  segurança. Com a página parada, 0,4 a 0,8 núcleo a 30 e 0,9 a 1,6 a 60. Por isso o padrão é 30.
   `scripts/guided-smoke.mts` refaz a medida.
 - **Na tela, em outros programas:** o modo de antes, para alvos fora da janela da aula. O auxiliar nativo move o
   mouse do Windows com o `glide` (a curva desenhada no relógio dele), clica, arrasta, rola e envia atalhos. A
   posição do alvo é marcada com **F8** sobre ele; a janela é conferida antes de agir e a execução pausa se o
   ritmo se perder. Esperar por elemento só existe na janela da aula.
-- **MP4 do HeyGen:** em **Importar áudio ou MP4 do HeyGen**, selecione o vídeo exportado com a voz. O EdiAula
-  extrai a primeira faixa de áudio em WAV, preserva o MP4 original e usa o mesmo WAV para escuta, transcrição e
-  narração na timeline. A transcrição propõe etapas nas palavras "clique", "clicar" e "clicamos"; o roteiro
+- **Narração de um vídeo:** em **Importar narração (áudio ou vídeo)**, escolha o áudio da narração ou o vídeo do
+  apresentador com a voz. Do vídeo, o EdiAula extrai a primeira faixa de áudio em WAV, preserva o arquivo
+  original e usa o mesmo WAV para escuta, transcrição e narração na timeline. A transcrição propõe etapas nas palavras "clique", "clicar" e "clicamos"; o roteiro
   produz tempos estimados. Também dá para definir etapas e tempos à mão.
 - Ritmo didático inicial para aulas de **9 a 14 anos**, ajustável: movimento suave de **1,2 s**, chegada **0,5 s
   antes da fala**, espera mínima de **0,8 s** no alvo antes do clique e **1,5 s** após a ação. Em cada etapa,
@@ -700,11 +738,14 @@ HeyGen é usado pelo site dele, como sempre.
 ### Teste de fumaça da gravação guiada
 
 `node_modules/.bin/electron scripts/guided-smoke.mts` (em `apps/ediaula`, com uns 2 GB de memória livres) serve
-`tests/fixtures/guided-blockly.html` (blocos em SVG que arrastam como os do Blockly), marca os alvos pelo
-protocolo como o **F8**, grava um plano com clique, espera, arrasto do flyout para baixo de um bloco, digitação,
-conferência e atalho, a 1080p30 e a 1080p60 (com a página animada e parada), e um take que continua da quarta
-etapa. Confere o vídeo, o cursor e o `guided-run.json` e mede CPU e memória de cada processo. Não mexe no mouse
-real.
+`tests/fixtures/guided-blockly.html` (blocos de programação em SVG que arrastam como os do Blockly), marca os
+alvos pelo protocolo como o **F8** numa janela de 1280 × 800 com a página no tamanho do plano, grava um plano com
+clique, espera, arrasto do flyout para baixo de um bloco, digitação, conferência e atalho, a 1080p30 e a 1080p60
+(com a página animada e parada), e um take que continua da quarta etapa. Confere a duração do vídeo e o que ele
+mostra (o alvo sob o ponteiro em cada clique e o bloco junto da mão no arrasto), o cursor e o `guided-run.json`,
+e mede CPU e memória de cada processo. Confere também o que a janela da aula recusa (microfone, Ctrl+W, Ctrl+R e
+F5), um botão num quadro do mesmo site e páginas que redirecionam, nunca terminam de carregar ou não abrem. Não
+mexe no mouse real.
 
 ## Estrutura
 

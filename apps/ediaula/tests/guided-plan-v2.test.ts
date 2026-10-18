@@ -22,6 +22,7 @@ import {
   scheduleGuided,
 } from "../src/shared/guidedRecording.ts";
 import {
+  FailureStreak,
   type GuidedDriver,
   type GuidedRunLog,
   instantClock,
@@ -197,6 +198,10 @@ test("shortcuts become the page's key events and the editor's label", () => {
   assert.equal(parseChord("F5")?.vk, 116);
   assert.equal(parseChord("a")?.text, "a");
   assert.equal(parseChord("Shift+a")?.key, "A");
+  assert.equal(parseChord("Shift+a")?.label, "A");
+  assert.equal(parseChord("Shift+Tab")?.label, "Shift+Tab");
+  assert.equal(parseChord("shift+enter")?.label, "Shift+Enter");
+  assert.equal(parseChord("Tab")?.label, "Tab");
   assert.equal(parseChord("Win+D")?.modifiers, 4);
   for (const bad of ["", "Ctrl+", "Ctrl+Ctrl+A", "Foo", "Ctrl+Shift", "F25"])
     assert.equal(parseChord(bad), null, bad);
@@ -238,6 +243,10 @@ class FakePage implements GuidedDriver {
   readonly events: { t: number; op: string; x?: number; y?: number; step?: string }[] = [];
   pointer: Point = { x: 0, y: 0 };
   readonly slow = new Map<string, number>();
+  /** Where a target is by the time it is looked up again just before the action. */
+  readonly moved = new Map<string, Point>();
+  /** Milliseconds of every lookup just before the action (a few protocol round trips). */
+  lookup = 0;
   private readonly clock: FrameClock | null;
   private readonly sleep: (ms: number) => Promise<void>;
   private readonly points: Record<string, Point>;
@@ -256,10 +265,12 @@ class FakePage implements GuidedDriver {
   }
   async locate(target: { locator?: Locator }, phase: "approach" | "act") {
     const name = target.locator?.fingerprint.text ?? "";
-    const delay = phase === "approach" ? (this.slow.get(name) ?? 0) : 0;
+    const delay = phase === "approach" ? (this.slow.get(name) ?? 0) : this.lookup;
     if (delay) await this.sleep(delay);
     this.events.push({ t: this.time(), op: `locate-${phase}`, step: name });
-    return this.points[name];
+    const point = (phase === "act" && this.moved.get(name)) || this.points[name];
+    if (!point) throw new Error(`Não encontrei "${name}" na página.`);
+    return point;
   }
   async destination(step: GuidedStepV2) {
     const p = step.to?.point;
@@ -421,6 +432,85 @@ test("a wait holds only past its own time, then the drag, scroll and shortcut fo
   assert.ok(Math.abs(wait.at - schedule.steps[3].endAt) < 1e-9);
   assert.ok(Math.abs(wait.duration - 1.5) < 0.05, `held ${wait.duration}`);
   assert.equal(at("key-Ctrl+Z"), schedule.steps[4].actAt);
+});
+
+test("a target the page moved before the click is followed, and the take goes on", async () => {
+  // The reviewer's case: the video held at the click while the correction waited on the video.
+  const sim = simulation(30);
+  const page = new FakePage(sim.frames, sim.sleep, points);
+  page.lookup = 30;
+  page.moved.set("Começar", { x: 300, y: 240 });
+  const plan = webPlan([
+    { id: "a", at: 2, speech: "Clique", action: "click", target: on("Começar") },
+    { id: "b", at: 6, speech: "Avance", action: "click", target: on("Próxima") },
+  ]);
+  const schedule = schedulePlan(plan);
+  const controller = new AbortController();
+  sim.frames.start();
+  await sim.drive(
+    runGuided(plan, page, videoClock(sim.frames, controller.signal), controller.signal),
+  );
+  const clicks = page.events.filter((e) => e.op === "left-1");
+  assert.deepEqual(
+    clicks.map((c) => [c.x, c.y]),
+    [
+      [300, 240],
+      [900, 600],
+    ],
+  );
+  assert.deepEqual(
+    clicks.map((c) => c.t),
+    schedule.steps.map((s) => s.actAt),
+  );
+  // The pointer went where the button is now before the click, and the video never stuck there.
+  const before = page.events.filter((e) => e.op === "glide" && e.t <= clicks[0].t).at(-1);
+  assert.deepEqual([before?.x, before?.y], [300, 240]);
+  assert.ok(Math.abs(sim.frames.time() - schedule.duration) <= 1 / 30);
+  assert.ok(sim.frames.holds.every((h) => h.duration < 0.2));
+});
+
+test("checking the plan goes past a failing step, and stops after three in a row", async () => {
+  const streak = new FailureStreak(3);
+  streak.start(0);
+  assert.equal(streak.fail(0), true);
+  streak.start(1);
+  streak.start(2);
+  assert.equal(streak.fail(2), true, "a step that worked ends the streak");
+  streak.start(3);
+  assert.equal(streak.fail(3), true);
+  streak.start(4);
+  assert.equal(streak.fail(4), false);
+
+  const plan = webPlan([
+    { id: "a", at: 0, speech: "Comece", action: "click", target: on("Falta 1") },
+    { id: "b", at: 5, speech: "Comece", action: "click", target: on("Começar") },
+    { id: "c", at: 10, speech: "Siga", action: "click", target: on("Falta 2") },
+    { id: "d", at: 15, speech: "Siga", action: "click", target: on("Falta 3") },
+    { id: "e", at: 20, speech: "Siga", action: "click", target: on("Falta 4") },
+    { id: "f", at: 25, speech: "Avance", action: "click", target: on("Próxima") },
+  ]);
+  const page = new FakePage(null, async () => undefined, points);
+  const controller = new AbortController();
+  const checked = new FailureStreak(3);
+  const failed: number[] = [];
+  await runGuided(
+    plan,
+    page,
+    { ...instantClock(controller.signal), step: (index) => checked.start(index) },
+    controller.signal,
+    {
+      onFailure: async (index) => {
+        failed.push(index);
+        return checked.fail(index);
+      },
+    },
+  );
+  assert.deepEqual(failed, [0, 2, 3, 4]);
+  // Step 2 was done; the last step is never reached.
+  assert.deepEqual(
+    page.events.filter((e) => e.op === "left-1").map((e) => [e.x, e.y]),
+    [[300, 200]],
+  );
 });
 
 test("continuing from a step replays the earlier ones untimed, then times the take from it", async () => {

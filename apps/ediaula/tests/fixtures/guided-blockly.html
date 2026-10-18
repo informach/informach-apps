@@ -30,6 +30,8 @@
       footer { display: flex; gap: 16px; align-items: center; margin: 24px 32px; }
       input { font: inherit; padding: 10px 12px; width: 360px; border-radius: 8px; border: 1px solid #a5b0c8; cursor: text; }
       #saved[hidden], #undone[hidden] { display: none; }
+      .blocklyBlockDragSurface { position: fixed; left: 0; top: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; overflow: visible; display: none; }
+      .blocklyBlockDragSurface.dragging { display: block; }
     </style>
   </head>
   <body>
@@ -45,13 +47,17 @@
         <div class="blocklyToolboxCategory"><div class="blocklyTreeRow"><span class="blocklyTreeLabel">Aparência</span></div></div>
       </div>
       <svg class="blocklyFlyout" xmlns="http://www.w3.org/2000/svg">
+        <title>Blocos para arrastar</title>
         <g class="blocklyWorkspace"><g class="blocklyBlockCanvas" transform="translate(20, 30) scale(0.9)"></g></g>
       </svg>
       <svg class="blocklySvg" xmlns="http://www.w3.org/2000/svg">
+        <title>Área de trabalho</title>
         <rect class="blocklyMainBackground" width="100%" height="100%"></rect>
         <g class="blocklyWorkspace"><g class="blocklyBlockCanvas" transform="translate(30, 20) scale(0.9)"></g></g>
       </svg>
     </section>
+    <!-- As in Blockly: a block being dragged is drawn above everything, the flyout included. -->
+    <svg class="blocklyBlockDragSurface" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><g></g></svg>
     <footer>
       <label for="name">Nome do projeto</label>
       <input id="name" />
@@ -67,6 +73,8 @@
       const flyout = document.querySelector(".blocklyFlyout .blocklyBlockCanvas");
       const canvas = document.querySelector(".blocklySvg .blocklyBlockCanvas");
       const status = document.getElementById("status");
+      const surface = document.querySelector(".blocklyBlockDragSurface");
+      const surfaceLayer = surface.querySelector("g");
       const blocks = [];
       let serial = 0;
       const SCALE = 0.9;
@@ -145,6 +153,10 @@
               } else dragged = item;
               origin = { x: dragged.x, y: dragged.y };
               dragged.g.classList.add("dragging");
+              const m = canvas.getScreenCTM();
+              surfaceLayer.setAttribute("transform", "translate(" + m.e + "," + m.f + ") scale(" + m.a + ")");
+              surfaceLayer.appendChild(dragged.g);
+              surface.classList.add("dragging");
             }
             dragged.x = origin.x + (e.clientX - start.x) / SCALE;
             dragged.y = origin.y + (e.clientY - start.y) / SCALE;
@@ -155,6 +167,8 @@
             item.g.removeEventListener("pointerup", up);
             if (!dragged) return;
             dragged.g.classList.remove("dragging");
+            canvas.appendChild(dragged.g);
+            surface.classList.remove("dragging");
             for (const other of blocks) {
               if (other === dragged) continue;
               const bottom = other.y + other.height;

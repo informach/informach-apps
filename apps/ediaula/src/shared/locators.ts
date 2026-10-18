@@ -67,8 +67,11 @@ export interface LocatorFingerprint {
   rect: Rect;
   /** Size of the page's viewport then, to compare rectangles across window sizes. */
   view: ViewSize;
-  /** Computed CSS cursor over it (pointer, text, grab...). */
+  /** Computed CSS cursor over it (pointer, text, grab...): the keyword only. */
   cursor: string;
+  /** A Blockly block: the middle of it in units of the workspace, which do not change with the
+   *  window's size, the scroll or the zoom. */
+  workspace?: Point;
 }
 
 export interface Locator {
@@ -87,7 +90,10 @@ export interface Locator {
 }
 
 const label = z.string().max(500);
-const tagName = z.string().regex(/^[a-z][a-z0-9-]{0,40}$/);
+// Limits at least those of what the page reports (locatorPage.ts), so a real page always fits.
+const TAG = /^[a-z][a-z0-9-]{0,63}$/;
+const tagName = z.string().regex(TAG);
+const ROLE = /^[A-Za-z]{2,40}$/;
 export const locatorStrategySchema = z.discriminatedUnion("by", [
   z.object({ by: z.literal("testid"), value: label.min(1) }),
   z.object({
@@ -96,7 +102,7 @@ export const locatorStrategySchema = z.discriminatedUnion("by", [
     value: label,
   }),
   z.object({ by: z.literal("id"), value: label.min(1) }),
-  z.object({ by: z.literal("role"), role: z.string().regex(/^[A-Za-z]{2,40}$/), name: label }),
+  z.object({ by: z.literal("role"), role: z.string().regex(ROLE), name: label }),
   z.object({ by: z.literal("label"), value: label.min(1) }),
   z.object({ by: z.literal("text"), value: label.min(1), tag: tagName.optional() }),
   z.object({
@@ -105,7 +111,7 @@ export const locatorStrategySchema = z.discriminatedUnion("by", [
     area: z.enum(BLOCKLY_AREAS),
     below: z.boolean().optional(),
   }),
-  z.object({ by: z.literal("css"), value: z.string().min(1).max(2000) }),
+  z.object({ by: z.literal("css"), value: z.string().min(1).max(4000) }),
 ]);
 const finite = z.number().finite().min(-1e6).max(1e6);
 const rectSchema = z.object({
@@ -120,8 +126,9 @@ const viewSchema = z.object({
 });
 export const locatorSchema = z.object({
   strategies: z.array(locatorStrategySchema).min(1).max(12),
-  url: z.string().max(4096).optional(),
-  frame: z.string().max(4096).optional(),
+  // Escaping for URLPattern can double an address of 4000 characters.
+  url: z.string().max(8192).optional(),
+  frame: z.string().max(8192).optional(),
   within: locatorStrategySchema.optional(),
   nth: z.int().nonnegative().max(1000).optional(),
   point: z.object({ u: z.number().min(0).max(1), v: z.number().min(0).max(1) }),
@@ -131,6 +138,7 @@ export const locatorSchema = z.object({
     rect: rectSchema,
     view: viewSchema,
     cursor: z.string().max(64),
+    workspace: z.object({ x: finite, y: finite }).optional(),
   }),
 }) satisfies z.ZodType<Locator>;
 
@@ -169,6 +177,8 @@ export interface ElementDescription {
   path?: string;
   /** Inside a Blockly block or toolbox category: its label and where it is. */
   blockly?: { text: string; area: BlocklyArea };
+  /** A block of the workspace: its middle in workspace units. */
+  workspace?: Point;
   kind: "element" | "canvas" | "frame";
   rect: Rect;
   cursor: string;
@@ -180,15 +190,27 @@ export interface ElementDescription {
   point: { u: number; v: number };
 }
 
+/** Names of data attributes a strategy can hold (what data-* may be written as in CSS). */
+const DATA_NAME = /^[a-z][a-z0-9-]{0,63}$/;
+
+/** "url(a.cur) 4 4, pointer": the keyword after the images, as a cursor is stored. */
+export const cursorKeyword = (css: string): string =>
+  (css.split(",").at(-1)?.trim().toLowerCase() ?? "").slice(0, 64);
+
 /** "http://host:port/path" with the characters URLPattern reads as syntax escaped. */
 export function urlPatternOf(href: string): string {
   const url = new URL(href);
+  // A frame its page wrote (about:srcdoc, about:blank) has no address of its own: it goes by
+  // that name.
+  if (url.protocol !== "http:" && url.protocol !== "https:")
+    return `${url.protocol}${url.pathname}`;
   const path = url.pathname.replace(/[:*?+(){}\\]/g, (c) => `\\${c}`);
   return `${url.protocol}//${url.host}${path}`;
 }
 
 /** The page is the one the pattern names; query and hash never count. */
 export function urlMatches(pattern: string, href: string): boolean {
+  if (!/^https?:/i.test(pattern)) return href.split(/[?#]/)[0] === pattern;
   try {
     return new URLPattern(pattern).test(href);
   } catch {
@@ -203,16 +225,22 @@ export function buildLocator(d: ElementDescription): Locator {
   if (d.blockly) strategies.push({ by: "blockly", text: d.blockly.text, area: d.blockly.area });
   if (d.testid) strategies.push({ by: "testid", value: d.testid });
   for (const attr of d.data)
-    if (!UNSTABLE_DATA.has(attr.name) && !attr.name.startsWith("v-") && stableValue(attr.value))
+    if (
+      DATA_NAME.test(attr.name) &&
+      !UNSTABLE_DATA.has(attr.name) &&
+      !attr.name.startsWith("v-") &&
+      stableValue(attr.value)
+    )
       if (strategies.filter((s) => s.by === "data").length < 2)
         strategies.push({ by: "data", name: attr.name, value: attr.value });
   if (d.id && stableValue(d.id)) strategies.push({ by: "id", value: d.id });
-  if (!d.blockly && d.role && d.name && normalizeText(d.name).length <= 120)
+  if (!d.blockly && d.role && ROLE.test(d.role) && d.name && normalizeText(d.name).length <= 120)
     strategies.push({ by: "role", role: d.role, name: normalizeText(d.name) });
   if (!d.blockly && d.label && !sameText(d.label, d.name ?? ""))
     strategies.push({ by: "label", value: normalizeText(d.label).slice(0, 200) });
   if (!d.blockly && text && text.length <= 80)
-    strategies.push({ by: "text", value: text, tag: d.tag });
+    // A custom element may have a name no strategy can hold ("x-a.b"): then the text alone.
+    strategies.push({ by: "text", value: text, ...(TAG.test(d.tag) ? { tag: d.tag } : {}) });
   if (!d.blockly && d.css && !isStructural(d.css)) strategies.push({ by: "css", value: d.css });
   const reliable = strategies.length > 0;
   if (!d.blockly && d.path) strategies.push({ by: "css", value: d.path });
@@ -226,11 +254,12 @@ export function buildLocator(d: ElementDescription): Locator {
     ...(d.frameUrl ? { frame: urlPatternOf(d.frameUrl) } : {}),
     point: d.kind === "element" || d.blockly ? { u: 0.5, v: 0.5 } : d.point,
     fingerprint: {
-      tag: d.tag,
+      tag: d.tag.slice(0, 64),
       text,
       rect: d.rect,
       view: d.view,
-      cursor: d.cursor,
+      cursor: cursorKeyword(d.cursor),
+      ...(d.workspace ? { workspace: d.workspace } : {}),
     },
   };
 }
@@ -316,16 +345,29 @@ export function expectedRect(fingerprint: LocatorFingerprint, view: ViewSize): R
   return { x: r.x * kx, y: r.y * ky, width: r.width * kx, height: r.height * ky };
 }
 
+/** The one clearly nearest `target`: within `tolerance` and at most half as far as the next. */
+function nearest<T>(items: readonly T[], at: (item: T) => Point, target: Point, tolerance: number) {
+  const near = items
+    .map((item) => ({ item, d: Math.hypot(at(item).x - target.x, at(item).y - target.y) }))
+    .sort((a, b) => a.d - b.d);
+  return near[0] && near[0].d <= tolerance && (!near[1] || near[1].d >= near[0].d * 2 + 8)
+    ? near[0].item
+    : undefined;
+}
+
 /**
  * The element a locator names now: the first strategy that finds a single usable one. Several
- * usable matches go to `nth` when the locator has one, else to the one nearest the marked
- * rectangle when it is clearly nearer than the others; otherwise the strategy is ambiguous and
- * the next one is asked. Without a usable element, the problem closest to one is reported.
+ * equal matches are told apart by where the marked one was: a Blockly block by its place in the
+ * workspace (with `canvas`, the workspace's transform now), then by `nth` (its order among the
+ * equal ones when it was marked), then by the nearest to the marked rectangle. Otherwise the
+ * strategy is ambiguous and the next one is asked. Without a usable element, the problem closest
+ * to one is reported.
  */
 export function rankCandidates(
   locator: Locator,
   matches: readonly StrategyMatches[],
   view: ViewSize,
+  canvas: BlocklyCanvas | null = null,
 ): LocateOutcome {
   const problems = new Set<LocatorProblem>();
   const marked = locator.fingerprint;
@@ -356,16 +398,15 @@ export function rankCandidates(
     }
     let chosen: Candidate | undefined;
     if (usable.length === 1) chosen = usable[0];
-    else if (locator.nth !== undefined) chosen = usable[locator.nth];
-    else if (hasRect) {
-      const near = usable
-        .map((c) => ({
-          c,
-          d: Math.hypot(center(c.rect).x - expected.x, center(c.rect).y - expected.y),
-        }))
-        .sort((a, b) => a.d - b.d);
-      if (near[0].d <= tolerance && near[1].d >= near[0].d * 2 + 8) chosen = near[0].c;
-    }
+    if (!chosen && strategy.by === "blockly" && marked.workspace && canvas)
+      chosen = nearest(
+        usable,
+        (c) => pageToWorkspace(canvas, center(c.rect)),
+        marked.workspace,
+        Math.max(48, Math.hypot(marked.rect.width, marked.rect.height)) / canvas.scale,
+      );
+    if (!chosen && locator.nth !== undefined) chosen = usable[locator.nth];
+    if (!chosen && hasRect) chosen = nearest(usable, (c) => center(c.rect), expected, tolerance);
     if (!chosen) {
       problems.add("ambiguous");
       continue;

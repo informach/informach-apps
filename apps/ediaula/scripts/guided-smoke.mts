@@ -4,8 +4,13 @@
  * Blockly's), marks the targets through the DevTools protocol as F8 does, records a plan with a
  * click, a wait that holds the video, a drag from the flyout to below a block, typing, a click
  * with an expectation and a shortcut, at 1080p30 and at 1080p60, and then a take that continues
- * from the fourth step. For each take it checks the video, the cursor and guided-run.json and
- * measures the CPU and memory of every Electron process and of FFmpeg.
+ * from the fourth step. The targets are marked in a window smaller than the plan's page (the page
+ * is laid out at the plan's size and scaled to fit, as in the lesson window). For each take it
+ * checks the video (its length, and what it shows where the pointer clicks and drags), the
+ * cursor and guided-run.json, and measures the CPU and memory of every Electron process and of
+ * FFmpeg. It also checks what the lesson's window refuses (the microphone, Ctrl+W, Ctrl+R and
+ * F5), a button inside a frame of the same site, and pages that redirect, never finish loading
+ * or do not open.
  *
  * It never moves the real pointer. Run from apps/ediaula with about 2 GB of memory free:
  *   node_modules/.bin/electron scripts/guided-smoke.mts
@@ -21,20 +26,21 @@ import { fileURLToPath } from "node:url";
 import { app } from "electron";
 import { detectCaptureEncoder } from "../src/main/encoders.ts";
 import { FFMPEG, probe } from "../src/main/ffmpeg.ts";
-import { GuidedTake, openLessonCapture } from "../src/main/guidedCapture.ts";
+import { GuidedTake, loadLesson, openLessonCapture } from "../src/main/guidedCapture.ts";
 import type { CdpDriver } from "../src/main/guidedCdp.ts";
 import { listDisplays } from "../src/main/nativeHelper.ts";
-import { normalizeCursorData } from "../src/shared/cursorData.ts";
+import { type CursorData, normalizeCursorData } from "../src/shared/cursorData.ts";
 import type { CaptureCodec } from "../src/shared/encoderChoice.ts";
 import { normalizeGuidedRun } from "../src/shared/guidedCursor.ts";
 import {
   DEFAULT_TEMPOS,
   type GuidedPlanV2,
   type GuidedStepV2,
+  parseChord,
   schedulePlan,
 } from "../src/shared/guidedPlan.ts";
 import { duplicationOutput } from "../src/shared/helperProtocol.ts";
-import type { Locator } from "../src/shared/locators.ts";
+import type { Locator, Point } from "../src/shared/locators.ts";
 
 const appDir = fileURLToPath(new URL("..", import.meta.url));
 const scratch = mkdtempSync(join(tmpdir(), "ediaula-guided-smoke-"));
@@ -46,19 +52,35 @@ const check = (name: string, ok: boolean, detail?: string): void => {
   checks.push({ name, ok, ...(detail ? { detail } : {}) });
 };
 
-function serve(): Promise<{ url: string; close: () => void }> {
+/** A frame of the same site written by its page, with a button inside. */
+const INSIDE = '<button id="inside" style="margin:40px;padding:12px 24px">Dentro</button>';
+const FRAMED = `<!doctype html><html><body style="margin:0"><button id="top">Topo</button><iframe srcdoc="${INSIDE.replaceAll('"', "&quot;")}" style="position:absolute;left:300px;top:200px;width:400px;height:300px;border:0"></iframe></body></html>`;
+
+function serve(): Promise<{ url: string; base: string; close: () => void }> {
   const page = readFileSync(join(appDir, "tests", "fixtures", "guided-blockly.html"));
+  const html = { "content-type": "text/html; charset=utf-8" };
   const server = createServer((request, response) => {
-    if (!request.url?.startsWith("/aula")) {
-      response.writeHead(404).end();
-      return;
-    }
-    response.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(page);
+    const path = request.url ?? "";
+    if (path.startsWith("/aula")) response.writeHead(200, html).end(page);
+    else if (path === "/desvio") response.writeHead(302, { location: "/aula?demora=0" }).end();
+    // A page whose picture never comes: the browser keeps loading it.
+    else if (path === "/lenta") response.writeHead(200, html).end('<p>texto</p><img src="/nunca">');
+    else if (path === "/nunca") response.writeHead(200, { "content-type": "image/png" });
+    else if (path === "/quadro") response.writeHead(200, html).end(FRAMED);
+    else response.writeHead(404).end();
   });
   return new Promise((resolve) =>
     server.listen(0, "127.0.0.1", () => {
       const { port } = server.address() as AddressInfo;
-      resolve({ url: `http://127.0.0.1:${port}/aula`, close: () => server.close() });
+      const base = `http://127.0.0.1:${port}`;
+      resolve({
+        url: `${base}/aula`,
+        base,
+        close: () => {
+          server.closeAllConnections();
+          server.close();
+        },
+      });
     }),
   );
 }
@@ -79,6 +101,40 @@ async function mark(cdp: CdpDriver, selector: string): Promise<Locator> {
   const marked = await cdp.mark(node.backendNodeId, { x: (q[0] + q[4]) / 2, y: (q[1] + q[5]) / 2 });
   if (!marked.locator) throw new Error(`${selector}: ${marked.problem ?? "sem localizador"}`);
   return marked.locator;
+}
+
+interface DomNode {
+  nodeId: number;
+  backendNodeId: number;
+  attributes?: string[];
+  children?: DomNode[];
+  contentDocument?: DomNode;
+}
+
+/** An element anywhere in the page, frames of the same site included, marked the same way. */
+async function markDeep(cdp: CdpDriver, id: string): Promise<{ locator: Locator; page: Point }> {
+  const { root } = await cdp.send<{ root: DomNode }>("DOM.getDocument", {
+    depth: -1,
+    pierce: true,
+  });
+  const find = (n: DomNode): DomNode | null => {
+    if (n.attributes?.includes(id)) return n;
+    for (const c of [...(n.children ?? []), ...(n.contentDocument ? [n.contentDocument] : [])]) {
+      const f = find(c);
+      if (f) return f;
+    }
+    return null;
+  };
+  const node = find(root);
+  if (!node) throw new Error(`Nada com ${id}`);
+  const { model } = await cdp.send<{ model: { content: number[] } }>("DOM.getBoxModel", {
+    backendNodeId: node.backendNodeId,
+  });
+  const q = model.content;
+  const page = { x: (q[0] + q[4]) / 2, y: (q[1] + q[5]) / 2 };
+  const marked = await cdp.mark(node.backendNodeId, page);
+  if (!marked.locator) throw new Error(`${id}: ${marked.problem ?? "sem localizador"}`);
+  return { locator: marked.locator, page };
 }
 
 const textLocator = (text: string, url: string): Locator => ({
@@ -115,6 +171,133 @@ async function ffmpegUsage(
   ).catch(() => "");
   const [cpu, peak] = out.split(";").map(Number);
   return Number.isFinite(cpu) ? { cpu, peakMB: Math.round(peak / 1024 ** 2) } : null;
+}
+
+/**
+ * `count` pictures of the video from frame `n`, as RGB: whole, or only the rows from `top`
+ * (`height` of them), so a long stretch does not weigh on the memory being measured.
+ */
+function framesAt(
+  file: string,
+  n: number,
+  count: number,
+  fps: number,
+  width: number,
+  height: number,
+  top?: number,
+): Promise<Buffer[]> {
+  const size = width * height * 3;
+  return new Promise<Buffer[]>((resolve, reject) =>
+    execFile(
+      FFMPEG,
+      [
+        "-v",
+        "error",
+        // The first frame at or after this second is frame n.
+        "-ss",
+        Math.max(0, (n - 0.25) / fps).toFixed(4),
+        "-i",
+        file,
+        ...(top === undefined ? [] : ["-vf", `crop=${width}:${height}:0:${top}`]),
+        "-frames:v",
+        String(count),
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "rgb24",
+        "pipe:1",
+      ],
+      { encoding: "buffer", maxBuffer: size * count + 4096, windowsHide: true },
+      (error, stdout) =>
+        error
+          ? reject(error)
+          : resolve(
+              Array.from({ length: Math.floor(stdout.length / size) }, (_, i) =>
+                stdout.subarray(i * size, (i + 1) * size),
+              ),
+            ),
+    ),
+  );
+}
+
+const rgb = (hex: string): number[] =>
+  [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16));
+/** The pixel at (x, y) is this color, give or take what the encoding changes. */
+function isColor(frame: Buffer, width: number, x: number, y: number, hex: string): boolean {
+  const i = (Math.round(y) * width + Math.round(x)) * 3;
+  return rgb(hex).every((c, k) => Math.abs(frame[i + k] - c) <= 36);
+}
+/** Share of the pixels within `r` of `p` that have one of the colors. */
+function share(frame: Buffer, width: number, p: Point, colors: string[], r = 6): number {
+  let hits = 0;
+  let all = 0;
+  for (let dy = -r; dy <= r; dy++)
+    for (let dx = -r; dx <= r; dx++) {
+      all++;
+      if (colors.some((c) => isColor(frame, width, p.x + dx, p.y + dy, c))) hits++;
+    }
+  return hits / all;
+}
+/**
+ * Where the right edge of the blue block under the pointer is, from the pointer, on its row
+ * (null: no block there). The right edge, because the block taken from the flyout leaves the
+ * same block behind it at the start.
+ */
+function blockEdge(frame: Buffer, width: number, p: Point): number | null {
+  let edge: number | null = null;
+  for (let dx = 0; dx <= 260; dx++)
+    if (["#4c97ff", "#3373cc"].some((c) => isColor(frame, width, p.x + dx, p.y, c))) edge = dx;
+  return edge;
+}
+/** The pointer on the frame at `t` (cursor.json keeps times to the millisecond). */
+const pointerAt = (cursor: CursorData, t: number) =>
+  [...cursor.moves].reverse().find((m) => m[0] <= t + 5e-4);
+
+/**
+ * What the video shows where the pointer acts: the target under every click, on the frame
+ * before it, and the dragged block under the pointer all the way (the hand and the block move
+ * together).
+ */
+async function videoContent(name: string, screen: string, cursor: CursorData, fps: number) {
+  const { width, height } = { width: 1920, height: 1080 };
+  const clicks = cursor.clicks.filter((c) => c[4] < 0.5);
+  const seen: string[] = [];
+  let under = clicks.length > 0;
+  for (const [t, x, y] of clicks) {
+    const [frame] = await framesAt(screen, Math.round(t * fps) - 1, 1, fps, width, height);
+    // A button (blue, with its white label) or the text field (white).
+    const part = share(frame, width, { x, y }, ["#3b5bdb", "#ffffff"]);
+    seen.push(`${t.toFixed(2)} s: ${Math.round(part * 100)}%`);
+    if (part < 0.5) under = false;
+  }
+  check(`${name}: no vídeo, o alvo de cada clique sob o ponteiro`, under, seen.join(", "));
+  const drag = cursor.clicks.find((c) => c[4] > 1);
+  if (!drag) return;
+  const [t0, , , , held] = drag;
+  // From the frame before the press (the block where it is grabbed) to the end of the movement,
+  // every frame.
+  const firstFrame = Math.round(t0 * fps) - 1;
+  const count = Math.round(held * fps);
+  const hands = Array.from({ length: count }, (_, i) => pointerAt(cursor, (firstFrame + i) / fps));
+  const rows = hands.flatMap((m) => (m ? [Math.round(m[2])] : []));
+  // Even rows, as the 4:2:0 video can be cut.
+  const top = Math.floor(Math.min(...rows) / 2) * 2;
+  const band = Math.ceil((Math.max(...rows) - top + 1) / 2) * 2;
+  const frames = await framesAt(screen, firstFrame, count, fps, width, band, top);
+  const edges = frames.map((frame, i) => {
+    const m = hands[i];
+    return m ? blockEdge(frame, width, { x: m[1], y: Math.round(m[2]) - top }) : null;
+  });
+  const first = edges[0] ?? null;
+  // At 60 frames with the page animating and the encoder behind, a frame now and then shows the
+  // block a fraction of a frame's movement late: a few pixels more are allowed there.
+  const tolerance = fps === 60 && !name.includes("parada") ? 10 : 4;
+  const off = edges.filter((e) => e === null || first === null || Math.abs(e - first) > tolerance);
+  check(
+    `${name}: no vídeo, o bloco arrastado acompanha a mão`,
+    frames.length === count && first !== null && off.length === 0,
+    `até ${tolerance} px; borda do bloco em relação ao ponteiro, quadro a quadro: ${edges.join(" ")} px`,
+  );
 }
 
 interface Usage {
@@ -284,6 +467,7 @@ async function take(
         drag[4] <= plan.tempos.move + 3 / (plan.fps ?? 30) + 1e-3,
       JSON.stringify(drag),
     );
+  if (from === 0) await videoContent(name, result.screen, cursor, plan.fps ?? 30);
   check(
     `${name}: atalho com rótulo`,
     cursor.keys.some(([, label]) => label === "Ctrl+Z"),
@@ -359,11 +543,15 @@ async function main(): Promise<number> {
       steps: [],
       tempos: { ...DEFAULT_TEMPOS },
     };
-    step(`codificador ${codec}; marcando os alvos`);
-    const marking = await openLessonCapture(draft, 30);
+    step(`codificador ${codec}; marcando os alvos numa janela menor que a página do plano`);
+    // A window of 1280 x 800, as the lesson window on a small screen: the page is laid out at
+    // the plan's 1920 x 1080 and scaled to fit, so what is marked is where the take will act.
+    const small = { width: 1280, height: 800 };
+    const marking = await openLessonCapture({ ...draft, viewport: small }, 30);
+    const fit = await marking.cdp.emulateToFit(draft.viewport, small);
     await marking.window.webContents.loadURL(`${server.url}?demora=0`);
     await marking.firstPaint;
-    step("página aberta");
+    step(`página aberta (escala ${fit.toFixed(3)})`);
     const start = await mark(marking.cdp, '[data-testid="start"]');
     await marking.cdp.send("Runtime.evaluate", {
       expression: "document.querySelector('[data-testid=\"start\"]').click()",
@@ -373,8 +561,68 @@ async function main(): Promise<number> {
     const hat = await mark(marking.cdp, ".blocklySvg g.blocklyDraggable.hat");
     const nameField = await mark(marking.cdp, "#name");
     const save = await mark(marking.cdp, "#save");
+    check(
+      "marcação: a página medida no tamanho do plano",
+      [start, flyoutBlock, hat, nameField, save].every(
+        (l) => l.fingerprint.view.width === 1920 && l.fingerprint.view.height === 1080,
+      ),
+      JSON.stringify(start.fingerprint.view),
+    );
+
+    // What the lesson's window refuses.
+    const wc = marking.window.webContents;
+    const media = await wc.executeJavaScript(
+      "navigator.mediaDevices.getUserMedia({ audio: true }).then((s) => { s.getTracks().forEach((t) => t.stop()); return 'liberado'; }, (e) => e.name)",
+    );
+    check("janela da aula: microfone recusado", media === "NotAllowedError", String(media));
+    await wc.executeJavaScript("window.__ficou = 1");
+    for (const shortcut of ["Ctrl+R", "Ctrl+W", "F5"]) {
+      const chord = parseChord(shortcut);
+      if (chord) await marking.cdp.chord(chord);
+    }
+    await new Promise((r) => setTimeout(r, 800));
+    const stayed = !marking.window.isDestroyed() && (await wc.executeJavaScript("window.__ficou"));
+    check("janela da aula: Ctrl+R, Ctrl+W e F5 não recarregam nem fecham", stayed === 1);
+
+    // A frame of the same site that its page wrote: the button inside, read in its own frame.
+    await wc.loadURL(`${server.base}/quadro`);
+    const inside = await markDeep(marking.cdp, "inside");
+    const found = await marking.cdp.find(inside.locator);
+    check(
+      "quadro do mesmo site: o botão de dentro, no lugar dele",
+      found.ok &&
+        inside.locator.frame === "about:srcdoc" &&
+        Math.abs(found.point.x - inside.page.x) < 2 &&
+        Math.abs(found.point.y - inside.page.y) < 2,
+      JSON.stringify({ frame: inside.locator.frame, found, page: inside.page }),
+    );
     marking.cdp.detach();
     marking.window.destroy();
+
+    // Pages that redirect, never finish loading, or do not open.
+    const loads = await openLessonCapture(draft, 30);
+    const signal = new AbortController().signal;
+    const timed = async (url: string): Promise<string> => {
+      const t = performance.now();
+      try {
+        await loadLesson(loads.window, url, loads.firstPaint, signal);
+        return `aberta em ${Math.round(performance.now() - t)} ms`;
+      } catch (error) {
+        return `recusada: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    };
+    const redirected = await timed(`${server.base}/desvio`);
+    check(
+      "página que redireciona",
+      redirected.startsWith("aberta") && loads.window.webContents.getURL().includes("/aula"),
+      `${redirected}, ${loads.window.webContents.getURL()}`,
+    );
+    const slow = await timed(`${server.base}/lenta`);
+    check("página que nunca termina de carregar", /^aberta em \d{1,4} ms$/.test(slow), slow);
+    const closed = await timed("http://127.0.0.1:9/aula");
+    check("página que não abre", closed.startsWith("recusada: Não consegui abrir"), closed);
+    loads.cdp.detach();
+    loads.window.destroy();
     check(
       "marcação: Começar por test id",
       start.strategies[0]?.by === "testid",

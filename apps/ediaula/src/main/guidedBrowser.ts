@@ -1,8 +1,8 @@
 import { BrowserWindow, screen } from "electron";
-import type { GuidedMark, GuidedMarkPurpose } from "../shared/guidedPlan.ts";
+import type { GuidedMark, GuidedMarkPurpose, GuidedViewport } from "../shared/guidedPlan.ts";
 import type { BrowserTarget, GuidedTarget } from "../shared/guidedRecording.ts";
-import { GUIDED_PARTITION } from "./guidedCapture.ts";
 import { CdpDriver } from "./guidedCdp.ts";
+import { guardLessonWindow, lessonSession } from "./guidedSession.ts";
 
 /**
  * The lesson window: the platform opened in its own partition (the login stays there), with no
@@ -12,6 +12,8 @@ import { CdpDriver } from "./guidedCdp.ts";
  */
 
 let lesson: BrowserWindow | null = null;
+/** Called when the teacher closes the lesson window (the recorder comes back). */
+let whenClosed: (() => void) | null = null;
 const webUrl = (value: string): string => {
   const url = new URL(value);
   if (!["https:", "http:"].includes(url.protocol))
@@ -19,9 +21,17 @@ const webUrl = (value: string): string => {
   return url.href;
 };
 
-/** `backKey` is the guided target shortcut as configured ("F8" by default). */
-export async function openGuidedBrowser(url: string, backKey = "F8"): Promise<void> {
+/**
+ * `backKey` is the guided target shortcut as configured ("F8" by default); `onClosed` runs when
+ * the window is closed.
+ */
+export async function openGuidedBrowser(
+  url: string,
+  backKey = "F8",
+  onClosed?: () => void,
+): Promise<void> {
   const address = webUrl(url);
+  whenClosed = onClosed ?? null;
   if (!lesson || lesson.isDestroyed()) {
     lesson = new BrowserWindow({
       width: 1280,
@@ -31,36 +41,29 @@ export async function openGuidedBrowser(url: string, backKey = "F8"): Promise<vo
         sandbox: true,
         contextIsolation: true,
         nodeIntegration: false,
-        partition: GUIDED_PARTITION,
+        session: lessonSession(),
         backgroundThrottling: false,
       },
     });
     const window = lesson;
-    window.setMenuBarVisibility(false);
-    window.webContents.on("page-title-updated", (e) => e.preventDefault());
-    window.webContents.on("will-navigate", (e, next) => {
-      try {
-        webUrl(next);
-      } catch {
-        e.preventDefault();
-      }
-    });
-    window.webContents.setWindowOpenHandler(({ url: next }) => {
-      try {
-        void window.loadURL(webUrl(next)).catch(() => {});
-      } catch {
-        /* Non-web links do not belong to a lesson. */
-      }
-      return { action: "deny" };
-    });
+    guardLessonWindow(window);
+    // The title keeps the way back to the recorder; the page's own title would replace it (the
+    // event is the window's: on the webContents it does not stop the change).
+    window.on("page-title-updated", (e) => e.preventDefault());
     window.on("closed", () => {
       lesson = null;
+      whenClosed?.();
     });
     window.maximize();
   }
   lesson.show();
   lesson.focus();
-  await lesson.loadURL(address);
+  await lesson.loadURL(address).catch((error: unknown) => {
+    // A page that sends the window on to another one (a login, a script) did open: the load
+    // of the first address was only replaced (ERR_ABORTED).
+    if (error instanceof Error && Reflect.get(error, "errno") === -3) return;
+    throw error;
+  });
 }
 
 /** The address the lesson window shows, when it is open. */
@@ -83,17 +86,24 @@ const MARK_TEXT: Record<GuidedMarkPurpose, string> = {
 };
 
 /**
- * The teacher goes to the element (navigating freely), presses `key` to turn the DevTools
- * inspector on (Overlay.setInspectMode) and clicks it: the node the inspector hands over is
- * described in its own frame and becomes a locator. A drag destination on a workspace block
- * means "below it"; on the workspace's background, that point of the workspace.
+ * The teacher goes to the element (navigating freely), presses `key` to turn the inspector on
+ * (Overlay.setInspectMode) and clicks it: the node the inspector hands over is described in its
+ * own frame and becomes a locator. Meanwhile the page is laid out at the plan's viewport, scaled
+ * to fit the window, so what is marked is where the take will find it. A drag destination on a
+ * workspace block means "below it"; on the workspace's background, that point of the workspace.
  */
-export async function markInLesson(purpose: GuidedMarkPurpose, key: string): Promise<MarkSession> {
+export async function markInLesson(
+  purpose: GuidedMarkPurpose,
+  key: string,
+  viewport: GuidedViewport,
+): Promise<MarkSession> {
   const window = lesson;
   if (!window || window.isDestroyed())
     throw new Error("Abra a janela da aula e entre na plataforma antes de marcar.");
   const cdp = new CdpDriver(window.webContents);
   await cdp.attach();
+  const [width, height] = window.getContentSize();
+  const scale = await cdp.emulateToFit(viewport, { width, height });
   const title = window.getTitle();
   const what = MARK_TEXT[purpose];
   window.setTitle(`EdiAula · Marcar ${what}: vá até ele na página e pressione ${key}`);
@@ -113,6 +123,7 @@ export async function markInLesson(purpose: GuidedMarkPurpose, key: string): Pro
     off();
     window.removeListener("closed", closed);
     if (!window.isDestroyed()) {
+      // Detaching ends the inspect mode too, should the page not answer.
       void cdp
         .inspect(false)
         .catch(() => undefined)
@@ -135,7 +146,7 @@ export async function markInLesson(purpose: GuidedMarkPurpose, key: string): Pro
     if (typeof id !== "number" || done) return;
     const bounds = window.getContentBounds();
     const cursor = screen.getCursorScreenPoint();
-    const zoom = window.webContents.getZoomFactor();
+    const zoom = window.webContents.getZoomFactor() * scale;
     const page = { x: (cursor.x - bounds.x) / zoom, y: (cursor.y - bounds.y) / zoom };
     void cdp.mark(id, page).then(
       (marked) => {
@@ -159,7 +170,7 @@ export async function markInLesson(purpose: GuidedMarkPurpose, key: string): Pro
                 ),
               }
             : marked.locator;
-        settle({ locator, url: marked.url });
+        settle({ locator, url: marked.url, ...(marked.notice ? { notice: marked.notice } : {}) });
       },
       (error: unknown) => {
         finish();

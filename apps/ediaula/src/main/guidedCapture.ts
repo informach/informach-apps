@@ -22,6 +22,7 @@ import {
   schedulePlan,
 } from "../shared/guidedPlan.ts";
 import {
+  FailureStreak,
   type GuidedRunLog,
   GuidedStepError,
   instantClock,
@@ -31,6 +32,7 @@ import {
 } from "../shared/guidedRunner.ts";
 import type { RecordingResult } from "../shared/recording.ts";
 import { CdpDriver, WebDriver } from "./guidedCdp.ts";
+import { guardLessonWindow, lessonSession } from "./guidedSession.ts";
 import { qpc } from "./nativeHelper.ts";
 import { finalizeTake } from "./recording/finalize.ts";
 import { SessionJournal } from "./recording/journal.ts";
@@ -48,7 +50,7 @@ import { SessionJournal } from "./recording/journal.ts";
  * and finalizing (main/recording/finalize.ts) makes cursor.json and guided-run.json from the log.
  */
 
-export const GUIDED_PARTITION = "persist:ediaula-guided-web";
+export { GUIDED_PARTITION } from "./guidedSession.ts";
 
 export interface GuidedTakeEnd {
   status: "done" | "failed";
@@ -76,6 +78,10 @@ export interface GuidedTakeOptions {
 
 /** Most frames the encoder may have waiting before the writer holds for it. */
 const MAX_PENDING_FRAMES = 4;
+/** "Verificar plano" stops after this many failing steps in a row: the rest depends on them. */
+export const VERIFY_STREAK = 3;
+/** Wall seconds a page has to start showing before the take gives up. */
+const LOAD_SECONDS = 30;
 const PREVIEW_MS = 200;
 const PREVIEW_WIDTH = 480;
 
@@ -135,7 +141,7 @@ export async function openLessonCapture(
     useContentSize: true,
     webPreferences: {
       offscreen: { deviceScaleFactor: 1 },
-      partition: GUIDED_PARTITION,
+      session: lessonSession(),
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
@@ -146,14 +152,7 @@ export async function openLessonCapture(
   const wc = window.webContents;
   wc.setAudioMuted(true);
   wc.setFrameRate(fps);
-  const web = (url: string): boolean => /^https?:/i.test(url);
-  wc.on("will-navigate", (event, next) => {
-    if (!web(next)) event.preventDefault();
-  });
-  wc.setWindowOpenHandler(({ url }) => {
-    if (web(url)) void wc.loadURL(url).catch(() => undefined);
-    return { action: "deny" };
-  });
+  guardLessonWindow(window);
   let painted: () => void = () => undefined;
   const firstPaint = new Promise<void>((resolve) => {
     painted = resolve;
@@ -176,26 +175,83 @@ export async function openLessonCapture(
   return { window, cdp, firstPaint };
 }
 
-/** Loads the plan's page and waits for its first picture. */
-async function loadLesson(
+/** Rejects when the run is stopped. */
+const aborted = (signal: AbortSignal): Promise<never> =>
+  new Promise((_resolve, reject) => {
+    if (signal.aborted) reject(new Error(STOPPED));
+    else signal.addEventListener("abort", () => reject(new Error(STOPPED)), { once: true });
+  });
+
+/** Rejects with `message` after `ms`; `cancel` lets it go. */
+function deadline(ms: number, message: string): { promise: Promise<never>; cancel: () => void } {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const promise = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
+  promise.catch(() => undefined);
+  return { promise, cancel: () => clearTimeout(timer) };
+}
+
+/**
+ * Loads the plan's page and waits for its first picture. A page that keeps something loading
+ * forever (a picture, a stream) counts once its document is ready; a redirect is followed; a
+ * stop or the deadline ends the wait at once.
+ */
+export async function loadLesson(
   window: BrowserWindow,
   url: string,
   firstPaint: Promise<void>,
+  signal: AbortSignal,
 ): Promise<void> {
-  try {
-    await window.webContents.loadURL(url);
-  } catch (cause) {
-    throw new Error("Não consegui abrir a página da aula. Confira o endereço e a conexão.", {
-      cause,
+  const wc = window.webContents;
+  // A load still under way (a picture that never came) would answer for this one.
+  if (wc.isLoading()) {
+    const settled = new Promise<void>((resolve) => {
+      wc.once("did-stop-loading", () => resolve());
+      setTimeout(resolve, 2000);
     });
+    wc.stop();
+    await settled;
   }
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  await Promise.race([
-    firstPaint,
-    new Promise<never>((_resolve, reject) => {
-      timer = setTimeout(() => reject(new Error("A página da aula não apareceu.")), 15000);
-    }),
-  ]).finally(() => clearTimeout(timer));
+  const stop = aborted(signal);
+  // Raced below; a stop after the page opened is nobody's error.
+  stop.catch(() => undefined);
+  let failure: Error | null = null;
+  const failed = (
+    _event: Electron.Event,
+    code: number,
+    description: string,
+    _url: string,
+    main: boolean,
+  ) => {
+    // -3 is a navigation replaced by another one (a redirect), not a failure.
+    if (main && code !== -3)
+      failure = new Error(
+        `Não consegui abrir a página da aula (${description}). Confira o endereço e a conexão.`,
+      );
+  };
+  wc.on("did-fail-load", failed);
+  const ready = new Promise<void>((resolve) => {
+    wc.once("dom-ready", () => resolve());
+    wc.once("did-stop-loading", () => resolve());
+  });
+  // A failed load also comes as did-fail-load, which says why; a redirect rejects it (-3) and
+  // the next document goes on loading.
+  const loading = wc.loadURL(url).catch(() => undefined);
+  const limit = deadline(
+    LOAD_SECONDS * 1000,
+    `A página da aula não abriu em ${LOAD_SECONDS} s. Confira o endereço e a conexão.`,
+  );
+  try {
+    await Promise.race([Promise.race([ready, loading]), stop, limit.promise]);
+    // A failure reported with the error page's own events.
+    await new Promise((resolve) => setImmediate(resolve));
+    if (failure) throw failure;
+    await Promise.race([firstPaint, stop, limit.promise]);
+  } finally {
+    limit.cancel();
+    wc.removeListener("did-fail-load", failed);
+  }
 }
 
 /** Codecs already seen to take this size and rate from system memory. */
@@ -259,6 +315,8 @@ export class GuidedTake {
   private journal: SessionJournal | null = null;
   private latest: NativeImage | null = null;
   private fresh = false;
+  /** Waiting for the page's next picture (each frame of a drag waits for its own). */
+  private paintWaiters: (() => void)[] = [];
   private bitmap: Buffer | null = null;
   private frameBytes: number;
   private writer: ReturnType<typeof setInterval> | undefined;
@@ -294,9 +352,10 @@ export class GuidedTake {
       },
       (error: unknown) => {
         // No more frames after a failure, and nothing more done on the page.
+        const stopped = this.controller.signal.aborted;
         this.halted = true;
         this.controller.abort();
-        const message = error instanceof Error ? error.message : String(error);
+        const message = stopped ? STOPPED : error instanceof Error ? error.message : String(error);
         const failed: GuidedTakeEnd = {
           status: "failed",
           step: error instanceof GuidedStepError ? error.step : this.step,
@@ -354,6 +413,9 @@ export class GuidedTake {
     const opened = await openLessonCapture(plan, this.fps, (image) => {
       this.latest = image;
       this.fresh = true;
+      const waiting = this.paintWaiters;
+      this.paintWaiters = [];
+      for (const resolve of waiting) resolve();
     });
     this.window = opened.window;
     this.cdp = opened.cdp;
@@ -367,13 +429,16 @@ export class GuidedTake {
     );
     // An unhandled rejection while the page loads would be reported twice.
     codec.catch(() => undefined);
-    await loadLesson(opened.window, plan.url ?? "", opened.firstPaint);
+    await loadLesson(opened.window, plan.url ?? "", opened.firstPaint, signal);
+    // The take goes on from where the preparation left the pointer.
+    let start: { x: number; y: number } | undefined;
     if (this.from > 0) {
       this.phase = "preparing";
       this.report();
       const prep = new WebDriver(opened.cdp, { viewport: plan.viewport, signal });
       await prep.place();
       await runGuided(plan, prep, instantClock(signal), signal, { to: this.from });
+      start = prep.pointer;
     }
     if (signal.aborted) throw new Error(STOPPED);
     const chosen = await codec;
@@ -462,13 +527,16 @@ export class GuidedTake {
 
     const clock = new FrameClock(this.fps, () => performance.now());
     this.clock = clock;
+    // Each hold reaches the disk as it ends: a take recovered after a crash still has them.
+    clock.onHold((hold) => this.log?.write({ k: "hold", ...hold }, true));
     const driver = new WebDriver(opened.cdp, {
       viewport: plan.viewport,
       signal,
       clock,
       log: (line) => this.log?.write(line),
+      paintAfter: () => this.nextPaint(),
     });
-    await driver.place();
+    await driver.place(start);
     clock.start();
     this.journal.write({ k: "first", src: "screen", part: 0, qpc: qpc(), file: "tela-0.mp4" });
     this.phase = "recording";
@@ -494,6 +562,23 @@ export class GuidedTake {
     return { status: "done", step: this.plan.steps.length - 1 };
   }
 
+  /**
+   * The page's picture after an input it already answered: the next paint, and the one after it
+   * when that comes within a frame and a half, at least 50 ms (a paint under way when the input
+   * arrived still shows the page before it). A page that does not paint is waited for 150 ms.
+   */
+  private async nextPaint(): Promise<void> {
+    await this.paint(150);
+    await this.paint(Math.max(50, 1500 / this.fps));
+  }
+
+  private paint(ms: number): Promise<void> {
+    return new Promise((resolve) => {
+      this.paintWaiters.push(resolve);
+      setTimeout(resolve, ms);
+    });
+  }
+
   /** The frames the clock says are due: the latest picture, repeated while the page is still. */
   private writeFrames(): void {
     const clock = this.clock;
@@ -507,8 +592,9 @@ export class GuidedTake {
         this.fresh = false;
       }
       if (this.bitmap) encoder.stdin.write(this.bitmap);
-      // The run acts first; the frames still due go out on the next tick.
-      if (clock.woke) break;
+      // The run acts first, and a frame held for the page's picture waits for it; the frames
+      // still due go out on the next tick.
+      if (clock.woke || clock.holding) break;
     }
     if (!this.encoderHeld && encoder.stdin.writableLength > MAX_PENDING_FRAMES * this.frameBytes) {
       this.encoderHeld = true;
@@ -570,6 +656,9 @@ export class GuidedTake {
   /** Stops the run, the writer and the encoder; true when frames were written. */
   private async close(keep: boolean): Promise<boolean> {
     this.controller.abort();
+    // The page goes first: a load or a command still waiting on it ends with it.
+    this.cdp?.detach();
+    if (this.window && !this.window.isDestroyed()) this.window.destroy();
     await this.started;
     this.halted = true;
     clearInterval(this.writer);
@@ -577,7 +666,6 @@ export class GuidedTake {
     const clock = this.clock;
     clock?.close();
     if (clock && this.log) {
-      for (const hold of clock.holds) this.log.write({ k: "hold", ...hold });
       const status =
         this.result?.status === "done"
           ? "done"
@@ -616,8 +704,9 @@ export class GuidedTake {
 
 /**
  * "Verificar plano": the whole plan in an offscreen lesson window, untimed and without capture.
- * Every step that fails is listed with a picture of the page at that moment; the run goes on
- * with the next step, so one check finds every step to repair.
+ * Every step that fails is listed with a picture of the page at that moment and the run goes on
+ * with the next step, so one check finds every step to repair; after VERIFY_STREAK failures in
+ * a row the rest is not checked (it depends on what failed). Stopping closes the page at once.
  */
 export async function verifyGuidedPlan(
   plan: GuidedPlanV2,
@@ -626,21 +715,47 @@ export async function verifyGuidedPlan(
 ): Promise<BrokenStep[]> {
   schedulePlan(plan);
   const { window, cdp, firstPaint } = await openLessonCapture(plan, 30);
+  const close = (): void => {
+    cdp.detach();
+    if (!window.isDestroyed()) window.destroy();
+  };
+  signal.addEventListener("abort", close, { once: true });
   const broken: BrokenStep[] = [];
   try {
-    await loadLesson(window, plan.url ?? "", firstPaint);
+    await loadLesson(window, plan.url ?? "", firstPaint, signal);
     const driver = new WebDriver(cdp, { viewport: plan.viewport, signal });
     await driver.place();
     const clock = instantClock(signal);
-    await runGuided(plan, driver, { ...clock, step: onProgress }, signal, {
-      onFailure: async (index, error) => {
-        const screenshot = await cdp.screenshot(plan.viewport).catch(() => undefined);
-        broken.push({ index, message: error.message, ...(screenshot ? { screenshot } : {}) });
+    const streak = new FailureStreak(VERIFY_STREAK);
+    await runGuided(
+      plan,
+      driver,
+      {
+        ...clock,
+        step: (index) => {
+          streak.start(index);
+          onProgress(index);
+        },
       },
-    });
+      signal,
+      {
+        onFailure: async (index, error) => {
+          // A step whose picture could not be taken is listed without it.
+          const screenshot = await cdp.screenshot(plan.viewport).catch(() => undefined);
+          broken.push({ index, message: error.message, ...(screenshot ? { screenshot } : {}) });
+          if (streak.fail(index)) return true;
+          if (index + 1 < plan.steps.length)
+            broken.push({
+              index: index + 1,
+              message: `${VERIFY_STREAK} etapas seguidas falharam: as seguintes dependem delas e não foram verificadas.`,
+            });
+          return false;
+        },
+      },
+    );
   } finally {
-    cdp.detach();
-    if (!window.isDestroyed()) window.destroy();
+    signal.removeEventListener("abort", close);
+    close();
   }
   return broken;
 }

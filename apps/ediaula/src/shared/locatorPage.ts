@@ -29,6 +29,16 @@ export const LOCATOR_PAGE_SCRIPT = String.raw`(() => {
     return { x: r.left, y: r.top, width: r.width, height: r.height };
   };
   const textOf = (el) => norm(el.textContent).slice(0, 200);
+  // Only the keyword after any images, as the app keeps a cursor.
+  const cursorOf = (css) => String(css || "").split(",").pop().trim().toLowerCase().slice(0, 64);
+  const tagOf = (el) => el.tagName.toLowerCase().slice(0, 64);
+  // The page's address without query and hash; a frame its page wrote is "about:srcdoc" (its
+  // origin is the page's, with no path of its own).
+  const address = () =>
+    (/^https?:$/.test(location.protocol)
+      ? location.origin + location.pathname
+      : location.href.split(/[?#]/)[0]
+    ).slice(0, 4000);
   const editable = (el) =>
     !!el &&
     (el.isContentEditable ||
@@ -54,7 +64,7 @@ export const LOCATOR_PAGE_SCRIPT = String.raw`(() => {
       const hit = document.elementFromPoint(x, y);
       covered = !(hit && (hit === el || el.contains(hit)));
     }
-    return { tag: el.tagName.toLowerCase(), text: textOf(el), rect: r, visible, enabled, covered, inView, cursor: st.cursor };
+    return { tag: tagOf(el), text: textOf(el), rect: r, visible, enabled, covered, inView, cursor: cursorOf(st.cursor) };
   }
 
   function byLabel(value, scope) {
@@ -140,8 +150,8 @@ export const LOCATOR_PAGE_SCRIPT = String.raw`(() => {
       if (el.matches(KEEP)) {
         const node = { tag: el.tagName.toLowerCase(), cls: [...el.classList].filter((c) => c.startsWith("blockly")) };
         const key = el.getAttribute("data-id");
-        if (key) node.key = key;
-        if (el.matches("text,.blocklyTreeLabel,.blocklyToolboxCategoryLabel")) node.text = norm(el.textContent);
+        if (key) node.key = key.slice(0, 200);
+        if (el.matches("text,.blocklyTreeLabel,.blocklyToolboxCategoryLabel")) node.text = norm(el.textContent).slice(0, 500);
         if (el.matches("svg,g.blocklyDraggable,path.blocklyPath,text,.blocklyToolboxCategory,.blocklyTreeRow"))
           node.rect = rectOf(el);
         if (el.matches("g.blocklyBlockCanvas"))
@@ -250,7 +260,8 @@ export const LOCATOR_PAGE_SCRIPT = String.raw`(() => {
     const data = [...el.attributes]
       .filter((a) => a.name.startsWith("data-") && !TESTID.includes(a.name))
       .slice(0, 6)
-      .map((a) => ({ name: a.name.slice(5), value: a.value }));
+      .map((a) => ({ name: a.name.slice(5, 105), value: a.value.slice(0, 200) }));
+    const path = pathOf(el);
     const labelText =
       el.getAttribute("aria-label") ||
       (el.labels && el.labels[0] ? norm(el.labels[0].textContent) : "") ||
@@ -259,22 +270,22 @@ export const LOCATOR_PAGE_SCRIPT = String.raw`(() => {
       "";
     const tag = el.tagName.toLowerCase();
     return {
-      tag,
+      tag: tag.slice(0, 64),
       text: textOf(el),
-      testid: testidAttr ? el.getAttribute(testidAttr) : undefined,
+      testid: testidAttr ? el.getAttribute(testidAttr).slice(0, 200) : undefined,
       data,
-      id: el.id || undefined,
-      role: el.getAttribute("role") || ROLE_OF[el.tagName] || undefined,
+      id: el.id ? el.id.slice(0, 200) : undefined,
+      role: (el.getAttribute("role") || ROLE_OF[el.tagName] || "").slice(0, 60) || undefined,
       label: labelText ? norm(labelText).slice(0, 200) : undefined,
       css: cssOf(el),
-      path: pathOf(el),
+      path: path.length <= 4000 ? path : undefined,
       blockly,
       workspace: !!background,
       kind: tag === "canvas" ? "canvas" : tag === "iframe" ? "frame" : "element",
       rect: r,
-      cursor: getComputedStyle(el).cursor,
+      cursor: cursorOf(getComputedStyle(el).cursor),
       view: { width: innerWidth, height: innerHeight },
-      url: location.href,
+      url: address(),
       point: {
         u: r.width ? Math.min(1, Math.max(0, (p.x - r.x) / r.width)) : 0.5,
         v: r.height ? Math.min(1, Math.max(0, (p.y - r.y) / r.height)) : 0.5,
@@ -283,6 +294,8 @@ export const LOCATOR_PAGE_SCRIPT = String.raw`(() => {
   }
 
   function factsIn(el, point, within) {
+    // An element of a frame inside this document belongs to that frame's world.
+    if (el.ownerDocument !== document) return null;
     const scope = scopeOf(within);
     if (!scope || (scope !== document && !scope.contains(el))) return null;
     return facts(el, point);
@@ -291,11 +304,11 @@ export const LOCATOR_PAGE_SCRIPT = String.raw`(() => {
   function cursorAt(x, y) {
     const el = document.elementFromPoint(x, y);
     if (!el) return { cursor: "default", editable: false };
-    return { cursor: getComputedStyle(el).cursor, editable: editable(el) || editable(el.closest("input,textarea,[contenteditable]")) };
+    return { cursor: cursorOf(getComputedStyle(el).cursor), editable: editable(el) || editable(el.closest("input,textarea,[contenteditable]")) };
   }
 
   Object.defineProperty(globalThis, "__ediaulaGuided", {
-    value: Object.freeze({ locate, facts, factsIn, promote, describe, blockly, hits, cursorAt }),
+    value: Object.freeze({ locate, facts, factsIn, promote, describe, blockly, hits, cursorAt, own: (el) => el.ownerDocument === document }),
   });
   return true;
 })()`;

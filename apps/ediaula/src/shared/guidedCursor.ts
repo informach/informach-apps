@@ -3,6 +3,7 @@ import type { CursorData, CursorShapeInfo } from "./cursorData.ts";
 import { HOLD_REASONS, type HoldRecord } from "./frameClock.ts";
 import { GUIDED_ACTIONS, type GuidedAction, type GuidedViewport } from "./guidedPlan.ts";
 import { smoothPointer } from "./guidedRecording.ts";
+import { cursorKeyword } from "./locators.ts";
 import { CURSOR_SHAPES, type CursorShape } from "./recording.ts";
 
 /**
@@ -198,8 +199,7 @@ export function parseGuidedLog(text: string): GuidedLogLine[] {
 
 /** The editor's shape for a computed CSS cursor (grab and grabbing are drawn as the hand for now). */
 export function cursorShapeFor(css: string, editable = false): CursorShape {
-  // "url(a.cur), pointer": the keyword after the images.
-  const keyword = css.split(",").at(-1)?.trim().toLowerCase() ?? "";
+  const keyword = cursorKeyword(css);
   switch (keyword) {
     case "pointer":
     case "grab":

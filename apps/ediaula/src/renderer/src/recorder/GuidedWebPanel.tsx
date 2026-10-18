@@ -12,6 +12,7 @@ const WAITING_FOR: Record<HoldReason, string> = {
   navigation: "a página da etapa abrir",
   encoder: "o codificador de vídeo",
   pause: "você retomar",
+  paint: "a página desenhar o arrasto",
 };
 
 /**

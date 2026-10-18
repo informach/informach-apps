@@ -1,7 +1,15 @@
 import { timelineWords } from "@shared/cleanup";
 import { squareCrop, type Transform } from "@shared/compose";
-import { normalizeGuidedRun } from "@shared/guidedCursor";
-import { type GuidedReplace, planTiming } from "@shared/guidedPlan";
+import { type GuidedRun, normalizeGuidedRun } from "@shared/guidedCursor";
+import { applyResumeJoin, type ResumeJoin, resumeJoin } from "@shared/guidedJoin";
+import {
+  type GuidedReplace,
+  type GuidedRunRecord,
+  type GuidedStore,
+  MAX_PLANS,
+  MAX_RUNS,
+  planTiming,
+} from "@shared/guidedPlan";
 import { layoutOverNarration } from "@shared/overNarration";
 import {
   type OverContext,
@@ -187,6 +195,26 @@ async function replaceGuidedTake(r: RecordingResult): Promise<boolean> {
     toast("A demonstração não chegou ao fim: ela entrou como uma gravação nova.", "info");
     return false;
   }
+  // The clips' cuts stay where they are only if the new take is the old one's twin.
+  const before = asset.guidedRun ? await guidedRunOf(asset.guidedRun).catch(() => null) : null;
+  if (!before || before.timing !== run.timing || before.from !== run.from) {
+    toast(
+      "Os tempos da demonstração mudaram desde a gravação anterior: ela entrou como uma gravação nova.",
+      "info",
+    );
+    return false;
+  }
+  if (
+    before.viewport.width !== run.viewport.width ||
+    before.viewport.height !== run.viewport.height ||
+    before.fps !== run.fps
+  ) {
+    toast(
+      `A nova gravação tem ${run.viewport.width} × ${run.viewport.height} a ${run.fps} quadros e a anterior ${before.viewport.width} × ${before.viewport.height} a ${before.fps}: ela entrou como uma gravação nova.`,
+      "info",
+    );
+    return false;
+  }
   if (Math.abs(info.duration - asset.duration) > 0.1) {
     toast(
       `A nova gravação tem ${info.duration.toFixed(1)} s e a anterior ${asset.duration.toFixed(1)} s: ela entrou como uma gravação nova.`,
@@ -238,6 +266,63 @@ const stamp = (): string =>
       minute: "2-digit",
     })
     .replace(",", "");
+
+/**
+ * A guided take's plan and how its run ended go into the project: the plan when the recorder
+ * was opened without this lesson (it comes along with the take), the run when the recorder did
+ * not note it (a take recovered after a crash).
+ */
+async function keepGuidedRun(run: GuidedRun, dir: string): Promise<void> {
+  const p = useProject.getState().project;
+  if (!p) return;
+  let store: GuidedStore = p.guided ?? { plans: [] };
+  if (!store.plans.some((plan) => plan.id === run.planId)) {
+    const adopted = await window.api.recorder.guidedAdopt(p.id).catch(() => null);
+    const plans = (adopted?.plans ?? []).filter((x) => !store.plans.some((y) => y.id === x.id));
+    if (plans.length) store = { ...store, plans: [...store.plans, ...plans].slice(0, MAX_PLANS) };
+  }
+  if (!(store.runs ?? []).some((x) => x.dir === dir)) {
+    const pending = run.steps.find((x) => x.status !== "done");
+    const record: GuidedRunRecord = {
+      planId: run.planId,
+      step:
+        run.status === "done"
+          ? (run.steps.at(-1)?.index ?? run.from) + 1
+          : (pending?.index ?? run.from),
+      status: run.status,
+      dir,
+      at: Date.now(),
+    };
+    store = { ...store, runs: [...(store.runs ?? []), record].slice(-MAX_RUNS) };
+  }
+  if (store !== p.guided) useProject.getState().setGuided({ ...store, updatedAt: Date.now() });
+}
+
+/**
+ * The earlier take of the same plan that stopped where this one ("Continuar da etapa k")
+ * starts, and where the two join on the timeline.
+ */
+async function findResumeJoin(run: GuidedRun, take: string): Promise<ResumeJoin | null> {
+  const p = useProject.getState().project;
+  if (!p || run.from === 0) return null;
+  const candidates = p.assets
+    .filter((a) => a.guidedRun && a.recording?.role === "screen" && a.recording.id !== take)
+    .sort((a, b) => (b.recording?.id ?? "").localeCompare(a.recording?.id ?? ""));
+  for (const asset of candidates) {
+    const earlier = await guidedRunOf(asset.guidedRun ?? "").catch(() => null);
+    if (!earlier || earlier.planId !== run.planId || earlier.from >= run.from) continue;
+    return resumeJoin(
+      p,
+      {
+        take: asset.recording?.id ?? "",
+        screen: asset.id,
+        narrationOffset: earlier.narrationOffset,
+      },
+      run.narrationOffset,
+    );
+  }
+  return null;
+}
 
 /** A finished take goes into the open project (or a new one), every source cut at its pauses. */
 export async function importRecording(r: RecordingResult): Promise<void> {
@@ -314,17 +399,27 @@ export async function importRecording(r: RecordingResult): Promise<void> {
   // A "Só voz" take: each take of each script line, and the voice treated from the start.
   const voice = r.mode === "voice" && mic ? mic : undefined;
   if (voice) patchAsset(voice.id, { voiceTakes: voiceTakes(r) });
+  // A guided take: its plan and run in the project, and joined to the take it carries on.
+  const run = r.guidedRun ? await guidedRunOf(r.guidedRun).catch(() => null) : null;
+  if (run) await keepGuidedRun(run, r.dir);
+  const join = run ? await findResumeJoin(run, basename(r.dir)) : null;
   let layout: RecordingLayout | undefined;
-  useProject.getState().commit((p) => {
+  useProject.getState().commit((before) => {
+    // Nothing follows the earlier take: it is cut where this one starts, and this one goes there.
+    const p = join?.clear ? applyResumeJoin(before, join) : before;
     const current = p.assets.filter((a) => assets.some((b) => b.id === a.id));
     // A screen kept in parts (no room to join them) goes end to end from where the voice played;
     // a new voice take goes after the voice already there, on the same "Voz" track.
     layout =
       r.mode === "over" && r.screen
         ? layoutOverNarration(p, current, r, { cameraTransform })
-        : layoutRecording(p, current, r, voiceTakeStart(p, r) ?? r.over?.from, {
-            cameraTransform,
-          });
+        : layoutRecording(
+            p,
+            current,
+            r,
+            join?.clear ? join.at : (voiceTakeStart(p, r) ?? r.over?.from),
+            { cameraTransform },
+          );
     return {
       ...p,
       tracks: layout.tracks,
@@ -361,6 +456,31 @@ export async function importRecording(r: RecordingResult): Promise<void> {
   );
   const notes = [...(r.warnings ?? []), ...(r.encoderIssues ?? [])];
   if (notes.length) toast(`Avisos da gravação: ${notes.join(" ")}`, "info");
+  if (run && join?.clear)
+    toast(
+      `O take continua o anterior na etapa ${run.from + 1}: a narração segue sem salto.`,
+      "info",
+    );
+  else if (run && join) {
+    // Something follows the earlier take: the cut is proposed, the new take went to the end.
+    const now = useProject.getState().project;
+    if (now) {
+      const msg = await showProposal(
+        now,
+        `Encaixe da etapa ${run.from + 1}`,
+        [
+          {
+            start: join.cut[0],
+            end: join.cut[1],
+            reason: `o take novo refaz a demonstração a partir da etapa ${run.from + 1}`,
+          },
+        ],
+        useProject.getState().revision,
+        "gravacao",
+      );
+      toast(msg.split("\n")[0], "info");
+    }
+  }
   const done = layout;
   if (voice) {
     // The takes become one cleanup proposal once the waveform is there (the silences).

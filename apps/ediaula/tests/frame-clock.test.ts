@@ -76,22 +76,37 @@ test("a pause holds without frames and waits resolve only once it resumes", asyn
   const waiting = s.clock.wait(at).then(() => {
     woke = true;
   });
+  // Each hold is handed over as it ends, so the take keeps it on disk before a crash can lose it.
+  const ended: string[] = [];
+  const offHold = s.clock.onHold((h) => ended.push(`${h.reason}@${h.at}`));
+  assert.equal(s.clock.pausedTotal(), 0);
   s.clock.hold("pause");
   // A wait for a moment already reached still waits while paused.
   const paused = s.clock.wait(at - 0.1).then(() => "resolved");
-  s.run(2000);
+  s.run(1000);
+  assert.equal(s.clock.pausedTotal(), 1000, "a deadline knows how long the take is paused");
+  s.run(1000);
   assert.equal(s.clock.time(), at);
+  assert.equal(ended.length, 0);
   await Promise.resolve();
   s.clock.resume("pause");
+  assert.deepEqual(ended, [`pause@${Math.round(at * 1000) / 1000}`]);
   await waiting;
   assert.equal(await paused, "resolved");
   assert.ok(woke);
   assert.equal(s.clock.holds.at(-1)?.reason, "pause");
   assert.ok(Math.abs((s.clock.holds.at(-1)?.duration ?? 0) - 2) < 0.011);
-  // The encoder falling behind holds the same way.
+  // The encoder falling behind holds the same way, and does not count as paused.
   s.clock.hold("encoder");
   assert.equal(s.clock.tick(), 0);
+  s.run(300);
   s.clock.resume("encoder");
+  assert.equal(s.clock.pausedTotal(), 2000);
+  assert.deepEqual(
+    ended.map((e) => e.split("@")[0]),
+    ["pause", "encoder"],
+  );
+  offHold();
 });
 
 test("waits resolve at the exact frame; listeners place each frame before it is counted", async () => {

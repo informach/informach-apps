@@ -8,8 +8,11 @@ import {
   type GuidedPlanV2,
   type GuidedStore,
   guidedStoreSchema,
+  lessonPermissionAllowed,
+  MAX_PLANS,
   newestGuided,
   newPlan,
+  storeProblem,
 } from "../src/shared/guidedPlan.ts";
 import { GUIDED_DEFAULTS } from "../src/shared/guidedRecording.ts";
 import { restoreSnapshot, withRuntimeOf } from "../src/shared/history.ts";
@@ -141,4 +144,39 @@ test("a draft newer than the project's plans wins; the draft survives a reopen",
   assert.equal(newestGuided({ ...draft, updatedAt: 30 }, draft)?.updatedAt, 30);
   assert.equal(newestGuided(undefined, draft), draft);
   assert.equal(newestGuided(project.guided, null), project.guided);
+});
+
+test("a plan with a value left half typed says what to fix and is not saved yet", () => {
+  const store: GuidedStore = { plans: [plan] };
+  assert.equal(storeProblem(store), null);
+  const negative = structuredClone(plan);
+  negative.steps[0].at = -1;
+  assert.equal(
+    storeProblem({ plans: [negative] }),
+    "No plano “Blocos”, etapa 1: confira “Ação em”. O plano será salvo quando o valor for válido.",
+  );
+  const unnamed = { ...structuredClone(plan), name: "", viewport: { width: 0, height: 1080 } };
+  assert.match(storeProblem({ plans: [unnamed] }) ?? "", /“sem nome”: confira “Tamanho”/);
+  const many = Array.from({ length: MAX_PLANS + 1 }, (_, i) => newPlan(`p-${i}`, `Plano ${i}`));
+  assert.equal(storeProblem({ plans: many }), `Um projeto guarda até ${MAX_PLANS} planos.`);
+  // The copy never uses the em dash or the en dash.
+  assert.doesNotMatch(storeProblem({ plans: [negative] }) ?? "", /[\u2013\u2014]/);
+});
+
+test("the lesson page may go full screen and copy, and nothing else of the computer", () => {
+  for (const allowed of ["fullscreen", "clipboard-sanitized-write"])
+    assert.equal(lessonPermissionAllowed(allowed), true, allowed);
+  for (const refused of [
+    "media",
+    "geolocation",
+    "notifications",
+    "clipboard-read",
+    "display-capture",
+    "openExternal",
+    "hid",
+    "serial",
+    "usb",
+    "fileSystem",
+  ])
+    assert.equal(lessonPermissionAllowed(refused), false, refused);
 });

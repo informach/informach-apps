@@ -5,6 +5,7 @@ import {
   type GuidedStore,
   type GuidedTakeStatus,
   MAX_RUNS,
+  storeProblem,
 } from "@shared/guidedPlan";
 import { HOTKEY_LABELS, type HotkeyReport, hotkeyLabel } from "@shared/hotkeys";
 import type { RecorderSettings } from "@shared/recorderSettings";
@@ -179,6 +180,8 @@ export function RecorderOverlay(): ReactNode {
   guidedStoreRef.current = guidedStore;
   /** The plans as last sent to the main process. */
   const savedStore = useRef<GuidedStore | null>(null);
+  /** The lesson the plans were loaded from: every save goes back to it. */
+  const loadedProject = useRef<string | null>(null);
   const [planId, setPlanId] = useState("");
   const guidedPlan = guidedStore.plans.find((p) => p.id === planId);
   /** "Regravar e substituir": the media this take replaces. */
@@ -220,25 +223,30 @@ export function RecorderOverlay(): ReactNode {
   // Settings and sources: what was chosen last time comes back when the device is still there.
   useEffect(() => {
     document.documentElement.classList.add("is-recorder");
-    void window.api.recorder.context().then((c) => {
-      setLines(c.teleprompter);
-      setNotes(c.screenNotes ?? []);
-      setOver(c.over ?? null);
-      setSpeakerOn(
-        new Set(
-          voiceSpeakers(c.teleprompter)
-            .filter((v) => v.on)
-            .map((v) => v.name),
-        ),
-      );
-      if (c.mode === "over" && c.over) setMode("over");
-      const store = c.guided ?? { plans: [] };
-      savedStore.current = store;
-      setGuidedStore(store);
-      setReplace(c.guidedReplace);
-      setPlanId(c.guidedReplace?.planId ?? store.plans[0]?.id ?? "");
-      if (c.guidedReplace) setMode("guided");
-    });
+    const load = (): Promise<void> =>
+      window.api.recorder.context().then((c) => {
+        loadedProject.current = c.projectId ?? null;
+        setLines(c.teleprompter);
+        setNotes(c.screenNotes ?? []);
+        setOver(c.over ?? null);
+        setSpeakerOn(
+          new Set(
+            voiceSpeakers(c.teleprompter)
+              .filter((v) => v.on)
+              .map((v) => v.name),
+          ),
+        );
+        if (c.mode === "over" && c.over) setMode("over");
+        const store = c.guided ?? { plans: [] };
+        savedStore.current = store;
+        setGuidedStore(store);
+        setReplace(c.guidedReplace);
+        setPlanId(c.guidedReplace?.planId ?? store.plans[0]?.id ?? "");
+        if (c.guidedReplace) setMode("guided");
+      });
+    void load();
+    // Opened again for another lesson (or a media to record again): its plans replace these.
+    const offContext = window.api.recorder.onContextChanged(() => void load());
     void Promise.all([window.api.recorder.sources(), window.api.recorder.settings()]).then(
       ([s, saved]) => {
         setSources(s);
@@ -274,15 +282,21 @@ export function RecorderOverlay(): ReactNode {
       },
     );
     void window.api.recorder.hotkeys().then(setHotkeys);
+    return offContext;
   }, []);
 
-  // The plans go to the main process (draft, then the project) a second after the last change.
+  // The plans go to the main process (draft, then the project) a second after the last change,
+  // once every value in them is valid; until then the screen says what to fix.
+  const [planProblem, setPlanProblem] = useState<string | null>(null);
   useEffect(() => {
     if (!savedStore.current || guidedStore === savedStore.current) return;
+    const problem = storeProblem(guidedStore);
+    setPlanProblem(problem);
+    if (problem) return;
     const id = setTimeout(() => {
       savedStore.current = guidedStore;
       void window.api.recorder
-        .guidedSave(guidedStore)
+        .guidedSave(guidedStore, loadedProject.current)
         .catch((err: unknown) => setError(`Não consegui salvar o plano: ${cleanError(err)}`));
     }, 1000);
     return () => clearTimeout(id);
@@ -447,9 +461,12 @@ export function RecorderOverlay(): ReactNode {
         return;
       }
       setError(null);
-      // The take runs the plan as it is now.
+      // The take runs the plan as it is now, handed to it below; the draft of the plans is
+      // saved again with the next change should this save not go through.
       savedStore.current = guidedStoreRef.current;
-      await window.api.recorder.guidedSave(guidedStoreRef.current).catch(() => undefined);
+      await window.api.recorder
+        .guidedSave(guidedStoreRef.current, loadedProject.current)
+        .catch(() => undefined);
       setWeb({ status: null, stopping: false });
       try {
         await window.api.recorder.guidedWebStart(guidedPlan, from);
@@ -475,7 +492,7 @@ export function RecorderOverlay(): ReactNode {
       };
       savedStore.current = store;
       setGuidedStore(store);
-      await window.api.recorder.guidedSave(store);
+      await window.api.recorder.guidedSave(store, loadedProject.current);
       setWeb(null);
       // A complete demonstration closes the recorder; the editor already has it.
       if (run.status === "done") await window.api.recorder.cancel();
@@ -903,6 +920,7 @@ export function RecorderOverlay(): ReactNode {
           onBusy={setGuidedBusy}
           keys={{ target: keyOf("guidedTarget"), toggle: keyOf("toggle"), stop: keyOf("stop") }}
           replace={replace}
+          problem={planProblem}
           onStart={(from) => void startWeb(from)}
         />
       )}

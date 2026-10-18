@@ -137,6 +137,11 @@ export interface GuidedRunRecord {
   at?: number;
 }
 
+/** What the lesson's page may do in the app: fullscreen and writing to the clipboard, nothing more. */
+export const LESSON_PERMISSIONS: readonly string[] = ["fullscreen", "clipboard-sanitized-write"];
+export const lessonPermissionAllowed = (permission: string): boolean =>
+  LESSON_PERMISSIONS.includes(permission);
+
 /** "Regravar e substituir": the guided take of a media, to be recorded again with its plan. */
 export interface GuidedReplace {
   assetId: string;
@@ -168,6 +173,8 @@ export interface GuidedMark {
   workspace?: Point;
   /** Address of the page it was marked on. */
   url: string;
+  /** Something the teacher should know about this mark (a frame of another site). */
+  notice?: string;
 }
 
 export type GuidedTakePhase =
@@ -319,6 +326,10 @@ export function parseChord(text: string): Chord | null {
   if (!base && PUNCTUATION[last]) base = { key: last, ...PUNCTUATION[last], text: last };
   if (!base || MODIFIER_NAMES[lower]) return null;
   const typing = !mods.ctrl && !mods.alt && !mods.meta;
+  const label = keyLabel(
+    base.vk,
+    [mods.ctrl, mods.alt, mods.shift, mods.meta].map((m) => (m ? "1" : "0")).join(""),
+  );
   return {
     key: base.key,
     code: base.code,
@@ -327,10 +338,9 @@ export function parseChord(text: string): Chord | null {
     ...mods,
     modifiers:
       (mods.alt ? 1 : 0) | (mods.ctrl ? 2 : 0) | (mods.meta ? 4 : 0) | (mods.shift ? 8 : 0),
-    label: keyLabel(
-      base.vk,
-      [mods.ctrl, mods.alt, mods.shift, mods.meta].map((m) => (m ? "1" : "0")).join(""),
-    ),
+    // The recorder's labels leave Shift out of typing (Shift+A is just "A"); with any other key
+    // (Shift+Tab, Shift+Enter) it shows.
+    label: mods.shift && typing && !/^[a-z]$/i.test(last) ? `Shift+${label}` : label,
   };
 }
 
@@ -755,6 +765,39 @@ export const COMMON_KEYS: readonly string[] = [
   "Ctrl+C",
   "Ctrl+V",
 ];
+
+const FIELD_LABELS: Record<string, string> = {
+  at: "Ação em",
+  speechAt: "Fala começa em",
+  timeout: "Espera máxima",
+  delta: "Rolagem",
+  value: "Texto a digitar",
+  chord: "Tecla ou atalho",
+  speech: "Fala",
+  tempos: "Tempos",
+  viewport: "Tamanho",
+  name: "Nome",
+  url: "Endereço",
+};
+
+/**
+ * Why the plans cannot be saved as they are (a field left half typed), in words the teacher can
+ * act on; null when they can.
+ */
+export function storeProblem(store: GuidedStore): string | null {
+  if (store.plans.length > MAX_PLANS) return `Um projeto guarda até ${MAX_PLANS} planos.`;
+  const parsed = guidedStoreSchema.safeParse(store);
+  if (parsed.success) return null;
+  const path = parsed.error.issues[0]?.path ?? [];
+  const plan = typeof path[1] === "number" ? store.plans[path[1]] : undefined;
+  const where = plan ? `No plano “${plan.name || "sem nome"}”` : "Nos planos";
+  const step = path[2] === "steps" && typeof path[3] === "number" ? `, etapa ${path[3] + 1}` : "";
+  const field = [...path].reverse().find((p) => typeof p === "string" && FIELD_LABELS[p]);
+  const label = typeof field === "string" ? FIELD_LABELS[field] : undefined;
+  return label
+    ? `${where}${step}: confira “${label}”. O plano será salvo quando o valor for válido.`
+    : `${where}${step}: há um valor inválido. O plano será salvo quando ele for corrigido.`;
+}
 
 /** The plans the recorder starts from: the project's, or a newer draft of them (after a crash). */
 export function newestGuided(

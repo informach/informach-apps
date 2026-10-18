@@ -108,6 +108,12 @@
 .guided-setup .guided-validation {
   color: #e6ed9d;
 }
+.guided-setup .guided-warning {
+  padding: 8px 10px;
+  border-left: 3px solid #e0b252;
+  background: #2a2618;
+  color: #f1dfb3;
+}
 .guided-setup.is-picking {
   width: auto;
   pointer-events: none;
