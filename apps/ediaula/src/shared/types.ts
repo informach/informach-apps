@@ -8,6 +8,7 @@ import type { CaptionStyle, CueStyleEntry } from "./captions.ts";
 import type { ChromaKey } from "./chroma.ts";
 import type { Motion, Transform } from "./compose.ts";
 import type { CourseTemplate } from "./courseTemplate.ts";
+import type { CourseSetup } from "./courseSetup.ts";
 import type { CursorFx } from "./cursor.ts";
 import type { FontFamily } from "./fonts.ts";
 import type { GlossaryTerm } from "./glossary.ts";
@@ -66,8 +67,16 @@ export interface Asset {
   transcriptStatus?: "pending" | "ready" | "error";
   /** Variable frame rate source (common in screen recordings); previewed through a constant-rate copy. */
   vfr?: boolean;
-  /** Made by EdiAula (the picture of an annotation); hidden from the media library. */
-  generated?: "annotation" | "effect";
+  /**
+   * Made by EdiAula and hidden from the media library: the picture of an annotation, the blank
+   * picture of a zoom layer, or the held frame of Estender quadro (`still`). Each one is drawn
+   * again when its file is gone (a project opened on another computer).
+   */
+  generated?: "annotation" | "effect" | "still";
+  /** The held frame of Estender quadro: which media and which of its seconds it shows. */
+  still?: { assetId: string; t: number };
+  /** Sheet of small pictures along the video, for the clips on the timeline (main/ffmpeg.ts). */
+  filmstrip?: Filmstrip;
   /** Cursor data (CursorData JSON) of a screen recording made in EdiAula; the video has no pointer. */
   cursor?: string;
   /** The cursor data file is not where `cursor` says (the video may still be there). */
@@ -107,6 +116,19 @@ export interface Asset {
   /** The picture has its own transparency (WebM with alpha, ProRes 4444, PNG): it is decoded
    *  keeping it, and previewed from the original or a VP9 proxy with alpha. */
   alpha?: boolean;
+}
+
+/**
+ * One picture every `step` seconds of a video, `width` × `height` each, laid in rows of
+ * `columns` on one image (`count` in all): the timeline draws the ones under each clip.
+ */
+export interface Filmstrip {
+  path: string;
+  step: number;
+  width: number;
+  height: number;
+  columns: number;
+  count: number;
 }
 
 /**
@@ -343,6 +365,16 @@ export interface Project {
   /** The course template offered when the lesson opened: what the person answered, so it is
    *  not offered again for the same course. */
   templateOffer?: { course: string; answer: "applied" | "declined" };
+  /**
+   * A lesson started from its course's template (shared/courseSetup.ts): when the first media
+   * reaches the timeline, the opening and closing cards go in and the music bed (already in the
+   * library) is laid to the end of the lesson; then this is gone.
+   */
+  pendingStart?: {
+    opening?: boolean;
+    closing?: boolean;
+    music?: { assetId: string; trackId: string; volume: number };
+  };
   settings: ProjectSettings;
   assets: Asset[];
   /** Display order, top to bottom: video tracks first (highest layer on top), then audio. */
@@ -369,6 +401,16 @@ export interface PublishInfo {
   description?: string;
   summary?: string;
   chapters?: { time: number; title: string }[];
+}
+
+/** A backup of a lesson as the start screen and the editor list it (main/projects.ts). */
+export interface BackupEntry {
+  id: string;
+  at: number;
+  size: number;
+  name?: string;
+  duration?: number;
+  clips?: number;
 }
 
 export interface RecentEntry {
@@ -765,6 +807,10 @@ export interface EdiAulaApi {
   saveNarration(bytes: Uint8Array): Promise<string>;
   /** PNG of one frame (cached), used to hold the picture while an insert plays. */
   stillFrame(path: string, t: number, alpha?: boolean): Promise<string>;
+  /** `seconds` of sound from `t`: mono 16-bit PCM at 24 kHz (main/ffmpeg.ts SNIPPET_RATE). */
+  audioSnippet(path: string, t: number, seconds: number): Promise<Uint8Array>;
+  /** The filmstrip of a video, decoding `input` (its proxy or itself); cached beside it. */
+  filmstrip(jobId: string, path: string, input: string, duration: number): Promise<Filmstrip>;
   /** Solid screen color behind an avatar ('#RRGGBB'), or null. */
   detectScreen(
     path: string,
@@ -802,6 +848,17 @@ export interface EdiAulaApi {
   openProject(path: string): Promise<Project>;
   recentProjects(): Promise<RecentEntry[]>;
   removeRecent(path: string): Promise<void>;
+  /** A copy of the lesson as a lesson of its own, next to it; returns its path. */
+  duplicateProject(path: string): Promise<string>;
+  /** New name for the lesson and its file; returns the file's path now. */
+  renameProject(path: string, name: string): Promise<string>;
+  /** The lesson's backups (Projetos/.backups), newest first. */
+  projectBackups(path: string): Promise<BackupEntry[]>;
+  /** Puts a backup back (the current state becomes a backup first); returns the lesson. */
+  restoreBackup(path: string, id: string): Promise<Project>;
+  /** The template of a course (how its new lessons start), or null. */
+  courseSetup(course: string): Promise<CourseSetup | null>;
+  saveCourseSetup(setup: CourseSetup): Promise<CourseSetup>;
   /** The project as JSON text, like saveProject; the cursor positions stay typed arrays. */
   startExport(jobId: string, projectJson: string, spec: ExportSpec): Promise<void>;
   cancelJob(jobId: string): Promise<void>;

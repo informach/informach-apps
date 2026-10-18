@@ -1,19 +1,22 @@
 import { focusOnMount } from "@informach/edi-desktop/renderer";
-import { timelineProtected } from "@shared/cleanup";
+import { timelineProtected, timelineSilences, timelineWords } from "@shared/cleanup";
 import { draftClips } from "@shared/projectDiff";
 import { deriveSeams, isReviewed } from "@shared/seams";
+import { buildSnapIndex, type SnapIndex, type Snapped, shownSnap, snapTo } from "@shared/snap";
 import {
   adjacency,
   clipEnd,
   clipIndex,
   clipSpeed,
   clipsBetween,
+  clipsInSpan,
   placeClips,
   projectDuration,
   rippleMoveFrom,
-  snapTime,
+  rippleTrim,
   sourceEnd,
   timelineAt,
+  toFrame,
   trackLabels,
   trimClip,
 } from "@shared/timeline";
@@ -21,12 +24,15 @@ import { TRANSITIONS, type TransitionKind } from "@shared/transitions";
 import type { Asset, Clip, Project, Track } from "@shared/types";
 import {
   ArrowRightLeft,
+  ArrowRightToLine,
+  BoxSelect,
   ChevronsDownUp,
   ChevronsUpDown,
   Eye,
   EyeOff,
   Film,
   FoldHorizontal,
+  Headphones,
   Image,
   Lock,
   LockOpen,
@@ -38,6 +44,7 @@ import {
   Redo2,
   Scissors,
   SplitSquareHorizontal,
+  Trash2,
   Undo2,
   Volume2,
   VolumeX,
@@ -65,8 +72,10 @@ import { useProposalView } from "@/lib/proposals";
 import { recorderKey } from "@/lib/recorderKeys";
 import { openRecorder } from "@/lib/recording";
 import { useSeamReview } from "@/lib/review";
+import { scrubTo } from "@/lib/scrub";
 import { speedLabel } from "@/lib/speed";
 import { timelineView, zoomBy, zoomToFit } from "@/lib/timelineView";
+import { useTranscripts } from "@/lib/transcripts";
 import { selectJunction, setTransition, TRANSITION_DRAG } from "@/lib/transitions";
 import { useApp, ZOOM_MAX, ZOOM_MIN } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
@@ -79,6 +88,7 @@ import {
 } from "@/state/project";
 import { ContextMenu, IconButton, Kbd } from "@/ui";
 import { ClipMenu } from "./ClipMenu";
+import { Filmstrip } from "./Filmstrip";
 import { ASSET_MIME } from "./Library";
 import { NarrationPanel } from "./NarrationPanel";
 import { Waveform } from "./Waveform";
@@ -113,6 +123,18 @@ interface PreviewState {
   playhead?: number;
 }
 
+/** The interval marked on the ruler lives in the app state, so the actions reach it. */
+const setInterval = (interval: { start: number; end: number } | null): void =>
+  useApp.getState().set({ interval });
+
+/** A rectangle dragged over the background of the tracks (content pixels). */
+interface Marquee {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
 export function Timeline(): ReactNode {
   // A draft waiting for review is shown on the timeline, its clips highlighted.
   const project = useShownProject();
@@ -139,13 +161,21 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
   useEffect(() => () => cancelRipple.current?.(), []);
   const [view, setView] = useState({ left: 0, width: 1200 });
   const [preview, setPreview] = useState<PreviewState | null>(null);
-  const [interval, setInterval] = useState<{ start: number; end: number } | null>(null);
+  const interval = useApp((s) => s.interval);
+  const solo = useApp((s) => s.solo);
+  const [marquee, setMarquee] = useState<Marquee | null>(null);
+  const [trackDrag, setTrackDrag] = useState<{ id: string; to: number } | null>(null);
+  const transcripts = useTranscripts(project);
   const [narration, setNarration] = useState<{
     projectId: string;
     start: number;
     end: number;
   } | null>(null);
-  const [dropAt, setDropAt] = useState<{ trackId: string; time: number } | null>(null);
+  const [dropAt, setDropAt] = useState<{
+    trackId: string;
+    time: number;
+    insert: boolean;
+  } | null>(null);
   const zoomAnchor = useRef<{ time: number; px: number } | null>(null);
   const prevZoom = useRef(zoom);
 
@@ -234,11 +264,31 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
     return null;
   };
 
-  const snapCandidates = (exclude: Set<string>): number[] => {
-    const c = [0, usePlayback.getState().time];
-    for (const clip of project.clips) if (!exclude.has(clip.id)) c.push(clip.start, clipEnd(clip));
-    return c;
-  };
+  const fps = project.settings.fps;
+  /**
+   * The magnet for one gesture (shared/snap.ts): clip edges, playhead, the words and silences
+   * of the transcripts, recording markers and the interval, minus the clips being dragged.
+   */
+  const snapIndex = (exclude: Set<string>): SnapIndex =>
+    buildSnapIndex({
+      clips: project.clips,
+      exclude,
+      playhead: usePlayback.getState().time,
+      interval,
+      words: transcripts.size ? timelineWords(project, transcripts) : [],
+      silences: transcripts.size ? timelineSilences(project, transcripts) : [],
+      markers: recordingMarks(project)
+        .filter((m) => m.kind !== "zoom")
+        .map((m) => m.start),
+    });
+  /** `t` on the magnet (when it is on) and otherwise on the frame grid. */
+  const snapAt = (index: SnapIndex, t: number, px = SNAP_PX): Snapped =>
+    snapping ? snapTo(index, t, px / zoom, fps) : { time: toFrame(t, fps), kind: "frame" };
+  /** Where a snapped edge lands: exactly on another edge, else on a frame. */
+  const landing = (s: Snapped): number =>
+    s.kind === "edge" || s.kind === "playhead" || s.kind === "interval" || s.kind === "zero"
+      ? s.time
+      : toFrame(s.time, fps);
 
   const trackIndex = new Map(tracks.map((t, i) => [t.id, i]));
   const isLocked = (c: Clip): boolean => !!tracks[trackIndex.get(c.trackId) ?? -1]?.locked;
@@ -261,7 +311,7 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
     const moving = project.clips.filter((c) => selected.includes(c.id) && !isLocked(c));
     if (!moving.length) return;
     const ids = new Set(moving.map((c) => c.id));
-    const cands = snapCandidates(ids);
+    const index = snapIndex(ids);
     const minStart = Math.min(...moving.map((c) => c.start));
     const anchorLane = trackIndex.get(anchor.trackId)!;
     const startX = e.clientX;
@@ -282,21 +332,20 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
         started = true;
         let dt = Math.max(dx / zoom, -minStart);
         let snap: number | undefined;
-        if (snapping) {
-          const th = SNAP_PX / zoom;
-          const a = snapTime(anchor.start + dt, cands, th);
-          const b = snapTime(clipEnd(anchor) + dt, cands, th);
-          const da = a.snapped ? Math.abs(a.time - (anchor.start + dt)) : Infinity;
-          const db = b.snapped ? Math.abs(b.time - (clipEnd(anchor) + dt)) : Infinity;
-          if (da <= db && a.snapped) {
-            dt = a.time - anchor.start;
-            snap = a.time;
-          } else if (b.snapped) {
-            dt = b.time - clipEnd(anchor);
-            snap = b.time;
-          }
-          dt = Math.max(dt, -minStart);
-        }
+        // The start or the end of the dragged clip, whichever is nearer to something; with
+        // nothing near, the start lands on a frame.
+        const a = snapAt(index, anchor.start + dt);
+        const b = snapAt(index, clipEnd(anchor) + dt);
+        const da = shownSnap(a) ? Math.abs(a.time - (anchor.start + dt)) : Infinity;
+        const db = shownSnap(b) ? Math.abs(b.time - (clipEnd(anchor) + dt)) : Infinity;
+        if (da <= db && shownSnap(a)) {
+          dt = landing(a) - anchor.start;
+          snap = a.time;
+        } else if (shownSnap(b)) {
+          dt = landing(b) - clipEnd(anchor);
+          snap = b.time;
+        } else dt = toFrame(anchor.start + dt, fps) - anchor.start;
+        dt = Math.max(dt, -minStart);
         const lane = laneAt(ev.clientY);
         let delta = lane === null ? 0 : lane - anchorLane;
         const valid = moving.every((c) => {
@@ -327,11 +376,15 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
     );
   };
 
-  const beginTrim = (clip: Clip, edge: "start" | "end"): void => {
+  /**
+   * Drags an edge. With Shift (ripple) the clip keeps its place and what comes after it, on
+   * every unlocked track, follows the change (rippleTrim); without it the trim stops at the
+   * neighbouring clips instead of covering them.
+   */
+  const beginTrim = (clip: Clip, edge: "start" | "end", ripple: boolean): void => {
     if (waitForDraft("aparar clipes")) return;
     const asset = assets.get(clip.assetId);
     const neighbours = project.clips.filter((c) => c.trackId === clip.trackId && c.id !== clip.id);
-    // Trims stop at the neighbouring clips instead of overwriting them.
     const lower = Math.max(
       0,
       ...neighbours.filter((c) => clipEnd(c) <= clip.start + EPS).map(clipEnd),
@@ -340,41 +393,44 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
       Infinity,
       ...neighbours.filter((c) => c.start >= clipEnd(clip) - EPS).map((c) => c.start),
     );
-    const cands = snapCandidates(new Set([clip.id]));
-    let result: Clip | null = null;
-    let edgeAt: number | null = null;
+    const index = snapIndex(new Set([clip.id]));
+    let result: Clip[] | null = null;
     listen(
       (ev) => {
-        let t = xToTime(ev.clientX);
-        let snap: number | undefined;
-        if (snapping) {
-          const s = snapTime(t, cands, SNAP_PX / zoom);
-          t = s.time;
-          if (s.snapped) snap = s.time;
+        const s = snapAt(index, xToTime(ev.clientX));
+        let t = landing(s);
+        const snap = shownSnap(s) ? s.time : undefined;
+        if (ripple) {
+          // The head trimmed with ripple keeps the clip's start: the edge is dragged as an amount.
+          const next = rippleTrim(project.clips, tracks, clip.id, edge, t, asset);
+          result = next;
+          setPreview({
+            clips: new Map(next.filter((c, i) => c !== project.clips[i]).map((c) => [c.id, c])),
+            snap,
+          });
+          return;
         }
         t = edge === "start" ? Math.max(t, lower) : Math.min(t, upper);
-        edgeAt = t;
-        result = trimClip(clip, edge, t, asset);
-        setPreview({ clips: new Map([[clip.id, result]]), snap });
+        const trimmed = trimClip(clip, edge, t, asset);
+        result = project.clips.map((c) => (c.id === trimmed.id ? trimmed : c));
+        setPreview({ clips: new Map([[clip.id, trimmed]]), snap });
       },
       () => {
         setPreview(null);
-        const at = edgeAt;
-        const real = useProject.getState().project?.clips.some((c) => c.id === clip.id);
-        if (result && at !== null && real)
-          // Trimmed from the lesson's own clip, so nothing a draft changed in it comes along.
+        const next = result;
+        // The lesson changed under the drag (an AI edit): only a plain trim of this clip is
+        // still meaningful; a ripple would move clips that are no longer where they were.
+        const now = useProject.getState().project;
+        if (!next || !now) return;
+        if (now.clips === project.clips) {
+          useProject.getState().commit((p) => ({ ...p, clips: next }));
+          return;
+        }
+        const trimmed = next.find((x) => x.id === clip.id);
+        if (!ripple && trimmed && now.clips.some((c) => c.id === clip.id))
           useProject.getState().commit((p) => ({
             ...p,
-            clips: p.clips.map((c) =>
-              c.id === clip.id
-                ? trimClip(
-                    c,
-                    edge,
-                    at,
-                    p.assets.find((a) => a.id === c.assetId),
-                  )
-                : c,
-            ),
+            clips: p.clips.map((c) => (c.id === clip.id ? trimmed : c)),
           }));
       },
     );
@@ -399,16 +455,16 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
       e.stopPropagation();
       if (isLocked(clip)) return;
       if (tool === "cut" && part === "body") {
-        let t = xToTime(e.clientX);
-        if (snapping) t = snapTime(t, [usePlayback.getState().time], SNAP_PX / zoom).time;
-        actions.splitClipAt(clip.id, t);
+        // The cut lands on a word edge, the playhead or another edge nearby, and on a frame.
+        actions.splitClipAt(clip.id, landing(snapAt(snapIndex(new Set()), xToTime(e.clientX))));
         return;
       }
       const { select } = useProject.getState();
       // Clicking a clip is the latest selection: Delete acts on it, not on words picked before.
       if (useApp.getState().textCut) useApp.getState().set({ textCut: null });
       let sel = selection;
-      if (e.ctrlKey || e.shiftKey) {
+      // On an edge, Shift is the ripple trim, not a change of the selection.
+      if (part === "body" && (e.ctrlKey || e.shiftKey)) {
         sel = sel.includes(clip.id) ? sel.filter((id) => id !== clip.id) : [...sel, clip.id];
         select(sel);
         if (!sel.includes(clip.id)) return;
@@ -417,7 +473,7 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
         select(sel);
       }
       if (part === "body") beginMove(e, clip, sel);
-      else beginTrim(clip, part);
+      else beginTrim(clip, part, e.shiftKey);
     },
   );
 
@@ -443,7 +499,7 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
     let requested = 0;
     const move = (ev: PointerEvent): void => {
       if (ev.pointerId !== e.pointerId) return;
-      requested = xToTime(ev.clientX) - origin;
+      requested = toFrame(xToTime(ev.clientX) - origin, fps);
       result = rippleMoveFrom(project.clips, tracks, at, requested);
       setInterval({ start: Math.min(at, at + result.delta), end: Math.max(at, at + result.delta) });
       setPreview({
@@ -525,6 +581,8 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
           return;
         }
         playback.seek(xToTime(ev.clientX));
+        // Dragging the playhead is heard, a grain at a time (lib/scrub.ts).
+        scrubTo(usePlayback.getState().time);
       },
       () => undefined,
     );
@@ -533,9 +591,15 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
   const acceptsDrop = (e: React.DragEvent): boolean =>
     e.dataTransfer.types.includes(ASSET_MIME) || e.dataTransfer.types.includes("Files");
 
+  /** The magnet of a drag from the library, made once for the whole drag (dragover fires often). */
+  const dropIndex = useRef<{ key: unknown[]; index: SnapIndex } | null>(null);
   const dropTime = (clientX: number): number => {
-    const t = xToTime(clientX);
-    return snapping ? snapTime(t, snapCandidates(new Set()), (SNAP_PX * 2) / zoom).time : t;
+    const key = [project.clips, transcripts, interval, usePlayback.getState().time];
+    const known = dropIndex.current;
+    const index =
+      known?.key.every((part, i) => part === key[i]) === true ? known.index : snapIndex(new Set());
+    dropIndex.current = { key, index };
+    return landing(snapAt(index, xToTime(clientX), SNAP_PX * 2));
   };
 
   const onLaneDrop = async (e: React.DragEvent, track: Track): Promise<void> => {
@@ -544,15 +608,115 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
     setDropAt(null);
     if (track.locked) return;
     const time = dropTime(e.clientX);
+    // Ctrl + drop inserts, pushing what comes after on every unlocked track.
+    const insert = e.ctrlKey;
     const raw = e.dataTransfer.getData(ASSET_MIME);
     if (raw) {
       const ids = JSON.parse(raw) as string[];
       const list = ids.map((id) => assets.get(id)).filter((a): a is Asset => !!a);
-      actions.placeAssets(list, track, time);
+      actions.placeAssets(list, track, time, insert);
       return;
     }
     const paths = [...e.dataTransfer.files].map((f) => window.api.pathForFile(f)).filter(Boolean);
-    if (paths.length) actions.placeAssets(await importMedia(paths), track, time);
+    if (paths.length) actions.placeAssets(await importMedia(paths), track, time, insert);
+  };
+
+  /** Content coordinates (pixels inside the scrolled timeline) of a pointer position. */
+  const contentPoint = (clientX: number, clientY: number): { x: number; y: number } => {
+    const el = scrollRef.current;
+    if (!el) return { x: 0, y: 0 };
+    const r = el.getBoundingClientRect();
+    return { x: clientX - r.left + el.scrollLeft, y: clientY - r.top + el.scrollTop };
+  };
+
+  /**
+   * A drag over the background of the tracks selects every clip the rectangle touches (Ctrl or
+   * Shift adds them to the selection); a click without dragging clears it.
+   */
+  const onLaneDown = (e: React.PointerEvent): void => {
+    if (e.button !== 0) return;
+    const start = contentPoint(e.clientX, e.clientY);
+    const additive = e.ctrlKey || e.shiftKey;
+    const before = useProject.getState().selection;
+    let moved = false;
+    listen(
+      (ev) => {
+        const now = contentPoint(ev.clientX, ev.clientY);
+        if (!moved && Math.hypot(now.x - start.x, now.y - start.y) < 4) return;
+        moved = true;
+        setMarquee({ x0: start.x, y0: start.y, x1: now.x, y1: now.y });
+        const top = Math.min(start.y, now.y);
+        const bottom = Math.max(start.y, now.y);
+        const ids = new Set(
+          tracks
+            .filter((t) => {
+              const y = laneTops.get(t.id) ?? RULER_H;
+              return !t.locked && y < bottom && y + trackH(t) > top;
+            })
+            .map((t) => t.id),
+        );
+        const hit = clipsInSpan(project.clips, ids, start.x / zoom, now.x / zoom).map((c) => c.id);
+        useProject.getState().select(additive ? [...new Set([...before, ...hit])] : hit);
+      },
+      () => {
+        setMarquee(null);
+        if (!moved && !additive) useProject.getState().select([]);
+      },
+    );
+  };
+
+  /** Drags a track by its label to another place in the stack; one undo step. */
+  const onTrackDragStart = (e: React.PointerEvent, track: Track): void => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const heads = headsRef.current;
+    if (!heads) return;
+    const from = tracks.findIndex((t) => t.id === track.id);
+    const startY = e.clientY;
+    let to = from;
+    let moved = false;
+    const slot = (clientY: number): number => {
+      const y = clientY - heads.getBoundingClientRect().top + heads.scrollTop - RULER_H;
+      let top = 0;
+      for (let i = 0; i < tracks.length; i++) {
+        const h = trackH(tracks[i]);
+        if (y < top + h / 2) return i;
+        top += h;
+      }
+      return tracks.length;
+    };
+    const cancel = (): void => {
+      window.removeEventListener("keydown", key, true);
+      stop();
+      setTrackDrag(null);
+    };
+    const key = (ev: KeyboardEvent): void => {
+      if (ev.key !== "Escape") return;
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      moved = false;
+      cancel();
+    };
+    window.addEventListener("keydown", key, true);
+    const stop = listen(
+      (ev) => {
+        if (!moved && Math.abs(ev.clientY - startY) < 4) return;
+        moved = true;
+        const insert = slot(ev.clientY);
+        to = insert > from ? insert - 1 : insert;
+        setTrackDrag({ id: track.id, to: insert });
+      },
+      (ev) => {
+        window.removeEventListener("keydown", key, true);
+        setTrackDrag(null);
+        if (!moved) return;
+        // Where the button is let go decides, whatever moves came before.
+        const insert = slot(ev.clientY);
+        to = insert > from ? insert - 1 : insert;
+        if (to !== from) actions.moveTrack(track.id, to);
+      },
+    );
   };
 
   const shown = useMemo(
@@ -621,6 +785,15 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
           <button
             type="button"
             className="tool"
+            title="Tira o intervalo de todas as faixas que os cortes de texto alcançam e puxa o resto para a esquerda, sem perder a sincronia. A música continua e as faixas travadas não mudam. Ctrl+Z desfaz."
+            disabled={interval.end <= interval.start}
+            onClick={() => actions.rippleDeleteInterval()}
+          >
+            <Trash2 size={13} /> Excluir o intervalo
+          </button>
+          <button
+            type="button"
+            className="tool"
             title="Limpar intervalo"
             onClick={() => setInterval(null)}
           >
@@ -654,12 +827,23 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
               track={t}
               label={labels.get(t.id)!}
               empty={!byTrack.has(t.id)}
+              soloed={solo.includes(t.id)}
+              dragging={trackDrag?.id === t.id}
               onMenu={(e) => {
                 e.preventDefault();
                 setTrackMenu({ x: e.clientX, y: e.clientY, trackId: t.id });
               }}
+              onDragStart={(e) => onTrackDragStart(e, t)}
             />
           ))}
+          {trackDrag && (
+            <div
+              className="track-drop-line"
+              style={{
+                top: RULER_H + tracks.slice(0, trackDrag.to).reduce((h, t) => h + trackH(t), 0) - 1,
+              }}
+            />
+          )}
           <div style={{ height: 40 }} />
         </div>
 
@@ -681,10 +865,11 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
               }
               e.dataTransfer.dropEffect = "copy";
               const time = dropTime(e.clientX);
+              const insert = e.ctrlKey;
               setDropAt((d) =>
-                d && d.trackId === track.id && Math.abs(d.time - time) < 1e-3
+                d && d.trackId === track.id && Math.abs(d.time - time) < 1e-3 && d.insert === insert
                   ? d
-                  : { trackId: track.id, time },
+                  : { trackId: track.id, time, insert },
               );
             }}
             onDragLeave={(e) => {
@@ -707,12 +892,18 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
                   key={t.id}
                   className={`lane lane-${t.kind} ${t.locked ? "is-locked" : ""}`}
                   style={{ top, height: trackH(t) }}
-                  onPointerDown={(e) =>
-                    e.button === 0 && !e.ctrlKey && !e.shiftKey && useProject.getState().select([])
-                  }
+                  onPointerDown={onLaneDown}
                 >
                   {dropAt?.trackId === t.id && (
-                    <div className="drop-marker" style={{ left: dropAt.time * zoom }} />
+                    <div
+                      className={`drop-marker ${dropAt.insert ? "is-insert" : ""}`}
+                      style={{ left: dropAt.time * zoom }}
+                      title={
+                        dropAt.insert
+                          ? "Solte para inserir empurrando o que vem depois"
+                          : "Solte para colocar aqui (Ctrl insere empurrando o resto)"
+                      }
+                    />
                   )}
                 </div>
               );
@@ -865,6 +1056,17 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
                 style={{ left: preview.snap * zoom, height: RULER_H + lanesHeight }}
               />
             )}
+            {marquee && (
+              <div
+                className="tl-marquee"
+                style={{
+                  left: Math.min(marquee.x0, marquee.x1),
+                  top: Math.min(marquee.y0, marquee.y1),
+                  width: Math.abs(marquee.x1 - marquee.x0),
+                  height: Math.abs(marquee.y1 - marquee.y0),
+                }}
+              />
+            )}
             <Playhead
               zoom={zoom}
               height={RULER_H + lanesHeight}
@@ -926,6 +1128,47 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
           y={trackMenu.y}
           onClose={() => setTrackMenu(null)}
           items={[
+            {
+              icon: BoxSelect,
+              label: "Selecionar a faixa inteira",
+              disabled:
+                !byTrack.has(trackMenu.trackId) ||
+                !!tracks.find((t) => t.id === trackMenu.trackId)?.locked,
+              onSelect: () => actions.selectTrack(trackMenu.trackId),
+            },
+            {
+              icon: ArrowRightToLine,
+              label: "Selecionar desta faixa a partir do cursor",
+              hint: "Os clipes desta faixa que começam no cursor de reprodução ou depois dele",
+              disabled: !!tracks.find((t) => t.id === trackMenu.trackId)?.locked,
+              onSelect: () => actions.selectFromPlayhead(trackMenu.trackId),
+            },
+            {
+              icon: ArrowRightToLine,
+              label: "Selecionar tudo a partir do cursor",
+              hint: "Os clipes de todas as faixas destravadas que começam no cursor ou depois dele",
+              onSelect: () => actions.selectFromPlayhead(),
+            },
+            { separator: true, label: "" },
+            {
+              label: "Subir a faixa",
+              disabled: tracks.findIndex((t) => t.id === trackMenu.trackId) <= 0,
+              onSelect: () =>
+                actions.moveTrack(
+                  trackMenu.trackId,
+                  tracks.findIndex((t) => t.id === trackMenu.trackId) - 1,
+                ),
+            },
+            {
+              label: "Descer a faixa",
+              disabled: tracks.findIndex((t) => t.id === trackMenu.trackId) >= tracks.length - 1,
+              onSelect: () =>
+                actions.moveTrack(
+                  trackMenu.trackId,
+                  tracks.findIndex((t) => t.id === trackMenu.trackId) + 1,
+                ),
+            },
+            { separator: true, label: "" },
             {
               icon: FoldHorizontal,
               label: "Fechar lacunas desta faixa",
@@ -999,7 +1242,7 @@ function Toolbar(): ReactNode {
           type="button"
           className={`tool ${snapping ? "is-on" : ""}`}
           onClick={() => set({ snapping: !snapping })}
-          title="Ímã: encaixa nas bordas dos clipes e no cursor"
+          title="Ímã: encaixa nas bordas dos clipes, no cursor, no começo e no fim das palavras, nos silêncios, nos marcadores e no intervalo. Sem nada perto, encaixa no quadro mais próximo."
         >
           <Magnet size={14} /> Ímã
         </button>
@@ -1096,22 +1339,36 @@ function TrackHeader({
   track,
   label,
   empty,
+  soloed,
+  dragging,
   onMenu,
+  onDragStart,
 }: {
   track: Track;
   label: string;
   empty: boolean;
+  soloed: boolean;
+  dragging: boolean;
   onMenu: (e: React.MouseEvent) => void;
+  onDragStart: (e: React.PointerEvent) => void;
 }): ReactNode {
   const [editing, setEditing] = useState(false);
   return (
     <fieldset
-      className={`track-head track-head-${track.kind} ${trackH(track) < 44 ? "is-short" : ""}`}
+      className={`track-head track-head-${track.kind} ${trackH(track) < 44 ? "is-short" : ""} ${dragging ? "is-dragging" : ""}`}
       style={{ height: trackH(track) }}
       aria-label={`Faixa ${label}: ${track.name}. Botão direito para mais opções.`}
       onContextMenu={onMenu}
     >
-      <span className={`track-tag tag-${track.kind}`}>{label}</span>
+      <button
+        type="button"
+        className={`track-tag tag-${track.kind}`}
+        title="Arraste para mudar a faixa de lugar (a de cima fica na frente)"
+        aria-label={`Mover a faixa ${track.name}`}
+        onPointerDown={onDragStart}
+      >
+        {label}
+      </button>
       {editing ? (
         <input
           className="track-name-input"
@@ -1130,15 +1387,25 @@ function TrackHeader({
         <button
           type="button"
           className="track-name"
-          style={{ border: 0, padding: 0, background: "none", color: "inherit", textAlign: "left" }}
           onClick={() => setEditing(true)}
-          title="Dois cliques para renomear"
+          title={`${track.name}. Dois cliques para renomear`}
         >
           {track.name}
         </button>
       )}
-      <span className="spacer" />
-      {
+      <span className="track-buttons">
+        <IconButton
+          icon={Headphones}
+          size={13}
+          label={
+            soloed
+              ? "Tirar do solo"
+              : "Solo: ouvir só esta faixa (só no editor, a exportação leva todas)"
+          }
+          active={soloed}
+          className="track-solo"
+          onClick={() => actions.toggleSolo(track.id)}
+        />
         <IconButton
           icon={track.hidden ? EyeOff : Eye}
           size={13}
@@ -1146,25 +1413,26 @@ function TrackHeader({
           active={track.hidden}
           onClick={() => actions.updateTrack(track.id, { hidden: !track.hidden })}
         />
-      }
-      <IconButton
-        icon={track.muted ? VolumeX : Volume2}
-        size={13}
-        label={track.muted ? "Ativar som" : "Silenciar faixa"}
-        active={track.muted}
-        onClick={() => actions.updateTrack(track.id, { muted: !track.muted })}
-      />
-      <IconButton
-        icon={track.locked ? Lock : LockOpen}
-        size={13}
-        label={track.locked ? "Destravar" : "Travar faixa"}
-        active={track.locked}
-        onClick={() => actions.updateTrack(track.id, { locked: !track.locked })}
-      />
+        <IconButton
+          icon={track.muted ? VolumeX : Volume2}
+          size={13}
+          label={track.muted ? "Ativar som" : "Silenciar faixa"}
+          active={track.muted}
+          onClick={() => actions.updateTrack(track.id, { muted: !track.muted })}
+        />
+        <IconButton
+          icon={track.locked ? Lock : LockOpen}
+          size={13}
+          label={track.locked ? "Destravar" : "Travar faixa"}
+          active={track.locked}
+          onClick={() => actions.updateTrack(track.id, { locked: !track.locked })}
+        />
+      </span>
       {empty && (
+        // Over the corner, outside the row: it never takes the room of the track's name.
         <IconButton
           icon={X}
-          size={12}
+          size={11}
           label="Remover faixa vazia"
           className="track-remove"
           onClick={() => actions.removeTrack(track.id)}
@@ -1453,11 +1721,26 @@ const ClipView = memo(function ClipView({
       onContextMenu={(e) => onContextMenu(e, clip)}
       title={`${name}${clipSpeed(clip) !== 1 ? ` · velocidade ${speedLabel(clipSpeed(clip))}` : ""}`}
     >
-      {showThumbs && (
-        <div
-          className="clip-thumbs"
-          style={{ backgroundImage: `url("${mediaUrl(asset.thumb!)}")` }}
+      {kind === "video" && asset?.filmstrip ? (
+        <Filmstrip
+          strip={asset.filmstrip}
+          sourceIn={clip.in}
+          duration={clip.duration}
+          speed={clipSpeed(clip)}
+          zoom={zoom}
+          height={Math.max(0, height - 6 - 2 - (showWave ? 18 : 0))}
+          bottom={showWave ? 18 : 0}
+          clipLeft={left}
+          viewLeft={viewLeft}
+          viewWidth={viewWidth}
         />
+      ) : (
+        showThumbs && (
+          <div
+            className="clip-thumbs"
+            style={{ backgroundImage: `url("${mediaUrl(asset.thumb!)}")` }}
+          />
+        )
       )}
       {showWave && (
         <div className={`clip-wave ${kind === "audio" ? "is-full" : ""}`}>

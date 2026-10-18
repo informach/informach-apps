@@ -1,16 +1,21 @@
-import { closeCommonGaps } from "@shared/cleanup";
+import { applyCuts, closeCommonGaps, cutTargets } from "@shared/cleanup";
+import { type ReframeMode, reframeProject } from "@shared/compose";
 import {
+  clipsFrom,
   closeGaps,
+  insertClips,
   makeClip,
+  moveTrack,
   newId,
   newTrackName,
   placeClips,
   rippleDelete,
   splitAt,
+  toFrame,
   trackAccepts,
   trackEnd,
 } from "@shared/timeline";
-import type { Asset, Project, Track } from "@shared/types";
+import type { Asset, Clip, Project, ProjectSettings, Track } from "@shared/types";
 import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
 import { type Commit, personCommit, useProject, waitForDraft } from "@/state/project";
@@ -102,22 +107,98 @@ export const actions = {
     });
   },
 
-  /** Places assets one after another starting at `start` on `track` (or each asset's default track). */
-  placeAssets(assets: Asset[], track: Track | undefined, start: number): void {
+  /**
+   * Places assets one after another starting at `start` on `track` (or each asset's default
+   * track). With `insert` (Ctrl + drop) they go in pushing what comes after on every unlocked
+   * track (insertClips); otherwise they cover what is under them.
+   */
+  placeAssets(assets: Asset[], track: Track | undefined, start: number, insert = false): void {
     const { commit, project } = useProject.getState();
     if (!project || !assets.length || waitForDraft("colocar mídia na timeline")) return;
     commit((p) => {
-      let clips = p.clips;
+      const placed: Clip[] = [];
+      // The timeline already put `start` on a frame, or exactly on the edge it snapped to.
       let cursor = start;
       for (const a of assets) {
         const target = track && trackAccepts(track, a) ? track : defaultTrackFor(p, a);
         if (!target) continue;
         const clip = makeClip(a, target.id, cursor, p.settings);
-        clips = placeClips(clips, [clip]);
+        placed.push(clip);
         cursor += clip.duration;
       }
+      if (insert && placed.length)
+        return { ...p, clips: insertClips(p.clips, p.tracks, placed, placed[0].start) };
+      let clips = p.clips;
+      for (const clip of placed) clips = placeClips(clips, [clip]);
       return { ...p, clips };
     });
+  },
+
+  /**
+   * Removes the interval marked on the ruler from every track text cuts reach (cutTargets) and
+   * pulls what comes after left, keeping them in sync; a music bed keeps playing and ends with
+   * the lesson, locked tracks stay as they are. One undo step.
+   */
+  rippleDeleteInterval(): boolean {
+    const { project, commit } = useProject.getState();
+    const interval = useApp.getState().interval;
+    if (!project || !interval) return false;
+    const fps = project.settings.fps;
+    const start = toFrame(interval.start, fps);
+    const end = toFrame(interval.end, fps);
+    if (end - start <= 1e-6) return false;
+    const targets = cutTargets(project);
+    if (!targets.size) return false;
+    const done = commit((p) => ({
+      ...p,
+      clips: applyCuts(p.clips, [[start, end]], cutTargets(p), lockedTracks(p)),
+    }));
+    if (done) {
+      useApp.getState().set({ interval: null });
+      playback.seek(start);
+    }
+    return done;
+  },
+
+  /** The track moved to position `to` (0 = top); one undo step. */
+  moveTrack(id: string, to: number): void {
+    const { project, commit } = useProject.getState();
+    if (!project) return;
+    const next = moveTrack(project.tracks, id, to);
+    if (next !== project.tracks) commit((p) => ({ ...p, tracks: moveTrack(p.tracks, id, to) }));
+  },
+
+  /** Selects clips starting at the playhead or after it, on one track or on every track. */
+  selectFromPlayhead(trackId?: string): void {
+    const { project, select } = useProject.getState();
+    if (!project) return;
+    const locked = lockedTracks(project);
+    const at = usePlayback.getState().time;
+    select(
+      clipsFrom(project.clips, at, trackId)
+        .filter((c) => !locked.has(c.trackId))
+        .map((c) => c.id),
+    );
+  },
+
+  /** Selects every clip of a track. */
+  selectTrack(trackId: string): void {
+    const { project, select } = useProject.getState();
+    if (!project || lockedTracks(project).has(trackId)) return;
+    select(project.clips.filter((c) => c.trackId === trackId).map((c) => c.id));
+  },
+
+  /** Solo of a track for listening (app state only, never in the lesson). */
+  toggleSolo(trackId: string): void {
+    const { solo, set } = useApp.getState();
+    set({
+      solo: solo.includes(trackId) ? solo.filter((id) => id !== trackId) : [...solo, trackId],
+    });
+  },
+
+  /** Another format for the lesson (Mudar formato), every picture remapped; one undo step. */
+  reframe(settings: ProjectSettings, mode: ReframeMode): void {
+    useProject.getState().commit((p) => reframeProject(p, settings, mode));
   },
 
   async importDialog(): Promise<Asset[]> {

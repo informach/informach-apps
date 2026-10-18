@@ -69,6 +69,8 @@ interface ProjectStore {
 
   load(path: string, project: Project): void;
   close(): void;
+  /** The open lesson's file was renamed (main/projects.ts renameProject). */
+  renamed(path: string, name: string): void;
   /** Undoable change made by the person. Returns whether it was made. */
   commit(fn: (p: Project) => Project): boolean;
   /**
@@ -185,12 +187,28 @@ export const useProject = create<ProjectStore>((set, get) => {
 
     load: (path, project) => {
       clearTimeout(timer);
+      // What is loaded is what the file holds (opened, created or a backup put back in place),
+      // even when the path stays the same: nothing to save until the first edit.
+      lastSaved = project;
       // Another project: no proposal, view or AI turn of the previous one carries over.
       set({ path, project, ...emptyState, revision: nextRevision() });
+      useApp.getState().set({ interval: null, solo: [] });
     },
     close: () => {
       clearTimeout(timer);
       set({ project: null, path: null, ...emptyState, revision: nextRevision() });
+      useApp.getState().set({ interval: null, solo: [] });
+    },
+
+    renamed: (path, name) => {
+      // The file was renamed on disk with the new name in it: the lesson goes on there, and
+      // stepping through the history keeps the new name.
+      const rename = (p: Project): Project => ({ ...p, name });
+      const { project, past, future } = get();
+      if (!project) return;
+      const next = rename(project);
+      if (lastSaved === project) lastSaved = next;
+      set({ path, project: next, past: past.map(rename), future: future.map(rename) });
     },
 
     commit: (fn) =>

@@ -16,6 +16,8 @@ import { DEFAULT_TRANSITION, previousClip, TRANSITIONS } from "@shared/transitio
 import type { Asset, Clip } from "@shared/types";
 import {
   Crop as CropIcon,
+  FlipHorizontal2,
+  FlipVertical2,
   Loader,
   Move,
   Pipette,
@@ -27,6 +29,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { keyIsCurrent } from "@/lib/keying";
 import { makeTransition } from "@/lib/transitions";
 import { useApp } from "@/state/app";
+import { liveEdit } from "@/state/liveEdit";
 import { playback, usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
 import { Button, Toggle } from "@/ui";
@@ -35,7 +38,26 @@ import { Swatches } from "./Swatches";
 
 const pct = (v: number): string => `${Math.round(v * 100)}%`;
 
-/** A slider that previews while dragging and commits once on release (one undo step). */
+/** How a slider's value is typed: the value times `factor`, in `unit`, with `digits` decimals. */
+export interface NumberInput {
+  factor: number;
+  unit: string;
+  digits?: number;
+  /** What a typed value may be (the slider's own range when absent). */
+  limits?: [number, number];
+}
+
+/** A number typed with a comma or a dot. */
+const typed = (text: string): number | null => {
+  const v = Number(text.trim().replace(",", "."));
+  return text.trim() && Number.isFinite(v) ? v : null;
+};
+
+/**
+ * A slider that previews while dragging and commits once on release (one undo step). With
+ * `onPreview` the change shows on the clips while the slider is held (null when it lets go);
+ * with `input` the value can also be typed (Enter or leaving the field applies it, Esc goes back).
+ */
 export function Slider({
   label,
   value,
@@ -44,6 +66,8 @@ export function Slider({
   step,
   format = pct,
   onCommit,
+  onPreview,
+  input,
 }: {
   label: string;
   value: number;
@@ -52,14 +76,29 @@ export function Slider({
   step: number;
   format?: (v: number) => string;
   onCommit: (v: number) => void;
+  onPreview?: (v: number | null) => void;
+  input?: NumberInput;
 }): ReactNode {
   const [draft, setDraft] = useState(value);
+  const [text, setText] = useState<string | null>(null);
   useEffect(() => setDraft(value), [value]);
   const done = (): void => {
+    onPreview?.(null);
     if (draft !== value) onCommit(draft);
   };
+  const shown = (v: number): string =>
+    input ? (v * input.factor).toFixed(input.digits ?? 0).replace(".", ",") : format(v);
+  const commitText = (): void => {
+    if (text === null || !input) return;
+    setText(null);
+    const v = typed(text);
+    if (v === null) return;
+    const [lo, hi] = input.limits ?? [min, max];
+    const next = Math.min(hi, Math.max(lo, v / input.factor));
+    if (Math.abs(next - value) > 1e-9) onCommit(next);
+  };
   return (
-    <label className="slider-row">
+    <div className="slider-row">
       <span className="muted">{label}</span>
       <input
         type="range"
@@ -67,14 +106,44 @@ export function Slider({
         min={min}
         max={max}
         step={step}
-        value={draft}
-        onChange={(e) => setDraft(Number(e.target.value))}
+        value={Math.min(max, Math.max(min, draft))}
+        onChange={(e) => {
+          const v = Number(e.target.value);
+          setDraft(v);
+          onPreview?.(v);
+        }}
         onPointerUp={done}
         onKeyUp={done}
+        onBlur={() => onPreview?.(null)}
         aria-label={label}
       />
-      <span className="mono slider-value">{format(draft)}</span>
-    </label>
+      {input ? (
+        <span className="slider-input">
+          <input
+            className="input mono"
+            inputMode="decimal"
+            aria-label={`${label} (${input.unit})`}
+            value={text ?? shown(draft)}
+            onFocus={(e) => {
+              setText(shown(draft));
+              e.currentTarget.select();
+            }}
+            onChange={(e) => setText(e.target.value)}
+            onBlur={commitText}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+              if (e.key === "Escape") {
+                setText(null);
+                e.currentTarget.blur();
+              }
+            }}
+          />
+          <span className="muted">{input.unit}</span>
+        </span>
+      ) : (
+        <span className="mono slider-value">{format(draft)}</span>
+      )}
+    </div>
   );
 }
 
@@ -85,6 +154,7 @@ export function updateClip(id: string, fn: (c: Clip) => Clip): void {
 }
 
 export function PlacementSection({ clip, asset }: { clip: Clip; asset: Asset }): ReactNode {
+  const frame = useProject((s) => s.project?.settings) ?? { width: 1920, height: 1080, fps: 30 };
   const t = clip.transform ?? DEFAULT_TRANSFORM;
   const crop = t.crop ?? NO_CROP;
   const set = (changes: Partial<Transform>): void => {
@@ -96,6 +166,16 @@ export function PlacementSection({ clip, asset }: { clip: Clip; asset: Asset }):
   const setCrop = (side: keyof Crop, v: number): void => {
     set({ crop: { ...crop, [side]: v } });
   };
+  /** The value under the slider shown on the clip right away, before letting go. */
+  const preview =
+    (key: keyof Transform) =>
+    (v: number | null): void =>
+      v === null ? liveEdit.clear() : liveEdit.show([clip.id], { [key]: v });
+  const previewCrop =
+    (side: keyof Crop) =>
+    (v: number | null): void =>
+      v === null ? liveEdit.clear() : liveEdit.show([clip.id], { crop: { ...crop, [side]: v } });
+  const percent: NumberInput = { factor: 100, unit: "%", limits: [0, 1] };
   const portrait = asset.height > asset.width;
   const [cropOpen, setCropOpen] = useState(!!t.crop);
   const active = AVATAR_PLACEMENTS.find(
@@ -171,6 +251,8 @@ export function PlacementSection({ clip, asset }: { clip: Clip; asset: Asset }):
         max={3}
         step={0.01}
         onCommit={(v) => set({ scale: v })}
+        onPreview={preview("scale")}
+        input={{ factor: 100, unit: "%", limits: [0.01, 20] }}
       />
       <Slider
         label="Horizontal"
@@ -179,6 +261,8 @@ export function PlacementSection({ clip, asset }: { clip: Clip; asset: Asset }):
         max={1.25}
         step={0.005}
         onCommit={(v) => set({ x: v })}
+        onPreview={preview("x")}
+        input={{ factor: frame.width, unit: "px", limits: [-4, 5] }}
       />
       <Slider
         label="Vertical"
@@ -187,6 +271,8 @@ export function PlacementSection({ clip, asset }: { clip: Clip; asset: Asset }):
         max={1.25}
         step={0.005}
         onCommit={(v) => set({ y: v })}
+        onPreview={preview("y")}
+        input={{ factor: frame.height, unit: "px", limits: [-4, 5] }}
       />
       <Slider
         label="Opacidade"
@@ -195,7 +281,37 @@ export function PlacementSection({ clip, asset }: { clip: Clip; asset: Asset }):
         max={1}
         step={0.01}
         onCommit={(v) => set({ opacity: v })}
+        onPreview={preview("opacity")}
+        input={percent}
       />
+      <Slider
+        label="Girar"
+        value={t.rotation ?? 0}
+        min={-180}
+        max={180}
+        step={1}
+        onCommit={(v) => set({ rotation: Math.abs(v) < 1e-9 ? undefined : v })}
+        onPreview={preview("rotation")}
+        input={{ factor: 1, unit: "°", digits: 1, limits: [-360, 360] }}
+      />
+      <div className="chip-row">
+        <button
+          type="button"
+          className={`chip ${t.flipH ? "is-active" : ""}`}
+          aria-pressed={!!t.flipH}
+          onClick={() => set({ flipH: t.flipH ? undefined : true })}
+        >
+          <FlipHorizontal2 size={12} /> Espelhar na horizontal
+        </button>
+        <button
+          type="button"
+          className={`chip ${t.flipV ? "is-active" : ""}`}
+          aria-pressed={!!t.flipV}
+          onClick={() => set({ flipV: t.flipV ? undefined : true })}
+        >
+          <FlipVertical2 size={12} /> Espelhar na vertical
+        </button>
+      </div>
       <button type="button" className="link-btn" onClick={() => setCropOpen(!cropOpen)}>
         <CropIcon size={12} /> {cropOpen ? "Esconder corte das bordas" : "Cortar bordas"}
       </button>
@@ -208,6 +324,8 @@ export function PlacementSection({ clip, asset }: { clip: Clip; asset: Asset }):
             max={0.45}
             step={0.005}
             onCommit={(v) => setCrop("left", v)}
+            onPreview={previewCrop("left")}
+            input={{ factor: 100, unit: "%", digits: 1, limits: [0, 0.45] }}
           />
           <Slider
             label="Direita"
@@ -216,6 +334,8 @@ export function PlacementSection({ clip, asset }: { clip: Clip; asset: Asset }):
             max={0.45}
             step={0.005}
             onCommit={(v) => setCrop("right", v)}
+            onPreview={previewCrop("right")}
+            input={{ factor: 100, unit: "%", digits: 1, limits: [0, 0.45] }}
           />
           <Slider
             label="Topo"
@@ -224,6 +344,8 @@ export function PlacementSection({ clip, asset }: { clip: Clip; asset: Asset }):
             max={0.45}
             step={0.005}
             onCommit={(v) => setCrop("top", v)}
+            onPreview={previewCrop("top")}
+            input={{ factor: 100, unit: "%", digits: 1, limits: [0, 0.45] }}
           />
           <Slider
             label="Base"
@@ -232,12 +354,14 @@ export function PlacementSection({ clip, asset }: { clip: Clip; asset: Asset }):
             max={0.45}
             step={0.005}
             onCommit={(v) => setCrop("bottom", v)}
+            onPreview={previewCrop("bottom")}
+            input={{ factor: 100, unit: "%", digits: 1, limits: [0, 0.45] }}
           />
         </>
       )}
       <p className="props-hint muted">
-        Dica: arraste o clipe no vídeo para mover e puxe um canto para mudar o tamanho (Alt desliga
-        o ímã).
+        Dica: arraste o clipe no vídeo para mover e puxe um canto para mudar o tamanho. Arrastar com
+        Alt desliga o ímã; Alt + clique pega a camada de baixo.
       </p>
     </div>
   );

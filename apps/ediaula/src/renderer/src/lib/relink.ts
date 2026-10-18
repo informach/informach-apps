@@ -1,17 +1,20 @@
-import { fileName, relinkMismatch } from "@shared/relink";
+import { fileName, redrawPlan, relinkMismatch } from "@shared/relink";
 import type { Asset, RelinkSearch, RelinkWanted } from "@shared/types";
 import { loadCursorData } from "@/editor/CursorLayer";
 import { useApp } from "@/state/app";
 import { useProject } from "@/state/project";
 import { renderAnnotation } from "./annotations";
+import { ensureFilmstrips } from "./filmstrip";
 import { checkAlpha, makeProxy } from "./importMedia";
+import { stillPicture } from "./stills";
 import { ensureTreated } from "./voice";
 import { restoreBlankPicture } from "./zoomLayer";
 
 /**
  * Media that went missing: the user points at them again (by file or by folder) and the cuts,
  * zooms, cursor, transcript and caches stay. Pictures the editor makes itself (annotations,
- * the blank picture of zoom layers) are drawn again instead of being looked for.
+ * the blank picture of zoom layers, the held frames of Estender quadro) are drawn again instead
+ * of being looked for (shared/relink.ts redrawPlan).
  */
 
 /** What the user has to find: a media file, or the cursor data of a recording. */
@@ -68,23 +71,28 @@ export async function checkAssets(): Promise<void> {
   void ensureTreated();
   void checkAlpha();
   await redrawMissingPictures();
+  ensureFilmstrips();
 }
 
 /** Draws a picture of the editor again (its file was deleted, or the project came from another PC). */
 async function redraw(a: Asset): Promise<boolean> {
   const p = useProject.getState().project;
   if (!p) return false;
+  const plan = redrawPlan(p, a);
   let picture: { path: string; size: number } | null = null;
-  if (a.generated === "annotation") {
-    const annotation = p.clips.find((c) => c.assetId === a.id && c.annotation)?.annotation;
-    if (!annotation) return false;
-    const r = await renderAnnotation(annotation, p.settings.height, p.settings.width);
+  if (plan?.how === "annotation") {
+    const r = await renderAnnotation(plan.annotation, p.settings.height, p.settings.width);
     picture = { path: await window.api.saveGenerated(r.bytes, "png"), size: r.bytes.length };
-  } else if (a.generated === "effect") {
+  } else if (plan?.how === "effect") {
     picture = { path: await restoreBlankPicture(), size: 1 };
+  } else if (plan?.how === "still") {
+    const path = await stillPicture(plan.source, plan.t);
+    picture = { path, size: 1 };
   }
   if (!picture) return false;
   useProject.getState().relinkAsset(a.id, picture);
+  // The held frame is also its own thumbnail on the timeline.
+  if (plan?.how === "still") useProject.getState().patchAsset(a.id, { thumb: picture.path });
   return true;
 }
 

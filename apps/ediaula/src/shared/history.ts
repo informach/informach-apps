@@ -30,6 +30,8 @@ export const ASSET_RUNTIME_FIELDS = [
   // Where the screen stands still, learned in the background.
   "motion",
   "motionStatus",
+  // The small pictures of the timeline.
+  "filmstrip",
 ] as const satisfies readonly (keyof Asset)[];
 
 type RuntimeField = (typeof ASSET_RUNTIME_FIELDS)[number];

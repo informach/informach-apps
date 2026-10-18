@@ -1,3 +1,4 @@
+import type { CourseSetup } from "@shared/courseSetup";
 import { encoderName, isHardwareEncoder } from "@shared/encoderChoice";
 import type { ProjectSettings, RecentEntry } from "@shared/types";
 import {
@@ -6,29 +7,38 @@ import {
   ChevronRight,
   Circle,
   CircleDot,
+  Copy,
   Cpu,
+  Ellipsis,
   FileUp,
   FolderOpen,
   GraduationCap,
   History,
   House,
+  PencilLine,
   Plus,
   Search,
   Sparkles,
   X,
 } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { BackupsDialog, RenameDialog } from "@/editor/ProjectDialogs";
 import { actions } from "@/lib/actions";
+import { startFromSetup } from "@/lib/courseSetup";
 import { formatEditTime } from "@/lib/editTimer";
 import { duration, relativeTime } from "@/lib/format";
 import { confirmLeave } from "@/lib/leaveGuard";
 import { mediaUrl } from "@/lib/media";
+import { duplicateLesson } from "@/lib/projectFiles";
 import { useRecorderKey } from "@/lib/recorderKeys";
 import { openRecorder } from "@/lib/recording";
 import { useApp } from "@/state/app";
 import { useProject } from "@/state/project";
-import { Button, Chip } from "@/ui";
+import { Button, Chip, ContextMenu } from "@/ui";
 import { NewProjectModal } from "./NewProjectModal";
+
+/** Lessons shown before "Mostrar todas": the search always looks at all of them. */
+const FIRST_PAGE = 48;
 
 /** Cover colors for projects without a thumbnail, picked by name so they stay stable. */
 const COVERS = ["#0033FF", "#7A4DFF", "#00A884", "#FF5A36", "#1F3A8A", "#C8F031", "#FFB547"];
@@ -52,6 +62,10 @@ export function Home(): ReactNode {
   const [query, setQuery] = useState("");
   const [course, setCourse] = useState<string | null>(null);
   const [creating, setCreating] = useState<{ thenImport: boolean } | null>(null);
+  const [all, setAll] = useState(false);
+  const [menu, setMenu] = useState<{ x: number; y: number; entry: RecentEntry } | null>(null);
+  const [renaming, setRenaming] = useState<RecentEntry | null>(null);
+  const [backups, setBackups] = useState<RecentEntry | null>(null);
 
   const reload = (): void => {
     void window.api.recentProjects().then(setRecent);
@@ -68,15 +82,18 @@ export function Home(): ReactNode {
       (!query || `${r.name} ${r.course ?? ""}`.toLowerCase().includes(query.toLowerCase())),
   );
   const last = recent?.[0];
+  const shown = all || query || course ? filtered : filtered.slice(0, FIRST_PAGE);
 
   const create = async (
     name: string,
     courseName: string | undefined,
     settings: ProjectSettings,
+    setup: CourseSetup | null,
   ): Promise<void> => {
     if (!(await confirmLeave())) return;
     const { path, project } = await window.api.createProject(name, courseName, settings);
     useProject.getState().load(path, project);
+    if (setup) await startFromSetup(setup);
     useApp.getState().set({ screen: "editor" });
     if (creating?.thenImport) {
       const assets = await actions.importDialog();
@@ -233,7 +250,7 @@ export function Home(): ReactNode {
             </section>
 
             <section className="project-grid">
-              {filtered.map((r) => (
+              {shown.map((r) => (
                 <ProjectCard
                   key={r.path}
                   entry={r}
@@ -241,18 +258,78 @@ export function Home(): ReactNode {
                     await window.api.removeRecent(r.path);
                     reload();
                   }}
+                  onMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setMenu({ x: e.clientX, y: e.clientY, entry: r });
+                  }}
                 />
               ))}
               {filtered.length === 0 && recent !== null && (
                 <p className="muted">Nenhuma aula encontrada.</p>
               )}
             </section>
+            {shown.length < filtered.length && (
+              <div className="home-more">
+                <Button variant="secondary" onClick={() => setAll(true)}>
+                  Mostrar todas as {filtered.length} aulas
+                </Button>
+              </div>
+            )}
           </>
         )}
       </main>
 
       {creating && (
         <NewProjectModal courses={courses} onCancel={() => setCreating(null)} onCreate={create} />
+      )}
+      {menu && (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          onClose={() => setMenu(null)}
+          items={[
+            {
+              icon: FolderOpen,
+              label: "Abrir no editor",
+              onSelect: () => void actions.openProject(menu.entry.path),
+            },
+            {
+              icon: Copy,
+              label: "Duplicar",
+              hint: "Uma cópia da aula ao lado dela, como uma aula própria",
+              onSelect: () => void duplicateLesson(menu.entry.path).then(reload),
+            },
+            {
+              icon: PencilLine,
+              label: "Renomear…",
+              onSelect: () => setRenaming(menu.entry),
+            },
+            {
+              icon: History,
+              label: "Cópias de segurança…",
+              onSelect: () => setBackups(menu.entry),
+            },
+            { separator: true, label: "" },
+            {
+              icon: X,
+              label: "Tirar da lista",
+              hint: "O arquivo não é apagado",
+              onSelect: () => void window.api.removeRecent(menu.entry.path).then(reload),
+            },
+          ]}
+        />
+      )}
+      {renaming && (
+        <RenameDialog
+          path={renaming.path}
+          name={renaming.name}
+          onClose={() => setRenaming(null)}
+          onDone={reload}
+        />
+      )}
+      {backups && (
+        <BackupsDialog path={backups.path} onClose={() => setBackups(null)} onRestored={reload} />
       )}
     </div>
   );
@@ -346,7 +423,15 @@ function QuickAction({
   );
 }
 
-function ProjectCard({ entry, onRemove }: { entry: RecentEntry; onRemove: () => void }): ReactNode {
+function ProjectCard({
+  entry,
+  onRemove,
+  onMenu,
+}: {
+  entry: RecentEntry;
+  onRemove: () => void;
+  onMenu: (e: React.MouseEvent) => void;
+}): ReactNode {
   const st = status(entry);
   return (
     <div className="project-card" style={{ position: "relative" }}>
@@ -355,6 +440,7 @@ function ProjectCard({ entry, onRemove }: { entry: RecentEntry; onRemove: () => 
         className="card-open"
         aria-label={`Abrir ${entry.name}`}
         onClick={() => void actions.openProject(entry.path)}
+        onContextMenu={onMenu}
       />
       <div className="project-thumb">
         <Cover entry={entry} />
@@ -374,6 +460,16 @@ function ProjectCard({ entry, onRemove }: { entry: RecentEntry; onRemove: () => 
           }}
         >
           <X size={13} />
+        </button>
+        <button
+          type="button"
+          className="pc-menu"
+          style={{ zIndex: 2 }}
+          title="Duplicar, renomear e cópias de segurança"
+          aria-label={`Mais opções de ${entry.name}`}
+          onClick={onMenu}
+        >
+          <Ellipsis size={14} />
         </button>
       </div>
       <div className="pc-info">

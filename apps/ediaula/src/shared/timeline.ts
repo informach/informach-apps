@@ -12,6 +12,29 @@ const EPS = 1e-6;
 /** Clips closer than this count as touching (a cut between them). */
 export const CUT_TOUCH = 0.02;
 
+/**
+ * `t` on the lesson's frame grid: seeking, splitting, trimming and moving land on a frame, so a
+ * cut never falls between two frames of the export. A rate of 0 (unknown) leaves `t` as it is.
+ */
+export function toFrame(t: number, fps: number): number {
+  if (!Number.isFinite(t) || !(fps > 0)) return t;
+  const frame = Math.round(t * fps);
+  return frame <= 0 ? 0 : frame / fps;
+}
+
+/** Hours, minutes, seconds and frames (00:01:23:12), or anything parseDuration reads. */
+export function parseTimecode(text: string, fps: number): number | null {
+  const value = text.trim();
+  const tc = /^(\d+):(\d{1,2}):(\d{1,2}):(\d{1,3})$/.exec(value);
+  if (tc) {
+    const [h, m, s, f] = tc.slice(1).map(Number);
+    if (m >= 60 || s >= 60 || !(fps > 0) || f >= Math.ceil(fps)) return null;
+    return h * 3600 + m * 60 + s + f / fps;
+  }
+  if (/^0+(?:[.,]0*)?$/.test(value)) return 0;
+  return parseDuration(value);
+}
+
 /** Move the unlocked clips starting at/after the playhead as one block. */
 export function rippleMoveFrom(
   clips: Clip[],
@@ -285,6 +308,164 @@ export function trimClip(
   const maxEnd = timelineAt(c, srcLen);
   const end = Math.min(Math.max(time, c.start + MIN_CLIP), maxEnd);
   return piece(c, c.start, end, { tail: true });
+}
+
+/**
+ * Trims one edge with ripple (Shift + edge): the clip keeps its start and what comes after its
+ * old end, on every unlocked track, moves by the change in length, so nothing is covered and no
+ * gap opens. Trimming the head takes footage off the start of the clip without moving it. When
+ * another track holds the clips back (something before them that they would cover), the trim
+ * goes only as far as they can move.
+ */
+export function rippleTrim(
+  clips: Clip[],
+  tracks: Track[],
+  id: string,
+  edge: "start" | "end",
+  time: number,
+  asset: Asset | undefined,
+): Clip[] {
+  const c = clips.find((x) => x.id === id);
+  if (!c || !Number.isFinite(time)) return clips;
+  const trim = (to: number): Clip => {
+    const t = trimClip(c, edge, to, asset);
+    return edge === "start" ? { ...t, start: c.start } : t;
+  };
+  let trimmed = trim(time);
+  const delta = trimmed.duration - c.duration;
+  if (Math.abs(delta) <= EPS) return clips;
+  const end = clipEnd(c);
+  let moved = rippleMoveFrom(
+    clips.map((x) => (x.id === id ? trimmed : x)),
+    tracks,
+    end,
+    delta,
+  );
+  if (Math.abs(moved.delta - delta) > EPS) {
+    // Held back: trim only what the clips after it can follow.
+    trimmed = trim(edge === "end" ? end + moved.delta : c.start - moved.delta);
+    const held = trimmed.duration - c.duration;
+    moved = rippleMoveFrom(
+      clips.map((x) => (x.id === id ? trimmed : x)),
+      tracks,
+      end,
+      held,
+    );
+  }
+  return moved.clips;
+}
+
+/**
+ * Inserts clips pushing what comes after (Ctrl + drop): the clip under `at` on each track that
+ * receives one is split there, then everything starting at `at` on every unlocked track moves
+ * right by the length of what is inserted, and the clips go into the gap. Clips of other tracks
+ * that cross `at` stay where they are, as with Shift + drag of the playhead.
+ */
+export function insertClips(clips: Clip[], tracks: Track[], inserted: Clip[], at: number): Clip[] {
+  if (!inserted.length) return clips;
+  const length = Math.max(...inserted.map(clipEnd)) - at;
+  if (!(length > EPS)) return placeClips(clips, inserted);
+  const targets = new Set(inserted.map((c) => c.trackId));
+  const locked = new Set(tracks.filter((t) => t.locked).map((t) => t.id));
+  const under = new Set(
+    clips
+      .filter((c) => targets.has(c.trackId) && c.start < at - EPS && clipEnd(c) > at + EPS)
+      .map((c) => c.id),
+  );
+  const split = under.size ? splitAt(clips, at, under, locked) : clips;
+  return placeClips(rippleMoveFrom(split, tracks, at, length).clips, inserted);
+}
+
+/**
+ * The track `id` moved to position `to` of the list (0 = top, in front of the others). Every
+ * track takes every kind of clip, so any order is valid; only the drawing order changes.
+ */
+export function moveTrack(tracks: Track[], id: string, to: number): Track[] {
+  const from = tracks.findIndex((t) => t.id === id);
+  if (from < 0 || !Number.isFinite(to)) return tracks;
+  const target = Math.max(0, Math.min(tracks.length - 1, Math.round(to)));
+  if (target === from) return tracks;
+  const rest = tracks.filter((t) => t.id !== id);
+  return [...rest.slice(0, target), tracks[from], ...rest.slice(target)];
+}
+
+/** Clips that can stretch over a held frame: pictures with no clock of their own. */
+const stretches = (c: Clip, asset: Asset | undefined): boolean =>
+  !!c.annotation || !!c.zoomLayer || asset?.kind === "image";
+
+/**
+ * Extend frame opening the gap on every target track (shared/cleanup.ts cutTargets): the clip
+ * holds its picture for `seconds` (extendFrame), everything after `at` on the other targets
+ * moves along, a picture that crosses `at` (annotation, image, zoom layer) lasts `seconds` longer
+ * with its movement after `at` moved too, and video or sound crossing it is cut there (pieces.ts)
+ * with its second part after the gap. Tracks outside `targets` (music, locked) keep playing.
+ */
+export function extendFrameAll(
+  clips: Clip[],
+  assets: ReadonlyMap<string, Asset>,
+  id: string,
+  at: number,
+  seconds: number,
+  stillAssetId: string,
+  targets: ReadonlySet<string>,
+): { clips: Clip[]; stillId: string } {
+  const c = clips.find((x) => x.id === id);
+  if (!c) throw new Error("Tempo de extensão inválido.");
+  const own = extendFrame(clips, id, at, seconds, stillAssetId);
+  const out: Clip[] = [];
+  for (const x of own.clips) {
+    if (x.trackId === c.trackId || !targets.has(x.trackId)) {
+      out.push(x);
+      continue;
+    }
+    if (x.start >= at - EPS) {
+      out.push({ ...x, start: x.start + seconds });
+      continue;
+    }
+    if (clipEnd(x) <= at + EPS) {
+      out.push(x);
+      continue;
+    }
+    if (stretches(x, assets.get(x.assetId))) {
+      const local = at - x.start;
+      out.push({
+        ...x,
+        duration: x.duration + seconds,
+        // A piece of a longer zoom layer keeps the way out at the same distance from its end.
+        ...(x.zoomLayer?.length !== undefined
+          ? { zoomLayer: { ...x.zoomLayer, length: x.zoomLayer.length + seconds } }
+          : {}),
+        ...(x.keyframes?.length
+          ? {
+              keyframes: x.keyframes.map((k) =>
+                k.t > local + EPS ? { ...k, t: k.t + seconds } : k,
+              ),
+            }
+          : {}),
+      });
+      continue;
+    }
+    out.push(piece(x, x.start, at, { tail: false }));
+    out.push({ ...piece(x, at, clipEnd(x), { head: false }), start: at + seconds });
+  }
+  return { clips: out, stillId: own.stillId };
+}
+
+/** Clips of `tracks` that show anywhere between timeline times `from` and `to` (marquee). */
+export function clipsInSpan(
+  clips: readonly Clip[],
+  trackIds: ReadonlySet<string>,
+  from: number,
+  to: number,
+): Clip[] {
+  const a = Math.min(from, to);
+  const b = Math.max(from, to);
+  return clips.filter((c) => trackIds.has(c.trackId) && c.start < b && clipEnd(c) > a);
+}
+
+/** Clips starting at `at` or after it, on one track or on all of them. */
+export function clipsFrom(clips: readonly Clip[], at: number, trackId?: string): Clip[] {
+  return clips.filter((c) => c.start >= at - EPS && (!trackId || c.trackId === trackId));
 }
 
 /**

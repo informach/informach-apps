@@ -1,4 +1,4 @@
-import type { Asset, Clip, ProjectSettings } from "./types.ts";
+import type { Asset, Clip, Project, ProjectSettings } from "./types.ts";
 
 /**
  * The composition model shared by the preview and the export: where each clip is drawn, how big,
@@ -29,6 +29,14 @@ export interface Transform {
   border?: string;
   /** Drop shadow behind the visible shape. */
   shadow?: Shadow;
+  /**
+   * Degrees, clockwise, around the center of the visible part: the shape, its border and its
+   * shadow turn together (CSS in the preview, the rotate filter in the export).
+   */
+  rotation?: number;
+  /** Mirrored left to right, or top to bottom: the visible part, before the shape and shadow. */
+  flipH?: boolean;
+  flipV?: boolean;
 }
 
 /**
@@ -123,11 +131,33 @@ export interface Box {
 export interface ClipLayout {
   /** Where the whole source image lands, in output pixels (may extend past the frame). */
   full: Box;
-  /** The visible part after cropping, in output pixels. */
+  /** The visible part after cropping, in output pixels (before rotation). */
   visible: Box;
   /** The visible part, as fractions of the source image. */
   crop: Crop;
   opacity: number;
+  /** Degrees, clockwise, around the center of `visible`. */
+  rotation: number;
+  /** What the visible part covers once rotated: the box guides, selection and safe areas use. */
+  bounds: Box;
+}
+
+/** Rotation normalized to (-180, 180]; 0 when absent. */
+export const rotationOf = (t: Pick<Transform, "rotation"> | undefined): number => {
+  const r = t?.rotation ?? 0;
+  if (!Number.isFinite(r)) return 0;
+  const n = ((((r + 180) % 360) + 360) % 360) - 180;
+  return n === -180 ? 180 : n;
+};
+
+/** Width and height of the box that holds w × h turned by `degrees`. */
+export function rotatedSize(w: number, h: number, degrees: number): { w: number; h: number } {
+  const a = (degrees * Math.PI) / 180;
+  const c = Math.abs(Math.cos(a));
+  const s = Math.abs(Math.sin(a));
+  // Rounding noise of right angles (cos 90° is 6e-17) would add a pixel.
+  const r = (v: number): number => Math.round(v * 1e9) / 1e9;
+  return { w: r(w * c + h * s), h: r(w * s + h * c) };
 }
 
 export function clipLayout(
@@ -151,7 +181,68 @@ export function clipLayout(
     w: Math.max(0, fw * (1 - c.left - c.right)),
     h: Math.max(0, fh * (1 - c.top - c.bottom)),
   };
-  return { full, visible, crop: c, opacity: t.opacity };
+  const rotation = rotationOf(t);
+  const turned = rotatedSize(visible.w, visible.h, rotation);
+  const cx = visible.x + visible.w / 2;
+  const cy = visible.y + visible.h / 2;
+  const bounds = rotation
+    ? { x: cx - turned.w / 2, y: cy - turned.h / 2, w: turned.w, h: turned.h }
+    : visible;
+  return { full, visible, crop: c, opacity: t.opacity, rotation, bounds };
+}
+
+/** Where the old frame lands in the new one: "fit" shows all of it, "fill" covers the new one. */
+export type ReframeMode = "fit" | "fill";
+
+/**
+ * The lesson moved to another format (Mudar formato): every picture keeps its place and size
+ * against the old frame, and the old frame is fitted inside the new one (bars where it does not
+ * reach) or made to fill it (the edges cut off). Positions, sizes, movement keyframes and the
+ * points zoom layers aim at are mapped; crops, shapes, shadows and captions stay as they are.
+ * A clip left exactly as it would be by default gets no transform.
+ */
+export function reframeProject(
+  project: Project,
+  settings: ProjectSettings,
+  mode: ReframeMode,
+): Project {
+  const W0 = project.settings.width;
+  const H0 = project.settings.height;
+  const W1 = settings.width;
+  const H1 = settings.height;
+  const k = mode === "fit" ? Math.min(W1 / W0, H1 / H0) : Math.max(W1 / W0, H1 / H0);
+  const point = (x: number, y: number): { x: number; y: number } => ({
+    x: (W1 / 2 + (x * W0 - W0 / 2) * k) / W1,
+    y: (H1 / 2 + (y * H0 - H0 / 2) * k) / H1,
+  });
+  const assets = new Map(project.assets.map((a) => [a.id, a]));
+  const same = (a: number, b: number): boolean => Math.abs(a - b) < 1e-9;
+  const clips = project.clips.map((c): Clip => {
+    if (c.zoomLayer) {
+      const p = point(c.zoomLayer.x, c.zoomLayer.y);
+      return { ...c, zoomLayer: { ...c.zoomLayer, x: p.x, y: p.y } };
+    }
+    const a = assets.get(c.assetId);
+    if (!a || a.kind === "audio" || !a.width || !a.height) return c;
+    // The picture's size against each frame, at scale 1.
+    const ratio =
+      (Math.min(W0 / a.width, H0 / a.height) * k) / Math.min(W1 / a.width, H1 / a.height);
+    const map = <T extends { x: number; y: number; scale: number }>(t: T): T => ({
+      ...t,
+      ...point(t.x, t.y),
+      scale: t.scale * ratio,
+    });
+    const before = c.transform ?? DEFAULT_TRANSFORM;
+    const after = map(before);
+    const { transform: _old, ...rest } = c;
+    const plain = !c.transform && same(after.x, 0.5) && same(after.y, 0.5) && same(after.scale, 1);
+    return {
+      ...rest,
+      ...(plain ? {} : { transform: after }),
+      ...(c.keyframes?.length ? { keyframes: c.keyframes.map(map) } : {}),
+    };
+  });
+  return { ...project, settings: { ...settings }, clips };
 }
 
 export interface Placement {

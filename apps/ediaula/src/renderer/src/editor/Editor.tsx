@@ -5,6 +5,8 @@ import { askPasteProps, copyProps } from "@/lib/clipProps";
 import { useEditTimer } from "@/lib/editTimer";
 import { importMedia } from "@/lib/importMedia";
 import { confirmLeave } from "@/lib/leaveGuard";
+// Sound of J, K, L backwards, frame steps and scrubbing (it plugs into the playback clock).
+import "@/lib/scrub";
 import { zoomBy, zoomToFit } from "@/lib/timelineView";
 import { cutRangesInteractive } from "@/lib/transcripts";
 import { setTransition } from "@/lib/transitions";
@@ -20,6 +22,7 @@ import { Library } from "./Library";
 import { PastePropsDialog } from "./PastePropsDialog";
 import { PrepareOffer } from "./PreparePanel";
 import { Preview } from "./Preview";
+import { ReframeDialog } from "./ProjectDialogs";
 import {
   AudioPanel,
   CaptionsPanel,
@@ -49,6 +52,31 @@ const isTyping = (e: KeyboardEvent): boolean => {
 
 /** A dialog (palette, export queue, save failure…) is in front: the timeline keys wait. */
 const dialogOpen = (): boolean => !!document.querySelector("dialog[open]");
+
+/** K is held: J and L go slowly (0,5× then 0,25×), and letting K go stops. */
+let kHeld = false;
+let slowWithK = false;
+
+function handleKeyUp(e: KeyboardEvent): void {
+  if (e.key !== "k" && e.key !== "K") return;
+  kHeld = false;
+  if (slowWithK) {
+    slowWithK = false;
+    playback.pause();
+  }
+}
+
+/** Height of the timeline, kept for the next time the app opens (not part of any lesson). */
+const TIMELINE_HEIGHT_KEY = "ediaula.timelineHeight";
+function storedTimelineHeight(): number {
+  const fallback = Math.round(window.innerHeight * 0.42);
+  try {
+    const v = Number(localStorage.getItem(TIMELINE_HEIGHT_KEY));
+    return v > 0 ? Math.min(window.innerHeight - 330, Math.max(200, v)) : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 function handleKey(e: KeyboardEvent): void {
   if (
@@ -140,15 +168,26 @@ function handleKey(e: KeyboardEvent): void {
       break;
     case "k":
     case "K":
+      if (e.repeat) break;
+      kHeld = true;
+      slowWithK = false;
       playback.pause();
       break;
     case "j":
     case "J":
-      playback.shuttleBack();
+      if (e.repeat) break;
+      if (kHeld) {
+        slowWithK = true;
+        playback.slow(-1);
+      } else playback.shuttleBack();
       break;
     case "l":
     case "L":
-      playback.shuttleForward();
+      if (e.repeat) break;
+      if (kHeld) {
+        slowWithK = true;
+        playback.slow(1);
+      } else playback.shuttleForward();
       break;
     case "ArrowLeft":
       done();
@@ -236,13 +275,20 @@ export function Editor(): ReactNode {
   const extendOpen = useApp((s) => !!s.extendClip);
   const cursorOpen = useApp((s) => !!s.cursorClip);
   const pastePropsOpen = useApp((s) => !!s.pastePropsClips);
+  const reframeOpen = useApp((s) => s.reframeOpen);
   const leftPanel = useApp((s) => s.leftPanel);
-  const [timelineHeight, setTimelineHeight] = useState(() => Math.round(window.innerHeight * 0.42));
+  const [timelineHeight, setTimelineHeight] = useState(storedTimelineHeight);
+  const heightRef = useRef(timelineHeight);
+  heightRef.current = timelineHeight;
   const resizing = useRef(false);
   useEditTimer();
 
   useEffect(() => {
     window.addEventListener("keydown", handleKey);
+    window.addEventListener("keyup", handleKeyUp);
+    // Leaving the window with K down never leaves the slow play running.
+    const blur = (): void => handleKeyUp(new KeyboardEvent("keyup", { key: "k" }));
+    window.addEventListener("blur", blur);
     // Closing the window waits for the save, like the export queue holds it (ExportQueuePanel),
     // and then closes it again: by then nothing is left unsaved, or it was let go on purpose.
     const beforeUnload = (e: BeforeUnloadEvent): void => {
@@ -263,6 +309,8 @@ export function Editor(): ReactNode {
     window.addEventListener("beforeunload", beforeUnload);
     return () => {
       window.removeEventListener("keydown", handleKey);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", blur);
       window.removeEventListener("beforeunload", beforeUnload);
     };
   }, []);
@@ -279,6 +327,11 @@ export function Editor(): ReactNode {
       resizing.current = false;
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
+      try {
+        localStorage.setItem(TIMELINE_HEIGHT_KEY, String(heightRef.current));
+      } catch {
+        // Only a convenience: the next session starts at the default height.
+      }
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
@@ -324,6 +377,7 @@ export function Editor(): ReactNode {
       {extendOpen && <ExtendFrameDialog />}
       {cursorOpen && <CursorPathDialog />}
       {pastePropsOpen && <PastePropsDialog />}
+      {reframeOpen && <ReframeDialog />}
     </div>
   );
 }

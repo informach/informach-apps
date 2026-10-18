@@ -9,7 +9,7 @@ import { sourceMatrix, sourceRange } from "../shared/export/color.ts";
 import { ENCODER_CHAIN, nextAfterFailure } from "../shared/export/encoding.ts";
 import { hasAlpha, type MediaFacts } from "../shared/export/videoPlan.ts";
 import { exportVideoArgs, proxyVideoArgs } from "../shared/exportPlan.ts";
-import type { AssetKind, Encoder, ProbeResult } from "../shared/types.ts";
+import type { AssetKind, Encoder, Filmstrip, ProbeResult } from "../shared/types.ts";
 import { scheduler } from "./scheduler.ts";
 
 function nativeMediaBinary(name: "ffmpeg" | "ffprobe"): string {
@@ -518,6 +518,98 @@ export async function proxy(
   signal?.throwIfAborted();
   await rename(tmp, out);
   return out;
+}
+
+/** Bump when the sheet changes so cached filmstrips are made again. */
+const FILMSTRIP_VERSION = 1;
+/** One picture every 2 s, 160 × 90, 30 to a row; very long videos take a picture less often. */
+const FILMSTRIP = { step: 2, width: 160, height: 90, columns: 30, most: 2400 };
+
+/**
+ * The filmstrip of a video (shared/types.ts Filmstrip): small pictures along it on one JPEG,
+ * cached beside the media. `input` is what is decoded: the proxy when it is ready (smaller and
+ * quick to seek), otherwise the media itself.
+ */
+export async function filmstrip(
+  jobId: string,
+  path: string,
+  input: string,
+  duration: number,
+  signal?: AbortSignal,
+): Promise<Filmstrip> {
+  const step = Math.max(FILMSTRIP.step, duration / FILMSTRIP.most);
+  const count = Math.max(1, Math.ceil(duration / step));
+  const columns = Math.min(FILMSTRIP.columns, count);
+  const rows = Math.ceil(count / columns);
+  const out = join(
+    cacheDir(path),
+    `filmstrip-v${FILMSTRIP_VERSION}-${Math.round(step * 1000)}.jpg`,
+  );
+  const strip: Filmstrip = {
+    path: out,
+    step,
+    width: FILMSTRIP.width,
+    height: FILMSTRIP.height,
+    columns,
+    count,
+  };
+  if (existsSync(out)) return strip;
+  const { width: w, height: h } = FILMSTRIP;
+  const temp = out.replace(/\.jpg$/, `.${process.pid}.part.jpg`);
+  try {
+    await run(
+      FFMPEG,
+      [
+        ...["-y", "-v", "error", "-nostdin", "-threads", "2", "-i", input, "-map", "0:v:0", "-an"],
+        "-vf",
+        `fps=1/${step},scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:color=black,tile=${columns}x${rows}`,
+        ...["-frames:v", "1", "-q:v", "5", temp],
+      ],
+      { jobId, signal, duration },
+    );
+    signal?.throwIfAborted();
+    await rename(temp, out);
+  } finally {
+    await rm(temp, { force: true });
+  }
+  return strip;
+}
+
+/** Sound for scrubbing: mono 16-bit PCM at this rate. */
+export const SNIPPET_RATE = 24000;
+const snippets = new Map<string, Promise<Uint8Array>>();
+const SNIPPETS_KEPT = 96;
+
+/**
+ * `seconds` of the sound of `path` from `t`, as raw PCM (SNIPPET_RATE, mono, s16le), for the
+ * sound of J, K, L, frame stepping and dragging the playhead. The last ones asked are kept, so
+ * going back and forth over the same stretch reads the file once.
+ */
+export function audioSnippet(path: string, t: number, seconds: number): Promise<Uint8Array> {
+  const key = `${path}|${t.toFixed(3)}|${seconds.toFixed(3)}`;
+  const known = snippets.get(key);
+  if (known) {
+    snippets.delete(key);
+    snippets.set(key, known);
+    return known;
+  }
+  const chunks: Buffer[] = [];
+  const reading = run(
+    FFMPEG,
+    [
+      ...["-v", "error", "-nostdin", "-ss", t.toFixed(3), "-t", seconds.toFixed(3), "-i", path],
+      ...["-vn", "-ac", "1", "-ar", String(SNIPPET_RATE), "-f", "s16le", "pipe:1"],
+    ],
+    { onStdout: (chunk) => chunks.push(chunk) },
+  ).then(() => new Uint8Array(Buffer.concat(chunks)));
+  reading.catch(() => snippets.delete(key));
+  snippets.set(key, reading);
+  while (snippets.size > SNIPPETS_KEPT) {
+    const oldest = snippets.keys().next().value;
+    if (oldest === undefined) break;
+    snippets.delete(oldest);
+  }
+  return reading;
 }
 
 /** A still PNG of `path` at `t` seconds (full resolution), cached; used to hold the screen during an insert. */

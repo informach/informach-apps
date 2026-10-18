@@ -1,8 +1,9 @@
 import { focusOnMount } from "@informach/edi-desktop/renderer";
-import { buildTrack, cursorAt, cursorScale, ripplesAt } from "@shared/cursor";
+import { cutTargets } from "@shared/cleanup";
 import {
   clipEnd,
   extendFrame,
+  extendFrameAll,
   MIN_CLIP,
   newId,
   parseDuration,
@@ -10,16 +11,23 @@ import {
   sourceEnd,
 } from "@shared/timeline";
 import type { Asset } from "@shared/types";
-import { zoomAt } from "@shared/zoom";
 import { type ReactNode, useState } from "react";
-import { drawPointer, drawRipples } from "@/lib/cursorDraw";
 import { timecode } from "@/lib/format";
-import { mediaUrl } from "@/lib/media";
+import { stillPicture } from "@/lib/stills";
 import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
-import { Button, Modal } from "@/ui";
-import { cursorFxOf, loadCursorData } from "./CursorLayer";
+import { Button, Modal, Toggle } from "@/ui";
+
+/** The last choice of "every track", for the next time the dialog opens. */
+const ALL_TRACKS_KEY = "ediaula.extendFrame.allTracks";
+const rememberedAll = (): boolean => {
+  try {
+    return localStorage.getItem(ALL_TRACKS_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
 
 export function ExtendFrameDialog(): ReactNode {
   const id = useApp((s) => s.extendClip);
@@ -30,6 +38,7 @@ export function ExtendFrameDialog(): ReactNode {
     clip ? Math.max(clip.start, Math.min(clipEnd(clip), usePlayback.getState().time)) : 0,
   );
   const [text, setText] = useState("5");
+  const [allTracks, setAllTracks] = useState(rememberedAll);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const close = (): void => {
@@ -39,6 +48,14 @@ export function ExtendFrameDialog(): ReactNode {
   const seconds = parseDuration(text);
   const locked = project.tracks.find((t) => t.id === clip.trackId)?.locked;
   const valid = seconds !== null && seconds >= MIN_CLIP && !locked && asset.kind === "video";
+  const chooseAll = (on: boolean): void => {
+    setAllTracks(on);
+    try {
+      localStorage.setItem(ALL_TRACKS_KEY, on ? "1" : "0");
+    } catch {
+      // Only a convenience: the choice is not kept.
+    }
+  };
   const apply = async (): Promise<void> => {
     if (!valid || busy) return;
     playback.pause();
@@ -46,8 +63,6 @@ export function ExtendFrameDialog(): ReactNode {
     setError("");
     const snapshot = useProject.getState();
     try {
-      if (asset.key && (!asset.keyed || asset.keyStatus !== "ready"))
-        throw new Error("Aguarde a remoção de fundo terminar antes de estender o quadro.");
       const sourceTime = Math.max(
         clip.in,
         Math.min(
@@ -56,48 +71,7 @@ export function ExtendFrameDialog(): ReactNode {
           asset.duration - 1 / (asset.fps || 30),
         ),
       );
-      let path = await window.api.stillFrame(
-        asset.key ? asset.keyed! : asset.path,
-        sourceTime,
-        !!asset.key,
-      );
-      if (asset.cursor || asset.zooms?.length) {
-        const image = new Image();
-        // media:// is a separate origin; request its CORS-enabled image before drawing to canvas.
-        image.crossOrigin = "anonymous";
-        image.src = mediaUrl(path);
-        await image.decode();
-        const canvas = document.createElement("canvas");
-        canvas.width = asset.width;
-        canvas.height = asset.height;
-        const ctx = canvas.getContext("2d")!;
-        const view = zoomAt(asset.zooms, sourceTime);
-        ctx.translate(
-          (0.5 - view.cx * view.scale) * canvas.width,
-          (0.5 - view.cy * view.scale) * canvas.height,
-        );
-        ctx.scale(view.scale, view.scale);
-        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-        if (asset.cursor) {
-          const data = await loadCursorData(asset.cursor);
-          const fx = cursorFxOf(asset);
-          const track = buildTrack(data, fx, asset.duration);
-          const state = cursorAt(track, sourceTime);
-          const k = canvas.width / data.width;
-          ctx.scale(k, k);
-          const unit = cursorScale(data, fx) * 1.1;
-          if (!fx.hidden && fx.clicks)
-            drawRipples(ctx, ripplesAt(data, sourceTime, fx), 0, 0, unit);
-          drawPointer(ctx, state, state.x, state.y, unit, fx);
-        }
-        const blob = await new Promise<Blob>((resolve, reject) =>
-          canvas.toBlob(
-            (b) => (b ? resolve(b) : reject(new Error("Não foi possível salvar o quadro."))),
-            "image/png",
-          ),
-        );
-        path = await window.api.saveGenerated(new Uint8Array(await blob.arrayBuffer()), "png");
-      }
+      const path = await stillPicture(asset, sourceTime);
       const current = useProject.getState();
       if (
         current.path !== snapshot.path ||
@@ -105,6 +79,8 @@ export function ExtendFrameDialog(): ReactNode {
         current.project?.id !== project.id
       )
         throw new Error("O projeto mudou. Feche esta janela e tente novamente.");
+      // Made by the editor and kept with where it came from, so it is drawn again when its file
+      // is gone (another computer: lib/relink.ts).
       const still: Asset = {
         id: newId("a"),
         name: `Quadro estendido · ${asset.name}`,
@@ -119,10 +95,22 @@ export function ExtendFrameDialog(): ReactNode {
         hasAudio: false,
         size: 0,
         proxyStatus: "none",
+        generated: "still",
+        still: { assetId: asset.id, t: sourceTime },
       };
       let selected = "";
       current.commit((p) => {
-        const result = extendFrame(p.clips, clip.id, at, seconds, still.id);
+        const result = allTracks
+          ? extendFrameAll(
+              p.clips,
+              new Map(p.assets.map((a) => [a.id, a])),
+              clip.id,
+              at,
+              seconds,
+              still.id,
+              cutTargets(p),
+            )
+          : extendFrame(p.clips, clip.id, at, seconds, still.id);
         selected = result.stillId;
         return { ...p, assets: [...p.assets, still], clips: result.clips };
       });
@@ -142,7 +130,7 @@ export function ExtendFrameDialog(): ReactNode {
     }
   };
   return (
-    <Modal label="Estender quadro" onClose={close} width={460}>
+    <Modal label="Estender quadro" onClose={close} width={480}>
       <div className="modal-body speed-body">
         <h2 className="modal-title">Estender quadro</h2>
         <p>
@@ -162,8 +150,16 @@ export function ExtendFrameDialog(): ReactNode {
           />
         </label>
         <p className="muted">
-          Segundos ou minutos:segundos (ex.: 5 ou 0:05,5). O restante desta faixa será deslocado.
-          Outras faixas continuam no mesmo lugar. O quadro parado não tem áudio.
+          Segundos ou minutos:segundos (ex.: 5 ou 0:05,5). O quadro parado não tem áudio.
+        </p>
+        <div className="props-head">
+          <span className="field-label">Abrir espaço em todas as faixas</span>
+          <Toggle on={allTracks} onChange={chooseAll} label="Abrir espaço em todas as faixas" />
+        </div>
+        <p className="muted">
+          {allTracks
+            ? "Tudo o que vem depois anda junto, em todas as faixas que os cortes alcançam: a voz espera o quadro, a anotação que passa pelo ponto fica mais longa e a música segue tocando. Faixas travadas não mudam."
+            : "Só esta faixa anda. As outras faixas continuam no mesmo lugar."}
         </p>
         {!valid && (
           <p role="alert">

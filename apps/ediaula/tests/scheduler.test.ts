@@ -76,6 +76,7 @@ test("hardware encoder sessions are shared by proxies and export segments", asyn
     segment: 2,
     voice: 0,
     motion: 0,
+    filmstrip: 0,
     encoder: 2,
   });
   proxy.release();

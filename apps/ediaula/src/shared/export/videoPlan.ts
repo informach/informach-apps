@@ -5,6 +5,7 @@ import {
   isMoving,
   maskRadius,
   motionExprs,
+  rotatedSize,
   shadowOffset,
   shadowReach,
 } from "../compose.ts";
@@ -506,10 +507,13 @@ export function buildVideoWindowPlan(
     }
 
     const c = lay.crop;
-    const crop =
+    // The visible part mirrored, as the preview turns it (before the shape and the shadow).
+    const crop = `${
       c.left || c.top || c.right || c.bottom
         ? `crop=iw*${n(1 - c.left - c.right)}:ih*${n(1 - c.top - c.bottom)}:iw*${n(c.left)}:ih*${n(c.top)},`
-        : "";
+        : ""
+    }${t?.flipH ? "hflip," : ""}${t?.flipV ? "vflip," : ""}`;
+    const rotation = lay.rotation;
     const motion = motionExprs(clip);
     const fades = motion.fades
       .map((f) => `,fade=t=${f.kind}:st=${us(f.start)}:d=${us(f.duration)}:alpha=1`)
@@ -542,7 +546,8 @@ export function buildVideoWindowPlan(
       !shadow &&
       opacity === 1 &&
       !faded &&
-      !moving;
+      !moving &&
+      !rotation;
     const out = `o${L}`;
 
     /**
@@ -611,7 +616,7 @@ export function buildVideoWindowPlan(
     const bw = border ? (BORDER_WIDTH * H) / 1080 : 0;
 
     // 1. The picture at its visible size, in the working format.
-    const sized = shaped || shadow || !moving;
+    const sized = shaped || shadow || !moving || !!rotation;
     let pic = `p${L}`;
     graph.push(
       `[${src}]${crop}${convert(sized ? `${vw}:${vh}` : null, !rgba)},setsar=1,format=${fmt}[${pic}]`,
@@ -654,10 +659,11 @@ export function buildVideoWindowPlan(
     }
 
     // 5. Drop shadow. A still shape casts a shadow made once; a picture with its own changing
-    // transparency (cut-out avatar) casts one computed per frame at a quarter of its size.
+    // transparency (cut-out avatar) casts one computed per frame at a quarter of its size. A
+    // turned picture takes its shadow along, as the preview's drop-shadow turns with the layer.
     let margin = 0;
     let shadowLayer: string | null = null;
-    const combined = moving || !!tailMask;
+    const combined = moving || !!tailMask || !!rotation;
     if (shadow) {
       const k = H / 1080;
       margin = Math.ceil(shadowReach(shadow) * k);
@@ -716,15 +722,37 @@ export function buildVideoWindowPlan(
       }
     }
 
-    // 6. Onto the lesson's clock, the transition mask and the fades.
-    const back = rgba ? `,${TO_YUVA}` : "";
+    // 6. Turned around the center of its visible part, on a transparent canvas the size of what
+    // it covers (an even size, so the chroma planes stay whole).
     const m = combined ? margin : 0;
+    const pad = page ? 2 : 0;
+    const canvasW = vw + 2 * m + 2 * pad;
+    const canvasH = vh + 2 * m + 2 * pad;
+    let turnedW = canvasW;
+    let turnedH = canvasH;
+    if (rotation) {
+      const size = rotatedSize(canvasW, canvasH, rotation);
+      turnedW = Math.max(2, Math.ceil(size.w / 2) * 2);
+      turnedH = Math.max(2, Math.ceil(size.h / 2) * 2);
+      graph.push(
+        `[${pic}]rotate=a=${n((rotation * Math.PI) / 180)}:ow=${turnedW}:oh=${turnedH}:c=none[rt${L}]`,
+      );
+      pic = `rt${L}`;
+    }
+
+    // 7. Onto the lesson's clock, the transition mask and the fades.
+    const back = rgba ? `,${TO_YUVA}` : "";
     if (!moving) {
       graph.push(`[${pic}]${toLesson}${tailMask}${fades}${back}[v${L}]`);
-      const pad = page ? 2 : 0;
       const x = Math.round(lay.visible.x);
       const y = Math.round(lay.visible.y);
-      place(`v${L}`, shadowLayer, [x - m - pad, y - m - pad], [x - margin, y - margin]);
+      const at: [number, number] = rotation
+        ? [
+            Math.round(lay.visible.x + lay.visible.w / 2 - turnedW / 2),
+            Math.round(lay.visible.y + lay.visible.h / 2 - turnedH / 2),
+          ]
+        : [x - m - pad, y - m - pad];
+      place(`v${L}`, shadowLayer, at, [x - margin, y - margin]);
     } else {
       // Pop / slide / grow and keyframed movement: size and position follow the same curves as
       // the preview, per frame, around the clip's center.
@@ -746,9 +774,12 @@ export function buildVideoWindowPlan(
         cy = `(${e.y})*${H}+${n(one.visible.y + one.visible.h / 2 - H / 2)}*(${e.scale})`;
       }
       const size = (v0: string): string => `'max(2,trunc(${v0}*(${motion.scale})/2)*2)'`;
-      const grow = margin ? (v: number): string => `*${n((v + 2 * margin) / v)}` : () => "";
+      // The canvas (shadow margin, turned box) grows with the picture's size.
+      const grow = (v: number, outer: number): string => (outer === v ? "" : `*${n(outer / v)}`);
+      const outerW = rotation ? turnedW : vw + 2 * margin;
+      const outerH = rotation ? turnedH : vh + 2 * margin;
       graph.push(
-        `[${pic}]${toLesson},scale=w=${size(`(${sw})${grow(vw)}`)}:h=${size(`(${shh})${grow(vh)}`)}:eval=frame,setsar=1${tailMask}${fades}${back}[v${L}]`,
+        `[${pic}]${toLesson},scale=w=${size(`(${sw})${grow(vw, outerW)}`)}:h=${size(`(${shh})${grow(vh, outerH)}`)}:eval=frame,setsar=1${tailMask}${fades}${back}[v${L}]`,
       );
       graph.push(
         `[${current}][v${L}]overlay=x='${cx}+(${motion.dx})*${W}-overlay_w/2':y='${cy}+(${motion.dy})*${H}-overlay_h/2':eval=frame:eof_action=pass:${enable}[${out}]`,

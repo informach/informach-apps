@@ -1,15 +1,16 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync, unlinkSync } from "node:fs";
-import { readFile, stat } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { readFile, rename, rm, stat } from "node:fs/promises";
+import { basename, dirname, join } from "node:path";
 import { atomicWrite } from "@informach/edi-desktop/files";
 import { app } from "electron";
 import { normalizeProject } from "../shared/project-normalize.ts";
 import { projectSchema, projectSettingsSchema } from "../shared/project-schema.ts";
 import { defaultTracks, newId, projectDuration } from "../shared/timeline.ts";
-import type { Project, ProjectSettings, RecentEntry } from "../shared/types.ts";
+import type { BackupEntry, Project, ProjectSettings, RecentEntry } from "../shared/types.ts";
 
 export const PROJECT_EXT = "ediaula";
-const MAX_RECENT = 40;
+/** The start screen lists this many lessons, most recent first, with a search over all of them. */
+const MAX_RECENT = 300;
 
 export function projectsDir(): string {
   const dir = join(app.getPath("documents"), "EdiAula", "Projetos");
@@ -18,6 +19,14 @@ export function projectsDir(): string {
 }
 
 const recentFile = (): string => join(app.getPath("userData"), "recent.json");
+
+/** `<folder>/<base>.ediaula`, or `<base> (2).ediaula` and so on when the name is taken. */
+function freePath(folder: string, base: string, except?: string): string {
+  let path = join(folder, `${base}.${PROJECT_EXT}`);
+  for (let i = 2; existsSync(path) && path.toLowerCase() !== except?.toLowerCase(); i++)
+    path = join(folder, `${base} (${i}).${PROJECT_EXT}`);
+  return path;
+}
 
 const safeName = (name: string): string =>
   [...name]
@@ -32,10 +41,7 @@ export async function createProject(
   course: string | undefined,
   settings: ProjectSettings,
 ): Promise<{ path: string; project: Project }> {
-  const base = safeName(name);
-  let path = join(projectsDir(), `${base}.${PROJECT_EXT}`);
-  for (let i = 2; existsSync(path); i++)
-    path = join(projectsDir(), `${base} (${i}).${PROJECT_EXT}`);
+  const path = freePath(projectsDir(), safeName(name));
   const now = Date.now();
   const project: Project = {
     version: 1,
@@ -56,19 +62,32 @@ export async function createProject(
 const BACKUP_EVERY_MS = 10 * 60 * 1000;
 const BACKUPS_KEPT = 20;
 
-/** Keeps rolling copies of a project (at most one every 10 minutes) in a .backups folder next to it. */
-function backup(path: string): void {
+/** Where the rolling copies of a project are kept: a .backups folder next to it. */
+const backupDir = (path: string): string =>
+  join(path, "..", ".backups", basename(path).replace(/\.ediaula$/i, ""));
+/** The name of a backup file: the moment it was taken, and a letter when that second is taken. */
+const BACKUP_NAME = /^\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}[a-z]?\.ediaula$/;
+
+/**
+ * Keeps rolling copies of a project (at most one every 10 minutes, or one now with `force`) in a
+ * .backups folder next to it, the last BACKUPS_KEPT of them.
+ */
+function backup(path: string, force = false): void {
   if (!existsSync(path)) return;
-  const dir = join(path, "..", ".backups", basename(path).replace(/\.ediaula$/, ""));
+  const dir = backupDir(path);
   mkdirSync(dir, { recursive: true });
   const files = readdirSync(dir)
     .filter((f) => f.endsWith(".ediaula"))
     .sort();
   const last = files[files.length - 1];
-  if (last && Date.now() - statSync(join(dir, last)).mtimeMs < BACKUP_EVERY_MS) return;
+  if (!force && last && Date.now() - statSync(join(dir, last)).mtimeMs < BACKUP_EVERY_MS) return;
   const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19);
-  copyFileSync(path, join(dir, `${stamp}.ediaula`));
-  for (const old of files.slice(0, Math.max(0, files.length + 1 - BACKUPS_KEPT)))
+  let name = `${stamp}.ediaula`;
+  for (let i = 0; existsSync(join(dir, name)) && i < 26; i++)
+    name = `${stamp}${String.fromCharCode(97 + i)}.ediaula`;
+  copyFileSync(path, join(dir, name));
+  const kept = [...files.filter((f) => f !== name), name].sort();
+  for (const old of kept.slice(0, Math.max(0, kept.length - BACKUPS_KEPT)))
     unlinkSync(join(dir, old));
 }
 
@@ -156,4 +175,91 @@ export async function recentProjects(): Promise<RecentEntry[]> {
 export async function removeRecent(path: string): Promise<void> {
   const list = (await readRecent()).filter((r) => r.path !== path);
   await atomicWrite(recentFile(), JSON.stringify(list));
+}
+
+/** Reads and checks a project file, as opening it would (without touching the recent list). */
+async function readProject(path: string): Promise<Project> {
+  if ((await stat(path)).size > MAX_PROJECT_BYTES) throw new Error(TOO_LARGE);
+  const content = await readFile(path, "utf8");
+  return normalizeProject(projectSchema.parse(JSON.parse(content)));
+}
+
+/**
+ * A copy of a lesson as a lesson of its own (Duplicar): next to it, named "<name> (cópia)", with
+ * its own id, so the recent list, the export marks and the proposals tell them apart. Returns
+ * where it was written.
+ */
+export async function duplicateProject(path: string): Promise<{ path: string; project: Project }> {
+  const source = await readProject(path);
+  const name = `${source.name} (cópia)`;
+  const id = newId("p");
+  const copy: Project = {
+    ...source,
+    id,
+    name,
+    updatedAt: Date.now(),
+    ...(source.proposals
+      ? { proposals: source.proposals.map((proposal) => ({ ...proposal, projectId: id })) }
+      : {}),
+  };
+  const target = freePath(dirname(path), safeName(name));
+  await saveProject(target, copy);
+  return { path: target, project: copy };
+}
+
+/**
+ * Renames a lesson: its name and its file (and the folder of its backups) follow, and the recent
+ * list forgets the old file. Returns the new path, the same one when the file name stays.
+ */
+export async function renameProject(path: string, name: string): Promise<string> {
+  const clean = name.trim().slice(0, 200);
+  if (!clean) throw new Error("Dê um nome à aula.");
+  const project = await readProject(path);
+  const free = freePath(dirname(path), safeName(clean), path);
+  // Windows names ignore case: the same name in other capitals is the same file.
+  const moves = free.toLowerCase() !== path.toLowerCase();
+  const target = moves ? free : path;
+  const renamed: Project = { ...project, name: clean, updatedAt: Date.now() };
+  if (moves && existsSync(backupDir(path)) && !existsSync(backupDir(target)))
+    await rename(backupDir(path), backupDir(target));
+  await saveProject(target, renamed);
+  if (moves) {
+    await rm(path, { force: true });
+    await removeRecent(path);
+  }
+  return target;
+}
+
+/** The backups of a lesson, newest first. */
+export async function listBackups(path: string): Promise<BackupEntry[]> {
+  const dir = backupDir(path);
+  if (!existsSync(dir)) return [];
+  const out: BackupEntry[] = [];
+  for (const id of readdirSync(dir).filter((f) => BACKUP_NAME.test(f))) {
+    const file = join(dir, id);
+    const info = statSync(file);
+    const entry: BackupEntry = { id, at: info.mtimeMs, size: info.size };
+    try {
+      const p = await readProject(file);
+      Object.assign(entry, { name: p.name, duration: projectDuration(p), clips: p.clips.length });
+    } catch (err) {
+      console.warn("backup not readable", file, err);
+    }
+    out.push(entry);
+  }
+  return out.sort((a, b) => b.at - a.at || b.id.localeCompare(a.id));
+}
+
+/**
+ * Puts a backup back in place of the lesson. What the lesson is now becomes a backup first, so
+ * restoring can itself be undone by restoring that one. Returns the restored lesson.
+ */
+export async function restoreBackup(path: string, id: string): Promise<Project> {
+  if (!BACKUP_NAME.test(id) || basename(id) !== id) throw new Error("Cópia de segurança inválida.");
+  const file = join(backupDir(path), id);
+  if (!existsSync(file)) throw new Error("Essa cópia de segurança não existe mais.");
+  const restored: Project = { ...(await readProject(file)), updatedAt: Date.now() };
+  backup(path, true);
+  await saveProject(path, restored);
+  return restored;
 }

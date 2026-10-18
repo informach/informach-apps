@@ -56,7 +56,8 @@
 }
 
 .tl-heads {
-  width: 190px;
+  position: relative;
+  width: 220px;
   flex: none;
   overflow: hidden;
   border-right: 1px solid var(--line);
@@ -83,14 +84,38 @@
 .add-track:hover {
   color: var(--text-1);
 }
+/* Label, name (takes what is left, never less than a few letters) and the four buttons. The
+   remove button of an empty track sits over the corner, outside the row, so it never squeezes
+   the name. */
 .track-head {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 6px 0 10px;
+  gap: 4px;
+  padding: 0 4px 0 8px;
   border-bottom: 1px solid var(--line);
   overflow: hidden;
+}
+.track-head.is-dragging {
+  background: var(--panel-2);
+  opacity: 0.7;
+}
+.track-buttons {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex: none;
+  margin-left: auto;
+}
+.track-drop-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  z-index: 5;
+  pointer-events: none;
 }
 /* Bottom edge of a track header: drag to change the track height. */
 .track-resize {
@@ -122,23 +147,37 @@ body.is-resizing-track * {
   height: 20px;
 }
 .track-head .icon-btn {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   color: var(--text-3);
 }
 .track-head .icon-btn.is-active {
   color: var(--amber);
 }
-.track-remove {
-  opacity: 0;
+.track-head .icon-btn.track-solo.is-active {
+  color: #12140a;
+  background: var(--accent);
 }
-.track-head:hover .track-remove {
-  opacity: 1;
+.track-head .icon-btn.track-remove {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: var(--panel-3);
+  visibility: hidden;
+  z-index: 3;
+}
+.track-head:hover .track-remove,
+.track-head:focus-within .track-remove {
+  visibility: visible;
 }
 .track-tag {
   width: 26px;
   text-align: center;
   padding: 2px 0;
+  border: 0;
   border-radius: 4px;
   background: var(--panel-2);
   color: var(--text-2);
@@ -146,15 +185,29 @@ body.is-resizing-track * {
   font-size: 10px;
   font-weight: 700;
   flex: none;
+  cursor: grab;
+  touch-action: none;
+}
+.track-tag:hover {
+  color: var(--text-1);
+  background: var(--panel-3);
 }
 .track-name {
+  flex: 1;
+  min-width: 2.5em;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  min-width: 0;
 }
 .track-name-input {
+  flex: 1;
+  min-width: 0;
   width: 80px;
   background: var(--bg);
   border: 1px solid var(--line);
@@ -224,6 +277,20 @@ body.is-resizing-track * {
   z-index: 28;
   pointer-events: none;
 }
+/* Ctrl + drop: the clips go in pushing the rest, shown as a wedge opening the track. */
+.drop-marker.is-insert {
+  width: 4px;
+  margin-left: -1px;
+  background: var(--amber);
+  box-shadow: 0 0 12px var(--amber);
+}
+.tl-marquee {
+  position: absolute;
+  border: 1px solid var(--accent);
+  background: rgba(200, 240, 49, 0.08);
+  z-index: 24;
+  pointer-events: none;
+}
 
 .clip {
   position: absolute;
@@ -283,6 +350,19 @@ body.is-resizing-track * {
 }
 .clip-image .clip-thumbs {
   inset: 0;
+}
+.clip-filmstrip {
+  position: absolute;
+  inset: 0 0 18px 0;
+  overflow: hidden;
+  opacity: 0.6;
+  pointer-events: none;
+}
+.filmstrip-tile {
+  position: absolute;
+  top: 0;
+  background-repeat: no-repeat;
+  border-right: 1px solid #0d0e1180;
 }
 .clip-wave {
   position: absolute;

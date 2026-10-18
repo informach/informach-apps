@@ -170,7 +170,18 @@ const asset = z.looseObject({
   transcript: path.optional(),
   transcriptStatus: z.enum(["pending", "ready", "error"]).optional(),
   vfr: z.boolean().optional(),
-  generated: z.enum(["annotation", "effect"]).optional(),
+  generated: z.enum(["annotation", "effect", "still"]).optional(),
+  still: z.looseObject({ assetId: id, t: time }).optional(),
+  filmstrip: z
+    .looseObject({
+      path,
+      step: number.positive(),
+      width: z.int().positive().max(4096),
+      height: z.int().positive().max(4096),
+      columns: z.int().positive().max(1000),
+      count: z.int().nonnegative().max(100_000),
+    })
+    .optional(),
   cursor: path.optional(),
   cursorMissing: z.boolean().optional(),
   cursorFx: cursorFx.optional(),
@@ -269,6 +280,9 @@ const transform = z.looseObject({
   mask: z.enum(["rounded", "circle"]).optional(),
   border: color.optional(),
   shadow: shadow.optional(),
+  rotation: number.optional(),
+  flipH: z.boolean().optional(),
+  flipV: z.boolean().optional(),
 });
 const clip = z.looseObject({
   id,
@@ -481,6 +495,13 @@ export const projectSchema = z
     reviewedSeams: z.array(z.string().min(1).max(300)).max(REVIEWED_LIMIT).optional(),
     templateOffer: z
       .looseObject({ course: z.string().max(200), answer: z.enum(["applied", "declined"]) })
+      .optional(),
+    pendingStart: z
+      .looseObject({
+        opening: z.boolean().optional(),
+        closing: z.boolean().optional(),
+        music: z.looseObject({ assetId: id, trackId: id, volume: number.min(0).max(4) }).optional(),
+      })
       .optional(),
     settings: projectSettingsSchema,
     assets: z.array(asset).max(5000),

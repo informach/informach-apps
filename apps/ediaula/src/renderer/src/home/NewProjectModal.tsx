@@ -1,8 +1,9 @@
 import { focusOnMount } from "@informach/edi-desktop/renderer";
+import type { CourseSetup } from "@shared/courseSetup";
 import type { ProjectSettings } from "@shared/types";
 import { FolderPlus } from "lucide-react";
-import { type ReactNode, useState } from "react";
-import { Button, Field, Modal } from "@/ui";
+import { type ReactNode, useEffect, useState } from "react";
+import { Button, Field, Modal, Toggle } from "@/ui";
 
 export const FORMATS: { id: string; label: string; settings: ProjectSettings }[] = [
   {
@@ -15,6 +16,11 @@ export const FORMATS: { id: string; label: string; settings: ProjectSettings }[]
     label: "1920 × 1080 · 60 fps",
     settings: { width: 1920, height: 1080, fps: 60 },
   },
+  {
+    id: "vertical30",
+    label: "1080 × 1920 · 30 fps (vertical: Reels, Shorts, celular)",
+    settings: { width: 1080, height: 1920, fps: 30 },
+  },
   { id: "4k30", label: "3840 × 2160 · 30 fps", settings: { width: 3840, height: 2160, fps: 30 } },
   { id: "720p30", label: "1280 × 720 · 30 fps", settings: { width: 1280, height: 720, fps: 30 } },
 ];
@@ -23,8 +29,20 @@ interface Props {
   courses: string[];
   defaultName?: string;
   onCancel: () => void;
-  onCreate: (name: string, course: string | undefined, settings: ProjectSettings) => Promise<void>;
+  /** `setup`: the course template the lesson starts from, when the person kept it on. */
+  onCreate: (
+    name: string,
+    course: string | undefined,
+    settings: ProjectSettings,
+    setup: CourseSetup | null,
+  ) => Promise<void>;
 }
+
+const formatOf = (s: ProjectSettings): string | undefined =>
+  FORMATS.find(
+    (f) =>
+      f.settings.width === s.width && f.settings.height === s.height && f.settings.fps === s.fps,
+  )?.id;
 
 export function NewProjectModal({
   courses,
@@ -36,6 +54,36 @@ export function NewProjectModal({
   const [course, setCourse] = useState("");
   const [format, setFormat] = useState(FORMATS[0].id);
   const [busy, setBusy] = useState(false);
+  // The course's template, looked up as the course is typed; on by default when there is one.
+  const [setup, setSetup] = useState<CourseSetup | null>(null);
+  const [useSetup, setUseSetup] = useState(true);
+
+  useEffect(() => {
+    const typed = course.trim();
+    if (!typed) {
+      setSetup(null);
+      return;
+    }
+    let alive = true;
+    const wait = setTimeout(() => {
+      window.api.courseSetup(typed).then(
+        (found) => {
+          if (!alive) return;
+          setSetup(found);
+          const id = found && formatOf(found.settings);
+          if (id) setFormat(id);
+        },
+        () => alive && setSetup(null),
+      );
+    }, 250);
+    return () => {
+      alive = false;
+      clearTimeout(wait);
+    };
+  }, [course]);
+
+  const fromSetup = !!setup && useSetup;
+  const custom = fromSetup && !formatOf(setup.settings);
 
   const submit = async (): Promise<void> => {
     if (busy) return;
@@ -44,7 +92,8 @@ export function NewProjectModal({
       await onCreate(
         name.trim() || "Aula sem nome",
         course.trim() || undefined,
-        FORMATS.find((f) => f.id === format)!.settings,
+        custom ? setup.settings : FORMATS.find((f) => f.id === format)!.settings,
+        fromSetup ? setup : null,
       );
     } finally {
       setBusy(false);
@@ -52,7 +101,7 @@ export function NewProjectModal({
   };
 
   return (
-    <Modal label="Novo projeto" onClose={onCancel} width={520}>
+    <Modal label="Novo projeto" onClose={onCancel} width={540}>
       <form
         className="modal-body stack-16"
         onSubmit={(e) => {
@@ -69,7 +118,7 @@ export function NewProjectModal({
             className="input"
             ref={focusOnMount}
             value={name}
-            placeholder="Ex.: Aula 03 — Seção 01"
+            placeholder="Ex.: Aula 03, Seção 01"
             onChange={(e) => setName(e.target.value)}
           />
         </Field>
@@ -87,8 +136,32 @@ export function NewProjectModal({
             ))}
           </datalist>
         </Field>
+        {setup && (
+          <div className="setup-offer">
+            <div className="props-head">
+              <span className="field-label">Começar com o modelo do curso</span>
+              <Toggle on={useSetup} onChange={setUseSetup} label="Começar com o modelo do curso" />
+            </div>
+            <span className="field-hint">
+              {useSetup
+                ? `Formato, paleta, legenda e as ${setup.tracks.length} faixas de ${setup.course}${setup.audio?.music ? `, a música ${setup.audio.music.name}` : ""}${setup.cards ? ", e a abertura e o encerramento quando a primeira mídia entrar" : ""}.`
+                : "A aula começa vazia, com as faixas de sempre."}
+            </span>
+          </div>
+        )}
         <Field label="Formato do vídeo">
-          <select className="select" value={format} onChange={(e) => setFormat(e.target.value)}>
+          <select
+            className="select"
+            value={custom ? "setup" : format}
+            disabled={custom}
+            onChange={(e) => setFormat(e.target.value)}
+          >
+            {custom && (
+              <option value="setup">
+                {setup.settings.width} × {setup.settings.height} · {setup.settings.fps} fps (do
+                modelo do curso)
+              </option>
+            )}
             {FORMATS.map((f) => (
               <option key={f.id} value={f.id}>
                 {f.label}

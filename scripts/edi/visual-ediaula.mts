@@ -855,6 +855,122 @@ try {
     await savedSoon(editor);
   });
 
+  await step("Seleção por retângulo", async () => {
+    await withoutToasts(editor);
+    const boxes = await editor.locator("fieldset.clip").evaluateAll((list) =>
+      list.map((el) => {
+        const r = el.getBoundingClientRect();
+        return { x: r.x, y: r.y, w: r.width, h: r.height };
+      }),
+    );
+    const area = await editor.locator(".tl-scroll").boundingBox();
+    assert.ok(area && boxes.length > 1, "a timeline with clips");
+    const right = Math.max(...boxes.map((b) => b.x + b.w));
+    const top = Math.min(...boxes.map((b) => b.y));
+    const bottom = Math.max(...boxes.map((b) => b.y + b.h));
+    // From the empty background right of the clips, over all of them.
+    await editor.mouse.move(Math.min(right + 60, area.x + area.width - 12), bottom + 1);
+    await editor.mouse.down();
+    await editor.mouse.move(area.x + 24, top + 4, { steps: 12 });
+    await editor.locator(".tl-marquee").waitFor();
+    await capture(
+      editor.locator(".timeline-wrap"),
+      "selecao-retangulo",
+      "Seleção por retângulo na timeline",
+    );
+    await editor.mouse.up();
+    assert.ok(
+      (await editor.locator("fieldset.clip.is-selected").count()) > 1,
+      "the rectangle selected the clips",
+    );
+    await side.locator(".tab", { hasText: "Propriedades" }).click();
+    await side.getByText(/^Na tela:/).waitFor();
+    await capture(side, "propriedades-em-lote", "Propriedades dos clipes selecionados juntos");
+    await editor.keyboard.press("Escape");
+  });
+
+  await step("Propriedades numéricas, girar e espelhar", async () => {
+    await editor.locator('fieldset.clip[aria-label^="Clipe Tela"]').first().click();
+    await side.locator(".tab", { hasText: "Propriedades" }).click();
+    const rotate = side.getByRole("textbox", { name: "Girar (°)" });
+    await rotate.waitFor();
+    await rotate.scrollIntoViewIfNeeded();
+    await capture(side, "propriedades-numericas", "Posição e tamanho com valores digitáveis");
+    await rotate.fill("12");
+    await rotate.press("Enter");
+    await side.getByRole("button", { name: "Espelhar na horizontal", pressed: false }).click();
+    await side.getByRole("button", { name: "Espelhar na horizontal", pressed: true }).waitFor();
+    assert.equal(await rotate.inputValue(), "12,0");
+    await settle(editor);
+    await capture(
+      editor.locator("section.preview"),
+      "previa-girada",
+      "Prévia com o clipe girado 12° e espelhado",
+    );
+    await editor.evaluate(() => {
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    });
+    await editor.keyboard.press("Control+z");
+    await editor.keyboard.press("Control+z");
+    assert.equal(await rotate.inputValue(), "0,0", "both edits taken back");
+    await editor.keyboard.press("Escape");
+  });
+
+  await step("Reordenar faixa", async () => {
+    const order = (): Promise<string> =>
+      editor
+        .locator(".track-head .track-name")
+        .evaluateAll((list) => list.map((el) => el.textContent).join("|"));
+    const before = await order();
+    const handle = editor.getByRole("button", { name: /^Mover a faixa / }).first();
+    const box = await handle.boundingBox();
+    assert.ok(box, "the label of the top track");
+    await editor.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await editor.mouse.down();
+    await editor.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 110, { steps: 10 });
+    await editor.locator(".track-drop-line").waitFor();
+    await capture(
+      editor.locator(".timeline-wrap"),
+      "reordenar-faixa-arrasto",
+      "Arrastando o rótulo da faixa",
+    );
+    await editor.mouse.up();
+    await editor.waitForFunction(
+      (names) =>
+        [...document.querySelectorAll(".track-head .track-name")]
+          .map((el) => el.textContent)
+          .join("|") !== names,
+      before,
+    );
+    await capture(
+      editor.locator(".timeline-wrap"),
+      "reordenar-faixa",
+      "Faixa no lugar novo da pilha",
+    );
+    // Only the move is taken back: without it, Ctrl+Z would undo an edit of an earlier step.
+    await editor.keyboard.press("Control+z");
+    assert.equal(await order(), before);
+  });
+
+  await step("Mudar formato", async () => {
+    await editor.locator("header.topbar").getByRole("button", { name: "Arquivo" }).click();
+    await editor.getByRole("menuitem", { name: "Mudar formato…" }).click();
+    const dialog = editor.getByRole("dialog", { name: "Mudar formato" });
+    await dialog.waitFor();
+    await dialog.locator("select").selectOption("vertical30");
+    await capture(dialog.locator(".modal"), "mudar-formato", "Diálogo Mudar formato");
+    await dialog.getByRole("button", { name: "Mudar formato", exact: true }).click();
+    await dialog.waitFor({ state: "detached" });
+    await settle(editor);
+    await withoutToasts(editor);
+    await capture(editor, "formato-vertical", "Aula levada ao formato vertical (Encaixar)");
+    await editor.locator("section.preview .info-chip", { hasText: "1080×1920" }).waitFor();
+    await editor.keyboard.press("Control+z");
+    await editor.locator("section.preview .info-chip", { hasText: "1920×1080" }).waitFor();
+    await settle(editor);
+    await savedSoon(editor);
+  });
+
   await step("Exportar e fila de exportação", async () => {
     await editor
       .locator("header.topbar")
@@ -1190,6 +1306,21 @@ try {
     await capture(page, "inicio-dois-projetos", "Início com duas aulas");
   });
 
+  await step("Duplicar uma aula", async () => {
+    await page
+      .getByRole("button", { name: /^Mais opções de / })
+      .first()
+      .click();
+    const menu = page.getByRole("menu");
+    await menu.waitFor();
+    await capture(page, "inicio-menu-aula", "Menu de uma aula no Início");
+    const cards = await page.locator(".project-card").count();
+    await menu.getByRole("menuitem", { name: "Duplicar" }).click();
+    await page.locator(".project-card").nth(cards).waitFor({ timeout: 30_000 });
+    await withoutToasts(page);
+    await capture(page, "inicio-aula-duplicada", "Início com a cópia da aula");
+  });
+
   await step("Reconexão de mídia", async () => {
     await answerDialog(second, "message", 0);
     await page.getByRole("button", { name: /^Abrir Gravação/ }).click();
@@ -1221,6 +1352,28 @@ try {
       .waitFor({ state: "detached", timeout: 60_000 });
     await withoutToasts(page);
     await capture(page, "reconectado-tudo", "Editor com tudo reconectado");
+  });
+
+  await step("Restaurar cópia de segurança", async () => {
+    await page.locator("header.topbar").getByRole("button", { name: "Arquivo" }).click();
+    await page.getByRole("menuitem", { name: "Restaurar cópia de segurança…" }).click();
+    const dialog = page.getByRole("dialog", { name: "Cópias de segurança" });
+    await dialog.waitFor();
+    await dialog.getByText("Procurando as cópias…").waitFor({ state: "detached", timeout: 30_000 });
+    await capture(dialog.locator(".modal"), "copias-de-seguranca", "Lista de cópias de segurança");
+    const restore = dialog.getByRole("button", { name: "Restaurar…" }).first();
+    if (!(await restore.count())) {
+      notes.push("A aula da gravação não tinha cópias de segurança para restaurar.");
+      await dialog.getByRole("button", { name: "Fechar" }).click();
+      return;
+    }
+    await restore.click();
+    await capture(dialog.locator(".modal"), "copias-confirmar", "Confirmação antes de restaurar");
+    await dialog.getByRole("button", { name: "Restaurar esta" }).click();
+    await dialog.waitFor({ state: "detached", timeout: 30_000 });
+    await settle(page);
+    await capture(page, "copia-restaurada", "Editor depois de restaurar a cópia");
+    await savedSoon(page);
   });
   await closeApplication(second.application, second.launch);
 } catch (error) {
