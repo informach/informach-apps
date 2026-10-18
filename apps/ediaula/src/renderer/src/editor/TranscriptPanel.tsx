@@ -47,6 +47,8 @@ import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
 import { Button, Progress } from "@/ui";
+import { GlossaryField } from "./GlossaryField";
+import { WordEditor } from "./WordEditor";
 
 const LANGUAGES: [string, string][] = [
   ["pt", "Português"],
@@ -83,12 +85,16 @@ export function TranscriptPanel(): ReactNode {
   return (
     <div className="transcript">
       <CleanupBar model={model} />
+      <details className="transcript-glossary">
+        <summary>Glossário do curso</summary>
+        <GlossaryField hint="Corrige os nomes no texto na hora, sem transcrever de novo. Vale para todas as aulas do curso e também orienta a IA." />
+      </details>
       <TranscriptText model={model} />
       <div className="transcript-foot">
         <Info size={13} />
         <span>
-          Selecione palavras e aperte Delete para cortar o trecho do vídeo. Clique direito numa
-          marcação para mantê-la.
+          Selecione palavras e aperte Delete para cortar o trecho do vídeo. Duplo clique numa
+          palavra corrige o texto. Clique direito numa marcação para mantê-la.
         </span>
       </div>
     </div>
@@ -245,14 +251,6 @@ function TranscribeStart({ status }: { status: EngineStatus }): ReactNode {
   const touched = useRef(false);
   const busy = Object.keys(running).length > 0;
   const firstId = candidates[0]?.asset.id;
-  const course = project.course ?? "";
-  const [glossary, setGlossaryText] = useState("");
-  useEffect(() => {
-    void window.api.getGlossary(course).then((terms) => setGlossaryText(terms.join(", ")));
-  }, [course]);
-  const saveGlossary = (): void => {
-    void window.api.setGlossary(course, glossary.split(/[,\n;]/));
-  };
   // Pre-select the main recording once it shows up on the timeline.
   useEffect(() => {
     if (!touched.current && firstId) setPicked(new Set([firstId]));
@@ -310,23 +308,10 @@ function TranscribeStart({ status }: { status: EngineStatus }): ReactNode {
           );
         })}
       </div>
-      <label className="field">
-        <span className="field-label">
-          Glossário {course ? `do curso ${course}` : "(projetos sem curso)"}
-        </span>
-        <textarea
-          className="input glossary"
-          rows={2}
-          value={glossary}
-          disabled={busy}
-          placeholder="Nomes e termos que a transcrição deve acertar. Ex.: Debinha, Zappy, bloco Quando clicar"
-          onChange={(e) => setGlossaryText(e.target.value)}
-          onBlur={saveGlossary}
-        />
-        <span className="field-hint">
-          Separe por vírgulas. Vale para todas as aulas deste curso e também orienta a IA.
-        </span>
-      </label>
+      <GlossaryField
+        disabled={busy}
+        hint="Separe por vírgulas. Vale para todas as aulas deste curso e também orienta a IA."
+      />
       <div className="row-10">
         <select
           className="select lang"
@@ -345,7 +330,6 @@ function TranscribeStart({ status }: { status: EngineStatus }): ReactNode {
           icon={Captions}
           disabled={busy || picked.size === 0}
           onClick={() => {
-            saveGlossary();
             void transcribeAssets(
               candidates.filter((c) => picked.has(c.asset.id)).map((c) => c.asset),
               language,
@@ -459,6 +443,9 @@ function CleanupBar({ model }: { model: TextModel }): ReactNode {
 
 /* ---------- Text ---------- */
 
+/** Below this confidence a word is marked for review. */
+const UNSURE = 0.5;
+
 function TranscriptText({ model }: { model: TextModel }): ReactNode {
   const fps = useProject((s) => s.project?.settings.fps ?? 30);
   const { kept, toggleKept, keepPause } = useCleanup();
@@ -469,6 +456,8 @@ function TranscriptText({ model }: { model: TextModel }): ReactNode {
   } | null>(null);
   const dragging = useRef<number | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
+  /** Key of the word being corrected inline (double click). */
+  const [editing, setEditing] = useState<string | null>(null);
   const { words, issues, active } = model;
   const sel = selection?.words === words ? selection.range : null;
   const setSel = (range: [number, number] | null): void =>
@@ -568,7 +557,7 @@ function TranscriptText({ model }: { model: TextModel }): ReactNode {
     if (issue)
       c += activeIds.has(issue.id) ? ` w-${issue.kind}` : kept.has(issue.id) ? " w-kept" : "";
     if (i >= lo && i <= hi) c += " is-sel";
-    if (w.p < 0.5) c += " w-unsure";
+    if (w.p < UNSURE) c += " w-unsure";
     if (protectedBy.has(w.key)) c += " w-protected";
     return c;
   };
@@ -594,51 +583,62 @@ function TranscriptText({ model }: { model: TextModel }): ReactNode {
                   const issue = wordIssue.get(w.key);
                   return (
                     <span key={w.key}>
-                      <button
-                        type="button"
-                        data-i={i}
-                        style={{
-                          border: 0,
-                          padding: 0,
-                          background: "none",
-                          color: "inherit",
-                          font: "inherit",
-                        }}
-                        onClick={(event) => {
-                          if (event.detail !== 0) return;
-                          setSel(event.shiftKey && sel ? [sel[0], i] : [i, i]);
-                          playback.pause();
-                          playback.seek(w.start);
-                        }}
-                        className={wordClass(w, i)}
-                        onMouseDown={(e) => {
-                          if (e.button !== 0) return;
-                          e.preventDefault();
-                          dragging.current = i;
-                          setSel(e.shiftKey && sel ? [sel[0], i] : [i, i]);
-                          playback.pause();
-                          playback.seek(w.start);
-                        }}
-                        onMouseEnter={() =>
-                          dragging.current !== null && setSel([dragging.current, i])
-                        }
-                        onContextMenu={(e) => {
-                          if (!issue) return;
-                          e.preventDefault();
-                          toggleKept(issue.id);
-                        }}
-                        title={
-                          issue
-                            ? activeIds.has(issue.id)
-                              ? `${KIND_META[issue.kind].label} — clique direito para manter`
-                              : "Mantido — clique direito para cortar"
-                            : undefined
-                        }
-                      >
-                        {i > 0 && /[.!?]$/.test(words[i - 1].text)
-                          ? w.text.charAt(0).toUpperCase() + w.text.slice(1)
-                          : w.text}
-                      </button>{" "}
+                      {editing === w.key ? (
+                        <WordEditor word={w} onClose={() => setEditing(null)} />
+                      ) : (
+                        <button
+                          type="button"
+                          data-i={i}
+                          style={{
+                            border: 0,
+                            padding: 0,
+                            background: "none",
+                            color: "inherit",
+                            font: "inherit",
+                          }}
+                          onClick={(event) => {
+                            if (event.detail !== 0) return;
+                            setSel(event.shiftKey && sel ? [sel[0], i] : [i, i]);
+                            playback.pause();
+                            playback.seek(w.start);
+                          }}
+                          className={wordClass(w, i)}
+                          onMouseDown={(e) => {
+                            if (e.button !== 0) return;
+                            e.preventDefault();
+                            dragging.current = i;
+                            setSel(e.shiftKey && sel ? [sel[0], i] : [i, i]);
+                            playback.pause();
+                            playback.seek(w.start);
+                          }}
+                          onMouseEnter={() =>
+                            dragging.current !== null && setSel([dragging.current, i])
+                          }
+                          onDoubleClick={() => {
+                            dragging.current = null;
+                            setSel(null);
+                            setEditing(w.key);
+                          }}
+                          onContextMenu={(e) => {
+                            if (!issue) return;
+                            e.preventDefault();
+                            toggleKept(issue.id);
+                          }}
+                          title={
+                            issue
+                              ? activeIds.has(issue.id)
+                                ? `${KIND_META[issue.kind].label} — clique direito para manter`
+                                : "Mantido — clique direito para cortar"
+                              : w.p < UNSURE
+                                ? `Confiança baixa (${Math.round(w.p * 100)}%). Duplo clique para corrigir.`
+                                : undefined
+                          }
+                        >
+                          {i > 0 && /[.!?]$/.test(words[i - 1].text)
+                            ? w.text.charAt(0).toUpperCase() + w.text.slice(1)
+                            : w.text}
+                        </button>
+                      )}{" "}
                       {silence && (
                         <button
                           type="button"

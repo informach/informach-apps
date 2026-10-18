@@ -5,6 +5,7 @@ import {
   type Cue,
   captionMargin,
   cueAt,
+  cueLayout,
   DEFAULT_CAPTION_STYLE,
   KEY_STYLE,
 } from "@shared/captions";
@@ -21,7 +22,7 @@ export function useCues(project: Project | null, vertical = false): Cue[] {
   return useMemo(
     () =>
       project && transcripts.size
-        ? buildCues(timelineWords(project, transcripts), vertical ? 22 : 42)
+        ? buildCues(timelineWords(project, transcripts), vertical ? 22 : 42, 2, cueLayout(project))
         : [],
     [project, transcripts, vertical],
   );
@@ -39,9 +40,16 @@ export function CaptionOverlay({
 }): ReactNode {
   const cues = useCues(project);
   const t = usePlayback((s) => s.time);
-  const style = { ...DEFAULT_CAPTION_STYLE, ...project.captions };
   const cue = cueAt(cues, t);
   if (!cue) return null;
+  // A caption with its own look overrides the project's, as the export does with libass.
+  const style = {
+    ...DEFAULT_CAPTION_STYLE,
+    ...project.captions,
+    ...(cue.style?.position ? { position: cue.style.position } : {}),
+    ...(cue.style?.size ? { size: cue.style.size } : {}),
+  };
+  const textColor = cue.style?.color ?? "#fff";
   const fs = (style.size / 100) * height;
   const margin = captionMargin(style, height, false);
   const pos =
@@ -73,7 +81,7 @@ export function CaptionOverlay({
                 color:
                   style.look === "karaoke" && w.start <= t
                     ? (style.highlight ?? CAPTION_HIGHLIGHT)
-                    : "#fff",
+                    : textColor,
               }}
             >
               {w.text}

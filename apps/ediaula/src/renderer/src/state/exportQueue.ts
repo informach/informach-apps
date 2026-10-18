@@ -1,4 +1,4 @@
-import { buildAss, buildCues, DEFAULT_CAPTION_STYLE } from "@shared/captions";
+import { buildAss, buildCues, cueLayout, DEFAULT_CAPTION_STYLE } from "@shared/captions";
 import { keyId } from "@shared/chroma";
 import { buildSrt, timelineWords } from "@shared/cleanup";
 import { type ExportItem, ExportQueue } from "@shared/exportQueue";
@@ -8,7 +8,7 @@ import { projectSpeech } from "@/lib/audio";
 import { ensureCursorSprites } from "@/lib/cursorRender";
 import { keyIsCurrent } from "@/lib/keying";
 import { timelineKeys } from "@/lib/keysOnScreen";
-import { loadTranscript } from "@/lib/transcripts";
+import { loadAssetTranscript } from "@/lib/transcripts";
 import { useApp } from "./app";
 import { useProject } from "./project";
 
@@ -53,14 +53,14 @@ export const exportQueue = new ExportQueue(
       const burn = !spec.audioOnly && !!project.captions?.burn && transcribed.length > 0;
       if ((item.captions || burn) && transcribed.length) {
         const loaded = await Promise.all(
-          transcribed.map(async (a) => [a.id, await loadTranscript(a.transcript!)] as const),
+          transcribed.map(async (a) => [a.id, await loadAssetTranscript(project, a)] as const),
         );
         check();
         const words = timelineWords(project, new Map(loaded));
         if (item.captions) spec.captions = buildSrt(words);
         if (burn)
           spec.burnAss = buildAss(
-            buildCues(words, spec.vertical ? 22 : 42),
+            buildCues(words, spec.vertical ? 22 : 42, 2, cueLayout(project)),
             { ...DEFAULT_CAPTION_STYLE, ...project.captions },
             spec.width,
             spec.height,

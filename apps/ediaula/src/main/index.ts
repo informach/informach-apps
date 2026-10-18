@@ -106,6 +106,7 @@ import {
   engineStatus,
   installEngine,
   installModel,
+  removeStaleDownloads,
   selectModel,
   transcribe,
 } from "./whisper.ts";
@@ -975,6 +976,9 @@ app
     // A file of an earlier version may still hold the old permanent token.
     migrateRestrictedConfig(mcp.port);
     void detectEncoder();
+    removeStaleDownloads().catch((err: unknown) =>
+      console.warn("[whisper] could not clean old unfinished downloads:", err),
+    );
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
