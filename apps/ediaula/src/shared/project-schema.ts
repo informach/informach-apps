@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { MAX_ANCHORS, MAX_WORD_KEYS, PROPOSAL_ITEM_LIMIT, PROPOSAL_LIMIT } from "./anchors.ts";
 import { ENCODERS, type ExportSpec, type Project, RECORDING_ROLES } from "./types.ts";
+import { VOICE_PRESETS } from "./voiceChain.ts";
 
 const number = z.number().min(-1e9).max(1e9);
 const time = z
@@ -183,6 +184,50 @@ const asset = z.looseObject({
     )
     .max(20000)
     .optional(),
+  voicePreset: z.enum(VOICE_PRESETS).optional(),
+  treated: z
+    .looseObject({ path, preset: z.enum(VOICE_PRESETS), version: z.int().nonnegative() })
+    .optional(),
+  treatStatus: z.enum(["pending", "ready", "error"]).optional(),
+  voiceTakes: z
+    .array(
+      z.looseObject({
+        line: z.int().nonnegative(),
+        start: time,
+        end: time,
+        retake: z.boolean().optional(),
+      }),
+    )
+    .max(20000)
+    .optional(),
+});
+const voiceMaster = z.looseObject({
+  id,
+  hash: z.string().max(200),
+  createdAt: z.number().nonnegative(),
+  scope: z.enum(["lesson", "section", "insert"]),
+  pieces: z
+    .array(
+      z.looseObject({
+        file: path,
+        label: text,
+        start: time,
+        end: time,
+        sourceMap: z
+          .array(
+            z.looseObject({
+              at: time,
+              duration: time,
+              start: time,
+              assetId: id,
+              in: time,
+              speed: number.positive().optional(),
+            }),
+          )
+          .max(20000),
+      }),
+    )
+    .max(500),
 });
 const track = z.looseObject({
   id,
@@ -369,6 +414,7 @@ export const projectSchema = z
     stats: z.looseObject({ editSeconds: z.number().nonnegative() }).optional(),
     // Pending AI proposals, at most PROPOSAL_ITEM_LIMIT items in all (the save is one IPC value).
     proposals: proposalListSchema.optional(),
+    voiceMaster: voiceMaster.optional(),
     settings: projectSettingsSchema,
     assets: z.array(asset).max(5000),
     tracks: z.array(track).max(256),

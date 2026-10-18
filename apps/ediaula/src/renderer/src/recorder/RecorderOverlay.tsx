@@ -6,10 +6,12 @@ import type { RecorderSettings } from "@shared/recorderSettings";
 import type {
   CaptureMonitor,
   CaptureSources,
+  OverContext,
   RecorderEvent,
   RecorderStatus,
 } from "@shared/recording";
 import type { MicLevel, RecorderHealth } from "@shared/recordingHealth";
+import { type PrompterLine, readLines, stepLine, voiceSpeakers } from "@shared/voiceTakes";
 import {
   AlertTriangle,
   Bookmark,
@@ -43,9 +45,11 @@ import {
 import { mediaUrl } from "@/lib/media";
 import { GuidedSetup } from "./GuidedSetup";
 import { HealthStrip, LevelBars } from "./HealthStrip";
+import { OverPlayer } from "./overPlayer";
 import { CameraModeSelect, RecorderOptions } from "./RecorderOptions";
 import { SystemAudio } from "./systemAudio";
 import { resendUiRects, useUiRect } from "./uiRects";
+import { KaraokePrompter, MicTest, SpeakerChips, VoicePrompter } from "./VoiceTools";
 
 type Phase = "setup" | "countdown" | "recording" | "paused" | "saving";
 interface Rect {
@@ -54,7 +58,13 @@ interface Rect {
   width: number;
   height: number;
 }
-type Line = { speaker: string; text: string; avatar: boolean };
+type Line = PrompterLine;
+/** What is being recorded: the screen (by hand or guided), the voice alone, or the screen over
+ *  the lesson's voice. */
+type Mode = "screen" | "guided" | "voice" | "over";
+
+const clockOf = (s: number): string =>
+  `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
 const clock = (s: number): string =>
   `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
@@ -141,7 +151,22 @@ export function RecorderOverlay(): ReactNode {
     choice: CameraChoice | null;
   } | null>(null);
   const [level, setLevel] = useState<MicLevel | null>(null);
-  const [guidedMode, setGuidedMode] = useState(false);
+  const [mode, setMode] = useState<Mode>("screen");
+  const guidedMode = mode === "guided";
+  const voiceMode = mode === "voice";
+  /** "Tela sobre a narração": the lesson's voice as the editor handed it over. */
+  const [over, setOver] = useState<OverContext | null>(null);
+  const [notes, setNotes] = useState<{ before: number; text: string }[]>([]);
+  /** Speakers whose lines the voice take reads. */
+  const [speakerOn, setSpeakerOn] = useState<Set<string>>(new Set());
+  /** Over the narration the microphone is off unless chosen here. */
+  const [overMic, setOverMic] = useState("");
+  /** Over the narration the computer's sound is off unless turned on here, for this take. */
+  const [overSystem, setOverSystem] = useState(false);
+  const [follow, setFollow] = useState<{ state: string; message: string } | null>(null);
+  /** Timeline second of the voice being heard, while it plays. */
+  const [heard, setHeard] = useState<number | null>(null);
+  const player = useRef<OverPlayer | null>(null);
   const [guidedPlan, setGuidedPlan] = useState<GuidedPlan>({ ...GUIDED_DEFAULTS, steps: [] });
   const [guidedBusy, setGuidedBusy] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
@@ -174,11 +199,24 @@ export function RecorderOverlay(): ReactNode {
   // Settings and sources: what was chosen last time comes back when the device is still there.
   useEffect(() => {
     document.documentElement.classList.add("is-recorder");
-    void window.api.recorder.context().then((c) => setLines(c.teleprompter));
+    void window.api.recorder.context().then((c) => {
+      setLines(c.teleprompter);
+      setNotes(c.screenNotes ?? []);
+      setOver(c.over ?? null);
+      setSpeakerOn(
+        new Set(
+          voiceSpeakers(c.teleprompter)
+            .filter((v) => v.on)
+            .map((v) => v.name),
+        ),
+      );
+      if (c.mode === "over" && c.over) setMode("over");
+    });
     void Promise.all([window.api.recorder.sources(), window.api.recorder.settings()]).then(
       ([s, saved]) => {
         setSources(s);
         setSettings(saved);
+        if (saved.recordMode === "voice") setMode((m) => (m === "screen" ? "voice" : m));
         const wanted = saved.monitor;
         const remembered = wanted
           ? s.monitors.find(
@@ -228,6 +266,7 @@ export function RecorderOverlay(): ReactNode {
       window.api.recorder.onHealth(setHealth),
       window.api.recorder.onLevel(setLevel),
       window.api.recorder.onStatus(setStatus),
+      window.api.recorder.onFollowState(setFollow),
       window.api.recorder.onEvent((event) => {
         if (event.request === "stop") preservationRequested.current = true;
         if (event.actions.length || event.level === "error") setAlert(event);
@@ -250,6 +289,7 @@ export function RecorderOverlay(): ReactNode {
       phaseRef.current === "recording"
     ) {
       guidedAudio.current?.pause();
+      player.current?.pause();
       phaseRef.current = "paused";
       setPhase("paused");
     }
@@ -259,7 +299,8 @@ export function RecorderOverlay(): ReactNode {
   const monitorIndex = monitor?.index;
   const fps = settings?.fps;
   useEffect(() => {
-    if (monitorIndex === undefined || fps === undefined) return;
+    // A voice take does not record the screen: nothing to test.
+    if (monitorIndex === undefined || fps === undefined || voiceMode) return;
     let current = true;
     setEncoder(null);
     window.api.recorder.encoder(monitorIndex, fps).then(
@@ -269,17 +310,18 @@ export function RecorderOverlay(): ReactNode {
     return () => {
       current = false;
     };
-  }, [monitorIndex, fps]);
+  }, [monitorIndex, fps, voiceMode]);
 
   // The level meter listens to the very device the take will record.
+  const meterMic = mode === "over" ? overMic : mic;
   useEffect(() => {
     if (phase !== "setup") return;
     setLevel(null);
-    void window.api.recorder.monitorMic(mic || null);
+    void window.api.recorder.monitorMic(meterMic || null);
     return () => {
       void window.api.recorder.monitorMic(null);
     };
-  }, [mic, phase]);
+  }, [meterMic, phase]);
 
   useEffect(() => {
     setCamModes(null);
@@ -326,6 +368,28 @@ export function RecorderOverlay(): ReactNode {
     },
     [lines.length],
   );
+  // The voice take reads only the chosen speakers' lines; the other modes, every line.
+  const order = voiceMode ? readLines(lines, speakerOn) : lines.map((_, i) => i);
+  const orderRef = useRef(order);
+  orderRef.current = order;
+  const lineRef = useRef(line);
+  lineRef.current = line;
+  const stepTo = useCallback(
+    (step: 1 | -1) => moveLine(stepLine(orderRef.current, lineRef.current, step)),
+    [moveLine],
+  );
+  // A line left out by the speakers chosen gives way to the first one that is read.
+  useEffect(() => {
+    if (voiceMode && phase === "setup" && order.length && !order.includes(line)) setLine(order[0]);
+  }, [voiceMode, phase, order, line]);
+  // The voice finished the line on screen: the teleprompter moves on (main/voiceFollow.ts).
+  useEffect(
+    () =>
+      window.api.recorder.onFollow((index) => {
+        if (phaseRef.current === "recording" && lineRef.current === index) stepTo(1);
+      }),
+    [stepTo],
+  );
 
   const finishSystemAudio = useCallback(async (): Promise<void> => {
     const s = system.current;
@@ -334,7 +398,16 @@ export function RecorderOverlay(): ReactNode {
   }, []);
 
   const begin = useCallback(async () => {
-    if (!monitor || !settings || phaseRef.current !== "setup" || guidedBusy) return;
+    if (!settings || phaseRef.current !== "setup" || guidedBusy) return;
+    if (!voiceMode && !monitor) return;
+    if (voiceMode && !mic) {
+      setError("Escolha o microfone para gravar a voz.");
+      return;
+    }
+    if (mode === "over" && !over) {
+      setError("Abra o gravador pelo editor, numa aula com a faixa Voz.");
+      return;
+    }
     preservationRequested.current = false;
     setError(null);
     setAlert(null);
@@ -359,21 +432,56 @@ export function RecorderOverlay(): ReactNode {
           audio.load();
         });
       }
+      if (mode === "over" && over) {
+        // The lesson's voice, rendered as one file and ready to play when the take starts.
+        setFlash("Preparando a voz da aula…");
+        const narration = await window.api.recorder.narration();
+        const p = new OverPlayer(narration.path, narration.start);
+        p.onHeard = (at) => {
+          setHeard(at);
+          // A redo ends by itself a moment after its stretch.
+          if (over.to !== undefined && at >= over.to + 0.3) void stopRef.current();
+        };
+        p.onError = (message) => setError(`A voz da aula: ${message}`);
+        await p.load();
+        player.current = p;
+        setFlash(null);
+      }
       const narrated = guidedMode && !!guidedPlan.audio;
-      const systemOn = settings.systemAudio && !narrated;
+      const systemOn =
+        (mode === "over" ? overSystem : settings.systemAudio) && !narrated && !voiceMode;
       // The mouse helper loads during the countdown.
-      const prep = window.api.recorder.prepare({
-        monitor: monitor.index,
-        regionDip: region,
-        microphone: narrated ? undefined : mic || undefined,
-        camera: cam || undefined,
-        cameraMode: cam ? (settings.cameraMode ?? camModes?.choice ?? undefined) : undefined,
-        cameraLatency: settings.cameraLatency,
-        keys: settings.keys,
-        fps: settings.fps,
-        quality: settings.quality,
-        systemAudio: systemOn,
-      });
+      const prep = window.api.recorder.prepare(
+        voiceMode
+          ? {
+              fps: settings.fps,
+              microphone: mic,
+              mode: "voice",
+              follow: settings.follow,
+            }
+          : {
+              monitor: monitor?.index,
+              regionDip: region,
+              microphone: narrated ? undefined : (mode === "over" ? overMic : mic) || undefined,
+              camera: cam || undefined,
+              cameraMode: cam ? (settings.cameraMode ?? camModes?.choice ?? undefined) : undefined,
+              cameraLatency: settings.cameraLatency,
+              keys: settings.keys,
+              fps: settings.fps,
+              quality: settings.quality,
+              systemAudio: systemOn,
+              ...(mode === "over" && over
+                ? {
+                    mode: "over" as const,
+                    over: {
+                      from: over.from,
+                      ...(over.to !== undefined ? { to: over.to } : {}),
+                      ...(over.replace ? { replace: true } : {}),
+                    },
+                  }
+                : {}),
+            },
+      );
       await Promise.all([
         prep,
         (async () => {
@@ -401,13 +509,19 @@ export function RecorderOverlay(): ReactNode {
       phaseRef.current = "recording";
       void window.api.recorder.interactive(false);
       void window.api.recorder.teleprompterLine(line);
+      // A redo starts the voice two seconds early, to come into the stretch already in rhythm.
+      if (mode === "over" && over)
+        await player.current?.play(over.replace ? Math.max(0, over.from - 2) : over.from);
       if (guidedMode) {
         const timing = await window.api.recorder.guidedStart(guidedPlan);
         guidedOffset.current = timing.origin + timing.lead;
       }
     } catch (err) {
       setError(cleanError(err));
+      setFlash(null);
       guidedAudio.current?.pause();
+      player.current?.stop();
+      player.current = null;
       system.current?.cancel();
       system.current = null;
       await window.api.recorder.reset().catch(() => undefined);
@@ -419,8 +533,13 @@ export function RecorderOverlay(): ReactNode {
     settings,
     region,
     mic,
+    overMic,
+    overSystem,
     cam,
     camModes,
+    mode,
+    voiceMode,
+    over,
     guidedMode,
     guidedPlan,
     guidedBusy,
@@ -472,6 +591,8 @@ export function RecorderOverlay(): ReactNode {
     if (guidedFailed.current) return;
     if (phaseRef.current === "recording") {
       guidedAudio.current?.pause();
+      // The voice pauses with the take: the pause becomes a cut and the voice goes on from here.
+      player.current?.pause();
       phaseRef.current = "paused";
       setPhase("paused");
       await window.api.recorder.pause();
@@ -480,6 +601,7 @@ export function RecorderOverlay(): ReactNode {
       setResuming(true);
       try {
         await window.api.recorder.resume();
+        await player.current?.play();
         setAlert(null);
         setPhase("recording");
         phaseRef.current = "recording";
@@ -503,6 +625,9 @@ export function RecorderOverlay(): ReactNode {
     setAlert(null);
     guidedAudio.current?.pause();
     guidedOffset.current = null;
+    player.current?.stop();
+    player.current = null;
+    setHeard(null);
     await window.api.recorder.guidedCancel();
     void window.api.recorder.interactive(true);
     try {
@@ -516,6 +641,17 @@ export function RecorderOverlay(): ReactNode {
       setPhase("paused");
     }
   }, [finishSystemAudio]);
+  const stopRef = useRef(stop);
+  stopRef.current = stop;
+  // The karaoke follows the voice ten times a second (the notes to the main process go at two).
+  useEffect(() => {
+    if (mode !== "over" || phase !== "recording") return;
+    const id = setInterval(() => {
+      const p = player.current;
+      if (p) setHeard(p.heard());
+    }, 100);
+    return () => clearInterval(id);
+  }, [mode, phase]);
 
   /** Throws this take away (Recycle Bin) and goes back to setting up. */
   const discard = useCallback(async () => {
@@ -526,6 +662,9 @@ export function RecorderOverlay(): ReactNode {
       return;
     guidedAudio.current?.pause();
     guidedOffset.current = null;
+    player.current?.stop();
+    player.current = null;
+    setHeard(null);
     system.current?.cancel();
     system.current = null;
     await window.api.recorder.guidedCancel();
@@ -546,10 +685,14 @@ export function RecorderOverlay(): ReactNode {
       await window.api.recorder.mark(kind);
       setMarkers((n) => n + 1);
       showFlash(
-        kind === "retake" ? "Refazer: o trecho anterior será proposto para corte" : "Marcador",
+        kind === "retake"
+          ? voiceMode
+            ? "Refazer: esta tomada vai para o corte. Leia a fala de novo."
+            : "Refazer: o trecho anterior será proposto para corte"
+          : "Marcador",
       );
     },
-    [showFlash],
+    [showFlash, voiceMode],
   );
 
   useEffect(
@@ -576,10 +719,10 @@ export function RecorderOverlay(): ReactNode {
         else if (name === "stop") void stop();
         else if (name === "marker") void mark("marker");
         else if (name === "retake") void mark("retake");
-        else if (name === "line-next") moveLine(line + 1);
-        else if (name === "line-prev") moveLine(line - 1);
+        else if (name === "line-next") stepTo(1);
+        else if (name === "line-prev") stepTo(-1);
       }),
-    [begin, togglePause, stop, mark, moveLine, line],
+    [begin, togglePause, stop, mark, stepTo],
   );
 
   // The disk filled up: the main process already stopped the capture; save what there is.
@@ -594,6 +737,12 @@ export function RecorderOverlay(): ReactNode {
     hotkeyLabel(settings?.hotkeys[action] ?? "");
   const badKeys = hotkeys.filter((r) => !r.ok);
   const prompterOn = !!settings?.teleprompter.on && lines.length > 0;
+  const bigSize = Math.max(30, Math.round((settings?.teleprompter.size ?? 22) * 1.6));
+  const followNote =
+    voiceMode && settings?.follow
+      ? (follow?.message ??
+        (recording ? "" : "Com o motor de transcrição instalado, a fala avança sozinha."))
+      : "";
 
   return (
     <div className={`rec-root is-${phase}`}>
@@ -628,20 +777,50 @@ export function RecorderOverlay(): ReactNode {
           )}
         </Interactive>
       )}
-      <RegionFrame
-        region={region}
-        onChange={(r) => {
-          setRegion(r);
-          change({ region: { preset: "custom", rect: r } });
-        }}
-        editable={phase === "setup"}
-        recording={recording}
-        label={`${physical.w} × ${physical.h}`}
-      />
+      {!voiceMode && (
+        <RegionFrame
+          region={region}
+          onChange={(r) => {
+            setRegion(r);
+            change({ region: { preset: "custom", rect: r } });
+          }}
+          editable={phase === "setup"}
+          recording={recording}
+          label={`${physical.w} × ${physical.h}`}
+        />
+      )}
 
-      {cam && phase === "setup" && <CameraPreview device={cam} region={region} />}
+      {cam && phase === "setup" && !voiceMode && <CameraPreview device={cam} region={region} />}
 
-      {!guidedMode && prompterOn && settings && (
+      {voiceMode && settings && (
+        <Interactive className="vp-wrap" active={recording} id="voice-prompter">
+          <VoicePrompter
+            lines={lines}
+            order={order}
+            current={line}
+            setCurrent={moveLine}
+            size={bigSize}
+            live={recording}
+            status={followNote}
+            nextKey={keyOf("lineNext")}
+            retakeKey={keyOf("retake")}
+          />
+        </Interactive>
+      )}
+
+      {mode === "over" && over && settings && (
+        <Interactive className="vp-wrap is-side" active={recording} id="karaoke">
+          <KaraokePrompter
+            over={over}
+            heard={heard}
+            lines={lines}
+            notes={notes}
+            size={Math.max(20, settings.teleprompter.size)}
+          />
+        </Interactive>
+      )}
+
+      {(mode === "screen" || mode === "guided") && !guidedMode && prompterOn && settings && (
         <Teleprompter
           lines={lines}
           live={recording}
@@ -679,31 +858,51 @@ export function RecorderOverlay(): ReactNode {
                 .join(" · ")}
             </div>
           )}
-          <div className="rec-encoder" aria-live="polite">
-            {!encoder
-              ? "Testando o codificador nesta tela…"
-              : encoder.label
-                ? `Gravação: ${encoder.label}`
-                : `Codificador indisponível: ${encoder.error}`}
-          </div>
+          {!voiceMode && (
+            <div className="rec-encoder" aria-live="polite">
+              {!encoder
+                ? "Testando o codificador nesta tela…"
+                : encoder.label
+                  ? `Gravação: ${encoder.label}`
+                  : `Codificador indisponível: ${encoder.error}`}
+            </div>
+          )}
           <div className="rec-mode">
             <label htmlFor="recording-mode">Modo de gravação </label>
             <select
               id="recording-mode"
-              value={guidedMode ? "guided" : "manual"}
+              value={mode}
               disabled={phase !== "setup" || guidedBusy}
-              onChange={(e) => setGuidedMode(e.target.value === "guided")}
+              onChange={(e) => {
+                const next = (["screen", "guided", "voice", "over"] as const).find(
+                  (m) => m === e.target.value,
+                );
+                if (!next) return;
+                setMode(next);
+                if (next === "screen" || next === "voice") change({ recordMode: next });
+              }}
             >
-              <option value="manual">Manual</option>
+              <option value="screen">Tela</option>
               <option value="guided">Guiado por roteiro/áudio</option>
+              <option value="voice">Só voz</option>
+              <option value="over" disabled={!over}>
+                {over ? "Tela sobre a narração" : "Tela sobre a narração (abra pelo editor)"}
+              </option>
             </select>
+            {mode === "over" && over && (
+              <span className="rec-mode-note">
+                A voz da aula toca nos fones a partir de {clockOf(over.from)}
+                {over.to !== undefined ? ` e a tela é regravada até ${clockOf(over.to)}` : ""}. Use
+                fones.
+              </span>
+            )}
           </div>
           <div className="rec-bar">
             <button
               type="button"
               className="rec-go"
               onClick={() => void begin()}
-              disabled={!monitor || !settings || phase !== "setup" || guidedBusy}
+              disabled={(!monitor && !voiceMode) || !settings || phase !== "setup" || guidedBusy}
             >
               <span className="rec-dot" />
               <span>
@@ -714,75 +913,79 @@ export function RecorderOverlay(): ReactNode {
                 </small>
               </span>
             </button>
-            <Source icon={MonitorUp} label="Tela">
-              <select
-                value={monitor?.index ?? ""}
-                onChange={(e) => {
-                  const m = sources?.monitors.find((x) => x.index === Number(e.target.value));
-                  if (m) {
-                    setMonitor(m);
-                    change({ monitor: { x: m.x, y: m.y, width: m.width, height: m.height } });
-                    void window.api.recorder.moveTo(m.index);
+            {!voiceMode && (
+              <>
+                <Source icon={MonitorUp} label="Tela">
+                  <select
+                    value={monitor?.index ?? ""}
+                    onChange={(e) => {
+                      const m = sources?.monitors.find((x) => x.index === Number(e.target.value));
+                      if (m) {
+                        setMonitor(m);
+                        change({ monitor: { x: m.x, y: m.y, width: m.width, height: m.height } });
+                        void window.api.recorder.moveTo(m.index);
+                      }
+                    }}
+                  >
+                    {sources?.monitors.map((m) => (
+                      <option key={m.index} value={m.index} disabled={m.output < 0}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </Source>
+                <Source icon={ScanLine} label="Região">
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const full = e.target.value === "full";
+                      setRegion(full ? fullWindow() : centered169());
+                      change({ region: { preset: full ? "full" : "16:9" } });
+                    }}
+                  >
+                    <option value="" disabled>
+                      {physical.w} × {physical.h}
+                    </option>
+                    <option value="full">Tela inteira</option>
+                    <option value="169">16:9 no centro</option>
+                  </select>
+                </Source>
+                <Source
+                  icon={Video}
+                  label="Câmera"
+                  extra={
+                    cam && settings ? (
+                      <CameraModeSelect
+                        modes={camModes}
+                        value={settings.cameraMode}
+                        fps={30}
+                        onChange={(cameraMode) => change({ cameraMode })}
+                      />
+                    ) : null
                   }
-                }}
-              >
-                {sources?.monitors.map((m) => (
-                  <option key={m.index} value={m.index} disabled={m.output < 0}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-            </Source>
-            <Source icon={ScanLine} label="Região">
-              <select
-                value=""
-                onChange={(e) => {
-                  const full = e.target.value === "full";
-                  setRegion(full ? fullWindow() : centered169());
-                  change({ region: { preset: full ? "full" : "16:9" } });
-                }}
-              >
-                <option value="" disabled>
-                  {physical.w} × {physical.h}
-                </option>
-                <option value="full">Tela inteira</option>
-                <option value="169">16:9 no centro</option>
-              </select>
-            </Source>
-            <Source
-              icon={Video}
-              label="Câmera"
-              extra={
-                cam && settings ? (
-                  <CameraModeSelect
-                    modes={camModes}
-                    value={settings.cameraMode}
-                    fps={30}
-                    onChange={(cameraMode) => change({ cameraMode })}
-                  />
-                ) : null
-              }
-            >
-              <select
-                value={cam}
-                onChange={(e) => {
-                  setCam(e.target.value);
-                  change({ camera: e.target.value || null, cameraMode: null });
-                }}
-              >
-                <option value="">Desligada</option>
-                {sources?.cameras.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </Source>
+                >
+                  <select
+                    value={cam}
+                    onChange={(e) => {
+                      setCam(e.target.value);
+                      change({ camera: e.target.value || null, cameraMode: null });
+                    }}
+                  >
+                    <option value="">Desligada</option>
+                    {sources?.cameras.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </Source>
+              </>
+            )}
             <Source
               icon={Mic}
               label="Microfone"
               extra={
-                mic && phase === "setup" ? (
+                meterMic && phase === "setup" ? (
                   level?.error ? (
                     <small className="rec-opt-bad" title={level.error}>
                       Não abriu
@@ -794,8 +997,13 @@ export function RecorderOverlay(): ReactNode {
               }
             >
               <select
-                value={mic}
+                value={meterMic}
                 onChange={(e) => {
+                  // Over the narration the choice is for this take only: the voice already exists.
+                  if (mode === "over") {
+                    setOverMic(e.target.value);
+                    return;
+                  }
                   setMic(e.target.value);
                   change({ microphone: e.target.value || "" });
                 }}
@@ -808,29 +1016,65 @@ export function RecorderOverlay(): ReactNode {
                 ))}
               </select>
             </Source>
-            <Source icon={Volume2} label="Áudio do PC">
-              <select
-                value={settings?.systemAudio ? "on" : "off"}
-                onChange={(e) => change({ systemAudio: e.target.value === "on" })}
-              >
-                <option value="off">Desligado</option>
-                <option value="on">Ligado (faixa separada)</option>
-              </select>
-            </Source>
-            <Source icon={MousePointer2} label="Cursor">
-              <span className="rec-static">Gravado à parte</span>
-            </Source>
-            <Source icon={Keyboard} label="Teclas">
-              <select
-                value={settings?.keys ? "on" : "off"}
-                onChange={(e) => change({ keys: e.target.value === "on" })}
-                title="Mostra atalhos (Ctrl+…) e setas na tela. A digitação comum nunca é gravada."
-              >
-                <option value="off">Desligado</option>
-                <option value="on">Atalhos e setas</option>
-              </select>
-            </Source>
-            {lines.length > 0 && settings && (
+            {voiceMode && settings && (
+              <>
+                <MicTest level={level} device={mic} />
+                <label
+                  className="rec-follow"
+                  title="Precisa do motor de transcrição da aba Transcrição"
+                >
+                  <input
+                    type="checkbox"
+                    checked={settings.follow}
+                    onChange={(e) => change({ follow: e.target.checked })}
+                  />{" "}
+                  Teleprompter acompanha a voz
+                </label>
+                <SpeakerChips
+                  speakers={voiceSpeakers(lines)}
+                  on={speakerOn}
+                  toggle={(name) =>
+                    setSpeakerOn((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(name)) next.delete(name);
+                      else next.add(name);
+                      return next;
+                    })
+                  }
+                />
+              </>
+            )}
+            {!voiceMode && (
+              <>
+                <Source icon={Volume2} label="Áudio do PC">
+                  <select
+                    value={(mode === "over" ? overSystem : settings?.systemAudio) ? "on" : "off"}
+                    onChange={(e) =>
+                      mode === "over"
+                        ? setOverSystem(e.target.value === "on")
+                        : change({ systemAudio: e.target.value === "on" })
+                    }
+                  >
+                    <option value="off">Desligado</option>
+                    <option value="on">Ligado (faixa separada)</option>
+                  </select>
+                </Source>
+                <Source icon={MousePointer2} label="Cursor">
+                  <span className="rec-static">Gravado à parte</span>
+                </Source>
+                <Source icon={Keyboard} label="Teclas">
+                  <select
+                    value={settings?.keys ? "on" : "off"}
+                    onChange={(e) => change({ keys: e.target.value === "on" })}
+                    title="Mostra atalhos (Ctrl+…) e setas na tela. A digitação comum nunca é gravada."
+                  >
+                    <option value="off">Desligado</option>
+                    <option value="on">Atalhos e setas</option>
+                  </select>
+                </Source>
+              </>
+            )}
+            {lines.length > 0 && settings && !voiceMode && mode !== "over" && (
               <button
                 type="button"
                 className="rec-icon"
@@ -872,7 +1116,8 @@ export function RecorderOverlay(): ReactNode {
               <kbd>{keyOf("marker")}</kbd> marcador
             </span>
             <span>
-              <kbd>{keyOf("retake")}</kbd> refazer último trecho
+              <kbd>{keyOf("retake")}</kbd>{" "}
+              {voiceMode ? "refazer esta tomada" : "refazer último trecho"}
             </span>
             {lines.length > 0 && (
               <span>
@@ -880,7 +1125,9 @@ export function RecorderOverlay(): ReactNode {
               </span>
             )}
             <span className="rec-note">
-              Esta tela, o teleprompter e os controles não aparecem na gravação.
+              {voiceMode
+                ? "Só o microfone é gravado, em qualidade de estúdio (PCM 48 kHz)."
+                : "Esta tela, o teleprompter e os controles não aparecem na gravação."}
             </span>
           </div>
         </div>

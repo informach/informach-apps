@@ -106,31 +106,64 @@ const microphoneInput = (device: string): string[] => [
 /** The meter's samples: 8 kHz mono 16-bit on stdout. */
 const METER_FORMAT = `aresample=${METER_RATE},aformat=sample_fmts=s16:channel_layouts=mono`;
 
+/** Sample rate of the branch the teleprompter's voice following listens to (pipe:3). */
+export const FOLLOW_PIPE_RATE = 16000;
+
+/**
+ * Matroska with 16-bit PCM in one-second clusters, each handed to the file as it closes: the
+ * voice of a "Só voz" take is kept as recorded, and a part cut short by a crash is readable up
+ * to its last cluster.
+ */
+export const VOICE_MATROSKA = [
+  "-c:a",
+  "pcm_s16le",
+  "-ar",
+  "48000",
+  "-ac",
+  "1",
+  "-cluster_time_limit",
+  "1000",
+  "-flush_packets",
+  "1",
+  "-f",
+  "matroska",
+];
+
+export interface MicrophoneCapture {
+  device: string;
+  file: string;
+  /** "Só voz": PCM in Matroska (VOICE_MATROSKA) instead of AAC in fragmented MP4. */
+  pcm?: boolean;
+  /** Also a 16 kHz copy on pipe:3, for the teleprompter to follow the voice. */
+  follow?: boolean;
+}
+
 /**
  * The microphone on its own: async resampling keeps it on the wall clock (no drift against the
- * video over a long take), the recording goes to an M4A part and a copy at 8 kHz feeds the
- * level meter through stdout.
+ * video over a long take), the recording goes to an M4A part (or PCM for a voice take) and a
+ * copy at 8 kHz feeds the level meter through stdout; with `follow`, a 16 kHz copy goes to
+ * pipe:3 too.
  */
-export function microphoneArgs(o: { device: string; file: string }): string[] {
+export function microphoneArgs(o: MicrophoneCapture): string[] {
+  const monitor = o.follow
+    ? `[mon]asplit[m1][m2];[m1]${METER_FORMAT}[meter];[m2]aresample=${FOLLOW_PIPE_RATE},aformat=sample_fmts=s16:channel_layouts=mono[follow]`
+    : `[mon]${METER_FORMAT}[meter]`;
   return [
     ...REPORT,
     ...microphoneInput(o.device),
     "-filter_complex",
-    `[0:a]aresample=async=1000:first_pts=0,asplit[rec][mon];[mon]${METER_FORMAT}[meter]`,
+    `[0:a]aresample=async=1000:first_pts=0,asplit[rec][mon];${monitor}`,
     "-map",
     "[rec]",
-    "-c:a",
-    "aac",
-    "-b:a",
-    "256k",
-    "-ar",
-    "48000",
-    ...fragmented(o.file),
+    ...(o.pcm
+      ? [...VOICE_MATROSKA, o.file]
+      : ["-c:a", "aac", "-b:a", "256k", "-ar", "48000", ...fragmented(o.file)]),
     "-map",
     "[meter]",
     "-f",
     "s16le",
     "pipe:1",
+    ...(o.follow ? ["-map", "[follow]", "-f", "s16le", "pipe:3"] : []),
   ];
 }
 

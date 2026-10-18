@@ -33,6 +33,8 @@ Fontes, `cursor-hook.ps1` e `guided-input.ps1` são recursos externos usados por
 
 > Nota de 17/10/2026 (Lote 3 do EdiAula, branch `ediaula/l3-nativo`): os dois scripts PowerShell foram substituídos pelo executável `ediaula-helper.exe`, compilado no build do app a partir de `apps/ediaula/native/helper`. O pacote passa a levar `resources/native/ediaula-helper.exe`, também fora do ASAR e no inventário assinado, e o `beforePack` confere sua versão. O parágrafo acima e as evidências abaixo descrevem o pacote homologado antes dessa troca; a homologação do pacote novo ainda precisa ser registrada aqui.
 
+> Nota de 18/10/2026 (Lote 5 do EdiAula, branch `ediaula/l5-voz`): o pacote passa a levar também `resources/rnnoise/sh.rnnn` (modelo do RNNoise para o tratamento da voz, com origem, sha256 e a declaração do autor em `resources/rnnoise/README.md`), fora do ASAR, e o `THIRD-PARTY-NOTICES.txt` ganha um parágrafo sobre ele. Esse pacote também ainda não foi homologado.
+
 ## FFmpeg e fontes correspondentes
 
 A inspeção Windows identificou FFmpeg 6.1.1 e FFprobe 4.0.2, ambos GPLv3, nos pacotes anteriores. O wrapper MIT de `ffprobe-static` não representava a licença do programa nativo. O FFprobe de desenvolvimento Windows foi alinhado ao mesmo fornecedor/versão do FFmpeg com `@derhuerst/ffprobe-static@5.3.0`. Os dois wrappers agora são dependências de desenvolvimento; o build instalado usa exclusivamente `resources/native-media/bin`, sem override por ambiente. O pacote `ffmpeg-static@5.3.0` fornece versões distintas por plataforma: no Linux do CI, o executável verificado foi 7.0.2; no Windows de desenvolvimento, 6.1.1.

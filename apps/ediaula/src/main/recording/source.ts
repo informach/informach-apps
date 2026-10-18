@@ -1,5 +1,6 @@
-import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
+import { type ChildProcess, spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
+import type { Writable } from "node:stream";
 import type { MediaSource } from "../../shared/recordingJournal.ts";
 import { qpc } from "../nativeHelper.ts";
 
@@ -34,6 +35,8 @@ interface CaptureEvents {
   progress: [CaptureProgress];
   /** stdout: the level meter's samples. */
   data: [Buffer];
+  /** pipe:3, when asked for: the 16 kHz copy the teleprompter follows. */
+  follow: [Buffer];
   /** The process ended; `expected` when it was asked to. */
   exit: [{ expected: boolean; message: string }];
 }
@@ -52,6 +55,8 @@ export interface CaptureProcessOptions {
   args: string[];
   /** Milliseconds the input holds a sample before FFmpeg gets it. */
   latency?: number;
+  /** Open a fourth pipe (FFmpeg's pipe:3) and pass what comes through it as `follow`. */
+  followPipe?: boolean;
 }
 
 export class CaptureProcess extends EventEmitter<CaptureEvents> {
@@ -65,7 +70,8 @@ export class CaptureProcess extends EventEmitter<CaptureEvents> {
   readonly done: Promise<void>;
   /** It had to be killed: its file may end in a broken fragment. */
   forced = false;
-  private readonly child: ChildProcessWithoutNullStreams;
+  private readonly child: ChildProcess;
+  private readonly stdin: Writable;
   private readonly latency: number;
   private stopping = false;
   private ended = false;
@@ -81,13 +87,27 @@ export class CaptureProcess extends EventEmitter<CaptureEvents> {
     this.part = o.part;
     this.file = o.file;
     this.latency = o.latency ?? 0;
-    this.child = spawn(o.ffmpeg, o.args, { windowsHide: true });
-    this.child.stdout.on("data", (chunk: Buffer) => this.emit("data", chunk));
-    this.child.stderr.on("data", (chunk: Buffer) => this.read(chunk.toString()));
+    this.child = spawn(o.ffmpeg, o.args, {
+      windowsHide: true,
+      stdio: o.followPipe ? ["pipe", "pipe", "pipe", "pipe"] : ["pipe", "pipe", "pipe"],
+    });
+    const { stdin, stdout, stderr } = this.child;
+    const follow = o.followPipe ? this.child.stdio[3] : null;
+    if (!stdin || !stdout || !stderr) throw new Error("O FFmpeg abriu sem os canais de saída.");
+    this.stdin = stdin;
+    stdout.on("data", (chunk: Buffer) => this.emit("data", chunk));
+    stderr.on("data", (chunk: Buffer) => this.read(chunk.toString()));
     // A process that died fails its stdin before "close"; the close handler reports it.
-    this.child.stdin.on("error", (error) => {
+    stdin.on("error", (error) => {
       this.stderr = `${this.stderr}\n${error.message}`.slice(-8000);
     });
+    if (follow) {
+      follow.on("data", (chunk: Buffer) => this.emit("follow", chunk));
+      // A broken follow pipe only ends the following; the error joins what FFmpeg said.
+      follow.on("error", (error: Error) => {
+        this.stderr = `${this.stderr}\n${error.message}`.slice(-8000);
+      });
+    }
     this.done = new Promise((resolve) => {
       let reported = false;
       const end = (message: string): void => {
@@ -148,7 +168,7 @@ export class CaptureProcess extends EventEmitter<CaptureEvents> {
   async stop(timeout = STOP_TIMEOUT_MS): Promise<void> {
     if (this.ended) return;
     this.stopping = true;
-    if (this.child.stdin.writable) this.child.stdin.write("q");
+    if (this.stdin.writable) this.stdin.write("q");
     const timer = setTimeout(() => {
       this.forced = true;
       this.child.kill("SIGKILL");

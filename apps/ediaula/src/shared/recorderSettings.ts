@@ -66,6 +66,10 @@ export const recorderSettingsSchema = z.object({
   countdown: z.int().min(0).max(10).catch(3),
   /** Proxies, background removal, transcription and the next export wait while recording. */
   pauseBackground: z.boolean().catch(true),
+  /** The kind of take the recorder opens in ("Tela sobre a narração" comes from the editor). */
+  recordMode: z.enum(["screen", "voice"]).catch("screen"),
+  /** "Só voz": the teleprompter follows the voice when the transcription engine is installed. */
+  follow: z.boolean().catch(true),
 });
 
 export type RecorderSettings = z.infer<typeof recorderSettingsSchema>;

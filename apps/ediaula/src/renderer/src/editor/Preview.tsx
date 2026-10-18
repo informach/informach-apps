@@ -53,6 +53,7 @@ import {
 import { useSpeechSpans } from "@/lib/audio";
 import { timecode } from "@/lib/format";
 import { mediaUrl, playbackPath } from "@/lib/media";
+import { listenPath, useVoiceListen } from "@/lib/voice";
 import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
 import { assetMap, useProject } from "@/state/project";
@@ -84,9 +85,16 @@ const visualPath = (a: Asset): string => (a.key && a.keyed ? a.keyed : playbackP
 const isVisual = (_project: Project, _c: Clip, a: Asset | undefined): boolean =>
   !!a && a.kind !== "audio";
 
-/** The transparent avatar video has no sound: its voice plays from the original file, on the side. */
+/**
+ * The transparent avatar video has no sound: its voice plays from the original file, on the
+ * side. A video whose voice was treated also plays it apart, from the treated file.
+ */
 const VOICE = "#voice";
-const needsVoice = (a: Asset): boolean => !!a.key && !!a.keyed && a.hasAudio;
+const needsVoice = (a: Asset, original: boolean): boolean =>
+  a.hasAudio && ((!!a.key && !!a.keyed) || !!listenPath(a, original));
+/** What a clip's sound plays from: the treated voice (shared/voiceChain.ts), else the media. */
+const soundPath = (a: Asset, original: boolean): string =>
+  listenPath(a, original) ?? playbackPath(a);
 
 /** The drop shadow as a CSS filter (k = screen pixels per 1080p pixel); same blur as the export. */
 function cssShadow(s: Shadow, k: number): string {
@@ -133,6 +141,8 @@ export function Preview(): ReactNode {
   // Drawn through the same transition model as the export (dissolve tails, fades).
   const project = useMemo(() => (raw ? withTransitions(raw) : null), [raw]);
   const selection = useProject((s) => s.selection);
+  // A/B of the audio panel: the original voice instead of the treated one.
+  const original = useVoiceListen((s) => s.original);
   const [mountKey, setMountKey] = useState("");
   const media = useRef(new Map<string, HTMLVideoElement | HTMLAudioElement | HTMLImageElement>());
   const layers = useRef(new Map<string, HTMLDivElement>());
@@ -323,7 +333,7 @@ export function Preview(): ReactNode {
           track.muted ||
           !asset.hasAudio ||
           (!!tail && t >= clipEnd(c) - tail) ||
-          (!voice && el instanceof HTMLVideoElement && needsVoice(asset));
+          (!voice && el instanceof HTMLVideoElement && needsVoice(asset, original));
         el.volume = Math.min(
           1,
           Math.max(0, c.volume * (track.music ? duckGain(speech.current, t) : 1)),
@@ -366,7 +376,7 @@ export function Preview(): ReactNode {
         m.removeEventListener("seeked", onSeeked);
       });
     };
-  }, [project, mountKey, editingZoom]);
+  }, [project, mountKey, editingZoom, original]);
 
   // Pause everything when leaving the editor.
   useEffect(
@@ -556,7 +566,7 @@ export function Preview(): ReactNode {
                   cues={textCues}
                   key={c.id}
                   mediaRef={mediaRef(c)}
-                  src={mediaUrl(playbackPath(a))}
+                  src={mediaUrl(soundPath(a, original))}
                 />
               );
             const lay = clipLayout({ transform: transformOf(c) }, a, settings);
@@ -612,13 +622,13 @@ export function Preview(): ReactNode {
                       className="stage-media"
                     />
                   )}
-                  {a.kind === "video" && needsVoice(a) && (
+                  {a.kind === "video" && needsVoice(a, original) && (
                     <PreviewMedia
                       kind="audio"
                       clip={c}
                       cues={textCues}
                       mediaRef={mediaRef(c, VOICE)}
-                      src={mediaUrl(playbackPath(a))}
+                      src={mediaUrl(soundPath(a, original))}
                     />
                   )}
                   {a.cursor && (

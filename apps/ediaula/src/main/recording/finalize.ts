@@ -118,12 +118,14 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
 
   // Microphone and the computer's sound, on the take's clock, when the disk has room to write
   // them again; otherwise they stay in parts, placed like the camera.
+  // A "Só voz" take keeps its voice as recorded: 16-bit PCM, mono, 48 kHz (voz.wav).
+  const voice = replay.begin.mode === "voice";
   let microphone: string | undefined;
   let microphoneParts: RecordingPiece[] | undefined;
   if (parts.mic.length) {
     if (await roomFor(dir, parts.mic)) {
-      microphone = join(dir, "microfone.m4a");
-      await alignAudio(parts.mic, segments, microphone);
+      microphone = join(dir, voice ? "voz.wav" : "microfone.m4a");
+      await alignAudio(parts.mic, segments, microphone, undefined, voice ? "pcm" : "aac");
       outputs.push({
         path: microphone,
         expected: duration,
@@ -232,6 +234,13 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
         }
       : {};
   const lines = replay.lines.map((l) => ({ t: momentInTake(segments, l.qpc), index: l.index }));
+  const over =
+    replay.begin.mode === "over" && replay.begin.over
+      ? {
+          ...replay.begin.over,
+          anchors: replay.over.map((a) => ({ t: momentInTake(segments, a.qpc), at: a.at })),
+        }
+      : undefined;
   const result: RecordingResult = {
     version: 2,
     dir,
@@ -257,6 +266,8 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
     pauses: rangesInTake(replay.pauses, segments),
     markers: replay.markers.map((m) => ({ t: momentInTake(segments, m.qpc), kind: m.kind })),
     ...(lines.length ? { lines } : {}),
+    ...(voice ? { mode: "voice" as const } : {}),
+    ...(over ? { mode: "over" as const, over } : {}),
     ...(input.cursorIssues?.length ? { cursorIssues: [...input.cursorIssues] } : {}),
     ...(input.encoderIssues?.length ? { encoderIssues: [...input.encoderIssues] } : {}),
     ...(warnings.length ? { warnings: [...warnings] } : {}),
@@ -412,7 +423,9 @@ async function repair(path: string): Promise<void> {
     "-",
   ]);
   if (check.code === 0 && !check.stderr.trim()) return;
-  const fixed = `${path}.fixed.mp4`;
+  // The voice of a "Só voz" take is PCM in Matroska, which MP4 cannot hold.
+  const matroska = path.toLowerCase().endsWith(".mkv");
+  const fixed = `${path}.fixed.${matroska ? "mkv" : "mp4"}`;
   try {
     await run(FFMPEG, [
       "-y",
@@ -429,7 +442,7 @@ async function repair(path: string): Promise<void> {
       "-c",
       "copy",
       "-f",
-      "mp4",
+      matroska ? "matroska" : "mp4",
       fixed,
     ]);
     await rename(fixed, path);
@@ -570,13 +583,20 @@ export function audioPieces(
 }
 
 const STEREO = "aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo";
+const MONO = "aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=mono";
 
+/**
+ * Sound parts laid on the take's clock into one file: AAC stereo (the microphone of a screen
+ * take, the computer's sound) or, for the voice of a "Só voz" take, 16-bit PCM mono WAV.
+ */
 async function alignAudio(
   parts: readonly Measured[],
   segments: readonly CaptureSegment[],
   out: string,
   tempo?: number,
+  codec: "aac" | "pcm" = "aac",
 ): Promise<void> {
+  const layout = codec === "pcm" ? MONO : STEREO;
   const pieces = audioPieces(parts, segments);
   const uses = parts.map((_, i) => pieces.filter((p) => "input" in p && p.input === i).length);
   // Only the parts that cover the take are inputs; `slot` is a part's input number.
@@ -588,7 +608,7 @@ async function alignAudio(
     if (!count) return;
     const labels = Array.from({ length: count }, (_, j) => `[s${i}_${j}]`).join("");
     graph.push(
-      `[${slot.get(i)}:a]${tempo ? `atempo=${tempo.toFixed(6)},` : ""}aresample=48000,${STEREO}${count > 1 ? `,asplit=${count}` : ""}${labels}`,
+      `[${slot.get(i)}:a]${tempo ? `atempo=${tempo.toFixed(6)},` : ""}aresample=48000,${layout}${count > 1 ? `,asplit=${count}` : ""}${labels}`,
     );
   });
   pieces.forEach((p, k) => {
@@ -599,12 +619,12 @@ async function alignAudio(
       );
     } else
       graph.push(
-        `anullsrc=channel_layout=stereo:sample_rate=48000,atrim=duration=${p.silence.toFixed(6)},${STEREO}[p${k}]`,
+        `anullsrc=channel_layout=${codec === "pcm" ? "mono" : "stereo"}:sample_rate=48000,atrim=duration=${p.silence.toFixed(6)},${layout}[p${k}]`,
       );
   });
   graph.push(`${pieces.map((_, k) => `[p${k}]`).join("")}concat=n=${pieces.length}:v=0:a=1[out]`);
   const script = await writeFilterScript(graph.join(";\n"));
-  const partial = `${out}.partial.m4a`;
+  const partial = `${out}.partial.${codec === "pcm" ? "wav" : "m4a"}`;
   try {
     await run(FFMPEG, [
       "-y",
@@ -615,12 +635,9 @@ async function alignAudio(
       script,
       "-map",
       "[out]",
-      "-c:a",
-      "aac",
-      "-b:a",
-      "256k",
-      "-movflags",
-      "+faststart",
+      ...(codec === "pcm"
+        ? ["-c:a", "pcm_s16le", "-rf64", "auto", "-f", "wav"]
+        : ["-c:a", "aac", "-b:a", "256k", "-movflags", "+faststart"]),
       partial,
     ]);
     await rename(partial, out);

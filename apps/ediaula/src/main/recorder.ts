@@ -50,7 +50,11 @@ import { RecordingSession } from "./recording/session.ts";
 export type RecorderMessage =
   | { type: "status"; status: RecorderStatus }
   | { type: "event"; event: RecorderEvent }
-  | { type: "health"; health: RecorderHealth };
+  | { type: "health"; health: RecorderHealth }
+  /** "Só voz" with following: the microphone's 16 kHz copy and when it arrived (QPC ms). */
+  | { type: "follow"; chunk: Buffer; at: number }
+  /** The teleprompter moved to a line (QPC ms). */
+  | { type: "line"; index: number; at: number };
 
 const listeners = new Set<(message: RecorderMessage) => void>();
 let session: RecordingSession | null = null;
@@ -298,6 +302,8 @@ async function prepareTake(
   s.on("status", (st) => broadcast({ type: "status", status: st }));
   s.on("event", (event) => broadcast({ type: "event", event }));
   s.on("health", (health) => broadcast({ type: "health", health }));
+  s.on("follow", (chunk, at) => broadcast({ type: "follow", chunk, at }));
+  s.on("line", (index, at) => broadcast({ type: "line", index, at }));
   s.setKeyFilter(context.keyFilter ?? [], context.keyWindows ?? []);
   session = s;
   stopping = null;
@@ -344,6 +350,11 @@ export function uiRects(rects: { x: number; y: number; w: number; h: number }[])
 
 export function teleprompterLine(index: number): void {
   session?.teleprompterLine(index);
+}
+
+/** "Tela sobre a narração": the lesson's voice heard at timeline second `at`, at QPC `when`. */
+export function overAnchor(at: number, when: number): void {
+  session?.overAnchor(at, when);
 }
 
 export function setKeyFilter(block: { vk: number; m: number }[], allow: string[]): void {

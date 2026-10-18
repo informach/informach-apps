@@ -56,6 +56,11 @@ const api: EdiAulaApi = {
     pickNarration: () => ipcRenderer.invoke("recorder:pickNarration"),
     open: (ctx) => ipcRenderer.invoke("recorder:open", ctx),
     context: () => ipcRenderer.invoke("recorder:context"),
+    clock: () => ipcRenderer.invoke("recorder:clock"),
+    overAnchor: (at, when) => ipcRenderer.invoke("recorder:overAnchor", at, when),
+    narration: () => ipcRenderer.invoke("recorder:narration"),
+    onFollow: (cb) => listen("recorder:follow", cb),
+    onFollowState: (cb) => listen("recorder:followState", cb),
     sources: () => ipcRenderer.invoke("recorder:sources"),
     moveTo: (index) => ipcRenderer.invoke("recorder:moveTo", index),
     encoder: (monitor, fps) => ipcRenderer.invoke("recorder:encoder", monitor, fps),
@@ -101,6 +106,14 @@ const api: EdiAulaApi = {
     onState: (cb) => listen("recorder:state", cb),
     onAlert: (cb) => listen("recorder:alert", cb),
   },
+  treatVoice: (jobId, path, preset) => ipcRenderer.invoke("audio:treat", jobId, path, preset),
+  renderVoice: (jobId, segments, start, end) =>
+    ipcRenderer.invoke("voice:render", jobId, segments, start, end),
+  exportHeygenVoice: (jobId, projectPath, projectJson, scope, pieces) =>
+    ipcRenderer.invoke("heygen:export", jobId, projectPath, projectJson, scope, pieces),
+  pickHeygenVideos: () => ipcRenderer.invoke("heygen:pick"),
+  locateHeygen: (jobId, video, masters) =>
+    ipcRenderer.invoke("heygen:locate", jobId, video, masters),
   saveGenerated: (bytes, ext) => ipcRenderer.invoke("media:saveGenerated", bytes, ext),
   saveNarration: (bytes) => ipcRenderer.invoke("media:saveNarration", bytes),
   stillFrame: (path, t, alpha) => ipcRenderer.invoke("media:still", path, t, alpha),

@@ -42,6 +42,10 @@ export interface SessionMessages {
   status: [RecorderStatus];
   event: [RecorderEvent];
   health: [RecorderHealth];
+  /** The microphone's 16 kHz copy ("Só voz" with following), and when it arrived (QPC ms). */
+  follow: [Buffer, number];
+  /** The teleprompter moved to this line at this moment (QPC ms). */
+  line: [number, number];
 }
 
 export interface SessionSetup {
@@ -74,6 +78,8 @@ const FILE: Record<MediaSource, [string, string]> = {
   camera: ["camera", "mp4"],
   system: ["sistema", "webm"],
 };
+/** "Só voz" keeps the microphone as PCM in Matroska (shared/captureArgs.ts VOICE_MATROSKA). */
+const VOICE_FILE: [string, string] = ["voz", "mkv"];
 
 const NAMES: Record<CaptureSource, string> = {
   screen: "A tela",
@@ -158,6 +164,8 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
         system: !!setup.opts.systemAudio,
         keys: !!setup.opts.keys,
       },
+      ...(setup.opts.mode && setup.opts.mode !== "screen" ? { mode: setup.opts.mode } : {}),
+      ...(setup.opts.mode === "over" && setup.opts.over ? { over: setup.opts.over } : {}),
     });
     this.watchHook();
   }
@@ -375,8 +383,20 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
   }
 
   teleprompterLine(index: number): void {
-    if (this.phase === "recording" || this.phase === "paused")
-      this.journal.write({ k: "line", qpc: qpc(), index });
+    if (this.phase !== "recording" && this.phase !== "paused") return;
+    const at = qpc();
+    this.journal.write({ k: "line", qpc: at, index });
+    this.emit("line", index, at);
+  }
+
+  /**
+   * "Tela sobre a narração": the lesson's voice heard at timeline second `at` at QPC `when`
+   * (the recorder window converts its clock and takes the output latency off).
+   */
+  overAnchor(at: number, when: number): void {
+    if (this.phase !== "recording" && this.phase !== "paused") return;
+    if (!Number.isFinite(at) || at < 0 || !Number.isFinite(when) || when <= 0) return;
+    this.journal.write({ k: "over", qpc: when, at });
   }
 
   /**
@@ -473,7 +493,7 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
 
   private nextFile(src: MediaSource): { part: number; file: string } {
     const part = this.parts[src]++;
-    const [name, ext] = FILE[src];
+    const [name, ext] = src === "mic" && this.opts.mode === "voice" ? VOICE_FILE : FILE[src];
     return { part, file: `${name}-${part}.${ext}` };
   }
 
@@ -481,6 +501,7 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
     src: MediaSource,
     args: (path: string) => string[],
     latency: number,
+    followPipe = false,
   ): CaptureProcess {
     const { part, file } = this.nextFile(src);
     return new CaptureProcess({
@@ -490,6 +511,7 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
       ffmpeg: this.ffmpeg,
       args: args(join(this.dir, file)),
       latency,
+      followPipe,
     });
   }
 
@@ -582,13 +604,18 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
   private async openMic(): Promise<CaptureProcess> {
     const device = this.opts.microphone;
     if (!device) throw new Error("Nenhum microfone escolhido.");
+    const voice = this.opts.mode === "voice";
+    const follow = voice && !!this.opts.follow;
     const proc = this.spawn(
       "mic",
-      (file) => microphoneArgs({ device: this.deviceName("audio", device), file }),
+      (file) =>
+        microphoneArgs({ device: this.deviceName("audio", device), file, pcm: voice, follow }),
       MIC_BUFFER_MS,
+      follow,
     );
     // Levels flow from the first block, before the first progress report.
     proc.on("data", (chunk) => this.health?.feedMic(chunk));
+    if (follow) proc.on("follow", (chunk) => this.emit("follow", chunk, qpc()));
     try {
       await proc.started();
     } catch (error) {

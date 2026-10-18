@@ -15,6 +15,7 @@ import type {
   CaptureSources,
   MarkerKind,
   OrphanTake,
+  RecorderContext,
   RecorderEvent,
   RecorderStatus,
   RecordingResult,
@@ -22,6 +23,8 @@ import type {
 } from "./recording.ts";
 import type { MicLevel, RecorderHealth } from "./recordingHealth.ts";
 import type { Transition } from "./transitions.ts";
+import type { VoicePreset } from "./voiceChain.ts";
+import type { VoiceSegment } from "./voiceMaster.ts";
 import type { Zoom } from "./zoom.ts";
 import type { ZoomLayer } from "./zoomLayer.ts";
 
@@ -81,6 +84,60 @@ export interface Asset {
   keyStatus?: "pending" | "ready" | "error";
   /** Corrections to this media's transcript, by word, in its own seconds (shared/wordEdits.ts). */
   wordEdits?: WordEdit[];
+  /** How the voice of this media is treated (shared/voiceChain.ts); absent = untreated. */
+  voicePreset?: VoicePreset;
+  /** The treated voice (cached WAV) the preview and the export play, and what made it. */
+  treated?: { path: string; preset: VoicePreset; version: number };
+  treatStatus?: "pending" | "ready" | "error";
+  /** A "Só voz" recording: the stretch of each take, by teleprompter line, in source seconds. */
+  voiceTakes?: VoiceTake[];
+}
+
+/**
+ * One take of a script line in a voice recording: from the moment the teleprompter reached the
+ * line (or the take before it ended) to the next change; `retake` when Ctrl+Shift+R marked it
+ * to be thrown away.
+ */
+export interface VoiceTake {
+  /** Index of the line among the section's speech items (shared/script.ts speechItems). */
+  line: number;
+  start: number;
+  end: number;
+  retake?: boolean;
+}
+
+/** A stretch of an exported voice piece and where it came from (shared/voiceMaster.ts). */
+export interface VoiceMasterSegment {
+  /** Seconds into the exported file. */
+  at: number;
+  duration: number;
+  /** Where it was on the timeline at export time. */
+  start: number;
+  /** The voice media and its own seconds there. */
+  assetId: string;
+  in: number;
+  speed?: number;
+}
+
+export interface VoiceMasterPiece {
+  /** The WAV written for HeyGen. */
+  file: string;
+  /** What it covers: the lesson, a section or an avatar insert (F1P1-D01). */
+  label: string;
+  /** Timeline range at export time. */
+  start: number;
+  end: number;
+  sourceMap: VoiceMasterSegment[];
+}
+
+/** What the voice sent to HeyGen was: the MP4s that come back are placed by it. */
+export interface VoiceMaster {
+  id: string;
+  /** shared/voiceMaster.ts voiceHash of the voice track when it was exported. */
+  hash: string;
+  createdAt: number;
+  scope: "lesson" | "section" | "insert";
+  pieces: VoiceMasterPiece[];
 }
 
 /**
@@ -248,6 +305,8 @@ export interface Project {
   stats?: { editSeconds: number };
   /** AI proposals waiting for the person, anchored in the media (shared/anchors.ts). */
   proposals?: StoredProposal[];
+  /** The voice last exported for HeyGen (Arquivo › Exportar voz para o HeyGen). */
+  voiceMaster?: VoiceMaster;
   settings: ProjectSettings;
   assets: Asset[];
   /** Display order, top to bottom: video tracks first (highest layer on top), then audio. */
@@ -511,14 +570,17 @@ export interface EdiAulaApi {
     reset(): Promise<void>;
     guidedBrowser(url: string): Promise<void>;
     pickNarration(): Promise<string | null>;
-    open(ctx: {
-      teleprompter: { speaker: string; text: string; avatar: boolean }[];
-      title?: string;
-    }): Promise<void>;
-    context(): Promise<{
-      teleprompter: { speaker: string; text: string; avatar: boolean }[];
-      title?: string;
-    }>;
+    open(ctx: RecorderContext): Promise<void>;
+    context(): Promise<RecorderContext>;
+    /** The main process's clock (QPC ms). */
+    clock(): Promise<number>;
+    /** "Tela sobre a narração": the voice heard at timeline second `at` at QPC `when`. */
+    overAnchor(at: number, when: number): Promise<void>;
+    /** "Tela sobre a narração": the lesson's voice as one file, starting at timeline `start`. */
+    narration(): Promise<{ path: string; start: number }>;
+    /** "Só voz": the line the voice just finished (the teleprompter moves on from it). */
+    onFollow(cb: (line: number) => void): () => void;
+    onFollowState(cb: (s: { state: string; message: string }) => void): () => void;
     sources(): Promise<CaptureSources & { current: number | null }>;
     moveTo(index: number): Promise<void>;
     /** Tests the encoders on this monitor at this rate once (seconds) and names the one that
@@ -576,6 +638,36 @@ export interface EdiAulaApi {
     /** Editor window: a take did not finish, or the recorder window went down. */
     onAlert(cb: (a: { message: string; dir?: string; orphans?: boolean }) => void): () => void;
   };
+  /** Treats the voice of a media (shared/voiceChain.ts); cached by source and chain. */
+  treatVoice(
+    jobId: string,
+    path: string,
+    preset: Exclude<VoicePreset, "off">,
+  ): Promise<{
+    path: string;
+    preset: VoicePreset;
+    version: number;
+    noise: string;
+    normalization?: string;
+    cached: boolean;
+  }>;
+  /** The voice segments of [start, end] as one WAV in the cache. */
+  renderVoice(jobId: string, segments: VoiceSegment[], start: number, end: number): Promise<string>;
+  /** Writes the voice pieces in "Para o HeyGen" beside the project; returns the voice master. */
+  exportHeygenVoice(
+    jobId: string,
+    projectPath: string,
+    projectJson: string,
+    scope: VoiceMaster["scope"],
+    pieces: { label: string; start: number; end: number }[],
+  ): Promise<VoiceMaster>;
+  pickHeygenVideos(): Promise<string[]>;
+  /** Where a HeyGen video sits in the exported voice (which piece, offset, scale, confidence). */
+  locateHeygen(
+    jobId: string,
+    video: string,
+    masters: string[],
+  ): Promise<{ piece: number; result: SyncResult; duration: number }>;
   /** Saves a picture made in the editor (annotation) in the cache; returns its path. */
   saveGenerated(bytes: Uint8Array, ext: string): Promise<string>;
   saveNarration(bytes: Uint8Array): Promise<string>;

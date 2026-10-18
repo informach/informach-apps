@@ -20,6 +20,7 @@ import { z } from "zod";
 import { EFFORTS, type Effort, resolveModel } from "../shared/aiModels.ts";
 import type { ChromaKey } from "../shared/chroma.ts";
 import type { FontFamily } from "../shared/fonts.ts";
+import { projectSchema } from "../shared/project-schema.ts";
 import type {
   AiClientId,
   AiGrantView,
@@ -30,6 +31,7 @@ import type {
   JobProgress,
   ProjectSettings,
 } from "../shared/types.ts";
+import { VOICE_PRESETS } from "../shared/voiceChain.ts";
 import { requestApproval } from "./aiApproval.ts";
 import { callTool } from "./aiBridge.ts";
 import { setAiPathContext } from "./aiPaths.ts";
@@ -71,6 +73,7 @@ import {
 } from "./ffmpeg.ts";
 import { filterScriptOption } from "./ffmpeg-arguments.ts";
 import { getGlossary, setGlossary } from "./glossary.ts";
+import { exportVoice, HEYGEN_FOLDER, locateVideo } from "./heygen.ts";
 import { cancelKey, detectScreenColor, grabFrame, renderKeyed } from "./keying.ts";
 import { CHECK_CLIENT } from "./mcpGuard.ts";
 import { startMcpServer } from "./mcpServer.ts";
@@ -99,6 +102,8 @@ import {
   openRestrictedClaude,
 } from "./restricted.ts";
 import { scheduler, type WorkKind } from "./scheduler.ts";
+import { renderVoiceCached } from "./voiceFiles.ts";
+import { treatVoice } from "./voiceTreat.ts";
 import {
   cancelDownload,
   cancelWhisper,
@@ -157,6 +162,8 @@ const desktop = createEdiDesktop({
     "recorder:elapsed",
     "recorder:guidedCancel",
     "recorder:interactive",
+    "recorder:clock",
+    "recorder:overAnchor",
     "app:dirty",
   ],
 });
@@ -653,14 +660,35 @@ function registerIpc(): void {
     const references: string[] = [];
     for (const asset of project.assets) {
       if (!asset || typeof asset !== "object") throw new Error("Referência de mídia inválida.");
-      for (const field of ["path", "thumb", "proxy", "waveform", "transcript", "cursor", "keyed"]) {
-        const value: unknown = Reflect.get(asset, field);
+      const fields: [object, string][] = [
+        "path",
+        "thumb",
+        "proxy",
+        "waveform",
+        "transcript",
+        "cursor",
+        "keyed",
+      ].map((field) => [asset, field]);
+      // The treated voice (shared/voiceChain.ts) is played and exported in place of the path.
+      const treated: unknown = Reflect.get(asset, "treated");
+      if (treated && typeof treated === "object") fields.push([treated, "path"]);
+      for (const [owner, field] of fields) {
+        const value: unknown = Reflect.get(owner, field);
         if (value === undefined || value === "") continue;
         if (typeof value !== "string" || value.length > 32768)
           throw new Error("Caminho de mídia inválido.");
         references.push(value);
       }
     }
+    // The voice files exported for HeyGen are read again to place the MP4s that come back.
+    const master: unknown = Reflect.get(project, "voiceMaster");
+    const pieces: unknown =
+      master && typeof master === "object" ? Reflect.get(master, "pieces") : [];
+    if (Array.isArray(pieces))
+      for (const piece of pieces.slice(0, 500)) {
+        const file: unknown = piece && typeof piece === "object" ? Reflect.get(piece, "file") : "";
+        if (typeof file === "string" && file && file.length <= 32768) references.push(file);
+      }
     const linked = [...new Set(references)];
     if (linked.length) {
       const answer = await dialog.showMessageBox(win!, {
@@ -762,6 +790,120 @@ function registerIpc(): void {
     );
   });
   ipcMain.handle("shell:showItem", (_e, path: string) => shell.showItemInFolder(path));
+  registerVoiceIpc();
+}
+
+const jobIdSchema = z.string().min(1).max(200);
+const secondsSchema = z
+  .number()
+  .min(0)
+  .max(7 * 86400);
+
+/**
+ * The voice: its treatment (shared/voiceChain.ts), the trip to HeyGen (main/heygen.ts) and the
+ * voice rendered as one file (main/voiceFiles.ts). Each runs as background work: it waits for a
+ * take that is recording, like proxies and transcriptions.
+ */
+function registerVoiceIpc(): void {
+  const model = (): string | null => {
+    const path = nativeResourcePath("rnnoise/sh.rnnn");
+    return existsSync(path) ? path : null;
+  };
+  ipcMain.handle(
+    "audio:treat",
+    async (_e, rawJob: unknown, rawPath: unknown, rawPreset: unknown) => {
+      const jobId = jobIdSchema.parse(rawJob);
+      const source = await desktopFiles.assertRead(z.string().min(1).max(32768).parse(rawPath));
+      const preset = z.enum(VOICE_PRESETS).exclude(["off"]).parse(rawPreset);
+      const result = await processingJob(jobId, "voice", (signal) =>
+        treatVoice({
+          ffmpeg: FFMPEG,
+          source,
+          preset,
+          cacheRoot: join(app.getPath("userData"), "cache"),
+          model: model(),
+          signal,
+          track: (child) => scheduler.track(child),
+          onProgress: (ratio) => sendProgress({ id: jobId, ratio }),
+        }),
+      );
+      await desktopFiles.grantRead(result.path);
+      return result;
+    },
+  );
+  ipcMain.handle(
+    "voice:render",
+    (_e, rawJob: unknown, segments: unknown, start: unknown, end: unknown) =>
+      processingJob(jobIdSchema.parse(rawJob), "voice", (signal) =>
+        renderVoiceCached(segments, secondsSchema.parse(start), secondsSchema.parse(end), signal),
+      ),
+  );
+  ipcMain.handle(
+    "heygen:export",
+    async (
+      _e,
+      rawJob: unknown,
+      rawProjectPath: unknown,
+      text: unknown,
+      rawScope: unknown,
+      rawPieces: unknown,
+    ) => {
+      const jobId = jobIdSchema.parse(rawJob);
+      // The open project's own file: writing beside it is writing where the lesson lives.
+      const projectPath = await desktopFiles.assertWrite(
+        z.string().min(1).max(32768).parse(rawProjectPath),
+      );
+      const project = projectSchema.parse(projectJson(text));
+      const scope = z.enum(["lesson", "section", "insert"]).parse(rawScope);
+      const pieces = z
+        .array(
+          z.strictObject({
+            label: z.string().min(1).max(200),
+            start: secondsSchema,
+            end: secondsSchema,
+          }),
+        )
+        .min(1)
+        .max(500)
+        .parse(rawPieces)
+        .filter((p) => p.end > p.start);
+      const master = await processingJob(jobId, "voice", (signal) =>
+        exportVoice({
+          ffmpeg: FFMPEG,
+          project,
+          pieces,
+          scope,
+          dir: join(dirname(projectPath), HEYGEN_FOLDER),
+          assertRead: desktopFiles.assertRead,
+          signal,
+          onProgress: (ratio) => sendProgress({ id: jobId, ratio }),
+        }),
+      );
+      for (const piece of master.pieces) await desktopFiles.grantRead(piece.file);
+      return master;
+    },
+  );
+  ipcMain.handle("heygen:pick", async () => {
+    const r = await openDialog({
+      title: "Importar vídeos do HeyGen",
+      properties: ["openFile", "multiSelections"],
+      filters: [{ name: "Vídeo do HeyGen", extensions: ["mp4", "mov", "m4v", "webm"] }],
+    });
+    if (r.canceled) return [];
+    for (const path of r.filePaths) await desktopFiles.grantRead(path);
+    return r.filePaths;
+  });
+  ipcMain.handle(
+    "heygen:locate",
+    async (_e, rawJob: unknown, rawVideo: unknown, rawMasters: unknown) => {
+      const jobId = jobIdSchema.parse(rawJob);
+      const video = await desktopFiles.assertRead(z.string().min(1).max(32768).parse(rawVideo));
+      const masters: string[] = [];
+      for (const m of z.array(z.string().min(1).max(32768)).min(1).max(500).parse(rawMasters))
+        masters.push(await desktopFiles.assertRead(m));
+      return processingJob(jobId, "voice", (signal) => locateVideo(FFMPEG, video, masters, signal));
+    },
+  );
 }
 
 /* ----- AI: MCP server for Claude Code / Codex, settings and the in-app assistant ----- */

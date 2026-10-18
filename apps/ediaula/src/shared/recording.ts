@@ -1,5 +1,6 @@
 import type { CameraChoice } from "./camera.ts";
 import type { CaptureQuality } from "./encoderChoice.ts";
+import type { VoiceSegment } from "./voiceMaster.ts";
 
 /** Screen recording made by EdiAula: sources, options, and what a finished take hands over. */
 
@@ -42,9 +43,53 @@ export interface RecordOptions {
   quality?: CaptureQuality;
   /** The recorder window sends the computer's sound in chunks (recorder:systemChunk). */
   systemAudio?: boolean;
+  /** "voice": only the microphone, kept as PCM; "over": the screen over the lesson's voice. */
+  mode?: RecordMode;
+  /** "Só voz": the teleprompter follows the voice (a 16 kHz copy goes to the recognizer). */
+  follow?: boolean;
+  /** "Tela sobre a narração": where on the timeline the voice starts playing and, to redo the
+   *  screen in a stretch, where that stretch ends. */
+  over?: OverPlan;
+}
+
+export const RECORD_MODES = ["screen", "voice", "over"] as const;
+export type RecordMode = (typeof RECORD_MODES)[number];
+
+export interface OverPlan {
+  /** Timeline seconds the voice is played from. */
+  from: number;
+  /** Redo the screen only up to here (seconds of the timeline). */
+  to?: number;
+  /** Replace what the screen track has in [from, to]. */
+  replace?: boolean;
 }
 
 export type MarkerKind = "marker" | "retake";
+
+/** What the editor hands the recorder when it opens it (main/recorderWindow.ts keeps it). */
+export interface RecorderContext {
+  /** Teleprompter paragraphs: the speech lines of the project's script section, in order. */
+  teleprompter: { speaker: string; text: string; avatar: boolean; insertId?: string }[];
+  title?: string;
+  /** "Na tela" directions of the section, each before the teleprompter line `before`. */
+  screenNotes?: { before: number; text: string }[];
+  /** The mode to open in ("Tela sobre a narração" from the timeline). */
+  mode?: RecordMode;
+  /** "Tela sobre a narração": the lesson's voice, as the editor has it now. */
+  over?: OverContext;
+}
+
+/** What the recorder needs to play the lesson's voice and show it while the screen is recorded. */
+export interface OverContext extends OverPlan {
+  /** Where the voice ends on the timeline. */
+  end: number;
+  /** The voice track as segments to render (shared/voiceMaster.ts voiceSegments). */
+  segments: VoiceSegment[];
+  /** Words of the voice at their timeline seconds, for the karaoke. */
+  words: { t: number; end: number; text: string }[];
+  /** "Na tela" directions at the timeline second they apply from. */
+  cues: { t: number; text: string }[];
+}
 
 /** Default frame rate of screen recordings. */
 export const RECORDING_FPS = 30;
@@ -218,6 +263,11 @@ export interface RecordingResult {
   markers: { t: number; kind: MarkerKind }[];
   /** Teleprompter line shown from each moment. */
   lines?: { t: number; index: number }[];
+  /** What kind of take this was; absent for a screen recording. */
+  mode?: Exclude<RecordMode, "screen">;
+  /** "Tela sobre a narração": the plan, and at moments of the take (`t`, seconds without the
+   *  pauses removed) which timeline second of the voice was heard (`at`). */
+  over?: OverPlan & { anchors: { t: number; at: number }[] };
   /** The cursor helper restarted or stopped during the take: the pointer may be missing there. */
   cursorIssues?: string[];
   /** The chosen encoder could not start and another one recorded. */

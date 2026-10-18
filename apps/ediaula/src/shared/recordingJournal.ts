@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { type CaptureSegment, toVideoTime } from "./cursorCapture.ts";
-import { CAPTURE_SOURCES } from "./recording.ts";
+import { CAPTURE_SOURCES, RECORD_MODES } from "./recording.ts";
 
 /**
  * sessao.jsonl: what the main process knows about a take, one JSON object per line, written as
@@ -48,6 +48,15 @@ const beginLine = z.object({
     system: z.boolean(),
     keys: z.boolean(),
   }),
+  /** Absent in a screen take (and in journals written before the voice modes). */
+  mode: z.enum(RECORD_MODES).optional(),
+  over: z
+    .object({
+      from: z.number().nonnegative(),
+      to: z.number().nonnegative().optional(),
+      replace: z.boolean().optional(),
+    })
+    .optional(),
 });
 export type JournalBegin = z.infer<typeof beginLine>;
 
@@ -69,6 +78,11 @@ export const journalLineSchema = z.discriminatedUnion("k", [
   }),
   /** The teleprompter moved to this line. */
   z.object({ k: z.literal("line"), qpc, index: z.int().nonnegative() }),
+  /**
+   * "Tela sobre a narração": at `qpc` the teacher heard the lesson's voice at timeline second
+   * `at` (the output latency already taken off). Written when it starts and at every resume.
+   */
+  z.object({ k: z.literal("over"), qpc, at: z.number().nonnegative() }),
   /**
    * The guided recording's narration (copied into the folder), where it starts in seconds of
    * the recorder's clock, and the first-frame estimate that clock counted from then.
@@ -107,6 +121,7 @@ export interface JournalReplay {
   markers: { qpc: number; kind: "marker" | "retake" }[];
   failures: { src: string; qpc: number; message: string }[];
   lines: { qpc: number; index: number }[];
+  over: { qpc: number; at: number }[];
   narration: { file: string; offset: number; origin?: number } | null;
   stop: number | null;
   finalized: boolean;
@@ -126,6 +141,7 @@ export function replayJournal(text: string): JournalReplay {
     markers: [],
     failures: [],
     lines: [],
+    over: [],
     narration: null,
     stop: null,
     finalized: false,
@@ -188,6 +204,9 @@ export function replayJournal(text: string): JournalReplay {
         break;
       case "line":
         replay.lines.push({ qpc: line.qpc, index: line.index });
+        break;
+      case "over":
+        replay.over.push({ qpc: line.qpc, at: line.at });
         break;
       case "narration":
         replay.narration = {

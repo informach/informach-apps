@@ -8,12 +8,13 @@ import { join } from "node:path";
 import { after, test } from "node:test";
 import { withStagedFiles } from "@informach/edi-desktop/files";
 import { createDesktopJobs, JOB_PRESERVATION_MS } from "@informach/edi-desktop/jobs";
-import { FRAGMENTED_MP4 } from "../src/shared/captureArgs.ts";
+import { FRAGMENTED_MP4, VOICE_MATROSKA } from "../src/shared/captureArgs.ts";
 import type { CaptureMonitor, RecorderEvent } from "../src/shared/recording.ts";
 import { layoutRecording } from "../src/shared/recordingImport.ts";
 import { JOURNAL_FILE, replayJournal } from "../src/shared/recordingJournal.ts";
 import { timelineAt } from "../src/shared/timeline.ts";
 import type { Asset } from "../src/shared/types.ts";
+import { voiceTakes } from "../src/shared/voiceTakes.ts";
 
 const root = await mkdtemp(join(tmpdir(), "ediaula-recording-preservation-"));
 // Synthetic cursor helper: the hook protocol on the same clock, with heartbeats, until stdin ends.
@@ -110,7 +111,7 @@ const hooks = registerHooks({
   },
 });
 const recorder = await import("../src/main/recorder.ts");
-const { FFMPEG, probe, run } = await import("../src/main/ffmpeg.ts");
+const { FFMPEG, FFPROBE, probe, run } = await import("../src/main/ffmpeg.ts");
 const { qpc } = await import("../src/main/nativeHelper.ts");
 const { RecordingSession } = await import("../src/main/recording/session.ts");
 const { finalizeTake } = await import("../src/main/recording/finalize.ts");
@@ -782,4 +783,107 @@ test("erro nativo antes do primeiro quadro rejeita a gravação sem rejeição b
   );
   await recorder.cancel();
   assert.equal(recorder.isRecording(), false);
+});
+
+test("a voice-only take keeps the microphone as PCM, with its lines, its redo and the 16 kHz copy", async () => {
+  let follow = 0;
+  const lines: number[] = [];
+  const unsubscribe = recorder.subscribe((m) => {
+    if (m.type === "follow") follow += m.chunk.length;
+    if (m.type === "line") lines.push(m.index);
+  });
+  try {
+    await recorder.prepare({ fps: 30, microphone: "Fake Mic", mode: "voice", follow: true }, []);
+    await recorder.start();
+    recorder.teleprompterLine(0);
+    await wait(900);
+    recorder.teleprompterLine(1);
+    await wait(700);
+    recorder.mark("retake");
+    await wait(700);
+    const saved = await recorder.stop();
+    assert.equal(saved.mode, "voice");
+    assert.match(saved.microphone ?? "", /voz\.wav$/);
+    const out = await run(FFPROBE, [
+      "-v",
+      "error",
+      "-print_format",
+      "json",
+      "-show_streams",
+      saved.microphone ?? "",
+    ]);
+    const [stream] = JSON.parse(out).streams;
+    assert.equal(stream.codec_name, "pcm_s16le");
+    assert.equal(stream.sample_rate, "48000");
+    assert.equal(stream.channels, 1);
+    assert.ok(Math.abs(Number(stream.duration) - saved.duration) < 0.2);
+    assert.deepEqual(lines, [0, 1]);
+    // At least a second of the 16 kHz copy reached the follower.
+    assert.ok(follow >= 16000 * 2, `${follow} bytes`);
+    const takes = voiceTakes(saved);
+    assert.deepEqual(
+      takes.map((t) => [t.line, !!t.retake]),
+      [
+        [0, false],
+        [1, true],
+        [1, false],
+      ],
+    );
+    await assert.rejects(stat(join(saved.dir, "voz-0.mkv")), "the part was replaced by voz.wav");
+  } finally {
+    unsubscribe();
+  }
+});
+
+test("a voice take cut short by a crash is recovered from its Matroska part", async () => {
+  const dir = join(recorder.recordingsDir(), "2026-10-18 10-00-00-voz");
+  await mkdir(dir, { recursive: true });
+  const part = join(dir, "voz-0.mkv");
+  const first = qpc();
+  const capture = spawn(
+    FFMPEG,
+    [
+      "-y",
+      "-v",
+      "error",
+      "-re",
+      "-f",
+      "lavfi",
+      "-i",
+      "sine=frequency=330:sample_rate=48000",
+      "-t",
+      "20",
+      ...VOICE_MATROSKA,
+      part,
+    ],
+    { windowsHide: true },
+  );
+  await wait(2500);
+  capture.kill("SIGKILL");
+  await new Promise((resolve) => capture.once("close", resolve));
+  const journal = [
+    {
+      k: "begin",
+      v: 1,
+      at: Date.now(),
+      qpc: first - 500,
+      fps: 30,
+      monitor: null,
+      region: null,
+      encoder: null,
+      sources: { screen: false, microphone: "Fake Mic", camera: null, system: false, keys: false },
+      mode: "voice",
+    },
+    { k: "first", src: "mic", part: 0, qpc: first, file: "voz-0.mkv" },
+    { k: "line", qpc: first + 100, index: 2 },
+  ];
+  await writeFile(join(dir, JOURNAL_FILE), `${journal.map((l) => JSON.stringify(l)).join("\n")}\n`);
+  const found = (await recorder.orphans()).find((o) => o.dir === dir);
+  assert.deepEqual(found?.sources, ["mic"]);
+  const result = await recorder.recoverOrphan(dir);
+  assert.equal(result.mode, "voice");
+  assert.match(result.microphone ?? "", /voz\.wav$/);
+  const info = await probe(result.microphone ?? "");
+  assert.ok(info.duration > 1.5, `recovered ${info.duration} s`);
+  assert.deepEqual(result.lines, [{ t: 0.1, index: 2 }]);
 });

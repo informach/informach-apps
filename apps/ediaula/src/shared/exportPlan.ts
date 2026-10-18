@@ -28,6 +28,7 @@ import {
   withTransitions,
 } from "./transitions.ts";
 import type { Asset, Encoder, ExportSpec, Project } from "./types.ts";
+import { treatedPath } from "./voiceChain.ts";
 import { zoomExprs, zoomsIn } from "./zoom.ts";
 import { entryView, zoomLayerFilter } from "./zoomLayer.ts";
 
@@ -184,6 +185,8 @@ export function buildExportPlan(source: Project, spec: ExportSpec): ExportPlan {
       !!asset.keyed;
     let videoIn = -1;
     let audioIn = -1;
+    // A treated voice (shared/voiceChain.ts) is read in place of the media's own sound.
+    const treated = playAudio ? treatedPath(asset) : null;
     // A sped-up clip reads duration x speed of the source and plays it in duration.
     const speed = clipSpeed(clip);
     const retime = speed === 1 ? "setpts=PTS-STARTPTS" : `setpts=(PTS-STARTPTS)/${n(speed)}`;
@@ -205,8 +208,15 @@ export function buildExportPlan(source: Project, spec: ExportSpec): ExportPlan {
       inputArgs.push("-c:v", "libvpx-vp9", ...trim, "-i", asset.keyed!);
       if (playAudio) {
         audioIn = inputIndex++;
+        inputArgs.push(...trim, "-i", treated ?? asset.path);
+      }
+    } else if (treated) {
+      if (showVideo) {
+        videoIn = inputIndex++;
         inputArgs.push(...trim, "-i", asset.path);
       }
+      audioIn = inputIndex++;
+      inputArgs.push(...trim, "-i", treated);
     } else {
       videoIn = audioIn = inputIndex++;
       inputArgs.push(...trim, "-i", asset.path);

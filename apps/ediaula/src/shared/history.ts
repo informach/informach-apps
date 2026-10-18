@@ -16,12 +16,16 @@ export const ASSET_RUNTIME_FIELDS = [
   "keyed",
   "keyedId",
   "keyStatus",
+  // The treated voice is a cache of the chosen preset (voicePreset is the edit).
+  "treated",
+  "treatStatus",
   "missing",
   "cursorMissing",
   // Written once by the recorder when a recording comes in.
   "cursor",
   "markers",
   "recording",
+  "voiceTakes",
 ] as const satisfies readonly (keyof Asset)[];
 
 type RuntimeField = (typeof ASSET_RUNTIME_FIELDS)[number];
