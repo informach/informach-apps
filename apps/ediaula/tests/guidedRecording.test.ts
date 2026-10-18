@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { executeGuided, type HelperCommands } from "../src/shared/guidedNative.ts";
 import {
   GUIDED_DEFAULTS,
   type GuidedPlan,
@@ -9,7 +10,6 @@ import {
   stepsFromScript,
   stepsFromWords,
 } from "../src/shared/guidedRecording.ts";
-import { executeGuided, type GuidedDriver } from "../src/shared/guidedRunner.ts";
 import type { GlideResult } from "../src/shared/helperProtocol.ts";
 
 const target: GuidedTarget = {
@@ -115,7 +115,7 @@ function simulation() {
     events.push({ at: time, op: "arrive", x: glide.x, y: glide.y });
     resolve({ x: glide.x, y: glide.y, at: 1 });
   };
-  const input: GuidedDriver = {
+  const input: HelperCommands = {
     async command<T>(c: Record<string, unknown>): Promise<T> {
       const glide = c.op === "glide" ? (c as unknown as GlideCommand) : undefined;
       events.push({ at: time, op: String(c.op), x: c.x, y: c.y, glide });
@@ -332,7 +332,7 @@ test("slow browser lookup stops before movement instead of consuming the speech 
 
 test("a helper that falls behind during the glide stops without jumping to the target or clicking", async () => {
   const s = simulation();
-  const input: GuidedDriver = {
+  const input: HelperCommands = {
     async command<T>(command: Record<string, unknown>): Promise<T> {
       if (command.op !== "glide") return s.input.command<T>(command);
       s.events.push({ at: s.time(), op: "glide" });
@@ -349,7 +349,7 @@ test("a helper that falls behind during the glide stops without jumping to the t
 
 test("cancellation during key focus verification prevents the key from being sent", async () => {
   const s = simulation();
-  const input: GuidedDriver = {
+  const input: HelperCommands = {
     async command<T>(command: Record<string, unknown>): Promise<T> {
       const result = await s.input.command<T>(command);
       if (command.focus) s.controller.abort();

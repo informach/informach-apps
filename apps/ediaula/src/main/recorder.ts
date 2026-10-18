@@ -158,6 +158,9 @@ export function recordingsDir(): string {
   return dir;
 }
 
+/** A new take's own folder in the recordings folder, named after now. */
+export const createTakeDir = (): string => mkdtempSync(join(recordingsDir(), `${stamp()}-`));
+
 /**
  * What the encoder is chosen for: the whole monitor (a region is never larger) at the recording's
  * frame rate. The recorder window detects it in the background with the same profile.
@@ -264,7 +267,7 @@ async function prepareTake(
   if (opts.monitor !== undefined && (!monitor || monitor.output < 0))
     throw new Error("Não consegui capturar esta tela.");
   if (!monitor && !opts.microphone) throw new Error("Escolha a tela ou um microfone para gravar.");
-  const dir = mkdtempSync(join(recordingsDir(), `${stamp()}-`));
+  const dir = createTakeDir();
   // Keys typed while the recorder itself is in front are not part of the lesson. Until the take
   // starts, the helper keeps nothing but the cursor shape.
   const hook = monitor

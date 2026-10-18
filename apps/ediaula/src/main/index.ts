@@ -178,6 +178,8 @@ const desktop = createEdiDesktop({
     "recorder:status",
     "recorder:elapsed",
     "recorder:guidedCancel",
+    "recorder:guidedWebStop",
+    "recorder:guidedSave",
     "recorder:interactive",
     "recorder:clock",
     "recorder:overAnchor",
@@ -832,6 +834,7 @@ function registerIpc(): void {
         "cursor",
         "keyed",
         "motion",
+        "guidedRun",
       ].map((field) => [asset, field]);
       // The treated voice (shared/voiceChain.ts) is played and exported in place of the path.
       const treated: unknown = Reflect.get(asset, "treated");
@@ -855,6 +858,9 @@ function registerIpc(): void {
         if (typeof file === "string" && file && file.length <= 32768) references.push(file);
       }
     }
+    // The narration of each guided plan, heard and checked in the recorder.
+    for (const plan of project.guided?.plans ?? [])
+      if (plan.audio) references.push(plan.audio.path);
     const linked = [...new Set(references)];
     if (linked.length) {
       const answer = await dialog.showMessageBox(win!, {

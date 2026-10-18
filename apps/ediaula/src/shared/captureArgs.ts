@@ -1,9 +1,11 @@
 import { type CameraChoice, cameraInputArgs } from "./camera.ts";
 import {
+  type CaptureCodec,
   type CaptureEncoder,
   type CaptureQuality,
   captureFilter,
   captureVideoArgs,
+  colorTags,
   softwarePixelFormat,
 } from "./encoderChoice.ts";
 
@@ -217,6 +219,42 @@ export function cameraArgs(o: CameraCapture): string[] {
     ...captureVideoArgs(o.encoder.codec, { fps, ...size }, o.quality),
     "-pix_fmt",
     softwarePixelFormat(o.encoder.codec),
+    ...fragmented(o.file),
+  ];
+}
+
+export interface PageCapture {
+  width: number;
+  height: number;
+  fps: number;
+  codec: CaptureCodec;
+  quality?: CaptureQuality;
+  file: string;
+}
+
+/**
+ * The lesson page of a guided take (main/guidedCapture.ts): BGRA frames on stdin, one per tick
+ * of the video's clock, so the frame count is the video's time. The frames are in system memory,
+ * so they take the CPU path of the detected encoder: swscale writes BT.709 limited range and the
+ * file is tagged so.
+ */
+export function pageCaptureArgs(o: PageCapture): string[] {
+  return [
+    ...REPORT,
+    "-f",
+    "rawvideo",
+    "-pix_fmt",
+    "bgra",
+    "-video_size",
+    `${o.width}x${o.height}`,
+    "-framerate",
+    String(o.fps),
+    "-i",
+    "pipe:0",
+    "-vf",
+    `scale=out_color_matrix=bt709:out_range=tv,format=${softwarePixelFormat(o.codec)}`,
+    ...captureVideoArgs(o.codec, { fps: o.fps, width: o.width, height: o.height }, o.quality),
+    ...colorTags({ matrix: "bt709", range: "tv" }),
     ...fragmented(o.file),
   ];
 }

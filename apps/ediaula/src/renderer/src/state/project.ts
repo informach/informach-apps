@@ -1,4 +1,5 @@
 import type { StoredProposal } from "@shared/anchors";
+import type { GuidedStore } from "@shared/guidedPlan";
 import {
   type AiTurn,
   aiUndoCount,
@@ -92,6 +93,8 @@ interface ProjectStore {
   undoAi(mine: (entry: HistoryEntry) => boolean, steps: number): number;
   /** Changes the pending AI proposals: kept in the project, outside the undo history. */
   setProposals(fn: (list: StoredProposal[]) => StoredProposal[]): void;
+  /** The guided plans as the recorder saved them: kept in the project, outside the undo history. */
+  setGuided(store: GuidedStore): void;
   select(ids: string[]): void;
   /** Saves the current state; resolves false when it could not be written. */
   saveNow(): Promise<boolean>;
@@ -262,6 +265,12 @@ export const useProject = create<ProjectStore>((set, get) => {
       if (list.length) next.proposals = list;
       else delete next.proposals;
       set({ project: next });
+    },
+
+    setGuided: (store) => {
+      const { project } = get();
+      if (!project) return;
+      set({ project: { ...project, guided: store } });
     },
 
     beginGroup: () => {

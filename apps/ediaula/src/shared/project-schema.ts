@@ -6,6 +6,7 @@ import {
   PROPOSAL_ITEM_LIMIT,
   PROPOSAL_LIMIT,
 } from "./anchors.ts";
+import { guidedStoreSchema } from "./guidedPlan.ts";
 import { PREPARE_DECISIONS, PREPARE_STEPS } from "./prepare.ts";
 import { REVIEWED_LIMIT } from "./seams.ts";
 import {
@@ -180,6 +181,7 @@ const asset = z.looseObject({
     .max(20000)
     .optional(),
   recording: z.looseObject({ id: text, role: z.enum(RECORDING_ROLES) }).optional(),
+  guidedRun: path.optional(),
   screen: color.optional(),
   key: chroma.optional(),
   keyed: path.optional(),
@@ -482,6 +484,7 @@ export const projectSchema = z
     templateOffer: z
       .looseObject({ course: z.string().max(200), answer: z.enum(["applied", "declined"]) })
       .optional(),
+    guided: guidedStoreSchema.optional(),
     settings: projectSettingsSchema,
     assets: z.array(asset).max(5000),
     tracks: z.array(track).max(256),

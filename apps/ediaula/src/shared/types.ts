@@ -11,6 +11,16 @@ import type { CourseTemplate } from "./courseTemplate.ts";
 import type { CursorFx } from "./cursor.ts";
 import type { FontFamily } from "./fonts.ts";
 import type { GlossaryTerm } from "./glossary.ts";
+import type {
+  BrokenStep,
+  GuidedMark,
+  GuidedMarkPurpose,
+  GuidedPlanV2,
+  GuidedRunRecord,
+  GuidedStore,
+  GuidedTakeStatus,
+  GuidedViewport,
+} from "./guidedPlan.ts";
 import type { HotkeyReport } from "./hotkeys.ts";
 import type { Keyframe } from "./keyframes.ts";
 import type { Palette } from "./palettes.ts";
@@ -78,6 +88,8 @@ export interface Asset {
   markers?: { t: number; kind: MarkerKind }[];
   /** The take this file belongs to (its folder) and which of its sources it is. */
   recording?: { id: string; role: RecordingRole };
+  /** guided-run.json of a guided take in the lesson window: its steps, actions and holds. */
+  guidedRun?: string;
   /** Solid screen color detected at import (avatar recorded on blue or green), '#RRGGBB'. */
   screen?: string;
   /** Zooms on this media (automatic from clicks, or by hand), in its own seconds: every clip
@@ -343,6 +355,8 @@ export interface Project {
   /** The course template offered when the lesson opened: what the person answered, so it is
    *  not offered again for the same course. */
   templateOffer?: { course: string; answer: "applied" | "declined" };
+  /** Guided recording plans of this lesson and how their takes ended (shared/guidedPlan.ts). */
+  guided?: GuidedStore;
   settings: ProjectSettings;
   assets: Asset[];
   /** Display order, top to bottom: video tracks first (highest layer on top), then audio. */
@@ -653,10 +667,10 @@ export interface EdiAulaApi {
     cancel(jobId: string): Promise<void>;
   };
   recorder: {
+    /** Screen plans: the position under the pointer, with the lesson window's element if any. */
     guidedPick(): Promise<import("./guidedRecording.ts").GuidedTarget>;
-    guidedStart(
-      plan: import("./guidedRecording.ts").GuidedPlan,
-    ): Promise<{ origin: number; lead: number }>;
+    /** Runs a screen plan over the take being recorded. */
+    guidedStart(plan: GuidedPlanV2): Promise<{ origin: number; lead: number }>;
     guidedCancel(): Promise<void>;
     reset(): Promise<void>;
     guidedBrowser(url: string): Promise<void>;
@@ -672,6 +686,31 @@ export interface EdiAulaApi {
     /** "Só voz": the line the voice just finished, and the QPC moment its last word ended. */
     onFollow(cb: (done: { line: number; at: number }) => void): () => void;
     onFollowState(cb: (s: { state: string; message: string }) => void): () => void;
+    /** The plans as edited (sent a second after the last change): a draft, then the project. */
+    guidedSave(store: GuidedStore, projectId: string | null): Promise<void>;
+    /** A take of a recorder opened without a lesson went into this one: its plans come along. */
+    guidedAdopt(projectId: string): Promise<GuidedStore | null>;
+    /**
+     * Marks an element in the lesson window: the teacher goes to it, presses the target key to
+     * turn the inspector on and clicks it. null when it was called off.
+     */
+    guidedMark(purpose: GuidedMarkPurpose, viewport: GuidedViewport): Promise<GuidedMark | null>;
+    /** A take of a lesson window plan from step `from`; progress comes by onGuidedStatus. */
+    guidedWebStart(plan: GuidedPlanV2, from: number): Promise<void>;
+    guidedWebPause(): Promise<void>;
+    guidedWebResume(): Promise<void>;
+    /** Ends the take and hands it to the editor; the run says where it stopped. */
+    guidedWebStop(): Promise<{ result: RecordingResult; run: GuidedRunRecord }>;
+    /** Throws the take away (Recycle Bin). */
+    guidedWebDiscard(): Promise<void>;
+    /** Runs the whole plan without recording and lists the steps that failed. */
+    guidedVerify(plan: GuidedPlanV2): Promise<BrokenStep[]>;
+    guidedVerifyCancel(): Promise<void>;
+    onGuidedStatus(cb: (status: GuidedTakeStatus) => void): () => void;
+    /** Editor window: the recorder saved the plans of a project. */
+    onGuided(cb: (update: { projectId: string; store: GuidedStore }) => void): () => void;
+    /** Recorder window: it was opened again for another lesson or media; read the context again. */
+    onContextChanged(cb: () => void): () => void;
     sources(): Promise<CaptureSources & { current: number | null }>;
     moveTo(index: number): Promise<void>;
     /** Tests the encoders on this monitor at this rate once (seconds) and names the one that

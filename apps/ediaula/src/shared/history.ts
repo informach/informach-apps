@@ -30,6 +30,7 @@ export const ASSET_RUNTIME_FIELDS = [
   // Where the screen stands still, learned in the background.
   "motion",
   "motionStatus",
+  "guidedRun",
 ] as const satisfies readonly (keyof Asset)[];
 
 type RuntimeField = (typeof ASSET_RUNTIME_FIELDS)[number];
@@ -60,8 +61,8 @@ export function withRuntimeOf(target: Project, live: Project): Project {
 
 /**
  * The project an undo or redo shows: the snapshot's edits with the media as they are now, and
- * the measured editing time, last export, pending AI proposals and the voices sent to HeyGen of
- * the current state (an undo is not time travel for them). It changes the project, so it is
+ * the measured editing time, last export, pending AI proposals, the voices sent to HeyGen and the
+ * guided plans of the current state (an undo is not time travel for them). It changes the project, so it is
  * touched like any edit.
  */
 export function restoreSnapshot(snapshot: Project, current: Project, now: number): Project {
@@ -82,6 +83,8 @@ export function restoreSnapshot(snapshot: Project, current: Project, now: number
   else delete out.reviewedSeams;
   if (current.templateOffer) out.templateOffer = current.templateOffer;
   else delete out.templateOffer;
+  if (current.guided) out.guided = current.guided;
+  else delete out.guided;
   return out;
 }
 

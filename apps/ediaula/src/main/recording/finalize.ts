@@ -7,7 +7,14 @@ import {
   insideSegments,
   mergeHookEvents,
 } from "../../shared/cursorCapture.ts";
-import { buildCursorData, cursorDataForPart } from "../../shared/cursorData.ts";
+import { buildCursorData, type CursorData, cursorDataForPart } from "../../shared/cursorData.ts";
+import {
+  buildGuidedRun,
+  GUIDED_LOG_FILE,
+  GUIDED_RUN_FILE,
+  parseGuidedLog,
+  synthesizeCursor,
+} from "../../shared/guidedCursor.ts";
 import { type HookEvent, parseHookLine } from "../../shared/helperProtocol.ts";
 import type { RecordingPiece, RecordingResult } from "../../shared/recording.ts";
 import {
@@ -40,7 +47,8 @@ import { qpc } from "../nativeHelper.ts";
  *    silence where they have nothing, so their second 0 is the screen's.
  * 4. The camera is placed as recorded, without re-encoding.
  * 5. Every file written is checked against the length it should have and flushed to the disk;
- *    the cursor data (version 2) and gravacao.json are written, then `finalized` in the journal,
+ *    the cursor data (version 2; for a guided take in the lesson window, made from its
+ *    guided-log.jsonl, with guided-run.json beside it) and gravacao.json are written, then `finalized` in the journal,
  *    and only then the parts that were copied are removed. From that line on nothing throws: a
  *    part that cannot be removed only costs disk space, and the take is not lost over it.
  */
@@ -173,23 +181,12 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
   // Camera files as recorded, placed on the take's clock.
   const cameraParts = placeParts(parts.camera, segments, offsets);
 
-  // Cursor data.
+  // Cursor data: from the helper's journal, or made from the guided take's log (no real pointer
+  // was there: shared/guidedCursor.ts).
   let cursor: string | undefined;
   let cursorParts: string[] | undefined;
-  if (parts.screen.length && replay.begin.monitor) {
-    const journal = await readHelperJournal(dir);
-    const events = mergeHookEvents(
-      input.events ?? [],
-      journal.map((entry) => entry.event),
-    );
-    const m = replay.begin.monitor;
-    const r = replay.begin.region ?? { x: 0, y: 0, width: m.width, height: m.height };
-    const data = buildCursorData(events, replay, segments, {
-      x: m.x + r.x,
-      y: m.y + r.y,
-      width: r.width,
-      height: r.height,
-    });
+  let guidedRun: string | undefined;
+  const writeCursor = async (data: CursorData): Promise<void> => {
     if (screenParts) {
       cursorParts = [];
       for (const [i, p] of screenParts.entries()) {
@@ -201,7 +198,35 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
       cursor = join(dir, "cursor.json");
       await writeAtomic(cursor, JSON.stringify(data));
     }
+  };
+  if (parts.screen.length && replay.begin.monitor) {
+    const journal = await readHelperJournal(dir);
+    const events = mergeHookEvents(
+      input.events ?? [],
+      journal.map((entry) => entry.event),
+    );
+    const m = replay.begin.monitor;
+    const r = replay.begin.region ?? { x: 0, y: 0, width: m.width, height: m.height };
+    await writeCursor(
+      buildCursorData(events, replay, segments, {
+        x: m.x + r.x,
+        y: m.y + r.y,
+        width: r.width,
+        height: r.height,
+      }),
+    );
     await pruneHelperJournal(dir, journal, segments);
+  } else if (parts.screen.length && existsSync(join(dir, GUIDED_LOG_FILE))) {
+    const log = parseGuidedLog(await readFile(join(dir, GUIDED_LOG_FILE), "utf8"));
+    const begin = log.find((line) => line.k === "begin");
+    if (begin) {
+      await writeCursor(synthesizeCursor(log, begin.viewport, begin.fps, duration));
+      const run = buildGuidedRun(log, duration);
+      if (run) {
+        guidedRun = join(dir, GUIDED_RUN_FILE);
+        await writeAtomic(guidedRun, JSON.stringify(run, null, 2));
+      }
+    }
   }
 
   // A file that does not hold what it should keeps its parts, and is flushed to the disk.
@@ -263,6 +288,7 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
     ...(systemParts?.length ? { systemParts } : {}),
     ...(cameraParts.length ? { cameraParts } : {}),
     ...narration,
+    ...(guidedRun ? { guidedRun } : {}),
     duration: round(duration),
     pauses: rangesInTake(replay.pauses, segments),
     markers: replay.markers.map((m) => ({ t: momentInTake(segments, m.qpc), kind: m.kind })),

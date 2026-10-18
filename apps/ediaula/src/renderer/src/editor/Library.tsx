@@ -7,6 +7,7 @@ import {
   Loader,
   Music,
   Plus,
+  RotateCcw,
   Search,
   Trash2,
 } from "lucide-react";
@@ -14,6 +15,7 @@ import { type ReactNode, useState } from "react";
 import { actions } from "@/lib/actions";
 import { duration } from "@/lib/format";
 import { mediaUrl } from "@/lib/media";
+import { rerecordGuided } from "@/lib/recording";
 import { needsRelink, relinkAsset, relinkMissingInFolder } from "@/lib/relink";
 import { type LibraryFilter, useApp } from "@/state/app";
 import { useProject } from "@/state/project";
@@ -187,6 +189,19 @@ function AssetCard({
             >
               <AlertTriangle size={10} /> {asset.missing ? "Arquivo sumiu" : "Cursor sumiu"} ·
               Reconectar…
+            </button>
+          )}
+          {asset.guidedRun && !asset.missing && (
+            <button
+              type="button"
+              className="badge badge-muted badge-button"
+              title="Grava a demonstração de novo com o mesmo plano. Os clipes que usam esta mídia passam a mostrar o novo take nos mesmos pontos."
+              onClick={(e) => {
+                e.stopPropagation();
+                void rerecordGuided(asset.id);
+              }}
+            >
+              <RotateCcw size={10} /> Regravar e substituir
             </button>
           )}
           {is4k && <Badge tone="muted">4K</Badge>}
