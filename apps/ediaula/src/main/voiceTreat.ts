@@ -23,6 +23,7 @@ import {
   type VoicePreset,
   withWarmup,
 } from "../shared/voiceChain.ts";
+import { pruneCache, touch, VOICE_CACHE_BYTES } from "./cachePrune.ts";
 
 /**
  * Runs the voice chain of shared/voiceChain.ts on a media file and keeps the result: a mono
@@ -38,6 +39,8 @@ export interface TreatOptions {
   preset: Exclude<VoicePreset, "off">;
   /** Folder the cache lives in (userData/cache in the app). */
   cacheRoot: string;
+  /** Most bytes the treated voices may take (the least recently used go first). */
+  cacheBytes?: number;
   /** RNNoise model file, null when it is not shipped. */
   model: string | null;
   signal?: AbortSignal;
@@ -159,8 +162,12 @@ export function pass(
   });
 }
 
-/** Mono 48 kHz before anything else, so every pass hears the same thing. */
-const PREPARE = "aresample=48000,aformat=sample_fmts=fltp:channel_layouts=mono";
+/**
+ * Mono 48 kHz before anything else (every pass hears the same thing), from the file's second 0:
+ * a sound that starts later in its file (an MP4 whose audio begins after the picture) is padded
+ * with silence, so the treated voice keeps the source's timing.
+ */
+const PREPARE = "aresample=48000:async=1:first_pts=0,aformat=sample_fmts=fltp:channel_layouts=mono";
 /** Levels for the quietest stretch: 8 kHz 16-bit, RMS per 50 ms. */
 const LEVEL_RATE = 8000;
 const LEVEL_FRAME = 400;
@@ -172,7 +179,9 @@ export async function treatVoice(o: TreatOptions): Promise<TreatResult> {
   const method = chooseNoiseReduction(caps, o.model);
   const key = chainKey(o.preset, method);
   const out = treatedFile(o.cacheRoot, sourceHash, key, o.preset);
-  if (existsSync(out))
+  if (existsSync(out)) {
+    // Used again: the cache cleanup keeps what is in use.
+    await touch(out);
     return {
       path: out,
       preset: o.preset,
@@ -180,6 +189,7 @@ export async function treatVoice(o: TreatOptions): Promise<TreatResult> {
       noise: method.kind,
       cached: true,
     };
+  }
   mkdirSync(join(out, ".."), { recursive: true });
   const progress = (from: number, to: number) => (r: number) =>
     o.onProgress?.(from + (to - from) * r);
@@ -320,6 +330,7 @@ export async function treatVoice(o: TreatOptions): Promise<TreatResult> {
     );
     o.signal?.throwIfAborted();
     await rename(partial, out);
+    await pruneCache(join(o.cacheRoot, "voz"), o.cacheBytes ?? VOICE_CACHE_BYTES, out);
     const final = /"input_i"/.test(third.stderr) ? parseLoudnorm(third.stderr) : null;
     o.onProgress?.(1);
     return {

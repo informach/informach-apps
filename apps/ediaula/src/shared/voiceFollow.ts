@@ -3,8 +3,9 @@ import { strip } from "./cleanup.ts";
 /**
  * The teleprompter following the voice (main/voiceFollow.ts runs Whisper on the microphone's
  * 16 kHz branch). The sound is kept in a short rolling window; whenever the recognizer is free it
- * takes the newest 4 to 6 seconds (never from before the line on screen started), so a slow
- * machine skips audio instead of falling behind. A line is over when its last words are heard.
+ * takes the newest 4 to 6 seconds, so a slow machine skips audio instead of falling behind. A
+ * line is over when its last words are heard after it appeared on screen, and it ends where its
+ * last word ends (on the take's clock, from the samples' own times).
  */
 
 /** Sample rate of the branch the recognizer listens to. */
@@ -51,33 +52,94 @@ function close(a: string, b: string): boolean {
   return i + j >= Math.max(a.length, b.length) - 1;
 }
 
+/** A recognized word and its times, in seconds of the stretch that was heard. */
+export interface HeardWord {
+  text: string;
+  start: number;
+  end: number;
+}
+
 /**
- * The line's ending was heard: its last word is in `heard`, with at least half of the few words
- * before it found in order just before that. A one-word line only needs that word.
+ * Where the line's ending was heard: its last word among `heard`, with at least half of the few
+ * words before it found in order just before that (a one-word line only needs that word).
+ * Returns that last word's end, or null.
  */
-export function lineEndHeard(line: string, heard: string): boolean {
+export function lineEndAt(line: string, heard: readonly HeardWord[]): number | null {
   const want = followWords(line);
-  const got = followWords(heard);
-  if (!want.length || !got.length) return false;
+  const got = heard.flatMap((w) => followWords(w.text).map((text) => ({ text, end: w.end })));
+  if (!want.length || !got.length) return null;
   const tail = want.slice(-4);
   const last = tail[tail.length - 1];
   for (let end = got.length - 1; end >= 0; end--) {
-    if (!close(got[end], last)) continue;
-    if (tail.length === 1) return true;
+    if (!close(got[end].text, last)) continue;
+    if (tail.length === 1) return got[end].end;
     let found = 0;
     let at = end - 1;
     for (let k = tail.length - 2; k >= 0 && at >= 0; k--) {
       const limit = Math.max(0, at - 3);
       for (let j = at; j >= limit; j--)
-        if (close(got[j], tail[k])) {
+        if (close(got[j].text, tail[k])) {
           found++;
           at = j - 1;
           break;
         }
     }
-    if (found >= Math.ceil((tail.length - 1) / 2)) return true;
+    if (found >= Math.ceil((tail.length - 1) / 2)) return got[end].end;
   }
-  return false;
+  return null;
+}
+
+/**
+ * When the line on screen since `lineAt` (QPC ms) ended, from the words heard in a stretch that
+ * starts at QPC `stretchStart`: only words said after the line appeared count (the stretch may
+ * reach back before it, into the line before). The QPC moment its last word ended, or null.
+ */
+export function lineDoneAt(
+  line: string,
+  words: readonly HeardWord[],
+  stretchStart: number,
+  lineAt: number,
+): number | null {
+  const since = (lineAt - stretchStart) / 1000;
+  const end = lineEndAt(
+    line,
+    words.filter((w) => w.start >= since - 0.05),
+  );
+  return end === null ? null : stretchStart + end * 1000;
+}
+
+/** The line's ending is in this text (no times). */
+export const lineEndHeard = (line: string, heard: string): boolean =>
+  lineEndAt(
+    line,
+    heard.split(/\s+/).map((text, i) => ({ text, start: i, end: i })),
+  ) !== null;
+
+/**
+ * Words of whisper-server's verbose JSON: its tokens joined back into words (a token without a
+ * leading space belongs to the word before it).
+ */
+export function serverWords(json: unknown): HeardWord[] {
+  const out: HeardWord[] = [];
+  const segments =
+    json && typeof json === "object" && "segments" in json && Array.isArray(json.segments)
+      ? json.segments
+      : [];
+  for (const seg of segments) {
+    const words = seg && typeof seg === "object" && Array.isArray(seg.words) ? seg.words : [];
+    for (const w of words) {
+      const text = typeof w?.word === "string" ? w.word : "";
+      const start = Number(w?.start);
+      const end = Number(w?.end);
+      if (!text.trim() || !Number.isFinite(start) || !Number.isFinite(end)) continue;
+      const last = out.at(-1);
+      if (last && !/^\s/.test(text)) {
+        last.text += text;
+        last.end = Math.max(last.end, end);
+      } else out.push({ text: text.trim(), start, end });
+    }
+  }
+  return out;
 }
 
 /** The newest samples of the branch, with the moment (ms, the take's clock) of the last one. */
@@ -123,13 +185,14 @@ export class FollowWindow {
    * The stretch to recognize now, or null when there is not enough of the current line yet.
    * `line` is the moment that line appeared: a result is only used if it is still the same one.
    */
-  take(min = FOLLOW_MIN): { samples: Int16Array; end: number; line: number } | null {
+  take(min = FOLLOW_MIN): { samples: Int16Array; start: number; end: number; line: number } | null {
     // At least `min` seconds (reaching back before the line when it is young: its last words
     // are what counts), and nothing until the line has had almost a second of its own.
     const count = Math.min(this.size, Math.max(this.sinceLine, Math.round(min * this.rate)));
     if (this.sinceLine < Math.round(0.8 * this.rate) || count < this.rate) return null;
     return {
       samples: this.buf.slice(this.size - count, this.size),
+      start: this.lastAt - (count / this.rate) * 1000,
       end: this.lastAt,
       line: this.lineStart,
     };

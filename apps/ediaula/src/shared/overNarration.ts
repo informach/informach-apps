@@ -122,7 +122,7 @@ const newTrack = (kind: Track["kind"], name: string): Track => ({
  * A redo first clears the screen track over [from, to].
  */
 export function layoutOverNarration(
-  project: Pick<Project, "tracks" | "clips">,
+  project: Pick<Project, "tracks" | "clips" | "assets">,
   assets: readonly Asset[],
   result: RecordingResult,
   options: OverLayoutOptions = {},
@@ -143,9 +143,26 @@ export function layoutOverNarration(
     !clips.some((c) => c.trackId === t.id && c.start < end - 1e-3 && clipEnd(c) > start + 1e-3);
 
   let main = tracks.filter((t) => t.kind === "video" && !t.locked).at(-1);
-  if (main && plan?.replace && plan.to !== undefined)
-    clips = overwriteRange(clips, main.id, plan.from, plan.to);
-  else if (main && !free(main)) {
+  if (plan?.replace && pieces.length) {
+    // A redo replaces the screen where it is: the unlocked track with a recording's screen in
+    // the stretch, else the main one. Only what the new take covers goes (a take stopped early
+    // leaves the rest of the stretch as it was).
+    const roles = new Map(project.assets.map((a) => [a.id, a.recording?.role]));
+    const holder = tracks.find(
+      (t) =>
+        t.kind === "video" &&
+        !t.locked &&
+        clips.some(
+          (c) =>
+            c.trackId === t.id &&
+            roles.get(c.assetId) === "screen" &&
+            c.start < end - 1e-3 &&
+            clipEnd(c) > start + 1e-3,
+        ),
+    );
+    if (holder) main = holder;
+    if (main) clips = overwriteRange(clips, main.id, start, end);
+  } else if (main && !free(main)) {
     const named = tracks.find((t) => t.kind === "video" && t.name === "Tela" && free(t));
     if (named) main = named;
     else {

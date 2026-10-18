@@ -21,6 +21,8 @@ export const ENVELOPE_RATE = 100;
 export const FINE_WINDOW = 0.1;
 /** Below this the match is a guess: shown for the person to check, never placed blindly. */
 export const LOW_CONFIDENCE = 0.5;
+/** Among several exported pieces, the winner has to beat the next one by this much. */
+export const PIECE_MARGIN = 0.15;
 
 export interface SyncResult {
   /** Master seconds at the clip's second 0 (negative when the clip starts before the master). */
@@ -32,6 +34,8 @@ export interface SyncResult {
   /** Envelope correlation at the match (0..1) and the best one elsewhere. */
   peak: number;
   second: number;
+  /** Waveform correlation of the fine search (-1 when it found no stretch to compare). */
+  fine: number;
 }
 
 /* ----- FFT ----- */
@@ -262,25 +266,28 @@ function fine(
   guess: number,
   window: number,
 ): { lag: number; ncc: number } {
+  if (to - from < 16) return { lag: guess, ncc: -1 };
   const seg = new Float64Array(to - from);
   for (let i = from; i < to; i++) seg[i - from] = clip[i];
   const m0 = Math.max(0, guess + from - window);
   const m1 = Math.min(master.length, guess + to + window);
-  if (m1 - m0 < seg.length / 2) return { lag: guess, ncc: 0 };
+  if (m1 - m0 < seg.length / 2) return { lag: guess, ncc: -1 };
   const region = new Float64Array(m1 - m0);
   for (let i = m0; i < m1; i++) region[i - m0] = master[i];
   const { lags, first } = normalizedCorrelation(region, seg, Math.round(seg.length * 0.8));
   let best = -2;
-  let at = 0;
+  let at = -1;
   for (let i = 0; i < lags.length; i++) {
-    // Only the lags inside the window around the guess.
+    // Only the lags inside the window around the guess, and only where both overlap enough
+    // (-1): a window with none of those is a failed search, not a match at its edge.
     const lag = m0 + i + first - from;
-    if (Math.abs(lag - guess) > window) continue;
+    if (Math.abs(lag - guess) > window || lags[i] <= -1) continue;
     if (lags[i] > best) {
       best = lags[i];
       at = i;
     }
   }
+  if (at < 0) return { lag: guess, ncc: -1 };
   return { lag: m0 + at + parabolic(lags, at) + first - from, ncc: best };
 }
 
@@ -345,7 +352,7 @@ export function locate(
   const em = shape(envelope(master, rate));
   const ec = shape(envelope(clip, rate));
   if (em.length < 10 || ec.length < 10)
-    return { offset: 0, confidence: 0, scale: 1, peak: 0, second: 0 };
+    return { offset: 0, confidence: 0, scale: 1, peak: 0, second: 0, fine: -1 };
   const around = options.around?.map((s) => Math.round(s * ENVELOPE_RATE)) as
     | [number, number]
     | undefined;
@@ -374,16 +381,54 @@ export function locate(
   const guess = Math.round(c.lag * frame);
   const window = Math.round(FINE_WINDOW * rate);
   const [from, to] = loudest(corrected, rate, scale === 1 ? 8 : 4);
-  const offset = fine(master, corrected, from, to, guess, window).lag / rate;
+  const f = fine(master, corrected, from, to, guess, window);
+  const offset = f.lag / rate;
+  // The envelope says the clip fits there and nowhere else; the waveform, that it really is the
+  // same sound there. Both have to agree; a fine search that found nothing is a failure.
   const distinct = c.peak > 0 ? Math.max(0, (c.peak - c.second) / c.peak) : 0;
-  const confidence = Math.max(0, Math.min(1, c.peak * Math.min(1, distinct * 2.5)));
+  const envelopeScore = Math.max(0, Math.min(1, c.peak * Math.min(1, distinct * 2.5)));
+  const fineScore = f.ncc <= -1 ? 0 : Math.max(0, Math.min(1, (f.ncc - 0.2) / 0.5));
+  const confidence = Math.min(envelopeScore, fineScore);
   return {
     offset: Math.round(offset * 1e5) / 1e5,
     confidence: Math.round(confidence * 1000) / 1000,
     scale: Math.round(scale * 1e6) / 1e6,
     peak: Math.round(c.peak * 1000) / 1000,
     second: Math.round(c.second * 1000) / 1000,
+    fine: Math.round(f.ncc * 1000) / 1000,
   };
+}
+
+export interface PieceMatch {
+  piece: number;
+  result: SyncResult;
+}
+
+/** Every exported piece, best match first (ties keep the order given: newest first). */
+export function rankPieces(
+  pieces: readonly ArrayLike<number>[],
+  clip: ArrayLike<number>,
+  options: LocateOptions = {},
+): PieceMatch[] {
+  return pieces
+    .map((master, piece) => ({ piece, result: locate(master, clip, options) }))
+    .sort((a, b) => b.result.confidence - a.result.confidence || a.piece - b.piece);
+}
+
+/**
+ * The piece the clip fits best, and whether that choice is clear: the next one must be
+ * PIECE_MARGIN behind, unless `same` says the two would put it at the same place (the same voice
+ * exported twice).
+ */
+export function choosePiece(
+  ranked: readonly PieceMatch[],
+  same: (a: PieceMatch, b: PieceMatch) => boolean = () => false,
+): (PieceMatch & { ambiguous: boolean }) | null {
+  const [best, next] = ranked;
+  if (!best) return null;
+  const ambiguous =
+    !!next && best.result.confidence - next.result.confidence < PIECE_MARGIN && !same(best, next);
+  return { ...best, ambiguous };
 }
 
 /** The piece of a master (several exported files) where the clip fits best, and where in it. */
@@ -391,11 +436,6 @@ export function locateInPieces(
   pieces: readonly ArrayLike<number>[],
   clip: ArrayLike<number>,
   options: LocateOptions = {},
-): { piece: number; result: SyncResult } | null {
-  let best: { piece: number; result: SyncResult } | null = null;
-  pieces.forEach((master, piece) => {
-    const result = locate(master, clip, options);
-    if (!best || result.confidence > best.result.confidence) best = { piece, result };
-  });
-  return best;
+): (PieceMatch & { ambiguous: boolean }) | null {
+  return choosePiece(rankPieces(pieces, clip, options));
 }

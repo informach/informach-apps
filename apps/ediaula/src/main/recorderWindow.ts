@@ -1,5 +1,5 @@
 import { existsSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { type DesktopJob, desktopJobs } from "@informach/edi-desktop/jobs";
 import { desktopFiles, desktopIpc as ipcMain } from "@informach/edi-desktop/main";
 import {
@@ -50,7 +50,7 @@ import { readRecorderSettings, writeRecorderSettings } from "./recorderSettings.
 import { scheduler } from "./scheduler.ts";
 import { renderVoiceCached, voiceSegmentsSchema } from "./voiceFiles.ts";
 import { type FollowState, liveModel, VoiceFollower } from "./voiceFollow.ts";
-import { engineStatus } from "./whisper.ts";
+import { checkedEngine, engineStatus } from "./whisper.ts";
 
 /**
  * The recorder is a transparent window over the monitor being recorded: region frame,
@@ -335,37 +335,58 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
   const followState = (state: FollowState, message: string): void => {
     overlay?.webContents.send("recorder:followState", { state, message });
   };
+  /** Each start or end of the following moves this on: a start that finds it moved gives up. */
+  let followTurn = 0;
+  /** Starts and ends run one after another, so two servers never run at once. */
+  let followQueue: Promise<void> = Promise.resolve();
   const endFollow = (): void => {
+    followTurn++;
     follower?.stop();
     follower = null;
   };
   /** Starts the recognizer for a voice take; without the engine, only the shortcuts move lines. */
-  const startFollow = async (): Promise<void> => {
+  const startFollow = (): Promise<void> => {
     endFollow();
-    const status = await engineStatus();
-    const model = liveModel(status.models, status.model);
-    if (!status.bin || !model) {
-      followState(
-        "unavailable",
-        "Para o teleprompter acompanhar a voz, instale o motor e um modelo na aba Transcrição. Por enquanto, use o atalho.",
-      );
-      return;
-    }
-    const f = new VoiceFollower({
-      engine: { cli: status.bin, model, cpu: status.variant === "cpu" },
-      lines: context.teleprompter.map((l) => l.text),
-      language: "pt",
-      onLineDone: (index) => overlay?.webContents.send("recorder:follow", index),
-      onState: followState,
+    const turn = followTurn;
+    followQueue = followQueue.then(async () => {
+      if (turn !== followTurn) return;
+      try {
+        const status = await engineStatus();
+        const model = liveModel(status.models, status.model);
+        if (!status.bin || !model) {
+          followState(
+            "unavailable",
+            "Para o teleprompter acompanhar a voz, instale o motor e um modelo na aba Transcrição. Por enquanto, use o atalho.",
+          );
+          return;
+        }
+        // Checked like a transcription: the engine folder against its manifest, the model
+        // against its published hash (main/whisper.ts).
+        const engine = await checkedEngine(model);
+        if (turn !== followTurn) return;
+        const f = new VoiceFollower({
+          engine: {
+            server: join(dirname(engine.cli), "whisper-server.exe"),
+            model: model.path,
+            cpu: engine.variant === "cpu",
+          },
+          lines: context.teleprompter.map((l) => l.text),
+          language: "pt",
+          pidFile: join(app.getPath("userData"), "whisper", "follow-server.pid"),
+          onLineDone: (line, at) => overlay?.webContents.send("recorder:follow", { line, at }),
+          onState: followState,
+        });
+        follower = f;
+        await f.start();
+      } catch (error) {
+        if (turn === followTurn) endFollow();
+        followState(
+          "unavailable",
+          `O teleprompter não vai acompanhar a voz (${error instanceof Error ? error.message : String(error)}). Use o atalho.`,
+        );
+      }
     });
-    follower = f;
-    await f.start().catch((error: unknown) => {
-      if (follower === f) endFollow();
-      followState(
-        "unavailable",
-        `O teleprompter não vai acompanhar a voz (${error instanceof Error ? error.message : String(error)}). Use o atalho.`,
-      );
-    });
+    return followQueue;
   };
 
   // ---- the take's status, events and health ----
@@ -535,8 +556,15 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
         }),
     );
   });
-  ipcMain.handle("recorder:teleprompterLine", (_e, index: unknown) =>
-    rec.teleprompterLine(z.int().nonnegative().max(100000).parse(index)),
+  /**
+   * The teleprompter moved to a line: by a shortcut (now), or because the voice finished the line
+   * before (`at`: the QPC moment its last word ended, sent with recorder:follow).
+   */
+  ipcMain.handle("recorder:teleprompterLine", (_e, index: unknown, at: unknown) =>
+    rec.teleprompterLine(
+      z.int().nonnegative().max(100000).parse(index),
+      z.number().finite().positive().optional().parse(at),
+    ),
   );
   /** The main process's clock (QPC ms), for the recorder window to convert its own. */
   ipcMain.handle("recorder:clock", () => qpc());

@@ -331,6 +331,7 @@ export function Preview(): ReactNode {
         // picture is silent; its voice element plays the sound instead.
         el.muted =
           track.muted ||
+          !!c.mutedFor ||
           !asset.hasAudio ||
           (!!tail && t >= clipEnd(c) - tail) ||
           (!voice && el instanceof HTMLVideoElement && needsVoice(asset, original));

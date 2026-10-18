@@ -1,13 +1,23 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { pruneCache } from "../src/main/cachePrune.ts";
 import { decodeMono } from "../src/main/heygen.ts";
 import { treatVoice } from "../src/main/voiceTreat.ts";
 import { locate } from "../src/shared/audioSync.ts";
@@ -22,7 +32,16 @@ import {
   VOICE_CHAIN_VERSION,
   VOICE_LOUDNESS,
 } from "../src/shared/voiceChain.ts";
-import { hiss, mixInto, pink, readWav, rmsDb, speech, writeWav } from "./helpers/voice.ts";
+import {
+  highpass,
+  hiss,
+  mixInto,
+  pink,
+  readWav,
+  rmsDb,
+  speech,
+  writeWav,
+} from "./helpers/voice.ts";
 
 const run = promisify(execFile);
 const here = dirname(fileURLToPath(import.meta.url));
@@ -44,23 +63,30 @@ const tmp = mkdtempSync(join(tmpdir(), "ediaula-voz-"));
 after(() => rmSync(tmp, { recursive: true, force: true }));
 
 const R = 48000;
-/** Speech in 1.5–5 s and 7–10.5 s over hiss and a little room noise; pauses elsewhere. */
+/**
+ * Speech in 1.5 to 5 s and 7 to 10.5 s over hiss and a little room noise; pauses elsewhere. The speech
+ * has no fricatives, so what is above 8 kHz while it speaks is the hiss under the voice.
+ */
 function noisyVoice(): string {
   const v = hiss(12, R, 3, 0.006);
   mixInto(v, pink(12, R, 4, 0.002));
-  mixInto(v, speech(3.5, R, 5, 0.35), 1.5 * R);
-  mixInto(v, speech(3.5, R, 6, 0.3), 7 * R);
+  mixInto(v, speech(3.5, R, 5, 0.35, false), 1.5 * R);
+  mixInto(v, speech(3.5, R, 6, 0.3, false), 7 * R);
   const path = join(tmp, "voz com chiado.wav");
   writeWav(path, v, R);
   return path;
 }
 
-/** Speech level against the pause noise, dB. */
-function snr(path: string): { speech: number; noise: number; snr: number } {
+/**
+ * Speech level against the noise: in the pause, and under the speech (the hiss above 8 kHz while
+ * the voice speaks, where the expander is open and only the noise reduction acts), dB.
+ */
+function snr(path: string): { speech: number; noise: number; snr: number; under: number } {
   const { samples, rate } = readWav(path);
   const s = rmsDb(samples, rate, 1.7, 4.8);
   const noise = rmsDb(samples, rate, 5.5, 6.5);
-  return { speech: s, noise, snr: s - noise };
+  const hiss = rmsDb(highpass(samples, rate, 8000), rate, 1.7, 4.8);
+  return { speech: s, noise, snr: s - noise, under: s - hiss };
 }
 
 async function ebur128(ffmpeg: string, path: string): Promise<{ I: number; peak: number }> {
@@ -147,7 +173,29 @@ for (const [label, ffmpeg] of [
     );
     assert.ok(Math.abs(loud.I - VOICE_LOUDNESS.I) <= 0.5, `loudness ${loud.I}`);
     assert.ok(loud.peak <= VOICE_LOUDNESS.TP + 0.2, `pico ${loud.peak}`);
-    assert.ok(after.snr - before.snr >= 10, `${before.snr} → ${after.snr}`);
+    // The noise under the voice against the same chain without noise reduction (its expander
+    // and de-esser alike): the reduction itself, not the expander, takes the hiss 10 dB down.
+    const plain = join(tmp, `sem redução ${label.length}.wav`);
+    const without = chainFilter("teacher", { kind: "none" }, -30) ?? "";
+    await run(ffmpeg, [
+      "-y",
+      "-v",
+      "error",
+      "-i",
+      source,
+      "-af",
+      without,
+      "-c:a",
+      "pcm_s16le",
+      plain,
+    ]);
+    const untreated = snr(plain);
+    t.diagnostic(
+      `${label}: chiado sob a fala ${before.under.toFixed(1)} dB abaixo da voz; sem redução ${untreated.under.toFixed(1)} dB; com ${after.under.toFixed(1)} dB`,
+    );
+    assert.ok(after.under - untreated.under >= 10, `${untreated.under} → ${after.under}`);
+    // The expander leaves the pauses quieter, never silent.
+    assert.ok(Number.isFinite(after.noise) && after.noise > -110, `pausa em ${after.noise} dBFS`);
     const wav = readWav(first.path);
     assert.equal(wav.rate, 48000);
     // Same timing and length as the source: the denoiser's and the limiter's delays taken back.
@@ -157,11 +205,76 @@ for (const [label, ffmpeg] of [
     const shift = locate(original, treatedSound, { drift: false }).offset;
     t.diagnostic(`${label}: deslocamento do tratado ${(shift * 1000).toFixed(2)} ms`);
     assert.ok(Math.abs(shift) < 0.001, `deslocado ${shift} s`);
-    const mtime = statSync(first.path).mtimeMs;
+    const bytes = readFileSync(first.path);
     const again = await treatVoice({ ffmpeg, source, preset: "teacher", cacheRoot, model: MODEL });
     assert.equal(again.cached, true);
     assert.equal(again.path, first.path);
-    assert.equal(statSync(first.path).mtimeMs, mtime);
+    assert.deepEqual(readFileSync(first.path), bytes, "o mesmo arquivo, sem rodar de novo");
     const soft = await treatVoice({ ffmpeg, source, preset: "soft", cacheRoot, model: MODEL });
     assert.notEqual(soft.path, first.path, "outro ajuste, outro arquivo");
   });
+
+test("a voz de um MP4 cujo som começa depois da imagem mantém o tempo do arquivo", {
+  timeout: 120000,
+}, async () => {
+  const voice = join(tmp, "fala curta.wav");
+  writeWav(voice, speech(3, R, 31, 0.4), R);
+  const mp4 = join(tmp, "som atrasado.mp4");
+  await run(STATIC, [
+    "-y",
+    "-v",
+    "error",
+    "-f",
+    "lavfi",
+    "-i",
+    "color=c=blue:s=160x90:r=25:d=4",
+    "-itsoffset",
+    "0.5",
+    "-i",
+    voice,
+    "-map",
+    "0:v",
+    "-map",
+    "1:a",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "ultrafast",
+    "-c:a",
+    "aac",
+    mp4,
+  ]);
+  const treated = await treatVoice({
+    ffmpeg: STATIC,
+    source: mp4,
+    preset: "teacher",
+    cacheRoot: join(tmp, "cache-mp4"),
+    model: MODEL,
+  });
+  // The file's own sound from its second 0 (the half second of silence included).
+  const original = await decodeMono(STATIC, mp4);
+  const out = await decodeMono(STATIC, treated.path);
+  assert.ok(Math.abs(out.length - original.length) <= 80, `${out.length} vs ${original.length}`);
+  const shift = locate(original, out, { drift: false }).offset;
+  assert.ok(Math.abs(shift) < 0.002, `deslocado ${shift} s`);
+});
+
+test("o cache da voz guarda até o limite, tirando antes o que foi usado há mais tempo", async () => {
+  const dir = join(tmp, "cache-lru", "voz");
+  const files = ["a", "b", "c"].map((name, i) => {
+    const sub = join(dir, name);
+    const path = join(sub, `${name}.wav`);
+    mkdirSync(sub, { recursive: true });
+    writeFileSync(path, Buffer.alloc(1000));
+    // a is the oldest use, c the newest.
+    const at = new Date(Date.now() - (3 - i) * 60_000);
+    utimesSync(path, at, at);
+    return path;
+  });
+  const removed = await pruneCache(dir, 2000, files[0]);
+  // a is kept (just made), b is the oldest of the rest.
+  assert.deepEqual(removed, [files[1]]);
+  assert.ok(existsSync(files[0]) && existsSync(files[2]));
+  assert.deepEqual(await pruneCache(dir, 5000), []);
+  assert.equal(statSync(files[2]).size, 1000);
+});

@@ -16,7 +16,6 @@ import {
   importHeygenVideos,
   proposeVoiceCleanup,
   treatVoices,
-  useHeygenAsk,
   useHeygenReview,
   useVoiceListen,
   voiceTargets,
@@ -24,7 +23,7 @@ import {
 import { useApp } from "@/state/app";
 import { playback } from "@/state/playback";
 import { useProject } from "@/state/project";
-import { Button, Modal, Toggle } from "@/ui";
+import { Button, Toggle } from "@/ui";
 
 const SCOPES: { id: VoiceMaster["scope"]; label: string }[] = [
   { id: "lesson", label: "Aula inteira" },
@@ -53,7 +52,7 @@ export function VoiceSection(): ReactNode {
   const treating = targets.some((a) => a.treatStatus === "pending");
   const ready = targets.filter((a) => treatedPath(a)).length;
   const hasVoice = voiceClips(project).length > 0;
-  const master = project.voiceMaster;
+  const master = project.voiceMasters?.at(-1);
   const stale = master ? masterIsStale(project, master) : false;
   const run = async (label: string, work: () => Promise<unknown>): Promise<void> => {
     setBusy(label);
@@ -162,7 +161,9 @@ export function VoiceSection(): ReactNode {
           <p className="props-hint muted">
             Última exportação: {master.pieces.length} arquivo(s),{" "}
             {new Date(master.createdAt).toLocaleString("pt-BR")}.
-            {stale ? " A voz mudou depois disso: o vídeo do HeyGen pode não bater." : ""}
+            {stale
+              ? " A voz mudou depois disso: o vídeo que voltar segue os cortes, mas confira os trechos que mudaram."
+              : ""}
           </p>
         )}
         <Button
@@ -197,33 +198,6 @@ export function VoiceSection(): ReactNode {
   );
 }
 
-/** Asks what to do with HeyGen videos when the voice changed after it was exported. */
-function StaleDialog(): ReactNode {
-  const ask = useHeygenAsk((s) => s.ask);
-  if (!ask) return null;
-  const answer = (choice: "audio" | "export" | "cancel"): void => {
-    useHeygenAsk.setState({ ask: null });
-    ask(choice);
-  };
-  return (
-    <Modal label="A voz mudou depois de ir para o HeyGen" onClose={() => answer("cancel")}>
-      <h2 className="modal-title">A voz mudou depois de ir para o HeyGen</h2>
-      <p>
-        A faixa Voz foi editada depois da última exportação, então o vídeo do HeyGen pode não bater
-        com ela. Dá para encaixar pelo som mesmo assim (o app procura o melhor lugar na voz de
-        agora) ou exportar a voz de novo e levar os arquivos novos ao HeyGen.
-      </p>
-      <div className="modal-actions">
-        <Button onClick={() => answer("cancel")}>Cancelar</Button>
-        <Button onClick={() => answer("export")}>Exportar a voz de novo</Button>
-        <Button variant="primary" onClick={() => answer("audio")}>
-          Encaixar pelo som mesmo assim
-        </Button>
-      </div>
-    </Modal>
-  );
-}
-
 /** Doubtful HeyGen matches, each with its best guess for the person to check. */
 function ReviewBar(): ReactNode {
   const items = useHeygenReview((s) => s.items);
@@ -236,9 +210,10 @@ function ReviewBar(): ReactNode {
         <div key={g.id} className="proposal-head">
           <Sparkles size={14} className="accent" />
           <span>
-            Encaixe incerto: <strong>{g.name}</strong>
-            {g.at !== null ? ` parece começar em ${clock(g.at)}` : " não achou lugar na voz atual"}{" "}
-            ( confiança {Math.round(g.result.confidence * 100)}%). Confira antes de encaixar.
+            Encaixe incerto de <strong>{g.name}</strong> ({g.why}):{" "}
+            {g.at !== null
+              ? `o melhor palpite começa em ${clock(g.at)}. Confira antes de encaixar.`
+              : "não achou lugar na voz atual."}
           </span>
           {g.at !== null && (
             <Button size="sm" onClick={() => playback.seek(g.at ?? 0)}>
@@ -262,12 +237,7 @@ function ReviewBar(): ReactNode {
   );
 }
 
-/** Mounted once in the editor. */
+/** Mounted once in the editor: the review of doubtful HeyGen placements. */
 export function HeygenDialogs(): ReactNode {
-  return (
-    <>
-      <StaleDialog />
-      <ReviewBar />
-    </>
-  );
+  return <ReviewBar />;
 }

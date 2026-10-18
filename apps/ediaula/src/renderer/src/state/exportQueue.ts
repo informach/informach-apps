@@ -72,11 +72,14 @@ export const exportQueue = new ExportQueue(
         spec.burnAss = buildAss([], DEFAULT_CAPTION_STYLE, spec.width, spec.height, keys);
       if (project.tracks.some((t) => t.music)) spec.speech = await projectSpeech(project);
       check();
-      // A voice whose treatment is not ready yet is treated now: the export plays what the
-      // preview plays (shared/voiceChain.ts).
+      // A voice whose treatment is not ready yet (or whose file is gone) is treated now: the
+      // export plays what the preview plays (shared/voiceChain.ts).
       for (const a of project.assets) {
         const preset = a.voicePreset ?? "off";
-        if (!used.has(a.id) || !a.hasAudio || preset === "off" || treatedPath(a)) continue;
+        if (!used.has(a.id) || !a.hasAudio || preset === "off") continue;
+        // A treated file that the cache cleanup took is made again (the same file comes back).
+        const ready = treatedPath(a);
+        if (ready && (await window.api.exists([ready]))[0]) continue;
         status("preparing", `Tratando a voz: ${a.name}`);
         const treated = await window.api.treatVoice(id, a.path, preset);
         check();

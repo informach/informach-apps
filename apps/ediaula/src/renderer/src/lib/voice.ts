@@ -1,9 +1,10 @@
-import { LOW_CONFIDENCE, type SyncResult } from "@shared/audioSync";
+import type { PieceMatch } from "@shared/audioSync";
 import { timelineWords } from "@shared/cleanup";
 import { AVATAR_FADE, defaultTransformFor, placementTransform } from "@shared/compose";
+import { type HeygenCandidate, masterCandidates, planHeygenVideo } from "@shared/heygenImport";
 import { speechItems } from "@shared/script";
 import { clipEnd, newId, newTrackName, splitClip } from "@shared/timeline";
-import type { Asset, Clip, Project, Track, VoiceMaster, VoiceMasterPiece } from "@shared/types";
+import type { Asset, Clip, Project, Track, VoiceMaster } from "@shared/types";
 import { treatedPath, VOICE_PRESET_LABELS, type VoicePreset } from "@shared/voiceChain";
 import { cleanupSummary, voiceCleanup, waveSilences } from "@shared/voiceCleanup";
 import {
@@ -11,14 +12,15 @@ import {
   heygenPlacements,
   insertPieces,
   lessonPieces,
-  masterIsStale,
   type PieceSpec,
   pieceToTimeline,
+  repeatedLabels,
   sectionPieces,
   sourceMapFor,
   voiceClips,
   voiceSegments,
   voiceSpan,
+  withMaster,
 } from "@shared/voiceMaster";
 import { create } from "zustand";
 import { useApp } from "@/state/app";
@@ -33,7 +35,7 @@ import { cleanError, loadProjectTranscripts } from "./transcripts";
 /**
  * The teacher's voice in the editor: its treatment (shared/voiceChain.ts), the cleanup before
  * HeyGen (shared/voiceCleanup.ts), the export of the voice for HeyGen and the MP4s that come back
- * (shared/voiceMaster.ts, shared/audioSync.ts).
+ * (shared/voiceMaster.ts, shared/heygenImport.ts, shared/audioSync.ts).
  */
 
 /** A/B in the audio panel: the preview plays the original voice while this is on. */
@@ -59,7 +61,59 @@ export function voiceTargets(project: Project, selection: readonly string[]): As
   return [...new Map(pool.map((a) => [a.id, a])).values()];
 }
 
-const running = new Map<string, string>();
+/** Treatments under way, by media: asking again waits for the same one. */
+const running = new Map<string, { preset: VoicePreset; done: Promise<void> }>();
+
+/** The treated file of a media is there on disk (a cache that was cleaned up is not). */
+async function treatedReady(asset: Asset): Promise<boolean> {
+  const path = treatedPath(asset);
+  if (!path) return false;
+  const [there] = await window.api.exists([path]);
+  return there;
+}
+
+/** Treats one media with this preset, or waits for the treatment already running for it. */
+function treatOne(id: string, preset: Exclude<VoicePreset, "off">): Promise<void> {
+  const current = running.get(id);
+  if (current?.preset === preset) return current.done;
+  const done = (async () => {
+    const { patchAsset } = useProject.getState();
+    const { startJob, endJob, toast } = useApp.getState();
+    const asset = useProject.getState().project?.assets.find((a) => a.id === id);
+    if (!asset || asset.missing || (await treatedReady(asset))) return;
+    const jobId = newId("job");
+    const before = asset.treatStatus === "pending" ? undefined : asset.treatStatus;
+    patchAsset(id, { treatStatus: "pending" });
+    startJob(jobId, `Tratando a voz: ${asset.name}`);
+    try {
+      const result = await window.api.treatVoice(jobId, asset.path, preset);
+      // A preset chosen again meanwhile keeps its own result.
+      const now = useProject.getState().project?.assets.find((a) => a.id === id);
+      if (now && (now.voicePreset ?? "off") === result.preset)
+        patchAsset(id, {
+          treated: { path: result.path, preset: result.preset, version: result.version },
+          treatStatus: "ready",
+        });
+      else patchAsset(id, { treatStatus: before });
+      toast(
+        `Voz tratada (${VOICE_PRESET_LABELS[preset]}): ${asset.name}${result.cached ? ", do cache" : ""}.`,
+        "success",
+      );
+    } catch (err) {
+      // Cancelled: back to how it was. Failed: said so.
+      const cancelled = /Cancelado/.test(cleanError(err));
+      patchAsset(id, { treatStatus: cancelled ? before : "error" });
+      if (!cancelled)
+        toast(`Não foi possível tratar a voz de ${asset.name}: ${cleanError(err)}`, "error");
+    } finally {
+      endJob(jobId);
+    }
+  })().finally(() => {
+    if (running.get(id)?.done === done) running.delete(id);
+  });
+  running.set(id, { preset, done });
+  return done;
+}
 
 /**
  * Sets the preset of these media (one Ctrl+Z) and treats each one that has no treated voice
@@ -79,37 +133,22 @@ export async function treatVoices(
       assets: p.assets.map((a) => (set.has(a.id) ? { ...a, voicePreset: preset } : a)),
     }));
   if (preset === "off") return;
-  const { patchAsset } = useProject.getState();
-  const { startJob, endJob, toast } = useApp.getState();
-  for (const id of ids) {
-    const asset = useProject.getState().project?.assets.find((a) => a.id === id);
-    if (!asset || asset.missing || treatedPath(asset) || running.get(id) === preset) continue;
-    const jobId = newId("job");
-    running.set(id, preset);
-    patchAsset(id, { treatStatus: "pending" });
-    startJob(jobId, `Tratando a voz: ${asset.name}`);
-    try {
-      const result = await window.api.treatVoice(jobId, asset.path, preset);
-      // A preset chosen again meanwhile keeps its own result.
-      const now = useProject.getState().project?.assets.find((a) => a.id === id);
-      if (now && (now.voicePreset ?? "off") === result.preset)
-        patchAsset(id, {
-          treated: { path: result.path, preset: result.preset, version: result.version },
-          treatStatus: "ready",
-        });
-      toast(
-        `Voz tratada (${VOICE_PRESET_LABELS[preset]}): ${asset.name}${result.cached ? ", do cache" : ""}.`,
-        "success",
-      );
-    } catch (err) {
-      if (!/Cancelado/.test(cleanError(err))) {
-        patchAsset(id, { treatStatus: "error" });
-        toast(`Não foi possível tratar a voz de ${asset.name}: ${cleanError(err)}`, "error");
-      }
-    } finally {
-      if (running.get(id) === preset) running.delete(id);
-      endJob(jobId);
-    }
+  for (const id of ids) await treatOne(id, preset);
+}
+
+/**
+ * Every media with a preset (or the ones in `ids`) gets its treated voice, each with its own
+ * preset, waiting for the treatments already running: the export and HeyGen get the voice the
+ * lesson plays. A treated file that went missing is made again.
+ */
+export async function ensureTreated(ids?: readonly string[]): Promise<void> {
+  const p = useProject.getState().project;
+  if (!p) return;
+  const wanted = ids ? new Set(ids) : null;
+  for (const a of p.assets) {
+    const preset = a.voicePreset ?? "off";
+    if (preset === "off" || a.missing || !a.hasAudio || (wanted && !wanted.has(a.id))) continue;
+    await treatOne(a.id, preset);
   }
 }
 
@@ -154,14 +193,13 @@ export async function proposeVoiceCleanup(by = "voz"): Promise<string> {
     s.filler ? `${s.filler} vício(s)` : "",
     s.silence ? `${s.silence} silêncio(s)` : "",
   ].filter(Boolean);
-  const message = await showProposal(
+  return showProposal(
     p,
     `Limpeza da voz: ${parts.join(", ")}`,
     items.map((i) => ({ start: i.start, end: i.end, reason: i.reason })),
     revision,
     by,
   );
-  return message;
 }
 
 /** The pieces of the voice for HeyGen in a scope; empty with the reason when there are none. */
@@ -190,7 +228,10 @@ export async function heygenPieces(
       };
 }
 
-/** Writes the voice for HeyGen beside the project and keeps the voice master in the lesson. */
+/**
+ * Writes the voice for HeyGen in a new folder beside the project and keeps that export among
+ * the lesson's voice masters (an MP4 that comes back is compared with all of them).
+ */
 export async function exportForHeygen(scope: VoiceMaster["scope"]): Promise<boolean> {
   const { toast, startJob, endJob } = useApp.getState();
   const state = useProject.getState();
@@ -200,20 +241,21 @@ export async function exportForHeygen(scope: VoiceMaster["scope"]): Promise<bool
     toast("Salve a aula antes de exportar a voz.", "error");
     return false;
   }
-  // Voices still being treated are treated first: HeyGen gets the voice the lesson plays.
-  const pending = voiceClips(p)
-    .map((c) => p.assets.find((a) => a.id === c.assetId))
-    .filter((a): a is Asset => !!a && (a.voicePreset ?? "off") !== "off" && !treatedPath(a));
-  if (pending.length)
-    await treatVoices(
-      pending.map((a) => a.id),
-      pending[0].voicePreset ?? "teacher",
-    );
+  // Voices still being treated are waited for: HeyGen gets the voice the lesson plays.
+  await ensureTreated(voiceClips(p).map((c) => c.assetId));
   const project = useProject.getState().project;
   if (!project || project.id !== p.id) return false;
   const { pieces, problem } = await heygenPieces(project, scope);
   if (!pieces.length) {
     toast(problem ?? "Nada para exportar.", "error");
+    return false;
+  }
+  const repeated = repeatedLabels(pieces);
+  if (repeated.length) {
+    toast(
+      `Duas partes da voz ficariam com o mesmo nome (${repeated.join(", ")}). Corrija o roteiro para que cada inserção tenha um código só.`,
+      "error",
+    );
     return false;
   }
   const jobId = newId("job");
@@ -227,10 +269,12 @@ export async function exportForHeygen(scope: VoiceMaster["scope"]): Promise<bool
       pieces,
     );
     if (useProject.getState().project?.id !== project.id) return false;
-    // A note of what was sent, not an edit: undo does not take it back.
-    useProject.getState().patch((q) => ({ ...q, voiceMaster: master }));
+    // A note of what was sent, not an edit: undo does not take it back (shared/history.ts).
+    useProject
+      .getState()
+      .patch((q) => ({ ...q, voiceMasters: withMaster(q.voiceMasters ?? [], master) }));
     toast(
-      `${master.pieces.length} arquivo(s) na pasta "Para o HeyGen". Leve estes arquivos ao HeyGen e traga o MP4 de volta com Importar vídeo do HeyGen.`,
+      `${master.pieces.length} arquivo(s) numa pasta nova dentro de "Para o HeyGen". Leve estes arquivos ao HeyGen e traga o MP4 de volta com Importar vídeo do HeyGen.`,
       "success",
     );
     await window.api.showInFolder(master.pieces[0].file);
@@ -245,28 +289,22 @@ export async function exportForHeygen(scope: VoiceMaster["scope"]): Promise<bool
 
 /* ----- The MP4s that come back ----- */
 
-/** A match found with too little confidence: shown for the person to check, never placed blind. */
+/** A match too unsure to place: shown for the person to check, never placed blind. */
 export interface HeygenGuess {
   id: string;
   assetId: string;
   name: string;
-  piece: Pick<VoiceMasterPiece, "label" | "sourceMap">;
-  result: SyncResult;
+  candidate: HeygenCandidate;
+  match: PieceMatch;
   duration: number;
   /** Timeline second the best guess puts the video's start at (null: nowhere on it now). */
   at: number | null;
+  /** Why it is doubtful, for the bar. */
+  why: string;
   useSound: boolean;
 }
 
 export const useHeygenReview = create<{ items: HeygenGuess[] }>(() => ({ items: [] }));
-
-/** The person's answer when the voice changed after it went to HeyGen. */
-type StaleChoice = "audio" | "export" | "cancel";
-export const useHeygenAsk = create<{ ask: ((choice: StaleChoice) => void) | null }>(() => ({
-  ask: null,
-}));
-const askStale = (): Promise<StaleChoice> =>
-  new Promise((resolve) => useHeygenAsk.setState({ ask: resolve }));
 
 /** The top video track free over [a, b] (above everything playing there), or a new one on top. */
 function avatarTrack(
@@ -296,7 +334,10 @@ function avatarTrack(
   return { tracks: [track, ...p.tracks], track };
 }
 
-/** The voice clips under [a, b] go silent there (split at the edges): HeyGen's sound plays. */
+/**
+ * The voice clips under [a, b] go silent there (split at the edges) while HeyGen's sound plays.
+ * They keep their volume and stay the lesson's voice (Clip.mutedFor).
+ */
 function silenceVoice(p: Project, clips: Clip[], a: number, b: number): Clip[] {
   const voice = new Set(voiceClips(p).map((c) => c.id));
   const out: Clip[] = [];
@@ -305,21 +346,23 @@ function silenceVoice(p: Project, clips: Clip[], a: number, b: number): Clip[] {
       out.push(c);
       continue;
     }
-    let rest: Clip | null = c;
+    let rest: Clip = c;
     const left = splitClip(rest, a);
     if (left) {
       out.push(left[0]);
       rest = left[1];
     }
     const right = splitClip(rest, b);
-    if (right) {
-      out.push({ ...right[0], volume: 0 }, right[1]);
-    } else out.push({ ...rest, volume: 0 });
+    if (right) out.push({ ...right[0], mutedFor: "heygen" }, right[1]);
+    else out.push({ ...rest, mutedFor: "heygen" });
   }
   return out;
 }
 
-/** The HeyGen video's clips on the timeline, as one edit. */
+/**
+ * The HeyGen video's clips on the timeline, as one edit. Each run of clips that touch fades in
+ * at its start and out at its end, and nowhere between.
+ */
 function placeVideo(
   p: Project,
   asset: Asset,
@@ -336,11 +379,17 @@ function placeVideo(
     portrait || asset.screen
       ? placementTransform(p.settings.width > p.settings.height ? "right" : "full")
       : defaultTransformFor(asset, p.settings);
+  const touches = (x: number, y: number): boolean => Math.abs(x - y) < 0.002;
   let clips = useSound ? silenceVoice(p, p.clips, a, b) : p.clips;
   clips = [
     ...clips,
-    ...placements.map(
-      (x, i): Clip => ({
+    ...placements.map((x, i): Clip => {
+      const prev = placements[i - 1];
+      const next = placements[i + 1];
+      const opens = !prev || !touches(prev.start + prev.duration, x.start);
+      const closes = !next || !touches(x.start + x.duration, next.start);
+      const fade = Math.min(AVATAR_FADE, x.duration / 3);
+      return {
         id: newId("c"),
         assetId: asset.id,
         trackId: track.id,
@@ -350,11 +399,11 @@ function placeVideo(
         volume: useSound ? 1 : 0,
         ...(Math.abs(x.speed - 1) > 1e-4 ? { speed: x.speed } : {}),
         ...(transform ? { transform } : {}),
-        ...(i === 0 ? { fadeIn: AVATAR_FADE } : {}),
-        ...(i === placements.length - 1 ? { fadeOut: AVATAR_FADE } : {}),
+        ...(opens ? { fadeIn: fade } : {}),
+        ...(closes ? { fadeOut: fade } : {}),
         ...(/^[A-Z]\d+P\d+-[A-Z]\d+$/.test(label) ? { insertId: label } : {}),
-      }),
-    ),
+      };
+    }),
   ];
   return { ...p, tracks, clips };
 }
@@ -362,72 +411,85 @@ function placeVideo(
 const clock = (s: number): string =>
   `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
 
+/** The voice as it is now, rendered, as the last resort to compare with. */
+async function currentVoice(p: Project): Promise<HeygenCandidate | null> {
+  const span = voiceSpan(p);
+  if (!span) return null;
+  const jobId = newId("job");
+  useApp.getState().startJob(jobId, "Preparando a voz para comparar");
+  try {
+    const file = await window.api.renderVoice(
+      jobId,
+      voiceSegments(p, span[0], span[1]),
+      span[0],
+      span[1],
+    );
+    return { piece: { file, label: "voz atual", sourceMap: sourceMapFor(p, span[0], span[1]) } };
+  } finally {
+    useApp.getState().endJob(jobId);
+  }
+}
+
 /**
- * Brings HeyGen MP4s in: each is found in the voice it was made from by its sound and placed on
- * the avatar track at the voice's time, with the background removed when it is a solid screen,
- * and silent (the treated voice plays) unless `useSound`. A doubtful match becomes a guess to
- * check; a voice edited after the export asks first.
+ * Brings HeyGen MP4s in. Each is compared by its sound with every voice file sent to HeyGen
+ * that is still on disk, and goes where the winning file's source map says that voice is on the
+ * timeline now: cuts made after the export are followed. Only when no file sent is left (or its
+ * media are gone) the voice as it is now is used. The avatar's background is removed when it is
+ * a solid screen; it plays silent (the treated voice is heard) unless `useSound`. A doubtful
+ * match becomes a guess to check, never a blind placement.
  */
 export async function importHeygenVideos(useSound: boolean): Promise<void> {
   const { toast, startJob, endJob } = useApp.getState();
   const start = useProject.getState().project;
   if (!start) return;
-  const span = voiceSpan(start);
-  if (!span) {
+  if (!voiceSpan(start)) {
     toast("Não há faixa Voz nesta aula para encaixar o vídeo do HeyGen.", "error");
     return;
   }
   const videos = await window.api.pickHeygenVideos();
   if (!videos.length) return;
-  // What the videos are compared with: the files sent to HeyGen, or the voice as it is now.
-  let pieces: Pick<VoiceMasterPiece, "label" | "sourceMap" | "file">[];
-  const master = start.voiceMaster;
-  let stale = !master || masterIsStale(start, master);
-  if (master && stale) {
-    const choice = await askStale();
-    if (choice === "cancel") return;
-    if (choice === "export") {
-      await exportForHeygen(master.scope);
-      return;
-    }
-  }
-  if (master && !stale) pieces = master.pieces;
-  else {
-    const jobId = newId("job");
-    startJob(jobId, "Preparando a voz para comparar");
-    try {
-      const file = await window.api.renderVoice(
-        jobId,
-        voiceSegments(start, span[0], span[1]),
-        span[0],
-        span[1],
-      );
-      pieces = [{ label: "voz atual", file, sourceMap: sourceMapFor(start, span[0], span[1]) }];
-      stale = true;
-    } catch (err) {
-      toast(`Não consegui preparar a voz para comparar: ${cleanError(err)}`, "error");
-      return;
-    } finally {
-      endJob(jobId);
-    }
+  const files = (start.voiceMasters ?? []).flatMap((m) => m.pieces.map((x) => x.file));
+  const there = files.length ? await window.api.exists(files) : [];
+  let candidates = masterCandidates(start, new Set(files.filter((_, i) => there[i])));
+  let fallback: HeygenCandidate | null = null;
+  const currentCandidates = async (): Promise<HeygenCandidate[]> => {
+    fallback ??= await currentVoice(start);
+    return fallback ? [fallback] : [];
+  };
+  try {
+    if (!candidates.length) candidates = await currentCandidates();
+  } catch (err) {
+    toast(`Não consegui preparar a voz para comparar: ${cleanError(err)}`, "error");
+    return;
   }
   const assets = await importMedia(videos);
   let placed = 0;
+  let stale = false;
   for (const asset of assets) {
     const jobId = newId("job");
     startJob(jobId, `Encaixando ${asset.name}`);
     try {
-      const found = await window.api.locateHeygen(
-        jobId,
-        asset.path,
-        pieces.map((x) => x.file),
-      );
-      const piece = pieces[found.piece];
       const p = useProject.getState().project;
       if (!p || p.id !== start.id) return;
-      useProject.getState().patchAsset(asset.id, { name: `HeyGen · ${piece.label}` });
-      if (found.result.confidence < LOW_CONFIDENCE) {
-        const at = pieceToTimeline(p, piece, Math.max(0, found.result.offset));
+      const locate = async (list: HeygenCandidate[]) => {
+        const found = await window.api.locateHeygen(
+          jobId,
+          asset.path,
+          list.map((c) => c.piece.file),
+        );
+        return { found, plan: planHeygenVideo(p, list, found.ranked, found.duration) };
+      };
+      let { found, plan } = await locate(candidates);
+      // The voice those files were made from is no longer on the timeline: the voice of now.
+      if (plan && !plan.placements.length && plan.candidate.master)
+        ({ found, plan } = await locate(await currentCandidates()));
+      if (!plan) continue;
+      stale ||= plan.stale;
+      useProject
+        .getState()
+        .patchAsset(asset.id, { name: `HeyGen · ${plan.candidate.piece.label}` });
+      if (plan.doubtful) {
+        const chosen = plan;
         useHeygenReview.setState((s) => ({
           items: [
             ...s.items,
@@ -435,32 +497,31 @@ export async function importHeygenVideos(useSound: boolean): Promise<void> {
               id: newId("hg"),
               assetId: asset.id,
               name: asset.name,
-              piece,
-              result: found.result,
+              candidate: chosen.candidate,
+              match: chosen.match,
               duration: found.duration,
-              at,
+              at: pieceToTimeline(
+                p,
+                chosen.candidate.piece,
+                Math.max(0, chosen.match.result.offset),
+              ),
+              why: chosen.ambiguous
+                ? "parece com mais de um arquivo de voz"
+                : !chosen.placements.length
+                  ? "a voz dele não está mais na timeline"
+                  : `confiança de ${Math.round(chosen.match.result.confidence * 100)}%`,
               useSound,
             },
           ],
         }));
         continue;
       }
-      const placements = heygenPlacements(
-        p,
-        piece,
-        found.result.offset,
-        found.result.scale,
-        found.duration,
-      );
       const fresh = useProject.getState().project?.assets.find((a) => a.id === asset.id) ?? asset;
-      const next = placeVideo(p, fresh, placements, useSound, piece.label);
-      if (!next) {
-        toast(`${asset.name}: a voz dele não está mais na timeline.`, "error");
-        continue;
-      }
+      const next = placeVideo(p, fresh, plan.placements, useSound, plan.candidate.piece.label);
+      if (!next) continue;
       if (useProject.getState().commit(() => next)) placed++;
       toast(
-        `${asset.name} encaixado em ${clock(placements[0].start)} (confiança ${Math.round(found.result.confidence * 100)}%${stale ? ", pela voz atual" : ""}).`,
+        `${asset.name} encaixado em ${clock(plan.placements[0].start)} (confiança de ${Math.round(plan.match.result.confidence * 100)}%${plan.candidate.master ? "" : ", pela voz atual"}).`,
         "success",
       );
     } catch (err) {
@@ -469,13 +530,18 @@ export async function importHeygenVideos(useSound: boolean): Promise<void> {
       endJob(jobId);
     }
   }
+  if (stale)
+    toast(
+      "A voz mudou depois de ir para o HeyGen: o vídeo seguiu os cortes, mas confira os trechos que mudaram.",
+      "info",
+    );
   const doubtful = useHeygenReview.getState().items.length;
   if (doubtful)
     toast(
       `${doubtful} vídeo(s) com encaixe incerto: confira o palpite na barra acima da timeline.`,
       "info",
     );
-  else if (placed) playback.seek(span[0]);
+  else if (placed) playback.seek(voiceSpan(start)?.[0] ?? 0);
 }
 
 /** The person checked a doubtful match and keeps it. */
@@ -486,12 +552,13 @@ export function acceptGuess(id: string): void {
   const asset = p.assets.find((a) => a.id === guess.assetId);
   const placements = heygenPlacements(
     p,
-    guess.piece,
-    guess.result.offset,
-    guess.result.scale,
+    guess.candidate.piece,
+    guess.match.result.offset,
+    guess.match.result.scale,
     guess.duration,
   );
-  const next = asset && placeVideo(p, asset, placements, guess.useSound, guess.piece.label);
+  const next =
+    asset && placeVideo(p, asset, placements, guess.useSound, guess.candidate.piece.label);
   if (!next) {
     useApp.getState().toast("Este palpite não cai mais na voz da timeline.", "error");
     return;

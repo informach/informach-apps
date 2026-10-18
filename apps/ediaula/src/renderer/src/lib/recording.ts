@@ -13,7 +13,7 @@ import { speechItems } from "@shared/script";
 import { alignSection } from "@shared/scriptAlign";
 import { clipEnd, timelineAt } from "@shared/timeline";
 import type { Asset, Project } from "@shared/types";
-import { voiceClips, voiceSegments, voiceSpan } from "@shared/voiceMaster";
+import { voiceClips, voiceSegments, voiceSpan, voiceTakeStart } from "@shared/voiceMaster";
 import { voiceTakes } from "@shared/voiceTakes";
 import { useApp } from "@/state/app";
 import { usePlayback } from "@/state/playback";
@@ -211,11 +211,14 @@ export async function importRecording(r: RecordingResult): Promise<void> {
   let layout: RecordingLayout | undefined;
   useProject.getState().commit((p) => {
     const current = p.assets.filter((a) => assets.some((b) => b.id === a.id));
-    // A screen kept in parts (no room to join them) goes end to end from where the voice played.
+    // A screen kept in parts (no room to join them) goes end to end from where the voice played;
+    // a new voice take goes after the voice already there, on the same "Voz" track.
     layout =
       r.mode === "over" && r.screen
         ? layoutOverNarration(p, current, r, { cameraTransform })
-        : layoutRecording(p, current, r, r.over?.from, { cameraTransform });
+        : layoutRecording(p, current, r, voiceTakeStart(p, r) ?? r.over?.from, {
+            cameraTransform,
+          });
     return {
       ...p,
       tracks: layout.tracks,

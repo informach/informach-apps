@@ -1,7 +1,6 @@
 import { mergeRanges, type TimelineWord } from "./cleanup.ts";
 import { atempo } from "./exportPlan.ts";
-import type { ScriptDoc, ScriptSection } from "./script.ts";
-import { speechItems } from "./script.ts";
+import type { ScriptDoc, ScriptSection, SpeechItem } from "./script.ts";
 import { alignSection } from "./scriptAlign.ts";
 import { clipEnd, clipSpeed, sourceEnd, timelineAt } from "./timeline.ts";
 import type {
@@ -15,72 +14,122 @@ import type {
 import { treatedPath } from "./voiceChain.ts";
 
 /**
- * The lesson's voice as it goes to HeyGen and comes back. The voice track ("Voz", or the one with
- * the microphone of a recording) is rendered, treated and cut as it is on the timeline, into WAV
- * files of 48 kHz, 16 bits, mono: the whole lesson, one per script section, or one per avatar
+ * The lesson's voice as it goes to HeyGen and comes back. The voice tracks ("Voz", or those with
+ * the microphone of a recording) are rendered, treated and cut as they are on the timeline, into
+ * WAV files of 48 kHz, 16 bits, mono: the whole lesson, one per script section, or one per avatar
  * insert. Each file keeps a source map (which media and which of its seconds each stretch of the
  * file holds), so a HeyGen MP4 made from it lands where that voice is on the timeline now, even
  * after cuts made later.
  */
 
 /**
- * HeyGen's limits for an uploaded audio (developers.heygen.com, usage limits and video
- * generation input, read on 18/10/2026): WAV or MP3, up to 10 minutes and 50 MB. At 48 kHz,
- * 16 bits, mono a WAV takes 96 kB a second, so 8 minutes (46 MB) per file keeps both.
+ * HeyGen's limits for an uploaded audio: WAV or MP3; the upload of an asset takes up to 32 MB in
+ * a standard request (developers.heygen.com, "Upload Asset", read on 18/10/2026; avatar audio
+ * itself may last up to 10 minutes). At 48 kHz, 16 bits, mono a WAV takes 96 kB a second, so
+ * five minutes (28.8 MB) per file stays under the upload limit.
  */
-export const HEYGEN_MAX_SECONDS = 480;
+export const HEYGEN_MAX_SECONDS = 300;
 export const HEYGEN_FORMAT = { rate: 48000, channels: 1, bits: 16 } as const;
+
+/** Most voice masters kept in a project (the newest stay). */
+export const VOICE_MASTER_LIMIT = 20;
 
 const EPS = 1e-3;
 const round = (v: number): number => Math.round(v * 1000) / 1000;
 const n = (v: number): string => String(round(v));
 
-/** The track the lesson's voice is on: "Voz", else the one with a recording's microphone. */
-export function voiceTrack(
-  project: Pick<Project, "tracks" | "clips" | "assets">,
-): Track | undefined {
-  const audio = project.tracks.filter((t) => t.kind === "audio" && !t.music);
-  const used = (t: Track): number => project.clips.filter((c) => c.trackId === t.id).length;
-  const named = audio.find((t) => t.name === "Voz" && used(t) > 0);
-  if (named) return named;
+type VoiceProject = Pick<Project, "tracks" | "clips" | "assets">;
+
+/**
+ * The tracks the lesson's voice is on: every audio track named "Voz" that holds clips, and any
+ * other audio track with a recording's microphone. Music beds never.
+ */
+export function voiceTracks(project: VoiceProject): Track[] {
   const mic = new Set(
     project.assets.filter((a) => a.recording?.role === "mic" || a.voiceTakes).map((a) => a.id),
   );
-  let best: { track: Track; count: number } | undefined;
-  for (const t of audio) {
-    const count = project.clips.filter((c) => c.trackId === t.id && mic.has(c.assetId)).length;
-    if (count && (!best || count > best.count)) best = { track: t, count };
-  }
-  return best?.track;
+  return project.tracks.filter(
+    (t) =>
+      t.kind === "audio" &&
+      !t.music &&
+      project.clips.some((c) => c.trackId === t.id && (t.name === "Voz" || mic.has(c.assetId))),
+  );
 }
 
-/** The clips of the voice track that sound, in order. */
-export function voiceClips(project: Pick<Project, "tracks" | "clips" | "assets">): Clip[] {
-  const track = voiceTrack(project);
-  if (!track || track.muted) return [];
+/**
+ * The voice's clips, in order. Their volume and a mute for HeyGen's sound (`mutedFor`) do not
+ * take them out: the voice is still what the avatar says.
+ */
+export function voiceClips(project: VoiceProject): Clip[] {
+  const tracks = new Set(voiceTracks(project).map((t) => t.id));
   const assets = new Map(project.assets.map((a) => [a.id, a]));
   return project.clips
-    .filter((c) => c.trackId === track.id && c.volume > 0 && assets.get(c.assetId)?.hasAudio)
+    .filter((c) => tracks.has(c.trackId) && assets.get(c.assetId)?.hasAudio)
     .sort((a, b) => a.start - b.start);
 }
 
-/** What the voice is: its clips, their media and the treated file each plays. FNV-1a, hex. */
-export function voiceHash(project: Pick<Project, "tracks" | "clips" | "assets">): string {
+/** A stretch of a media file in the voice: where it plays and from which file. */
+export interface VoiceSegment {
+  /** The treated file when there is one, else the media itself. */
+  path: string;
+  /** Timeline second it starts at. */
+  start: number;
+  /** Source seconds it reads from, and timeline seconds it lasts. */
+  in: number;
+  duration: number;
+  speed: number;
+  volume: number;
+}
+
+interface Content extends VoiceSegment {
+  assetId: string;
+}
+
+/**
+ * The voice over [start, end] as stretches of media: pieces of a clip split without anything
+ * removed in between (as muting a stretch for HeyGen's sound does) are one stretch.
+ */
+function voiceContent(project: VoiceProject, start: number, end: number): Content[] {
   const assets = new Map(project.assets.map((a) => [a.id, a]));
-  const text = voiceClips(project)
-    .map((c) => {
-      const a = assets.get(c.assetId);
-      const file = a ? (treatedPath(a) ?? a.path) : "";
-      return [
-        c.assetId,
-        n(c.start),
-        n(c.in),
-        n(c.duration),
-        n(clipSpeed(c)),
-        n(c.volume),
-        file,
-      ].join("|");
-    })
+  const out: Content[] = [];
+  for (const c of voiceClips(project)) {
+    const a = Math.max(start, c.start);
+    const b = Math.min(end, clipEnd(c));
+    const asset = assets.get(c.assetId);
+    if (b - a < EPS || !asset) continue;
+    const speed = clipSpeed(c);
+    const item: Content = {
+      assetId: c.assetId,
+      path: treatedPath(asset) ?? asset.path,
+      start: round(a),
+      in: round(c.in + (a - c.start) * speed),
+      duration: round(b - a),
+      speed,
+      volume: c.volume,
+    };
+    const last = out.at(-1);
+    if (
+      last &&
+      last.assetId === item.assetId &&
+      last.path === item.path &&
+      last.speed === item.speed &&
+      last.volume === item.volume &&
+      Math.abs(last.start + last.duration - item.start) <= 0.002 &&
+      Math.abs(last.in + last.duration * last.speed - item.in) <= 0.002
+    )
+      last.duration = round(last.duration + item.duration);
+    else out.push(item);
+  }
+  return out;
+}
+
+/**
+ * What the voice is: which media seconds play where, from which file. Volumes, mutes and clips
+ * split without removing anything do not change it. FNV-1a, hex.
+ */
+export function voiceHash(project: VoiceProject): string {
+  const text = voiceContent(project, 0, Number.POSITIVE_INFINITY)
+    .map((s) => [s.assetId, n(s.start), n(s.in), n(s.duration), n(s.speed), s.path].join("|"))
     .join("\n");
   let h = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) {
@@ -91,13 +140,20 @@ export function voiceHash(project: Pick<Project, "tracks" | "clips" | "assets">)
 }
 
 /** Timeline span of the voice: from its first clip to the end of its last. */
-export function voiceSpan(
-  project: Pick<Project, "tracks" | "clips" | "assets">,
-): [number, number] | null {
+export function voiceSpan(project: VoiceProject): [number, number] | null {
   const clips = voiceClips(project);
   if (!clips.length) return null;
   return [clips[0].start, Math.max(...clips.map(clipEnd))];
 }
+
+/**
+ * Where a "Só voz" take goes on the timeline: after the voice already there (0 in a new lesson),
+ * so a second take never lands over the first. Undefined for other takes.
+ */
+export const voiceTakeStart = (
+  project: VoiceProject,
+  result: { mode?: string },
+): number | undefined => (result.mode === "voice" ? (voiceSpan(project)?.[1] ?? 0) : undefined);
 
 export interface PieceSpec {
   label: string;
@@ -129,20 +185,30 @@ export function splitLong(
         if (e - s > (best ? best[1] - best[0] : 0.05)) best = [s, e];
       }
       const cut = best ? (best[0] + best[1]) / 2 : hi;
-      parts.push({ label: `${p.label} · parte ${part++}`, start, end: round(cut) });
+      parts.push({ label: `${p.label}, parte ${part++}`, start, end: round(cut) });
       start = round(cut);
     }
-    if (parts.length) parts.push({ label: `${p.label} · parte ${part}`, start, end: p.end });
+    if (parts.length) parts.push({ label: `${p.label}, parte ${part}`, start, end: p.end });
     else parts.push(p);
     out.push(...parts);
   }
   return out;
 }
 
+/** Labels used by more than one piece (each piece becomes a file named after its label). */
+export function repeatedLabels(pieces: readonly PieceSpec[]): string[] {
+  const seen = new Set<string>();
+  const repeated = new Set<string>();
+  for (const p of pieces) {
+    const key = p.label.trim().toLowerCase();
+    if (seen.has(key)) repeated.add(p.label);
+    seen.add(key);
+  }
+  return [...repeated];
+}
+
 /** Gaps between the voice's clips over [start, end]: quiet by construction. */
-export function voiceGaps(
-  project: Pick<Project, "tracks" | "clips" | "assets">,
-): [number, number][] {
+export function voiceGaps(project: VoiceProject): [number, number][] {
   const busy = mergeRanges(
     voiceClips(project).map((c): [number, number] => [c.start, clipEnd(c)]),
     0,
@@ -154,7 +220,7 @@ export function voiceGaps(
 
 /** The whole lesson as one piece (split when longer than HeyGen takes). */
 export function lessonPieces(
-  project: Pick<Project, "tracks" | "clips" | "assets">,
+  project: VoiceProject,
   label: string,
   quiet: readonly [number, number][] = [],
 ): PieceSpec[] {
@@ -168,7 +234,7 @@ const PAD = 0.3;
 
 /** One piece per script section heard in the voice (by the transcript), in timeline order. */
 export function sectionPieces(
-  project: Pick<Project, "tracks" | "clips" | "assets">,
+  project: VoiceProject,
   doc: ScriptDoc,
   words: readonly TimelineWord[],
   quiet: readonly [number, number][] = [],
@@ -200,15 +266,40 @@ export function sectionPieces(
 }
 
 /**
+ * The speech items of each avatar insert: the line with the insert id and the paragraphs of the
+ * same speaker after it, until a "Na tela" direction, another speaker or another insert.
+ * Indexes into the section's speech items (as Asset.voiceTakes counts them).
+ */
+export function insertLines(section: ScriptSection): { insertId: string; lines: number[] }[] {
+  const out: { insertId: string; lines: number[] }[] = [];
+  let current: { insertId: string; lines: number[]; speaker: string } | null = null;
+  let speech = -1;
+  for (const item of section.items) {
+    if (item.kind !== "speech") {
+      if (item.kind === "screen") current = null;
+      continue;
+    }
+    speech++;
+    const s: SpeechItem = item;
+    if (s.insertId) {
+      current = { insertId: s.insertId, lines: [speech], speaker: s.speaker };
+      out.push(current);
+    } else if (current && s.speaker === current.speaker) current.lines.push(speech);
+    else current = null;
+  }
+  return out.map(({ insertId, lines }) => ({ insertId, lines }));
+}
+
+/**
  * One piece per avatar insert of the section (F1P1-D01) whose voice was recorded: by the takes
- * of a "Só voz" recording (the last one that was not thrown away), else by the transcript.
+ * of a "Só voz" recording (the last one of each line that was not thrown away), else by the
+ * transcript. An insert in several paragraphs covers them all.
  */
 export function insertPieces(
-  project: Pick<Project, "tracks" | "clips" | "assets">,
+  project: VoiceProject,
   section: ScriptSection,
   words: readonly TimelineWord[],
 ): PieceSpec[] {
-  const items = speechItems(section);
   const clips = voiceClips(project);
   const assets = new Map(project.assets.map((a) => [a.id, a]));
   const voice = new Set(clips.map((c) => c.id));
@@ -216,94 +307,65 @@ export function insertPieces(
     section,
     words.filter((w) => voice.has(w.clipId)),
   );
-  const out: PieceSpec[] = [];
-  items.forEach((item, index) => {
-    if (!item.insertId) return;
-    let range: [number, number] | null = null;
-    for (const c of clips) {
-      const takes = (assets.get(c.assetId)?.voiceTakes ?? []).filter(
-        (t) => t.line === index && !t.retake,
-      );
-      const take = takes.at(-1);
-      if (!take) continue;
-      const a = Math.max(take.start, c.in);
-      const b = Math.min(take.end, sourceEnd(c));
-      if (b - a < 0.2) continue;
-      const span: [number, number] = [timelineAt(c, a), timelineAt(c, b)];
-      range = range ? [Math.min(range[0], span[0]), Math.max(range[1], span[1])] : span;
-    }
-    if (!range) {
-      const line = alignment.lines.find((l) => l.item === section.items.indexOf(item));
-      if (line?.start !== undefined && line.end !== undefined && line.matched / line.total >= 0.5)
-        range = [line.start - PAD, line.end + PAD];
-    }
-    if (range)
-      out.push({ label: item.insertId, start: round(Math.max(0, range[0])), end: round(range[1]) });
+  // Speech index → index in section.items (alignment lines count items).
+  const itemOf: number[] = [];
+  section.items.forEach((item, i) => {
+    if (item.kind === "speech") itemOf.push(i);
   });
+  const out: PieceSpec[] = [];
+  for (const insert of insertLines(section)) {
+    const spans: [number, number][] = [];
+    const widen = (span: [number, number]): void => {
+      spans.push(span);
+    };
+    for (const index of insert.lines) {
+      let found = false;
+      for (const c of clips) {
+        const takes = (assets.get(c.assetId)?.voiceTakes ?? []).filter(
+          (t) => t.line === index && !t.retake,
+        );
+        const take = takes.at(-1);
+        if (!take) continue;
+        const a = Math.max(take.start, c.in);
+        const b = Math.min(take.end, sourceEnd(c));
+        if (b - a < 0.2) continue;
+        widen([timelineAt(c, a), timelineAt(c, b)]);
+        found = true;
+      }
+      if (found) continue;
+      const line = alignment.lines.find((l) => l.item === itemOf[index]);
+      if (line?.start !== undefined && line.end !== undefined && line.matched / line.total >= 0.5)
+        widen([line.start - PAD, line.end + PAD]);
+    }
+    if (spans.length)
+      out.push({
+        label: insert.insertId,
+        start: round(Math.max(0, Math.min(...spans.map((x) => x[0])))),
+        end: round(Math.max(...spans.map((x) => x[1]))),
+      });
+  }
   return out.sort((a, b) => a.start - b.start);
 }
 
 /** Which media and which of its seconds each stretch of the piece [start, end] holds. */
 export function sourceMapFor(
-  project: Pick<Project, "tracks" | "clips" | "assets">,
+  project: VoiceProject,
   start: number,
   end: number,
 ): VoiceMasterSegment[] {
-  const out: VoiceMasterSegment[] = [];
-  for (const c of voiceClips(project)) {
-    const a = Math.max(start, c.start);
-    const b = Math.min(end, clipEnd(c));
-    if (b - a < EPS) continue;
-    const speed = clipSpeed(c);
-    out.push({
-      at: round(a - start),
-      duration: round(b - a),
-      start: round(a),
-      assetId: c.assetId,
-      in: round(c.in + (a - c.start) * speed),
-      ...(speed !== 1 ? { speed } : {}),
-    });
-  }
-  return out;
-}
-
-/** A stretch of a media file in the voice: where it plays and from which file. */
-export interface VoiceSegment {
-  /** The treated file when there is one, else the media itself. */
-  path: string;
-  /** Timeline second it starts at. */
-  start: number;
-  /** Source seconds it reads from, and timeline seconds it lasts. */
-  in: number;
-  duration: number;
-  speed: number;
-  volume: number;
+  return voiceContent(project, start, end).map((s) => ({
+    at: round(s.start - start),
+    duration: s.duration,
+    start: s.start,
+    assetId: s.assetId,
+    in: s.in,
+    ...(s.speed !== 1 ? { speed: s.speed } : {}),
+  }));
 }
 
 /** The voice over the timeline range [start, end], as segments to render. */
-export function voiceSegments(
-  project: Pick<Project, "tracks" | "clips" | "assets">,
-  start: number,
-  end: number,
-): VoiceSegment[] {
-  const assets = new Map(project.assets.map((a) => [a.id, a]));
-  const out: VoiceSegment[] = [];
-  for (const c of voiceClips(project)) {
-    const a = Math.max(start, c.start);
-    const b = Math.min(end, clipEnd(c));
-    const asset = assets.get(c.assetId);
-    if (b - a < EPS || !asset) continue;
-    const speed = clipSpeed(c);
-    out.push({
-      path: treatedPath(asset) ?? asset.path,
-      start: round(a),
-      in: round(c.in + (a - c.start) * speed),
-      duration: round(b - a),
-      speed,
-      volume: c.volume,
-    });
-  }
-  return out;
+export function voiceSegments(project: VoiceProject, start: number, end: number): VoiceSegment[] {
+  return voiceContent(project, start, end).map(({ assetId: _asset, ...s }) => s);
 }
 
 /** An FFmpeg run that writes the voice of [start, end] to `out` as HeyGen takes it. */
@@ -363,14 +425,14 @@ export function renderSegments(
 }
 
 export const renderPlan = (
-  project: Pick<Project, "tracks" | "clips" | "assets">,
+  project: VoiceProject,
   start: number,
   end: number,
   out: string,
   rate: number = HEYGEN_FORMAT.rate,
 ): RenderPlan => renderSegments(voiceSegments(project, start, end), start, end, out, rate);
 
-/** File name of a piece: the lesson and the stretch, without characters Windows refuses. */
+/** File name of a piece, "Aula 3 (F1P1-D01).wav", without characters Windows refuses. */
 export function pieceFileName(lesson: string, label: string): string {
   const clean = (s: string): string =>
     [...s]
@@ -378,7 +440,30 @@ export function pieceFileName(lesson: string, label: string): string {
       .join("")
       .replace(/\s+/g, " ")
       .trim();
-  return `${clean(lesson).slice(0, 80) || "Aula"} - ${clean(label).slice(0, 60) || "voz"}.wav`;
+  return `${clean(lesson).slice(0, 80) || "Aula"} (${clean(label).slice(0, 60) || "voz"}).wav`;
+}
+
+/** The folder of one export, by its date and time: "2026-10-18 14h05m09". */
+export function exportFolderName(at: Date): string {
+  const p = (v: number): string => String(v).padStart(2, "0");
+  return `${at.getFullYear()}-${p(at.getMonth() + 1)}-${p(at.getDate())} ${p(at.getHours())}h${p(at.getMinutes())}m${p(at.getSeconds())}`;
+}
+
+/** The project's voice masters with the new one, newest last, within VOICE_MASTER_LIMIT. */
+export const withMaster = (list: readonly VoiceMaster[], master: VoiceMaster): VoiceMaster[] =>
+  [...list.filter((m) => m.id !== master.id), master].slice(-VOICE_MASTER_LIMIT);
+
+/**
+ * Every exported piece of every master, newest master first (two made at the same moment keep
+ * the list's order, where the newest is last).
+ */
+export function masterPieces(
+  masters: readonly VoiceMaster[],
+): { master: VoiceMaster; piece: VoiceMasterPiece }[] {
+  return [...masters]
+    .reverse()
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .flatMap((master) => master.pieces.map((piece) => ({ master, piece })));
 }
 
 /**
@@ -386,7 +471,7 @@ export function pieceFileName(lesson: string, label: string): string {
  * voice clip that still holds that second of that media. Null when it was cut away since.
  */
 export function pieceToTimeline(
-  project: Pick<Project, "tracks" | "clips" | "assets">,
+  project: VoiceProject,
   piece: Pick<VoiceMasterPiece, "sourceMap">,
   t: number,
 ): number | null {
@@ -399,6 +484,13 @@ export function pieceToTimeline(
   return clip ? timelineAt(clip, src) : null;
 }
 
+/** The media a piece was made from are all still in the project. */
+export const pieceMediaExist = (
+  project: Pick<Project, "assets">,
+  piece: Pick<VoiceMasterPiece, "sourceMap">,
+): boolean =>
+  piece.sourceMap.every((s) => project.assets.some((a) => a.id === s.assetId && !a.missing));
+
 /** A clip of the HeyGen video: where it goes and which of its seconds it plays. */
 export interface HeygenPlacement {
   start: number;
@@ -408,14 +500,19 @@ export interface HeygenPlacement {
   speed: number;
 }
 
+/** Gaps on the timeline up to this long between two stretches of the avatar are bridged. */
+export const AVATAR_BRIDGE = 1.5;
+
 /**
  * The HeyGen video over the timeline: `offset` is the piece's second at the video's 0 and
  * `scale` piece seconds per video second (audioSync). Every stretch of the piece's source map
  * that is still on the timeline gets the part of the video made from it, so cuts made before
- * or after the export are followed.
+ * or after the export are followed. A short gap between two stretches (a pause between clips
+ * of the voice) is bridged by letting the earlier stretch run on, so the avatar does not blink
+ * away.
  */
 export function heygenPlacements(
-  project: Pick<Project, "tracks" | "clips" | "assets">,
+  project: VoiceProject,
   piece: Pick<VoiceMasterPiece, "sourceMap">,
   offset: number,
   scale: number,
@@ -437,7 +534,7 @@ export function heygenPlacements(
       const a = Math.max(s0, c.in);
       const b = Math.min(s1, sourceEnd(c));
       if (b - a < EPS) continue;
-      // Video second of media second x: v0 + (x - s0) / (speed * scale) · scale… in piece time.
+      // Video second of media second x.
       const videoAt = (x: number): number => v0 + (x - s0) / speed / scale;
       const t0 = timelineAt(c, a);
       const t1 = timelineAt(c, b);
@@ -450,24 +547,34 @@ export function heygenPlacements(
     }
   }
   out.sort((x, y) => x.start - y.start);
-  // Stretches that still follow each other on the timeline and in the video become one clip.
   const joined: HeygenPlacement[] = [];
   for (const p of out) {
     const last = joined.at(-1);
+    if (!last) {
+      joined.push({ ...p });
+      continue;
+    }
+    const lastEnd = last.start + last.duration;
+    const gap = p.start - lastEnd;
+    // Stretches that still follow each other on the timeline and in the video become one clip.
     if (
-      last &&
-      Math.abs(last.start + last.duration - p.start) < 0.002 &&
+      Math.abs(gap) < 0.002 &&
       Math.abs(last.in + last.duration * last.speed - p.in) < 0.002 &&
       Math.abs(last.speed - p.speed) < 1e-4
-    )
+    ) {
       last.duration = round(last.duration + p.duration);
-    else joined.push({ ...p });
+      continue;
+    }
+    // A short gap: the earlier stretch runs on over it, as far as the video goes.
+    if (gap > 0.002 && gap <= AVATAR_BRIDGE) {
+      const room = (videoDuration - (last.in + last.duration * last.speed)) / last.speed;
+      last.duration = round(last.duration + Math.max(0, Math.min(gap, room)));
+    }
+    joined.push({ ...p });
   }
   return joined;
 }
 
 /** The voice changed since it went to HeyGen (a cut, a new take, another treatment). */
-export const masterIsStale = (
-  project: Pick<Project, "tracks" | "clips" | "assets">,
-  master: Pick<VoiceMaster, "hash">,
-): boolean => voiceHash(project) !== master.hash;
+export const masterIsStale = (project: VoiceProject, master: Pick<VoiceMaster, "hash">): boolean =>
+  voiceHash(project) !== master.hash;

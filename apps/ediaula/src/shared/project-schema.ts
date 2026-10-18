@@ -2,6 +2,7 @@ import { z } from "zod";
 import { MAX_ANCHORS, MAX_WORD_KEYS, PROPOSAL_ITEM_LIMIT, PROPOSAL_LIMIT } from "./anchors.ts";
 import { ENCODERS, type ExportSpec, type Project, RECORDING_ROLES } from "./types.ts";
 import { VOICE_PRESETS } from "./voiceChain.ts";
+import { VOICE_MASTER_LIMIT } from "./voiceMaster.ts";
 
 const number = z.number().min(-1e9).max(1e9);
 const time = z
@@ -313,6 +314,7 @@ const clip = z.looseObject({
     })
     .optional(),
   insertId: id.optional(),
+  mutedFor: z.literal("heygen").optional(),
 });
 export const projectSettingsSchema = z.looseObject({
   width: z.int().min(2).max(16384),
@@ -414,7 +416,7 @@ export const projectSchema = z
     stats: z.looseObject({ editSeconds: z.number().nonnegative() }).optional(),
     // Pending AI proposals, at most PROPOSAL_ITEM_LIMIT items in all (the save is one IPC value).
     proposals: proposalListSchema.optional(),
-    voiceMaster: voiceMaster.optional(),
+    voiceMasters: z.array(voiceMaster).max(VOICE_MASTER_LIMIT).optional(),
     settings: projectSettingsSchema,
     assets: z.array(asset).max(5000),
     tracks: z.array(track).max(256),

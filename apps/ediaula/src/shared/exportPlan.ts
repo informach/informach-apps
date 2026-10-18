@@ -172,7 +172,9 @@ export function buildExportPlan(source: Project, spec: ExportSpec): ExportPlan {
     }
     // Any track can hold pictures (like Camtasia); higher tracks are drawn on top.
     const showVideo = !audioOnly && !track.hidden && asset.kind !== "audio";
-    const playAudio = !track.muted && asset.hasAudio && asset.kind !== "image" && clip.volume > 0;
+    // A voice clip under HeyGen's own sound (mutedFor) stays silent.
+    const playAudio =
+      !track.muted && asset.hasAudio && asset.kind !== "image" && clip.volume > 0 && !clip.mutedFor;
     if (!showVideo && !playAudio) continue;
 
     // Avatars with the background removed are read from their cached transparent video

@@ -102,6 +102,7 @@ import {
   openRestrictedClaude,
 } from "./restricted.ts";
 import { scheduler, type WorkKind } from "./scheduler.ts";
+import { rankInWorker } from "./syncPool.ts";
 import { renderVoiceCached } from "./voiceFiles.ts";
 import { treatVoice } from "./voiceTreat.ts";
 import {
@@ -681,14 +682,16 @@ function registerIpc(): void {
       }
     }
     // The voice files exported for HeyGen are read again to place the MP4s that come back.
-    const master: unknown = Reflect.get(project, "voiceMaster");
-    const pieces: unknown =
-      master && typeof master === "object" ? Reflect.get(master, "pieces") : [];
-    if (Array.isArray(pieces))
+    const masters: unknown = Reflect.get(project, "voiceMasters");
+    for (const master of Array.isArray(masters) ? masters.slice(0, 50) : []) {
+      const pieces: unknown =
+        master && typeof master === "object" ? Reflect.get(master, "pieces") : [];
+      if (!Array.isArray(pieces)) continue;
       for (const piece of pieces.slice(0, 500)) {
         const file: unknown = piece && typeof piece === "object" ? Reflect.get(piece, "file") : "";
         if (typeof file === "string" && file && file.length <= 32768) references.push(file);
       }
+    }
     const linked = [...new Set(references)];
     if (linked.length) {
       const answer = await dialog.showMessageBox(win!, {
@@ -793,7 +796,6 @@ function registerIpc(): void {
   registerVoiceIpc();
 }
 
-const jobIdSchema = z.string().min(1).max(200);
 const secondsSchema = z
   .number()
   .min(0)
@@ -901,7 +903,9 @@ function registerVoiceIpc(): void {
       const masters: string[] = [];
       for (const m of z.array(z.string().min(1).max(32768)).min(1).max(500).parse(rawMasters))
         masters.push(await desktopFiles.assertRead(m));
-      return processingJob(jobId, "voice", (signal) => locateVideo(FFMPEG, video, masters, signal));
+      return processingJob(jobId, "voice", (signal) =>
+        locateVideo(FFMPEG, video, masters, signal, rankInWorker),
+      );
     },
   );
 }

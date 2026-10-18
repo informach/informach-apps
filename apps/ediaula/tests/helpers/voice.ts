@@ -44,8 +44,14 @@ function resonator(rate: number, f: number, bw: number): (x: number) => number {
   };
 }
 
-/** Speech-like sound, peak about `level`. */
-export function speech(seconds: number, rate: number, seed: number, level = 0.5): Float32Array {
+/** Speech-like sound, peak about `level`; `fricatives: false` keeps it below about 4 kHz. */
+export function speech(
+  seconds: number,
+  rate: number,
+  seed: number,
+  level = 0.5,
+  fricatives = true,
+): Float32Array {
   const rand = prng(seed);
   const gauss = gaussOf(rand);
   const n = Math.round(seconds * rate);
@@ -67,7 +73,7 @@ export function speech(seconds: number, rate: number, seed: number, level = 0.5)
       sylLen = pause ? 0.08 + rand() * 0.25 : 0.14 + rand() * 0.16;
       const vowel = VOWELS[Math.floor(rand() * VOWELS.length)];
       res = vowel.map((f, k) => resonator(rate, f * (0.95 + rand() * 0.1), [80, 100, 140][k]));
-      fricUntil = rand() < 0.35 ? t + 0.05 + rand() * 0.04 : -1;
+      fricUntil = fricatives && rand() < 0.35 ? t + 0.05 + rand() * 0.04 : -1;
     }
     const f0 = base + 30 * Math.sin(2 * Math.PI * 0.7 * t) + 6 * Math.sin(2 * Math.PI * 5 * t);
     phase += f0 / rate;
@@ -190,6 +196,38 @@ export function readWav(path: string): { rate: number; samples: Float32Array } {
     at += 8 + size + (size % 2);
   }
   throw new Error(`no data chunk in ${path}`);
+}
+
+/** The sound above `hz` (two cascaded second-order high-pass sections, 24 dB per octave). */
+export function highpass(samples: Float32Array, rate: number, hz: number): Float32Array {
+  const w = (2 * Math.PI * hz) / rate;
+  const q = Math.SQRT1_2;
+  const alpha = Math.sin(w) / (2 * q);
+  const cos = Math.cos(w);
+  const a0 = 1 + alpha;
+  const b0 = (1 + cos) / 2 / a0;
+  const b1 = -(1 + cos) / a0;
+  const a1 = (-2 * cos) / a0;
+  const a2 = (1 - alpha) / a0;
+  let out = samples;
+  for (let pass = 0; pass < 2; pass++) {
+    const y = new Float32Array(out.length);
+    let x1 = 0;
+    let x2 = 0;
+    let y1 = 0;
+    let y2 = 0;
+    for (let i = 0; i < out.length; i++) {
+      const x = out[i];
+      const v = b0 * x + b1 * x1 + b0 * x2 - a1 * y1 - a2 * y2;
+      x2 = x1;
+      x1 = x;
+      y2 = y1;
+      y1 = v;
+      y[i] = v;
+    }
+    out = y;
+  }
+  return out;
 }
 
 /** RMS in dBFS of seconds [a, b). */

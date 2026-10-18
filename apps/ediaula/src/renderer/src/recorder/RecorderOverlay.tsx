@@ -360,11 +360,11 @@ export function RecorderOverlay(): ReactNode {
   }, []);
 
   const moveLine = useCallback(
-    (index: number) => {
+    (index: number, at?: number) => {
       const next = Math.max(0, Math.min(lines.length - 1, index));
       setLine(next);
       if (phaseRef.current === "recording" || phaseRef.current === "paused")
-        void window.api.recorder.teleprompterLine(next);
+        void window.api.recorder.teleprompterLine(next, at);
     },
     [lines.length],
   );
@@ -375,7 +375,7 @@ export function RecorderOverlay(): ReactNode {
   const lineRef = useRef(line);
   lineRef.current = line;
   const stepTo = useCallback(
-    (step: 1 | -1) => moveLine(stepLine(orderRef.current, lineRef.current, step)),
+    (step: 1 | -1, at?: number) => moveLine(stepLine(orderRef.current, lineRef.current, step), at),
     [moveLine],
   );
   // A line left out by the speakers chosen gives way to the first one that is read.
@@ -385,8 +385,9 @@ export function RecorderOverlay(): ReactNode {
   // The voice finished the line on screen: the teleprompter moves on (main/voiceFollow.ts).
   useEffect(
     () =>
-      window.api.recorder.onFollow((index) => {
-        if (phaseRef.current === "recording" && lineRef.current === index) stepTo(1);
+      window.api.recorder.onFollow(({ line: index, at }) => {
+        // The new line starts where the voice ended the one before, not when this arrived.
+        if (phaseRef.current === "recording" && lineRef.current === index) stepTo(1, at);
       }),
     [stepTo],
   );

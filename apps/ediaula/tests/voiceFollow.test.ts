@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ClipMeter, micCheck } from "../src/shared/recordingHealth.ts";
-import { FOLLOW_RATE, FollowWindow, lineEndHeard, wavBytes } from "../src/shared/voiceFollow.ts";
+import {
+  FOLLOW_RATE,
+  FollowWindow,
+  lineDoneAt,
+  lineEndAt,
+  lineEndHeard,
+  serverWords,
+  wavBytes,
+} from "../src/shared/voiceFollow.ts";
 import { readLines, stepLine, voiceSpeakers } from "../src/shared/voiceTakes.ts";
 
 test("a fala acaba quando as últimas palavras dela são ouvidas", () => {
@@ -30,6 +38,7 @@ test("a janela do microfone só ouve a fala da tela, de 4 a 6 s, e descarta o at
   // Never more than six seconds, the newest ones.
   assert.equal(stretch?.samples.length, 6 * FOLLOW_RATE);
   assert.equal(stretch?.end, 9000);
+  assert.equal(stretch?.start, 3000, "o trecho sabe quando começou");
   assert.equal(stretch?.line, 2000);
   const wav = wavBytes(new Int16Array([1, -1]));
   assert.equal(new TextDecoder().decode(wav.slice(0, 4)), "RIFF");
@@ -67,4 +76,41 @@ test("teste de 5 s do microfone e aviso de voz estourando", () => {
   assert.equal(clip.add(0.99, 0.1), true);
   assert.equal(clip.add(0.5, 1), true);
   assert.equal(clip.add(0.5, 1.5), false);
+});
+
+test("o fim da fala é o fim da última palavra, e só conta o que veio depois da fala aparecer", () => {
+  // whisper-server's tokens: a token without a leading space belongs to the word before it.
+  const json = {
+    segments: [
+      {
+        words: [
+          { word: " abra", start: 0.2, end: 0.5 },
+          { word: " a", start: 0.5, end: 0.6 },
+          { word: " plata", start: 0.6, end: 0.9 },
+          { word: "forma", start: 0.9, end: 1.3 },
+          { word: " ", start: 1.3, end: 1.3 },
+          { word: " agora", start: 2.1, end: 2.4 },
+          { word: " clique", start: 2.5, end: 2.8 },
+          { word: " no", start: 2.8, end: 2.9 },
+          { word: " botão", start: 2.9, end: 3.3 },
+          { word: " verde.", start: 3.3, end: 3.9 },
+        ],
+      },
+    ],
+  };
+  const words = serverWords(json);
+  assert.deepEqual(
+    words.map((w) => w.text),
+    ["abra", "a", "plataforma", "agora", "clique", "no", "botão", "verde."],
+  );
+  assert.equal(words[2].end, 1.3);
+  assert.equal(serverWords({ nada: 1 }).length, 0);
+  assert.equal(lineEndAt("Agora clique no botão verde.", words), 3.9);
+  assert.equal(lineEndAt("Abra a plataforma.", words), 1.3);
+  // The stretch starts at QPC 10000; "Abra a plataforma." went on screen at 10100, so it was
+  // heard ending at 11300.
+  assert.equal(lineDoneAt("Abra a plataforma.", words, 10000, 10100), 11300);
+  // The same words heard before the line appeared (it came up at 12000) are the line before.
+  assert.equal(lineDoneAt("Abra a plataforma.", words, 10000, 12000), null);
+  assert.equal(lineDoneAt("Agora clique no botão verde.", words, 10000, 12000), 13900);
 });

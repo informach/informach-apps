@@ -55,7 +55,7 @@ test("o relógio da janela é medido pela ida e volta mais curta", () => {
 
 test("o take entra no tempo certo da narração, compensando a latência e as pausas", () => {
   const segments = [{ start: FIRST_FRAME, duration: 20 }];
-  // Paused from 6 s to 9 s of the take (QPC 7000–10000): the voice paused with it.
+  // Paused from 6 s to 9 s of the take (QPC 7000 to 10000): the voice paused with it.
   const pauseQpc: [number, number] = [7000, 10000];
   const journal = anchors(12, 1800, [pauseQpc], FIRST_FRAME + 20000);
   const result: Pick<RecordingResult, "duration" | "pauses" | "over"> = {
@@ -78,47 +78,53 @@ test("o take entra no tempo certo da narração, compensando a latência e as pa
   assert.equal(pieces[1].from, 9);
 });
 
-test("regravar a tela num intervalo troca só aquele trecho da faixa da tela", () => {
-  const track: Track = {
-    id: "tv",
-    kind: "video",
-    name: "F1",
-    muted: false,
-    hidden: false,
-    locked: false,
-  };
-  const screen = (id: string): Asset => ({
-    id,
-    name: id,
-    path: `C:/${id}.mp4`,
-    kind: "video",
-    duration: 60,
-    width: 1920,
-    height: 1080,
-    fps: 30,
-    hasVideo: true,
-    hasAudio: false,
-    size: 1,
-    proxyStatus: "none",
-  });
-  const old: Clip = {
-    id: "old",
-    assetId: "antiga",
-    trackId: "tv",
-    start: 0,
-    in: 0,
-    duration: 40,
-    volume: 1,
-  };
-  const project: Pick<Project, "tracks" | "clips"> = { tracks: [track], clips: [old] };
-  const segments = [{ start: FIRST_FRAME, duration: 15 }];
-  // Redo 12–20 s: the voice plays from 10 s (two seconds of lead-in) and the take is trimmed.
-  const journal = anchors(10, 1800, [], FIRST_FRAME + 15000);
-  const result: RecordingResult = {
+const videoTrack = (id: string, name: string): Track => ({
+  id,
+  kind: "video",
+  name,
+  muted: false,
+  hidden: false,
+  locked: false,
+});
+
+const screenAsset = (id: string, role?: "screen" | "camera"): Asset => ({
+  id,
+  name: id,
+  path: `C:/${id}.mp4`,
+  kind: "video",
+  duration: 60,
+  width: 1920,
+  height: 1080,
+  fps: 30,
+  hasVideo: true,
+  hasAudio: false,
+  size: 1,
+  proxyStatus: "none",
+  ...(role ? { recording: { id: "gravacao", role } } : {}),
+});
+
+const wholeClip = (id: string, assetId: string, trackId: string): Clip => ({
+  id,
+  assetId,
+  trackId,
+  start: 0,
+  in: 0,
+  duration: 40,
+  volume: 1,
+});
+
+/**
+ * A redo of 12 to 20 s: the voice plays from 10 s (two seconds of lead-in) at QPC 1800, and the
+ * take lasts `seconds` (15 covers the whole stretch; less is a take stopped early).
+ */
+function redo(seconds: number): RecordingResult {
+  const segments = [{ start: FIRST_FRAME, duration: seconds }];
+  const journal = anchors(10, 1800, [], FIRST_FRAME + seconds * 1000);
+  return {
     version: 2,
     dir: "C:/take",
     screen: "C:/nova.mp4",
-    duration: 15,
+    duration: seconds,
     pauses: [],
     markers: [],
     mode: "over",
@@ -129,16 +135,27 @@ test("regravar a tela num intervalo troca só aquele trecho da faixa da tela", (
       anchors: journal.map((a) => ({ t: momentInTake(segments, a.qpc), at: a.at })),
     },
   };
-  const layout = layoutOverNarration(project, [screen("antiga"), screen("nova")], result);
-  const onTrack = layout.clips
-    .filter((c) => c.trackId === "tv")
+}
+
+const onTrack = (clips: readonly Clip[], trackId: string) =>
+  clips
+    .filter((c) => c.trackId === trackId)
     .sort((a, b) => a.start - b.start)
     .map((c) => [
       c.assetId,
       Math.round(c.start * 1000) / 1000,
       Math.round(c.duration * 1000) / 1000,
     ]);
-  assert.deepEqual(onTrack, [
+
+test("regravar a tela num intervalo troca só aquele trecho da faixa da tela", () => {
+  const old = screenAsset("antiga", "screen");
+  const project: Pick<Project, "tracks" | "clips" | "assets"> = {
+    tracks: [videoTrack("tv", "F1")],
+    clips: [wholeClip("old", "antiga", "tv")],
+    assets: [old],
+  };
+  const layout = layoutOverNarration(project, [old, screenAsset("nova")], redo(15));
+  assert.deepEqual(onTrack(layout.clips, "tv"), [
     ["antiga", 0, 12],
     ["nova", 12, 8],
     ["antiga", 20, 20],
@@ -146,4 +163,39 @@ test("regravar a tela num intervalo troca só aquele trecho da faixa da tela", (
   const placed = layout.clips.find((c) => c.assetId === "nova");
   // Timeline 12 s was heard 2 s into the voice, 0.84 + 2 s into the take.
   assert.ok(placed && Math.abs(placed.in - 2.84) < 0.002, String(placed?.in));
+});
+
+test("uma regravação parada antes do fim troca só o que gravou", () => {
+  const old = screenAsset("antiga", "screen");
+  const project: Pick<Project, "tracks" | "clips" | "assets"> = {
+    tracks: [videoTrack("tv", "F1")],
+    clips: [wholeClip("old", "antiga", "tv")],
+    assets: [old],
+  };
+  // Stopped 5 s into the take: the voice was at 14.16 s, and 14.16 to 20 s keeps the old screen.
+  const layout = layoutOverNarration(project, [old, screenAsset("nova")], redo(5));
+  assert.deepEqual(onTrack(layout.clips, "tv"), [
+    ["antiga", 0, 12],
+    ["nova", 12, 2.16],
+    ["antiga", 14.16, 25.84],
+  ]);
+});
+
+test("a regravação troca a tela na faixa em que a tela está, não na principal", () => {
+  // The screen of the first take on a "Tela" track; the main track holds something else (a
+  // camera) that the redo must leave alone.
+  const old = screenAsset("antiga", "screen");
+  const camera = screenAsset("camera", "camera");
+  const project: Pick<Project, "tracks" | "clips" | "assets"> = {
+    tracks: [videoTrack("ts", "Tela"), videoTrack("tv", "F1")],
+    clips: [wholeClip("old", "antiga", "ts"), wholeClip("cam", "camera", "tv")],
+    assets: [old, camera],
+  };
+  const layout = layoutOverNarration(project, [old, camera, screenAsset("nova")], redo(15));
+  assert.deepEqual(onTrack(layout.clips, "ts"), [
+    ["antiga", 0, 12],
+    ["nova", 12, 8],
+    ["antiga", 20, 20],
+  ]);
+  assert.deepEqual(onTrack(layout.clips, "tv"), [["camera", 0, 40]]);
 });

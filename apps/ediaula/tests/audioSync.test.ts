@@ -6,13 +6,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
 import {
+  choosePiece,
   crossCorrelate,
   LOW_CONFIDENCE,
   locate,
   locateInPieces,
+  rankPieces,
   SYNC_RATE,
 } from "../src/shared/audioSync.ts";
-import { lessonVoice, mixInto, pink, readWav, stretch, writeWav } from "./helpers/voice.ts";
+import { lessonVoice, mixInto, pink, prng, readWav, stretch, writeWav } from "./helpers/voice.ts";
 
 const R = SYNC_RATE;
 const master = lessonVoice(90, R, 7);
@@ -106,4 +108,32 @@ test("outra fala tem confiança baixa; entre pedaços, o certo ganha", (t) => {
   const best = locateInPieces(pieces, segment(42, 52));
   assert.equal(best?.piece, 1);
   assert.ok(Math.abs((best?.result.offset ?? 0) - 12) < 0.01);
+});
+
+test("o mesmo contorno com outro som não passa: sem a forma de onda, confiança zero", () => {
+  // Every sample's sign flipped at random: the loudness over time is the same, the sound is not.
+  const random = prng(99);
+  const scrambled = segment(30, 45).map((v) => (random() < 0.5 ? -v : v));
+  const r = locate(master, scrambled);
+  assert.ok(r.fine < 0.2, `forma de onda ${r.fine}`);
+  assert.equal(r.confidence, 0);
+});
+
+test("dois pedaços iguais deixam a escolha em dúvida, a não ser que deem no mesmo lugar", () => {
+  const piece = master.slice(at(10), at(40));
+  const clip = segment(20, 30);
+  const ranked = rankPieces([piece, piece.slice()], clip);
+  assert.equal(ranked[0].result.confidence, ranked[1].result.confidence);
+  assert.equal(choosePiece(ranked)?.ambiguous, true);
+  // The same voice exported twice: the video goes to the same place either way.
+  const same = choosePiece(ranked, () => true);
+  assert.equal(same?.ambiguous, false);
+  assert.equal(same?.piece, 0, "no empate, o primeiro da lista (o mais novo)");
+  // A clear winner is not a doubt.
+  const clear = locateInPieces(
+    [master.slice(0, at(30)), master.slice(at(30), at(60))],
+    segment(42, 52),
+  );
+  assert.equal(clear?.piece, 1);
+  assert.equal(clear?.ambiguous, false);
 });

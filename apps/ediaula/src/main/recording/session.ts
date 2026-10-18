@@ -2,7 +2,13 @@ import { EventEmitter } from "node:events";
 import { appendFileSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
-import { cameraArgs, MIC_BUFFER_MS, microphoneArgs, screenArgs } from "../../shared/captureArgs.ts";
+import {
+  cameraArgs,
+  FOLLOW_PIPE_RATE,
+  MIC_BUFFER_MS,
+  microphoneArgs,
+  screenArgs,
+} from "../../shared/captureArgs.ts";
 import {
   type CaptureEncoder,
   captureEncoderLabel,
@@ -126,6 +132,8 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
   private cameraState: RecorderHealth["camera"];
   private system: { started: boolean; lastAt: number } = { started: false, lastAt: 0 };
   private lastRects = "";
+  /** When the teleprompter last moved (QPC ms): a line never starts before the one before it. */
+  private lastLineAt = 0;
   private lastWarnings = "";
   private queue: Promise<unknown> = Promise.resolve();
 
@@ -382,9 +390,19 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
     if (this.phase !== "prepared") this.journal.write({ k: "uiRects", qpc: qpc(), rects });
   }
 
-  teleprompterLine(index: number): void {
+  /**
+   * The teleprompter moved to line `index`: now (a shortcut), or at `heard` (QPC ms) when the
+   * voice following saw the line before end there. A time in the future, before the last
+   * line or more than 15 s back is not trusted: the line then counts from now.
+   */
+  teleprompterLine(index: number, heard?: number): void {
     if (this.phase !== "recording" && this.phase !== "paused") return;
-    const at = qpc();
+    const now = qpc();
+    const at =
+      heard !== undefined && heard <= now && heard >= now - 15000 && heard >= this.lastLineAt
+        ? heard
+        : now;
+    this.lastLineAt = at;
     this.journal.write({ k: "line", qpc: at, index });
     this.emit("line", index, at);
   }
@@ -615,7 +633,17 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
     );
     // Levels flow from the first block, before the first progress report.
     proc.on("data", (chunk) => this.health?.feedMic(chunk));
-    if (follow) proc.on("follow", (chunk) => this.emit("follow", chunk, qpc()));
+    if (follow) {
+      // The copy runs on the microphone's own clock: sample n is n / 16 kHz after the part's
+      // first sample (its estimate settles in the first seconds, like the recording's).
+      let samples = 0;
+      proc.on("follow", (chunk) => {
+        samples += Math.floor(chunk.length / 2);
+        const first = proc.first;
+        const at = first !== null ? first + (samples * 1000) / FOLLOW_PIPE_RATE : qpc();
+        this.emit("follow", chunk, at);
+      });
+    }
     try {
       await proc.started();
     } catch (error) {

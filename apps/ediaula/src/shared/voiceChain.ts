@@ -133,14 +133,15 @@ const PRESETS: Record<Exclude<VoicePreset, "off">, PresetShape> = {
   teacher: {
     highpass: 75,
     noise: 1,
-    gate: { range: 0.1, below: 18 },
+    // A gentle expander: the pauses go 10 dB down, never to digital silence.
+    gate: { range: 0.3, below: 18 },
     deesser: 0.4,
     compressor: { threshold: -20, ratio: 2.5 },
   },
   soft: {
     highpass: 70,
     noise: 0.7,
-    gate: { range: 0.3, below: 22 },
+    gate: { range: 0.5, below: 22 },
     deesser: 0.25,
     compressor: { threshold: -18, ratio: 1.8 },
   },

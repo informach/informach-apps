@@ -348,8 +348,9 @@ export function uiRects(rects: { x: number; y: number; w: number; h: number }[])
   session?.uiRects(rects);
 }
 
-export function teleprompterLine(index: number): void {
-  session?.teleprompterLine(index);
+/** The teleprompter moved to a line (at `heard`, QPC ms, when the voice following saw it). */
+export function teleprompterLine(index: number, heard?: number): void {
+  session?.teleprompterLine(index, heard);
 }
 
 /** "Tela sobre a narração": the lesson's voice heard at timeline second `at`, at QPC `when`. */

@@ -1,6 +1,7 @@
 import type { Effort } from "./aiModels.ts";
 import type { StoredProposal } from "./anchors.ts";
 import type { Annotation } from "./annotation.ts";
+import type { PieceMatch } from "./audioSync.ts";
 import type { CameraChoice, CameraMode } from "./camera.ts";
 import type { CaptionStyle, CueStyleEntry } from "./captions.ts";
 import type { ChromaKey } from "./chroma.ts";
@@ -270,6 +271,9 @@ export interface Clip {
   zoomLayer?: ZoomLayer;
   /** Script insert this clip plays (F1P1-D01), when it was placed from the script. */
   insertId?: string;
+  /** Silent while HeyGen's own sound of the avatar plays over it ("Usar o som do HeyGen"):
+   *  the clip is still the lesson's voice, with its volume. */
+  mutedFor?: "heygen";
 }
 
 export interface ProjectSettings {
@@ -305,8 +309,9 @@ export interface Project {
   stats?: { editSeconds: number };
   /** AI proposals waiting for the person, anchored in the media (shared/anchors.ts). */
   proposals?: StoredProposal[];
-  /** The voice last exported for HeyGen (Arquivo › Exportar voz para o HeyGen). */
-  voiceMaster?: VoiceMaster;
+  /** The voices exported for HeyGen (Arquivo › Exportar voz para o HeyGen), oldest first and at
+   *  most VOICE_MASTER_LIMIT: an MP4 that comes back is matched against all of them. */
+  voiceMasters?: VoiceMaster[];
   settings: ProjectSettings;
   assets: Asset[];
   /** Display order, top to bottom: video tracks first (highest layer on top), then audio. */
@@ -578,8 +583,8 @@ export interface EdiAulaApi {
     overAnchor(at: number, when: number): Promise<void>;
     /** "Tela sobre a narração": the lesson's voice as one file, starting at timeline `start`. */
     narration(): Promise<{ path: string; start: number }>;
-    /** "Só voz": the line the voice just finished (the teleprompter moves on from it). */
-    onFollow(cb: (line: number) => void): () => void;
+    /** "Só voz": the line the voice just finished, and the QPC moment its last word ended. */
+    onFollow(cb: (done: { line: number; at: number }) => void): () => void;
     onFollowState(cb: (s: { state: string; message: string }) => void): () => void;
     sources(): Promise<CaptureSources & { current: number | null }>;
     moveTo(index: number): Promise<void>;
@@ -605,7 +610,8 @@ export interface EdiAulaApi {
     interactive(on: boolean): Promise<void>;
     /** The recorder's own controls, window pixels: the pointer over them is not part of the video. */
     uiRects(rects: { x: number; y: number; width: number; height: number }[]): Promise<void>;
-    teleprompterLine(index: number): Promise<void>;
+    /** `at`: the QPC moment the line before ended, when the voice following moved it. */
+    teleprompterLine(index: number, at?: number): Promise<void>;
     /** Level meter of a microphone while setting up (null stops it); readings come by onLevel. */
     monitorMic(device: string | null): Promise<void>;
     cameraModes(device: string): Promise<{ modes: CameraMode[]; choice: CameraChoice | null }>;
@@ -662,12 +668,12 @@ export interface EdiAulaApi {
     pieces: { label: string; start: number; end: number }[],
   ): Promise<VoiceMaster>;
   pickHeygenVideos(): Promise<string[]>;
-  /** Where a HeyGen video sits in the exported voice (which piece, offset, scale, confidence). */
+  /** The exported voice files a HeyGen video may come from, best first, and its length. */
   locateHeygen(
     jobId: string,
     video: string,
     masters: string[],
-  ): Promise<{ piece: number; result: SyncResult; duration: number }>;
+  ): Promise<{ ranked: PieceMatch[]; duration: number }>;
   /** Saves a picture made in the editor (annotation) in the cache; returns its path. */
   saveGenerated(bytes: Uint8Array, ext: string): Promise<string>;
   saveNarration(bytes: Uint8Array): Promise<string>;

@@ -5,6 +5,7 @@ import { desktopFiles } from "@informach/edi-desktop/main";
 import { app } from "electron";
 import { z } from "zod";
 import type { VoiceSegment } from "../shared/voiceMaster.ts";
+import { NARRATION_CACHE_BYTES, pruneCache, touch } from "./cachePrune.ts";
 import { FFMPEG } from "./ffmpeg.ts";
 import { renderVoice } from "./heygen.ts";
 
@@ -54,7 +55,11 @@ export async function renderVoiceCached(
   const dir = join(app.getPath("userData"), "cache", "narracao");
   mkdirSync(dir, { recursive: true });
   const out = join(dir, `${key}.wav`);
-  if (!existsSync(out)) await renderVoice(FFMPEG, segments, from, to, out, signal);
+  if (existsSync(out)) await touch(out);
+  else {
+    await renderVoice(FFMPEG, segments, from, to, out, signal);
+    await pruneCache(dir, NARRATION_CACHE_BYTES, out);
+  }
   await desktopFiles.grantRead(out);
   return out;
 }
