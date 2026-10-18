@@ -4,12 +4,13 @@ import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import type { ElectronApplication, Page } from "playwright";
+import { expect } from "playwright/test";
 import { z } from "zod";
 import { windowsPowerShellEnvironment } from "../../../packages/edi-desktop/src/windows-powershell.ts";
 import { decodeArchive } from "../src/shared/documentFormat.ts";
 
 const execute = promisify(execFile);
-async function inspectRecovery(editor: Page, stage: string): Promise<void> {
+async function readNativeRecovery(editor: Page) {
   const record = await editor.evaluate(async () => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open("edifoto-recovery", 1);
@@ -38,8 +39,18 @@ async function inspectRecovery(editor: Page, stage: string): Promise<void> {
       discarded: z.boolean().optional(),
       bytes: z.array(z.number().int().min(0).max(255)).optional(),
     })
+    .optional()
     .parse(record);
-  const doc = snapshot.bytes ? decodeArchive(Uint8Array.from(snapshot.bytes)).doc : undefined;
+  const doc = snapshot?.bytes ? decodeArchive(Uint8Array.from(snapshot.bytes)).doc : undefined;
+  return {
+    capturedAt: snapshot?.capturedAt,
+    savedAt: snapshot?.savedAt,
+    discarded: snapshot?.discarded,
+    doc,
+  };
+}
+async function inspectRecovery(editor: Page, stage: string): Promise<void> {
+  const snapshot = await readNativeRecovery(editor);
   console.log(
     "Native recovery snapshot:",
     JSON.stringify({
@@ -47,8 +58,8 @@ async function inspectRecovery(editor: Page, stage: string): Promise<void> {
       capturedAt: snapshot.capturedAt,
       savedAt: snapshot.savedAt,
       discarded: snapshot.discarded,
-      docId: doc?.id,
-      text: doc?.layers
+      docId: snapshot.doc?.id,
+      text: snapshot.doc?.layers
         .filter((layer) => layer.kind === "text")
         .map((layer) => ({ id: layer.id, content: layer.text.content })),
       visibleText: await editor.locator(".rpanel textarea").allTextContents(),
@@ -160,31 +171,21 @@ export async function verifyFotoNativeJourney(
   await cancelling;
   assert.deepEqual(await readFile(destination), bytes);
   assert.equal(await text.inputValue(), "Rascunho nativo recuperável");
-  await editor.waitForFunction(
-    async () => {
-      const database = await new Promise<IDBDatabase>((resolve, reject) => {
-        const request = indexedDB.open("edifoto-recovery", 1);
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      });
-      try {
-        return await new Promise<boolean>((resolve, reject) => {
-          const request = database.transaction("drafts").objectStore("drafts").get("latest");
-          request.onsuccess = () =>
-            resolve(
-              new TextDecoder()
-                .decode(request.result?.bytes)
-                .includes("Rascunho nativo recuperável"),
-            );
-          request.onerror = () => reject(request.error);
-        });
-      } finally {
-        database.close();
-      }
-    },
-    null,
-    { timeout: 15000 },
-  );
+  // waitForFunction treats a Promise as truthy before its result is known. Poll the decoded archive.
+  await expect
+    .poll(
+      async () => {
+        const { doc } = await readNativeRecovery(editor);
+        return (
+          doc?.layers.some(
+            (layer) =>
+              layer.kind === "text" && layer.text.content === "Rascunho nativo recuperável",
+          ) ?? false
+        );
+      },
+      { timeout: 15000, message: "Newest editable draft must be durable before reloading" },
+    )
+    .toBe(true);
   await inspectRecovery(editor, "before reload");
   console.log("EdiFoto native: restore durable draft and export");
   await editor.reload();
