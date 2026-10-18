@@ -17,7 +17,11 @@ export type AnnotationKind =
   | "card"
   | "lowerthird"
   | "panel"
-  | "line";
+  | "line"
+  /** Strokes drawn on the screen during a take (shared/drawing.ts): a video, not a picture. */
+  | "drawing"
+  /** A white or black board put over the screen while drawing, with its strokes: a video too. */
+  | "board";
 export type Tail =
   | "none"
   | "bottom-left"
@@ -375,7 +379,13 @@ export const KIND_LABEL: Record<AnnotationKind, string> = {
     string
   >),
   card: "Cartela",
+  drawing: "Desenho",
+  board: "Quadro",
 };
+
+/** The annotations made of a take's drawing (a video of its strokes, not a picture of fields). */
+export const isDrawingKind = (kind: AnnotationKind): boolean =>
+  kind === "drawing" || kind === "board";
 
 /** Full-screen opening and closing cards. */
 export const CARD = {

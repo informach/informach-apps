@@ -1,3 +1,4 @@
+import { isDrawingKind } from "@shared/annotation";
 import {
   type CopiedProps,
   groupApplies,
@@ -109,7 +110,7 @@ export async function pasteProps(ids: string[], groups: Set<PropGroup>): Promise
     if (groups.has("style") && src.clip.annotation)
       for (const c of targets) {
         const now = useProject.getState().project?.clips.find((x) => x.id === c.id);
-        if (now?.annotation)
+        if (now?.annotation && !isDrawingKind(now.annotation.kind))
           await updateAnnotation(c.id, pasteAnnotationStyle(now.annotation, src.clip.annotation));
       }
   } finally {

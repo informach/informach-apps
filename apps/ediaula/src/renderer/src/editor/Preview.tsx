@@ -84,6 +84,7 @@ import { CursorLayer } from "./CursorLayer";
 import { CutFxLayer } from "./CutFxLayer";
 import { MediaPool } from "./mediaPool";
 import { buildLanes, type LanePlan, type PoolClip, pictureTarget, planLane } from "./previewPool";
+import { RecordingZoomTarget } from "./RecordingZoomTarget";
 import { RegionTarget } from "./RegionTarget";
 import { ZoomTarget } from "./ZoomTarget";
 
@@ -352,6 +353,25 @@ export function Preview(): ReactNode {
     };
   }, [raw]);
 
+  // A recording's zoom being edited: the preview shows the frame without it, and its box.
+  const recordingZoom = useApp((s) => s.recordingZoom);
+  const sideTab = useApp((s) => s.sideTab);
+  // It is edited only while its clip is the one selected and its properties are on screen: any
+  // other selection, another lesson or another tab ends the editing, and the zoom shows again.
+  const editedClip =
+    selection.length === 1 ? project?.clips.find((c) => c.id === selection[0]) : undefined;
+  const editedZooms = editedClip
+    ? project?.assets.find((a) => a.id === editedClip.assetId)?.zooms
+    : undefined;
+  useEffect(() => {
+    const rz = useApp.getState().recordingZoom;
+    if (!rz) return;
+    const still =
+      sideTab === "properties" &&
+      editedClip?.assetId === rz.assetId &&
+      !!editedZooms?.some((z) => z.id === rz.zoomId);
+    if (!still) useApp.getState().set({ recordingZoom: null });
+  }, [sideTab, editedClip?.assetId, editedZooms]);
   // While a zoom layer is selected the preview shows the frame without it (its box is drawn instead).
   const editingZoom =
     selection.length === 1
@@ -370,7 +390,12 @@ export function Preview(): ReactNode {
     const zoomsOf = new Map(
       project.clips
         .filter((c) => mounted.has(c.id))
-        .map((c) => [c.id, zoomsIn(assets.get(c.assetId)?.zooms, c.in, sourceEnd(c))]),
+        .map((c) => [
+          c.id,
+          zoomsIn(assets.get(c.assetId)?.zooms, c.in, sourceEnd(c)).filter(
+            (z) => !(recordingZoom?.assetId === c.assetId && recordingZoom.zoomId === z.id),
+          ),
+        ]),
     );
     const frame = 1 / project.settings.fps;
 
@@ -665,7 +690,17 @@ export function Preview(): ReactNode {
       unsubSolo();
       if (pool) pool.onSeeked = null;
     };
-  }, [project, mountKey, editingZoom, original, lanes, revealTimes, textCues, cuesVersion]);
+  }, [
+    project,
+    mountKey,
+    editingZoom,
+    original,
+    lanes,
+    revealTimes,
+    textCues,
+    cuesVersion,
+    recordingZoom,
+  ]);
 
   // The pool of media elements lives as long as the preview; leaving the editor stops it all.
   useLayoutEffect(() => {
@@ -1110,6 +1145,12 @@ export function Preview(): ReactNode {
                           const el = served.current.get(c.id);
                           return el instanceof HTMLVideoElement ? el : undefined;
                         }}
+                        playClick={(volume) => {
+                          // Heard when its track is, as the export mixes it.
+                          const track = project?.tracks.find((t) => t.id === c.trackId);
+                          if (track && heard(track, useApp.getState().solo))
+                            poolRef.current?.click(volume);
+                        }}
                       />
                     )}
                   </div>
@@ -1157,6 +1198,15 @@ export function Preview(): ReactNode {
           )}
           {selected?.zoomLayer && <ZoomTarget clip={selected} width={size.w} height={size.h} />}
           {selected?.regionFx && <RegionTarget clip={selected} width={size.w} height={size.h} />}
+          {selected && selectedAsset && recordingZoom?.assetId === selectedAsset.id && (
+            <RecordingZoomTarget
+              clip={selected}
+              asset={selectedAsset}
+              zoomId={recordingZoom.zoomId}
+              settings={settings}
+              scale={scale}
+            />
+          )}
           {selected &&
             selectedAsset &&
             project &&

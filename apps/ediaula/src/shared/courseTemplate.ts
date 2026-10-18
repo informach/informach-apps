@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AnnotationKind } from "./annotation.ts";
+import { type AnnotationKind, isDrawingKind } from "./annotation.ts";
 import type { Ducking } from "./audio.ts";
 import type { CaptionStyle } from "./captions.ts";
 import type { ChromaKey } from "./chroma.ts";
@@ -434,7 +434,10 @@ export function courseTemplateFrom(
 ): CourseTemplate {
   const duration = projectDuration(project);
   const assets = new Map(project.assets.map((a) => [a.id, a]));
-  const annotations = project.clips.filter((c) => c.annotation && c.annotation.kind !== "card");
+  // A drawing from a recording belongs to that take, not to the course's style.
+  const annotations = project.clips.filter(
+    (c) => c.annotation && c.annotation.kind !== "card" && !isDrawingKind(c.annotation.kind),
+  );
   const cards = project.clips.filter((c) => c.annotation?.kind === "card");
   const presenters = presenterClips(project);
   const recordings = project.assets.filter(

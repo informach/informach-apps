@@ -192,7 +192,8 @@ async function takeSizes(dir: string): Promise<TakeSizes & { other: number }> {
     if (!entry.isFile()) continue;
     const size = (await stat(join(dir, entry.name))).size;
     if (/^tela-\d+\.mp4$/.test(entry.name)) sizes.screen += size;
-    else if (/^(microfone-\d+\.m4a|voz-\d+\.mkv|sistema\.webm)$/.test(entry.name))
+    // The computer's sound: MediaRecorder's WebM, or the helper's WAV (native process loopback).
+    else if (/^(microfone-\d+\.m4a|voz-\d+\.mkv|sistema\.webm|sistema-\d+\.wav)$/.test(entry.name))
       sizes.audio += size;
     else sizes.other += size;
   }

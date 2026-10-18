@@ -8,12 +8,25 @@ import {
   outlineStyle,
   type Tail,
 } from "@shared/annotation";
+import {
+  BOARD_COLORS,
+  BOARD_KINDS,
+  boardAt,
+  type Drawing,
+  type DrawingTool,
+  strokesIn,
+  withBoardColor,
+  withoutStroke,
+} from "@shared/drawing";
+import { plural } from "@shared/plural";
 import type { Clip } from "@shared/types";
-import { MessageSquareText } from "lucide-react";
+import { MessageSquareText, PenLine, X } from "lucide-react";
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { updateAnnotation } from "@/lib/annotations";
+import { changeDrawing } from "@/lib/drawing";
 import { annotationStyle } from "@/lib/sharedLibrary";
-import { registerDraft } from "@/state/project";
+import { useApp } from "@/state/app";
+import { registerDraft, useProject } from "@/state/project";
 import { Slider } from "./ClipVisual";
 import { FontPicker } from "./FontPicker";
 import { FavoriteStyle, RevealRow } from "./LookSections";
@@ -121,6 +134,105 @@ function useAnnotationText(
   };
   return [value, change, commit.current];
 }
+
+/**
+ * A drawing made on the screen during the take: its strokes appear as they were drawn. It is a
+ * clip like any other (cut, move, hide its track); its colors are the ones it was drawn with.
+ */
+export function DrawingSection({ clip }: { clip: Clip }): ReactNode {
+  const toast = useApp((x) => x.toast);
+  const [busy, setBusy] = useState(false);
+  const a = clip.annotation;
+  // The drawing is kept once, on the media of its video.
+  const drawing = useProject((s) => s.project?.assets.find((x) => x.id === clip.assetId)?.drawing);
+  if (!a || !drawing) return null;
+  const board = a.kind === "board";
+  // The strokes this clip shows (its stretch of the drawing's video), in the order they were
+  // made: the ones a wipe, a new page or the board's edges took away before it are not here.
+  const from = clip.in;
+  const to = clip.in + clip.duration * (clip.speed ?? 1);
+  const shown = strokesIn(drawing, from, to).map((index) => ({ s: drawing.strokes[index], index }));
+  const change = (fn: (d: Drawing) => Drawing): void => {
+    setBusy(true);
+    void changeDrawing(clip.assetId, fn)
+      .catch((error: unknown) =>
+        toast(
+          `O desenho não mudou: ${error instanceof Error ? error.message : String(error)}`,
+          "error",
+        ),
+      )
+      .finally(() => setBusy(false));
+  };
+  const at = from + 1e-3;
+  const current = boardAt(drawing, at)?.color ?? a.color;
+  return (
+    <div className="props-section">
+      <h3>
+        <PenLine size={13} /> {KIND_LABEL[a.kind]}
+      </h3>
+      <p className="props-hint muted">
+        {board
+          ? "O quadro posto sobre a tela durante a gravação, com os traços feitos nele. Corte, apare ou apague o clipe como qualquer outro."
+          : `${plural(drawing.strokes.length, "traço feito", "traços feitos")} na tela durante a gravação. Cada traço aparece do jeito que foi desenhado, no mesmo ponto da tela. Corte, mova ou apague o clipe como qualquer outro.`}
+      </p>
+      {board && (
+        <>
+          <span className="field-label">Cor do quadro</span>
+          <div className="chip-row">
+            {BOARD_KINDS.map((kind) => (
+              <button
+                type="button"
+                key={kind}
+                disabled={busy}
+                className={`chip ${current.toUpperCase() === BOARD_COLORS[kind].toUpperCase() ? "is-active" : ""}`}
+                onClick={() => change((d) => withBoardColor(d, at, BOARD_COLORS[kind]))}
+              >
+                {kind === "white" ? "Branco" : "Negro"}
+              </button>
+            ))}
+          </div>
+          <Swatches
+            value={current}
+            onPick={(hex) => hex && change((d) => withBoardColor(d, at, hex.slice(0, 7)))}
+          />
+        </>
+      )}
+      {shown.length > 0 && (
+        <>
+          <span className="field-label">
+            {plural(shown.length, "traço neste clipe", "traços neste clipe")}
+          </span>
+          <ul className="drawing-strokes">
+            {shown.map(({ s, index }, n) => (
+              <li key={`${index}-${s.t}`}>
+                <span className="drawing-stroke-dot" style={{ background: s.color }} />
+                <span>
+                  {STROKE_LABEL[s.tool ?? "pen"]} {n + 1}
+                </span>
+                <span className="muted mono">{(s.t - from).toFixed(1)} s</span>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  title="Apagar este traço"
+                  disabled={busy}
+                  onClick={() => change((d) => withoutStroke(d, index))}
+                >
+                  <X size={12} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
+
+const STROKE_LABEL: Record<DrawingTool, string> = {
+  pen: "Traço",
+  marker: "Marca-texto",
+  arrow: "Seta",
+};
 
 /** Editing an annotation redraws its picture; each change is one undo step. */
 export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {

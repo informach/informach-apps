@@ -1,3 +1,5 @@
+import { isDrawingKind } from "@shared/annotation";
+import { isPersonKey } from "@shared/personKey";
 import {
   clipEnd,
   clipSpeed,
@@ -21,9 +23,10 @@ import { useApp } from "@/state/app";
 import { playback } from "@/state/playback";
 import { assetMap, useProject } from "@/state/project";
 import { Button, Toggle } from "@/ui";
-import { AnnotationSection } from "./AnnotationProps";
+import { AnnotationSection, DrawingSection } from "./AnnotationProps";
 import { AssistantPanel } from "./AssistantPanel";
 import { BatchSection } from "./BatchProps";
+import { CameraSection } from "./CameraSection";
 import { CaptionSettings } from "./CaptionSettings";
 import {
   FadeSection,
@@ -257,15 +260,25 @@ function Properties(): ReactNode {
 
       {asset && asset.kind !== "audio" && !clip.zoomLayer && !clip.regionFx && (
         <>
-          {clip.annotation && <AnnotationSection key={clip.id} clip={clip} />}
-          {asset.kind === "video" && <ZoomSection clip={clip} asset={asset} />}
-          {asset.cursor && <CursorSection asset={asset} />}
+          {clip.annotation &&
+            (isDrawingKind(clip.annotation.kind) ? (
+              <DrawingSection key={clip.id} clip={clip} />
+            ) : (
+              <AnnotationSection key={clip.id} clip={clip} />
+            ))}
+          {asset.kind === "video" && !clip.annotation && <ZoomSection clip={clip} asset={asset} />}
+          {asset.cursor && <CursorSection asset={asset} clip={clip} />}
           <PlacementSection clip={clip} asset={asset} />
           {!clip.annotation && <ShadowSection clip={clip} />}
           <MotionPathSection clip={clip} />
           <TransitionSection clip={clip} />
           <FadeSection clip={clip} />
-          {asset.kind === "video" && <KeySection asset={asset} />}
+          {asset.kind === "video" && asset.recording?.role === "camera" && (
+            <CameraSection clip={clip} asset={asset} />
+          )}
+          {asset.kind === "video" && !isPersonKey(asset.key) && !clip.annotation && (
+            <KeySection asset={asset} />
+          )}
           <ColorSection clip={clip} />
           {!clip.annotation && <DeviceSection clip={clip} />}
         </>

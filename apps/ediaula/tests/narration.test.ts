@@ -70,3 +70,16 @@ test("rejects wrong project, invalid interval and empty take", () => {
     assert.throws(() => insertNarration(project, "lesson", audio, start, end));
   assert.throws(() => insertNarration(project, "lesson", { ...audio, duration: 0 }, 0, 5));
 });
+
+test("narrations recorded one after another reuse the Narração track where it is free", () => {
+  const first = insertNarration(project, "lesson", audio, 10, 30);
+  const second = insertNarration(first, "lesson", { ...audio, id: "second" }, 20, 26);
+  assert.equal(second.tracks.length, 1, "the second take fits after the first on the same track");
+  assert.equal(second.clips[2].trackId, second.clips[1].trackId);
+  // A locked Narração track is left alone.
+  const locked = { ...first, tracks: first.tracks.map((t) => ({ ...t, locked: true })) };
+  const third = insertNarration(locked, "lesson", { ...audio, id: "third" }, 40, 45);
+  assert.equal(third.tracks.length, 2);
+  assert.notEqual(third.clips[2].trackId, third.clips[1].trackId);
+  assert.equal(third.tracks[1].name, "Narração");
+});

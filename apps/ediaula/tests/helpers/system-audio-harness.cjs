@@ -1,10 +1,16 @@
-// Electron main for tests/systemAudioExclusion.test.ts: the recorder's way of capturing the
-// computer's sound (the same display media handler as main/recorderWindow.ts and the constraints
-// handed in, those of shared/systemAudio.ts). Tone A plays in the capturing window itself
-// (--tone-window=same: the recorder window plays the lesson's voice and captures the computer's
-// sound) or in another window of this app (--tone-window=other), and another process
-// (PowerShell's SoundPlayer) plays the WAV of tone B on the default device. Writes the captured
-// WebM and the track's settings, then quits.
+// Electron main for tests/systemAudioExclusion.test.ts: the recorder's two ways of capturing the
+// computer's sound (shared/systemAudio.ts).
+// --capture=chromium: the same display media handler as main/recorderWindow.ts and the
+//   constraints handed in. Tone A plays in the capturing window itself (--tone-window=same: the
+//   recorder window plays the lesson's voice and captures the computer's sound) or in another
+//   window of this app (--tone-window=other). Writes the captured WebM.
+// --capture=native: the helper's loopback mode (--helper), leaving out this app's process tree
+//   (--exclude=self) or, as the control, the tree of an idle process (--exclude=dummy). Tone A
+//   plays in one window of this app (same) or another one (other). Writes the helper's WAV.
+// Another process (PowerShell's SoundPlayer) plays the WAV of tone B on the default device: this
+// app starts it for the fallback; for the native route the test plays it from outside this app's
+// process tree, which the route leaves out whole.
+// Prints the track's settings (or the route), then quits.
 const { app, BrowserWindow, desktopCapturer, ipcMain, session } = require("electron");
 const { spawn } = require("node:child_process");
 const { mkdtempSync, writeFileSync } = require("node:fs");
@@ -22,6 +28,7 @@ const frequencyA = Number(arg("frequency-a"));
 const constraints = JSON.parse(arg("constraints"));
 const seconds = Number(arg("seconds"));
 const toneWindowKind = arg("tone-window");
+const captureKind = process.argv.includes("--capture=native") ? "native" : "chromium";
 
 /** Plays tone A until the app quits, in whichever window runs it. */
 const playTone = `
@@ -43,6 +50,11 @@ const { ipcRenderer } = require("electron");
   ${playTone}
   await ipcRenderer.invoke("tone-playing");
 })().catch((error) => ipcRenderer.invoke("failed", String(error)));
+</script>`;
+
+/** A window of this app that plays nothing. */
+const idlePage = `<!doctype html><meta charset="utf-8"><script>
+require("electron").ipcRenderer.invoke("tone-playing");
 </script>`;
 
 /** The window that captures the computer's sound, as the recorder window does. */
@@ -79,6 +91,42 @@ const page = (dir, name, html) => {
   return file;
 };
 
+/** Tone B from another process, on the default device. */
+const playB = () =>
+  spawn(
+    "powershell.exe",
+    [
+      "-NoProfile",
+      "-NonInteractive",
+      "-Command",
+      `(New-Object Media.SoundPlayer '${toneB.replace(/'/g, "''")}').PlaySync()`,
+    ],
+    { stdio: "ignore", windowsHide: true },
+  );
+
+/** The helper's loopback mode for `seconds`, leaving out the tree of `pid`. */
+async function nativeCapture(pid) {
+  const helper = arg("helper");
+  const child = spawn(helper, ["loopback", "--exclude-pid", String(pid), "--out", out], {
+    windowsHide: true,
+  });
+  let stderr = "";
+  child.stderr.on("data", (d) => (stderr += d));
+  const closed = new Promise((resolve) => child.once("close", resolve));
+  await new Promise((resolve, reject) => {
+    let text = "";
+    child.stdout.on("data", (d) => {
+      text += d;
+      if (text.includes('"aready"')) resolve();
+    });
+    child.once("close", (code) => reject(new Error(`loopback exited ${code}: ${stderr}`)));
+  });
+  await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+  child.stdin.end();
+  const code = await closed;
+  if (code !== 0) throw new Error(`loopback exited ${code}: ${stderr}`);
+}
+
 app.whenReady().then(async () => {
   session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
     void desktopCapturer
@@ -94,16 +142,7 @@ app.whenReady().then(async () => {
   };
   const dir = mkdtempSync(join(tmpdir(), "ediaula-system-audio-"));
   ipcMain.handle("play-b", () => {
-    spawn(
-      "powershell.exe",
-      [
-        "-NoProfile",
-        "-NonInteractive",
-        "-Command",
-        `(New-Object Media.SoundPlayer '${toneB.replace(/'/g, "''")}').PlaySync()`,
-      ],
-      { stdio: "ignore", windowsHide: true },
-    );
+    playB();
   });
   ipcMain.handle("done", (_event, bytes, settings) => {
     writeFileSync(out, Buffer.from(bytes));
@@ -114,6 +153,39 @@ app.whenReady().then(async () => {
     process.stderr.write(`${message}\n`);
     app.exit(1);
   });
+  if (captureKind === "native") {
+    try {
+      // Tone A in this app: in one window, or in another one beside it (both are this process's
+      // tree, which the native route leaves out whole).
+      const windows = toneWindowKind === "other" ? 2 : 1;
+      for (let i = 0; i < windows; i++) {
+        const playing = new Promise((resolve) => {
+          ipcMain.handleOnce("tone-playing", () => resolve());
+        });
+        const w = new BrowserWindow({ show: false, webPreferences });
+        // Only the last window plays tone A; the first of two stands for the recorder window.
+        await w.loadFile(page(dir, `tone-${i}.html`, i === windows - 1 ? tonePage : idlePage));
+        await playing;
+      }
+      let pid = process.pid;
+      let dummy;
+      if (process.argv.includes("--exclude=dummy")) {
+        dummy = spawn("powershell.exe", ["-NoProfile", "-Command", "Start-Sleep 60"], {
+          stdio: "ignore",
+          windowsHide: true,
+        });
+        pid = dummy.pid;
+      }
+      await nativeCapture(pid).finally(() => dummy?.kill());
+      const excluded = pid === process.pid ? "self" : "dummy";
+      process.stdout.write(`SETTINGS ${JSON.stringify({ route: "native", excluded })}\n`);
+      app.exit(0);
+    } catch (error) {
+      process.stderr.write(`${String(error)}\n`);
+      app.exit(1);
+    }
+    return;
+  }
   // In another window, tone A plays first; the capture starts once it plays.
   if (toneWindowKind === "other") {
     const playing = new Promise((resolve) => {

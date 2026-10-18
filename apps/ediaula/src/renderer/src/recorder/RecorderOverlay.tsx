@@ -12,11 +12,25 @@ import type { RecorderSettings } from "@shared/recorderSettings";
 import type {
   CaptureMonitor,
   CaptureSources,
+  CaptureWindow,
   OverContext,
+  RecorderContext,
   RecorderEvent,
   RecorderStatus,
 } from "@shared/recording";
 import type { MicLevel, RecorderHealth } from "@shared/recordingHealth";
+import {
+  dipToPhysical,
+  monitorOfWindow,
+  physicalToDip,
+  presetRegion,
+  REGION_PRESETS,
+  type RegionPreset,
+  type RegionRect,
+  type RegionSize,
+  resizeRegion,
+  snapToWindow,
+} from "@shared/region";
 import { systemAudioPlan } from "@shared/systemAudio";
 import { type PrompterLine, readLines, stepLine, voiceSpeakers } from "@shared/voiceTakes";
 import {
@@ -26,10 +40,13 @@ import {
   EyeOff,
   Keyboard,
   Loader,
+  Lock,
+  LockOpen,
   Mic,
   MonitorUp,
   MousePointer2,
   Pause,
+  PenLine,
   Play,
   RotateCcw,
   ScanLine,
@@ -50,6 +67,7 @@ import {
   useState,
 } from "react";
 import { mediaUrl } from "@/lib/media";
+import { DrawLayer, drawing } from "./DrawLayer";
 import { GuidedSetup, guidedProblem } from "./GuidedSetup";
 import { GuidedWebPanel } from "./GuidedWebPanel";
 import { HealthStrip, LevelBars } from "./HealthStrip";
@@ -58,6 +76,7 @@ import { CameraModeSelect, RecorderOptions } from "./RecorderOptions";
 import { SystemAudio } from "./systemAudio";
 import { resendUiRects, useUiRect } from "./uiRects";
 import { KaraokePrompter, MicTest, SpeakerChips, VoicePrompter } from "./VoiceTools";
+import { WindowPicker } from "./WindowPicker";
 
 type Phase = "setup" | "countdown" | "recording" | "paused" | "saving";
 interface Rect {
@@ -84,19 +103,6 @@ const cleanError = (err: unknown): string =>
     "",
   );
 
-/** 16:9 in the middle of the window. */
-function centered169(): Rect {
-  const W = window.innerWidth;
-  const H = window.innerHeight;
-  const h = Math.min(H, (W * 9) / 16);
-  const w = (h * 16) / 9;
-  return {
-    x: Math.round((W - w) / 2),
-    y: Math.round((H - h) / 2),
-    width: Math.round(w),
-    height: Math.round(h),
-  };
-}
 const fullWindow = (): Rect => ({
   x: 0,
   y: 0,
@@ -104,17 +110,52 @@ const fullWindow = (): Rect => ({
   height: window.innerHeight,
 });
 
-/** The region the settings ask for, if it still fits this screen. */
-function regionFrom(settings: RecorderSettings): Rect {
+/** This window's size, in its own pixels (DIP). */
+const windowSize = (): RegionSize => ({ width: window.innerWidth, height: window.innerHeight });
+
+/** The monitor in physical pixels; the window's own size until it is known. */
+const physicalOf = (monitor: CaptureMonitor | null): RegionSize =>
+  monitor ? { width: monitor.width, height: monitor.height } : windowSize();
+
+/** A rectangle of physical pixels of the monitor, in this window's pixels. */
+const toWindow = (rect: RegionRect, monitor: CaptureMonitor | null): Rect =>
+  physicalToDip(rect, physicalOf(monitor), windowSize());
+
+/**
+ * The region the settings ask for on this screen (shared/region.ts presets in physical pixels):
+ * a custom rectangle if it still fits, else the whole screen.
+ */
+function regionFrom(
+  settings: RecorderSettings,
+  monitor: CaptureMonitor | null,
+  lesson: RegionSize | undefined,
+): Rect {
   const r = settings.region;
-  if (r.preset === "16:9") return centered169();
   if (r.preset === "custom" && r.rect) {
     const { x, y, width, height } = r.rect;
-    if (x + width <= window.innerWidth && y + height <= window.innerHeight)
+    if (x + width <= window.innerWidth + 0.5 && y + height <= window.innerHeight + 0.5)
       return { x, y, width, height };
   }
-  return fullWindow();
+  const physical = physicalOf(monitor);
+  const preset = presetRegion(r.preset, physical, lesson) ?? presetRegion("full", physical);
+  return preset ? toWindow(preset, monitor) : fullWindow();
 }
+
+/** The region in physical pixels of the monitor, as the capture will record it. */
+function regionPhysical(region: Rect, monitor: CaptureMonitor | null): RegionRect {
+  const physical = physicalOf(monitor);
+  return (
+    dipToPhysical(region, physical, windowSize()) ?? {
+      x: 0,
+      y: 0,
+      width: Math.floor(physical.width / 2) * 2,
+      height: Math.floor(physical.height / 2) * 2,
+    }
+  );
+}
+
+/** The region select: each preset, the window it was fitted to, or what was drawn by hand. */
+type RegionChoice = RegionPreset | "window";
 
 /**
  * Lets clicks reach the recorder's own controls while everything else goes to the apps
@@ -139,7 +180,8 @@ function Interactive({
       className={className}
       aria-label="Controles da gravação"
       onMouseEnter={() => active && void window.api.recorder.interactive(true)}
-      onMouseLeave={() => active && void window.api.recorder.interactive(false)}
+      // While drawing, the whole window keeps the mouse (the pen is on it).
+      onMouseLeave={() => active && !drawing.on && void window.api.recorder.interactive(false)}
     >
       {children}
     </fieldset>
@@ -153,6 +195,19 @@ export function RecorderOverlay(): ReactNode {
   const [settings, setSettings] = useState<RecorderSettings | null>(null);
   const [monitor, setMonitor] = useState<CaptureMonitor | null>(null);
   const [region, setRegion] = useState<Rect>(fullWindow);
+  /** What the region select shows. */
+  const [regionChoice, setRegionChoice] = useState<RegionChoice>("full");
+  /** "Janela…": the window the region was fitted to, followed during the take. */
+  const [followed, setFollowed] = useState<{ window: CaptureWindow; front: boolean } | null>(null);
+  const [windowPicker, setWindowPicker] = useState(false);
+  /** A region for the monitor the window is being moved to, applied once it has its new size. */
+  const pendingRegion = useRef<RegionRect | null>(null);
+  /** The lesson's frame and colors (RecorderContext). */
+  const [lesson, setLesson] = useState<RecorderContext["lesson"]>();
+  const [palette, setPalette] = useState<string[]>([]);
+  /** Drawing on the screen during the take. */
+  const [drawOn, setDrawOn] = useState(false);
+  const drawAllowed = useRef(false);
   const [mic, setMic] = useState<string>("");
   /** The camera of the screen modes and the presenter's camera of "Voz e câmera", each kept. */
   const [screenCam, setScreenCam] = useState<string>("");
@@ -205,6 +260,8 @@ export function RecorderOverlay(): ReactNode {
   const webRef = useRef(web);
   webRef.current = web;
   const [optionsOpen, setOptionsOpen] = useState(false);
+  /** The teacher picked a mode: the one remembered, arriving later, does not take its place. */
+  const modePicked = useRef(false);
   const guidedFailed = useRef(false);
   const preservationRequested = useRef(false);
   const guidedAudio = useRef<HTMLAudioElement | null>(null);
@@ -237,6 +294,8 @@ export function RecorderOverlay(): ReactNode {
     const load = (): Promise<void> =>
       window.api.recorder.context().then((c) => {
         loadedProject.current = c.projectId ?? null;
+        setLesson(c.lesson);
+        setPalette(c.palette ?? []);
         setLines(c.teleprompter);
         setNotes(c.screenNotes ?? []);
         setOver(c.over ?? null);
@@ -269,7 +328,8 @@ export function RecorderOverlay(): ReactNode {
         setSources(s);
         setSettings(saved);
         const remembered = saved.recordMode;
-        if (remembered !== "screen") setMode((m) => (m === "screen" ? remembered : m));
+        if (remembered !== "screen" && !modePicked.current)
+          setMode((m) => (m === "screen" ? remembered : m));
         const wanted = saved.monitor;
         const rememberedMonitor = wanted
           ? s.monitors.find(
@@ -301,7 +361,11 @@ export function RecorderOverlay(): ReactNode {
             ? saved.presenterCamera
             : "",
         );
-        setRegion(regionFrom(saved));
+        setRegionChoice(saved.region.preset);
+        // The lesson's size comes with the context, which may still be on its way.
+        void window.api.recorder
+          .context()
+          .then((c) => setRegion(regionFrom(saved, m ?? null, c.lesson)));
       },
     );
     void window.api.recorder.hotkeys().then(setHotkeys);
@@ -403,32 +467,148 @@ export function RecorderOverlay(): ReactNode {
     setCamModes(null);
     if (!cam) return;
     let current = true;
-    window.api.recorder.cameraModes(cam).then(
+    window.api.recorder.cameraModes(cam, fps).then(
       (modes) => current && setCamModes(modes),
       () => current && setCamModes({ modes: [], choice: null }),
     );
     return () => {
       current = false;
     };
-  }, [cam]);
+  }, [cam, fps]);
 
   // The window resizes when moved to another monitor: the region the options ask for, if it
   // fits there, else the whole screen.
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
+  const monitorRef = useRef(monitor);
+  monitorRef.current = monitor;
+  const lessonRef = useRef(lesson);
+  lessonRef.current = lesson;
   useEffect(() => {
     const onResize = (): void => {
+      const pending = pendingRegion.current;
+      pendingRegion.current = null;
+      if (pending) {
+        // A window on another monitor: its rectangle there, now that this window covers it.
+        const r = toWindow(pending, monitorRef.current);
+        setRegion(r);
+        setSettings((s) => (s ? { ...s, region: { preset: "custom", rect: r } } : s));
+        return;
+      }
       const s = settingsRef.current;
-      setRegion(s ? regionFrom(s) : fullWindow());
+      setRegion(s ? regionFrom(s, monitorRef.current, lessonRef.current) : fullWindow());
     };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  // Drawing is for the take while it records: a pause, the stop or a discard turns it off. The
+  // window takes the mouse while it is on, and the main process notes when (clicks are the pen).
+  useEffect(() => {
+    if (phase !== "recording" && drawOn) setDrawOn(false);
+  }, [phase, drawOn]);
+  const drewBefore = useRef(false);
+  useEffect(() => {
+    if (drawOn === drewBefore.current) return;
+    drewBefore.current = drawOn;
+    // Back in setup (a discard) or saving, the window already takes the mouse as it should.
+    if (phaseRef.current !== "recording" && phaseRef.current !== "paused") return;
+    void window.api.recorder.drawMode(drawOn);
+    // Leaving the drawing with the pointer on a control (the pill's pause) keeps it clickable.
+    const overControls = [...document.querySelectorAll(".rec-root fieldset")].some((el) =>
+      el.matches(":hover"),
+    );
+    if (drawOn || !overControls) void window.api.recorder.interactive(drawOn);
+  }, [drawOn]);
+
   // A new take only knows where the controls are once it is told.
   useEffect(() => {
     if (phase === "recording") resendUiRects();
   }, [phase]);
+
+  /** A preset from the region select (shared/region.ts), in physical pixels of this monitor. */
+  const pickRegion = (choice: RegionPreset): void => {
+    const rect = presetRegion(choice, physicalOf(monitor), lesson);
+    if (!rect) return;
+    setRegionChoice(choice);
+    setRegion(toWindow(rect, monitor));
+    change({ region: { preset: choice } });
+    if (followed) {
+      setFollowed(null);
+      void window.api.recorder.followWindow(null, false);
+    }
+  };
+  /** The region drawn or typed by hand. */
+  const customRegion = (r: Rect): void => {
+    setRegion(r);
+    setRegionChoice("custom");
+    change({ region: { preset: "custom", rect: r } });
+    if (followed) {
+      setFollowed(null);
+      void window.api.recorder.followWindow(null, false);
+    }
+  };
+  /** Width or height typed in physical pixels, around the same center. */
+  const typeSize = (size: Partial<RegionSize>): void => {
+    if (!settings) return;
+    const next = resizeRegion(
+      regionPhysical(region, monitor),
+      size,
+      settings.regionLock,
+      physicalOf(monitor),
+    );
+    customRegion(toWindow(next, monitor));
+  };
+  /** "Janela…": the region fitted to a window, which the take then follows. */
+  const fitWindow = (w: CaptureWindow, front: boolean): void => {
+    setWindowPicker(false);
+    const rect = { x: w.x, y: w.y, width: w.width, height: w.height };
+    const all = sources?.monitors ?? [];
+    const index = monitorOfWindow(
+      rect,
+      all.map((m) => ({ x: m.x, y: m.y, width: m.width, height: m.height })),
+    );
+    const target = all[index] ?? monitor;
+    const snapped = target
+      ? snapToWindow(rect, { x: target.x, y: target.y, width: target.width, height: target.height })
+      : null;
+    if (!target || !snapped) {
+      setError("Essa janela está fora das telas ou é pequena demais para gravar.");
+      return;
+    }
+    setError(null);
+    setFollowed({ window: w, front });
+    setRegionChoice("window");
+    void window.api.recorder.followWindow(w.hwnd, front);
+    if (monitor && target.index !== monitor.index) {
+      // The recorder moves to that monitor first; the region follows once it is there (from the
+      // resize, or as soon as the move ends when that monitor has the same size and no resize
+      // comes).
+      pendingRegion.current = snapped;
+      setMonitor(target);
+      change({ monitor: { x: target.x, y: target.y, width: target.width, height: target.height } });
+      void window.api.recorder.moveTo(target.index).then(
+        () => {
+          const pending = pendingRegion.current;
+          pendingRegion.current = null;
+          if (!pending) return;
+          const r = toWindow(pending, target);
+          setRegion(r);
+          setSettings((s) => (s ? { ...s, region: { preset: "custom", rect: r } } : s));
+        },
+        (error: unknown) => {
+          pendingRegion.current = null;
+          setError(
+            `O gravador não passou para a outra tela: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        },
+      );
+      return;
+    }
+    const r = toWindow(snapped, target);
+    setRegion(r);
+    change({ region: { preset: "custom", rect: r } });
+  };
 
   const showFlash = useCallback((text: string): void => {
     setFlash(text);
@@ -619,15 +799,17 @@ export function RecorderOverlay(): ReactNode {
         setFlash(null);
       }
       const narrated = guidedMode && !!guidedPlan?.audio;
-      // The computer's sound leaves this window's own sound out (shared/systemAudio.ts), so the voice
-      // played over the screen, or a guided narration, never comes back in it twice; where
-      // Windows cannot leave it out, the computer's sound is off for such a take.
+      // The computer's sound leaves the app's sound out (shared/systemAudio.ts): every sound of
+      // it on the native route, this window's own on Chromium's fallback. The voice played over
+      // the screen, or a guided narration, never comes back in it twice; where Windows cannot
+      // leave it out, the computer's sound is off for such a take.
       const wanted = (mode === "over" ? overSystem : settings.systemAudio) && !voiceMode;
       const narrationPlays = mode === "over" || narrated;
+      const native = wanted && (await window.api.recorder.systemAudioRoute()) === "native";
       const plan = systemAudioPlan({
         wanted,
         narrationPlays,
-        excludesApp: wanted && narrationPlays ? await SystemAudio.excludesApp() : true,
+        excludesApp: native || !wanted || !narrationPlays ? true : await SystemAudio.excludesApp(),
       });
       const systemOn = plan.record;
       if (plan.warning) {
@@ -664,6 +846,7 @@ export function RecorderOverlay(): ReactNode {
               fps: settings.fps,
               quality: settings.quality,
               systemAudio: systemOn,
+              ...(systemOn && native ? { systemAudioRoute: "native" as const } : {}),
               ...(mode === "over" && over
                 ? {
                     mode: "over" as const,
@@ -685,9 +868,25 @@ export function RecorderOverlay(): ReactNode {
           }
         })(),
       ]);
-      await window.api.recorder.start();
+      const started = await window.api.recorder.start();
       setMarkers(0);
-      if (!preservationRequested.current && systemOn) {
+      // On the native route the main process records it; Chromium's capture is the fallback,
+      // also when the native one did not open (if it can leave out a voice this window plays).
+      const fallback =
+        native &&
+        started.systemFallback &&
+        systemAudioPlan({
+          wanted: true,
+          narrationPlays,
+          excludesApp: !narrationPlays || (await SystemAudio.excludesApp()),
+        }).record;
+      if (native && started.systemFallback && !fallback) {
+        setFlash(
+          "O áudio do PC ficou de fora: a captura sem o som do app não abriu, e a de reserva gravaria de novo a voz que o gravador toca.",
+        );
+        setTimeout(() => setFlash(null), 10000);
+      }
+      if (!preservationRequested.current && systemOn && (!native || fallback)) {
         system.current = await SystemAudio.start(setError).catch((e) => {
           setError(`Áudio do PC indisponível: ${(e as Error).message}`);
           return null;
@@ -933,6 +1132,11 @@ export function RecorderOverlay(): ReactNode {
         else if (name === "retake") void mark("retake");
         else if (name === "line-next") stepTo(1);
         else if (name === "line-prev") stepTo(-1);
+        else if (name === "draw" && phaseRef.current === "recording" && drawAllowed.current)
+          setDrawOn((on) => !on);
+        // The window stopped answering while drawing: the main process gave the mouse back to
+        // the screen, and the drawing ends here too.
+        else if (name === "draw-off") setDrawOn(false);
       }),
     [begin, togglePause, stop, mark, stepTo, toggleWeb, stopWeb],
   );
@@ -943,8 +1147,8 @@ export function RecorderOverlay(): ReactNode {
   }, [alert, stop]);
 
   const recording = phase === "recording" || phase === "paused";
-  const scale = monitor ? monitor.width / window.innerWidth : 1;
-  const physical = { w: Math.round(region.width * scale), h: Math.round(region.height * scale) };
+  const exact = regionPhysical(region, monitor);
+  const physical = { w: exact.width, h: exact.height };
   const keyOf = (action: keyof RecorderSettings["hotkeys"]): string =>
     hotkeyLabel(settings?.hotkeys[action] ?? "");
   const badKeys = hotkeys.filter((r) => !r.ok);
@@ -957,6 +1161,9 @@ export function RecorderOverlay(): ReactNode {
       : "";
 
   const webPlan = guidedMode && guidedPlan?.mode === "web";
+  /** Drawing on the screen is for a take by hand (the guided mode moves the mouse itself). */
+  const canDraw = mode === "screen" || mode === "over";
+  drawAllowed.current = canDraw;
   if (web)
     return (
       <div className="rec-root is-guided-web">
@@ -1012,13 +1219,31 @@ export function RecorderOverlay(): ReactNode {
       {!voiceMode && !webPlan && (
         <RegionFrame
           region={region}
-          onChange={(r) => {
-            setRegion(r);
-            change({ region: { preset: "custom", rect: r } });
-          }}
+          onChange={customRegion}
           editable={phase === "setup"}
           recording={recording}
-          label={`${physical.w} × ${physical.h}`}
+          size={physical}
+          lock={settings?.regionLock ?? true}
+          onLock={(regionLock) => change({ regionLock })}
+          onSize={typeSize}
+        />
+      )}
+
+      {windowPicker && phase === "setup" && (
+        <WindowPicker
+          current={followed}
+          onPick={fitWindow}
+          onClose={() => setWindowPicker(false)}
+        />
+      )}
+      {canDraw && (
+        <DrawLayer
+          region={region}
+          on={drawOn && phase === "recording"}
+          live={recording}
+          palette={palette}
+          toggleKey={keyOf("draw")}
+          onExit={() => setDrawOn(false)}
         />
       )}
 
@@ -1122,6 +1347,7 @@ export function RecorderOverlay(): ReactNode {
               disabled={phase !== "setup" || guidedBusy}
               onChange={(e) => {
                 const next = MODES.find((m) => m === e.target.value);
+                modePicked.current = true;
                 if (!next) return;
                 setMode(next);
                 if (next === "screen" || next === "voice" || next === "voicecam")
@@ -1169,6 +1395,11 @@ export function RecorderOverlay(): ReactNode {
                     onChange={(e) => {
                       const m = sources?.monitors.find((x) => x.index === Number(e.target.value));
                       if (m) {
+                        if (followed) {
+                          setFollowed(null);
+                          setRegionChoice(settings?.region.preset ?? "full");
+                          void window.api.recorder.followWindow(null, false);
+                        }
                         setMonitor(m);
                         change({ monitor: { x: m.x, y: m.y, width: m.width, height: m.height } });
                         void window.api.recorder.moveTo(m.index);
@@ -1184,19 +1415,40 @@ export function RecorderOverlay(): ReactNode {
                 </Source>
                 <Source icon={ScanLine} label="Região">
                   <select
-                    value=""
-                    title={`Região de ${physical.w} × ${physical.h}`}
+                    value={regionChoice}
+                    title={
+                      followed
+                        ? `Janela ${followed.window.title}, ${physical.w} × ${physical.h}`
+                        : `Região de ${physical.w} × ${physical.h}`
+                    }
                     onChange={(e) => {
-                      const full = e.target.value === "full";
-                      setRegion(full ? fullWindow() : centered169());
-                      change({ region: { preset: full ? "full" : "16:9" } });
+                      const value = e.target.value;
+                      if (value === "pick") {
+                        setWindowPicker(true);
+                        return;
+                      }
+                      const preset = REGION_PRESETS.find((p) => p === value);
+                      if (preset && preset !== "custom") pickRegion(preset);
                     }}
                   >
-                    <option value="" disabled>
-                      {physical.w} × {physical.h}
-                    </option>
                     <option value="full">Tela inteira</option>
-                    <option value="169">16:9 no centro</option>
+                    <option value="1080p">1920 × 1080</option>
+                    <option value="720p">1280 × 720</option>
+                    <option value="16:9">16:9 no centro</option>
+                    <option value="lesson" disabled={!lesson}>
+                      {lesson
+                        ? `Resolução da aula (${lesson.width} × ${lesson.height})`
+                        : "Resolução da aula (abra pelo editor)"}
+                    </option>
+                    {followed && (
+                      <option value="window" disabled>
+                        Janela: {followed.window.title}
+                      </option>
+                    )}
+                    <option value="pick">{followed ? "Outra janela…" : "Janela…"}</option>
+                    <option value="custom" disabled>
+                      Personalizada · {physical.w} × {physical.h}
+                    </option>
                   </select>
                 </Source>
               </>
@@ -1210,7 +1462,7 @@ export function RecorderOverlay(): ReactNode {
                     <CameraModeSelect
                       modes={camModes}
                       value={camModeSetting}
-                      fps={30}
+                      fps={settings.fps}
                       onChange={(choice) =>
                         change(voiceCam ? { presenterCameraMode: choice } : { cameraMode: choice })
                       }
@@ -1440,6 +1692,17 @@ export function RecorderOverlay(): ReactNode {
               >
                 <RotateCcw size={15} />
               </button>
+              {canDraw && (
+                <button
+                  type="button"
+                  className={drawOn ? "is-active" : ""}
+                  title={`Desenhar na tela (${keyOf("draw")}): o desenho entra na aula, não no vídeo`}
+                  disabled={phase !== "recording"}
+                  onClick={() => setDrawOn((on) => !on)}
+                >
+                  <PenLine size={15} />
+                </button>
+              )}
               <button
                 type="button"
                 title="Descartar este take e recomeçar"
@@ -1495,19 +1758,62 @@ function Source({
   );
 }
 
-/** Region of the screen to record: drag inside to move, handles to resize. */
+/** A size field of the region: physical pixels, applied on Enter or when it loses focus. */
+function SizeField({
+  label,
+  value,
+  onCommit,
+}: {
+  label: string;
+  value: number;
+  onCommit: (v: number) => void;
+}): ReactNode {
+  const [text, setText] = useState(String(value));
+  useEffect(() => setText(String(value)), [value]);
+  const commit = (): void => {
+    const v = Math.round(Number(text));
+    if (Number.isFinite(v) && v > 0 && v !== value) onCommit(v);
+    else setText(String(value));
+  };
+  return (
+    <input
+      type="number"
+      className="rec-region-size"
+      aria-label={label}
+      title={`${label} em pixels da tela`}
+      min={80}
+      step={2}
+      value={text}
+      onPointerDown={(e) => e.stopPropagation()}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") commit();
+      }}
+    />
+  );
+}
+
+/** Region of the screen to record: drag inside to move, handles to resize, size typed in. */
 function RegionFrame({
   region,
   onChange,
   editable,
   recording,
-  label,
+  size,
+  lock,
+  onLock,
+  onSize,
 }: {
   region: Rect;
   onChange: (r: Rect) => void;
   editable: boolean;
   recording: boolean;
-  label: string;
+  /** Physical pixels the take will record. */
+  size: { w: number; h: number };
+  lock: boolean;
+  onLock: (lock: boolean) => void;
+  onSize: (size: { width?: number; height?: number }) => void;
 }): ReactNode {
   const drag = (e: ReactPointerEvent, mode: string): void => {
     if (!editable) return;
@@ -1561,7 +1867,20 @@ function RegionFrame({
       {editable && (
         <>
           <span className="rec-region-tag">
-            <ScanLine size={13} /> Região · {label}
+            <ScanLine size={13} /> Região
+            <SizeField label="Largura" value={size.w} onCommit={(width) => onSize({ width })} />
+            ×
+            <SizeField label="Altura" value={size.h} onCommit={(height) => onSize({ height })} />
+            <button
+              type="button"
+              className={`rec-region-lock ${lock ? "is-on" : ""}`}
+              title={lock ? "Proporção travada" : "Proporção livre"}
+              aria-pressed={lock}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => onLock(!lock)}
+            >
+              {lock ? <Lock size={12} /> : <LockOpen size={12} />}
+            </button>
           </span>
           {["nw", "n", "ne", "e", "se", "s", "sw", "w"].map((h) => (
             <span key={h} className={`rec-handle h-${h}`} onPointerDown={(e) => drag(e, h)} />

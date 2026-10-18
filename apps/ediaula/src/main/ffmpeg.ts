@@ -1,7 +1,7 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, statSync } from "node:fs";
-import { rename, rm, writeFile } from "node:fs/promises";
+import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { basename, extname, join } from "node:path";
 import { app } from "electron";
@@ -10,6 +10,7 @@ import { ENCODER_CHAIN, nextAfterFailure } from "../shared/export/encoding.ts";
 import { hasAlpha, type MediaFacts } from "../shared/export/videoPlan.ts";
 import { exportVideoArgs, proxyVideoArgs } from "../shared/exportPlan.ts";
 import type { AssetKind, Encoder, Filmstrip, ProbeResult } from "../shared/types.ts";
+import { parseSceneChanges, sceneArgs } from "../shared/zoom.ts";
 import { scheduler } from "./scheduler.ts";
 
 function nativeMediaBinary(name: "ffmpeg" | "ffprobe"): string {
@@ -389,6 +390,53 @@ export async function screenMotion(
   await writeFile(temp, JSON.stringify({ version: MOTION_VERSION, frozen }));
   await rename(temp, out);
   return out;
+}
+
+/** Bump when the scene analysis changes so cached scene files are made again. */
+const SCENES_VERSION = 1;
+
+/**
+ * Moments a screen recording changes a lot from one picture to the next (FFmpeg's scene score,
+ * shared/zoom.ts sceneArgs), cached beside the media as scenes.json. They become proposed zooms
+ * (shared/zoom.ts sceneZooms). `input` is what is decoded: the proxy when it is ready.
+ */
+export async function screenScenes(
+  jobId: string,
+  path: string,
+  input: string,
+  duration: number,
+  onProgress: (ratio: number) => void,
+  signal?: AbortSignal,
+): Promise<number[]> {
+  const out = join(cacheDir(path), `scenes-v${SCENES_VERSION}.json`);
+  if (existsSync(out)) {
+    const cached: unknown = JSON.parse(await readFile(out, "utf8"));
+    const times = cached && typeof cached === "object" ? Reflect.get(cached, "changes") : undefined;
+    if (Array.isArray(times) && times.every((t) => typeof t === "number")) return times;
+  }
+  // Only the lines that matter are kept: a long recording prints a line per changed frame.
+  let log = "";
+  let pending = "";
+  const keep = (line: string): void => {
+    if (line.includes("Parsed_showinfo")) log += `${line}\n`;
+  };
+  await run(FFMPEG, ["-threads", "2", ...sceneArgs(input)], {
+    jobId,
+    signal,
+    duration,
+    onProgress,
+    onStderr: (text) => {
+      const lines = (pending + text).split(/\r?\n/);
+      pending = lines.pop() ?? "";
+      for (const line of lines) keep(line);
+    },
+  });
+  keep(pending);
+  const changes = parseSceneChanges(log);
+  const temp = `${out}.${process.pid}.tmp`;
+  await writeFile(temp, JSON.stringify({ version: SCENES_VERSION, changes }));
+  await rename(temp, out);
+  return changes;
 }
 
 let encoder: Promise<Encoder> | null = null;

@@ -106,6 +106,7 @@ import { Filmstrip } from "./Filmstrip";
 import { addGainPoint, GainEnvelope } from "./GainEnvelope";
 import { ASSET_MIME } from "./Library";
 import { NarrationPanel } from "./NarrationPanel";
+import { RecordingBands } from "./RecordingBands";
 import { Waveform } from "./Waveform";
 
 const TRACK_H: Record<Track["kind"], number> = { video: 66, audio: 58 };
@@ -1105,23 +1106,27 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
                   </Fragment>
                 );
               })}
-            {recordingMarks(project).map((m) =>
-              m.kind === "zoom" ? (
-                <div
-                  key={`${m.kind}:${m.start}:${m.label}`}
-                  className="zoom-band"
-                  style={{ left: m.start * zoom, width: Math.max(3, (m.end - m.start) * zoom) }}
-                  title={m.label}
-                />
-              ) : (
+            <RecordingBands
+              project={project}
+              zoom={zoom}
+              laneTops={laneTops}
+              laneHeight={(trackId) => {
+                const track = tracks.find((t) => t.id === trackId);
+                return track ? trackH(track) : 0;
+              }}
+              xToTime={xToTime}
+              rulerHeight={RULER_H}
+            />
+            {recordingMarks(project)
+              .filter((m) => m.kind !== "zoom")
+              .map((m) => (
                 <div
                   key={`${m.kind}:${m.start}:${m.label}`}
                   className={`rec-mark rec-mark-${m.kind}`}
                   style={{ left: m.start * zoom }}
                   title={m.label}
                 />
-              ),
-            )}
+              ))}
             {timelineProtected(project).map((r) => (
               <div
                 key={`${r.id}${r.start}`}

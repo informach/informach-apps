@@ -5,7 +5,7 @@ import {
   cueLayout,
   DEFAULT_CAPTION_STYLE,
 } from "@shared/captions";
-import { buildTrack, cursorAt, cursorScale, ripplesAt } from "@shared/cursor";
+import { buildTrack, cursorAt } from "@shared/cursor";
 import {
   type FrameFacts,
   type FrameRegion,
@@ -18,7 +18,8 @@ import { newId, sourceAt } from "@shared/timeline";
 import type { ExportSpec, Project, ToolImage } from "@shared/types";
 import { cursorFxOf, loadCursorData } from "@/editor/CursorLayer";
 import { useApp } from "@/state/app";
-import { drawPointer, drawRipples } from "./cursorDraw";
+import { drawCursorScene } from "./cursorDraw";
+import { loadCursorImages } from "./cursorImages";
 import { ensureCursorSprites } from "./cursorRender";
 import { timelineKeys } from "./keysOnScreen";
 import { loadProjectTranscripts } from "./transcripts";
@@ -106,19 +107,18 @@ async function screenFrame(
     const state = cursorAt(track, seconds);
     const ctx = canvas.getContext("2d");
     if (ctx) {
-      // Source pixels per pointer unit, then picture pixels per source pixel.
+      // Picture pixels per recording pixel, and where the picture starts in the recording.
       const k = (asset.width / data.width) * geometry.scale;
-      const unit = cursorScale(data, fx) * 1.1 * k;
-      const ox = geometry.crop.x * geometry.scale;
-      const oy = geometry.crop.y * geometry.scale;
-      if (fx.clicks) {
-        ctx.save();
-        ctx.translate(-ox, -oy);
-        ctx.scale(k, k);
-        drawRipples(ctx, ripplesAt(data, seconds, fx), 0, 0, unit / k);
-        ctx.restore();
-      }
-      drawPointer(ctx, state, state.x * k - ox, state.y * k - oy, unit, fx);
+      const images = await loadCursorImages(asset.cursor, data).catch(() => undefined);
+      drawCursorScene(ctx, {
+        data,
+        track,
+        fx,
+        t: seconds,
+        k,
+        images,
+        offset: { x: geometry.crop.x * geometry.scale, y: geometry.crop.y * geometry.scale },
+      });
       pointer = ` O ponteiro está em x=${(state.x / data.width).toFixed(3)}, y=${(state.y / data.height).toFixed(3)} da gravação${state.alpha <= 0.01 ? " (escondido nesse momento)" : ""}.`;
     }
   }

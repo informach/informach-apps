@@ -174,7 +174,7 @@ test("export reads keyed avatars from the transparent video and their sound from
   assert.ok(plan.inputArgs.includes("C:/m/avatar.mp4"));
   assert.match(
     plan.filter,
-    /\[0:v\]setpts=round\(\(PTS[-+][\d.]+\/TB\)\),trim=start=-[\d.]+:end=2\.99\d*,fps=30,tpad=stop_mode=clone:stop=-1,fps=30:start_time=0,trim=end_frame=90\[src0\]/,
+    /\[0:v\]setpts=round\(\(PTS[-+][\d.]+\/TB\)\),setpts='max\(PTS,-[\d.]+\/TB\)',trim=start=-[\d.]+:end=2\.99\d*,fps=30,tpad=stop_mode=clone:stop=-1,fps=30:start_time=0,trim=end_frame=90\[src0\]/,
   );
   // The cut-out avatar keeps its alpha: BT.601 (as the app wrote it) to the composite's BT.709.
   assert.match(

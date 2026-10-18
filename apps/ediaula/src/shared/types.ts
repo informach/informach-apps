@@ -11,6 +11,7 @@ import type { ChromaKey } from "./chroma.ts";
 import type { Motion, Transform } from "./compose.ts";
 import type { CourseTemplate } from "./courseTemplate.ts";
 import type { CursorFx } from "./cursor.ts";
+import type { BoardKind, Drawing, DrawingTool } from "./drawing.ts";
 import type { FontFamily } from "./fonts.ts";
 import type { FrameGeometry } from "./frameGrab.ts";
 import type { GainPoint } from "./gain.ts";
@@ -37,6 +38,7 @@ import type { PrepareState } from "./prepare.ts";
 import type { RecorderSettings } from "./recorderSettings.ts";
 import type {
   CaptureSources,
+  CaptureWindow,
   MarkerKind,
   OrphanTake,
   RecorderContext,
@@ -46,6 +48,7 @@ import type {
   RecordOptions,
 } from "./recording.ts";
 import type { MicLevel, RecorderHealth } from "./recordingHealth.ts";
+import type { SystemAudioRoute } from "./systemAudio.ts";
 import type { Transition } from "./transitions.ts";
 import type { VoicePreset } from "./voiceChain.ts";
 import type { VoiceSegment } from "./voiceMaster.ts";
@@ -56,7 +59,15 @@ import type { ZoomLayer } from "./zoomLayer.ts";
 export type AssetKind = "video" | "audio" | "image";
 
 /** What a file of an EdiAula recording is: the cuts of the take apply to all of them alike. */
-export const RECORDING_ROLES = ["screen", "mic", "camera", "system", "narration"] as const;
+export const RECORDING_ROLES = [
+  "screen",
+  "mic",
+  "camera",
+  "system",
+  "narration",
+  // The video of what was drawn on the screen during the take (shared/drawing.ts).
+  "drawing",
+] as const;
 export type RecordingRole = (typeof RECORDING_ROLES)[number];
 export type ProxyStatus = "none" | "pending" | "ready" | "error";
 
@@ -92,6 +103,11 @@ export interface Asset {
   generated?: "annotation" | "effect" | "still";
   /** The held frame of Estender quadro: which media and which of its seconds it shows. */
   still?: { assetId: string; t: number };
+  /**
+   * The video of a take's drawing (generated "annotation"): its strokes and boards, in the
+   * video's own seconds (shared/drawing.ts). Kept here once; its clips show stretches of it.
+   */
+  drawing?: Drawing;
   /** Sheet of small pictures along the video, for the clips on the timeline (main/ffmpeg.ts). */
   filmstrip?: Filmstrip;
   /** Cursor data (CursorData JSON) of a screen recording made in EdiAula; the video has no pointer. */
@@ -322,6 +338,11 @@ export interface Clip {
   denoise?: boolean;
   /** Position, size, crop and opacity in the frame; absent = fit to the frame. */
   transform?: Transform;
+  /**
+   * The place the clip had before "Lado a lado" put it beside the camera (null: fit to the
+   * frame), to go back to when the camera leaves that framing.
+   */
+  besideFrom?: Transform | null;
   /** Seconds of the entrance and exit animations (a dissolve unless enter/exit say otherwise). */
   fadeIn?: number;
   fadeOut?: number;
@@ -595,6 +616,19 @@ export interface CursorSprite {
   /** Top-left of the sprite in source video pixels, [x0, y0, x1, y1, …] per frame. A typed array
    *  crosses IPC as a single value, so recordings of any length fit the limit. */
   positions: Int32Array;
+  /**
+   * The magnifier (shared/cursor.ts): the square of `side` source pixels around the pointer,
+   * enlarged into a circle of `radius`, during the source stretches `on`. Its ring is in the
+   * sprite.
+   */
+  magnifier?: { radius: number; side: number; on: [number, number][] };
+  /**
+   * The spotlight: a picture of the darkened screen with the lit circle in its middle, drawn at
+   * half of twice the recording's size, moved with the pointer during the source stretches `on`.
+   */
+  spotlight?: { picture: string; width: number; height: number; on: [number, number][] };
+  /** The click sound on the recording's own clock (FLAC), mixed like the recording's sound. */
+  clicks?: string;
 }
 
 /** Where an export is: getting media ready, rendering segments, mixing the sound, putting it together. */
@@ -789,6 +823,8 @@ export interface EdiAulaApi {
   waveform(path: string): Promise<string>;
   /** Where a screen recording stands still: the path of its motion file (main/ffmpeg.ts). */
   motion(jobId: string, path: string, input: string, duration: number): Promise<string>;
+  /** Moments a screen recording changes a lot (seconds of the video), for proposed zooms. */
+  scenes(jobId: string, path: string, input: string, duration: number): Promise<number[]>;
   /** Working copy for the preview: H.264, or VP9 keeping the transparency of `alpha` media. */
   proxy(
     jobId: string,
@@ -798,6 +834,23 @@ export interface EdiAulaApi {
     alpha?: boolean,
   ): Promise<string>;
   /** Pointer sprite videos for the export, drawn in the renderer and encoded in the main process. */
+  /** The video of a drawing made on the screen during a take (main/drawingVideo.ts). */
+  drawingVideo: {
+    cached(id: string): Promise<{ path: string; size: number } | null>;
+    /** Resolves once a slot of the background work is free. `fps` is a whole number. */
+    begin(jobId: string, id: string, width: number, height: number, fps: number): Promise<void>;
+    /** Which of these pictures (SHA-256 of what they show) are not made yet. */
+    missing(jobId: string, keys: string[]): Promise<string[]>;
+    /** One picture as a PNG of the video's size. */
+    frame(jobId: string, key: string, png: Uint8Array): Promise<void>;
+    /** The video: [picture, first frame] in order from frame 0, `total` frames in all. */
+    end(
+      jobId: string,
+      frames: [string, number][],
+      total: number,
+    ): Promise<{ path: string; size: number }>;
+    cancel(jobId: string): Promise<void>;
+  };
   cursorSprite: {
     cached(path: string, id: string): Promise<string | null>;
     /** `height` for a sprite that is not square (an animated annotation). */
@@ -810,6 +863,32 @@ export interface EdiAulaApi {
       height?: number,
     ): Promise<void>;
     frames(jobId: string, frames: Uint8Array, counts: number[]): Promise<void>;
+    end(jobId: string): Promise<string>;
+    cancel(jobId: string): Promise<void>;
+    /**
+     * The click sound of a recording on its own clock (shared/clickSound.ts), cached as FLAC
+     * beside its sprite: a click at each of `times` (source seconds) at `volume`.
+     */
+    clicks(
+      path: string,
+      id: string,
+      times: Float64Array,
+      volume: number,
+      duration: number,
+    ): Promise<string>;
+  };
+  /**
+   * "Remover fundo com IA local" (main/personKey.ts): the model, then the small frames of a
+   * media handed out in batches, their masks taken back in order, and the finished video.
+   */
+  personKey: {
+    model(): Promise<Uint8Array>;
+    begin(
+      jobId: string,
+      media: { path: string; width: number; height: number; fps: number; duration: number },
+    ): Promise<{ cached: string } | { width: number; height: number; total: number }>;
+    frames(jobId: string): Promise<{ count: number; data: Uint8Array }>;
+    masks(jobId: string, masks: Uint8Array): Promise<void>;
     end(jobId: string): Promise<string>;
     cancel(jobId: string): Promise<void>;
   };
@@ -868,7 +947,13 @@ export interface EdiAulaApi {
         regionDip?: { x: number; y: number; width: number; height: number };
       },
     ): Promise<void>;
-    start(): Promise<void>;
+    /** `systemFallback`: the native capture of the computer's sound did not open. */
+    start(): Promise<{ systemFallback: boolean }>;
+    /**
+     * How the computer's sound is recorded here: "native" leaves out every sound of the app
+     * (Windows 10 2004 or newer); "chromium" sends it from this window with systemChunk.
+     */
+    systemAudioRoute(): Promise<SystemAudioRoute>;
     /** A chunk of the computer's sound; the first one says when it started, the last when it ended. */
     systemChunk(bytes: Uint8Array, startedAt?: number, endedAt?: number): Promise<void>;
     pause(): Promise<void>;
@@ -886,7 +971,36 @@ export interface EdiAulaApi {
     teleprompterLine(index: number, at?: number): Promise<void>;
     /** Level meter of a microphone while setting up (null stops it); readings come by onLevel. */
     monitorMic(device: string | null): Promise<void>;
-    cameraModes(device: string): Promise<{ modes: CameraMode[]; choice: CameraChoice | null }>;
+    /** The camera's modes and the automatic choice at `fps` (default: the saved rate). */
+    cameraModes(
+      device: string,
+      fps?: 30 | 60,
+    ): Promise<{ modes: CameraMode[]; choice: CameraChoice | null }>;
+    /** Windows "Janela…" offers (physical pixels of the virtual desktop), without the app's own. */
+    windows(): Promise<CaptureWindow[]>;
+    /** The window the region was fitted to; the take follows it and, with `front`, keeps it in front. */
+    followWindow(hwnd: string | null, front: boolean): Promise<void>;
+    /**
+     * A stroke drawn on the screen during the take: when it started (QPC ms), its color,
+     * thickness (pixels of a 1080-pixel frame) and points [x, y, ms after `at`] back to back.
+     */
+    drawStroke(stroke: {
+      at: number;
+      color: string;
+      width: number;
+      points: Float32Array;
+      tool?: DrawingTool;
+    }): Promise<void>;
+    /** "Apagar tudo" at QPC `at`. */
+    drawClear(at: number): Promise<void>;
+    /** A board put over the region (`on`) or taken away, at QPC `at`. */
+    drawBoard(on: boolean, kind: BoardKind, at: number): Promise<void>;
+    /** "Página nova" of the board at QPC `at`. */
+    drawPage(at: number): Promise<void>;
+    /** Ctrl+Z while drawing, at QPC `at`. */
+    drawUndo(at: number): Promise<void>;
+    /** The drawing mode turned on or off (clicks while it is on are the pen). */
+    drawMode(on: boolean): Promise<void>;
     settings(): Promise<RecorderSettings>;
     saveSettings(settings: RecorderSettings): Promise<RecorderSettings>;
     hotkeys(): Promise<HotkeyReport[]>;

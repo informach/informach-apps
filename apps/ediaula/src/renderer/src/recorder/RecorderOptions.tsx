@@ -214,6 +214,14 @@ export function RecorderOptions({
           />
           Passador de slides (Page Down e Page Up) muda a fala do teleprompter
         </label>
+        <label className="rec-opt-check">
+          <input
+            type="checkbox"
+            checked={settings.autoZoom}
+            onChange={(e) => change({ autoZoom: e.target.checked })}
+          />
+          Zoom automático ao importar a gravação (nos cliques, nos arrastos e na digitação)
+        </label>
       </div>
       <div className="rec-opt-head">
         <strong>Atalhos</strong>

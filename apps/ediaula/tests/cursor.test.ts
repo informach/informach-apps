@@ -257,7 +257,8 @@ test("the pointer track follows the recorded moves, smoothly when asked", () => 
   const smooth = buildTrack(data, { ...DEFAULT_CURSOR_FX, smooth: 0.8 }, 6);
   const mid = cursorAt(smooth, 1.02);
   assert.ok(mid.x > 100 && mid.x < 960, "still travelling right after the jump");
-  assert.ok(Math.abs(cursorAt(smooth, 2.4).x - 960) < 2, "settles on the target");
+  // Between the clicks (each one pins the pointer to where it clicked).
+  assert.ok(Math.abs(cursorAt(smooth, 1.6).x - 960) < 2, "settles on the target");
   assert.equal(ripplesAt(data, 1.3).length, 1);
   assert.equal(ripplesAt(data, 3).length, 0);
   const pos = spritePositions(raw, 30, 2, 100);

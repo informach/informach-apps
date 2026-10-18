@@ -4,6 +4,7 @@ import { loadCursorData } from "@/editor/CursorLayer";
 import { useApp } from "@/state/app";
 import { useProject } from "@/state/project";
 import { renderAnnotation } from "./annotations";
+import { redrawDrawing } from "./drawing";
 import { ensureFilmstrips } from "./filmstrip";
 import { checkAlpha, makeProxy } from "./importMedia";
 import { stillPicture } from "./stills";
@@ -89,6 +90,8 @@ async function redraw(a: Asset): Promise<boolean> {
       width: r.width,
       height: r.height,
     };
+  } else if (plan?.how === "drawing") {
+    picture = await redrawDrawing(a, plan.drawing);
   } else if (plan?.how === "effect") {
     picture = { path: await restoreBlankPicture(), size: 1 };
   } else if (plan?.how === "still") {

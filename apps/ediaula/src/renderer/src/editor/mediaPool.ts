@@ -1,3 +1,5 @@
+import { clickSamples } from "@shared/clickSound";
+
 /**
  * The DOM side of the preview's pool (previewPool.ts): two media elements per lane, made once
  * and moved into the layer of the piece they serve (a move keeps the decoder and its position),
@@ -33,6 +35,8 @@ export class MediaPool {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private meter: AnalyserNode | null = null;
+  /** The click of the cursor effects (shared/clickSound.ts), made once. */
+  private clickBuffer: AudioBuffer | null = null;
   /** Each element's WebAudio nodes, disconnected when the element goes. */
   private readonly nodes = new Map<
     HTMLMediaElement,
@@ -142,6 +146,31 @@ export class MediaPool {
     limiter.connect(this.meter);
     this.meter.connect(this.ctx.destination);
     return this.ctx;
+  }
+
+  /**
+   * The click sound of the cursor effects at `volume`, in the same mix as the clips (through
+   * the master and its limiter), the same samples the export mixes in.
+   */
+  click(volume: number): void {
+    const ctx = this.audio();
+    if (!ctx || !this.master || volume <= 0) return;
+    if (!this.clickBuffer) {
+      const samples = clickSamples(ctx.sampleRate);
+      this.clickBuffer = ctx.createBuffer(1, samples.length, ctx.sampleRate);
+      this.clickBuffer.copyToChannel(samples, 0);
+    }
+    this.wake();
+    const source = ctx.createBufferSource();
+    source.buffer = this.clickBuffer;
+    const gain = ctx.createGain();
+    gain.gain.value = Math.min(1, volume);
+    source.connect(gain).connect(this.master);
+    source.onended = () => {
+      source.disconnect();
+      gain.disconnect();
+    };
+    source.start();
   }
 
   /** WebAudio waits for the first play: resumed whenever something plays. */

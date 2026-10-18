@@ -1,5 +1,6 @@
 import { type ChildProcessWithoutNullStreams, execFile, spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
+import { release } from "node:os";
 import { createInterface } from "node:readline";
 import type { HelperCommands } from "../shared/guidedNative.ts";
 import {
@@ -9,9 +10,12 @@ import {
   type HookReady,
   type InputReply,
   inputReplySchema,
+  type LoopbackEvent,
   listSchema,
   parseHookLine,
+  parseLoopbackLine,
 } from "../shared/helperProtocol.ts";
+import { PROCESS_LOOPBACK_BUILD, windowsBuild } from "../shared/systemAudio.ts";
 import { nativeResourcePath } from "./native-resources.ts";
 
 /**
@@ -426,5 +430,157 @@ export class InputClient implements HelperCommands {
     }
     this.pending.clear();
     this.child.kill();
+  }
+}
+
+// ---- the computer's sound without the app (loopback mode) ----------------------------------
+
+/** The probe worked once in this run: the answer stays. */
+let loopbackWorks = false;
+/** A probe under way, shared by whoever asks meanwhile. */
+let probing: Promise<boolean> | null = null;
+
+/**
+ * Whether the helper can capture the computer's sound without the app's own process tree: a
+ * Windows with process loopback, and an activation that really works. A yes is kept for the
+ * run; a no is asked again next time (the audio service may have been restarting, a device
+ * changing), so a passing failure does not cost the native route for the rest of the run.
+ */
+export function processLoopbackAvailable(executable = helperPath()): Promise<boolean> {
+  if (process.platform !== "win32" || windowsBuild(release()) < PROCESS_LOOPBACK_BUILD)
+    return Promise.resolve(false);
+  if (loopbackWorks) return Promise.resolve(true);
+  probing ??= new Promise<boolean>((resolve) => {
+    execFile(
+      executable,
+      ["loopback", "--probe"],
+      { windowsHide: true, timeout: 10000 },
+      (error, stdout) => resolve(!error && stdout.includes('"aprobe"')),
+    );
+  }).then((ok) => {
+    probing = null;
+    if (ok) loopbackWorks = true;
+    return ok;
+  });
+  return probing;
+}
+
+interface LoopbackClientEvents {
+  /** The file's first sample, QPC ms. */
+  first: [number];
+  /** Every 500 ms while it records: frames written so far. */
+  beat: [Extract<LoopbackEvent, { e: "ahb" }>];
+  /** The end of the last sample, QPC ms, after a clean stop. */
+  end: [number];
+  /** The capture stopped on its own (the reason, in Portuguese). */
+  failure: [Error];
+}
+
+export interface LoopbackOptions {
+  /** The process whose whole tree is left out (the app's main process). */
+  excludePid: number;
+  /** WAV file the helper writes. */
+  file: string;
+  executable?: string;
+}
+
+/**
+ * The loopback mode as one source of a take: started, then stopped by closing its stdin (the
+ * helper drains its packets, fills the file up to that moment and writes its real header).
+ * Lines that do not parse are ignored; an exit nobody asked for is a "failure".
+ */
+export class LoopbackClient extends EventEmitter<LoopbackClientEvents> {
+  private child: ChildProcessWithoutNullStreams | undefined;
+  private stopping = false;
+  private stderr = "";
+  private closed: Promise<void> = Promise.resolve();
+  private readonly options: LoopbackOptions;
+  /** Frames the helper wrote, from its last line. */
+  frames = 0;
+
+  constructor(options: LoopbackOptions) {
+    super();
+    this.options = options;
+  }
+
+  get running(): boolean {
+    return !!this.child && this.child.exitCode === null && this.child.signalCode === null;
+  }
+
+  /** Starts the helper and resolves once the capture runs. */
+  start(): Promise<void> {
+    const o = this.options;
+    const child = spawn(
+      o.executable ?? helperPath(),
+      ["loopback", "--exclude-pid", String(o.excludePid), "--out", o.file],
+      { windowsHide: true },
+    );
+    this.child = child;
+    child.stderr.setEncoding("utf8");
+    child.stderr.on("data", (chunk: string) => {
+      this.stderr = (this.stderr + chunk).slice(-4000);
+    });
+    child.stdin.on("error", () => undefined);
+    this.closed = new Promise<void>((resolve) => child.once("close", () => resolve()));
+    const lines = createInterface({ input: child.stdout });
+    return new Promise<void>((resolve, reject) => {
+      let started = false;
+      let failed: string | undefined;
+      const timer = setTimeout(() => {
+        if (started) return;
+        started = true;
+        child.kill();
+        reject(new Error("A captura do áudio do PC não iniciou."));
+      }, 8000);
+      lines.on("line", (line) => {
+        const event = parseLoopbackLine(line);
+        if (!event) return;
+        if (event.e === "aready") {
+          started = true;
+          clearTimeout(timer);
+          resolve();
+        } else if (event.e === "afirst") this.emit("first", event.t);
+        else if (event.e === "ahb") {
+          this.frames = event.n;
+          this.emit("beat", event);
+        } else if (event.e === "aend") {
+          this.frames = event.n;
+          this.emit("end", event.t);
+        } else failed = event.msg;
+      });
+      child.once("error", (error) => {
+        if (started) return;
+        started = true;
+        clearTimeout(timer);
+        reject(new Error("O auxiliar de áudio não pôde ser aberto.", { cause: error }));
+      });
+      child.once("close", (code, signal) => {
+        const reason = failed ?? (this.stderr.trim() || `código ${code ?? signal}`);
+        if (!started) {
+          started = true;
+          clearTimeout(timer);
+          reject(new Error(`A captura do áudio do PC não iniciou: ${reason}`));
+        } else if (!this.stopping) this.emit("failure", new Error(reason));
+      });
+    });
+  }
+
+  /** Ends the capture at this moment and waits for the file to be complete. */
+  async stop(): Promise<void> {
+    this.stopping = true;
+    const child = this.child;
+    if (!child || !this.running) return this.closed;
+    child.stdin.end();
+    const timer = setTimeout(() => child.kill(), 5000);
+    await this.closed;
+    clearTimeout(timer);
+  }
+
+  /** Ends it without waiting for the rest of the file (the take is thrown away). */
+  async kill(): Promise<void> {
+    this.stopping = true;
+    const child = this.child;
+    if (child && this.running) child.kill();
+    await this.closed;
   }
 }

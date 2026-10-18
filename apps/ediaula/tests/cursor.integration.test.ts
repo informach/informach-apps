@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
 import { buildTrack, DEFAULT_CURSOR_FX, spritePositions } from "../src/shared/cursor.ts";
+import { normalizeCursorData } from "../src/shared/cursorData.ts";
 import { buildExportPlan } from "../src/shared/exportPlan.ts";
 import type { Project } from "../src/shared/types.ts";
 
@@ -82,8 +83,9 @@ test("export draws the moving pointer sprite and zooms the recording like the pr
       { t: 3, x: 400, y: 250 },
     ],
   };
+  // A version 1 file, as the editor reads it (normalizeCursorData).
   const track = buildTrack(
-    {
+    normalizeCursorData({
       version: 1,
       width: 640,
       height: 360,
@@ -91,7 +93,7 @@ test("export draws the moving pointer sprite and zooms the recording like the pr
       clicks: [],
       wheel: [],
       markers: [],
-    },
+    }),
     cursorFx,
     3,
   );

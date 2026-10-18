@@ -6,7 +6,12 @@ import {
   PANEL_FORBIDDEN,
   writesDraft,
 } from "@shared/aiTools";
-import { ANNOTATION_PRESETS, type Annotation, defaultOutline } from "@shared/annotation";
+import {
+  ANNOTATION_PRESETS,
+  type Annotation,
+  defaultOutline,
+  isDrawingKind,
+} from "@shared/annotation";
 import { DEFAULT_KEY } from "@shared/chroma";
 import {
   findQuote,
@@ -382,7 +387,7 @@ const handlers: {
     lines.push("Mídias:");
     for (const a of p.assets)
       lines.push(
-        `- ${a.name} (${a.kind}${a.duration ? `, ${t(a.duration)}` : ""})${a.transcriptStatus === "ready" ? " · transcrita" : a.transcriptStatus === "pending" ? " · transcrevendo" : ""}${a.missing ? " · ARQUIVO NÃO ENCONTRADO" : ""}${a.cursor ? " · gravação do EdiAula (cursor e cliques salvos)" : ""}${a.key ? ` · avatar, fundo ${a.key.color} removido${keyIsCurrent(a) ? "" : " (processando)"}` : a.screen ? ` · fundo liso ${a.screen} (remoção desligada)` : ""}`,
+        `- ${a.name} (${a.kind}${a.duration ? `, ${t(a.duration)}` : ""})${a.transcriptStatus === "ready" ? " · transcrita" : a.transcriptStatus === "pending" ? " · transcrevendo" : ""}${a.missing ? " · ARQUIVO NÃO ENCONTRADO" : ""}${a.cursor ? " · gravação do EdiAula (cursor e cliques salvos)" : ""}${a.key ? ` · ${a.key.mode === "person" ? "fundo removido pela IA local, a pessoa recortada" : `avatar, fundo ${a.key.color} removido`}${keyIsCurrent(a) ? "" : " (processando)"}` : a.screen ? ` · fundo liso ${a.screen} (remoção desligada)` : ""}`,
       );
     if (p.publish?.title || p.publish?.chapters?.length)
       lines.push(
@@ -950,9 +955,12 @@ const handlers: {
       }));
       return `Remoção de fundo desligada em ${a.name}.`;
     }
+    // A key by the local AI gives way to the color key the tool sets.
+    const { mode: _mode, ...previous } = a.key ?? DEFAULT_KEY;
+    const keyedColor = a.key?.mode === "person" ? undefined : a.key?.color;
     const c = color
       ? `#${color.replace("#", "").toUpperCase()}`
-      : (a.key?.color ??
+      : (keyedColor ??
         a.screen ??
         (await window.api.detectScreen(a.path, a.duration, a.width, a.height)));
     if (!c)
@@ -961,7 +969,7 @@ const handlers: {
       );
     const key = {
       ...DEFAULT_KEY,
-      ...a.key,
+      ...previous,
       color: c,
       ...(protect_clothes !== undefined ? { threshold: protect_clothes } : {}),
       ...(softness !== undefined ? { softness } : {}),
@@ -1339,6 +1347,9 @@ const handlers: {
     for (const id of clip_ids) {
       const clip = p.clips.find((c) => c.id === id);
       if (!clip) throw new ToolError(`Clipe ${id} não encontrado. Use os ids de get_overview.`);
+      // A drawing from the recording keeps the look it was drawn with (as in clipProps.ts): it
+      // is left out, and the rest of the list goes on.
+      if (clip.annotation && isDrawingKind(clip.annotation.kind)) continue;
       if (clip.annotation) {
         await updateAnnotation(
           id,
@@ -1369,7 +1380,10 @@ const handlers: {
         done.push(id);
       }
     }
-    if (!done.length) throw new ToolError("Nada mudou: vídeos e imagens só aceitam shadow.");
+    if (!done.length)
+      throw new ToolError(
+        "Nada mudou: vídeos e imagens só aceitam shadow, e o desenho da gravação mantém o estilo com que foi feito.",
+      );
     return `Estilo aplicado em ${plural(done.length, "clipe", "clipes")}.`;
   },
 

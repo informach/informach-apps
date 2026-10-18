@@ -6,8 +6,9 @@ import {
   type TakeMark,
 } from "@shared/guidedNarration";
 import { findLine } from "@shared/inserts";
+import { narrationTrack } from "@shared/narration";
 import { newId } from "@shared/timeline";
-import type { Asset, Clip, Project, Track, Transcript } from "@shared/types";
+import type { Asset, Clip, Project, Transcript } from "@shared/types";
 import { useApp } from "@/state/app";
 import { draftCommit, useProject } from "@/state/project";
 import { clickTargets } from "./courseTemplate";
@@ -63,7 +64,8 @@ const within = (t: Transcript, from: number, to: number): Transcript => ({
 });
 
 /**
- * The take goes into the lesson line by line, as a draft on a new "Narração" track: each line
+ * The take goes into the lesson line by line, as a draft on the "Narração" track (the one of
+ * earlier takes when it is free there, otherwise a new one): each line
  * where the person said it while the preview played, moved to the screen's moment next to it.
  * With the transcription engine installed the take is transcribed first, so each line is cut to
  * its words; without it, each line is the stretch between two marks.
@@ -121,34 +123,32 @@ export async function placeGuidedNarration(opts: {
       : {}),
   });
   if (!placed.length) throw new Error("Nenhuma fala da tomada pôde ser posta na aula.");
-  const track: Track = {
-    id: newId("t"),
-    kind: "audio",
-    name: "Narração",
-    muted: false,
-    hidden: false,
-    locked: false,
-  };
-  const clips: Clip[] = placed.map((l) => {
+  const pieces = placed.map((l) => {
     const from = Math.max(0, l.src.start - NARRATION_EDGE);
     const to = Math.min(asset.duration, l.src.end + NARRATION_EDGE);
-    return {
-      id: newId("c"),
-      assetId: asset.id,
-      trackId: track.id,
-      start: Math.max(0, l.at - (l.src.start - from)),
-      in: from,
-      duration: to - from,
-      volume: 1,
-    };
+    return { start: Math.max(0, l.at - (l.src.start - from)), in: from, duration: to - from };
   });
+  const lesson = useProject.getState().project;
+  if (!lesson || lesson.id !== projectId) throw new Error("O projeto da narração foi fechado.");
+  // The "Narração" track of earlier takes, when it is free where these lines go.
+  const { track, created } = narrationTrack(
+    lesson,
+    pieces.map((c): [number, number] => [c.start, c.start + c.duration]),
+  );
+  const clips: Clip[] = pieces.map((c) => ({
+    id: newId("c"),
+    assetId: asset.id,
+    trackId: track.id,
+    ...c,
+    volume: 1,
+  }));
   const ok = draftCommit(
     "narracao",
     "Narração guiada pelo roteiro",
     projectId,
   )((q) => ({
     ...q,
-    tracks: [...q.tracks, track],
+    tracks: created ? [...q.tracks, track] : q.tracks,
     assets: [...q.assets, ready],
     clips: [...q.clips, ...clips],
   }));

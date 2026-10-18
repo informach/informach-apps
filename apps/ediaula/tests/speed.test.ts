@@ -148,7 +148,7 @@ test("export reads duration × speed of the source and retimes picture and sound
   assert.ok(seek < 4 && seek > 4 - 1 / 30 - 0.01, `seek ${read[2]}`);
   assert.match(
     plan.filter,
-    /setpts=round\(\(PTS-[\d.]+\/TB\)\/2\),trim=start=-[\d.]+:end=5\.99\d*,fps=30,tpad=stop_mode=clone:stop=-1,fps=30:start_time=0,trim=end_frame=180/,
+    /setpts=round\(\(PTS-[\d.]+\/TB\)\/2\),setpts='max\(PTS,-[\d.]+\/TB\)',trim=start=-[\d.]+:end=5\.99\d*,fps=30,tpad=stop_mode=clone:stop=-1,fps=30:start_time=0,trim=end_frame=180/,
   );
   assert.match(plan.filter, /atempo=2,volume=1/);
   assert.equal(plan.duration, 6);

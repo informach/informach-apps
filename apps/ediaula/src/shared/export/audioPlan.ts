@@ -92,6 +92,8 @@ interface Sound {
   out: number;
   fadeIn: number;
   fadeOut: number;
+  /** Gain instead of the clip's volume (the click sound of a recording keeps its own). */
+  level?: number;
 }
 
 /** Seconds a clip's sound fades in and out: its own fades and its transitions. */
@@ -120,7 +122,7 @@ const continues = (a: Sound, b: Sound): boolean =>
 
 export function buildAudioPlan(
   project: Project,
-  spec: Pick<ExportSpec, "speech">,
+  spec: Pick<ExportSpec, "speech" | "cursors">,
   options: AudioOptions = {},
 ): AudioPlan {
   const duration = projectDuration(project);
@@ -148,9 +150,38 @@ export function buildAudioPlan(
   const clips = [...project.clips].sort(
     (a, b) => (order.get(a.trackId) ?? 0) - (order.get(b.trackId) ?? 0) || a.start - b.start,
   );
+  const lane = (trackId: string, from: number): { trackId: string; sounds: Sound[] } => {
+    let found = lanes.find((l) => l.trackId === trackId && (l.sounds.at(-1)?.to ?? 0) <= from);
+    if (!found) {
+      found = { trackId, sounds: [] };
+      lanes.push(found);
+    }
+    return found;
+  };
   for (const clip of clips) {
     const track = tracks.get(clip.trackId);
     const asset = assets.get(clip.assetId);
+    // The click sound of a screen recording (cursor effects) plays with each of its clips, as
+    // its own sound would, in a lane of its own beside the track.
+    const clicks = asset?.cursor ? spec.cursors?.[asset.id]?.clicks : undefined;
+    if (asset && clicks && track && !track.muted && !clip.zoomLayer) {
+      const from = at(clip.start);
+      const to = at(clipEnd(clip));
+      if (to > from)
+        lane(`${clip.trackId}:clicks`, from).sounds.push({
+          clip,
+          asset,
+          path: clicks,
+          denoise: false,
+          from,
+          to,
+          in: clip.in,
+          out: sourceEnd(clip),
+          fadeIn: 0,
+          fadeOut: 0,
+          level: 1,
+        });
+    }
     if (
       !track ||
       !asset ||
@@ -179,12 +210,7 @@ export function buildAudioPlan(
       fadeIn: 0,
       fadeOut: 0,
     };
-    let lane = lanes.find((l) => l.trackId === clip.trackId && (l.sounds.at(-1)?.to ?? 0) <= from);
-    if (!lane) {
-      lane = { trackId: clip.trackId, sounds: [] };
-      lanes.push(lane);
-    }
-    lane.sounds.push(sound);
+    lane(clip.trackId, from).sounds.push(sound);
   }
   for (const lane of lanes) {
     const music = !!tracks.get(lane.trackId)?.music;
@@ -266,7 +292,7 @@ export function buildAudioPlan(
         : "";
       graph.push(
         `[${piece.label}]atrim=start=${us(s.in + skip - piece.seek)}:end=${us(s.out - piece.seek)},asetpts=PTS-STARTPTS,` +
-          `${s.denoise ? `${DENOISE},` : ""}${atempo(speed)}volume=${n(s.clip.volume * gain)},${envelope}` +
+          `${s.denoise ? `${DENOISE},` : ""}${atempo(speed)}volume=${n(s.level !== undefined ? s.level : s.clip.volume * gain)},${s.level !== undefined ? "" : envelope}` +
           `apad=whole_len=${count},atrim=end_sample=${count}` +
           `${fadeIn > 0 ? `,afade=t=in:ss=0:ns=${fadeIn}` : ""}` +
           `${fadeOut > 0 ? `,afade=t=out:ss=${count - fadeOut}:ns=${fadeOut}` : ""},${format}[${out}]`,

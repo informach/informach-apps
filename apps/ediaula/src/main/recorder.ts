@@ -10,6 +10,7 @@ import {
   parseDshowOptions,
 } from "../shared/camera.ts";
 import { cameraOptionsArgs, METER_RATE, microphoneMeterArgs } from "../shared/captureArgs.ts";
+import type { BoardKind, DrawingTool } from "../shared/drawing.ts";
 import { type DshowDevice, dshowName, parseDshowDevices } from "../shared/dshow.ts";
 import {
   type CaptureEncoder,
@@ -20,6 +21,7 @@ import { duplicationOutput } from "../shared/helperProtocol.ts";
 import type {
   CaptureMonitor,
   CaptureSources,
+  CaptureWindow,
   MarkerKind,
   OrphanTake,
   RecorderEvent,
@@ -230,6 +232,12 @@ export interface PrepareContext {
   keyWindows?: string[];
   /** Keys the helper never shows (the recorder's own shortcuts), shared/hotkeys.ts. */
   keyFilter?: { vk: number; m: number }[];
+  /**
+   * Note where the text cursor is, so the automatic zoom follows what is typed. It costs the
+   * recorded program some speed (Chromium turns on its accessibility tree), so it follows the
+   * automatic zoom of the recorder's options.
+   */
+  caret?: boolean;
 }
 
 /**
@@ -275,6 +283,7 @@ async function prepareTake(
         keys: !!opts.keys,
         // The moments something was typed (never what): the cleanup keeps a silent typing whole.
         typing: true,
+        caret: !!context.caret,
         journal: dir,
         uiPid: process.pid,
         paused: true,
@@ -320,10 +329,10 @@ async function prepareTake(
   broadcast({ type: "status", status: s.status() });
 }
 
-export async function start(): Promise<void> {
+export async function start(): Promise<{ systemFallback: boolean }> {
   const s = session;
   if (!s || s.isPreserved) throw new Error("Gravação não preparada ou já preservada.");
-  await s.start();
+  return s.start();
 }
 
 export async function pause(): Promise<void> {
@@ -366,6 +375,65 @@ export function teleprompterLine(index: number, heard?: number): void {
 /** "Tela sobre a narração": the lesson's voice heard at timeline second `at`, at QPC `when`. */
 export function overAnchor(at: number, when: number): void {
   session?.overAnchor(at, when);
+}
+
+/** "Janela…": the window the take follows, kept in front with `front` (null lets go). */
+export function followWindow(hwnd: string | null, front: boolean): void {
+  session?.followWindow(hwnd, front);
+}
+
+/** A stroke drawn on the screen; `at` and the points' times are QPC milliseconds. */
+export function drawStroke(stroke: {
+  at: number;
+  color: string;
+  width: number;
+  points: [number, number, number][];
+  tool?: DrawingTool;
+}): void {
+  session?.drawStroke(stroke);
+}
+
+export function drawClear(at: number): void {
+  session?.drawClear(at);
+}
+
+/** A board over the region, put up (on) or taken away at `at` (QPC ms). */
+export function drawBoard(on: boolean, kind: BoardKind, at: number): void {
+  session?.drawBoard(on, kind, at);
+}
+
+/** "Página nova" of the board at `at` (QPC ms). */
+export function drawPage(at: number): void {
+  session?.drawPage(at);
+}
+
+/** Ctrl+Z while drawing at `at` (QPC ms). */
+export function drawUndo(at: number): void {
+  session?.drawUndo(at);
+}
+
+export function drawMode(on: boolean): void {
+  session?.drawMode(on);
+}
+
+/**
+ * Windows a person could record with "Janela…" (physical pixels of the virtual desktop), without
+ * the app's own: the recorder, the editor and the lesson window all belong to this process.
+ */
+export async function captureWindows(): Promise<CaptureWindow[]> {
+  const list = await listDisplays();
+  return list.windows
+    .filter((w) => w.pid !== process.pid && w.w > 0 && w.h > 0)
+    .map((w) => ({
+      hwnd: w.hwnd,
+      title: w.title,
+      exe: w.exe,
+      x: w.x,
+      y: w.y,
+      width: w.w,
+      height: w.h,
+      minimized: w.min,
+    }));
 }
 
 export function setKeyFilter(block: { vk: number; m: number }[], allow: string[]): void {

@@ -15,6 +15,7 @@ export const HOTKEY_ACTIONS = [
   "retake",
   "lineNext",
   "linePrev",
+  "draw",
   "clickerNext",
   "clickerPrev",
 ] as const;
@@ -29,6 +30,7 @@ export const DEFAULT_HOTKEYS: HotkeyMap = {
   retake: "CommandOrControl+Shift+R",
   lineNext: "CommandOrControl+Shift+Down",
   linePrev: "CommandOrControl+Shift+Up",
+  draw: "CommandOrControl+Shift+D",
   // A presentation clicker sends Page Down and Page Up; only when the teacher turns it on.
   clickerNext: "PageDown",
   clickerPrev: "PageUp",
@@ -42,6 +44,7 @@ export const HOTKEY_LABELS: Record<HotkeyAction, string> = {
   retake: "Refazer o último trecho",
   lineNext: "Próxima fala",
   linePrev: "Fala anterior",
+  draw: "Desenhar na tela",
   clickerNext: "Passador: próxima fala",
   clickerPrev: "Passador: fala anterior",
 };
@@ -53,8 +56,16 @@ export const REQUIRED_HOTKEYS: readonly HotkeyAction[] = ["toggle", "stop"];
 const CLICKER: readonly HotkeyAction[] = ["clickerNext", "clickerPrev"];
 
 /** Shortcuts registered only while a take is running. */
-export function sessionHotkeys(clicker: boolean): HotkeyAction[] {
-  return ["marker", "retake", "lineNext", "linePrev", ...(clicker ? CLICKER : [])];
+export function sessionHotkeys(clicker: boolean, screen = true): HotkeyAction[] {
+  return [
+    "marker",
+    "retake",
+    "lineNext",
+    "linePrev",
+    // Drawing goes over a screen: a voice take leaves the shortcut to the other programs.
+    ...(screen ? (["draw"] as const) : []),
+    ...(clicker ? CLICKER : []),
+  ];
 }
 
 /** Every shortcut in use with these settings. */

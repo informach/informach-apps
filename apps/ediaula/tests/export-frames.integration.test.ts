@@ -460,3 +460,17 @@ test("memory: pieces read as one stream stay close to separate inputs", {
     `peak ${shared.toFixed(0)} MB shared, ${separate.toFixed(0)} MB separate`,
   );
 });
+
+test("a clip that starts in the middle of a still frame of a variable frame rate file shows it", {
+  timeout: 120_000,
+}, () => {
+  const r = frameRate(30);
+  const still = numbered("a", "30", 3, [0, 5, 7]);
+  const project = lesson(
+    30,
+    [video("a", still, 8, 30)],
+    [{ id: "A", assetId: "a", trackId: "main", start: 0, in: 2, duration: 5.5, volume: 1 }],
+  );
+  const want = expect(165, (k) => (k < 90 ? "a0" : k < 150 ? "a1" : "a2"));
+  assert.deepEqual(frames(project, r, [{ from: 0, frames: 165 }], "vfr-mid"), want);
+});

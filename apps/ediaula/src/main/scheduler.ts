@@ -20,6 +20,7 @@ export type WorkKind =
   | "motion"
   | "filmstrip"
   | "scrub"
+  | "drawing"
   | "encoder";
 
 export interface SchedulerState {
@@ -59,6 +60,8 @@ const DEFAULT_SLOTS: Record<WorkKind, number> = {
   filmstrip: 1,
   // The sound of scrubbing: short reads, two at a time, so a fast drag does not start dozens.
   scrub: 2,
+  // The video of a take's drawing (main/drawingVideo.ts): one at a time.
+  drawing: 1,
   // Hardware encoder sessions (NVENC, AMF, Media Foundation) open at once.
   encoder: 2,
 };
@@ -77,6 +80,7 @@ export class Scheduler {
     motion: 0,
     filmstrip: 0,
     scrub: 0,
+    drawing: 0,
     encoder: 0,
   };
   private readonly wakers = new Set<() => void>();

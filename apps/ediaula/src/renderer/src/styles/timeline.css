@@ -699,3 +699,40 @@ body.is-resizing-track * {
   pointer-events: auto;
   cursor: grab;
 }
+
+/* Zooms of a recording (along the ruler) and stretches of cursor effects (at the foot of the
+   recording's clip): click to edit, drag an edge to move it. */
+.zoom-band {
+  cursor: pointer;
+}
+.zoom-band.is-selected {
+  height: 7px;
+  top: 13px;
+  box-shadow: 0 0 0 1.5px var(--text-1);
+}
+.cursor-band {
+  position: absolute;
+  height: 6px;
+  background: var(--violet);
+  border-radius: 3px;
+  opacity: 0.9;
+  z-index: 21;
+  cursor: pointer;
+}
+.cursor-band.is-selected {
+  box-shadow: 0 0 0 1.5px var(--text-1);
+}
+.band-edge {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 7px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.band-edge.is-start {
+  left: -3px;
+}
+.band-edge.is-end {
+  right: -3px;
+}

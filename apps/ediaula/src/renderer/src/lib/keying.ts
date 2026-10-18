@@ -1,8 +1,10 @@
-import { keyId } from "@shared/chroma";
+import { type ChromaKey, keyId } from "@shared/chroma";
+import { isPersonKey } from "@shared/personKey";
 import { newId } from "@shared/timeline";
 import type { Asset } from "@shared/types";
 import { useApp } from "@/state/app";
 import { useProject } from "@/state/project";
+import { renderPersonKey } from "./personKey";
 
 /**
  * Keeps every media with background removal backed by an up-to-date transparent video.
@@ -17,6 +19,28 @@ const SETTLE_MS = 700;
 export const keyIsCurrent = (a: Asset): boolean =>
   !!a.key && a.keyStatus === "ready" && !!a.keyed && a.keyedId === keyId(a.key);
 
+/**
+ * The transparent video of `asset` with `key`: by color in the main process, or by the local AI
+ * (lib/personKey.ts), whose progress is shown here like the main process's is.
+ */
+export function renderKeyFile(jobId: string, asset: Asset, key: ChromaKey): Promise<string> {
+  if (isPersonKey(key))
+    return renderPersonKey(jobId, asset, (ratio) => {
+      const { jobs, set } = useApp.getState();
+      const job = jobs[jobId];
+      if (job) set({ jobs: { ...jobs, [jobId]: { ...job, ratio } } });
+    });
+  return window.api.renderKeyed(
+    jobId,
+    asset.path,
+    asset.width,
+    asset.height,
+    asset.fps,
+    asset.duration,
+    key,
+  );
+}
+
 function render(asset: Asset): Promise<void> {
   const key = asset.key!;
   const id = keyId(key);
@@ -30,15 +54,7 @@ function render(asset: Asset): Promise<void> {
     useProject.getState().patchAsset(asset.id, { keyStatus: "pending" });
     startJob(jobId, `Removendo fundo: ${asset.name}`);
     try {
-      const path = await window.api.renderKeyed(
-        jobId,
-        asset.path,
-        asset.width,
-        asset.height,
-        asset.fps,
-        asset.duration,
-        key,
-      );
+      const path = await renderKeyFile(jobId, asset, key);
       // Only keep the result if the key was not changed again in the meantime.
       const now = useProject.getState().project?.assets.find((a) => a.id === asset.id);
       if (now?.key && keyId(now.key) === id)

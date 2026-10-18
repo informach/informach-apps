@@ -418,10 +418,15 @@ o código do vídeo do roteiro (`F1P1-V01`), o quiz, a miniatura e as legendas t
   ela começava, no mesmo rascunho.
 - **Narrar intervalo** com roteiro: o painel mostra as falas daquele trecho (as que estão nele e as que faltam no
   lugar dele; numa gravação de tela sem voz, todas as falas da professora). Grave acompanhando a prévia e use
-  **Próxima fala** a cada fala. Cada fala entra como rascunho numa faixa nova, onde você a disse enquanto a prévia
-  tocava, ajustada para o clique da gravação ou o momento do "Na tela" mais perto (até 2,5 s), sem passar por cima da
+  **Próxima fala** a cada fala. Cada fala entra como rascunho na faixa "Narração" (a das tomadas de antes, quando
+  está livre ali; senão uma nova), onde você a disse enquanto a prévia tocava, ajustada para o clique da gravação ou o momento do "Na tela" mais perto (até 2,5 s), sem passar por cima da
   fala anterior (contando as bordas de cada clipe). Com o motor de transcrição instalado, cada fala é cortada nas
   palavras dela. A gravação só entra na biblioteca junto com o rascunho: descartado o rascunho, nada fica solto.
+- **Narrar intervalo** grava a voz como o microfone ouve: sem cancelamento de eco, supressão de ruído nem ganho
+  automático do navegador, em mono a 48 kHz, em PCM quando o Chromium grava assim (senão Opus a 256 kb/s). O
+  microfone salvo nas opções do gravador já vem escolhido. A tomada passa pelo mesmo tratamento de voz da gravação
+  (Áudio › Voz) e entra na faixa "Narração" que já existe quando ela está livre no intervalo, sem passar por cima de
+  outra tomada (`insertNarration`, `narrationTrack` em `src/shared/narration.ts`).
 - **Dividir por seção** (aba Roteiro, com a gravação transcrita): uma gravação longa com várias seções do roteiro vira
   uma proposta de trechos, um por seção achada, com a divisa no meio da pausa entre elas. **Produzir todas** cria um
   projeto por seção com as mesmas mídias, a seção confirmada e o código do vídeo dela. A barra do lote, acima da
@@ -598,14 +603,21 @@ marca: quem aparece no vídeo é o **apresentador**.
   entre gravações), **Só voz** (só o microfone, sem áudio do PC), **Voz e câmera** (o microfone e a câmera do
   apresentador, sem áudio do PC), **Tela sobre a narração** (microfone e áudio do PC opcionais, desligados por
   padrão) e **Guiado por plano**. Cada caixa de escolha mostra o nome inteiro ao passar o mouse.
-- O gravador lembra as escolhas entre uma gravação e outra (`recorder.json`, no perfil do app): tela, região,
-  microfone, câmera e modo, áudio do PC, teclas, quadros por segundo (30 ou 60), qualidade, contagem, atalhos,
-  tamanho e ritmo do teleprompter e se os trabalhos de fundo esperam a gravação. Um microfone ou câmera que não
+- O gravador lembra as escolhas entre uma gravação e outra (`recorder.json`, no perfil do app): tela, região e a
+  trava da proporção, microfone, câmera e modo, áudio do PC, teclas, quadros por segundo (30 ou 60), qualidade,
+  contagem, atalhos, tamanho e ritmo do teleprompter, se os trabalhos de fundo esperam a gravação e o zoom automático
+  ao importar. Um microfone ou câmera que não
   está mais ligado dá lugar ao padrão, sem apagar a escolha salva. **Opções do gravador** (engrenagem) muda as
   que não estão na barra.
+- **Região** (barra do gravador): tela inteira, 1920 × 1080, 1280 × 720, 16:9 no centro, a resolução da aula ou
+  personalizada. Largura e altura se digitam em pixels da tela (os de verdade, qualquer que seja a escala do Windows),
+  com a proporção travada ou não, e a região sempre tem medidas pares (`src/shared/region.ts`). **Janela…** lista as
+  janelas abertas (as do EdiAula ficam de fora) e encaixa a região na escolhida, cortada à tela dela. Durante a
+  gravação, a pílula avisa se essa janela for minimizada, fechada ou sair da região; **Manter a janela à frente**
+  deixa ela por cima das outras enquanto grava, e ela volta ao normal ao parar ou descartar.
 - Atalhos (configuráveis): **F9** inicia e pausa, **F10** para, **F8** marca o alvo do modo guiado,
-  **Ctrl+Shift+M** marcador, **Ctrl+Shift+R** refazer o último trecho (vira proposta de corte, da pausa antes do
-  trecho errado até a pausa depois da marca), **Ctrl+Shift+↓** e **Ctrl+Shift+↑** próxima fala e fala anterior do
+  **Ctrl+Shift+M** marcador, **Ctrl+Shift+R** refazer o último trecho (vira proposta de corte; veja abaixo),
+  **Ctrl+Shift+D** desenhar na tela, **Ctrl+Shift+↓** e **Ctrl+Shift+↑** próxima fala e fala anterior do
   teleprompter. Um passador de slides (Page Down e Page Up) também muda a fala, se ligado nas opções. Iniciar,
   parar e o alvo valem enquanto o gravador está aberto; os outros só durante a gravação, então Ctrl+R e as setas
   continuam funcionando nos outros programas. Atalho que outro programa já usa ou que repete outro aparece no
@@ -614,8 +626,44 @@ marca: quem aparece no vídeo é o **apresentador**.
   vira corte quando a gravação entra no projeto. Retomar é imediato e as primeiras palavras depois do F9 não se
   perdem. Só uma pausa de mais de 5 min fecha a parte da tela e da câmera, para poupar disco; aí a retomada leva
   cerca de 1 s e o gravador avisa. A gravação termina no instante do F10 (ou de **Parar**): o que vem depois,
-  enquanto os arquivos fecham, fica de fora. **Descartar** (lixeira na pílula) manda o take para a Lixeira e
-  volta ao começo sem fechar o gravador.
+  enquanto os arquivos fecham, fica de fora. **Descartar este take e recomeçar** (lixeira na pílula) pede
+  confirmação, manda o take para a Lixeira e volta ao começo sem fechar o gravador.
+- **Desenho na tela:** durante a gravação, **Ctrl+Shift+D** (ou o lápis na pílula, nos modos Tela e Tela sobre a
+  narração) liga o desenho sobre o gravador, com as cores da paleta da aula, três espessuras e **Apagar tudo**. O
+  desenho não entra no vídeo: cada traço vai com o tempo dele para o diário da sessão e, na importação, vira um clipe
+  "Desenho" numa faixa livre acima da tela, alinhado ao take e animado como foi feito (o traço aparece aos poucos),
+  igual na prévia e na exportação (`src/shared/drawing.ts`). No modo desenho o gravador recebe o mouse: o clique
+  não chega ao programa de baixo, e os cliques e arrastos da caneta ficam de fora do zoom automático, do som de
+  clique, da onda e da proteção de atividade da limpeza. O desenho funciona nos modos com tela, e só neles o atalho
+  fica registrado; o que se desenha nos primeiros instantes, antes de o relógio do gravador ser medido, entra no
+  take com o tempo certo. Esc devolve o teclado ao programa gravado, e se a janela do gravador parar de responder
+  com o desenho ligado o mouse volta na hora para a tela.
+- **O desenho no projeto:** fica guardado uma vez só, na mídia do vídeo dele (`Asset.drawing`); cada clipe guarda só
+  o trecho que mostra. As posições vão com quatro casas, e um desenho enorme é limitado (5000 traços, 100 mil pontos
+  ao todo, com aviso na importação), para o projeto continuar salvando. Um "Apagar tudo" antes do primeiro traço é
+  descartado. O vídeo do desenho é feito em segundo plano, na fila do trabalho pesado e com progresso, sem segurar a
+  importação: só os quadros em que algo muda são desenhados, cada imagem diferente uma vez só (guardada pelo que
+  mostra), e o vídeo segura cada uma até a próxima (taxa variável), então meia hora parada vira um quadro. Os clipes
+  entram num passo de desfazer próprio quando o vídeo fica pronto, e não entram se a importação foi desfeita. Cada
+  clipe de desenho entra no grupo do clipe de tela em que está: mover, aparar a mesma ponta e a faixa magnética
+  levam os dois juntos (Alt + clique seleciona só o clipe do desenho, para editar), e "Lado a lado" leva os traços
+  com a tela e devolve os dois ao lugar de antes.
+- **Ferramentas do desenho:** caneta, marca-texto translúcido e seta; com Shift o traço sai reto. A cor começa pelo
+  destaque da paleta da aula e troca pela paleta.
+- **Quadro branco e quadro negro:** no modo desenho, com o gravador em foco, **B** põe um quadro branco por cima da
+  região gravada e **N** um quadro negro (a mesma tecla de novo tira o quadro), **P** abre uma página nova (limpa os
+  traços e mantém o quadro), **Ctrl+Z** desfaz o último traço e **Esc** sai do modo desenho. Uma barrinha discreta
+  mostra essas teclas, fora da captura. No quadro branco a tinta começa escura; no negro, giz claro. O vídeo continua
+  gravando a tela por baixo; ligar e desligar o quadro (com o tipo e o tempo), página nova e desfazer vão para o diário
+  como dados, junto com os traços.
+- Na importação, cada trecho com quadro vira um clipe de anotação "Quadro": o fundo na cor do quadro cobrindo a tela,
+  os traços animados por cima e o cursor da gravação desenhado acima do quadro, como a ponta da caneta; cada página
+  nova é um corte entre dois clipes. Nas propriedades dá para trocar a cor do quadro e apagar um traço específico
+  (de um Quadro ou de um Desenho; a lista mostra só os traços que aparecem naquele clipe): o vídeo do desenho é
+  feito de novo, só nas imagens que mudaram, e a prévia e a exportação mudam juntas. Cortar, aparar e apagar o clipe
+  é como em qualquer clipe. O desenho é uma fronteira do zoom automático: nada feito com a caneta vira zoom, e um
+  zoom nunca atravessa o desenho (o clique antes e o clique depois dão dois zooms); as sugestões pelas mudanças de
+  tela também pulam esses trechos. O pacote da aula leva o desenho no projeto e faz o vídeo de novo ao abrir.
 - **Cada fonte é um processo:** tela, microfone e câmera gravam em FFmpeg separados, então a falha de um não
   derruba os outros. Se a tela ou o microfone param (disco, dispositivo desligado, driver), a gravação pausa sozinha
   e o aviso oferece **Retomar** (reabre a fonte numa parte nova) ou **Parar e salvar**. Retomar abre só o que
@@ -661,12 +709,13 @@ marca: quem aparece no vídeo é o **apresentador**.
   controles do gravador (pílula, teleprompter, avisos) não entra no vídeo: ele fica parado onde estava, e os
   cliques ali não viram onda nem zoom automático.
 - **Arquivos** em `Documentos/EdiAula/Gravações/<data>/`. Durante a gravação, cada fonte grava em partes de MP4
-  fragmentado (`tela-0.mp4`, `microfone-0.m4a`, `camera-0.mp4`, `sistema.webm`; no modo Só voz, `voz-0.mkv` em PCM), legíveis até o último fragmento
+  fragmentado (`tela-0.mp4`, `microfone-0.m4a`, `camera-0.mp4`; o áudio do PC em `sistema-0.wav`, ou `sistema.webm` pela reserva; no modo Só voz, `voz-0.mkv` em PCM), legíveis até o último fragmento
   se algo cair; o auxiliar grava `cursor.jsonl` e as imagens dos cursores em `cursors/`; e o app grava
   `sessao.jsonl`, o diário da sessão (começo, primeira amostra de cada parte, pausas, marcadores, falhas, falas do
   teleprompter, parada), que vai ao disco nas pausas, marcadores, falhas e na parada e a cada 5 s. Ao parar, as
   partes da tela viram `tela.mp4` comum (busca rápida) se houver espaço para a cópia; o microfone e o áudio do PC
-  são cortados no que cada parte da tela cobre, com silêncio onde faltar, e saem em `microfone.m4a` e
+  são cortados no que cada parte da tela cobre, com silêncio onde faltar (o áudio do PC chega como `sistema-0.wav`
+  do auxiliar, ou `sistema.webm` pelo Chromium), e saem em `microfone.m4a` e
   `sistema.m4a` começando no segundo 0 da tela; a câmera fica como foi gravada; o `cursor.json` (versão 2, com as
   pausas, os trechos sobre os controles e as lacunas do auxiliar) e `gravacao.json` são escritos. Cada arquivo
   novo é conferido pela duração e gravado no disco antes da linha `finalized`, e só então as partes copiadas
@@ -687,11 +736,39 @@ marca: quem aparece no vídeo é o **apresentador**.
   faixa "Voz", o áudio do PC na dele e a narração guiada na
   dela; faixas existentes são reaproveitadas quando estão livres. As pausas viram cortes em todas ao mesmo tempo,
   e os cortes da limpeza e as inserções do roteiro passam a levar junto o microfone e o áudio do PC, mesmo antes
-  da transcrição. Os trechos de Ctrl+Shift+R são propostos por pedaço, pelo som do microfone.
+  da transcrição.
+- **Ctrl+Shift+R pelas palavras:** com a voz transcrita, o corte começa onde o trecho repetido foi dito antes (a
+  última vez que as duas ou três primeiras palavras ditas depois da marca aparecem antes dela) e vai até onde ele
+  recomeça; sem essas palavras, começa no início da frase interrompida (`retakeCutsFromWords` em
+  `src/shared/recording.ts`). Sem transcrição, a proposta sai pelo volume do microfone, da pausa antes do trecho
+  errado até a pausa depois da marca, e é trocada pela das palavras se a voz for transcrita enquanto ela espera.
+- **Câmera da gravação** (Propriedades do clipe da câmera › Câmera): enquadramento em círculo no canto, arredondado
+  no canto, lado a lado (a tela do take vai para a outra metade) ou tela cheia, para todos os trechos da câmera
+  (`src/shared/cameraFraming.ts`). **Remover fundo com IA local** recorta a pessoa com um modelo de segmentação que
+  roda no próprio computador, sem enviar nada: em segundo plano, como a remoção de fundo por cor, ele gera o vídeo com
+  transparência em cache que a prévia e a exportação usam, e espera a gravação terminar. Custa cerca de 12 ms por
+  quadro, a 256 px. O modelo e a licença ficam em `resources/segmentation/`.
 - **Trabalhos de fundo esperam a gravação:** proxies, remoção de fundo e transcrição que começariam durante a
   gravação esperam ela acabar, e a fila de exportação segura o próximo item ("Exportação em espera"); o que já
   estava rodando continua com prioridade baixa. Dá para desligar nas opções do gravador.
-- **Cursor** (Propriedades): tamanho, suavizar, onda nos cliques, halo amarelo, esconder quando parado.
+- **Cursor** (Propriedades): tamanho, suavizar, onda nos cliques, halo (na cor da paleta da aula), esconder
+  quando parado e teclas na tela.
+  - **Desenho do ponteiro:** Automático (o desenho do EdiAula nos formatos comuns: seta, mão, barra de texto,
+    espera, ocupado, cruz, mover, redimensionar e proibido; e a imagem real nos cursores próprios dos programas, como
+    a mão de arrastar dos blocos), Desenhado (sempre o desenho) ou Do sistema (a imagem que o Windows mostrou, onde
+    ela foi guardada). Um cursor que inverte a tela (a barra de texto de muitos programas) sai escuro com contorno
+    claro (`src/renderer/src/lib/cursorImages.ts`).
+  - **Suavizar sem atraso:** a mola anda para a frente e para trás (`buildTrack` em `src/shared/cursor.ts`), então o
+    ponteiro não fica para trás nem passa do ponto. Em cada clique ele é preso ao ponto clicado: chega nele no
+    instante do clique, fica nele enquanto o botão está apertado (um arrasto segue a gravação) e solta aos poucos
+    depois. O erro no instante do clique fica abaixo de 0,5 px (`tests/cursor-effects.test.ts`).
+  - **Lupa** (raio e aumento): um círculo em volta do ponteiro com a tela ampliada. **Holofote** (raio e
+    intensidade): escurece o resto da tela. **Som de clique** (volume): um clique curto feito pelo próprio app
+    (`src/shared/clickSound.ts`), tocado na prévia e misturado ao áudio da exportação.
+  - **Efeito por trecho:** liga ou desliga a lupa, o holofote, o halo, a onda, o som ou o próprio cursor só num
+    pedaço da gravação. O trecho aparece em roxo no pé do clipe da gravação, e as pontas dele se arrastam ali.
+  - Tudo igual na prévia e na exportação: o mesmo desenho (`src/renderer/src/lib/cursorDraw.ts`) faz a prévia e o
+    vídeo pequeno do ponteiro; a exportação amplia a lupa e move a imagem do holofote com as mesmas posições.
 - **Editar caminho do cursor…** (botão direito no clipe): mostra apenas o intervalo daquele clipe,
   com tempo de zero até sua duração, respeitando a velocidade. O caminho e os pontos ficam no mesmo
   intervalo; aplicar ou restaurar preserva as edições fora dele. Escolha o tempo, clique para adicionar pontos e
@@ -703,9 +780,17 @@ marca: quem aparece no vídeo é o **apresentador**.
   restaure o caminho original. Aplicar salva em um único Ctrl+Z, para esse intervalo da gravação e suas cópias.
   Prévia, quadro estendido e exportação usam o caminho editado, inclusive a posição das ondas de clique.
   Zooms automáticos existentes podem ser gerados novamente para seguir as novas posições.
-- **Zoom automático nos cliques**: um zoom por sequência de cliques, passeando entre eles e acompanhando
-  arrastos (blocos do Blockly); zoom manual "aqui"; faixas âmbar na timeline. O zoom fica no tempo da
-  gravação, então acompanha cortes.
+- **Zoom automático**: um zoom por sequência de cliques, passeando entre eles, acompanhando arrastos (blocos do
+  Blockly) e seguindo o cursor de texto enquanto algo é digitado (o auxiliar anota onde ele está, com o zoom automático
+  ligado nas opções do gravador). Roda sozinho quando a gravação entra no projeto (opção ligada por padrão) e nunca dá
+  zoom num clique sobre os controles do gravador. Zoom manual "aqui". O zoom fica no tempo da gravação, então
+  acompanha cortes.
+- **Zooms da gravação editáveis:** as faixas âmbar na timeline se clicam e se arrastam pelas pontas (começo e fim).
+  Com um zoom selecionado, o painel e o retângulo na prévia são os mesmos da camada de zoom: aproximar, ponto (o
+  retângulo move o ponto do zoom na posição atual) e suavidade, mais **Apagar** (apaga o zoom selecionado).
+- **Sugerir pelas mudanças de tela:** a detecção de cena do FFmpeg no proxy (`select='gt(scene,0.25)'`) acha as
+  telas que mudam muito e propõe um zoom logo depois de cada uma, olhando para onde o ponteiro vai; as sugestões se
+  aplicam uma a uma ou todas.
 - Prévia e exportação usam os mesmos cálculos (`shared/cursor.ts`, `shared/zoom.ts`): o cursor é
   pré-desenhado num vídeo transparente pequeno que o FFmpeg move quadro a quadro; o zoom usa o filtro
   `perspective` com a mesma curva (testado ponto a ponto).
@@ -752,17 +837,27 @@ marca: quem aparece no vídeo é o **apresentador**.
 - **Movimento por keyframes** (Propriedades › Movimento): marque posições em momentos diferentes; o clipe desliza
   entre elas. Com keyframes, arrastar no vídeo ajusta a posição daquele momento (`shared/keyframes.ts`).
 - **Áudio do PC** na gravação (o som do sistema: música, efeitos de um jogo, o navegador), numa faixa própria
-  já alinhada e cortada nas mesmas pausas da tela. É o loopback do Windows pelo Chromium com `restrictOwnAudio`
-  (`src/shared/systemAudio.ts`): o som que a própria janela do gravador toca fica de fora, então a voz da aula no
-  modo Tela sobre a narração e a narração do modo guiado (as duas tocam no gravador) não entram duplicadas. O
-  Chromium deixa de fora só a janela que captura: o som de outra janela do EdiAula entra, por isso tudo o que o
-  gravador toca durante a gravação toca na janela dele. O processamento de voz do Chromium (cancelamento de eco,
-  supressão de ruído, ganho automático) fica desligado nessa faixa. A separação só conta quando a faixa abre o
-  `loopbackWithoutChrome`; num Windows sem process loopback (anterior ao Windows 10 2004), o áudio do PC fica
-  desligado, com aviso, nos modos em que o gravador toca uma voz (Tela sobre a narração e guiado com narração), e
-  nos outros segue com o loopback comum e um aviso. Medido nesta máquina com Electron 44
-  (`tests/systemAudioExclusion.test.ts`, com `EDIAULA_SOUND_TESTS=1`): um tom tocado pela janela que captura cai de
-  -13 dB para -83 dB na faixa, o tom de outro programa fica em -30 dB e o de outra janela do app fica em -13 dB.
+  já alinhada e cortada nas mesmas pausas da tela. Por padrão quem grava é o `ediaula-helper.exe`, com o process
+  loopback do WASAPI no modo que exclui a árvore de processos do EdiAula (`loopback --exclude-pid`): nenhum som do app
+  entra, de nenhuma janela, então a voz da aula no modo Tela sobre a narração e a narração do modo guiado não entram
+  duplicadas. Ele grava `sistema-0.wav` (PCM 16 bits, 48 kHz, estéreo) na pasta do take, no relógio da gravação
+  (lacunas viram silêncio), em partes no disco, e uma parte cortada por uma queda é recuperada como as outras. Precisa
+  do Windows 10 versão 2004 ou mais novo; o app confere enquanto a resposta for não (uma falha passageira não tira
+  essa captura pelo resto da execução) e guarda o sim. Se a captura nativa não abrir no começo, o gravador passa
+  para a reserva abaixo; se o auxiliar parar no meio, a gravação segue sem o áudio do PC e avisa. Numa pausa longa
+  (mais de 5 minutos) a parte do áudio do PC fecha com a tela, e a retomada abre `sistema-1.wav`, para o arquivo não
+  crescer com a pausa inteira.
+- **Reserva do áudio do PC:** num Windows sem esse modo, o áudio do PC vai pelo loopback do Windows no Chromium com
+  `restrictOwnAudio` (`src/shared/systemAudio.ts`): o som que a própria janela do gravador toca fica de fora, mas o
+  de outra janela do EdiAula entra, por isso tudo o que o gravador toca durante a gravação toca na janela dele. O
+  processamento de voz do Chromium (cancelamento de eco, supressão de ruído, ganho automático) fica desligado nessa
+  faixa. Quando nem o process loopback existe (anterior ao Windows 10 2004), o áudio do PC fica desligado, com aviso,
+  nos modos em que o gravador toca uma voz (Tela sobre a narração e guiado com narração), e nos outros segue com o
+  loopback comum e um aviso.
+- Medido nesta máquina com Electron 44 (`tests/systemAudioExclusion.test.ts`, com `EDIAULA_SOUND_TESTS=1`): pelo
+  auxiliar, um tom tocado numa janela do app cai de -13 dB (captura sem exclusão) para cerca de -83 dB, e em outra
+  janela do app também; o tom de outro programa fica em -30 dB. Pela reserva do Chromium, o tom da janela que captura
+  cai para -83 dB, mas o de outra janela do app fica em -13 dB.
 - **Teclas na tela**: atalhos (Ctrl/Alt/Win+…) e setas/Enter/Tab/Esc/Delete/F1 a F12 aparecem num balão no canto.
   Espaço e Backspace sozinhos não aparecem, porque o auxiliar não tem como saber se o foco está num campo de
   texto; AltGr e Alt com o teclado numérico também ficam de fora, porque escrevem caracteres.
@@ -994,7 +1089,9 @@ marca: quem aparece no vídeo é o **apresentador**.
   nova no topo; arraste para uma faixa mais baixa para deixar camadas de fora.
 - Com a camada selecionada, a prévia mostra o quadro sem zoom e um retângulo com a área que vai encher a tela:
   arraste para mover, rodinha do mouse para aproximar mais ou menos. Propriedades: força, ponto (atalhos de
-  posição) e suavidade.
+  posição) e suavidade. Os zooms das gravações usam o mesmo painel e o mesmo retângulo (`FocusBox` em
+  `ZoomTarget.tsx`, `ZoomPointControls` em `ZoomLayerPanel.tsx`); a camada continua sendo o jeito de aproximar tudo
+  o que está nas faixas abaixo dela.
 - Como no Camtasia, entrada e saída são opcionais: "Aproximar suave" ou "Começar já no zoom"; "Voltar suave ao
   normal" ou "Ficar no zoom até o fim". "Continuar em outro ponto" cria a etapa seguinte colada na atual: o zoom
   desliza de um ponto a outro sem voltar ao normal; "Voltar ao normal aqui" é o "Restaurar" (uma etapa em 1×).

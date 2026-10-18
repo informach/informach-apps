@@ -158,7 +158,8 @@ function bursts(times: number[]): [number, number][] {
  * showing it. Moves over the recorder or where the helper was not watching are left out.
  */
 function pointerMoves(data: CursorData): [number, number][] {
-  const blind = [...data.hidden, ...data.gaps];
+  // The pen of the drawing mode moves on the recorder window, not on the lesson.
+  const blind = [...data.hidden, ...data.gaps, ...(data.drawing ?? [])];
   const out: [number, number][] = [];
   let run: { from: number; to: number; path: number; x: number; y: number } | null = null;
   const flush = (): void => {
