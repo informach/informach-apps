@@ -1,5 +1,7 @@
 import { timelineWords } from "@shared/cleanup";
 import { squareCrop, type Transform } from "@shared/compose";
+import { normalizeGuidedRun } from "@shared/guidedCursor";
+import { type GuidedReplace, planTiming } from "@shared/guidedPlan";
 import { layoutOverNarration } from "@shared/overNarration";
 import {
   type OverContext,
@@ -18,8 +20,8 @@ import { voiceTakes } from "@shared/voiceTakes";
 import { useApp } from "@/state/app";
 import { usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
-import { importMedia } from "./importMedia";
-import { loadWaveform } from "./media";
+import { enrich, importMedia } from "./importMedia";
+import { loadWaveform, mediaUrl } from "./media";
 import { requestMotion } from "./motion";
 import { activePalette } from "./palettes";
 import { showProposal } from "./proposals";
@@ -38,6 +40,8 @@ export interface RecorderRequest {
   from?: number;
   to?: number;
   replace?: boolean;
+  /** "Regravar e substituir": a guided take recorded again with its plan, in that media's place. */
+  guidedReplace?: GuidedReplace;
 }
 
 /**
@@ -121,7 +125,97 @@ export async function openRecorder(request: RecorderRequest = {}): Promise<void>
     screenNotes,
     ...(request.mode ? { mode: request.mode } : {}),
     ...(over ? { over } : {}),
+    ...(p ? { projectId: p.id } : {}),
+    ...(p?.guided ? { guided: p.guided } : {}),
+    ...(request.guidedReplace ? { guidedReplace: request.guidedReplace } : {}),
   });
+}
+
+/** guided-run.json of a media, or why it cannot be read. */
+async function guidedRunOf(path: string) {
+  const response = await fetch(mediaUrl(path));
+  if (!response.ok)
+    throw new Error("O registro da demonstração (guided-run.json) não foi encontrado.");
+  return normalizeGuidedRun(await response.json());
+}
+
+/**
+ * "Regravar e substituir": the plan this media was recorded with runs again in the recorder;
+ * the new take takes the media's place in every clip. Refused when the plan's tempos or times
+ * changed since, because the clips' cuts would no longer fall on the same moments.
+ */
+export async function rerecordGuided(assetId: string): Promise<void> {
+  const { toast } = useApp.getState();
+  const p = useProject.getState().project;
+  const asset = p?.assets.find((a) => a.id === assetId);
+  if (!p || !asset?.guidedRun) return;
+  try {
+    const run = await guidedRunOf(asset.guidedRun);
+    const plan = p.guided?.plans.find((x) => x.id === run.planId);
+    if (!plan) throw new Error(`O plano “${run.planName}” não está mais neste projeto.`);
+    if (planTiming(plan) !== run.timing)
+      throw new Error(
+        "Os tempos do plano mudaram desde esta gravação. Grave um take novo em vez de substituir.",
+      );
+    await openRecorder({
+      guidedReplace: {
+        assetId,
+        assetName: asset.name,
+        planId: plan.id,
+        timing: run.timing,
+        from: run.from,
+        duration: asset.duration,
+      },
+    });
+  } catch (error) {
+    toast(`Não dá para regravar ${asset.name}: ${(error as Error).message}`, "error");
+  }
+}
+
+/**
+ * The new take of "Regravar e substituir" in the media's place: same id, so every clip keeps
+ * its cuts, with the new video, cursor and guided-run.json. False when it cannot replace (the
+ * take did not finish, or lasts another length): then it comes in as a new take.
+ */
+async function replaceGuidedTake(r: RecordingResult): Promise<boolean> {
+  const { toast } = useApp.getState();
+  const asset = useProject.getState().project?.assets.find((a) => a.id === r.replaceAsset);
+  if (!asset || !r.screen || !r.guidedRun) return false;
+  const info = await window.api.probe(r.screen);
+  const run = await guidedRunOf(r.guidedRun);
+  if (run.status !== "done") {
+    toast("A demonstração não chegou ao fim: ela entrou como uma gravação nova.", "info");
+    return false;
+  }
+  if (Math.abs(info.duration - asset.duration) > 0.1) {
+    toast(
+      `A nova gravação tem ${info.duration.toFixed(1)} s e a anterior ${asset.duration.toFixed(1)} s: ela entrou como uma gravação nova.`,
+      "info",
+    );
+    return false;
+  }
+  const { relinkAsset, patchAsset } = useProject.getState();
+  relinkAsset(asset.id, {
+    path: r.screen,
+    size: info.size,
+    ...(r.cursor ? { cursor: r.cursor } : {}),
+  });
+  patchAsset(asset.id, {
+    guidedRun: r.guidedRun,
+    thumb: undefined,
+    waveform: undefined,
+    proxy: undefined,
+    proxyStatus: "none",
+    vfr: info.vfr,
+    fps: info.fps,
+    recording: { id: basename(r.dir), role: "screen" },
+  });
+  const updated = useProject.getState().project?.assets.find((a) => a.id === asset.id);
+  if (updated) void enrich(updated, info.videoCodec);
+  toast(`${asset.name} foi regravada: os clipes seguem nos mesmos pontos.`, "success");
+  if (await useProject.getState().saveNow())
+    await window.api.recorder.imported(r.dir).catch(() => undefined);
+  return true;
 }
 
 /** Webcam in the bottom-right corner, in a circle with the course's lime border (as in the design). */
@@ -148,6 +242,16 @@ const stamp = (): string =>
 /** A finished take goes into the open project (or a new one), every source cut at its pauses. */
 export async function importRecording(r: RecordingResult): Promise<void> {
   const { toast, set } = useApp.getState();
+  if (r.replaceAsset && useProject.getState().project) {
+    try {
+      if (await replaceGuidedTake(r)) return;
+    } catch (error) {
+      toast(
+        `Não consegui substituir a gravação (${(error as Error).message}): ela entrou como nova.`,
+        "info",
+      );
+    }
+  }
   if (!useProject.getState().project) {
     const { path, project } = await window.api.createProject(
       `Gravação ${stamp()}`.replace(/[/:]/g, "-"),
@@ -187,6 +291,7 @@ export async function importRecording(r: RecordingResult): Promise<void> {
       .map((m) => ({ ...m, t: Math.round((m.t - s.at) * 1000) / 1000 }));
     patchAsset(asset.id, {
       ...(s.cursor ? { cursor: s.cursor } : {}),
+      ...(r.guidedRun && i === 0 ? { guidedRun: r.guidedRun } : {}),
       markers,
       name: screens.length > 1 ? `Tela ${when} · parte ${i + 1}` : `Tela ${when}`,
     });
@@ -360,4 +465,8 @@ export function listenRecordings(): void {
   if (listening) return;
   listening = true;
   window.api.recorder.onDone((r) => void importRecording(r));
+  // Plans edited in the recorder belong to the lesson they were made for.
+  window.api.recorder.onGuided(({ projectId, store }) => {
+    if (useProject.getState().project?.id === projectId) useProject.getState().setGuided(store);
+  });
 }

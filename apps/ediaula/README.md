@@ -625,17 +625,86 @@ HeyGen é usado pelo site dele, como sempre.
 
 ## Gravação guiada da plataforma web
 
-- **MP4 do HeyGen:** em **Importar áudio ou MP4 do HeyGen**, selecione o vídeo exportado com a voz. O EdiAula extrai a primeira faixa de áudio em WAV, preserva o MP4 original e usa o mesmo WAV para escuta, transcrição e narração na timeline. Não é necessário converter o arquivo antes. Vídeos sem faixa de áudio mostram uma mensagem de erro.
-- O modo **Tela** (gravação à mão) permanece disponível e é o padrão. Em Gravar, escolha **Guiado por roteiro/áudio** em Modo de gravação para preparar uma demonstração. Os outros modos, **Só voz** e **Tela sobre a narração**, estão em "Voz, HeyGen e tela".
-- **Abrir ambiente de aula** abre uma janela web isolada, sem acesso à ponte do editor. Entre na plataforma normalmente e pressione **F8** para voltar ao gravador. Os dados de login ficam no perfil local dessa janela.
-- Cole o roteiro (uma etapa por linha) ou importe a narração. O roteiro produz tempos estimados; a transcrição propõe tempos nas palavras “clique”, “clicar” e “clicamos”. A transcrição depende do motor/modelo já configurado. Também é possível definir etapas e tempos manualmente.
-- Revise as ações e, em cada etapa, escolha **Marcar alvo**, posicione o cursor e pressione **F8**. Na janela da aula, botões usam seletores de elementos e são localizados novamente antes de executar. Canvas e iframes usam pontos relativos; outros navegadores usam posições fixas. Mudanças de conteúdo de jogos precisam de revisão: ainda não há reconhecimento visual do resultado das ações.
-- Ritmo didático inicial para aulas de **9 a 14 anos**, ajustável: movimento suave de **1,2 s**, chegada **0,5 s antes da fala**, espera mínima de **0,8 s** no alvo antes do clique e **1,5 s** após a ação. Em cada etapa, **Fala começa em (s)** indica o início da frase e **Ação em (s)** indica quando clicar. A chegada considera ambos: o cursor espera no botão enquanto a explicação começa. Uma preparação inicial permite antecipar o cursor mesmo na primeira fala. Etapas próximas demais são recusadas; ajuste o roteiro/áudio para caberem as pausas.
-- A importação de áudio sugere o começo da frase anterior ao comando, respeitando pontuação e pausas; revise essa sugestão na narração. Planos sem um início de fala separado usam o instante da ação como referência. A localização dos elementos começa antes do movimento; atrasos de localização ou saltos durante o trajeto interrompem a execução, sem acelerar para compensar. O modo Manual continua sem automação.
-- Ações: apontar, clique esquerdo/direito, clicar e digitar, e teclas de navegação. **F9** pausa/retoma; **F10** interrompe e salva. A execução pausa se perder o ritmo ou se o alvo estiver ausente, coberto, deslocado durante a aproximação ou em outra janela.
-- Cada movimento até o alvo é um só comando para o auxiliar nativo, que desenha a curva a 120 Hz no próprio relógio; uma pausa para o cursor onde ele está e a mesma curva continua na retomada. Se o auxiliar atrasar, o cursor para onde está em vez de saltar e a gravação pausa.
-- Com áudio importado, microfone e áudio do PC são desligados para evitar duplicação. Use fones para acompanhar. O arquivo de voz é copiado para a pasta da gravação e inserido numa faixa própria, alinhado ao vídeo e preservando o cursor editável. Sem áudio importado, grave a demonstração e use **Narrar intervalo** depois.
-- A conclusão das etapas encerra a gravação automaticamente. A correspondência de alvos e a sincronização final devem ser revisadas na aula real antes de publicar.
+- O modo **Tela** (gravação à mão) permanece disponível e é o padrão. Em Gravar, escolha **Guiado por plano
+  (roteiro ou áudio)** em Modo de gravação. Os modos **Só voz** e **Tela sobre a narração** estão na seção de voz e tela.
+- **Planos salvos e retomáveis:** cada demonstração é um plano (`shared/guidedPlan.ts`, versão 2) com nome,
+  endereço, tamanho de captura, etapas, alvos, tempos e a narração. Os planos ficam no projeto
+  (`project.guided`, fora do desfazer) e cada mudança vai para o editor um segundo depois, passando antes por
+  um rascunho em `guided-drafts/<id do projeto>.json` no perfil do app: se o app cair antes de salvar, o
+  gravador abre com o rascunho. Planos da versão 1 abrem migrados como planos de tela.
+- **Onde acontece:** **Na janela da aula** (recomendado) ou **Na tela, em outros programas**.
+- **Na janela da aula** o EdiAula não mexe no seu mouse. **Abrir janela da aula** abre a plataforma numa
+  janela isolada (sem acesso à ponte do editor; o login fica no perfil dessa janela). A demonstração roda pela
+  própria página, pelo Chrome DevTools Protocol (`main/guidedCdp.ts`): mouse com um evento por quadro (o
+  arrasto do Blockly recebe todos os eventos de ponteiro), duplo clique, roda, teclas com modificadores e
+  digitação. Abrir o DevTools nessa janela desliga a automação, com aviso.
+- **Captura em tamanho fixo** (`main/guidedCapture.ts`): uma janela fora da tela, na mesma sessão já logada,
+  desenha a página em 1280 × 720 ou 1920 × 1080, escala 1, a 30 ou 60 quadros. O relógio do vídeo é a contagem
+  de quadros: o último quadro se repete enquanto a página não muda. Quando a etapa espera (o alvo ainda
+  carregando, uma navegação, uma condição), o vídeo segura: não sai quadro e a espera fica registrada. A ação
+  acontece no segundo exato da narração, sem "O movimento atrasou". O codificador é o detectado para a tela, pelo
+  caminho da CPU (BT.709), e o x264 entra se ele não aceitar. Durante o take, o gravador mostra uma prévia a 5
+  quadros por segundo, a etapa e o motivo de cada espera; **F9** pausa, **F10** para e salva.
+- **Marcar alvos:** em cada etapa, **Marcar alvo**: vá até o elemento na janela da aula (navegando à vontade),
+  pressione **F8** para ligar o inspetor e clique nele; **F8** de novo cancela. O alvo vira um localizador
+  (`shared/locators.ts`) com várias estratégias, da mais estável à menos: identificação de teste, atributos
+  `data-`, id estável, papel e nome de acessibilidade, rótulo, texto, bloco do Blockly e, por último, o caminho
+  CSS (que nunca vale sozinho: só conta se o elemento ainda tiver a mesma tag e o mesmo texto). Na hora de agir,
+  vale o primeiro que encontrar um único elemento visível, habilitado e não coberto; empates vão para o mais
+  perto do retângulo marcado. A página precisa estar no endereço marcado (sem contar consulta e âncora).
+- **Blockly:** um bloco é achado pelo texto dos seus rótulos, no flyout, na área de trabalho ou como categoria
+  da caixa de ferramentas, e é pego pela borda esquerda. O destino de um arrasto é **abaixo de um bloco**
+  (marque o bloco) ou **um ponto da área de trabalho** (marque o fundo), convertido pela transformação do
+  `.blocklyBlockCanvas`: funciona com rolagem e zoom diferentes.
+- **Ações:** apontar, passar o mouse, clicar, clique duplo, clique direito, arrastar, rolar (uma distância ou até
+  um elemento aparecer), clicar e digitar, tecla ou atalho (por exemplo **Ctrl+Shift+Z**) e esperar (um elemento
+  aparecer, sumir ou ficar disponível). Cada etapa pode ter **Conferir depois** (a etapa só termina quando a
+  condição vale) e uma **Espera máxima**.
+- **Verificar plano** roda o plano inteiro na janela fora da tela, sem gravar, e lista as etapas que falharam,
+  cada uma com uma foto da página naquele momento. Marque de novo só essas.
+- **Continuar da etapa k:** quando um take para numa etapa (erro ou **F10**), salve o que foi gravado, corrija a
+  etapa e use **Continuar da etapa k**: as etapas anteriores são refeitas sem gravar e o take novo começa na
+  etapa k, com a narração cortada no mesmo ponto.
+- **Cursor e registro:** o cursor do vídeo é sintetizado do que a automação fez (`shared/guidedCursor.ts`):
+  `cursor.json` versão 2 com um movimento por quadro enquanto ele anda, passando pelo ponto de cada clique no
+  instante do clique, cliques com duração (o arrasto é um clique segurado), roda, atalhos com o rótulo e a forma
+  tirada do cursor CSS do elemento (mão, texto). Ao lado fica `guided-run.json` (formato estável, versão 1): as
+  etapas com os segundos planejados e reais, cada interação e cada espera. A mídia da tela guarda o caminho
+  dele (`guidedRun`). A pasta do take é um take comum: uma queda é recuperada como as outras, com cursor.
+- **Regravar e substituir:** na biblioteca, uma tela gravada assim tem **Regravar e substituir**. O gravador abre
+  com o mesmo plano e o take novo entra no lugar do antigo, nos mesmos clipes. Se os tempos do plano mudaram
+  desde a gravação, a substituição é recusada: grave um take novo.
+- **Custo medido** (Ryzen 5 5600G com 12 threads e RTX 3050, codificador NVENC pela CPU, página com uma animação
+  contínua, 22 s de vídeo, várias rodadas com outros trabalhos na máquina): a 1080p30, de 1,2 a 1,5 núcleo (10% a
+  13% da máquina), uns 650 a 730 MB nos processos do Electron e 200 MB no FFmpeg, e o vídeo quase nunca segurou
+  pelo codificador (no máximo 1 s). A 1080p60, de 2,3 a 2,8 núcleos (19% a 23%), 770 MB a 1,7 GB no Electron, e
+  o vídeo segurou pelo codificador de 1 s (máquina livre) a 60 s (máquina ocupada): a 60 não acompanha com
+  segurança. Com a página parada, 0,6 a 0,7 núcleo a 30 e 1,3 a 1,6 a 60. Por isso o padrão é 30.
+  `scripts/guided-smoke.mts` refaz a medida.
+- **Na tela, em outros programas:** o modo de antes, para alvos fora da janela da aula. O auxiliar nativo move o
+  mouse do Windows com o `glide` (a curva desenhada no relógio dele), clica, arrasta, rola e envia atalhos. A
+  posição do alvo é marcada com **F8** sobre ele; a janela é conferida antes de agir e a execução pausa se o
+  ritmo se perder. Esperar por elemento só existe na janela da aula.
+- **MP4 do HeyGen:** em **Importar áudio ou MP4 do HeyGen**, selecione o vídeo exportado com a voz. O EdiAula
+  extrai a primeira faixa de áudio em WAV, preserva o MP4 original e usa o mesmo WAV para escuta, transcrição e
+  narração na timeline. A transcrição propõe etapas nas palavras "clique", "clicar" e "clicamos"; o roteiro
+  produz tempos estimados. Também dá para definir etapas e tempos à mão.
+- Ritmo didático inicial para aulas de **9 a 14 anos**, ajustável: movimento suave de **1,2 s**, chegada **0,5 s
+  antes da fala**, espera mínima de **0,8 s** no alvo antes do clique e **1,5 s** após a ação. Em cada etapa,
+  **Fala começa em (s)** indica o início da frase e **Ação em (s)** quando agir. Etapas próximas demais são
+  recusadas.
+- A narração importada entra numa faixa própria, alinhada ao vídeo. Na tela, microfone e áudio do PC ficam
+  desligados para não duplicar (use fones); sem narração, grave a demonstração e use **Narrar intervalo**
+  depois. A conclusão das etapas encerra a gravação automaticamente.
+
+### Teste de fumaça da gravação guiada
+
+`node_modules/.bin/electron scripts/guided-smoke.mts` (em `apps/ediaula`, com uns 2 GB de memória livres) serve
+`tests/fixtures/guided-blockly.html` (blocos em SVG que arrastam como os do Blockly), marca os alvos pelo
+protocolo como o **F8**, grava um plano com clique, espera, arrasto do flyout para baixo de um bloco, digitação,
+conferência e atalho, a 1080p30 e a 1080p60 (com a página animada e parada), e um take que continua da quarta
+etapa. Confere o vídeo, o cursor e o `guided-run.json` e mede CPU e memória de cada processo. Não mexe no mouse
+real.
 
 ## Estrutura
 

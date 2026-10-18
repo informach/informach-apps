@@ -1,7 +1,7 @@
 import { type ChildProcessWithoutNullStreams, execFile, spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { createInterface } from "node:readline";
-import type { GuidedDriver } from "../shared/guidedRunner.ts";
+import type { HelperCommands } from "../shared/guidedNative.ts";
 import {
   type DisplayList,
   type HookCommand,
@@ -345,7 +345,7 @@ interface Pending {
 }
 
 /** The input mode, driving the guided recording. One instance per guided session. */
-export class InputClient implements GuidedDriver {
+export class InputClient implements HelperCommands {
   private readonly child: ChildProcessWithoutNullStreams;
   private readonly pending = new Map<number, Pending>();
   private readonly ready: Promise<void>;

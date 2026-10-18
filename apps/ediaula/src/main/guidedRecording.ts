@@ -1,3 +1,3 @@
-export { executeGuided } from "../shared/guidedRunner.ts";
-/** The helper's input mode, which moves and clicks for the guided recording. */
+/** The screen driver of the guided recording: the helper's input mode moves and clicks. */
+export { HelperDriver } from "../shared/guidedNative.ts";
 export { InputClient as GuidedInput } from "./nativeHelper.ts";

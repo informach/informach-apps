@@ -1,5 +1,6 @@
 import type { CameraChoice } from "./camera.ts";
 import type { CaptureQuality } from "./encoderChoice.ts";
+import type { GuidedReplace, GuidedStore } from "./guidedPlan.ts";
 import type { VoiceSegment } from "./voiceMaster.ts";
 
 /** Screen recording made by EdiAula: sources, options, and what a finished take hands over. */
@@ -77,6 +78,11 @@ export interface RecorderContext {
   mode?: RecordMode;
   /** "Tela sobre a narração": the lesson's voice, as the editor has it now. */
   over?: OverContext;
+  /** The open lesson: its guided plans are saved there (and as a draft against a crash). */
+  projectId?: string;
+  guided?: GuidedStore;
+  /** "Regravar e substituir": this media's guided take is recorded again with its plan. */
+  guidedReplace?: GuidedReplace;
 }
 
 /** What the recorder needs to play the lesson's voice and show it while the screen is recorded. */
@@ -259,6 +265,10 @@ export interface RecordingResult {
   narrationOffset?: number;
   /** The narration is the voice taken from a video: the presenter's voice. */
   narrationFromVideo?: boolean;
+  /** guided-run.json of a guided take in the lesson window (shared/guidedCursor.ts). */
+  guidedRun?: string;
+  /** "Regravar e substituir": the screen media this take replaces (never written to disk). */
+  replaceAsset?: string;
   duration: number;
   /** Stretches of the take recorded while paused (or after a failure): cut on import. */
   pauses: [number, number][];

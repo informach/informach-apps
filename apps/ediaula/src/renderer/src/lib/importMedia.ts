@@ -74,7 +74,8 @@ export async function importMedia(paths: string[]): Promise<Asset[]> {
   return result;
 }
 
-async function enrich(asset: Asset, codec?: string): Promise<void> {
+/** Thumbnail, waveform and, when it needs one, the proxy of a media just added or replaced. */
+export async function enrich(asset: Asset, codec?: string): Promise<void> {
   const { patchAsset } = useProject.getState();
   try {
     if (asset.kind !== "audio") {

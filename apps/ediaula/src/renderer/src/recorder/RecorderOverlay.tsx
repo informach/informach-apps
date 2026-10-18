@@ -1,6 +1,11 @@
 import { withRenderKeys } from "@informach/edi-desktop/renderer";
 import type { CameraChoice, CameraMode } from "@shared/camera";
-import { GUIDED_DEFAULTS, type GuidedPlan, scheduleGuided } from "@shared/guidedRecording";
+import {
+  type GuidedReplace,
+  type GuidedStore,
+  type GuidedTakeStatus,
+  MAX_RUNS,
+} from "@shared/guidedPlan";
 import { HOTKEY_LABELS, type HotkeyReport, hotkeyLabel } from "@shared/hotkeys";
 import type { RecorderSettings } from "@shared/recorderSettings";
 import type {
@@ -43,7 +48,8 @@ import {
   useState,
 } from "react";
 import { mediaUrl } from "@/lib/media";
-import { GuidedSetup } from "./GuidedSetup";
+import { GuidedSetup, guidedProblem } from "./GuidedSetup";
+import { GuidedWebPanel } from "./GuidedWebPanel";
 import { HealthStrip, LevelBars } from "./HealthStrip";
 import { OverPlayer } from "./overPlayer";
 import { CameraModeSelect, RecorderOptions } from "./RecorderOptions";
@@ -167,8 +173,23 @@ export function RecorderOverlay(): ReactNode {
   /** Timeline second of the voice being heard, while it plays. */
   const [heard, setHeard] = useState<number | null>(null);
   const player = useRef<OverPlayer | null>(null);
-  const [guidedPlan, setGuidedPlan] = useState<GuidedPlan>({ ...GUIDED_DEFAULTS, steps: [] });
+  /** The lesson's plans (project.guided), saved a second after each change. */
+  const [guidedStore, setGuidedStore] = useState<GuidedStore>({ plans: [] });
+  const guidedStoreRef = useRef(guidedStore);
+  guidedStoreRef.current = guidedStore;
+  /** The plans as last sent to the main process. */
+  const savedStore = useRef<GuidedStore | null>(null);
+  const [planId, setPlanId] = useState("");
+  const guidedPlan = guidedStore.plans.find((p) => p.id === planId);
+  /** "Regravar e substituir": the media this take replaces. */
+  const [replace, setReplace] = useState<GuidedReplace | undefined>();
   const [guidedBusy, setGuidedBusy] = useState(false);
+  /** A take in the lesson window, captured offscreen. */
+  const [web, setWeb] = useState<{ status: GuidedTakeStatus | null; stopping: boolean } | null>(
+    null,
+  );
+  const webRef = useRef(web);
+  webRef.current = web;
   const [optionsOpen, setOptionsOpen] = useState(false);
   const guidedFailed = useRef(false);
   const preservationRequested = useRef(false);
@@ -211,6 +232,12 @@ export function RecorderOverlay(): ReactNode {
         ),
       );
       if (c.mode === "over" && c.over) setMode("over");
+      const store = c.guided ?? { plans: [] };
+      savedStore.current = store;
+      setGuidedStore(store);
+      setReplace(c.guidedReplace);
+      setPlanId(c.guidedReplace?.planId ?? store.plans[0]?.id ?? "");
+      if (c.guidedReplace) setMode("guided");
     });
     void Promise.all([window.api.recorder.sources(), window.api.recorder.settings()]).then(
       ([s, saved]) => {
@@ -248,6 +275,18 @@ export function RecorderOverlay(): ReactNode {
     );
     void window.api.recorder.hotkeys().then(setHotkeys);
   }, []);
+
+  // The plans go to the main process (draft, then the project) a second after the last change.
+  useEffect(() => {
+    if (!savedStore.current || guidedStore === savedStore.current) return;
+    const id = setTimeout(() => {
+      savedStore.current = guidedStore;
+      void window.api.recorder
+        .guidedSave(guidedStore)
+        .catch((err: unknown) => setError(`Não consegui salvar o plano: ${cleanError(err)}`));
+    }, 1000);
+    return () => clearTimeout(id);
+  }, [guidedStore]);
 
   // Saved half a second after the last change.
   useEffect(() => {
@@ -398,6 +437,86 @@ export function RecorderOverlay(): ReactNode {
     await s?.finish();
   }, []);
 
+  /** A take of the plan in the lesson window from step `from` (the page is captured offscreen). */
+  const startWeb = useCallback(
+    async (from: number) => {
+      if (!guidedPlan || webRef.current || phaseRef.current !== "setup") return;
+      const problem = guidedProblem(guidedPlan, from, replace);
+      if (problem) {
+        setError(problem);
+        return;
+      }
+      setError(null);
+      // The take runs the plan as it is now.
+      savedStore.current = guidedStoreRef.current;
+      await window.api.recorder.guidedSave(guidedStoreRef.current).catch(() => undefined);
+      setWeb({ status: null, stopping: false });
+      try {
+        await window.api.recorder.guidedWebStart(guidedPlan, from);
+      } catch (err) {
+        setWeb(null);
+        setError(cleanError(err));
+      }
+    },
+    [guidedPlan, replace],
+  );
+
+  /** Saves the take in the lesson window and notes where the plan stopped. */
+  const stopWeb = useCallback(async () => {
+    const current = webRef.current;
+    if (!current || current.stopping) return;
+    setWeb({ ...current, stopping: true });
+    try {
+      const { run } = await window.api.recorder.guidedWebStop();
+      const store: GuidedStore = {
+        ...guidedStoreRef.current,
+        runs: [...(guidedStoreRef.current.runs ?? []), run].slice(-MAX_RUNS),
+        updatedAt: Date.now(),
+      };
+      savedStore.current = store;
+      setGuidedStore(store);
+      await window.api.recorder.guidedSave(store);
+      setWeb(null);
+      // A complete demonstration closes the recorder; the editor already has it.
+      if (run.status === "done") await window.api.recorder.cancel();
+      else
+        setError(
+          `O take foi salvo até a etapa ${run.step + 1}. Corrija o que for preciso e use Continuar da etapa ${run.step + 1}.`,
+        );
+    } catch (err) {
+      // The main process let the take go either way: back to the plan, with what happened.
+      setWeb(null);
+      setError(cleanError(err));
+    }
+  }, []);
+
+  const toggleWeb = useCallback(async () => {
+    const phase = webRef.current?.status?.phase;
+    if (phase === "paused") await window.api.recorder.guidedWebResume();
+    else if (phase === "recording" || phase === "holding")
+      await window.api.recorder.guidedWebPause();
+  }, []);
+
+  const discardWeb = useCallback(async () => {
+    if (!webRef.current) return;
+    if (!window.confirm("Descartar este take? Ele vai para a Lixeira e o plano fica como está."))
+      return;
+    await window.api.recorder.guidedWebDiscard().catch((err: unknown) => setError(cleanError(err)));
+    setWeb(null);
+  }, []);
+
+  useEffect(
+    () =>
+      window.api.recorder.onGuidedStatus((status) => {
+        if (webRef.current) setWeb((w) => (w ? { ...w, status } : w));
+      }),
+    [],
+  );
+  // Every step done: the take is saved at once.
+  useEffect(() => {
+    if (web?.status?.phase === "done" && !web.stopping) void stopWeb();
+  }, [web, stopWeb]);
+
   const begin = useCallback(async () => {
     if (!settings || phaseRef.current !== "setup" || guidedBusy) return;
     if (!voiceMode && !monitor) return;
@@ -409,14 +528,17 @@ export function RecorderOverlay(): ReactNode {
       setError("Abra o gravador pelo editor, numa aula com a faixa Voz.");
       return;
     }
+    if (guidedMode && guidedPlan?.mode === "web") {
+      await startWeb(replace?.planId === guidedPlan.id ? replace.from : 0);
+      return;
+    }
     preservationRequested.current = false;
     setError(null);
     setAlert(null);
     if (guidedMode) {
-      try {
-        scheduleGuided(guidedPlan);
-      } catch (err) {
-        setError((err as Error).message);
+      const problem = guidedProblem(guidedPlan, 0);
+      if (problem) {
+        setError(problem);
         return;
       }
     }
@@ -424,7 +546,7 @@ export function RecorderOverlay(): ReactNode {
     phaseRef.current = "countdown";
     try {
       guidedFailed.current = false;
-      if (guidedMode && guidedPlan.audio) {
+      if (guidedMode && guidedPlan?.audio) {
         const audio = new Audio(mediaUrl(guidedPlan.audio.path));
         guidedAudio.current = audio;
         await new Promise<void>((resolve, reject) => {
@@ -448,7 +570,7 @@ export function RecorderOverlay(): ReactNode {
         player.current = p;
         setFlash(null);
       }
-      const narrated = guidedMode && !!guidedPlan.audio;
+      const narrated = guidedMode && !!guidedPlan?.audio;
       const systemOn =
         (mode === "over" ? overSystem : settings.systemAudio) && !narrated && !voiceMode;
       // The mouse helper loads during the countdown.
@@ -513,7 +635,7 @@ export function RecorderOverlay(): ReactNode {
       // A redo starts the voice two seconds early, to come into the stretch already in rhythm.
       if (mode === "over" && over)
         await player.current?.play(over.replace ? Math.max(0, over.from - 2) : over.from);
-      if (guidedMode) {
+      if (guidedMode && guidedPlan) {
         const timing = await window.api.recorder.guidedStart(guidedPlan);
         guidedOffset.current = timing.origin + timing.lead;
       }
@@ -546,6 +668,8 @@ export function RecorderOverlay(): ReactNode {
     guidedBusy,
     line,
     finishSystemAudio,
+    startWeb,
+    replace,
   ]);
 
   useEffect(() => {
@@ -699,6 +823,12 @@ export function RecorderOverlay(): ReactNode {
   useEffect(
     () =>
       window.api.recorder.onHotkey((name) => {
+        // A take in the lesson window has its own pause and stop.
+        if (webRef.current) {
+          if (name === "toggle") void toggleWeb();
+          else if (name === "stop" || name === "preserve") void stopWeb();
+          return;
+        }
         if (name === "preserve") {
           preservationRequested.current = true;
           void stop();
@@ -723,7 +853,7 @@ export function RecorderOverlay(): ReactNode {
         else if (name === "line-next") stepTo(1);
         else if (name === "line-prev") stepTo(-1);
       }),
-    [begin, togglePause, stop, mark, stepTo],
+    [begin, togglePause, stop, mark, stepTo, toggleWeb, stopWeb],
   );
 
   // The disk filled up: the main process already stopped the capture; save what there is.
@@ -745,16 +875,35 @@ export function RecorderOverlay(): ReactNode {
         (recording ? "" : "Com o motor de transcrição instalado, a fala avança sozinha."))
       : "";
 
+  const webPlan = guidedMode && guidedPlan?.mode === "web";
+  if (web)
+    return (
+      <div className="rec-root is-guided-web">
+        <GuidedWebPanel
+          status={web.status}
+          stopping={web.stopping}
+          keys={{ toggle: keyOf("toggle"), stop: keyOf("stop") }}
+          onToggle={() => void toggleWeb()}
+          onStop={() => void stopWeb()}
+          onDiscard={() => void discardWeb()}
+        />
+      </div>
+    );
+
   return (
     <div className={`rec-root is-${phase}`}>
       {guidedMode && phase === "setup" && (
         <GuidedSetup
-          plan={guidedPlan}
-          change={setGuidedPlan}
+          store={guidedStore}
+          planId={planId}
+          onStore={setGuidedStore}
+          onPlanId={setPlanId}
           script={lines.map((l) => l.text).join("\n")}
           busy={phase !== "setup"}
           onBusy={setGuidedBusy}
           keys={{ target: keyOf("guidedTarget"), toggle: keyOf("toggle"), stop: keyOf("stop") }}
+          replace={replace}
+          onStart={(from) => void startWeb(from)}
         />
       )}
       {error && recording && !alert && (
@@ -778,7 +927,7 @@ export function RecorderOverlay(): ReactNode {
           )}
         </Interactive>
       )}
-      {!voiceMode && (
+      {!voiceMode && !webPlan && (
         <RegionFrame
           region={region}
           onChange={(r) => {
@@ -791,7 +940,9 @@ export function RecorderOverlay(): ReactNode {
         />
       )}
 
-      {cam && phase === "setup" && !voiceMode && <CameraPreview device={cam} region={region} />}
+      {cam && phase === "setup" && !voiceMode && !webPlan && (
+        <CameraPreview device={cam} region={region} />
+      )}
 
       {voiceMode && settings && (
         <Interactive className="vp-wrap" active={recording} id="voice-prompter">
@@ -884,7 +1035,7 @@ export function RecorderOverlay(): ReactNode {
               }}
             >
               <option value="screen">Tela</option>
-              <option value="guided">Guiado por roteiro/áudio</option>
+              <option value="guided">Guiado por plano (roteiro ou áudio)</option>
               <option value="voice">Só voz</option>
               <option value="over" disabled={!over}>
                 {over ? "Tela sobre a narração" : "Tela sobre a narração (abra pelo editor)"}

@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Aula de blocos (teste)</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; font: 16px system-ui, sans-serif; background: #f4f6fb; color: #1c2230; }
+      header { display: flex; align-items: center; gap: 24px; height: 96px; padding: 0 32px; background: #fff; }
+      h1 { font-size: 26px; margin: 0; }
+      button { font: inherit; padding: 10px 22px; border-radius: 8px; border: 0; background: #3b5bdb; color: #fff; cursor: pointer; }
+      button:disabled { background: #a5b0c8; cursor: not-allowed; }
+      .busy { width: 160px; height: 8px; border-radius: 4px; background: #dfe5f2; overflow: hidden; }
+      .busy::after { content: ""; display: block; width: 40px; height: 8px; background: #82c91e; animation: slide 1.2s linear infinite; }
+      @keyframes slide { from { transform: translateX(-40px); } to { transform: translateX(160px); } }
+      #editor { display: none; height: 760px; margin: 24px 32px 0; background: #fff; border-radius: 12px; overflow: hidden; }
+      #editor.open { display: flex; }
+      .blocklyToolboxDiv { width: 140px; background: #e9edf7; padding-top: 16px; }
+      .blocklyToolboxCategory { padding: 12px 16px; cursor: pointer; }
+      .blocklyFlyout { width: 300px; height: 760px; background: #dee4f0; }
+      .blocklySvg { flex: 1; height: 760px; }
+      .blocklyMainBackground { fill: #fbfcff; }
+      .blocklyDraggable { cursor: grab; }
+      .blocklyDraggable.dragging { cursor: grabbing; }
+      .blocklyPath { fill: #4c97ff; stroke: #3373cc; }
+      .hat .blocklyPath { fill: #ffbf00; stroke: #cc9900; }
+      .blocklyText { fill: #fff; font: 600 15px system-ui, sans-serif; pointer-events: none; }
+      .blocklyEditableText rect { fill: #fff; }
+      .blocklyEditableText .blocklyText { fill: #1c2230; }
+      footer { display: flex; gap: 16px; align-items: center; margin: 24px 32px; }
+      input { font: inherit; padding: 10px 12px; width: 360px; border-radius: 8px; border: 1px solid #a5b0c8; cursor: text; }
+      #saved[hidden], #undone[hidden] { display: none; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Programando com blocos</h1>
+      <button type="button" data-testid="start">Começar</button>
+      <div class="busy" aria-hidden="true"></div>
+      <p id="status" role="status">Carregando a aula...</p>
+    </header>
+    <section id="editor" aria-label="Editor de blocos">
+      <div class="blocklyToolboxDiv" role="tree">
+        <div class="blocklyToolboxCategory"><div class="blocklyTreeRow"><span class="blocklyTreeLabel">Movimento</span></div></div>
+        <div class="blocklyToolboxCategory"><div class="blocklyTreeRow"><span class="blocklyTreeLabel">Aparência</span></div></div>
+      </div>
+      <svg class="blocklyFlyout" xmlns="http://www.w3.org/2000/svg">
+        <g class="blocklyWorkspace"><g class="blocklyBlockCanvas" transform="translate(20, 30) scale(0.9)"></g></g>
+      </svg>
+      <svg class="blocklySvg" xmlns="http://www.w3.org/2000/svg">
+        <rect class="blocklyMainBackground" width="100%" height="100%"></rect>
+        <g class="blocklyWorkspace"><g class="blocklyBlockCanvas" transform="translate(30, 20) scale(0.9)"></g></g>
+      </svg>
+    </section>
+    <footer>
+      <label for="name">Nome do projeto</label>
+      <input id="name" />
+      <button type="button" id="save" disabled>Salvar</button>
+      <p id="saved" hidden>Pronto</p>
+      <p id="undone" hidden>Desfeito</p>
+    </footer>
+    <script>
+      const NS = "http://www.w3.org/2000/svg";
+      const params = new URLSearchParams(location.search);
+      // ?animar=0: a page that only changes when something happens.
+      if (params.get("animar") === "0") document.querySelector(".busy").remove();
+      const flyout = document.querySelector(".blocklyFlyout .blocklyBlockCanvas");
+      const canvas = document.querySelector(".blocklySvg .blocklyBlockCanvas");
+      const status = document.getElementById("status");
+      const blocks = [];
+      let serial = 0;
+      const SCALE = 0.9;
+
+      function block(parent, parts, x, y, hat) {
+        const g = document.createElementNS(NS, "g");
+        g.setAttribute("class", "blocklyDraggable" + (hat ? " hat" : ""));
+        g.setAttribute("data-id", "b" + ++serial + Math.random().toString(16).slice(2, 8));
+        const path = document.createElementNS(NS, "path");
+        path.setAttribute("class", "blocklyPath");
+        g.appendChild(path);
+        let cx = 12;
+        for (const part of parts) {
+          const field = typeof part === "object";
+          const holder = field ? document.createElementNS(NS, "g") : g;
+          if (field) {
+            holder.setAttribute("class", "blocklyEditableText");
+            const box = document.createElementNS(NS, "rect");
+            box.setAttribute("x", cx - 4);
+            box.setAttribute("y", hat ? 16 : 8);
+            box.setAttribute("rx", 10);
+            box.setAttribute("width", String(part.value).length * 9 + 8);
+            box.setAttribute("height", 24);
+            holder.appendChild(box);
+            g.appendChild(holder);
+          }
+          const text = document.createElementNS(NS, "text");
+          text.setAttribute("class", "blocklyText");
+          text.setAttribute("x", cx);
+          text.setAttribute("y", hat ? 34 : 26);
+          text.textContent = field ? part.value : part;
+          holder.appendChild(text);
+          cx += (field ? String(part.value).length * 9 + 8 : part.length * 8.4) + 10;
+        }
+        const width = Math.max(120, cx + 6);
+        const height = hat ? 52 : 40;
+        path.setAttribute(
+          "d",
+          hat
+            ? "M0,12 C30,-4 70,-4 100,12 H" + width + " V" + height + " H0 Z"
+            : "M0,0 H" + width + " V" + height + " H0 Z",
+        );
+        g.setAttribute("transform", "translate(" + x + "," + y + ")");
+        parent.appendChild(g);
+        const item = { g, parts, x, y, width, height, hat, parent };
+        if (parent === canvas) blocks.push(item);
+        listen(item);
+        return item;
+      }
+      const place = (item) => item.g.setAttribute("transform", "translate(" + item.x + "," + item.y + ")");
+
+      block(canvas, ["quando clicar em ▶"], 40, 40, true);
+      const templates = [
+        { parts: ["mover", { value: 10 }, "passos"], y: 10 },
+        { parts: ["girar", { value: 15 }, "graus"], y: 70 },
+      ];
+      for (const t of templates) block(flyout, t.parts, 10, t.y, false);
+
+      let undo = null;
+      function listen(item) {
+        item.g.addEventListener("pointerdown", (down) => {
+          if (down.button !== 0) return;
+          down.preventDefault();
+          item.g.setPointerCapture(down.pointerId);
+          const start = { x: down.clientX, y: down.clientY };
+          let dragged = null;
+          let origin = null;
+          const move = (e) => {
+            if (!dragged) {
+              if (Math.hypot(e.clientX - start.x, e.clientY - start.y) < 3) return;
+              if (item.parent === flyout) {
+                // As in Blockly: dragging from the flyout makes a new block in the workspace.
+                const from = item.g.getBoundingClientRect();
+                const m = canvas.getScreenCTM();
+                dragged = block(canvas, item.parts, (from.left - m.e) / m.a, (from.top - m.f) / m.d, false);
+              } else dragged = item;
+              origin = { x: dragged.x, y: dragged.y };
+              dragged.g.classList.add("dragging");
+            }
+            dragged.x = origin.x + (e.clientX - start.x) / SCALE;
+            dragged.y = origin.y + (e.clientY - start.y) / SCALE;
+            place(dragged);
+          };
+          const up = () => {
+            item.g.removeEventListener("pointermove", move);
+            item.g.removeEventListener("pointerup", up);
+            if (!dragged) return;
+            dragged.g.classList.remove("dragging");
+            for (const other of blocks) {
+              if (other === dragged) continue;
+              const bottom = other.y + other.height;
+              if (Math.abs(dragged.x - other.x) < 30 && Math.abs(dragged.y - bottom) < 30) {
+                dragged.x = other.x;
+                dragged.y = bottom;
+                place(dragged);
+                status.textContent = "Bloco encaixado";
+                undo = dragged;
+                return;
+              }
+            }
+            status.textContent = "Bloco solto";
+          };
+          item.g.addEventListener("pointermove", move);
+          item.g.addEventListener("pointerup", up);
+        });
+      }
+
+      document.querySelector('[data-testid="start"]').addEventListener("click", () => {
+        status.textContent = "Abrindo o editor...";
+        setTimeout(() => {
+          document.getElementById("editor").classList.add("open");
+          status.textContent = "Editor aberto";
+        }, Number(params.get("demora") || 5000));
+      });
+      const name = document.getElementById("name");
+      const save = document.getElementById("save");
+      name.addEventListener("input", () => {
+        save.disabled = !name.value.trim();
+      });
+      save.addEventListener("click", () => {
+        setTimeout(() => {
+          document.getElementById("saved").hidden = false;
+          status.textContent = "Projeto salvo: " + name.value;
+        }, 300);
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === "z" && undo) {
+          undo.g.remove();
+          blocks.splice(blocks.indexOf(undo), 1);
+          undo = null;
+          document.getElementById("undone").hidden = false;
+          status.textContent = "Desfeito";
+        }
+      });
+    </script>
+  </body>
+</html>

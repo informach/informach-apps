@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MAX_ANCHORS, MAX_WORD_KEYS, PROPOSAL_ITEM_LIMIT, PROPOSAL_LIMIT } from "./anchors.ts";
+import { guidedStoreSchema } from "./guidedPlan.ts";
 import {
   ENCODERS,
   EXPORT_QUALITIES,
@@ -171,6 +172,7 @@ const asset = z.looseObject({
     .max(20000)
     .optional(),
   recording: z.looseObject({ id: text, role: z.enum(RECORDING_ROLES) }).optional(),
+  guidedRun: path.optional(),
   screen: color.optional(),
   key: chroma.optional(),
   keyed: path.optional(),
@@ -461,6 +463,7 @@ export const projectSchema = z
           .optional(),
       })
       .optional(),
+    guided: guidedStoreSchema.optional(),
     settings: projectSettingsSchema,
     assets: z.array(asset).max(5000),
     tracks: z.array(track).max(256),

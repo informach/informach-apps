@@ -1,5 +1,15 @@
 import { BrowserWindow, screen } from "electron";
+import type { GuidedMark, GuidedMarkPurpose } from "../shared/guidedPlan.ts";
 import type { BrowserTarget, GuidedTarget } from "../shared/guidedRecording.ts";
+import { GUIDED_PARTITION } from "./guidedCapture.ts";
+import { CdpDriver } from "./guidedCdp.ts";
+
+/**
+ * The lesson window: the platform opened in its own partition (the login stays there), with no
+ * bridge to the editor. The teacher logs in and marks targets here; the guided take itself is
+ * captured by an offscreen window of the same partition (main/guidedCapture.ts). Screen plans
+ * still read its elements through executeJavaScript (captureBrowserTarget, resolveBrowserTarget).
+ */
 
 let lesson: BrowserWindow | null = null;
 const webUrl = (value: string): string => {
@@ -21,7 +31,7 @@ export async function openGuidedBrowser(url: string, backKey = "F8"): Promise<vo
         sandbox: true,
         contextIsolation: true,
         nodeIntegration: false,
-        partition: "persist:ediaula-guided-web",
+        partition: GUIDED_PARTITION,
         backgroundThrottling: false,
       },
     });
@@ -51,6 +61,134 @@ export async function openGuidedBrowser(url: string, backKey = "F8"): Promise<vo
   lesson.show();
   lesson.focus();
   await lesson.loadURL(address);
+}
+
+/** The address the lesson window shows, when it is open. */
+export function lessonUrl(): string | null {
+  return lesson && !lesson.isDestroyed() ? lesson.webContents.getURL() : null;
+}
+
+/** Marking an element in the lesson window, without the real pointer doing anything. */
+export interface MarkSession {
+  /** The target key: the first press turns the inspector on, the second calls it off. */
+  toggle(): void;
+  cancel(): void;
+  result: Promise<GuidedMark | null>;
+}
+
+const MARK_TEXT: Record<GuidedMarkPurpose, string> = {
+  target: "o alvo",
+  destination: "onde o arrasto termina",
+  condition: "o elemento a esperar",
+};
+
+/**
+ * The teacher goes to the element (navigating freely), presses `key` to turn the DevTools
+ * inspector on (Overlay.setInspectMode) and clicks it: the node the inspector hands over is
+ * described in its own frame and becomes a locator. A drag destination on a workspace block
+ * means "below it"; on the workspace's background, that point of the workspace.
+ */
+export async function markInLesson(purpose: GuidedMarkPurpose, key: string): Promise<MarkSession> {
+  const window = lesson;
+  if (!window || window.isDestroyed())
+    throw new Error("Abra a janela da aula e entre na plataforma antes de marcar.");
+  const cdp = new CdpDriver(window.webContents);
+  await cdp.attach();
+  const title = window.getTitle();
+  const what = MARK_TEXT[purpose];
+  window.setTitle(`EdiAula · Marcar ${what}: vá até ele na página e pressione ${key}`);
+  window.show();
+  window.focus();
+  let inspecting = false;
+  let done = false;
+  let settle: (value: GuidedMark | null) => void = () => undefined;
+  let fail: (error: Error) => void = () => undefined;
+  const result = new Promise<GuidedMark | null>((resolve, reject) => {
+    settle = resolve;
+    fail = reject;
+  });
+  const finish = (): void => {
+    if (done) return;
+    done = true;
+    off();
+    window.removeListener("closed", closed);
+    if (!window.isDestroyed()) {
+      void cdp
+        .inspect(false)
+        .catch(() => undefined)
+        .finally(() => cdp.detach());
+      window.setTitle(title);
+    } else cdp.detach();
+  };
+  const closed = (): void => {
+    finish();
+    fail(new Error("A janela da aula foi fechada."));
+  };
+  window.once("closed", closed);
+  const off = cdp.on("Overlay.inspectNodeRequested", (params) => {
+    if (params.__detached) {
+      finish();
+      fail(cdp.detachedError ?? new Error("A marcação foi interrompida."));
+      return;
+    }
+    const id = params.backendNodeId;
+    if (typeof id !== "number" || done) return;
+    const bounds = window.getContentBounds();
+    const cursor = screen.getCursorScreenPoint();
+    const zoom = window.webContents.getZoomFactor();
+    const page = { x: (cursor.x - bounds.x) / zoom, y: (cursor.y - bounds.y) / zoom };
+    void cdp.mark(id, page).then(
+      (marked) => {
+        finish();
+        if (marked.workspace) {
+          if (purpose !== "destination")
+            fail(new Error("Marque um bloco ou um elemento da página."));
+          else settle({ workspace: marked.workspace, url: marked.url });
+          return;
+        }
+        if (!marked.locator) {
+          fail(new Error(marked.problem ?? "Não consegui identificar esse elemento."));
+          return;
+        }
+        const locator =
+          purpose === "destination"
+            ? {
+                ...marked.locator,
+                strategies: marked.locator.strategies.map((s) =>
+                  s.by === "blockly" && s.area === "workspace" ? { ...s, below: true } : s,
+                ),
+              }
+            : marked.locator;
+        settle({ locator, url: marked.url });
+      },
+      (error: unknown) => {
+        finish();
+        fail(error instanceof Error ? error : new Error(String(error)));
+      },
+    );
+  });
+  return {
+    result,
+    toggle: () => {
+      if (done) return;
+      if (inspecting) {
+        finish();
+        settle(null);
+        return;
+      }
+      inspecting = true;
+      window.setTitle(`EdiAula · Clique em ${what}. ${key} cancela`);
+      window.focus();
+      cdp.inspect(true).catch((error: unknown) => {
+        finish();
+        fail(error instanceof Error ? error : new Error(String(error)));
+      });
+    },
+    cancel: () => {
+      finish();
+      settle(null);
+    },
+  };
 }
 
 /** Native handle of the lesson window while it is open, as the cursor helper names windows. */

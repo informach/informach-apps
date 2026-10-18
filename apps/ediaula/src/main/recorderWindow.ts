@@ -1,4 +1,5 @@
 import { existsSync, readdirSync } from "node:fs";
+import { rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { type DesktopJob, desktopJobs } from "@informach/edi-desktop/jobs";
 import { desktopFiles, desktopIpc as ipcMain } from "@informach/edi-desktop/main";
@@ -13,8 +14,18 @@ import {
   shell,
 } from "electron";
 import { z } from "zod";
-import { CAPTURE_QUALITIES } from "../shared/encoderChoice.ts";
-import { type GuidedPlan, type GuidedTarget, scheduleGuided } from "../shared/guidedRecording.ts";
+import { CAPTURE_QUALITIES, type CaptureCodec } from "../shared/encoderChoice.ts";
+import {
+  type GuidedPlanV2,
+  type GuidedRunRecord,
+  guidedPlanV2Schema,
+  guidedStoreSchema,
+  MARK_PURPOSES,
+  newestGuided,
+  schedulePlan,
+} from "../shared/guidedPlan.ts";
+import type { GuidedTarget } from "../shared/guidedRecording.ts";
+import { runGuided, STOPPED, screenClock } from "../shared/guidedRunner.ts";
 import {
   HOTKEY_LABELS,
   type HotkeyAction,
@@ -36,14 +47,19 @@ import type {
   RecordOptions,
 } from "../shared/recording.ts";
 import { RECORD_MODES, type RecorderContext } from "../shared/recording.ts";
-import { prepareGuidedNarration, probe } from "./ffmpeg.ts";
+import { detectCaptureEncoder } from "./encoders.ts";
+import { FFMPEG, prepareGuidedNarration, probe } from "./ffmpeg.ts";
 import {
   captureBrowserTarget,
   guidedBrowserWindowIds,
+  type MarkSession,
+  markInLesson,
   openGuidedBrowser,
   resolveBrowserTarget,
 } from "./guidedBrowser.ts";
-import { executeGuided, GuidedInput } from "./guidedRecording.ts";
+import { GuidedTake, verifyGuidedPlan } from "./guidedCapture.ts";
+import { NO_PROJECT, readGuidedDraft, writeGuidedDraft } from "./guidedDrafts.ts";
+import { GuidedInput, HelperDriver } from "./guidedRecording.ts";
 import { qpc } from "./nativeHelper.ts";
 import * as rec from "./recorder.ts";
 import { readRecorderSettings, writeRecorderSettings } from "./recorderSettings.ts";
@@ -157,9 +173,21 @@ const contextSchema = z.object({
       cues: z.array(z.object({ t: seconds, text: line })).max(5000),
     })
     .optional(),
+  projectId: z.string().min(1).max(200).optional(),
+  guided: guidedStoreSchema.optional(),
+  guidedReplace: z
+    .object({
+      assetId: z.string().min(1).max(200),
+      assetName: z.string().max(1000),
+      planId: z.string().min(1).max(200),
+      timing: z.string().max(64),
+      from: z.int().nonnegative().max(300),
+      duration: z.number().nonnegative(),
+    })
+    .optional(),
 });
 
-/** Files of a finished take the editor reads: media, cursor data and the cursor images. */
+/** Files of a finished take the editor reads: media, cursor data, guided-run.json and the cursor images. */
 function takeFiles(result: RecordingResult): string[] {
   const files = [
     result.screen,
@@ -167,6 +195,7 @@ function takeFiles(result: RecordingResult): string[] {
     result.microphone,
     result.systemAudio,
     result.narration,
+    result.guidedRun,
     ...(result.screenParts ?? []).flatMap((p) => [p.path, p.cursor]),
     ...(result.cameraParts ?? []).map((p) => p.path),
   ].filter((path): path is string => typeof path === "string" && path.length > 0);
@@ -211,6 +240,16 @@ function place(m: CaptureMonitor): void {
 export function registerRecorder(getMain: () => BrowserWindow | null): void {
   let recordingJob: DesktopJob | undefined;
   let guided: { input: GuidedInput; controller: AbortController; paused: boolean } | null = null;
+  /** A guided take in the lesson window (main/guidedCapture.ts). */
+  let web: {
+    take: GuidedTake;
+    job: DesktopJob;
+    plan: GuidedPlanV2;
+    from: number;
+    replace?: string;
+  } | null = null;
+  let verifying: AbortController | null = null;
+  let marking: MarkSession | null = null;
   let picking = false;
   let browsing = false;
   let captureBounds: { x: number; y: number; width: number; height: number } | null = null;
@@ -269,6 +308,10 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
   const sendReports = (): void =>
     overlay?.webContents.send("recorder:hotkeys", [...reports.values()]);
   const press = (action: HotkeyAction): void => {
+    if (action === "guidedTarget" && marking) {
+      marking.toggle();
+      return;
+    }
     if (action === "guidedTarget" && browsing) {
       browsing = false;
       overlay?.show();
@@ -414,6 +457,67 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
       sessionKeys = [];
     }
   };
+  /** The editor's view of a take in the lesson window (background work waits for it too). */
+  const webState = (active: boolean): void => {
+    scheduler.setRecording(active, { hold: settings.pauseBackground });
+    const w = main();
+    if (w && !w.isDestroyed())
+      w.webContents.send("recorder:state", {
+        phase: active ? "recording" : null,
+        failed: [],
+        closed: false,
+        reopening: false,
+        holdBackground: scheduler.state().holding,
+      } satisfies RecorderStatus);
+  };
+  /** Ends the take in the lesson window and hands it to the editor, with where the plan stopped. */
+  const stopWeb = async (): Promise<{ result: RecordingResult; run: GuidedRunRecord }> => {
+    const current = web;
+    if (!current) throw new Error("Nenhuma gravação guiada em andamento.");
+    try {
+      const result = await current.take.stop();
+      const granted = await grantTake({
+        ...result,
+        ...(current.replace ? { replaceAsset: current.replace } : {}),
+      });
+      main()?.webContents.send("recorder:done", granted);
+      const end = current.take.outcome;
+      const run: GuidedRunRecord = {
+        planId: current.plan.id,
+        step: end?.status === "done" ? current.plan.steps.length : (end?.step ?? current.from),
+        status:
+          end?.status === "done"
+            ? "done"
+            : end?.message && end.message !== STOPPED
+              ? "failed"
+              : "stopped",
+        dir: result.dir,
+        at: Date.now(),
+      };
+      return { result: granted, run };
+    } catch (error) {
+      // Nothing was recorded (the page never opened): the empty folder goes.
+      if (error instanceof Error && error.message === "Nada foi gravado.")
+        await rm(current.take.dir, { recursive: true, force: true });
+      throw error;
+    } finally {
+      current.job.finish();
+      if (web === current) web = null;
+      webState(false);
+    }
+  };
+  const endWeb = async (): Promise<void> => {
+    const current = web;
+    if (!current) return;
+    web = null;
+    await current.take.cancel();
+    current.job.finish();
+    webState(false);
+    await shell
+      .trashItem(current.take.dir)
+      .catch(() => rm(current.take.dir, { recursive: true, force: true }));
+  };
+
   rec.subscribe((message) => {
     if (message.type === "status") onStatus(message.status);
     else if (message.type === "event") overlay?.webContents.send("recorder:event", message.event);
@@ -435,6 +539,8 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     recordingJob = undefined;
     endGuided();
     endFollow();
+    verifying?.abort();
+    marking?.cancel();
     rec.stopMicMonitor();
     unregisterHotkeys(allHotkeys());
     sessionKeys = [];
@@ -449,7 +555,13 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
   };
 
   ipcMain.handle("recorder:open", async (_e, raw: unknown) => {
-    context = contextSchema.parse(raw);
+    const ctx: RecorderContext = contextSchema.parse(raw);
+    // Plans edited before a crash come back from their draft.
+    const draft = await readGuidedDraft(ctx.projectId ?? NO_PROJECT);
+    const guidedPlans = newestGuided(ctx.guided, draft);
+    context = { ...ctx, ...(guidedPlans ? { guided: guidedPlans } : {}) };
+    if (guidedPlans && guidedPlans !== ctx.guided && ctx.projectId)
+      main()?.webContents.send("recorder:guided", { projectId: ctx.projectId, store: guidedPlans });
     if (overlay) return overlay.focus();
     await loadSettings;
     settings = await readRecorderSettings();
@@ -492,6 +604,13 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     overlay.on("closed", () => {
       overlay = null;
       endGuided();
+      // A take in the lesson window under way is saved, like any take.
+      if (web)
+        stopWeb().catch((error: unknown) =>
+          alertMain({
+            message: `A gravação guiada não pôde ser finalizada: ${error instanceof Error ? error.message : String(error)}`,
+          }),
+        );
       // A take under way is saved (what the computer's sound already sent is on disk); one
       // still being prepared, or in its countdown, has nothing worth keeping.
       if (rec.isPreparing() || rec.status().phase === "prepared") void rec.cancel();
@@ -686,24 +805,30 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     overlay?.show();
     overlay?.setIgnoreMouseEvents(false);
   });
-  ipcMain.handle("recorder:guidedStart", async (_e, plan: GuidedPlan) => {
+  /** Runs a screen plan (the Windows pointer) over the take being recorded. */
+  ipcMain.handle("recorder:guidedStart", async (_e, raw: unknown) => {
     if (!rec.isRecording() || guided) throw new Error("Gravação guiada indisponível.");
-    const schedule = scheduleGuided(plan);
+    const plan: GuidedPlanV2 = guidedPlanV2Schema.parse(raw);
+    if (plan.mode !== "screen") throw new Error("Este plano é da janela da aula.");
+    const schedule = schedulePlan(plan);
     const bounds = captureBounds;
-    if (
-      !bounds ||
-      plan.steps.some(
-        (s) =>
-          !s.target ||
-          s.target.x < bounds.x ||
-          s.target.y < bounds.y ||
-          s.target.x >= bounds.x + bounds.width ||
-          s.target.y >= bounds.y + bounds.height,
-      )
-    )
+    const inside = (p: { x: number; y: number }): boolean =>
+      !!bounds &&
+      p.x >= bounds.x &&
+      p.y >= bounds.y &&
+      p.x < bounds.x + bounds.width &&
+      p.y < bounds.y + bounds.height;
+    const targets = plan.steps.flatMap((s) => [
+      s.target?.screen,
+      s.to?.target?.screen,
+      s.to?.point?.space === "screen" ? s.to.point : undefined,
+    ]);
+    if (!bounds || targets.some((t) => t && !inside(t)))
       throw new Error(
         "Há um alvo fora da região gravada. Ajuste a região ou marque o alvo novamente.",
       );
+    // Only a narration the teacher picked (or the project opened) is read.
+    if (plan.audio) await desktopFiles.assertRead(plan.audio.path);
     const state = { input: new GuidedInput(), controller: new AbortController(), paused: false };
     guided = state;
     try {
@@ -725,13 +850,7 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
       overlay?.hide();
       const resolveTarget = async (target: GuidedTarget): Promise<GuidedTarget> => {
         const found = await resolveBrowserTarget(target);
-        if (
-          found.x < bounds.x ||
-          found.y < bounds.y ||
-          found.x >= bounds.x + bounds.width ||
-          found.y >= bounds.y + bounds.height
-        )
-          throw new Error("O elemento saiu da região gravada.");
+        if (!inside(found)) throw new Error("O elemento saiu da região gravada.");
         if (!target.browser) return found;
         const current = await state.input.command<GuidedTarget>({
           op: "sample",
@@ -748,27 +867,25 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
           height: current.height,
         };
       };
-      void executeGuided(
-        plan,
-        state.input,
-        () => rec.elapsed() - origin,
-        () => state.paused,
-        state.controller.signal,
-        undefined,
-        resolveTarget,
-      )
+      const signal = state.controller.signal;
+      const paused = (): boolean => state.paused;
+      const clock = screenClock(() => rec.elapsed() - origin, paused, signal);
+      const driver = new HelperDriver({ input: state.input, clock, paused, signal, resolveTarget });
+      void runGuided(plan, driver, clock, signal)
         .then(() => {
-          if (!state.controller.signal.aborted)
-            overlay?.webContents.send("recorder:hotkey", "guided-done");
+          if (!signal.aborted) overlay?.webContents.send("recorder:hotkey", "guided-done");
         })
-        .catch(async (err) => {
-          if (state.controller.signal.aborted) return;
+        .catch(async (err: unknown) => {
+          if (signal.aborted) return;
           state.paused = true;
           await rec.pause().catch(() => {});
-          if (state.controller.signal.aborted) return;
+          if (signal.aborted) return;
           overlay?.show();
           overlay?.setIgnoreMouseEvents(false);
-          overlay?.webContents.send("recorder:hotkey", `guided-error:${(err as Error).message}`);
+          overlay?.webContents.send(
+            "recorder:hotkey",
+            `guided-error:${err instanceof Error ? err.message : String(err)}`,
+          );
         })
         .finally(() => state.input.close());
       return { origin, lead: schedule.lead };
@@ -777,6 +894,109 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
       throw err;
     }
   });
+
+  // ---- the lesson window: plans, marking, verification and its own takes ----
+  /** The plans as edited in the recorder: kept for the next open, drafted, sent to the editor. */
+  ipcMain.handle("recorder:guidedSave", async (_e, raw: unknown) => {
+    const store = guidedStoreSchema.parse(raw);
+    context = { ...context, guided: store };
+    await writeGuidedDraft(context.projectId ?? NO_PROJECT, store);
+    if (context.projectId)
+      main()?.webContents.send("recorder:guided", { projectId: context.projectId, store });
+  });
+  ipcMain.handle("recorder:guidedMark", async (_e, raw: unknown) => {
+    const purpose = z.enum(MARK_PURPOSES).parse(raw);
+    if (marking || picking) throw new Error("Já há um alvo sendo marcado.");
+    if (rec.isRecording() || web) throw new Error("Marque os alvos antes de gravar.");
+    const session = await markInLesson(purpose, hotkeyLabel(settings.hotkeys.guidedTarget));
+    marking = session;
+    overlay?.hide();
+    try {
+      return await session.result;
+    } finally {
+      marking = null;
+      overlay?.show();
+      overlay?.setIgnoreMouseEvents(false);
+      overlay?.focus();
+    }
+  });
+  ipcMain.handle("recorder:guidedVerify", async (_e, raw: unknown) => {
+    const plan: GuidedPlanV2 = guidedPlanV2Schema.parse(raw);
+    if (plan.mode !== "web")
+      throw new Error("Só os planos da janela da aula podem ser verificados.");
+    if (verifying || web || rec.isRecording())
+      throw new Error("Uma gravação ou verificação já está em andamento.");
+    const controller = new AbortController();
+    verifying = controller;
+    try {
+      return await verifyGuidedPlan(plan, controller.signal, (step) =>
+        overlay?.webContents.send("recorder:guidedStatus", {
+          phase: "preparing",
+          step,
+          steps: plan.steps.length,
+          time: 0,
+          duration: 0,
+        }),
+      );
+    } finally {
+      if (verifying === controller) verifying = null;
+    }
+  });
+  ipcMain.handle("recorder:guidedVerifyCancel", () => verifying?.abort());
+  /** The encoder detected for the recorder's screen, taking frames from memory (x264 otherwise). */
+  const webCodec = async (fps: number): Promise<CaptureCodec> => {
+    const b = overlay?.getBounds();
+    const monitor =
+      (b && monitors.find((m) => m.dip?.x === b.x && m.dip?.y === b.y)) ??
+      monitors.find((m) => m.primary);
+    if (!monitor || monitor.output < 0) return "libx264";
+    return detectCaptureEncoder(rec.captureProfile(monitor, fps)).then(
+      (encoder) => encoder.codec,
+      () => "libx264" as const,
+    );
+  };
+  ipcMain.handle("recorder:guidedWebStart", async (_e, raw: unknown, rawFrom: unknown) => {
+    const plan: GuidedPlanV2 = guidedPlanV2Schema.parse(raw);
+    const from = z.int().nonnegative().max(300).parse(rawFrom);
+    if (plan.mode !== "web") throw new Error("Este plano é de tela.");
+    schedulePlan(plan, from);
+    // Only a narration the teacher picked (or the project opened) is copied into the take.
+    if (plan.audio) await desktopFiles.assertRead(plan.audio.path);
+    if (web || verifying || rec.isRecording() || rec.isPreparing())
+      throw new Error("Uma gravação já está em andamento.");
+    const missing = REQUIRED_HOTKEYS.filter((action) => !registered.has(action));
+    if (missing.length)
+      throw new Error(
+        `Os atalhos de ${missing.map((a) => HOTKEY_LABELS[a].toLowerCase()).join(" e ")} não puderam ser registrados. Troque-os nas opções do gravador antes de gravar.`,
+      );
+    const replace =
+      context.guidedReplace && context.guidedReplace.planId === plan.id
+        ? context.guidedReplace.assetId
+        : undefined;
+    const codec = await webCodec(plan.fps ?? 30);
+    const take = new GuidedTake({
+      plan,
+      from,
+      dir: rec.createTakeDir(),
+      ffmpeg: FFMPEG,
+      encoder: { codec, quality: settings.quality },
+      onStatus: (status) => overlay?.webContents.send("recorder:guidedStatus", status),
+    });
+    const job = desktopJobs.begin({
+      preserveForMs: 0,
+      stop: async () => {
+        overlay?.webContents.send("recorder:hotkey", "preserve");
+        await stopWeb().catch(() => undefined);
+      },
+    });
+    web = { take, job, plan, from, ...(replace ? { replace } : {}) };
+    webState(true);
+  });
+  ipcMain.handle("recorder:guidedWebPause", () => web?.take.pause());
+  ipcMain.handle("recorder:guidedWebResume", () => web?.take.resume());
+  ipcMain.handle("recorder:guidedWebStop", () => stopWeb());
+  ipcMain.handle("recorder:guidedWebDiscard", () => endWeb());
+
   ipcMain.handle("recorder:sources", async () => {
     const s = await rec.captureSources();
     monitors = s.monitors.map((m) => ({ ...m, dip: dipRect(m) }));
