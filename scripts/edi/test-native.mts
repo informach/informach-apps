@@ -292,9 +292,10 @@ try {
           const start: unknown = Reflect.get(bridge, "startExport");
           if (typeof start !== "function") throw new Error("Missing export operation");
           try {
+            // The editor sends the project as JSON text (one IPC node however big it is).
             await Reflect.apply(start, bridge, [
               "native-regression",
-              {
+              JSON.stringify({
                 version: 1,
                 id: "native-regression",
                 name: "Regression",
@@ -304,7 +305,7 @@ try {
                 assets: [],
                 tracks: [],
                 clips: [],
-              },
+              }),
               {
                 outPath,
                 width: 128,
