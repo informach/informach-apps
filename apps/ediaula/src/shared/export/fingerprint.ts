@@ -114,6 +114,7 @@ export function windowSignature(
       if (asset.kind !== "audio" && !c.zoomLayer && !c.regionFx) files.add(path);
       const sprite = asset.cursor ? spec.cursors?.[asset.id] : undefined;
       if (sprite) files.add(sprite.sprite);
+      if (sprite?.spotlight) files.add(sprite.spotlight.picture);
       used.set(asset.id, media.length);
       media.push(
         normalize({
@@ -125,7 +126,15 @@ export function windowSignature(
           alpha: asset.alpha,
           path,
           keyed,
-          sprite: sprite ? { path: sprite.sprite, size: sprite.size, fps: sprite.fps } : undefined,
+          sprite: sprite
+            ? {
+                path: sprite.sprite,
+                size: sprite.size,
+                fps: sprite.fps,
+                magnifier: sprite.magnifier,
+                spotlight: sprite.spotlight,
+              }
+            : undefined,
         }),
       );
     }

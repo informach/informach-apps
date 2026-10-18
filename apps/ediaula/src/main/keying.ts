@@ -106,6 +106,9 @@ export function renderKeyed(
   signal?: AbortSignal,
 ): Promise<string> {
   signal?.throwIfAborted();
+  // The local AI's key is made with the renderer's segmentation (main/personKey.ts).
+  if (key.mode === "person")
+    return Promise.reject(new Error("Esta remoção de fundo é feita pela IA local."));
   const out = join(cacheDir(path), `key-${keyId(key)}.webm`);
   if (existsSync(out)) return Promise.resolve(out);
   const tmp = out.replace(".webm", `.${randomUUID()}.part.webm`);

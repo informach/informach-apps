@@ -5,11 +5,52 @@ import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } fro
 import { createPortal } from "react-dom";
 import { timecode } from "@/lib/format";
 import { type NarrationScript, narrationScript, placeGuidedNarration } from "@/lib/guidedNarration";
+import { treatVoices } from "@/lib/voice";
 import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
 import { PreviewMedia } from "@/ui/PreviewMedia";
 import "./narration.css";
+
+/**
+ * The guided take joins the lesson with its draft: once the draft is applied, the take gets the
+ * same treatment as the recorded voice; a draft thrown away ends the wait.
+ */
+function treatWhenApplied(projectId: string, assetId: string): void {
+  const stop = useProject.subscribe((s) => {
+    if (s.project?.id !== projectId) {
+      stop();
+      return;
+    }
+    if (s.project.assets.some((a) => a.id === assetId)) {
+      stop();
+      void treatVoices([assetId], "teacher");
+    } else if (!s.draft) stop();
+  });
+}
+
+/** PCM in WebM when this Chromium writes it, otherwise Opus at 256 kb/s. */
+function narrationFormat(): MediaRecorderOptions {
+  const pcm = "audio/webm;codecs=pcm";
+  return MediaRecorder.isTypeSupported(pcm)
+    ? { mimeType: pcm }
+    : { mimeType: "audio/webm;codecs=opus", audioBitsPerSecond: 256000 };
+}
+
+/** The microphone saved in the recorder's options, among the ones this window sees. */
+function savedMicrophone(list: MediaDeviceInfo[], saved: string | null): string {
+  if (!saved) return "";
+  const name = saved.toLowerCase();
+  const found = list.find(
+    (d) =>
+      d.deviceId !== "default" &&
+      d.label &&
+      (d.label.toLowerCase() === name ||
+        d.label.toLowerCase().includes(name) ||
+        name.includes(d.label.toLowerCase())),
+  );
+  return found?.deviceId ?? "";
+}
 
 export function NarrationPanel({
   projectId,
@@ -93,12 +134,24 @@ export function NarrationPanel({
     alive.current = true;
     playback.pause();
     playback.seek(start);
-    void navigator.mediaDevices
-      .enumerateDevices()
-      .then((list) => {
-        if (alive.current) setDevices(list.filter((d) => d.kind === "audioinput"));
+    void Promise.all([
+      navigator.mediaDevices.enumerateDevices(),
+      window.api.recorder.settings().then(
+        (s) => s.microphone,
+        () => null,
+      ),
+    ])
+      .then(([list, saved]) => {
+        if (!alive.current) return;
+        const inputs = list.filter((d) => d.kind === "audioinput");
+        setDevices(inputs);
+        // The recorder's microphone comes first, unless one was already picked here.
+        setDevice((current) => current || savedMicrophone(inputs, saved));
       })
-      .catch(() => {});
+      .catch((err: unknown) => {
+        if (alive.current)
+          setError(`Não foi possível listar os microfones: ${(err as Error).message}`);
+      });
     const key = (e: KeyboardEvent) => {
       if (!(e.target as HTMLElement).closest(".narration-panel")) e.preventDefault();
       e.stopImmediatePropagation();
@@ -143,11 +196,16 @@ export function NarrationPanel({
     setError("");
     setPhase("preparing");
     try {
+      // The voice as the microphone hears it: no echo cancelling, noise suppression or
+      // automatic gain (they flatten a voice), mono at 48 kHz like the recorder's voice.
       const input = await navigator.mediaDevices.getUserMedia({
         audio: {
           ...(device ? { deviceId: { exact: device } } : {}),
-          echoCancellation: true,
-          noiseSuppression: true,
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+          channelCount: 1,
+          sampleRate: 48000,
         },
         video: false,
       });
@@ -166,10 +224,7 @@ export function NarrationPanel({
         return;
       }
       setDevices(list.filter((d) => d.kind === "audioinput"));
-      const rec = new MediaRecorder(input, {
-        mimeType: "audio/webm;codecs=opus",
-        audioBitsPerSecond: 160000,
-      });
+      const rec = new MediaRecorder(input, narrationFormat());
       recorder.current = rec;
       const chunks: Blob[] = [];
       rec.ondataavailable = (e) => {
@@ -254,10 +309,13 @@ export function NarrationPanel({
           anchors: script.anchors,
         });
         useApp.getState().toast(message, "info");
+        treatWhenApplied(projectId, asset.id);
         close();
         return;
       }
       useProject.getState().commit((p) => insertNarration(p, projectId, asset, start, end));
+      // The same treatment as the recorded voice, when this computer has it.
+      void treatVoices([asset.id], "teacher");
       void window.api
         .waveform(path)
         .then((waveform) => {
@@ -383,8 +441,8 @@ export function NarrationPanel({
         </div>
         <small>
           {following
-            ? "Cada fala entra como rascunho numa nova faixa, no momento da tela dela. O áudio existente será mantido."
-            : "A voz será inserida no início do intervalo, em uma nova faixa. O áudio existente será mantido."}
+            ? "Cada fala entra como rascunho na faixa Narração, no momento da tela dela. O áudio existente é mantido."
+            : "A voz entra no início do intervalo, na faixa Narração (uma nova só quando a de antes está ocupada ali). O áudio existente é mantido."}
         </small>
       </section>
     </div>,

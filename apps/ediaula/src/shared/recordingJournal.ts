@@ -1,5 +1,14 @@
 import { z } from "zod";
 import { type CaptureSegment, toVideoTime } from "./cursorCapture.ts";
+import {
+  BOARD_COLORS,
+  BOARD_KINDS,
+  DRAWING_TOOLS,
+  type Drawing,
+  type DrawingBoard,
+  type DrawingTool,
+  MAX_STROKE_POINTS,
+} from "./drawing.ts";
 import { CAPTURE_SOURCES, RECORD_MODES } from "./recording.ts";
 
 /**
@@ -95,6 +104,33 @@ export const journalLineSchema = z.discriminatedUnion("k", [
     /** The narration is the voice taken from a video (the presenter's render). */
     video: z.literal(true).optional(),
   }),
+  /**
+   * A stroke drawn on the screen (shared/drawing.ts), written when the pen lifts: when it started,
+   * its color, thickness (pixels of a 1080-pixel frame) and points [x, y, ms after `qpc`], x and y
+   * as fractions of the recorded region.
+   */
+  z.object({
+    k: z.literal("draw"),
+    qpc,
+    color: z.string().regex(/^#[\da-f]{6}$/i),
+    width: z.number().positive().max(200),
+    points: z
+      .array(z.tuple([z.number().min(-1).max(2), z.number().min(-1).max(2), z.number().min(0)]))
+      .min(1)
+      .max(MAX_STROKE_POINTS),
+    /** Absent: the pen. */
+    tool: z.enum(DRAWING_TOOLS).optional(),
+  }),
+  /** "Apagar tudo": the strokes drawn so far are gone from here on. */
+  z.object({ k: z.literal("drawClear"), qpc }),
+  /** A board put over the recorded region (`on`, of a kind) or taken away. */
+  z.object({ k: z.literal("drawBoard"), qpc, on: z.boolean(), kind: z.enum(BOARD_KINDS) }),
+  /** "Página nova": the board stays, the strokes on it are gone. */
+  z.object({ k: z.literal("drawPage"), qpc }),
+  /** Ctrl+Z while drawing: the last stroke still on screen is taken back. */
+  z.object({ k: z.literal("drawUndo"), qpc }),
+  /** The drawing mode turned on or off: clicks while it is on are the pen, not the lesson. */
+  z.object({ k: z.literal("drawMode"), qpc, on: z.boolean() }),
   z.object({ k: z.literal("stop"), qpc }),
   z.object({ k: z.literal("finalized"), qpc }),
   /** The editor placed the take in a project (Date.now()); until then it is offered again. */
@@ -125,6 +161,20 @@ export interface JournalReplay {
   lines: { qpc: number; index: number }[];
   over: { qpc: number; at: number }[];
   narration: { file: string; offset: number; origin?: number; video?: true } | null;
+  /** Strokes drawn on the screen, "apagar tudo" moments and the stretches the pen was out. */
+  strokes: {
+    qpc: number;
+    color: string;
+    width: number;
+    points: [number, number, number][];
+    tool?: DrawingTool;
+  }[];
+  clears: number[];
+  /** Boards put up (QPC, an open one ends at Infinity), new pages and undos. */
+  boards: { from: number; to: number; kind: (typeof BOARD_KINDS)[number] }[];
+  pages: number[];
+  undos: number[];
+  drawModes: [number, number][];
   stop: number | null;
   finalized: boolean;
   imported: boolean;
@@ -145,6 +195,12 @@ export function replayJournal(text: string): JournalReplay {
     lines: [],
     over: [],
     narration: null,
+    strokes: [],
+    clears: [],
+    boards: [],
+    pages: [],
+    undos: [],
+    drawModes: [],
     stop: null,
     finalized: false,
     imported: false,
@@ -152,6 +208,8 @@ export function replayJournal(text: string): JournalReplay {
     skipped: 0,
   };
   let pausedAt: number | null = null;
+  let drawingFrom: number | null = null;
+  let boardFrom: { qpc: number; kind: (typeof BOARD_KINDS)[number] } | null = null;
   const pause = (at: number): void => {
     if (pausedAt === null) pausedAt = at;
   };
@@ -218,6 +276,37 @@ export function replayJournal(text: string): JournalReplay {
           ...(line.video ? { video: true as const } : {}),
         };
         break;
+      case "draw":
+        replay.strokes.push({
+          qpc: line.qpc,
+          color: line.color,
+          width: line.width,
+          points: line.points,
+          ...(line.tool ? { tool: line.tool } : {}),
+        });
+        break;
+      case "drawClear":
+        replay.clears.push(line.qpc);
+        break;
+      case "drawBoard":
+        // A board of another kind closes the one up and opens its own.
+        if (boardFrom)
+          replay.boards.push({ from: boardFrom.qpc, to: line.qpc, kind: boardFrom.kind });
+        boardFrom = line.on ? { qpc: line.qpc, kind: line.kind } : null;
+        break;
+      case "drawPage":
+        replay.pages.push(line.qpc);
+        break;
+      case "drawUndo":
+        replay.undos.push(line.qpc);
+        break;
+      case "drawMode":
+        if (line.on) drawingFrom ??= line.qpc;
+        else if (drawingFrom !== null) {
+          replay.drawModes.push([drawingFrom, line.qpc]);
+          drawingFrom = null;
+        }
+        break;
       case "stop":
         replay.stop ??= line.qpc;
         // What the processes wrote while they were closing is not part of the take.
@@ -234,6 +323,9 @@ export function replayJournal(text: string): JournalReplay {
     }
   }
   if (pausedAt !== null) replay.pauses.push([pausedAt, Number.POSITIVE_INFINITY]);
+  if (drawingFrom !== null) replay.drawModes.push([drawingFrom, Number.POSITIVE_INFINITY]);
+  if (boardFrom)
+    replay.boards.push({ from: boardFrom.qpc, to: Number.POSITIVE_INFINITY, kind: boardFrom.kind });
   for (const list of Object.values(replay.parts)) list.sort((a, b) => a.part - b.part);
   return replay;
 }
@@ -322,4 +414,60 @@ export function keptRanges(
   }
   if (duration > at + 0.001) kept.push([at, duration]);
   return kept.filter(([a, b]) => b - a > 0.001);
+}
+
+/**
+ * The strokes drawn on the screen in seconds of the take (shared/drawing.ts): each starts where
+ * its first point fell, and its points keep their own rhythm. Strokes started while paused, and
+ * the clears, go to where the take goes on. Null when nothing was drawn.
+ */
+export function drawingInTake(
+  replay: Pick<JournalReplay, "strokes" | "clears"> &
+    Partial<Pick<JournalReplay, "boards" | "pages" | "undos">>,
+  segments: readonly CaptureSegment[],
+): Drawing | null {
+  const boardsQpc = replay.boards ?? [];
+  if ((!replay.strokes.length && !boardsQpc.length) || !segments.length) return null;
+  const at = (qpc: number): number => momentInTake(segments, qpc);
+  const ordered = [...replay.strokes].sort((a, b) => a.qpc - b.qpc);
+  // Each Ctrl+Z takes back the last stroke drawn before it that is still on screen.
+  const undone = new Map<number, number>();
+  const wipesQpc = [
+    ...replay.clears,
+    ...(replay.pages ?? []),
+    ...boardsQpc.flatMap((b) => [b.from, b.to]),
+  ];
+  for (const u of [...(replay.undos ?? [])].sort((a, b) => a - b)) {
+    for (let i = ordered.length - 1; i >= 0; i--) {
+      const s = ordered[i];
+      if (s.qpc > u || undone.has(i)) continue;
+      // Wiped before the undo: not on screen any more.
+      if (wipesQpc.some((c) => c > s.qpc && c <= u)) continue;
+      undone.set(i, u);
+      break;
+    }
+  }
+  const strokes = ordered.map((s, i) => {
+    const until = undone.get(i);
+    return {
+      t: at(s.qpc),
+      color: s.color,
+      width: s.width,
+      points: s.points.map(([x, y, ms]) => [x, y, round(ms / 1000)] as [number, number, number]),
+      ...(s.tool ? { tool: s.tool } : {}),
+      ...(until !== undefined ? { until: at(until) } : {}),
+    };
+  });
+  const clears = replay.clears.map(at).sort((a, b) => a - b);
+  // A board still up at the stop lasts to the end of the take.
+  const boards: DrawingBoard[] = boardsQpc
+    .map((b) => ({ start: at(b.from), end: at(b.to), color: BOARD_COLORS[b.kind] }))
+    .filter((b) => b.end > b.start);
+  const pages = (replay.pages ?? []).map(at).sort((a, b) => a - b);
+  return {
+    strokes,
+    clears,
+    ...(boards.length ? { boards } : {}),
+    ...(pages.length ? { pages } : {}),
+  };
 }

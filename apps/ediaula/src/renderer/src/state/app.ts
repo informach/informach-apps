@@ -73,6 +73,13 @@ interface AppStore {
    * never in the export (the export dialog says so while one is on).
    */
   solo: string[];
+  /** The stretch of cursor effects being edited (shared/cursor.ts CursorRange.id). */
+  cursorRange: string | null;
+  /**
+   * The recording's zoom being edited (Asset.zooms): the side panel shows its properties and the
+   * preview its focus rectangle, like a zoom layer's.
+   */
+  recordingZoom: { assetId: string; zoomId: string } | null;
   set(partial: Partial<AppStore>): void;
   startJob(id: string, label: string): void;
   endJob(id: string): void;
@@ -104,6 +111,8 @@ export const useApp = create<AppStore>((set, get) => ({
   junction: null,
   interval: null,
   solo: [],
+  cursorRange: null,
+  recordingZoom: null,
   set: (partial) => set(partial),
   startJob: (id, label) => set({ jobs: { ...get().jobs, [id]: { id, label, ratio: 0 } } }),
   endJob: (id) => {

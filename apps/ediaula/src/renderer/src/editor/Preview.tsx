@@ -85,6 +85,7 @@ import { CutFxLayer } from "./CutFxLayer";
 import { MediaPool } from "./mediaPool";
 import { buildLanes, type LanePlan, type PoolClip, pictureTarget, planLane } from "./previewPool";
 import { RegionTarget } from "./RegionTarget";
+import { RecordingZoomTarget } from "./RecordingZoomTarget";
 import { ZoomTarget } from "./ZoomTarget";
 
 /** Clips are mounted a little before they start so the decoder is warm when they appear. */
@@ -352,6 +353,8 @@ export function Preview(): ReactNode {
     };
   }, [raw]);
 
+  // A recording's zoom being edited: the preview shows the frame without it, and its box.
+  const recordingZoom = useApp((s) => s.recordingZoom);
   // While a zoom layer is selected the preview shows the frame without it (its box is drawn instead).
   const editingZoom =
     selection.length === 1
@@ -370,7 +373,12 @@ export function Preview(): ReactNode {
     const zoomsOf = new Map(
       project.clips
         .filter((c) => mounted.has(c.id))
-        .map((c) => [c.id, zoomsIn(assets.get(c.assetId)?.zooms, c.in, sourceEnd(c))]),
+        .map((c) => [
+          c.id,
+          zoomsIn(assets.get(c.assetId)?.zooms, c.in, sourceEnd(c)).filter(
+            (z) => !(recordingZoom?.assetId === c.assetId && recordingZoom.zoomId === z.id),
+          ),
+        ]),
     );
     const frame = 1 / project.settings.fps;
 
@@ -665,7 +673,7 @@ export function Preview(): ReactNode {
       unsubSolo();
       if (pool) pool.onSeeked = null;
     };
-  }, [project, mountKey, editingZoom, original, lanes, revealTimes, textCues, cuesVersion]);
+  }, [project, mountKey, editingZoom, original, lanes, revealTimes, textCues, cuesVersion, recordingZoom]);
 
   // The pool of media elements lives as long as the preview; leaving the editor stops it all.
   useLayoutEffect(() => {
@@ -1157,6 +1165,15 @@ export function Preview(): ReactNode {
           )}
           {selected?.zoomLayer && <ZoomTarget clip={selected} width={size.w} height={size.h} />}
           {selected?.regionFx && <RegionTarget clip={selected} width={size.w} height={size.h} />}
+          {selected && selectedAsset && recordingZoom?.assetId === selectedAsset.id && (
+            <RecordingZoomTarget
+              clip={selected}
+              asset={selectedAsset}
+              zoomId={recordingZoom.zoomId}
+              settings={settings}
+              scale={scale}
+            />
+          )}
           {selected &&
             selectedAsset &&
             project &&

@@ -676,6 +676,43 @@ export function buildVideoWindowPlan(
           : `,scale=in_color_matrix=bt601:in_range=tv:out_color_matrix=${matrix ?? "bt709"}:out_range=${range ?? "tv"}`;
       graph.push(`${timed(piece, sprite)}${toSource}[spr${L}]`);
       const xy = cursorOverlayExpressions(cursor, clip, fps, { from: k0, to: k1 });
+      // The pointer's hotspot is the sprite's center (shared/cursor.ts spritePositions).
+      const center = cursor.size / 2;
+      const cx = `(${xy.x})+${center}`;
+      const cy = `(${xy.y})+${center}`;
+      /** The stretches of an effect this piece shows, as an enable on the clip's clock. */
+      const during = (on: [number, number][]): string =>
+        on
+          .filter(([a, b]) => b > piece.S - 1 / fps && a < piece.E)
+          .map(([a, b]) => `between(t,${us((a - clip.in) / speed)},${us((b - clip.in) / speed)})`)
+          .join("+");
+      const spot = cursor.spotlight;
+      const lit = spot ? during(spot.on) : "";
+      if (spot && lit) {
+        // Drawn at half of twice the recording's size, centered on the pointer.
+        const picture = addInput(spot.picture, ["-framerate", rate], true);
+        graph.push(
+          `[${picture}:v]scale=${spot.width * 2}:${spot.height * 2}:flags=bicubic,format=yuva420p,loop=loop=-1:size=1,trim=end_frame=${k1 - k0},settb=${r.den}/${r.num},setpts=N+${k0}[spot${L}]`,
+        );
+        graph.push(
+          `[${src}][spot${L}]overlay=x='${cx}-${spot.width}':y='${cy}-${spot.height}':eval=frame:eof_action=pass:enable='${lit}'[lit${L}]`,
+        );
+        src = `lit${L}`;
+      }
+      const lens = cursor.magnifier;
+      const magnified = lens ? during(lens.on) : "";
+      if (lens && magnified) {
+        // The square around the pointer (clamped inside the frame, as the preview does), enlarged
+        // and cut round, laid back over the pointer before the sprite draws its ring.
+        const d = lens.radius * 2;
+        const r0 = lens.radius;
+        graph.push(
+          `[${src}]split[mag${L}][lens${L}]`,
+          `[lens${L}]crop=w=${lens.side}:h=${lens.side}:x='clip(${cx}-${lens.side / 2},0,iw-ow)':y='clip(${cy}-${lens.side / 2},0,ih-oh)':exact=1,scale=${d}:${d}:flags=bicubic,format=yuva420p,geq=lum='lum(X,Y)':cb='cb(X,Y)':cr='cr(X,Y)':a='clip(255*(${r0}+0.5-hypot(X+0.5-${r0},Y+0.5-${r0})),0,255)'[round${L}]`,
+          `[mag${L}][round${L}]overlay=x='${cx}-${r0}':y='${cy}-${r0}':eval=frame:eof_action=pass:enable='${magnified}'[magd${L}]`,
+        );
+        src = `magd${L}`;
+      }
       graph.push(
         `[${src}][spr${L}]overlay=x='${xy.x}':y='${xy.y}':eval=frame:eof_action=pass[cur${L}]`,
       );

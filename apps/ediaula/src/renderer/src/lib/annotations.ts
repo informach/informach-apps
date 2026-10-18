@@ -9,6 +9,7 @@ import {
   CARD,
   defaultOutline,
   freeBalloonTip,
+  isDrawingKind,
   MEME,
   outlineStyle,
   preserveBalloonBody,
@@ -698,6 +699,11 @@ async function redrawAnnotation(
   const clip = p?.clips.find((c) => c.id === clipId);
   const asset = clip && p?.assets.find((a) => a.id === clip.assetId);
   if (!p || !clip?.annotation || !asset) return;
+  // A drawing from the recording is a video of its strokes, not a picture drawn from fields.
+  if (isDrawingKind(clip.annotation.kind))
+    throw new Error(
+      "O desenho feito na gravação não muda de estilo: apague-o ou corte-o como um clipe.",
+    );
   const spec: Annotation = { ...clip.annotation, ...changes };
   const r = await renderAnnotation(spec, p.settings.height, p.settings.width);
   const path = await window.api.saveGenerated(r.bytes, "png");

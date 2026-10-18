@@ -19,7 +19,7 @@ export interface CursorFx {
   smooth: number;
   /** Expanding ring where the mouse was clicked. */
   clicks: boolean;
-  /** Soft yellow halo around the pointer, easy to follow for children. */
+  /** Soft halo around the pointer, easy to follow for children. */
   halo: boolean;
   /** Fades the pointer out after a few seconds without movement. */
   hideIdle: boolean;
@@ -27,6 +27,55 @@ export interface CursorFx {
   hidden?: boolean;
   /** Show the shortcut keys pressed while recording (when they were recorded). Default on. */
   keys?: boolean;
+  /**
+   * How the pointer is drawn: "vector" always draws the editor's shapes, "real" the images the
+   * helper saved of the system's own cursors (vector where there is none), and "auto" (default)
+   * the vectors for the standard shapes and the real image for an application's own cursor.
+   */
+  pointer?: CursorPointer;
+  /** Halo color ('#RRGGBB', from the lesson's palette); default yellow. */
+  haloColor?: string;
+  /** Magnifier: a circle around the pointer showing the screen enlarged. */
+  magnifier?: boolean;
+  /** Radius of the magnifier, as a fraction of the recording's height. */
+  magnifierRadius?: number;
+  /** How much the magnifier enlarges (2 = twice). */
+  magnifierZoom?: number;
+  /** Spotlight: everything but a circle around the pointer gets darker. */
+  spotlight?: boolean;
+  /** Radius of the lit circle, as a fraction of the recording's height. */
+  spotlightRadius?: number;
+  /** How dark the rest of the screen gets (0 to 1). */
+  spotlightDim?: number;
+  /** A short click sound at each mouse press, in the preview and in the export. */
+  clickSound?: boolean;
+  /** Volume of the click sound (0 to 1). */
+  clickVolume?: number;
+  /** Effects turned on or off for a stretch of the recording (source seconds); the last wins. */
+  ranges?: CursorRange[];
+}
+
+export const CURSOR_POINTERS = ["auto", "vector", "real"] as const;
+export type CursorPointer = (typeof CURSOR_POINTERS)[number];
+
+/** What a stretch of the recording may turn on or off; sizes and colors stay the recording's. */
+export const CURSOR_RANGE_KEYS = [
+  "halo",
+  "clicks",
+  "magnifier",
+  "spotlight",
+  "clickSound",
+  "hidden",
+] as const;
+export type CursorRangeKey = (typeof CURSOR_RANGE_KEYS)[number];
+export type CursorRangeFx = Partial<Record<CursorRangeKey, boolean>>;
+
+export interface CursorRange {
+  id: string;
+  /** Source seconds. */
+  start: number;
+  end: number;
+  fx: CursorRangeFx;
 }
 
 export interface CursorPoint {
@@ -188,8 +237,18 @@ export const DEFAULT_CURSOR_FX: CursorFx = {
   hideIdle: false,
 };
 
+/** Defaults of the effects that are off until asked for. */
+export const CURSOR_EFFECT_DEFAULTS = {
+  haloColor: "#ffe240",
+  magnifierRadius: 0.13,
+  magnifierZoom: 2,
+  spotlightRadius: 0.2,
+  spotlightDim: 0.55,
+  clickVolume: 0.6,
+} as const;
+
 /** Bump when the drawing changes so cached pointer videos are rebuilt. */
-export const CURSOR_VERSION = 2;
+export const CURSOR_VERSION = 3;
 
 /** Samples per second of the smoothed track. */
 const RATE = 120;
@@ -201,7 +260,10 @@ export interface CursorTrack {
   rate: number;
   x: Float32Array;
   y: Float32Array;
+  /** Index into the recording's shapes (cursorData.ts), so an image of the take is kept. */
   shape: Uint8Array;
+  /** The standard shape each index is (or resembles). */
+  names: CursorShape[];
   /** 0..1 visibility (idle fade). */
   alpha: Float32Array;
 }
@@ -210,59 +272,173 @@ export interface CursorState {
   x: number;
   y: number;
   shape: CursorShape;
+  /** Index into the recording's shapes: past the standard ones, an image of the take. */
+  index: number;
   alpha: number;
 }
 
-/** Smoothed, evenly sampled pointer track for a whole recording. */
+/** The effects in force at source second `t`: the recording's, changed by the stretches over it. */
+export function fxAt(fx: CursorFx, t: number): CursorFx {
+  const ranges = fx.ranges;
+  if (!ranges?.length) return fx;
+  let out = fx;
+  for (const r of ranges) if (t >= r.start && t < r.end) out = { ...out, ...r.fx };
+  return out;
+}
+
+/**
+ * Source stretches where `on` holds for the effects in force, in order and without overlaps:
+ * the recording's own settings outside the stretches, each stretch's inside it (the last wins).
+ */
+export function fxWhere(
+  fx: CursorFx,
+  on: (effects: CursorFx) => boolean,
+  duration: number,
+): [number, number][] {
+  const cuts = new Set<number>([0, duration]);
+  for (const r of fx.ranges ?? []) {
+    if (r.start > 0 && r.start < duration) cuts.add(r.start);
+    if (r.end > 0 && r.end < duration) cuts.add(r.end);
+  }
+  const edges = [...cuts].sort((a, b) => a - b);
+  const out: [number, number][] = [];
+  for (let i = 1; i < edges.length; i++) {
+    const a = edges[i - 1];
+    const b = edges[i];
+    if (b - a < 1e-6 || !on(fxAt(fx, (a + b) / 2))) continue;
+    const last = out.at(-1);
+    if (last && Math.abs(last[1] - a) < 1e-6) last[1] = b;
+    else out.push([a, b]);
+  }
+  return out;
+}
+
+/** Source stretches where one effect is on. */
+export const fxIntervals = (
+  fx: CursorFx,
+  key: CursorRangeKey,
+  duration: number,
+): [number, number][] => fxWhere(fx, (f) => !!f[key], duration);
+
+/** Press times (source seconds) that sound a click. */
+export function clickSoundTimes(data: Pick<CursorData, "clicks">, fx: CursorFx): number[] {
+  return data.clicks.filter((c) => fxAt(fx, c[0]).clickSound).map((c) => c[0]);
+}
+
+/** Radius of the magnifier in recording pixels, and how much it enlarges. */
+export const magnifierRadius = (data: Pick<CursorData, "height">, fx: CursorFx): number =>
+  Math.max(8, data.height * (fx.magnifierRadius ?? CURSOR_EFFECT_DEFAULTS.magnifierRadius));
+export const magnifierZoom = (fx: CursorFx): number =>
+  Math.max(1.1, Math.min(6, fx.magnifierZoom ?? CURSOR_EFFECT_DEFAULTS.magnifierZoom));
+/** Radius of the spotlight in recording pixels, and how dark the rest gets. */
+export const spotlightRadius = (data: Pick<CursorData, "height">, fx: CursorFx): number =>
+  Math.max(8, data.height * (fx.spotlightRadius ?? CURSOR_EFFECT_DEFAULTS.spotlightRadius));
+export const spotlightDim = (fx: CursorFx): number =>
+  Math.max(0, Math.min(0.95, fx.spotlightDim ?? CURSOR_EFFECT_DEFAULTS.spotlightDim));
+
+/** Side of the square the magnifier enlarges, in recording pixels (even, inside the frame). */
+export function magnifierSide(data: Pick<CursorData, "width" | "height">, fx: CursorFx): number {
+  const side = Math.round((2 * magnifierRadius(data, fx)) / magnifierZoom(fx) / 2) * 2;
+  return Math.max(
+    2,
+    Math.min(side, Math.floor(data.width / 2) * 2, Math.floor(data.height / 2) * 2),
+  );
+}
+
+/**
+ * The part of the recording the magnifier shows around (cx, cy): the square of magnifierSide,
+ * kept inside the frame (the export's crop clamps the same way).
+ */
+export function magnifierSource(
+  data: Pick<CursorData, "width" | "height">,
+  fx: CursorFx,
+  cx: number,
+  cy: number,
+): { x: number; y: number; side: number } {
+  const side = magnifierSide(data, fx);
+  const clamp = (v: number, max: number): number => Math.max(0, Math.min(max - side, v));
+  return {
+    x: clamp(Math.round(cx - side / 2), data.width),
+    y: clamp(Math.round(cy - side / 2), data.height),
+    side,
+  };
+}
+
+const smoothstep = (p: number): number => {
+  const c = Math.max(0, Math.min(1, p));
+  return c * c * (3 - 2 * c);
+};
+
+/** One pass of an exponential follower over `v` (weight `a` for the new value), in place. */
+function follow(v: Float32Array, a: number, backward: boolean): void {
+  const n = v.length;
+  if (backward) for (let i = n - 2; i >= 0; i--) v[i] = v[i + 1] + a * (v[i] - v[i + 1]);
+  else for (let i = 1; i < n; i++) v[i] = v[i - 1] + a * (v[i] - v[i - 1]);
+}
+
+/**
+ * Smoothed, evenly sampled pointer track for a whole recording.
+ *
+ * The smoothing is a critically damped spring (two exponential followers) run forward and then
+ * backward over the recorded positions: the pointer moves without lag, and since every pass only
+ * averages positions it never overshoots where it goes. Around each click the track is pinned to
+ * the click: the weight of the clicked point rises over [tc − L, tc], stays 1 while the button is
+ * held (following a drag as recorded) and falls over L after the release, with
+ * L = 0.08 + 0.25 · smooth seconds. The pointer is exactly where it clicked when it clicks.
+ */
 export function buildTrack(data: CursorData, fx: CursorFx, duration: number): CursorTrack {
   const n = Math.max(1, Math.ceil(duration * RATE) + 1);
   const x = new Float32Array(n);
   const y = new Float32Array(n);
   const shape = new Uint8Array(n);
   const alpha = new Float32Array(n);
+  const names: CursorShape[] = data.shapes.length
+    ? data.shapes.map((_, i) => shapeName(data, i))
+    : [...CURSOR_SHAPES];
   const moves = data.moves;
-  // Critically damped spring following the raw position: smooth but never overshooting.
-  const stiffness = 900 * (1 - Math.min(0.95, fx.smooth)) ** 2 + 30;
-  const omega = Math.sqrt(stiffness);
   const dt = 1 / RATE;
+  // The recorded positions, held between moves.
+  const rx = new Float32Array(n);
+  const ry = new Float32Array(n);
   let j = 0;
-  let px = moves[0]?.[1] ?? data.width / 2;
-  let py = moves[0]?.[2] ?? data.height / 2;
-  let vx = 0;
-  let vy = 0;
   let lastMove = -Infinity;
-  let lastRaw: [number, number] = [px, py];
-  // Images of the take are drawn as the standard shape they resemble, for now.
-  const base = (index: number): number => CURSOR_SHAPES.indexOf(shapeName(data, index));
-  let curShape = base(moves[0]?.[3] ?? 0);
+  let lastRaw: [number, number] = [
+    moves[0]?.[1] ?? data.width / 2,
+    moves[0]?.[2] ?? data.height / 2,
+  ];
+  const indexOf = (i: number): number => (i >= 0 && i < names.length && i < 256 ? i : 0);
+  let curShape = indexOf(moves[0]?.[3] ?? 0);
   for (let i = 0; i < n; i++) {
     const t = i * dt;
     while (j < moves.length && moves[j][0] <= t) {
       const m = moves[j];
       if (Math.abs(m[1] - lastRaw[0]) + Math.abs(m[2] - lastRaw[1]) > 1) lastMove = m[0];
       lastRaw = [m[1], m[2]];
-      curShape = base(m[3]);
+      curShape = indexOf(m[3]);
       j++;
     }
     shape[i] = curShape;
-    const [tx, ty] = lastRaw;
-    if (fx.smooth <= 0.02) {
-      px = tx;
-      py = ty;
-    } else {
-      const ax = omega * omega * (tx - px) - 2 * omega * vx;
-      const ay = omega * omega * (ty - py) - 2 * omega * vy;
-      vx += ax * dt;
-      vy += ay * dt;
-      px += vx * dt;
-      py += vy * dt;
-    }
-    x[i] = px;
-    y[i] = py;
+    rx[i] = lastRaw[0];
+    ry[i] = lastRaw[1];
     const idle = t - lastMove;
     alpha[i] =
       !fx.hideIdle || idle < IDLE_AFTER ? 1 : Math.max(0, 1 - (idle - IDLE_AFTER) / IDLE_FADE);
   }
+  x.set(rx);
+  y.set(ry);
+  if (fx.smooth > 0.02) {
+    // The forward-only spring of earlier versions had a rate of √stiffness; running it forward
+    // and back doubles the smoothing, so each pass is √2 quicker.
+    const stiffness = 900 * (1 - Math.min(0.95, fx.smooth)) ** 2 + 30;
+    const a = 1 - Math.exp(-Math.sqrt(stiffness) * Math.SQRT2 * dt);
+    for (const v of [x, y]) {
+      follow(v, a, false);
+      follow(v, a, false);
+      follow(v, a, true);
+      follow(v, a, true);
+    }
+  }
+  pinToClicks(data, fx, x, y, rx, ry);
   // Clicks wake the pointer up.
   if (fx.hideIdle)
     for (const c of data.clicks) {
@@ -288,7 +464,84 @@ export function buildTrack(data: CursorData, fx: CursorFx, duration: number): Cu
       }
     }
   }
-  return { rate: RATE, x, y, shape, alpha };
+  return { rate: RATE, x, y, shape, names, alpha };
+}
+
+/** The recorded position at source second `t` (the last move up to it). */
+function recordedAt(
+  moves: CursorData["moves"],
+  t: number,
+  fallback: [number, number],
+): [number, number] {
+  let lo = 0;
+  let hi = moves.length - 1;
+  let found = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (moves[mid][0] <= t) {
+      found = mid;
+      lo = mid + 1;
+    } else hi = mid - 1;
+  }
+  return found < 0 ? fallback : [moves[found][1], moves[found][2]];
+}
+
+/** Pins the smoothed track (x, y) to each click, as buildTrack describes. */
+function pinToClicks(
+  data: CursorData,
+  fx: CursorFx,
+  x: Float32Array,
+  y: Float32Array,
+  rx: Float32Array,
+  ry: Float32Array,
+): void {
+  if (!data.clicks.length) return;
+  const n = x.length;
+  const dt = 1 / RATE;
+  const L = 0.08 + 0.25 * Math.max(0, Math.min(1, fx.smooth));
+  const weight = new Float32Array(n);
+  const tx = new Float32Array(n);
+  const ty = new Float32Array(n);
+  const fallback: [number, number] = [rx[0], ry[0]];
+  for (const [tc, cx, cy, , held] of data.clicks) {
+    const [ax, ay] = recordedAt(data.moves, tc, fallback);
+    const release = tc + Math.max(0, held);
+    const from = Math.max(0, Math.ceil((tc - L) * RATE));
+    const to = Math.min(n - 1, Math.floor((release + L) * RATE));
+    for (let i = from; i <= to; i++) {
+      const t = i * dt;
+      let w: number;
+      let px: number;
+      let py: number;
+      if (t <= tc - dt) {
+        // On the way to the click: drawn towards the clicked point, fully one sample early so the
+        // pointer is on it at the click whichever two samples the click falls between.
+        w = smoothstep((t - (tc - L)) / Math.max(dt, L - dt));
+        px = cx;
+        py = cy;
+      } else if (t <= tc) {
+        w = 1;
+        px = cx;
+        py = cy;
+      } else {
+        // Held (a drag follows the recording from the clicked point), then let go.
+        w = t <= release ? 1 : 1 - smoothstep((t - release) / L);
+        px = cx + rx[i] - ax;
+        py = cy + ry[i] - ay;
+      }
+      if (w >= weight[i]) {
+        weight[i] = w;
+        tx[i] = px;
+        ty[i] = py;
+      }
+    }
+  }
+  for (let i = 0; i < n; i++) {
+    const w = weight[i];
+    if (w <= 0) continue;
+    x[i] += (tx[i] - x[i]) * w;
+    y[i] += (ty[i] - y[i]) * w;
+  }
 }
 
 export function cursorAt(track: CursorTrack, t: number): CursorState {
@@ -296,10 +549,12 @@ export function cursorAt(track: CursorTrack, t: number): CursorState {
   const i = Math.floor(f);
   const k = f - i;
   const j = Math.min(track.x.length - 1, i + 1);
+  const index = track.shape[i];
   return {
     x: track.x[i] + (track.x[j] - track.x[i]) * k,
     y: track.y[i] + (track.y[j] - track.y[i]) * k,
-    shape: CURSOR_SHAPES[track.shape[i]] ?? "arrow",
+    shape: track.names[index] ?? CURSOR_SHAPES[index] ?? "arrow",
+    index,
     alpha: track.alpha[i] + (track.alpha[j] - track.alpha[i]) * k,
   };
 }
@@ -317,6 +572,8 @@ export function ripplesAt(data: CursorData, t: number, fx?: CursorFx): Ripple[] 
   for (const c of data.clicks) {
     if (c[0] > t) break;
     const p = (t - c[0]) / RIPPLE_SECONDS;
+    // A stretch with the click rings off leaves out the clicks made in it.
+    if (fx?.ranges?.length && !fxAt(fx, c[0]).clicks) continue;
     const point = fx ? editedCursorAt(fx, c[0]) : null;
     if (p < 1) out.push({ x: point?.x ?? c[1], y: point?.y ?? c[2], progress: p, button: c[3] });
   }
@@ -327,13 +584,42 @@ export function ripplesAt(data: CursorData, t: number, fx?: CursorFx): Ripple[] 
 export const cursorScale = (data: Pick<CursorData, "height">, fx: CursorFx): number =>
   (data.height / 1080) * fx.size;
 
-/** Square sprite (video pixels) that holds the pointer, its halo and click rings, centered on the hotspot. */
+/** Whether the magnifier is on anywhere in the recording (its ring is part of the sprite). */
+export const magnifies = (fx: CursorFx): boolean =>
+  !!fx.magnifier || !!fx.ranges?.some((r) => r.fx.magnifier);
+
+/** Whether the spotlight is on anywhere in the recording. */
+export const spotlights = (fx: CursorFx): boolean =>
+  !!fx.spotlight || !!fx.ranges?.some((r) => r.fx.spotlight);
+
+/**
+ * Square sprite (video pixels) that holds the pointer, its halo, click rings and the magnifier's
+ * ring, centered on the hotspot.
+ */
 export const spriteSize = (data: Pick<CursorData, "height">, fx: CursorFx): number =>
-  Math.ceil((140 * cursorScale(data, fx)) / 2) * 2;
+  Math.ceil(
+    Math.max(140 * cursorScale(data, fx), magnifies(fx) ? 2 * (magnifierRadius(data, fx) + 6) : 0) /
+      2,
+  ) * 2;
+
+/** The stretches' switches that change the pointer sprite (the spotlight and the sound do not). */
+const SPRITE_RANGE_KEYS: readonly CursorRangeKey[] = ["halo", "clicks", "magnifier", "hidden"];
 
 export const cursorFxId = (fx: CursorFx): string => {
   let hash = 2166136261;
-  for (const char of JSON.stringify([fx.path ?? [], fx.pathEdits ?? []]))
+  const ranges = (fx.ranges ?? [])
+    .map((r) => ({
+      a: r.start,
+      b: r.end,
+      on: SPRITE_RANGE_KEYS.map((key) => (r.fx[key] === undefined ? -1 : Number(r.fx[key]))),
+    }))
+    .filter((r) => r.on.some((v) => v >= 0));
+  const looks = [
+    fx.pointer ?? "auto",
+    fx.halo || fx.ranges?.some((r) => r.fx.halo) ? (fx.haloColor ?? "") : "",
+    magnifies(fx) ? [!!fx.magnifier, fx.magnifierRadius ?? 0] : 0,
+  ];
+  for (const char of JSON.stringify([fx.path ?? [], fx.pathEdits ?? [], ranges, looks]))
     hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
   return [
     CURSOR_VERSION,

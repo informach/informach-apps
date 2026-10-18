@@ -47,12 +47,23 @@ export interface CursorData {
    * how many (the helper's "ty" event). Absent in older files.
    */
   typing: number[];
+  /**
+   * Where the text cursor of the focused field was, when it moved: [t, x, y, width, height] in
+   * pixels of the recorded frame (zero width and height when there was none). It lets the
+   * automatic zoom follow what is typed. Absent in older files.
+   */
+  caret?: [number, number, number, number, number][];
   /** Recorded while paused: cut on import. */
   pauses: [number, number][];
   /** The pointer was over the recorder's controls (not in the video): it stays where it was. */
   hidden: [number, number][];
   /** The helper was not running: the pointer is unknown there. */
   gaps: [number, number][];
+  /**
+   * The drawing mode was on (the pointer was the pen on the recorder window): its clicks are not
+   * in `clicks`, and its moves are no gesture on the lesson. Absent in older files.
+   */
+  drawing?: [number, number][];
 }
 
 /** Shape indexes fit a byte (cursor tracks keep them in a Uint8Array). */
@@ -147,6 +158,17 @@ export function normalizeCursorData(raw: unknown): CursorData {
             Array.isArray(k) && typeof k[0] === "number" && typeof k[1] === "string",
         )
       : [],
+    ...(isArrayOf(data.caret, 5)
+      ? {
+          caret: (data.caret as number[][]).map((c): [number, number, number, number, number] => [
+            c[0],
+            c[1],
+            c[2],
+            c[3],
+            c[4],
+          ]),
+        }
+      : {}),
     typing: Array.isArray(data.typing)
       ? (data.typing as unknown[]).filter(
           (t): t is number => typeof t === "number" && Number.isFinite(t),
@@ -155,6 +177,7 @@ export function normalizeCursorData(raw: unknown): CursorData {
     pauses: version === 2 ? ranges(data.pauses) : [],
     hidden: version === 2 ? ranges(data.hidden) : [],
     gaps: version === 2 ? ranges(data.gaps) : [],
+    ...(version === 2 && isArrayOf(data.drawing, 2) ? { drawing: ranges(data.drawing) } : {}),
   };
 }
 
@@ -268,6 +291,15 @@ export function buildCursorData(
       if (t >= 0) data.typing.push(round(t));
       continue;
     }
+    if (e.e === "caret") {
+      const t = toVideoTime(segments, e.t);
+      if (t < 0) continue;
+      const none = e.w <= 0 && e.h <= 0;
+      const caret = data.caret ?? [];
+      data.caret = caret;
+      caret.push([round(t), none ? 0 : e.x - region.x, none ? 0 : e.y - region.y, e.w, e.h]);
+      continue;
+    }
     if (e.e !== "m" && e.e !== "d" && e.e !== "u" && e.e !== "w" && e.e !== "k") continue;
     const t = toVideoTime(segments, e.t);
     if (t < 0) continue;
@@ -333,9 +365,11 @@ export function cursorDataForPart(data: CursorData, at: number, duration: number
     wheel: shift(data.wheel),
     keys: shift(data.keys),
     typing: data.typing.filter(inside).map((t) => round(t - at)),
+    ...(data.caret ? { caret: shift(data.caret) } : {}),
     markers: data.markers.filter((m) => inside(m.t)).map((m) => ({ ...m, t: round(m.t - at) })),
     pauses: clip(data.pauses),
     hidden: clip(data.hidden),
     gaps: clip(data.gaps),
+    ...(data.drawing ? { drawing: clip(data.drawing) } : {}),
   };
 }

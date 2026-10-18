@@ -1,4 +1,4 @@
-import type { Annotation } from "@shared/annotation";
+import { type Annotation, isDrawingKind } from "@shared/annotation";
 import { DEFAULT_CAPTION_STYLE } from "@shared/captions";
 import { DEFAULT_TRANSFORM } from "@shared/compose";
 import {
@@ -125,7 +125,8 @@ export async function applyPalette(
     { path: string; width: number; height: number; size: number; spec: Annotation }
   >();
   for (const c of p.clips) {
-    if (!c.annotation) continue;
+    // A drawing from the recording keeps the colors it was drawn with.
+    if (!c.annotation || isDrawingKind(c.annotation.kind)) continue;
     let spec = c.annotation;
     if (map) spec = recolorAnnotation(spec, map, to);
     if (refonting) spec = refont(spec, useFonts ? to : null, themed);

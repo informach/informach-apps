@@ -166,6 +166,46 @@ export function parseHookLine(line: string): HookEvent | undefined {
   return parsed.success ? parsed.data : undefined;
 }
 
+/**
+ * Lines of the loopback mode (native/helper/AudioLoopback.cs): the computer's sound without the
+ * app's process tree, written to a WAV that follows the QPC clock from `afirst` on (sample n is
+ * n / rate seconds after it). `n` counts the frames written; `fill` and `drop` the frames of
+ * silence put in a gap and of overlap left out.
+ */
+export const loopbackEventSchema = z.discriminatedUnion("e", [
+  z.strictObject({
+    e: z.literal("aready"),
+    t: time,
+    pid: z.int().positive(),
+    v: z.string().min(1).max(64),
+    rate: z.literal(48000),
+    ch: z.literal(2),
+  }),
+  z.strictObject({ e: z.literal("afirst"), t: time }),
+  z.strictObject({
+    e: z.literal("ahb"),
+    t: time,
+    n: z.int().nonnegative(),
+    fill: z.int().nonnegative(),
+    drop: z.int().nonnegative(),
+  }),
+  z.strictObject({ e: z.literal("aend"), t: time, n: z.int().nonnegative() }),
+  z.strictObject({ e: z.literal("aerror"), t: time, msg: z.string().max(4000) }),
+]);
+export type LoopbackEvent = z.infer<typeof loopbackEventSchema>;
+
+/** Parses one stdout line of the loopback mode; undefined for anything else. */
+export function parseLoopbackLine(line: string): LoopbackEvent | undefined {
+  let value: unknown;
+  try {
+    value = JSON.parse(line);
+  } catch {
+    return undefined;
+  }
+  const parsed = loopbackEventSchema.safeParse(value);
+  return parsed.success ? parsed.data : undefined;
+}
+
 /** Ctrl, Alt, Shift and Win as bit flags, as the key filter expects them. */
 export const KEY_MODIFIERS = { ctrl: 1, alt: 2, shift: 4, win: 8 } as const;
 

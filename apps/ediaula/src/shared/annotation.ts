@@ -1,4 +1,5 @@
 import type { Motion, Shadow } from "./compose.ts";
+import type { Drawing } from "./drawing.ts";
 
 /**
  * Annotations drawn by EdiAula (arrows, speech balloons, notes, labels, titles, highlight boxes,
@@ -17,7 +18,11 @@ export type AnnotationKind =
   | "card"
   | "lowerthird"
   | "panel"
-  | "line";
+  | "line"
+  /** Strokes drawn on the screen during a take (shared/drawing.ts): a video, not a picture. */
+  | "drawing"
+  /** A white or black board put over the screen while drawing, with its strokes: a video too. */
+  | "board";
 export type Tail =
   | "none"
   | "bottom-left"
@@ -181,6 +186,8 @@ export interface Annotation {
   accent?: string;
   /** Comes in word by word (with the words' times when they are said) or drawn like a stroke. */
   reveal?: "words" | "draw";
+  /** "drawing" and "board": the strokes and boards, in seconds of the clip's source (its video). */
+  drawing?: Drawing;
 }
 
 export interface Outline {
@@ -375,7 +382,13 @@ export const KIND_LABEL: Record<AnnotationKind, string> = {
     string
   >),
   card: "Cartela",
+  drawing: "Desenho",
+  board: "Quadro",
 };
+
+/** The annotations made of a take's drawing (a video of its strokes, not a picture of fields). */
+export const isDrawingKind = (kind: AnnotationKind): boolean =>
+  kind === "drawing" || kind === "board";
 
 /** Full-screen opening and closing cards. */
 export const CARD = {

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { EventEmitter } from "node:events";
 import { appendFileSync, existsSync, readdirSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { registerHooks } from "node:module";
@@ -1066,4 +1067,122 @@ test("a voice and camera take cut short by a crash comes back with the voice and
   assert.match(result.microphone ?? "", /voz\.wav$/);
   assert.equal(result.cameraParts?.length, 1);
   assert.equal(result.cameraParts?.[0].at, 0);
+});
+
+/**
+ * The native route of the computer's sound (main/nativeHelper.ts LoopbackClient) stood in for:
+ * a WAV on the shared clock from `first`, with a beep 0.5 s in, written when it is stopped.
+ */
+class FakeLoopback extends EventEmitter<{
+  first: [number];
+  beat: [{ e: "ahb"; t: number; n: number; fill: number; drop: number }];
+  end: [number];
+  failure: [Error];
+}> {
+  private origin = 0;
+  private readonly file: string;
+  constructor(file: string) {
+    super();
+    this.file = file;
+  }
+  async start(): Promise<void> {
+    this.origin = qpc();
+    setTimeout(() => this.emit("first", this.origin), 0);
+  }
+  async stop(): Promise<void> {
+    const end = qpc();
+    const frames = Math.round(((end - this.origin) / 1000) * 48000);
+    const data = Buffer.alloc(frames * 4);
+    for (let i = 24000; i < Math.min(frames, 24000 + 9600); i++) {
+      const v = Math.round(12000 * Math.sin((2 * Math.PI * 1000 * i) / 48000));
+      data.writeInt16LE(v, i * 4);
+      data.writeInt16LE(v, i * 4 + 2);
+    }
+    const h = Buffer.alloc(44);
+    h.write("RIFF", 0);
+    h.writeUInt32LE(36 + data.length, 4);
+    h.write("WAVEfmt ", 8);
+    h.writeUInt32LE(16, 16);
+    h.writeUInt16LE(1, 20);
+    h.writeUInt16LE(2, 22);
+    h.writeUInt32LE(48000, 24);
+    h.writeUInt32LE(192000, 28);
+    h.writeUInt16LE(4, 32);
+    h.writeUInt16LE(16, 34);
+    h.write("data", 36);
+    h.writeUInt32LE(data.length, 40);
+    await writeFile(this.file, Buffer.concat([h, data]));
+    this.emit("end", this.origin + (frames / 48000) * 1000);
+  }
+  async kill(): Promise<void> {}
+}
+
+test("the native route's computer sound goes in the journal and lines up with the take", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "ediaula-native-system-"));
+  const loopbacks: FakeLoopback[] = [];
+  const session = new RecordingSession({
+    opts: {
+      fps: 30,
+      microphone: "Fake Mic",
+      systemAudio: true,
+      systemAudioRoute: "native",
+    },
+    monitor: null,
+    dir,
+    ffmpeg: FFMPEG,
+    encoder: null,
+    hook: null,
+    loopback: (file) => {
+      const fake = new FakeLoopback(file);
+      loopbacks.push(fake);
+      return fake;
+    },
+  });
+  try {
+    await session.start();
+    await wait(1500);
+    const saved = await session.stop();
+    assert.equal(loopbacks.length, 1);
+    assert.ok(saved.systemAudio, JSON.stringify(saved));
+    const replay = replayJournal(await readFile(join(dir, JOURNAL_FILE), "utf8"));
+    assert.equal(replay.parts.system[0]?.file, "sistema-0.wav");
+    assert.ok(replay.parts.system[0]?.end !== undefined);
+    assert.ok(Math.abs((await probe(saved.systemAudio)).duration - saved.duration) < 0.15);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("a native capture of the computer's sound that stops is a warning: the take goes on", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "ediaula-native-system-fails-"));
+  let fake: FakeLoopback | undefined;
+  const session = new RecordingSession({
+    opts: { fps: 30, microphone: "Fake Mic", systemAudio: true, systemAudioRoute: "native" },
+    monitor: null,
+    dir,
+    ffmpeg: FFMPEG,
+    encoder: null,
+    hook: null,
+    loopback: (file) => {
+      fake = new FakeLoopback(file);
+      return fake;
+    },
+  });
+  const events: RecorderEvent[] = [];
+  session.on("event", (e) => events.push(e));
+  try {
+    await session.start();
+    await wait(300);
+    fake?.emit("failure", new Error("o Windows recusou"));
+    assert.equal(session.status().phase, "recording");
+    const saved = await session.stop();
+    assert.ok(saved.microphone);
+    assert.match(
+      events.map((e) => e.message).join("\n"),
+      /O áudio do PC parou \(o Windows recusou\)/,
+    );
+    assert.match(saved.warnings?.join("\n") ?? "", /O áudio do PC parou: o Windows recusou/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });

@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { excludesOwnAudio, systemAudioPlan } from "../src/shared/systemAudio.ts";
+import {
+  excludesOwnAudio,
+  PROCESS_LOOPBACK_BUILD,
+  systemAudioPlan,
+  windowsBuild,
+} from "../src/shared/systemAudio.ts";
 
 test("the app's own sound counts as left out only with the process loopback really open", () => {
   assert.equal(
@@ -34,5 +39,17 @@ test("without the exclusion, a take where the app plays a voice does not record 
   // Not asked for: nothing, and nothing to say.
   assert.deepEqual(systemAudioPlan({ wanted: false, narrationPlays: true, excludesApp: false }), {
     record: false,
+  });
+});
+
+test("the native route needs the Windows build that brought process loopback", () => {
+  assert.equal(windowsBuild("10.0.22631"), 22631);
+  assert.equal(windowsBuild("10.0.19041"), PROCESS_LOOPBACK_BUILD);
+  assert.ok(windowsBuild("10.0.18363") < PROCESS_LOOPBACK_BUILD);
+  assert.equal(windowsBuild("6.1"), 0);
+  assert.equal(windowsBuild(""), 0);
+  // The native route leaves out every sound of the app: a voice played by it never comes back.
+  assert.deepEqual(systemAudioPlan({ wanted: true, narrationPlays: true, excludesApp: true }), {
+    record: true,
   });
 });

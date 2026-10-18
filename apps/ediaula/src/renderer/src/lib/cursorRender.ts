@@ -1,25 +1,73 @@
 import {
   buildTrack,
+  CURSOR_EFFECT_DEFAULTS,
+  type CursorFx,
+  type CursorTrack,
+  clickSoundTimes,
   cursorAt,
   cursorFxId,
   cursorScale,
+  fxAt,
+  fxWhere,
+  magnifierRadius,
+  magnifierSide,
+  magnifies,
   ripplesAt,
+  spotlightDim,
+  spotlightRadius,
+  spotlights,
   spritePositions,
   spriteSize,
 } from "@shared/cursor";
+import type { CursorData } from "@shared/cursorData";
 import { newId } from "@shared/timeline";
 import type { CursorSprite, Project } from "@shared/types";
 import { cursorFxOf, loadCursorData } from "@/editor/CursorLayer";
 import { useApp } from "@/state/app";
-import { drawPointer, drawRipples } from "./cursorDraw";
+import { drawMagnifierRing, drawPointer, drawRipples, drawSpotlight } from "./cursorDraw";
+import { type CursorImages, loadCursorImages } from "./cursorImages";
 
 /** Unique sprite frames sent to the main process per call. */
 const BATCH = 48;
 
+/** A short, stable key for a list of numbers (the cache name of the click sound). */
+function numbersKey(values: readonly number[], extra: string): string {
+  let hash = 2166136261;
+  for (const char of `${extra}|${values.map((v) => v.toFixed(4)).join(",")}`)
+    hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+  return `${values.length}_${(hash >>> 0).toString(16)}`;
+}
+
+/**
+ * The spotlight's picture: the recording's size (half of the twice-as-large area the export
+ * moves with the pointer), dark with the lit circle in its middle, drawn by the preview's own
+ * function. Saved in the app's cache (same picture, same file).
+ */
+async function spotlightPicture(data: CursorData, fx: CursorFx): Promise<string> {
+  const width = Math.max(2, Math.round(data.width / 2) * 2);
+  const height = Math.max(2, Math.round(data.height / 2) * 2);
+  const canvas = new OffscreenCanvas(width, height);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Não consegui desenhar o holofote.");
+  // Half scale: the circle of the recording's radius is half as large here.
+  drawSpotlight(
+    ctx,
+    width / 2,
+    height / 2,
+    spotlightRadius(data, fx) / 2,
+    spotlightDim(fx),
+    width,
+    height,
+  );
+  const blob = await canvas.convertToBlob({ type: "image/png" });
+  return window.api.saveGenerated(new Uint8Array(await blob.arrayBuffer()), "png");
+}
+
 /**
  * Before exporting: the pointer of every screen recording in use, drawn frame by frame with the
  * same code as the preview into a small transparent video (cached), plus where it goes on
- * each frame. The export moves that sprite over the recording.
+ * each frame, and the effects the export draws around it: the magnifier, the spotlight's picture
+ * and the click sound.
  */
 export async function ensureCursorSprites(
   project: Project,
@@ -33,6 +81,7 @@ export async function ensureCursorSprites(
     const fx = cursorFxOf(asset);
     if (fx.hidden) continue;
     const data = await loadCursorData(asset.cursor);
+    const images = await loadCursorImages(asset.cursor, data).catch(() => undefined);
     const fps = asset.fps || 30;
     const track = buildTrack(data, fx, asset.duration);
     const size = spriteSize(data, fx);
@@ -50,10 +99,43 @@ export async function ensureCursorSprites(
         positions,
         size,
         fps,
+        images,
         signal,
       );
+    const entry: CursorSprite = { sprite, size, fps, positions };
+    const shown = (key: "magnifier" | "spotlight"): [number, number][] =>
+      fxWhere(fx, (f) => !!f[key] && !f.hidden, asset.duration);
+    if (magnifies(fx)) {
+      const on = shown("magnifier");
+      if (on.length)
+        entry.magnifier = {
+          radius: Math.round(magnifierRadius(data, fx)),
+          side: magnifierSide(data, fx),
+          on,
+        };
+    }
+    if (spotlights(fx)) {
+      const on = shown("spotlight");
+      if (on.length)
+        entry.spotlight = {
+          picture: await spotlightPicture(data, fx),
+          width: data.width,
+          height: data.height,
+          on,
+        };
+    }
+    const times = clickSoundTimes(data, fx);
+    const volume = fx.clickVolume ?? CURSOR_EFFECT_DEFAULTS.clickVolume;
+    if (times.length && volume > 0)
+      entry.clicks = await window.api.cursorSprite.clicks(
+        asset.path,
+        numbersKey(times, `${volume.toFixed(3)}|${asset.duration.toFixed(3)}`),
+        Float64Array.from(times),
+        volume,
+        asset.duration,
+      );
     // Kept typed: an Int32Array crosses IPC as one value, so a long recording fits the limit.
-    out[asset.id] = { sprite, size, fps, positions };
+    out[asset.id] = entry;
   }
   return out;
 }
@@ -62,12 +144,13 @@ async function renderSprite(
   path: string,
   name: string,
   id: string,
-  data: Awaited<ReturnType<typeof loadCursorData>>,
-  fx: ReturnType<typeof cursorFxOf>,
-  track: ReturnType<typeof buildTrack>,
+  data: CursorData,
+  fx: CursorFx,
+  track: CursorTrack,
   positions: Int32Array,
   size: number,
   fps: number,
+  images: CursorImages | undefined,
   signal?: AbortSignal,
 ): Promise<string> {
   const { startJob, endJob, set } = useApp.getState();
@@ -78,9 +161,10 @@ async function renderSprite(
     await window.api.cursorSprite.begin(jobId, path, id, size, fps);
     const canvas = new OffscreenCanvas(size, size);
     const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-    const unit = cursorScale(data, fx) * 1.1;
     const frames = positions.length / 2;
     const bytes = size * size * 4;
+    const radius = Math.round(magnifierRadius(data, fx));
+    const pixel = data.height / 1080;
     let batch = new Uint8Array(BATCH * bytes);
     let counts: number[] = [];
     let lastKey = "";
@@ -95,17 +179,22 @@ async function renderSprite(
       const t = i / fps;
       const ox = positions[i * 2];
       const oy = positions[i * 2 + 1];
+      const f = fxAt(fx, t);
       const s = cursorAt(track, t);
-      const rips = fx.clicks ? ripplesAt(data, t, fx) : [];
-      const key = `${s.shape}|${s.alpha.toFixed(3)}|${(s.x - ox).toFixed(2)}|${(s.y - oy).toFixed(2)}|${rips.map((r) => `${r.x - ox},${r.y - oy},${r.progress.toFixed(3)}`).join(";")}`;
+      const unit = cursorScale(data, f) * 1.1;
+      const rips = !f.hidden && f.clicks ? ripplesAt(data, t, fx) : [];
+      // The magnifier's ring sits on the sprite's center, where the export puts the circle.
+      const ring = !f.hidden && !!f.magnifier;
+      const key = `${f.hidden ? "-" : s.index}|${+!!f.halo}|${+ring}|${s.alpha.toFixed(3)}|${(s.x - ox).toFixed(2)}|${(s.y - oy).toFixed(2)}|${rips.map((r) => `${r.x - ox},${r.y - oy},${r.progress.toFixed(3)}`).join(";")}`;
       if (key === lastKey && counts.length) {
         counts[counts.length - 1]++;
         continue;
       }
       lastKey = key;
       ctx.clearRect(0, 0, size, size);
+      if (ring) drawMagnifierRing(ctx, size / 2, size / 2, radius, pixel);
       drawRipples(ctx, rips, -ox, -oy, unit);
-      drawPointer(ctx, s, s.x - ox, s.y - oy, unit, fx);
+      drawPointer(ctx, s, s.x - ox, s.y - oy, unit, f, images);
       batch.set(ctx.getImageData(0, 0, size, size).data, counts.length * bytes);
       counts.push(1);
       if (counts.length === BATCH) {

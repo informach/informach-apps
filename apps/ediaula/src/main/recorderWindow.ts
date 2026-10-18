@@ -14,6 +14,7 @@ import {
   shell,
 } from "electron";
 import { z } from "zod";
+import { BOARD_KINDS, DRAWING_TOOLS, thinPoints } from "../shared/drawing.ts";
 import { CAPTURE_QUALITIES, type CaptureCodec } from "../shared/encoderChoice.ts";
 import {
   type GuidedPlanV2,
@@ -48,6 +49,8 @@ import type {
   RecordOptions,
 } from "../shared/recording.ts";
 import { isVoiceMode, RECORD_MODES, type RecorderContext } from "../shared/recording.ts";
+import { dipToPhysical } from "../shared/region.ts";
+import { SYSTEM_AUDIO_ROUTES } from "../shared/systemAudio.ts";
 import { detectCaptureEncoder } from "./encoders.ts";
 import { FFMPEG, prepareGuidedNarration, probe } from "./ffmpeg.ts";
 import {
@@ -61,7 +64,7 @@ import {
 import { GuidedTake, verifyGuidedPlan } from "./guidedCapture.ts";
 import { NO_PROJECT, readGuidedDraft, writeGuidedDraft } from "./guidedDrafts.ts";
 import { GuidedInput, HelperDriver } from "./guidedRecording.ts";
-import { qpc } from "./nativeHelper.ts";
+import { processLoopbackAvailable, qpc } from "./nativeHelper.ts";
 import * as rec from "./recorder.ts";
 import { readRecorderSettings, writeRecorderSettings } from "./recorderSettings.ts";
 import { scheduler } from "./scheduler.ts";
@@ -91,6 +94,7 @@ const HOTKEY_NAMES: Record<HotkeyAction, string> = {
   retake: "retake",
   lineNext: "line-next",
   linePrev: "line-prev",
+  draw: "draw",
   clickerNext: "line-next",
   clickerPrev: "line-prev",
 };
@@ -100,6 +104,23 @@ const rectDip = z.object({
   y: z.number().finite(),
   width: z.number().finite().nonnegative(),
   height: z.number().finite().nonnegative(),
+});
+
+const clamp = (v: number, min: number, max: number): number => Math.min(max, Math.max(min, v));
+
+/**
+ * A stroke as the recorder window sends it: when it started (QPC ms) and its points as one typed
+ * array of [x, y, ms after the start] (fractions of the region), so a long stroke is one IPC value.
+ */
+const strokeSchema = z.object({
+  at: z.number().finite().positive(),
+  color: z.string().regex(/^#[\da-f]{6}$/i),
+  width: z.number().positive().max(200),
+  points: z
+    .instanceof(Float32Array)
+    .refine((p) => p.length >= 3 && p.length % 3 === 0 && p.length <= 3 * 100_000)
+    .refine((p) => p.every(Number.isFinite)),
+  tool: z.enum(DRAWING_TOOLS).optional(),
 });
 
 /** What the recorder window may ask for; the region comes in window pixels (DIP). */
@@ -122,6 +143,7 @@ const prepareSchema = z.object({
   fps: z.union([z.literal(30), z.literal(60)]),
   quality: z.enum(CAPTURE_QUALITIES).optional(),
   systemAudio: z.boolean().optional(),
+  systemAudioRoute: z.enum(SYSTEM_AUDIO_ROUTES).optional(),
   mode: z.enum(RECORD_MODES).optional(),
   follow: z.boolean().optional(),
   over: z
@@ -176,6 +198,17 @@ const contextSchema = z.object({
     })
     .optional(),
   projectId: z.string().min(1).max(200).optional(),
+  lesson: z
+    .object({
+      width: z.int().positive().max(16384),
+      height: z.int().positive().max(16384),
+      fps: z.number().positive().max(240),
+    })
+    .optional(),
+  palette: z
+    .array(z.string().regex(/^#[\da-f]{6}$/i))
+    .max(32)
+    .optional(),
   guided: guidedStoreSchema.optional(),
   guidedReplace: z
     .object({
@@ -255,6 +288,8 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
   let picking = false;
   let browsing = false;
   let captureBounds: { x: number; y: number; width: number; height: number } | null = null;
+  /** "Janela…": the window the next take follows. */
+  let followTarget: { hwnd: string; front: boolean } | null = null;
   const endGuided = (): void => {
     guided?.controller.abort();
     guided?.input.close();
@@ -537,6 +572,7 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
   });
 
   const close = (): void => {
+    followTarget = null;
     recordingJob?.finish();
     recordingJob = undefined;
     endGuided();
@@ -659,8 +695,15 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     const name = z.string().min(1).max(512).nullable().parse(device);
     rec.monitorMic(name, (level) => overlay?.webContents.send("recorder:level", level));
   });
-  ipcMain.handle("recorder:cameraModes", (_e, device: unknown) =>
-    rec.cameraModes(z.string().min(1).max(512).parse(device), settings.fps),
+  /** The camera's modes and the automatic choice at the frame rate on screen now. */
+  ipcMain.handle("recorder:cameraModes", (_e, device: unknown, fps: unknown) =>
+    rec.cameraModes(
+      z.string().min(1).max(512).parse(device),
+      z
+        .union([z.literal(30), z.literal(60)])
+        .optional()
+        .parse(fps) ?? settings.fps,
+    ),
   );
   ipcMain.handle("recorder:status", () => ({
     ...rec.status(),
@@ -698,6 +741,13 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
   );
   /** The main process's clock (QPC ms), for the recorder window to convert its own. */
   ipcMain.handle("recorder:clock", () => qpc());
+  /**
+   * How this computer records the computer's sound (shared/systemAudio.ts): "native" (without
+   * any sound of the app) where Windows has process loopback, else Chromium's loopback.
+   */
+  ipcMain.handle("recorder:systemAudioRoute", async () =>
+    (await processLoopbackAvailable()) ? "native" : "chromium",
+  );
   /** "Tela sobre a narração": the voice heard at timeline second `at` at QPC `when`. */
   ipcMain.handle("recorder:overAnchor", (_e, at: unknown, when: unknown) =>
     rec.overAnchor(
@@ -1070,10 +1120,12 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
   ipcMain.handle("recorder:prepare", async (_e, raw: unknown) => {
     const { regionDip, ...rest } = prepareSchema.parse(raw);
     const opts: RecordOptions = rest;
+    if (opts.systemAudioRoute === "native" && !(await processLoopbackAvailable()))
+      throw new Error("Este Windows não grava o áudio do PC sem o som do app.");
     // The window could not list the camera's modes (its preview held it): choose here, now
     // that the preview let go.
     if (opts.camera && !opts.cameraMode)
-      opts.cameraMode = (await rec.cameraModes(opts.camera, 30)).choice ?? undefined;
+      opts.cameraMode = (await rec.cameraModes(opts.camera, opts.fps)).choice ?? undefined;
     const missing = REQUIRED_HOTKEYS.filter((action) => !registered.has(action));
     if (missing.length)
       throw new Error(
@@ -1082,26 +1134,8 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     const m =
       opts.monitor === undefined ? undefined : monitors.find((x) => x.index === opts.monitor);
     if (opts.monitor !== undefined && !m) throw new Error("Tela não encontrada.");
-    let region: RecordOptions["region"];
-    if (m && regionDip) {
-      const k = m.width / dipRect(m).width;
-      const even = (v: number): number => Math.max(2, Math.floor((v * k) / 2) * 2);
-      const x = Math.max(0, Math.round(regionDip.x * k));
-      const y = Math.max(0, Math.round(regionDip.y * k));
-      region = {
-        x,
-        y,
-        width: Math.min(even(regionDip.width), m.width - x - ((m.width - x) % 2)),
-        height: Math.min(even(regionDip.height), m.height - y - ((m.height - y) % 2)),
-      };
-      if (
-        region.x === 0 &&
-        region.y === 0 &&
-        region.width >= m.width - 1 &&
-        region.height >= m.height - 1
-      )
-        region = undefined;
-    }
+    const region: RecordOptions["region"] =
+      m && regionDip ? dipToPhysical(regionDip, m, dipRect(m)) : undefined;
     if (isVoiceMode(opts.mode)) {
       // The voice without the screen or the computer's sound; "Voz e câmera" keeps the camera.
       opts.monitor = undefined;
@@ -1118,8 +1152,11 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
       // Keys typed in the lesson window still show on screen; it belongs to this process too.
       keyWindows: guidedBrowserWindowIds(),
       keyFilter: toKeyFilter(settings.hotkeys, settings.clicker),
+      caret: settings.autoZoom,
     });
     if (isVoiceMode(opts.mode) && opts.follow) void startFollow();
+    // "Janela…": the take follows the window picked (and keeps it in front, if asked).
+    if (m && followTarget) rec.followWindow(followTarget.hwnd, followTarget.front);
     captureBounds = m
       ? {
           x: m.x + (region?.x ?? 0),
@@ -1168,6 +1205,53 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     if (guided) overlay?.hide();
     await rec.resume();
     if (guided) guided.paused = false;
+  });
+  /** Windows "Janela…" offers, without the app's own. */
+  ipcMain.handle("recorder:windows", () => rec.captureWindows());
+  /**
+   * The window the region was fitted to (null: none): the take follows it and warns when it
+   * leaves the region or is minimized; `front` keeps it above the others during the take.
+   */
+  ipcMain.handle("recorder:followWindow", (_e, hwnd: unknown, front: unknown) => {
+    const handle = z
+      .string()
+      .regex(/^\d{1,20}$/)
+      .nullable()
+      .parse(hwnd);
+    followTarget = handle ? { hwnd: handle, front: z.boolean().parse(front) } : null;
+    if (rec.isRecording()) rec.followWindow(handle, followTarget?.front ?? false);
+  });
+  /** A stroke drawn on the screen: data for the take, never part of the video. */
+  ipcMain.handle("recorder:drawStroke", (_e, raw: unknown) => {
+    const stroke = strokeSchema.parse(raw);
+    const points: [number, number, number][] = [];
+    for (let i = 0; i + 2 < stroke.points.length; i += 3)
+      points.push([
+        clamp(stroke.points[i], -1, 2),
+        clamp(stroke.points[i + 1], -1, 2),
+        Math.max(0, stroke.points[i + 2]),
+      ]);
+    if (!points.length) return;
+    rec.drawStroke({
+      at: stroke.at,
+      color: stroke.color,
+      width: stroke.width,
+      points: thinPoints(points),
+      ...(stroke.tool ? { tool: stroke.tool } : {}),
+    });
+  });
+  const moment = z.number().finite().positive();
+  ipcMain.handle("recorder:drawClear", (_e, at: unknown) => rec.drawClear(moment.parse(at)));
+  ipcMain.handle("recorder:drawBoard", (_e, on: unknown, kind: unknown, at: unknown) =>
+    rec.drawBoard(z.boolean().parse(on), z.enum(BOARD_KINDS).parse(kind), moment.parse(at)),
+  );
+  ipcMain.handle("recorder:drawPage", (_e, at: unknown) => rec.drawPage(moment.parse(at)));
+  ipcMain.handle("recorder:drawUndo", (_e, at: unknown) => rec.drawUndo(moment.parse(at)));
+  ipcMain.handle("recorder:drawMode", (_e, on: unknown) => {
+    const drawing = z.boolean().parse(on);
+    rec.drawMode(drawing);
+    // The board's keys (B, N, P, Ctrl+Z, Esc) reach the recorder window while drawing.
+    if (drawing) overlay?.focus();
   });
   ipcMain.handle("recorder:mark", (_e, kind: unknown) =>
     rec.mark(z.enum(["marker", "retake"]).parse(kind) satisfies MarkerKind),

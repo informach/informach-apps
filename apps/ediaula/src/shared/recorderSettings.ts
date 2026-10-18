@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { CAPTURE_QUALITIES } from "./encoderChoice.ts";
 import { DEFAULT_HOTKEYS, HOTKEY_ACTIONS, type HotkeyAction } from "./hotkeys.ts";
+import { REGION_PRESETS } from "./region.ts";
 
 /**
  * What the recorder remembers between takes (userData/recorder.json). Every field has a default,
@@ -38,10 +39,15 @@ const hotkeys = z.object(
 
 export const recorderSettingsSchema = z.object({
   monitor: monitor.nullable().catch(null),
-  /** "custom" keeps the rectangle drawn last time, in window pixels of that screen. */
+  /**
+   * A preset (shared/region.ts) or "custom": the rectangle drawn, typed in or taken from a window
+   * last time, in window pixels of that screen.
+   */
   region: z
-    .object({ preset: z.enum(["full", "16:9", "custom"]), rect: rect.optional() })
+    .object({ preset: z.enum(REGION_PRESETS), rect: rect.optional() })
     .catch({ preset: "full" }),
+  /** Typing the width or the height keeps the region's proportion. */
+  regionLock: z.boolean().catch(true),
   microphone: z.string().max(512).nullable().catch(null),
   camera: z.string().max(512).nullable().catch(null),
   /** null: chosen automatically for the camera (shared/camera.ts chooseCameraMode). */
@@ -73,6 +79,11 @@ export const recorderSettingsSchema = z.object({
   recordMode: z.enum(["screen", "voice", "voicecam"]).catch("screen"),
   /** "Só voz": the teleprompter follows the voice when the transcription engine is installed. */
   follow: z.boolean().catch(true),
+  /**
+   * A screen take gets its automatic zoom (clicks, drags and typing) as soon as it comes into the
+   * lesson; the helper also notes the text cursor for it.
+   */
+  autoZoom: z.boolean().catch(true),
 });
 
 export type RecorderSettings = z.infer<typeof recorderSettingsSchema>;

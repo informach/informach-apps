@@ -1,4 +1,5 @@
-import type { Annotation } from "./annotation.ts";
+import { type Annotation, isDrawingKind } from "./annotation.ts";
+import type { Drawing } from "./drawing.ts";
 import type { Asset, ProbeResult, Project } from "./types.ts";
 
 /**
@@ -9,6 +10,8 @@ import type { Asset, ProbeResult, Project } from "./types.ts";
  */
 export type Redraw =
   | { how: "annotation"; annotation: Annotation }
+  /** The video of strokes drawn on the screen during a take (shared/drawing.ts). */
+  | { how: "drawing"; drawing: Drawing }
   | { how: "effect" }
   | { how: "still"; source: Asset; t: number };
 
@@ -20,6 +23,8 @@ export function redrawPlan(
     const annotation = project.clips.find(
       (c) => c.assetId === asset.id && c.annotation,
     )?.annotation;
+    if (annotation && isDrawingKind(annotation.kind))
+      return annotation.drawing ? { how: "drawing", drawing: annotation.drawing } : null;
     return annotation ? { how: "annotation", annotation } : null;
   }
   if (asset.generated === "effect") return { how: "effect" };

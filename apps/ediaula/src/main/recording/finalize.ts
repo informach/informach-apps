@@ -8,6 +8,7 @@ import {
   mergeHookEvents,
 } from "../../shared/cursorCapture.ts";
 import { buildCursorData, type CursorData, cursorDataForPart } from "../../shared/cursorData.ts";
+import { dropDrawingClicks } from "../../shared/drawing.ts";
 import {
   buildGuidedRun,
   GUIDED_LOG_FILE,
@@ -18,6 +19,7 @@ import {
 import { type HookEvent, parseHookLine } from "../../shared/helperProtocol.ts";
 import { isVoiceMode, type RecordingPiece, type RecordingResult } from "../../shared/recording.ts";
 import {
+  drawingInTake,
   JOURNAL_FILE,
   type JournalPart,
   type JournalReplay,
@@ -208,13 +210,17 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
     );
     const m = replay.begin.monitor;
     const r = replay.begin.region ?? { x: 0, y: 0, width: m.width, height: m.height };
+    // Pressing the pen while drawing on the screen is not a click on the lesson.
     await writeCursor(
-      buildCursorData(events, replay, segments, {
-        x: m.x + r.x,
-        y: m.y + r.y,
-        width: r.width,
-        height: r.height,
-      }),
+      dropDrawingClicks(
+        buildCursorData(events, replay, segments, {
+          x: m.x + r.x,
+          y: m.y + r.y,
+          width: r.width,
+          height: r.height,
+        }),
+        rangesInTake(replay.drawModes, segments),
+      ),
     );
     await pruneHelperJournal(dir, journal, segments);
   } else if (parts.screen.length && existsSync(join(dir, GUIDED_LOG_FILE))) {
@@ -261,6 +267,7 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
         }
       : {};
   const lines = replay.lines.map((l) => ({ t: momentInTake(segments, l.qpc), index: l.index }));
+  const drawing = drawingInTake(replay, segments);
   const over =
     replay.begin.mode === "over" && replay.begin.over
       ? {
@@ -294,6 +301,7 @@ export async function finalizeTake(input: FinalizeInput): Promise<RecordingResul
     pauses: rangesInTake(replay.pauses, segments),
     markers: replay.markers.map((m) => ({ t: momentInTake(segments, m.qpc), kind: m.kind })),
     ...(lines.length ? { lines } : {}),
+    ...(drawing ? { drawing } : {}),
     ...(voice
       ? { mode: replay.begin.mode === "voicecam" ? ("voicecam" as const) : ("voice" as const) }
       : {}),

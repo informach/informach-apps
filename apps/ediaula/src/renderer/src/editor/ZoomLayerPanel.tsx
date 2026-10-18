@@ -48,6 +48,68 @@ function Chips<T extends string>({
 }
 
 /**
+ * How close and where a zoom looks: the controls the zoom layer and the recording's zooms share,
+ * beside the same rectangle in the preview.
+ */
+export function ZoomPointControls({
+  scale,
+  x,
+  y,
+  min = 1,
+  onChange,
+}: {
+  scale: number;
+  x: number;
+  y: number;
+  /** Least zoom offered (a zoom layer can go back to normal, 1×). */
+  min?: number;
+  onChange: (change: { scale?: number; x?: number; y?: number }) => void;
+}): ReactNode {
+  return (
+    <>
+      <Slider
+        label="Aproximar"
+        value={scale}
+        min={min}
+        max={5}
+        step={0.05}
+        format={(v) => (v < 1.01 ? "normal" : `${v.toFixed(2)}×`)}
+        onCommit={(value) => onChange({ scale: value })}
+      />
+      <span className="field-label">Ponto</span>
+      <div className="zoom-spots">
+        {SPOTS.map(([label, sx, sy]) => (
+          <button
+            type="button"
+            key={label}
+            className={`chip ${Math.abs(x - sx) < 0.01 && Math.abs(y - sy) < 0.01 ? "is-active" : ""}`}
+            onClick={() => onChange({ x: sx, y: sy })}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <Slider
+        label="Horizontal"
+        value={x}
+        min={0}
+        max={1}
+        step={0.005}
+        onCommit={(value) => onChange({ x: value })}
+      />
+      <Slider
+        label="Vertical"
+        value={y}
+        min={0}
+        max={1}
+        step={0.005}
+        onCommit={(value) => onChange({ y: value })}
+      />
+    </>
+  );
+}
+
+/**
  * Properties of a zoom layer, in Camtasia's terms: how close and where, whether it eases in and
  * out (each optional), and the next step (move to another spot, or back to normal).
  */
@@ -94,44 +156,7 @@ export function ZoomLayerSection({ clip }: { clip: Clip }): ReactNode {
         Tudo que está nas faixas abaixo desta aproxima enquanto ela dura; o que está acima fica como
         está. No vídeo, arraste o retângulo; a rodinha do mouse muda o quanto aproxima.
       </p>
-      <Slider
-        label="Aproximar"
-        value={z.scale}
-        min={1}
-        max={5}
-        step={0.05}
-        format={(v) => (v < 1.01 ? "normal" : `${v.toFixed(2)}×`)}
-        onCommit={(scale) => set({ scale })}
-      />
-      <span className="field-label">Ponto</span>
-      <div className="zoom-spots">
-        {SPOTS.map(([label, x, y]) => (
-          <button
-            type="button"
-            key={label}
-            className={`chip ${Math.abs(z.x - x) < 0.01 && Math.abs(z.y - y) < 0.01 ? "is-active" : ""}`}
-            onClick={() => set({ x, y })}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <Slider
-        label="Horizontal"
-        value={z.x}
-        min={0}
-        max={1}
-        step={0.005}
-        onCommit={(x) => set({ x })}
-      />
-      <Slider
-        label="Vertical"
-        value={z.y}
-        min={0}
-        max={1}
-        step={0.005}
-        onCommit={(y) => set({ y })}
-      />
+      <ZoomPointControls scale={z.scale} x={z.x} y={z.y} onChange={set} />
 
       <span className="field-label">Entrada</span>
       <Chips

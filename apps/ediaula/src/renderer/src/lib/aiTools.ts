@@ -950,9 +950,12 @@ const handlers: {
       }));
       return `Remoção de fundo desligada em ${a.name}.`;
     }
+    // A key by the local AI gives way to the color key the tool sets.
+    const { mode: _mode, ...previous } = a.key ?? DEFAULT_KEY;
+    const keyedColor = a.key?.mode === "person" ? undefined : a.key?.color;
     const c = color
       ? `#${color.replace("#", "").toUpperCase()}`
-      : (a.key?.color ??
+      : (keyedColor ??
         a.screen ??
         (await window.api.detectScreen(a.path, a.duration, a.width, a.height)));
     if (!c)
@@ -961,7 +964,7 @@ const handlers: {
       );
     const key = {
       ...DEFAULT_KEY,
-      ...a.key,
+      ...previous,
       color: c,
       ...(protect_clothes !== undefined ? { threshold: protect_clothes } : {}),
       ...(softness !== undefined ? { softness } : {}),

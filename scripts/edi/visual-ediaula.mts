@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import {
   chmod,
@@ -75,7 +76,14 @@ const VOICE_TEXT =
  * where it comes from (the window and, for renderer messages, the source line of the bundle);
  * anything else fails the run.
  */
-const KNOWN_HARMLESS: { source: RegExp; text: RegExp; line?: RegExp; reason: string }[] = [];
+const KNOWN_HARMLESS: { source: RegExp; text: RegExp; line?: RegExp; reason: string }[] = [
+  {
+    source: / · editor$/,
+    text: /^INFO: Created TensorFlow Lite XNNPACK delegate for CPU\. \(file:.*vision_wasm_module_internal-[\w-]+\.js:\d+\)$/,
+    reason:
+      "Aviso informativo do runtime da segmentação de pessoa (@mediapipe/tasks-vision), que o WebAssembly dele escreve no canal de erro ao abrir o modelo na CPU; a remoção de fundo por IA local funciona.",
+  },
+];
 
 /** The bundle line a console message points at (0-based, as Playwright reports it). */
 const bundles = new Map<string, string[]>();
@@ -381,6 +389,21 @@ function cursorData() {
   };
 }
 
+/** The person of the synthetic webcam (an FFmpeg geq over a 640 × 480 wall). */
+function webcamPerson(): string {
+  const head = "lte(((X-320)/62)^2+((Y-175)/80)^2,1)";
+  const neck = "lte(abs(X-320),28)*between(Y,230,310)";
+  const body = "gt(Y,290)*lte(((X-320)/210)^2+((Y-560)/270)^2,1)";
+  const hair = "lte(((X-320)/66)^2+((Y-150)/62)^2,1)*lt(Y,140)";
+  const eyes = "(lte(((X-297)/9)^2+((Y-170)/6)^2,1)+lte(((X-343)/9)^2+((Y-170)/6)^2,1))";
+  const mouth = "lte(((X-320)/18)^2+((Y-212)/5)^2,1)";
+  const sway = (e: string): string =>
+    e.replace(/X-(\d+)/g, (_m, x: string) => `X-${x}-12*sin(2*PI*T/4)`);
+  const pick = (h: number, s: number, b: number, lips: number, rest: string): string =>
+    `if(${sway(eyes)},30,if(${sway(mouth)},${lips},if(${sway(hair)},${h},if(${sway(head)}+${sway(neck)},${s},if(${sway(body)},${b},${rest})))))`;
+  return `geq=r='${pick(50, 224, 40, 150, "r(X,Y)")}':g='${pick(35, 172, 60, 70, "g(X,Y)")}':b='${pick(25, 138, 110, 70, "b(X,Y)")}'`;
+}
+
 async function makeMedia(dir: string) {
   await mkdir(dir, { recursive: true });
   const screen = join(dir, "tela.mp4");
@@ -426,7 +449,15 @@ async function makeMedia(dir: string) {
   ]);
   const cursor = join(dir, "cursor.json");
   await writeFile(cursor, JSON.stringify(cursorData()));
-  return { screen, voice, heygen, cursor };
+  // The webcam of the take: a person (head with eyes and mouth, neck, shoulders) on a plain
+  // wall, swaying a little, as tests/personKey.test.ts draws it: the local AI must find someone.
+  const camera = join(dir, "camera.mp4");
+  await ff([
+    ...["-f", "lavfi", "-i", "color=c=0xB9C6D3:s=640x480:r=15:d=20,format=rgb24"],
+    ...["-vf", webcamPerson(), "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p"],
+    ...["-movflags", "+faststart", camera],
+  ]);
+  return { screen, voice, heygen, cursor, camera };
 }
 
 /* ---------- recordings folder (sessao.jsonl, src/shared/recordingJournal.ts) ---------- */
@@ -459,10 +490,12 @@ async function writeFinishedTake(recordings: string, media: Media): Promise<stri
   const screen = join(dir, "tela.mp4");
   const microphone = join(dir, "microfone.wav");
   const cursor = join(dir, "cursor.json");
+  const camera = join(dir, "camera-0.mp4");
   await Promise.all([
     copyFile(media.screen, screen),
     copyFile(media.voice, microphone),
     copyFile(media.cursor, cursor),
+    copyFile(media.camera, camera),
   ]);
   await writeFile(
     join(dir, "sessao.jsonl"),
@@ -483,6 +516,7 @@ async function writeFinishedTake(recordings: string, media: Media): Promise<stri
       screen,
       cursor,
       microphone,
+      cameraParts: [{ path: camera, at: 0, in: 0, duration: 20 }],
       duration: 20,
       pauses: [],
       markers: [{ t: 8, kind: "marker" }],
@@ -815,6 +849,119 @@ try {
     await capture(editor.locator("section.preview"), "previa", "Prévia com o cursor da gravação");
   });
 
+  await step("Efeitos do cursor", async () => {
+    await editor.locator('fieldset.clip[aria-label^="Clipe Tela"]').first().click();
+    await side.locator(".tab", { hasText: "Propriedades" }).click();
+    const cursorPanel = side.locator(".props-section", {
+      has: editor.getByRole("heading", { name: "Cursor" }),
+    });
+    await cursorPanel.waitFor();
+    await seek(editor, 9);
+    // The automatic zoom of the import would hide the effects around the pointer: none here.
+    await cursorPanel.getByRole("button", { name: "Do sistema" }).click();
+    await cursorPanel.getByRole("switch", { name: "Halo" }).click();
+    await cursorPanel.locator(".swatch-row .color-dot").nth(2).click();
+    await cursorPanel.getByRole("switch", { name: "Lupa em volta do cursor" }).click();
+    await cursorPanel.getByRole("switch", { name: "Holofote (escurece o resto da tela)" }).click();
+    await cursorPanel.getByRole("switch", { name: "Som de clique" }).click();
+    await settle(editor);
+    await capture(
+      editor.locator("section.preview"),
+      "cursor-efeitos-previa",
+      "Prévia com lupa, holofote e halo da cor da paleta",
+    );
+    await cursorPanel.scrollIntoViewIfNeeded();
+    await capture(cursorPanel, "cursor-efeitos-painel", "Painel do cursor com os efeitos");
+    // A stretch of its own: the spotlight off there, shown in violet at the foot of the clip.
+    await cursorPanel.getByRole("button", { name: "Trecho aqui" }).click();
+    const stretch = cursorPanel.locator(".cursor-range-list li").first();
+    await stretch.waitFor();
+    await stretch.locator("label", { hasText: "Holofote" }).locator("select").selectOption("off");
+    await editor.locator(".cursor-band").first().waitFor();
+    await capture(
+      cursorPanel.locator(".cursor-ranges"),
+      "cursor-efeito-por-trecho",
+      "Efeito por trecho no painel do cursor",
+    );
+    await capture(
+      editor.locator(".timeline-wrap"),
+      "cursor-efeito-por-trecho-timeline",
+      "Trecho de efeitos em roxo na faixa da gravação",
+    );
+    // The spotlight stays off for the steps that follow; the magnifier and the click sound go
+    // with the lesson to the export.
+    await cursorPanel.getByRole("switch", { name: "Holofote (escurece o resto da tela)" }).click();
+    await savedSoon(editor);
+  });
+
+  await step("Zoom da gravação na timeline", async () => {
+    // The import gave the recording its automatic zoom: one amber band per burst of clicks.
+    const band = editor.locator(".zoom-band").first();
+    await band.waitFor({ timeout: 30_000 });
+    await band.click();
+    const zoomPanel = side.locator(".recording-zoom");
+    await zoomPanel.waitFor();
+    await settle(editor);
+    await capture(
+      editor.locator("section.preview"),
+      "zoom-gravacao-retangulo",
+      "Zoom da gravação selecionado: o retângulo de foco na prévia",
+    );
+    await zoomPanel.scrollIntoViewIfNeeded();
+    await capture(zoomPanel, "zoom-gravacao-painel", "Painel do zoom da gravação");
+    // The end of the band, dragged later on the timeline.
+    const edge = band.locator(".band-edge.is-end");
+    const box = await edge.boundingBox();
+    assert.ok(box, "the end of the zoom band");
+    const before = await band.boundingBox();
+    await editor.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await editor.mouse.down();
+    await editor.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2, { steps: 8 });
+    await editor.mouse.up();
+    await editor.waitForFunction((width) => {
+      const shown = document.querySelector(".zoom-band.is-selected");
+      return !!shown && shown.getBoundingClientRect().width > width + 20;
+    }, before?.width ?? 0);
+    await capture(
+      editor.locator(".timeline-wrap"),
+      "zoom-gravacao-timeline",
+      "Zoom da gravação com o fim arrastado na timeline",
+    );
+    await savedSoon(editor);
+  });
+
+  await step("Câmera da gravação: enquadramento e fundo por IA local", async () => {
+    await editor.locator('fieldset.clip[aria-label^="Clipe Câmera"]').first().click();
+    await side.locator(".tab", { hasText: "Propriedades" }).click();
+    const camera = side.locator(".props-section", {
+      has: editor.getByRole("heading", { name: "Câmera" }),
+    });
+    await camera.waitFor();
+    await camera.getByRole("button", { name: "Arredondado no canto" }).click();
+    await camera.getByRole("switch", { name: "Remover fundo com IA local" }).click();
+    await camera
+      .getByText("Pronto: a prévia e a exportação mostram só você, sem o fundo.")
+      .waitFor({ timeout: 240_000 });
+    await seek(editor, 6);
+    await settle(editor);
+    // The preview plays the video without the background once it has a frame of it.
+    await editor.waitForFunction(
+      () =>
+        [...document.querySelectorAll("video")].some(
+          (video) => decodeURIComponent(video.src).includes("key-") && video.readyState >= 2,
+        ),
+      undefined,
+      { timeout: 30_000 },
+    );
+    await capture(
+      editor.locator("section.preview"),
+      "camera-fundo-removido-previa",
+      "Câmera arredondada no canto, com o fundo removido pela IA local",
+    );
+    await capture(camera, "camera-painel", "Painel da câmera");
+    await savedSoon(editor);
+  });
+
   await step("Transcrição sem transcrição", async () => {
     await side.locator(".tab", { hasText: "Transcrição" }).click();
     await side.getByText("Verificando o motor de transcrição…").waitFor({ state: "detached" });
@@ -994,9 +1141,11 @@ try {
       "Seleção por retângulo na timeline",
     );
     await editor.mouse.up();
-    assert.ok(
-      (await editor.locator("fieldset.clip.is-selected").count()) > 1,
-      "the rectangle selected the clips",
+    // The selection reaches the clips with the next render.
+    await editor.waitForFunction(
+      () => document.querySelectorAll("fieldset.clip.is-selected").length > 1,
+      undefined,
+      { timeout: 5000 },
     );
     await side.locator(".tab", { hasText: "Propriedades" }).click();
     await side.getByText(/^Na tela:/).waitFor();
@@ -1896,6 +2045,219 @@ try {
     await overlay.getByTitle("Fechar sem gravar").click();
     await closed;
     lastPage = editor;
+  });
+
+  await step("Gravador: regiões, janela, 60 qps, desenho e descarte", async () => {
+    // A window of another program, so "Janela…" has something of its own to show.
+    const testWindow = spawn(
+      "powershell.exe",
+      [
+        ...["-NoLogo", "-NoProfile", "-NonInteractive", "-Command"],
+        "Add-Type -AssemblyName System.Windows.Forms; $f = New-Object Windows.Forms.Form; " +
+          "$f.Text = 'Janela do teste visual'; $f.StartPosition = 'Manual'; $f.Left = 240; " +
+          "$f.Top = 160; $f.Width = 960; $f.Height = 600; $f.BackColor = 'SteelBlue'; " +
+          "[Windows.Forms.Application]::Run($f)",
+      ],
+      { stdio: "ignore", env: windowsPowerShellEnvironment() },
+    );
+    let overlay: Page | null = null;
+    try {
+      await delay(2500);
+      // A take thrown away goes to the Recycle Bin; here it is removed from the test's folder.
+      await first.application.evaluate(({ shell }) => {
+        const fs = process.getBuiltinModule("node:fs/promises");
+        Reflect.set(shell, "trashItem", (path: string) =>
+          fs.rm(path, { recursive: true, force: true }),
+        );
+      });
+      const opened = first.application.waitForEvent("window");
+      await editor.locator("header.topbar").getByRole("button", { name: "Gravar tela" }).click();
+      overlay = await opened;
+      lastPage = overlay;
+      await overlay.locator(".rec-dock").waitFor({ timeout: 30_000 });
+      // The recorder may remember another mode (the step before closes it right after a change);
+      // the choice is made once the saved options arrived, or they would take it back.
+      await overlay.locator(".rec-go:not([disabled])").waitFor({ timeout: 30_000 });
+      await overlay.locator("#recording-mode").selectOption("screen");
+      await overlay.getByRole("group", { name: "Região", exact: true }).waitFor();
+      await overlay
+        .getByText("Testando o codificador nesta tela…")
+        .waitFor({ state: "detached", timeout: 60_000 })
+        .catch(() => notes.push("O codificador ainda era testado ao gravar o take de teste."));
+      const region = overlay.getByRole("group", { name: "Região", exact: true }).locator("select");
+      await region.selectOption("720p");
+      await captureOverlay(
+        overlay,
+        "gravador-regiao-720p",
+        "Região de 1280 × 720 com os campos de tamanho",
+      );
+      await region.selectOption("lesson");
+      await captureOverlay(overlay, "gravador-regiao-da-aula", "Região na resolução da aula", [
+        "escuro",
+      ]);
+      await region.selectOption("pick");
+      const picker = overlay.getByRole("dialog", { name: "Gravar uma janela" });
+      await picker.waitFor();
+      const testItem = picker.locator(".rec-windows-list button", {
+        hasText: "Janela do teste visual",
+      });
+      await testItem.waitFor({ timeout: 15_000 });
+      await captureOverlay(overlay, "gravador-janela-lista", "Lista de janelas para gravar", [
+        "escuro",
+      ]);
+      await testItem.click();
+      await picker.waitFor({ state: "detached" });
+      await captureOverlay(
+        overlay,
+        "gravador-janela-encaixada",
+        "Região encaixada na janela escolhida",
+        ["escuro"],
+      );
+      // 60 frames a second, and no countdown, from the options.
+      await overlay.getByTitle("Opções do gravador").click();
+      const options = overlay.getByRole("dialog", { name: "Opções do gravador" });
+      await options
+        .locator("label", { hasText: "Quadros por segundo" })
+        .locator("select")
+        .selectOption("60");
+      await options
+        .locator("label", { hasText: "Contagem antes de gravar" })
+        .locator("select")
+        .selectOption("0");
+      await captureOverlay(options, "gravador-opcoes-60qps", "Opções do gravador em 60 qps", [
+        "escuro",
+      ]);
+      await overlay.getByTitle("Opções do gravador").click();
+      await overlay
+        .getByText("Testando o codificador nesta tela…")
+        .waitFor({ state: "detached", timeout: 60_000 })
+        .catch(() => notes.push("O codificador de 60 qps ainda era testado ao gravar."));
+      await overlay
+        .getByRole("group", { name: "Microfone", exact: true })
+        .locator("select")
+        .selectOption("");
+      // A short real take, only drawn on and thrown away: nothing of it reaches the lesson.
+      await overlay.locator(".rec-go").click();
+      const pill = overlay.locator(".rec-pill");
+      await pill.locator(".rec-time").waitFor({ timeout: 60_000 });
+      await delay(1500);
+      await overlay.getByTitle(/^Desenhar na tela/).click();
+      const canvas = overlay.locator(".rec-draw.is-on");
+      await canvas.waitFor();
+      // Drawn over the region being recorded (the window picked).
+      const area = await overlay.locator(".rec-region").boundingBox();
+      assert.ok(area, "the drawing layer");
+      const cx = area.x + area.width / 2;
+      const cy = area.y + area.height / 2;
+      await overlay.mouse.move(cx - 160, cy - 40);
+      await overlay.mouse.down();
+      for (let i = 0; i <= 24; i++)
+        await overlay.mouse.move(cx - 160 + i * 14, cy - 40 + Math.sin(i / 3) * 40);
+      await overlay.mouse.up();
+      await overlay.locator(".rec-draw-color").nth(1).click();
+      await overlay.mouse.move(cx - 60, cy + 70);
+      await overlay.mouse.down();
+      await overlay.mouse.move(cx + 120, cy + 70, { steps: 12 });
+      await overlay.mouse.up();
+      await captureOverlay(
+        overlay,
+        "gravador-desenho-na-tela",
+        "Desenho na tela durante a gravação",
+      );
+      await captureOverlay(
+        overlay.locator(".rec-draw-tools"),
+        "gravador-desenho-ferramentas",
+        "Ferramentas do desenho",
+        ["escuro", "claro"],
+      );
+      // The white board (B): drawn on it with the dark ink, a straight stroke with Shift, and
+      // the arrow; then a new page (P) and the black board (N).
+      await overlay.keyboard.press("b");
+      await overlay.getByTitle("Quadro branco (B)").and(overlay.locator(".is-active")).waitFor();
+      await overlay.mouse.move(cx - 200, cy - 80);
+      await overlay.mouse.down();
+      for (let i = 0; i <= 20; i++)
+        await overlay.mouse.move(cx - 200 + i * 12, cy - 80 + Math.cos(i / 2.5) * 30);
+      await overlay.mouse.up();
+      await overlay.keyboard.down("Shift");
+      await overlay.mouse.move(cx - 200, cy + 40);
+      await overlay.mouse.down();
+      await overlay.mouse.move(cx + 40, cy + 70, { steps: 6 });
+      await overlay.mouse.up();
+      await overlay.keyboard.up("Shift");
+      await overlay.getByRole("button", { name: "Seta", exact: true }).click();
+      await overlay.mouse.move(cx + 120, cy + 120);
+      await overlay.mouse.down();
+      await overlay.mouse.move(cx + 260, cy + 10, { steps: 6 });
+      await overlay.mouse.up();
+      await captureOverlay(
+        overlay,
+        "gravador-quadro-branco",
+        "Quadro branco sobre a região, com caneta, traço reto, seta e a barra de teclas",
+        ["escuro"],
+      );
+      await overlay.keyboard.press("n");
+      await overlay.getByRole("button", { name: "Marca-texto", exact: true }).click();
+      await overlay.mouse.move(cx - 150, cy);
+      await overlay.mouse.down();
+      await overlay.mouse.move(cx + 150, cy, { steps: 8 });
+      await overlay.mouse.up();
+      await captureOverlay(
+        overlay,
+        "gravador-quadro-negro",
+        "Quadro negro com o marca-texto em giz claro",
+        ["escuro"],
+      );
+      // Esc leaves the drawing (and the board).
+      await overlay.keyboard.press("Escape");
+      await overlay.locator(".rec-draw-tools").waitFor({ state: "detached" });
+      await captureOverlay(
+        pill,
+        "gravador-pilula-gravando",
+        "Pílula durante a gravação, com o descarte",
+        ["escuro", "claro"],
+      );
+      // The confirmation is answered in the page (a native dialog of the transparent window is
+      // not reliably reachable): it must be asked, and "yes" throws the take away.
+      await overlay.evaluate(() => {
+        window.confirm = (message?: string) => {
+          Reflect.set(window, "__ediVisualConfirm", String(message));
+          return true;
+        };
+      });
+      await overlay.getByTitle("Descartar este take e recomeçar").click();
+      await overlay.locator(".rec-dock").waitFor({ timeout: 30_000 });
+      assert.match(
+        String(await overlay.evaluate(() => Reflect.get(window, "__ediVisualConfirm"))),
+        /^Descartar este take\?/,
+      );
+      await captureOverlay(
+        overlay.locator(".rec-dock"),
+        "gravador-depois-do-descarte",
+        "Gravador de volta à preparação depois de descartar o take",
+        ["escuro"],
+      );
+      // Back to the defaults for the rest of the run.
+      await overlay.getByTitle("Opções do gravador").click();
+      await options
+        .locator("label", { hasText: "Quadros por segundo" })
+        .locator("select")
+        .selectOption("30");
+      await options
+        .locator("label", { hasText: "Contagem antes de gravar" })
+        .locator("select")
+        .selectOption("3");
+      await overlay.getByTitle("Opções do gravador").click();
+      await region.selectOption("full");
+      const closed = overlay.waitForEvent("close");
+      await overlay.getByTitle("Fechar sem gravar").click();
+      await closed;
+      overlay = null;
+      lastPage = editor;
+    } finally {
+      testWindow.kill();
+      if (overlay && !overlay.isClosed()) await overlay.close().catch(() => undefined);
+    }
   });
 
   await step("Gravador no modo guiado", async () => {

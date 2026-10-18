@@ -1,28 +1,46 @@
 import type { Clip } from "@shared/types";
-import type { ZoomLayer } from "@shared/zoomLayer";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { setZoomLayer } from "@/lib/zoomLayer";
 
 const clampCenter = (v: number, scale: number): number =>
   Math.min(1 - 0.5 / scale, Math.max(0.5 / scale, v));
 
+interface Focus {
+  scale: number;
+  x: number;
+  y: number;
+}
+
 /**
- * While a zoom layer is selected, the preview shows the frame without it and this box: the part
- * that will fill the screen. Drag it to move the zoom; the mouse wheel changes how close it gets.
+ * The part of a picture a zoom fills the screen with, over that picture (`left`, `top`,
+ * `width` × `height` in the preview): drag the box to move the zoom, the mouse wheel changes how
+ * close it gets. The zoom layer and the recording's zooms both use it.
  */
-export function ZoomTarget({
-  clip,
+export function FocusBox({
+  focus,
+  left = 0,
+  top = 0,
   width,
   height,
+  min = 1,
+  onCommit,
 }: {
-  clip: Clip;
+  focus: Focus;
+  left?: number;
+  top?: number;
   width: number;
   height: number;
+  /** Least zoom the wheel goes to. */
+  min?: number;
+  onCommit: (change: Partial<Focus>) => void;
 }): ReactNode {
-  const z = clip.zoomLayer!;
-  const [draft, setDraft] = useState<ZoomLayer>(z);
+  const [draft, setDraft] = useState<Focus>(focus);
   const wheelTimer = useRef<number | undefined>(undefined);
-  useEffect(() => setDraft(z), [z]);
+  // A new value from outside (undo, the panel), compared by value: the parent may rebuild it.
+  useEffect(
+    () => setDraft({ scale: focus.scale, x: focus.x, y: focus.y }),
+    [focus.scale, focus.x, focus.y],
+  );
   const s = draft.scale;
   const x = clampCenter(draft.x, s);
   const y = clampCenter(draft.y, s);
@@ -44,22 +62,22 @@ export function ZoomTarget({
     const up = (): void => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
-      setZoomLayer(clip.id, { x: last.x, y: last.y });
+      onCommit({ x: last.x, y: last.y });
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
   };
   const wheel = (e: React.WheelEvent): void => {
-    const next = Math.min(5, Math.max(1, s * Math.exp(-e.deltaY * 0.0015)));
+    const next = Math.min(5, Math.max(min, s * Math.exp(-e.deltaY * 0.0015)));
     setDraft({ ...draft, scale: next });
     window.clearTimeout(wheelTimer.current);
     wheelTimer.current = window.setTimeout(
-      () => setZoomLayer(clip.id, { scale: Math.round(next * 100) / 100 }),
+      () => onCommit({ scale: Math.round(next * 100) / 100 }),
       250,
     );
   };
   return (
-    <div className="zoom-target-shade" onWheel={wheel}>
+    <div className="zoom-target-shade" style={{ left, top, width, height }} onWheel={wheel}>
       <div
         className="zoom-target"
         style={{ left: (x - 0.5 / s) * width, top: (y - 0.5 / s) * height, width: w, height: h }}
@@ -69,5 +87,29 @@ export function ZoomTarget({
         <span>{s.toFixed(1)}×</span>
       </div>
     </div>
+  );
+}
+
+/**
+ * While a zoom layer is selected, the preview shows the frame without it and this box: the part
+ * that will fill the screen.
+ */
+export function ZoomTarget({
+  clip,
+  width,
+  height,
+}: {
+  clip: Clip;
+  width: number;
+  height: number;
+}): ReactNode {
+  const z = clip.zoomLayer!;
+  return (
+    <FocusBox
+      focus={{ scale: z.scale, x: z.x, y: z.y }}
+      width={width}
+      height={height}
+      onCommit={(change) => setZoomLayer(clip.id, change)}
+    />
   );
 }

@@ -16,7 +16,7 @@ import { create } from "zustand";
 import { projectSpeech } from "@/lib/audio";
 import { ensureCursorSprites } from "@/lib/cursorRender";
 import { exportTranslations, platformInput } from "@/lib/delivery";
-import { keyIsCurrent } from "@/lib/keying";
+import { keyIsCurrent, renderKeyFile } from "@/lib/keying";
 import { timelineKeys } from "@/lib/keysOnScreen";
 import { ensureRevealSprites } from "@/lib/reveal";
 import { loadAssetTranscript } from "@/lib/transcripts";
@@ -163,15 +163,7 @@ export const exportQueue = new ExportQueue(
         for (const a of project.assets) {
           if (!used.has(a.id) || !a.key || keyIsCurrent(a)) continue;
           status("preparing", `Removendo fundo: ${a.name}`);
-          a.keyed = await window.api.renderKeyed(
-            id,
-            a.path,
-            a.width,
-            a.height,
-            a.fps,
-            a.duration,
-            a.key,
-          );
+          a.keyed = await renderKeyFile(id, a, a.key);
           check();
           a.keyedId = keyId(a.key);
           a.keyStatus = "ready";

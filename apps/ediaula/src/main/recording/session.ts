@@ -9,6 +9,7 @@ import {
   microphoneArgs,
   screenArgs,
 } from "../../shared/captureArgs.ts";
+import type { BoardKind, DrawingTool } from "../../shared/drawing.ts";
 import {
   type CaptureEncoder,
   captureEncoderLabel,
@@ -28,8 +29,14 @@ import {
 } from "../../shared/recording.ts";
 import type { RecorderHealth } from "../../shared/recordingHealth.ts";
 import type { MediaSource } from "../../shared/recordingJournal.ts";
+import {
+  type RegionRect,
+  WINDOW_PROBLEMS,
+  type WindowProblem,
+  windowProblem,
+} from "../../shared/region.ts";
 import type { HookClient } from "../nativeHelper.ts";
-import { qpc } from "../nativeHelper.ts";
+import { LoopbackClient, qpc } from "../nativeHelper.ts";
 import { finalizeTake } from "./finalize.ts";
 import { HealthMonitor } from "./health.ts";
 import { type JournalWriter, SessionJournal } from "./journal.ts";
@@ -70,7 +77,18 @@ export interface SessionSetup {
   deviceName?: (kind: "audio" | "video", name: string) => string;
   /** Tests only: where the journal's lines go. */
   journalWriter?: JournalWriter;
+  /**
+   * The native route of the computer's sound writing to `file` (default: the helper's loopback
+   * mode, leaving out this process's whole tree). Tests replace it.
+   */
+  loopback?: (file: string) => SystemLoopback;
 }
+
+/** What the session needs of main/nativeHelper.ts LoopbackClient. */
+export type SystemLoopback = Pick<LoopbackClient, "start" | "stop" | "kill" | "on">;
+
+/** The native route's part of the computer's sound (shared/systemAudio.ts). */
+export const NATIVE_SYSTEM_FILE = "sistema-0.wav";
 
 /** A pause longer than this closes the screen and camera parts. */
 export const LONG_PAUSE_MS = 5 * 60 * 1000;
@@ -132,10 +150,16 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
   private cursorState: RecorderHealth["cursor"];
   private cameraState: RecorderHealth["camera"];
   private system: { started: boolean; lastAt: number } = { started: false, lastAt: 0 };
+  /** The helper capturing the computer's sound on the native route. */
+  private loopback: SystemLoopback | null = null;
+  private readonly makeLoopback: (file: string) => SystemLoopback;
   private lastRects = "";
   /** When the teleprompter last moved (QPC ms): a line never starts before the one before it. */
   private lastLineAt = 0;
   private lastWarnings = "";
+  /** The window "Janela…" picked, followed by the helper, and what is wrong with it now. */
+  private followed: { hwnd: string; problem: WindowProblem } | null = null;
+  private drawing = false;
   private queue: Promise<unknown> = Promise.resolve();
 
   constructor(setup: SessionSetup) {
@@ -148,6 +172,8 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
     this.ffmpeg = setup.ffmpeg;
     this.reportEncoderFailure = setup.reportEncoderFailure;
     this.deviceName = setup.deviceName ?? ((_kind, name) => name);
+    this.makeLoopback =
+      setup.loopback ?? ((file) => new LoopbackClient({ excludePid: process.pid, file }));
     this.journal = new SessionJournal(
       setup.dir,
       (error) => this.journalFailed(error),
@@ -218,10 +244,14 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
       if (this.preserved) throw new Error("Gravação não preparada ou já preservada.");
       if (this.phase !== "prepared") throw new Error("Gravação já iniciada.");
       this.hook?.send({ cmd: "resume" });
-      const [screen, mic, camera] = await Promise.allSettled([
+      const [screen, mic, camera, system] = await Promise.allSettled([
         this.monitor ? this.openScreen(true) : Promise.resolve(null),
         this.opts.microphone ? this.openMic() : Promise.resolve(null),
         this.opts.camera ? this.openCamera() : Promise.resolve(null),
+        // Native route: the computer's sound without the app, written by the helper.
+        this.opts.systemAudio && this.opts.systemAudioRoute === "native"
+          ? this.openLoopback()
+          : Promise.resolve(),
       ]);
       // In "Voz e câmera" the camera is the presenter: a take without it is refused, like one
       // without its microphone.
@@ -230,14 +260,18 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
       if (failure?.status === "rejected") {
         this.hook?.send({ cmd: "pause" });
         await this.closeAll(true);
+        await this.loopback?.kill();
         throw failure === camera
           ? new Error(`A câmera não abriu: ${errorText(failure.reason)}`, { cause: failure.reason })
           : failure.reason;
       }
       if (camera.status === "rejected") this.cameraFailed(errorText(camera.reason), true);
+      // A capture of the computer's sound that did not open costs only that track.
+      if (system.status === "rejected") this.systemFailed(errorText(system.reason));
       const reference = this.procs.screen ?? this.procs.mic;
       if (!reference || reference.first === null) {
         await this.closeAll(true);
+        await this.loopback?.kill();
         throw new Error("Escolha a tela ou um microfone para gravar.");
       }
       this.origin = reference.first;
@@ -373,8 +407,9 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
       this.health?.stop();
       clearTimeout(this.longPause);
       this.phase = "stopping";
-      // The helper must let go of the journal before the folder goes.
+      // The helpers must let go of the journal and the sound before the folder goes.
       await this.hook?.kill();
+      await this.loopback?.kill();
       await this.closeAll(true);
       this.journal.close();
       await remove(this.dir);
@@ -452,6 +487,72 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
     });
   }
 
+  /**
+   * "Janela…": the helper follows this window during the take (its "win" events say where it is)
+   * and, with `front`, keeps it above the other windows until the take ends. null lets go.
+   */
+  followWindow(hwnd: string | null, front: boolean): void {
+    const hook = this.hook;
+    if (!hook) return;
+    const previous = this.followed?.hwnd;
+    if (previous && (previous !== hwnd || !front))
+      hook.send({ cmd: "front", hwnd: previous, on: false });
+    this.followed = hwnd ? { hwnd, problem: null } : null;
+    hook.send({ cmd: "follow", hwnd });
+    if (hwnd && front) hook.send({ cmd: "front", hwnd, on: true });
+  }
+
+  /** A stroke drawn on the screen (shared/drawing.ts): data in the journal, never in the video. */
+  drawStroke(stroke: {
+    at: number;
+    color: string;
+    width: number;
+    points: [number, number, number][];
+    tool?: DrawingTool;
+  }): void {
+    if (this.phase !== "recording" && this.phase !== "paused") return;
+    this.journal.write({
+      k: "draw",
+      qpc: stroke.at,
+      color: stroke.color,
+      width: stroke.width,
+      points: stroke.points,
+      ...(stroke.tool ? { tool: stroke.tool } : {}),
+    });
+  }
+
+  /** A board put over the region (on) or taken away at `at` (QPC ms): data, like the strokes. */
+  drawBoard(on: boolean, kind: BoardKind, at: number): void {
+    if (this.phase !== "recording" && this.phase !== "paused") return;
+    this.journal.write({ k: "drawBoard", qpc: at, on, kind });
+  }
+
+  /** "Página nova" of the board at `at` (QPC ms). */
+  drawPage(at: number): void {
+    if (this.phase !== "recording" && this.phase !== "paused") return;
+    this.journal.write({ k: "drawPage", qpc: at });
+  }
+
+  /** Ctrl+Z while drawing at `at` (QPC ms): the last stroke on screen is taken back. */
+  drawUndo(at: number): void {
+    if (this.phase !== "recording" && this.phase !== "paused") return;
+    this.journal.write({ k: "drawUndo", qpc: at });
+  }
+
+  /** "Apagar tudo" at `at` (QPC ms). */
+  drawClear(at: number): void {
+    if (this.phase !== "recording" && this.phase !== "paused") return;
+    this.journal.write({ k: "drawClear", qpc: at });
+  }
+
+  /** The drawing mode turned on or off: clicks while it is on are the pen. */
+  drawMode(on: boolean): void {
+    if (this.phase === "prepared" || this.phase === "finalized") return;
+    if (on === this.drawing) return;
+    this.drawing = on;
+    this.journal.write({ k: "drawMode", qpc: qpc(), on });
+  }
+
   /** The helper's key filter (the recorder's shortcuts never show on screen). */
   setKeyFilter(block: { vk: number; m: number }[], allow: string[]): void {
     this.hook?.send({ cmd: "keys", block, allow });
@@ -484,6 +585,8 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
     } finally {
       // Whatever happened above, the processes close and the helper writes its last lines.
       await this.closeAll(false);
+      // The computer's sound ends here too; its last line ("end") reaches the journal first.
+      await this.loopback?.stop();
       await this.hook?.stop();
     }
   }
@@ -701,6 +804,39 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
     return this.adopt(proc);
   }
 
+  /** The native route: the helper writes sistema-0.wav, its first and last sample in the journal. */
+  private async openLoopback(): Promise<void> {
+    const file = NATIVE_SYSTEM_FILE;
+    const client = this.makeLoopback(join(this.dir, file));
+    client.on("first", (at) => {
+      this.system.started = true;
+      this.system.lastAt = qpc();
+      this.journal.write({ k: "first", src: "system", part: 0, qpc: at, file });
+    });
+    client.on("beat", () => {
+      this.system.lastAt = qpc();
+    });
+    client.on("end", (at) => this.journal.write({ k: "end", src: "system", part: 0, qpc: at }));
+    client.on("failure", (error) => {
+      if (this.phase === "recording" || this.phase === "paused" || this.phase === "failed")
+        this.systemFailed(error.message);
+    });
+    await client.start();
+    this.loopback = client;
+  }
+
+  /** The computer's sound stopped (or never opened): the take goes on without it. */
+  private systemFailed(message: string): void {
+    this.journal.write({ k: "fail", src: "system", qpc: qpc(), message: message.slice(0, 4000) });
+    this.warnings.push(`O áudio do PC parou: ${message}`);
+    this.emitEvent({
+      source: "system",
+      level: "warning",
+      message: `O áudio do PC parou (${message}). A gravação segue sem ele.`,
+      actions: [],
+    });
+  }
+
   private cameraFailed(message: string, journal: boolean): void {
     this.cameraState = "failed";
     if (journal) this.journal.write({ k: "fail", src: "camera", qpc: qpc(), message });
@@ -758,6 +894,7 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
     if (!hook) return;
     hook.on("event", (event) => {
       if (event.e === "hb" || event.e === "ack") return;
+      if (event.e === "win") this.windowMoved(event);
       this.events.push(event);
       if (event.e === "ready" && this.cursorState === "restarting") this.cursorState = "ok";
     });
@@ -778,6 +915,31 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
         actions: [],
       });
     });
+  }
+
+  /** Physical pixels of the virtual desktop the take records; null without the screen. */
+  private captureRect(): RegionRect | null {
+    const m = this.monitor;
+    if (!m) return null;
+    const r = this.opts.region;
+    return r
+      ? { x: m.x + r.x, y: m.y + r.y, width: r.width, height: r.height }
+      : { x: m.x, y: m.y, width: m.width, height: m.height };
+  }
+
+  /** The followed window moved, was minimized or closed: the pill says so while it lasts. */
+  private windowMoved(event: Extract<HookEvent, { e: "win" }>): void {
+    const followed = this.followed;
+    const capture = this.captureRect();
+    if (!followed || !capture || event.hwnd !== followed.hwnd) return;
+    const problem = windowProblem(event, capture);
+    if (problem === followed.problem) return;
+    followed.problem = problem;
+    if (!problem) return;
+    const message = WINDOW_PROBLEMS[problem];
+    if (this.phase !== "prepared") this.journal.write({ k: "health", qpc: qpc(), note: message });
+    if (this.phase === "recording")
+      this.emitEvent({ source: "screen", level: "warning", message, actions: [] });
   }
 
   private startHealth(): void {
@@ -810,6 +972,7 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
       extraWarnings: () => {
         const out: string[] = [];
         if (this.journal.error) out.push("O diário da gravação não está sendo gravado.");
+        if (this.followed?.problem) out.push(WINDOW_PROBLEMS[this.followed.problem]);
         if (this.cursorState === "lost") out.push("Sem cursor: o vídeo continua gravando.");
         if (this.cameraState === "failed" && !this.cameraRequired)
           out.push("A câmera parou; a gravação segue sem ela.");

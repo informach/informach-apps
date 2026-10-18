@@ -8,6 +8,8 @@ import {
 } from "./anchors.ts";
 import { LANGUAGE_CODE } from "./captionTranslate.ts";
 import { GAIN_LIMIT } from "./gain.ts";
+import { CURSOR_POINTERS } from "./cursor.ts";
+import { DRAWING_TOOLS, MAX_STROKE_POINTS, MAX_STROKES } from "./drawing.ts";
 import { guidedStoreSchema } from "./guidedPlan.ts";
 import { DEVICES, REGION_KINDS } from "./look.ts";
 import { MARKER_LIMIT } from "./markers.ts";
@@ -76,6 +78,7 @@ const chroma = z.looseObject({
   softness: number.nonnegative(),
   despill: number,
   choke: number,
+  mode: z.literal("person").optional(),
 });
 const cursorPoint = z.looseObject({
   t: time,
@@ -98,6 +101,35 @@ export const cursorFxSchema = z.looseObject({
   hideIdle: z.boolean(),
   hidden: z.boolean().optional(),
   keys: z.boolean().optional(),
+  pointer: z.enum(CURSOR_POINTERS).optional(),
+  haloColor: color.optional(),
+  magnifier: z.boolean().optional(),
+  magnifierRadius: z.number().min(0.02).max(0.5).optional(),
+  magnifierZoom: z.number().min(1.1).max(6).optional(),
+  spotlight: z.boolean().optional(),
+  spotlightRadius: z.number().min(0.02).max(0.8).optional(),
+  spotlightDim: z.number().min(0).max(0.95).optional(),
+  clickSound: z.boolean().optional(),
+  clickVolume: z.number().min(0).max(1).optional(),
+  ranges: z
+    .array(
+      z.looseObject({
+        id,
+        start: time,
+        end: time,
+        // shared/cursor.ts CURSOR_RANGE_KEYS.
+        fx: z.looseObject({
+          halo: z.boolean().optional(),
+          clicks: z.boolean().optional(),
+          magnifier: z.boolean().optional(),
+          spotlight: z.boolean().optional(),
+          clickSound: z.boolean().optional(),
+          hidden: z.boolean().optional(),
+        }),
+      }),
+    )
+    .max(2000)
+    .optional(),
 });
 export const annotationSchema = z.looseObject({
   kind: z.enum([
@@ -112,6 +144,8 @@ export const annotationSchema = z.looseObject({
     "lowerthird",
     "panel",
     "line",
+    "drawing",
+    "board",
   ]),
   text: text.optional(),
   color,
@@ -152,6 +186,33 @@ export const annotationSchema = z.looseObject({
   ink: color.optional(),
   accent: color.optional(),
   reveal: z.enum(["words", "draw"]).optional(),
+  /** Strokes drawn on the screen during a take (shared/drawing.ts), in the clip's source seconds. */
+  drawing: z
+    .looseObject({
+      strokes: z
+        .array(
+          z.looseObject({
+            t: time,
+            color,
+            width: number.positive(),
+            points: z
+              .array(z.tuple([number, number, time]))
+              .min(1)
+              .max(MAX_STROKE_POINTS),
+            tool: z.enum(DRAWING_TOOLS).optional(),
+            until: time.optional(),
+          }),
+        )
+        .max(MAX_STROKES),
+      clears: z.array(time).max(MAX_STROKES),
+      boards: z
+        .array(z.looseObject({ start: time, end: time, color }))
+        .max(MAX_STROKES)
+        .optional(),
+      pages: z.array(time).max(MAX_STROKES).optional(),
+      pointer: z.looseObject({ assetId: id, offset }).optional(),
+    })
+    .optional(),
 });
 const zooms = z
   .array(
@@ -637,6 +698,9 @@ export const projectSchema = z
  * Renderer may not supply native filter-script or font-directory paths. A video needs a bitrate;
  * only the podcast (sound only) goes without one.
  */
+/** Source stretches of a cursor effect (shared/cursor.ts fxWhere). */
+const spans = z.array(z.tuple([time, time])).max(20000);
+
 export const exportSpecSchema = z
   .strictObject({
     outPath: path.min(1),
@@ -689,6 +753,22 @@ export const exportSpecSchema = z
               (values) => values.length % 2 === 0 && values.length <= 4_000_000,
               "Invalid cursor positions",
             ),
+          magnifier: z
+            .strictObject({
+              radius: z.int().positive().max(8192),
+              side: z.int().positive().max(16384),
+              on: spans,
+            })
+            .optional(),
+          spotlight: z
+            .strictObject({
+              picture: path.min(1),
+              width: z.int().positive().max(16384),
+              height: z.int().positive().max(16384),
+              on: spans,
+            })
+            .optional(),
+          clicks: path.min(1).optional(),
         }),
       )
       .optional(),

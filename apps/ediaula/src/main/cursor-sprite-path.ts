@@ -10,3 +10,8 @@ const spriteId = z
 export function cursorSpritePath(directory: string, id: unknown): string {
   return join(directory, `cursor-${spriteId.parse(id)}.webm`);
 }
+
+/** The click sound of a recording (FLAC), by the same kind of cache key. */
+export function cursorClicksPath(directory: string, id: unknown): string {
+  return join(directory, `clicks-${spriteId.parse(id)}.flac`);
+}

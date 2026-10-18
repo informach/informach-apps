@@ -1,6 +1,8 @@
 import type { CameraChoice } from "./camera.ts";
+import type { Drawing } from "./drawing.ts";
 import type { CaptureQuality } from "./encoderChoice.ts";
 import type { GuidedReplace, GuidedStore } from "./guidedPlan.ts";
+import type { SystemAudioRoute } from "./systemAudio.ts";
 import type { VoiceSegment } from "./voiceMaster.ts";
 
 /** Screen recording made by EdiAula: sources, options, and what a finished take hands over. */
@@ -19,6 +21,20 @@ export interface CaptureMonitor {
   label: string;
   /** Position in window coordinates (DIP), to place the recorder over it. */
   dip?: { x: number; y: number; width: number; height: number };
+}
+
+/** A window "Janela…" can record: physical pixels of the virtual desktop. */
+export interface CaptureWindow {
+  /** Window handle as decimal text (the helper's `follow` and `front` take it). */
+  hwnd: string;
+  title: string;
+  /** Executable path, when Windows tells it. */
+  exe: string | null;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  minimized: boolean;
 }
 
 export interface CaptureSources {
@@ -42,8 +58,13 @@ export interface RecordOptions {
   keys?: boolean;
   fps: number;
   quality?: CaptureQuality;
-  /** The recorder window sends the computer's sound in chunks (recorder:systemChunk). */
+  /** Record the computer's sound (shared/systemAudio.ts). */
   systemAudio?: boolean;
+  /**
+   * "native": the helper captures it without any sound of the app (sistema-0.wav);
+   * "chromium" (default): the recorder window sends it in chunks (recorder:systemChunk).
+   */
+  systemAudioRoute?: SystemAudioRoute;
   /** "voice": only the microphone, kept as PCM; "voicecam": the same voice with the camera
    *  recording the presenter beside it; "over": the screen over the lesson's voice. */
   mode?: RecordMode;
@@ -93,6 +114,10 @@ export interface RecorderContext {
    * of `teleprompter`), the ones missing from the lesson or only partly in it, one take each.
    */
   retakeLines?: number[];
+  /** The open lesson's frame: the "Resolução da aula" region preset. */
+  lesson?: { width: number; height: number; fps: number };
+  /** The lesson's palette colors (#RRGGBB), for drawing on the screen. */
+  palette?: string[];
 }
 
 /** What the recorder needs to play the lesson's voice and show it while the screen is recorded. */
@@ -285,6 +310,8 @@ export interface RecordingResult {
   markers: { t: number; kind: MarkerKind }[];
   /** Teleprompter line shown from each moment. */
   lines?: { t: number; index: number }[];
+  /** Strokes drawn on the screen during the take, in seconds of the take (shared/drawing.ts). */
+  drawing?: Drawing;
   /** What kind of take this was; absent for a screen recording. */
   mode?: Exclude<RecordMode, "screen">;
   /** "Tela sobre a narração": the plan, and at moments of the take (`t`, seconds without the
@@ -350,6 +377,78 @@ export function retakeCuts(
     const after = pauses.find((p) => p[1] > m.t);
     const start = before ? mid(before) : Math.max(0, m.t - 10);
     const end = after ? Math.max(mid(after), m.t) : m.t;
+    if (end - start > 0.2 && end - start <= 40) cuts.push([start, end]);
+  }
+  return cuts;
+}
+
+/** A word of the voice, in seconds of the take (the microphone's own seconds). */
+export interface TakeWord {
+  start: number;
+  end: number;
+  text: string;
+}
+
+/** A word as compared: lower case, without accents or punctuation. */
+const token = (text: string): string =>
+  text
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "");
+
+/** Where a sentence ends: its last word closes it, or a long silence follows it. */
+const closes = (word: TakeWord, next: TakeWord | undefined): boolean =>
+  /[.!?…]["»”)]*$/.test(word.text.trim()) || (!!next && next.start - word.end > 0.7);
+
+/**
+ * Ranges (seconds of the take) to cut for each Ctrl+Shift+R by the words of the voice: the
+ * teacher repeats what went wrong, so before the press it looks for the last time the first two
+ * or three words said after it were said; the cut goes from there to where the passage starts
+ * again. When they were not said before, it goes from the start of the sentence the press
+ * interrupted. Each edge falls in the middle of the pause beside it (at most 0.15 s into it), so
+ * no syllable is clipped. Without a transcript, retakeCuts finds the pauses by the volume.
+ */
+export function retakeCutsFromWords(
+  markers: { t: number; kind: MarkerKind }[],
+  words: readonly TakeWord[],
+): [number, number][] {
+  const list = words
+    .filter((w) => token(w.text) && w.end >= w.start)
+    .sort((a, b) => a.start - b.start);
+  const cuts: [number, number][] = [];
+  const before = (i: number): number => {
+    const w = list[i];
+    const prev = list[i - 1];
+    return prev ? Math.max(prev.end, w.start - Math.min(0.15, (w.start - prev.end) / 2)) : w.start;
+  };
+  for (const m of markers) {
+    if (m.kind !== "retake") continue;
+    // The passage said again: the first words that start after the press.
+    const again = list.findIndex((w) => w.start >= m.t);
+    if (again < 0) continue;
+    let from = -1;
+    for (const size of [3, 2]) {
+      const wanted = list.slice(again, again + size).map((w) => token(w.text));
+      if (wanted.length < size) continue;
+      for (let j = again - size; j >= 0; j--) {
+        if (list[j].start < m.t - 40) break;
+        if (wanted.every((t, k) => token(list[j + k].text) === t)) {
+          from = j;
+          break;
+        }
+      }
+      if (from >= 0) break;
+    }
+    if (from < 0) {
+      // The start of the sentence the press interrupted.
+      let j = again - 1;
+      while (j > 0 && !closes(list[j - 1], list[j]) && list[j - 1].start >= m.t - 40) j--;
+      from = j;
+    }
+    if (from < 0 || from >= again) continue;
+    const start = before(from);
+    const end = before(again);
     if (end - start > 0.2 && end - start <= 40) cuts.push([start, end]);
   }
   return cuts;

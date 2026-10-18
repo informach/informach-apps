@@ -19,17 +19,20 @@ import {
   type RecordingResult,
   type RecordMode,
   retakeCuts,
+  retakeCutsFromWords,
 } from "@shared/recording";
 import { layoutRecording, type RecordingLayout } from "@shared/recordingImport";
 import { speechItems } from "@shared/script";
 import { alignSection } from "@shared/scriptAlign";
-import { clipEnd, timelineAt } from "@shared/timeline";
+import { sourceEnd, timelineAt } from "@shared/timeline";
 import type { Asset, Project } from "@shared/types";
 import { voiceClips, voiceSegments, voiceSpan, voiceTakeStart } from "@shared/voiceMaster";
 import { voiceTakes } from "@shared/voiceTakes";
+import { autoZoomRecording } from "@/editor/RecordingProps";
 import { useApp } from "@/state/app";
 import { usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
+import { placeTakeDrawing } from "./drawing";
 import { enrich, importMedia } from "./importMedia";
 import { loadWaveform, mediaUrl } from "./media";
 import { requestMotion } from "./motion";
@@ -39,7 +42,7 @@ import { recorderKey } from "./recorderKeys";
 import { recordingImported } from "./recordingHooks";
 import { takeRetake } from "./retake";
 import { scriptDoc } from "./script";
-import { loadProjectTranscripts } from "./transcripts";
+import { loadAssetTranscript, loadProjectTranscripts } from "./transcripts";
 import { proposeVoiceCleanup, treatVoices } from "./voice";
 
 /** The take's folder name, which identifies it (Asset.recording.id). */
@@ -139,6 +142,24 @@ export async function openRecorder(request: RecorderRequest = {}): Promise<void>
     ...(request.mode ? { mode: request.mode } : {}),
     ...(over ? { over } : {}),
     ...(p ? { projectId: p.id } : {}),
+    // The lesson's frame (the "Resolução da aula" region) and its colors for drawing on screen.
+    ...(p
+      ? {
+          lesson: {
+            width: p.settings.width,
+            height: p.settings.height,
+            fps: p.settings.fps,
+          },
+          // The accent first: it is the pen's color over the screen.
+          palette: [
+            ...new Set(
+              [activePalette(p).roles.accent, ...activePalette(p).colors.map((c) => c.hex)]
+                .map((hex) => hex.slice(0, 7).toUpperCase())
+                .filter((hex) => /^#[\dA-F]{6}$/.test(hex)),
+            ),
+          ].slice(0, 32),
+        }
+      : {}),
     ...(p?.guided ? { guided: p.guided } : {}),
     ...(request.guidedReplace ? { guidedReplace: request.guidedReplace } : {}),
     ...(request.retakeLines?.length ? { retakeLines: request.retakeLines } : {}),
@@ -476,14 +497,28 @@ export async function importRecording(r: RecordingResult): Promise<void> {
     });
   const roleIds = (role: string): string[] =>
     layout?.roles.filter((x) => x.role === role).map((x) => x.assetId) ?? [];
+  // What was drawn on the screen during the take, as a "desenho" clip over it.
+  if (r.drawing?.strokes.length || r.drawing?.boards?.length)
+    await placeTakeDrawing(r, layout).catch((error: unknown) =>
+      toast(
+        `O desenho feito na tela não entrou na aula: ${error instanceof Error ? error.message : String(error)}`,
+        "error",
+      ),
+    );
   // Where the screen stands still, found in the background for the cleanup.
   const now = useProject.getState().project;
   if (now) requestMotion(now);
+  // The automatic zoom of the recorder's options, on each screen of the take that has a cursor.
+  // The boards put over the screen while drawing get no zoom (the screen is under them).
+  const zoomed = await autoZoomTake(
+    roleIds("screen"),
+    r.screen ? (r.drawing?.boards ?? []).map((b): [number, number] => [b.start, b.end]) : [],
+  );
 
   const markers = r.markers.filter((m) => m.kind === "marker").length;
   const camera = layout.placed.some((c) => roleIds("camera").includes(c.assetId));
   toast(
-    `Gravação de ${Math.round(layout.duration)} s adicionada${camera ? (presenter ? " com o vídeo do apresentador" : " com a câmera") : ""}${markers ? ` · ${plural(markers, "marcador", "marcadores")}` : ""}.`,
+    `Gravação de ${Math.round(layout.duration)} s adicionada${camera ? (presenter ? " com o vídeo do apresentador" : " com a câmera") : ""}${markers ? ` · ${plural(markers, "marcador", "marcadores")}` : ""}${zoomed ? ` · ${plural(zoomed, "zoom automático", "zooms automáticos")}` : ""}.`,
     "success",
   );
   const notes = [...(r.warnings ?? []), ...(r.encoderIssues ?? [])];
@@ -519,7 +554,7 @@ export async function importRecording(r: RecordingResult): Promise<void> {
     void treatVoices([voice.id], "teacher");
     void proposeTakes(voice.id);
   } else if (mic && r.markers.some((m) => m.kind === "retake"))
-    void proposeRetakes(mic.id, done, r.markers);
+    void proposeRetakes(mic.id, r.markers);
   const failures = await recordingImported({
     result: r,
     layout: done,
@@ -546,44 +581,120 @@ export async function importRecording(r: RecordingResult): Promise<void> {
 }
 
 /**
- * Redo presses (Ctrl+Shift+R by default) become a cut proposal once the voice's audio envelope is ready: each kept
- * stretch of the take gets the cuts of the presses inside it.
+ * The automatic zoom of a new take on each of its screens with a cursor, when the recorder's
+ * options ask for it (on by default). Returns how many zooms it made.
  */
-async function proposeRetakes(
-  voiceId: string,
-  layout: RecordingLayout,
-  markers: RecordingResult["markers"],
-): Promise<void> {
+async function autoZoomTake(
+  screenIds: string[],
+  exclude: readonly [number, number][],
+): Promise<number> {
+  const settings = await window.api.recorder.settings();
+  if (!settings.autoZoom) return 0;
+  let total = 0;
+  for (const id of screenIds) {
+    const asset = useProject.getState().project?.assets.find((a) => a.id === id);
+    if (!asset?.cursor) continue;
+    try {
+      total += await autoZoomRecording(asset, exclude);
+    } catch (error) {
+      useApp
+        .getState()
+        .toast(`O zoom automático de ${asset.name} não saiu: ${(error as Error).message}`, "error");
+    }
+  }
+  return total;
+}
+
+/**
+ * Redo presses (Ctrl+Shift+R by default) become a cut proposal: by the voice's words when it is
+ * already transcribed (shared/recording.ts retakeCutsFromWords), otherwise by its volume once the
+ * audio envelope is ready, replaced by the words if the voice is transcribed while that proposal
+ * still waits. Each clip of the voice gets the cuts it holds whole.
+ */
+async function proposeRetakes(voiceId: string, markers: RecordingResult["markers"]): Promise<void> {
   let asset: Asset | undefined;
   for (let i = 0; i < 120; i++) {
     asset = useProject.getState().project?.assets.find((a) => a.id === voiceId);
-    if (asset?.waveform) break;
+    if (asset?.waveform || asset?.transcriptStatus === "ready") break;
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
   const p = useProject.getState().project;
-  if (!p || !asset?.waveform) return;
-  // The cut times are read from this state of the project; showProposal refuses them if it changed.
-  const revision = useProject.getState().revision;
-  const wave = await loadWaveform(asset.waveform);
-  const cuts: [number, number][] = [];
-  for (const piece of layout.pieces) {
-    const clip = piece.voice && p.clips.find((c) => c.id === piece.voice?.id);
-    if (!clip) continue;
-    // The voice starts at the take's second 0: take seconds are its own seconds.
-    const presses = markers.filter((m) => m.t >= piece.from && m.t <= piece.to);
-    for (const [a, b] of retakeCuts(presses, wave.peaks, wave.peaksPerSecond)) {
-      const range: [number, number] = [timelineAt(clip, a), timelineAt(clip, b)];
-      if (range[0] >= clip.start && range[1] <= clipEnd(clip)) cuts.push(range);
-    }
+  if (!p || !asset) return;
+  const title = `Trechos para refazer (${recorderKey("retake")})`;
+  // With the words of the voice, the cut starts where the passage said again was first said.
+  const fromWords = await retakeWordCuts(p, asset, markers);
+  if (fromWords) {
+    await showRetakes(p, asset.id, title, fromWords, "pelas palavras");
+    return;
   }
-  if (!cuts.length) return;
-  const msg = await showProposal(
+  if (!asset.waveform) return;
+  const wave = await loadWaveform(asset.waveform);
+  await showRetakes(
     p,
-    `Trechos para refazer (${recorderKey("retake")})`,
-    cuts.map(([start, end]) => ({
+    asset.id,
+    title,
+    retakeCuts(markers, wave.peaks, wave.peaksPerSecond),
+    "pelo volume",
+  );
+  // When the voice is transcribed later and that proposal is still waiting, the words take its
+  // place (a proposal applied or thrown away is left alone).
+  const id = asset.id;
+  const projectId = p.id;
+  const stop = useProject.subscribe((s) => {
+    const now = s.project;
+    if (!now || now.id !== projectId) {
+      stop();
+      return;
+    }
+    const voice = now.assets.find((a) => a.id === id);
+    if (voice?.transcriptStatus !== "ready") return;
+    stop();
+    if (!(now.proposals ?? []).some((x) => x.by === "gravacao" && x.title === title)) return;
+    void retakeWordCuts(now, voice, markers).then((cuts) =>
+      cuts ? showRetakes(now, id, title, cuts, "pelas palavras") : undefined,
+    );
+  });
+}
+
+/** The cuts of the presses by the voice's words, or null when it has no transcript yet. */
+async function retakeWordCuts(
+  p: Project,
+  asset: Asset,
+  markers: RecordingResult["markers"],
+): Promise<[number, number][] | null> {
+  if (asset.transcriptStatus !== "ready" || !asset.transcript) return null;
+  const transcript = await loadAssetTranscript(p, asset);
+  const words = transcript.words.filter((w) => !w.dropped);
+  return words.length ? retakeCutsFromWords(markers, words) : null;
+}
+
+/** Shows cuts made in the voice's own seconds, through every clip of it that holds them whole. */
+async function showRetakes(
+  p: Project,
+  voiceId: string,
+  title: string,
+  cuts: [number, number][],
+  how: string,
+): Promise<void> {
+  // The cut times are read from this state of the project; showProposal refuses them if it changed.
+  const now = useProject.getState().project;
+  if (!now || now.id !== p.id) return;
+  const revision = useProject.getState().revision;
+  const ranges: [number, number][] = [];
+  for (const clip of now.clips) {
+    if (clip.assetId !== voiceId) continue;
+    for (const [a, b] of cuts)
+      if (a >= clip.in && b <= sourceEnd(clip))
+        ranges.push([timelineAt(clip, a), timelineAt(clip, b)]);
+  }
+  if (!ranges.length) return;
+  const msg = await showProposal(
+    now,
+    title,
+    ranges.map(([start, end]) => ({
       start,
       end,
-      reason: `marcado com ${recorderKey("retake")} durante a gravação`,
+      reason: `marcado com ${recorderKey("retake")} durante a gravação (corte achado ${how})`,
     })),
     revision,
     "gravacao",

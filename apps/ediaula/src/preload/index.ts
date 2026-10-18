@@ -56,8 +56,18 @@ const api: EdiAulaApi = {
   waveform: (path) => ipcRenderer.invoke("media:waveform", path),
   motion: (jobId, path, input, duration) =>
     ipcRenderer.invoke("media:motion", jobId, path, input, duration),
+  scenes: (jobId, path, input, duration) =>
+    ipcRenderer.invoke("media:scenes", jobId, path, input, duration),
   proxy: (jobId, path, duration, cfrFps, alpha) =>
     ipcRenderer.invoke("media:proxy", jobId, path, duration, cfrFps, alpha),
+  drawingVideo: {
+    cached: (id) => ipcRenderer.invoke("drawing:cached", id),
+    begin: (jobId, id, width, height, fps) =>
+      ipcRenderer.invoke("drawing:begin", jobId, id, width, height, fps),
+    frames: (jobId, frames, counts) => ipcRenderer.invoke("drawing:frames", jobId, frames, counts),
+    end: (jobId) => ipcRenderer.invoke("drawing:end", jobId),
+    cancel: (jobId) => ipcRenderer.invoke("drawing:cancel", jobId),
+  },
   cursorSprite: {
     cached: (path, id) => ipcRenderer.invoke("cursor:cached", path, id),
     begin: (jobId, path, id, size, fps, height) =>
@@ -65,6 +75,16 @@ const api: EdiAulaApi = {
     frames: (jobId, frames, counts) => ipcRenderer.invoke("cursor:frames", jobId, frames, counts),
     end: (jobId) => ipcRenderer.invoke("cursor:end", jobId),
     cancel: (jobId) => ipcRenderer.invoke("cursor:cancel", jobId),
+    clicks: (path, id, times, volume, duration) =>
+      ipcRenderer.invoke("cursor:clicks", path, id, times, volume, duration),
+  },
+  personKey: {
+    model: () => ipcRenderer.invoke("personKey:model"),
+    begin: (jobId, media) => ipcRenderer.invoke("personKey:begin", jobId, media),
+    frames: (jobId) => ipcRenderer.invoke("personKey:frames", jobId),
+    masks: (jobId, masks) => ipcRenderer.invoke("personKey:masks", jobId, masks),
+    end: (jobId) => ipcRenderer.invoke("personKey:end", jobId),
+    cancel: (jobId) => ipcRenderer.invoke("personKey:cancel", jobId),
   },
   recorder: {
     guidedPick: () => ipcRenderer.invoke("recorder:guidedPick"),
@@ -98,6 +118,7 @@ const api: EdiAulaApi = {
     encoder: (monitor, fps) => ipcRenderer.invoke("recorder:encoder", monitor, fps),
     prepare: (opts) => ipcRenderer.invoke("recorder:prepare", opts),
     start: () => ipcRenderer.invoke("recorder:start"),
+    systemAudioRoute: () => ipcRenderer.invoke("recorder:systemAudioRoute"),
     systemChunk: (bytes, startedAt, endedAt) =>
       ipcRenderer.invoke("recorder:systemChunk", bytes, startedAt, endedAt),
     pause: () => ipcRenderer.invoke("recorder:pause"),
@@ -109,7 +130,15 @@ const api: EdiAulaApi = {
     uiRects: (rects) => ipcRenderer.invoke("recorder:uiRects", rects),
     teleprompterLine: (index, at) => ipcRenderer.invoke("recorder:teleprompterLine", index, at),
     monitorMic: (device) => ipcRenderer.invoke("recorder:monitorMic", device),
-    cameraModes: (device) => ipcRenderer.invoke("recorder:cameraModes", device),
+    cameraModes: (device, fps) => ipcRenderer.invoke("recorder:cameraModes", device, fps),
+    windows: () => ipcRenderer.invoke("recorder:windows"),
+    followWindow: (hwnd, front) => ipcRenderer.invoke("recorder:followWindow", hwnd, front),
+    drawStroke: (stroke) => ipcRenderer.invoke("recorder:drawStroke", stroke),
+    drawClear: (at) => ipcRenderer.invoke("recorder:drawClear", at),
+    drawBoard: (on, kind, at) => ipcRenderer.invoke("recorder:drawBoard", on, kind, at),
+    drawPage: (at) => ipcRenderer.invoke("recorder:drawPage", at),
+    drawUndo: (at) => ipcRenderer.invoke("recorder:drawUndo", at),
+    drawMode: (on) => ipcRenderer.invoke("recorder:drawMode", on),
     settings: () => ipcRenderer.invoke("recorder:settings"),
     saveSettings: (settings) => ipcRenderer.invoke("recorder:saveSettings", settings),
     hotkeys: () => ipcRenderer.invoke("recorder:hotkeys"),

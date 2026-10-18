@@ -1,8 +1,9 @@
-import { buildTrack, cursorAt, cursorScale, ripplesAt } from "@shared/cursor";
+import { buildTrack } from "@shared/cursor";
 import type { Asset } from "@shared/types";
 import { zoomAt } from "@shared/zoom";
 import { cursorFxOf, loadCursorData } from "@/editor/CursorLayer";
-import { drawPointer, drawRipples } from "./cursorDraw";
+import { drawCursorScene } from "./cursorDraw";
+import { loadCursorImages } from "./cursorImages";
 import { mediaUrl } from "./media";
 
 /**
@@ -39,12 +40,18 @@ export async function stillPicture(asset: Asset, t: number): Promise<string> {
     const data = await loadCursorData(asset.cursor);
     const fx = cursorFxOf(asset);
     const track = buildTrack(data, fx, asset.duration);
-    const state = cursorAt(track, t);
     const k = canvas.width / data.width;
-    ctx.scale(k, k);
-    const unit = cursorScale(data, fx) * 1.1;
-    if (!fx.hidden && fx.clicks) drawRipples(ctx, ripplesAt(data, t, fx), 0, 0, unit);
-    drawPointer(ctx, state, state.x, state.y, unit, fx);
+    const images = await loadCursorImages(asset.cursor, data).catch(() => undefined);
+    // In the zoomed view; the magnifier enlarges the frame itself, like the video does.
+    drawCursorScene(ctx, {
+      data,
+      track,
+      fx,
+      t,
+      k,
+      images,
+      source: { image, width: image.naturalWidth, height: image.naturalHeight },
+    });
   }
   const blob = await new Promise<Blob>((resolve, reject) =>
     canvas.toBlob(

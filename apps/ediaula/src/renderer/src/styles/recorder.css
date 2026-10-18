@@ -906,3 +906,215 @@ html.is-recorder #root {
   color: var(--accent);
   font: 600 12px var(--font-ui);
 }
+
+/* Region size typed in physical pixels, and its proportion lock. */
+.rec-region-size {
+  width: 62px;
+  height: 22px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.18);
+  color: inherit;
+  font: 700 12px var(--font-mono, var(--font-ui));
+  text-align: right;
+  cursor: text;
+}
+.rec-region-lock {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+}
+.rec-region-lock.is-on {
+  background: rgba(0, 0, 0, 0.18);
+  opacity: 1;
+}
+
+/* "Janela…": the windows to fit the region to. */
+.rec-windows {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(560px, calc(100% - 32px));
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(21, 23, 28, 0.97);
+  border: 1px solid var(--line);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  font-size: 13px;
+  z-index: 40;
+}
+.rec-windows .rec-opt-head strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+}
+.rec-windows p {
+  margin: 0;
+}
+.rec-windows-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rec-windows-list button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--panel-2);
+  color: var(--text-1);
+  font: 500 13px var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+}
+.rec-windows-title {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rec-windows-list button:hover,
+.rec-windows-list button.is-active {
+  border-color: var(--accent);
+}
+
+/* Drawing on the screen during the take (the recorder window is never captured). */
+.rec-draw {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.rec-draw.is-on {
+  pointer-events: auto;
+  cursor: crosshair;
+}
+.rec-draw-tools {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(13, 14, 17, 0.94);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  font-size: 12.5px;
+  z-index: 30;
+}
+.rec-draw-tools button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--panel-3);
+  color: var(--text-1);
+  font: 600 12px var(--font-ui);
+  cursor: pointer;
+}
+.rec-draw-tools .rec-draw-color {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+}
+.rec-draw-tools .rec-draw-color.is-active {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.rec-draw-tools .rec-draw-width {
+  width: 28px;
+  padding: 0;
+  justify-content: center;
+}
+.rec-draw-tools .rec-draw-width i {
+  display: block;
+  border-radius: 50%;
+  background: var(--text-1);
+}
+.rec-draw-tools .rec-draw-width.is-active {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.rec-draw-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--line);
+}
+.rec-pill button.is-active {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.rec-draw-tools button.is-active,
+.rec-draw-tools .rec-draw-tool.is-active {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.rec-draw-tools .rec-draw-tool {
+  width: 30px;
+  padding: 0;
+  justify-content: center;
+}
+.rec-board-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+.rec-board-dot.is-white {
+  background: #ffffff;
+}
+.rec-board-dot.is-black {
+  background: #1e2622;
+}
+/* The keys of the drawing mode: a discreet bar at the foot of the region, out of the capture. */
+.rec-draw-keys {
+  position: absolute;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 14px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(13, 14, 17, 0.78);
+  color: var(--text-2);
+  font: 500 11.5px var(--font-ui);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 29;
+}
+.rec-draw-keys kbd {
+  margin-right: 4px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--panel-3);
+  color: var(--text-1);
+  font: 600 11px var(--font-mono);
+}

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createReadStream, existsSync, statSync } from "node:fs";
-import { mkdtemp, readFile, rm, unlink, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import type { Server } from "node:http";
 import { availableParallelism } from "node:os";
 import { basename, dirname, extname, join } from "node:path";
@@ -55,6 +55,7 @@ import { resetConversation, sendMessage, stopConversation, testKey } from "./ass
 import { forgetConversation, loadChat, saveChat } from "./conversations.ts";
 import { getCourseTemplate, localMusicPath, saveCourseTemplate } from "./courseTemplates.ts";
 import { registerCursorSprites } from "./cursorSprite.ts";
+import { registerDrawingVideos } from "./drawingVideo.ts";
 import {
   codexSelfTest,
   resetEngineSession,
@@ -87,6 +88,7 @@ import {
   proxy,
   run,
   screenMotion,
+  screenScenes,
   stillFrame,
   thumbnail,
   waveform,
@@ -104,6 +106,7 @@ import { startMcpServer } from "./mcpServer.ts";
 import { nativeResourcePath } from "./native-resources.ts";
 import { cancelOneShot, runOneShot } from "./oneShot.ts";
 import { inspectPackage, packProject, unpackProject } from "./package.ts";
+import { cancelPersonKey, registerPersonKey } from "./personKey.ts";
 import { exportVoice, locateVideo, VOICE_EXPORT_FOLDER } from "./presenterVideo.ts";
 import {
   createProject,
@@ -710,6 +713,32 @@ function registerIpc(): void {
       return motion;
     });
   });
+  ipcMain.handle("media:scenes", async (_e, ...raw: unknown[]) => {
+    const [jobId, path, input, duration] = z
+      .tuple([
+        z.string().min(1).max(200),
+        z.string().min(1).max(32768),
+        z.string().min(1).max(32768),
+        z
+          .number()
+          .positive()
+          .max(7 * 86400),
+      ])
+      .parse(raw);
+    // Both are files the editor already reads (the media and its proxy).
+    await desktopFiles.assertRead(path);
+    const decoded = await desktopFiles.assertRead(input);
+    return processingJob(jobId, "motion", (signal) =>
+      screenScenes(
+        jobId,
+        path,
+        decoded,
+        duration,
+        (ratio) => sendProgress({ id: jobId, ratio }),
+        signal,
+      ),
+    );
+  });
   ipcMain.handle(
     "media:proxy",
     async (_e, jobId: string, path: string, duration: number, cfrFps?: number, alpha?: unknown) =>
@@ -988,6 +1017,19 @@ function registerIpc(): void {
           if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
         }
       }
+      // The cursor images beside each cursor.json come with it (the pointer drawn as the system
+      // showed it): only the PNGs of its cursors folder, as the recorder saved them.
+      for (const asset of project.assets) {
+        const cursor: unknown = Reflect.get(asset, "cursor");
+        if (typeof cursor !== "string" || !linked.includes(cursor)) continue;
+        const folder = join(dirname(cursor), "cursors");
+        const names = await readdir(folder).catch((error: unknown) => {
+          if (error instanceof Error && "code" in error && error.code === "ENOENT") return [];
+          throw error;
+        });
+        for (const name of names)
+          if (/^[0-9a-f]{16}\.png$/.test(name)) await desktopFiles.grantRead(join(folder, name));
+      }
     }
     return project;
   });
@@ -1217,7 +1259,8 @@ function registerIpc(): void {
       !cancelOneShot(jobId) &&
       !cancelDownload(jobId) &&
       !cancelWhisper(jobId) &&
-      !cancelKey(jobId)
+      !cancelKey(jobId) &&
+      !cancelPersonKey(jobId)
     )
       cancel(jobId);
   });
@@ -1738,6 +1781,8 @@ app
     registerAiIpc();
     registerRecorder(() => win);
     registerCursorSprites();
+    registerDrawingVideos();
+    registerPersonKey();
     createWindow();
     void applyMcp();
     // A file of an earlier version may still hold the old permanent token.
