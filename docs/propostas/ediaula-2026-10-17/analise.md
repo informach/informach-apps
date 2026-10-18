@@ -506,6 +506,8 @@ O que já se sabe:
 - Uma única rodada local, entre umas 60, deu um resultado do `arnndn` completamente diferente das outras e não se repetiu. Pode haver um não determinismo raro no filtro.
 - O teste agora registra o processador no log (`processador …`), para comparar as rodadas.
 
+**Decisão da titular (18/10/2026):** publicar com o recurso como está e deixar essa medida como aviso no CI, sem bloquear. O teste continua rodando e escreve `AVISO: redução do chiado de … dB` no log quando fica abaixo de 10 dB; fora do CI (nesta máquina e nas de desenvolvimento) ele continua falhando. A próxima versão sai pela tag `edi-v0.1.6`. Quando a causa for encontrada e corrigida, o teste volta a bloquear também no CI.
+
 Próximo passo: comparar as entradas da cadeia entre o runner e esta máquina. Gravar como artefato do job o `cadeia`, o `level`, o trecho silencioso escolhido e o WAV intermediário, e rodar só `voiceChain.test.ts` num runner com o FFmpeg do cache e com o compilado do zero. Só depois decidir entre corrigir a cadeia, fixar o build do FFmpeg ou trocar o critério do teste. A tag da próxima tentativa precisa ser nova (`edi-v0.1.6` ou seguinte).
 
 ### Testes locais da verificação final (para a próxima sessão)
