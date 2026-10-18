@@ -53,3 +53,5 @@ Ferramentas compartilham as operações locais do editor. Cada execução perten
 ## Revisão de publicação
 
 O [review de publicação](../../docs/reviews/edifoto-2026-10-18/review-producao.md) registra o escopo simplificado e a verificação. Reaberturas usam gerações de textura independentes; a troca de projeto prepara pixels e original antes de publicar o novo estado. Gradientes preservam seu referencial em cortes, giros e escala desigual. Durante um traço, termine a pintura antes de trocar ou editar outro elemento. No painel avançado, a intensidade da camada multiplica a opacidade; não reproduz a semântica profissional de preenchimento.
+
+A recuperação compara o instante de captura dentro da transação de armazenamento: um encoder de uma página anterior não substitui uma cópia nova. O descarte mantém uma marca de ordem sem os pixels; páginas encerradas deixam de gravar. Cópias existentes continuam legíveis, sem mudar a versão do banco local.

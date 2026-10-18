@@ -11,6 +11,41 @@ export interface RecoveryDraft {
 }
 let database: Promise<IDBDatabase> | undefined;
 let queue: Promise<void> = Promise.resolve();
+let scheduled: ReturnType<typeof setTimeout> | undefined;
+let pageClosed = false;
+const captureTime = () => performance.timeOrigin + performance.now();
+function cancelScheduled(): void {
+  clearTimeout(scheduled);
+  scheduled = undefined;
+}
+type StoredRecovery = { id: "latest"; capturedAt: number } & (
+  | { discarded: true }
+  | { name: string; savedAt: number; bytes: Uint8Array }
+);
+/** Compare and write in one IDB transaction, including across renderer generations. */
+async function persistRecovery(record: StoredRecovery): Promise<void> {
+  const database = await db();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction("drafts", "readwrite"),
+      store = transaction.objectStore("drafts"),
+      request = store.get("latest");
+    request.onsuccess = () => {
+      const previous: unknown = request.result;
+      const capturedAt =
+        previous &&
+        typeof previous === "object" &&
+        "capturedAt" in previous &&
+        typeof previous.capturedAt === "number" &&
+        Number.isFinite(previous.capturedAt)
+          ? previous.capturedAt
+          : 0;
+      if (record.capturedAt >= capturedAt) store.put(record);
+    };
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = transaction.onabort = () =>
+      reject(new Error("Não foi possível atualizar a cópia de recuperação."));
+  });
+}
 function db(): Promise<IDBDatabase> {
   database ??= new Promise((resolve, reject) => {
     const request = indexedDB.open("edifoto-recovery", 1);
@@ -39,7 +74,11 @@ async function transact<T>(
 export async function readRecovery(): Promise<RecoveryDraft | undefined> {
   await queue;
   const result: unknown = await transact("readonly", (store) => store.get("latest"));
-  if (result === undefined) return undefined;
+  if (
+    result === undefined ||
+    (result && typeof result === "object" && "discarded" in result && result.discarded === true)
+  )
+    return undefined;
   if (
     typeof result !== "object" ||
     result === null ||
@@ -54,7 +93,10 @@ export async function readRecovery(): Promise<RecoveryDraft | undefined> {
   return { id: "latest", bytes: result.bytes, name: result.name, savedAt: result.savedAt };
 }
 export async function discardRecovery(): Promise<void> {
-  const pending = queue.then(() => transact("readwrite", (store) => store.delete("latest")));
+  if (pageClosed) return;
+  cancelScheduled();
+  const capturedAt = captureTime();
+  const pending = queue.then(() => persistRecovery({ id: "latest", capturedAt, discarded: true }));
   queue = pending.then(
     () => {},
     () => {},
@@ -74,15 +116,22 @@ export async function restoreRecovery(): Promise<void> {
   collectDocumentBitmaps();
 }
 export async function flushRecovery(): Promise<void> {
+  if (pageClosed) return;
+  // Capture order before copying canvases or awaiting encoders; completion order is not edit order.
+  const capturedAt = captureTime();
   const state = useDoc.getState();
   const snapshot = state.doc && state.dirty ? documentSnapshot(state.doc) : null;
   const operation = async () => {
     if (snapshot) {
       const bytes = await encodeSnapshot(snapshot);
-      await transact("readwrite", (store) =>
-        store.put({ id: "latest", name: snapshot.doc.name, savedAt: Date.now(), bytes }),
-      );
-    } else await transact("readwrite", (store) => store.delete("latest"));
+      await persistRecovery({
+        id: "latest",
+        capturedAt,
+        name: snapshot.doc.name,
+        savedAt: Date.now(),
+        bytes,
+      });
+    } else await persistRecovery({ id: "latest", capturedAt, discarded: true });
   };
   const pending = queue.then(operation, operation);
   queue = pending.then(
@@ -92,8 +141,7 @@ export async function flushRecovery(): Promise<void> {
   return pending;
 }
 export function startRecovery(): () => void {
-  let timer: ReturnType<typeof setTimeout> | undefined,
-    reported = false;
+  let reported = false;
   const save = () => {
     try {
       void flushRecovery().catch(failure);
@@ -120,12 +168,21 @@ export function startRecovery(): () => void {
       s.doc?.id === previous.doc?.id
     )
       return;
-    clearTimeout(timer);
+    cancelScheduled();
     // Debounce local backup encoding; user-triggered saving remains immediate.
-    timer = setTimeout(save, 1500);
+    scheduled = setTimeout(save, 1500);
   });
-  return () => {
+  const stopWriter = () => {
     stop();
-    clearTimeout(timer);
+    cancelScheduled();
+  };
+  const closePage = () => {
+    pageClosed = true;
+    stopWriter();
+  };
+  window.addEventListener("pagehide", closePage, { once: true });
+  return () => {
+    window.removeEventListener("pagehide", closePage);
+    stopWriter();
   };
 }

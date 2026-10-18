@@ -144,6 +144,10 @@ export async function verifyFotoNativeJourney(
   await editor.getByRole("button", { name: "Recuperar trabalho", exact: true }).click();
   await editor.locator(".viewport").waitFor();
   await editor.getByRole("button", { name: "Propriedades", exact: true }).click();
+  await editor.waitForFunction((expected) => {
+    const input = document.querySelector(".rpanel textarea");
+    return input instanceof HTMLTextAreaElement && input.value === expected;
+  }, "Rascunho nativo recuperável");
   assert.equal(await text.inputValue(), "Rascunho nativo recuperável");
   assert.deepEqual(await readFile(destination), bytes);
   await editor.keyboard.press("Control+Shift+e");

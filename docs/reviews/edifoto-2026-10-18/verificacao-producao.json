@@ -1,7 +1,7 @@
 {
   "date": "2026-10-18",
   "unitTests": 36,
-  "browserChecks": 174,
+  "browserChecks": 177,
   "browser": [
     {
       "suite": "default",
@@ -13,7 +13,7 @@
       "suite": "safety",
       "status": "passed",
       "errors": [],
-      "text": "{\"passed\":16,\"results\":[\"cancelled replacement preserves document and history\",\"editing during save remains unsaved\",\"late save never assigns another document's path\",\"late save cannot reassign a reopened project's path even with the same document id\",\"undo to savepoint clears unsaved indicator\",\"slider merging cannot erase a savepoint\",\"unreferenced bitmaps are released beyond retained history\",\"durable backup stores a validated project\",\"recovery restores editable work detached from saved original\",\"discard stays final when a backup encoder is pending\",\"discard removes only local recovery copy\",\"JPEG export preserves selected .jpeg path\",\"explicit close without saving awaits recovery discard\",\"save before close finishes file write and recovery cleanup\",\"quick export cannot export a replacement document after the native picker\",\"PNG dimension mismatch is rejected before decompression without changing workspace\"]}"
+      "text": "{\"passed\":19,\"results\":[\"cancelled replacement preserves document and history\",\"editing during save remains unsaved\",\"late save never assigns another document's path\",\"late save cannot reassign a reopened project's path even with the same document id\",\"undo to savepoint clears unsaved indicator\",\"slider merging cannot erase a savepoint\",\"unreferenced bitmaps are released beyond retained history\",\"durable backup stores a validated project\",\"recovery restores editable work detached from saved original\",\"discard stays final when a backup encoder is pending\",\"discard removes only local recovery copy\",\"JPEG export preserves selected .jpeg path\",\"explicit close without saving awaits recovery discard\",\"save before close finishes file write and recovery cleanup\",\"quick export cannot export a replacement document after the native picker\",\"PNG dimension mismatch is rejected before decompression without changing workspace\",\"an older renderer encoder cannot overwrite a newer recovery checkpoint\",\"discard watermark prevents a previous renderer from recreating a draft\",\"a closed page cannot write or discard recovery\"]}"
     },
     {
       "suite": "fidelity",
@@ -53,5 +53,51 @@
   "productionAuditVulnerabilities": 0,
   "portalReadyStatus": 200,
   "personalProviderCalls": 0,
-  "publication": "pending remote gates"
+  "publication": {
+    "mainCommit": "68f550c1d4576222ecf6d4e32a205bccaa56ab47",
+    "pullRequest": "https://github.com/informach/informach-apps/pull/16",
+    "tag": "edi-v0.1.2",
+    "status": "blocked_before_publication",
+    "workflow": "https://github.com/informach/informach-apps/actions/runs/39129941307",
+    "nextCandidate": "edi-v0.1.3"
+  },
+  "remotePrGates": {
+    "head": "26b3efffeb0f7a2377228c6fb7224b1eb68649fb",
+    "ci": {
+      "run": 39128608402,
+      "status": "success"
+    },
+    "native": {
+      "run": 39128608403,
+      "status": "success"
+    },
+    "database": {
+      "run": 39128608405,
+      "status": "success"
+    },
+    "upgrades": {
+      "run": 39128608446,
+      "status": "success"
+    }
+  },
+  "remoteMainGates": {
+    "head": "68f550c1d4576222ecf6d4e32a205bccaa56ab47",
+    "ci": {
+      "run": 39129926195,
+      "status": "success"
+    },
+    "native": {
+      "run": 39129926272,
+      "status": "success"
+    },
+    "database": {
+      "run": 39129926323,
+      "status": "success"
+    }
+  },
+  "recoveryRegression": {
+    "preFix": "reproduced old renderer overwriting newer checkpoint",
+    "postFix": "three scenarios passed",
+    "schemaUpgrade": false
+  }
 }

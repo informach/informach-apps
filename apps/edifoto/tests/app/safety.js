@@ -173,5 +173,40 @@ globalThis.__safetyTestRun = (async () => {
     invalidRejected && D.getState() === beforeInvalid,
     "PNG dimension mismatch is rejected before decompression without changing workspace",
   );
+  const nextRecovery = await import("/src/renderer/src/lib/recovery.ts?recovery-generation=next");
+  const templates = await import("/src/shared/templates.ts");
+  await recovery.discardRecovery();
+  await nextRecovery.readRecovery();
+  D.getState().load(E.ops.blankDoc(640, 480, "Older renderer", "#ffffff"));
+  const olderBackup = recovery.flushRecovery();
+  D.getState().load(templates.createImageTemplate("headline"));
+  const newestName = D.getState().doc.name;
+  const newestBackup = nextRecovery.flushRecovery();
+  await newestBackup;
+  await olderBackup;
+  assert(
+    (await nextRecovery.readRecovery()).name === newestName,
+    "an older renderer encoder cannot overwrite a newer recovery checkpoint",
+  );
+  D.getState().load(E.ops.blankDoc(640, 480, "Older discarded renderer", "#ffffff"));
+  const oldDiscardedBackup = recovery.flushRecovery();
+  await nextRecovery.discardRecovery();
+  await oldDiscardedBackup;
+  assert(
+    !(await nextRecovery.readRecovery()),
+    "discard watermark prevents a previous renderer from recreating a draft",
+  );
+  window.dispatchEvent(new Event("pagehide"));
+  D.getState().load(templates.createImageTemplate("headline"));
+  await nextRecovery.flushRecovery();
+  const currentDraft = await nextRecovery.readRecovery();
+  const retainedId = (await E.files.parseDocument(currentDraft.bytes)).doc.id;
+  D.getState().load(E.ops.blankDoc(32, 32, "Closed page stale document", null));
+  await recovery.flushRecovery();
+  await recovery.discardRecovery();
+  assert(
+    (await E.files.parseDocument((await nextRecovery.readRecovery()).bytes)).doc.id === retainedId,
+    "a closed page cannot write or discard recovery",
+  );
   return { passed: results.length, results };
 })();
