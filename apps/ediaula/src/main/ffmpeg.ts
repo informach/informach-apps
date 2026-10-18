@@ -5,6 +5,9 @@ import { rename, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { basename, extname, join } from "node:path";
 import { app } from "electron";
+import { sourceMatrix, sourceRange } from "../shared/export/color.ts";
+import { ENCODER_CHAIN, nextAfterFailure } from "../shared/export/encoding.ts";
+import { hasAlpha, type MediaFacts } from "../shared/export/videoPlan.ts";
 import { exportVideoArgs, proxyVideoArgs } from "../shared/exportPlan.ts";
 import type { AssetKind, Encoder, ProbeResult } from "../shared/types.ts";
 import { scheduler } from "./scheduler.ts";
@@ -37,9 +40,25 @@ export interface RunOptions {
   onStdout?: (chunk: Buffer) => void;
   /** Every piece of stderr as it comes (the run keeps only its tail for the error message). */
   onStderr?: (text: string) => void;
+  /** Resolve with the end of stderr instead of stdout (measurements that print there). */
+  capture?: "stderr";
 }
 
-/** Runs ffmpeg/ffprobe, resolving with stdout text. Rejects with the tail of stderr on failure. */
+/** A failed FFmpeg run: the last lines as the message, the end of everything it said as detail. */
+export class FfmpegError extends Error {
+  readonly detail: string;
+
+  constructor(message: string, detail: string) {
+    super(message);
+    this.name = "FfmpegError";
+    this.detail = detail;
+  }
+}
+
+/**
+ * Runs ffmpeg/ffprobe, resolving with stdout text (or stderr, with `capture`). Rejects with the
+ * tail of stderr on failure. Jobs named `<id>:<part>` are cancelled together with `<id>`.
+ */
 export function run(bin: string, args: string[], opts: RunOptions = {}): Promise<string> {
   return new Promise((resolve, reject) => {
     opts.signal?.throwIfAborted();
@@ -77,24 +96,25 @@ export function run(bin: string, args: string[], opts: RunOptions = {}): Promise
       // Wait until the file handles close before the caller removes staged output.
       if (failure) reject(failure);
       else if (opts.signal?.aborted) reject(opts.signal.reason);
-      else if (code === 0) resolve(stdout);
+      else if (code === 0) resolve(opts.capture === "stderr" ? stderr : stdout);
       else if (signal || code === null) reject(new Error("Cancelado"));
-      else
+      else {
+        const said = stderr.split("\n").filter((l) => !/^\w+=/.test(l));
         reject(
-          new Error(
-            stderr
-              .split("\n")
-              .filter((l) => !/^\w+=/.test(l))
-              .slice(-6)
-              .join("\n") || `ffmpeg saiu com código ${code}`,
+          new FfmpegError(
+            said.slice(-6).join("\n") || `ffmpeg saiu com código ${code}`,
+            said.join("\n"),
           ),
         );
+      }
     });
   });
 }
 
+/** Ends the job and every process started under it (`<jobId>:segment-3`, `<jobId>:audio`, …). */
 export function cancel(jobId: string): void {
-  running.get(jobId)?.kill("SIGKILL");
+  for (const [id, child] of running)
+    if (id === jobId || id.startsWith(`${jobId}:`)) child.kill("SIGKILL");
 }
 
 /** Per-file cache folder, keyed by path, size and modification time so edits invalidate it. */
@@ -140,6 +160,10 @@ export async function probe(path: string): Promise<ProbeResult> {
       avg_frame_rate?: string;
       r_frame_rate?: string;
       duration?: string;
+      pix_fmt?: string;
+      color_space?: string;
+      color_range?: string;
+      tags?: Record<string, string>;
       disposition?: { attached_pic?: number };
     }[];
   };
@@ -171,7 +195,32 @@ export async function probe(path: string): Promise<ProbeResult> {
       !isImage &&
       !!video &&
       isVariableRate(parseRate(video.r_frame_rate), parseRate(video.avg_frame_rate)),
+    alpha: !!video && hasAlpha(video.pix_fmt, video.tags),
+    colorSpace: video?.color_space,
+    colorRange: video?.color_range,
+    pixFmt: video?.pix_fmt,
   };
+}
+
+const facts = new Map<string, Promise<MediaFacts>>();
+
+/** What the export needs to know of a picture source, probed once per version of the file. */
+export function mediaFacts(path: string): Promise<MediaFacts> {
+  const st = statSync(path);
+  const key = `${path}|${st.size}|${st.mtimeMs}`;
+  let known = facts.get(key);
+  if (!known) {
+    known = probe(path).then((p) => ({
+      matrix: sourceMatrix(p.colorSpace),
+      range: sourceRange(p.colorRange, p.pixFmt),
+      alpha: p.alpha,
+      codec: p.videoCodec,
+    }));
+    // A file that could not be probed is probed again next time.
+    known.catch(() => facts.delete(key));
+    facts.set(key, known);
+  }
+  return known;
 }
 
 export async function thumbnail(path: string, kind: AssetKind, duration: number): Promise<string> {
@@ -343,38 +392,87 @@ export async function screenMotion(
 }
 
 let encoder: Promise<Encoder> | null = null;
+/** Encoders that failed in a real export and on a test picture: the detector passes them over. */
+const failedEncoders = new Set<Encoder>();
+
+async function encodes(candidate: Encoder): Promise<boolean> {
+  try {
+    await run(FFMPEG, [
+      "-v",
+      "error",
+      "-f",
+      "lavfi",
+      "-i",
+      "color=s=256x256:d=0.2",
+      ...exportVideoArgs(candidate, 2000),
+      "-f",
+      "null",
+      "-",
+    ]);
+    return true;
+  } catch {
+    return false; // missing, or this GPU and driver refuse it: the next one is tried
+  }
+}
+
+/** The first encoder of the chain that works now (x264 always does). */
+async function firstWorking(): Promise<Encoder> {
+  for (const candidate of ENCODER_CHAIN)
+    if (candidate === "x264" || (!failedEncoders.has(candidate) && (await encodes(candidate))))
+      return candidate;
+  return "x264";
+}
 
 /**
  * The export and proxy encoder: the first of NVENC, AMF and Media Foundation hardware that
  * actually encodes on this machine (being listed is not enough), otherwise x264.
  */
 export function detectEncoder(): Promise<Encoder> {
-  encoder ??= (async () => {
-    for (const candidate of ["nvenc", "amf", "mf"] as const) {
-      try {
-        await run(FFMPEG, [
-          "-v",
-          "error",
-          "-f",
-          "lavfi",
-          "-i",
-          "color=s=256x256:d=0.2",
-          ...exportVideoArgs(candidate, 2000),
-          "-f",
-          "null",
-          "-",
-        ]);
-        return candidate;
-      } catch {
-        // This encoder is missing or refuses this GPU and driver; try the next one.
-      }
-    }
-    return "x264";
-  })();
+  encoder ??= firstWorking();
   return encoder;
 }
 
-/** 720p, short-GOP proxy so 4K sources scrub smoothly in the preview. */
+/**
+ * An encoder failed in a real export, its segment again on its own: the next one of the chain
+ * that encodes is returned. It is left out for the rest of the session only when it does not
+ * encode a test picture either (shared/export/encoding.ts).
+ */
+export async function nextExportEncoder(failed: Encoder): Promise<Encoder> {
+  const next = await nextAfterFailure(failed, encodes, failedEncoders);
+  if (failedEncoders.has(failed)) encoder = null;
+  return next;
+}
+
+/** VP9 with alpha for the working copy of transparent media (the browser plays it). */
+const ALPHA_PROXY = [
+  "-c:v",
+  "libvpx-vp9",
+  "-pix_fmt",
+  "yuva420p",
+  "-deadline",
+  "realtime",
+  "-cpu-used",
+  "5",
+  "-row-mt",
+  "1",
+  "-crf",
+  "30",
+  "-b:v",
+  "0",
+  "-auto-alt-ref",
+  "0",
+  "-g",
+  "15",
+];
+
+/** FFmpeg's own VP8/VP9 decoders drop the alpha plane; libvpx keeps it. */
+export const alphaDecoder = (codec: string | undefined): string[] =>
+  codec === "vp9" ? ["-c:v", "libvpx-vp9"] : codec === "vp8" ? ["-c:v", "libvpx"] : [];
+
+/**
+ * 720p, short-GOP proxy so 4K sources scrub smoothly in the preview. Media with transparency get
+ * a VP9 WebM that keeps it, since an H.264 copy would lose it.
+ */
 export async function proxy(
   jobId: string,
   path: string,
@@ -382,11 +480,16 @@ export async function proxy(
   onProgress: (r: number) => void,
   cfrFps?: number,
   signal?: AbortSignal,
+  alpha = false,
 ): Promise<string> {
-  const out = join(cacheDir(path), "proxy.mp4");
+  const out = join(cacheDir(path), alpha ? "proxy-alpha.webm" : "proxy.mp4");
   if (existsSync(out)) return out;
-  const tmp = out.replace(".mp4", ".part.mp4");
-  const video = proxyVideoArgs(await detectEncoder());
+  const tmp = alpha ? out.replace(".webm", ".part.webm") : out.replace(".mp4", ".part.mp4");
+  const decoder = alpha ? alphaDecoder((await mediaFacts(path)).codec) : [];
+  const video = alpha ? ALPHA_PROXY : proxyVideoArgs(await detectEncoder());
+  const sound = alpha
+    ? ["-c:a", "libopus", "-b:a", "128k"]
+    : ["-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart"];
   // Variable frame rate sources get a constant-rate working copy so frame stepping is exact.
   const rate = cfrFps ? ["-fps_mode", "cfr", "-r", String(cfrFps)] : [];
   await run(
@@ -395,18 +498,14 @@ export async function proxy(
       "-y",
       "-v",
       "error",
+      ...decoder,
       "-i",
       path,
       "-vf",
       "scale=-2:720",
       ...rate,
       ...video,
-      "-c:a",
-      "aac",
-      "-b:a",
-      "128k",
-      "-movflags",
-      "+faststart",
+      ...sound,
       tmp,
     ],
     {

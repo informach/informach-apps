@@ -48,6 +48,11 @@ export const desktopFiles = {
   assertWrite: (path: string) => files().assertWrite(path, false),
   assertRelatedExport: (primary: string, path: string) =>
     files().assertRelatedExport(primary, path),
+  /** For state the main process kept itself (a queue saved between sessions): whether a file
+   *  was chosen, and choosing it again when that state is read back. */
+  canRead: (path: string) => files().canRead(path),
+  canWrite: (path: string) => files().canWrite(path),
+  grantWrite: (path: string) => files().grantWrite(path),
 };
 /** Composition at the application-owned registration boundary, not mutation of Electron. */
 export const desktopIpc = {

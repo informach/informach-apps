@@ -286,7 +286,9 @@ test("any track takes any clip, and a picture shows (with its sound) whatever tr
     },
   );
   assert.match(plan.filter, /overlay=/);
-  assert.match(plan.filter, /\[0:a\]/);
+  // The picture is read by the video plan, the sound by the audio plan (its own input).
+  assert.match(plan.filter, /\[0:v\]/);
+  assert.match(plan.filter, /\[1:a\]aresample/);
 });
 
 test("pasteClips: back on its own track when free, otherwise above, never covering", () => {

@@ -1,4 +1,4 @@
-import { duckGain } from "@shared/audio";
+import { DUCKING, duckGain, duckingOf, ducks } from "@shared/audio";
 import {
   animAt,
   BORDER_WIDTH,
@@ -18,6 +18,7 @@ import {
   foldGeometry,
   GLITCH_GRID,
   glitchBlockVisible,
+  glitchSlot,
   isMask,
   maskCss,
   pageCorners,
@@ -158,6 +159,8 @@ export function Preview(): ReactNode {
   // Background music steps aside while anyone speaks (the same envelope as the export).
   const speech = useRef<[number, number][]>([]);
   speech.current = useSpeechSpans(raw);
+  const ducking = useRef(DUCKING);
+  ducking.current = raw ? duckingOf(raw) : DUCKING;
   const settings = project?.settings ?? { width: 1920, height: 1080, fps: 30 };
   const scale = size.w / settings.width;
 
@@ -236,7 +239,12 @@ export function Preview(): ReactNode {
           const fx =
             isMask(dc.tailFx) && e > 0
               ? dc.tailFx === "glitch"
-                ? { mask: glitchMask(e, Math.floor(t * GLITCH_GRID.rate)) }
+                ? {
+                    mask: glitchMask(
+                      e,
+                      glitchSlot(t - (dc.start + dc.duration - (dc.tail ?? 0)), GLITCH_GRID.rate),
+                    ),
+                  }
                 : maskCss(dc.tailFx, e, w, h)
               : {};
           layer.style.clipPath = fx.clipPath ?? "";
@@ -337,7 +345,13 @@ export function Preview(): ReactNode {
           (!voice && el instanceof HTMLVideoElement && needsVoice(asset, original));
         el.volume = Math.min(
           1,
-          Math.max(0, c.volume * (track.music ? duckGain(speech.current, t) : 1)),
+          Math.max(
+            0,
+            c.volume *
+              (ducks(track)
+                ? duckGain(speech.current, t, ducking.current.depth, ducking.current.ramp)
+                : 1),
+          ),
         );
         const local = sourceAt(c, t);
         // The clip's own speed multiplies the playback rate (the browser keeps the pitch, like atempo).

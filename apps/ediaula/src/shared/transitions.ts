@@ -194,6 +194,11 @@ export interface DerivedClip extends Clip {
   drawAfter?: boolean;
   /** How the tail goes away when it is not a plain dissolve or motion: a mask, a page turn or a paper fold. */
   tailFx?: TransitionKind;
+  /**
+   * Source second the picture stops at, as cut: kept when the export moves the clip onto the
+   * frame grid, so a clip made longer by it holds its last frame rather than show one cut away.
+   */
+  sourceStop?: number;
 }
 
 /** An effect over the whole frame, centered on a cut. */
@@ -416,6 +421,17 @@ export function tailProgressExpr(
 
 /** Glitch blocks of the outgoing scene: 12 × 8 cells reshuffled 30 times a second. */
 export const GLITCH_GRID = { cols: 12, rows: 8, rate: 30 };
+
+/**
+ * Glitch time slots count from the cut, not from the start of the lesson, so the same cut glitches
+ * the same way wherever it lands (an export segment that only moved is reused). The phase keeps
+ * slot edges away from frame times, where rounding could pick either slot.
+ */
+const GLITCH_PHASE = 0.137;
+export const glitchSlot = (sinceCut: number, rate = 30): number =>
+  Math.floor(sinceCut * rate + GLITCH_PHASE);
+const slotExpr = (sinceCut: string, rate: number): string =>
+  `floor((${sinceCut})*${rate}+${GLITCH_PHASE})`;
 const blockHash = (bx: string, by: string, slot: string): string => {
   const r = `sin(${bx}*127.1+${by}*311.7+${slot}*74.7)*43758.5453`;
   return `(${r}-floor(${r}))`;
@@ -429,9 +445,10 @@ export function glitchBlockVisible(bx: number, by: number, slot: number, e: numb
 
 /**
  * The mask of a wiped tail as an ffmpeg condition: 1 where the outgoing picture still shows,
- * for a picture of W × H at pixel (X, Y) and eased progress E.
+ * for a picture of W × H at pixel (X, Y) and eased progress E. `sinceCut` is the time from the
+ * cut (the glitch reshuffles its blocks by it).
  */
-export function maskExpr(kind: TransitionKind, E: string): string {
+export function maskExpr(kind: TransitionKind, E: string, sinceCut = "T"): string {
   const R = "hypot(W,H)/2";
   const D = "hypot(X-W/2,Y-H/2)";
   switch (kind) {
@@ -451,7 +468,7 @@ export function maskExpr(kind: TransitionKind, E: string): string {
       // Clockwise from 12 o'clock.
       return `gte(mod(atan2(X-W/2,H/2-Y)+2*PI,2*PI),${E}*2*PI)`;
     case "glitch":
-      return `gt(${blockHash(`floor(X/W*${GLITCH_GRID.cols})`, `floor(Y/H*${GLITCH_GRID.rows})`, `floor(T*${GLITCH_GRID.rate})`)},${E})`;
+      return `gt(${blockHash(`floor(X/W*${GLITCH_GRID.cols})`, `floor(Y/H*${GLITCH_GRID.rows})`, slotExpr(sinceCut, GLITCH_GRID.rate))},${E})`;
     default:
       return "1";
   }
@@ -738,8 +755,8 @@ export function shapeExpr(s: FxShape, XL: string, YL: string): string {
 }
 
 /** Glitch on the whole frame: strength (0..1) at time T, peaking at the cut. */
-export function glitchAmpExpr(fx: CutFx): string {
-  return `clip(1-abs(T-${n(fx.at)})/${n(fx.duration / 2)},0,1)`;
+export function glitchAmpExpr(fx: CutFx, sinceCut = `(T-${fx.at})`): string {
+  return `clip(1-abs(${sinceCut})/${fx.duration / 2},0,1)`;
 }
 
 /** Glitch block shift as a fraction of the width, for block row/col and time slot (30 per second). */
@@ -749,9 +766,9 @@ export function glitchShift(row: number, col: number, slot: number, amp: number)
   return f > 1 - 0.38 * amp ? (f - 0.5) * 0.2 : 0;
 }
 
-/** The same shift as an ffmpeg expression (rows from Y/H, columns from X/W, slots from T). */
-export function glitchShiftExpr(amp: string): string {
-  const r = "sin(floor(Y/H*18)*12.9898+floor(X/W*6)*4.1414+floor(T*30)*78.233)*43758.5453";
+/** The same shift as an ffmpeg expression (rows from Y/H, columns from X/W, slots from the cut). */
+export function glitchShiftExpr(amp: string, sinceCut = "T"): string {
+  const r = `sin(floor(Y/H*18)*12.9898+floor(X/W*6)*4.1414+${slotExpr(sinceCut, 30)}*78.233)*43758.5453`;
   const f = `(${r}-floor(${r}))`;
   return `gt(${f},1-0.38*${amp})*(${f}-0.5)*0.2`;
 }

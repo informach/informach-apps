@@ -6,10 +6,17 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
-import { buildAss, buildCues, cueAt, DEFAULT_CAPTION_STYLE } from "../src/shared/captions.ts";
+import {
+  buildAss,
+  buildCues,
+  captionWords,
+  cueAt,
+  DEFAULT_CAPTION_STYLE,
+} from "../src/shared/captions.ts";
 import type { TimelineWord } from "../src/shared/cleanup.ts";
 import { buildExportPlan } from "../src/shared/exportPlan.ts";
-import type { Project } from "../src/shared/types.ts";
+import type { Asset, Project, Transcript } from "../src/shared/types.ts";
+import { subRip } from "../src/shared/webvtt.ts";
 
 const said = (text: string, from = 0, step = 0.4): TimelineWord[] =>
   text.split(/\s+/).map((t, i) => ({
@@ -163,4 +170,103 @@ test("export burns the captions in: spoken words lime, the rest white", { timeou
   }
   assert.ok(lime > 200, `the spoken word is lime (${lime} px)`);
   assert.ok(white > 200, `the next word is still white (${white} px)`);
+});
+
+test("caption words: what is heard, once, even when the video and its extracted voice are both transcribed", () => {
+  const media = (id: string, kind: Asset["kind"]): Asset => ({
+    id,
+    name: id,
+    path: `${id}.${kind === "video" ? "mp4" : "wav"}`,
+    kind,
+    duration: 10,
+    width: kind === "video" ? 1080 : 0,
+    height: kind === "video" ? 1920 : 0,
+    fps: kind === "video" ? 30 : 0,
+    hasVideo: kind === "video",
+    hasAudio: true,
+    size: 1,
+    proxyStatus: "none",
+  });
+  const transcript = (shift: number): Transcript => ({
+    version: 1,
+    model: "t",
+    language: "pt",
+    duration: 10,
+    silences: [],
+    words: ["Olá,", "turma.", "Hoje", "vamos", "começar."].map((text, i) => ({
+      text,
+      start: i * 0.5 + shift,
+      end: i * 0.5 + shift + 0.4,
+      p: 0.9,
+    })),
+  });
+  const project: Project = {
+    version: 1,
+    id: "p",
+    name: "x",
+    createdAt: 0,
+    updatedAt: 0,
+    settings: { width: 1920, height: 1080, fps: 30 },
+    assets: [
+      media("heygen", "video"),
+      media("heygen-voz", "audio"),
+      media("tela", "video"),
+      media("trilha", "audio"),
+    ],
+    tracks: [
+      { id: "v", kind: "video", name: "Avatar", muted: false, hidden: false, locked: false },
+      { id: "a", kind: "audio", name: "Voz", muted: false, hidden: false, locked: false },
+      {
+        id: "m",
+        kind: "audio",
+        name: "Música",
+        muted: false,
+        hidden: false,
+        locked: false,
+        music: true,
+      },
+      { id: "x", kind: "audio", name: "Silenciada", muted: true, hidden: false, locked: false },
+    ],
+    clips: [
+      // The avatar's video and the voice extracted from it, both heard and both transcribed.
+      { id: "cv", assetId: "heygen", trackId: "v", start: 0, in: 0, duration: 3, volume: 1 },
+      { id: "ca", assetId: "heygen-voz", trackId: "a", start: 0, in: 0, duration: 3, volume: 1 },
+      // Later, the same video at volume 0 and a screen recording on a muted track: not heard.
+      { id: "cq", assetId: "heygen", trackId: "v", start: 4, in: 0, duration: 3, volume: 0 },
+      { id: "cm", assetId: "tela", trackId: "x", start: 4, in: 0, duration: 3, volume: 1 },
+      // Lyrics of the music are no lesson captions either.
+      { id: "ct", assetId: "trilha", trackId: "m", start: 8, in: 0, duration: 2, volume: 1 },
+    ],
+  };
+  const transcripts = new Map([
+    ["heygen", transcript(0)],
+    // The extracted voice is a few hundredths of a second off the video's own track.
+    ["heygen-voz", transcript(0.04)],
+    ["tela", transcript(0)],
+    ["trilha", transcript(0)],
+  ]);
+  const words = captionWords(project, transcripts);
+  assert.deepEqual(
+    words.map((w) => w.text),
+    ["Olá,", "turma.", "Hoje", "vamos", "começar."],
+  );
+  assert.ok(words.every((w) => w.start < 3));
+  // The SRT built from them: two lines of at most 42 characters, cues that never overlap.
+  const long = said(
+    "esta frase tem palavras suficientes para quebrar em duas linhas e ainda continuar depois disso tudo",
+  );
+  const cues = buildCues(long, 42, 2);
+  for (const c of cues) {
+    assert.ok(c.lines.length <= 2);
+    for (const line of c.lines) assert.ok(line.map((w) => w.text).join(" ").length <= 42);
+  }
+  for (let i = 1; i < cues.length; i++) assert.ok(cues[i].start >= cues[i - 1].end);
+  const srt = subRip(
+    cues.map((c) => ({
+      start: c.start,
+      end: c.end,
+      text: c.lines.map((l) => l.map((w) => w.text).join(" ")).join("\n"),
+    })),
+  );
+  assert.match(srt ?? "", /^1\n00:00:00,000 --> 00:00:\d\d,\d{3}\n/);
 });

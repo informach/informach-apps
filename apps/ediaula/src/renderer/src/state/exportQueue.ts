@@ -1,9 +1,15 @@
-import { buildAss, buildCues, cueLayout, DEFAULT_CAPTION_STYLE } from "@shared/captions";
+import {
+  buildAss,
+  buildCues,
+  captionWords,
+  cueLayout,
+  DEFAULT_CAPTION_STYLE,
+} from "@shared/captions";
 import { keyId } from "@shared/chroma";
-import { buildSrt, timelineWords } from "@shared/cleanup";
 import { type ExportItem, ExportQueue } from "@shared/exportQueue";
 import { newId } from "@shared/timeline";
 import { treatedPath } from "@shared/voiceChain";
+import type { TextCue } from "@shared/webvtt";
 import { create } from "zustand";
 import { projectSpeech } from "@/lib/audio";
 import { ensureCursorSprites } from "@/lib/cursorRender";
@@ -13,10 +19,17 @@ import { loadAssetTranscript } from "@/lib/transcripts";
 import { useApp } from "./app";
 import { useProject } from "./project";
 
-export const useExportQueue = create<{ items: ExportItem[]; open: boolean; held: boolean }>(() => ({
+export const useExportQueue = create<{
+  items: ExportItem[];
+  open: boolean;
+  held: boolean;
+  /** Exports the app did not finish last time, offered to resume. */
+  resumable: ExportItem[];
+}>(() => ({
   items: [],
   open: false,
   held: false,
+  resumable: [],
 }));
 
 /** Some export is waiting or running: closing the window has to wait for the queue. */
@@ -24,6 +37,31 @@ export const exportsPending = (): boolean =>
   useExportQueue
     .getState()
     .items.some((i) => i.state === "waiting" || i.state === "preparing" || i.state === "exporting");
+
+/** What is kept of an item between sessions (its own copy of the project and the settings). */
+const saved = ({ id, project, spec, captions, state }: ExportItem) => ({
+  id,
+  project,
+  spec,
+  captions,
+  state,
+});
+
+/** Writes the pending exports (and the ones still offered to resume) for the next session. */
+function persist(pending: ExportItem[]): void {
+  // One that cannot be resumed is shown this time and not kept (main allows nothing of it).
+  const all = [...pending, ...useExportQueue.getState().resumable.filter((i) => !i.blocked)];
+  window.api.exportQueue
+    .save(JSON.stringify(all.map(saved)))
+    .catch((error: unknown) =>
+      useApp
+        .getState()
+        .toast(
+          `A fila de exportação não foi guardada para depois: ${error instanceof Error ? error.message : String(error)}`,
+          "error",
+        ),
+    );
+}
 
 export const exportQueue = new ExportQueue(
   async (item, signal, status) => {
@@ -57,11 +95,19 @@ export const exportQueue = new ExportQueue(
           transcribed.map(async (a) => [a.id, await loadAssetTranscript(project, a)] as const),
         );
         check();
-        const words = timelineWords(project, new Map(loaded));
-        if (item.captions) spec.captions = buildSrt(words);
+        // Only what is heard, each word once (shared/captions.ts).
+        const words = captionWords(project, new Map(loaded));
+        if (item.captions)
+          spec.captionCues = buildCues(words, 42, 2, cueLayout(project)).map(
+            (cue): TextCue => ({
+              start: cue.start,
+              end: cue.end,
+              text: cue.lines.map((line) => line.map((w) => w.text).join(" ")).join("\n"),
+            }),
+          );
         if (burn)
           spec.burnAss = buildAss(
-            buildCues(words, spec.vertical ? 22 : 42, 2, cueLayout(project)),
+            buildCues(words, spec.height > spec.width ? 22 : 42, 2, cueLayout(project)),
             { ...DEFAULT_CAPTION_STYLE, ...project.captions },
             spec.width,
             spec.height,
@@ -122,6 +168,7 @@ export const exportQueue = new ExportQueue(
     }
   },
   (items) => useExportQueue.setState({ items }),
+  persist,
 );
 
 /** While a take records, the next export waits for it (unless the recorder says otherwise). */
@@ -134,10 +181,66 @@ export function listenRecorderState(): () => void {
   return window.api.recorder.onState((s) => apply(!!s.holdBackground));
 }
 
-export function retryExport(item: ExportItem): void {
+/**
+ * The exports left unfinished last time, offered in the queue to resume or discard; the ones
+ * that cannot be resumed any more come with the reason (main/export/exportQueueStore.ts).
+ */
+export async function loadUnfinishedExports(): Promise<void> {
+  const text = await window.api.exportQueue.load();
+  if (!text) return;
+  const items: ExportItem[] = JSON.parse(text);
+  if (!items.length) return;
+  useExportQueue.setState({ resumable: items, open: true });
+  const blocked = items.filter((i) => i.blocked).length;
+  if (blocked)
+    useApp
+      .getState()
+      .toast(
+        blocked === 1
+          ? "Uma exportação da última vez não dá para retomar. Veja o motivo na fila."
+          : `${blocked} exportações da última vez não dão para retomar. Veja o motivo na fila.`,
+        "error",
+      );
+}
+
+/**
+ * Puts the ones that can run back in the queue: the segments already rendered come from the
+ * cache. The ones that cannot stay listed with their reason until they are discarded.
+ */
+export function resumeUnfinished(): void {
+  const { resumable } = useExportQueue.getState();
+  useExportQueue.setState({ resumable: resumable.filter((i) => i.blocked) });
+  for (const item of resumable)
+    if (!item.blocked)
+      exportQueue.add({
+        id: item.id,
+        project: item.project,
+        spec: item.spec,
+        captions: item.captions,
+      });
+}
+
+export function discardUnfinished(): void {
+  useExportQueue.setState({ resumable: [] });
+  persist(exportQueue.items.filter((i) => ["waiting", "preparing", "exporting"].includes(i.state)));
+}
+
+/** The lesson open now (`current`) is the item's and was edited after it was queued. */
+export function editedSince(
+  item: ExportItem,
+  current: { id: string; updatedAt: number } | null | undefined = useProject.getState().project,
+): boolean {
+  return (
+    !!current && current.id === item.project.id && current.updatedAt !== item.project.updatedAt
+  );
+}
+
+/** Tries again with the item's own copy of the project, or with the one open now (`current`). */
+export function retryExport(item: ExportItem, current = false): void {
+  const open = useProject.getState().project;
   exportQueue.add({
     id: newId("export"),
-    project: item.project,
+    project: current && open && open.id === item.project.id ? open : item.project,
     spec: item.spec,
     captions: item.captions,
   });

@@ -8,6 +8,8 @@ export interface ExportItem {
   captions: boolean;
   state: ExportState;
   message?: string;
+  /** Why an export left from the last session cannot be resumed (a file or folder that is gone). */
+  blocked?: string;
 }
 
 /** Serial exports own their snapshots; editing or closing a project cannot change a queued job. */
@@ -22,7 +24,13 @@ export class ExportQueue {
     status: (state: "preparing" | "exporting", message: string) => void,
   ) => Promise<void>;
   private changed: (items: ExportItem[]) => void;
+  private persist?: (pending: ExportItem[]) => void;
+  private persisted = "";
 
+  /**
+   * `persist` receives the items still to export whenever that list changes (an item added,
+   * finished or removed; not on every message), so the queue can survive the app.
+   */
   constructor(
     run: (
       item: ExportItem,
@@ -30,9 +38,11 @@ export class ExportQueue {
       status: (state: "preparing" | "exporting", message: string) => void,
     ) => Promise<void>,
     changed: (items: ExportItem[]) => void,
+    persist?: (pending: ExportItem[]) => void,
   ) {
     this.run = run;
     this.changed = changed;
+    this.persist = persist;
   }
 
   add(item: Pick<ExportItem, "id" | "project" | "spec" | "captions">): void {
@@ -82,6 +92,15 @@ export class ExportQueue {
 
   private emit(): void {
     this.changed([...this.items]);
+    if (!this.persist) return;
+    const pending = this.items.filter((i) =>
+      ["waiting", "preparing", "exporting"].includes(i.state),
+    );
+    // Kept as waiting whatever their state now: only joining or leaving the list changes it.
+    const key = pending.map((i) => i.id).join("|");
+    if (key === this.persisted) return;
+    this.persisted = key;
+    this.persist(pending);
   }
   private update(id: string, change: Partial<ExportItem>): void {
     this.items = this.items.map((i) => (i.id === id ? { ...i, ...change } : i));

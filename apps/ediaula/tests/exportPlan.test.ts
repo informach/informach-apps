@@ -81,23 +81,43 @@ test("inputs are trimmed at the source and ordered bottom layer first", () => {
   const plan = buildExportPlan(project(), spec);
   assert.equal(plan.duration, 25);
   const tela = plan.inputArgs.indexOf("C:/m/tela.mp4");
-  assert.deepEqual(plan.inputArgs.slice(tela - 5, tela + 1), [
-    "-ss",
-    "10",
-    "-t",
-    "20",
-    "-i",
-    "C:/m/tela.mp4",
-  ]);
+  const read = plan.inputArgs.slice(tela - 4, tela + 1);
+  assert.deepEqual([read[0], read[1], read[3]], ["-noaccurate_seek", "-ss", "-i"]);
+  // From a source frame before the in-point (10 s); the picture stops at the end of its 20 s,
+  // exactly 600 frames.
+  const seek = Number(read[2]);
+  assert.ok(seek < 10 && seek > 10 - 1 / 30 - 0.01, `seek ${read[2]}`);
+  assert.match(
+    plan.filter,
+    /trim=start=-[\d.]+:end=19\.99\d*,fps=30,tpad=stop_mode=clone:stop=-1,fps=30:start_time=0,trim=end_frame=600\[src0\]/,
+  );
   assert.ok(tela < plan.inputArgs.indexOf("C:/m/logo.png"), "lower layer is read first");
-  assert.ok(plan.inputArgs.includes("-loop"), "images loop");
+  assert.match(plan.filter, /loop=loop=-1:size=1/, "a still is decoded once and repeated");
   // V1 (index 0) is overlaid before V2 (index 1).
   assert.ok(plan.filter.indexOf("[base][v0]overlay") < plan.filter.indexOf("[o0][v1]overlay"));
 });
 
-test("audio is delayed to its timeline position, scaled and mixed", () => {
+/** Index of the `-i` input that reads `path` (the first one, or the `nth`). */
+const inputOf = (args: string[], path: string, nth = 0): number => {
+  let index = -1;
+  let seen = 0;
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] !== "-i") continue;
+    index++;
+    if (args[i + 1] === path && seen++ === nth) return index;
+  }
+  return -1;
+};
+
+test("audio is placed at its timeline position, scaled and mixed", () => {
   const plan = buildExportPlan(project(), spec);
-  assert.match(plan.filter, /volume=0\.3,adelay=0:all=1/);
+  const music = inputOf(plan.inputArgs, "C:/m/musica.mp3");
+  assert.match(
+    plan.filter,
+    new RegExp(
+      `\\[ai${music}\\]atrim=start=0:end=25,asetpts=PTS-STARTPTS,volume=0\\.3,apad=whole_len=1200000`,
+    ),
+  );
   assert.match(plan.filter, /amix=inputs=2:normalize=0/);
   assert.match(plan.filter, /loudnorm=I=-14/);
 });
@@ -107,8 +127,10 @@ test("hidden tracks drop video but keep audio; muted tracks drop audio", () => {
   p.tracks[1].hidden = true;
   p.tracks[2].muted = true;
   const plan = buildExportPlan(p, spec);
-  assert.doesNotMatch(plan.filter, /\[0:v\]/);
-  assert.match(plan.filter, /\[0:a\]/);
+  const tela = inputOf(plan.inputArgs, "C:/m/tela.mp4");
+  assert.equal(inputOf(plan.inputArgs, "C:/m/tela.mp4", 1), -1, "read once, for its sound");
+  assert.doesNotMatch(plan.filter, new RegExp(`\\[${tela}:v\\]`));
+  assert.match(plan.filter, new RegExp(`\\[${tela}:a\\]`));
   assert.doesNotMatch(plan.filter, /amix/);
 });
 

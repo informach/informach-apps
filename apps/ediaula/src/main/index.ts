@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { readFile, unlink, writeFile } from "node:fs/promises";
 import type { Server } from "node:http";
+import { availableParallelism } from "node:os";
 import { basename, dirname, extname, join } from "node:path";
 import { Readable } from "node:stream";
 import { createClientGrant, listGrants, revokeGrant } from "@informach/edi-desktop/access";
@@ -58,11 +59,23 @@ import {
   stopAllEngineRuns,
   stopEngineRun,
 } from "./engines.ts";
+import {
+  loadQueue,
+  type QueueAccess,
+  rememberExportFolder,
+  removeOrphanOutputs,
+  removeOrphanWork,
+  saveQueue,
+} from "./export/exportQueueStore.ts";
+import { fontResolver } from "./export/fonts.ts";
+import { SegmentCache } from "./export/segmentCache.ts";
 import { exportLesson } from "./export-lesson.ts";
 import {
   cancel,
   detectEncoder,
   FFMPEG,
+  mediaFacts,
+  nextExportEncoder,
   probe,
   proxy,
   run,
@@ -70,9 +83,8 @@ import {
   stillFrame,
   thumbnail,
   waveform,
-  writeFilterScript,
 } from "./ffmpeg.ts";
-import { filterScriptOption } from "./ffmpeg-arguments.ts";
+import { ffmpegVersion, filterScriptOption } from "./ffmpeg-arguments.ts";
 import { getGlossary, setGlossary } from "./glossary.ts";
 import { exportVoice, HEYGEN_FOLDER, locateVideo } from "./heygen.ts";
 import { cancelKey, detectScreenColor, grabFrame, renderKeyed } from "./keying.ts";
@@ -183,6 +195,16 @@ const bundledFonts = async (): Promise<FontFamily[]> => {
     }
   return fonts;
 };
+/** The files burned captions are drawn with, for the segments' keys: the bundle's or Windows'. */
+const captionFonts = fontResolver({
+  bundled: async () => ({ dir: FONTS_DIR, families: await bundledFonts() }),
+  system: [
+    join(process.env.WINDIR ?? "C:\\Windows", "Fonts"),
+    ...(process.env.LOCALAPPDATA
+      ? [join(process.env.LOCALAPPDATA, "Microsoft", "Windows", "Fonts")]
+      : []),
+  ],
+});
 
 const MIME: Record<string, string> = {
   ".mp4": "video/mp4",
@@ -274,7 +296,49 @@ async function serveMedia(request: Request): Promise<Response> {
 }
 
 let win: BrowserWindow | null = null;
-const exportJobs = new Map<string, { cancelled: boolean }>();
+const exportJobs = new Map<string, { cancelled: boolean; cancellation: AbortController }>();
+
+/** Segments and sounds of past exports, reused while they still show the same thing. */
+let segments: SegmentCache | null = null;
+const segmentCache = (): SegmentCache =>
+  (segments ??= new SegmentCache(join(app.getPath("userData"), "cache", "segments")));
+const exportQueueFile = (): string => join(app.getPath("userData"), "export-queue.json");
+const exportFoldersFile = (): string => join(app.getPath("userData"), "export-folders.json");
+const exportWorkDir = (): string => join(app.getPath("userData"), "work");
+/** When this run of the app began: what exports leave behind from before it is a leftover. */
+const APP_STARTED = Date.now();
+const queueAccess: QueueAccess = {
+  canRead: desktopFiles.canRead,
+  canWrite: desktopFiles.canWrite,
+  grantRead: desktopFiles.grantRead,
+  grantWrite: desktopFiles.grantWrite,
+};
+
+/**
+ * When the app opens: the oldest cached segments go past the size limit, and the staging folders
+ * an interrupted export left beside its destination, and its private work folder, are removed.
+ * Only what is older than this run of the app, one folder at a time: a folder that cannot be
+ * removed is logged and the rest goes on. Exports wait for it (export:start).
+ */
+async function cleanExportLeftovers(): Promise<void> {
+  const options = {
+    before: APP_STARTED,
+    onError: (path: string, error: unknown) =>
+      console.warn(`[ediaula] não foi possível limpar ${path}: ${String(error)}`),
+  };
+  const steps: [string, () => Promise<unknown>][] = [
+    ["do cache de exportação", () => segmentCache().prune()],
+    ["das pastas de saída", () => removeOrphanOutputs(exportFoldersFile(), options)],
+    ["das pastas de trabalho", () => removeOrphanWork(exportWorkDir(), options)],
+  ];
+  for (const [what, step] of steps)
+    try {
+      await step();
+    } catch (error) {
+      console.warn(`[ediaula] limpeza ${what} falhou: ${String(error)}`);
+    }
+}
+let leftoversCleaned: Promise<void> = Promise.resolve();
 /** Jobs waiting for a slot or for the take to end, so job:cancel reaches them too. */
 const waitingJobs = new Map<string, AbortController>();
 
@@ -285,7 +349,7 @@ const waitingJobs = new Map<string, AbortController>();
  */
 async function processingJob<T>(
   jobId: string,
-  kind: WorkKind,
+  kind: WorkKind | readonly WorkKind[],
   action: (signal: AbortSignal) => Promise<T>,
 ): Promise<T> {
   const cancellation = new AbortController();
@@ -603,9 +667,21 @@ function registerIpc(): void {
   });
   ipcMain.handle(
     "media:proxy",
-    (_e, jobId: string, path: string, duration: number, cfrFps?: number) =>
-      processingJob(jobId, "proxy", (signal) =>
-        proxy(jobId, path, duration, (ratio) => sendProgress({ id: jobId, ratio }), cfrFps, signal),
+    async (_e, jobId: string, path: string, duration: number, cfrFps?: number, alpha?: unknown) =>
+      // A proxy on the graphics card takes one of its encoder sessions, as export segments do.
+      processingJob(
+        jobId,
+        alpha !== true && (await detectEncoder()) !== "x264" ? ["proxy", "encoder"] : "proxy",
+        (signal) =>
+          proxy(
+            jobId,
+            path,
+            duration,
+            (ratio) => sendProgress({ id: jobId, ratio }),
+            cfrFps,
+            signal,
+            alpha === true,
+          ),
       ),
   );
   ipcMain.handle("media:saveGenerated", async (_e, bytes: Uint8Array, ext: string) => {
@@ -757,8 +833,8 @@ function registerIpc(): void {
   ipcMain.handle("export:start", async (_e, jobId: unknown, project: unknown, spec: unknown) => {
     if (typeof jobId !== "string" || !jobId.length || jobId.length > 200 || exportJobs.has(jobId))
       throw new Error("Identificador de exportação inválido ou já em uso.");
-    const state = { cancelled: false };
     const cancellation = new AbortController();
+    const state = { cancelled: false, cancellation };
     const job = desktopJobs.begin({ stop: () => cancellation.abort() });
     exportJobs.set(jobId, state);
     const check = (): void => {
@@ -766,20 +842,35 @@ function registerIpc(): void {
       job.check();
     };
     try {
+      // The startup cleanup never runs under an export.
+      await leftoversCleaned;
       await exportLesson(projectJson(project), spec, {
+        rememberFolder: (folder) => rememberExportFolder(exportFoldersFile(), folder),
         assertRead: desktopFiles.assertRead,
         assertWrite: desktopFiles.assertWrite,
         assertRelatedExport: desktopFiles.assertRelatedExport,
         fontsDirectory: FONTS_DIR,
+        fontFiles: captionFonts,
         filterScriptOption: await filterScriptOption(FFMPEG),
-        writeFilterScript,
+        ffmpegVersion: await ffmpegVersion(FFMPEG),
+        cacheDirectory: join(app.getPath("userData"), "cache"),
+        workDirectory: exportWorkDir(),
+        cache: segmentCache(),
+        probe: mediaFacts,
+        slot: (work, signal, hardware) =>
+          scheduler.run(hardware ? ["segment", "encoder"] : "segment", work, signal),
+        cores: availableParallelism(),
+        nextEncoder: nextExportEncoder,
         check,
-        run: (args, duration) =>
+        signal: cancellation.signal,
+        progress: (p) => sendProgress({ id: jobId, ...p }),
+        run: (args, options = {}) =>
           run(FFMPEG, args, {
-            jobId,
-            signal: cancellation.signal,
-            duration,
-            onProgress: (ratio) => sendProgress({ id: jobId, ratio }),
+            jobId: options.key ? `${jobId}:${options.key}` : jobId,
+            signal: options.signal ?? cancellation.signal,
+            duration: options.duration,
+            onProgress: options.onProgress,
+            capture: options.capture,
           }),
       });
       sendProgress({ id: jobId, ratio: 1 });
@@ -790,9 +881,22 @@ function registerIpc(): void {
   });
   ipcMain.handle("job:cancel", (_e, jobId: string) => {
     const exporting = exportJobs.get(jobId);
-    if (exporting) exporting.cancelled = true;
+    if (exporting) {
+      exporting.cancelled = true;
+      exporting.cancellation.abort(new Error("Cancelado"));
+    }
     waitingJobs.get(jobId)?.abort(new Error("Cancelado"));
     if (!cancelDownload(jobId) && !cancelWhisper(jobId) && !cancelKey(jobId)) cancel(jobId);
+  });
+  ipcMain.handle("exportCache:clear", async () => {
+    if (exportJobs.size)
+      throw new Error("Espere as exportações em andamento terminarem para limpar o cache.");
+    return segmentCache().clear();
+  });
+  ipcMain.handle("exportQueue:load", () => loadQueue(exportQueueFile(), queueAccess));
+  ipcMain.handle("exportQueue:save", (_e, text: unknown) => {
+    if (typeof text !== "string") throw new Error("Fila de exportação inválida.");
+    return saveQueue(exportQueueFile(), text, queueAccess);
   });
 
   ipcMain.handle("whisper:status", () => engineStatus());
@@ -1193,6 +1297,7 @@ app
     removeStaleDownloads().catch((err: unknown) =>
       console.warn("[whisper] could not clean old unfinished downloads:", err),
     );
+    leftoversCleaned = cleanExportLeftovers();
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });

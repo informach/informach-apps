@@ -1,6 +1,6 @@
 import { encoderName, isHardwareEncoder } from "@shared/encoderChoice";
 import { newId, projectDuration } from "@shared/timeline";
-import type { ExportSpec } from "@shared/types";
+import type { ExportQuality, ExportSpec } from "@shared/types";
 import {
   AudioLines,
   Captions,
@@ -78,12 +78,15 @@ const PRESETS: Preset[] = [
   },
 ];
 
-const QUALITY: [string, number][] = [
-  ["Rascunho", 3500],
-  ["Padrão", 8000],
-  ["Alta", 12000],
-  ["Máxima", 20000],
+/** Constant quality for the resolution (CRF or CQ), never above the bitrate shown. */
+const QUALITY: [string, number, ExportQuality][] = [
+  ["Rascunho", 3500, "draft"],
+  ["Padrão", 8000, "standard"],
+  ["Alta", 12000, "high"],
+  ["Máxima", 20000, "max"],
 ];
+const qualityOf = (kbps: number): ExportQuality | undefined =>
+  QUALITY.find(([, k]) => k === kbps)?.[2];
 
 type Phase = { kind: "setup" } | { kind: "error"; message: string };
 
@@ -94,7 +97,10 @@ export function ExportDialog(): ReactNode {
     useApp.getState().set({ exportOpen: false });
   };
   const [preset, setPreset] = useState("youtube");
-  const [height, setHeight] = useState(Math.min(1080, project.settings.height));
+  // The resolution is the short side: 1080 is 1920 × 1080 for a lesson and 1080 × 1920 for Reels.
+  const projectShort = Math.min(project.settings.width, project.settings.height);
+  const portrait = project.settings.height > project.settings.width;
+  const [short, setShort] = useState(Math.min(1080, projectShort));
   const [bitrate, setBitrate] = useState(12000);
   const [normalize, setNormalize] = useState(true);
   const transcribed = project.assets.filter((a) => a.transcript && a.transcriptStatus === "ready");
@@ -105,11 +111,15 @@ export function ExportDialog(): ReactNode {
   const [vertical, setVertical] = useState<"blur" | "crop">("blur");
   const isReels = preset === "reels";
   const isAudio = preset === "audio";
+  // A lesson already vertical goes out in its own shape; the vertical layout is for wide ones.
+  const relayout = isReels && !portrait;
 
   const total = projectDuration(project);
   const ratio = project.settings.width / project.settings.height;
   const even = (v: number): number => Math.round(v / 2) * 2;
-  const width = even(height * ratio);
+  const frameOf = (side: number): [number, number] =>
+    portrait ? [even(side), even(side / ratio)] : [even(side * ratio), even(side)];
+  const [width, height] = frameOf(short);
   const sizeEstimate = (((isAudio ? 0 : bitrate) + 192) * 1000 * total) / 8;
   // Same list the export refuses (state/exportQueue.ts): missing files and missing cursor data.
   const missing = project.assets.filter(
@@ -122,39 +132,42 @@ export function ExportDialog(): ReactNode {
   const choose = (p: Preset): void => {
     if (p.soon) return;
     setPreset(p.id);
-    setHeight(Math.min(p.height, project.settings.height));
-    setBitrate(p.bitrate);
+    setShort(Math.min(p.height, projectShort));
+    if (p.bitrate) setBitrate(p.bitrate);
   };
 
   const start = async (): Promise<void> => {
     const safe = project.name.replace(/[<>:"/\\|?*]/g, "").trim() || "aula";
     const outPath = await window.api.pickExportPath(
-      `${safe}${isReels ? " (vertical)" : ""}.${isAudio ? "mp3" : "mp4"}`,
+      `${safe}${relayout ? " (vertical)" : ""}.${isAudio ? "mp3" : "mp4"}`,
     );
     if (!outPath) return;
-    const spec: ExportSpec = isReels
-      ? {
-          outPath,
-          width: 1080,
-          height: 1920,
-          fps: project.settings.fps,
-          videoBitrate: bitrate,
-          normalizeLoudness: normalize,
-          encoder: info?.encoder ?? "x264",
-          thumbnail,
-          vertical,
-        }
-      : {
-          outPath,
-          width,
-          height: even(height),
-          fps: project.settings.fps,
-          videoBitrate: bitrate,
-          normalizeLoudness: normalize,
-          encoder: info?.encoder ?? "x264",
-          thumbnail,
-          audioOnly: isAudio,
-        };
+    const common = {
+      outPath,
+      fps: project.settings.fps,
+      normalizeLoudness: normalize,
+      encoder: info?.encoder ?? "x264",
+    };
+    const spec: ExportSpec = isAudio
+      ? { ...common, width, height, videoBitrate: 0, audioOnly: true }
+      : relayout
+        ? {
+            ...common,
+            width: 1080,
+            height: 1920,
+            videoBitrate: bitrate,
+            quality: qualityOf(bitrate),
+            thumbnail,
+            vertical,
+          }
+        : {
+            ...common,
+            width,
+            height,
+            videoBitrate: bitrate,
+            quality: qualityOf(bitrate),
+            thumbnail,
+          };
     exportQueue.add({ id: newId("export"), project, spec, captions });
     close();
     useExportQueue.setState({ open: true });
@@ -210,7 +223,7 @@ export function ExportDialog(): ReactNode {
           </div>
 
           <div className="export-settings">
-            {isReels && (
+            {relayout && (
               <>
                 <span className="section-label">VERTICAL</span>
                 <div className="segmented">
@@ -234,21 +247,24 @@ export function ExportDialog(): ReactNode {
               </>
             )}
             {!isAudio && <span className="section-label">VÍDEO</span>}
-            {!isAudio && !isReels && (
+            {!isAudio && !relayout && (
               <div className="grid-2">
                 <Field label="Resolução">
                   <select
                     className="select"
-                    value={height}
-                    onChange={(e) => setHeight(Number(e.target.value))}
+                    value={short}
+                    onChange={(e) => setShort(Number(e.target.value))}
                   >
                     {[2160, 1440, 1080, 720]
-                      .filter((h) => h <= project.settings.height)
-                      .map((h) => (
-                        <option key={h} value={h}>
-                          {even(h * ratio)} × {h}
-                        </option>
-                      ))}
+                      .filter((side) => side <= projectShort)
+                      .map((side) => {
+                        const [w, h] = frameOf(side);
+                        return (
+                          <option key={side} value={side}>
+                            {w} × {h}
+                          </option>
+                        );
+                      })}
                   </select>
                 </Field>
                 <Field label="Codificador">
@@ -274,7 +290,7 @@ export function ExportDialog(): ReactNode {
                       onClick={() => setBitrate(kbps)}
                     >
                       <strong>{label}</strong>
-                      <span className="mono">{kbps / 1000} Mbps</span>
+                      <span className="mono">até {kbps / 1000} Mbps</span>
                     </button>
                   ))}
                 </div>
@@ -366,7 +382,7 @@ export function ExportDialog(): ReactNode {
         {phase.kind === "setup" && (
           <>
             <span className="stat">
-              <HardDrive size={14} /> ≈ {bytes(sizeEstimate)}
+              <HardDrive size={14} /> {isAudio ? "≈" : "até"} {bytes(sizeEstimate)}
             </span>
             <span className="stat">
               <Timer size={14} /> {duration(total)} de vídeo
@@ -381,7 +397,7 @@ export function ExportDialog(): ReactNode {
               onClick={() => void enqueue()}
               disabled={submitting || total <= 0 || missing.length > 0}
             >
-              {submitting ? "Adicionando?" : "Adicionar ? fila"}
+              {submitting ? "Adicionando…" : "Adicionar à fila"}
             </Button>
           </>
         )}

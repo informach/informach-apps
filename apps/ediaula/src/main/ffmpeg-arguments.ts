@@ -1,25 +1,55 @@
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { promisify } from "node:util";
 
 const execute = promisify(execFile);
 export type FilterScriptOption = "-filter_complex_script" | "-/filter_complex";
-const options = new Map<string, Promise<FilterScriptOption>>();
+const versions = new Map<string, Promise<{ line: string; major: number }>>();
 
-/** FFmpeg 7 introduced file-backed options; 9 removed the legacy script flag. */
-export function filterScriptOption(binary: string): Promise<FilterScriptOption> {
-  const cached = options.get(binary);
+/** The first line of `ffmpeg -version` and its major version, asked once per binary. */
+function version(binary: string): Promise<{ line: string; major: number }> {
+  const cached = versions.get(binary);
   if (cached) return cached;
   const detected = execute(binary, ["-version"], { windowsHide: true, timeout: 30000 })
-    .then(({ stdout }): FilterScriptOption => {
-      const major = Number(/^ffmpeg version (\d+)\./.exec(stdout)?.[1]);
-      if (!Number.isInteger(major) || major < 6)
-        throw new Error("Versão do FFmpeg não suportada para exportação.");
-      return major >= 7 ? "-/filter_complex" : "-filter_complex_script";
+    .then(({ stdout }) => {
+      const line = stdout.split(/\r?\n/)[0] ?? "";
+      return { line, major: Number(/^ffmpeg version (\d+)\./.exec(line)?.[1]) };
     })
     .catch((error: unknown) => {
-      options.delete(binary);
+      versions.delete(binary);
       throw error;
     });
-  options.set(binary, detected);
+  versions.set(binary, detected);
   return detected;
+}
+
+/** FFmpeg 7 introduced file-backed options; 9 removed the legacy script flag. */
+export async function filterScriptOption(binary: string): Promise<FilterScriptOption> {
+  const { major } = await version(binary);
+  if (!Number.isInteger(major) || major < 6)
+    throw new Error("Versão do FFmpeg não suportada para exportação.");
+  return major >= 7 ? "-/filter_complex" : "-filter_complex_script";
+}
+
+const builds = new Map<string, Promise<string>>();
+
+/**
+ * The build that renders, part of every cached segment's key: its version line and a hash of how
+ * it was configured (two builds of one version can differ in libraries), so another FFmpeg
+ * renders anew.
+ */
+export function ffmpegVersion(binary: string): Promise<string> {
+  let known = builds.get(binary);
+  if (!known) {
+    known = Promise.all([
+      version(binary),
+      execute(binary, ["-hide_banner", "-buildconf"], { windowsHide: true, timeout: 30000 }),
+    ]).then(
+      ([{ line }, { stdout }]) =>
+        `${line} (build ${createHash("sha256").update(stdout).digest("hex").slice(0, 16)})`,
+    );
+    known.catch(() => builds.delete(binary));
+    builds.set(binary, known);
+  }
+  return known;
 }
