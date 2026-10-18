@@ -7,8 +7,8 @@
 export interface RecorderHealth {
   /** Seconds recorded, without the pauses. */
   elapsed: number;
-  /** null without a microphone. */
-  mic: { peak: number; rms: number; silentFor: number } | null;
+  /** null without a microphone. `clipping`: the voice reached the top in the last moments. */
+  mic: { peak: number; rms: number; silentFor: number; clipping?: boolean } | null;
   disk: { free: number; minutesLeft: number | null };
   /** null without the screen. */
   frames: { lost: number; speed: number } | null;
@@ -71,6 +71,84 @@ export class SilenceMeter {
     this.silentFor = dbfs(rms) < SILENCE_DBFS ? this.silentFor + seconds : 0;
     return this.silentFor;
   }
+}
+
+/** A block this close to full scale (the meter's 8 kHz copy) counts as clipping. */
+export const CLIP_LEVEL = 0.98;
+/** Clipping is shown for this long after the last block that clipped. */
+const CLIP_HOLD = 2;
+
+/** Whether the microphone clipped in the last seconds, from blocks of measured audio. */
+export class ClipMeter {
+  private since = Number.POSITIVE_INFINITY;
+  add(peak: number, seconds: number): boolean {
+    this.since = peak >= CLIP_LEVEL ? 0 : this.since + seconds;
+    return this.clipping;
+  }
+  get clipping(): boolean {
+    return this.since < CLIP_HOLD;
+  }
+}
+
+/** What the five-second microphone test found, and what to do about it. */
+export interface MicCheck {
+  /** dBFS: the quiet moments (room noise), the voice and its loudest peak. */
+  noise: number;
+  voice: number;
+  peak: number;
+  ok: boolean;
+  advice: string;
+}
+
+const percentile = (values: number[], p: number): number => {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * p)))];
+};
+
+/**
+ * The microphone test: readings of the setup meter (ten a second) over five seconds, with a
+ * moment of silence and a sentence read aloud. The quiet tenth is the room, the loud tenth the
+ * voice.
+ */
+export function micCheck(readings: readonly { rms: number; peak: number }[]): MicCheck {
+  const rms = readings.map((r) => dbfs(r.rms)).filter(Number.isFinite);
+  if (rms.length < 10)
+    return {
+      noise: -Infinity,
+      voice: -Infinity,
+      peak: -Infinity,
+      ok: false,
+      advice: "O microfone não mandou som. Confira se ele está ligado e escolhido.",
+    };
+  const noise = percentile(rms, 0.1);
+  const voice = percentile(rms, 0.9);
+  const peak = dbfs(Math.max(...readings.map((r) => r.peak)));
+  const round = (v: number): number => Math.round(v * 10) / 10;
+  const result = (ok: boolean, advice: string): MicCheck => ({
+    noise: round(noise),
+    voice: round(voice),
+    peak: round(peak),
+    ok,
+    advice,
+  });
+  if (peak > -1)
+    return result(
+      false,
+      "A voz está estourando: afaste-se um pouco ou baixe o volume do microfone.",
+    );
+  if (voice - noise < 12)
+    return result(
+      false,
+      "Não deu para ouvir a voz acima do ruído. Leia uma frase em voz alta durante o teste.",
+    );
+  if (voice < -36)
+    return result(false, "A voz está baixa: aproxime-se do microfone ou aumente o volume dele.");
+  if (noise > -50 || voice - noise < 25)
+    return result(
+      false,
+      "Tem bastante ruído de fundo: desligue o ventilador, feche a janela ou aproxime-se do microfone.",
+    );
+  return result(true, "Tudo certo: volume bom e pouco ruído de fundo.");
 }
 
 /** A progress report of the screen's FFmpeg, as the frame watch reads it. */

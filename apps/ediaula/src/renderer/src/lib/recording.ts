@@ -1,10 +1,22 @@
+import { timelineWords } from "@shared/cleanup";
 import { squareCrop, type Transform } from "@shared/compose";
-import { type RecordingResult, retakeCuts } from "@shared/recording";
+import { layoutOverNarration } from "@shared/overNarration";
+import {
+  type OverContext,
+  type RecorderContext,
+  type RecordingResult,
+  type RecordMode,
+  retakeCuts,
+} from "@shared/recording";
 import { layoutRecording, type RecordingLayout } from "@shared/recordingImport";
 import { speechItems } from "@shared/script";
+import { alignSection } from "@shared/scriptAlign";
 import { clipEnd, timelineAt } from "@shared/timeline";
-import type { Asset } from "@shared/types";
+import type { Asset, Project } from "@shared/types";
+import { voiceClips, voiceSegments, voiceSpan, voiceTakeStart } from "@shared/voiceMaster";
+import { voiceTakes } from "@shared/voiceTakes";
 import { useApp } from "@/state/app";
+import { usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
 import { importMedia } from "./importMedia";
 import { loadWaveform } from "./media";
@@ -13,19 +25,102 @@ import { showProposal } from "./proposals";
 import { recorderKey } from "./recorderKeys";
 import { recordingImported } from "./recordingHooks";
 import { scriptDoc } from "./script";
+import { loadProjectTranscripts } from "./transcripts";
+import { proposeVoiceCleanup, treatVoices } from "./voice";
 
 /** The take's folder name, which identifies it (Asset.recording.id). */
 const basename = (dir: string): string => dir.split(/[\\/]/).filter(Boolean).at(-1) ?? dir;
 
+export interface RecorderRequest {
+  mode?: RecordMode;
+  /** "Tela sobre a narração": from where (default: the playhead) and, to redo, up to where. */
+  from?: number;
+  to?: number;
+  replace?: boolean;
+}
+
+/**
+ * Most words handed to the recorder's karaoke, from a little before where the voice plays (a
+ * long lesson has a few thousand): each word is four values of the IPC limit of 100 000.
+ */
+const MAX_WORDS = 12000;
+
+/**
+ * The lesson's voice for "Tela sobre a narração": its segments to render, its words for the
+ * karaoke and the "Na tela" directions at the time the script puts them.
+ */
+async function overContext(p: Project, request: RecorderRequest): Promise<OverContext | undefined> {
+  const span = voiceSpan(p);
+  if (!span) return undefined;
+  const playhead = usePlayback.getState().time;
+  const from = Math.max(
+    0,
+    request.from ?? (playhead >= span[0] && playhead < span[1] - 1 ? playhead : span[0]),
+  );
+  const transcripts = await loadProjectTranscripts(p);
+  const voice = new Set(voiceClips(p).map((c) => c.id));
+  const words = timelineWords(p, transcripts).filter((w) => voice.has(w.clipId));
+  const doc = scriptDoc(p);
+  const section = doc?.sections[p.script?.section ?? 0];
+  const cues: OverContext["cues"] = [];
+  if (section) {
+    // Each "Na tela" applies from the start of the line after it (or the end of the one before).
+    const lines = alignSection(section, words).lines;
+    section.items.forEach((item, index) => {
+      if (item.kind !== "screen") return;
+      const next = lines.find((l) => l.item > index && l.start !== undefined);
+      const prev = [...lines].reverse().find((l) => l.item < index && l.end !== undefined);
+      const t = next?.start ?? prev?.end;
+      if (t !== undefined) cues.push({ t: Math.max(0, t - 0.5), text: item.text });
+    });
+  }
+  return {
+    from,
+    ...(request.to !== undefined ? { to: request.to } : {}),
+    ...(request.replace ? { replace: true } : {}),
+    end: span[1],
+    segments: voiceSegments(p, 0, span[1]),
+    words: words
+      .filter((w) => w.end >= from - 5)
+      .slice(0, MAX_WORDS)
+      .map((w) => ({ t: w.start, end: w.end, text: w.text })),
+    cues,
+  };
+}
+
 /** Opens the recorder over the screen, with the project's script as teleprompter. */
-export async function openRecorder(): Promise<void> {
+export async function openRecorder(request: RecorderRequest = {}): Promise<void> {
   const p = useProject.getState().project;
   const doc = scriptDoc(p);
   const section = doc && p ? doc.sections[p.script?.section ?? 0] : undefined;
   const teleprompter = section
-    ? speechItems(section).map((i) => ({ speaker: i.speaker, text: i.text, avatar: i.avatar }))
+    ? speechItems(section).map((i) => ({
+        speaker: i.speaker,
+        text: i.text,
+        avatar: i.avatar,
+        ...(i.insertId ? { insertId: i.insertId } : {}),
+      }))
     : [];
-  await window.api.recorder.open({ teleprompter, title: section?.videoTitle });
+  const screenNotes: RecorderContext["screenNotes"] = [];
+  let spoken = 0;
+  for (const item of section?.items ?? []) {
+    if (item.kind === "speech") spoken++;
+    else if (item.kind === "screen") screenNotes.push({ before: spoken, text: item.text });
+  }
+  const over = p ? await overContext(p, request) : undefined;
+  if (request.mode === "over" && !over) {
+    useApp
+      .getState()
+      .toast("Para gravar a tela sobre a narração, a aula precisa da faixa Voz.", "error");
+    return;
+  }
+  await window.api.recorder.open({
+    teleprompter,
+    title: section?.videoTitle,
+    screenNotes,
+    ...(request.mode ? { mode: request.mode } : {}),
+    ...(over ? { over } : {}),
+  });
 }
 
 /** Webcam in the bottom-right corner, in a circle with the course's lime border (as in the design). */
@@ -110,11 +205,32 @@ export async function importRecording(r: RecordingResult): Promise<void> {
     if (asset) patchAsset(asset.id, { name: `Áudio do PC ${when}` });
   }
 
+  // A "Só voz" take: each take of each script line, and the voice treated from the start.
+  const voice = r.mode === "voice" && mic ? mic : undefined;
+  if (voice) patchAsset(voice.id, { voiceTakes: voiceTakes(r) });
   let layout: RecordingLayout | undefined;
   useProject.getState().commit((p) => {
     const current = p.assets.filter((a) => assets.some((b) => b.id === a.id));
-    layout = layoutRecording(p, current, r, undefined, { cameraTransform });
-    return { ...p, tracks: layout.tracks, clips: layout.clips };
+    // A screen kept in parts (no room to join them) goes end to end from where the voice played;
+    // a new voice take goes after the voice already there, on the same "Voz" track.
+    layout =
+      r.mode === "over" && r.screen
+        ? layoutOverNarration(p, current, r, { cameraTransform })
+        : layoutRecording(p, current, r, voiceTakeStart(p, r) ?? r.over?.from, {
+            cameraTransform,
+          });
+    return {
+      ...p,
+      tracks: layout.tracks,
+      clips: layout.clips,
+      ...(voice
+        ? {
+            assets: p.assets.map((a) =>
+              a.id === voice.id ? { ...a, voicePreset: "teacher" as const } : a,
+            ),
+          }
+        : {}),
+    };
   });
   if (!layout) return;
   const take = basename(r.dir);
@@ -132,7 +248,11 @@ export async function importRecording(r: RecordingResult): Promise<void> {
   const notes = [...(r.warnings ?? []), ...(r.encoderIssues ?? [])];
   if (notes.length) toast(`Avisos da gravação: ${notes.join(" ")}`, "info");
   const done = layout;
-  if (mic && r.markers.some((m) => m.kind === "retake"))
+  if (voice) {
+    // The takes become one cleanup proposal once the waveform is there (the silences).
+    void treatVoices([voice.id], "teacher");
+    void proposeTakes(voice.id);
+  } else if (mic && r.markers.some((m) => m.kind === "retake"))
     void proposeRetakes(mic.id, done, r.markers);
   const failures = await recordingImported({
     result: r,
@@ -202,6 +322,27 @@ async function proposeRetakes(
     revision,
     "gravacao",
   );
+  useApp.getState().toast(msg.split("\n")[0], "info");
+}
+
+/** After a "Só voz" take: repeated and redone takes as the voice cleanup proposal. */
+async function proposeTakes(voiceId: string): Promise<void> {
+  for (let i = 0; i < 120; i++) {
+    const asset = useProject.getState().project?.assets.find((a) => a.id === voiceId);
+    if (!asset) return;
+    if (asset.waveform) break;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  const asset = useProject.getState().project?.assets.find((a) => a.id === voiceId);
+  const takes = asset?.voiceTakes ?? [];
+  const seen = new Set<number>();
+  let repeated = false;
+  for (const t of takes) {
+    if (t.retake || seen.has(t.line)) repeated = true;
+    seen.add(t.line);
+  }
+  if (!repeated) return;
+  const msg = await proposeVoiceCleanup("gravacao");
   useApp.getState().toast(msg.split("\n")[0], "info");
 }
 

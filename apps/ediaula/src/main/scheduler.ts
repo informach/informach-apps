@@ -3,12 +3,12 @@ import { constants, setPriority as osSetPriority } from "node:os";
 /**
  * Background work and the recorder. While a take runs, new work waits (unless the teacher turned
  * that off) and processes already running drop to low priority, so proxies, background removal,
- * transcription and exports do not take CPU, GPU and encoder sessions from the capture. Each kind
- * of work also has a number of slots, so ten imports do not start ten proxies at once; the
- * segment export uses the same slots and the same waiting.
+ * transcription, the voice treatment and exports do not take CPU, GPU and encoder sessions from the
+ * capture. Each kind of work also has a number of slots, so ten imports do not start ten proxies
+ * at once; the segment export uses the same slots and the same waiting.
  */
 
-export type WorkKind = "proxy" | "keying" | "transcription" | "export" | "segment";
+export type WorkKind = "proxy" | "keying" | "transcription" | "export" | "segment" | "voice";
 
 export interface SchedulerState {
   recording: boolean;
@@ -38,6 +38,8 @@ const DEFAULT_SLOTS: Record<WorkKind, number> = {
   transcription: 1,
   export: 1,
   segment: 2,
+  // The voice treatment and the trip to HeyGen: one at a time.
+  voice: 1,
 };
 
 export class Scheduler {
@@ -50,6 +52,7 @@ export class Scheduler {
     transcription: 0,
     export: 0,
     segment: 0,
+    voice: 0,
   };
   private readonly wakers = new Set<() => void>();
   private readonly listeners = new Set<(state: SchedulerState) => void>();

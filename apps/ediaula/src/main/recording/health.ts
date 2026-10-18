@@ -2,6 +2,7 @@ import { readdir, stat, statfs } from "node:fs/promises";
 import { join } from "node:path";
 import { METER_RATE } from "../../shared/captureArgs.ts";
 import {
+  ClipMeter,
   type DiskAction,
   diskPlan,
   FrameWatch,
@@ -61,6 +62,7 @@ export class HealthMonitor {
   private readonly inputs: HealthInputs;
   private readonly timer: ReturnType<typeof setInterval>;
   private readonly silence = new SilenceMeter();
+  private readonly clip = new ClipMeter();
   private frames: { part: number; watch: FrameWatch } | null = null;
   private level = { peak: 0, rms: 0 };
   private samples = { peak: 0, squares: 0, count: 0 };
@@ -108,7 +110,10 @@ export class HealthMonitor {
       const rms = Math.sqrt(this.samples.squares / this.samples.count);
       // Peaks fall back slowly, like a meter needle.
       this.level = { peak: Math.max(this.samples.peak, this.level.peak * 0.8), rms };
-      if (live) this.silence.add(rms, this.samples.count / METER_RATE);
+      if (live) {
+        this.silence.add(rms, this.samples.count / METER_RATE);
+        this.clip.add(this.samples.peak, this.samples.count / METER_RATE);
+      }
       this.samples = { peak: 0, squares: 0, count: 0 };
     }
     if (now - this.lastDisk >= DISK_EVERY_MS && !this.checking) {
@@ -135,9 +140,13 @@ export class HealthMonitor {
       warnings.push(
         "Pouco espaço para juntar as partes da tela no fim: elas podem ficar separadas.",
       );
-    const mic = this.inputs.hasMic() ? { ...this.level, silentFor: this.silence.silentFor } : null;
+    const mic = this.inputs.hasMic()
+      ? { ...this.level, silentFor: this.silence.silentFor, clipping: this.clip.clipping }
+      : null;
     if (mic && mic.silentFor >= SILENCE_WARN_SECONDS)
       warnings.push(`Microfone em silêncio há ${Math.floor(mic.silentFor)} s.`);
+    if (mic?.clipping)
+      warnings.push("O microfone está estourando: afaste-se um pouco ou baixe o volume dele.");
     this.inputs.send({
       elapsed: this.inputs.elapsed(),
       mic,
@@ -183,7 +192,8 @@ async function takeSizes(dir: string): Promise<TakeSizes & { other: number }> {
     if (!entry.isFile()) continue;
     const size = (await stat(join(dir, entry.name))).size;
     if (/^tela-\d+\.mp4$/.test(entry.name)) sizes.screen += size;
-    else if (/^(microfone-\d+\.m4a|sistema\.webm)$/.test(entry.name)) sizes.audio += size;
+    else if (/^(microfone-\d+\.m4a|voz-\d+\.mkv|sistema\.webm)$/.test(entry.name))
+      sizes.audio += size;
     else sizes.other += size;
   }
   return sizes;

@@ -39,7 +39,8 @@ export function speechSpans(
       track.muted ||
       !asset.hasAudio ||
       asset.kind === "image" ||
-      c.volume <= 0
+      c.volume <= 0 ||
+      c.mutedFor
     )
       continue;
     if (transcribed.has(asset.id)) {

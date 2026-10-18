@@ -33,6 +33,7 @@ import { StatusBar } from "./StatusBar";
 import { Timeline } from "./Timeline";
 import { showRecordingProps, ToolRail } from "./ToolRail";
 import { TopBar } from "./TopBar";
+import { HeygenDialogs } from "./VoiceSection";
 import { ZoomPanel } from "./ZoomLayerPanel";
 
 const isTyping = (e: KeyboardEvent): boolean => {
@@ -311,6 +312,7 @@ export function Editor(): ReactNode {
         title="Arraste para redimensionar a timeline"
       />
       <ProposalBar />
+      <HeygenDialogs />
       <div className="timeline-wrap" style={{ height: timelineHeight }}>
         <Timeline />
       </div>

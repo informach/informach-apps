@@ -16,7 +16,7 @@ import {
   undoSteps,
   withRuntimeOf,
 } from "../src/shared/history.ts";
-import type { Asset, Project } from "../src/shared/types.ts";
+import type { Asset, Project, VoiceMaster } from "../src/shared/types.ts";
 
 const avatar: Asset = {
   id: "avatar",
@@ -207,4 +207,28 @@ test("a turn that never ended leaves nothing open", () => {
   assert.equal(closeTurn(t1, t1), null);
   assert.equal(closeTurn(null, t1), null, "ending twice does nothing");
   assert.equal(closeTurn(t2, t1), t2, "ending an old turn leaves the new one open");
+});
+
+test("undo does not unsend the voice files that went to HeyGen", () => {
+  const sent: VoiceMaster = {
+    id: "m1",
+    hash: "h",
+    createdAt: 5,
+    scope: "lesson",
+    pieces: [
+      {
+        file: "C:/aulas/Para o HeyGen/a.wav",
+        label: "aula inteira",
+        start: 0,
+        end: 9,
+        sourceMap: [],
+      },
+    ],
+  };
+  const before = project([avatar]);
+  const now = project([avatar], { voiceMasters: [sent] });
+  assert.deepEqual(restoreSnapshot(before, now, 10).voiceMasters, [sent]);
+  // Redo onto a state without any: none appear from the snapshot.
+  const none = restoreSnapshot(now, before, 11);
+  assert.ok(!("voiceMasters" in none));
 });

@@ -338,6 +338,20 @@ async function ensureChecked(variant: WhisperVariant, model: WhisperModelInfo): 
     );
 }
 
+/**
+ * The installed engine with this model, checked as a transcription checks them (the engine
+ * folder against its manifest, a published model against its hash): the recorder listens live
+ * with the engine's whisper-server (main/voiceFollow.ts).
+ */
+export async function checkedEngine(
+  model: WhisperModelInfo,
+): Promise<{ cli: string; variant: WhisperVariant }> {
+  const status = await engineStatus();
+  if (!status.bin || !status.variant) throw new Error("Motor de transcrição não instalado.");
+  await ensureChecked(status.variant, model);
+  return { cli: status.bin, variant: status.variant };
+}
+
 /* ----- Voice activity detection ----- */
 
 /** Whether each whisper-cli build lists `--vad` in its usage, by path. */

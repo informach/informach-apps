@@ -42,6 +42,7 @@ export async function writeThirdPartyNotices(appId: string, resourcesDirectory: 
     sections.push(
       "FFmpeg and FFprobe are separately distributed native programs under GPLv3. Their licenses, complete corresponding source and rebuild instructions are installed in native-media/ beside this file; see native-media/README.md and native-media/Corresponding-Source.tar.xz.",
       "Bundled export fonts retain their SIL Open Font License 1.1. Their embedded copyright and reserved-name statements, original-file checksums and complete license text are installed in fonts/LICENSES.txt beside this file.",
+      "The voice noise-reduction model rnnoise/sh.rnnn is somnolent-hogwash-2018-09-01 from https://github.com/GregorR/rnnoise-models (commit 3eee541a283fd3b8f81b85b1748e3b9ccbefa04d), unmodified. That repository ships no license file; its README states that, except for its tools/ directory and the README itself, none of the work is creative and none of it is subject to copyright. Provenance, the sha256 and the README text are installed in rnnoise/README.md beside this file. The RNNoise code that runs the model (Xiph.Org, BSD-3-Clause) is part of the FFmpeg build in native-media/.",
       // The glossary's Portuguese word list is bundled into the renderer, so its
       // CC BY-SA attribution has to travel with the installer.
       `\n--- Portuguese word list (glossary) ---\n${await readFile(fileURLToPath(new URL("../../apps/ediaula/src/shared/lexicon/LICENSE-pt-words.txt", import.meta.url)), "utf8")}`,

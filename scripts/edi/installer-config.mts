@@ -61,7 +61,9 @@ export function installerConfiguration(rawId: unknown, rawVersion: unknown): Con
       "package.json",
       "!**/*.map",
       "!**/tests/**",
-      ...(appId === "ediaula" ? ["!resources/fonts/**", "!resources/native/**"] : []),
+      ...(appId === "ediaula"
+        ? ["!resources/fonts/**", "!resources/native/**", "!resources/rnnoise/**"]
+        : []),
     ],
     asar: true,
     extraResources:
@@ -73,6 +75,8 @@ export function installerConfiguration(rawId: unknown, rawVersion: unknown): Con
               filter: ["**/*"],
             },
             { from: resolve("apps/ediaula/resources/fonts"), to: "fonts" },
+            // FFmpeg (a subprocess) reads the noise-reduction model from disk, not from the ASAR.
+            { from: resolve("apps/ediaula/resources/rnnoise"), to: "rnnoise" },
             // Subprocesses cannot run from inside the ASAR archive.
             {
               from: resolve("apps/ediaula/resources/native"),

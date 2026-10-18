@@ -5,6 +5,7 @@ import { useApp } from "@/state/app";
 import { useProject } from "@/state/project";
 import { renderAnnotation } from "./annotations";
 import { makeProxy } from "./importMedia";
+import { ensureTreated } from "./voice";
 import { restoreBlankPicture } from "./zoomLayer";
 
 /**
@@ -33,11 +34,17 @@ export async function checkAssets(): Promise<void> {
   if (!project?.assets.length) return;
   const paths = project.assets.map((a) => a.path);
   const cursorAt = new Map<string, number>();
-  for (const a of project.assets)
+  const treatedAt = new Map<string, number>();
+  for (const a of project.assets) {
     if (a.cursor) {
       cursorAt.set(a.id, paths.length);
       paths.push(a.cursor);
     }
+    if (a.treated) {
+      treatedAt.set(a.id, paths.length);
+      paths.push(a.treated.path);
+    }
+  }
   const exists = await window.api.exists(paths);
   const { patchAsset } = useProject.getState();
   project.assets.forEach((a, i) => {
@@ -49,7 +56,14 @@ export async function checkAssets(): Promise<void> {
     if (!missing && a.proxyStatus === "pending") void makeProxy(a);
     // A transcription interrupted by closing the app has to be started again.
     if (a.transcriptStatus === "pending") patchAsset(a.id, { transcriptStatus: undefined });
+    // The treated voice is a cache: when it is gone (cleaned up, another computer) it is
+    // forgotten and made again; a treatment the app closed on is no longer running.
+    const t = treatedAt.get(a.id);
+    if (t !== undefined && !exists[t])
+      patchAsset(a.id, { treated: undefined, treatStatus: undefined });
+    else if (a.treatStatus === "pending") patchAsset(a.id, { treatStatus: undefined });
   });
+  void ensureTreated();
   await redrawMissingPictures();
 }
 

@@ -61,6 +61,7 @@ import { importMedia } from "@/lib/importMedia";
 import { mediaUrl } from "@/lib/media";
 import { useProposalView } from "@/lib/proposals";
 import { recorderKey } from "@/lib/recorderKeys";
+import { openRecorder } from "@/lib/recording";
 import { speedLabel } from "@/lib/speed";
 import { timelineView, zoomBy, zoomToFit } from "@/lib/timelineView";
 import { selectJunction, setTransition, TRANSITION_DRAG } from "@/lib/transitions";
@@ -543,6 +544,22 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
             onClick={() => setNarration({ projectId: project.id, ...interval })}
           >
             Narrar intervalo
+          </button>
+          <button
+            type="button"
+            className="tool"
+            title="A voz da aula toca nos fones e só este trecho da tela é gravado de novo"
+            disabled={interval.end <= interval.start || interval.end > duration}
+            onClick={() =>
+              void openRecorder({
+                mode: "over",
+                from: interval.start,
+                to: interval.end,
+                replace: true,
+              })
+            }
+          >
+            Regravar a tela neste intervalo
           </button>
           <span>
             Início <b>{timecode(interval.start, project.settings.fps)}</b>

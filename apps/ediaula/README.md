@@ -187,6 +187,97 @@ EdiAula pergunta numa janela do Windows, sem travar as outras ferramentas, e a p
 segurança automáticas em `Projetos/.backups`; tempo de edição medido por aula; exportação com
 .srt, .vtt e miniatura .jpg.
 
+## Voz, HeyGen e tela: o caminho de uma aula
+
+O caminho é este: gravar a própria voz lendo o roteiro, levar essa voz ao HeyGen para gerar o
+avatar, trazer o MP4 de volta, gravar a tela sobre a voz e editar. Tudo roda no computador; o
+HeyGen é usado pelo site dele, como sempre.
+
+1. **Gravar a voz (modo Só voz).** Em Gravar, escolha **Só voz** em Modo de gravação. Só o
+   microfone é gravado, em PCM 48 kHz, em partes Matroska (`voz-0.mkv`) que sobrevivem a uma
+   queda; ao parar vira `voz.wav`. O diário, a recuperação de gravação interrompida e o painel de
+   saúde valem igual.
+   - O teleprompter fica grande no meio da tela, com a fala atual em destaque. Embaixo, escolha
+     de quem são as falas que você vai gravar: vêm marcadas todas, menos as do Zappy e as de
+     "não gravar".
+   - **Ctrl+Shift+↓** e **Ctrl+Shift+↑** (ou o passador de slides) trocam a fala. Cada troca fica
+     no diário, então cada tomada sai marcada com a fala dela. **Ctrl+Shift+R** joga fora a
+     tomada atual: leia a fala de novo.
+   - **Testar 5 s** mede o ruído do ambiente e o volume da voz (fique um segundo em silêncio e
+     depois leia uma frase) e diz se é melhor chegar mais perto, se afastar ou baixar o ruído.
+     Durante a gravação, a pílula avisa de silêncio longo e de voz estourando.
+   - Com o motor e um modelo de transcrição instalados (aba Transcrição), marque **Teleprompter
+     acompanha a voz**: o app escuta trechos de 4 a 6 s do microfone e passa para a próxima fala
+     quando ouve o fim da atual (só contam as palavras ditas depois que a fala apareceu). A troca
+     fica no diário no instante em que a última palavra terminou, não quando o reconhecimento
+     respondeu. Ele prefere o modelo mais leve instalado e conferido (tiny, base ou small), com o
+     motor e o modelo verificados como na transcrição, e usa o `whisper-server` do motor, que fica
+     carregado. O servidor só escuta em `127.0.0.1`, numa porta sorteada, e vive enquanto a
+     tomada grava; um servidor que sobrou de uma queda é encerrado na próxima vez. Se a máquina
+     não acompanhar, o aviso aparece e a fala segue só pelo atalho; nada disso atrasa a gravação.
+   - Ao parar, a voz entra na faixa **Voz**, depois da tomada anterior, e já começa a ser tratada.
+     Se houve tomadas repetidas ou marcadas para refazer, aparece a proposta de limpeza.
+2. **Tratar a voz.** Painel **Áudio › Voz**: escolha o tratamento (**Voz da professora**,
+   **Suave** ou **Desligado**) e clique em **Tratar a voz** (vale para os clipes selecionados ou,
+   sem seleção, para a faixa Voz). A Voz da professora corta o grave abaixo de 75 Hz, tira o
+   ruído de fundo, suaviza o "s", comprime de leve e deixa a voz em -16 LUFS com pico de -1 dBTP
+   (medido numa passada e aplicado com um ganho só na outra). Nas pausas o ruído que sobra baixa
+   de leve, sem virar silêncio digital. Cada clipe usa o tratamento escolhido para a mídia dele.
+   O arquivo tratado fica em cache (`cache/voz` no perfil do app), pelo conteúdo da gravação, e
+   é o mesmo na prévia e na exportação. O cache guarda até 6 GB (o da narração, `cache/narracao`,
+   até 3 GB) e o que ficou mais tempo sem uso sai primeiro; se o arquivo tratado de uma voz
+   sumir, o app trata de novo sozinho ao abrir a aula ou ao exportar. **Ouvir o original**
+   compara antes e depois na prévia. O tratamento espera uma gravação em andamento terminar,
+   como os outros trabalhos de fundo.
+   - O ruído sai pelo RNNoise (`arnndn` com o modelo `resources/rnnoise/sh.rnnn`, origem e
+     licença em `resources/rnnoise/README.md`) no FFmpeg do app. No FFmpeg 6 de desenvolvimento,
+     que deu resultados diferentes para o mesmo arquivo, o app usa o `afftdn` com o perfil de
+     ruído aprendido no trecho mais quieto da gravação.
+3. **Limpar a voz antes do HeyGen.** **Limpar a voz para o HeyGen** monta uma proposta só, item a
+   item: das tomadas repetidas de uma fala fica a última completa (pelas tomadas da gravação e,
+   com transcrição, pelo texto do roteiro); saem as tomadas marcadas para refazer, os vícios de
+   fala e os silêncios longos, que viram uma pausa de 0,4 s. Aplicar desfaz com um Ctrl+Z.
+4. **Exportar a voz para o HeyGen** (menu Arquivo ou painel Áudio): grava WAV 48 kHz, 16 bits,
+   mono da faixa Voz, já tratada e cortada. Cada exportação ganha uma pasta própria dentro de
+   **Para o HeyGen**, ao lado do projeto, com a data e a hora (`Para o HeyGen/2026-10-18 14h05m09`),
+   e nunca apaga o que foi antes. Os arquivos levam o nome da aula e do trecho, como
+   `Aula 3 (F1P1-D01).wav`. Dá para exportar a aula inteira, uma parte por seção do roteiro ou
+   uma por inserção do avatar (como `F1P1-D01`); uma inserção que tem falas em vários parágrafos
+   sai inteira, e dois trechos com o mesmo código fazem a exportação parar com um aviso para
+   corrigir o roteiro. O envio de arquivo do HeyGen aceita até 32 MB por pedido; por isso cada
+   arquivo tem no máximo 5 minutos (28,8 MB), dividido numa pausa. A aula guarda as últimas 20
+   exportações (os mestres da voz), cada uma com o mapa de cada arquivo para a timeline.
+5. **Importar vídeo do HeyGen** (menu Arquivo ou painel Áudio): escolha um ou vários MP4. Cada um
+   é comparado pelo próprio som (correlação no envelope e depois no sinal) com todos os arquivos
+   exportados que ainda estão no disco, e entra na faixa do avatar onde o mapa do arquivo
+   vencedor diz que aquela voz está agora, seguindo os cortes feitos antes e depois da
+   exportação. A voz como está agora só é usada quando nenhum arquivo enviado sobrou. O fundo
+   liso sai sozinho e o avatar vai para o lado, como nas inserções. Uma pausa curta entre dois
+   clipes da voz (até 1,5 s) não faz o avatar sumir, e o esmaecimento fica só nas pontas. O som
+   do HeyGen entra mudo, porque vale a voz tratada; com **Usar o som do HeyGen**, a voz fica
+   calada só naquele trecho, marcada como calada para o HeyGen, sem mudar a voz enviada nem dar
+   aviso de voz editada. Um vídeo um pouco mais longo ou mais curto que a voz é acelerado ou
+   freado o necessário.
+   - Se a voz foi editada depois da exportação, o app só avisa: o encaixe segue o mapa do
+     arquivo enviado e já respeita os cortes.
+   - Quando o encaixe é incerto (confiança baixa, dois arquivos que servem igual em lugares
+     diferentes, ou nada a encaixar), o vídeo não entra às cegas: a barra acima da timeline
+     mostra o melhor palpite, com **Ir para lá**, **Encaixar aqui** e **Descartar**.
+6. **Gravar a tela sobre a narração.** No painel Áudio (ou no menu Arquivo), **Gravar a tela
+   sobre a narração** abre o gravador nesse modo: a voz da aula toca nos fones a partir do cursor
+   da timeline enquanto a tela é gravada. O teleprompter mostra a voz em karaokê, com a palavra
+   atual acesa, e as próximas instruções "Na tela" do roteiro. Microfone e áudio do PC começam
+   desligados (a voz já existe); dá para ligar. Pausar pausa as duas coisas: a pausa vira corte
+   na tela e a voz continua do mesmo ponto. O take entra na faixa da tela no tempo da voz: o
+   gravador anota, a cada meio segundo, que segundo da voz estava sendo ouvido, já descontada a
+   latência da saída de áudio.
+   - **Regravar a tela neste intervalo:** marque um intervalo na régua da timeline e use o botão
+     ao lado de Narrar intervalo. A voz começa dois segundos antes, a gravação para sozinha no
+     fim do intervalo e só aquele trecho da tela é trocado, na faixa em que a tela gravada está.
+     Se você parar antes do fim, só o que foi gravado é trocado.
+7. **Editar e exportar** como sempre. A exportação usa a voz tratada; se algum tratamento ainda
+   não terminou, ela trata antes de exportar.
+
 ## Avatar (HeyGen) e composição
 
 - **Remover fundo automático:** ao importar, a EdiAula detecta fundo azul ou verde liso nas bordas e já remove.
@@ -283,7 +374,7 @@ segurança automáticas em `Projetos/.backups`; tempo de edição medido por aul
   controles do gravador (pílula, teleprompter, avisos) não entra no vídeo: ele fica parado onde estava, e os
   cliques ali não viram onda nem zoom automático.
 - **Arquivos** em `Documentos/EdiAula/Gravações/<data>/`. Durante a gravação, cada fonte grava em partes de MP4
-  fragmentado (`tela-0.mp4`, `microfone-0.m4a`, `camera-0.mp4`, `sistema.webm`), legíveis até o último fragmento
+  fragmentado (`tela-0.mp4`, `microfone-0.m4a`, `camera-0.mp4`, `sistema.webm`; no modo Só voz, `voz-0.mkv` em PCM), legíveis até o último fragmento
   se algo cair; o auxiliar grava `cursor.jsonl` e as imagens dos cursores em `cursors/`; e o app grava
   `sessao.jsonl`, o diário da sessão (começo, primeira amostra de cada parte, pausas, marcadores, falhas, falas do
   teleprompter, parada), que vai ao disco nas pausas, marcadores, falhas e na parada e a cada 5 s. Ao parar, as
@@ -499,7 +590,7 @@ segurança automáticas em `Projetos/.backups`; tempo de edição medido por aul
 ## Gravação guiada da plataforma web
 
 - **MP4 do HeyGen:** em **Importar áudio ou MP4 do HeyGen**, selecione o vídeo exportado com a voz. O EdiAula extrai a primeira faixa de áudio em WAV, preserva o MP4 original e usa o mesmo WAV para escuta, transcrição e narração na timeline. Não é necessário converter o arquivo antes. Vídeos sem faixa de áudio mostram uma mensagem de erro.
-- O modo **Manual** permanece disponível e é o padrão. Em Gravar, escolha **Guiado por roteiro/áudio** para preparar uma demonstração.
+- O modo **Tela** (gravação à mão) permanece disponível e é o padrão. Em Gravar, escolha **Guiado por roteiro/áudio** em Modo de gravação para preparar uma demonstração. Os outros modos, **Só voz** e **Tela sobre a narração**, estão em "Voz, HeyGen e tela".
 - **Abrir ambiente de aula** abre uma janela web isolada, sem acesso à ponte do editor. Entre na plataforma normalmente e pressione **F8** para voltar ao gravador. Os dados de login ficam no perfil local dessa janela.
 - Cole o roteiro (uma etapa por linha) ou importe a narração. O roteiro produz tempos estimados; a transcrição propõe tempos nas palavras “clique”, “clicar” e “clicamos”. A transcrição depende do motor/modelo já configurado. Também é possível definir etapas e tempos manualmente.
 - Revise as ações e, em cada etapa, escolha **Marcar alvo**, posicione o cursor e pressione **F8**. Na janela da aula, botões usam seletores de elementos e são localizados novamente antes de executar. Canvas e iframes usam pontos relativos; outros navegadores usam posições fixas. Mudanças de conteúdo de jogos precisam de revisão: ainda não há reconhecimento visual do resultado das ações.

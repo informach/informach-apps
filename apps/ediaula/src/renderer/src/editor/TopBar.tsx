@@ -6,6 +6,7 @@ import { askPasteProps, copyProps } from "@/lib/clipProps";
 import { useRecorderKey } from "@/lib/recorderKeys";
 import { openRecorder } from "@/lib/recording";
 import { zoomToFit } from "@/lib/timelineView";
+import { exportForHeygen, importHeygenVideos } from "@/lib/voice";
 import { useApp } from "@/state/app";
 import { useExportQueue } from "@/state/exportQueue";
 import { useProject } from "@/state/project";
@@ -69,6 +70,22 @@ export function TopBar(): ReactNode {
               {
                 label: "Fila de exportação…",
                 onSelect: () => useExportQueue.setState({ open: true }),
+              },
+              { separator: true, label: "" },
+              {
+                label: "Exportar voz para o HeyGen",
+                disabled: !project,
+                onSelect: () => void exportForHeygen("lesson"),
+              },
+              {
+                label: "Importar vídeo do HeyGen…",
+                disabled: !project,
+                onSelect: () => void importHeygenVideos(false),
+              },
+              {
+                label: "Gravar a tela sobre a narração…",
+                disabled: !project,
+                onSelect: () => void openRecorder({ mode: "over" }),
               },
               { separator: true, label: "" },
               { label: "Voltar ao início", onSelect: () => void actions.goHome() },

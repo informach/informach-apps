@@ -1,5 +1,5 @@
 import { existsSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { type DesktopJob, desktopJobs } from "@informach/edi-desktop/jobs";
 import { desktopFiles, desktopIpc as ipcMain } from "@informach/edi-desktop/main";
 import {
@@ -35,6 +35,7 @@ import type {
   RecordingResult,
   RecordOptions,
 } from "../shared/recording.ts";
+import { RECORD_MODES, type RecorderContext } from "../shared/recording.ts";
 import { prepareGuidedNarration, probe } from "./ffmpeg.ts";
 import {
   captureBrowserTarget,
@@ -43,21 +44,19 @@ import {
   resolveBrowserTarget,
 } from "./guidedBrowser.ts";
 import { executeGuided, GuidedInput } from "./guidedRecording.ts";
+import { qpc } from "./nativeHelper.ts";
 import * as rec from "./recorder.ts";
 import { readRecorderSettings, writeRecorderSettings } from "./recorderSettings.ts";
 import { scheduler } from "./scheduler.ts";
+import { renderVoiceCached, voiceSegmentsSchema } from "./voiceFiles.ts";
+import { type FollowState, liveModel, VoiceFollower } from "./voiceFollow.ts";
+import { checkedEngine, engineStatus } from "./whisper.ts";
 
 /**
  * The recorder is a transparent window over the monitor being recorded: region frame,
  * teleprompter and controls. Content protection keeps it out of the capture, and during the
  * recording it lets clicks through to the apps underneath, except over its own controls.
  */
-
-export interface RecorderContext {
-  /** Teleprompter paragraphs (narration lines of the project's script). */
-  teleprompter: { speaker: string; text: string; avatar: boolean }[];
-  title?: string;
-}
 
 let overlay: BrowserWindow | null = null;
 let context: RecorderContext = { teleprompter: [] };
@@ -104,6 +103,58 @@ const prepareSchema = z.object({
   fps: z.union([z.literal(30), z.literal(60)]),
   quality: z.enum(CAPTURE_QUALITIES).optional(),
   systemAudio: z.boolean().optional(),
+  mode: z.enum(RECORD_MODES).optional(),
+  follow: z.boolean().optional(),
+  over: z
+    .object({
+      from: z
+        .number()
+        .min(0)
+        .max(7 * 86400),
+      to: z
+        .number()
+        .min(0)
+        .max(7 * 86400)
+        .optional(),
+      replace: z.boolean().optional(),
+    })
+    .optional(),
+});
+
+const seconds = z
+  .number()
+  .min(0)
+  .max(7 * 86400);
+const line = z.string().max(20000);
+/** What the editor hands the recorder (shared/recording.ts RecorderContext). */
+const contextSchema = z.object({
+  teleprompter: z
+    .array(
+      z.object({
+        speaker: z.string().max(200),
+        text: line,
+        avatar: z.boolean(),
+        insertId: z.string().max(40).optional(),
+      }),
+    )
+    .max(5000),
+  title: z.string().max(2000).optional(),
+  screenNotes: z
+    .array(z.object({ before: z.int().nonnegative(), text: line }))
+    .max(5000)
+    .optional(),
+  mode: z.enum(RECORD_MODES).optional(),
+  over: z
+    .object({
+      from: seconds,
+      to: seconds.optional(),
+      replace: z.boolean().optional(),
+      end: seconds,
+      segments: voiceSegmentsSchema,
+      words: z.array(z.object({ t: seconds, end: seconds, text: z.string().max(200) })).max(200000),
+      cues: z.array(z.object({ t: seconds, text: line })).max(5000),
+    })
+    .optional(),
 });
 
 /** Files of a finished take the editor reads: media, cursor data and the cursor images. */
@@ -279,9 +330,71 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
   const allHotkeys = (): HotkeyAction[] => [...new Set([...registered.keys(), ...reports.keys()])];
   let sessionKeys: HotkeyAction[] = [];
 
+  // ---- the teleprompter following the voice ("Só voz") ----
+  let follower: VoiceFollower | null = null;
+  const followState = (state: FollowState, message: string): void => {
+    overlay?.webContents.send("recorder:followState", { state, message });
+  };
+  /** Each start or end of the following moves this on: a start that finds it moved gives up. */
+  let followTurn = 0;
+  /** Starts and ends run one after another, so two servers never run at once. */
+  let followQueue: Promise<void> = Promise.resolve();
+  const endFollow = (): void => {
+    followTurn++;
+    follower?.stop();
+    follower = null;
+  };
+  /** Starts the recognizer for a voice take; without the engine, only the shortcuts move lines. */
+  const startFollow = (): Promise<void> => {
+    endFollow();
+    const turn = followTurn;
+    followQueue = followQueue.then(async () => {
+      if (turn !== followTurn) return;
+      try {
+        const status = await engineStatus();
+        const model = liveModel(status.models, status.model);
+        if (!status.bin || !model) {
+          followState(
+            "unavailable",
+            "Para o teleprompter acompanhar a voz, instale o motor e um modelo na aba Transcrição. Por enquanto, use o atalho.",
+          );
+          return;
+        }
+        // Checked like a transcription: the engine folder against its manifest, the model
+        // against its published hash (main/whisper.ts).
+        const engine = await checkedEngine(model);
+        if (turn !== followTurn) return;
+        const f = new VoiceFollower({
+          engine: {
+            server: join(dirname(engine.cli), "whisper-server.exe"),
+            model: model.path,
+            cpu: engine.variant === "cpu",
+          },
+          lines: context.teleprompter.map((l) => l.text),
+          language: "pt",
+          pidFile: join(app.getPath("userData"), "whisper", "follow-server.pid"),
+          onLineDone: (line, at) => overlay?.webContents.send("recorder:follow", { line, at }),
+          onState: followState,
+        });
+        follower = f;
+        await f.start();
+      } catch (error) {
+        if (turn === followTurn) endFollow();
+        followState(
+          "unavailable",
+          `O teleprompter não vai acompanhar a voz (${error instanceof Error ? error.message : String(error)}). Use o atalho.`,
+        );
+      }
+    });
+    return followQueue;
+  };
+
   // ---- the take's status, events and health ----
   const onStatus = (status: RecorderStatus): void => {
     overlay?.webContents.send("recorder:status", status);
+    follower?.setPaused(status.phase !== "recording");
+    if (status.phase === null || status.phase === "stopping" || status.phase === "finalized")
+      endFollow();
     const active = status.phase !== null && status.phase !== "finalized";
     scheduler.setRecording(active, { hold: settings.pauseBackground });
     const w = main();
@@ -302,7 +415,10 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
   rec.subscribe((message) => {
     if (message.type === "status") onStatus(message.status);
     else if (message.type === "event") overlay?.webContents.send("recorder:event", message.event);
-    else overlay?.webContents.send("recorder:health", message.health);
+    else if (message.type === "health")
+      overlay?.webContents.send("recorder:health", message.health);
+    else if (message.type === "follow") follower?.feed(message.chunk, message.at);
+    else follower?.setLine(message.index, message.at);
   });
 
   // getDisplayMedia in the recorder window asks for the computer's sound: Windows loopback.
@@ -316,6 +432,7 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     recordingJob?.finish();
     recordingJob = undefined;
     endGuided();
+    endFollow();
     rec.stopMicMonitor();
     unregisterHotkeys(allHotkeys());
     sessionKeys = [];
@@ -329,8 +446,8 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     }
   };
 
-  ipcMain.handle("recorder:open", async (_e, ctx: RecorderContext) => {
-    context = ctx;
+  ipcMain.handle("recorder:open", async (_e, raw: unknown) => {
+    context = contextSchema.parse(raw);
     if (overlay) return overlay.focus();
     await loadSettings;
     settings = await readRecorderSettings();
@@ -439,9 +556,36 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
         }),
     );
   });
-  ipcMain.handle("recorder:teleprompterLine", (_e, index: unknown) =>
-    rec.teleprompterLine(z.int().nonnegative().max(100000).parse(index)),
+  /**
+   * The teleprompter moved to a line: by a shortcut (now), or because the voice finished the line
+   * before (`at`: the QPC moment its last word ended, sent with recorder:follow).
+   */
+  ipcMain.handle("recorder:teleprompterLine", (_e, index: unknown, at: unknown) =>
+    rec.teleprompterLine(
+      z.int().nonnegative().max(100000).parse(index),
+      z.number().finite().positive().optional().parse(at),
+    ),
   );
+  /** The main process's clock (QPC ms), for the recorder window to convert its own. */
+  ipcMain.handle("recorder:clock", () => qpc());
+  /** "Tela sobre a narração": the voice heard at timeline second `at` at QPC `when`. */
+  ipcMain.handle("recorder:overAnchor", (_e, at: unknown, when: unknown) =>
+    rec.overAnchor(
+      z.number().finite().nonnegative().parse(at),
+      z.number().finite().positive().parse(when),
+    ),
+  );
+  /** The lesson's voice as one file, from a little before the point it plays from. */
+  ipcMain.handle("recorder:narration", async () => {
+    const over = context.over;
+    if (!over) throw new Error("Abra o gravador pelo editor, com a faixa Voz na aula.");
+    const start = Math.max(0, over.from - 2);
+    const end = Math.max(
+      start + 0.1,
+      over.to !== undefined ? Math.min(over.end, over.to + 1) : over.end,
+    );
+    return { path: await renderVoiceCached(over.segments, start, end), start };
+  });
   ipcMain.handle("recorder:discard", async () => {
     endGuided();
     await rec.discard((dir) => shell.trashItem(dir));
@@ -677,11 +821,22 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
       )
         region = undefined;
     }
+    if (opts.mode === "voice") {
+      // Voice only: no screen, camera or computer sound.
+      opts.monitor = undefined;
+      opts.camera = undefined;
+      opts.cameraMode = undefined;
+      opts.systemAudio = false;
+      opts.keys = false;
+    }
+    if (opts.mode !== "voice") opts.follow = undefined;
+    if (opts.mode !== "over") opts.over = undefined;
     await rec.prepare({ ...opts, region }, monitors, {
       // Keys typed in the lesson window still show on screen; it belongs to this process too.
       keyWindows: guidedBrowserWindowIds(),
       keyFilter: toKeyFilter(settings.hotkeys, settings.clicker),
     });
+    if (opts.mode === "voice" && opts.follow) void startFollow();
     captureBounds = m
       ? {
           x: m.x + (region?.x ?? 0),

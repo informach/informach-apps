@@ -22,9 +22,11 @@ const author = (by: string | undefined): string =>
       ? "gravação"
       : by === "roteiro"
         ? "roteiro"
-        : by?.startsWith("cliente:")
-          ? "app de IA conectado"
-          : "IA";
+        : by === "voz"
+          ? "limpeza da voz"
+          : by?.startsWith("cliente:")
+            ? "app de IA conectado"
+            : "IA";
 
 /**
  * Cuts suggested by the AI, waiting for one-click approval. Kept in the project until then. Each

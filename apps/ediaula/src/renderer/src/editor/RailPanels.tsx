@@ -69,6 +69,7 @@ import { CueList } from "./CueList";
 import { FontPicker } from "./FontPicker";
 import { PaletteSection } from "./PaletteEditor";
 import { Swatches } from "./Swatches";
+import { VoiceSection } from "./VoiceSection";
 
 const clock = (s: number): string =>
   `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
@@ -657,6 +658,7 @@ export function AudioPanel(): ReactNode {
   };
   return (
     <Panel title="Áudio" icon={AudioLines}>
+      <VoiceSection />
       <div className="props-section">
         <h3>
           <Music size={13} /> Música de fundo
