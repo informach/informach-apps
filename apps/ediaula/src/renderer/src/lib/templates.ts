@@ -74,10 +74,17 @@ export async function addTemplate(
   useProject.getState().commit((q) => {
     let next: Project = q;
     if (t.fullscreen) {
+      // Locked tracks stay exactly where they are, as with every other edit.
+      const locked = new Set(next.tracks.filter((tr) => tr.locked).map((tr) => tr.id));
       next = {
         ...next,
-        clips: openGap(next.clips, start, t.duration, new Set(next.tracks.map((tr) => tr.id)))
-          .clips,
+        clips: openGap(
+          next.clips,
+          start,
+          t.duration,
+          new Set(next.tracks.map((tr) => tr.id)),
+          locked,
+        ).clips,
       };
     }
     layers.forEach((l, i) => {

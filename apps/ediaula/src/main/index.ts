@@ -4,6 +4,7 @@ import { readFile, unlink, writeFile } from "node:fs/promises";
 import type { Server } from "node:http";
 import { basename, dirname, extname, join } from "node:path";
 import { Readable } from "node:stream";
+import { createClientGrant, listGrants, revokeGrant } from "@informach/edi-desktop/access";
 import { desktopJobs } from "@informach/edi-desktop/jobs";
 import { createEdiDesktop, desktopFiles, desktopIpc as ipcMain } from "@informach/edi-desktop/main";
 import {
@@ -15,10 +16,13 @@ import {
   type SaveDialogOptions,
   shell,
 } from "electron";
+import { z } from "zod";
+import { EFFORTS, type Effort, resolveModel } from "../shared/aiModels.ts";
 import type { ChromaKey } from "../shared/chroma.ts";
 import type { FontFamily } from "../shared/fonts.ts";
 import type {
   AiClientId,
+  AiGrantView,
   AiSettingsView,
   AssetKind,
   AssistantEngine,
@@ -27,22 +31,27 @@ import type {
   ProjectSettings,
   WhisperVariant,
 } from "../shared/types.ts";
+import { requestApproval } from "./aiApproval.ts";
 import { callTool } from "./aiBridge.ts";
+import { setAiPathContext } from "./aiPaths.ts";
 import {
   clientStatus,
+  clientVersion,
   connectClient,
   DEFAULT_MCP_PORT,
-  DEFAULT_MODEL,
   decryptKey,
   encryptKey,
+  locateClient,
   mcpUrl,
   readStored,
+  storedEffort,
   writeStored,
 } from "./aiSettings.ts";
 import { resetConversation, sendMessage, stopConversation, testKey } from "./assistant.ts";
 import { registerCursorSprites } from "./cursorSprite.ts";
 import {
-  inAppRunActive,
+  CHECK_CLIENT,
+  codexSelfTest,
   resetEngineSession,
   runClaudeCode,
   runCodex,
@@ -698,9 +707,10 @@ async function applyMcp(): Promise<void> {
   }
   if (enabled && !mcp.server) {
     try {
-      const server = await startMcpServer(port, (name, input) =>
-        callTool(win, name, input, inAppRunActive() ? "assistant" : "mcp"),
-      );
+      const server = await startMcpServer(port, {
+        call: (name, input, meta) => callTool(win, name, input, meta),
+        approve: (request) => requestApproval(win, request),
+      });
       mcp = { server, port };
     } catch (err) {
       mcp = {
@@ -718,19 +728,83 @@ async function applyMcp(): Promise<void> {
 async function aiView(): Promise<AiSettingsView> {
   const stored = await readStored();
   const key = decryptKey(stored.apiKeyEnc);
+  const model = resolveModel(stored.model);
   return {
     engine: stored.engine ?? (key ? "api" : "claude-code"),
     claudeModel: stored.claudeModel ?? "default",
     hasApiKey: !!key,
     apiKeyHint: key ? `…${key.slice(-4)}` : undefined,
-    model: stored.model ?? DEFAULT_MODEL,
+    model: model.model,
+    ...(model.notice ? { modelNotice: model.notice } : {}),
+    effort: storedEffort(stored),
     mcpEnabled: stored.mcpEnabled ?? true,
     mcpPort: mcp.port,
     mcpUrl: mcpUrl(mcp.port),
     mcpRunning: !!mcp.server,
     mcpError: mcp.error,
+    ...(stored.codexRestricted ? { codexRestricted: stored.codexRestricted } : {}),
+    codexConfirmed:
+      !!stored.codexConfirmed && stored.codexConfirmed === stored.codexRestricted?.version,
   };
 }
+
+/** Runs the Codex self-check and records a conclusive result for the installed version. */
+async function checkCodex(): Promise<{ ok: boolean; conclusive: boolean; detail: string }> {
+  const result = await codexSelfTest(mcp.port);
+  if (result.conclusive) {
+    const stored = await readStored();
+    stored.codexRestricted = { version: result.version, ok: result.ok };
+    await writeStored(stored);
+  }
+  return result;
+}
+
+/**
+ * Before a Codex turn: the installed version must have passed the self-check (run once per
+ * version) or the person must have chosen to use it without the guarantee.
+ */
+async function codexAllowed(emit: (ev: AssistantEvent) => void): Promise<boolean> {
+  const bin = await locateClient("codex");
+  if (!bin) return true;
+  const version = await clientVersion(bin);
+  let stored = await readStored();
+  if (stored.codexRestricted?.version !== version) {
+    emit({
+      type: "tool",
+      id: "codex-check",
+      name: "",
+      title: "Conferindo se o Codex fica só nas ferramentas do editor",
+      status: "running",
+    });
+    const result = await checkCodex();
+    emit({
+      type: "tool",
+      id: "codex-check",
+      name: "",
+      title: "Conferindo se o Codex fica só nas ferramentas do editor",
+      status: result.ok ? "done" : "error",
+      summary: result.detail,
+    });
+    if (!result.conclusive) {
+      emit({
+        type: "error",
+        message: `Não deu para conferir o Codex agora (${result.detail}). Confira se ele está instalado e logado e tente de novo.`,
+      });
+      return false;
+    }
+    stored = await readStored();
+  }
+  if (stored.codexRestricted?.version === version && stored.codexRestricted.ok) return true;
+  if (stored.codexConfirmed === version && stored.codexRestricted?.version === version) return true;
+  emit({
+    type: "error",
+    message:
+      "Nesta versão do Codex não dá para garantir que ele fique só nas ferramentas do editor. Se quiser usar assim mesmo, confirme em Configurações › Inteligência artificial.",
+  });
+  return false;
+}
+
+const conversationIdSchema = z.string().min(1).max(200);
 
 function registerAiIpc(): void {
   ipcMain.handle("ai:settings", () => aiView());
@@ -744,6 +818,8 @@ function registerAiIpc(): void {
         mcpEnabled?: boolean;
         engine?: AssistantEngine;
         claudeModel?: string;
+        effort?: Effort;
+        codexConfirmed?: boolean;
       },
     ) => {
       const stored = await readStored();
@@ -753,21 +829,53 @@ function registerAiIpc(): void {
       if (changes.mcpEnabled !== undefined) stored.mcpEnabled = changes.mcpEnabled;
       if (changes.engine) stored.engine = changes.engine;
       if (changes.claudeModel) stored.claudeModel = changes.claudeModel;
+      if (changes.effort && EFFORTS.some((e) => e.id === changes.effort))
+        stored.effort = changes.effort;
+      if (changes.codexConfirmed !== undefined) {
+        if (changes.codexConfirmed && stored.codexRestricted)
+          stored.codexConfirmed = stored.codexRestricted.version;
+        else delete stored.codexConfirmed;
+      }
       await writeStored(stored);
       await applyMcp();
       return aiView();
     },
   );
+  ipcMain.handle("ai:codexSelfTest", async () => {
+    await checkCodex();
+    return aiView();
+  });
+  ipcMain.handle("ai:grants", (): AiGrantView[] =>
+    listGrants().filter((grant) => grant.client !== CHECK_CLIENT),
+  );
+  ipcMain.handle("ai:revokeGrant", async (_e, rawId: unknown) => {
+    await revokeGrant(z.string().min(1).max(100).parse(rawId));
+  });
+  ipcMain.handle("ai:manualToken", async () => {
+    const { token } = await createClientGrant({ client: "manual", scopes: ["read", "propose"] });
+    return { token, url: mcpUrl(mcp.port) };
+  });
+  ipcMain.handle("ai:context", (_e, raw: unknown) => {
+    const context = z
+      .object({
+        projectPath: z.string().max(32768).nullable(),
+        mediaFolders: z.array(z.string().max(32768)).max(5000),
+      })
+      .parse(raw);
+    setAiPathContext(context);
+  });
   ipcMain.handle("ai:testKey", () => testKey());
   ipcMain.handle("ai:clients", () => clientStatus(mcp.port));
   ipcMain.handle("ai:connect", (_e, id: AiClientId) => connectClient(id, mcp.port));
   ipcMain.handle("ai:openRestrictedClaude", () => openRestrictedClaude(mcp.port));
-  ipcMain.handle("assistant:send", async (_e, conversationId: string, text: string) => {
+  ipcMain.handle("assistant:send", async (_e, rawConversation: unknown, rawText: unknown) => {
+    const conversationId = conversationIdSchema.parse(rawConversation);
+    const text = z.string().min(1).max(4_000_000).parse(rawText);
     const view = await aiView();
     const emit = (ev: AssistantEvent): void => {
       if (win && !win.isDestroyed()) win.webContents.send("assistant:event", conversationId, ev);
     };
-    if (view.engine === "api") return sendMessage(win, conversationId, text);
+    if (view.engine === "api") return sendMessage(win, conversationId, text, view.effort);
     if (!view.mcpRunning) {
       emit({
         type: "error",
@@ -778,13 +886,19 @@ function registerAiIpc(): void {
       return;
     }
     if (view.engine === "claude-code")
-      return runClaudeCode(conversationId, text, mcp.port, view.claudeModel, emit);
+      return runClaudeCode(conversationId, text, mcp.port, view.claudeModel, view.effort, emit);
+    if (!(await codexAllowed(emit))) {
+      emit({ type: "done" });
+      return;
+    }
     return runCodex(conversationId, text, mcp.port, emit);
   });
-  ipcMain.handle("assistant:stop", (_e, conversationId: string) => {
+  ipcMain.handle("assistant:stop", (_e, raw: unknown) => {
+    const conversationId = conversationIdSchema.parse(raw);
     if (!stopEngineRun(conversationId)) stopConversation(conversationId);
   });
-  ipcMain.handle("assistant:reset", (_e, conversationId: string) => {
+  ipcMain.handle("assistant:reset", (_e, raw: unknown) => {
+    const conversationId = conversationIdSchema.parse(raw);
     resetEngineSession(conversationId);
     resetConversation(conversationId);
   });

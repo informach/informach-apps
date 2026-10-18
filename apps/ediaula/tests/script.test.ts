@@ -155,6 +155,31 @@ test("opening the timeline splits speech and video tracks and leaves a music bed
   assert.equal(out.find((c) => c.id === "x")!.start, 15, "later clips move right");
 });
 
+test("opening the timeline never moves a locked track, and reports one crossing the point", () => {
+  const clips: Clip[] = [
+    { id: "v", assetId: "a", trackId: "video", start: 0, in: 0, duration: 10, volume: 1 },
+    { id: "l1", assetId: "b", trackId: "locked", start: 12, in: 0, duration: 2, volume: 1 },
+    { id: "l2", assetId: "c", trackId: "locked", start: 2, in: 0, duration: 5, volume: 1 },
+  ];
+  const locked = new Set(["locked"]);
+  const { clips: out, blocked } = openGap(clips, 4, 3, new Set(["video", "locked"]), locked);
+  assert.equal(out.find((c) => c.id === "l1")?.start, 12, "a locked clip after the point stays");
+  assert.deepEqual(
+    out.filter((c) => c.trackId === "locked").map((c) => [c.id, c.start, c.duration]),
+    [
+      ["l1", 12, 2],
+      ["l2", 2, 5],
+    ],
+    "and one crossing it is neither split nor moved",
+  );
+  assert.deepEqual(
+    blocked.map((c) => c.id),
+    ["l2"],
+  );
+  // Nothing locked crosses the point: nothing is reported.
+  assert.deepEqual(openGap(clips, 8, 3, new Set(["video"]), locked).blocked, []);
+});
+
 test("the avatar line is found in the HeyGen transcript, in source time", () => {
   const tr = (text: string, from: number): Transcript => ({
     version: 1,

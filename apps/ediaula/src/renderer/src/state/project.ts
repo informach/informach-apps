@@ -1,4 +1,18 @@
-import { type RelinkChanges, relinkIn, restoreSnapshot } from "@shared/history";
+import type { StoredProposal } from "@shared/anchors";
+import {
+  type AiTurn,
+  aiUndoCount,
+  closeTurn,
+  type History,
+  type HistoryEntry,
+  pushCommit,
+  type RelinkChanges,
+  redoSpan,
+  redoSteps,
+  relinkIn,
+  undoSpan,
+  undoSteps,
+} from "@shared/history";
 import { fileName } from "@shared/relink";
 import { newId } from "@shared/timeline";
 import type { Asset, Project } from "@shared/types";
@@ -15,15 +29,20 @@ interface ProjectStore {
   path: string | null;
   past: Project[];
   future: Project[];
+  /** Who made each step in `past` and `future` (shared/history.ts). */
+  pastMeta: HistoryEntry[];
+  futureMeta: HistoryEntry[];
   saveState: SaveState;
   /** The last save failure; stays until a save succeeds. */
   saveError?: string;
   selection: string[];
-  /** Bumped on every edit, undo and redo; AI tools use it to detect a stale view of the project. */
+  /**
+   * Bumped on every edit, undo, redo and project change, from one counter that never goes back:
+   * AI tools use it to detect a stale view of the project, even of another project.
+   */
   revision: number;
-  /** While > 0, commits merge into a single undo step (an AI command). */
-  groupDepth: number;
-  groupOpen: boolean;
+  /** The turn of the chat inside EdiAula in progress, if any. */
+  aiTurn: AiTurn | null;
 
   load(path: string, project: Project): void;
   close(): void;
@@ -38,8 +57,13 @@ interface ProjectStore {
   /** The media file (or its cursor data) was found elsewhere: the new place replaces the old
    *  one in the whole history. */
   relinkAsset(id: string, changes: RelinkChanges): void;
+  /** Ctrl+Z: one step, or the whole AI turn on top. */
   undo(): void;
   redo(): void;
+  /** The AI's undo tool: only its own steps on top (`mine`), up to `steps`. Returns how many. */
+  undoAi(mine: (entry: HistoryEntry) => boolean, steps: number): number;
+  /** Changes the pending AI proposals: kept in the project, outside the undo history. */
+  setProposals(fn: (list: StoredProposal[]) => StoredProposal[]): void;
   select(ids: string[]): void;
   /** Saves the current state; resolves false when it could not be written. */
   saveNow(): Promise<boolean>;
@@ -47,8 +71,13 @@ interface ProjectStore {
   flush(): Promise<boolean>;
   /** Saves the project at a path the user picks and goes on editing that copy. */
   saveCopyAs(): Promise<boolean>;
+  /** Commits by the person until endGroup() make one undo step (pasting properties). */
   beginGroup(): void;
   endGroup(): void;
+  /** Starts a turn of the chat inside EdiAula for the open project (null if it is another). */
+  beginAiTurn(projectId: string): AiTurn | null;
+  /** Ends `turn`; ending it twice or after another began does nothing. */
+  endAiTurn(turn: AiTurn | null): void;
 }
 
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -59,56 +88,104 @@ let inFlight: Promise<boolean> | null = null;
 
 const message = (err: unknown): string => (err instanceof Error ? err.message : String(err));
 
+/** One counter for every project opened in this session: a revision never repeats. */
+let revisionCounter = 0;
+const nextRevision = (): number => ++revisionCounter;
+
+/** The person's manual group (beginGroup/endGroup) in progress. */
+let manualGroup: { key: string; depth: number } | null = null;
+
+/** The AI tool call running now (runAsAi): its commits are recorded as the AI's. */
+let aiCall: (HistoryEntry & { projectId?: string }) | null = null;
+/** Commits an AI call tried to make on another project than its own (refused). */
+let refusedAiCommits = 0;
+
+/** Events of the person's own hands: a commit made while one is dispatched is theirs. */
+const USER_INPUT = new Set([
+  "pointerdown",
+  "pointerup",
+  "pointermove",
+  "mousedown",
+  "mouseup",
+  "click",
+  "dblclick",
+  "contextmenu",
+  "keydown",
+  "keyup",
+  "input",
+  "change",
+  "focusout",
+  "blur",
+  "drop",
+  "dragend",
+  "wheel",
+  "submit",
+]);
+
+function userInputNow(): boolean {
+  const event = typeof window === "undefined" ? undefined : window.event;
+  return !!event && event.isTrusted && USER_INPUT.has(event.type);
+}
+
+/** Who the commit being made now belongs to. */
+function originNow(): (HistoryEntry & { projectId?: string }) | null {
+  if (manualGroup) return { origin: "user", key: manualGroup.key };
+  if (aiCall && !userInputNow()) return aiCall;
+  return null;
+}
+
+const historyOf = (s: ProjectStore): History => ({
+  past: s.past,
+  pastMeta: s.pastMeta,
+  future: s.future,
+  futureMeta: s.futureMeta,
+});
+
+const emptyState = {
+  past: [],
+  future: [],
+  pastMeta: [],
+  futureMeta: [],
+  selection: [],
+  saveState: "saved" as SaveState,
+  saveError: undefined,
+  aiTurn: null,
+};
+
 export const useProject = create<ProjectStore>((set, get) => ({
   project: null,
   path: null,
-  past: [],
-  future: [],
-  saveState: "saved",
-  selection: [],
+  ...emptyState,
   revision: 0,
-  groupDepth: 0,
-  groupOpen: false,
 
   load: (path, project) => {
     clearTimeout(timer);
-    set({
-      path,
-      project,
-      past: [],
-      future: [],
-      selection: [],
-      saveState: "saved",
-      saveError: undefined,
-    });
+    // Another project: no proposal, view or AI turn of the previous one carries over.
+    set({ path, project, ...emptyState, revision: nextRevision() });
   },
   close: () => {
     clearTimeout(timer);
-    set({
-      project: null,
-      path: null,
-      past: [],
-      future: [],
-      selection: [],
-      saveState: "saved",
-      saveError: undefined,
-    });
+    set({ project: null, path: null, ...emptyState, revision: nextRevision() });
   },
 
   commit: (fn) => {
-    const { project, past } = get();
+    const state = get();
+    const { project } = state;
     if (!project) return;
+    const origin = originNow();
+    // An AI call never writes into a project other than the one it was made for.
+    if (origin?.origin === "ai" && origin.projectId && origin.projectId !== project.id) {
+      refusedAiCommits++;
+      return;
+    }
     const next = { ...fn(project), updatedAt: Date.now() };
     const ids = new Set(next.clips.map((c) => c.id));
-    // Inside a group only the first commit records an undo point.
-    const merge = get().groupDepth > 0 && get().groupOpen;
+    const { projectId: _project, ...entry } = origin ?? { origin: "user" as const };
     set({
       project: next,
-      past: merge ? past : [...past, project].slice(-HISTORY_LIMIT),
-      future: [],
-      selection: get().selection.filter((id) => ids.has(id)),
-      revision: get().revision + 1,
-      groupOpen: get().groupDepth > 0,
+      ...pushCommit(historyOf(state), project, entry, HISTORY_LIMIT),
+      selection: state.selection.filter((id) => ids.has(id)),
+      revision: nextRevision(),
     });
   },
 
@@ -133,32 +210,57 @@ export const useProject = create<ProjectStore>((set, get) => ({
   },
 
   undo: () => {
-    const { past, project, future } = get();
-    if (!past.length || !project) return;
-    set({
-      project: restoreSnapshot(past[past.length - 1], project, Date.now()),
-      past: past.slice(0, -1),
-      future: [project, ...future],
-      revision: get().revision + 1,
-      groupOpen: false,
-    });
+    const state = get();
+    if (!state.project) return;
+    const done = undoSteps(historyOf(state), state.project, undoSpan(historyOf(state)), Date.now());
+    if (done) set({ project: done.project, ...done.history, revision: nextRevision() });
   },
   redo: () => {
-    const { past, project, future } = get();
-    if (!future.length || !project) return;
-    set({
-      project: restoreSnapshot(future[0], project, Date.now()),
-      past: [...past, project],
-      future: future.slice(1),
-      revision: get().revision + 1,
-      groupOpen: false,
-    });
+    const state = get();
+    if (!state.project) return;
+    const done = redoSteps(historyOf(state), state.project, redoSpan(historyOf(state)), Date.now());
+    if (done) set({ project: done.project, ...done.history, revision: nextRevision() });
+  },
+  undoAi: (mine, steps) => {
+    const state = get();
+    if (!state.project) return 0;
+    const n = aiUndoCount(historyOf(state), mine, steps);
+    const done = undoSteps(historyOf(state), state.project, n, Date.now());
+    if (!done) return 0;
+    set({ project: done.project, ...done.history, revision: nextRevision() });
+    return n;
   },
 
-  beginGroup: () => set({ groupDepth: get().groupDepth + 1 }),
+  setProposals: (fn) => {
+    const { project } = get();
+    if (!project) return;
+    const list = fn(project.proposals ?? []);
+    const next: Project = { ...project };
+    if (list.length) next.proposals = list;
+    else delete next.proposals;
+    set({ project: next });
+  },
+
+  beginGroup: () => {
+    manualGroup = manualGroup
+      ? { ...manualGroup, depth: manualGroup.depth + 1 }
+      : { key: `group:${newId("g")}`, depth: 1 };
+  },
   endGroup: () => {
-    const depth = Math.max(0, get().groupDepth - 1);
-    set({ groupDepth: depth, groupOpen: depth > 0 && get().groupOpen });
+    if (!manualGroup) return;
+    manualGroup = manualGroup.depth > 1 ? { ...manualGroup, depth: manualGroup.depth - 1 } : null;
+  },
+
+  beginAiTurn: (projectId) => {
+    if (get().project?.id !== projectId) return null;
+    const turn: AiTurn = { id: newId("turn"), projectId };
+    set({ aiTurn: turn });
+    return turn;
+  },
+  endAiTurn: (turn) => {
+    const open = get().aiTurn;
+    const next = closeTurn(open, turn);
+    if (next !== open) set({ aiTurn: next });
   },
 
   select: (ids) => {
@@ -223,7 +325,18 @@ export const useProject = create<ProjectStore>((set, get) => ({
       id: newId("p"),
       name: file.toLowerCase().endsWith(".ediaula") ? file.slice(0, -".ediaula".length) : file,
     };
-    const copy: Project = { ...project, ...identity };
+    const copy: Project = {
+      ...project,
+      ...identity,
+      ...(project.proposals
+        ? {
+            proposals: project.proposals.map((proposal) => ({
+              ...proposal,
+              projectId: identity.id,
+            })),
+          }
+        : {}),
+    };
     try {
       await window.api.saveProject(target, JSON.stringify(copy));
     } catch (err) {
@@ -232,7 +345,14 @@ export const useProject = create<ProjectStore>((set, get) => ({
     }
     // The original location is the one failing: autosave goes on in the copy.
     clearTimeout(timer);
-    const rename = (p: Project): Project => ({ ...p, ...identity });
+    // Pending proposals belong to the lesson, which now goes on under the copy's id.
+    const rename = (p: Project): Project => ({
+      ...p,
+      ...identity,
+      ...(p.proposals
+        ? { proposals: p.proposals.map((proposal) => ({ ...proposal, projectId: identity.id })) }
+        : {}),
+    });
     const { project: now, past, future } = get();
     const current = now === project;
     set({
@@ -300,6 +420,26 @@ useProject.subscribe((s, prev) => {
   clearTimeout(timer);
   timer = setTimeout(() => void useProject.getState().saveNow(), AUTOSAVE_DELAY);
 });
+
+/**
+ * Runs an AI tool call: what it commits outside the person's own input is recorded as the AI's
+ * (`entry`) and only into `entry.projectId`. Returns the result and whether a commit was refused
+ * because another project was open by then.
+ */
+export async function runAsAi<T>(
+  entry: HistoryEntry & { projectId?: string },
+  fn: () => Promise<T>,
+): Promise<{ value: T; refused: boolean }> {
+  const before = aiCall;
+  const refusedBefore = refusedAiCommits;
+  aiCall = entry;
+  try {
+    const value = await fn();
+    return { value, refused: refusedAiCommits > refusedBefore };
+  } finally {
+    aiCall = before;
+  }
+}
 
 export const assetMap = (p: Project | null): Map<string, Asset> =>
   new Map((p?.assets ?? []).map((a) => [a.id, a]));

@@ -492,6 +492,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.proposal-item.is-left-out {
+  opacity: 0.5;
+}
+.proposal-item.is-left-out .proposal-text {
+  text-decoration: line-through;
+}
 .cut-mark-proposal {
   background: #c8f03126;
   border-color: #c8f031cc;
@@ -512,4 +518,8 @@
   resize: vertical;
   font-size: 12.5px;
   line-height: 1.4;
+}
+.msg-usage {
+  margin-top: 6px;
+  font-size: 11px;
 }

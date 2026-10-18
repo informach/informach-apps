@@ -177,6 +177,8 @@ async function proposeRetakes(assetId: string, clipId: string): Promise<void> {
   const p = useProject.getState().project;
   const clip = p?.clips.find((c) => c.id === clipId);
   if (!p || !asset?.waveform || !clip) return;
+  // The cut times are read from this state of the project; showProposal refuses them if it changed.
+  const revision = useProject.getState().revision;
   const wave = await loadWaveform(asset.waveform);
   const cuts = retakeCuts(asset.markers ?? [], wave.peaks, wave.peaksPerSecond)
     .map(([a, b]) => [timelineAt(clip, a), timelineAt(clip, b)] as [number, number])
@@ -186,7 +188,7 @@ async function proposeRetakes(assetId: string, clipId: string): Promise<void> {
     p,
     "Trechos para refazer (Ctrl+R)",
     cuts.map(([start, end]) => ({ start, end, reason: "marcado com Ctrl+R durante a gravação" })),
-    useProject.getState().revision,
+    revision,
   );
   useApp.getState().toast(msg.split("\n")[0], "info");
 }

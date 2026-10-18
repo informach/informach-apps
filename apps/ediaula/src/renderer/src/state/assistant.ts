@@ -9,17 +9,27 @@ export interface ToolActivity {
   summary?: string;
 }
 
+/** What a turn used (shared/aiModels.ts usageLabel shows it). */
+export interface TurnUsage {
+  tokens: number;
+  usd?: number;
+  estimated?: boolean;
+}
+
 export interface ChatItem {
   id: number;
   role: "user" | "assistant" | "error";
   text: string;
   tools: ToolActivity[];
+  usage?: TurnUsage;
 }
 
 interface Conversation {
   items: ChatItem[];
   busy: boolean;
   quota?: { level: "ok" | "warn" | "blocked"; text: string };
+  /** Everything the conversation used so far. */
+  total?: TurnUsage;
 }
 
 interface AssistantStore {
@@ -31,6 +41,14 @@ interface AssistantStore {
 
 let nextId = 1;
 const empty: Conversation = { items: [], busy: false };
+
+const add = (a: TurnUsage | undefined, b: TurnUsage): TurnUsage => ({
+  tokens: (a?.tokens ?? 0) + b.tokens,
+  ...((a === undefined || a.usd !== undefined) && b.usd !== undefined
+    ? { usd: (a?.usd ?? 0) + b.usd }
+    : {}),
+  ...(a?.estimated || b.estimated ? { estimated: true } : {}),
+});
 
 export const useAssistant = create<AssistantStore>((set, get) => {
   const update = (id: string, fn: (c: Conversation) => Conversation): void => {
@@ -45,10 +63,6 @@ export const useAssistant = create<AssistantStore>((set, get) => {
   };
 
   window.api.onAssistantEvent((id: string, e: AssistantEvent) => {
-    if (e.type === "done") {
-      const c = useAssistant.getState().conversations[id];
-      if (c?.busy) useProject.getState().endGroup();
-    }
     update(id, (c0) => {
       if (e.type === "quota") return { ...c0, quota: { level: e.level, text: e.text } };
       if (e.type === "done") return { ...c0, busy: false };
@@ -60,6 +74,16 @@ export const useAssistant = create<AssistantStore>((set, get) => {
       const c = lastAssistant(c0);
       const items = [...c.items];
       const cur = { ...items[items.length - 1] };
+      if (e.type === "usage") {
+        const usage: TurnUsage = {
+          tokens: e.tokens,
+          ...(e.usd !== undefined ? { usd: e.usd } : {}),
+          ...(e.estimated ? { estimated: true } : {}),
+        };
+        cur.usage = add(cur.usage, usage);
+        items[items.length - 1] = cur;
+        return { ...c, items, total: add(c.total, usage) };
+      }
       if (e.type === "text") {
         cur.text += e.delta;
       } else {
@@ -86,14 +110,32 @@ export const useAssistant = create<AssistantStore>((set, get) => {
   return {
     conversations: {},
     send: async (id, text) => {
-      // Everything the assistant changes in this turn becomes a single undo step.
-      useProject.getState().beginGroup();
+      // Everything the assistant changes in this turn is undone by one Ctrl+Z, in this project only.
+      const turn = useProject.getState().beginAiTurn(id);
       update(id, (c) => ({
         ...c,
         busy: true,
         items: [...c.items, { id: nextId++, role: "user", text, tools: [] }],
       }));
-      await window.api.assistantSend(id, text);
+      try {
+        await window.api.assistantSend(id, text);
+      } catch (err) {
+        update(id, (c) => ({
+          ...c,
+          busy: false,
+          items: [
+            ...c.items,
+            {
+              id: nextId++,
+              role: "error",
+              text: `Não foi possível enviar: ${err instanceof Error ? err.message : String(err)}`,
+              tools: [],
+            },
+          ],
+        }));
+      } finally {
+        useProject.getState().endAiTurn(turn);
+      }
     },
     stop: (id) => void window.api.assistantStop(id),
     reset: (id) => {

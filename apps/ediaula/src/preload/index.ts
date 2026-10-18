@@ -3,7 +3,13 @@ import { contextBridge, ipcRenderer } from "electron";
 
 protectEditor();
 
-import type { AiToolCall, AssistantEvent, EdiAulaApi, JobProgress } from "../shared/types.ts";
+import type {
+  AiApprovalRequest,
+  AiToolCall,
+  AssistantEvent,
+  EdiAulaApi,
+  JobProgress,
+} from "../shared/types.ts";
 
 const api: EdiAulaApi = {
   saveEditingTemplate: (name, content) =>
@@ -110,6 +116,23 @@ const api: EdiAulaApi = {
   aiSettings: () => ipcRenderer.invoke("ai:settings"),
   saveAiSettings: (changes) => ipcRenderer.invoke("ai:saveSettings", changes),
   testApiKey: () => ipcRenderer.invoke("ai:testKey"),
+  codexSelfTest: () => ipcRenderer.invoke("ai:codexSelfTest"),
+  aiGrants: () => ipcRenderer.invoke("ai:grants"),
+  revokeAiGrant: (id) => ipcRenderer.invoke("ai:revokeGrant", id),
+  createManualAiToken: () => ipcRenderer.invoke("ai:manualToken"),
+  onAiApproval: (cb) => {
+    const listener = (
+      _e: unknown,
+      request: AiApprovalRequest | { id: string; closed: true },
+    ): void => {
+      cb(request);
+    };
+    ipcRenderer.on("ai:approval", listener);
+    return () => ipcRenderer.removeListener("ai:approval", listener);
+  },
+  answerAiApproval: (id, choice, projectId) =>
+    ipcRenderer.invoke("ai:approval-answer", id, choice, projectId),
+  setAiContext: (context) => ipcRenderer.invoke("ai:context", context),
   aiClients: () => ipcRenderer.invoke("ai:clients"),
   connectAiClient: (id) => ipcRenderer.invoke("ai:connect", id),
   assistantSend: (conversationId, text) =>

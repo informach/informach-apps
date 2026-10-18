@@ -59,6 +59,7 @@ import { actions } from "@/lib/actions";
 import { rulerLabel, timecode } from "@/lib/format";
 import { importMedia } from "@/lib/importMedia";
 import { mediaUrl } from "@/lib/media";
+import { useProposalView } from "@/lib/proposals";
 import { speedLabel } from "@/lib/speed";
 import { timelineView, zoomBy, zoomToFit } from "@/lib/timelineView";
 import { selectJunction, setTransition, TRANSITION_DRAG } from "@/lib/transitions";
@@ -114,7 +115,7 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
   const tool = useApp((s) => s.tool);
   const snapping = useApp((s) => s.snapping);
   const cleanupMarks = useApp((s) => s.cleanupMarks);
-  const proposal = useApp((s) => s.proposal);
+  const proposal = useProposalView();
   const scrollRef = useRef<HTMLDivElement>(null);
   const headsRef = useRef<HTMLDivElement>(null);
   const cancelRipple = useRef<(() => void) | null>(null);
@@ -687,19 +688,22 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
                   }}
                 />
               ))}
-            {proposal?.items.map((m) => (
-              <div
-                key={`${m.start}:${m.end}:${m.reason}`}
-                className="cut-mark cut-mark-proposal"
-                style={{
-                  left: m.start * zoom,
-                  width: Math.max(2, (m.end - m.start) * zoom),
-                  top: RULER_H,
-                  height: lanesHeight,
-                }}
-                title={m.reason}
-              />
-            ))}
+            {proposal?.proposal.items.map((m, i) => {
+              const place = proposal.places[i];
+              return place && m.status === "pending" ? (
+                <div
+                  key={m.id}
+                  className="cut-mark cut-mark-proposal"
+                  style={{
+                    left: place[0] * zoom,
+                    width: Math.max(2, (place[1] - place[0]) * zoom),
+                    top: RULER_H,
+                    height: lanesHeight,
+                  }}
+                  title={m.reason}
+                />
+              ) : null;
+            })}
             {project.clips
               .filter((c) => previous.has(c.id) && c.start >= visibleFrom && c.start <= visibleTo)
               .map((c) => {

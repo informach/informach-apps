@@ -194,6 +194,19 @@ export function analyze(
   return issues.sort((a, b) => a.start - b.start);
 }
 
+/** Range to remove for a selection of words, extended into the surrounding gaps. */
+export function wordsRange(words: TimelineWord[], from: number, to: number): [number, number] {
+  const a = Math.min(from, to);
+  const b = Math.max(from, to);
+  const prev = words[a - 1];
+  const next = words[b + 1];
+  const start = prev
+    ? Math.max(prev.end, words[a].start - 0.06)
+    : Math.max(0, words[a].start - 0.06);
+  const end = next ? Math.min(next.start - 0.02, words[b].end + 0.06) : words[b].end + 0.06;
+  return [start, Math.max(end, words[b].end)];
+}
+
 /** Merges overlapping or touching ranges. */
 export function mergeRanges(ranges: [number, number][], gap = 0.02): [number, number][] {
   const sorted = ranges.filter(([a, b]) => b > a).sort((x, y) => x[0] - y[0]);

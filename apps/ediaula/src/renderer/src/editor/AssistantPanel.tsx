@@ -1,4 +1,5 @@
 import { withRenderKeys } from "@informach/edi-desktop/renderer";
+import { modelLabel, usageLabel } from "@shared/aiModels";
 import { type AiSettingsView, ENGINE_LABEL, type PublishInfo } from "@shared/types";
 import {
   ArrowUp,
@@ -192,10 +193,11 @@ export function AssistantPanel(): ReactNode {
           >
             {settings
               ? settings.engine === "api"
-                ? `${settings.model} · chave da API`
+                ? `${modelLabel(settings.model).replace(/ \(.*\)$/, "")} · chave da API`
                 : ENGINE_LABEL[settings.engine]
               : ""}
             {conv?.quota && conv.quota.level !== "ok" ? ` · ${conv.quota.text}` : ""}
+            {conv?.total ? ` · nesta conversa: ${usageLabel(conv.total)}` : ""}
           </span>
           <button
             type="button"
@@ -279,6 +281,11 @@ function Message({ item }: { item: ChatItem }): ReactNode {
         </div>
       )}
       {item.text && <Rich text={item.text} />}
+      {item.usage && (
+        <div className="msg-usage muted small" title="O que este pedido usou">
+          {usageLabel(item.usage)}
+        </div>
+      )}
     </div>
   );
 }

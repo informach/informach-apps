@@ -10,7 +10,7 @@ import {
   timelineSilences,
   timelineWords,
 } from "@shared/cleanup";
-import { clipEnd, newId } from "@shared/timeline";
+import { newId } from "@shared/timeline";
 import type { Asset, EngineStatus, Project, Transcript } from "@shared/types";
 import { useEffect, useMemo, useState } from "react";
 import { create } from "zustand";
@@ -164,18 +164,7 @@ export function cutRangesInteractive(ranges: [number, number][]): boolean {
   return r.ok;
 }
 
-/** Range to remove for a selection of words, extended into the surrounding gaps. */
-export function wordsRange(words: TimelineWord[], from: number, to: number): [number, number] {
-  const a = Math.min(from, to);
-  const b = Math.max(from, to);
-  const prev = words[a - 1];
-  const next = words[b + 1];
-  const start = prev
-    ? Math.max(prev.end, words[a].start - 0.06)
-    : Math.max(0, words[a].start - 0.06);
-  const end = next ? Math.min(next.start - 0.02, words[b].end + 0.06) : words[b].end + 0.06;
-  return [start, Math.max(end, words[b].end)];
-}
+export { wordsRange } from "@shared/cleanup";
 
 /* ----- Engine and transcription jobs ----- */
 
@@ -248,26 +237,4 @@ export async function transcribeAssets(assets: Asset[], language: string): Promi
   }
 }
 
-/**
- * Media worth transcribing: assets with audio used on the timeline. Recordings with picture come
- * first, then audio on the upper audio tracks (voice), and music beds on lower tracks last.
- */
-export function speechCandidates(project: Project): { asset: Asset; used: number }[] {
-  const used = new Map<string, number>();
-  const trackRank = new Map<string, number>();
-  const order = new Map(project.tracks.map((t, i) => [t.id, i]));
-  for (const c of project.clips) {
-    used.set(c.assetId, (used.get(c.assetId) ?? 0) + (clipEnd(c) - c.start));
-    const r = order.get(c.trackId) ?? 99;
-    trackRank.set(c.assetId, Math.min(trackRank.get(c.assetId) ?? 99, r));
-  }
-  return project.assets
-    .filter((a) => a.hasAudio && used.has(a.id) && !a.missing)
-    .map((asset) => ({ asset, used: used.get(asset.id)! }))
-    .sort(
-      (x, y) =>
-        (x.asset.kind === "video" ? 0 : 1) - (y.asset.kind === "video" ? 0 : 1) ||
-        trackRank.get(x.asset.id)! - trackRank.get(y.asset.id)! ||
-        y.used - x.used,
-    );
-}
+export { speechCandidates } from "@shared/speechSources";

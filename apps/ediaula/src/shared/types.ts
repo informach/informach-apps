@@ -1,3 +1,5 @@
+import type { Effort } from "./aiModels.ts";
+import type { StoredProposal } from "./anchors.ts";
 import type { Annotation } from "./annotation.ts";
 import type { CaptionStyle } from "./captions.ts";
 import type { ChromaKey } from "./chroma.ts";
@@ -186,6 +188,8 @@ export interface Project {
   script?: { text: string; section?: number };
   /** Active editing time, to measure how long each lesson really takes. */
   stats?: { editSeconds: number };
+  /** AI proposals waiting for the person, anchored in the media (shared/anchors.ts). */
+  proposals?: StoredProposal[];
   settings: ProjectSettings;
   assets: Asset[];
   /** Display order, top to bottom: video tracks first (highest layer on top), then audio. */
@@ -308,12 +312,6 @@ export interface AppInfo {
   fonts: FontFamily[];
 }
 
-export const ASSISTANT_MODELS = [
-  { id: "claude-opus-5", label: "Claude Opus 5 (recomendado)" },
-  { id: "claude-sonnet-5", label: "Claude Sonnet 5 (mais barato)" },
-  { id: "claude-haiku-4-5", label: "Claude Haiku 4.5 (mais rápido)" },
-] as const;
-
 export type AssistantEngine = "claude-code" | "codex" | "api";
 
 export const ENGINE_LABEL: Record<AssistantEngine, string> = {
@@ -329,12 +327,44 @@ export interface AiSettingsView {
   /** Last characters of the key, to recognise it. */
   apiKeyHint?: string;
   model: string;
+  /** Why the model is not the one picked, or a newer one exists (shared/aiModels.ts). */
+  modelNotice?: string;
+  /** Reasoning effort sent with every turn (API key and Claude Code). */
+  effort: Effort;
   mcpEnabled: boolean;
   mcpPort: number;
   mcpUrl: string;
   mcpRunning: boolean;
   mcpError?: string;
+  /** Whether the installed Codex stayed inside the editor's tools in the self-check. */
+  codexRestricted?: { version: string; ok: boolean };
+  /** The person chose to use this Codex version even without the guarantee. */
+  codexConfirmed: boolean;
 }
+
+/** A token given to an AI app, as listed in the settings (never the token itself). */
+export interface AiGrantView {
+  id: string;
+  client: string;
+  scopes: ("read" | "propose" | "write")[];
+  createdAt: number;
+  expiresAt?: number;
+  lastUsedAt?: number;
+  temporary: boolean;
+}
+
+/** A write asked by an AI app that may only read and propose. */
+export interface AiApprovalRequest {
+  id: string;
+  client: string;
+  tool: string;
+  title: string;
+  summary: string;
+  /** Milliseconds since the epoch when the request is denied without an answer. */
+  expiresAt: number;
+}
+
+export type AiApprovalChoice = "once" | "project" | "deny";
 
 export type AiClientId = "claude-code" | "codex";
 
@@ -358,13 +388,19 @@ export type AssistantEvent =
     }
   | { type: "done" }
   | { type: "error"; message: string }
-  | { type: "quota"; level: "ok" | "warn" | "blocked"; text: string };
+  | { type: "quota"; level: "ok" | "warn" | "blocked"; text: string }
+  /** What the turn used: US$ from the API prices, estimated by Claude Code, unknown for Codex. */
+  | { type: "usage"; tokens: number; usd?: number; estimated?: boolean };
 
 export interface AiToolCall {
   id: string;
   name: string;
   input: unknown;
   source: "mcp" | "assistant";
+  /** The project the call is for: a call reaching another open project is refused. */
+  projectId?: string;
+  /** Grant of the AI app connected from outside (its undo only takes back its own edits). */
+  client?: string;
 }
 
 export interface EdiAulaApi {
@@ -515,7 +551,20 @@ export interface EdiAulaApi {
     mcpEnabled?: boolean;
     engine?: AssistantEngine;
     claudeModel?: string;
+    effort?: Effort;
+    /** Use the installed Codex even if it did not pass the self-check. */
+    codexConfirmed?: boolean;
   }): Promise<AiSettingsView>;
+  /** Runs the Codex self-check again (asks Codex to read a file; it must not manage to). */
+  codexSelfTest(): Promise<AiSettingsView>;
+  aiGrants(): Promise<AiGrantView[]>;
+  revokeAiGrant(id: string): Promise<void>;
+  /** A new token that can read and propose, for configuring a client by hand. */
+  createManualAiToken(): Promise<{ token: string; url: string }>;
+  onAiApproval(cb: (request: AiApprovalRequest | { id: string; closed: true }) => void): () => void;
+  answerAiApproval(id: string, choice: AiApprovalChoice, projectId: string | null): Promise<void>;
+  /** What the main process needs to check paths an AI sends: the open project and its media folders. */
+  setAiContext(context: { projectPath: string | null; mediaFolders: string[] }): Promise<void>;
   testApiKey(): Promise<{ ok: boolean; message: string }>;
   aiClients(): Promise<AiClientStatus[]>;
   connectAiClient(id: AiClientId): Promise<{ ok: boolean; message: string }>;

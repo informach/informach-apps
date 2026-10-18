@@ -103,18 +103,25 @@ export function planInsert(
 /**
  * Opens `gap` seconds at time `t` on `tracks`: clips crossing `t` are split and everything after
  * moves right. Clips on other tracks only move if they start after `t` (a music bed underneath
- * keeps playing). Returns the clips and the ids of clips that were split (left parts).
+ * keeps playing). Clips on `locked` tracks never move nor split; the ones crossing `t` come back
+ * in `blocked`, since opening the timeline there would pull the rest out of sync with them.
+ * Returns the clips and the ids of clips that were split (left parts).
  */
 export function openGap(
   clips: Clip[],
   t: number,
   gap: number,
   tracks: Set<string>,
-): { clips: Clip[]; split: Clip[] } {
+  locked: Set<string> = new Set(),
+): { clips: Clip[]; split: Clip[]; blocked: Clip[] } {
   const out: Clip[] = [];
   const split: Clip[] = [];
+  const blocked: Clip[] = [];
   for (const c of clips) {
-    if (c.start >= t - 1e-6) out.push({ ...c, start: c.start + gap });
+    if (locked.has(c.trackId)) {
+      if (c.start < t - 1e-6 && clipEnd(c) > t + 1e-6) blocked.push(c);
+      out.push(c);
+    } else if (c.start >= t - 1e-6) out.push({ ...c, start: c.start + gap });
     else if (tracks.has(c.trackId) && clipEnd(c) > t + 1e-6) {
       const parts = splitClip(c, t);
       if (parts) {
@@ -123,7 +130,7 @@ export function openGap(
       } else out.push(c);
     } else out.push(c);
   }
-  return { clips: out, split };
+  return { clips: out, split, blocked };
 }
 
 /** A clip of the avatar line, to be placed with the avatar's default placement and fades. */
