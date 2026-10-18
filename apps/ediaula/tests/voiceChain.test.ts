@@ -122,6 +122,9 @@ test("a cadeia escolhe RNNoise só num FFmpeg confiável e lê o que o FFmpeg di
   assert.deepEqual([...filters], ["afftdn", "arnndn"]);
   assert.equal(chooseNoiseReduction({ major: 9, filters }, "m.rnnn").kind, "rnnoise");
   assert.equal(chooseNoiseReduction({ major: 6, filters }, "m.rnnn").kind, "fft");
+  assert.equal(chooseNoiseReduction({ major: 7, filters }, "m.rnnn").kind, "fft");
+  assert.equal(chooseNoiseReduction({ major: 8, filters }, "m.rnnn").kind, "fft");
+  assert.equal(chooseNoiseReduction({ major: 10, filters }, "m.rnnn").kind, "fft");
   assert.equal(chooseNoiseReduction({ major: 9, filters }, null).kind, "fft");
   assert.equal(chooseNoiseReduction({ major: 9, filters: new Set() }, "m").kind, "none");
   const chain = chainFilter("teacher", { kind: "fft", quiet: [5.5, 6.5] }, -30);

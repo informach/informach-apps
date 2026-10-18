@@ -68,18 +68,18 @@ export function parseFilterList(text: string): Set<string> {
 }
 
 /**
- * RNNoise when the binary has `arnndn` and is FFmpeg 7 or later: FFmpeg 6.1.1 (the
- * development ffmpeg-static) gave two different results for the same input in repeated runs,
- * one of them with the voice 6 dB down and the hiss barely touched; 9.0.2 (the app's bundle)
- * gave the same bytes every time. Otherwise the FFT denoiser with a sampled noise profile.
+ * RNNoise only on the validated FFmpeg 9 generation with `arnndn`. FFmpeg 6.1.1 was
+ * inconsistent, and the development binary on the Windows release runner (7/8 generation)
+ * reduced under-speech hiss by only 7.8 dB, below the required 10 dB. The packaged 9.0.2
+ * reduced it by 21.8 dB on the same runner. Other versions use the FFT denoiser with a
+ * sampled noise profile until they are independently qualified.
  */
 export function chooseNoiseReduction(
   caps: FfmpegCaps,
   model: string | null,
   quiet?: [number, number],
 ): NoiseReduction {
-  if (model && caps.filters.has("arnndn") && (caps.major ?? 0) >= 7)
-    return { kind: "rnnoise", model };
+  if (model && caps.filters.has("arnndn") && caps.major === 9) return { kind: "rnnoise", model };
   if (caps.filters.has("afftdn")) return { kind: "fft", ...(quiet ? { quiet } : {}) };
   return { kind: "none" };
 }
