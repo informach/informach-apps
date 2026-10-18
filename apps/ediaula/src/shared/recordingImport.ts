@@ -2,6 +2,7 @@ import { clipEnd, newId } from "./clipTime.ts";
 import type { Transform } from "./compose.ts";
 import type { RecordingPiece, RecordingResult } from "./recording.ts";
 import { keptRanges } from "./recordingJournal.ts";
+import { videoTrackSlot } from "./timeline.ts";
 import type { Asset, Clip, Project, RecordingRole, Track } from "./types.ts";
 
 /**
@@ -108,8 +109,7 @@ export function layoutRecording(
   let start = at;
   if ((!main || main.locked) && screens.length) {
     main = newTrack("video", "Tela");
-    const firstAudio = tracks.findIndex((t) => t.kind === "audio");
-    tracks.splice(firstAudio < 0 ? tracks.length : firstAudio, 0, main);
+    tracks.splice(videoTrackSlot(tracks), 0, main);
     start ??= clips.reduce((last, c) => Math.max(last, clipEnd(c)), 0);
   }
   if (main?.locked) main = undefined;

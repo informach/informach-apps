@@ -87,6 +87,7 @@ export async function checkLesson(
     ...(view ? { section: view.section, alignment: view.alignment } : {}),
     ...(loudness !== undefined ? { loudness } : {}),
     ...(opts.normalize !== undefined ? { normalize: opts.normalize } : {}),
+    solo: useApp.getState().solo,
   });
   return { findings, revision, projectId: project.id };
 }
@@ -159,6 +160,9 @@ export async function runFix(
         return true;
       case "caption-size":
         setCaptions({ size: fix.size });
+        return true;
+      case "solo-off":
+        useApp.getState().set({ solo: [] });
         return true;
     }
   } catch (err) {

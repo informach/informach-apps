@@ -35,6 +35,16 @@ const path = z
   .max(32768)
   .refine((value) => !value.includes("\0"));
 const color = z.string().regex(/^#(?:[\da-f]{6}|[\da-f]{8})$/i);
+
+/** The lesson's caption style (Project.captions); the course template keeps the same. */
+export const captionsSchema = z.looseObject({
+  look: z.enum(["box", "outline", "karaoke"]),
+  position: z.enum(["bottom", "middle", "top"]),
+  size: number.positive(),
+  font: text.optional(),
+  highlight: color.optional(),
+  burn: z.boolean(),
+});
 const point = z.looseObject({ x: number, y: number });
 const shadow = z.looseObject({
   distance: number,
@@ -175,6 +185,8 @@ const asset = z.looseObject({
   filmstrip: z
     .looseObject({
       path,
+      sheets: z.array(path).max(1000).optional(),
+      perSheet: z.int().positive().max(100_000).optional(),
       step: number.positive(),
       width: z.int().positive().max(4096),
       height: z.int().positive().max(4096),
@@ -424,16 +436,7 @@ export const projectSchema = z
       .array(z.looseObject({ id, assetId: id, start: time, end: time, label: text }))
       .max(20000)
       .optional(),
-    captions: z
-      .looseObject({
-        look: z.enum(["box", "outline", "karaoke"]),
-        position: z.enum(["bottom", "middle", "top"]),
-        size: number.positive(),
-        font: text.optional(),
-        highlight: color.optional(),
-        burn: z.boolean(),
-      })
-      .optional(),
+    captions: captionsSchema.optional(),
     captionBreaks: z.array(text).max(20000).optional(),
     cueStyles: z
       .array(
@@ -500,6 +503,7 @@ export const projectSchema = z
       .looseObject({
         opening: z.boolean().optional(),
         closing: z.boolean().optional(),
+        closingText: z.string().max(400).optional(),
         music: z.looseObject({ assetId: id, trackId: id, volume: number.min(0).max(4) }).optional(),
       })
       .optional(),

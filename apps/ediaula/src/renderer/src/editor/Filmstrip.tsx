@@ -43,14 +43,20 @@ export function Filmstrip({
     Math.ceil(clipWidth / tileW),
     Math.ceil((viewLeft + viewWidth - clipLeft) / tileW),
   );
-  const rows = Math.ceil(strip.count / strip.columns);
-  const url = `url("${mediaUrl(strip.path)}")`;
+  // Sheets of ten minutes (a strip made before sheets is one sheet with every picture).
+  const sheets = strip.sheets?.length ? strip.sheets : [strip.path];
+  const perSheet = strip.sheets?.length && strip.perSheet ? strip.perSheet : strip.count;
   const slots: ReactNode[] = [];
   for (let k = first; k < last; k++) {
     const middle = sourceIn + (((k + 0.5) * tileW) / zoom) * speed;
     const index = Math.max(0, Math.min(strip.count - 1, Math.floor(middle / strip.step)));
-    const col = index % strip.columns;
-    const row = Math.floor(index / strip.columns);
+    const sheet = Math.min(sheets.length - 1, Math.floor(index / perSheet));
+    const local = index - sheet * perSheet;
+    const pictures = Math.min(perSheet, strip.count - sheet * perSheet);
+    const rows = Math.ceil(pictures / strip.columns);
+    const col = local % strip.columns;
+    const row = Math.floor(local / strip.columns);
+    const url = `url("${mediaUrl(sheets[sheet])}")`;
     slots.push(
       <span
         key={k}

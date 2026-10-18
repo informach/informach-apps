@@ -1,4 +1,4 @@
-import type { CourseSetup } from "@shared/courseSetup";
+import type { CourseTemplate } from "@shared/courseTemplate";
 import { encoderName, isHardwareEncoder } from "@shared/encoderChoice";
 import type { ProjectSettings, RecentEntry } from "@shared/types";
 import {
@@ -24,7 +24,7 @@ import {
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { BackupsDialog, RenameDialog } from "@/editor/ProjectDialogs";
 import { actions } from "@/lib/actions";
-import { startFromSetup } from "@/lib/courseSetup";
+import { startFromTemplate } from "@/lib/courseStart";
 import { formatEditTime } from "@/lib/editTimer";
 import { duration, relativeTime } from "@/lib/format";
 import { confirmLeave } from "@/lib/leaveGuard";
@@ -88,12 +88,12 @@ export function Home(): ReactNode {
     name: string,
     courseName: string | undefined,
     settings: ProjectSettings,
-    setup: CourseSetup | null,
+    template: CourseTemplate | null,
   ): Promise<void> => {
     if (!(await confirmLeave())) return;
     const { path, project } = await window.api.createProject(name, courseName, settings);
     useProject.getState().load(path, project);
-    if (setup) await startFromSetup(setup);
+    if (template) await startFromTemplate(template);
     useApp.getState().set({ screen: "editor" });
     if (creating?.thenImport) {
       const assets = await actions.importDialog();

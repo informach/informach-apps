@@ -491,3 +491,15 @@ test("errors come first, then the rest in timeline order", () => {
   assert.equal(list[0].severity, "error");
   for (const f of list) assert.ok(!/—|\(s\)/.test(f.message), f.message);
 });
+
+test("a track heard alone in the editor is told: the export mixes every track", () => {
+  assert.equal(has(lesson(), { speech }, "solo"), undefined);
+  const one = has(lesson(), { speech, solo: ["t3"] }, "solo");
+  assert.equal(one?.severity, "info");
+  assert.match(one?.message ?? "", /só Voz está tocando/);
+  assert.deepEqual(one?.fix, { label: "Ouvir todas as faixas", action: "solo-off" });
+  const two = has(lesson(), { speech, solo: ["t3", "t4"] }, "solo");
+  assert.match(two?.message ?? "", /só Voz e Música estão tocando/);
+  // A track that is gone is not named.
+  assert.equal(has(lesson(), { speech, solo: ["nope"] }, "solo"), undefined);
+});

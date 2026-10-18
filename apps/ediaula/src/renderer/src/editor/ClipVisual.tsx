@@ -25,7 +25,8 @@ import {
   SlidersHorizontal,
   Wand2,
 } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { leaveField, typedNumber } from "@/lib/fieldText";
 import { keyIsCurrent } from "@/lib/keying";
 import { makeTransition } from "@/lib/transitions";
 import { useApp } from "@/state/app";
@@ -46,12 +47,6 @@ export interface NumberInput {
   /** What a typed value may be (the slider's own range when absent). */
   limits?: [number, number];
 }
-
-/** A number typed with a comma or a dot. */
-const typed = (text: string): number | null => {
-  const v = Number(text.trim().replace(",", "."));
-  return text.trim() && Number.isFinite(v) ? v : null;
-};
 
 /**
  * A slider that previews while dragging and commits once on release (one undo step). With
@@ -81,6 +76,8 @@ export function Slider({
 }): ReactNode {
   const [draft, setDraft] = useState(value);
   const [text, setText] = useState<string | null>(null);
+  // Esc blurs the field right after asking for the text back: the blur must see it at once.
+  const cancelled = useRef(false);
   useEffect(() => setDraft(value), [value]);
   const done = (): void => {
     onPreview?.(null);
@@ -89,10 +86,11 @@ export function Slider({
   const shown = (v: number): string =>
     input ? (v * input.factor).toFixed(input.digits ?? 0).replace(".", ",") : format(v);
   const commitText = (): void => {
-    if (text === null || !input) return;
+    const result = leaveField(text, shown(value), cancelled.current, typedNumber);
+    cancelled.current = false;
     setText(null);
-    const v = typed(text);
-    if (v === null) return;
+    if (result.kind !== "commit" || !input) return;
+    const v = result.value;
     const [lo, hi] = input.limits ?? [min, max];
     const next = Math.min(hi, Math.max(lo, v / input.factor));
     if (Math.abs(next - value) > 1e-9) onCommit(next);
@@ -125,6 +123,7 @@ export function Slider({
             aria-label={`${label} (${input.unit})`}
             value={text ?? shown(draft)}
             onFocus={(e) => {
+              cancelled.current = false;
               setText(shown(draft));
               e.currentTarget.select();
             }}
@@ -133,7 +132,7 @@ export function Slider({
             onKeyDown={(e) => {
               if (e.key === "Enter") e.currentTarget.blur();
               if (e.key === "Escape") {
-                setText(null);
+                cancelled.current = true;
                 e.currentTarget.blur();
               }
             }}

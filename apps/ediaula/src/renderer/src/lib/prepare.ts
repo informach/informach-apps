@@ -1,6 +1,7 @@
 import { buildItems, type ProposalItem } from "@shared/anchors";
 import { DEFAULT_CAPTION_STYLE } from "@shared/captions";
 import { cutTargets, mergeRanges, protectedConflicts } from "@shared/cleanup";
+import { startPending } from "@shared/courseTemplate";
 import {
   authorStep,
   decide,
@@ -431,6 +432,13 @@ async function runner(step: PrepareStep, p: Project): Promise<Outcome> {
       );
     }
     case "cards": {
+      // A lesson started from the course template gets its cards with its first media.
+      if (startPending(p))
+        return {
+          kind: "decided",
+          decision: "skipped",
+          note: "As cartelas do modelo do curso entram quando a primeira mídia chegar à timeline.",
+        };
       const t = await courseTemplate(p.course);
       const done = await applyTemplateParts(
         {

@@ -10,6 +10,7 @@ import {
   parseCourseTemplate,
   presenterLayout,
   readCourseTemplate,
+  sharedTemplate,
   templateLook,
 } from "../src/shared/courseTemplate.ts";
 import { buildEditingTemplate } from "../src/shared/editingTemplate.ts";
@@ -153,7 +154,14 @@ test("a finished lesson becomes a course template of rules, not of clips", () =>
   assert.equal(t.cursor?.size, 3.85);
   assert.deepEqual(t.zoom, { auto: true, scale: 1.8 });
   // The track called "Música" is music, lowered while anyone speaks.
-  assert.deepEqual(t.music, { volume: 0.35, ducking: true });
+  // Its file and track stay in the course's folder on this computer (modelo.json) only.
+  assert.deepEqual(t.music, {
+    volume: 0.35,
+    ducking: true,
+    file: { path: "C:/privado/musica", name: "Lighthouse" },
+    track: 3,
+  });
+  assert.deepEqual(sharedTemplate(t).music, { volume: 0.35, ducking: true });
   assert.deepEqual(t.cleanup, { minSilence: 1.2, keepPause: 0.5, kinds: { repeat: false } });
   assert.equal(t.annotations?.presets[0].kind, "balloon");
   assert.equal(t.annotations?.presets[0].fontSize, 44);
@@ -172,12 +180,12 @@ test("a finished lesson becomes a course template of rules, not of clips", () =>
   assert.equal(rule.when.screenText, "Play");
   assert.equal(rule.do.annotation?.kind, "balloon");
   assert.equal(rule.do.annotation?.x, 0.3);
-  // Nothing local goes into it.
-  assert.ok(!JSON.stringify(t).includes("C:/privado"));
+  // Nothing local goes out of this computer with it.
+  assert.ok(!JSON.stringify(sharedTemplate(t)).includes("C:/privado"));
 });
 
 test("the template goes into the editing model's Markdown and comes back out of it", () => {
-  const t = courseTemplateFrom(lesson);
+  const t = sharedTemplate(courseTemplateFrom(lesson));
   const md = buildEditingTemplate(lesson, [], "Evitar cobrir o personagem.");
   assert.ok(md.includes("modelo de referência v2"));
   assert.ok(md.includes("## Modelo do curso (v2)"));

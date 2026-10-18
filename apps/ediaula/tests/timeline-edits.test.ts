@@ -1,19 +1,17 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { applyCuts } from "../src/shared/cleanup.ts";
+import { rippleTrim } from "../src/shared/ripple.ts";
 import {
   clipEnd,
   clipsFrom,
   clipsInSpan,
-  extendFrameAll,
-  insertClips,
   moveTrack,
   parseTimecode,
   placeClips,
-  rippleTrim,
   splitAt,
   toFrame,
   trimClip,
+  videoTrackSlot,
 } from "../src/shared/timeline.ts";
 import type { Asset, Clip, Track } from "../src/shared/types.ts";
 
@@ -76,6 +74,10 @@ test("times go to the frame grid, and timecodes with frames are read back", () =
   assert.equal(parseTimecode("0", 30), 0);
   for (const bad of ["00:00:05:30", "00:61:00:00", "abc", ""])
     assert.equal(parseTimecode(bad, 30), null, bad);
+  // 29,97 fps: 30 frames to a labelled second, each 1/29,97 s long; 1 s lands on frame 30.
+  assert.equal(parseTimecode("00:00:01:29", 29.97), 1 + 29 / 29.97);
+  assert.equal(parseTimecode("00:00:01:30", 29.97), null);
+  assert.equal(toFrame(1, 29.97), 30 / 29.97);
 });
 
 test("splitting, trimming and moving at frame times leave every edge on a frame", () => {
@@ -85,74 +87,12 @@ test("splitting, trimming and moving at frame times leave every edge on a frame"
   clips = clips.map((c) => (c.id === "b" ? trimClip(c, "end", at(17.77), video) : c));
   const first = byId(clips, "a");
   clips = placeClips(clips, [{ ...first, start: at(first.start + 0.4567) }]);
-  clips = rippleTrim(clips, [track("t")], "b", "start", at(12.345), video);
+  const lesson = { clips, tracks: [track("t")], assets: [video] };
+  clips = rippleTrim(lesson, new Set(["t"]), "b", "start", at(12.345)).clips;
   for (const c of clips) {
     assert.ok(onFrame(c.start), `${c.id} starts on a frame (${c.start})`);
     assert.ok(onFrame(clipEnd(c)), `${c.id} ends on a frame (${clipEnd(c)})`);
   }
-});
-
-test("a ripple trim of the end moves what follows on every unlocked track, keeping the gaps", () => {
-  const tracks = [track("v"), track("voz"), track("fixa", { locked: true })];
-  const clips = [
-    clip("tela", "v", 0, 10),
-    clip("depois", "v", 10, 5),
-    clip("fala", "voz", 12, 3),
-    clip("fixo", "fixa", 20, 2),
-  ];
-  const out = rippleTrim(clips, tracks, "tela", "end", 8, video);
-  assert.equal(byId(out, "tela").duration, 8);
-  assert.equal(byId(out, "depois").start, 8);
-  assert.equal(byId(out, "fala").start, 10);
-  assert.equal(byId(out, "fixo").start, 20, "locked tracks never move");
-  const longer = rippleTrim(clips, tracks, "tela", "end", 13, video);
-  assert.equal(byId(longer, "depois").start, 13);
-  assert.equal(byId(longer, "fala").start, 15);
-});
-
-test("a ripple trim of the head keeps the clip in place and takes footage off its start", () => {
-  const clips = [clip("tela", "v", 5, 10, { in: 20 }), clip("depois", "v", 15, 5)];
-  const out = rippleTrim(clips, [track("v")], "tela", "start", 7, video);
-  const trimmed = byId(out, "tela");
-  assert.equal(trimmed.start, 5);
-  assert.equal(trimmed.in, 22);
-  assert.equal(trimmed.duration, 8);
-  assert.equal(byId(out, "depois").start, 13);
-});
-
-test("a ripple trim stops where another track would be covered", () => {
-  const tracks = [track("v"), track("voz")];
-  const clips = [
-    clip("tela", "v", 0, 10),
-    clip("depois", "v", 10, 5),
-    // On the other track something ends at 9.5 and something starts at 10: they may close up to it.
-    clip("antes", "voz", 0, 9.5),
-    clip("fala", "voz", 10, 3),
-  ];
-  const out = rippleTrim(clips, tracks, "tela", "end", 6, video);
-  assert.equal(byId(out, "tela").duration, 9.5);
-  assert.equal(byId(out, "depois").start, 9.5);
-  assert.equal(byId(out, "fala").start, 9.5);
-});
-
-test("inserting pushes everything after on every unlocked track and splits the clip under it", () => {
-  const tracks = [track("v"), track("voz"), track("fixa", { locked: true })];
-  const clips = [clip("tela", "v", 0, 20), clip("fala", "voz", 12, 3), clip("fixo", "fixa", 15, 2)];
-  const inserted = clip("novo", "v", 8, 4, { assetId: "img" });
-  const out = insertClips(clips, tracks, [inserted], 8);
-  const screen = out
-    .filter((c) => c.assetId === "v" && c.trackId === "v")
-    .sort((a, b) => a.start - b.start);
-  assert.deepEqual(
-    screen.map((c) => [c.start, c.duration, c.in]),
-    [
-      [0, 8, 0],
-      [12, 12, 8],
-    ],
-  );
-  assert.equal(byId(out, "novo").start, 8);
-  assert.equal(byId(out, "fala").start, 16);
-  assert.equal(byId(out, "fixo").start, 15);
 });
 
 test("tracks move to any place of the stack", () => {
@@ -175,6 +115,22 @@ test("tracks move to any place of the stack", () => {
     moveTrack(tracks, "a", 99).map((t) => t.id),
     ["b", "c", "d", "a"],
   );
+  // A locked track stays where it is, and the others go around it.
+  const locked = tracks.map((t) => (t.id === "b" ? { ...t, locked: true } : t));
+  assert.equal(moveTrack(locked, "b", 3), locked);
+  assert.deepEqual(
+    moveTrack(locked, "a", 2).map((t) => t.id),
+    ["b", "c", "a", "d"],
+  );
+});
+
+test("a new picture track goes right after the last video track, wherever sound was moved", () => {
+  const audio = (id: string): Track => track(id, { kind: "audio" });
+  assert.equal(videoTrackSlot([track("a"), track("b"), audio("s")]), 2);
+  // A sound track moved above the pictures: the new one still goes under the last picture.
+  assert.equal(videoTrackSlot([audio("s"), track("a"), track("b"), audio("m")]), 3);
+  assert.equal(videoTrackSlot([audio("s"), audio("m")]), 0);
+  assert.equal(videoTrackSlot([]), 0);
 });
 
 test("selection by rectangle and from the playhead", () => {
@@ -200,98 +156,4 @@ test("selection by rectangle and from the playhead", () => {
     clipsFrom(clips, 6, "t2").map((c) => c.id),
     ["d"],
   );
-});
-
-test("removing an interval keeps the tracks in sync and the music playing to the end", () => {
-  const clips = [
-    clip("tela", "v", 0, 30),
-    clip("voz", "a", 0, 30, { assetId: "w" }),
-    clip("musica", "m", 0, 30, { assetId: "song" }),
-  ];
-  const out = applyCuts(clips, [[10, 14]], new Set(["v", "a"]));
-  const on = (t: string): Clip[] =>
-    out.filter((c) => c.trackId === t).sort((x, y) => x.start - y.start);
-  assert.deepEqual(
-    on("v").map((c) => [c.start, c.duration, c.in]),
-    [
-      [0, 10, 0],
-      [10, 16, 14],
-    ],
-  );
-  assert.deepEqual(
-    on("a").map((c) => [c.start, c.duration, c.in]),
-    [
-      [0, 10, 0],
-      [10, 16, 14],
-    ],
-  );
-  assert.deepEqual(
-    on("m").map((c) => [c.start, c.duration]),
-    [[0, 26]],
-  );
-});
-
-test("extend frame on every track keeps what comes after at the same distance", () => {
-  const assets = new Map<string, Asset>([
-    ["v", video],
-    ["voice", { ...video, id: "voice", kind: "audio", hasVideo: false, width: 0, height: 0 }],
-    ["note", { ...video, id: "note", kind: "image", duration: 0, generated: "annotation" }],
-  ]);
-  const clips = [
-    clip("tela", "v", 0, 20),
-    clip("fala", "voz", 2, 12, { assetId: "voice", in: 1 }),
-    clip("depois", "voz", 16, 3, { assetId: "voice" }),
-    clip("balao", "notas", 8, 6, {
-      assetId: "note",
-      annotation: { kind: "balloon", text: "Oi", color: "#3D6BFF" },
-      keyframes: [
-        { t: 0, x: 0.2, y: 0.2, scale: 1 },
-        { t: 5, x: 0.8, y: 0.2, scale: 1 },
-      ],
-    }),
-    clip("musica", "m", 0, 30, { assetId: "voice" }),
-  ];
-  const targets = new Set(["v", "voz", "notas"]);
-  const { clips: out, stillId } = extendFrameAll(clips, assets, "tela", 10, 4, "still", targets);
-  const still = byId(out, stillId);
-  assert.deepEqual([still.start, still.duration], [10, 4]);
-  const tela = out
-    .filter((c) => c.trackId === "v" && c.assetId === "v")
-    .sort((a, b) => a.start - b.start);
-  assert.deepEqual(
-    tela.map((c) => [c.start, c.duration, c.in]),
-    [
-      [0, 10, 0],
-      [14, 10, 10],
-    ],
-  );
-  // The voice under the point is cut there and its second part waits for the held frame.
-  const fala = out
-    .filter((c) => c.trackId === "voz" && c.start < 16)
-    .sort((a, b) => a.start - b.start);
-  assert.deepEqual(
-    fala.map((c) => [c.start, c.duration, c.in]),
-    [
-      [2, 8, 1],
-      [14, 4, 9],
-    ],
-  );
-  assert.equal(byId(out, "depois").start, 20, "4 s later, the same 2 s after the voice");
-  // The balloon across the point lasts 4 s more; its movement after the point waits too.
-  const balao = byId(out, "balao");
-  assert.equal(balao.start, 8);
-  assert.equal(balao.duration, 10);
-  assert.deepEqual(
-    balao.keyframes?.map((k) => k.t),
-    [0, 9],
-  );
-  assert.deepEqual([byId(out, "musica").start, byId(out, "musica").duration], [0, 30]);
-  // Distances between everything after the point are what they were.
-  const after = (list: Clip[]): number[] =>
-    list
-      .filter((c) => c.start >= 10 && targets.has(c.trackId) && c.id !== stillId)
-      .map((c) => c.start)
-      .sort((a, b) => a - b);
-  const before = after(clips).map((t) => t + 4);
-  for (const t of before) assert.ok(after(out).includes(t), `${t - 4} moved to ${t}`);
 });

@@ -311,69 +311,14 @@ export function trimClip(
 }
 
 /**
- * Trims one edge with ripple (Shift + edge): the clip keeps its start and what comes after its
- * old end, on every unlocked track, moves by the change in length, so nothing is covered and no
- * gap opens. Trimming the head takes footage off the start of the clip without moving it. When
- * another track holds the clips back (something before them that they would cover), the trim
- * goes only as far as they can move.
+ * Where a new picture track goes so it is drawn under the lesson's pictures: right after the
+ * last video track, wherever the tracks were moved to (sound may be above it); with no video
+ * track yet, before the first sound track.
  */
-export function rippleTrim(
-  clips: Clip[],
-  tracks: Track[],
-  id: string,
-  edge: "start" | "end",
-  time: number,
-  asset: Asset | undefined,
-): Clip[] {
-  const c = clips.find((x) => x.id === id);
-  if (!c || !Number.isFinite(time)) return clips;
-  const trim = (to: number): Clip => {
-    const t = trimClip(c, edge, to, asset);
-    return edge === "start" ? { ...t, start: c.start } : t;
-  };
-  let trimmed = trim(time);
-  const delta = trimmed.duration - c.duration;
-  if (Math.abs(delta) <= EPS) return clips;
-  const end = clipEnd(c);
-  let moved = rippleMoveFrom(
-    clips.map((x) => (x.id === id ? trimmed : x)),
-    tracks,
-    end,
-    delta,
-  );
-  if (Math.abs(moved.delta - delta) > EPS) {
-    // Held back: trim only what the clips after it can follow.
-    trimmed = trim(edge === "end" ? end + moved.delta : c.start - moved.delta);
-    const held = trimmed.duration - c.duration;
-    moved = rippleMoveFrom(
-      clips.map((x) => (x.id === id ? trimmed : x)),
-      tracks,
-      end,
-      held,
-    );
-  }
-  return moved.clips;
-}
-
-/**
- * Inserts clips pushing what comes after (Ctrl + drop): the clip under `at` on each track that
- * receives one is split there, then everything starting at `at` on every unlocked track moves
- * right by the length of what is inserted, and the clips go into the gap. Clips of other tracks
- * that cross `at` stay where they are, as with Shift + drag of the playhead.
- */
-export function insertClips(clips: Clip[], tracks: Track[], inserted: Clip[], at: number): Clip[] {
-  if (!inserted.length) return clips;
-  const length = Math.max(...inserted.map(clipEnd)) - at;
-  if (!(length > EPS)) return placeClips(clips, inserted);
-  const targets = new Set(inserted.map((c) => c.trackId));
-  const locked = new Set(tracks.filter((t) => t.locked).map((t) => t.id));
-  const under = new Set(
-    clips
-      .filter((c) => targets.has(c.trackId) && c.start < at - EPS && clipEnd(c) > at + EPS)
-      .map((c) => c.id),
-  );
-  const split = under.size ? splitAt(clips, at, under, locked) : clips;
-  return placeClips(rippleMoveFrom(split, tracks, at, length).clips, inserted);
+export function videoTrackSlot(tracks: readonly Track[]): number {
+  for (let i = tracks.length - 1; i >= 0; i--) if (tracks[i].kind === "video") return i + 1;
+  const firstAudio = tracks.findIndex((t) => t.kind === "audio");
+  return firstAudio < 0 ? tracks.length : firstAudio;
 }
 
 /**
@@ -382,73 +327,12 @@ export function insertClips(clips: Clip[], tracks: Track[], inserted: Clip[], at
  */
 export function moveTrack(tracks: Track[], id: string, to: number): Track[] {
   const from = tracks.findIndex((t) => t.id === id);
-  if (from < 0 || !Number.isFinite(to)) return tracks;
+  // A locked track stays where it is (it still shifts when another one moves past it).
+  if (from < 0 || !Number.isFinite(to) || tracks[from].locked) return tracks;
   const target = Math.max(0, Math.min(tracks.length - 1, Math.round(to)));
   if (target === from) return tracks;
   const rest = tracks.filter((t) => t.id !== id);
   return [...rest.slice(0, target), tracks[from], ...rest.slice(target)];
-}
-
-/** Clips that can stretch over a held frame: pictures with no clock of their own. */
-const stretches = (c: Clip, asset: Asset | undefined): boolean =>
-  !!c.annotation || !!c.zoomLayer || asset?.kind === "image";
-
-/**
- * Extend frame opening the gap on every target track (shared/cleanup.ts cutTargets): the clip
- * holds its picture for `seconds` (extendFrame), everything after `at` on the other targets
- * moves along, a picture that crosses `at` (annotation, image, zoom layer) lasts `seconds` longer
- * with its movement after `at` moved too, and video or sound crossing it is cut there (pieces.ts)
- * with its second part after the gap. Tracks outside `targets` (music, locked) keep playing.
- */
-export function extendFrameAll(
-  clips: Clip[],
-  assets: ReadonlyMap<string, Asset>,
-  id: string,
-  at: number,
-  seconds: number,
-  stillAssetId: string,
-  targets: ReadonlySet<string>,
-): { clips: Clip[]; stillId: string } {
-  const c = clips.find((x) => x.id === id);
-  if (!c) throw new Error("Tempo de extensão inválido.");
-  const own = extendFrame(clips, id, at, seconds, stillAssetId);
-  const out: Clip[] = [];
-  for (const x of own.clips) {
-    if (x.trackId === c.trackId || !targets.has(x.trackId)) {
-      out.push(x);
-      continue;
-    }
-    if (x.start >= at - EPS) {
-      out.push({ ...x, start: x.start + seconds });
-      continue;
-    }
-    if (clipEnd(x) <= at + EPS) {
-      out.push(x);
-      continue;
-    }
-    if (stretches(x, assets.get(x.assetId))) {
-      const local = at - x.start;
-      out.push({
-        ...x,
-        duration: x.duration + seconds,
-        // A piece of a longer zoom layer keeps the way out at the same distance from its end.
-        ...(x.zoomLayer?.length !== undefined
-          ? { zoomLayer: { ...x.zoomLayer, length: x.zoomLayer.length + seconds } }
-          : {}),
-        ...(x.keyframes?.length
-          ? {
-              keyframes: x.keyframes.map((k) =>
-                k.t > local + EPS ? { ...k, t: k.t + seconds } : k,
-              ),
-            }
-          : {}),
-      });
-      continue;
-    }
-    out.push(piece(x, x.start, at, { tail: false }));
-    out.push({ ...piece(x, at, clipEnd(x), { head: false }), start: at + seconds });
-  }
-  return { clips: out, stillId: own.stillId };
 }
 
 /** Clips of `tracks` that show anywhere between timeline times `from` and `to` (marquee). */

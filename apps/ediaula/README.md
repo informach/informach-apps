@@ -319,9 +319,10 @@ em crianças de 9 a 14 anos:
 Cada aviso tem **Ir até** e, quando dá, a correção num clique.
 
 **Modelo do curso (versão 2).** Numa aula pronta, **Arquivo › Salvar como modelo do curso** guarda
-como o curso é editado em `cursos/<curso>/modelo.json`, dentro da pasta de dados do EdiAula: paleta e
+como o curso é editado em `cursos/<curso>/modelo.json`, dentro da pasta de dados do EdiAula: formato,
+faixas (nome, altura, música e abaixamento; silenciar, esconder e travar ficam de fora), paleta e
 fontes, legenda, cartelas, posição e entrada do apresentador, remoção de fundo, cursor, zoom, música
-(marcada como música, abaixando quando alguém fala, no volume da aula), escolhas da limpeza, quantas
+(o arquivo, a faixa, o volume da aula e como ela abaixa quando alguém fala), escolhas da limpeza, quantas
 anotações por minuto, os estilos delas e regras do tipo "quando o Na tela falar do botão Play,
 destaque ali". O apresentador da aula e as inserções do roteiro guardam cada um a sua posição, e uma
 inserção nunca é posta em cima do apresentador que está na tela ao mesmo tempo (um modelo antigo, de
@@ -329,9 +330,14 @@ uma posição só, vale para o apresentador, e para as inserções só numa aula
 aula do mesmo curso, o EdiAula oferece aplicar o modelo como rascunho; a resposta (aplicar ou agora
 não) fica guardada na aula para aquele curso, e o modelo aplicado marca no Preparar aula as etapas que
 ele já fez.
-O modelo de edição em Markdown (`export_editing_template`) leva o mesmo bloco JSON e agora diz o papel
-certo de cada mídia (camada de zoom, quadro parado da tela, música de fundo, apresentador, voz). Um
-arquivo da versão 1 continua valendo como referência em texto, só não tem o que aplicar.
+Dois cursos cujos nomes só diferem no que um nome de pasta não aceita ("Aula: 1" e "Aula 1") nunca
+dividem o arquivo: o segundo vai para `cursos/Aula 1 (2)`, e toda leitura e gravação confere o curso
+escrito dentro. Os modelos da primeira versão (`course-templates/<curso>.json`) viram versão 2 na
+primeira vez que o curso é lido, e o arquivo antigo fica como `.migrated`.
+O modelo de edição em Markdown (`export_editing_template`) leva o mesmo bloco JSON, sem onde a música
+está neste computador, e diz o papel certo de cada mídia (camada de zoom, quadro parado da tela, música
+de fundo, apresentador, voz). Um arquivo da versão 1 continua valendo como referência em texto, só não
+tem o que aplicar.
 
 ## Voz, HeyGen e tela: o caminho de uma aula
 
@@ -689,18 +695,22 @@ HeyGen é usado pelo site dele, como sempre.
   e no menu Arquivo do editor. **Duplicar** grava ao lado uma aula própria, "<nome> (cópia)", com outro id
   (as propostas da IA vão junto). **Renomear** muda o nome da aula e do arquivo, e a pasta das cópias de
   segurança acompanha. **Restaurar cópia de segurança…** lista as cópias que o app guarda em
-  `Projetos/.backups` (uma a cada 10 minutos de edição, as últimas 20) com data, duração e número de clipes;
-  restaurar grava antes o estado atual como mais uma cópia, então dá para voltar. A aula aberta é salva
-  antes de cada uma dessas ações.
-- **Modelo do curso:** com a aula de um curso aberta, **Arquivo › Salvar como modelo do curso** guarda como
-  as próximas aulas dele começam (`src/shared/courseSetup.ts`, no perfil do app em
-  `course-templates/<curso>.json`): formato, paleta e fontes do tema, legenda gravada, as faixas (nome,
-  altura, música e abaixamento), a música de fundo com o volume e se a aula tem abertura e encerramento
-  animados. Em **Novo projeto**, ao digitar um curso que tem modelo, aparece **Começar com o modelo do curso**
-  (ligado): a aula nasce com o formato, as faixas, a paleta e a legenda do modelo, e a música entra na
-  biblioteca. Quando a primeira mídia chega à timeline, a abertura (que empurra a aula para frente), o
-  encerramento e a música até o fim entram sozinhos, num Ctrl+Z. O modelo não leva mídias da aula nem
-  cortes; a música precisa continuar no mesmo lugar do disco.
+  `Projetos/.backups` (uma a cada 10 minutos de edição, as últimas 20) com data, duração e número de clipes,
+  lidos de um índice pequeno ao lado delas (`indice.json`): a cópia inteira só é lida para restaurar.
+  Restaurar grava antes o estado atual como mais uma cópia, então dá para voltar. A aula aberta é salva
+  antes de cada uma dessas ações; enquanto o arquivo é renomeado, os salvamentos esperam, e o que foi
+  editado nesse meio tempo é salvo no arquivo novo.
+- **Começar pelo modelo do curso:** o mesmo modelo do curso (`src/shared/courseTemplate.ts`, em
+  `cursos/<curso>/modelo.json`) serve para começar uma aula nova. Em **Novo projeto**, ao digitar um curso
+  que tem modelo, aparece **Começar com o modelo do curso** (ligado) e o formato do modelo vem escolhido,
+  mas pode ser trocado: a aula nasce no formato escolhido, com as faixas, a paleta e a legenda do modelo, e
+  a música entra na biblioteca (`startingLesson`, `src/renderer/src/lib/courseStart.ts`). Quando a primeira
+  mídia chega à timeline, a abertura (que empurra a aula para frente), o encerramento e a música até o fim
+  entram sozinhos, num Ctrl+Z. Essas são as únicas cartelas dessa aula: o modelo não é oferecido de novo
+  nela e o Preparar aula deixa as cartelas para esse momento (e nunca põe outra quando já há uma, seja
+  cartela de anotação ou o modelo animado de Modelos). O modelo não leva mídias da aula nem cortes; a
+  música precisa continuar no mesmo lugar do disco e só é aberta quando está neste computador (um
+  caminho de rede, `\\servidor\pasta`, nunca é tocado, para não mandar as credenciais do Windows para lá).
 
 ## Timeline livre
 
@@ -715,7 +725,8 @@ HeyGen é usado pelo site dele, como sempre.
   botões ⇕ na barra da timeline para todas de uma vez. A altura fica salva no projeto.
 - **Prévia:** ao arrastar um clipe no vídeo, ele encaixa nas bordas e no centro da tela e também nas
   bordas e no centro dos outros clipes visíveis, com guias cor-de-rosa (Alt desliga). **Alt + clique**
-  seleciona a camada de baixo naquele ponto (cada Alt + clique desce uma camada e, do fundo, volta ao topo).
+  seleciona a camada de baixo naquele ponto (cada Alt + clique desce uma camada e, do fundo, volta ao topo),
+  decidido ao soltar o botão sem arrastar: Alt + arrasto continua movendo o clipe clicado sem encaixe.
   **Ctrl + roda do mouse** aproxima e afasta a prévia em volta do ponteiro (de 50% a 400%, só a visão, não a
   aula), a roda ou o botão do meio movem a prévia aproximada e o número da porcentagem volta a ajustar. O
   escudo mostra as **áreas seguras**: a margem de 5% que todo player mostra, a faixa da legenda e, numa
@@ -725,6 +736,8 @@ HeyGen é usado pelo site dele, como sempre.
   prévia já mostra a mudança, e soltar grava um único Ctrl+Z. **Espelhar na horizontal** e **na vertical**
   invertem a parte visível. O giro é em volta do centro e leva junto forma, borda e sombra; a prévia usa CSS
   e a exportação os filtros `hflip`, `vflip` e `rotate`, com o mesmo resultado (`tests/export-orientation.test.ts`).
+  Num clipe girado, a cortina e a dobra da transição são aplicadas antes do giro, sobre a imagem, como a
+  prévia faz, e a sombra gira junto.
   Em **Tempo**, início, fim e duração do clipe também se digitam (horas:minutos:segundos:quadros, mm:ss ou
   segundos).
 - **Botão direito num clipe** abre um menu com velocidade, copiar/recortar/colar, dividir e excluir (age na
@@ -749,17 +762,28 @@ HeyGen é usado pelo site dele, como sempre.
 - **Ímã** (`src/shared/snap.ts`): encaixa nas bordas dos clipes, no cursor de reprodução, no começo e no fim
   de cada palavra transcrita, nos silêncios, nos marcadores da gravação e no intervalo marcado; sem nada
   perto, cai no quadro mais próximo. É o que deixa cortar exatamente onde a fala começa ou termina. Os
-  alvos ficam numa lista ordenada com busca binária, então arrastar numa aula com milhares de clipes e
-  palavras continua leve. A ferramenta Corte (C) usa o mesmo ímã.
+  alvos ficam numa lista ordenada com busca binária, feita de novo só quando os clipes, as palavras ou o
+  intervalo mudam; o clipe arrastado e o cursor de reprodução são tratados na busca. Só contam as
+  palavras e os silêncios do que se ouve (faixa silenciada ou fora do solo não). A ferramenta Corte (C)
+  usa o mesmo ímã.
 - **Excluir o intervalo:** marque o intervalo na régua e use **Excluir o intervalo** (barra do intervalo ou
   Editar): ele sai de todas as faixas que os cortes de texto alcançam e o resto anda para a esquerda, sem
-  perder a sincronia; a música continua e termina com a aula, e faixas travadas não mudam.
-- **Aparar empurrando o resto (Shift + borda):** o clipe fica no lugar e tudo o que vem depois dele, em
-  todas as faixas destravadas, acompanha a mudança. Aparar o começo tira o trecho do início sem mover o
-  clipe. Se uma faixa tem algo antes que seria coberto, o aparo vai só até onde ela deixa.
-- **Inserir empurrando (Ctrl ao soltar):** soltar mídia da biblioteca (ou do Explorer) com Ctrl abre espaço:
-  o clipe que estiver no ponto é dividido e tudo o que começa dali em diante, em todas as faixas
-  destravadas, anda para a direita. O marcador de soltar fica laranja.
+  perder a sincronia; a música continua e termina com a aula, e faixas travadas não mudam. É o mesmo corte
+  da transcrição: um trecho protegido recusa, com aviso, e o intervalo fica marcado.
+- **Aparar empurrando o resto (Shift + borda)** (`src/shared/ripple.ts`): o clipe fica no lugar e a aula
+  acompanha a mudança nas faixas que os cortes de texto alcançam e na do clipe. Encurtar é um corte
+  delas, o mesmo caminho de Excluir o intervalo: a voz perde o mesmo trecho da tela e continua em
+  sincronia, mesmo com o microfone inteiro debaixo da tela dividida. Alongar abre espaço nelas, cortando
+  em dois o que passa pelo ponto. A música não é empurrada nem fica com buraco: só o fim dela acompanha o
+  novo fim da aula. Sem nada depois do clipe, é um aparo comum. Aparar o começo tira ou devolve o trecho
+  do início sem mover o clipe.
+- **Inserir empurrando (Ctrl ao soltar):** soltar mídia da biblioteca (ou do Explorer) com Ctrl abre espaço
+  nas faixas que os cortes alcançam e na faixa onde a mídia entra: o que estiver no ponto (a tela, a voz,
+  uma anotação) é dividido e o resto anda para a direita; a música e as faixas travadas ficam. O marcador
+  de soltar fica laranja.
+- **Rascunho esperando revisão:** enquanto um rascunho que muda a estrutura da aula espera na barra de
+  revisão, aparar, inserir, excluir o intervalo, estender o quadro, reordenar faixas e mudar o formato
+  esperam também, com um aviso.
 - **Seleção por retângulo:** arraste no fundo das faixas para selecionar tudo o que o retângulo toca (Ctrl
   ou Shift somam à seleção). No botão direito do nome da faixa: **Selecionar a faixa inteira**,
   **Selecionar desta faixa a partir do cursor** e **Selecionar tudo a partir do cursor** (este também em
@@ -767,19 +791,25 @@ HeyGen é usado pelo site dele, como sempre.
 - **Ajustar vários de uma vez:** com vários clipes selecionados, Propriedades mostra opacidade, posição
   (com as posições prontas), entrada e saída, volume e velocidade; cada mudança vale para todos, num único
   Ctrl+Z.
-- **Reordenar faixas:** arraste o rótulo da faixa (F1, F2…) para outro lugar da pilha, ou use **Subir a
-  faixa** e **Descer a faixa** no botão direito. A de cima continua na frente. Ctrl+Z desfaz.
+- **Reordenar faixas:** arraste o rótulo da faixa (F1, F2…) para outro lugar da pilha, use **Alt+↑** e
+  **Alt+↓** com o rótulo em foco, ou **Subir a faixa** e **Descer a faixa** no botão direito. A de cima
+  continua na frente; uma faixa travada não sai do lugar. Uma faixa de vídeo nova (a tela de uma gravação)
+  entra logo abaixo da última faixa de vídeo, onde quer que as faixas de som estejam. Ctrl+Z desfaz.
 - **Solo:** o fone no cabeçalho da faixa toca só ela (e as outras em solo). Vale só para ouvir no editor:
-  não fica salvo na aula, e a janela de exportação avisa quando há solo ligado, porque a exportação leva o
-  som de todas as faixas que não estão silenciadas.
-- **Miniaturas por posição:** cada vídeo ganha em segundo plano uma folha de miniaturas (uma a cada 2 s,
-  160 × 90, `media:filmstrip`, em cache ao lado da mídia, feita pelo proxy quando ele existe), e cada clipe
-  mostra as do trecho que ele toca, conforme o ponto de entrada e a velocidade.
+  não fica salvo na aula, e a verificação antes de exportar avisa quando há solo ligado (com **Ouvir todas
+  as faixas**), porque a exportação leva o som de todas as faixas que não estão silenciadas.
+- **Miniaturas por posição:** cada vídeo ganha em segundo plano folhas de miniaturas de dez minutos cada
+  (uma a cada 2 s, 160 × 90, `media:filmstrip`, em cache ao lado da mídia, feitas pelo proxy quando ele
+  existe, lendo só os quadros-chave), e cada clipe mostra as do trecho que ele toca, conforme o ponto de
+  entrada e a velocidade. Uma folha que sumiu (outro computador, cache limpo) é feita de novo; até lá o
+  clipe mostra a miniatura do vídeo.
 - **J, K e L com som:** L avança e acelera a cada toque (até 8×); J volta, com o som em grãos de 80 ms
   tocados ao contrário; segurar K com L (ou J) anda devagar, a 0,5× e depois a 0,25×, com a voz no mesmo
   tom; soltar o K para. Quadro a quadro (← →) e arrastar o cursor na régua também tocam o som daquele
   ponto. O som vem do processo principal em blocos de 1 s de PCM (`media:audioSnippet`), guardados para ir
-  e voltar no mesmo trecho sem ler o arquivo de novo; faixas silenciadas ou fora do solo ficam quietas.
+  e voltar no mesmo trecho sem ler o arquivo de novo; faixas silenciadas ou fora do solo ficam quietas. As
+  leituras usam duas vagas do agendador, e o que só grãos antigos esperam é interrompido: arrastar rápido
+  não acumula processos do FFmpeg.
 - **Altura da timeline:** a divisão entre a prévia e a timeline fica salva no app (vale para todas as aulas).
 
 ## Velocidade por duração e estender quadro
@@ -792,10 +822,11 @@ HeyGen é usado pelo site dele, como sempre.
   adicional. Insere uma imagem silenciosa daquele quadro e retoma o vídeo depois, deslocando os clipes
   seguintes da mesma faixa. Fora do clipe, usa o início ou o último quadro. Por padrão as outras faixas não
   se movem; com **Abrir espaço em todas as faixas** (a escolha fica lembrada), tudo o que vem depois anda
-  junto em todas as faixas que os cortes de texto alcançam (`extendFrameAll` em `src/shared/timeline.ts`): a
-  voz e os outros vídeos que passam pelo ponto são cortados ali e continuam depois do quadro, a anotação, a
-  imagem ou a camada de zoom que passa pelo ponto fica mais longa (o movimento dela depois do ponto espera
-  também), a música segue tocando e as faixas travadas não mudam.
+  junto em todas as faixas que os cortes de texto alcançam (`extendFrameAll` em `src/shared/ripple.ts`): a
+  voz que passa pelo ponto é cortada ali e continua depois do quadro, outro vídeo que passa pelo ponto (o
+  apresentador) também para no próprio quadro, a anotação, a imagem ou a camada de zoom que passa pelo
+  ponto fica mais longa e parada enquanto o quadro segura (o movimento continua depois, de onde estava), a
+  música que ia até o fim segue até o novo fim e as faixas travadas não mudam.
   Preserva posição, tamanho, recorte, transparência, cursor e zoom do clipe no quadro capturado.
   O quadro estendido pode ser aparado pelas bordas como uma imagem. Um Ctrl+Z desfaz a operação inteira.
 

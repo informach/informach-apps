@@ -79,10 +79,16 @@ async function redraw(a: Asset): Promise<boolean> {
   const p = useProject.getState().project;
   if (!p) return false;
   const plan = redrawPlan(p, a);
-  let picture: { path: string; size: number } | null = null;
+  let picture: { path: string; size: number; width?: number; height?: number } | null = null;
   if (plan?.how === "annotation") {
+    // Drawn for the format of now (Mudar formato may have changed it): its size goes along.
     const r = await renderAnnotation(plan.annotation, p.settings.height, p.settings.width);
-    picture = { path: await window.api.saveGenerated(r.bytes, "png"), size: r.bytes.length };
+    picture = {
+      path: await window.api.saveGenerated(r.bytes, "png"),
+      size: r.bytes.length,
+      width: r.width,
+      height: r.height,
+    };
   } else if (plan?.how === "effect") {
     picture = { path: await restoreBlankPicture(), size: 1 };
   } else if (plan?.how === "still") {

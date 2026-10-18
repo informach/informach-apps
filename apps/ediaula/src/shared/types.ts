@@ -8,7 +8,6 @@ import type { CaptionStyle, CueStyleEntry } from "./captions.ts";
 import type { ChromaKey } from "./chroma.ts";
 import type { Motion, Transform } from "./compose.ts";
 import type { CourseTemplate } from "./courseTemplate.ts";
-import type { CourseSetup } from "./courseSetup.ts";
 import type { CursorFx } from "./cursor.ts";
 import type { FontFamily } from "./fonts.ts";
 import type { GlossaryTerm } from "./glossary.ts";
@@ -123,7 +122,11 @@ export interface Asset {
  * `columns` on one image (`count` in all): the timeline draws the ones under each clip.
  */
 export interface Filmstrip {
+  /** The first sheet (all of them when `sheets` is absent: a strip made before sheets). */
   path: string;
+  /** JPEG sheets of ten minutes each, in order, `perSheet` pictures on each. */
+  sheets?: string[];
+  perSheet?: number;
   step: number;
   width: number;
   height: number;
@@ -366,13 +369,15 @@ export interface Project {
    *  not offered again for the same course. */
   templateOffer?: { course: string; answer: "applied" | "declined" };
   /**
-   * A lesson started from its course's template (shared/courseSetup.ts): when the first media
-   * reaches the timeline, the opening and closing cards go in and the music bed (already in the
-   * library) is laid to the end of the lesson; then this is gone.
+   * A lesson started from its course's template (shared/courseTemplate.ts startingLesson): when
+   * the first media reaches the timeline, the opening and closing cards go in and the music bed
+   * (already in the library) is laid to the end of the lesson; then this is gone. While it is
+   * here, "Preparar aula" leaves the cards to it.
    */
   pendingStart?: {
     opening?: boolean;
     closing?: boolean;
+    closingText?: string;
     music?: { assetId: string; trackId: string; volume: number };
   };
   settings: ProjectSettings;
@@ -807,8 +812,16 @@ export interface EdiAulaApi {
   saveNarration(bytes: Uint8Array): Promise<string>;
   /** PNG of one frame (cached), used to hold the picture while an insert plays. */
   stillFrame(path: string, t: number, alpha?: boolean): Promise<string>;
-  /** `seconds` of sound from `t`: mono 16-bit PCM at 24 kHz (main/ffmpeg.ts SNIPPET_RATE). */
-  audioSnippet(path: string, t: number, seconds: number): Promise<Uint8Array>;
+  /**
+   * `seconds` of sound from `t`: mono 16-bit PCM at 24 kHz (main/ffmpeg.ts SNIPPET_RATE).
+   * `ticket` numbers the grain asking: reads only older grains wait for are stopped, and give null.
+   */
+  audioSnippet(
+    path: string,
+    t: number,
+    seconds: number,
+    ticket?: number,
+  ): Promise<Uint8Array | null>;
   /** The filmstrip of a video, decoding `input` (its proxy or itself); cached beside it. */
   filmstrip(jobId: string, path: string, input: string, duration: number): Promise<Filmstrip>;
   /** Solid screen color behind an avatar ('#RRGGBB'), or null. */
@@ -857,8 +870,6 @@ export interface EdiAulaApi {
   /** Puts a backup back (the current state becomes a backup first); returns the lesson. */
   restoreBackup(path: string, id: string): Promise<Project>;
   /** The template of a course (how its new lessons start), or null. */
-  courseSetup(course: string): Promise<CourseSetup | null>;
-  saveCourseSetup(setup: CourseSetup): Promise<CourseSetup>;
   /** The project as JSON text, like saveProject; the cursor positions stay typed arrays. */
   startExport(jobId: string, projectJson: string, spec: ExportSpec): Promise<void>;
   cancelJob(jobId: string): Promise<void>;

@@ -11,7 +11,8 @@ import { listenPath, useVoiceListen } from "./voice";
  * and dragging the playhead. Each is a grain of GRAIN seconds of what is heard under the
  * playhead (muted tracks and tracks out of a solo stay quiet), read in one-second blocks of PCM
  * from the main process (media:audioSnippet) and kept, so going back and forth over a stretch
- * reads it once. Grains going backwards are played reversed.
+ * reads it once. Each grain has a ticket: the main process reads two at a time and drops what
+ * only older grains still wait for. Grains going backwards are played reversed.
  */
 
 const RATE = 24000;
@@ -24,7 +25,14 @@ const STALE_MS = 220;
 const FADE = 0.006;
 
 let context: AudioContext | null = null;
-const blocks = new Map<string, Promise<Float32Array | null>>();
+interface Block {
+  data: Promise<Float32Array | null>;
+  /** The newest grain that asked for it, while it is still being read. */
+  ticket: number;
+  settled: boolean;
+}
+const blocks = new Map<string, Block>();
+let ticket = 0;
 
 function audio(): AudioContext {
   context ??= new AudioContext({ sampleRate: RATE, latencyHint: "interactive" });
@@ -33,34 +41,44 @@ function audio(): AudioContext {
 }
 
 /** One second of a file's sound (null when it has none there or could not be read). */
-function block(path: string, index: number): Promise<Float32Array | null> {
+function block(path: string, index: number, grainTicket: number): Promise<Float32Array | null> {
   const key = `${path}|${index}`;
-  let known = blocks.get(key);
-  if (known) {
+  const known = blocks.get(key);
+  // A block still being read for an older grain is asked again with this ticket: the main
+  // process joins the two and keeps reading it for the newer grain.
+  if (known && (known.settled || known.ticket >= grainTicket)) {
     blocks.delete(key);
     blocks.set(key, known);
-    return known;
+    return known.data;
   }
-  known = window.api.audioSnippet(path, index * BLOCK, BLOCK).then(
+  const entry: Block = { data: Promise.resolve(null), ticket: grainTicket, settled: false };
+  entry.data = window.api.audioSnippet(path, index * BLOCK, BLOCK, grainTicket).then(
     (bytes) => {
+      entry.settled = true;
+      // A newer grain made this read pointless and it was stopped: read it again when asked.
+      if (!bytes) {
+        if (blocks.get(key) === entry) blocks.delete(key);
+        return null;
+      }
       const pcm = new Int16Array(bytes.buffer, bytes.byteOffset, Math.floor(bytes.byteLength / 2));
       const out = new Float32Array(pcm.length);
       for (let i = 0; i < pcm.length; i++) out[i] = pcm[i] / 32768;
       return out;
     },
     (error: unknown) => {
-      blocks.delete(key);
+      entry.settled = true;
+      if (blocks.get(key) === entry) blocks.delete(key);
       console.warn("scrub sound not read", path, error);
       return null;
     },
   );
-  blocks.set(key, known);
+  blocks.set(key, entry);
   while (blocks.size > BLOCKS_KEPT) {
     const oldest = blocks.keys().next().value;
     if (oldest === undefined) break;
     blocks.delete(oldest);
   }
-  return known;
+  return entry.data;
 }
 
 /** Samples of [from, from + seconds) of a file, from its blocks. */
@@ -68,6 +86,7 @@ async function samples(
   path: string,
   from: number,
   seconds: number,
+  grainTicket: number,
 ): Promise<Float32Array<ArrayBuffer>> {
   const start = Math.max(0, from);
   const count = Math.max(1, Math.round(seconds * RATE));
@@ -75,7 +94,7 @@ async function samples(
   const first = Math.floor(start / BLOCK);
   const last = Math.floor((start + seconds) / BLOCK);
   const read = await Promise.all(
-    Array.from({ length: last - first + 1 }, (_, k) => block(path, first + k)),
+    Array.from({ length: last - first + 1 }, (_, k) => block(path, first + k, grainTicket)),
   );
   for (let i = 0; i < count; i++) {
     const t = start + i / RATE;
@@ -115,6 +134,8 @@ function heardAt(t: number): { clip: Clip; asset: Asset }[] {
  */
 export async function grain(t: number, rate: number): Promise<void> {
   const asked = performance.now();
+  ticket += 1;
+  const mine = ticket;
   const span = GRAIN * Math.max(0.25, Math.min(8, Math.abs(rate)));
   const backwards = rate < 0;
   const parts = await Promise.all(
@@ -123,7 +144,7 @@ export async function grain(t: number, rate: number): Promise<void> {
       const src = sourceAt(clip, t);
       const length = span * speed;
       const from = backwards ? src - length : src;
-      return { clip, data: await samples(soundPath(asset), from, length) };
+      return { clip, data: await samples(soundPath(asset), from, length, mine) };
     }),
   );
   if (!parts.length || performance.now() - asked > STALE_MS) return;

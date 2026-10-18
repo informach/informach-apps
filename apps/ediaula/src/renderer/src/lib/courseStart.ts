@@ -1,26 +1,27 @@
-import { applySetup, type CourseSetup } from "@shared/courseSetup";
+import { type CourseTemplate, hasLessonMedia, startingLesson } from "@shared/courseTemplate";
 import { newId, projectDuration } from "@shared/timeline";
 import type { Clip, Project } from "@shared/types";
 import { useApp } from "@/state/app";
-import { useProject } from "@/state/project";
+import { type Commit, useProject } from "@/state/project";
+import { addCard } from "./annotations";
 import { importMedia } from "./importMedia";
-import { addTemplate } from "./templates";
 
 /**
- * A new lesson started from its course's template (shared/courseSetup.ts). The tracks, palette,
- * captions and ducking are its starting state (not an edit to undo); the music joins the
- * library right away. When the first media reaches the timeline, the opening and closing cards
- * go in (the opening pushes the lesson forward) and the music is laid under all of it, as one
- * Ctrl+Z.
+ * A new lesson started from its course's template (shared/courseTemplate.ts startingLesson). The
+ * tracks, palette, captions and ducking are its starting state (not an edit to undo); the music
+ * joins the library right away. When the first media reaches the timeline, the opening and
+ * closing cards go in (the opening pushes the lesson forward) and the music is laid under all of
+ * it, as one Ctrl+Z. These are the only cards such a lesson gets: "Preparar aula" leaves them to
+ * this, and the template is not offered again on it.
  */
-export async function startFromSetup(setup: CourseSetup): Promise<void> {
+export async function startFromTemplate(template: CourseTemplate): Promise<void> {
   const open = useProject.getState().project;
   if (!open) return;
-  const { project, musicTrack } = applySetup(open, setup);
+  const { project, musicTrack } = startingLesson(open, template);
   useProject.getState().patch(() => project);
-  const music = setup.audio?.music;
-  if (music && musicTrack) {
-    const [asset] = await importMedia([music.path]);
+  const music = template.music;
+  if (music?.file && musicTrack) {
+    const [asset] = await importMedia([music.file.path]);
     if (asset?.hasAudio && asset.duration > 0)
       useProject.getState().patch((p) => ({
         ...p,
@@ -33,27 +34,17 @@ export async function startFromSetup(setup: CourseSetup): Promise<void> {
       useApp
         .getState()
         .toast(
-          `A música do modelo (${music.name}) não foi encontrada. A aula começa sem ela.`,
+          `A música do modelo (${music.file.name}) não foi encontrada. A aula começa sem ela.`,
           "info",
         );
   }
   await useProject.getState().saveNow();
 }
 
-/** Media on the timeline that is the lesson itself (not the editor's pictures nor the music). */
-function hasMedia(p: Project): boolean {
-  const assets = new Map(p.assets.map((a) => [a.id, a]));
-  const music = p.pendingStart?.music?.assetId;
-  return p.clips.some((c) => {
-    const a = assets.get(c.assetId);
-    return !!a && !a.generated && a.id !== music;
-  });
-}
-
 const running = new Set<string>();
 
 /** The music bed from 0:00 to the end of the lesson, repeated, with a fade at both ends. */
-function musicClips(
+export function musicBed(
   p: Project,
   music: { assetId: string; trackId: string; volume: number },
 ): Clip[] {
@@ -76,38 +67,42 @@ function musicClips(
   return clips;
 }
 
+/**
+ * The cards are drawn first (each one waits for its picture) into a commit that only gathers
+ * what they change; the lesson changes once at the end, with the music, in one undo step.
+ */
 async function completeStart(projectId: string): Promise<void> {
   const state = useProject.getState();
   const pending = state.project?.id === projectId ? state.project.pendingStart : undefined;
   if (!pending || running.has(projectId)) return;
   running.add(projectId);
-  state.beginGroup();
+  const changes: ((p: Project) => Project)[] = [];
+  const gather: Commit = (fn) => {
+    changes.push(fn);
+    return true;
+  };
   const failed: string[] = [];
+  const added: string[] = [];
   try {
-    if (pending.opening)
-      await addTemplate("opening", {}, 0).catch((err: unknown) => {
-        failed.push(`abertura (${err instanceof Error ? err.message : String(err)})`);
-      });
-    const now = useProject.getState().project;
-    if (pending.closing && now)
-      await addTemplate("closing", {}, projectDuration(now)).catch((err: unknown) => {
-        failed.push(`encerramento (${err instanceof Error ? err.message : String(err)})`);
-      });
-    if (useProject.getState().project?.id === projectId)
-      useProject.getState().commit((p) => {
-        const { pendingStart: _done, ...rest } = p;
-        const bed = pending.music ? musicClips(p, pending.music) : [];
-        return { ...rest, clips: [...p.clips, ...bed] };
-      });
+    const card = async (where: "start" | "end", label: string, text?: string): Promise<void> => {
+      try {
+        if (await addCard(where, text ? { text } : {}, gather)) added.push(label);
+      } catch (err) {
+        failed.push(`${label} (${err instanceof Error ? err.message : String(err)})`);
+      }
+    };
+    if (pending.opening) await card("start", "abertura");
+    if (pending.closing) await card("end", "encerramento", pending.closingText);
+    if (useProject.getState().project?.id !== projectId) return;
+    useProject.getState().commit((p) => {
+      const { pendingStart: _done, ...rest } = changes.reduce((q, fn) => fn(q), p);
+      const bed = pending.music ? musicBed(rest, pending.music) : [];
+      return { ...rest, clips: [...rest.clips, ...bed] };
+    });
+    if (pending.music) added.push("música");
   } finally {
-    useProject.getState().endGroup();
     running.delete(projectId);
   }
-  const added = [
-    pending.opening && "abertura",
-    pending.closing && "encerramento",
-    pending.music && "música",
-  ].filter((x): x is string => !!x);
   const list =
     added.length > 1 ? `${added.slice(0, -1).join(", ")} e ${added.at(-1)}` : (added[0] ?? "");
   useApp
@@ -125,6 +120,6 @@ useProject.subscribe((s, prev) => {
   const p = s.project;
   const before = prev.project;
   if (!p?.pendingStart || !before || before.id !== p.id || p === before) return;
-  if (hasMedia(before) || !hasMedia(p)) return;
+  if (hasLessonMedia(before) || !hasLessonMedia(p)) return;
   void completeStart(p.id);
 });

@@ -1,13 +1,12 @@
-import { setupFromProject } from "@shared/courseSetup";
 import { fileName } from "@shared/relink";
 import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
-import { useProject } from "@/state/project";
+import { holdingSaves, useProject } from "@/state/project";
 import { checkAssets } from "./relink";
 
 /**
- * Lesson files as a whole (Duplicar, Renomear, Restaurar cópia de segurança, Salvar como modelo
- * do curso), from the start screen or the editor's File menu. The open lesson is written first,
+ * Lesson files as a whole (Duplicar, Renomear, Restaurar cópia de segurança), from the start
+ * screen or the editor's File menu. The open lesson is written first,
  * so the file holds everything that was on screen.
  */
 
@@ -45,8 +44,12 @@ export async function renameLesson(path: string, name: string): Promise<string |
   if (!clean) return null;
   if (!(await settled(path))) return null;
   try {
-    const target = await window.api.renameProject(path, clean);
-    if (isOpen(path)) useProject.getState().renamed(target, clean);
+    // Saves wait while the file moves: an edit made meanwhile goes to the renamed file.
+    const target = await holdingSaves(async () => {
+      const moved = await window.api.renameProject(path, clean);
+      if (isOpen(path)) useProject.getState().renamed(moved, clean);
+      return moved;
+    });
     toast(`Aula renomeada para ${clean}.`, "success");
     return target;
   } catch (err) {
@@ -75,24 +78,6 @@ export async function restoreLesson(path: string, id: string): Promise<boolean> 
     return true;
   } catch (err) {
     toast(`Não foi possível restaurar a cópia: ${message(err)}`, "error");
-    return false;
-  }
-}
-
-/** The open lesson as how its course starts new lessons (shared/courseSetup.ts). */
-export async function saveCourseTemplate(): Promise<boolean> {
-  const { toast } = useApp.getState();
-  const project = useProject.getState().project;
-  if (!project) return false;
-  try {
-    const setup = await window.api.saveCourseSetup(setupFromProject(project));
-    toast(
-      `Modelo do curso ${setup.course} salvo: formato, paleta, legenda, faixas${setup.audio?.music ? ", música" : ""}${setup.cards ? ", abertura e encerramento" : ""}. As próximas aulas do curso podem começar assim.`,
-      "success",
-    );
-    return true;
-  } catch (err) {
-    toast(`Não foi possível salvar o modelo do curso: ${message(err)}`, "error");
     return false;
   }
 }

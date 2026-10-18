@@ -950,6 +950,25 @@ try {
     // Only the move is taken back: without it, Ctrl+Z would undo an edit of an earlier step.
     await editor.keyboard.press("Control+z");
     assert.equal(await order(), before);
+    // From the keyboard: Alt+↓ on the label, and the label keeps the focus for the next step.
+    await handle.focus();
+    await editor.keyboard.press("Alt+ArrowDown");
+    await editor.waitForFunction(
+      (names) =>
+        [...document.querySelectorAll(".track-head .track-name")]
+          .map((el) => el.textContent)
+          .join("|") !== names,
+      before,
+    );
+    assert.ok(
+      await editor.evaluate(() => !!document.activeElement?.hasAttribute("data-track-tag")),
+      "the moved label keeps the focus",
+    );
+    await editor.evaluate(() => {
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    });
+    await editor.keyboard.press("Control+z");
+    assert.equal(await order(), before);
   });
 
   await step("Mudar formato", async () => {

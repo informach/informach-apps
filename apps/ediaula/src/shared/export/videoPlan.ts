@@ -730,20 +730,27 @@ export function buildVideoWindowPlan(
     const canvasH = vh + 2 * m + 2 * pad;
     let turnedW = canvasW;
     let turnedH = canvasH;
+    // A turned picture takes the lesson's clock and its transition mask before turning: the
+    // wipe and the fold are drawn on the picture (as the preview's clip-path turns with the
+    // layer) and their windows are lesson times. Only the fades come after.
+    let clocked = toLesson;
+    let masked = tailMask;
     if (rotation) {
       const size = rotatedSize(canvasW, canvasH, rotation);
       turnedW = Math.max(2, Math.ceil(size.w / 2) * 2);
       turnedH = Math.max(2, Math.ceil(size.h / 2) * 2);
       graph.push(
-        `[${pic}]rotate=a=${n((rotation * Math.PI) / 180)}:ow=${turnedW}:oh=${turnedH}:c=none[rt${L}]`,
+        `[${pic}]${toLesson}${tailMask},rotate=a=${n((rotation * Math.PI) / 180)}:ow=${turnedW}:oh=${turnedH}:c=none[rt${L}]`,
       );
       pic = `rt${L}`;
+      clocked = "null";
+      masked = "";
     }
 
     // 7. Onto the lesson's clock, the transition mask and the fades.
     const back = rgba ? `,${TO_YUVA}` : "";
     if (!moving) {
-      graph.push(`[${pic}]${toLesson}${tailMask}${fades}${back}[v${L}]`);
+      graph.push(`[${pic}]${clocked}${masked}${fades}${back}[v${L}]`);
       const x = Math.round(lay.visible.x);
       const y = Math.round(lay.visible.y);
       const at: [number, number] = rotation
@@ -779,7 +786,7 @@ export function buildVideoWindowPlan(
       const outerW = rotation ? turnedW : vw + 2 * margin;
       const outerH = rotation ? turnedH : vh + 2 * margin;
       graph.push(
-        `[${pic}]${toLesson},scale=w=${size(`(${sw})${grow(vw, outerW)}`)}:h=${size(`(${shh})${grow(vh, outerH)}`)}:eval=frame,setsar=1${tailMask}${fades}${back}[v${L}]`,
+        `[${pic}]${clocked},scale=w=${size(`(${sw})${grow(vw, outerW)}`)}:h=${size(`(${shh})${grow(vh, outerH)}`)}:eval=frame,setsar=1${masked}${fades}${back}[v${L}]`,
       );
       graph.push(
         `[${current}][v${L}]overlay=x='${cx}+(${motion.dx})*${W}-overlay_w/2':y='${cy}+(${motion.dy})*${H}-overlay_h/2':eval=frame:eof_action=pass:${enable}[${out}]`,

@@ -1,11 +1,12 @@
 import { focusOnMount } from "@informach/edi-desktop/renderer";
-import type { CourseSetup } from "@shared/courseSetup";
+import type { CourseTemplate } from "@shared/courseTemplate";
 import type { ProjectSettings } from "@shared/types";
 import { FolderPlus } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
+import { courseTemplate } from "@/lib/courseTemplate";
 import { Button, Field, Modal, Toggle } from "@/ui";
 
-export const FORMATS: { id: string; label: string; settings: ProjectSettings }[] = [
+export const FORMATS: { id: string; label: string; settings: ProjectSettings; hint?: string }[] = [
   {
     id: "1080p30",
     label: "1920 × 1080 · 30 fps (recomendado)",
@@ -18,8 +19,9 @@ export const FORMATS: { id: string; label: string; settings: ProjectSettings }[]
   },
   {
     id: "vertical30",
-    label: "1080 × 1920 · 30 fps (vertical: Reels, Shorts, celular)",
+    label: "1080 × 1920 · 30 fps (vertical 9:16)",
     settings: { width: 1080, height: 1920, fps: 30 },
+    hint: "Para vídeos curtos de redes sociais e para ver no celular.",
   },
   { id: "4k30", label: "3840 × 2160 · 30 fps", settings: { width: 3840, height: 2160, fps: 30 } },
   { id: "720p30", label: "1280 × 720 · 30 fps", settings: { width: 1280, height: 720, fps: 30 } },
@@ -29,13 +31,31 @@ interface Props {
   courses: string[];
   defaultName?: string;
   onCancel: () => void;
-  /** `setup`: the course template the lesson starts from, when the person kept it on. */
+  /** `template`: the course template the lesson starts from, when the person kept it on. */
   onCreate: (
     name: string,
     course: string | undefined,
     settings: ProjectSettings,
-    setup: CourseSetup | null,
+    template: CourseTemplate | null,
   ) => Promise<void>;
+}
+
+/** What starting from the template brings, in a sentence. */
+function templateSummary(t: CourseTemplate): string {
+  const parts = [
+    t.palette && "paleta",
+    t.captions && "legenda",
+    t.tracks?.length && `as ${t.tracks.length} faixas`,
+    t.music?.file && `a música ${t.music.file.name}`,
+  ].filter((x): x is string => !!x);
+  const cards =
+    t.cards?.opening || t.cards?.closing
+      ? `${t.cards.opening && t.cards.closing ? "a abertura e o encerramento entram" : t.cards.opening ? "a abertura entra" : "o encerramento entra"} quando a primeira mídia chegar`
+      : "";
+  const list =
+    parts.length > 1 ? `${parts.slice(0, -1).join(", ")} e ${parts.at(-1)}` : (parts[0] ?? "");
+  const head = list ? `${list[0].toUpperCase()}${list.slice(1)} de ${t.course ?? "curso"}` : "";
+  return [head, cards].filter(Boolean).join("; ").concat(".") || "O modelo do curso.";
 }
 
 const formatOf = (s: ProjectSettings): string | undefined =>
@@ -55,25 +75,25 @@ export function NewProjectModal({
   const [format, setFormat] = useState(FORMATS[0].id);
   const [busy, setBusy] = useState(false);
   // The course's template, looked up as the course is typed; on by default when there is one.
-  const [setup, setSetup] = useState<CourseSetup | null>(null);
-  const [useSetup, setUseSetup] = useState(true);
+  // Its format is offered first, and the person may still choose another.
+  const [template, setTemplate] = useState<CourseTemplate | null>(null);
+  const [useTemplate, setUseTemplate] = useState(true);
 
   useEffect(() => {
     const typed = course.trim();
     if (!typed) {
-      setSetup(null);
+      setTemplate(null);
       return;
     }
     let alive = true;
     const wait = setTimeout(() => {
-      window.api.courseSetup(typed).then(
+      courseTemplate(typed).then(
         (found) => {
           if (!alive) return;
-          setSetup(found);
-          const id = found && formatOf(found.settings);
-          if (id) setFormat(id);
+          setTemplate(found);
+          if (found) setFormat(formatOf(found.format) ?? "template");
         },
-        () => alive && setSetup(null),
+        () => alive && setTemplate(null),
       );
     }, 250);
     return () => {
@@ -82,8 +102,14 @@ export function NewProjectModal({
     };
   }, [course]);
 
-  const fromSetup = !!setup && useSetup;
-  const custom = fromSetup && !formatOf(setup.settings);
+  const fromTemplate = !!template && useTemplate;
+  // The template's format when it is none of the usual ones: one more choice, not the only one.
+  const own = template && !formatOf(template.format) ? template.format : null;
+  const chosen =
+    format === "template" && own
+      ? own
+      : (FORMATS.find((f) => f.id === format) ?? FORMATS[0]).settings;
+  const hint = FORMATS.find((f) => f.id === format)?.hint;
 
   const submit = async (): Promise<void> => {
     if (busy) return;
@@ -92,8 +118,8 @@ export function NewProjectModal({
       await onCreate(
         name.trim() || "Aula sem nome",
         course.trim() || undefined,
-        custom ? setup.settings : FORMATS.find((f) => f.id === format)!.settings,
-        fromSetup ? setup : null,
+        { ...chosen },
+        fromTemplate ? template : null,
       );
     } finally {
       setBusy(false);
@@ -136,30 +162,28 @@ export function NewProjectModal({
             ))}
           </datalist>
         </Field>
-        {setup && (
+        {template && (
           <div className="setup-offer">
             <div className="props-head">
               <span className="field-label">Começar com o modelo do curso</span>
-              <Toggle on={useSetup} onChange={setUseSetup} label="Começar com o modelo do curso" />
+              <Toggle
+                on={useTemplate}
+                onChange={setUseTemplate}
+                label="Começar com o modelo do curso"
+              />
             </div>
             <span className="field-hint">
-              {useSetup
-                ? `Formato, paleta, legenda e as ${setup.tracks.length} faixas de ${setup.course}${setup.audio?.music ? `, a música ${setup.audio.music.name}` : ""}${setup.cards ? ", e a abertura e o encerramento quando a primeira mídia entrar" : ""}.`
+              {useTemplate
+                ? templateSummary(template)
                 : "A aula começa vazia, com as faixas de sempre."}
             </span>
           </div>
         )}
-        <Field label="Formato do vídeo">
-          <select
-            className="select"
-            value={custom ? "setup" : format}
-            disabled={custom}
-            onChange={(e) => setFormat(e.target.value)}
-          >
-            {custom && (
-              <option value="setup">
-                {setup.settings.width} × {setup.settings.height} · {setup.settings.fps} fps (do
-                modelo do curso)
+        <Field label="Formato do vídeo" hint={hint}>
+          <select className="select" value={format} onChange={(e) => setFormat(e.target.value)}>
+            {own && (
+              <option value="template">
+                {own.width} × {own.height} · {own.fps} fps (do modelo do curso)
               </option>
             )}
             {FORMATS.map((f) => (

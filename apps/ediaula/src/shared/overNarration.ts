@@ -3,7 +3,7 @@ import type { Transform } from "./compose.ts";
 import type { RecordingResult } from "./recording.ts";
 import type { RecordingLayout } from "./recordingImport.ts";
 import { keptRanges } from "./recordingJournal.ts";
-import { overwriteRange } from "./timeline.ts";
+import { overwriteRange, videoTrackSlot } from "./timeline.ts";
 import type { Asset, Clip, Project, RecordingRole, Track } from "./types.ts";
 
 /**
@@ -173,8 +173,7 @@ export function layoutOverNarration(
   }
   if (!main && screen) {
     main = newTrack("video", "Tela");
-    const firstAudio = tracks.findIndex((t) => t.kind === "audio");
-    tracks.splice(firstAudio < 0 ? tracks.length : firstAudio, 0, main);
+    tracks.splice(videoTrackSlot(tracks), 0, main);
   }
 
   const add = (clip: Omit<Clip, "id">): Clip | undefined => {

@@ -11,9 +11,10 @@ import {
 } from "@shared/timeline";
 import type { Clip, Project } from "@shared/types";
 import { Film, Gauge, Image, Music, Ratio, Scissors, Sparkles, Trash2 } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { actions } from "@/lib/actions";
 import { formatEditTime } from "@/lib/editTimer";
+import { leaveField } from "@/lib/fieldText";
 import { duration, timecode } from "@/lib/format";
 import { hasSpeed, speedLabel } from "@/lib/speed";
 import { useApp } from "@/state/app";
@@ -382,16 +383,17 @@ function TimeRow({
 }): ReactNode {
   const [text, setText] = useState<string | null>(null);
   const [wrong, setWrong] = useState(false);
+  // Esc blurs the field right after asking for the text back: the blur must see it at once.
+  const cancelled = useRef(false);
   const apply = (): void => {
-    if (text === null) return;
-    const v = parseTimecode(text, fps);
+    const result = leaveField(text, timecode(value, fps), cancelled.current, (t) =>
+      parseTimecode(t, fps),
+    );
+    cancelled.current = false;
     setText(null);
-    if (v === null) {
-      setWrong(true);
-      return;
-    }
-    setWrong(false);
-    if (Math.abs(v - value) > 0.5 / fps) onCommit(v);
+    setWrong(result.kind === "wrong");
+    if (result.kind === "commit" && Math.abs(result.value - value) > 0.5 / fps)
+      onCommit(result.value);
   };
   return (
     <label className="prop-row time-row">
@@ -404,6 +406,7 @@ function TimeRow({
         title="Horas:minutos:segundos:quadros, minutos:segundos ou segundos"
         value={text ?? timecode(value, fps)}
         onFocus={(e) => {
+          cancelled.current = false;
           setText(timecode(value, fps));
           e.currentTarget.select();
         }}
@@ -412,8 +415,7 @@ function TimeRow({
         onKeyDown={(e) => {
           if (e.key === "Enter") e.currentTarget.blur();
           if (e.key === "Escape") {
-            setText(null);
-            setWrong(false);
+            cancelled.current = true;
             e.currentTarget.blur();
           }
         }}

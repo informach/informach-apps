@@ -1,23 +1,54 @@
 import { focusOnMount } from "@informach/edi-desktop/renderer";
 import { cutTargets } from "@shared/cleanup";
+import { extendFrameAll } from "@shared/ripple";
 import {
   clipEnd,
   extendFrame,
-  extendFrameAll,
   MIN_CLIP,
   newId,
   parseDuration,
   sourceAt,
   sourceEnd,
 } from "@shared/timeline";
-import type { Asset } from "@shared/types";
+import type { Asset, Clip } from "@shared/types";
 import { type ReactNode, useState } from "react";
 import { timecode } from "@/lib/format";
 import { stillPicture } from "@/lib/stills";
 import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
-import { useProject } from "@/state/project";
+import { useProject, waitForDraft } from "@/state/project";
 import { Button, Modal, Toggle } from "@/ui";
+
+/** The source second a clip shows at timeline time `at`, inside its footage. */
+function heldSecond(clip: Clip, asset: Asset, at: number): number {
+  const frame = 1 / (asset.fps || 30);
+  return Math.max(
+    clip.in,
+    Math.min(sourceAt(clip, at), sourceEnd(clip) - frame, asset.duration - frame),
+  );
+}
+
+/** A held frame made by the editor, kept with where it came from (lib/relink.ts draws it again). */
+async function stillAsset(asset: Asset, t: number): Promise<Asset> {
+  const path = await stillPicture(asset, t);
+  return {
+    id: newId("a"),
+    name: `Quadro estendido · ${asset.name}`,
+    path,
+    thumb: path,
+    kind: "image",
+    duration: 0,
+    width: asset.width,
+    height: asset.height,
+    fps: 0,
+    hasVideo: true,
+    hasAudio: false,
+    size: 0,
+    proxyStatus: "none",
+    generated: "still",
+    still: { assetId: asset.id, t },
+  };
+}
 
 /** The last choice of "every track", for the next time the dialog opens. */
 const ALL_TRACKS_KEY = "ediaula.extendFrame.allTracks";
@@ -57,21 +88,35 @@ export function ExtendFrameDialog(): ReactNode {
     }
   };
   const apply = async (): Promise<void> => {
-    if (!valid || busy) return;
+    if (!valid || busy || waitForDraft("estender o quadro")) return;
     playback.pause();
     setBusy(true);
     setError("");
     const snapshot = useProject.getState();
     try {
-      const sourceTime = Math.max(
-        clip.in,
-        Math.min(
-          sourceAt(clip, at),
-          sourceEnd(clip) - 1 / (asset.fps || 30),
-          asset.duration - 1 / (asset.fps || 30),
-        ),
-      );
-      const path = await stillPicture(asset, sourceTime);
+      const still = await stillAsset(asset, heldSecond(clip, asset, at));
+      // Every track: another video across the point (the presenter) holds its own frame too.
+      const targets = cutTargets(project);
+      const byId = new Map(project.assets.map((a) => [a.id, a]));
+      const crossing = allTracks
+        ? project.clips.filter(
+            (c) =>
+              c.id !== clip.id &&
+              c.trackId !== clip.trackId &&
+              targets.has(c.trackId) &&
+              !c.annotation &&
+              !c.zoomLayer &&
+              byId.get(c.assetId)?.kind === "video" &&
+              !byId.get(c.assetId)?.missing &&
+              c.start < at - 1e-6 &&
+              clipEnd(c) > at + 1e-6,
+          )
+        : [];
+      const held = new Map<string, Asset>();
+      for (const c of crossing) {
+        const a = byId.get(c.assetId);
+        if (a) held.set(c.id, await stillAsset(a, heldSecond(c, a, at)));
+      }
       const current = useProject.getState();
       if (
         current.path !== snapshot.path ||
@@ -79,40 +124,25 @@ export function ExtendFrameDialog(): ReactNode {
         current.project?.id !== project.id
       )
         throw new Error("O projeto mudou. Feche esta janela e tente novamente.");
-      // Made by the editor and kept with where it came from, so it is drawn again when its file
-      // is gone (another computer: lib/relink.ts).
-      const still: Asset = {
-        id: newId("a"),
-        name: `Quadro estendido · ${asset.name}`,
-        path,
-        thumb: path,
-        kind: "image",
-        duration: 0,
-        width: asset.width,
-        height: asset.height,
-        fps: 0,
-        hasVideo: true,
-        hasAudio: false,
-        size: 0,
-        proxyStatus: "none",
-        generated: "still",
-        still: { assetId: asset.id, t: sourceTime },
-      };
       let selected = "";
       current.commit((p) => {
         const result = allTracks
           ? extendFrameAll(
-              p.clips,
-              new Map(p.assets.map((a) => [a.id, a])),
+              p,
               clip.id,
               at,
               seconds,
               still.id,
               cutTargets(p),
+              new Map([...held].map(([id, a]) => [id, a.id])),
             )
           : extendFrame(p.clips, clip.id, at, seconds, still.id);
         selected = result.stillId;
-        return { ...p, assets: [...p.assets, still], clips: result.clips };
+        return {
+          ...p,
+          assets: [...p.assets, still, ...held.values()],
+          clips: result.clips,
+        };
       });
       useProject.getState().select([selected]);
       playback.seek(at);
@@ -158,7 +188,7 @@ export function ExtendFrameDialog(): ReactNode {
         </div>
         <p className="muted">
           {allTracks
-            ? "Tudo o que vem depois anda junto, em todas as faixas que os cortes alcançam: a voz espera o quadro, a anotação que passa pelo ponto fica mais longa e a música segue tocando. Faixas travadas não mudam."
+            ? "Tudo o que vem depois anda junto, em todas as faixas que os cortes alcançam: a voz espera o quadro, o apresentador também para no mesmo ponto, a anotação que passa pelo ponto fica mais longa e a música segue tocando até o novo fim. Faixas travadas não mudam."
             : "Só esta faixa anda. As outras faixas continuam no mesmo lugar."}
         </p>
         {!valid && (

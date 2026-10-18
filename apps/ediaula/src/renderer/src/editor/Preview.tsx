@@ -346,11 +346,13 @@ export function Preview(): ReactNode {
           } else if (flap) flap.style.display = "none";
           if (dc.tailFx === "page" && e > 0) {
             layer.style.transformOrigin = "0 0";
-            layer.style.transform = `${quadMatrix3d(
+            // The page folds first and the folded page turns (the export's order): the turn is
+            // written first, since CSS applies the list from the right.
+            layer.style.transform = `${turn} ${quadMatrix3d(
               layer.offsetWidth,
               layer.offsetHeight,
               pageCorners(e, layer.offsetWidth, layer.offsetHeight),
-            )}${turn}`;
+            )}`.trim();
           }
         }
         const content = contents.current.get(id);
@@ -523,8 +525,9 @@ export function Preview(): ReactNode {
   };
 
   /**
-   * Alt + click: the picture under the one selected at that point (each Alt + click goes one
-   * layer down, and from the bottom back to the top).
+   * Alt + click (without dragging): the picture under the one selected at that point (each
+   * Alt + click goes one layer down, and from the bottom back to the top). Alt + drag moves the
+   * picture clicked without snapping, as before.
    */
   const layerBelow = (clientX: number, clientY: number, clicked: Clip): Clip => {
     const rect = stageRef.current?.getBoundingClientRect();
@@ -541,15 +544,25 @@ export function Preview(): ReactNode {
   };
 
   /** Moves (or, from a corner, resizes) a clip by dragging it on the stage; one drag is one undo step. */
-  const startDrag = (e: ReactPointerEvent, picked: Clip, mode: "move" | "scale"): void => {
+  const startDrag = (e: ReactPointerEvent, clip: Clip, mode: "move" | "scale"): void => {
     if (e.button !== 0 || !project) return;
-    const clip = e.altKey && mode === "move" ? layerBelow(e.clientX, e.clientY, picked) : picked;
     const track = project.tracks.find((t) => t.id === clip.trackId);
     const asset = assets.get(clip.assetId);
     if (!asset) return;
     e.stopPropagation();
-    if (!useProject.getState().selection.includes(clip.id)) useProject.getState().select([clip.id]);
-    if (track?.locked) return;
+    // Which layer an Alt + click goes to is decided now, from the selection before the click,
+    // and chosen only if the pointer goes up without dragging.
+    const below = e.altKey && mode === "move" ? layerBelow(e.clientX, e.clientY, clip) : null;
+    const pick = (): void => {
+      if (!useProject.getState().selection.includes(clip.id))
+        useProject.getState().select([clip.id]);
+    };
+    if (track?.locked) {
+      if (below) useProject.getState().select([below.id]);
+      else pick();
+      return;
+    }
+    if (!below) pick();
     e.preventDefault();
     const rect = stageRef.current!.getBoundingClientRect();
     const base = clip.keyframes?.length
@@ -599,6 +612,7 @@ export function Preview(): ReactNode {
 
     const onMove = (ev: PointerEvent): void => {
       if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 3) return;
+      if (!moved && below) pick();
       moved = true;
       let t: Transform;
       if (mode === "move") {
@@ -620,6 +634,7 @@ export function Preview(): ReactNode {
       window.removeEventListener("pointerup", onUp);
       setGuides(null);
       const done = draftRef.current;
+      if (!moved && below) useProject.getState().select([below.id]);
       if (moved && done) {
         const local = Math.max(
           0,

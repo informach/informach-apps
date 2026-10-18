@@ -1,8 +1,18 @@
-import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync, unlinkSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { readFile, rename, rm, stat } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { atomicWrite } from "@informach/edi-desktop/files";
 import { app } from "electron";
+import { z } from "zod";
 import { normalizeProject } from "../shared/project-normalize.ts";
 import { projectSchema, projectSettingsSchema } from "../shared/project-schema.ts";
 import { defaultTracks, newId, projectDuration } from "../shared/timeline.ts";
@@ -67,17 +77,49 @@ const backupDir = (path: string): string =>
   join(path, "..", ".backups", basename(path).replace(/\.ediaula$/i, ""));
 /** The name of a backup file: the moment it was taken, and a letter when that second is taken. */
 const BACKUP_NAME = /^\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}[a-z]?\.ediaula$/;
+/**
+ * What the list of backups shows of each copy (name, length, clips), kept beside them, so
+ * listing them never reads every copy: a copy is read whole only to be restored.
+ */
+const BACKUP_INDEX = "indice.json";
+type BackupSummary = Pick<BackupEntry, "name" | "duration" | "clips">;
+const indexSchema = z.record(
+  z.string(),
+  z.looseObject({
+    name: z.string().max(1024).optional(),
+    duration: z.number().nonnegative().optional(),
+    clips: z.int().nonnegative().optional(),
+  }),
+);
+
+function readIndex(dir: string): Record<string, BackupSummary> {
+  const file = join(dir, BACKUP_INDEX);
+  if (!existsSync(file)) return {};
+  try {
+    return indexSchema.parse(JSON.parse(readFileSync(file, "utf8")));
+  } catch (err) {
+    // Only a summary: the copies are all there, and the list reads them once to make it again.
+    console.warn("backup index not readable", file, err);
+    return {};
+  }
+}
+
+const summaryOf = (p: Project): BackupSummary => ({
+  name: p.name,
+  duration: projectDuration(p),
+  clips: p.clips.length,
+});
 
 /**
  * Keeps rolling copies of a project (at most one every 10 minutes, or one now with `force`) in a
- * .backups folder next to it, the last BACKUPS_KEPT of them.
+ * .backups folder next to it, the last BACKUPS_KEPT of them, each with its line in the index.
  */
 function backup(path: string, force = false): void {
   if (!existsSync(path)) return;
   const dir = backupDir(path);
   mkdirSync(dir, { recursive: true });
   const files = readdirSync(dir)
-    .filter((f) => f.endsWith(".ediaula"))
+    .filter((f) => BACKUP_NAME.test(f))
     .sort();
   const last = files[files.length - 1];
   if (!force && last && Date.now() - statSync(join(dir, last)).mtimeMs < BACKUP_EVERY_MS) return;
@@ -87,8 +129,16 @@ function backup(path: string, force = false): void {
     name = `${stamp}${String.fromCharCode(97 + i)}.ediaula`;
   copyFileSync(path, join(dir, name));
   const kept = [...files.filter((f) => f !== name), name].sort();
-  for (const old of kept.slice(0, Math.max(0, kept.length - BACKUPS_KEPT)))
-    unlinkSync(join(dir, old));
+  const gone = kept.slice(0, Math.max(0, kept.length - BACKUPS_KEPT));
+  for (const old of gone) unlinkSync(join(dir, old));
+  const index = readIndex(dir);
+  for (const old of gone) delete index[old];
+  try {
+    index[name] = summaryOf(projectSchema.parse(JSON.parse(readFileSync(join(dir, name), "utf8"))));
+  } catch (err) {
+    console.warn("backup not summarized", name, err);
+  }
+  writeFileSync(join(dir, BACKUP_INDEX), JSON.stringify(index));
 }
 
 /** Largest project file the editor reads, and so the largest it writes. */
@@ -230,23 +280,31 @@ export async function renameProject(path: string, name: string): Promise<string>
   return target;
 }
 
-/** The backups of a lesson, newest first. */
+/**
+ * The backups of a lesson, newest first, from the index beside them. A copy the index does not
+ * know (made before it existed) is read once and joins it.
+ */
 export async function listBackups(path: string): Promise<BackupEntry[]> {
   const dir = backupDir(path);
   if (!existsSync(dir)) return [];
+  const index = readIndex(dir);
+  let learned = false;
   const out: BackupEntry[] = [];
   for (const id of readdirSync(dir).filter((f) => BACKUP_NAME.test(f))) {
     const file = join(dir, id);
     const info = statSync(file);
-    const entry: BackupEntry = { id, at: info.mtimeMs, size: info.size };
-    try {
-      const p = await readProject(file);
-      Object.assign(entry, { name: p.name, duration: projectDuration(p), clips: p.clips.length });
-    } catch (err) {
-      console.warn("backup not readable", file, err);
-    }
-    out.push(entry);
+    let summary = index[id];
+    if (!summary)
+      try {
+        summary = summaryOf(await readProject(file));
+        index[id] = summary;
+        learned = true;
+      } catch (err) {
+        console.warn("backup not readable", file, err);
+      }
+    out.push({ id, at: info.mtimeMs, size: info.size, ...summary });
   }
+  if (learned) writeFileSync(join(dir, BACKUP_INDEX), JSON.stringify(index));
   return out.sort((a, b) => b.at - a.at || b.id.localeCompare(a.id));
 }
 

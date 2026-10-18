@@ -1,6 +1,14 @@
 import { focusOnMount } from "@informach/edi-desktop/renderer";
-import { timelineProtected, timelineSilences, timelineWords } from "@shared/cleanup";
+import {
+  audibleClips,
+  cutTargets,
+  protectedConflicts,
+  timelineProtected,
+  timelineSilences,
+  timelineWords,
+} from "@shared/cleanup";
 import { draftClips } from "@shared/projectDiff";
+import { type RippleTrim, rippleTrim } from "@shared/ripple";
 import { deriveSeams, isReviewed } from "@shared/seams";
 import { buildSnapIndex, type SnapIndex, type Snapped, shownSnap, snapTo } from "@shared/snap";
 import {
@@ -13,7 +21,6 @@ import {
   placeClips,
   projectDuration,
   rippleMoveFrom,
-  rippleTrim,
   sourceEnd,
   timelineAt,
   toFrame,
@@ -65,6 +72,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { actions } from "@/lib/actions";
+import { useFilmstrips } from "@/lib/filmstrip";
 import { rulerLabel, timecode } from "@/lib/format";
 import { importMedia } from "@/lib/importMedia";
 import { mediaUrl } from "@/lib/media";
@@ -117,8 +125,17 @@ function useStableHandler<A extends unknown[]>(fn: (...args: A) => void): (...ar
   return useCallback((...args: A) => latest.current(...args), []);
 }
 
+/** The magnet and the clips one gesture leaves out of it. */
+interface Gesture {
+  index: SnapIndex;
+  exclude: ReadonlySet<string>;
+}
+
 interface PreviewState {
+  /** The clips the drag changes, drawn where they would land. */
   clips: Map<string, Clip>;
+  /** The whole timeline as it would be, for an edit that cuts or splits clips (ripple trim). */
+  all?: Clip[];
   snap?: number;
   playhead?: number;
 }
@@ -183,7 +200,9 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
   const labels = trackLabels(project.tracks);
   const tracks = project.tracks;
   const duration = projectDuration(project);
-  const previewEnd = preview ? projectDuration({ clips: [...preview.clips.values()] }) : 0;
+  const previewEnd = preview
+    ? projectDuration({ clips: preview.all ?? [...preview.clips.values()] })
+    : 0;
   const contentWidth = Math.max((Math.max(duration, previewEnd) + 30) * zoom, view.width);
   const lanesHeight = tracks.reduce((h, t) => h + trackH(t), 0);
 
@@ -266,24 +285,32 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
 
   const fps = project.settings.fps;
   /**
-   * The magnet for one gesture (shared/snap.ts): clip edges, playhead, the words and silences
-   * of the transcripts, recording markers and the interval, minus the clips being dragged.
+   * The magnet (shared/snap.ts): clip edges, the words and silences of what is heard, recording
+   * markers and the interval, made again only when one of them changes (the tracks count: a
+   * muted track is not heard). The clips being dragged and the playhead are left to the search.
    */
-  const snapIndex = (exclude: Set<string>): SnapIndex =>
-    buildSnapIndex({
+  const magnet = useMemo(() => {
+    const heard = transcripts.size ? { ...project, clips: audibleClips(project) } : undefined;
+    return buildSnapIndex({
       clips: project.clips,
-      exclude,
-      playhead: usePlayback.getState().time,
       interval,
-      words: transcripts.size ? timelineWords(project, transcripts) : [],
-      silences: transcripts.size ? timelineSilences(project, transcripts) : [],
+      words: heard ? timelineWords(heard, transcripts).filter((w) => !w.silent) : [],
+      silences: heard ? timelineSilences(heard, transcripts) : [],
       markers: recordingMarks(project)
         .filter((m) => m.kind !== "zoom")
         .map((m) => m.start),
     });
+  }, [project, transcripts, interval]);
+  /** The magnet for one gesture: the same index, without the edges of the clips dragged. */
+  const snapIndex = (exclude: Set<string>): Gesture => ({ index: magnet, exclude });
   /** `t` on the magnet (when it is on) and otherwise on the frame grid. */
-  const snapAt = (index: SnapIndex, t: number, px = SNAP_PX): Snapped =>
-    snapping ? snapTo(index, t, px / zoom, fps) : { time: toFrame(t, fps), kind: "frame" };
+  const snapAt = (g: Gesture, t: number, px = SNAP_PX): Snapped =>
+    snapping
+      ? snapTo(g.index, t, px / zoom, fps, {
+          exclude: g.exclude,
+          playhead: usePlayback.getState().time,
+        })
+      : { time: toFrame(t, fps), kind: "frame" };
   /** Where a snapped edge lands: exactly on another edge, else on a frame. */
   const landing = (s: Snapped): number =>
     s.kind === "edge" || s.kind === "playhead" || s.kind === "interval" || s.kind === "zero"
@@ -378,8 +405,8 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
 
   /**
    * Drags an edge. With Shift (ripple) the clip keeps its place and what comes after it, on
-   * every unlocked track, follows the change (rippleTrim); without it the trim stops at the
-   * neighbouring clips instead of covering them.
+   * every track text cuts reach, follows the change (rippleTrim: shorter is a cut there, longer
+   * opens room); without it the trim stops at the neighbouring clips instead of covering them.
    */
   const beginTrim = (clip: Clip, edge: "start" | "end", ripple: boolean): void => {
     if (waitForDraft("aparar clipes")) return;
@@ -394,7 +421,9 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
       ...neighbours.filter((c) => c.start >= clipEnd(clip) - EPS).map((c) => c.start),
     );
     const index = snapIndex(new Set([clip.id]));
+    const targets = cutTargets(project);
     let result: Clip[] | null = null;
+    let ripplePlan: RippleTrim | null = null;
     listen(
       (ev) => {
         const s = snapAt(index, xToTime(ev.clientX));
@@ -402,10 +431,14 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
         const snap = shownSnap(s) ? s.time : undefined;
         if (ripple) {
           // The head trimmed with ripple keeps the clip's start: the edge is dragged as an amount.
-          const next = rippleTrim(project.clips, tracks, clip.id, edge, t, asset);
-          result = next;
+          ripplePlan = rippleTrim(project, targets, clip.id, edge, t);
+          result = ripplePlan.unchanged ? null : ripplePlan.clips;
+          const before = new Map(project.clips.map((c) => [c.id, c]));
           setPreview({
-            clips: new Map(next.filter((c, i) => c !== project.clips[i]).map((c) => [c.id, c])),
+            clips: new Map(
+              ripplePlan.clips.filter((c) => before.get(c.id) !== c).map((c) => [c.id, c]),
+            ),
+            all: ripplePlan.clips,
             snap,
           });
           return;
@@ -422,6 +455,18 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
         // still meaningful; a ripple would move clips that are no longer where they were.
         const now = useProject.getState().project;
         if (!next || !now) return;
+        // Shorter with Shift is a cut: a protected passage refuses it, as it refuses any cut.
+        const cut = ripple ? ripplePlan?.cut : undefined;
+        const hit = cut && protectedConflicts(project, [cut])[0];
+        if (hit) {
+          useApp
+            .getState()
+            .toast(
+              `Trecho protegido: "${hit.label}". Tire a proteção na aba Transcrição antes de encurtar com Shift.`,
+              "error",
+            );
+          return;
+        }
         if (now.clips === project.clips) {
           useProject.getState().commit((p) => ({ ...p, clips: next }));
           return;
@@ -591,16 +636,9 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
   const acceptsDrop = (e: React.DragEvent): boolean =>
     e.dataTransfer.types.includes(ASSET_MIME) || e.dataTransfer.types.includes("Files");
 
-  /** The magnet of a drag from the library, made once for the whole drag (dragover fires often). */
-  const dropIndex = useRef<{ key: unknown[]; index: SnapIndex } | null>(null);
-  const dropTime = (clientX: number): number => {
-    const key = [project.clips, transcripts, interval, usePlayback.getState().time];
-    const known = dropIndex.current;
-    const index =
-      known?.key.every((part, i) => part === key[i]) === true ? known.index : snapIndex(new Set());
-    dropIndex.current = { key, index };
-    return landing(snapAt(index, xToTime(clientX), SNAP_PX * 2));
-  };
+  /** Where a drag from the library lands (dragover fires often: the magnet is already made). */
+  const dropTime = (clientX: number): number =>
+    landing(snapAt(snapIndex(new Set()), xToTime(clientX), SNAP_PX * 2));
 
   const onLaneDrop = async (e: React.DragEvent, track: Track): Promise<void> => {
     e.preventDefault();
@@ -720,7 +758,10 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
   };
 
   const shown = useMemo(
-    () => (preview ? project.clips.map((c) => preview.clips.get(c.id) ?? c) : project.clips),
+    () =>
+      preview
+        ? (preview.all ?? project.clips.map((c) => preview.clips.get(c.id) ?? c))
+        : project.clips,
     [preview, project.clips],
   );
   const selectedSet = new Set(selection);
@@ -834,6 +875,7 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
                 setTrackMenu({ x: e.clientX, y: e.clientY, trackId: t.id });
               }}
               onDragStart={(e) => onTrackDragStart(e, t)}
+              onMove={(delta) => actions.moveTrack(t.id, tracks.indexOf(t) + delta)}
             />
           ))}
           {trackDrag && (
@@ -1343,6 +1385,7 @@ function TrackHeader({
   dragging,
   onMenu,
   onDragStart,
+  onMove,
 }: {
   track: Track;
   label: string;
@@ -1351,6 +1394,8 @@ function TrackHeader({
   dragging: boolean;
   onMenu: (e: React.MouseEvent) => void;
   onDragStart: (e: React.PointerEvent) => void;
+  /** One place up (-1) or down (1), from the keyboard. */
+  onMove: (delta: -1 | 1) => void;
 }): ReactNode {
   const [editing, setEditing] = useState(false);
   return (
@@ -1363,9 +1408,21 @@ function TrackHeader({
       <button
         type="button"
         className={`track-tag tag-${track.kind}`}
-        title="Arraste para mudar a faixa de lugar (a de cima fica na frente)"
+        title="Arraste, ou use Alt+↑ e Alt+↓, para mudar a faixa de lugar (a de cima fica na frente)"
         aria-label={`Mover a faixa ${track.name}`}
+        aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
+        data-track-tag={track.id}
         onPointerDown={onDragStart}
+        onKeyDown={(e) => {
+          if (!e.altKey || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+          e.preventDefault();
+          e.stopPropagation();
+          onMove(e.key === "ArrowUp" ? -1 : 1);
+          // The button moved with its track: the keyboard stays on it for the next step.
+          requestAnimationFrame(() =>
+            document.querySelector<HTMLElement>(`[data-track-tag="${track.id}"]`)?.focus(),
+          );
+        }}
       >
         {label}
       </button>
@@ -1698,6 +1755,9 @@ const ClipView = memo(function ClipView({
   onPointerDown,
   onContextMenu,
 }: ClipProps): ReactNode {
+  // The filmstrip once its sheets are known to be on disk; the thumbnail until then.
+  const stripPath = asset?.filmstrip?.path;
+  const stripReady = useFilmstrips((s) => !!stripPath && !!s.ready[stripPath]);
   const left = clip.start * zoom;
   const width = Math.max(2, clip.duration * zoom);
   // Skip clips far off screen.
@@ -1721,7 +1781,7 @@ const ClipView = memo(function ClipView({
       onContextMenu={(e) => onContextMenu(e, clip)}
       title={`${name}${clipSpeed(clip) !== 1 ? ` · velocidade ${speedLabel(clipSpeed(clip))}` : ""}`}
     >
-      {kind === "video" && asset?.filmstrip ? (
+      {kind === "video" && asset?.filmstrip && stripReady ? (
         <Filmstrip
           strip={asset.filmstrip}
           sourceIn={clip.in}

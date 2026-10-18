@@ -178,13 +178,14 @@ export function BackupsDialog({
 }
 
 /** The sizes Mudar formato offers (the frame rate stays the lesson's). */
-const SIZES: { id: string; label: string; width: number; height: number }[] = [
+const SIZES: { id: string; label: string; width: number; height: number; hint?: string }[] = [
   { id: "1080p30", label: "1920 × 1080 (horizontal)", width: 1920, height: 1080 },
   {
     id: "vertical30",
-    label: "1080 × 1920 (vertical: Reels, Shorts, celular)",
+    label: "1080 × 1920 (vertical 9:16)",
     width: 1080,
     height: 1920,
+    hint: "Para vídeos curtos de redes sociais e para ver no celular.",
   },
   { id: "square", label: "1080 × 1080 (quadrado)", width: 1080, height: 1080 },
   { id: "4k30", label: "3840 × 2160 (4K)", width: 3840, height: 2160 },
@@ -210,7 +211,7 @@ export function ReframeDialog(): ReactNode {
   const same = chosen.width === current.width && chosen.height === current.height;
   const apply = (): void => {
     const settings: ProjectSettings = { ...current, width: chosen.width, height: chosen.height };
-    actions.reframe(settings, mode);
+    if (!actions.reframe(settings, mode)) return;
     close();
     useApp
       .getState()
@@ -238,6 +239,7 @@ export function ReframeDialog(): ReactNode {
               </option>
             ))}
           </select>
+          {chosen.hint && <span className="field-hint">{chosen.hint}</span>}
         </label>
         <div className="field">
           <span className="field-label">O que fazer com a imagem de agora</span>

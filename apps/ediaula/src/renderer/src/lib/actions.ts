@@ -1,9 +1,9 @@
-import { applyCuts, closeCommonGaps, cutTargets } from "@shared/cleanup";
+import { closeCommonGaps, cutTargets } from "@shared/cleanup";
 import { type ReframeMode, reframeProject } from "@shared/compose";
+import { insertClips } from "@shared/ripple";
 import {
   clipsFrom,
   closeGaps,
-  insertClips,
   makeClip,
   moveTrack,
   newId,
@@ -22,6 +22,7 @@ import { type Commit, personCommit, useProject, waitForDraft } from "@/state/pro
 import { importMedia } from "./importMedia";
 import { confirmLeave } from "./leaveGuard";
 import { checkAssets } from "./relink";
+import { cutRangesInteractive } from "./transcripts";
 
 const lockedTracks = (p: Project): Set<string> =>
   new Set(p.tracks.filter((t) => t.locked).map((t) => t.id));
@@ -110,7 +111,8 @@ export const actions = {
   /**
    * Places assets one after another starting at `start` on `track` (or each asset's default
    * track). With `insert` (Ctrl + drop) they go in pushing what comes after on every unlocked
-   * track (insertClips); otherwise they cover what is under them.
+   * track text cuts reach and on the tracks they go to (insertClips); otherwise they cover what
+   * is under them.
    */
   placeAssets(assets: Asset[], track: Track | undefined, start: number, insert = false): void {
     const { commit, project } = useProject.getState();
@@ -127,7 +129,7 @@ export const actions = {
         cursor += clip.duration;
       }
       if (insert && placed.length)
-        return { ...p, clips: insertClips(p.clips, p.tracks, placed, placed[0].start) };
+        return { ...p, clips: insertClips(p, cutTargets(p), placed, placed[0].start) };
       let clips = p.clips;
       for (const clip of placed) clips = placeClips(clips, [clip]);
       return { ...p, clips };
@@ -140,19 +142,15 @@ export const actions = {
    * the lesson, locked tracks stay as they are. One undo step.
    */
   rippleDeleteInterval(): boolean {
-    const { project, commit } = useProject.getState();
+    const { project } = useProject.getState();
     const interval = useApp.getState().interval;
-    if (!project || !interval) return false;
+    if (!project || !interval || waitForDraft("excluir o intervalo")) return false;
     const fps = project.settings.fps;
     const start = toFrame(interval.start, fps);
     const end = toFrame(interval.end, fps);
-    if (end - start <= 1e-6) return false;
-    const targets = cutTargets(project);
-    if (!targets.size) return false;
-    const done = commit((p) => ({
-      ...p,
-      clips: applyCuts(p.clips, [[start, end]], cutTargets(p), lockedTracks(p)),
-    }));
+    if (end - start <= 1e-6 || !cutTargets(project).size) return false;
+    // The same cut as the transcript's: a protected passage refuses it with a toast.
+    const done = cutRangesInteractive([[start, end]]);
     if (done) {
       useApp.getState().set({ interval: null });
       playback.seek(start);
@@ -163,7 +161,7 @@ export const actions = {
   /** The track moved to position `to` (0 = top); one undo step. */
   moveTrack(id: string, to: number): void {
     const { project, commit } = useProject.getState();
-    if (!project) return;
+    if (!project || waitForDraft("mudar a ordem das faixas")) return;
     const next = moveTrack(project.tracks, id, to);
     if (next !== project.tracks) commit((p) => ({ ...p, tracks: moveTrack(p.tracks, id, to) }));
   },
@@ -197,8 +195,9 @@ export const actions = {
   },
 
   /** Another format for the lesson (Mudar formato), every picture remapped; one undo step. */
-  reframe(settings: ProjectSettings, mode: ReframeMode): void {
-    useProject.getState().commit((p) => reframeProject(p, settings, mode));
+  reframe(settings: ProjectSettings, mode: ReframeMode): boolean {
+    if (waitForDraft("mudar o formato")) return false;
+    return useProject.getState().commit((p) => reframeProject(p, settings, mode));
   },
 
   async importDialog(): Promise<Asset[]> {

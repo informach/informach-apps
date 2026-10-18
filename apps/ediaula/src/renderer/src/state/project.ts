@@ -128,6 +128,27 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 let lastSaved: Project | null = null;
 /** Saves run one after another, so the latest state is always the last one written. */
 let inFlight: Promise<boolean> | null = null;
+/** Work on the lesson's file (a rename) that saves wait for, so none lands on the old file. */
+let held: Promise<unknown> | null = null;
+
+/**
+ * Runs `work` on the open lesson's file with saves waiting: an edit made meanwhile is saved
+ * once it is done, at the path the lesson has then. `work` itself never waits for a save (that
+ * save would wait for it): flush before, as renameLesson does.
+ */
+export async function holdingSaves<T>(work: () => Promise<T>): Promise<T> {
+  const running = work();
+  const settled = running.then(
+    () => undefined,
+    () => undefined,
+  );
+  held = settled;
+  try {
+    return await running;
+  } finally {
+    if (held === settled) held = null;
+  }
+}
 
 const message = (err: unknown): string => (err instanceof Error ? err.message : String(err));
 
@@ -207,8 +228,16 @@ export const useProject = create<ProjectStore>((set, get) => {
       const { project, past, future } = get();
       if (!project) return;
       const next = rename(project);
-      if (lastSaved === project) lastSaved = next;
+      // What the file holds is what was saved, now under the new name: an edit made while the
+      // file was renamed is still to be saved, at the new path.
+      const saved = lastSaved === project ? next : lastSaved && rename(lastSaved);
       set({ path, project: next, past: past.map(rename), future: future.map(rename) });
+      lastSaved = saved;
+      if (next !== saved) {
+        set({ saveState: "pending" });
+        clearTimeout(timer);
+        timer = setTimeout(() => void get().saveNow(), AUTOSAVE_DELAY);
+      }
     },
 
     commit: (fn) =>
@@ -367,8 +396,9 @@ export const useProject = create<ProjectStore>((set, get) => {
           return false;
         }
       };
-      // `run` never rejects, so the chain always moves on to the next save.
-      const next = (inFlight ?? Promise.resolve(true)).then(run);
+      // `run` never rejects, so the chain always moves on to the next save; it waits for work
+      // on the file (holdingSaves) and then writes where the lesson is by then.
+      const next = (inFlight ?? Promise.resolve(true)).then(() => held).then(run);
       inFlight = next;
       void next.then(() => {
         if (inFlight === next) inFlight = null;

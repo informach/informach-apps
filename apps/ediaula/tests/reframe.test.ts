@@ -135,3 +135,22 @@ test("a turned picture covers its rotated box", () => {
     10,
   );
 });
+
+test("a turned and mirrored picture keeps its turn and its mirror in the new format", () => {
+  const before = lesson();
+  before.clips.push(
+    clip("girado", "tela", {
+      transform: { x: 0.85, y: 0.8, scale: 0.3, opacity: 1, rotation: 30, flipH: true },
+    }),
+  );
+  const after = reframeProject(before, { width: 1080, height: 1920, fps: 30 }, "fit");
+  const t = clipOf(after, "girado").transform;
+  assert.equal(t?.rotation, 30);
+  assert.equal(t?.flipH, true);
+  // Still on the same spot of the old frame, which now sits in the middle of the vertical one.
+  const old = boxIn(before, "girado");
+  const now = boxIn(after, "girado");
+  const k = 1080 / 1920;
+  assert.ok(near(now.x, old.x * k, 0.5) && near(now.w, old.w * k, 0.5));
+  assert.ok(near(now.y, (1920 - 1080 * k) / 2 + old.y * k, 0.5));
+});

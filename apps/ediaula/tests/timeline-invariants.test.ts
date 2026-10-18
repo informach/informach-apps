@@ -6,15 +6,13 @@ import { applyCuts, closeCommonGaps, rippleDeleteRange } from "../src/shared/cle
 import { reframeProject } from "../src/shared/compose.ts";
 import { normalizeProject } from "../src/shared/project-normalize.ts";
 import { exportSpecSchema, projectSchema } from "../src/shared/project-schema.ts";
+import { extendFrameAll, insertClips, rippleTrim } from "../src/shared/ripple.ts";
 import {
   clipEnd,
   extendFrame,
-  extendFrameAll,
-  insertClips,
   moveTrack,
   overwriteRange,
   placeClips,
-  rippleTrim,
   splitAt,
   toFrame,
   trimClip,
@@ -239,7 +237,7 @@ test("a 25-minute lesson stays savable and exportable through every timeline ope
     const c = pieces[Math.floor(rnd() * pieces.length)];
     const edge = rnd() < 0.5 ? "start" : "end";
     const time = toFrame(edge === "start" ? c.start + 0.5 : clipEnd(c) - 0.5, 30);
-    p = { ...p, clips: rippleTrim(p.clips, p.tracks, c.id, edge, time, screen) };
+    p = { ...p, clips: rippleTrim(p, targets, c.id, edge, time).clips };
   }
   valid(p, "ripple trim");
 
@@ -255,12 +253,11 @@ test("a 25-minute lesson stays savable and exportable through every timeline ope
       duration: 2,
       volume: 0,
     };
-    p = { ...p, clips: insertClips(p.clips, p.tracks, [card], at) };
+    p = { ...p, clips: insertClips(p, targets, [card], at) };
   }
   valid(p, "insert");
 
   // Extend frame on every track that cuts reach.
-  const assetMap = new Map(p.assets.map((a) => [a.id, a]));
   for (let i = 0; i < 6; i++) {
     const pieces = p.clips.filter(
       (c) => c.trackId === "v" && c.assetId === "screen" && c.duration > 2,
@@ -273,8 +270,7 @@ test("a 25-minute lesson stays savable and exportable through every timeline ope
         ...p.assets,
         asset(still, "image", { generated: "still", still: { assetId: "screen", t: 1 } }),
       ],
-      clips: extendFrameAll(p.clips, assetMap, c.id, c.start + c.duration / 2, 1.5, still, targets)
-        .clips,
+      clips: extendFrameAll(p, c.id, c.start + c.duration / 2, 1.5, still, targets).clips,
     };
   }
   valid(p, "extend frame on every track");

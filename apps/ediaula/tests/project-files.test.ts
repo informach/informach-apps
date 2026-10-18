@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { mkdtemp, readdir, readFile, rm, utimes } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, utimes, writeFile } from "node:fs/promises";
 import { registerHooks } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -114,11 +114,30 @@ test("restoring a backup keeps the current state as a backup first", async () =>
   assert.equal(backups.length, 2);
   assert.equal(backups[0].name, "Versão 2", "what it was before restoring is the newest backup");
   const files = await readdir(dir);
-  assert.equal(files.length, 2);
+  assert.equal(files.filter((f) => f.endsWith(".ediaula")).length, 2);
+  // The list comes from the index beside the copies, not from reading each one.
+  const index = JSON.parse(await readFile(join(dir, "indice.json"), "utf8"));
+  assert.deepEqual(Object.keys(index).sort(), files.filter((f) => f.endsWith(".ediaula")).sort());
   // Restoring that one takes the restore back.
   await restoreBackup(path, backups[0].id);
   assert.equal(JSON.parse(await readFile(path, "utf8")).name, "Versão 2");
   for (const bad of ["../Restaurar.ediaula", "x.ediaula", "2026-01-01-00-00-00.json"])
     await assert.rejects(restoreBackup(path, bad), /inválida/);
   await assert.rejects(restoreBackup(path, "2020-01-01-00-00-00.ediaula"), /não existe/);
+});
+
+test("the list of backups does not read the copies again, and learns the ones made before", async () => {
+  const path = join(root, "Indice.ediaula");
+  await saveProject(path, lesson("Primeira"));
+  await saveProject(path, lesson("Segunda"));
+  const dir = join(root, ".backups", "Indice");
+  const [copy] = (await readdir(dir)).filter((f) => f.endsWith(".ediaula"));
+  // A copy that changed on disk is still listed as the index says: it is read only to restore.
+  const original = await readFile(join(dir, copy), "utf8");
+  await writeFile(join(dir, copy), original.replace('"Primeira"', '"Mudada"'));
+  assert.equal((await listBackups(path))[0].name, "Primeira");
+  // Without the index (copies made before it), the list reads each copy once and keeps it.
+  await rm(join(dir, "indice.json"));
+  assert.equal((await listBackups(path))[0].name, "Mudada");
+  assert.ok(existsSync(join(dir, "indice.json")));
 });

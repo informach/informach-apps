@@ -1,5 +1,5 @@
 import { type ChildProcess, spawn } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, statSync } from "node:fs";
 import { rename, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -520,90 +520,181 @@ export async function proxy(
   return out;
 }
 
-/** Bump when the sheet changes so cached filmstrips are made again. */
-const FILMSTRIP_VERSION = 1;
-/** One picture every 2 s, 160 × 90, 30 to a row; very long videos take a picture less often. */
-const FILMSTRIP = { step: 2, width: 160, height: 90, columns: 30, most: 2400 };
-
+/** Bump when the sheets change so cached filmstrips are made again. */
+const FILMSTRIP_VERSION = 2;
 /**
- * The filmstrip of a video (shared/types.ts Filmstrip): small pictures along it on one JPEG,
- * cached beside the media. `input` is what is decoded: the proxy when it is ready (smaller and
- * quick to seek), otherwise the media itself.
+ * One picture every 2 s, 160 × 90, 30 to a row, ten minutes to a sheet (a 4800 × 900 JPEG at
+ * most), so a long recording never makes one giant image; very long videos take a picture less
+ * often.
  */
-export async function filmstrip(
-  jobId: string,
-  path: string,
-  input: string,
+const FILMSTRIP = { step: 2, width: 160, height: 90, columns: 30, most: 2400, sheet: 600 };
+
+/** The sheets of a filmstrip: where each one is and which pictures it holds. */
+export function filmstripLayout(
+  dir: string,
   duration: number,
-  signal?: AbortSignal,
-): Promise<Filmstrip> {
+): Filmstrip & { sheets: string[]; perSheet: number } {
   const step = Math.max(FILMSTRIP.step, duration / FILMSTRIP.most);
   const count = Math.max(1, Math.ceil(duration / step));
-  const columns = Math.min(FILMSTRIP.columns, count);
-  const rows = Math.ceil(count / columns);
-  const out = join(
-    cacheDir(path),
-    `filmstrip-v${FILMSTRIP_VERSION}-${Math.round(step * 1000)}.jpg`,
+  const perSheet = Math.min(count, Math.max(1, Math.round(FILMSTRIP.sheet / step)));
+  const columns = Math.min(FILMSTRIP.columns, perSheet);
+  const sheets = Array.from({ length: Math.ceil(count / perSheet) }, (_, i) =>
+    join(dir, `filmstrip-v${FILMSTRIP_VERSION}-${Math.round(step * 1000)}-${i}.jpg`),
   );
-  const strip: Filmstrip = {
-    path: out,
+  return {
+    path: sheets[0],
+    sheets,
+    perSheet,
     step,
     width: FILMSTRIP.width,
     height: FILMSTRIP.height,
     columns,
     count,
   };
-  if (existsSync(out)) return strip;
-  const { width: w, height: h } = FILMSTRIP;
-  const temp = out.replace(/\.jpg$/, `.${process.pid}.part.jpg`);
-  try {
-    await run(
-      FFMPEG,
-      [
-        ...["-y", "-v", "error", "-nostdin", "-threads", "2", "-i", input, "-map", "0:v:0", "-an"],
-        "-vf",
-        `fps=1/${step},scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:color=black,tile=${columns}x${rows}`,
-        ...["-frames:v", "1", "-q:v", "5", temp],
-      ],
-      { jobId, signal, duration },
-    );
-    signal?.throwIfAborted();
-    await rename(temp, out);
-  } finally {
-    await rm(temp, { force: true });
+}
+
+/**
+ * The filmstrip of a video (shared/types.ts Filmstrip): small pictures along it on JPEG sheets
+ * of ten minutes each, cached beside the media; a sheet whose file is gone is made again.
+ * `input` is what is decoded: the proxy when it is ready (smaller and quick to seek), otherwise
+ * the media itself. Only key frames are decoded (-skip_frame nokey): a small picture every two
+ * seconds does not need the frames between them, and a long recording is read many times faster.
+ */
+export function filmstrip(
+  jobId: string,
+  path: string,
+  input: string,
+  duration: number,
+  signal?: AbortSignal,
+): Promise<Filmstrip> {
+  const strip = filmstripLayout(cacheDir(path), duration);
+  // The same media asked twice at once (two lessons, two assets of one file) is made once.
+  const known = makingStrips.get(strip.path);
+  if (known) return known;
+  const making = makeSheets(jobId, input, strip, signal).finally(() =>
+    makingStrips.delete(strip.path),
+  );
+  makingStrips.set(strip.path, making);
+  return making;
+}
+
+/** Filmstrips being made, by their first sheet. */
+const makingStrips = new Map<string, Promise<Filmstrip>>();
+
+async function makeSheets(
+  jobId: string,
+  input: string,
+  strip: ReturnType<typeof filmstripLayout>,
+  signal?: AbortSignal,
+): Promise<Filmstrip> {
+  const { width: w, height: h, step, columns, perSheet, count } = strip;
+  for (const [i, out] of strip.sheets.entries()) {
+    if (existsSync(out)) continue;
+    const pictures = Math.min(perSheet, count - i * perSheet);
+    const rows = Math.ceil(pictures / columns);
+    const from = i * perSheet * step;
+    const temp = out.replace(/\.jpg$/, `.${randomUUID()}.part.jpg`);
+    try {
+      await run(
+        FFMPEG,
+        [
+          ...["-y", "-v", "error", "-nostdin", "-threads", "2", "-skip_frame", "nokey"],
+          ...["-ss", from.toFixed(3), "-t", (pictures * step).toFixed(3)],
+          ...["-i", input, "-map", "0:v:0", "-an"],
+          "-vf",
+          // Only key frames come out of the decoder: the last one is held to the end of the
+          // sheet, or a video with few of them would never fill its tiles.
+          `tpad=stop_mode=clone:stop_duration=${(pictures * step).toFixed(3)},fps=1/${step}:start_time=0:round=down,scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:color=black,tile=${columns}x${rows}`,
+          ...["-frames:v", "1", "-q:v", "5", temp],
+        ],
+        { jobId, signal, duration: pictures * step },
+      );
+      signal?.throwIfAborted();
+      await rename(temp, out);
+    } finally {
+      await rm(temp, { force: true });
+    }
   }
   return strip;
 }
 
 /** Sound for scrubbing: mono 16-bit PCM at this rate. */
 export const SNIPPET_RATE = 24000;
-const snippets = new Map<string, Promise<Uint8Array>>();
 const SNIPPETS_KEPT = 96;
+/** Grains still worth reading: the newest one and the one before it. */
+const TICKETS_KEPT = 2;
+
+interface Snippet {
+  /** The PCM, or null when a newer grain made the read pointless and it was stopped. */
+  reading: Promise<Uint8Array | null>;
+  /** The newest grain that asked for it. */
+  ticket: number;
+  settled: boolean;
+  stop: AbortController;
+}
+const snippets = new Map<string, Snippet>();
+let newestTicket = 0;
 
 /**
  * `seconds` of the sound of `path` from `t`, as raw PCM (SNIPPET_RATE, mono, s16le), for the
- * sound of J, K, L, frame stepping and dragging the playhead. The last ones asked are kept, so
- * going back and forth over the same stretch reads the file once.
+ * sound of J, K, L, frame stepping and dragging the playhead. Reads take the scheduler's scrub
+ * slots (two at a time); `ticket` is the grain asking, and reads only older grains still wait
+ * for are stopped, so a fast drag never piles up FFmpeg processes. The last ones read are kept,
+ * so going back and forth over the same stretch reads the file once.
  */
-export function audioSnippet(path: string, t: number, seconds: number): Promise<Uint8Array> {
+export function audioSnippet(
+  path: string,
+  t: number,
+  seconds: number,
+  ticket = 0,
+): Promise<Uint8Array | null> {
+  newestTicket = Math.max(newestTicket, ticket);
   const key = `${path}|${t.toFixed(3)}|${seconds.toFixed(3)}`;
   const known = snippets.get(key);
-  if (known) {
+  if (known && !known.stop.signal.aborted) {
+    known.ticket = Math.max(known.ticket, ticket);
     snippets.delete(key);
     snippets.set(key, known);
-    return known;
+    return known.reading;
   }
+  const stop = new AbortController();
   const chunks: Buffer[] = [];
-  const reading = run(
-    FFMPEG,
-    [
-      ...["-v", "error", "-nostdin", "-ss", t.toFixed(3), "-t", seconds.toFixed(3), "-i", path],
-      ...["-vn", "-ac", "1", "-ar", String(SNIPPET_RATE), "-f", "s16le", "pipe:1"],
-    ],
-    { onStdout: (chunk) => chunks.push(chunk) },
-  ).then(() => new Uint8Array(Buffer.concat(chunks)));
-  reading.catch(() => snippets.delete(key));
-  snippets.set(key, reading);
+  const reading = scheduler
+    .run(
+      "scrub",
+      () =>
+        run(
+          FFMPEG,
+          [
+            ...["-v", "error", "-nostdin", "-ss", t.toFixed(3), "-t", seconds.toFixed(3)],
+            ...["-i", path, "-vn", "-ac", "1", "-ar", String(SNIPPET_RATE), "-f", "s16le"],
+            "pipe:1",
+          ],
+          { onStdout: (chunk) => chunks.push(chunk), signal: stop.signal },
+        ),
+      stop.signal,
+    )
+    .then(
+      () => new Uint8Array(Buffer.concat(chunks)),
+      (error: unknown) => {
+        if (snippets.get(key)?.reading === reading) snippets.delete(key);
+        // Stopped on purpose: nothing went wrong, there is just no sound to give.
+        if (stop.signal.aborted) return null;
+        throw error;
+      },
+    );
+  const entry: Snippet = { reading, ticket, settled: false, stop };
+  void reading.then(
+    () => {
+      entry.settled = true;
+    },
+    () => {
+      entry.settled = true;
+    },
+  );
+  snippets.set(key, entry);
+  for (const other of snippets.values())
+    if (!other.settled && other.ticket <= newestTicket - TICKETS_KEPT) other.stop.abort();
   while (snippets.size > SNIPPETS_KEPT) {
     const oldest = snippets.keys().next().value;
     if (oldest === undefined) break;
