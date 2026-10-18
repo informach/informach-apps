@@ -24,7 +24,10 @@ async function gone(pid: number, ms = 10_000): Promise<boolean> {
   return !alive(pid);
 }
 
-test("the message goes on standard input, never on the command line", async () => {
+// The process tree is ended the Windows way (taskkill /T), the only system the app runs on.
+const windowsOnly = { skip: process.platform !== "win32" && "Windows only" };
+
+test("the message goes on standard input, never on the command line", windowsOnly, async () => {
   const prompt = 'corte & del /q C:\\* | calc > x %PATH%\n-x --dangerously-skip-permissions "';
   const events: AssistantEvent[] = [];
   let probe: { argv: string[]; input: string; grandchild: number } | undefined;
@@ -56,41 +59,45 @@ test("the message goes on standard input, never on the command line", async () =
   assert.ok(await gone(probe.grandchild), "the grandchild ended with the run");
 });
 
-test("Stop revokes at once, ends the whole process tree and finishes the turn", async () => {
-  const events: AssistantEvent[] = [];
-  let cleaned = 0;
-  let pids: number[] = [];
-  let started: () => void = () => {};
-  const ready = new Promise<void>((resolve) => {
-    started = resolve;
-  });
-  const run = startRun({
-    conversationId: "c-stop",
-    launch: { command: process.execPath, args: [child], env: {} },
-    args: [],
-    env: { ...process.env } as Record<string, string>,
-    cwd: import.meta.dirname,
-    prompt: "oi",
-    emit: (e) => events.push(e),
-    onLine: (json) => {
-      pids = [Number((json as { grandchild: number }).grandchild)];
-      started();
-    },
-    onExit: () => {},
-    cleanup: () => {
-      cleaned++;
-    },
-  });
-  await ready;
-  assert.equal(stopRun("c-stop"), true);
-  // The token is gone and the turn is done before the processes even finish exiting.
-  assert.equal(cleaned, 1);
-  assert.equal(events.filter((e) => e.type === "done").length, 1);
-  await run;
-  assert.ok(await gone(pids[0]), "the grandchild did not survive the stop");
-  assert.equal(stopRun("c-stop"), false, "nothing left to stop");
-  assert.equal(events.filter((e) => e.type === "done").length, 1, "done only once");
-});
+test(
+  "Stop revokes at once, ends the whole process tree and finishes the turn",
+  windowsOnly,
+  async () => {
+    const events: AssistantEvent[] = [];
+    let cleaned = 0;
+    let pids: number[] = [];
+    let started: () => void = () => {};
+    const ready = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const run = startRun({
+      conversationId: "c-stop",
+      launch: { command: process.execPath, args: [child], env: {} },
+      args: [],
+      env: { ...process.env } as Record<string, string>,
+      cwd: import.meta.dirname,
+      prompt: "oi",
+      emit: (e) => events.push(e),
+      onLine: (json) => {
+        pids = [Number((json as { grandchild: number }).grandchild)];
+        started();
+      },
+      onExit: () => {},
+      cleanup: () => {
+        cleaned++;
+      },
+    });
+    await ready;
+    assert.equal(stopRun("c-stop"), true);
+    // The token is gone and the turn is done before the processes even finish exiting.
+    assert.equal(cleaned, 1);
+    assert.equal(events.filter((e) => e.type === "done").length, 1);
+    await run;
+    assert.ok(await gone(pids[0]), "the grandchild did not survive the stop");
+    assert.equal(stopRun("c-stop"), false, "nothing left to stop");
+    assert.equal(events.filter((e) => e.type === "done").length, 1, "done only once");
+  },
+);
 
 test("a program that cannot start still ends the turn once, with an error", async () => {
   const events: AssistantEvent[] = [];

@@ -152,7 +152,9 @@ test("npm shims are read to find what they run", async () => {
   assert.equal(parseCmdShim(await readFile(join(shims, "neighbour.cmd"), "utf8"), dir), null);
 });
 
-test("bun launchers and Codex's npm script lead to the native program", async () => {
+test("bun launchers and Codex's npm script lead to the native program", {
+  skip: process.platform !== "win32" && "Windows only",
+}, async () => {
   const bun = await mkdtemp(join(root, "bun-"));
   const bin = join(bun, "bin");
   const pkg = join(bun, "install", "global", "node_modules", "@openai");

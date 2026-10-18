@@ -196,7 +196,10 @@ test("courses are the same however they were typed, and folder names are safe on
   assert.ok(!localMusicPath("trilha.mp3"));
 });
 
-test("two courses with the same folder name never share a template file", async () => {
+// Folder names that differ only in case are the same folder on Windows, the only system the app runs on.
+test("two courses with the same folder name never share a template file", {
+  skip: process.platform !== "win32" && "Windows only",
+}, async () => {
   const one: CourseTemplate = {
     version: 2,
     course: "Aula: 1",

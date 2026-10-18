@@ -1,4 +1,4 @@
-import { extname, isAbsolute } from "node:path";
+import { win32 } from "node:path";
 import { z } from "zod";
 
 /**
@@ -15,14 +15,16 @@ const NOT_A_LESSON = "Escolha um arquivo de aula do EdiAula (.ediaula).";
 
 const pathSchema = z.string().min(1).max(32768);
 
-const isLesson = (path: string): boolean => extname(path).toLowerCase() === EXTENSION;
+const isLesson = (path: string): boolean => win32.extname(path).toLowerCase() === EXTENSION;
 
 export async function lessonFile(
   value: unknown,
   allowed: (path: string) => Promise<string>,
 ): Promise<string> {
   const path = pathSchema.parse(value);
-  if (!isAbsolute(path) || path.includes("\0") || !isLesson(path)) throw new Error(NOT_A_LESSON);
+  // Windows rules on any host: the app only runs on Windows, and so do its paths.
+  if (!win32.isAbsolute(path) || path.includes("\0") || !isLesson(path))
+    throw new Error(NOT_A_LESSON);
   const real = await allowed(path);
   if (!isLesson(real)) throw new Error(NOT_A_LESSON);
   return real;

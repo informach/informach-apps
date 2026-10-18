@@ -5,7 +5,6 @@ import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -134,7 +133,11 @@ ${String(compiled.stdout || compiled.error.message)}`;
   return undefined;
 }
 
-const work = await mkdtemp(join(tmpdir(), "ediaula-helper-"));
+// The scratch folder sits on the same drive as the output, so the final rename never crosses
+// drives (CI runners keep the temp folder on C: and the checkout on D:).
+const scratchRoot = join(app, ".cache");
+await mkdir(scratchRoot, { recursive: true });
+const work = await mkdtemp(join(scratchRoot, "ediaula-helper-"));
 let failure;
 try {
   failure = await compile(work);

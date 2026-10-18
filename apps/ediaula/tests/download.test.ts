@@ -61,7 +61,8 @@ async function serve(opts: { ranges: boolean; cutAt?: number; wrongStart?: boole
     res.writeHead(200, { etag: ETAG, "content-length": payload.length });
     if (first && opts.cutAt) {
       first = false;
-      res.write(payload.subarray(0, opts.cutAt), () => res.destroy());
+      // Dropped a moment after the bytes went out, so they reach the client before the reset.
+      res.write(payload.subarray(0, opts.cutAt), () => setTimeout(() => res.destroy(), 200));
       return;
     }
     res.end(payload);

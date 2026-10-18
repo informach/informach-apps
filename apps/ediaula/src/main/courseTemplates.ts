@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import { dirname, isAbsolute, join } from "node:path";
+import { dirname, join, win32 } from "node:path";
 import { app } from "electron";
 import {
   type CourseTemplate,
@@ -105,4 +105,4 @@ export async function saveCourseTemplate(course: string, raw: unknown): Promise<
  * would send the person's Windows credentials to that machine.
  */
 export const localMusicPath = (path: string): boolean =>
-  isAbsolute(path) && !/^[\\/]{2}/.test(path);
+  win32.isAbsolute(path) && !/^[\\/]{2}/.test(path);
