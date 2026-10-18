@@ -98,6 +98,7 @@ const NOT_EDITS = new Set([
   "stats",
   "proposals",
   "voiceMasters",
+  "voiceExport",
   "prepare",
   "reviewedSeams",
   "templateOffer",

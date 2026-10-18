@@ -39,7 +39,7 @@ import { StatusBar } from "./StatusBar";
 import { Timeline } from "./Timeline";
 import { showRecordingProps, ToolRail } from "./ToolRail";
 import { TopBar } from "./TopBar";
-import { HeygenDialogs } from "./VoiceSection";
+import { PresenterDialogs } from "./VoiceSection";
 import { ZoomPanel } from "./ZoomLayerPanel";
 
 const isTyping = (e: KeyboardEvent): boolean => {
@@ -285,6 +285,21 @@ export function Editor(): ReactNode {
   const resizing = useRef(false);
   useEditTimer();
 
+  // The timeline keeps its share of the window when the window changes size (a notebook screen,
+  // a window restored from maximized), so the preview and the panels above never get squeezed.
+  const windowHeight = useRef(window.innerHeight);
+  useEffect(() => {
+    const onResize = (): void => {
+      const before = windowHeight.current;
+      const now = window.innerHeight;
+      windowHeight.current = now;
+      if (before === now || before <= 0) return;
+      setTimelineHeight((h) => Math.max(200, Math.min(now - 330, Math.round((h * now) / before))));
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   useEffect(() => {
     window.addEventListener("keydown", handleKey);
     window.addEventListener("keyup", handleKeyUp);
@@ -370,7 +385,7 @@ export function Editor(): ReactNode {
       <BatchBar />
       <PrepareOffer />
       <ReviewBar />
-      <HeygenDialogs />
+      <PresenterDialogs />
       <ConfirmDialog />
       <div className="timeline-wrap" style={{ height: timelineHeight }}>
         <Timeline />

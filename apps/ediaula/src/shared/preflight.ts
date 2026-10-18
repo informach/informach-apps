@@ -47,7 +47,29 @@ export type Fix = { label: string } & (
   | { action: "annotation-size"; clipId: string; fontSize: number }
   | { action: "caption-size"; size: number }
   | { action: "solo-off" }
+  | { action: "without-cursor" }
 );
+
+/** What a recording whose cursor data went missing looks like in the export. */
+export const CURSOR_MISSING =
+  "O ponteiro não vai aparecer nestes trechos. Reconecte o arquivo do cursor para mostrar.";
+
+/**
+ * The lesson as it is exported once the person chose "Exportar sem o cursor": the recordings
+ * whose cursor data went missing are exported as plain videos (no pointer, no keys on screen).
+ * Nothing else changes, and the lesson itself keeps them as they are.
+ */
+export function withoutMissingCursors<P extends Pick<Project, "assets">>(project: P): P {
+  if (!project.assets.some((a) => a.cursorMissing)) return project;
+  return {
+    ...project,
+    assets: project.assets.map((a) => {
+      if (!a.cursorMissing) return a;
+      const { cursor: _cursor, cursorMissing: _missing, ...rest } = a;
+      return rest;
+    }),
+  };
+}
 
 export interface Finding {
   severity: Severity;
@@ -308,11 +330,11 @@ export function preflight(project: Project, ctx: PreflightContext = {}): Finding
       });
     else if (a.cursorMissing)
       out.push({
-        severity: "error",
+        severity: "warn",
         kind: "cursor-missing",
         at: project.clips.find((c) => c.assetId === a.id)?.start,
-        message: `Os dados do cursor de ${a.name} não foram encontrados: o ponteiro some do vídeo.`,
-        fix: { label: "Reconectar", action: "relink" },
+        message: `${a.name}: ${CURSOR_MISSING}`,
+        fix: { label: "Exportar sem o cursor", action: "without-cursor" },
       });
   }
 

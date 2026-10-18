@@ -440,7 +440,7 @@ function CleanupBar({ model, loading }: { model: TextModel; loading: boolean }):
           >
             <span className="row-6">
               <span className="swatch" style={{ background: KIND_META[k].color }} />
-              <strong>{kinds[k] ? counts[k] : "—"}</strong>
+              <strong>{kinds[k] ? counts[k] : "fora"}</strong>
             </span>
             <span className="muted">{KIND_META[k].label}</span>
           </button>

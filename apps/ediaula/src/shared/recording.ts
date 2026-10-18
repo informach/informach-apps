@@ -44,7 +44,8 @@ export interface RecordOptions {
   quality?: CaptureQuality;
   /** The recorder window sends the computer's sound in chunks (recorder:systemChunk). */
   systemAudio?: boolean;
-  /** "voice": only the microphone, kept as PCM; "over": the screen over the lesson's voice. */
+  /** "voice": only the microphone, kept as PCM; "voicecam": the same voice with the camera
+   *  recording the presenter beside it; "over": the screen over the lesson's voice. */
   mode?: RecordMode;
   /** "Só voz": the teleprompter follows the voice (a 16 kHz copy goes to the recognizer). */
   follow?: boolean;
@@ -53,8 +54,12 @@ export interface RecordOptions {
   over?: OverPlan;
 }
 
-export const RECORD_MODES = ["screen", "voice", "over"] as const;
+export const RECORD_MODES = ["screen", "voice", "voicecam", "over"] as const;
 export type RecordMode = (typeof RECORD_MODES)[number];
+
+/** "Só voz" and "Voz e câmera": the voice kept as PCM, read line by line, without the screen. */
+export const isVoiceMode = (mode: RecordMode | undefined): boolean =>
+  mode === "voice" || mode === "voicecam";
 
 export interface OverPlan {
   /** Timeline seconds the voice is played from. */

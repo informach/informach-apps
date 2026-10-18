@@ -363,7 +363,12 @@ const clip = z.looseObject({
     })
     .optional(),
   insertId: id.optional(),
-  mutedFor: z.literal("heygen").optional(),
+  // Lessons saved before the interface named no brand (18/10/2026) said "heygen": read as
+  // "presenter", so normalizeProject and everything after it only see the neutral value.
+  mutedFor: z.preprocess(
+    (value) => (value === "heygen" ? "presenter" : value),
+    z.literal("presenter").optional(),
+  ),
 });
 export const projectSettingsSchema = z.looseObject({
   width: z.int().min(2).max(16384),
@@ -512,6 +517,7 @@ export const projectSchema = z
     // Pending AI proposals, at most PROPOSAL_ITEM_LIMIT items in all (the save is one IPC value).
     proposals: proposalListSchema.optional(),
     voiceMasters: z.array(voiceMaster).max(VOICE_MASTER_LIMIT).optional(),
+    voiceExport: z.looseObject({ pieceMinutes: z.int().min(1).max(60).optional() }).optional(),
     audio: z
       .looseObject({
         ducking: z

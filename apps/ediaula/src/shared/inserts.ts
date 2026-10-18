@@ -7,7 +7,7 @@ import type { Asset, Clip, Project, Track, Transcript } from "./types.ts";
 
 /**
  * Avatar inserts from the script (F1P1-D01…): the avatar's line is found in a transcribed media
- * (the HeyGen render) and placed between the narration line before it and the one after it.
+ * (the presenter's render) and placed between the narration line before it and the one after it.
  * Rule from the scripts: the avatar enters, speaks and leaves before the next answer, without
  * voices overlapping. When the recorded pause is too short, the timeline is opened there.
  */

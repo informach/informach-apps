@@ -47,7 +47,7 @@ import type {
   RecordingResult,
   RecordOptions,
 } from "../shared/recording.ts";
-import { RECORD_MODES, type RecorderContext } from "../shared/recording.ts";
+import { isVoiceMode, RECORD_MODES, type RecorderContext } from "../shared/recording.ts";
 import { detectCaptureEncoder } from "./encoders.ts";
 import { FFMPEG, prepareGuidedNarration, probe } from "./ffmpeg.ts";
 import {
@@ -1102,22 +1102,24 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
       )
         region = undefined;
     }
-    if (opts.mode === "voice") {
-      // Voice only: no screen, camera or computer sound.
+    if (isVoiceMode(opts.mode)) {
+      // The voice without the screen or the computer's sound; "Voz e câmera" keeps the camera.
       opts.monitor = undefined;
-      opts.camera = undefined;
-      opts.cameraMode = undefined;
       opts.systemAudio = false;
       opts.keys = false;
+      if (opts.mode === "voice") {
+        opts.camera = undefined;
+        opts.cameraMode = undefined;
+      } else if (!opts.camera) throw new Error("Escolha a câmera para gravar voz e câmera.");
     }
-    if (opts.mode !== "voice") opts.follow = undefined;
+    if (!isVoiceMode(opts.mode)) opts.follow = undefined;
     if (opts.mode !== "over") opts.over = undefined;
     await rec.prepare({ ...opts, region }, monitors, {
       // Keys typed in the lesson window still show on screen; it belongs to this process too.
       keyWindows: guidedBrowserWindowIds(),
       keyFilter: toKeyFilter(settings.hotkeys, settings.clicker),
     });
-    if (opts.mode === "voice" && opts.follow) void startFollow();
+    if (isVoiceMode(opts.mode) && opts.follow) void startFollow();
     captureBounds = m
       ? {
           x: m.x + (region?.x ?? 0),

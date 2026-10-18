@@ -550,7 +550,7 @@ export function GuidedSetup({
             <p>
               {web
                 ? "A narração entra numa faixa própria, alinhada ao vídeo da aula."
-                : "Use fones. A narração entra numa faixa própria; microfone e áudio do PC ficam desligados neste modo para não duplicar."}
+                : "Use fones. A narração entra numa faixa própria e o microfone fica desligado neste modo. O áudio do PC é opcional e não grava a narração de novo."}
             </p>
           </div>
         )}

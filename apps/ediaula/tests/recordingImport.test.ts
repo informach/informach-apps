@@ -224,3 +224,49 @@ test("cuts reach the microphone and the computer's sound of a take before any tr
   };
   assert.equal(cutTargets(music).has(system?.id ?? ""), false);
 });
+
+test("a voice and camera take: the presenter on a track of its own above the lesson, muted and in step with the voice", () => {
+  const take: RecordingResult = {
+    version: 2,
+    dir: "C:/take",
+    microphone: "C:/take/voz.wav",
+    cameraParts: [{ path: "C:/take/camera-0.mp4", at: 0.05, in: 0, duration: 9.9 }],
+    duration: 10,
+    pauses: [[3, 5]],
+    markers: [],
+    mode: "voicecam",
+  };
+  const media = [
+    asset("voz", "C:/take/voz.wav", "audio", 10),
+    asset("cam", "C:/take/camera-0.mp4", "video", 9.9),
+  ];
+  const p = { ...project(), assets: media };
+  const transform = { x: 0.7, y: 0.5, scale: 0.6, opacity: 1 };
+  const layout = layoutRecording(p, media, take, 0, { presenterTransform: () => transform });
+  const presenter = layout.tracks.find((t) => t.name === "Apresentador");
+  assert.ok(presenter, "a track named Apresentador");
+  assert.equal(layout.tracks[0], presenter, "above everything else");
+  const voice = layout.tracks.find((t) => t.kind === "audio" && t.name === "Voz");
+  const cams = layout.clips.filter((c) => c.trackId === presenter.id);
+  const voices = layout.clips.filter((c) => c.trackId === voice?.id);
+  // The pause is cut in both at the same moment, and each piece of the camera keeps its offset.
+  assert.deepEqual(on(voices, voice), [
+    ["voz", 0, 0, 3],
+    ["voz", 3, 5, 5],
+  ]);
+  assert.deepEqual(on(cams, presenter), [
+    ["cam", 0.05, 0, 2.95],
+    ["cam", 3, 4.95, 4.95],
+  ]);
+  for (const c of cams) {
+    assert.equal(c.volume, 0, "the camera plays muted: the treated voice is heard");
+    assert.deepEqual(c.transform, transform);
+  }
+  assert.deepEqual(
+    layout.roles.map((r) => [r.assetId, r.role]),
+    [
+      ["cam", "camera"],
+      ["voz", "mic"],
+    ],
+  );
+});

@@ -18,7 +18,7 @@ import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { pruneCache } from "../src/main/cachePrune.ts";
-import { decodeMono } from "../src/main/heygen.ts";
+import { decodeMono } from "../src/main/presenterVideo.ts";
 import { treatVoice } from "../src/main/voiceTreat.ts";
 import { locate } from "../src/shared/audioSync.ts";
 import {

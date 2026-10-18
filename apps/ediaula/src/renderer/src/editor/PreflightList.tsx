@@ -17,10 +17,13 @@ export function PreflightList({
   check,
   onFixed,
   normalize,
+  withoutCursor,
 }: {
   check: LessonCheck;
   onFixed?: () => void;
   normalize?: () => void;
+  /** "Exportar sem o cursor": only the export dialog offers it. */
+  withoutCursor?: () => void;
 }): ReactNode {
   const [busy, setBusy] = useState<number | null>(null);
   const { findings } = check;
@@ -47,22 +50,24 @@ export function PreflightList({
                 Ir até {clock(f.at)}
               </button>
             )}
-            {f.fix && (f.fix.action !== "normalize" || normalize) && (
-              <Button
-                size="sm"
-                disabled={busy !== null || stale}
-                title={stale ? "A aula mudou: a lista está sendo conferida de novo" : undefined}
-                onClick={() => {
-                  setBusy(i);
-                  void runFix(f, check, { normalize }).then(() => {
-                    setBusy(null);
-                    onFixed?.();
-                  });
-                }}
-              >
-                {busy === i ? "Corrigindo…" : f.fix.label}
-              </Button>
-            )}
+            {f.fix &&
+              (f.fix.action !== "normalize" || normalize) &&
+              (f.fix.action !== "without-cursor" || withoutCursor) && (
+                <Button
+                  size="sm"
+                  disabled={busy !== null || stale}
+                  title={stale ? "A aula mudou: a lista está sendo conferida de novo" : undefined}
+                  onClick={() => {
+                    setBusy(i);
+                    void runFix(f, check, { normalize, withoutCursor }).then(() => {
+                      setBusy(null);
+                      onFixed?.();
+                    });
+                  }}
+                >
+                  {busy === i ? "Corrigindo…" : f.fix.label}
+                </Button>
+              )}
           </li>
         );
       })}

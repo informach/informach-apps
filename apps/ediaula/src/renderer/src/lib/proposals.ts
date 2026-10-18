@@ -16,6 +16,7 @@ import {
   timelineWords,
   wordsRange,
 } from "@shared/cleanup";
+import { plural } from "@shared/plural";
 import { proposalListSchema } from "@shared/project-schema";
 import { newId } from "@shared/timeline";
 import type { Project } from "@shared/types";
@@ -154,7 +155,7 @@ export async function showProposal(
   if (stored.replaced) problems.unshift(stored.replaced);
   const saved = proposedSeconds(ok);
   return [
-    `Proposta "${title}" mostrada ao usuário: ${ok.length} corte(s), −${saved.toFixed(1)} s. Ele vai aplicar ou descartar na tela; não aplique você mesmo.`,
+    `Proposta "${title}" mostrada ao usuário: ${plural(ok.length, "corte", "cortes")}, −${saved.toFixed(1)} s. Ele vai aplicar ou descartar na tela; não aplique você mesmo.`,
     ...problems,
   ].join("\n");
 }
@@ -280,10 +281,10 @@ export async function proposeCleanup(
     return {
       ok: true,
       message: [
-        `Proposta de limpeza pronta: ${count("filler")} vício(s), ${count("repeat")} repetição(ões) e ${count("silence")} silêncio(s), −${proposedSeconds(items).toFixed(1).replace(".", ",")} s. Revise na barra da proposta e aplique; nada foi cortado ainda.`,
+        `Proposta de limpeza pronta: ${plural(count("filler"), "vício", "vícios")}, ${plural(count("repeat"), "repetição", "repetições")} e ${plural(count("silence"), "silêncio", "silêncios")}, −${proposedSeconds(items).toFixed(1).replace(".", ",")} s. Revise na barra da proposta e aplique; nada foi cortado ainda.`,
         ...(plan.elsewhere
           ? [
-              `${plan.elsewhere} sugestão(ões) já estão na proposta da limpeza da voz e ficaram de fora.`,
+              `${plural(plan.elsewhere, "sugestão já está na proposta da limpeza da voz e ficou de fora", "sugestões já estão na proposta da limpeza da voz e ficaram de fora")}.`,
             ]
           : []),
         ...notes,

@@ -62,10 +62,10 @@ export function withRuntimeOf(target: Project, live: Project): Project {
 }
 
 /**
- * The project an undo or redo shows: the snapshot's edits with the media as they are now, and
- * the measured editing time, last export, pending AI proposals, the voices sent to HeyGen and the
- * guided plans of the current state (an undo is not time travel for them). It changes the project, so it is
- * touched like any edit.
+ * The project an undo or redo shows: the snapshot's edits with the media as they are now, and the
+ * measured editing time, last export, pending AI proposals, the voices exported for the presenter
+ * and the guided plans of the current state (an undo is not time travel for them). It changes the
+ * project, so it is touched like any edit.
  */
 export function restoreSnapshot(snapshot: Project, current: Project, now: number): Project {
   const out: Project = { ...withRuntimeOf(snapshot, current), updatedAt: now };
@@ -75,7 +75,7 @@ export function restoreSnapshot(snapshot: Project, current: Project, now: number
   else delete out.exportedAt;
   if (current.proposals) out.proposals = current.proposals;
   else delete out.proposals;
-  // The files went to HeyGen: undoing an edit does not unsend them.
+  // The files were exported: undoing an edit does not unsend them.
   if (current.voiceMasters) out.voiceMasters = current.voiceMasters;
   else delete out.voiceMasters;
   // Where "Preparar aula" stands and the seams approved are the review, not edits.

@@ -1,3 +1,4 @@
+import { agree, plural } from "@shared/plural";
 import type { VoiceMaster } from "@shared/types";
 import {
   treatedPath,
@@ -5,18 +6,29 @@ import {
   VOICE_PRESETS,
   type VoicePreset,
 } from "@shared/voiceChain";
-import { masterIsStale, voiceClips } from "@shared/voiceMaster";
-import { Download, Loader, Mic, MonitorPlay, Sparkles, Upload, Wand2 } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { masterIsStale, PIECE_MINUTES, pieceSeconds, voiceClips } from "@shared/voiceMaster";
+import {
+  Download,
+  Loader,
+  Mic,
+  MonitorPlay,
+  Sparkles,
+  Upload,
+  UserRound,
+  Wand2,
+} from "lucide-react";
+import { type ReactNode, useRef, useState } from "react";
+import { leaveField, typedNumber } from "@/lib/fieldText";
 import { openRecorder } from "@/lib/recording";
 import {
   acceptGuess,
   dropGuess,
-  exportForHeygen,
-  importHeygenVideos,
+  exportVoiceFiles,
+  importPresenterVideos,
   proposeVoiceCleanup,
+  setPieceMinutes,
   treatVoices,
-  useHeygenReview,
+  usePresenterReview,
   useVoiceListen,
   voiceTargets,
 } from "@/lib/voice";
@@ -35,8 +47,9 @@ const clock = (s: number): string =>
   `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
 /**
- * The voice in the audio panel: its treatment with A/B, the cleanup before HeyGen, the export of
- * the voice for HeyGen and the import of the MP4s, and recording the screen over the voice.
+ * The voice in the audio panel: its treatment with A/B, the cleanup before the presenter's video,
+ * the export of the voice to make it with any tool, the import of the videos that come back, and
+ * recording the screen over the voice.
  */
 export function VoiceSection(): ReactNode {
   const project = useProject((s) => s.project);
@@ -54,6 +67,7 @@ export function VoiceSection(): ReactNode {
   const hasVoice = voiceClips(project).length > 0;
   const master = project.voiceMasters?.at(-1);
   const stale = master ? masterIsStale(project, master) : false;
+  const minutes = pieceSeconds(project) / 60;
   const run = async (label: string, work: () => Promise<unknown>): Promise<void> => {
     setBusy(label);
     try {
@@ -102,7 +116,9 @@ export function VoiceSection(): ReactNode {
         <p className="props-hint muted">
           Tira o ruído, suaviza o "s", nivela a voz e deixa em -16 LUFS. A prévia e a exportação
           tocam o mesmo arquivo tratado.
-          {targets.length ? ` ${ready} de ${targets.length} pronta(s).` : ""}
+          {targets.length
+            ? ` ${ready} de ${targets.length} ${agree(targets.length, "pronta", "prontas")}.`
+            : ""}
         </p>
         <div className="audio-flag" title="Compare a voz antes e depois do tratamento na prévia">
           <small className="muted">Ouvir o original</small>
@@ -115,8 +131,11 @@ export function VoiceSection(): ReactNode {
       </div>
       <div className="props-section">
         <h3>
-          <Sparkles size={13} /> HeyGen
+          <UserRound size={13} /> Vídeo do apresentador
         </h3>
+        <p className="props-hint muted">
+          Funciona com qualquer ferramenta de avatar ou com a sua câmera.
+        </p>
         <Button
           icon={Sparkles}
           disabled={!hasVoice || !!busy}
@@ -127,7 +146,7 @@ export function VoiceSection(): ReactNode {
             })
           }
         >
-          {busy === "limpar" ? "Montando a proposta…" : "Limpar a voz para o HeyGen"}
+          {busy === "limpar" ? "Montando a proposta…" : "Limpar a voz antes de exportar"}
         </Button>
         <p className="props-hint muted">
           Uma proposta só: tomadas repetidas (fica a última completa), trechos marcados para
@@ -150,32 +169,47 @@ export function VoiceSection(): ReactNode {
             ))}
           </select>
         </label>
+        <div className="tpl-field voice-split">
+          <span className="field-label" aria-hidden="true">
+            Dividir a voz em partes de até
+          </span>
+          <span className="voice-split-row">
+            <PieceMinutesField minutes={minutes} />
+            <span>min</span>
+          </span>
+        </div>
+        <p className="props-hint muted" id="voice-split-hint">
+          Algumas ferramentas de avatar limitam o tamanho do arquivo.
+        </p>
         <Button
           icon={Download}
           disabled={!hasVoice || !!busy}
-          onClick={() => void run("exportar", () => exportForHeygen(scope))}
+          onClick={() => void run("exportar", () => exportVoiceFiles(scope))}
         >
-          {busy === "exportar" ? "Exportando…" : "Exportar voz para o HeyGen"}
+          {busy === "exportar" ? "Exportando…" : "Exportar a voz"}
         </Button>
-        {master && (
-          <p className="props-hint muted">
-            Última exportação: {master.pieces.length} arquivo(s),{" "}
-            {new Date(master.createdAt).toLocaleString("pt-BR")}.
-            {stale
-              ? " A voz mudou depois disso: o vídeo que voltar segue os cortes, mas confira os trechos que mudaram."
-              : ""}
-          </p>
-        )}
+        <p className="props-hint muted">
+          Para gerar o vídeo do apresentador. Os arquivos vão para a pasta Voz exportada, ao lado do
+          projeto.
+          {master
+            ? ` Última exportação: ${plural(master.pieces.length, "arquivo", "arquivos")}, ${new Date(master.createdAt).toLocaleString("pt-BR")}.`
+            : ""}
+          {stale
+            ? " A voz mudou depois disso: o vídeo que voltar segue os cortes, mas confira os trechos que mudaram."
+            : ""}
+        </p>
         <Button
           icon={Upload}
           disabled={!hasVoice || !!busy}
-          onClick={() => void run("importar", () => importHeygenVideos(useSound))}
+          title="Também serve para gravar a câmera depois, ouvindo a própria voz: o vídeo encaixa pela voz."
+          onClick={() => void run("importar", () => importPresenterVideos(useSound))}
         >
-          {busy === "importar" ? "Encaixando…" : "Importar vídeo do HeyGen"}
+          {busy === "importar" ? "Encaixando…" : "Importar vídeo do apresentador"}
         </Button>
+        <p className="props-hint muted">O app encaixa o vídeo pela voz.</p>
         <div className="audio-flag" title="Por padrão o vídeo entra mudo e vale a voz tratada">
-          <small className="muted">Usar o som do HeyGen</small>
-          <Toggle on={useSound} onChange={setUseSound} label="Usar o som do HeyGen" />
+          <small className="muted">Usar o som do vídeo importado</small>
+          <Toggle on={useSound} onChange={setUseSound} label="Usar o som do vídeo importado" />
         </div>
       </div>
       <div className="props-section">
@@ -198,9 +232,50 @@ export function VoiceSection(): ReactNode {
   );
 }
 
-/** Doubtful HeyGen matches, each with its best guess for the person to check. */
+/**
+ * The longest piece of the exported voice: typed freely and kept in the lesson (one undo step)
+ * when the field is left or Enter is pressed; Esc puts the value back.
+ */
+function PieceMinutesField({ minutes }: { minutes: number }): ReactNode {
+  const [text, setText] = useState<string | null>(null);
+  // Esc blurs the field right after asking for the value back: the blur must see it at once.
+  const cancelled = useRef(false);
+  const shown = String(minutes);
+  const leave = (): void => {
+    const result = leaveField(text, shown, cancelled.current, typedNumber);
+    cancelled.current = false;
+    setText(null);
+    if (result.kind === "commit" && result.value > 0) setPieceMinutes(result.value);
+  };
+  return (
+    <input
+      className="input"
+      inputMode="numeric"
+      value={text ?? shown}
+      aria-label="Dividir a voz em partes de até (minutos)"
+      aria-describedby="voice-split-hint"
+      title={`De ${PIECE_MINUTES.min} a ${PIECE_MINUTES.max} minutos`}
+      onFocus={(e) => {
+        cancelled.current = false;
+        setText(shown);
+        e.currentTarget.select();
+      }}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={leave}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+        if (e.key === "Escape") {
+          cancelled.current = true;
+          e.currentTarget.blur();
+        }
+      }}
+    />
+  );
+}
+
+/** Doubtful presenter matches, each with its best guess for the person to check. */
 function ReviewBar(): ReactNode {
-  const items = useHeygenReview((s) => s.items);
+  const items = usePresenterReview((s) => s.items);
   const assets = useProject((s) => s.project?.assets);
   const shown = items.filter((g) => assets?.some((a) => a.id === g.assetId));
   if (!shown.length) return null;
@@ -237,7 +312,7 @@ function ReviewBar(): ReactNode {
   );
 }
 
-/** Mounted once in the editor: the review of doubtful HeyGen placements. */
-export function HeygenDialogs(): ReactNode {
+/** Mounted once in the editor: the review of doubtful presenter placements. */
+export function PresenterDialogs(): ReactNode {
   return <ReviewBar />;
 }

@@ -259,7 +259,7 @@ export function ZoomPanel({ onRecordingZoom }: { onRecordingZoom: () => void }):
                 useApp.getState().set({ sideTab: "properties" });
               }}
             >
-              <ZoomIn size={12} /> {clock(c.start)}–{clock(c.start + c.duration)} ·{" "}
+              <ZoomIn size={12} /> {clock(c.start)} a {clock(c.start + c.duration)} ·{" "}
               {c.zoomLayer!.scale < 1.01 ? "volta ao normal" : `${c.zoomLayer!.scale.toFixed(1)}×`}
             </button>
           ))}

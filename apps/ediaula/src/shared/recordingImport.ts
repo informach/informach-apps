@@ -42,7 +42,12 @@ export interface RecordingLayout {
 export interface LayoutOptions {
   /** Where the camera sits in the frame. */
   cameraTransform?: (asset: Asset) => Transform;
+  /** "Voz e câmera": where the presenter (the camera) sits; absent fills the frame. */
+  presenterTransform?: (asset: Asset) => Transform | undefined;
 }
+
+/** The track a "Voz e câmera" take puts the presenter on, above the lesson. */
+export const PRESENTER_TRACK = "Apresentador";
 
 /** The shortest clip worth placing. */
 const MIN = 1 / 30;
@@ -123,8 +128,17 @@ export function layoutRecording(
     !track.locked &&
     !clips.some((c) => c.trackId === track.id && c.start < end - EPS && clipEnd(c) > start + EPS);
 
+  // "Voz e câmera": the camera is the presenter, on a track of its own above the lesson (the
+  // voice goes to "Voz" like any voice take, and the camera plays muted).
+  const presenter = result.mode === "voicecam";
   let cameraTrack: Track | undefined;
-  if (cameras.length && main) {
+  if (cameras.length && presenter) {
+    cameraTrack = tracks.find((t) => t.kind === "video" && t.name === PRESENTER_TRACK && free(t));
+    if (!cameraTrack) {
+      cameraTrack = newTrack("video", PRESENTER_TRACK);
+      tracks.splice(0, 0, cameraTrack);
+    }
+  } else if (cameras.length && main) {
     const index = tracks.indexOf(main);
     const above = tracks[index - 1];
     if (above && above.kind === "video" && free(above)) cameraTrack = above;
@@ -196,10 +210,12 @@ export function layoutRecording(
       }
     };
     if (cameraTrack)
-      placeAll(cameras, cameraTrack, (asset) => ({
-        volume: 0,
-        transform: options.cameraTransform?.(asset) ?? defaultCamera(),
-      }));
+      placeAll(cameras, cameraTrack, (asset) => {
+        if (!presenter)
+          return { volume: 0, transform: options.cameraTransform?.(asset) ?? defaultCamera() };
+        const transform = options.presenterTransform?.(asset);
+        return transform ? { volume: 0, transform } : { volume: 0 };
+      });
     if (voiceTrack) placeAll(micParts, voiceTrack, () => ({ volume: 1 }));
     if (systemTrack) placeAll(systemParts, systemTrack, () => ({ volume: 0.8 }));
     // The microphone and the computer's sound start at the take's second 0.

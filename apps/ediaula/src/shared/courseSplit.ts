@@ -89,7 +89,7 @@ export function splitBySections(
 /**
  * The stretch [from, to) of a lesson as a lesson of its own: the clips inside it, cut at its
  * borders and moved to start at 0:00. What belongs to the whole lesson's timeline (proposals,
- * the HeyGen voice maps, chapters, the reviewed seams, the preparation, translations) is left out.
+ * the exported voice maps, chapters, the reviewed seams, the preparation, translations) is left out.
  */
 export function rangeProject(project: Project, from: number, to: number): Project {
   const start = Math.max(0, from);

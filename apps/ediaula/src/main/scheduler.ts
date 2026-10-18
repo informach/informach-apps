@@ -51,7 +51,7 @@ const DEFAULT_SLOTS: Record<WorkKind, number> = {
   export: 1,
   // Two hardware encoder sessions, or up to three x264 processes (a quarter of the cores each).
   segment: Math.max(2, Math.min(3, Math.floor(availableParallelism() / 4))),
-  // The voice treatment and the trip to HeyGen: one at a time.
+  // The voice treatment and the presenter's video: one at a time.
   voice: 1,
   // Where a screen recording stands still, for the cleanup.
   motion: 1,

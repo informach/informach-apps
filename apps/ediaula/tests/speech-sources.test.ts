@@ -78,8 +78,8 @@ test("with the avatar already transcribed, the narration is still transcribed", 
   );
 });
 
-test("silent clips and the voice extracted from a HeyGen MP4 are transcribed once", () => {
-  // The HeyGen MP4 plays muted and its extracted voice plays on an audio track.
+test("silent clips and the voice extracted from a presenter video are transcribed once", () => {
+  // The presenter video plays muted and its extracted voice plays on an audio track.
   const heygen = media("heygen", "C:/aulas/F1P2.mp4", "video");
   const voice = media("voz", "C:/cache/F1P2-voz.wav", "audio");
   const camera = media("camera", "C:/gravacoes/camera.mp4", "video");
@@ -124,7 +124,7 @@ test("a voice heard only under the presenter's own sound is not transcribed agai
   // The voice plays muted under the presenter's sound (Clip.mutedFor, older lessons too).
   const muted = project(
     [voice, presenter],
-    [{ ...on("voz", "a1"), mutedFor: "heygen" }, on("apresentador", "v2")],
+    [{ ...on("voz", "a1"), mutedFor: "presenter" }, on("apresentador", "v2")],
     tracks,
   );
   assert.deepEqual(

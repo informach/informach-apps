@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { buildCues } from "../src/shared/captions.ts";
 import type { TimelineWord } from "../src/shared/cleanup.ts";
 import {
+  CURSOR_MISSING,
   chapterProblems,
   type Finding,
   type FindingKind,
@@ -10,6 +11,7 @@ import {
   type PreflightContext,
   parseLoudness,
   preflight,
+  withoutMissingCursors,
   worstReading,
 } from "../src/shared/preflight.ts";
 import { parseScript } from "../src/shared/script.ts";
@@ -407,7 +409,18 @@ test("missing media and missing cursor data", () => {
     ...p,
     assets: p.assets.map((a) => (a.id === "tela" ? { ...a, cursor: "x", cursorMissing: true } : a)),
   };
-  assert.ok(has(cursor, { speech }, "cursor-missing"));
+  const noCursor = has(cursor, { speech }, "cursor-missing");
+  // A warning: the person may export without the pointer, by choosing it.
+  assert.equal(noCursor?.severity, "warn");
+  assert.equal(noCursor?.fix?.action, "without-cursor");
+  assert.equal(noCursor?.fix?.label, "Exportar sem o cursor");
+  assert.ok(noCursor?.message.includes(CURSOR_MISSING));
+  // Chosen: the export's copy of the lesson has those recordings as plain videos.
+  const plain = withoutMissingCursors(cursor);
+  const tela = plain.assets.find((a) => a.id === "tela");
+  assert.ok(tela && !tela.cursor && !tela.cursorMissing);
+  assert.equal(has(plain, { speech }, "cursor-missing"), undefined);
+  assert.equal(withoutMissingCursors(p), p, "nothing to drop: the same lesson");
   // A missing file nobody uses is not a problem of this export.
   const unused = {
     ...p,

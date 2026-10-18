@@ -13,6 +13,12 @@
   font-size: 12.5px;
   line-height: 1.5;
 }
+/* Two buttons in a narrow panel: they wrap instead of spilling past its edges. */
+.script-empty-actions {
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 100%;
+}
 .script-paste {
   width: 100%;
   min-height: 220px;
@@ -46,10 +52,16 @@
 }
 .script-stats {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px 8px;
   font-size: 11.5px;
+}
+/* The target and the video id each stay on one line; the id moves below when both do not fit. */
+.script-target,
+.script-video {
+  white-space: nowrap;
 }
 .script-target {
   padding: 3px 8px;

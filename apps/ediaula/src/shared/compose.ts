@@ -278,6 +278,40 @@ export function defaultTransformFor(
   return undefined;
 }
 
+/**
+ * Where the presenter's video sits: a portrait video, or one on a solid screen, beside the
+ * content (or the whole frame of a portrait lesson); anything else fills the frame.
+ */
+export function presenterTransform(
+  asset: Pick<Asset, "width" | "height" | "screen">,
+  frame: Pick<ProjectSettings, "width" | "height">,
+): Transform | undefined {
+  return asset.height > asset.width || asset.screen
+    ? placementTransform(frame.width > frame.height ? "right" : "full")
+    : defaultTransformFor(asset, frame);
+}
+
+/**
+ * Where the camera of a "Voz e câmera" take sits. Without its background removed it is a
+ * rectangle with the room behind the teacher: in a landscape lesson it goes to the corner, over
+ * the bottom right of the screen recorded later, never over the whole frame; in a portrait
+ * lesson it takes the lower part. A camera on a solid screen (background removed) or a portrait
+ * one stands beside the content, as the presenter's video does.
+ */
+export function cameraPresenterTransform(
+  asset: Pick<Asset, "width" | "height" | "screen">,
+  frame: Pick<ProjectSettings, "width" | "height">,
+): Transform {
+  if (asset.height > asset.width || asset.screen)
+    return placementTransform(frame.width > frame.height ? "right" : "full");
+  return frame.width > frame.height
+    ? { ...DEFAULT_TRANSFORM, ...CAMERA_CORNER }
+    : { ...DEFAULT_TRANSFORM, x: 0.5, y: 0.8, scale: 0.9 };
+}
+
+/** A landscape camera in the corner of a landscape lesson: a third of the frame, inside it. */
+export const CAMERA_CORNER = { x: 0.8, y: 0.78, scale: 0.34 } as const;
+
 /** Default fade for avatar inserts: a short dissolve in and out. */
 export const AVATAR_FADE = 0.3;
 

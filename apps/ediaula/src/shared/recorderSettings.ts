@@ -46,6 +46,9 @@ export const recorderSettingsSchema = z.object({
   camera: z.string().max(512).nullable().catch(null),
   /** null: chosen automatically for the camera (shared/camera.ts chooseCameraMode). */
   cameraMode: cameraMode.nullable().catch(null),
+  /** The presenter's camera of "Voz e câmera", kept apart from the camera of the screen modes. */
+  presenterCamera: z.string().max(512).nullable().catch(null),
+  presenterCameraMode: cameraMode.nullable().catch(null),
   /** Milliseconds the webcam's picture runs behind; moves the camera earlier on import. */
   cameraLatency: z.int().min(0).max(1000).catch(100),
   systemAudio: z.boolean().catch(false),
@@ -67,7 +70,7 @@ export const recorderSettingsSchema = z.object({
   /** Proxies, background removal, transcription and the next export wait while recording. */
   pauseBackground: z.boolean().catch(true),
   /** The kind of take the recorder opens in ("Tela sobre a narração" comes from the editor). */
-  recordMode: z.enum(["screen", "voice"]).catch("screen"),
+  recordMode: z.enum(["screen", "voice", "voicecam"]).catch("screen"),
   /** "Só voz": the teleprompter follows the voice when the transcription engine is installed. */
   follow: z.boolean().catch(true),
 });

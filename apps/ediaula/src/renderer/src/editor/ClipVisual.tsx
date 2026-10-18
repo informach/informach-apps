@@ -477,8 +477,7 @@ export function KeySection({ asset }: { asset: Asset }): ReactNode {
       </div>
       {!key ? (
         <p className="props-hint muted">
-          Para avatares gravados em fundo azul ou verde (HeyGen). Vale para todos os trechos desta
-          mídia.
+          Para avatares gravados em fundo azul ou verde. Vale para todos os trechos desta mídia.
         </p>
       ) : (
         <>

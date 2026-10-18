@@ -141,11 +141,11 @@ const api: EdiAulaApi = {
   treatVoice: (jobId, path, preset) => ipcRenderer.invoke("audio:treat", jobId, path, preset),
   renderVoice: (jobId, segments, start, end) =>
     ipcRenderer.invoke("voice:render", jobId, segments, start, end),
-  exportHeygenVoice: (jobId, projectPath, projectJson, scope, pieces) =>
-    ipcRenderer.invoke("heygen:export", jobId, projectPath, projectJson, scope, pieces),
-  pickHeygenVideos: () => ipcRenderer.invoke("heygen:pick"),
-  locateHeygen: (jobId, video, masters) =>
-    ipcRenderer.invoke("heygen:locate", jobId, video, masters),
+  exportVoicePieces: (jobId, projectPath, projectJson, scope, pieces) =>
+    ipcRenderer.invoke("voice:exportPieces", jobId, projectPath, projectJson, scope, pieces),
+  pickPresenterVideos: () => ipcRenderer.invoke("presenter:pick"),
+  locatePresenter: (jobId, video, masters) =>
+    ipcRenderer.invoke("presenter:locate", jobId, video, masters),
   saveGenerated: (bytes, ext) => ipcRenderer.invoke("media:saveGenerated", bytes, ext),
   saveNarration: (bytes) => ipcRenderer.invoke("media:saveNarration", bytes),
   stillFrame: (path, t, alpha) => ipcRenderer.invoke("media:still", path, t, alpha),
@@ -160,8 +160,8 @@ const api: EdiAulaApi = {
   renderKeyed: (jobId, path, width, height, fps, duration, key) =>
     ipcRenderer.invoke("key:render", jobId, path, width, height, fps, duration, key),
   exists: (paths) => ipcRenderer.invoke("fs:exists", paths),
-  createProject: (name, course, settings) =>
-    ipcRenderer.invoke("project:create", name, course, settings),
+  createProject: (name, course, settings, fileName) =>
+    ipcRenderer.invoke("project:create", name, course, settings, fileName),
   saveProject: (path, projectJson) => ipcRenderer.invoke("project:save", path, projectJson),
   openProject: (path) => ipcRenderer.invoke("project:open", path),
   recentProjects: () => ipcRenderer.invoke("project:recent"),

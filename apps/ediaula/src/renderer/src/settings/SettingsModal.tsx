@@ -311,10 +311,11 @@ export function SettingsModal(): ReactNode {
             <div className="spacer">
               <strong>Conectar ao Claude Code, Claude Desktop ou Codex</strong>
               <p className="muted">
-                Igual ao pen: o EdiAula oferece as ferramentas de edição e o seu app de IA conversa
-                com você usando a sua assinatura. As edições aparecem ao vivo aqui. Só programas
-                deste computador conseguem se conectar. Cada app conectado pode ler a aula e propor
-                cortes; para alterar a aula, ele pede a sua permissão aqui no EdiAula.
+                O EdiAula empresta as ferramentas de edição ao app de IA que você já usa, e ele
+                conversa com você pela sua própria assinatura, sem custo extra. As edições aparecem
+                ao vivo aqui. Só programas deste computador conseguem se conectar. Cada app
+                conectado pode ler a aula e propor cortes; para alterar a aula, ele pede a sua
+                permissão aqui no EdiAula.
               </p>
             </div>
             {view && (

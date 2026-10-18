@@ -17,6 +17,7 @@ import type {
   RecorderStatus,
 } from "@shared/recording";
 import type { MicLevel, RecorderHealth } from "@shared/recordingHealth";
+import { systemAudioPlan } from "@shared/systemAudio";
 import { type PrompterLine, readLines, stepLine, voiceSpeakers } from "@shared/voiceTakes";
 import {
   AlertTriangle,
@@ -66,9 +67,10 @@ interface Rect {
   height: number;
 }
 type Line = PrompterLine;
-/** What is being recorded: the screen (by hand or guided), the voice alone, or the screen over
- *  the lesson's voice. */
-type Mode = "screen" | "guided" | "voice" | "over";
+/** What is being recorded: the screen (by hand or guided), the voice alone, the voice with the
+ *  camera filming the presenter, or the screen over the lesson's voice. */
+type Mode = "screen" | "guided" | "voice" | "voicecam" | "over";
+const MODES: readonly Mode[] = ["screen", "voice", "voicecam", "over", "guided"];
 
 const clockOf = (s: number): string =>
   `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
@@ -152,7 +154,9 @@ export function RecorderOverlay(): ReactNode {
   const [monitor, setMonitor] = useState<CaptureMonitor | null>(null);
   const [region, setRegion] = useState<Rect>(fullWindow);
   const [mic, setMic] = useState<string>("");
-  const [cam, setCam] = useState<string>("");
+  /** The camera of the screen modes and the presenter's camera of "Voz e câmera", each kept. */
+  const [screenCam, setScreenCam] = useState<string>("");
+  const [presenterCam, setPresenterCam] = useState<string>("");
   const [camModes, setCamModes] = useState<{
     modes: CameraMode[];
     choice: CameraChoice | null;
@@ -160,7 +164,12 @@ export function RecorderOverlay(): ReactNode {
   const [level, setLevel] = useState<MicLevel | null>(null);
   const [mode, setMode] = useState<Mode>("screen");
   const guidedMode = mode === "guided";
-  const voiceMode = mode === "voice";
+  /** "Só voz" and "Voz e câmera": the voice read line by line, without the screen. */
+  const voiceMode = mode === "voice" || mode === "voicecam";
+  const voiceCam = mode === "voicecam";
+  /** The camera of the mode on screen. */
+  const cam = voiceCam ? presenterCam : screenCam;
+  const camModeSetting = (voiceCam ? settings?.presenterCameraMode : settings?.cameraMode) ?? null;
   /** "Tela sobre a narração": the lesson's voice as the editor handed it over. */
   const [over, setOver] = useState<OverContext | null>(null);
   const [notes, setNotes] = useState<{ before: number; text: string }[]>([]);
@@ -259,9 +268,10 @@ export function RecorderOverlay(): ReactNode {
       ([s, saved]) => {
         setSources(s);
         setSettings(saved);
-        if (saved.recordMode === "voice") setMode((m) => (m === "screen" ? "voice" : m));
+        const remembered = saved.recordMode;
+        if (remembered !== "screen") setMode((m) => (m === "screen" ? remembered : m));
         const wanted = saved.monitor;
-        const remembered = wanted
+        const rememberedMonitor = wanted
           ? s.monitors.find(
               (m) =>
                 m.x === wanted.x &&
@@ -271,7 +281,7 @@ export function RecorderOverlay(): ReactNode {
             )
           : undefined;
         const m =
-          remembered ??
+          rememberedMonitor ??
           s.monitors.find((x) => x.index === s.current) ??
           s.monitors.find((x) => x.primary) ??
           s.monitors[0];
@@ -285,7 +295,12 @@ export function RecorderOverlay(): ReactNode {
               ? saved.microphone
               : (s.microphones[0] ?? ""),
         );
-        setCam(saved.camera && s.cameras.includes(saved.camera) ? saved.camera : "");
+        setScreenCam(saved.camera && s.cameras.includes(saved.camera) ? saved.camera : "");
+        setPresenterCam(
+          saved.presenterCamera && s.cameras.includes(saved.presenterCamera)
+            ? saved.presenterCamera
+            : "",
+        );
         setRegion(regionFrom(saved));
       },
     );
@@ -549,6 +564,10 @@ export function RecorderOverlay(): ReactNode {
       setError("Escolha o microfone para gravar a voz.");
       return;
     }
+    if (voiceCam && !cam) {
+      setError("Escolha a câmera para gravar voz e câmera.");
+      return;
+    }
     if (mode === "over" && !over) {
       setError("Abra o gravador pelo editor, numa aula com a faixa Voz.");
       return;
@@ -570,6 +589,10 @@ export function RecorderOverlay(): ReactNode {
     setPhase("countdown");
     phaseRef.current = "countdown";
     try {
+      // The camera previews close with the countdown: the take opens the camera only once they
+      // have let it go (a preview still opening stops its stream as soon as it arrives).
+      await new Promise<void>((done) => requestAnimationFrame(() => done()));
+      await previewsReleased();
       guidedFailed.current = false;
       if (guidedMode && guidedPlan?.audio) {
         const audio = new Audio(mediaUrl(guidedPlan.audio.path));
@@ -596,23 +619,46 @@ export function RecorderOverlay(): ReactNode {
         setFlash(null);
       }
       const narrated = guidedMode && !!guidedPlan?.audio;
-      const systemOn =
-        (mode === "over" ? overSystem : settings.systemAudio) && !narrated && !voiceMode;
+      // The computer's sound leaves this window's own sound out (shared/systemAudio.ts), so the voice
+      // played over the screen, or a guided narration, never comes back in it twice; where
+      // Windows cannot leave it out, the computer's sound is off for such a take.
+      const wanted = (mode === "over" ? overSystem : settings.systemAudio) && !voiceMode;
+      const narrationPlays = mode === "over" || narrated;
+      const plan = systemAudioPlan({
+        wanted,
+        narrationPlays,
+        excludesApp: wanted && narrationPlays ? await SystemAudio.excludesApp() : true,
+      });
+      const systemOn = plan.record;
+      if (plan.warning) {
+        setFlash(plan.warning);
+        setTimeout(() => setFlash(null), 10000);
+      }
       // The mouse helper loads during the countdown.
       const prep = window.api.recorder.prepare(
         voiceMode
           ? {
               fps: settings.fps,
               microphone: mic,
-              mode: "voice",
+              mode: voiceCam ? ("voicecam" as const) : ("voice" as const),
               follow: settings.follow,
+              // "Voz e câmera": the camera in a process of its own, with the same delay measured.
+              ...(voiceCam
+                ? {
+                    camera: presenterCam,
+                    cameraMode: settings.presenterCameraMode ?? camModes?.choice ?? undefined,
+                    cameraLatency: settings.cameraLatency,
+                  }
+                : {}),
             }
           : {
               monitor: monitor?.index,
               regionDip: region,
               microphone: narrated ? undefined : (mode === "over" ? overMic : mic) || undefined,
-              camera: cam || undefined,
-              cameraMode: cam ? (settings.cameraMode ?? camModes?.choice ?? undefined) : undefined,
+              camera: screenCam || undefined,
+              cameraMode: screenCam
+                ? (settings.cameraMode ?? camModes?.choice ?? undefined)
+                : undefined,
               cameraLatency: settings.cameraLatency,
               keys: settings.keys,
               fps: settings.fps,
@@ -641,11 +687,18 @@ export function RecorderOverlay(): ReactNode {
       ]);
       await window.api.recorder.start();
       setMarkers(0);
-      if (!preservationRequested.current && systemOn)
+      if (!preservationRequested.current && systemOn) {
         system.current = await SystemAudio.start(setError).catch((e) => {
           setError(`Áudio do PC indisponível: ${(e as Error).message}`);
           return null;
         });
+        if (system.current && !system.current.excludesApp && !plan.warning) {
+          setFlash(
+            "Neste Windows o áudio do PC pode incluir o som que o gravador toca: separar esse som pede o Windows 10 versão 2004 ou mais novo.",
+          );
+          setTimeout(() => setFlash(null), 8000);
+        }
+      }
       if (preservationRequested.current) {
         phaseRef.current = "saving";
         setPhase("saving");
@@ -684,9 +737,12 @@ export function RecorderOverlay(): ReactNode {
     overMic,
     overSystem,
     cam,
+    screenCam,
+    presenterCam,
     camModes,
     mode,
     voiceMode,
+    voiceCam,
     over,
     guidedMode,
     guidedPlan,
@@ -966,12 +1022,25 @@ export function RecorderOverlay(): ReactNode {
         />
       )}
 
-      {cam && phase === "setup" && !voiceMode && !webPlan && (
+      {cam && camModes && phase === "setup" && !voiceMode && !webPlan && (
         <CameraPreview device={cam} region={region} />
+      )}
+      {cam && camModes && phase === "setup" && voiceCam && <CameraPreview device={cam} presenter />}
+      {!cam && phase === "setup" && voiceCam && (
+        <div className="rec-cam is-presenter is-empty">
+          <Video size={22} />
+          <p className="rec-cam-hint">
+            Escolha a câmera na barra abaixo para ver como o apresentador vai aparecer.
+          </p>
+        </div>
       )}
 
       {voiceMode && settings && (
-        <Interactive className="vp-wrap" active={recording} id="voice-prompter">
+        <Interactive
+          className={`vp-wrap ${voiceCam ? "is-side" : ""}`}
+          active={recording}
+          id="voice-prompter"
+        >
           <VoicePrompter
             lines={lines}
             order={order}
@@ -1052,20 +1121,20 @@ export function RecorderOverlay(): ReactNode {
               value={mode}
               disabled={phase !== "setup" || guidedBusy}
               onChange={(e) => {
-                const next = (["screen", "guided", "voice", "over"] as const).find(
-                  (m) => m === e.target.value,
-                );
+                const next = MODES.find((m) => m === e.target.value);
                 if (!next) return;
                 setMode(next);
-                if (next === "screen" || next === "voice") change({ recordMode: next });
+                if (next === "screen" || next === "voice" || next === "voicecam")
+                  change({ recordMode: next });
               }}
             >
               <option value="screen">Tela</option>
-              <option value="guided">Guiado por plano (roteiro ou áudio)</option>
               <option value="voice">Só voz</option>
+              <option value="voicecam">Voz e câmera</option>
               <option value="over" disabled={!over}>
                 {over ? "Tela sobre a narração" : "Tela sobre a narração (abra pelo editor)"}
               </option>
+              <option value="guided">Guiado por plano (roteiro ou áudio)</option>
             </select>
             {mode === "over" && over && (
               <span className="rec-mode-note">
@@ -1096,6 +1165,7 @@ export function RecorderOverlay(): ReactNode {
                 <Source icon={MonitorUp} label="Tela">
                   <select
                     value={monitor?.index ?? ""}
+                    title={monitor?.label}
                     onChange={(e) => {
                       const m = sources?.monitors.find((x) => x.index === Number(e.target.value));
                       if (m) {
@@ -1115,6 +1185,7 @@ export function RecorderOverlay(): ReactNode {
                 <Source icon={ScanLine} label="Região">
                   <select
                     value=""
+                    title={`Região de ${physical.w} × ${physical.h}`}
                     onChange={(e) => {
                       const full = e.target.value === "full";
                       setRegion(full ? fullWindow() : centered169());
@@ -1128,36 +1199,47 @@ export function RecorderOverlay(): ReactNode {
                     <option value="169">16:9 no centro</option>
                   </select>
                 </Source>
-                <Source
-                  icon={Video}
-                  label="Câmera"
-                  extra={
-                    cam && settings ? (
-                      <CameraModeSelect
-                        modes={camModes}
-                        value={settings.cameraMode}
-                        fps={30}
-                        onChange={(cameraMode) => change({ cameraMode })}
-                      />
-                    ) : null
-                  }
-                >
-                  <select
-                    value={cam}
-                    onChange={(e) => {
-                      setCam(e.target.value);
-                      change({ camera: e.target.value || null, cameraMode: null });
-                    }}
-                  >
-                    <option value="">Desligada</option>
-                    {sources?.cameras.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </Source>
               </>
+            )}
+            {(!voiceMode || voiceCam) && (
+              <Source
+                icon={Video}
+                label="Câmera"
+                extra={
+                  cam && settings ? (
+                    <CameraModeSelect
+                      modes={camModes}
+                      value={camModeSetting}
+                      fps={30}
+                      onChange={(choice) =>
+                        change(voiceCam ? { presenterCameraMode: choice } : { cameraMode: choice })
+                      }
+                    />
+                  ) : null
+                }
+              >
+                <select
+                  value={cam}
+                  title={cam || (voiceCam ? "Escolha a câmera" : "Desligada")}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    if (voiceCam) {
+                      setPresenterCam(next);
+                      change({ presenterCamera: next || null, presenterCameraMode: null });
+                    } else {
+                      setScreenCam(next);
+                      change({ camera: next || null, cameraMode: null });
+                    }
+                  }}
+                >
+                  <option value="">{voiceCam ? "Escolha a câmera" : "Desligada"}</option>
+                  {sources?.cameras.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </Source>
             )}
             <Source
               icon={Mic}
@@ -1176,6 +1258,7 @@ export function RecorderOverlay(): ReactNode {
             >
               <select
                 value={meterMic}
+                title={meterMic || "Sem áudio"}
                 onChange={(e) => {
                   // Over the narration the choice is for this take only: the voice already exists.
                   if (mode === "over") {
@@ -1227,6 +1310,7 @@ export function RecorderOverlay(): ReactNode {
                 <Source icon={Volume2} label="Áudio do PC">
                   <select
                     value={(mode === "over" ? overSystem : settings?.systemAudio) ? "on" : "off"}
+                    title={`${(mode === "over" ? overSystem : settings?.systemAudio) ? "Ligado, numa faixa separada" : "Desligado"}. O som do computador (música, efeitos de um jogo, o navegador), sem a voz que o gravador toca.`}
                     onChange={(e) =>
                       mode === "over"
                         ? setOverSystem(e.target.value === "on")
@@ -1237,14 +1321,14 @@ export function RecorderOverlay(): ReactNode {
                     <option value="on">Ligado (faixa separada)</option>
                   </select>
                 </Source>
-                <Source icon={MousePointer2} label="Cursor">
+                <Source icon={MousePointer2} label="Cursor" info>
                   <span className="rec-static">Gravado à parte</span>
                 </Source>
                 <Source icon={Keyboard} label="Teclas">
                   <select
                     value={settings?.keys ? "on" : "off"}
                     onChange={(e) => change({ keys: e.target.value === "on" })}
-                    title="Mostra atalhos (Ctrl+…) e setas na tela. A digitação comum nunca é gravada."
+                    title={`${settings?.keys ? "Atalhos e setas" : "Desligado"}. Mostra atalhos (Ctrl+…) e setas na tela. A digitação comum nunca é gravada.`}
                   >
                     <option value="off">Desligado</option>
                     <option value="on">Atalhos e setas</option>
@@ -1303,9 +1387,11 @@ export function RecorderOverlay(): ReactNode {
               </span>
             )}
             <span className="rec-note">
-              {voiceMode
-                ? "Só o microfone é gravado, em qualidade de estúdio (PCM 48 kHz)."
-                : "Esta tela, o teleprompter e os controles não aparecem na gravação."}
+              {voiceCam
+                ? "Voz em qualidade de estúdio (PCM 48 kHz) e câmera em faixa própria, já sincronizadas."
+                : voiceMode
+                  ? "Só o microfone é gravado, em qualidade de estúdio (PCM 48 kHz)."
+                  : "Esta tela, o teleprompter e os controles não aparecem na gravação."}
             </span>
           </div>
         </div>
@@ -1382,14 +1468,21 @@ function Source({
   label,
   children,
   extra,
+  info = false,
 }: {
   icon: typeof Mic;
   label: string;
   children: ReactNode;
   extra?: ReactNode;
+  /** Only says how it works (nothing to choose): the first to go on a narrow screen. */
+  info?: boolean;
 }): ReactNode {
   return (
-    <fieldset className="rec-src" aria-label={label} style={{ margin: 0, padding: 0, border: 0 }}>
+    <fieldset
+      className={`rec-src ${info ? "is-info" : ""}`}
+      aria-label={label}
+      style={{ margin: 0, padding: 0, border: 0 }}
+    >
       <span className="rec-src-icon">
         <Icon size={15} />
       </span>
@@ -1479,11 +1572,45 @@ function RegionFrame({
   );
 }
 
-/** Webcam preview in the corner of the region (setup only: the recorder needs the camera free). */
-function CameraPreview({ device, region }: { device: string; region: Rect }): ReactNode {
+/** Camera previews still holding their device: a take opens the camera once they let go. */
+const previewHolds = new Set<Promise<void>>();
+const previewsReleased = (): Promise<void> => Promise.all([...previewHolds]).then(() => undefined);
+
+/**
+ * Webcam preview (setup only: the recorder needs the camera free): in the corner of the region,
+ * or, for "Voz e câmera", large on the left as the presenter will be seen (not mirrored). A
+ * camera that does not open says why and can be tried again.
+ */
+function CameraPreview({
+  device,
+  region,
+  presenter = false,
+}: {
+  device: string;
+  region?: Rect;
+  presenter?: boolean;
+}): ReactNode {
   const ref = useRef<HTMLVideoElement>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
+    // `attempt` opens the camera again after a failure.
+    void attempt;
+    let cancelled = false;
+    let pending = true;
     let stream: MediaStream | null = null;
+    let release = (): void => undefined;
+    const hold = new Promise<void>((done) => {
+      release = done;
+    });
+    previewHolds.add(hold);
+    const letGo = (): void => {
+      for (const t of stream?.getTracks() ?? []) t.stop();
+      stream = null;
+      previewHolds.delete(hold);
+      release();
+    };
+    setFailure(null);
     void (async () => {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const match = devices.find(
@@ -1491,16 +1618,46 @@ function CameraPreview({ device, region }: { device: string; region: Rect }): Re
           d.kind === "videoinput" &&
           (d.label === device || d.label.includes(device) || device.includes(d.label)),
       );
-      stream = await navigator.mediaDevices.getUserMedia({
+      const opened = await navigator.mediaDevices.getUserMedia({
         video: match ? { deviceId: { exact: match.deviceId } } : true,
       });
-      if (ref.current) ref.current.srcObject = stream;
-    })().catch(() => undefined);
-    return () =>
-      stream?.getTracks().forEach((t) => {
-        t.stop();
-      });
-  }, [device]);
+      pending = false;
+      stream = opened;
+      // Closed while it was opening: the stream that arrived late is stopped at once.
+      if (cancelled) {
+        letGo();
+        return;
+      }
+      if (ref.current) ref.current.srcObject = opened;
+    })().catch((error: unknown) => {
+      pending = false;
+      letGo();
+      if (!cancelled)
+        setFailure(error instanceof Error ? `${error.name}: ${error.message}` : String(error));
+    });
+    return () => {
+      cancelled = true;
+      if (!pending) letGo();
+    };
+  }, [device, attempt]);
+  const problem = failure && (
+    <div className="rec-cam-problem">
+      <p>A prévia da câmera não abriu ({failure}).</p>
+      <button type="button" onClick={() => setAttempt((n) => n + 1)}>
+        Tentar de novo
+      </button>
+    </div>
+  );
+  if (presenter || !region)
+    return (
+      <div className="rec-cam is-presenter">
+        <video ref={ref} autoPlay muted playsInline />
+        {problem}
+        <span>
+          <Video size={11} /> Câmera · vídeo do apresentador
+        </span>
+      </div>
+    );
   const size = Math.min(220, region.height * 0.32);
   return (
     <div
@@ -1513,6 +1670,7 @@ function CameraPreview({ device, region }: { device: string; region: Rect }): Re
       }}
     >
       <video ref={ref} autoPlay muted playsInline />
+      {problem}
       <span>
         <Video size={11} /> Câmera · faixa separada
       </span>

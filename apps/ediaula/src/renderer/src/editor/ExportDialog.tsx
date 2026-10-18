@@ -5,6 +5,7 @@ import {
   type ExportPresetId,
   qualityOf,
 } from "@shared/exportPresets";
+import { withoutMissingCursors } from "@shared/preflight";
 import { newId, projectDuration } from "@shared/timeline";
 import type { ExportSpec } from "@shared/types";
 import {
@@ -121,9 +122,17 @@ export function ExportDialog(): ReactNode {
     portrait ? [even(side), even(side / ratio)] : [even(side * ratio), even(side)];
   const [width, height] = frameOf(short);
   const sizeEstimate = (((isAudio ? 0 : bitrate) + 192) * 1000 * total) / 8;
-  // Same list the export refuses (state/exportQueue.ts): missing files and missing cursor data.
+  // Recordings whose cursor data went missing export only after "Exportar sem o cursor".
+  const [withoutCursor, setWithoutCursor] = useState(false);
+  const noCursor = project.assets.filter(
+    (a) => !a.missing && a.cursorMissing && project.clips.some((c) => c.assetId === a.id),
+  );
+  // Same list the export refuses (state/exportQueue.ts): missing files and missing cursor data
+  // not let go of.
   const missing = project.assets.filter(
-    (a) => (a.missing || a.cursorMissing) && project.clips.some((c) => c.assetId === a.id),
+    (a) =>
+      (a.missing || (a.cursorMissing && !withoutCursor)) &&
+      project.clips.some((c) => c.assetId === a.id),
   );
   const toFind = missing.filter(needsRelink).length;
 
@@ -204,7 +213,7 @@ export function ExportDialog(): ReactNode {
           };
     exportQueue.add({
       id: newId("export"),
-      project,
+      project: withoutCursor ? withoutMissingCursors(project) : project,
       spec,
       captions,
       extras: {
@@ -292,8 +301,9 @@ export function ExportDialog(): ReactNode {
             {!isAudio && <span className="section-label">VÍDEO</span>}
             {!isAudio && !relayout && (
               <div className="grid-2">
-                <Field label="Resolução">
+                <Field label="Resolução" htmlFor="export-resolution">
                   <select
+                    id="export-resolution"
                     className="select"
                     value={short}
                     onChange={(e) => setShort(Number(e.target.value))}
@@ -449,11 +459,26 @@ export function ExportDialog(): ReactNode {
               {checkError ? (
                 <p className="muted">{checkError}</p>
               ) : check ? (
-                <PreflightList check={check} normalize={() => setNormalize(true)} />
+                <PreflightList
+                  check={check}
+                  normalize={() => setNormalize(true)}
+                  withoutCursor={() => setWithoutCursor(true)}
+                />
               ) : (
                 <p className="muted">Conferindo a aula…</p>
               )}
             </div>
+            {withoutCursor && noCursor.length > 0 && (
+              <div className="export-warning">
+                <p>
+                  Exportando sem o cursor de {noCursor.map((a) => a.name).join(", ")}: o ponteiro
+                  não vai aparecer nesses trechos.
+                </p>
+                <Button size="sm" onClick={() => setWithoutCursor(false)}>
+                  Manter o cursor
+                </Button>
+              </div>
+            )}
             {missing.length > 0 && (
               <div className="export-warning">
                 <p>

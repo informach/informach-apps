@@ -291,7 +291,7 @@ export function buildVideoWindowPlan(
     const path = cutOut ?? asset.path;
     const facts = media(path);
     const alpha = keyed || (facts?.alpha ?? asset.alpha ?? false);
-    // A WebM with alpha that was not probed is VP9 (what HeyGen and the app write).
+    // A WebM with alpha that was not probed is VP9 (what avatar tools and the app write).
     const codec = facts?.codec ?? (/\.webm$/i.test(path) ? "vp9" : undefined);
     // FFmpeg's own VP8/VP9 decoders drop the alpha plane; libvpx keeps it.
     const decoder =

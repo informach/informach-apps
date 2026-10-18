@@ -236,7 +236,9 @@ function AssetCard({
           <Trash2 size={12} />
         </button>
       </div>
-      <span className="media-name">{asset.name}</span>
+      <span className="media-name" title={asset.name}>
+        {asset.name}
+      </span>
     </fieldset>
   );
 }

@@ -1,5 +1,5 @@
 /**
- * Chroma key ("remover fundo") for avatars rendered on a solid blue or green screen (HeyGen).
+ * Chroma key ("remover fundo") for avatars rendered on a solid blue or green screen.
  *
  * A color-difference keyer: a pixel's "key strength" is how much its dominant channel (blue or
  * green) exceeds the channel that is weakest in the screen color (red), relative to the screen's

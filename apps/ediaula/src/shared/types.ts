@@ -178,7 +178,7 @@ export interface VoiceMasterSegment {
 }
 
 export interface VoiceMasterPiece {
-  /** The WAV written for HeyGen. */
+  /** The WAV written for the presenter's video. */
   file: string;
   /** What it covers: the lesson, a section or an avatar insert (F1P1-D01). */
   label: string;
@@ -188,7 +188,7 @@ export interface VoiceMasterPiece {
   sourceMap: VoiceMasterSegment[];
 }
 
-/** What the voice sent to HeyGen was: the MP4s that come back are placed by it. */
+/** What the exported voice was: the MP4s that come back are placed by it. */
 export interface VoiceMaster {
   id: string;
   /** shared/voiceMaster.ts voiceHash of the voice track when it was exported. */
@@ -330,9 +330,9 @@ export interface Clip {
   zoomLayer?: ZoomLayer;
   /** Script insert this clip plays (F1P1-D01), when it was placed from the script. */
   insertId?: string;
-  /** Silent while HeyGen's own sound of the avatar plays over it ("Usar o som do HeyGen"):
-   *  the clip is still the lesson's voice, with its volume. */
-  mutedFor?: "heygen";
+  /** Silent while the presenter's video plays its own sound over it ("Usar o som do vídeo
+   *  importado"): the clip is still the lesson's voice, with its volume. */
+  mutedFor?: "presenter";
 }
 
 export interface ProjectSettings {
@@ -373,9 +373,11 @@ export interface Project {
   stats?: { editSeconds: number };
   /** AI proposals waiting for the person, anchored in the media (shared/anchors.ts). */
   proposals?: StoredProposal[];
-  /** The voices exported for HeyGen (Arquivo › Exportar voz para o HeyGen), oldest first and at
+  /** The voices exported for the presenter's video (Arquivo › Exportar a voz), oldest first and at
    *  most VOICE_MASTER_LIMIT: an MP4 that comes back is matched against all of them. */
   voiceMasters?: VoiceMaster[];
+  /** How the voice is exported: no piece longer than `pieceMinutes` (1 to 60, default 5). */
+  voiceExport?: { pieceMinutes?: number };
   /** How the music steps aside for the voice; absent values use the defaults (shared/audio.ts). */
   audio?: { ducking?: Partial<Ducking> };
   /** "Preparar aula": the step waiting and what was decided in each (shared/prepare.ts). */
@@ -886,17 +888,17 @@ export interface EdiAulaApi {
   }>;
   /** The voice segments of [start, end] as one WAV in the cache. */
   renderVoice(jobId: string, segments: VoiceSegment[], start: number, end: number): Promise<string>;
-  /** Writes the voice pieces in "Para o HeyGen" beside the project; returns the voice master. */
-  exportHeygenVoice(
+  /** Writes the voice pieces in "Voz exportada" beside the project; returns the voice master. */
+  exportVoicePieces(
     jobId: string,
     projectPath: string,
     projectJson: string,
     scope: VoiceMaster["scope"],
     pieces: { label: string; start: number; end: number }[],
   ): Promise<VoiceMaster>;
-  pickHeygenVideos(): Promise<string[]>;
-  /** The exported voice files a HeyGen video may come from, best first, and its length. */
-  locateHeygen(
+  pickPresenterVideos(): Promise<string[]>;
+  /** The exported voice files a presenter video may come from, best first, and its length. */
+  locatePresenter(
     jobId: string,
     video: string,
     masters: string[],
@@ -944,10 +946,13 @@ export interface EdiAulaApi {
     key: ChromaKey,
   ): Promise<string>;
   exists(paths: string[]): Promise<boolean[]>;
+  /** `fileName`: the file's name when the visible name has characters a file name cannot
+   *  ("Gravação 18/10 07:06" is saved as "Gravação 18-10 07-06"). */
   createProject(
     name: string,
     course: string | undefined,
     settings: ProjectSettings,
+    fileName?: string,
   ): Promise<{ path: string; project: Project }>;
   /** The project as JSON text (JSON.stringify in the page, so only a string crosses to the
    *  preload and to the main process): a single IPC value however long the lesson is. */

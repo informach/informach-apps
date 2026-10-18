@@ -159,7 +159,7 @@ export function PreparePanel(): ReactNode {
                 ) : (
                   note && <p className="muted prepare-note">{note}</p>
                 )}
-                {step === "check" && check && s === "done" && (
+                {step === "check" && check && s === "done" && check.findings.length > 0 && (
                   <PreflightList check={check} onFixed={() => void recheckPrepare()} />
                 )}
               </div>

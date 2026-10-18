@@ -33,7 +33,7 @@ const stem = (path: string): string => fileOf(path).replace(/\.[^.]+$/, "");
  * is heard on the timeline and has no transcript, except
  * - media whose clips are all silent (volume 0, a muted track or under the presenter's own sound:
  *   a camera duplicating the microphone, an avatar video played without its sound);
- * - the voice extracted from a video ("<video>-voz.wav", made when a HeyGen MP4 is imported)
+ * - the voice extracted from a video ("<video>-voz.wav", made when a presenter's video is imported)
  *   and that video: the same speech is transcribed once, from the extracted voice, and not at
  *   all when either one already has a transcript.
  * `busy` holds the assets being transcribed right now.

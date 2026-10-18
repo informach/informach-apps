@@ -50,8 +50,9 @@ export async function createProject(
   name: string,
   course: string | undefined,
   settings: ProjectSettings,
+  fileName?: string,
 ): Promise<{ path: string; project: Project }> {
-  const path = freePath(projectsDir(), safeName(name));
+  const path = freePath(projectsDir(), safeName(fileName ?? name));
   const now = Date.now();
   const project: Project = {
     version: 1,

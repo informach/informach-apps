@@ -114,7 +114,7 @@ export function goToFinding(f: Finding): void {
 export async function runFix(
   f: Finding,
   check: LessonCheck,
-  opts: { normalize?: () => void } = {},
+  opts: { normalize?: () => void; withoutCursor?: () => void } = {},
 ): Promise<boolean> {
   const fix = f.fix;
   if (!fix) return false;
@@ -161,6 +161,9 @@ export async function runFix(
       case "caption-size":
         setCaptions({ size: fix.size });
         return true;
+      case "without-cursor":
+        opts.withoutCursor?.();
+        return !!opts.withoutCursor;
       case "solo-off":
         useApp.getState().set({ solo: [] });
         return true;

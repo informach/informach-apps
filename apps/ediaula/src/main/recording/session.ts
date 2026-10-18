@@ -15,15 +15,16 @@ import {
   fallbackChain,
 } from "../../shared/encoderChoice.ts";
 import type { HookEvent } from "../../shared/helperProtocol.ts";
-import type {
-  CaptureMonitor,
-  CaptureSource,
-  MarkerKind,
-  RecorderEvent,
-  RecorderPhase,
-  RecorderStatus,
-  RecordingResult,
-  RecordOptions,
+import {
+  type CaptureMonitor,
+  type CaptureSource,
+  isVoiceMode,
+  type MarkerKind,
+  type RecorderEvent,
+  type RecorderPhase,
+  type RecorderStatus,
+  type RecordingResult,
+  type RecordOptions,
 } from "../../shared/recording.ts";
 import type { RecorderHealth } from "../../shared/recordingHealth.ts";
 import type { MediaSource } from "../../shared/recordingJournal.ts";
@@ -188,6 +189,11 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
     };
   }
 
+  /** "Voz e câmera": the camera is the presenter, as needed as the microphone. */
+  private get cameraRequired(): boolean {
+    return this.opts.mode === "voicecam" && !!this.opts.camera;
+  }
+
   get isPreserved(): boolean {
     return this.preserved;
   }
@@ -217,11 +223,16 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
         this.opts.microphone ? this.openMic() : Promise.resolve(null),
         this.opts.camera ? this.openCamera() : Promise.resolve(null),
       ]);
-      const failure = [screen, mic].find((r) => r.status === "rejected");
+      // In "Voz e câmera" the camera is the presenter: a take without it is refused, like one
+      // without its microphone.
+      const required = this.cameraRequired ? [screen, mic, camera] : [screen, mic];
+      const failure = required.find((r) => r.status === "rejected");
       if (failure?.status === "rejected") {
         this.hook?.send({ cmd: "pause" });
         await this.closeAll(true);
-        throw failure.reason;
+        throw failure === camera
+          ? new Error(`A câmera não abriu: ${errorText(failure.reason)}`, { cause: failure.reason })
+          : failure.reason;
       }
       if (camera.status === "rejected") this.cameraFailed(errorText(camera.reason), true);
       const reference = this.procs.screen ?? this.procs.mic;
@@ -250,10 +261,13 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
       if (this.preserved) throw new Error("Gravação preservada: não dá para retomar.");
       if (this.phase !== "paused" && this.phase !== "failed") return;
       const down = (src: MediaSource): boolean => !this.procs[src]?.running;
-      const open: ("screen" | "mic")[] = [];
+      const open: ("screen" | "mic" | "camera")[] = [];
       if (this.monitor && down("screen")) open.push("screen");
       if (this.opts.microphone && down("mic")) open.push("mic");
+      // The presenter's camera reopens with the others, and resuming waits for it.
+      if (this.cameraRequired && down("camera")) open.push("camera");
       const camera =
+        !this.cameraRequired &&
         !!this.opts.camera &&
         this.cameraState === "ok" &&
         down("camera") &&
@@ -263,7 +277,13 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
         this.reopening = true;
         this.emitStatus();
         const results = await Promise.allSettled(
-          open.map((src) => (src === "screen" ? this.openScreen(false) : this.openMic())),
+          open.map((src) =>
+            src === "screen"
+              ? this.openScreen(false)
+              : src === "mic"
+                ? this.openMic()
+                : this.openCamera(),
+          ),
         );
         const opened = results.flatMap((r) =>
           r.status === "fulfilled" && r.value ? [r.value] : [],
@@ -271,6 +291,7 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
         for (const proc of opened) {
           this.failed.delete(proc.source);
           this.closed.delete(proc.source);
+          if (proc.source === "camera") this.cameraState = "ok";
         }
         const failure = results.find((r) => r.status === "rejected");
         if (failure?.status === "rejected") {
@@ -512,7 +533,7 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
 
   private nextFile(src: MediaSource): { part: number; file: string } {
     const part = this.parts[src]++;
-    const [name, ext] = src === "mic" && this.opts.mode === "voice" ? VOICE_FILE : FILE[src];
+    const [name, ext] = src === "mic" && isVoiceMode(this.opts.mode) ? VOICE_FILE : FILE[src];
     return { part, file: `${name}-${part}.${ext}` };
   }
 
@@ -623,7 +644,7 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
   private async openMic(): Promise<CaptureProcess> {
     const device = this.opts.microphone;
     if (!device) throw new Error("Nenhum microfone escolhido.");
-    const voice = this.opts.mode === "voice";
+    const voice = isVoiceMode(this.opts.mode);
     const follow = voice && !!this.opts.follow;
     const proc = this.spawn(
       "mic",
@@ -704,10 +725,11 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
     delete this.procs[proc.source];
     this.suspect.add(proc.file);
     const at = qpc();
-    if (proc.source === "camera") {
+    if (proc.source === "camera" && !this.cameraRequired) {
       this.cameraFailed(info.message, true);
       return;
     }
+    if (proc.source === "camera") this.cameraState = "failed";
     this.journal.write({
       k: "fail",
       src: proc.source,
@@ -789,7 +811,8 @@ export class RecordingSession extends EventEmitter<SessionMessages> {
         const out: string[] = [];
         if (this.journal.error) out.push("O diário da gravação não está sendo gravado.");
         if (this.cursorState === "lost") out.push("Sem cursor: o vídeo continua gravando.");
-        if (this.cameraState === "failed") out.push("A câmera parou; a gravação segue sem ela.");
+        if (this.cameraState === "failed" && !this.cameraRequired)
+          out.push("A câmera parou; a gravação segue sem ela.");
         if (
           this.opts.systemAudio &&
           this.phase === "recording" &&

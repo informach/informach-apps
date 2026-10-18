@@ -589,7 +589,9 @@ test("the computer's sound, a muted copy and a presenter are not cleaned as the 
   // A voice clip silenced under the presenter's own sound is not heard (the value of today and
   // whatever it is renamed to).
   const under = lesson();
-  under.clips = under.clips.map((c) => (c.id === "ca" ? { ...c, mutedFor: "heygen" as const } : c));
+  under.clips = under.clips.map((c) =>
+    c.id === "ca" ? { ...c, mutedFor: "presenter" as const } : c,
+  );
   assert.ok(
     timelineWords(under, transcripts)
       .filter((w) => w.source === "voz")

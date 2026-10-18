@@ -1,3 +1,4 @@
+import { explainSaveError, saveErrorDetail } from "@shared/saveError";
 import { AlertTriangle, Loader } from "lucide-react";
 import type { ReactNode } from "react";
 import {
@@ -55,14 +56,15 @@ export function SaveFailedDialog(): ReactNode {
         <AlertTriangle size={20} className="warn-icon" />
         <div className="spacer">
           <h2 className="modal-title">Não foi possível salvar o projeto</h2>
-          <p className="muted">
-            Se sair agora, as alterações desde o último salvamento se perdem. Tente de novo ou salve
-            uma cópia em outro lugar.
-          </p>
+          <p>{explainSaveError(error)}</p>
+          <p className="muted">Se sair agora, as alterações desde o último salvamento se perdem.</p>
         </div>
       </div>
       <div className="modal-body">
-        <pre className="error-box">{error}</pre>
+        <details className="error-details">
+          <summary>Ver detalhes</summary>
+          <pre className="error-box">{saveErrorDetail(error)}</pre>
+        </details>
       </div>
       <div className="export-foot">
         <Button variant="ghost" disabled={busy} onClick={() => choose("discard")}>

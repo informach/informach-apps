@@ -11,6 +11,7 @@ import {
   PREPARE_STEPS,
   prepareAuthor,
   prepareFinished,
+  presenterInLesson,
   reopen,
   resolveReview,
   resumeStep,
@@ -19,6 +20,7 @@ import {
   voiceAlreadyCleaned,
   voiceLinkedMedia,
 } from "../src/shared/prepare.ts";
+import { normalizeProject } from "../src/shared/project-normalize.ts";
 import { projectSchema } from "../src/shared/project-schema.ts";
 import type { Asset, Clip, Project, Track } from "../src/shared/types.ts";
 
@@ -69,6 +71,16 @@ test("only the waiting step can be decided, and each decision moves on to the ne
   assert.ok(prepareFinished(state));
   assert.equal(nextStep(state), null);
   assert.equal(resumeStep(state), null);
+});
+
+test('a lesson saved with mutedFor "heygen" opens with "presenter"', () => {
+  const stored = JSON.parse(
+    JSON.stringify(project({ clips: [clip("c", "voz", "a1", { mutedFor: "presenter" })] })),
+  );
+  stored.clips[0].mutedFor = "heygen";
+  const opened = normalizeProject(projectSchema.parse(stored));
+  assert.equal(opened.clips[0].mutedFor, "presenter");
+  assert.ok(voiceAlreadyCleaned(opened));
 });
 
 test("the state is kept in the project and the pipeline goes on where it stopped", () => {
@@ -175,7 +187,7 @@ test("the cuts are skipped when the voice was cleaned before making the presente
   assert.deepEqual([...voiceLinkedMedia(flow)].sort(), ["apresentador", "voz"]);
   assert.match(
     skipReason(flow, "cuts") ?? "",
-    /já foi limpa antes de gerar o vídeo do apresentador, e o vídeo foi encaixado por ela/,
+    /foi exportada e limpa antes de gerar o vídeo do apresentador, e o vídeo foi encaixado por ela/,
   );
   // Sent but not back yet: the voice stays as it was sent.
   const waiting = voiceFlow({ clips: [clip("vz", "voz", "a1")] });
@@ -184,7 +196,7 @@ test("the cuts are skipped when the voice was cleaned before making the presente
   assert.ok(!voiceAlreadyCleaned(voiceFlow({ clips: [] })));
   // The older marker of the presenter's own sound, and a voice recorded alone, say the same.
   assert.ok(
-    voiceAlreadyCleaned(project({ clips: [clip("c", "voz", "a1", { mutedFor: "heygen" })] })),
+    voiceAlreadyCleaned(project({ clips: [clip("c", "voz", "a1", { mutedFor: "presenter" })] })),
   );
   const alone = media("so-voz", { voiceTakes: [] });
   assert.ok(voiceAlreadyCleaned(project({ assets: [alone], clips: [clip("c", "so-voz", "a1")] })));
@@ -232,7 +244,7 @@ test("a lesson with the presenter's video and a live microphone still has its cu
     tracks: mixed.tracks.map((t) => (t.id === "a2" ? { ...t, muted: true } : t)),
   };
   assert.deepEqual([...liveVoices(muted)], []);
-  assert.match(skipReason(muted, "cuts") ?? "", /já foi limpa/);
+  assert.match(skipReason(muted, "cuts") ?? "", /foi exportada e limpa/);
 });
 
 test("what a step made is resolved for that step only, also after a Refazer", () => {
@@ -276,4 +288,51 @@ test("the course template applied from its offer marks the steps it covered", ()
   // A step already decided keeps its own note.
   const kept = markDone(decide(startPrepare(), "transcribe", "done", "ok"), ["transcribe"], "x");
   assert.equal(kept.notes?.transcribe, "ok");
+});
+
+test('"Voz e câmera": the voice and the camera were recorded together, so the cuts run', () => {
+  const take = { id: "2026-10-18 10-00-00-vc" };
+  const voice = media("voz", {
+    voiceTakes: [{ line: 0, start: 0, end: 5 }],
+    recording: { ...take, role: "mic" },
+  });
+  const camera = media("camera", {
+    kind: "video",
+    hasVideo: true,
+    hasAudio: false,
+    width: 1280,
+    height: 720,
+    origin: "presenter",
+    recording: { ...take, role: "camera" },
+  });
+  const tracks = [track("v", { kind: "video", name: "Apresentador" }), track("a", { name: "Voz" })];
+  const filmed = project({
+    assets: [voice, camera],
+    tracks,
+    clips: [clip("c1", "camera", "v", { volume: 0 }), clip("c2", "voz", "a")],
+  });
+  assert.equal(skipReason(filmed, "cuts"), null);
+  assert.ok(!presenterInLesson(filmed));
+  // Only once that voice was exported to make a presenter's video does the voice flow keep it.
+  const exported = {
+    ...filmed,
+    voiceMasters: [
+      {
+        id: "vm",
+        hash: "h",
+        createdAt: 0,
+        scope: "lesson" as const,
+        pieces: [
+          {
+            file: "C:/aulas/Voz exportada/a.wav",
+            label: "aula inteira",
+            start: 0,
+            end: 30,
+            sourceMap: [{ at: 0, duration: 30, start: 0, assetId: "voz", in: 0 }],
+          },
+        ],
+      },
+    ],
+  };
+  assert.notEqual(skipReason(exported, "cuts"), null);
 });

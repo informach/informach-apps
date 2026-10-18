@@ -1,5 +1,5 @@
 import { timelineWords } from "@shared/cleanup";
-import { squareCrop, type Transform } from "@shared/compose";
+import { cameraPresenterTransform, squareCrop, type Transform } from "@shared/compose";
 import { type GuidedRun, normalizeGuidedRun } from "@shared/guidedCursor";
 import { applyResumeJoin, type ResumeJoin, resumeJoin } from "@shared/guidedJoin";
 import {
@@ -11,7 +11,9 @@ import {
   planTiming,
 } from "@shared/guidedPlan";
 import { layoutOverNarration } from "@shared/overNarration";
+import { plural } from "@shared/plural";
 import {
+  isVoiceMode,
   type OverContext,
   type RecorderContext,
   type RecordingResult,
@@ -356,10 +358,13 @@ export async function importRecording(r: RecordingResult): Promise<void> {
     }
   }
   if (!useProject.getState().project) {
+    // "Gravação 18/10 07:06" on screen; the file cannot have the slash or the colon.
+    const name = `Gravação ${stamp()}`;
     const { path, project } = await window.api.createProject(
-      `Gravação ${stamp()}`.replace(/[/:]/g, "-"),
+      name,
       undefined,
       { width: 1920, height: 1080, fps: 30 },
+      name.replace(/[/:]/g, "-"),
     );
     useProject.getState().load(path, project);
   }
@@ -399,9 +404,17 @@ export async function importRecording(r: RecordingResult): Promise<void> {
       name: screens.length > 1 ? `Tela ${when} · parte ${i + 1}` : `Tela ${when}`,
     });
   });
+  // "Voz e câmera": the camera is the presenter.
+  const presenter = r.mode === "voicecam";
   for (const path of cameraFiles) {
     const asset = byPath(path);
-    if (asset) patchAsset(asset.id, { name: `Câmera ${when}` });
+    if (asset)
+      patchAsset(asset.id, {
+        name: `${presenter ? "Apresentador" : "Câmera"} ${when}`,
+        // The presenter, filmed with the voice: never cleaned of hesitations as a voice of its
+        // own, and recognized as the presenter by the cleanup and "Preparar aula".
+        ...(presenter ? { origin: "presenter" as const } : {}),
+      });
   }
   const mic = byPath(r.microphone);
   for (const path of micFiles) {
@@ -414,8 +427,9 @@ export async function importRecording(r: RecordingResult): Promise<void> {
     if (asset) patchAsset(asset.id, { name: `Áudio do PC ${when}` });
   }
 
-  // A "Só voz" take: each take of each script line, and the voice treated from the start.
-  const voice = r.mode === "voice" && mic ? mic : undefined;
+  // A "Só voz" or "Voz e câmera" take: each take of each script line, and the voice treated from
+  // the start (the camera plays muted: the treated voice is what is heard with it).
+  const voice = isVoiceMode(r.mode) && mic ? mic : undefined;
   if (voice) patchAsset(voice.id, { voiceTakes: voiceTakes(r) });
   // A guided take: its plan and run in the project, and joined to the take it carries on.
   const run = r.guidedRun ? await guidedRunOf(r.guidedRun).catch(() => null) : null;
@@ -436,7 +450,7 @@ export async function importRecording(r: RecordingResult): Promise<void> {
             current,
             r,
             join?.clear ? join.at : (voiceTakeStart(p, r) ?? r.over?.from),
-            { cameraTransform },
+            { cameraTransform, presenterTransform: (a) => cameraPresenterTransform(a, p.settings) },
           );
     return {
       ...p,
@@ -469,7 +483,7 @@ export async function importRecording(r: RecordingResult): Promise<void> {
   const markers = r.markers.filter((m) => m.kind === "marker").length;
   const camera = layout.placed.some((c) => roleIds("camera").includes(c.assetId));
   toast(
-    `Gravação de ${Math.round(layout.duration)} s adicionada${camera ? " com a câmera" : ""}${markers ? ` · ${markers} marcador(es)` : ""}.`,
+    `Gravação de ${Math.round(layout.duration)} s adicionada${camera ? (presenter ? " com o vídeo do apresentador" : " com a câmera") : ""}${markers ? ` · ${plural(markers, "marcador", "marcadores")}` : ""}.`,
     "success",
   );
   const notes = [...(r.warnings ?? []), ...(r.encoderIssues ?? [])];

@@ -1,4 +1,5 @@
 import { type CursorFx, DEFAULT_CURSOR_FX, editedCursorAt } from "@shared/cursor";
+import { plural } from "@shared/plural";
 import { clipEnd, sourceAt, sourceEnd, timelineAt } from "@shared/timeline";
 import type { Asset, Clip } from "@shared/types";
 import { autoZooms, DEFAULT_AUTO_ZOOM, editZoomsIn, type Zoom, zoomsIn } from "@shared/zoom";
@@ -210,7 +211,7 @@ export function ZoomSection({ clip, asset }: { clip: Clip; asset: Asset }): Reac
               const n = await applyAutoZoom(clip, asset, scale);
               toast(
                 n
-                  ? `${n} zoom(s) automático(s) nos cliques.`
+                  ? `${plural(n, "zoom automático", "zooms automáticos")} nos cliques.`
                   : "Nenhum clique neste trecho da gravação.",
                 n ? "success" : "info",
               );
@@ -241,7 +242,7 @@ export function ZoomSection({ clip, asset }: { clip: Clip; asset: Asset }): Reac
               >
                 <Crosshair size={12} />
                 <span className="mono">
-                  {clock(Math.max(clip.start, toTimeline(z.start)))}–
+                  {clock(Math.max(clip.start, toTimeline(z.start)))} a{" "}
                   {clock(Math.min(clipEnd(clip), toTimeline(z.end)))}
                 </span>
                 <span className="muted">
