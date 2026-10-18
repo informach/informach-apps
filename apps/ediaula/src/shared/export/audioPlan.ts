@@ -1,4 +1,5 @@
-import { duckExpr, duckingOf, ducks, speechSpans } from "../audio.ts";
+import { duckExpr, duckingOf, ducks, speechSpans, spotlightSpans } from "../audio.ts";
+import { gainExpr } from "../gain.ts";
 import { adjacency, clipEnd, clipSpeed, projectDuration, sourceEnd } from "../timeline.ts";
 import { isCutFx } from "../transitions.ts";
 import type { Asset, Clip, ExportSpec, Project } from "../types.ts";
@@ -59,6 +60,10 @@ export interface AudioOptions {
   /** Filters applied to the whole mix (the one-pass loudnorm of a single command). */
   master?: string;
   firstInput?: number;
+  /** Also the voice and the music on their own (Exportar › stems), as outputs of the graph. */
+  stems?: boolean;
+  /** Filters after each stem (the stretch exported and the mix's fixed loudness gain). */
+  stemsFilter?: string;
 }
 
 export interface AudioPlan {
@@ -69,6 +74,8 @@ export interface AudioPlan {
   duration: number;
   samples: number;
   media: string[];
+  /** The voice and the music on their own, when `stems` was asked (labels of the graph). */
+  stems?: { voice: string; music: string };
 }
 
 /** One audible clip: where it sounds on the timeline and how. */
@@ -199,6 +206,9 @@ export function buildAudioPlan(
   const format = `aformat=sample_fmts=fltp:sample_rates=${RATE}:channel_layouts=stereo`;
 
   const laneLabels: { trackId: string; label: string }[] = [];
+  const levels = duckingOf(project);
+  const highlighted = spotlightSpans(project, levels.ramp, levels.hold);
+  const spotlit = highlighted.length ? duckExpr(highlighted, levels.depth, levels.ramp) : "";
   for (const [li, lane] of lanes.entries()) {
     // Runs of pieces of one file that go forward in it share an input.
     const runs: Sound[][] = [];
@@ -249,9 +259,14 @@ export function buildAudioPlan(
       const fadeIn = Math.min(count, at(s.fadeIn));
       const fadeOut = Math.min(count - fadeIn, at(s.fadeOut));
       const out = `c${label++}`;
+      // The volume envelope, on the clip's own seconds (the piece starts `local` into the clip).
+      const local = begin / RATE - s.clip.start;
+      const envelope = s.clip.gain?.length
+        ? `volume='${gainExpr(s.clip.gain, `(t+${us(local)})`)}':eval=frame,`
+        : "";
       graph.push(
         `[${piece.label}]atrim=start=${us(s.in + skip - piece.seek)}:end=${us(s.out - piece.seek)},asetpts=PTS-STARTPTS,` +
-          `${s.denoise ? `${DENOISE},` : ""}${atempo(speed)}volume=${n(s.clip.volume * gain)},` +
+          `${s.denoise ? `${DENOISE},` : ""}${atempo(speed)}volume=${n(s.clip.volume * gain)},${envelope}` +
           `apad=whole_len=${count},atrim=end_sample=${count}` +
           `${fadeIn > 0 ? `,afade=t=in:ss=0:ns=${fadeIn}` : ""}` +
           `${fadeOut > 0 ? `,afade=t=out:ss=${count - fadeOut}:ns=${fadeOut}` : ""},${format}[${out}]`,
@@ -261,10 +276,13 @@ export function buildAudioPlan(
     }
     if (!parts.length) continue;
     const name = `lane${li}`;
+    // "Destacar faixa": the other tracks step aside while a highlighted one sounds.
+    const aside =
+      spotlit && !tracks.get(lane.trackId)?.spotlight ? `,volume='${spotlit}':eval=frame` : "";
     graph.push(
       parts.length === 1
-        ? `[${parts[0]}]anull[${name}]`
-        : `${parts.map((p) => `[${p}]`).join("")}concat=n=${parts.length}:v=0:a=1[${name}]`,
+        ? `[${parts[0]}]anull${aside}[${name}]`
+        : `${parts.map((p) => `[${p}]`).join("")}concat=n=${parts.length}:v=0:a=1${aside}[${name}]`,
     );
     laneLabels.push({ trackId: lane.trackId, label: name });
   }
@@ -310,6 +328,34 @@ export function buildAudioPlan(
     mixOf(flat, "flat");
     groups.push("flat");
   }
+  // Stems: the voice and the music (ducked as in the mix) also on their own.
+  let stems: AudioPlan["stems"];
+  if (options.stems) {
+    const whole = `apad=whole_len=${samples},atrim=end_sample=${samples}${options.stemsFilter ? `,${options.stemsFilter}` : ""}`;
+    const silence = `anullsrc=r=${RATE}:cl=stereo,${whole}`;
+    const tap = (name: string, out: string): void => {
+      const i = groups.indexOf(name);
+      graph.push(`[${name}]asplit=2[${name}_m][${name}_s]`);
+      groups[i] = `${name}_m`;
+      graph.push(`[${name}_s]${whole}[${out}]`);
+    };
+    if (groups.includes("voice")) tap("voice", "svoice");
+    else graph.push(`${silence}[svoice]`);
+    const music = groups.filter((g) => g === "ducked" || g === "flat");
+    if (music.length) {
+      for (const g of music) {
+        const i = groups.indexOf(g);
+        graph.push(`[${g}]asplit=2[${g}_m][${g}_s]`);
+        groups[i] = `${g}_m`;
+      }
+      graph.push(
+        music.length === 1
+          ? `[${music[0]}_s]${whole}[smusic]`
+          : `${music.map((g) => `[${g}_s]`).join("")}amix=inputs=${music.length}:normalize=0:duration=longest,${whole}[smusic]`,
+      );
+    } else graph.push(`${silence}[smusic]`);
+    stems = { voice: "svoice", music: "smusic" };
+  }
   const master = options.master ? `${options.master},` : "";
   const end = `${master}apad=whole_len=${samples},atrim=end_sample=${samples}[aout]`;
   if (!groups.length) graph.push(`anullsrc=r=${RATE}:cl=stereo,${end}`);
@@ -326,5 +372,6 @@ export function buildAudioPlan(
     duration,
     samples,
     media: [...media],
+    ...(stems ? { stems } : {}),
   };
 }

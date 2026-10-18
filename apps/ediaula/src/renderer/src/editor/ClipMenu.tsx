@@ -3,11 +3,14 @@ import {
   ClipboardPaste,
   Copy,
   Gauge,
+  Group,
   PaintBucket,
   Paintbrush,
   Scissors,
   SplitSquareHorizontal,
   Trash2,
+  Ungroup,
+  Unlink,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { actions } from "@/lib/actions";
@@ -91,6 +94,31 @@ export function ClipMenu({
           disabled: !copiedProps() || ids.every((id) => id === copiedProps()?.clip.id),
           hint: copiedProps() ? undefined : "Primeiro use Copiar propriedades em outro clipe",
           onSelect: () => askPasteProps(ids),
+        },
+        {
+          icon: Unlink,
+          label: "Separar áudio",
+          disabled:
+            project.assets.find((a) => a.id === clip.assetId)?.kind !== "video" ||
+            !project.assets.find((a) => a.id === clip.assetId)?.hasAudio ||
+            clip.volume <= 0 ||
+            project.tracks.find((t) => t.id === clip.trackId)?.locked,
+          hint: "O som vai para uma faixa própria, agrupado com o vídeo (cortes em J e L)",
+          onSelect: () => actions.detachAudio(clipId),
+        },
+        {
+          icon: Group,
+          label: "Agrupar",
+          shortcut: "Ctrl+G",
+          disabled: ids.length < 2,
+          onSelect: () => actions.group(),
+        },
+        {
+          icon: Ungroup,
+          label: "Desagrupar",
+          shortcut: "Ctrl+Shift+G",
+          disabled: !project.clips.some((c) => ids.includes(c.id) && c.groupId),
+          onSelect: () => actions.ungroup(),
         },
         { separator: true, label: "" },
         { icon: Copy, label: "Copiar", shortcut: "Ctrl+C", onSelect: () => void copySelection() },

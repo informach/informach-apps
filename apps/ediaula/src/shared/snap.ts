@@ -20,6 +20,7 @@ export const SNAP_KINDS = [
   "word",
   "silence",
   "zero",
+  "sentence",
 ] as const;
 export type SnapKind = (typeof SNAP_KINDS)[number] | "frame";
 
@@ -40,6 +41,8 @@ export interface SnapSources {
   silences?: readonly (readonly [number, number])[];
   markers?: readonly number[];
   interval?: { start: number; end: number } | null;
+  /** Where sentences start (timeline seconds), for moving by sentence (sentenceStarts). */
+  sentences?: readonly number[];
 }
 
 export function buildSnapIndex(s: SnapSources): SnapIndex {
@@ -66,6 +69,7 @@ export function buildSnapIndex(s: SnapSources): SnapIndex {
     push(a, "silence");
     push(b, "silence");
   }
+  for (const t of s.sentences ?? []) push(t, "sentence");
   points.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   const times = new Float64Array(points.length);
   const kinds = new Uint8Array(points.length);
@@ -144,3 +148,41 @@ export function snapTo(
 
 /** Whether the snap is worth a guide line on the timeline (the frame grid is not). */
 export const shownSnap = (s: Snapped): boolean => !!s.kind && s.kind !== "frame";
+
+/**
+ * Where each sentence starts: the first word, and every word after one that ends a sentence
+ * (., ?, ! or …). Words in timeline order.
+ */
+export function sentenceStarts(words: readonly { start: number; text: string }[]): number[] {
+  const out: number[] = [];
+  let open = true;
+  for (const w of [...words].sort((a, b) => a.start - b.start)) {
+    if (open) out.push(w.start);
+    open = /[.?!…]["')\]]*$/.test(w.text.trim());
+  }
+  return out;
+}
+
+/**
+ * The next target of `kinds` after `t` (dir 1) or the one before it (dir −1), at least half a
+ * frame away so a press always moves; null at the ends. Alt+arrows go by word (start and end of
+ * each one), Ctrl+Alt+arrows by sentence and by silence.
+ */
+export function stepTo(
+  index: SnapIndex,
+  t: number,
+  dir: 1 | -1,
+  kinds: readonly SnapKind[],
+  gap = 1 / 60,
+): number | null {
+  const { times } = index;
+  const wanted = new Set(kinds.map((k) => SNAP_KINDS.indexOf(k as (typeof SNAP_KINDS)[number])));
+  if (dir > 0) {
+    for (let i = lowerBound(times, t + gap); i < times.length; i++)
+      if (wanted.has(index.kinds[i])) return times[i];
+    return null;
+  }
+  for (let i = lowerBound(times, t - gap) - 1; i >= 0; i--)
+    if (wanted.has(index.kinds[i])) return times[i];
+  return null;
+}

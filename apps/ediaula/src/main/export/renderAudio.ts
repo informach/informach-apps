@@ -1,7 +1,7 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
-import { buildAudioPlan } from "../../shared/export/audioPlan.ts";
+import { buildAudioPlan, RATE } from "../../shared/export/audioPlan.ts";
 import { canonical, PLAN_VERSION } from "../../shared/export/fingerprint.ts";
 import { clipEnd } from "../../shared/timeline.ts";
 import type { Asset, ExportSpec, Project } from "../../shared/types.ts";
@@ -196,11 +196,97 @@ export interface Sound {
   master: string;
   /** Samples of the lesson, which the assembly keeps exactly (loudnorm pads to 100 ms). */
   samples: number;
+  /** The fixed gain of each voice the mix was made with (the stems use the same). */
+  gains: Record<string, number>;
 }
 
-/** The assembly's filter: the loudness pass, then exactly the lesson's samples. */
-export const soundFilter = (sound: Sound): string[] =>
-  sound.master ? ["-af", `${sound.master},atrim=end_sample=${sound.samples}`] : [];
+/** A stretch of the lesson in seconds: where it starts and how long it lasts. */
+export interface SoundRange {
+  start: number;
+  length: number;
+}
+
+/** Exact samples of a stretch (atrim), counted from its start. */
+const trimTo = (r: SoundRange): string =>
+  `atrim=start_sample=${Math.round(r.start * RATE)}:end_sample=${Math.round((r.start + r.length) * RATE)},asetpts=PTS-STARTPTS`;
+
+/**
+ * The assembly's filter: the stretch exported (all of the lesson, or the range), the loudness
+ * pass, then exactly its samples.
+ */
+export function soundFilter(sound: Sound, range?: SoundRange): string[] {
+  const samples = range
+    ? Math.round((range.start + range.length) * RATE) - Math.round(range.start * RATE)
+    : sound.samples;
+  const parts = [
+    ...(range ? [trimTo(range)] : []),
+    ...(sound.master ? [sound.master, `atrim=end_sample=${samples}`] : []),
+  ];
+  return parts.length ? ["-af", parts.join(",")] : [];
+}
+
+/**
+ * The voice and the music on their own (Exportar › stems), WAV files in the folder picked:
+ * the same plan as the mix, with the same voice gains, the music stepping aside as in the mix,
+ * and the loudness gain of the mix when it is a fixed one (so the two add up to the lesson).
+ */
+export async function renderStems(
+  job: AudioJob,
+  sound: Sound,
+  out: { voice: string; music: string },
+  range?: SoundRange,
+): Promise<void> {
+  const fixed = /^volume=[-\d.]+dB$/.test(sound.master) ? sound.master : "";
+  const plan = buildAudioPlan(job.project, job.spec, {
+    gains: sound.gains,
+    stems: true,
+    stemsFilter: [range ? trimTo(range) : "", fixed].filter(Boolean).join(","),
+  });
+  if (!plan.stems) throw new Error("Missing stems");
+  const inputs = await job.checkInputs(plan.inputArgs);
+  const script = join(job.work, "stems.txt");
+  await writeFile(script, plan.filter, "utf8");
+  job.check();
+  const parts = [`${out.voice}.part.wav`, `${out.music}.part.wav`];
+  try {
+    await job.slot(
+      () =>
+        job.run(
+          [
+            "-y",
+            "-v",
+            "error",
+            "-nostdin",
+            ...inputs,
+            job.filterScriptOption,
+            script,
+            "-map",
+            `[${plan.stems?.voice}]`,
+            "-c:a",
+            "pcm_s24le",
+            parts[0],
+            "-map",
+            `[${plan.stems?.music}]`,
+            "-c:a",
+            "pcm_s24le",
+            parts[1],
+            "-map",
+            `[${plan.output}]`,
+            "-f",
+            "null",
+            "-",
+          ],
+          { key: "stems", duration: range?.length ?? plan.duration, signal: job.signal },
+        ),
+      job.signal,
+    );
+    job.check();
+    await rename(parts[0], out.voice);
+    await rename(parts[1], out.music);
+  } finally {
+    await Promise.all(parts.map((part) => rm(part, { force: true })));
+  }
+}
 
 export async function renderAudio(job: AudioJob): Promise<Sound> {
   const gains = await levels(job);
@@ -250,14 +336,15 @@ export async function renderAudio(job: AudioJob): Promise<Sound> {
     wav = await job.cache.commit(key, "wav");
   }
   const { samples } = plan;
-  if (!job.spec.normalizeLoudness) return { wav, master: "", samples };
-  if (job.spec.loudness?.mode === "one-pass") return { wav, master: onePass(job.spec), samples };
+  if (!job.spec.normalizeLoudness) return { wav, master: "", samples, gains };
+  if (job.spec.loudness?.mode === "one-pass")
+    return { wav, master: onePass(job.spec), samples, gains };
   const file = wav;
   try {
     const m = await cachedLoudness(job.cache, sha256(`${key}:loudness:${target(job.spec)}`), () =>
       measure(job, file),
     );
-    return { wav, master: m ? secondPass(job.spec, m) : onePass(job.spec), samples };
+    return { wav, master: m ? secondPass(job.spec, m) : onePass(job.spec), samples, gains };
   } catch (error) {
     // The export never gets the sound: it may be pruned again.
     job.cache.release([file]);

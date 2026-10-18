@@ -48,6 +48,7 @@ const outputExtensions = new Set([
   ".svg",
   ".html",
   ".md",
+  ".zip",
 ]);
 /** Flush beside the destination and replace only after the complete write succeeds. */
 const queuedWrites = new Map<string, Promise<void>>();

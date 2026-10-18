@@ -32,6 +32,14 @@ import {
   PlacementSection,
   TransitionSection,
 } from "./ClipVisual";
+import {
+  BackgroundSection,
+  ColorSection,
+  DeviceSection,
+  GainSection,
+  MarkersSection,
+  RegionSection,
+} from "./LookSections";
 import { PaletteSection } from "./PaletteEditor";
 import { PreparePanel } from "./PreparePanel";
 import { setDenoise } from "./RailPanels";
@@ -130,6 +138,8 @@ function Properties(): ReactNode {
         </div>
         {selected.length === 0 && <PaletteSection />}
         {selected.length === 0 && <CaptionSettings />}
+        {selected.length === 0 && <BackgroundSection />}
+        {selected.length === 0 && <MarkersSection />}
         {selected.length > 1 ? (
           <>
             <BatchSection clips={selected} />
@@ -231,6 +241,7 @@ function Properties(): ReactNode {
       </div>
 
       {clip.zoomLayer && <ZoomLayerSection clip={clip} />}
+      {clip.regionFx && <RegionSection clip={clip} region={clip.regionFx} />}
       {asset?.kind === "video" && (
         <div className="props-section">
           <Button
@@ -244,7 +255,7 @@ function Properties(): ReactNode {
         </div>
       )}
 
-      {asset && asset.kind !== "audio" && !clip.zoomLayer && (
+      {asset && asset.kind !== "audio" && !clip.zoomLayer && !clip.regionFx && (
         <>
           {clip.annotation && <AnnotationSection key={clip.id} clip={clip} />}
           {asset.kind === "video" && <ZoomSection clip={clip} asset={asset} />}
@@ -255,6 +266,8 @@ function Properties(): ReactNode {
           <TransitionSection clip={clip} />
           <FadeSection clip={clip} />
           {asset.kind === "video" && <KeySection asset={asset} />}
+          <ColorSection clip={clip} />
+          {!clip.annotation && <DeviceSection clip={clip} />}
         </>
       )}
 
@@ -264,7 +277,7 @@ function Properties(): ReactNode {
           <VolumeSlider key={clip.id} value={clip.volume} onCommit={setVolume} />
           {clip.volume > 1 && (
             <p className="props-hint muted">
-              Acima de 100% o ganho é aplicado na exportação; o preview toca no máximo a 100%.
+              Acima de 100% o som fica mais alto também na prévia; cuidado com o estouro.
             </p>
           )}
           {!project.tracks.find((t) => t.id === clip.trackId)?.music && (
@@ -278,6 +291,9 @@ function Properties(): ReactNode {
             </div>
           )}
         </div>
+      )}
+      {asset?.hasAudio && !clip.zoomLayer && !clip.regionFx && (
+        <GainSection clip={clip} asset={asset} />
       )}
 
       {!asset?.generated && (

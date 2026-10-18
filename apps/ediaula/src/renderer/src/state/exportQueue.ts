@@ -9,6 +9,7 @@ import { keyId } from "@shared/chroma";
 import { type ExportItem, ExportQueue } from "@shared/exportQueue";
 import { CURSOR_MISSING } from "@shared/preflight";
 import { newId } from "@shared/timeline";
+import type { ExportSpec, Project } from "@shared/types";
 import { treatedPath } from "@shared/voiceChain";
 import type { TextCue } from "@shared/webvtt";
 import { create } from "zustand";
@@ -17,6 +18,7 @@ import { ensureCursorSprites } from "@/lib/cursorRender";
 import { exportTranslations, platformInput } from "@/lib/delivery";
 import { keyIsCurrent } from "@/lib/keying";
 import { timelineKeys } from "@/lib/keysOnScreen";
+import { ensureRevealSprites } from "@/lib/reveal";
 import { loadAssetTranscript } from "@/lib/transcripts";
 import { useApp } from "./app";
 import { useProject } from "./project";
@@ -66,6 +68,48 @@ function persist(pending: ExportItem[]): void {
     );
 }
 
+/**
+ * The captions of an export: the cues of the .srt and .vtt (when asked) and the ASS burned into
+ * the picture (the captions drawn in the video and the keys shown on screen).
+ */
+export async function prepareCaptions(
+  project: Project,
+  spec: ExportSpec,
+  cues: boolean,
+  check: () => void,
+): Promise<void> {
+  const transcribed = project.assets.filter((a) => a.transcript && a.transcriptStatus === "ready");
+  const keys = spec.audioOnly ? [] : await timelineKeys(project);
+  check();
+  const burn = !spec.audioOnly && !!project.captions?.burn && transcribed.length > 0;
+  if ((cues || burn) && transcribed.length) {
+    const loaded = await Promise.all(
+      transcribed.map(async (a) => [a.id, await loadAssetTranscript(project, a)] as const),
+    );
+    check();
+    // Only what is heard, each word once (shared/captions.ts).
+    const words = captionWords(project, new Map(loaded));
+    if (cues)
+      spec.captionCues = buildCues(words, 42, 2, cueLayout(project)).map(
+        (cue): TextCue => ({
+          start: cue.start,
+          end: cue.end,
+          text: cue.lines.map((line) => line.map((w) => w.text).join(" ")).join("\n"),
+        }),
+      );
+    if (burn)
+      spec.burnAss = buildAss(
+        buildCues(words, spec.height > spec.width ? 22 : 42, 2, cueLayout(project)),
+        { ...DEFAULT_CAPTION_STYLE, ...project.captions },
+        spec.width,
+        spec.height,
+        keys,
+      );
+  }
+  if (!spec.burnAss && keys.length)
+    spec.burnAss = buildAss([], DEFAULT_CAPTION_STYLE, spec.width, spec.height, keys);
+}
+
 export const exportQueue = new ExportQueue(
   async (item, signal, status) => {
     const { project, spec, id } = item;
@@ -89,38 +133,7 @@ export const exportQueue = new ExportQueue(
         throw new Error(
           `${noCursor.map((a) => a.name).join(", ")}: ${CURSOR_MISSING} Para exportar assim mesmo, use Exportar sem o cursor na verificação antes de exportar.`,
         );
-      const transcribed = project.assets.filter(
-        (a) => a.transcript && a.transcriptStatus === "ready",
-      );
-      const keys = spec.audioOnly ? [] : await timelineKeys(project);
-      check();
-      const burn = !spec.audioOnly && !!project.captions?.burn && transcribed.length > 0;
-      if ((item.captions || burn) && transcribed.length) {
-        const loaded = await Promise.all(
-          transcribed.map(async (a) => [a.id, await loadAssetTranscript(project, a)] as const),
-        );
-        check();
-        // Only what is heard, each word once (shared/captions.ts).
-        const words = captionWords(project, new Map(loaded));
-        if (item.captions)
-          spec.captionCues = buildCues(words, 42, 2, cueLayout(project)).map(
-            (cue): TextCue => ({
-              start: cue.start,
-              end: cue.end,
-              text: cue.lines.map((line) => line.map((w) => w.text).join(" ")).join("\n"),
-            }),
-          );
-        if (burn)
-          spec.burnAss = buildAss(
-            buildCues(words, spec.height > spec.width ? 22 : 42, 2, cueLayout(project)),
-            { ...DEFAULT_CAPTION_STYLE, ...project.captions },
-            spec.width,
-            spec.height,
-            keys,
-          );
-      }
-      if (!spec.burnAss && keys.length)
-        spec.burnAss = buildAss([], DEFAULT_CAPTION_STYLE, spec.width, spec.height, keys);
+      await prepareCaptions(project, spec, item.captions, check);
       // The translated captions still up to date, and the package for the platform.
       if (item.extras?.translations) {
         const translations = await exportTranslations(project);
@@ -165,6 +178,10 @@ export const exportQueue = new ExportQueue(
         }
         status("preparing", "Preparando o cursor…");
         spec.cursors = await ensureCursorSprites(project, signal);
+        check();
+        // Annotations that come in word by word or are drawn: their transparent videos.
+        const reveals = await ensureRevealSprites(project, signal);
+        if (Object.keys(reveals).length) spec.reveals = reveals;
         check();
       }
       status("exporting", "Exportando…");

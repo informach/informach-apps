@@ -775,6 +775,8 @@ try {
   const projects = join(documents, "EdiAula", "Projetos");
   const spare = join(harness.root, "reserva");
   const spareCursor = join(harness.root, "reserva-cursor");
+  // The lesson packed in the first opening and opened in the second.
+  const packed = join(harness.root, "exportacoes", "aula empacotada.zip");
   await mkdir(recordings, { recursive: true });
   await mkdir(spare, { recursive: true });
   await mkdir(spareCursor, { recursive: true });
@@ -1460,6 +1462,259 @@ try {
     await savedSoon(editor);
   });
 
+  /* ----- Lote 13: groups, markers, region effects, envelope, library, range, frame, zip ----- */
+
+  await step("Grupos", async () => {
+    await withoutToasts(editor);
+    // The template's layers came in as one group: one click picks all of them.
+    const grouped = editor.locator("fieldset.clip.is-grouped");
+    await grouped.first().waitFor();
+    const count = await grouped.count();
+    assert.ok(count > 1, "the template's layers are grouped");
+    await grouped.first().click();
+    assert.equal(await editor.locator("fieldset.clip.is-grouped.is-selected").count(), count);
+    await capture(
+      editor.locator(".timeline-wrap"),
+      "grupos-template",
+      "Camadas do template num grupo: um clique seleciona todas",
+    );
+    // Ctrl+Shift+G undoes the group and Ctrl+Z brings it back.
+    await editor.keyboard.press("Control+Shift+G");
+    await grouped.first().waitFor({ state: "detached" });
+    await editor.keyboard.press("Control+z");
+    await grouped.first().waitFor();
+    await editor.keyboard.press("Escape");
+    // Two clips of the take grouped by hand.
+    await editor.locator('fieldset.clip[aria-label^="Clipe Tela"]').first().click();
+    await editor
+      .locator("fieldset.clip.clip-audio")
+      .first()
+      .click({ modifiers: ["Control"] });
+    await editor.keyboard.press("Control+g");
+    await editor.locator("fieldset.clip.clip-audio.is-grouped").first().waitFor();
+    await settle(editor);
+    await capture(
+      editor.locator(".timeline-wrap"),
+      "grupos-tela-e-voz",
+      "Tela e voz agrupadas com Ctrl+G (borda verde e o ícone de corrente)",
+    );
+    await editor.keyboard.press("Control+z");
+    await editor.keyboard.press("Escape");
+  });
+
+  await step("Marcadores", async () => {
+    await seek(editor, 2);
+    await editor.keyboard.press("m");
+    await seek(editor, 9);
+    await editor.keyboard.press("m");
+    const flags = editor.locator(".marker-flag");
+    await flags.nth(1).waitFor();
+    await flags.nth(1).click({ button: "right" });
+    await editor.getByRole("menuitem", { name: "Começar um capítulo aqui" }).click();
+    await editor.locator(".marker-flag.is-chapter").waitFor();
+    // Shift+M goes to the next marker.
+    await editor.keyboard.press("Home");
+    await editor.keyboard.press("Shift+M");
+    await editor.keyboard.press("Escape");
+    await side.locator(".tab", { hasText: "Propriedades" }).click();
+    await side.getByRole("heading", { name: "Marcadores e capítulos" }).waitFor();
+    await settle(editor);
+    await capture(
+      editor.locator(".timeline-wrap"),
+      "marcadores-timeline",
+      "Marcadores na régua; o segundo começa um capítulo",
+    );
+    await side.getByRole("heading", { name: "Marcadores e capítulos" }).scrollIntoViewIfNeeded();
+    await capture(side, "marcadores-propriedades", "Marcadores e capítulos em Propriedades");
+    await savedSoon(editor);
+  });
+
+  await step("Desfoque de região", async () => {
+    await seek(editor, 6);
+    await editor.locator("nav.rail").getByRole("button", { name: "Zoom" }).click();
+    await editor
+      .locator("section.rail-panel")
+      .getByRole("button", { name: "Desfoque", exact: true })
+      .click();
+    await editor.locator(".region-target").waitFor();
+    await side.getByRole("heading", { name: "Efeito de região" }).waitFor();
+    await settle(editor);
+    await withoutToasts(editor);
+    await capture(
+      editor.locator("section.preview"),
+      "desfoque-regiao",
+      "Desfoque de região na prévia, com o retângulo para mover",
+    );
+    await capture(side, "desfoque-regiao-propriedades", "Propriedades do efeito de região");
+    await side.getByRole("button", { name: "Holofote", exact: true }).click();
+    await settle(editor);
+    await capture(
+      editor.locator("section.preview"),
+      "holofote-regiao",
+      "Holofote: o resto da tela escurece em volta do retângulo",
+    );
+    await side.getByRole("button", { name: "Pixelado", exact: true }).click();
+    await settle(editor);
+    await capture(
+      editor.locator("section.preview"),
+      "pixelado-regiao",
+      "Região pixelada na prévia",
+    );
+    // The blur stays in the lesson: the export of the interval below draws it too.
+    await side.getByRole("button", { name: "Desfoque", exact: true }).click();
+    await editor.keyboard.press("Escape");
+    await editor.locator("nav.rail").getByRole("button", { name: "Mídia" }).click();
+    await savedSoon(editor);
+  });
+
+  await step("Envelope de volume", async () => {
+    // The piece of the voice under the playhead at 3 s (the cleanup cut it in pieces).
+    await seek(editor, 3);
+    const head = await editor.locator(".timeline-wrap .playhead").boundingBox();
+    assert.ok(head, "the playhead");
+    const x = head.x + head.width / 2;
+    const voices = editor.locator("fieldset.clip.clip-audio");
+    let picked = -1;
+    let box: { x: number; y: number; width: number; height: number } | null = null;
+    for (let i = 0; i < (await voices.count()) && picked < 0; i++) {
+      box = await voices.nth(i).boundingBox();
+      if (box && box.x < x - 16 && box.x + box.width > x + 30) picked = i;
+    }
+    assert.ok(picked >= 0 && box, "a piece of the voice under the playhead");
+    // Beside the playhead, whose line takes the clicks on it.
+    await voices.nth(picked).click({ position: { x: x - box.x - 12, y: 8 } });
+    await side.locator(".tab", { hasText: "Propriedades" }).click();
+    await side.getByRole("button", { name: "Ponto no cursor" }).click();
+    // Half a second later, still inside the piece.
+    for (let i = 0; i < 15; i++) await editor.keyboard.press("ArrowRight");
+    await side.getByRole("button", { name: "Ponto no cursor" }).click();
+    const points = editor.locator(".gain-envelope .gain-point");
+    await points.nth(1).waitFor();
+    // The second point dragged down: the voice gets softer after it. The playhead goes away
+    // first: its line is over the point just made there.
+    await editor.keyboard.press("Home");
+    const point = await points.nth(1).boundingBox();
+    assert.ok(point, "the envelope's second point");
+    await editor.mouse.move(point.x + point.width / 2, point.y + point.height / 2);
+    await editor.mouse.down();
+    await editor.mouse.move(point.x + point.width / 2, point.y + point.height / 2 + 18, {
+      steps: 6,
+    });
+    await editor.mouse.up();
+    await settle(editor);
+    await capture(
+      editor.locator(".timeline-wrap"),
+      "envelope-volume",
+      "Envelope de volume no clipe da voz, com dois pontos",
+    );
+    await capture(
+      side.locator(".props-section", { hasText: "Volume ao longo do clipe" }),
+      "envelope-volume-propriedades",
+      "Volume ao longo do clipe e Separar áudio",
+    );
+    await editor.keyboard.press("Escape");
+    await savedSoon(editor);
+  });
+
+  await step("Biblioteca entre projetos", async () => {
+    // A favorite style: the pointer of the recording.
+    await editor.locator('fieldset.clip[aria-label^="Clipe Tela"]').first().click();
+    await side.locator(".tab", { hasText: "Propriedades" }).click();
+    const cursor = side
+      .locator(".props-section")
+      .filter({ has: editor.getByRole("heading", { name: "Cursor", exact: true }) });
+    await cursor.getByRole("button", { name: "Favoritar estilo" }).click();
+    const name = side.getByRole("textbox", { name: "Nome do estilo favorito" });
+    await name.fill("Cursor do curso");
+    await name.press("Enter");
+    await editor.keyboard.press("Escape");
+    // A media kept for every lesson.
+    const card = left.locator("fieldset.media-card").first();
+    await card.hover();
+    await card.getByRole("button", { name: /^Salvar .* na biblioteca$/ }).click();
+    await left.getByRole("button", { name: "Todas as aulas", exact: true }).click();
+    await left.locator(".shared-row").nth(1).waitFor();
+    await withoutToasts(editor);
+    await capture(
+      left,
+      "biblioteca-todas-as-aulas",
+      "Biblioteca de todas as aulas: mídia e estilo favorito",
+    );
+    await left.getByRole("button", { name: "Desta aula", exact: true }).click();
+  });
+
+  await step("Exportar intervalo e quadro", async () => {
+    await seek(editor, 2);
+    const end = editor.getByRole("button", { name: "Fim do intervalo" });
+    const box = await end.boundingBox();
+    assert.ok(box, "the interval's end handle");
+    // With no interval yet the handle sits under the playhead's line, which takes the clicks:
+    // the press goes to the handle itself, and the drag is the real mouse.
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+    await editor.mouse.move(cx, cy);
+    await end.dispatchEvent("pointerdown", {
+      button: 0,
+      buttons: 1,
+      clientX: cx,
+      clientY: cy,
+      pointerId: 1,
+      isPrimary: true,
+    });
+    await editor.mouse.move(cx + 160, cy, { steps: 8 });
+    await editor.mouse.up();
+    await editor.locator(".tl-interval-info").waitFor();
+    await editor
+      .locator("header.topbar")
+      .getByRole("button", { name: "Exportar", exact: true })
+      .click();
+    const dialog = editor.getByRole("dialog", { name: "Exportar aula" });
+    await dialog.waitFor();
+    await dialog.getByRole("switch", { name: "Só o intervalo marcado" }).click();
+    await dialog.getByRole("switch", { name: "Só o intervalo marcado", checked: true }).waitFor();
+    await dialog.getByText("Conferindo a aula…").waitFor({ state: "detached", timeout: 60_000 });
+    await capture(
+      dialog.locator(".modal"),
+      "exportar-intervalo",
+      "Exportar só o intervalo marcado",
+    );
+    // The current frame as a PNG.
+    const frame = join(harness.root, "exportacoes", "quadro atual.png");
+    await answerDialog(first, "save", frame);
+    await dialog.getByRole("button", { name: "Quadro atual (PNG)" }).click();
+    await editor.getByText(/^Quadro salvo em/).waitFor({ timeout: 120_000 });
+    assert.ok((await stat(frame)).size > 1000, "the PNG of the frame");
+    // The interval itself, through the queue.
+    const stretch = join(harness.root, "exportacoes", "trecho.mp4");
+    await answerDialog(first, "save", stretch);
+    await dialog.getByRole("button", { name: /^Adicionar/ }).click();
+    const queue = editor.getByRole("dialog", { name: "Fila de exportação" });
+    await queue.waitFor();
+    // The exports done before stay listed: this one is the next "Concluído".
+    const done = await queue.getByText("Concluído").count();
+    await queue.getByText("Concluído").nth(done).waitFor({ timeout: 600_000 });
+    await queue.getByRole("button", { name: "Fechar fila e continuar editando" }).click();
+    await queue.waitFor({ state: "detached" });
+    const probe = await execute(
+      join(nativeMediaDirectory, "bin", "ffprobe.exe"),
+      ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", stretch],
+      { windowsHide: true, timeout: 60_000, maxBuffer: 65536 },
+    );
+    const length = Number(String(probe.stdout).trim());
+    notes.push(`Intervalo exportado: ${length.toFixed(2)} s em ${stretch}.`);
+    await editor.getByTitle("Limpar intervalo").click();
+  });
+
+  await step("Projeto em zip", async () => {
+    await answerDialog(first, "save", packed);
+    await editor.locator("header.topbar").getByRole("button", { name: "Arquivo" }).click();
+    await editor.getByRole("menuitem", { name: "Empacotar a aula com as mídias…" }).click();
+    await editor.getByText(/^Aula empacotada com/).waitFor({ timeout: 120_000 });
+    await capture(editor, "projeto-zip", "Aula empacotada com as mídias num .zip");
+    assert.ok((await stat(packed)).size > 100_000, "the package holds the media");
+    await withoutToasts(editor);
+  });
+
   await step("Configurações e IA", async () => {
     await editor.getByRole("button", { name: "Configurações de IA" }).click();
     const dialog = editor.getByRole("dialog", { name: "Configurações" });
@@ -2011,6 +2266,108 @@ try {
     await settle(page);
     await capture(page, "copia-restaurada", "Editor depois de restaurar a cópia");
     await savedSoon(page);
+  });
+  await step("Abrir aula empacotada", async () => {
+    await page.getByTitle("Voltar ao início").click();
+    await page.getByRole("heading", { name: "Suas aulas" }).waitFor();
+    await answerDialog(second, "open", [packed]);
+    await answerDialog(second, "message", 0);
+    await page
+      .locator(".home-sidebar")
+      .getByRole("button", { name: "Abrir aula empacotada…" })
+      .click();
+    await page.locator(".editor").waitFor({ timeout: 60_000 });
+    await page.locator("fieldset.clip").first().waitFor({ timeout: 60_000 });
+    await settle(page);
+    await withoutToasts(page);
+    await capture(
+      page,
+      "aula-empacotada-aberta",
+      "Aula aberta do pacote, com as mídias na pasta dela",
+    );
+  });
+
+  await step("Prévia com 200 cortes", async () => {
+    // A recording cut in 200 places, played for 15 s: how many media elements the preview
+    // keeps and how many frames it drops.
+    const source = join(harness.root, "midia", "duzentos.mp4");
+    await ff([
+      ...["-f", "lavfi", "-i", "testsrc2=size=1280x720:rate=30:duration=70"],
+      ...["-f", "lavfi", "-i", "sine=frequency=330:sample_rate=48000:duration=70"],
+      ...["-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-preset", "veryfast"],
+      ...["-pix_fmt", "yuv420p", "-g", "30", "-c:a", "aac", "-movflags", "+faststart", source],
+    ]);
+    const file = join(projects, "Duzentos cortes.ediaula");
+    const pieces = Array.from({ length: 200 }, (_, i) => ({
+      id: `c${i}`,
+      assetId: "a",
+      trackId: "t",
+      start: i * 0.3,
+      in: i * 0.34,
+      duration: 0.3,
+      volume: 1,
+    }));
+    await writeFile(
+      file,
+      JSON.stringify({
+        version: 1,
+        id: "duzentos",
+        name: "Duzentos cortes",
+        createdAt: 0,
+        updatedAt: 0,
+        settings: { width: 1280, height: 720, fps: 30 },
+        assets: [
+          {
+            id: "a",
+            name: "duzentos.mp4",
+            path: source,
+            kind: "video",
+            duration: 70,
+            width: 1280,
+            height: 720,
+            fps: 30,
+            hasVideo: true,
+            hasAudio: true,
+            size: (await stat(source)).size,
+            proxyStatus: "none",
+          },
+        ],
+        tracks: [
+          { id: "t", kind: "video", name: "Tela", muted: false, hidden: false, locked: false },
+        ],
+        clips: pieces,
+      }),
+    );
+    await page.getByTitle("Voltar ao início").click();
+    await page.getByRole("heading", { name: "Suas aulas" }).waitFor();
+    await answerDialog(second, "open", [file]);
+    await answerDialog(second, "message", 0);
+    await page.locator(".home-sidebar").getByRole("button", { name: "Abrir projeto…" }).click();
+    await page.locator("fieldset.clip").first().waitFor({ timeout: 60_000 });
+    await settle(page);
+    await page.keyboard.press("Home");
+    await page.keyboard.press("Space");
+    await delay(15_000);
+    const stats = await page.evaluate(() => {
+      const preview: unknown = Reflect.get(window, "__ediaulaPreview");
+      const stats = preview && typeof preview === "object" ? Reflect.get(preview, "stats") : null;
+      return typeof stats === "function" ? stats() : null;
+    });
+    await page.keyboard.press("Space");
+    assert.ok(stats, "the preview's numbers");
+    await capture(
+      page,
+      "previa-200-cortes",
+      "Prévia de uma gravação com 200 cortes, depois de 15 s tocando",
+    );
+    notes.push(
+      `Prévia com 200 cortes, 15 s tocando: ${stats.elements} elementos de mídia em ${stats.lanes} faixas de elementos, ${stats.dropped} de ${stats.frames} quadros descartados, ${stats.seeks} saltos durante a reprodução, som ${stats.audio} (nível ${Number(stats.level).toFixed(3)}).`,
+    );
+    console.log(`[visual] ${notes.at(-1)}`);
+    assert.ok(stats.elements <= 2, `${stats.elements} media elements for one recording`);
+    // The thumbnails and waveform made on opening are saved before the window closes (closing
+    // with unsaved work asks first).
+    await page.locator(".save-pill.save-saved").waitFor({ timeout: 60_000 });
   });
   await closeApplication(second.application, second.launch);
 } catch (error) {

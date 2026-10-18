@@ -2,6 +2,7 @@ import type { Clip } from "@shared/types";
 import { previousZoom } from "@shared/zoomLayer";
 import { Minimize2, MousePointerClick, MoveRight, Plus, ZoomIn } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { addRegionFx } from "@/lib/regionFx";
 import { addZoomLayer, continueZoom, setZoomLayer } from "@/lib/zoomLayer";
 import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
@@ -265,6 +266,37 @@ export function ZoomPanel({ onRecordingZoom }: { onRecordingZoom: () => void }):
           ))}
         </div>
       )}
+      <div className="props-section all-cuts">
+        <h3>Esconder ou destacar uma região</h3>
+        <p className="props-hint muted">
+          Desfoque ou pixelado escondem nome, e-mail e outros dados de alunos que aparecem na
+          plataforma; o holofote escurece o resto da tela. Valem para as faixas abaixo, como o zoom.
+        </p>
+        <div className="row-6 row-wrap">
+          {(
+            [
+              ["blur", "Desfoque"],
+              ["pixelate", "Pixelado"],
+              ["spotlight", "Holofote"],
+            ] as const
+          ).map(([kind, label]) => (
+            <Button
+              key={kind}
+              size="sm"
+              icon={Plus}
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                await addRegionFx(kind);
+                useApp.getState().set({ sideTab: "properties" });
+                setBusy(false);
+              }}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+      </div>
       <div className="props-section all-cuts">
         <h3>Zoom das gravações</h3>
         <p className="props-hint muted">

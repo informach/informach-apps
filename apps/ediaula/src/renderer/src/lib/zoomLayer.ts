@@ -13,7 +13,7 @@ export function restoreBlankPicture(): Promise<string> {
 }
 
 /** A 1 × 1 transparent picture: zoom layers need an asset but show nothing themselves. */
-function blankPicture(): Promise<string> {
+export function blankPicture(): Promise<string> {
   blank ??= (async () => {
     const c = document.createElement("canvas");
     c.width = 1;

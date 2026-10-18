@@ -89,6 +89,8 @@ export async function addTemplate(
     }
   }
   const ids: string[] = [];
+  // The layers of a template come in as one group: moved, trimmed and removed together.
+  const groupId = layers.length > 1 ? newId("g") : undefined;
   commit((q) => {
     let next: Project = q;
     if (t.fullscreen) {
@@ -144,6 +146,7 @@ export async function addTemplate(
         fadeOut: 0.4,
         enter: l.enter,
         exit: l.exit,
+        ...(groupId ? { groupId } : {}),
       };
       ids.push(clip.id);
       next = { ...next, tracks, assets: [...next.assets, asset], clips: [...next.clips, clip] };

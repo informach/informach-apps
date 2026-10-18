@@ -2,6 +2,7 @@ import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { rename, rm } from "node:fs/promises";
 import { desktopIpc as ipcMain } from "@informach/edi-desktop/main";
+import { z } from "zod";
 import { cursorSpritePath } from "./cursor-sprite-path.ts";
 import { cacheDir, FFMPEG } from "./ffmpeg.ts";
 
@@ -29,8 +30,11 @@ export function registerCursorSprites(): void {
 
   ipcMain.handle(
     "cursor:begin",
-    (_e, jobId: string, path: string, id: string, size: number, fps: number) => {
+    (_e, jobId: string, path: string, id: string, size: number, fps: number, height?: unknown) => {
       if (jobs.has(jobId)) throw new Error("Já existe um processamento de cursor com esse ID.");
+      // An animated annotation is as tall as its picture; the pointer sprite is square.
+      const tall =
+        height === undefined || height === null ? size : z.int().min(2).max(8192).parse(height);
       const out = spritePath(path, id);
       const tmp = out.replace(".webm", ".part.webm");
       const proc = spawn(
@@ -44,7 +48,7 @@ export function registerCursorSprites(): void {
           "-pix_fmt",
           "rgba",
           "-s",
-          `${size}x${size}`,
+          `${size}x${tall}`,
           "-r",
           String(fps),
           "-i",

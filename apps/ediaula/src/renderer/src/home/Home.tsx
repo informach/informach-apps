@@ -15,6 +15,7 @@ import {
   GraduationCap,
   History,
   House,
+  PackageOpen,
   PencilLine,
   Plus,
   Search,
@@ -26,6 +27,7 @@ import { BackupsDialog, RenameDialog } from "@/editor/ProjectDialogs";
 import { actions } from "@/lib/actions";
 import { startFromTemplate } from "@/lib/courseStart";
 import { formatEditTime } from "@/lib/editTimer";
+import { openPackagedLesson } from "@/lib/exportExtras";
 import { duration, relativeTime } from "@/lib/format";
 import { confirmLeave } from "@/lib/leaveGuard";
 import { mediaUrl } from "@/lib/media";
@@ -130,6 +132,14 @@ export function Home(): ReactNode {
           </button>
           <button type="button" className="nav-item" onClick={() => void openOther()}>
             <FolderOpen size={16} /> Abrir projeto…
+          </button>
+          <button
+            type="button"
+            className="nav-item"
+            title="Abre um .zip feito com Empacotar a aula, com as mídias dentro"
+            onClick={() => void openPackagedLesson()}
+          >
+            <PackageOpen size={16} /> Abrir aula empacotada…
           </button>
           <button
             type="button"

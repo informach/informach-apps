@@ -52,6 +52,15 @@ export async function exportLesson(rawProject: unknown, rawSpec: unknown, deps: 
     spec.platform && !spec.audioOnly
       ? await deps.assertRelatedExport(primary, `${base}${PACKAGE_SUFFIX}`)
       : undefined;
+  // The voice and the music, as picked (dialog:stems made these two files writable).
+  const stems = spec.stems
+    ? {
+        voice: await deps.assertWrite(spec.stems.voice),
+        music: await deps.assertWrite(spec.stems.music),
+      }
+    : undefined;
+  if (stems && extname(stems.voice).toLowerCase() !== ".wav") throw new Error("Stems must be WAV");
+  if (stems && extname(stems.music).toLowerCase() !== ".wav") throw new Error("Stems must be WAV");
   const destinations = [
     primary,
     captions,
@@ -103,6 +112,7 @@ export async function exportLesson(rawProject: unknown, rawSpec: unknown, deps: 
               })),
             ],
           },
+          stems,
         },
         deps,
       );

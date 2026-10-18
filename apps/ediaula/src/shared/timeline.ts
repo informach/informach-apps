@@ -1,5 +1,7 @@
 import { clipEnd, clipSpeed, newId, timelineAt } from "./clipTime.ts";
 import { AVATAR_FADE, defaultTransformFor } from "./compose.ts";
+import { scaleGain } from "./gain.ts";
+import { regroupCopies } from "./groups.ts";
 import { transformAt } from "./keyframes.ts";
 import { piece } from "./pieces.ts";
 import type { Asset, Clip, Project, ProjectSettings, Track } from "./types.ts";
@@ -160,6 +162,7 @@ export function setClipSpeed(clips: Clip[], id: string, speed: number, ripple: b
     duration,
     ...(Math.abs(s - 1) < 1e-12 ? {} : { speed: s }),
     ...(c.keyframes?.length ? { keyframes: c.keyframes.map((f) => ({ ...f, t: f.t * k })) } : {}),
+    ...(c.gain?.length ? { gain: scaleGain(c, k) } : {}),
   };
   const others = clips.filter((x) => x.id !== id);
   if (ripple)
@@ -515,12 +518,14 @@ export function pasteClips(
 ): { tracks: Track[]; clips: Clip[]; ids: string[] } {
   if (!copied.length) return { tracks, clips, ids: [] };
   const shift = at - Math.min(...copied.map((c) => c.start));
+  // Copies of a group make a group of their own.
+  const source = regroupCopies(copied);
   let outTracks = tracks;
   let outClips = clips;
   const ids: string[] = [];
   const free = (trackId: string, start: number, end: number): boolean =>
     !outClips.some((c) => c.trackId === trackId && c.start < end - EPS && clipEnd(c) > start + EPS);
-  for (const c of [...copied].sort((a, b) => a.start - b.start)) {
+  for (const c of [...source].sort((a, b) => a.start - b.start)) {
     const start = Math.max(0, c.start + shift);
     const end = start + c.duration;
     const home = outTracks.findIndex((t) => t.id === c.trackId);

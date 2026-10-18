@@ -3,19 +3,26 @@ import { createReadStream } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { encoderName } from "../../shared/encoderChoice.ts";
-import { concatList, ffmetadata } from "../../shared/export/assemble.ts";
+import {
+  chaptersInRange,
+  concatList,
+  cuesInRange,
+  ffmetadata,
+} from "../../shared/export/assemble.ts";
 import { fallbackEncoders, isEncoderFailure } from "../../shared/export/encoding.ts";
 import { exportProject, frameRate, frameTime, trackTimescale } from "../../shared/export/frames.ts";
-import { lessonFrames, planSegments } from "../../shared/export/segments.ts";
+import { planSegments } from "../../shared/export/segments.ts";
 import type { MediaFacts, VideoPlan } from "../../shared/export/videoPlan.ts";
 import { buildPlatformPackage } from "../../shared/platformPackage.ts";
+import { chaptersOf } from "../../shared/markers.ts";
+import { withRevealSprites } from "../../shared/reveal.ts";
 import { projectDuration } from "../../shared/timeline.ts";
 import type { Encoder, ExportSpec, JobProgress, Project } from "../../shared/types.ts";
 import { subRip, webVtt } from "../../shared/webvtt.ts";
 import type { FilterScriptOption } from "../ffmpeg-arguments.ts";
 import { fontResolver } from "./fonts.ts";
 import { FxAssets } from "./fxAssets.ts";
-import { renderAudio, type Sound, soundFilter } from "./renderAudio.ts";
+import { renderAudio, renderStems, type Sound, soundFilter } from "./renderAudio.ts";
 import {
   failureText,
   type RunFfmpeg,
@@ -81,6 +88,8 @@ export interface ExportOutputs {
     thumbnail?: string;
     captions: { lang: string; srt?: string; vtt?: string }[];
   };
+  /** The voice and the music as WAV files (checked destinations in the folder picked). */
+  stems?: { voice: string; music: string };
 }
 
 /** SHA-256 of a file, read as a stream (an export may be gigabytes). */
@@ -134,9 +143,14 @@ export async function renderLesson(
     const media = new Map<string, string>();
     for (const c of project.clips) {
       const asset = assets.get(c.assetId);
-      if (!asset || media.has(asset.path) || c.zoomLayer) continue;
+      if (!asset || media.has(asset.path) || c.zoomLayer || c.regionFx) continue;
       media.set(asset.path, await deps.assertRead(asset.path));
     }
+    // The lesson's background picture is a project media too.
+    const background =
+      project.background?.kind === "image" ? assets.get(project.background.assetId) : undefined;
+    if (background && !media.has(background.path))
+      media.set(background.path, await deps.assertRead(background.path));
     const checkFile = async (path: string): Promise<string> => {
       const known = media.get(path);
       if (known) return known;
@@ -161,10 +175,11 @@ export async function renderLesson(
       const pictures = new Set<string>();
       for (const c of project.clips) {
         const a = assets.get(c.assetId);
-        if (!a || a.kind === "audio" || c.zoomLayer) continue;
+        if (!a || a.kind === "audio" || c.zoomLayer || c.regionFx) continue;
         pictures.add(a.path);
         if (a.keyed) pictures.add(a.keyed);
       }
+      if (background) pictures.add(background.path);
       const probe = deps.probe;
       for (const path of pictures) {
         const checked = await checkFile(path);
@@ -191,6 +206,9 @@ export async function renderLesson(
       signal,
     };
     const exportSpec: ExportSpec = { ...spec, outPath: outputs.primary };
+    // The chapters: the markers set as chapters, else the publishing texts' (shared/markers.ts).
+    const publish = { ...project.publish, chapters: chaptersOf(project) };
+    const range = spec.range;
     if (spec.burnAss && !spec.audioOnly) {
       exportSpec.assFile = join(work, "captions.ass");
       exportSpec.fontsDir = deps.fontsDirectory;
@@ -216,15 +234,20 @@ export async function renderLesson(
     let note: string | undefined;
     /** The assembly encodes on the graphics card (it takes an encoder session). */
     let onCard = false;
+    /** Where the exported stretch starts, in seconds of the lesson (0 for the whole lesson). */
+    let offset = 0;
     if (spec.audioOnly) {
       progress({ ratio: 0.1, phase: "audio" });
       const sound = await audio;
-      duration = projectDuration(project);
+      const total = projectDuration(project);
+      offset = range ? Math.min(range.from, total) : 0;
+      duration = (range ? Math.min(range.to, total) : total) - offset;
+      if (duration <= 0) throw new Error("O intervalo escolhido fica fora da aula.");
       const title = project.publish?.title?.trim();
       assemble = [
         "-i",
         sound.wav,
-        ...soundFilter(sound),
+        ...soundFilter(sound, range && { start: offset, length: duration }),
         "-c:a",
         "libmp3lame",
         "-b:a",
@@ -236,9 +259,11 @@ export async function renderLesson(
       ];
     } else {
       const r = frameRate(spec.fps);
-      const derived = exportProject(project, r);
-      const windows = planSegments(derived, spec);
-      const total = lessonFrames(derived, r);
+      // Animated annotations play their transparent videos (shared/reveal.ts).
+      const derived = exportProject(withRevealSprites(project, spec.reveals), r);
+      const windows = planSegments(derived, spec, range);
+      if (!windows.length) throw new Error("O intervalo escolhido fica fora da aula.");
+      const total = windows.reduce((n, w) => n + w.frames, 0);
       const cores = Math.max(1, deps.cores ?? 4);
       // Encoders that failed in this export (a segment failed again on its own), left out of the
       // fallback chain. Whether one is left out for the whole session is the detector's call.
@@ -305,6 +330,7 @@ export async function renderLesson(
       progress({ ratio: 0.9, phase: "audio" });
       const sound = await audio;
       duration = frameTime(total, r);
+      offset = frameTime(windows[0].from, r);
       const list = join(work, "segments.txt");
       await writeFile(
         list,
@@ -314,7 +340,12 @@ export async function renderLesson(
         ),
         "utf8",
       );
-      const meta = ffmetadata(project.publish, duration);
+      const meta = ffmetadata(
+        range
+          ? { ...publish, chapters: chaptersInRange(publish.chapters, offset, offset + duration) }
+          : publish,
+        duration,
+      );
       const metaFile = join(work, "metadata.txt");
       if (meta) await writeFile(metaFile, meta, "utf8");
       assemble = [
@@ -332,7 +363,7 @@ export async function renderLesson(
         "-map",
         "1:a:0",
         ...video,
-        ...soundFilter(sound),
+        ...soundFilter(sound, range && { start: offset, length: duration }),
         "-c:a",
         "aac",
         "-b:a",
@@ -392,7 +423,9 @@ export async function renderLesson(
         signal,
       );
     }
-    const cues = spec.captionCues ?? [];
+    const cues = range
+      ? cuesInRange(spec.captionCues ?? [], offset, offset + duration)
+      : (spec.captionCues ?? []);
     if (outputs.captions) await writeFile(outputs.captions, subRip(cues) ?? "", "utf8");
     if (outputs.subtitles) await writeFile(outputs.subtitles, webVtt(cues) ?? "", "utf8");
     for (const t of outputs.translations ?? []) {
@@ -415,6 +448,17 @@ export async function renderLesson(
         now: new Date(),
       });
       await writeFile(outputs.platform, `${JSON.stringify(pack, null, 2)}\n`, "utf8");
+    }
+    // Stems last: the same mix, the voice and the music on their own, over the same stretch.
+    if (outputs.stems) {
+      progress({ ratio: 0.99, phase: "audio", message: "Gravando a voz e a música separadas…" });
+      const sound = await audio;
+      await renderStems(
+        { ...job, project, spec: exportSpec, checkInputs, checkFile },
+        sound,
+        outputs.stems,
+        range ? { start: offset, length: duration } : undefined,
+      );
     }
     progress({ ratio: 0.99, phase: "assembling" });
   } catch (error) {

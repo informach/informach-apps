@@ -179,6 +179,8 @@ export interface Annotation {
   /** Palette colors: text on light backgrounds (default #12140A) and the card's accent (default lime). */
   ink?: string;
   accent?: string;
+  /** Comes in word by word (with the words' times when they are said) or drawn like a stroke. */
+  reveal?: "words" | "draw";
 }
 
 export interface Outline {

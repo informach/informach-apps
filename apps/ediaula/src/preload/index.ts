@@ -60,8 +60,8 @@ const api: EdiAulaApi = {
     ipcRenderer.invoke("media:proxy", jobId, path, duration, cfrFps, alpha),
   cursorSprite: {
     cached: (path, id) => ipcRenderer.invoke("cursor:cached", path, id),
-    begin: (jobId, path, id, size, fps) =>
-      ipcRenderer.invoke("cursor:begin", jobId, path, id, size, fps),
+    begin: (jobId, path, id, size, fps, height) =>
+      ipcRenderer.invoke("cursor:begin", jobId, path, id, size, fps, height),
     frames: (jobId, frames, counts) => ipcRenderer.invoke("cursor:frames", jobId, frames, counts),
     end: (jobId) => ipcRenderer.invoke("cursor:end", jobId),
     cancel: (jobId) => ipcRenderer.invoke("cursor:cancel", jobId),
@@ -172,6 +172,15 @@ const api: EdiAulaApi = {
   restoreBackup: (path, id) => ipcRenderer.invoke("project:restoreBackup", path, id),
   startExport: (jobId, projectJson, spec) =>
     ipcRenderer.invoke("export:start", jobId, projectJson, spec),
+  pickFramePath: (defaultName) => ipcRenderer.invoke("dialog:framePng", defaultName),
+  exportFramePng: (jobId, projectJson, t, spec) =>
+    ipcRenderer.invoke("export:framePng", jobId, projectJson, t, spec),
+  pickStems: (videoName) => ipcRenderer.invoke("dialog:stems", videoName),
+  packProject: (jobId, projectJson, defaultName) =>
+    ipcRenderer.invoke("project:pack", jobId, projectJson, defaultName),
+  openPackage: () => ipcRenderer.invoke("project:openPackage"),
+  listLibrary: () => ipcRenderer.invoke("library:list"),
+  saveLibrary: (library) => ipcRenderer.invoke("library:save", library),
   cancelJob: (jobId) => ipcRenderer.invoke("job:cancel", jobId),
   clearExportCache: () => ipcRenderer.invoke("exportCache:clear"),
   exportQueue: {

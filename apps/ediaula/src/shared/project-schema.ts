@@ -7,7 +7,10 @@ import {
   PROPOSAL_LIMIT,
 } from "./anchors.ts";
 import { LANGUAGE_CODE } from "./captionTranslate.ts";
+import { GAIN_LIMIT } from "./gain.ts";
 import { guidedStoreSchema } from "./guidedPlan.ts";
+import { DEVICES, REGION_KINDS } from "./look.ts";
+import { MARKER_LIMIT } from "./markers.ts";
 import { PREPARE_DECISIONS, PREPARE_STEPS } from "./prepare.ts";
 import { REVIEWED_LIMIT } from "./seams.ts";
 import {
@@ -82,7 +85,7 @@ const cursorPoint = z.looseObject({
   outHandle: point.optional(),
 });
 const cursorPoints = z.array(cursorPoint).max(20000);
-const cursorFx = z.looseObject({
+export const cursorFxSchema = z.looseObject({
   path: cursorPoints.optional(),
   pathEdits: z
     .array(z.looseObject({ start: time, end: time, points: cursorPoints }))
@@ -96,7 +99,7 @@ const cursorFx = z.looseObject({
   hidden: z.boolean().optional(),
   keys: z.boolean().optional(),
 });
-const annotation = z.looseObject({
+export const annotationSchema = z.looseObject({
   kind: z.enum([
     "arrow",
     "balloon",
@@ -148,6 +151,7 @@ const annotation = z.looseObject({
   fillOpacity: number.optional(),
   ink: color.optional(),
   accent: color.optional(),
+  reveal: z.enum(["words", "draw"]).optional(),
 });
 const zooms = z
   .array(
@@ -198,7 +202,7 @@ const asset = z.looseObject({
     .optional(),
   cursor: path.optional(),
   cursorMissing: z.boolean().optional(),
-  cursorFx: cursorFx.optional(),
+  cursorFx: cursorFxSchema.optional(),
   zooms: zooms.optional(),
   markers: z
     .array(z.looseObject({ t: time, kind: z.enum(["marker", "retake"]) }))
@@ -285,6 +289,8 @@ const track = z.looseObject({
   music: z.boolean().optional(),
   height: number.positive().optional(),
   duck: z.boolean().optional(),
+  magnetic: z.boolean().optional(),
+  spotlight: z.boolean().optional(),
 });
 const transform = z.looseObject({
   x: number,
@@ -298,6 +304,13 @@ const transform = z.looseObject({
   rotation: number.optional(),
   flipH: z.boolean().optional(),
   flipV: z.boolean().optional(),
+  device: z.enum(DEVICES).optional(),
+});
+const rect = z.looseObject({
+  x: z.number().min(0).max(1),
+  y: z.number().min(0).max(1),
+  w: z.number().positive().max(1),
+  h: z.number().positive().max(1),
 });
 const clip = z.looseObject({
   id,
@@ -345,7 +358,7 @@ const clip = z.looseObject({
       colors: z.array(color).max(20).optional(),
     })
     .optional(),
-  annotation: annotation.optional(),
+  annotation: annotationSchema.optional(),
   // Older projects kept the zooms on each clip; opening moves them to the media.
   zooms: zooms.optional(),
   zoomLayer: z
@@ -369,6 +382,27 @@ const clip = z.looseObject({
     (value) => (value === "heygen" ? "presenter" : value),
     z.literal("presenter").optional(),
   ),
+  groupId: id.optional(),
+  regionFx: z
+    .looseObject({
+      kind: z.enum(REGION_KINDS),
+      rect,
+      feather: z.number().min(0).max(400),
+      strength: z.number().min(0).max(1),
+    })
+    .optional(),
+  gain: z
+    .array(z.looseObject({ t: offset, db: z.number().min(-200).max(48) }))
+    .max(GAIN_LIMIT)
+    .optional(),
+  color: z
+    .looseObject({
+      brightness: z.number().min(-1).max(1).optional(),
+      contrast: z.number().min(0).max(4).optional(),
+      saturation: z.number().min(0).max(4).optional(),
+      temperature: z.number().min(1000).max(40000).optional(),
+    })
+    .optional(),
 });
 export const projectSettingsSchema = z.looseObject({
   width: z.int().min(2).max(16384),
@@ -567,6 +601,24 @@ export const projectSchema = z
       )
       .max(20)
       .optional(),
+    markers: z
+      .array(
+        z.looseObject({ id, t: time, label: z.string().max(400), chapter: z.boolean().optional() }),
+      )
+      .max(MARKER_LIMIT)
+      .optional(),
+    background: z
+      .discriminatedUnion("kind", [
+        z.looseObject({ kind: z.literal("color"), color }),
+        z.looseObject({
+          kind: z.literal("gradient"),
+          from: color,
+          to: color,
+          angle: z.number().min(-3600).max(3600),
+        }),
+        z.looseObject({ kind: z.literal("image"), assetId: id }),
+      ])
+      .optional(),
     settings: projectSettingsSchema,
     assets: z.array(asset).max(5000),
     tracks: z.array(track).max(256),
@@ -639,8 +691,25 @@ export const exportSpecSchema = z
         }),
       )
       .optional(),
+    range: z.strictObject({ from: time, to: time }).optional(),
+    stems: z.strictObject({ voice: path.min(1), music: path.min(1) }).optional(),
+    reveals: z
+      .record(
+        id,
+        z.strictObject({
+          sprite: path.min(1),
+          fps: z.number().positive().max(240),
+          width: z.int().positive().max(16384),
+          height: z.int().positive().max(16384),
+        }),
+      )
+      .optional(),
   })
   .refine((spec) => spec.videoBitrate > 0 || spec.audioOnly === true, {
     message: "Video exports need a bitrate",
     path: ["videoBitrate"],
+  })
+  .refine((spec) => !spec.range || spec.range.to > spec.range.from, {
+    message: "The range must end after it starts",
+    path: ["range"],
   }) satisfies z.ZodType<ExportSpec>;

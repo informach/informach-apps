@@ -1,3 +1,4 @@
+import type { Device } from "./look.ts";
 import type { Asset, Clip, Project, ProjectSettings } from "./types.ts";
 
 /**
@@ -37,6 +38,8 @@ export interface Transform {
   /** Mirrored left to right, or top to bottom: the visible part, before the shape and shadow. */
   flipH?: boolean;
   flipV?: boolean;
+  /** Shown on the screen of a laptop or a phone drawn around it (shared/look.ts). */
+  device?: Device;
 }
 
 /**
