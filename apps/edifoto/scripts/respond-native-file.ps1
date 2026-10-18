@@ -51,22 +51,31 @@ while ([DateTime]::UtcNow -lt $deadline) {
     $buttonClass=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ClassNameProperty,'Button')
     $buttonCondition=New-Object System.Windows.Automation.AndCondition($buttonIdentity,$buttonClass)
     $button=$window.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$buttonCondition)
-    $fileIdentity=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty,'1001')
-    $fileClass=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ClassNameProperty,'Edit')
+    $fileIdentity=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty,'1148')
+    $fileClass=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ClassNameProperty,'ComboBox')
     $fileCondition=New-Object System.Windows.Automation.AndCondition($fileIdentity,$fileClass)
     $file=$null
     foreach ($candidate in $window.FindAll([System.Windows.Automation.TreeScope]::Descendants,$fileCondition)) {
       if (!$candidate.Current.IsOffscreen -and $candidate.Current.IsEnabled) { $file=$candidate; break }
     }
     if (!$file) {
-      $fileIdentity=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty,'1148')
-      $fileClass=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ClassNameProperty,'ComboBox')
+      $fileIdentity=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty,'1001')
+      $fileClass=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ClassNameProperty,'Edit')
       $fileCondition=New-Object System.Windows.Automation.AndCondition($fileIdentity,$fileClass)
       foreach ($candidate in $window.FindAll([System.Windows.Automation.TreeScope]::Descendants,$fileCondition)) {
         if (!$candidate.Current.IsOffscreen -and $candidate.Current.IsEnabled) { $file=$candidate; break }
       }
     }
     if ($button -and !$button.Current.IsOffscreen -and $button.Current.IsEnabled -and $file) {
+      if ($Action -eq 'Save') {
+        $editType=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Edit)
+        $comboType=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::ComboBox)
+        $inputTypes=New-Object System.Windows.Automation.OrCondition($editType,$comboType)
+        foreach($inputControl in $window.FindAll([System.Windows.Automation.TreeScope]::Descendants,$inputTypes)) {
+          Write-Output "Native input: id=$($inputControl.Current.AutomationId); class=$($inputControl.Current.ClassName); label=$($inputControl.Current.Name); offscreen=$($inputControl.Current.IsOffscreen); focusable=$($inputControl.Current.IsKeyboardFocusable)"
+        }
+      }
+      Write-Output "Owned filename control: $($file.Current.ClassName) $($file.Current.AutomationId)"
       $fileHandle=[IntPtr]$file.Current.NativeWindowHandle
       $buttonHandle=[IntPtr]$button.Current.NativeWindowHandle
       foreach($handle in @($fileHandle,$buttonHandle)) {

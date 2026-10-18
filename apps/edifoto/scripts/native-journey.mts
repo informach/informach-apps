@@ -82,7 +82,7 @@ export async function verifyFotoNativeJourney(
   await text.blur();
   const saving = respond("Save");
   await editor.keyboard.press("Control+s");
-  await saving;
+  console.log((await saving).stdout.trim());
   await editor.getByText("Projeto salvo.", { exact: true }).waitFor();
   await editor.waitForFunction(() => !document.title.startsWith("•"));
   const recents: unknown = await editor.evaluate(async () => {
