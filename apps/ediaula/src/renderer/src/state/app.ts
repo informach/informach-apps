@@ -17,21 +17,6 @@ export interface CleanupMark {
   kind: "filler" | "silence" | "repeat";
 }
 
-export interface ProposalItem {
-  start: number;
-  end: number;
-  reason: string;
-  /** Quoted words, re-resolved if the project changed before applying. */
-  text?: string;
-  near?: number;
-}
-
-export interface Proposal {
-  title: string;
-  items: ProposalItem[];
-  revision: number;
-}
-
 export interface Toast {
   id: number;
   text: string;
@@ -73,8 +58,6 @@ interface AppStore {
   cleanupMarks: CleanupMark[];
   /** Timeline range of the words selected in the transcript (Delete cuts it). */
   textCut: [number, number] | null;
-  /** Cuts suggested by the AI, waiting for the user's approval. */
-  proposal: Proposal | null;
   /** The cut selected on the timeline (id of the clip that starts there), for transitions. */
   junction: string | null;
   set(partial: Partial<AppStore>): void;
@@ -104,7 +87,6 @@ export const useApp = create<AppStore>((set, get) => ({
   toasts: [],
   cleanupMarks: [],
   textCut: null,
-  proposal: null,
   junction: null,
   set: (partial) => set(partial),
   startJob: (id, label) => set({ jobs: { ...get().jobs, [id]: { id, label, ratio: 0 } } }),

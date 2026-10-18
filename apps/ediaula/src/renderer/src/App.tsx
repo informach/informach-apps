@@ -1,8 +1,9 @@
 import { type ReactNode, useEffect } from "react";
+import { ApprovalDialog, listenAiApprovals } from "./editor/ApprovalDialog";
 import { Editor } from "./editor/Editor";
 import { ExportQueuePanel } from "./editor/ExportQueuePanel";
 import { SaveFailedDialog } from "./editor/SaveFailedDialog";
-import { runAiTool } from "./lib/aiTools";
+import { reportAiContext, runAiTool } from "./lib/aiTools";
 import { listenRecordings } from "./lib/recording";
 import { SettingsModal } from "./settings/SettingsModal";
 import "./state/assistant";
@@ -29,12 +30,14 @@ export function App(): ReactNode {
     const stopJobs = listenToJobs();
     listenRecordings();
     // AI tools (from Claude Code/Codex over MCP, or the in-app assistant) run here, on the live project.
-    const stopTools = window.api.handleAiTools((call) =>
-      runAiTool(call.name, call.input, call.source),
-    );
+    const stopTools = window.api.handleAiTools((call) => runAiTool(call));
+    const stopApprovals = listenAiApprovals();
+    const stopContext = reportAiContext();
     return () => {
       stopJobs();
       stopTools();
+      stopApprovals();
+      stopContext();
     };
   }, []);
 
@@ -44,6 +47,7 @@ export function App(): ReactNode {
       {settingsOpen && <SettingsModal />}
       <ExportQueuePanel />
       <SaveFailedDialog />
+      <ApprovalDialog />
       <div className="toasts" aria-live="polite">
         {toasts.map((t) => (
           <div key={t.id} className={`toast toast-${t.tone}`}>

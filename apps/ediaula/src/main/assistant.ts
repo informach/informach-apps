@@ -1,15 +1,17 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { BrowserWindow } from "electron";
+import { buildRequest, type Effort, resolveModel, usageCost } from "../shared/aiModels.ts";
 import {
   AI_TOOL_NAMES,
   AI_TOOLS,
-  type AiToolName,
   EDITOR_GUIDE,
+  isAiToolName,
+  PANEL_FORBIDDEN,
   toolJsonSchema,
 } from "../shared/aiTools.ts";
 import type { AssistantEvent } from "../shared/types.ts";
 import { callTool } from "./aiBridge.ts";
-import { DEFAULT_MODEL, decryptKey, readStored } from "./aiSettings.ts";
+import { decryptKey, readStored, storedEffort } from "./aiSettings.ts";
 
 const SYSTEM = `${EDITOR_GUIDE}
 
@@ -22,7 +24,10 @@ type Param = Anthropic.Beta.BetaMessageParam;
 const conversations = new Map<string, Param[]>();
 const running = new Map<string, AbortController>();
 
-const tools: Anthropic.Beta.BetaTool[] = AI_TOOL_NAMES.map((name) => ({
+// Opening or creating projects is for the person: the chat stays on the lesson it belongs to.
+const tools: Anthropic.Beta.BetaTool[] = AI_TOOL_NAMES.filter(
+  (name) => !PANEL_FORBIDDEN.has(name),
+).map((name) => ({
   name,
   description: AI_TOOLS[name].description,
   input_schema: toolJsonSchema(name) as Anthropic.Beta.BetaTool.InputSchema,
@@ -60,13 +65,29 @@ function describeError(err: unknown): string {
 }
 
 /**
+ * Keeps the history valid without editing what was already sent (the API checks earlier turns):
+ * an assistant turn whose tool calls never got results gets error results appended.
+ */
+function closeDanglingTools(messages: Param[], reason: string): void {
+  const last = messages[messages.length - 1];
+  if (last?.role !== "assistant" || !Array.isArray(last.content)) return;
+  const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
+  for (const block of last.content)
+    if (block.type === "tool_use")
+      results.push({ type: "tool_result", tool_use_id: block.id, is_error: true, content: reason });
+  if (results.length) messages.push({ role: "user", content: results });
+}
+
+/**
  * Runs one user turn: streams Claude's answer, executes the tools it calls inside the editor
- * and loops until Claude is done. History is kept per conversation (one per project).
+ * and loops until Claude is done. History is kept per conversation (one per project, and its id
+ * is the project's) and only ever grows: failures are recorded as error results.
  */
 export async function sendMessage(
   win: BrowserWindow | null,
   conversationId: string,
   text: string,
+  effortOverride?: Effort,
 ): Promise<void> {
   const emit = (e: AssistantEvent): void => {
     if (win && !win.isDestroyed()) win.webContents.send("assistant:event", conversationId, e);
@@ -81,7 +102,8 @@ export async function sendMessage(
     emit({ type: "done" });
     return;
   }
-  const model = stored.model ?? DEFAULT_MODEL;
+  const { model } = resolveModel(stored.model);
+  const request = buildRequest(model, effortOverride ?? storedEffort(stored));
   const client = new Anthropic({ apiKey });
   const messages = conversations.get(conversationId) ?? [];
   conversations.set(conversationId, messages);
@@ -91,23 +113,23 @@ export async function sendMessage(
   const abort = new AbortController();
   running.set(conversationId, abort);
   let jsonRetries = 0;
+  let tokens = 0;
+  let usd: number | undefined = 0;
+  const report = (): void => {
+    if (tokens) emit({ type: "usage", tokens, ...(usd !== undefined ? { usd } : {}) });
+  };
 
   try {
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       const stream = client.beta.messages.stream(
         {
-          model,
-          max_tokens: 32000,
+          ...request,
+          max_tokens: 64000,
           system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
           tools,
           messages,
           // Caches the conversation so each tool round only pays for the new turn.
           cache_control: { type: "ephemeral" },
-          // Haiku 4.5 does not support adaptive thinking.
-          ...(model.startsWith("claude-haiku") ? {} : { thinking: { type: "adaptive" as const } }),
-          // If a safety classifier declines, the API retries on the recommended fallback model.
-          betas: ["server-side-fallback-2026-07-01"],
-          fallbacks: "default",
         },
         { signal: abort.signal },
       );
@@ -123,14 +145,20 @@ export async function sendMessage(
           throw err;
         continue;
       }
+      const cost = usageCost(model, message.usage);
+      tokens += cost.tokens;
+      usd = usd === undefined || cost.usd === undefined ? undefined : usd + cost.usd;
 
       if (message.stop_reason === "refusal") {
         emit({
           type: "error",
           message: "O Claude não pôde atender a esse pedido. Tente reformular.",
         });
-        // Drop the declined request itself so it isn't resent with the next message.
-        if (typeof messages[messages.length - 1]?.content === "string") messages.pop();
+        // Recorded as declined (a partial answer is not kept), so the next message follows it.
+        messages.push({
+          role: "assistant",
+          content: [{ type: "text", text: "(Este pedido foi recusado e não foi atendido.)" }],
+        });
         break;
       }
       if (message.stop_reason === "pause_turn") {
@@ -150,11 +178,11 @@ export async function sendMessage(
       messages.push({ role: "assistant", content: message.content });
       const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
       for (const use of toolUses) {
-        const name = use.name as AiToolName;
-        const title = AI_TOOLS[name]?.title ?? use.name;
+        const known = isAiToolName(use.name) ? use.name : null;
+        const title = known ? AI_TOOLS[known].title : use.name;
         emit({ type: "tool", id: use.id, name: use.name, title, status: "running" });
         // Streamed inputs are not validated by the API, so check them before touching the project.
-        const parsed = AI_TOOLS[name]?.input.safeParse(use.input);
+        const parsed = known ? AI_TOOLS[known].input.safeParse(use.input) : undefined;
         if (!parsed?.success) {
           results.push({
             type: "tool_result",
@@ -172,7 +200,10 @@ export async function sendMessage(
           });
           continue;
         }
-        const r = await callTool(win, use.name, parsed.data, "assistant");
+        const r = await callTool(win, use.name, parsed.data, {
+          source: "assistant",
+          projectId: conversationId,
+        });
         results.push({
           type: "tool_result",
           tool_use_id: use.id,
@@ -190,18 +221,20 @@ export async function sendMessage(
       }
       messages.push({ role: "user", content: results });
     }
+    closeDanglingTools(messages, "O limite de rodadas de ferramentas deste pedido acabou.");
+    report();
     emit({ type: "done" });
   } catch (err) {
     if (!abort.signal.aborted) emit({ type: "error", message: describeError(err) });
+    // Leave the history valid for the next turn by adding to it, never removing from it.
+    closeDanglingTools(
+      messages,
+      abort.signal.aborted
+        ? "Interrompido pela pessoa."
+        : "A execução foi interrompida por um erro.",
+    );
+    report();
     emit({ type: "done" });
-    // Leave the history valid for the next turn: drop a dangling assistant turn with tool calls.
-    const last = messages[messages.length - 1];
-    if (
-      last?.role === "assistant" &&
-      Array.isArray(last.content) &&
-      last.content.some((b) => b.type === "tool_use")
-    )
-      messages.pop();
   } finally {
     if (running.get(conversationId) === abort) running.delete(conversationId);
   }
@@ -214,7 +247,7 @@ export async function testKey(): Promise<{ ok: boolean; message: string }> {
   if (!apiKey) return { ok: false, message: "Nenhuma chave salva." };
   try {
     const client = new Anthropic({ apiKey });
-    const model = await client.models.retrieve(stored.model ?? DEFAULT_MODEL);
+    const model = await client.models.retrieve(resolveModel(stored.model).model);
     return { ok: true, message: `Chave válida · ${model.display_name}` };
   } catch (err) {
     return { ok: false, message: describeError(err) };

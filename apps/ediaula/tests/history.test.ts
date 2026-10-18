@@ -1,6 +1,21 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { relinkIn, restoreSnapshot, withRuntimeOf } from "../src/shared/history.ts";
+import {
+  type AiTurn,
+  aiUndoCount,
+  closeTurn,
+  emptyHistory,
+  type History,
+  type HistoryEntry,
+  pushCommit,
+  redoSpan,
+  redoSteps,
+  relinkIn,
+  restoreSnapshot,
+  undoSpan,
+  undoSteps,
+  withRuntimeOf,
+} from "../src/shared/history.ts";
 import type { Asset, Project } from "../src/shared/types.ts";
 
 const avatar: Asset = {
@@ -117,4 +132,79 @@ test("relinking a recording moves its cursor data too, in every snapshot that ha
   }).assets[0];
   assert.deepEqual([onlyCursor.path, onlyCursor.cursor], [recording.path, "E:/cursor.json"]);
   assert.ok(!("cursorMissing" in onlyCursor));
+});
+
+/* ----- Steps of the person and of the AI ----- */
+
+/** Versions of a project told apart by name, as a store would make them commit after commit. */
+const state = (n: number): Project => project([], { name: `v${n}`, updatedAt: n });
+const user: HistoryEntry = { origin: "user" };
+const ai = (call: string, turn?: string): HistoryEntry => ({
+  origin: "ai",
+  key: `ai:${call}`,
+  conversation: "p",
+  ...(turn ? { turn } : {}),
+});
+
+/** Commits `entries` one after another from v0; returns the history and the last version. */
+function run(entries: HistoryEntry[]): { history: History; current: Project } {
+  let history = emptyHistory();
+  let current = state(0);
+  entries.forEach((entry, i) => {
+    history = pushCommit(history, current, entry, 150);
+    current = state(i + 1);
+  });
+  return { history, current };
+}
+
+test("commits of one AI call make one step; a manual edit in between is a step of its own", () => {
+  const { history } = run([ai("c1", "t"), ai("c1", "t"), user, ai("c1", "t")]);
+  // c1, c1 → one step; the person's edit; c1 again after it does not join the first.
+  assert.equal(history.past.length, 3);
+  assert.deepEqual(
+    history.pastMeta.map((m) => m.origin),
+    ["ai", "user", "ai"],
+  );
+  assert.equal(undoSpan(history), 1, "Ctrl+Z stops at the person's edit");
+});
+
+test("one Ctrl+Z takes back the whole turn of the chat, and redo brings it back whole", () => {
+  const { history, current } = run([user, ai("c1", "t"), ai("c2", "t"), ai("c3", "t")]);
+  assert.equal(undoSpan(history), 3);
+  const undone = undoSteps(history, current, undoSpan(history), 10);
+  assert.ok(undone);
+  assert.equal(undone.project.name, "v1", "back to before the turn");
+  assert.equal(undone.history.past.length, 1);
+  assert.equal(redoSpan(undone.history), 3);
+  const redone = redoSteps(undone.history, undone.project, redoSpan(undone.history), 11);
+  assert.ok(redone);
+  assert.equal(redone.project.name, "v4");
+  assert.deepEqual(redone.history.pastMeta, history.pastMeta);
+});
+
+test("the AI's undo takes back only its own steps, never the person's", () => {
+  const mine = (e: HistoryEntry): boolean => e.conversation === "p";
+  const { history, current } = run([user, ai("c1", "t"), ai("c2", "t")]);
+  assert.equal(aiUndoCount(history, mine, 1), 1, "one tool call at a time");
+  assert.equal(aiUndoCount(history, mine, 5), 2, "never past the person's edit");
+  const undone = undoSteps(history, current, 1, 1);
+  assert.equal(undone?.project.name, "v2");
+  // The person edited after the AI: the AI's undo has nothing it may take back.
+  const edited = run([ai("c1", "t"), user]).history;
+  assert.equal(aiUndoCount(edited, mine, 3), 0);
+  // Another app's steps are not this chat's.
+  const other = run([{ origin: "ai", key: "ai:x", client: "g2" }]).history;
+  assert.equal(aiUndoCount(other, mine, 1), 0);
+});
+
+test("a turn that never ended leaves nothing open", () => {
+  // Commits of a new call after a turn that never got its done are steps of their own.
+  const { history } = run([ai("c1", "t1"), user, ai("c2", "t2")]);
+  assert.equal(history.past.length, 3);
+  assert.equal(undoSpan(history), 1);
+  const t1: AiTurn = { id: "t1", projectId: "p" };
+  const t2: AiTurn = { id: "t2", projectId: "p" };
+  assert.equal(closeTurn(t1, t1), null);
+  assert.equal(closeTurn(null, t1), null, "ending twice does nothing");
+  assert.equal(closeTurn(t2, t1), t2, "ending an old turn leaves the new one open");
 });

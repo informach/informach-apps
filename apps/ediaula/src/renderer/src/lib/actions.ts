@@ -13,7 +13,7 @@ import {
 import type { Asset, Project, Track } from "@shared/types";
 import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
-import { useProject } from "@/state/project";
+import { type Commit, personCommit, useProject } from "@/state/project";
 import { importMedia } from "./importMedia";
 import { confirmLeave } from "./leaveGuard";
 import { checkAssets } from "./relink";
@@ -86,8 +86,8 @@ export const actions = {
   },
 
   /** Appends assets to the end of their default track. */
-  appendAssets(assets: Asset[]): void {
-    const { commit, project } = useProject.getState();
+  appendAssets(assets: Asset[], commit: Commit = personCommit): void {
+    const { project } = useProject.getState();
     if (!project || !assets.length) return;
     commit((p) => {
       let clips = p.clips;

@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { lock } from "proper-lockfile";
 import { type AST, getStaticTOMLValue, parseTOML } from "toml-eslint-parser";
 import { z } from "zod";
-import { localMcpHeaders } from "./access";
+import { createClientGrant, grantForBearer, revokeClientGrants, revokeGrant } from "./access";
 
 function index(source: string) {
   const tree = parseTOML(source, { tomlVersion: "1.0" });
@@ -113,35 +113,103 @@ async function existing(path: string): Promise<string | null> {
     throw error;
   }
 }
-/** Called only by an explicit Connect client action. Other servers and comments are preserved. */
-export async function configureMcpClient(config: {
+type ClientConfig = {
   client: "claude-code" | "codex";
   home: string;
   name: string;
   port: number;
-}) {
+  /** Replace the client's token even when the one configured still works (Reconectar). */
+  rotate?: boolean;
+};
+
+const configPath = (config: Pick<ClientConfig, "client" | "home">): string =>
+  config.client === "codex"
+    ? join(config.home, ".codex", "config.toml")
+    : join(config.home, ".claude.json");
+
+/** The Authorization header configured for the tool's server in the client, if any. */
+async function configuredAuthorization(config: ClientConfig): Promise<string | null> {
+  const source = await existing(configPath(config));
+  if (source === null) return null;
+  const rootSchema = z.object({
+    mcp_servers: z.record(z.string(), z.unknown()).optional(),
+    mcpServers: z.record(z.string(), z.unknown()).optional(),
+  });
+  const parsed = rootSchema.parse(
+    config.client === "codex" ? getStaticTOMLValue(parseTOML(source)) : JSON.parse(source),
+  );
+  const server = z
+    .object({
+      url: z.string(),
+      headers: z.record(z.string(), z.string()).optional(),
+      http_headers: z.record(z.string(), z.string()).optional(),
+    })
+    .safeParse((config.client === "codex" ? parsed.mcp_servers : parsed.mcpServers)?.[config.name]);
+  if (!server.success || server.data.url !== `http://127.0.0.1:${config.port}/mcp`) return null;
+  return (
+    (config.client === "codex" ? server.data.http_headers : server.data.headers)?.Authorization ??
+    null
+  );
+}
+
+/**
+ * Called only by an explicit Connect client action. Other servers and comments are preserved.
+ * The client gets a token of its own that can read and propose; writes ask for approval in the
+ * tool. A client already configured with a valid token of its own is left as it is: a client
+ * that is open (Claude Code) may write its old copy of the file back, so the token only changes
+ * on an explicit Reconectar (`rotate`) or after a revocation. Connecting also ends the token of
+ * an earlier version. Returns whether the configuration was written.
+ */
+export async function configureMcpClient(config: ClientConfig): Promise<boolean> {
   const name = z.enum(["ediaula", "edifoto", "edisvg"]).parse(config.name);
   const port = z.int().min(1024).max(65535).parse(config.port);
-  const target =
-    config.client === "codex"
-      ? join(config.home, ".codex", "config.toml")
-      : join(config.home, ".claude.json");
+  const target = configPath(config);
   const url = `http://127.0.0.1:${port}/mcp`;
+  if (!config.rotate) {
+    const current = await configuredAuthorization({ ...config, name, port });
+    const grant = current ? grantForBearer(current) : null;
+    if (grant && grant.client === config.client) {
+      await revokeClientGrants("legacy");
+      return false;
+    }
+  }
   await mkdir(dirname(target), { recursive: true, mode: 0o700 });
+  const { token, grant } = await createClientGrant({
+    client: config.client,
+    scopes: ["read", "propose"],
+  });
+  const authorization = `Bearer ${token}`;
+  let written = false;
+  try {
+    await writeClientConfiguration(config.client, target, name, url, authorization);
+    written = true;
+  } finally {
+    if (!written) await revokeGrant(grant.id);
+  }
+  await revokeClientGrants(config.client, grant.id);
+  await revokeClientGrants("legacy");
+  return true;
+}
+async function writeClientConfiguration(
+  client: "claude-code" | "codex",
+  target: string,
+  name: string,
+  url: string,
+  authorization: string,
+) {
   const release = await lock(target, { realpath: false, stale: 30000, retries: 0 });
   let temporary: string | undefined;
   try {
     const before = await existing(target);
     let after: string;
-    if (config.client === "codex")
-      after = codexMcpConfiguration(before ?? "", name, url, localMcpHeaders().Authorization);
+    if (client === "codex") after = codexMcpConfiguration(before ?? "", name, url, authorization);
     else {
       const root = z.record(z.string(), z.unknown()).parse(JSON.parse(before ?? "{}"));
       const servers = z.record(z.string(), z.unknown()).parse(root.mcpServers ?? {});
       const server = z.record(z.string(), z.unknown()).parse(servers[name] ?? {});
       root.mcpServers = {
         ...servers,
-        [name]: { ...server, type: "http", url, headers: localMcpHeaders() },
+        [name]: { ...server, type: "http", url, headers: { Authorization: authorization } },
       };
       after = `${JSON.stringify(root, null, 2)}\n`;
     }
@@ -168,14 +236,15 @@ export async function configureMcpClient(config: {
   }
 }
 export async function connectMcpClient(
-  config: Parameters<typeof configureMcpClient>[0],
+  config: ClientConfig,
 ): Promise<{ ok: boolean; message: string }> {
   try {
-    await configureMcpClient(config);
+    const written = await configureMcpClient(config);
     return {
       ok: true,
-      message:
-        "Conectado com autenticação local. Reinicie a sessão do cliente. Uma cópia da configuração anterior foi preservada.",
+      message: written
+        ? "Conectado com autenticação local. Feche e abra o cliente de novo para ele usar o acesso novo. Uma cópia da configuração anterior foi preservada."
+        : "Este cliente já está conectado. Para trocar o acesso dele, use Reconectar e depois feche e abra o cliente.",
     };
   } catch (error) {
     console.error(
@@ -189,38 +258,11 @@ export async function connectMcpClient(
     };
   }
 }
-export async function isMcpClientConnected(
-  config: Parameters<typeof configureMcpClient>[0],
-): Promise<boolean> {
-  const path =
-    config.client === "codex"
-      ? join(config.home, ".codex", "config.toml")
-      : join(config.home, ".claude.json");
-  const source = await existing(path);
-  if (source === null) return false;
-  const rootSchema = z.object({
-    mcp_servers: z.record(z.string(), z.unknown()).optional(),
-    mcpServers: z.record(z.string(), z.unknown()).optional(),
-  });
+export async function isMcpClientConnected(config: ClientConfig): Promise<boolean> {
   try {
-    const parsed = rootSchema.parse(
-      config.client === "codex" ? getStaticTOMLValue(parseTOML(source)) : JSON.parse(source),
-    );
-    const server = z
-      .object({
-        url: z.string(),
-        headers: z.record(z.string(), z.string()).optional(),
-        http_headers: z.record(z.string(), z.string()).optional(),
-      })
-      .safeParse(
-        (config.client === "codex" ? parsed.mcp_servers : parsed.mcpServers)?.[config.name],
-      );
-    return (
-      server.success &&
-      server.data.url === `http://127.0.0.1:${config.port}/mcp` &&
-      (config.client === "codex" ? server.data.http_headers : server.data.headers)
-        ?.Authorization === localMcpHeaders().Authorization
-    );
+    const authorization = await configuredAuthorization(config);
+    const grant = authorization ? grantForBearer(authorization) : null;
+    return !!grant && (grant.client === config.client || grant.client === "legacy");
   } catch (error) {
     console.error(
       "[edi] client_configuration_invalid",

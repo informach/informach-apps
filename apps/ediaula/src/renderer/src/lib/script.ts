@@ -12,7 +12,7 @@ import { type Alignment, alignSection, bestSection } from "@shared/scriptAlign";
 import { clipEnd, newId, newTrackName, sourceEnd } from "@shared/timeline";
 import type { Asset, Clip, Project, Track, Transcript } from "@shared/types";
 import { useMemo } from "react";
-import { useProject } from "@/state/project";
+import { type Commit, personCommit, useProject } from "@/state/project";
 import { showProposal } from "./proposals";
 import { loadProjectTranscripts } from "./transcripts";
 
@@ -81,17 +81,46 @@ export function setScript(text: string | null, section?: number): void {
 export const insertedClip = (p: Project, insertId: string): Clip | undefined =>
   p.clips.find((c) => c.insertId === insertId);
 
+type Placement =
+  | { ok: false; message: string }
+  | { ok: true; message: string; apply: (q: Project) => Project };
+
+const clock = (s: number): string =>
+  `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
+
 /**
  * Places an avatar line from the script over the lesson: finds it in a transcribed media, opens
  * the timeline if the recorded pause is too short (holding the screen on a still frame) and puts
  * the avatar on a free video track above, beside the content, with a short dissolve.
  * One undo step. Returns a message for the user (or the AI).
+ *
+ * The placement is planned on the project as it is, with waits for the transcripts and the
+ * still frames. If the project changed in the meantime, it is planned once more on the new one;
+ * if it changed again, nothing is placed (an edit made meanwhile is never overwritten).
  */
 export async function placeInsert(
   target: string | SpeechItem,
+  commit: Commit = personCommit,
 ): Promise<{ ok: boolean; message: string }> {
-  const p = useProject.getState().project;
-  if (!p) return { ok: false, message: "Nenhum projeto aberto." };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const p = useProject.getState().project;
+    if (!p) return { ok: false, message: "Nenhum projeto aberto." };
+    const revision = useProject.getState().revision;
+    const planned = await planPlacement(p, target);
+    if (!planned.ok) return planned;
+    const now = useProject.getState();
+    if (now.revision !== revision || now.project !== p) continue;
+    if (!commit(planned.apply))
+      return { ok: false, message: "A aula aberta mudou; a inserção não foi colocada." };
+    return { ok: true, message: planned.message };
+  }
+  return {
+    ok: false,
+    message: "O projeto mudou enquanto a inserção era preparada. Nada foi colocado; tente de novo.",
+  };
+}
+
+async function planPlacement(p: Project, target: string | SpeechItem): Promise<Placement> {
   const view = await currentView(p);
   if (!view) return { ok: false, message: "Cole o roteiro na aba Roteiro primeiro." };
   const { section, alignment, transcripts } = view;
@@ -137,7 +166,18 @@ export async function placeInsert(
   const stills: { asset: Asset; clip: Clip }[] = [];
   let clips = p.clips;
   if (plan.gap > 0) {
-    const opened = openGap(clips, plan.cut, plan.gap, targets);
+    const opened = openGap(clips, plan.cut, plan.gap, targets, locked);
+    if (opened.blocked.length) {
+      const names = [
+        ...new Set(
+          opened.blocked.map((c) => p.tracks.find((t) => t.id === c.trackId)?.name ?? c.trackId),
+        ),
+      ];
+      return {
+        ok: false,
+        message: `Proposta para ${label}, não aplicada: encaixar em ${clock(plan.cut)} precisa abrir ${plan.gap.toFixed(1)} s na timeline, mas a faixa travada ${names.join(", ")} passa por esse ponto e ficaria fora de sincronia. Destrave a faixa e peça de novo, ou encaixe à mão numa pausa maior.`,
+      };
+    }
     clips = opened.clips;
     for (const left of opened.split) {
       const a = p.assets.find((x) => x.id === left.assetId);
@@ -212,23 +252,25 @@ export async function placeInsert(
     transform ? { transform } : {},
   );
 
-  useProject.getState().commit((q) => ({
-    ...q,
-    tracks,
-    assets: [...q.assets, ...stills.map((s) => s.asset)],
-    clips: [...clips, ...stills.map((s) => s.clip), clip],
-  }));
-  const t = (s: number): string => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
   return {
     ok: true,
-    message: `${label} encaixada em ${t(plan.at)} (${plan.duration.toFixed(1)} s)${plan.gap > 0 ? `; abri ${plan.gap.toFixed(1)} s na timeline${stills.length ? " com a tela parada" : ""}` : " na pausa que já existia"}.`,
+    // Only applied when the project is still the one planned on (placeInsert checks it).
+    apply: (q) => ({
+      ...q,
+      tracks,
+      assets: [...q.assets, ...stills.map((s) => s.asset)],
+      clips: [...clips, ...stills.map((s) => s.clip), clip],
+    }),
+    message: `${label} encaixada em ${clock(plan.at)} (${plan.duration.toFixed(1)} s)${plan.gap > 0 ? `; abri ${plan.gap.toFixed(1)} s na timeline${stills.length ? " com a tela parada" : ""}` : " na pausa que já existia"}.`,
   };
 }
 
 /** Shows everything said outside the script (false starts, retakes, comments) as a cut proposal. */
-export async function proposeOffScript(): Promise<string> {
+export async function proposeOffScript(by = "roteiro"): Promise<string> {
   const p = useProject.getState().project;
   if (!p) return "Nenhum projeto aberto.";
+  // The times come from this state of the project: a change meanwhile makes them stale.
+  const revision = useProject.getState().revision;
   const view = await currentView(p);
   if (!view) return "Cole o roteiro na aba Roteiro primeiro.";
   const runs = view.alignment.offScript;
@@ -239,8 +281,9 @@ export async function proposeOffScript(): Promise<string> {
     runs.map((r) => ({
       start: r.start,
       end: r.end,
-      reason: `fora do roteiro: "${r.text.length > 70 ? r.text.slice(0, 70) + "…" : r.text}"`,
+      reason: `fora do roteiro: "${r.text.length > 70 ? `${r.text.slice(0, 70)}…` : r.text}"`,
     })),
-    useProject.getState().revision,
+    revision,
+    by,
   );
 }

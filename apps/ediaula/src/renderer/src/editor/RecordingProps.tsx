@@ -6,7 +6,7 @@ import { Crosshair, MousePointer2, Plus, Trash2, Wand2, X, ZoomIn } from "lucide
 import { type ReactNode, useState } from "react";
 import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
-import { useProject } from "@/state/project";
+import { type Commit, personCommit } from "@/state/project";
 import { Button, Toggle } from "@/ui";
 import { Slider } from "./ClipVisual";
 import { cursorFxOf, loadCursorData } from "./CursorLayer";
@@ -14,8 +14,12 @@ import { cursorFxOf, loadCursorData } from "./CursorLayer";
 const clock = (s: number): string =>
   `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
 
-export function setCursorFx(assetId: string, changes: Partial<CursorFx>): void {
-  useProject.getState().commit((p) => ({
+export function setCursorFx(
+  assetId: string,
+  changes: Partial<CursorFx>,
+  commit: Commit = personCommit,
+): void {
+  commit((p) => ({
     ...p,
     assets: p.assets.map((a) =>
       a.id === assetId
@@ -100,8 +104,8 @@ function ToggleRow({
  * Edits the zooms this clip shows. They belong to the recording (shared/zoom.ts): the other
  * clips of it see the change over the same moments, and a zoom taken out stays out.
  */
-function updateZooms(clip: Clip, fn: (z: Zoom[]) => Zoom[]): void {
-  useProject.getState().commit((p) => ({
+function updateZooms(clip: Clip, fn: (z: Zoom[]) => Zoom[], commit: Commit = personCommit): void {
+  commit((p) => ({
     ...p,
     assets: p.assets.map((a) => {
       if (a.id !== clip.assetId) return a;
@@ -117,6 +121,7 @@ export async function applyAutoZoom(
   clip: Clip,
   asset: Asset,
   scale = DEFAULT_AUTO_ZOOM.scale,
+  commit: Commit = personCommit,
 ): Promise<number> {
   if (!asset.cursor) return 0;
   const data = await loadCursorData(asset.cursor);
@@ -135,7 +140,7 @@ export async function applyAutoZoom(
   const zooms = autoZooms(adjusted, asset.duration, { ...DEFAULT_AUTO_ZOOM, scale }).filter(
     (z) => z.end > clip.in && z.start < sourceEnd(clip),
   );
-  updateZooms(clip, (old) => [...old.filter((z) => !z.auto), ...zooms]);
+  updateZooms(clip, (old) => [...old.filter((z) => !z.auto), ...zooms], commit);
   return zooms.length;
 }
 

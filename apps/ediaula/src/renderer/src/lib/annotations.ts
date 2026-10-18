@@ -25,7 +25,7 @@ import { inPalette } from "@shared/palettes";
 import { clipEnd, newId, newTrackName } from "@shared/timeline";
 import type { Asset, Clip, Project, Track } from "@shared/types";
 import { usePlayback } from "@/state/playback";
-import { trackEdit, useProject } from "@/state/project";
+import { type Commit, personCommit, trackEdit, useProject } from "@/state/project";
 import { ensureFont } from "./fonts";
 import { importMedia } from "./importMedia";
 import { activePalette, projectFont } from "./palettes";
@@ -543,6 +543,7 @@ export async function addAnnotation(
   kind: AnnotationKind,
   changes: Partial<Annotation> = {},
   opts: AddOptions = {},
+  commit: Commit = personCommit,
 ): Promise<string | null> {
   const p = useProject.getState().project;
   if (!p) return null;
@@ -575,7 +576,7 @@ export async function addAnnotation(
   const start = Math.max(0, opts.at ?? usePlayback.getState().time);
   const duration = opts.duration ?? preset.duration;
   const id = newId("c");
-  useProject.getState().commit((q) => {
+  commit((q) => {
     const { tracks, track } = overlayTrack(q, start, start + duration);
     const clip: Clip = {
       id,
@@ -611,9 +612,13 @@ const redraws = new Map<string, Promise<void>>();
  * reaches the project only when the picture is ready, so it is tracked (trackEdit) until then:
  * leaving the project waits for it.
  */
-export function updateAnnotation(clipId: string, changes: Partial<Annotation>): Promise<void> {
+export function updateAnnotation(
+  clipId: string,
+  changes: Partial<Annotation>,
+  commit: Commit = personCommit,
+): Promise<void> {
   const previous = redraws.get(clipId) ?? Promise.resolve();
-  const next = previous.then(() => redrawAnnotation(clipId, changes));
+  const next = previous.then(() => redrawAnnotation(clipId, changes, commit));
   const settled = next.then(
     () => undefined,
     () => undefined,
@@ -625,7 +630,11 @@ export function updateAnnotation(clipId: string, changes: Partial<Annotation>): 
   return trackEdit(next);
 }
 
-async function redrawAnnotation(clipId: string, changes: Partial<Annotation>): Promise<void> {
+async function redrawAnnotation(
+  clipId: string,
+  changes: Partial<Annotation>,
+  commit: Commit,
+): Promise<void> {
   const p = useProject.getState().project;
   const clip = p?.clips.find((c) => c.id === clipId);
   const asset = clip && p?.assets.find((a) => a.id === clip.assetId);
@@ -637,7 +646,7 @@ async function redrawAnnotation(clipId: string, changes: Partial<Annotation>): P
   // Same on-screen size per pixel as before: rescale for the new picture's dimensions.
   const adjust = <T extends { x: number; y: number; scale: number }>(value: T): T =>
     preserveBalloonBody(value, asset, r, p.settings, clip.annotation?.balloonGeometry, r.balloon);
-  useProject.getState().commit((q) => {
+  commit((q) => {
     if (q.id !== p.id || q.clips.find((c) => c.id === clipId) !== clip) return q;
     // A copy (pasted or split) shares the picture: it gets its own, so the other one stays as it is.
     const shared = q.clips.some((c) => c.id !== clipId && c.assetId === asset.id);
@@ -674,6 +683,7 @@ async function redrawAnnotation(clipId: string, changes: Partial<Annotation>): P
 export async function addImageOverlay(
   path: string,
   opts: AddOptions & { placement?: "left" | "right" | "center" } = {},
+  commit: Commit = personCommit,
 ): Promise<string | null> {
   const [asset] = await importMedia([path]);
   const p = useProject.getState().project;
@@ -688,7 +698,7 @@ export async function addImageOverlay(
         ? { ...MEME.transform, x: 1 - MEME.transform.x }
         : { ...MEME.transform };
   const id = newId("c");
-  useProject.getState().commit((q) => {
+  commit((q) => {
     const { tracks, track } = overlayTrack(q, start, start + duration, "Memes");
     const clip: Clip = {
       id,
@@ -721,6 +731,7 @@ export async function addImageOverlay(
 export async function addCard(
   where: "start" | "end",
   texts: { kicker?: string; text?: string; subtitle?: string; color?: string } = {},
+  commit: Commit = personCommit,
 ): Promise<string | null> {
   const p = useProject.getState().project;
   if (!p) return null;
@@ -767,7 +778,7 @@ export async function addCard(
     generated: "annotation",
   };
   const id = newId("c");
-  useProject.getState().commit((q) => {
+  commit((q) => {
     let clips = q.clips;
     const end = q.clips.reduce((m, c) => Math.max(m, clipEnd(c)), 0);
     const start = where === "start" ? 0 : end;

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_ANCHORS, MAX_WORD_KEYS, PROPOSAL_ITEM_LIMIT, PROPOSAL_LIMIT } from "./anchors.ts";
 import { ENCODERS, type ExportSpec, type Project } from "./types.ts";
 
 const number = z.number().min(-1e9).max(1e9);
@@ -257,6 +258,48 @@ export const projectSettingsSchema = z.looseObject({
   height: z.int().min(2).max(16384),
   fps: z.number().positive().max(240),
 });
+const sourceSpan = z.looseObject({
+  clipId: id,
+  assetId: id,
+  trackId: id.optional(),
+  start: time,
+  end: time,
+  at: time.optional(),
+  until: time.optional(),
+});
+const proposal = z.looseObject({
+  id,
+  projectId: id,
+  title: text,
+  revision: z.int().nonnegative(),
+  createdAt: z.number().nonnegative(),
+  by: z.string().min(1).max(200).optional(),
+  items: z
+    .array(
+      z.looseObject({
+        id,
+        start: time,
+        end: time,
+        reason: text,
+        text: text.optional(),
+        near: number.optional(),
+        anchors: z.array(sourceSpan).min(1).max(MAX_ANCHORS),
+        wordKeys: z.array(z.string().max(300)).max(MAX_WORD_KEYS).optional(),
+        status: z.enum(["pending", "rejected"]),
+      }),
+    )
+    .max(PROPOSAL_ITEM_LIMIT),
+});
+
+/** The pending proposals of a project, checked before they are kept (proposals.ts). */
+export const proposalListSchema = z
+  .array(proposal)
+  .max(PROPOSAL_LIMIT)
+  .refine(
+    (list) => list.reduce((n, p) => n + p.items.length, 0) <= PROPOSAL_ITEM_LIMIT,
+    "Too many proposal items",
+  );
+
 /** Preserve extension fields of the versioned format; all fields used by the editor are validated. */
 export const projectSchema = z
   .looseObject({
@@ -296,6 +339,8 @@ export const projectSchema = z
     paletteFonts: z.boolean().optional(),
     script: z.looseObject({ text, section: z.int().nonnegative().optional() }).optional(),
     stats: z.looseObject({ editSeconds: z.number().nonnegative() }).optional(),
+    // Pending AI proposals, at most PROPOSAL_ITEM_LIMIT items in all (the save is one IPC value).
+    proposals: proposalListSchema.optional(),
     settings: projectSettingsSchema,
     assets: z.array(asset).max(5000),
     tracks: z.array(track).max(256),

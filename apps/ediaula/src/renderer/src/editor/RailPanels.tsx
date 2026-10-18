@@ -44,7 +44,13 @@ import {
 } from "lucide-react";
 import { Fragment, type ReactNode, useEffect, useState } from "react";
 import { importMedia } from "@/lib/importMedia";
-import { addTemplate, defaultValues, templateStart, templateThumb } from "@/lib/templates";
+import {
+  addTemplate,
+  defaultValues,
+  TemplateBlockedError,
+  templateStart,
+  templateThumb,
+} from "@/lib/templates";
 import {
   makeTransition,
   paletteColors,
@@ -55,7 +61,7 @@ import {
 } from "@/lib/transitions";
 import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
-import { useProject } from "@/state/project";
+import { type Commit, personCommit, useProject } from "@/state/project";
 import { Button, Toggle } from "@/ui";
 import { CaptionSettings } from "./CaptionSettings";
 import { MotionPathSection, Slider } from "./ClipVisual";
@@ -123,8 +129,15 @@ function TemplateCard({
         : `no cursor (${clock(time)})`;
   const insert = async (): Promise<void> => {
     setBusy(true);
-    const ids = await addTemplate(t.id, values);
-    setBusy(false);
+    let ids: string[] = [];
+    try {
+      ids = await addTemplate(t.id, values);
+    } catch (err) {
+      if (!(err instanceof TemplateBlockedError)) throw err;
+      useApp.getState().toast(err.message, "error");
+    } finally {
+      setBusy(false);
+    }
     if (ids.length) {
       const at = project ? templateStart(t, project) : 0;
       playback.seek(at + 0.01);
@@ -559,7 +572,10 @@ export function MotionsPanel(): ReactNode {
 /* -------------------------------------------------------------------- Audio */
 
 /** Puts a music file on its own music track from 0:00, repeated to the end of the lesson, low. */
-export async function addMusic(path: string): Promise<string | null> {
+export async function addMusic(
+  path: string,
+  commit: Commit = personCommit,
+): Promise<string | null> {
   const [asset] = await importMedia([path]);
   const p = useProject.getState().project;
   if (!asset || !p || !asset.hasAudio || !asset.duration) return null;
@@ -586,22 +602,24 @@ export async function addMusic(path: string): Promise<string | null> {
       fadeIn: at === 0 ? 1 : undefined,
       fadeOut: at + asset.duration >= end ? 2 : undefined,
     });
-  useProject
-    .getState()
-    .commit((q) => ({ ...q, tracks: [...q.tracks, track], clips: [...q.clips, ...clips] }));
+  commit((q) => ({ ...q, tracks: [...q.tracks, track], clips: [...q.clips, ...clips] }));
   return track.id;
 }
 
-export function setTrackMusic(trackId: string, music: boolean): void {
-  useProject.getState().commit((q) => ({
+export function setTrackMusic(
+  trackId: string,
+  music: boolean,
+  commit: Commit = personCommit,
+): void {
+  commit((q) => ({
     ...q,
     tracks: q.tracks.map((t) => (t.id === trackId ? { ...t, music: music || undefined } : t)),
   }));
 }
 
-export function setDenoise(clipIds: string[], on: boolean): void {
+export function setDenoise(clipIds: string[], on: boolean, commit: Commit = personCommit): void {
   const ids = new Set(clipIds);
-  useProject.getState().commit((q) => ({
+  commit((q) => ({
     ...q,
     clips: q.clips.map((c) => (ids.has(c.id) ? { ...c, denoise: on || undefined } : c)),
   }));

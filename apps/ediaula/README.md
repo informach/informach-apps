@@ -80,26 +80,97 @@ Duas formas, configuradas em **Configurações › Inteligência artificial** (�
 1. **Com a sua assinatura (igual ao pen):** o EdiAula abre um servidor MCP local em `http://127.0.0.1:47321/mcp`.
    O botão **Conectar** registra o EdiAula no Claude Code ou no Codex. Depois é só pedir lá
    ("limpe a aula aberta no EdiAula", "gere os capítulos") e acompanhar as edições ao vivo.
-   Claude Desktop: copie o trecho de configuração mostrado na mesma tela.
-2. **Assistente dentro do app:** aba **Assistente**, com chave da API da Anthropic (cobrada por uso,
-   guardada criptografada). Modelo padrão: Claude Opus 5.
+2. **Assistente dentro do app:** aba **Assistente**. O motor pode ser o Claude Code (assinatura do Claude),
+   o Codex (assinatura do ChatGPT) ou a API da Anthropic (chave cobrada por uso, guardada criptografada).
 
 As duas usam as mesmas ferramentas (`src/shared/aiTools.ts`): visão geral, ler transcrição, sugestões e
-limpeza automática, cortar frases ou trechos, desfazer, mover o cursor, salvar título/descrição/capítulos/resumo,
+limpeza automática, cortar frases ou trechos, propor cortes, desfazer, mover o cursor, salvar título/descrição/capítulos/resumo,
 transcrever, importar mídia e abrir/criar projetos. Toda edição entra no histórico (Ctrl+Z).
 
-O servidor só aceita conexões deste computador e recusa pedidos vindos de páginas web.
+**Modelos (chave da API):** Claude Opus 5.5 (padrão e recomendado), Claude Sonnet 5.5 e Claude Haiku 5.5 (econômico).
+Quem tinha escolhido o Claude Opus 5 continua nele, com um aviso de que o Opus 5.5 é mais novo e mais barato; o
+Claude Haiku 4.5 passa sozinho para o Haiku 5.5. Cada pedido vai com raciocínio adaptativo e com o **esforço**
+escolhido em Configurações (Alto por padrão; também vale para o Claude Code). Conversas longas são compactadas pela
+própria API, e quando um filtro de segurança recusa um pedido o Opus e o Sonnet tentam de novo num modelo
+alternativo (o Haiku 5.5 não tem essa opção). O histórico da conversa só cresce: uma falha vira um resultado de erro,
+nunca uma mensagem apagada. O painel mostra os tokens e o custo de cada pedido e o total da conversa: na chave da API
+é o preço da Anthropic (`src/shared/aiModels.ts`); no Claude Code aparece o equivalente na API, porque a
+assinatura não cobra por pedido; no Codex aparecem só os tokens.
+`get_transcript` devolve 10 minutos por vez (com `next_from` para continuar) ou um resumo de uma linha por parágrafo.
 
-**Chat do app com a sua assinatura:** em Configurações, escolha o motor do Assistente:
-Claude Code (assinatura do Claude), Codex (assinatura do ChatGPT) ou API da Anthropic (chave).
-Com Claude Code/Codex o EdiAula roda o programa oficial já logado no computador, sem ver credenciais,
-e ele só enxerga as ferramentas do editor (o Claude Code roda sem nenhuma ferramenta interna).
+**Conexões e permissões:** cada token é uma permissão, guardada só como hash num arquivo protegido de cada
+ferramenta, ao lado da sessão da suíte (`packages/edi-desktop/src/access.ts` e `grants.ts`; a sessão compartilhada não
+recebe nada que uma ferramenta mais antiga recusaria). O **Conectar** dá ao Claude Code ou ao Codex um token próprio que
+pode **ler** a aula e **propor** cortes; para **alterar** a aula, cada pedido abre no EdiAula a janela "A IA quer
+alterar a aula", com todos os parâmetros do pedido e **Permitir uma vez**, **Permitir por 15 min neste projeto** e
+**Negar** (Negar vem selecionado, os botões de permitir só funcionam depois de um instante e, sem resposta em 60 s, o
+pedido é negado). Abrir ou criar projeto e importar mídia sempre perguntam, mesmo dentro dos 15 minutos. Um app que só
+lê e propõe nunca apaga a proposta de outro: a nova fica junto, e a barra de propostas deixa escolher qual ver.
+O **Conectar** não troca o token de um app que já está conectado (o Claude Code aberto regrava a configuração antiga);
+**Reconectar** troca, e depois é preciso fechar e abrir o app. O token de uma versão anterior continua funcionando por
+30 dias, só para ler e propor, e deixa de valer no primeiro **Conectar**. Ele ainda aparece nas cópias
+`.claude.json.edi-backup-*` e `.codex\config.toml.edi-backup-*` que o Conectar guarda ao lado da configuração dos apps:
+o EdiAula não apaga arquivos desses programas, então apague essas cópias se quiser. O chat do Assistente usa, a cada
+pedido, um token de 30 minutos (renovado enquanto o pedido roda) que só existe na memória, vai ao programa por
+variável de ambiente (nunca na linha de comando nem em arquivo) e é revogado quando o pedido termina ou quando você
+aperta Parar. A lista **Conexões com acesso** mostra quem pode falar com o EdiAula e tem **Revogar**; sair da conta Edi
+neste computador revoga todas as conexões de todas as ferramentas, encerra os pedidos em andamento e fecha as janelas
+do Claude Code só com o EdiAula.
+
+**Configuração manual:** em **Claude Desktop e configuração manual**, **Gerar token para configuração manual** cria um
+token que lê e propõe e preenche os trechos prontos, que já levam o cabeçalho de autorização:
+- Claude Code: `claude mcp add --transport http --scope user ediaula http://127.0.0.1:47321/mcp --header "Authorization: Bearer <token>"`
+- Codex (`.codex\config.toml` na pasta do usuário): seção `[mcp_servers.ediaula]` com `url` e
+  `http_headers = { Authorization = "Bearer <token>" }`
+- Claude Desktop: `npx -y mcp-remote@0.15.1 <url> --header "Authorization:${EDIAULA_AUTH}"`, com o token em
+  `env.EDIAULA_AUTH` (o `mcp-remote` tem versão fixa, para nunca mudar sozinho).
+
+O token aparece uma vez só; guarde como uma senha e revogue quando não usar mais. O servidor só aceita conexões deste
+computador e recusa pedidos vindos de páginas web.
+
+**O que cada motor alcança:** o Claude Code roda sem nenhuma ferramenta própria (arquivos, terminal, internet), só com
+as do EdiAula. O Codex roda sem a configuração pessoal (`--ignore-user-config`), em modo só leitura, com busca na
+internet desligada e com as funções da própria lista do Codex instalado (`codex features list`) que vão além do editor
+também desligadas (terminal, agentes, navegador, imagens, extensões). O EdiAula só deixa passar mensagens, raciocínio,
+lista de tarefas e chamadas ao servidor do próprio EdiAula: qualquer outra coisa (um comando, uma mudança de arquivo,
+uma busca, outro servidor de ferramentas, outro agente) interrompe a conversa na hora. Antes da primeira conversa com
+cada versão do Codex, o EdiAula pede a ele para chamar uma ferramenta do editor e depois ler um arquivo de teste: a
+versão só fica marcada como restrita (em `ai.json`) quando ele chama a ferramenta e não consegue ler o arquivo; uma
+resposta "não consigo" sem tentar não conta. Se ele lê o arquivo ou age fora do editor, a tela mostra "sem restrição
+garantida" e o Codex só é usado depois de uma confirmação explícita. Os dois programas são abertos sem shell e a
+mensagem vai pela entrada padrão, então `&`, `|`, `%VAR%`, quebras de linha e textos começando com "-" chegam como
+texto, e roteiros longos cabem. Atalhos `.cmd` do npm e `.bunx` do bun são lidos para achar o programa de verdade (no
+Codex, o `codex.exe` nativo); um atalho que não for reconhecido, ou que aponte para fora da própria pasta, não é aberto.
+**Parar** revoga o token e encerra o programa com todos os processos que ele abriu.
+
+**Caminhos de arquivo vindos da IA** (`import_media`, `add_image`, `set_audio`, `open_project`) são conferidos antes de
+qualquer arquivo ser aberto (`src/shared/aiPaths.ts`, `src/main/aiPaths.ts`): caminhos de rede (`\\servidor`),
+`\\?\`, `\\.\`, `file:`, `C:arquivo` e fluxos alternativos (`arquivo:fluxo`) são recusados, assim como atalhos que
+levam para outro computador. Dentro da pasta do projeto, de Documentos, Downloads, Vídeos, Música, Imagens ou de uma
+pasta que a aula já usa, o arquivo é aceito (nunca a raiz de uma unidade nem a pasta do usuário inteira); fora delas, o
+EdiAula pergunta numa janela do Windows, sem travar as outras ferramentas, e a pergunta é recusada sozinha em 60 s.
 
 **Regras de edição com IA**
-- Um comando do Assistente = um Ctrl+Z.
-- Edições amplas viram **propostas**: aparecem destacadas na timeline e você aplica ou descarta.
+- Um pedido do Assistente = um Ctrl+Z. O `undo` da IA desfaz só as edições dela, uma ferramenta por vez, e recusa
+  quando a última edição foi sua. Uma edição sua no meio do pedido (soltar mídia, aplicar uma proposta) vira um passo
+  seu, separado: só o que cada ferramenta da IA grava pelo próprio caminho conta como da IA.
+- As chamadas de escrita rodam uma de cada vez; as leituras esperam a escrita em andamento. Uma ferramenta que passa de
+  20 minutos responde à IA, mas a próxima só começa quando ela termina.
+- Cada pedido fica preso à aula aberta quando começou: se você abrir outra aula, as chamadas seguintes são recusadas,
+  e o chat do app não abre nem cria projetos.
+- Edições amplas viram **propostas**: aparecem destacadas na timeline e você aplica ou descarta. A proposta fica salva
+  na aula (até 2.000 itens; um trecho que passa por centenas de clipes vira vários itens), sobrevive a fechar e abrir,
+  só se aplica na aula em que foi feita e cada item pode ser deixado de fora. Os itens ficam ancorados no tempo da
+  mídia: um corte antes deles não os desloca e, se o trecho mudar, eles são procurados pelas palavras e, por último,
+  pelo texto, mas só perto de onde estavam (a mesma frase em outra tomada é outro trecho). O que aparece na barra e na
+  timeline é exatamente o que o Aplicar corta; um item que não é encontrado fica de fora, com aviso.
 - **Trechos protegidos** (selecione palavras na Transcrição › Proteger) nunca são cortados por limpeza ou IA.
 - Cortes por tempo exigem a **revisão** atual do projeto; se você mexeu depois, a IA relê antes.
+- `transcribe` transcreve tudo o que se ouve na timeline e ainda não tem transcrição; clipes mudos ficam de fora e a
+  voz extraída de um MP4 do HeyGen é transcrita uma vez só.
+- **Encaixar** uma inserção nunca move uma faixa travada: se uma faixa travada tem algo depois do ponto onde seria
+  preciso abrir espaço, o encaixe vira uma proposta com aviso e nada muda. Os templates de tela cheia fazem o mesmo:
+  com uma faixa travada que ficaria para trás, eles não são inseridos e o aviso diz qual destravar.
 - **Glossário por curso** (nomes, personagens, blocos) melhora a transcrição e orienta a IA.
 
 **Outros:** vídeos com taxa de quadros variável ganham cópia de trabalho com taxa fixa; cópias de

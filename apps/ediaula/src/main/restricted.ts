@@ -1,42 +1,106 @@
-import { exec } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { type ChildProcess, spawn } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { localMcpHeaders } from "@informach/edi-desktop/access";
+import { mintRunToken } from "@informach/edi-desktop/access";
 import { app } from "electron";
-import { locateClient, MCP_NAME, mcpUrl } from "./aiSettings.ts";
+import { clientLaunch, locateClient, mcpUrl } from "./aiSettings.ts";
+import { claudeMcpConfig, engineEnv, type Launch, MCP_TOKEN_ENV } from "./engineArgs.ts";
+import { killTree } from "./processTree.ts";
+
+/** The terminal stays usable for a working day; its token goes away when the window closes. */
+const WINDOW_TTL_MS = 12 * 3600_000;
+
+const folder = (): string => join(app.getPath("userData"), "claude-restrito");
+
+/** Windows open now, so signing out can close them (their token is revoked with them). */
+const windows = new Map<ChildProcess, () => void>();
 
 /**
- * Opens the user's own Claude Code in a terminal that can only use EdiAula's editing tools:
- * no file access, no shell, no web. It runs in an empty folder with its own MCP config, so it
- * cannot touch the original media or the rest of the computer. The editing guide reaches it
- * through the MCP server's instructions.
+ * Earlier versions wrote the permanent token into this folder's mcp.json (and a .cmd that opened
+ * it). The file is written again with only the name of the token's variable, and the .cmd goes.
+ */
+export function migrateRestrictedConfig(port: number): void {
+  const dir = folder();
+  const config = join(dir, "mcp.json");
+  if (existsSync(config) && !readFileSync(config, "utf8").includes(`\${${MCP_TOKEN_ENV}}`))
+    writeFileSync(config, claudeMcpConfig(mcpUrl(port)));
+  rmSync(join(dir, "abrir-claude.cmd"), { force: true });
+}
+
+/** Signed out of the computer: every restricted window closes and its token goes. */
+export function closeRestrictedWindows(): void {
+  for (const [child, revoke] of windows) {
+    revoke();
+    void killTree(child.pid).then((ended) => {
+      if (!ended) child.kill();
+    });
+  }
+  windows.clear();
+}
+
+/**
+ * Opens the user's own Claude Code in a window of its own that can only use EdiAula's editing
+ * tools: no file access, no shell, no web. It runs in an empty folder with its own MCP config,
+ * so it cannot touch the original media or the rest of the computer. The config file names the
+ * token's environment variable; the token itself only exists in that process's environment.
  */
 export async function openRestrictedClaude(
   port: number,
 ): Promise<{ ok: boolean; message: string }> {
   const bin = await locateClient("claude-code");
   if (!bin) return { ok: false, message: "Claude Code não encontrado neste computador." };
-  const dir = join(app.getPath("userData"), "claude-restrito");
+  let launch: Launch;
+  try {
+    launch = await clientLaunch(bin);
+  } catch (err) {
+    return { ok: false, message: err instanceof Error ? err.message : String(err) };
+  }
+  const dir = folder();
   mkdirSync(dir, { recursive: true });
-  writeFileSync(
-    join(dir, "mcp.json"),
-    JSON.stringify(
+  const config = join(dir, "mcp.json");
+  writeFileSync(config, claudeMcpConfig(mcpUrl(port)));
+  const token = mintRunToken({
+    scopes: ["read", "propose", "write"],
+    ttlMs: WINDOW_TTL_MS,
+    client: "claude-restrito",
+  });
+  try {
+    const child = spawn(
+      launch.command,
+      [
+        ...launch.args,
+        "--strict-mcp-config",
+        "--mcp-config",
+        config,
+        "--tools",
+        "",
+        "--allowedTools",
+        "mcp__ediaula",
+      ],
       {
-        mcpServers: { [MCP_NAME]: { type: "http", url: mcpUrl(port), headers: localMcpHeaders() } },
+        cwd: dir,
+        // Its own console window, independent of EdiAula's.
+        detached: true,
+        windowsHide: false,
+        shell: false,
+        stdio: "ignore",
+        env: engineEnv(process.env, { minimal: false, token: token.token, launch: launch.env }),
       },
-      null,
-      1,
-    ),
-  );
-  const script = [
-    "@echo off",
-    "title EdiAula + Claude Code (somente ferramentas do editor)",
-    'cd /d "%~dp0"',
-    `"${bin}" --strict-mcp-config --mcp-config "%~dp0mcp.json" --tools "" --allowedTools mcp__${MCP_NAME}`,
-  ].join("\r\n");
-  const file = join(dir, "abrir-claude.cmd");
-  writeFileSync(file, script);
-  exec(`start "" "${file}"`, { cwd: dir, windowsHide: false });
+    );
+    windows.set(child, token.revoke);
+    child.on("exit", () => {
+      token.revoke();
+      windows.delete(child);
+    });
+    child.on("error", (err) => {
+      token.revoke();
+      windows.delete(child);
+      console.error(`[ediaula] restricted_claude_failed: ${err.name}`);
+    });
+  } catch (err) {
+    token.revoke();
+    return { ok: false, message: `Não foi possível abrir o Claude Code: ${String(err)}` };
+  }
   return {
     ok: true,
     message:
