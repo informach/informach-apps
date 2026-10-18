@@ -15,6 +15,8 @@ import { exportsPending } from "@/state/exportQueue";
 import { playback } from "@/state/playback";
 import { hasUnsavedWork, useProject } from "@/state/project";
 import { AnnotationsPanel } from "./AnnotationsPanel";
+import { BatchBar } from "./BatchBar";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { CursorPathDialog } from "./CursorPathDialog";
 import { ExportDialog } from "./ExportDialog";
 import { ExtendFrameDialog } from "./ExtendFrameDialog";
@@ -365,9 +367,11 @@ export function Editor(): ReactNode {
         onPointerDown={startResize}
         title="Arraste para redimensionar a timeline"
       />
+      <BatchBar />
       <PrepareOffer />
       <ReviewBar />
       <HeygenDialogs />
+      <ConfirmDialog />
       <div className="timeline-wrap" style={{ height: timelineHeight }}>
         <Timeline />
       </div>

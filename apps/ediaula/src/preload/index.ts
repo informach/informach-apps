@@ -9,6 +9,7 @@ import type {
   AssistantEvent,
   EdiAulaApi,
   JobProgress,
+  ToolImage,
 } from "../shared/types.ts";
 
 /** Subscribes `cb` to a channel the main process pushes; returns the unsubscribe. */
@@ -21,6 +22,17 @@ function listen<T>(channel: string, cb: (value: T) => void): () => void {
 }
 
 const api: EdiAulaApi = {
+  frameImage: (jobId, path, seconds, geometry) =>
+    ipcRenderer.invoke("media:frameImage", jobId, path, seconds, geometry),
+  composeFrame: (jobId, projectJson, spec, time, geometry) =>
+    ipcRenderer.invoke("export:frame", jobId, projectJson, spec, time, geometry),
+  aiOneShot: (jobId, prompt) => ipcRenderer.invoke("ai:oneShot", jobId, prompt),
+  assistantLoadChat: (conversationId) => ipcRenderer.invoke("assistant:loadChat", conversationId),
+  assistantSaveChat: (conversationId, chat) =>
+    ipcRenderer.invoke("assistant:saveChat", conversationId, chat),
+  getLearning: (course) => ipcRenderer.invoke("learning:get", course),
+  recordLearning: (course, events) => ipcRenderer.invoke("learning:record", course, events),
+  pickFolder: (title) => ipcRenderer.invoke("dialog:folder", title),
   saveEditingTemplate: (name, content) =>
     ipcRenderer.invoke("editing-template:save", name, content),
   readEditingTemplate: () => ipcRenderer.invoke("editing-template:read"),
@@ -220,7 +232,7 @@ const api: EdiAulaApi = {
   },
   handleAiTools: (runTool) => {
     const listener = async (_e: unknown, call: AiToolCall): Promise<void> => {
-      let result: { ok: boolean; text: string };
+      let result: { ok: boolean; text: string; images?: ToolImage[] };
       try {
         result = await runTool(call);
       } catch (err) {

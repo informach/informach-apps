@@ -69,15 +69,34 @@ export interface InsertPlan {
  * line before it ends (the narration, or an avatar line already placed), needing `lineSeconds`
  * plus padding before the next line starts.
  */
-export function planInsert(
+export const planInsert = (
   section: ScriptSection,
   alignment: Alignment,
   item: SpeechItem,
   lineSeconds: number,
+): InsertPlan | { error: string } =>
+  planLineInsert(section, alignment, section.items.indexOf(item), lineSeconds);
+
+/**
+ * Where any line of the script goes (planInsert for an avatar line, a line recorded again for a
+ * retake): item `idx` of `section`, `lineSeconds` long, right after the line before it that is on
+ * the timeline and before the line after it, opening the timeline when the pause there is too
+ * short. Lines in `skip` (indexes of section.items) are not anchors: a line recorded again is
+ * placed by its neighbours, never by the incomplete take of itself still on the timeline.
+ */
+export function planLineInsert(
+  section: ScriptSection,
+  alignment: Alignment,
+  idx: number,
+  lineSeconds: number,
+  skip: ReadonlySet<number> = new Set(),
 ): InsertPlan | { error: string } {
-  const idx = section.items.indexOf(item);
   const placed = alignment.lines.filter(
-    (l) => l.start !== undefined && l.matched / Math.max(1, l.total) >= 0.5,
+    (l) =>
+      l.item !== idx &&
+      !skip.has(l.item) &&
+      l.start !== undefined &&
+      l.matched / Math.max(1, l.total) >= 0.5,
   );
   // Any line already on the timeline counts, an avatar's too: two avatars in a row do not overlap.
   const before = [...placed].reverse().find((l) => l.item < idx);
@@ -220,7 +239,8 @@ export interface InsertLayout {
  * the still frame `stills` holds for it (by stillKey); without one the gap shows what is below.
  * Every avatar goes on a free video track above everything on screen while it plays (a new one
  * on top if there is none), beside the content, with a short dissolve. Plans that would move a
- * locked track (lockedAfter) are not to be passed in.
+ * locked track (lockedAfter) are not to be passed in. With `voiceTrack`, every line goes on that
+ * track instead, as sound (a line of the teacher recorded again), without placement nor fades.
  */
 export function layoutInserts(
   project: Project,
@@ -228,6 +248,7 @@ export function layoutInserts(
   targets: Set<string>,
   locked: Set<string>,
   stills: ReadonlyMap<string, Asset> = new Map(),
+  voiceTrack?: string,
 ): InsertLayout {
   const assetById = new Map(project.assets.map((a) => [a.id, a]));
   let clips = project.clips;
@@ -263,6 +284,12 @@ export function layoutInserts(
           },
         ];
       }
+    }
+    if (voiceTrack) {
+      const clip = insertClip(src, voiceTrack, plan);
+      clips = [...clips, clip];
+      placed.push({ entry, clip });
+      continue;
     }
     const end = plan.at + plan.duration;
     const during = clips.filter((c) => c.start < end - 1e-3 && clipEnd(c) > plan.at + 1e-3);

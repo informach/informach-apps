@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { LANGUAGE_CODE } from "./captionTranslate.ts";
+import { EXPORT_FORMATS, EXPORT_PRESET_IDS } from "./exportPresets.ts";
+import { MAX_IMAGE_SIDE } from "./frameGrab.ts";
 
 /**
  * Tools that let an AI model operate the editor. The same definitions are served over MCP
@@ -86,6 +89,24 @@ export const AI_TOOLS = {
         .boolean()
         .optional()
         .describe("Also measure the mixed sound (takes a few seconds per minute of lesson)"),
+    }),
+  },
+  get_frame: {
+    title: "Ver o quadro",
+    permission: "read",
+    description: `Shows you a frame of the lesson as a picture, with a JSON of what is drawn over it (annotations, pictures, the presenter, zoom layers, each with its box as fractions of the lesson frame) and where the screen recording sits. By default the frame of the screen recording at that moment, read from the file with the recorded pointer drawn over it (fast; the boxes say where the rest goes). composited=true gives the lesson exactly as the export draws it, every track, zoom and burned caption included (a few seconds). region crops a part (x, y, width, height as fractions of the picture) to see details; the picture is at most max_width wide and ${MAX_IMAGE_SIDE} px on its long side. Use it to check where an arrow, a balloon or a zoom lands and that nothing covers the controls, blocks, readouts or results the child must see, before and after placing them. Read-only.`,
+    input: z.object({
+      time: z.number().min(0).describe("Timeline seconds"),
+      region: z
+        .object({
+          x: z.number().min(0).max(1),
+          y: z.number().min(0).max(1),
+          width: z.number().min(0.01).max(1),
+          height: z.number().min(0.01).max(1),
+        })
+        .optional(),
+      max_width: z.int().min(64).max(MAX_IMAGE_SIDE).optional(),
+      composited: z.boolean().optional(),
     }),
   },
   get_overview: {
@@ -225,13 +246,56 @@ export const AI_TOOLS = {
     title: "Salvar dados de publicação",
     permission: "write",
     description:
-      "Saves publishing texts for the lesson: title, description, YouTube chapters (timeline seconds + title; the first must be at 0) and a short summary. They are shown to the user with copy buttons. Only the fields given are changed.",
+      "Saves publishing texts for the lesson: title, description, YouTube chapters (timeline seconds + title; the first must be at 0) and a short summary. They are shown to the user with copy buttons and go into the platform package of the export. video_id is the platform's id of the video (the script's, like F1P1-V01, is used when not given). Only the fields given are changed.",
     input: z.object({
       title: z.string().optional(),
       description: z.string().optional(),
       summary: z.string().optional(),
       chapters: z.array(z.object({ time: z.number().min(0), title: z.string().min(1) })).optional(),
+      video_id: z.string().max(200).optional(),
     }),
+  },
+  set_thumbnail: {
+    title: "Escolher a miniatura",
+    permission: "write",
+    description:
+      "Chooses the thumbnail of the lesson: the frame at `time` (timeline seconds; look at it with get_frame composited first) and, optionally, the title the platform shows over it. The .jpg exported beside the video is that frame. Undoable.",
+    input: z.object({
+      time: z.number().min(0),
+      title: z.string().max(120).optional(),
+    }),
+  },
+  generate_quiz: {
+    title: "Gerar o quiz",
+    permission: "write",
+    description:
+      "Writes a quiz from the lesson's lines (the script lines in the lesson, or what was said when there is no script) with the AI engine set up in EdiAula, checks every question (4 distinct options, exactly one right, the line it comes from) and saves it for the platform package. A question can then fill the question template (add_template with quiz_item). Replaces the earlier quiz. Undoable.",
+    input: z.object({ count: z.int().min(1).max(10).optional() }),
+  },
+  translate_captions: {
+    title: "Traduzir as legendas",
+    permission: "write",
+    description:
+      'Translates the captions of the current edit into `lang` (a code like "en" or "es") with the AI engine set up in EdiAula, 150 captions at a time, each answer checked (same number of captions, at most 2 lines of 42 characters). The translation is kept in the lesson and goes out with the export as <aula>.<lang>.srt and .vtt; an edit afterwards makes the changed captions out of date (translate again). Takes a while for long lessons.',
+    input: z.object({ lang: z.string().regex(LANGUAGE_CODE) }),
+  },
+  export_video: {
+    title: "Exportar o vídeo",
+    permission: "write",
+    description:
+      "Puts an export of the open lesson in the export queue and returns its id. preset: youtube, hotmart, draft, reels or audio. formats: what else goes beside the video, among captions (.srt and .vtt), thumbnail (.jpg), translations (the translated captions that are up to date) and platform (<aula>.plataforma.json for the course platform); by default captions, thumbnail, translations and, when the lesson has publishing data, platform. range exports only that stretch (timeline seconds), with captions and thumbnail only: translations and the platform package describe the whole lesson and are refused for a stretch. The check before exporting runs first: with problems, the person is asked whether to export anyway. The person always picks the destination in a dialog; you never choose it. Follow it with get_export_status.",
+    input: z.object({
+      preset: z.enum(EXPORT_PRESET_IDS),
+      formats: z.array(z.enum(EXPORT_FORMATS)).max(4).optional(),
+      range: z.object({ from: z.number().min(0), to: z.number().min(0) }).optional(),
+    }),
+  },
+  get_export_status: {
+    title: "Andamento da exportação",
+    permission: "read",
+    description:
+      "How the exports go: the one with `id` (from export_video), or every export of this session when omitted, with state (waiting, preparing, exporting, done, error, cancelled), progress and message. Read-only.",
+    input: z.object({ id: z.string().min(1).max(200).optional() }),
   },
   transcribe: {
     title: "Transcrever",
@@ -576,12 +640,13 @@ export const AI_TOOLS = {
     title: "Template animado",
     permission: "write",
     description:
-      "Inserts an animated lesson template: several annotation layers coming in one after the other, each editable later. opening (full screen at 0:00, the lesson moves forward; fields kicker = course, title, subtitle), section (big number + section name over the lesson; number, title), question (quiz for the child; question, options = one per line, up to 4), challenge (tag, text), recap (title, items = one per line, up to 5), closing (full screen after the last clip; title, subtitle, call). Empty fields are filled from the course and the script. Time it with near_text or at (default: opening at the start, closing at the end, others at the playhead). Undoable.",
+      "Inserts an animated lesson template: several annotation layers coming in one after the other, each editable later. opening (full screen at 0:00, the lesson moves forward; fields kicker = course, title, subtitle), section (big number + section name over the lesson; number, title), question (quiz for the child; question, options = one per line, up to 4; quiz_item fills it from that question of the saved quiz, 1 for the first, timed after its line by default), challenge (tag, text), recap (title, items = one per line, up to 5), closing (full screen after the last clip; title, subtitle, call). Empty fields are filled from the course and the script. Time it with near_text or at (default: opening at the start, closing at the end, others at the playhead). Undoable.",
     input: z.object({
       template: z.enum(["opening", "section", "question", "challenge", "recap", "closing"]),
       fields: z.record(z.string(), z.string()).optional(),
       near_text: z.string().optional(),
       at: z.number().min(0).optional(),
+      quiz_item: z.int().min(1).max(100).optional(),
     }),
   },
   set_audio: {
@@ -802,4 +867,8 @@ Annotations and memes: use add_annotation (arrows, balloons, notes, labels, titl
 
 Avatars: media recorded on a blue or green screen get their background removed automatically on import (see get_overview). Adjust with set_background_removal only if the user complains (holes in blue clothes → raise protect_clothes; blue rim on hair → raise despill or choke).
 
-Publishing: write titles, descriptions and chapters in Brazilian Portuguese, from the transcript of the current edit, and save them with save_publish_info. YouTube chapters need the first at 0:00, at least 3 chapters, each 10 s or longer.`;
+Publishing: write titles, descriptions and chapters in Brazilian Portuguese, from the transcript of the current edit, and save them with save_publish_info. YouTube chapters need the first at 0:00, at least 3 chapters, each 10 s or longer.
+
+Seeing the lesson: get_frame shows you a frame (the screen recording with its pointer, or composited=true for the lesson as exported) and the boxes of what is drawn over it. Look before placing an arrow, a balloon or a zoom, and look again after, to check it points at the right thing and covers no control, block, readout or result.
+
+Delivery to the course platform is manual: the person uploads the files. export_video queues the export (the person picks the destination) and writes <aula>.plataforma.json beside the video with the video id, title, description, summary, valid chapters, the quiz (generate_quiz), the thumbnail (set_thumbnail) and the captions, translated ones included (translate_captions). Never claim something was published.`;

@@ -10,8 +10,10 @@ import {
   toolJsonSchema,
 } from "../shared/aiTools.ts";
 import type { AssistantEvent } from "../shared/types.ts";
-import { callTool } from "./aiBridge.ts";
+import { callTool, type ToolOutcome } from "./aiBridge.ts";
 import { decryptKey, readStored, storedEffort } from "./aiSettings.ts";
+import { withRecap } from "./conversations.ts";
+import { frameLabel, labelImage, pruneImages } from "./historyImages.ts";
 
 const SYSTEM = `${EDITOR_GUIDE}
 
@@ -64,6 +66,27 @@ function describeError(err: unknown): string {
   return (err as Error)?.message ?? String(err);
 }
 
+/** A tool's answer for the API: its text, then the pictures it carries (get_frame). */
+function resultContent(
+  r: ToolOutcome,
+  input: unknown,
+): Anthropic.Beta.BetaToolResultBlockParam["content"] {
+  if (!r.images?.length) return r.text;
+  // Once old, the picture turns into a line saying which frame it was (historyImages.ts).
+  const time: unknown = input && typeof input === "object" ? Reflect.get(input, "time") : undefined;
+  const label = typeof time === "number" ? frameLabel(time) : "[quadro]";
+  return [
+    { type: "text", text: r.text },
+    ...r.images.map(
+      (image): Anthropic.Beta.BetaImageBlockParam =>
+        labelImage(
+          { type: "image", source: { type: "base64", media_type: image.mime, data: image.data } },
+          label,
+        ),
+    ),
+  ];
+}
+
 /**
  * Keeps the history valid without editing what was already sent (the API checks earlier turns):
  * an assistant turn whose tool calls never got results gets error results appended.
@@ -105,9 +128,10 @@ export async function sendMessage(
   const { model } = resolveModel(stored.model);
   const request = buildRequest(model, effortOverride ?? storedEffort(stored));
   const client = new Anthropic({ apiKey });
-  const messages = conversations.get(conversationId) ?? [];
+  const known = conversations.get(conversationId);
+  const messages = known ?? [];
   conversations.set(conversationId, messages);
-  messages.push({ role: "user", content: text });
+  messages.push({ role: "user", content: known ? text : await withRecap(conversationId, text) });
 
   running.get(conversationId)?.abort();
   const abort = new AbortController();
@@ -207,7 +231,7 @@ export async function sendMessage(
         results.push({
           type: "tool_result",
           tool_use_id: use.id,
-          content: r.text,
+          content: resultContent(r, parsed.data),
           is_error: !r.ok,
         });
         emit({
@@ -220,6 +244,7 @@ export async function sendMessage(
         });
       }
       messages.push({ role: "user", content: results });
+      pruneImages(messages);
     }
     closeDanglingTools(messages, "O limite de rodadas de ferramentas deste pedido acabou.");
     report();

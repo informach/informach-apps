@@ -1,4 +1,5 @@
 import { withRenderKeys } from "@informach/edi-desktop/renderer";
+import { retakeLines } from "@shared/retake";
 import { type ScriptItem, type SpeechItem, sectionLabel, speechSeconds } from "@shared/script";
 import { CONFIRM_COVERAGE, type Substitution } from "@shared/scriptAlign";
 import { projectDuration } from "@shared/timeline";
@@ -10,14 +11,17 @@ import {
   HelpCircle,
   Layers,
   Loader,
+  Mic,
   Monitor,
   Scissors,
   Sparkles,
+  SquareSplitHorizontal,
   Trash2,
   Wand2,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { duration as fmtDuration } from "@/lib/format";
+import { openRetake } from "@/lib/retake";
 import {
   insertedClip,
   pendingInserts,
@@ -32,6 +36,7 @@ import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
 import { Button } from "@/ui";
+import { CourseSplitDialog } from "./CourseSplitDialog";
 
 const percent = (share: number): string => `${Math.round(share * 100)}%`;
 
@@ -44,6 +49,7 @@ export function ScriptPanel(): ReactNode {
   const view = useScriptView(project, transcripts);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  const [splitting, setSplitting] = useState(false);
   const toast = useApp((s) => s.toast);
   if (!project) return null;
 
@@ -112,6 +118,14 @@ export function ScriptPanel(): ReactNode {
     toast(r.message, r.ok ? "success" : "error");
   };
   const waiting = pendingInserts(project, section);
+  // Lines of the teacher not in the lesson, or only partly: recorded again in "Só voz".
+  const toRetake = transcribed ? retakeLines(section, alignment) : [];
+  const retake = async (): Promise<void> => {
+    setBusy("retake");
+    const r = await openRetake();
+    setBusy(null);
+    toast(r.message, r.ok ? "info" : "error");
+  };
   const placeAll = async (): Promise<void> => {
     setBusy("all");
     const r = await placeInserts("all");
@@ -222,6 +236,30 @@ export function ScriptPanel(): ReactNode {
         )}
       </div>
 
+      {toRetake.length > 0 && (
+        <div className="script-batch">
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={busy === "retake" ? Loader : Mic}
+            disabled={busy !== null || !confirmed}
+            title={
+              confirmed
+                ? "Abre o gravador em Só voz com o teleprompter só dessas falas, uma por tomada"
+                : "Confirme a seção antes de regravar"
+            }
+            onClick={() => void retake()}
+          >
+            Regravar falas ({toRetake.length})
+          </Button>
+          <span className="muted">
+            {toRetake.filter((l) => l.state === "missing").length} faltando e{" "}
+            {toRetake.filter((l) => l.state === "partial").length} pela metade. Na volta, cada fala
+            entra no lugar dela como rascunho.
+          </span>
+        </div>
+      )}
+
       {transcribed && waiting.length > 1 && (
         <div className="script-batch">
           <Button
@@ -260,6 +298,22 @@ export function ScriptPanel(): ReactNode {
       </div>
 
       <div className="script-foot">
+        {doc.sections.length > 1 && (
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={SquareSplitHorizontal}
+            disabled={!transcribed}
+            title={
+              transcribed
+                ? "Uma gravação longa com várias seções vira uma aula por seção"
+                : "Transcreva a gravação para achar as seções"
+            }
+            onClick={() => setSplitting(true)}
+          >
+            Dividir por seção
+          </Button>
+        )}
         <Button
           size="sm"
           variant="ghost"
@@ -271,6 +325,7 @@ export function ScriptPanel(): ReactNode {
           Tirar roteiro
         </Button>
       </div>
+      {splitting && <CourseSplitDialog close={() => setSplitting(false)} />}
     </div>
   );
 }

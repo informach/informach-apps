@@ -283,14 +283,29 @@ export function createFileAuthority(projectExtensions: readonly string[]) {
         throw error;
       }
     },
+    /**
+     * A file written beside an exported video or sound, named after it: its captions
+     * (`aula.srt`, `aula.vtt`, translated as `aula.en.srt`), its thumbnail (`aula.jpg`) and the
+     * platform package (`aula.plataforma.json`). Nothing else, nowhere else.
+     */
     async assertRelatedExport(primary: string, path: string): Promise<string> {
       const selected = await this.assertWrite(primary, false);
       const related = await canonical(path, true);
+      const ext = extname(related).toLowerCase();
+      const base = key(basename(selected, extname(selected)));
+      const name = key(basename(related, extname(related)));
+      const named =
+        name === base ||
+        ([".srt", ".vtt"].includes(ext) &&
+          name.startsWith(`${base}.`) &&
+          /^[a-z]{2,3}(?:-[a-z]{2,4})?$/i.test(name.slice(base.length + 1))) ||
+        (ext === ".json" && name === `${base}.plataforma`);
       if (
         ![".mp4", ".mp3"].includes(extname(selected).toLowerCase()) ||
-        ![".srt", ".vtt", ".jpg"].includes(extname(related).toLowerCase()) ||
+        ![".srt", ".vtt", ".jpg", ".json"].includes(ext) ||
+        (ext === ".json" && name === base) ||
         key(dirname(selected)) !== key(dirname(related)) ||
-        key(basename(selected, extname(selected))) !== key(basename(related, extname(related)))
+        !named
       )
         throw new Error("A saída auxiliar não pertence ao vídeo selecionado.");
       return related;

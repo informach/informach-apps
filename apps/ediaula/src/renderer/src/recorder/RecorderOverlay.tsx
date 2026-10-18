@@ -166,6 +166,8 @@ export function RecorderOverlay(): ReactNode {
   const [notes, setNotes] = useState<{ before: number; text: string }[]>([]);
   /** Speakers whose lines the voice take reads. */
   const [speakerOn, setSpeakerOn] = useState<Set<string>>(new Set());
+  /** "Regravar falas": only these lines, in "Só voz" (RecorderContext.retakeLines). */
+  const [retake, setRetake] = useState<number[] | null>(null);
   /** Over the narration the microphone is off unless chosen here. */
   const [overMic, setOverMic] = useState("");
   /** Over the narration the computer's sound is off unless turned on here, for this take. */
@@ -243,6 +245,12 @@ export function RecorderOverlay(): ReactNode {
         setReplace(c.guidedReplace);
         setPlanId(c.guidedReplace?.planId ?? store.plans[0]?.id ?? "");
         if (c.guidedReplace) setMode("guided");
+        const only = (c.retakeLines ?? []).filter((i) => i < c.teleprompter.length);
+        setRetake(only.length ? only : null);
+        if (only.length) {
+          setMode("voice");
+          setLine(only[0]);
+        }
       });
     void load();
     // Opened again for another lesson (or a media to record again): its plans replace these.
@@ -422,7 +430,7 @@ export function RecorderOverlay(): ReactNode {
     [lines.length],
   );
   // The voice take reads only the chosen speakers' lines; the other modes, every line.
-  const order = voiceMode ? readLines(lines, speakerOn) : lines.map((_, i) => i);
+  const order = voiceMode ? (retake ?? readLines(lines, speakerOn)) : lines.map((_, i) => i);
   const orderRef = useRef(order);
   orderRef.current = order;
   const lineRef = useRef(line);

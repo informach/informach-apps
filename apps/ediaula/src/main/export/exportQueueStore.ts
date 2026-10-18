@@ -23,6 +23,9 @@ const itemSchema = z.object({
   project: projectSchema,
   spec: exportSpecSchema,
   captions: z.boolean(),
+  extras: z
+    .object({ translations: z.boolean().optional(), platform: z.boolean().optional() })
+    .optional(),
   state: z.enum(["waiting", "preparing", "exporting", "done", "error", "cancelled"]),
 });
 const queueSchema = z.array(itemSchema).max(MAX_ITEMS);

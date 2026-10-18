@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { createReadStream } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { encoderName } from "../../shared/encoderChoice.ts";
@@ -6,6 +8,7 @@ import { fallbackEncoders, isEncoderFailure } from "../../shared/export/encoding
 import { exportProject, frameRate, frameTime, trackTimescale } from "../../shared/export/frames.ts";
 import { lessonFrames, planSegments } from "../../shared/export/segments.ts";
 import type { MediaFacts, VideoPlan } from "../../shared/export/videoPlan.ts";
+import { buildPlatformPackage } from "../../shared/platformPackage.ts";
 import { projectDuration } from "../../shared/timeline.ts";
 import type { Encoder, ExportSpec, JobProgress, Project } from "../../shared/types.ts";
 import { subRip, webVtt } from "../../shared/webvtt.ts";
@@ -68,7 +71,34 @@ export interface ExportOutputs {
   captions?: string;
   subtitles?: string;
   thumbnail?: string;
+  /** Translated captions, by language (staged paths). */
+  translations?: { lang: string; srt: string; vtt: string }[];
+  /** <aula>.plataforma.json (staged path). */
+  platform?: string;
+  /** How the files are called beside the video, for the platform package. */
+  names?: {
+    video: string;
+    thumbnail?: string;
+    captions: { lang: string; srt?: string; vtt?: string }[];
+  };
 }
+
+/** SHA-256 of a file, read as a stream (an export may be gigabytes). */
+export function fileSha256(path: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const hash = createHash("sha256");
+    createReadStream(path)
+      .on("data", (chunk) => hash.update(chunk))
+      .on("error", reject)
+      .on("end", () => resolve(hash.digest("hex")));
+  });
+}
+
+/** The second of the lesson the thumbnail shows: the one chosen, or 30% into it. */
+export const thumbnailSecond = (spec: Pick<ExportSpec, "thumbnailAt">, duration: number): number =>
+  spec.thumbnailAt !== undefined
+    ? Math.min(Math.max(0, duration - 0.05), Math.max(0, spec.thumbnailAt))
+    : Math.max(0, duration * 0.3);
 
 const inside = (path: string, root: string): boolean => {
   const child = relative(resolve(root).toLowerCase(), resolve(path).toLowerCase());
@@ -334,6 +364,7 @@ export async function renderLesson(
     );
     deps.check();
     const thumbnail = outputs.thumbnail;
+    const thumbAt = thumbnailSecond(spec, duration);
     if (thumbnail) {
       progress({ ratio: 0.98, phase: "assembling" });
       await slot(
@@ -345,7 +376,7 @@ export async function renderLesson(
               "error",
               "-nostdin",
               "-ss",
-              String(Math.max(0, duration * 0.3)),
+              String(thumbAt),
               "-i",
               outputs.primary,
               "-frames:v",
@@ -364,6 +395,27 @@ export async function renderLesson(
     const cues = spec.captionCues ?? [];
     if (outputs.captions) await writeFile(outputs.captions, subRip(cues) ?? "", "utf8");
     if (outputs.subtitles) await writeFile(outputs.subtitles, webVtt(cues) ?? "", "utf8");
+    for (const t of outputs.translations ?? []) {
+      const translated = spec.translations?.find((x) => x.lang === t.lang)?.cues ?? [];
+      await writeFile(t.srt, subRip(translated) ?? "", "utf8");
+      await writeFile(t.vtt, webVtt(translated) ?? "", "utf8");
+    }
+    if (outputs.platform && spec.platform && outputs.names) {
+      progress({ ratio: 0.99, phase: "assembling", message: "Preparando o pacote da plataforma" });
+      const pack = buildPlatformPackage(spec.platform, {
+        video: outputs.names.video,
+        sha256: await fileSha256(outputs.primary),
+        seconds: duration,
+        width: spec.width,
+        height: spec.height,
+        ...(outputs.names.thumbnail
+          ? { thumbnail: { file: outputs.names.thumbnail, time: thumbAt } }
+          : {}),
+        captions: outputs.names.captions,
+        now: new Date(),
+      });
+      await writeFile(outputs.platform, `${JSON.stringify(pack, null, 2)}\n`, "utf8");
+    }
     progress({ ratio: 0.99, phase: "assembling" });
   } catch (error) {
     failed = true;

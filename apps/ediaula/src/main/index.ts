@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createReadStream, existsSync, statSync } from "node:fs";
-import { readFile, unlink, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import type { Server } from "node:http";
 import { availableParallelism } from "node:os";
 import { basename, dirname, extname, join } from "node:path";
@@ -22,7 +22,8 @@ import { EFFORTS, type Effort, resolveModel } from "../shared/aiModels.ts";
 import type { ChromaKey } from "../shared/chroma.ts";
 import { readCourseTemplate } from "../shared/courseTemplate.ts";
 import type { FontFamily } from "../shared/fonts.ts";
-import { projectSchema } from "../shared/project-schema.ts";
+import { MAX_IMAGE_SIDE } from "../shared/frameGrab.ts";
+import { exportSpecSchema, projectSchema } from "../shared/project-schema.ts";
 import type {
   AiClientId,
   AiGrantView,
@@ -51,6 +52,7 @@ import {
   writeStored,
 } from "./aiSettings.ts";
 import { resetConversation, sendMessage, stopConversation, testKey } from "./assistant.ts";
+import { forgetConversation, loadChat, saveChat } from "./conversations.ts";
 import { getCourseTemplate, localMusicPath, saveCourseTemplate } from "./courseTemplates.ts";
 import { registerCursorSprites } from "./cursorSprite.ts";
 import {
@@ -70,6 +72,7 @@ import {
   saveQueue,
 } from "./export/exportQueueStore.ts";
 import { fontResolver } from "./export/fonts.ts";
+import { mediaFrameArgs, renderFrame } from "./export/frame.ts";
 import { SegmentCache } from "./export/segmentCache.ts";
 import { exportLesson } from "./export-lesson.ts";
 import {
@@ -91,12 +94,15 @@ import {
 } from "./ffmpeg.ts";
 import { ffmpegVersion, filterScriptOption } from "./ffmpeg-arguments.ts";
 import { getGlossary, setGlossary } from "./glossary.ts";
+import { withReadGrant } from "./handOut.ts";
 import { exportVoice, HEYGEN_FOLDER, locateVideo } from "./heygen.ts";
 import { cancelKey, detectScreenColor, grabFrame, renderKeyed } from "./keying.ts";
+import { getLearning, recordLearning } from "./learning.ts";
 import { measureLoudness } from "./loudness.ts";
 import { CHECK_CLIENT } from "./mcpGuard.ts";
 import { startMcpServer } from "./mcpServer.ts";
 import { nativeResourcePath } from "./native-resources.ts";
+import { cancelOneShot, runOneShot } from "./oneShot.ts";
 import {
   createProject,
   duplicateProject,
@@ -1034,7 +1040,13 @@ function registerIpc(): void {
       exporting.cancellation.abort(new Error("Cancelado"));
     }
     waitingJobs.get(jobId)?.abort(new Error("Cancelado"));
-    if (!cancelDownload(jobId) && !cancelWhisper(jobId) && !cancelKey(jobId)) cancel(jobId);
+    if (
+      !cancelOneShot(jobId) &&
+      !cancelDownload(jobId) &&
+      !cancelWhisper(jobId) &&
+      !cancelKey(jobId)
+    )
+      cancel(jobId);
   });
   ipcMain.handle("exportCache:clear", async () => {
     if (exportJobs.size)
@@ -1068,8 +1080,9 @@ function registerIpc(): void {
   );
   ipcMain.handle("whisper:transcribe", (_e, ...raw: unknown[]) => {
     const [jobId, path, duration, language, glossary] = transcribeSchema.parse(raw);
+    // The transcript is read by the editor (media://) right after, not only when the lesson opens.
     return processingJob(jobId, "transcription", (signal) =>
-      transcribe(
+      withReadGrant(transcribe, desktopFiles.grantRead)(
         jobId,
         path,
         duration,
@@ -1081,7 +1094,94 @@ function registerIpc(): void {
     );
   });
   ipcMain.handle("shell:showItem", (_e, path: string) => shell.showItemInFolder(path));
+  // A folder the person picks for several exports (the desktop SDK grants writing inside it).
+  ipcMain.handle("dialog:folder", async (_e, title: unknown) => {
+    const r = await openDialog({
+      title: z.string().max(200).optional().parse(title) ?? "Escolher pasta",
+      defaultPath: app.getPath("videos"),
+      properties: ["openDirectory", "createDirectory"],
+    });
+    return r.canceled ? null : (r.filePaths[0] ?? null);
+  });
   registerVoiceIpc();
+  registerFrameIpc();
+  registerLearningIpc();
+}
+
+const geometrySchema = z.object({
+  crop: z.object({
+    x: z.int().nonnegative().max(16384),
+    y: z.int().nonnegative().max(16384),
+    width: z.int().min(2).max(16384),
+    height: z.int().min(2).max(16384),
+  }),
+  width: z.int().min(2).max(MAX_IMAGE_SIDE),
+  height: z.int().min(2).max(MAX_IMAGE_SIDE),
+  scale: z.number().positive().max(1),
+});
+
+/**
+ * The frames get_frame shows the AI: one frame of a media file cut to a region and scaled
+ * (`media:frameImage`), or the lesson composed as the export composes it (`export:frame`). Both
+ * come back as PNG bytes, at most MAX_IMAGE_SIDE on the long side.
+ */
+function registerFrameIpc(): void {
+  ipcMain.handle(
+    "media:frameImage",
+    async (_e, rawJob: unknown, rawPath: unknown, rawSeconds: unknown, rawGeometry: unknown) => {
+      const jobId = jobIdSchema.parse(rawJob);
+      const path = await desktopFiles.assertRead(z.string().min(1).max(32768).parse(rawPath));
+      const seconds = secondsSchema.parse(rawSeconds);
+      const geometry = geometrySchema.parse(rawGeometry);
+      const work = await mkdtemp(join(app.getPath("temp"), "ediaula-frame-"));
+      try {
+        const out = join(work, "frame.png");
+        await run(FFMPEG, mediaFrameArgs(path, seconds, geometry, out), { jobId });
+        return new Uint8Array(await readFile(out));
+      } finally {
+        await rm(work, { recursive: true, force: true });
+      }
+    },
+  );
+  ipcMain.handle(
+    "export:frame",
+    async (
+      _e,
+      rawJob: unknown,
+      text: unknown,
+      rawSpec: unknown,
+      rawTime: unknown,
+      rawGeometry: unknown,
+    ) => {
+      const jobId = jobIdSchema.parse(rawJob);
+      const project = projectSchema.parse(projectJson(text));
+      const spec = exportSpecSchema.parse(rawSpec);
+      const time = secondsSchema.parse(rawTime);
+      const geometry = geometrySchema.parse(rawGeometry);
+      // Waits for its slot like an export segment (and for a take that is recording).
+      return processingJob(jobId, "segment", async (signal) =>
+        renderFrame(project, spec, time, geometry, {
+          assertRead: desktopFiles.assertRead,
+          run: (args) => run(FFMPEG, args, { jobId, signal }),
+          filterScriptOption: await filterScriptOption(FFMPEG),
+          cacheDirectory: join(app.getPath("userData"), "cache"),
+          workDirectory: exportWorkDir(),
+          fontsDirectory: FONTS_DIR,
+          probe: mediaFacts,
+        }),
+      );
+    },
+  );
+}
+
+/** What the person decided in each course's lessons (main/learning.ts). */
+function registerLearningIpc(): void {
+  ipcMain.handle("learning:get", (_e, course: unknown) =>
+    getLearning(z.string().max(1024).parse(course)),
+  );
+  ipcMain.handle("learning:record", (_e, course: unknown, events: unknown) =>
+    recordLearning(z.string().max(1024).parse(course), events),
+  );
 }
 
 const secondsSchema = z
@@ -1125,7 +1225,13 @@ function registerVoiceIpc(): void {
     "voice:render",
     (_e, rawJob: unknown, segments: unknown, start: unknown, end: unknown) =>
       processingJob(jobIdSchema.parse(rawJob), "voice", (signal) =>
-        renderVoiceCached(segments, secondsSchema.parse(start), secondsSchema.parse(end), signal),
+        // The file is compared with a HeyGen video next (heygen:locate checks reads).
+        withReadGrant(renderVoiceCached, desktopFiles.grantRead)(
+          segments,
+          secondsSchema.parse(start),
+          secondsSchema.parse(end),
+          signal,
+        ),
       ),
   );
   ipcMain.handle(
@@ -1408,10 +1514,32 @@ function registerAiIpc(): void {
     const conversationId = conversationIdSchema.parse(raw);
     if (!stopEngineRun(conversationId)) stopConversation(conversationId);
   });
-  ipcMain.handle("assistant:reset", (_e, raw: unknown) => {
+  ipcMain.handle("assistant:reset", async (_e, raw: unknown) => {
     const conversationId = conversationIdSchema.parse(raw);
     resetEngineSession(conversationId);
     resetConversation(conversationId);
+    await forgetConversation(conversationId);
+  });
+  // The panel's conversation of each lesson, kept between sessions (main/conversations.ts).
+  ipcMain.handle("assistant:loadChat", (_e, raw: unknown) =>
+    loadChat(conversationIdSchema.parse(raw)),
+  );
+  ipcMain.handle("assistant:saveChat", (_e, raw: unknown, chat: unknown) =>
+    saveChat(conversationIdSchema.parse(raw), chat),
+  );
+  // One answer of the engine set up, with no tools (captions translation, quiz).
+  ipcMain.handle("ai:oneShot", async (_e, rawJob: unknown, rawPrompt: unknown) => {
+    const jobId = jobIdSchema.parse(rawJob);
+    const prompt = z.string().min(1).max(400_000).parse(rawPrompt);
+    const view = await aiView();
+    return runOneShot(jobId, view.engine, prompt, async () => {
+      const told: string[] = [];
+      const ok = await codexAllowed((ev) => {
+        if (ev.type === "error") told.push(ev.message);
+      });
+      if (!ok && told.length) throw new Error(told.join(" "));
+      return ok;
+    });
   });
 }
 

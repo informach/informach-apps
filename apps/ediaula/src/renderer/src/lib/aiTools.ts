@@ -24,24 +24,27 @@ import {
   SHADOW_PRESETS,
   type Shadow,
 } from "@shared/compose";
+import { rangeProject } from "@shared/courseSplit";
 import { type CourseTemplate, parseCourseTemplate } from "@shared/courseTemplate";
 import { buildEditingTemplate } from "@shared/editingTemplate";
+import { exportName, presetSpec, runExportVideo } from "@shared/exportPresets";
 import { formatGlossary } from "@shared/glossary";
 import type { HistoryEntry } from "@shared/history";
-import { PREPARE_LABEL, PREPARE_STEPS, resumeStep } from "@shared/prepare";
+import { PREPARE_LABEL, PREPARE_STEPS, type PrepareStep, resumeStep } from "@shared/prepare";
 import { screenDirections } from "@shared/screenDirections";
 import { sectionLabel } from "@shared/script";
 import { pendingSpeech } from "@shared/speechSources";
 import { templateById } from "@shared/templates";
 import { clipSpeed, newId, projectDuration, sourceEnd, trackLabels } from "@shared/timeline";
 import { DEFAULT_TRANSITION, previousClip } from "@shared/transitions";
-import type { AiToolCall, Clip, Project, Transcript } from "@shared/types";
+import type { AiToolCall, Clip, Project, ToolImage, Transcript } from "@shared/types";
 import { editZoomsIn, type Zoom, zoomsIn } from "@shared/zoom";
 import { setCaptions } from "@/editor/CaptionSettings";
 import { addMusic, setDenoise, setTrackMusic } from "@/editor/RailPanels";
 import { applyAutoZoom, setCursorFx } from "@/editor/RecordingProps";
 import { applySpeed, hasSpeed, speedLabel } from "@/lib/speed";
 import { useApp } from "@/state/app";
+import { editedSince, exportQueue, useExportQueue } from "@/state/exportQueue";
 import { playback, usePlayback } from "@/state/playback";
 import {
   type AiEntry,
@@ -53,11 +56,16 @@ import {
   settleEdits,
   shownProject,
   useProject,
+  writesIntoDraft,
 } from "@/state/project";
 import { actions } from "./actions";
+import { endAiCall, startAiCall, updateAiCall } from "./aiActivity";
 import { addAnnotation, addCard, addImageOverlay, updateAnnotation } from "./annotations";
 import { type CleanupOverrides, cleanupPlan } from "./cleanupPlan";
+import { askConfirm } from "./confirm";
 import { applyTemplateParts, courseTemplate } from "./courseTemplate";
+import { hasPlatformData, makeQuiz, quizItemTime, translateLesson } from "./delivery";
+import { frameForAi } from "./frame";
 import { importMedia } from "./importMedia";
 import { keyIsCurrent } from "./keying";
 import { allPalettes, applyPalette, usePalettes } from "./palettes";
@@ -83,7 +91,12 @@ import { addZoomLayer } from "./zoomLayer";
 export interface ToolOutcome {
   ok: boolean;
   text: string;
+  /** Pictures for the model, after the text (get_frame). */
+  images?: ToolImage[];
 }
+
+/** A handler's answer: its text, or its text with pictures. */
+type Answer = string | { text: string; images: ToolImage[] };
 
 /** m:ss.s — compact and unambiguous for the model. */
 const t = (s: number): string => {
@@ -178,9 +191,13 @@ interface ToolContext {
   commit: Commit;
   /** The call writes a draft for the person to review (its commit goes there). */
   draft: boolean;
+  /** Aborted when the person cancels the call in the assistant panel. */
+  signal: AbortSignal;
+  /** Tells the assistant panel what the call is doing now (and how far, 0 to 1). */
+  progress: (step: string, ratio?: number) => void;
 }
 
-type Handler = (input: never, ctx: ToolContext) => Promise<string>;
+type Handler = (input: never, ctx: ToolContext) => Promise<Answer>;
 
 /**
  * Who a proposal comes from: the chat inside EdiAula or an AI app connected from outside, and
@@ -289,7 +306,7 @@ const handlers: {
   [K in AiToolName]: (
     input: import("zod").infer<(typeof AI_TOOLS)[K]["input"]>,
     ctx: ToolContext,
-  ) => Promise<string>;
+  ) => Promise<Answer>;
 } = {
   async export_editing_template({ notes }) {
     const p = structuredClone(requireProject());
@@ -579,12 +596,177 @@ const handlers: {
         ...(input.description !== undefined && { description: input.description }),
         ...(input.summary !== undefined && { summary: input.summary }),
         ...(chapters && { chapters }),
+        ...(input.video_id !== undefined && { videoId: input.video_id }),
       },
     }));
-    return "Dados de publicação salvos no projeto. O usuário pode copiá-los no painel do Assistente.";
+    return "Dados de publicação salvos no projeto. O usuário pode copiá-los no painel do Assistente, e eles vão no pacote da plataforma da exportação.";
   },
 
-  async transcribe({ language }) {
+  async get_frame({ time, region, max_width, composited }, { signal, progress, call }) {
+    const open = requireProject();
+    // With a draft of this same assistant waiting, the frame shows the lesson as the draft has
+    // it: the AI checks what it just proposed.
+    const { draft } = useProject.getState();
+    const mine = draft?.projectId === open.id && draft.author === draftAuthor(call);
+    const p = (mine && shownProject()) || open;
+    const duration = projectDuration(p);
+    if (time > duration + 0.05)
+      throw new ToolError(`A aula tem ${t(duration)}; ${t(time)} fica depois do fim.`);
+    progress(composited ? "Montando o quadro como na exportação" : "Lendo o quadro da gravação");
+    const r = await frameForAi(
+      p,
+      {
+        time: Math.min(time, Math.max(0, duration - 0.02)),
+        region,
+        maxWidth: max_width,
+        composited,
+      },
+      signal,
+    );
+    return {
+      text: `${r.note}${mine ? " Com o rascunho que você propôs, ainda não aplicado." : ""}\n${JSON.stringify(r.facts)}`,
+      images: [r.image],
+    };
+  },
+
+  async set_thumbnail({ time, title }, { commit }) {
+    const p = requireProject();
+    const at = Math.min(time, Math.max(0, projectDuration(p) - 0.05));
+    commit((q) => ({
+      ...q,
+      publish: { ...q.publish, thumbnail: { time: at, ...(title ? { title } : {}) } },
+    }));
+    return `Miniatura: o quadro de ${t(at)}${title ? `, com o título "${title}"` : ""}. Sai como .jpg ao lado do vídeo na exportação.`;
+  },
+
+  async generate_quiz({ count }, { commit, signal, progress }) {
+    requireProject();
+    progress("Escrevendo e conferindo as perguntas");
+    const quiz = await makeQuiz(count ?? 5, { commit, signal });
+    return [
+      `Quiz salvo com ${quiz.length} ${quiz.length === 1 ? "pergunta" : "perguntas"} (cada uma conferida: 4 alternativas diferentes, uma certa e a fala de origem):`,
+      ...quiz.map(
+        (q, i) =>
+          `${i + 1}. ${q.question} (fala ${q.line}; certa: ${"ABCD"[q.correct]}${q.suspect ? "; SUSPEITA: a resposta não está nas palavras da fala" : ""}) ${q.options.map((o, k) => `${"ABCD"[k]}) ${o}`).join(" ")}`,
+      ),
+      "A pessoa revisa cada pergunta no cartão Publicação e plataforma; só as revisadas vão para o pacote.",
+      "Para pôr uma na aula: add_template com template question e quiz_item.",
+    ].join("\n");
+  },
+
+  async translate_captions({ lang }, { commit, signal, progress }) {
+    requireProject();
+    progress("Traduzindo as legendas", 0);
+    const r = await translateLesson(lang, {
+      commit,
+      signal,
+      progress: (done, total) => progress(`Lote ${done} de ${total} traduzido`, done / total),
+    });
+    return `${r.count} legendas traduzidas para "${lang}" e guardadas na aula. Saem como .${lang}.srt e .${lang}.vtt ao lado do vídeo na exportação; se a aula mudar depois, traduza de novo as que mudaram.`;
+  },
+
+  async export_video({ preset, formats, range }, { progress, signal }) {
+    const p = requireProject();
+    const info = useApp.getState().info;
+    if (range && range.to <= range.from + 0.5)
+      throw new ToolError(
+        "O trecho para exportar precisa ter mais de meio segundo (to depois de from).",
+      );
+    // A stretch is not the lesson: its translations and the platform package would describe
+    // the whole lesson (chapters, quiz, captions of other times), so they do not go with it.
+    const whole = (formats ?? []).filter((f) => f === "translations" || f === "platform");
+    if (range && whole.length)
+      throw new ToolError(
+        `Um trecho sai sem ${whole.map((f) => (f === "platform" ? "o pacote da plataforma" : "as legendas traduzidas")).join(" e ")}: eles descrevem a aula inteira. Peça sem esses formatos ou exporte a aula toda.`,
+      );
+    const project = range ? rangeProject(p, range.from, range.to) : p;
+    const wanted = new Set(
+      formats ??
+        (range
+          ? ["captions", "thumbnail"]
+          : [
+              "captions",
+              "thumbnail",
+              "translations",
+              ...(hasPlatformData(p) ? (["platform"] as const) : []),
+            ]),
+    );
+    const spec = presetSpec(preset, project.settings, {
+      encoder: info?.encoder ?? "x264",
+      thumbnail: wanted.has("thumbnail"),
+    });
+    progress("Conferindo a aula antes de exportar");
+    const vertical = !!spec.vertical;
+    const result = await runExportVideo(
+      {
+        check: async () =>
+          (await checkLesson(p, useProject.getState().revision, { srt: wanted.has("captions") }))
+            .findings,
+        confirm: (problems) =>
+          askConfirm(
+            {
+              title: "A IA quer exportar com problemas",
+              message: `A verificação antes de exportar achou ${problems.length === 1 ? "um problema" : `${problems.length} problemas`}:`,
+              items: [...problems],
+              confirm: "Exportar assim mesmo",
+              cancel: "Não exportar",
+            },
+            signal,
+          ),
+        pickPath: async (name) => {
+          progress("Esperando você escolher onde salvar");
+          const path = await window.api.pickExportPath(name);
+          // Cancelled while the dialog was open: nothing goes into the queue.
+          signal.throwIfAborted();
+          return path;
+        },
+        enqueue: (outPath) => {
+          signal.throwIfAborted();
+          const id = newId("export");
+          exportQueue.add({
+            id,
+            project,
+            spec: { ...spec, outPath },
+            captions: wanted.has("captions"),
+            extras: {
+              translations: wanted.has("translations"),
+              platform: wanted.has("platform"),
+            },
+          });
+          return id;
+        },
+      },
+      exportName(range ? `${p.name} (trecho)` : p.name, preset, vertical),
+    );
+    if (!result.ok) throw new ToolError(result.text);
+    return `Exportação na fila: id ${result.id}, destino escolhido pela pessoa (${result.outPath})${result.confirmed ? ", exportando apesar dos problemas, como a pessoa confirmou" : ""}${range ? ". Um trecho sai sem legendas traduzidas nem pacote da plataforma" : ""}. Acompanhe com get_export_status.`;
+  },
+
+  async get_export_status({ id }) {
+    const items = useExportQueue.getState().items;
+    const list = id ? items.filter((i) => i.id === id) : items;
+    if (!list.length)
+      return id
+        ? `Nenhuma exportação com id ${id} nesta sessão.`
+        : "Nenhuma exportação nesta sessão.";
+    const jobs = useApp.getState().jobs;
+    const state: Record<string, string> = {
+      waiting: "esperando",
+      preparing: "preparando",
+      exporting: "exportando",
+      done: "concluída",
+      error: "falhou",
+      cancelled: "cancelada",
+    };
+    return list
+      .map((i) => {
+        const ratio = jobs[i.id]?.ratio;
+        return `- ${i.id}: ${state[i.state] ?? i.state}${ratio !== undefined && i.state === "exporting" ? ` (${Math.round(ratio * 100)}%)` : ""} · ${i.spec.outPath}${i.message ? ` · ${i.message}` : ""}${editedSince(i) ? " · a aula foi editada depois de entrar na fila" : ""}`;
+      })
+      .join("\n");
+  },
+
+  async transcribe({ language }, { signal, progress }) {
     const p = requireProject();
     if (!speechCandidates(p).length)
       throw new ToolError(
@@ -602,7 +784,26 @@ const handlers: {
       throw new ToolError(
         "O motor de transcrição ainda não foi instalado. Peça ao usuário para abrir a aba Transcrição no EdiAula e instalar (uma vez só).",
       );
-    await transcribeAssets(todo, language ?? useCleanup.getState().language);
+    // Cancelling the call stops the transcriptions it started, never one the person started.
+    const stop = (): void => {
+      const running = useTranscribing.getState();
+      for (const a of todo) {
+        const job = running[a.id];
+        if (job) void window.api.cancelJob(job);
+      }
+    };
+    signal.addEventListener("abort", stop, { once: true });
+    const names = new Map(todo.map((a) => [a.id, a.name]));
+    const follow = useTranscribing.subscribe((s) => {
+      const running = Object.keys(s).find((id) => names.has(id));
+      if (running) progress(`Transcrevendo ${names.get(running)}`);
+    });
+    try {
+      await transcribeAssets(todo, language ?? useCleanup.getState().language);
+    } finally {
+      follow();
+      signal.removeEventListener("abort", stop);
+    }
     const now = useProject.getState().project;
     const failed = todo.filter(
       (a) => now?.assets.find((x) => x.id === a.id)?.transcriptStatus !== "ready",
@@ -1041,10 +1242,23 @@ const handlers: {
       : "A aula já segue o modelo do curso: nada mudou.";
   },
 
-  async prepare_lesson() {
+  async prepare_lesson(_input, { progress }) {
     requireProject();
     useApp.getState().set({ sideTab: "prepare" });
-    const message = await runPrepare();
+    // Each step the preparation reaches is shown on the tool's line in the assistant panel.
+    const tell = (step: PrepareStep | undefined): void => {
+      if (step) progress(PREPARE_LABEL[step], PREPARE_STEPS.indexOf(step) / PREPARE_STEPS.length);
+    };
+    tell(resumeStep(useProject.getState().project?.prepare) ?? undefined);
+    const follow = useProject.subscribe((s, prev) => {
+      if (s.project?.prepare?.step !== prev.project?.prepare?.step) tell(s.project?.prepare?.step);
+    });
+    let message: string;
+    try {
+      message = await runPrepare();
+    } finally {
+      follow();
+    }
     const p = requireProject();
     const state = p.prepare;
     const lines = PREPARE_STEPS.map((step, i) => {
@@ -1059,9 +1273,11 @@ const handlers: {
     ].join("\n");
   },
 
-  async check_before_export({ measure_volume }) {
+  async check_before_export({ measure_volume }, { progress }) {
     requireProject();
+    if (measure_volume) progress("Medindo o volume da aula");
     const loudness = measure_volume ? await measureLoudness() : null;
+    progress("Conferindo a aula");
     // The list is about the lesson as it is now (the volume counts only if it was measured on it).
     const p = requireProject();
     const { findings } = await checkLesson(p, useProject.getState().revision, { loudness });
@@ -1155,12 +1371,26 @@ const handlers: {
     return `Estilo aplicado em ${done.length} clipe(s).`;
   },
 
-  async add_template({ template, fields, near_text, at }, { commit }) {
+  async add_template({ template, fields, near_text, at, quiz_item }, { commit }) {
     const p = requireProject();
-    const start = near_text || at !== undefined ? await timeFor(p, near_text, at) : undefined;
+    let values = fields ?? {};
+    let start = near_text || at !== undefined ? await timeFor(p, near_text, at) : undefined;
+    if (quiz_item !== undefined) {
+      if (template !== "question")
+        throw new ToolError("quiz_item só vale para o template question.");
+      const q = p.publish?.quiz?.[quiz_item - 1];
+      if (!q)
+        throw new ToolError(
+          p.publish?.quiz?.length
+            ? `O quiz tem ${p.publish.quiz.length} perguntas; não existe a ${quiz_item}.`
+            : "A aula ainda não tem quiz: chame generate_quiz primeiro.",
+        );
+      values = { question: q.question, options: q.options.join("\n"), ...values };
+      start ??= await quizItemTime(p, q);
+    }
     let ids: string[];
     try {
-      ids = await addTemplate(template, fields ?? {}, start, commit);
+      ids = await addTemplate(template, values, start, commit);
     } catch (err) {
       if (err instanceof TemplateBlockedError) throw new ToolError(err.message);
       throw err;
@@ -1323,29 +1553,58 @@ export async function runAiTool(call: AiToolCall): Promise<ToolOutcome> {
     ...(call.client ? { client: call.client } : {}),
   };
   const draft = writesDraft(name, parsed.data);
-  const run = (commit: Commit): Promise<string> =>
-    (handlers[name] as Handler)(parsed.data as never, { entry, call, commit, draft });
+  // The person can cancel the call from the assistant panel: the answer goes back at once, and
+  // whatever the handler still tries to change afterwards is refused.
+  const cancel = new AbortController();
+  startAiCall({
+    id: call.id,
+    name,
+    title: tool.title,
+    ...(source === "assistant" && call.projectId ? { conversation: call.projectId } : {}),
+    cancel: () => cancel.abort(new Error("Cancelado pela pessoa")),
+  });
+  const progress = (step: string, ratio?: number): void => updateAiCall(call.id, step, ratio);
+  const cancelled = new Promise<never>((_, reject) => {
+    cancel.signal.addEventListener("abort", () => reject(new CancelledError()), { once: true });
+  });
+  // The race below handles it; a rejection nobody waits for is not an error.
+  cancelled.catch(() => undefined);
+  const run = async (commit: Commit): Promise<Answer> => {
+    const guarded: Commit = (fn) => !cancel.signal.aborted && commit(fn);
+    const work = (handlers[name] as Handler)(parsed.data as never, {
+      entry,
+      call,
+      commit: draftCommits(commit, guarded),
+      draft,
+      signal: cancel.signal,
+      progress,
+    });
+    return Promise.race([work, cancelled]);
+  };
+  const answer = (value: Answer): ToolOutcome =>
+    typeof value === "string" ? { ok: true, text: value } : { ok: true, ...value };
   try {
     // A read never changes the project: its commit refuses anything.
-    if (tool.permission === "read") return { ok: true, text: await run(() => false) };
+    if (tool.permission === "read") return answer(await run(() => false));
     // A broad edit goes into a draft the person reviews; nothing reaches the lesson or its history.
     if (draft) {
       // One draft per assistant: the calls of a request build it together.
       const into = draftCommit(
-        call.source === "assistant" ? "assistente" : `cliente:${call.client ?? "externo"}`,
+        draftAuthor(call),
         call.source === "assistant"
           ? "Mudanças propostas pelo Assistente"
           : "Mudanças propostas pela IA conectada",
         call.projectId,
       );
       let refused = false;
-      const text = await run(
+      const value = await run(
         onDraftView((fn) => {
           const ok = into(fn);
           if (!ok) refused = true;
           return ok;
         }),
       );
+      const text = typeof value === "string" ? value : value.text;
       if (refused) {
         const waiting = useProject.getState().draft;
         return {
@@ -1369,14 +1628,35 @@ export async function runAiTool(call: AiToolCall): Promise<ToolOutcome> {
         text: "A pessoa trocou de aula enquanto a ferramenta rodava: nada foi gravado na aula que está aberta agora.",
       };
     if (source === "mcp") useApp.getState().toast(`IA conectada: ${tool.title}`, "success");
-    return { ok: true, text: value };
+    return answer(value);
   } catch (err) {
+    if (err instanceof CancelledError || cancel.signal.aborted)
+      return {
+        ok: false,
+        text: "A pessoa cancelou esta ferramenta no painel do EdiAula. O que ela ainda não tinha gravado não foi feito. Não chame de novo sem ela pedir.",
+      };
     return {
       ok: false,
       text: err instanceof ToolError ? err.message : `Erro: ${(err as Error).message}`,
     };
+  } finally {
+    endAiCall(call.id);
   }
 }
+
+/** Who a draft written by a call belongs to: the chat inside EdiAula, or the connected app. */
+const draftAuthor = (call: AiToolCall): string =>
+  call.source === "assistant" ? "assistente" : `cliente:${call.client ?? "externo"}`;
+
+/** The call was cancelled in the assistant panel. */
+class CancelledError extends Error {}
+
+/**
+ * `guarded` with the draft mark of `commit` (state/project.ts onDraftView): a call writing into a
+ * draft still works out its changes on the draft as shown.
+ */
+const draftCommits = (commit: Commit, guarded: Commit): Commit =>
+  writesIntoDraft(commit) ? onDraftView(guarded) : guarded;
 
 /**
  * Keeps the main process informed of the open project and the folders of its media: paths an

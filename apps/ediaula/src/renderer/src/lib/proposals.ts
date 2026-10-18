@@ -336,7 +336,13 @@ export function useProposalView(): {
 export function discardProposal(id: string): void {
   const gone = useProject.getState().project?.proposals?.find((p) => p.id === id);
   useProject.getState().setProposals((list) => list.filter((p) => p.id !== id));
-  if (gone) reviewResolved({ what: "proposal", author: gone.by, outcome: "discarded" });
+  if (gone)
+    reviewResolved({
+      what: "proposal",
+      author: gone.by,
+      outcome: "discarded",
+      proposalItems: gone.items,
+    });
 }
 
 /** Leaves out (or brings back) every item of a category of the proposal. */
@@ -423,7 +429,12 @@ export async function applyProposal(): Promise<void> {
     return;
   }
   useProject.getState().setProposals((list) => list.filter((p) => p.id !== proposal.id));
-  reviewResolved({ what: "proposal", author: proposal.by, outcome: "applied" });
+  reviewResolved({
+    what: "proposal",
+    author: proposal.by,
+    outcome: "applied",
+    proposalItems: proposal.items,
+  });
   toast(
     `${ranges.length === 1 ? "1 corte aplicado" : `${ranges.length} cortes aplicados`}${dropped ? `; ${dropped === 1 ? "1 trecho não foi encontrado de novo e ficou" : `${dropped} trechos não foram encontrados de novo e ficaram`} de fora` : ""}. Ctrl+Z desfaz tudo de uma vez.`,
     dropped ? "info" : "success",

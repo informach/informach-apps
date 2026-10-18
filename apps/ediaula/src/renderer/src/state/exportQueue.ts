@@ -13,6 +13,7 @@ import type { TextCue } from "@shared/webvtt";
 import { create } from "zustand";
 import { projectSpeech } from "@/lib/audio";
 import { ensureCursorSprites } from "@/lib/cursorRender";
+import { exportTranslations, platformInput } from "@/lib/delivery";
 import { keyIsCurrent } from "@/lib/keying";
 import { timelineKeys } from "@/lib/keysOnScreen";
 import { loadAssetTranscript } from "@/lib/transcripts";
@@ -39,11 +40,12 @@ export const exportsPending = (): boolean =>
     .items.some((i) => i.state === "waiting" || i.state === "preparing" || i.state === "exporting");
 
 /** What is kept of an item between sessions (its own copy of the project and the settings). */
-const saved = ({ id, project, spec, captions, state }: ExportItem) => ({
+const saved = ({ id, project, spec, captions, extras, state }: ExportItem) => ({
   id,
   project,
   spec,
   captions,
+  ...(extras ? { extras } : {}),
   state,
 });
 
@@ -116,6 +118,15 @@ export const exportQueue = new ExportQueue(
       }
       if (!spec.burnAss && keys.length)
         spec.burnAss = buildAss([], DEFAULT_CAPTION_STYLE, spec.width, spec.height, keys);
+      // The translated captions still up to date, and the package for the platform.
+      if (item.extras?.translations) {
+        const translations = await exportTranslations(project);
+        if (translations.length) spec.translations = translations;
+      }
+      if (item.extras?.platform && !spec.audioOnly) spec.platform = platformInput(project);
+      if (spec.thumbnail && spec.thumbnailAt === undefined && project.publish?.thumbnail)
+        spec.thumbnailAt = project.publish.thumbnail.time;
+      check();
       if (project.tracks.some((t) => t.music)) spec.speech = await projectSpeech(project);
       check();
       // A voice whose treatment is not ready yet (or whose file is gone) is treated now: the
@@ -217,6 +228,7 @@ export function resumeUnfinished(): void {
         project: item.project,
         spec: item.spec,
         captions: item.captions,
+        ...(item.extras ? { extras: item.extras } : {}),
       });
 }
 
@@ -243,6 +255,7 @@ export function retryExport(item: ExportItem, current = false): void {
     project: current && open && open.id === item.project.id ? open : item.project,
     spec: item.spec,
     captions: item.captions,
+    ...(item.extras ? { extras: item.extras } : {}),
   });
   exportQueue.remove(item.id);
 }

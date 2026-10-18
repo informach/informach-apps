@@ -6,6 +6,7 @@ import {
   PROPOSAL_ITEM_LIMIT,
   PROPOSAL_LIMIT,
 } from "./anchors.ts";
+import { LANGUAGE_CODE } from "./captionTranslate.ts";
 import { guidedStoreSchema } from "./guidedPlan.ts";
 import { PREPARE_DECISIONS, PREPARE_STEPS } from "./prepare.ts";
 import { REVIEWED_LIMIT } from "./seams.ts";
@@ -413,6 +414,34 @@ export const proposalListSchema = z
     "Too many proposal items",
   );
 
+/** A question of the quiz (shared/platformPackage.ts). */
+const quizItem = z.looseObject({
+  question: z.string().max(500),
+  options: z.array(z.string().max(200)).length(4),
+  correct: z.int().min(0).max(3),
+  line: z.int().nonnegative(),
+  source: z.string().max(4000),
+  quote: z.string().max(1000).optional(),
+  suspect: z.boolean().optional(),
+  reviewed: z.boolean().optional(),
+});
+
+/** What the platform package takes from the lesson (shared/platformPackage.ts PlatformInput). */
+const platformInput = z.strictObject({
+  videoId: z.string().max(200).optional(),
+  title: z.string().max(2000).optional(),
+  description: z.string().max(20000).optional(),
+  summary: z.string().max(20000).optional(),
+  chapters: z
+    .array(z.object({ time, title: z.string().max(500) }))
+    .max(500)
+    .optional(),
+  quiz: z.array(quizItem).max(100).optional(),
+  thumbnail: z.object({ time, title: z.string().max(500).optional() }).optional(),
+  course: z.string().max(200).optional(),
+  lesson: z.string().min(1).max(1000),
+});
+
 /** Preserve extension fields of the versioned format; all fields used by the editor are validated. */
 export const projectSchema = z
   .looseObject({
@@ -432,6 +461,9 @@ export const projectSchema = z
           .array(z.looseObject({ time, title: text }))
           .max(20000)
           .optional(),
+        videoId: z.string().max(200).optional(),
+        quiz: z.array(quizItem).max(100).optional(),
+        thumbnail: z.looseObject({ time, title: z.string().max(500).optional() }).optional(),
       })
       .optional(),
     protected: z
@@ -473,6 +505,7 @@ export const projectSchema = z
           })
           .optional(),
         intentional: z.array(z.string().min(1).max(200)).max(200).optional(),
+        notFillers: z.array(z.string().min(1).max(60)).max(200).optional(),
       })
       .optional(),
     stats: z.looseObject({ editSeconds: z.number().nonnegative() }).optional(),
@@ -509,6 +542,24 @@ export const projectSchema = z
         closingText: z.string().max(400).optional(),
         music: z.looseObject({ assetId: id, trackId: id, volume: number.min(0).max(4) }).optional(),
       })
+      .optional(),
+    captionTranslations: z
+      .array(
+        z.looseObject({
+          lang: z.string().regex(LANGUAGE_CODE),
+          createdAt: z.number().nonnegative(),
+          cues: z
+            .array(
+              z.looseObject({
+                key: z.string().min(1).max(300),
+                source: z.string().max(4000),
+                text: z.string().max(4000),
+              }),
+            )
+            .max(50000),
+        }),
+      )
+      .max(20)
       .optional(),
     settings: projectSettingsSchema,
     assets: z.array(asset).max(5000),
@@ -550,6 +601,19 @@ export const exportSpecSchema = z
       .optional(),
     thumbnail: z.boolean().optional(),
     burnAss: text.optional(),
+    translations: z
+      .array(
+        z.strictObject({
+          lang: z.string().regex(LANGUAGE_CODE),
+          cues: z
+            .array(z.strictObject({ start: time, end: time, text: z.string().max(4000) }))
+            .max(50000),
+        }),
+      )
+      .max(10)
+      .optional(),
+    platform: platformInput.optional(),
+    thumbnailAt: time.optional(),
     audioOnly: z.boolean().optional(),
     vertical: z.enum(["blur", "crop"]).optional(),
     cursors: z

@@ -1,8 +1,11 @@
+import type { TakeMark } from "@shared/guidedNarration";
 import { insertNarration } from "@shared/narration";
 import { newId } from "@shared/timeline";
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { timecode } from "@/lib/format";
+import { type NarrationScript, narrationScript, placeGuidedNarration } from "@/lib/guidedNarration";
+import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
 import { PreviewMedia } from "@/ui/PreviewMedia";
@@ -37,6 +40,40 @@ export function NarrationPanel({
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const savedPath = useRef<string | null>(null);
   const duration = end - start;
+  // Guided by the script: the lines of the stretch, the one on screen and when each began.
+  const [script, setScript] = useState<NarrationScript | null>(null);
+  const [guided, setGuided] = useState(true);
+  const [current, setCurrent] = useState(0);
+  const currentRef = useRef(0);
+  const marks = useRef<TakeMark[]>([]);
+  const takeStarted = useRef(0);
+  useEffect(() => {
+    const p = useProject.getState().project;
+    if (!p || p.id !== projectId) return;
+    let alive = true;
+    void narrationScript(p, start, end).then(
+      (s) => alive && setScript(s),
+      () => alive && setScript(null),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [projectId, start, end]);
+  const following = guided && !!script?.lines.length;
+  /** The next line of the teleprompter: its take starts now. */
+  const nextLine = useCallback(() => {
+    if (!script || phase !== "recording") return;
+    const n = Math.min(script.lines.length - 1, currentRef.current + 1);
+    if (n === currentRef.current) return;
+    const line = script.lines[n];
+    marks.current.push({
+      item: line.item,
+      text: line.text,
+      mark: (performance.now() - takeStarted.current) / 1000,
+    });
+    currentRef.current = n;
+    setCurrent(n);
+  }, [script, phase]);
   const takeCues = useMemo(
     () => [{ start: 0, end: elapsed || duration, text: captionText }],
     [captionText, elapsed, duration],
@@ -163,6 +200,12 @@ export function NarrationPanel({
         setTake(null);
         setCaptionText("");
         setElapsed(0);
+        takeStarted.current = performance.now();
+        currentRef.current = 0;
+        setCurrent(0);
+        marks.current = script?.lines.length
+          ? [{ item: script.lines[0].item, text: script.lines[0].text, mark: 0 }]
+          : [];
         playback.seek(start);
         playback.play();
         setPhase("recording");
@@ -201,6 +244,19 @@ export function NarrationPanel({
         path,
         proxyStatus: "none" as const,
       };
+      if (following && script && marks.current.length) {
+        // Each line where it belongs on the screen, as a draft to review.
+        const message = await placeGuidedNarration({
+          projectId,
+          asset,
+          start,
+          marks: [...marks.current],
+          anchors: script.anchors,
+        });
+        useApp.getState().toast(message, "info");
+        close();
+        return;
+      }
       useProject.getState().commit((p) => insertNarration(p, projectId, asset, start, end));
       void window.api
         .waveform(path)
@@ -252,6 +308,31 @@ export function NarrationPanel({
               ))}
           </select>
         </label>
+        {script?.lines.length ? (
+          <label className="narration-guided">
+            <input
+              type="checkbox"
+              checked={guided}
+              disabled={phase === "recording" || busy}
+              onChange={(e) => setGuided(e.target.checked)}
+            />
+            Seguir o roteiro:{" "}
+            {script.lines.length === 1 ? "1 fala" : `${script.lines.length} falas`} deste trecho,
+            cada uma encaixada no momento da tela dela
+          </label>
+        ) : null}
+        {following && script && (
+          <div className="narration-prompter" aria-live="polite">
+            {script.lines.map((l, i) => (
+              <p
+                key={`${l.item}`}
+                className={i === current ? "is-current" : i < current ? "is-done" : undefined}
+              >
+                <span className="narration-speaker">{l.speaker}</span> {l.text}
+              </p>
+            ))}
+          </div>
+        )}
         {phase === "recording" && (
           <div role="status">
             ● Gravando · {timecode(elapsed, fps)} / {timecode(duration, fps)}
@@ -280,6 +361,11 @@ export function NarrationPanel({
           <button type="button" disabled={busy} onClick={close}>
             Cancelar
           </button>
+          {phase === "recording" && following && script && current < script.lines.length - 1 && (
+            <button type="button" onClick={nextLine}>
+              Próxima fala
+            </button>
+          )}
           {phase === "recording" ? (
             <button type="button" onClick={stop}>
               Parar
@@ -296,8 +382,9 @@ export function NarrationPanel({
           )}
         </div>
         <small>
-          A voz será inserida no início do intervalo, em uma nova faixa. O áudio existente será
-          mantido.
+          {following
+            ? "Cada fala entra como rascunho numa nova faixa, no momento da tela dela. O áudio existente será mantido."
+            : "A voz será inserida no início do intervalo, em uma nova faixa. O áudio existente será mantido."}
         </small>
       </section>
     </div>,

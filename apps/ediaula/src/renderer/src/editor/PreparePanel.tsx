@@ -267,6 +267,13 @@ export function PrepareOffer(): ReactNode {
           <span className="spacer">
             <strong>Este curso tem um modelo salvo.</strong> Aplicar paleta, legenda, cartelas,
             posição do apresentador, cursor, zoom, música e anotações como rascunho?
+            {course.notes?.length ? (
+              <span className="muted">
+                {" "}
+                Ajustado pelo que você aceitou e recusou nas aulas anteriores:{" "}
+                {course.notes.join("; ")}.
+              </span>
+            ) : null}
           </span>
           <Button size="sm" variant="primary" onClick={() => void acceptCourseOffer()}>
             Aplicar como rascunho

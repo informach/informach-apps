@@ -163,6 +163,7 @@ const contextSchema = z.object({
     .max(5000)
     .optional(),
   mode: z.enum(RECORD_MODES).optional(),
+  retakeLines: z.array(z.int().nonnegative()).max(5000).optional(),
   over: z
     .object({
       from: seconds,

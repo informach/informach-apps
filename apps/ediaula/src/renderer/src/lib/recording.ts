@@ -35,6 +35,7 @@ import { activePalette } from "./palettes";
 import { showProposal } from "./proposals";
 import { recorderKey } from "./recorderKeys";
 import { recordingImported } from "./recordingHooks";
+import { takeRetake } from "./retake";
 import { scriptDoc } from "./script";
 import { loadProjectTranscripts } from "./transcripts";
 import { proposeVoiceCleanup, treatVoices } from "./voice";
@@ -50,6 +51,8 @@ export interface RecorderRequest {
   replace?: boolean;
   /** "Regravar e substituir": a guided take recorded again with its plan, in that media's place. */
   guidedReplace?: GuidedReplace;
+  /** "Regravar falas": only these teleprompter lines, in "Só voz" (lib/retake.ts). */
+  retakeLines?: number[];
 }
 
 /**
@@ -136,6 +139,7 @@ export async function openRecorder(request: RecorderRequest = {}): Promise<void>
     ...(p ? { projectId: p.id } : {}),
     ...(p?.guided ? { guided: p.guided } : {}),
     ...(request.guidedReplace ? { guidedReplace: request.guidedReplace } : {}),
+    ...(request.retakeLines?.length ? { retakeLines: request.retakeLines } : {}),
   });
 }
 
@@ -327,6 +331,20 @@ async function findResumeJoin(run: GuidedRun, take: string): Promise<ResumeJoin 
 /** A finished take goes into the open project (or a new one), every source cut at its pauses. */
 export async function importRecording(r: RecordingResult): Promise<void> {
   const { toast, set } = useApp.getState();
+  // The lines recorded again for the lesson ("Regravar falas") go in as a draft of their own.
+  if (takeRetake(r)) {
+    set({ screen: "editor" });
+    await useProject.getState().saveNow();
+    await window.api.recorder
+      .imported(r.dir)
+      .catch((error: unknown) =>
+        toast(
+          `As falas regravadas entraram, mas a pasta da tomada vai aparecer de novo ao abrir: ${(error as Error).message}`,
+          "info",
+        ),
+      );
+    return;
+  }
   if (r.replaceAsset && useProject.getState().project) {
     try {
       if (await replaceGuidedTake(r)) return;

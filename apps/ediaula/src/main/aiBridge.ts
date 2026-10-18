@@ -26,7 +26,19 @@ const TOOL_TIMEOUT_MS = 20 * 60 * 1000;
 const pending = new Map<string, (r: ToolOutcome | null) => void>();
 const queue = createToolQueue();
 
-const outcomeSchema = z.object({ ok: z.boolean(), text: z.string().max(5_000_000) });
+/** A picture of get_frame: PNG or JPEG in base64, at most 1568 px on its long side. */
+const imageSchema = z.object({
+  mime: z.enum(["image/png", "image/jpeg"]),
+  data: z
+    .string()
+    .max(12_000_000)
+    .regex(/^[A-Za-z0-9+/]+={0,2}$/),
+});
+const outcomeSchema = z.object({
+  ok: z.boolean(),
+  text: z.string().max(5_000_000),
+  images: z.array(imageSchema).max(4).optional(),
+});
 
 ipcMain.handle("ai:result", (_e, rawId: unknown, rawResult: unknown) => {
   const id = z.uuid().parse(rawId);

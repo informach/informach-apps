@@ -62,6 +62,8 @@ export interface CleanupChoices {
   /** Suggestions the person chose to keep (ids, as stored: see keptMatcher). */
   kept: readonly string[];
   intentional?: readonly string[];
+  /** Hesitations this lesson does not cut (CleanupSettings.notFillers). */
+  notFillers?: readonly string[];
 }
 
 /** The project's cleanup choices, with the defaults for what it does not say. */
@@ -76,6 +78,7 @@ export function cleanupChoices(settings: CleanupSettings | undefined): CleanupCh
     },
     kept: settings?.kept ?? [],
     ...(settings?.intentional ? { intentional: settings.intentional } : {}),
+    ...(settings?.notFillers?.length ? { notFillers: settings.notFillers } : {}),
   };
 }
 
@@ -211,6 +214,7 @@ export function cleanupPlan(
       activity,
       thinking: scriptPauses(project, inputs.transcripts, words),
       ...(choices.intentional ? { intentional: choices.intentional } : {}),
+      ...(choices.notFillers ? { notFillers: choices.notFillers } : {}),
     },
   );
   const kept = keptMatcher(project, choices.kept);

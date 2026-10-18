@@ -6,6 +6,7 @@ import { DraftLeaveDialog, SaveFailedDialog } from "./editor/SaveFailedDialog";
 import { OrphanRecordings } from "./home/OrphanRecordings";
 import { reportAiContext, runAiTool } from "./lib/aiTools";
 import { watchCourseOffer } from "./lib/courseTemplate";
+import { listenLearning } from "./lib/learning";
 import { listenPrepare } from "./lib/prepare";
 import { loadRecorderKeys } from "./lib/recorderKeys";
 import { listenRecordings } from "./lib/recording";
@@ -58,7 +59,9 @@ export function App(): ReactNode {
     const stopPrepare = listenPrepare();
     const stopOffer = watchCourseOffer();
     const stopSeams = listenSeamReview();
+    const stopLearning = listenLearning();
     return () => {
+      stopLearning();
       stopSeams();
       stopPrepare();
       stopOffer();

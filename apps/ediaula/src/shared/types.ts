@@ -1,15 +1,18 @@
 import type { Effort } from "./aiModels.ts";
 import type { StoredProposal } from "./anchors.ts";
 import type { Annotation } from "./annotation.ts";
+import type { SavedChat } from "./assistantChat.ts";
 import type { Ducking } from "./audio.ts";
 import type { PieceMatch } from "./audioSync.ts";
 import type { CameraChoice, CameraMode } from "./camera.ts";
 import type { CaptionStyle, CueStyleEntry } from "./captions.ts";
+import type { CaptionTranslation } from "./captionTranslate.ts";
 import type { ChromaKey } from "./chroma.ts";
 import type { Motion, Transform } from "./compose.ts";
 import type { CourseTemplate } from "./courseTemplate.ts";
 import type { CursorFx } from "./cursor.ts";
 import type { FontFamily } from "./fonts.ts";
+import type { FrameGeometry } from "./frameGrab.ts";
 import type { GlossaryTerm } from "./glossary.ts";
 import type {
   BrokenStep,
@@ -23,7 +26,9 @@ import type {
 } from "./guidedPlan.ts";
 import type { HotkeyReport } from "./hotkeys.ts";
 import type { Keyframe } from "./keyframes.ts";
+import type { Learning, LearningEvent } from "./learning.ts";
 import type { Palette } from "./palettes.ts";
+import type { PlatformInput, QuizItem } from "./platformPackage.ts";
 import type { Loudness } from "./preflight.ts";
 import type { PrepareState } from "./prepare.ts";
 import type { RecorderSettings } from "./recorderSettings.ts";
@@ -394,6 +399,8 @@ export interface Project {
     closingText?: string;
     music?: { assetId: string; trackId: string; volume: number };
   };
+  /** The captions translated by the AI, one per language (shared/captionTranslate.ts). */
+  captionTranslations?: CaptionTranslation[];
   settings: ProjectSettings;
   assets: Asset[];
   /** Display order, top to bottom: video tracks first (highest layer on top), then audio. */
@@ -413,6 +420,9 @@ export interface CleanupSettings {
   kinds?: { filler?: boolean; silence?: boolean; repeat?: boolean };
   /** Phrases repeated on purpose ("muito, muito"); absent: shared/cleanup.ts DEFAULT_INTENTIONAL. */
   intentional?: string[];
+  /** Hesitations this lesson does not cut ("né" for a teacher who uses it on purpose), learned
+   *  from the course (shared/learning.ts). */
+  notFillers?: string[];
 }
 
 export interface PublishInfo {
@@ -420,6 +430,12 @@ export interface PublishInfo {
   description?: string;
   summary?: string;
   chapters?: { time: number; title: string }[];
+  /** The video id of the script section (`F1P1-V01`), for the platform. */
+  videoId?: string;
+  /** Questions with four options made from the lesson's lines (shared/platformPackage.ts). */
+  quiz?: QuizItem[];
+  /** The frame of the thumbnail (timeline second) and the title the platform shows over it. */
+  thumbnail?: { time: number; title?: string };
 }
 
 /** A backup of a lesson as the start screen and the editor list it (main/projects.ts). */
@@ -526,6 +542,12 @@ export interface ExportSpec {
   vertical?: "blur" | "crop";
   /** Pre-rendered pointer of screen recordings, by asset id (see shared/cursor.ts). */
   cursors?: Record<string, CursorSprite>;
+  /** Captions translated by the AI, written as <aula>.<lang>.srt and .vtt beside the video. */
+  translations?: { lang: string; cues: TextCue[] }[];
+  /** Writes <aula>.plataforma.json beside the video (shared/platformPackage.ts). */
+  platform?: PlatformInput;
+  /** Timeline second of the thumbnail (default: 30% of the lesson). */
+  thumbnailAt?: number;
 }
 
 export interface CursorSprite {
@@ -625,6 +647,12 @@ export interface AiClientStatus {
   connected: boolean;
 }
 
+/** A picture a tool hands the AI (get_frame): base64, at most MAX_IMAGE_SIDE on its long side. */
+export interface ToolImage {
+  mime: "image/png" | "image/jpeg";
+  data: string;
+}
+
 export type AssistantEvent =
   | { type: "text"; delta: string }
   | {
@@ -638,6 +666,8 @@ export type AssistantEvent =
   | { type: "done" }
   | { type: "error"; message: string }
   | { type: "quota"; level: "ok" | "warn" | "blocked"; text: string }
+  /** How a tool of the editor is going (its step and, when known, how far). */
+  | { type: "progress"; name: string; step: string; ratio?: number }
   /** What the turn used: US$ from the API prices, estimated by Claude Code, unknown for Codex. */
   | { type: "usage"; tokens: number; usd?: number; estimated?: boolean };
 
@@ -653,6 +683,31 @@ export interface AiToolCall {
 }
 
 export interface EdiAulaApi {
+  /** One frame of a media file, cut and scaled for the AI (get_frame), as PNG bytes. */
+  frameImage(
+    jobId: string,
+    path: string,
+    seconds: number,
+    geometry: FrameGeometry,
+  ): Promise<Uint8Array<ArrayBuffer>>;
+  /** One frame of the lesson composed as the export composes it, as PNG bytes. */
+  composeFrame(
+    jobId: string,
+    projectJson: string,
+    spec: ExportSpec,
+    time: number,
+    geometry: FrameGeometry,
+  ): Promise<Uint8Array<ArrayBuffer>>;
+  /** One answer of the AI engine set up, with no tools (translation, quiz); job:cancel stops it. */
+  aiOneShot(jobId: string, prompt: string): Promise<string>;
+  /** The assistant's conversation of a lesson, kept between sessions. */
+  assistantLoadChat(conversationId: string): Promise<SavedChat | null>;
+  assistantSaveChat(conversationId: string, chat: SavedChat): Promise<void>;
+  /** What the person decided in the course's lessons (shared/learning.ts). */
+  getLearning(course: string): Promise<Learning>;
+  recordLearning(course: string, events: LearningEvent[]): Promise<void>;
+  /** A folder for several exports; writing inside it is allowed from then on. */
+  pickFolder(title: string): Promise<string | null>;
   saveEditingTemplate(name: string, content: string): Promise<string | null>;
   readEditingTemplate(): Promise<{ path: string; content: string } | null>;
   /** The course's template (userData/cursos/<curso>/modelo.json), or null. */
@@ -968,5 +1023,7 @@ export interface EdiAulaApi {
   assistantReset(conversationId: string): Promise<void>;
   onAssistantEvent(cb: (conversationId: string, e: AssistantEvent) => void): () => void;
   /** Registers the renderer as the executor of AI tool calls (from MCP clients and the assistant). */
-  handleAiTools(run: (call: AiToolCall) => Promise<{ ok: boolean; text: string }>): () => void;
+  handleAiTools(
+    run: (call: AiToolCall) => Promise<{ ok: boolean; text: string; images?: ToolImage[] }>,
+  ): () => void;
 }

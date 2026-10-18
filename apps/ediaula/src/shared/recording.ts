@@ -83,6 +83,11 @@ export interface RecorderContext {
   guided?: GuidedStore;
   /** "Regravar e substituir": this media's guided take is recorded again with its plan. */
   guidedReplace?: GuidedReplace;
+  /**
+   * "Regravar falas": the recorder opens in "Só voz" with only these teleprompter lines (indexes
+   * of `teleprompter`), the ones missing from the lesson or only partly in it, one take each.
+   */
+  retakeLines?: number[];
 }
 
 /** What the recorder needs to play the lesson's voice and show it while the screen is recorded. */
