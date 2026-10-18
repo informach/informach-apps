@@ -22,9 +22,9 @@ As funções novas devem funcionar localmente, sem contratação, conta, chave o
 | 2 | Motor local: edição estrutural, fontes/Unicode, redação/sanitização, senha, objetos e geometria | Implementado e revisado; complementos no review |
 | 3 | Leitura, busca, links/marcadores/anexos, interface, preferências, acessibilidade de interação e autoria de formulários | Implementado e revisado; matriz/corpus no review |
 | 4 | OCR, conversões locais, compactação por meta, impressão, lotes/tarefas/cancelamento e digitalização | Perfis iniciais implementados e revisados; intervalos/segundo plano e retenção de fontes também aprovados na jornada completa. Complementos e limites no review consolidado, sem full review |
-| 2/3 C | Complementos obrigatórios de autoria e compatibilidade | Autoria, formulários, primeiro perfil de Form interno e alças/gestos/preparação de campos revisados; clipboard com gate nativo pendente, senhas/compatibilidade ampla e fluxo continuam |
+| 2/3 C | Complementos de autoria e compatibilidade | Senhas, autoria, formulários, Form interno, gestos, campos, marcas e assinatura gráfica revisados; corpus amplo e clipboard nativo nas pendências pós-release |
 | 5 | Comparação, consulta/extração/automação local, preparação por finalidade, acessibilidade documental e recursos especializados | Adiado por orientação final; escopo e critérios nas pendências pós-release |
-| Final | Full review de código/contratos/segurança/UX/roundtrip, gates do app e consumidores afetados, corpus e limites | Em execução no checkout de publicação; evidências no full review da entrega |
+| Final | Full review de código/contratos/segurança/UX/roundtrip, gates do app e consumidores afetados, corpus e limites | Review local concluído; testes/tipos/builds e jornada dos seis apps aprovados. Gates remotos/publicação pendentes no full review da entrega |
 
 Cada lote exige testes proporcionais, tipos, build, análise do diff e review registrado com correções antes de avançar. Jornadas Electron usam perfis e fixtures isolados, com as proteções da suíte ativas. Um teste de abertura não substitui validação do conteúdo da saída. Uma função parcial não será registrada como concluída nem ocultada por mensagem de sucesso.
 

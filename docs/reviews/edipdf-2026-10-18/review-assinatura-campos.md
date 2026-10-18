@@ -1,6 +1,6 @@
 # Review de assinatura gráfica e campos rotacionados
 
-18/10/2026. Último complemento autorizado antes da publicação. Implementação e testes de domínio/tipos aprovados; a rodada nativa final está em execução.
+18/10/2026. Último complemento autorizado antes da publicação. Implementação, testes de domínio/tipos e jornada nativa completa aprovados. Gates remotos e publicação são registrados separadamente no full review.
 
 A assinatura conserva desenho vetorial, pontos, cores, rotação e a biblioteca local por opção explícita. Imagens agora passam por preparação imutável: remoção do branco pelo mínimo dos canais RGB, transparência com recuperação das cores, aparo automático e recorte manual nas quatro bordas. O limite de branco é ajustável; recorte sem área ou sem traços é recusado. A prévia mostra o PNG preparado, invalidado imediatamente quando os parâmetros mudam. Decodificação, dimensões, pixels e memória têm limites explícitos.
 
@@ -12,4 +12,4 @@ A revisão nativa posterior encontrou um defeito real de layout: girar uma image
 
 Nos formulários, a caixa HTML agora compõe a rotação da página com a rotação própria `MK/R`, preserva o centro e utiliza a altura local do controle para calcular o tamanho da fonte. O alinhamento informado pelo PDF é respeitado. A matriz possui teste com 64 combinações de rotações, origem de CropBox deslocada e escala não unitária, confrontando a orientação da linha de base com o viewport independente do PDF.js. A jornada nativa `release-native-final.txt` aprovou o campo girado após salvar/reabrir; falhou depois na prévia da assinatura descrita acima. Cores, múltiplas aparências e corpus amplo permanecem nas pendências.
 
-Evidências locais: 275 testes aprovados (`release-tests-inert.txt`), tipos completos do monorepo e tooling (`release-types-final.txt`), revisão de qualidade sem erros (`release-check.txt`). A rodada `release-native-preview-fixed.txt` encerrará o aceite nativo desta correção. O [full review](full-review-entrega.md) registra o resultado final e a publicação.
+Evidências locais: 275 testes aprovados, tipos completos do monorepo/tooling e qualidade sem erros. A rodada `release-native-preview-fixed.txt` aprovou assinatura/campos e identificou depois o lock de sessão deixado no fechamento. A correção do SDK passou em 69 testes e na jornada dos seis aplicativos (`release-native-all-sdk.txt`), incluindo novamente a assinatura gráfica, campos rotacionados e reabertura/retomada. Capturas de prévia/posição e aplicação foram inspecionadas; a imagem rotacionada permanece dentro de seu espaço e os controles são alcançáveis por cliques normais. O [full review](full-review-entrega.md) reúne resultados e estado da publicação.
