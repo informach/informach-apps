@@ -10,6 +10,8 @@ export const operationalErrors = [
   "alert.delivery_failed",
   "alert.delivery_skipped",
   "redis.unavailable",
+  /** Uma parte de "encerrar sessões" no Postgres (sessões ou aparelhos confiados) falhou. */
+  "sessions.revoke_failed",
   "package.operation_failed",
   /** A mudança aconteceu, mas o evento não entrou na auditoria. */
   "audit.change_unrecorded",

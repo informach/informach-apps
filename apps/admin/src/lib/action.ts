@@ -22,8 +22,15 @@ import {
 } from "./access";
 import { reportOperationalError } from "./observability";
 
-/** Resposta das ações para o formulário: sucesso com mensagem, ou erro para mostrar. */
-export type ActionResult = { ok: true; message: string } | { ok: false; error: string };
+/**
+ * Resposta das ações para o formulário: sucesso com mensagem, ou erro para
+ * mostrar. `incomplete` é a mudança que aconteceu com uma parte faltando (o
+ * banimento gravado com sessões que não puderam ser encerradas): a tela fecha a
+ * confirmação, como num sucesso, e mostra a frase no tom de problema.
+ */
+export type ActionResult =
+  | { ok: true; message: string; incomplete?: boolean }
+  | { ok: false; error: string };
 
 type RateLimitOption = { key: string; max: number; window: string };
 

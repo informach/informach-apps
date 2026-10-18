@@ -63,9 +63,22 @@ describe("cached sessions in secondary storage", () => {
 
   it("revokes every session of the account and keeps other accounts", async () => {
     const store = storeWithTwoSessions();
-    expect(await revokeCachedSessions(store, "u1")).toBe(3);
+    // Três referências, duas valendo: a vencida sai junto, mas não conta.
+    expect(await revokeCachedSessions(store, "u1", now)).toBe(2);
     expect(store.keys().sort()).toEqual(["active-sessions-u2", "tok-other"]);
     expect(await listCachedSessions(store, "u1", now)).toEqual([]);
+  });
+
+  it("does not count a reference whose session already left the store", async () => {
+    const store = memoryStore({
+      "active-sessions-u1": JSON.stringify([
+        { token: "tok-a", expiresAt: later },
+        { token: "tok-gone", expiresAt: later },
+      ]),
+      "tok-a": JSON.stringify({ session: { userAgent: "x" }, user: { id: "u1" } }),
+    });
+    expect(await revokeCachedSessions(store, "u1", now)).toBe(1);
+    expect(store.keys()).toEqual([]);
   });
 
   it("treats a missing or corrupted list as no sessions", async () => {

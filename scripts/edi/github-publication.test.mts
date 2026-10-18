@@ -2,9 +2,13 @@ import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import { describe, expect, it, onTestFinished } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { EDI_DESKTOP_APPS } from "../../packages/config/src/edi-tools";
 import { publishGithubRelease } from "./github-publication.mts";
+
+// Only the default command reaches `gh`; every other test injects its own command.
+const execFile = vi.hoisted(() => vi.fn());
+vi.mock("node:child_process", () => ({ execFile }));
 
 type Asset = { name: string; size: number; digest: string | null };
 type Release = {
@@ -17,6 +21,8 @@ type Release = {
 const version = "1.2.3";
 const sourceCommit = "a".repeat(40);
 const provenance = `<!-- edi-source:${sourceCommit} -->`;
+/** Listing re-reads before giving up, in milliseconds. */
+const backoff = [1000, 2000, 4000, 8000, 15000];
 async function fixture() {
   const directory = await mkdtemp(join(tmpdir(), "edi-publication-"));
   onTestFinished(() => rm(directory, { recursive: true, force: true }));
@@ -27,6 +33,7 @@ async function fixture() {
   for (const file of files) await writeFile(file, `Fixture bytes: ${basename(file)}`);
   const state: {
     release: Release | null;
+    creates: number;
     uploads: number;
     failAt: number;
     corrupt: boolean;
@@ -37,8 +44,11 @@ async function fixture() {
     hiddenReads: number;
     /** Listing reads that still show the release as a draft after publication. */
     staleDraftReads: number;
+    /** Listing reads that still miss the last uploaded asset of a complete draft. */
+    staleAssetReads: number;
   } = {
     release: null,
+    creates: 0,
     uploads: 0,
     failAt: 0,
     corrupt: false,
@@ -46,6 +56,7 @@ async function fixture() {
     confirmPublication: true,
     hiddenReads: 0,
     staleDraftReads: 0,
+    staleAssetReads: 0,
   };
   const command = async (args: string[]): Promise<string> => {
     if (args[0] === "api") {
@@ -60,6 +71,17 @@ async function fixture() {
           state.staleDraftReads--;
           return JSON.stringify([[], [{ ...state.release, draft: true }]]);
         }
+        if (
+          state.release?.draft &&
+          state.release.assets.length === 7 &&
+          state.staleAssetReads > 0
+        ) {
+          state.staleAssetReads--;
+          return JSON.stringify([
+            [],
+            [{ ...state.release, assets: state.release.assets.slice(0, -1) }],
+          ]);
+        }
         return JSON.stringify([[], state.release ? [state.release] : []]);
       }
       if (!state.release || state.release.draft)
@@ -68,6 +90,7 @@ async function fixture() {
     }
     if (args[0] !== "release") throw new Error("Unexpected external command");
     if (args[1] === "create") {
+      state.creates++;
       state.release = {
         tag_name: `edi-v${version}`,
         prerelease: false,
@@ -132,8 +155,8 @@ describe("atomic GitHub suite publication", () => {
     expect(state.release).toBeNull();
   });
   it("publishes exactly six installers and the manifest, with remote digest confirmation", async () => {
-    const { options, state, command } = await fixture();
-    expect(await publishGithubRelease(options, command)).toEqual({ reused: false });
+    const { options, state, command, wait } = await fixture();
+    expect(await publishGithubRelease(options, command, wait)).toEqual({ reused: false });
     expect(state.release?.draft).toBe(false);
     expect(state.release?.assets.map((asset) => asset.name).sort()).toEqual(
       options.files.map((file) => basename(file)).sort(),
@@ -141,16 +164,19 @@ describe("atomic GitHub suite publication", () => {
     expect(state.release?.body).toContain(provenance);
   });
   it("resumes an interrupted draft without re-uploading existing bytes", async () => {
-    const { options, state, command } = await fixture();
+    const { options, state, command, wait } = await fixture();
     state.failAt = 4;
-    await expect(publishGithubRelease(options, command)).rejects.toThrow("Interrupted upload");
+    await expect(publishGithubRelease(options, command, wait)).rejects.toThrow(
+      "Interrupted upload",
+    );
     expect(state.release?.draft).toBe(true);
     expect(state.release?.assets).toHaveLength(3);
     state.failAt = 0;
-    await publishGithubRelease(options, command);
+    await publishGithubRelease(options, command, wait);
     expect(state.release?.draft).toBe(false);
     expect(state.release?.assets).toHaveLength(7);
     expect(state.uploads).toBe(8);
+    expect(state.creates).toBe(1);
   });
   it("never overwrites a conflicting asset already in a draft", async () => {
     const { options, state, command, draft } = await fixture();
@@ -165,8 +191,8 @@ describe("atomic GitHub suite publication", () => {
     expect(state.release.draft).toBe(true);
   });
   it("reuses an identical published release, but rejects changed source or bytes", async () => {
-    const { options, state, command } = await fixture();
-    await publishGithubRelease(options, command);
+    const { options, state, command, wait } = await fixture();
+    await publishGithubRelease(options, command, wait);
     expect(await publishGithubRelease(options, command)).toEqual({ reused: true });
     await expect(
       publishGithubRelease({ ...options, sourceCommit: "b".repeat(40) }, command),
@@ -178,21 +204,25 @@ describe("atomic GitHub suite publication", () => {
     expect(state.edits).toBe(1);
   });
   it("keeps corrupted uploads unpublished", async () => {
-    const { options, state, command } = await fixture();
+    const { options, state, command, wait } = await fixture();
     state.corrupt = true;
-    await expect(publishGithubRelease(options, command)).rejects.toThrow("Incomplete or altered");
+    await expect(publishGithubRelease(options, command, wait)).rejects.toThrow(
+      "Incomplete or altered",
+    );
     expect(state.edits).toBe(0);
     expect(state.release?.draft).toBe(true);
   });
   it("rejects extra assets and duplicate input names instead of publishing partial or unrelated files", async () => {
-    const { options, state, command, draft } = await fixture();
+    const { options, state, command, draft, wait } = await fixture();
     state.release = draft();
     state.release.assets.push({
       name: "unrelated.txt",
       size: 0,
       digest: `sha256:${"0".repeat(64)}`,
     });
-    await expect(publishGithubRelease(options, command)).rejects.toThrow("Incomplete or altered");
+    await expect(publishGithubRelease(options, command, wait)).rejects.toThrow(
+      "Incomplete or altered",
+    );
     await expect(
       publishGithubRelease({ ...options, files: Array(7).fill(options.files[0]) }, command),
     ).rejects.toThrow("canonical installers");
@@ -223,13 +253,13 @@ describe("atomic GitHub suite publication", () => {
       "could not be confirmed",
     );
     expect(state.release?.draft).toBe(true);
-    expect(waits).toEqual([1000, 2000, 4000, 8000, 15000]);
+    expect(waits).toEqual([...backoff, ...backoff]);
   });
   it("waits for a lagging listing to show the draft it just created", async () => {
     const { options, state, command, wait, waits } = await fixture();
     state.hiddenReads = 2;
     expect(await publishGithubRelease(options, command, wait)).toEqual({ reused: false });
-    expect(waits).toEqual([1000, 2000]);
+    expect(waits).toEqual([...backoff, 1000, 2000]);
     expect(state.release?.draft).toBe(false);
     expect(state.uploads).toBe(7);
   });
@@ -239,7 +269,7 @@ describe("atomic GitHub suite publication", () => {
     await expect(publishGithubRelease(options, command, wait)).rejects.toThrow(
       "draft release was not confirmed",
     );
-    expect(waits).toEqual([1000, 2000, 4000, 8000, 15000]);
+    expect(waits).toEqual([...backoff, ...backoff]);
     expect(state.uploads).toBe(0);
     expect(state.edits).toBe(0);
   });
@@ -247,7 +277,82 @@ describe("atomic GitHub suite publication", () => {
     const { options, state, command, wait, waits } = await fixture();
     state.staleDraftReads = 1;
     expect(await publishGithubRelease(options, command, wait)).toEqual({ reused: false });
-    expect(waits).toEqual([1000]);
+    expect(waits).toEqual([...backoff, 1000]);
     expect(state.edits).toBe(1);
+  });
+  it("trusts an empty listing only after the whole backoff, then creates a single draft", async () => {
+    const { options, state, command, wait } = await fixture();
+    const events: string[] = [];
+    await publishGithubRelease(
+      options,
+      async (args) => {
+        if (args[0] === "release" && args[1] === "create") events.push("create");
+        return command(args);
+      },
+      async (ms) => {
+        events.push(`wait ${ms}`);
+        await wait(ms);
+      },
+    );
+    expect(events).toEqual([...backoff.map((ms) => `wait ${ms}`), "create"]);
+    expect(state.creates).toBe(1);
+  });
+  it("resumes the draft of a previous run that the first listing still misses, without creating another", async () => {
+    const { options, state, command, draft, wait, waits } = await fixture();
+    state.release = draft();
+    state.hiddenReads = 2;
+    expect(await publishGithubRelease(options, command, wait)).toEqual({ reused: false });
+    expect(waits).toEqual([1000, 2000]);
+    expect(state.creates).toBe(0);
+    expect(state.uploads).toBe(7);
+    expect(state.release.draft).toBe(false);
+  });
+  it("waits for every uploaded asset to reach the listing before publishing", async () => {
+    const { options, state, command, wait, waits } = await fixture();
+    state.staleAssetReads = 2;
+    expect(await publishGithubRelease(options, command, wait)).toEqual({ reused: false });
+    expect(waits).toEqual([...backoff, 1000, 2000]);
+    expect(state.edits).toBe(1);
+    expect(state.release?.draft).toBe(false);
+  });
+  it("keeps the draft unpublished when the listing never shows all seven assets", async () => {
+    const { options, state, command, wait, waits } = await fixture();
+    state.staleAssetReads = Number.POSITIVE_INFINITY;
+    await expect(publishGithubRelease(options, command, wait)).rejects.toThrow(
+      "Incomplete or altered",
+    );
+    expect(waits).toEqual([...backoff, ...backoff]);
+    expect(state.edits).toBe(0);
+    expect(state.release?.draft).toBe(true);
+  });
+  it("reads a listing with hundreds of releases through the default gh command", async () => {
+    const { options, state, command, wait } = await fixture();
+    await publishGithubRelease(options, command, wait);
+    const published = state.release;
+    if (!published) throw new Error("Missing published fixture release");
+    // Other versions of the suite, each about as large as a real one in the listing.
+    const others = Array.from({ length: 500 }, (_, index) => ({
+      ...published,
+      tag_name: `edi-v0.0.${index}`,
+      body: `${provenance}\n${"Notas da versão. ".repeat(700)}`,
+    }));
+    const listing = JSON.stringify([others.slice(0, 250), [...others.slice(250), published]]);
+    expect(listing.length).toBeGreaterThan(2 * 1024 ** 2);
+    execFile.mockImplementation(
+      (
+        _file: string,
+        args: string[],
+        execOptions: { maxBuffer: number },
+        callback: (error: Error | null, result?: { stdout: string; stderr: string }) => void,
+      ) => {
+        if (args[0] !== "api") return callback(new Error("Unexpected external command"));
+        // Same failure execFile raises when the output outgrows the buffer.
+        if (listing.length > execOptions.maxBuffer)
+          return callback(new RangeError("stdout maxBuffer length exceeded"));
+        callback(null, { stdout: listing, stderr: "" });
+      },
+    );
+    expect(await publishGithubRelease(options)).toEqual({ reused: true });
+    expect(execFile).toHaveBeenCalledTimes(1);
   });
 });

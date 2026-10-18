@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { OVERDUE_STATUSES } from "../money/logic";
 import {
   banEndsAt,
+  bannedMessage,
   composeReason,
+  countLiveSessions,
   cozyaDemoDay,
   currentSubscription,
   describeEvent,
@@ -71,6 +74,8 @@ describe("filtros de Pessoas", () => {
   });
 
   it("procura a situação dentro do produto filtrado", () => {
+    // A mesma definição de atraso do Painel e de Dinheiro.
+    expect(planScope("atraso", "agenda-da-turma").statuses).toEqual([...OVERDUE_STATUSES]);
     expect(planScope("atraso", "agenda-da-turma")).toEqual({
       statuses: ["past_due", "unpaid"],
       without: false,
@@ -102,12 +107,16 @@ describe("planos", () => {
     expect(planLabel("produto_que_nao_existe")).toBe("produto_que_nao_existe");
   });
 
-  it("assinante ativo mostra desde quando e a renovação com o preço de tabela", () => {
-    const state = describeSubscription(sub({}));
-    expect(state.kind).toBe("assinante");
-    expect(state.tone).toBe("ok");
-    expect(state.line).toContain("Renova em 3 de março de 2027");
-    expect(state.line).toMatch(/R\$\s149 por ano$/);
+  it("assinante ativo mostra desde quando e a renovação com o preço de tabela, só para owner", () => {
+    const owner = describeSubscription(sub({}), { showPrice: true });
+    expect(owner.kind).toBe("assinante");
+    expect(owner.tone).toBe("ok");
+    expect(owner.line).toContain("Renova em 3 de março de 2027");
+    expect(owner.line).toMatch(/R\$\s149 por ano$/);
+    // Preço de tabela é valor de receita: admin e o padrão não veem.
+    const admin = describeSubscription(sub({}));
+    expect(admin.line).toContain("Renova em 3 de março de 2027");
+    expect(admin.line).not.toMatch(/R\$/);
   });
 
   it("past_due nunca é Pro e diz desde quando", () => {
@@ -213,6 +222,9 @@ describe("sessões e e-mails", () => {
 
   it("dá nome às categorias e às situações de envio", () => {
     expect(emailCategoryLabel("auth.sign-in-otp")).toBe("Código de acesso");
+    expect(emailCategoryLabel("auth.two-factor-setup-otp")).toBe(
+      "Código para ativar as duas etapas",
+    );
     expect(emailCategoryLabel("categoria.nova")).toBe("E-mail do sistema");
     expect(emailStatus("failed", new Date())).toEqual({ label: "Tentando de novo", tone: "warn" });
     expect(emailStatus("failed", null).tone).toBe("bad");
@@ -517,7 +529,7 @@ describe("ações", () => {
       ],
     });
     expect(message).toBe(
-      "3 sessões encerradas. Cozya pode levar até 5 minutos para pedir a entrada de novo. Não deu para alcançar Missão Saber: as sessões de lá continuam abertas. Tente de novo em alguns minutos.",
+      "3 sessões encerradas. Cozya pode levar até 5 minutos para pedir a entrada de novo. Não deu para alcançar Missão Saber: as sessões de lá continuam abertas. Tente encerrar as sessões de novo em alguns minutos.",
     );
     expect(sessionsRevokedMessage({ databaseCount: 0, perApp: [] })).toBe(
       "Não havia sessão aberta.",
@@ -525,5 +537,64 @@ describe("ações", () => {
     expect(joinNames(["Cozya", "Agenda da Turma", "Missão Saber"])).toBe(
       "Cozya, Agenda da Turma e Missão Saber",
     );
+  });
+
+  it("diz quando o Postgres ou os aparelhos confiados falharam, sem contar o que não saiu", () => {
+    const message = sessionsRevokedMessage({
+      databaseCount: null,
+      trustedDevices: null,
+      perApp: [{ name: "Cozya", count: 1, cookieCacheMinutes: 5 }],
+    });
+    expect(message).toBe(
+      "1 sessão encerrada. Cozya pode levar até 5 minutos para pedir a entrada de novo. Não deu para encerrar as sessões do Bastidores e da Suíte Edi no navegador: elas continuam abertas. Não deu para apagar os aparelhos confiados das duas etapas. Tente encerrar as sessões de novo em alguns minutos.",
+    );
+  });
+
+  it("conta como encerradas só as sessões que estavam valendo", () => {
+    expect(
+      countLiveSessions(
+        [
+          { expiresAt: new Date("2026-10-17T16:00:00Z") },
+          { expiresAt: new Date("2026-10-17T15:00:00Z") },
+          { expiresAt: new Date("2026-10-01T00:00:00Z") },
+        ],
+        now,
+      ),
+    ).toBe(1);
+  });
+
+  it("banimento gravado nunca vira 'nada foi alterado', e diz o que faltou", () => {
+    const audited = "O registro entrou na auditoria em seu nome.";
+    const complete = bannedMessage({
+      period: "por 7 dias",
+      audited,
+      revoke: {
+        databaseCount: 0,
+        trustedDevices: 0,
+        perApp: [{ name: "Cozya", count: 2, cookieCacheMinutes: 5 }],
+      },
+    });
+    expect(complete.incomplete).toBe(false);
+    expect(complete.message).toBe(
+      "Conta banida por 7 dias. A pessoa sai de todos os produtos; no Cozya e na Agenda da Turma isso pode levar até 5 minutos. Assinaturas não foram canceladas: se for o caso, cancele no Stripe. O registro entrou na auditoria em seu nome.",
+    );
+
+    const postgresDown = bannedMessage({
+      period: "por 7 dias",
+      audited,
+      revoke: { databaseCount: null, trustedDevices: null, perApp: [] },
+    });
+    expect(postgresDown.incomplete).toBe(true);
+    expect(postgresDown.message).toMatch(/^Conta banida por 7 dias\. /);
+    expect(postgresDown.message).toContain(
+      "Não deu para encerrar as sessões do Bastidores e da Suíte Edi no navegador",
+    );
+    expect(postgresDown.message).not.toContain("Nada foi alterado");
+
+    const nothing = bannedMessage({ period: "sem data para acabar", audited, revoke: null });
+    expect(nothing.incomplete).toBe(true);
+    expect(nothing.message).toContain("Conta banida sem data para acabar.");
+    expect(nothing.message).toContain('Use "Encerrar sessões" em alguns minutos.');
+    expect(nothing.message).toContain(audited);
   });
 });

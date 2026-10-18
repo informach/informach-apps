@@ -2,10 +2,12 @@
 
 Serviço `@informach/admin` (`67f2d87b-02cb-422a-b019-aa57cd584d14`) no projeto `informach-apps`, ambiente `production`, em `https://admin.informach.com.br`. A configuração do serviço e dos dois crons (`cron-admin-watch`, a cada 5 minutos, e `cron-admin-weekly`, segunda e terça às 11:00 UTC, com envio único por semana) está em [`.railway/railway.ts`](../../.railway/railway.ts). Os dois crons usam a imagem `alpine/curl` fixada por digest, a mesma dos outros crons novos. Fluxo geral de IaC no [runbook](../../docs/deploy-runbook.md#infraestrutura-como-código-railway-iac).
 
+No ar desde 17/10/2026, 22:01 UTC, com `ADMIN_LAUNCHED` aplicado, as migrações `0072` e `0073` aplicadas pelo migrator no deploy de `fb39612` e a titular como primeiro owner. A primeira entrada real dela em produção (senha, código por e-mail e ativação das duas etapas) funcionou por volta das 22:10 UTC. A trava do último owner sob concorrência num Postgres real continua coberta só por teste unitário. `ADMIN_LAUNCHED` fica em `true`: virar para `false` e aplicar não desliga o Bastidores com segurança, apaga as variáveis, o domínio e os dois crons. Os passos abaixo ficam como registro e para reconstruir o serviço.
+
 ## Primeira publicação, nesta ordem
 
 1. **Código e migrações na `main`.** O Bastidores depende das migrações `0072` (schema `ops`, com `job_runs` e `service_status`) e `0073` (colunas `failed_verification_count` e `locked_until` em `core.two_factors`, que o plugin de duas etapas do Better Auth 1.7 exige; sem elas a entrada quebra com "Drizzle schema mismatch"). As duas só acrescentam e são aplicadas pelo `migrator` no mesmo deploy; o `/api/ready` do admin segura o tráfego até o banco chegar lá.
-2. **Domínio.** O Railway não registra domínio próprio pela IaC. No painel: `@informach/admin`, Settings, Networking, Custom Domain, `admin.informach.com.br`. No Cloudflare, CNAME `admin` para o destino que o Railway mostrar, com proxy desligado (DNS only). Conferir depois com `curl -sSI https://admin.informach.com.br/api/health`.
+2. **Domínio.** O Railway não registra domínio próprio pela IaC. No painel: `@informach/admin`, Settings, Networking, Custom Domain, `admin.informach.com.br`. No Cloudflare, CNAME `admin` para o destino que o Railway mostrar, com o proxy ligado (nuvem laranja), como os outros domínios da casa: o Bastidores funciona assim desde o lançamento. Conferir depois com `curl -sSI https://admin.informach.com.br/api/health`, que responde com `Server: cloudflare`. Com o proxy, o `X-Forwarded-For` chega com dois endereços e o Better Auth 1.7 não identifica o IP sem `trustedProxies`, então o limite de tentativas da entrada vira um contador só para todo mundo. A correção é à parte (ver o [runbook](../../docs/deploy-runbook.md#62-dns-no-cloudflare)).
 3. **Segredos próprios do serviço.** Nunca reaproveitar os de outro app: o segredo do Better Auth assina o cookie, e é ele que impede uma sessão de outro produto de valer aqui.
 
    ```bash
@@ -15,7 +17,7 @@ Serviço `@informach/admin` (`67f2d87b-02cb-422a-b019-aa57cd584d14`) no projeto 
    ```
 
    No arquivo eles ficam como `preserve()`, e `preserve()` de variável ausente não cria nada. Por isso este passo vem antes do apply. Os crons do admin recebem o `CRON_SECRET` por referência.
-4. **Configuração.** No topo de `.railway/railway.ts`, virar `ADMIN_LAUNCHED` para `true` (até aqui o arquivo espelha o esqueleto antigo e o plano fica zerado). Depois `railway config plan --verbose`: as mudanças esperadas são o build standalone, o start, o healthcheck `/api/ready`, o domínio, as variáveis do admin e os dois crons novos, sem nenhum destroy. Então `railway config apply`, e o commit da constante virada vai para a `main` no mesmo dia.
+4. **Configuração.** No topo de `.railway/railway.ts`, virar `ADMIN_LAUNCHED` para `true` (antes do lançamento o arquivo espelhava o esqueleto antigo e o plano ficava zerado; desde 17/10/2026 a constante está em `true`). Depois `railway config plan --verbose`: as mudanças esperadas são o build standalone, o start, o healthcheck `/api/ready`, o domínio, as variáveis do admin e os dois crons novos, sem nenhum destroy. Então `railway config apply`, e o commit da constante virada vai para a `main` no mesmo dia.
 5. **Primeiro owner.** Dentro do Bastidores só um owner muda papéis, então o primeiro é gravado por script, uma vez, com a titular de acordo. O script não cria conta nem senha e se recusa a rodar se já houver owner:
 
    ```bash

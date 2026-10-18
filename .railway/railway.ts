@@ -24,14 +24,27 @@ const PRODUCTION_ID = "174b2cb0-e1cd-410c-8764-d913e3af18d3";
 const REPOSITORY = "informach/informach-apps";
 const REGION = "us-west2";
 
-// Lançamentos que dependem de passos fora deste arquivo. Enquanto `false`, o
-// bloco espelha o que está no ar e o plano fica zerado; virar para `true` e
-// aplicar é o passo de lançamento. Nunca apague o bloco do serviço para
+// Lançamentos que dependiam de passos fora deste arquivo. As duas constantes
+// estão ligadas desde 17/10/2026, e o que está no ar é o arquivo com elas em
+// `true`: a conciliação do Edi desde 20:09 UTC e o Bastidores desde 22:01 UTC.
+// Nenhuma delas é chave de desligar. Com ADMIN_LAUNCHED em `false`, o próximo
+// apply apagaria as variáveis e o domínio do Bastidores e os crons
+// cron-admin-watch e cron-admin-weekly; com EDI_RECONCILE_ACTIVE em `false`,
+// tiraria a imagem do cron-edi-reconcile. Nunca apague o bloco do serviço para
 // "limpar" o plano: num arquivo do projeto inteiro, isso apaga o serviço.
-/** Bastidores no ar: domínio, segredos e o merge do app vêm antes (apps/admin/PRODUCAO.md). */
+/** Bastidores no ar desde 17/10/2026, 22:01 UTC (apps/admin/PRODUCAO.md). */
 const ADMIN_LAUNCHED = true;
-/** Cron de conciliação do Edi: só depois da distribuição assinada e da cobrança homologada (apps/edi/PRODUCAO.md). */
+/** Cron de conciliação do Edi rodando desde 17/10/2026, 20:09 UTC (apps/edi/PRODUCAO.md). */
 const EDI_RECONCILE_ACTIVE = true;
+
+// Imagens dos crons sem build, fixadas por digest: uma tag trocada no registro
+// não muda o que roda com o CRON_SECRET de cada app. Para atualizar, conferir o
+// digest novo (`docker buildx imagetools inspect <imagem>:<tag>`) e aplicar.
+/** `alpine/curl`, de todos os crons que chamam uma rota por HTTP (e do Dockerfile do cron semanal da Missão). */
+const CURL_IMAGE =
+  "alpine/curl@sha256:d7720f8cffb47e7a80d01fb2c1b38562fab0e436948537e9b77dc312d29d12d6";
+/** `node:24-alpine` em 17/10/2026 (Node 24.22.0, Alpine 3.24, publicada em 14/10/2026). */
+const NODE_IMAGE = "node@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f";
 
 // O Railpack escolhe o Node pela variável abaixo; a versão vem do .nvmrc, a
 // mesma do CI e do desenvolvimento.
@@ -82,10 +95,12 @@ function quotedScript(command: string, path: string): string {
 }
 
 // Cron que chama a mesma rota de manutenção em cada domínio de APP_DOMAINS.
+// Uma falha não impede a chamada aos domínios seguintes, mas a execução termina
+// com código 1 para o Railway marcá-la como falha.
 function perAppCron(name: string, schedule: string, job: string) {
   return service(`cron-perapp-${name}`, {
-    source: image("alpine/curl:latest"),
-    start: `sh -c 'for d in $APP_DOMAINS; do curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" "https://\${d}/api/jobs/${job}" || echo "Failed for \${d}, continuing"; done'`,
+    source: image(CURL_IMAGE),
+    start: `sh -c 'failed=0; for d in $APP_DOMAINS; do curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" "https://\${d}/api/jobs/${job}" || { echo "Failed for \${d}, continuing" >&2; failed=1; }; done; exit $failed'`,
     replicas: { [REGION]: 1 },
     deploy: { cronSchedule: schedule, restartPolicyType: "NEVER" },
     env: { APP_DOMAINS: preserve(), CRON_SECRET: preserve() },
@@ -95,7 +110,7 @@ function perAppCron(name: string, schedule: string, job: string) {
 // Cron que chama uma rota de manutenção global em APP_URL.
 function globalCron(name: string, schedule: string, job: string) {
   return service(`cron-global-${name}`, {
-    source: image("alpine/curl:latest"),
+    source: image(CURL_IMAGE),
     start: `sh -c 'curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" "https://\${APP_URL}/api/jobs/${job}"'`,
     replicas: { [REGION]: 1 },
     deploy: { cronSchedule: schedule, restartPolicyType: "NEVER" },
@@ -328,13 +343,12 @@ export default defineRailway((ctx) => {
     env: { NPM_CONFIG_PRODUCTION: preserve(), RAILPACK_NODE_VERSION: NODE_VERSION },
   });
 
-  // Bastidores. Com ADMIN_LAUNCHED, o serviço ganha build standalone, prontidão,
-  // domínio e variáveis, e entram a vigia e o resumo da semana. Antes de virar:
-  // o domínio precisa existir no painel (o Railway não registra domínio próprio
-  // pela IaC) e os segredos BETTER_AUTH_SECRET e CRON_SECRET, próprios deste
-  // serviço, precisam estar gravados (preserve() de variável ausente não cria
-  // nada). Passo a passo em apps/admin/PRODUCAO.md. O SendGrid é o do Cozya, por
-  // referência.
+  // Bastidores, no ar desde 17/10/2026, 22:01 UTC: build standalone, prontidão,
+  // domínio e variáveis, mais a vigia e o resumo da semana. O domínio foi criado
+  // no painel (o Railway não registra domínio próprio pela IaC), e os segredos
+  // BETTER_AUTH_SECRET e CRON_SECRET, próprios deste serviço, foram gravados
+  // antes do apply (preserve() de variável ausente não cria nada). Passo a passo
+  // em apps/admin/PRODUCAO.md. O SendGrid é o do Cozya, por referência.
   const adminSource = github(REPOSITORY, { branch: "main", checkSuites: false });
   const adminLaunched = service("@informach/admin", {
     source: adminSource,
@@ -380,7 +394,9 @@ export default defineRailway((ctx) => {
       CRON_SECRET: preserve(),
     },
   });
-  // Como está no ar hoje: o esqueleto antigo, sem domínio nem variáveis.
+  // O esqueleto de antes do lançamento, sem domínio nem variáveis. Não é o que
+  // está no ar: só vale com ADMIN_LAUNCHED em `false`, e aplicá-lo apagaria as
+  // variáveis e o domínio do serviço e, junto, os dois crons do admin.
   const adminLive = service("@informach/admin", {
     source: adminSource,
     build: {
@@ -397,13 +413,9 @@ export default defineRailway((ctx) => {
 
   // Vigia (a cada 5 minutos) e resumo da semana (segunda, 8h em Brasília; a
   // terça só reenvia o que falhou na segunda, o envio é único por semana).
-  // Imagem fixada por digest, a mesma dos outros crons novos: uma `latest`
-  // trocada no registro não muda o que roda com o CRON_SECRET do admin.
   const adminCron = (name: string, schedule: string, job: string) =>
     service(`cron-admin-${name}`, {
-      source: image(
-        "alpine/curl@sha256:d7720f8cffb47e7a80d01fb2c1b38562fab0e436948537e9b77dc312d29d12d6",
-      ),
+      source: image(CURL_IMAGE),
       start: `sh -c 'curl --fail-with-body --silent --show-error --connect-timeout 15 --max-time 120 --request POST --header "Authorization: Bearer $CRON_SECRET" "$ADMIN_URL/api/jobs/${job}"'`,
       replicas: { [REGION]: 1 },
       deploy: { cronSchedule: schedule, restartPolicyType: "NEVER" },
@@ -497,10 +509,13 @@ export default defineRailway((ctx) => {
     globalCron("email-suppression-sync", "0 5 * * *", "email-suppression-sync"),
   ];
 
-  // Lembretes da rotina da Agenda (e-mail e push para quem ligou). O script do
-  // app percorre as famílias em lotes, pelo cursor, até a última.
+  // Lembretes da rotina da Agenda. O script do app percorre as famílias em
+  // lotes, pelo cursor, até a última. Em produção só sai e-mail: o push depende
+  // de VAPID_PUBLIC_KEY e VAPID_PRIVATE_KEY, que o serviço da Agenda não tem
+  // (nem o bloco acima declara), então o app mostra a opção como indisponível.
+  // Para ligar, gravar o par no serviço e acrescentar os dois como preserve().
   const agendaRoutine = service("cron-agenda-routine", {
-    source: image("node:24-alpine"),
+    source: image(NODE_IMAGE),
     start: nodeScript("apps/agenda-da-turma/scripts/run-routine-job.mjs"),
     replicas: { [REGION]: 1 },
     deploy: { cronSchedule: "*/5 * * * *", restartPolicyType: "NEVER" },
@@ -511,7 +526,7 @@ export default defineRailway((ctx) => {
   });
 
   const cozyaRetention = service("cron-cozya-retention", {
-    source: image("alpine/curl:latest"),
+    source: image(CURL_IMAGE),
     start: `sh -c 'curl --fail-with-body --silent --show-error --connect-timeout 15 --max-time 300 --request POST --header "Authorization: Bearer $CRON_SECRET" "https://\${APP_DOMAIN}/api/jobs/cozya-retention"'`,
     replicas: { [REGION]: 1 },
     deploy: { cronSchedule: "17 * * * *", restartPolicyType: "NEVER" },
@@ -519,9 +534,7 @@ export default defineRailway((ctx) => {
   });
 
   const missaoBilling = service("cron-missao-saber-billing", {
-    source: image(
-      "alpine/curl@sha256:d7720f8cffb47e7a80d01fb2c1b38562fab0e436948537e9b77dc312d29d12d6",
-    ),
+    source: image(CURL_IMAGE),
     start: shellScript("apps/missao-saber/scripts/maintenance-cron.sh"),
     replicas: { [REGION]: 1 },
     deploy: { cronSchedule: "*/5 * * * *", restartPolicyType: "NEVER" },
@@ -554,16 +567,10 @@ export default defineRailway((ctx) => {
     },
   });
 
-  // Sem imagem, o cron não roda. Ela entra com EDI_RECONCILE_ACTIVE, depois da
-  // distribuição assinada e da cobrança homologada.
+  // Sem imagem, o cron não roda. Ela entrou com EDI_RECONCILE_ACTIVE em
+  // 17/10/2026, 20:09 UTC, depois da distribuição assinada e da cobrança ligada.
   const ediReconcile = service("cron-edi-reconcile", {
-    ...(EDI_RECONCILE_ACTIVE
-      ? {
-          source: image(
-            "alpine/curl@sha256:d7720f8cffb47e7a80d01fb2c1b38562fab0e436948537e9b77dc312d29d12d6",
-          ),
-        }
-      : {}),
+    ...(EDI_RECONCILE_ACTIVE ? { source: image(CURL_IMAGE) } : {}),
     deploy: {
       cronSchedule: "*/5 * * * *",
       restartPolicyType: "NEVER",

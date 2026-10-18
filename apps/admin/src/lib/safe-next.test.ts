@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { safeNext } from "./safe-next";
+import { cameFromSignInNext, safeNext } from "./safe-next";
 
 describe("safeNext, o caminho de volta depois da entrada", () => {
   it("mantém caminho, busca e âncora do próprio Bastidores", () => {
-    expect(safeNext("/pessoas/abc?aba=sessoes#emails")).toBe("/pessoas/abc?aba=sessoes#emails");
+    expect(safeNext("/operacao?aba=rotinas#emails")).toBe("/operacao?aba=rotinas#emails");
     expect(safeNext("/auditoria?pessoa=fulana%40example.com")).toBe(
       "/auditoria?pessoa=fulana%40example.com",
     );
@@ -52,6 +52,40 @@ describe("safeNext, o caminho de volta depois da entrada", () => {
     for (const value of ["/\t/evil.example", "/\n/evil.example", "/\r\n/x", "/x\u0000", " //x"]) {
       expect(safeNext(value), JSON.stringify(value)).toBe("/");
     }
+  });
+
+  it("nunca devolve rota de API: volta para a tela da Auditoria", () => {
+    // Depois da senha e do código, a navegação sai de dentro (same-origin) e
+    // exportaria a auditoria sem o clique no botão.
+    for (const value of [
+      "/api/auditoria/export?periodo=tudo",
+      "/api/auditoria/export",
+      "/api",
+      "/api/",
+      "/API/auditoria/export",
+      "/%61pi/auditoria/export",
+      "/./api/auditoria/export",
+      "/pessoas/../api/auditoria/export",
+      "/api/jobs/admin-watch",
+    ]) {
+      expect(safeNext(value), value).toBe("/auditoria");
+    }
+    expect(safeNext("/apis")).toBe("/apis");
+    expect(safeNext("/auditoria?grupo=equipe")).toBe("/auditoria?grupo=equipe");
+  });
+
+  it("marca a ficha que chega pelo next, para a página perguntar antes de gravar", () => {
+    expect(safeNext("/pessoas/abc")).toBe("/pessoas/abc?confirmar=1");
+    expect(safeNext("/pessoas/abc/")).toBe("/pessoas/abc/?confirmar=1");
+    expect(safeNext("/pessoas/abc?aba=sessoes#emails")).toBe(
+      "/pessoas/abc?aba=sessoes&confirmar=1#emails",
+    );
+    // A tela de entrada filtra no servidor e de novo no navegador: a marca não duplica.
+    expect(safeNext(safeNext("/pessoas/abc"))).toBe("/pessoas/abc?confirmar=1");
+    // Lista de Pessoas não grava nada e abre direto.
+    expect(safeNext("/pessoas?q=marina")).toBe("/pessoas?q=marina");
+    expect(cameFromSignInNext({ confirmar: "1" })).toBe(true);
+    expect(cameFromSignInNext({ aba: "sessoes" })).toBe(false);
   });
 
   it("recusa texto longo demais e percent-encoding quebrado", () => {

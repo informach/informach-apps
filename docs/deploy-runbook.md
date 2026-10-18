@@ -62,6 +62,8 @@ Regras do arquivo:
 - **Ordem conta.** Reordenar `watchPatterns` aparece como mudança e redeploya o serviço.
 - **Painel não é fonte de verdade.** Mudança feita no painel aparece como diferença no próximo plano e é desfeita pelo apply. Mudou no painel por urgência? Traga para o arquivo no mesmo dia.
 - **Construtor é Railpack** em todos os serviços com build (Nixpacks foi descontinuado). O cron semanal da Missão usa Dockerfile próprio.
+- **Config file path vazio.** Nenhum serviço aponta para arquivo de configuração; com o campo preenchido, o plano recusa o serviço.
+- **Imagens por digest.** Os crons sem build usam `alpine/curl` e `node:24-alpine` fixadas por digest, nas constantes `CURL_IMAGE` e `NODE_IMAGE` do arquivo. Para atualizar, conferir o digest novo com `docker buildx imagetools inspect <imagem>:<tag>`, trocar a constante e passar pelo plano.
 
 Comandos, a partir da raiz do repo (`railway link` no projeto `informach-apps`, ambiente `production`):
 
@@ -81,13 +83,17 @@ Feita sem redeploy, em produção, por volta de 15:40 UTC:
 
 1. `railway config partials release edi`: a parcial `edi`, primeiro passo da adoção, foi liberada (só metadado). O ambiente não tem mais parciais nomeadas.
 2. Em `@informach/cozya`, `@informach/agenda-da-turma`, `@informach/informach-site` e `migrator`, o Config file path foi esvaziado e os valores do arquivo foram gravados direto no serviço (construtor Railpack, build e start, healthcheck, reinício e watch paths). Gravar no serviço vale no próximo deploy e não dispara deploy.
-3. `railway config plan` do projeto inteiro respondeu "Your Railway configuration is already up to date." para tudo, menos o bloco do Bastidores (abaixo).
+3. `railway config plan` do projeto inteiro respondeu "Your Railway configuration is already up to date." para tudo, menos o bloco do Bastidores, que entrou no lançamento dele (abaixo).
 
-Cuidados até esta branch chegar à `main`: a `main` ainda tem o `.railway/railway.ts` antigo (parcial `edi`) e os `railway.toml`. Não rodar `railway config apply` com o arquivo antigo: ele retoma a posse da parcial, trava o plano do projeto inteiro e, na versão de 17/10, ainda liga a imagem do `cron-edi-reconcile`. Não reapontar o Config file path dos serviços para os `railway.toml`: na mesma tarde ele foi reapontado em Cozya, Agenda e site depois da migração (os valores eram iguais) e precisou ser esvaziado de novo, porque com ele o plano recusa os serviços.
+A migração chegou à `main` com o PR #10 (`fb39612`), e os `railway.toml` saíram do repositório.
 
-Lançamentos ficam atrás de constantes no topo do arquivo, falsas enquanto o passo não chega: `ADMIN_LAUNCHED` (Bastidores, ver `apps/admin/PRODUCAO.md`) e `EDI_RECONCILE_ACTIVE` (imagem do cron de conciliação do Edi, depois da distribuição assinada e da cobrança). As duas estão ligadas desde 17/10/2026: a conciliação às 20:09 UTC e o Bastidores às 22:01 UTC. Com elas falsas, o arquivo espelha o que está no ar e o plano fica zerado; virar uma delas e aplicar é o lançamento. Nunca apagar o bloco de um serviço para limpar o plano: num arquivo do projeto inteiro, isso apaga o serviço. A variável `RAILPACK_NODE_VERSION` (lida do `.nvmrc` pelo arquivo) foi criada no painel nos seis serviços com build na mesma tarde e agora está declarada.
+### Lançamentos atrás de constantes
 
-O bloco do Bastidores (serviço admin com domínio, segredos e os crons `cron-admin-watch` e `cron-admin-weekly`) entrou com `ADMIN_LAUNCHED` em 17/10/2026, seguindo [`apps/admin/PRODUCAO.md`](../apps/admin/PRODUCAO.md).
+O topo do arquivo tem duas constantes de lançamento: `ADMIN_LAUNCHED` (Bastidores, ver `apps/admin/PRODUCAO.md`) e `EDI_RECONCILE_ACTIVE` (imagem do `cron-edi-reconcile`, ver `apps/edi/PRODUCAO.md`). Cada uma ficou falsa até o seu passo chegar, e virá-la para `true` com o apply foi o lançamento. As duas estão ligadas desde 17/10/2026, a conciliação às 20:09 UTC e o Bastidores às 22:01 UTC, e o que está no ar é o arquivo com elas em `true`.
+
+Nenhuma delas é chave de desligar. Com `ADMIN_LAUNCHED` em `false`, o apply volta o serviço ao esqueleto de antes do lançamento: apaga as variáveis do Bastidores, o domínio `admin.informach.com.br` e os crons `cron-admin-watch` e `cron-admin-weekly`, e recriar tudo exige refazer os segredos e o domínio no painel. Com `EDI_RECONCILE_ACTIVE` em `false`, o apply tira a imagem do `cron-edi-reconcile`. Um lançamento novo pode usar o mesmo padrão, e nunca se apaga o bloco de um serviço para limpar o plano: num arquivo do projeto inteiro, isso apaga o serviço.
+
+A variável `RAILPACK_NODE_VERSION` (lida do `.nvmrc` pelo arquivo) foi criada no painel nos seis serviços com build na tarde da migração e está declarada.
 
 ---
 
@@ -399,8 +405,10 @@ Service `@informach/<app>` → Settings → Networking → Custom Domain → adi
 ### 6.2 DNS no Cloudflare
 
 1. DNS → Records → adicionar CNAME `<app>` → target dado pelo Railway
-2. **Proxy status**: 🌫️ **DNS only** (gray cloud) recomendado pra Railway. Proxy do CF gera double-TLS-termination que costuma quebrar com cert origin.
+2. **Proxy status**: todos os domínios da casa passam pelo proxy do Cloudflare (nuvem laranja): Cozya, Agenda, Missão Saber, Bastidores, Edi e o site, conferidos em 17/10/2026 pelo cabeçalho `Server: cloudflare` e `CF-RAY` de cada um. O certificado do Railway valida assim e os apps funcionam, inclusive o Bastidores. Um app novo segue o mesmo padrão. Se o certificado do Railway não validar durante a propagação, deixar o registro em DNS only até ele sair e depois voltar ao proxy.
 3. **Rules → Redirect Rules / Page Rules**: confirmar que **não há regra wildcard** capturando `*.informach.com.br/*` que redireciona pra outro domínio.
+
+> **IP de quem pede, atrás do proxy.** Com o proxy ligado, o `X-Forwarded-For` chega aos apps com dois endereços (o do visitante e o da borda do Cloudflare). O Better Auth 1.7, sem `advanced.ipAddress.trustedProxies`, só aceita cabeçalho de IP com um endereço, então não identifica o IP de ninguém e o limite de tentativas das rotas de autenticação vira um contador só, dividido por todo mundo. A correção é à parte; até lá, um pico de tentativas de uma pessoa pode bloquear as entradas das outras no mesmo app.
 
 > **Gotcha real do cozya**: havia uma regra wildcard antiga redirecionando `*.informach.com.br` → `informachnucleodeaprendizagem.com`. Subdomain novo retornava 301 antes de chegar no Railway. **Smoke test obrigatório**: `curl -sSL https://<app>.informach.com.br/api/health` — se vier 301 ou cert mismatch, há regra interceptando.
 
@@ -499,13 +507,13 @@ Sem isso o app retorna **503 silencioso** em `POST /api/webhooks/sendgrid` (gate
 
 **Exceção Edi:** o desktop usa fatos financeiros e licenças assinadas, com reconciliação própria. `cron-edi-reconcile`, declarado em `.railway/railway.ts`, chama `POST /api/jobs/reconcile` a cada cinco minutos e é habilitado junto com a cobrança homologada. Não incluir o domínio Edi nos sete crons per-app por padrão. A limpeza global de autenticação, as suppressions e o webhook SendGrid compartilhados já abrangem as tabelas comuns. O retry genérico de e-mail exclui categorias `auth.*`; códigos OTP são reenviados pela pessoa, com os limites de autenticação. Ver [operação Edi](../apps/edi/PRODUCAO.md).
 
-Além deles: `cron-cozya-retention` (hora em hora), `cron-agenda-routine` (lembretes da Agenda, a cada 5 minutos, roda `apps/agenda-da-turma/scripts/run-routine-job.mjs` numa imagem `node:24-alpine`), `cron-missao-saber-billing` e `cron-missao-saber-weekly-report`, `cron-edi-reconcile` e, com o lançamento do Bastidores, `cron-admin-watch` (vigia, a cada 5 minutos) e `cron-admin-weekly` (resumo da semana, segunda e terça às 11:00 UTC).
+Além deles: `cron-cozya-retention` (hora em hora), `cron-agenda-routine` (lembretes da Agenda, a cada 5 minutos, roda `apps/agenda-da-turma/scripts/run-routine-job.mjs` numa imagem `node:24-alpine` fixada por digest; em produção os lembretes saem só por e-mail, porque o serviço da Agenda não tem `VAPID_PUBLIC_KEY` e `VAPID_PRIVATE_KEY` e o push fica indisponível no app), `cron-missao-saber-billing` e `cron-missao-saber-weekly-report`, `cron-edi-reconcile` e, com o lançamento do Bastidores, `cron-admin-watch` (vigia, a cada 5 minutos) e `cron-admin-weekly` (resumo da semana, segunda e terça às 11:00 UTC).
 
 **Toda rotina agendada deixa registro.** As rotas `/api/jobs/*` chamadas pelos crons passam o trabalho por `recordJobRun({ app, job }, fn)` de `@informach/db` (em `src/lib/job-runs.ts` de cada app). Cada execução vira uma linha em `ops.job_runs`, só com números e booleanos do resultado e o nome da classe de erro, e o Bastidores mostra em Operação a última execução, o resultado e as rotinas atrasadas. Rota nova de rotina precisa entrar nessa lista e na tabela de rotinas do Bastidores (`apps/admin/src/features/operations/routines.ts`).
 
 ### Onde ficam
 
-Os crons de manutenção são serviços de imagem `alpine/curl` sem build, declarados em `.railway/railway.ts` pelos helpers `perAppCron(nome, agenda, rota)` e `globalCron(nome, agenda, rota)`. Agenda, start command e reinício `NEVER` vêm do arquivo; `CRON_SECRET`, `APP_DOMAINS` e `APP_URL` são variáveis do Railway (`preserve()`). Crons de um app só (`cron-cozya-retention`, `cron-missao-saber-billing`, `cron-missao-saber-weekly-report`, `cron-edi-reconcile`) têm bloco próprio; o de cobrança da Missão lê `apps/missao-saber/scripts/maintenance-cron.sh`, e o da Agenda, `apps/agenda-da-turma/scripts/run-routine-job.mjs`. O texto do script entra no start command quando o plano é montado: mudar o script e dar push não muda o cron; só vale depois de `railway config plan` e `railway config apply`.
+Os crons de manutenção são serviços de imagem `alpine/curl` sem build, fixada por digest (`CURL_IMAGE`), declarados em `.railway/railway.ts` pelos helpers `perAppCron(nome, agenda, rota)` e `globalCron(nome, agenda, rota)`. Agenda, start command e reinício `NEVER` vêm do arquivo; `CRON_SECRET`, `APP_DOMAINS` e `APP_URL` são variáveis do Railway (`preserve()`). Crons de um app só (`cron-cozya-retention`, `cron-missao-saber-billing`, `cron-missao-saber-weekly-report`, `cron-edi-reconcile`) têm bloco próprio; o de cobrança da Missão lê `apps/missao-saber/scripts/maintenance-cron.sh`, e o da Agenda, `apps/agenda-da-turma/scripts/run-routine-job.mjs`. O texto do script entra no start command quando o plano é montado: mudar o script e dar push não muda o cron; só vale depois de `railway config plan` e `railway config apply`.
 
 **Tabela completa** (criticidade 🔴/🟡/🟢, escopo 🌐 global ou 🔁 per-app loop):
 
@@ -521,15 +529,17 @@ Os crons de manutenção são serviços de imagem `alpine/curl` sem build, decla
 | `cron-global-auth-cleanup` | `0 4 * * *` | `/api/jobs/auth-cleanup` | 🟢 | 🌐 |
 | `cron-global-email-suppression-sync` | `0 5 * * *` | `/api/jobs/email-suppression-sync` | 🟢 | 🌐 |
 
-**Start Command — global** (1 chamada):
+**Start Command, global** (1 chamada):
 ```sh
 sh -c 'curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" "https://${APP_URL}/api/jobs/<endpoint>"'
 ```
 
-**Start Command — per-app loop** (defesa em profundidade — falha em 1 app não aborta os outros):
+**Start Command, per-app loop** (a falha em um app não impede a chamada aos outros, mas a execução sai com código 1 e o Railway a marca como falha):
 ```sh
-sh -c 'for d in $APP_DOMAINS; do curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" "https://${d}/api/jobs/<endpoint>" || echo "Failed for ${d}, continuing"; done'
+sh -c 'failed=0; for d in $APP_DOMAINS; do curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" "https://${d}/api/jobs/<endpoint>" || { echo "Failed for ${d}, continuing" >&2; failed=1; }; done; exit $failed'
 ```
+
+O loop anterior terminava com `|| echo ...` e saía com 0 mesmo quando um app falhava, então o Railway mostrava sucesso. O comando acima é o que o `perAppCron` declara desde 17/10/2026 (branch `fix/infra-review`) e passa a valer no Railway com o apply dessa mudança, junto com as imagens por digest.
 
 > **Gotcha shell expansion**: em services image-based (`alpine/curl`) o Start Command precisa chamar `sh -c` quando usa variáveis (`$CRON_SECRET`, `$APP_URL`, `$APP_DOMAINS`). Sem isso, o `curl` recebe literalmente `https://${APP_URL}/...` e falha com `curl: (3) URL rejected: Bad hostname`.
 

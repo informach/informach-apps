@@ -12,7 +12,13 @@ import {
 } from "@informach/db/schema";
 import { readDb } from "@/lib/read-db";
 import { iso } from "../overview/sql-time";
-import { type MovementRow, type ScheduledRow, STRIPE_RETRY_DAYS, type StatusRow } from "./logic";
+import {
+  type MovementRow,
+  OVERDUE_STATUSES,
+  type ScheduledRow,
+  STRIPE_RETRY_DAYS,
+  type StatusRow,
+} from "./logic";
 
 /**
  * Leituras de dinheiro. Só agregados e os campos necessários para achar a
@@ -119,7 +125,9 @@ export async function pastDueSubscriptions(limit = 50): Promise<PastDueRow[]> {
     .from(subscriptions)
     .innerJoin(customers, eq(subscriptions.customerId, customers.id))
     .innerJoin(users, eq(customers.subjectId, users.id))
-    .where(and(eq(subscriptions.status, "past_due"), eq(customers.subjectType, "user")))
+    .where(
+      and(inArray(subscriptions.status, [...OVERDUE_STATUSES]), eq(customers.subjectType, "user")),
+    )
     .orderBy(subscriptions.currentPeriodStart)
     .limit(limit);
 }
@@ -129,7 +137,7 @@ export async function pastDueByApp(): Promise<AppCount[]> {
     .select({ app: customers.app, total: count() })
     .from(subscriptions)
     .innerJoin(customers, eq(subscriptions.customerId, customers.id))
-    .where(eq(subscriptions.status, "past_due"))
+    .where(inArray(subscriptions.status, [...OVERDUE_STATUSES]))
     .groupBy(customers.app);
   return rows.map((row) => ({ app: row.app, total: Number(row.total) }));
 }

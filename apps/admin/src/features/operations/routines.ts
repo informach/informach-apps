@@ -125,7 +125,8 @@ export const ROUTINES: readonly RoutineDefinition[] = [
     label: "Conciliação da Suíte Edi",
     intervalMinutes: 5,
     schedule: "a cada 5 minutos",
-    pausedNote: "Parada até a cobrança da Suíte Edi ser homologada.",
+    // Ligada desde 17/10/2026, 20:09 UTC, com a cobrança: sem execução registrada
+    // é "nunca rodou", e vira alerta como as outras.
   },
   {
     app: "admin",

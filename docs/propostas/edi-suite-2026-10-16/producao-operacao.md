@@ -1,24 +1,24 @@
 # Operação e provisionamento Edi — 17/10/2026
 
-Pedido vigente: corrigir os bloqueios e colocar o Hub em produção, liberando compras depois da homologação e retirando a comunicação pública de piloto. Este registro separa configuração remota de implantação e testes efetivamente executados. Os PRs #6 e #7 foram integrados; o portal comercial `d201d6f` está publicado e a tag `edi-v0.1.0` aprovou os seis instaladores comerciais, mas a publicação falhou antes de qualquer upload; a correção prepara `edi-v0.1.1`. Cobrança e cron continuam aguardando a distribuição completa.
+Pedido vigente: corrigir os bloqueios e colocar o Hub em produção, liberando compras depois da homologação e retirando a comunicação pública de piloto. Este registro separa configuração remota de implantação e testes efetivamente executados. Os PRs #6 e #7 foram integrados; o portal comercial `d201d6f` foi publicado e a tag `edi-v0.1.0` aprovou os seis instaladores comerciais, mas a publicação falhou antes de qualquer upload. A `edi-v0.1.1` foi publicada em 17/10/2026 às 19:59 UTC, e às 20:09 UTC a cobrança foi ligada e o `cron-edi-reconcile` passou a rodar ([publicação da 0.1.1](#publicação-da-011-e-ativação-comercial)). O PR #10 (`fb39612`) chegou à `main` em seguida, com as migrações `0072` a `0074`.
 
 ## Infraestrutura provisionada
 
 Projeto Railway `informach-apps` (`f4da4285-5b98-48b5-b03e-5be02f4e7c56`), ambiente `production` (`174b2cb0-e1cd-410c-8764-d913e3af18d3`).
 
-| Recurso | Identidade | Estado nesta etapa |
+| Recurso | Identidade | Estado em 17/10/2026, noite |
 | --- | --- | --- |
-| Portal `@informach/edi` | `da22f05d-2044-445b-bcb2-8e2d0d0c73ce` | Revisão comercial `d201d6f` publicada; health/readiness 200 |
-| `cron-edi-reconcile` | `71ccb512-eb51-470d-b6ef-e5adb3af4bad` | Criado, agenda `*/5 * * * *`, sem imagem ativa antes da validação da cobrança |
-| PostgreSQL compartilhado | serviço `Postgres` existente | Conexão privada em uso; histórico com 72 migrations e dez tabelas Edi conferidos |
-| Migrator compartilhado | `82e23ee0-49ab-4046-90c3-6a0b6dd677e1` | Migrations `0069`–`0071` aplicadas; `0072` fora desta subida |
-| Sentry | projeto `edi`, organização Informach existente | Instrumentação implantada; primeiro check-in do cron depende da ativação comercial |
+| Portal `@informach/edi` | `da22f05d-2044-445b-bcb2-8e2d0d0c73ce` | Revisão comercial `d201d6f` publicada; health/readiness 200; cobrança ligada (`EDI_BILLING_ENABLED=true`) desde 20:09 UTC |
+| `cron-edi-reconcile` | `71ccb512-eb51-470d-b6ef-e5adb3af4bad` | Rodando a cada cinco minutos (`*/5 * * * *`) desde 20:09 UTC, com a imagem `alpine/curl` fixada por digest (`EDI_RECONCILE_ACTIVE`) |
+| PostgreSQL compartilhado | serviço `Postgres` existente | Conexão privada em uso; 72 migrations e dez tabelas Edi conferidos às 15:42 UTC, antes das três do PR #10 |
+| Migrator compartilhado | `82e23ee0-49ab-4046-90c3-6a0b6dd677e1` | `0069` a `0071` aplicadas no deploy de `0457f0c`; `0072` a `0074` aplicadas no deploy de `fb39612` (PR #10), com `/api/ready` 200 em Cozya, Agenda, Missão e Bastidores por volta das 22:00 UTC |
+| Sentry | projeto `edi`, organização Informach existente | Instrumentação implantada; desde a ativação comercial das 20:09 UTC, cada execução autorizada do cron emite check-in. O recebimento no monitor `edi-reconcile` não está conferido neste registro |
 
 O Edi usa o mesmo PostgreSQL, com tabelas nos schemas de identidade/cobrança/Edi. Não exige Redis: rate limiting de autenticação persiste no PostgreSQL. O migrator escreve no banco, sem uma conexão direta portal→migrator. O cron usa `CRON_SECRET` por referência ao Edi e faz POST em `/api/jobs/reconcile`, com timeout de 60 segundos e falha HTTP não mascarada.
 
 A configuração SendGrid foi inicialmente referenciada ao Cozya, depois copiada para uma variável independente do Edi para eliminar essa dependência entre serviços. A conta provedora é reutilizada. Consulta real confirmou `informach.com.br` validado no SendGrid e webhook de entrega compartilhado ativo em `cozya.informach.com.br`; seu handler verifica a assinatura antes de persistir os eventos no banco compartilhado. O único OTP autorizado teve entrega confirmada, conforme a evidência abaixo.
 
-O domínio `edi.informach.com.br` foi adicionado com destino `6u2rq0z9.up.railway.app`. O titular criou CNAME/TXT na Cloudflare. A propriedade e o certificado TLS foram validados pelo Railway; o proxy Cloudflare foi identificado durante a propagação e foi solicitado ajuste para Somente DNS. Isso não comprova a prontidão HTTP do portal.
+O domínio `edi.informach.com.br` foi adicionado com destino `6u2rq0z9.up.railway.app`. O titular criou CNAME/TXT na Cloudflare. A propriedade e o certificado TLS foram validados pelo Railway; o proxy Cloudflare foi identificado durante a propagação e foi solicitado ajuste para Somente DNS. O domínio ficou com o proxy ligado, como os outros da casa (`Server: cloudflare` conferido em 17/10/2026), e o portal funciona assim. Com o proxy, o `X-Forwarded-For` chega com dois endereços e o Better Auth 1.7 não identifica o IP sem `trustedProxies`; ver o [runbook](../../deploy-runbook.md#62-dns-no-cloudflare). Isso não comprova a prontidão HTTP do portal.
 
 O primeiro deploy do código anterior (`f3bfbd3`) foi acionado durante a configuração e falhou no pre-deploy OAuth com `ZodError`, antes da configuração completa de segredos. Não houve promoção saudável. O próximo deploy deve usar o commit corrigido após o migrator.
 

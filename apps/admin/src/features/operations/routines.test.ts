@@ -85,6 +85,14 @@ describe("situação das rotinas", () => {
     expect(routineState({ ...every5, pausedNote: "Parada." }, run(1), now)).toBe("ok");
   });
 
+  it("a conciliação da Suíte Edi, ligada com a cobrança, sem registro é nunca rodou", () => {
+    const edi = routine("edi", "reconcile");
+    expect(edi.pausedNote).toBeUndefined();
+    expect(routineState(edi, null, now)).toBe("never");
+    // Hoje todos os crons do catálogo estão ligados no Railway.
+    expect(ROUTINES.filter((item) => item.pausedNote)).toEqual([]);
+  });
+
   it("escreve a falha e o resumo em português, sem texto livre", () => {
     expect(failureText("Http503")).toBe("respondeu 503");
     expect(failureText("PostgresError")).toBe("falhou com PostgresError");

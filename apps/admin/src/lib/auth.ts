@@ -58,6 +58,9 @@ export function getAuth(): CreateAuthResult {
         if (event.type === "two_factor_session_cleanup_failed")
           reportOperationalError("auth.session_cleanup_failed", undefined, {
             actorId: event.userId,
+            // all_sessions_revoked, two_factor_reverted ou failed: no último, a
+            // conta ficou com sessões antigas de pé e precisa de "Encerrar sessões".
+            category: event.metadata?.fallback,
           });
       },
     },

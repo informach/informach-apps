@@ -8,6 +8,7 @@ import { FichaView } from "@/features/people/components/ficha-view";
 import { loadFicha } from "@/features/people/loaders";
 import { requireStaff } from "@/lib/access";
 import { needsConfirmation } from "@/lib/fetch-site";
+import { cameFromSignInNext } from "@/lib/safe-next";
 
 export const metadata: Metadata = { title: "Ficha" };
 
@@ -20,20 +21,32 @@ const linkClass =
  * `cross-site` ou `same-site`, ou ausente) não pode fazer alguém da equipe
  * gravar uma consulta sem querer: aí aparece só a pergunta, e o clique no
  * botão, já de dentro do Bastidores, abre a ficha. `none` (endereço digitado ou
- * favorito) e `same-origin` abrem direto.
+ * favorito) e `same-origin` abrem direto, menos quando a ficha chega pelo `next`
+ * da entrada: o link de fora que levou à tela de entrada escolheu o destino, e
+ * a navegação depois do código sai de dentro. `safeNext` marca esse destino
+ * (`?confirmar=1`), e a marca vale como navegação de fora.
  */
-export default async function FichaPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function FichaPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const staff = await requireStaff();
   const { id } = await params;
   const personId = decodeURIComponent(id);
 
-  if (needsConfirmation((await headers()).get("sec-fetch-site"))) {
+  if (
+    cameFromSignInNext(await searchParams) ||
+    needsConfirmation((await headers()).get("sec-fetch-site"))
+  ) {
     return (
       <>
         <PageHeader title="Abrir esta ficha?" />
         <Empty>
-          Você chegou aqui por um link de fora do Bastidores. Abrir a ficha grava a consulta na
-          auditoria em seu nome, então ela só abre quando você confirma.
+          Você chegou aqui por um link, não por uma tela do Bastidores. Abrir a ficha grava a
+          consulta na auditoria em seu nome, então ela só abre quando você confirma.
         </Empty>
         <div className="flex flex-wrap gap-3">
           <Link

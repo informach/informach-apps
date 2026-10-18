@@ -40,6 +40,8 @@ export type PersonActionsProps = {
   /** Falso quando a conta ainda não aparece em produto nenhum e a lista traz todos. */
   verificationProductsDetected: boolean;
   hasEdiComputer: boolean;
+  /** Aparelhos de estudo da Missão Saber conectados pela família. */
+  missaoStudyDevices: number;
   activeSubscriptionNames: string[];
 };
 
@@ -55,6 +57,7 @@ export function PersonActions({
   verificationProducts,
   verificationProductsDetected,
   hasEdiComputer,
+  missaoStudyDevices,
   activeSubscriptionNames,
 }: PersonActionsProps) {
   const router = useRouter();
@@ -149,7 +152,7 @@ export function PersonActions({
 
       {result && sheet === null ? (
         <div className="grid gap-2">
-          <FormMessage tone={result.ok ? "ok" : "bad"}>
+          <FormMessage tone={result.ok && !result.incomplete ? "ok" : "bad"}>
             {result.ok ? result.message : result.error}
           </FormMessage>
           {justBanned && result.ok ? (
@@ -209,6 +212,15 @@ export function PersonActions({
           "Assinaturas, créditos e o que a pessoa criou continuam iguais.",
           ...(hasEdiComputer
             ? ["O computador da Suíte Edi segue conectado: ele usa a própria licença."]
+            : []),
+          ...(missaoStudyDevices > 0
+            ? [
+                `${
+                  missaoStudyDevices === 1
+                    ? "O aparelho de estudo da Missão Saber continua entrando: ele tem"
+                    : `Os ${missaoStudyDevices} aparelhos de estudo da Missão Saber continuam entrando: eles têm`
+                } acesso próprio, que encerrar sessões não alcança. Para cortar esse acesso também, use "Banir conta".`,
+              ]
             : []),
         ]}
         onClose={() => setSheet(null)}

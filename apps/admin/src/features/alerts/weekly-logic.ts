@@ -1,4 +1,3 @@
-import { PRODUCTS as CATALOG } from "@informach/config";
 import { TIME_ZONE } from "@/lib/format";
 
 /** Contas pelo resumo da semana: tudo puro, para testar sem banco nem relógio. */
@@ -37,24 +36,6 @@ export function weekLabel(start: Date, end: Date): string {
   return month(start) === month(last)
     ? `de ${day(start)} a ${day(last)} de ${month(last)}`
     : `de ${day(start)} de ${month(start)} a ${day(last)} de ${month(last)}`;
-}
-
-/**
- * Receita por mês estimada pelo preço de tabela do catálogo, só com assinaturas
- * `active` (teste grátis ainda não paga). Plano anual entra dividido por 12.
- */
-export function monthlyRevenueCents(
-  subscriptions: ReadonlyArray<{ productId: string; status: string }>,
-): number {
-  let total = 0;
-  for (const subscription of subscriptions) {
-    if (subscription.status !== "active") continue;
-    const product = CATALOG.find((item) => item.id === subscription.productId);
-    const cents = product?.listPrice?.amountCents;
-    if (!product || cents === undefined) continue;
-    total += product.interval === "year" ? cents / 12 : cents;
-  }
-  return Math.round(total);
 }
 
 const ALERT_KEY =

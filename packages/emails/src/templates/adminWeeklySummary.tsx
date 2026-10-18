@@ -13,7 +13,13 @@ export type AdminWeeklySummaryEmailProps = {
   /** Período, já formatado ("de 12 a 18 de outubro"). */
   weekLabel: string;
   newAccounts: number;
-  products: ReadonlyArray<{ name: string; proSubscribers: string; revenue: string }>;
+  /**
+   * Por produto: quem tem acesso pago agora (ativas e em teste, a regra de
+   * `PRO_STATUSES`) e a receita por mês já formatada. A frase diz "assinantes",
+   * que vale para o Pro do Cozya e da Agenda, os planos da Missão Saber e a
+   * assinatura da Suíte Edi.
+   */
+  products: ReadonlyArray<{ name: string; proSubscribers: number; revenue: string }>;
   /** Total da receita estimada por mês, já formatado ("R$ 6.148"). */
   revenueTotal: string;
   /** Custo de IA informado pelo provedor na semana ("US$ 38,40"), ou null se nenhum. */
@@ -121,8 +127,8 @@ AdminWeeklySummaryEmail.PreviewProps = {
   weekLabel: "de 12 a 18 de outubro",
   newAccounts: 57,
   products: [
-    { name: "Cozya", proSubscribers: "148", revenue: "R$ 2.079" },
-    { name: "Agenda da Turma", proSubscribers: "87", revenue: "R$ 1.675" },
+    { name: "Cozya", proSubscribers: 148, revenue: "R$ 2.079" },
+    { name: "Agenda da Turma", proSubscribers: 87, revenue: "R$ 1.675" },
   ],
   revenueTotal: "R$ 3.754",
   aiCost: "US$ 38,40",

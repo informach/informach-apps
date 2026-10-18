@@ -7,6 +7,8 @@ import {
   type CreditTotals,
   creditTotals,
   cycleListCents,
+  isOverdueStatus,
+  isProStatus,
   planLabel,
   scheduledPhrases,
   subscriptionMovementFrom,
@@ -172,7 +174,8 @@ export async function getMoney(now: Date = new Date()): Promise<MoneyView> {
     const subs = summary.get(product);
     const others = new Map<string, number>();
     for (const row of statusRows) {
-      if (row.app !== product || ["active", "trialing", "past_due"].includes(row.status)) continue;
+      // Ativas, em teste e em atraso já têm coluna própria.
+      if (row.app !== product || isProStatus(row.status) || isOverdueStatus(row.status)) continue;
       others.set(row.status, (others.get(row.status) ?? 0) + row.total);
     }
     const moved = movement.get(product);

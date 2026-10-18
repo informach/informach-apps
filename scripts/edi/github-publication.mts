@@ -48,6 +48,10 @@ async function sha256(path: string) {
 // The release listing can lag a write by a few seconds: edi-v0.1.1 was created and still
 // missing from the listing one second later. Re-read with backoff before giving up.
 const LISTING_RETRY_DELAYS_MS = [1000, 2000, 4000, 8000, 15000];
+// The paginated listing returns every release of the distribution repository in one
+// output. A published suite release takes about 13 KB of JSON (edi-v0.1.1, 7 assets),
+// so 2 MiB would stop at roughly 150 releases; 64 MiB leaves room for thousands.
+const GH_MAX_BUFFER = 64 * 1024 ** 2;
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 /** Resume incomplete drafts without overwriting assets; publish only a complete suite. */
 export async function publishGithubRelease(
@@ -59,7 +63,7 @@ export async function publishGithubRelease(
     files: string[];
   },
   command: Command = async (args) =>
-    (await execute("gh", args, { windowsHide: true, timeout: 900000, maxBuffer: 2 * 1024 ** 2 }))
+    (await execute("gh", args, { windowsHide: true, timeout: 900000, maxBuffer: GH_MAX_BUFFER }))
       .stdout,
   wait: (ms: number) => Promise<void> = sleep,
 ) {
@@ -111,7 +115,11 @@ export async function publishGithubRelease(
     }
     return current;
   }
-  let release = await read();
+  // A retry right after a run that created the draft can still get a listing without
+  // it; creating then would leave two drafts with the same tag. So an absent release
+  // is only trusted after the same backoff used after a write (about 30 s on a new
+  // version, nothing when the release is already listed).
+  let release = await readUntil((item) => item !== null);
   if (release && !release.body.includes(provenance))
     throw new Error("Version already belongs to different source provenance");
   if (release && !release.draft) {
@@ -145,7 +153,8 @@ export async function publishGithubRelease(
         throw new Error("Existing draft asset has different bytes; it was not overwritten");
     } else await command(["release", "upload", tag, file, "--repo", repository]);
   }
-  const complete = await read();
+  // Uploaded assets reach the listing with the same lag as the draft itself.
+  const complete = await readUntil((item) => item?.draft === true && sameAssets(item));
   if (!complete?.draft || !complete.body.includes(provenance) || !sameAssets(complete))
     throw new Error("Incomplete or altered suite draft; the previous version remains active");
   await command([
