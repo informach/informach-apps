@@ -1,8 +1,8 @@
 import type { Effort } from "./aiModels.ts";
 import type { StoredProposal } from "./anchors.ts";
 import type { Annotation } from "./annotation.ts";
-import type { PieceMatch } from "./audioSync.ts";
 import type { Ducking } from "./audio.ts";
+import type { PieceMatch } from "./audioSync.ts";
 import type { CameraChoice, CameraMode } from "./camera.ts";
 import type { CaptionStyle, CueStyleEntry } from "./captions.ts";
 import type { ChromaKey } from "./chroma.ts";
